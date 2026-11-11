@@ -80,7 +80,18 @@ function pagesOf(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(".pagedjs_page"));
 }
 
-export function createBookLayout(host: HTMLElement): BookLayout {
+export interface BookLayoutEngineOptions {
+  /**
+   * Awaited before every chapter laid out after the first one of a run, so the
+   * browser can take a keystroke between two chapters (a chapter is ~0.7 s of
+   * blocking work, a whole book ~9 s). The live preview passes one, because the
+   * writer is typing while the rest of the book lays out; the export does not,
+   * as nothing else is waiting on it.
+   */
+  yieldToBrowser?: () => Promise<void>;
+}
+
+export function createBookLayout(host: HTMLElement, engineOptions: BookLayoutEngineOptions = {}): BookLayout {
   const cache = new Map<string, ChapterEntry>();
   const headingsCache = new Map<string, { html: string; headings: BookHeading[] }>();
   /** The one run whose styles stay in the head (see the header). */
@@ -173,6 +184,7 @@ export function createBookLayout(host: HTMLElement): BookLayout {
 
     const laidOut: string[] = [];
     let done = 0;
+    let layoutsThisRun = 0;
     for (const chapter of order) {
       if (aborted()) return null;
       const holdsToc = chapter.html.includes(TOC_MARKER);
@@ -198,6 +210,12 @@ export function createBookLayout(host: HTMLElement): BookLayout {
           options.onChapter?.({ done, total: order.length, chapterId: chapter.id, fromCache });
           continue;
         }
+        if (layoutsThisRun > 0 && engineOptions.yieldToBrowser) {
+          await engineOptions.yieldToBrowser();
+          // The book may have changed (or gone) while the browser had the thread.
+          if (aborted()) return null;
+        }
+        layoutsThisRun++;
         const { container, previewer } = await layOutChapter(chapter, prepared, input.stylesheets);
         // A chapter that finished is good whatever was asked meanwhile, so an
         // abort keeps it (checked at the top of the loop); only a book that is

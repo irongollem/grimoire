@@ -345,3 +345,51 @@ describe("input checks", () => {
     await expect(book.layout(input([chapter("a", 1), chapter("a", 1)]))).rejects.toThrow(/share the id/);
   });
 });
+
+describe("yielding to the browser", () => {
+  function setupYielding() {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const gates: Array<() => void> = [];
+    const yieldToBrowser = vi.fn(() => new Promise<void>((resolve) => gates.push(resolve)));
+    return { book: createBookLayout(host, { yieldToBrowser }), gates, yieldToBrowser };
+  }
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  // Fails on: laying every chapter out in one run of the thread, which froze
+  // typing for ~9 s on the 533-page book once Write mode began laying it out.
+  it("hands the thread back before a later chapter, and not before the focused one", async () => {
+    const { book, gates, yieldToBrowser } = setupYielding();
+    const pending = book.layout(input([chapter("a", 1), chapter("b", 1), chapter("c", 1)]), { focusChapterId: "b" });
+    await settle();
+    expect(mocks.runs).toHaveLength(1);
+    expect(mocks.runs[0].html).toContain(">b<");
+    expect(yieldToBrowser).toHaveBeenCalledTimes(1);
+
+    gates.shift()?.();
+    await settle();
+    expect(mocks.runs).toHaveLength(2);
+    gates.shift()?.();
+    await pending;
+    expect(mocks.runs).toHaveLength(3);
+  });
+
+  // Fails on: a stale layout carrying on after the book changed during the yield.
+  it("lays nothing more out when the layout is called off while the browser has the thread", async () => {
+    const { book, gates } = setupYielding();
+    let abort = false;
+    const pending = book.layout(input([chapter("a", 1), chapter("b", 1)]), { shouldAbort: () => abort });
+    await settle();
+    abort = true;
+    gates.shift()?.();
+    expect(await pending).toBeNull();
+    expect(mocks.runs).toHaveLength(1);
+  });
+
+  // Fails on: the export waiting on idle time it does not need.
+  it("never waits without a scheduler", async () => {
+    const { book } = setup();
+    await book.layout(input([chapter("a", 1), chapter("b", 1)]));
+    expect(mocks.runs).toHaveLength(2);
+  });
+});

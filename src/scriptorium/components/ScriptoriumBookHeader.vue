@@ -8,12 +8,16 @@
 
     <AutosaveStatus :status="status" :error="error" />
 
-    <SegmentedControl
-      v-model="mode"
-      :options="MODES"
+    <AppButton
+      variant="outline"
       size="md"
-      aria-label="Preview"
+      :active="focus"
+      :aria-pressed="focus"
+      label="Focus"
+      tooltip="Hide the chapter list while you write"
+      @click="focus = !focus"
     />
+    <AppButton variant="outline" size="md" label="Read as spreads" @click="emit('read')" />
 
     <!-- A book: Share beside the primary Export PDF. A handout: Print beside the primary Give to players. -->
     <template v-if="kind === 'book'">
@@ -40,21 +44,19 @@
 <script setup lang="ts">
 /**
  * The editor's header (#1115 frames 02 and 10): back to the Scriptorium, the
- * book's title (renamed in Book settings, not here), the save status, the one
- * Write | Split | Inspect switch, and the actions that depend on what the thing
+ * book's title (renamed in Book settings, not here), the save status, Focus
+ * (the chapter list steps aside), Read as spreads (the book as lamplit
+ * spreads; you write on the page itself, so there is no mode switch), and the actions that depend on what the thing
  * is. A book offers Share and Export PDF; a handout offers Print and Give to
  * players (the Give button is the handout pieces' own, mounted in `give`).
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import type { AutosaveStatus as AutosaveState } from "@/composables/useAutosave";
 import { pdfExportProgressLabel, type PdfExportProgress } from "@/scriptorium/composables/useScriptoriumPdf";
 import { IconChevronLeft, IconExport, IconPrint, IconSettings, IconShare } from "@/lib/icons";
 import type { ScriptoriumKind } from "@/scriptorium/types";
-
-export type EditorMode = "write" | "split" | "inspect";
 
 const { title, kind, status, error = "", canShare = true, shareHint = "", isExporting = false, progress = null } = defineProps<{
   title: string;
@@ -67,19 +69,16 @@ const { title, kind, status, error = "", canShare = true, shareHint = "", isExpo
   progress?: PdfExportProgress | null;
 }>();
 
-const mode = defineModel<EditorMode>("mode", { required: true });
+/** Focus: the chapter list steps aside so the page you write on has the room. */
+const focus = defineModel<boolean>("focus", { required: true });
 
 const emit = defineEmits<{
   share: [];
   export: [];
   settings: [];
+  /** Open the whole book as lamplit spreads. */
+  read: [];
 }>();
-
-const MODES: SegmentedOption<EditorMode>[] = [
-  { value: "write", label: "Write" },
-  { value: "split", label: "Split" },
-  { value: "inspect", label: "Inspect" },
-];
 
 const exportLabel = computed(() => (isExporting ? pdfExportProgressLabel(progress) : "Export PDF"));
 </script>

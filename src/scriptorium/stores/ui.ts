@@ -1,4 +1,4 @@
-// Scriptorium list filters and editor mode.
+// Scriptorium list filters and editor focus.
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { useStorage } from "@vueuse/core";
@@ -9,12 +9,12 @@ import type { DocumentScope } from "@/scriptorium/lib/documentScope";
 export const useScriptoriumUiStore = defineStore("ui:scriptorium", () => {
   // Scriptorium UI state
   /**
-   * The editor's remembered way of looking at a book: Write (no preview) or
-   * Split. Inspect is a full-screen visit that Esc returns from, so it is never
-   * the mode a book opens in.
+   * Focus: the chapter list (and later the side panel) steps aside so the page
+   * you write on has the room. Remembered across books; Read as spreads is a
+   * visit and is never remembered.
    */
-  const scriptoriumEditorMode = useStorage<"write" | "split">("grimoire:scriptorium:editor-mode", "split", safeLocalStorage(), {
-    serializer: { read: (raw) => (raw === "write" ? "write" : "split"), write: (mode) => mode },
+  const scriptoriumFocus = useStorage<boolean>("grimoire:scriptorium:focus", false, safeLocalStorage(), {
+    serializer: { read: (raw) => raw === "true", write: (on) => String(on) },
   });
   const scriptoriumSearch = ref("");
   const scriptoriumFilterType = ref<ScriptoriumDocType | "all">("all");
@@ -44,7 +44,7 @@ export const useScriptoriumUiStore = defineStore("ui:scriptorium", () => {
   }
 
   return {
-    scriptoriumEditorMode,
+    scriptoriumFocus,
     scriptoriumSearch,
     scriptoriumFilterType,
     scriptoriumFilterKind,

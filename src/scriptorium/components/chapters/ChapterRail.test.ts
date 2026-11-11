@@ -72,6 +72,28 @@ describe("rows", () => {
   });
 });
 
+describe("numbering the rest of the book", () => {
+  // Fails on: a footer that never shows while the book lays out behind the writer, or lingers once it is done.
+  it("shows the footer with the chapter being laid out only while the first layout is under way", async () => {
+    mountRail({ numbering: { done: 4, total: 15 } });
+    const footer = wrapper.get("[data-testid=rail-numbering]");
+    expect(footer.text()).toContain("Numbering the rest of the book");
+    expect(footer.text()).toContain("Chapter 5 of 15. You can keep writing.");
+    await wrapper.setProps({ numbering: null });
+    expect(wrapper.find("[data-testid=rail-numbering]").exists()).toBe(false);
+  });
+
+  // Fails on: a chapter whose pages are not known yet showing nothing, or a stale dash after numbering.
+  it("shows a dash for a chapter with no pages yet, only while numbering", async () => {
+    mountRail({ numbering: { done: 0, total: null } });
+    expect(wrapper.findAll("[data-chapter-row]")[2].text()).toContain("—");
+    expect(wrapper.findAll("[data-chapter-row]")[0].text()).toContain("Pages 5 to 49");
+    expect(wrapper.get("[data-testid=rail-numbering]").text()).not.toContain("Chapter ");
+    await wrapper.setProps({ numbering: null });
+    expect(wrapper.findAll("[data-chapter-row]")[2].text()).not.toContain("—");
+  });
+});
+
 describe("selecting", () => {
   it("waits for beforeLeave to settle before telling the shell", async () => {
     let release!: () => void;

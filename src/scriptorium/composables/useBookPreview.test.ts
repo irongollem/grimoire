@@ -302,6 +302,7 @@ describe("useBookPreview chapters", () => {
             settings: () => settingsRef.value,
             stylesheets: () => [],
             container,
+            yieldToBrowser: () => Promise.resolve(),
           });
           return () => h("div");
         },
@@ -373,5 +374,39 @@ describe("useBookPreview chapters", () => {
     // ...and lays c out with its new text, never the stale text.
     expect(mocks.previewCalls).toHaveLength(3);
     expect(mocks.previewCalls[2]).toContain("<p>c2</p>");
+  });
+
+  // Fails on: the preview laying out every chapter in one task, which blocks
+  // typing for seconds on a big book now that Write mode lays the book out too.
+  it("does not start a later chapter in the same task as the first", async () => {
+    const gates: Array<() => void> = [];
+    const chapters = ref([
+      { id: "a", html: "<p>a</p>" },
+      { id: "b", html: "<p>b</p>" },
+    ]);
+    const container = ref<HTMLElement | null>(document.createElement("div"));
+    mount(
+      defineComponent({
+        setup() {
+          useBookPreview({
+            chapters: () => chapters.value,
+            changes: () => chapters.value,
+            settings: () => SETTINGS,
+            stylesheets: () => [],
+            container,
+            yieldToBrowser: () => new Promise<void>((resolve) => gates.push(resolve)),
+          });
+          return () => h("div");
+        },
+      }),
+    );
+    chapters.value = [...chapters.value];
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(600);
+    await finishRun(); // a settles
+    expect(mocks.previewCalls).toHaveLength(1);
+    gates.shift()?.();
+    await flushPromises();
+    expect(mocks.previewCalls).toHaveLength(2);
   });
 });

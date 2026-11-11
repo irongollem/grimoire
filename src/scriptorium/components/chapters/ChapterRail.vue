@@ -7,7 +7,7 @@
         v-for="(chapter, at) in chapters"
         :key="chapter.id"
         :chapter="chapter"
-        :pages="pagesLine(pageRanges[chapter.id])"
+        :pages="pagesLine(pageRanges[chapter.id]) ?? (numbering ? '—' : null)"
         :current="chapter.id === currentId"
         :first="at === 0"
         :last="at === chapters.length - 1"
@@ -23,6 +23,26 @@
         @grip-down="startDrag(chapter.id, $event)"
       />
     </ul>
+
+    <!-- The book is laid out while you write (Scriptorium One Surface, frame 03): a quiet note, gone when every page has a number. -->
+    <div v-if="numbering" class="mx-3.5 mb-1 text-caption text-muted-foreground" role="status" data-testid="rail-numbering">
+      <p class="font-bold">Numbering the rest of the book</p>
+      <div
+        v-if="numbering.total !== null"
+        class="mt-1 h-1 overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-label="Numbering the rest of the book"
+        :aria-valuemin="0"
+        :aria-valuemax="numbering.total"
+        :aria-valuenow="numbering.done"
+      >
+        <div class="h-full rounded-full bg-primary transition-[width]" :style="{ width: `${(numbering.done / numbering.total) * 100}%` }" />
+      </div>
+      <p v-if="numbering.total !== null" class="mt-1">
+        Chapter {{ Math.min(numbering.done + 1, numbering.total) }} of {{ numbering.total }}. You can keep writing.
+      </p>
+      <p v-else class="mt-1">You can keep writing.</p>
+    </div>
 
     <p v-if="errorText" class="mx-3.5 mb-2 text-caption text-destructive" role="alert">{{ errorText }}</p>
 
@@ -62,11 +82,13 @@ import { dropSlot, moveBy, moveToSlot, neighbourAfterDelete, pagesLine } from "@
 import type { ScriptoriumChapterSummary } from "@/scriptorium/types";
 import ChapterRailRow from "./ChapterRailRow.vue";
 
-const { documentId, chapters, currentId, pageRanges, beforeLeave } = defineProps<{
+const { documentId, chapters, currentId, pageRanges, beforeLeave, numbering = null } = defineProps<{
   documentId: string;
   chapters: ScriptoriumChapterSummary[];
   currentId: string;
   pageRanges: Record<string, { first: string | null; last: string | null }>;
+  /** While the book's first layout is still under way: how far it has got (total null before it starts). Null once every chapter has its pages. */
+  numbering?: { done: number; total: number | null } | null;
   /** The shell's save-now: resolves when the open chapter is safe to leave, rejects (and shows why) when it is not. */
   beforeLeave: () => Promise<void>;
 }>();

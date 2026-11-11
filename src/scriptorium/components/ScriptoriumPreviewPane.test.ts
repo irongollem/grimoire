@@ -35,16 +35,15 @@ function open() {
         theme: "letter",
       },
       chapterSummaries: [],
-      active: true,
-      mode: "split",
-      forPlayers: true,
+      reading: true,
     },
+    global: { stubs: { ScriptoriumInspectBar: { template: '<div data-testid="inspect-bar" />' } } },
   });
 }
 
 describe("ScriptoriumPreviewPane", () => {
   // A new handout opened on "0 pages" and half a screen of nothing: the engine
-  // never lays out an empty chapter, so the pane draws the bare paper itself.
+  // never lays out an empty chapter, so Read as spreads draws the bare paper itself.
   it.each([
     ["no pages laid out", 0, false, true],
     ["a page laid out", 1, false, false],
@@ -56,5 +55,29 @@ describe("ScriptoriumPreviewPane", () => {
     const wrapper = open();
     await flushPromises();
     expect(wrapper.find("[data-testid=preview-blank-sheet]").exists()).toBe(shown);
+  });
+
+  // Fails on: the layout host being drawn for the writer behind the page they
+  // type on. (That it hides with visibility, never display:none, is CSS the
+  // test DOM cannot compute; it is on the styles of .preview-offscreen.)
+  it("off screen, is hidden from assistive tech and shows no spread bar or blank sheet", async () => {
+    preview.pageCount = 1;
+    preview.rendering = false;
+    const wrapper = open();
+    await wrapper.setProps({ reading: false });
+    const pane = wrapper.get("[data-testid=preview-pane]");
+    expect(pane.classes()).toContain("preview-offscreen");
+    expect(pane.attributes("aria-hidden")).toBe("true");
+    expect(wrapper.find("[data-testid=inspect-bar]").exists()).toBe(false);
+    expect(wrapper.find("[data-testid=preview-blank-sheet]").exists()).toBe(false);
+  });
+
+  it("reading, is a full-screen labelled page with the spread bar", () => {
+    preview.pageCount = 1;
+    const wrapper = open();
+    const pane = wrapper.get("[data-testid=preview-pane]");
+    expect(pane.attributes("aria-label")).toBe("Read the book as spreads");
+    expect(pane.classes()).toContain("fixed");
+    expect(wrapper.find("[data-testid=inspect-bar]").exists()).toBe(true);
   });
 });

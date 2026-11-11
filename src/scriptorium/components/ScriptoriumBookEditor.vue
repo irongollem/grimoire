@@ -1,7 +1,7 @@
 <template>
-  <div class="flex h-dvh min-h-0 flex-col bg-background" data-testid="book-editor">
+  <div class="relative flex h-dvh min-h-0 flex-col bg-background" data-testid="book-editor">
     <ScriptoriumBookHeader
-      v-model:mode="mode"
+      v-model:focus="focus"
       :title="settings.draft.title"
       :kind="settings.draft.kind"
       :status="status"
@@ -13,6 +13,7 @@
       @share="openShare"
       @export="openExport"
       @settings="showSettings = true"
+      @read="reading = true"
     >
       <template #give>
         <HandoutShareControl
@@ -30,21 +31,21 @@
 
     <div class="flex min-h-0 flex-1">
       <div
-        v-if="chapterList.length > 1"
-        class="hidden shrink-0 border-r border-border md:block"
-        :class="mode === 'write' ? 'w-68' : 'w-56'"
+        v-if="chapterList.length > 1 && !focus"
+        class="hidden w-68 shrink-0 border-r border-border md:block"
       >
         <ChapterRail
           :document-id="doc.id"
           :chapters="chapterList"
           :current-id="currentId"
           :page-ranges="pageRanges"
+          :numbering="numbering"
           :before-leave="saveCurrent"
           @select="selectChapter"
         />
       </div>
 
-      <div class="flex min-h-0 min-w-0 flex-1" :class="{ hidden: mode === 'inspect' }">
+      <div class="flex min-h-0 min-w-0 flex-1" :class="{ hidden: reading }">
         <div v-if="chapterList.length === 0 && !listLoading" class="m-auto">
           <EmptyState
             :title="isHandout ? 'This handout is blank' : 'This book has no chapters'"
@@ -68,7 +69,7 @@
           :is-two-column="settings.draft.isTwoColumn"
           :ink-friendly="settings.draft.inkFriendly"
           :pages-label="pagesLabel"
-          :flow="mode === 'write' || flow?.chapterId !== chapter.id ? null : flow"
+          :flow="flow?.chapterId !== chapter.id ? null : flow"
           @edit="onEdit"
           @user-edit="onUserEdit"
           @status="onChapterStatus"
@@ -94,50 +95,45 @@
         </ScriptoriumChapterEditor>
       </div>
 
-      <div v-show="mode !== 'write'" class="flex min-h-0 min-w-0 flex-1 border-l border-border" :class="{ 'border-l-0': mode === 'inspect' }">
-        <ScriptoriumPreviewPane
-          ref="previewPane"
-          v-model:notes-open="notesOpen"
-          :document-id="doc.id"
-          :title="settings.draft.title"
-          :chapters="html.chapters"
-          :changes="html.version.value"
-          :settings="layoutSettings"
-          :chapter-summaries="chapterList"
-          :active="mode !== 'write'"
-          :mode="mode === 'inspect' ? 'inspect' : 'split'"
-          :focus-chapter-id="currentId"
-          :furniture="settings.draft.furniture"
-          :selected-furniture-id="selectedFurnitureId"
-          :for-players="isHandout"
-          @edit-block="editBlock"
-          @update:furniture="settings.patch({ furniture: $event })"
-          @update:selected-furniture-id="selectedFurnitureId = $event"
-          @layout="layout = $event"
-          @flow="flow = $event"
-          @close="mode = lastMode"
-        >
-          <template #layer="{ host }">
-            <InspectNotesLayer
-              v-if="mode === 'inspect' && host && layout"
-              :document-id="doc.id"
-              :host="host"
-              :result="layout"
-              :chapters="chapterList"
-              @edit-block="editBlock"
-            />
-          </template>
-          <template #drawer>
-            <InspectNotesDrawer
-              :document-id="doc.id"
-              :chapters="chapterList"
-              :result="layout"
-              @go-to-note="editBlock"
-            />
-          </template>
-        </ScriptoriumPreviewPane>
-      </div>
     </div>
+
+    <!-- The book is laid out whenever it is open. Off screen it only measures,
+         for the editor's pages; Read as spreads shows it full screen. -->
+    <ScriptoriumPreviewPane
+      v-model:notes-open="notesOpen"
+      :document-id="doc.id"
+      :title="settings.draft.title"
+      :chapters="html.chapters"
+      :changes="html.version.value"
+      :settings="layoutSettings"
+      :chapter-summaries="chapterList"
+      :reading="reading"
+      :focus-chapter-id="currentId"
+      :furniture="settings.draft.furniture"
+      @layout="layout = $event"
+      @progress="layoutProgress = $event"
+      @flow="flow = $event"
+      @close="reading = false"
+    >
+      <template #layer="{ host }">
+        <InspectNotesLayer
+          v-if="reading && host && layout"
+          :document-id="doc.id"
+          :host="host"
+          :result="layout"
+          :chapters="chapterList"
+          @edit-block="editBlock"
+        />
+      </template>
+      <template #drawer>
+        <InspectNotesDrawer
+          :document-id="doc.id"
+          :chapters="chapterList"
+          :result="layout"
+          @go-to-note="editBlock"
+        />
+      </template>
+    </ScriptoriumPreviewPane>
 
   <FurnitureInspector
     :item="selectedFurniture"
@@ -171,6 +167,8 @@
     :is-exporting="isExporting"
     :progress="pdfProgress"
     :export-error="exportError"
+    :print-check="printCheck"
+    @show-page="showPrintedPage"
     @close="showExport = false"
   />
 
@@ -181,9 +179,9 @@
 <script setup lang="ts">
 /**
  * The editor for a book of chapters (#1115 story 13): the shell that holds one
- * chapter in the editor, the chapter list beside it, the preview, and the book's
+ * chapter in the editor, the chapter list beside it, the layout behind it, and the book's
  * settings, and wires them together. Writing a chapter is ScriptoriumChapterEditor,
- * the pages are ScriptoriumPreviewPane, the book-wide options are
+ * the pages are laid out by ScriptoriumPreviewPane, the book-wide options are
  * ScriptoriumBookSettings.
  *
  * Nothing here has a Save button: the open chapter and the settings save
@@ -203,7 +201,7 @@ import FurnitureInspector from "@/scriptorium/components/FurnitureInspector.vue"
 import HandoutAudienceLine from "@/scriptorium/components/HandoutAudienceLine.vue";
 import HandoutShareControl from "@/scriptorium/components/HandoutShareControl.vue";
 import HandoutShareDialog from "@/scriptorium/components/HandoutShareDialog.vue";
-import ScriptoriumBookHeader, { type EditorMode } from "@/scriptorium/components/ScriptoriumBookHeader.vue";
+import ScriptoriumBookHeader from "@/scriptorium/components/ScriptoriumBookHeader.vue";
 import ScriptoriumBookSettings from "@/scriptorium/components/ScriptoriumBookSettings.vue";
 import ScriptoriumChapterEditor from "@/scriptorium/components/ScriptoriumChapterEditor.vue";
 import ScriptoriumExportDialog from "@/scriptorium/components/ScriptoriumExportDialog.vue";
@@ -269,17 +267,12 @@ const layoutSettings = computed<BookLayoutSettings>(() => ({
   theme: settings.draft.theme,
 }));
 
-// ── Mode: Write | Split | Inspect ───────────────────────────────────────────
-const { scriptoriumEditorMode } = storeToRefs(useScriptoriumUiStore());
-const inspecting = ref(false);
-const lastMode = computed<EditorMode>(() => scriptoriumEditorMode.value);
-const mode = computed<EditorMode>({
-  get: () => (inspecting.value ? "inspect" : scriptoriumEditorMode.value),
-  set: (value) => {
-    inspecting.value = value === "inspect";
-    if (value !== "inspect") scriptoriumEditorMode.value = value;
-  },
-});
+// ── One surface: the page you write on ─────────────────────────────────────
+// The book is laid out whenever it is open and the editor draws the real pages
+// (Scriptorium One Surface). Focus lets the chapter list step aside; Read as
+// spreads is a visit, never remembered, that Escape or Close returns from.
+const { scriptoriumFocus: focus } = storeToRefs(useScriptoriumUiStore());
+const reading = ref(false);
 const notesOpen = ref(true);
 
 // ── Chapters ────────────────────────────────────────────────────────────────
@@ -335,14 +328,14 @@ async function addChapter() {
 const live = ref<LiveChapter | null>(null);
 const liveVersion = ref(0);
 const showExport = ref(false);
-const previewWanted = computed(() => mode.value !== "write" || showExport.value);
 const html = useBookChapterHtml({
   documentId: docId,
   kind: computed(() => settings.draft.kind),
   theme: themeRef,
   live,
   liveVersion,
-  enabled: previewWanted,
+  // The layout runs whenever the book is open, so every body is always wanted.
+  enabled: ref(true),
 });
 
 function onEdit(json: JSONContent) {
@@ -351,8 +344,15 @@ function onEdit(json: JSONContent) {
 }
 
 const layout = ref<BookLayoutResult | null>(null);
-/** Where the open chapter's pages and columns start in the preview: the editor draws them (#1175). Write mode lays nothing out, so it shows none. */
+/** Where the open chapter's pages and columns start in the layout: the editor draws them (#1175). Null until the open chapter's first layout lands. */
 const flow = ref<ChapterFlow | null>(null);
+/** How far the rest of the book's first layout has got, for the chapter list's quiet footer. */
+const layoutProgress = ref<{ done: number; total: number } | null>(null);
+/** Until the whole book has been laid out once, its later chapters have no page numbers yet. Null when they all do. */
+const numbering = computed(() => {
+  if (layout.value !== null) return null;
+  return { done: layoutProgress.value?.done ?? 0, total: layoutProgress.value?.total ?? null };
+});
 const pageRanges = computed(() => {
   const out: Record<string, { first: string | null; last: string | null }> = {};
   for (const span of layout.value?.chapters ?? []) out[span.id] = { first: span.firstLabel, last: span.lastLabel };
@@ -401,10 +401,10 @@ function onUserEdit() {
   void updateDoc({ id: doc.id, update: { ai_provenance: markEdited(provenance) } });
 }
 
-// ── Click-to-edit: a block in any chapter opens that chapter and focuses it ─
+// ── Read as spreads' notes: a block in any chapter opens that chapter and focuses it ─
 const pendingFocus = ref<string | null>(null);
 async function editBlock(target: { chapterId: string; blockId: string | null }) {
-  if (inspecting.value) inspecting.value = false;
+  reading.value = false;
   pendingFocus.value = target.blockId;
   if (target.chapterId !== currentId.value) {
     try {
@@ -489,7 +489,29 @@ async function openShare() {
 }
 
 // ── Export ──────────────────────────────────────────────────────────────────
-const { isExporting, exportError, progress: pdfProgress, exportPdf } = useScriptoriumPdf();
+const { isExporting, exportError, progress: pdfProgress, exportPdf, printCheck } = useScriptoriumPdf();
+
+/**
+ * "Show me" on a page the print check named: open its chapter and bring the
+ * page into view. A chapter just opened has no page gaps until its layout
+ * lands, so this waits for them, a few seconds at most.
+ */
+async function showPrintedPage(target: { chapterId: string; page: number }) {
+  reading.value = false;
+  if (target.chapterId !== currentId.value) {
+    try {
+      await saveCurrent();
+    } catch {
+      return;
+    }
+    selectChapter(target.chapterId);
+  }
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    if (chapterEditor.value?.scrollToPage(target.page)) return;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+}
 function openExport() {
   showExport.value = true;
 }

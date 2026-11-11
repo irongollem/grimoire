@@ -77,7 +77,7 @@ vi.mock("@/scriptorium/composables/useBookSettings", () => ({
 }));
 
 const Rail = defineComponent({
-  props: ["chapters", "currentId", "beforeLeave"],
+  props: ["chapters", "currentId", "beforeLeave", "numbering"],
   emits: ["select"],
   setup(props, { emit }) {
     return () =>
@@ -87,16 +87,41 @@ const Rail = defineComponent({
   },
 });
 const Editor = defineComponent({
-  props: ["chapter"],
+  props: ["chapter", "flow"],
   setup(_p, { expose, slots }) {
     expose({ saveNow: mocks.saveNow, hold: mocks.hold, release: vi.fn(), focusBlock: mocks.focusBlock, blockIdAtCursor: () => null, dirty: false });
-    return () => h("div", { "data-testid": "chapter-editor-stub" }, slots.footer?.());
+    return () => h("div", { "data-testid": "chapter-editor-stub", "data-flow": _p.flow ? "yes" : "no" }, slots.footer?.());
   },
 });
 const Pane = defineComponent({
-  emits: ["editBlock"],
+  props: ["reading"],
+  emits: ["flow", "close", "progress", "layout"],
+  setup(props, { emit, slots }) {
+    return () =>
+      h("div", { "data-testid": "pane", "data-reading": String(props.reading) }, [
+        h("button", { "data-testid": "pane-flow", onClick: () => emit("flow", { chapterId: "c1", pages: [] }) }),
+        h("button", { "data-testid": "pane-close", onClick: () => emit("close") }),
+        h("button", { "data-testid": "pane-progress", onClick: () => emit("progress", { done: 4, total: 15 }) }),
+        h("button", { "data-testid": "pane-laid-out", onClick: () => emit("layout", { pageCount: 1, pages: [], chapters: [], laidOutChapterIds: [], layoutMs: 1 }) }),
+        slots.drawer?.(),
+      ]);
+  },
+});
+const Drawer = defineComponent({
+  emits: ["goToNote"],
   setup(_p, { emit }) {
-    return () => h("button", { "data-testid": "pane", onClick: () => emit("editBlock", { chapterId: "c2", blockId: "b9" }) });
+    return () => h("button", { "data-testid": "note", onClick: () => emit("goToNote", { chapterId: "c2", blockId: "b9" }) });
+  },
+});
+const Header = defineComponent({
+  props: ["focus"],
+  emits: ["update:focus", "read"],
+  setup(props, { emit }) {
+    return () =>
+      h("div", [
+        h("button", { "data-testid": "focus", onClick: () => emit("update:focus", !props.focus) }),
+        h("button", { "data-testid": "read", onClick: () => emit("read") }),
+      ]);
   },
 });
 
@@ -110,7 +135,9 @@ function open() {
         ChapterRail: Rail,
         ScriptoriumChapterEditor: Editor,
         ScriptoriumPreviewPane: Pane,
-        ScriptoriumBookHeader: true,
+        ScriptoriumBookHeader: Header,
+        InspectNotesDrawer: Drawer,
+        InspectNotesLayer: true,
         ScriptoriumBookSettings: true,
         ScriptoriumExportDialog: true,
         FurnitureInspector: true,
@@ -155,13 +182,67 @@ describe("ScriptoriumBookEditor", () => {
     expect(order).toEqual(["save", "switch"]);
   });
 
-  it("opens the chapter a clicked block belongs to", async () => {
+  it("opens the chapter a note points at", async () => {
     const wrapper = open();
     await flushPromises();
-    await wrapper.find("[data-testid=pane]").trigger("click");
+    await wrapper.find("[data-testid=note]").trigger("click");
     await flushPromises();
     expect(mocks.saveNow).toHaveBeenCalled();
     expect(mocks.replace).toHaveBeenCalledWith({ query: { chapter: "c2" } });
+  });
+
+  // Fails on: Write mode's old gate, which handed the editor no pages until the writer switched to Split.
+  it("gives the editor the open chapter's pages as soon as the layout reports them", async () => {
+    const wrapper = open();
+    await flushPromises();
+    expect(wrapper.find("[data-testid=chapter-editor-stub]").attributes("data-flow")).toBe("no");
+    await wrapper.find("[data-testid=pane-flow]").trigger("click");
+    expect(wrapper.find("[data-testid=chapter-editor-stub]").attributes("data-flow")).toBe("yes");
+  });
+
+  // Fails on: Focus not hiding the chapter list, or not being remembered.
+  it("Focus hides the chapter list and is remembered under its own key", async () => {
+    localStorage.setItem("grimoire:scriptorium:editor-mode", "write");
+    const wrapper = open();
+    await flushPromises();
+    expect(wrapper.find("[data-testid=rail]").exists()).toBe(true);
+    await wrapper.find("[data-testid=focus]").trigger("click");
+    expect(wrapper.find("[data-testid=rail]").exists()).toBe(false);
+    expect(localStorage.getItem("grimoire:scriptorium:focus")).toBe("true");
+  });
+
+  // Fails on: Read as spreads not opening, or Close/Escape leaving the writer inside it.
+  it("Read as spreads opens the pane full screen and its close returns to the page", async () => {
+    const wrapper = open();
+    await flushPromises();
+    const pane = () => wrapper.find("[data-testid=pane]").attributes("data-reading");
+    expect(pane()).toBe("false");
+    await wrapper.find("[data-testid=read]").trigger("click");
+    expect(pane()).toBe("true");
+    expect(wrapper.find("[data-testid=chapter-editor-stub]").exists()).toBe(true);
+    await wrapper.find("[data-testid=pane-close]").trigger("click");
+    expect(pane()).toBe("false");
+  });
+
+  // Fails on: a note's Edit this part leaving the writer inside Read as spreads.
+  it("a note's jump to its text leaves Read as spreads", async () => {
+    const wrapper = open();
+    await flushPromises();
+    await wrapper.find("[data-testid=read]").trigger("click");
+    await wrapper.find("[data-testid=note]").trigger("click");
+    await flushPromises();
+    expect(wrapper.find("[data-testid=pane]").attributes("data-reading")).toBe("false");
+  });
+
+  // Fails on: the footer lingering after the book is numbered, or never showing.
+  it("tells the chapter list the rest of the book is being numbered, until the first layout lands", async () => {
+    const wrapper = open();
+    await flushPromises();
+    expect(wrapper.findComponent(Rail).props("numbering")).toEqual({ done: 0, total: null });
+    await wrapper.find("[data-testid=pane-progress]").trigger("click");
+    expect(wrapper.findComponent(Rail).props("numbering")).toEqual({ done: 4, total: 15 });
+    await wrapper.find("[data-testid=pane-laid-out]").trigger("click");
+    expect(wrapper.findComponent(Rail).props("numbering")).toBeNull();
   });
 
   it("stops the open chapter writing the moment the chapter list no longer holds it", async () => {

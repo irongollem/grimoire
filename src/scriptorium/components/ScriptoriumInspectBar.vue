@@ -4,6 +4,7 @@
   >
     <AppButton variant="outline" size="sm" label="Close" @click="emit('close')" />
     <h2 class="min-w-0 truncate text-heading-sm font-bold text-foreground">{{ title }}</h2>
+    <span class="text-caption text-muted-foreground">Read as spreads</span>
     <span class="flex-1" />
     <label class="flex items-center gap-2 text-caption text-muted-foreground">
       Chapter
@@ -50,7 +51,7 @@
 
 <script setup lang="ts">
 /**
- * The Inspect header (#1115 frame 04): Close, the chapter jump, "Pages 192 and
+ * The Read as spreads header (#1115 frame 04): Close, the chapter jump, "Pages 192 and
  * 193 of 542", the spread arrows and the Notes toggle. A spread is two facing
  * pages; page 1, a recto, stands alone on the right, so spread 0 is one page.
  */

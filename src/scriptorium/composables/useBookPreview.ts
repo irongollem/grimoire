@@ -53,10 +53,23 @@ export interface UseBookPreviewOptions {
   focusChapterId?: () => string | null | undefined;
   /** Where the paged output is rendered. */
   container: Ref<HTMLElement | null>;
+  /** What the layout awaits between chapters; the browser's idle time by default. Injected by tests. */
+  yieldToBrowser?: () => Promise<void>;
   /** Debounce window for re-render after a change. Default 600 ms. */
   debounceMs?: number;
   /** Runs after each successful render, once the numbering and furniture are on the pages. */
   afterRender?: (container: HTMLElement, result: BookLayoutResult) => void;
+}
+
+/**
+ * Hands the thread back to the browser: idle time when it has any, and at most
+ * a short wait when typing keeps it busy, so the rest of the book still lays out.
+ */
+export function yieldToBrowser(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestIdleCallback === "function") requestIdleCallback(() => resolve(), { timeout: 250 });
+    else setTimeout(resolve, 0);
+  });
 }
 
 export function useBookPreview(opts: UseBookPreviewOptions) {
@@ -66,7 +79,7 @@ export function useBookPreview(opts: UseBookPreviewOptions) {
   const layoutMs = ref(0);
   const isRendering = ref(false);
   const error = ref<string | null>(null);
-  /** The pages and chapter spans of the book on screen, for the Inspect view and the chapter list. */
+  /** The pages and chapter spans of the book on screen, for Read as spreads and the chapter list. */
   const result = shallowRef<BookLayoutResult | null>(null);
   /** Chapters settled so far in the render under way, for a "Laying out chapter 6 of 15" line. */
   const progress = ref<{ done: number; total: number } | null>(null);
@@ -81,7 +94,7 @@ export function useBookPreview(opts: UseBookPreviewOptions) {
     if (engine && engineHost === el) return engine;
     engine?.dispose();
     engineHost = el;
-    engine = createBookLayout(el);
+    engine = createBookLayout(el, { yieldToBrowser: opts.yieldToBrowser ?? yieldToBrowser });
     return engine;
   }
 

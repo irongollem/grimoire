@@ -9,15 +9,15 @@ keywords: scriptorium, document, publish, pdf, print, export, template, furnitur
 
 The **Scriptorium** produces print-quality campaign materials (adventure modules, spell compendiums, monster bestiaries, handouts, session recaps) that look like an actual rulebook, not a text export. Find it in the sidebar under **Compendium → Publish → Scriptorium** (route `/scriptorium`). Writing needs a tablet or desktop screen. On a phone, Scriptorium is a reader; see "On a phone" below.
 
-Rather than editing raw source and compiling it into a document, you write directly next to (and click straight into) the finished, paginated book. The system owns pagination, columns, fonts, and page numbering: you never lay those out by hand.
+Rather than editing raw source and compiling it into a document, you write directly on the finished, paginated page. The system owns pagination, columns, fonts, and page numbering: you never lay those out by hand.
 
 ## Key ideas
 
 | Term | Meaning |
 | --- | --- |
 | **Template** | A finished-looking starting book you pick before you write anything: never a blank page. |
-| **Galley** | The themed editor pane where you type. |
-| **The book** | The live, auto-paginated preview beside the galley: what will actually print. Click any paragraph in it to jump the galley to that block. |
+| **The page** | The sheet you write on. It is the real page, with page breaks, columns and furniture where they will print, so there is no separate preview to look at. |
+| **Read as spreads** | The whole book full screen as facing pages, in lamplight, with room for your own notes. A button in the header. |
 | **Furniture** | A decoration (watercolor splatter, watermark, artist credit) that sits on a page independent of the text: drag it directly on the book, don't type it. |
 | **Doc type** | Custom, Spell, Monster, Item, Class, Subclass, Species, Background, Adventure, NPC Sheet, Location, or Quest: colour-codes the document in your list. |
 
@@ -41,7 +41,7 @@ Drafting costs credits, and the cost shows beside the button. The result opens a
 
 ## Writing
 
-The galley on the left has a full formatting toolbar:
+The page has a full formatting toolbar:
 
 - **Text**: Bold, Italic, Strikethrough, Inline code.
 - **Headings**: Heading 1, Heading 2, Heading 3.
@@ -60,13 +60,13 @@ The galley on the left has a full formatting toolbar:
 - **Page size**: A4, A5, or Letter.
 - **Ink-friendly**: strips backgrounds and decorations, for cheaper printing.
 
-**Undo/Redo** are always available. Click any paragraph in the book preview and the galley jumps straight to it: the whole editor is click-to-edit, not just a source-and-compile split.
+**Undo/Redo** are always available. **Focus** in the header hides the chapter list so the page you write on has the room, and brings it back when you press it again. **Read as spreads** shows the whole book as facing pages; Escape or Close brings you back to the page, and a note's **Edit this part** takes you to its text. While a long book is still being numbered, the chapter list says so and shows how far it has got. You can keep writing.
 
 ### Images
 
 Select an image to reveal its own toolbar: size presets (S/M/L/XL), align left/centre/right, wrap-left/wrap-right (text flows around it), and a gutter-bleed toggle (in wrap modes) to pin the image to the column edge.
 
-To put a picture anywhere on a page, select it in **Split** and press **Place on page**: it stays where it was, and you can now drag it and resize it from its corner, on the page you write on. In the panel that opens you choose whether it sits **in front of** or **behind the text** (behind, it is printed into the paper at a **Strength** you set, so the words over it stay readable), whether it **moves with its paragraph** or **stays on its page**, and you can pin it to one of the page's four corners, flush against both paper edges. Drag a picture near a corner and it snaps there. A picture behind the text is picked up by clicking empty space over it, or by the small **Picture** handle that appears when you point at it; a click on a word over it still puts your cursor in the text. If the image came from Grimoire's own storage, an **Edit in Illuminator** button opens it in the [Illuminator](#illuminator-image-effects) for colour grading, vignettes, or edge treatment, with a **Save to Scriptorium** button there to bring the edited version straight back.
+To put a picture anywhere on a page, select it and press **Place on page**: it stays where it was, and you can now drag it and resize it from its corner, on the page you write on. In the panel that opens you choose whether it sits **in front of** or **behind the text** (behind, it is printed into the paper at a **Strength** you set, so the words over it stay readable), whether it **moves with its paragraph** or **stays on its page**, and you can pin it to one of the page's four corners, flush against both paper edges. Drag a picture near a corner and it snaps there. A picture behind the text is picked up by clicking empty space over it, or by the small **Picture** handle that appears when you point at it; a click on a word over it still puts your cursor in the text. If the image came from Grimoire's own storage, an **Edit in Illuminator** button opens it in the [Illuminator](#illuminator-image-effects) for colour grading, vignettes, or edge treatment, with a **Save to Scriptorium** button there to bring the edited version straight back.
 
 ### Cover pages
 
@@ -74,12 +74,12 @@ Click a cover page block and its own **Edit** control opens the cover inspector:
 
 ### Linked entities
 
-An NPC, Monster, Spell, Location, or Quest brought in through **Insert** (or the **Send to Scriptorium** button on that entity's own page) is a **live link**, not a one-time snapshot: it always shows that entity's current data, so editing the NPC later updates every book that references it, with nothing to re-insert. In the galley, hover a linked block to see its type badge and two controls:
+An NPC, Monster, Spell, Location, or Quest brought in through **Insert** (or the **Send to Scriptorium** button on that entity's own page) is a **live link**, not a one-time snapshot: it always shows that entity's current data, so editing the NPC later updates every book that references it, with nothing to re-insert. On the page, hover a linked block to see its type badge and two controls:
 
 - **Open** jumps straight to that entity's own page.
 - **Detach** turns the block into ordinary editable text, frozen at its current content. Use this when you want to diverge from the source, for example writing a version of a monster stat block that's tougher for a specific fight. Detaching cannot be undone from the block itself (though the usual Undo still works), so it asks you to confirm first.
 
-If the source entity is later deleted, the block shows a plain "no longer available" notice instead of stale or blank content, both in the galley and in the exported book.
+If the source entity is later deleted, the block shows a plain "no longer available" notice instead of stale or blank content, both on the page and in the exported book.
 
 A linked **Monster** (or NPC) embeds as a full entry — name, framed stat block, art, and lore — laid out automatically as a column-width block or a page-wide band depending on how much the stat block holds. Its hover toolbar adds: a size toggle (Auto/Column/Wide), a portrait toggle, a **Lore** toggle (hide the description text — useful for a pure reference sheet), a Top/Bottom toggle for a wide entry's band position, and **New page** (on by default, so each entry starts fresh like a Monster Manual page; turn it off for a variant that should share its family's first entry, e.g. a second animated-object type right after the first).
 
@@ -89,7 +89,7 @@ Watercolor splatters, watermarks, and artist credits aren't part of the text: th
 
 ## Preview and export
 
-The **book** panel beside the galley shows the real, paginated document, themed exactly as it will print. Page count and render time are shown under it. Use the zoom controls (**–** / **Fit** / **+**) to inspect at different sizes; fit-to-width is the default and re-snaps whenever you change page size.
+The page you write on is the real, paginated document, themed exactly as it will print. For the whole book at once, press **Read as spreads** in the header: it fits a facing pair of pages to your screen and moves through the book a spread at a time with the arrow keys.
 
 Click **PDF** to download the book as a real PDF (selectable text, embedded fonts and pictures, not a screenshot). It is built for you and saved straight to your downloads; there is no print dialog to click through.
 
@@ -97,7 +97,7 @@ For a document that belongs to a campaign, the small menu beside **PDF** offers 
 
 ## Document settings and list
 
-Above the galley: **Document title**, **Document type**, a **Campaign** dropdown, a **PUBLISHED** checkbox, and a **PAGE #S** checkbox (reveals footer text and a starting page number field when on). **Save** (or **Create** for a new document) and **Delete** sit alongside.
+Above the page: **Document title**, **Document type**, a **Campaign** dropdown, a **PUBLISHED** checkbox, and a **PAGE #S** checkbox (reveals footer text and a starting page number field when on). **Save** (or **Create** for a new document) and **Delete** sit alongside.
 
 The **Publish** checkbox marks a document with a green "Published" badge in your list: a DM-only status flag for tracking what's done vs. draft. It does not currently share the document with players.
 
