@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { computed, ref } from "vue";
 import EntityEmbedView from "./EntityEmbedView.vue";
@@ -13,7 +13,12 @@ function flushEditor(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-const mocks = vi.hoisted(() => ({ dmData: vi.fn(), playerEmbed: vi.fn(), push: vi.fn(), confirm: vi.fn() }));
+const mocks = vi.hoisted(() => ({ dmData: vi.fn(), playerEmbed: vi.fn(), push: vi.fn(), confirm: vi.fn(), openNpc: vi.fn() }));
+vi.mock("@/composables/npcs/useNpcPeek", () => ({ useOpenNpc: () => mocks.openNpc }));
+vi.mock("@/components/monsters/MonsterDetailModal.vue", async () => {
+  const { defineComponent, h } = await import("vue");
+  return { __esModule: true, default: defineComponent({ props: { id: { type: String, required: true } }, setup: (p) => () => h("div", { "data-test": "monster-sheet" }, p.id) }) };
+});
 
 vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
@@ -145,26 +150,45 @@ describe("EntityEmbedView as the DM edits it", () => {
     expect(mountEmbed().findComponent({ name: "SegmentedControl" }).exists()).toBe(false);
   });
 
-  it("opens a monster by its page and a location by its place route", async () => {
-    await tool(mountEmbed(), "Open").trigger("click");
-    expect(mocks.push).toHaveBeenLastCalledWith("/monsters/e1");
+  // Fails on: Open navigating to /monsters/:id, a child of the bestiary list, which swapped the book behind
+  // the sheet for the monster list.
+  it("opens a monster's sheet over the book without leaving it, and a location by its place route", async () => {
+    mocks.push.mockReset();
+    const monster = mountEmbed();
+    await tool(monster, "Open").trigger("click");
+    await flushPromises();
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(monster.find("[data-test=monster-sheet]").text()).toBe("e1");
     await tool(mountEmbed({ entityType: "location" }), "Open").trigger("click");
     expect(mocks.push).toHaveBeenLastCalledWith(placeRoute("e1"));
+  });
+
+  it("opens an NPC in the app's NPC peek, never by navigating", async () => {
+    mocks.push.mockReset();
+    await tool(mountEmbed({ entityType: "npc" }), "Open").trigger("click");
+    expect(mocks.openNpc).toHaveBeenCalledWith("e1");
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   // Fails on: the panel's Open and Detach buttons doing nothing because the view stopped answering the event.
   it("answers the panel's open and detach requests on its own element", async () => {
     const wrapper = mountEmbed({}, () => 7);
     const entry = wrapper.find(".sc-entity-embed").element;
+    mocks.push.mockReset();
     entry.dispatchEvent(new CustomEvent(EMBED_OPEN_EVENT));
-    expect(mocks.push).toHaveBeenLastCalledWith("/monsters/e1");
+    await flushPromises();
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(wrapper.find("[data-test=monster-sheet]").exists()).toBe(true);
     entry.dispatchEvent(new CustomEvent(EMBED_DETACH_EVENT));
     await flushEditor();
     expect(mocks.confirm).toHaveBeenCalledTimes(1);
     expect(insertContentAt).toHaveBeenCalledTimes(1);
-    wrapper.unmount();
-    entry.dispatchEvent(new CustomEvent(EMBED_OPEN_EVENT));
-    expect(mocks.push).toHaveBeenCalledTimes(1);
+    // An unmounted entry stops listening: a place entry would otherwise still navigate.
+    const place = mountEmbed({ entityType: "location" }, () => 7);
+    const placeEl = place.find(".sc-entity-embed").element;
+    place.unmount();
+    placeEl.dispatchEvent(new CustomEvent(EMBED_OPEN_EVENT));
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it("keeps the link when the detach is cancelled, and when the block has no position", async () => {

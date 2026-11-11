@@ -41,11 +41,13 @@
     </template>
     <!-- eslint-disable-next-line vue/no-v-html -- sanitized via sanitizeHtml() in processedHtml -->
     <div v-else-if="rawHtml" class="sc-entity-embed-body" v-html="shownHtml" />
+    <!-- Open shows a monster's or spell's sheet over the book (each modal teleports to the body). -->
+    <component :is="peekModal" v-if="peeking && peekModal" :id="entityId" @close="peeking = false" />
   </NodeViewWrapper>
 </template>
 
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue";
+import { computed, defineAsyncComponent, inject, onBeforeUnmount, onMounted, ref, useTemplateRef, watch, type Component } from "vue";
 import { useRouter } from "vue-router";
 import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -66,6 +68,7 @@ import { SCRIPTORIUM_AUDIENCE_KEY, type ScriptoriumAudience } from "@/scriptoriu
 import { SCRIPTORIUM_THEME_KEY } from "@/scriptorium/lib/scriptoriumTheme";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { placeRoute } from "@/lib/locations/placeRoute";
+import { useOpenNpc } from "@/composables/npcs/useNpcPeek";
 import { IconExternalLink, IconScissors } from "@/lib/icons";
 import { EMBED_DETACH_EVENT, EMBED_OPEN_EVENT } from "@/scriptorium/lib/panel/embedSignals";
 import type { EntityEmbedType, EntityEmbedSize } from "@/lib/tiptap/nodeViewTypes";
@@ -193,10 +196,17 @@ const shownHtml = computed(() => {
 // The printer's fit arrives after the entry is drawn, and changes how full its page is.
 watch(shownHtml, () => remeasurePages(props.editor), { flush: "post" });
 
-const ENTITY_ROUTES: Record<Exclude<EntityEmbedType, "location">, string> = {
-  npc: "/npcs",
-  monster: "/monsters",
-  spell: "/spells",
+/*
+ * Open shows the entry's sheet over the book where there is one, so the book stays where it was: the
+ * monster and spell routes are children of their lists, so navigating there put the bestiary behind the
+ * sheet. An NPC opens in the app's NPC peek (useOpenNpc). Everything else goes to its own page.
+ */
+type PeekedType = "npc" | "monster" | "spell";
+const PEEK_MODALS: Record<Exclude<PeekedType, "npc">, Component> = {
+  monster: defineAsyncComponent(() => import("@/components/monsters/MonsterDetailModal.vue")),
+  spell: defineAsyncComponent(() => import("@/components/spells/SpellDetailModal.vue")),
+};
+const ENTITY_ROUTES: Record<Exclude<EntityEmbedType, "location" | PeekedType>, string> = {
   item: "/vault",
   quest: "/quests",
   deity: "/deities",
@@ -204,13 +214,19 @@ const ENTITY_ROUTES: Record<Exclude<EntityEmbedType, "location">, string> = {
   faction: "/factions",
   subclass: "/levelup/custom",
 };
+const peekModal = computed(() => {
+  const type = entityType.value;
+  return type === "monster" || type === "spell" ? PEEK_MODALS[type] : null;
+});
+const peeking = ref(false);
+const openNpc = useOpenNpc();
 
 function openEntity() {
-  if (entityType.value === "location") {
-    void router.push(placeRoute(entityId.value));
-    return;
-  }
-  void router.push(`${ENTITY_ROUTES[entityType.value]}/${entityId.value}`);
+  const type = entityType.value;
+  if (type === "npc") openNpc(entityId.value);
+  else if (type === "monster" || type === "spell") peeking.value = true;
+  else if (type === "location") void router.push(placeRoute(entityId.value));
+  else void router.push(`${ENTITY_ROUTES[type]}/${entityId.value}`);
 }
 
 // The panel beside the page asks this entry to open or detach by event (see embedSignals.ts).
