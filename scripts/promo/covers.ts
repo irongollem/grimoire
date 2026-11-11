@@ -44,7 +44,9 @@ export const COVERS: Record<string, CoverSpec> = {
   "session-player": { shot: "live", fromEnd: 1.2, crop: [40, 260, 1600, 1120] },
   "session-dm": { shot: "deck", fromEnd: 1.2, crop: [480, 1210, 1250, 520] },
   "quests-player": { shot: "objective", fromEnd: 1.2, crop: [30, 300, 1110, 1090] },
-  "handouts-player": { shot: "open", fromEnd: 1.2, crop: [0, 0, 1170, 1150] },
+  "quests-dm": { shot: "advance", fromEnd: 1.2, crop: [560, 540, 1620, 1100] },
+  "handouts-player": { shot: "open", fromEnd: 1.2, crop: [0, 640, 1170, 1100] },
+  "handouts-dm": { shot: "give", fromEnd: 1.2, crop: [60, 290, 1320, 1460] },
 };
 
 /** "Combat: run the fight from one screen" → the feature and its promise, as the cover says them. */
