@@ -17,11 +17,19 @@ vi.mock("@/scriptorium/lib/panel/embedSignals", async (importOriginal) => ({
   signalEmbed: mocks.signal,
 }));
 
+const campaign = vi.hoisted(() => ({ activeCampaignId: "camp-1" as string | null, isAiEnabled: true }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => campaign }));
+
 const footerSettings = {
   draft: { showPageNumbers: true, pageNumberStart: 1, footerText: "", footerTitle: "chapter" as const },
   patch: vi.fn(),
 };
-const stubs = { ArtPickerModal: true, ImageUpload: true, EmbedRevealControl: true, AiImageBadge: true };
+const DialogStub = {
+  props: { shapes: Array, closeOnStart: Boolean, visible: Boolean, title: String },
+  emits: ["close", "started"],
+  template: '<div data-testid="describe-dialog" />',
+};
+const stubs = { ChroniclerGenerateDialog: DialogStub, ArtPickerModal: true, ImageUpload: true, EmbedRevealControl: true, AiImageBadge: true };
 const context: PanelPageContext = {
   paperLabel: "Grimoire · A4 · Two columns",
   chapterNumber: 3,
@@ -36,6 +44,8 @@ afterEach(() => {
   editor?.destroy();
   editor = null;
   mocks.signal.mockReset();
+  campaign.activeCampaignId = "camp-1";
+  campaign.isAiEnabled = true;
 });
 
 function makePictures(): PictureActions {
@@ -53,15 +63,19 @@ function makePictures(): PictureActions {
     anchorState: () => ({ page: 2, hasParagraph: true, canFree: true }),
     pageOf: () => 2,
     addArt: vi.fn(),
+    keyOf: () => null,
+    targetOf: () => null,
+    markPending: vi.fn(),
+    pendingPictures: () => [],
   };
 }
 
-function open(selection: PanelSelection, content: object[], furniture: PageFurnitureItem[] = []) {
+function open(selection: PanelSelection, content: object[], furniture: PageFurnitureItem[] = [], extra: Record<string, unknown> = {}) {
   const ed = new Editor({ element: document.createElement("div"), content: { type: "doc", content }, extensions: [...createScriptoriumExtensions(), PageFlow] });
   editor = ed;
   const pictures = makePictures();
   const wrapper = mount(ScriptoriumPanel, {
-    props: { selection, editor: ed, version: 0, chapterId: "c1", furniture, pictures, context, canEditPicture: true, closable: false },
+    props: { selection, editor: ed, version: 0, chapterId: "c1", furniture, pictures, context, canEditPicture: true, closable: false, ...extra },
     global: { stubs, provide: { [FOOTER_SETTINGS_KEY as symbol]: footerSettings } },
   });
   return { ed, pictures, wrapper };
@@ -206,5 +220,43 @@ describe("ScriptoriumPanel", () => {
   it("offers Rows for a table only", () => {
     const { wrapper } = open({ kind: "block", pos: 0 }, [{ type: "descriptiveBlock", content: [para("b1")] }]);
     expect(wrapper.text()).not.toContain("Striped");
+  });
+
+  describe("Describe it", () => {
+    const picture = { kind: "picture", source: "node", pos: 5 } as const;
+    const content = () => [para("b1"), { type: "image", attrs: { src: "p.webp" } }];
+    const hasDescribe = (w: ReturnType<typeof mount>) => w.find("[data-testid=panel-describe]").exists();
+
+    // Fails on: offering an AI action in a book of a campaign that is not the one open, or with AI off.
+    it("is offered only for the active campaign with AI on", () => {
+      expect(hasDescribe(open(picture, content(), [], { campaignId: "camp-1" }).wrapper)).toBe(true);
+      expect(hasDescribe(open(picture, content(), [], { campaignId: "camp-2" }).wrapper)).toBe(false);
+      expect(hasDescribe(open(picture, content()).wrapper)).toBe(false);
+      campaign.isAiEnabled = false;
+      expect(hasDescribe(open(picture, content(), [], { campaignId: "camp-1" }).wrapper)).toBe(false);
+    });
+
+    // Fails on: the dialog offering the notes' two shapes, or the result being reported for no picture.
+    it("opens the dialog with the book's six shapes and reports the render for the picture that was selected", async () => {
+      const { wrapper } = open(picture, content(), [], { campaignId: "camp-1", pageAspect: 1 / 1.414 });
+      expect(wrapper.find("[data-testid=describe-dialog]").exists()).toBe(false);
+      await wrapper.find("[data-testid=panel-describe]").trigger("click");
+      const dialog = wrapper.findComponent(DialogStub);
+      expect((dialog.props("shapes") as { id: string }[]).map((s) => s.id)).toEqual(["page", "tall", "square", "landscape", "banner", "column"]);
+      expect(dialog.props("closeOnStart")).toBe(true);
+      await dialog.vm.$emit("started", { jobId: "j1", prompt: "a keep", size: "1536x1024", shape: "banner" });
+      expect(wrapper.emitted("describe")).toEqual([[{ source: "node", pos: 5 }, { jobId: "j1", shape: "banner" }]]);
+      await dialog.vm.$emit("close");
+      expect(wrapper.find("[data-testid=describe-dialog]").exists()).toBe(false);
+    });
+
+    // Fails on: a second paint being started on a picture that is already being painted.
+    it("shows a picture that is painting as busy and not clickable", () => {
+      const painting = [para("b1"), { type: "image", attrs: { src: "p.webp", pendingJob: "j1", pendingShape: "tall" } }];
+      const { wrapper } = open(picture, painting, [], { campaignId: "camp-1" });
+      const button = wrapper.find("[data-testid=panel-describe]");
+      expect(button.text()).toContain("Painting");
+      expect(button.attributes("disabled")).toBeDefined();
+    });
   });
 });

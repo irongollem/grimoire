@@ -74,6 +74,8 @@
           :pictures="pictures"
           :context="pageContext"
           :can-edit-picture="canEditPicture"
+          :campaign-id="campaignId"
+          :page-aspect="sheetGeometry.width / sheetGeometry.height"
           :closable="!wide"
           @close="closePanel"
           @open-settings="emit('openSettings')"
@@ -81,6 +83,7 @@
           @update-item="updateItem"
           @select-furniture="emit('update:selectedFurnitureId', $event)"
           @edit-picture="openWorkbench($event)"
+          @describe="described.start"
         />
       </aside>
     </div>
@@ -145,6 +148,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import { movedNoticeText } from "@/scriptorium/lib/furniture/movedNotice";
 import { useFurnitureEditing } from "@/scriptorium/composables/useFurnitureEditing";
 import { useEditorPictures } from "@/scriptorium/composables/useEditorPictures";
+import { useDescribedPictures } from "@/scriptorium/composables/useDescribedPictures";
 import { selectionKey, useScriptoriumSelection } from "@/scriptorium/composables/useScriptoriumSelection";
 import type { PanelPageContext } from "@/scriptorium/lib/panel/pageInfo";
 import IlluminatorWorkbench from "@/scriptorium/illuminator/components/IlluminatorWorkbench.vue";
@@ -489,6 +493,11 @@ const pictures = useEditorPictures({
   select: (id) => emit("update:selectedFurnitureId", id),
   sheet: () => sheetRef.value,
 });
+
+// ── Describe it (#1176): a picture painted in the background while the writer keeps writing ──
+const described = useDescribedPictures({ pictures, pageAspect: () => sheetGeometry.value.width / sheetGeometry.value.height });
+// A reload mid-paint leaves the picture marked: wait for its job again once the editor exists.
+watch(editor, (ed) => { if (ed) described.resume(); }, { immediate: true });
 
 // ── The Illuminator in the book (#1176 story 9b) ────────────────────────────
 const { canEditPicture, workbench, openWorkbench, onWorkbenchDone, currentUserId, bakeErrors, retryBakes } = usePictureEditing({

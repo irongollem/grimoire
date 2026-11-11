@@ -129,6 +129,18 @@ export const ScriptoriumImage = Image.extend({
         parseHTML: (el) => el.getAttribute("data-baked-for"),
         renderHTML: (attrs) => (attrs.bakedFor ? { "data-baked-for": attrs.bakedFor } : {}),
       },
+      // A picture being painted from a description (#1176, Describe it): the image job and the shape asked for.
+      // Saved with the chapter so a reload can pick the paint up again; the editor styles it, print ignores it.
+      pendingJob: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("data-pending-job"),
+        renderHTML: (attrs) => (attrs.pendingJob ? { "data-pending-job": attrs.pendingJob } : {}),
+      },
+      pendingShape: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("data-pending-shape"),
+        renderHTML: (attrs) => (attrs.pendingShape ? { "data-pending-shape": attrs.pendingShape } : {}),
+      },
     };
   },
   renderHTML({ HTMLAttributes }) {

@@ -71,6 +71,17 @@
         <AppButton variant="subtle" size="sm" :icon="IconLibrary" label="Replace…" @click="emit('pick')" />
         <AppButton variant="link" size="sm" :icon="IconAddImage" label="Upload a file" :active="showUpload" @click="showUpload = !showUpload" />
         <AppButton
+          v-if="canDescribe"
+          variant="subtle"
+          size="sm"
+          :icon="IconGenerate"
+          :label="painting ? 'Painting…' : 'Describe it…'"
+          :disabled="painting"
+          :tooltip="painting ? 'This picture is being painted; you can keep writing' : 'Paint a picture from your words, as the notes do'"
+          data-testid="panel-describe"
+          @click="emit('describe')"
+        />
+        <AppButton
           variant="subtle"
           size="sm"
           :icon="IconBrush"
@@ -128,11 +139,11 @@ import type { AnchorState } from "@/scriptorium/composables/useEditorPictures";
 import type { PageFurnitureItem } from "@/scriptorium/types";
 import { artBlend, imageBlend, type PictureBlend } from "@/scriptorium/lib/furniture/blend";
 import type { WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
-import { IconAddImage, IconBrush, IconCrop, IconDelete, IconLibrary } from "@/lib/icons";
+import { IconAddImage, IconBrush, IconCrop, IconDelete, IconGenerate, IconLibrary } from "@/lib/icons";
 
 export type PictureLayer = "under" | "over" | "text";
 
-const { layer, nodeAttrs = null, item = null, anchor = null } = defineProps<{
+const { layer, nodeAttrs = null, item = null, anchor = null, canDescribe = false } = defineProps<{
   src: string | null;
   layer: PictureLayer;
   /** "Placed on page 16" or "In the text". */
@@ -144,6 +155,8 @@ const { layer, nodeAttrs = null, item = null, anchor = null } = defineProps<{
   anchor?: AnchorState | null;
   canEdit: boolean;
   editHint?: string;
+  /** The book's campaign is the active one with AI on, so Describe it is offered. */
+  canDescribe?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -155,6 +168,7 @@ const emit = defineEmits<{
   pick: [];
   replace: [src: string];
   edit: [tool?: WorkbenchTool];
+  describe: [];
   remove: [];
 }>();
 
@@ -162,6 +176,12 @@ const showUpload = ref(false);
 
 /** The picture's own values, whichever home it is in: what the quick edits read. */
 const values = computed<Record<string, unknown> | null>(() => nodeAttrs ?? item?.props ?? null);
+
+/** The picture is being painted from a description right now. */
+const painting = computed(() => {
+  const job = values.value?.pendingJob;
+  return typeof job === "string" && job !== "";
+});
 
 /** A quick edit is written to the image node as attrs, or to the art item as props. */
 function onTreatment(patch: TreatmentPatch) {

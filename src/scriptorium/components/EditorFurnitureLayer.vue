@@ -128,6 +128,8 @@ function draw() {
     const behind = pageBox(rect, page.page);
     for (const item of items) {
       const el = buildFurnitureElement(item);
+      // A picture still being painted from a description (Describe it): the editor styles it, print never sees this layer.
+      if (typeof item.props.pendingJob === "string" && item.props.pendingJob) el.dataset.pendingJob = item.props.pendingJob;
       const selected = item.id === selectedId;
       if (item.z === "under") {
         // Behind the text, selected or not: it stays under the words. Selection is

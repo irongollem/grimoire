@@ -106,6 +106,22 @@ describe("ScriptoriumImage recipe", () => {
   });
 });
 
+describe("ScriptoriumImage pending paint", () => {
+  const attrsOf = (html: string) => (generateJSON(html, EXT) as JSONContent).content?.[0].attrs;
+
+  // Fails on: the paint mark not being saved with the chapter, so a reload mid-paint forgets the job and the picture stays empty.
+  it("keeps the job and the shape through an HTML round trip, as data attributes only", () => {
+    const html = generateHTML(image({ pendingJob: "job-1", pendingShape: "banner" }), EXT);
+    expect(html).toContain('data-pending-job="job-1"');
+    expect(attrsOf(html)).toMatchObject({ pendingJob: "job-1", pendingShape: "banner" });
+  });
+
+  it("writes nothing for a picture that is not being painted", () => {
+    const html = generateHTML(image({}), EXT);
+    expect(html).not.toContain("data-pending");
+  });
+});
+
 describe("ScriptoriumImage blend", () => {
   const attrsOf = (html: string) => (generateJSON(html, EXT) as JSONContent).content?.[0].attrs;
 

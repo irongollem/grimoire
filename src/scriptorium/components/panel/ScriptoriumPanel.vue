@@ -6,6 +6,17 @@
 
     <ArtPickerModal :show="picker !== null" @select="onArtPicked" @close="picker = null" />
 
+    <!-- Only mounted while it is open: it reads the campaign's characters, which a closed panel has no use for. -->
+    <ChroniclerGenerateDialog
+      v-if="describing"
+      visible
+      title="Describe the picture"
+      :shapes="describeSceneShapes"
+      close-on-start
+      @close="describing = null"
+      @started="onDescribeStarted"
+    />
+
     <PicturePanelSection
       v-if="picture"
       :src="picture.src"
@@ -16,12 +27,14 @@
       :anchor="picture.anchor"
       :can-edit="canEditPicture"
       :edit-hint="editHint"
+      :can-describe="canDescribe"
       @layer="onLayer"
       @node-attrs="onNodeAttrs"
       @item="onItem"
       @corner="(v) => onCorner(picture?.item ?? null, v)"
       @stays="(v) => onStays(picture?.item ?? null, v)"
       @pick="picker = { mode: 'replace' }"
+      @describe="describing = picture?.target ?? null"
       @replace="(src) => picture && pictures.replaceSrc(picture.target, src)"
       @edit="emit('editPicture', $event)"
       @remove="picture && pictures.remove(picture.target)"
@@ -107,6 +120,7 @@ import DecorationPanelSection from "@/scriptorium/components/panel/DecorationPan
 import DividerPanelSection from "@/scriptorium/components/panel/DividerPanelSection.vue";
 import EmbedPanelSection from "@/scriptorium/components/panel/EmbedPanelSection.vue";
 import FooterPanelSection from "@/scriptorium/components/panel/FooterPanelSection.vue";
+import ChroniclerGenerateDialog from "@/components/notes/ChroniclerGenerateDialog.vue";
 import PagePanelSection from "@/scriptorium/components/panel/PagePanelSection.vue";
 import PicturePanelSection, { type PictureLayer } from "@/scriptorium/components/panel/PicturePanelSection.vue";
 import { FOOTER_SETTINGS_KEY, type FooterSettingsAccess } from "@/scriptorium/lib/footerTitle";
@@ -127,6 +141,8 @@ import type { FurnitureKind, PageFurnitureItem } from "@/scriptorium/types";
 import type { WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
 import { IconClose } from "@/lib/icons";
 import { tableRowsOf, withTableRows } from "@/scriptorium/lib/tableRows";
+import { describeShapes } from "@/scriptorium/lib/describeShapes";
+import { useCampaignStore } from "@/stores/campaign";
 
 const props = defineProps<{
   selection: PanelSelection;
@@ -141,6 +157,10 @@ const props = defineProps<{
   canEditPicture: boolean;
   /** A slide-over has a close button of its own. */
   closable: boolean;
+  /** The book's campaign: Describe it is offered only for the active one with AI on. */
+  campaignId?: string | null;
+  /** The page's width over its height: the Full page shape is cut to it. */
+  pageAspect?: number;
 }>();
 
 const emit = defineEmits<{
@@ -151,6 +171,8 @@ const emit = defineEmits<{
   selectFurniture: [id: string | null];
   /** Open the Illuminator on the picture, on the Crop tool when asked. */
   editPicture: [tool?: WorkbenchTool];
+  /** A picture was described: its render is queued and the editor waits for it. */
+  describe: [target: PictureTarget, job: { jobId: string; shape: string }];
 }>();
 
 // A reactive wrapper around the editor would hand ProseMirror proxies of its own state, and a
@@ -158,6 +180,21 @@ const emit = defineEmits<{
 const rawEditor = computed(() => (props.editor ? toRaw(props.editor) : undefined));
 
 const picker = ref<{ mode: "add" | "replace" } | null>(null);
+
+// ── Describe it ─────────────────────────────────────────────────────────────
+const campaign = useCampaignStore();
+/** AI is per campaign, so a book of another campaign, or one with AI off, has no Describe it. */
+const canDescribe = computed(() => !!props.campaignId && props.campaignId === campaign.activeCampaignId && campaign.isAiEnabled);
+/** The picture being described: kept from the click, so what the dialog paints lands where the DM asked. */
+const describing = ref<PictureTarget | null>(null);
+const A4_ASPECT = 1 / 1.414;
+const describeSceneShapes = computed(() =>
+  describeShapes(props.pageAspect ?? A4_ASPECT).map((s) => ({ id: s.id, label: s.label, size: s.aiSize })),
+);
+function onDescribeStarted(job: { jobId: string; shape: string }) {
+  const target = describing.value;
+  if (target) emit("describe", target, { jobId: job.jobId, shape: job.shape });
+}
 
 function pagesOf(ed: Editor): PageBox[] {
   return (ed.storage as unknown as { pageFlow?: PageFlowStorage }).pageFlow?.pages ?? [];

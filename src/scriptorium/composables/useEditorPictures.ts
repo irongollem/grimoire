@@ -26,6 +26,16 @@ import type { FurnitureAnchor, PageFurnitureItem } from "@/scriptorium/types";
 
 export type PictureTarget = { source: "node"; pos: number } | { source: "furniture"; id: string };
 
+/** A picture that keeps its place when the text moves it: an image by its block id, art by its own id. */
+export type PictureKey = { source: "node"; blockId: string } | { source: "furniture"; id: string };
+
+/** A picture being painted from a description (#1176, Describe it): the job, and the shape it was asked for. */
+export interface PendingPicture {
+  key: PictureKey;
+  jobId: string;
+  shape: string;
+}
+
 /** What the Stays row needs to know about where a placed picture is drawn now. */
 export interface AnchorState {
   /** The page of the chapter it is drawn on, or null when nothing is laid out. */
@@ -56,6 +66,14 @@ export interface PictureActions {
   pageOfPicture: (target: PictureTarget) => number | null;
   /** New art in front of the text, on the caret's page. */
   addArt: (src: string) => void;
+  /** The picture's key, which survives edits; null for an image that has no block id yet. */
+  keyOf: (target: PictureTarget) => PictureKey | null;
+  /** The picture a key names now, or null when it is gone. */
+  targetOf: (key: PictureKey) => PictureTarget | null;
+  /** Mark a picture as being painted (saved with the chapter, so a reload can resume), or clear the mark with null. */
+  markPending: (target: PictureTarget, job: { jobId: string; shape: string } | null) => void;
+  /** Every picture in the chapter that is still being painted. */
+  pendingPictures: () => PendingPicture[];
 }
 
 interface Options {
@@ -212,6 +230,55 @@ export function useEditorPictures(opts: Options): PictureActions {
     return found;
   }
 
+  function keyOf(target: PictureTarget): PictureKey | null {
+    if (target.source === "furniture") return { source: "furniture", id: target.id };
+    const node = live()?.state.doc.nodeAt(target.pos);
+    const id: unknown = node?.attrs.blockId;
+    return typeof id === "string" && id ? { source: "node", blockId: id } : null;
+  }
+
+  function targetOf(key: PictureKey): PictureTarget | null {
+    if (key.source === "furniture") return opts.furniture().some((f) => f.id === key.id) ? { source: "furniture", id: key.id } : null;
+    const pos = nodePosByBlockId(key.blockId);
+    return pos === null ? null : { source: "node", pos };
+  }
+
+  function markPending(target: PictureTarget, job: { jobId: string; shape: string } | null) {
+    if (target.source === "node") {
+      const ed = live();
+      if (ed) updateNodeAttrs(ed, target.pos, { pendingJob: job?.jobId ?? null, pendingShape: job?.shape ?? null });
+      return;
+    }
+    opts.setFurniture(
+      opts.furniture().map((f) => {
+        if (f.id !== target.id) return f;
+        const props = { ...f.props };
+        delete props.pendingJob;
+        delete props.pendingShape;
+        return { ...f, props: job ? { ...props, pendingJob: job.jobId, pendingShape: job.shape } : props };
+      }),
+    );
+  }
+
+  function pendingPictures(): PendingPicture[] {
+    const found: PendingPicture[] = [];
+    const ed = live();
+    ed?.state.doc.descendants((node) => {
+      const { pendingJob, pendingShape, blockId } = node.attrs;
+      if (node.type.name === "image" && typeof pendingJob === "string" && pendingJob && typeof blockId === "string" && blockId) {
+        found.push({ key: { source: "node", blockId }, jobId: pendingJob, shape: typeof pendingShape === "string" ? pendingShape : "" });
+      }
+      return true;
+    });
+    for (const f of opts.furniture()) {
+      const { pendingJob, pendingShape } = f.props;
+      if (f.kind === "art" && typeof pendingJob === "string" && pendingJob) {
+        found.push({ key: { source: "furniture", id: f.id }, jobId: pendingJob, shape: typeof pendingShape === "string" ? pendingShape : "" });
+      }
+    }
+    return found;
+  }
+
   function treat(target: PictureTarget, patch: TreatmentPatch) {
     if (target.source === "node") {
       const ed = live();
@@ -310,5 +377,5 @@ export function useEditorPictures(opts: Options): PictureActions {
     opts.select(item.id);
   }
 
-  return { placeOnPage, putInText, replaceSrc, remove, valuesOf, nodePosByBlockId, treat, chooseCorner, chooseAnchor, anchorState, pageOf, pageOfPicture, addArt };
+  return { placeOnPage, putInText, replaceSrc, remove, valuesOf, nodePosByBlockId, treat, chooseCorner, chooseAnchor, anchorState, pageOf, pageOfPicture, addArt, keyOf, targetOf, markPending, pendingPictures };
 }

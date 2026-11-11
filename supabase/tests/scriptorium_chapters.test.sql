@@ -2,7 +2,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(79);
+select plan(80);
 
 -- A Scriptorium document is a book of chapters (#1115 story 13, 20261029222021).
 --
@@ -91,6 +91,11 @@ select ok(
   private.withhold_secret_blocks('{"type":"doc","content":[{"type":"image","attrs":{"src":"BAKED.webp","original":"UNTREATED.webp","illuminate":{"v":1},"bakedFor":"h1"}}]}') not like '%UNTREATED%'
   and private.withhold_secret_blocks('{"type":"doc","content":[{"type":"image","attrs":{"src":"BAKED.webp","original":"UNTREATED.webp","illuminate":{"v":1},"bakedFor":"h1"}}]}') like '%BAKED.webp%',
   'every other projection strips a picture''s recipe too, keeping its baked src (fails if an image alone skips the strip)');
+
+select ok(
+  private.withhold_secret_blocks('{"type":"doc","content":[{"type":"image","attrs":{"src":"OLD.webp","pendingJob":"job-123","pendingShape":"banner"}}]}') not like '%job-123%'
+  and private.withhold_secret_blocks('{"type":"doc","content":[{"type":"image","attrs":{"src":"OLD.webp","pendingJob":"job-123","pendingShape":"banner"}}]}') like '%OLD.webp%',
+  'a picture still being painted reaches a player without the DM''s job marks (fails if pendingJob or pendingShape survive)');
 
 select is(
   private.withhold_secret_blocks('{"type":"doc","content":[{"type":"image","attrs":{"src":"plain.webp","alt":"x"}}]}'),
