@@ -389,3 +389,54 @@ describe("layout classes", () => {
     expect(flow.layoutClasses).toEqual({ t1: ["sc-table--span"], c1: ["sc-flow-float-end"] });
   });
 });
+
+describe("pushed floats", () => {
+  const FLOAT = (id: string) => `<div class="sc-img-wrap--wrapLeft"><img data-block-id="${id}" src="x.png"></div>`;
+
+  /** The wrapper and the img inside it share one rect, as the picture is one box. */
+  const rects = (float: Element, r: FlowRect) =>
+    new Map<Element, FlowRect>([[float, r], ...[...float.querySelectorAll("img")].map((i): [Element, FlowRect] => [i, r])]);
+
+  function run(html: string, floatRect: FlowRect, col2From?: number) {
+    const p1 = page(1, html);
+    const float = p1.querySelector(".sc-img-wrap--wrapLeft");
+    if (!float) throw new Error("no float");
+    const geo = fakeGeometry(
+      new Map([[textOf(p1, "p"), { top: 10, col2From }]]),
+      rects(float, floatRect),
+    );
+    return measureChapterFlow([p1], { chapterId: CH, twoColumn: true }, geo).pushedFloats;
+  }
+
+  it("a picture pushed past its paragraph's column is reported", () => {
+    // Bug caught: only column breaks were measured, so the editor never learned the picture moved.
+    const pushed = run(`${FLOAT("pic")}<p data-block-id="p">0123456789</p>`, { left: 250, right: 390, top: 10, bottom: 100 });
+    expect(pushed).toEqual([{ imageBlockId: "pic", paragraphBlockId: "p", page: 1 }]);
+  });
+
+  it("a picture in its paragraph's column is not", () => {
+    // Bug caught: any column-2 picture reported, or the paragraph's later column-2 lines mistaken for its start.
+    expect(run(`${FLOAT("pic")}<p data-block-id="p">0123456789</p>`, { left: 20, right: 150, top: 10, bottom: 100 }, 4)).toEqual([]);
+  });
+
+  it("a picture grouped with its paragraph is never reported", () => {
+    // Bug caught: a group moves whole, so a picture in it cannot be pushed alone.
+    expect(
+      run(`<div class="sc-float-group">${FLOAT("pic")}<p data-block-id="p">0123456789</p></div>`, { left: 250, right: 390, top: 10, bottom: 100 }),
+    ).toEqual([]);
+  });
+
+  it("a picture on a later page than its paragraph's first line is reported with that page", () => {
+    const p1 = page(1, '<p data-block-id="p">0123456789</p>');
+    const p2 = page(2, `${FLOAT("pic")}<p data-block-id="p" data-split-from="x">more</p>`);
+    const float = p2.querySelector(".sc-img-wrap--wrapLeft");
+    if (!float) throw new Error("no float");
+    const geo = fakeGeometry(
+      new Map<Node, Place>([[textOf(p1, "p"), { top: 10 }]]),
+      rects(float, { left: 20, right: 150, top: 10, bottom: 100 }),
+    );
+    expect(measureChapterFlow([p1, p2], { chapterId: CH, twoColumn: true }, geo).pushedFloats).toEqual([
+      { imageBlockId: "pic", paragraphBlockId: "p", page: 2 },
+    ]);
+  });
+});

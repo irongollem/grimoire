@@ -8,7 +8,7 @@
 
 import { CHAPTER_ID_ATTR } from "@/scriptorium/lib/furniture/renderFurniture";
 import { layoutTextLength, layoutTextNodes } from "./layoutText";
-import type { ChapterFlow, FlowBreak, FlowPosition } from "./types";
+import type { ChapterFlow, FlowBreak, FlowPosition, PushedFloat } from "./types";
 
 export interface FlowRect {
   left: number;
@@ -306,7 +306,84 @@ export function measureChapterFlow(
     twoColumn: opts.twoColumn,
     breaks,
     layoutClasses: layoutClassesOf(contents.filter((c): c is HTMLElement => c !== null)),
+    pushedFloats: pushedFloatsOf(contents, opts.twoColumn, geometry),
   };
+}
+
+const WRAPPED_FLOAT = ".sc-img-wrap--wrapLeft, .sc-img-wrap--wrapRight";
+
+interface Place {
+  page: number;
+  /** 0 for the first column (or a single-column page), 1 for the second. */
+  column: number;
+}
+
+function laterThan(a: Place, b: Place): boolean {
+  return a.page > b.page || (a.page === b.page && a.column > b.column);
+}
+
+/** The block id a picture carries: on the wrapper itself, or on the img inside it. */
+function pictureBlockId(float: Element): string | null {
+  return (
+    float.getAttribute("data-block-id") ??
+    float.querySelector("[data-block-id]")?.getAttribute("data-block-id") ??
+    null
+  );
+}
+
+/**
+ * Wrapped pictures the print drew in a later column or page than the first line
+ * of the paragraph after them. A picture sits before its paragraph in the
+ * markup; when it does not fit at the foot of a column, native column
+ * fragmentation moves it on and the paragraph keeps filling the column. A
+ * picture grouped with its paragraph (`.sc-float-group`) cannot be separated.
+ */
+function pushedFloatsOf(
+  contents: (HTMLElement | null)[],
+  twoColumn: boolean,
+  geometry: FlowGeometry,
+): PushedFloat[] {
+  const out: PushedFloat[] = [];
+  const columnOf = (content: HTMLElement, r: FlowRect): number => {
+    if (!twoColumn) return 0;
+    const box = geometry.rectOfElement(content);
+    return (r.left + r.right) / 2 > (box.left + box.right) / 2 ? 1 : 0;
+  };
+
+  // Where the first character of a block's first fragment is drawn.
+  const startOf = (blockId: string): Place | null => {
+    for (let i = 0; i < contents.length; i++) {
+      const content = contents[i];
+      if (!content) continue;
+      for (const frag of content.querySelectorAll("[data-block-id]")) {
+        if (frag.getAttribute("data-block-id") !== blockId || frag.closest(CHROME_SELECTOR)) continue;
+        for (const node of layoutTextNodes(frag)) {
+          for (let j = 0; j < node.data.length; j++) {
+            const r = geometry.rectOfTextChar(node, j);
+            if (r) return { page: i + 1, column: columnOf(content, r) };
+          }
+        }
+        return null;
+      }
+    }
+    return null;
+  };
+
+  contents.forEach((content, i) => {
+    if (!content) return;
+    for (const float of content.querySelectorAll(WRAPPED_FLOAT)) {
+      if (float.closest(".sc-float-group") || float.closest(CHROME_SELECTOR)) continue;
+      const imageBlockId = pictureBlockId(float);
+      const paragraph = float.nextElementSibling;
+      const paragraphBlockId = paragraph?.getAttribute("data-block-id");
+      if (!imageBlockId || !paragraphBlockId) continue;
+      const start = startOf(paragraphBlockId);
+      if (!start) continue;
+      const drawn: Place = { page: i + 1, column: columnOf(content, geometry.rectOfElement(float)) };
+      if (laterThan(drawn, start)) out.push({ imageBlockId, paragraphBlockId, page: drawn.page });
+    }
+  });
+  return out;
 }
 
 /**

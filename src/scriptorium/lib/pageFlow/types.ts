@@ -47,6 +47,21 @@ export interface ChapterFlow {
    * picture (`sc-flow-float-end`).
    */
   layoutClasses: Record<string, string[]>;
+  /**
+   * Wrapped pictures the print draws in a later column or page than the first
+   * line of the paragraph that follows them (the browser pushed the float on
+   * and left the text). The editor cannot reproduce that, so it warns.
+   */
+  pushedFloats: PushedFloat[];
+}
+
+export interface PushedFloat {
+  /** The `data-block-id` of the picture. */
+  imageBlockId: string;
+  /** The `data-block-id` of the paragraph the picture was meant to sit beside. */
+  paragraphBlockId: string;
+  /** 1-based page within the chapter where the picture is drawn. */
+  page: number;
 }
 
 /** The shape-changing classes `layoutClasses` may name, so the editor applies no others. */

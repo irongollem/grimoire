@@ -201,11 +201,90 @@ function layoutClassDecorations(state: EditorState, flow: ChapterFlow): Decorati
   return out;
 }
 
+/**
+ * The warning beside a picture the printer moves (#1176 story 11). The widget
+ * is zero height in flow and its note is absolutely placed in the margin, so
+ * it never moves the page's text; contenteditable=false keeps its words out of
+ * the layout-text count. ProseMirror builds a widget's DOM by hand, outside
+ * Vue, so the two actions are plain `<button>` elements here (there is no
+ * AppButton to mount), styled by scriptorium-page-flow.css.
+ */
+function pushedFloatWidget(imageBlockId: string, pos: number): Decoration {
+  return Decoration.widget(
+    pos,
+    (view) => {
+      const el = widgetEl(false, "sc-flow-pushed");
+      el.removeAttribute("aria-hidden");
+      el.dataset.imageBlockId = imageBlockId;
+      const note = document.createElement("div");
+      note.className = "sc-flow-pushed-note";
+      note.setAttribute("role", "note");
+      const title = document.createElement("strong");
+      title.className = "sc-flow-pushed-title";
+      title.textContent = "In print this picture moves to the next column";
+      const body = document.createElement("p");
+      body.className = "sc-flow-pushed-body";
+      body.textContent =
+        "It does not fit beside its text at the foot of this column, so the printer pushes it on and leaves the text here.";
+      const actions = document.createElement("div");
+      actions.className = "sc-flow-pushed-actions";
+
+      // The picture can have moved since the widget was drawn: find it again by id.
+      const imagePos = (): number | null => {
+        let found: number | null = null;
+        view.state.doc.descendants((node, p) => {
+          if (found === null && node.attrs.blockId === imageBlockId) found = p;
+          return found === null;
+        });
+        return found;
+      };
+      const keep = document.createElement("button");
+      keep.type = "button";
+      keep.className = "sc-flow-pushed-btn";
+      keep.textContent = "Keep it with its text";
+      keep.addEventListener("click", () => {
+        const at = imagePos();
+        if (at === null) return;
+        view.dispatch(view.state.tr.setNodeAttribute(at, "keepWithText", true));
+      });
+      const place = document.createElement("button");
+      place.type = "button";
+      place.className = "sc-flow-pushed-btn";
+      place.textContent = "Place it on the page instead";
+      place.addEventListener("click", () => {
+        const at = imagePos();
+        if (at === null) return;
+        view.dom.dispatchEvent(new CustomEvent("sc-place-on-page", { bubbles: true, detail: { pos: at } }));
+      });
+      actions.append(keep, place);
+      note.append(title, body, actions);
+      el.append(note);
+      return el;
+    },
+    { key: `pushed-${imageBlockId}`, side: -1, ignoreSelection: true, stopEvent: () => true },
+  );
+}
+
+function pushedFloatDecorations(state: EditorState, flow: ChapterFlow): Decoration[] {
+  if (flow.pushedFloats.length === 0) return [];
+  const wanted = new Set(flow.pushedFloats.map((f) => f.imageBlockId));
+  const out: Decoration[] = [];
+  state.doc.descendants((node, pos) => {
+    const id: unknown = node.attrs.blockId;
+    if (typeof id === "string" && wanted.has(id)) {
+      wanted.delete(id);
+      out.push(pushedFloatWidget(id, pos));
+    }
+  });
+  return out;
+}
+
 function buildDecorations(state: EditorState): DecorationSet {
   const fs = key.getState(state);
   if (!fs || !fs.flow) return DecorationSet.empty;
   const decos = fs.breaks.map((b) => (b.kind === "page" ? gapWidget(b) : columnWidget(b)));
   decos.push(...layoutClassDecorations(state, fs.flow));
+  decos.push(...pushedFloatDecorations(state, fs.flow));
   decos.push(
     Decoration.widget(
       state.doc.content.size,

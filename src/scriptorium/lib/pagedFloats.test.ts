@@ -53,4 +53,13 @@ describe("groupWrappedImages", () => {
     const groups = parse(groupWrappedImages(html)).querySelectorAll(".sc-float-group");
     expect([...groups].map((g) => g.querySelector("h2")?.textContent)).toEqual(["Toddy", "Chicory", "Rosie"]);
   });
+
+  it("Keep it with its text groups a long paragraph with its picture", () => {
+    // Bug caught: the threshold wins over the DM's choice and the picture is still pushed alone.
+    const long = "word ".repeat(FLOAT_GROUP_CHAR_THRESHOLD);
+    const kept = `<div class="sc-img-wrap sc-img-wrap--wrapLeft"><img src="a.webp" data-keep-with-text="true"></div>`;
+    expect(parse(groupWrappedImages(`${kept}<p>${long}</p>`)).querySelector(".sc-float-group")).not.toBeNull();
+    // Without the choice the same long paragraph is left alone.
+    expect(parse(groupWrappedImages(`${portrait("wrapLeft")}<p>${long}</p>`)).querySelector(".sc-float-group")).toBeNull();
+  });
 });

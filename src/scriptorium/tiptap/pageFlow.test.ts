@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { readFileSync } from "node:fs";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { Editor } from "@tiptap/core";
 import { createScriptoriumExtensions } from "@/scriptorium/lib/scriptoriumExtensions";
@@ -28,8 +29,13 @@ function blockIds(ed: Editor): string[] {
 
 const flush = () => new Promise<void>((r) => queueMicrotask(r));
 
-function flowOf(breaks: FlowBreak[], twoColumn = false, layoutClasses: ChapterFlow["layoutClasses"] = {}): ChapterFlow {
-  return { chapterId: "c", pageCount: 2, twoColumn, breaks, layoutClasses };
+function flowOf(
+  breaks: FlowBreak[],
+  twoColumn = false,
+  layoutClasses: ChapterFlow["layoutClasses"] = {},
+  pushedFloats: ChapterFlow["pushedFloats"] = [],
+): ChapterFlow {
+  return { chapterId: "c", pageCount: 2, twoColumn, breaks, layoutClasses, pushedFloats };
 }
 
 async function setFlow(ed: Editor, flow: ChapterFlow | null) {
@@ -184,5 +190,82 @@ describe("pageAt", () => {
   it("is the last page starting at or before the position", () => {
     expect(pageAt(pages, 39)?.page).toBe(1);
     expect(pageAt(pages, 40)?.page).toBe(2);
+  });
+});
+
+describe("a picture the printer pushes on", () => {
+  const IMG = '<img src="https://example.com/a.png" data-layout-mode="wrapLeft">';
+
+  async function withPushed(): Promise<{ ed: Editor; imageId: string; paragraphId: string }> {
+    const ed = await makeEditor(`<p>Intro text</p>${IMG}<p>The paragraph beside the picture.</p>`);
+    editor = ed;
+    const ids = blockIds(ed);
+    const flow = flowOf([], true, {}, [{ imageBlockId: ids[1], paragraphBlockId: ids[2], page: 1 }]);
+    await setFlow(ed, flow);
+    return { ed, imageId: ids[1], paragraphId: ids[2] };
+  }
+
+  it("shows the warning in a note that takes no height and holds no layout text", async () => {
+    // Bug caught: a warning in flow pushes the page's text down, or its words count as the author's text.
+    const { ed } = await withPushed();
+    const widget = ed.view.dom.querySelector<HTMLElement>(".sc-flow-pushed");
+    expect(widget).not.toBeNull();
+    expect(widget?.contentEditable).toBe("false");
+    expect(widget?.style.height).toBe("");
+    expect(widget?.querySelector(".sc-flow-pushed-title")?.textContent).toBe(
+      "In print this picture moves to the next column",
+    );
+    expect(widget?.querySelector(".sc-flow-pushed-note")).not.toBeNull();
+    // The document itself is untouched by the widget.
+    expect(ed.getText()).not.toContain("printer pushes");
+  });
+
+  it("the note hangs outside the page, not inside a column", async () => {
+    // Bug caught: a positioned widget makes left:100% the column's edge, so the note lands on the page's text.
+    const { ed } = await withPushed();
+    const widget = ed.view.dom.querySelector<HTMLElement>(".sc-flow-pushed");
+    expect(widget?.style.position).toBe("");
+    expect(widget?.style.height).toBe("");
+    const css = readFileSync("src/scriptorium/styles/scriptorium-page-flow.css", "utf8");
+    const widgetRule = /\.sc-flow-pushed \{[^}]*\}/.exec(css)?.[0] ?? "";
+    expect(widgetRule).not.toMatch(/position:\s*(relative|absolute)/);
+    expect(/\.sc-flow-pushed-note \{[^}]*left:\s*calc\(100% \+ 1rem\)/.test(css)).toBe(true);
+  });
+
+  it("draws no warning when nothing is pushed", async () => {
+    editor = await makeEditor(`<p>Intro</p>${IMG}<p>Body</p>`);
+    await setFlow(editor, flowOf([], true));
+    expect(editor.view.dom.querySelector(".sc-flow-pushed")).toBeNull();
+  });
+
+  it("Keep it with its text sets keepWithText on that picture", async () => {
+    // Bug caught: a button wired to the wrong node, or not at all, leaves the picture pushed.
+    const { ed, imageId } = await withPushed();
+    const buttons = ed.view.dom.querySelectorAll<HTMLButtonElement>(".sc-flow-pushed-btn");
+    expect(buttons[0].textContent).toBe("Keep it with its text");
+    buttons[0].click();
+    const img = (ed.getJSON().content ?? []).find((n) => n.attrs?.blockId === imageId);
+    expect(img?.attrs?.keepWithText).toBe(true);
+  });
+
+  it("Place it on the page instead hands the editor the picture's position", async () => {
+    // Bug caught: the event carries the paragraph's position, or does not bubble to the editor root.
+    const { ed, imageId } = await withPushed();
+    let detail: unknown = null;
+    ed.view.dom.parentElement?.addEventListener("sc-place-on-page", (e) => {
+      detail = (e as CustomEvent).detail;
+    });
+    ed.view.dom.querySelectorAll<HTMLButtonElement>(".sc-flow-pushed-btn")[1].click();
+    let expected = -1;
+    ed.state.doc.descendants((node, pos) => {
+      if (node.attrs.blockId === imageId) expected = pos;
+    });
+    expect(detail).toEqual({ pos: expected });
+  });
+
+  it("the warning goes away on the next layout once the picture is no longer pushed", async () => {
+    const { ed } = await withPushed();
+    await setFlow(ed, flowOf([], true));
+    expect(ed.view.dom.querySelector(".sc-flow-pushed")).toBeNull();
   });
 });

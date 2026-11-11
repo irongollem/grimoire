@@ -73,3 +73,72 @@
 .phb-editor .ProseMirror.sc-flow-columns > [data-type="coverPage"] {
   column-span: all;
 }
+
+/* A picture the printer pushes to the next column (#1176 story 11, canvas frame 09).
+   The widget is zero height in flow; the note hangs in the page margin beside
+   the picture, so the text never moves. Red-edged like an error, but calm. */
+.phb-editor .ProseMirror .sc-flow-pushed {
+  /* Deliberately not positioned: the note's containing block is the page-wide
+     root, so left: 100% is the page's right edge, never the column's. */
+  display: block;
+  height: 0;
+  column-span: none;
+}
+.phb-editor .ProseMirror .sc-flow-pushed-note {
+  position: absolute;
+  /* top stays auto: the note starts level with the picture, where the widget sits. */
+  left: calc(100% + 1rem);
+  z-index: 5;
+  pointer-events: auto;
+  width: 15rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--destructive) 55%, transparent);
+  border-left-width: 3px;
+  border-radius: 0.375rem;
+  background: var(--card);
+  color: var(--card-foreground);
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  text-align: left;
+  user-select: none;
+}
+/* Hairline leader across the gap, from the page's edge to the note. */
+.phb-editor .ProseMirror .sc-flow-pushed-note::before {
+  content: "";
+  position: absolute;
+  top: 0.9rem;
+  right: 100%;
+  width: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--destructive) 55%, transparent);
+}
+.phb-editor .ProseMirror .sc-flow-pushed-title {
+  display: block;
+  font-weight: 600;
+}
+.phb-editor .ProseMirror .sc-flow-pushed-body {
+  margin: 0.25rem 0 0.5rem;
+  color: var(--muted-foreground);
+}
+.phb-editor .ProseMirror .sc-flow-pushed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+.phb-editor .ProseMirror .sc-flow-pushed-btn {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  font: inherit;
+  cursor: pointer;
+}
+.phb-editor .ProseMirror .sc-flow-pushed-btn:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+.phb-editor .ProseMirror .sc-flow-pushed-btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}

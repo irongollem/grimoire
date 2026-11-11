@@ -80,6 +80,14 @@ export const ScriptoriumImage = Image.extend({
           "data-gutter-bleed": attrs.gutterBleed ? "true" : "false",
         }),
       },
+      // Keep a wrapped picture with its paragraph in print even when the
+      // paragraph is long (#1176 story 11): the layout groups them, so the
+      // browser can never push the picture into the next column alone.
+      keepWithText: {
+        default: false,
+        parseHTML: (el) => el.getAttribute("data-keep-with-text") === "true",
+        renderHTML: (attrs) => (attrs.keepWithText ? { "data-keep-with-text": "true" } : {}),
+      },
       // A treated picture keeps its edits as a recipe (#1176 story 9): `original`
       // is the untouched picture, `illuminate` the steps (an object in the JSON,
       // JSON text in data-illuminate) and `bakedFor` the hash of the steps the
