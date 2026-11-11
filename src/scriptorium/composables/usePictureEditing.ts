@@ -164,5 +164,5 @@ export function usePictureEditing(opts: Options) {
     opts.pictures.treat(target, treatmentPatch(now, settings));
   }
 
-  return { canEditPicture, workbench, openWorkbench, onWorkbenchDone, currentUserId };
+  return { canEditPicture, workbench, openWorkbench, onWorkbenchDone, currentUserId, bakeErrors: bakes.errors, retryBakes: bakes.retry };
 }

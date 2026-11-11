@@ -233,6 +233,30 @@ describe("keeping up with edits", () => {
     expect(api.pending()).toHaveLength(1);
   });
 
+  // Fails on: a failed bake being final, which leaves the edited picture hidden from players with no way back but editing it again.
+  it("tries a failed bake again when asked, and clears the error once it lands", async () => {
+    vi.useFakeTimers();
+    try {
+      const ed = editorWith({ original: "https://cdn/a.webp", illuminate: recipe });
+      let fail = true;
+      const bake = vi.fn<BakeFn>(async () => {
+        if (fail) throw new Error("boom");
+        return { url: "https://cdn/bake.webp", hash };
+      });
+      const { api } = setup({ editor: ed, bake });
+      await api.bakeStale();
+      expect(api.errors.value).toEqual(["boom"]);
+      fail = false;
+      api.retry();
+      await vi.runAllTimersAsync();
+      expect(bake).toHaveBeenCalledTimes(2);
+      expect(api.errors.value).toEqual([]);
+      expect(imageAttrs(ed)).toMatchObject({ src: "https://cdn/bake.webp", bakedFor: hash });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   // Fails on: a bake starting on every slider move, which is the cost the 1.2 s wait exists to avoid.
   it("waits for edits to stop before baking", async () => {
     vi.useFakeTimers();

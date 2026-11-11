@@ -91,6 +91,11 @@
       <span v-if="movedNotice" role="status" class="text-caption italic text-muted-foreground" data-testid="picture-moved">
         {{ movedNotice }}
       </span>
+      <!-- A failed bake leaves the edited picture hidden from players, so it is said out loud. -->
+      <span v-if="bakeErrors.length > 0" role="alert" class="flex items-center gap-2 text-caption text-destructive" data-testid="bake-failed">
+        An edited picture could not be saved, so players do not see it yet.
+        <AppButton size="xs" variant="ghost" label="Try again" @click="retryBakes" />
+      </span>
       <span class="ml-auto text-caption italic text-muted-foreground">{{ wordCount }} words</span>
       <span v-if="pagesLabel" class="text-caption italic text-muted-foreground">{{ pagesLabel }}</span>
     </footer>
@@ -136,6 +141,7 @@ import { prefersReducedMotion } from "@/lib/motion";
 import { createScriptoriumExtensions } from "@/scriptorium/lib/scriptoriumExtensions";
 import { PageFlow } from "@/scriptorium/tiptap/pageFlow";
 import { FurnitureUnderlay } from "@/scriptorium/tiptap/furnitureUnderlay";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import { movedNoticeText } from "@/scriptorium/lib/furniture/movedNotice";
 import { useFurnitureEditing } from "@/scriptorium/composables/useFurnitureEditing";
 import { useEditorPictures } from "@/scriptorium/composables/useEditorPictures";
@@ -465,7 +471,7 @@ const pictures = useEditorPictures({
 });
 
 // ── The Illuminator in the book (#1176 story 9b) ────────────────────────────
-const { canEditPicture, workbench, openWorkbench, onWorkbenchDone, currentUserId } = usePictureEditing({
+const { canEditPicture, workbench, openWorkbench, onWorkbenchDone, currentUserId, bakeErrors, retryBakes } = usePictureEditing({
   editor,
   selection,
   version: selectionVersion,

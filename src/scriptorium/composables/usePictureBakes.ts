@@ -174,5 +174,15 @@ export function usePictureBakes(options: PictureBakesOptions) {
     });
   }
 
-  return { running, errors, pending, bakeStale, schedule };
+  /**
+   * Try every failed picture again. A picture whose bake failed is hidden from players until one lands
+   * (its recipe has no bakedFor), so the author is told and can ask for another go.
+   */
+  function retry(): void {
+    failed.clear();
+    errors.value = [];
+    schedule(0);
+  }
+
+  return { running, errors, pending, bakeStale, schedule, retry };
 }
