@@ -2,10 +2,10 @@
  * The pure core of `npm run stat-blocks:structure` (#1017): one stat block in, the
  * block the "expand" release step should store out.
  *
- * Expand is additive on purpose. The client in production still reads the four
- * defense strings and ignores `structured` / `defenses`, so those strings are put
- * back after `structureStatBlock` drops them; the contract step (a later
- * migration) removes them once the new client is out.
+ * The four old defense strings are gone from the result: the contract migration
+ * (`20261010004946_stat_blocks_drop_prose_defense_strings`) removed them everywhere,
+ * and `private.guard_stat_block_shape` refuses a write that still carries one, so a
+ * block structured late (a stale local seed, a straggler) drops them too.
  */
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
@@ -21,13 +21,6 @@ export const LIST_KEYS = [
   "legendary_actions",
   "lair_actions",
 ] as const satisfies readonly StatBlockListKey[];
-
-const DEFENSE_STRING_KEYS = [
-  "damage_resistances",
-  "damage_immunities",
-  "damage_vulnerabilities",
-  "condition_immunities",
-] as const;
 
 /** One agent-read structure from `library-extracted-actions.json`. */
 export interface ExtractedAction {
@@ -101,7 +94,6 @@ function isAlreadyStructured(block: Record<string, unknown>): boolean {
 export function expandStatBlock(
   block: unknown,
   extracted?: Map<string, ExtractedAction>,
-  options: { keepLegacyStrings: boolean } = { keepLegacyStrings: true },
 ): ExpandResult {
   const stats = emptyStats();
   if (!isRecord(block)) return { next: block, changed: false, alreadyStructured: true, stats };
@@ -126,15 +118,6 @@ export function expandStatBlock(
   }
 
   const structured: Record<string, unknown> = { ...structureStatBlock(input as ProseStatBlockFields) };
-  // Before the contract migration the old strings stay (only those that existed),
-  // so the write is purely additive for the client that is live. After it, a row
-  // converted late (a straggler the old client wrote in between) drops them, as the
-  // migration did for everyone else.
-  if (options.keepLegacyStrings) {
-    for (const key of DEFENSE_STRING_KEYS) {
-      if (key in block) structured[key] = block[key];
-    }
-  }
 
   for (const list of LIST_KEYS) {
     const entries = structured[list];

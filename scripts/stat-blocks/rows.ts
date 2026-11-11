@@ -181,9 +181,7 @@ export async function convertStragglers(
   for (const row of rows) {
     if (contractBlocker(row.stat_block) === null) continue;
     result.found++;
-    const { next } = expandStatBlock(row.stat_block, table === "library_monsters" ? extractions.get(row.id) : undefined, {
-      keepLegacyStrings: false,
-    });
+    const { next } = expandStatBlock(row.stat_block, table === "library_monsters" ? extractions.get(row.id) : undefined);
     if (await writeRow(target, table, row.id, next)) result.written++;
     else result.failed++;
   }

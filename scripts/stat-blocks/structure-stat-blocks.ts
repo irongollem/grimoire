@@ -1,8 +1,9 @@
 #!/usr/bin/env tsx
 /**
- * Writes `structured` + `defenses` into every stored stat block (#1017), the
- * "expand" half of the two-step release. The four old defense strings stay on the
- * block (the client in production still reads them); a later migration drops them.
+ * Writes `structured` + `defenses` into every stored stat block (#1017) and drops
+ * the four old defense strings, which the contract migration removed everywhere
+ * (`20261010004946`) and the write guard now refuses. Run it after a `db:reset`
+ * from an older seed, whose stat blocks load underneath the guard.
  *
  * Usage:
  *   npm run stat-blocks:structure                         # check, local stack

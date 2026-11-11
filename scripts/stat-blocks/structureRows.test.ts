@@ -24,19 +24,16 @@ type Next = {
 };
 
 describe("expandStatBlock", () => {
-  it("structures every entry, adds defenses and keeps the four strings", () => {
+  it("structures every entry, adds defenses and drops the four old strings the write guard refuses", () => {
     const r = expandStatBlock(block());
     const next = r.next as Next;
     expect(r.changed).toBe(true);
     expect(r.alreadyStructured).toBe(false);
     expect(next.actions[0].structured.kind).toBe("attack");
     expect(next.defenses).toBeDefined();
-    expect(next).toMatchObject({
-      damage_resistances: "fire",
-      damage_immunities: "poison",
-      damage_vulnerabilities: "",
-      condition_immunities: "charmed",
-    });
+    for (const key of ["damage_resistances", "damage_immunities", "damage_vulnerabilities", "condition_immunities"]) {
+      expect(next).not.toHaveProperty(key);
+    }
     expect(r.stats.kinds.attack).toBe(1);
   });
 
@@ -155,15 +152,6 @@ describe("contractBlocker (the contract migration's refusal rule)", () => {
 
   it("passes every block expandStatBlock produces", () => {
     const { next } = expandStatBlock({ damage_resistances: "fire; bludgeoning from nonmagical attacks", actions: [{ name: "Bite", description: "Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) piercing damage." }] });
-    expect(contractBlocker(next)).toBeNull();
-  });
-});
-
-describe("expandStatBlock after the contract", () => {
-  it("drops the old strings when asked, and the result passes the contract rule", () => {
-    const { next } = expandStatBlock({ damage_resistances: "fire", condition_immunities: "poisoned" }, undefined, { keepLegacyStrings: false });
-    expect(next).not.toHaveProperty("damage_resistances");
-    expect(next).not.toHaveProperty("condition_immunities");
     expect(contractBlocker(next)).toBeNull();
   });
 });
