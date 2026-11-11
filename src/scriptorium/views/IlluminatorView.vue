@@ -136,30 +136,28 @@ import { toWebP } from "@/lib/mediaConvert";
 import { uploadToBucket, isBucketUrl } from "@/lib/storage";
 import { downloadBlob } from "@/lib/downloadBlob";
 import {
-  applyEdgeTreatmentToCtx,
-  processImage,
   DEFAULT_EDGE_TREATMENT,
   type EdgeTreatmentOptions,
   type EdgeOptions,
 } from "@/scriptorium/illuminator/lib/edgeTreatment";
+import { applySteps, processImage } from "@/scriptorium/illuminator/lib/applySteps";
+import { makeScratchCanvas, scratchContext } from "@/scriptorium/illuminator/lib/scratch";
+import type { LoadImage } from "@/scriptorium/illuminator/lib/loadImage";
+import type { IlluminateSettings, IlluminateStep } from "@/scriptorium/illuminator/lib/treatment";
 import {
-  applyColourGrading,
   DEFAULT_COLOUR_GRADING,
   type ColourGradingOptions,
 } from "@/scriptorium/illuminator/lib/colourGrading";
 import {
-  applyVignette,
   DEFAULT_VIGNETTE,
   type VignetteOptions,
 } from "@/scriptorium/illuminator/lib/vignette";
 import {
-  applyDofBlur,
   drawFocalCrosshair,
   DEFAULT_DOF_BLUR,
   type DofBlurOptions,
 } from "@/scriptorium/illuminator/lib/dofBlur";
 import {
-  applyTextureOverlay,
   DEFAULT_TEXTURE_OVERLAY,
   type TextureOverlayOptions,
 } from "@/scriptorium/illuminator/lib/textureOverlay";
@@ -353,33 +351,65 @@ function clearTexture() {
 
 const MAX_PREVIEW = 900;
 
-function renderPreview() {
+/** Stand-ins for the two pictures that live only in this view (an unsaved texture and the brush canvas). */
+const VIEW_TEXTURE = "view:texture";
+const VIEW_MASK = "view:mask";
+
+const viewLoader: LoadImage = async (url) => {
+  if (url === VIEW_TEXTURE && textureImage.value) return textureImage.value;
+  if (url === VIEW_MASK) return brushController.maskCanvas;
+  throw new Error(`unknown picture ${url}`);
+};
+
+/** The panels' state as a recipe. The preview paints the brush itself, so it leaves the mask step out. */
+function buildSettings(withMask: boolean): IlluminateSettings {
+  const steps: IlluminateStep[] = [];
+  if (gradingEnabled.value) steps.push({ type: "grade", options: { ...grading } });
+  if (dofEnabled.value) {
+    const { enabled: _enabled, ...options } = dof;
+    steps.push({ type: "dof", options });
+  }
+  if (textureEnabled.value && textureImage.value) {
+    steps.push({ type: "texture", url: VIEW_TEXTURE, blendMode: texture.blendMode, opacity: texture.opacity, scale: texture.scale });
+  }
+  if (vignetteEnabled.value) {
+    const { enabled: _enabled, ...options } = vignette;
+    steps.push({ type: "vignette", options });
+  }
+  steps.push({ type: "edges", style: "classic", top: { ...opts.top }, right: { ...opts.right }, bottom: { ...opts.bottom }, left: { ...opts.left } });
+  if (withMask && brushController.hasStrokes) steps.push({ type: "mask", url: VIEW_MASK });
+  return { v: 1, seed: 1, steps };
+}
+
+let renderToken = 0;
+async function renderPreview() {
   const img    = sourceImage.value;
   const canvas = previewCanvas.value;
   if (!img || !canvas) return;
+  const token = ++renderToken;
 
   const scale = Math.min(1, MAX_PREVIEW / Math.max(img.naturalWidth, img.naturalHeight));
   const pw = Math.round(img.naturalWidth  * scale);
   const ph = Math.round(img.naturalHeight * scale);
 
-  canvas.width  = pw;
-  canvas.height = ph;
-
-  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-  ctx.clearRect(0, 0, pw, ph);
+  // Drawn off screen, then copied over, so a slow render never shows half a picture
+  // and a newer render is never overwritten by an older one.
+  const scratch = makeScratchCanvas(pw, ph);
+  const ctx = scratchContext(scratch);
   ctx.drawImage(img, 0, 0, pw, ph);
-
-  if (gradingEnabled.value) applyColourGrading(ctx, pw, ph, grading);
-  if (dofEnabled.value) applyDofBlur(ctx, pw, ph, { ...dof, enabled: true });
-  if (textureEnabled.value && textureImage.value) {
-    applyTextureOverlay(ctx, pw, ph, { ...texture, enabled: true }, textureImage.value);
-  }
-  if (vignetteEnabled.value) applyVignette(ctx, pw, ph, { ...vignette, enabled: true });
-  applyEdgeTreatmentToCtx(ctx, pw, ph, opts);
+  await applySteps(ctx, pw, ph, buildSettings(false), viewLoader, { sourceWidth: img.naturalWidth });
+  if (token !== renderToken) return;
   brushController.applyToCtx(ctx, pw, ph);
 
+  canvas.width  = pw;
+  canvas.height = ph;
+  const out = canvas.getContext("2d", { willReadFrequently: true });
+  if (!out) return;
+  out.clearRect(0, 0, pw, ph);
+  out.drawImage(scratch, 0, 0);
+
   // Crosshair drawn last — visible in preview only, not in export
-  if (dofEnabled.value) drawFocalCrosshair(ctx, pw, ph, dof.focalX, dof.focalY);
+  if (dofEnabled.value) drawFocalCrosshair(out, pw, ph, dof.focalX, dof.focalY);
 }
 
 let renderTimer: ReturnType<typeof setTimeout> | null = null;
@@ -395,7 +425,7 @@ function scheduleBrushRender(): void {
   if (brushRafId !== null) return;
   brushRafId = requestAnimationFrame(() => {
     brushRafId = null;
-    renderPreview();
+    void renderPreview();
   });
 }
 
@@ -487,46 +517,11 @@ function onKeyDown(e: KeyboardEvent) {
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 
-function buildGradingFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | undefined {
-  if (!gradingEnabled.value) return undefined;
-  const snapshot = { ...grading };
-  return (ctx, w, h) => applyColourGrading(ctx, w, h, snapshot);
-}
-
-function buildDofFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | undefined {
-  if (!dofEnabled.value) return undefined;
-  const snapshot = { ...dof, enabled: true };
-  return (ctx, w, h) => applyDofBlur(ctx, w, h, snapshot);
-}
-
-function buildVignetteFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | undefined {
-  if (!vignetteEnabled.value) return undefined;
-  const snapshot = { ...vignette, enabled: true };
-  return (ctx, w, h) => applyVignette(ctx, w, h, snapshot);
-}
-
-function buildTextureFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | undefined {
-  if (!textureEnabled.value || !textureImage.value) return undefined;
-  const snapshot = { ...texture, enabled: true };
-  const img = textureImage.value;
-  return (ctx, w, h) => applyTextureOverlay(ctx, w, h, snapshot, img);
-}
-
-function buildBrushMaskFn(): ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | undefined {
-  if (!brushController.hasStrokes) return undefined;
-  const maskCanvas = brushController.maskCanvas;
-  return (ctx, w, h) => {
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.drawImage(maskCanvas, 0, 0, w, h);
-    ctx.globalCompositeOperation = 'source-over';
-  };
-}
-
 async function downloadPng() {
   if (!sourceImage.value || isExporting.value) return;
   isExporting.value = true;
   try {
-    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn(), buildTextureFn(), buildBrushMaskFn());
+    const blob = await processImage(sourceImage.value, buildSettings(true), viewLoader);
     downloadBlob(blob, `${sourceFilename.value}-illuminated.png`);
   } finally {
     isExporting.value = false;
@@ -537,7 +532,7 @@ async function copyToClipboard() {
   if (!sourceImage.value || isExporting.value || !clipboardSupported) return;
   isExporting.value = true;
   try {
-    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn(), buildTextureFn(), buildBrushMaskFn());
+    const blob = await processImage(sourceImage.value, buildSettings(true), viewLoader);
     await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
     copySuccess.value = true;
     setTimeout(() => { copySuccess.value = false; }, 2000);
@@ -553,7 +548,7 @@ async function saveToScriptorium() {
   try {
     const user = getCurrentUser();
     if (!user) return;
-    const blob = await processImage(sourceImage.value, opts, buildGradingFn(), buildDofFn(), buildVignetteFn(), buildTextureFn(), buildBrushMaskFn());
+    const blob = await processImage(sourceImage.value, buildSettings(true), viewLoader);
     const stem = sourceFilename.value.replace(/\.[^.]+$/, "");
     const file = new File([blob], `${stem}-illuminated-${Date.now()}.png`, { type: "image/png" });
     const webpFile = await toWebP(file);

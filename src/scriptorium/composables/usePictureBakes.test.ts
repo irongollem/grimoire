@@ -1,0 +1,175 @@
+// @vitest-environment happy-dom
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { Editor } from "@tiptap/core";
+import { createScriptoriumExtensions } from "@/scriptorium/lib/scriptoriumExtensions";
+import { createFurnitureItem } from "@/scriptorium/lib/furniture/model";
+import { hashSettings, type IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
+import type { PageFurnitureItem } from "@/scriptorium/types";
+
+vi.mock("@/composables/useImageUpload", () => ({ ASSET_IMAGES_BUCKET: "asset-images", removeStorageImages: vi.fn() }));
+
+import { staleFurnitureArt, staleImageNodes, usePictureBakes, type BakeFn } from "./usePictureBakes";
+
+const recipe: IlluminateSettings = { v: 1, seed: 1, steps: [{ type: "mask", url: "https://cdn/m.png" }] };
+const hash = hashSettings(recipe);
+
+const editors: Editor[] = [];
+function editorWith(...images: Record<string, unknown>[]): Editor {
+  const ed = new Editor({
+    extensions: createScriptoriumExtensions(),
+    content: { type: "doc", content: images.map((attrs) => ({ type: "image", attrs: { src: "https://cdn/orig.webp", ...attrs } })) },
+  });
+  editors.push(ed);
+  return ed;
+}
+afterEach(() => editors.splice(0).forEach((e) => e.destroy()));
+
+const imageAttrs = (ed: Editor, i = 0) => ed.getJSON().content?.[i].attrs;
+
+function art(props: Record<string, string>): PageFurnitureItem {
+  const item = createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 });
+  return { ...item, props: { ...item.props, src: "https://cdn/orig.webp", ...props } };
+}
+
+function setup(over: { editor?: Editor; furniture?: PageFurnitureItem[]; bake?: BakeFn; userId?: string | undefined } = {}) {
+  let furniture = over.furniture ?? [];
+  const setFurniture = vi.fn((next: PageFurnitureItem[]) => { furniture = next; });
+  const discard = vi.fn();
+  const bake = over.bake ?? vi.fn<BakeFn>(async () => ({ url: "https://cdn/bake.webp", hash }));
+  const api = usePictureBakes({
+    editor: () => over.editor,
+    furniture: () => furniture,
+    setFurniture,
+    userId: () => ("userId" in over ? over.userId : "u1"),
+    bake,
+    discard,
+  });
+  return { api, setFurniture, discard, bake, furniture: () => furniture };
+}
+
+describe("finding stale bakes", () => {
+  it("is stale when the recipe's hash is not what the src was baked for", () => {
+    const ed = editorWith({ original: "https://cdn/orig.webp", illuminate: recipe, bakedFor: "old" });
+    expect(staleImageNodes(ed.state.doc)).toHaveLength(1);
+  });
+
+  it("is current when bakedFor is the recipe's hash", () => {
+    const ed = editorWith({ original: "https://cdn/orig.webp", illuminate: recipe, bakedFor: hash });
+    expect(staleImageNodes(ed.state.doc)).toEqual([]);
+  });
+
+  it("leaves a picture with no recipe, no original or no steps alone", () => {
+    const ed = editorWith({}, { illuminate: recipe }, { original: "o", illuminate: { v: 1, seed: 1, steps: [] } });
+    expect(staleImageNodes(ed.state.doc)).toEqual([]);
+  });
+
+  it("finds stale art furniture by its props, reading the recipe from its JSON text", () => {
+    const items = [art({ original: "o.webp", illuminate: JSON.stringify(recipe) }), art({ original: "o.webp", illuminate: JSON.stringify(recipe), bakedFor: hash })];
+    expect(staleFurnitureArt(items)).toHaveLength(1);
+  });
+});
+
+describe("baking stale pictures", () => {
+  it("bakes from the original, then sets src and bakedFor on the image node", async () => {
+    const ed = editorWith({ src: "https://cdn/orig.webp", original: "https://cdn/orig.webp", illuminate: recipe });
+    const { api, bake } = setup({ editor: ed });
+    await api.bakeStale();
+    expect(bake).toHaveBeenCalledWith("https://cdn/orig.webp", expect.objectContaining({ v: 1 }), "u1");
+    expect(imageAttrs(ed)).toMatchObject({ src: "https://cdn/bake.webp", bakedFor: hash, original: "https://cdn/orig.webp" });
+  });
+
+  it("writes the result outside undo history, so Undo steps over the author's edits and not the cache refresh", async () => {
+    const ed = editorWith({ original: "https://cdn/orig.webp", illuminate: recipe });
+    const { api } = setup({ editor: ed });
+    const metas: unknown[] = [];
+    ed.on("transaction", ({ transaction }) => metas.push(transaction.getMeta("addToHistory")));
+    await api.bakeStale();
+    expect(metas).toEqual([false]);
+  });
+
+  it("bakes two pictures with the same original and recipe once", async () => {
+    const attrs = { original: "https://cdn/orig.webp", illuminate: recipe };
+    const ed = editorWith(attrs, attrs);
+    const { api, bake } = setup({ editor: ed });
+    await api.bakeStale();
+    expect(bake).toHaveBeenCalledTimes(1);
+    expect(imageAttrs(ed, 0)?.bakedFor).toBe(hash);
+    expect(imageAttrs(ed, 1)?.bakedFor).toBe(hash);
+  });
+
+  it("hands furniture back as the whole updated array, keeping its other props", async () => {
+    const item = art({ original: "https://cdn/orig.webp", illuminate: JSON.stringify(recipe), opacity: "40" });
+    const { api, setFurniture } = setup({ furniture: [item] });
+    await api.bakeStale();
+    const next = setFurniture.mock.calls[0][0];
+    expect(next[0].id).toBe(item.id);
+    expect(next[0].props).toMatchObject({ src: "https://cdn/bake.webp", bakedFor: hash, opacity: "40", original: "https://cdn/orig.webp" });
+  });
+
+  it("removes a bake nothing took, when the picture was edited or deleted while it baked", async () => {
+    const ed = editorWith({ original: "https://cdn/orig.webp", illuminate: recipe });
+    const { api, discard } = setup({
+      editor: ed,
+      bake: async () => {
+        ed.commands.setContent({ type: "doc", content: [{ type: "paragraph" }] });
+        return { url: "https://cdn/orphan.webp", hash };
+      },
+    });
+    await api.bakeStale();
+    expect(discard).toHaveBeenCalledWith("https://cdn/orphan.webp");
+  });
+
+  it("keeps a bake that something took", async () => {
+    const ed = editorWith({ original: "https://cdn/orig.webp", illuminate: recipe });
+    const { api, discard } = setup({ editor: ed });
+    await api.bakeStale();
+    expect(discard).not.toHaveBeenCalled();
+  });
+
+  it("does not take a result for a recipe the picture no longer has", async () => {
+    const ed = editorWith({ original: "https://cdn/orig.webp", illuminate: recipe });
+    const changed: IlluminateSettings = { v: 1, seed: 2, steps: [{ type: "mask", url: "https://cdn/other.png" }] };
+    const { api, discard } = setup({
+      editor: ed,
+      bake: async () => {
+        ed.commands.updateAttributes("image", { illuminate: changed });
+        return { url: "https://cdn/late.webp", hash };
+      },
+    });
+    await api.bakeStale();
+    expect(imageAttrs(ed)).toMatchObject({ src: "https://cdn/orig.webp" });
+    expect(discard).toHaveBeenCalledWith("https://cdn/late.webp");
+  });
+
+  it("carries on with the other pictures when one fails, and reports it", async () => {
+    const other: IlluminateSettings = { v: 1, seed: 9, steps: [{ type: "mask", url: "https://cdn/two.png" }] };
+    const ed = editorWith({ original: "https://cdn/a.webp", illuminate: recipe }, { original: "https://cdn/b.webp", illuminate: other });
+    const bake = vi.fn<BakeFn>(async (original) => {
+      if (original.endsWith("a.webp")) throw new Error("boom");
+      return { url: "https://cdn/b-bake.webp", hash: hashSettings(other) };
+    });
+    const { api } = setup({ editor: ed, bake });
+    await api.bakeStale();
+    expect(api.errors.value).toEqual(["boom"]);
+    expect(imageAttrs(ed, 1)?.src).toBe("https://cdn/b-bake.webp");
+  });
+
+  it("does nothing without a signed-in user, and never runs two passes at once", async () => {
+    const ed = editorWith({ original: "https://cdn/orig.webp", illuminate: recipe });
+    const none = setup({ editor: ed, userId: undefined });
+    await none.api.bakeStale();
+    expect(none.bake).not.toHaveBeenCalled();
+
+    let release: () => void = () => {};
+    const slow = setup({
+      editor: ed,
+      bake: () => new Promise((resolve) => { release = () => resolve({ url: "https://cdn/bake.webp", hash }); }),
+    });
+    const first = slow.api.bakeStale();
+    await slow.api.bakeStale();
+    expect(slow.api.running.value).toBe(true);
+    release();
+    await first;
+    expect(slow.api.running.value).toBe(false);
+  });
+});

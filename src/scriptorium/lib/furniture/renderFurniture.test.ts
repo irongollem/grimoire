@@ -273,3 +273,25 @@ describe("a picture that follows its paragraph", () => {
     expect(box(c, 1).querySelector<HTMLElement>(`[data-furniture-id="${onPage.id}"]`)!.style.top).toBe("5%");
   });
 });
+
+describe("a treated art picture", () => {
+  const art = (props: Record<string, string>) => {
+    const item = createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 });
+    return buildFurnitureElement({ ...item, props: { ...item.props, src: "https://cdn/bake.webp", ...props } });
+  };
+
+  it("carries its recipe on the img so print can redraw it from the original", () => {
+    const recipe = JSON.stringify({ v: 1, seed: 1, steps: [] });
+    const img = art({ original: "https://cdn/orig.webp", illuminate: recipe, bakedFor: "h1" });
+    expect(img.getAttribute("src")).toBe("https://cdn/bake.webp");
+    expect(img.getAttribute("data-original")).toBe("https://cdn/orig.webp");
+    expect(img.getAttribute("data-illuminate")).toBe(recipe);
+    expect(img.getAttribute("data-baked-for")).toBe("h1");
+  });
+
+  it("carries no recipe attributes when the picture was never treated", () => {
+    const img = art({});
+    expect(img.hasAttribute("data-original")).toBe(false);
+    expect(img.hasAttribute("data-illuminate")).toBe(false);
+  });
+});

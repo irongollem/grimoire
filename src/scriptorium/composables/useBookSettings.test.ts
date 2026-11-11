@@ -2,9 +2,11 @@
 import { effectScope, nextTick } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { changedSettings, themeForKind, toSettingsDraft, useBookSettings } from "./useBookSettings";
-import type { ScriptoriumDocument } from "@/scriptorium/types";
+import { createFurnitureItem } from "@/scriptorium/lib/furniture/model";
+import type { PageFurnitureItem, ScriptoriumDocument } from "@/scriptorium/types";
 
-const mocks = vi.hoisted(() => ({ update: vi.fn() }));
+const mocks = vi.hoisted(() => ({ update: vi.fn(), remove: vi.fn() }));
+vi.mock("@/composables/useImageUpload", () => ({ ASSET_IMAGES_BUCKET: "asset-images", removeStorageImages: mocks.remove }));
 vi.mock("@/scriptorium/composables/useScriptorium", () => ({
   useUpdateScriptoriumDocument: () => ({ mutateAsync: mocks.update }),
 }));
@@ -17,6 +19,7 @@ const doc = {
 
 beforeEach(() => {
   mocks.update.mockReset().mockResolvedValue(doc);
+  mocks.remove.mockReset().mockResolvedValue(undefined);
 });
 
 function mountSettings() {
@@ -59,5 +62,50 @@ describe("book settings", () => {
     expect(themeForKind("book", "notice")).toBe("grimoire");
     expect(themeForKind("book", "phb2014")).toBe("phb2014");
     expect(themeForKind("handout", "journal")).toBe("journal");
+  });
+});
+
+describe("book art cleanup", () => {
+  function art(props: Record<string, string>): PageFurnitureItem {
+    const item = createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 });
+    return { ...item, props: { ...item.props, ...props } };
+  }
+
+  async function saveWith(initial: PageFurnitureItem[], next: PageFurnitureItem[]) {
+    const withArt = { ...doc, page_furniture: initial } as unknown as ScriptoriumDocument;
+    const scope = effectScope();
+    const settings = scope.run(() => useBookSettings(() => withArt))!;
+    settings.patch({ furniture: next });
+    await nextTick();
+    await settings.saveNow();
+    scope.stop();
+    return mocks.remove.mock.calls.flatMap((c) => c.slice(1)) as string[];
+  }
+
+  it("the first bake never deletes the original", async () => {
+    const removed = await saveWith(
+      [art({ src: "orig.webp", original: "orig.webp" })],
+      [art({ src: "bake-a.webp", original: "orig.webp", bakedFor: "h" })],
+    );
+    expect(removed).toEqual([]);
+  });
+
+  it("deletes a superseded bake after the save", async () => {
+    const removed = await saveWith(
+      [art({ src: "bake-a.webp", original: "orig.webp" })],
+      [art({ src: "bake-b.webp", original: "orig.webp" })],
+    );
+    expect(removed).toEqual(["bake-a.webp"]);
+  });
+
+  it("deletes the original once the picture is removed from the book", async () => {
+    const removed = await saveWith([art({ src: "bake-a.webp", original: "orig.webp" })], []);
+    expect(removed.sort()).toEqual(["bake-a.webp", "orig.webp"]);
+  });
+
+  it("deletes nothing when the save fails, so a retry still finds the old picture", async () => {
+    mocks.update.mockRejectedValue(new Error("offline"));
+    const removed = await saveWith([art({ src: "bake-a.webp", original: "orig.webp" })], []);
+    expect(removed).toEqual([]);
   });
 });

@@ -1,0 +1,103 @@
+import { describe, expect, it } from "vitest";
+import { DEFAULT_COLOUR_GRADING } from "./colourGrading";
+import { DEFAULT_PAPER_SIDE } from "./tornPaper";
+import { hashSettings, hasSteps, parseSettings, pictureUrls, type IlluminateSettings } from "./treatment";
+
+const grade = (brightness: number): IlluminateSettings["steps"][number] => ({
+  type: "grade",
+  options: { ...DEFAULT_COLOUR_GRADING, brightness },
+});
+
+const settings = (steps: IlluminateSettings["steps"], seed = 1): IlluminateSettings => ({ v: 1, seed, steps });
+
+describe("hashSettings", () => {
+  it("does not change when object keys are written in another order", () => {
+    const a = settings([{ type: "grade", options: { brightness: 0.2, contrast: 0, saturation: 0, temperature: 0, hue: 0 } }]);
+    const b = settings([{ type: "grade", options: { hue: 0, temperature: 0, saturation: 0, contrast: 0, brightness: 0.2 } }]);
+    expect(hashSettings(a)).toBe(hashSettings(b));
+  });
+
+  it("does not change when the steps are listed in another order, since they run in one fixed order", () => {
+    const vignette = { type: "vignette", options: { strength: 0.5, softness: 0.5, mode: "transparent", colour: "#000000" } } as const;
+    expect(hashSettings(settings([grade(0.1), vignette]))).toBe(hashSettings(settings([vignette, grade(0.1)])));
+  });
+
+  it("changes when a value, the seed or a stored picture changes", () => {
+    const base = hashSettings(settings([grade(0.1)]));
+    expect(hashSettings(settings([grade(0.2)]))).not.toBe(base);
+    expect(hashSettings(settings([grade(0.1)], 2))).not.toBe(base);
+    const mask = (url: string) => hashSettings(settings([{ type: "mask", url }]));
+    expect(mask("https://cdn/a.png")).not.toBe(mask("https://cdn/b.png"));
+  });
+});
+
+describe("parseSettings", () => {
+  it("keeps what it understands and drops unknown or broken steps", () => {
+    const parsed = parseSettings({
+      v: 1,
+      seed: 4,
+      steps: [{ type: "grade", options: { brightness: 0.3 } }, { type: "sparkle" }, "nope", { type: "mask" }, { type: "texture", url: "" }],
+    });
+    expect(parsed?.steps.map((s) => s.type)).toEqual(["grade"]);
+    expect(parsed?.seed).toBe(4);
+  });
+
+  it("fills missing and non-numeric options from the defaults", () => {
+    const parsed = parseSettings({ v: 1, seed: 0, steps: [{ type: "grade", options: { brightness: "high", hue: Number.NaN, contrast: 0.5 } }] });
+    expect(parsed?.steps[0]).toEqual({ type: "grade", options: { ...DEFAULT_COLOUR_GRADING, contrast: 0.5 } });
+  });
+
+  it("reads the JSON text furniture props store", () => {
+    const text = JSON.stringify(settings([grade(0.3)]));
+    expect(parseSettings(text)?.steps).toHaveLength(1);
+  });
+
+  it("never throws, and gives null for anything that is not version 1 settings", () => {
+    for (const bad of [null, undefined, 7, "not json", "{", [], {}, { v: 2, steps: [] }, { v: 1 }, { v: 1, steps: "x" }]) {
+      expect(parseSettings(bad)).toBeNull();
+    }
+  });
+
+  it("keeps the last of two steps of one type and puts the steps in running order", () => {
+    const parsed = parseSettings({
+      v: 1,
+      seed: 0,
+      steps: [{ type: "mask", url: "m" }, { type: "grade", options: { brightness: 0.1 } }, { type: "grade", options: { brightness: 0.9 } }],
+    });
+    expect(parsed?.steps.map((s) => s.type)).toEqual(["grade", "mask"]);
+    expect(parsed?.steps[0]).toMatchObject({ options: { brightness: 0.9 } });
+  });
+
+  it("tells the two edge styles apart and defaults an unknown style to classic", () => {
+    const paper = parseSettings({ v: 1, seed: 0, steps: [{ type: "edges", style: "paper", top: { enabled: true, depth: 0.9 } }] });
+    expect(paper?.steps[0]).toMatchObject({ style: "paper", top: { ...DEFAULT_PAPER_SIDE, enabled: true, depth: 0.9 } });
+    const odd = parseSettings({ v: 1, seed: 0, steps: [{ type: "edges", style: "zigzag" }] });
+    expect(odd?.steps[0]).toMatchObject({ style: "classic" });
+  });
+
+  it("round-trips its own output unchanged", () => {
+    const once = parseSettings(settings([grade(0.1), { type: "texture", url: "t", blendMode: "overlay", opacity: 0.4, scale: 1 }]));
+    expect(parseSettings(JSON.parse(JSON.stringify(once)) as unknown)).toEqual(once);
+  });
+});
+
+describe("pictureUrls and hasSteps", () => {
+  it("lists every stored picture a step points at", () => {
+    const urls = pictureUrls(
+      settings([
+        { type: "texture", url: "t.png", blendMode: "overlay", opacity: 1, scale: 1 },
+        { type: "mask", url: "m.png" },
+        { type: "ai", action: "cut-out", output: "ai.webp" },
+        grade(0),
+      ]),
+    );
+    expect(urls.sort()).toEqual(["ai.webp", "m.png", "t.png"]);
+    expect(pictureUrls(null)).toEqual([]);
+  });
+
+  it("says a recipe with no steps changes nothing", () => {
+    expect(hasSteps(settings([]))).toBe(false);
+    expect(hasSteps(null)).toBe(false);
+    expect(hasSteps(settings([grade(0)]))).toBe(true);
+  });
+});

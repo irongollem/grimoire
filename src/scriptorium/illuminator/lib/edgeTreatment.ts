@@ -11,6 +11,8 @@
 // Each edge carries its own settings so roughness/fade/depth/passes can differ
 // per side.
 
+import { makeScratchCanvas, scratchContext } from "./scratch";
+
 export interface EdgeOptions {
   enabled: boolean;
   /** 0–1: noise frequency + amplitude. Higher = more jagged, chaotic tear. */
@@ -207,10 +209,8 @@ export function applyEdgeTreatmentToCtx(
   const { top, right, bottom, left } = options;
   if (!top.enabled && !right.enabled && !bottom.enabled && !left.enabled) return;
 
-  const maskCanvas = document.createElement("canvas");
-  maskCanvas.width  = w;
-  maskCanvas.height = h;
-  const maskCtx = maskCanvas.getContext("2d")!;
+  const maskCanvas = makeScratchCanvas(w, h);
+  const maskCtx = scratchContext(maskCanvas);
   maskCtx.fillStyle = "white";
   maskCtx.fillRect(0, 0, w, h);
 
@@ -227,46 +227,4 @@ export function applyEdgeTreatmentToCtx(
   ctx.globalCompositeOperation = "destination-in";
   ctx.drawImage(maskCanvas, 0, 0);
   ctx.globalCompositeOperation = "source-over";
-}
-
-/**
- * Full export pipeline, in the order the stages actually run:
- * colour grading → DOF blur → texture → vignette → edge mask → brush mask → PNG blob.
- *
- * Note this is NOT the parameter order below, which takes vignette before
- * texture. Texture is composited under the vignette on purpose, so the vignette
- * darkens the overlay too rather than sitting beneath it. Callers pass
- * pre-bound functions to keep modules independent.
- */
-export async function processImage(
-  image: HTMLImageElement,
-  edgeOpts: EdgeTreatmentOptions,
-  applyGrading?: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
-  applyDofFn?: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
-  applyVignetteFn?: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
-  applyTextureFn?: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
-  applyBrushMaskFn?: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
-): Promise<Blob> {
-  const w = image.naturalWidth;
-  const h = image.naturalHeight;
-
-  const canvas = document.createElement("canvas");
-  canvas.width  = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-  ctx.drawImage(image, 0, 0, w, h);
-
-  if (applyGrading) applyGrading(ctx, w, h);
-  if (applyDofFn) applyDofFn(ctx, w, h);
-  if (applyTextureFn) applyTextureFn(ctx, w, h);
-  if (applyVignetteFn) applyVignetteFn(ctx, w, h);
-  applyEdgeTreatmentToCtx(ctx, w, h, edgeOpts);
-  if (applyBrushMaskFn) applyBrushMaskFn(ctx, w, h);
-
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("PNG export failed"))),
-      "image/png",
-    );
-  });
 }

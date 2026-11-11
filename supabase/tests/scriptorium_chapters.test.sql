@@ -2,7 +2,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(63);
+select plan(64);
 
 -- A Scriptorium document is a book of chapters (#1115 story 13, 20261029222021).
 --
@@ -82,7 +82,7 @@ insert into public.scriptorium_documents (id, user_id, campaign_id, title, playe
      {"id":"f7","kind":"art","anchor":{"type":"block"},"x":10,"y":10,"width":40,"z":"over","props":{"src":"orphan.webp"}}]'::jsonb);
 insert into public.scriptorium_chapters (id, document_id, position, title, word_count, content) values
   ('98300000-0000-4000-8000-0000000000a9', '98300000-0000-4000-8000-000000000086', 0, 'Letter', 3,
-   '{"type":"doc","content":[{"type":"paragraph","attrs":{"blockId":"v1"},"content":[{"type":"text","text":"seen"}]},{"type":"paragraph","attrs":{"blockId":null},"content":[{"type":"text","text":"no id yet"}]},{"type":"secretBlock","content":[{"type":"paragraph","attrs":{"blockId":"s1"},"content":[{"type":"text","text":"HIDDEN"}]}]},{"type":"lensPair","attrs":{"variant":"boxed"},"content":[{"type":"lensBright","content":[{"type":"paragraph","attrs":{"blockId":"b1"},"content":[{"type":"text","text":"kind"}]}]},{"type":"lensDeep","content":[{"type":"paragraph","attrs":{"blockId":"d1"},"content":[{"type":"text","text":"grim"}]}]}]}]}');
+   '{"type":"doc","content":[{"type":"paragraph","attrs":{"blockId":"v1"},"content":[{"type":"text","text":"seen"}]},{"type":"image","attrs":{"blockId":"i1","src":"BAKED.webp","original":"UNTREATED.webp","illuminate":{"v":1,"steps":[]},"bakedFor":"h1"}},{"type":"paragraph","attrs":{"blockId":null},"content":[{"type":"text","text":"no id yet"}]},{"type":"secretBlock","content":[{"type":"paragraph","attrs":{"blockId":"s1"},"content":[{"type":"text","text":"HIDDEN"}]}]},{"type":"lensPair","attrs":{"variant":"boxed"},"content":[{"type":"lensBright","content":[{"type":"paragraph","attrs":{"blockId":"b1"},"content":[{"type":"text","text":"kind"}]}]},{"type":"lensDeep","content":[{"type":"paragraph","attrs":{"blockId":"d1"},"content":[{"type":"text","text":"grim"}]}]}]}]}');
 
 -- ── The holder: reads through get_player_handout, never from the table ──────
 
@@ -121,6 +121,11 @@ select is(
   public.get_player_handout('98300000-0000-4000-8000-000000000086') -> 'chapter' -> 'art',
   '[{"blockId":"v1","src":"a.webp"}]'::jsonb,
   'only block-anchored art with a picture reaches the reader, as blockId and src alone (fails if page art, watercolours, empty pictures, an anchor without an id, or positions are sent)');
+select ok(
+  (public.get_player_handout('98300000-0000-4000-8000-000000000086') -> 'chapter' -> 'content')::text like '%BAKED.webp%'
+  and (public.get_player_handout('98300000-0000-4000-8000-000000000086') -> 'chapter' -> 'content')::text not like '%UNTREATED%'
+  and (public.get_player_handout('98300000-0000-4000-8000-000000000086') -> 'chapter' -> 'content')::text not like '%illuminate%',
+  'a treated picture reaches the holder as its baked src, never its original or its recipe (fails if strip_secret_nodes stops removing them)');
 
 select ok(
   (public.get_player_handout('98300000-0000-4000-8000-000000000080') -> 'chapter' -> 'content')::text not like '%grim%'

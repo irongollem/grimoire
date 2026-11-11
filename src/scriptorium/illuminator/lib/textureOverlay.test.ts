@@ -129,3 +129,18 @@ describe("BLEND_MODES / BLEND_MODE_LABELS", () => {
     expect(Object.keys(BLEND_MODE_LABELS).sort()).toEqual([...BLEND_MODES].sort());
   });
 });
+
+describe("applyTextureOverlay — size factor", () => {
+  it("keeps the grain the same size relative to the picture on a smaller canvas", () => {
+    const { ctx, tiles } = makeCtx();
+    // A preview a quarter of the original's width tiles at a quarter of the tile size.
+    applyTextureOverlay(ctx, 50, 50, overlay({ enabled: true, opacity: 1, scale: 1 }), image(40, 40), 0.25);
+    expect(tiles[0].slice(2)).toEqual([10, 10]);
+  });
+
+  it("reads the size of an ImageBitmap, which has width rather than naturalWidth", () => {
+    const { ctx, tiles } = makeCtx();
+    applyTextureOverlay(ctx, 100, 100, overlay({ enabled: true, opacity: 1, scale: 1 }), { width: 50, height: 25 } as unknown as ImageBitmap);
+    expect(tiles[0].slice(2)).toEqual([50, 25]);
+  });
+});

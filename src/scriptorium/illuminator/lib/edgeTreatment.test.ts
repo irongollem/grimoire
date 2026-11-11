@@ -4,7 +4,6 @@ import {
   applyEdgeTreatmentToCtx,
   DEFAULT_EDGE_OPTIONS,
   DEFAULT_EDGE_TREATMENT,
-  processImage,
   type EdgeOptions,
   type EdgeTreatmentOptions,
 } from "@/scriptorium/illuminator/lib/edgeTreatment";
@@ -298,39 +297,5 @@ describe("applyEdgeTreatmentToCtx — tear depth and pass count", () => {
     expect(levelsFor(2.7)).toEqual([0, 85, 170, 255]); // three passes
     expect(levelsFor(2.2)).toEqual([0, 128, 255]); // two passes
     expect(levelsFor(0)).toEqual([0, 255]); // one pass: a hard edge
-  });
-});
-
-// ── processImage — pipeline order ───────────────────────────────────────────
-//
-// Grading, DOF blur, texture, vignette, the edge mask, then the brush mask. The
-// parameters are not in that order (vignette is passed before texture), and the
-// texture goes on before the vignette on purpose so the vignette darkens it too.
-describe("processImage — pipeline order", () => {
-  it("runs the stages in pipeline order, with the edge mask after the vignette and before the brush mask", async () => {
-    const created = stubInternalCanvases();
-    const calls: string[] = [];
-    const image = { naturalWidth: 4, naturalHeight: 4 } as unknown as HTMLImageElement;
-    // The picture's own context is the first one asked for; the edge mask lands on it as one more drawImage.
-    const edgeMasksSoFar = () => created[0].drawImageCalls.length - 1;
-
-    const blob = await processImage(
-      image,
-      treatment({ bottom: edge({ enabled: true, tearDepth: 0.2, fadeWidth: 0.2 }) }),
-      () => calls.push("grading"),
-      () => calls.push("dof"),
-      () => calls.push(`vignette:${edgeMasksSoFar()}`),
-      () => calls.push(`texture:${edgeMasksSoFar()}`),
-      () => calls.push(`brushMask:${edgeMasksSoFar()}`),
-    );
-
-    expect(calls).toEqual(["grading", "dof", "texture:0", "vignette:0", "brushMask:1"]);
-    expect(blob).toBeInstanceOf(Blob);
-  });
-
-  it("skips any stage whose callback is omitted", async () => {
-    stubInternalCanvases();
-    const image = { naturalWidth: 4, naturalHeight: 4 } as unknown as HTMLImageElement;
-    await expect(processImage(image, DEFAULT_EDGE_TREATMENT)).resolves.toBeInstanceOf(Blob);
   });
 });

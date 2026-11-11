@@ -14,6 +14,7 @@
  */
 
 import Image from "@tiptap/extension-image";
+import { parseSettings } from "@/scriptorium/illuminator/lib/treatment";
 
 /**
  * A width as CSS: a bare number is pixels, a percentage stays a percentage (the
@@ -78,6 +79,25 @@ export const ScriptoriumImage = Image.extend({
         renderHTML: (attrs) => ({
           "data-gutter-bleed": attrs.gutterBleed ? "true" : "false",
         }),
+      },
+      // A treated picture keeps its edits as a recipe (#1176 story 9): `original`
+      // is the untouched picture, `illuminate` the steps (an object in the JSON,
+      // JSON text in data-illuminate) and `bakedFor` the hash of the steps the
+      // current src was baked from. Print renders the recipe over the original.
+      original: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("data-original"),
+        renderHTML: (attrs) => (attrs.original ? { "data-original": attrs.original } : {}),
+      },
+      illuminate: {
+        default: null,
+        parseHTML: (el) => parseSettings(el.getAttribute("data-illuminate")),
+        renderHTML: (attrs) => (attrs.illuminate ? { "data-illuminate": JSON.stringify(attrs.illuminate) } : {}),
+      },
+      bakedFor: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("data-baked-for"),
+        renderHTML: (attrs) => (attrs.bakedFor ? { "data-baked-for": attrs.bakedFor } : {}),
       },
     };
   },

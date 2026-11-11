@@ -10,7 +10,9 @@
  */
 import { reactive, watch } from "vue";
 import { useAutosave } from "@/composables/useAutosave";
+import { ASSET_IMAGES_BUCKET, removeStorageImages } from "@/composables/useImageUpload";
 import { draftValueEqual } from "@/composables/useRecordDraft";
+import { removedFurnitureUrls } from "@/scriptorium/lib/furniture/artUrls";
 import { useUpdateScriptoriumDocument } from "@/scriptorium/composables/useScriptorium";
 import { scriptoriumLook } from "@/scriptorium/lib/looks";
 import type {
@@ -107,7 +109,11 @@ export function useBookSettings(doc: () => ScriptoriumDocument) {
     async save(snapshot) {
       const changed = changedSettings(lastSaved, snapshot);
       if (Object.keys(changed).length > 0) await update({ id: doc().id, update: changed });
+      // Art the saved list no longer holds (a superseded bake, a removed picture)
+      // leaves storage once the save has landed, never before.
+      const removed = removedFurnitureUrls(lastSaved.furniture, snapshot.furniture);
       lastSaved = snapshot;
+      if (removed.length > 0) void removeStorageImages(ASSET_IMAGES_BUCKET, ...removed);
     },
     errorMessage: "Could not save the book's settings",
   });

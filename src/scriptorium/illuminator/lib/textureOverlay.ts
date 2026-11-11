@@ -26,17 +26,32 @@ export const DEFAULT_TEXTURE_OVERLAY: TextureOverlayOptions = {
   scale: 1.0,
 };
 
+/** Something a canvas can draw and that knows its size: a loaded <img>, an ImageBitmap (a Worker can make one) or a canvas. */
+export type DecodedImage = HTMLImageElement | ImageBitmap | HTMLCanvasElement | OffscreenCanvas;
+
+/** Natural pixel size of a decoded picture. */
+export function decodedSize(img: DecodedImage): { width: number; height: number } {
+  return "naturalWidth" in img ? { width: img.naturalWidth, height: img.naturalHeight } : { width: img.width, height: img.height };
+}
+
+/**
+ * `sizeFactor` is the canvas's size relative to the picture's original pixels
+ * (1 at full size, less in a preview), so the grain keeps the same size
+ * relative to the picture at every resolution.
+ */
 export function applyTextureOverlay(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
   opts: TextureOverlayOptions,
-  textureImage: HTMLImageElement,
+  textureImage: DecodedImage,
+  sizeFactor = 1,
 ): void {
   if (!opts.enabled || opts.opacity <= 0) return;
 
-  const tileW = Math.round(textureImage.naturalWidth  * opts.scale);
-  const tileH = Math.round(textureImage.naturalHeight * opts.scale);
+  const natural = decodedSize(textureImage);
+  const tileW = Math.round(natural.width  * opts.scale * sizeFactor);
+  const tileH = Math.round(natural.height * opts.scale * sizeFactor);
   if (tileW <= 0 || tileH <= 0) return;
 
   const savedOp    = ctx.globalCompositeOperation;

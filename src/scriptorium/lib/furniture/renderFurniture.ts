@@ -103,6 +103,11 @@ export function buildFurnitureElement(item: PageFurnitureItem): HTMLElement {
     const img = document.createElement("img");
     img.src = str(item.props.src);
     img.alt = "";
+    // A treated picture prints from its recipe (printImages.ts): the same keys the image node carries.
+    for (const [prop, attr] of [["original", "data-original"], ["illuminate", "data-illuminate"], ["bakedFor", "data-baked-for"]] as const) {
+      const value = str(item.props[prop]);
+      if (value) img.setAttribute(attr, value);
+    }
     img.style.cssText = [
       "position:absolute",
       ...positionDeclarations(item),

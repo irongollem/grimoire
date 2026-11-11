@@ -17,6 +17,9 @@
  */
 
 import { hasTransparentPixels } from "@/lib/mediaConvert";
+import { applySteps } from "@/scriptorium/illuminator/lib/applySteps";
+import { loadDomImage } from "@/scriptorium/illuminator/lib/loadImage";
+import { hasSteps, parseSettings } from "@/scriptorium/illuminator/lib/treatment";
 
 /** Print resolution the pictures are resampled to. */
 export const PRINT_PPI = 300;
@@ -53,23 +56,27 @@ export function needsCompacting(src: string, natural: PixelSize, target: PixelSi
   return !isJpeg || target.width < natural.width;
 }
 
-function loadCorsImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`could not load ${src}`));
-    img.src = src;
-  });
+/**
+ * A treated picture prints from its recipe, not its bake (#1176 story 9): the
+ * `<img>` carries `data-original` and `data-illuminate`, and the steps are
+ * applied to the original here, so print never shows a stale or missing bake.
+ * Null when the picture carries no recipe, or an empty one.
+ */
+export function printRecipe(el: HTMLImageElement) {
+  const original = el.getAttribute("data-original");
+  const settings = parseSettings(el.getAttribute("data-illuminate"));
+  return original && hasSteps(settings) ? { original, settings } : null;
 }
 
 async function compactOne(el: HTMLImageElement): Promise<void> {
   const rect = el.getBoundingClientRect();
-  if (!el.currentSrc || rect.width === 0 || rect.height === 0) return;
-  const source = await loadCorsImage(el.currentSrc);
+  const recipe = printRecipe(el);
+  const from = recipe?.original ?? el.currentSrc;
+  if (!from || rect.width === 0 || rect.height === 0) return;
+  const source = await loadDomImage(from);
   const natural = { width: source.naturalWidth, height: source.naturalHeight };
   const target = printPixelSize(natural, { width: rect.width, height: rect.height });
-  if (!needsCompacting(el.currentSrc, natural, target)) return;
+  if (!recipe && !needsCompacting(el.currentSrc, natural, target)) return;
 
   const canvas = document.createElement("canvas");
   canvas.width = target.width;
@@ -77,6 +84,7 @@ async function compactOne(el: HTMLImageElement): Promise<void> {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   ctx.drawImage(source, 0, 0, target.width, target.height);
+  if (recipe) await applySteps(ctx, target.width, target.height, recipe.settings, loadDomImage, { sourceWidth: natural.width });
   // getImageData throws on a tainted canvas; the caller keeps the original.
   const opaque = !hasTransparentPixels(ctx.getImageData(0, 0, target.width, target.height).data);
   el.removeAttribute("srcset");

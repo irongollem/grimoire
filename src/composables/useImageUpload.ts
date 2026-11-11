@@ -10,6 +10,7 @@ import {
   type BucketKey,
   type BucketId,
 } from "@/lib/storage";
+import { parseSettings, pictureUrls } from "@/scriptorium/illuminator/lib/treatment";
 
 /** Map a bucket id ("asset-images") to its BucketKey ("assetImages").
  *
@@ -40,6 +41,11 @@ export const ASSET_IMAGES_BUCKET = "asset-images";
 /**
  * Walk a serialised Tiptap JSON string and return all asset-images URLs
  * that are embedded as image nodes. Safe to call with null/invalid JSON.
+ *
+ * A treated picture (#1176 story 9) holds more than its `src`: the untouched
+ * `original` and every picture its recipe points at (a texture, a mask). All of
+ * them count, so the first bake never reads as "the original was removed" and
+ * the original is only deleted once nothing references it.
  */
 export function extractRichTextImageUrls(json: string | null | undefined): string[] {
   if (!json) return [];
@@ -48,11 +54,14 @@ export function extractRichTextImageUrls(json: string | null | undefined): strin
   const urls: string[] = [];
   function walk(node: Record<string, unknown>) {
     if (node.type === "image" && node.attrs) {
-      const src = (node.attrs as Record<string, unknown>).src;
+      const attrs = node.attrs as Record<string, unknown>;
       // Registry-based rather than a URL-prefix match, so embeds keep being
       // collected once asset-images is served from the CDN (#577) — otherwise
       // this returns [] and rich-text image cleanup silently stops deleting.
-      if (typeof src === "string" && isBucketUrl("assetImages", src)) urls.push(src);
+      const held = [attrs.src, attrs.original, ...pictureUrls(parseSettings(attrs.illuminate))];
+      for (const url of held) {
+        if (typeof url === "string" && isBucketUrl("assetImages", url)) urls.push(url);
+      }
     }
     if (Array.isArray(node.content)) {
       (node.content as Record<string, unknown>[]).forEach(walk);

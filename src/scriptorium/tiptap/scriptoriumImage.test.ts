@@ -72,3 +72,36 @@ describe("ScriptoriumImage alignment and layout", () => {
     expect((generateJSON(html, EXT) as JSONContent).content?.[0].attrs?.layoutMode).toBe("wrapRight");
   });
 });
+
+describe("ScriptoriumImage recipe", () => {
+  const recipe = { v: 1, seed: 7, steps: [{ type: "mask", url: "https://cdn/m.png" }] };
+  const attrsOf = (html: string) => (generateJSON(html, EXT) as JSONContent).content?.[0].attrs;
+
+  it("writes the recipe as JSON text beside the original and the hash, and reads it back as an object", () => {
+    const html = generateHTML(image({ original: "https://cdn/o.webp", illuminate: recipe, bakedFor: "abc" }), EXT);
+    expect(html).toContain('data-original="https://cdn/o.webp"');
+    expect(html).toContain('data-baked-for="abc"');
+    expect(html).toContain("data-illuminate=");
+    const attrs = attrsOf(html);
+    expect(attrs?.original).toBe("https://cdn/o.webp");
+    expect(attrs?.bakedFor).toBe("abc");
+    expect(attrs?.illuminate).toEqual(recipe);
+  });
+
+  it("keeps the recipe through a wrapped image's wrapper", () => {
+    const html = generateHTML(image({ layoutMode: "wrapLeft", original: "https://cdn/o.webp", illuminate: recipe }), EXT);
+    expect(attrsOf(html)?.illuminate).toEqual(recipe);
+  });
+
+  it("writes none of it for a picture that was never treated", () => {
+    const html = generateHTML(image({}), EXT);
+    expect(html).not.toContain("data-original");
+    expect(html).not.toContain("data-illuminate");
+    expect(html).not.toContain("data-baked-for");
+    expect(attrsOf(html)?.illuminate).toBeNull();
+  });
+
+  it("reads a damaged recipe as none rather than failing", () => {
+    expect(attrsOf('<img src="https://cdn/a.webp" data-illuminate="{oops">')?.illuminate).toBeNull();
+  });
+});
