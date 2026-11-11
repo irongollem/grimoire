@@ -304,6 +304,14 @@ async function detach() {
   background: var(--card);
   border: 1px solid var(--border);
 }
+/* The toolbar hangs a little above the entry; this invisible strip fills the gap, so the pointer
+   moving up from the entry to the toolbar never leaves the entry and the toolbar stays open. */
+.sc-entity-embed-toolbar::after {
+  content: "";
+  position: absolute;
+  inset: 100% 0 auto;
+  height: 0.25rem;
+}
 .sc-entity-embed:hover > .sc-entity-embed-toolbar,
 .sc-entity-embed:focus-within > .sc-entity-embed-toolbar,
 .sc-entity-embed.ProseMirror-selectednode > .sc-entity-embed-toolbar {

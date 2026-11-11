@@ -123,4 +123,10 @@
 .phb-editor .ProseMirror.sc-flow-columns > [data-type="coverPage"] {
   column-span: all;
 }
-
+/* A linked entry that spans the page spans it from its wrapper, so the wrapper's
+   box is the entry the DM sees. Spanning only the entry inside left the wrapper
+   a zero-height line at the top of a column: hovering the entry showed its Open
+   and Detach bar up there, and moving to the bar left the hover. */
+.phb-editor .ProseMirror.sc-flow-columns > .sc-entity-embed:has(.sc-statblock-entry) {
+  column-span: all;
+}
