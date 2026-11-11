@@ -41,6 +41,7 @@ import { BlockKeep } from "@/scriptorium/tiptap/blockKeep";
 import { KitDrop } from "@/scriptorium/tiptap/kitDrop";
 import { SlashMenu } from "@/scriptorium/tiptap/slashMenu";
 import { lensPairExtensions } from "@/lib/tiptap/lensPair";
+import { detachedEntryExtensions, scClasses } from "@/scriptorium/tiptap/detachedEntry";
 import { SecretBlock } from "@/lib/tiptap/secretBlock";
 
 /*
@@ -51,7 +52,7 @@ import { SecretBlock } from "@/lib/tiptap/secretBlock";
  */
 const CLASS_ATTRIBUTE = {
   default: null as string | null,
-  parseHTML: (el: HTMLElement) => el.getAttribute("class") ?? null,
+  parseHTML: (el: HTMLElement) => scClasses(el),
   renderHTML: (attrs: { class?: string }) =>
     attrs.class ? { class: attrs.class } : {},
 };
@@ -100,6 +101,8 @@ export function createScriptoriumExtensions() {
     // Ctrl+Enter starts a new page at the caret.
     PageBreakKeys,
     EntityEmbed,
+    // What Detach leaves behind keeps the entry's look (#1176): its `sc-` classes, spans and picture.
+    ...detachedEntryExtensions(),
     // The book kit's writing tools: a drop cap, "keep on one page", dropping a kit item on the
     // page, and "/" for any block. The last two only act in an editable editor.
     DropCap,

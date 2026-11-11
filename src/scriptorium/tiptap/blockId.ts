@@ -42,6 +42,7 @@ export const BLOCK_ID_TYPES = [
   "coverPage",
   "spacerVertical",
   "entityEmbed",
+  "classedBlock",
 ] as const;
 
 /**

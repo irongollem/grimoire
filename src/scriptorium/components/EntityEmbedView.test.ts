@@ -117,7 +117,7 @@ describe("EntityEmbedView theme", () => {
 
 describe("EntityEmbedView as the DM edits it", () => {
   const insertContentAt = vi.fn();
-  const chain = { focus: () => chain, insertContentAt: (...args: unknown[]) => { insertContentAt(...args); return chain; }, run: vi.fn() };
+  const chain = { focus: () => chain, insertContentAt: (...args: unknown[]) => { insertContentAt(...args); return chain; }, command: () => chain, run: vi.fn() };
 
   beforeEach(() => {
     insertContentAt.mockReset();
@@ -130,8 +130,13 @@ describe("EntityEmbedView as the DM edits it", () => {
   function mountEmbed(attrs: Record<string, unknown> = {}, getPos: () => number | undefined = () => 7) {
     return mount(EntityEmbedView, {
       props: {
-        node: { attrs: { entityType: "monster", entityId: "e1", ...attrs }, nodeSize: 1 },
-        editor: { isEditable: true, chain: () => chain },
+        // nodeSize 2 is what the node view's reactive copy of a leaf reports; the document's node is 1.
+        node: { attrs: { entityType: "monster", entityId: "e1", ...attrs }, nodeSize: 2 },
+        editor: {
+          isEditable: true,
+          chain: () => chain,
+          state: { doc: { nodeAt: (p: number) => (p === 7 ? { nodeSize: 1, type: { name: "entityEmbed" } } : null) } },
+        },
         updateAttributes: vi.fn(),
         getPos,
       } as never,
@@ -202,7 +207,9 @@ describe("EntityEmbedView as the DM edits it", () => {
     expect(insertContentAt).not.toHaveBeenCalled();
   });
 
-  it("detaches into the content it was showing, in the block's place", async () => {
+  // Fails on: the range taken from the node view's reactive copy (nodeSize 2 for a leaf), which also
+  // deleted the next linked entry (Toffee Maw after Marzipan Sentry in The Locked Workshop).
+  it("detaches into the content it was showing, in the block's place and nothing after it", async () => {
     await tool(mountEmbed(), "Detach…").trigger("click");
     await flushEditor();
     expect(insertContentAt).toHaveBeenCalledTimes(1);

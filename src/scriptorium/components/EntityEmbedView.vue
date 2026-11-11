@@ -69,6 +69,7 @@ import { SCRIPTORIUM_THEME_KEY } from "@/scriptorium/lib/scriptoriumTheme";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { useOpenNpc } from "@/composables/npcs/useNpcPeek";
+import { detachedEntryBreakAt } from "@/scriptorium/tiptap/detachedEntry";
 import { IconExternalLink, IconScissors } from "@/lib/icons";
 import { EMBED_DETACH_EVENT, EMBED_OPEN_EVENT } from "@/scriptorium/lib/panel/embedSignals";
 import type { EntityEmbedType, EntityEmbedSize } from "@/lib/tiptap/nodeViewTypes";
@@ -256,11 +257,23 @@ async function detach() {
   if (!ok) return;
   const pos = props.getPos();
   if (typeof pos !== "number") return;
+  // The size comes from the document, never from props.node: the node view holds a reactive copy of the
+  // node, whose nodeSize reads 2 for this leaf (its type check compares a proxy with ProseMirror's own
+  // object), and replacing two positions deleted the next entry along with this one.
+  const here = props.editor.state.doc.nodeAt(pos);
+  if (!here || here.type.name !== "entityEmbed") return;
+  // An entry that started its own page keeps doing so (detachedEntryBreakAt).
+  const startsPage = (props.node.attrs.startsPage as boolean | undefined) ?? true;
   props.editor
     .chain()
     .focus()
-    .insertContentAt({ from: pos, to: pos + props.node.nodeSize }, processedHtml.value, {
+    .insertContentAt({ from: pos, to: pos + here.nodeSize }, processedHtml.value, {
       parseOptions: { preserveWhitespace: false },
+    })
+    .command(({ tr, state }) => {
+      const at = startsPage ? detachedEntryBreakAt(tr.doc, pos) : null;
+      if (at !== null) tr.insert(at, state.schema.nodes.pageBreak.create());
+      return true;
     })
     .run();
 }
