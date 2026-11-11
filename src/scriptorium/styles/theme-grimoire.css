@@ -25,6 +25,9 @@
   --sc-accent: var(--sc-oxblood);
   --sc-accent-contrast: #f3ead6;
   --sc-page-bg: #f3ead6;
+  --sc-ribbon-bg: #dcc596;
+  --sc-ribbon-edge: #b8923f;
+  --sc-ribbon-ink: #6e1f1a;
   --sc-callout-bg: transparent;
   --sc-callout-border: var(--sc-gilt);
   --sc-code-bg: #e8dcc0;

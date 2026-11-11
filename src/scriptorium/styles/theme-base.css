@@ -412,6 +412,56 @@
   text-wrap: balance;
 }
 
+/* A light cover title (sc-cover--title-light, a front cover's "Light on the
+   art", #1176): a painted supplement cover's title, tall condensed white
+   capitals (Oswald) with a dark outline and a soft shadow so they read on any
+   painting with no shade under them, and the subtitle under the title in red. The cover sets its type inline (coverMarkup.ts), so
+   these win with !important. The outline is a stroke drawn behind the fill;
+   the four hard text-shadows are its fallback where a print engine ignores
+   -webkit-text-stroke. */
+/* fonts.css carries Oswald to the PDF; the app loads its fonts elsewhere, so
+   the face is declared here too (the same file). */
+@font-face {
+  font-family: "Oswald";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/scriptorium/oswald-600.ttf") format("truetype");
+}
+.sc-theme .sc-cover--title-light h1,
+.sc-theme .sc-cover--title-light p:has(+ h1) {
+  font-family: "Oswald", var(--sc-heading-font, Georgia, serif) !important;
+  font-weight: 600 !important;
+  font-variant: normal !important;
+  text-transform: uppercase !important;
+  opacity: 1 !important;
+  -webkit-text-stroke: 0.08em #14100c;
+  paint-order: stroke fill;
+  text-shadow:
+    0.025em 0.025em 0 #14100c,
+    -0.025em 0.025em 0 #14100c,
+    0.025em -0.025em 0 #14100c,
+    -0.025em -0.025em 0 #14100c,
+    0 0.08em 0.3em rgb(0 0 0 / 0.55) !important;
+}
+.sc-theme .sc-cover--title-light h1 {
+  color: #fff !important;
+  font-size: 4.75rem !important;
+  line-height: 1 !important;
+  letter-spacing: 0.01em !important;
+}
+/* The subtitle moves under the title, the way the supplement sets "D&D". */
+.sc-theme .sc-cover--title-light p:has(+ h1) {
+  order: 1;
+  margin: 0.35rem 0 0 !important;
+  /* A look's accent can be a dark oxblood that sinks into a painting; the
+     supplement's red is bright. */
+  color: var(--sc-cover-title-red, #c0261c) !important;
+  font-size: 2.75rem !important;
+  line-height: 1 !important;
+  letter-spacing: 0.02em !important;
+}
+
 /* ── Footer / page numbers ───────────────────────────────────────────────── */
 .sc-footer {
   position: absolute;
@@ -1549,4 +1599,98 @@
 }
 .sc-theme .sc-statblock-entry-lore p:last-child {
   margin-bottom: 0;
+}
+
+/* ── Book paper (#1176) ────────────────────────────────────────────────────
+   A book's own paper, laid over its look's: `sc-paper--grey|white|parchment`
+   sits on the same `.sc-theme` element as the look (bookSurfaceClasses). Each
+   one sets the colour token every page painter already reads and a faint
+   grain, drawn as two inline SVG noise tiles (a fine tooth and a soft mottle)
+   so the PDF renderer, which loads nothing but the HTML it is sent, paints it
+   too. The class is never added in ink-friendly mode, which prints plain
+   white. A grain tile is an `feTurbulence` filter: low alpha, no image file. */
+.sc-paper--grey {
+  --sc-page-bg: #e9e8e3;
+  --sc-paper-grain:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='t'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .3 0 0 0 0 .3 0 0 0 0 .32 0 0 0 .22 0'/></filter><rect width='100%' height='100%' filter='url(%23t)'/></svg>") 0 0 / 200px 200px repeat,
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800'><filter id='m'><feTurbulence type='fractalNoise' baseFrequency='.006 .009' numOctaves='3' seed='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .42 0 0 0 0 .43 0 0 0 0 .45 0 0 0 .3 -.08'/></filter><rect width='100%' height='100%' filter='url(%23m)'/></svg>") 0 0 / 800px 800px repeat;
+}
+.sc-paper--white {
+  --sc-page-bg: #fbfaf6;
+  --sc-paper-grain:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='t'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .4 0 0 0 0 .4 0 0 0 0 .38 0 0 0 .05 0'/></filter><rect width='100%' height='100%' filter='url(%23t)'/></svg>") 0 0 / 200px 200px repeat;
+}
+.sc-paper--parchment {
+  --sc-page-bg: #efe2c4;
+  --sc-paper-grain:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='t'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .45 0 0 0 0 .32 0 0 0 0 .15 0 0 0 .12 0'/></filter><rect width='100%' height='100%' filter='url(%23t)'/></svg>") 0 0 / 200px 200px repeat,
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='900'><filter id='s'><feTurbulence type='fractalNoise' baseFrequency='.005 .008' numOctaves='4' seed='9' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .55 0 0 0 0 .38 0 0 0 0 .16 0 0 0 .6 -.14'/></filter><rect width='100%' height='100%' filter='url(%23s)'/></svg>") 0 0 / 900px 900px repeat;
+}
+/* Every place a page is painted: the editor's sheet, the laid-out pages (preview
+   and print), the bare sheet and the reader's surface. These replace the look's
+   texture image: the paper is the book's own choice. */
+.phb-editor.sc-paper--grey .ProseMirror,
+.phb-editor.sc-paper--white .ProseMirror,
+.phb-editor.sc-paper--parchment .ProseMirror,
+.sc-paper--grey .pagedjs_page,
+.sc-paper--white .pagedjs_page,
+.sc-paper--parchment .pagedjs_page,
+.sc-paper--grey .phb-page,
+.sc-paper--white .phb-page,
+.sc-paper--parchment .phb-page,
+.sc-paper-surface.sc-paper--grey,
+.sc-paper-surface.sc-paper--white,
+.sc-paper-surface.sc-paper--parchment {
+  background: var(--sc-paper-grain), var(--sc-page-bg);
+}
+
+/* ── Ribbon footer (#1176) ─────────────────────────────────────────────────
+   `sc-footer-style--ribbon` sets the running title on a banner with a
+   swallow-tailed inner end, flush to the page's edge. Markup is unchanged: the
+   band is the footer's text span, so the editor's footers and the printed ones
+   share it. The page number stays where the look puts it. The footer is 32px
+   tall in a 53px margin, so a 22px band fits every page size (the margins are
+   the same on A4, A5 and Letter). Colours come from the look's
+   --sc-ribbon-* tokens. Ink-friendly keeps the band: it is structure, and a
+   flat tan costs little. */
+.sc-footer-style--ribbon .sc-footer-text {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  box-sizing: border-box;
+  background: var(--sc-ribbon-bg, #d8c08a);
+  color: var(--sc-ribbon-ink, var(--sc-accent));
+  font-style: normal;
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  box-shadow:
+    inset 0 1px 0 var(--sc-ribbon-edge, #8a5a2b),
+    inset 0 -1px 0 var(--sc-ribbon-edge, #8a5a2b);
+}
+/* The look's own layout puts the title beside the number, inward of it: bleed the
+   band out to the page edge on that side and notch the end facing the number. */
+.sc-footer-style--ribbon .sc-footer--recto .sc-footer-text {
+  margin-left: -68px;
+  padding: 0 24px 0 68px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 11px) 50%, 100% 100%, 0 100%);
+}
+.sc-footer-style--ribbon .sc-footer--verso .sc-footer-text {
+  margin-right: -68px;
+  padding: 0 68px 0 24px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 11px 50%);
+}
+/* Grimoire centres the folio and sends the title to the outer edge instead, so the
+   band runs from that edge and its notch faces the folio. */
+.theme-grimoire.sc-footer-style--ribbon .sc-footer--recto .sc-footer-text {
+  right: 0;
+  margin-left: 0;
+  padding: 0 68px 0 24px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 11px 50%);
+}
+.theme-grimoire.sc-footer-style--ribbon .sc-footer--verso .sc-footer-text {
+  left: 0;
+  margin-right: 0;
+  padding: 0 24px 0 68px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 11px) 50%, 100% 100%, 0 100%);
 }

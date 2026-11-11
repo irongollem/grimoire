@@ -40,6 +40,17 @@
         A handout is one sheet, so a book with several chapters stays a book.
       </p>
 
+      <div v-if="draft.kind === 'book'" class="space-y-2">
+        <span class="block text-caption text-muted-foreground">Paper</span>
+        <SegmentedControl
+          :model-value="draft.paperTone ?? 'own'"
+          :options="PAPER_CHOICES"
+          aria-label="Paper"
+          @update:model-value="patch({ paperTone: paperToneFromChoice($event) })"
+        />
+        <p class="text-caption text-muted-foreground">Grey is the stone-grey page of a printed supplement. Ink-friendly prints plain white.</p>
+      </div>
+
       <div class="space-y-2.5">
         <AppCheckbox label="Two columns" :model-value="draft.isTwoColumn" @update:model-value="patch({ isTwoColumn: $event })" />
         <AppCheckbox
@@ -86,6 +97,13 @@
           placeholder="Your own running title"
           @update:model-value="patch({ footerText: $event })"
         />
+        <span class="block text-caption text-muted-foreground">Footer</span>
+        <SegmentedControl
+          :model-value="draft.footerStyle"
+          :options="FOOTER_STYLE_CHOICES"
+          aria-label="Footer style"
+          @update:model-value="patch({ footerStyle: $event })"
+        />
         <p class="text-caption text-muted-foreground">Left pages carry the book's title. Footers can also be changed on the page itself.</p>
       </div>
 
@@ -121,7 +139,7 @@ import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import { themeForKind, type BookSettingsDraft } from "@/scriptorium/composables/useBookSettings";
 import type { AutosaveStatus as AutosaveState } from "@/composables/useAutosave";
-import { BOOK_LOOKS, PAPERS, scriptoriumLook } from "@/scriptorium/lib/looks";
+import { BOOK_LOOKS, FOOTER_STYLE_CHOICES, PAPERS, PAPER_CHOICES, paperToneFromChoice, scriptoriumLook } from "@/scriptorium/lib/looks";
 import type { ScriptoriumFooterTitle, ScriptoriumKind, ScriptoriumPageSize } from "@/scriptorium/types";
 
 const { open, draft, chapterCount, campaignOptions, status, error = "", deleting = false } = defineProps<{

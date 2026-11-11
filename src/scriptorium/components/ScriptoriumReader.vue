@@ -115,7 +115,7 @@ import { KIND_LABELS } from "@/scriptorium/lib/documentCardMeta";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllDmCampaigns } from "@/composables/campaign/useCampaigns";
 import type { ReadableBook } from "@/scriptorium/types";
-import { scriptoriumThemeClass } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses } from "@/scriptorium/lib/looks";
 
 const {
   book,
@@ -148,7 +148,7 @@ function goBack() {
   else void router.push(backTo);
 }
 
-const themeClass = computed(() => [scriptoriumThemeClass(book.theme), "sc-paper-surface"]);
+const themeClass = computed(() => [...bookSurfaceClasses({ theme: book.theme, paperTone: book.paper_tone }), "sc-paper-surface"]);
 // The doc type is the DM's own filing ("Custom", "Adventure Module"); to a
 // player the document is simply a handout or a book the DM gave them.
 const kindLabel = computed(() => (audience === "player" ? KIND_LABELS[book.kind] : DOC_TYPES[book.doc_type].label));

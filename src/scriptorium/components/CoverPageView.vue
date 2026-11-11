@@ -7,7 +7,7 @@
     as="div"
     data-type="coverPage"
     :data-variant="variant"
-    :class="`sc-cover sc-cover--${variant}`"
+    :class="coverClass(variant, attrs)"
     :data-block-id="props.node.attrs.blockId"
     contenteditable="false"
   />
@@ -19,7 +19,9 @@ import { DOMSerializer, type DOMOutputSpec } from "@tiptap/pm/model";
 import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
 import {
   buildCoverInner,
+  coverClass,
   coverShade,
+  coverTitleStyle,
   type CoverPageAttrs,
   type CoverPageVariant,
   type CoverTextField,
@@ -37,7 +39,7 @@ const drawingKey = computed(() => {
   const a = attrs.value;
   // Read only there is no caret to keep, so every word is part of the drawing.
   if (!props.editor.isEditable) return JSON.stringify(a);
-  return JSON.stringify([a.variant, a.backgroundImage, a.titlePlace, coverShade(a)]);
+  return JSON.stringify([a.variant, a.backgroundImage, a.titlePlace, coverShade(a), coverTitleStyle(a)]);
 });
 
 function text(name: CoverTextField): string {

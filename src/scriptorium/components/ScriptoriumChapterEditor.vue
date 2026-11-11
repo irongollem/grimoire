@@ -26,7 +26,7 @@
               :editor="editor"
               class="phb-editor sc-theme"
               :class="[
-                scriptoriumThemeClass(theme),
+                ...bookSurfaceClasses({ theme, paperTone, footerStyle, inkFriendly }),
                 { 'ink-friendly': inkFriendly, 'sc-sheet--column-strip': isTwoColumn },
               ]"
               :style="sheetStyle"
@@ -157,7 +157,7 @@ import { markForSweep } from "@/scriptorium/composables/illuminatorSweep";
 import { chapterUrlsRemoved } from "@/scriptorium/lib/chapterImages";
 import { getCurrentUser } from "@/lib/supabase";
 import { countWords } from "@/scriptorium/lib/chapterTitle";
-import { scriptoriumThemeClass } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses } from "@/scriptorium/lib/looks";
 import { pageGeometry, pageGeometryCssVars } from "@/scriptorium/lib/pageGeometry";
 import { storeToRefs } from "pinia";
 import { useScriptoriumUiStore } from "@/scriptorium/stores/ui";
@@ -172,7 +172,9 @@ import type {
   PageFurnitureItem,
   ScriptoriumChapter,
   ScriptoriumDocType,
+  ScriptoriumFooterStyle,
   ScriptoriumPageSize,
+  ScriptoriumPaperTone,
   ScriptoriumTheme,
 } from "@/scriptorium/types";
 
@@ -185,6 +187,8 @@ const {
   pageSize,
   isTwoColumn,
   inkFriendly,
+  paperTone,
+  footerStyle,
   pagesLabel = null,
   flow = null,
   furniture,
@@ -201,6 +205,9 @@ const {
   pageSize: ScriptoriumPageSize;
   isTwoColumn: boolean;
   inkFriendly: boolean;
+  /** The book's own paper and footer style (null = the look's own paper, plain footer). */
+  paperTone: ScriptoriumPaperTone | null;
+  footerStyle: ScriptoriumFooterStyle;
   /** "Pages 175 to 191", from the layout, when the book has been laid out. */
   pagesLabel?: string | null;
   /** Where the preview starts this chapter's pages and columns; null shows one continuous sheet. */

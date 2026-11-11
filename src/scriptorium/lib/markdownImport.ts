@@ -522,7 +522,7 @@ const COVER_VARIANTS: readonly CoverPageVariant[] = ["front", "inside", "part", 
 /**
  * `::: cover front|inside|part|back` with `key: value` lines (`title`,
  * `subtitle`, `part`, `blurb1`..`blurb3`, `tagline`, `url`, `image`, `alt`,
- * `scrim`, `shade`). Every text the node shows is set, empty when the directive leaves
+ * `scrim`, `shade`, `title-style: look|light`). Every text the node shows is set, empty when the directive leaves
  * it out, so a template's placeholder ("Document Title") never reaches a
  * printed book. `image` / `alt` resolve like an art slot's `existing` / `alt`.
  */
@@ -557,6 +557,7 @@ function coverNodes(source: string, args: string[], options: MarkdownImportOptio
         productUrl: text("url"),
         backgroundImage: found ? found.src : "",
         shade: coverShadeField(fields),
+        titleStyle: field(fields, "title-style")?.toLowerCase() === "light" ? "light" : "look",
       },
     },
   ];

@@ -50,6 +50,7 @@ function makeBook(overrides: Partial<ReadableBook> = {}): ReadableBook {
     doc_type: "adventure",
     campaign_id: null,
     theme: "onednd2024",
+    paper_tone: null,
     updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides,
   };
@@ -258,6 +259,11 @@ describe("ScriptoriumReader", () => {
     mocks.dmCampaigns.mockClear();
     mountReader();
     expect(mocks.dmCampaigns).toHaveBeenCalledWith({ enabled: true });
+  });
+
+  it("wears the book's own paper, which a player's handout carries", () => {
+    expect(mountReader({ book: makeBook({ paper_tone: "parchment" }) }).find(".sc-paper--parchment").exists()).toBe(true);
+    expect(mountReader({ book: makeBook({ paper_tone: null }) }).find("[class*=sc-paper--]").exists()).toBe(false);
   });
 
   it("wears the document's own look, a paper included", () => {

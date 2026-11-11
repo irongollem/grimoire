@@ -7,6 +7,8 @@
  */
 import type {
   ScriptoriumBookTheme,
+  ScriptoriumFooterStyle,
+  ScriptoriumPaperTone,
   ScriptoriumPaper,
   ScriptoriumTheme,
 } from "@/scriptorium/types";
@@ -43,6 +45,30 @@ const LOOKS: Record<ScriptoriumTheme, ScriptoriumLook> = {
 /** The handout papers, in the order "What is it written on?" shows them. */
 export const PAPERS: readonly ScriptoriumPaper[] = ["letter", "notice", "journal", "plain"];
 
+/** The book paper choices, in the order Book settings shows them. */
+export const PAPER_TONES: readonly ScriptoriumPaperTone[] = ["grey", "white", "parchment"];
+export const PAPER_TONE_LABELS: Record<ScriptoriumPaperTone, string> = {
+  grey: "Grey",
+  white: "White",
+  parchment: "Parchment",
+};
+
+
+/** What the Paper control offers; "own" is `paper_tone` null, which a segmented control cannot hold as a value. */
+export type PaperChoice = ScriptoriumPaperTone | "own";
+export const PAPER_CHOICES: readonly { value: PaperChoice; label: string }[] = [
+  { value: "own", label: "Look's own" },
+  ...PAPER_TONES.map((tone) => ({ value: tone, label: PAPER_TONE_LABELS[tone] })),
+];
+export function paperToneFromChoice(choice: PaperChoice): ScriptoriumPaperTone | null {
+  return choice === "own" ? null : choice;
+}
+
+export const FOOTER_STYLE_CHOICES: readonly { value: ScriptoriumFooterStyle; label: string }[] = [
+  { value: "plain", label: "Plain" },
+  { value: "ribbon", label: "Ribbon" },
+];
+
 export const BOOK_LOOKS: readonly ScriptoriumBookTheme[] = ["grimoire", "onednd2024", "phb2014"];
 
 export function scriptoriumLook(theme: ScriptoriumTheme): ScriptoriumLook {
@@ -55,6 +81,26 @@ export function scriptoriumThemeClass(theme: ScriptoriumTheme): string {
 
 export function scriptoriumThemeCss(theme: ScriptoriumTheme): string {
   return LOOKS[theme].css;
+}
+
+/**
+ * Every class a renderer puts on its `.sc-theme` element: the look's own, the
+ * book's paper and the ribbon footer. One function so no renderer can forget
+ * one. Paper is a book setting: a handout's paper is its theme, so it never
+ * gets a paper class, and ink-friendly prints plain white whatever the paper.
+ */
+export function bookSurfaceClasses(opts: {
+  theme: ScriptoriumTheme;
+  paperTone?: ScriptoriumPaperTone | null;
+  footerStyle?: ScriptoriumFooterStyle | null;
+  inkFriendly?: boolean;
+}): string[] {
+  const classes = [LOOKS[opts.theme].className];
+  if (opts.paperTone && LOOKS[opts.theme].family === "book" && !opts.inkFriendly) {
+    classes.push(`sc-paper--${opts.paperTone}`);
+  }
+  if (opts.footerStyle === "ribbon") classes.push("sc-footer-style--ribbon");
+  return classes;
 }
 
 /** What a new handout on this paper starts with: one A5 column, no furniture. */

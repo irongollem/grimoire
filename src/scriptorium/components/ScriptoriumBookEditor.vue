@@ -85,6 +85,8 @@
           :page-size="settings.draft.pageSize"
           :is-two-column="settings.draft.isTwoColumn"
           :ink-friendly="settings.draft.inkFriendly"
+          :paper-tone="settings.draft.paperTone"
+          :footer-style="settings.draft.footerStyle"
           :pages-label="pagesLabel"
           :flow="flow?.chapterId !== chapter.id ? null : flow"
           @edit="onEdit"
@@ -130,6 +132,8 @@
       :reading="reading"
       :focus-chapter-id="currentId"
       :furniture="settings.draft.furniture"
+      :paper-tone="settings.draft.paperTone"
+      :footer-style="settings.draft.footerStyle"
       @layout="layout = $event"
       @progress="layoutProgress = $event"
       @flow="flow = $event"
@@ -411,7 +415,12 @@ const pagesLabel = computed(() => {
 const pageContext = computed<PanelPageContext>(() => {
   const index = chapterList.value.findIndex((c) => c.id === currentId.value);
   return {
-    paperLabel: paperLine(scriptoriumLook(settings.draft.theme).label, settings.draft.pageSize, settings.draft.isTwoColumn),
+    paperLabel: paperLine(
+      scriptoriumLook(settings.draft.theme).label,
+      settings.draft.pageSize,
+      settings.draft.isTwoColumn,
+      settings.draft.paperTone,
+    ),
     chapterNumber: index + 1,
     chapterTitle: chapterList.value[index]?.title ?? "",
     isHandout: isHandout.value,
@@ -572,6 +581,8 @@ async function runExport(bundle?: GrimoireBundle): Promise<boolean> {
     chapters: html.chapters(),
     title: settings.draft.title,
     theme: settings.draft.theme,
+    paperTone: settings.draft.paperTone,
+    footerStyle: settings.draft.footerStyle,
     pageSize: settings.draft.pageSize,
     inkFriendly: settings.draft.inkFriendly,
     isTwoColumn: settings.draft.isTwoColumn,

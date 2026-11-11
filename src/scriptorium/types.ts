@@ -33,6 +33,10 @@ export type ScriptoriumPageSize = "A4" | "A5" | "Letter";
  * or the book's own footer text. Left-hand pages always carry the book's title.
  */
 export type ScriptoriumFooterTitle = "chapter" | "book" | "custom";
+/** A book's own paper, laid over its look's; null (the column's default) is the look's own. */
+export type ScriptoriumPaperTone = "grey" | "white" | "parchment";
+/** How the running title is set at the foot of the page. */
+export type ScriptoriumFooterStyle = "plain" | "ribbon";
 
 /* ── Page furniture (Phase D, #456) ──────────────────────────────────────────
  * Decorations (watercolours, watermarks, artist credits, free art) live OUTSIDE
@@ -95,6 +99,9 @@ export interface ScriptoriumDocument {
   footer_text: string;
   /** Which running title the right-hand pages carry; `footer_text` is the "custom" one. */
   footer_title: ScriptoriumFooterTitle;
+  /** Books only: the paper the pages are printed on; null is the look's own. */
+  paper_tone: ScriptoriumPaperTone | null;
+  footer_style: ScriptoriumFooterStyle;
   page_number_start: number;
   /** Page-furniture decorations (Phase D). JSONB column, defaults to [].
    * Optional until the column + editor wiring land (foundation-only for now). */
@@ -110,7 +117,7 @@ export interface ScriptoriumDocument {
  *  provenance and owner id are filing, not part of the handout. */
 export type ReadableBook = Pick<
   ScriptoriumDocument,
-  "id" | "title" | "kind" | "doc_type" | "campaign_id" | "theme" | "updated_at"
+  "id" | "title" | "kind" | "doc_type" | "campaign_id" | "theme" | "paper_tone" | "updated_at"
 >;
 
 /** One chapter of a book: a Tiptap document of its own (#1115). */
@@ -172,11 +179,12 @@ export type ScriptoriumDocumentSummary = Pick<
   scriptorium_chapters: { count: number }[];
 };
 
-/** `footer_title` is left to the column's default ("chapter") on insert. */
+/** `paper_tone` and `footer_style` are left to the columns' defaults (the look's own paper, a plain footer) on insert. */
 export type ScriptoriumDocInsert = Omit<
   ScriptoriumDocument,
-  "id" | "user_id" | "created_at" | "updated_at" | "player_visible_to" | "word_count"
->;
+  "id" | "user_id" | "created_at" | "updated_at" | "player_visible_to" | "word_count" | "paper_tone" | "footer_style"
+> &
+  Partial<Pick<ScriptoriumDocument, "paper_tone" | "footer_style">>;
 export type ScriptoriumDocUpdate = Partial<ScriptoriumDocInsert>;
 
 /** One linked entry the handout would reveal, as `share_handout` reports it. */

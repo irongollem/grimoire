@@ -4,7 +4,8 @@
  * "16 of 28", "3 · The Understage, page 3 of 4", and the paper line. Pure, so
  * the wording is tested without a laid-out book.
  */
-import type { ScriptoriumPageSize } from "@/scriptorium/types";
+import { PAPER_TONE_LABELS } from "@/scriptorium/lib/looks";
+import type { ScriptoriumPageSize, ScriptoriumPaperTone } from "@/scriptorium/types";
 
 /** What the shell knows about the open chapter and the book's layout. */
 export interface PanelPageContext {
@@ -47,6 +48,12 @@ export function describePage(ctx: PanelPageContext, chapterPage: number, chapter
   };
 }
 
-export function paperLine(lookLabel: string, pageSize: ScriptoriumPageSize, isTwoColumn: boolean): string {
-  return `${lookLabel} · ${pageSize} · ${isTwoColumn ? "Two columns" : "One column"}`;
+export function paperLine(
+  lookLabel: string,
+  pageSize: ScriptoriumPageSize,
+  isTwoColumn: boolean,
+  paperTone: ScriptoriumPaperTone | null = null,
+): string {
+  const line = `${lookLabel} · ${pageSize} · ${isTwoColumn ? "Two columns" : "One column"}`;
+  return paperTone ? `${line} · ${PAPER_TONE_LABELS[paperTone]} paper` : line;
 }

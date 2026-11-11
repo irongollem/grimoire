@@ -5,10 +5,13 @@ import CoverPageView from "@/scriptorium/components/CoverPageView.vue";
 import type { CoverPageVariant } from "@/lib/tiptap/nodeViewTypes";
 import {
   COVER_SHADES,
+  COVER_TITLE_STYLES,
+  coverClass,
   COVER_TITLE_PLACES,
   buildCoverInner,
   type CoverPageAttrs,
   type CoverShade,
+  type CoverTitleStyle,
   type CoverTitlePlace,
 } from "@/scriptorium/lib/coverMarkup";
 export * from "@/scriptorium/lib/coverMarkup";
@@ -80,6 +83,7 @@ export const CoverPage = Node.create({
       backgroundImage: strAttr("backgroundImage", ""),
       titlePlace: choiceAttr<CoverTitlePlace>("titlePlace", COVER_TITLE_PLACES, "bottom"),
       shade: choiceAttr<CoverShade>("shade", COVER_SHADES, "dusk"),
+      titleStyle: choiceAttr<CoverTitleStyle>("titleStyle", COVER_TITLE_STYLES, "look"),
     };
   },
 
@@ -103,7 +107,7 @@ export const CoverPage = Node.create({
         {
           "data-type": "coverPage",
           "data-variant": variant,
-          class: `sc-cover sc-cover--${variant}`,
+          class: coverClass(variant, attrs),
         },
         HTMLAttributes,
       ),

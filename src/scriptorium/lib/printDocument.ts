@@ -5,9 +5,14 @@
  * export does, with the same print CSS, without the Supabase client.
  */
 import { PAGE_CONTENT_SELECTOR } from "@/scriptorium/lib/pagedPreviewCss";
-import type { ScriptoriumPageSize, ScriptoriumTheme } from "@/scriptorium/types";
+import type {
+  ScriptoriumFooterStyle,
+  ScriptoriumPageSize,
+  ScriptoriumPaperTone,
+  ScriptoriumTheme,
+} from "@/scriptorium/types";
 import themeBaseCss from "@/scriptorium/styles/theme-base.css?inline";
-import { scriptoriumThemeClass } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses } from "@/scriptorium/lib/looks";
 import { escapeHtml } from "@/lib/escapeHtml";
 
 const PAGE_SIZE_KEYWORD: Record<ScriptoriumPageSize, string> = {
@@ -53,6 +58,9 @@ export function serializeStyle(el: HTMLStyleElement): string {
 export interface PdfDocumentAssembly {
   title: string;
   theme: ScriptoriumTheme;
+  paperTone?: ScriptoriumPaperTone | null;
+  footerStyle?: ScriptoriumFooterStyle;
+  inkFriendly?: boolean;
   pageSize: ScriptoriumPageSize;
   /** The fonts CSS with its font files already inlined as data: URIs. */
   fontsCss: string;
@@ -79,7 +87,7 @@ export interface PdfDocumentAssembly {
  * first) so this part is testable without either.
  */
 export function buildPdfDocumentHtml(opts: PdfDocumentAssembly): string {
-  const cls = scriptoriumThemeClass(opts.theme);
+  const cls = bookSurfaceClasses(opts).join(" ");
   return (
     `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(opts.title || "Untitled")}</title>` +
     `<style>${opts.fontsCss}</style>` +

@@ -20,9 +20,11 @@ import type {
   PageFurnitureItem,
   ScriptoriumDocUpdate,
   ScriptoriumDocument,
+  ScriptoriumFooterStyle,
   ScriptoriumFooterTitle,
   ScriptoriumKind,
   ScriptoriumPageSize,
+  ScriptoriumPaperTone,
   ScriptoriumTheme,
 } from "@/scriptorium/types";
 
@@ -38,6 +40,9 @@ export interface BookSettingsDraft {
   pageNumberStart: number;
   footerText: string;
   footerTitle: ScriptoriumFooterTitle;
+  footerStyle: ScriptoriumFooterStyle;
+  /** Books only; null is the look's own paper. */
+  paperTone: ScriptoriumPaperTone | null;
   isPublished: boolean;
   tags: string[];
   furniture: PageFurnitureItem[];
@@ -56,6 +61,8 @@ export function toSettingsDraft(doc: ScriptoriumDocument): BookSettingsDraft {
     pageNumberStart: doc.page_number_start,
     footerText: doc.footer_text,
     footerTitle: doc.footer_title,
+    footerStyle: doc.footer_style,
+    paperTone: doc.paper_tone,
     isPublished: doc.is_published,
     tags: [...doc.tags],
     furniture: [...(doc.page_furniture ?? [])],
@@ -76,6 +83,8 @@ export function settingsRow(d: BookSettingsDraft): ScriptoriumDocUpdate {
     page_number_start: d.pageNumberStart,
     footer_text: d.footerText,
     footer_title: d.footerTitle,
+    footer_style: d.footerStyle,
+    paper_tone: d.paperTone,
     is_published: d.isPublished,
     tags: d.tags,
     page_furniture: d.furniture,

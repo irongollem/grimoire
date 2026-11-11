@@ -44,6 +44,7 @@ function makeDoc(embedType: string, campaignId: string | null = "camp-1"): Reada
     doc_type: "custom",
     campaign_id: campaignId,
     theme: "onednd2024",
+    paper_tone: null,
     updated_at: "2026-01-01T00:00:00.000Z",
   };
 }

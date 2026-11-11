@@ -26,8 +26,11 @@
         </PanelField>
       </PanelSection>
       <PanelSection v-if="text('backgroundImage')">
+        <PanelField label="Cover title">
+          <SegmentedControl :model-value="titleStyle" :options="TITLE_STYLE_OPTIONS" size="xs" block @update:model-value="setTitleStyle" />
+        </PanelField>
         <PanelField label="Shade under the title">
-          <SegmentedControl :model-value="shade" :options="SHADE_OPTIONS" size="xs" block @update:model-value="set('shade', $event)" />
+          <SegmentedControl :model-value="shade" :options="shadeOptions" size="xs" block @update:model-value="set('shade', $event)" />
         </PanelField>
       </PanelSection>
     </template>
@@ -86,11 +89,13 @@ import { cn } from "@/lib/utils";
 import { IconLibrary } from "@/lib/icons";
 import {
   COVER_SHADES,
+  coverTitleStyle,
   COVER_TITLE_PLACES,
   coverShade,
   type CoverPageAttrs,
   type CoverPageVariant,
   type CoverShade,
+  type CoverTitleStyle,
   type CoverTitlePlace,
 } from "@/scriptorium/lib/coverMarkup";
 
@@ -127,10 +132,21 @@ const PLACE_OPTIONS: SegmentedOption<CoverTitlePlace>[] = COVER_TITLE_PLACES.map
   value,
   label: value[0].toUpperCase() + value.slice(1),
 }));
-const SHADE_OPTIONS: SegmentedOption<CoverShade>[] = COVER_SHADES.map((value) => ({
-  value,
-  label: value[0].toUpperCase() + value.slice(1),
-}));
+/** White letters on the parchment shade would not read, so a light title cannot have it. */
+const shadeOptions = computed<SegmentedOption<CoverShade>[]>(() =>
+  COVER_SHADES.map((value) => ({
+    value,
+    label: value[0].toUpperCase() + value.slice(1),
+    ...(value === "parchment" && titleStyle.value === "light"
+      ? { disabled: true, tooltip: "A light title needs the art or a dark shade under it" }
+      : {}),
+  })),
+);
+const TITLE_STYLE_OPTIONS: SegmentedOption<CoverTitleStyle>[] = [
+  { value: "look", label: "The look's" },
+  { value: "light", label: "Light on the art" },
+];
+const titleStyle = computed(() => coverTitleStyle({ titleStyle: attrs.titleStyle as CoverTitleStyle }));
 const titlePlace = computed<CoverTitlePlace>(() =>
   COVER_TITLE_PLACES.includes(attrs.titlePlace as CoverTitlePlace) ? (attrs.titlePlace as CoverTitlePlace) : "bottom",
 );
@@ -150,6 +166,10 @@ function text(key: TextKey): string {
 }
 function set<K extends keyof CoverPageAttrs>(key: K, value: CoverPageAttrs[K]) {
   emit("update", { [key]: value } as Partial<CoverPageAttrs>);
+}
+/** Choosing the light title over a parchment shade takes the shade away with it, in one step. */
+function setTitleStyle(value: CoverTitleStyle) {
+  emit("update", value === "light" && shade.value === "parchment" ? { titleStyle: value, shade: "none" } : { titleStyle: value });
 }
 
 const showArtPicker = ref(false);

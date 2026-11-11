@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
 import { generateHTML, generateJSON } from "@tiptap/core";
-import { buildFront, buildBack, buildCoverInner, coverShade } from "./coverPage";
+import { buildFront, buildBack, buildCoverInner, coverShade, coverClass } from "./coverPage";
 import type { CoverPageAttrs } from "./coverPage";
 import { createScriptoriumExtensions } from "@/scriptorium/lib/scriptoriumExtensions";
 
@@ -20,6 +20,7 @@ const base: CoverPageAttrs = {
   backgroundImage: "",
   titlePlace: "bottom",
   shade: "dusk",
+  titleStyle: "look",
 };
 
 /** Flatten the ProseMirror render spec into a list of (tag, style, src). */
@@ -235,5 +236,28 @@ describe("cover fields (the words typed on the cover)", () => {
     for (const f of ["subtitle", "blurb1", "blurb2", "blurb3", "tagline", "productUrl"]) expect(fields).toContain(`"data-field":"${f}"`);
     const part = JSON.stringify(buildCoverInner("part", { ...base, variant: "part" }, true));
     expect(part).toContain('"data-field":"partNumber"');
+  });
+});
+
+describe("cover title style", () => {
+  // Fails on: the light title never reaching the cover's class (so the CSS never applies), or leaking onto the look's title.
+  it("puts the light title's class on a front cover only when chosen", () => {
+    expect(coverClass("front", { titleStyle: "light" })).toContain("sc-cover--title-light");
+    expect(coverClass("front", { titleStyle: "look" })).not.toContain("title-light");
+    expect(coverClass("front", { titleStyle: "neon" as never })).not.toContain("title-light");
+    // Fails on: a part or back cover being set in white capitals with no art under it.
+    expect(coverClass("back", { titleStyle: "light" })).not.toContain("title-light");
+  });
+
+  // Fails on: the attr dropped from the printed cover, or a stored cover with none (or a bad one) not reading as the look's title.
+  it("prints the class, keeps the choice through HTML, and defaults to the look's", () => {
+    const html = generateHTML(
+      { type: "doc", content: [{ type: "coverPage", attrs: { variant: "front", titleStyle: "light" } }] },
+      EXT,
+    );
+    expect(html).toContain("sc-cover--title-light");
+    expect(generateJSON(html, EXT).content?.[0]?.attrs).toMatchObject({ titleStyle: "light" });
+    expect(generateJSON('<div data-type="coverPage" data-titlestyle="neon"></div>', EXT).content?.[0]?.attrs?.titleStyle).toBe("look");
+    expect(generateJSON('<div data-type="coverPage"></div>', EXT).content?.[0]?.attrs?.titleStyle).toBe("look");
   });
 });

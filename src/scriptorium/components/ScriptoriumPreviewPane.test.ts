@@ -18,7 +18,7 @@ vi.mock("@/scriptorium/composables/useBookPreview", () => ({
 vi.mock("@/scriptorium/composables/useFurnitureEditing", () => ({ useFurnitureEditing: vi.fn() }));
 vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
 
-function open() {
+function open(extra: Record<string, unknown> = {}) {
   return mount(ScriptoriumPreviewPane, {
     props: {
       documentId: "d1",
@@ -38,6 +38,7 @@ function open() {
       },
       chapterSummaries: [],
       reading: true,
+      ...extra,
     },
     global: { stubs: { ScriptoriumInspectBar: { template: '<div data-testid="inspect-bar" />' } } },
   });
@@ -72,6 +73,14 @@ describe("ScriptoriumPreviewPane", () => {
     expect(pane.attributes("aria-hidden")).toBe("true");
     expect(wrapper.find("[data-testid=inspect-bar]").exists()).toBe(false);
     expect(wrapper.find("[data-testid=preview-blank-sheet]").exists()).toBe(false);
+  });
+
+  // Fails on: the preview drawing white pages for a book whose editor sheet and PDF are grey.
+  it("paints the book's paper and ribbon on the host the pages are laid out in", () => {
+    preview.pageCount = 1;
+    const wrapper = open({ settings: { ...open().props("settings"), theme: "onednd2024" }, paperTone: "grey", footerStyle: "ribbon" });
+    const host = wrapper.get(".paged-book");
+    expect(host.classes()).toEqual(expect.arrayContaining(["sc-paper--grey", "sc-footer-style--ribbon"]));
   });
 
   it("reading, is a full-screen labelled page with the spread bar", () => {

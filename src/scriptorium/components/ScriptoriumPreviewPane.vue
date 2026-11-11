@@ -36,7 +36,7 @@
               ref="hostRef"
               class="sc-theme paged-book"
               :class="[
-                scriptoriumThemeClass(settings.theme),
+                ...surfaceClasses,
                 { 'paged-book--spread': reading, 'paged-book--lone': reading && spread === 0 },
               ]"
               :style="{ '--spread-page-width': `${pageBox.w}px` }"
@@ -46,7 +46,7 @@
             <div
               v-if="blankSheet"
               class="sc-theme"
-              :class="[scriptoriumThemeClass(settings.theme), { 'ink-friendly': settings.inkFriendly }]"
+              :class="[...surfaceClasses, { 'ink-friendly': settings.inkFriendly }]"
               data-testid="preview-blank-sheet"
               aria-hidden="true"
             >
@@ -94,11 +94,16 @@ import { renderFurniture } from "@/scriptorium/lib/furniture/renderFurniture";
 import { EDITOR_PAGE_DIMENSIONS_PX } from "@/scriptorium/lib/editorConstants";
 import { measureChapterFlow } from "@/scriptorium/lib/pageFlow/measureFlow";
 import type { ChapterFlow } from "@/scriptorium/lib/pageFlow/types";
-import { scriptoriumThemeClass } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses } from "@/scriptorium/lib/looks";
 import { activeThemeId, darkTwinStyle } from "@/lib/themeRuntime";
 import { spreadCount, spreadPages } from "@/scriptorium/lib/spreads";
 import type { BookChapterInput, BookLayoutResult, BookLayoutSettings } from "@/scriptorium/lib/bookLayout/types";
-import type { PageFurnitureItem, ScriptoriumChapterSummary } from "@/scriptorium/types";
+import type {
+  PageFurnitureItem,
+  ScriptoriumChapterSummary,
+  ScriptoriumFooterStyle,
+  ScriptoriumPaperTone,
+} from "@/scriptorium/types";
 
 /** Read as spreads is lamplit (frame 04): the campaign theme's dark twin, whatever the viewer's light/dark setting. */
 const inspectChrome = computed(() => darkTwinStyle(activeThemeId.value));
@@ -112,6 +117,8 @@ const {
   reading,
   focusChapterId = null,
   furniture = [],
+  paperTone = null,
+  footerStyle = "plain",
 } = defineProps<{
   documentId: string;
   title: string;
@@ -126,6 +133,9 @@ const {
   focusChapterId?: string | null;
   /** Written onto the pages by the engine; never interactive here, the editor's pages are where furniture is edited. */
   furniture?: PageFurnitureItem[];
+  /** The book's own paper and footer style; they change no layout, so they are not part of `settings`. */
+  paperTone?: ScriptoriumPaperTone | null;
+  footerStyle?: ScriptoriumFooterStyle;
 }>();
 
 const emit = defineEmits<{
@@ -144,6 +154,10 @@ const hostRef = ref<HTMLElement | null>(null);
 const hostEl = computed(() => hostRef.value);
 
 const pageBox = computed(() => EDITOR_PAGE_DIMENSIONS_PX[settings.pageSize]);
+
+const surfaceClasses = computed(() =>
+  bookSurfaceClasses({ theme: settings.theme, paperTone, footerStyle, inkFriendly: settings.inkFriendly }),
+);
 
 const { isRendering, error, result, progress } = useBookPreview({
   chapters: () => chapters(),

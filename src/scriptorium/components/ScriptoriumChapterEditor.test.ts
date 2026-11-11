@@ -39,7 +39,7 @@ const chapter: ScriptoriumChapter = {
 
 function open(extra: Record<string, unknown> = {}, body: ScriptoriumChapter = chapter) {
   const wrapper = mount(ScriptoriumChapterEditor, {
-    props: { ...extra, chapter: body, documentId: "d1", campaignId: "c1", theme: "onednd2024", docType: "custom", pageSize: "A4", isTwoColumn: false, inkFriendly: false, furniture: [], selectedFurnitureId: null, pageContext: { paperLabel: "", chapterNumber: 1, chapterTitle: "", isHandout: false, firstPageLabel: null, bookPageCount: null } },
+    props: { paperTone: null, footerStyle: "plain", ...extra, chapter: body, documentId: "d1", campaignId: "c1", theme: "onednd2024", docType: "custom", pageSize: "A4", isTwoColumn: false, inkFriendly: false, furniture: [], selectedFurnitureId: null, pageContext: { paperLabel: "", chapterNumber: 1, chapterTitle: "", isHandout: false, firstPageLabel: null, bookPageCount: null } },
     global: {
       stubs: {
         ScriptoriumEditorToolbar: true,
@@ -50,6 +50,17 @@ function open(extra: Record<string, unknown> = {}, body: ScriptoriumChapter = ch
   });
   return wrapper;
 }
+
+describe("the book surface", () => {
+  it("puts the book's paper and footer style on the page's own element (a missed class leaves the editor white while the printout is grey)", async () => {
+    const wrapper = open({ paperTone: "grey", footerStyle: "ribbon" });
+    await flushPromises();
+    const classes = wrapper.find('[data-testid="chapter-editor"]').classes();
+    expect(classes).toContain("sc-paper--grey");
+    expect(classes).toContain("sc-footer-style--ribbon");
+    expect(classes).toContain("theme-onednd2024");
+  });
+});
 
 type Exposed = { editor: { commands: { insertContent: (c: string) => void }; getJSON: () => unknown }; saveNow: () => Promise<void>; hold: () => Promise<void>; dirty: boolean };
 

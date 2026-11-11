@@ -6,6 +6,9 @@ import {
   PAPERS,
   handoutDefaults,
   noticePinStyleForPaper,
+  PAPER_CHOICES,
+  bookSurfaceClasses,
+  paperToneFromChoice,
   scriptoriumThemeClass,
 } from "./looks";
 
@@ -71,5 +74,39 @@ describe("table rows css", () => {
     const base = css("theme-base");
     expect(base.indexOf(".sc-table--plain")).toBeGreaterThan(base.indexOf(".theme-onednd2024 table tbody tr:nth-child(odd)"));
     expect(base).toMatch(/\.ink-friendly table\.sc-table--striped[^{]*\{\s*background: transparent/);
+  });
+});
+
+describe("bookSurfaceClasses", () => {
+  it("adds the paper class to a book look (a missing class leaves the pages the look's colour)", () => {
+    expect(bookSurfaceClasses({ theme: "phb2014", paperTone: "grey" })).toEqual(["theme-phb2014", "sc-paper--grey"]);
+  });
+
+  it("never gives a handout a book paper: its paper is its theme", () => {
+    expect(bookSurfaceClasses({ theme: "letter", paperTone: "grey" })).toEqual(["theme-letter"]);
+  });
+
+  it("adds nothing for the look's own paper", () => {
+    expect(bookSurfaceClasses({ theme: "grimoire", paperTone: null })).toEqual(["theme-grimoire"]);
+  });
+
+  it("prints plain white in ink-friendly, so a grey book does not spend ink on its grain", () => {
+    expect(bookSurfaceClasses({ theme: "grimoire", paperTone: "grey", inkFriendly: true })).toEqual(["theme-grimoire"]);
+  });
+
+  it("adds the ribbon class only for the ribbon footer", () => {
+    expect(bookSurfaceClasses({ theme: "grimoire", footerStyle: "ribbon" })).toContain("sc-footer-style--ribbon");
+    expect(bookSurfaceClasses({ theme: "grimoire", footerStyle: "plain" })).toEqual(["theme-grimoire"]);
+  });
+
+  it("round-trips the paper choice through the control's values, null being the look's own", () => {
+    expect(PAPER_CHOICES.map((c) => paperToneFromChoice(c.value))).toEqual([null, "grey", "white", "parchment"]);
+  });
+
+  it("has CSS for every paper and for the ribbon, each look carrying its ribbon colours", () => {
+    const base = css("theme-base");
+    for (const tone of ["grey", "white", "parchment"]) expect(base).toContain(`.sc-paper--${tone} {`);
+    expect(base).toContain(".sc-footer-style--ribbon .sc-footer-text");
+    for (const theme of BOOK_LOOKS) expect(css(`theme-${theme}`)).toContain("--sc-ribbon-bg");
   });
 });

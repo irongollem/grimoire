@@ -49,6 +49,11 @@ describe("buildPdfDocumentHtml", () => {
     expect(html).toContain('<body class="sc-theme theme-phb2014">');
   });
 
+  it("prints the book's paper and ribbon footer, so the PDF is not white where the editor is grey", () => {
+    const html = buildPdfDocumentHtml({ ...BASE, paperTone: "grey", footerStyle: "ribbon" });
+    expect(html).toContain('<body class="sc-theme theme-onednd2024 sc-paper--grey sc-footer-style--ribbon">');
+  });
+
   it("gives each page's text area back the slack it was fitted without, after every other sheet (#1115)", () => {
     const html = buildPdfDocumentHtml(BASE);
     const restore = `${PAGE_CONTENT_SELECTOR} { height: calc(100% - var(--pagedjs-footnotes-height)); }`;

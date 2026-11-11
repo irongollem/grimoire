@@ -9,9 +9,20 @@
  * procedures, which some print shops reject.
  *
  * Plain CSS only (no Tailwind directives) so it stays inlinable into that
- * HTML. Both families are OFL: see
- * public/fonts/scriptorium/{cinzel,alegreya}-OFL.txt.
+ * HTML. Every family is OFL: see public/fonts/scriptorium/*-OFL.txt.
+ *
+ * Oswald (600, Latin only) is the tall condensed capitals of a cover's light
+ * title (sc-cover--title-light, #1176): the look's own display faces are all
+ * wide, and a supplement's painted cover sets its title condensed.
  */
+
+@font-face {
+  font-family: "Oswald";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/scriptorium/oswald-600.ttf") format("truetype");
+}
 
 @font-face {
   font-family: "Cinzel";

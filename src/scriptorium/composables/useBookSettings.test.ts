@@ -16,7 +16,7 @@ vi.mock("@/scriptorium/composables/useScriptorium", () => ({
 const doc = {
   id: "d1", title: "Sothery", kind: "book", doc_type: "custom", campaign_id: null, theme: "onednd2024",
   page_size: "A4", is_two_column: true, ink_friendly: false, show_page_numbers: true, page_number_start: 1,
-  footer_text: "", footer_title: "chapter", is_published: false, tags: [], page_furniture: [], updated_at: "t1",
+  footer_text: "", footer_title: "chapter", footer_style: "plain", paper_tone: null, is_published: false, tags: [], page_furniture: [], updated_at: "t1",
 } as unknown as ScriptoriumDocument;
 
 beforeEach(() => {
@@ -40,6 +40,18 @@ describe("book settings", () => {
     // Bug caught: footer_title left out of the row, so the choice made on a footer is never saved.
     const before = toSettingsDraft(doc);
     expect(changedSettings(before, { ...before, footerTitle: "custom" })).toEqual({ footer_title: "custom" });
+  });
+
+  it("saves the paper and the footer style, each as its own column", () => {
+    // Bug caught: either left out of the row, so a choice in Book settings never reaches the database.
+    const before = toSettingsDraft(doc);
+    expect(before).toMatchObject({ paperTone: null, footerStyle: "plain" });
+    expect(changedSettings(before, { ...before, paperTone: "grey" })).toEqual({ paper_tone: "grey" });
+    expect(changedSettings(before, { ...before, footerStyle: "ribbon" })).toEqual({ footer_style: "ribbon" });
+    expect(toSettingsDraft({ ...doc, paper_tone: "parchment", footer_style: "ribbon" })).toMatchObject({
+      paperTone: "parchment",
+      footerStyle: "ribbon",
+    });
   });
 
   it("keeps an edit that failed to save and sends it on the next try", async () => {

@@ -44,9 +44,15 @@ import { createBookLayout } from "@/scriptorium/lib/bookLayout/createBookLayout"
 import type { BookChapterInput } from "@/scriptorium/lib/bookLayout/types";
 import { compactPrintImages, fitCroppedArt, fitCroppedPictures } from "@/scriptorium/lib/printImages";
 import type { PageFurnitureItem } from "@/scriptorium/types";
-import type { ScriptoriumFooterTitle, ScriptoriumPageSize, ScriptoriumTheme } from "@/scriptorium/types";
+import type {
+  ScriptoriumFooterStyle,
+  ScriptoriumFooterTitle,
+  ScriptoriumPageSize,
+  ScriptoriumPaperTone,
+  ScriptoriumTheme,
+} from "@/scriptorium/types";
 import scriptoriumFontsCss from "@/scriptorium/styles/fonts.css?inline";
-import { scriptoriumThemeClass, scriptoriumThemeCss } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses, scriptoriumThemeCss } from "@/scriptorium/lib/looks";
 import { buildPdfDocumentHtml, serializeStyle } from "@/scriptorium/lib/printDocument";
 import { inlineSameOriginAssets } from "@/scriptorium/lib/inlineSameOriginAssets";
 import { attachBundleToPdf } from "@/scriptorium/lib/campaignBundlePdf";
@@ -129,6 +135,8 @@ export interface PdfDocumentOptions {
   chapters: BookChapterInput[];
   title: string;
   theme: ScriptoriumTheme;
+  paperTone: ScriptoriumPaperTone | null;
+  footerStyle: ScriptoriumFooterStyle;
   pageSize: ScriptoriumPageSize;
   inkFriendly: boolean;
   isTwoColumn: boolean;
@@ -189,7 +197,7 @@ export function useScriptoriumPdf() {
     exportError.value = null;
     printCheck.value = null;
 
-    const cls = scriptoriumThemeClass(opts.theme);
+    const cls = bookSurfaceClasses(opts).join(" ");
     const themeCss = scriptoriumThemeCss(opts.theme);
     const pagedCss = buildPagedPreviewCss({ pageSize: opts.pageSize, inkFriendly: opts.inkFriendly });
     // 1. Off-screen render in the main document.
@@ -261,6 +269,9 @@ export function useScriptoriumPdf() {
         buildPdfDocumentHtml({
           title: opts.title,
           theme: opts.theme,
+          paperTone: opts.paperTone,
+          footerStyle: opts.footerStyle,
+          inkFriendly: opts.inkFriendly,
           pageSize: opts.pageSize,
           fontsCss: scriptoriumFontsCss,
           themeCss,

@@ -16,6 +16,15 @@ export const COVER_TITLE_PLACES: readonly CoverTitlePlace[] = ["top", "middle", 
 export type CoverShade = "none" | "dusk" | "parchment";
 export const COVER_SHADES: readonly CoverShade[] = ["none", "dusk", "parchment"];
 
+/**
+ * How a front cover's title is set: in the look's own type ("look"), or as a
+ * supplement cover has it, white capitals with a dark outline that read on any
+ * painting with no shade under them ("light"). The type itself is CSS, keyed on
+ * the class coverClass() puts on the cover.
+ */
+export type CoverTitleStyle = "look" | "light";
+export const COVER_TITLE_STYLES: readonly CoverTitleStyle[] = ["look", "light"];
+
 export interface CoverPageAttrs {
   /** Which of the four cover variants this node represents. */
   variant: CoverPageVariant;
@@ -44,6 +53,19 @@ export interface CoverPageAttrs {
   titlePlace: CoverTitlePlace;
   /** The shade under the title (front cover). */
   shade: CoverShade;
+  /** How the title is set (front cover). */
+  titleStyle: CoverTitleStyle;
+}
+
+/** The title style a cover draws: the look's own when it holds none that is valid. */
+export function coverTitleStyle(attrs: Pick<CoverPageAttrs, "titleStyle">): CoverTitleStyle {
+  return COVER_TITLE_STYLES.includes(attrs.titleStyle) ? attrs.titleStyle : "look";
+}
+
+/** The cover's class list: its variant, and the light title where the cover has one (a front cover only). */
+export function coverClass(variant: CoverPageVariant, attrs: Pick<CoverPageAttrs, "titleStyle">): string {
+  const light = variant === "front" && coverTitleStyle(attrs) === "light";
+  return `sc-cover sc-cover--${variant}${light ? " sc-cover--title-light" : ""}`;
 }
 
 /** The shade a cover draws: its own, dusk when it holds none that is valid. */

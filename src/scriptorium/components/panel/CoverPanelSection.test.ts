@@ -37,6 +37,25 @@ describe("CoverPanelSection (#1176 frame 05)", () => {
     expect(w.emitted("update")).toEqual([[{ shade: "parchment" }]]);
   });
 
+  // Fails on: the Cover title choice writing the wrong attr, or showing on a cover with no art or on a back cover.
+  it("sets the cover title over a front cover's art only", async () => {
+    expect(cover({ variant: "front", backgroundImage: "" }).text()).not.toContain("Cover title");
+    expect(cover({ variant: "back", backgroundImage: "a.webp" }).text()).not.toContain("Cover title");
+    const w = cover({ variant: "front", backgroundImage: "a.webp" });
+    await press(w, "Light on the art");
+    expect(w.emitted("update")).toEqual([[{ titleStyle: "light" }]]);
+  });
+
+  // Fails on: white letters left on the pale parchment shade, where they cannot be read.
+  it("a light title takes the parchment shade away and cannot be given it back", async () => {
+    const w = cover({ variant: "front", backgroundImage: "a.webp", shade: "parchment" });
+    await press(w, "Light on the art");
+    expect(w.emitted("update")).toEqual([[{ titleStyle: "light", shade: "none" }]]);
+    const lit = cover({ variant: "front", backgroundImage: "a.webp", titleStyle: "light" });
+    const parchment = lit.findAll("button").find((b) => b.text() === "Parchment");
+    expect(parchment?.attributes("disabled")).toBeDefined();
+  });
+
   // Fails on: a cover with no shade attr showing no shade selected in the panel.
   it("shows a cover with no shade as Dusk", () => {
     const w = cover({ variant: "front", backgroundImage: "a.webp" });

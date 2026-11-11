@@ -11,6 +11,9 @@
   --sc-accent: #7d1c1c;
   --sc-accent-contrast: #f9f6ef;
   --sc-page-bg: #f9f6ef;
+  --sc-ribbon-bg: #dcc9a0;
+  --sc-ribbon-edge: #7d1c1c;
+  --sc-ribbon-ink: #5f1414;
   --sc-callout-bg: #f5ece8;
   --sc-callout-border: var(--sc-accent);
   --sc-code-bg: #e4ddd0;

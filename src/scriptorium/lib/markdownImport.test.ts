@@ -499,7 +499,7 @@ describe("::: cover", () => {
       type: "coverPage",
       attrs: {
         variant: "front", title: "Sothery", subtitle: "A Campaign Setting", partNumber: "", blurb1: "", blurb2: "", blurb3: "",
-        tagline: "", productUrl: "", backgroundImage: "https://cdn/x.webp", shade: "dusk",
+        tagline: "", productUrl: "", backgroundImage: "https://cdn/x.webp", shade: "dusk", titleStyle: "look",
       },
     });
   });
@@ -520,6 +520,13 @@ describe("::: cover", () => {
     expect(attrs.partNumber).toBe("Two");
     expect(attrs.blurb3).toBe("");
     expect(attrs.shade).toBe("none");
+  });
+
+  // Fails on: the title-style directive being ignored, or an unknown value reaching the node.
+  it("reads title-style: light, and keeps the look's title otherwise", () => {
+    const style = (v: string) => markdownToScriptoriumContent(`::: cover front\ntitle-style: ${v}\n:::`).content![0].attrs!.titleStyle;
+    expect(style("Light")).toBe("light");
+    expect(style("neon")).toBe("look");
   });
 
   // Fails on: a named shade in the import being ignored, or an unknown one reaching the node.

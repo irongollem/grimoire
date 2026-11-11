@@ -4,7 +4,7 @@
  * right-hand one. The book's footer text is the "custom" choice for the right.
  */
 import type { InjectionKey } from "vue";
-import type { ScriptoriumFooterTitle } from "@/scriptorium/types";
+import type { ScriptoriumFooterStyle, ScriptoriumFooterTitle } from "@/scriptorium/types";
 
 export interface FooterTitleSource {
   mode: ScriptoriumFooterTitle;
@@ -45,6 +45,7 @@ export interface FooterChoices {
   pageNumberStart: number;
   footerText: string;
   footerTitle: ScriptoriumFooterTitle;
+  footerStyle: ScriptoriumFooterStyle;
 }
 
 /**

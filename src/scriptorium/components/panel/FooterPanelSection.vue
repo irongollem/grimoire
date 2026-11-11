@@ -28,6 +28,17 @@
       />
     </PanelSection>
 
+    <PanelSection title="Style">
+      <SegmentedControl
+        :model-value="settings.footerStyle"
+        :options="FOOTER_STYLE_CHOICES"
+        block
+        aria-label="Footer style"
+        @update:model-value="emit('settings', { footerStyle: $event })"
+      />
+      <p class="text-caption text-muted-foreground">Ribbon sets the running title on a banner, as a printed supplement does.</p>
+    </PanelSection>
+
     <PanelSection title="Numbers">
       <AppCheckbox
         size="sm"
@@ -86,6 +97,7 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import PanelField from "@/scriptorium/components/panel/PanelField.vue";
 import PanelSection from "@/scriptorium/components/panel/PanelSection.vue";
+import { FOOTER_STYLE_CHOICES } from "@/scriptorium/lib/looks";
 import type { FooterChoices } from "@/scriptorium/lib/footerTitle";
 import type { PageMarkers } from "@/scriptorium/lib/pageMarkers";
 import type { ScriptoriumFooterTitle } from "@/scriptorium/types";

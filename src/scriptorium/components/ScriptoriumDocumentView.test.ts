@@ -22,6 +22,7 @@ function makeBook(overrides: Partial<ReadableBook> = {}): ReadableBook {
     doc_type: "custom",
     campaign_id: null,
     theme: "onednd2024",
+    paper_tone: null,
     updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides,
   };
@@ -47,6 +48,12 @@ describe("ScriptoriumDocumentView", () => {
     const wrapper = mount(ScriptoriumDocumentView, { props: { document: makeBook({ kind: "handout", theme: "letter" }), content: text("Dear friends") } });
     await flushEditor();
     expect(wrapper.find(".sc-document-view").classes()).toContain("theme-letter");
+  });
+
+  it("lays the book's paper on the page a player reads (a shared book must look like the DM's)", async () => {
+    const wrapper = mount(ScriptoriumDocumentView, { props: { document: makeBook({ paper_tone: "grey" }), content: text("Hello") } });
+    await flushEditor();
+    expect(wrapper.find(".sc-document-view").classes()).toContain("sc-paper--grey");
   });
 
   it("is the paper standing alone, but not inside the reader, whose scroll area already is", async () => {
