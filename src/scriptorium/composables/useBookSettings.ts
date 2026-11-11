@@ -90,7 +90,7 @@ export function changedSettings(previous: BookSettingsDraft, next: BookSettingsD
 export function themeForKind(kind: ScriptoriumKind, theme: ScriptoriumTheme): ScriptoriumTheme {
   const family = kind === "handout" ? "paper" : "book";
   if (scriptoriumLook(theme).family === family) return theme;
-  return kind === "handout" ? "letter" : "onednd2024";
+  return kind === "handout" ? "letter" : "grimoire";
 }
 
 export function useBookSettings(doc: () => ScriptoriumDocument) {

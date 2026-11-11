@@ -39,6 +39,17 @@ describe("scriptorium looks", () => {
     }
   });
 
+  it("Grimoire is the first book look, the house look the picker leads with", () => {
+    expect(BOOK_LOOKS[0]).toBe("grimoire");
+  });
+
+  it("every face the Grimoire look sets text in is registered for the PDF export", () => {
+    const fonts = css("fonts");
+    const families = [...css("theme-grimoire").matchAll(/--sc-(?:heading|body)-font:\s*"([^"]+)"/g)].map((m) => m[1]);
+    expect(families).toEqual(["Cinzel", "Alegreya"]);
+    for (const family of families) expect(fonts).toContain(`font-family: "${family}"`);
+  });
+
   it("every face a paper sets text in is registered for the PDF export (it carries fonts.css only)", () => {
     const fonts = css("fonts");
     for (const paper of PAPERS) {

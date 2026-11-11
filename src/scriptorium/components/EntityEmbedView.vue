@@ -233,8 +233,8 @@ const typeLabel = computed(() => TYPE_LABELS[entityType.value]);
 // ability-score table formats itself in the document's real theme rather
 // than a hardcoded default (#917 story 2; see scriptoriumTheme.ts's own doc
 // for why this was never merely a galley cosmetic gap). Falls back to
-// "onednd2024" only when neither ancestor provided one.
-const theme = inject(SCRIPTORIUM_THEME_KEY, ref<ScriptoriumTheme>("onednd2024"));
+// "grimoire" (the house look) only when neither ancestor provided one.
+const theme = inject(SCRIPTORIUM_THEME_KEY, ref<ScriptoriumTheme>("grimoire"));
 
 // Who is reading decides where the body comes from, and it is read once at
 // setup because a mounted view's audience never changes. A player's embed must

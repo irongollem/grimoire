@@ -18,8 +18,8 @@ export type ScriptoriumDocType =
 /** A document is a book of chapters, or a one-sheet handout (#1115). */
 export type ScriptoriumKind = "book" | "handout";
 
-/** The two book looks. */
-export type ScriptoriumBookTheme = "onednd2024" | "phb2014";
+/** The three book looks: the Grimoire house look and the two D&D editions. */
+export type ScriptoriumBookTheme = "grimoire" | "onednd2024" | "phb2014";
 
 /** The handout papers. */
 export type ScriptoriumPaper = "letter" | "notice" | "journal" | "plain";

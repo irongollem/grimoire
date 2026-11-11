@@ -230,6 +230,7 @@ function abilityScoresHtml(
   savingThrows: string | null,
   theme: ScriptoriumTheme = "onednd2024",
 ): string {
+  if (theme === "grimoire") return abilityCoinsHtml(abs, savingThrows);
   if (theme === "phb2014") {
     // ── Classic: 2-row 6-column table ────────────────────────────────────────
     const headers = abs.map(([l]) => `<th>${l}</th>`).join("");
@@ -276,6 +277,55 @@ function abilityScoresHtml(
     );
   }).join("");
   return `<table class="sc-ability-table sc-ability-table--2024"><thead>${header}</thead><tbody>${rows}</tbody></table>`;
+}
+
+/**
+ * The Grimoire look's ability scores: six coins in a row, each the 2024 stat
+ * block's own figures for that ability (score, Mod, Save). A look never changes
+ * an entity's words, only their setting, so the figures are the ones the 2024
+ * table prints; "Save" is drawn by the stylesheet from `data-label`, so the
+ * coin holds the number alone.
+ */
+function abilityCoinsHtml(abs: [string, number][], savingThrows: string | null): string {
+  const saves = parseSaves(savingThrows, abs);
+  const coins = abs
+    .map(
+      ([label, score]) =>
+        `<div class="sc-coin">` +
+        `<span class="sc-coin-label">${label}</span>` +
+        `<span class="sc-coin-score">${score}</span>` +
+        `<span class="sc-coin-mod">${abilityMod(score)}</span>` +
+        `<span class="sc-coin-save" data-label="Save">${saves[label]}</span>` +
+        `</div>`,
+    )
+    .join("");
+  return `<div class="sc-ability-coins">${coins}</div>`;
+}
+
+/**
+ * The Grimoire vitals row: AC, Hit Points with the dice under them, Speed with
+ * Initiative under it. Labels and values are the 2024 stat block's ("AC",
+ * "HP", "Speed", "Initiative"); only the arrangement is the look's.
+ */
+function vitalsHtml(armorClass: number, hitPoints: string, speed: string, initiative: string): string {
+  const hpText = String(hitPoints);
+  const hp = hpText.match(/^(.*?)\s*(\(.*\))$/);
+  const hpHtml = hp
+    ? `<span class="sc-vital-value">${hp[1]}</span> <span class="sc-vital-sub">${hp[2]}</span>`
+    : `<span class="sc-vital-value">${hpText}</span>`;
+  return (
+    `<div class="sc-statblock-vitals">` +
+    `<div class="sc-vital sc-vital--ac"><strong class="sc-vital-label">AC</strong> <span class="sc-vital-value">${armorClass}</span></div>` +
+    `<div class="sc-vital sc-vital--hp"><strong class="sc-vital-label">HP</strong> ${hpHtml}</div>` +
+    `<div class="sc-vital sc-vital--speed"><strong class="sc-vital-label">Speed</strong> <span class="sc-vital-value">${speed}</span> ` +
+    `<span class="sc-vital-sub"><strong class="sc-vital-sub-label">Initiative</strong> ${initiative}</span></div>` +
+    `</div>\n`
+  );
+}
+
+/** The CR ribbon: decoration only (aria-hidden), the Challenge line still prints the CR. */
+function crRibbonHtml(cr: string): string {
+  return `<div class="sc-statblock-cr-ribbon" aria-hidden="true"><span class="sc-cr-label">CR</span><span class="sc-cr-value">${cr}</span></div>\n`;
 }
 
 // ── Linked entity stat block frame (#915 story 6) ────────────────────────────
@@ -350,11 +400,18 @@ function buildStatBlockInnerHtml(opts: Omit<BuildStatBlockOpts, "theme"> & { the
     skills, defenses, senses, languages, sections,
   } = opts;
 
-  let html = `<p class="sc-statblock-name">${name}</p>\n`;
+  const grimoire = theme === "grimoire";
+  let html = grimoire ? crRibbonHtml(challengeRating) : "";
+  html += `<p class="sc-statblock-name">${name}</p>\n`;
   html += `<div class="sc-statblock-rule"></div>\n`;
   if (typeLine) html += `<p class="sc-statblock-type"><em>${typeLine}</em></p>\n`;
 
-  if (theme === "phb2014") {
+  // Wording is the edition's, not the look's. A monster carries no edition of
+  // its own, so the formatter has only the theme to go on: "phb2014" prints the
+  // 2014 stat block, every other look (Grimoire included) the 2024 one.
+  if (grimoire) {
+    html += vitalsHtml(armorClass, hitPoints, speed, initiativeLine(abilities.dex, initiativeOverride));
+  } else if (theme === "phb2014") {
     html += `<p class="sc-statblock-prop"><strong>Armor Class</strong> ${armorClass}</p>\n`;
     html += `<p class="sc-statblock-prop"><strong>Hit Points</strong> ${hitPoints}</p>\n`;
     html += `<p class="sc-statblock-prop"><strong>Speed</strong> ${speed}</p>\n`;
@@ -407,7 +464,7 @@ function buildStatBlockInnerHtml(opts: Omit<BuildStatBlockOpts, "theme"> & { the
     html += `<div class="sc-statblock-section">`;
     html += `<h4 class="sc-statblock-section-title">${section.label}</h4>\n`;
     if (section.intro) html += section.intro + "\n";
-    html += traitList(section.items);
+    html += traitList(section.items, grimoire);
     html += `</div>\n`;
   });
 
@@ -488,9 +545,15 @@ function buildStatBlockHtml(opts: BuildStatBlockOpts): { html: string; size: Sta
   return { html: `<div class="sc-statblock sc-statblock--${size}">\n${inner}</div>\n`, size };
 }
 
-function traitList(traits: Array<{ name: string; description: string }>): string {
+/** The Grimoire look's Recharge tag: "(Recharge 5-6)" in a name gets a span to draw it in. */
+function nameHtml(name: string, tagRecharge: boolean): string {
+  return tagRecharge ? name.replace(/\(Recharges?[^)]*\)/, '<span class="sc-recharge">$&</span>') : name;
+}
+
+function traitList(traits: Array<{ name: string; description: string }>, tagRecharge = false): string {
   return traits
     .map((t) => {
+      const name = nameHtml(t.name, tagRecharge);
       const desc = t.description ?? "";
       // Trait descriptions may be stored as Tiptap JSON (from the rich-text editor)
       // or as plain text (Open5e imports before the RichTextEditor was adopted).
@@ -499,10 +562,10 @@ function traitList(traits: Array<{ name: string; description: string }>): string
         const bodyHtml = tiptapJsonToHtml(desc);
         // Merge the bold name into the first <p> so it reads as a single paragraph
         html = bodyHtml.startsWith("<p>")
-          ? bodyHtml.replace(/^<p>/, `<p><strong>${t.name}.</strong> `)
-          : `<p><strong>${t.name}.</strong></p>\n${bodyHtml}`;
+          ? bodyHtml.replace(/^<p>/, `<p><strong>${name}.</strong> `)
+          : `<p><strong>${name}.</strong></p>\n${bodyHtml}`;
       } else {
-        html = `<p><strong>${t.name}.</strong> ${desc}</p>`;
+        html = `<p><strong>${name}.</strong> ${desc}</p>`;
       }
       return italicizeAttackRunins(html);
     })

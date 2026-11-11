@@ -200,7 +200,7 @@ export function useEntityEmbedData(
   refs: Ref<EntityRef[]> | ComputedRef<EntityRef[]>,
   options: UseEntityEmbedDataOptions = {},
 ): UseEntityEmbedDataResult {
-  const theme = computed(() => options.theme?.value ?? "onednd2024");
+  const theme = computed(() => options.theme?.value ?? "grimoire");
 
   function idsOfType(type: EntityEmbedType): () => string[] {
     return () => uniqueIds(refs.value.filter((r) => r.type === type).map((r) => r.id));

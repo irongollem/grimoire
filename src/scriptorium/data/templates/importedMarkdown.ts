@@ -14,7 +14,7 @@ import {
 } from "@/scriptorium/lib/markdownImport";
 
 const IMPORT_SETTINGS: ScriptoriumTemplateSettings = {
-  theme: "onednd2024",
+  theme: "grimoire",
   pageSize: "A4",
   // Single column by default, matching the gallery templates — imported prose
   // is easy to flip to two-column once it's in the book.

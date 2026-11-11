@@ -65,3 +65,10 @@ describe("Scriptorium templates", () => {
     }
   });
 });
+
+describe("a new book's look", () => {
+  it("every gallery template starts on Grimoire, the house look (none is deliberately a 2014 or 2024 book)", () => {
+    expect(SCRIPTORIUM_TEMPLATES.length).toBeGreaterThan(0);
+    for (const t of SCRIPTORIUM_TEMPLATES) expect(t.settings.theme).toBe("grimoire");
+  });
+});

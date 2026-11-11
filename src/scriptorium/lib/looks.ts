@@ -1,7 +1,7 @@
 /**
- * The one registry of Scriptorium looks (#1115): the two book editions and the
- * four handout papers. A document's `theme` is one of these ids; everything
- * that needs to know what a theme is called, which CSS class it paints under,
+ * The one registry of Scriptorium looks (#1115): the three book looks (Grimoire,
+ * the 2024 edition, the 2014 edition) and the four handout papers. A document's
+ * `theme` is one of these ids; everything that needs to know what a theme is called, which CSS class it paints under,
  * which stylesheet the PDF export must inline, or what a new handout on that
  * paper starts with, asks here instead of branching on theme strings.
  */
@@ -11,6 +11,7 @@ import type {
   ScriptoriumTheme,
 } from "@/scriptorium/types";
 import type { NoticePinStyle } from "@/types/noticeBoard.types";
+import grimoireCss from "@/scriptorium/styles/theme-grimoire.css?inline";
 import onednd2024Css from "@/scriptorium/styles/theme-onednd2024.css?inline";
 import phb2014Css from "@/scriptorium/styles/theme-phb2014.css?inline";
 import letterCss from "@/scriptorium/styles/theme-letter.css?inline";
@@ -30,6 +31,7 @@ export interface ScriptoriumLook {
 }
 
 const LOOKS: Record<ScriptoriumTheme, ScriptoriumLook> = {
+  grimoire: { id: "grimoire", label: "Grimoire", family: "book", className: "theme-grimoire", css: grimoireCss },
   onednd2024: { id: "onednd2024", label: "2024 book", family: "book", className: "theme-onednd2024", css: onednd2024Css },
   phb2014: { id: "phb2014", label: "2014 book", family: "book", className: "theme-phb2014", css: phb2014Css },
   letter: { id: "letter", label: "Letter", family: "paper", className: "theme-letter", css: letterCss },
@@ -41,7 +43,7 @@ const LOOKS: Record<ScriptoriumTheme, ScriptoriumLook> = {
 /** The handout papers, in the order "What is it written on?" shows them. */
 export const PAPERS: readonly ScriptoriumPaper[] = ["letter", "notice", "journal", "plain"];
 
-export const BOOK_LOOKS: readonly ScriptoriumBookTheme[] = ["onednd2024", "phb2014"];
+export const BOOK_LOOKS: readonly ScriptoriumBookTheme[] = ["grimoire", "onednd2024", "phb2014"];
 
 export function scriptoriumLook(theme: ScriptoriumTheme): ScriptoriumLook {
   return LOOKS[theme];

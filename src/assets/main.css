@@ -3,6 +3,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "../scriptorium/styles/theme-base.css";
+@import "../scriptorium/styles/theme-grimoire.css";
 @import "../scriptorium/styles/theme-onednd2024.css";
 @import "../scriptorium/styles/theme-phb2014.css";
 @import "../scriptorium/styles/theme-letter.css";

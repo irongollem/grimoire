@@ -24,6 +24,23 @@ export interface PreparePagedBodyOptions {
   bookHeadings?: BookHeading[];
 }
 
+/**
+ * Mark the chapter's first title, so a look can dress a chapter's opening (the
+ * Grimoire ribbon). Runs per chapter, so each chapter of a book gets one. A
+ * heading inside a cover or a box is not the chapter's title.
+ */
+export function markChapterOpener(html: string): string {
+  if (!html.includes("<h1")) return html;
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  const title = Array.from(container.querySelectorAll("h1")).find(
+    (h) => !h.closest(".sc-cover, .sc-note, .sc-descriptive"),
+  );
+  if (!title) return html;
+  title.classList.add("sc-chapter-opener");
+  return container.innerHTML;
+}
+
 export function preparePagedBody(html: string, opts: PreparePagedBodyOptions): string {
   // The TOC expands to full height first so heading page numbers stay right
   // even when it overflows onto extra pages (#465).
@@ -32,6 +49,6 @@ export function preparePagedBody(html: string, opts: PreparePagedBodyOptions): s
     pageSize: opts.pageSize,
     headings: opts.bookHeadings,
   });
-  const body = groupWrappedImages(classifyLongBoxes(promoteTableHeaders(toc)));
+  const body = markChapterOpener(groupWrappedImages(classifyLongBoxes(promoteTableHeaders(toc))));
   return opts.isTwoColumn ? `<div class="phb-two-col">${body}</div>` : body;
 }

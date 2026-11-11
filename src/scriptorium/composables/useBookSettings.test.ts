@@ -56,7 +56,8 @@ describe("book settings", () => {
 
   it("moves to a look that fits the kind", () => {
     expect(themeForKind("handout", "onednd2024")).toBe("letter");
-    expect(themeForKind("book", "notice")).toBe("onednd2024");
+    expect(themeForKind("book", "notice")).toBe("grimoire");
+    expect(themeForKind("book", "phb2014")).toBe("phb2014");
     expect(themeForKind("handout", "journal")).toBe("journal");
   });
 });

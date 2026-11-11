@@ -91,7 +91,7 @@ watch(
 
 // A paper (letter, notice, journal, plain) has no stat-block edition of its own, so its embeds are
 // formatted in the 2024 one, the same as a 2024 book; only the 2014 book asks for the older table.
-const theme = computed<ScriptoriumTheme>(() => (doc.theme === "phb2014" ? "phb2014" : "onednd2024"));
+const theme = computed<ScriptoriumTheme>(() => (doc.theme === "phb2014" || doc.theme === "grimoire" ? doc.theme : "onednd2024"));
 // Read by entityEmbed node views (EntityEmbedView.vue) so a monster/NPC's
 // stat block formats itself in THIS document's theme rather than a hardcoded
 // default — the phone reader and quest handouts mount this view read-only,

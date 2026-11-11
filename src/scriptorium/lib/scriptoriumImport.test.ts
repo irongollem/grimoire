@@ -964,3 +964,62 @@ describe("bookInsertFromImport", () => {
     expect(book).not.toHaveProperty("word_count");
   });
 });
+
+describe("formatMonsterForScriptorium — the Grimoire look", () => {
+  const richMonster = () =>
+    monster({
+      stat_block: {
+        ...monster().stat_block,
+        hit_points: "59 (7d10 + 21)",
+        saving_throws: "Str +7, Con +5",
+        senses: "darkvision 60 ft.",
+        languages: "none",
+        special_abilities: [{ name: "Keen Smell", description: "Advantage on smell checks.", structured: { kind: "other" as const, source: "manual" as const } }],
+        actions: [
+          { name: "Fire Breath (Recharge 5-6)", description: "Hit: 10 fire damage.", structured: { kind: "other" as const, source: "manual" as const } },
+        ],
+      },
+    });
+  // The words a reader sees, as a sorted list: layout differs by look, words must not.
+  const words = (html: string) =>
+    html
+      .replace(/<span class="sc-recharge">(.*?)<\/span>/g, "$1") // inline in a word's own line
+      .replace(/<[^>]+>/g, " ")
+      .split(/\s+/)
+      .filter(Boolean)
+      .sort();
+  const withoutRibbon = (html: string) => html.replace(/<div class="sc-statblock-cr-ribbon"[\s\S]*?<\/div>/, "");
+
+  it("keeps every word the 2024 stat block prints (a look never changes an entity's words, only their setting)", () => {
+    const base = words(formatMonsterForScriptorium(richMonster(), "onednd2024").content);
+    const grimoire = words(withoutRibbon(formatMonsterForScriptorium(richMonster(), "grimoire").content));
+    // The 2024 table's two column heads ("Mod", "Save" over each panel) have no
+    // place on a coin; "Save" is drawn by the stylesheet from data-label.
+    const headers = ["Mod", "Mod", "Save", "Save"];
+    const expected = [...base];
+    for (const h of headers) expected.splice(expected.indexOf(h), 1);
+    expect(grimoire).toEqual(expected);
+  });
+
+  it("hangs the monster's CR on the ribbon, and still prints the Challenge line the 2024 way", () => {
+    const { content } = formatMonsterForScriptorium(monster({ stat_block: { ...monster().stat_block, challenge_rating: "1/2" } }), "grimoire");
+    expect(content).toMatch(/class="sc-statblock-cr-ribbon" aria-hidden="true"><span class="sc-cr-label">CR<\/span><span class="sc-cr-value">1\/2<\/span>/);
+    expect(content).toContain("<strong>CR</strong> 1/2 (XP 100; PB +2)");
+  });
+
+  it("arranges vitals with the dice under the hit points and Initiative under Speed, and six coins carrying score, modifier and save", () => {
+    const { content } = formatMonsterForScriptorium(richMonster(), "grimoire");
+    expect(content).toContain('<span class="sc-vital-value">59</span> <span class="sc-vital-sub">(7d10 + 21)</span>');
+    expect(content).toMatch(/sc-vital--speed[\s\S]*Initiative<\/strong> \+1 \(11\)/);
+    expect(content.match(/class="sc-coin"/g)).toHaveLength(6);
+    expect(content).toContain('<span class="sc-coin-score">20</span><span class="sc-coin-mod">+5</span><span class="sc-coin-save" data-label="Save">+7</span>');
+    expect(content).not.toContain("sc-ability-table");
+  });
+
+  it("puts a Recharge in a tag only for Grimoire (the other looks print the name as it was)", () => {
+    expect(formatMonsterForScriptorium(richMonster(), "grimoire").content).toContain(
+      '<strong>Fire Breath <span class="sc-recharge">(Recharge 5-6)</span>.</strong>',
+    );
+    expect(formatMonsterForScriptorium(richMonster(), "onednd2024").content).not.toContain("sc-recharge");
+  });
+});

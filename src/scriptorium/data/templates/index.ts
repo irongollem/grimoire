@@ -17,7 +17,7 @@ import { fullCasterTable } from "@/scriptorium/lib/classTableTemplates";
 import { doc, h1, h2, h3, p, em, strong, text, bullets, note, descriptive, toc, pageBreak } from "./builders";
 
 const settings = (over: Partial<ScriptoriumTemplateSettings> = {}): ScriptoriumTemplateSettings => ({
-  theme: "onednd2024",
+  theme: "grimoire",
   pageSize: "A4",
   // Single column by default — two-column reads cramped with the sparse starter
   // content, and it's one toolbar click to switch on once a page fills up.

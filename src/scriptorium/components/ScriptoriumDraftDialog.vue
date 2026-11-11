@@ -287,7 +287,7 @@ async function save(draft: Draft) {
           : {
               ...filing,
               kind: "book",
-              theme: "onednd2024",
+              theme: "grimoire",
               page_size: "A4",
               is_two_column: false,
               show_page_numbers: false,

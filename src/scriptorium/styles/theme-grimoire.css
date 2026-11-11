@@ -1,0 +1,498 @@
+/*
+ * Scriptorium theme: Grimoire, the house look (#1176) — rag paper, ink, oxblood
+ * rubrics and gilt hairlines. Cinzel for titles and rubrics, Alegreya for
+ * reading. Gilt is for hairlines and the star only, never for small text
+ * (--sc-gold-text is the legible gold). Everything is ruled, never filled, so
+ * it prints well at home.
+ *
+ * Variable values first, then the rules the shared theme-base.css cannot
+ * express with variables (the chapter ribbon, the folio, the stat block's
+ * vitals row, ability coins and CR ribbon). Plain CSS, no Tailwind: shipped
+ * verbatim to the PDF renderer, so px here is page geometry.
+ * Selectors stay `.theme-grimoire X` (never `.sc-theme.theme-grimoire X`) so a
+ * cover's own reset in theme-base.css keeps winning, as it does for the
+ * other looks.
+ */
+.theme-grimoire {
+  --sc-heading-font: "Cinzel", Georgia, serif;
+  --sc-body-font: "Alegreya", Georgia, "Times New Roman", serif;
+  --sc-ink: #2b2019;
+  --sc-oxblood: #6e1f1a;
+  --sc-gilt: #c9962e;
+  --sc-gold-text: #7a5a14;
+  --sc-slip: #faf3e2;
+  --sc-hairline: #d9c9a3;
+  --sc-accent: var(--sc-oxblood);
+  --sc-accent-contrast: #f3ead6;
+  --sc-page-bg: #f3ead6;
+  --sc-callout-bg: transparent;
+  --sc-callout-border: var(--sc-gilt);
+  --sc-code-bg: #e8dcc0;
+  --sc-col-rule: var(--sc-hairline);
+  /* The star, as a data: URI so it prints without a request. Eight points,
+     the shape of the logo's star. */
+  --sc-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpolygon fill='%23c9962e' points='10,0 11.38,6.67 17.07,2.93 13.33,8.62 20,10 13.33,11.38 17.07,17.07 11.38,13.33 10,20 8.62,13.33 2.93,17.07 6.67,11.38 0,10 6.67,8.62 2.93,2.93 8.62,6.67'/%3E%3C/svg%3E");
+
+  /* Chapter title: Cinzel, ink, over a gilt hairline (the shorter second one
+     is .sc-chapter-opener::after below). */
+  --sc-h1-bg: transparent;
+  --sc-h1-color: var(--sc-ink);
+  --sc-h1-border-b: 1px solid var(--sc-gilt);
+  --sc-h1-padding: 0 0 0.45rem;
+  --sc-h1-margin: 1.5rem 0 1.1rem;
+  --sc-h2-color: var(--sc-oxblood);
+  --sc-h2-border: transparent;
+  --sc-decoration-watermark: var(--sc-oxblood);
+  --sc-decoration-credit: var(--sc-ink);
+  --sc-callout-quote-color: var(--sc-ink);
+  --sc-callout-attr-color: var(--sc-oxblood);
+
+  --sc-cover-title-transform: uppercase;
+  --sc-cover-title-variant: normal;
+
+  --sc-lens-bright-bg: #f7eed8;
+  --sc-lens-deep-bg: #ebe7f0;
+  --sc-lens-top-rule: var(--sc-gilt);
+  --sc-lens-bottom-rule: #6a5a86;
+  --sc-lens-split-rule: var(--sc-hairline);
+  --sc-lens-bright-label: var(--sc-gold-text);
+  --sc-lens-deep-label: #4a3d66;
+
+  --sc-readaloud-bg: var(--sc-slip);
+  --sc-readaloud-rule: var(--sc-oxblood);
+  --sc-sidebar-bg: transparent;
+  --sc-sidebar-bar: var(--sc-gilt);
+  --sc-sidebar-edge: transparent;
+
+  /* Stat block: ruled, never filled. */
+  --sc-statblock-bg: transparent;
+  --sc-statblock-border: var(--sc-gilt);
+  --sc-statblock-accent: var(--sc-oxblood);
+  --sc-statblock-type-color: var(--sc-oxblood);
+
+  --sc-table-header-bg: transparent;
+  --sc-table-header-color: var(--sc-oxblood);
+  --sc-table-row-1: transparent;
+  --sc-table-row-2: transparent;
+  --sc-table-border: var(--sc-hairline);
+  --sc-table-header-rule: var(--sc-oxblood);
+}
+
+/* ink-friendly: the slip loses its tint; hairlines and rubrics stay, being
+   structure rather than ink cost. */
+.theme-grimoire.ink-friendly {
+  --sc-slip: #ffffff;
+  --sc-readaloud-bg: #ffffff;
+  --sc-lens-bright-bg: transparent;
+  --sc-lens-deep-bg: transparent;
+  --sc-page-bg: #ffffff;
+}
+
+/* ── Headings ─────────────────────────────────────────────────────────────── */
+.theme-grimoire h1 {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.theme-grimoire h2 {
+  font-weight: 600;
+  font-variant: small-caps;
+  letter-spacing: 0.12em;
+  border-bottom: none;
+}
+.theme-grimoire h3 {
+  font-family: var(--sc-body-font);
+  font-weight: 700;
+  font-style: italic;
+  color: var(--sc-ink);
+}
+
+/* ── Chapter opener ──────────────────────────────────────────────────────────
+   pagedPrepare.ts adds .sc-chapter-opener to each chapter's first heading; the
+   editor galley's first heading gets the same look. A red bookmark ribbon
+   hangs from the page's top edge above the heading, its swallowtail carrying
+   a gilt star, and a second, shorter gilt hairline sits under the title. */
+.theme-grimoire h1.sc-chapter-opener,
+.phb-editor.theme-grimoire .ProseMirror > h1:first-child {
+  position: relative;
+  margin-top: 0;
+}
+.theme-grimoire h1.sc-chapter-opener::after,
+.phb-editor.theme-grimoire .ProseMirror > h1:first-child::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -5px;
+  width: 34%;
+  height: 1px;
+  background: var(--sc-gilt);
+}
+.theme-grimoire h1.sc-chapter-opener::before,
+.phb-editor.theme-grimoire .ProseMirror > h1:first-child::before {
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--sc-margin-top, 56px));
+  right: 0.5rem;
+  width: 26px;
+  height: calc(var(--sc-margin-top, 56px) + 34px);
+  background:
+    var(--sc-star) center calc(100% - 17px) / 11px 11px no-repeat,
+    var(--sc-oxblood);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 9px), 0 100%);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+/* ── Folio: the page number between two small gilt stars ─────────────────── */
+.theme-grimoire .sc-footer {
+  justify-content: center;
+  font-family: var(--sc-heading-font);
+  color: var(--sc-oxblood);
+}
+.theme-grimoire .sc-footer-num {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.theme-grimoire .sc-footer--recto .sc-footer-num--left,
+.theme-grimoire .sc-footer--verso .sc-footer-num--right {
+  display: none;
+}
+.theme-grimoire .sc-footer-num::before,
+.theme-grimoire .sc-footer-num::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: var(--sc-star) center / contain no-repeat;
+}
+/* The footer text rides at the outer edge so the folio stays centred. */
+.theme-grimoire .sc-footer-text {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--sc-body-font);
+}
+.theme-grimoire .sc-footer--recto .sc-footer-text {
+  right: 68px;
+}
+.theme-grimoire .sc-footer--verso .sc-footer-text {
+  left: 68px;
+}
+
+/* ── Drop cap ─────────────────────────────────────────────────────────────── */
+.theme-grimoire .sc-dropcap {
+  float: left;
+  position: relative;
+  width: 2.6rem;
+  height: 2.6rem;
+  margin: 0.2rem 0.5rem 0 0;
+  background: var(--sc-oxblood);
+  color: #faf3e2;
+  font-family: var(--sc-heading-font);
+  font-weight: 700;
+  font-size: 1.7rem;
+  line-height: 2.6rem;
+  text-align: center;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.theme-grimoire .sc-dropcap::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px solid var(--sc-gilt);
+  pointer-events: none;
+}
+
+/* ── Boxes ───────────────────────────────────────────────────────────────────
+   Read-aloud: a torn paper slip, lighter than the page, an oxblood edge down
+   the left, italic. The torn outline is a clip-path (it prints). The brief's
+   drop-shadow filter cannot show on the same element, since clip-path cuts
+   the shadow it casts, so the contact line is an inset shadow along the foot. */
+.theme-grimoire .sc-descriptive {
+  background-color: var(--sc-readaloud-bg);
+  border: none;
+  padding: 1.1em 1.2rem 1.2em 1.3rem;
+  font-style: italic;
+  box-shadow: inset 3px 0 0 var(--sc-oxblood), inset 0 -1px 0 rgba(43, 32, 25, 0.22);
+  clip-path: polygon(
+    0 3px, 5% 0, 11% 3px, 18% 1px, 26% 4px, 34% 0, 43% 3px, 52% 1px, 61% 4px, 70% 0, 79% 3px, 88% 1px, 95% 4px, 100% 1px,
+    100% calc(100% - 2px), 94% calc(100% - 4px), 86% 100%, 77% calc(100% - 3px), 68% calc(100% - 1px), 58% calc(100% - 4px),
+    49% 100%, 40% calc(100% - 3px), 31% calc(100% - 1px), 22% calc(100% - 4px), 13% 100%, 6% calc(100% - 3px), 0 calc(100% - 1px)
+  );
+}
+.theme-grimoire .sc-descriptive::before,
+.theme-grimoire .sc-descriptive::after {
+  display: none;
+}
+.theme-grimoire .sc-descriptive p {
+  font-style: italic;
+}
+.theme-grimoire.ink-friendly .sc-descriptive {
+  box-shadow: inset 3px 0 0 var(--sc-oxblood);
+}
+
+/* Sidebar: between two gilt hairlines, title in oxblood small caps, no fill. */
+.theme-grimoire .sc-note {
+  background: none;
+  border: none;
+  border-top: 1px solid var(--sc-gilt);
+  border-bottom: 1px solid var(--sc-gilt);
+  padding: 0.9rem 0.2rem;
+  box-shadow: none;
+}
+.theme-grimoire .sc-note::before,
+.theme-grimoire .sc-note::after {
+  display: none;
+}
+.theme-grimoire .sc-note h1,
+.theme-grimoire .sc-note h2,
+.theme-grimoire .sc-note h3 {
+  color: var(--sc-oxblood);
+  letter-spacing: 0.1em;
+}
+
+/* Pull quote: a gilt rule on the left, italic. */
+.theme-grimoire blockquote,
+.theme-grimoire .sc-quote {
+  background: none;
+  border-left: 2px solid var(--sc-gilt);
+  border-radius: 0;
+  padding: 0.3rem 0 0.3rem 1rem;
+  font-style: italic;
+}
+
+/* Tables: ruled, an oxblood rule under the header, no fills. */
+.theme-grimoire table td,
+.theme-grimoire table th {
+  border: none;
+  border-bottom: 1px solid var(--sc-hairline);
+}
+.theme-grimoire table thead th {
+  font-family: var(--sc-heading-font);
+  font-weight: 600;
+  font-size: 0.85em;
+  letter-spacing: 0.06em;
+  text-align: center;
+  border-bottom: 2px solid var(--sc-oxblood);
+}
+
+/* ── Stat block ──────────────────────────────────────────────────────────────
+   Ruled, never filled: a gilt hairline above and below. The markup the
+   formatter writes for this look (scriptoriumImport.ts) is a vitals row, a row
+   of ability coins and a CR ribbon; the words are the 2024 stat block's. */
+.theme-grimoire .sc-statblock {
+  position: relative;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--sc-gilt);
+  border-bottom: 1px solid var(--sc-gilt);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0.9rem 0.1rem 0.9rem;
+}
+.theme-grimoire .sc-statblock-name {
+  font-variant: normal;
+  font-weight: 700;
+  font-size: 1.35rem;
+  color: var(--sc-ink);
+  letter-spacing: 0.03em;
+  padding-right: 3rem;
+}
+.theme-grimoire .sc-statblock-type {
+  margin: 0.15rem 0 0.4rem;
+  font-size: 0.78em;
+  font-style: normal;
+  font-variant: small-caps;
+  letter-spacing: 0.14em;
+  color: var(--sc-oxblood);
+}
+.theme-grimoire .sc-statblock-type em {
+  font-style: normal;
+}
+.theme-grimoire .sc-statblock-rule {
+  height: 4px;
+  background: none;
+  border-top: 1px solid var(--sc-gilt);
+  border-bottom: 1px solid var(--sc-gilt);
+  margin: 0.3rem 0 0.6rem;
+}
+
+/* CR on an oxblood bookmark ribbon at the block's top right. */
+.theme-grimoire .sc-statblock-cr-ribbon {
+  position: absolute;
+  top: -1px;
+  right: 0.5rem;
+  width: 40px;
+  padding: 6px 0 18px;
+  text-align: center;
+  background: var(--sc-oxblood);
+  color: #faf3e2;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 9px), 0 100%);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.theme-grimoire .sc-statblock-cr-ribbon .sc-cr-label {
+  display: block;
+  font-size: 0.5rem;
+  letter-spacing: 0.2em;
+  line-height: 1;
+}
+.theme-grimoire .sc-statblock-cr-ribbon .sc-cr-value {
+  display: block;
+  font-family: var(--sc-heading-font);
+  font-weight: 700;
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
+/* Vitals: AC, Hit Points with the dice under them, Speed with Initiative. */
+.theme-grimoire .sc-statblock-vitals {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr 1.5fr;
+  gap: 0.4rem;
+  padding: 0.1rem 0 0.55rem;
+  border-bottom: 1px solid var(--sc-hairline);
+  margin-bottom: 0.6rem;
+}
+.theme-grimoire .sc-vital {
+  text-align: center;
+  min-width: 0;
+}
+.theme-grimoire .sc-vital-label {
+  display: block;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--sc-oxblood);
+}
+.theme-grimoire .sc-vital-value {
+  display: block;
+  font-family: var(--sc-heading-font);
+  font-weight: 700;
+  font-size: 1.6rem;
+  line-height: 1.15;
+  color: var(--sc-ink);
+}
+.theme-grimoire .sc-vital--speed .sc-vital-value {
+  font-size: 1rem;
+  line-height: 1.6rem;
+}
+.theme-grimoire .sc-vital-sub {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--sc-ink);
+}
+.theme-grimoire .sc-vital-sub .sc-vital-sub-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sc-oxblood);
+}
+
+/* Ability coins: a square with a gilt hairline frame and an inset second one. */
+.theme-grimoire .sc-ability-coins {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.3rem;
+  margin: 0.2rem 0 0.7rem;
+}
+.theme-grimoire .sc-coin {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 5px 1px 4px;
+  border: 1px solid var(--sc-gilt);
+  text-align: center;
+  line-height: 1.15;
+}
+.theme-grimoire .sc-coin::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border: 1px solid var(--sc-gilt);
+  pointer-events: none;
+}
+.theme-grimoire .sc-coin-label {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--sc-ink);
+}
+.theme-grimoire .sc-coin-score {
+  font-family: var(--sc-heading-font);
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--sc-ink);
+}
+.theme-grimoire .sc-coin-mod {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--sc-oxblood);
+}
+.theme-grimoire .sc-coin-save {
+  font-size: 0.6rem;
+  color: var(--sc-gold-text);
+}
+.theme-grimoire .sc-coin-save::before {
+  content: attr(data-label) " ";
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.5rem;
+}
+
+/* Detail lines: oxblood spaced-caps labels. */
+.theme-grimoire .sc-statblock-prop strong {
+  font-variant: small-caps;
+  letter-spacing: 0.1em;
+  color: var(--sc-oxblood);
+}
+
+/* Section heads: a small gilt star, the name in spaced caps, a hairline to
+   the margin. */
+.theme-grimoire .sc-statblock-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-bottom: none;
+  padding-bottom: 0;
+  margin: 0.8rem 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant: normal;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--sc-oxblood);
+}
+.theme-grimoire .sc-statblock-section-title::before {
+  content: "";
+  flex: none;
+  width: 9px;
+  height: 9px;
+  background: var(--sc-star) center / contain no-repeat;
+}
+.theme-grimoire .sc-statblock-section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--sc-gilt);
+}
+
+/* Action names: bold oxblood. A Recharge tag is a small gilt-outlined cap. */
+.theme-grimoire .sc-statblock-section p > strong:first-child {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--sc-oxblood);
+}
+.theme-grimoire .sc-recharge {
+  display: inline-block;
+  padding: 0 0.35em;
+  border: 1px solid var(--sc-gilt);
+  font-size: 0.68em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sc-gold-text);
+  vertical-align: 0.12em;
+}
