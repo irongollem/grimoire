@@ -95,6 +95,9 @@ describe("ScriptoriumExportDialog", () => {
     await click("Export");
     expect(mocks.exportPdf).toHaveBeenCalledWith();
     expect(mocks.buildBundle).not.toHaveBeenCalled();
+    // It stays open to say how the print went; Done closes it.
+    expect(wrapper.emitted("close")).toBeUndefined();
+    await click("Done");
     expect(wrapper.emitted("close")).toHaveLength(1);
   });
 
@@ -151,15 +154,16 @@ describe("ScriptoriumExportDialog", () => {
     );
     expect(mocks.exportPdf).toHaveBeenCalledWith({ name: "bundle" });
   });
-  it("closes once the PDF was made, and stays open when the export failed", async () => {
+  it("moves on to the result once the PDF was made, and stays on the details when the export failed", async () => {
     mocks.exportPdf.mockResolvedValueOnce(false);
     const wrapper = openDialog({ npcs: ["n1"], scriptorium_documents: ["doc-1"] });
     await flushPromises();
     await toDetails();
     await click("Export PDF");
-    expect(wrapper.emitted("close")).toBeUndefined();
+    expect(document.body.querySelector("[data-testid=export-result]")).toBeNull();
     await click("Export PDF");
-    expect(wrapper.emitted("close")).toHaveLength(1);
+    expect(document.body.querySelector("[data-testid=export-result]")).not.toBeNull();
+    expect(wrapper.emitted("close")).toBeUndefined();
   });
 
   it("says why the campaign data could not be gathered, and exports nothing", async () => {
@@ -197,5 +201,52 @@ describe("ScriptoriumExportDialog", () => {
     await click("Export PDF");
     expect(document.body.textContent).not.toContain("Campaign not found");
     expect(mocks.buildBundle).toHaveBeenLastCalledWith(expect.objectContaining({ name: "The Book, abridged" }));
+  });
+
+  describe("the read-back", () => {
+    async function exported(printCheck: Record<string, unknown> | null) {
+      const wrapper = openDialog({}, { printCheck });
+      await flushPromises();
+      await click("Export");
+      return wrapper;
+    }
+    const text = () => document.body.querySelector("[data-testid=export-result]")!.textContent!;
+
+    it("says every page printed as laid out", async () => {
+      await exported({ status: "done", pageCount: 28, mismatches: [] });
+      expect(text()).toContain("All 28 pages printed as laid out.");
+    });
+
+    it("says it is still checking, then reads the answer when it arrives", async () => {
+      const wrapper = await exported({ status: "checking" });
+      expect(text()).toContain("Checking every page");
+      await wrapper.setProps({ printCheck: { status: "done", pageCount: 2, mismatches: [] } });
+      expect(text()).toContain("All 2 pages printed as laid out.");
+    });
+
+    it("names each page that printed differently and offers Show me for one the editor can reach", async () => {
+      const wrapper = await exported({
+        status: "done",
+        pageCount: 28,
+        mismatches: [
+          { index: 13, label: "Page 14", reason: "ends with different words", chapterId: "ch-2", pageInChapter: 3 },
+          { index: 28, label: "Page 29 of the file", reason: "extra page", chapterId: null, pageInChapter: null },
+        ],
+      });
+      expect(text()).toContain("Page 14 printed differently");
+      expect(text()).toContain("The PDF has a page the book does not");
+      expect(text()).not.toContain("All 28 pages");
+      expect([...document.body.querySelectorAll("button")].filter((b) => b.textContent?.trim() === "Show me")).toHaveLength(1);
+      await click("Show me");
+      expect(wrapper.emitted("showPage")).toEqual([[{ chapterId: "ch-2", page: 3 }]]);
+      expect(wrapper.emitted("close")).toHaveLength(1);
+    });
+
+    it("says quietly that the check could not run, and still lets the DM finish", async () => {
+      const wrapper = await exported({ status: "unavailable" });
+      expect(text()).toContain("could not be checked this time");
+      await click("Done");
+      expect(wrapper.emitted("close")).toHaveLength(1);
+    });
   });
 });

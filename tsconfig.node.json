@@ -29,5 +29,5 @@
   // types (tsconfig.scenes.json).
   // The inn map's test reaches canvas types through the dressing geometry, so
   // tsconfig.scenes.json checks it.
-  "exclude": ["scripts/generate-dolls.ts", "scripts/promo/scenes/browser/**", "scripts/lib/demo-inn-map.test.ts"]
+  "exclude": ["scripts/generate-dolls.ts", "scripts/promo/scenes/browser/**", "scripts/scriptorium/browser/**", "scripts/lib/demo-inn-map.test.ts"]
 }

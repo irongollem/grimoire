@@ -14,6 +14,41 @@
         </p>
       </section>
 
+      <!-- Done: the file was handed over; the read-back says whether every page printed as laid out. -->
+      <section v-else-if="step === 'done'" class="space-y-3" aria-label="Export result" data-testid="export-result">
+        <p class="font-fell text-body font-semibold text-foreground">
+          {{ handout ? "Your handout is ready." : "Your PDF is downloaded." }}
+        </p>
+        <p v-if="printCheck?.status === 'checking'" class="text-caption text-muted-foreground" data-testid="print-check-checking">
+          Checking every page against the layout…
+        </p>
+        <p v-else-if="printCheck?.status === 'done' && printCheck.mismatches.length === 0" class="text-body text-foreground" data-testid="print-check-ok">
+          All {{ printCheck.pageCount }} {{ printCheck.pageCount === 1 ? "page" : "pages" }} printed as laid out.
+        </p>
+        <ul v-else-if="printCheck?.status === 'done'" class="space-y-2" data-testid="print-check-mismatches">
+          <li
+            v-for="m in printCheck.mismatches"
+            :key="`${m.reason}-${m.index}`"
+            class="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2"
+          >
+            <div>
+              <p class="text-label-lg font-semibold text-foreground">{{ mismatchTitle(m) }}</p>
+              <p class="text-caption text-muted-foreground">{{ mismatchDetail(m) }}</p>
+            </div>
+            <AppButton
+              v-if="m.chapterId !== null && m.pageInChapter !== null"
+              variant="subtle"
+              size="sm"
+              label="Show me"
+              @click="showMe(m)"
+            />
+          </li>
+        </ul>
+        <p v-else-if="printCheck?.status === 'unavailable'" class="text-caption text-muted-foreground" data-testid="print-check-unavailable">
+          The pages could not be checked this time. The file is fine to use.
+        </p>
+      </section>
+
       <template v-else-if="step === 'confirm'">
         <p class="font-fell text-body text-foreground" data-testid="export-summary">{{ summary }}</p>
         <AppCheckbox
@@ -87,6 +122,9 @@
     <div v-if="isExporting" class="flex shrink-0 justify-end gap-2 px-5 pb-5 pt-2">
       <AppButton variant="subtle" size="sm" label="Keep writing" @click="emit('close')" />
     </div>
+    <div v-else-if="step === 'done'" class="flex shrink-0 justify-end gap-2 px-5 pb-5 pt-2">
+      <AppButton variant="primary" size="sm" label="Done" @click="emit('close')" />
+    </div>
     <div v-else-if="step === 'confirm'" class="flex shrink-0 justify-end gap-2 px-5 pb-5 pt-2">
       <AppButton variant="subtle" size="sm" label="Cancel" @click="emit('close')" />
       <AppButton
@@ -135,7 +173,12 @@ import { BUNDLE_ENTITY_TYPES, buildBundle } from "@/composables/campaign/useWorl
 import type { BundleEntityKey, GrimoireBundle } from "@/composables/campaign/useWorldBundle";
 import { useBundleAuthor, useBundleSelection } from "@/composables/campaign/useBundleSelection";
 import type { BundleInitialSelection } from "@/composables/campaign/useBundleSelection";
-import { pdfExportProgressLabel, type PdfExportProgress } from "@/scriptorium/composables/useScriptoriumPdf";
+import {
+  pdfExportProgressLabel,
+  type PdfExportProgress,
+  type PrintCheckMismatch,
+  type PrintCheckState,
+} from "@/scriptorium/composables/useScriptoriumPdf";
 import type { ScriptoriumKind } from "@/scriptorium/types";
 
 const {
@@ -149,6 +192,7 @@ const {
   isExporting = false,
   progress = null,
   exportError = null,
+  printCheck = null,
 } = defineProps<{
   kind: ScriptoriumKind;
   documentTitle: string;
@@ -163,9 +207,15 @@ const {
   isExporting?: boolean;
   progress?: PdfExportProgress | null;
   exportError?: string | null;
+  /** The read-back of the export that just finished (#1176); null while there is none. */
+  printCheck?: PrintCheckState | null;
 }>();
 
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{
+  close: [];
+  /** "Show me": the editor should bring this page into view. The dialog has closed. */
+  showPage: [target: { chapterId: string; page: number }];
+}>();
 
 const handout = computed(() => kind === "handout");
 const heading = computed(() => (handout.value ? "Print" : "Export PDF"));
@@ -179,7 +229,7 @@ const summary = computed(() => {
   return `${chapters} as one PDF${pages}.`;
 });
 
-const step = ref<"confirm" | "data">("confirm");
+const step = ref<"confirm" | "data" | "done">("confirm");
 const attach = ref(false);
 
 const selection = useBundleSelection(preselection);
@@ -202,12 +252,34 @@ function typeLabel(key: BundleEntityKey): string {
   return BUNDLE_ENTITY_TYPES.find((t) => t.key === key)?.label ?? key;
 }
 
+function mismatchTitle(m: PrintCheckMismatch): string {
+  return m.reason === "extra page" ? "The PDF has a page the book does not" : `${m.label} printed differently`;
+}
+
+function mismatchDetail(m: PrintCheckMismatch): string {
+  const detail: Record<PrintCheckMismatch["reason"], string> = {
+    "starts with different words": "It starts with different words than the page you laid out.",
+    "ends with different words": "It ends with different words, so a line may have fallen off.",
+    "has text the page did not": "It prints text that is not on this page.",
+    "is missing text the page had": "Some of this page's text is not in the PDF.",
+    "page missing": "The PDF has no page here.",
+    "extra page": `It is ${m.label.toLowerCase()}.`,
+  };
+  return detail[m.reason];
+}
+
+function showMe(m: PrintCheckMismatch) {
+  if (m.chapterId === null || m.pageInChapter === null) return;
+  emit("showPage", { chapterId: m.chapterId, page: m.pageInChapter });
+  emit("close");
+}
+
 async function onConfirm() {
   if (attach.value) {
     step.value = "data";
     return;
   }
-  if (await run()) emit("close");
+  if (await run()) step.value = "done";
 }
 
 async function onExportWithData() {
@@ -223,7 +295,7 @@ async function onExportWithData() {
       selection: selectionMap.value,
     });
     building.value = false;
-    if (await run(bundle)) emit("close");
+    if (await run(bundle)) step.value = "done";
   } catch (err) {
     buildError.value = err instanceof Error ? err.message : "Could not gather the campaign data";
   } finally {

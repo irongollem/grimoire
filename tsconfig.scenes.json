@@ -3,11 +3,13 @@
   // scripts/promo/scenes/film.ts serves, not in Node, so it is checked with the
   // DOM types tsconfig.node.json leaves out on purpose. Its pure maths
   // (src/lib/bookNook/scene.ts) has no DOM and is checked by both.
+  // The Scriptorium print test's page (#1176) lays the fixture book out in the
+  // browser, like the scene renderer, so it is here too.
   // The promo inn map's test is here too: it measures props with the
   // Cartographer's dressing geometry, whose module names canvas types.
   "extends": "./tsconfig.app.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.scenes.tsbuildinfo"
   },
-  "include": ["scripts/promo/scenes/browser/**/*.ts", "src/lib/bookNook/render.ts", "scripts/lib/demo-inn-map.test.ts"]
+  "include": ["src/vite-env.d.ts", "src/types/pagedjs.d.ts", "scripts/promo/scenes/browser/**/*.ts", "scripts/scriptorium/browser/**/*.ts", "src/lib/bookNook/render.ts", "scripts/lib/demo-inn-map.test.ts"]
 }

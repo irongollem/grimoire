@@ -221,6 +221,12 @@ jobs:
         run: npm ci
       - name: Install Chromium for the harness
         run: npx playwright install --with-deps chromium
+      # The PDF is the page (#1176): a fixture book is laid out with the app's
+      # own engine, printed by this Chromium and read back, and any page that
+      # printed differently fails the release. Offline, no stack needed, so it
+      # runs before the stack starts. See scripts/scriptorium/print-check.ts.
+      - name: Print test (the PDF is the page)
+        run: npm run scriptorium:print-check
       # Same pin as the database job; see the note there.
       - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
         with:

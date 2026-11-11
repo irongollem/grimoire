@@ -910,6 +910,10 @@ export default defineConfig(({ mode }) => {
               // Document, date, and compatibility packages are substantial but
               // route-specific; do not fold them into catch-all vendor.
               { name: "documents", test: /node_modules[\\/](pdf-lib|@pdf-lib|pagedjs)/ },
+              // pdf.js reads an exported PDF back to check it printed as laid out
+              // (#1176). It is only ever imported on export; without its own group
+              // the catch-all `vendor` rule below would put it on the boot path.
+              { name: "pdf-reader", test: /node_modules[\\/]pdfjs-dist/ },
               { name: "dates", test: /node_modules[\\/]date-fns/ },
               { name: "polyfills", test: /node_modules[\\/]core-js/ },
               // Babel's runtime helpers are shared across many packages. Left

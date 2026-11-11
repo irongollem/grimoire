@@ -30,25 +30,33 @@
  *      request and no merge (#1115). `progress` says which part is printing.
  *   4. Optionally attach the campaign data to the PDF (campaignBundlePdf.ts),
  *      then download the bytes through an object URL.
+ *   5. Read the PDF back (#1176): pdf.js reads each page's text and printCheck
+ *      compares it with what the laid-out page said, naming a page that
+ *      printed differently. It runs after the download is handed over and
+ *      never blocks it; a check that cannot run says so and changes nothing.
  */
 
 import { ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
-import { buildPagedPreviewCss, PAGE_CONTENT_SELECTOR } from "@/scriptorium/lib/pagedPreviewCss";
+import { buildPagedPreviewCss } from "@/scriptorium/lib/pagedPreviewCss";
 import { createBookLayout } from "@/scriptorium/lib/bookLayout/createBookLayout";
 import type { BookChapterInput } from "@/scriptorium/lib/bookLayout/types";
 import { compactPrintImages } from "@/scriptorium/lib/printImages";
 import type { PageFurnitureItem } from "@/scriptorium/types";
 import type { ScriptoriumPageSize, ScriptoriumTheme } from "@/scriptorium/types";
 import scriptoriumFontsCss from "@/scriptorium/styles/fonts.css?inline";
-import themeBaseCss from "@/scriptorium/styles/theme-base.css?inline";
 import { scriptoriumThemeClass, scriptoriumThemeCss } from "@/scriptorium/lib/looks";
-import { escapeHtml } from "@/lib/escapeHtml";
+import { buildPdfDocumentHtml, serializeStyle } from "@/scriptorium/lib/printDocument";
 import { inlineSameOriginAssets } from "@/scriptorium/lib/inlineSameOriginAssets";
 import { attachBundleToPdf } from "@/scriptorium/lib/campaignBundlePdf";
 import type { GrimoireBundle } from "@/composables/campaign/useWorldBundle";
 import { downloadBlob } from "@/lib/downloadBlob";
+import { checkPrintedPages } from "@/scriptorium/lib/printCheck";
+import { expectedPagesFromDom } from "@/scriptorium/lib/printCheckDom";
+import type { ExpectedPage, PrintMismatch } from "@/scriptorium/lib/printCheck";
+import { readPdfPageTexts } from "@/scriptorium/lib/pdfPageTexts";
+import type { BookPageInfo } from "@/scriptorium/lib/bookLayout/types";
 import {
   chunkPagesHtml,
   mergePdfs,
@@ -75,6 +83,47 @@ export function pdfExportProgressLabel(progress: PdfExportProgress | null): stri
   return progress.total > 1 ? `Printing part ${progress.part} of ${progress.total}…` : "Building…";
 }
 
+/** A page that printed differently, with where the editor can show it. */
+export interface PrintCheckMismatch extends PrintMismatch {
+  chapterId: string | null;
+  /** 1-based within its chapter; null for a blank or an extra page, which the editor cannot jump to. */
+  pageInChapter: number | null;
+}
+
+/** Where the read-back of the last export is. */
+export type PrintCheckState =
+  | { status: "checking" }
+  | { status: "done"; pageCount: number; mismatches: PrintCheckMismatch[] }
+  /** pdf.js could not read the file: nothing is claimed either way. */
+  | { status: "unavailable" };
+
+/**
+ * Compares the PDF that came back with the pages that were sent. `read` is
+ * pdf.js in the browser; tests hand it a stand-in.
+ */
+export async function verifyPrintedPdf(
+  bytes: Uint8Array,
+  expected: ExpectedPage[],
+  pages: BookPageInfo[],
+  read: (bytes: Uint8Array) => Promise<string[]> = readPdfPageTexts,
+): Promise<PrintCheckState> {
+  try {
+    const result = checkPrintedPages(expected, await read(bytes));
+    if (result.ok) return { status: "done", pageCount: expected.length, mismatches: [] };
+    return {
+      status: "done",
+      pageCount: expected.length,
+      mismatches: result.pages.map((m) => {
+        // An extra page lies past the sent ones, so it has no entry here.
+        const info = pages[m.index];
+        return { ...m, chapterId: info?.chapterId ?? null, pageInChapter: info?.pageInChapter ?? null };
+      }),
+    };
+  } catch {
+    return { status: "unavailable" };
+  }
+}
+
 export interface PdfDocumentOptions {
   /** The book's chapters, in order; each is laid out on its own (bookLayout). */
   chapters: BookChapterInput[];
@@ -87,86 +136,6 @@ export interface PdfDocumentOptions {
   footerText: string;
   pageNumberStart: number;
   furniture: PageFurnitureItem[];
-}
-
-const PAGE_SIZE_KEYWORD: Record<ScriptoriumPageSize, string> = {
-  A4: "A4",
-  A5: "A5",
-  Letter: "letter",
-};
-
-/**
- * Print CSS: each laid-out .pagedjs_page is already a full page-sized box, so
- * the print sheet uses margin:0 and the page's own margins (baked in by
- * Paged.js) provide the gutter. print-color-adjust keeps the parchment. The
- * page's text area gets back the PRINT_SLACK_PX it was fitted without
- * (pageGeometry.ts); this sheet comes last, so it wins. A table header
- * prints once per table piece, as it was measured: Paged.js already copies
- * the header into each page's piece, and Chrome's print layout (not its
- * screen layout) also repeats it at a column break, which made a name table
- * split across Sothery's two columns 24px taller than its page allowed and
- * pushed the next table's last rows off the page (#1115).
- */
-function printResetCss(pageSize: ScriptoriumPageSize): string {
-  return `
-@page { size: ${PAGE_SIZE_KEYWORD[pageSize]}; margin: 0; }
-html, body { margin: 0; padding: 0; background: #fff; }
-.pagedjs_pages { display: block; }
-.pagedjs_page { box-shadow: none !important; margin: 0 !important; break-after: page; }
-.pagedjs_page:last-of-type { break-after: auto; }
-* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-${PAGE_CONTENT_SELECTOR} { height: calc(100% - var(--pagedjs-footnotes-height)); }
-thead { display: table-row-group; }
-`;
-}
-
-/** Serialise stylesheet rules (Paged.js uses insertRule, so textContent is empty). */
-function serializeStyle(el: HTMLStyleElement): string {
-  try {
-    return Array.from(el.sheet?.cssRules ?? []).map((r) => r.cssText).join("\n");
-  } catch {
-    return el.textContent ?? "";
-  }
-}
-
-export interface PdfDocumentAssembly {
-  title: string;
-  theme: ScriptoriumTheme;
-  pageSize: ScriptoriumPageSize;
-  /** The fonts CSS with its font files already inlined as data: URIs. */
-  fontsCss: string;
-  /** Already-selected theme CSS (theme-onednd2024.css / theme-phb2014.css contents). */
-  themeCss: string;
-  /**
-   * Serialised rules Paged.js injected into <head> for this render: its own
-   * page rules and its processed copy of the per-document paged CSS. That
-   * copy, never buildPagedPreviewCss's text, is what the pages were laid out
-   * under. Paged.js takes `break-after`/`break-before` out of it and applies
-   * them itself, so the raw text would hand Chrome native breaks the
-   * pagination never saw: a heading kept with its table pushed a column 36px
-   * down and Sothery's calendar lost its last paragraph (#1115).
-   */
-  pagedStyles: string;
-  /** The rendered `.pagedjs_pages` markup. */
-  pagesHtml: string;
-}
-
-/**
- * Pure assembly of the final HTML document sent to the renderer: title escaping, CSS
- * ordering, and the page-size-to-`@page`-keyword mapping. Split out from
- * `exportPdf()` (which has to render with Paged.js and touch the network
- * first) so this part is testable without either.
- */
-export function buildPdfDocumentHtml(opts: PdfDocumentAssembly): string {
-  const cls = scriptoriumThemeClass(opts.theme);
-  return (
-    `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(opts.title || "Untitled")}</title>` +
-    `<style>${opts.fontsCss}</style>` +
-    `<style>${themeBaseCss}</style><style>${opts.themeCss}</style>` +
-    `<style>${opts.pagedStyles}</style>` +
-    `<style>${printResetCss(opts.pageSize)}</style></head>` +
-    `<body class="sc-theme ${cls}">${opts.pagesHtml}</body></html>`
-  );
 }
 
 export interface PdfExportOptions extends PdfDocumentOptions {
@@ -208,12 +177,15 @@ export function useScriptoriumPdf() {
   const exportError = ref<string | null>(null);
   /** Which part of a multi-part export is printing; null when idle. */
   const progress = ref<PdfExportProgress | null>(null);
+  /** The read-back of the last export; null before one has been made. */
+  const printCheck = ref<PrintCheckState | null>(null);
 
   /** Resolves true when the file was downloaded, false when it failed (exportError says why). */
   async function exportPdf(opts: PdfExportOptions): Promise<boolean> {
     if (isExporting.value) return false;
     isExporting.value = true;
     exportError.value = null;
+    printCheck.value = null;
 
     const cls = scriptoriumThemeClass(opts.theme);
     const themeCss = scriptoriumThemeCss(opts.theme);
@@ -231,7 +203,7 @@ export function useScriptoriumPdf() {
     // pages, then footers, contents numbers and furniture over all the pages.
     const book = createBookLayout(host);
     try {
-      await book.layout(
+      const laid = await book.layout(
         {
           chapters: opts.chapters,
           settings: {
@@ -294,6 +266,10 @@ export function useScriptoriumPdf() {
       const assemble = (pages: string) => shellHead + pages + shellTail;
 
       const pageEls = Array.from(host.querySelectorAll<HTMLElement>(".pagedjs_page"));
+      // What each page says, for the read-back; taken before the DOM is let go.
+      // Only trusted when the layout's page list and the DOM agree.
+      const pageInfos = laid && laid.pages.length === pageEls.length ? laid.pages : null;
+      const expected = pageInfos ? expectedPagesFromDom(pageEls, pageInfos.map((p) => p.label)) : null;
       const split: SplitPages = splitPagesHtml(
         pagesHtml,
         pageEls.map((el) => el.outerHTML),
@@ -340,11 +316,21 @@ export function useScriptoriumPdf() {
             );
 
       // 4. Optionally attach the campaign data, then hand the file over.
+      const printedBytes = new Uint8Array(await data.arrayBuffer());
       if (opts.bundle) {
-        const bytes = await attachBundleToPdf(await data.arrayBuffer(), opts.bundle);
+        const bytes = await attachBundleToPdf(printedBytes.buffer.slice(0) as ArrayBuffer, opts.bundle);
         downloadBlob(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "application/pdf" }), sanitizePdfFilename(opts.title, true));
       } else {
         downloadBlob(data, sanitizePdfFilename(opts.title));
+      }
+
+      // 5. The read-back runs on the PDF the printer made, after the download
+      //    is handed over and without holding the export open.
+      if (expected && pageInfos) {
+        printCheck.value = { status: "checking" };
+        void verifyPrintedPdf(printedBytes, expected, pageInfos).then((state) => {
+          printCheck.value = state;
+        });
       }
       return true;
     } catch (err) {
@@ -359,5 +345,5 @@ export function useScriptoriumPdf() {
     }
   }
 
-  return { isExporting, exportError, progress, exportPdf };
+  return { isExporting, exportError, progress, printCheck, exportPdf };
 }
