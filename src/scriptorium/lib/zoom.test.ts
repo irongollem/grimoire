@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_FIT_SCALE, parseZoomChoice, stepZoom, zoomAnchorPoint, zoomPercent, zoomScale, zoomScrollDelta } from "./zoom";
+import { MAX_FIT_SCALE, parseZoomChoice, stepZoom, zoomAnchorPoint, zoomAnchorSpot, zoomPercent, zoomScale, zoomScrollDelta } from "./zoom";
 
 describe("zoomScale", () => {
   it("fills a wide space past 100%, but never past the largest step", () => {
@@ -56,5 +56,19 @@ describe("zoom keeps the spot in view", () => {
     // Page 12 in view: the sheet starts 9000 px above the pane. Halving the scale scrolls back up by half the distance.
     const point = zoomAnchorPoint(300, -9000, 1);
     expect(zoomScrollDelta(point, -9000, 0.5, 300)).toBe(-4650);
+  });
+});
+
+describe("zoomAnchorSpot", () => {
+  const pane = { left: 100, top: 50, width: 800, height: 600 };
+  it("keeps the caret when it is in view", () => {
+    expect(zoomAnchorSpot(pane, { left: 300, top: 200, bottom: 220 })).toEqual({ x: 300, y: 200 });
+  });
+  it("keeps the middle of the view when the caret is off screen (scrolled to page 12, caret on the cover)", () => {
+    // Bug caught: anchoring on an off-screen caret scrolls the reader back to the caret's page.
+    expect(zoomAnchorSpot(pane, { left: 300, top: -9000, bottom: -8980 })).toEqual({ x: 500, y: 350 });
+  });
+  it("keeps the middle when there is no caret to read", () => {
+    expect(zoomAnchorSpot(pane, null)).toEqual({ x: 500, y: 350 });
   });
 });

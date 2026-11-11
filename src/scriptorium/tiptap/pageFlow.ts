@@ -282,16 +282,17 @@ function layoutClassDecorations(state: EditorState, flow: ChapterFlow): Decorati
 function keepPushedPictures(state: EditorState, flow: ChapterFlow): Transaction | null {
   if (flow.pushedFloats.length === 0) return null;
   const pushed = new Set(flow.pushedFloats.map((f) => f.imageBlockId));
-  let tr: Transaction | null = null;
+  const unchosen: number[] = [];
   state.doc.descendants((node, pos) => {
     const id: unknown = node.attrs.blockId;
     if (typeof id !== "string" || !pushed.has(id) || node.type.name !== "image") return true;
-    if (node.attrs.keepWithText === null || node.attrs.keepWithText === undefined) {
-      tr = (tr ?? state.tr).setNodeAttribute(pos, "keepWithText", true);
-    }
+    if (node.attrs.keepWithText === null || node.attrs.keepWithText === undefined) unchosen.push(pos);
     return false;
   });
-  return tr === null ? null : (tr as Transaction).setMeta("addToHistory", false);
+  if (unchosen.length === 0) return null;
+  const tr = state.tr;
+  for (const pos of unchosen) tr.setNodeAttribute(pos, "keepWithText", true);
+  return tr.setMeta("addToHistory", false);
 }
 
 function buildDecorations(state: EditorState, storage: PageFlowStorage): DecorationSet {

@@ -50,11 +50,14 @@ export function groupWrappedImages(html: string): string {
   container.querySelectorAll(WRAPPED_IMAGE).forEach((float) => {
     const paragraph = float.nextElementSibling;
     if (!paragraph || paragraph.tagName !== "P") return;
-    // Kept with its text (data-keep-with-text on the picture, set by the DM or by
-    // the editor the first time the printer pushed it on alone): group it
-    // whatever the paragraph's length.
-    const kept = float.matches('[data-keep-with-text="true"]') || float.querySelector('[data-keep-with-text="true"]') !== null;
-    if (!kept && textLength(paragraph) > FLOAT_GROUP_CHAR_THRESHOLD) return;
+    // Kept with its text (data-keep-with-text="true", set by the DM or by the
+    // editor the first time the printer pushed it on alone): grouped whatever
+    // the paragraph's length. "false" (the DM unticked it): never grouped, so
+    // the printer may move the picture on alone. Unset: a caption-length
+    // paragraph only.
+    const choice = (float.matches("[data-keep-with-text]") ? float : float.querySelector("[data-keep-with-text]"))?.getAttribute("data-keep-with-text");
+    if (choice === "false") return;
+    if (choice !== "true" && textLength(paragraph) > FLOAT_GROUP_CHAR_THRESHOLD) return;
     const before = float.previousElementSibling;
     const heading = before && HEADING.test(before.tagName) ? before : null;
     const group = document.createElement("div");

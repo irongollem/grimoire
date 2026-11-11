@@ -161,7 +161,7 @@ import { scriptoriumThemeClass } from "@/scriptorium/lib/looks";
 import { pageGeometry, pageGeometryCssVars } from "@/scriptorium/lib/pageGeometry";
 import { storeToRefs } from "pinia";
 import { useScriptoriumUiStore } from "@/scriptorium/stores/ui";
-import { zoomAnchorPoint, zoomScale, zoomScrollDelta } from "@/scriptorium/lib/zoom";
+import { zoomAnchorPoint, zoomAnchorSpot, zoomScale, zoomScrollDelta } from "@/scriptorium/lib/zoom";
 import { scaledBoxSize } from "@/scriptorium/composables/useScriptoriumZoom";
 import { useEnhanceAvailable } from "@/ai/useTextEnhancement";
 import TextEnhanceBubble from "@/components/common/ai/TextEnhanceBubble.vue";
@@ -268,19 +268,12 @@ onMounted(() => {
   if (sheetRef.value) sheetObserver.observe(sheetRef.value);
 });
 watch(geometry, () => measureSheet(), { flush: "post" });
-/** The spot a zoom keeps in place, on screen: the caret when it is in view, else the middle of the pane. */
+/** The spot a zoom keeps in place, on screen (zoomAnchorSpot). */
 function zoomAnchorOnScreen(pane: HTMLElement): { x: number; y: number } {
   const box = pane.getBoundingClientRect();
-  const middle = { x: box.left + pane.clientWidth / 2, y: box.top + pane.clientHeight / 2 };
+  const view = { left: box.left, top: box.top, width: pane.clientWidth, height: pane.clientHeight };
   const ed = editor.value;
-  if (!ed || ed.isDestroyed) return middle;
-  const caret = ed.view.coordsAtPos(ed.state.selection.from);
-  const inView =
-    caret.top >= box.top &&
-    caret.bottom <= box.top + pane.clientHeight &&
-    caret.left >= box.left &&
-    caret.left <= box.left + pane.clientWidth;
-  return inView ? { x: caret.left, y: caret.top } : middle;
+  return zoomAnchorSpot(view, ed && !ed.isDestroyed ? ed.view.coordsAtPos(ed.state.selection.from) : null);
 }
 // A new zoom keeps the spot the writer was looking at where it was (zoomAnchorPoint).
 watch(zoom, async () => {

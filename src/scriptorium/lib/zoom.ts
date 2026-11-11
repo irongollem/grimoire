@@ -61,6 +61,27 @@ export function zoomScrollDelta(point: number, sheetStart: number, scale: number
   return sheetStart + point * scale - screen;
 }
 
+export interface ScreenBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/** The spot a zoom keeps in place: the caret when it is inside the pane, else the pane's middle. */
+export function zoomAnchorSpot(
+  pane: ScreenBox,
+  caret: { left: number; top: number; bottom: number } | null,
+): { x: number; y: number } {
+  const inView =
+    caret !== null &&
+    caret.top >= pane.top &&
+    caret.bottom <= pane.top + pane.height &&
+    caret.left >= pane.left &&
+    caret.left <= pane.left + pane.width;
+  return inView ? { x: caret.left, y: caret.top } : { x: pane.left + pane.width / 2, y: pane.top + pane.height / 2 };
+}
+
 /** What the middle button says. */
 export function zoomLabel(choice: ZoomChoice): string {
   return choice === "fit" ? "Fit" : `${choice}%`;

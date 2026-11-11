@@ -62,4 +62,10 @@ describe("groupWrappedImages", () => {
     // Without the choice the same long paragraph is left alone.
     expect(parse(groupWrappedImages(`${portrait("wrapLeft")}<p>${long}</p>`)).querySelector(".sc-float-group")).toBeNull();
   });
+
+  it("a picture the DM set not to keep with its text is never grouped, even beside a caption", () => {
+    // Bug caught: the panel says unticking lets the picture move on alone, but a short paragraph still held it.
+    const notKept = `<div class="sc-img-wrap sc-img-wrap--wrapLeft"><img src="a.webp" data-keep-with-text="false"></div>`;
+    expect(parse(groupWrappedImages(`${notKept}<p>A short caption.</p>`)).querySelector(".sc-float-group")).toBeNull();
+  });
 });
