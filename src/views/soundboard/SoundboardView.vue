@@ -145,7 +145,47 @@
           </aside>
 
           <section class="relative flex min-w-0 flex-1 flex-col gap-3" :aria-label="deckLabel">
-            <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+            <!-- Phone: the page and the mode on one row, the lanes and the library
+                 on the next, each wide enough for a thumb. (A tab strip shared its
+                 row with Add page and Library and left the names unreadable.) -->
+            <template v-if="isPhone">
+              <div class="flex min-w-0 items-center gap-2">
+                <SoundboardPagePicker
+                  :model-value="activePageId"
+                  :pages="pages ?? []"
+                  :pad-counts="padCounts"
+                  class="flex-1"
+                  @update:model-value="soundboardUi.soundboardActivePage = $event"
+                />
+                <SegmentedControl
+                  :model-value="mode"
+                  :options="MODE_OPTIONS"
+                  size="sm"
+                  aria-label="Build or play"
+                  @update:model-value="chosenMode = $event"
+                />
+              </div>
+              <div class="flex min-w-0 items-center gap-2">
+                <SegmentedControl
+                  v-model="laneWindow"
+                  :options="LANE_WINDOWS"
+                  size="sm"
+                  block
+                  class="min-w-0 flex-1"
+                  aria-label="Lanes shown"
+                />
+                <AppButton
+                  v-if="mode === 'build'"
+                  variant="subtle"
+                  size="sm"
+                  :icon="IconList"
+                  label="Library"
+                  @click="libraryOpen = true"
+                />
+              </div>
+            </template>
+
+            <div v-else class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
               <div class="min-w-0 flex-1 basis-60 overflow-hidden">
                 <SoundboardPageTabs
                   :model-value="activePageId"
@@ -171,16 +211,6 @@
                 @update:model-value="chosenMode = $event"
               />
             </div>
-
-            <!-- Phone: four lanes at a time, in lane order. -->
-            <SegmentedControl
-              v-if="isPhone"
-              v-model="laneWindow"
-              :options="LANE_WINDOWS"
-              size="sm"
-              block
-              aria-label="Lanes shown"
-            />
 
             <div v-if="isPending || !activePageId" role="status" class="grid grid-cols-4 gap-2 md:grid-cols-8">
               <span class="sr-only">Loading…</span>
@@ -303,6 +333,7 @@ import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import StarterScenesCard from "@/components/soundboard/StarterScenesCard.vue";
 import SpotifyErrorBanner from "@/components/soundboard/SpotifyErrorBanner.vue";
 import SoundboardPageTabs from "@/components/soundboard/SoundboardPageTabs.vue";
+import SoundboardPagePicker from "@/components/soundboard/SoundboardPagePicker.vue";
 import BrandIcon from "@/components/brand/BrandIcon.vue";
 import DeckMixerPopover from "@/components/soundboard/deck/DeckMixerPopover.vue";
 import DeckGrid from "@/components/soundboard/deck/DeckGrid.vue";
@@ -331,8 +362,8 @@ const MODE_OPTIONS = [
 ] as const;
 type SidePanel = "library" | "pad";
 const LANE_WINDOWS = [
-  { value: 0, label: "Lanes 1 to 4" },
-  { value: 4, label: "Lanes 5 to 8" },
+  { value: 0, label: "Lanes 1–4" },
+  { value: 4, label: "Lanes 5–8" },
 ] as const;
 
 const route = useRoute();
