@@ -41,13 +41,24 @@ export function postedRecords(root: string): PostedRecord[] {
     .sort((a, b) => b.postedAt.localeCompare(a.postedAt));
 }
 
+/**
+ * Every snapshot line that parses. A line cut short (the Mac slept or shut down
+ * mid-append) is skipped, never fatal: one bad line used to stop promo:stats
+ * for good until someone edited the file by hand.
+ */
 export function readSnapshots(root: string): Snapshot[] {
   const f = join(root, STATS_FILE);
   if (!existsSync(f)) return [];
   return readFileSync(f, "utf8")
     .split("\n")
     .filter((l) => l.trim() !== "")
-    .map((l) => JSON.parse(l) as Snapshot);
+    .flatMap((l) => {
+      try {
+        return [JSON.parse(l) as Snapshot];
+      } catch {
+        return [];
+      }
+    });
 }
 
 /**
@@ -76,16 +87,44 @@ export function dayMarkDue(posted: PostedRecord[], now: Date, hours = 24): boole
   return posted.some((p) => Math.abs(now.getTime() - (Date.parse(p.postedAt) + hours * 3_600_000)) <= 30 * 60_000);
 }
 
-/** Reads every post's numbers now and appends them to stats.jsonl. Returns them. */
-export async function takeSnapshot(token: string, root: string): Promise<Snapshot[]> {
+/** How many posts' numbers are asked for at once: enough to finish in a few round trips, few enough to stay polite to the Graph API. */
+export const SNAPSHOT_CONCURRENCY = 6;
+
+export interface SnapshotResult {
+  /** The posts read, and appended to stats.jsonl. */
+  rows: Snapshot[];
+  /** Every post that left a posted.json, as read for this snapshot (newest first). */
+  records: PostedRecord[];
+  /** Posts whose numbers could not be read this time (deleted on Instagram, a metric refused), with why. */
+  failed: { id: string; error: string }[];
+}
+
+type ReadInsights = (token: string, mediaId: string, kind: "reel" | "carousel") => Promise<MediaInsights>;
+
+/**
+ * Reads every post's numbers now, a few at a time, and appends the ones it got
+ * to stats.jsonl. One post that cannot be read is skipped and named in
+ * `failed`: it used to throw away the whole snapshot, every hour, for every post.
+ */
+export async function takeSnapshot(token: string, root: string, read: ReadInsights = mediaInsights): Promise<SnapshotResult> {
   const at = new Date().toISOString();
-  const rows: Snapshot[] = [];
-  for (const r of postedRecords(root)) {
-    const insights = await mediaInsights(token, r.mediaId, isCarousel(root, r.id) ? "carousel" : "reel");
-    rows.push({ at, id: r.id, mediaId: r.mediaId, ...insights });
+  const records = postedRecords(root);
+  const readOne = async (r: PostedRecord): Promise<Snapshot | { id: string; error: string }> => {
+    try {
+      const insights = await read(token, r.mediaId, isCarousel(root, r.id) ? "carousel" : "reel");
+      return { at, id: r.id, mediaId: r.mediaId, ...insights };
+    } catch (e) {
+      return { id: r.id, error: e instanceof Error ? e.message : String(e) };
+    }
+  };
+  const results: (Snapshot | { id: string; error: string })[] = [];
+  for (let i = 0; i < records.length; i += SNAPSHOT_CONCURRENCY) {
+    results.push(...(await Promise.all(records.slice(i, i + SNAPSHOT_CONCURRENCY).map(readOne))));
   }
+  const rows = results.filter((x): x is Snapshot => "mediaId" in x);
+  const failed = results.filter((x): x is { id: string; error: string } => "error" in x);
   if (rows.length > 0) appendFileSync(join(root, STATS_FILE), rows.map((s) => JSON.stringify(s)).join("\n") + "\n");
-  return rows;
+  return { rows, records, failed };
 }
 
 const num = (n: number | null) => (n === null ? "-" : String(n));
@@ -121,11 +160,15 @@ async function main() {
   const token = process.env.INSTAGRAM_SYSTEM_USER_TOKEN;
   if (!token) throw new Error("INSTAGRAM_SYSTEM_USER_TOKEN is not set. Run through `npm run promo:stats`, which loads .env.local.");
   const root = resolve("promo-out");
-  const rows = await takeSnapshot(token, root);
-  const account = await findAccount(token);
-  const { followers, posts } = await accountSummary(token, account.id);
-  console.log(`@${account.username}: ${followers} followers, ${posts} posts\n`);
-  console.log(statsTable(rows, postedRecords(root), readSnapshots(root), new Date()));
+  // The snapshot and the account lookup are independent: run them side by side.
+  const [{ rows, records, failed }, summary] = await Promise.all([
+    takeSnapshot(token, root),
+    findAccount(token).then(async (account) => ({ account, ...(await accountSummary(token, account.id)) })),
+  ]);
+  console.log(`@${summary.account.username}: ${summary.followers} followers, ${summary.posts} posts\n`);
+  // The records the snapshot read, so a post landing between two reads never shows without its row.
+  console.log(statsTable(rows, records, readSnapshots(root), new Date()));
+  for (const f of failed) console.log(`\ncould not read ${f.id}: ${f.error}`);
   console.log("\n24h = views at one day old, from the posting job's snapshots; - where none was taken then. watch = average play time.");
 }
 

@@ -16,8 +16,8 @@ import { resolve } from "node:path";
 import { durationOf } from "./compose/ffmpeg";
 import { checkCarousel, isCarousel, postCarousel } from "./carousels";
 import { findAccount, postsLeft } from "./instagram";
+import { runDue } from "./dueRun";
 import { checkReel, postReel, readPosted, readSchedule, writeSchedule } from "./publishing";
-import { LATE_LIMIT_HOURS, nextDue, pushMissed } from "./schedule";
 import { dayMarkDue, postedRecords, takeSnapshot } from "./stats";
 
 function parseArgs(argv: string[]) {
@@ -118,40 +118,32 @@ async function main() {
     return;
   }
 
-  const posted = new Set(schedule.filter((e) => readPosted(root, e.id) !== null).map((e) => e.id));
   const now = new Date();
-  const stamp = now.toISOString();
-  const missed = pushMissed(schedule, posted, now);
-  if (missed) {
-    writeSchedule(missed.entries);
-    const days = missed.days === 1 ? "a day" : `${missed.days} days`;
-    console.log(`${stamp} missed a slot by more than ${LATE_LIMIT_HOURS} hours; moved the queue back ${days}`);
-    notify("Grimoire posts moved", `A post missed its time (the Mac was off or asleep). The queue moved back ${days}.`);
-    return;
-  }
-  const due = nextDue(schedule, posted, now);
-  if (!due) {
-    console.log(`${stamp} nothing due`);
-    if (dayMarkDue(postedRecords(root), now)) await snapshot(token, root, log);
-    return;
-  }
-  console.log(`${stamp} posting ${due.id}, planned for ${due.at}`);
-  try {
-    await networkUp(log);
-    const record = await post(token, root, due.id, log);
-    notify("Grimoire post published", `${due.id}: ${record.permalink}`);
-  } catch (e) {
-    notify("Grimoire post NOT published", `${due.id}: ${e instanceof Error ? e.message : String(e)}`);
-    throw e;
-  }
-  await snapshot(token, root, log);
+  await runDue({
+    now,
+    schedule,
+    posted: new Set(schedule.filter((e) => readPosted(root, e.id) !== null).map((e) => e.id)),
+    dayMark: dayMarkDue(postedRecords(root), now),
+    log,
+    notify,
+    writeSchedule,
+    networkUp: () => networkUp(log),
+    post: (postId) => post(token, root, postId, log),
+    snapshot: () => snapshot(token, root, log),
+  });
 }
 
-/** Stats ride on the posting job (stats.ts); a failed read is logged and never fails the run, whose job is posting. */
+/**
+ * Stats ride on the posting job (stats.ts). It waits for the network like a
+ * post does (a day mark can fall on a run that woke the Mac), and a failed
+ * read is logged, never failing the run, whose job is posting.
+ */
 async function snapshot(token: string, root: string, log: (l: string) => void) {
   try {
-    const rows = await takeSnapshot(token, root);
+    await networkUp(log);
+    const { rows, failed } = await takeSnapshot(token, root);
     log(`stats snapshot of ${rows.length} posts`);
+    for (const f of failed) log(`stats: could not read ${f.id}: ${f.error}`);
   } catch (e) {
     log(`stats snapshot failed: ${e instanceof Error ? e.message : String(e)}`);
   }
