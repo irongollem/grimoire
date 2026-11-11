@@ -111,11 +111,20 @@
   position: relative;
   overflow: visible;
 }
+/* Both are hung from the break's top by `bottom: 0` and moved down onto it by
+   a transform, never placed with `top: 0`. A break is usually the last thing
+   in a column, so `top: 0` is the column's bottom edge, and in two columns the
+   browser lays a box that starts there in the next column, which for the last
+   column is an empty one beside the page: the label floated off the page's
+   right edge (The Locked Workshop, pages 12 and 16). A box that ends at the
+   edge stays in its column, and a transform moves only the paint. */
 .phb-editor .ProseMirror hr::before,
 .phb-editor .ProseMirror .sc-page-break::before {
   content: "";
   position: absolute;
-  inset: 0 0 auto;
+  inset: auto 0 0;
+  height: 1px;
+  transform: translateY(100%);
   border-top: 1px dashed color-mix(in srgb, var(--sc-accent) 55%, transparent);
   pointer-events: none;
 }
@@ -123,9 +132,9 @@
 .phb-editor .ProseMirror .sc-page-break::after {
   content: "page break";
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, 50%);
   font-family: system-ui, sans-serif;
   font-size: 9px;
   letter-spacing: 0.06em;
