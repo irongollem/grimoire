@@ -33,6 +33,27 @@ export interface PaperEdgesStep { type: "edges"; style: "paper"; top: PaperSideO
 export type EdgesStep = ClassicEdgesStep | PaperEdgesStep;
 /** An alpha PNG: wherever it is painted, the picture is erased. */
 export interface MaskStep { type: "mask"; url: string }
+/** Which side of the picture the paper wash comes in from. */
+export type WashSide = "left" | "right" | "top" | "bottom";
+export const WASH_SIDES: readonly WashSide[] = ["left", "right", "top", "bottom"];
+export const WASH_REACH = { min: 0.15, max: 0.9 } as const;
+/**
+ * A brushed paper wash painted over the picture, like a homebrew supplement page: wherever the brush went the
+ * picture is erased (the page's paper shows through), with a ragged dry-brush edge. Sizes are fractions of the
+ * picture and every stroke is seeded, so the preview, the bake and print draw the same wash (paperWash.ts).
+ */
+export interface WashStep {
+  type: "wash";
+  from: WashSide;
+  /** The share of the picture the paper covers from that side. */
+  reach: number;
+  /** 0 fine strokes to 1 broad ones. */
+  brush: number;
+  /** 0 a wet even edge to 1 long dry streaks. */
+  dry: number;
+  seed: number;
+}
+
 /**
  * An AI picture action's stored output (#1176 story 10). It is the recipe's base image, not a filter: every
  * renderer starts from baseImageUrl() and applySteps skips it. `action` records the chain ("cutout+ink").
@@ -46,7 +67,7 @@ export interface AiStep { type: "ai"; action: string; output: string }
  */
 export interface CropStep { type: "crop"; x: number; y: number; w: number; h: number }
 
-export type IlluminateStep = GradeStep | DofStep | VignetteStep | TextureStep | EdgesStep | MaskStep | AiStep | CropStep;
+export type IlluminateStep = GradeStep | DofStep | VignetteStep | TextureStep | EdgesStep | WashStep | MaskStep | AiStep | CropStep;
 export type StepType = IlluminateStep["type"];
 
 export interface IlluminateSettings {
@@ -56,8 +77,8 @@ export interface IlluminateSettings {
   steps: IlluminateStep[];
 }
 
-/** The order the steps run in: the crop comes first, the texture sits under the vignette on purpose, and the mask erases last. */
-export const STEP_ORDER: readonly StepType[] = ["ai", "crop", "grade", "dof", "texture", "vignette", "edges", "mask"];
+/** The order the steps run in: the crop comes first, the texture sits under the vignette on purpose, the wash goes on after the edges, and the DM's own brush mask erases last. */
+export const STEP_ORDER: readonly StepType[] = ["ai", "crop", "grade", "dof", "texture", "vignette", "edges", "wash", "mask"];
 
 // ─── Defensive parsing ──────────────────────────────────────────────────────
 
@@ -188,6 +209,19 @@ function parseEdges(raw: Record<string, unknown>): EdgesStep {
   };
 }
 
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+
+function parseWash(raw: Record<string, unknown>): WashStep {
+  return {
+    type: "wash",
+    from: oneOf(raw.from, WASH_SIDES, "left"),
+    reach: Math.min(WASH_REACH.max, Math.max(WASH_REACH.min, num(raw.reach, 0.6))),
+    brush: clamp01(num(raw.brush, 0.55)),
+    dry: clamp01(num(raw.dry, 0.65)),
+    seed: Math.trunc(num(raw.seed, 0)),
+  };
+}
+
 /** Smallest side a crop may keep, as a fraction: a sliver is a mistake, and it would bake to nothing. */
 export const MIN_CROP = 0.05;
 
@@ -214,6 +248,7 @@ function parseStep(raw: unknown): IlluminateStep | null {
     case "texture": return parseTexture(raw);
     case "edges": return parseEdges(raw);
     case "crop": return parseCrop(raw);
+    case "wash": return parseWash(raw);
     case "mask": {
       const url = nonEmptyString(raw.url);
       return url ? { type: "mask", url } : null;

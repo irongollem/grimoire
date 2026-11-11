@@ -8,6 +8,7 @@ vi.mock("./dofBlur", () => ({ applyDofBlur: (_c: unknown, _w: number, _h: number
 vi.mock("./vignette", () => ({ applyVignette: (_c: unknown, _w: number, _h: number, o: { enabled: boolean }) => calls.push(`vignette:${o.enabled}`) }));
 vi.mock("./edgeTreatment", () => ({ applyEdgeTreatmentToCtx: () => calls.push("edges:classic") }));
 vi.mock("./tornPaper", () => ({ applyTornPaper: (_c: unknown, _w: number, _h: number, _o: unknown, seed: number) => calls.push(`edges:paper:${seed}`) }));
+vi.mock("./paperWash", () => ({ applyPaperWash: (_c: unknown, _w: number, _h: number, o: { from: string }) => calls.push(`wash:${o.from}`) }));
 vi.mock("./textureOverlay", () => ({
   decodedSize: (i: { width: number; height: number }) => ({ width: i.width, height: i.height }),
   applyTextureOverlay: (_c: unknown, _w: number, _h: number, _o: unknown, tex: { id: string }, factor: number) => calls.push(`texture:${tex.id}:${factor}`),
@@ -68,6 +69,14 @@ describe("applySteps", () => {
     const ops = await run({ v: 1, seed: 1, steps: [mask, grade, crop] });
     expect(calls).toEqual(["grade"]);
     expect(ops).toEqual(["op:destination-out", "draw@destination-out", "op:source-over"]);
+  });
+
+  // Fails on: the wash being skipped, drawn before the edges, or drawn after the DM's mask.
+  it("draws the wash after the edges and before the mask", async () => {
+    const wash = { type: "wash", from: "right", reach: 0.5, brush: 0.5, dry: 0.5, seed: 1 } as const;
+    const ops = await run({ v: 1, seed: 1, steps: [mask, wash, { type: "edges", style: "classic", top: classicSide, right: classicSide, bottom: classicSide, left: classicSide }] });
+    expect(calls).toEqual(["edges:classic", "wash:right"]);
+    expect(ops[0]).toBe("op:destination-out");
   });
 
   it("dispatches the edge style, handing the paper tear the recipe's seed", async () => {

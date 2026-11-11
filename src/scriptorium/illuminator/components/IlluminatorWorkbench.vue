@@ -119,6 +119,20 @@
             @set-field="(key, value) => (wb.texture[key] = value)"
           />
 
+          <div v-else-if="wb.tool.value === 'wash'" class="flex flex-col gap-3 px-4 py-4">
+            <p class="text-caption italic text-muted-foreground">
+              Paint the page's paper over part of the picture, with a dry brush edge where the painting shows faintly through.
+            </p>
+            <IlluminateWashPanel
+              :wash="wb.wash.value"
+              @on="wb.wash.value = newWash(freshSeed())"
+              @side="wb.wash.value = wb.wash.value && { ...wb.wash.value, from: $event }"
+              @field="(field, value) => (wb.wash.value = wb.wash.value && { ...wb.wash.value, [field]: value })"
+              @repaint="wb.wash.value = wb.wash.value && { ...wb.wash.value, seed: freshSeed() }"
+              @remove="wb.wash.value = null"
+            />
+          </div>
+
           <IlluminateDofPanel
             v-else-if="wb.tool.value === 'focus'"
             :dof="wb.dof"
@@ -184,6 +198,7 @@ import IlluminateDofPanel from "@/scriptorium/illuminator/components/IlluminateD
 import IlluminateEdgesTool from "@/scriptorium/illuminator/components/IlluminateEdgesTool.vue";
 import IlluminateStage from "@/scriptorium/illuminator/components/IlluminateStage.vue";
 import IlluminateTexturePanel from "@/scriptorium/illuminator/components/IlluminateTexturePanel.vue";
+import IlluminateWashPanel from "@/scriptorium/illuminator/components/IlluminateWashPanel.vue";
 import IlluminateToolRail from "@/scriptorium/illuminator/components/IlluminateToolRail.vue";
 import IlluminateVignettePanel from "@/scriptorium/illuminator/components/IlluminateVignettePanel.vue";
 import { DEFAULT_COLOUR_GRADING, type ColourGradingOptions } from "@/scriptorium/illuminator/lib/colourGrading";
@@ -193,6 +208,7 @@ import type { IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment
 import { isArtLook } from "@edge-shared/scriptoriumLookStyles.ts";
 import { scriptoriumLook } from "@/scriptorium/lib/looks";
 import type { ScriptoriumTheme } from "@/scriptorium/types";
+import { newWash } from "@/scriptorium/illuminator/lib/washEdits";
 import { useIlluminateWorkbench, type WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
 import { useToast } from "@/composables/useToast";
 import { IconCheck, IconClipboard, IconDownload, IconImage, IconSave } from "@/lib/icons";
@@ -255,7 +271,8 @@ onMounted(() => void wb.open());
 onBeforeUnmount(wb.dispose);
 onClickOutside(saveMenuRoot, () => (saveMenu.value = false));
 
-const TITLES = { crop: "Crop", edges: "Edges", colour: "Colour", vignette: "Vignette", texture: "Texture", focus: "Focus", brush: "Brush" } as const;
+const TITLES = { crop: "Crop", edges: "Edges", colour: "Colour", vignette: "Vignette", texture: "Texture", wash: "Paper wash", focus: "Focus", brush: "Brush" } as const;
+const freshSeed = () => Math.floor(Math.random() * 1e9);
 const toolTitle = computed(() => TITLES[wb.tool.value]);
 const cursorClass = computed(() => {
   if (wb.tool.value === "brush") return "cursor-none";

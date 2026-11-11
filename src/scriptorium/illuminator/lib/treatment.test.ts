@@ -128,3 +128,34 @@ describe("withAiStep", () => {
     expect(withAiStep(null, { type: "ai", action: "ink", output: "a" }, 42).seed).toBe(42);
   });
 });
+
+describe("the wash step", () => {
+  const wash = (over: Record<string, unknown> = {}) => ({ type: "wash", from: "right", reach: 0.5, brush: 0.4, dry: 0.3, seed: 9, ...over });
+  const parse = (steps: unknown[]) => parseSettings({ v: 1, seed: 1, steps });
+
+  // Fails on: a wash recipe being dropped as an unknown step, so a saved wash vanishes on reload.
+  it("parses and keeps its values", () => {
+    expect(parse([wash()])?.steps).toEqual([wash()]);
+  });
+
+  // Fails on: a hand-edited recipe with from "middle" reaching the renderer, or numbers outside the range drawing nothing sensible.
+  it("defaults an unknown side to left and clamps the numbers", () => {
+    expect(parse([wash({ from: "middle", reach: 5, brush: -1, dry: 9 })])?.steps).toEqual([wash({ from: "left", reach: 0.9, brush: 0, dry: 1 })]);
+    expect(parse([wash({ reach: 0 })])?.steps[0]).toMatchObject({ reach: 0.15 });
+  });
+
+  // Fails on: the wash drawn before the edges (the torn edge would cut the wash) or after the DM's mask (the brush no longer paints on top).
+  it("runs after edges and before the mask, whatever order it is listed in", () => {
+    const edge = { type: "edges", style: "classic" };
+    const types = parse([{ type: "mask", url: "m.png" }, wash(), edge])?.steps.map((s) => s.type);
+    expect(types).toEqual(["edges", "wash", "mask"]);
+  });
+
+  // Fails on: the hash taking the raw step, so a wash with a missing optional field re-bakes as an edit.
+  it("hashes two spellings of the same wash the same, and a new seed differently", () => {
+    const a = settings([wash() as unknown as IlluminateSettings["steps"][number]]);
+    const b = settings([parse([wash({ extra: 1 })])!.steps[0]]);
+    expect(hashSettings(a)).toBe(hashSettings(b));
+    expect(hashSettings(settings([wash({ seed: 10 }) as unknown as IlluminateSettings["steps"][number]]))).not.toBe(hashSettings(a));
+  });
+});

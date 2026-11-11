@@ -327,3 +327,26 @@ describe("crop", () => {
     expect(wb.hasStrokes.value).toBe(true);
   });
 });
+
+describe("the paper wash", () => {
+  const washStep = { type: "wash", from: "top", reach: 0.4, brush: 0.2, dry: 0.9, seed: 5 } as const;
+
+  // Fails on: the Wash tool not reading its step back, so Done drops a wash that was already on the picture.
+  it("opens on a recipe's wash and hands it back before the mask", async () => {
+    const withWash: IlluminateSettings = { v: 1, seed: 3, steps: [washStep, { type: "mask", url: "https://cdn/mask.webp" }] };
+    const wb = open(withWash);
+    await wb.open();
+    await flushPromises();
+    expect(wb.buildSettings(false)).toEqual(withWash);
+  });
+
+  // Fails on: a wash alone not counting as an edit, so Save is dead for a picture whose only change is the wash.
+  it("counts as an edit and goes with Reset all", async () => {
+    const wb = open({ v: 1, seed: 3, steps: [washStep] });
+    await wb.open();
+    await flushPromises();
+    expect(wb.hasEdits.value).toBe(true);
+    wb.resetAll();
+    expect(wb.buildSettings(false).steps).toEqual([]);
+  });
+});

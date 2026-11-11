@@ -33,10 +33,10 @@ import { loadDomImage, type LoadImage } from "@/scriptorium/illuminator/lib/load
 import { FADED_SIDE, PAPER_PANEL_SIDE, type EdgeStyle } from "@/scriptorium/illuminator/lib/recipeEdits";
 import { DEFAULT_TEXTURE_OVERLAY, type DecodedImage, type TextureOverlayOptions } from "@/scriptorium/illuminator/lib/textureOverlay";
 import { DEFAULT_PAPER_SIDE, PAPER_SIDES, type PaperEdgeOptions, type PaperSide } from "@/scriptorium/illuminator/lib/tornPaper";
-import { baseImageUrl, clampCrop, type AiStep, type IlluminateSettings, type IlluminateStep } from "@/scriptorium/illuminator/lib/treatment";
+import { baseImageUrl, clampCrop, type AiStep, type IlluminateSettings, type IlluminateStep, type WashStep } from "@/scriptorium/illuminator/lib/treatment";
 import { DEFAULT_VIGNETTE, type VignetteOptions } from "@/scriptorium/illuminator/lib/vignette";
 
-export type WorkbenchTool = "crop" | "edges" | "colour" | "vignette" | "texture" | "focus" | "brush";
+export type WorkbenchTool = "crop" | "edges" | "colour" | "vignette" | "texture" | "wash" | "focus" | "brush";
 
 /** Long edge of the working preview: sharp on screen, cheap enough to redraw as a slider moves. */
 const MAX_PREVIEW = 900;
@@ -93,6 +93,8 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     scale: DEFAULT_TEXTURE_OVERLAY.scale,
   });
   const textureEnabled = ref(false);
+  /** The paper wash, or null when there is none. */
+  const wash = ref<WashStep | null>(null);
   /** The stored texture picture, and what to call it. */
   const textureUrl = ref<string | null>(null);
   const textureFilename = ref("");
@@ -163,6 +165,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     dofEnabled.value = false;
     Object.assign(texture, { blendMode: DEFAULT_TEXTURE_OVERLAY.blendMode, opacity: DEFAULT_TEXTURE_OVERLAY.opacity, scale: DEFAULT_TEXTURE_OVERLAY.scale });
     textureEnabled.value = false;
+    wash.value = null;
     textureUrl.value = null;
     textureFilename.value = "";
     Object.assign(crop, FULL_CROP);
@@ -211,6 +214,9 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
           }
           syncSides({ top: step.top.enabled, right: step.right.enabled, bottom: step.bottom.enabled, left: step.left.enabled });
           break;
+        case "wash":
+          wash.value = { ...step };
+          break;
         case "mask":
           maskUrl.value = step.url;
           break;
@@ -246,6 +252,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
       if (edgeStyle.value === "paper") steps.push({ type: "edges", style: "paper", top: { ...paper.top }, right: { ...paper.right }, bottom: { ...paper.bottom }, left: { ...paper.left } });
       else steps.push({ type: "edges", style: "classic", top: { ...classic.top }, right: { ...classic.right }, bottom: { ...classic.bottom }, left: { ...classic.left } });
     }
+    if (wash.value) steps.push({ ...wash.value });
     if (hasStrokes.value) {
       const url = forPreview || maskDirty.value || !maskUrl.value ? VIEW_MASK : maskUrl.value;
       steps.push({ type: "mask", url });
@@ -625,7 +632,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   return {
     image, loadError, tool, previewSize, crop, cropShape, pageAspect, setCropShape, dragCropBox, resetCrop, aiStep, baseUrl, setAiResult, clearAiResult,
     edgeStyle, classic, paper, grading, gradingEnabled, vignette, vignetteEnabled, dof, dofEnabled,
-    texture, textureEnabled, textureUrl, textureFilename, brush, hasStrokes, brushCursor,
+    texture, textureEnabled, wash, textureUrl, textureFilename, brush, hasStrokes, brushCursor,
     comparePos, showOriginal, busy, copied, clipboardSupported, hasEdits,
     open, dispose, finish, buildSettings, setEdgeStyle, setEdgeSideEnabled, resetAll,
     onCanvasClick, onBrushDown, onBrushMove, onBrushUp, undoBrush, clearBrush,

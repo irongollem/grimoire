@@ -50,6 +50,16 @@
       @update:model-value="change(setVignetteStrength(settings, $event / 100))"
     />
 
+    <p class="text-label-lg font-bold uppercase text-muted-foreground">Paper wash</p>
+    <IlluminateWashPanel
+      :wash="wash"
+      @on="change(setWashOn(settings, freshSeed()))"
+      @side="change(setWashSide(settings, $event, freshSeed()))"
+      @field="(field, value) => change(setWashField(settings, field, value, freshSeed()))"
+      @repaint="change(repaintWash(settings, freshSeed()))"
+      @remove="change(removeWash(settings))"
+    />
+
     <div class="flex flex-col items-start gap-2 border-t border-border pt-3">
       <AppButton variant="subtle" size="sm" :icon="IconSettings" label="More tools: open the Illuminator…" data-testid="panel-open-workbench" @click="emit('workbench')" />
       <AppButton
@@ -68,7 +78,7 @@
 <script setup lang="ts">
 /**
  * The quick edits for a picture, in the panel where it sits (#1176 frame 11).
- * Edges, colour and vignette are all the picture's recipe (`illuminate`): a
+ * Edges, colour, vignette and the paper wash are all the picture's recipe (`illuminate`): a
  * choice here reads the recipe, changes one step and hands back the write for
  * the picture (`treatmentPatch`), which the parent applies to the image node
  * or the art item. Nothing is kept here, so the workbench opened from "More
@@ -99,6 +109,8 @@ import {
   vignetteStrength,
   type EdgeSlider,
 } from "@/scriptorium/illuminator/lib/recipeEdits";
+import IlluminateWashPanel from "@/scriptorium/illuminator/components/IlluminateWashPanel.vue";
+import { removeWash, repaintWash, setWashField, setWashOn, setWashSide, washOf } from "@/scriptorium/illuminator/lib/washEdits";
 import { PAPER_SIDES, type PaperSide } from "@/scriptorium/illuminator/lib/tornPaper";
 import { aiStepOf, parseSettings, type IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
 import { resetPatch, treatmentPatch, type TreatmentPatch } from "@/scriptorium/lib/panel/pictureTreatment";
@@ -119,6 +131,7 @@ const SIDE_LABELS: Record<PaperSide, string> = { top: "Top", right: "Right", bot
 const SLIDER_LABELS: Record<EdgeSlider, string> = { roughness: "Roughness", depth: "Depth", fibres: "Fibres", shadow: "Lift shadow" };
 
 const settings = computed(() => parseSettings(values.illuminate));
+const wash = computed(() => washOf(settings.value));
 const edgeStyle = computed(() => edgeStyleOf(settings.value));
 const sides = computed(() => edgeSidesOf(settings.value));
 // A grade that no chip names (set by hand in the workbench) lights no chip.
@@ -134,6 +147,8 @@ const sidesHint = computed(() => {
 // Warmth and Contrast run -1 to +1 in the recipe; the panel shows 0 to 100 with 50 as neutral.
 const toPanel = (v: number) => Math.round((v + 1) * 50);
 const fromPanel = (v: number) => v / 50 - 1;
+
+const freshSeed = () => Math.floor(Math.random() * 1e9);
 
 const { confirm } = useConfirm();
 

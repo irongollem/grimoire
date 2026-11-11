@@ -28,7 +28,7 @@
 <script setup lang="ts">
 import AppButton from "@/components/common/controls/AppButton.vue";
 import type { WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
-import { IconBrush, IconCenter, IconCrop, IconGrid, IconScan, IconScissors, IconWater, type AppIcon } from "@/lib/icons";
+import { IconBrush, IconCenter, IconCrop, IconFill, IconGrid, IconScan, IconScissors, IconWater, type AppIcon } from "@/lib/icons";
 
 defineProps<{ tool: WorkbenchTool }>();
 const emit = defineEmits<{ "update:tool": [value: WorkbenchTool] }>();
@@ -39,6 +39,7 @@ const TOOLS: { value: WorkbenchTool; label: string; icon: AppIcon }[] = [
   { value: "colour", label: "Colour", icon: IconWater },
   { value: "vignette", label: "Vignette", icon: IconScan },
   { value: "texture", label: "Texture", icon: IconGrid },
+  { value: "wash", label: "Wash", icon: IconFill },
   { value: "focus", label: "Focus", icon: IconCenter },
   { value: "brush", label: "Brush", icon: IconBrush },
 ];

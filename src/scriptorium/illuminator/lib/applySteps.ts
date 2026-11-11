@@ -2,7 +2,7 @@
  * The one pipeline (#1176 story 9). A recipe (IlluminateSettings) is applied to
  * a canvas the same way for the live preview, the full-resolution bake in a
  * Worker and the print redraw: grade, depth of field, texture, vignette, edges,
- * then the mask. The crop is the one step it does not draw: it sets the canvas
+ * the paper wash, then the mask. The crop is the one step it does not draw: it sets the canvas
  * the others run on (crop.ts). The texture sits under the vignette on purpose, so the
  * vignette darkens it too, and the mask erases last.
  *
@@ -14,6 +14,7 @@ import { applyColourGrading } from "./colourGrading";
 import { applyDofBlur } from "./dofBlur";
 import { drawBase, croppedSize } from "./crop";
 import { applyEdgeTreatmentToCtx } from "./edgeTreatment";
+import { applyPaperWash } from "./paperWash";
 import { loadDomImage, type LoadImage } from "./loadImage";
 import { applyTextureOverlay, decodedSize } from "./textureOverlay";
 import { applyTornPaper } from "./tornPaper";
@@ -58,6 +59,9 @@ export async function applySteps(
       case "edges":
         if (step.style === "paper") applyTornPaper(ctx, w, h, step, settings.seed);
         else applyEdgeTreatmentToCtx(ctx, w, h, step);
+        break;
+      case "wash":
+        applyPaperWash(ctx, w, h, step);
         break;
       case "mask": {
         // The mask is painted where the picture is erased.
