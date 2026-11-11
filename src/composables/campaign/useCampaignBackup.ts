@@ -15,7 +15,7 @@ import {
 import { legacyTiesToLinks, remapLinkEnds } from "@/lib/campaign/worldLinkTransfer";
 import { restoreSessions } from "@/lib/campaign/backupSessions";
 import { remapMentionIds as rMention } from "@/lib/campaign/mentionRemap";
-import { remapBooksForImport } from "@/lib/scriptorium/bookTransfer";
+import { remapBooksForImport } from "@/scriptorium/lib/bookTransfer";
 import type { JSONContent } from "@tiptap/core";
 import { disposeHomebrewAndDeleteCampaign } from "@/composables/campaign/useCampaigns";
 import { downloadBlob } from "@/lib/downloadBlob";

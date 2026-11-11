@@ -306,9 +306,9 @@ import {
 } from "@/composables/monsters/useMonsters";
 import { useUpsertLibraryMonsterArt } from "@/composables/library/useLibraryMonsterArt";
 import { useArtTabs, type ArtTab } from "@/composables/useArtTabs";
-import { useCreateScriptoriumBook } from "@/composables/scriptorium/useScriptorium";
-import { bookInsertFromImport, formatMonsterForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
-import { buildEntityEmbedDocumentJson } from "@/lib/scriptorium/entityEmbeds";
+import { useCreateScriptoriumBook } from "@/scriptorium/composables/useScriptorium";
+import { bookInsertFromImport, formatMonsterForScriptorium } from "@/scriptorium/lib/scriptoriumImport";
+import { buildEntityEmbedDocumentJson } from "@/scriptorium/lib/entityEmbeds";
 import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
 import type {
   Monster,

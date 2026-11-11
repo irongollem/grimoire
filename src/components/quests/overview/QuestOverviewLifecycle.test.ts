@@ -33,7 +33,7 @@ vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks
 vi.mock("@/composables/notes/useEntityNotes", () => ({ useEntityNotes: () => ({ data: ref(mocks.notes) }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useFetchNpc: () => mocks.fetchNpc }));
 vi.mock("@/composables/locations/useLocations", () => ({ useFetchLocation: () => mocks.fetchLocation }));
-vi.mock("@/composables/scriptorium/useScriptorium", () => ({
+vi.mock("@/scriptorium/composables/useScriptorium", () => ({
   useCreateScriptoriumBook: () => ({ mutateAsync: mocks.createScriptoriumDocument }),
 }));
 vi.mock("@/composables/quests/useQuests", () => ({

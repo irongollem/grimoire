@@ -55,7 +55,7 @@ vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn
 vi.mock("@/composables/library/useLibrarySpellArt", () => ({
   useUpsertLibrarySpellArt: () => ({ mutateAsync: vi.fn() }),
 }));
-vi.mock("@/composables/scriptorium/useScriptorium", () => ({
+vi.mock("@/scriptorium/composables/useScriptorium", () => ({
   useCreateScriptoriumBook: () => ({ mutateAsync: vi.fn() }),
 }));
 

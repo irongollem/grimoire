@@ -7,7 +7,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { JSONContent } from "@tiptap/core";
-import type { ArtSlot } from "../../src/lib/scriptorium/markdownImport.ts";
+import type { ArtSlot } from "../../src/scriptorium/lib/markdownImport.ts";
 import { normalizeName } from "./name-matching.ts";
 
 /** The chapters' markdown in the order given, trimmed, empty ones dropped: each is one chapter of the book. */

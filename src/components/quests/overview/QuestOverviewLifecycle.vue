@@ -146,12 +146,12 @@ import {
   useQuests,
   useUpdateObjective,
 } from "@/composables/quests/useQuests";
-import { useCreateScriptoriumBook } from "@/composables/scriptorium/useScriptorium";
+import { useCreateScriptoriumBook } from "@/scriptorium/composables/useScriptorium";
 import { countObjectivesComplete, nextObjectiveStatus, QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
 import { objectiveDueDate } from "@/lib/quests/deadlines";
 import type { CalendarDate } from "@/lib/calendar/dayMath";
-import { bookInsertFromImport, formatQuestForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
-import { buildEntityEmbedDocumentJson } from "@/lib/scriptorium/entityEmbeds";
+import { bookInsertFromImport, formatQuestForScriptorium } from "@/scriptorium/lib/scriptoriumImport";
+import { buildEntityEmbedDocumentJson } from "@/scriptorium/lib/entityEmbeds";
 import type { Quest, QuestObjective } from "@/types/quest.types";
 import QuestObjectiveStatusMark from "../inspector/QuestObjectiveStatusMark.vue";
 import QuestSidebarPanels from "../flow/QuestSidebarPanels.vue";

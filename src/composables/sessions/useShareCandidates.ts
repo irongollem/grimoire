@@ -5,8 +5,8 @@ import { useDiscoveredKeys, useToggleMonsterDiscovery } from "@/composables/enco
 import { useUpdateLocation } from "@/composables/locations/useLocations";
 import { useMonsterIndex } from "@/composables/monsters/useMonsterIndex";
 import { useNpcs, useUpdateNpc } from "@/composables/npcs/useNpcs";
-import { useHandoutSharing } from "@/composables/scriptorium/useHandoutShare";
-import { useScriptoriumDocuments } from "@/composables/scriptorium/useScriptorium";
+import { useHandoutSharing } from "@/scriptorium/composables/useHandoutShare";
+import { useScriptoriumDocuments } from "@/scriptorium/composables/useScriptorium";
 import type { FileSharedInput } from "@/composables/sessions/useSessionLearned";
 import { npcShareUpdate } from "@/composables/npcs/useNpcReveal";
 import { useCampaignStore } from "@/stores/campaign";

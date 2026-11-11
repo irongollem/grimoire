@@ -43,9 +43,9 @@ import { IconScrollText } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
-import ScriptoriumReader from "@/components/scriptorium/ScriptoriumReader.vue";
-import { usePlayerHandout } from "@/composables/scriptorium/usePlayerHandouts";
-import type { PlayerHandout } from "@/types/scriptorium.types";
+import ScriptoriumReader from "@/scriptorium/components/ScriptoriumReader.vue";
+import { usePlayerHandout } from "@/scriptorium/composables/usePlayerHandouts";
+import type { PlayerHandout } from "@/scriptorium/types";
 import { useMarkRead } from "@/composables/player/useReadItems";
 
 const route = useRoute();

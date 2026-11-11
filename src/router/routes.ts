@@ -449,7 +449,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/scriptorium",
     name: "scriptorium",
-    component: () => import("@/views/scriptorium/ScriptoriumView.vue"),
+    component: () => import("@/scriptorium/views/ScriptoriumView.vue"),
     meta: { requiresAuth: true, title: "Scriptorium" },
   },
   // fullscreenMobile: below md this route is either the phone reading view
@@ -459,13 +459,13 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/scriptorium/new",
     name: "scriptorium-new",
-    component: () => import("@/views/scriptorium/ScriptoriumEditorView.vue"),
+    component: () => import("@/scriptorium/views/ScriptoriumEditorView.vue"),
     meta: { requiresAuth: true, title: "New Document", fullscreenMobile: true },
   },
   {
     path: "/scriptorium/:id",
     name: "scriptorium-editor",
-    component: () => import("@/views/scriptorium/ScriptoriumEditorView.vue"),
+    component: () => import("@/scriptorium/views/ScriptoriumEditorView.vue"),
     meta: { requiresAuth: true, title: "Edit Document", fullscreenMobile: true },
   },
 
@@ -1197,7 +1197,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/illuminate",
     name: "illuminate",
-    component: () => import("@/views/illuminate/IlluminatorView.vue"),
+    component: () => import("@/scriptorium/views/IlluminatorView.vue"),
     meta: { requiresAuth: true, title: "Illuminator" },
   },
 

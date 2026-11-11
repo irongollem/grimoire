@@ -273,9 +273,9 @@ import { SPELL_SCHOOLS, spellLevelLabel } from "@/types/spell.types";
 import type { Spell, SpellSchool } from "@/types/spell.types";
 import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/spells/useSpells";
 import { useUpsertLibrarySpellArt } from "@/composables/library/useLibrarySpellArt";
-import { useCreateScriptoriumBook } from "@/composables/scriptorium/useScriptorium";
-import { bookInsertFromImport, formatSpellForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
-import { buildEntityEmbedDocumentJson } from "@/lib/scriptorium/entityEmbeds";
+import { useCreateScriptoriumBook } from "@/scriptorium/composables/useScriptorium";
+import { bookInsertFromImport, formatSpellForScriptorium } from "@/scriptorium/lib/scriptoriumImport";
+import { buildEntityEmbedDocumentJson } from "@/scriptorium/lib/entityEmbeds";
 import {
   adviseLevelRange,
   REFERENCE_SPELLS,

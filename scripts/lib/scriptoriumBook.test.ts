@@ -12,7 +12,7 @@ import {
   resolveArtSlot,
   type ArtLookups,
 } from "./scriptoriumBook.ts";
-import type { ArtSlot } from "../../src/lib/scriptorium/markdownImport.ts";
+import type { ArtSlot } from "../../src/scriptorium/lib/markdownImport.ts";
 
 const slot = (over: Partial<ArtSlot>): ArtSlot => ({ slug: "s", size: "full", ...over });
 

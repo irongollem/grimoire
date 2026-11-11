@@ -14,7 +14,7 @@ described. If that automatic version happens, it is tracked fresh under
 epic #915 story 4, not resumed from here. §2.6's migration design (a lazy
 `content_version`-gated migrate-on-open pass) was superseded by #915 story 2: every write path has stored
 current-version JSON since story 3, so there is nothing left to migrate on
-open — `src/lib/scriptorium/documentContent.ts` normalizes only at the two
+open — `src/scriptorium/lib/documentContent.ts` normalizes only at the two
 places content still arrives from outside the app (World Bundle import, and a
 one-time production conversion), not on every read. See
 `context/features/publishing-tools.md` for the current shape.
@@ -94,7 +94,7 @@ One shared `renderFurniture.ts` runs after Paged.js layout (`afterRendered` hook
 Today the theme exists 3×: `scriptorium-editor.css` (editor), `ScriptoriumPreviewPane.vue` scoped styles (preview), `RENDER_CSS` string literal (PDF). Replace with one directory of plain CSS files (no Tailwind directives/`@apply` — must be inlinable anywhere):
 
 ```text
-src/assets/scriptorium/
+src/scriptorium/styles/
   theme-base.css        # all .sc-* structural rules, written against CSS vars
   theme-onednd2024.css  # variable values only
   theme-phb2014.css     # variable values only
@@ -105,18 +105,18 @@ Consumed three ways from identical files: (1) app — imported into `main.css`, 
 
 ### 2.5 Templates
 
-A template = `{ meta: { id, name, description, docType, thumbnail }, settings, content: JSONContent, furniture: PageFurnitureItem[] }`, living as TypeScript modules in `src/data/scriptoriumTemplates/` — git-versioned, type-checked, vitest-validated (every template must load into a headless Editor without schema errors). `/scriptorium/new` becomes a template gallery (thumbnail cards → deep copy with fresh block UUIDs).
+A template = `{ meta: { id, name, description, docType, thumbnail }, settings, content: JSONContent, furniture: PageFurnitureItem[] }`, living as TypeScript modules in `src/scriptorium/data/templates/` — git-versioned, type-checked, vitest-validated (every template must load into a headless Editor without schema errors). `/scriptorium/new` becomes a template gallery (thumbnail cards → deep copy with fresh block UUIDs).
 
 Initial set: **Adventure Module** (cover, credits, TOC, 3 chapters with part dividers, read-aloud + stat-block examples, back cover), **Monster Compendium**, **Spell Compendium**, **Subclass Supplement** (class table pre-placed), **One-Page Dungeon**, **Blank Book**. A DB table (SRD `is_canonical` pattern) only if/when user-shareable templates become a feature.
 
 ### 2.6 Migration & compatibility (superseded — see the note at the top of this file)
 
-As originally designed: a `content_version` int on the row, with lazy migrate-on-open via pure, unit-tested functions in `src/lib/scriptorium/migrations/`:
+As originally designed: a `content_version` int on the row, with lazy migrate-on-open via pure, unit-tested functions in `src/scriptorium/lib/migrations/`:
 
 - **v1 → v2 (Phase B)**: every `horizontalRule` → explicit `pageBreak` node. Preserves intent exactly — under manual pagination every `<hr>` *was* a hard break, so v1 docs paginate identically. Cover nodes lose their `<hr>` sentinels (named pages handle isolation).
 - **v2 → v3 (Phase D)**: watercolor/watermark/artistCredit nodes and `layoutMode: "absolute"` images lifted into `page_furniture`, anchored to the nearest preceding block UUID (page-anchored for front matter). Legacy node definitions stay registered forever so old JSON always parses; they render nothing post-v3.
 
-No `content_version` column was ever added, and by #915 story 2 there was no longer a reason to: every write path had stored current-version JSON since story 3 (linked entity embeds), so lazily migrating on every open was doing work for documents that never needed it. The two lazy passes above, and `migrations/`, were folded into one normalization that runs only at the import boundary (World Bundle import, and the one-time conversion of the two production rows that still held raw HTML) — see `src/lib/scriptorium/documentContent.ts`. The watercolor/watermark/artistCredit node definitions were deleted rather than kept registered forever, since the normalization now lifts their legacy shapes before the schema ever sees them.
+No `content_version` column was ever added, and by #915 story 2 there was no longer a reason to: every write path had stored current-version JSON since story 3 (linked entity embeds), so lazily migrating on every open was doing work for documents that never needed it. The two lazy passes above, and `migrations/`, were folded into one normalization that runs only at the import boundary (World Bundle import, and the one-time conversion of the two production rows that still held raw HTML) — see `src/scriptorium/lib/documentContent.ts`. The watercolor/watermark/artistCredit node definitions were deleted rather than kept registered forever, since the normalization now lifts their legacy shapes before the schema ever sees them.
 
 ### 2.7 Fonts (decided)
 

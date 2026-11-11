@@ -255,7 +255,7 @@ import PlayerJournalDmNotesTab from "./PlayerJournalDmNotesTab.vue";
 import PlayerJournalHandoutsTab from "./PlayerJournalHandoutsTab.vue";
 import PlayerJournalNoticeBoardsTab from "./PlayerJournalNoticeBoardsTab.vue";
 import { usePlayerNoticeBoards } from "@/composables/noticeBoards/usePlayerNoticeBoards";
-import { usePlayerHandouts } from "@/composables/scriptorium/usePlayerHandouts";
+import { usePlayerHandouts } from "@/scriptorium/composables/usePlayerHandouts";
 import PlayerJournalQuestLogTab from "./PlayerJournalQuestLogTab.vue";
 import PlayerJournalPuzzlesTab from "./PlayerJournalPuzzlesTab.vue";
 import PlayerJournalTomeTab from "./PlayerJournalTomeTab.vue";

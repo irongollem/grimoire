@@ -30,6 +30,9 @@ const DOM_TEST_FILES = [
   "src/components/**/*.{test,spec}.ts",
   "src/views/**/*.{test,spec}.ts",
   "src/composables/**/*.{test,spec}.ts",
+  "src/scriptorium/components/**/*.{test,spec}.ts",
+  "src/scriptorium/views/**/*.{test,spec}.ts",
+  "src/scriptorium/composables/**/*.{test,spec}.ts",
 ];
 
 export default defineConfig({

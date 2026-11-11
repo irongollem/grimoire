@@ -2,15 +2,15 @@
    them from fonts.googleapis.com here (it leaks every visitor's IP to Google). */
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "./scriptorium/theme-base.css";
-@import "./scriptorium/theme-onednd2024.css";
-@import "./scriptorium/theme-phb2014.css";
-@import "./scriptorium/theme-letter.css";
-@import "./scriptorium/theme-notice.css";
-@import "./scriptorium/theme-journal.css";
-@import "./scriptorium/theme-plain.css";
-@import "./scriptorium-editor.css";
-@import "./scriptorium-page-flow.css";
+@import "../scriptorium/styles/theme-base.css";
+@import "../scriptorium/styles/theme-onednd2024.css";
+@import "../scriptorium/styles/theme-phb2014.css";
+@import "../scriptorium/styles/theme-letter.css";
+@import "../scriptorium/styles/theme-notice.css";
+@import "../scriptorium/styles/theme-journal.css";
+@import "../scriptorium/styles/theme-plain.css";
+@import "../scriptorium/styles/scriptorium-editor.css";
+@import "../scriptorium/styles/scriptorium-page-flow.css";
 
 
 /* App stylesheet manifest. Order matters: fonts and Tailwind first, then tokens,

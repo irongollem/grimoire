@@ -135,7 +135,7 @@ by whoever operates it. Listed here for completeness of the AI surface.
 
 ### Not AI
 
-**Illuminate** (`src/lib/illuminate/`, the Illuminator publishing tool) is
+**Illuminate** (`src/scriptorium/illuminator/lib/`, the Illuminator publishing tool) is
 pure client-side canvas image processing — colour grading, vignette, texture
 overlay, depth of field, torn/faded edges. No model call, no AI Act
 relevance. Recorded here once so it stops getting swept into AI audits on

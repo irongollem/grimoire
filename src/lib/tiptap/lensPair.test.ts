@@ -6,7 +6,7 @@ import type { JSONContent } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { lensPairExtensions, BRIGHT_PLACEHOLDER, DEEP_PLACEHOLDER } from "./lensPair";
 
-vi.mock("@/components/scriptorium/LensPairView.vue", () => ({ default: {} }));
+vi.mock("@/scriptorium/components/LensPairView.vue", () => ({ default: {} }));
 
 const EXT = [StarterKit, ...lensPairExtensions({ creatable: true })];
 const LOCKED = [StarterKit, ...lensPairExtensions({ creatable: false })];

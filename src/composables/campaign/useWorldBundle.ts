@@ -1,5 +1,5 @@
 import { stripRetiredQuestColumns } from "@/lib/quests/retiredQuestColumns";
-import { CHAPTER_EXPORT_STRIP, remapBooksForImport } from "@/lib/scriptorium/bookTransfer";
+import { CHAPTER_EXPORT_STRIP, remapBooksForImport } from "@/scriptorium/lib/bookTransfer";
 import { ref } from "vue";
 import type { Ref } from "vue";
 import { computed } from "vue";
@@ -1254,7 +1254,7 @@ export function useImportWorldBundle() {
   async function parsePdfFile(file: File) {
     parseError.value = null;
     try {
-      const { extractBundleFromPdf } = await import("@/lib/scriptorium/campaignBundlePdf");
+      const { extractBundleFromPdf } = await import("@/scriptorium/lib/campaignBundlePdf");
       const extracted = await extractBundleFromPdf(new Uint8Array(await file.arrayBuffer()));
       if (!extracted) {
         parseError.value = "This PDF doesn't contain Grimoire campaign data.";

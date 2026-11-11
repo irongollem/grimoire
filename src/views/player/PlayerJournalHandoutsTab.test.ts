@@ -2,7 +2,7 @@ import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
 import { describe, expect, it } from "vitest";
 import PlayerJournalHandoutsTab from "./PlayerJournalHandoutsTab.vue";
-import type { PlayerHandoutSummary } from "@/composables/scriptorium/usePlayerHandouts";
+import type { PlayerHandoutSummary } from "@/scriptorium/composables/usePlayerHandouts";
 
 // jsdom has no layout; see the helper for what this stands in for.
 useVirtualGridViewport({ viewportPx: 1000000, itemPx: 65 });

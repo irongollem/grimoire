@@ -17,7 +17,7 @@ vi.mock("@/composables/dungeon-features/usePuzzles", async () => {
   const { ref: r } = await import("vue");
   return { usePlayerVisiblePuzzles: () => ({ data: r(state.puzzles) }) };
 });
-vi.mock("@/composables/scriptorium/usePlayerHandouts", async () => {
+vi.mock("@/scriptorium/composables/usePlayerHandouts", async () => {
   const { ref: r } = await import("vue");
   return { usePlayerHandouts: () => ({ data: r(state.handouts) }) };
 });

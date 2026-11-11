@@ -1,0 +1,357 @@
+import { defineComponent, h, nextTick, ref } from "vue";
+import { mount } from "@vue/test-utils";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import type { Mock } from "vitest";
+import type { PageFurnitureItem } from "@/scriptorium/types";
+import { useFurnitureEditing } from "./useFurnitureEditing";
+
+function item(overrides: Partial<PageFurnitureItem> = {}): PageFurnitureItem {
+  return {
+    id: "f1",
+    kind: "art",
+    anchor: { type: "page", chapterId: "c1", page: 1 },
+    x: 20,
+    y: 20,
+    width: 30,
+    z: "over",
+    props: {},
+    ...overrides,
+  };
+}
+
+/** Box is 200x200 on screen; item elements are 1x1 for simplicity (drag math
+ *  only reads the box's rect, not the target's, except for the resize-corner
+ *  hit test). */
+function stubRect(el: HTMLElement, rect: Partial<DOMRect>) {
+  el.getBoundingClientRect = () =>
+    ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON() {}, ...rect }) as DOMRect;
+}
+
+function buildDom() {
+  const container = document.createElement("div");
+  const page = document.createElement("div");
+  page.className = "pagedjs_pagebox";
+  stubRect(page, { width: 200, height: 200, left: 0, top: 0, right: 200, bottom: 200 });
+  const target = document.createElement("div");
+  target.dataset.furnitureId = "f1";
+  stubRect(target, { left: 40, top: 40, right: 60, bottom: 60, width: 20, height: 20 });
+  page.appendChild(target);
+  container.appendChild(page);
+  document.body.appendChild(container);
+  return { container, page, target };
+}
+
+function dispatchPointer(el: HTMLElement | Window, type: string, x: number, y: number) {
+  el.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, bubbles: true, cancelable: true }));
+}
+
+let onChange: Mock<(items: PageFurnitureItem[]) => void>;
+let onSelect: Mock<(id: string | null) => void>;
+let items: PageFurnitureItem[];
+
+function mountEditing(container: HTMLElement, enabled = () => true) {
+  onChange = vi.fn<(items: PageFurnitureItem[]) => void>();
+  onSelect = vi.fn<(id: string | null) => void>();
+  const containerRef = ref<HTMLElement | null>(container);
+  const wrapper = mount(
+    defineComponent({
+      setup() {
+        useFurnitureEditing({
+          container: containerRef,
+          enabled,
+          items: () => items,
+          onChange,
+          onSelect,
+        });
+        return () => h("div");
+      },
+    }),
+  );
+  return wrapper;
+}
+
+beforeEach(() => {
+  document.body.innerHTML = "";
+});
+
+describe("useFurnitureEditing", () => {
+  it("selects the item under the pointer on pointerdown", async () => {
+    const { target } = buildDom();
+    items = [item()];
+    const wrapper = mountEditing(target.closest("div")!.parentElement!);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 50, 50);
+    expect(onSelect).toHaveBeenCalledWith("f1");
+    wrapper.unmount();
+  });
+
+  it("deselects when clicking blank page (no data-furniture-id ancestor)", async () => {
+    const { container, page } = buildDom();
+    items = [item()];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(page, "pointerdown", 150, 150);
+    expect(onSelect).toHaveBeenCalledWith(null);
+    wrapper.unmount();
+  });
+
+  it("moves the item by a percentage of the page box on drag", async () => {
+    const { container, target } = buildDom();
+    items = [item({ x: 20, y: 20 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    // target rect is 40..60 x 40..60; (42,42) is 18px from the bottom-right
+    // corner in both axes — outside the 16px resize zone, so this is a move.
+    dispatchPointer(target, "pointerdown", 42, 42);
+    dispatchPointer(window, "pointermove", 62, 82); // +20px x (10% of 200), +40px y (20% of 200)
+    dispatchPointer(window, "pointerup", 62, 82);
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const updated = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect(updated[0].x).toBe(30); // 20 + 10
+    expect(updated[0].y).toBe(40); // 20 + 20
+    wrapper.unmount();
+  });
+
+  it("resizes instead of moving when the drag starts near the bottom-right corner", async () => {
+    const { container, target } = buildDom();
+    items = [item({ width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    // target rect is 40..60 x 40..60; RESIZE_ZONE_PX is 16, so (59,59) is within 16px of both edges.
+    dispatchPointer(target, "pointerdown", 59, 59);
+    dispatchPointer(window, "pointermove", 79, 59); // +20px = +10% of 200px box
+    dispatchPointer(window, "pointerup", 79, 59);
+    const updated = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect(updated[0].width).toBe(40); // 30 + 10
+    // A resize patch only ever carries { width } — x/y stay at the item's own value.
+    expect(updated[0].x).toBe(items[0].x);
+    wrapper.unmount();
+  });
+
+  it("clamps position to 0 at the left edge", async () => {
+    const { container, target } = buildDom();
+    items = [item({ x: 5, width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 42, 42); // outside the resize corner (see above)
+    dispatchPointer(window, "pointermove", -1000, 42); // drag far off the left edge
+    dispatchPointer(window, "pointerup", -1000, 42);
+    const updated = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect(updated[0].x).toBe(0);
+    wrapper.unmount();
+  });
+
+  it("clamps position at 100 on the right and width at a minimum of 5 when shrunk past it", async () => {
+    const { container, target } = buildDom();
+    items = [item({ x: 95, y: 20, width: 30 })];
+    let wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 42, 42);
+    dispatchPointer(window, "pointerup", 1000, 42);
+    expect((onChange.mock.calls[0][0] as PageFurnitureItem[])[0].x).toBe(100);
+    wrapper.unmount();
+
+    items = [item({ width: 30 })];
+    wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 59, 59);
+    dispatchPointer(window, "pointerup", -1000, 59);
+    expect((onChange.mock.calls[0][0] as PageFurnitureItem[])[0].width).toBe(5);
+    wrapper.unmount();
+  });
+
+  it("changes only the dragged item and shows the move on the element while the pointer is down", async () => {
+    const { container, target } = buildDom();
+    items = [item({ id: "f1", x: 20, y: 20 }), item({ id: "f2", x: 70, y: 70 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 42, 42);
+    dispatchPointer(window, "pointermove", 62, 82);
+    expect([target.style.left, target.style.top]).toEqual(["30%", "40%"]);
+    dispatchPointer(window, "pointerup", 62, 82);
+    const updated = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect(updated.map((i) => [i.id, i.x, i.y])).toEqual([["f1", 30, 40], ["f2", 70, 70]]);
+    wrapper.unmount();
+  });
+
+  it("measures each axis against its own side of the page box, and rounds to a tenth of a percent", async () => {
+    const { container, page, target } = buildDom();
+    stubRect(page, { width: 300, height: 400, left: 0, top: 0, right: 300, bottom: 400 });
+    items = [item({ x: 20, y: 20 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 42, 42);
+    dispatchPointer(window, "pointerup", 43, 82); // +1px of 300 = 0.333...%, +40px of 400 = 10%
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect([moved.x, moved.y]).toEqual([20.3, 30]);
+    wrapper.unmount();
+  });
+
+  it("moves, not resizes, when only one edge of the corner zone is near", async () => {
+    const { container, target } = buildDom();
+    items = [item({ x: 20, y: 20, width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 59, 42); // 1px from the right edge, 18px from the bottom
+    dispatchPointer(window, "pointerup", 79, 42);
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect([moved.x, moved.width]).toEqual([30, 30]);
+    wrapper.unmount();
+  });
+
+  it("shows the new width on the element while a resize is in progress", async () => {
+    const { container, target } = buildDom();
+    items = [item({ width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 59, 59);
+    dispatchPointer(window, "pointermove", 79, 59);
+    expect(target.style.width).toBe("40%");
+    dispatchPointer(window, "pointerup", 79, 59);
+    wrapper.unmount();
+  });
+
+  it("does not start a drag for an element whose item is no longer in the list", async () => {
+    const { container, target } = buildDom();
+    items = [item({ id: "someone-else" })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 42, 42);
+    dispatchPointer(window, "pointerup", 62, 82);
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("does nothing when editing is disabled", async () => {
+    const { container, target } = buildDom();
+    items = [item()];
+    const wrapper = mountEditing(container, () => false);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 50, 50);
+    expect(onSelect).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it("removes its listeners on unmount", async () => {
+    const { container, target } = buildDom();
+    items = [item()];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    wrapper.unmount();
+    dispatchPointer(target, "pointerdown", 50, 50);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+});
+
+describe("useFurnitureEditing corners", () => {
+  // Box 200x200; the target is 60x40 px = 30% x 20% of it.
+  function cornerDom() {
+    const d = buildDom();
+    stubRect(d.target, { left: 70, top: 80, right: 130, bottom: 120, width: 60, height: 40 });
+    d.page.dataset.chapterId = "c1";
+    d.page.dataset.chapterPage = "3";
+    return d;
+  }
+
+  it("snapping into a corner pins a block-anchored item to its page", async () => {
+    const { container, page, target } = cornerDom();
+    items = [item({ x: 20, y: 20, width: 30, anchor: { type: "block", blockId: "b1" } })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    // start in the middle (outside the resize zone), pull flush to the top-left
+    dispatchPointer(target, "pointerdown", 75, 85);
+    dispatchPointer(window, "pointermove", 75 - 40, 85 - 40);
+    dispatchPointer(window, "pointerup", 75 - 40, 85 - 40);
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect(moved).toMatchObject({ corner: "top-left", x: 0, y: 0, anchor: { type: "page", chapterId: "c1", page: 3 } });
+    expect(page.isConnected).toBe(true);
+    wrapper.unmount();
+  });
+
+  it("keeps the anchor when the page carries no chapter attributes", async () => {
+    const { container, page, target } = cornerDom();
+    delete page.dataset.chapterId;
+    delete page.dataset.chapterPage;
+    items = [item({ x: 20, y: 20, width: 30, anchor: { type: "block", blockId: "b1" } })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 75, 85);
+    dispatchPointer(window, "pointerup", 35, 45);
+    expect((onChange.mock.calls[0][0] as PageFurnitureItem[])[0].anchor).toEqual({ type: "block", blockId: "b1" });
+    wrapper.unmount();
+  });
+
+  it("shows the snap on the element while dragging and frees it when pulled past the threshold", async () => {
+    const { container, target } = cornerDom();
+    items = [item({ x: 20, y: 20, width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 75, 85);
+    dispatchPointer(window, "pointermove", 35, 45);
+    expect(target.classList.contains("sc-furniture--snapped")).toBe(true);
+    expect([target.style.left, target.style.top]).toEqual(["0%", "0%"]);
+    dispatchPointer(window, "pointermove", 55, 65); // 10% away: free again
+    expect(target.classList.contains("sc-furniture--snapped")).toBe(false);
+    dispatchPointer(window, "pointerup", 55, 65);
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect("corner" in moved).toBe(false);
+    expect([moved.x, moved.y]).toEqual([10, 10]);
+    wrapper.unmount();
+  });
+
+  it("a cornered item dragged out of its corner gets left/top coordinates from where it is", async () => {
+    const { container, target } = cornerDom();
+    // bottom-right pin: drawn at left = 100-30-0 = 70%, top = 100-20-0 = 80%
+    items = [item({ corner: "bottom-right", x: 0, y: 0, width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 100, 100); // middle: not the inner (top-left) corner
+    dispatchPointer(window, "pointerup", 80, 80); // -10% each way
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect("corner" in moved).toBe(false);
+    expect([moved.x, moved.y]).toEqual([60, 70]);
+    wrapper.unmount();
+  });
+
+  it("resizes a cornered item from the inner corner, with the delta flipped so the pinned corner stays put", async () => {
+    const { container, target } = cornerDom();
+    items = [item({ corner: "bottom-right", x: 0, y: 0, width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 71, 81); // top-left of the item: the inner corner
+    dispatchPointer(window, "pointermove", 51, 81); // pulled 20px (10%) left: wider
+    expect(target.style.width).toBe("40%");
+    dispatchPointer(window, "pointerup", 51, 81);
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect([moved.width, moved.corner, moved.x, moved.y]).toEqual([40, "bottom-right", 0, 0]);
+    wrapper.unmount();
+  });
+
+  it("a drag re-finds its element after a redraw replaced it", async () => {
+    const { container, page, target } = cornerDom();
+    items = [item({ x: 20, y: 20, width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 75, 85);
+    const fresh = document.createElement("div");
+    fresh.dataset.furnitureId = "f1";
+    target.replaceWith(fresh);
+    dispatchPointer(window, "pointermove", 95, 85); // +10%
+    expect(fresh.style.left).toBe("30%");
+    expect(page.contains(fresh)).toBe(true);
+    dispatchPointer(window, "pointerup", 95, 85);
+    wrapper.unmount();
+  });
+
+  it("never snaps a watermark", async () => {
+    const { container, target } = cornerDom();
+    items = [item({ kind: "watermark", x: 20, y: 20, width: 30 })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 75, 85);
+    dispatchPointer(window, "pointerup", 35, 45);
+    expect("corner" in (onChange.mock.calls[0][0] as PageFurnitureItem[])[0]).toBe(false);
+    wrapper.unmount();
+  });
+});

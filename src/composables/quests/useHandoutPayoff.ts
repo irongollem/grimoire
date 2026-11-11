@@ -1,5 +1,5 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
-import { useScriptoriumDocuments } from "@/composables/scriptorium/useScriptorium";
+import { useScriptoriumDocuments } from "@/scriptorium/composables/useScriptorium";
 
 /**
  * What a `give_handout` payoff needs from the Scriptorium, shared by the beat

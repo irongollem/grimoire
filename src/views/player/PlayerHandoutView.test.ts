@@ -2,7 +2,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { ref, toValue } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PlayerHandoutView from "./PlayerHandoutView.vue";
-import type { PlayerHandout } from "@/types/scriptorium.types";
+import type { PlayerHandout } from "@/scriptorium/types";
 
 const mocks = vi.hoisted(() => ({ markRead: vi.fn(), chapterRef: null as unknown, state: { doc: null as unknown, loading: false, current: null as { value: unknown } | null } }));
 
@@ -11,7 +11,7 @@ vi.mock("vue-router", async (importOriginal) => ({
   useRoute: () => ({ params: { id: "h1" } }),
   useRouter: () => ({ push: vi.fn() }),
 }));
-vi.mock("@/composables/scriptorium/usePlayerHandouts", () => ({
+vi.mock("@/scriptorium/composables/usePlayerHandouts", () => ({
   usePlayerHandout: (_id: unknown, chapterId: unknown) => {
     const data = ref(mocks.state.doc);
     mocks.state.current = data;

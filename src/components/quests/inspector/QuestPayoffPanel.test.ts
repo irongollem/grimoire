@@ -53,7 +53,7 @@ vi.mock("@/composables/npcs/useNpcs", () => ({
 vi.mock("@/composables/items/useItemIndex", () => ({
   useItemIndex: () => ({ data: { value: [{ id: "item-1", name: "Tally-stick", campaign_id: "campaign-1" }] } }),
 }));
-vi.mock("@/composables/scriptorium/useScriptorium", () => ({
+vi.mock("@/scriptorium/composables/useScriptorium", () => ({
   useScriptoriumDocuments: () => ({ data: { value: [
     { id: "doc-map", title: "The smuggler's map", campaign_id: "campaign-1" },
     { id: "doc-shared", title: "A letter from nowhere", campaign_id: null },

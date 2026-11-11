@@ -39,6 +39,27 @@ module.exports = {
       to: { path: "^src/stores/" },
     },
     {
+      name: "scriptorium-lib-no-upper-layers",
+      severity: "error",
+      comment:
+        "The Scriptorium module keeps its own layering (#1176): its lib, illuminator lib and Tiptap extensions sit below its composables, components and views, and below the app's composables and stores.",
+      // A Tiptap extension may import the Vue component that renders its node
+      // view (entityEmbed -> EntityEmbedView), as a node-view extension does; it still
+      // may not reach composables, stores or views.
+      from: { path: "^src/scriptorium/(lib|illuminator/lib|tiptap)/" },
+      to: {
+        path: "^src/(scriptorium/(composables|components|views|illuminator/components|stores)/|composables/|stores/)",
+        pathNot: "^src/scriptorium/components/EntityEmbedView\\.vue$",
+      },
+    },
+    {
+      name: "scriptorium-stores-no-composables",
+      severity: "error",
+      comment: "The Scriptorium's UI store sits below composables, as every store does.",
+      from: { path: "^src/scriptorium/stores/" },
+      to: { path: "^src/(scriptorium/composables/|composables/)" },
+    },
+    {
       name: "stores-no-composables",
       severity: "error",
       comment: "Stores sit below composables; a store importing one inverts the layering.",

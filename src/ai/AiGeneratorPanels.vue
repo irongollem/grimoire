@@ -81,7 +81,7 @@ const RecipeGeneratorPanel = lazyPanel(() => import("@/components/crafting/Recip
 const CustomClassGeneratorPanel = lazyPanel(() => import("@/components/levelup/CustomClassGeneratorPanel.vue"));
 const CustomSubclassGeneratorPanel = lazyPanel(() => import("@/components/levelup/CustomSubclassGeneratorPanel.vue"));
 const ClassFeatureGeneratorPanel = lazyPanel(() => import("@/components/features/ClassFeatureGeneratorPanel.vue"));
-const ScriptoriumDraftDialog = lazyPanel(() => import("@/components/scriptorium/ScriptoriumDraftDialog.vue"));
+const ScriptoriumDraftDialog = lazyPanel(() => import("@/scriptorium/components/ScriptoriumDraftDialog.vue"));
 const AddSoundDialog = lazyPanel(() => import("@/components/soundboard/AddSoundDialog.vue"));
 
 const generatorsUi = useGeneratorUiStore();

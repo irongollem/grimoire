@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 
 const documents = ref<{ id: string; title: string; campaign_id: string | null }[] | undefined>(undefined);
-vi.mock("@/composables/scriptorium/useScriptorium", () => ({
+vi.mock("@/scriptorium/composables/useScriptorium", () => ({
   useScriptoriumDocuments: () => ({ data: documents }),
 }));
 

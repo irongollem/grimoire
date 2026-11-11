@@ -11,7 +11,7 @@ export interface StealPost {
   id: string;
   /** The demo row the handout embeds. */
   entity: { type: "monster" | "item" | "npc"; name: string };
-  /** The page's look (`src/lib/scriptorium/looks.ts`): a book look, so it reads as a published supplement, not an in-game prop. */
+  /** The page's look (`src/scriptorium/lib/looks.ts`): a book look, so it reads as a published supplement, not an in-game prop. */
   look: "onednd2024" | "phb2014";
   /** Fixed so re-running replaces the handout instead of adding another. */
   documentId: string;
