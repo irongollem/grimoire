@@ -37,19 +37,22 @@
     <template v-if="!isPlayer">
       <div v-if="isLoading && rawHtml === undefined" class="sc-entity-embed-loading">Loading&hellip;</div>
       <!-- eslint-disable-next-line vue/no-v-html -- sanitized via sanitizeHtml() in processedHtml -->
-      <div v-else class="sc-entity-embed-body" v-html="processedHtml" />
+      <div v-else class="sc-entity-embed-body" v-html="shownHtml" />
     </template>
     <!-- eslint-disable-next-line vue/no-v-html -- sanitized via sanitizeHtml() in processedHtml -->
-    <div v-else-if="rawHtml" class="sc-entity-embed-body" v-html="processedHtml" />
+    <div v-else-if="rawHtml" class="sc-entity-embed-body" v-html="shownHtml" />
   </NodeViewWrapper>
 </template>
 
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
+import { computed, inject, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue";
 import { useRouter } from "vue-router";
 import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useConfirm } from "@/composables/useConfirm";
+import { PRINTED_BOOK_KEY } from "@/scriptorium/composables/usePrintedBook";
+import { applyEntryFit } from "@/scriptorium/lib/entryFit";
+import { remeasurePages } from "@/scriptorium/lib/remeasurePages";
 import { usePlayerEntityEmbed } from "@/scriptorium/composables/usePlayerEntityEmbed";
 import { useEntityEmbedData } from "@/scriptorium/composables/useEntityEmbedData";
 import {
@@ -174,6 +177,22 @@ const processedHtml = computed(() =>
   buildProcessedHtml(rawHtml.value ?? missingEntityMarkerHtml(entityType.value), nodeOptions.value),
 );
 
+// What the entry shows is the processed body with the fit the printer gave it, so it takes the room it takes
+// on its page. Detach keeps the processed body alone: a fit is a property of one page, not of the content.
+const printed = inject(PRINTED_BOOK_KEY, null);
+const shownHtml = computed(() => {
+  const id: unknown = props.node.attrs.blockId;
+  const fit = typeof id === "string" ? printed?.entryFits.value.get(id) : undefined;
+  if (!fit) return processedHtml.value;
+  const container = document.createElement("div");
+  container.innerHTML = processedHtml.value;
+  applyEntryFit(container, fit);
+  return container.innerHTML;
+});
+
+// The printer's fit arrives after the entry is drawn, and changes how full its page is.
+watch(shownHtml, () => remeasurePages(props.editor), { flush: "post" });
+
 const ENTITY_ROUTES: Record<Exclude<EntityEmbedType, "location">, string> = {
   npc: "/npcs",
   monster: "/monsters",
@@ -238,16 +257,33 @@ async function detach() {
   position: relative;
 }
 
+/* Open and Detach hang over the entry's top edge when it is hovered or selected. They take no
+   room: the printed entry has no toolbar, so a toolbar in the flow made the entry taller than
+   its page (#1176). */
 .sc-entity-embed-toolbar {
-  display: flex;
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  z-index: 3;
+  display: none;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
   margin-bottom: 0.25rem;
   padding: 0.15rem 0.4rem;
   border-radius: 0.25rem;
-  background: color-mix(in oklab, var(--primary) 8%, transparent);
-  border: 1px dashed color-mix(in oklab, var(--primary) 35%, transparent);
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+.sc-entity-embed:hover > .sc-entity-embed-toolbar,
+.sc-entity-embed:focus-within > .sc-entity-embed-toolbar,
+.sc-entity-embed.ProseMirror-selectednode > .sc-entity-embed-toolbar {
+  display: flex;
+}
+
+/* The printed entry has its content directly inside it; this wrapper only holds it. */
+.sc-entity-embed-body {
+  display: contents;
 }
 
 .sc-entity-embed-badge {

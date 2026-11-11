@@ -115,8 +115,8 @@ const revealSummary = computed(() =>
 
 const SIZE_OPTIONS: SegmentedOption<EntityEmbedSize>[] = [
   { value: "auto", label: "Auto", tooltip: "Size itself from how much this stat block holds" },
-  { value: "column", label: "Column", tooltip: "Always one column-width block" },
-  { value: "wide", label: "Wide", tooltip: "Always span both page columns" },
+  { value: "column", label: "One column", tooltip: "Always one column-width block" },
+  { value: "wide", label: "Full width", tooltip: "Always span both page columns" },
 ];
 const ART_OPTIONS: SegmentedOption<EntityArtChoice>[] = [
   { value: "auto", label: "Auto", tooltip: "The cutout when there is one, otherwise the picture" },

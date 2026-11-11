@@ -55,6 +55,7 @@ import { lexer } from "marked";
 import type { Token, Tokens } from "marked";
 import type { JSONContent } from "@tiptap/core";
 import type { CoverPageVariant } from "@/lib/tiptap/nodeViewTypes";
+import { COVER_SHADES, type CoverShade } from "@/scriptorium/lib/coverMarkup";
 
 // ── Inline tokens → text/hardBreak nodes ────────────────────────────────────
 
@@ -521,10 +522,18 @@ const COVER_VARIANTS: readonly CoverPageVariant[] = ["front", "inside", "part", 
 /**
  * `::: cover front|inside|part|back` with `key: value` lines (`title`,
  * `subtitle`, `part`, `blurb1`..`blurb3`, `tagline`, `url`, `image`, `alt`,
- * `scrim`). Every text the node shows is set, empty when the directive leaves
+ * `scrim`, `shade`). Every text the node shows is set, empty when the directive leaves
  * it out, so a template's placeholder ("Document Title") never reaches a
  * printed book. `image` / `alt` resolve like an art slot's `existing` / `alt`.
  */
+/** `shade: none|dusk|parchment`; the older `scrim: false` means none. Dusk otherwise. */
+function coverShadeField(fields: Map<string, string>): CoverShade {
+  const shade = field(fields, "shade")?.toLowerCase();
+  const named = COVER_SHADES.find((s) => s === shade);
+  if (named) return named;
+  return field(fields, "scrim")?.toLowerCase() === "false" ? "none" : "dusk";
+}
+
 function coverNodes(source: string, args: string[], options: MarkdownImportOptions): JSONContent[] {
   const fields = keyValueLines(source);
   const variant = COVER_VARIANTS.find((v) => v === args[0]?.toLowerCase()) ?? "front";
@@ -547,7 +556,7 @@ function coverNodes(source: string, args: string[], options: MarkdownImportOptio
         tagline: text("tagline"),
         productUrl: text("url"),
         backgroundImage: found ? found.src : "",
-        titleScrim: field(fields, "scrim")?.toLowerCase() !== "false",
+        shade: coverShadeField(fields),
       },
     },
   ];

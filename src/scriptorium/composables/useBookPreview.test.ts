@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   nextResolve: null as ((v: { total: number }) => void) | null,
   previewTargets: [] as HTMLElement[],
   nextReject: null as ((e: Error) => void) | null,
+  extraHtml: "",
 }));
 
 vi.mock("pagedjs", () => ({
@@ -30,7 +31,7 @@ vi.mock("pagedjs", () => ({
         mocks.nextResolve = (v: { total: number }) => {
           const area = document.createElement("div");
           area.className = "pagedjs_pages";
-          area.innerHTML = '<div class="pagedjs_page"><div class="pagedjs_pagebox"></div></div>'.repeat(v.total);
+          area.innerHTML = '<div class="pagedjs_page"><div class="pagedjs_pagebox"></div></div>'.repeat(v.total) + mocks.extraHtml;
           renderTo.appendChild(area);
           resolve(v);
         };
@@ -41,6 +42,7 @@ vi.mock("pagedjs", () => ({
 }));
 
 import { useBookPreview } from "./useBookPreview";
+import { PRINTED_BOOK_KEY, createPrintedBook } from "./usePrintedBook";
 import type { BookLayoutSettings } from "@/scriptorium/lib/bookLayout/types";
 
 const SETTINGS: BookLayoutSettings = {
@@ -49,6 +51,8 @@ const SETTINGS: BookLayoutSettings = {
   showPageNumbers: true,
   pageNumberStart: 1,
   footerText: "",
+  footerTitle: "chapter",
+  bookTitle: "The Book",
   inkFriendly: false,
   theme: "onednd2024",
 };
@@ -286,6 +290,33 @@ describe("useBookPreview scheduling", () => {
     settle();
     await flushPromises();
     expect(afterRender).toHaveBeenCalledWith(container.value, expect.objectContaining({ pageCount: 3 }));
+    host.unmount();
+  });
+});
+
+describe("useBookPreview printed book (#1176)", () => {
+  // Fails on: the editor's contents page never hearing what the layout wrote, so it stays empty or stale.
+  it("hands the printed contents to the book editor after a layout", async () => {
+    const book = createPrintedBook();
+    const content = ref("");
+    const container = ref<HTMLElement | null>(document.createElement("div"));
+    const host = mount(
+      defineComponent({
+        setup() {
+          useBookPreview({ chapters: () => [{ id: "c1", html: content.value }], changes: () => content.value, settings: () => SETTINGS, stylesheets: () => [], container });
+          return () => h("div");
+        },
+      }),
+      { global: { provide: { [PRINTED_BOOK_KEY as symbol]: book } } },
+    );
+    content.value = "<p>a</p>";
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(600);
+    mocks.extraHtml = '<nav class="sc-toc"><ol class="sc-toc-list"><li class="sc-toc-item">One</li></ol></nav>';
+    settle();
+    await flushPromises();
+    mocks.extraHtml = "";
+    expect(book.contents.value).toContain("One");
     host.unmount();
   });
 });

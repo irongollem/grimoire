@@ -5,6 +5,7 @@ import EntityEmbedView from "./EntityEmbedView.vue";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { EMBED_DETACH_EVENT, EMBED_OPEN_EVENT } from "@/scriptorium/lib/panel/embedSignals";
 import ScriptoriumDocumentView from "./ScriptoriumDocumentView.vue";
+import { PRINTED_BOOK_KEY, createPrintedBook } from "@/scriptorium/composables/usePrintedBook";
 import type { JSONContent } from "@tiptap/core";
 import type { ReadableBook } from "@/scriptorium/types";
 
@@ -183,5 +184,38 @@ describe("EntityEmbedView as the DM edits it", () => {
     expect(insertContentAt).toHaveBeenCalledTimes(1);
     expect(insertContentAt.mock.calls[0][0]).toEqual({ from: 7, to: 8 });
     expect(insertContentAt.mock.calls[0][1]).toContain("Owlbear");
+  });
+});
+
+describe("EntityEmbedView drawn as it prints (#1176)", () => {
+  const ENTRY = '<h1>Owlbear</h1><section class="sc-statblock-entry sc-statblock-entry--column"><div class="sc-statblock sc-statblock--column"><p>AC 12</p></div><img class="sc-entity-art" src="a.webp"></section>';
+
+  function mountFitted(fit: boolean) {
+    mocks.dmData.mockReturnValue({ lookup: ref({ "monster:e1": ENTRY }), isLoading: ref(false) });
+    const book = createPrintedBook();
+    if (fit) book.entryFits.value = new Map([["b1", { size: "wide", artMaxHeight: "96px", marginBottom: "0px", split: false }]]);
+    return mount(EntityEmbedView, {
+      props: {
+        node: { attrs: { entityType: "monster", entityId: "e1", blockId: "b1" }, nodeSize: 1 },
+        editor: { isEditable: true, isDestroyed: true },
+        updateAttributes: vi.fn(),
+        getPos: () => 1,
+      } as never,
+      global: { provide: { [PRINTED_BOOK_KEY as symbol]: book }, stubs: { NodeViewWrapper: { template: "<div><slot /></div>" } } },
+    });
+  }
+
+  // Fails on: the editor's entry keeping its full-height art and column size after the printer shrank and widened it.
+  it("takes the size and art height the printer fitted it to", () => {
+    const wrapper = mountFitted(true);
+    expect(wrapper.find(".sc-statblock-entry").classes()).toContain("sc-statblock-entry--wide");
+    expect(wrapper.find<HTMLElement>("img").element.style.maxHeight).toBe("96px");
+  });
+
+  // Fails on: an entry no layout has fitted yet being changed.
+  it("is drawn as the entity makes it until a layout has fitted it", () => {
+    const wrapper = mountFitted(false);
+    expect(wrapper.find(".sc-statblock-entry").classes()).toContain("sc-statblock-entry--column");
+    expect(wrapper.find<HTMLElement>("img").element.style.maxHeight).toBe("");
   });
 });

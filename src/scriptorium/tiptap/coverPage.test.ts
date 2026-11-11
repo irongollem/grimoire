@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
 import { generateHTML, generateJSON } from "@tiptap/core";
-import { buildFront, buildBack } from "./coverPage";
+import { buildFront, buildBack, buildCoverInner, coverShade } from "./coverPage";
 import type { CoverPageAttrs } from "./coverPage";
 import { createScriptoriumExtensions } from "@/scriptorium/lib/scriptoriumExtensions";
 
@@ -18,7 +18,8 @@ const base: CoverPageAttrs = {
   tagline: "",
   productUrl: "",
   backgroundImage: "",
-  titleScrim: true,
+  titlePlace: "bottom",
+  shade: "dusk",
 };
 
 /** Flatten the ProseMirror render spec into a list of (tag, style, src). */
@@ -52,17 +53,17 @@ describe("buildFront cover art", () => {
   });
 
   it("adds the legibility scrim by default when art is set", () => {
-    const all = flattenAll(buildFront({ ...base, backgroundImage: "art.png", titleScrim: true }));
+    const all = flattenAll(buildFront({ ...base, backgroundImage: "art.png" }));
     expect(all.some((n) => n.style.includes("linear-gradient"))).toBe(true);
   });
 
-  it("omits the scrim when the author turns it off", () => {
-    const all = flattenAll(buildFront({ ...base, backgroundImage: "art.png", titleScrim: false }));
+  it("omits the shade when the author chooses None", () => {
+    const all = flattenAll(buildFront({ ...base, backgroundImage: "art.png", shade: "none" }));
     expect(all.some((n) => n.style.includes("linear-gradient"))).toBe(false);
   });
 
   it("has no scrim and no art image when there is no background art", () => {
-    const all = flattenAll(buildFront({ ...base, backgroundImage: "", titleScrim: true }));
+    const all = flattenAll(buildFront({ ...base, backgroundImage: "" }));
     expect(all.some((n) => n.tag === "img")).toBe(false);
     expect(all.some((n) => n.style.includes("linear-gradient"))).toBe(false);
   });
@@ -145,15 +146,6 @@ describe("cover tagline — no invented text", () => {
 });
 
 describe("cover attributes survive storage", () => {
-  it("keeps a switched-off title scrim off after a trip through HTML", () => {
-    const html = generateHTML(
-      { type: "doc", content: [{ type: "coverPage", attrs: { variant: "front", titleScrim: false } }] },
-      EXT,
-    );
-    const back = generateJSON(html, EXT);
-    expect(back.content?.[0]?.attrs?.titleScrim).toBe(false);
-  });
-
   it("reads a cover with no stored variant as a front cover", () => {
     const json = generateJSON('<div data-type="coverPage"></div>', EXT);
     expect(json.content?.[0]?.attrs?.variant).toBe("front");
@@ -175,5 +167,73 @@ describe("cover art image opt-out from the generic paged image cap (#915 story 6
     );
     expect(front).toContain('class="sc-cover-art"');
     expect(inside).toContain('class="sc-cover-art"');
+  });
+});
+
+// The cover's shade and title place replaced the on/off scrim switch (#1176 frame 05).
+describe("cover shade", () => {
+  // Fails on: a stored cover that has no shade attr (or a bad one) drawing no shade.
+  it("draws a cover with no valid shade as dusk, and parses one as dusk", () => {
+    expect(coverShade({ shade: "neon" as never })).toBe("dusk");
+    const json = generateJSON('<div data-type="coverPage"></div>', EXT);
+    expect(json.content?.[0]?.attrs?.shade).toBe("dusk");
+  });
+
+  // Fails on: Dusk rendering a different gradient than the cover printed before the shade existed.
+  it("keeps the dusk-at-the-bottom look the covers always had", () => {
+    const all = flattenAll(buildFront({ ...base, backgroundImage: "art.png" }));
+    const shade = all.find((n) => n.style.includes("linear-gradient"));
+    expect(shade?.style).toContain("linear-gradient(to top,rgba(0,0,0,0.68) 0%,rgba(0,0,0,0.3) 28%,rgba(0,0,0,0) 55%)");
+  });
+
+  // Fails on: the title place being ignored, or the shade not following it.
+  it("sets the title and its shade where the writer put them", () => {
+    const top = flattenAll(buildFront({ ...base, backgroundImage: "art.png", titlePlace: "top" }));
+    expect(top.some((n) => n.style.includes("justify-content:flex-start"))).toBe(true);
+    expect(top.find((n) => n.style.includes("linear-gradient"))?.style).toContain("to bottom");
+    const middle = flattenAll(buildFront({ ...base, backgroundImage: "art.png", titlePlace: "middle" }));
+    expect(middle.some((n) => n.style.includes("justify-content:center"))).toBe(true);
+  });
+
+  // Fails on: ink-coloured type kept off a parchment shade (pale type on pale paper), or dark type left on dusk.
+  it("sets the title in ink on a parchment shade and light on dusk", () => {
+    const paper = flattenAll(buildFront({ ...base, backgroundImage: "art.png", shade: "parchment" }));
+    expect(paper.find((n) => n.tag === "h1")?.style).toContain("color:var(--sc-ink,#1a1a1a)");
+    const dusk = flattenAll(buildFront({ ...base, backgroundImage: "art.png" }));
+    expect(dusk.find((n) => n.tag === "h1")?.style).toContain("var(--sc-accent-contrast");
+  });
+
+  // Fails on: a chosen shade being lost in a trip through HTML.
+  it("keeps a chosen shade through HTML", () => {
+    const html = generateHTML(
+      { type: "doc", content: [{ type: "coverPage", attrs: { variant: "front", shade: "parchment" } }] },
+      EXT,
+    );
+    expect(generateJSON(html, EXT).content?.[0]?.attrs).toMatchObject({ shade: "parchment" });
+  });
+});
+
+describe("cover fields (the words typed on the cover)", () => {
+  // Fails on: the printed cover carrying editor-only markers, or the editor's cover missing the words it edits.
+  it("marks the words as fields only when the editor draws the cover", () => {
+    const printed = JSON.stringify(buildCoverInner("front", { ...base, backgroundImage: "art.png" }));
+    expect(printed).not.toContain("data-field");
+    const editing = JSON.stringify(buildCoverInner("front", { ...base, backgroundImage: "art.png" }, true));
+    expect(editing).toContain('"data-field":"title"');
+    expect(editing).toContain('"data-field":"subtitle"');
+  });
+
+  // Fails on: an empty series line being impossible to click into on the editor's cover, or printing as an empty line.
+  it("keeps an empty series line to type into in the editor and prints nothing for it", () => {
+    expect(JSON.stringify(buildFront({ ...base, tagline: "" }))).not.toContain("letter-spacing:0.25em");
+    expect(JSON.stringify(buildFront({ ...base, tagline: "" }, true))).toContain('"data-field":"tagline"');
+  });
+
+  // Fails on: a back cover missing a field the panel's dialog had (blurbs, link).
+  it("a back cover has every word as a field", () => {
+    const fields = JSON.stringify(buildCoverInner("back", { ...base, variant: "back" }, true));
+    for (const f of ["subtitle", "blurb1", "blurb2", "blurb3", "tagline", "productUrl"]) expect(fields).toContain(`"data-field":"${f}"`);
+    const part = JSON.stringify(buildCoverInner("part", { ...base, variant: "part" }, true));
+    expect(part).toContain('"data-field":"partNumber"');
   });
 });

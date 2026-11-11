@@ -499,7 +499,7 @@ describe("::: cover", () => {
       type: "coverPage",
       attrs: {
         variant: "front", title: "Sothery", subtitle: "A Campaign Setting", partNumber: "", blurb1: "", blurb2: "", blurb3: "",
-        tagline: "", productUrl: "", backgroundImage: "https://cdn/x.webp", titleScrim: true,
+        tagline: "", productUrl: "", backgroundImage: "https://cdn/x.webp", shade: "dusk",
       },
     });
   });
@@ -511,7 +511,7 @@ describe("::: cover", () => {
     expect(attrs.blurb1).toBe("One.");
     expect(attrs.productUrl).toBe("");
     expect(attrs.title).toBe("");
-    expect(attrs.titleScrim).toBe(false);
+    expect(attrs.shade).toBe("none");
   });
 
   it("reads the variant and scrim case-insensitively, and the part number", () => {
@@ -519,7 +519,14 @@ describe("::: cover", () => {
     expect(attrs.variant).toBe("part");
     expect(attrs.partNumber).toBe("Two");
     expect(attrs.blurb3).toBe("");
-    expect(attrs.titleScrim).toBe(false);
+    expect(attrs.shade).toBe("none");
+  });
+
+  // Fails on: a named shade in the import being ignored, or an unknown one reaching the node.
+  it("reads a named shade, and falls back to dusk for an unknown one", () => {
+    const shade = (v: string) => markdownToScriptoriumContent(`::: cover front\nshade: ${v}\n:::`).content![0].attrs!.shade;
+    expect(shade("Parchment")).toBe("parchment");
+    expect(shade("neon")).toBe("dusk");
   });
 
   it("asks for each cover's picture under its own slug, with the cover's alt text", () => {

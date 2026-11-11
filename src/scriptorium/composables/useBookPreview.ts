@@ -13,9 +13,10 @@
  * starts the next one.
  */
 
-import { ref, shallowRef, watch, onUnmounted } from "vue";
+import { getCurrentInstance, inject, ref, shallowRef, watch, onUnmounted } from "vue";
 import type { Ref } from "vue";
 import type { PagedStylesheet } from "pagedjs";
+import { PRINTED_BOOK_KEY, recordPrintedBook } from "@/scriptorium/composables/usePrintedBook";
 import { createBookLayout } from "@/scriptorium/lib/bookLayout/createBookLayout";
 import type {
   BookChapterInput,
@@ -75,6 +76,9 @@ export function yieldToBrowser(): Promise<void> {
 export function useBookPreview(opts: UseBookPreviewOptions) {
   const { chapters, changes, settings, stylesheets, container, debounceMs = 600, afterRender } = opts;
 
+  // The book editor hands down where the editor reads what the printed book says (usePrintedBook).
+  const printed = getCurrentInstance() ? inject(PRINTED_BOOK_KEY, null) : null;
+
   const pageCount = ref(0);
   const layoutMs = ref(0);
   const isRendering = ref(false);
@@ -130,6 +134,7 @@ export function useBookPreview(opts: UseBookPreviewOptions) {
       result.value = laidOut;
       pageCount.value = laidOut.pageCount;
       layoutMs.value = laidOut.layoutMs;
+      if (printed) recordPrintedBook(printed, el);
       afterRender?.(el, laidOut);
     } catch (e: unknown) {
       if (token === renderToken) {

@@ -77,9 +77,9 @@ defineOptions({ inheritAttrs: false });
 // site stays `string[]` — a union model would force every boolean call site
 // to accept string[] in its ref, which is a lie at 97 of the 100 sites.
 //
-// The model stays strictly `boolean | string[]` — NOT `| undefined`. Four call
-// sites bind an optional flag (`fx.dcAddTracker?`, `d.isLeapOnly?`,
-// `local.titleScrim?`); they spell the tri-state → binary conversion out at the
+// The model stays strictly `boolean | string[]` — NOT `| undefined`. Call
+// sites that bind an optional flag (`fx.dcAddTracker?`, `d.isLeapOnly?`)
+// spell the tri-state → binary conversion out at the
 // site with `:model-value="x ?? false"` rather than having it widen the emit
 // payload here, which would hand every one of the other sites a
 // `boolean | undefined` their handlers would then have to re-narrow.

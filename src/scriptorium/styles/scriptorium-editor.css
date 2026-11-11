@@ -10,8 +10,8 @@
  *   1. the sheet itself: the real page, its size, margins and type (#1175)
  *   2. editor-only affordances: placeholder, selection outlines, markers
  *      that take no room (page and column breaks, spacers, numbering), and
- *      collapsed placeholders for what only a laid-out page can draw (covers,
- *      the table of contents).
+ *      the boxes of the covers and the contents page, which are drawn as they
+ *      print (#1176).
  *
  * All rules are scoped under .phb-editor. Imported globally from main.css
  * (after the theme files, so equal-specificity affordances win the cascade).
@@ -211,47 +211,51 @@
   pointer-events: none;
 }
 
-/* ── Cover page atom (collapsed placeholder card) ────────────────────────── */
-/* The real cover is a full-page art layout — it renders correctly in the book
-   preview. In the narrow galley that full design just overflows into a mess,
-   so here we collapse the cover to a clean labelled placeholder. The cover's
-   inner uses inline styles, so the children must be hidden with !important. */
+/* ── Cover page: the printed cover, with its words typed on it (#1176) ───── */
+/* The cover is drawn by CoverPageView with the markup the page prints, so only
+   its box is set here: a whole sheet, bleeding past the text margins the way the
+   printed cover bleeds past the page's. The negative margins give the margins
+   back, so the cover fills its page exactly and the flow's gap after it is the
+   same as it is after a full page of text. Its height is the paged
+   stylesheet's (the page less 4px). */
 .phb-editor .ProseMirror div[data-type="coverPage"] {
-  position: relative !important;
-  inset: auto !important;
-  /* The paged stylesheet sets .sc-cover { height } and Paged.js injects it
-     globally; override it so the galley placeholder stays compact. */
-  height: auto !important;
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  min-height: 5rem;
-  margin: 0.75rem 0;
-  padding: 1.25rem;
-  border: 2px dashed color-mix(in srgb, var(--sc-accent) 40%, transparent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--sc-accent) 6%, var(--sc-page-bg));
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: var(--sc-page-width);
+  height: calc(var(--sc-page-height) - 4px);
+  margin: calc(-1 * var(--sc-margin-top)) 0 calc(-1 * var(--sc-margin-bottom) - 2px) calc(-1 * var(--sc-margin-left));
   overflow: hidden;
   cursor: default;
 }
-.phb-editor .ProseMirror div[data-type="coverPage"]::before {
-  content: attr(data-variant) " cover: click, then “Cover” in the toolbar to add art and edit";
-  font-family: var(--sc-heading-font, "Cinzel", serif);
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: capitalize;
-  color: color-mix(in srgb, var(--sc-accent) 75%, var(--sc-ink));
-  text-align: center;
-  pointer-events: none;
+/* The sheet's picture cap (above) is for pictures in the text; the art fills the cover, as the paged
+   stylesheet lets it (.sc-cover-art). */
+.phb-editor .ProseMirror div[data-type="coverPage"] img.sc-cover-art {
+  max-width: none;
+  max-height: none;
 }
-/* A cover that already has art says so, rather than inviting the DM to add
-   what is there (#915 story 6: the Sugarwell covers both read "add art"). */
-.phb-editor .ProseMirror div[data-type="coverPage"][data-backgroundImage]:not([data-backgroundImage=""])::before {
-  content: attr(data-variant) " cover, with art: click, then “Cover” in the toolbar to edit";
+.phb-editor .ProseMirror div[data-type="coverPage"].ProseMirror-selectednode {
+  /* The cover fills the sheet: its outline sits inside it. */
+  outline-offset: -3px;
 }
-.phb-editor .ProseMirror div[data-type="coverPage"] > * {
-  display: none !important;
+/* A word on the cover is text you click and type; the box shows only while you do. */
+.phb-editor .ProseMirror div[data-type="coverPage"] [data-field] {
+  cursor: text;
+  outline: 1.5px solid transparent;
+  outline-offset: 2px;
+  border-radius: 2px;
+  min-width: 2ch;
+}
+.phb-editor .ProseMirror div[data-type="coverPage"] [data-field]:hover {
+  outline-color: color-mix(in srgb, var(--ring) 55%, transparent);
+}
+.phb-editor .ProseMirror div[data-type="coverPage"] [data-field]:focus {
+  outline-color: var(--ring);
+}
+.phb-editor .ProseMirror div[data-type="coverPage"] [data-field]:empty::before {
+  content: attr(data-placeholder);
+  font-style: italic;
+  opacity: 0.55;
 }
 
 /* ── Page numbering markers ──────────────────────────────────────────────
@@ -289,24 +293,34 @@
   content: "reset \2116";
 }
 
-/* ── Table of contents placeholder ──────────────────────────────────────── */
+/* ── Table of contents: the printed list (#1176) ─────────────────────────── */
+/* ContentsView draws the contents the layout wrote, with the look's own rules
+   (.sc-toc in theme-base.css). It has no text of its own, so a hovered or
+   selected contents page says where it comes from, hung over the page and
+   out of the flow. */
 .phb-editor .ProseMirror nav[data-type="toc"] {
-  display: block;
-  border: 1px dashed color-mix(in srgb, var(--sc-ink) 35%, transparent);
-  border-radius: 4px;
-  padding: 0.75rem 1rem;
-  margin: 0.75rem 0;
+  position: relative;
+  cursor: default;
+}
+.phb-editor .ProseMirror nav[data-type="toc"] .sc-toc-note {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 2.5rem;
+  z-index: 4;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--card-foreground);
   font-family: system-ui, sans-serif;
   font-size: 0.75rem;
-  text-align: center;
-  letter-spacing: 0.05em;
-  color: color-mix(in srgb, var(--sc-ink) 45%, transparent);
+  line-height: 1.45;
+  pointer-events: none;
 }
-.phb-editor .ProseMirror nav[data-type="toc"] > * {
-  display: none;
-}
-.phb-editor .ProseMirror nav[data-type="toc"]::after {
-  content: "Table of Contents (auto-generated on preview)";
+.phb-editor .ProseMirror nav[data-type="toc"]:hover .sc-toc-note,
+.phb-editor .ProseMirror nav[data-type="toc"].ProseMirror-selectednode .sc-toc-note {
+  display: block;
 }
 
 /* ── ProseMirror selection outline ──────────────────────────────────────── */

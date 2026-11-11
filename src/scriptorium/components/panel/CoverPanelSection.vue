@@ -5,30 +5,40 @@
     <PanelSection>
       <h2 class="text-eyebrow uppercase text-primary">Cover</h2>
       <p class="text-body text-foreground">{{ variantLabel }}</p>
+      <p class="text-caption text-muted-foreground">{{ writtenOnCover }} Everything else about the cover is here.</p>
     </PanelSection>
 
-    <PanelSection v-if="variant === 'front' || variant === 'inside'" title="Words">
-      <PanelField label="Title">
-        <AppInput :model-value="text('title')" tone="muted" size="body" placeholder="Document Title" @update:model-value="set('title', $event)" />
-      </PanelField>
-      <PanelField label="Subtitle">
-        <AppInput :model-value="text('subtitle')" tone="muted" size="body" placeholder="An Unofficial Homebrew Supplement" @update:model-value="set('subtitle', $event)" />
-      </PanelField>
+    <PanelSection v-if="variant !== 'part'" title="Art">
+      <AppButton variant="ghost" size="inline-xs" :icon="IconLibrary" label="Browse library" class="self-start" @click="showArtPicker = true" />
+      <ImageUpload
+        :model-value="text('backgroundImage') || null"
+        bucket="asset-images"
+        :aspect="variant === 'back' ? 'landscape' : 'portrait'"
+        :placeholder="variant === 'back' ? 'Drop back cover art or click to upload' : 'Drop cover art or click to upload'"
+        @update:model-value="set('backgroundImage', $event ?? '')"
+      />
     </PanelSection>
 
-    <PanelSection v-else-if="variant === 'part'" title="Words">
+    <template v-if="variant === 'front'">
+      <PanelSection>
+        <PanelField label="Title sits">
+          <SegmentedControl :model-value="titlePlace" :options="PLACE_OPTIONS" size="xs" block @update:model-value="set('titlePlace', $event)" />
+        </PanelField>
+      </PanelSection>
+      <PanelSection v-if="text('backgroundImage')">
+        <PanelField label="Shade under the title">
+          <SegmentedControl :model-value="shade" :options="SHADE_OPTIONS" size="xs" block @update:model-value="set('shade', $event)" />
+        </PanelField>
+      </PanelSection>
+    </template>
+
+    <PanelSection v-if="variant === 'part'" title="Words">
       <PanelField label="Part number">
         <AppInput :model-value="text('partNumber')" tone="muted" size="body" placeholder="I" @update:model-value="set('partNumber', $event)" />
       </PanelField>
-      <PanelField label="Subtitle">
-        <AppInput :model-value="text('subtitle')" tone="muted" size="body" placeholder="Chapter Title or Section Name" @update:model-value="set('subtitle', $event)" />
-      </PanelField>
     </PanelSection>
 
-    <PanelSection v-else title="Words">
-      <PanelField label="Subtitle">
-        <AppInput :model-value="text('subtitle')" tone="muted" size="body" placeholder="Document Title" @update:model-value="set('subtitle', $event)" />
-      </PanelField>
+    <PanelSection v-else-if="variant === 'back'" title="Words">
       <PanelField v-for="blurb in BLURBS" :key="blurb.key" :label="blurb.label">
         <textarea
           :value="text(blurb.key)"
@@ -46,46 +56,42 @@
       </PanelField>
     </PanelSection>
 
-    <PanelSection v-if="variant !== 'part'" title="Background art">
-      <AppButton variant="ghost" size="inline-xs" :icon="IconLibrary" label="Browse library" class="self-start" @click="showArtPicker = true" />
-      <ImageUpload
-        :model-value="text('backgroundImage') || null"
-        bucket="asset-images"
-        :aspect="variant === 'back' ? 'landscape' : 'portrait'"
-        :placeholder="variant === 'back' ? 'Drop back cover art or click to upload' : 'Drop cover art or click to upload'"
-        @update:model-value="set('backgroundImage', $event ?? '')"
-      />
-      <AppCheckbox
-        v-if="variant === 'front' && text('backgroundImage')"
-        size="sm"
-        label="Darken behind the title"
-        hint="Adds a soft gradient under the title so it reads. Turn off if your art already leaves room for it."
-        :model-value="attrs.titleScrim !== false"
-        @update:model-value="set('titleScrim', $event)"
-      />
+    <PanelSection>
+      <PanelField label="Which cover">
+        <SegmentedControl :model-value="variant" :options="VARIANT_OPTIONS" size="xs" block @update:model-value="set('variant', $event)" />
+      </PanelField>
     </PanelSection>
   </div>
 </template>
 
 <script setup lang="ts">
 /**
- * A cover page (#1176, frame 06): front, inside, a part divider or the back.
- * Every field the cover dialog had, edited where it is drawn and applied as
- * you go. There is no Apply or Cancel: the chapter saves itself, and undo takes
+ * A cover page (#1176, frame 05): front, inside, a part divider or the back.
+ * The title and subtitle (and the part number's and back cover's other words
+ * that sit as text) are typed on the cover; the art, where the title sits, its
+ * shade and which cover it is live here. Applied as you go. There is no Apply or Cancel: the chapter saves itself, and undo takes
  * a change back.
  */
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import { fieldVariants } from "@/components/common/controls/fieldVariants";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import ImageUpload from "@/components/common/media/ImageUpload.vue";
 import ArtPickerModal from "@/components/common/overlays/ArtPickerModal.vue";
 import PanelField from "@/scriptorium/components/panel/PanelField.vue";
 import PanelSection from "@/scriptorium/components/panel/PanelSection.vue";
 import { cn } from "@/lib/utils";
 import { IconLibrary } from "@/lib/icons";
-import type { CoverPageAttrs, CoverPageVariant } from "@/scriptorium/tiptap/coverPage";
+import {
+  COVER_SHADES,
+  COVER_TITLE_PLACES,
+  coverShade,
+  type CoverPageAttrs,
+  type CoverPageVariant,
+  type CoverShade,
+  type CoverTitlePlace,
+} from "@/scriptorium/lib/coverMarkup";
 
 const { attrs } = defineProps<{ attrs: Readonly<Record<string, unknown>> }>();
 const emit = defineEmits<{ update: [patch: Partial<CoverPageAttrs>] }>();
@@ -102,6 +108,32 @@ const variant = computed<CoverPageVariant>(() => {
   return VARIANTS.includes(String(v)) ? (v as CoverPageVariant) : "front";
 });
 const variantLabel = computed(() => VARIANT_LABELS[variant.value]);
+const WRITTEN_ON_COVER: Record<CoverPageVariant, string> = {
+  front: "The title and subtitle are text on the cover: click them and type.",
+  inside: "The title and subtitle are text on the cover: click them and type.",
+  part: "The subtitle is text on the cover: click it and type.",
+  back: "The subtitle, blurbs, tagline and link are text on the cover: click them and type.",
+};
+const writtenOnCover = computed(() => WRITTEN_ON_COVER[variant.value]);
+
+const VARIANT_OPTIONS: SegmentedOption<CoverPageVariant>[] = [
+  { value: "front", label: "Front" },
+  { value: "inside", label: "Inside" },
+  { value: "part", label: "Part" },
+  { value: "back", label: "Back" },
+];
+const PLACE_OPTIONS: SegmentedOption<CoverTitlePlace>[] = COVER_TITLE_PLACES.map((value) => ({
+  value,
+  label: value[0].toUpperCase() + value.slice(1),
+}));
+const SHADE_OPTIONS: SegmentedOption<CoverShade>[] = COVER_SHADES.map((value) => ({
+  value,
+  label: value[0].toUpperCase() + value.slice(1),
+}));
+const titlePlace = computed<CoverTitlePlace>(() =>
+  COVER_TITLE_PLACES.includes(attrs.titlePlace as CoverTitlePlace) ? (attrs.titlePlace as CoverTitlePlace) : "bottom",
+);
+const shade = computed(() => coverShade({ shade: attrs.shade as CoverShade }));
 
 type TextKey = "title" | "subtitle" | "partNumber" | "blurb1" | "blurb2" | "blurb3" | "tagline" | "productUrl" | "backgroundImage";
 const BLURBS: { key: TextKey; label: string; rows: number; placeholder: string }[] = [
