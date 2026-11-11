@@ -4,7 +4,7 @@ The Scriptorium is Grimoire's book editor: a document is a book of chapters, a h
 
 ## Folders
 
-- `components/` holds the editor, reader, document list, handout dialogs and inspectors (`chapters/`, `inspect/` inside).
+- `components/` holds the editor, reader, document list, handout dialogs and the panel beside the page (`panel/`, `chapters/`, `inspect/` inside).
 - `composables/` holds the data access and editor state: documents, chapters, PDF export, handout sharing, embeds.
 - `lib/` holds the pure logic: book layout, page flow, furniture, chapters, import, looks and templates (`bookLayout/`, `chapters/`, `furniture/`, `inspect/`, `pageFlow/`).
 - `tiptap/` holds the Tiptap extensions only the Scriptorium uses. Extensions shared with the rich text editor and the viewers stay in `src/lib/tiptap/`.

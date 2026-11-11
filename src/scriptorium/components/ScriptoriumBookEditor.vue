@@ -79,6 +79,9 @@
           @add-furniture="addFurniture"
           @update:furniture="settings.patch({ furniture: $event })"
           @update:selected-furniture-id="selectedFurnitureId = $event"
+          :page-context="pageContext"
+          :panel-hidden="focus"
+          @open-settings="showSettings = true"
         >
           <!-- A handout is one chapter on one paper: it never grows a second (#1115). -->
           <template #footer>
@@ -135,13 +138,6 @@
       </template>
     </ScriptoriumPreviewPane>
 
-  <FurnitureInspector
-    :item="selectedFurniture"
-    @update="updateFurniture"
-    @delete="deleteFurniture"
-    @close="selectedFurnitureId = null"
-  />
-
   <ScriptoriumBookSettings
     :open="showSettings"
     :draft="settings.draft"
@@ -197,7 +193,6 @@ import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import ChapterRail from "@/scriptorium/components/chapters/ChapterRail.vue";
 import InspectNotesDrawer from "@/scriptorium/components/inspect/InspectNotesDrawer.vue";
 import InspectNotesLayer from "@/scriptorium/components/inspect/InspectNotesLayer.vue";
-import FurnitureInspector from "@/scriptorium/components/FurnitureInspector.vue";
 import HandoutAudienceLine from "@/scriptorium/components/HandoutAudienceLine.vue";
 import HandoutShareControl from "@/scriptorium/components/HandoutShareControl.vue";
 import HandoutShareDialog from "@/scriptorium/components/HandoutShareDialog.vue";
@@ -227,13 +222,15 @@ import type { AutosaveStatus } from "@/composables/useAutosave";
 import { IconAdd } from "@/lib/icons";
 import { bundlePreselection } from "@/scriptorium/lib/bundlePreselection";
 import { createFurnitureItem } from "@/scriptorium/lib/furniture/model";
+import { scriptoriumLook } from "@/scriptorium/lib/looks";
+import { paperLine, type PanelPageContext } from "@/scriptorium/lib/panel/pageInfo";
 import { SCRIPTORIUM_THEME_KEY } from "@/scriptorium/lib/scriptoriumTheme";
 import type { BookLayoutResult, BookLayoutSettings } from "@/scriptorium/lib/bookLayout/types";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useScriptoriumUiStore } from "@/scriptorium/stores/ui";
 import type { JSONContent } from "@tiptap/core";
-import type { FurnitureAnchor, FurnitureKind, PageFurnitureItem, ScriptoriumDocument } from "@/scriptorium/types";
+import type { FurnitureAnchor, FurnitureKind, ScriptoriumDocument } from "@/scriptorium/types";
 
 const { doc } = defineProps<{ doc: ScriptoriumDocument }>();
 
@@ -364,6 +361,19 @@ const pagesLabel = computed(() => {
   return range.first === range.last || !range.last ? `Page ${range.first}` : `Pages ${range.first} to ${range.last}`;
 });
 
+/** What the panel says about the open chapter's page: the paper, where the chapter sits, the book's page numbers. */
+const pageContext = computed<PanelPageContext>(() => {
+  const index = chapterList.value.findIndex((c) => c.id === currentId.value);
+  return {
+    paperLabel: paperLine(scriptoriumLook(settings.draft.theme).label, settings.draft.pageSize, settings.draft.isTwoColumn),
+    chapterNumber: index + 1,
+    chapterTitle: chapterList.value[index]?.title ?? "",
+    isHandout: isHandout.value,
+    firstPageLabel: pageRanges.value[currentId.value]?.first ?? null,
+    bookPageCount: layout.value?.pageCount ?? null,
+  };
+});
+
 // ── Save status ─────────────────────────────────────────────────────────────
 const chapterStatus = ref<{ status: AutosaveStatus; error: string }>({ status: "saved", error: "" });
 function onChapterStatus(state: { status: AutosaveStatus; error: string }) {
@@ -428,9 +438,6 @@ function onEditorReady() {
 
 // ── Page furniture ──────────────────────────────────────────────────────────
 const selectedFurnitureId = ref<string | null>(null);
-const selectedFurniture = computed(
-  () => settings.draft.furniture.find((f) => f.id === selectedFurnitureId.value) ?? null,
-);
 function furnitureAnchor(): FurnitureAnchor {
   const blockId = chapterEditor.value?.blockIdAtCursor();
   return blockId ? { type: "block", blockId } : { type: "page", chapterId: currentId.value, page: 1 };
@@ -439,13 +446,6 @@ function addFurniture(kind: FurnitureKind) {
   const item = createFurnitureItem(kind, furnitureAnchor());
   settings.patch({ furniture: [...settings.draft.furniture, item] });
   selectedFurnitureId.value = item.id;
-}
-function updateFurniture(updated: PageFurnitureItem) {
-  settings.patch({ furniture: settings.draft.furniture.map((f) => (f.id === updated.id ? updated : f)) });
-}
-function deleteFurniture(id: string) {
-  settings.patch({ furniture: settings.draft.furniture.filter((f) => f.id !== id) });
-  if (selectedFurnitureId.value === id) selectedFurnitureId.value = null;
 }
 
 // ── Campaign scope ──────────────────────────────────────────────────────────

@@ -1,0 +1,266 @@
+<template>
+  <div class="flex h-full w-80 flex-col overflow-y-auto bg-card" data-testid="scriptorium-panel" :data-selection="selection.kind">
+    <div v-if="closable" class="flex shrink-0 justify-end border-b border-border px-2 py-1">
+      <AppButton variant="ghost" size="icon-xs" :icon="IconClose" aria-label="Close the panel" @click="emit('close')" />
+    </div>
+
+    <ArtPickerModal :show="picker !== null" @select="onArtPicked" @close="picker = null" />
+
+    <PicturePanelSection
+      v-if="picture"
+      :src="picture.src"
+      :layer="picture.layer"
+      :where="picture.where"
+      :node-attrs="picture.nodeAttrs"
+      :item="picture.item"
+      :anchor="picture.anchor"
+      :can-edit="canEditPicture"
+      :edit-hint="editHint"
+      @layer="onLayer"
+      @node-attrs="onNodeAttrs"
+      @item="onItem"
+      @corner="(v) => onCorner(picture?.item ?? null, v)"
+      @stays="(v) => onStays(picture?.item ?? null, v)"
+      @pick="picker = { mode: 'replace' }"
+      @replace="(src) => picture && pictures.replaceSrc(picture.target, src)"
+      @edit="emit('editPicture')"
+      @remove="picture && pictures.remove(picture.target)"
+    />
+
+    <DecorationPanelSection
+      v-else-if="decoration"
+      :item="decoration.item"
+      :anchor="decoration.anchor"
+      @patch="onItem"
+      @corner="(v) => onCorner(decoration?.item ?? null, v)"
+      @stays="(v) => onStays(decoration?.item ?? null, v)"
+      @remove="decoration && pictures.remove({ source: 'furniture', id: decoration.item.id })"
+    />
+
+    <CoverPanelSection v-else-if="node && selection.kind === 'cover'" :attrs="node.attrs" @update="onNodeEdit" />
+
+    <EmbedPanelSection
+      v-else-if="node && selection.kind === 'embed'"
+      :attrs="node.attrs"
+      @update="onNodeEdit"
+      @open="onEmbedSignal(EMBED_OPEN_EVENT)"
+      @detach="onEmbedSignal(EMBED_DETACH_EVENT)"
+    />
+
+    <PagePanelSection
+      v-else
+      :description="description"
+      :paper-label="context.paperLabel"
+      :entries="entries"
+      @open-settings="emit('openSettings')"
+      @select="onEntry"
+      @add-picture="picker = { mode: 'add' }"
+      @add-furniture="(kind) => emit('addFurniture', kind)"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+/**
+ * The panel beside the page (#1176, Scriptorium One Surface): always about the
+ * current selection, or the page when nothing is selected. It chooses the
+ * section and turns each section's events into edits; the sections only draw.
+ * Edits go to the node the selection names, by position, so a field touched
+ * after the cursor moved still changes the thing the panel is showing.
+ */
+import { computed, ref, toRaw } from "vue";
+import type { Editor } from "@tiptap/core";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import ArtPickerModal from "@/components/common/overlays/ArtPickerModal.vue";
+import CoverPanelSection from "@/scriptorium/components/panel/CoverPanelSection.vue";
+import DecorationPanelSection from "@/scriptorium/components/panel/DecorationPanelSection.vue";
+import EmbedPanelSection from "@/scriptorium/components/panel/EmbedPanelSection.vue";
+import PagePanelSection from "@/scriptorium/components/panel/PagePanelSection.vue";
+import PicturePanelSection, { type PictureLayer } from "@/scriptorium/components/panel/PicturePanelSection.vue";
+import type { AnchorState, PictureActions, PictureTarget } from "@/scriptorium/composables/useEditorPictures";
+import type { PanelSelection } from "@/scriptorium/composables/useScriptoriumSelection";
+import { blockPositions } from "@/scriptorium/lib/furniture/editorAnchors";
+import { EMBED_DETACH_EVENT, EMBED_OPEN_EVENT, signalEmbed } from "@/scriptorium/lib/panel/embedSignals";
+import { updateNodeAttrs } from "@/scriptorium/lib/panel/nodeAttrs";
+import { onThisPage, type PageEntry } from "@/scriptorium/lib/panel/onThisPage";
+import { bookPageNumber, describePage, type PanelPageContext } from "@/scriptorium/lib/panel/pageInfo";
+import type { PageBox, PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
+import type { FurnitureKind, PageFurnitureItem } from "@/scriptorium/types";
+import { IconClose } from "@/lib/icons";
+
+const props = defineProps<{
+  selection: PanelSelection;
+  editor: Editor | undefined;
+  /** Bumped on every editor transaction: the editor is not reactive, this is how attrs are re-read. */
+  version: number;
+  chapterId: string;
+  furniture: PageFurnitureItem[];
+  pictures: PictureActions;
+  context: PanelPageContext;
+  /** An image node selected in the text is one the Illuminator can open. */
+  canEditNodePicture: boolean;
+  /** A slide-over has a close button of its own. */
+  closable: boolean;
+}>();
+
+const emit = defineEmits<{
+  close: [];
+  openSettings: [];
+  addFurniture: [kind: FurnitureKind];
+  updateItem: [item: PageFurnitureItem];
+  selectFurniture: [id: string | null];
+  editPicture: [];
+}>();
+
+// A reactive wrapper around the editor would hand ProseMirror proxies of its own state, and a
+// transaction built from one is refused as mismatched: edits always go to the editor itself.
+const rawEditor = computed(() => (props.editor ? toRaw(props.editor) : undefined));
+
+const picker = ref<{ mode: "add" | "replace" } | null>(null);
+
+function pagesOf(ed: Editor): PageBox[] {
+  return (ed.storage as unknown as { pageFlow?: PageFlowStorage }).pageFlow?.pages ?? [];
+}
+
+/** The selected node, re-read on every transaction. */
+const node = computed(() => {
+  void props.version;
+  const ed = rawEditor.value;
+  const sel = props.selection;
+  if (!ed || ed.isDestroyed || !("pos" in sel)) return null;
+  return ed.state.doc.nodeAt(sel.pos);
+});
+
+const selectedItem = computed(() => {
+  const sel = props.selection;
+  return "id" in sel ? (props.furniture.find((f) => f.id === sel.id) ?? null) : null;
+});
+
+const picture = computed(() => {
+  const sel = props.selection;
+  if (sel.kind !== "picture") return null;
+  if (sel.source === "node") {
+    const n = node.value;
+    if (!n || n.type.name !== "image") return null;
+    const src: unknown = n.attrs.src;
+    return {
+      target: { source: "node", pos: sel.pos } as PictureTarget,
+      src: typeof src === "string" ? src : null,
+      layer: "text" as PictureLayer,
+      where: "In the text",
+      nodeAttrs: n.attrs as Record<string, unknown>,
+      item: null,
+      anchor: null,
+    };
+  }
+  const item = selectedItem.value;
+  if (!item) return null;
+  const src = item.props.src;
+  const page = props.pictures.pageOf(item);
+  const inBook = page === null ? null : bookPageNumber(props.context.firstPageLabel, page);
+  return {
+    target: { source: "furniture", id: item.id } as PictureTarget,
+    src: typeof src === "string" && src !== "" ? src : null,
+    layer: item.z as PictureLayer,
+    where: page === null ? "Placed on a page" : `Placed on page ${inBook ?? page}`,
+    nodeAttrs: null,
+    item,
+    anchor: anchorFor(item),
+  };
+});
+
+const decoration = computed(() => {
+  if (props.selection.kind !== "decoration" || !selectedItem.value) return null;
+  return { item: selectedItem.value, anchor: anchorFor(selectedItem.value) };
+});
+
+function anchorFor(item: PageFurnitureItem): AnchorState {
+  void props.version;
+  return props.pictures.anchorState(item);
+}
+
+const canEditPicture = computed(() => picture.value?.target.source === "node" && props.canEditNodePicture);
+const editHint = computed(() =>
+  picture.value?.target.source === "furniture" ? "Coming with the Illuminator move" : "Only pictures in your library can be edited",
+);
+
+function onLayer(value: PictureLayer) {
+  const target = picture.value?.target;
+  if (!target || value === picture.value?.layer) return;
+  if (target.source === "node") {
+    if (value !== "text") props.pictures.placeOnPage(target.pos, value);
+    return;
+  }
+  if (value === "text") {
+    props.pictures.putInText(target.id);
+    return;
+  }
+  const item = picture.value?.item;
+  if (item) emit("updateItem", { ...item, z: value });
+}
+
+/** Writes to the node the selection names; the cover and the entry are edited this way. */
+function onNodeEdit(patch: Record<string, unknown>) {
+  const sel = props.selection;
+  if (rawEditor.value && "pos" in sel) updateNodeAttrs(rawEditor.value, sel.pos, patch);
+}
+const onNodeAttrs = onNodeEdit;
+
+function onEmbedSignal(event: typeof EMBED_OPEN_EVENT | typeof EMBED_DETACH_EVENT) {
+  const sel = props.selection;
+  if (rawEditor.value && sel.kind === "embed") signalEmbed(rawEditor.value, sel.pos, event);
+}
+
+function onCorner(item: PageFurnitureItem | null, value: string | undefined) {
+  if (item) props.pictures.chooseCorner(item, value);
+}
+function onStays(item: PageFurnitureItem | null, value: string | undefined) {
+  if (item) props.pictures.chooseAnchor(item, value);
+}
+
+function onItem(patch: Partial<PageFurnitureItem>) {
+  const item = selectedItem.value;
+  if (item) emit("updateItem", { ...item, ...patch });
+}
+
+function onArtPicked(url: string) {
+  const mode = picker.value?.mode;
+  picker.value = null;
+  if (mode === "add") props.pictures.addArt(url);
+  else if (mode === "replace" && picture.value) props.pictures.replaceSrc(picture.value.target, url);
+}
+
+// ── The page ────────────────────────────────────────────────────────────────
+const pageNumber = computed(() => (props.selection.kind === "page" ? props.selection.page : null) ?? 1);
+
+const description = computed(() => {
+  void props.version;
+  const ed = rawEditor.value;
+  const pageCount = ed && !ed.isDestroyed ? Math.max(1, pagesOf(ed).length) : 1;
+  return describePage(props.context, pageNumber.value, pageCount);
+});
+
+const entries = computed<PageEntry[]>(() => {
+  void props.version;
+  const ed = rawEditor.value;
+  if (!ed || ed.isDestroyed) return [];
+  const blocks = blockPositions(ed);
+  return onThisPage({
+    doc: ed.state.doc,
+    pages: pagesOf(ed),
+    page: pageNumber.value,
+    chapterId: props.chapterId,
+    furniture: props.furniture,
+    blockPos: (id) => blocks.get(id) ?? null,
+  });
+});
+
+function onEntry(entry: PageEntry) {
+  if (entry.kind === "picture" && entry.source === "node") {
+    emit("selectFurniture", null);
+    rawEditor.value?.chain().focus().setNodeSelection(entry.pos).run();
+    return;
+  }
+  if ("id" in entry) emit("selectFurniture", entry.id);
+}
+</script>

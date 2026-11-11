@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { computed, ref } from "vue";
 import EntityEmbedView from "./EntityEmbedView.vue";
 import { placeRoute } from "@/lib/locations/placeRoute";
+import { EMBED_DETACH_EVENT, EMBED_OPEN_EVENT } from "@/scriptorium/lib/panel/embedSignals";
 import ScriptoriumDocumentView from "./ScriptoriumDocumentView.vue";
 import type { JSONContent } from "@tiptap/core";
 import type { ReadableBook } from "@/scriptorium/types";
@@ -111,11 +112,9 @@ describe("EntityEmbedView theme", () => {
 describe("EntityEmbedView as the DM edits it", () => {
   const insertContentAt = vi.fn();
   const chain = { focus: () => chain, insertContentAt: (...args: unknown[]) => { insertContentAt(...args); return chain; }, run: vi.fn() };
-  const updateAttributes = vi.fn();
 
   beforeEach(() => {
     insertContentAt.mockReset();
-    updateAttributes.mockReset();
     mocks.push.mockReset();
     mocks.confirm.mockReset().mockResolvedValue(true);
     mocks.dmData.mockReturnValue({ lookup: ref({ "monster:e1": "<h1>Owlbear</h1>" }), isLoading: ref(false) });
@@ -127,31 +126,22 @@ describe("EntityEmbedView as the DM edits it", () => {
       props: {
         node: { attrs: { entityType: "monster", entityId: "e1", ...attrs }, nodeSize: 1 },
         editor: { isEditable: true, chain: () => chain },
-        updateAttributes,
+        updateAttributes: vi.fn(),
         getPos,
       } as never,
-      global: { stubs: { NodeViewWrapper: { template: "<div><slot /></div>" }, EmbedRevealControl: true } },
+      global: { stubs: { NodeViewWrapper: { template: "<div><slot /></div>" } } },
     });
   }
-  const tool = (w: ReturnType<typeof mountEmbed>, tooltip: string) =>
-    w.findAllComponents({ name: "AppButton" }).find((b) => b.props("tooltip")?.startsWith(tooltip))!;
+  const tool = (w: ReturnType<typeof mountEmbed>, label: string) =>
+    w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === label)!;
 
-  it("switches the art off, on its next press back on, starting from art shown", async () => {
-    const shown = mountEmbed();
-    await tool(shown, "Hide the portrait").trigger("click");
-    expect(updateAttributes).toHaveBeenLastCalledWith({ showArt: false });
-    const hidden = mountEmbed({ showArt: false });
-    await tool(hidden, "Show the portrait").trigger("click");
-    expect(updateAttributes).toHaveBeenLastCalledWith({ showArt: true });
-  });
-
-  it("starts an entry on a new page unless it was set not to", async () => {
-    const fresh = mountEmbed();
-    await tool(fresh, "Start this entry").trigger("click");
-    expect(updateAttributes).toHaveBeenLastCalledWith({ startsPage: false });
-    const following = mountEmbed({ startsPage: false });
-    await tool(following, "Start this entry").trigger("click");
-    expect(updateAttributes).toHaveBeenLastCalledWith({ startsPage: true });
+  // Fails on: the size, art, lore, band and reveal controls coming back onto the page, which the panel beside it now owns.
+  it("keeps only Open and Detach on the page; the other options are chosen in the panel", () => {
+    const labels = mountEmbed()
+      .findAllComponents({ name: "AppButton" })
+      .map((b) => b.props("label"));
+    expect(labels).toEqual(["Open", "Detach…"]);
+    expect(mountEmbed().findComponent({ name: "SegmentedControl" }).exists()).toBe(false);
   });
 
   it("opens a monster by its page and a location by its place route", async () => {
@@ -161,19 +151,34 @@ describe("EntityEmbedView as the DM edits it", () => {
     expect(mocks.push).toHaveBeenLastCalledWith(placeRoute("e1"));
   });
 
+  // Fails on: the panel's Open and Detach buttons doing nothing because the view stopped answering the event.
+  it("answers the panel's open and detach requests on its own element", async () => {
+    const wrapper = mountEmbed({}, () => 7);
+    const entry = wrapper.find(".sc-entity-embed").element;
+    entry.dispatchEvent(new CustomEvent(EMBED_OPEN_EVENT));
+    expect(mocks.push).toHaveBeenLastCalledWith("/monsters/e1");
+    entry.dispatchEvent(new CustomEvent(EMBED_DETACH_EVENT));
+    await flushEditor();
+    expect(mocks.confirm).toHaveBeenCalledTimes(1);
+    expect(insertContentAt).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
+    entry.dispatchEvent(new CustomEvent(EMBED_OPEN_EVENT));
+    expect(mocks.push).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps the link when the detach is cancelled, and when the block has no position", async () => {
     mocks.confirm.mockResolvedValue(false);
-    await tool(mountEmbed(), "Detach").trigger("click");
+    await tool(mountEmbed(), "Detach…").trigger("click");
     await flushEditor();
     expect(insertContentAt).not.toHaveBeenCalled();
     mocks.confirm.mockResolvedValue(true);
-    await tool(mountEmbed({}, () => undefined), "Detach").trigger("click");
+    await tool(mountEmbed({}, () => undefined), "Detach…").trigger("click");
     await flushEditor();
     expect(insertContentAt).not.toHaveBeenCalled();
   });
 
   it("detaches into the content it was showing, in the block's place", async () => {
-    await tool(mountEmbed(), "Detach").trigger("click");
+    await tool(mountEmbed(), "Detach…").trigger("click");
     await flushEditor();
     expect(insertContentAt).toHaveBeenCalledTimes(1);
     expect(insertContentAt.mock.calls[0][0]).toEqual({ from: 7, to: 8 });

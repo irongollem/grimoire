@@ -7,89 +7,24 @@
        to resolve a monster/NPC entry's own name heading (raw injected HTML
        with no block id of its own) back to a scrollable target. -->
   <NodeViewWrapper
+    ref="embedRoot"
     as="div"
     class="sc-entity-embed"
     :data-block-id="props.node.attrs.blockId"
     contenteditable="false"
   >
+    <!-- On the page the entry keeps only Open and Detach; everything else is chosen in the panel beside the page. -->
     <div v-if="isEditable && !isPlayer" class="sc-entity-embed-toolbar" contenteditable="false">
       <span class="sc-entity-embed-badge">{{ typeLabel }} · linked</span>
       <div class="sc-entity-embed-actions">
-        <SegmentedControl
-          v-if="showSizeToggle"
-          :model-value="size"
-          :options="SIZE_OPTIONS"
-          size="xs"
-          variant="ghost"
-          @update:model-value="setSize"
-        />
-        <AppButton
-          v-if="showArtToggle"
-          size="xs"
-          variant="ghost"
-          fill="muted"
-          :icon="IconImage"
-          icon-size="xs"
-          :active="showArt"
-          :tooltip="showArt ? 'Hide the portrait/art' : 'Show the portrait/art'"
-          @click="toggleShowArt"
-        />
-        <SegmentedControl
-          v-if="showArtChoiceToggle"
-          :model-value="art"
-          :options="ART_OPTIONS"
-          size="xs"
-          variant="ghost"
-          @update:model-value="setArt"
-        />
-        <AppButton
-          v-if="showLoreToggle"
-          size="xs"
-          variant="ghost"
-          fill="muted"
-          label="Lore"
-          :active="showLore"
-          :tooltip="showLore ? 'Hide the lore text' : 'Show the lore text'"
-          @click="toggleShowLore"
-        />
-        <SegmentedControl
-          v-if="showBandPositionToggle"
-          :model-value="bandPosition"
-          :options="BAND_POSITION_OPTIONS"
-          size="xs"
-          variant="ghost"
-          @update:model-value="setBandPosition"
-        />
-        <AppButton
-          size="xs"
-          variant="ghost"
-          fill="muted"
-          label="New page"
-          :active="startsPage"
-          tooltip="Start this entry on a fresh page; turn off for a variant that follows its family's first entry on the same page"
-          @click="toggleStartsPage"
-        />
-        <EmbedRevealControl
-          :entity-type="entityType"
-          :show-art="showArt"
-          :reveal="reveal"
-          @update:reveal="setReveal"
-        />
-        <AppButton
-          size="xs"
-          variant="ghost"
-          fill="muted"
-          :icon="IconExternalLink"
-          icon-size="xs"
-          tooltip="Open"
-          @click="openEntity"
-        />
+        <AppButton size="xs" variant="ghost" fill="muted" :icon="IconExternalLink" icon-size="xs" label="Open" @click="openEntity" />
         <AppButton
           size="xs"
           variant="ghost"
           fill="muted"
           :icon="IconScissors"
           icon-size="xs"
+          label="Detach…"
           tooltip="Detach: stops updating from the source"
           @click="detach"
         />
@@ -110,14 +45,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, ref } from "vue";
+import { computed, inject, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
 import { useRouter } from "vue-router";
 import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
-import type { SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import { useConfirm } from "@/composables/useConfirm";
-import EmbedRevealControl from "@/scriptorium/components/EmbedRevealControl.vue";
 import { usePlayerEntityEmbed } from "@/scriptorium/composables/usePlayerEntityEmbed";
 import { useEntityEmbedData } from "@/scriptorium/composables/useEntityEmbedData";
 import {
@@ -127,12 +59,12 @@ import {
   type EmbedNodeOptions,
 } from "@/scriptorium/lib/entityEmbeds";
 import type { EntityArtChoice } from "@/scriptorium/lib/entityArt";
-import type { EntityEmbedReveal } from "@/scriptorium/lib/embedReveal";
 import { SCRIPTORIUM_AUDIENCE_KEY, type ScriptoriumAudience } from "@/scriptorium/lib/audience";
 import { SCRIPTORIUM_THEME_KEY } from "@/scriptorium/lib/scriptoriumTheme";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { placeRoute } from "@/lib/locations/placeRoute";
-import { IconExternalLink, IconScissors, IconImage } from "@/lib/icons";
+import { IconExternalLink, IconScissors } from "@/lib/icons";
+import { EMBED_DETACH_EVENT, EMBED_OPEN_EVENT } from "@/scriptorium/lib/panel/embedSignals";
 import type { EntityEmbedType, EntityEmbedSize } from "@/lib/tiptap/nodeViewTypes";
 import type { ScriptoriumTheme } from "@/scriptorium/types";
 
@@ -143,74 +75,17 @@ const router = useRouter();
 const isEditable = computed(() => props.editor.isEditable);
 const entityType = computed(() => props.node.attrs.entityType as EntityEmbedType);
 const entityId = computed(() => props.node.attrs.entityId as string);
+
+// What the entry shows is chosen in the panel beside the page (size, art, lore,
+// band); this view only draws it, from the node's live attrs. Each default is
+// what a node that never set the option means.
 const size = computed(() => (props.node.attrs.size as EntityEmbedSize | undefined) ?? "auto");
-// Only a monster/NPC's linked embed renders as a stat block at all — sizing a
-// spell/item/location/quest embed is meaningless, so the toggle only shows
-// for the two entity types scriptoriumImport.ts frames as a stat block.
-const showSizeToggle = computed(() => entityType.value === "monster" || entityType.value === "npc");
-const SIZE_OPTIONS: SegmentedOption<EntityEmbedSize>[] = [
-  { value: "auto", label: "Auto", tooltip: "Size itself from how much this stat block holds" },
-  { value: "column", label: "Column", tooltip: "Always one column-width block" },
-  { value: "wide", label: "Wide", tooltip: "Always span both page columns" },
-];
-function setSize(next: EntityEmbedSize) {
-  props.updateAttributes({ size: next });
-}
-
-// showArt affects the monster and NPC entry compositions (scriptoriumImport.ts,
-// #917 story 4) — both now emit their art via entityArtFiguresHtml(), so both
-// can be hidden per node the same way. Every other embedded entity (spell,
-// item, location, quest) has no art figure to toggle at all.
-// Deities, species and factions print a plain picture, so they get the on/off toggle but not the cutout choice.
-const ART_TYPES: readonly EntityEmbedType[] = ["monster", "npc", "deity", "species", "faction"];
-const showArtToggle = computed(() => ART_TYPES.includes(entityType.value));
 const showArt = computed(() => (props.node.attrs.showArt as boolean | undefined) ?? true);
-function toggleShowArt() {
-  props.updateAttributes({ showArt: !showArt.value });
-}
-
-// Which of the (up to two) resolved figures an entry shows (#917 story 2,
-// extended to NPCs in story 4) — only meaningful while art is shown at all,
-// and only for the entity types entityArt.ts's cutout/picture figures apply
-// to (monster, npc).
-const showArtChoiceToggle = computed(
-  () => (entityType.value === "monster" || entityType.value === "npc") && showArt.value,
-);
 const art = computed(() => (props.node.attrs.art as EntityArtChoice | undefined) ?? "auto");
-const ART_OPTIONS: SegmentedOption<EntityArtChoice>[] = [
-  { value: "auto", label: "Auto", tooltip: "The cutout when there is one, otherwise the picture" },
-  { value: "cutout", label: "Cutout", tooltip: "The creature on a transparent background" },
-  { value: "picture", label: "Picture", tooltip: "The full picture with its background" },
-];
-function setArt(next: EntityArtChoice) {
-  props.updateAttributes({ art: next });
-}
-
-// showLore/bandPosition are monster-only too (#915 story 6 round 2) — the
-// two-cell grid / band composition they affect only exists for a monster
-// entry's own layout.
-const showLoreToggle = computed(() => entityType.value === "monster");
 const showLore = computed(() => (props.node.attrs.showLore as boolean | undefined) ?? true);
-function toggleShowLore() {
-  props.updateAttributes({ showLore: !showLore.value });
-}
-
-const showBandPositionToggle = computed(() => entityType.value === "monster");
 const bandPosition = computed(
   () => (props.node.attrs.bandPosition as "top" | "bottom" | undefined) ?? "top",
 );
-const BAND_POSITION_OPTIONS: SegmentedOption<"top" | "bottom">[] = [
-  { value: "top", label: "Top", tooltip: "Band first, art/lore below (default)" },
-  { value: "bottom", label: "Bottom", tooltip: "Art/lore first, band below, a wide entry only" },
-];
-function setBandPosition(next: "top" | "bottom") {
-  props.updateAttributes({ bandPosition: next });
-}
-
-const startsPage = computed(() => (props.node.attrs.startsPage as boolean | undefined) ?? true);
-function toggleStartsPage() {
-  props.updateAttributes({ startsPage: !startsPage.value });
-}
 
 const TYPE_LABELS: Record<EntityEmbedType, string> = {
   npc: "NPC",
@@ -299,11 +174,6 @@ const processedHtml = computed(() =>
   buildProcessedHtml(rawHtml.value ?? missingEntityMarkerHtml(entityType.value), nodeOptions.value),
 );
 
-const reveal = computed(() => (props.node.attrs.reveal as EntityEmbedReveal | null | undefined) ?? null);
-function setReveal(next: EntityEmbedReveal | null) {
-  props.updateAttributes({ reveal: next });
-}
-
 const ENTITY_ROUTES: Record<Exclude<EntityEmbedType, "location">, string> = {
   npc: "/npcs",
   monster: "/monsters",
@@ -323,6 +193,25 @@ function openEntity() {
   }
   void router.push(`${ENTITY_ROUTES[entityType.value]}/${entityId.value}`);
 }
+
+// The panel beside the page asks this entry to open or detach by event (see embedSignals.ts).
+const embedRoot = useTemplateRef<{ $el: HTMLElement }>("embedRoot");
+let listening: HTMLElement | null = null;
+function onOpenSignal() {
+  openEntity();
+}
+function onDetachSignal() {
+  void detach();
+}
+onMounted(() => {
+  listening = embedRoot.value?.$el ?? null;
+  listening?.addEventListener(EMBED_OPEN_EVENT, onOpenSignal);
+  listening?.addEventListener(EMBED_DETACH_EVENT, onDetachSignal);
+});
+onBeforeUnmount(() => {
+  listening?.removeEventListener(EMBED_OPEN_EVENT, onOpenSignal);
+  listening?.removeEventListener(EMBED_DETACH_EVENT, onDetachSignal);
+});
 
 async function detach() {
   const ok = await confirm(

@@ -1,65 +1,91 @@
 <template>
-  <div class="flex min-h-0 min-w-0 flex-1 flex-col bg-card">
+  <div ref="rootRef" class="flex min-h-0 min-w-0 flex-1 flex-col bg-card">
     <ScriptoriumEditorToolbar
       :editor="editor"
       :show-block-picker="showBlockPicker"
-      :show-cover-inspector="showCoverInspector"
-      :selected-image-is-supabase="selectedImageIsSupabase"
-      :has-doc="true"
       @open-asset-panel="showAssetPanel = true"
       @open-block-picker="showBlockPicker = true"
-      @open-cover-inspector="showCoverInspector = true"
-      @edit-in-illuminator="editInIlluminator"
-      :can-place-on-page="flow !== null"
-      @place-on-page="placeOnPage"
+      @show-cover="dismissedKey = null"
     />
 
-    <!-- The themed galley: the sc-theme and look classes pull the book's own
-         styling (src/scriptorium/styles/) onto the page being written. -->
-    <div ref="scrollRef" class="relative min-h-0 flex-1 overflow-auto px-4 py-6">
-      <!-- The sheet is the real page, drawn at a display scale by a transform,
-           never CSS `zoom` (it lays text out again at the scaled size and a
-           line can break differently). The box around it takes the scaled size
-           so the scroll area matches what is drawn. -->
-      <div class="mx-auto" :style="scaleBoxStyle">
-        <div
-          ref="sheetRef"
-          class="relative origin-top-left"
-          :style="{ width: `${geometry.width}px`, transform: `scale(${sheetScale})` }"
-          :data-scale="sheetScale"
-          @pointermove="onSheetPointerMove"
-          @pointerleave="onSheetPointerLeave"
-        >
-          <EditorContent
-            :editor="editor"
-            class="phb-editor sc-theme"
-            :class="[
-              scriptoriumThemeClass(theme),
-              { 'ink-friendly': inkFriendly, 'sc-sheet--column-strip': isTwoColumn },
-            ]"
-            :style="sheetStyle"
-            data-testid="chapter-editor"
-          />
-          <EditorFurnitureLayer
-            ref="furnitureLayerRef"
-            :editor="editor"
-            :chapter-id="chapter.id"
-            :furniture="furniture"
-            :selected-id="selectedFurnitureId"
-            :geometry="sheetGeometry"
-            @moved="onFurnitureMoved"
-            @update:furniture="emit('update:furniture', $event)"
-          />
+    <div class="flex min-h-0 flex-1">
+      <!-- The themed galley: the sc-theme and look classes pull the book's own
+           styling (src/scriptorium/styles/) onto the page being written. -->
+      <div ref="scrollRef" class="relative min-h-0 min-w-0 flex-1 overflow-auto px-4 py-6">
+        <!-- The sheet is the real page, drawn at a display scale by a transform,
+             never CSS `zoom` (it lays text out again at the scaled size and a
+             line can break differently). The box around it takes the scaled size
+             so the scroll area matches what is drawn. -->
+        <div class="mx-auto" :style="scaleBoxStyle">
+          <div
+            ref="sheetRef"
+            class="relative origin-top-left"
+            :style="{ width: `${geometry.width}px`, transform: `scale(${sheetScale})` }"
+            :data-scale="sheetScale"
+            @pointermove="onSheetPointerMove"
+            @pointerleave="onSheetPointerLeave"
+          >
+            <EditorContent
+              :editor="editor"
+              class="phb-editor sc-theme"
+              :class="[
+                scriptoriumThemeClass(theme),
+                { 'ink-friendly': inkFriendly, 'sc-sheet--column-strip': isTwoColumn },
+              ]"
+              :style="sheetStyle"
+              data-testid="chapter-editor"
+            />
+            <EditorFurnitureLayer
+              ref="furnitureLayerRef"
+              :editor="editor"
+              :chapter-id="chapter.id"
+              :furniture="furniture"
+              :selected-id="selectedFurnitureId"
+              :geometry="sheetGeometry"
+              @moved="onFurnitureMoved"
+              @update:furniture="emit('update:furniture', $event)"
+            />
+          </div>
         </div>
+        <!-- AI Enhance: rewrite the selection, on credits (#992) -->
+        <TextEnhanceBubble
+          v-if="editor && enhanceAvailable"
+          :editor="editor"
+          context="Scriptorium document"
+          :style-hint="SCRIPTORIUM_STYLE[docType]"
+          :context-radius="CONTEXT_RADIUS"
+        />
       </div>
-      <!-- AI Enhance: rewrite the selection, on credits (#992) -->
-      <TextEnhanceBubble
-        v-if="editor && enhanceAvailable"
-        :editor="editor"
-        context="Scriptorium document"
-        :style-hint="SCRIPTORIUM_STYLE[docType]"
-        :context-radius="CONTEXT_RADIUS"
-      />
+
+      <!-- The panel beside the page, never over it. From 87.5rem it is always there; below that it
+           opens when something is selected and the page gives it room (it shrinks to fit), and
+           closes when the writer clicks back into the text or presses its close button. Focus hides it. -->
+      <aside
+        v-if="!panelHidden"
+        aria-label="Page panel"
+        data-testid="panel-aside"
+        :inert="panelOpen ? undefined : true"
+        class="shrink-0 overflow-hidden border-border bg-card transition-[width] duration-200 motion-reduce:transition-none"
+        :class="panelOpen ? 'w-80 border-l' : 'w-0'"
+      >
+        <ScriptoriumPanel
+          :selection="selection"
+          :editor="editor"
+          :version="selectionVersion"
+          :chapter-id="chapter.id"
+          :furniture="furniture"
+          :pictures="pictures"
+          :context="pageContext"
+          :can-edit-node-picture="selectedImageIsSupabase"
+          :closable="!wide"
+          @close="closePanel"
+          @open-settings="emit('openSettings')"
+          @add-furniture="emit('addFurniture', $event)"
+          @update-item="updateItem"
+          @select-furniture="emit('update:selectedFurnitureId', $event)"
+          @edit-picture="editInIlluminator"
+        />
+      </aside>
     </div>
 
     <footer class="flex shrink-0 items-center gap-4 border-t border-border bg-muted/20 px-4 py-1.5">
@@ -93,11 +119,6 @@
       @select="editor?.chain().focus().setImage({ src: $event }).run()"
       @close="showArtPicker = false"
     />
-    <CoverPageInspector
-      :show="showCoverInspector"
-      :editor="editor ?? null"
-      @close="showCoverInspector = false"
-    />
   </div>
 </template>
 
@@ -118,17 +139,16 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import type { JSONContent } from "@tiptap/core";
-import { NodeSelection } from "@tiptap/pm/state";
+import { useMediaQuery } from "@vueuse/core";
 import { prefersReducedMotion } from "@/lib/motion";
 import { createScriptoriumExtensions } from "@/scriptorium/lib/scriptoriumExtensions";
-import { PageFlow, offsetWithin, pageAt, type PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
+import { PageFlow } from "@/scriptorium/tiptap/pageFlow";
 import { FurnitureUnderlay } from "@/scriptorium/tiptap/furnitureUnderlay";
-import { createFurnitureItem } from "@/scriptorium/lib/furniture/model";
-import { blockTopPct, neighbourBlockId, placementFromBox } from "@/scriptorium/lib/furniture/editorPages";
-import { offsetFromDrawnTop } from "@/scriptorium/lib/furniture/anchorOffset";
-import { blockPositions, blockTopPx } from "@/scriptorium/lib/furniture/editorAnchors";
 import { movedNoticeText } from "@/scriptorium/lib/furniture/movedNotice";
 import { useFurnitureEditing } from "@/scriptorium/composables/useFurnitureEditing";
+import { useEditorPictures } from "@/scriptorium/composables/useEditorPictures";
+import { selectionKey, useScriptoriumSelection } from "@/scriptorium/composables/useScriptoriumSelection";
+import type { PanelPageContext } from "@/scriptorium/lib/panel/pageInfo";
 import EditorFurnitureLayer from "@/scriptorium/components/EditorFurnitureLayer.vue";
 import type { ChapterFlow } from "@/scriptorium/lib/pageFlow/types";
 import { useAutosave, type AutosaveStatus } from "@/composables/useAutosave";
@@ -144,10 +164,9 @@ import TextEnhanceBubble from "@/components/common/ai/TextEnhanceBubble.vue";
 import ArtPickerModal from "@/components/common/overlays/ArtPickerModal.vue";
 import AssetInsertPanel from "@/scriptorium/components/AssetInsertPanel.vue";
 import BlockPickerPanel from "@/scriptorium/components/BlockPickerPanel.vue";
-import CoverPageInspector from "@/scriptorium/components/CoverPageInspector.vue";
+import ScriptoriumPanel from "@/scriptorium/components/panel/ScriptoriumPanel.vue";
 import ScriptoriumEditorToolbar from "@/scriptorium/components/ScriptoriumEditorToolbar.vue";
 import type {
-  FurnitureAnchor,
   FurnitureKind,
   PageFurnitureItem,
   ScriptoriumChapter,
@@ -168,6 +187,8 @@ const {
   flow = null,
   furniture,
   selectedFurnitureId,
+  pageContext,
+  panelHidden = false,
 } = defineProps<{
   chapter: ScriptoriumChapter;
   documentId: string;
@@ -183,6 +204,10 @@ const {
   /** The book's page furniture: pictures placed on pages, drawn on the editor's pages in Split. */
   furniture: PageFurnitureItem[];
   selectedFurnitureId: string | null;
+  /** What the panel says about the page: the paper, the chapter's place, the book's page numbers. */
+  pageContext: PanelPageContext;
+  /** Focus hides the panel with the chapter list. */
+  panelHidden?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -196,6 +221,8 @@ const emit = defineEmits<{
   addFurniture: [kind: FurnitureKind];
   "update:furniture": [items: PageFurnitureItem[]];
   "update:selectedFurnitureId": [id: string | null];
+  /** The panel's "Book settings" link. */
+  openSettings: [];
 }>();
 
 const geometry = computed(() => pageGeometry(pageSize, isTwoColumn));
@@ -238,7 +265,6 @@ watch(geometry, () => measureSheet(), { flush: "post" });
 
 const showAssetPanel = ref(false);
 const showBlockPicker = ref(false);
-const showCoverInspector = ref(false);
 const showArtPicker = ref(false);
 
 const wordCount = ref(countWords(chapter.content));
@@ -400,56 +426,6 @@ function onSheetPointerLeave() {
 }
 onUnmounted(() => cancelAnimationFrame(hoverFrame));
 
-/**
- * Turn the selected picture into art placed on its page: same place, same
- * width, in front of the text, and selected so it can be dragged at once. Only
- * offered while the editor shows the laid-out pages (the toolbar disables it in
- * Write mode), so there is always a page to measure it against.
- */
-function placeOnPage() {
-  const ed = editor.value;
-  if (!ed || ed.isDestroyed) return;
-  const { selection } = ed.state;
-  if (!(selection instanceof NodeSelection) || selection.node.type.name !== "image") return;
-  const src: unknown = selection.node.attrs.src;
-  if (typeof src !== "string") return;
-
-  const pages = (ed.storage as unknown as { pageFlow?: PageFlowStorage }).pageFlow?.pages ?? [];
-  const page = pageAt(pages, selection.from);
-  const $from = ed.state.doc.resolve(selection.from);
-  let anchor: FurnitureAnchor = { type: "page", chapterId: chapter.id, page: 1 };
-  let placed: { x?: number; y?: number; width?: number } = {};
-  if (page) {
-    // An image inside a paragraph belongs to that block; a block image to its neighbour.
-    const own: unknown = $from.depth >= 1 ? $from.node(1).attrs.blockId : null;
-    const siblings = Array.from({ length: ed.state.doc.childCount }, (_, i) => {
-      const id: unknown = ed.state.doc.child(i).attrs.blockId;
-      return typeof id === "string" && id ? id : null;
-    });
-    const blockId = typeof own === "string" && own ? own : neighbourBlockId(siblings, $from.index(0));
-    anchor = blockId ? { type: "block", blockId } : { type: "page", chapterId: chapter.id, page: page.page };
-    const dom = ed.view.nodeDOM(selection.from);
-    if (dom instanceof HTMLElement) {
-      // The image may be wrapped; the picture itself is what is drawn.
-      const img = dom instanceof HTMLImageElement ? dom : (dom.querySelector("img") ?? dom);
-      const { top, left } = offsetWithin(img, ed.view.dom as HTMLElement);
-      placed = placementFromBox({ top, left, width: img.offsetWidth }, page, sheetGeometry.value);
-      // A picture that follows a paragraph is written as an offset from that paragraph's top, so the
-      // paragraph moving to another page takes the picture with it to the same place beside it.
-      if (anchor.type === "block" && placed.y !== undefined) {
-        const blockPos = blockPositions(ed).get(anchor.blockId);
-        const blockPx = blockPos === undefined ? null : blockTopPx(ed, blockPos);
-        const blockPct = blockPx === null ? null : blockTopPct(blockPx, page, sheetGeometry.value);
-        if (blockPct !== null) placed = { ...placed, y: offsetFromDrawnTop(placed.y, blockPct) };
-      }
-    }
-  }
-  const item = createFurnitureItem("art", anchor, { ...placed, z: "over", props: { src } });
-  ed.chain().focus().deleteSelection().run();
-  emit("update:furniture", [...furniture, item]);
-  emit("update:selectedFurnitureId", item.id);
-}
-
 /** The footer line shown for a few seconds after a layout carries a picture to another page. */
 const movedNotice = ref("");
 const NOTICE_MS = 6000;
@@ -466,6 +442,55 @@ const { selectedImageIsSupabase, editInIlluminator } = useScriptoriumIlluminator
   computed(() => documentId),
   computed(() => chapter.id),
 );
+
+// ── The panel beside the page (#1176) ───────────────────────────────────────
+const rootRef = ref<HTMLElement | null>(null);
+const { selection, version: selectionVersion } = useScriptoriumSelection({
+  editor,
+  furniture: () => {
+    const item = furniture.find((f) => f.id === selectedFurnitureId);
+    return item ? { id: item.id, kind: item.kind } : null;
+  },
+});
+const pictures = useEditorPictures({
+  editor,
+  chapterId: () => chapter.id,
+  geometry: () => sheetGeometry.value,
+  furniture: () => furniture,
+  setFurniture: (items) => emit("update:furniture", items),
+  select: (id) => emit("update:selectedFurnitureId", id),
+  sheet: () => sheetRef.value,
+});
+function updateItem(item: PageFurnitureItem) {
+  emit("update:furniture", furniture.map((f) => (f.id === item.id ? item : f)));
+}
+
+/** From this width the page and the panel sit side by side with room to spare; below it the panel comes and goes. */
+const wide = useMediaQuery("(width >= 87.5rem)");
+/** The selection the writer closed the panel on; a different selection opens it again. */
+const dismissedKey = ref<string | null>(null);
+const closedOn = computed(() => selectionKey(selection.value));
+const panelOpen = computed(() => {
+  if (wide.value) return true;
+  return selection.value.kind !== "page" && dismissedKey.value !== closedOn.value;
+});
+function closePanel() {
+  dismissedKey.value = closedOn.value;
+}
+// Clicking back into the text ends the dismissal: the same picture selected later opens the panel again.
+watch(selection, (now) => {
+  if (now.kind === "page") dismissedKey.value = null;
+});
+
+// The two-column warning offers "Place it on the page instead": it asks from inside the text, by event.
+function onPlaceOnPage(event: Event) {
+  if (!(event instanceof CustomEvent)) return;
+  const detail: unknown = event.detail;
+  const pos = typeof detail === "object" && detail !== null && "pos" in detail ? detail.pos : null;
+  if (typeof pos === "number") pictures.placeOnPage(pos);
+}
+onMounted(() => rootRef.value?.addEventListener("sc-place-on-page", onPlaceOnPage));
+onUnmounted(() => rootRef.value?.removeEventListener("sc-place-on-page", onPlaceOnPage));
 
 const SCRIPTORIUM_STYLE: Partial<Record<ScriptoriumDocType, string>> = {
   spell:

@@ -87,10 +87,16 @@ const Rail = defineComponent({
   },
 });
 const Editor = defineComponent({
-  props: ["chapter", "flow"],
-  setup(_p, { expose, slots }) {
+  props: ["chapter", "flow", "panelHidden", "pageContext"],
+  emits: ["openSettings"],
+  setup(_p, { expose, slots, emit }) {
     expose({ saveNow: mocks.saveNow, hold: mocks.hold, release: vi.fn(), focusBlock: mocks.focusBlock, blockIdAtCursor: () => null, dirty: false });
-    return () => h("div", { "data-testid": "chapter-editor-stub", "data-flow": _p.flow ? "yes" : "no" }, slots.footer?.());
+    return () =>
+      h(
+        "div",
+        { "data-testid": "chapter-editor-stub", "data-flow": _p.flow ? "yes" : "no", "data-panel-hidden": String(_p.panelHidden) },
+        [slots.footer?.(), h("button", { "data-testid": "panel-settings", onClick: () => emit("openSettings") })],
+      );
   },
 });
 const Pane = defineComponent({
@@ -140,7 +146,6 @@ function open() {
         InspectNotesLayer: true,
         ScriptoriumBookSettings: true,
         ScriptoriumExportDialog: true,
-        FurnitureInspector: true,
         HandoutShareDialog: true,
         HandoutShareControl: true,
         HandoutAudienceLine: true,
@@ -209,6 +214,28 @@ describe("ScriptoriumBookEditor", () => {
     await wrapper.find("[data-testid=focus]").trigger("click");
     expect(wrapper.find("[data-testid=rail]").exists()).toBe(false);
     expect(localStorage.getItem("grimoire:scriptorium:focus")).toBe("true");
+  });
+
+  // Fails on: Focus hiding the chapter list but leaving the panel on screen.
+  it("Focus hides the panel with the chapter list", async () => {
+    const wrapper = open();
+    await flushPromises();
+    const hidden = () => wrapper.find("[data-testid=chapter-editor-stub]").attributes("data-panel-hidden");
+    expect(hidden()).toBe("false");
+    await wrapper.find("[data-testid=focus]").trigger("click");
+    expect(hidden()).toBe("true");
+  });
+
+  // Fails on: the panel's Book settings link opening nothing, or the page saying the wrong chapter.
+  it("tells the panel the paper and the chapter it is on, and opens the book settings from its link", async () => {
+    mocks.query = { chapter: "c2" };
+    const wrapper = open();
+    await flushPromises();
+    const context = wrapper.findComponent(Editor).props("pageContext");
+    expect(context).toMatchObject({ paperLabel: "2024 book · A4 · One column", chapterNumber: 2, chapterTitle: "Two", isHandout: false });
+    expect(wrapper.findComponent(ScriptoriumBookSettings).props("open")).toBe(false);
+    await wrapper.find("[data-testid=panel-settings]").trigger("click");
+    expect(wrapper.findComponent(ScriptoriumBookSettings).props("open")).toBe(true);
   });
 
   // Fails on: Read as spreads not opening, or Close/Escape leaving the writer inside it.

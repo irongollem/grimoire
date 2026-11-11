@@ -1,0 +1,170 @@
+<template>
+  <div data-testid="panel-picture">
+    <PanelSection>
+      <div class="flex items-center gap-3">
+        <img v-if="src" :src="src" alt="" class="size-14 shrink-0 rounded-sm border border-border bg-muted object-cover" />
+        <div class="min-w-0">
+          <h2 class="text-eyebrow uppercase text-primary">Picture</h2>
+          <p class="text-body text-foreground" data-testid="panel-picture-where">{{ where }}</p>
+        </div>
+      </div>
+    </PanelSection>
+
+    <PanelSection title="Layer">
+      <SegmentedControl :model-value="layer" :options="layerOptions" size="xs" block @update:model-value="emit('layer', $event)" />
+    </PanelSection>
+
+    <!-- In the text: the options the toolbar used to carry. -->
+    <PanelSection v-if="layer === 'text' && nodeAttrs" title="In the text">
+      <PanelField label="Size">
+        <SegmentedControl :model-value="sizeValue" :options="sizeOptions" size="xs" block @update:model-value="emit('nodeAttrs', { width: $event })" />
+      </PanelField>
+      <PanelField label="Align">
+        <SegmentedControl :model-value="alignValue" :options="ALIGN_OPTIONS" size="xs" block @update:model-value="emit('nodeAttrs', { dataAlign: $event, layoutMode: 'inline' })" />
+      </PanelField>
+      <PanelField label="Wrap text">
+        <SegmentedControl :model-value="wrapValue" :options="WRAP_OPTIONS" size="xs" block @update:model-value="emit('nodeAttrs', { layoutMode: $event })" />
+      </PanelField>
+      <template v-if="wrapped">
+        <AppCheckbox
+          size="sm"
+          label="Bleed into the column gutter"
+          :model-value="nodeAttrs.gutterBleed === true"
+          @update:model-value="emit('nodeAttrs', { gutterBleed: $event })"
+        />
+        <AppCheckbox
+          size="sm"
+          label="Keep with its text"
+          hint="In print the picture stays with its paragraph, even a long one."
+          :model-value="nodeAttrs.keepWithText === true"
+          @update:model-value="emit('nodeAttrs', { keepWithText: $event })"
+        />
+      </template>
+    </PanelSection>
+
+    <!-- On the page: behind or in front of the text. -->
+    <PanelSection v-else-if="item && anchor" title="On the page">
+      <PanelRange
+        v-if="layer === 'under'"
+        label="Strength"
+        :model-value="numProp(item.props, 'opacity', DEFAULT_UNDER_ART_OPACITY)"
+        :min="20"
+        :max="100"
+        @update:model-value="emit('item', { props: { ...item.props, opacity: $event } })"
+      />
+      <PlacementFields :item="item" :anchor="anchor" @patch="emit('item', $event)" @corner="emit('corner', $event)" @stays="emit('stays', $event)" />
+      <p class="text-caption italic text-muted-foreground">Drag the picture on the page to move it; drag its corner to resize.</p>
+    </PanelSection>
+
+    <PanelSection>
+      <div class="flex flex-wrap gap-2">
+        <AppButton variant="subtle" size="sm" :icon="IconLibrary" label="Replace…" @click="emit('pick')" />
+        <AppButton variant="link" size="sm" :icon="IconAddImage" label="Upload a file" :active="showUpload" @click="showUpload = !showUpload" />
+        <AppButton
+          variant="subtle"
+          size="sm"
+          :icon="IconExternalLink"
+          label="Edit picture…"
+          :disabled="!canEdit"
+          :tooltip="canEdit ? 'Open it in the Illuminator' : editHint"
+          @click="emit('edit')"
+        />
+      </div>
+      <ImageUpload
+        v-if="showUpload"
+        :model-value="null"
+        bucket="asset-images"
+        placeholder="Drop a picture or click to upload"
+        @update:model-value="onUploaded"
+      />
+      <AppButton variant="destructive" size="sm" :icon="IconDelete" label="Remove picture" @click="emit('remove')" />
+    </PanelSection>
+  </div>
+</template>
+
+<script setup lang="ts">
+/**
+ * A picture, wherever it lives (#1176, frames 04 and 05): an image in the text
+ * or art placed on the page, as one section. The Layer control is the only
+ * thing that says which; what follows changes with it. This component only
+ * draws and reports: moving a picture between its two homes is the editor's.
+ */
+import { computed, ref } from "vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
+import ImageUpload from "@/components/common/media/ImageUpload.vue";
+import PanelField from "@/scriptorium/components/panel/PanelField.vue";
+import PanelRange from "@/scriptorium/components/panel/PanelRange.vue";
+import PanelSection from "@/scriptorium/components/panel/PanelSection.vue";
+import PlacementFields from "@/scriptorium/components/panel/PlacementFields.vue";
+import { IMAGE_SIZES } from "@/scriptorium/lib/editorConstants";
+import { DEFAULT_UNDER_ART_OPACITY } from "@/scriptorium/lib/furniture/renderFurniture";
+import { numProp } from "@/scriptorium/lib/panel/propReaders";
+import type { AnchorState } from "@/scriptorium/composables/useEditorPictures";
+import type { PageFurnitureItem } from "@/scriptorium/types";
+import { IconAddImage, IconDelete, IconExternalLink, IconLibrary } from "@/lib/icons";
+
+export type PictureLayer = "under" | "over" | "text";
+
+const { layer, nodeAttrs = null, item = null, anchor = null } = defineProps<{
+  src: string | null;
+  layer: PictureLayer;
+  /** "Placed on page 16" or "In the text". */
+  where: string;
+  /** The image node's attrs, when the picture is in the text. */
+  nodeAttrs?: Record<string, unknown> | null;
+  /** The art item, when it is placed on the page. */
+  item?: PageFurnitureItem | null;
+  anchor?: AnchorState | null;
+  canEdit: boolean;
+  editHint?: string;
+}>();
+
+const emit = defineEmits<{
+  layer: [value: PictureLayer];
+  nodeAttrs: [patch: Record<string, unknown>];
+  item: [patch: Partial<PageFurnitureItem>];
+  corner: [value: string | undefined];
+  stays: [value: string | undefined];
+  pick: [];
+  replace: [src: string];
+  edit: [];
+  remove: [];
+}>();
+
+const showUpload = ref(false);
+function onUploaded(src: string | null) {
+  if (!src) return;
+  showUpload.value = false;
+  emit("replace", src);
+}
+
+const layerOptions: SegmentedOption<PictureLayer>[] = [
+  { value: "under", label: "Behind the text", tooltip: "On the page, under the words" },
+  { value: "over", label: "In front", tooltip: "On the page, over the words" },
+  { value: "text", label: "In the text", tooltip: "Part of the text: it moves as you write" },
+];
+
+const sizeOptions: SegmentedOption<string>[] = IMAGE_SIZES.map((s) => ({
+  value: String(s.w),
+  label: s.label,
+  tooltip: `${s.w} px wide`,
+}));
+const sizeValue = computed(() => String(nodeAttrs?.width ?? ""));
+
+const ALIGN_OPTIONS: SegmentedOption<string>[] = [
+  { value: "left", label: "Left" },
+  { value: "center", label: "Centre" },
+  { value: "right", label: "Right" },
+];
+const WRAP_OPTIONS: SegmentedOption<string>[] = [
+  { value: "inline", label: "None", tooltip: "The picture stands on its own line" },
+  { value: "wrapLeft", label: "Left", tooltip: "Wrap left: text flows around its right edge" },
+  { value: "wrapRight", label: "Right", tooltip: "Wrap right: text flows around its left edge" },
+];
+const wrapValue = computed(() => String(nodeAttrs?.layoutMode ?? "inline"));
+const wrapped = computed(() => wrapValue.value === "wrapLeft" || wrapValue.value === "wrapRight");
+// Alignment only means something when the picture is not wrapped: wrapping overrides it.
+const alignValue = computed(() => (wrapped.value ? "" : String(nodeAttrs?.dataAlign ?? "right")));
+</script>
