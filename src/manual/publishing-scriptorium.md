@@ -64,7 +64,9 @@ The galley on the left has a full formatting toolbar:
 
 ### Images
 
-Select an image to reveal its own toolbar: size presets (S/M/L/XL), align left/centre/right, wrap-left/wrap-right (text flows around it), an absolute-pin mode with numeric top/left/right/bottom inputs, and a gutter-bleed toggle (in wrap modes) to pin the image to the column edge. If the image came from Grimoire's own storage, an **Edit in Illuminator** button opens it in the [Illuminator](#illuminator-image-effects) for colour grading, vignettes, or edge treatment, with a **Save to Scriptorium** button there to bring the edited version straight back.
+Select an image to reveal its own toolbar: size presets (S/M/L/XL), align left/centre/right, wrap-left/wrap-right (text flows around it), and a gutter-bleed toggle (in wrap modes) to pin the image to the column edge.
+
+To put a picture anywhere on a page, select it in **Split** and press **Place on page**: it stays where it was, and you can now drag it and resize it from its corner, on the page you write on. In the panel that opens you choose whether it sits **in front of** or **behind the text** (behind, it is printed into the paper at a **Strength** you set, so the words over it stay readable), whether it **moves with its paragraph** or **stays on its page**, and you can pin it to one of the page's four corners, flush against both paper edges. Drag a picture near a corner and it snaps there. A picture behind the text is picked up by clicking empty space over it, or by the small **Picture** handle that appears when you point at it; a click on a word over it still puts your cursor in the text. If the image came from Grimoire's own storage, an **Edit in Illuminator** button opens it in the [Illuminator](#illuminator-image-effects) for colour grading, vignettes, or edge treatment, with a **Save to Scriptorium** button there to bring the edited version straight back.
 
 ### Cover pages
 
