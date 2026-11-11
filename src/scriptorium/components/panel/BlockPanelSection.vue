@@ -11,6 +11,11 @@
       <AppButton variant="link" size="sm" label="Book settings" class="self-start" @click="emit('openSettings')" />
     </PanelSection>
 
+    <PanelSection v-if="rows !== null" title="Rows">
+      <SegmentedControl :model-value="rows" :options="ROW_OPTIONS" size="xs" block @update:model-value="(v) => emit('rows', v)" />
+      <p class="text-caption text-muted-foreground">The look's own rows, striped, or plain. Striping is left out when printing to save ink.</p>
+    </PanelSection>
+
     <PanelSection title="On the page">
       <AppCheckbox
         size="sm"
@@ -37,8 +42,10 @@
  * and is told, not chosen here; what it does on the page is chosen.
  */
 import { computed } from "vue";
+import type { TableRows } from "@/scriptorium/lib/tableRows";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import PanelSection from "@/scriptorium/components/panel/PanelSection.vue";
 
 const { family, canSpan } = defineProps<{
@@ -53,12 +60,21 @@ const { family, canSpan } = defineProps<{
   across: boolean;
   /** Only a book in two columns has columns to span. */
   canSpan: boolean;
+  /** A table's row fills; null for a block that is not a table. */
+  rows: TableRows | null;
 }>();
 const emit = defineEmits<{
   keep: [value: boolean];
   across: [value: boolean];
+  rows: [value: TableRows];
   openSettings: [];
 }>();
+
+const ROW_OPTIONS: SegmentedOption<TableRows>[] = [
+  { value: "look", label: "The look's" },
+  { value: "striped", label: "Striped" },
+  { value: "plain", label: "Plain" },
+];
 
 const lookNote = computed(() =>
   family === "book"

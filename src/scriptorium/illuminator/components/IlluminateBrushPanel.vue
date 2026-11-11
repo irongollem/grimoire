@@ -17,13 +17,13 @@
       <div class="flex items-center gap-1.5 flex-wrap">
         <span class="text-eyebrow text-muted-foreground mr-1">Shape</span>
         <AppButton
-          v-for="bt in (['round', 'splatter', 'rough', 'chalk'] as BrushType[])"
+          v-for="bt in BRUSH_TYPES"
           :key="bt"
           variant="subtle"
           size="xs"
           class="capitalize"
           :active="brush.brushType === bt"
-          :label="bt"
+          :label="BRUSH_TYPE_LABELS[bt]"
           @click="emit('update:brush', { ...brush, brushType: bt })"
         />
       </div>
@@ -53,9 +53,9 @@
           :min="bs.min"
           :max="bs.max"
           :step="bs.step"
-          :value="brush[bs.key]"
+          :value="sliderValue(bs.key)"
           class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-border accent-primary"
-          @input="(e) => emit('update:brush', { ...brush, [bs.key]: parseFloat((e.target as HTMLInputElement).value) })"
+          @input="(e) => emit('update:brush', { ...brush, [bs.key]: fromSlider(bs.key, parseFloat((e.target as HTMLInputElement).value)) })"
         />
       </div>
 
@@ -87,7 +87,13 @@
 import { computed } from "vue";
 import { IconChevronRight } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import type { BrushState, BrushType, PressureTarget } from "@/scriptorium/illuminator/lib/brushMask";
+import {
+  brushSizeFromSlider,
+  sliderFromBrushSize,
+  type BrushState,
+  type BrushType,
+  type PressureTarget,
+} from "@/scriptorium/illuminator/lib/brushMask";
 
 const {
   brush,
@@ -109,12 +115,30 @@ const emit = defineEmits<{
 type BrushSliderKey = "size" | "hardness" | "opacity" | "jitter" | "spacing";
 
 const BRUSH_SLIDERS: Array<{ key: BrushSliderKey; label: string; min: number; max: number; step: number }> = [
-  { key: "size",     label: "Size",     min: 4,    max: 120,  step: 1    },
+  { key: "size",     label: "Size",     min: 0,    max: 1,    step: 0.001 },
   { key: "hardness", label: "Hardness", min: 0,    max: 1,    step: 0.01 },
   { key: "opacity",  label: "Opacity",  min: 0.01, max: 1,    step: 0.01 },
   { key: "jitter",   label: "Jitter",   min: 0,    max: 1,    step: 0.01 },
   { key: "spacing",  label: "Spacing",  min: 0.05, max: 2,    step: 0.05 },
 ];
+
+const BRUSH_TYPES: BrushType[] = ["round", "splatter", "rough", "chalk", "dry"];
+const BRUSH_TYPE_LABELS: Record<BrushType, string> = {
+  round: "round",
+  splatter: "splatter",
+  rough: "rough",
+  chalk: "chalk",
+  dry: "dry brush",
+};
+
+// Size runs on a curved scale (see brushSizeFromSlider), so its slider holds a position, not a size.
+function sliderValue(key: BrushSliderKey): number {
+  return key === "size" ? sliderFromBrushSize(brush.size) : brush[key];
+}
+
+function fromSlider(key: BrushSliderKey, raw: number): number {
+  return key === "size" ? brushSizeFromSlider(raw) : raw;
+}
 
 const activeBrushSliders = computed(() =>
   BRUSH_SLIDERS.filter(bs => bs.key !== "hardness" || brush.brushType === "round"),

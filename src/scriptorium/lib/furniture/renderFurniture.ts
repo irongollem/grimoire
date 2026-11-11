@@ -15,6 +15,7 @@
 import type { PageFurnitureItem, FurnitureAnchor } from "@/scriptorium/types";
 import { watercolorAsset, watercolorSrc } from "@/data/watercolorAssets";
 import { followsBlock, placeAtAnchor, topPct } from "@/scriptorium/lib/furniture/anchorOffset";
+import { fillsPage } from "@/scriptorium/lib/furniture/model";
 import { artBlend } from "@/scriptorium/lib/furniture/blend";
 
 const FURNITURE_CLASS = "sc-furniture";
@@ -109,13 +110,13 @@ export function buildFurnitureElement(item: PageFurnitureItem): HTMLElement {
       const value = str(item.props[prop]);
       if (value) img.setAttribute(attr, value);
     }
+    // Filling the page covers the whole page box, cropped like object-fit: cover, whatever x, y, width or corner say.
+    const fill = fillsPage(item);
     img.style.cssText = [
       "position:absolute",
-      ...positionDeclarations(item),
-      `width:${item.width}%`,
-      "height:auto",
+      ...(fill ? ["inset:0", "width:100%", "height:100%", "object-fit:cover"] : [...positionDeclarations(item), `width:${item.width}%`, "height:auto"]),
       // Set for export only (printImages.ts): the crop's shape, so the layout measures the real box.
-      ...(num(item.props.aspect, 0) > 0 ? [`aspect-ratio:${num(item.props.aspect, 0)}`] : []),
+      ...(!fill && num(item.props.aspect, 0) > 0 ? [`aspect-ratio:${num(item.props.aspect, 0)}`] : []),
       ...(behind ? [`opacity:${num(item.props.opacity, DEFAULT_UNDER_ART_OPACITY) / 100}`] : []),
       ...(artBlend(item) === "paper" ? ["mix-blend-mode:multiply"] : []),
       "pointer-events:none",

@@ -195,6 +195,29 @@ describe("PlacementFields", () => {
     expect(w2.emitted("stays")).toEqual([["block"]]);
   });
 
+  // Fails on: Fill the page changing only the prop, which would leave a block-anchored picture following its paragraph.
+  it("Fill the page pins through the corner route first, then marks the picture filled", async () => {
+    const w = mount(PlacementFields, { props: { item: item({ props: { src: "a.webp", opacity: 50 } }), anchor } });
+    await press(w, "Fill the page");
+    await flushPromises();
+    expect(w.emitted("corner")).toEqual([["top-left"]]);
+    expect(w.emitted("patch")).toEqual([[{ props: { src: "a.webp", opacity: 50, fill: "page" } }]]);
+  });
+
+  // Fails on: width and corner controls staying live on a picture that ignores them, or no way back.
+  it("a filled picture hides Width and Place and can stop filling, keeping its other props", async () => {
+    const w = mount(PlacementFields, { props: { item: item({ props: { src: "a.webp", fill: "page" } }), anchor } });
+    expect(w.find('input[type="range"]').exists()).toBe(false);
+    expect(buttons(w, "Top left")).toHaveLength(0);
+    await press(w, "Stop filling the page");
+    expect(w.emitted("patch")).toEqual([[{ props: { src: "a.webp" } }]]);
+  });
+
+  it("offers no fill for a watercolour", () => {
+    const w = mount(PlacementFields, { props: { item: item({ kind: "watercolor", props: {} }), anchor } });
+    expect(buttons(w, "Fill the page")).toHaveLength(0);
+  });
+
   it("gives a watermark no width, place or stays: it spans the page by itself", () => {
     const w = mount(PlacementFields, { props: { item: item({ kind: "watermark" }), anchor } });
     expect(w.text()).toBe("");

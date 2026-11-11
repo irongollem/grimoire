@@ -3,6 +3,13 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   createBrushMaskController,
   DEFAULT_BRUSH_STATE,
+  MAX_BRUSH_SIZE,
+  MIN_BRUSH_SIZE,
+  DRY_BRISTLES,
+  brushSizeFromSlider,
+  sliderFromBrushSize,
+  dryBristles,
+  nextStrokeAngle,
   type BrushState,
   type BrushMaskController,
 } from "@/scriptorium/illuminator/lib/brushMask";
@@ -56,7 +63,11 @@ class FakeContext2D {
   save(): void {}
   restore(): void {}
   translate(): void {}
-  rotate(): void {}
+  rotations: number[] = [];
+  rotate(angle: number): void {
+    this.rotations.push(angle);
+  }
+  fillRect(): void {}
   drawImage(): void {}
   clearRect(): void {}
   snapshots = 0;
@@ -396,5 +407,94 @@ describe("createBrushMaskController — loadMask", () => {
     controller.loadMask(document.createElement("canvas"));
     expect(controller.hasStrokes).toBe(true);
     expect(controller.undo()).toBe(false);
+  });
+});
+
+describe("a page-wide brush", () => {
+  it("paints a dab 400 px in radius at the top of the size scale", () => {
+    // Fails if the range is clamped back to the old 120 px ceiling.
+    const controller = makeController();
+    down(controller, { ...PLAIN, size: MAX_BRUSH_SIZE }, { x: 10, y: 10, pressure: 1 });
+    expect(stamps()[0].radius).toBe(400);
+  });
+
+  it("maps the slider's ends to the smallest and largest brush, and keeps fine control at the small end", () => {
+    expect(brushSizeFromSlider(0)).toBe(MIN_BRUSH_SIZE);
+    expect(brushSizeFromSlider(1)).toBe(MAX_BRUSH_SIZE);
+    // A linear scale would put the half-way slider at 202; the curve keeps small brushes easy to pick.
+    expect(brushSizeFromSlider(0.5)).toBeLessThan(120);
+    expect(brushSizeFromSlider(2)).toBe(MAX_BRUSH_SIZE);
+    expect(brushSizeFromSlider(-1)).toBe(MIN_BRUSH_SIZE);
+  });
+
+  it("round-trips a size through the slider so the thumb sits where the size says", () => {
+    for (const size of [4, 30, 120, 250, 400]) {
+      expect(Math.abs(brushSizeFromSlider(sliderFromBrushSize(size)) - size)).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+describe("dry brush bristles", () => {
+  it("leaves the middle loaded and lets paper show through near both edges", () => {
+    const b = dryBristles();
+    expect(b).toHaveLength(DRY_BRISTLES);
+    const third = Math.floor(b.length / 3);
+    const middle = b.slice(third, b.length - third);
+    expect(middle.every((v) => v === 1)).toBe(true);
+    const edges = [...b.slice(0, 6), ...b.slice(-6)];
+    expect(edges.some((v) => v === 0)).toBe(true);
+  });
+
+  it("is the same pattern every time, so overlapping stamps lay streaks on the same lines", () => {
+    expect(dryBristles()).toEqual(dryBristles());
+  });
+});
+
+describe("stroke direction", () => {
+  it("follows a horizontal drag along x and a vertical one along y", () => {
+    expect(nextStrokeAngle(null, 10, 0)).toEqual({ x: 1, y: 0 });
+    expect(nextStrokeAngle(null, 0, -10)).toEqual({ x: 0, y: -1 });
+  });
+
+  it("ignores a segment under 2 px and a shaky hand barely turns it", () => {
+    const dir = { x: 1, y: 0 };
+    expect(nextStrokeAngle(dir, 1, 1)).toBe(dir);
+    const turned = nextStrokeAngle(dir, 0, 10);
+    expect(Math.atan2(turned!.y, turned!.x)).toBeLessThan(Math.PI / 4);
+  });
+});
+
+describe("dry brush stroke", () => {
+  const DRY: BrushState = { ...PLAIN, brushType: "dry", size: 30, jitter: 0.8 };
+
+  it("turns its bristles to the way the stroke runs, horizontal and vertical", () => {
+    // Fails if the dry tip rotates randomly like the other textured tips.
+    const h = makeController();
+    down(h, DRY, { x: 10, y: 10 });
+    move(h, DRY, { x: 60, y: 10 });
+    const horizontal = contexts[0].rotations.slice(1);
+    expect(horizontal.length).toBeGreaterThan(0);
+    expect(horizontal.every((a) => Math.abs(a) < 1e-9)).toBe(true);
+
+    const v = makeController();
+    down(v, DRY, { x: 10, y: 10 });
+    move(v, DRY, { x: 10, y: 60 });
+    const vertical = contexts[0].rotations.slice(1);
+    expect(vertical.every((a) => Math.abs(a - Math.PI / 2) < 1e-9)).toBe(true);
+  });
+
+  it("does not scatter: every sub-stamp of a jittery dry brush lands on the stroke line", () => {
+    const controller = makeController();
+    down(controller, DRY, { x: 10, y: 10 });
+    expect(contexts[0].rotations).toHaveLength(1);
+  });
+
+  it("starts a new stroke facing along x, not the last stroke's way", () => {
+    const controller = makeController();
+    down(controller, DRY, { x: 10, y: 10 });
+    move(controller, DRY, { x: 10, y: 60 });
+    controller.onPointerUp();
+    down(controller, DRY, { x: 50, y: 50 });
+    expect(contexts[0].rotations.at(-1)).toBe(0);
   });
 });

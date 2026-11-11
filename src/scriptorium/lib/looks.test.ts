@@ -58,3 +58,18 @@ describe("scriptorium looks", () => {
     }
   });
 });
+
+describe("table rows css", () => {
+  // Fails on: the 2014 look going back to unstriped rows, or a look missing the stripe colour Striped paints with.
+  it("the 2014 look stripes its rows and every look names a stripe", () => {
+    expect(css("theme-phb2014")).toMatch(/--sc-table-row-1: #e0e5c1/);
+    for (const theme of [...BOOK_LOOKS, ...PAPERS]) expect(css(`theme-${theme}`), theme).toMatch(/--sc-table-stripe: #/);
+  });
+
+  // Fails on: Plain losing to a look's own row rule (it must come after, with at least their specificity).
+  it("plain and striped rules come after the look's row rules in the base sheet", () => {
+    const base = css("theme-base");
+    expect(base.indexOf(".sc-table--plain")).toBeGreaterThan(base.indexOf(".theme-onednd2024 table tbody tr:nth-child(odd)"));
+    expect(base).toMatch(/\.ink-friendly table\.sc-table--striped[^{]*\{\s*background: transparent/);
+  });
+});

@@ -12,7 +12,7 @@
  */
 
 import { onBeforeUnmount, watch, type Ref } from "vue";
-import { canPinToCorner, freeCoordinates, snapCorner } from "@/scriptorium/lib/furniture/model";
+import { canPinToCorner, fillsPage, freeCoordinates, snapCorner, withoutFill } from "@/scriptorium/lib/furniture/model";
 import { clampTop, followsBlock, offsetFromDrawnTop } from "@/scriptorium/lib/furniture/anchorOffset";
 import { CHAPTER_ID_ATTR, CHAPTER_PAGE_ATTR } from "@/scriptorium/lib/furniture/renderFurniture";
 import type { FurnitureAnchor, FurnitureCorner, PageFurnitureItem } from "@/scriptorium/types";
@@ -32,6 +32,8 @@ export interface FurnitureEditingOptions {
 }
 
 const RESIZE_ZONE_PX = 16;
+/** A press-and-release that moves less than this (% of the page) is a click, which selects without changing anything. */
+const CLICK_PCT = 0.5;
 const clampPct = (v: number, min = 0, max = 100) => Math.max(min, Math.min(max, Math.round(v * 10) / 10));
 
 const OPPOSITE: Record<FurnitureCorner, FurnitureCorner> = {
@@ -74,6 +76,7 @@ export function useFurnitureEditing(opts: FurnitureEditingOptions) {
     id: string;
     mode: "move" | "resize";
     pinCorner: FurnitureCorner | null;
+    filled: boolean;
     canSnap: boolean;
     boxW: number;
     boxH: number;
@@ -99,9 +102,12 @@ export function useFurnitureEditing(opts: FurnitureEditingOptions) {
       return;
     }
     const id = target.dataset.furnitureId!;
-    const item = opts.items().find((i) => i.id === id);
-    if (!item) return;
+    const found = opts.items().find((i) => i.id === id);
+    if (!found) return;
     opts.onSelect(id);
+    // A picture filling its page is drawn as the whole page: top-left, full width. Moving or resizing it works from
+    // there and sets it free; a click only selects it.
+    const item: PageFurnitureItem = fillsPage(found) ? { ...found, x: 0, y: 0, width: 100, corner: "top-left" } : found;
 
     const box = target.closest<HTMLElement>(".pagedjs_pagebox") ?? target.parentElement;
     if (!box) return;
@@ -133,6 +139,7 @@ export function useFurnitureEditing(opts: FurnitureEditingOptions) {
       id,
       mode: nearX && nearY ? "resize" : "move",
       pinCorner: c ?? null,
+      filled: fillsPage(found),
       canSnap: canPinToCorner(item.kind),
       boxW: boxRect.width,
       boxH: boxRect.height,
@@ -172,6 +179,11 @@ export function useFurnitureEditing(opts: FurnitureEditingOptions) {
     const dx = ((e.clientX - drag.startClientX) / drag.boxW) * 100;
     const dy = ((e.clientY - drag.startClientY) / drag.boxH) * 100;
     const style = drag.target.style;
+    // Once a filled picture is moving or resizing it is no longer the whole page: draw it at its own shape.
+    if (drag.filled && (Math.abs(dx) >= CLICK_PCT || Math.abs(dy) >= CLICK_PCT)) {
+      style.height = "auto";
+      style.objectFit = "";
+    }
     if (drag.mode === "resize") {
       style.width = `${widthFor(drag, dx)}%`;
       return;
@@ -197,14 +209,17 @@ export function useFurnitureEditing(opts: FurnitureEditingOptions) {
     const dy = ((e.clientY - d.startClientY) / d.boxH) * 100;
     const current = opts.items().find((i) => i.id === d.id);
     if (!current) return;
+    if (d.filled && Math.abs(dx) < CLICK_PCT && Math.abs(dy) < CLICK_PCT) return;
+    // A filled picture is set free where it is drawn: the whole page, top-left, at full width.
+    const base: PageFurnitureItem = d.filled ? withoutFill({ ...current, x: 0, y: 0, width: 100, corner: "top-left" }) : current;
     let next: PageFurnitureItem;
     if (d.mode === "resize") {
-      next = { ...current, width: widthFor(d, dx) };
+      next = { ...base, width: widthFor(d, dx) };
     } else {
       const left = clampPct(d.startLeft + dx);
       const top = dragTop(d, dy);
       const corner = d.canSnap ? snapCorner(left, top, d.widthPct, d.heightPct) : null;
-      next = { ...current, ...movePatch(left, top, corner, d.anchorTop) };
+      next = { ...base, ...movePatch(left, top, corner, d.anchorTop) };
       if (!corner) delete next.corner;
     }
     if (next.corner) next = { ...next, anchor: pinnedAnchor(next, d.box) };

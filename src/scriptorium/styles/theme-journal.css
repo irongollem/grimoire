@@ -60,6 +60,8 @@
   --sc-table-row-1: #f6f4ec;
   --sc-table-row-2: #eceff0;
   --sc-table-border: #c3cfd8;
+  /* The journal's own sidebar tint (pale blue-grey). */
+  --sc-table-stripe: #eef3f6;
 
   /* Notebook paper: faint blue-grey rules, the last pixel of every pitch. */
   --sc-paper-bg:

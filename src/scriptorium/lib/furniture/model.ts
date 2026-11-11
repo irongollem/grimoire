@@ -102,6 +102,21 @@ export function canPinToCorner(kind: FurnitureKind): boolean {
   return kind === "art" || kind === "watercolor";
 }
 
+/**
+ * A picture set to cover its whole page, edge to edge and cropped to fit. Read
+ * defensively: only the exact value counts, so a stray prop never fills a page,
+ * and only art can fill (a watercolour has no picture to crop).
+ */
+export function fillsPage(item: PageFurnitureItem): boolean {
+  return item.kind === "art" && item.props.fill === "page";
+}
+
+/** The item without its fill prop, an ordinary picture again (other props are kept). */
+export function withoutFill(item: PageFurnitureItem): PageFurnitureItem {
+  const props = Object.fromEntries(Object.entries(item.props).filter(([key]) => key !== "fill"));
+  return { ...item, props };
+}
+
 const KINDS: FurnitureKind[] = ["watercolor", "watermark", "artistCredit", "art"];
 
 function isValidAnchor(a: unknown): a is FurnitureAnchor {

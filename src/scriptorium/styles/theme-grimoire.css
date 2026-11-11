@@ -75,6 +75,8 @@
   --sc-table-row-1: transparent;
   --sc-table-row-2: transparent;
   --sc-table-border: var(--sc-hairline);
+  /* Ruled by default; a DM-chosen stripe is the slip's parchment, one step deeper. */
+  --sc-table-stripe: #f1e6c8;
   --sc-table-header-rule: var(--sc-oxblood);
 }
 

@@ -385,3 +385,52 @@ describe("useFurnitureEditing corners", () => {
     wrapper.unmount();
   });
 });
+
+describe("useFurnitureEditing a picture that fills its page", () => {
+  function fillDom() {
+    const d = buildDom();
+    stubRect(d.target, { left: 0, top: 0, right: 200, bottom: 200, width: 200, height: 200 });
+    return d;
+  }
+
+  // Fails on: a click on a filled page (which every press on the page is) rewriting the picture.
+  it("a click selects it and changes nothing", async () => {
+    const { container, target } = fillDom();
+    items = [item({ props: { src: "a", fill: "page" } })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 100, 100);
+    dispatchPointer(window, "pointerup", 100, 100);
+    expect(onChange).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  // Fails on: resizing a filled picture keeping fill, which would ignore the new width.
+  it("resizing it sets it free at the width dragged, in its corner", async () => {
+    const { container, target } = fillDom();
+    items = [item({ props: { src: "a", fill: "page" } })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 198, 198);
+    dispatchPointer(window, "pointermove", 158, 198);
+    dispatchPointer(window, "pointerup", 158, 198);
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect(moved).toMatchObject({ width: 80, corner: "top-left", x: 0, y: 0, props: { src: "a" } });
+    expect(moved.props).not.toHaveProperty("fill");
+    wrapper.unmount();
+  });
+
+  // Fails on: a drag leaving fill on, so the picture snaps straight back to the whole page.
+  it("moving it sets it free", async () => {
+    const { container, target } = fillDom();
+    items = [item({ props: { src: "a", fill: "page" } })];
+    const wrapper = mountEditing(container);
+    await nextTick();
+    dispatchPointer(target, "pointerdown", 100, 100);
+    dispatchPointer(window, "pointermove", 140, 100);
+    dispatchPointer(window, "pointerup", 140, 100);
+    const [moved] = onChange.mock.calls[0][0] as PageFurnitureItem[];
+    expect(moved.props).toEqual({ src: "a" });
+    wrapper.unmount();
+  });
+});

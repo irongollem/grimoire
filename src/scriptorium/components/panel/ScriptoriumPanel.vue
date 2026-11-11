@@ -57,8 +57,10 @@
       :keep="block.keep"
       :across="block.across"
       :can-span="block.canSpan"
+      :rows="block.rows"
       @keep="(v) => onNodeEdit({ keepTogether: v })"
       @across="onAcross"
+      @rows="(v) => onNodeEdit({ class: withTableRows(node?.attrs.class, v) })"
       @open-settings="emit('openSettings')"
     />
 
@@ -121,6 +123,7 @@ import type { PageBox, PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
 import type { FurnitureKind, PageFurnitureItem } from "@/scriptorium/types";
 import type { WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
 import { IconClose } from "@/lib/icons";
+import { tableRowsOf, withTableRows } from "@/scriptorium/lib/tableRows";
 
 const props = defineProps<{
   selection: PanelSelection;
@@ -256,6 +259,7 @@ const block = computed(() => {
     across: wideAround(ed.state.doc, sel.pos) !== null,
     // The wide block always has its switch (it is the thing that spans); the rest only in two columns.
     canSpan: wide || isTwoColumnPage(ed),
+    rows: n.type.name === "table" ? tableRowsOf(n.attrs.class) : null,
   };
 });
 

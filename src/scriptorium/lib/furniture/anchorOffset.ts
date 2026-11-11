@@ -11,10 +11,11 @@
  * the page, and everything else is decided here, so they cannot drift.
  */
 import type { PageFurnitureItem } from "@/scriptorium/types";
+import { fillsPage } from "@/scriptorium/lib/furniture/model";
 
 /** Only a free picture or splatter follows a block; a cornered item is pinned to the page, a watermark and a credit place themselves. */
 export function followsBlock(item: PageFurnitureItem): boolean {
-  return item.anchor.type === "block" && !item.corner && (item.kind === "art" || item.kind === "watercolor");
+  return item.anchor.type === "block" && !item.corner && !fillsPage(item) && (item.kind === "art" || item.kind === "watercolor");
 }
 
 const round1 = (v: number) => Math.round(v * 10) / 10;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createFurnitureItem, parsePageFurniture, snapCorner, freeCoordinates, SNAP_PCT } from "./model";
+import { createFurnitureItem, fillsPage, withoutFill, parsePageFurniture, snapCorner, freeCoordinates, SNAP_PCT } from "./model";
 
 describe("createFurnitureItem", () => {
   it("merges overrides (incl. nested props)", () => {
@@ -102,5 +102,29 @@ describe("corner pinning", () => {
     const item = { ...createFurnitureItem("art", { type: "block", blockId: "b" }, { width: 30 }), corner: "bottom-left" as const, x: 0, y: 0 };
     expect(freeCoordinates(item, null)).toBeNull();
     expect(freeCoordinates({ ...item, corner: "top-right" }, null)).toEqual({ x: 70, y: 0 });
+  });
+});
+
+describe("a picture that fills its page", () => {
+  const anchor = { type: "page", chapterId: "c1", page: 1 } as const;
+  const stored = (props: unknown) => ({ id: "a", kind: "art", anchor, x: 0, y: 0, width: 40, z: "under", props });
+
+  // Fails on: the parser dropping the prop, so a saved full-page picture came back as a small one.
+  it("keeps fill through the parser", () => {
+    const [item] = parsePageFurniture([stored({ src: "a.webp", fill: "page" })]);
+    expect(fillsPage(item)).toBe(true);
+  });
+
+  // Fails on: any truthy fill value, or a fill on a watercolour, covering a page by accident.
+  it("treats only the exact value on art as fill", () => {
+    for (const fill of ["yes", true, 1, ""]) expect(fillsPage(parsePageFurniture([stored({ fill })])[0])).toBe(false);
+    const water = { ...stored({ fill: "page" }), kind: "watercolor" };
+    expect(fillsPage(parsePageFurniture([water])[0])).toBe(false);
+  });
+
+  // Fails on: turning fill off also dropping the picture's source or strength.
+  it("withoutFill removes only the fill", () => {
+    const item = createFurnitureItem("art", anchor, { props: { src: "a.webp", opacity: 50, fill: "page" } });
+    expect(withoutFill(item).props).toEqual({ src: "a.webp", opacity: 50 });
   });
 });

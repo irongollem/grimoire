@@ -1,5 +1,73 @@
 export type PressureTarget = 'size' | 'opacity';
-export type BrushType = 'round' | 'splatter' | 'rough' | 'chalk';
+export type BrushType = 'round' | 'splatter' | 'rough' | 'chalk' | 'dry';
+
+/** Brush radius in canvas pixels. The top end is wide enough to wash a whole page-sized picture in a few sweeps. */
+export const MIN_BRUSH_SIZE = 4;
+export const MAX_BRUSH_SIZE = 400;
+
+/**
+ * The size slider is not linear: a straight 4 to 400 scale would put every
+ * small brush in the first few pixels of travel. Position 0..1 maps to size
+ * with a square curve, so the small end keeps fine control.
+ */
+export function brushSizeFromSlider(t: number): number {
+  const c = Math.min(1, Math.max(0, t));
+  return Math.round(MIN_BRUSH_SIZE + (MAX_BRUSH_SIZE - MIN_BRUSH_SIZE) * c * c);
+}
+
+export function sliderFromBrushSize(size: number): number {
+  const c = Math.min(1, Math.max(0, (size - MIN_BRUSH_SIZE) / (MAX_BRUSH_SIZE - MIN_BRUSH_SIZE)));
+  return Math.sqrt(c);
+}
+
+/** Bristles across a dry brush's width. */
+export const DRY_BRISTLES = 48;
+
+function seededRandom(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Which bristles of a dry brush carry paint: 1 loaded, 0 dry. The middle is
+ * always loaded; the chance of a dry bristle grows toward the two edges, which
+ * is what leaves paper showing in streaks along the edge of a wash. The
+ * pattern is fixed (not random per stamp) so overlapping stamps lay the same
+ * bristle over the same line and the streaks run unbroken along the stroke.
+ */
+export function dryBristles(count: number = DRY_BRISTLES): number[] {
+  const rand = seededRandom(1176);
+  const out: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const edge = Math.abs((i + 0.5) / count - 0.5) * 2; // 0 middle, 1 edge
+    const dryChance = Math.max(0, (edge - 0.45) / 0.55) ** 1.5 * 0.85;
+    out.push(rand() < dryChance ? 0 : 1);
+  }
+  return out;
+}
+
+/**
+ * The stroke direction after one more pointer segment, blended with the
+ * previous direction so a shaky hand does not twist the bristles. A segment
+ * under 2 px says nothing about direction and leaves it alone.
+ */
+export function nextStrokeAngle(prev: { x: number; y: number } | null, dx: number, dy: number): { x: number; y: number } | null {
+  const len = Math.hypot(dx, dy);
+  if (len < 2) return prev;
+  const ux = dx / len;
+  const uy = dy / len;
+  if (!prev) return { x: ux, y: uy };
+  const x = prev.x * 0.7 + ux * 0.3;
+  const y = prev.y * 0.7 + uy * 0.3;
+  const m = Math.hypot(x, y);
+  return m < 1e-6 ? { x: ux, y: uy } : { x: x / m, y: y / m };
+}
 
 export interface BrushState {
   brushType: BrushType;
@@ -140,10 +208,28 @@ function renderChalk(ctx: CanvasRenderingContext2D): void {
   ctx.globalAlpha = 1;
 }
 
+/** A flat brush: bristle streaks run along x (the stroke direction once rotated), each ending raggedly. */
+function renderDry(ctx: CanvasRenderingContext2D): void {
+  const bristles = dryBristles();
+  const rowH = TEX_SIZE / bristles.length;
+  ctx.fillStyle = 'black';
+  bristles.forEach((loaded, i) => {
+    if (!loaded) return;
+    const edge = Math.abs((i + 0.5) / bristles.length - 0.5) * 2;
+    // Dry ends: a bristle stops short of the texture's ends by a random amount, more so near the edge
+    const startGap = Math.random() * TEX_SIZE * (0.04 + edge * 0.2);
+    const endGap = Math.random() * TEX_SIZE * (0.04 + edge * 0.2);
+    ctx.globalAlpha = 0.85 + Math.random() * 0.15;
+    ctx.fillRect(startGap, i * rowH, TEX_SIZE - startGap - endGap, rowH + 0.5);
+  });
+  ctx.globalAlpha = 1;
+}
+
 const TEXTURE_RENDERERS: Record<TexturedBrushType, (ctx: CanvasRenderingContext2D) => void> = {
   splatter: renderSplatter,
   rough: renderRough,
   chalk: renderChalk,
+  dry: renderDry,
 };
 
 function buildTextures(): Map<TexturedBrushType, HTMLCanvasElement[]> {
@@ -176,6 +262,8 @@ export function createBrushMaskController(): BrushMaskController {
   let lastX = 0;
   let lastY = 0;
   let accumulated = 0;
+  // Direction of the stroke so far, for the dry brush's bristles
+  let strokeDir: { x: number; y: number } | null = null;
 
   function resize(w: number, h: number): void {
     maskCanvas.width = w;
@@ -237,12 +325,13 @@ export function createBrushMaskController(): BrushMaskController {
     alpha: number,
     erasing: boolean,
     texCanvas: HTMLCanvasElement,
+    angle: number = Math.random() * Math.PI * 2,
   ): void {
     maskCtx.save();
     maskCtx.globalAlpha = alpha;
     maskCtx.globalCompositeOperation = erasing ? 'source-over' : 'destination-out';
     maskCtx.translate(x, y);
-    maskCtx.rotate(Math.random() * Math.PI * 2);
+    maskCtx.rotate(angle);
     maskCtx.drawImage(texCanvas, -radius, -radius, radius * 2, radius * 2);
     maskCtx.restore();
   }
@@ -268,12 +357,13 @@ export function createBrushMaskController(): BrushMaskController {
     const alpha = Math.min(1, Math.max(0, rawAlpha));
 
     // Scatter: higher jitter = more sub-stamps per sample, breaking the circle look
-    const count = state.jitter > 0 ? Math.ceil(1 + state.jitter * 2) : 1;
+    // The dry brush takes no scatter: its streaks only read if every stamp lands on the stroke line
+    const count = state.jitter > 0 && state.brushType !== 'dry' ? Math.ceil(1 + state.jitter * 2) : 1;
     const subAlpha = count > 1 ? alpha / Math.sqrt(count) : alpha;
 
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const jDist = radius * state.jitter * Math.random();
+      const jDist = state.brushType === 'dry' ? 0 : radius * state.jitter * Math.random();
       const jx = x + Math.cos(angle) * jDist;
       const jy = y + Math.sin(angle) * jDist;
 
@@ -281,9 +371,11 @@ export function createBrushMaskController(): BrushMaskController {
         stampRound(jx, jy, radius, state.hardness, subAlpha, erasing);
       } else {
         const variants = textures.get(state.brushType as TexturedBrushType)!;
+        const dryAngle = state.brushType === 'dry' && strokeDir ? Math.atan2(strokeDir.y, strokeDir.x) : undefined;
         stampTexture(
           jx, jy, radius, subAlpha, erasing,
           variants[Math.floor(Math.random() * variants.length)],
+          state.brushType === 'dry' ? (dryAngle ?? 0) : undefined,
         );
       }
     }
@@ -303,6 +395,7 @@ export function createBrushMaskController(): BrushMaskController {
     const dy = y1 - y0;
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist < 0.5) return accum;
+    strokeDir = nextStrokeAngle(strokeDir, dx, dy);
     const spacingPx = Math.max(1, state.size * state.spacing);
     let t = (spacingPx - accum) / dist;
     while (t <= 1) {
@@ -330,6 +423,7 @@ export function createBrushMaskController(): BrushMaskController {
     saveUndo();
     isDrawing = true;
     accumulated = 0;
+    strokeDir = null;
     const [x, y] = toPx(e, rect, cw, ch, cssW, cssH);
     lastX = x;
     lastY = y;

@@ -85,6 +85,8 @@
   --sc-table-row-1: #f1f5f8;
   --sc-table-row-2: #dce6ed;
   --sc-table-border: #ccd3d9;
+  /* Between the look's two row tints, so a stripe reads as the same blue-grey. */
+  --sc-table-stripe: #e8eff4;
 }
 
 /* ink-friendly: drop every box/table tint and cover-adjacent background to

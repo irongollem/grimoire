@@ -57,6 +57,8 @@
   --sc-table-row-1: #efe6d0;
   --sc-table-row-2: #e3d8bc;
   --sc-table-border: #bfae82;
+  /* The notice's own first row tint (pale paper). */
+  --sc-table-stripe: #efe6d0;
 
   /* Cheap stock: a mottled grey-tan with a little grain, the occasional
      foxed patch. */

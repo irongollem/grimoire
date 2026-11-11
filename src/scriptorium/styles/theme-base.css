@@ -1096,10 +1096,13 @@
    was unaffected. `.theme-onednd2024 table` — dropping the redundant
    `.sc-theme` — is the correct, working form; keep new theme-scoped rules to
    that shape. */
-.theme-onednd2024 table tbody tr:nth-child(odd) td {
+/* Rows are counted among body rows only (`of :has(> td)`): in the editor a
+   header row sits in the tbody, and print moves it into a thead, so counting it
+   put the stripes on opposite rows in the two. */
+.theme-onednd2024 table tbody tr:nth-child(odd of :has(> td)) td {
   background: var(--sc-table-row-1);
 }
-.theme-onednd2024 table tbody tr:nth-child(even) td {
+.theme-onednd2024 table tbody tr:nth-child(even of :has(> td)) td {
   background: var(--sc-table-row-2);
 }
 .theme-onednd2024 table td,
@@ -1107,11 +1110,17 @@
   border: 1px solid var(--sc-table-border);
 }
 
-/* phb2014: no row tints (the table sits on the page's own parchment), thin
-   grey cell borders, centred bold header row(s) with a heavier rule under
-   the last one — a two-row <thead> (e.g. a spell-slot table with merged
-   column groups) gets that heavier rule under its OWN last row, not the
-   first. */
+/* phb2014: alternate body rows tinted green-beige like the printed book (the
+   first on the tint, the header unfilled), thin grey cell borders, centred
+   bold header row(s) with a heavier rule under the last one — a two-row
+   <thead> (e.g. a spell-slot table with merged column groups) gets that
+   heavier rule under its OWN last row, not the first. */
+.theme-phb2014 table tbody tr:nth-child(odd of :has(> td)) td {
+  background: var(--sc-table-row-1);
+}
+.theme-phb2014 table tbody tr:nth-child(even of :has(> td)) td {
+  background: var(--sc-table-row-2);
+}
 .theme-phb2014 table td,
 .theme-phb2014 table th {
   border: 1px solid var(--sc-table-border);
@@ -1121,6 +1130,22 @@
 }
 .theme-phb2014 table thead tr:last-child th {
   border-bottom: 3px solid var(--sc-table-header-rule);
+}
+
+/* A table's own "Rows" choice (the panel beside the page). Striped paints
+   alternate body rows with the look's --sc-table-stripe even where the look
+   leaves its tables unfilled; plain removes every row fill. Both outrank the
+   per-look row rules above and in the theme files on specificity, and
+   ink-friendly drops the stripe because it costs ink. */
+.sc-theme table.sc-table--striped tbody tr:nth-child(odd of :has(> td)) td {
+  background: var(--sc-table-stripe);
+}
+.sc-theme table.sc-table--striped tbody tr:nth-child(even of :has(> td)) td,
+.sc-theme table.sc-table--plain tbody tr td {
+  background: transparent;
+}
+.ink-friendly table.sc-table--striped tbody tr:nth-child(odd of :has(> td)) td {
+  background: transparent;
 }
 
 /* ── Image layout modes ──────────────────────────────────────────────────── */

@@ -61,14 +61,16 @@
   --sc-statblock-accent: #7a200d;
   --sc-statblock-bar: var(--sc-col-rule);
 
-  /* Generic authored tables: no row tints (the table sits on the page's own
-     parchment), thin grey cell borders, and a heavier grey rule under the
-     header. */
+  /* Generic authored tables: alternate rows tinted like the printed book
+     (the first body row on the tint, header unfilled), thin grey cell
+     borders, and a heavier grey rule under the header. */
   --sc-table-header-bg: transparent;
   --sc-table-header-color: var(--sc-ink);
-  --sc-table-row-1: transparent;
+  --sc-table-row-1: #e0e5c1;
   --sc-table-row-2: transparent;
   --sc-table-border: #cfcfcf;
+  /* The printed Player's Handbook stripes its tables in the same pale green-beige as its sidebars. */
+  --sc-table-stripe: #e0e5c1;
   --sc-table-header-rule: #8f8f8f;
 }
 
@@ -76,6 +78,8 @@
    fills drop. See the onednd2024 block above for why this needs its own
    compound selector rather than a shared `.ink-friendly` rule. */
 .theme-phb2014.ink-friendly {
+  /* Row stripes cost ink. */
+  --sc-table-row-1: transparent;
   --sc-lens-bright-bg: transparent;
   --sc-lens-deep-bg: transparent;
   --sc-lens-top-rule: #1a1a1a;

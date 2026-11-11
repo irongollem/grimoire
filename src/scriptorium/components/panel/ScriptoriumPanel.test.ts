@@ -174,4 +174,29 @@ describe("ScriptoriumPanel", () => {
     await press(wrapper, "Book");
     expect(footerSettings.patch).toHaveBeenCalledWith({ footerTitle: "book" });
   });
+
+  const table = (cls?: string) => ({
+    type: "table",
+    attrs: cls ? { class: cls } : {},
+    content: [{ type: "tableRow", content: [{ type: "tableCell", content: [para("c1")] }] }],
+  });
+
+  // Fails on: Striped / Plain / The look's not reaching the table, or wiping the other classes print put on it.
+  it("sets a table's rows from the panel and keeps its other classes", async () => {
+    const { wrapper, ed } = open({ kind: "block", pos: 0 }, [table("sc-table--long")]);
+    await press(wrapper, "Striped");
+    expect(ed.getJSON().content?.[0]?.attrs?.class).toBe("sc-table--long sc-table--striped");
+    await wrapper.setProps({ version: 1 });
+    await press(wrapper, "Plain");
+    expect(ed.getJSON().content?.[0]?.attrs?.class).toBe("sc-table--long sc-table--plain");
+    await wrapper.setProps({ version: 2 });
+    await press(wrapper, "The look's");
+    expect(ed.getJSON().content?.[0]?.attrs?.class).toBe("sc-table--long");
+  });
+
+  // Fails on: the Rows control showing for a read-aloud box, where there are no rows.
+  it("offers Rows for a table only", () => {
+    const { wrapper } = open({ kind: "block", pos: 0 }, [{ type: "descriptiveBlock", content: [para("b1")] }]);
+    expect(wrapper.text()).not.toContain("Striped");
+  });
 });

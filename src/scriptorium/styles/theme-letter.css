@@ -58,6 +58,8 @@
   --sc-table-row-1: #f0e2c0;
   --sc-table-row-2: #e8d8b0;
   --sc-table-border: #c9b27c;
+  /* The letter's own first row tint (pale parchment). */
+  --sc-table-stripe: #f0e2c0;
 
   /* Laid paper: a pale glow top left, a tea-stain warmth bottom right, and
      the faint horizontal chain lines of the mould. Pure gradients, so it

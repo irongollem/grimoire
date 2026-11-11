@@ -307,3 +307,24 @@ describe("a treated art picture", () => {
     expect(img.hasAttribute("data-illuminate")).toBe(false);
   });
 });
+
+describe("a picture that fills its page", () => {
+  const anchor = { type: "page", chapterId: "c1", page: 1 } as const;
+
+  // Fails on: the filled picture still using its own x/y/width or corner, leaving the page partly bare.
+  it.each([
+    ["free", {}],
+    ["cornered", { corner: "bottom-right" as const }],
+  ])("covers the whole page box when %s", (_name, extra) => {
+    const item = { ...createFurnitureItem("art", anchor, { x: 12, y: 30, width: 35, props: { src: "a.webp", fill: "page", aspect: 1.5 } }), ...extra };
+    const s = buildFurnitureElement(item).style;
+    expect([s.inset, s.width, s.height, s.objectFit]).toEqual(["0", "100%", "100%", "cover"]);
+    expect([s.left, s.top, s.right, s.bottom, s.aspectRatio]).toEqual(["", "", "", "", ""]);
+  });
+
+  // Fails on: the fill branch leaking into every picture.
+  it("leaves an unfilled picture at its own place and width", () => {
+    const s = buildFurnitureElement(createFurnitureItem("art", anchor, { x: 12, y: 30, width: 35, props: { src: "a.webp" } })).style;
+    expect([s.left, s.top, s.width, s.height, s.objectFit]).toEqual(["12%", "30%", "35%", "auto", ""]);
+  });
+});
