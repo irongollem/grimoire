@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { formatConditionImmunities, formatDefenseList, parseDefenses } from "./parseDefenses.ts";
 
 describe("parseDefenses", () => {
+  it("reads a list of words stored where a string was expected, and ignores any other shape (a stale import crashed the structure script)", () => {
+    const listed = parseDefenses({ damage_immunities: ["fire", "poison"] as unknown as string });
+    expect(listed.immunities.flatMap((d) => d.types)).toEqual(["fire", "poison"]);
+    expect(parseDefenses({ damage_immunities: { x: 1 } as unknown as string }).immunities).toEqual([]);
+  });
+
   it("returns empty defenses for nothing", () => {
     expect(parseDefenses({})).toEqual({ resistances: [], immunities: [], vulnerabilities: [], condition_immunities: [] });
     expect(parseDefenses({ damage_resistances: "false", damage_immunities: null })).toEqual({

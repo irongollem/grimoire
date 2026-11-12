@@ -7,8 +7,8 @@ import { onScopeDispose, ref, watch, type Ref } from "vue";
  * *component* mounts rather than when it opens — so under one flat z-index the
  * painting order is decided by the order the modals happen to be written in a
  * template. That is wrong for the case that matters: a picker opened from
- * inside a dialog is usually declared *before* it (`ArtPickerModal` sits above
- * `CoverPageInspector`'s own overlay in the same file), which would paint the
+ * inside a dialog is usually declared *before* it (an `ArtPickerModal` sits above
+ * the dialog that opens it in the same file), which would paint the
  * picker behind the thing that opened it.
  *
  * So a level is claimed on open and released on close, and the z-index follows.

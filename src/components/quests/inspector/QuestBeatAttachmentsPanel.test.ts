@@ -27,7 +27,7 @@ vi.mock("@/composables/notes/useNotes", () => ({ useNotes: helpers.empty }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: { value: helpers.data.npcs } }) }));
 vi.mock("@/composables/items/useItemIndex", () => ({ useItemIndex: helpers.empty }));
 vi.mock("@/composables/monsters/useMonsterIndex", () => ({ useMonsterIndex: helpers.empty }));
-vi.mock("@/composables/scriptorium/useScriptorium", () => ({ useScriptoriumDocuments: () => ({ data: { value: helpers.data.documents } }) }));
+vi.mock("@/scriptorium/composables/useScriptorium", () => ({ useScriptoriumDocuments: () => ({ data: { value: helpers.data.documents } }) }));
 vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({ usePlaylists: () => ({ data: { value: helpers.data.playlists } }) }));
 vi.mock("@/composables/soundboard/useSounds", () => ({ useSounds: helpers.empty }));
 

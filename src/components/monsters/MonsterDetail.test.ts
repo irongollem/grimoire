@@ -105,7 +105,7 @@ vi.mock("@/composables/library/useLibraryMonsterArt", () => ({
   useUpsertLibraryMonsterArt: () => ({ mutateAsync: vi.fn() }),
 }));
 
-vi.mock("@/composables/scriptorium/useScriptorium", () => ({
+vi.mock("@/scriptorium/composables/useScriptorium", () => ({
   useCreateScriptoriumBook: () => ({ mutateAsync: vi.fn() }),
 }));
 

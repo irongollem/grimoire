@@ -9,13 +9,13 @@ import {
   BookMarked, BookOpen, BookPlus, BookText, BookUser, Bookmark, Box, Brain, BrickWall, Brush, Bug,
   Calendar, CalendarCheck, CalendarDays, CalendarPlus, CalendarX,
   Check, CheckCheck, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
-  ChevronsUpDown, Circle, CircleCheck, CircleUser, Clipboard, Clock, Code, Coins,
-  Columns2, Component, Copy, CreditCard, Crosshair, Crown,
+  ChevronsUpDown, Circle, CircleCheck, CircleUser, Clipboard, Clock, Coins,
+  Columns2, Component, Copy, CreditCard, Crop, Crosshair, Crown,
   Dna, DoorClosed, DoorOpen, Download, Droplets,
   Eraser, ExternalLink, Eye, EyeOff,
   Feather, FileDown, FileText, Flag, Flame, FlaskConical,
   Gem, Ghost, Gift, Globe, Globe2, GraduationCap, GripVertical, Grid3x3,
-  Hand, Handshake, Hash, Hexagon, Highlighter, Home, Image, ImagePlus, Images, Info,
+  Hand, Handshake, Hexagon, Highlighter, Home, Image, ImagePlus, Images, Info,
   Cloud, CloudDrizzle, CloudFog, CloudRain, CloudSnow, Snowflake,
   Keyboard, KeyRound, Lamp, Landmark, Layers, LayoutGrid, LayoutList,
   Shrink,
@@ -31,12 +31,12 @@ import {
   
   Save, ScanEye, Scissors, Scroll, ScrollText, Search, Send, Settings, Settings2,
   Share2, Shield, ShieldCheck, ShoppingBag, Shuffle, SkipForward, Skull, SlidersHorizontal,
-  Spline, Sparkles, Square, SquareCode, SquareSplitVertical, Stamp, Star, Strikethrough, Sun, Sword, Swords,
+  Spline, Sparkles, Square, SquareSplitVertical, Stamp, Star, Sun, Sword, Swords,
   Table2, Tag, Trash2, Truck,
   Aperture, TrendingUp,
   Underline, Undo2, Upload, UploadCloud,
   User, UserPlus, UserRound, UserX, Users, UtensilsCrossed,
-  VolumeX, Wand2, Wind, WrapText, Wrench, X, XCircle, Zap, ZoomIn, ZoomOut,
+  VolumeX, Wand2, Wind, Wrench, X, XCircle, Zap, ZoomIn, ZoomOut,
   Fence, Type, SunMoon,
   StepForward, ToggleRight, FastForward, TrendingDown, ChartNoAxesColumn,
   BowArrow, Pencil, Radius, Signal, Target,
@@ -95,8 +95,8 @@ export { CalendarX as IconRemoveEvent }
 export { CalendarCheck as IconCalendarCheck }
 export { Clipboard as IconClipboard }
 export { ScanEye as IconScan }
-export { Stamp as IconStamp }
 export { Scissors as IconScissors }
+export { Crop as IconCrop }
 export { Brush as IconBrush }
 export { Eraser as IconEraser }
 export { Hand as IconHand }
@@ -173,7 +173,6 @@ export { Star as IconStar }
 export { Flag as IconFlag }
 export { Bookmark as IconBookmark }
 export { Tag as IconTag }
-export { Hash as IconHash }
 export { Radio as IconLive }
 export { Circle as IconCircle }
 export { RectangleHorizontal as IconRect }
@@ -297,11 +296,7 @@ export { List as IconList }
 export { ListOrdered as IconListOrdered }
 export { ListTodo as IconListTodo }
 export { Quote as IconQuote }
-export { Code as IconCodeInline }
-export { SquareCode as IconCodeBlock }
-export { Strikethrough as IconStrikethrough }
 export { Underline as IconUnderline }
-export { WrapText as IconWrapText }
 export { Pen as IconPen }
 /** The Cartographer's Line tool: straight lines, so a pencil and ruler. */
 export { PencilRuler as IconDrawLine }
@@ -377,7 +372,6 @@ export const IconNavScriptorium = glyph(ASSET_GLYPHS.scriptorium);
 export const IconNavCharacterSheet = glyph(ASSET_GLYPHS.charactersheet);
 export const IconNavCardForge = glyph(ASSET_GLYPHS.cardforge);
 export const IconNavMint = glyph(ASSET_GLYPHS.mint);
-export const IconNavIlluminator = glyph(ASSET_GLYPHS.illuminator);
 export const IconNavCartographer = glyph(ASSET_GLYPHS.cartographer);
 
 // ── Custom dice glyph (the d20) ───────────────────────────────────────────────

@@ -27,7 +27,7 @@ The sidebar (or, on a phone/tablet, the bottom bar's **More** sheet) is organize
 | --- | --- |
 | **Campaign** | The story you're authoring and the things you reach for at the table: Dashboard, Notes, Quests, Calendar, NPCs, Atlas, Encounters, Soundboard, Party, Factions, Pantheon, Workshop, Interlude, Sessions, and Settings. |
 | **Compendium** | The 5e material a campaign draws on: Reliquary (DM screen, rules, this manual), Bestiary, Spellbook, Item Vault, Character Codex, Dungeon Craft, and Hall of Heroes. Not gated to a campaign: you can browse it before picking one. |
-| **Publish** | Tools that turn campaign data into something outside the app: Gallery, Scriptorium, Character Sheet, Card Forge, The Mint, Simulacrum, Illuminator, and Cartographer. Everything except Gallery is desktop-only (A4/letter output isn't practical on a phone). |
+| **Publish** | Tools that turn campaign data into something outside the app: Gallery, Scriptorium, Character Sheet, Card Forge, The Mint, Simulacrum, and Cartographer. The Illuminator picture editor lives inside the Scriptorium. Everything except Gallery is desktop-only (A4/letter output isn't practical on a phone). |
 
 Workshop and Interlude only appear once you've switched their optional rule on for the active campaign (**Campaign Settings → Rules**): that's not a bug if you don't see them yet.
 

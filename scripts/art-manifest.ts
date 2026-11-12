@@ -66,8 +66,8 @@ const ART_EXTENSIONS = new Set([
  * resolve them to a CDN URL. Add an entry only with a documented reason.
  *
  * `/assets/scriptorium/page-background.webp` — referenced by literal
- * `url()`s in two plain CSS files (src/assets/scriptorium-editor.css,
- * src/assets/scriptorium/theme-base.css) that cannot call `artUrl()`.
+ * `url()`s in two plain CSS files (src/scriptorium/styles/scriptorium-editor.css,
+ * src/scriptorium/styles/theme-base.css) that cannot call `artUrl()`.
  * Worse, theme-base.css is also `?inline`-imported into
  * `useScriptoriumPrint.ts` and injected as raw CSS text into an isolated
  * print iframe — and, per its own docstring, will later be handed unmodified
@@ -84,6 +84,8 @@ const ART_EXTENSIONS = new Set([
  */
 const MANIFEST_EXCLUSIONS = new Set<string>([
   "/assets/scriptorium/page-background.webp",
+  "/assets/scriptorium/paper/grey.webp",
+  "/assets/scriptorium/paper/warm-grey.webp",
   "/assets/vellum/paper.webp",
 ]);
 

@@ -28,10 +28,15 @@ export interface DefenseInput {
   condition_immunities?: string | null;
 }
 
-/** Imported fields carry "&amp;" and the literal string "false" where a value is absent. */
-function cleanSource(raw: string | null | undefined): string {
-  if (raw === null || raw === undefined) return "";
-  const text = raw.replace(/&amp;/gi, "&").replace(/\s+/g, " ").trim();
+/**
+ * Imported fields carry "&amp;" and the literal string "false" where a value is absent.
+ * A stat block is jsonb, so an imported one can hold a list of words where a string was
+ * expected; those words are read as one list, and any other shape says nothing.
+ */
+function cleanSource(raw: unknown): string {
+  const joined = Array.isArray(raw) ? raw.filter((part) => typeof part === "string").join(", ") : raw;
+  if (typeof joined !== "string") return "";
+  const text = joined.replace(/&amp;/gi, "&").replace(/\s+/g, " ").trim();
   return text.toLowerCase() === "false" ? "" : text;
 }
 

@@ -2,7 +2,7 @@ import { computed } from "vue";
 import type { RouteLocationRaw } from "vue-router";
 import { useReadMarkers } from "@/composables/player/useReadItems";
 import { usePlayerNoticeBoards } from "@/composables/noticeBoards/usePlayerNoticeBoards";
-import { usePlayerHandouts } from "@/composables/scriptorium/usePlayerHandouts";
+import { usePlayerHandouts } from "@/scriptorium/composables/usePlayerHandouts";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
 import { usePlayerVisiblePuzzles } from "@/composables/dungeon-features/usePuzzles";
 import { usePlayerVisibleNotes } from "@/composables/notes/useNotes";

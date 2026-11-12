@@ -25,7 +25,7 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 | [cartographer.md](cartographer.md)                       | Tile-based battle map builder; versioned tile packs; per-brush theme; derives structure (spaces/ways/zones) from the drawing and publishes it into the Atlas                                        |
 | [downtime-interlude.md](downtime-interlude.md)           | The Interlude: DM-granted downtime credits, card-driven player draws, DM batch resolution, prepped deck backs                                    |
 | [simulacrum.md](simulacrum.md)                           | Simulacrum: portrait → AI mini-render → Meshy 3D sculpt (print STL / VTT GLB), teaser demand gate, /minis gallery                                |
-| [publishing-tools.md](publishing-tools.md)               | Scriptorium (document publisher), Card Forge (MTG/Tarot print), The Mint (tokens+coins), Illuminator, Reliquary                                  |
+| [publishing-tools.md](publishing-tools.md)               | Scriptorium (document publisher, with the Illuminator inside it), Card Forge (MTG/Tarot print), The Mint (tokens+coins), Reliquary                |
 | [player-portal.md](player-portal.md)                     | The full player experience: all /play/\* views, layout, nav, live encounter panel, DM Preview Mode                                               |
 | [player-hearth.md](player-hearth.md)                     | Hearth, the player's home at /play (#977): between sessions, at the table, first visit; what each section reads, and the decisions behind it |
 | [collaboration.md](collaboration.md)                     | Multi-user invite system, campaign members, DM/player roles, live sync, RLS security model                                                       |
@@ -151,7 +151,7 @@ shared registry rather than by deleting a surface.
 ### `desktopOnly` is per item, not per group
 
 A4/letter-output tools (Scriptorium, Card Forge, The Mint, Character Sheet,
-Simulacrum, Illuminator, Cartographer) are impractical on a phone and hide below
+Simulacrum, Cartographer) are impractical on a phone and hide below
 `md`. The flag lives on the **item** because Publish stopped being uniformly
 A4-bound when Gallery moved there — Gallery is a list of images a phone handles
 fine, and a group-level flag would have hidden it from the devices most likely to
@@ -212,10 +212,9 @@ a heading never appears over an empty grid.
 
 ### Publishing & Output Tools (desktop-only)
 
-- **Scriptorium** — Tiptap document editor; live paginated preview; two PHB themes (2024 OneDnD / Classic 2014); three page sizes; ink-friendly mode; PDF export; `is_published` sharing
+- **Scriptorium** — a book of chapters written on the page that prints (one surface, a panel beside it, a book kit and `/` for every block, zoom, footers and covers drawn as they print); three looks (Grimoire, 2024, 2014) and four handout papers; three page sizes; ink-friendly mode; pictures placed behind or in front of the text; the Illuminator inside the book (edits kept as a recipe over the original, optional AI picture actions); PDF export read back against the pages; sharing as handouts
 - **Card Forge** — Trading card (63×88mm, 9/sheet) + Tarot (70×120mm, 4/sheet) card printing; 20 card components (NPC/Monster/Item/Spell × trading/Tarot × front/back); cross-type mixing; duplex with column reversal; 1mm bleed; named Card Library in localStorage
 - **The Mint** — VTT token creator (ring color, name arc, 280/512px PNG, print queue in 3 sizes) + coin designer (metal/motif/rim text, A4 print sheet)
-- **Illuminator** — client-side canvas image processing: colour grading, vignette, texture overlay, depth of field (click focal point), torn/faded edges per edge; exports full-resolution PNG
 - **Reliquary** — DM screen (quick reference, SRD compendium, custom rules with Tracker builder, built-in manual); player portal version: Reference, Compendium, Codex, house rules (read-only)
 
 ### Multi-User Collaboration
@@ -239,7 +238,7 @@ a heading never appears over an empty grid.
 3. **Live encounter participation** — players see the combat tracker in real time, get turn notifications (audio + visual), and see combatants appropriate to their discovery level
 4. **Full character ownership** — players create, edit, and level up their own characters; Wild Shape, inventory, spells, and crafting all player-controlled
 5. **Shapeshifter disguise** — unique feature: player-controlled disguise that fools other players but the DM always sees the truth
-6. **Print-quality output** — Card Forge, Scriptorium, The Mint, and Illuminator produce professional-quality physical assets from campaign data
+6. **Print-quality output** — Card Forge, Scriptorium (and the Illuminator inside it) and The Mint produce professional-quality physical assets from campaign data
 7. **DM screen + custom rules** — Reliquary is a full DM screen with a custom Tracker builder for homebrew mechanics (exhaustion variants, sanity, etc.)
 8. **Deep item system** — attunement tracking, paper doll slots, carry weight, containers, bundles, extradimensional weight rules — all modeled properly
 9. **Monster discovery** — monsters are revealed to players incrementally; DM controls which stats are visible

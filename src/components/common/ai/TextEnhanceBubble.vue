@@ -1,10 +1,10 @@
 <template>
-  <BubbleMenu :editor="editor" :tippy-options="{ duration: 100 }">
+  <BubbleMenu :editor="editor" :tippy-options="{ duration: 100 }" :should-show="hasTextToEnhance">
     <div data-slip class="rounded-md border border-border bg-card shadow-lg overflow-hidden">
       <AppButton
         variant="link"
         size="sm"
-        :icon="IconWand"
+        :icon="IconGenerate"
         :loading="isEnhancing"
         :disabled="isEnhancing"
         label="Enhance"
@@ -35,7 +35,8 @@ import { computed, ref } from "vue";
 import type { Editor } from "@tiptap/vue-3";
 import { BubbleMenu } from "@tiptap/vue-3/menus";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { IconWand } from "@/lib/icons";
+import { IconGenerate } from "@/lib/icons";
+import { hasTextToEnhance } from "./enhanceSelection";
 import { parseMarkdown } from "@/lib/tiptap/markdownToTiptap";
 import { useTextEnhancement } from "@/ai/useTextEnhancement";
 
@@ -58,6 +59,7 @@ const enhanceTooltip = computed(() => {
   return `${base} (${cost} credit${cost === 1 ? "" : "s"})`;
 });
 const enhanceError = ref<string | null>(null);
+
 
 async function onEnhance() {
   if (isEnhancing.value) return;

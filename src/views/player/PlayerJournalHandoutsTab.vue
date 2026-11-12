@@ -50,10 +50,10 @@ import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { RouterLink } from "vue-router";
 import { IconChevronRight, IconScrollText } from "@/lib/icons";
 import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
-import { docTypeColor } from "@/lib/scriptorium/editorConstants";
-import { scriptoriumLook } from "@/lib/scriptorium/looks";
-import { KIND_LABELS } from "@/lib/scriptorium/documentCardMeta";
-import type { PlayerHandoutSummary } from "@/composables/scriptorium/usePlayerHandouts";
+import { docTypeColor } from "@/scriptorium/lib/editorConstants";
+import { scriptoriumLook } from "@/scriptorium/lib/looks";
+import { KIND_LABELS } from "@/scriptorium/lib/documentCardMeta";
+import type { PlayerHandoutSummary } from "@/scriptorium/composables/usePlayerHandouts";
 
 defineProps<{
   isLoading: boolean;

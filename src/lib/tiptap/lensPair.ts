@@ -3,7 +3,7 @@ import { VueNodeViewRenderer } from "@tiptap/vue-3";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { Fragment, Slice, type Node as ProseMirrorNode } from "@tiptap/pm/model";
-import LensPairView from "@/components/scriptorium/LensPairView.vue";
+import LensPairView from "@/components/tiptap/LensPairView.vue";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {

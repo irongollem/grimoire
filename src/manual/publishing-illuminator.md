@@ -3,80 +3,101 @@ title: "Illuminator: Image Effects"
 section: Publishing
 section_order: 14
 order: 4
-summary: Apply colour grading, vignettes, depth of field, brush masking, and edge effects to campaign art.
-keywords: illuminator, image, effect, colour grading, vignette, depth of field, brush, mask, edge, texture, export, scriptorium
+summary: Edit the pictures in your books: edges, colour, vignette, texture, focus, a brush mask, and optional AI actions, all kept as settings over the original.
+keywords: illuminator, image, picture, effect, colour grading, vignette, depth of field, focus, brush, mask, edge, torn paper, texture, before and after, reset, scriptorium, ai, cut out, watercolour
 ---
 
-The **Illuminator** is an image editor for atmospheric campaign art that runs entirely on your own device. Find it in the sidebar under **Compendium → Publish → Illuminator** (route `/illuminate`; desktop only). All processing happens in your browser at full resolution: nothing is uploaded anywhere until you choose to export it.
+The **Illuminator** is the picture editor inside the [Scriptorium](#scriptorium-document-publisher). You use it on a picture in your book, without leaving the book. It has no page of its own in the sidebar.
+
+Edges, colour, vignette, texture, focus and the brush all run on your own device at full resolution. Only the AI actions (see below) use a server.
+
+## Opening it
+
+Select a picture on the page. The panel beside the page shows **Edit picture** with a few quick choices:
+
+- **Edges**: Torn paper, Torn (classic), Faded or Straight, with the sides you want to tear and sliders for the tear.
+- **Colour**: a preset, plus **Warmth** and **Contrast**.
+- **Vignette**.
+
+Press **More tools: open the Illuminator** for everything else. The Illuminator opens over the book. **Done, back to page N** returns you to the same page with your edits in place. **Cancel** drops the session.
+
+You can edit a picture in the text and a picture placed on the page in the same way. Any picture stored in Grimoire can be edited: one you uploaded, a portrait, a place's art or a library picture. A picture linked from another website cannot.
+
+Press **Crop** beside **Edit picture** to trim the picture. Drag the box or its handles, or choose a shape: Free, 1:1, 4:3, 3:2, 16:9, or Page for a picture placed on the page. The picture on the page and in the PDF takes the new shape.
+
+Under **Paper**, choose **Printed into the paper** to let the paper's colour and grain show through the picture, as if it were printed on the page, or **On top** to show it as it is.
 
 ## Key ideas
 
 | Term | Meaning |
 | --- | --- |
-| **Auto mode** | Depth-of-field blur radiates outward from a focal point you click, automatic, no painting. |
-| **Brush mode** | You paint sharp/blurred areas directly with a brush instead of using a focal point. |
-| **Mask** | The brush strokes you've painted in Brush mode. |
+| **Original** | The picture as you first added it. It always stays in the book, untouched. |
+| **Edits** | Your choices, kept as settings over the original. The book prints from these, so a stale copy never reaches the PDF. |
+| **Reset** | **Reset to the original picture** in the panel clears all edits. It always works. |
+| **Before and after** | A slider on the stage that compares the original with your edits. |
 
-## Uploading an image
+## Tools
 
-Drag and drop, or click to upload, any PNG/JPG/WebP. When opened from a Scriptorium document (via its **Edit in Illuminator** button), the image loads automatically and a **Save to Scriptorium** button appears in the export footer.
+Choose a tool from the rail on the left. Its controls are on the right.
 
-## Mode
+### Edges
 
-A **Mode** toggle (**Auto** / **Brush**) at the top of the controls panel governs how Depth of Field is applied: see below.
+A torn, rough or faded edge. Choose a style and which sides it touches (Top, Right, Bottom, Left).
 
-## Effect sections
+- **Torn paper**: an irregular torn outline with paper fibres and a soft lift shadow. Sliders: **Roughness**, **Tear depth**, **Fibres** and **Lift shadow**.
+- **Torn (classic)**: the layered torn fade the Illuminator has always had, with its own sliders for each side.
+- **Faded** and **Straight**.
 
-Each section is independently toggleable and collapsible. Enable only what you need.
+### Colour
 
-### Brush (Brush mode only)
-
-Paint a mask directly on the image instead of relying on a single focal point:
-
-- **Shape**: Round, Splatter, Rough, or Chalk.
-- **Pressure →**: whether stylus/touch pressure affects brush **size** or **opacity**.
-- Sliders for the active shape (size, hardness, opacity, etc.; hardness is hidden for non-round shapes).
-- **Left-drag erases, right-drag restores.** **Undo (Ctrl+Z)** and **Clear mask** are always available.
-
-### Colour Grading
-
-- **Preset**: quick-apply named grades.
-- **Sliders**: Brightness, Contrast, Saturation, Temperature (warm/cool), Hue rotation.
+Pick a preset or move the sliders: **Brightness**, **Contrast**, **Saturation**, **Temp** (warm or cool) and **Hue**. **Reset** puts them back.
 
 ### Vignette
 
-- **Type**: Transparent (fades to alpha) or Colour (fades to a solid colour, with a colour picker).
-- **Strength** and **Softness** sliders.
+Darkens or fades the corners. **Type** is Transparent (fades to nothing) or Colour (fades to a colour you choose). **Strength** and **Softness** set how far it reaches.
 
-### Texture Overlay
+### Texture
 
-- Upload a tiling texture (parchment, stone, fabric).
-- **Blend mode**: several canvas compositing modes.
-- **Opacity** and **Tile scale** sliders.
+Upload a tiling texture such as parchment, stone or fabric. Choose a **Blend mode**, then set **Opacity** and **Tile scale**.
 
-### Depth of Field
+### Focus
 
-In **Auto** mode: click anywhere on the preview to set the focal point (the sharp area), then tune **Falloff curve** (Linear/Quadratic/Cubic), **Focus radius**, **Blur strength**, and **Desaturation** (slightly desaturates the blurred zones).
+Click the picture to set the sharp spot. Everything away from it blurs. Choose the **Falloff** (Linear, Quadratic or Cubic) and set **Focus radius**, **Blur strength** and **Desaturation**, which slightly drains the colour from blurred areas.
 
-In **Brush** mode, the focal-point click is replaced entirely by your painted mask: the same falloff/blur/desaturation sliders still shape how the masked-out areas render.
+### Brush
 
-### Edge Treatment
+Paint the focus yourself instead of using a single spot.
 
-A torn, rough, or faded edge effect on each of the four edges (Top, Right, Bottom, Left) independently, each with its own **Enable** toggle, **Roughness**, **Fade width**, **Tear depth**, **Passes** (1–12), and **Variation**. Useful for aged-parchment, torn-map, or weathered looks.
+- **Shape**: Round, Splatter, Rough or Chalk.
+- **Pressure** decides whether a stylus or touch pressure changes brush size or opacity.
+- Sliders for size, hardness, opacity, jitter and spacing, depending on the shape.
+- Left-drag erases, right-drag restores. **Undo (Ctrl+Z)** and **Clear mask** are always there.
 
-## Exporting
+**Reset all to defaults** at the foot of the right column clears every tool.
 
-- **Save to Scriptorium**: only shown when you arrived from a Scriptorium document; writes the edited image straight back into that document.
-- **Download PNG**: saves the processed image at full source resolution.
-- **Copy to Clipboard**: copies the image for pasting directly into a portrait upload or elsewhere.
-- **Reset all to defaults**: clears every section without unloading the image.
+## Ask the Illuminator (AI)
+
+If AI is turned on for your campaign, the workbench also offers **Ask the Illuminator**. Each action carries the sparkle mark and shows what it costs in credits:
+
+- **Cut out the figure**: the figure alone, good for placing behind the text.
+- **Turn into an ink sketch** and **Paint as a watercolour**: restyle the picture and keep its composition.
+- **Extend to the page edge**: grows the picture toward the edge you choose.
+- **Match this book's look**: restyles the picture to suit the book's look.
+
+The result becomes the picture you edit from, so you can add an edge or colour on top. It is labelled AI-made wherever it is shown. If a restyle could show a real person, you are asked to confirm first. **Use the original picture** goes back to the first picture, and asks first because the result cost credits.
+
+If AI is off for the campaign, none of this appears.
+
+## Saving a copy
+
+**Save as a new picture** in the header has three choices: **Download as PNG**, **Copy to the clipboard** and **Add to my pictures**. The picture in the book stays as it is.
 
 ## Tips
 
-- **Nothing is uploaded until you export.** All processing happens in-browser; closing the tab loses unsaved work.
-- **Brush mode replaces the focal point, not the DoF sliders.** Switch modes any time: your falloff/blur/desaturation settings carry over.
+- **Your first picture is safe.** Edits are settings over the original, so you can change your mind at any time.
+- **Edges are seeded, not random.** A small preview and the full-size picture tear the same way.
+- **A big edit can take a moment to settle.** The page shows a quick preview first and the full-quality picture follows in the background.
 
 ## Related
 
-- [Scriptorium: Document Publisher](#scriptorium-document-publisher): the round-trip this tool is built for.
-- [The Mint: Tokens and Coins](#the-mint-tokens-and-coins): touch up a portrait here before minting a token.
+- [Scriptorium: Document Publisher](#scriptorium-document-publisher): where your pictures live, and how to place them behind or in front of the text.

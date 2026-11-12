@@ -11,6 +11,7 @@ export {
   MUSIC_PROMPT_MAX_CHARS,
   type MusicRequest as FallbackPromptRequest,
 } from "@edge-shared/musicPrompt.ts";
+import { blobToBase64 } from "@/lib/blobToBase64";
 
 /** Selectable target lengths for a generated track. Lyria 3.5 is one model —
  * length is steered by the prompt (a target duration plus a timestamped
@@ -82,19 +83,6 @@ function extensionFor(mimeType: string): string {
 
 const LYRIA_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const LYRIA_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
-// Chunked so a large image never spreads its whole byte array into
-// String.fromCharCode at once (that blows the call-stack argument limit).
-const BASE64_CHUNK_SIZE = 8192;
-
-async function blobToBase64Chunked(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += BASE64_CHUNK_SIZE) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + BASE64_CHUNK_SIZE));
-  }
-  return btoa(binary);
-}
-
 interface LyriaImageInput {
   mimeType: string;
   data: string;
@@ -117,7 +105,7 @@ async function fetchImageForLyria(url: string): Promise<LyriaImageInput> {
   const blob = await response.blob();
   if (blob.size > LYRIA_IMAGE_MAX_BYTES) throw new Error("Could not read an attached image.");
 
-  return { mimeType, data: await blobToBase64Chunked(blob) };
+  return { mimeType, data: await blobToBase64(blob) };
 }
 
 /** Over the cap throws rather than trimming — same rule as a failed fetch:

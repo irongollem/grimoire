@@ -37,6 +37,11 @@ export const PINNED = {
     "`toSorted(e){return ft(this).toSorted(e)}`; the native runs only if app code calls it, " +
     "and no call site in src/ does. Re-check that with " +
     "`rg '\\.toSorted\\(' src/` before assuming it still holds.",
+  "Promise.withResolvers":
+    "Feature-detected at the call site. Only pdf.js uses it (the pdf-reader chunk and its " +
+    "worker), loaded solely by readPdfPageTexts in src/scriptorium/lib/pdfPageTexts.ts, which " +
+    "checks canReadPdf() first and rejects without importing pdf.js; the export's print check " +
+    "then reports itself unavailable. Not polyfilled: a page polyfill cannot reach the worker.",
   "Array.prototype.toReversed": "Same vue-core instrumentation as toSorted; no src/ call site.",
   "Array.prototype.toSpliced": "Same vue-core instrumentation as toSorted; no src/ call site.",
 };

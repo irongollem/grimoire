@@ -58,7 +58,7 @@ vi.mock("@/composables/locations/useLocations", () => ({
   ] } }),
 }));
 
-vi.mock("@/composables/scriptorium/useScriptorium", () => ({
+vi.mock("@/scriptorium/composables/useScriptorium", () => ({
   useScriptoriumDocuments: () => ({ data: { value: [
     { id: "doc-map", title: "The smuggler's map", campaign_id: "camp-1" },
     { id: "doc-shared", title: "A letter from nowhere", campaign_id: null },

@@ -8,8 +8,8 @@
  */
 
 import { buildBookModel } from "@/lib/openBook/bookModel";
-import { inlineSameOriginAssets } from "@/lib/scriptorium/inlineSameOriginAssets";
-import scriptoriumFontsCss from "@/assets/scriptorium/fonts.css?inline";
+import { inlineSameOriginAssets } from "@/scriptorium/lib/inlineSameOriginAssets";
+import scriptoriumFontsCss from "@/scriptorium/styles/fonts.css?inline";
 import type { OpenBookSnapshot } from "@/types/openBook.types";
 import { prepareSectionHtml } from "./bookLinks";
 import { buildPagedCss } from "./bookCss";

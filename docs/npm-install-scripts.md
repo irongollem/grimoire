@@ -101,6 +101,13 @@ more expensive outage. The safety net esbuild needs, this does not.
 `core-js` prints a funding banner; `es5-ext` broadcasts an anti-war message when
 the machine's timezone is Russian. Neither writes anything the build reads.
 
+**`pdfjs-dist` and `@napi-rs/canvas` — nothing to decide.** `pdfjs-dist` 6.4.299
+(#1176, the export read-back) has an empty `scripts` field. Its optional
+dependency `@napi-rs/canvas` and the per-platform `@napi-rs/canvas-*` packages
+it pulls in are prebuilt binaries with no install script either (the lockfile
+marks none with `hasInstallScript`), so no verdict is needed. If a later
+version adds one, the unreviewed-scripts warning below is the prompt to look.
+
 ## Maintaining it
 
 `allowScripts` is **advisory in npm 11.x** — scripts still run and installs only

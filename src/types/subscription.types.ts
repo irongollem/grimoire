@@ -144,6 +144,8 @@ export type AiGenerationType =
   // function) — the per-turn conversational alternative to the one-shot
   // quest_generation hook generator.
   | 'quest_design_turn'
+  // #1176: one AI picture action in the Scriptorium's Illuminator (illuminate-picture edge function).
+  | 'illuminate_picture'
 
 export const CREDIT_COST: Record<AiGenerationType, number> = {
   portrait:           2,
@@ -151,6 +153,7 @@ export const CREDIT_COST: Record<AiGenerationType, number> = {
   monster_stat_block: 1,
   music_track:        20,
   quest_design_turn:  1,
+  illuminate_picture: 50,
 } as const
 
 /** Split credit balance: subscription bucket (resets monthly) + purchased (permanent). */

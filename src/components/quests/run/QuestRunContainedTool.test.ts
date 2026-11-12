@@ -48,11 +48,11 @@ vi.mock("@/composables/notes/useNotes", () => ({ useNote: (id: { value: string }
   mocks.noteId = id;
   return { data: mocks.note, isLoading: { value: false } };
 } }));
-vi.mock("@/composables/scriptorium/useScriptorium", () => ({ useScriptoriumDocument: (id: { value: string }) => {
+vi.mock("@/scriptorium/composables/useScriptorium", () => ({ useScriptoriumDocument: (id: { value: string }) => {
   mocks.handoutId = id;
   return { data: mocks.handout, isLoading: { value: false } };
 } }));
-vi.mock("@/composables/scriptorium/useScriptoriumChapters", () => ({
+vi.mock("@/scriptorium/composables/useScriptoriumChapters", () => ({
   useBookChapterList: () => ({ data: mocks.handoutChapters }),
   useScriptoriumChapter: (id: { value: string }) => {
     mocks.chapterRequested = id;

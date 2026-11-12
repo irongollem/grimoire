@@ -1,0 +1,123 @@
+<template>
+  <div>
+    <div
+      class="flex items-center px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer select-none"
+      @click="emit('toggle')"
+    >
+      <IconChevronRight
+        class="h-3 w-3 shrink-0 text-muted-foreground transition-transform mr-2"
+        :class="open ? 'rotate-90' : ''"
+      />
+      <span
+        class="flex-1 text-label-lg font-bold uppercase transition-colors"
+        :class="enabled ? 'text-foreground' : 'text-muted-foreground'"
+      >Colour Grading</span>
+      <ToggleSwitch
+        :model-value="enabled"
+        aria-label="Toggle colour grading"
+        @update:model-value="emit('update:enabled', $event)"
+        @click.stop
+      />
+    </div>
+
+    <div
+      v-show="open"
+      class="px-4 pb-4 flex flex-col gap-3 transition-opacity"
+      :class="enabled ? 'opacity-100' : 'opacity-35'"
+    >
+      <!-- Preset buttons -->
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <span class="text-eyebrow text-muted-foreground mr-1">Presets</span>
+        <AppButton
+          v-for="preset in GRADING_PRESETS"
+          :key="preset.label"
+          variant="subtle"
+          tone="primary"
+          size="xs"
+          :label="preset.label"
+          @click="emit('apply-preset', preset.values)"
+        />
+        <AppButton
+          variant="ghost"
+          size="inline-xs"
+          label="Reset"
+          class="ml-auto"
+          @click="emit('reset')"
+        />
+      </div>
+
+      <!-- Grading sliders -->
+      <div v-for="gs in GRADING_SLIDERS" :key="gs.key">
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-eyebrow text-muted-foreground">
+            {{ gs.label }}
+          </label>
+          <span class="text-caption text-muted-foreground tabular-nums">
+            {{ gradingDisplay(gs.key) }}
+          </span>
+        </div>
+        <input
+          type="range"
+          :min="gs.min"
+          :max="gs.max"
+          :step="gs.step"
+          :value="grading[gs.key]"
+          class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-border accent-primary"
+          @input="(e) => emit('set-slider', gs.key, parseFloat((e.target as HTMLInputElement).value))"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { IconChevronRight } from "@/lib/icons";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
+import { GRADING_PRESETS, type ColourGradingOptions } from "@/scriptorium/illuminator/lib/colourGrading";
+
+const {
+  grading,
+  enabled,
+  open,
+} = defineProps<{
+  grading: ColourGradingOptions;
+  enabled: boolean;
+  open: boolean;
+}>();
+
+const emit = defineEmits<{
+  toggle: [];
+  "update:enabled": [value: boolean];
+  "set-slider": [key: GradingSliderKey, value: number];
+  "apply-preset": [values: ColourGradingOptions];
+  reset: [];
+}>();
+
+type GradingSliderKey = keyof ColourGradingOptions;
+
+const GRADING_SLIDERS: Array<{
+  key: GradingSliderKey;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  isHue: boolean;
+}> = [
+  { key: "brightness",  label: "Brightness", min: -1,   max: 1,   step: 0.01, isHue: false },
+  { key: "contrast",    label: "Contrast",   min: -1,   max: 1,   step: 0.01, isHue: false },
+  { key: "saturation",  label: "Saturation", min: -1,   max: 1,   step: 0.01, isHue: false },
+  { key: "temperature", label: "Temp",       min: -1,   max: 1,   step: 0.01, isHue: false },
+  { key: "hue",         label: "Hue",        min: -180, max: 180, step: 1,    isHue: true  },
+];
+
+function gradingDisplay(key: GradingSliderKey): string {
+  const v = grading[key];
+  if (key === "hue") {
+    const deg = Math.round(v);
+    return deg >= 0 ? `+${deg}°` : `${deg}°`;
+  }
+  const pct = Math.round(v * 100);
+  return pct >= 0 ? `+${pct}` : String(pct);
+}
+</script>

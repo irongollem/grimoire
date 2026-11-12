@@ -2,7 +2,7 @@
 /**
  * Assembles a setting book's markdown files into ONE Scriptorium book, one chapter
  * per file (epic #1115, story 5), so it can be laid out and exported to PDF in the app. The
- * conversion is `markdownToScriptoriumContent` (src/lib/scriptorium/markdownImport.ts);
+ * conversion is `markdownToScriptoriumContent` (src/scriptorium/lib/markdownImport.ts);
  * the pure decisions (which chapters a re-import updates, adds or deletes; where each art's picture comes from) live
  * in `lib/scriptoriumBook.ts`.
  *
@@ -35,8 +35,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { chapterTitle, countWords } from "../src/lib/scriptorium/chapterTitle.ts";
-import { markdownToScriptoriumContent, type ArtSlot, type MarkdownImportOptions } from "../src/lib/scriptorium/markdownImport.ts";
+import { chapterTitle, countWords } from "../src/scriptorium/lib/chapterTitle.ts";
+import { markdownToScriptoriumContent, type ArtSlot, type MarkdownImportOptions } from "../src/scriptorium/lib/markdownImport.ts";
 import { type PreparedImage, localStorage, prepareImage, r2Storage, writeProvenance } from "./lib/bookImages.ts";
 import { assertCampaignOwner, loadNpcPortraits, readAll, request } from "./lib/campaignRest.ts";
 import { pooled } from "./lib/pool.ts";

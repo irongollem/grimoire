@@ -38,10 +38,10 @@ import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
+import { pngBlob } from "../_shared/pngRequest.ts";
 import {
   NOOK_PART_SIZE,
   nookPartPrompt,
-  pngBlob,
   validateNookPartRequest,
 } from "./validateNookPartRequest.ts";
 

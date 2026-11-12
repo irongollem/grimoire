@@ -35,7 +35,7 @@ import { Columns } from "./Columns";
 import { AiGenerated } from "./AiGenerated";
 import { SecretBlock } from "./secretBlock";
 import { lensPairExtensions } from "./lensPair";
-import { DescriptiveBlock } from "./descriptiveBlock";
+import { DescriptiveBlock } from "@/scriptorium/tiptap/descriptiveBlock";
 import { CalendarEventRef } from "./CalendarEventRef";
 import { createEntityMentionExtension } from "./EntityMention";
 import { IllustrationSuggestion } from "./IllustrationSuggestion";
@@ -90,7 +90,7 @@ vi.mock("@/components/tiptap/EntityMentionNodeView.vue", () => ({ default: {} })
 vi.mock("@/components/tiptap/CalendarEventRefNodeView.vue", () => ({ default: {} }));
 vi.mock("@/components/tiptap/IllustrationSuggestionNodeView.vue", () => ({ default: {} }));
 vi.mock("@/components/tiptap/PendingImageNodeView.vue", () => ({ default: {} }));
-vi.mock("@/components/scriptorium/LensPairView.vue", () => ({ default: {} }));
+vi.mock("@/components/tiptap/LensPairView.vue", () => ({ default: {} }));
 
 // The viewer's extension list as RichTextViewer used to build it.
 function viewerExtensions(): Extensions {

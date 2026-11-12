@@ -36,7 +36,7 @@
 import { computed } from "vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useQuests } from "@/composables/quests/useQuests";
-import { useScriptoriumDocuments } from "@/composables/scriptorium/useScriptorium";
+import { useScriptoriumDocuments } from "@/scriptorium/composables/useScriptorium";
 import type { PinDraft } from "./pinDraft";
 
 /**

@@ -94,6 +94,7 @@ Verified against `supabase/functions/` and `src/ai/` on 5 Aug 2026.
 | `generate-npc-voice` | text | same | "NPC Voice Coach" — generates speakable-as-is lines only; ephemeral, nothing persisted |
 | `generate-chronicle-image` | image | OpenAI (gpt-image-2.5-flare; gpt-image-2 and gpt-image-1.5 before it), Gemini (gemini-3.1-flash-image, "Nano Banana") via `_shared/imageGen.ts` | also the promotional-reuse surface (§2) |
 | `generate-entity-image` | image | same | |
+| `illuminate-picture` | image | OpenAI only, on platform keys (`_shared/imageGen.ts`) | #1176: the Scriptorium Illuminator's "Ask the Illuminator" actions on a picture in a book (cut out, ink sketch, watercolour, extend to the page edge, match the look), generator type `illuminate_<action>`. The client sends the picture as PNG bytes and the server never fetches a client URL; no client-written prompt text reaches the model. Refuses a caller who is not the campaign's DM, AI off for the campaign, and (ink, watercolour, match) a likeness notice not yet acknowledged. The result is marked like any generated image, stored under the DM's own prefix, and carries `ai_provenance`; the bake made from it re-embeds the mark with `edited: true` (`illuminator/lib/bakeUpload.ts`), so the players' copy is labelled too. The PDF re-encodes pictures and drops embedded XMP for every AI picture (not specific to this one) |
 | `style-map` | image | same | |
 | `forge-mini` (stylize leg) | image | same | Simulacrum: portrait → stylized source image |
 | `forge-mini` (sculpt/resculpt leg) | 3D | Meshy image-to-3D | paid task *creation* only |
@@ -135,11 +136,13 @@ by whoever operates it. Listed here for completeness of the AI surface.
 
 ### Not AI
 
-**Illuminate** (`src/lib/illuminate/`, the Illuminator publishing tool) is
-pure client-side canvas image processing — colour grading, vignette, texture
-overlay, depth of field, torn/faded edges. No model call, no AI Act
-relevance. Recorded here once so it stops getting swept into AI audits on
-name association alone.
+**The Illuminator's editing tools** (`src/scriptorium/illuminator/lib/`, the picture
+workbench inside the Scriptorium) are pure client-side canvas image processing:
+colour grading, vignette, texture overlay, depth of field, brush mask,
+torn and faded edges. No model call, no AI Act relevance. Recorded here once so
+they stop getting swept into AI audits on name association alone. Its "Ask the
+Illuminator" actions are the opposite case and are listed above
+(`illuminate-picture`).
 
 ## 4. Consent gateway decision (4 Aug 2026)
 

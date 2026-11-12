@@ -1,0 +1,110 @@
+/*
+ * Self-hosted Scriptorium display + body faces (#465).
+ *
+ * Cinzel (headings) and Alegreya (body) served as static TrueType from
+ * public/fonts/scriptorium/. The PDF export writes this stylesheet into the
+ * HTML its renderer prints, with each url() inlined as a data: URI
+ * (useScriptoriumPdf.ts, inlineSameOriginAssets.ts), so the PDF embeds real
+ * subsetted TrueType. Google-served WOFF2 embeds as bulky Type3 glyph
+ * procedures, which some print shops reject.
+ *
+ * Plain CSS only (no Tailwind directives) so it stays inlinable into that
+ * HTML. Every family is OFL: see public/fonts/scriptorium/*-OFL.txt.
+ *
+ * Oswald (600, Latin only) is the tall condensed capitals of a cover's light
+ * title (sc-cover--title-light, #1176): the look's own display faces are all
+ * wide, and a supplement's painted cover sets its title condensed.
+ */
+
+@font-face {
+  font-family: "Oswald";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/scriptorium/oswald-600.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Cinzel";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/scriptorium/cinzel-400.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Cinzel";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/scriptorium/cinzel-600.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Cinzel";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/scriptorium/cinzel-700.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Cinzel";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("/fonts/scriptorium/cinzel-900.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Alegreya";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/scriptorium/alegreya-400.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Alegreya";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/scriptorium/alegreya-400-italic.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Alegreya";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/scriptorium/alegreya-500.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Alegreya";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/scriptorium/alegreya-700.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Alegreya";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/scriptorium/alegreya-700-italic.ttf") format("truetype");
+}
+
+/* Fondamento: the hand of the Letter and Journal papers (theme-letter.css,
+   theme-journal.css). The app already loads it through @fontsource for the
+   Vellum ink; the PDF export carries only this file, so the faces are
+   registered here too, as TrueType for the same Type3 reason as above.
+   Licence: public/fonts/scriptorium/fondamento-OFL.txt. */
+@font-face {
+  font-family: "Fondamento";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/scriptorium/fondamento-400.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Fondamento";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/scriptorium/fondamento-400-italic.ttf") format("truetype");
+}

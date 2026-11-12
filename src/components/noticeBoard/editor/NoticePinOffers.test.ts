@@ -15,7 +15,7 @@ vi.mock("@/composables/quests/useQuests", () => ({
     ]),
   }),
 }));
-vi.mock("@/composables/scriptorium/useScriptorium", () => ({
+vi.mock("@/scriptorium/composables/useScriptorium", () => ({
   useScriptoriumDocuments: () => ({
     data: ref([
       { id: "d1", title: "Grell's confession", campaign_id: "camp-1" },

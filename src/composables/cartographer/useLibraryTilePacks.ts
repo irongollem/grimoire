@@ -8,6 +8,7 @@ import type { AssetSlot } from "@/cartographer/packSchema";
 import { cloneManifest } from "@/cartographer/cloneManifest";
 import { assertWebp128 } from "@/cartographer/packUpload";
 import { invokeTilePackGenerator } from "./tilePackGenerator";
+import { blobToBase64 } from "@/lib/blobToBase64";
 
 /**
  * Exported because the generation loop lives in `useTilePacks` and drives
@@ -201,23 +202,6 @@ export function useLibraryTilePacks() {
   });
 
   return { packs, publishedPacks, createRun, publish, unpublish, remove, update, uploadTile, generateMissing };
-}
-
-/**
- * Base64-encode a blob for the edge function's `image_b64` fields.
- *
- * Deliberately a byte-by-byte loop rather than
- * `btoa(String.fromCharCode(...bytes))` — spreading a `Uint8Array` into
- * `String.fromCharCode` blows the engine's argument-count limit on anything
- * past a few tens of KB, which a generated or scanned tile can exceed even at
- * 128×128. Mirrors `useTilePacks.ts`'s `toBase64`; not shared because that one
- * is local to its own module and neither composable is the other's dependency.
- */
-async function blobToBase64(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
 }
 
 interface LibraryPackErrorDetail {

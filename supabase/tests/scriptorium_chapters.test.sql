@@ -2,7 +2,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(63);
+select plan(80);
 
 -- A Scriptorium document is a book of chapters (#1115 story 13, 20261029222021).
 --
@@ -73,18 +73,63 @@ insert into public.scriptorium_chapters (id, document_id, position, title, word_
 -- 86: a shared handout whose furniture places pictures on its blocks (#1175).
 insert into public.scriptorium_documents (id, user_id, campaign_id, title, player_visible_to, page_furniture) values
   ('98300000-0000-4000-8000-000000000086', '98300000-0000-4000-8000-000000000001', '98300000-0000-4000-8000-000000000010', 'Placed art', array['98300000-0000-4000-8000-000000000030']::uuid[],
-   '[{"id":"f1","kind":"art","anchor":{"type":"block","blockId":"v1"},"x":10,"y":10,"width":40,"z":"under","props":{"src":"a.webp","opacity":60}},
+   '[{"id":"f1","kind":"art","anchor":{"type":"block","blockId":"v1"},"x":10,"y":10,"width":40,"z":"under","props":{"src":"a.webp","original":"UNTREATED-PLACED.webp","illuminate":{"v":1,"steps":[]},"bakedFor":"h1","opacity":60}},
      {"id":"f2","kind":"art","anchor":{"type":"block","blockId":"s1"},"x":10,"y":10,"width":40,"z":"over","props":{"src":"secret.webp"}},
      {"id":"f3","kind":"art","anchor":{"type":"block","blockId":"d1"},"x":10,"y":10,"width":40,"z":"over","props":{"src":"deep.webp"}},
      {"id":"f4","kind":"art","anchor":{"type":"page","chapterId":"98300000-0000-4000-8000-0000000000a9","page":1},"x":10,"y":10,"width":40,"z":"over","props":{"src":"page.webp"}},
      {"id":"f5","kind":"watercolor","anchor":{"type":"block","blockId":"v1"},"x":10,"y":10,"width":40,"z":"under","props":{"variant":1}},
      {"id":"f6","kind":"art","anchor":{"type":"block","blockId":"v1"},"x":10,"y":10,"width":40,"z":"over","props":{"src":""}},
-     {"id":"f7","kind":"art","anchor":{"type":"block"},"x":10,"y":10,"width":40,"z":"over","props":{"src":"orphan.webp"}}]'::jsonb);
+     {"id":"f7","kind":"art","anchor":{"type":"block"},"x":10,"y":10,"width":40,"z":"over","props":{"src":"orphan.webp"}},
+     {"id":"f8","kind":"art","anchor":{"type":"block","blockId":"v1"},"x":10,"y":10,"width":40,"z":"over","props":{"src":"https://x.test/asset-images/98300000-0000-4000-8000-000000000001/ill-used.webp","original":"PENDING-PLACED.webp","illuminate":"{\"v\":1}"}}]'::jsonb);
 insert into public.scriptorium_chapters (id, document_id, position, title, word_count, content) values
   ('98300000-0000-4000-8000-0000000000a9', '98300000-0000-4000-8000-000000000086', 0, 'Letter', 3,
-   '{"type":"doc","content":[{"type":"paragraph","attrs":{"blockId":"v1"},"content":[{"type":"text","text":"seen"}]},{"type":"paragraph","attrs":{"blockId":null},"content":[{"type":"text","text":"no id yet"}]},{"type":"secretBlock","content":[{"type":"paragraph","attrs":{"blockId":"s1"},"content":[{"type":"text","text":"HIDDEN"}]}]},{"type":"lensPair","attrs":{"variant":"boxed"},"content":[{"type":"lensBright","content":[{"type":"paragraph","attrs":{"blockId":"b1"},"content":[{"type":"text","text":"kind"}]}]},{"type":"lensDeep","content":[{"type":"paragraph","attrs":{"blockId":"d1"},"content":[{"type":"text","text":"grim"}]}]}]}]}');
+   '{"type":"doc","content":[{"type":"paragraph","attrs":{"blockId":"v1"},"content":[{"type":"text","text":"seen"}]},{"type":"image","attrs":{"blockId":"i1","src":"BAKED.webp","original":"UNTREATED.webp","illuminate":{"v":1,"steps":[]},"bakedFor":"h1"}},{"type":"image","attrs":{"blockId":"i2","src":"PENDING.webp","original":"PENDING.webp","illuminate":{"v":1,"steps":[]},"bakedFor":null}},{"type":"paragraph","attrs":{"blockId":null},"content":[{"type":"text","text":"no id yet"}]},{"type":"secretBlock","content":[{"type":"paragraph","attrs":{"blockId":"s1"},"content":[{"type":"text","text":"HIDDEN"}]}]},{"type":"lensPair","attrs":{"variant":"boxed"},"content":[{"type":"lensBright","content":[{"type":"paragraph","attrs":{"blockId":"b1"},"content":[{"type":"text","text":"kind"}]}]},{"type":"lensDeep","content":[{"type":"paragraph","attrs":{"blockId":"d1"},"content":[{"type":"text","text":"grim"}]}]}]}]}');
+
+-- Every other player projection of rich text goes through withhold_secret_blocks (as the definer that calls it).
+
+select ok(
+  private.withhold_secret_blocks('{"type":"doc","content":[{"type":"image","attrs":{"src":"BAKED.webp","original":"UNTREATED.webp","illuminate":{"v":1},"bakedFor":"h1"}}]}') not like '%UNTREATED%'
+  and private.withhold_secret_blocks('{"type":"doc","content":[{"type":"image","attrs":{"src":"BAKED.webp","original":"UNTREATED.webp","illuminate":{"v":1},"bakedFor":"h1"}}]}') like '%BAKED.webp%',
+  'every other projection strips a picture''s recipe too, keeping its baked src (fails if an image alone skips the strip)');
+
+select ok(
+  private.withhold_secret_blocks('{"type":"doc","content":[{"type":"image","attrs":{"src":"OLD.webp","pendingJob":"job-123","pendingShape":"banner"}}]}') not like '%job-123%'
+  and private.withhold_secret_blocks('{"type":"doc","content":[{"type":"image","attrs":{"src":"OLD.webp","pendingJob":"job-123","pendingShape":"banner"}}]}') like '%OLD.webp%',
+  'a picture still being painted reaches a player without the DM''s job marks (fails if pendingJob or pendingShape survive)');
+
+select is(
+  private.withhold_secret_blocks('{"type":"doc","content":[{"type":"image","attrs":{"src":"plain.webp","alt":"x"}}]}'),
+  '{"type":"doc","content":[{"type":"image","attrs":{"src":"plain.webp","alt":"x"}}]}',
+  'an ordinary picture with no recipe passes through untouched, never re-serialised (fails if every image takes the strip)');
+
+-- The sweep's check: which of the author's own Illuminator files are still named anywhere.
+select set_config('request.jwt.claim.sub', '98300000-0000-4000-8000-000000000001', true);
+select is(
+  public.scriptorium_pictures_in_use(array[
+    'https://x.test/asset-images/98300000-0000-4000-8000-000000000001/ill-used.webp',
+    'https://x.test/asset-images/98300000-0000-4000-8000-000000000001/ill-gone.webp',
+    'https://x.test/asset-images/98300000-0000-4000-8000-000000000003/ill-theirs.webp']),
+  array[
+    'https://x.test/asset-images/98300000-0000-4000-8000-000000000001/ill-used.webp',
+    'https://x.test/asset-images/98300000-0000-4000-8000-000000000003/ill-theirs.webp'],
+  'only an own ill- file nothing names is free to delete; one a book still names, and anyone else''s, come back in use (fails if the reference or owner check is dropped)');
+select set_config('request.jwt.claim.sub', '', true);
+select throws_ok(
+  $$ select public.scriptorium_pictures_in_use(array['https://x.test/asset-images/98300000-0000-4000-8000-000000000001/ill-gone.webp']) $$,
+  '42501', null, 'a caller with no account is refused, never answered (fails if the auth check is dropped)');
+select set_config('request.jwt.claim.sub', '98300000-0000-4000-8000-000000000001', true);
+select throws_ok(
+  $$ select public.scriptorium_pictures_in_use(array_fill('x'::text, array[501])) $$,
+  '22023', null, 'more than 500 pictures at once is refused (fails if the cap is dropped)');
+select ok(
+  private.withhold_secret_blocks('{"type":"doc","content":[{"type":"image","attrs":{"src":"s"},"content":[{"type":"image","attrs":{"src":"t","original":"NESTED-ORIGINAL.webp"}}]}]}') not like '%NESTED-ORIGINAL%',
+  'a picture nested inside a hand-written picture loses its original too (fails if the strip stops at the outer picture)');
+select set_config('request.jwt.claim.sub', '', true);
 
 -- ── The holder: reads through get_player_handout, never from the table ──────
+
+-- The book is laid on a grey paper of its own (paper_tone), which its readers see too.
+update public.scriptorium_documents set paper_tone = 'grey' where id = '98300000-0000-4000-8000-000000000080';
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '98300000-0000-4000-8000-000000000003', true);
@@ -98,6 +143,10 @@ select is(
 select is(
   public.get_player_handout('98300000-0000-4000-8000-000000000080') -> 'chapter' ->> 'title',
   'First', 'with no chapter named, the first by position comes back');
+
+select is(
+  public.get_player_handout('98300000-0000-4000-8000-000000000080') ->> 'paper_tone',
+  'grey', 'the holder reads the book on its own paper (fails if the paper stays with the DM)');
 
 select is(
   public.get_player_handout('98300000-0000-4000-8000-000000000080', '98300000-0000-4000-8000-0000000000a2') -> 'chapter' ->> 'title',
@@ -121,6 +170,11 @@ select is(
   public.get_player_handout('98300000-0000-4000-8000-000000000086') -> 'chapter' -> 'art',
   '[{"blockId":"v1","src":"a.webp"}]'::jsonb,
   'only block-anchored art with a picture reaches the reader, as blockId and src alone (fails if page art, watercolours, empty pictures, an anchor without an id, or positions are sent)');
+select ok(
+  (public.get_player_handout('98300000-0000-4000-8000-000000000086') -> 'chapter' -> 'content')::text like '%BAKED.webp%'
+  and (public.get_player_handout('98300000-0000-4000-8000-000000000086') -> 'chapter' -> 'content')::text not like '%UNTREATED%'
+  and (public.get_player_handout('98300000-0000-4000-8000-000000000086') -> 'chapter' -> 'content')::text not like '%illuminate%',
+  'a treated picture reaches the holder as its baked src, never its original or its recipe (fails if strip_secret_nodes stops removing them)');
 
 select ok(
   (public.get_player_handout('98300000-0000-4000-8000-000000000080') -> 'chapter' -> 'content')::text not like '%grim%'
@@ -135,6 +189,27 @@ select is(
 select is_empty(
   $$ select id from public.scriptorium_chapters $$,
   'the holder selects no chapter row at all, the shared book''s included (fails if the select policy admits holders)');
+
+select ok(
+  (public.get_player_handout('98300000-0000-4000-8000-000000000086') -> 'chapter' -> 'content')::text not like '%PENDING%',
+  'a picture whose edit is not baked yet is withheld from the text, so its original never shows (fails if the strip serves src before the bake)');
+
+select ok(
+  (public.get_player_handout('98300000-0000-4000-8000-000000000086') -> 'chapter' -> 'art')::text not like '%ill-used%',
+  'and a placed picture whose edit is not baked yet is left out of the art (fails if pending art is projected)');
+
+select is_empty(
+  $$ select page_furniture from public.scriptorium_documents $$,
+  'the holder selects no document row either, so a placed picture''s untreated original never reaches them (fails if the select policy admits holders)');
+
+select is(
+  (select array_agg(id::text order by id) from public.get_player_handouts('98300000-0000-4000-8000-000000000010', '98300000-0000-4000-8000-000000000030')),
+  array['98300000-0000-4000-8000-000000000080', '98300000-0000-4000-8000-000000000083', '98300000-0000-4000-8000-000000000086'],
+  'the holder lists exactly the handouts given to their character (fails if the share filter is dropped)');
+
+select throws_ok(
+  $$ select * from public.get_player_handouts('98300000-0000-4000-8000-000000000010', '98300000-0000-4000-8000-000000000031') $$,
+  '42501', null, 'the holder cannot list another character''s handouts (fails if the seat check is dropped)');
 
 select throws_ok(
   $$ select public.get_player_handout('98300000-0000-4000-8000-000000000081') $$,
@@ -179,6 +254,10 @@ select throws_ok(
 select is_empty($$ select id from public.scriptorium_chapters $$, 'a non-member selects no chapter');
 
 select throws_ok(
+  $$ select * from public.get_player_handouts('98300000-0000-4000-8000-000000000010', '98300000-0000-4000-8000-000000000030') $$,
+  '42501', null, 'a non-member cannot list a character''s handouts');
+
+select throws_ok(
   $$ insert into public.scriptorium_chapters (document_id, position) values ('98300000-0000-4000-8000-000000000081', 9) $$,
   '42501', null, 'a non-member cannot add a chapter');
 
@@ -191,6 +270,10 @@ select throws_ok(
   '42501', null, 'a DM of another campaign is refused (fails if any DM is let in)');
 
 select is_empty($$ select id from public.scriptorium_chapters $$, 'and reads no chapter of this campaign, nor the account-wide book of a DM they share no table with');
+
+select throws_ok(
+  $$ select * from public.get_player_handouts('98300000-0000-4000-8000-000000000010', '98300000-0000-4000-8000-000000000030') $$,
+  '42501', null, 'a DM of another campaign cannot list them (fails if any DM is let in)');
 
 select throws_ok(
   $$ insert into public.scriptorium_chapters (document_id, position) values ('98300000-0000-4000-8000-000000000080', 9) $$,
@@ -207,6 +290,10 @@ select set_config('request.jwt.claim.sub', '98300000-0000-4000-8000-000000000002
 select ok(
   (public.get_player_handout('98300000-0000-4000-8000-000000000081') -> 'chapter' -> 'content')::text like '%draft text%',
   'a DM of the campaign previews even an unshared book through get_player_handout');
+
+select is(
+  (select count(*)::integer from public.get_player_handouts('98300000-0000-4000-8000-000000000010', '98300000-0000-4000-8000-000000000030')),
+  3, 'a DM of the campaign previews a character''s handout list (positive control for the refusals above)');
 
 select ok(
   (public.get_player_handout('98300000-0000-4000-8000-000000000080') -> 'chapter' -> 'content')::text not like '%HIDDEN%'

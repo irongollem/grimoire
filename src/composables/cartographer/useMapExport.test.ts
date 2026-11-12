@@ -50,10 +50,8 @@ vi.mock("@/cartographer/aiStyleInput", async () => {
   const actual = await vi.importActual<typeof import("@/cartographer/aiStyleInput")>("@/cartographer/aiStyleInput");
   return { ...actual, bakeAiStyleInput: mocks.bakeAiStyleInput };
 });
-vi.mock("@/cartographer/imageCodec", () => ({
-  blobToBase64: mocks.blobToBase64,
-  base64ToBlob: mocks.base64ToBlob,
-}));
+vi.mock("@/cartographer/imageCodec", () => ({ base64ToBlob: mocks.base64ToBlob }));
+vi.mock("@/lib/blobToBase64", () => ({ blobToBase64: mocks.blobToBase64 }));
 vi.mock("@/lib/storage", () => ({ uploadToBucket: mocks.uploadToBucket }));
 vi.mock("@/lib/supabase", () => ({
   getCurrentUser: mocks.getCurrentUser,

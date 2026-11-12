@@ -73,4 +73,3 @@ The print output includes a front sheet and a duplex-aligned back sheet. Print o
 ## Related
 
 - [Card Forge: Card Printer](#card-forge-card-printer): for trading-card-style output instead of round tokens.
-- [Illuminator: Image Effects](#illuminator-image-effects): touch up a portrait before turning it into a token.

@@ -140,8 +140,8 @@ import { useItemsByIds } from "@/composables/items/useItemsByIds";
 import { useResolvedMonster } from "@/composables/monsters/useMonsters";
 import { useNote } from "@/composables/notes/useNotes";
 import { useActiveParty } from "@/composables/party/useActiveParty";
-import { useScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
-import { useBookChapterList, useScriptoriumChapter } from "@/composables/scriptorium/useScriptoriumChapters";
+import { useScriptoriumDocument } from "@/scriptorium/composables/useScriptorium";
+import { useBookChapterList, useScriptoriumChapter } from "@/scriptorium/composables/useScriptoriumChapters";
 import { useSounds } from "@/composables/soundboard/useSounds";
 import { usePlaylists, usePlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useActionCheck, useBlockedCheck } from "@/composables/soundboard/useSoundPlayback";
@@ -157,9 +157,9 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityLightbox from "@/components/common/overlays/EntityLightbox.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
-import HandoutShareControl from "@/components/scriptorium/HandoutShareControl.vue";
-import { placedArtOfFurniture } from "@/lib/scriptorium/placedArtInFlow";
-import ScriptoriumDocumentView from "@/components/scriptorium/ScriptoriumDocumentView.vue";
+import HandoutShareControl from "@/scriptorium/components/HandoutShareControl.vue";
+import { placedArtOfFurniture } from "@/scriptorium/lib/placedArtInFlow";
+import ScriptoriumDocumentView from "@/scriptorium/components/ScriptoriumDocumentView.vue";
 
 const EncounterRunSurface = defineAsyncComponent(() => import("@/components/encounters/EncounterRunSurface.vue"));
 

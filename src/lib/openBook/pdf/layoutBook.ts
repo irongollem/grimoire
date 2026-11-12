@@ -6,8 +6,8 @@
  */
 
 import { Previewer } from "pagedjs";
-import { pagedStyleElements, removePagedStyles } from "@/lib/scriptorium/pagedStyles";
-import { compactPrintImages } from "@/lib/scriptorium/printImages";
+import { pagedStyleElements, removePagedStyles } from "@/scriptorium/lib/pagedStyles";
+import { compactPrintImages } from "@/scriptorium/lib/printImages";
 import { applyFolios } from "./folios";
 import { DOCUMENT_CSS } from "./bookCss";
 

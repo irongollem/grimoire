@@ -114,7 +114,7 @@ vi.mock("@/composables/monsters/useMonstersByIds", () => ({
   useMonstersByIds: () => ({ data: ref(new Map()) }),
 }));
 
-vi.mock("@/composables/scriptorium/useScriptorium", () => ({
+vi.mock("@/scriptorium/composables/useScriptorium", () => ({
   useCreateScriptoriumBook: () => ({ mutateAsync: vi.fn() }),
 }));
 

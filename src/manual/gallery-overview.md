@@ -26,5 +26,5 @@ Every image is tagged with a **kind** describing what generated it: Chronicle, P
 
 ## Related
 
-- [Illuminator: Image Effects](#illuminator-image-effects): edit an image after finding it here.
+- [Illuminator: Image Effects](#illuminator-image-effects): edit a picture once it is placed in a Scriptorium book.
 - [Simulacrum: 3D Minis](#simulacrum-3d-minis): a separate art pipeline whose output does **not** appear in the Gallery.

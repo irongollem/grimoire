@@ -3,7 +3,7 @@
        and the `started` emit, a paid render whose anchor has not been dropped
        into the note yet. See AppModal's `backdropDismiss`. -->
   <AppModal :open="visible" size="md" :backdrop-dismiss="false" @close="emit('close')">
-    <ModalHeader title="Generate Scene Illustration" />
+    <ModalHeader :title="title ?? 'Generate Scene Illustration'" />
 
     <div ref="dialogRef" class="min-h-0 flex-1 overflow-y-auto overscroll-contain flex flex-col gap-4 px-5 py-4">
       <!-- Scene prompt -->
@@ -49,17 +49,18 @@
       <!-- Shape picker -->
       <div class="flex flex-col gap-1">
         <label class="text-label-lg text-muted-foreground">Shape</label>
-        <div class="flex gap-1.5">
+        <div class="flex flex-wrap gap-1.5">
           <AppButton
-            v-for="s in SHAPES"
-            :key="s.value"
+            v-for="s in offeredShapes"
+            :key="s.id"
             variant="subtle"
             size="xs"
-            :active="size === s.value"
-            @click="size = s.value"
+            :active="shapeId === s.id"
+            :data-testid="`shape-${s.id}`"
+            @click="shapeId = s.id"
           >
             <span class="text-label-lg ">{{ s.label }}</span>
-            <span class="text-caption-sm opacity-60">{{ byok ? 'BYOK' : (shapeCost(s.value) === null ? '' : `${shapeCost(s.value)} cr`) }}</span>
+            <span class="text-caption-sm opacity-60">{{ byok ? 'BYOK' : (shapeCost(s.size) === null ? '' : `${shapeCost(s.size)} cr`) }}</span>
           </AppButton>
         </div>
       </div>
@@ -113,7 +114,7 @@ import { useMentionedMonsters } from "@/composables/monsters/useMentionedMonster
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
-import type { ChroniclerSize } from "@/types/chronicler.types";
+import type { SceneShape } from "@/types/chronicler.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
@@ -125,20 +126,31 @@ import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignProviders } from "@/composables/ai/useCampaignProviders";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 
-const props = defineProps<{ visible: boolean; initialPrompt?: string; noteId?: string }>();
+const NOTE_SHAPES: SceneShape[] = [
+  { id: "square", label: "Square", size: "1024x1024" },
+  { id: "landscape", label: "Landscape", size: "1536x1024" },
+];
+
+const props = defineProps<{
+  visible: boolean;
+  initialPrompt?: string;
+  noteId?: string;
+  title?: string;
+  /** The shapes on offer; the notes' Square and Landscape when not given. */
+  shapes?: SceneShape[];
+  /** Close once a render is queued (a picture in a book) instead of staying open to queue more (a note). */
+  closeOnStart?: boolean;
+}>();
 
 const emit = defineEmits<{
   close: [];
-  started: [{ jobId: string; prompt: string; size: string }];
+  started: [{ jobId: string; prompt: string; size: string; shape: string }];
 }>();
 
-const SHAPES: { label: string; value: ChroniclerSize }[] = [
-  { label: "Square",    value: "1024x1024" },
-  { label: "Landscape", value: "1536x1024" },
-];
+const offeredShapes = computed(() => props.shapes ?? NOTE_SHAPES);
 
 const scenePrompt = ref("");
-const size        = ref<ChroniclerSize>("1024x1024");
+const shapeId     = ref<string>("");
 const starting    = ref(false);
 const error       = ref("");
 const queuedNotice = ref("");
@@ -154,13 +166,15 @@ function clearNoticeAfter(ms: number) {
 watch(() => props.visible, (v) => {
   if (v) {
     scenePrompt.value = props.initialPrompt ?? "";
+    if (!offeredShapes.value.some((s) => s.id === shapeId.value)) shapeId.value = offeredShapes.value[0].id;
     error.value = "";
     queuedNotice.value = "";
   } else {
     queuedCount.value = 0;
     if (noticeTimer) { clearTimeout(noticeTimer); noticeTimer = null; }
   }
-});
+// Immediate, so a host that mounts the dialog only when it opens (a picture in a book) still starts from its prompt.
+}, { immediate: true });
 
 const { mentionItems, partyMembers, npcs, monsterIndex, locations, factions } = useEntityMentionItems();
 
@@ -195,10 +209,11 @@ const { user } = storeToRefs(useAuthStore());
 const { costOf } = useAiCredits();
 const { requireCredits } = useOutOfCredits();
 const { imageCredits, imageIsByok: byok } = useCampaignProviders();
-function shapeCost(s: ChroniclerSize): number | null {
+function shapeCost(s: SceneShape["size"]): number | null {
   return imageCredits(costOf("chronicle_image", { size: s }));
 }
-const selectedCost = computed(() => (byok.value ? 0 : shapeCost(size.value)));
+const selectedShape = computed(() => offeredShapes.value.find((s) => s.id === shapeId.value) ?? offeredShapes.value[0]);
+const selectedCost = computed(() => (byok.value ? 0 : shapeCost(selectedShape.value.size)));
 
 const { ensureLikenessAck } = useLikenessGate();
 
@@ -218,10 +233,14 @@ async function generate() {
     const { jobId } = await startChroniclerImage({
       sceneText: prompt,
       entities:  resolvedEntities.value,
-      size:      size.value,
+      size:      selectedShape.value.size,
       noteId:    props.noteId ?? null,
     });
-    emit("started", { jobId, prompt, size: size.value });
+    emit("started", { jobId, prompt, size: selectedShape.value.size, shape: selectedShape.value.id });
+    if (props.closeOnStart) {
+      emit("close");
+      return;
+    }
     queuedCount.value += 1;
     scenePrompt.value = "";
     queuedNotice.value = "Queued: it'll render into your note";

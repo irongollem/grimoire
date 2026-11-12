@@ -8,7 +8,7 @@
  * mask filled with the item's tint colour, so `aspect` is needed to size the
  * (height-less) masked box correctly.
  *
- * Lives in `data/` rather than `lib/scriptorium/furniture/` (#721) because it
+ * Lives in `data/` rather than `scriptorium/lib/furniture/` (#721) because it
  * has two consumers on opposite sides of a one-way boundary: the furniture
  * renderer, and the legacy `lib/tiptap/watercolor` node kept registered for
  * pre-v3 documents. `lib/tiptap` is infrastructure and must not import from a

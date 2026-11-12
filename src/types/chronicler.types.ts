@@ -12,7 +12,10 @@ export interface ChroniclerImage {
   error: string | null;
 }
 
-export type ChroniclerSize = "1024x1024" | "1536x1024";
+export type ChroniclerSize = "1024x1024" | "1536x1024" | "1024x1536";
+
+/** A shape the scene dialog offers: what it is called, and the oblong the model paints for it (what it costs). */
+export interface SceneShape { id: string; label: string; size: ChroniclerSize }
 
 export type ImageJobKind =
   | "chronicler"

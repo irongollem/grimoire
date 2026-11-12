@@ -15,8 +15,9 @@
       <AppButton to="/play/journal?tab=handouts" variant="subtle" size="md" label="Back to Handouts" />
     </template>
   </EmptyState>
-  <div v-else class="h-full md:mx-auto md:h-auto md:max-w-3xl md:overflow-hidden md:rounded-lg md:border md:border-border">
+  <div v-else class="flex h-full flex-col md:mx-auto md:h-auto md:max-w-3xl md:overflow-hidden md:rounded-lg md:border md:border-border">
     <ScriptoriumReader
+      class="min-h-0 flex-1"
       :book="shown"
       :chapters="shown.chapters"
       :chapter="shown.chapter"
@@ -25,6 +26,7 @@
       back-to="/play/journal?tab=handouts"
       @select-chapter="chapterId = $event"
     />
+    <HandoutAiLabels v-if="shown.chapter" :srcs="pictureUrls" class="shrink-0 py-2" />
   </div>
 </template>
 
@@ -43,9 +45,11 @@ import { IconScrollText } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
-import ScriptoriumReader from "@/components/scriptorium/ScriptoriumReader.vue";
-import { usePlayerHandout } from "@/composables/scriptorium/usePlayerHandouts";
-import type { PlayerHandout } from "@/types/scriptorium.types";
+import HandoutAiLabels from "@/scriptorium/components/HandoutAiLabels.vue";
+import ScriptoriumReader from "@/scriptorium/components/ScriptoriumReader.vue";
+import { usePlayerHandout } from "@/scriptorium/composables/usePlayerHandouts";
+import { chapterPictureUrls } from "@/scriptorium/lib/chapterPictureUrls";
+import type { PlayerHandout } from "@/scriptorium/types";
 import { useMarkRead } from "@/composables/player/useReadItems";
 
 const route = useRoute();
@@ -59,6 +63,8 @@ const { mutate: markRead } = useMarkRead();
 // last answer on screen keeps the reader (and where it is in the book) mounted; only a handout the server
 // says is gone (null) clears it.
 const shown = ref<PlayerHandout | null>(null);
+// The pictures this chapter shows, for the AI-made label beside the reader.
+const pictureUrls = computed(() => (shown.value?.chapter ? chapterPictureUrls(shown.value.chapter.content, shown.value.chapter.art) : []));
 // A different handout starts over, from its first chapter.
 watch(id, () => {
   chapterId.value = null;
