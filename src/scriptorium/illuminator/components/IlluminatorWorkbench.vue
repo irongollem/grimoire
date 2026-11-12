@@ -35,28 +35,108 @@
       </header>
 
       <div class="flex min-h-0 flex-1">
-        <IlluminateToolRail v-model:tool="wb.tool.value" />
+        <IlluminateToolRail v-model:tool="wb.tool.value" :colour="paint.colour.value" @open-colour="openColourTab" />
+
+        <div v-if="armedPaintTool" class="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="paint-area">
+          <PaintOptionsBar
+            v-if="paint.ready.value && paint.optionValues.value && paint.brush.value"
+            :tool="armedPaintTool"
+            :brush-name="paint.brush.value.name"
+            :mode="paint.brush.value.blend"
+            :values="paint.optionValues.value"
+            @change="(field, value) => paint.setOption(field, value)"
+            @update:mode="paint.setMode"
+            @open-library="openBrushes"
+            @open-settings="paintView = 'settings'"
+          >
+            <template #tip>
+              <PaintPreviewCanvas v-if="tipPixels" :pixels="tipPixels" :scale="2" />
+            </template>
+          </PaintOptionsBar>
+
+          <PaintStageFrame :ready="paint.session.value !== null && paint.compositor.value !== null" :message="wb.paintError.value || wb.loadError.value">
+            <PaintStage
+              v-if="paint.session.value && paint.compositor.value"
+              ref="paintStage"
+              :session="paint.session.value"
+              :compositor="paint.compositor.value"
+              :cursor="paint.cursor.value"
+              :tool="armedPaintTool"
+              @picked="paint.onPicked"
+              @stroke-start="paint.onStrokeStart"
+              @stroke-end="paint.onStrokeEnd"
+              @pen="paint.onPen"
+            />
+          </PaintStageFrame>
+
+          <div class="flex items-center gap-4 border-t border-border bg-card px-3 py-1.5 text-caption text-muted-foreground" data-testid="pen-status">
+            <span>Pressure <span class="tabular-nums text-foreground">{{ penPressure }}</span></span>
+            <span>Tilt <span class="tabular-nums text-foreground">{{ penTilt }}</span></span>
+            <AppButton class="ml-auto" variant="ghost" size="xs" label="Pen" data-testid="open-pen" @click="paintView = 'pen'" />
+          </div>
+        </div>
 
         <IlluminateStage
+          v-else
           ref="stage"
           v-model:compare-pos="wb.comparePos.value"
           :size="wb.previewSize.value"
           :show-original="wb.showOriginal.value"
-          :compare-off="wb.tool.value === 'brush' || wb.tool.value === 'focus' || wb.tool.value === 'crop'"
+          :compare-off="wb.tool.value === 'focus' || wb.tool.value === 'crop'"
           :cursor-class="cursorClass"
           :load-error="wb.loadError.value"
-          :brush-cursor="wb.brushCursor"
           @canvas-click="wb.onCanvasClick"
-          @brush-down="wb.onBrushDown"
-          @brush-move="wb.onBrushMove"
-          @brush-up="wb.onBrushUp"
-          @brush-enter="wb.brushCursor.visible = wb.tool.value === 'brush'"
-          @brush-leave="wb.brushCursor.visible = false"
         >
           <IlluminateCropBox v-if="wb.tool.value === 'crop'" :crop="wb.crop" :locked="cropLocked" @drag="wb.dragCropBox" />
         </IlluminateStage>
 
-        <aside :aria-label="toolTitle" class="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card">
+        <aside v-if="armedPaintTool" aria-label="Painting" class="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card" data-testid="paint-panel">
+          <template v-if="paintView !== 'tabs'">
+            <div class="border-b border-border p-2">
+              <AppButton variant="ghost" size="xs" :icon="IconChevronLeft" label="Back" data-testid="paint-back" @click="paintView = 'tabs'" />
+            </div>
+            <BrushSettingsPanel
+              v-if="paintView === 'settings' && paint.brush.value"
+              :brush="paint.brush.value"
+              :assets="paint.assets"
+              @update:brush="paint.updateBrush"
+              @reset="paint.resetBrush"
+              @save-as-new="paint.saveAsNewBrush"
+            />
+            <PenPanel v-else-if="paintView === 'pen'" :curve="paint.curve.value" :reported="paint.reported.value" @update:curve="paint.setCurve" />
+          </template>
+          <template v-else>
+            <TabBar v-model="paintTab" :tabs="PAINT_TABS" />
+            <BrushLibraryPanel
+              v-if="paintTab === 'brushes' && paint.brush.value"
+              :brushes="paint.library.value"
+              :selected-id="paint.brush.value.id"
+              :assets="paint.assets"
+              @select="onSelectBrush"
+              @new="onNewBrush"
+            />
+            <LayersPanel
+              v-else-if="paintTab === 'layers'"
+              :layers="paint.layers.value"
+              :active-id="paint.activeLayerId.value"
+              :can-delete="paint.canDeleteActive.value"
+              :can-merge-down="paint.canMergeActive.value"
+              :thumbnail="paint.thumbnail"
+              :revision="paint.revision.value"
+              @select="paint.selectLayer"
+              @set-visible="(id, visible) => paint.setLayerProps(id, { visible })"
+              @set-props="paint.setLayerProps"
+              @commit-opacity="paint.commitOpacity"
+              @add="paint.addLayer"
+              @delete="paint.deleteLayer"
+              @merge-down="paint.mergeDown"
+              @move="paint.moveLayer"
+            />
+            <ColourPanel v-else-if="paintTab === 'colour'" :colour="paint.colour.value" :recent="paint.recent.value" @update:colour="paint.setColour" />
+          </template>
+        </aside>
+
+        <aside v-else :aria-label="toolTitle" class="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card">
           <div class="flex flex-col gap-0.5 px-4 pt-4">
             <span class="text-eyebrow uppercase text-muted-foreground">Tool</span>
             <span class="font-heading text-heading-sm">{{ toolTitle }}</span>
@@ -83,7 +163,7 @@
           />
 
           <IlluminateColorGradingPanel
-            v-else-if="wb.tool.value === 'colour'"
+            v-else-if="wb.tool.value === 'grade'"
             :grading="wb.grading"
             :enabled="wb.gradingEnabled.value"
             :open="true"
@@ -144,15 +224,6 @@
             @set-field="(key, value) => (wb.dof[key] = value)"
           />
 
-          <IlluminateBrushPanel
-            v-else
-            :brush="wb.brush"
-            :open="true"
-            :has-strokes="wb.hasStrokes.value"
-            @update:brush="Object.assign(wb.brush, $event)"
-            @undo="wb.undoBrush"
-            @clear="wb.clearBrush"
-          />
           <input ref="textureInput" type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" @change="onTextureFile" />
 
           <div class="border-t border-border p-4">
@@ -188,8 +259,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { onClickOutside } from "@vueuse/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import TabBar from "@/components/common/controls/TabBar.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import IlluminateBrushPanel from "@/scriptorium/illuminator/components/IlluminateBrushPanel.vue";
 import IlluminateAskSection from "@/scriptorium/illuminator/components/IlluminateAskSection.vue";
 import IlluminateCropBox from "@/scriptorium/illuminator/components/IlluminateCropBox.vue";
 import IlluminateCropPanel from "@/scriptorium/illuminator/components/IlluminateCropPanel.vue";
@@ -209,9 +280,20 @@ import { isArtLook } from "@edge-shared/scriptoriumLookStyles.ts";
 import { scriptoriumLook } from "@/scriptorium/lib/looks";
 import type { ScriptoriumTheme } from "@/scriptorium/types";
 import { newWash } from "@/scriptorium/illuminator/lib/washEdits";
-import { useIlluminateWorkbench, type WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
+import BrushLibraryPanel from "@/scriptorium/illuminator/paint/components/BrushLibraryPanel.vue";
+import BrushSettingsPanel from "@/scriptorium/illuminator/paint/components/BrushSettingsPanel.vue";
+import ColourPanel from "@/scriptorium/illuminator/paint/components/ColourPanel.vue";
+import LayersPanel from "@/scriptorium/illuminator/paint/components/LayersPanel.vue";
+import PaintOptionsBar from "@/scriptorium/illuminator/paint/components/PaintOptionsBar.vue";
+import PaintPreviewCanvas from "@/scriptorium/illuminator/paint/components/PaintPreviewCanvas.vue";
+import PaintStageFrame from "@/scriptorium/illuminator/paint/components/PaintStageFrame.vue";
+import PaintStage from "@/scriptorium/illuminator/paint/components/PaintStage.vue";
+import PenPanel from "@/scriptorium/illuminator/paint/components/PenPanel.vue";
+import { PREVIEW_INK } from "@/scriptorium/illuminator/paint/components/previewPaper";
+import { renderTipPreview } from "@/scriptorium/illuminator/paint/render/brushPreview";
+import { isPaintTool, useIlluminateWorkbench, type WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
 import { useToast } from "@/composables/useToast";
-import { IconCheck, IconClipboard, IconDownload, IconImage, IconSave } from "@/lib/icons";
+import { IconChevronLeft, IconCheck, IconClipboard, IconDownload, IconImage, IconSave } from "@/lib/icons";
 
 const { original, settings, name, pageLabel, userId, documentId, campaignId, theme, pageAspect = null, startTool = "edges" } = defineProps<{
   /** The untouched picture the recipe applies to. */
@@ -242,6 +324,7 @@ const emit = defineEmits<{
 
 const toast = useToast();
 const stage = ref<InstanceType<typeof IlluminateStage> | null>(null);
+const paintStage = ref<InstanceType<typeof PaintStage> | null>(null);
 const textureInput = ref<HTMLInputElement | null>(null);
 const saveMenu = ref(false);
 const saveMenuRoot = ref<HTMLElement | null>(null);
@@ -253,7 +336,9 @@ const wb = useIlluminateWorkbench({
   userId: () => userId,
   pageAspect: () => pageAspect,
   canvases: () => ({ before: stage.value?.beforeEl ?? null, after: stage.value?.afterEl ?? null }),
+  redrawPaint: () => paintStage.value?.redraw(),
 });
+const paint = wb.paint;
 
 wb.tool.value = startTool;
 
@@ -271,14 +356,62 @@ onMounted(() => void wb.open());
 onBeforeUnmount(wb.dispose);
 onClickOutside(saveMenuRoot, () => (saveMenu.value = false));
 
-const TITLES = { crop: "Crop", edges: "Edges", colour: "Colour", vignette: "Vignette", texture: "Texture", wash: "Paper wash", focus: "Focus", brush: "Brush" } as const;
+const TITLES = {
+  crop: "Crop",
+  edges: "Edges",
+  grade: "Colour grading",
+  vignette: "Vignette",
+  texture: "Texture",
+  wash: "Paper wash",
+  focus: "Focus",
+  brush: "Brush",
+  smudge: "Smudge",
+  eraser: "Eraser",
+  picker: "Pick colour",
+} as const satisfies Record<WorkbenchTool, string>;
 const freshSeed = () => Math.floor(Math.random() * 1e9);
 const toolTitle = computed(() => TITLES[wb.tool.value]);
-const cursorClass = computed(() => {
-  if (wb.tool.value === "brush") return "cursor-none";
-  if (wb.tool.value === "focus" && wb.dofEnabled.value) return "cursor-crosshair";
-  return "";
+const cursorClass = computed(() => (wb.tool.value === "focus" && wb.dofEnabled.value ? "cursor-crosshair" : ""));
+
+// ── Painting panels ─────────────────────────────────────────────────────────
+const PAINT_TABS = [
+  { id: "brushes", label: "Brushes" },
+  { id: "layers", label: "Layers" },
+  { id: "colour", label: "Colour" },
+] as const;
+type PaintTab = (typeof PAINT_TABS)[number]["id"];
+const paintTab = ref<PaintTab>("brushes");
+/** The two full-panel views reached from the options bar and the status line. */
+const paintView = ref<"tabs" | "settings" | "pen">("tabs");
+const armedPaintTool = computed(() => (isPaintTool(wb.tool.value) ? wb.tool.value : null));
+
+const openColourTab = () => {
+  paintTab.value = "colour";
+  paintView.value = "tabs";
+  if (!armedPaintTool.value) wb.tool.value = "brush";
+};
+const openBrushes = () => {
+  paintTab.value = "brushes";
+  paintView.value = "tabs";
+};
+/** A brush picked while the colour picker is armed arms the Brush: the picker has none of its own. */
+function onSelectBrush(id: string) {
+  if (wb.tool.value === "picker") {
+    wb.tool.value = "brush";
+    paint.setTool("brush");
+  }
+  paint.selectBrush(id);
+}
+function onNewBrush() {
+  if (paint.saveAsNewBrush()) paintView.value = "settings";
+}
+
+const tipPixels = computed(() => {
+  const brush = paint.brush.value;
+  return brush ? renderTipPreview(brush, paint.assets, { width: 64, height: 40, colour: PREVIEW_INK }) : null;
 });
+const penPressure = computed(() => (paint.pen.value?.reported.pressure ? paint.pen.value.pressure.toFixed(2) : "not reported"));
+const penTilt = computed(() => (paint.pen.value?.reported.tilt ? `${paint.pen.value.tilt}°` : "not reported"));
 
 function pick(action: () => Promise<void>) {
   saveMenu.value = false;

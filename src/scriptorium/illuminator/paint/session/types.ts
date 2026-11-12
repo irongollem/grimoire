@@ -103,11 +103,18 @@ export interface SessionState {
  */
 export interface PaintSessionApi {
   readonly state: SessionState;
-  /** Begins a stroke with the armed tool; returns the id of the layer it paints, or null for the picker. */
-  beginStroke(first: PenSample, opts?: { restore?: boolean }): string | null;
+  /**
+   * Begins a stroke with the armed tool: the layer it paints and the tiles its first dab changed, or null for
+   * the picker. When the stroke made a new layer, the caller syncs the compositor's layer list before drawing.
+   */
+  beginStroke(first: PenSample, opts?: { restore?: boolean }): { layerId: string; keys: number[] } | null;
   /** Returns the tile keys that changed on the stroked layer, for the compositor. */
   addSamples(samples: PenSample[]): number[];
-  endStroke(): void;
+  /** Ends the stroke; returns the tiles the end changed (a lone tap's dab, wet edges settling). */
+  endStroke(): number[];
+  /** Whether the layers panel may offer Delete and Merge down for this layer. */
+  canDelete(id: string): boolean;
+  canMergeDown(id: string): boolean;
   addLayer(): PaintLayer;
   deleteLayer(id: string): void;
   moveLayer(id: string, toIndex: number): void;

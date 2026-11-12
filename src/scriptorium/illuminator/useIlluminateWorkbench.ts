@@ -9,10 +9,11 @@
  * a file in and a file out, so the quick edits in the panel and the workbench
  * are the same recipe.
  *
- * Two pictures live only here until Done: the brush's mask canvas and a
- * texture just picked. The mask is uploaded as a PNG when the author finishes;
- * a texture is uploaded as soon as it is picked, so every recipe this hands
- * back points at stored pictures only.
+ * Two pictures live only here until Done: the painted mask (the Eraser on the
+ * picture, held by the paint session) and a texture just picked. The mask is
+ * uploaded as a WebP when the author finishes; a texture is uploaded as soon as
+ * it is picked, so every recipe this hands back points at stored pictures only.
+ * Paint layers live in the paint session in memory (#1181); saving them comes later.
  */
 import { computed, reactive, ref, shallowRef, watch } from "vue";
 import { useHotkeys } from "@/composables/useHotkeys";
@@ -23,8 +24,8 @@ import { encodeWebp } from "@/lib/webpEncode";
 import { uploadToBucket } from "@/lib/storage";
 import { markForSweep } from "@/scriptorium/composables/illuminatorSweep";
 import { applySteps, processImage } from "@/scriptorium/illuminator/lib/applySteps";
-import { createBrushMaskController, DEFAULT_BRUSH_STATE, type BrushState } from "@/scriptorium/illuminator/lib/brushMask";
 import { croppedSize, drawBase } from "@/scriptorium/illuminator/lib/crop";
+import { bakeSize } from "@/scriptorium/illuminator/lib/renderBake";
 import { dragCrop, fitRatio, FULL_CROP, shapeRatio, type CropHandle, type CropRect, type CropShape } from "@/scriptorium/illuminator/lib/cropBox";
 import { DEFAULT_COLOUR_GRADING, type ColourGradingOptions } from "@/scriptorium/illuminator/lib/colourGrading";
 import { DEFAULT_DOF_BLUR, drawFocalCrosshair, type DofBlurOptions } from "@/scriptorium/illuminator/lib/dofBlur";
@@ -35,12 +36,22 @@ import { DEFAULT_TEXTURE_OVERLAY, type DecodedImage, type TextureOverlayOptions 
 import { DEFAULT_PAPER_SIDE, PAPER_SIDES, type PaperEdgeOptions, type PaperSide } from "@/scriptorium/illuminator/lib/tornPaper";
 import { baseImageUrl, clampCrop, type AiStep, type IlluminateSettings, type IlluminateStep, type WashStep } from "@/scriptorium/illuminator/lib/treatment";
 import { DEFAULT_VIGNETTE, type VignetteOptions } from "@/scriptorium/illuminator/lib/vignette";
+import { renderPaintPicture } from "@/scriptorium/illuminator/paint/paintPicture";
+import type { PaintTool } from "@/scriptorium/illuminator/paint/session/types";
+import { usePaintSession } from "@/scriptorium/illuminator/paint/usePaintSession";
 
-export type WorkbenchTool = "crop" | "edges" | "colour" | "vignette" | "texture" | "wash" | "focus" | "brush";
+/** The tools that change the recipe's picture, and the ones that paint on it (#1181). */
+export type PictureTool = "crop" | "edges" | "grade" | "vignette" | "texture" | "wash" | "focus";
+export type WorkbenchTool = PictureTool | PaintTool;
+
+const PAINT_TOOLS: readonly PaintTool[] = ["brush", "smudge", "eraser", "picker"];
+export function isPaintTool(tool: WorkbenchTool): tool is PaintTool {
+  return PAINT_TOOLS.some((t) => t === tool);
+}
 
 /** Long edge of the working preview: sharp on screen, cheap enough to redraw as a slider moves. */
 const MAX_PREVIEW = 900;
-/** Stand-in for the brush's canvas, which is not a stored picture until Done. */
+/** Stand-in for the painted mask, which is not a stored picture until Done. */
 const VIEW_MASK = "view:mask";
 /** The mask only needs its alpha, so it is stored compact. */
 const MASK_QUALITY = 0.9;
@@ -58,6 +69,8 @@ export interface WorkbenchOptions {
   userId: () => string | undefined;
   /** The two canvases of the stage: the original, and the picture with its edits. */
   canvases: () => { before: HTMLCanvasElement | null; after: HTMLCanvasElement | null };
+  /** Asks the paint stage to draw its next frame (after an undo, a layer change). */
+  redrawPaint?: () => void;
   /** The hotkeys belong to the workbench only while it is open. */
   active?: () => boolean;
   /** Width over height of the page the picture sits on, for art placed on the page; null for a picture in the text. */
@@ -102,15 +115,15 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   const crop = reactive<CropRect>({ ...FULL_CROP });
   const cropShape = ref<CropShape>("free");
   const pageAspect = computed(() => opts.pageAspect?.() ?? null);
-  const brush = reactive<BrushState>(structuredClone(DEFAULT_BRUSH_STATE));
-  const brushController = createBrushMaskController();
-  /** A saved mask the picture came with, until the author paints a different one. */
+  const paint = usePaintSession({ redraw: () => opts.redrawPaint?.() });
+  /** A saved mask the picture came with, until the author erases differently on the picture. */
   const maskUrl = ref<string | null>(null);
-  const maskDirty = ref(false);
-  /** The controller's own flag is not reactive; this follows it. */
-  const hasStrokes = ref(false);
-  const maskVersion = ref(0);
-  const isErasing = ref(true);
+  /**
+   * Whether the picture is erased anywhere: the session's mask once it has started, else the saved one. The
+   * recipe has a mask step exactly when this is true.
+   */
+  const hasMask = computed(() => (paint.ready.value ? paint.hasMask.value : maskUrl.value !== null));
+  const paintError = ref("");
 
   const busy = ref(false);
   const copied = ref(false);
@@ -119,7 +132,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   // ── Before / after ────────────────────────────────────────────────────────
   /** Where the divider sits: the left of it shows the original, the right the edits. */
   const comparePos = ref(50);
-  /** Held B: the whole picture as it was. */
+  /** Held O: the whole picture as it was (B is the Brush). */
   const showOriginal = ref(false);
 
   // ── Recipe in and out ─────────────────────────────────────────────────────
@@ -170,12 +183,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     textureFilename.value = "";
     Object.assign(crop, FULL_CROP);
     cropShape.value = "free";
-    Object.assign(brush, structuredClone(DEFAULT_BRUSH_STATE));
-    brushController.clear();
-    maskUrl.value = null;
-    maskDirty.value = false;
-    hasStrokes.value = false;
-    maskVersion.value++;
+    discardPaint();
   }
 
   /** Put a recipe's steps into the tools. A step is on; a tool with no step is off with its defaults. */
@@ -230,7 +238,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     }
   }
 
-  /** The tools as a recipe. The preview paints the brush from its canvas; the final recipe points at the stored mask. */
+  /** The tools as a recipe. The preview takes the mask from the session's canvas; the final recipe points at the stored mask. */
   function buildSettings(forPreview: boolean): IlluminateSettings {
     const steps: IlluminateStep[] = [];
     if (aiStep.value) steps.push({ ...aiStep.value });
@@ -253,27 +261,30 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
       else steps.push({ type: "edges", style: "classic", top: { ...classic.top }, right: { ...classic.right }, bottom: { ...classic.bottom }, left: { ...classic.left } });
     }
     if (wash.value) steps.push({ ...wash.value });
-    if (hasStrokes.value) {
-      const url = forPreview || maskDirty.value || !maskUrl.value ? VIEW_MASK : maskUrl.value;
-      steps.push({ type: "mask", url });
+    if (hasMask.value) {
+      const local = paint.ready.value && (forPreview || paint.maskDirty.value || !maskUrl.value);
+      const url = local ? VIEW_MASK : maskUrl.value;
+      if (url !== null) steps.push({ type: "mask", url });
     }
     return { v: 1, seed: seed.value, steps };
   }
 
-  /** Upload what is only local (the brush's mask) and hand back the finished recipe. */
+  /** Upload what is only local (the painted mask) and hand back the finished recipe. */
   async function finish(): Promise<IlluminateSettings> {
-    if (!hasStrokes.value) return buildSettings(false);
-    if (maskDirty.value || !maskUrl.value) {
+    if (!hasMask.value) return buildSettings(false);
+    if (paint.ready.value && (paint.maskDirty.value || !maskUrl.value)) {
       const user = opts.userId();
-      if (!user) throw new Error("Sign in again to save the brush strokes.");
+      if (!user) throw new Error("Sign in again to save the erasing.");
+      const canvas = paint.maskCanvas();
+      if (!canvas) throw new Error("Could not read the erasing.");
       // The pictures bucket takes WebP and JPEG, not PNG; WebP keeps the mask's alpha.
-      const blob = await encodeWebp(brushController.maskCanvas, MASK_QUALITY);
+      const blob = await encodeWebp(canvas, MASK_QUALITY);
       const url = await uploadToBucket({ bucket: "assetImages", blob, path: `${user}/ill-mask-${crypto.randomUUID().slice(0, 8)}.webp`, contentType: "image/webp" });
-      if (!url) throw new Error("Could not store the brush strokes.");
+      if (!url) throw new Error("Could not store the erasing.");
       // Marked at once: the sweep keeps it only if the saved recipe refers to it.
       markForSweep(url);
       maskUrl.value = url;
-      maskDirty.value = false;
+      paint.maskDirty.value = false;
     }
     return buildSettings(false);
   }
@@ -281,7 +292,10 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   // ── Loading pictures ──────────────────────────────────────────────────────
   const pictureCache = new Map<string, Promise<DecodedImage>>();
   const loader: LoadImage = (url) => {
-    if (url === VIEW_MASK) return Promise.resolve(brushController.maskCanvas);
+    if (url === VIEW_MASK) {
+      const canvas = paint.maskCanvas();
+      return canvas ? Promise.resolve(canvas) : Promise.reject(new Error("No painted mask yet."));
+    }
     let loaded = pictureCache.get(url);
     if (!loaded) {
       loaded = loadDomImage(url);
@@ -295,7 +309,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     return { width: Math.round(size.width * scale), height: Math.round(size.height * scale) };
   }
 
-  /** The picture as it comes out: the crop applied. The brush is painted on this, and the stage shows it. */
+  /** The picture as it comes out: the crop applied. The stage shows it, and the painting is the same shape. */
   const outputSize = computed(() => {
     const img = image.value;
     if (!img) return { width: 0, height: 0 };
@@ -374,55 +388,114 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     clearTimeout(renderTimer);
     renderTimer = setTimeout(() => void renderPreview(), 60);
   }
-  // A brush stroke paints on the next frame rather than after a pause, so erased pixels appear as you paint.
-  let brushFrame: number | null = null;
-  function scheduleBrushRender() {
-    if (brushFrame !== null) return;
-    brushFrame = requestAnimationFrame(() => {
-      brushFrame = null;
-      void renderPreview();
-    });
-  }
 
   const settingsKey = computed(() => JSON.stringify(buildSettings(true)));
-  watch([settingsKey, maskVersion, tool], scheduleRender);
+  watch([settingsKey, paint.maskVersion, tool], scheduleRender);
 
-  // The brush's canvas is sized to the output (the cropped picture); a new base of the same size (an AI result) keeps the strokes.
-  // While the crop box is being set the size is not final, so it waits for another tool.
-  let brushSize = "";
-  watch([image, () => `${outputSize.value.width}x${outputSize.value.height}`, tool], async ([img, size, current]) => {
+  // ── Painting ──────────────────────────────────────────────────────────────
+  /** The picture the paint sits on: every step but the mask. It is redrawn under the paint when this changes. */
+  const pictureKey = computed(() => JSON.stringify(buildSettings(true).steps.filter((step) => step.type !== "mask")));
+  const outputKey = computed(() => `${outputSize.value.width}x${outputSize.value.height}`);
+  let startingPaint = false;
+  let paintedPicture = "";
+  let pictureToken = 0;
+
+  /** The document's size: the cropped picture at bake size, so the Eraser's mask is at full resolution. */
+  function documentSize() {
+    const img = image.value;
+    if (!img) return null;
+    return bakeSize(croppedSize({ width: img.naturalWidth, height: img.naturalHeight }, buildSettings(true)));
+  }
+
+  /** Starts the session on first use of a paint tool, at the picture's size, over the recipe's picture. */
+  async function ensurePaint() {
+    const img = image.value;
+    const size = documentSize();
+    const armed = tool.value;
+    if (!img || !size || paint.ready.value || startingPaint || !isPaintTool(armed)) return;
+    startingPaint = true;
+    paintError.value = "";
+    try {
+      const key = pictureKey.value;
+      const picture = await renderPaintPicture(img, size, buildSettings(true), loader);
+      let mask: CanvasImageSource | null = null;
+      if (maskUrl.value) {
+        try {
+          mask = (await loader(maskUrl.value)) as CanvasImageSource;
+        } catch {
+          // A saved mask that cannot be read is dropped, as it always was: the picture shows whole.
+          maskUrl.value = null;
+        }
+      }
+      const current = tool.value;
+      await paint.start({ size, picture, mask, tool: isPaintTool(current) ? current : armed });
+      paintedPicture = key;
+    } catch {
+      paintError.value = "Painting could not start. Try again.";
+      toast.error(paintError.value);
+    } finally {
+      startingPaint = false;
+    }
+  }
+
+  /** Repaints the picture under the paint when another tool changed it. */
+  async function refreshPicture() {
+    const img = image.value;
+    const size = documentSize();
+    if (!img || !size || !paint.ready.value || pictureKey.value === paintedPicture) return;
+    const key = pictureKey.value;
+    const token = ++pictureToken;
+    const picture = await renderPaintPicture(img, size, buildSettings(true), loader);
+    if (token !== pictureToken || !paint.ready.value) return;
+    paintedPicture = key;
+    paint.setPicture(picture);
+  }
+
+  /** Forgets the painting and the saved mask: the picture changed shape, or the author reset everything. */
+  function discardPaint() {
+    pictureToken++;
+    paint.stop();
+    maskUrl.value = null;
+    paint.maskDirty.value = false;
+    paint.maskVersion.value++;
+    paintedPicture = "";
+  }
+
+  watch([tool, pictureKey, image], async ([t]) => {
+    if (!isPaintTool(t)) return;
+    if (paint.ready.value) {
+      paint.setTool(t);
+      await refreshPicture();
+    } else await ensurePaint();
+  });
+
+  // The painting is sized to the output (the cropped picture). A new base of the same shape (an AI result)
+  // keeps it; a different shape means what was painted would land in the wrong place, so it is cleared. While
+  // the crop box is being set the shape is not final, so this waits for another tool.
+  let shapeKey = "";
+  watch([image, outputKey, tool], async ([img, key, current]) => {
     if (!img || current === "crop") return;
-    if (size === brushSize) {
+    if (shapeKey === "") {
+      shapeKey = key;
+      return;
+    }
+    if (key === shapeKey) {
       scheduleRender();
       return;
     }
-    // A different shape (a crop, an AI result) means strokes painted before would land in the wrong place.
-    if (brushSize !== "" && hasStrokes.value) {
-      toast.info("The brush strokes were cleared because the picture changed shape.");
-      maskUrl.value = null;
-      maskDirty.value = true;
-    }
-    brushSize = size;
-    brushController.resize(outputSize.value.width, outputSize.value.height);
-    hasStrokes.value = false;
-    if (maskUrl.value) {
-      try {
-        brushController.loadMask(await loader(maskUrl.value) as CanvasImageSource);
-        hasStrokes.value = true;
-        maskDirty.value = false;
-      } catch {
-        maskUrl.value = null;
-      }
-    }
-    maskVersion.value++;
+    shapeKey = key;
+    if (hasMask.value || paint.layers.value.some((l) => l.kind === "paint")) toast.info("The brush strokes were cleared because the picture changed shape.");
+    discardPaint();
+    if (isPaintTool(current)) await ensurePaint();
     clearTimeout(renderTimer);
     renderTimer = setTimeout(() => void renderPreview(), 0);
   });
 
   function dispose() {
     clearTimeout(renderTimer);
-    if (brushFrame !== null) cancelAnimationFrame(brushFrame);
     renderToken++;
+    pictureToken++;
+    paint.stop();
   }
 
   // ── Canvas interaction ────────────────────────────────────────────────────
@@ -435,63 +508,31 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     dof.focalY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
   }
 
-  const brushCursor = reactive({ visible: false, x: 0, y: 0, diameter: 0 });
-
-  function touchMask() {
-    hasStrokes.value = brushController.hasStrokes;
-    maskDirty.value = true;
-    maskVersion.value++;
-  }
-
-  function onBrushDown(e: PointerEvent) {
-    const canvas = opts.canvases().after;
-    if (tool.value !== "brush" || !canvas || !image.value) return;
-    e.preventDefault();
-    canvas.setPointerCapture(e.pointerId);
-    isErasing.value = e.button !== 2;
-    const rect = canvas.getBoundingClientRect();
-    brushController.onPointerDown(e, rect, canvas.width, canvas.height, rect.width, rect.height, isErasing.value, brush);
-    touchMask();
-    scheduleBrushRender();
-  }
-
-  function onBrushMove(e: PointerEvent) {
-    const canvas = opts.canvases().after;
-    if (tool.value !== "brush" || !canvas || !image.value) return;
-    const rect = canvas.getBoundingClientRect();
-    brushCursor.x = e.clientX;
-    brushCursor.y = e.clientY;
-    brushCursor.diameter = brush.size * 2 * (rect.width / canvas.width);
-    if (e.buttons > 0) {
-      brushController.onPointerMove(e, rect, canvas.width, canvas.height, rect.width, rect.height, isErasing.value, brush);
-      touchMask();
-      scheduleBrushRender();
-    }
-  }
-
-  function onBrushUp() {
-    brushController.onPointerUp();
-  }
-
-  function undoBrush() {
-    if (!brushController.undo()) return;
-    touchMask();
-  }
-
-  function clearBrush() {
-    brushController.clear();
-    touchMask();
-  }
-
-  watch(tool, (t) => {
-    if (t !== "brush") brushCursor.visible = false;
-  });
-
   // ── Keys ──────────────────────────────────────────────────────────────────
+  /** Arming a paint tool from a key; the session follows through the tool watcher. */
+  const arm = (t: PaintTool) => () => {
+    tool.value = t;
+  };
+  const painting = () => isPaintTool(tool.value);
+  /** [ and ] step the size by a tenth, at least a pixel: finer at small sizes, quicker at large. */
+  const nudgeSize = (direction: 1 | -1) => () => {
+    const values = paint.optionValues.value;
+    if (!painting() || !values) return;
+    const step = Math.max(1, Math.round(values.size * 0.1));
+    paint.setOption("size", Math.min(400, Math.max(1, values.size + direction * step)));
+  };
   useHotkeys(
     () => [
-      { combo: "b", description: "Hold to see the original picture", handler: () => { showOriginal.value = true; }, onRelease: () => { showOriginal.value = false; }, ignoreRepeat: true },
-      { combo: "mod+z", description: "Undo the last brush stroke", handler: () => { if (tool.value === "brush") undoBrush(); } },
+      { combo: "o", description: "Hold to see the original picture (O, since B is the Brush)", handler: () => { showOriginal.value = true; }, onRelease: () => { showOriginal.value = false; }, ignoreRepeat: true },
+      { combo: "b", description: "Brush", handler: arm("brush") },
+      { combo: "s", description: "Smudge", handler: arm("smudge") },
+      { combo: "e", description: "Eraser", handler: arm("eraser") },
+      { combo: "i", description: "Pick a colour", handler: arm("picker") },
+      { combo: "[", description: "Smaller brush", handler: nudgeSize(-1) },
+      { combo: "]", description: "Larger brush", handler: nudgeSize(1) },
+      { combo: "mod+z", description: "Undo the last painting step", handler: () => { if (painting()) paint.undo(); } },
+      { combo: "shift+mod+z", description: "Redo the painting step", handler: () => { if (painting()) paint.redo(); } },
+      { combo: "mod+y", description: "Redo the painting step", handler: () => { if (painting()) paint.redo(); } },
     ],
     { layer: "overlay", enabled: () => opts.active?.() ?? true },
   );
@@ -543,13 +584,13 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     cropShape.value = "free";
   }
 
-  /** Every tool back to nothing, the brush's strokes included. */
+  /** Every tool back to nothing, the painting included. */
   function resetAll() {
     const keepSeed = seed.value;
     resetState();
     seed.value = keepSeed;
-    maskDirty.value = true;
     scheduleRender();
+    if (isPaintTool(tool.value)) void ensurePaint();
   }
 
   // ── Output ────────────────────────────────────────────────────────────────
@@ -611,14 +652,8 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     const next = await loadDomImage(url);
     const was = image.value;
     aiStep.value = { type: "ai", action: aiStep.value ? `${aiStep.value.action}+${action}` : action, output: url };
-    // Strokes painted on a differently shaped picture would land in the wrong place: they go with it.
-    if (was && Math.abs(was.naturalWidth / was.naturalHeight - next.naturalWidth / next.naturalHeight) > 0.01) {
-      brushController.clear();
-      maskUrl.value = null;
-      maskDirty.value = true;
-      hasStrokes.value = false;
-      maskVersion.value++;
-    }
+    // Paint on a differently shaped picture would land in the wrong place: it goes with it.
+    if (was && Math.abs(was.naturalWidth / was.naturalHeight - next.naturalWidth / next.naturalHeight) > 0.01) discardPaint();
     image.value = next;
   }
 
@@ -632,10 +667,9 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   return {
     image, loadError, tool, previewSize, crop, cropShape, pageAspect, setCropShape, dragCropBox, resetCrop, aiStep, baseUrl, setAiResult, clearAiResult,
     edgeStyle, classic, paper, grading, gradingEnabled, vignette, vignetteEnabled, dof, dofEnabled,
-    texture, textureEnabled, wash, textureUrl, textureFilename, brush, hasStrokes, brushCursor,
+    texture, textureEnabled, wash, textureUrl, textureFilename, paint, hasMask, paintError,
     comparePos, showOriginal, busy, copied, clipboardSupported, hasEdits,
     open, dispose, finish, buildSettings, setEdgeStyle, setEdgeSideEnabled, resetAll,
-    onCanvasClick, onBrushDown, onBrushMove, onBrushUp, undoBrush, clearBrush,
-    pickTexture, clearTexture, downloadPng, copyPng, saveAsNewPicture,
+    onCanvasClick, pickTexture, clearTexture, downloadPng, copyPng, saveAsNewPicture,
   };
 }

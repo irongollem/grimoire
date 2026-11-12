@@ -46,7 +46,7 @@ export class PaintHistory {
     const record = s.undo.pop();
     if (!record) return null;
     s.redo.push(record);
-    return swap(layer, record);
+    return swapRecord(layer, record);
   }
 
   redo(layer: TiledLayer): number[] | null {
@@ -54,7 +54,7 @@ export class PaintHistory {
     const record = s.redo.pop();
     if (!record) return null;
     s.undo.push(record);
-    return swap(layer, record);
+    return swapRecord(layer, record);
   }
 
   /** Forgets a layer's history (the layer was deleted or replaced). */
@@ -63,7 +63,8 @@ export class PaintHistory {
   }
 }
 
-function swap(layer: TiledLayer, record: UndoRecord): number[] {
+/** Swaps a record's tiles with the layer's, so the same record undoes and redoes. Returns the tile keys changed. */
+export function swapRecord(layer: TiledLayer, record: UndoRecord): number[] {
   const keys: number[] = [];
   for (const [key, saved] of record.tiles) {
     const current = layer.tile(key) ?? null;

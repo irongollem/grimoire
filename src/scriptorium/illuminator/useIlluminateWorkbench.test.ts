@@ -1,27 +1,38 @@
 // @vitest-environment happy-dom
 import { flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { HotkeyBinding } from "@/composables/useHotkeys";
 import type { IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
+import type { PenSample } from "@/scriptorium/illuminator/paint/engine/types";
 
 const mocks = vi.hoisted(() => ({
   loaded: [] as string[],
   mark: vi.fn(),
   upload: vi.fn(async () => "https://cdn/new-mask.webp"),
   encode: vi.fn(async () => new Blob(["m"], { type: "image/webp" })),
-  controller: {
-    maskCanvas: null as unknown as HTMLCanvasElement,
-    hasStrokes: false,
-    resize: vi.fn(),
-    loadMask: vi.fn(),
-    clear: vi.fn(),
-    applyToCtx: vi.fn(),
-    onPointerDown: vi.fn(),
-    onPointerMove: vi.fn(),
-    onPointerUp: vi.fn(),
-    undo: vi.fn(() => false),
-  },
+  bindings: (() => []) as () => HotkeyBinding[],
+  compositor: { setPaper: vi.fn(), setPicture: vi.fn(), syncLayers: vi.fn(), markDirty: vi.fn(), flush: vi.fn(), render: vi.fn(), readPixel: vi.fn(), dispose: vi.fn() },
 }));
 
+vi.mock("@/composables/useHotkeys", () => ({
+  useHotkeys: (bindings: () => HotkeyBinding[]) => {
+    mocks.bindings = bindings;
+  },
+}));
+// The paint session itself is pure and runs for real; only what needs a canvas or the network is stood in for.
+vi.mock("@/scriptorium/illuminator/paint/assets/loadPaintAssets", () => ({
+  loadPaintAssets: () => ({ tip: () => undefined, grain: () => undefined, loadTip: vi.fn(), loadGrain: vi.fn(), preloadStock: async () => {} }),
+}));
+vi.mock("@/scriptorium/illuminator/paint/render/compositor", () => ({ createCompositor: vi.fn(() => mocks.compositor) }));
+vi.mock("@/scriptorium/illuminator/paint/paintPicture", () => ({ renderPaintPicture: async () => document.createElement("canvas") }));
+vi.mock("@/scriptorium/illuminator/paint/maskPixels", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/scriptorium/illuminator/paint/maskPixels")>()),
+  // A saved mask erases the first tile.
+  loadMaskFromImage: (mask: { ensureTile(key: number): Uint8ClampedArray }) => {
+    mask.ensureTile(0).fill(255);
+  },
+  maskToCanvas: () => document.createElement("canvas"),
+}));
 vi.mock("@/lib/storage", () => ({ uploadToBucket: mocks.upload }));
 vi.mock("@/scriptorium/composables/illuminatorSweep", () => ({ markForSweep: mocks.mark }));
 vi.mock("@/lib/webpEncode", () => ({ encodeWebp: mocks.encode }));
@@ -35,15 +46,8 @@ vi.mock("@/scriptorium/illuminator/lib/loadImage", () => ({
     return img;
   },
 }));
-vi.mock("@/scriptorium/illuminator/lib/brushMask", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/scriptorium/illuminator/lib/brushMask")>()),
-  createBrushMaskController: () => {
-    mocks.controller.maskCanvas = document.createElement("canvas");
-    return mocks.controller;
-  },
-}));
 
-import { useIlluminateWorkbench } from "./useIlluminateWorkbench";
+import { useIlluminateWorkbench, type WorkbenchTool } from "./useIlluminateWorkbench";
 
 const paperSide = (enabled: boolean) => ({ enabled, roughness: 0.7, depth: 0.3, fibres: 0.2, shadow: 0.1 });
 const recipe: IlluminateSettings = {
@@ -74,10 +78,37 @@ beforeEach(() => {
   mocks.upload.mockClear();
   mocks.mark.mockClear();
   mocks.encode.mockClear();
-  mocks.controller.hasStrokes = false;
-  mocks.controller.loadMask.mockImplementation(() => { mocks.controller.hasStrokes = true; });
-  mocks.controller.clear.mockImplementation(() => { mocks.controller.hasStrokes = false; });
+  mocks.compositor.dispose.mockClear();
 });
+
+const sample = (x: number, y: number): PenSample => ({ x, y, pressure: 0.5, tiltX: 0, tiltY: 0, twist: 0, time: 0, pointer: "mouse" });
+
+/** Opens the workbench and arms a paint tool, which starts the paint session. */
+async function startPainting(settings: IlluminateSettings | null = recipe, tool: WorkbenchTool = "eraser") {
+  const wb = open(settings);
+  await wb.open();
+  wb.tool.value = tool;
+  await vi.waitFor(() => expect(wb.paint.ready.value).toBe(true));
+  return wb;
+}
+
+/** An Eraser stroke on the picture, as the stage would make it, then the stage's end-of-stroke event. */
+function erase(wb: Awaited<ReturnType<typeof startPainting>>) {
+  const session = wb.paint.session.value;
+  if (!session) throw new Error("no paint session");
+  session.state.tool = "eraser";
+  session.beginStroke(sample(100, 100));
+  session.addSamples([sample(130, 100)]);
+  session.endStroke();
+  wb.paint.onStrokeEnd("picture");
+}
+
+const binding = (combo: string): HotkeyBinding => {
+  const found = mocks.bindings().find((b) => b.combo === combo);
+  if (!found) throw new Error(`no binding for ${combo}`);
+  return found;
+};
+const press = (combo: string) => binding(combo).handler(new KeyboardEvent("keydown"));
 
 describe("opening a recipe", () => {
   // Fails on: a tool that does not read its step back, so the workbench opens blank and Done overwrites the picture's edits.
@@ -99,45 +130,116 @@ describe("opening a recipe", () => {
 
 describe("finishing", () => {
   // Fails on: Done uploading the saved mask again on every visit, which leaves a new orphan file each time.
-  it("keeps a saved mask's url and uploads nothing when the strokes were not touched", async () => {
-    const wb = open();
-    await wb.open();
-    await flushPromises();
+  it("keeps a saved mask's url and uploads nothing when the erasing was not touched", async () => {
+    const wb = await startPainting();
+    expect(wb.hasMask.value).toBe(true);
     const done = await wb.finish();
     expect(mocks.upload).not.toHaveBeenCalled();
     expect(done.steps.at(-1)).toEqual({ type: "mask", url: "https://cdn/mask.webp" });
   });
 
-  // Fails on: new strokes being saved as the old mask's url, so the page never shows them.
-  it("uploads the mask as WebP when the strokes changed, and points the recipe at it", async () => {
-    const wb = open();
-    await wb.open();
-    await flushPromises();
-    mocks.controller.undo.mockReturnValueOnce(true);
-    wb.undoBrush();
+  // Fails on: new erasing being saved as the old mask's url, so the page never shows it; and on the mask not being
+  // read from the paint session (nothing would be uploaded at all).
+  it("uploads the session's mask as WebP when it changed, and points the recipe at it", async () => {
+    const wb = await startPainting();
+    erase(wb);
     const done = await wb.finish();
-    expect(mocks.upload).toHaveBeenCalledWith(expect.objectContaining({ bucket: "assetImages", contentType: "image/webp" }));
+    expect(mocks.encode).toHaveBeenCalledTimes(1);
+    expect(mocks.upload).toHaveBeenCalledWith(expect.objectContaining({ bucket: "assetImages", contentType: "image/webp", path: expect.stringMatching(/^u1\/ill-mask-[0-9a-f]{8}\.webp$/) }));
     expect(done.steps.at(-1)).toEqual({ type: "mask", url: "https://cdn/new-mask.webp" });
+  });
+
+  // Fails on: a picture erased from nothing keeping no mask step (the erasing would be lost on Done).
+  it("saves a mask for a picture that had none", async () => {
+    const wb = await startPainting(null);
+    expect(wb.hasMask.value).toBe(false);
+    erase(wb);
+    expect(wb.hasMask.value).toBe(true);
+    expect((await wb.finish()).steps.at(-1)).toEqual({ type: "mask", url: "https://cdn/new-mask.webp" });
   });
 
   // Fails on: a mask uploaded and then dropped (Cancel, a re-upload) never being collected, since only marked files are swept.
   it("marks the mask it uploads for the sweep", async () => {
-    const wb = open();
-    await wb.open();
-    await flushPromises();
-    mocks.controller.undo.mockReturnValueOnce(true);
-    wb.undoBrush();
+    const wb = await startPainting();
+    erase(wb);
     await wb.finish();
     expect(mocks.mark).toHaveBeenCalledWith("https://cdn/new-mask.webp");
   });
 
-  // Fails on: an erased mask still being saved because the old url was kept.
-  it("drops the mask step when the strokes were cleared", async () => {
-    const wb = open();
-    await wb.open();
-    await flushPromises();
-    wb.clearBrush();
+  // Fails on: an erased mask still being saved because the old url was kept, or a mask step written for nothing.
+  it("drops the mask step when the erasing was undone back to nothing", async () => {
+    const wb = await startPainting(null);
+    erase(wb);
+    wb.paint.undo();
+    expect(wb.hasMask.value).toBe(false);
     expect((await wb.finish()).steps.some((s) => s.type === "mask")).toBe(false);
+    expect(mocks.upload).not.toHaveBeenCalled();
+  });
+
+  // Fails on: Reset all keeping the saved mask in the recipe while the painting is gone.
+  it("drops the mask step on Reset all", async () => {
+    const wb = await startPainting();
+    wb.resetAll();
+    await vi.waitFor(() => expect(wb.paint.ready.value).toBe(true));
+    expect(wb.hasMask.value).toBe(false);
+    expect((await wb.finish()).steps.some((s) => s.type === "mask")).toBe(false);
+  });
+});
+
+describe("painting", () => {
+  // Fails on: B still meaning "show the original", so the Brush could not be armed from the keyboard; and on
+  // the original being unreachable once it moved.
+  it("B arms the Brush, S the Smudge, E the Eraser, I the picker, and holding O shows the original", async () => {
+    const wb = open(null);
+    await wb.open();
+    for (const [key, tool] of [["b", "brush"], ["s", "smudge"], ["e", "eraser"], ["i", "picker"]] as const) {
+      press(key);
+      expect(wb.tool.value).toBe(tool);
+    }
+    expect(wb.showOriginal.value).toBe(false);
+    press("o");
+    expect(wb.showOriginal.value).toBe(true);
+    binding("o").onRelease?.(new KeyboardEvent("keyup"));
+    expect(wb.showOriginal.value).toBe(false);
+    expect(binding("o").description).toMatch(/B is the Brush/);
+  });
+
+  // Fails on: Undo reaching past the paint history (or doing nothing), and on it firing while a picture tool is armed.
+  it("undo, with a paint tool armed, undoes the paint history and redo brings it back; with another tool it does nothing", async () => {
+    const wb = await startPainting(null);
+    erase(wb);
+    expect(wb.hasMask.value).toBe(true);
+    press("mod+z");
+    expect(wb.hasMask.value).toBe(false);
+    press("mod+y");
+    expect(wb.hasMask.value).toBe(true);
+    press("mod+z");
+    press("shift+mod+z");
+    expect(wb.hasMask.value).toBe(true);
+    wb.tool.value = "edges";
+    press("mod+z");
+    expect(wb.hasMask.value).toBe(true);
+  });
+
+  // Fails on: [ and ] not reaching the armed tool's size, or ignoring the armed tool.
+  it("[ and ] step the armed brush's size", async () => {
+    const wb = await startPainting(null, "brush");
+    const before = wb.paint.optionValues.value?.size ?? 0;
+    press("]");
+    expect(wb.paint.optionValues.value?.size).toBeGreaterThan(before);
+    press("[");
+    press("[");
+    expect(wb.paint.optionValues.value?.size).toBeLessThan(before);
+  });
+
+  // Fails on: a second session (and a second 4096 px canvas set) being made for every tool switch.
+  it("keeps one session across paint tools", async () => {
+    const wb = await startPainting(null, "brush");
+    const first = wb.paint.session.value;
+    wb.tool.value = "smudge";
+    await Promise.resolve();
+    expect(wb.paint.session.value).toBe(first);
+    await vi.waitFor(() => expect(wb.paint.tool.value).toBe("smudge"));
   });
 });
 
@@ -299,32 +401,40 @@ describe("crop", () => {
     expect(wb.buildSettings(false).steps).toEqual([]);
   });
 
-  // Fails on: strokes painted on the whole picture staying on a cropped one, erasing the wrong part; and the
-  // brush canvas keeping the uncropped size, so a new stroke lands out of place.
-  it("clears the brush strokes when the crop changes the picture's shape", async () => {
+  // Fails on: erasing done on the whole picture staying on a cropped one, erasing the wrong part.
+  it("clears a saved mask when the crop changes the picture's shape", async () => {
     const wb = open({ v: 1, seed: 1, steps: [{ type: "mask", url: "https://cdn/mask.webp" }] });
     await wb.open();
     await flushPromises();
-    expect(wb.hasStrokes.value).toBe(true);
-    mocks.controller.resize.mockClear();
+    expect(wb.hasMask.value).toBe(true);
     wb.dragCropBox("e", { x: 0, y: 0, w: 1, h: 1 }, -0.5, 0);
     await flushPromises();
-    expect(mocks.controller.resize).toHaveBeenCalledWith(200, 300);
-    expect(wb.hasStrokes.value).toBe(false);
+    expect(wb.hasMask.value).toBe(false);
     expect(wb.buildSettings(false).steps.some((s) => s.type === "mask")).toBe(false);
   });
 
-  // Fails on: the brush being resized, and its strokes thrown away, on every pixel of a crop drag.
-  it("waits for the crop tool to be left before the brush follows the new shape", async () => {
+  // Fails on: the painting keeping the uncropped size, so a new stroke lands out of place; and its paint surviving the new shape.
+  it("restarts the paint session at the new shape, empty, when the crop changes it", async () => {
+    const wb = await startPainting(null, "brush");
+    erase(wb);
+    const before = wb.paint.session.value;
+    expect(before?.state.doc.width).toBe(400);
+    wb.dragCropBox("e", { x: 0, y: 0, w: 1, h: 1 }, -0.5, 0);
+    await vi.waitFor(() => expect(wb.paint.session.value).not.toBe(before));
+    expect(wb.paint.session.value?.state.doc).toMatchObject({ width: 200, height: 300 });
+    expect(wb.hasMask.value).toBe(false);
+    expect(mocks.compositor.dispose).toHaveBeenCalled();
+  });
+
+  // Fails on: the painting being thrown away on every pixel of a crop drag.
+  it("waits for the crop tool to be left before the painting follows the new shape", async () => {
     const wb = open({ v: 1, seed: 1, steps: [{ type: "mask", url: "https://cdn/mask.webp" }] });
     await wb.open();
     await flushPromises();
-    mocks.controller.resize.mockClear();
     wb.tool.value = "crop";
     wb.dragCropBox("e", { x: 0, y: 0, w: 1, h: 1 }, -0.5, 0);
     await flushPromises();
-    expect(mocks.controller.resize).not.toHaveBeenCalled();
-    expect(wb.hasStrokes.value).toBe(true);
+    expect(wb.hasMask.value).toBe(true);
   });
 });
 
