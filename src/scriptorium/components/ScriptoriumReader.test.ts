@@ -262,8 +262,8 @@ describe("ScriptoriumReader", () => {
   });
 
   it("wears the book's own paper, which a player's handout carries", () => {
-    expect(mountReader({ book: makeBook({ paper_tone: "parchment" }) }).find(".sc-paper--parchment").exists()).toBe(true);
-    expect(mountReader({ book: makeBook({ paper_tone: null }) }).find("[class*=sc-paper--]").exists()).toBe(false);
+    expect(mountReader({ book: makeBook({ paper_tone: "parchment" }) }).find(".sc-paper.sc-paper-surface").exists()).toBe(true);
+    expect(mountReader({ book: makeBook({ paper_tone: null }) }).find(".sc-paper.sc-paper-surface").exists()).toBe(false);
   });
 
   it("wears the document's own look, a paper included", () => {

@@ -1,5 +1,6 @@
 import type { JSONContent } from "@tiptap/core";
 import type { AiProvenance } from "@/ai/provenance";
+import type { PaperId } from "@/scriptorium/papers/papers";
 
 export type ScriptoriumDocType =
   | "custom"
@@ -33,8 +34,8 @@ export type ScriptoriumPageSize = "A4" | "A5" | "Letter";
  * or the book's own footer text. Left-hand pages always carry the book's title.
  */
 export type ScriptoriumFooterTitle = "chapter" | "book" | "custom";
-/** A book's own paper, laid over its look's; null (the column's default) is the look's own. */
-export type ScriptoriumPaperTone = "grey" | "warm-grey" | "white" | "parchment";
+/** A document's own paper (the shared papers module's ids); null (the column's default) is the look's own. */
+export type ScriptoriumPaperTone = PaperId;
 /** How the running title is set at the foot of the page. */
 export type ScriptoriumFooterStyle = "plain" | "ribbon";
 
@@ -99,7 +100,7 @@ export interface ScriptoriumDocument {
   footer_text: string;
   /** Which running title the right-hand pages carry; `footer_text` is the "custom" one. */
   footer_title: ScriptoriumFooterTitle;
-  /** Books only: the paper the pages are printed on; null is the look's own. */
+  /** The paper the pages are printed on, for books and handouts; null is the look's own. */
   paper_tone: ScriptoriumPaperTone | null;
   footer_style: ScriptoriumFooterStyle;
   page_number_start: number;

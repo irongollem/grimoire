@@ -41,7 +41,7 @@ export interface BookSettingsDraft {
   footerText: string;
   footerTitle: ScriptoriumFooterTitle;
   footerStyle: ScriptoriumFooterStyle;
-  /** Books only; null is the look's own paper. */
+  /** Books and handouts; null is the look's own paper. */
   paperTone: ScriptoriumPaperTone | null;
   isPublished: boolean;
   tags: string[];

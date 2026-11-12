@@ -52,7 +52,7 @@ import type {
   ScriptoriumTheme,
 } from "@/scriptorium/types";
 import scriptoriumFontsCss from "@/scriptorium/styles/fonts.css?inline";
-import { bookSurfaceClasses, scriptoriumThemeCss } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses, bookSurfaceStyle, scriptoriumThemeCss } from "@/scriptorium/lib/looks";
 import { buildPdfDocumentHtml, serializeStyle } from "@/scriptorium/lib/printDocument";
 import { inlineSameOriginAssets } from "@/scriptorium/lib/inlineSameOriginAssets";
 import { attachBundleToPdf } from "@/scriptorium/lib/campaignBundlePdf";
@@ -206,6 +206,7 @@ export function useScriptoriumPdf() {
     // px on purpose: 794px is A4's width at 96 dpi, the geometry Paged.js
     // lays out against; a rem width would scale with the root font size.
     host.style.cssText = "position:fixed; left:-99999px; top:0; width:794px;";
+    for (const [name, value] of Object.entries(bookSurfaceStyle(opts))) host.style.setProperty(name, value);
     document.body.appendChild(host);
 
     // The same engine as the live preview, so the exported PDF breaks where

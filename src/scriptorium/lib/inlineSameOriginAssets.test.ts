@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { inlineSameOriginAssets, toBase64, ASSETS_LOAD_ERROR } from "./inlineSameOriginAssets";
 
+// The art CDN of a production build; the module reads it once, at import.
+vi.mock("@/lib/storage/buckets", () => ({ ASSET_CDN_BASE: "https://cdn.test" }));
+
 const bytes = (s: string) => new TextEncoder().encode(s).buffer as ArrayBuffer;
 
 describe("inlineSameOriginAssets", () => {
@@ -8,9 +11,9 @@ describe("inlineSameOriginAssets", () => {
     const fetchAsset = vi.fn(async () => bytes("abc"));
     const css = `a{src:url("/fonts/a.ttf")} b{src:url('/fonts/b.otf')} c{src:url(/fonts/c.woff2)}`;
     const out = await inlineSameOriginAssets(css, fetchAsset);
-    expect(out).toContain('url("data:font/ttf;base64,YWJj")');
-    expect(out).toContain('url("data:font/otf;base64,YWJj")');
-    expect(out).toContain('url("data:font/woff2;base64,YWJj")');
+    expect(out).toContain("url(data:font/ttf;base64,YWJj)");
+    expect(out).toContain("url(data:font/otf;base64,YWJj)");
+    expect(out).toContain("url(data:font/woff2;base64,YWJj)");
     expect(out).not.toContain("/fonts/");
   });
 
@@ -18,7 +21,7 @@ describe("inlineSameOriginAssets", () => {
     const fetchAsset = vi.fn(async () => bytes("w"));
     const html = `<style>.p{background:url('/assets/scriptorium/page-background.webp') center}</style>`;
     const out = await inlineSameOriginAssets(html, fetchAsset);
-    expect(out).toContain('url("data:image/webp;base64,dw==")');
+    expect(out).toContain("url(data:image/webp;base64,dw==)");
     expect(fetchAsset).toHaveBeenCalledWith("/assets/scriptorium/page-background.webp");
   });
 
@@ -26,6 +29,24 @@ describe("inlineSameOriginAssets", () => {
     const fetchAsset = vi.fn(async () => bytes("p"));
     const out = await inlineSameOriginAssets(`<img alt="x" src='/assets/a.png'>`, fetchAsset);
     expect(out).toBe(`<img alt="x" src='data:image/png;base64,cA=='>`);
+  });
+
+  it("inlines a paper's CDN url from the body's style attribute, without breaking the attribute's quotes", async () => {
+    // Fails on: a CDN paper url left in the PDF's body style (the renderer cannot be relied on to fetch it), or an
+    // inlined data uri wrapped in double quotes inside style="...", which ends the attribute early.
+    const fetchAsset = vi.fn(async () => bytes("p"));
+    const html = `<body class="sc-paper" style="--sc-paper-image: url(https://cdn.test/app-art/assets/papers/kraft.1a2b3c4d.webp); --sc-paper-size: 130.00mm 130.00mm">`;
+    const out = await inlineSameOriginAssets(html, fetchAsset);
+    expect(out).toBe(`<body class="sc-paper" style="--sc-paper-image: url(data:image/webp;base64,cA==); --sc-paper-size: 130.00mm 130.00mm">`);
+    expect(fetchAsset).toHaveBeenCalledWith("https://cdn.test/app-art/assets/papers/kraft.1a2b3c4d.webp");
+  });
+
+  it("leaves a url on some other host alone, even one that starts like the CDN's", async () => {
+    // Fails on: matching the CDN origin as a prefix, which would fetch and inline a stranger's file.
+    const fetchAsset = vi.fn(async () => bytes("x"));
+    const html = `<i style="background: url(https://cdn.test.evil.example/a.webp)">`;
+    expect(await inlineSameOriginAssets(html, fetchAsset)).toBe(html);
+    expect(fetchAsset).not.toHaveBeenCalled();
   });
 
   it("leaves absolute, protocol-relative and data references alone", async () => {
