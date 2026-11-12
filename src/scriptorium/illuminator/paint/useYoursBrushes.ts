@@ -14,6 +14,7 @@ import type { AutosaveStatus } from "@/composables/useAutosave";
 import { useToast } from "@/composables/useToast";
 import type { PaintAssetStore } from "./assets/loadPaintAssets";
 import { STOCK_BRUSHES } from "./brushes/stockBrushes";
+import { brushFromTip, type NewTip } from "./brushes/newTip";
 import { isUserImageId, rowFromPreset } from "./brushes/userBrushes";
 import type { BrushPreset } from "./engine/types";
 import { useBrushImport } from "./useBrushImport";
@@ -37,6 +38,8 @@ export function useYoursBrushes(assets: PaintAssetStore, userApi?: UserBrushesAp
     return [...STOCK_BRUSHES, ...user.brushes.value.map((b) => b.preset)];
   });
   const setNames = computed<Record<string, string | null>>(() => Object.fromEntries(user.brushes.value.map((b) => [b.preset.id, b.setName])));
+  /** The brushes whose tip an image model made: they carry the AI-made chip in the library. */
+  const aiMade = computed(() => new Set(user.brushes.value.filter((b) => b.source === "described").map((b) => b.preset.id)));
   const isOwn = (id: string) => user.brushes.value.some((b) => b.preset.id === id);
 
   // ---- tips and grains: the engine reads them synchronously, so they are loaded before a brush is armed ----
@@ -124,6 +127,23 @@ export function useYoursBrushes(assets: PaintAssetStore, userApi?: UserBrushesAp
       return null;
     }
   }
+  /**
+   * Each tip kept as a brush in Yours with `base`'s settings; the ones made, in order (all of them, or only the first
+   * few when a later write failed). Null when none could be saved.
+   */
+  async function saveTips(base: BrushPreset, items: readonly NewTip[]): Promise<BrushPreset[] | null> {
+    const made: BrushPreset[] = [];
+    try {
+      for (const item of items) {
+        const { preset, grain } = brushFromTip(base, item, (id) => assets.grain(id));
+        made.push(await user.create({ preset, tip: item.tip, grain, source: item.source, setName: null }));
+      }
+      return made;
+    } catch {
+      toast.error(made.length > 0 ? `Only ${made.length} of ${items.length} brushes could be saved.` : "The brush could not be saved.");
+      return made.length > 0 ? made : null;
+    }
+  }
   /** Whether the rename was made. */
   async function rename(id: string, name: string): Promise<boolean> {
     if (!isOwn(id)) return false;
@@ -161,6 +181,8 @@ export function useYoursBrushes(assets: PaintAssetStore, userApi?: UserBrushesAp
     status,
     saveError,
     saveAsNew,
+    saveTips,
+    aiMade,
     rename,
     remove,
     importing: importer.busy,

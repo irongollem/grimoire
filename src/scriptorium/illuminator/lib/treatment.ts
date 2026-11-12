@@ -93,6 +93,21 @@ export interface PaintStep {
   paper: string | null;
   /** Bottom first. */
   layers: PaintLayerRecord[];
+  /** Saved versions to go back to, newest last. Absent when there are none. */
+  versions?: PaintVersion[];
+}
+
+/**
+ * A named snapshot of a painting's layers. Its chunk URLs are the files that were current when it was saved
+ * (a save never rewrites a chunk in place). It must never repeat the `"type": "paint"` marker: the plan's canvas
+ * count (`private.count_paint_canvases`) counts that text in book content, so a copy would count as another painting.
+ */
+export interface PaintVersion {
+  id: string;
+  name: string;
+  /** ISO time it was saved. */
+  savedAt: string;
+  layers: PaintLayerRecord[];
 }
 
 /** The size of a stored paint chunk, in document pixels. */
@@ -301,6 +316,19 @@ function parsePaintLayer(raw: unknown, cols: number, rows: number): PaintLayerRe
   };
 }
 
+/** A malformed version is dropped, never the painting. */
+function parsePaintVersion(raw: unknown, cols: number, rows: number): PaintVersion | null {
+  if (!isRecord(raw)) return null;
+  const id = nonEmptyString(raw.id);
+  const savedAt = nonEmptyString(raw.savedAt);
+  if (!id || !savedAt || !Array.isArray(raw.layers)) return null;
+  const layers = raw.layers.flatMap((l) => {
+    const layer = parsePaintLayer(l, cols, rows);
+    return layer ? [layer] : [];
+  });
+  return { id, name: typeof raw.name === "string" ? raw.name : "", savedAt, layers };
+}
+
 /** Invalid layers and chunks are dropped, not the step: a blank sheet with no layers still records its paper. */
 function parsePaint(raw: Record<string, unknown>): PaintStep | null {
   const width = parsePaintSide(raw.width);
@@ -314,7 +342,15 @@ function parsePaint(raw: Record<string, unknown>): PaintStep | null {
         return layer ? [layer] : [];
       })
     : [];
-  return { type: "paint", width, height, paper: nonEmptyString(raw.paper), layers };
+  const step: PaintStep = { type: "paint", width, height, paper: nonEmptyString(raw.paper), layers };
+  if (Array.isArray(raw.versions)) {
+    const versions = raw.versions.flatMap((v) => {
+      const version = parsePaintVersion(v, cols, rows);
+      return version ? [version] : [];
+    });
+    if (versions.length > 0) step.versions = versions;
+  }
+  return step;
 }
 
 function parseStep(raw: unknown): IlluminateStep | null {
@@ -356,6 +392,23 @@ export function normaliseSettings(settings: IlluminateSettings): IlluminateSetti
  * furniture props store. Anything that is not version 1 settings is null (no
  * recipe), unknown or broken steps are dropped, and this never throws.
  */
+/**
+ * A recipe as print and previews read it (`data-illuminate`): without saved paint versions, which can be large and
+ * which nothing that reads the attribute needs. The book's JSON keeps them. Takes the recipe as an object (an image
+ * node's attr) or as JSON text (page art's props); text that is not JSON is passed on as it is.
+ */
+export function recipeForHtml(recipe: unknown): string {
+  let value = recipe;
+  if (typeof recipe === "string") {
+    try {
+      value = JSON.parse(recipe);
+    } catch {
+      return recipe;
+    }
+  }
+  return JSON.stringify(value, (key, v: unknown) => (key === "versions" ? undefined : v));
+}
+
 export function parseSettings(input: unknown): IlluminateSettings | null {
   let raw = input;
   if (typeof raw === "string") {
@@ -399,9 +452,20 @@ function cyrb53(text: string): number {
   return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 }
 
+/** The recipe as the bake sees it: saved versions never change a picture, so they are left out of the hash. */
+function withoutVersions(settings: IlluminateSettings): IlluminateSettings {
+  return {
+    ...settings,
+    steps: settings.steps.map((step) => {
+      if (step.type !== "paint" || step.versions === undefined) return step;
+      return { type: "paint", width: step.width, height: step.height, paper: step.paper, layers: step.layers };
+    }),
+  };
+}
+
 /** A stable hash of the normalised recipe: the same recipe always gives the same string. */
 export function hashSettings(settings: IlluminateSettings): string {
-  return cyrb53(stableStringify(normaliseSettings(settings))).toString(36);
+  return cyrb53(stableStringify(normaliseSettings(withoutVersions(settings)))).toString(36);
 }
 
 // ─── URLs ───────────────────────────────────────────────────────────────────
@@ -417,7 +481,8 @@ export function pictureUrls(settings: IlluminateSettings | null): string[] {
       case "ai":
         return [step.output];
       case "paint":
-        return step.layers.flatMap((layer) => Object.values(layer.chunks));
+        // Saved versions keep their chunk files alive: cleanup compares two saves by this list.
+        return [...step.layers, ...(step.versions ?? []).flatMap((v) => v.layers)].flatMap((layer) => Object.values(layer.chunks));
       default:
         return [];
     }

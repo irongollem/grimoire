@@ -13,6 +13,17 @@ function mountIt(props: Record<string, unknown> = {}) {
   return mount(BrushLibraryPanel, { props: { brushes, selectedId: "s1", assets, setNames: { y2: "Grass" }, ...props }, attachTo: document.body, global: { stubs: { PaintPreviewCanvas: true } } });
 }
 
+describe("BrushLibraryPanel, the AI-made chip", () => {
+  it("marks the brushes named in aiMade and no others", () => {
+    // Fails on: the chip on every brush, on none, or on a brush the painter made by hand.
+    const w = mountIt({ aiMade: new Set(["y2"]) });
+    expect(w.findAll('[data-testid="brush-ai-made"]')).toHaveLength(1);
+    expect(w.get('[data-testid="brush-y2"]').find('[data-testid="brush-ai-made"]').exists()).toBe(true);
+    expect(w.get('[data-testid="brush-y1"]').find('[data-testid="brush-ai-made"]').exists()).toBe(false);
+    expect(mountIt().find('[data-testid="brush-ai-made"]').exists()).toBe(false);
+  });
+});
+
 describe("BrushLibraryPanel, Yours", () => {
   it("shows an imported set's brushes under the set's name", () => {
     // Fails on: imported brushes listed flat with no sign of which file they came from.

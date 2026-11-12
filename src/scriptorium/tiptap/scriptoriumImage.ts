@@ -14,7 +14,7 @@
  */
 
 import Image from "@tiptap/extension-image";
-import { parseSettings } from "@/scriptorium/illuminator/lib/treatment";
+import { parseSettings, recipeForHtml } from "@/scriptorium/illuminator/lib/treatment";
 import { asBlend } from "@/scriptorium/lib/furniture/blend";
 
 /**
@@ -122,7 +122,8 @@ export const ScriptoriumImage = Image.extend({
       illuminate: {
         default: null,
         parseHTML: (el) => parseSettings(el.getAttribute("data-illuminate")),
-        renderHTML: (attrs) => (attrs.illuminate ? { "data-illuminate": JSON.stringify(attrs.illuminate) } : {}),
+        // Saved paint versions can be large and print and previews never read them: the chapter's JSON keeps them.
+        renderHTML: (attrs) => (attrs.illuminate ? { "data-illuminate": recipeForHtml(attrs.illuminate) } : {}),
       },
       bakedFor: {
         default: null,

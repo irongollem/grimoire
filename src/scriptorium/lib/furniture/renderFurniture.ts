@@ -17,6 +17,7 @@ import { watercolorAsset, watercolorSrc } from "@/data/watercolorAssets";
 import { followsBlock, placeAtAnchor, topPct } from "@/scriptorium/lib/furniture/anchorOffset";
 import { fillsPage } from "@/scriptorium/lib/furniture/model";
 import { artBlend } from "@/scriptorium/lib/furniture/blend";
+import { recipeForHtml } from "@/scriptorium/illuminator/lib/treatment";
 import type { Dressing, PageKind } from "@/scriptorium/dressing/dressing";
 import { buildDressingLayer, DRESSING_CLASS } from "@/scriptorium/dressing/dressingLayer";
 import { BLANK_PAGE_ATTR } from "@/scriptorium/lib/pageNumbering";
@@ -111,7 +112,8 @@ export function buildFurnitureElement(item: PageFurnitureItem): HTMLElement {
     // A treated picture prints from its recipe (printImages.ts): the same keys the image node carries.
     for (const [prop, attr] of [["original", "data-original"], ["illuminate", "data-illuminate"], ["bakedFor", "data-baked-for"]] as const) {
       const value = str(item.props[prop]);
-      if (value) img.setAttribute(attr, value);
+      // The recipe goes without its saved paint versions, as the image node writes it (recipeForHtml).
+      if (value) img.setAttribute(attr, prop === "illuminate" ? recipeForHtml(value) : value);
     }
     // Filling the page covers the whole page box, cropped like object-fit: cover, whatever x, y, width or corner say.
     const fill = fillsPage(item);

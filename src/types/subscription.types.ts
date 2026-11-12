@@ -150,6 +150,8 @@ export type AiGenerationType =
   | 'quest_design_turn'
   // #1176: one AI picture action in the Scriptorium's Illuminator (illuminate-picture edge function).
   | 'illuminate_picture'
+  // #1181: four brush tips from one generated sheet in the Illuminator's paint tools (paint-brush-tips edge function).
+  | 'paint_brush_tips'
 
 export const CREDIT_COST: Record<AiGenerationType, number> = {
   portrait:           2,
@@ -158,6 +160,7 @@ export const CREDIT_COST: Record<AiGenerationType, number> = {
   music_track:        20,
   quest_design_turn:  1,
   illuminate_picture: 50,
+  paint_brush_tips:   50,
 } as const
 
 /** Split credit balance: subscription bucket (resets monthly) + purchased (permanent). */

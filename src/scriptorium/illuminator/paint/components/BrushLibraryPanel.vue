@@ -39,11 +39,13 @@
                   @keydown.space.stop
                   @blur="commitRename(b)"
                 />
-                <span
-                  v-else
-                  class="max-w-full truncate text-label-lg font-semibold text-foreground"
-                  @dblclick.stop="s.group === 'yours' && startRename(b)"
-                >{{ b.name }}</span>
+                <span v-else class="flex max-w-full items-center gap-1.5">
+                  <span
+                    class="min-w-0 truncate text-label-lg font-semibold text-foreground"
+                    @dblclick.stop="s.group === 'yours' && startRename(b)"
+                  >{{ b.name }}</span>
+                  <AiGeneratedBadge v-if="aiMade.has(b.id)" variant="inline" :provenance="AI_BRUSH" data-testid="brush-ai-made" />
+                </span>
                 <span class="overflow-hidden rounded-sm" :style="paperStyle">
                   <PaintPreviewCanvas :pixels="strokeOf(b)" :scale="2" />
                 </span>
@@ -73,6 +75,7 @@
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import AiGeneratedBadge from "@/components/common/ai/AiGeneratedBadge.vue";
 import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
 import { IconAdd, IconUpload } from "@/lib/icons";
 import type { BrushPreset, PaintAssets } from "../engine/types";
@@ -87,13 +90,17 @@ import PaintPreviewCanvas from "./PaintPreviewCanvas.vue";
  * canvas. A brush in Yours can be renamed (double-click, or from its menu) and deleted; an imported set sits
  * under its own name.
  */
-const { brushes, selectedId, assets, setNames = {}, importing = false } = defineProps<{
+// Only the provider is known for a brush: the tips come from the platform's image model.
+const AI_BRUSH = { provider: "openai" };
+const { brushes, selectedId, assets, setNames = {}, importing = false, aiMade = new Set<string>() } = defineProps<{
   brushes: BrushPreset[];
   selectedId: string;
   assets: PaintAssets;
   /** The set each Yours brush came in, by brush id; absent or null for one the painter made. */
   setNames?: Readonly<Record<string, string | null>>;
   importing?: boolean;
+  /** The brushes whose tip an image model made, by id; they carry the AI-made chip beside their name. */
+  aiMade?: ReadonlySet<string>;
 }>();
 const emit = defineEmits<{ select: [id: string]; new: []; import: [file: File]; rename: [id: string, name: string]; remove: [id: string] }>();
 

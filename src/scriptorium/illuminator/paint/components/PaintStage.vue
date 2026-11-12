@@ -28,7 +28,7 @@ import {
   type Viewport,
 } from "../render/viewport";
 
-const { session, compositor, cursor, tool, beforeStroke = undefined } = defineProps<{
+const { session, compositor, cursor, tool, beforeStroke = undefined, boxMode = false } = defineProps<{
   session: PaintSessionApi;
   compositor: Compositor;
   /** The armed tip's outline, in document pixels; null shows none. */
@@ -36,6 +36,11 @@ const { session, compositor, cursor, tool, beforeStroke = undefined } = definePr
   tool: PaintTool;
   /** Asked before a stroke begins; false means this stroke is not painted (the plan's canvas limit). */
   beforeStroke?: () => boolean;
+  /**
+   * Take a box instead of a stroke (#1181, a brush tip from the picture): a mouse or pen drags a rectangle and
+   * `box` reports it in document pixels; the paint tools do nothing meanwhile. A finger still pans.
+   */
+  boxMode?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -45,6 +50,8 @@ const emit = defineEmits<{
   viewport: [viewport: Viewport];
   /** What the pen last reported; at most once per frame however many events arrive. */
   pen: [reading: PenReading];
+  /** The box the painter dragged, in document pixels; null when it was only a click, which cancels. */
+  box: [rect: { x: number; y: number; w: number; h: number } | null];
   /** A two-finger tap. */
   undo: [];
   /** A three-finger tap. */
@@ -165,10 +172,15 @@ type Gesture =
   | { kind: "pan"; pointerId: number; x: number; y: number }
   /** A finger that may yet become the second finger of a pinch: its samples wait here, unpainted. */
   | { kind: "pending"; pointerId: number; samples: PenSample[]; restore: boolean }
-  | { kind: "pick"; pointerId: number };
+  | { kind: "pick"; pointerId: number }
+  | { kind: "box"; pointerId: number; from: Point };
 
 let gesture: Gesture | null = null;
 const touches = new Map<number, Point>();
+/** The box being dragged, in screen space inside the stage. */
+const boxRect = ref<{ x: number; y: number; w: number; h: number } | null>(null);
+/** A drag shorter than this (in screen pixels) is a click. */
+const BOX_MIN = 4;
 let pinch: { start: Viewport; a: Point; b: Point; ids: [number, number] } | null = null;
 
 function origin(): { left: number; top: number } {
@@ -259,10 +271,15 @@ function onPointerDown(ev: PointerEvent): void {
   if (gesture) return;
   el.setPointerCapture(ev.pointerId);
 
-  if (hand.isForcedPan(ev) || act?.kind === "pan") {
+  if (hand.isForcedPan(ev) || act?.kind === "pan" || (boxMode && ev.pointerType === "touch")) {
     ev.preventDefault();
     gesture = { kind: "pan", pointerId: ev.pointerId, x: ev.clientX, y: ev.clientY };
     panning.value = true;
+    return;
+  }
+  if (boxMode) {
+    gesture = { kind: "box", pointerId: ev.pointerId, from: local(ev) };
+    boxRect.value = { x: gesture.from.x, y: gesture.from.y, w: 0, h: 0 };
     return;
   }
   if (tool === "picker" || (ev.altKey && tool === "brush")) {
@@ -314,6 +331,8 @@ function onPointerMove(ev: PointerEvent): void {
     gesture.y = ev.clientY;
   } else if (gesture.kind === "pick") {
     pick(ev);
+  } else if (gesture.kind === "box") {
+    boxRect.value = rectBetween(gesture.from, p);
   } else if (gesture.kind === "stroke") {
     addSamples(gesture.layerId, toSamples(ev, origin(), viewport.value));
     requestFrame();
@@ -339,8 +358,27 @@ function onPointerEnd(ev: PointerEvent): void {
   }
   if (!gesture || gesture.pointerId !== ev.pointerId) return;
   if (gesture.kind === "stroke") endStroke();
+  else if (gesture.kind === "box") endBox(cancelled);
   else gesture = null;
   panning.value = false;
+}
+
+function rectBetween(a: Point, b: Point): { x: number; y: number; w: number; h: number } {
+  return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) };
+}
+
+function endBox(cancelled: boolean): void {
+  const drawn = boxRect.value;
+  boxRect.value = null;
+  gesture = null;
+  if (cancelled) return;
+  if (!drawn || drawn.w < BOX_MIN || drawn.h < BOX_MIN) {
+    emit("box", null);
+    return;
+  }
+  const a = screenToDoc(viewport.value, drawn.x, drawn.y);
+  const b = screenToDoc(viewport.value, drawn.x + drawn.w, drawn.y + drawn.h);
+  emit("box", { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y });
 }
 
 function onPointerLeave(): void {
@@ -364,7 +402,7 @@ defineExpose({
 
 const cursorClass = (): string => {
   if (panning.value || hand.spaceHeld.value) return panning.value ? "cursor-grabbing" : "cursor-grab";
-  return tool === "picker" ? "cursor-crosshair" : "cursor-none";
+  return tool === "picker" || boxMode ? "cursor-crosshair" : "cursor-none";
 };
 </script>
 
@@ -382,8 +420,15 @@ const cursorClass = (): string => {
     @contextmenu.prevent
   >
     <canvas ref="canvas" class="absolute inset-0 block size-full" />
+    <!-- The box being dragged: a light dashed line over a dark hairline, so it reads on paper and on dark paint. -->
+    <div
+      v-if="boxRect"
+      class="pointer-events-none absolute border border-dashed border-white shadow-[0_0_0_1px_rgb(0_0_0/0.7)]"
+      data-testid="paint-box"
+      :style="{ left: `${boxRect.x}px`, top: `${boxRect.y}px`, width: `${boxRect.w}px`, height: `${boxRect.h}px` }"
+    />
     <svg
-      v-if="cursor && hover && tool !== 'picker' && !hand.spaceHeld.value && !panning"
+      v-if="cursor && hover && tool !== 'picker' && !boxMode && !hand.spaceHeld.value && !panning"
       class="pointer-events-none absolute left-0 top-0 overflow-visible"
       width="1"
       height="1"

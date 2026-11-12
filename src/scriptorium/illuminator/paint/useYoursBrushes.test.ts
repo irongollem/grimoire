@@ -150,3 +150,41 @@ describe("deleting and renaming", () => {
     expect(mocks.confirm).not.toHaveBeenCalled();
   });
 });
+
+describe("keeping tips as brushes", () => {
+  const tip = { width: 2, height: 2, alpha: new Uint8Array([0, 255, 255, 0]) };
+
+  it("keeps the base brush's settings, swaps in the new tip as the painter's own picture, and says where it came from", async () => {
+    // Fails on: the new brush reverting to default settings, keeping the old stock tip, or losing its source.
+    const { yours, user } = made();
+    const out = await yours.saveTips(STOCK_BRUSHES[0], [{ tip, name: "Dab", source: "photo" }]);
+    expect(out?.[0].id).toBe("row-2");
+    const arg = user.create.mock.calls[0][0] as unknown as { preset: BrushPreset; tip: unknown; source: string; setName: null };
+    expect(arg.preset.name).toBe("Dab");
+    expect(arg.preset.blend).toBe(STOCK_BRUSHES[0].blend);
+    expect(arg.preset.tip.source.kind).toBe("image");
+    expect(arg.preset.tip.size).toBe(STOCK_BRUSHES[0].tip.size);
+    expect(arg.tip).toBe(tip);
+    expect(arg.source).toBe("photo");
+  });
+
+  it("reports a failed save, and gives back only the brushes that were made", async () => {
+    // Fails on: a rejected write being swallowed so the painter thinks the brush exists, or a half-saved set vanishing.
+    const { yours, user } = made();
+    user.create.mockRejectedValueOnce(new Error("no"));
+    expect(await yours.saveTips(STOCK_BRUSHES[0], [{ tip, name: "Dab", source: "photo" }])).toBeNull();
+    expect(mocks.toastError).toHaveBeenCalled();
+    user.create.mockResolvedValueOnce({ ...STOCK_BRUSHES[0], id: "row-9", group: "yours" as const });
+    user.create.mockRejectedValueOnce(new Error("no"));
+    const first = await yours.saveTips(STOCK_BRUSHES[0], [{ tip, name: "A", source: "described" }, { tip, name: "B", source: "described" }]);
+    expect(first).toHaveLength(1);
+  });
+
+  it("lists described brushes only as AI-made", () => {
+    // Fails on: the AI-made chip on a brush the painter photographed, boxed, imported or made by hand.
+    const { yours, user } = made();
+    const row = (id: string, source: UserBrush["source"]): UserBrush => ({ preset: { ...mine, id, group: "yours" }, source, setName: null });
+    user.brushes.value = [row("a", "described"), row("b", "photo"), row("c", "picture"), row("d", "made"), row("e", "abr")];
+    expect([...yours.aiMade.value]).toEqual(["a"]);
+  });
+});

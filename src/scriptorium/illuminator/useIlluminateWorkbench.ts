@@ -45,6 +45,7 @@ import { loadPaintLayers, savePaintStep, viewPaintStep } from "@/scriptorium/ill
 import type { PaintLayer, PaintTool } from "@/scriptorium/illuminator/paint/session/types";
 import { STOCK_PAPERS } from "@/scriptorium/papers/papers";
 import { usePaintSession } from "@/scriptorium/illuminator/paint/usePaintSession";
+import { usePaintVersions } from "@/scriptorium/illuminator/paint/usePaintVersions";
 
 /** The tools that change the recipe's picture, and the ones that paint on it (#1181). */
 export type PictureTool = "crop" | "edges" | "grade" | "vignette" | "texture" | "wash" | "focus";
@@ -123,6 +124,8 @@ export interface WorkbenchOptions {
   canMakeCanvas?: () => boolean;
   /** The first layer of a new painting was refused by `canMakeCanvas`: show the upgrade prompt. */
   onCanvasRefused?: () => void;
+  /** Pro keeps ten saved versions of a painting, Free three. Default: Free. */
+  isPro?: () => boolean;
 }
 
 export function useIlluminateWorkbench(opts: WorkbenchOptions) {
@@ -365,7 +368,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     const layers = paintLayers();
     if (layers.length === 0 && paintStep.value === null && paperId.value === null) return;
     paintStep.value = await savePaintStep(
-      { layers, dirty: s.dirty, previous: paintStep.value, width: s.state.doc.width, height: s.state.doc.height, paper: paperId.value },
+      { layers, dirty: s.dirty, previous: paintStep.value, width: s.state.doc.width, height: s.state.doc.height, paper: paperId.value, versions: paintStep.value?.versions },
       {
         concurrency: CHUNK_UPLOADS,
         release: markForSweep,
@@ -566,7 +569,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
         }
       }
       const saved = paintStep.value;
-      const layers = saved ? await loadPaintLayers(saved, async (url, w, h) => decodePixels(await loader(url) as CanvasImageSource, w, h)) : undefined;
+      const layers = saved ? await loadPaintLayers(saved, decodeChunk) : undefined;
       const sheet = paperId.value ? STOCK_PAPERS.find((p) => p.id === paperId.value) ?? null : null;
       const current = tool.value;
       await paint.start({ size, picture, mask, tool: isPaintTool(current) ? current : armed, paper: sheet, layers, hadCanvas: saved !== null });
@@ -691,6 +694,28 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     ],
     { layer: "overlay", enabled: () => opts.active?.() ?? true },
   );
+
+  /** A stored chunk read back into pixels, the way opening a painting does. */
+  const decodeChunk = async (url: string, w: number, h: number) => decodePixels((await loader(url)) as CanvasImageSource, w, h);
+
+  // ── Saved versions ────────────────────────────────────────────────────────
+  const versions = usePaintVersions({
+    step: paintStep,
+    ready: () => paint.ready.value,
+    hasPainting: () => paint.hasPaintLayers.value,
+    isPro: () => opts.isPro?.() === true,
+    hasChanges: () => paint.edited.value,
+    save: savePaint,
+    async restore(records) {
+      const s = paint.session.value;
+      if (!s) return;
+      const layers = await loadPaintLayers({ type: "paint", width: s.state.doc.width, height: s.state.doc.height, paper: paperId.value, layers: records }, decodeChunk);
+      paint.replaceLayers(layers);
+    },
+    confirm,
+    release: (urls) => markForSweep(...urls),
+    fail: (message) => toast.error(message),
+  });
 
   // ── Texture ───────────────────────────────────────────────────────────────
   async function pickTexture(file: File) {
@@ -862,7 +887,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   return {
     image, loadError, tool, previewSize, crop, cropShape, pageAspect, setCropShape, dragCropBox, resetCrop, aiStep, baseUrl, setAiResult, clearAiResult,
     edgeStyle, classic, paper, grading, gradingEnabled, vignette, vignetteEnabled, dof, dofEnabled,
-    texture, textureEnabled, wash, textureUrl, textureFilename, paint, hasMask, paintError,
+    texture, textureEnabled, wash, textureUrl, textureFilename, paint, versions, hasMask, paintError,
     comparePos, showOriginal, compareOn, busy, copied, clipboardSupported, hasEdits,
     open, dispose, finish, buildSettings, setEdgeStyle, setEdgeSideEnabled, resetAll,
     onCanvasClick, pickTexture, clearTexture, downloadPng, downloadWebp, copyPng, saveAsNewPicture, flatten,

@@ -2,6 +2,7 @@
 import { effectScope, ref } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FIRM } from "./engine/pressure";
+import { TiledLayer } from "./engine/tiledLayer";
 import type { PaintAssets } from "./engine/types";
 import { PRESSURE_CURVE_KEY } from "./pressureStore";
 import type { PaintLayer } from "./session/types";
@@ -170,5 +171,24 @@ describe("foreground and background colours", () => {
     paint.setEditedColour({ r: 9, g: 9, b: 9 });
     expect(paint.background.value).toEqual({ r: 9, g: 9, b: 9 });
     expect(paint.colour.value).toEqual(DEFAULT_INK);
+  });
+});
+
+describe("replacing the layers", () => {
+  const layer = (id: string): PaintLayer => ({ kind: "paint", id, name: id, blend: "source-over", opacity: 1, visible: true, lockAlpha: false, pixels: new TiledLayer(128, 128) });
+
+  // Fails if going back updates the session but not the panel's layer list or the compositor (the stage would still show the old layers), or if undo does not bring them back.
+  it("shows the new layers, redraws them, and undoes as one step", async () => {
+    const { paint } = await started();
+    paint.addLayer();
+    mocks.compositor.syncLayers.mockClear();
+    mocks.compositor.markDirty.mockClear();
+    paint.replaceLayers([layer("old-1"), layer("old-2")]);
+    expect(paint.layers.value.map((l) => l.id)).toEqual(["picture", "old-1", "old-2"]);
+    expect(mocks.compositor.syncLayers).toHaveBeenCalled();
+    expect(mocks.compositor.markDirty).toHaveBeenCalledWith("old-1");
+    expect(paint.edited.value).toBe(true);
+    paint.undo();
+    expect(paint.layers.value.map((l) => l.id)).toEqual(["picture", "layer-1"]);
   });
 });

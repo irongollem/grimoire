@@ -33,8 +33,10 @@ class FakeCtx implements Ctx {
   createPattern() {
     return { setTransform: (m: DOMMatrix2DInit) => this.calls.push({ op: "patternScale", args: [m.a, m.d] }) } as unknown as CanvasPattern;
   }
-  getImageData() {
-    return { width: 1, height: 1, data: new Uint8ClampedArray(this.pixel) };
+  getImageData(_x = 0, _y = 0, w = 1, h = 1) {
+    const data = new Uint8ClampedArray(w * h * 4);
+    for (let i = 0; i < w * h; i++) data.set(this.pixel, i * 4);
+    return { width: w, height: h, data };
   }
   /** Records the blend and alpha in force, which is what a layer is drawn with. */
   drawImage(src: CanvasImageSource, ...rest: number[]) {
@@ -227,6 +229,21 @@ describe("compositor render", () => {
     probe.pixel = [12, 34, 56, 255];
     expect(comp.readPixel(10.7, 10)).toEqual({ r: 12, g: 34, b: 56 });
     expect(probe.calls.some((c) => c.op === "setTransform" && c.args.join() === "1,0,0,1,-10,-10")).toBe(true);
+  });
+
+  it("readRegion draws the stack shifted to the rectangle's corner and gives its pixels, clipped to the document", () => {
+    // Fails on: a box near the edge reading outside the document, a region offset from where it was drawn, or nothing returned for a box that is partly inside.
+    const { comp, made } = harness();
+    comp.syncLayers([paintLayer("a")]);
+    expect(comp.readRegion(600, 10, 20, 20)).toBeNull();
+    expect(comp.readRegion(10, 10, 0, 5)).toBeNull();
+    const before = made.length;
+    const px = comp.readRegion(500.4, 290.2, 40, 40);
+    expect(px).not.toBeNull();
+    expect([px?.width, px?.height]).toEqual([12, 10]);
+    const area = made[before].fake;
+    expect(area.calls.some((c) => c.op === "setTransform" && c.args.join() === "1,0,0,1,-500,-290")).toBe(true);
+    expect(area.calls.some((c) => c.op === "drawImage")).toBe(true);
   });
 
   it("syncLayers drops a removed layer so it is no longer drawn", () => {

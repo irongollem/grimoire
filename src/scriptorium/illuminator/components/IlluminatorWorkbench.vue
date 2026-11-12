@@ -67,6 +67,8 @@
               :cursor="paint.cursor.value"
               :tool="armedPaintTool"
               :before-stroke="paint.mayStroke"
+              :box-mode="boxPick"
+              @box="onBox"
               @picked="paint.onPicked"
               @stroke-start="paint.onStrokeStart"
               @stroke-end="paint.onStrokeEnd"
@@ -125,6 +127,7 @@
                   :assets="paint.assets"
                   :set-names="paint.userSetNames.value"
                   :importing="paint.importing.value"
+                  :ai-made="paint.aiMade.value"
                   @select="onSelectBrush"
                   @new="onNewBrush"
                   @import="paint.importFile"
@@ -151,7 +154,20 @@
                 @move="paint.moveLayer"
                 @flatten="flatten"
               />
-              <ColourPanel v-else :colour="paint.editedColour.value" :recent="paint.recent.value" @update:colour="paint.setEditedColour" />
+              <ColourPanel v-else-if="section.id === 'colour'" :colour="paint.editedColour.value" :recent="paint.recent.value" @update:colour="paint.setEditedColour" />
+              <VersionsSection
+                v-else
+                :versions="wb.versions.versions.value"
+                :cap="wb.versions.cap.value"
+                :is-pro="isPro"
+                :can-save="wb.versions.canSave.value"
+                :busy="wb.versions.busy.value"
+                :ready="paint.ready.value"
+                @save="wb.versions.save"
+                @go-back="wb.versions.goBack"
+                @rename="wb.versions.rename"
+                @remove="wb.versions.remove"
+              />
             </PaintAccordion>
           </template>
         </aside>
@@ -263,6 +279,24 @@
           />
         </aside>
         <BrushImportDialog :report="paint.importReport.value" @close="paint.dismissImport" />
+        <NewBrushDialog
+          :open="newBrushOpen"
+          :campaign-id="campaignId"
+          :ready="newBrushReady"
+          :saving="savingBrush"
+          @close="newBrushOpen = false"
+          @from-armed="fromArmedBrush"
+          @start-box="startBox"
+          @save="saveNewBrushes"
+        />
+        <p
+          v-if="boxPick"
+          class="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-md bg-card px-4 py-2 text-label-lg shadow-lg"
+          role="status"
+          data-testid="box-hint"
+        >
+          Drag a box over the picture to make a brush. Esc cancels.
+        </p>
       </div>
       <PaywallModal v-model="showPaintPaywall" resource="paint_canvases" :message="PAINT_CANVAS_LIMIT_MESSAGE" />
     </div>
@@ -278,7 +312,7 @@
  * vignette, texture, focus and the brush, with a before/after divider, and
  * "Ask the Illuminator" (story 10) for the AI picture actions.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { onClickOutside } from "@vueuse/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
@@ -308,6 +342,7 @@ import type { ScriptoriumTheme } from "@/scriptorium/types";
 import { newWash } from "@/scriptorium/illuminator/lib/washEdits";
 import BrushImportDialog from "@/scriptorium/illuminator/paint/components/BrushImportDialog.vue";
 import BrushLibraryPanel from "@/scriptorium/illuminator/paint/components/BrushLibraryPanel.vue";
+import NewBrushDialog from "@/scriptorium/illuminator/paint/components/NewBrushDialog.vue";
 import BrushSettingsPanel from "@/scriptorium/illuminator/paint/components/BrushSettingsPanel.vue";
 import PaintAccordion from "@/scriptorium/illuminator/paint/components/PaintAccordion.vue";
 import { PAINT_SECTIONS, usePaintSections, type PaintSectionId } from "@/scriptorium/illuminator/paint/usePaintSections";
@@ -317,11 +352,15 @@ import PaintOptionsBar from "@/scriptorium/illuminator/paint/components/PaintOpt
 import PaintPreviewCanvas from "@/scriptorium/illuminator/paint/components/PaintPreviewCanvas.vue";
 import PaintStageFrame from "@/scriptorium/illuminator/paint/components/PaintStageFrame.vue";
 import PaintStage from "@/scriptorium/illuminator/paint/components/PaintStage.vue";
+import VersionsSection from "@/scriptorium/illuminator/paint/components/VersionsSection.vue";
 import PenPanel from "@/scriptorium/illuminator/paint/components/PenPanel.vue";
 import { PREVIEW_INK } from "@/scriptorium/illuminator/paint/components/previewPaper";
+import { tipFromImage } from "@/scriptorium/illuminator/paint/brushes/tipFromImage";
+import type { NewTip } from "@/scriptorium/illuminator/paint/brushes/newTip";
 import { renderTipPreview } from "@/scriptorium/illuminator/paint/render/brushPreview";
 import { isPaintTool, useIlluminateWorkbench, type WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
 import { useToast } from "@/composables/useToast";
+import { useHotkeys } from "@/composables/useHotkeys";
 import { IconChevronLeft, IconSave } from "@/lib/icons";
 
 const { original, settings, name, pageLabel, userId, documentId, campaignId, theme, pageAspect = null, startTool } = defineProps<{
@@ -369,6 +408,7 @@ const invalidateQuota = useInvalidateQuota();
 const showPaintPaywall = ref(false);
 
 const wb = useIlluminateWorkbench({
+  isPro: () => isPro.value,
   canMakeCanvas: () => canMakeCanvas.value,
   onCanvasRefused: () => {
     showPaintPaywall.value = true;
@@ -444,9 +484,61 @@ function onSelectBrush(id: string) {
   }
   paint.selectBrush(id);
 }
-async function onNewBrush() {
+// ── New brush ───────────────────────────────────────────────────────────────
+const newBrushOpen = ref(false);
+/** A tip cut from a box on the picture, waiting for its name in the dialog. */
+const newBrushReady = ref<NewTip | null>(null);
+const savingBrush = ref(false);
+/** The stage is taking a box instead of a stroke. */
+const boxPick = ref(false);
+
+function onNewBrush() {
+  newBrushReady.value = null;
+  newBrushOpen.value = true;
+}
+async function fromArmedBrush() {
+  newBrushOpen.value = false;
   if (await paint.saveAsNewBrush()) paintView.value = "settings";
 }
+function startBox() {
+  newBrushOpen.value = false;
+  boxPick.value = true;
+}
+/** The box dragged on the stage, in document pixels; null is a click, which cancels. */
+function onBox(rect: { x: number; y: number; w: number; h: number } | null) {
+  boxPick.value = false;
+  if (!rect) return;
+  const px = paint.compositor.value?.readRegion(rect.x, rect.y, rect.w, rect.h);
+  if (!px) {
+    toast.error("That box is outside the picture.");
+    return;
+  }
+  const made = tipFromImage(px);
+  if (!made.ok) {
+    toast.error(made.message);
+    return;
+  }
+  newBrushReady.value = { tip: made.tip, name: "Brush from the picture", source: "picture" };
+  newBrushOpen.value = true;
+}
+async function saveNewBrushes(items: NewTip[]) {
+  savingBrush.value = true;
+  try {
+    const made = await paint.saveTips(items);
+    if (!made || made.length === 0) return;
+    newBrushOpen.value = false;
+    showSection("brushes");
+  } finally {
+    savingBrush.value = false;
+  }
+}
+useHotkeys(() => [{ combo: "escape", description: "Cancel the brush box", handler: () => { boxPick.value = false; }, hidden: true }], {
+  layer: "overlay",
+  enabled: () => boxPick.value,
+});
+watch(armedPaintTool, (tool) => {
+  if (!tool) boxPick.value = false;
+});
 
 const tipPixels = computed(() => {
   const brush = paint.brush.value;

@@ -131,4 +131,11 @@ export interface PaintSessionApi {
    */
   readonly dirty: ReadonlyMap<string, ReadonlySet<number>>;
   markClean(): void;
+  /** Anything changed since the painting was loaded or last saved. Undo counts: it cannot tell it came back to the saved state. */
+  readonly edited: boolean;
+  /**
+   * Swaps every paint layer for these (the picture layer stays) as one history step, so one undo brings the old
+   * ones back. Returns the ids to redraw. A blank sheet keeps one paint layer to paint on.
+   */
+  replaceLayers(next: PaintLayer[]): string[];
 }

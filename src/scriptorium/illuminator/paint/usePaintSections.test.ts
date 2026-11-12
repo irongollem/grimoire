@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PAINT_SECTIONS_KEY, usePaintSections } from "./usePaintSections";
+import { PAINT_SECTIONS, PAINT_SECTIONS_KEY, usePaintSections } from "./usePaintSections";
 
 beforeEach(() => {
   localStorage.clear();
@@ -11,6 +11,15 @@ describe("the painting panel's blades", () => {
   // Fails on: the first opening not showing the brushes and layers, or the colour blade starting open.
   it("opens Brushes and Layers the first time", () => {
     expect(usePaintSections().open.value).toEqual(["brushes", "layers"]);
+  });
+
+  // Fails on: Versions missing from the blades (it could never be opened) or starting open (a long list over the brushes the first time).
+  it("offers Versions, closed the first time, and remembers it open", () => {
+    expect(PAINT_SECTIONS.map((x) => x.id)).toContain("versions");
+    const s = usePaintSections();
+    expect(s.isOpen("versions")).toBe(false);
+    s.set("versions", true);
+    expect(usePaintSections().isOpen("versions")).toBe(true);
   });
 
   // Fails on: opening one blade closing another (the tabs it replaced).

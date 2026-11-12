@@ -5,6 +5,7 @@ export const PAINT_SECTIONS = [
   { id: "brushes", label: "Brushes" },
   { id: "layers", label: "Layers" },
   { id: "colour", label: "Colour" },
+  { id: "versions", label: "Versions" },
 ] as const;
 export type PaintSectionId = (typeof PAINT_SECTIONS)[number]["id"];
 

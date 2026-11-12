@@ -200,3 +200,37 @@ describe("the paint step", () => {
     expect(step?.type === "paint" && step.layers.map((l) => l.opacity)).toEqual([1, 0]);
   });
 });
+
+describe("saved versions of a painting", () => {
+  const rec = (id: string, url: string) => ({ id, name: "Ink", blend: "multiply", opacity: 0.5, visible: true, lockAlpha: false, chunks: { "0,0": url } });
+  const version = (n: number, over: Record<string, unknown> = {}) => ({ id: `v${n}`, name: `Version ${n}`, savedAt: "2026-11-12T10:00:00.000Z", layers: [rec("a", `u/ill-paint-v${n}.webp`)], ...over });
+  const make = (versions: unknown[]) => parseSettings({ v: 1, seed: 0, steps: [{ type: "paint", width: 1000, height: 1000, paper: null, layers: [rec("a", "u/ill-paint-now.webp")], versions }] });
+
+  // Fails on: a version repeating the paint marker, which the free plan's canvas count reads as a second painting (ten versions would count as eleven canvases).
+  it("serialises the paint marker once, however many versions it holds", () => {
+    const s = make(Array.from({ length: 10 }, (_, i) => version(i + 1)));
+    const json = JSON.stringify(s);
+    expect(json.match(/"type":\s*"paint"/g)).toHaveLength(1);
+    expect(JSON.stringify(s, null, 2).match(/"type":\s*"paint"/g)).toHaveLength(1);
+    const step = s?.steps[0];
+    expect(step?.type === "paint" && step.versions).toHaveLength(10);
+  });
+
+  // Fails on: cleanup deleting a version's chunk files because only the current layers were counted.
+  it("lists a url only a version names", () => {
+    expect(pictureUrls(make([version(1)]))).toContain("u/ill-paint-v1.webp");
+  });
+
+  // Fails on: one malformed version wiping the painting or crashing the parse.
+  it("drops a malformed version and keeps the rest", () => {
+    const s = make([version(1), { id: "", layers: [] }, "junk", version(2, { layers: "x" }), version(3, { savedAt: "" }), version(4)]);
+    const step = s?.steps[0];
+    expect(step?.type === "paint" && step.versions?.map((v) => v.id)).toEqual(["v1", "v4"]);
+    expect(step?.type === "paint" && step.layers).toHaveLength(1);
+  });
+
+  // Fails on: saving a version changing the bake hash, which would rebake every picture for an edit the picture never shows.
+  it("does not change the hash", () => {
+    expect(hashSettings(make([version(1)])!)).toBe(hashSettings(make([])!));
+  });
+});
