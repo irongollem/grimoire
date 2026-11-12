@@ -5,6 +5,25 @@
     :contained="showsGraph"
     :owns-phone-bar="!isNew && !!quest"
   >
+    <!--
+      The three permanent tabs: "i utterly dont like the quest in a
+      modal. its too much data and inconsistent" / "perhaps we just need 3
+      menus always instead of 1 swapping around based on that state" (epic
+      #850). Overview, Story flow and Run are peers rendered by the same
+      control regardless of session state; nothing here swaps the control
+      itself for a different one. They sit beside the title rather than on a
+      row of their own, so the story flow's canvas keeps the height (12 Nov
+      2026: a tab row plus a toolbar row read as whitespace over a cramped
+      canvas).
+    -->
+    <template v-if="!isNew && quest" #actions>
+      <SegmentedControl
+        :model-value="view"
+        :options="viewOptions"
+        size="sm"
+        @update:model-value="(value) => selectView(value as QuestDetailSurface)"
+      />
+    </template>
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
@@ -16,19 +35,13 @@
 
     <template v-else-if="quest">
       <QuestPhoneTopBar :title="quest.title" :subtitle="phoneSubtitle" />
-      <!--
-        The three permanent tabs — "i utterly dont like the quest in a
-        modal. its too much data and inconsistent" / "perhaps we just need 3
-        menus always instead of 1 swapping around based on that state" (epic
-        #850). Overview, Story flow and Run are peers rendered by the same
-        control regardless of session state; nothing here swaps the control
-        itself for a different one.
-      -->
+      <!-- Below md the page header is hidden behind the phone top bar, so the
+           tabs live in the body there; from md they sit beside the title. -->
       <SegmentedControl
         :model-value="view"
         :options="viewOptions"
         size="sm"
-        class="mb-3"
+        class="mb-3 md:hidden"
         @update:model-value="(value) => selectView(value as QuestDetailSurface)"
       />
 
