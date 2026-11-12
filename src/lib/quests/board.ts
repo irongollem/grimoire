@@ -4,10 +4,8 @@ import type {
   QuestBeatEdge,
   QuestConsequence,
   LootPlacement,
-  QuestObjective,
   QuestRef,
   QuestRuntimeState,
-  QuestRuntimeStatus,
   QuestThread,
   QuestThreadStatus,
 } from "@/types/quest.types";
@@ -51,7 +49,6 @@ export interface QuestBoardSummary {
    * a waiting chain still holds its cursor but is not where the table is.
    * Reads as the first live thread's status (#853) — see `threads` for the rest. */
   isLive: boolean;
-  runtimeStatus: QuestRuntimeStatus | null;
   currentBeatTitle: string | null;
   beatSegments: QuestBeatSegment[];
   prepGapCount: number;
@@ -62,20 +59,6 @@ export interface QuestBoardSummary {
   threads: QuestBoardThreadSummary[];
   /** How many of `threads` are actually running, not merely waiting. */
   liveThreadCount: number;
-  /** The id in `threads` that `runtimeStatus`/`currentBeatTitle`/`beatSegments`
-   *  above are actually read from — the first running thread, else the first
-   *  cursor's. This is what "Resume run" (story I) hands the cockpit as
-   *  `?thread=`: resuming has to land somewhere, and this is the same thread
-   *  the rest of the summary already speaks for. Null with no cursor at all. */
-  primaryThreadId: string | null;
-  /** Every concrete prep gap across this quest's beats, in the same words the
-   *  build canvas already uses for them (`deriveQuestBeatPrepGaps`) — one
-   *  chip's worth of text per gap, not just the count. */
-  prepGaps: string[];
-  /** Undispatched loot, or a rule waiting to fire, sitting on a beat the party
-   *  has not reached yet — content the DM is ready to hand over the moment
-   *  the story gets there. */
-  hasPayoffPrepared: boolean;
   /** Titles of other quests a route out of this one has actually landed on
    *  (`quest_beat_transitions`, kind `jump`/`forward`), where the beat it
    *  landed on is a converge-all beat — this quest's own story feeds into
@@ -105,13 +88,16 @@ export interface QuestBoardSummary {
    *  type — never invented from a date), then whether every thread the quest
    *  ever opened closed or merged, or one was left running/waiting. */
   settledCaption: string | null;
-  /** How many of this quest's `quest_objectives` rows are `status: "complete"`
-   *  (frame `07 Log`'s featured-card statblock, story I). */
-  objectivesDone: number;
-  /** Every `quest_objectives` row this quest has, regardless of status. Zero
-   *  means the quest has no objectives at all — the featured card renders
-   *  nothing for a count with nothing to count. */
-  objectivesTotal: number;
+}
+
+/**
+ * Whether the board shows a quest as in session. Threads never close on their
+ * own (#850), so settling a quest's lane leaves its Main thread running; the
+ * lane is the DM's statement that the quest is over, and it wins. The server's
+ * `get_campaign_live_quests` applies the same rule (20261112220946).
+ */
+export function isQuestInSession(quest: Pick<Quest, "status">, summary: Pick<QuestBoardSummary, "isLive"> | undefined): boolean {
+  return summary?.isLive === true && quest.status !== "completed" && quest.status !== "failed";
 }
 
 export interface QuestBoardFilters {
@@ -209,7 +195,6 @@ export interface QuestBoardPayload {
   converges: QuestBoardConverge[];
   endings: QuestBoardEnding[];
   consequences: Pick<QuestConsequence, "quest_id" | "on_beat_id" | "action" | "target_quest_id" | "entry_beat_id">[];
-  objectives: Pick<QuestObjective, "quest_id" | "status">[];
   loot: Pick<LootPlacement, "quest_id" | "delivery_state">[];
 }
 
@@ -250,12 +235,6 @@ export function deriveQuestBoardSummaries(input: QuestBoardPayload) {
     threadsByQuest.set(thread.quest_id, list);
   }
   const beatById = new Map(input.beats.map((beat) => [beat.id, beat]));
-  const objectivesByQuest = new Map<string, QuestBoardPayload["objectives"]>();
-  for (const objective of input.objectives) {
-    const list = objectivesByQuest.get(objective.quest_id) ?? [];
-    list.push(objective);
-    objectivesByQuest.set(objective.quest_id, list);
-  }
   // `unlock_quest` is the only consequence action a quest reads for itself
   // rather than for one of its own beats — the rule lives on whichever beat
   // (in whichever quest) raises it, and only its `target_quest_id` says which
@@ -304,11 +283,6 @@ export function deriveQuestBoardSummaries(input: QuestBoardPayload) {
     const primaryCursor = cursors.find((cursor) => cursor.status === "running") ?? cursors[0] ?? null;
     const primary = threads.find((thread) => thread.id === primaryCursor?.thread_id) ?? null;
 
-    const prepGaps = beats.flatMap((beat) => (presentations[beat.id]?.prepGaps ?? []).map((gap) => gap.label));
-    const hasPayoffPrepared = loot.undispatched > 0 || beats.some((beat) => {
-      const presentation = presentations[beat.id];
-      return presentation !== undefined && !presentation.isVisited && presentation.payoffCount > 0;
-    });
 
     // A route never crosses a quest boundary (the edge FK ties both ends to
     // the same `quest_id`), so the only record of one story feeding into
@@ -330,8 +304,6 @@ export function deriveQuestBoardSummaries(input: QuestBoardPayload) {
     // shorthand actually typed at the table (`SESSION_NOTE_PATTERN`). Never a
     // date stood in for a session number nobody gave.
     const ending = input.endings.find((row) => row.quest_id === questId) ?? null;
-    const objectives = objectivesByQuest.get(questId) ?? [];
-    const objectivesDone = objectives.filter((objective) => objective.status === "complete").length;
 
     let settledCaption: string | null = null;
     if (ending) {
@@ -344,7 +316,6 @@ export function deriveQuestBoardSummaries(input: QuestBoardPayload) {
 
     result[questId] = {
       isLive: liveThreadCount > 0,
-      runtimeStatus: primaryCursor?.status ?? null,
       currentBeatTitle: primary?.currentBeatTitle ?? null,
       beatSegments: primary?.beatSegments ?? beatSegmentsForThread(beats, presentations, null, visitedByThread),
       prepGapCount: beats.reduce((total, beat) => total + (presentations[beat.id]?.prepGapCount ?? 0), 0),
@@ -352,16 +323,11 @@ export function deriveQuestBoardSummaries(input: QuestBoardPayload) {
       unclaimedLootCount: loot.unclaimed,
       threads,
       liveThreadCount,
-      primaryThreadId: primaryCursor?.thread_id ?? null,
-      prepGaps,
-      hasPayoffPrepared,
       convergesInto,
       unlockedBy,
       entersAt,
       heldPayoffCount,
       settledCaption,
-      objectivesDone,
-      objectivesTotal: objectives.length,
     };
   }
   return result;

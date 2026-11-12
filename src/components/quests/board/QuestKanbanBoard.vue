@@ -1,66 +1,53 @@
 <template>
-  <div class="flex flex-col gap-4">
-    <!-- The quest (or quests) the table is actually in right now, full width
-         above the groups (frame `07 Log`) — a quest with more than one live
-         thread needs its own spine per cursor, which a lane card has no room
-         for. -->
-    <QuestFeaturedCard
-      v-for="entry in liveQuests"
-      :key="entry.quest.id"
-      :quest="entry.quest"
-      :summary="entry.summary"
-    />
-
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Quest board">
-      <section
-        v-for="group in groups"
-        :key="group.key"
-        class="flex min-h-72 flex-col gap-2"
-        :aria-labelledby="`quest-group-${group.key}`"
-        @dragover.prevent="dragOverGroup = group.key"
-        @dragleave="onGroupDragLeave(group.key, $event)"
-        @drop.prevent="dropOn(group.key)"
-      >
-        <header class="flex items-center gap-2">
-          <component :is="group.icon" class="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <h2
-            :id="`quest-group-${group.key}`"
-            class="text-label-lg font-bold uppercase text-foreground"
-          >
-            {{ group.heading }}
-          </h2>
-          <span
-            class="ml-auto rounded-full bg-muted px-2 py-0.5 text-label font-semibold text-muted-foreground"
-            :aria-label="`${group.quests.length} quests in ${group.shortLabel}`"
-          >
-            {{ group.quests.length }} {{ group.quests.length === 1 ? "quest" : "quests" }}
-          </span>
-        </header>
-
-        <div
-          class="flex min-h-40 flex-1 flex-col gap-2 rounded-lg border border-border bg-muted/20 p-2 transition-colors"
-          :class="dragOverGroup === group.key && draggedQuestId ? 'bg-primary/5 ring-1 ring-inset ring-primary/30' : ''"
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Quest board">
+    <section
+      v-for="group in groups"
+      :key="group.key"
+      class="flex min-h-72 flex-col gap-2"
+      :aria-labelledby="`quest-group-${group.key}`"
+      @dragover.prevent="dragOverGroup = group.key"
+      @dragleave="onGroupDragLeave(group.key, $event)"
+      @drop.prevent="dropOn(group.key)"
+    >
+      <header class="flex items-center gap-2">
+        <component :is="group.icon" class="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <h2
+          :id="`quest-group-${group.key}`"
+          class="text-label-lg font-bold uppercase text-foreground"
         >
-          <QuestBoardCard
-            v-for="quest in group.quests"
-            :key="quest.id"
-            :quest="quest"
-            :party="party"
-            :summary="summaries?.[quest.id]"
-            :dragging="draggedQuestId === quest.id"
-            @dragstart="startDrag"
-            @dragend="endDrag"
-            @move="moveQuest(quest.id, $event)"
-          />
+          {{ group.heading }}
+        </h2>
+        <span
+          class="ml-auto rounded-full bg-muted px-2 py-0.5 text-label font-semibold text-muted-foreground"
+          :aria-label="`${group.quests.length} quests in ${group.shortLabel}`"
+        >
+          {{ group.quests.length }} {{ group.quests.length === 1 ? "quest" : "quests" }}
+        </span>
+      </header>
 
-          <div v-if="!group.quests.length" class="flex flex-1 items-center justify-center px-4 py-8 text-center">
-            <p v-if="group.unfilteredCount" class="font-fell text-sm italic text-muted-foreground">{{ group.unfilteredCount }} {{ group.shortLabel }} quest{{ group.unfilteredCount === 1 ? '' : 's' }} filtered out.</p>
-            <p v-else class="font-fell text-sm italic text-muted-foreground">No {{ group.shortLabel }} quests.</p>
-          </div>
+      <div
+        class="flex min-h-40 flex-1 flex-col gap-2 rounded-lg border border-border bg-muted/20 p-2 transition-colors"
+        :class="dragOverGroup === group.key && draggedQuestId ? 'bg-primary/5 ring-1 ring-inset ring-primary/30' : ''"
+      >
+        <QuestBoardCard
+          v-for="quest in group.quests"
+          :key="quest.id"
+          :quest="quest"
+          :party="party"
+          :summary="summaries?.[quest.id]"
+          :dragging="draggedQuestId === quest.id"
+          @dragstart="startDrag"
+          @dragend="endDrag"
+          @move="moveQuest(quest.id, $event)"
+        />
+
+        <div v-if="!group.quests.length" class="flex flex-1 items-center justify-center px-4 py-8 text-center">
+          <p v-if="group.unfilteredCount" class="font-fell text-sm italic text-muted-foreground">{{ group.unfilteredCount }} {{ group.shortLabel }} quest{{ group.unfilteredCount === 1 ? '' : 's' }} filtered out.</p>
+          <p v-else class="font-fell text-sm italic text-muted-foreground">No {{ group.shortLabel }} quests.</p>
         </div>
-      </section>
-    </div>
-  </div>
+      </div>
+    </section>
+</div>
 </template>
 
 <script setup lang="ts">
@@ -86,7 +73,6 @@ import {
   type QuestStatus,
 } from "@/types/quest.types";
 import QuestBoardCard from "./QuestBoardCard.vue";
-import QuestFeaturedCard from "./QuestFeaturedCard.vue";
 
 const { quests, allQuests, party = [], summaries } = defineProps<{
   quests: Quest[];
@@ -129,10 +115,6 @@ const groups = computed(() => GROUP_DEFINITIONS.map((definition) => {
     unfilteredCount: (allQuests ?? quests).filter((quest) => definition.statuses.includes(quest.status)).length,
   };
 }));
-
-const liveQuests = computed(() => quests
-  .map((quest) => ({ quest, summary: summaries?.[quest.id] }))
-  .filter((entry): entry is { quest: Quest; summary: QuestBoardSummary } => entry.summary?.isLive === true));
 
 function startDrag(id: string) {
   draggedQuestId.value = id;

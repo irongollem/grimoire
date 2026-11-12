@@ -12,7 +12,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(80);
+select plan(82);
 
 -- Fixture inserts below run as postgres between scenarios (reset role), so
 -- none of them should be quota-checked against a stale sub left by whichever
@@ -114,6 +114,19 @@ select is(
 select is(
   (select sibling_count from public.get_campaign_live_quests('85200000-0000-4000-8000-000000000010') where thread_label = 'Side thread'),
   2, 'sibling_count counts every live thread of the quest, itself included'
+);
+
+-- A settled quest is not live, whatever its threads say: settling the lane
+-- leaves Main and Side thread running, and moving it back finds them again.
+update public.quests set status = 'completed' where id = '85200000-0000-4000-8000-000000000020';
+select is(
+  (select count(*)::integer from public.get_campaign_live_quests('85200000-0000-4000-8000-000000000010') where quest_id = '85200000-0000-4000-8000-000000000020'),
+  0, 'a completed quest lists no open threads, though its threads still run'
+);
+update public.quests set status = 'active' where id = '85200000-0000-4000-8000-000000000020';
+select is(
+  (select count(*)::integer from public.get_campaign_live_quests('85200000-0000-4000-8000-000000000010') where quest_id = '85200000-0000-4000-8000-000000000020'),
+  2, 'moving it back to active lists both threads again'
 );
 
 -- ── (3) a parallel edge cannot be walked by advance ─────────────────────────

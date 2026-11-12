@@ -1710,20 +1710,29 @@ story, would fail the site check and never show the handoff at all.
 The Kanban view of `/quests` (`QuestKanbanBoard.vue`, behind the list/kanban
 toggle — the plain grid list is untouched by this epic).
 
-- **`QuestFeaturedCard`** — full width above the groups, rendered only when at
-  least one quest has a live thread. Premise, an "In session" badge, a
-  beats-visited / threads-live statblock, **one spine row per live thread**
-  (a segment bar reading done/here/gap/upcoming, the thread's own letter and
-  tone), prep-gap chips (one per kind, with a count — "the only alarm" the
-  card raises), a "Payoff prepared" chip, Resume run (into the thread that is
-  actually running), Story flow.
+- **No featured "In session" section.** Frame 07 drew a full-width card per
+  quest in session above the groups; it was removed on 12 Nov 2026 because it
+  only repeated the Active lane, whose cards already carry the thread spines
+  and **Party is here** (the maintainer: "any quests in the active lane are
+  active"). Its "Resume run" was a leftover of the pause removed in
+  `20261030230228`. Whether a card reads as in session is `isQuestInSession`:
+  a running thread **and** a lane that is not Completed or Failed. Threads
+  never close on their own, so a quest the DM settles keeps its running
+  thread; the lane wins, here and in `get_campaign_live_quests`
+  (`20261112220946`), which feeds the session rail, the dashboard Quests
+  widget and the cockpit's open chains.
+- **Every card opens on a click anywhere.** The title's link stretches over
+  the card (an `::after` at `inset-0`), and every control and chip sits above
+  it with `relative z-10`. On a lane card the link is `draggable="false"`, so
+  dragging the card still moves the quest. A lane card's prep-gap chip opens
+  the story flow, where the gaps are drawn beat by beat.
 - **Three groups**, replacing the old five-lane kanban's presentation without
   changing how a card is dropped onto one: **Active** (`active` — the
   "Rumoured" sub-group went with the lane in #874),
   **"Undiscovered — waiting to be unlocked"** (`undiscovered`), **Settled**
   (`completed`/`failed`).
 - **`QuestBoardCard`** (every group) now draws **one spine row per live
-  thread** the same way the featured card does, rather than a single
+  thread**, rather than a single
   undifferentiated segment bar — a quest can hold more than one cursor, and
   the card has to answer "where is this quest" for each. A quest with no live
   thread yet still shows a plain readiness spine (no thread to attribute it
@@ -1734,13 +1743,12 @@ toggle — the plain grid list is untouched by this epic).
   settled" or "one thread closed unfinished"), read from the `end` transition's
   own reason where the DM typed a session number, never a guessed date.
 - **The header line** — "N active · N threads live across N quests · N prep
-  gaps" — is whole-campaign, not filtered by whatever search or facet is
+  gaps" — counts only quests in session, and is whole-campaign, not filtered by whatever search or facet is
   active; it is the table's overall state, not a count of the current view.
 
 `src/lib/quests/board.ts#deriveQuestBoardSummaries` computes all of this
 per-thread, keyed by `QuestBoardThreadSummary` (id, label, status, current
-beat title, its own beat-segment reading) — every card and the featured card
-alike read `threadBadges()` (`lib/quests/threads.ts`) over that array for the
+beat title, its own beat-segment reading) — every card reads `threadBadges()` (`lib/quests/threads.ts`) over that array for the
 letter and tone, never choosing one locally.
 
 ### What went

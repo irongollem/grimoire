@@ -112,7 +112,7 @@ import { useQuestsUiStore } from "@/stores/ui/quests";
 import { useCampaignStore } from "@/stores/campaign";
 import { useQuests, useCampaignQuestRefs, useQuestFilterEntities } from "@/composables/quests/useQuests";
 import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
-import { countQuestBoardFilters } from "@/lib/quests/board";
+import { countQuestBoardFilters, isQuestInSession } from "@/lib/quests/board";
 
 const questsUi = useQuestsUiStore();
 const campaignStore = useCampaignStore();
@@ -160,7 +160,7 @@ const headerLine = computed(() => {
   for (const quest of quests) {
     const summary = summaries?.[quest.id];
     if (!summary) continue;
-    if (summary.liveThreadCount > 0) {
+    if (isQuestInSession(quest, summary) && summary.liveThreadCount > 0) {
       threadsLive += summary.liveThreadCount;
       questsWithLiveThread += 1;
     }

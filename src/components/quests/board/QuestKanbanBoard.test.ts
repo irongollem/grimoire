@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mount, RouterLinkStub } from "@vue/test-utils";
-import type { QuestBoardSummary } from "@/lib/quests/board";
 import type { Quest } from "@/types/quest.types";
 import QuestBoardCard from "./QuestBoardCard.vue";
-import QuestFeaturedCard from "./QuestFeaturedCard.vue";
 import QuestKanbanBoard from "./QuestKanbanBoard.vue";
 
 function quest(id: string, status: Quest["status"]): Quest {
@@ -75,39 +73,6 @@ describe("QuestKanbanBoard", () => {
     expect(wrapper.text()).toContain("No undiscovered quests.");
   });
 
-  it("features every quest with a live thread above the groups", () => {
-    const summaries: Record<string, QuestBoardSummary> = {
-      "1": {
-        isLive: true,
-        runtimeStatus: "running",
-        currentBeatTitle: "Confront Ser Vallis",
-        beatSegments: ["done", "here"],
-        prepGapCount: 0,
-        undispatchedLootCount: 0,
-        unclaimedLootCount: 0,
-        threads: [{ id: "t-a", label: "Main", status: "live", currentBeatTitle: "Confront Ser Vallis", beatSegments: ["done", "here"], created_at: "2026-08-01T00:00:00Z" }],
-        liveThreadCount: 1,
-        primaryThreadId: "t-a",
-        prepGaps: [],
-        hasPayoffPrepared: false,
-        convergesInto: [],
-        unlockedBy: null,
-        entersAt: null,
-        heldPayoffCount: 0,
-        settledCaption: null,
-        objectivesDone: 0,
-        objectivesTotal: 0,
-      },
-    };
-    const wrapper = mount(QuestKanbanBoard, {
-      props: { quests: [quest("1", "active"), quest("2", "active")], summaries },
-      global,
-    });
-
-    expect(wrapper.findAllComponents(QuestFeaturedCard)).toHaveLength(1);
-    expect(wrapper.getComponent(QuestFeaturedCard).props("quest").id).toBe("1");
-  });
-
   it("promotes a dropped quest to the target group's primary status", async () => {
     const wrapper = mount(QuestKanbanBoard, {
       props: { quests: [quest("1", "undiscovered")] },
@@ -152,18 +117,5 @@ describe("QuestKanbanBoard", () => {
     await wrapper.findAll("section")[2]!.trigger("drop");
     await wrapper.findAll("section")[2]!.trigger("drop");
     expect(wrapper.emitted("move")).toHaveLength(1);
-  });
-
-  it("features only quests whose run is live, not every quest that has a summary", () => {
-    const base = {
-      runtimeStatus: "running" as const, currentBeatTitle: null, beatSegments: [], prepGapCount: 0, undispatchedLootCount: 0,
-      unclaimedLootCount: 0, threads: [], liveThreadCount: 0, primaryThreadId: null, prepGaps: [], hasPayoffPrepared: false,
-      convergesInto: [], unlockedBy: null, entersAt: null, heldPayoffCount: 0, settledCaption: null, objectivesDone: 0, objectivesTotal: 0,
-    };
-    const wrapper = mount(QuestKanbanBoard, {
-      props: { quests: [quest("1", "active")], summaries: { "1": { ...base, isLive: false } } },
-      global,
-    });
-    expect(wrapper.findAllComponents(QuestFeaturedCard)).toHaveLength(0);
   });
 });
