@@ -1,6 +1,6 @@
 /*
  * One deferred, reference-checked removal of the files the Illuminator made
- * (bakes, brush masks, textures, AI results).
+ * (bakes, painted masks, textures, AI results).
  *
  * A save, a layer move, a cut and paste or an undo can each stop one place from
  * using a file while another still does, and each place only sees its own

@@ -20,6 +20,8 @@ export interface StrokeOptions {
   paper?: Paper;
   /** The options bar's values, replacing the brush's own. */
   overrides?: { size?: number; opacity?: number; flow?: number };
+  /** Change colour only where the layer already has paint: alpha never changes, transparent pixels stay transparent. */
+  lockAlpha?: boolean;
 }
 
 export interface Stroke {
@@ -52,6 +54,7 @@ class PaintStroke implements Stroke {
   private readonly baseFlow: number;
   private readonly cap: number;
   private readonly buffered: boolean;
+  private readonly lockAlpha: boolean;
   private readonly before = new Map<number, Uint8ClampedArray | null>();
   private readonly buffers = new Map<number, Float32Array>();
   private readonly colours = new Map<number, Float32Array>();
@@ -63,6 +66,7 @@ class PaintStroke implements Stroke {
     this.colour = o.colour;
     this.mode = o.mode;
     this.assets = assets;
+    this.lockAlpha = o.lockAlpha === true;
     this.gen = new DabGenerator({
       brush: o.brush,
       colour: o.colour,
@@ -205,8 +209,11 @@ class PaintStroke implements Stroke {
         const c = shaped[i] ?? 0;
         if (c <= 0.004) continue;
         const o = i * 4;
+        const alpha = out[o + 3] ?? 0;
+        if (this.lockAlpha && alpha === 0) continue;
         if (col) blendPixel(out, o, blend, col[i * 3] ?? 0, col[i * 3 + 1] ?? 0, col[i * 3 + 2] ?? 0, c * this.cap);
         else blendPixel(out, o, blend, this.colour.r, this.colour.g, this.colour.b, c * this.cap);
+        if (this.lockAlpha) out[o + 3] = alpha;
       }
       layer.setTile(key, layer.isTileEmpty(out) ? null : out);
       keys.push(key);
@@ -319,7 +326,11 @@ class PaintStroke implements Stroke {
           if (a <= 0) continue;
           const cov = Math.max(0, a - (brush.grain && this.grain ? this.grainHollow(spec, px, py) : 0)) * strength;
           if (cov <= 0.002) continue;
-          blendPixel(tile, ((py - rect.y) * T + (px - rect.x)) * 4, "normal", carry.r, carry.g, carry.b, cov);
+          const o = ((py - rect.y) * T + (px - rect.x)) * 4;
+          const alpha = tile[o + 3] ?? 0;
+          if (this.lockAlpha && alpha === 0) continue;
+          blendPixel(tile, o, "normal", carry.r, carry.g, carry.b, cov);
+          if (this.lockAlpha) tile[o + 3] = alpha;
         }
       }
       touched.add(key);

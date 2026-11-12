@@ -27,18 +27,12 @@
         aria-label="The picture with your edits"
       />
 
-      <!-- Pointer layer: focus point and brush strokes, wherever the divider is. -->
+      <!-- Pointer layer: the focus point, wherever the divider is. -->
       <div
         class="absolute inset-0"
         :class="cursorClass"
         data-testid="workbench-pointer-layer"
         @click="emit('canvas-click', $event)"
-        @pointerdown="emit('brush-down', $event)"
-        @pointermove="emit('brush-move', $event)"
-        @pointerup="emit('brush-up')"
-        @pointercancel="emit('brush-up')"
-        @pointerenter="emit('brush-enter')"
-        @pointerleave="emit('brush-leave')"
         @contextmenu.prevent
       />
 
@@ -77,25 +71,16 @@
           @input="emit('update:comparePos', Number(($event.target as HTMLInputElement).value))"
         />
       </label>
-      <span class="text-caption text-muted-foreground">Drag the divider, or hold B to see the original</span>
+      <span class="text-caption text-muted-foreground">Drag the divider, or hold O to see the original</span>
     </div>
-
-    <!-- The brush's circle follows the pointer. Teleported out so no overflow clips it. -->
-    <Teleport to="body">
-      <div
-        v-if="brushCursor.visible"
-        class="pointer-events-none fixed z-[9999] rounded-full border border-white/80 mix-blend-difference"
-        :style="{ left: `${brushCursor.x}px`, top: `${brushCursor.y}px`, width: `${brushCursor.diameter}px`, height: `${brushCursor.diameter}px`, transform: 'translate(-50%, -50%)' }"
-      />
-    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
 /**
  * The workbench's stage (#1176 frame 12): the picture, with a before/after
- * divider you drag. It only draws and reports; the render and the brush are
- * the composable's. The two canvases are exposed so it can draw into them.
+ * divider you drag. It only draws and reports; the render is the composable's.
+ * Painting has a stage of its own (paint/components/PaintStage.vue). The two canvases are exposed so it can draw into them.
  */
 import { computed, ref } from "vue";
 import { useElementSize } from "@vueuse/core";
@@ -105,27 +90,21 @@ const CHECKER = "repeating-conic-gradient(#3a3a3a 0% 25%, #2a2a2a 0% 50%) 0 0 / 
 const CHROME_PX = 120;
 const PAD_PX = 48;
 
-const { size, comparePos, showOriginal, compareOff = false, cursorClass = "", loadError = "", brushCursor } = defineProps<{
+const { size, comparePos, showOriginal, compareOff = false, cursorClass = "", loadError = "" } = defineProps<{
   /** The preview's pixel size; zero until the picture has loaded. */
   size: { width: number; height: number };
   comparePos: number;
-  /** Held B: the original in full. */
+  /** Held O: the original in full. */
   showOriginal: boolean;
-  /** Painting and picking a focus point want the whole edited picture, so the divider steps aside. */
+  /** Setting the crop and picking a focus point want the whole edited picture, so the divider steps aside. */
   compareOff?: boolean;
   cursorClass?: string;
   loadError?: string;
-  brushCursor: { visible: boolean; x: number; y: number; diameter: number };
 }>();
 
 const emit = defineEmits<{
   "update:comparePos": [value: number];
   "canvas-click": [event: MouseEvent];
-  "brush-down": [event: PointerEvent];
-  "brush-move": [event: PointerEvent];
-  "brush-up": [];
-  "brush-enter": [];
-  "brush-leave": [];
 }>();
 
 const holder = ref<HTMLElement | null>(null);
@@ -134,7 +113,7 @@ const afterEl = ref<HTMLCanvasElement | null>(null);
 const { width: holderW, height: holderH } = useElementSize(holder);
 
 const ready = computed(() => size.width > 0 && size.height > 0);
-/** Held B puts the divider all the way over: the whole picture is the original. */
+/** Held O puts the divider all the way over: the whole picture is the original. */
 const effectivePos = computed(() => (showOriginal ? 100 : compareOff ? 0 : comparePos));
 
 /** The preview fitted into the room there is, never larger than it was drawn. */

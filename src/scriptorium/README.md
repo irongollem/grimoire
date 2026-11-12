@@ -9,7 +9,7 @@ The Scriptorium is Grimoire's book editor: a document is a book of chapters, a h
 - `lib/` holds the pure logic: book layout, page flow, furniture, chapters, the book kit, the panel's rules, zoom, print checking, import, looks and templates (`bookLayout/`, `chapters/`, `furniture/`, `inspect/`, `kit/`, `pageFlow/`, `panel/`).
 - `tiptap/` holds the Tiptap extensions only the Scriptorium uses. Extensions shared with the rich text editor and the viewers stay in `src/lib/tiptap/`.
 - `views/` holds the route views.
-- `illuminator/` holds the picture editor, which opens over the book as a workbench (no route of its own): `components/` for its tools, stage and the AI actions, `lib/` for the recipe (`treatment.ts`, `applySteps.ts`), bakes, brush masks, grading, depth of field, edges, texture and vignette. Its workbench state, `useIlluminateWorkbench.ts`, sits beside `components/`.
+- `illuminator/` holds the picture editor, which opens over the book as a workbench (no route of its own): `components/` for its tools, stage and the AI actions, `lib/` for the recipe (`treatment.ts`, `applySteps.ts`), bakes, painted masks, grading, depth of field, edges, texture and vignette. Its workbench state, `useIlluminateWorkbench.ts`, sits beside `components/`.
 - `styles/` holds the page and paper themes and the editor CSS, imported by `src/assets/main.css` and inlined into PDF exports.
 - `data/templates/` holds the starting templates, `types.ts` the document types and `stores/ui.ts` the list filter state, plus the editor's Focus and zoom.
 

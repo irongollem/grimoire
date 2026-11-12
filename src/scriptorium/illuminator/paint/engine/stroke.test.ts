@@ -313,3 +313,47 @@ describe("smudge and wet mix", () => {
     expect(snapshot(layer)).toEqual(before);
   });
 });
+
+describe("lock alpha", () => {
+  const px = (l: TiledLayer, x: number, y: number) => {
+    const t = l.tile(l.key(Math.floor(x / 64), Math.floor(y / 64)));
+    const o = ((y % 64) * 64 + (x % 64)) * 4;
+    return t ? Array.from(t.slice(o, o + 4)) : [0, 0, 0, 0];
+  };
+  const base = () => {
+    const l = new TiledLayer(128, 128, 64);
+    // A half-covered blue patch on the left; the rest stays transparent.
+    paint(l, brush({}, 30), [sample(30, 40), sample(32, 40)], { colour: { r: 0, g: 0, b: 255 }, overrides: { opacity: 0.5 } });
+    return l;
+  };
+
+  // Fails if a locked stroke paints on transparent pixels (it must only recolour existing paint).
+  it("leaves transparent pixels transparent, for buffered and wet strokes", () => {
+    for (const b of [brush({}, 30), brush({ wetMix: { dilution: 0, charge: 1, pull: 0.5 } }, 30)]) {
+      const l = base();
+      paint(l, b, line(70, 110, 40, 4), { lockAlpha: true });
+      expect(px(l, 90, 40)[3]).toBe(0);
+    }
+  });
+
+  // Fails if a locked stroke raises or lowers coverage where there is paint: alpha must stay, colour must change.
+  it("keeps alpha on painted pixels and still recolours them", () => {
+    for (const b of [brush({}, 30), brush({ wetMix: { dilution: 0, charge: 1, pull: 0 } }, 30)]) {
+      const l = base();
+      const was = px(l, 31, 40);
+      paint(l, b, line(20, 44, 40, 2), { lockAlpha: true });
+      const now = px(l, 31, 40);
+      expect(now[3]).toBe(was[3]);
+      expect(now[0]).toBeGreaterThan(was[0] ?? 0);
+    }
+  });
+
+  // Fails if an erase stroke on a locked layer still lowers alpha.
+  it("an erase stroke cannot lower alpha", () => {
+    const l = base();
+    const was = px(l, 31, 40)[3];
+    paint(l, brush({}, 30), line(20, 44, 40, 2), { lockAlpha: true }, "erase");
+    expect(px(l, 31, 40)[3]).toBe(was);
+  });
+});
+

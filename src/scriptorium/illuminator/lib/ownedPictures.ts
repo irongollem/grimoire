@@ -4,7 +4,7 @@
  * Any picture served from our storage can be edited now, so a picture's
  * `original` may be anyone's file: a place's art, a portrait, a picture the
  * author keeps in their own pictures. Editing only ever reads it. What the
- * Illuminator itself stores is a bake, a brush mask, a texture and an AI
+ * Illuminator itself stores is a bake, a painted mask, a texture and an AI
  * result, always in asset-images under the author's own id and named `ill-...`
  * (bakeUpload.ts, useIlluminateWorkbench.ts, useIlluminatePicture.ts). Those
  * are the only files cleanup may delete, and an `original` never is, whatever

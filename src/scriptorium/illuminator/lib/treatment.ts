@@ -77,7 +77,7 @@ export interface IlluminateSettings {
   steps: IlluminateStep[];
 }
 
-/** The order the steps run in: the crop comes first, the texture sits under the vignette on purpose, the wash goes on after the edges, and the DM's own brush mask erases last. */
+/** The order the steps run in: the crop comes first, the texture sits under the vignette on purpose, the wash goes on after the edges, and the mask the Eraser paints on the picture erases last. */
 export const STEP_ORDER: readonly StepType[] = ["ai", "crop", "grade", "dof", "texture", "vignette", "edges", "wash", "mask"];
 
 // ─── Defensive parsing ──────────────────────────────────────────────────────
