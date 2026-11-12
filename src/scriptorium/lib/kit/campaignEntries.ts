@@ -4,6 +4,10 @@
  * orders and filters them, so the rules are tested without a campaign.
  */
 import type { EntityEmbedType } from "@/lib/tiptap/nodeViewTypes";
+import { LOCATION_TYPE_COLORS, type LocationType } from "@/types/location.types";
+import { MONSTER_TYPES } from "@/types/monster.types";
+import type { NpcStatus } from "@/types/npc.types";
+import { SPELL_SCHOOLS } from "@/types/spell.types";
 
 export interface KitCampaignEntry {
   id: string;
@@ -11,6 +15,39 @@ export interface KitCampaignEntry {
   name: string;
   /** "Medium humanoid, CR 1/2": a second line when there is one. */
   subtitle: string | null;
+  /**
+   * The colour the rest of the app gives this entry (a spell's school, a monster's type, an NPC's
+   * status, a place's type), drawn as a dot so two entries of one name can be told apart at a glance.
+   */
+  dot: string | null;
+}
+
+/*
+ * Each reads a value straight from a row, which the database holds as free text: an unknown one
+ * gets no dot rather than a `var(--school-undefined)` that paints nothing.
+ */
+export function spellDot(school: string): string | null {
+  return (SPELL_SCHOOLS as readonly string[]).includes(school) ? `var(--school-${school})` : null;
+}
+export function monsterDot(type: string): string | null {
+  return (MONSTER_TYPES as readonly string[]).includes(type) ? `var(--monstertype-${type})` : null;
+}
+const NPC_STATUS_DOT: Record<NpcStatus, string> = {
+  alive: "var(--tone-success)",
+  dead: "var(--tone-danger)",
+  missing: "var(--tone-caution)",
+  unknown: "var(--muted-foreground)",
+};
+export function npcDot(status: NpcStatus): string {
+  return NPC_STATUS_DOT[status] ?? NPC_STATUS_DOT.unknown;
+}
+/** "Human · Blacksmith", and the status when it is news: the old Insert panel's chip said who is dead, which a dot's colour alone cannot. */
+export function npcSubtitle(npc: { race: string | null; occupation: string | null; status: NpcStatus }): string | null {
+  const status = npc.status === "alive" || npc.status === "unknown" ? null : npc.status;
+  return [npc.race, npc.occupation, status].filter(Boolean).join(" · ") || null;
+}
+export function locationDot(type: LocationType): string | null {
+  return LOCATION_TYPE_COLORS[type] ?? null;
 }
 
 /** Kinds in the order the kit lists them when nothing is typed. */

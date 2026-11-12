@@ -16,7 +16,7 @@ import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import { useCampaignCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
 import { spellLevelLabel } from "@/types/spell.types";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
-import type { KitCampaignEntry } from "@/scriptorium/lib/kit/campaignEntries";
+import { locationDot, monsterDot, npcDot, npcSubtitle, spellDot, type KitCampaignEntry } from "@/scriptorium/lib/kit/campaignEntries";
 
 export function useKitCampaignEntries() {
   const { data: npcs, isPending: npcsLoading } = useNpcs();
@@ -35,7 +35,8 @@ export function useKitCampaignEntries() {
       id: n.id,
       type: "npc" as const,
       name: n.name,
-      subtitle: [n.race, n.occupation].filter(Boolean).join(" · ") || null,
+      subtitle: npcSubtitle(n),
+      dot: npcDot(n.status),
     })),
     ...(monsterIndex.value ?? [])
       .filter((m) => !m.is_shared)
@@ -44,6 +45,7 @@ export function useKitCampaignEntries() {
         type: "monster" as const,
         name: m.name,
         subtitle: `${m.size} ${m.monster_type} · CR ${m.challenge_rating}`,
+        dot: monsterDot(m.monster_type),
       })),
     ...(spellIndex.value ?? [])
       .filter((s) => !s.is_shared)
@@ -52,30 +54,34 @@ export function useKitCampaignEntries() {
         type: "spell" as const,
         name: s.name,
         subtitle: `${spellLevelLabel(s.level)} ${s.school}`,
+        dot: spellDot(s.school),
       })),
     ...(itemIndex.value ?? [])
       .filter((i) => !i.is_shared)
-      .map((i) => ({ id: i.id, type: "item" as const, name: i.name, subtitle: i.item_type })),
-    ...(quests.value ?? []).map((q) => ({ id: q.id, type: "quest" as const, name: q.title, subtitle: null })),
+      .map((i) => ({ id: i.id, type: "item" as const, name: i.name, subtitle: i.item_type, dot: null })),
+    ...(quests.value ?? []).map((q) => ({ id: q.id, type: "quest" as const, name: q.title, subtitle: null, dot: null })),
     ...(locations.value ?? []).map((l) => ({
       id: l.id,
       type: "location" as const,
       name: l.name,
       subtitle: LOCATION_TYPE_LABELS[l.location_type],
+      dot: locationDot(l.location_type),
     })),
     ...(deities.value ?? []).map((d) => ({
       id: d.id,
       type: "deity" as const,
       name: d.name,
       subtitle: d.pantheon?.name ?? null,
+      dot: null,
     })),
-    ...speciesList.value.map((sp) => ({ id: sp.id, type: "species" as const, name: sp.name, subtitle: null })),
-    ...(factions.value ?? []).map((f) => ({ id: f.id, type: "faction" as const, name: f.name, subtitle: null })),
+    ...speciesList.value.map((sp) => ({ id: sp.id, type: "species" as const, name: sp.name, subtitle: null, dot: null })),
+    ...(factions.value ?? []).map((f) => ({ id: f.id, type: "faction" as const, name: f.name, subtitle: null, dot: null })),
     ...subclasses.value.map((sc) => ({
       id: sc.id,
       type: "subclass" as const,
       name: sc.subclass_name,
       subtitle: sc.class_name,
+      dot: null,
     })),
   ]);
 

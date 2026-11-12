@@ -72,14 +72,19 @@
             block
             class="cursor-grab justify-between gap-2"
             draggable="true"
-            :tooltip="entry.subtitle ?? undefined"
             :data-testid="`kit-entry-${entry.name}`"
             @click="placeEntry(entry)"
             @dragstart="startKitDrag($event, { kind: 'entity', entityType: entry.type, entityId: entry.id, name: entry.name })"
             @dragend="endKitDrag"
           >
-            <span class="min-w-0 truncate text-body text-foreground">{{ entry.name }}</span>
-            <span class="shrink-0 text-caption text-muted-foreground">{{ entityTypeLabel(entry.type) }}</span>
+            <span class="flex min-w-0 flex-col text-left">
+              <span class="truncate text-body text-foreground">{{ entry.name }}</span>
+              <span v-if="entry.subtitle" class="truncate text-caption italic text-muted-foreground">{{ entry.subtitle }}</span>
+            </span>
+            <span class="flex shrink-0 items-center gap-1.5 text-caption text-muted-foreground">
+              <span v-if="entry.dot" class="size-2 rounded-full" :style="{ backgroundColor: entry.dot }" aria-hidden="true" data-testid="kit-entry-dot" />
+              {{ entityTypeLabel(entry.type) }}
+            </span>
           </AppButton>
         </li>
       </ul>
