@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { effectScope } from "vue";
+import { effectScope, ref } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FIRM } from "./engine/pressure";
 import type { PaintAssets } from "./engine/types";
@@ -13,13 +13,15 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("./render/compositor", () => ({ createCompositor: vi.fn(() => mocks.compositor) }));
 
-const assets = { tip: () => undefined, grain: () => undefined, loadTip: vi.fn(), loadGrain: vi.fn(), preloadStock: async () => {} };
+const assets = { tip: () => undefined, grain: () => undefined, loadTip: vi.fn(), loadGrain: vi.fn(), preloadStock: async () => {}, addUserTipUrl: vi.fn(), addUserGrainUrl: vi.fn(), putTip: vi.fn(), putGrain: vi.fn() };
+// The painter's own brushes are not under test here; see usePaintSession.userBrushes.test.ts.
+const user = { brushes: ref([]), create: vi.fn(), importMany: vi.fn(), update: vi.fn(), rename: vi.fn(), remove: vi.fn() };
 const redraw = vi.fn();
 
 /** A composable made the way a component makes it: inside a scope that is stopped on unmount. */
 function mountPaint(extra: { canMakeCanvas?: () => boolean; onCanvasRefused?: () => void } = {}) {
   const scope = effectScope();
-  const paint = scope.run(() => usePaintSession({ redraw, assets: assets as typeof assets & PaintAssets, ...extra }));
+  const paint = scope.run(() => usePaintSession({ redraw, assets: assets as typeof assets & PaintAssets, user: user as never, ...extra }));
   if (!paint) throw new Error("no composable");
   return { paint, stop: () => scope.stop() };
 }

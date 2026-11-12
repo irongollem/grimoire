@@ -42,3 +42,13 @@ describe("groupBrushes", () => {
     expect(brushMatches(brushes[1]!, "round hard")).toBe(true);
   });
 });
+
+describe("groupBrushes: the sets in Yours", () => {
+  // Fails if imported brushes are listed flat, so a 60-brush set cannot be told from the painter's own.
+  it("heads own brushes first, then each set under its name, in order of first appearance", () => {
+    const yours = [make("1", "One", "yours"), make("2", "Two", "yours"), make("3", "Three", "yours"), make("4", "Four", "yours")];
+    const sets = { "1": "Grass", "2": null, "3": "Ink", "4": "Grass" };
+    const section = groupBrushes(yours, "", sets).find((s) => s.group === "yours");
+    expect(section?.sets.map((s) => [s.name, s.brushes.map((b) => b.id)])).toEqual([[null, ["2"]], ["Grass", ["1", "4"]], ["Ink", ["3"]]]);
+  });
+});

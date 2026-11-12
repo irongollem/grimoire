@@ -6,6 +6,7 @@
         <AppButton variant="subtle" size="xs" :icon="IconUndo" label="Reset" @click="emit('reset')" />
         <AppButton variant="subtle" size="xs" :icon="IconAdd" label="Save as a new brush" class="min-w-0 flex-1" @click="emit('save-as-new')" />
       </div>
+      <AutosaveStatusLine v-if="saveStatus" :status="saveStatus" :error="saveError" data-testid="brush-autosave" />
       <div class="overflow-hidden rounded-md border border-border" :style="paperStyle">
         <PaintPreviewCanvas :pixels="stroke" :scale="2" label="This brush's stroke" />
       </div>
@@ -140,6 +141,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import AutosaveStatusLine from "@/components/common/feedback/AutosaveStatus.vue";
+import type { AutosaveStatus } from "@/composables/useAutosave";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
@@ -176,7 +179,13 @@ import {
  * grain, wet edges, transfer, wet mix, colour and smoothing. Every change emits the whole updated brush; the
  * parent owns it.
  */
-const { brush, assets } = defineProps<{ brush: BrushPreset; assets: PaintAssets }>();
+const { brush, assets, saveStatus = null, saveError = "" } = defineProps<{
+  brush: BrushPreset;
+  assets: PaintAssets;
+  /** Set while a brush of Yours is armed: its changes save themselves, and this says how that is going. */
+  saveStatus?: AutosaveStatus | null;
+  saveError?: string;
+}>();
 const emit = defineEmits<{ "update:brush": [brush: BrushPreset]; reset: []; "save-as-new": [] }>();
 
 const update = (next: BrushPreset) => emit("update:brush", next);
