@@ -29,6 +29,10 @@ vi.mock("@/composables/useHotkeys", () => ({
 vi.mock("@/scriptorium/illuminator/paint/assets/loadPaintAssets", () => ({
   loadPaintAssets: () => ({ tip: () => undefined, grain: () => undefined, loadTip: vi.fn(), loadGrain: vi.fn(), preloadStock: async () => {} }),
 }));
+// The painter's own brushes live in the database; the workbench tests have no query client.
+vi.mock("@/scriptorium/illuminator/paint/useUserBrushes", () => ({
+  useUserBrushes: () => ({ brushes: { value: [] }, create: vi.fn(), importMany: vi.fn(), update: vi.fn(), rename: vi.fn(), remove: vi.fn() }),
+}));
 vi.mock("@/scriptorium/illuminator/paint/render/compositor", () => ({ createCompositor: vi.fn(() => mocks.compositor) }));
 vi.mock("@/scriptorium/illuminator/paint/paintPicture", () => ({ renderPaintPicture: async () => document.createElement("canvas") }));
 vi.mock("@/scriptorium/illuminator/paint/maskPixels", async (importOriginal) => ({

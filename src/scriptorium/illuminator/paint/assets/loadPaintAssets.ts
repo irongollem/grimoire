@@ -55,6 +55,12 @@ export interface PaintAssetStore extends PaintAssets {
   loadGrain(id: string): Promise<GrainImage>;
   /** Every stock tip and grain. */
   preloadStock(): Promise<void>;
+  /** Tells the store where a painter's own tip / grain lives (an absolute URL, not an art path). */
+  addUserTipUrl(id: string, url: string): void;
+  addUserGrainUrl(id: string, url: string): void;
+  /** Hands over an image already decoded (a just-imported brush paints before its upload finishes). */
+  putTip(id: string, tip: TipImage): void;
+  putGrain(id: string, grain: GrainImage): void;
 }
 
 export interface LoadPaintAssetsOptions {
@@ -68,15 +74,18 @@ function cachedLoader<T>(
   paths: Readonly<Record<string, string>>,
   decode: PixelDecoder,
   convert: (px: DecodedPixels) => T,
-): { load(id: string): Promise<T>; done: Map<string, T> } {
+): { load(id: string): Promise<T>; done: Map<string, T>; addUrl(id: string, url: string): void; put(id: string, value: T): void } {
   const done = new Map<string, T>();
   const pending = new Map<string, Promise<T>>();
+  // A painter's own files are absolute URLs; `artUrl` maps build paths to the CDN and would mangle them.
+  const own = new Map<string, string>();
   function load(id: string): Promise<T> {
     const hit = pending.get(id);
     if (hit) return hit;
+    const ownUrl = own.get(id);
     const path = paths[id];
-    if (path === undefined) return Promise.reject(new Error(`no ${kind} art for "${id}"`));
-    const p = decode(artUrl(path)).then(
+    if (ownUrl === undefined && path === undefined) return Promise.reject(new Error(`no ${kind} art for "${id}"`));
+    const p = decode(ownUrl ?? artUrl(path as string)).then(
       (px) => {
         const value = convert(px);
         done.set(id, value);
@@ -91,7 +100,17 @@ function cachedLoader<T>(
     pending.set(id, p);
     return p;
   }
-  return { load, done };
+  return {
+    load,
+    done,
+    addUrl: (id, url) => {
+      own.set(id, url);
+    },
+    put: (id, value) => {
+      done.set(id, value);
+      pending.set(id, Promise.resolve(value));
+    },
+  };
 }
 
 export function loadPaintAssets(opts: LoadPaintAssetsOptions = {}): PaintAssetStore {
@@ -103,6 +122,10 @@ export function loadPaintAssets(opts: LoadPaintAssetsOptions = {}): PaintAssetSt
     grain: (id) => grains.done.get(id),
     loadTip: tips.load,
     loadGrain: grains.load,
+    addUserTipUrl: tips.addUrl,
+    addUserGrainUrl: grains.addUrl,
+    putTip: tips.put,
+    putGrain: grains.put,
     async preloadStock() {
       await Promise.all([
         ...Object.keys(tipPaths).map((id) => tips.load(id)),

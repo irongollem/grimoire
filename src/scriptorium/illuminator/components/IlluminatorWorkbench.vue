@@ -107,6 +107,8 @@
               v-if="paintView === 'settings' && paint.brush.value"
               :brush="paint.brush.value"
               :assets="paint.assets"
+              :save-status="paint.brush.value.group === 'yours' ? paint.brushSaveStatus.value : null"
+              :save-error="paint.brushSaveError.value"
               @update:brush="paint.updateBrush"
               @reset="paint.resetBrush"
               @save-as-new="paint.saveAsNewBrush"
@@ -115,14 +117,19 @@
           </template>
           <template v-else>
             <PaintAccordion v-for="section in PAINT_SECTIONS" :key="section.id" :id="section.id" :title="section.label" :open="sections.isOpen(section.id)" @toggle="sections.toggle(section.id)">
-              <div v-if="section.id === 'brushes'" class="h-72">
+              <div v-if="section.id === 'brushes'" class="h-80">
                 <BrushLibraryPanel
                   v-if="paint.brush.value"
                   :brushes="paint.library.value"
                   :selected-id="paint.brush.value.id"
                   :assets="paint.assets"
+                  :set-names="paint.userSetNames.value"
+                  :importing="paint.importing.value"
                   @select="onSelectBrush"
                   @new="onNewBrush"
+                  @import="paint.importFile"
+                  @rename="paint.renameBrush"
+                  @remove="paint.removeBrush"
                 />
               </div>
               <LayersPanel
@@ -255,6 +262,7 @@
             @use-original="wb.clearAiResult"
           />
         </aside>
+        <BrushImportDialog :report="paint.importReport.value" @close="paint.dismissImport" />
       </div>
       <PaywallModal v-model="showPaintPaywall" resource="paint_canvases" :message="PAINT_CANVAS_LIMIT_MESSAGE" />
     </div>
@@ -298,6 +306,7 @@ import { isArtLook } from "@edge-shared/scriptoriumLookStyles.ts";
 import { scriptoriumLook } from "@/scriptorium/lib/looks";
 import type { ScriptoriumTheme } from "@/scriptorium/types";
 import { newWash } from "@/scriptorium/illuminator/lib/washEdits";
+import BrushImportDialog from "@/scriptorium/illuminator/paint/components/BrushImportDialog.vue";
 import BrushLibraryPanel from "@/scriptorium/illuminator/paint/components/BrushLibraryPanel.vue";
 import BrushSettingsPanel from "@/scriptorium/illuminator/paint/components/BrushSettingsPanel.vue";
 import PaintAccordion from "@/scriptorium/illuminator/paint/components/PaintAccordion.vue";
@@ -435,8 +444,8 @@ function onSelectBrush(id: string) {
   }
   paint.selectBrush(id);
 }
-function onNewBrush() {
-  if (paint.saveAsNewBrush()) paintView.value = "settings";
+async function onNewBrush() {
+  if (await paint.saveAsNewBrush()) paintView.value = "settings";
 }
 
 const tipPixels = computed(() => {

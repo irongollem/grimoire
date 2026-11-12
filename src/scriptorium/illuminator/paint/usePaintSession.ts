@@ -10,6 +10,7 @@
  */
 import { computed, ref, shallowRef } from "vue";
 import { STOCK_BRUSHES } from "./brushes/stockBrushes";
+import { useYoursBrushes, type UserBrushesApi } from "./useYoursBrushes";
 import { loadPaintAssets, loadPaperSurface, type PaintAssetStore } from "./assets/loadPaintAssets";
 import type { Paper } from "@/scriptorium/papers/papers";
 import { effectiveValues, cursorOf } from "./components/paintOptions";
@@ -45,6 +46,8 @@ type BrushTool = Exclude<PaintTool, "picker">;
 export interface PaintSessionOptions {
   redraw: () => void;
   assets?: PaintAssetStore;
+  /** The painter's own brushes; made from the asset store when not given (tests pass a stub). */
+  user?: UserBrushesApi;
   /** Whether the account may hold another painting with layers (the plan's `paint_canvases` quota). Asked once, before the first layer a picture without a painting makes. */
   canMakeCanvas?: () => boolean;
   /** Called when `canMakeCanvas` said no, so the workbench can show the upgrade prompt. */
@@ -62,7 +65,8 @@ export function usePaintSession(opts: PaintSessionOptions) {
   /** Bumped when the mask changes, so a picture tool's preview redraws with the new erasure. */
   const maskVersion = ref(0);
   const curve = ref<PressureCurve>(loadPressureCurve());
-  const library = ref<BrushPreset[]>([...STOCK_BRUSHES]);
+  const yours = useYoursBrushes(assets, opts.user);
+  const library = yours.library;
   const pen = ref<PenReading | null>(null);
   /** The colour is kept here too, so the rail's swatch shows it before a session has started. */
   const colourNow = ref<Rgb>(DEFAULT_INK);
@@ -71,7 +75,6 @@ export function usePaintSession(opts: PaintSessionOptions) {
   /** Which of the two the Colour panel edits. */
   const editing = ref<"foreground" | "background">("foreground");
   let startToken = 0;
-  let userBrushes = 0;
   let opacityDraft: { id: string; start: number } | null = null;
   let maskCache: { version: number; canvas: HTMLCanvasElement } | null = null;
   /** The recipe held a painting when the session started: it is not a new canvas for the quota. */
@@ -104,12 +107,14 @@ export function usePaintSession(opts: PaintSessionOptions) {
     session.value = s;
     compositor.value = c;
     if (o.paper) {
-      // The sheet's grain reaches the brushes through the session; its colour is laid under the painting here.
-      // A sheet that cannot load leaves the checker under the paint, which still paints and saves.
-      void loadPaperSurface(o.paper)
+      // The sheet's grain reaches the brushes through the session; the sheet itself is laid under the painting
+      // here, at the scale a blank sheet and the page draw it, for display only. A sheet that cannot load leaves
+      // the checker under the paint, which still paints and saves.
+      const paper = o.paper;
+      void loadPaperSurface(paper)
         .then((surface) => {
           if (compositor.value !== c) return;
-          c.setPaper(surface);
+          c.setPaper(surface, paper.surfaceScale);
           opts.redraw();
         })
         .catch(() => undefined);
@@ -118,6 +123,7 @@ export function usePaintSession(opts: PaintSessionOptions) {
   }
 
   function stop(): void {
+    yours.flush();
     startToken++;
     compositor.value?.dispose();
     compositor.value = null;
@@ -381,7 +387,10 @@ export function usePaintSession(opts: PaintSessionOptions) {
     const s = session.value;
     if (!s) return;
     const t = brushTool.value;
-    if (field === "smoothing") s.state.brushes[t] = { ...s.state.brushes[t], smoothing: value };
+    if (field === "smoothing") {
+      s.state.brushes[t] = { ...s.state.brushes[t], smoothing: value };
+      yours.scheduleSave(s.state.brushes[t]);
+    }
     else s.state.overrides[t] = { ...s.state.overrides[t], [field]: value };
     bump();
   }
@@ -390,22 +399,30 @@ export function usePaintSession(opts: PaintSessionOptions) {
     if (!s) return;
     const t = brushTool.value;
     s.state.brushes[t] = { ...s.state.brushes[t], blend: mode };
+    yours.scheduleSave(s.state.brushes[t]);
     bump();
   }
   function selectBrush(id: string): void {
     const s = session.value;
     const picked = library.value.find((b) => b.id === id);
     if (!s || !picked) return;
-    const t = brushTool.value;
-    s.state.brushes[t] = picked;
-    // The options bar's values belonged to the brush it was tuned for.
-    s.state.overrides[t] = {};
-    bump();
+    const arm = () => {
+      const t = brushTool.value;
+      s.state.brushes[t] = picked;
+      // The options bar's values belonged to the brush it was tuned for.
+      s.state.overrides[t] = {};
+      bump();
+    };
+    // A brush of Yours may still be fetching its tip; the engine reads it synchronously, so it is armed after.
+    const wait = yours.ready(picked);
+    if (wait === null) arm();
+    else void wait.then(() => (session.value === s ? arm() : undefined), () => undefined);
   }
   function updateBrush(next: BrushPreset): void {
     const s = session.value;
     if (!s) return;
     s.state.brushes[brushTool.value] = next;
+    yours.scheduleSave(next);
     bump();
   }
   function resetBrush(): void {
@@ -418,18 +435,41 @@ export function usePaintSession(opts: PaintSessionOptions) {
     s.state.overrides[t] = {};
     bump();
   }
-  /** The armed brush as a new one in "Yours" (kept for this picture's session), selected. */
-  function saveAsNewBrush(): BrushPreset | null {
+  /** Every tool whose armed brush has this id. */
+  function armedWith(id: string): BrushTool[] {
+    const s = session.value;
+    return s ? (Object.keys(s.state.brushes) as BrushTool[]).filter((t) => s.state.brushes[t].id === id) : [];
+  }
+  /** The armed brush as a new one in Yours (with its own pictures), armed. Null when it could not be kept. */
+  async function saveAsNewBrush(): Promise<BrushPreset | null> {
     const s = session.value;
     if (!s) return null;
     const t = brushTool.value;
-    const current = s.state.brushes[t];
-    userBrushes++;
-    const made: BrushPreset = { ...current, id: `yours-${userBrushes}`, name: `${current.name} copy`, group: "yours" };
-    library.value = [...library.value, made];
-    s.state.brushes[t] = made;
-    bump();
+    const made = await yours.saveAsNew(s.state.brushes[t]);
+    if (made && session.value === s) {
+      s.state.brushes[t] = made;
+      s.state.overrides[t] = {};
+      bump();
+    }
     return made;
+  }
+  async function renameBrush(id: string, name: string): Promise<void> {
+    if (!(await yours.rename(id, name))) return;
+    const s = session.value;
+    if (!s) return;
+    for (const t of armedWith(id)) s.state.brushes[t] = { ...s.state.brushes[t], name: name.trim() };
+    bump();
+  }
+  /** An armed brush that is deleted falls back to the first stock one. */
+  async function removeBrush(id: string): Promise<void> {
+    if (!(await yours.remove(id))) return;
+    const s = session.value;
+    if (!s) return;
+    for (const t of armedWith(id)) {
+      s.state.brushes[t] = STOCK_BRUSHES[0];
+      s.state.overrides[t] = {};
+    }
+    bump();
   }
   function setCurve(next: PressureCurve): void {
     curve.value = next;
@@ -446,6 +486,15 @@ export function usePaintSession(opts: PaintSessionOptions) {
     maskVersion,
     curve,
     library,
+    userSetNames: yours.setNames,
+    brushSaveStatus: yours.status,
+    brushSaveError: yours.saveError,
+    importing: yours.importing,
+    importReport: yours.importReport,
+    importFile: yours.importFile,
+    dismissImport: yours.dismissImport,
+    renameBrush,
+    removeBrush,
     pen,
     ready,
     layers,
