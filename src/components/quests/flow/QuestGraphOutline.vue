@@ -1,10 +1,13 @@
 <template>
-  <section class="space-y-2 rounded-lg border border-border bg-card p-3" aria-labelledby="quest-outline-heading">
-    <header class="flex items-baseline gap-2">
+  <!-- The card never scrolls itself: under Vellum its paper is a ::before,
+       which would scroll away with the rows and leave them hanging past the
+       torn edge. The list scrolls inside it when a parent caps the height. -->
+  <section class="flex flex-col gap-2 rounded-lg border border-border bg-card p-3" aria-labelledby="quest-outline-heading">
+    <header class="flex shrink-0 items-baseline gap-2">
       <h3 id="quest-outline-heading" class="text-heading-sm font-bold text-foreground">Outline</h3>
       <span class="ml-auto text-caption text-muted-foreground">keyboard-first list of the graph</span>
     </header>
-    <ol>
+    <ol class="min-h-0 flex-1 overflow-y-auto">
       <li
         v-for="beat in beats"
         :key="beat.id"

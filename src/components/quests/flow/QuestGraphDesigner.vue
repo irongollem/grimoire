@@ -1,10 +1,11 @@
 <template>
   <section class="space-y-3 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-3 lg:space-y-0 lg:overflow-hidden" aria-label="Quest Build mode">
+    <!-- One toolbar row: the active tab already names the surface, so no
+         heading of its own above the tally (12 Nov 2026). -->
     <div class="flex shrink-0 flex-wrap items-center gap-2">
+      <h2 class="sr-only">Story flow</h2>
       <div>
-        <h2 class="text-heading-sm font-bold text-foreground">Story flow</h2>
-        <p class="text-caption text-muted-foreground">Create, connect, label, and arrange narrative beats.</p>
-        <p v-if="tallyTotal" class="mt-1 flex flex-wrap items-center gap-1" aria-label="Story flow progress">
+        <p v-if="tallyTotal" class="flex flex-wrap items-center gap-1" aria-label="Story flow progress">
           <span v-if="reachTally.visited" class="rounded bg-tone-success/15 px-1.5 py-0.5 text-label uppercase text-ink-success">{{ reachTally.visited }} visited</span>
           <span v-if="liveThreadCount" class="rounded bg-primary/15 px-1.5 py-0.5 text-label uppercase text-primary">{{ liveThreadCount }} live</span>
           <span v-if="reachTally.ahead" class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ reachTally.ahead }} ahead</span>
@@ -119,7 +120,7 @@
         </div>
         <div class="hidden min-h-0 md:flex md:flex-1 md:flex-col">
           <QuestGraphOutline
-            class="min-h-0 flex-1 overflow-y-auto"
+            class="min-h-0 flex-1"
             :beats="beats"
             :presentations="presentations"
             :edges="edges"
