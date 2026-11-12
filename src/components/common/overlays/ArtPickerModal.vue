@@ -113,12 +113,15 @@ interface ArtImage {
   thumbUrl: string;
 }
 
+// The picker opens on the first category. Every caller is in the Scriptorium, whose uploads and Illuminator bakes
+// all land in Document Art, so that one leads: opening on NPC Art showed an empty page to anyone who had uploaded
+// their pictures in the Scriptorium itself.
 const CATEGORIES: ArtCategory[] = [
+  { bucketKey: "assetImages",     label: "Document Art",    icon: IconScriptorium },
   { bucketKey: "npcPortraits",    label: "NPC Art",         icon: IconUserRound   },
   { bucketKey: "monsterImages",   label: "Monster Art",     icon: IconMonster     },
   { bucketKey: "locationImages",  label: "Location Art",    icon: IconLocation    },
   { bucketKey: "chronicle",       label: "Chronicle",       icon: IconNote        },
-  { bucketKey: "assetImages",     label: "Document Art",    icon: IconScriptorium },
   { bucketKey: "itemImages",      label: "Item Art",        icon: IconGem         },
   { bucketKey: "spellImages",     label: "Spell Art",       icon: IconGenerate    },
   { bucketKey: "backgroundImages", label: "Background Art", icon: IconScrollText  },
@@ -144,7 +147,7 @@ watch(
   () => props.show,
   (open) => {
     if (!open) return;
-    // Re-open: reset to first category
+    // Re-open: back to the first category, Document Art
     activeCategory.value = null;
     images.value = [];
     loadError.value = null;
