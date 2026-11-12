@@ -8,7 +8,12 @@ vi.mock("./dofBlur", () => ({ applyDofBlur: (_c: unknown, _w: number, _h: number
 vi.mock("./vignette", () => ({ applyVignette: (_c: unknown, _w: number, _h: number, o: { enabled: boolean }) => calls.push(`vignette:${o.enabled}`) }));
 vi.mock("./edgeTreatment", () => ({ applyEdgeTreatmentToCtx: () => calls.push("edges:classic") }));
 vi.mock("./tornPaper", () => ({ applyTornPaper: (_c: unknown, _w: number, _h: number, _o: unknown, seed: number) => calls.push(`edges:paper:${seed}`) }));
-vi.mock("./paperWash", () => ({ applyPaperWash: (_c: unknown, _w: number, _h: number, o: { from: string }) => calls.push(`wash:${o.from}`) }));
+vi.mock("./paperWash", () => ({
+  applyPaperWash: async (_c: unknown, _w: number, _h: number, o: { from: string }, _l: unknown, options: { draft?: boolean }) => {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    calls.push(`wash:${o.from}${options.draft ? ":draft" : ""}`);
+  },
+}));
 vi.mock("./textureOverlay", () => ({
   decodedSize: (i: { width: number; height: number }) => ({ width: i.width, height: i.height }),
   applyTextureOverlay: (_c: unknown, _w: number, _h: number, _o: unknown, tex: { id: string }, factor: number) => calls.push(`texture:${tex.id}:${factor}`),
@@ -36,7 +41,7 @@ function fakeCtx() {
 }
 
 const load = vi.fn(async (url: string) => ({ id: url, width: 8, height: 8 }) as unknown as HTMLImageElement);
-const run = (s: IlluminateSettings, opts?: { sourceWidth?: number }) => {
+const run = (s: IlluminateSettings, opts?: { sourceWidth?: number; draft?: boolean }) => {
   const { ctx, ops } = fakeCtx();
   return applySteps(ctx, 100, 50, s, load, opts).then(() => ops);
 };
@@ -72,6 +77,24 @@ describe("applySteps", () => {
   });
 
   // Fails on: the wash being skipped, drawn before the edges, or drawn after the DM's mask.
+  // Fails on: the wash not being awaited, so the mask (or the bake's PNG encode) runs before the wash is drawn.
+  it("waits for the wash to finish before the next step runs", async () => {
+    const wash = { type: "wash", from: "left", reach: 0.5, brush: 0.5, dry: 0.5, seed: 1 } as const;
+    const ops = await run({ v: 1, seed: 1, steps: [wash, mask] });
+    expect(calls).toEqual(["wash:left"]);
+    expect(ops).toContain("op:destination-out");
+  });
+
+  // Fails on: the draft flag being dropped, so the live preview paints the full-size wash and freezes.
+  it("passes draft through to the wash, and not by default", async () => {
+    const wash = { type: "wash", from: "left", reach: 0.5, brush: 0.5, dry: 0.5, seed: 1 } as const;
+    await run({ v: 1, seed: 1, steps: [wash] }, { draft: true });
+    expect(calls).toEqual(["wash:left:draft"]);
+    calls.length = 0;
+    await run({ v: 1, seed: 1, steps: [wash] });
+    expect(calls).toEqual(["wash:left"]);
+  });
+
   it("draws the wash after the edges and before the mask", async () => {
     const wash = { type: "wash", from: "right", reach: 0.5, brush: 0.5, dry: 0.5, seed: 1 } as const;
     const ops = await run({ v: 1, seed: 1, steps: [mask, wash, { type: "edges", style: "classic", top: classicSide, right: classicSide, bottom: classicSide, left: classicSide }] });

@@ -29,6 +29,8 @@ export interface ApplyStepsOptions {
    * so it keeps its size relative to the picture. Omit when the canvas is full size.
    */
   sourceWidth?: number;
+  /** The live preview: paint the wash at a lower reference size (cheap, same composition). Bake and print never pass it. */
+  draft?: boolean;
 }
 
 export async function applySteps(
@@ -62,7 +64,7 @@ export async function applySteps(
         else applyEdgeTreatmentToCtx(ctx, w, h, step);
         break;
       case "wash":
-        applyPaperWash(ctx, w, h, step);
+        await applyPaperWash(ctx, w, h, step, loadImage, { draft: options.draft });
         break;
       case "mask": {
         // The mask is painted where the picture is erased.

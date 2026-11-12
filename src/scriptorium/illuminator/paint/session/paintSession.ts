@@ -44,6 +44,8 @@ const RECENT_LIMIT = 12;
 /** The ink a fresh session paints with. */
 export const DEFAULT_INK: Rgb = { r: 0x2b, g: 0x20, b: 0x19 };
 const WHITE: Rgb = { r: 255, g: 255, b: 255 };
+/** The paper-white background colour a fresh painting starts with. */
+export const DEFAULT_BACKGROUND: Rgb = WHITE;
 
 type PaintingTool = Exclude<PaintTool, "picker">;
 

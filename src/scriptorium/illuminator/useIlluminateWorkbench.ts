@@ -18,6 +18,8 @@
 import { computed, reactive, ref, shallowRef, watch } from "vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useHotkeys } from "@/composables/useHotkeys";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
+import { COMPARE_KEY, RESET_KEY, SWAP_KEY, TOOL_KEYS } from "./toolKeys";
 import { useToast } from "@/composables/useToast";
 import { downloadBlob } from "@/lib/downloadBlob";
 import { toWebP } from "@/lib/mediaConvert";
@@ -49,6 +51,33 @@ export type PictureTool = "crop" | "edges" | "grade" | "vignette" | "texture" | 
 export type WorkbenchTool = PictureTool | PaintTool;
 
 const PAINT_TOOLS: readonly PaintTool[] = ["brush", "smudge", "eraser", "picker"];
+const LAST_TOOL_KEY = "grimoire:illuminate:tool";
+/** The tool the DM used last on this device, or the Brush the first time. */
+function rememberedTool(): WorkbenchTool {
+  try {
+    const saved = safeLocalStorage().getItem(LAST_TOOL_KEY);
+    if (saved !== null && Object.hasOwn(TOOL_KEYS, saved)) return saved as WorkbenchTool;
+  } catch {
+    /* blocked storage: open on the Brush */
+  }
+  return "brush";
+}
+
+/** What each tool's key does, as the cheat sheet words it. */
+const TOOL_BINDINGS: { tool: WorkbenchTool; description: string }[] = [
+  { tool: "brush", description: "Brush" },
+  { tool: "smudge", description: "Smudge" },
+  { tool: "eraser", description: "Eraser" },
+  { tool: "picker", description: "Pick a colour" },
+  { tool: "crop", description: "Crop" },
+  { tool: "edges", description: "Edges" },
+  { tool: "grade", description: "Grade" },
+  { tool: "vignette", description: "Vignette" },
+  { tool: "texture", description: "Texture" },
+  { tool: "wash", description: "Wash" },
+  { tool: "focus", description: "Focus" },
+];
+
 export function isPaintTool(tool: WorkbenchTool): tool is PaintTool {
   return PAINT_TOOLS.some((t) => t === tool);
 }
@@ -107,7 +136,15 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   /** An AI picture action's stored result. It is the base image, not a layer (treatment.ts). */
   const aiStep = ref<AiStep | null>(null);
   const loadError = ref("");
-  const tool = ref<WorkbenchTool>("edges");
+  const tool = ref<WorkbenchTool>(rememberedTool());
+  // The next opening starts where this one left off. Storage may be blocked or full: forgetting is all that costs.
+  watch(tool, (t) => {
+    try {
+      safeLocalStorage().setItem(LAST_TOOL_KEY, t);
+    } catch {
+      /* the tool just is not remembered */
+    }
+  });
   const seed = ref(Math.floor(Math.random() * 1e9));
 
   // ── Tool state ────────────────────────────────────────────────────────────
@@ -158,6 +195,8 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   const comparePos = ref(50);
   /** Held O: the whole picture as it was (B is the Brush). */
   const showOriginal = ref(false);
+  /** The before/after split is shown only when asked for (the Compare button, P); each opening starts without it. */
+  const compareOn = ref(false);
 
   // ── Recipe in and out ─────────────────────────────────────────────────────
   function syncSides(from: Record<PaperSide, boolean>) {
@@ -451,7 +490,8 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     const natural = { width: img.naturalWidth, height: img.naturalHeight };
     drawBase(ctx, img, natural, drawn, pw, ph);
     try {
-      await applySteps(ctx, pw, ph, drawn, loader, { sourceWidth: croppedSize(natural, drawn).width });
+      // The live preview paints the wash as a lighter draft; the bake and the print paint it in full.
+      await applySteps(ctx, pw, ph, drawn, loader, { sourceWidth: croppedSize(natural, drawn).width, draft: true });
     } catch {
       // A texture that cannot load leaves the rest of the picture drawn.
     }
@@ -628,9 +668,6 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
 
   // ── Keys ──────────────────────────────────────────────────────────────────
   /** Arming a paint tool from a key; the session follows through the tool watcher. */
-  const arm = (t: PaintTool) => () => {
-    tool.value = t;
-  };
   const painting = () => isPaintTool(tool.value);
   /** [ and ] step the size by a tenth, at least a pixel: finer at small sizes, quicker at large. */
   const nudgeSize = (direction: 1 | -1) => () => {
@@ -642,10 +679,10 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   useHotkeys(
     () => [
       { combo: "o", description: "Hold to see the original picture (O, since B is the Brush)", handler: () => { showOriginal.value = true; }, onRelease: () => { showOriginal.value = false; }, ignoreRepeat: true },
-      { combo: "b", description: "Brush", handler: arm("brush") },
-      { combo: "s", description: "Smudge", handler: arm("smudge") },
-      { combo: "e", description: "Eraser", handler: arm("eraser") },
-      { combo: "i", description: "Pick a colour", handler: arm("picker") },
+      ...TOOL_BINDINGS.map(({ tool: t, description }) => ({ combo: TOOL_KEYS[t], description, handler: () => { tool.value = t; } })),
+      { combo: COMPARE_KEY, description: "Show or hide the before and after split", handler: () => { compareOn.value = !compareOn.value; } },
+      { combo: SWAP_KEY, description: "Swap the foreground and background colours", handler: () => paint.swapColours() },
+      { combo: RESET_KEY, description: "Reset the colours to ink on paper", handler: () => paint.resetColours() },
       { combo: "[", description: "Smaller brush", handler: nudgeSize(-1) },
       { combo: "]", description: "Larger brush", handler: nudgeSize(1) },
       { combo: "mod+z", description: "Undo the last painting step", handler: () => { if (painting()) paint.undo(); } },
@@ -826,7 +863,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     image, loadError, tool, previewSize, crop, cropShape, pageAspect, setCropShape, dragCropBox, resetCrop, aiStep, baseUrl, setAiResult, clearAiResult,
     edgeStyle, classic, paper, grading, gradingEnabled, vignette, vignetteEnabled, dof, dofEnabled,
     texture, textureEnabled, wash, textureUrl, textureFilename, paint, hasMask, paintError,
-    comparePos, showOriginal, busy, copied, clipboardSupported, hasEdits,
+    comparePos, showOriginal, compareOn, busy, copied, clipboardSupported, hasEdits,
     open, dispose, finish, buildSettings, setEdgeStyle, setEdgeSideEnabled, resetAll,
     onCanvasClick, pickTexture, clearTexture, downloadPng, downloadWebp, copyPng, saveAsNewPicture, flatten,
   };
