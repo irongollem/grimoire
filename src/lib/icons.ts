@@ -20,7 +20,7 @@ import {
   Keyboard, KeyRound, Lamp, Landmark, Layers, LayoutGrid, LayoutList,
   Shrink,
   Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
-  Lock, LogOut,
+  Lock, LogOut, Pipette, Pointer, ArrowDownToLine,
   Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minus, Monitor, MoreHorizontal,
   Moon, MousePointer2, MoveHorizontal, MoveVertical, Music, Music2,
   Navigation, Network,
@@ -99,6 +99,10 @@ export { Scissors as IconScissors }
 export { Crop as IconCrop }
 export { Brush as IconBrush }
 export { Eraser as IconEraser }
+/** The paint tools (#1181): the colour picker, Smudge (a fingertip dragging paint) and a layer's Merge down. */
+export { Pipette as IconPicker }
+export { Pointer as IconSmudge }
+export { ArrowDownToLine as IconMergeDown }
 export { Hand as IconHand }
 /** The Cartographer's Select tool — the default tool, so it needs its
  *  own glyph distinct from Pan's `IconHand`: a click-to-select cursor, not a
