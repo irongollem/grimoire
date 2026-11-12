@@ -32,8 +32,19 @@ export async function readPageTexts(pdfjs: Pick<typeof PdfJs, "getDocument">, by
   }
 }
 
+/**
+ * pdf.js calls `Promise.withResolvers` (Safari 17.4) in its page code and in
+ * its worker. A polyfill on the page cannot reach the worker, so an engine
+ * without it never loads pdf.js: the read refuses and the print check reports
+ * itself unavailable, while the export itself is untouched.
+ */
+export function canReadPdf(promise: PromiseConstructor = Promise): boolean {
+  return typeof (promise as unknown as Record<string, unknown>).withResolvers === "function";
+}
+
 /** Browser: loads pdf.js on first use and reads the PDF's pages. */
 export async function readPdfPageTexts(bytes: Uint8Array): Promise<string[]> {
+  if (!canReadPdf()) throw new Error("This browser cannot read PDFs back (no Promise.withResolvers).");
   const [pdfjs, worker] = await Promise.all([
     import("pdfjs-dist"),
     import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
