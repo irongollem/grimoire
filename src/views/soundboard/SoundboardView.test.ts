@@ -88,7 +88,7 @@ vi.mock("@/stores/campaign", async () => {
 const STUB_NAMES = [
   "ManualHelpLink", "AppButton", "BrandIcon", "SkeletonBlock", "EmptyState", "StarterScenesCard", "AudioFormatNotice",
   "SpotifyErrorBanner", "DeckNowChips", "DeckGrid", "BuilderPlayDeck", "BuilderMixerDrawer", "MobileSheet",
-  "SegmentedControl", "SoundboardPageTabs", "DeckLibraryPanel", "PadSettingsPanel", "LaneEditor",
+  "SegmentedControl", "SoundboardPageTabs", "SoundboardPagePicker", "DeckLibraryPanel", "PadSettingsPanel", "LaneEditor",
 ];
 
 // Every mount watches the same module-level refs, so one left alive would answer the next test's changes.
