@@ -14,6 +14,15 @@ const BASE = {
 };
 
 describe("buildPdfDocumentHtml", () => {
+  it("carries the page dressing's stylesheet in the head once, and only when the book has one", () => {
+    // Fails on: the mask pictures missing from the document the renderer prints, or repeated on every page.
+    const css = ".sc-dressing{position:absolute}";
+    const html = buildPdfDocumentHtml({ ...BASE, dressingCss: css });
+    expect(html.split(css)).toHaveLength(2);
+    expect(html.indexOf(css)).toBeLessThan(html.indexOf("<body"));
+    expect(buildPdfDocumentHtml(BASE)).not.toContain(".sc-dressing");
+  });
+
   it("assembles a full HTML document with every stylesheet in order", () => {
     const html = buildPdfDocumentHtml(BASE);
     expect(html).toMatch(/^<!doctype html>/);

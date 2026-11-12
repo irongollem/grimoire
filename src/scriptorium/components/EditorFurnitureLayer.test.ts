@@ -1,11 +1,21 @@
 // @vitest-environment happy-dom
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { computed, nextTick, ref } from "vue";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Editor } from "@tiptap/core";
 import EditorFurnitureLayer from "./EditorFurnitureLayer.vue";
 import { createFurnitureItem } from "@/scriptorium/lib/furniture/model";
 import type { PageBox } from "@/scriptorium/tiptap/pageFlow";
 import type { PageFurnitureItem } from "@/scriptorium/types";
+import { BOOK_DRESSING_KEY, pageKey, type BookDressing, type DressedPage } from "@/scriptorium/dressing/bookDressing";
+import type { Dressing } from "@/scriptorium/dressing/dressing";
+
+const dress = vi.hoisted(() => ({ dressPage: vi.fn() }));
+vi.mock("@/scriptorium/dressing/dressing", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/scriptorium/dressing/dressing")>();
+  dress.dressPage.mockImplementation(actual.dressPage);
+  return { ...actual, dressPage: dress.dressPage };
+});
 
 const G = { width: 800, height: 1000, marginTop: 50 };
 
@@ -146,6 +156,88 @@ describe("EditorFurnitureLayer", () => {
     w.find<HTMLElement>("[data-anchor-mark]").element.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
     window.dispatchEvent(new PointerEvent("pointerup", { clientX: 200, clientY: 310 }));
     expect(w.emitted("update:furniture")).toBeUndefined();
+    w.unmount();
+  });
+});
+
+describe("EditorFurnitureLayer page dressing", () => {
+  const dressing: Dressing = {
+    v: 1,
+    seed: 3,
+    stain: { on: true, strength: 0.6 },
+    wash: { on: false, strength: 0.5 },
+    corners: { on: false, strength: 0.5 },
+  };
+  const bookWith = (pages: [number, DressedPage][], on: Dressing | null = dressing): BookDressing => ({
+    dressing: computed(() => on),
+    handout: computed(() => false),
+    pages: computed(() => new Map(pages.map(([n, d]) => [pageKey("c1", n), d]))),
+  });
+  const mountDressed = (editor: Editor, book: BookDressing) =>
+    mount(EditorFurnitureLayer, {
+      attachTo: document.body,
+      props: { editor, chapterId: "c1", furniture: [], selectedId: null, geometry: G },
+      global: { provide: { [BOOK_DRESSING_KEY as symbol]: book } },
+    });
+
+  beforeEach(() => dress.dressPage.mockClear());
+
+  it("dresses every page behind the text, furniture or not, by the book's own page number", () => {
+    // Fails on: dressing only the pages that carry a picture, or numbering by the chapter's page (the preview
+    // and the PDF dress this page as the book's page 4, so the editor would show other marks than print).
+    const { editor, storage } = fakeEditor([page1, page2], []);
+    const w = mountDressed(editor, bookWith([[1, { number: 3, kind: "text" }], [2, { number: 4, kind: "text" }]]));
+    const sheets = storage.furnitureUnderlay.element.children;
+    expect(sheets).toHaveLength(2);
+    expect(sheets[0].querySelector(".sc-dressing")).not.toBeNull();
+    expect(dress.dressPage.mock.calls.map(([, n, kind]) => [n, kind])).toEqual([[3, "text"], [4, "text"]]);
+    // Placed on the sheet's own rectangle, in the editor's px.
+    expect((sheets[1] as HTMLElement).style.top).toBe("1074px");
+    w.unmount();
+  });
+
+  it("leaves a cover page bare, and a page the layout has not numbered yet", () => {
+    const { editor, storage } = fakeEditor([page1, page2], []);
+    const w = mountDressed(editor, bookWith([[1, { number: 1, kind: "cover" }]]));
+    expect(storage.furnitureUnderlay.element.children).toHaveLength(0);
+    w.unmount();
+  });
+
+  it("draws nothing outside the book editor, which provides no dressing", () => {
+    const { editor, storage } = fakeEditor([page1], []);
+    const w = mountLayer(editor, []);
+    expect(storage.furnitureUnderlay.element.children).toHaveLength(0);
+    expect(dress.dressPage).not.toHaveBeenCalled();
+    w.unmount();
+  });
+
+  it("follows a page the layout moves, so a stain never stays behind where the page was", () => {
+    // Fails on: the layer redrawing only for pictures, leaving the dressing at the old place when text above grows.
+    const { editor, storage } = fakeEditor([page1], []);
+    const w = mountDressed(editor, bookWith([[1, { number: 2, kind: "text" }]]));
+    const sheet = () => storage.furnitureUnderlay.element.firstElementChild as HTMLElement;
+    expect(sheet().style.top).toBe("0px");
+    storage.pageFlow.pages = [{ ...page1, contentTop: 130 }];
+    storage.pageFlow.listeners.forEach((l) => l());
+    expect(sheet().style.top).toBe("80px");
+    w.unmount();
+  });
+
+  it("draws again when the dressing is switched off, taking the marks away", async () => {
+    // Fails on: a stale layer left on the page after the author unticks the last part.
+    const { editor, storage } = fakeEditor([page1], []);
+    const current = ref<Dressing | null>(dressing);
+    const book: BookDressing = {
+      dressing: computed(() => current.value),
+      handout: computed(() => false),
+      pages: computed(() => new Map([[pageKey("c1", 1), { number: 2, kind: "text" as const }]])),
+    };
+    const w = mountDressed(editor, book);
+    expect(storage.furnitureUnderlay.element.querySelector(".sc-dressing")).not.toBeNull();
+    current.value = null;
+    await nextTick();
+    await nextTick();
+    expect(storage.furnitureUnderlay.element.querySelector(".sc-dressing")).toBeNull();
     w.unmount();
   });
 });

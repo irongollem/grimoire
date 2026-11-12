@@ -95,3 +95,23 @@ describe("toBase64", () => {
     expect(atob(toBase64(buf)).length).toBe(200_000);
   });
 });
+
+describe("page dressing masks", () => {
+  it("inlines every mark picture named in the dressing's stylesheet, for the PDF", async () => {
+    // Fails on: a mask url left as a CDN link in the PDF: the renderer on Cloudflare cannot be relied on to fetch it,
+    // so every printed page would lose its stains and its flourishes without a word.
+    const { dressingCss } = await import("@/scriptorium/dressing/dressingLayer");
+    const fetchAsset = vi.fn(async () => bytes("m"));
+    const out = await inlineSameOriginAssets(`<style>${dressingCss()}</style>`, fetchAsset);
+    expect(out).not.toMatch(/url\((?!data:)/);
+    expect(out).toContain("mask-image:url(data:image/webp;base64,bQ==)");
+    expect(out).toContain("mask-image:url(data:image/svg+xml;base64,bQ==)");
+    expect(fetchAsset).toHaveBeenCalledTimes(4);
+  });
+
+  it("inlines a mask set in a style attribute as well", async () => {
+    const fetchAsset = vi.fn(async () => bytes("m"));
+    const html = `<div style="mask-image:url(https://cdn.test/app-art/assets/paintbox/marks/stain-ring.1a2b.webp);opacity:.4">`;
+    expect(await inlineSameOriginAssets(html, fetchAsset)).toBe(`<div style="mask-image:url(data:image/webp;base64,bQ==);opacity:.4">`);
+  });
+});

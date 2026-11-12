@@ -1,6 +1,7 @@
 import type { JSONContent } from "@tiptap/core";
 import type { AiProvenance } from "@/ai/provenance";
 import type { PaperId } from "@/scriptorium/papers/papers";
+import type { Dressing } from "@/scriptorium/dressing/dressing";
 
 export type ScriptoriumDocType =
   | "custom"
@@ -107,6 +108,8 @@ export interface ScriptoriumDocument {
   /** Page-furniture decorations (Phase D). JSONB column, defaults to [].
    * Optional until the column + editor wiring land (foundation-only for now). */
   page_furniture?: PageFurnitureItem[];
+  /** The hand-painted marks every page carries (#1181); null is none. Read it through `parseDressing`: it is jsonb. */
+  page_dressing?: Dressing | null;
   /** Set when the Scriptorium AI drafted the body (epic #910); `markEdited` on a body save. */
   ai_provenance?: AiProvenance | null;
   created_at: string;
@@ -118,7 +121,7 @@ export interface ScriptoriumDocument {
  *  provenance and owner id are filing, not part of the handout. */
 export type ReadableBook = Pick<
   ScriptoriumDocument,
-  "id" | "title" | "kind" | "doc_type" | "campaign_id" | "theme" | "paper_tone" | "updated_at"
+  "id" | "title" | "kind" | "doc_type" | "campaign_id" | "theme" | "paper_tone" | "page_dressing" | "updated_at"
 >;
 
 /** One chapter of a book: a Tiptap document of its own (#1115). */

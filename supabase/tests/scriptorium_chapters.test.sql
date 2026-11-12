@@ -2,7 +2,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(80);
+select plan(81);
 
 -- A Scriptorium document is a book of chapters (#1115 story 13, 20261029222021).
 --
@@ -129,7 +129,8 @@ select set_config('request.jwt.claim.sub', '', true);
 -- ── The holder: reads through get_player_handout, never from the table ──────
 
 -- The book is laid on a grey paper of its own (paper_tone), which its readers see too.
-update public.scriptorium_documents set paper_tone = 'grey' where id = '98300000-0000-4000-8000-000000000080';
+update public.scriptorium_documents set paper_tone = 'grey', page_dressing = '{"v":1,"seed":7}'::jsonb
+ where id = '98300000-0000-4000-8000-000000000080';
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '98300000-0000-4000-8000-000000000003', true);
@@ -147,6 +148,10 @@ select is(
 select is(
   public.get_player_handout('98300000-0000-4000-8000-000000000080') ->> 'paper_tone',
   'grey', 'the holder reads the book on its own paper (fails if the paper stays with the DM)');
+
+select is(
+  public.get_player_handout('98300000-0000-4000-8000-000000000080') -> 'page_dressing',
+  '{"v":1,"seed":7}'::jsonb, 'the holder sees the page dressing too (fails if the dressing stays with the DM)');
 
 select is(
   public.get_player_handout('98300000-0000-4000-8000-000000000080', '98300000-0000-4000-8000-0000000000a2') -> 'chapter' ->> 'title',

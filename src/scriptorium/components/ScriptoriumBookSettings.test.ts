@@ -7,7 +7,7 @@ import type { BookSettingsDraft } from "@/scriptorium/composables/useBookSetting
 const draft: BookSettingsDraft = {
   title: "Sothery", kind: "book", campaignId: null, theme: "onednd2024", pageSize: "A4", isTwoColumn: true,
   inkFriendly: false, showPageNumbers: true, pageNumberStart: 1, footerText: "", footerTitle: "chapter",
-  footerStyle: "plain", paperTone: null, isPublished: false, tags: [], furniture: [],
+  footerStyle: "plain", paperTone: null, isPublished: false, tags: [], furniture: [], pageDressing: null,
 };
 
 function open(over: Partial<BookSettingsDraft> = {}) {
@@ -43,5 +43,18 @@ describe("ScriptoriumBookSettings paper and footer", () => {
     const w = open();
     await click(w, "Ribbon");
     expect(w.emitted("patch")).toEqual([[{ footerStyle: "ribbon" }]]);
+  });
+});
+
+describe("ScriptoriumBookSettings page dressing", () => {
+  // Fails on: the block missing from the settings, or a choice that never reaches the draft's field.
+  it("offers the three parts and writes a dressing when one is ticked", async () => {
+    const w = open();
+    expect(w.text()).toContain("Page dressing");
+    const corners = w.findAll("label").find((l) => l.text() === "Corners")!;
+    await corners.get("input").setValue(true);
+    const [[values]] = w.emitted("patch") as [[{ pageDressing: { corners: { on: boolean }; stain: { on: boolean } } | null }]];
+    expect(values.pageDressing?.corners.on).toBe(true);
+    expect(values.pageDressing?.stain.on).toBe(false);
   });
 });
