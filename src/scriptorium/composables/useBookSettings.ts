@@ -16,6 +16,7 @@ import { getCurrentUser } from "@/lib/supabase";
 import { removedFurnitureUrls } from "@/scriptorium/lib/furniture/artUrls";
 import { useUpdateScriptoriumDocument } from "@/scriptorium/composables/useScriptorium";
 import { scriptoriumLook } from "@/scriptorium/lib/looks";
+import { parseDressing, type Dressing } from "@/scriptorium/dressing/dressing";
 import type {
   PageFurnitureItem,
   ScriptoriumDocUpdate,
@@ -46,6 +47,8 @@ export interface BookSettingsDraft {
   isPublished: boolean;
   tags: string[];
   furniture: PageFurnitureItem[];
+  /** The page dressing (#1181); null is none. A malformed column reads as none. */
+  pageDressing: Dressing | null;
 }
 
 export function toSettingsDraft(doc: ScriptoriumDocument): BookSettingsDraft {
@@ -66,6 +69,7 @@ export function toSettingsDraft(doc: ScriptoriumDocument): BookSettingsDraft {
     isPublished: doc.is_published,
     tags: [...doc.tags],
     furniture: [...(doc.page_furniture ?? [])],
+    pageDressing: parseDressing(doc.page_dressing),
   };
 }
 
@@ -88,6 +92,7 @@ export function settingsRow(d: BookSettingsDraft): ScriptoriumDocUpdate {
     is_published: d.isPublished,
     tags: d.tags,
     page_furniture: d.furniture,
+    page_dressing: d.pageDressing,
   };
 }
 

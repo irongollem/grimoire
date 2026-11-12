@@ -54,6 +54,19 @@ describe("book settings", () => {
     });
   });
 
+  it("saves the page dressing as its own column, and reads a malformed column as none", () => {
+    // Fails on: the dressing left out of the row (a choice in Book settings never saved), or a bad column
+    // reaching the draft and from there every renderer.
+    const dressing = { v: 1, seed: 9, stain: { on: true, strength: 0.6 }, wash: { on: false, strength: 0.5 }, corners: { on: false, strength: 0.8 } } as const;
+    const before = toSettingsDraft(doc);
+    expect(before.pageDressing).toBeNull();
+    expect(changedSettings(before, { ...before, pageDressing: dressing })).toEqual({ page_dressing: dressing });
+    expect(changedSettings({ ...before, pageDressing: dressing }, { ...before, pageDressing: null })).toEqual({ page_dressing: null });
+    expect(changedSettings(before, before)).toEqual({});
+    expect(toSettingsDraft({ ...doc, page_dressing: dressing }).pageDressing).toEqual(dressing);
+    expect(toSettingsDraft({ ...doc, page_dressing: { v: 7 } as never }).pageDressing).toBeNull();
+  });
+
   it("keeps an edit that failed to save and sends it on the next try", async () => {
     mocks.update.mockRejectedValueOnce(new Error("offline"));
     const { settings, scope } = mountSettings();

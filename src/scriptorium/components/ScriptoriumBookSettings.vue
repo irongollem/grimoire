@@ -46,6 +46,8 @@
         <p class="text-caption text-muted-foreground">The paper replaces the look's own page. Ink-friendly prints plain white.</p>
       </div>
 
+      <DressingSettings :model-value="draft.pageDressing" @update:model-value="patch({ pageDressing: $event })" />
+
       <div class="space-y-2.5">
         <AppCheckbox label="Two columns" :model-value="draft.isTwoColumn" @update:model-value="patch({ isTwoColumn: $event })" />
         <AppCheckbox
@@ -134,6 +136,7 @@ import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import { themeForKind, type BookSettingsDraft } from "@/scriptorium/composables/useBookSettings";
 import PaperPicker from "@/scriptorium/papers/PaperPicker.vue";
+import DressingSettings from "@/scriptorium/dressing/DressingSettings.vue";
 import type { AutosaveStatus as AutosaveState } from "@/composables/useAutosave";
 import { BOOK_LOOKS, FOOTER_STYLE_CHOICES, PAPERS, scriptoriumLook } from "@/scriptorium/lib/looks";
 import type { ScriptoriumFooterTitle, ScriptoriumKind, ScriptoriumPageSize } from "@/scriptorium/types";

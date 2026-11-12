@@ -1674,3 +1674,15 @@
   padding: 0 24px 0 68px;
   clip-path: polygon(0 0, 100% 0, calc(100% - 11px) 50%, 100% 100%, 0 100%);
 }
+
+/* Page dressing (#1181) on a surface that is one page: the player's reader and a standing handout. The surface is
+   a stacking context of its own, so the layer at z-index -1 lies above its paper and below its text. On a laid-out
+   page the same layer is z-index 0 behind the text by DOM order instead (renderFurniture.ts). The marks themselves
+   are styled by dressingLayer.ts, which names their pictures. */
+.sc-dressed {
+  position: relative;
+  isolation: isolate;
+}
+.sc-dressed > .sc-dressing {
+  z-index: -1;
+}

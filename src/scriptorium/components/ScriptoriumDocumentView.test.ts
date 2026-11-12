@@ -1,8 +1,15 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { JSONContent } from "@tiptap/core";
 import ScriptoriumDocumentView from "./ScriptoriumDocumentView.vue";
 import type { ReadableBook } from "@/scriptorium/types";
+
+const mocks = vi.hoisted(() => ({ dressPage: vi.fn() }));
+vi.mock("@/scriptorium/dressing/dressing", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/scriptorium/dressing/dressing")>();
+  mocks.dressPage.mockImplementation(actual.dressPage);
+  return { ...actual, dressPage: mocks.dressPage };
+});
 
 /** Tiptap's core Editor fires its "create" event (and <EditorContent>'s first
  *  DOM render) from a `window.setTimeout(…, 0)` inside mount(), not
@@ -100,5 +107,41 @@ describe("ScriptoriumDocumentView", () => {
     });
     await flushEditor();
     expect(wrapper.text()).toContain("Hello");
+  });
+
+  describe("page dressing", () => {
+    const DRESSING = {
+      v: 1,
+      seed: 5,
+      stain: { on: true, strength: 0.6 },
+      wash: { on: true, strength: 0.5 },
+      corners: { on: true, strength: 0.8 },
+    } as const;
+
+    it("is the page standing alone: the layer is its first child, behind its text, through the one placement function", async () => {
+      // Fails on: a handout shown in the quest runner without the marks it prints with.
+      mocks.dressPage.mockClear();
+      const wrapper = mount(ScriptoriumDocumentView, { props: { document: makeBook({ kind: "handout", theme: "letter", page_dressing: DRESSING }), content: text("Dear friends") }, attachTo: document.body });
+      await flushEditor();
+      await flushEditor();
+      const root = wrapper.get(".sc-document-view");
+      expect(root.element.firstElementChild?.classList.contains("sc-dressing")).toBe(true);
+      expect(root.classes()).toContain("sc-dressed");
+      expect(mocks.dressPage).toHaveBeenCalledWith(expect.objectContaining({ seed: 5 }), 1, "text", expect.objectContaining({ handout: true }));
+      wrapper.unmount();
+    });
+
+    it("leaves the drawing to the reader's surface when it sits inside the reader, so two layers never stack", async () => {
+      // Fails on: the dressing drawn twice, once on the reader's paper and once on the view inside it.
+      const wrapper = mount(ScriptoriumDocumentView, { props: { document: makeBook({ page_dressing: DRESSING }), content: text("Hello"), layout: "reader" } });
+      await flushEditor();
+      expect(wrapper.find(".sc-dressing").exists()).toBe(false);
+    });
+
+    it("draws nothing without a dressing", async () => {
+      const wrapper = mount(ScriptoriumDocumentView, { props: { document: makeBook(), content: text("Hello") } });
+      await flushEditor();
+      expect(wrapper.find(".sc-dressing").exists()).toBe(false);
+    });
   });
 });

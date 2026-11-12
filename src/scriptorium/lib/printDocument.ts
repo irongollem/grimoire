@@ -76,6 +76,8 @@ export interface PdfDocumentAssembly {
    * down and Sothery's calendar lost its last paragraph (#1115).
    */
   pagedStyles: string;
+  /** The page dressing's stylesheet (dressingCss), when the book has one: its mask pictures are named once, here. */
+  dressingCss?: string;
   /** The rendered `.pagedjs_pages` markup. */
   pagesHtml: string;
 }
@@ -96,6 +98,7 @@ export function buildPdfDocumentHtml(opts: PdfDocumentAssembly): string {
     `<style>${opts.fontsCss}</style>` +
     `<style>${themeBaseCss}</style><style>${opts.themeCss}</style>` +
     `<style>${opts.pagedStyles}</style>` +
+    (opts.dressingCss ? `<style>${opts.dressingCss}</style>` : "") +
     `<style>${printResetCss(opts.pageSize)}</style></head>` +
     `<body class="sc-theme ${cls}"${style ? ` style="${escapeHtml(style)}"` : ""}>${opts.pagesHtml}</body></html>`
   );

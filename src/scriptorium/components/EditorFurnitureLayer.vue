@@ -16,9 +16,12 @@
  * page boxes change; a drag is committed on pointer-up, so nothing is redrawn
  * under the pointer.
  */
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { inject, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { Editor } from "@tiptap/core";
 import type { PageFurnitureItem } from "@/scriptorium/types";
+import type { PageKind } from "@/scriptorium/dressing/dressing";
+import { BOOK_DRESSING_KEY, pageKey } from "@/scriptorium/dressing/bookDressing";
+import { buildDressingLayer } from "@/scriptorium/dressing/dressingLayer";
 import { pageAt, type PageBox, type PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
 import type { FurnitureUnderlayStorage } from "@/scriptorium/tiptap/furnitureUnderlay";
 import { buildFurnitureElement, makeGrabbable } from "@/scriptorium/lib/furniture/renderFurniture";
@@ -62,6 +65,8 @@ function storageOf(ed: Editor) {
 }
 
 const overlayRef = ref<HTMLElement | null>(null);
+/** The book's page dressing and where each of this chapter's pages falls in it; absent outside the book editor. */
+const dressed = inject(BOOK_DRESSING_KEY, null);
 const PAGE_CLASS = "sc-editor-furniture-page";
 
 function pageBox(rect: ReturnType<typeof pageRect>, page: number): HTMLElement {
@@ -104,9 +109,13 @@ function draw() {
   const grouped = itemsByPage(furniture, chapterId, pages, (id) => blocks.get(id) ?? null);
   const tops = new Map<string, ReturnType<typeof anchorTop>>();
   for (const [page, items] of grouped) for (const item of items) tops.set(item.id, anchorTop(ed, item, page, blocks));
+  // The dressing is drawn on every page, furniture or not, so where each page sits is part of what was drawn
+  // (a layout that moves a page redraws it). A change of the dressing itself bumps `inputs`, below.
+  const dressedPages = pages.map((p) => ({ box: p, info: dressed?.pages.value.get(pageKey(chapterId, p.page)) ?? null }));
   const signature = [
     inputs,
     underlay ? 1 : 0,
+    ...(dressed?.dressing.value ? dressedPages.map((d) => `${d.box.page}@${d.box.contentTop}`) : []),
     ...[...grouped].map(
       ([page, items]) =>
         `${page.page}@${page.contentTop}:${items.map((i) => `${i.id}~${Math.round((tops.get(i.id)?.pct ?? -1) * 10)}`).join(",")}`,
@@ -119,6 +128,7 @@ function draw() {
   hoverId = null;
   selectedEl = null;
   underlay?.replaceChildren();
+  drawDressing(underlay, dressedPages);
 
   const placements: { el: HTMLElement; item: PageFurnitureItem; box: HTMLElement; top: number }[] = [];
   const marks: { page: PageBox; item: PageFurnitureItem; el: HTMLElement; px: number | null }[] = [];
@@ -151,6 +161,25 @@ function draw() {
   drawNotes(overlay, marks, pages);
   trackMoves(grouped);
   showSelected();
+}
+
+/** The page dressing, drawn first into the underlay so it lies behind everything else the pages carry. */
+function drawDressing(target: HTMLElement | null, drawnPages: { box: PageBox; info: { number: number; kind: PageKind } | null }[]) {
+  if (!target || !dressed?.dressing.value) return;
+  for (const { box, info } of drawnPages) {
+    if (!info) continue;
+    const rect = pageRect(box, geometry);
+    const layer = buildDressingLayer(dressed.dressing.value, info.number, info.kind, {
+      aspect: rect.width > 0 ? rect.height / rect.width : undefined,
+      handout: dressed.handout.value,
+    });
+    if (!layer) continue;
+    // Its own box, not a furniture page box: nothing here is a target for a drag or a snap.
+    const sheet = document.createElement("div");
+    sheet.style.cssText = `position:absolute;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;pointer-events:none`;
+    sheet.appendChild(layer);
+    target.appendChild(sheet);
+  }
 }
 
 function placeLater(
@@ -511,7 +540,7 @@ onMounted(() => {
 });
 watch(() => editor, subscribe);
 watch(
-  () => [furniture, selectedId, chapterId, geometry] as const,
+  () => [furniture, selectedId, chapterId, geometry, dressed?.dressing.value, dressed?.handout.value, dressed?.pages.value] as const,
   () => {
     inputs++;
     draw();
