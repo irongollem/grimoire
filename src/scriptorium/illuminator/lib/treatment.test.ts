@@ -159,3 +159,44 @@ describe("the wash step", () => {
     expect(hashSettings(settings([wash({ seed: 10 }) as unknown as IlluminateSettings["steps"][number]]))).not.toBe(hashSettings(a));
   });
 });
+
+describe("the paint step", () => {
+  const layer = (over: Record<string, unknown> = {}) => ({ id: "a", name: "Ink", blend: "multiply", opacity: 0.5, visible: true, lockAlpha: false, chunks: { "0,0": "u/ill-paint-1.webp" }, ...over });
+  const parse = (step: Record<string, unknown>) => parseSettings({ v: 1, seed: 0, steps: [{ type: "paint", width: 2000, height: 1000, paper: null, layers: [layer()], ...step }] });
+
+  // Fails on: the step being dropped on reload, which would lose every painted layer.
+  it("keeps a well formed step and lists every chunk url", () => {
+    const s = parse({ layers: [layer(), layer({ id: "b", chunks: { "1,0": "u/ill-paint-2.webp" } })] });
+    expect(s?.steps[0]).toMatchObject({ type: "paint", width: 2000, height: 1000 });
+    expect(pictureUrls(s)).toEqual(["u/ill-paint-1.webp", "u/ill-paint-2.webp"]);
+  });
+
+  // Fails on: a blank sheet losing the paper it was started on.
+  it("keeps a step with no layers and its paper", () => {
+    expect(parse({ layers: [], paper: "parchment" })?.steps[0]).toMatchObject({ layers: [], paper: "parchment" });
+  });
+
+  // Fails on: a bad size reaching a renderer (a divide by zero or a canvas the browser refuses).
+  it("drops a step whose size is not a whole number from 1 to 8192", () => {
+    for (const bad of [{ width: 0 }, { width: -4 }, { height: 1.5 }, { width: 8193 }, { height: "9" }]) expect(parse(bad)?.steps).toEqual([]);
+  });
+
+  // Fails on: one bad layer, chunk key or url wiping the whole painting, or a chunk outside the grid being kept.
+  it("drops bad layers and chunks but keeps the rest", () => {
+    const s = parse({ layers: [
+      layer({ blend: "dodge" }),
+      layer({ id: "" }),
+      "nope",
+      layer({ id: "ok", chunks: { "0,0": "keep", "5,0": "outside", "x,y": "bad", "1,0": "", "1,1": 4 } }),
+    ] });
+    const step = s?.steps[0];
+    expect(step?.type === "paint" && step.layers.map((l) => l.id)).toEqual(["ok"]);
+    expect(pictureUrls(s)).toEqual(["keep"]);
+  });
+
+  // Fails on: an opacity outside 0..1 reaching globalAlpha.
+  it("clamps opacity", () => {
+    const step = parse({ layers: [layer({ opacity: 7 }), layer({ id: "b", opacity: -2 })] })?.steps[0];
+    expect(step?.type === "paint" && step.layers.map((l) => l.opacity)).toEqual([1, 0]);
+  });
+});

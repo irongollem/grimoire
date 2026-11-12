@@ -316,24 +316,9 @@ function planConflictLabels(planId: string): string[] {
   );
 }
 
+/** Every resource at 0, built from the one list so a new resource can never be left out here. */
 function defaultQuotaRecord(): Record<QuotaResource, number> {
-  return {
-    campaigns: 0,
-    npcs: 0,
-    monsters: 0,
-    encounters: 0,
-    scriptorium_documents: 0,
-    notes: 0,
-    sounds: 0,
-    soundboard_pages: 0,
-    soundboard_playlists: 0,
-    quests: 0,
-    factions: 0,
-    locations: 0,
-    deities: 0,
-    pantheons: 0,
-    puzzle_rooms: 0,
-  };
+  return Object.fromEntries(QUOTA_RESOURCES.map((r) => [r, 0])) as Record<QuotaResource, number>;
 }
 
 async function savePlan(plan: Plan) {

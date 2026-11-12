@@ -31,4 +31,11 @@ describe("stock papers", () => {
     const smoothest = STOCK_PAPERS.reduce((a, b) => (b.tooth < a.tooth ? b : a));
     expect(smoothest.id).toBe("hot-press");
   });
+
+  it("every surface scale is at least 1, and the big-featured papers are the largest", () => {
+    // Fails on: a scale below 1 (tiny, busier repeats), or treasure map and parchment losing the lead that hides their grid.
+    for (const p of STOCK_PAPERS) expect(p.surfaceScale, p.id).toBeGreaterThanOrEqual(1);
+    const top = [...STOCK_PAPERS].sort((a, b) => b.surfaceScale - a.surfaceScale).slice(0, 2).map((p) => p.id);
+    expect(top).toEqual(["treasure-map", "parchment"]);
+  });
 });

@@ -16,6 +16,8 @@ export interface Paper {
    * grain depth on this paper: hot-press barely bites, rough paper breaks a dry brush up.
    */
   tooth: number;
+  /** How much larger the surface tile is drawn than its 1024 px: papers with big features repeat less, fine ones keep their detail. */
+  surfaceScale: number;
 }
 
 /** id, name, tooth. */
@@ -32,12 +34,15 @@ const PAPERS: readonly (readonly [string, string, number])[] = [
   ["linen-canvas", "Linen canvas", 0.75],
 ];
 
+const SURFACE_SCALE: Readonly<Record<string, number>> = { "treasure-map": 2.5, parchment: 2, kraft: 1.5, "pastel-grey": 1.25, rough: 1.25 };
+
 export const STOCK_PAPERS: readonly Paper[] = PAPERS.map(([id, name, tooth]) => ({
   id,
   name,
   surfacePath: `/assets/papers/${id}.webp`,
   grainId: id,
   tooth,
+  surfaceScale: SURFACE_SCALE[id] ?? 1,
 }));
 
 /** Each grain's art path by grain id. Grains are the papers' tooth, so they live with the papers. */

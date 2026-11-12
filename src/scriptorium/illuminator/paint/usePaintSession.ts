@@ -10,7 +10,8 @@
  */
 import { computed, ref, shallowRef } from "vue";
 import { STOCK_BRUSHES } from "./brushes/stockBrushes";
-import { loadPaintAssets, type PaintAssetStore } from "./assets/loadPaintAssets";
+import { loadPaintAssets, loadPaperSurface, type PaintAssetStore } from "./assets/loadPaintAssets";
+import type { Paper } from "@/scriptorium/papers/papers";
 import { effectiveValues, cursorOf } from "./components/paintOptions";
 import { sampleThumbnail } from "./components/layerThumbnail";
 import type { BrushBlend, BrushPreset, PressureCurve, Rgb } from "./engine/types";
@@ -28,6 +29,12 @@ export interface PaintStart {
   /** A saved mask picture, decoded into the picture layer's mask. */
   mask: CanvasImageSource | null;
   tool: PaintTool;
+  /** The sheet under the painting, from a saved paint step; null for none. */
+  paper?: Paper | null;
+  /** Paint layers a saved painting brings back; they are loaded, not edited, so nothing starts dirty. */
+  layers?: PaintLayer[];
+  /** The picture already holds a painting in the recipe, so painting it again is never a new canvas. */
+  hadCanvas?: boolean;
 }
 
 export type LayerProps = Partial<Pick<PaintLayer, "name" | "blend" | "opacity" | "visible" | "lockAlpha">>;
@@ -35,7 +42,16 @@ export type LayerProps = Partial<Pick<PaintLayer, "name" | "blend" | "opacity" |
 const THUMB = 32;
 type BrushTool = Exclude<PaintTool, "picker">;
 
-export function usePaintSession(opts: { redraw: () => void; assets?: PaintAssetStore }) {
+export interface PaintSessionOptions {
+  redraw: () => void;
+  assets?: PaintAssetStore;
+  /** Whether the account may hold another painting with layers (the plan's `paint_canvases` quota). Asked once, before the first layer a picture without a painting makes. */
+  canMakeCanvas?: () => boolean;
+  /** Called when `canMakeCanvas` said no, so the workbench can show the upgrade prompt. */
+  onCanvasRefused?: () => void;
+}
+
+export function usePaintSession(opts: PaintSessionOptions) {
   const assets = opts.assets ?? loadPaintAssets();
   const session = shallowRef<PaintSessionApi | null>(null);
   const compositor = shallowRef<Compositor | null>(null);
@@ -54,6 +70,8 @@ export function usePaintSession(opts: { redraw: () => void; assets?: PaintAssetS
   let userBrushes = 0;
   let opacityDraft: { id: string; start: number } | null = null;
   let maskCache: { version: number; canvas: HTMLCanvasElement } | null = null;
+  /** The recipe held a painting when the session started: it is not a new canvas for the quota. */
+  let hadCanvas = false;
 
   const bump = () => {
     revision.value++;
@@ -71,7 +89,8 @@ export function usePaintSession(opts: { redraw: () => void; assets?: PaintAssetS
     await assets.preloadStock();
     // A newer start (or a stop) overtook this one while the brushes loaded.
     if (token !== startToken) return;
-    const s = createPaintSession({ width: o.size.width, height: o.size.height, paper: null, picture: true, assets, curve: curve.value, colour: colourNow.value });
+    const s = createPaintSession({ width: o.size.width, height: o.size.height, paper: o.paper ?? null, layers: o.layers, picture: true, assets, curve: curve.value, colour: colourNow.value });
+    hadCanvas = o.hadCanvas === true;
     s.state.tool = o.tool;
     const pictureLayer = s.state.doc.layers.find((l): l is PictureLayer => l.kind === "picture");
     if (o.mask && pictureLayer) loadMaskFromImage(pictureLayer.mask, o.mask);
@@ -80,6 +99,17 @@ export function usePaintSession(opts: { redraw: () => void; assets?: PaintAssetS
     maskDirty.value = false;
     session.value = s;
     compositor.value = c;
+    if (o.paper) {
+      // The sheet's grain reaches the brushes through the session; its colour is laid under the painting here.
+      // A sheet that cannot load leaves the checker under the paint, which still paints and saves.
+      void loadPaperSurface(o.paper)
+        .then((surface) => {
+          if (compositor.value !== c) return;
+          c.setPaper(surface);
+          opts.redraw();
+        })
+        .catch(() => undefined);
+    }
     bump();
   }
 
@@ -89,6 +119,7 @@ export function usePaintSession(opts: { redraw: () => void; assets?: PaintAssetS
     compositor.value = null;
     session.value = null;
     maskCache = null;
+    hadCanvas = false;
     opacityDraft = null;
     bump();
   }
@@ -176,6 +207,11 @@ export function usePaintSession(opts: { redraw: () => void; assets?: PaintAssetS
     const pic = session.value?.state.doc.layers.find((l): l is PictureLayer => l.kind === "picture");
     return pic ? maskHasPaint(pic.mask) : false;
   });
+  /** Whether the session holds any paint layer: the recipe has a paint step when it does. */
+  const hasPaintLayers = computed(() => {
+    track();
+    return session.value?.state.doc.layers.some((l) => l.kind === "paint") === true;
+  });
   const reported = computed(() => pen.value?.reported ?? null);
 
   function thumbnail(id: string) {
@@ -227,7 +263,30 @@ export function usePaintSession(opts: { redraw: () => void; assets?: PaintAssetS
     s.state.activeLayerId = id;
     bump();
   };
+  /**
+   * Whether the layer a stroke or "New layer" would make may be made. A picture's first paint layer makes a
+   * canvas, which the plan counts; a picture that already has a painting (or has made its first layer this
+   * session) never asks again. Kept here rather than in the pure session, which knows nothing of plans.
+   */
+  function mayMakeLayer(): boolean {
+    const s = session.value;
+    if (!s) return false;
+    if (hadCanvas || s.state.doc.layers.some((l) => l.kind === "paint")) return true;
+    if (opts.canMakeCanvas?.() ?? true) return true;
+    opts.onCanvasRefused?.();
+    return false;
+  }
+  /** The stage asks before it begins a stroke: false means do not paint. */
+  function mayStroke(): boolean {
+    const s = session.value;
+    if (!s) return false;
+    const target = s.state.doc.layers.find((l) => l.id === s.state.activeLayerId);
+    // Only a brush or smudge stroke on the picture makes a layer; the eraser on it paints the mask.
+    if (target?.kind !== "picture" || s.state.tool === "eraser" || s.state.tool === "picker") return true;
+    return mayMakeLayer();
+  }
   function addLayer(): void {
+    if (!mayMakeLayer()) return;
     const layer = session.value?.addLayer();
     if (layer) sync([layer.id]);
   }
@@ -378,6 +437,8 @@ export function usePaintSession(opts: { redraw: () => void; assets?: PaintAssetS
     canDeleteActive,
     canMergeActive,
     hasMask,
+    hasPaintLayers,
+    mayStroke,
     reported,
     thumbnail,
     maskCanvas,

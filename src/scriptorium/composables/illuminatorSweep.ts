@@ -15,6 +15,7 @@ import { getCurrentUser, supabase } from "@/lib/supabase";
 import { isMadeByIlluminator } from "@/scriptorium/illuminator/lib/ownedPictures";
 
 const pending = new Set<string>();
+const RPC_BATCH = 500;
 
 /** Candidates for removal. Only the author's own Illuminator files are kept; an original is never a candidate. */
 export function markForSweep(...urls: (string | null | undefined)[]): void {
@@ -26,10 +27,14 @@ export function markForSweep(...urls: (string | null | undefined)[]): void {
 export async function sweepIlluminatorFiles(): Promise<void> {
   if (pending.size === 0) return;
   const snapshot = [...pending];
-  const { data, error } = await supabase.rpc("scriptorium_pictures_in_use", { p_urls: snapshot });
-  if (error) throw error;
-  if (!data) throw new Error("scriptorium_pictures_in_use answered nothing");
-  const inUse = new Set<string>(data);
+  // The server refuses more than RPC_BATCH urls at a time, and a painting holds many chunk files.
+  const inUse = new Set<string>();
+  for (let i = 0; i < snapshot.length; i += RPC_BATCH) {
+    const { data, error } = await supabase.rpc("scriptorium_pictures_in_use", { p_urls: snapshot.slice(i, i + RPC_BATCH) });
+    if (error) throw error;
+    if (!data) throw new Error("scriptorium_pictures_in_use answered nothing");
+    for (const url of data) inUse.add(url);
+  }
   const unused = snapshot.filter((url) => !inUse.has(url));
   if (unused.length > 0) await removeStorageImages(ASSET_IMAGES_BUCKET, ...unused);
   for (const url of snapshot) pending.delete(url);

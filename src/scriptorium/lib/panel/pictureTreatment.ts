@@ -65,6 +65,15 @@ export function resetPatch(source: Readonly<Record<string, unknown>>): Treatment
   return patch;
 }
 
+/**
+ * The painting was flattened into one stored picture: it is now both the picture and its original, with no
+ * recipe. `original` is set (not left null) on purpose: the file is an Illuminator `ill-` file, and only an
+ * `original` equal to `src` keeps `madeUrls` from offering it to the sweep while the picture holds it.
+ */
+export function flattenPatch(url: string): TreatmentPatch {
+  return { original: url, src: url, illuminate: null, bakedFor: null };
+}
+
 /** A patch applied to furniture props: nulls remove the key, and a recipe is stored as JSON text. */
 export function mergeTreatmentPatch(
   props: Readonly<Record<string, string | number>>,

@@ -68,4 +68,22 @@ describe("the Illuminator sweep", () => {
     await sweepIlluminatorFiles();
     expect(fake.calls).toHaveLength(0);
   });
+
+  // Fails on: one call with every url, which the server refuses past 500, so a painting's sweep never completes.
+  it("checks in batches of at most 500 and deletes every unused file", async () => {
+    const sizes: number[] = [];
+    fake.onRpc("scriptorium_pictures_in_use", (args) => {
+      const urls = args.p_urls as string[];
+      sizes.push(urls.length);
+      return urls.filter((u) => u === asset("u1/ill-paint-keep.webp"));
+    });
+    const urls = Array.from({ length: 1200 }, (_, n) => asset(`u1/ill-paint-${n}.webp`));
+    urls[700] = asset("u1/ill-paint-keep.webp");
+    markForSweep(...urls);
+    await sweepIlluminatorFiles();
+    expect(sizes).toEqual([500, 500, 200]);
+    const removed = remove.mock.calls[0].slice(1);
+    expect(removed).toHaveLength(1199);
+    expect(removed).not.toContain(asset("u1/ill-paint-keep.webp"));
+  });
 });

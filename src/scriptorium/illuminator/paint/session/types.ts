@@ -125,4 +125,10 @@ export interface PaintSessionApi {
   redo(): { layerIds: string[] } | null;
   readonly canUndo: boolean;
   readonly canRedo: boolean;
+  /**
+   * The tiles changed on each paint layer since the session started or `markClean`, from strokes, undo, redo and
+   * merges. Loading a saved painting marks nothing. The save path uploads only the chunks these fall in.
+   */
+  readonly dirty: ReadonlyMap<string, ReadonlySet<number>>;
+  markClean(): void;
 }

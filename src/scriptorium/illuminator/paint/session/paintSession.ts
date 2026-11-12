@@ -27,6 +27,8 @@ export interface PaintSessionInit {
   width: number;
   height: number;
   paper: Paper | null;
+  /** Paint layers a saved painting brings back, bottom first, above the picture. Loading them is not an edit. */
+  layers?: PaintLayer[];
   /** True when a picture is being illuminated: it becomes the bottom layer. False is a blank sheet. */
   picture: boolean;
   assets: PaintAssets;
@@ -115,8 +117,14 @@ export function createPaintSession(init: PaintSessionInit): PaintSessionApi {
   if (init.picture) {
     const picture: PictureLayer = { kind: "picture", id: "picture", name: "Picture", visible: true, mask: new TiledLayer(init.width, init.height) };
     layers.push(picture);
-  } else {
+  } else if (!init.layers || init.layers.length === 0) {
     layers.push(newPaintLayer());
+  }
+  for (const saved of init.layers ?? []) {
+    layers.push(saved);
+    // New layers must not take an id a saved one holds.
+    const n = /^layer-(\d+)$/.exec(saved.id);
+    if (n) layerSeq = Math.max(layerSeq, Number(n[1]));
   }
 
   const state: SessionState = {
@@ -134,11 +142,22 @@ export function createPaintSession(init: PaintSessionInit): PaintSessionApi {
     curve: init.curve ?? DEFAULT_PRESSURE_CURVE,
   };
 
+  /** Tiles changed on each paint layer since the painting was loaded or last saved: what the save path uploads. */
+  const dirty = new Map<string, Set<number>>();
+  function touch(layerId: string, keys: Iterable<number>): void {
+    if (layerOf(layerId)?.kind !== "paint") return;
+    let set = dirty.get(layerId);
+    if (!set) dirty.set(layerId, (set = new Set()));
+    for (const key of keys) set.add(key);
+  }
+
   const undoStack: Entry[] = [];
   let redoStack: Entry[] = [];
   let active: Active | null = null;
 
-  const layerOf = (id: string): Layer | undefined => state.doc.layers.find((l) => l.id === id);
+  function layerOf(id: string): Layer | undefined {
+    return state.doc.layers.find((l) => l.id === id);
+  }
   const pixelsOf = (l: Layer): TiledLayer => (l.kind === "picture" ? l.mask : l.pixels);
 
   function record(entry: Entry): void {
@@ -235,7 +254,10 @@ export function createPaintSession(init: PaintSessionInit): PaintSessionApi {
       const done = active;
       active = null;
       const rec = done.stroke.end();
-      if (rec.tiles.size > 0) record({ kind: "stroke", layerId: done.layerId, record: rec });
+      if (rec.tiles.size > 0) {
+        record({ kind: "stroke", layerId: done.layerId, record: rec });
+        touch(done.layerId, rec.tiles.keys());
+      }
       if (done.tool === "brush") {
         state.recent = [done.colour, ...state.recent.filter((c) => !sameColour(c, done.colour))].slice(0, RECENT_LIMIT);
       }
@@ -316,6 +338,7 @@ export function createPaintSession(init: PaintSessionInit): PaintSessionApi {
           }
           if (lower.pixels.isTileEmpty(dst)) lower.pixels.setTile(key, null);
         }
+        touch(lower.id, rec.tiles.keys());
       }
       state.doc.layers.splice(index, 1);
       if (state.activeLayerId === id) state.activeLayerId = lower.id;
@@ -352,6 +375,13 @@ export function createPaintSession(init: PaintSessionInit): PaintSessionApi {
       return { layerIds: step(entry, "redo") };
     },
 
+    get dirty(): ReadonlyMap<string, ReadonlySet<number>> {
+      return dirty;
+    },
+    markClean(): void {
+      dirty.clear();
+    },
+
     get canUndo(): boolean {
       return undoStack.length > 0;
     },
@@ -364,12 +394,16 @@ export function createPaintSession(init: PaintSessionInit): PaintSessionApi {
     if (entry.kind === "stroke") {
       const layer = layerOf(entry.layerId);
       if (layer) swapRecord(pixelsOf(layer), entry.record);
+      touch(entry.layerId, entry.record.tiles.keys());
       return [entry.layerId];
     }
     const changed = new Set(applySnapshot(way === "undo" ? entry.before : entry.after, entry.pool));
     if (entry.merge) {
       const target = layerOf(entry.merge.targetId);
-      if (target && target.kind === "paint") swapRecord(target.pixels, entry.merge.record);
+      if (target && target.kind === "paint") {
+        swapRecord(target.pixels, entry.merge.record);
+        touch(target.id, entry.merge.record.tiles.keys());
+      }
       changed.add(entry.merge.targetId);
     }
     return [...changed];

@@ -270,6 +270,53 @@ function parseCrop(raw: Record<string, unknown>): CropStep | null {
   return clampCrop(num(raw.x, 0), num(raw.y, 0), num(raw.w, 1), num(raw.h, 1));
 }
 
+const PAINT_BLENDS: readonly PaintLayerBlend[] = ["source-over", "multiply", "screen", "overlay", "soft-light", "color"];
+const MAX_PAINT_SIDE = 8192;
+
+function parsePaintSide(v: unknown): number | null {
+  return typeof v === "number" && Number.isInteger(v) && v > 0 && v <= MAX_PAINT_SIDE ? v : null;
+}
+
+function parsePaintLayer(raw: unknown, cols: number, rows: number): PaintLayerRecord | null {
+  if (!isRecord(raw)) return null;
+  const id = nonEmptyString(raw.id);
+  const blend = PAINT_BLENDS.find((b) => b === raw.blend);
+  if (!id || !blend) return null;
+  const chunks: Record<string, string> = {};
+  if (isRecord(raw.chunks)) {
+    for (const [key, url] of Object.entries(raw.chunks)) {
+      const m = /^(\d+),(\d+)$/.exec(key);
+      const value = nonEmptyString(url);
+      if (m && value && Number(m[1]) < cols && Number(m[2]) < rows) chunks[key] = value;
+    }
+  }
+  return {
+    id,
+    name: typeof raw.name === "string" ? raw.name : "",
+    blend,
+    opacity: clamp01(num(raw.opacity, 1)),
+    visible: bool(raw.visible, true),
+    lockAlpha: bool(raw.lockAlpha, false),
+    chunks,
+  };
+}
+
+/** Invalid layers and chunks are dropped, not the step: a blank sheet with no layers still records its paper. */
+function parsePaint(raw: Record<string, unknown>): PaintStep | null {
+  const width = parsePaintSide(raw.width);
+  const height = parsePaintSide(raw.height);
+  if (width === null || height === null) return null;
+  const cols = Math.ceil(width / PAINT_CHUNK);
+  const rows = Math.ceil(height / PAINT_CHUNK);
+  const layers = Array.isArray(raw.layers)
+    ? raw.layers.flatMap((l) => {
+        const layer = parsePaintLayer(l, cols, rows);
+        return layer ? [layer] : [];
+      })
+    : [];
+  return { type: "paint", width, height, paper: nonEmptyString(raw.paper), layers };
+}
+
 function parseStep(raw: unknown): IlluminateStep | null {
   if (!isRecord(raw)) return null;
   switch (raw.type) {
@@ -288,6 +335,7 @@ function parseStep(raw: unknown): IlluminateStep | null {
       const output = nonEmptyString(raw.output);
       return output ? { type: "ai", action: typeof raw.action === "string" ? raw.action : "", output } : null;
     }
+    case "paint": return parsePaint(raw);
     default: return null;
   }
 }
@@ -368,6 +416,8 @@ export function pictureUrls(settings: IlluminateSettings | null): string[] {
         return [step.url];
       case "ai":
         return [step.output];
+      case "paint":
+        return step.layers.flatMap((layer) => Object.values(layer.chunks));
       default:
         return [];
     }

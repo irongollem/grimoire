@@ -4,6 +4,7 @@
       <AppButton variant="ghost" size="icon-xs" :icon="IconClose" aria-label="Close the panel" @click="emit('close')" />
     </div>
 
+    <NewSheetDialog :open="sheetOpen" :page-aspect="pageAspect ?? A4_ASPECT" @close="sheetOpen = false" @created="onSheetCreated" />
     <ArtPickerModal :show="picker !== null" @select="onArtPicked" @close="picker = null" />
 
     <!-- Only mounted while it is open: it reads the campaign's characters, which a closed panel has no use for. -->
@@ -96,6 +97,7 @@
       @open-settings="emit('openSettings')"
       @select="onEntry"
       @add-picture="picker = { mode: 'add' }"
+      @add-sheet="sheetOpen = true"
       @add-furniture="(kind) => emit('addFurniture', kind)"
     />
   </div>
@@ -121,6 +123,7 @@ import DividerPanelSection from "@/scriptorium/components/panel/DividerPanelSect
 import EmbedPanelSection from "@/scriptorium/components/panel/EmbedPanelSection.vue";
 import FooterPanelSection from "@/scriptorium/components/panel/FooterPanelSection.vue";
 import ChroniclerGenerateDialog from "@/components/notes/ChroniclerGenerateDialog.vue";
+import NewSheetDialog from "@/scriptorium/components/panel/NewSheetDialog.vue";
 import PagePanelSection from "@/scriptorium/components/panel/PagePanelSection.vue";
 import PicturePanelSection, { type PictureLayer } from "@/scriptorium/components/panel/PicturePanelSection.vue";
 import { FOOTER_SETTINGS_KEY, type FooterSettingsAccess } from "@/scriptorium/lib/footerTitle";
@@ -138,6 +141,7 @@ import { onThisPage, type PageEntry } from "@/scriptorium/lib/panel/onThisPage";
 import { bookPageNumber, describePage, type PanelPageContext } from "@/scriptorium/lib/panel/pageInfo";
 import type { PageBox, PageFlowStorage } from "@/scriptorium/tiptap/pageFlow";
 import type { FurnitureKind, PageFurnitureItem } from "@/scriptorium/types";
+import { hashSettings, type IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
 import type { WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
 import { IconClose } from "@/lib/icons";
 import { tableRowsOf, withTableRows } from "@/scriptorium/lib/tableRows";
@@ -170,7 +174,7 @@ const emit = defineEmits<{
   updateItem: [item: PageFurnitureItem];
   selectFurniture: [id: string | null];
   /** Open the Illuminator on the picture, on the Crop tool when asked. */
-  editPicture: [tool?: WorkbenchTool];
+  editPicture: [tool?: WorkbenchTool, created?: PageFurnitureItem];
   /** A picture was described: its render is queued and the editor waits for it. */
   describe: [target: PictureTarget, job: { jobId: string; shape: string }];
 }>();
@@ -180,6 +184,18 @@ const emit = defineEmits<{
 const rawEditor = computed(() => (props.editor ? toRaw(props.editor) : undefined));
 
 const picker = ref<{ mode: "add" | "replace" } | null>(null);
+const sheetOpen = ref(false);
+
+/**
+ * A blank sheet is on the page: its file is its own original and its bake (nothing is painted yet), so the
+ * picture carries its recipe from the first moment and the Illuminator opens on it with the Brush armed.
+ */
+function onSheetCreated(sheet: { url: string; recipe: IlluminateSettings }) {
+  sheetOpen.value = false;
+  const item = props.pictures.addArt(sheet.url, { original: sheet.url, illuminate: sheet.recipe, bakedFor: hashSettings(sheet.recipe) });
+  // The workbench opens on the item itself: the shell's selection and furniture list have not caught up yet.
+  if (item) emit("editPicture", "brush", item);
+}
 
 // ── Describe it ─────────────────────────────────────────────────────────────
 const campaign = useCampaignStore();

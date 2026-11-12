@@ -10,10 +10,14 @@ const mocks = vi.hoisted(() => ({
   mark: vi.fn(),
   upload: vi.fn(async () => "https://cdn/new-mask.webp"),
   encode: vi.fn(async () => new Blob(["m"], { type: "image/webp" })),
+  confirm: vi.fn(async (_message: string, _options?: unknown) => true),
+  decode: vi.fn(),
+  webp: vi.fn(),
   bindings: (() => []) as () => HotkeyBinding[],
   compositor: { setPaper: vi.fn(), setPicture: vi.fn(), syncLayers: vi.fn(), markDirty: vi.fn(), flush: vi.fn(), render: vi.fn(), readPixel: vi.fn(), dispose: vi.fn() },
 }));
 
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/useHotkeys", () => ({
   useHotkeys: (bindings: () => HotkeyBinding[]) => {
     mocks.bindings = bindings;
@@ -33,10 +37,26 @@ vi.mock("@/scriptorium/illuminator/paint/maskPixels", async (importOriginal) => 
   },
   maskToCanvas: () => document.createElement("canvas"),
 }));
+// Canvas pixels are not readable in the test DOM: a decoded chunk is one opaque pixel, drawn nowhere.
+vi.mock("@/scriptorium/illuminator/paint/paintLayerIO", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/scriptorium/illuminator/paint/paintLayerIO")>()),
+  pixelsCanvas: () => document.createElement("canvas"),
+  chunkCanvas: () => document.createElement("canvas"),
+  decodePixels: (_source: unknown, width: number, height: number) => {
+    mocks.decode(width, height);
+    const data = new Uint8ClampedArray(width * height * 4);
+    data.set([200, 100, 50, 255], 0);
+    return { width, height, data };
+  },
+}));
+vi.mock("@/scriptorium/illuminator/lib/applySteps", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/scriptorium/illuminator/lib/applySteps")>()),
+  processImage: async () => new Blob(["png"], { type: "image/png" }),
+}));
 vi.mock("@/lib/storage", () => ({ uploadToBucket: mocks.upload }));
 vi.mock("@/scriptorium/composables/illuminatorSweep", () => ({ markForSweep: mocks.mark }));
 vi.mock("@/lib/webpEncode", () => ({ encodeWebp: mocks.encode }));
-vi.mock("@/lib/mediaConvert", () => ({ toWebP: vi.fn() }));
+vi.mock("@/lib/mediaConvert", () => ({ toWebP: (...args: unknown[]) => mocks.webp(...args) }));
 vi.mock("@/scriptorium/illuminator/lib/loadImage", () => ({
   loadDomImage: async (url: string) => {
     mocks.loaded.push(url);
@@ -79,6 +99,11 @@ beforeEach(() => {
   mocks.mark.mockClear();
   mocks.encode.mockClear();
   mocks.compositor.dispose.mockClear();
+  mocks.confirm.mockReset();
+  mocks.confirm.mockResolvedValue(true);
+  mocks.decode.mockClear();
+  mocks.webp.mockReset();
+  mocks.webp.mockResolvedValue(new Blob(["flat"], { type: "image/webp" }));
 });
 
 const sample = (x: number, y: number): PenSample => ({ x, y, pressure: 0.5, tiltX: 0, tiltY: 0, twist: 0, time: 0, pointer: "mouse" });
@@ -460,3 +485,126 @@ describe("the paper wash", () => {
     expect(wb.buildSettings(false).steps).toEqual([]);
   });
 });
+
+describe("a painting with layers", () => {
+  const saved: IlluminateSettings = {
+    v: 1,
+    seed: 3,
+    steps: [{ type: "paint", width: 400, height: 300, paper: "kraft", layers: [{ id: "layer-2", name: "Moss", blend: "multiply", opacity: 0.5, visible: true, lockAlpha: false, chunks: { "0,0": "https://cdn/old-chunk.webp" } }] }],
+  };
+  const uniqueUploads = () => {
+    let n = 0;
+    mocks.upload.mockImplementation(async () => `https://cdn/chunk-${++n}.webp`);
+  };
+  /** A Brush stroke on the picture, which makes a layer and paints it, as the stage would. */
+  function brush(wb: Awaited<ReturnType<typeof startPainting>>, x = 100, y = 100) {
+    const session = wb.paint.session.value;
+    if (!session) throw new Error("no paint session");
+    session.state.tool = "brush";
+    const began = session.beginStroke(sample(x, y));
+    session.addSamples([sample(x + 30, y)]);
+    session.endStroke();
+    wb.paint.onStrokeEnd(began?.layerId ?? "");
+  }
+
+  // Fails on: Done writing no paint step (the painting gone on reopen), the chunk not going through the same
+  // bucket path as the mask, or its file not being marked (an orphan if the recipe drops it).
+  it("saves the layers into the recipe's paint step and marks each file for the sweep", async () => {
+    uniqueUploads();
+    const wb = await startPainting(null, "brush");
+    brush(wb);
+    const done = await wb.finish();
+    const step = done.steps.at(-1);
+    expect(step).toMatchObject({ type: "paint", width: 400, height: 300, paper: null, layers: [{ blend: "source-over", opacity: 1, chunks: { "0,0": "https://cdn/chunk-1.webp" } }] });
+    expect(mocks.upload).toHaveBeenCalledWith(expect.objectContaining({ bucket: "assetImages", contentType: "image/webp", path: expect.stringMatching(/^u1\/ill-paint-[0-9a-f]{8}\.webp$/) }));
+    expect(mocks.mark).toHaveBeenCalledWith("https://cdn/chunk-1.webp");
+  });
+
+  // Fails on: a reopened painting arriving empty or dirty (the whole canvas re-uploaded on every Done), and on
+  // its layer props or paper being lost on the way through.
+  it("reopens its layers without marking anything dirty, and a Done that changed nothing uploads nothing", async () => {
+    const wb = await startPainting(saved, "brush");
+    const session = wb.paint.session.value;
+    expect(session?.state.doc.layers.map((l) => l.id)).toEqual(["picture", "layer-2"]);
+    expect(session?.state.doc.paper?.id).toBe("kraft");
+    expect(mocks.decode).toHaveBeenCalledWith(400, 300);
+    expect(session?.dirty.size).toBe(0);
+    const done = await wb.finish();
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(done.steps.at(-1)).toEqual(saved.steps[0]);
+  });
+
+  // Fails on: a painting kept when the picture changed shape under it, drawn stretched across the new one.
+  it("discards a painting whose size is not the picture's, instead of stretching it", async () => {
+    const wb = open({ v: 1, seed: 3, steps: [{ ...(saved.steps[0] as PaintStepOf), width: 800, height: 600 }] });
+    await wb.open();
+    await flushPromises();
+    expect(wb.buildSettings(false).steps.some((s) => s.type === "paint")).toBe(false);
+    wb.tool.value = "brush";
+    await vi.waitFor(() => expect(wb.paint.ready.value).toBe(true));
+    expect(wb.paint.layers.value.map((l) => l.id)).toEqual(["picture"]);
+    expect(mocks.decode).not.toHaveBeenCalled();
+  });
+
+  // Fails on: the preview and exports drawing only the stored painting, so a stroke not yet saved (or a flattened
+  // picture) is missing from every tool's preview and from Save as a new picture.
+  it("draws the session's own layers in the preview, named by view urls, and the stored chunks in the final recipe", async () => {
+    uniqueUploads();
+    const wb = await startPainting(null, "brush");
+    brush(wb);
+    const preview = wb.buildSettings(true).steps.at(-1);
+    expect(preview).toMatchObject({ type: "paint", layers: [{ chunks: { "0,0": expect.stringMatching(/^view:paint:layer-1\|0,0$/) } }] });
+    expect((await wb.finish()).steps.at(-1)).toMatchObject({ layers: [{ chunks: { "0,0": "https://cdn/chunk-1.webp" } }] });
+  });
+
+  // Fails on: a painting being lost when the author never opens a paint tool: Done must hand the stored step back.
+  it("hands a stored painting back untouched when no paint tool was used", async () => {
+    const wb = open(saved);
+    await wb.open();
+    await flushPromises();
+    expect(wb.paint.ready.value).toBe(false);
+    expect((await wb.finish()).steps).toEqual(saved.steps);
+    expect(mocks.upload).not.toHaveBeenCalled();
+  });
+
+  // Fails on: the crop change being made first and explained after: the painting is gone before the author could say no.
+  it("asks before a crop that changes the picture's shape removes the painting, and a No keeps both", async () => {
+    mocks.confirm.mockResolvedValue(false);
+    const wb = await startPainting(saved, "brush");
+    const session = wb.paint.session.value;
+    wb.tool.value = "crop";
+    wb.dragCropBox("e", { x: 0, y: 0, w: 1, h: 1 }, -0.5, 0);
+    wb.tool.value = "edges";
+    await vi.waitFor(() => expect(mocks.confirm).toHaveBeenCalledTimes(1));
+    await flushPromises();
+    expect(wb.paint.session.value).toBe(session);
+    expect(wb.paint.layers.value.map((l) => l.id)).toEqual(["picture", "layer-2"]);
+    expect(wb.crop).toMatchObject({ x: 0, y: 0, w: 1, h: 1 });
+    expect(wb.buildSettings(false).steps.some((s) => s.type === "crop")).toBe(false);
+  });
+
+  // Fails on: a confirmed crop change keeping the painting at the old shape.
+  it("removes the painting when the author says to change the crop", async () => {
+    const wb = await startPainting(saved, "brush");
+    const session = wb.paint.session.value;
+    wb.tool.value = "crop";
+    wb.dragCropBox("e", { x: 0, y: 0, w: 1, h: 1 }, -0.5, 0);
+    wb.tool.value = "edges";
+    await vi.waitFor(() => expect(wb.paint.session.value).not.toBe(session));
+    expect(wb.buildSettings(false).steps.some((s) => s.type === "paint")).toBe(false);
+  });
+
+  // Fails on: Flatten going ahead without asking (it throws the layers away), or a declined one still uploading.
+  it("flattens into a new stored picture only after the author agrees", async () => {
+    mocks.upload.mockResolvedValue("https://cdn/flat.webp");
+    const wb = await startPainting(saved, "brush");
+    mocks.confirm.mockResolvedValueOnce(false);
+    expect(await wb.flatten()).toBeNull();
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(await wb.flatten()).toBe("https://cdn/flat.webp");
+    expect(mocks.upload).toHaveBeenCalledWith(expect.objectContaining({ path: expect.stringMatching(/^u1\/ill-flat-[0-9a-f]{8}\.webp$/) }));
+    expect(mocks.mark).toHaveBeenCalledWith("https://cdn/flat.webp");
+  });
+});
+
+type PaintStepOf = Extract<IlluminateSettings["steps"][number], { type: "paint" }>;

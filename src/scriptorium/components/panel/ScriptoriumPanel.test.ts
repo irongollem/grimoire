@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Editor } from "@tiptap/core";
 import ScriptoriumPanel from "./ScriptoriumPanel.vue";
@@ -29,7 +29,7 @@ const DialogStub = {
   emits: ["close", "started"],
   template: '<div data-testid="describe-dialog" />',
 };
-const stubs = { ChroniclerGenerateDialog: DialogStub, ArtPickerModal: true, ImageUpload: true, EmbedRevealControl: true, AiImageBadge: true };
+const stubs = { ChroniclerGenerateDialog: DialogStub, NewSheetDialog: true, ArtPickerModal: true, ImageUpload: true, EmbedRevealControl: true, AiImageBadge: true };
 const context: PanelPageContext = {
   paperLabel: "Grimoire · A4 · Two columns",
   chapterNumber: 3,
@@ -104,6 +104,21 @@ describe("ScriptoriumPanel", () => {
     const { wrapper } = open({ kind: "page", page: 1 }, [para("b1")]);
     await press(wrapper, "Watermark");
     expect(wrapper.emitted("addFurniture")).toEqual([["watermark"]]);
+  });
+
+  // Fails on: a blank sheet added without its recipe (so it opens as a plain picture), or the Illuminator not opening on the Brush.
+  it("a blank sheet goes on the page with its recipe, and the Illuminator opens on the Brush", async () => {
+    const { wrapper, pictures } = open({ kind: "page", page: 1 }, [para("b1")]);
+    await press(wrapper, "Blank sheet");
+    const dialog = wrapper.findComponent({ name: "NewSheetDialog" });
+    const recipe = { v: 1 as const, seed: 3, steps: [{ type: "paint" as const, width: 10, height: 20, paper: "kraft", layers: [] }] };
+    // The selection prop stays on the page: it has not caught up with the new art, as in the shell.
+    const created = { id: "new-art", kind: "art", props: { src: "https://cdn/s.webp" } } as unknown as PageFurnitureItem;
+    vi.mocked(pictures.addArt).mockReturnValue(created);
+    dialog.vm.$emit("created", { url: "https://cdn/s.webp", recipe });
+    await flushPromises();
+    expect(pictures.addArt).toHaveBeenCalledWith("https://cdn/s.webp", expect.objectContaining({ original: "https://cdn/s.webp", illuminate: recipe }));
+    expect(wrapper.emitted("editPicture")).toEqual([["brush", created]]);
   });
 
   // Fails on: a cover edit that does not reach the cover node, or one that goes to whatever the cursor is in.

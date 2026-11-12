@@ -82,7 +82,7 @@
           @add-furniture="emit('addFurniture', $event)"
           @update-item="updateItem"
           @select-furniture="emit('update:selectedFurnitureId', $event)"
-          @edit-picture="openWorkbench($event)"
+          @edit-picture="(tool, created) => openWorkbench(tool, created)"
           @describe="described.start"
         />
       </aside>
@@ -117,7 +117,8 @@
       :start-tool="workbench.tool"
       :page-aspect="workbench.pageAspect"
       @done="onWorkbenchDone"
-      @cancel="workbench = null"
+      @flatten="onWorkbenchFlatten"
+      @cancel="onWorkbenchCancel"
     />
   </div>
 </template>
@@ -500,7 +501,7 @@ const described = useDescribedPictures({ pictures, pageAspect: () => sheetGeomet
 watch(editor, (ed) => { if (ed) described.resume(); }, { immediate: true });
 
 // ── The Illuminator in the book (#1176 story 9b) ────────────────────────────
-const { canEditPicture, workbench, openWorkbench, onWorkbenchDone, currentUserId, bakeErrors, retryBakes } = usePictureEditing({
+const { canEditPicture, workbench, openWorkbench, onWorkbenchDone, onWorkbenchFlatten, onWorkbenchCancel, currentUserId, bakeErrors, retryBakes } = usePictureEditing({
   editor,
   selection,
   version: selectionVersion,

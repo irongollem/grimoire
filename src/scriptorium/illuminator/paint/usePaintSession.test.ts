@@ -16,9 +16,9 @@ const assets = { tip: () => undefined, grain: () => undefined, loadTip: vi.fn(),
 const redraw = vi.fn();
 
 /** A composable made the way a component makes it: inside a scope that is stopped on unmount. */
-function mountPaint() {
+function mountPaint(extra: { canMakeCanvas?: () => boolean; onCanvasRefused?: () => void } = {}) {
   const scope = effectScope();
-  const paint = scope.run(() => usePaintSession({ redraw, assets: assets as typeof assets & PaintAssets }));
+  const paint = scope.run(() => usePaintSession({ redraw, assets: assets as typeof assets & PaintAssets, ...extra }));
   if (!paint) throw new Error("no composable");
   return { paint, stop: () => scope.stop() };
 }
@@ -92,5 +92,49 @@ describe("history and redraws", () => {
     const { paint } = await started();
     paint.deleteLayer("picture");
     expect(paint.layers.value.map((l) => l.id)).toEqual(["picture"]);
+  });
+});
+
+describe("the plan's canvas limit", () => {
+  async function startedWith(extra: Parameters<typeof mountPaint>[0], start: { hadCanvas?: boolean } = {}) {
+    const m = mountPaint(extra);
+    await m.paint.start({ size: { width: 128, height: 128 }, picture: document.createElement("canvas"), mask: null, tool: "brush", ...start });
+    return m;
+  }
+
+  // Fails if a Free account that already holds its one painting can start a second: the limit would be a label.
+  it("refuses the stroke that would make a picture's first layer, and says so", async () => {
+    const refused = vi.fn();
+    const { paint } = await startedWith({ canMakeCanvas: () => false, onCanvasRefused: refused });
+    expect(paint.mayStroke()).toBe(false);
+    expect(refused).toHaveBeenCalledTimes(1);
+    paint.addLayer();
+    expect(paint.layers.value.map((l) => l.id)).toEqual(["picture"]);
+  });
+
+  // Fails if a painting that is already saved is locked out of its own picture when the plan says no (a lapsed Pro
+  // could never reopen what they made), or if the check is made again on every stroke once a layer exists.
+  it("never asks for a picture that already has a painting, or once its first layer exists", async () => {
+    const can = vi.fn(() => false);
+    const existing = await startedWith({ canMakeCanvas: can }, { hadCanvas: true });
+    expect(existing.paint.mayStroke()).toBe(true);
+    // The plan says yes once, then no: the first layer was allowed, and a second stroke must not ask again.
+    const fresh = await startedWith({ canMakeCanvas: vi.fn().mockReturnValueOnce(true).mockReturnValue(false) });
+    fresh.paint.addLayer();
+    expect(fresh.paint.mayStroke()).toBe(true);
+    expect(can).not.toHaveBeenCalled();
+  });
+
+  // Fails if the eraser on the picture (which paints the mask, not a layer) is blocked by the canvas limit.
+  it("lets the eraser work on the picture's mask when no canvas may be made", async () => {
+    const { paint } = await startedWith({ canMakeCanvas: () => false });
+    paint.setTool("eraser");
+    expect(paint.mayStroke()).toBe(true);
+  });
+
+  // Fails if no plan check at all (the default) blocks painting.
+  it("allows everything when no limit is given", async () => {
+    const { paint } = await startedWith({});
+    expect(paint.mayStroke()).toBe(true);
   });
 });

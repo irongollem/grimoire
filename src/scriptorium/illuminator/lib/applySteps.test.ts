@@ -95,4 +95,74 @@ describe("applySteps", () => {
     expect(calls).toEqual([]);
     expect(load).not.toHaveBeenCalled();
   });
+
+  describe("the paint step", () => {
+    const layer = (id: string, over: Record<string, unknown> = {}) => ({
+      id, name: id, blend: "source-over", opacity: 1, visible: true, lockAlpha: false, chunks: {}, ...over,
+    });
+    const paint = (layers: unknown[], width = 2048, height = 1024) => ({ type: "paint", width, height, paper: null, layers }) as unknown as IlluminateSettings["steps"][number];
+
+    function recordingCtx() {
+      const ops: string[] = [];
+      let op = "source-over";
+      let alpha = 1;
+      const ctx = {
+        get globalCompositeOperation() { return op; },
+        set globalCompositeOperation(v: string) { op = v; },
+        get globalAlpha() { return alpha; },
+        set globalAlpha(v: number) { alpha = v; },
+        drawImage: (img: { id: string }, ...r: number[]) => ops.push(`${img.id}@${op}:${alpha}:${r.join(",")}`),
+      };
+      return { ctx: ctx as unknown as CanvasRenderingContext2D, ops, state: () => ({ op, alpha }) };
+    }
+
+    // Fails on: layers drawn top first, a hidden layer painting, or a chunk landing at the wrong place or scale
+    // (the 2048x1024 document is drawn at 1024x512, half size).
+    it("draws visible layers bottom first, each chunk at its place scaled to the target", async () => {
+      const { ctx, ops } = recordingCtx();
+      await applySteps(ctx, 1024, 512, { v: 1, seed: 1, steps: [paint([
+        layer("under", { chunks: { "0,0": "a", "1,0": "b" } }),
+        layer("hidden", { visible: false, chunks: { "0,0": "h" } }),
+        layer("over", { chunks: { "0,0": "c" } }),
+      ])] }, load);
+      expect(ops).toEqual([
+        "a@source-over:1:0,0,512,512",
+        "b@source-over:1:512,0,512,512",
+        "c@source-over:1:0,0,512,512",
+      ]);
+      expect(load).not.toHaveBeenCalledWith("h");
+    });
+
+    // Fails on: the blend or opacity being ignored, or leaking onto the steps and layers drawn after.
+    it("applies a layer's blend and opacity and puts both back", async () => {
+      const { ctx, ops, state } = recordingCtx();
+      await applySteps(ctx, 100, 50, { v: 1, seed: 1, steps: [paint([
+        layer("m", { blend: "multiply", opacity: 0.4, chunks: { "0,0": "a" } }),
+        layer("n", { chunks: { "0,0": "b" } }),
+        layer("o", { blend: "screen", opacity: 0.3, chunks: { "0,0": "c" } }),
+      ])] }, load);
+      expect(ops[0]).toMatch(/^a@multiply:0\.4:/);
+      expect(ops[1]).toMatch(/^b@source-over:1:/);
+      expect(state()).toEqual({ op: "source-over", alpha: 1 });
+    });
+
+    // Fails on: paint drawn under the mask (the mask would erase the DM's paint) or before the wash.
+    it("draws after the mask", async () => {
+      const { ctx } = recordingCtx();
+      const order: string[] = [];
+      const inner = ctx as unknown as { drawImage: (...a: unknown[]) => void };
+      const original = inner.drawImage;
+      inner.drawImage = (img: unknown, ...rest: unknown[]) => { order.push((img as { id: string }).id); original(img, ...rest); };
+      await applySteps(ctx, 100, 50, { v: 1, seed: 1, steps: [paint([layer("l", { chunks: { "0,0": "p.png" } })]), mask] }, load);
+      expect(order).toEqual(["mask.png", "p.png"]);
+    });
+
+    // Fails on: a blank sheet (no layers) or a layer with no chunks drawing or loading anything.
+    it("draws nothing for a blank sheet", async () => {
+      const { ctx, ops } = recordingCtx();
+      await applySteps(ctx, 100, 50, { v: 1, seed: 1, steps: [paint([]), paint([layer("e")])] }, load);
+      expect(ops).toEqual([]);
+      expect(load).not.toHaveBeenCalled();
+    });
+  });
 });
