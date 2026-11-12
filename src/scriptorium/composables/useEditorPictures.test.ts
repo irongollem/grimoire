@@ -214,3 +214,14 @@ describe("treating a picture", () => {
     expect(pictures.valuesOf({ source: "node", pos: 0 })).toBeNull();
   });
 });
+
+describe("adding art", () => {
+  // Fails on: a page painting's placement being dropped, so it lands as a small picture in front of the text.
+  it("places new art where it is told, and in front at the side by default", () => {
+    const { pictures, state } = setup([]);
+    pictures.addArt("a.webp");
+    expect(state.furniture[0]).toMatchObject({ z: "over", x: 55, width: 35 });
+    pictures.addArt("b.webp", { fill: "page" }, { z: "under", x: 0, y: 0, width: 100 });
+    expect(state.furniture[1]).toMatchObject({ z: "under", x: 0, y: 0, width: 100, props: { src: "b.webp", fill: "page" } });
+  });
+});

@@ -66,8 +66,12 @@ export interface CompositorOptions {
 export interface Compositor {
   /** The picture changed (another edit was applied under the painting): redrawn at document size, the mask cut out of it again. */
   setPicture(source: CanvasImageSource): void;
-  /** The paper sheet to tile under the painting; null leaves a checker where nothing is painted. */
-  setPaper(surface: CanvasImageSource | null): void;
+  /**
+   * The paper sheet to tile under the painting, drawn `scale` times larger than its tile (the paper's
+   * `surfaceScale`, as the page and a blank sheet lay it); null leaves a checker where nothing is painted.
+   * A display backdrop only: the bake never draws it, so a transparent painting stays transparent.
+   */
+  setPaper(surface: CanvasImageSource | null, scale?: number): void;
   /** Brings the set of layers up to date: new ones are uploaded whole, removed ones dropped. Call after any layer-list change. */
   syncLayers(layers: readonly Layer[]): void;
   /** Tiles of a layer changed (no keys: the whole layer). Uploaded on the next render. */
@@ -105,6 +109,7 @@ export function createCompositor(opts: CompositorOptions): Compositor {
   let order: Layer[] = [];
   const pending = new Map<string, Set<number> | "all">();
   let paper: CanvasImageSource | null = null;
+  let paperScale = 1;
   let checker: CanvasPattern | null = null;
   const scratch = new Map<string, PixelBuffer>();
 
@@ -239,6 +244,7 @@ export function createCompositor(opts: CompositorOptions): Compositor {
     if (paper) {
       const pattern = ctx.createPattern(paper, "repeat");
       if (pattern) {
+        if (paperScale !== 1) pattern.setTransform({ a: paperScale, d: paperScale });
         ctx.fillStyle = pattern;
         ctx.fillRect(0, 0, width, height);
       }
@@ -303,8 +309,9 @@ export function createCompositor(opts: CompositorOptions): Compositor {
       pictureBase.ctx.drawImage(source, 0, 0, width, height);
       for (const [id, layer] of live) if (layer.kind === "picture") pending.set(id, "all");
     },
-    setPaper(surface) {
+    setPaper(surface, scale = 1) {
       paper = surface;
+      paperScale = scale;
     },
     syncLayers,
     markDirty,

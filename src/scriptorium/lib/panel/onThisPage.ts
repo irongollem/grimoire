@@ -54,7 +54,7 @@ export function onThisPage(input: {
         kind: "picture",
         source: "furniture",
         id: item.id,
-        label: item.z === "under" ? "Picture behind the text" : "Picture in front",
+        label: item.props.painting === 1 ? "Painting" : item.z === "under" ? "Picture behind the text" : "Picture in front",
         src: typeof src === "string" && src !== "" ? src : null,
       });
     } else {

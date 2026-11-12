@@ -76,6 +76,7 @@
           :can-edit-picture="canEditPicture"
           :campaign-id="campaignId"
           :page-aspect="sheetGeometry.width / sheetGeometry.height"
+          :paper-tone="paperTone"
           :closable="!wide"
           @close="closePanel"
           @open-settings="emit('openSettings')"

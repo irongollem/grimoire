@@ -180,6 +180,18 @@ describe("applySteps", () => {
       expect(order).toEqual(["mask.png", "p.png"]);
     });
 
+    // Fails on: the paper being baked into a painting on the page, which would print an opaque sheet over the text
+    // and the page's own paper instead of leaving it transparent where nothing was painted.
+    it("draws no paper: a page painting's bake is transparent where no stroke landed", async () => {
+      const { ctx, ops } = recordingCtx();
+      const filled: unknown[] = [];
+      (ctx as unknown as { fillRect: (...a: number[]) => void }).fillRect = (...a) => filled.push(a);
+      await applySteps(ctx, 100, 50, { v: 1, seed: 1, steps: [{ type: "paint", width: 100, height: 50, paper: "kraft", layers: [] }] }, load);
+      expect(ops).toEqual([]);
+      expect(filled).toEqual([]);
+      expect(load).not.toHaveBeenCalled();
+    });
+
     // Fails on: a blank sheet (no layers) or a layer with no chunks drawing or loading anything.
     it("draws nothing for a blank sheet", async () => {
       const { ctx, ops } = recordingCtx();

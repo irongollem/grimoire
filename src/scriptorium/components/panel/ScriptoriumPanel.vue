@@ -5,6 +5,7 @@
     </div>
 
     <NewSheetDialog :open="sheetOpen" :page-aspect="pageAspect ?? A4_ASPECT" @close="sheetOpen = false" @created="onSheetCreated" />
+    <PaywallModal v-model="paintingPaywall" resource="paint_canvases" :message="PAINT_CANVAS_LIMIT_MESSAGE" />
     <ArtPickerModal :show="picker !== null" @select="onArtPicked" @close="picker = null" />
 
     <!-- Only mounted while it is open: it reads the campaign's characters, which a closed panel has no use for. -->
@@ -94,10 +95,12 @@
       :description="description"
       :paper-label="context.paperLabel"
       :entries="entries"
+      :painting="paintingBusy"
       @open-settings="emit('openSettings')"
       @select="onEntry"
       @add-picture="picker = { mode: 'add' }"
       @add-sheet="sheetOpen = true"
+      @add-painting="startPainting"
       @add-furniture="(kind) => emit('addFurniture', kind)"
     />
   </div>
@@ -123,6 +126,10 @@ import DividerPanelSection from "@/scriptorium/components/panel/DividerPanelSect
 import EmbedPanelSection from "@/scriptorium/components/panel/EmbedPanelSection.vue";
 import FooterPanelSection from "@/scriptorium/components/panel/FooterPanelSection.vue";
 import ChroniclerGenerateDialog from "@/components/notes/ChroniclerGenerateDialog.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
+import { PAINT_CANVAS_LIMIT_MESSAGE } from "@/scriptorium/illuminator/lib/paintQuota";
+import { usePagePainting } from "@/scriptorium/composables/usePagePainting";
+import type { PaperId } from "@/scriptorium/papers/papers";
 import NewSheetDialog from "@/scriptorium/components/panel/NewSheetDialog.vue";
 import PagePanelSection from "@/scriptorium/components/panel/PagePanelSection.vue";
 import PicturePanelSection, { type PictureLayer } from "@/scriptorium/components/panel/PicturePanelSection.vue";
@@ -165,6 +172,8 @@ const props = defineProps<{
   campaignId?: string | null;
   /** The page's width over its height: the Full page shape is cut to it. */
   pageAspect?: number;
+  /** The book's own paper (null: the look's own page): a painting on the page is made on it. */
+  paperTone?: PaperId | null;
 }>();
 
 const emit = defineEmits<{
@@ -196,6 +205,15 @@ function onSheetCreated(sheet: { url: string; recipe: IlluminateSettings }) {
   // The workbench opens on the item itself: the shell's selection and furniture list have not caught up yet.
   if (item) emit("editPicture", "brush", item);
 }
+
+/** Paint on this page: a transparent page-sized picture behind the text, opened in the Illuminator on the Brush. */
+const { start: startPainting, busy: paintingBusy, showPaywall: paintingPaywall } = usePagePainting({
+  pictures: () => props.pictures,
+  pageAspect: () => props.pageAspect ?? A4_ASPECT,
+  paperTone: () => props.paperTone ?? null,
+  theme: () => theme?.value ?? null,
+  open: (item) => emit("editPicture", "brush", item),
+});
 
 // ── Describe it ─────────────────────────────────────────────────────────────
 const campaign = useCampaignStore();

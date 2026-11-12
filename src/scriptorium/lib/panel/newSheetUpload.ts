@@ -23,8 +23,21 @@ export async function uploadBlankSheet(paper: Paper, size: SheetSize, userId: st
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas is unavailable.");
   tileSurface(ctx, tile, tile.naturalWidth, tile.naturalHeight, size.width, size.height, paper.surfaceScale);
+  return storeSheet(canvas, userId);
+}
+
+/** Encode a sheet's canvas and store it under the author's own id. */
+async function storeSheet(canvas: HTMLCanvasElement, userId: string): Promise<string> {
   const blob = await encodeWebp(canvas, 0.92);
   const url = await uploadToBucket({ bucket: "assetImages", blob, path: sheetPath(userId), contentType: "image/webp" });
   if (!url) throw new Error("Could not store the blank sheet.");
   return url;
+}
+
+/** A fully transparent sheet at this size (a painting on the page itself): nothing is drawn, the WebP keeps its alpha. */
+export async function uploadTransparentSheet(size: SheetSize, userId: string): Promise<string> {
+  const canvas = document.createElement("canvas");
+  canvas.width = size.width;
+  canvas.height = size.height;
+  return storeSheet(canvas, userId);
 }
