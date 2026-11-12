@@ -31,7 +31,7 @@ class FakeCtx implements Ctx {
     return { width: w, height: h, data: new Uint8ClampedArray(w * h * 4) };
   }
   createPattern() {
-    return {} as CanvasPattern;
+    return { setTransform: (m: DOMMatrix2DInit) => this.calls.push({ op: "patternScale", args: [m.a, m.d] }) } as unknown as CanvasPattern;
   }
   getImageData() {
     return { width: 1, height: 1, data: new Uint8ClampedArray(this.pixel) };
@@ -185,6 +185,21 @@ describe("compositor render", () => {
     const fills = papered.ctx.calls.filter((c) => c.op === "fillRect");
     expect(fills).toHaveLength(1);
     expect(fills[0].args).toEqual([0, 0, 512, 300]);
+  });
+
+  // Fails on: the paper under a transparent page painting being drawn at its tile size, so its grain shows at
+  // half the size it has on the page and in the blank sheet's own paper.
+  it("lays the paper at the scale it is given, and at its own size by default", () => {
+    const { comp } = harness();
+    comp.syncLayers([paintLayer("a")]);
+    comp.setPaper({} as CanvasImageSource);
+    const plain = target();
+    comp.render(plain.canvas, { scale: 1, offsetX: 0, offsetY: 0 }, 1);
+    expect(plain.ctx.calls.some((c) => c.op === "patternScale")).toBe(false);
+    comp.setPaper({} as CanvasImageSource, 1.9);
+    const scaled = target();
+    comp.render(scaled.canvas, { scale: 1, offsetX: 0, offsetY: 0 }, 1);
+    expect(scaled.ctx.calls.find((c) => c.op === "patternScale")?.args).toEqual([1.9, 1.9]);
   });
 
   it("cuts the picture's mask out of it and redraws a tile when its mask changes", () => {

@@ -65,7 +65,7 @@ export interface PictureActions {
   /** The chapter page a picture is on, whichever home it is in, or null when nothing is laid out. */
   pageOfPicture: (target: PictureTarget) => number | null;
   /** New art in front of the text, on the caret's page. */
-  addArt: (src: string, extra?: Record<string, unknown>) => PageFurnitureItem | null;
+  addArt: (src: string, extra?: Record<string, unknown>, placement?: Pick<PageFurnitureItem, "z" | "x" | "y" | "width">) => PageFurnitureItem | null;
   /** The picture's key, which survives edits; null for an image that has no block id yet. */
   keyOf: (target: PictureTarget) => PictureKey | null;
   /** The picture a key names now, or null when it is gone. */
@@ -362,7 +362,7 @@ export function useEditorPictures(opts: Options): PictureActions {
     if (next) opts.setFurniture(opts.furniture().map((f) => (f.id === item.id ? (next as PageFurnitureItem) : f)));
   }
 
-  function addArt(src: string, extra: Record<string, unknown> = {}): PageFurnitureItem | null {
+  function addArt(src: string, extra: Record<string, unknown> = {}, placement: Pick<PageFurnitureItem, "z" | "x" | "y" | "width"> = { z: "over", x: 55, y: 0, width: 35 }): PageFurnitureItem | null {
     const ed = live();
     if (!ed) return null;
     const pos = ed.state.selection.from;
@@ -372,7 +372,7 @@ export function useEditorPictures(opts: Options): PictureActions {
       typeof blockId === "string" && blockId
         ? { type: "block", blockId }
         : { type: "page", chapterId: opts.chapterId(), page: page?.page ?? 1 };
-    const item = createFurnitureItem("art", anchor, { z: "over", x: 55, y: 0, width: 35, props: { src, ...extra } });
+    const item = createFurnitureItem("art", anchor, { ...placement, props: { src, ...extra } as Record<string, string | number> });
     opts.setFurniture([...opts.furniture(), item]);
     opts.select(item.id);
     return item;

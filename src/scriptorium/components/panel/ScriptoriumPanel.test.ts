@@ -17,6 +17,18 @@ vi.mock("@/scriptorium/lib/panel/embedSignals", async (importOriginal) => ({
   signalEmbed: mocks.signal,
 }));
 
+// The quota, the upload and the opening are usePagePainting's own tests; here the button reaches it.
+const painting = vi.hoisted(() => ({ start: vi.fn(), options: null as null | { open: (item: unknown) => void } }));
+vi.mock("@/scriptorium/composables/usePagePainting", async () => {
+  const { ref } = await import("vue");
+  return {
+    usePagePainting: (options: { open: (item: unknown) => void }) => {
+      painting.options = options;
+      return { start: painting.start, busy: ref(false), showPaywall: ref(false) };
+    },
+  };
+});
+
 const campaign = vi.hoisted(() => ({ activeCampaignId: "camp-1" as string | null, isAiEnabled: true }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => campaign }));
 
@@ -29,7 +41,7 @@ const DialogStub = {
   emits: ["close", "started"],
   template: '<div data-testid="describe-dialog" />',
 };
-const stubs = { ChroniclerGenerateDialog: DialogStub, NewSheetDialog: true, ArtPickerModal: true, ImageUpload: true, EmbedRevealControl: true, AiImageBadge: true };
+const stubs = { ChroniclerGenerateDialog: DialogStub, NewSheetDialog: true, PaywallModal: true, ArtPickerModal: true, ImageUpload: true, EmbedRevealControl: true, AiImageBadge: true };
 const context: PanelPageContext = {
   paperLabel: "Grimoire · A4 · Two columns",
   chapterNumber: 3,
@@ -118,6 +130,16 @@ describe("ScriptoriumPanel", () => {
     dialog.vm.$emit("created", { url: "https://cdn/s.webp", recipe });
     await flushPromises();
     expect(pictures.addArt).toHaveBeenCalledWith("https://cdn/s.webp", expect.objectContaining({ original: "https://cdn/s.webp", illuminate: recipe }));
+    expect(wrapper.emitted("editPicture")).toEqual([["brush", created]]);
+  });
+
+  // Fails on: Paint on this page doing nothing, or the new painting opening the Illuminator on the wrong tool.
+  it("Paint on this page starts a painting, and the Illuminator opens on it with the Brush", async () => {
+    const { wrapper } = open({ kind: "page", page: 1 }, [para("b1")]);
+    await press(wrapper, "Paint on this page");
+    expect(painting.start).toHaveBeenCalledTimes(1);
+    const created = { id: "new-art", kind: "art", props: { src: "p.webp" } };
+    painting.options?.open(created);
     expect(wrapper.emitted("editPicture")).toEqual([["brush", created]]);
   });
 

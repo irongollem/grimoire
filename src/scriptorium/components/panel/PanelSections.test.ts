@@ -30,6 +30,15 @@ function item(over: Partial<PageFurnitureItem> = {}): PageFurnitureItem {
 beforeEach(() => confirmMock.mockReset());
 
 describe("PicturePanelSection", () => {
+  // Fails on: a painting made with Paint on this page being headed "Picture", so the DM cannot tell it from art.
+  it("heads a page painting Painting and any other picture Picture", () => {
+    const base = { src: "a.webp", layer: "under" as const, where: "Placed on page 2", canEdit: true, anchor };
+    const painting = mount(PicturePanelSection, { props: { ...base, item: item({ props: { src: "a.webp", painting: 1 } }) }, global: { stubs } });
+    expect(painting.find("h2").text()).toBe("Painting");
+    const art = mount(PicturePanelSection, { props: { ...base, item: item({ props: { src: "a.webp" } }) }, global: { stubs } });
+    expect(art.find("h2").text()).toBe("Picture");
+  });
+
   const nodeProps = { src: "a.webp", layer: "text" as const, where: "In the text", canEdit: true, anchor: null, item: null };
 
   // Fails on: the in-text options being lost in the move from the toolbar: size, align, wrap.

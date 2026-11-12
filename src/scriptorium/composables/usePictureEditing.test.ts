@@ -147,6 +147,18 @@ describe("the workbench for the selected picture", () => {
     expect(api.workbench.value).toBeNull();
   });
 
+  // Fails on: Cancel straight after Paint on this page leaving an empty page-sized painting holding the free canvas.
+  it("cancel removes a page painting that was just made and holds no paint, and its stored sheet", () => {
+    const own = "https://x.supabase.co/storage/v1/object/public/asset-images/u/sheet-2.webp";
+    const empty = { v: 1, seed: 1, steps: [{ type: "paint", width: 10, height: 14, paper: "laid", layers: [] }] };
+    const props = { src: own, original: own, illuminate: empty, fill: "page", painting: 1 };
+    const { api, remove } = setup(props);
+    api.openWorkbench("brush", { id: "page-art", kind: "art", props } as never);
+    api.onWorkbenchCancel();
+    expect(remove).toHaveBeenCalledWith({ source: "furniture", id: "page-art" });
+    expect(removeFiles).toHaveBeenCalledWith("asset-images", own);
+  });
+
   // Fails on: Cancel deleting a picture the author opened to edit, or a sheet that already carries painting.
   it("cancel keeps a picture that was opened to edit, and a sheet that holds paint", () => {
     const own = "https://x.supabase.co/storage/v1/object/public/asset-images/u/a.webp";

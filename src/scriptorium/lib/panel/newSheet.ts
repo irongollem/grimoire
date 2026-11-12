@@ -62,7 +62,7 @@ export function tileSurface(ctx: TileContext, tile: CanvasImageSource, tileWidth
   return drawn;
 }
 
-/** The recipe of a blank sheet: one paint step on the paper, no layers yet. */
-export function blankSheetRecipe(paperId: string, size: SheetSize, seed: number): IlluminateSettings {
+/** The recipe of a blank sheet or a page painting: one paint step on the paper (or none), no layers yet. */
+export function blankSheetRecipe(paperId: string | null, size: SheetSize, seed: number): IlluminateSettings {
   return { v: 1, seed, steps: [{ type: "paint", width: size.width, height: size.height, paper: paperId, layers: [] }] };
 }
