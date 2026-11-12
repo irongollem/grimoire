@@ -58,7 +58,17 @@ interface LayersEntry {
   /** A merge also changed the pixels of the layer below. */
   merge?: { targetId: string; record: UndoRecord };
 }
-type Entry = Extract<HistoryEntry, { kind: "stroke" }> | LayersEntry;
+/** Every paint layer swapped for another set at once (going back to a saved version). Whole layer arrays, because ids may repeat. */
+interface ReplaceEntry {
+  kind: "replace";
+  before: Layer[];
+  after: Layer[];
+  beforeActive: string;
+  afterActive: string;
+  /** Tiles to treat as changed per layer id either way: the save diffs by tile. */
+  touched: Map<string, Set<number>>;
+}
+type Entry = Extract<HistoryEntry, { kind: "stroke" }> | LayersEntry | ReplaceEntry;
 
 interface Active {
   layerId: string;
@@ -162,7 +172,11 @@ export function createPaintSession(init: PaintSessionInit): PaintSessionApi {
   }
   const pixelsOf = (l: Layer): TiledLayer => (l.kind === "picture" ? l.mask : l.pixels);
 
+  /** Something changed since the painting was loaded or last saved (strokes, layer edits, undo, going back). */
+  let edited = false;
+
   function record(entry: Entry): void {
+    edited = true;
     undoStack.push(entry);
     redoStack = [];
     while (undoStack.length > HISTORY_LIMIT) undoStack.shift();
@@ -382,6 +396,35 @@ export function createPaintSession(init: PaintSessionInit): PaintSessionApi {
     },
     markClean(): void {
       dirty.clear();
+      edited = false;
+    },
+    get edited(): boolean {
+      return edited;
+    },
+
+    // One history step: Ctrl+Z puts every layer back as it was. The picture layer (and its mask) stays.
+    replaceLayers(next: PaintLayer[]): string[] {
+      const before = [...state.doc.layers];
+      const beforeActive = state.activeLayerId;
+      const incoming = next.length === 0 && !init.picture ? [newPaintLayer()] : next;
+      for (const l of incoming) {
+        const n = /^layer-(\d+)$/.exec(l.id);
+        if (n) layerSeq = Math.max(layerSeq, Number(n[1]));
+      }
+      const after: Layer[] = [...before.filter((l) => l.kind === "picture"), ...incoming];
+      const touched = new Map<string, Set<number>>();
+      for (const l of [...before, ...incoming]) {
+        if (l.kind !== "paint") continue;
+        const set = touched.get(l.id) ?? new Set<number>();
+        for (const key of l.pixels.keys()) set.add(key);
+        touched.set(l.id, set);
+      }
+      const afterActive = after.some((l) => l.id === beforeActive) ? beforeActive : (incoming[incoming.length - 1]?.id ?? after[0]?.id ?? "");
+      state.doc.layers.splice(0, state.doc.layers.length, ...after);
+      state.activeLayerId = afterActive;
+      for (const [id, keys] of touched) touch(id, keys);
+      record({ kind: "replace", before, after, beforeActive, afterActive, touched });
+      return [...new Set([...before, ...after].map((l) => l.id))];
     },
 
     get canUndo(): boolean {
@@ -393,6 +436,20 @@ export function createPaintSession(init: PaintSessionInit): PaintSessionApi {
   };
 
   function step(entry: Entry, way: "undo" | "redo"): string[] {
+    edited = true;
+    if (entry.kind === "replace") {
+      const to = way === "undo" ? entry.before : entry.after;
+      state.doc.layers.splice(0, state.doc.layers.length, ...to);
+      state.activeLayerId = way === "undo" ? entry.beforeActive : entry.afterActive;
+      // Every layer in play must exist again in the saved diff (a later save re-reads each id's tiles).
+      for (const [id, keys] of entry.touched) {
+        const keep = layerOf(id);
+        const all = new Set(keys);
+        if (keep && keep.kind === "paint") for (const k of keep.pixels.keys()) all.add(k);
+        touch(id, all);
+      }
+      return [...new Set([...entry.before, ...entry.after].map((l) => l.id))];
+    }
     if (entry.kind === "stroke") {
       const layer = layerOf(entry.layerId);
       if (layer) swapRecord(pixelsOf(layer), entry.record);

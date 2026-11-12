@@ -15,6 +15,7 @@ import { loadPaintAssets, loadPaperSurface, type PaintAssetStore } from "./asset
 import type { Paper } from "@/scriptorium/papers/papers";
 import { effectiveValues, cursorOf } from "./components/paintOptions";
 import { sampleThumbnail } from "./components/layerThumbnail";
+import type { NewTip } from "./brushes/newTip";
 import type { BrushBlend, BrushPreset, PressureCurve, Rgb } from "./engine/types";
 import { loadMaskFromImage, maskHasPaint, maskToCanvas } from "./maskPixels";
 import { loadPressureCurve, savePressureCurve } from "./pressureStore";
@@ -224,6 +225,11 @@ export function usePaintSession(opts: PaintSessionOptions) {
     track();
     return session.value?.state.doc.layers.some((l) => l.kind === "paint") === true;
   });
+  /** Anything changed since the painting was loaded or last saved. */
+  const edited = computed(() => {
+    track();
+    return session.value?.edited === true;
+  });
   const reported = computed(() => pen.value?.reported ?? null);
 
   function thumbnail(id: string) {
@@ -350,6 +356,12 @@ export function usePaintSession(opts: PaintSessionOptions) {
     bump();
     opts.redraw();
   }
+  /** Swaps every paint layer for these as one undoable step (going back to a saved version). */
+  function replaceLayers(next: PaintLayer[]): void {
+    const s = session.value;
+    if (!s) return;
+    sync(s.replaceLayers(next));
+  }
   const setBlend = (id: string, blend: LayerBlend): void => setLayerProps(id, { blend });
 
   // ---- tool, brush, colour ----
@@ -453,6 +465,20 @@ export function usePaintSession(opts: PaintSessionOptions) {
     }
     return made;
   }
+  /** Each tip as a brush of Yours with the armed brush's settings; the last one made is armed. Null when none was kept. */
+  async function saveTips(items: readonly NewTip[]): Promise<BrushPreset[] | null> {
+    const s = session.value;
+    if (!s) return null;
+    const t = brushTool.value;
+    const made = await yours.saveTips(s.state.brushes[t], items);
+    const last = made?.at(-1);
+    if (last && session.value === s) {
+      s.state.brushes[t] = last;
+      s.state.overrides[t] = {};
+      bump();
+    }
+    return made;
+  }
   async function renameBrush(id: string, name: string): Promise<void> {
     if (!(await yours.rename(id, name))) return;
     const s = session.value;
@@ -487,12 +513,14 @@ export function usePaintSession(opts: PaintSessionOptions) {
     curve,
     library,
     userSetNames: yours.setNames,
+    aiMade: yours.aiMade,
     brushSaveStatus: yours.status,
     brushSaveError: yours.saveError,
     importing: yours.importing,
     importReport: yours.importReport,
     importFile: yours.importFile,
     dismissImport: yours.dismissImport,
+    saveTips,
     renameBrush,
     removeBrush,
     pen,
@@ -519,6 +547,7 @@ export function usePaintSession(opts: PaintSessionOptions) {
     canMergeActive,
     hasMask,
     hasPaintLayers,
+    edited,
     mayStroke,
     reported,
     thumbnail,
@@ -537,6 +566,7 @@ export function usePaintSession(opts: PaintSessionOptions) {
     deleteLayer,
     mergeDown,
     moveLayer,
+    replaceLayers,
     setLayerProps,
     commitOpacity,
     setBlend,

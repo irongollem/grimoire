@@ -81,6 +81,11 @@ export interface Compositor {
   render(target: RenderTarget, viewport: Viewport, dpr: number): void;
   /** The composited colour at a document point, or null outside the document or where nothing shows. */
   readPixel(docX: number, docY: number): Rgb | null;
+  /**
+   * The composited RGBA of a document rectangle, as the stage shows it (paper, picture and every visible layer):
+   * the rectangle is widened to whole pixels and clipped to the document. Null when nothing of it is inside.
+   */
+  readRegion(docX: number, docY: number, w: number, h: number): PixelBuffer | null;
   dispose(): void;
 }
 
@@ -302,6 +307,23 @@ export function createCompositor(opts: CompositorOptions): Compositor {
     return { r: d[0], g: d[1], b: d[2] };
   }
 
+  function readRegion(x: number, y: number, w: number, h: number): PixelBuffer | null {
+    const x0 = Math.max(0, Math.floor(x));
+    const y0 = Math.max(0, Math.floor(y));
+    const x1 = Math.min(width, Math.ceil(x + w));
+    const y1 = Math.min(height, Math.ceil(y + h));
+    const rw = x1 - x0;
+    const rh = y1 - y0;
+    if (rw <= 0 || rh <= 0) return null;
+    flush();
+    const area = createCanvas(rw, rh, true);
+    const ctx = area.ctx;
+    ctx.setTransform(1, 0, 0, 1, -x0, -y0);
+    drawStack(ctx);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    return ctx.getImageData(0, 0, rw, rh);
+  }
+
   return {
     setPicture(source) {
       pictureBase ??= createCanvas(width, height);
@@ -318,6 +340,7 @@ export function createCompositor(opts: CompositorOptions): Compositor {
     flush,
     render,
     readPixel,
+    readRegion,
     dispose() {
       surfaces.clear();
       live.clear();

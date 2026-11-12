@@ -95,6 +95,19 @@ describe("the session's wiring of Yours", () => {
     expect(paint.brush.value?.id).toBe("row-2");
   });
 
+  it("arms the last of the tips it saves, and lists described brushes as AI-made", async () => {
+    // Fails on: the painter's new brush being made but not armed, or the AI-made set not reaching the library panel.
+    const { paint, user } = await started();
+    const tip = { width: 2, height: 2, alpha: new Uint8Array([0, 255, 255, 0]) };
+    let n = 0;
+    user.create.mockImplementation(async (item: { preset: BrushPreset }) => ({ ...item.preset, id: `new-${++n}`, group: "yours" as const }));
+    user.brushes.value = [...user.brushes.value, { preset: { ...mine, id: "ai-1" }, source: "described", setName: null }];
+    const made = await paint.saveTips([{ tip, name: "A", source: "described" }, { tip, name: "B", source: "described" }]);
+    expect(made?.map((b) => b.id)).toEqual(["new-1", "new-2"]);
+    expect(paint.brush.value?.id).toBe("new-2");
+    expect([...paint.aiMade.value]).toEqual(["ai-1"]);
+  });
+
   it("renames the armed brush on screen and falls back to stock when it is deleted", async () => {
     // Fails on: painting on with a brush whose row is gone, or the options bar showing the old name.
     const { paint } = await started();

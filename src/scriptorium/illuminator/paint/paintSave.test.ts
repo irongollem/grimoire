@@ -185,3 +185,26 @@ describe("the preview's view of a painting", () => {
     expect(viewPaintStep([], W, H, null)).toBeNull();
   });
 });
+
+describe("saving a painting that holds versions", () => {
+  // Fails if replacing a chunk a saved version still names marks it for the sweep: it would be offered for deletion and a version would lose its picture.
+  it("never releases a chunk a version names, and carries the versions into the step", async () => {
+    const store = fakeStore();
+    const a = layer("layer-1", [[10, 10]]);
+    const first = await savePaintStep({ ...base, layers: [a], dirty: new Map(), previous: null }, store.deps);
+    const kept = first!.layers[0]!.chunks["0,0"]!;
+    const version = { id: "v1", name: "Version 1", savedAt: "2026-11-12T10:00:00.000Z", layers: first!.layers };
+    a.pixels.ensureTile(tileOf(a, 10, 10)).set([1, 2, 3, 255], 0);
+    const next = await savePaintStep({ ...base, layers: [a], dirty: new Map([["layer-1", new Set([tileOf(a, 10, 10)])]]), previous: first, versions: [version] }, store.deps);
+    expect(next!.layers[0]!.chunks["0,0"]).not.toBe(kept);
+    expect(store.released).not.toContain(kept);
+    expect(next!.versions).toEqual([version]);
+  });
+
+  // Fails if a painting whose layers all went (but still has versions) saves as no painting and the versions vanish.
+  it("keeps the step when only versions remain", async () => {
+    const version = { id: "v1", name: "Version 1", savedAt: "2026-11-12T10:00:00.000Z", layers: [] };
+    const step = await savePaintStep({ ...base, layers: [], dirty: new Map(), previous: null, versions: [version] }, fakeStore().deps);
+    expect(step?.versions).toHaveLength(1);
+  });
+});

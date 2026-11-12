@@ -301,6 +301,15 @@ describe("a treated art picture", () => {
     expect(img.getAttribute("data-baked-for")).toBe("h1");
   });
 
+  // Fails on: page art printing its saved paint versions into the HTML (they can be large and nothing there reads them).
+  it("leaves a painting's saved versions out of the recipe it carries", () => {
+    const step = { type: "paint", width: 10, height: 10, paper: null, layers: [], versions: [{ id: "v1", name: "Version 1", savedAt: "x", layers: [] }] };
+    const img = art({ original: "https://cdn/orig.webp", illuminate: JSON.stringify({ v: 1, seed: 1, steps: [step] }) });
+    const carried = JSON.parse(img.getAttribute("data-illuminate") ?? "null") as { steps: Record<string, unknown>[] };
+    expect(carried.steps[0]).not.toHaveProperty("versions");
+    expect(carried.steps[0]).toHaveProperty("layers");
+  });
+
   it("carries no recipe attributes when the picture was never treated", () => {
     const img = art({});
     expect(img.hasAttribute("data-original")).toBe(false);

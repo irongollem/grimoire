@@ -691,4 +691,98 @@ describe("a painting with layers", () => {
   });
 });
 
+describe("saved versions of a painting", () => {
+  const uniqueUploads = () => {
+    let n = 0;
+    mocks.upload.mockImplementation(async () => `https://cdn/chunk-${++n}.webp`);
+  };
+  async function painting(isPro = false) {
+    const wb = useIlluminateWorkbench({ original: () => "https://cdn/orig.webp", settings: () => null, userId: () => "u1", canvases: () => ({ before: null, after: null }), isPro: () => isPro });
+    await wb.open();
+    wb.tool.value = "brush";
+    await vi.waitFor(() => expect(wb.paint.ready.value).toBe(true));
+    return wb;
+  }
+  function brush(wb: Awaited<ReturnType<typeof painting>>, x = 100, y = 100) {
+    const session = wb.paint.session.value;
+    if (!session) throw new Error("no paint session");
+    session.state.tool = "brush";
+    const began = session.beginStroke(sample(x, y));
+    session.addSamples([sample(x + 30, y)]);
+    session.endStroke();
+    wb.paint.onStrokeEnd(began?.layerId ?? "");
+  }
+  const paintOf = (settings: IlluminateSettings) => settings.steps.find((st): st is PaintStepOf => st.type === "paint");
+
+  // Fails on: Save version uploading the painting again at Done (the current step was not kept), or the version missing from the recipe Done writes.
+  it("keeps the saved painting as the current step, so Done uploads nothing more and writes the version", async () => {
+    uniqueUploads();
+    const wb = await painting();
+    brush(wb);
+    await wb.versions.save();
+    expect(mocks.upload).toHaveBeenCalledTimes(1);
+    mocks.upload.mockClear();
+    const step = paintOf(await wb.finish());
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(step?.versions).toHaveLength(1);
+    expect(step?.versions?.[0]?.layers[0]?.chunks).toEqual(step?.layers[0]?.chunks);
+    expect(JSON.stringify(await wb.finish()).match(/"type":\s*"paint"/g)).toHaveLength(1);
+  });
+
+  // Fails on: the cap read once for everyone: Free asking at the fourth, and Pro never asking before the eleventh.
+  it("asks before the fourth version on Free and not on Pro", async () => {
+    uniqueUploads();
+    const free = await painting(false);
+    brush(free);
+    for (let i = 0; i < 3; i++) await free.versions.save();
+    expect(mocks.confirm).not.toHaveBeenCalled();
+    await free.versions.save();
+    expect(mocks.confirm).toHaveBeenCalledWith("Keep this version? Your oldest, Version 1, makes room.", expect.anything());
+    expect(free.versions.versions.value.map((v) => v.name)).toEqual(["Version 2", "Version 3", "Version 4"]);
+    mocks.confirm.mockClear();
+    const pro = await painting(true);
+    brush(pro);
+    for (let i = 0; i < 4; i++) await pro.versions.save();
+    expect(mocks.confirm).not.toHaveBeenCalled();
+    expect(pro.versions.versions.value).toHaveLength(4);
+  });
+
+  // Fails on: going back being several undo steps, or the old layers not returning with their paint.
+  it("goes back to a version as one undo step", async () => {
+    uniqueUploads();
+    const wb = await painting();
+    brush(wb);
+    await wb.versions.save();
+    const first = wb.versions.versions.value[0];
+    brush(wb, 200, 200);
+    wb.paint.addLayer();
+    const before = wb.paint.layers.value.map((l) => l.id);
+    expect(before).toHaveLength(3);
+    mocks.decode.mockClear();
+    await wb.versions.goBack(first?.id ?? "");
+    expect(mocks.confirm).toHaveBeenCalledOnce();
+    expect(wb.paint.layers.value.map((l) => l.id)).toEqual(["picture", "layer-1"]);
+    expect(mocks.decode).toHaveBeenCalled();
+    wb.paint.undo();
+    expect(wb.paint.layers.value.map((l) => l.id)).toEqual(before);
+  });
+
+  // Fails on: a version dropped on Free (or deleted) marking a file the painting or another version still uses for the sweep.
+  it("marks a dropped version's files for the sweep only when nothing else uses them", async () => {
+    uniqueUploads();
+    const wb = await painting();
+    brush(wb);
+    await wb.versions.save();
+    brush(wb, 200, 200);
+    await wb.versions.save();
+    const oldest = wb.versions.versions.value[0];
+    const oldFiles = Object.values(oldest?.layers[0]?.chunks ?? {});
+    mocks.mark.mockClear();
+    await wb.versions.remove(oldest?.id ?? "");
+    for (const url of oldFiles) expect(mocks.mark).toHaveBeenCalledWith(url);
+    const current = Object.values(paintOf(wb.buildSettings(false))?.layers[0]?.chunks ?? {});
+    for (const url of current) expect(mocks.mark).not.toHaveBeenCalledWith(url);
+  });
+});
+
 type PaintStepOf = Extract<IlluminateSettings["steps"][number], { type: "paint" }>;

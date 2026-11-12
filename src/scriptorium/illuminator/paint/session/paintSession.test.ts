@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PaintAssets, PenSample } from "../engine/types";
-import type { TiledLayer } from "../engine/tiledLayer";
+import { TiledLayer } from "../engine/tiledLayer";
 import { createPaintSession } from "./paintSession";
 import type { PaintLayer, PictureLayer } from "./types";
 
@@ -321,5 +321,59 @@ describe("which tiles changed since the painting was saved", () => {
     s.markClean();
     s.mergeDown(upper);
     expect([...s.dirty.keys()]).toEqual([lower]);
+  });
+});
+
+describe("replacing every paint layer (going back to a saved version)", () => {
+  const fresh = (id: string, name: string): PaintLayer => {
+    const pixels = new TiledLayer(128, 128);
+    pixels.ensureTile(0)[3] = 255;
+    return { kind: "paint", id, name, blend: "source-over", opacity: 1, visible: true, lockAlpha: false, pixels };
+  };
+
+  // Fails if going back needs several undos (one per layer), or if one undo does not bring back the exact layers and pixels that were there.
+  it("is one undo step that restores the previous layers and their pixels", () => {
+    const s = make();
+    const first = stroke(s);
+    const dab = alpha((paintLayers(s)[0] as PaintLayer).pixels, 44, 40);
+    expect(dab).toBeGreaterThan(0);
+    s.replaceLayers([fresh("old-1", "One"), fresh("old-2", "Two")]);
+    expect(s.state.doc.layers.map((l) => l.id)).toEqual(["picture", "old-1", "old-2"]);
+    s.undo();
+    expect(s.state.doc.layers.map((l) => l.id)).toEqual(["picture", first]);
+    expect(alpha((paintLayers(s)[0] as PaintLayer).pixels, 44, 40)).toBe(dab);
+    s.redo();
+    expect(s.state.doc.layers.map((l) => l.id)).toEqual(["picture", "old-1", "old-2"]);
+  });
+
+  // Fails if going back marks nothing for upload (the save diffs by tile and would keep the replaced layers' chunks), or touches the picture layer.
+  it("marks the replaced and the new layers' tiles as changed and leaves the picture alone", () => {
+    const s = make();
+    const first = stroke(s) as string;
+    s.markClean();
+    expect(s.edited).toBe(false);
+    s.replaceLayers([fresh(first, "Same id, other pixels")]);
+    expect(s.edited).toBe(true);
+    expect(s.state.doc.layers[0]?.kind).toBe("picture");
+    expect([...(s.dirty.get(first) ?? [])].length).toBeGreaterThan(0);
+  });
+
+  // Fails if a blank sheet can be left with no layer to paint on.
+  it("keeps one layer on a blank sheet", () => {
+    const s = make(false);
+    s.replaceLayers([]);
+    expect(paintLayers(s)).toHaveLength(1);
+  });
+
+  // Fails if undo leaves the active layer pointing at a layer that no longer exists.
+  it("keeps the active layer valid through undo and redo", () => {
+    const s = make();
+    stroke(s);
+    s.replaceLayers([fresh("old-1", "V")]);
+    expect(s.state.activeLayerId).toBe("old-1");
+    s.undo();
+    expect(s.state.doc.layers.some((l) => l.id === s.state.activeLayerId)).toBe(true);
+    s.redo();
+    expect(s.state.doc.layers.some((l) => l.id === s.state.activeLayerId)).toBe(true);
   });
 });

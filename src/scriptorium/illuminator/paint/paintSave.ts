@@ -6,7 +6,7 @@
  */
 import { TiledLayer } from "./engine/tiledLayer";
 import { chunkRect, chunksForTiles, parseChunkKey } from "../lib/paintChunks";
-import type { PaintLayerRecord, PaintStep } from "../lib/treatment";
+import type { PaintLayerRecord, PaintStep, PaintVersion } from "../lib/treatment";
 import type { Pixels } from "./maskPixels";
 import { chunkPixels, fillChunk, paintedChunks, viewChunkUrl } from "./paintLayerIO";
 import type { PaintLayer } from "./session/types";
@@ -30,6 +30,8 @@ export interface SaveInput {
   height: number;
   /** The sheet's id, or null for none. */
   paper: string | null;
+  /** Saved versions ride along unchanged; their chunk files are never released. */
+  versions?: readonly PaintVersion[];
 }
 
 /** Runs the jobs with at most `limit` in flight. The first failure rejects once the running ones settle. */
@@ -91,10 +93,15 @@ export async function savePaintStep(input: SaveInput, deps: SaveDeps): Promise<P
   // Layers the author deleted leave their chunks behind.
   const kept = new Set(input.layers.map((l) => l.id));
   for (const [id, gone] of before) if (!kept.has(id)) released.push(...Object.values(gone.chunks));
-  for (const url of released) deps.release(url);
+  // A replaced chunk a saved version still names stays alive.
+  const held = new Set((input.versions ?? []).flatMap((v) => v.layers.flatMap((l) => Object.values(l.chunks))));
+  for (const url of released) if (!held.has(url)) deps.release(url);
 
-  if (records.length === 0 && input.paper === null) return null;
-  return { type: "paint", width: input.width, height: input.height, paper: input.paper, layers: records };
+  const versions = input.versions?.length ? [...input.versions] : undefined;
+  if (records.length === 0 && input.paper === null && !versions) return null;
+  const step: PaintStep = { type: "paint", width: input.width, height: input.height, paper: input.paper, layers: records };
+  if (versions) step.versions = versions;
+  return step;
 }
 
 /** The step as the preview and exports draw it: every painted chunk named by a URL the workbench's loader reads off the session. */
