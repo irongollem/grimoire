@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { join, resolve } from "node:path";
 import { canvasFor, homeView, planCamera, zoompanExpressions } from "./camera";
 import { backdropCard, baseCard, captionCard, introCard, maskCard, outroCard, renderCards, subtitleCard, taglineCard } from "./compose/cards";
+import { levelGains } from "./compose/level";
 import { audibleEnd, durationOf, ffmpeg, hasAudio, leadingSilence, loudnessOf, STEREO_48K } from "./compose/ffmpeg";
 import { DEVICES } from "./devices";
 import { formatCanvas, layoutFor, type Layout } from "./layouts";
@@ -155,10 +156,10 @@ const VOICE_POLISH =
   "highpass=f=80,adeclick=window=55:overlap=75:arorder=2:threshold=2,deesser=i=0.4,acompressor=threshold=-20dB:ratio=3:attack=5:release=80:makeup=2";
 
 /** Narration for one shot as a wav exactly as long as the shot. */
-function renderVoWav(p: PlannedShot, vo: string | null, out: string): void {
+function renderVoWav(p: PlannedShot, vo: string | null, gainDb: number, out: string): void {
   if (!vo) return ffmpeg([...silence(p.length), ...WAV, out]);
   const ms = Math.round(VO_LEAD * 1000);
-  ffmpeg(["-i", vo, "-af", `${VOICE_POLISH},${STEREO_48K},adelay=${ms}|${ms},apad=whole_dur=${p.length},atrim=0:${p.length}`, ...WAV, out]);
+  ffmpeg(["-i", vo, "-af", `volume=${gainDb.toFixed(2)}dB,${VOICE_POLISH},${STEREO_48K},adelay=${ms}|${ms},apad=whole_dur=${p.length},atrim=0:${p.length}`, ...WAV, out]);
 }
 
 /** Sound cues for one shot as a wav exactly as long as the shot. */
@@ -258,6 +259,16 @@ async function main() {
   }));
   const tl = planTimeline({ shots: inputs, introLength: intro?.length ?? null, outroLength: outro?.length ?? null });
 
+  // Every take to the episode's average loudness first (compose/level.ts), so no shot's voice jumps.
+  const voGains = levelGains(voFiles.map((f) => {
+    if (!f) return null;
+    try {
+      return loudnessOf(f);
+    } catch {
+      return null; // too short to measure: left as recorded
+    }
+  }));
+
   const videos: string[] = [];
   const voWavs: string[] = [];
   const fxWavs: string[] = [];
@@ -268,7 +279,7 @@ async function main() {
     const fx = join(work, `fx-${i}.wav`);
     console.log(`shot ${p.id}: start ${p.start.toFixed(2)}s, length ${p.length.toFixed(2)}s${p.voStart === null ? " (no VO)" : ""}, ${p.cues.length} cue(s)`);
     renderShotVideo(p, manifest.shots[i], format, join(dir, manifest.shots[i].file), work, v);
-    renderVoWav(p, voFiles[i], vo);
+    renderVoWav(p, voFiles[i], voGains[i], vo);
     renderFxWav(p, fx);
     videos.push(v); voWavs.push(vo); fxWavs.push(fx);
   });
