@@ -86,15 +86,25 @@ describe("DabGenerator dynamics", () => {
   const pressureSize = () =>
     testBrush({ shape: { size: { jitter: 0, control: "pressure", minimum: 0.1 }, angle: V, roundness: V } });
 
-  // Fails if a mouse stroke does not fall back to fade: a mouse has no pressure so size would stay constant.
-  it("a mouse stroke with pressure-controlled size thins with distance", () => {
-    const b = pressureSize();
+  // Fails if a mouse or trackpad stroke thins or fades by itself: with no pressure it paints at full pressure,
+  // and the maintainer read a stroke thinning on a trackpad as a bug (12 Nov 2026).
+  it("a mouse or trackpad stroke with pressure-controlled size stays full size all the way", () => {
+    for (const pointer of ["mouse", "touch"] as const) {
+      const b = pressureSize();
+      b.fadeLength = 100;
+      const dabs = gen(b).add(line(0, 300, 30, { pointer, pressure: 0.5 }));
+      const sizes = dabs.map((d) => d.size);
+      expect(Math.min(...sizes), pointer).toBeCloseTo(20, 0);
+      expect(Math.max(...sizes), pointer).toBeCloseTo(20, 0);
+    }
+  });
+
+  // Fails if "fade" stops working when a brush asks for it on purpose.
+  it("a brush set to fade still fades, whatever the pointer", () => {
+    const b = testBrush({ shape: { size: { jitter: 0, control: "fade", minimum: 0.1 }, angle: V, roundness: V } });
     b.fadeLength = 100;
     const dabs = gen(b).add(line(0, 100, 10, { pointer: "mouse", pressure: 0.5 }));
-    const first = dabs[0]?.size ?? 0;
-    const last = dabs[dabs.length - 1]?.size ?? 0;
-    expect(first).toBeCloseTo(20, 0);
-    expect(last).toBeLessThan(first * 0.4);
+    expect(dabs[dabs.length - 1]?.size ?? Infinity).toBeLessThan((dabs[0]?.size ?? 0) * 0.4);
   });
 
   // Fails if a pen ignores pressure, or applies the fade fallback to it.

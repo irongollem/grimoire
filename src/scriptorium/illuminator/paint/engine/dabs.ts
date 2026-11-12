@@ -94,7 +94,8 @@ export class DabGenerator {
   private smoothed: { x: number; y: number } | null = null;
   private last: Point | null = null;
   private prev: Point | null = null;
-  private mouse = false;
+  /** A mouse, trackpad or finger has no pressure: it paints at full pressure, as painting apps do. */
+  private noPressure = false;
   private travelled = 0;
   private toNext = 0;
   private started = false;
@@ -112,7 +113,7 @@ export class DabGenerator {
     // Smoothing 0 follows the pen exactly; 1 keeps 5% of each new move.
     const follow = 1 - 0.95 * clamp01(this.brush.smoothing);
     for (const s of samples) {
-      if (!this.last) this.mouse = s.pointer === "mouse";
+      if (!this.last) this.noPressure = s.pointer !== "pen";
       const pos = this.smoothed
         ? { x: lerp(this.smoothed.x, s.x, follow), y: lerp(this.smoothed.y, s.y, follow) }
         : { x: s.x, y: s.y };
@@ -192,7 +193,7 @@ export class DabGenerator {
     const lean = Math.min(1, Math.hypot(attrs.tiltX, attrs.tiltY) / 90);
     const fade = this.brush.fadeLength > 0 ? clamp01(1 - this.travelled / this.brush.fadeLength) : 1;
     return {
-      pressure: this.mouse ? fade : applyPressureCurve(this.curve, attrs.pressure),
+      pressure: this.noPressure ? 1 : applyPressureCurve(this.curve, attrs.pressure),
       tilt: lean,
       rotation: (((attrs.twist % 360) + 360) % 360) / 360,
       direction: (((heading % 360) + 360) % 360) / 360,
@@ -202,7 +203,6 @@ export class DabGenerator {
 
   private control(c: DynamicControl, d: Dynamics): number {
     if (c === "off") return 1;
-    // A mouse has no pressure, so a pressure control follows the fade instead.
     return d[c];
   }
 

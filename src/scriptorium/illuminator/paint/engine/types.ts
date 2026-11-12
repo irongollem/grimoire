@@ -8,7 +8,11 @@
  * brushes, a user's own and imported ones all share this one shape.
  */
 
-/** What drives a dynamic. A mouse has no pressure: "pressure" falls back to "fade" for it. */
+/**
+ * What drives a dynamic. Only a pen reports pressure: a mouse, trackpad or finger paints at full pressure (never
+ * fading by itself, the maintainer found that a stroke thinning on a trackpad reads as a bug). "fade" is only
+ * ever chosen on purpose.
+ */
 export type DynamicControl = "off" | "pressure" | "tilt" | "rotation" | "direction" | "fade";
 
 /**
