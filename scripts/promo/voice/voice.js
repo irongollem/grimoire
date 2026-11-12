@@ -4,6 +4,22 @@
   if (tab !== "voice") return;
   $("voice").hidden = false;
   const WORDS_PER_SECOND = 2.5;
+  // The Space that stops a take clicks, and that click lands in its last moments, after the voice has finished.
+  // This much is cut from the end when the take stops, so the review plays what will be saved (the Sounds tab does
+  // the same). Four of the first 51 takes ended in a short burst after silence that this would have removed.
+  const TAIL_DROP_SECONDS = 0.25;
+
+  /** The take's chunks without its last `seconds`. */
+  function dropTail(chunks, seconds) {
+    let keep = chunks.reduce((n, c) => n + c.length, 0) - Math.round(seconds * mic.rate);
+    const out = [];
+    for (const c of chunks) {
+      if (keep <= 0) break;
+      out.push(c.length <= keep ? c : c.subarray(0, keep));
+      keep -= c.length;
+    }
+    return out;
+  }
 
   // The episode being worked on is the page address's ?episode=; every request names it.
   const EP = new URLSearchParams(location.search).get("episode");
@@ -132,7 +148,7 @@
 
   function stopTake() {
     if (rec.phase !== "recording") return;
-    rec.chunks = mic.end();
+    rec.chunks = dropTail(mic.end(), TAIL_DROP_SECONDS);
     stopMedia();
     rec.seconds = mic.seconds(rec.chunks);
     rec.phase = "review";
