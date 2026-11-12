@@ -62,6 +62,7 @@
         >
           <option value="all">All sources</option>
           <option value="custom">Custom</option>
+          <option value="campaign" :disabled="!campaignStore.activeCampaignId">This campaign</option>
           <option
             v-for="src in enabledSourceData ?? []"
             :key="src.source_slug"
@@ -187,6 +188,7 @@
           <ListFilterSelect v-model="monstersUi.monstersFilterSource" aria-label="Source filter" class="w-full">
             <option value="all">All sources</option>
             <option value="custom">Custom</option>
+            <option value="campaign" :disabled="!campaignStore.activeCampaignId">This campaign</option>
             <option
               v-for="src in enabledSourceData ?? []"
               :key="src.source_slug"
@@ -368,6 +370,7 @@ const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableLib
 
 const sourceLabel = (slug: string): string => {
   if (slug === "custom") return "Custom";
+  if (slug === "campaign") return "This campaign";
   const title = enabledSourceData.value?.find((s) => s.source_slug === slug)?.source_title;
   return labelFor(slug, title) ?? slug;
 };

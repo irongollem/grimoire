@@ -32,7 +32,7 @@ The shared `library_monsters` table behind the Open5e-sourced content is seeded 
 **List filters** (stored in `useMonstersUiStore`):
 
 - Text search
-- Source: All / SRD / Custom (desktop-only pill group)
+- Source: All / Custom / This campaign / each enabled book, a select on desktop and in the phone's filter sheet. Custom is every own monster in scope (general and the active campaign's); This campaign is only the active campaign's own (`campaign_id` = it), for a DM who wants that campaign's creatures without their whole homebrew library (`p_source = 'campaign'` in `browse_monsters`, `20261112145736`)
 - Monster type: dropdown covering all 14 standard D&D creature types
 
 The list is also implicitly scoped by campaign (below) — general monsters plus the active campaign's own, with no "show all campaigns" override the way the Item Vault has one (`items-spells-crafting.md`); switching the active campaign changes which custom monsters appear.

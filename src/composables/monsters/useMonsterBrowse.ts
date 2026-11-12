@@ -11,7 +11,8 @@ export const MONSTER_BROWSE_PAGE_SIZE = 48;
 
 export interface MonsterBrowseFilters {
   search: string;
-  /** "all" | "custom" | a library source slug. */
+  /** "all" | "custom" (every own monster) | "campaign" (the active campaign's own
+   *  monsters, not the global library) | a library source slug. */
   source: string;
   /** "all" | a creature type. */
   type: string;

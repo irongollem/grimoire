@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(20);
 
 -- browse_monsters / browse_items / browse_spells (#972, migration
 -- 20261004230629): one page of the Monsters, Vault and Spells lists, with the
@@ -95,6 +95,17 @@ select is(
   jsonb_array_length(public.browse_monsters(array[]::text[], '2014', '97250000-0000-4000-8000-000000000010', 'owlkin', 'all', null, 1, 0) -> 'rows'),
   1,
   'the page is limited'
+);
+select is(
+  (select jsonb_agg(r ->> 'name') from jsonb_array_elements(
+     public.browse_monsters(array['srd-2014'], '2014', '97250000-0000-4000-8000-000000000010', null, 'campaign') -> 'rows') r),
+  '["Zz New Owlkin"]'::jsonb,
+  'the campaign source lists the campaign''s monsters, not the global library or the books'
+);
+select is(
+  (public.browse_monsters(array[]::text[], '2014', null, 'owlkin', 'campaign') ->> 'total')::int,
+  0,
+  'with no campaign, the campaign source matches nothing'
 );
 select ok(
   (public.browse_monsters(array['srd-2014'], '2014', '97250000-0000-4000-8000-000000000010') ->> 'scope_total')::int
