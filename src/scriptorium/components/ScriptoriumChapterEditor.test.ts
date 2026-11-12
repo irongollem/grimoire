@@ -56,7 +56,8 @@ describe("the book surface", () => {
     const wrapper = open({ paperTone: "grey", footerStyle: "ribbon" });
     await flushPromises();
     const classes = wrapper.find('[data-testid="chapter-editor"]').classes();
-    expect(classes).toContain("sc-paper--grey");
+    expect(classes).toContain("sc-paper");
+    expect(wrapper.find('[data-testid="chapter-editor"]').attributes("style")).toContain("--sc-paper-image");
     expect(classes).toContain("sc-footer-style--ribbon");
     expect(classes).toContain("theme-onednd2024");
   });

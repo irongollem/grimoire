@@ -25,31 +25,7 @@
 
       <section class="space-y-2">
         <h3 class="text-eyebrow uppercase text-muted-foreground">Paper</h3>
-        <ul class="grid grid-cols-3 gap-2 sm:grid-cols-5" role="radiogroup" aria-label="Paper">
-          <li v-for="paper in STOCK_PAPERS" :key="paper.id">
-            <AppButton
-              variant="subtle"
-              size="body"
-              block
-              role="radio"
-              :active="paper.id === paperId"
-              :aria-checked="paper.id === paperId"
-              :tabindex="paper.id === paperId ? 0 : -1"
-              class="h-auto flex-col items-stretch justify-start gap-1 whitespace-normal p-1.5 text-center"
-              :data-testid="`sheet-paper-${paper.id}`"
-              @click="paperId = paper.id"
-              @keydown="onPaperKey"
-            >
-              <!-- The paper at the scale the sheet is laid at, so the swatch reads like the sheet. -->
-              <span
-                class="block aspect-square w-full rounded-sm border border-border bg-cover"
-                :style="{ backgroundImage: `url(${artUrl(paper.surfacePath)})`, backgroundSize: `${paper.surfaceScale * 100}%` }"
-                aria-hidden="true"
-              />
-              <span class="text-caption font-normal">{{ paper.name }}</span>
-            </AppButton>
-          </li>
-        </ul>
+        <PaperPicker v-model="paperId" />
       </section>
 
       <p v-if="error" role="alert" class="text-caption text-destructive" data-testid="new-sheet-error">{{ error }}</p>
@@ -66,20 +42,20 @@
 
 <script setup lang="ts">
 /**
- * Start a picture from a blank sheet (#1181, frame 09): a size, one of the ten stock papers, and the picture
+ * Start a picture from a blank sheet (#1181, frame 09): a size, one of the stock papers, and the picture
  * appears on the page. The quota is asked first: a sheet counts as a painting as soon as it is saved.
  */
-import { computed, nextTick, ref } from "vue";
+import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
-import { artUrl } from "@/lib/assets/artUrl";
 import { IconAddImage } from "@/lib/icons";
 import { PAINT_CANVAS_LIMIT_MESSAGE } from "@/scriptorium/illuminator/lib/paintQuota";
 import { isQuotaExceeded } from "@/lib/quotaError";
-import { STOCK_PAPERS } from "@/scriptorium/papers/papers";
+import PaperPicker from "@/scriptorium/papers/PaperPicker.vue";
+import { STOCK_PAPERS, type PaperId } from "@/scriptorium/papers/papers";
 import { blankSheetRecipe, sheetPresets } from "@/scriptorium/lib/panel/newSheet";
 import { uploadBlankSheet } from "@/scriptorium/lib/panel/newSheetUpload";
 import type { IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
@@ -100,22 +76,10 @@ const auth = useAuthStore();
 const { canCreate } = useQuota("paint_canvases");
 const presets = computed(() => sheetPresets(props.pageAspect));
 const sizeId = ref("full");
-const paperId = ref("cold-press");
+const paperId = ref<PaperId | null>("cold-press");
 const busy = ref(false);
 const error = ref<string | null>(null);
 const showPaywall = ref(false);
-
-/** Arrow keys move the choice through the papers, as in any radio group; only the chosen one is a tab stop. */
-function onPaperKey(event: KeyboardEvent) {
-  const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
-  if (step === 0) return;
-  event.preventDefault();
-  const at = STOCK_PAPERS.findIndex((p) => p.id === paperId.value);
-  const next = STOCK_PAPERS[(at + step + STOCK_PAPERS.length) % STOCK_PAPERS.length];
-  if (!next) return;
-  paperId.value = next.id;
-  void nextTick(() => document.querySelector<HTMLElement>(`[data-testid="sheet-paper-${next.id}"]`)?.focus());
-}
 
 async function start() {
   if (busy.value) return;

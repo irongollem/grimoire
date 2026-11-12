@@ -12,7 +12,7 @@ import type {
   ScriptoriumTheme,
 } from "@/scriptorium/types";
 import themeBaseCss from "@/scriptorium/styles/theme-base.css?inline";
-import { bookSurfaceClasses } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses, bookSurfaceStyle } from "@/scriptorium/lib/looks";
 import { escapeHtml } from "@/lib/escapeHtml";
 
 const PAGE_SIZE_KEYWORD: Record<ScriptoriumPageSize, string> = {
@@ -88,13 +88,16 @@ export interface PdfDocumentAssembly {
  */
 export function buildPdfDocumentHtml(opts: PdfDocumentAssembly): string {
   const cls = bookSurfaceClasses(opts).join(" ");
+  const style = Object.entries(bookSurfaceStyle(opts))
+    .map(([name, value]) => `${name}: ${value}`)
+    .join("; ");
   return (
     `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(opts.title || "Untitled")}</title>` +
     `<style>${opts.fontsCss}</style>` +
     `<style>${themeBaseCss}</style><style>${opts.themeCss}</style>` +
     `<style>${opts.pagedStyles}</style>` +
     `<style>${printResetCss(opts.pageSize)}</style></head>` +
-    `<body class="sc-theme ${cls}">${opts.pagesHtml}</body></html>`
+    `<body class="sc-theme ${cls}"${style ? ` style="${escapeHtml(style)}"` : ""}>${opts.pagesHtml}</body></html>`
   );
 }
 

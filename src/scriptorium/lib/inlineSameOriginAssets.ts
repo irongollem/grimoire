@@ -1,3 +1,5 @@
+import { ASSET_CDN_BASE } from "@/lib/storage/buckets";
+
 /*
  * Rewrites every root-relative asset reference in the book's HTML, `url(/…)`
  * in its CSS and `src="/…"` on its elements, into a base64 `data:` URI.
@@ -11,8 +13,11 @@
  * would print plain. One pass over the whole document covers both and any
  * later one, rather than a list of known files.
  *
- * Protocol-relative (`//host/…`), absolute (`https:`) and `data:` references
- * are left alone: the renderer can load the first two itself.
+ * The papers (#1181) are the third case: in production they are served from
+ * the art CDN, so a book's `style` attribute names a CDN URL, which is
+ * inlined like a root-relative path. Protocol-relative (`//host/…`), other
+ * absolute (`https:`) and `data:` references are left alone: the renderer can
+ * load the first two itself.
  */
 
 const MIME_BY_EXTENSION: Record<string, string> = {
@@ -29,10 +34,15 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   svg: "image/svg+xml",
 };
 
-/** url("/x"), url('/x') and url(/x), never url(//host/x). */
-const CSS_URL = /url\(\s*(["']?)(\/(?!\/)[^"')\s]+)\1\s*\)/g;
+/**
+ * What counts as ours: a root-relative path, or a URL on the art CDN (papers are served from it in production,
+ * and a body `style` attribute names one). Never a protocol-relative `//host/x`.
+ */
+const OURS = ASSET_CDN_BASE ? `(?:\\/(?!\\/)|${ASSET_CDN_BASE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\/)` : "\\/(?!\\/)";
+/** url("/x"), url('/x') and url(/x), and the same for a CDN URL. */
+const CSS_URL = new RegExp(`url\\(\\s*(["']?)(${OURS}[^"')\\s]+)\\1\\s*\\)`, "g");
 /** src="/x" and src='/x' on an element, never src="//host/x". */
-const SRC_ATTR = /(\ssrc=)(["'])(\/(?!\/)[^"']+)\2/g;
+const SRC_ATTR = new RegExp(`(\\ssrc=)(["'])(${OURS}[^"']+)\\2`, "g");
 
 export const ASSETS_LOAD_ERROR = "Could not load the book's fonts or page art.";
 
@@ -81,7 +91,8 @@ export async function inlineSameOriginAssets(
   return html
     .replace(CSS_URL, (whole, _quote: string, path: string) => {
       const uri = uris.get(path);
-      return uri ? `url("${uri}")` : whole;
+      // Unquoted: the URL may sit inside a double-quoted `style` attribute, and a base64 data URI has nothing to quote.
+      return uri ? `url(${uri})` : whole;
     })
     .replace(SRC_ATTR, (whole, attr: string, quote: string, path: string) => {
       const uri = uris.get(path);

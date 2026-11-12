@@ -20,7 +20,8 @@ You write directly on the finished, paginated page. The page you see is the page
 | **The panel** | The column beside the page. It describes what you have selected, or the page itself when nothing is selected. |
 | **Book kit** | A tab beside Chapters with every block, your campaign's entries and your pictures. Drag them onto the page. |
 | **Read as spreads** | The whole book full screen as facing pages, in lamplight, with room for your own notes. A button in the header. |
-| **Look** | How the book is set: **Grimoire** (the default for new books), **2024 book** or **2014 book**. A handout has a paper instead. |
+| **Look** | How the book is set: **Grimoire** (the default for new books), **2024 book** or **2014 book**. A handout is set in a theme (Letter, Notice, Journal page or Plain page) instead. |
+| **Paper** | What the pages are printed on, for a book or a handout: the twelve papers the painting tool starts from, or the look's own. Set in the book's or handout's settings. Ink-friendly prints plain white. |
 | **Furniture** | A decoration (watercolor splatter, watermark, artist credit) or a picture placed on the page, independent of the text. Drag it directly on the page. |
 | **Illuminator** | The picture editor that opens over the book. See "Editing a picture". |
 | **Doc type** | Custom, Spell, Monster, Item, Class, Subclass, Species, Background, Adventure, NPC Sheet, Location, or Quest: colour-codes the document in your list. |

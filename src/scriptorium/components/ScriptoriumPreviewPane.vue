@@ -39,7 +39,7 @@
                 ...surfaceClasses,
                 { 'paged-book--spread': reading, 'paged-book--lone': reading && spread === 0 },
               ]"
-              :style="{ '--spread-page-width': `${pageBox.w}px` }"
+              :style="{ ...surfaceStyle, '--spread-page-width': `${pageBox.w}px` }"
             />
             <!-- Nothing written yet: the layout has no pages, so show the bare
                  sheet in its look rather than an empty stage. -->
@@ -47,6 +47,7 @@
               v-if="blankSheet"
               class="sc-theme"
               :class="[...surfaceClasses, { 'ink-friendly': settings.inkFriendly }]"
+              :style="surfaceStyle"
               data-testid="preview-blank-sheet"
               aria-hidden="true"
             >
@@ -94,7 +95,7 @@ import { renderFurniture } from "@/scriptorium/lib/furniture/renderFurniture";
 import { EDITOR_PAGE_DIMENSIONS_PX } from "@/scriptorium/lib/editorConstants";
 import { measureChapterFlow } from "@/scriptorium/lib/pageFlow/measureFlow";
 import type { ChapterFlow } from "@/scriptorium/lib/pageFlow/types";
-import { bookSurfaceClasses } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses, bookSurfaceStyle } from "@/scriptorium/lib/looks";
 import { activeThemeId, darkTwinStyle } from "@/lib/themeRuntime";
 import { spreadCount, spreadPages } from "@/scriptorium/lib/spreads";
 import type { BookChapterInput, BookLayoutResult, BookLayoutSettings } from "@/scriptorium/lib/bookLayout/types";
@@ -158,6 +159,8 @@ const pageBox = computed(() => EDITOR_PAGE_DIMENSIONS_PX[settings.pageSize]);
 const surfaceClasses = computed(() =>
   bookSurfaceClasses({ theme: settings.theme, paperTone, footerStyle, inkFriendly: settings.inkFriendly }),
 );
+
+const surfaceStyle = computed(() => bookSurfaceStyle({ paperTone, inkFriendly: settings.inkFriendly }));
 
 const { isRendering, error, result, progress } = useBookPreview({
   chapters: () => chapters(),

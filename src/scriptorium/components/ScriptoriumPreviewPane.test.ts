@@ -80,7 +80,8 @@ describe("ScriptoriumPreviewPane", () => {
     preview.pageCount = 1;
     const wrapper = open({ settings: { ...open().props("settings"), theme: "onednd2024" }, paperTone: "grey", footerStyle: "ribbon" });
     const host = wrapper.get(".paged-book");
-    expect(host.classes()).toEqual(expect.arrayContaining(["sc-paper--grey", "sc-footer-style--ribbon"]));
+    expect(host.classes()).toEqual(expect.arrayContaining(["sc-paper", "sc-footer-style--ribbon"]));
+    expect(host.attributes("style")).toContain("--sc-paper-image");
   });
 
   it("reading, is a full-screen labelled page with the spread bar", () => {

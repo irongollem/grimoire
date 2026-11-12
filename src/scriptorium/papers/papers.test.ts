@@ -1,10 +1,13 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import manifest from "@/generated/artManifest.json";
-import { STOCK_GRAIN_PATHS, STOCK_PAPERS } from "./papers";
+import sharp from "sharp";
+import { PAPER_IDS, STOCK_GRAIN_PATHS, STOCK_PAPERS, paperById } from "./papers";
 
 const PUBLIC = join(import.meta.dirname, "../../../public");
+const STYLES = join(import.meta.dirname, "../styles");
+const MIGRATIONS = join(import.meta.dirname, "../../../supabase/migrations");
 
 describe("stock papers", () => {
   it("every paper surface exists on disk and in the art manifest", () => {
@@ -38,4 +41,73 @@ describe("stock papers", () => {
     const top = [...STOCK_PAPERS].sort((a, b) => b.surfaceScale - a.surfaceScale).slice(0, 2).map((p) => p.id);
     expect(top).toEqual(["treasure-map", "parchment"]);
   });
+
+  it("has the ten stock papers and the two handmade scans", () => {
+    // Fails on: a scan left out of the shared list, so books lose "Grey" and "Warm grey".
+    expect(PAPER_IDS).toHaveLength(12);
+    expect(PAPER_IDS).toEqual(expect.arrayContaining(["grey", "warm-grey"]));
+    expect(STOCK_PAPERS.map((p) => p.id)).toEqual([...PAPER_IDS]);
+  });
+
+  it("the database check on paper_tone allows exactly these ids", () => {
+    // Fails on: a paper added here without a migration (saving a book on it is refused), or an id kept in SQL after it left.
+    const files = readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort();
+    let ids: string[] | null = null;
+    for (const file of files) {
+      const text = readFileSync(join(MIGRATIONS, file), "utf8");
+      const m = /add constraint scriptorium_documents_paper_tone_check check \(paper_tone in \(([^)]*)\)/.exec(text);
+      if (m) ids = [...m[1]!.matchAll(/'([^']+)'/g)].map((x) => x[1]!);
+    }
+    expect(ids, "no migration defines the paper_tone check").not.toBeNull();
+    expect([...ids!].sort()).toEqual([...PAPER_IDS].sort());
+  });
+});
+
+/** Every look's and handout theme's text colour, read from its stylesheet so a new look is covered by itself. */
+function inkColours(): { file: string; ink: string }[] {
+  return readdirSync(STYLES)
+    .filter((f) => /^theme-(?!base).+\.css$/.test(f))
+    .map((file) => {
+      const m = /--sc-ink:\s*(#[0-9a-fA-F]{6})\s*;/.exec(readFileSync(join(STYLES, file), "utf8"));
+      return { file, ink: m?.[1] ?? "" };
+    });
+}
+
+const linear = (c: number) => {
+  const x = c / 255;
+  return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+};
+const luminance = (r: number, g: number, b: number) => 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+
+describe("paper legibility", () => {
+  it("every look names its ink", () => {
+    // Fails on: a theme without a literal --sc-ink, which would silently skip the contrast check below.
+    const inks = inkColours();
+    expect(inks.length).toBeGreaterThanOrEqual(7);
+    for (const { file, ink } of inks) expect(ink, file).toMatch(/^#[0-9a-fA-F]{6}$/);
+  });
+
+  it.each(PAPER_IDS)("%s: its darkest patches, under its veil, still carry every look's ink at 4.5:1", async (id) => {
+    // Fails on: a veil too light for a dark paper (kraft, the greys, treasure map's mottling), which makes text hard to read.
+    const paper = paperById(id);
+    const { data } = await sharp(join(PUBLIC, paper.surfacePath)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const lums = new Float32Array(data.length / 3);
+    let mean = [0, 0, 0];
+    for (let i = 0, j = 0; i < data.length; i += 3, j++) {
+      const rgb = [0, 1, 2].map((k) => data[i + k]! * (1 - paper.veil) + 255 * paper.veil);
+      lums[j] = luminance(rgb[0]!, rgb[1]!, rgb[2]!);
+      mean = mean.map((m, k) => m + rgb[k]!);
+    }
+    lums.sort();
+    const darkest = lums[Math.floor(lums.length * 0.05)]!;
+    for (const { file, ink } of inkColours()) {
+      const n = (h: number) => parseInt(ink.slice(h, h + 2), 16);
+      const contrast = (darkest + 0.05) / (luminance(n(1), n(3), n(5)) + 0.05);
+      expect(contrast, `${id} behind ${file} ink ${ink}`).toBeGreaterThanOrEqual(4.5);
+    }
+    // The stored tint is the veiled surface's mean, so page tints match what is drawn.
+    const tint = mean.map((m) => Math.round(m / lums.length));
+    const stored = [1, 3, 5].map((h) => parseInt(paper.tint.slice(h, h + 2), 16));
+    stored.forEach((c, k) => expect(Math.abs(c - tint[k]!), `${id} tint channel ${k}`).toBeLessThanOrEqual(3));
+  }, 30_000);
 });

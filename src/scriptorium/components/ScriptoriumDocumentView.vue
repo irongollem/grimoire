@@ -13,6 +13,7 @@
     :editor="editor"
     class="sc-theme sc-document-view"
     :class="[themeClass, { 'sc-document-view--reader': layout === 'reader' }]"
+    :style="surfaceStyle"
   />
 </template>
 
@@ -54,7 +55,7 @@ import { SCRIPTORIUM_AUDIENCE_KEY, type ScriptoriumAudience } from "@/scriptoriu
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import { IconWarning } from "@/lib/icons";
 import { placedArtInFlow, type PlacedArt } from "@/scriptorium/lib/placedArtInFlow";
-import { bookSurfaceClasses } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses, bookSurfaceStyle } from "@/scriptorium/lib/looks";
 
 // Renamed from the prop's own name to avoid shadowing the global `document`.
 const { document: doc, content, layout = "page", audience = "dm", art } = defineProps<{
@@ -100,6 +101,7 @@ provide(SCRIPTORIUM_THEME_KEY, theme);
 // The paper is painted once. In the phone reader its scroll area is the paper (ScriptoriumReader), so this
 // view inside it is not one too: two surfaces drew a hairline frame around the text block alone, the text
 // flush against it (8 Nov 2026). Standing alone (the quest runner's handout tool), this view is the paper.
+const surfaceStyle = computed(() => bookSurfaceStyle({ paperTone: doc.paper_tone }));
 const themeClass = computed(() => [...bookSurfaceClasses({ theme: doc.theme, paperTone: doc.paper_tone }), ...(layout === "reader" ? [] : ["sc-paper-surface"])]);
 
 // A shared handout always has a campaign (the player projections are keyed on

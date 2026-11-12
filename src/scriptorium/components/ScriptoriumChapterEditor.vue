@@ -162,7 +162,7 @@ import { markForSweep } from "@/scriptorium/composables/illuminatorSweep";
 import { chapterUrlsRemoved } from "@/scriptorium/lib/chapterImages";
 import { getCurrentUser } from "@/lib/supabase";
 import { countWords } from "@/scriptorium/lib/chapterTitle";
-import { bookSurfaceClasses } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses, bookSurfaceStyle } from "@/scriptorium/lib/looks";
 import { pageGeometry, pageGeometryCssVars } from "@/scriptorium/lib/pageGeometry";
 import { storeToRefs } from "pinia";
 import { useScriptoriumUiStore } from "@/scriptorium/stores/ui";
@@ -250,6 +250,7 @@ const sheetRef = ref<HTMLElement | null>(null);
 // --sc-sheet-scale is read by later waves (a drag measured on screen needs it).
 const sheetStyle = computed(() => ({
   ...pageGeometryCssVars(geometry.value),
+  ...bookSurfaceStyle({ paperTone, inkFriendly }),
   "--sc-sheet-scale": String(sheetScale.value),
 }));
 const scaleBoxStyle = computed(() => {

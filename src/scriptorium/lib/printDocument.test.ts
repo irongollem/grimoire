@@ -1,3 +1,4 @@
+import { paperById } from "@/scriptorium/papers/papers";
 import { describe, it, expect } from "vitest";
 import { buildPdfDocumentHtml } from "./printDocument";
 import { PAGE_CONTENT_SELECTOR } from "@/scriptorium/lib/pagedPreviewCss";
@@ -51,7 +52,18 @@ describe("buildPdfDocumentHtml", () => {
 
   it("prints the book's paper and ribbon footer, so the PDF is not white where the editor is grey", () => {
     const html = buildPdfDocumentHtml({ ...BASE, paperTone: "grey", footerStyle: "ribbon" });
-    expect(html).toContain('<body class="sc-theme theme-onednd2024 sc-paper--grey sc-footer-style--ribbon">');
+    const grey = paperById("grey");
+    expect(html).toMatch(/<body class="sc-theme theme-onednd2024 sc-paper sc-footer-style--ribbon" style="--sc-paper-image: url\([^"]+grey[^"]*\); --sc-paper-veil: [^;]+; --sc-paper-size: [\d.]+mm [\d.]+mm; --sc-page-bg: #[0-9a-f]{6}">/);
+    expect(html).toContain(`--sc-paper-veil: rgb(255 255 255 / ${grey.veil})`);
+    expect(html).toContain(`--sc-page-bg: ${grey.tint}`);
+  });
+
+  it("prints a handout's paper and no paper at all when ink-friendly", () => {
+    // Fails on: a handout paper dropped from the PDF, or a paper that spends ink in ink-friendly mode.
+    expect(buildPdfDocumentHtml({ ...BASE, theme: "letter", paperTone: "kraft" })).toContain('class="sc-theme theme-letter sc-paper"');
+    const ink = buildPdfDocumentHtml({ ...BASE, theme: "letter", paperTone: "kraft", inkFriendly: true });
+    expect(ink).toContain('<body class="sc-theme theme-letter">');
+    expect(ink).not.toContain("--sc-paper-image");
   });
 
   it("gives each page's text area back the slack it was fitted without, after every other sheet (#1115)", () => {

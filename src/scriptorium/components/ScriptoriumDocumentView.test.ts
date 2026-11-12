@@ -53,7 +53,15 @@ describe("ScriptoriumDocumentView", () => {
   it("lays the book's paper on the page a player reads (a shared book must look like the DM's)", async () => {
     const wrapper = mount(ScriptoriumDocumentView, { props: { document: makeBook({ paper_tone: "grey" }), content: text("Hello") } });
     await flushEditor();
-    expect(wrapper.find(".sc-document-view").classes()).toContain("sc-paper--grey");
+    expect(wrapper.find(".sc-document-view").classes()).toContain("sc-paper");
+    expect(wrapper.find(".sc-document-view").attributes("style")).toContain("--sc-paper-image");
+  });
+
+  it("lays a paper on a handout too, over its theme's own page", async () => {
+    // Fails on: a handout paper chosen in settings that a player never sees.
+    const wrapper = mount(ScriptoriumDocumentView, { props: { document: makeBook({ kind: "handout", theme: "letter", paper_tone: "kraft" }), content: text("Dear friends") } });
+    await flushEditor();
+    expect(wrapper.find(".sc-document-view").classes()).toEqual(expect.arrayContaining(["theme-letter", "sc-paper"]));
   });
 
   it("is the paper standing alone, but not inside the reader, whose scroll area already is", async () => {

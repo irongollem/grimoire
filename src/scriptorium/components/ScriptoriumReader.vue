@@ -55,7 +55,7 @@
       <!-- The chapter, as one flowing column — sc-theme + the theme class give it
            the same palette/typography as the desktop galley; ScriptoriumReader's
            own scoped styles below undo everything that assumes a physical page. -->
-      <div ref="scrollRef" class="sc-theme min-h-0 flex-1 overflow-y-auto px-4 py-4" :class="themeClass">
+      <div ref="scrollRef" class="sc-theme min-h-0 flex-1 overflow-y-auto px-4 py-4" :class="themeClass" :style="surfaceStyle">
         <LoadingSpinner v-if="loading || !shown" />
         <ScriptoriumDocumentView v-else :document="book" :content="shown.content" :art="shown.art" layout="reader" :audience="audience" />
       </div>
@@ -115,7 +115,7 @@ import { KIND_LABELS } from "@/scriptorium/lib/documentCardMeta";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllDmCampaigns } from "@/composables/campaign/useCampaigns";
 import type { ReadableBook } from "@/scriptorium/types";
-import { bookSurfaceClasses } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses, bookSurfaceStyle } from "@/scriptorium/lib/looks";
 
 const {
   book,
@@ -148,6 +148,7 @@ function goBack() {
   else void router.push(backTo);
 }
 
+const surfaceStyle = computed(() => bookSurfaceStyle({ paperTone: book.paper_tone }));
 const themeClass = computed(() => [...bookSurfaceClasses({ theme: book.theme, paperTone: book.paper_tone }), "sc-paper-surface"]);
 // The doc type is the DM's own filing ("Custom", "Adventure Module"); to a
 // player the document is simply a handout or a book the DM gave them.

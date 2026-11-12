@@ -32,22 +32,9 @@ describe("NewSheetDialog", () => {
   it("offers every stock paper, so a paper added to STOCK_PAPERS is never missing from the sheet", () => {
     // Fails on: a hand-kept swatch list that drifts from STOCK_PAPERS (also catches template errors that only a mount shows).
     const w = mountDialog();
-    const shown = [...document.body.querySelectorAll("[data-testid^='sheet-paper-']")].map((e) => e.getAttribute("data-testid"));
-    expect(shown).toEqual(STOCK_PAPERS.map((p) => `sheet-paper-${p.id}`));
+    const shown = [...document.body.querySelectorAll("[data-testid^='paper-']")].map((e) => e.getAttribute("data-testid"));
+    expect(shown).toEqual(STOCK_PAPERS.map((p) => `paper-${p.id}`));
     expect(document.body.querySelectorAll("[data-testid^='sheet-size-']").length).toBe(4);
-    w.unmount();
-  });
-
-  it("moves the chosen paper with the arrow keys and keeps one tab stop", async () => {
-    // Fails on: a radio group the keyboard cannot move through.
-    const w = mountDialog();
-    const first = document.body.querySelector("[data-testid='sheet-paper-hot-press']") as HTMLElement;
-    const chosen = document.body.querySelector("[data-testid='sheet-paper-cold-press']") as HTMLElement;
-    expect(chosen.getAttribute("aria-checked")).toBe("true");
-    expect(first.getAttribute("tabindex")).toBe("-1");
-    chosen.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
-    await flushPromises();
-    expect(first.getAttribute("aria-checked")).toBe("true");
     w.unmount();
   });
 
@@ -64,7 +51,7 @@ describe("NewSheetDialog", () => {
   it("emits the chosen paper and the exact size as a paint step", async () => {
     // Fails on: the recipe naming the default paper or a different size than the file that was made.
     const w = mountDialog();
-    (document.body.querySelector("[data-testid='sheet-paper-kraft']") as HTMLElement).click();
+    (document.body.querySelector("[data-testid='paper-kraft']") as HTMLElement).click();
     (document.body.querySelector("[data-testid='sheet-size-square']") as HTMLElement).click();
     await flushPromises();
     (document.body.querySelector("[data-testid='new-sheet-start']") as HTMLElement).click();
