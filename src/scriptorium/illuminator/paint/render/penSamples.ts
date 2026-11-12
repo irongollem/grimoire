@@ -13,6 +13,10 @@ export interface PointerEventLike {
   tiltX: number;
   tiltY: number;
   twist: number;
+  /** Safari reports the Pencil's lean here instead of in tiltX / tiltY: radians from the surface (π/2 is upright). */
+  altitudeAngle?: number;
+  /** Which way the Pencil leans, in radians. */
+  azimuthAngle?: number;
   timeStamp: number;
   pointerType: string;
   getCoalescedEvents?: () => PointerEventLike[];
@@ -33,6 +37,27 @@ export function eventsOf(ev: PointerEventLike): PointerEventLike[] {
   return coalesced && coalesced.length > 0 ? coalesced : [ev];
 }
 
+type TiltFields = Pick<PointerEventLike, "tiltX" | "tiltY" | "altitudeAngle" | "azimuthAngle">;
+
+const DEGREES = 180 / Math.PI;
+
+/**
+ * The pen's lean in degrees. Safari's Pencil sends tiltX and tiltY as 0 and puts the lean in altitude and
+ * azimuth instead, so those are converted when the plain tilt says upright and the altitude says otherwise.
+ */
+export function tiltOf(ev: TiltFields): { tiltX: number; tiltY: number } {
+  const { tiltX, tiltY, altitudeAngle, azimuthAngle } = ev;
+  if (tiltX !== 0 || tiltY !== 0 || altitudeAngle === undefined || azimuthAngle === undefined) return { tiltX, tiltY };
+  if (altitudeAngle >= Math.PI / 2) return { tiltX, tiltY };
+  const t = Math.tan(altitudeAngle);
+  // A pen lying flat has no finite tangent ratio; it leans a full 90 degrees along its azimuth.
+  if (t <= 0) return { tiltX: Math.round(Math.cos(azimuthAngle)) * 90, tiltY: Math.round(Math.sin(azimuthAngle)) * 90 };
+  return {
+    tiltX: Math.atan(Math.cos(azimuthAngle) / t) * DEGREES,
+    tiltY: Math.atan(Math.sin(azimuthAngle) / t) * DEGREES,
+  };
+}
+
 export function toSamples(ev: PointerEventLike, origin: { left: number; top: number }, vp: Viewport): PenSample[] {
   return eventsOf(ev).map((e) => {
     const p = screenToDoc(vp, e.clientX - origin.left, e.clientY - origin.top);
@@ -42,8 +67,7 @@ export function toSamples(ev: PointerEventLike, origin: { left: number; top: num
       y: p.y,
       // A finger reports 0 on browsers that give it no force; a stroke of zero pressure paints nothing.
       pressure: pointer === "touch" && e.pressure === 0 ? 0.5 : e.pressure,
-      tiltX: e.tiltX,
-      tiltY: e.tiltY,
+      ...tiltOf(e),
       twist: e.twist,
       time: e.timeStamp,
       pointer,
@@ -65,17 +89,18 @@ export interface PenReading {
  * Folds one pointer event into the reading. A signal counts as reported once a pen has sent it (a pen held
  * upright reports tilt 0 for a moment, which must not unreport it); a mouse's fixed 0.5 pressure is not a report.
  */
-export function readPen(prev: PenReading | null, ev: Pick<PointerEventLike, "pressure" | "tiltX" | "tiltY" | "twist" | "pointerType">): PenReading {
+export function readPen(prev: PenReading | null, ev: Pick<PointerEventLike, "pressure" | "tiltX" | "tiltY" | "twist" | "pointerType" | "altitudeAngle" | "azimuthAngle">): PenReading {
+  const { tiltX, tiltY } = tiltOf(ev);
   const pointer = pointerKind(ev.pointerType);
   const before = prev?.reported ?? { pressure: false, tilt: false, rotation: false };
   const isPen = pointer === "pen";
   return {
     pointer,
     pressure: ev.pressure,
-    tilt: Math.round(Math.hypot(ev.tiltX, ev.tiltY)),
+    tilt: Math.round(Math.hypot(tiltX, tiltY)),
     reported: {
       pressure: before.pressure || (isPen && ev.pressure > 0),
-      tilt: before.tilt || (isPen && (ev.tiltX !== 0 || ev.tiltY !== 0)),
+      tilt: before.tilt || (isPen && (tiltX !== 0 || tiltY !== 0)),
       rotation: before.rotation || (isPen && ev.twist !== 0),
     },
   };

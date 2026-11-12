@@ -188,6 +188,11 @@ export const buttonVariants = cva(
          * anchors `KeyCap corner`; the word names its own role through the caller.
          */
         tile: "relative h-12 min-w-14 flex-col justify-center gap-0.5 rounded-md px-1 text-caption-sm",
+        /**
+         * An icon-only tool tile for a two-column rail: a fixed square, the key cap in its corner,
+         * the tool's name in its tooltip.
+         */
+        "tile-icon": "relative size-11 justify-center rounded-md text-caption-sm",
         "icon-2xs": "h-5 w-5 rounded text-label",
         "icon-xs": "h-6 w-6 rounded text-label-lg",
         "icon-sm": "h-8 w-8 rounded-md text-label-lg",
@@ -641,7 +646,7 @@ export const BUTTON_VARIANTS = [
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [
-  "inline-xs", "inline", "inline-body", "inline-caption", "xs", "sm", "md", "lg", "body", "caption", "toolbar", "strip", "well", "tile", "icon-2xs", "icon-xs", "icon-sm",
+  "inline-xs", "inline", "inline-body", "inline-caption", "xs", "sm", "md", "lg", "body", "caption", "toolbar", "strip", "well", "tile", "tile-icon", "icon-2xs", "icon-xs", "icon-sm",
 ] as const satisfies readonly ButtonSize[];
 
 // `[X] extends [never]` rather than `X extends never`: a naked conditional

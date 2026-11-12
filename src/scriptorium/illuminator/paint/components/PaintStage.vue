@@ -13,7 +13,10 @@ import { resolveWheel } from "@/lib/canvasControls/wheel";
 import type { Rgb } from "../engine/types";
 import type { PaintSessionApi, PaintTool } from "../session/types";
 import type { Compositor } from "../render/compositor";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
+import type { PenSample } from "../engine/types";
 import { readPen, toSamples, type PenReading } from "../render/penSamples";
+import { createTouchGestures, type PointerRecord } from "../render/touchGestures";
 import {
   fitViewport,
   panBy,
@@ -42,6 +45,10 @@ const emit = defineEmits<{
   viewport: [viewport: Viewport];
   /** What the pen last reported; at most once per frame however many events arrive. */
   pen: [reading: PenReading];
+  /** A two-finger tap. */
+  undo: [];
+  /** A three-finger tap. */
+  redo: [];
 }>();
 
 const host = ref<HTMLElement | null>(null);
@@ -106,19 +113,45 @@ onMounted(() => {
     }
   });
   resizeObserver.observe(el);
+  // iPadOS Safari zooms the whole page on a pinch unless it is told no.
+  el.addEventListener("gesturestart", stopPageGesture, { passive: false });
+  el.addEventListener("gesturechange", stopPageGesture, { passive: false });
 });
+
+function stopPageGesture(ev: Event): void {
+  ev.preventDefault();
+}
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect();
+  host.value?.removeEventListener("gesturestart", stopPageGesture);
+  host.value?.removeEventListener("gesturechange", stopPageGesture);
   if (frame) cancelAnimationFrame(frame);
   if (penFrame) cancelAnimationFrame(penFrame);
 });
 
 // ---- pointer ----
 
+// Once a pen has been seen on this device a finger navigates instead of painting. Remembered, so the first
+// finger of the next visit is not a stray mark.
+const PEN_SEEN_KEY = "grimoire:paint:pen-seen";
+const gestures = createTouchGestures({ penSeen: safeLocalStorage().getItem(PEN_SEEN_KEY) === "1" });
+
+function record(ev: PointerEvent): PointerRecord {
+  const p = local(ev);
+  return { id: ev.pointerId, type: ev.pointerType, x: p.x, y: p.y, time: ev.timeStamp };
+}
+
 let reading: PenReading | null = null;
 let penFrame = 0;
 function notePen(ev: PointerEvent): void {
+  if (ev.pointerType === "pen" && gestures.seePen()) {
+    try {
+      safeLocalStorage().setItem(PEN_SEEN_KEY, "1");
+    } catch {
+      // Remembering is a courtesy; this visit already knows.
+    }
+  }
   reading = readPen(reading, ev);
   if (penFrame) return;
   penFrame = requestAnimationFrame(() => {
@@ -130,6 +163,8 @@ function notePen(ev: PointerEvent): void {
 type Gesture =
   | { kind: "stroke"; pointerId: number; layerId: string }
   | { kind: "pan"; pointerId: number; x: number; y: number }
+  /** A finger that may yet become the second finger of a pinch: its samples wait here, unpainted. */
+  | { kind: "pending"; pointerId: number; samples: PenSample[]; restore: boolean }
   | { kind: "pick"; pointerId: number };
 
 let gesture: Gesture | null = null;
@@ -163,26 +198,68 @@ function endStroke(): void {
   requestFrame();
 }
 
+function startStroke(pointerId: number, samples: PenSample[], restore: boolean): void {
+  const first = samples[0];
+  if (!first) return;
+  const began = session.beginStroke(first, { restore });
+  if (began === null) return;
+  const { layerId } = began;
+  gesture = { kind: "stroke", pointerId, layerId };
+  // The stroke may have made a layer; the compositor learns of it before it is asked to draw it.
+  compositor.syncLayers(session.state.doc.layers);
+  compositor.markDirty(layerId, began.keys);
+  emit("stroke-start", layerId);
+  const rest = samples.slice(1);
+  if (rest.length > 0) addSamples(layerId, rest);
+  requestFrame();
+}
+
+/** Begins the held-back finger stroke from what was buffered. */
+function commitPending(): void {
+  if (gesture?.kind !== "pending") return;
+  const { pointerId, samples, restore } = gesture;
+  gesture = null;
+  if (beforeStroke && !beforeStroke()) return;
+  startStroke(pointerId, samples, restore);
+}
+
 function onPointerDown(ev: PointerEvent): void {
   const el = host.value;
   if (!el) return;
   notePen(ev);
 
-  if (ev.pointerType === "touch") {
+  const act = ev.pointerType === "touch" || ev.pointerType === "pen" ? gestures.down(record(ev)) : null;
+  if (ev.pointerType === "touch" && act) {
+    if (act.kind === "ignore") return;
     touches.set(ev.pointerId, local(ev));
-    if (touches.size === 2) {
+    if (act.kind === "pinch-start") {
+      if (gesture?.kind === "pending" && act.keepStroke) commitPending();
       endStroke();
       gesture = null;
-      const [[ia, a], [ib, b]] = [...touches.entries()];
-      pinch = { start: viewport.value, a, b, ids: [ia, ib] };
+      panning.value = false;
+      const [ia, ib] = act.ids;
+      const a = touches.get(ia);
+      const b = touches.get(ib);
+      if (a && b) pinch = { start: viewport.value, a, b, ids: [ia, ib] };
       return;
     }
-    if (touches.size > 2) return;
+    if (act.kind === "pinch-end") {
+      pinch = null;
+      return;
+    }
+  }
+  if (ev.pointerType === "pen" && act?.kind === "paint" && act.cancelTouches) {
+    // A palm was already on the glass when the pen came down.
+    touches.clear();
+    pinch = null;
+    endStroke();
+    gesture = null;
+    panning.value = false;
   }
   if (gesture) return;
   el.setPointerCapture(ev.pointerId);
 
-  if (hand.isForcedPan(ev)) {
+  if (hand.isForcedPan(ev) || act?.kind === "pan") {
     ev.preventDefault();
     gesture = { kind: "pan", pointerId: ev.pointerId, x: ev.clientX, y: ev.clientY };
     panning.value = true;
@@ -194,20 +271,13 @@ function onPointerDown(ev: PointerEvent): void {
     return;
   }
 
+  const restore = ev.altKey && tool === "eraser";
+  if (act?.kind === "paint-pending") {
+    gesture = { kind: "pending", pointerId: ev.pointerId, samples: toSamples(ev, origin(), viewport.value), restore };
+    return;
+  }
   if (beforeStroke && !beforeStroke()) return;
-  const samples = toSamples(ev, origin(), viewport.value);
-  const first = samples[0];
-  const began = session.beginStroke(first, { restore: ev.altKey && tool === "eraser" });
-  if (began === null) return;
-  const { layerId } = began;
-  gesture = { kind: "stroke", pointerId: ev.pointerId, layerId };
-  // The stroke may have made a layer; the compositor learns of it before it is asked to draw it.
-  compositor.syncLayers(session.state.doc.layers);
-  compositor.markDirty(layerId, began.keys);
-  emit("stroke-start", layerId);
-  const rest = samples.slice(1);
-  if (rest.length > 0) addSamples(layerId, rest);
-  requestFrame();
+  startStroke(ev.pointerId, toSamples(ev, origin(), viewport.value), restore);
 }
 
 function addSamples(layerId: string, samples: ReturnType<typeof toSamples>): void {
@@ -220,12 +290,21 @@ function onPointerMove(ev: PointerEvent): void {
   hover.value = p;
   notePen(ev);
 
-  if (pinch && touches.has(ev.pointerId)) {
-    touches.set(ev.pointerId, p);
-    const a = touches.get(pinch.ids[0]);
-    const b = touches.get(pinch.ids[1]);
-    if (a && b) setViewport(pinchViewport(pinch.start, pinch.a, pinch.b, a, b));
-    return;
+  if (ev.pointerType === "touch") {
+    const act = gestures.move(record(ev));
+    if (act.kind === "ignore") return;
+    if (touches.has(ev.pointerId)) touches.set(ev.pointerId, p);
+    if (act.kind === "pinch") {
+      const a = pinch && touches.get(pinch.ids[0]);
+      const b = pinch && touches.get(pinch.ids[1]);
+      if (pinch && a && b) setViewport(pinchViewport(pinch.start, pinch.a, pinch.b, a, b));
+      return;
+    }
+    if (gesture?.kind === "pending" && gesture.pointerId === ev.pointerId) {
+      gesture.samples.push(...toSamples(ev, origin(), viewport.value));
+      if (act.kind === "commit") commitPending();
+      return;
+    }
   }
   if (!gesture || gesture.pointerId !== ev.pointerId) return;
 
@@ -235,15 +314,24 @@ function onPointerMove(ev: PointerEvent): void {
     gesture.y = ev.clientY;
   } else if (gesture.kind === "pick") {
     pick(ev);
-  } else {
+  } else if (gesture.kind === "stroke") {
     addSamples(gesture.layerId, toSamples(ev, origin(), viewport.value));
     requestFrame();
   }
 }
 
 function onPointerEnd(ev: PointerEvent): void {
-  if (ev.pointerType === "touch") {
+  const cancelled = ev.type === "pointercancel";
+  if (ev.pointerType === "pen") {
+    gestures[cancelled ? "cancel" : "up"](record(ev));
+  } else if (ev.pointerType === "touch") {
+    const act = gestures[cancelled ? "cancel" : "up"](record(ev));
     touches.delete(ev.pointerId);
+    if (act.kind === "ignore") return;
+    if (act.kind === "tap-undo") emit("undo");
+    if (act.kind === "tap-redo") emit("redo");
+    if (act.kind === "end" && act.commitFirst) commitPending();
+    if (gesture?.kind === "pending" && gesture.pointerId === ev.pointerId) gesture = null;
     if (pinch?.ids.includes(ev.pointerId)) {
       pinch = null;
       return;
@@ -283,7 +371,7 @@ const cursorClass = (): string => {
 <template>
   <div
     ref="host"
-    class="relative size-full touch-none select-none overflow-hidden"
+    class="paint-stage relative size-full touch-none select-none overflow-hidden"
     :class="cursorClass()"
     @pointerdown="onPointerDown"
     @pointermove="onPointerMove"
@@ -321,3 +409,11 @@ const cursorClass = (): string => {
     </svg>
   </div>
 </template>
+
+<style scoped>
+/* iPadOS: no callout or text selection from a long press on the canvas. */
+.paint-stage {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+}
+</style>

@@ -19,7 +19,7 @@ import { loadMaskFromImage, maskHasPaint, maskToCanvas } from "./maskPixels";
 import { loadPressureCurve, savePressureCurve } from "./pressureStore";
 import { createCompositor, type Compositor } from "./render/compositor";
 import type { PenReading } from "./render/penSamples";
-import { createPaintSession, DEFAULT_INK } from "./session/paintSession";
+import { createPaintSession, DEFAULT_BACKGROUND, DEFAULT_INK } from "./session/paintSession";
 import type { Layer, LayerBlend, PaintLayer, PaintSessionApi, PaintTool, PictureLayer } from "./session/types";
 
 export interface PaintStart {
@@ -66,6 +66,10 @@ export function usePaintSession(opts: PaintSessionOptions) {
   const pen = ref<PenReading | null>(null);
   /** The colour is kept here too, so the rail's swatch shows it before a session has started. */
   const colourNow = ref<Rgb>(DEFAULT_INK);
+  /** The background colour: not painted with until X swaps it to the front. Kept here only; nothing is saved. */
+  const backgroundNow = ref<Rgb>(DEFAULT_BACKGROUND);
+  /** Which of the two the Colour panel edits. */
+  const editing = ref<"foreground" | "background">("foreground");
   let startToken = 0;
   let userBrushes = 0;
   let opacityDraft: { id: string; start: number } | null = null;
@@ -157,6 +161,8 @@ export function usePaintSession(opts: PaintSessionOptions) {
     return session.value ? session.value.state.activeLayerId : "";
   });
   const colour = computed<Rgb>(() => colourNow.value);
+  const background = computed<Rgb>(() => backgroundNow.value);
+  const editedColour = computed<Rgb>(() => (editing.value === "background" ? backgroundNow.value : colourNow.value));
   const recent = computed<Rgb[]>(() => {
     track();
     return session.value ? [...session.value.state.recent] : [];
@@ -352,6 +358,25 @@ export function usePaintSession(opts: PaintSessionOptions) {
     if (session.value) session.value.state.colour = { ...c };
     bump();
   }
+  function setBackground(c: Rgb): void {
+    backgroundNow.value = { ...c };
+    bump();
+  }
+  /** The Colour panel writes to whichever swatch was opened. */
+  function setEditedColour(c: Rgb): void {
+    if (editing.value === "background") setBackground(c);
+    else setColour(c);
+  }
+  function swapColours(): void {
+    const front = colourNow.value;
+    const back = backgroundNow.value;
+    backgroundNow.value = { ...front };
+    setColour(back);
+  }
+  function resetColours(): void {
+    backgroundNow.value = { ...DEFAULT_BACKGROUND };
+    setColour(DEFAULT_INK);
+  }
   function setOption(field: "size" | "opacity" | "flow" | "smoothing", value: number): void {
     const s = session.value;
     if (!s) return;
@@ -426,6 +451,13 @@ export function usePaintSession(opts: PaintSessionOptions) {
     layers,
     activeLayerId,
     colour,
+    background,
+    editing,
+    editedColour,
+    setBackground,
+    setEditedColour,
+    swapColours,
+    resetColours,
     recent,
     tool,
     brushTool,

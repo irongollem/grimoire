@@ -63,3 +63,28 @@ describe("readPen", () => {
     expect(b.pressure).toBe(0.7);
   });
 });
+
+describe("tilt from altitude and azimuth", () => {
+  it("a Safari Pencil leaning along x reports a tilt instead of upright (fails if only tiltX/tiltY are read)", () => {
+    const [s] = toSamples(ev({ altitudeAngle: Math.PI / 4, azimuthAngle: 0 }), { left: 0, top: 0 }, { scale: 1, offsetX: 0, offsetY: 0 });
+    expect(s?.tiltX).toBeCloseTo(45);
+    expect(s?.tiltY).toBeCloseTo(0);
+  });
+
+  it("an upright Pencil stays at zero tilt (fails if altitude pi/2 is converted)", () => {
+    const [s] = toSamples(ev({ altitudeAngle: Math.PI / 2, azimuthAngle: 1 }), { left: 0, top: 0 }, { scale: 1, offsetX: 0, offsetY: 0 });
+    expect(s?.tiltX).toBe(0);
+    expect(s?.tiltY).toBe(0);
+  });
+
+  it("a real tiltX wins over altitude (fails if the conversion overrides a browser that reports tilt)", () => {
+    const [s] = toSamples(ev({ tiltX: 20, altitudeAngle: Math.PI / 4, azimuthAngle: 0 }), { left: 0, top: 0 }, { scale: 1, offsetX: 0, offsetY: 0 });
+    expect(s?.tiltX).toBe(20);
+  });
+
+  it("the Pen view counts a Safari Pencil's lean as reported tilt (fails if readPen skips altitude)", () => {
+    const r = readPen(null, ev({ altitudeAngle: Math.PI / 4, azimuthAngle: Math.PI / 2 }));
+    expect(r.reported.tilt).toBe(true);
+    expect(r.tilt).toBe(45);
+  });
+});

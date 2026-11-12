@@ -106,7 +106,7 @@ describe("the workbench for the selected picture", () => {
     expect(inText.api.workbench.value).toMatchObject({ tool: "crop", pageAspect: null });
     const onPage = setup({ src: own }, { kind: "picture", source: "furniture", id: "f1" } as PanelSelection);
     onPage.api.openWorkbench();
-    expect(onPage.api.workbench.value).toMatchObject({ tool: "edges", pageAspect: 0.75 });
+    expect(onPage.api.workbench.value).toMatchObject({ tool: undefined, pageAspect: 0.75 });
   });
 
   // Fails on: Done writing the recipe without the original, so Reset has nothing to go back to.

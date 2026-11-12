@@ -1,10 +1,10 @@
 <template>
   <div
-    class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-card px-3 py-2"
+    class="@container flex items-center gap-3 border-b border-border bg-card px-3 py-2"
     role="toolbar"
     :aria-label="`${TOOL_LABEL[tool]} options`"
   >
-    <span class="text-label-lg font-bold uppercase text-foreground">{{ TOOL_LABEL[tool] }}</span>
+    <span class="hidden text-label-lg font-bold uppercase text-foreground @[40rem]:inline">{{ TOOL_LABEL[tool] }}</span>
 
     <AppButton
       v-if="tool !== 'picker'"
@@ -17,13 +17,13 @@
       <span class="flex h-5 w-8 items-center justify-center overflow-hidden rounded-sm bg-muted">
         <slot name="tip" />
       </span>
-      <span class="max-w-[8rem] truncate">{{ brushName }}</span>
+      <span class="max-w-[6rem] truncate">{{ brushName }}</span>
     </AppButton>
 
     <p v-if="tool === 'picker'" class="text-caption text-muted-foreground" data-testid="picker-hint">{{ PICKER_HINT }}</p>
 
-    <label v-if="fields.includes('mode')" class="flex items-center gap-2">
-      <span class="text-eyebrow text-muted-foreground">Mode</span>
+    <label v-if="fields.includes('mode')" class="flex shrink-0 items-center gap-1.5">
+      <span class="hidden text-eyebrow text-muted-foreground @[48rem]:inline">Mode</span>
       <AppSelect
         size="xs"
         aria-label="Blend mode"
@@ -53,6 +53,7 @@
     />
     <PaintSlider
       v-if="fields.includes('flow')"
+      class="hidden @[56rem]:flex"
       label="Flow"
       :model-value="values.flow"
       :display="percent(values.flow)"
@@ -60,18 +61,32 @@
     />
     <PaintSlider
       v-if="fields.includes('smoothing')"
+      class="hidden @[56rem]:flex"
       label="Smoothing"
       :model-value="values.smoothing"
       :display="percent(values.smoothing)"
       @update:model-value="emit('change', 'smoothing', $event)"
     />
 
+    <!-- Below the width that holds every slider, Flow and Smoothing wait in here rather than wrapping a second row. -->
+    <MenuPopover v-if="fields.includes('flow')" label="More brush options">
+      <template #trigger="{ toggle }">
+        <AppButton class="@[56rem]:hidden" variant="ghost" size="icon-sm" :icon="IconMore" aria-label="More brush options" tooltip="More: Flow and Smoothing" data-testid="options-more" @click="toggle" />
+      </template>
+      <div class="flex flex-col gap-3 px-3 py-2">
+        <PaintSlider layout="stacked" label="Flow" :model-value="values.flow" @update:model-value="emit('change', 'flow', $event)" />
+        <PaintSlider layout="stacked" label="Smoothing" :model-value="values.smoothing" @update:model-value="emit('change', 'smoothing', $event)" />
+      </div>
+    </MenuPopover>
+
     <AppButton
       v-if="tool !== 'picker'"
       class="ml-auto"
       variant="ghost"
-      size="xs"
-      label="Brush settings"
+      size="icon-sm"
+      :icon="IconSettings"
+      aria-label="Brush settings"
+      tooltip="Brush settings"
       @click="emit('open-settings')"
     />
   </div>
@@ -81,6 +96,8 @@
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
+import MenuPopover from "@/components/common/overlays/MenuPopover.vue";
+import { IconMore, IconSettings } from "@/lib/icons";
 import PaintSlider from "./PaintSlider.vue";
 import type { BrushBlend } from "../engine/types";
 import type { PaintTool } from "../session/types";

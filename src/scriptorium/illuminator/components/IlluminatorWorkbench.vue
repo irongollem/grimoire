@@ -31,7 +31,15 @@
       </header>
 
       <div class="flex min-h-0 flex-1">
-        <IlluminateToolRail v-model:tool="wb.tool.value" :colour="paint.colour.value" @open-colour="openColourTab" />
+        <IlluminateToolRail
+          v-model:tool="wb.tool.value"
+          :colour="paint.colour.value"
+          :background="paint.background.value"
+          :editing="paint.editing.value"
+          @open-colour="openColourTab"
+          @swap-colours="paint.swapColours"
+          @reset-colours="paint.resetColours"
+        />
 
         <div v-if="armedPaintTool" class="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="paint-area">
           <PaintOptionsBar
@@ -63,6 +71,8 @@
               @stroke-start="paint.onStrokeStart"
               @stroke-end="paint.onStrokeEnd"
               @pen="paint.onPen"
+              @undo="paint.undo()"
+              @redo="paint.redo()"
             />
           </PaintStageFrame>
 
@@ -77,6 +87,7 @@
           v-else
           ref="stage"
           v-model:compare-pos="wb.comparePos.value"
+          v-model:compare="wb.compareOn.value"
           :size="wb.previewSize.value"
           :show-original="wb.showOriginal.value"
           :compare-off="wb.tool.value === 'focus' || wb.tool.value === 'crop'"
@@ -87,7 +98,7 @@
           <IlluminateCropBox v-if="wb.tool.value === 'crop'" :crop="wb.crop" :locked="cropLocked" @drag="wb.dragCropBox" />
         </IlluminateStage>
 
-        <aside v-if="armedPaintTool" aria-label="Painting" class="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card" data-testid="paint-panel">
+        <aside v-if="armedPaintTool" aria-label="Painting" class="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card" ref="paintPanel" data-testid="paint-panel">
           <template v-if="paintView !== 'tabs'">
             <div class="border-b border-border p-2">
               <AppButton variant="ghost" size="xs" :icon="IconChevronLeft" label="Back" data-testid="paint-back" @click="paintView = 'tabs'" />
@@ -103,35 +114,38 @@
             <PenPanel v-else-if="paintView === 'pen'" :curve="paint.curve.value" :reported="paint.reported.value" @update:curve="paint.setCurve" />
           </template>
           <template v-else>
-            <TabBar v-model="paintTab" :tabs="PAINT_TABS" />
-            <BrushLibraryPanel
-              v-if="paintTab === 'brushes' && paint.brush.value"
-              :brushes="paint.library.value"
-              :selected-id="paint.brush.value.id"
-              :assets="paint.assets"
-              @select="onSelectBrush"
-              @new="onNewBrush"
-            />
-            <LayersPanel
-              v-else-if="paintTab === 'layers'"
-              :layers="paint.layers.value"
-              :active-id="paint.activeLayerId.value"
-              :can-delete="paint.canDeleteActive.value"
-              :can-merge-down="paint.canMergeActive.value"
-              :can-flatten="paint.hasPaintLayers.value"
-              :thumbnail="paint.thumbnail"
-              :revision="paint.revision.value"
-              @select="paint.selectLayer"
-              @set-visible="(id, visible) => paint.setLayerProps(id, { visible })"
-              @set-props="paint.setLayerProps"
-              @commit-opacity="paint.commitOpacity"
-              @add="paint.addLayer"
-              @delete="paint.deleteLayer"
-              @merge-down="paint.mergeDown"
-              @move="paint.moveLayer"
-              @flatten="flatten"
-            />
-            <ColourPanel v-else-if="paintTab === 'colour'" :colour="paint.colour.value" :recent="paint.recent.value" @update:colour="paint.setColour" />
+            <PaintAccordion v-for="section in PAINT_SECTIONS" :key="section.id" :id="section.id" :title="section.label" :open="sections.isOpen(section.id)" @toggle="sections.toggle(section.id)">
+              <div v-if="section.id === 'brushes'" class="h-72">
+                <BrushLibraryPanel
+                  v-if="paint.brush.value"
+                  :brushes="paint.library.value"
+                  :selected-id="paint.brush.value.id"
+                  :assets="paint.assets"
+                  @select="onSelectBrush"
+                  @new="onNewBrush"
+                />
+              </div>
+              <LayersPanel
+                v-else-if="section.id === 'layers'"
+                :layers="paint.layers.value"
+                :active-id="paint.activeLayerId.value"
+                :can-delete="paint.canDeleteActive.value"
+                :can-merge-down="paint.canMergeActive.value"
+                :can-flatten="paint.hasPaintLayers.value"
+                :thumbnail="paint.thumbnail"
+                :revision="paint.revision.value"
+                @select="paint.selectLayer"
+                @set-visible="(id, visible) => paint.setLayerProps(id, { visible })"
+                @set-props="paint.setLayerProps"
+                @commit-opacity="paint.commitOpacity"
+                @add="paint.addLayer"
+                @delete="paint.deleteLayer"
+                @merge-down="paint.mergeDown"
+                @move="paint.moveLayer"
+                @flatten="flatten"
+              />
+              <ColourPanel v-else :colour="paint.editedColour.value" :recent="paint.recent.value" @update:colour="paint.setEditedColour" />
+            </PaintAccordion>
           </template>
         </aside>
 
@@ -256,10 +270,9 @@
  * vignette, texture, focus and the brush, with a before/after divider, and
  * "Ask the Illuminator" (story 10) for the AI picture actions.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { onClickOutside } from "@vueuse/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import TabBar from "@/components/common/controls/TabBar.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { PAINT_CANVAS_LIMIT_MESSAGE } from "@/scriptorium/illuminator/lib/paintQuota";
 import { useInvalidateQuota, useQuota } from "@/composables/billing/useQuota";
@@ -287,6 +300,8 @@ import type { ScriptoriumTheme } from "@/scriptorium/types";
 import { newWash } from "@/scriptorium/illuminator/lib/washEdits";
 import BrushLibraryPanel from "@/scriptorium/illuminator/paint/components/BrushLibraryPanel.vue";
 import BrushSettingsPanel from "@/scriptorium/illuminator/paint/components/BrushSettingsPanel.vue";
+import PaintAccordion from "@/scriptorium/illuminator/paint/components/PaintAccordion.vue";
+import { PAINT_SECTIONS, usePaintSections, type PaintSectionId } from "@/scriptorium/illuminator/paint/usePaintSections";
 import ColourPanel from "@/scriptorium/illuminator/paint/components/ColourPanel.vue";
 import LayersPanel from "@/scriptorium/illuminator/paint/components/LayersPanel.vue";
 import PaintOptionsBar from "@/scriptorium/illuminator/paint/components/PaintOptionsBar.vue";
@@ -300,7 +315,7 @@ import { isPaintTool, useIlluminateWorkbench, type WorkbenchTool } from "@/scrip
 import { useToast } from "@/composables/useToast";
 import { IconChevronLeft, IconSave } from "@/lib/icons";
 
-const { original, settings, name, pageLabel, userId, documentId, campaignId, theme, pageAspect = null, startTool = "edges" } = defineProps<{
+const { original, settings, name, pageLabel, userId, documentId, campaignId, theme, pageAspect = null, startTool } = defineProps<{
   /** The untouched picture the recipe applies to. */
   original: string;
   /** The recipe it has now, or null for a picture with no edits. */
@@ -318,7 +333,7 @@ const { original, settings, name, pageLabel, userId, documentId, campaignId, the
   theme: ScriptoriumTheme;
   /** Width over height of the page, for art placed on the page (the crop's Page shape); null for a picture in the text. */
   pageAspect?: number | null;
-  /** The tool it opens on: Crop, from the panel's Crop button. */
+  /** The tool it opens on: Crop, from the panel's Crop button. Left out, it opens on the one used last. */
   startTool?: WorkbenchTool;
 }>();
 
@@ -358,7 +373,7 @@ const wb = useIlluminateWorkbench({
 });
 const paint = wb.paint;
 
-wb.tool.value = startTool;
+if (startTool) wb.tool.value = startTool;
 
 // The AI actions are paid for against a document the server checks belongs to the caller; the chapter editor
 // that opens the workbench knows it and its look.
@@ -392,25 +407,25 @@ const toolTitle = computed(() => TITLES[wb.tool.value]);
 const cursorClass = computed(() => (wb.tool.value === "focus" && wb.dofEnabled.value ? "cursor-crosshair" : ""));
 
 // ── Painting panels ─────────────────────────────────────────────────────────
-const PAINT_TABS = [
-  { id: "brushes", label: "Brushes" },
-  { id: "layers", label: "Layers" },
-  { id: "colour", label: "Colour" },
-] as const;
-type PaintTab = (typeof PAINT_TABS)[number]["id"];
-const paintTab = ref<PaintTab>("brushes");
+const sections = usePaintSections();
+const paintPanel = ref<HTMLElement | null>(null);
 /** The two full-panel views reached from the options bar and the status line. */
 const paintView = ref<"tabs" | "settings" | "pen">("tabs");
 const armedPaintTool = computed(() => (isPaintTool(wb.tool.value) ? wb.tool.value : null));
 
-const openColourTab = () => {
-  paintTab.value = "colour";
-  paintView.value = "tabs";
+const openColourTab = (target: "foreground" | "background") => {
+  paint.editing.value = target;
+  showSection("colour");
   if (!armedPaintTool.value) wb.tool.value = "brush";
 };
-const openBrushes = () => {
-  paintTab.value = "brushes";
+/** Opens a blade of the painting panel if it is shut and brings it into view. */
+function showSection(id: PaintSectionId) {
   paintView.value = "tabs";
+  sections.set(id, true);
+  void nextTick(() => paintPanel.value?.querySelector(`[data-section="${id}"]`)?.scrollIntoView?.({ block: "nearest", behavior: "smooth" }));
+}
+const openBrushes = () => {
+  showSection("brushes");
 };
 /** A brush picked while the colour picker is armed arms the Brush: the picker has none of its own. */
 function onSelectBrush(id: string) {

@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_INK } from "@/scriptorium/illuminator/paint/session/paintSession";
+import { TOOL_KEYS } from "@/scriptorium/illuminator/toolKeys";
 import type { HotkeyBinding } from "@/composables/useHotkeys";
 import type { IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
 import type { PenSample } from "@/scriptorium/illuminator/paint/engine/types";
@@ -94,6 +96,7 @@ function open(settings: IlluminateSettings | null = recipe) {
 }
 
 beforeEach(() => {
+  localStorage.clear();
   mocks.loaded.length = 0;
   mocks.upload.mockClear();
   mocks.mark.mockClear();
@@ -208,6 +211,82 @@ describe("finishing", () => {
     await vi.waitFor(() => expect(wb.paint.ready.value).toBe(true));
     expect(wb.hasMask.value).toBe(false);
     expect((await wb.finish()).steps.some((s) => s.type === "mask")).toBe(false);
+  });
+});
+
+describe("the tool it opens on", () => {
+  // Fails on: the old default (Edges) coming back, which opened a painter's workbench on a tool nobody chose.
+  it("is the Brush the first time", () => {
+    expect(open(null).tool.value).toBe("brush");
+  });
+
+  // Fails on: the last tool not being kept per device, so every opening starts over on the Brush.
+  it("is the tool used last, across a remount", async () => {
+    const first = open(null);
+    first.tool.value = "grade";
+    await flushPromises();
+    expect(open(null).tool.value).toBe("grade");
+  });
+
+  // Fails on: a stored value that is not a tool (an old build's, or a name every object inherits) being taken as one.
+  it.each(["colour", "constructor"])("ignores a remembered value that is no tool (%s)", (saved) => {
+    localStorage.setItem("grimoire:illuminate:tool", saved);
+    expect(open(null).tool.value).toBe("brush");
+  });
+
+  // Fails on: blocked storage stopping the workbench from opening at all.
+  it("still opens on the Brush when storage throws", async () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    const wb = open(null);
+    expect(wb.tool.value).toBe("brush");
+    wb.tool.value = "wash";
+    await flushPromises();
+    expect(wb.tool.value).toBe("wash");
+    vi.restoreAllMocks();
+  });
+});
+
+describe("the keys", () => {
+  // Fails on: a rail corner printing a key the registry does not bind to that tool (the corner would lie).
+  it("binds every tool's printed key to that tool", async () => {
+    const wb = open(null);
+    await wb.open();
+    for (const [tool, key] of Object.entries(TOOL_KEYS)) {
+      press(key);
+      expect(wb.tool.value).toBe(tool);
+    }
+  });
+
+  // Fails on: two actions sharing a key, so one would shadow the other.
+  it("gives no two bindings the same key", () => {
+    open(null);
+    const all = mocks.bindings().map((b) => b.combo);
+    expect(new Set(all).size).toBe(all.length);
+  });
+
+  // Fails on: X and D not reaching the colours.
+  it("X swaps the colours and D resets them", () => {
+    const wb = open(null);
+    wb.paint.setColour({ r: 1, g: 2, b: 3 });
+    press("x");
+    expect(wb.paint.background.value).toEqual({ r: 1, g: 2, b: 3 });
+    press("d");
+    expect(wb.paint.colour.value).toEqual(DEFAULT_INK);
+  });
+
+  // Fails on: Compare being on at the start, or its key not toggling it.
+  it("starts without the split, and P toggles it", () => {
+    const wb = open(null);
+    expect(wb.compareOn.value).toBe(false);
+    press("p");
+    expect(wb.compareOn.value).toBe(true);
+    press("p");
+    expect(wb.compareOn.value).toBe(false);
   });
 });
 
@@ -560,6 +639,7 @@ describe("a painting with layers", () => {
   // Fails on: a painting being lost when the author never opens a paint tool: Done must hand the stored step back.
   it("hands a stored painting back untouched when no paint tool was used", async () => {
     const wb = open(saved);
+    wb.tool.value = "edges";
     await wb.open();
     await flushPromises();
     expect(wb.paint.ready.value).toBe(false);

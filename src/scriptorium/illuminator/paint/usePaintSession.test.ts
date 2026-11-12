@@ -5,6 +5,7 @@ import { FIRM } from "./engine/pressure";
 import type { PaintAssets } from "./engine/types";
 import { PRESSURE_CURVE_KEY } from "./pressureStore";
 import type { PaintLayer } from "./session/types";
+import { DEFAULT_BACKGROUND, DEFAULT_INK } from "./session/paintSession";
 import { usePaintSession } from "./usePaintSession";
 
 const mocks = vi.hoisted(() => ({
@@ -136,5 +137,36 @@ describe("the plan's canvas limit", () => {
   it("allows everything when no limit is given", async () => {
     const { paint } = await startedWith({});
     expect(paint.mayStroke()).toBe(true);
+  });
+});
+
+describe("foreground and background colours", () => {
+  // Fails on: the swap changing only one swatch, or the session still painting with the old foreground.
+  it("swaps them and the brush paints with the new foreground", async () => {
+    const { paint } = await started();
+    paint.setColour({ r: 200, g: 0, b: 0 });
+    paint.swapColours();
+    expect(paint.colour.value).toEqual({ r: 255, g: 255, b: 255 });
+    expect(paint.background.value).toEqual({ r: 200, g: 0, b: 0 });
+    expect(paint.session.value?.state.colour).toEqual({ r: 255, g: 255, b: 255 });
+  });
+
+  // Fails on: reset leaving the background (or the foreground) as it was.
+  it("resets to ink on paper", async () => {
+    const { paint } = await started();
+    paint.setColour({ r: 1, g: 1, b: 1 });
+    paint.setBackground({ r: 2, g: 2, b: 2 });
+    paint.resetColours();
+    expect(paint.colour.value).toEqual(DEFAULT_INK);
+    expect(paint.background.value).toEqual(DEFAULT_BACKGROUND);
+  });
+
+  // Fails on: the Colour panel always editing the foreground, whichever swatch was opened.
+  it("edits the swatch that was opened", async () => {
+    const { paint } = await started();
+    paint.editing.value = "background";
+    paint.setEditedColour({ r: 9, g: 9, b: 9 });
+    expect(paint.background.value).toEqual({ r: 9, g: 9, b: 9 });
+    expect(paint.colour.value).toEqual(DEFAULT_INK);
   });
 });

@@ -1,5 +1,5 @@
 <template>
-  <label class="flex min-w-0 gap-2" :class="layout === 'stacked' ? 'flex-col items-stretch gap-1' : 'items-center'" :data-layout="layout">
+  <label class="flex min-w-0 gap-2" :class="layout === 'stacked' ? 'flex-col items-stretch gap-1' : layout === 'bar' ? 'w-22 shrink-0 flex-col items-stretch gap-1' : 'items-center'" :data-layout="layout">
     <template v-if="layout === 'row'">
       <span class="w-24 shrink-0 text-caption text-muted-foreground">{{ label }}</span>
       <input
@@ -17,9 +17,9 @@
       <span class="w-12 shrink-0 text-right text-caption-sm tabular-nums text-muted-foreground">{{ shown }}</span>
     </template>
     <template v-else>
-      <span class="flex items-baseline justify-between gap-2" :class="layout === 'stacked' ? '' : 'shrink-0'">
+      <span class="flex items-baseline gap-1.5" :class="layout === 'stacked' ? 'justify-between' : ''">
         <span class="text-eyebrow text-muted-foreground">{{ label }}</span>
-        <span class="text-right text-caption tabular-nums text-foreground" :class="layout === 'stacked' ? '' : 'w-[3.25rem]'">{{ shown }}</span>
+        <span class="text-caption tabular-nums text-foreground">{{ shown }}</span>
       </span>
       <input
         type="range"
@@ -29,7 +29,8 @@
         :value="modelValue"
         :disabled="disabled"
         :aria-label="label"
-        class="h-1.5 min-w-[5rem] flex-1 cursor-pointer appearance-none rounded-full bg-border accent-primary disabled:opacity-40"
+        class="h-1.5 cursor-pointer appearance-none rounded-full bg-border accent-primary disabled:opacity-40"
+        :class="layout === 'stacked' ? 'min-w-[5rem] flex-1' : 'w-full'"
         @input="emit('update:modelValue', parseFloat(($event.target as HTMLInputElement).value))"
         @change="emit('commit')"
       />

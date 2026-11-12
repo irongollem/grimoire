@@ -34,8 +34,8 @@ export interface OpenWorkbench {
   name: string;
   /** "page 3": where Done goes back to. */
   pageLabel: string;
-  /** The tool it opens on (Crop, from the panel's Crop button). */
-  tool: WorkbenchTool;
+  /** The tool it opens on (Crop, from the panel's Crop button); absent, the one used last. */
+  tool?: WorkbenchTool;
   /** The page's width over height for art placed on the page (the crop's Page shape); null for a picture in the text. */
   pageAspect: number | null;
   /** A blank sheet just made for this session: Cancel takes it away again instead of leaving an empty painting. */
@@ -129,7 +129,7 @@ export function usePictureEditing(opts: Options) {
   const workbench = ref<OpenWorkbench | null>(null);
 
   /** `created` is art that was only just added: the selection and the furniture list have not caught up, so it is opened from the item itself. */
-  function openWorkbench(tool: WorkbenchTool = "edges", created?: PageFurnitureItem) {
+  function openWorkbench(tool?: WorkbenchTool, created?: PageFurnitureItem) {
     const t: PictureTarget | null = created ? { source: "furniture", id: created.id } : target.value;
     const v = created ? { ...created.props } : values.value;
     const original = originalOf(v);

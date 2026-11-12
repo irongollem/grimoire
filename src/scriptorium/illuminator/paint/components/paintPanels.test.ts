@@ -17,7 +17,7 @@ describe("PaintOptionsBar", () => {
     const w = mount(PaintOptionsBar, { props: { tool: "picker", brushName: "Ink", mode: "normal", values } });
     expect(w.find('[data-testid="picker-hint"]').exists()).toBe(true);
     expect(w.find('input[type="range"]').exists()).toBe(false);
-    expect(w.text()).not.toContain("Brush settings");
+    expect(w.find('[aria-label="Brush settings"]').exists()).toBe(false);
   });
   it("emits a size change for the brush", async () => {
     const w = mount(PaintOptionsBar, { props: { tool: "brush", brushName: "Ink", mode: "normal", values } });
