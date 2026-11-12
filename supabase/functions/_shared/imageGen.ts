@@ -350,17 +350,19 @@ const DEFAULT_MODEL: Record<string, string> = {
 };
 
 /** Image surfaces with their own model setting in provider_config. */
-export type ImageSurface = "map_style" | "chronicle";
+export type ImageSurface = "map_style" | "chronicle" | "brush_tip";
 
 const SURFACE_MODEL_COLUMN = {
   map_style: "map_style_model",
   chronicle: "chronicle_image_model",
+  brush_tip: "brush_tip_model",
 } as const satisfies Record<ImageSurface, string>;
 
 export interface ImageProviderConfig {
   image_model?: string | null;
   map_style_model?: string | null;
   chronicle_image_model?: string | null;
+  brush_tip_model?: string | null;
   image_multiplier?: number | null;
   image_quality?: string | null;
   /** Admin → Providers switch: whether platform-key campaigns may render on this provider. */
@@ -399,7 +401,7 @@ export function resolveImageProvider(args: {
   providerConfigs: Partial<Record<string, ImageProviderConfig | undefined>>;
   /**
    * The surface rendering, when it has its own model column in provider_config
-   * (`map_style_model`, `chronicle_image_model`); an empty column falls back to
+   * (`map_style_model`, `chronicle_image_model`, `brush_tip_model`); an empty column falls back to
    * `image_model`. A surface's model is always a setting, never a code constant
    * or a request field: a browser-sent model used to override this and kept the
    * Chronicler on gpt-image-2 long after the platform moved to flare (fixed

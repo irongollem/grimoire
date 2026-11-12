@@ -158,6 +158,14 @@
                 placeholder="Falls back to the image model"
                 hint="Chronicler scenes and group portraits, composed from character portraits."
               />
+              <ProviderModelOverrideField
+                v-model="providerDrafts.drafts[row.provider]!.brush_tip_model"
+                label="Brush tips model"
+                :list-id="`brush-tip-models-${row.provider}`"
+                :options="providerModelOptions[row.provider]"
+                placeholder="Falls back to the image model"
+                hint="A sheet of four brush marks drawn from a described brush."
+              />
             </template>
           </ProviderCapabilityCell>
 
@@ -361,6 +369,7 @@ const providerDrafts = useKeyedRecordDrafts<ProviderConfig, ProviderDraft>((r) =
   image_model:       r.image_model,
   map_style_model:   r.map_style_model,
   chronicle_image_model: r.chronicle_image_model,
+  brush_tip_model:   r.brush_tip_model,
   image_quality:     r.image_quality,
   audio_model:       r.audio_model,
   embedding_model:   r.embedding_model,
@@ -391,6 +400,7 @@ const PROVIDER_FIELD_LABELS: Record<keyof ProviderDraft, string> = {
   image_model: "Image model",
   map_style_model: "Map styler model",
   chronicle_image_model: "Chronicler model",
+  brush_tip_model: "Brush tips model",
   image_quality: "Image quality",
   audio_model: "Audio model",
   embedding_model: "Embedding model",
@@ -408,7 +418,7 @@ function providerConflictLabels(provider: string): string[] {
 }
 
 async function saveProvider(provider: string) {
-  // A cleared fallback box (Fast, Map styler, Chronicler) means "use the
+  // A cleared fallback box (Fast, Map styler, Chronicler, Brush tips) means "use the
   // general model", which the edge functions read as null; an empty string
   // would be sent as a model id and fail the provider call instead of falling
   // back. Built purely from the draft so `changes` can run it over the server
@@ -418,6 +428,7 @@ async function saveProvider(provider: string) {
     fast_text_model: d.fast_text_model?.trim() || null,
     map_style_model: d.map_style_model?.trim() || null,
     chronicle_image_model: d.chronicle_image_model?.trim() || null,
+    brush_tip_model: d.brush_tip_model?.trim() || null,
   }));
   if (Object.keys(changed).length === 0) return;
   providerSaving[provider] = true;
@@ -545,6 +556,7 @@ watch(
       initModel(p.image_model);
       initModel(p.map_style_model);
       initModel(p.chronicle_image_model);
+      initModel(p.brush_tip_model);
       // Audio is free-text like text/image -- KNOWN_AUDIO_MODELS only feeds the
       // datalist, so the pricing row tracks the model actually configured.
       initModel(p.audio_model);
@@ -586,7 +598,7 @@ const modelsByProvider = computed(() => {
     }
     // One pricing row per distinct image model: the surface models usually
     // repeat image_model, and a duplicate would collide on the v-for :key.
-    const imageModels = new Set([draft.image_model, draft.map_style_model, draft.chronicle_image_model]);
+    const imageModels = new Set([draft.image_model, draft.map_style_model, draft.chronicle_image_model, draft.brush_tip_model]);
     for (const m of imageModels) if (m) items.push({ model: m, model_type: "image" });
     // Same reasoning as the initModel(p.audio_model) call above -- audio is
     // free-text, so only the configured model gets a pricing row.

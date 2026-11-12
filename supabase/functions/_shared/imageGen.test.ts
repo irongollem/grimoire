@@ -205,8 +205,8 @@ describe("sizeToAspect", () => {
 describe("resolveImageProvider — which model a surface renders on", () => {
   const keys = { campaignKeys: {}, platformKeys: { openai: "sk-platform", gemini: "g-platform" } };
   const providerConfigs = {
-    openai: { image_model: "gpt-image-2.5-flare", map_style_model: "gpt-image-2.5-sunburst", chronicle_image_model: "gpt-image-2.5-sunburst", image_enabled: true },
-    gemini: { image_model: "gemini-3.1-flash-image", map_style_model: null, chronicle_image_model: null, image_enabled: true },
+    openai: { image_model: "gpt-image-2.5-flare", map_style_model: "gpt-image-2.5-sunburst", chronicle_image_model: "gpt-image-2.5-sunburst", brush_tip_model: "gpt-image-2.5-sunburst", image_enabled: true },
+    gemini: { image_model: "gemini-3.1-flash-image", map_style_model: null, chronicle_image_model: null, brush_tip_model: null, image_enabled: true },
   };
 
   it("renders entity art on the general image model", () => {
@@ -216,6 +216,12 @@ describe("resolveImageProvider — which model a surface renders on", () => {
   it("gives the map styler and the Chronicler their own model setting", () => {
     expect(resolveImageProvider({ imageProvider: "openai", ...keys, providerConfigs, surface: "map_style" })?.model).toBe("gpt-image-2.5-sunburst");
     expect(resolveImageProvider({ imageProvider: "openai", ...keys, providerConfigs, surface: "chronicle" })?.model).toBe("gpt-image-2.5-sunburst");
+  });
+
+  // Bug: brush tips rendered on the general model because the surface was not wired to its column.
+  it("gives brush tips their own model setting, and falls back to the image model when empty", () => {
+    expect(resolveImageProvider({ imageProvider: "openai", ...keys, providerConfigs, surface: "brush_tip" })?.model).toBe("gpt-image-2.5-sunburst");
+    expect(resolveImageProvider({ imageProvider: "gemini", ...keys, providerConfigs, surface: "brush_tip" })?.model).toBe("gemini-3.1-flash-image");
   });
 
   it("falls back to the image model when a surface's setting is empty", () => {
