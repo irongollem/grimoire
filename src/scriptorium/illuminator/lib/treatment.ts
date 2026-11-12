@@ -67,7 +67,38 @@ export interface AiStep { type: "ai"; action: string; output: string }
  */
 export interface CropStep { type: "crop"; x: number; y: number; w: number; h: number }
 
-export type IlluminateStep = GradeStep | DofStep | VignetteStep | TextureStep | EdgesStep | WashStep | MaskStep | AiStep | CropStep;
+/** How a painted layer mixes with what is under it: a canvas `globalCompositeOperation` (#1181). */
+export type PaintLayerBlend = "source-over" | "multiply" | "screen" | "overlay" | "soft-light" | "color";
+
+/** One painted layer, stored as 1024 px chunks of the document, keyed "cx,cy". Absent chunks are empty. */
+export interface PaintLayerRecord {
+  id: string;
+  name: string;
+  blend: PaintLayerBlend;
+  opacity: number;
+  visible: boolean;
+  lockAlpha: boolean;
+  chunks: Record<string, string>;
+}
+
+/**
+ * The layers painted over the picture (#1181), drawn last so the paint sits on every treatment. The document is
+ * `width` × `height` pixels (the cropped picture at bake size); every renderer scales it to its own canvas.
+ * `paper` names the stock paper a blank sheet was started on, so brushes catch its grain when it is reopened.
+ */
+export interface PaintStep {
+  type: "paint";
+  width: number;
+  height: number;
+  paper: string | null;
+  /** Bottom first. */
+  layers: PaintLayerRecord[];
+}
+
+/** The size of a stored paint chunk, in document pixels. */
+export const PAINT_CHUNK = 1024;
+
+export type IlluminateStep = GradeStep | DofStep | VignetteStep | TextureStep | EdgesStep | WashStep | MaskStep | AiStep | CropStep | PaintStep;
 export type StepType = IlluminateStep["type"];
 
 export interface IlluminateSettings {
@@ -77,8 +108,8 @@ export interface IlluminateSettings {
   steps: IlluminateStep[];
 }
 
-/** The order the steps run in: the crop comes first, the texture sits under the vignette on purpose, the wash goes on after the edges, and the mask the Eraser paints on the picture erases last. */
-export const STEP_ORDER: readonly StepType[] = ["ai", "crop", "grade", "dof", "texture", "vignette", "edges", "wash", "mask"];
+/** The order the steps run in: the crop comes first, the texture sits under the vignette on purpose, the wash goes on after the edges, the mask the Eraser paints on the picture erases it, and the painted layers go on last, over everything. */
+export const STEP_ORDER: readonly StepType[] = ["ai", "crop", "grade", "dof", "texture", "vignette", "edges", "wash", "mask", "paint"];
 
 // ─── Defensive parsing ──────────────────────────────────────────────────────
 

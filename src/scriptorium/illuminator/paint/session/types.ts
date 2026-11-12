@@ -10,9 +10,10 @@ import type { TiledLayer } from "../engine/tiledLayer";
 import type { UndoRecord } from "../engine/stroke";
 import type { BrushPreset, PenSample, PressureCurve, Rgb } from "../engine/types";
 import type { Paper } from "@/scriptorium/papers/papers";
+import type { PaintLayerBlend } from "../../lib/treatment";
 
-/** How a layer mixes with the layers under it. Every value is a canvas `globalCompositeOperation`. */
-export type LayerBlend = "source-over" | "multiply" | "screen" | "overlay" | "soft-light" | "color";
+/** How a layer mixes with the layers under it: the same values the recipe's paint step stores. */
+export type LayerBlend = PaintLayerBlend;
 
 /**
  * The picture being illuminated is the bottom layer. It is never painted on: the Eraser on it paints its
