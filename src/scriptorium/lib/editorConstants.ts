@@ -24,10 +24,6 @@ export const IMAGE_SIZES = [
   { label: "XL", w: 650 },
 ] as const;
 
-export const ZOOM_STEPS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0] as const;
-export const ZOOM_MIN = 0.25;
-export const ZOOM_MAX = 2.0;
-
 /*
  * Per-doc-type display config: human label + accent colour for the badge.
  * Single source of truth — the dropdown options array is derived from it,

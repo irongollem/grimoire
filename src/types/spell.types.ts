@@ -611,20 +611,6 @@ export const SCHOOL_TEXT: Record<SpellSchool, string> = {
   transmutation:    "text-school-transmutation",
 };
 
-/** The same ramp as `var()` values, for borders, gradients and canvas — places
- *  a utility class cannot reach. Tint with `color-mix`, never by appending a
- *  hex alpha: that only ever worked on a hex literal. */
-export const SCHOOL_VAR: Record<SpellSchool, string> = {
-  abjuration:       "var(--school-abjuration)",
-  conjuration:      "var(--school-conjuration)",
-  divination:       "var(--school-divination)",
-  enchantment:      "var(--school-enchantment)",
-  evocation:        "var(--school-evocation)",
-  illusion:         "var(--school-illusion)",
-  necromancy:       "var(--school-necromancy)",
-  transmutation:    "var(--school-transmutation)",
-};
-
 /** The slim row a spell picker or lookup needs: enough to list, group and look a
  *  spell up, none of the prose. Library and custom spells share the shape;
  *  `is_shared` says which table it came from (library rows have no campaign). */
