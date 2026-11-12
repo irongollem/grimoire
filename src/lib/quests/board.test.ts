@@ -46,7 +46,6 @@ const emptyFilters: QuestBoardFilters = {
 
 const ready: QuestBoardSummary = {
   isLive: false,
-  runtimeStatus: null,
   currentBeatTitle: null,
   beatSegments: [],
   prepGapCount: 0,
@@ -54,16 +53,11 @@ const ready: QuestBoardSummary = {
   unclaimedLootCount: 0,
   threads: [],
   liveThreadCount: 0,
-  primaryThreadId: null,
-  prepGaps: [],
-  hasPayoffPrepared: false,
   convergesInto: [],
   unlockedBy: null,
   entersAt: null,
   heldPayoffCount: 0,
   settledCaption: null,
-  objectivesDone: 0,
-  objectivesTotal: 0,
 };
 
 describe("filterQuestBoard", () => {
@@ -207,7 +201,7 @@ function boardBeat(id: string, questId: string, over: Partial<QuestBoardBeat> = 
 function payload(over: Partial<QuestBoardPayload>): QuestBoardPayload {
   return {
     beats: [], edges: [], attachments: [], runtime: [], threads: [], visits: [],
-    converges: [], endings: [], consequences: [], objectives: [], loot: [],
+    converges: [], endings: [], consequences: [], loot: [],
     ...over,
   };
 }
@@ -234,7 +228,6 @@ describe("deriveQuestBoardSummaries", () => {
     }));
     expect(summaries["quest-a"]).toMatchObject({
       isLive: true,
-      runtimeStatus: "running",
       currentBeatTitle: "Arrival",
       beatSegments: ["here", "gap"],
       prepGapCount: 1,
@@ -262,7 +255,7 @@ describe("deriveQuestBoardSummaries", () => {
       runtime: [{ quest_id: "quest-a", thread_id: "main", current_beat_id: null, status: "running" }],
       threads: [thread("main", "quest-a")],
     }));
-    expect(ended["quest-a"]).toMatchObject({ threads: [], isLive: false, primaryThreadId: null, runtimeStatus: null });
+    expect(ended["quest-a"]).toMatchObject({ threads: [], isLive: false, currentBeatTitle: null });
   });
 
   it("summarises only quests that exist: loot with no quest (room-homed) adds none", () => {
@@ -288,7 +281,6 @@ describe("deriveQuestBoardSummaries", () => {
     expect(summary.isLive).toBe(true);
     expect(summary.liveThreadCount).toBe(1);
     expect(summary.currentBeatTitle).toBe("Arrival");
-    expect(summary.primaryThreadId).toBe("main");
     expect(summary.threads).toEqual([
       { id: "side", label: "The lost heir", status: "live", currentBeatTitle: "Side chamber", beatSegments: expect.any(Array), created_at: "2026-08-05T00:00:00Z" },
       { id: "main", label: "Main", status: "live", currentBeatTitle: "Arrival", beatSegments: expect.any(Array), created_at: "2026-08-01T00:00:00Z" },
@@ -327,13 +319,13 @@ describe("deriveQuestBoardSummaries", () => {
   // Story I (#850): the card has to answer "where is this quest" for more
   // than one cursor, and the log's groups need the facts a "07 Log"-style
   // caption reads off.
-  it("names every concrete prep gap, not just the count", () => {
+  it("counts every prep gap a beat carries, guidance and attachments alike", () => {
     const summaries = deriveQuestBoardSummaries(payload({
       beats: [boardBeat("beat-a", "quest-a"), boardBeat("beat-b", "quest-a", { has_guidance: false })],
       edges: [{ source_beat_id: "beat-a", target_beat_id: "beat-b" }],
       attachments: [{ beat_id: "beat-b", quest_id: "quest-a", attachment_type: "handout", is_required: true, target_exists: false }],
     }));
-    expect(summaries["quest-a"]!.prepGaps).toEqual(["Add DM guidance", "Replace Missing handout"]);
+    expect(summaries["quest-a"]!.prepGapCount).toBe(2);
   });
 
   it("raises no attachment gap for an optional or still-present target", () => {
@@ -344,7 +336,7 @@ describe("deriveQuestBoardSummaries", () => {
         { beat_id: "beat-a", quest_id: "quest-a", attachment_type: "npc", is_required: true, target_exists: true },
       ],
     }));
-    expect(summaries["quest-a"]!.prepGaps).toEqual([]);
+    expect(summaries["quest-a"]!.prepGapCount).toBe(0);
   });
 
   it("asks for copy only when a rumored or revealed beat has none written", () => {
@@ -355,35 +347,7 @@ describe("deriveQuestBoardSummaries", () => {
       ],
       edges: [{ source_beat_id: "rumor", target_beat_id: "reveal" }],
     }));
-    expect(summaries["quest-a"]!.prepGaps).toEqual(["Add explicit rumor copy"]);
-  });
-
-  it("reads payoff as prepared from undispatched loot alone", () => {
-    const summaries = deriveQuestBoardSummaries(payload({
-      beats: [boardBeat("beat-a", "quest-a")],
-      loot: [{ quest_id: "quest-a", delivery_state: "held" }],
-    }));
-    expect(summaries["quest-a"]!.hasPayoffPrepared).toBe(true);
-  });
-
-  it("reads payoff as prepared from an unfired rule on a beat the party has not reached", () => {
-    const beats = [boardBeat("beat-a", "quest-a"), boardBeat("beat-b", "quest-a")];
-    const rule = consequence({ on_beat_id: "beat-b" });
-    const withRule = deriveQuestBoardSummaries(payload({
-      beats,
-      visits: [{ thread_id: null, beat_id: "beat-a" }],
-      consequences: [rule],
-    }));
-    expect(withRule["quest-a"]!.hasPayoffPrepared).toBe(true);
-
-    // The same rule sitting on the beat the party is already standing on has
-    // nothing left to prepare — it already fired.
-    const alreadyVisited = deriveQuestBoardSummaries(payload({
-      beats,
-      visits: [{ thread_id: null, beat_id: "beat-b" }],
-      consequences: [rule],
-    }));
-    expect(alreadyVisited["quest-a"]!.hasPayoffPrepared).toBe(false);
+    expect(summaries["quest-a"]!.prepGapCount).toBe(1);
   });
 
   it("names the beat behind an unlock_quest rule, and holds the rest as unnamed", () => {
@@ -477,26 +441,5 @@ describe("deriveQuestBoardSummaries", () => {
 
     const neverEnded = deriveQuestBoardSummaries(payload({ beats }));
     expect(neverEnded["quest-a"]!.settledCaption).toBeNull();
-  });
-
-  // Frame `07 Log`'s featured-card statblock reads "Objectives 1 / 3" — done
-  // counts only `status: "complete"`, and a quest with none gets a
-  // zero/zero the card knows to hide rather than a missing field.
-  it("counts complete objectives against the quest's total", () => {
-    const beats = [boardBeat("beat-a", "quest-a")];
-    const summaries = deriveQuestBoardSummaries(payload({
-      beats,
-      objectives: [
-        { quest_id: "quest-a", status: "complete" },
-        { quest_id: "quest-a", status: "pending" },
-        { quest_id: "quest-a", status: "failed" },
-      ],
-    }));
-    expect(summaries["quest-a"]!.objectivesDone).toBe(1);
-    expect(summaries["quest-a"]!.objectivesTotal).toBe(3);
-
-    const withoutObjectives = deriveQuestBoardSummaries(payload({ beats }));
-    expect(withoutObjectives["quest-a"]!.objectivesDone).toBe(0);
-    expect(withoutObjectives["quest-a"]!.objectivesTotal).toBe(0);
   });
 });

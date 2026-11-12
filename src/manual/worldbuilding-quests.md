@@ -35,7 +35,7 @@ Filter the list with:
 - **Prep gaps (N)**: only quests with a beat missing required material.
 - **Loot pending (N)**: only quests with loot prepared but not yet handed over.
 
-When at least one quest has a beat with a live thread standing on it, a **featured card** appears above the columns showing that quest's premise, a beats-visited / threads-live count, one progress spine per live thread, and **Resume run**.
+A quest the party is in shows **Party is here** on its card, with one progress spine per live thread. Moving a quest to Completed or Failed ends that, even if a thread is still open. Click anywhere on a card to open the quest; click its **prep gaps** chip to go straight to the story flow, where each gap sits on its beat.
 
 ## Creating a quest
 

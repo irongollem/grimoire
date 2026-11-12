@@ -24,7 +24,6 @@ const quest = (id: string, title: string): Quest => ({
 
 const summary = (undispatched: number, unclaimed: number): QuestBoardSummary => ({
   isLive: false,
-  runtimeStatus: null,
   currentBeatTitle: null,
   beatSegments: [],
   prepGapCount: 0,
@@ -32,16 +31,11 @@ const summary = (undispatched: number, unclaimed: number): QuestBoardSummary => 
   unclaimedLootCount: unclaimed,
   threads: [],
   liveThreadCount: 0,
-  primaryThreadId: null,
-  prepGaps: [],
-  hasPayoffPrepared: false,
   convergesInto: [],
   unlockedBy: null,
   entersAt: null,
   heldPayoffCount: 0,
   settledCaption: null,
-  objectivesDone: 0,
-  objectivesTotal: 0,
 });
 
 describe("deriveQuestLootRows", () => {

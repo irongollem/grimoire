@@ -4,16 +4,21 @@
     :class="[
       dragging ? 'opacity-40' : '',
       isSettled ? 'opacity-[0.72]' : '',
-      quest.status === 'undiscovered' ? 'border-dashed border-border' : summary?.isLive ? 'border-primary ring-2 ring-primary/15' : 'border-border',
+      quest.status === 'undiscovered' ? 'border-dashed border-border' : inSession ? 'border-primary ring-2 ring-primary/15' : 'border-border',
     ]"
     :draggable="draggable"
     @dragstart="onDragStart"
     @dragend="emit('dragend')"
   >
     <div class="flex items-start gap-2">
+      <!-- The title's link stretches over the whole card (its ::after), so a
+           click anywhere on the card opens the quest; every control and chip
+           sits above it (`relative z-10`). Not draggable itself, so dragging
+           the card still moves the card rather than a URL. -->
       <RouterLink
         :to="`/quests/${quest.id}`"
-        class="min-w-0 flex-1 font-fell text-base font-semibold leading-tight text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded-sm"
+        draggable="false"
+        class="min-w-0 flex-1 font-fell text-base font-semibold leading-tight text-foreground after:absolute after:inset-0 after:content-[''] hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded-sm"
       >
         {{ quest.title || "Untitled Quest" }}
       </RouterLink>
@@ -21,7 +26,7 @@
            vocabulary for one fact, so a DM never has to learn that "Live" here
            and "Party is here" there mean the same thing. -->
       <span
-        v-if="summary?.isLive"
+        v-if="inSession"
         class="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-label font-bold uppercase text-primary-foreground"
       >
         <IconParty class="h-3 w-3" aria-hidden="true" />
@@ -95,13 +100,17 @@
     </p>
 
     <div v-if="hasSummaryChips" class="mt-2 flex flex-wrap gap-1">
-      <span
+      <!-- A gap is something to fix, so the chip goes where the gaps are
+           drawn, beat by beat: the story flow. -->
+      <RouterLink
         v-if="summary!.prepGapCount"
-        class="inline-flex items-center gap-1 rounded border border-dashed border-tone-caution/40 bg-tone-caution/10 px-1.5 py-0.5 text-label text-tone-caution"
+        :to="storyFlowTo"
+        draggable="false"
+        class="relative z-10 inline-flex items-center gap-1 rounded border border-dashed border-tone-caution/40 bg-tone-caution/10 px-1.5 py-0.5 text-label text-tone-caution hover:border-tone-caution hover:bg-tone-caution/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
       >
         <IconWarning class="h-3 w-3" aria-hidden="true" />
         {{ summary!.prepGapCount }} prep {{ summary!.prepGapCount === 1 ? "gap" : "gaps" }}
-      </span>
+      </RouterLink>
       <span
         v-if="summary!.undispatchedLootCount || summary!.unclaimedLootCount"
         class="inline-flex items-center gap-1 rounded border border-tone-arcane/30 bg-tone-arcane/10 px-1.5 py-0.5 text-label text-tone-arcane"
@@ -174,6 +183,7 @@
           label="Draft beats"
           size="xs"
           variant="subtle"
+          class="relative z-10"
         />
         <AppButton
           v-if="previousStatus"
@@ -182,6 +192,7 @@
           :aria-label="`Move ${quest.title || 'quest'} to ${QUEST_STATUS_LABELS[previousStatus]}`"
           size="xs"
           variant="subtle"
+          class="relative z-10"
           @click="emit('move', previousStatus)"
         />
         <AppButton
@@ -191,6 +202,7 @@
           :aria-label="`Move ${quest.title || 'quest'} to ${QUEST_STATUS_LABELS[nextStatus]}`"
           size="xs"
           variant="subtle"
+          class="relative z-10"
           @click="emit('move', nextStatus)"
         />
         <AppButton
@@ -200,7 +212,7 @@
           label="Open"
           size="xs"
           variant="subtle"
-          class="ml-auto"
+          class="relative z-10 ml-auto"
         />
       </div>
     </footer>
@@ -221,7 +233,7 @@ import {
   IconWarning,
 } from "@/lib/icons";
 import { timeAgo } from "@/lib/utils";
-import type { QuestBoardSummary, QuestBeatSegment } from "@/lib/quests/board";
+import { isQuestInSession, type QuestBoardSummary, type QuestBeatSegment } from "@/lib/quests/board";
 import { threadBadges, type ThreadTone } from "@/lib/quests/threads";
 import type { PartyMember } from "@/types/party.types";
 import {
@@ -260,6 +272,7 @@ const hasSummaryChips = computed(() => summary !== undefined);
 const showAction = computed(() => !["completed", "failed"].includes(quest.status));
 const actionTo = computed(() => `/quests/${quest.id}`);
 const isSettled = computed(() => quest.status === "completed" || quest.status === "failed");
+const inSession = computed(() => isQuestInSession(quest, summary));
 const storyFlowTo = computed(() => ({ path: `/quests/${quest.id}`, query: { view: "work" } }));
 
 // `QuestBoardThreadSummary` satisfies `ThreadLike`, so the letter and tone

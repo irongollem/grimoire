@@ -97,7 +97,7 @@ select is(
 );
 select is(
   (select array_agg(k order by k) from board, jsonb_object_keys(payload) k),
-  array['attachments', 'beats', 'consequences', 'converges', 'edges', 'endings', 'loot', 'objectives', 'runtime', 'threads', 'visits'],
+  array['attachments', 'beats', 'consequences', 'converges', 'edges', 'endings', 'loot', 'runtime', 'threads', 'visits'],
   'the board is answered in one payload'
 );
 select is(
