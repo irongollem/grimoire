@@ -49,7 +49,8 @@ export interface Plan {
   monthly_credits: number
 }
 
-// Keys are Postgres table names (check_quota counts rows by table name).
+// Keys are Postgres table names (check_quota counts rows by table name), except `paint_canvases`, which
+// check_quota counts as the paint steps in the user's books (#1181: canvases have no table).
 export type QuotaResource =
   | 'campaigns'
   | 'npcs'
@@ -66,6 +67,7 @@ export type QuotaResource =
   | 'deities'
   | 'pantheons'
   | 'puzzle_rooms'
+  | 'paint_canvases'
 
 export const QUOTA_RESOURCE_LABELS: Record<QuotaResource, string> = {
   campaigns:             'Campaigns',
@@ -83,6 +85,7 @@ export const QUOTA_RESOURCE_LABELS: Record<QuotaResource, string> = {
   deities:               'Deities',
   pantheons:             'Pantheons',
   puzzle_rooms:          'Puzzles',
+  paint_canvases:        'Painting canvases',
 } as const
 
 /** Every quota-capped resource (Postgres table names), in canonical display
@@ -104,6 +107,7 @@ export const QUOTA_RESOURCES: readonly QuotaResource[] = [
   'sounds',
   'soundboard_pages',
   'soundboard_playlists',
+  'paint_canvases',
 ] as const
 
 export interface UserSubscription {

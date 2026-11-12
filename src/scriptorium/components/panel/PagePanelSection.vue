@@ -32,6 +32,7 @@
     <PanelSection title="Add to this page">
       <div class="grid grid-cols-2 gap-2">
         <AppButton variant="subtle" size="sm" :icon="IconAddImage" label="Picture" @click="emit('addPicture')" />
+        <AppButton variant="subtle" size="sm" label="Blank sheet" data-testid="panel-add-sheet" @click="emit('addSheet')" />
         <AppButton variant="subtle" size="sm" label="Watercolour" @click="emit('addFurniture', 'watercolor')" />
         <AppButton variant="subtle" size="sm" label="Watermark" @click="emit('addFurniture', 'watermark')" />
         <AppButton variant="subtle" size="sm" label="Artist credit" @click="emit('addFurniture', 'artistCredit')" />
@@ -62,6 +63,7 @@ const emit = defineEmits<{
   openSettings: [];
   select: [entry: PageEntry];
   addPicture: [];
+  addSheet: [];
   addFurniture: [kind: FurnitureKind];
 }>();
 </script>

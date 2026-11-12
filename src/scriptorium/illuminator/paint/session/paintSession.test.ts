@@ -285,3 +285,41 @@ describe("recent colours", () => {
     expect(s.state.recent).toEqual([]);
   });
 });
+
+describe("which tiles changed since the painting was saved", () => {
+  // Fails if a stroke is not recorded as dirty (Done would save nothing for it), or if the eraser on the picture,
+  // which paints the mask and not a layer, is recorded as paint.
+  it("records a stroke's tiles on its layer, and nothing for the picture's mask", () => {
+    const s = make();
+    const id = stroke(s) ?? "";
+    expect([...(s.dirty.get(id) ?? [])]).toEqual([0]);
+    s.state.tool = "eraser";
+    s.state.activeLayerId = "picture";
+    stroke(s, 90, 90);
+    expect([...s.dirty.keys()]).toEqual([id]);
+  });
+
+  // Fails if undo or redo restores pixels the save path then does not know changed: the saved chunk would keep the undone stroke.
+  it("records the tiles an undo and a redo put back, after a save cleaned the set", () => {
+    const s = make();
+    const id = stroke(s) ?? "";
+    s.markClean();
+    expect(s.dirty.size).toBe(0);
+    s.undo();
+    expect([...(s.dirty.get(id) ?? [])]).toEqual([0]);
+    s.markClean();
+    s.redo();
+    expect([...(s.dirty.get(id) ?? [])]).toEqual([0]);
+  });
+
+  // Fails if a merge's pixels land on the lower layer without it being dirty: the merged paint would never be saved.
+  it("records the layer below as dirty when a layer is merged down", () => {
+    const s = make();
+    const lower = stroke(s, 20, 20) ?? "";
+    const upper = s.addLayer().id;
+    stroke(s, 100, 90);
+    s.markClean();
+    s.mergeDown(upper);
+    expect([...s.dirty.keys()]).toEqual([lower]);
+  });
+});

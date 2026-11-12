@@ -73,7 +73,7 @@ set local role authenticated;
 
 select is(pg_temp.npcs_limit('11'), -1, 'a child of a Pro parent is unlimited for npcs');
 select ok((public.check_quota('campaigns') ->> 'unlimited')::boolean, 'and for campaigns');
-select is(pg_temp.unlimited_count('11'), 15, 'and for every key in check_all_quotas');
+select is(pg_temp.unlimited_count('11'), 16, 'and for every key in check_all_quotas (16 since paint canvases, #1181)');
 
 -- Positive controls: the same calls for users the rule must not lift.
 select is(pg_temp.npcs_limit('21'), 10, 'a child of a free parent keeps the free npcs limit');

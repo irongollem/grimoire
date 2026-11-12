@@ -25,12 +25,14 @@ import {
   type Viewport,
 } from "../render/viewport";
 
-const { session, compositor, cursor, tool } = defineProps<{
+const { session, compositor, cursor, tool, beforeStroke = undefined } = defineProps<{
   session: PaintSessionApi;
   compositor: Compositor;
   /** The armed tip's outline, in document pixels; null shows none. */
   cursor: { size: number; angle: number; roundness: number } | null;
   tool: PaintTool;
+  /** Asked before a stroke begins; false means this stroke is not painted (the plan's canvas limit). */
+  beforeStroke?: () => boolean;
 }>();
 
 const emit = defineEmits<{
@@ -192,6 +194,7 @@ function onPointerDown(ev: PointerEvent): void {
     return;
   }
 
+  if (beforeStroke && !beforeStroke()) return;
   const samples = toSamples(ev, origin(), viewport.value);
   const first = samples[0];
   const began = session.beginStroke(first, { restore: ev.altKey && tool === "eraser" });

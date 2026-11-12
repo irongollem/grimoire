@@ -2,7 +2,7 @@
  * The one pipeline (#1176 story 9). A recipe (IlluminateSettings) is applied to
  * a canvas the same way for the live preview, the full-resolution bake in a
  * Worker and the print redraw: grade, depth of field, texture, vignette, edges,
- * the paper wash, then the mask. The crop is the one step it does not draw: it sets the canvas
+ * the paper wash, the mask, then the painted layers. The crop is the one step it does not draw: it sets the canvas
  * the others run on (crop.ts). The texture sits under the vignette on purpose, so the
  * vignette darkens it too, and the mask erases last.
  *
@@ -14,6 +14,7 @@ import { applyColourGrading } from "./colourGrading";
 import { applyDofBlur } from "./dofBlur";
 import { drawBase, croppedSize } from "./crop";
 import { applyEdgeTreatmentToCtx } from "./edgeTreatment";
+import { chunkRect, parseChunkKey } from "./paintChunks";
 import { applyPaperWash } from "./paperWash";
 import { loadDomImage, type LoadImage } from "./loadImage";
 import { applyTextureOverlay, decodedSize } from "./textureOverlay";
@@ -70,6 +71,30 @@ export async function applySteps(
         if (size.width > 0 && size.height > 0) {
           ctx.globalCompositeOperation = "destination-out";
           ctx.drawImage(mask, 0, 0, w, h);
+          ctx.globalCompositeOperation = "source-over";
+        }
+        break;
+      }
+      case "paint": {
+        // Chunks of one layer never overlap, so each is drawn straight onto the picture with the layer's blend and
+        // opacity: the same pixels as compositing the layer whole, without a document-sized scratch canvas.
+        const sx = w / step.width;
+        const sy = h / step.height;
+        for (const layer of step.layers) {
+          if (!layer.visible || layer.opacity <= 0) continue;
+          const chunks = await Promise.all(
+            Object.entries(layer.chunks).flatMap(([key, url]) => {
+              const at = parseChunkKey(key);
+              return at ? [loadImage(url).then((image) => ({ at, image }))] : [];
+            }),
+          );
+          ctx.globalCompositeOperation = layer.blend;
+          ctx.globalAlpha = layer.opacity;
+          for (const { at, image } of chunks) {
+            const rect = chunkRect(at.cx, at.cy, step.width, step.height);
+            if (rect.w > 0 && rect.h > 0) ctx.drawImage(image, rect.x * sx, rect.y * sy, rect.w * sx, rect.h * sy);
+          }
+          ctx.globalAlpha = 1;
           ctx.globalCompositeOperation = "source-over";
         }
         break;

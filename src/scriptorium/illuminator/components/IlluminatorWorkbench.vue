@@ -62,6 +62,7 @@
               :compositor="paint.compositor.value"
               :cursor="paint.cursor.value"
               :tool="armedPaintTool"
+              :before-stroke="paint.mayStroke"
               @picked="paint.onPicked"
               @stroke-start="paint.onStrokeStart"
               @stroke-end="paint.onStrokeEnd"
@@ -121,6 +122,7 @@
               :active-id="paint.activeLayerId.value"
               :can-delete="paint.canDeleteActive.value"
               :can-merge-down="paint.canMergeActive.value"
+              :can-flatten="paint.hasPaintLayers.value"
               :thumbnail="paint.thumbnail"
               :revision="paint.revision.value"
               @select="paint.selectLayer"
@@ -131,6 +133,7 @@
               @delete="paint.deleteLayer"
               @merge-down="paint.mergeDown"
               @move="paint.moveLayer"
+              @flatten="flatten"
             />
             <ColourPanel v-else-if="paintTab === 'colour'" :colour="paint.colour.value" :recent="paint.recent.value" @update:colour="paint.setColour" />
           </template>
@@ -243,6 +246,7 @@
           />
         </aside>
       </div>
+      <PaywallModal v-model="showPaintPaywall" resource="paint_canvases" :message="PAINT_CANVAS_LIMIT_MESSAGE" />
     </div>
   </Teleport>
 </template>
@@ -260,6 +264,9 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { onClickOutside } from "@vueuse/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import TabBar from "@/components/common/controls/TabBar.vue";
+import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
+import { PAINT_CANVAS_LIMIT_MESSAGE } from "@/scriptorium/illuminator/lib/paintQuota";
+import { useInvalidateQuota, useQuota } from "@/composables/billing/useQuota";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import IlluminateAskSection from "@/scriptorium/illuminator/components/IlluminateAskSection.vue";
 import IlluminateCropBox from "@/scriptorium/illuminator/components/IlluminateCropBox.vue";
@@ -319,6 +326,8 @@ const { original, settings, name, pageLabel, userId, documentId, campaignId, the
 
 const emit = defineEmits<{
   done: [settings: IlluminateSettings];
+  /** The painting was flattened: this stored picture is the picture's new original, and its recipe is empty. */
+  flatten: [original: string];
   cancel: [];
 }>();
 
@@ -330,7 +339,16 @@ const saveMenu = ref(false);
 const saveMenuRoot = ref<HTMLElement | null>(null);
 const finishing = ref(false);
 
+// A picture's first paint layer makes a canvas, which the plan counts; the check is made before that stroke.
+const { canCreate: canMakeCanvas } = useQuota("paint_canvases");
+const invalidateQuota = useInvalidateQuota();
+const showPaintPaywall = ref(false);
+
 const wb = useIlluminateWorkbench({
+  canMakeCanvas: () => canMakeCanvas.value,
+  onCanvasRefused: () => {
+    showPaintPaywall.value = true;
+  },
   original: () => original,
   settings: () => settings,
   userId: () => userId,
@@ -449,11 +467,21 @@ async function done() {
   if (finishing.value) return;
   finishing.value = true;
   try {
-    emit("done", await wb.finish());
+    const recipe = await wb.finish();
+    // A painting saved here is a canvas on the plan from now on.
+    void invalidateQuota("paint_canvases");
+    emit("done", recipe);
   } catch (err) {
     toast.error(err instanceof Error ? err.message : "Could not save your edits.");
   } finally {
     finishing.value = false;
   }
+}
+
+async function flatten() {
+  const original = await wb.flatten();
+  if (original === null) return;
+  void invalidateQuota("paint_canvases");
+  emit("flatten", original);
 }
 </script>

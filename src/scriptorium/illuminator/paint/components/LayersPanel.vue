@@ -46,7 +46,7 @@
           />
           <span
             v-else
-            class="block truncate text-body-sm"
+            class="block truncate text-body"
             :class="layer.visible ? 'text-foreground' : 'text-muted-foreground'"
             @dblclick.stop="startRename(layer)"
           >{{ displayName(layer) }}</span>
@@ -106,6 +106,11 @@
       />
     </div>
 
+    <div v-if="canFlatten" class="flex flex-col gap-1 border-t border-border pt-3">
+      <AppButton variant="subtle" size="xs" :icon="IconMergeDown" label="Flatten into the picture" data-testid="flatten" @click="emit('flatten')" />
+      <p class="text-caption text-muted-foreground">Makes the painting part of the picture and frees its painting slot.</p>
+    </div>
+
     <p class="text-caption text-muted-foreground">
       The brush's mode decides how a stroke mixes with its layer; the layer's mode decides how the layer mixes with the ones below.
     </p>
@@ -129,12 +134,14 @@ import { LAYER_BLENDS } from "./optionsFields";
  * The layers panel (frame 09). `layers` is the session's list, bottom first; rows are drawn top first, and every
  * `move` goes back out in the session's bottom-first index space.
  */
-const { layers, activeId, canDelete = false, canMergeDown = false, thumbnail = null, revision = 0 } = defineProps<{
+const { layers, activeId, canDelete = false, canMergeDown = false, canFlatten = false, thumbnail = null, revision = 0 } = defineProps<{
   layers: readonly Layer[];
   activeId: string;
   /** What the session allows for the active layer: it owns the rule, the panel only shows it. */
   canDelete?: boolean;
   canMergeDown?: boolean;
+  /** Whether there is a painting to flatten into the picture. */
+  canFlatten?: boolean;
   /** Pixels of a layer scaled to thumbnail size, or null while it has none. */
   thumbnail?: ThumbnailFn | null;
   /** Bump when pixels change so the thumbnails redraw. */
@@ -151,6 +158,7 @@ const emit = defineEmits<{
   (e: "delete", id: string): void;
   (e: "merge-down", id: string): void;
   (e: "move", id: string, toIndex: number): void;
+  (e: "flatten"): void;
 }>();
 
 const rows = computed(() => displayOrder(layers));

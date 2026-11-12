@@ -168,7 +168,7 @@ describe("paint strokes", () => {
     const own = brush({ grain: { id: "stripes", scale: 1, depth: 1, mode: "paper" } });
     const on = (b: BrushPreset, paper: { grainId: string; tooth: number } | undefined) => {
       const l = new TiledLayer(64, 64, 64);
-      const st = beginStroke(l, { brush: b, colour: RED, mode: "paint", seed: 1, curve: DEFAULT_PRESSURE_CURVE, paper: paper && { id: "p", name: "p", surfacePath: "", ...paper } }, as2);
+      const st = beginStroke(l, { brush: b, colour: RED, mode: "paint", seed: 1, curve: DEFAULT_PRESSURE_CURVE, paper: paper && { id: "p", name: "p", surfacePath: "", surfaceScale: 1, ...paper } }, as2);
       st.add([sample(20, 32), sample(40, 32)]);
       st.end();
       return l;
