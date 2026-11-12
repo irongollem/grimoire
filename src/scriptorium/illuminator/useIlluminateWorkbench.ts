@@ -733,7 +733,15 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     return processImage(img, buildSettings(true), loader);
   }
 
+  /** PNG downloads are a Pro extra (maintainer, 12 Nov 2026); everyone downloads WebP. The menu gates the button. */
   const downloadPng = () => run(async () => downloadBlob(await renderPng(), `${exportName()}.png`));
+
+  const downloadWebp = () =>
+    run(async () => {
+      const png = await renderPng();
+      const webp = await toWebP(new File([png], `${exportName()}.png`, { type: "image/png" }));
+      downloadBlob(webp, `${exportName()}.${webp.type === "image/jpeg" ? "jpeg" : "webp"}`);
+    });
 
   const copyPng = () =>
     run(async () => {
@@ -820,6 +828,6 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     texture, textureEnabled, wash, textureUrl, textureFilename, paint, hasMask, paintError,
     comparePos, showOriginal, busy, copied, clipboardSupported, hasEdits,
     open, dispose, finish, buildSettings, setEdgeStyle, setEdgeSideEnabled, resetAll,
-    onCanvasClick, pickTexture, clearTexture, downloadPng, copyPng, saveAsNewPicture, flatten,
+    onCanvasClick, pickTexture, clearTexture, downloadPng, downloadWebp, copyPng, saveAsNewPicture, flatten,
   };
 }

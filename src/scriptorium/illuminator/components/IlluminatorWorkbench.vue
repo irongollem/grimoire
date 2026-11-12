@@ -14,20 +14,16 @@
 
         <div ref="saveMenuRoot" class="relative">
           <AppButton variant="outline" size="sm" :icon="IconSave" label="Save as a new picture…" :disabled="!wb.image.value || wb.busy.value" :loading="wb.busy.value" @click="saveMenu = !saveMenu" />
-          <div v-if="saveMenu" data-slip class="absolute right-0 top-full z-10 mt-1 flex w-64 flex-col gap-1 p-2" data-testid="save-as-menu">
-            <p class="px-1 pb-1 text-caption text-muted-foreground">The picture in the book stays as it is.</p>
-            <AppButton variant="ghost" size="sm" class="justify-start" :icon="IconDownload" label="Download as PNG" @click="pick(wb.downloadPng)" />
-            <AppButton
-              variant="ghost"
-              size="sm"
-              class="justify-start"
-              :icon="wb.copied.value ? IconCheck : IconClipboard"
-              :label="wb.copied.value ? 'Copied' : 'Copy to the clipboard'"
-              :disabled="!wb.clipboardSupported"
-              @click="pick(wb.copyPng)"
-            />
-            <AppButton variant="ghost" size="sm" class="justify-start" :icon="IconImage" label="Add to my pictures" @click="pick(wb.saveAsNewPicture)" />
-          </div>
+          <IlluminateExportMenu
+            v-if="saveMenu"
+            :is-pro="isPro"
+            :copied="wb.copied.value"
+            :clipboard-supported="wb.clipboardSupported"
+            @webp="pick(wb.downloadWebp)"
+            @png="pick(wb.downloadPng)"
+            @copy="pick(wb.copyPng)"
+            @add="pick(wb.saveAsNewPicture)"
+          />
         </div>
 
         <AppButton variant="outline" size="sm" label="Cancel" @click="emit('cancel')" />
@@ -267,7 +263,9 @@ import TabBar from "@/components/common/controls/TabBar.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { PAINT_CANVAS_LIMIT_MESSAGE } from "@/scriptorium/illuminator/lib/paintQuota";
 import { useInvalidateQuota, useQuota } from "@/composables/billing/useQuota";
+import { useSubscription } from "@/composables/billing/useSubscription";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
+import IlluminateExportMenu from "@/scriptorium/illuminator/components/IlluminateExportMenu.vue";
 import IlluminateAskSection from "@/scriptorium/illuminator/components/IlluminateAskSection.vue";
 import IlluminateCropBox from "@/scriptorium/illuminator/components/IlluminateCropBox.vue";
 import IlluminateCropPanel from "@/scriptorium/illuminator/components/IlluminateCropPanel.vue";
@@ -300,7 +298,7 @@ import { PREVIEW_INK } from "@/scriptorium/illuminator/paint/components/previewP
 import { renderTipPreview } from "@/scriptorium/illuminator/paint/render/brushPreview";
 import { isPaintTool, useIlluminateWorkbench, type WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
 import { useToast } from "@/composables/useToast";
-import { IconChevronLeft, IconCheck, IconClipboard, IconDownload, IconImage, IconSave } from "@/lib/icons";
+import { IconChevronLeft, IconSave } from "@/lib/icons";
 
 const { original, settings, name, pageLabel, userId, documentId, campaignId, theme, pageAspect = null, startTool = "edges" } = defineProps<{
   /** The untouched picture the recipe applies to. */
@@ -341,6 +339,8 @@ const finishing = ref(false);
 
 // A picture's first paint layer makes a canvas, which the plan counts; the check is made before that stroke.
 const { canCreate: canMakeCanvas } = useQuota("paint_canvases");
+/** PNG downloads are a Pro extra; Free sees the button greyed out with the reason (maintainer, 12 Nov 2026). */
+const { isPro } = useSubscription();
 const invalidateQuota = useInvalidateQuota();
 const showPaintPaywall = ref(false);
 
