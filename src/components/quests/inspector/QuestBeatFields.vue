@@ -84,7 +84,7 @@ import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems
 const { beat, fillContext } = defineProps<{ beat: QuestBeat; fillContext?: BeatFillContext }>();
 const emit = defineEmits<{ saved: [beat: QuestBeat] }>();
 const updateBeat = useUpdateQuestBeat();
-// QuestBeatDetailView is DM-only (the player equivalent, PlayerQuestDetailView
+// QuestOpenedBeat is DM-only (the player equivalent, PlayerQuestDetailView
 // at /play/quests/:id, is read-only and doesn't mount this component), so the
 // full mention list is always the DM's — see NoteEditor.vue for the same call.
 const { mentionItems: entityMentionItems } = useEntityMentionItems();

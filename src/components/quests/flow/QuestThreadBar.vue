@@ -40,7 +40,7 @@
       @click="formOpen = !formOpen"
     />
 
-    <span class="ml-auto max-sm:hidden text-caption text-muted-foreground">Switching is just navigation. No cursor moves and nothing is recorded.</span>
+    <span class="ml-auto max-sm:hidden" />
 
     <!-- Below sm, the picker (every thread, the caption and the create form) moves into a sheet
          behind this counter — five pills plus the caption plus the form wrap into a four-line
@@ -72,8 +72,6 @@
     <p v-if="error" role="alert" class="max-sm:hidden basis-full text-caption text-destructive">{{ error }}</p>
 
     <MobileSheet v-model:open="sheetOpen" title="Threads in this quest" show-until="sm">
-      <p class="mb-2 text-caption text-muted-foreground">Switching is just navigation. No cursor moves and nothing is recorded.</p>
-
       <ul class="space-y-1.5">
         <li v-for="badge in badges" :key="badge.thread.id">
           <AppButton
@@ -131,13 +129,13 @@
 
 <script setup lang="ts">
 /**
- * The cockpit runs one thread at a time; switching is free (#853, story F).
+ * The opened beat runs one thread at a time; switching is free (#853, story F).
  * Every thread the quest holds gets a pill — live and waiting ones are
  * selectable, closed and merged ones are shown dimmed for context but cannot
  * be switched to. Deliberately reads `useQuestThreads` rather than
  * `context.threads`: the bar's whole job is showing threads a running
  * context does not otherwise surface (closed/merged), so it owns that query
- * itself instead of asking the cockpit to thread it through.
+ * itself instead of asking its parent to thread it through.
  */
 import TagChip from "@/components/common/TagChip.vue";
 import { computed, ref } from "vue";

@@ -13,9 +13,13 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/composables/quests/useQuestFlow", () => ({ useQuestBeats: () => ({ data: { value: mocks.beats } }) }));
 vi.mock("@/composables/quests/useQuests", () => ({
+  QUESTS_KEY: "quests",
+  fetchQuest: vi.fn(),
   useQuestObjectives: () => ({ data: { value: mocks.objectives } }),
   useUpdateQuest: () => ({ mutateAsync: mocks.updateQuest }),
 }));
+vi.mock("@tanstack/vue-query", () => ({ useQueryClient: () => ({}) }));
+vi.mock("@/composables/party/useParty", () => ({ partyListQuery: vi.fn() }));
 vi.mock("@/composables/campaign/useCampaignBroadcast", () => ({ sendCampaignAnnouncement: mocks.announce }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: mocks.activeCampaignId }) }));
 

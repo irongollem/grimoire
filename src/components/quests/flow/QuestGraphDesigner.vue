@@ -116,9 +116,20 @@
         <template #beat>
           <QuestSelectedBeatPanel v-if="selectedBeat" :beat="selectedBeat" :presentation="presentations[selectedBeat.id]" :staging="selectedBeatStaging" :entry-beat-id="entryBeatId" :thread-id="focusThreadId || null" @preview="openPreview({ draftVisibility: selectedBeat.visibility, savedVisibility: selectedBeat.visibility, unsaved: false })" />
         </template>
-        <!-- Interim (story E replaces it): the opened beat is the run cockpit. -->
         <template #opened>
-          <QuestRunCockpit :key="`opened-${questId}`" :anchor-quest-id="questId" :visible-to="visibleTo" />
+          <QuestOpenedBeat
+            v-if="selectedBeatId"
+            :key="selectedBeatId"
+            :quest-id="questId"
+            :beat-id="selectedBeatId"
+            :quest="quest"
+            :threads="threads"
+            :focus-thread-id="focusThreadId"
+            :current-beat-id-by-thread="currentBeatIdByThread"
+            :presentations="presentations"
+            :visible-to="visibleTo"
+            @collapse="setOpened(false)"
+          />
         </template>
       </QuestDrawer>
     </div>
@@ -189,7 +200,7 @@ import QuestBeatComposer from "../inspector/QuestBeatComposer.vue";
 import QuestGapMenu, { type QuestGapRow } from "./QuestGapMenu.vue";
 import QuestPanel from "../panel/QuestPanel.vue";
 import QuestDrawer from "./QuestDrawer.vue";
-import QuestRunCockpit from "../run/QuestRunCockpit.vue";
+import QuestOpenedBeat from "../opened/QuestOpenedBeat.vue";
 import QuestRoutePanel from "../inspector/QuestRoutePanel.vue";
 import QuestSelectedBeatPanel from "../inspector/QuestSelectedBeatPanel.vue";
 import QuestPlayerPreviewDrawer from "../run/QuestPlayerPreviewDrawer.vue";

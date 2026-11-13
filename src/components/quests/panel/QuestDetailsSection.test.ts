@@ -77,19 +77,20 @@ describe("QuestDetailsSection", () => {
   // panel: the title is the page header's, the entry is set on a beat, and
   // sharing is the Players section's own write.
   it("shows the quest-level details only: no title, no opening beat, no sharing", () => {
-    const fields = mountDetails().findAll("span.text-label").map((span) => span.text());
-    expect(fields).toEqual(["Premise", "Board lane", "Quest giver", "Primary location", "Part of quest", "Tags"]);
+    const fields = mountDetails().findAll("span.text-caption").map((span) => span.text());
+    expect(fields).toEqual(["Board lane", "Giver", "Location", "Part of", "Tags"]);
+    expect(mountDetails().find('input[aria-label="Premise"]').attributes("aria-label")).toBe("Premise");
   });
 
   it("caps the premise input at QUEST_SUMMARY_MAX, since players see it verbatim", () => {
-    const summaryInput = mountDetails().find("input");
+    const summaryInput = mountDetails().find('input[aria-label="Premise"]');
     expect(summaryInput.attributes("maxlength")).toBe(String(QUEST_SUMMARY_MAX));
-    expect(summaryInput.attributes("placeholder")).toContain("Players see this");
+    expect(summaryInput.attributes("placeholder")).toContain("players see this");
   });
 
   it("saves the premise trimmed, or null when cleared", async () => {
     const wrapper = mountDetails({ summary: "Something." });
-    await wrapper.find("input").setValue("   ");
+    await wrapper.find('input[aria-label="Premise"]').setValue("   ");
     expect(mocks.updateQuest).not.toHaveBeenCalled();
     await settle();
     expect(mocks.updateQuest).toHaveBeenCalledWith({ id: "quest-1", update: { summary: null } });
@@ -99,7 +100,7 @@ describe("QuestDetailsSection", () => {
   it("sends only what changed here: an untouched status stays out of the write, and follows the server", async () => {
     const wrapper = mountDetails({ status: "active" });
     await wrapper.setProps({ quest: quest({ status: "completed" }) });
-    await wrapper.find("input").setValue("A new premise");
+    await wrapper.find('input[aria-label="Premise"]').setValue("A new premise");
     await settle();
     expect(mocks.updateQuest).toHaveBeenCalledOnce();
     expect(mocks.updateQuest.mock.calls[0]![0].update).toEqual({ summary: "A new premise" });
@@ -120,7 +121,7 @@ describe("QuestDetailsSection", () => {
 
   it("opening another quest saves the pending edit to the quest it was made on, at once", async () => {
     const wrapper = mountDetails();
-    await wrapper.find("input").setValue("Edited premise");
+    await wrapper.find('input[aria-label="Premise"]').setValue("Edited premise");
     await wrapper.setProps({ quest: quest({ id: "quest-2", summary: "Another" }) });
     await flushPromises();
     expect(mocks.updateQuest).toHaveBeenCalledTimes(1);

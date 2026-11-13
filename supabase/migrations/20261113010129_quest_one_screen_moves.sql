@@ -1303,3 +1303,8 @@ grant execute on function public.undo_quest_move(uuid, uuid, uuid) to authentica
 
 -- ── 5. assert_quest_runtime is replaced by mark_quest_move ─────────────────
 drop function public.assert_quest_runtime(uuid, uuid, uuid, uuid[], boolean, text);
+
+-- ── 6. The cockpit's jump picker is gone ────────────────────────────────────
+-- The run cockpit is folded into the opened beat, and "Put the party here"
+-- (mark_quest_move kind 'party_here') replaced its Jump panel, the only caller.
+drop function public.search_quest_runtime_jump_targets(uuid, uuid, text, integer);

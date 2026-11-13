@@ -1,50 +1,52 @@
 <template>
-  <section class="space-y-3 rounded-lg border border-border bg-card p-3" aria-label="Details">
+  <section class="space-y-2 rounded-lg border border-border bg-card p-3" aria-label="Details">
     <div class="flex items-center gap-3">
       <h3 class="min-w-0 flex-1 text-heading-sm font-bold text-foreground">Details</h3>
       <AutosaveStatus :status="status" :error="saveError" />
     </div>
     <DraftConflictNotice :fields="conflictLabels" :on-discard="resetDraft" />
 
-    <div class="grid grid-cols-1 gap-3">
-      <label class="flex flex-col gap-1">
-        <span class="text-label font-semibold text-muted-foreground">Premise</span>
-        <AppInput v-model="draft.summary" tone="card" size="body" :maxlength="QUEST_SUMMARY_MAX" placeholder="Players see this" />
-      </label>
+    <!-- No premise label: the field says what it is, and the drawer is narrow. -->
+    <AppInput
+      v-model="draft.summary"
+      tone="card"
+      size="body-xs"
+      aria-label="Premise"
+      :maxlength="QUEST_SUMMARY_MAX"
+      placeholder="Premise (players see this)"
+    />
 
-      <label class="flex flex-col gap-1">
-        <span class="text-label font-semibold text-muted-foreground">Board lane</span>
-        <AppSelect v-model="draft.status">
+    <div class="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-x-2 gap-y-1.5">
+      <label class="contents">
+        <span class="text-caption font-semibold text-muted-foreground">Board lane</span>
+        <AppSelect v-model="draft.status" size="sm" block>
           <option v-for="value in QUEST_STATUSES" :key="value" :value="value">{{ QUEST_STATUS_LABELS[value] }}</option>
         </AppSelect>
       </label>
 
-      <label class="flex flex-col gap-1">
-        <span class="text-label font-semibold text-muted-foreground">Quest giver</span>
+      <label class="contents">
+        <span class="text-caption font-semibold text-muted-foreground">Giver</span>
         <EntityCombobox v-model="draft.giverNpcId" :options="npcs ?? []" :selected-label="giver?.name ?? null" placeholder="Search NPCs…" @open="npcListWanted = true" />
       </label>
 
-      <label class="flex flex-col gap-1">
-        <span class="text-label font-semibold text-muted-foreground">Primary location</span>
+      <label class="contents">
+        <span class="text-caption font-semibold text-muted-foreground">Location</span>
         <EntityCombobox v-model="draft.locationId" :options="locations ?? []" :selected-label="primaryLocation?.name ?? null" placeholder="Search locations…" @open="locationListWanted = true" />
       </label>
 
-      <label class="flex flex-col gap-1">
-        <span class="text-label font-semibold text-muted-foreground">Part of quest</span>
+      <label class="contents">
+        <span class="text-caption font-semibold text-muted-foreground">Part of</span>
         <EntityCombobox v-model="draft.parentQuestId" :options="parentQuestOptions" placeholder="Search quests…" />
       </label>
 
-      <div class="flex flex-col gap-1">
-        <span class="text-label font-semibold text-muted-foreground">Tags</span>
-        <TagInput v-model="draft.tags" />
-      </div>
+      <span class="self-start pt-1.5 text-caption font-semibold text-muted-foreground">Tags</span>
+      <TagInput v-model="draft.tags" />
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
@@ -55,6 +57,7 @@ import { useNpc, useNpcs } from "@/composables/npcs/useNpcs";
 import { useQuests, useUpdateQuest } from "@/composables/quests/useQuests";
 import { useAutosave } from "@/composables/useAutosave";
 import { draftValueEqual, useRecordDraft } from "@/composables/useRecordDraft";
+import AppInput from "@/components/common/controls/AppInput.vue";
 import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 import { QUEST_STATUSES, QUEST_STATUS_LABELS, type Quest, type QuestStatus } from "@/types/quest.types";
 

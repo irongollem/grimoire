@@ -61,7 +61,7 @@ async function mountDesigner(path = "/quests/quest-1") {
     attachTo: document.body,
     global: {
       plugins: [router],
-      stubs: { QuestFlowCanvas: true, QuestPanel: { template: '<div data-test="quest-panel" />' }, QuestRunCockpit: true, QuestPlayerPreviewDrawer: true, QuestRoutePanel: true, QuestSelectedBeatPanel: true },
+      stubs: { QuestFlowCanvas: true, QuestPanel: { template: '<div data-test="quest-panel" />' }, QuestOpenedBeat: true, QuestPlayerPreviewDrawer: true, QuestRoutePanel: true, QuestSelectedBeatPanel: true },
     },
   });
   await flushPromises();

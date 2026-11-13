@@ -42,20 +42,15 @@
         class="relative flex min-w-0 max-w-full flex-col lg:absolute lg:inset-y-0 lg:right-0 lg:left-14 lg:z-20 lg:min-h-0 lg:bg-card"
         aria-label="Opened beat"
       >
-        <AppButton
-          :icon="IconChevronRight"
-          label="Collapse"
-          size="xs"
-          variant="subtle"
-          class="mb-2 hidden self-start lg:inline-flex"
-          @click="emit('update:opened', false)"
-        />
+        <!-- From md the opened beat's own header carries "Flow"; below it that
+             header gives way to the phone top bar, whose back button leaves
+             the page, so the way back to the flow is drawn here instead. -->
         <AppButton
           :icon="IconChevronLeft"
           label="Back to the flow"
           size="xs"
           variant="subtle"
-          class="mb-2 self-start lg:hidden"
+          class="mb-2 self-start md:hidden"
           @click="emit('update:opened', false)"
         />
         <div class="min-h-0 flex-1 lg:overflow-y-auto"><slot name="opened" /></div>
@@ -68,7 +63,7 @@
 import { useQuestsUiStore } from "@/stores/ui/quests";
 import { clampDrawerWidth, DRAWER_MAX_REM, DRAWER_MIN_REM } from "@/lib/quests/drawer";
 import { canAnimate, whenSettled } from "@/lib/motion";
-import { IconChevronLeft, IconChevronRight } from "@/lib/icons";
+import { IconChevronLeft } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 
 const { questId, mode, opened = false } = defineProps<{

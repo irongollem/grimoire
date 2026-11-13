@@ -23,6 +23,7 @@ import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import { useMarkQuestMove, useQuestConsequences, useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
 import { useQuestObjectives, useUpdateQuest } from "@/composables/quests/useQuests";
+import { useShareQuest } from "@/composables/quests/useShareQuest";
 import { useToast } from "@/composables/useToast";
 import { describeQuestConsequenceAction } from "@/lib/quests/consequences";
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
@@ -42,6 +43,7 @@ const { beat, presentation, entryBeatId = null, threadId = null, sessionId = nul
 const toast = useToast();
 const updateBeat = useUpdateQuestBeat();
 const updateQuest = useUpdateQuest();
+const { shareIfBeatSeen } = useShareQuest();
 const markMoveMutation = useMarkQuestMove();
 const { data: consequences } = useQuestConsequences(computed(() => beat.quest_id));
 const { data: objectives } = useQuestObjectives(computed(() => beat.quest_id));
@@ -80,7 +82,11 @@ async function run(action: () => Promise<unknown>) {
 
 function setVisibility(visibility: QuestBeatVisibility) {
   if (visibility === beat.visibility) return;
-  void run(() => updateBeat.mutateAsync({ id: beat.id, questId: beat.quest_id, update: { visibility } }));
+  void run(async () => {
+    await updateBeat.mutateAsync({ id: beat.id, questId: beat.quest_id, update: { visibility } });
+    // Showing the table a beat of a quest it cannot see would leave the beat nowhere.
+    await shareIfBeatSeen(beat.quest_id, visibility);
+  });
 }
 
 function markEntry(checked: boolean) {
