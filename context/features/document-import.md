@@ -458,6 +458,13 @@ assigned anywhere), which their list views for that kind already show
 alongside this campaign's own. RLS still scopes a null-`campaign_id` row to the
 signed-in user's own, so this can't surface another DM's global rows.
 
+### Hand-picked links and deity candidates
+
+Two kinds of candidate never come from the `import-match` edge function (`parseImportMatches` refuses them), and both are made in the browser:
+
+- **Hand-picked (`matchKind: "chosen"`).** The DM searches their own rows from the review and links to one. The matcher cannot see that the page's "Miner's pick" is the vault's "Pickaxe", or that "Hide armor" is "Armor, hide", and Ignore is no answer: it drops a beat's reference to the entity. A chosen link behaves like any campaign or library link in the sweep.
+- **Deities for NPCs (`source: "deity"`).** An extracted NPC is sometimes one of the campaign's gods. `withDeityCandidates` adds the campaign's `deities` to an NPC's candidates (exact name first, so the default links to the god; a whole-word partial last). Linking means "this is my deity, create no NPC", and it writes nothing: a deity link adds no registry entry, no `quest_refs` row and no world links (`QuestBeatAttachmentType` and `quest_refs` have no deity type), and a beat's `npc_names` entry naming it is skipped without an unresolved-link message (`deityNpcNames` in `resolveBeatCrossReferences`). It still counts as linked.
+
 ### A room's occupants propose an encounter, never create one silently (#840)
 
 `encounters` is the eighth kind, and deliberately the **last** one:
