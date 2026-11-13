@@ -1719,7 +1719,7 @@ toggle — the plain grid list is untouched by this epic).
   a running thread **and** a lane that is not Completed or Failed. Threads
   never close on their own, so a quest the DM settles keeps its running
   thread; the lane wins, here and in `get_campaign_live_quests`
-  (`20261112220946`), which feeds the session rail, the dashboard Quests
+  (`20261113004130`), which feeds the session rail, the dashboard Quests
   widget and the cockpit's open chains.
 - **Every card opens on a click anywhere.** The title's link stretches over
   the card (an `::after` at `inset-0`), and every control and chip sits above
