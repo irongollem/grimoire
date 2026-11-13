@@ -104,7 +104,7 @@
     </div>
 
     <div class="flex flex-col gap-3">
-      <h3 class="text-heading-sm text-foreground">BookmarkTab: md and sm</h3>
+      <h3 class="text-heading-sm text-foreground">Bookmark tab: md and sm</h3>
       <div class="flex flex-wrap gap-6">
         <div v-for="size in SIZES" :key="size" class="flex items-start gap-3">
           <span class="w-6 text-eyebrow text-muted-foreground">{{ size }}</span>
