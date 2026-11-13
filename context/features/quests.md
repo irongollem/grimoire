@@ -1223,8 +1223,17 @@ The header keeps the title, the lane and a **More** menu; the rest of what the
 page header used to carry moved into the quest panel (below). Opened at `lg` the
 beat overlays the flow and the summary column stays in the grid, invisible, so
 the flow keeps its size and does not refit underneath; below `lg` the opened beat
-replaces the drawer in flow, with **Back to the flow** above it. The phone sheet
-(peek, half, full) is story I of the epic.
+replaces the drawer in flow, with **Back to the flow** above it (shown below `md`
+only, where the opened beat's own header gives way to the phone top bar, whose
+back button would leave the page).
+
+Below `md` the drawer is a bottom sheet (`QuestSheet.vue`), over the outline
+that replaces the canvas there. It **peeks** with nothing selected: "The quest",
+one status line (objectives done of total, the first unfilled clock) and **Run**
+(`questLink(id, { party: true })`). It rises to **half** for a selected beat or
+route, where collapsing deselects (`select({})`), and to **full** for the quest
+panel. A spacer of the sheet's height keeps the outline's last row reachable.
+The opened beat is full screen on a phone and never sits in the sheet.
 
 **A quest is never a modal.** It was, briefly: `/quests/:id` nested under
 `/quests` so the overview could pop over the log the way an NPC sheet does,

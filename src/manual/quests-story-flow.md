@@ -43,6 +43,8 @@ Drag a connection from one beat to another on the canvas to link two existing be
 
 The drawer on the right of the flow shows whatever you've selected: the quest, a beat, or a route. Click empty canvas or press **Esc** to go back to the quest. **Open** on a beat pulls the whole beat open over the flow (see below); **Flow** at its top puts it back. The address of the page remembers your selection.
 
+On a phone the flow is a list of beats and the drawer is a sheet along the bottom. With nothing selected it shows how the quest stands and a **Run** button that opens the beat where the party is. Tap a beat and the sheet rises to show it; swipe it down to let go of the beat. Tap the handle to see the whole quest.
+
 ## Editing a route
 
 Click a route on the canvas to see it in the drawer:
