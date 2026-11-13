@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { getTextProvider, getImageProvider } from "./providers";
 import { fetchImageBasePrompt } from "./systemPrompts";
-import { buildImagePromptAuthorSystem, buildSimpleImagePrompt } from "./imagePrompt";
+import { buildEntityImagePrompt, buildImagePromptAuthorSystem } from "./imagePrompt";
 import { buildCampaignContext, b64ToBlob, wrapUserInput } from "./utils";
 import { startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { logUsage } from "@/composables/ai/useAiCredits";
@@ -183,7 +183,7 @@ export function useEntityImageGeneration(bucketId: BucketId) {
     startAiQuotes("image");
     const imageBasePrompt = await fetchImageBasePrompt();
     const imageProvider = await getImageProvider();
-    const imagePrompt = buildSimpleImagePrompt({
+    const imagePrompt = buildEntityImagePrompt(options.kind, {
       base: imageBasePrompt,
       setting: settingPrompt,
       subject,

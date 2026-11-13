@@ -25,9 +25,17 @@ export type LedgerCell =
  */
 export const LEDGER_TEMPLATE_KEY: InjectionKey<ComputedRef<string | null>> = Symbol("ledgerTemplate");
 
-/** Name first, then the list's columns, then actions and the chevron. */
-export function ledgerTemplate(columns: readonly LedgerColumn[]): string {
-  return ["minmax(12rem,1.6fr)", ...columns.map((c) => c.track), "2.5rem"].join(" ");
+/** The last track holds the chevron alone: 0.875rem of icon with room around it. */
+export const LEDGER_CHEVRON_TRACK = "2.5rem";
+
+/**
+ * Name first, then the list's columns, then actions and the chevron. Every row is its
+ * own grid, so a `max-content` last track would size each row by its own buttons and
+ * ragged the columns; the list that puts buttons in a row names the width its widest
+ * set needs (`actionsTrack`), once, and head and rows share it.
+ */
+export function ledgerTemplate(columns: readonly LedgerColumn[], actionsTrack = LEDGER_CHEVRON_TRACK): string {
+  return ["minmax(12rem,1.6fr)", ...columns.map((c) => c.track), actionsTrack].join(" ");
 }
 
 /**

@@ -14,7 +14,7 @@
     :badge-text="spellLevelOrdinal(spell.level)"
     :badge-class="SCHOOL_BG[spell.school]"
     :eyebrow="spell.school"
-    :tab="{ text: spellLevelTab(spell.level), label: 'Spell level', toneClass: SCHOOL_BG[spell.school] }"
+    :tab="spellTabFor(spell)"
     :activates="activates"
     @activate="emit('activate')"
   >
@@ -90,7 +90,7 @@ import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVaria
 import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
 import { IconEdit } from "@/lib/icons";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { SCHOOL_BG, spellLevelLabel, spellLevelOrdinal, spellLevelTab } from "@/types/spell.types";
+import { SCHOOL_BG, spellLevelLabel, spellLevelOrdinal, spellTabFor } from "@/types/spell.types";
 import type { SpellBrowseRow } from "@/types/spell.types";
 
 const { spell } = defineProps<{

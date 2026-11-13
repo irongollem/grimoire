@@ -101,6 +101,7 @@
         :grid-columns="columns"
         :grid-row-estimate="GRID_ROW_PX"
         :ledger="LEDGER"
+        ledger-actions="9.5rem"
       >
         <template #card="{ item: cls }">
           <EntityGridCard

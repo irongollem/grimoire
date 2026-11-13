@@ -12,23 +12,13 @@
         v-for="beat in beats"
         :key="beat.id"
         class="group flex items-center gap-2 py-1.5"
-        :class="[
-          reach(beat.id) === 'stranded' ? 'opacity-60' : '',
-          reach(beat.id) === 'current' || reach(beat.id) === 'stranded' ? 'pl-3.5' : '',
-        ]"
+        :class="['rounded-md px-2', FILL_TINT[markOf(beat.id).fill], markOf(beat.id).unreachable ? 'opacity-40' : '']"
       >
-        <!-- The state mark: a filled check square once visited, a thread-toned
-             dot while a cursor stands here, an outlined square once cut off —
-             everything else (ahead, unplayed) keeps the same width so titles
-             still line up without claiming a state we don't draw. -->
-        <span v-if="reach(beat.id) === 'visited'" class="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded bg-tone-success text-on-success" aria-hidden="true">
-          <IconCheck class="h-2.5 w-2.5" />
-        </span>
-        <span v-else-if="reach(beat.id) === 'current'" class="h-1.5 w-1.5 shrink-0 rounded-full" :class="rowDot(beat.id) ?? 'bg-muted-foreground'" aria-hidden="true" />
-        <span v-else-if="reach(beat.id) === 'stranded'" class="h-3.5 w-3.5 shrink-0 rounded border-[0.09375rem] border-border" aria-hidden="true" />
-        <span v-else class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <!-- The same bookmark as the canvas node; both read beatMark(). -->
+        <QuestBeatBookmark :state="markOf(beat.id).bookmark" />
+        <span class="sr-only">{{ markOf(beat.id).label }}</span>
         <button class="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" @click="emit('command', { type: 'open', beatId: beat.id })">
-          <span class="block truncate text-label-lg font-bold text-foreground">{{ beat.title || "Untitled beat" }}</span>
+          <span class="block truncate text-label-lg font-bold text-foreground" :class="{ 'line-through': markOf(beat.id).unreachable }">{{ beat.title || "Untitled beat" }}</span>
           <span class="mt-0.5 block truncate text-caption text-muted-foreground">{{ rowCaption(beat.id) || `${beat.kind} · ${beat.visibility}` }}</span>
         </button>
         <AppButton v-if="editable && selectedBeatId && selectedBeatId !== beat.id" label="Link" size="xs" variant="subtle" @click="emit('command', { type: 'link', sourceBeatId: selectedBeatId, targetBeatId: beat.id })" />
@@ -49,11 +39,13 @@
 </template>
 
 <script setup lang="ts">
-import { IconCheck, IconClose } from "@/lib/icons";
+import { IconClose } from "@/lib/icons";
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import QuestBeatBookmark from "./QuestBeatBookmark.vue";
+import { beatMark, type BeatFill } from "@/lib/quests/beatMark";
 import type { QuestGraphCommand } from "@/lib/quests/flow";
-import type { QuestBeatPresentation, QuestBeatReach } from "@/lib/quests/presentation";
+import type { QuestBeatPresentation } from "@/lib/quests/presentation";
 import { threadBadge, type ThreadLike } from "@/lib/quests/threads";
 import type { QuestBeat, QuestBeatEdge, QuestBeatTransition } from "@/types/quest.types";
 
@@ -61,7 +53,7 @@ import type { QuestBeat, QuestBeatEdge, QuestBeatTransition } from "@/types/ques
  *  ties a parallel route back to the thread it opened. */
 type OutlineThread = ThreadLike & { opened_by_edge_id: string | null };
 
-const { beats, presentations = {}, edges = [], transitions = [], threads = [], selectedBeatId, editable = true } = defineProps<{
+const { beats, presentations = {}, edges = [], transitions = [], threads = [], selectedBeatId, editable = true, entryBeatId } = defineProps<{
   beats: QuestBeat[];
   presentations?: Record<string, QuestBeatPresentation>;
   edges?: QuestBeatEdge[];
@@ -69,6 +61,8 @@ const { beats, presentations = {}, edges = [], transitions = [], threads = [], s
   threads?: OutlineThread[];
   selectedBeatId?: string | null;
   editable?: boolean;
+  /** The quest's entry beat, which reads green until the party stands on it. */
+  entryBeatId?: string | null;
 }>();
 const emit = defineEmits<{ command: [command: QuestGraphCommand] }>();
 
@@ -103,14 +97,15 @@ function threadRef(threadId: string | null | undefined): string | null {
   return badge ? `Thread ${badge.letter}` : null;
 }
 
-function reach(beatId: string): QuestBeatReach | undefined {
-  return presentations[beatId]?.reach;
-}
+const FILL_TINT: Record<BeatFill, string> = {
+  here: "bg-primary/15",
+  start: "bg-tone-success/15",
+  past: "",
+  pending: "bg-muted/50",
+};
 
-function rowDot(beatId: string): string | null {
-  const presentation = presentations[beatId];
-  const threadId = presentation?.currentThreadIds[0] ?? lastArrivalByBeat.value.get(beatId)?.thread_id ?? undefined;
-  return threadId ? threadBadge(threads, threadId)?.tone.dot ?? null : null;
+function markOf(beatId: string) {
+  return beatMark(presentations[beatId], entryBeatId === beatId);
 }
 
 function rowCaption(beatId: string): string {

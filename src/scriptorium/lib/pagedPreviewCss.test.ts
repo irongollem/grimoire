@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import { EDITOR_PAGE_DIMENSIONS_PX } from "./editorConstants";
 import { buildPagedPreviewCss, PAGE_CONTENT_SELECTOR } from "./pagedPreviewCss";
@@ -131,5 +132,29 @@ describe("buildPagedPreviewCss", () => {
     expect(longRule).toContain(".sc-descriptive.sc-box--long");
     expect(longRule).toContain("table.sc-table--long");
     expect(longRule).toContain("break-inside: auto");
+  });
+});
+
+describe("the page's darker edges", () => {
+  const style = (name: string) => readFileSync(`src/scriptorium/styles/${name}`, "utf8");
+
+  // Bug: the 12-stop gradient was pasted into four files (eight copies) and one edit drifted them apart.
+  it("are written once, in theme-base.css, and every other page look reads them", () => {
+    const stops = "rgb(162 93 28 / 0.34) 0%";
+    expect(style("theme-base.css").split(stops)).toHaveLength(3); // the x and y gradients
+    for (const file of ["scriptorium-editor.css", "theme-plain.css"]) {
+      expect(style(file)).not.toContain(stops);
+      expect(style(file)).toContain("var(--sc-page-edge-x)");
+      expect(style(file)).toContain("var(--sc-page-edge-y)");
+    }
+    expect(readFileSync("src/scriptorium/lib/pagedPreviewCss.ts", "utf8")).not.toContain(stops);
+  });
+
+  // Bug: a caller had to append the second layer's position and size itself, and a missed one dropped the bottom edge.
+  it("reach the preview page as two layers, each with its own position and size", () => {
+    const css = buildPagedPreviewCss(base);
+    expect(css).toContain(
+      "background: var(--sc-page-edge-x) 0 0 / 100% 100% no-repeat, var(--sc-page-edge-y) 0 0 / 100% 100% no-repeat, url(",
+    );
   });
 });

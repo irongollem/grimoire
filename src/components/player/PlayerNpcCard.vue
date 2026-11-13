@@ -1,10 +1,13 @@
 <template>
   <div
-    class="flex flex-col rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+    class="relative flex flex-col rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
     @click="$emit('click')"
   >
+    <!-- Low art draws no portrait, but a mini is not a portrait (#1179): its badge, viewer and
+         downloads stay, laid over the card itself, which is the positioned host the overlay fills. -->
+    <MiniPortraitOverlay v-if="lowArt" :source="{ table: 'npcs', id: npc.id }" badge-position="bottom-right" />
     <!-- Portrait -->
-    <div v-if="!lowArt" class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
+    <div v-else class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
       <MiniPortraitOverlay :source="{ table: 'npcs', id: npc.id }" badge-position="bottom-right">
         <FocalImage
           v-if="npc.player_visible_fields.includes('portrait') && displayPortrait"

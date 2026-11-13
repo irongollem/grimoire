@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { LIBRARY_TABLE_FOR_ATTACHMENT, splitAttachmentRefIds, summarizeQuestBeatAttachment } from "@/lib/quests/attachments";
 import { deriveQuestBoardSummaries, type QuestBoardPayload, type QuestBoardSummary } from "@/lib/quests/board";
 import { QUEST_BOARD_KEY } from "@/lib/quests/boardKey";
-import { BEATS_KEY, RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY } from "@/lib/campaignLiveSync/registry";
+import { BEATS_KEY, OBJECTIVES_KEY, RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY } from "@/lib/campaignLiveSync/registry";
 import { queueQuestEmbedding } from "@/composables/quests/queueQuestEmbedding";
 import { toQuestRuntimeRpcArgs, type QuestRuntimeCommandInput } from "@/lib/quests/runtime";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
@@ -28,7 +28,6 @@ import type {
   QuestObjectiveStatus,
   CampaignLiveQuest,
   QuestRuntimeContext,
-  QuestRuntimeJumpTarget,
   QuestConsequence,
   QuestConsequenceInsert,
   QuestRuntimeState,
@@ -729,30 +728,6 @@ export function useCampaignLiveQuests() {
   });
 }
 
-/** Jump moves *this* chain's cursor, so the picker offers only this chain's
- * beats. Another quest is reached by navigating to its own Run surface. */
-export function useQuestRuntimeJumpTargets(questId: string | Ref<string>, search: string | Ref<string>, enabled?: () => boolean) {
-  const campaign = useCampaignStore();
-  const campaignId = computed(() => campaign.activeCampaignId);
-  const id = asRef(questId);
-  const query = asRef(search);
-  return useQuery({
-    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, "jump-targets", campaignId.value, id.value, query.value] as const),
-    queryFn: async ({ queryKey: [, , cid, qid, term] }): Promise<QuestRuntimeJumpTarget[]> => {
-      if (cid === null) throw new Error("useQuestRuntimeJumpTargets fetched without a campaign");
-      const { data, error } = await supabase.rpc("search_quest_runtime_jump_targets", {
-        p_campaign_id: cid,
-        p_quest_id: qid,
-        p_search: term,
-        p_limit: 30,
-      });
-      if (error) throw error;
-      return (data ?? []) as QuestRuntimeJumpTarget[];
-    },
-    enabled: () => !!campaignId.value && !!id.value && (enabled?.() ?? true),
-  });
-}
-
 export function useQuestRuntimeCommand() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -770,9 +745,8 @@ export function useQuestRuntimeCommand() {
       queryClient.invalidateQueries({ queryKey: [RUNTIME_CONTEXT_KEY] });
       queryClient.invalidateQueries({ queryKey: [TRANSITIONS_KEY] });
       // The board summarises the cursor, so a played move changes it. It was
-      // missing here while `useAssertQuestRuntime` below invalidated it and
-      // called it "the same caches a played move invalidates" — a parity its
-      // sibling did not actually have. With a 60s `staleTime` and no refetch
+      // missing here while its sibling (a marked move, `useMarkQuestMove`)
+      // invalidated it — a parity this one did not actually have. With a 60s `staleTime` and no refetch
       // on focus, advancing a beat and returning to the quest board inside
       // that minute showed the previous beat as current, contradicting the
       // cockpit the DM had just used.
@@ -781,60 +755,79 @@ export function useQuestRuntimeCommand() {
   });
 }
 
-export interface QuestAssertRuntimeInput {
+export type QuestMoveInput = {
   campaignId: string;
   questId: string;
   threadId: string;
-  /** In story order — the order beats are applied and chained from. */
-  beatIds: string[];
-  placeCursor: boolean;
-  reason?: string;
-}
+  sessionId?: string | null;
+} & (
+  | { kind: "route"; edgeId: string; placeParty: boolean; dispatchLootIds: string[]; movePartyTo?: string | null }
+  | { kind: "party_here" | "failed"; beatId: string }
+);
 
-export interface QuestAssertRuntimeResult {
-  asserted: number;
-  /** Titles of the beats just asserted, in the order applied. */
-  beats: string[];
-  cursor_placed: boolean;
+export interface QuestMoveResult {
+  transition_ids: string[];
   current_beat_id: string | null;
 }
 
+/** What a marked move changes: the cursor and log, the objectives and loot its
+ *  payoffs touch, and the party's place when it moves them. */
+function invalidateAfterMove(queryClient: ReturnType<typeof useQueryClient>) {
+  for (const key of [RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY, QUEST_BOARD_KEY, OBJECTIVES_KEY, LOOT_KEY, CONSEQUENCE_EVENTS_KEY, "campaigns", "calendar-events", BEATS_KEY]) {
+    void queryClient.invalidateQueries({ queryKey: [key] });
+  }
+}
+
 /**
- * Records beats as already played, without playing through them (#796): the
- * prep-time counterpart to {@link useQuestRuntimeCommand}. It appends one
- * `assert` transition per beat, fires each beat's arrival consequences exactly
- * as playing through would, and optionally places the cursor at the last one —
- * but it never sets `status = 'running'`. Fixing the record must not light the
- * session rail; only the verb machine (`transition_quest_runtime`) starts a
- * session. See `supabase/migrations/20260906093154_prep_can_assert_the_cursor.sql`.
+ * Marks what happened on the flow (#1183): a route taken, the party put at a
+ * beat, or a beat failed. One RPC (`mark_quest_move`) so the transition, its
+ * payoffs and the optional loot and party move commit together. It never
+ * starts a session; it stamps the open one when `sessionId` is null.
  */
-export function useAssertQuestRuntime() {
+export function useMarkQuestMove() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: QuestAssertRuntimeInput): Promise<QuestAssertRuntimeResult> => {
-      const { data, error } = await supabase.rpc("assert_quest_runtime", {
+    mutationFn: async (input: QuestMoveInput): Promise<QuestMoveResult> => {
+      const route = input.kind === "route";
+      const { data, error } = await supabase.rpc("mark_quest_move", {
         p_campaign_id: input.campaignId,
         p_quest_id: input.questId,
         p_thread_id: input.threadId,
-        p_beat_ids: input.beatIds,
-        p_place_cursor: input.placeCursor,
-        p_reason: input.reason?.trim() || null,
+        p_kind: input.kind,
+        p_edge_id: route ? input.edgeId : null,
+        p_beat_id: route ? null : input.beatId,
+        p_session_id: input.sessionId ?? null,
+        p_place_party: route ? input.placeParty : false,
+        p_dispatch_loot_ids: route ? input.dispatchLootIds : [],
+        p_move_party_to: route ? input.movePartyTo ?? null : null,
       });
       if (error) throw error;
-      return data as QuestAssertRuntimeResult;
+      return data as QuestMoveResult;
     },
-    onSuccess: () => {
-      // The cursor and the log — the same caches a played move invalidates.
-      queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
-      queryClient.invalidateQueries({ queryKey: [RUNTIME_CONTEXT_KEY] });
-      queryClient.invalidateQueries({ queryKey: [TRANSITIONS_KEY] });
-      queryClient.invalidateQueries({ queryKey: [QUEST_BOARD_KEY] });
-      // Consequences can move objectives, log events, and touch the calendar —
-      // same set `useAssertQuestObjectiveStatus` invalidates for the same reason.
-      queryClient.invalidateQueries({ queryKey: ["quest_objectives"] });
-      queryClient.invalidateQueries({ queryKey: ["quest_consequence_events"] });
-      queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+    onSettled: () => invalidateAfterMove(queryClient),
+  });
+}
+
+export interface QuestUndoMoveResult {
+  undone_transition_id: string | null;
+  current_beat_id: string | null;
+}
+
+/** Takes back the newest move, with its payoffs: of `threadId` when given,
+ *  else the quest's newest move on any thread (the toolbar's Undo). */
+export function useUndoQuestMove() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { campaignId: string; questId: string; threadId?: string }): Promise<QuestUndoMoveResult> => {
+      const { data, error } = await supabase.rpc("undo_quest_move", {
+        p_campaign_id: input.campaignId,
+        p_quest_id: input.questId,
+        p_thread_id: input.threadId,
+      });
+      if (error) throw error;
+      return data as QuestUndoMoveResult;
     },
+    onSettled: () => invalidateAfterMove(queryClient),
   });
 }
 
@@ -1097,7 +1090,7 @@ async function fetchQuestUnlockEntry(questId: string): Promise<QuestUnlockEntry 
  * (`resolveStartBeatId`, `src/lib/quests/entry.ts`).
  *
  * Query key starts with `CONSEQUENCE_EVENTS_KEY` so the existing
- * invalidations at useQuestFlow.ts:817 (`useAssertQuestRuntime`) and
+ * invalidations at useQuestFlow.ts:817 (`useMarkQuestMove`) and
  * useQuestThreads.ts:161 — both fire or undo a consequence — refresh this too.
  */
 export function useQuestUnlockEntry(questId: string | Ref<string>, enabled?: () => boolean) {

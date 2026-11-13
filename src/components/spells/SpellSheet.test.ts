@@ -111,7 +111,7 @@ describe("SpellSheet in low art (#1179)", () => {
 
   it("puts the level and school on the fact line, with a level tab and a Portrait button for its own art", () => {
     const w = open();
-    expect(w.find('[aria-label="Spell level 3"]').exists()).toBe(true);
+    expect(w.findAll(".sr-only").some((e) => e.text() === "Spell level 3")).toBe(true);
     expect(w.text()).toContain("3rd-Level");
     expect(w.text()).toContain("Portrait");
   });

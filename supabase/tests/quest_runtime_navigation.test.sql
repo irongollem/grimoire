@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(65);
+select plan(62);
 
 select has_function(
   'public', 'transition_quest_runtime',
@@ -11,7 +11,7 @@ select has_function(
 select has_function('public', 'get_quest_runtime_context', array['uuid', 'uuid', 'uuid'], 'runtime selectors have one server-authorized projection per thread');
 select has_function('public', 'get_campaign_live_quests', array['uuid'], 'the open chains are a set, not a single row');
 select hasnt_function('public', 'end_campaign_quest_session', array['uuid'], 'nothing closes every thread at once: a thread keeps its cursor between sessions');
-select has_function('public', 'search_quest_runtime_jump_targets', array['uuid', 'uuid', 'text', 'integer'], 'jump picker is scoped to the chain it moves');
+select hasnt_function('public', 'search_quest_runtime_jump_targets', array['uuid', 'uuid', 'text', 'integer'], 'the cockpit''s jump picker is gone (#1183): putting the party on a beat replaced it');
 select has_column('public', 'quest_runtime_state', 'quest_id', 'the cursor belongs to a quest');
 select col_is_pk('public', 'quest_runtime_state', array['campaign_id', 'quest_id', 'thread_id'], 'one cursor per thread, not per quest');
 select hasnt_column('public', 'quest_runtime_state', 'current_quest_id', 'the quest is the key, so it cannot also be a mutable column');
@@ -48,23 +48,6 @@ insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '66800000-0000-4000-8000-000000000001', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
-
--- ── The jump picker only ever offers the chain it can move ───────────────────
-
-select is(
-  (select count(*)::integer from public.search_quest_runtime_jump_targets(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020')),
-  3, 'jump search returns this quest''s eligible beats');
-select is(
-  (select count(*)::integer from public.search_quest_runtime_jump_targets(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021')),
-  2, 'jump search never leaks another chain''s beats');
--- Every quest carries an auto-created overview beat. It sits outside the edge
--- graph, so parking the live cursor on it would strand the cockpit.
-select is(
-  (select count(*)::integer from public.search_quest_runtime_jump_targets(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', 'overview')),
-  0, 'quest overview beats are never offered as runtime jump targets');
 
 -- ── One chain moves ──────────────────────────────────────────────────────────
 

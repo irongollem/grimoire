@@ -5,6 +5,8 @@
       <TagChip class="ml-auto truncate">{{ sourceTitle }} → {{ targetTitle }}</TagChip>
     </header>
 
+    <QuestTakeRoute v-if="edge && edges && beats" :key="edge.id" class="mt-2" :edge="edge" :edges="edges" :beats="beats" :target-staging="targetStaging" :thread-id="threadId" :session-id="sessionId" />
+
     <div class="mt-2 space-y-2">
       <div class="flex items-center justify-between gap-2">
         <span class="text-caption font-semibold text-foreground">Route kind</span>
@@ -75,11 +77,13 @@ import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
+import QuestTakeRoute from "./QuestTakeRoute.vue";
 import { describeQuestRouteEffect, describeQuestRouteGate, GATE_MAX_STATUSES, type GateConditionDraft } from "@/lib/quests/gates";
 import { QUEST_OBJECTIVE_STATUS_LABELS, QUEST_OBJECTIVE_STATUSES } from "@/lib/quests/objectives";
-import type { QuestGateMode, QuestObjectiveStatus, QuestRouteEffect, QuestRouteGate, QuestRouteKind } from "@/types/quest.types";
+import type { QuestBeatStaging } from "@/lib/quests/presentation";
+import type { QuestBeat, QuestBeatEdge, QuestGateMode, QuestObjectiveStatus, QuestRouteEffect, QuestRouteGate, QuestRouteKind } from "@/types/quest.types";
 
-const { sourceTitle, targetTitle, objectiveOptions, effects, editTo, canBeParallel, gatePreview = null, saving = false, error = "" } = defineProps<{
+const { sourceTitle, targetTitle, objectiveOptions, effects, editTo, canBeParallel, gatePreview = null, saving = false, error = "", edge, edges, beats, targetStaging = null, threadId = null, sessionId = null } = defineProps<{
   sourceTitle: string;
   targetTitle: string;
   objectiveOptions: { id: string; name: string }[];
@@ -90,6 +94,17 @@ const { sourceTitle, targetTitle, objectiveOptions, effects, editTo, canBeParall
   gatePreview?: QuestRouteGate | null;
   saving?: boolean;
   error?: string;
+  /** The selected route, every route of the quest and its beats: with all
+   *  three, the panel offers Take this route. */
+  edge?: QuestBeatEdge;
+  edges?: QuestBeatEdge[];
+  beats?: QuestBeat[];
+  /** Where the target beat is staged. */
+  targetStaging?: QuestBeatStaging | null;
+  /** The focus thread. */
+  threadId?: string | null;
+  /** Null lets the server stamp the open session. */
+  sessionId?: string | null;
 }>();
 const emit = defineEmits<{ save: []; delete: [] }>();
 

@@ -31,7 +31,7 @@
 <script setup lang="ts">
 /**
  * Frame 08's beat card — the same beat presentation the run cockpit already
- * uses (`QuestRunBeatCard`'s read-aloud block, styled identically), for the
+ * uses (the opened beat's read-aloud block, styled identically), for the
  * one case where a DM opened a site straight from the Atlas rather than
  * through the cockpit and a beat is still waiting here. "Resolve beat" and
  * the header's "Back to the beat" both go to the same place — the run
@@ -46,7 +46,7 @@
  * omitted rather than faked.
  *
  * "Read aloud" has no existing action to reuse: the block above already
- * renders the text inline, same as `QuestRunBeatCard`, so this button opens
+ * renders the text inline, same as the opened beat, so this button opens
  * it full-screen for the DM to read from at the table without the rest of
  * the card's chrome competing for attention. Nothing about the beat changes
  * when it's clicked.
@@ -58,11 +58,11 @@ import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { IconCheck, IconDocument } from "@/lib/icons";
-import { questSurfaceReturnTo } from "@/lib/quests/navigation";
+import { questLink } from "@/lib/quests/navigation";
 import type { StagedQuestBeat } from "@/composables/quests/useBeatsStagedAt";
 
 const { beat } = defineProps<{ beat: StagedQuestBeat }>();
 
-const cockpitTarget = computed(() => questSurfaceReturnTo(beat.quest_id, beat.id, "run"));
+const cockpitTarget = computed(() => questLink(beat.quest_id, { beat: beat.id, open: true }));
 const focused = ref(false);
 </script>

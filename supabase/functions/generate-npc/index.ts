@@ -315,7 +315,7 @@ serve(withCors(async (req: Request) => {
         prompt: imagePrompt,
         size: portraitSize,
         quality: portraitQuality,
-        boostStyle: true,
+        boostStyle: "portrait",
       });
       totalImageCount++;
       imgResultProvider = usage.provider;
@@ -358,7 +358,7 @@ serve(withCors(async (req: Request) => {
           prompt: disguisePrompt,
           size: portraitSize,
           quality: portraitQuality,
-          boostStyle: true,
+          boostStyle: "portrait",
           sourceImages: [seedBlob],
         });
         totalImageCount++;

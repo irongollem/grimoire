@@ -64,7 +64,7 @@ describe("QuestFlowStarter", () => {
       summary: "Follow the bells below the lake.",
       status: "undiscovered",
     }));
-    expect(mocks.push).toHaveBeenCalledWith({ path: "/quests/quest-new", query: { view: "overview" } });
+    expect(mocks.push).toHaveBeenCalledWith({ path: "/quests/quest-new", query: {} });
   });
 
   // The DB trigger makes the first beat a quest's entry the moment it exists
@@ -89,7 +89,7 @@ describe("QuestFlowStarter", () => {
       canvas_x: 0,
       canvas_y: 0,
     }));
-    expect(mocks.push).toHaveBeenCalledWith({ path: "/quests/quest-new", query: { view: "overview" } });
+    expect(mocks.push).toHaveBeenCalledWith({ path: "/quests/quest-new", query: {} });
   });
 
   it("keeps the failure in context when the rumor beat cannot be created, and never navigates away", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { questReturnLabel, questSurfaceReturnTo, safeQuestReturnTo, withQuestReturnTo } from "./navigation";
+import { questLink, questLinkHref, safeQuestReturnTo, withQuestReturnTo } from "./navigation";
 
 describe("quest return navigation", () => {
   it("keeps local beat return URLs and rejects external redirects", () => {
@@ -22,14 +22,23 @@ describe("quest return navigation", () => {
 
 });
 
-describe("questSurfaceReturnTo", () => {
-  it("always names the surface it returns to, so the overview is never the fallback", () => {
-    expect(questSurfaceReturnTo("q", "b", "work")).toBe("/quests/q?view=work&beat=b");
-    expect(questSurfaceReturnTo("q", "b", "run")).toBe("/quests/q?view=run&beat=b");
+describe("questLink", () => {
+  it("selects a beat with ?beat= and opens it with open=1", () => {
+    expect(questLink("q", { beat: "b" })).toEqual({ path: "/quests/q", query: { beat: "b" } });
+    expect(questLink("q", { beat: "b", open: true })).toEqual({ path: "/quests/q", query: { beat: "b", open: "1" } });
   });
 
-  it("labels the back button by destination", () => {
-    expect(questReturnLabel("/quests/q?view=run&beat=b")).toBe("Back to the session");
-    expect(questReturnLabel("/quests/q?view=work&beat=b")).toBe("Back to story flow");
+  it("never opens the drawer on nothing: open without a beat is dropped", () => {
+    expect(questLink("q", { open: true })).toEqual({ path: "/quests/q", query: {} });
+  });
+
+  it("names a route with ?edge= and the party's beat with open=party plus its thread", () => {
+    expect(questLink("q", { edge: "e" })).toEqual({ path: "/quests/q", query: { edge: "e" } });
+    expect(questLink("q", { party: true, thread: "t" })).toEqual({ path: "/quests/q", query: { open: "party", thread: "t" } });
+  });
+
+  it("renders the same link as a string for a returnTo", () => {
+    expect(questLinkHref("q", { beat: "b", open: true })).toBe("/quests/q?beat=b&open=1");
+    expect(questLinkHref("q")).toBe("/quests/q");
   });
 });

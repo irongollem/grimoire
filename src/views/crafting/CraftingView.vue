@@ -78,6 +78,7 @@
         :grid-row-estimate="activeDiscipline ? GRID_ROW_PX : GRID_ROW_WITH_TAGS_PX"
         :row-estimate="activeDiscipline ? ROW_PX : ROW_WITH_TAGS_PX"
         :ledger="RECIPE_LEDGER"
+        ledger-actions="7rem"
       >
         <template #card="{ item: recipe }">
           <EntityGridCard
@@ -106,7 +107,7 @@
                 <AudienceRevealControl
                   :name="recipe.name"
                   :visible-to="recipe.player_visible_to"
-                  :form="artFree ? 'button' : 'overlay'"
+                  :form="artFree ? 'inline' : 'overlay'"
                   @change="onVisibilityChange(recipe, $event)"
                 />
               </div>

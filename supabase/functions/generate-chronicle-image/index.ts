@@ -6,7 +6,7 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { createImageJob, completeImageJob, failImageJob, type ImageJobKind } from "../_shared/imageJob.ts";
-import { buildLabelledImagePrompt, buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
+import { buildEntityImagePrompt, imageBoostFor } from "../_shared/image-prompt.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
 import { generateImage, resolveImageProvider, type ImageProviderKey } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
@@ -89,11 +89,8 @@ function buildPurposePrompt(
   if (purpose === "chronicler" || purpose === "group_portrait") {
     return buildScenePrompt(subject, textDescriptions, settingPrompt, imageBasePrompt);
   }
-  if (purpose === "npc_portrait") {
-    return buildLabelledImagePrompt({ base: imageBasePrompt, setting: settingPrompt, subject });
-  }
   if (purpose === "location_map") return subject;
-  return buildSimpleImagePrompt({ base: imageBasePrompt, setting: settingPrompt, subject });
+  return buildEntityImagePrompt(purpose, { base: imageBasePrompt, setting: settingPrompt, subject });
 }
 
 async function uploadResult(
@@ -175,7 +172,7 @@ async function runGeneration(args: {
     }
 
     const { b64, contentType, usage } = await generateImage({
-      provider, model, apiKey, prompt, size, quality, boostStyle: PURPOSE_CONFIG[purpose].boostStyle,
+      provider, model, apiKey, prompt, size, quality, boostStyle: PURPOSE_CONFIG[purpose].boostStyle && imageBoostFor(purpose),
       screening: { apiKey: moderationKey, admin, userId, generationType: purpose },
       sourceImages: portraitBlobs.length > 0 ? portraitBlobs : undefined,
     });

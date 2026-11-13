@@ -1,8 +1,9 @@
-// Quest board filters, layout and story-flow selection.
+// Quest board filters and layout, and the quest drawer's width.
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, type Ref } from "vue";
 import { useStorage } from "@vueuse/core";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
+import { DRAWER_DEFAULT_REM } from "@/lib/quests/drawer";
 
 export const useQuestsUiStore = defineStore("ui:quests", () => {
   // Quest UI state
@@ -28,16 +29,34 @@ export const useQuestsUiStore = defineStore("ui:quests", () => {
     questsLootFilter.value,
   );
 
-  // The story-flow canvas is unmounted whenever the DM switches to the quest
-  // overview, so its selection has to live somewhere that outlives the
-  // component. Session-scoped like the filters above: coming back to a quest
-  // weeks later with a beat mysteriously pre-selected would be worse than a
-  // clean canvas. The viewport itself persists separately, per quest, in
-  // `lib/quests/viewport` — it is a place, not a selection.
-  const questFlowSelection = ref<{ questId: string; beatId: string | null; edgeId: string | null } | null>(null);
+  // The drawer's width is a layout preference, kept per quest: a long beat
+  // wants it wide, a quick one narrow. Refs are cached so a quest's width is one
+  // reactive value however many components ask for it.
+  const drawerWidths = new Map<string, Ref<number>>();
+  function drawerWidthFor(questId: string) {
+    let width = drawerWidths.get(questId);
+    if (!width) {
+      width = useStorage(`grimoire:quest-drawer:${questId}`, DRAWER_DEFAULT_REM, safeLocalStorage());
+      drawerWidths.set(questId, width);
+    }
+    return width;
+  }
 
-  function questFlowSelectionFor(questId: string) {
-    return questFlowSelection.value?.questId === questId ? questFlowSelection.value : null;
+  // Whose eyes the story flow is drawn for. Session-only: a DM returns to their
+  // own view, never to a lens left on from last week.
+  const questFlowLens = ref<"dm" | "players">("dm");
+
+  // The session the toolbar files marks under, kept per campaign. Only the DM's
+  // choice is stored ("" = no choice, so the default applies); the default is
+  // derived from the log each time and so never goes stale.
+  const markSessionChoices = new Map<string, Ref<string>>();
+  function markSessionChoiceFor(campaignId: string) {
+    let choice = markSessionChoices.get(campaignId);
+    if (!choice) {
+      choice = useStorage(`grimoire:quest-mark-session:${campaignId}`, "", safeLocalStorage());
+      markSessionChoices.set(campaignId, choice);
+    }
+    return choice;
   }
 
   function resetQuestsFilters() {
@@ -55,8 +74,9 @@ export const useQuestsUiStore = defineStore("ui:quests", () => {
     questsPartyFilter,
     questsEntityFilter,
     questsPrepGapsFilter,
-    questFlowSelection,
-    questFlowSelectionFor,
+    drawerWidthFor,
+    questFlowLens,
+    markSessionChoiceFor,
     questsLootFilter,
     questsHasActiveFilters,
     resetQuestsFilters,

@@ -39,7 +39,7 @@ A DM note is the DM writing to their future self, and only that. It never reache
 
 Each autosave also upserts a `dm_note_touches` row (`recordTouch`).
 
-Surfaces: NPC, monster, item, trap, dungeon feature, puzzle, loot table and roll table pages; Atlas place pane; deity, species and faction pages; companion editor; quest Overview tab; encounter detail page and the encounter run screen; party member (the DM's private note, kept apart from the character's own "Notes"); Hall of Heroes hero page (each DM's own note on a shared hero, carried into the NPC when the hero is imported); a custom spell's sheet.
+Surfaces: NPC, monster, item, trap, dungeon feature, puzzle, loot table and roll table pages; Atlas place pane; deity, species and faction pages; companion editor; the quest panel; encounter detail page and the encounter run screen; party member (the DM's private note, kept apart from the character's own "Notes"); Hall of Heroes hero page (each DM's own note on a shared hero, carried into the NPC when the hero is imported); a custom spell's sheet.
 
 ## The docked scratchpad
 

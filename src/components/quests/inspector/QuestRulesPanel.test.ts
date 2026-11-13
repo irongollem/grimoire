@@ -81,7 +81,7 @@ function consequence(overrides: Partial<QuestConsequence> & { id: string }): Que
   return {
     quest_id: "quest-1",
     on_beat_id: null,
-    on_edge_id: null,
+    on_edge_id: null, on_beat_outcome: "arrived",
     on_objective_id: null,
     on_objective_status: null,
     entry_beat_id: null,

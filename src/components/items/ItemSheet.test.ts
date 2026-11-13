@@ -59,7 +59,7 @@ describe("ItemSheet in low art (#1179)", () => {
     expect(w.find("img").exists()).toBe(false);
     expect(w.html()).not.toContain("18.75rem");
     // The left column's Type/Rarity box is gone: those values live on the fact line.
-    expect(w.text()).not.toContain("Rarity");
+    expect(w.text().replace("Rarity VR", "")).not.toContain("Rarity");
     expect(w.text()).toContain("Very Rare");
   });
 
@@ -69,7 +69,7 @@ describe("ItemSheet in low art (#1179)", () => {
     const labels = w.findAll("button").map((b) => b.text());
     expect(labels).toContain("Identified");
     expect(labels).toContain("Mundane");
-    expect(w.find('[aria-label="Rarity VR"]').exists()).toBe(true);
+    expect(w.findAll(".sr-only").some((e) => e.text() === "Rarity VR")).toBe(true);
   });
 
   it("hides the Mundane button when the item has no mundane picture", () => {
@@ -82,6 +82,6 @@ describe("ItemSheet in low art (#1179)", () => {
   it("with low art off the sheet paints its picture and has no rarity tab", () => {
     const w = open();
     expect(w.find("img").exists()).toBe(true);
-    expect(w.find('[aria-label="Rarity VR"]').exists()).toBe(false);
+    expect(w.findAll(".sr-only").some((e) => e.text() === "Rarity VR")).toBe(false);
   });
 });

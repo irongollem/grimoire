@@ -43,7 +43,7 @@ async function fetchQuests(campaignId: string): Promise<Quest[]> {
   return data as Quest[];
 }
 
-async function fetchQuest(id: string): Promise<Quest> {
+export async function fetchQuest(id: string): Promise<Quest> {
   const { data, error } = await supabase.from("quests").select("*").eq("id", id).single();
   if (error) throw error;
   return data as Quest;

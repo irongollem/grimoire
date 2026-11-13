@@ -191,7 +191,7 @@ import { buildDmFogPlan } from "@/lib/locations/siteFog";
 import { partyRoomInSite, siteReachability } from "@/lib/locations/siteRun";
 import { bindableSpaces, isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { compareSiblings } from "@/lib/locations/tree";
-import { questSurfaceReturnTo } from "@/lib/quests/navigation";
+import { questLink } from "@/lib/quests/navigation";
 import { useCampaignStore } from "@/stores/campaign";
 import { useLocationsUiStore } from "@/stores/ui/locations";
 import type { TableShows } from "@/types/bookNook.types";
@@ -420,7 +420,7 @@ const showTriggerPrompt = computed(() => !!triggerBeat.value && dismissedTrigger
 function advanceTriggerBeat() {
   const target = triggerBeat.value;
   if (!target) return;
-  const to: RouteLocationRaw = questSurfaceReturnTo(target.quest_id, target.id, "run");
+  const to: RouteLocationRaw = questLink(target.quest_id, { beat: target.id, open: true });
   void router.push(to);
 }
 function dismissTriggerPrompt() {

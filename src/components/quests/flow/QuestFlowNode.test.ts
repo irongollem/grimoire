@@ -247,4 +247,63 @@ describe("QuestFlowNode", () => {
     expect(wrapper.get("article").classes()).toContain("border-tone-info");
     expect(wrapper.get("article").classes()).not.toContain("border-primary");
   });
+
+  it("a cut-off beat is struck through and marked unreachable, a merely pending one is neither", () => {
+    const mk = (reach: string) => mount(QuestFlowNode, {
+      props: { title: "T", kind: "neutral", visibility: "hidden", presentation: { reach, loot: { total: 0, undispatched: 0, unclaimed: 0 }, currentThreadIds: [] } as never },
+      global: { stubs: { Handle: true } },
+    });
+    const cut = mk("stranded");
+    expect(cut.get("article").classes()).toContain("is-stranded");
+    expect(cut.get("[data-testid=beat-bookmark]").attributes("data-state")).toBe("unreachable");
+    expect(cut.text()).toContain("unreachable");
+    const pending = mk("ahead");
+    expect(pending.get("article").classes()).not.toContain("is-stranded");
+    expect(pending.get("article").classes()).toContain("fill-pending");
+  });
+
+  it("an entry beat that is also current reads gold, not green", () => {
+    const w = mount(QuestFlowNode, { props: { title: "T", kind: "neutral", visibility: "hidden", isEntry: true, current: true }, global: { stubs: { Handle: true } } });
+    expect(w.get("article").classes()).toContain("fill-here");
+    expect(w.get("article").classes()).not.toContain("fill-start");
+    const start = mount(QuestFlowNode, { props: { title: "T", kind: "neutral", visibility: "hidden", isEntry: true }, global: { stubs: { Handle: true } } });
+    expect(start.get("article").classes()).toContain("fill-start");
+  });
+
+  it("a failed beat shows the failed bookmark and says so to screen readers", () => {
+    const w = mount(QuestFlowNode, {
+      props: { title: "T", kind: "neutral", visibility: "hidden", presentation: { reach: "visited", isFailed: true, loot: { total: 0, undispatched: 0, unclaimed: 0 }, currentThreadIds: [] } as never },
+      global: { stubs: { Handle: true } },
+    });
+    expect(w.get("[data-testid=beat-bookmark]").attributes("data-state")).toBe("failed");
+    expect(w.get("button").attributes("aria-label")).toContain("failed");
+  });
+});
+
+describe("QuestFlowNode in Players' view", () => {
+  const mountLens = (props: Record<string, unknown>) => mount(QuestFlowNode, {
+    props: { title: "The miller's secret", kind: "discovery", visibility: "rumored", lens: "players", ...props },
+    global: { stubs: { Handle: true } },
+  });
+
+  // Fails if the DM's own title reaches the party's picture of a rumored beat.
+  it("shows a rumored beat's rumor copy in place of its title", () => {
+    const wrapper = mountLens({ rumorLine: "Whispers of a mill" });
+    expect(wrapper.get(".quest-flow-node__title").text()).toBe("Whispers of a mill");
+    expect(wrapper.text()).not.toContain("miller's secret");
+    expect(wrapper.classes()).toContain("lens-rumored");
+  });
+
+  // Fails if the DM bookmark survives into the players' lens.
+  it("hides the bookmark, which belongs to the DM's view", () => {
+    expect(mountLens({}).find('[data-testid="beat-bookmark"]').exists()).toBe(false);
+    expect(mount(QuestFlowNode, { props: { title: "x", kind: "neutral", visibility: "revealed" }, global: { stubs: { Handle: true } } }).find('[data-testid="beat-bookmark"]').exists()).toBe(true);
+  });
+
+  it("recedes a hidden beat and keeps a revealed beat as normal", () => {
+    expect(mountLens({ visibility: "hidden" }).classes()).toContain("lens-hidden");
+    const revealed = mountLens({ visibility: "revealed" });
+    expect(revealed.get(".quest-flow-node__title").text()).toBe("The miller's secret");
+    expect(revealed.classes()).not.toContain("lens-hidden");
+  });
 });

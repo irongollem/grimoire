@@ -29,6 +29,7 @@
       <span v-if="presentation?.site?.emptyRoomLabel" class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-ink-caution">{{ presentation.site.emptyRoomLabel }}</span>
       <span v-if="presentation?.unlocksQuest" class="rounded bg-muted px-1.5 py-0.5">unlocks a quest</span>
     </div>
+    <QuestBeatMarks :beat="beat" :presentation="presentation" :entry-beat-id="entryBeatId" :thread-id="threadId" :session-id="sessionId" />
     <QuestConvergeControl :beat="beat" />
   </section>
 </template>
@@ -36,24 +37,28 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import QuestBeatMarks from "./QuestBeatMarks.vue";
 import QuestConvergeControl from "../flow/QuestConvergeControl.vue";
 import { IconDungeon, IconReveal } from "@/lib/icons";
 import { placeRoute } from "@/lib/locations/placeRoute";
-import { questSurfaceReturnTo } from "@/lib/quests/navigation";
+import { questLink } from "@/lib/quests/navigation";
 import type { QuestBeatPresentation, QuestBeatStaging } from "@/lib/quests/presentation";
 import { QUEST_BEAT_KIND_LABELS, type QuestBeat } from "@/types/quest.types";
 
-const { beat, presentation, staging = null } = defineProps<{
+const { beat, presentation, staging = null, entryBeatId = null, threadId = null, sessionId = null } = defineProps<{
   beat: QuestBeat;
   presentation?: QuestBeatPresentation;
   /** Where the beat is staged; null when it is staged nowhere. */
   staging?: QuestBeatStaging | null;
+  /** The quest's entry beat, for the Entry mark. */
+  entryBeatId?: string | null;
+  /** The focus thread, for Party here and Failed. */
+  threadId?: string | null;
+  /** Null lets the server stamp the open session. */
+  sessionId?: string | null;
 }>();
 const emit = defineEmits<{ preview: [] }>();
 
 const kindEyebrow = computed(() => `${QUEST_BEAT_KIND_LABELS[beat.kind as keyof typeof QUEST_BEAT_KIND_LABELS] ?? beat.kind} · ${beat.visibility}`);
-const openTo = computed(() => ({
-  path: `/quests/${beat.quest_id}/beats/${beat.id}`,
-  query: { returnTo: questSurfaceReturnTo(beat.quest_id, beat.id, "work") },
-}));
+const openTo = computed(() => questLink(beat.quest_id, { beat: beat.id, open: true }));
 </script>

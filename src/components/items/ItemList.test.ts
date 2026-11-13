@@ -370,7 +370,7 @@ describe("ItemList in low art (#1179)", () => {
 
   it("hangs the rarity as letters (VR) in a tab and names the type as the eyebrow, with attunement in the body", async () => {
     const w = await mountList();
-    expect(w.find('[aria-label="Rarity VR"]').exists()).toBe(true);
+    expect(w.findAll(".sr-only").some((e) => e.text() === "Rarity VR")).toBe(true);
     const card = w.find('[data-art-free="true"]');
     expect(card.text().toLowerCase()).toContain("weapon");
     expect(card.text()).toContain("Requires attunement");
@@ -382,7 +382,7 @@ describe("ItemList in low art (#1179)", () => {
     for (let i = 0; i < 4; i += 1) await flushPromises();
     expect(w.find("img").exists()).toBe(false);
     expect(w.find("[data-ledger-head]").text()).toContain("Attunement");
-    expect(w.find('[aria-label="Rarity VR"]').exists()).toBe(true);
+    expect(w.findAll(".sr-only").some((e) => e.text() === "Rarity VR")).toBe(true);
     expect(w.text()).toContain("Attunes");
   });
 

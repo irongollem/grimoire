@@ -108,6 +108,6 @@ describe("MonsterGridCard in low art (#1179)", () => {
     expect(w.text()).toContain("Owlbear");
     expect(w.text()).toContain("large monstrosity");
     expect(w.text()).toContain("AC 15 · HP 110");
-    expect(w.find('[aria-label="Challenge rating 3"]').exists()).toBe(true);
+    expect(w.findAll('.sr-only').some((e) => e.text() === "Challenge rating 3")).toBe(true);
   });
 });

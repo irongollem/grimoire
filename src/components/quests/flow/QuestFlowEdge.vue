@@ -99,6 +99,7 @@ const labelClass = computed(() => ({
   // frame): gold border and text. A stranded sibling drops the accent
   // entirely — the default muted pill — which is why this is checked first.
   "is-stranded": kindLabel.value === "choice" && Boolean(data?.stranded),
+  "is-unseen": Boolean(data?.unseen),
   "is-choice": kindLabel.value === "choice" && !data?.stranded,
 }));
 // The double-rail look is the "open, parallel" state only — a closed gate or
@@ -133,5 +134,6 @@ const labelY = computed(() => sourceY + (route.value[2] - sourceY) * 2 * LABEL_T
 .quest-flow-edge-label.is-choice { border-color: color-mix(in oklab, var(--primary) 55%, transparent); color: var(--primary); }
 .quest-flow-edge-label.is-parallel { border-color: color-mix(in oklab, var(--color-tone-info) 55%, transparent); color: var(--color-ink-info); }
 .quest-flow-edge-label.is-gate { border-color: var(--muted-foreground); color: var(--muted-foreground); }
+.quest-flow-edge-label.is-unseen { opacity: .45; border-style: dashed; }
 .quest-flow-edge-label.is-stranded { color: var(--muted-foreground); }
 </style>

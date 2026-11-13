@@ -48,7 +48,7 @@ describe("DeitySheet", () => {
       useLowArt().setLowArt(true);
       const wrapper = mountSheet();
       expect(wrapper.find("img").exists()).toBe(false);
-      expect(wrapper.find('[aria-label="Alignment LG"]').exists()).toBe(true);
+      expect(wrapper.findAll(".sr-only").some((e) => e.text() === "Alignment LG")).toBe(true);
       expect(wrapper.text()).toContain("Faerunian");
       expect(wrapper.text()).toContain("Portrait");
       expect(wrapper.find(".pr-10").exists()).toBe(true);

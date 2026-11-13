@@ -1,5 +1,5 @@
 import { computed, hasInjectionContext, inject, type ComputedRef, type InjectionKey } from "vue";
-import { useStorage } from "@vueuse/core";
+import { useStorage, type RemovableRef } from "@vueuse/core";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 
 /*
@@ -22,9 +22,20 @@ import { safeLocalStorage } from "@/lib/safeLocalStorage";
 */
 const LOW_ART_KEY = "grimoire_low_art";
 
-const stored = useStorage<boolean>(LOW_ART_KEY, false, safeLocalStorage(), {
-  serializer: { read: (raw) => raw === "true", write: String },
-});
+/*
+  Made on the first call, never while the module evaluates. The module can be
+  evaluated late, through an async component (MemorialTolling loads
+  MemorialCameo with defineAsyncComponent), after a test's DOM has been torn
+  down; a useStorage at module scope then threw "Storage is not defined" as an
+  unhandled rejection that failed a CI run whose every test had passed.
+*/
+let stored: RemovableRef<boolean> | null = null;
+function lowArtStore(): RemovableRef<boolean> {
+  stored ??= useStorage<boolean>(LOW_ART_KEY, false, safeLocalStorage(), {
+    serializer: { read: (raw) => raw === "true", write: String },
+  });
+  return stored;
+}
 
 /**
  * Forces low art on or off for one subtree, whatever the viewer chose. For a
@@ -42,11 +53,12 @@ export function useLowArt(): { lowArt: ComputedRef<boolean>; setLowArt: (enabled
   // Outside a component (a test, a store) there is nothing to inject from.
   const override = hasInjectionContext() ? inject(LOW_ART_OVERRIDE, null) : null;
 
-  const lowArt = computed(() => override ?? stored.value);
+  const store = lowArtStore();
+  const lowArt = computed(() => override ?? store.value);
 
   /** Turns low art on or off on this device and remembers the choice. */
   function setLowArt(enabled: boolean) {
-    stored.value = enabled;
+    store.value = enabled;
   }
 
   return { lowArt, setLowArt };

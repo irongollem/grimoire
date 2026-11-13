@@ -82,6 +82,17 @@ describe("player NPC surfaces in low art", () => {
     expect(wrapper.text()).toContain("friendly");
   });
 
+  it("keeps the 3D mini reachable in low art, where the portrait block that wrapped it is gone", () => {
+    setLowArt(true);
+    const wrapper = mount(PlayerNpcCard, {
+      props: { npc },
+      global: { plugins: [queryPlugin()], stubs: { NpcRatingStars: true } },
+    });
+    const overlay = wrapper.findComponent({ name: "MiniPortraitOverlay" });
+    expect(overlay.exists()).toBe(true);
+    expect(overlay.props("source")).toEqual({ table: "npcs", id: "n1" });
+  });
+
   it("the people ledger row still holds a portrait tile in low art", () => {
     setLowArt(true);
     const wrapper = mount(PeopleLedgerRow, { props: { npc } });

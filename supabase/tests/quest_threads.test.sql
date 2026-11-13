@@ -565,12 +565,12 @@ select throws_ok($$
 $$, 'Not authorized', 'a member cannot move a thread');
 
 select throws_ok($$
-  select public.assert_quest_runtime(
+  select public.mark_quest_move(
     '85200000-0000-4000-8000-000000000010'::uuid, '85200000-0000-4000-8000-000000000020'::uuid,
     (select id from public.quest_threads where quest_id = '85200000-0000-4000-8000-000000000020' and label = 'Main'),
-    array['85200000-0000-4000-8000-000000000030'::uuid]
+    'party_here', p_beat_id => '85200000-0000-4000-8000-000000000030'::uuid
   )
-$$, 'Not authorized', 'a member cannot assert history onto a thread');
+$$, 'Not authorized', 'a member cannot mark history onto a thread');
 
 select throws_ok($$
   select public.improvise_quest_runtime(

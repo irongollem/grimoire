@@ -43,6 +43,7 @@
 
 <script setup lang="ts">
 import TagChip from "@/components/common/TagChip.vue";
+import { questLink } from "@/lib/quests/navigation";
 import { computed } from "vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { isInteriorType, isSiteType, spaceNoun } from "@/lib/locations/tiers";
@@ -97,15 +98,8 @@ const summaryChip = computed(() => {
   return `${choiceCount} choice · ${parallelCount} parallel`;
 });
 
-function workQuery(extra: Record<string, string> = {}) {
-  return { path: `/quests/${beat.quest_id}`, query: { view: "work", beat: beat.id, ...extra } };
-}
-// The designer restores `?beat=`; it does not yet restore `?edge=` to select
-// a specific route on load (that half belongs to the designer's own owner).
-// The link still carries it — a future designer read of this param needs no
-// change here.
 function editRouteTo(edgeId: string) {
-  return workQuery({ edge: edgeId });
+  return questLink(beat.quest_id, { edge: edgeId });
 }
-const addRouteTo = computed(() => workQuery());
+const addRouteTo = computed(() => questLink(beat.quest_id, { beat: beat.id }));
 </script>

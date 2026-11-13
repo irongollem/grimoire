@@ -522,7 +522,7 @@ describe("MonsterList in low art (#1179)", () => {
     await flushMicrotasks();
     expect(wrapper.text()).toContain("Owlbear");
     expect(wrapper.text()).toContain("Size and type");
-    expect(wrapper.find('[aria-label="Challenge rating 3"]').exists()).toBe(true);
+    expect(wrapper.findAll('.sr-only').some((e) => e.text() === "Challenge rating 3")).toBe(true);
     expect(wrapper.find("img").exists()).toBe(false);
   });
 
@@ -533,7 +533,7 @@ describe("MonsterList in low art (#1179)", () => {
     await flushMicrotasks();
     expect(wrapper.text()).toContain("Owlbear");
     expect(wrapper.text()).toContain("AC 13 · HP");
-    expect(wrapper.find('[aria-label="Challenge rating 3"]').exists()).toBe(true);
+    expect(wrapper.findAll('.sr-only').some((e) => e.text() === "Challenge rating 3")).toBe(true);
     expect(wrapper.find("img").exists()).toBe(false);
   });
 });

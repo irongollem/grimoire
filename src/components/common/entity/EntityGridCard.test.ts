@@ -34,7 +34,7 @@ describe("EntityGridCard", () => {
     expect(w.findComponent(FocalImage).exists()).toBe(false);
     expect(w.find("h3").text()).toBe("Treacle");
     expect(w.text()).toContain("Necromancy");
-    expect(w.find("[aria-label='Level 3']").exists()).toBe(true);
+    expect(w.findAll(".sr-only").some((e) => e.text() === "Level 3")).toBe(true);
     expect(w.text()).toContain("Learn");
     expect(w.text()).not.toContain("FOOTER-NAME");
     // The tab already carries the value, so the foot label is not repeated.

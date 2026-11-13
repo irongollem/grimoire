@@ -312,6 +312,9 @@ export interface QuestConsequence {
   on_location_fact: LocationStateFact | null;
   /** A clock filling up (#1011). */
   on_clock_id: string | null;
+  /** Which outcome of arriving at `on_beat_id` fires the rule: `arrived`
+   *  (the default) or `failed` ("if it goes wrong"). */
+  on_beat_outcome: "arrived" | "failed";
   /** In-world days between the condition firing and the action performing.
    *  Zero performs inside the same transaction as the condition. Honoured for
    *  the two world actions; a ledger verb applies immediately regardless —
@@ -355,8 +358,10 @@ export interface QuestConsequence {
   updated_at: string;
 }
 
-export type QuestConsequenceInsert = Omit<QuestConsequence, "id" | "created_at" | "updated_at" | "entry_beat_id"> & {
+export type QuestConsequenceInsert = Omit<QuestConsequence, "id" | "created_at" | "updated_at" | "entry_beat_id" | "on_beat_outcome"> & {
   entry_beat_id?: string | null;
+  /** Omitted means `arrived`, the column default. */
+  on_beat_outcome?: QuestConsequence["on_beat_outcome"];
 };
 
 /**
@@ -724,15 +729,6 @@ export interface QuestRuntimeChoice {
   loot: QuestRouteLoot[];
 }
 
-export interface QuestRuntimeJumpTarget {
-  quest_id: string;
-  beat_id: string;
-  quest_title: string;
-  beat_title: string;
-  beat_kind: string;
-  is_improvised: boolean;
-}
-
 /** A chain the party currently has open. Running first, then waiting. Now one
  *  row per thread (#853) — `sibling_count` says how many other threads this
  *  quest currently holds, so a list of chains can say "and 2 more" without a
@@ -824,6 +820,8 @@ export interface QuestBeatTransition {
   /** The thread that walked this transition. Null for an `assert` row, which
    *  carries no cursor at all, and for a row logged before threads existed. */
   thread_id: string | null;
+  /** `'failed'` on a move that marked its beat as gone wrong; null otherwise. */
+  outcome: "failed" | null;
 }
 
 export interface PlayerQuestBeat {

@@ -1,12 +1,15 @@
 <template>
   <article
     class="quest-flow-node"
-    :class="[
-      { 'is-selected': selected, 'is-current': isCurrent, 'is-visited': presentation?.isVisited, 'is-stranded': presentation?.reach === 'stranded', 'has-gaps': presentation && !presentation.isReady, 'is-gated': gated },
-      isCurrent ? currentBorderTone?.border : null,
-    ]"
+    :class="playersView
+      ? { 'is-selected': selected, 'lens-hidden': visibility === 'hidden', 'lens-rumored': visibility === 'rumored' }
+      : [
+        { 'is-selected': selected, 'is-current': isCurrent, 'is-visited': presentation?.isVisited, 'is-stranded': mark.unreachable, [`fill-${mark.fill}`]: true, 'has-gaps': presentation && !presentation.isReady, 'is-gated': gated },
+        isCurrent ? currentBorderTone?.border : null,
+      ]"
   >
     <Handle v-if="editable" type="target" :position="Position.Left" aria-hidden="true" />
+    <QuestBeatBookmark v-if="!playersView" :state="mark.bookmark" class="quest-flow-node__bookmark" />
     <button
       type="button"
       class="quest-flow-node__main"
@@ -15,14 +18,15 @@
       @keydown.enter.stop.prevent="emit('open')"
       @keydown.delete.stop.prevent="editable && deletable && emit('delete')"
     >
-      <span v-if="partyChips.length" class="quest-flow-node__party-row">
+      <span v-if="!playersView && partyChips.length" class="quest-flow-node__party-row">
         <span v-for="chip in partyChips" :key="chip.key" class="quest-flow-node__party" :class="chip.textClass">
           <IconParty class="h-3 w-3" aria-hidden="true" />{{ chip.label }}
         </span>
       </span>
       <span class="quest-flow-node__kind">{{ kindEyebrow }}</span>
-      <strong>{{ title || "Untitled beat" }}</strong>
-      <span class="quest-flow-node__facts">
+      <strong class="quest-flow-node__title">{{ shownTitle }}</strong>
+      <span v-if="!playersView" class="sr-only">{{ mark.label }}</span>
+      <span v-if="!playersView" class="quest-flow-node__facts">
         <span v-if="isEntry" class="is-entry">Entry</span>
         <span v-if="presentation?.prepGapCount" class="is-gap">{{ presentation.prepGapCount }} prep gap{{ presentation.prepGapCount === 1 ? '' : 's' }}</span>
         <span v-if="presentation?.handoutCount">{{ presentation.handoutCount }} handout{{ presentation.handoutCount === 1 ? '' : 's' }}</span>
@@ -49,9 +53,12 @@ import { IconDungeon, IconParty } from "@/lib/icons";
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
 import { threadBadge, type ThreadLike } from "@/lib/quests/threads";
 import { QUEST_BEAT_KIND_LABELS } from "@/types/quest.types";
+import type { QuestFlowLens } from "@/lib/quests/flow";
+import { beatMark } from "@/lib/quests/beatMark";
+import QuestBeatBookmark from "./QuestBeatBookmark.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 
-const { title, kind, visibility, current, presentation, editable = true, deletable = true, threads = [], gated = false, isEntry = false } = defineProps<{ title: string; kind: string; visibility: string; selected?: boolean; current?: boolean; presentation?: QuestBeatPresentation; editable?: boolean; deletable?: boolean; threads?: ThreadLike[]; gated?: boolean; isEntry?: boolean }>();
+const { title, kind, visibility, current, presentation, editable = true, deletable = true, threads = [], gated = false, isEntry = false, lens = "dm", rumorLine = null } = defineProps<{ lens?: QuestFlowLens; rumorLine?: string | null; title: string; kind: string; visibility: string; selected?: boolean; current?: boolean; presentation?: QuestBeatPresentation; editable?: boolean; deletable?: boolean; threads?: ThreadLike[]; gated?: boolean; isEntry?: boolean }>();
 const emit = defineEmits<{ select: []; open: []; delete: []; "create-next": [] }>();
 
 const kindLabel = computed(() => QUEST_BEAT_KIND_LABELS[kind as keyof typeof QUEST_BEAT_KIND_LABELS] ?? kind);
@@ -72,6 +79,13 @@ const partyChips = computed(() => {
   return current ? [{ key: "current", label: "Party is here", textClass: "text-primary" }] : [];
 });
 const isCurrent = computed(() => Boolean(current) || partyChips.value.length > 0);
+const playersView = computed(() => lens === "players");
+// A rumored beat shows the party only its rumor, never the DM's title.
+const shownTitle = computed(() => {
+  if (playersView.value && visibility === "rumored") return rumorLine ?? "A rumor";
+  return title || "Untitled beat";
+});
+const mark = computed(() => beatMark(presentation, isEntry, isCurrent.value));
 // The border colour follows whichever thread is first in line — the same
 // order the thread bar and swimlanes use, so a node under two thread borders
 // is not a case this needs to invent a rule for.
@@ -96,12 +110,13 @@ const siteTitle = computed(() => {
 });
 const reachLabel = computed(() => presentation ? REACH_LABELS[presentation.reach] ?? "" : "");
 const reachClass = computed(() => presentation?.reach === "stranded" ? "is-cutoff" : "");
-const accessibleLabel = computed(() => [
+const accessibleLabel = computed(() => playersView.value ? [shownTitle.value, visibility].join(", ") : [
   title || "Untitled beat",
   kindLabel.value,
   visibility,
   isEntry ? "quest entry" : "",
   isCurrent.value ? "current beat, party is here" : "",
+  mark.value.bookmark === "failed" ? "failed" : "",
   presentation?.reach === "visited" ? "visited" : "",
   presentation?.reach === "stranded" ? "no longer reachable from the current beat" : "",
   presentation?.isDisconnected ? "disconnected staging beat" : "",
@@ -118,10 +133,21 @@ const accessibleLabel = computed(() => [
 .quest-flow-node.is-visited { border-style: solid; }
 /* Cut off is a fact about the run, not a preparation fault, so it reads as
    receding rather than as another caution border competing with `has-gaps`. */
-.quest-flow-node.is-stranded { opacity: .55; }
+.quest-flow-node.is-stranded { opacity: .4; border-style: dashed; }
+.quest-flow-node.is-stranded .quest-flow-node__title { text-decoration: line-through; }
+/* Fill is where the beat sits in the story. Pending gets softer text, never
+   opacity, so a title stays legible; opacity belongs to cut-off beats. */
+.quest-flow-node.fill-here { background: color-mix(in oklab, var(--primary-fill, var(--primary)) 28%, var(--card)); }
+.quest-flow-node.fill-start { background: color-mix(in oklab, var(--tone-success) 22%, var(--card)); }
+.quest-flow-node.fill-pending { background: color-mix(in oklab, var(--muted) 70%, var(--card)); color: var(--muted-foreground); }
+.quest-flow-node { position: relative; }
+.quest-flow-node__bookmark { position: absolute; top: -.1rem; right: .6rem; pointer-events: none; }
 .quest-flow-node__party-row { display: flex; flex-wrap: wrap; gap: .25rem; justify-content: flex-start; }
 .quest-flow-node__party { display: inline-flex; align-items: center; gap: .25rem; border-radius: 999px; background: var(--muted); padding: .1rem .4rem; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .quest-flow-node.has-gaps { border-color: var(--color-tone-caution); border-style: dashed; }
+/* Players' view: what the party knows. Hidden recedes, rumored keeps only its copy. */
+.quest-flow-node.lens-hidden { background: transparent; box-shadow: none; border-style: dashed; color: var(--muted-foreground); }
+.quest-flow-node.lens-rumored { border-color: var(--color-tone-info); }
 .quest-flow-node.is-gated { border-color: var(--muted-foreground); border-style: dashed; }
 .quest-flow-node__main { display: grid; gap: .25rem; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .quest-flow-node__main:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: .25rem; }

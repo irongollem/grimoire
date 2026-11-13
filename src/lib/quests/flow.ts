@@ -1,6 +1,16 @@
 import type { Edge, Node } from "@vue-flow/core";
 import type { QuestBeat, QuestBeatEdge, QuestRouteGate, QuestRouteKind } from "@/types/quest.types";
+import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import type { QuestBeatPresentation } from "./presentation";
+
+/** Whose eyes the flow is drawn for: the DM's own, or what the party knows. */
+export type QuestFlowLens = "dm" | "players";
+
+/** The first line of a rumored beat's player copy, for a node to show in place of its title. */
+export function rumorLine(rumorText: string | null | undefined): string | null {
+  const line = tiptapToPlainText(rumorText).split("\n").map((part) => part.trim()).find(Boolean);
+  return line ?? null;
+}
 
 export interface QuestFlowNodeData {
   beatId: string;
@@ -15,6 +25,9 @@ export interface QuestFlowNodeData {
   /** True for the one beat named by `quests.entry_beat_id` — the story's
    *  formal opening, as opposed to a computed graph root. */
   isEntry: boolean;
+  /** The first line of a rumored beat's rumor copy; null unless drawn for the
+   *  players, and for a rumored beat with no copy yet. */
+  rumorLine: string | null;
 }
 export type QuestFlowNode = Node<QuestFlowNodeData>;
 export interface QuestFlowEdgeData {
@@ -30,6 +43,8 @@ export interface QuestFlowEdgeData {
   /** The target beat's own reach is `stranded` — the run has walked past the
    *  last junction that could still lead here. */
   stranded: boolean;
+  /** Players' view only: the route leads to a beat the party cannot see yet. */
+  unseen: boolean;
 }
 export type QuestFlowEdge = Edge<QuestFlowEdgeData>;
 
@@ -38,7 +53,8 @@ export type QuestGraphCommand =
   | { type: "move"; beatId: string; x: number; y: number }
   | { type: "link"; sourceBeatId: string; targetBeatId: string }
   | { type: "create"; sourceBeatId?: string; x?: number; y?: number }
-  | { type: "select-edge"; edgeId: string };
+  | { type: "select-edge"; edgeId: string }
+  | { type: "deselect" };
 
 export function toQuestFlowGraph(
   beats: QuestBeat[],
@@ -47,6 +63,7 @@ export function toQuestFlowGraph(
   visitedEdgeIds: ReadonlySet<string> = new Set(),
   routeGates: Record<string, QuestRouteGate> = {},
   entryBeatId: string | null = null,
+  lens: QuestFlowLens = "dm",
 ) {
   const beatsById = new Map(beats.map((beat) => [beat.id, beat]));
   const gatedClosedTargetIds = new Set(
@@ -67,11 +84,13 @@ export function toQuestFlowGraph(
       presentation: presentations[beat.id],
       isGated: gatedClosedTargetIds.has(beat.id),
       isEntry: beat.id === entryBeatId,
+      rumorLine: lens === "players" && beat.visibility === "rumored" ? rumorLine(beat.rumor_text) : null,
     },
   }));
   const flowEdges: QuestFlowEdge[] = edges.map((edge) => {
     const gate = routeGates[edge.id] ?? null;
     const stranded = presentations[edge.target_beat_id]?.reach === "stranded";
+    const unseen = lens === "players" && beatsById.get(edge.target_beat_id)?.visibility === "hidden";
     return {
       id: edge.id,
       source: edge.source_beat_id,
@@ -83,6 +102,7 @@ export function toQuestFlowGraph(
         gate && !gate.is_open && "is-closed",
         edge.route_kind === "parallel" && "is-parallel",
         stranded && "is-stranded",
+        unseen && "is-unseen",
       ].filter(Boolean).join(" "),
       data: {
         edgeId: edge.id,
@@ -92,6 +112,7 @@ export function toQuestFlowGraph(
         threadLabel: edge.thread_label,
         targetTitle: beatsById.get(edge.target_beat_id)?.title || "Untitled beat",
         stranded,
+        unseen,
       },
     };
   });
@@ -131,4 +152,11 @@ export function applyFlowPositions(
       ? { ...beat, canvas_x: position.x, canvas_y: position.y }
       : beat;
   });
+}
+
+/** What the party knows of the quest, beat by beat: the Players' view tally. */
+export function tallyBeatVisibility(beats: Pick<QuestBeat, "visibility">[]): { revealed: number; rumored: number; hidden: number } {
+  const tally = { revealed: 0, rumored: 0, hidden: 0 };
+  for (const beat of beats) tally[beat.visibility] += 1;
+  return tally;
 }

@@ -1,32 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
   describeHeldLoot,
-  describeSpineSession,
-  describeThreadCursor,
-  findBeatArrival,
-  formatSiteSummary,
   lootHeldByTheRun,
   objectiveGateTargets,
   objectiveThreadHint,
-  rankQuestJumpTargets,
-  resolveCurrentSite,
   soleOpenOutgoingEdgeId,
-  summarizeRoutePayoff,
 } from "./run";
-import type { SiteGraphLocation } from "./run";
 import type {
   LootPlacement,
   QuestBeatTransition,
   QuestConsequence,
-  QuestRoutePayoff,
   QuestRuntimeChoice,
-  QuestRuntimeJumpTarget,
   QuestThreadCursor,
 } from "@/types/quest.types";
-
-const target = (beat_id: string, beat_title = beat_id): QuestRuntimeJumpTarget => ({
-  beat_id, quest_id: "q1", quest_title: "Main", beat_title, beat_kind: "neutral", is_improvised: false,
-});
 
 const choice = (edge_id: string, gate: QuestRuntimeChoice["gate"] = null): QuestRuntimeChoice => ({
   edge_id, quest_id: "q1", beat_id: `beat-${edge_id}`, beat_title: edge_id, beat_kind: "neutral", gate, effects: [],
@@ -39,28 +25,6 @@ const gateOn = (objective_id: string, objective: string, current_status: "pendin
 const openGate = gateOn("o1", "Save the princess", "complete", true);
 const closedGate = gateOn("o1", "Save the princess", "pending", false);
 
-describe("run-mode jump ranking", () => {
-  it("ranks recently visited beats ahead of the rest", () => {
-    const ranked = rankQuestJumpTargets(
-      [target("cellar"), target("attic"), target("hall")],
-      ["hall"],
-    );
-    expect(ranked.map((row) => row.beat_id)).toEqual(["hall", "attic", "cellar"]);
-  });
-
-  it("falls back to beat title so the order never depends on fetch order", () => {
-    const ranked = rankQuestJumpTargets([target("b", "Beta"), target("a", "Alpha")], []);
-    expect(ranked.map((row) => row.beat_title)).toEqual(["Alpha", "Beta"]);
-  });
-
-  it("preserves the order recent beats were visited in", () => {
-    const ranked = rankQuestJumpTargets(
-      [target("first"), target("second"), target("cold")],
-      ["second", "first"],
-    );
-    expect(ranked.map((row) => row.beat_id)).toEqual(["second", "first", "cold"]);
-  });
-});
 
 describe("soleOpenOutgoingEdgeId", () => {
   it("advances through an ungated route when it is the only one", () => {
@@ -84,61 +48,6 @@ describe("soleOpenOutgoingEdgeId", () => {
   });
 });
 
-const loc = (id: string, location_type: SiteGraphLocation["location_type"], parent_id: string | null): SiteGraphLocation => ({ id, location_type, parent_id });
-
-describe("resolveCurrentSite", () => {
-  const dungeon = loc("dungeon-1", "dungeon", null);
-  const room = loc("room-1", "room", "dungeon-1");
-  const locations = [dungeon, room, loc("town-1", "town", null)];
-
-  it("walks up from a room to its site", () => {
-    expect(resolveCurrentSite("room-1", locations)).toBe(dungeon);
-  });
-
-  it("returns the site itself when the party stands there but has entered no room yet", () => {
-    expect(resolveCurrentSite("dungeon-1", locations)).toBe(dungeon);
-  });
-
-  it("returns null when the party's position is not inside any site", () => {
-    expect(resolveCurrentSite("town-1", locations)).toBeNull();
-  });
-
-  it("returns null when the party's position is unknown", () => {
-    expect(resolveCurrentSite(null, locations)).toBeNull();
-  });
-
-  it("returns null for a stale or missing location id", () => {
-    expect(resolveCurrentSite("ghost", locations)).toBeNull();
-  });
-
-  it("does not loop forever on a malformed ancestor cycle", () => {
-    const cyclic = [loc("a", "room", "b"), loc("b", "room", "a")];
-    expect(resolveCurrentSite("a", cyclic)).toBeNull();
-  });
-});
-
-describe("formatSiteSummary", () => {
-  it("reads as one line: name, type, room count, explored count", () => {
-    expect(formatSiteSummary({ name: "The Sunken Vault", location_type: "dungeon" }, 5, 2))
-      .toBe("The Sunken Vault · dungeon · 5 rooms · 2 explored");
-  });
-
-  it("singularizes a lone room", () => {
-    expect(formatSiteSummary({ name: "The Ossuary", location_type: "dungeon" }, 1, 0))
-      .toBe("The Ossuary · dungeon · 1 room · 0 explored");
-  });
-
-  // #886: a `wilds` site's interior children are `grounds`, not `room` —
-  // "grounds" is already its own collective form and takes no trailing "s",
-  // even above a count of one.
-  it("says grounds, not rooms, for a wilds site", () => {
-    expect(formatSiteSummary({ name: "The Thornwood", location_type: "wilds" }, 3, 1))
-      .toBe("The Thornwood · wilds · 3 grounds · 1 explored");
-    expect(formatSiteSummary({ name: "The Thornwood", location_type: "wilds" }, 1, 0))
-      .toBe("The Thornwood · wilds · 1 grounds · 0 explored");
-  });
-});
-
 const threadCursor = (overrides: Partial<QuestThreadCursor> = {}): QuestThreadCursor => ({
   id: "t1", campaign_id: "c1", quest_id: "q1", label: "Main", status: "live",
   opened_by_edge_id: null, parent_thread_id: null, merged_into_thread_id: null,
@@ -147,23 +56,6 @@ const threadCursor = (overrides: Partial<QuestThreadCursor> = {}): QuestThreadCu
   ...overrides,
 });
 
-describe("describeThreadCursor", () => {
-  it("names the beat a running thread is standing on", () => {
-    expect(describeThreadCursor(threadCursor({ runtime_status: "running" }))).toBe("running at Confront Ser Vallis");
-  });
-
-  it("says a converge-all thread is waiting", () => {
-    expect(describeThreadCursor(threadCursor({ runtime_status: "waiting" }))).toBe("waiting to converge at Confront Ser Vallis");
-  });
-
-  it("says an ended thread has ended, regardless of its last beat", () => {
-    expect(describeThreadCursor(threadCursor({ runtime_status: "ended" }))).toBe("ended");
-  });
-
-  it("says a thread with no cursor yet has not started", () => {
-    expect(describeThreadCursor(threadCursor({ runtime_status: null, current_beat_title: null }))).toBe("not started");
-  });
-});
 
 describe("objectiveGateTargets", () => {
   it("names every route this objective gates", () => {
@@ -219,41 +111,6 @@ describe("objectiveThreadHint", () => {
   });
 });
 
-describe("summarizeRoutePayoff", () => {
-  const payoff = (overrides: Partial<QuestRoutePayoff> = {}): QuestRoutePayoff => ({
-    consequence_id: "c1", action: "reveal", target_objective_id: "o1", target_objective: "Testify before the Guild",
-    target_npc_id: null, target_npc: null, target_quest_id: null, target_quest: null, target_document_id: null, target_document: null,
-    target_clock_id: null, target_clock: null, target_location_id: null, target_location: null, target_faction_id: null, target_faction: null,
-    action_payload: {}, after_days: 0, on_edge: true,
-    ...overrides,
-  });
-
-  it("returns null when the route carries no payoff", () => {
-    expect(summarizeRoutePayoff(undefined)).toBeNull();
-  });
-
-  it("phrases a ledger verb with its named target", () => {
-    expect(summarizeRoutePayoff(payoff())).toBe("reveal · Testify before the Guild");
-  });
-
-  it("names a ledger verb alone when its payoff has no target to name", () => {
-    expect(summarizeRoutePayoff(payoff({ target_objective: null }))).toBe("reveal");
-  });
-
-  it.each([
-    ["target_npc", "Scrim"],
-    ["target_quest", "The stolen cauldron"],
-    ["target_document", "The tithe ledger"],
-    ["target_clock", "The count"],
-    ["target_faction", "Understage Crew"],
-  ] as const)("names the target of a world payoff from %s", (field, name) => {
-    expect(summarizeRoutePayoff(payoff({ action: "send_broadcast", target_objective: null, [field]: name }))).toBe(`Then sends a broadcast “${name}”`);
-  });
-
-  it("falls back to the world-action sentence for a non-ledger payoff", () => {
-    expect(summarizeRoutePayoff(payoff({ action: "send_broadcast", target_objective: null }))).toBe("Then sends a broadcast");
-  });
-});
 
 describe("describeHeldLoot", () => {
   it("says currency is already prepared", () => {
@@ -276,7 +133,7 @@ describe("lootHeldByTheRun (#1164)", () => {
   const arrive = (to_beat_id: string, transition_kind: QuestBeatTransition["transition_kind"] = "enter", to_quest_id = "q1"): QuestBeatTransition => ({
     id: `t-${to_beat_id}-${transition_kind}`, campaign_id: "c1", from_quest_id: null, from_beat_id: null, to_quest_id, to_beat_id,
     transition_kind, reason: null, runtime_version: 1, from_quest_title: null, from_beat_title: null, to_quest_title: null,
-    to_beat_title: null, provenance: {}, created_by: null, created_at: "2026-11-08T00:00:00Z", thread_id: "th1",
+    to_beat_title: null, provenance: {}, created_by: null, created_at: "2026-11-08T00:00:00Z", thread_id: "th1", outcome: null,
   });
   const ids = (rows: LootPlacement[]) => rows.map((row) => row.id);
 
@@ -303,44 +160,3 @@ describe("lootHeldByTheRun (#1164)", () => {
   });
 });
 
-describe("findBeatArrival and describeSpineSession", () => {
-  const formatDate = (iso: string) => `on ${iso}`;
-  const rows = [
-    { to_quest_id: "q1", to_beat_id: "beat-1", kind: "enter", reason: "Session 22", created_at: "2026-01-01T00:00:00Z" },
-    { to_quest_id: "q1", to_beat_id: "beat-2", kind: "forward", reason: "opened Thread B", created_at: "2026-01-02T00:00:00Z" },
-    { to_quest_id: "q1", to_beat_id: "beat-1", kind: "jump", reason: null, created_at: "2026-01-03T00:00:00Z" },
-  ];
-
-  it("finds the first arrival at a beat by default", () => {
-    expect(findBeatArrival(rows, "q1", "beat-1")).toEqual({ kind: "enter", reason: "Session 22", createdAt: "2026-01-01T00:00:00Z" });
-  });
-
-  it("finds the newest arrival when asked", () => {
-    expect(findBeatArrival(rows, "q1", "beat-1", true)).toEqual({ kind: "jump", reason: null, createdAt: "2026-01-03T00:00:00Z" });
-  });
-
-  it("does not mistake another quest's arrival at a beat with the same id for this one's", () => {
-    expect(findBeatArrival([{ to_quest_id: "q2", to_beat_id: "beat-1", kind: "enter" }], "q1", "beat-1")).toBeNull();
-  });
-
-  it("returns null for a beat with no arrival", () => {
-    expect(findBeatArrival(rows, "q1", "beat-9")).toBeNull();
-  });
-
-  it("extracts a session number named in the reason", () => {
-    expect(describeSpineSession(findBeatArrival(rows, "q1", "beat-1"), formatDate)).toBe("session 22");
-  });
-
-  it("reads 'session #12' as session 12", () => {
-    const detail = { kind: "enter", reason: "Paused, session #12", createdAt: null };
-    expect(describeSpineSession(detail, formatDate)).toBe("session 12");
-  });
-
-  it("falls back to the date when the reason names no session", () => {
-    expect(describeSpineSession(findBeatArrival(rows, "q1", "beat-2"), formatDate)).toBe("on 2026-01-02T00:00:00Z");
-  });
-
-  it("returns nothing for a beat that was never arrived at", () => {
-    expect(describeSpineSession(null, formatDate)).toBe("");
-  });
-});

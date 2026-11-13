@@ -42,17 +42,14 @@ describe("QuestGraphOutline", () => {
     expect(wrapper.text()).toContain("Thread A · current · 1 prep gap");
     expect(wrapper.text()).toContain("Cut off by a choice");
 
-    // Story flow frame: a flat row draws a state mark first — a filled check
-    // square once visited, a thread-toned dot on the current beat, an
-    // outlined square (and a dimmed row) once cut off.
+    // Each row wears the shared bookmark and its fill, so the outline reads
+    // like the canvas.
     const rows = wrapper.findAll("li");
-    expect(rows[0]!.find("svg").exists()).toBe(true); // visited: check icon
-    expect(rows[0]!.classes()).not.toContain("opacity-60");
-    expect(rows[1]!.find(".bg-primary").exists()).toBe(true); // current: thread A's dot
-    expect(rows[1]!.classes()).toContain("pl-3.5");
-    expect(rows[2]!.classes()).toContain("opacity-60");
-    expect(rows[2]!.classes()).toContain("pl-3.5");
-    expect(rows[2]!.find(".border-border").exists()).toBe(true); // stranded: outlined square
+    const states = rows.map((row) => row.get("[data-testid=beat-bookmark]").attributes("data-state"));
+    expect(states).toEqual(["done", "here", "unreachable"]);
+    expect(rows[1]!.classes()).toContain("bg-primary/15");
+    expect(rows[2]!.classes()).toContain("opacity-40");
+    expect(rows[2]!.text()).toContain("unreachable");
   });
 
   const edge = (id: string, source: string, target: string, route_kind: "choice" | "parallel") =>
@@ -95,5 +92,12 @@ describe("QuestGraphOutline", () => {
     const wrapper = mount(QuestGraphOutline, { props: { beats: [beat("a")], presentations: { a: reach("current", [], 1) } } });
     expect(wrapper.text()).toContain("1 prep gap");
     expect(wrapper.text()).not.toContain("1 prep gaps");
+  });
+
+  it("the entry beat reads green until the party stands on it, then gold", () => {
+    const mk = (r: string) => mount(QuestGraphOutline, { props: { beats: [beat("a")], entryBeatId: "a", presentations: { a: reach(r) } } }).get("li").classes();
+    expect(mk("ahead")).toContain("bg-tone-success/15");
+    expect(mk("current")).toContain("bg-primary/15");
+    expect(mk("current")).not.toContain("bg-tone-success/15");
   });
 });

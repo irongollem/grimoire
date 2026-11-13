@@ -9,7 +9,7 @@ import type { Quest, QuestBeatTransition, QuestTransitionKind } from "@/types/qu
  * denormalized titles), and until now nothing outside Build mode's route
  * highlighting (`visitedRouteEdgeIds`, src/lib/quests/presentation.ts:194)
  * ever read it. Nothing in the app turns a row into a sentence either:
- * `QuestRunStorySoFar.vue` prints the destination beat title next to the raw
+ * the quest screen prints the destination beat title next to the raw
  * `transition_kind` as an uppercase badge (e.g. "FORWARD"), it never composes
  * a phrase — so there was no existing wording to reuse, and `phraseTransition`
  * below is the first one.
@@ -62,7 +62,7 @@ function phraseTransition(transition: QuestBeatTransition): string {
   const { from_beat_title: from, to_beat_title: to, transition_kind: kind, reason } = transition;
   // An assertion is a DM saying "this already happened," not a move (#796) —
   // `assert_quest_objective_status` writes one with no beat at all (both
-  // titles null), and `assert_quest_runtime` writes one with only a `to` beat,
+  // titles null), and `mark_quest_move` writes one with only a `to` beat,
   // never a "from X to Y" pair. Worded as "Recorded", never a play verb, so
   // the feed reads honestly next to moves the party actually made.
   if (kind === "assert") {

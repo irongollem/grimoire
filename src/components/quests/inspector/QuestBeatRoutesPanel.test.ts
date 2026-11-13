@@ -38,7 +38,7 @@ describe("QuestBeatRoutesPanel", () => {
     expect(wrapper.text()).toContain("No routes out of this beat yet.");
     expect(wrapper.text()).toContain("0 choice · 0 parallel");
     const addRoute = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Add route");
-    expect(addRoute?.props("to")).toEqual({ path: "/quests/quest-1", query: { view: "work", beat: "beat-fork" } });
+    expect(addRoute?.props("to")).toEqual({ path: "/quests/quest-1", query: { beat: "beat-fork" } });
   });
 
   it("counts choice and parallel routes separately, ignoring routes that belong to another beat", () => {
@@ -92,7 +92,7 @@ describe("QuestBeatRoutesPanel", () => {
     ] as QuestBeatEdge[];
     const wrapper = mount(QuestBeatRoutesPanel, { props: { beat, edges, beats }, global });
     const editRoute = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Edit route");
-    expect(editRoute?.props("to")).toEqual({ path: "/quests/quest-1", query: { view: "work", beat: "beat-fork", edge: "edge-confess" } });
+    expect(editRoute?.props("to")).toEqual({ path: "/quests/quest-1", query: { edge: "edge-confess" } });
   });
 
   const edgeTo = (target: string, route_kind: "choice" | "parallel" = "choice") =>

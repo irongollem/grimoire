@@ -118,7 +118,7 @@ describe("MonsterSheet in low art (#1179)", () => {
   it("has no portrait column and hangs the CR as a tab", () => {
     const w = lowArtSheet({ image_url: "https://cdn.test/bear.webp" });
     expect(w.find(".record-img").exists()).toBe(false);
-    expect(w.find('[aria-label="Challenge rating 1/2"]').exists()).toBe(true);
+    expect(w.findAll('.sr-only').some((e) => e.text() === "Challenge rating 1/2")).toBe(true);
   });
 
   it("moves habitat, source and tags into the fact line and offers the Portrait button for the monster's own picture", () => {

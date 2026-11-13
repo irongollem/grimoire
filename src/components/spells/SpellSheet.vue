@@ -3,11 +3,7 @@
     <!-- Low art (#1179, frame 04): the picture column goes, what sat under the picture
          becomes a fact line, the level hangs as a tab, and the text takes the width. -->
     <template v-if="lowArt && !compact">
-      <BookmarkTab
-        :text="spellLevelTab(spell.level)"
-        label="Spell level"
-        :tone-class="SCHOOL_BG[spell.school]"
-      />
+      <BookmarkTab v-bind="spellTabFor(spell)" />
       <SheetFactLine class="pr-10" :portrait="spell.image_url" :portrait-alt="spell.name">
         <span class="font-semibold">{{ spellLevelLabel(spell.level) }}</span>
         <span class="font-bold capitalize" :class="SCHOOL_TEXT[spell.school]">{{ spell.school }}</span>
@@ -221,7 +217,7 @@ import {
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { useSpellKnowers } from "@/composables/party/useCharacterSpells";
 import { useNpcSpellCasters } from "@/composables/npcs/useNpcs";
-import { SCHOOL_BG, SCHOOL_TEXT, ATTACK_TYPES, spellLevelLabel, spellLevelOrdinal, spellLevelTab } from "@/types/spell.types";
+import { SCHOOL_TEXT, ATTACK_TYPES, spellLevelLabel, spellLevelOrdinal, spellTabFor } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";

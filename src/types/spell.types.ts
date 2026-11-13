@@ -345,6 +345,15 @@ export function spellLevelTab(level: number): string {
   return level === 0 ? "C" : String(level);
 }
 
+/** The bookmark tab a spell's level hangs in, tinted by its school (#1179). */
+export function spellTabFor(spell: { level: number; school: SpellSchool }): {
+  text: string;
+  label: string;
+  toneClass: string;
+} {
+  return { text: spellLevelTab(spell.level), label: "Spell level", toneClass: SCHOOL_BG[spell.school] };
+}
+
 // ── Default spell slots ───────────────────────────────────────────────────────
 // Per-level slot counts indexed by character level (index 0 = level 1).
 // Each row: [1st, 2nd, 3rd, 4th, 5th, 6th, 7th, 8th, 9th]
