@@ -136,14 +136,14 @@ function standingChangePhrase(payload: Partial<RelationshipShiftConsequencePaylo
 /**
  * One line describing what a consequence rule does — `Complete "Kill the
  * dragon"`, or `Calendar event: "The bridge collapses"`. Shared by the rule
- * editors (`QuestPayoffPanel` on a beat, `QuestRulesPanel` on the quest) and the backfill preview
- * (`QuestBackfillPanel`, #796), which both need to turn a `quest_consequences`
+ * editors (`QuestPayoffPanel` on a beat, `QuestRulesPanel` on the quest),
+ * which both need to turn a `quest_consequences`
  * row into the same sentence a DM reads at a glance — extracted rather than
  * grown a second time, since the two already differ only in how they resolve
  * `objectiveLabel`.
  *
  * `resolver` is optional and `unlock_quest`-only (#871): without it — every
- * caller that predates the entry-beat bridge, plus the backfill preview and
+ * caller that predates the entry-beat bridge, plus
  * the Advance dialog, neither of which has a quest/beat title handy for an
  * arbitrary target — an unlock still reads as the bare `"Unlock a quest"`
  * label. With it, `Unlock "<quest title>"`, plus ` · enters at "<beat

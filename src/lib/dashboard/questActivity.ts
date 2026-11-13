@@ -62,7 +62,7 @@ function phraseTransition(transition: QuestBeatTransition): string {
   const { from_beat_title: from, to_beat_title: to, transition_kind: kind, reason } = transition;
   // An assertion is a DM saying "this already happened," not a move (#796) —
   // `assert_quest_objective_status` writes one with no beat at all (both
-  // titles null), and `assert_quest_runtime` writes one with only a `to` beat,
+  // titles null), and `mark_quest_move` writes one with only a `to` beat,
   // never a "from X to Y" pair. Worded as "Recorded", never a play verb, so
   // the feed reads honestly next to moves the party actually made.
   if (kind === "assert") {

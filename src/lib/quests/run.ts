@@ -224,8 +224,8 @@ const HELD_PAYOFF_ACTION_LABELS: Record<QuestConsequenceAction, string> = {
 /**
  * A held consequence event's own label in the cockpit's Held payoff panel.
  * `QuestHeldPayoff` (unlike `QuestRoutePayoff`) carries only ids, not resolved
- * names — the event log was never joined for display, since the log's other
- * reader (`QuestBackfillPanel`) only ever needed the action — so this names
+ * names — the event log was never joined for display, since the log's only
+ * reader needs the action alone — so this names
  * the action alone rather than guessing at a target it cannot see.
  */
 export function describeHeldPayoff(payoff: QuestHeldPayoff): string {

@@ -30,7 +30,6 @@
         />
       </li>
     </ul>
-    <p class="mt-2 text-caption text-muted-foreground">Closing a thread is your call, here or in the cockpit. Nothing closes on its own.</p>
   </section>
 </template>
 

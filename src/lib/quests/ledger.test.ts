@@ -22,7 +22,7 @@ const rule = (
   target: string | null,
   where: Partial<Pick<QuestConsequence, "on_beat_id" | "on_edge_id">>,
 ): QuestConsequence => ({
-  id, quest_id: "q1", on_beat_id: null, on_edge_id: null, on_objective_id: null, on_objective_status: null,
+  id, quest_id: "q1", on_beat_id: null, on_edge_id: null, on_beat_outcome: "arrived", on_objective_id: null, on_objective_status: null,
   on_quest_settled: false, on_location_id: null, on_location_fact: null, on_clock_id: null, target_clock_id: null, target_location_id: null, target_faction_id: null, entry_beat_id: null, after_days: 0, action, target_objective_id: target, target_npc_id: null,
   target_quest_id: null, target_document_id: null, action_payload: {}, created_at: "", updated_at: "", ...where,
 });

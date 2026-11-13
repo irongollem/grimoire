@@ -12,7 +12,7 @@
     :owns-phone-bar="!isNew && !!quest"
   >
     <template v-if="!isNew && quest" #actions>
-      <AppButton :icon="IconMore" label="More" size="sm" variant="subtle" aria-haspopup="menu" />
+      <QuestMoreMenu :quest="quest" />
     </template>
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -41,12 +41,11 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useQuest } from "@/composables/quests/useQuests";
 import { useQuestBeats } from "@/composables/quests/useQuestFlow";
-import { IconMore } from "@/lib/icons";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
-import AppButton from "@/components/common/controls/AppButton.vue";
 import QuestFlowStarter from "@/components/quests/flow/QuestFlowStarter.vue";
 import QuestGraphDesigner from "@/components/quests/flow/QuestGraphDesigner.vue";
+import QuestMoreMenu from "@/components/quests/panel/QuestMoreMenu.vue";
 import QuestPhoneTopBar from "@/components/quests/overview/QuestPhoneTopBar.vue";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
 

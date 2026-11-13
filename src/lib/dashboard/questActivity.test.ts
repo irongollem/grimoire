@@ -38,6 +38,7 @@ const transition = (overrides: Partial<QuestBeatTransition> & { id: string }): Q
   created_by: "user-1",
   created_at: "2026-08-20T12:00:00Z",
   thread_id: "thread-1",
+  outcome: null,
   ...overrides,
 });
 
