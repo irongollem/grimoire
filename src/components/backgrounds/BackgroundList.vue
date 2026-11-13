@@ -112,6 +112,7 @@
 </template>
 
 <script setup lang="ts">
+import { artFreeSkeleton } from "@/components/common/list/ledger";
 import { computed } from "vue";
 import { IconBookUser, IconEdit } from '@/lib/icons';
 import { useCodexUiStore } from "@/stores/ui/codex";
@@ -200,7 +201,7 @@ const backgroundKey = (background: Background) => background.id;
 const storedLayout = useListLayout("codex-backgrounds", "grid");
 const layout = computed(() => (selectMode ? "grid" : storedLayout.value));
 const skeletonVariant = computed(() => {
-  if (lowArt.value) return layout.value === "rows" ? "ledger" : "entries";
+  if (lowArt.value) return artFreeSkeleton(layout.value);
   return layout.value === "rows" ? "tiles" : "grid";
 });
 

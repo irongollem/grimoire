@@ -20,6 +20,8 @@
  * nothing. Hence a neutral swatch and a "???" label.
  */
 
+import { formatHitPoints } from "@/lib/utils";
+
 /** As stored, not as typed: the key may be absent, null or blank. */
 export type ChallengeRating = string | null | undefined;
 
@@ -164,4 +166,15 @@ export function monsterIdentityLine(
 ): string {
   const kind = [monster.size, monster.monster_type].filter(Boolean).join(" ");
   return [kind, monster.alignment].filter(Boolean).join(", ");
+}
+
+/** The bookmark tab a monster's challenge rating hangs in, art-free (#1179). */
+export function crTabFor(cr: ChallengeRating): { text: string; label: string; toneClass: string } {
+  return { text: crText(cr), label: "Challenge rating", toneClass: crBg(cr) };
+}
+
+/** "AC 15 · HP 110"; a creature with no armour class shows its hit points alone. */
+export function monsterStatLine(monster: { armor_class: number | null; hit_points: string | null | undefined }): string {
+  const hp = `HP ${formatHitPoints(monster.hit_points)}`;
+  return monster.armor_class === null ? hp : `AC ${monster.armor_class} · ${hp}`;
 }

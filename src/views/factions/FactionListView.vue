@@ -196,6 +196,7 @@
 </template>
 
 <script setup lang="ts">
+import { artFreeSkeleton } from "@/components/common/list/ledger";
 import { ref, computed, watch } from "vue";
 import { IconAdd, IconCheck, IconGenerate, IconNavFactions, IconPopulate, IconShield } from '@/lib/icons';
 import { useAllFactions, usePopulateFactions, useUpdateFaction } from "@/composables/factions/useFactions";
@@ -276,7 +277,7 @@ const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
 const layout = useListLayout("factions", "rows");
 const { lowArt } = useLowArt();
 const skeletonVariant = computed(() => {
-  if (lowArt.value) return layout.value === "grid" ? "entries" : "ledger";
+  if (lowArt.value) return artFreeSkeleton(layout.value);
   return layout.value === "grid" ? "grid" : "tiles";
 });
 

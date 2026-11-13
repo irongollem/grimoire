@@ -6,7 +6,7 @@
     passes null and gets no button, which is the point of the mode.
   -->
   <template v-if="src">
-    <AppButton ref="buttonRef" variant="dashed" size="xs" @click="open">
+    <AppButton ref="buttonRef" v-bind="$attrs" variant="dashed" size="xs" @click="open">
       <template #icon><IconImage class="size-3.5" aria-hidden="true" /></template>
       {{ label }}
     </AppButton>
@@ -20,6 +20,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import ImageLightbox from "@/components/common/overlays/ImageLightbox.vue";
 import { IconImage } from "@/lib/icons";
 import type { ModalOrigin } from "@/lib/modalOrigin";
+
+defineOptions({ inheritAttrs: false });
 
 const { label = "Portrait" } = defineProps<{
   /** The record's own picture, never a placeholder. Falsy renders nothing. */

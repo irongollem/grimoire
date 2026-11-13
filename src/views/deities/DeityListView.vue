@@ -223,7 +223,7 @@ import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import EntityMobileGrid from "@/components/common/entity/EntityMobileGrid.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useLowArt } from "@/composables/useLowArt";
-import type { LedgerCell } from "@/components/common/list/ledger";
+import { artFreeSkeleton, type LedgerCell } from "@/components/common/list/ledger";
 
 const deitiesUi = useDeitiesUiStore();
 const generatorsUi = useGeneratorUiStore();
@@ -267,9 +267,7 @@ const layout = useListLayout("deities", "grid");
 // The phone's grid is the two-column gallery skeleton.
 const { lowArt } = useLowArt();
 const skeletonVariant = computed(() => {
-  // A phone has no ledger or catalogue card: its low-art shapes are the text row and the 88 px card.
-  if (lowArt.value && isMobile.value) return layout.value === "rows" ? "rows-text" : "cards-text";
-  if (lowArt.value) return layout.value === "rows" ? "ledger" : "entries";
+  if (lowArt.value) return artFreeSkeleton(layout.value, isMobile.value);
   if (layout.value === "rows") return isMobile.value ? "rows" : "tiles";
   return isMobile.value ? "gallery" : "grid";
 });

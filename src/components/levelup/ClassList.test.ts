@@ -18,6 +18,10 @@ vi.mock("@/composables/rules/useCustomClasses", () => ({
   useDuplicateClass: () => ({ duplicate: vi.fn() }),
 }));
 
+vi.mock("@/composables/library/useSourceTitles", () => ({
+  useSourceTitles: () => ({ labelFor: (source: string | null) => (source === "tob" ? "Tome of Beasts" : source) }),
+}));
+
 useVirtualGridViewport();
 
 const flush = async () => {
@@ -68,5 +72,18 @@ describe("ClassList in low art (#1179)", () => {
     await flush();
     expect(w.findAll("[data-ledger-head]").length).toBeGreaterThan(0);
     expect(w.find("img").exists()).toBe(false);
+  });
+
+  // Bug: a library class showed its raw content_sources key ("tob") instead of the book's title.
+  it("shows the book's title, not its key, in the card foot and the Source column", async () => {
+    custom.value = [{ ...custom.value[0]!, source: "tob" } as CustomClass];
+    const w = mountList();
+    await flush();
+    expect(w.text()).toContain("Tome of Beasts");
+    useListLayout("codex-classes", "grid").value = "rows";
+    const rows = mountList();
+    await flush();
+    expect(rows.text()).toContain("Tome of Beasts");
+    expect(rows.text()).not.toMatch(/\btob\b/);
   });
 });

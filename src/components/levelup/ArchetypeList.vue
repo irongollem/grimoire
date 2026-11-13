@@ -102,6 +102,7 @@
 </template>
 
 <script setup lang="ts">
+import { artFreeSkeleton } from "@/components/common/list/ledger";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { ref, computed, onBeforeUnmount } from "vue";
 import { IconAdd, IconLayers, IconPopulate } from '@/lib/icons';
@@ -127,7 +128,7 @@ const layout = useListLayout("codex-archetypes", "grid");
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 const { lowArt } = useLowArt();
 const skeletonVariant = computed(() => {
-  if (lowArt.value) return layout.value === "rows" ? "ledger" : "entries";
+  if (lowArt.value) return artFreeSkeleton(layout.value);
   return layout.value === "rows" ? "tiles" : "grid";
 });
 

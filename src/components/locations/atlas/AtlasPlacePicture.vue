@@ -1,6 +1,6 @@
 <template>
-  <section v-if="location.book_nook_id || (location.image_url && !lowArt)" class="mb-4 space-y-2" aria-label="Picture" data-testid="place-picture">
-    <div class="relative aspect-video overflow-hidden rounded-lg border border-border bg-muted">
+  <section v-if="location.book_nook_id || location.image_url" class="mb-4 space-y-2" aria-label="Picture" data-testid="place-picture">
+    <div v-if="location.book_nook_id || !lowArt" class="relative aspect-video overflow-hidden rounded-lg border border-border bg-muted">
       <BookNookPlayer v-if="nook" :scene="nook.scene" :still="nook.still_url ?? location.image_url" screen="wide" />
       <img v-else-if="location.image_url && !lowArt" :src="location.image_url" :alt="location.name" class="size-full object-cover" />
 
@@ -31,7 +31,7 @@
       @click="openTableScreen"
     />
     <AppButton
-      v-else-if="!location.book_nook_id && location.image_url && !lowArt"
+      v-else-if="!location.book_nook_id && location.image_url"
       variant="outline"
       size="sm"
       :icon="IconNavBookNook"

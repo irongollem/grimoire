@@ -52,10 +52,13 @@ describe("PartyView group portrait", () => {
     expect(w.text()).toContain("Group portrait");
   });
 
-  // Bug: low art leaves an empty "No group portrait yet" card above nothing.
-  it("draws no group portrait section at all in low art when there is none", () => {
+  // Bug: low art hid the whole section, taking Upload and Generate away with the picture.
+  it("keeps Upload and Generate in low art when there is no group portrait, without the empty-picture card text", () => {
     useLowArt().setLowArt(true);
     const w = mountView();
+    expect(w.text()).toContain("Group Portrait");
+    expect(w.text()).toContain("Upload");
+    expect(w.text()).toContain("Generate");
     expect(w.text()).not.toContain("No group portrait yet");
   });
 

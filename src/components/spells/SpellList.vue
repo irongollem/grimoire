@@ -179,7 +179,7 @@ import { useAddCharacterSpell, useChangePreparedSpell, useRemoveCharacterSpell }
 import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { SCHOOL_BG, spellLevelOrdinal, spellLevelTab } from "@/types/spell.types";
-import type { LedgerCell, LedgerColumn } from "@/components/common/list/ledger";
+import { artFreeSkeleton, type LedgerCell, type LedgerColumn } from "@/components/common/list/ledger";
 import type { CasterType, SpellBrowseRow } from "@/types/spell.types";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
@@ -371,10 +371,9 @@ const desktopLayout = computed(() => (playerMemberId ? "grid" : layout.value));
 // The phone's grid is the two-column gallery skeleton.
 const { lowArt } = useLowArt();
 const skeletonVariant = computed(() => {
-  // A phone has no ledger or catalogue card: its low-art shapes are the text row and the 88 px card.
-  if (lowArt.value && mobileLayout.value) return layout.value === "rows" ? "rows-text" : "cards-text";
+  if (lowArt.value && mobileLayout.value) return artFreeSkeleton(layout.value, true);
   if (!mobileLayout.value) {
-    if (lowArt.value) return desktopLayout.value === "rows" ? "ledger" : "entries";
+    if (lowArt.value) return artFreeSkeleton(desktopLayout.value);
     return desktopLayout.value === "rows" ? "tiles" : "grid";
   }
   return layout.value === "rows" ? "rows" : "gallery";

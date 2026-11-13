@@ -102,7 +102,7 @@ import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVaria
 import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
 import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue";
 import { IconEdit } from "@/lib/icons";
-import { crBg, crText } from "@/lib/monsterDisplay";
+import { crBg, crTabFor, crText, monsterStatLine } from "@/lib/monsterDisplay";
 import { formatHitPoints } from "@/lib/utils";
 import type { MonsterBrowseRow } from "@/types/monster.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
@@ -114,15 +114,6 @@ const { monster } = defineProps<{
 
 const challengeClass = computed(() => crBg(monster.challenge_rating));
 
-const crTab = computed(() => ({
-  text: crText(monster.challenge_rating),
-  label: "Challenge rating",
-  toneClass: challengeClass.value,
-}));
-
-/** "AC 15 · HP 110"; a creature with no armour class shows its hit points alone. */
-const statLine = computed(() => {
-  const hp = `HP ${formatHitPoints(monster.hit_points)}`;
-  return monster.armor_class !== null ? `AC ${monster.armor_class} · ${hp}` : hp;
-});
+const crTab = computed(() => crTabFor(monster.challenge_rating));
+const statLine = computed(() => monsterStatLine(monster));
 </script>

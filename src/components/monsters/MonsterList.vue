@@ -74,8 +74,8 @@
                 :badge-class="crBg(monster.challenge_rating)"
                 :location="monster.habitat || undefined"
                 :eyebrow="monsterSubtitle(monster)"
-                :stat="monsterStat(monster)"
-                :tab="crTab(monster)"
+                :stat="monsterStatLine(monster)"
+                :tab="crTabFor(monster.challenge_rating)"
                 :shared="isDiscovered(monster)"
                 @pointerenter="prefetchDetail(monster.id)"
                 @focusin="prefetchDetail(monster.id)"
@@ -97,7 +97,7 @@
     >
       <template #card="{ item: monster }">
         <BulkSelectableCard
-          corner="top-right"
+          :corner="lowArt ? 'bottom-right' : 'top-right'"
           :selected="bulk.isSelected(monster.id)"
           :selecting="bulk.selecting.value && !monster.is_shared"
           @toggle="bulk.toggle(monster.id)"
@@ -174,9 +174,9 @@ import { fetchResolvedMonster, RESOLVED_MONSTER_QUERY_KEY } from "@/composables/
 import { useMonsterBrowse } from "@/composables/monsters/useMonsterBrowse";
 import { useCampaignDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import MonsterGridCard from "@/components/monsters/MonsterGridCard.vue";
-import { crBg, crLabel, crText } from "@/lib/monsterDisplay";
+import { crBg, crLabel, crTabFor, monsterStatLine } from "@/lib/monsterDisplay";
 import { formatHitPoints } from "@/lib/utils";
-import type { LedgerCell, LedgerColumn } from "@/components/common/list/ledger";
+import { artFreeSkeleton, type LedgerCell, type LedgerColumn } from "@/components/common/list/ledger";
 import { useLowArt } from "@/composables/useLowArt";
 import type { MonsterBrowseRow } from "@/types/monster.types";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
@@ -227,9 +227,7 @@ const { labelFor } = useSourceTitles();
 // The phone's grid is the two-column gallery skeleton.
 const { lowArt } = useLowArt();
 const skeletonVariant = computed(() => {
-  // A phone has no ledger or catalogue card: its low-art shapes are the text row and the 88 px card.
-  if (lowArt.value && isMobile.value) return layout.value === "rows" ? "rows-text" : "cards-text";
-  if (lowArt.value) return layout.value === "rows" ? "ledger" : "entries";
+  if (lowArt.value) return artFreeSkeleton(layout.value, isMobile.value);
   if (layout.value === "rows") return isMobile.value ? "rows" : "tiles";
   return isMobile.value ? "gallery" : "grid";
 });
@@ -243,28 +241,14 @@ const LEDGER: readonly LedgerColumn[] = [
   { label: "Source", track: "minmax(0,10rem)" },
 ];
 
-function crTab(monster: MonsterBrowseRow) {
-  return {
-    text: crText(monster.challenge_rating),
-    label: "Challenge rating",
-    toneClass: crBg(monster.challenge_rating),
-  };
-}
-
 function ledgerCells(monster: MonsterBrowseRow): LedgerCell[] {
   return [
     monsterSubtitle(monster),
-    { tab: crTab(monster) },
+    { tab: crTabFor(monster.challenge_rating) },
     monster.armor_class === null ? null : String(monster.armor_class),
     formatHitPoints(monster.hit_points),
     labelFor(monster.source, monster.source_title),
   ];
-}
-
-// The phone grid card's one stat line in low art.
-function monsterStat(monster: MonsterBrowseRow): string {
-  const hp = `HP ${formatHitPoints(monster.hit_points)}`;
-  return monster.armor_class === null ? hp : `AC ${monster.armor_class} · ${hp}`;
 }
 
 // Tags on the desktop row: the book it is from, then challenge rating and habitat.

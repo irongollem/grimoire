@@ -53,7 +53,6 @@
       <template v-for="(cell, i) in cells" :key="`m${i}`">
         <BookmarkTab v-if="isTab(cell)" class="lg:hidden" size="sm" inline v-bind="cell.tab" />
       </template>
-      <slot name="body" />
     </div>
 
     <template v-for="(cell, i) in cells" :key="i">

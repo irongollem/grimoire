@@ -130,7 +130,7 @@
 
     <!-- Right: name + content -->
     <div class="flex flex-col gap-4">
-      <div class="relative" :class="alignmentTab && 'pr-10'">
+      <div class="relative" :class="lowArt && alignmentTab && 'pr-10'">
         <BookmarkTab
           v-if="lowArt && alignmentTab"
           :text="alignmentTab"

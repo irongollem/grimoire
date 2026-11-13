@@ -52,7 +52,7 @@
     >
       <template #card="{ item: s }">
         <BulkSelectableCard
-          corner="top-right"
+          :corner="lowArt ? 'bottom-right' : 'top-right'"
           :selected="bulk.isSelected(s.id)"
           :selecting="bulk.selecting.value && !selectMode && isUuid(s.id)"
           @toggle="bulk.toggle(s.id)"
@@ -143,6 +143,7 @@
 </template>
 
 <script setup lang="ts">
+import { artFreeSkeleton } from "@/components/common/list/ledger";
 import { computed, watch } from "vue";
 import { IconEdit, IconSpecies } from '@/lib/icons';
 import type { Species } from "@/types/species.types";
@@ -240,7 +241,7 @@ const speciesKey = (species: Species) => species.id;
 const storedLayout = useListLayout("codex-species", "grid");
 const layout = computed(() => (selectMode ? "grid" : storedLayout.value));
 const skeletonVariant = computed(() => {
-  if (lowArt.value) return layout.value === "rows" ? "ledger" : "entries";
+  if (lowArt.value) return artFreeSkeleton(layout.value);
   return layout.value === "rows" ? "tiles" : "grid";
 });
 

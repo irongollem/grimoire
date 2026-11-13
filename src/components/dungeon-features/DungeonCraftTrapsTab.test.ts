@@ -1,3 +1,4 @@
+import { useLowArt } from "@/composables/useLowArt";
 import { mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
@@ -141,10 +142,20 @@ describe("DungeonCraftTrapsTab — checkbox chip placement", () => {
     mocks.traps = [trap()];
   });
 
-  it("puts the checkbox chip in the top-right corner, clear of the type badge at top-left", async () => {
+  // Bug: the chip sat top-right over the type badge the card hangs there.
+  it("puts the checkbox chip bottom-right with art, clear of the type badge at top-right", async () => {
+    const wrapper = mountTab();
+    await flushMicrotasks();
+    expect(wrapper.findComponent(BulkSelectableCard).props("corner")).toBe("bottom-right");
+  });
+
+  // Bug: art-free, the type badge moves into the foot's right end, so bottom-right would cover it.
+  it("moves the chip top-right in low art, where the badge sits in the foot", async () => {
+    useLowArt().setLowArt(true);
     const wrapper = mountTab();
     await flushMicrotasks();
     expect(wrapper.findComponent(BulkSelectableCard).props("corner")).toBe("top-right");
+    useLowArt().setLowArt(false);
   });
 });
 

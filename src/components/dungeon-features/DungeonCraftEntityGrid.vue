@@ -116,7 +116,7 @@ import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import { useListLayout } from "@/composables/useListLayout";
 import { useLowArt } from "@/composables/useLowArt";
-import type { LedgerColumn } from "@/components/common/list/ledger";
+import { artFreeSkeleton, type LedgerColumn } from "@/components/common/list/ledger";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
@@ -190,7 +190,7 @@ const layout = useListLayout(listKey, "grid");
 const { lowArt } = useLowArt();
 // Low art only changes a tab that named a ledger; the rest keep their skeleton.
 const skeletonVariant = computed(() => {
-  if (lowArt.value && ledger) return layout.value === "grid" ? "entries" : "ledger";
+  if (lowArt.value && ledger) return artFreeSkeleton(layout.value);
   return layout.value === "grid" ? "grid" : "stack";
 });
 // Mirrors `grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5`.

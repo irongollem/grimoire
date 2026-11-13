@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { crBg, crTextColor, crTier, crToNumber, crText, crLabel, crVar, monsterIdentityLine, UNKNOWN_CR_LABEL } from "@/lib/monsterDisplay";
+import { crTabFor, monsterStatLine, crBg, crTextColor, crTier, crToNumber, crText, crLabel, crVar, monsterIdentityLine, UNKNOWN_CR_LABEL } from "@/lib/monsterDisplay";
 
 describe("crToNumber", () => {
   it("treats CR 0 as zero", () => {
@@ -133,5 +133,25 @@ describe("monsterIdentityLine", () => {
 
   it("survives a monster with nothing filled in", () => {
     expect(monsterIdentityLine({})).toBe("");
+  });
+});
+
+describe("monsterStatLine", () => {
+  it("drops the AC half for a creature with no armour class instead of printing AC null", () => {
+    expect(monsterStatLine({ armor_class: null, hit_points: "110" })).toBe("HP 110");
+  });
+  it("keeps an armour class of 0 rather than treating it as missing", () => {
+    expect(monsterStatLine({ armor_class: 0, hit_points: "5" })).toBe("AC 0 · HP 5");
+  });
+});
+
+describe("crTabFor", () => {
+  it("shows the unknown label and the neutral swatch for a monster with no rating", () => {
+    const tab = crTabFor(undefined);
+    expect(tab.text).toBe(UNKNOWN_CR_LABEL);
+    expect(tab.toneClass).toBe(crBg(undefined));
+  });
+  it("carries the rating's own tone", () => {
+    expect(crTabFor("5")).toEqual({ text: "5", label: "Challenge rating", toneClass: crBg("5") });
   });
 });

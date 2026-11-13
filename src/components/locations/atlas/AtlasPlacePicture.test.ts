@@ -69,11 +69,14 @@ describe("AtlasPlacePicture low art (#1179)", () => {
     useLowArt().setLowArt(false);
   });
 
-  it("draws no still and offers no nook to start from it in low art", () => {
+  // Bug: low art hid Bring it to life, the only way to make a nook from a place's picture.
+  it("draws no still but keeps Bring it to life in low art", async () => {
     useLowArt().setLowArt(true);
-    const v = mountPicture(place({ image_url: "https://cdn.example.invalid/a.webp" }));
+    const loc = place({ image_url: "https://cdn.example.invalid/a.webp" });
+    const v = mountPicture(loc);
     expect(v.find("img").exists()).toBe(false);
-    expect(v.find("[data-label='Bring it to life']").exists()).toBe(false);
+    await v.get("[data-label='Bring it to life']").trigger("click");
+    expect(m.start).toHaveBeenCalledWith(loc);
   });
 
   it("draws no still while the place's nook is still loading in low art", () => {

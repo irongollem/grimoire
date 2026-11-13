@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import PortraitOnRequest from "./PortraitOnRequest.vue";
 
 const lightbox = { name: "ImageLightbox", props: ["src", "alt", "origin"], template: "<div data-test='lightbox' />" };
-const mountIt = (src: string | null) => mount(PortraitOnRequest, { props: { src }, global: { stubs: { ImageLightbox: lightbox } } });
+const mountIt = (src: string | null, attrs: Record<string, unknown> = {}) =>
+  mount(PortraitOnRequest, { props: { src }, attrs, global: { stubs: { ImageLightbox: lightbox } } });
 
 describe("PortraitOnRequest", () => {
   it("fetches nothing before the click: no img and no lightbox (the on-request portrait is fetched before anyone asks)", () => {
@@ -22,5 +23,11 @@ describe("PortraitOnRequest", () => {
     const w = mountIt("https://x/p.webp");
     await w.find("button").trigger("click");
     expect(w.findComponent(lightbox).props("src")).toBe("https://x/p.webp");
+  });
+
+  // Bug: a fragment root dropped the caller's class, so the button stretched full width on phones.
+  it("puts a caller's class on the button", () => {
+    const w = mountIt("https://x/p.webp", { class: "self-start" });
+    expect(w.find("button").classes()).toContain("self-start");
   });
 });

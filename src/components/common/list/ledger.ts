@@ -37,3 +37,16 @@ export function ledgerTemplate(columns: readonly LedgerColumn[]): string {
  * NPC's place and tags) passes its own `artFreeRowEstimate`.
  */
 export const ART_FREE_CARD_PX = 130;
+
+/**
+ * The skeleton a low-art list shows while it loads (#1179, frame 07): the ledger or
+ * the art-free card grid on desktop, and on a phone the text row or the 88 px card,
+ * because a phone has neither. One rule here so the lists cannot drift apart.
+ */
+export function artFreeSkeleton(
+  layout: "rows" | "grid",
+  phone = false,
+): "ledger" | "entries" | "rows-text" | "cards-text" {
+  if (phone) return layout === "rows" ? "rows-text" : "cards-text";
+  return layout === "rows" ? "ledger" : "entries";
+}

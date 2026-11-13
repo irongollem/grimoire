@@ -283,7 +283,7 @@ import { fetchResolvedItem, resolvedItemKey } from "@/composables/items/useItems
 import type { ItemScope } from "@/lib/items/itemScope";
 import { ITEM_RARITY_LABELS, ITEM_TYPE_LABELS, RARITY_BG, RARITY_LETTERS } from "@/types/item.types";
 import type { ItemRarity } from "@/types/item.types";
-import type { LedgerCell, LedgerColumn } from "@/components/common/list/ledger";
+import { artFreeSkeleton, type LedgerCell, type LedgerColumn } from "@/components/common/list/ledger";
 import { useLowArt } from "@/composables/useLowArt";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
@@ -349,7 +349,7 @@ const columns = useAutoFillColumns(containerRef, GRID_MIN_WIDTH_REM, GRID_GAP_RE
 const layout = useListLayout("items", "grid");
 const { lowArt } = useLowArt();
 const skeletonVariant = computed(() => {
-  if (lowArt.value) return layout.value === "rows" ? "ledger" : "entries";
+  if (lowArt.value) return artFreeSkeleton(layout.value);
   return layout.value === "rows" ? "tiles" : "grid";
 });
 const itemKey = (item: { id: string }) => item.id;

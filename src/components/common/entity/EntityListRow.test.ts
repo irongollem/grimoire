@@ -12,7 +12,8 @@ function mountRow(props: Record<string, unknown>, ledger: string | null) {
   const Host = defineComponent({
     setup() {
       provide(LEDGER_TEMPLATE_KEY, computed(() => ledger));
-      return () => h(EntityListRow, { to: "/x", title: "Owlbear", fallbackIcon: Icon, ...props });
+      return () =>
+        h(EntityListRow, { to: "/x", title: "Owlbear", fallbackIcon: Icon, ...props }, { body: () => h("p", { "data-body": "" }, "two lines of description") });
     },
   });
   return mount(Host, { global: { stubs } });
@@ -48,5 +49,12 @@ describe("EntityListRow low art", () => {
   it("stays a card row with low art off even if a ledger is injected", () => {
     const w = mountRow({ cells: ["Beast"] }, "1fr 8rem");
     expect(w.text()).not.toContain("Beast");
+  });
+
+  // Bug: a body slot (a two-line description, a Standing mark) rendered beside the name and broke the 40px line.
+  it("does not render the body slot in a ledger line", () => {
+    useLowArt().setLowArt(true);
+    const w = mountRow({ cells: ["Beast"] }, "1fr 8rem");
+    expect(w.find("[data-body]").exists()).toBe(false);
   });
 });

@@ -37,7 +37,7 @@
     </template>
     <template #card="{ item: puzzle, selecting, isSelected, toggle }">
       <BulkSelectableCard
-        corner="top-right"
+        :corner="lowArt ? 'top-right' : 'bottom-right'"
         :selected="isSelected(puzzle.id)"
         :selecting="selecting && !isLibraryPuzzle(puzzle)"
         @toggle="toggle(puzzle.id)"
@@ -61,7 +61,7 @@
     </template>
     <template #row="{ item: puzzle, selecting, isSelected, toggle }">
       <BulkSelectableCard
-        corner="top-right"
+        :corner="lowArt ? 'top-right' : 'bottom-right'"
         :selected="isSelected(puzzle.id)"
         :selecting="selecting && !isLibraryPuzzle(puzzle)"
         @toggle="toggle(puzzle.id)"
@@ -98,6 +98,7 @@ import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import { IconPuzzle } from "@/lib/icons";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 import DungeonCraftCard from "./DungeonCraftCard.vue";
@@ -122,6 +123,7 @@ const puzzles = computed<PuzzleEntry[] | undefined>(() =>
 const puzzlesLoading = computed(() => ownLoading.value || libraryLoading.value);
 const isLibraryPuzzle = (p: PuzzleEntry): p is LibraryPuzzle => isLibraryId(p.id);
 const { labelFor } = useSourceTitles();
+const { lowArt } = useLowArt();
 
 // Low art's ledger (#1179, frame 03): the subtitle as one column, then the source.
 const PUZZLE_LEDGER = [

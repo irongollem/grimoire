@@ -40,7 +40,7 @@
     <PartyMilestonesPanel class="mt-6" />
 
     <!-- Group Portrait -->
-    <div v-if="!lowArt || groupPortraitUrl" class="mt-6 rounded-lg border border-border bg-card overflow-hidden">
+    <div class="mt-6 rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between">
         <div>
           <span class="text-label-lg font-semibold text-muted-foreground">Group Portrait</span>
@@ -96,10 +96,10 @@
           <AiImageBadge :src="groupPortraitUrl" />
         </div>
       </div>
-      <div v-else-if="!generating" class="px-4 py-6 text-center">
+      <div v-else-if="!generating && !lowArt" class="px-4 py-6 text-center">
         <p class="text-body text-muted-foreground italic">No group portrait yet.</p>
       </div>
-      <div v-else class="px-4 py-6 text-center">
+      <div v-else-if="generating" class="px-4 py-6 text-center">
         <p class="text-body text-muted-foreground italic animate-pulse">Generating group portrait…</p>
       </div>
     </div>

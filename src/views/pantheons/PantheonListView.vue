@@ -121,6 +121,7 @@
 </template>
 
 <script setup lang="ts">
+import { artFreeSkeleton } from "@/components/common/list/ledger";
 import { computed } from "vue";
 import { IconAdd, IconFire, IconNavPantheon, IconSun } from '@/lib/icons';
 import { useAllPantheons, useAllDeities, useUpdatePantheon } from "@/composables/deities/useDeities";
@@ -174,7 +175,7 @@ const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
 const layout = useListLayout("pantheons", "rows");
 const { lowArt } = useLowArt();
 const skeletonVariant = computed(() => {
-  if (lowArt.value) return layout.value === "grid" ? "entries" : "ledger";
+  if (lowArt.value) return artFreeSkeleton(layout.value);
   return layout.value === "grid" ? "grid" : "tiles";
 });
 // Low art (#1179, frame 03): the deity count the row shows as its subtitle. A pantheon has no source.

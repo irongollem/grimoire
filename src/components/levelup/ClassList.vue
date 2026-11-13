@@ -72,7 +72,7 @@
               <p class="text-caption text-muted-foreground">{{ artFree ? customMeta(cls) : customSubtitle(cls) }}</p>
             </template>
             <template #foot>
-              <span v-if="cls.source" class="text-label text-muted-foreground">{{ cls.source }}</span>
+              <span v-if="labelFor(cls.source)" class="text-label text-muted-foreground">{{ labelFor(cls.source) }}</span>
             </template>
           </EntityGridCard>
         </template>
@@ -83,7 +83,7 @@
             :subtitle="customSubtitle(cls)"
             :image-url="cls.image_url"
             :fallback-icon="IconPopulate"
-            :cells="[customMeta(cls), cls.source]"
+            :cells="[customMeta(cls), labelFor(cls.source)]"
           />
         </template>
       </EntityCollection>
@@ -158,6 +158,8 @@
 </template>
 
 <script setup lang="ts">
+import { useSourceTitles } from "@/composables/library/useSourceTitles";
+import { artFreeSkeleton } from "@/components/common/list/ledger";
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { IconAdd, IconCopy, IconPopulate } from '@/lib/icons';
@@ -190,7 +192,7 @@ const duplicating = ref<string | null>(null);
 const layout = useListLayout("codex-classes", "grid");
 const { lowArt } = useLowArt();
 const skeletonVariant = computed(() => {
-  if (lowArt.value) return layout.value === "rows" ? "ledger" : "entries";
+  if (lowArt.value) return artFreeSkeleton(layout.value);
   return layout.value === "rows" ? "tiles" : "grid";
 });
 
@@ -212,11 +214,14 @@ function baseSubtitle(cls: { hit_die: number; saving_throws: readonly string[] }
   return `d${cls.hit_die}${saves}`;
 }
 
+const { labelFor } = useSourceTitles();
+
 function customParts(cls: CustomClass, withBook: boolean): string {
   const levels = featureLevelCount(cls);
   const parts = [baseSubtitle(cls)];
   if (levels > 0) parts.push(`${levels} feature level${levels !== 1 ? "s" : ""}`);
-  if (withBook && cls.source) parts.push(cls.source);
+  const book = withBook ? labelFor(cls.source) : null;
+  if (book) parts.push(book);
   if (cls.campaign_id) parts.push("campaign only");
   return parts.join(" · ");
 }

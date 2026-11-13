@@ -9,7 +9,7 @@ The design is the canvas *Low Art* (claude.ai artifact `GXaub9rsfwNyGzGc1SxeXn`,
 - `useLowArt()` (`src/composables/useLowArt.ts`, a root composable) returns `lowArt` and `setLowArt`. It is kept per device in `localStorage` (`grimoire_low_art`), like the AI-label switch, and is off by default.
 - `LOW_ART_OVERRIDE` (an injection key in the same module) forces it on or off for one subtree without touching the viewer's stored choice. `/dev/components` uses it so its Low art section shows the art-free forms. Do not flip the stored switch from a page: a tab closed while it was flipped leaves it flipped.
 - It is set in the **Pictures** section (`src/components/account/PicturesSetting.vue`, formerly `AiLabelsSetting`). That section sits on the account page and on the player settings page, beside *Show AI labels*. *Hide AI art* (#1178) joins it there.
-- **Low art opens on rows.** `useListLayout` returns `rows` for a list the viewer has never set while low art is on. A stored choice always wins.
+- **Low art opens on rows.** `useListLayout` returns `rows` for a list the viewer has never set while low art is on, but only for the lists in `LOW_ART_LISTS`, which must equal the lists that pass `ledger` (minis, the Cartographer, the Scriptorium and the rest keep their own default). A stored choice always wins.
 
 ## What counts
 

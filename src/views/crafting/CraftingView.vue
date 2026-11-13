@@ -187,6 +187,7 @@
 </template>
 
 <script setup lang="ts">
+import { artFreeSkeleton } from "@/components/common/list/ledger";
 import { computed, ref } from "vue";
 
 import { IconAdd, IconDelete, IconDownload, IconGenerate, IconListView, IconNavWorkshop, IconReveal } from '@/lib/icons';
@@ -300,7 +301,7 @@ const recipeKey = (recipe: CraftingRecipe) => recipe.id;
 const layout = useListLayout("recipes", "rows");
 const { lowArt } = useLowArt();
 const skeletonVariant = computed(() => {
-  if (lowArt.value) return layout.value === "grid" ? "entries" : "ledger";
+  if (lowArt.value) return artFreeSkeleton(layout.value);
   return layout.value === "grid" ? "grid" : "tiles";
 });
 // Low art's ledger (#1179, frame 03): discipline, DC, tags.

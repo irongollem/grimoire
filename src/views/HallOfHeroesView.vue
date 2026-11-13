@@ -189,6 +189,7 @@
 </template>
 
 <script setup lang="ts">
+import { artFreeSkeleton } from "@/components/common/list/ledger";
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useScrollRestore } from "@/composables/useScrollRestore";
@@ -235,7 +236,7 @@ const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 const layout = useListLayout("hall-of-heroes", "grid");
 const { lowArt } = useLowArt();
 const skeletonVariant = computed(() => {
-  if (lowArt.value) return layout.value === "rows" ? "ledger" : "entries";
+  if (lowArt.value) return artFreeSkeleton(layout.value);
   return layout.value === "rows" ? "tiles" : "grid";
 });
 // Low art (#1179, frame 03): species and occupation, then the setting.

@@ -37,6 +37,11 @@ describe("DeitySheet", () => {
     expect(mountSheet().findAll("img").length).toBeGreaterThanOrEqual(2);
   });
 
+  // Bug: the header reserved room for an alignment tab that is only drawn in low art.
+  it("reserves no tab room in the header with low art off", () => {
+    expect(mountSheet().find(".pr-10").exists()).toBe(false);
+  });
+
   describe("in low art (#1179)", () => {
     // Bug: the sheet still downloads the portrait and the holy symbol although art is off.
     it("draws no picture, hangs the alignment tab and keeps the Portrait button", () => {
@@ -46,6 +51,7 @@ describe("DeitySheet", () => {
       expect(wrapper.find('[aria-label="Alignment LG"]').exists()).toBe(true);
       expect(wrapper.text()).toContain("Faerunian");
       expect(wrapper.text()).toContain("Portrait");
+      expect(wrapper.find(".pr-10").exists()).toBe(true);
     });
 
     // Bug: a portrait button that opens a placeholder.

@@ -61,9 +61,15 @@ describe("useListLayout", () => {
       setLowArt(false);
     });
 
-    it("opens a list nobody has chosen for on rows", () => {
+    it("opens a low-art list nobody has chosen for on rows", () => {
       setLowArt(true);
-      expect(useListLayout("fresh", "grid").value).toBe("rows");
+      expect(useListLayout("npcs", "grid").value).toBe("rows");
+    });
+
+    // Bug: every list flipped to rows, including ones that never drew a ledger.
+    it("leaves a list that did not opt in on its default", () => {
+      setLowArt(true);
+      expect(useListLayout("minis", "grid").value).toBe("grid");
     });
 
     // Bug: low art overrides a viewer's explicit choice.

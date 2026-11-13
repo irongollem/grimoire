@@ -33,7 +33,7 @@
     </template>
     <template #card="{ item: trap, selecting, isSelected, toggle }">
       <BulkSelectableCard
-        corner="top-right"
+        :corner="lowArt ? 'top-right' : 'bottom-right'"
         :selected="isSelected(trap.id)"
         :selecting="selecting && !isLibraryTrap(trap)"
         @toggle="toggle(trap.id)"
@@ -55,7 +55,7 @@
     </template>
     <template #row="{ item: trap, selecting, isSelected, toggle }">
       <BulkSelectableCard
-        corner="top-right"
+        :corner="lowArt ? 'top-right' : 'bottom-right'"
         :selected="isSelected(trap.id)"
         :selecting="selecting && !isLibraryTrap(trap)"
         @toggle="toggle(trap.id)"
@@ -90,6 +90,7 @@ import { IconTrap } from "@/lib/icons";
 import type { TrapEntry } from "@/types/trap.types";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 import DungeonCraftCard from "./DungeonCraftCard.vue";
@@ -97,6 +98,7 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
 const { labelFor } = useSourceTitles();
+const { lowArt } = useLowArt();
 
 // Low art's ledger (#1179, frame 03): the subtitle as one column, then the source.
 const TRAP_LEDGER = [

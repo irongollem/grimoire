@@ -177,7 +177,7 @@ import { useBreakpointColumns } from "@/composables/useGridColumns";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import { useLowArt } from "@/composables/useLowArt";
-import type { LedgerCell, LedgerColumn } from "@/components/common/list/ledger";
+import { artFreeSkeleton, type LedgerCell, type LedgerColumn } from "@/components/common/list/ledger";
 import { useListLayout } from "@/composables/useListLayout";
 import EntityMobileGrid from "@/components/common/entity/EntityMobileGrid.vue";
 import { IconNavNpcs } from "@/lib/icons";
@@ -246,9 +246,7 @@ const layout = useListLayout("npcs", "grid");
 // Low art swaps both for the text catalogue's (#1179): entries for a grid, the ledger for rows.
 const { lowArt } = useLowArt();
 const skeletonVariant = computed(() => {
-  // A phone has no ledger or catalogue card: its low-art shapes are the text row and the 88 px card.
-  if (lowArt.value && isMobile.value) return layout.value === "rows" ? "rows-text" : "cards-text";
-  if (lowArt.value) return layout.value === "rows" ? "ledger" : "entries";
+  if (lowArt.value) return artFreeSkeleton(layout.value, isMobile.value);
   if (layout.value === "rows") return isMobile.value ? "rows" : "tiles";
   return isMobile.value ? "gallery" : "grid";
 });
