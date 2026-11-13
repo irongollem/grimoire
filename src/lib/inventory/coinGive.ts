@@ -21,10 +21,16 @@ export function coinsLeft(purse: Coins, coins: Coins): Coins {
   return out;
 }
 
-/** "Leaves you 36 gp 12 sp 30 cp." or "Leaves you with nothing." */
-export function leavesYouLine(purse: Coins, coins: Coins, cfg: CurrencyConfig): string {
+/**
+ * "Leaves you 36 gp 12 sp 30 cp." on your own purse; "Leaves Dorn 36 gp…" on
+ * anyone else's. The DM opens this form on a character's purse, and "you" there
+ * read as the DM's own money, so a DM handing out coins moved the character's
+ * coins to someone else without noticing.
+ */
+export function leavesLine(purse: Coins, coins: Coins, cfg: CurrencyConfig, giverName: string | null): string {
+  const who = giverName ?? "you";
   const text = formatCoins(coinsLeft(purse, coins), cfg);
-  return text ? `Leaves you ${text}.` : "Leaves you with nothing.";
+  return text ? `Leaves ${who} ${text}.` : `Leaves ${who} with nothing.`;
 }
 
 /** The button's label: the action with its amount and recipient. */

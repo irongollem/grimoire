@@ -2,17 +2,19 @@ import { defineComponent, h, ref } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
+import { createPinia, setActivePinia } from "pinia";
+import { useAuthStore } from "@/stores/auth";
 import type { PartyMember } from "@/types/party.types";
 
-const { fake, chat } = await vi.hoisted(async () => {
+const { fake, chat, partyRows } = await vi.hoisted(async () => {
   const { createSupabaseFake } = await import("@/test/supabaseFake");
-  return { fake: createSupabaseFake(), chat: { sendCurrencyDrop: vi.fn() } };
+  return { fake: createSupabaseFake(), chat: { sendCurrencyDrop: vi.fn() }, partyRows: { value: [] as { id: string; name: string }[] } };
 });
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "u1" }) }));
 vi.mock("@/composables/campaign/useCampaignMessages", () => ({ useCampaignMessages: () => chat }));
 vi.mock("@/composables/campaign/chatSendErrors", () => ({ useChatSendFailure: () => ({ reportChatFailure: vi.fn() }) }));
 vi.mock("@/composables/party/useParty", () => ({
-  useParty: () => ({ data: ref([]) }),
+  useParty: () => ({ data: ref(partyRows.value) }),
   useUpdatePartyMember: () => ({ mutateAsync: vi.fn() }),
 }));
 vi.mock("@/composables/rules/useSpecies", () => ({ useSpeciesByIds: () => ({ data: ref(new Map()) }) }));
@@ -43,6 +45,8 @@ function mountPurse() {
 const rpcCalls = (name: string) => fake.calls.filter((c) => c.kind === "rpc" && c.target === name);
 
 beforeEach(() => {
+  setActivePinia(createPinia());
+  partyRows.value = [];
   fake.reset();
   chat.sendCurrencyDrop.mockReset();
   fake.onRpc("adjust_purse", () => ({}));
@@ -77,5 +81,34 @@ describe("useCharacterPurse coin writes", () => {
     await purse.submitCoinDrop();
     await flushPromises();
     expect(rpcCalls("adjust_purse").map((c) => c.payload)).toEqual([{ p_member_id: "m1", p_delta: { gp: -2 } }]);
+  });
+});
+
+describe("useCharacterPurse giving coins", () => {
+  // 13 Nov 2026: on another character's purse the form started on the first other
+  // member, and its button already read "Give … to Irvine", so the DM moved coins to
+  // Irvine meaning to give them to the character on screen.
+  it("opens with nobody chosen, so nothing can be sent until the giver picks someone", () => {
+    partyRows.value = [{ id: "m1", name: "Vex" }, { id: "m2", name: "Irvine" }];
+    const purse = mountPurse();
+    purse.openCoinGive();
+    purse.coinGive.value = { gp: 2 };
+    expect(purse.coinGiveCanSend.value).toBe(false);
+    purse.coinGiveTo.value = "m2";
+    expect(purse.coinGiveCanSend.value).toBe(true);
+  });
+
+  it("says whose coins leave: 'you' on your own purse, the character's name on anyone else's", () => {
+    const auth = useAuthStore();
+    const seatedAt = (party_member_id: string) => ({ role: "player", party_member_id }) as unknown as typeof auth.membership;
+    auth.membership = seatedAt("m1");
+    const own = mountPurse();
+    own.coinGive.value = { gp: 2 };
+    expect(own.coinGiveLeaves.value).toBe("Leaves you 3 gp.");
+
+    auth.membership = seatedAt("someone-else");
+    const theirs = mountPurse();
+    theirs.coinGive.value = { gp: 2 };
+    expect(theirs.coinGiveLeaves.value).toBe("Leaves Vex 3 gp.");
   });
 });

@@ -66,6 +66,7 @@
             aria-label="Give coins to"
             @update:model-value="(v) => $emit('update-give-to', v)"
           >
+            <option value="" disabled>Choose who…</option>
             <option v-for="m in coinGiveRecipients" :key="m.id" :value="m.id">{{ m.name }}</option>
           </AppSelect>
         </label>

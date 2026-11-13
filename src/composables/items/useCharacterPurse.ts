@@ -7,7 +7,9 @@ import { useCurrency } from "@/composables/currency/useCurrency";
 import { hasCoins, type Coins } from "@/lib/currency/currency";
 import { useAdjustPurse, useSetPurseCoin } from "@/composables/items/usePurseWrites";
 import { useGiveCoins } from "@/composables/items/useGiveInventory";
-import { coinGiveBlocked, giveCoinsLabel, leavesYouLine } from "@/lib/inventory/coinGive";
+import { coinGiveBlocked, giveCoinsLabel, leavesLine } from "@/lib/inventory/coinGive";
+import { useAuthStore } from "@/stores/auth";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
@@ -149,12 +151,23 @@ export function useCharacterPurse(member: Ref<PartyMember | null>, totalCarriedW
       hasCoins(coinGive.value) &&
       !coinGiveBlocked(memberCoins.value, coinGive.value),
   );
-  const coinGiveLeaves = computed(() => leavesYouLine(memberCoins.value, coinGive.value, currency.value));
+  // The viewer's own character reads "you"; anyone else's purse (the DM's view) names them.
+  const auth = useAuthStore();
+  const appUi = useAppUiStore();
+  const isOwnPurse = computed(() => {
+    const own = appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : auth.linkedPartyMemberId;
+    return !!member.value && member.value.id === own;
+  });
+  const coinGiveLeaves = computed(() =>
+    leavesLine(memberCoins.value, coinGive.value, currency.value, isOwnPurse.value ? null : (member.value?.name ?? null)),
+  );
   const coinGiveLabel = computed(() => giveCoinsLabel(coinGive.value, coinGiveRecipient.value?.name ?? null, currency.value));
 
   function openCoinGive() {
     coinGive.value = {};
-    coinGiveTo.value = coinGiveRecipients.value[0]?.id ?? "";
+    // Nobody is picked for you. Starting on the first other character sent coins
+    // to whoever that was when the DM meant someone else (13 Nov 2026).
+    coinGiveTo.value = "";
     showCoinGive.value = true;
   }
 

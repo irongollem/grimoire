@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DND5E_CURRENCY } from "@/systems/dnd5e/currency/dnd5eCurrency";
 import type { CurrencyConfig } from "@/lib/currency/currency";
-import { coinGiveBlocked, coinsLeft, giveCoinsLabel, leavesYouLine } from "./coinGive";
+import { coinGiveBlocked, coinsLeft, giveCoinsLabel, leavesLine } from "./coinGive";
 
 const purse = { gp: 41, sp: 12, cp: 30 };
 
@@ -21,8 +21,14 @@ describe("coinGive", () => {
     expect(coinsLeft(purse, { gp: -5 })).toEqual(purse);
   });
   it("words what is left, skipping empty coins", () => {
-    expect(leavesYouLine(purse, { gp: 5 }, DND5E_CURRENCY)).toBe("Leaves you 36 gp 12 sp 30 cp.");
-    expect(leavesYouLine({ gp: 2 }, { gp: 2 }, DND5E_CURRENCY)).toBe("Leaves you with nothing.");
+    expect(leavesLine(purse, { gp: 5 }, DND5E_CURRENCY, null)).toBe("Leaves you 36 gp 12 sp 30 cp.");
+    expect(leavesLine({ gp: 2 }, { gp: 2 }, DND5E_CURRENCY, null)).toBe("Leaves you with nothing.");
+  });
+  // A DM on a character's purse moved that character's coins while reading "you"
+  // as their own money (13 Nov 2026): someone else's purse names them.
+  it("names the giver when the purse is not the viewer's own", () => {
+    expect(leavesLine(purse, { gp: 5 }, DND5E_CURRENCY, "Dorn")).toBe("Leaves Dorn 36 gp 12 sp 30 cp.");
+    expect(leavesLine({ gp: 2 }, { gp: 2 }, DND5E_CURRENCY, "Dorn")).toBe("Leaves Dorn with nothing.");
   });
   it("blocks an amount above the purse or below zero, allows the exact purse", () => {
     expect(coinGiveBlocked(purse, { gp: 42 })).toBe(true);
@@ -39,6 +45,6 @@ describe("coinGive", () => {
   });
   it("speaks the campaign's own coins, not gold", () => {
     expect(giveCoinsLabel({ dollar: 2, cent: 50 }, "Mia", DOLLARS)).toBe("Give 2 $ 50 c to Mia");
-    expect(leavesYouLine({ dollar: 3 }, { dollar: 1 }, DOLLARS)).toBe("Leaves you 2 $.");
+    expect(leavesLine({ dollar: 3 }, { dollar: 1 }, DOLLARS, null)).toBe("Leaves you 2 $.");
   });
 });
