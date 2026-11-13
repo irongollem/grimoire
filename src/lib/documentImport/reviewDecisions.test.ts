@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   candidateLetter,
   decisionStatus,
+  matchKindHint,
   ignoreAllDecisions,
   needsDmChoice,
   quotaShortfalls,
@@ -149,6 +150,23 @@ describe("decisionStatus", () => {
       label: "Uses library entry: Wraith",
       tone: "primary",
     });
+  });
+});
+
+describe("deity and hand-picked candidates", () => {
+  it("labels a deity link as the DM's deity, not an NPC link", () => {
+    expect(decisionStatus({ action: "link", candidate: candidate({ source: "deity", name: "Auril" }) }, null)).toEqual({ label: "Your deity: Auril", tone: "success" });
+  });
+
+  it("says a chosen candidate was picked by the DM", () => {
+    expect(matchKindHint("chosen")).toBe("picked by you");
+  });
+
+  it("opens the row for a deity among others or a partial deity, not for a single exact one", () => {
+    const deity = candidate({ source: "deity" });
+    expect(needsDmChoice([deity])).toBe(false);
+    expect(needsDmChoice([deity, candidate({ targetId: "n" })])).toBe(true);
+    expect(needsDmChoice([{ ...deity, matchKind: "contains" }])).toBe(true);
   });
 });
 

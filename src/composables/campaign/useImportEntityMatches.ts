@@ -15,7 +15,8 @@ import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { getEntityKindEntry } from "@/lib/documentImport/entityKinds";
-import { parseImportMatches, type EntityCandidate } from "@/lib/documentImport/entityMatching";
+import { parseImportMatches, withDeityCandidates, type EntityCandidate } from "@/lib/documentImport/entityMatching";
+import { useAllDeities } from "@/composables/deities/useDeities";
 import type { UsableEntity } from "@/lib/documentImport/sanitizeEntities";
 import { IMPORT_ENTITY_KINDS, type ImportEntityKind } from "@/types/documentImport.types";
 
@@ -66,10 +67,13 @@ export function buildImportMatchRequest(
 export interface ImportEntityMatches {
   candidatesByKind: Map<ImportEntityKind, Map<string, EntityCandidate[]>>;
   semantic: boolean;
+  /** The NPC headings that were sent, so a deity match is judged against what
+   *  the match call saw and not against the DM's later edits in the review. */
+  npcs: { ref: string; name: string }[];
 }
 
 function emptyResult(): ImportEntityMatches {
-  return { candidatesByKind: new Map(), semantic: false };
+  return { candidatesByKind: new Map(), semantic: false, npcs: [] };
 }
 
 /**
@@ -94,7 +98,8 @@ export function useImportEntityMatches(
       const { data, error } = await supabase.functions.invoke("import-match", { body });
       if (error) throw new Error(await edgeErrorMessage(error));
       const { matches, semantic } = parseImportMatches(data);
-      return { candidatesByKind: matches, semantic };
+      const npcs = (body.entities.npcs ?? []).map(({ ref, name }) => ({ ref, name }));
+      return { candidatesByKind: matches, semantic, npcs };
     },
     enabled: computed(() => toValue(importRowId) !== null && hasAnyEntities.value),
     staleTime: Number.POSITIVE_INFINITY,
@@ -105,7 +110,20 @@ export function useImportEntityMatches(
     retry: false,
   });
 
-  const candidatesByKind = computed(() => query.data.value?.candidatesByKind ?? emptyResult().candidatesByKind);
+  // The campaign's own deities: a god on the page is a deity the DM already has,
+  // not a new NPC. A failed read must not block the import, so the error is not
+  // surfaced as the match error; it is only awaited (see isLoading below).
+  const deities = useAllDeities();
+
+  const candidatesByKind = computed(() => {
+    const data = query.data.value;
+    if (!data) return emptyResult().candidatesByKind;
+    const rows = deities.data.value;
+    if (!rows || rows.length === 0 || data.npcs.length === 0) return data.candidatesByKind;
+    const merged = new Map(data.candidatesByKind);
+    merged.set("npcs", withDeityCandidates(data.candidatesByKind.get("npcs") ?? new Map(), data.npcs, rows));
+    return merged;
+  });
   const semantic = computed(() => query.data.value?.semantic ?? false);
 
   /** One kind's candidates, keyed by ref — the shape every review row needs. */
@@ -117,7 +135,10 @@ export function useImportEntityMatches(
     candidatesByKind,
     candidatesFor,
     semantic,
-    isLoading: query.isLoading,
+    // Until BOTH have settled: the review seeds each default decision once and
+    // never overwrites it, so a god seeded as "Create new" before its deity
+    // candidate arrives would stay that way.
+    isLoading: computed(() => query.isLoading.value || deities.isLoading.value),
     error: query.error,
     refetch: query.refetch,
   };

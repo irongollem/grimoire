@@ -23,6 +23,11 @@
  * the campaign's own existing rows (`fetchNameLookup`) second — mirroring the
  * "linked rows first" precedence the old per-kind resolution already used.
  *
+ * A `link` to a *deity* (`candidate.source === "deity"`, an NPC the DM says
+ * is one of their gods) adds no registry entry: beats, quest_refs and world
+ * links have no deity type. It still counts as linked, and a beat naming it
+ * is skipped silently (`deityNpcNames` in `resolveBeatCrossReferences`).
+ *
  * ── A library pick is a reference, never a copy ─────────────────────────
  *
  * Only `monsters` and `items` have a shared library (`match_import_entity_names`,
@@ -281,6 +286,9 @@ function buildKindRegistry<K extends ImportEntityKind>(
     if (norm === null) continue;
 
     if (decision.action === "link") {
+      // A deity link is "this is my deity, make no NPC": there is nothing to
+      // register, since beats, quest_refs and lookups have no deity type.
+      if (decision.candidate.source === "deity") continue;
       registry.set(norm, { id: decision.candidate.targetId, source: decision.candidate.source });
     } else {
       const id = insertedIds.get(entity.ref);
@@ -695,6 +703,20 @@ export async function runImportSweep(
   };
   await resolveLocationLoot(locationLootContexts, lookups.items ?? [], campaignId, deps, unresolvedLinks, addSweepRef, recordRoomLoot);
 
+  // Printed names of NPCs the DM said are one of their deities: a beat naming
+  // one has nowhere to attach it, and is not a failed link.
+  const deityNpcNames = new Set<string>();
+  {
+    const npcDecisions = decisions.get("npcs");
+    for (const entity of (entitiesByKind.npcs ?? []) as readonly { ref: string; data: unknown }[]) {
+      const decision = npcDecisions?.get(entity.ref);
+      if (decision?.action !== "link" || decision.candidate.source !== "deity") continue;
+      const rawName = (entity.data as Record<string, unknown>).name;
+      const norm = typeof rawName === "string" ? normalizeEntityName(rawName) : null;
+      if (norm !== null) deityNpcNames.add(norm);
+    }
+  }
+
   await resolveBeatCrossReferences(
     questContexts,
     lookups,
@@ -704,6 +726,7 @@ export async function runImportSweep(
     siteRoomIndex,
     roomLootByLocation,
     encounterLocationById,
+    deityNpcNames,
   );
 
   // Every entity this sweep created or linked (any kind but quests/spells —

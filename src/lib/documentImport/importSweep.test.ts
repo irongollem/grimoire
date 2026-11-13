@@ -357,6 +357,27 @@ describe("runImportSweep", () => {
       expect(report.unresolvedLinks).toEqual([]);
     });
 
+    it("a deity link writes no attachment, quest_ref or unresolved message for the beat that names it", async () => {
+      const deity: ImportDecision = {
+        action: "link",
+        candidate: { targetId: "deity-1", source: "deity", name: "Father Corvin", matchKind: "exact", detail: null, distance: null },
+      };
+      const base = questInput();
+      const deps = fakeDeps({ writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })) });
+      const report = await runImportSweep(
+        IMPORT_ROW,
+        { ...base, decisions: new Map([...base.decisions, ["npcs", new Map([["n1", deity]])]]) },
+        deps,
+      );
+      const attachments = rowsOf(deps.insertBeatAttachments);
+      expect(attachments.some((r) => r.attachment_type === "npc")).toBe(false);
+      expect(attachments.some((r) => r.ref_id === "deity-1")).toBe(false);
+      const refs = (deps.insertQuestRefs as ReturnType<typeof vi.fn>).mock.calls.flatMap((c) => c[0]);
+      expect(refs.some((r: { ref_id: string }) => r.ref_id === "deity-1")).toBe(false);
+      expect(report.unresolvedLinks).toEqual([]);
+      expect(report.perKind.npcs).toMatchObject({ linked: 1, planned: 0 });
+    });
+
     it("writes a quest_refs row for every entity the sweep created, for the created quest", async () => {
       const deps = fakeDeps({ writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })) });
       await runImportSweep(IMPORT_ROW, questInput(), deps);

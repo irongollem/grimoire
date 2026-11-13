@@ -21,6 +21,7 @@
         :show-create="showCreateOption"
         :show-generate="showGenerateOption"
         :generate-credits-label="generateCreditsLabel"
+        :search-kind="entry.kind"
       />
 
       <!-- The field editor, offered only while "Create new" is the chosen
