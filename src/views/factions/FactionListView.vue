@@ -25,9 +25,7 @@
         label="Select"
         @click="toggleSelecting"
       />
-      <ListActionButton
-        variant="primary"
-        :icon="IconAdd"
+      <ListCreateButton
         label="New Faction"
         mobile-label="Faction"
         @click="handleNew"
@@ -187,7 +185,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import { IconAdd, IconCheck, IconGenerate, IconNavFactions, IconPopulate, IconShield } from '@/lib/icons';
+import { IconCheck, IconGenerate, IconNavFactions, IconPopulate, IconShield } from '@/lib/icons';
 import { useAllFactions, usePopulateFactions, useUpdateFaction } from "@/composables/factions/useFactions";
 import { FACTION_TYPES } from "@/types/faction.types";
 import { useFactionsUiStore } from "@/stores/ui/factions";
@@ -196,6 +194,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";

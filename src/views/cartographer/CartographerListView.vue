@@ -17,9 +17,7 @@
         label="Tile Packs"
         @click="router.push('/cartographer/packs')"
       />
-      <ListActionButton
-        variant="primary"
-        :icon="IconAdd"
+      <ListCreateButton
         label="New Map"
         mobile-label="Map"
         @click="router.push('/cartographer/new')"
@@ -120,7 +118,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { IconAdd, IconNavCartographer } from "@/lib/icons";
+import { IconNavCartographer } from "@/lib/icons";
 
 import { useDungeonMaps } from "@/composables/cartographer/useDungeonMaps";
 import { useCartographerUiStore } from "@/stores/ui/cartographer";
@@ -128,6 +126,7 @@ import { paintedCellCount, type DungeonMap } from "@/types/dungeonMap.types";
 
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";

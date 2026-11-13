@@ -39,7 +39,7 @@ const ListPageLayout = defineComponent({
 });
 
 function mountView() {
-  return mount(CraftingView, { shallow: true, global: { stubs: { ListActionButton, ListPageLayout } } });
+  return mount(CraftingView, { shallow: true, global: { stubs: { ListActionButton, ListCreateButton: ListActionButton, ListPageLayout } } });
 }
 
 beforeEach(() => {

@@ -85,7 +85,7 @@
     v-if="isDm"
     v-model:open="moreOpen"
     :bar-routes="barRoutes"
-    :create="currentCreate"
+    :create="barCreateAction"
   />
 </template>
 
@@ -98,11 +98,10 @@ import {
 } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
-import { useSoundboardUiStore } from "@/stores/ui/soundboard";
-import { useDungeonFeaturesUiStore } from "@/stores/ui/dungeonFeatures";
 import { useGameSystem } from "@/composables/rules/useGameSystem";
 import { sessionTabs, type NavItem } from "@/lib/nav";
 import { useAbove } from "@/composables/useBreakpoint";
+import { barCreateAction, barNavMounted } from "@/composables/useBarCreate";
 import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
 import DiceRoller from "@/components/common/dice/DiceRoller.vue";
 import DmNavMoreSheet from "./DmNavMoreSheet.vue";
@@ -112,8 +111,6 @@ const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const appUi = useAppUiStore();
-const soundboardUi = useSoundboardUiStore();
-const dungeonFeaturesUi = useDungeonFeaturesUiStore();
 
 const { offers } = useGameSystem();
 
@@ -143,6 +140,14 @@ watchEffect(() => {
   barObserver.observe(node);
 });
 onBeforeUnmount(clearBarHeight);
+
+// Tells each page's "New …" button that this bar's "+" now runs it.
+watchEffect(() => {
+  barNavMounted.value = bar.value !== null;
+});
+onBeforeUnmount(() => {
+  barNavMounted.value = false;
+});
 
 // The pools live in the nav registry alongside the sidebar's own ordering, so
 // a label or icon cannot say one thing here and another there — see
@@ -206,67 +211,13 @@ function go(to: string) {
   if (!isActive(to)) router.push(to);
 }
 
-// Context-aware create: derive the create route + label from the current
-// section prefix. Drives the Prep "+" FAB AND the "New …" action in the More
-// sheet — the latter is how Play mode (whose center FAB is the dice roller, not
-// "+") still reaches create. Sections without a create route fall back to the
-// More grid.
-interface CreateAction {
-  /** Route to push — the common case. */
-  to?: string;
-  /** Or an action to run — for sections whose "create" is a dialog, not a page. */
-  act?: () => void;
-  label: string;
-}
-const CREATE_ACTIONS: Record<string, CreateAction> = {
-  "/npcs": { to: "/npcs/new", label: "New NPC" },
-  "/locations": { to: "/locations/new", label: "New Location" },
-  "/vault": { to: "/vault/new", label: "New Item" },
-  "/quests": { to: "/quests/new", label: "New Quest" },
-  "/factions": { to: "/factions/new", label: "New Faction" },
-  "/spells": { to: "/spells/new", label: "New Spell" },
-  "/monsters": { to: "/monsters/new", label: "New Monster" },
-  "/deities": { to: "/deities/new", label: "New Deity" },
-  // Adding a sound is a dialog, not a route, so the FAB signals the view.
-  "/soundboard": { act: () => { soundboardUi.soundboardCreateSignal++; }, label: "New Sound" },
-  // Placeholder: the tab in the query picks the real action below.
-  "/dungeon-craft": { to: "/dungeon-features/new", label: "New Feature" },
-};
-
-// Dungeon Craft holds seven lists behind `?tab=`; the "+" creates in the one showing.
-const DUNGEON_CRAFT_CREATE: Record<string, CreateAction> = {
-  features: { to: "/dungeon-features/new", label: "New Feature" },
-  traps: { to: "/traps/new", label: "New Trap" },
-  puzzles: { to: "/puzzles/new", label: "New Puzzle" },
-  "roll-tables": { act: () => { dungeonFeaturesUi.rollTableCreateSignal++; }, label: "New Roll Table" },
-  "loot-tables": { to: "/loot-tables/new", label: "New Loot Table" },
-  "notice-boards": { to: "/notice-boards/new", label: "New Notice Board" },
-  cartographer: { to: "/cartographer/new", label: "New Map" },
-};
-
-const currentCreate = computed<CreateAction | null>(() => {
-  const prefix = Object.keys(CREATE_ACTIONS).find(
-    (p) => route.path === p || route.path.startsWith(p + "/"),
-  );
-  if (!prefix) return null;
-  const action = CREATE_ACTIONS[prefix];
-  if (prefix === "/dungeon-craft") {
-    const tab = typeof route.query.tab === "string" ? route.query.tab : "features";
-    return DUNGEON_CRAFT_CREATE[tab] ?? action;
-  }
-  return action;
-});
-
+// The center "+" creates in the section on screen, through the page's own
+// handler (`useBarCreate`). A section with nothing to create opens the More
+// grid instead.
 function onCreate() {
-  const action = currentCreate.value;
-  if (action?.act) {
-    action.act();
-  } else if (action?.to) {
-    router.push(action.to);
-  } else {
-    // No create action for this section — surface the full grid instead.
-    moreOpen.value = true;
-  }
+  const action = barCreateAction.value;
+  if (action) action.run();
+  else moreOpen.value = true;
 }
 </script>
 

@@ -1,7 +1,7 @@
 <template>
   <PageHeader title="Book Nook" description="Pictures that breathe, for the locations in your Atlas.">
     <template #actions>
-      <ListActionButton variant="primary" :icon="IconAdd" label="New nook" mobile-label="Nook" @click="creating = true" />
+      <ListCreateButton   label="New nook" mobile-label="Nook" @click="creating = true" />
     </template>
 
     <ListSkeleton v-if="isLoading" variant="text" :columns="4" :count="8" />
@@ -44,12 +44,12 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
-import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import { useBookNooks } from "@/composables/bookNook/useBookNooks";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import { IconAdd, IconNavBookNook } from "@/lib/icons";
+import { IconNavBookNook } from "@/lib/icons";
 import type { BookNook } from "@/types/bookNook.types";
 
 const { data: nooks, isLoading } = useBookNooks();

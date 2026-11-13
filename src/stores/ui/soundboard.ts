@@ -37,11 +37,6 @@ export const useSoundboardUiStore = defineStore("ui:soundboard", () => {
   // a muted line its own comment called "a read-only echo, not a control".
   const soundboardSettingsOpen = ref(false);
 
-  // Bumped by the mobile bottom-nav FAB. The soundboard view watches it and
-  // opens whichever create fits the tab that is showing — adding a sound is a
-  // dialog, not a route, so the FAB cannot simply navigate.
-  const soundboardCreateSignal = ref(0);
-
   // ── The deck (#1136) ──────────────────────────────────────────────────────
   // How much of the screen the docked deck takes. Per device on purpose: the
   // laptop can keep the deck open while the phone keeps it tucked.
@@ -108,7 +103,6 @@ export const useSoundboardUiStore = defineStore("ui:soundboard", () => {
     soundboardMixerOpen,
     addSoundDialogOpen,
     soundboardSettingsOpen,
-    soundboardCreateSignal,
     deckSize,
     deckControls,
     settleDeckControls,

@@ -77,14 +77,7 @@
       />
 
       <!-- Add event -->
-      <AppButton
-        variant="primary"
-        size="sm"
-        :icon="IconAdd"
-        label="Event"
-        class="shrink-0"
-        @click="openCreateModal"
-      />
+      <ListCreateButton label="New Event" mobile-label="Event" @click="openCreateModal" />
     </template>
 
     <CalendarSkyLine
@@ -112,8 +105,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconAdd, IconCalendarDays, IconPopulate } from '@/lib/icons';
+import { IconCalendarDays, IconPopulate } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useSetCampaignToday } from "@/composables/campaign/useCampaigns";
 import { SETTING_BUNDLES } from "@/data/bundles/index";

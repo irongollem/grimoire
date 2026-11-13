@@ -80,10 +80,8 @@
           label="Generate"
           @click="generatorsUi.speciesGeneratorOpen = true"
         />
-        <ListActionButton
+        <ListCreateButton
           v-if="activeTab === 'species'"
-          variant="primary"
-          :icon="IconAdd"
           label="New Species"
           mobile-label="Species"
           to="/species/new"
@@ -97,9 +95,7 @@
             label="Generate"
             @click="generatorsUi.backgroundGeneratorOpen = true"
           />
-          <ListActionButton
-            variant="primary"
-            :icon="IconAdd"
+          <ListCreateButton
             label="New Background"
             mobile-label="Background"
             to="/backgrounds/new"
@@ -114,9 +110,7 @@
             label="Generate"
             @click="generatorsUi.customClassGeneratorOpen = true"
           />
-          <ListActionButton
-            variant="primary"
-            :icon="IconAdd"
+          <ListCreateButton
             label="New Class"
             mobile-label="Class"
             to="/levelup/classes/new"
@@ -131,9 +125,7 @@
             label="Generate"
             @click="generatorsUi.customSubclassGeneratorOpen = true"
           />
-          <ListActionButton
-            variant="primary"
-            :icon="IconAdd"
+          <ListCreateButton
             label="New Archetype"
             mobile-label="Archetype"
             to="/levelup/custom/new"
@@ -148,9 +140,7 @@
             label="Generate"
             @click="generatorsUi.classFeatureGeneratorOpen = true"
           />
-          <ListActionButton
-            variant="primary"
-            :icon="IconAdd"
+          <ListCreateButton
             label="New Ability"
             mobile-label="Ability"
             to="/features/new"
@@ -159,9 +149,7 @@
 
         <!-- Feats tab -->
         <template v-if="activeTab === 'feats'">
-          <ListActionButton
-            variant="primary"
-            :icon="IconAdd"
+          <ListCreateButton
             label="New Feat"
             mobile-label="Feat"
             to="/feats/new"
@@ -265,10 +253,11 @@
 import { computed, ref, watch, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { IconAdd, IconBookUser, IconGenerate, IconAward, IconCheck, IconDownload, IconLevel, IconLibrary, IconLightning, IconPopulate, IconSpecies } from '@/lib/icons';
+import { IconBookUser, IconGenerate, IconAward, IconCheck, IconDownload, IconLevel, IconLibrary, IconLightning, IconPopulate, IconSpecies } from '@/lib/icons';
 import TabBar from "@/components/common/controls/TabBar.vue";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/list/ListFilterGroup.vue";

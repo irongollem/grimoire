@@ -28,9 +28,7 @@
         label="Generate"
         @click="generatorsUi.deityGeneratorOpen = true"
       />
-      <ListActionButton
-        variant="primary"
-        :icon="IconAdd"
+      <ListCreateButton
         label="New Deity"
         mobile-label="Deity"
         @click="handleNew"
@@ -184,7 +182,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { IconAdd, IconFire, IconGenerate, IconNavPantheon, IconPopulate, IconReveal } from '@/lib/icons';
+import { IconFire, IconGenerate, IconNavPantheon, IconPopulate, IconReveal } from '@/lib/icons';
 import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities, useUpdateDeity } from "@/composables/deities/useDeities";
 import { CLERIC_DOMAINS } from "@/types/deity.types";
 import { useDeitiesUiStore } from "@/stores/ui/deities";
@@ -195,6 +193,7 @@ import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
 import { useListLayout } from "@/composables/useListLayout";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/list/ListSearchInput.vue";

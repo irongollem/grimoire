@@ -32,7 +32,7 @@ const PageHeader = defineComponent({
 
 function mountView(tab: string) {
   mocks.tab = tab;
-  return mount(DungeonCraftView, { shallow: true, global: { stubs: { ListActionButton, PageHeader } } });
+  return mount(DungeonCraftView, { shallow: true, global: { stubs: { ListActionButton, ListCreateButton: ListActionButton, PageHeader } } });
 }
 
 beforeEach(() => {

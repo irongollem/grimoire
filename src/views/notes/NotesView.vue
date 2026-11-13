@@ -5,9 +5,7 @@
     </template>
 
     <template #actions>
-      <ListActionButton
-        variant="primary"
-        :icon="IconAdd"
+      <ListCreateButton
         label="New Note"
         @click="handleNew"
       />
@@ -23,9 +21,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { IconAdd } from '@/lib/icons';
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
-import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
 import { useListLayout } from "@/composables/useListLayout";

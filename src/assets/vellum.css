@@ -274,14 +274,14 @@
 @supports (font: -apple-system-body) {
   :root[data-theme^="vellum"] { --vl-torn-layer: translateZ(0); }
 }
-:root[data-theme^="vellum"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky)):not([data-slip]) {
+:root[data-theme^="vellum"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky)):not([data-slip], [data-unbounded]) {
   position: relative;
   isolation: isolate;
   background-color: transparent;
   border-color: transparent;
   box-shadow: none;
 }
-:root[data-theme^="vellum"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky)):not([data-slip])::before {
+:root[data-theme^="vellum"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky)):not([data-slip], [data-unbounded])::before {
   content: "";
   position: absolute;
   /* #vl-rough displaces up to 3px; insetting by that keeps the whole torn
@@ -294,8 +294,18 @@
   transform: var(--vl-torn-layer);
   pointer-events: none;
 }
-:root[data-theme="vellum-dark"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky)):not([data-slip])::before {
+:root[data-theme="vellum-dark"] :is([data-modal-panel], .torn, .bg-card.border:is(.rounded-lg, .rounded-xl):not(.absolute, .fixed, .sticky)):not([data-slip], [data-unbounded])::before {
   filter: url(#vl-rough) drop-shadow(0 1px 2px rgb(0 0 0 / 0.45));
+}
+/* A surface whose height follows its content without limit (the rich-text
+   editor holding a whole session log) carries `data-unbounded` and keeps a
+   plain card fill. WebKit refuses to apply an SVG filter to a box taller or
+   wider than about 5000px and then paints nothing at all, so a long note's
+   torn ::before left the editor with no paper and no edge on iPhone and iPad,
+   while every short card around it tore as it should. */
+:root[data-theme^="vellum"] [data-unbounded].bg-card.border {
+  border-color: var(--torn-edge, var(--border));
+  box-shadow: 0 1px 1.5px rgb(43 32 25 / 0.16);
 }
 :root[data-theme^="vellum"] .bg-card.border[class*="hover:border-"]:hover::before { border-color: var(--primary-edge); }
 /* Scrolling bodies inside a torn card (dashboard widgets) stop above the
@@ -306,8 +316,8 @@
 }
 /* Row dividers and header rules run edge to edge; inside a torn card they
    would poke out past the rough edge, so they stop 6px short of it. */
-:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) :is(.divide-y, [class*="divide-y-"]),
-:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl) > :is(.border-b, .border-t):not(.absolute) {
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):not([data-unbounded]) :is(.divide-y, [class*="divide-y-"]),
+:root[data-theme^="vellum"] .bg-card.border:is(.rounded-lg, .rounded-xl):not([data-unbounded]) > :is(.border-b, .border-t):not(.absolute) {
   margin-inline: 6px;
 }
 /* Card artwork (NPC portraits and other entity cards) is a plate printed

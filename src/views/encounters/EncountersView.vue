@@ -11,9 +11,7 @@
         label="Generate"
         @click="generatorsUi.encounterGeneratorOpen = true"
       />
-      <ListActionButton
-        variant="primary"
-        :icon="IconAdd"
+      <ListCreateButton
         label="New Encounter"
         mobile-label="Encounter"
         @click="handleNew"
@@ -61,9 +59,10 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { IconAdd, IconCheckDouble, IconGenerate } from '@/lib/icons';
+import { IconCheckDouble, IconGenerate } from '@/lib/icons';
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";

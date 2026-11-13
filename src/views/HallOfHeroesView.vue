@@ -12,10 +12,8 @@
         :disabled="populateMutation.isPending.value"
         @click="handlePopulate"
       />
-      <ListActionButton
+      <ListCreateButton
         v-if="isAppAdmin"
-        variant="primary"
-        :icon="IconAdd"
         label="New Hero"
         mobile-label="Hero"
         to="/hall-of-heroes/new"
@@ -196,6 +194,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useHallUiStore } from "@/stores/ui/hall";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";

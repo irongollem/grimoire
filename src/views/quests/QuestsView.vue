@@ -14,9 +14,7 @@
         label="Generate"
         @click="questsUi.questGeneratorOpen = true"
       />
-      <ListActionButton
-        variant="primary"
-        :icon="IconAdd"
+      <ListCreateButton
         label="New Quest"
         mobile-label="Quest"
         @click="handleNew"
@@ -97,9 +95,10 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconAdd, IconColumns, IconGenerate, IconListView, IconLoot, IconParty, IconWarning } from '@/lib/icons';
+import { IconColumns, IconGenerate, IconListView, IconLoot, IconParty, IconWarning } from '@/lib/icons';
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";

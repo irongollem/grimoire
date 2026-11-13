@@ -9,9 +9,7 @@
 
     <template #actions>
       <ListActionButton :icon="IconChevronLeft" label="NPCs" to="/npcs" />
-      <ListActionButton
-        variant="primary"
-        :icon="IconAdd"
+      <ListCreateButton
         label="New Set"
         mobile-label="Set"
         @click="openCreate"
@@ -93,9 +91,10 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
-import { IconAdd, IconChevronLeft, IconLayers } from "@/lib/icons";
+import { IconChevronLeft, IconLayers } from "@/lib/icons";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SkeletonBlock from "@/components/common/feedback/SkeletonBlock.vue";

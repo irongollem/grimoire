@@ -1,5 +1,8 @@
 <template>
+  <!-- data-unbounded: a long document outgrows what WebKit will run an SVG
+       filter over, so Vellum keeps this a plain card (see vellum.css). -->
   <div
+    data-unbounded
     class="rich-editor relative isolate flex flex-col rounded-lg border border-border bg-card overflow-clip"
     :style="{ minHeight: EDITOR_MIN_HEIGHTS[size] }"
   >

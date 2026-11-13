@@ -6,8 +6,8 @@
     <CampaignSwitcher class="-mx-4 mb-4" />
 
     <!-- Context-aware create — the create path in Play mode (whose center FAB
-         is the dice roller, not "+"). Shown whenever the current section has a
-         create route. -->
+         is the dice roller, not "+"). Shown whenever the page on screen offers
+         one (useBarCreate). -->
     <AppButton
       v-if="create"
       variant="primary"
@@ -208,13 +208,14 @@ import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/
 import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
 import { useAbove } from "@/composables/useBreakpoint";
 import { usePrefetchOnIntent } from "@/composables/usePrefetchOnIntent";
+import type { BarCreateAction } from "@/composables/useBarCreate";
 
 const { open = false, barRoutes = [], create = null } = defineProps<{
   open?: boolean;
   /** Routes pinned to the bottom bar for the current mode (gets a gold dot). */
   barRoutes?: string[];
   /** Context-aware create action for the current section, or null if none. */
-  create?: { to?: string; act?: () => void; label: string } | null;
+  create?: BarCreateAction | null;
 }>();
 
 const emit = defineEmits<{ "update:open": [boolean] }>();
@@ -294,7 +295,6 @@ async function signOut() {
 function onCreate() {
   if (!create) return;
   emit("update:open", false);
-  if (create.act) create.act();
-  else if (create.to) router.push(create.to);
+  create.run();
 }
 </script>

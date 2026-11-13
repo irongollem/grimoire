@@ -25,9 +25,7 @@
               label="Generate"
               @click="generatorsUi.customRuleGeneratorOpen = true"
             />
-            <ListActionButton
-              variant="primary"
-              :icon="IconAdd"
+            <ListCreateButton
               label="New Rule"
               to="/rules/new"
             />
@@ -60,10 +58,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd, IconGenerate, IconBookMarked, IconLandmark, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';
+import { IconGenerate, IconBookMarked, IconLandmark, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';
 import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
 import { useListLayout } from "@/composables/useListLayout";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
 import TabBar from "@/components/common/controls/TabBar.vue";

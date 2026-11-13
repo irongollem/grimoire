@@ -40,9 +40,7 @@
         label="Select"
         @click="monsterListRef?.toggleSelectMode()"
       />
-      <ListActionButton
-        variant="primary"
-        :icon="IconAdd"
+      <ListCreateButton
         label="New Monster"
         mobile-label="Monster"
         @click="handleNew"
@@ -287,13 +285,18 @@ import { ref, computed } from "vue";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { useDetailModal } from "@/composables/useDetailModal";
 import {
-  IconAdd, IconCheck, IconClose, IconGenerate, IconLibrary,
-  IconSearch, IconSettings,
+  IconCheck,
+  IconClose,
+  IconGenerate,
+  IconLibrary,
+  IconSearch,
+  IconSettings,
 } from '@/lib/icons';
 import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
 import { useListLayout } from "@/composables/useListLayout";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";

@@ -41,10 +41,7 @@
           label="Generate"
           @click="generatorsUi.dungeonFeatureGeneratorOpen = true"
         />
-        <ListActionButton
-          variant="primary"
-          class="barnav:hidden"
-          :icon="IconAdd"
+        <ListCreateButton
           label="New Feature"
           mobile-label="Feature"
           @click="router.push('/dungeon-features/new')"
@@ -59,10 +56,7 @@
           label="Generate"
           @click="generatorsUi.trapGeneratorOpen = true"
         />
-        <ListActionButton
-          variant="primary"
-          class="barnav:hidden"
-          :icon="IconAdd"
+        <ListCreateButton
           label="New Trap"
           mobile-label="Trap"
           @click="router.push('/traps/new')"
@@ -78,10 +72,7 @@
             label="Generate"
             @click="generatorsUi.rollTableGeneratorOpen = true"
           />
-          <ListActionButton
-            variant="primary"
-            class="barnav:hidden"
-            :icon="IconAdd"
+          <ListCreateButton
             label="New Roll Table"
             mobile-label="Roll Table"
             @click="newRollTable"
@@ -104,10 +95,7 @@
           label="Generate"
           @click="generatorsUi.lootTableGeneratorOpen = true"
         />
-        <ListActionButton
-          variant="primary"
-          class="barnav:hidden"
-          :icon="IconAdd"
+        <ListCreateButton
           label="New Loot Table"
           mobile-label="Loot Table"
           @click="router.push('/loot-tables/new')"
@@ -116,10 +104,7 @@
 
       <!-- Notice Boards tab actions -->
       <template v-else-if="activeTab === 'notice-boards'">
-        <ListActionButton
-          variant="primary"
-          class="barnav:hidden"
-          :icon="IconAdd"
+        <ListCreateButton
           label="New Notice Board"
           mobile-label="Board"
           @click="router.push('/notice-boards/new')"
@@ -128,10 +113,7 @@
 
       <!-- Cartographer tab actions -->
       <template v-else-if="activeTab === 'cartographer'">
-        <ListActionButton
-          variant="primary"
-          class="barnav:hidden"
-          :icon="IconAdd"
+        <ListCreateButton
           label="New Map"
           mobile-label="Map"
           @click="router.push('/cartographer/new')"
@@ -146,10 +128,7 @@
           label="Generate"
           @click="puzzlesUi.puzzleGeneratorOpen = true"
         />
-        <ListActionButton
-          variant="primary"
-          class="barnav:hidden"
-          :icon="IconAdd"
+        <ListCreateButton
           label="New Puzzle"
           mobile-label="Puzzle"
           @click="router.push('/puzzles/new')"
@@ -175,20 +154,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd, IconGenerate, IconLibrary } from '@/lib/icons';
+import { IconGenerate, IconLibrary } from '@/lib/icons';
 
 
 import { useGameSystem } from "@/composables/rules/useGameSystem";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
-import { useDungeonFeaturesUiStore } from "@/stores/ui/dungeonFeatures";
 import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
 import { useListLayout, type ListLayout } from "@/composables/useListLayout";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SourcesPickerPanel from "@/components/common/settings/SourcesPickerPanel.vue";
@@ -207,7 +186,6 @@ const route  = useRoute();
 const router = useRouter();
 const generatorsUi = useGeneratorUiStore();
 const puzzlesUi = usePuzzlesUiStore();
-const dungeonFeaturesUi = useDungeonFeaturesUiStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 // Dungeon features, traps and loot tables are written by generators that put out a
@@ -281,7 +259,6 @@ function newRollTable() {
 }
 
 // The phone bottom-nav "+" on the Roll Tables tab.
-watch(() => dungeonFeaturesUi.rollTableCreateSignal, newRollTable);
 
 function setActiveTab(tab: Tab) {
   activeTab.value = tab;

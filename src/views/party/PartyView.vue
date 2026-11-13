@@ -21,13 +21,7 @@
         label="Add Companion"
         @click="tracker?.openCompanionForm(null)"
       />
-      <AppButton
-        to="/party/new"
-        variant="primary"
-        size="md"
-        :icon="IconAdd"
-        label="Add Hero"
-      />
+      <ListCreateButton to="/party/new" label="Add Hero" mobile-label="Hero" />
     </template>
 
     <!-- What is waiting on the DM before a character can play (#943). Renders nothing when empty. -->
@@ -105,9 +99,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconAdd, IconBeast, IconGenerate, IconNavFallen, IconUpload } from '@/lib/icons';
+import { IconBeast, IconGenerate, IconNavFallen, IconUpload } from '@/lib/icons';
 import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
 import PageHeader from "@/components/common/list/PageHeader.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import CharacterApprovalQueue from "@/components/campaign/CharacterApprovalQueue.vue";

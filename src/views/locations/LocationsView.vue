@@ -30,9 +30,7 @@
         label="Generate"
         @click="generatorsUi.locationGeneratorOpen = true"
       />
-      <ListActionButton
-        variant="primary"
-        :icon="IconAdd"
+      <ListCreateButton
         label="New Location"
         mobile-label="Location"
         @click="handleNew"
@@ -61,9 +59,10 @@
 import { computed } from "vue";
 import { useToast } from "@/composables/useToast";
 import { pluralizeCount } from "@/lib/utils";
-import { IconAdd, IconFaction, IconGenerate, IconPopulate } from '@/lib/icons';
+import { IconFaction, IconGenerate, IconPopulate } from '@/lib/icons';
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";

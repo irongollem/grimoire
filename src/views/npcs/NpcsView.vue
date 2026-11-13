@@ -32,9 +32,7 @@
         label="Select"
         @click="npcListRef?.toggleSelectMode()"
       />
-      <ListActionButton
-        variant="primary"
-        :icon="IconAdd"
+      <ListCreateButton
         label="New NPC"
         mobile-label="NPC"
         @click="handleNew"
@@ -342,15 +340,23 @@ import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { ref, computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
+import { useBarCreate } from "@/composables/useBarCreate";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import {
-  IconAdd, IconCheck, IconClose, IconGenerate, IconLayers,
-  IconNetwork, IconPopulate, IconSearch, IconSettings,
+  IconCheck,
+  IconClose,
+  IconGenerate,
+  IconLayers,
+  IconNetwork,
+  IconPopulate,
+  IconSearch,
+  IconSettings,
 } from '@/lib/icons';
 import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
 import { useListLayout } from "@/composables/useListLayout";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
@@ -400,6 +406,8 @@ const layout = useListLayout("npcs", "grid");
 // modal keeps this true, which is what leaves the grid — and its scroll position
 // and revealed page — untouched underneath.
 const { showList } = useDetailModal("/npcs");
+// The phone layout has no header "New NPC"; the bottom bar's "+" is its create.
+useBarCreate(() => (isMobile.value && showList.value ? { label: "New NPC", run: handleNew } : null));
 
 const filtersOpen = ref(false);
 const overflowOpen = ref(false);

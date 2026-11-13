@@ -343,6 +343,7 @@ import DeckNowChips from "@/components/soundboard/deck/DeckNowChips.vue";
 import DeckLibraryPanel from "@/components/soundboard/builder/DeckLibraryPanel.vue";
 import PadSettingsPanel from "@/components/soundboard/builder/PadSettingsPanel.vue";
 import LaneEditor from "@/components/soundboard/builder/LaneEditor.vue";
+import { useBarCreate } from "@/composables/useBarCreate";
 
 // Shown on demand, so neither rides in the page's chunk. The dialogs mount
 // through a latch so they keep their state once closed.
@@ -707,9 +708,6 @@ function openAddSound() {
   soundboardUi.addSoundDialogOpen = true;
 }
 
-// The mobile FAB's create lands here.
-watch(
-  () => soundboardUi.soundboardCreateSignal,
-  () => openAddSound(),
-);
+// The page has no header "New" button; the bottom bar's "+" adds a sound.
+useBarCreate({ label: "New Sound", run: openAddSound });
 </script>

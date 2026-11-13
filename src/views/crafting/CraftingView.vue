@@ -30,9 +30,7 @@
         label="Generate"
         @click="generatorsUi.recipeGeneratorOpen = true"
       />
-      <ListActionButton
-        variant="primary"
-        :icon="IconAdd"
+      <ListCreateButton
         label="New Recipe"
         to="/crafting/new"
       />
@@ -176,9 +174,10 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
-import { IconAdd, IconDelete, IconDownload, IconGenerate, IconListView, IconNavWorkshop, IconReveal } from '@/lib/icons';
+import { IconDelete, IconDownload, IconGenerate, IconListView, IconNavWorkshop, IconReveal } from '@/lib/icons';
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import InventionApprovalQueue from "@/components/crafting/invention/InventionApprovalQueue.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";

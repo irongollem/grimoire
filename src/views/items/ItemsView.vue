@@ -40,9 +40,7 @@
         label="Generate"
         @click="itemsUi.itemGeneratorOpen = true"
       />
-      <ListActionButton
-        variant="primary"
-        :icon="IconAdd"
+      <ListCreateButton
         label="New Item"
         mobile-label="Item"
         to="/vault/new"
@@ -114,11 +112,12 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { IconAdd, IconGenerate, IconLibrary, IconListTodo } from '@/lib/icons';
+import { IconGenerate, IconLibrary, IconListTodo } from '@/lib/icons';
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/list/ListFilterSelect.vue";

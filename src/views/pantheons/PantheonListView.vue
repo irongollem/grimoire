@@ -7,9 +7,7 @@
         mobile-label="Deities"
         to="/deities"
       />
-      <ListActionButton
-        variant="primary"
-        :icon="IconAdd"
+      <ListCreateButton
         label="New Pantheon"
         mobile-label="Pantheon"
         @click="handleNew"
@@ -116,10 +114,11 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconAdd, IconFire, IconNavPantheon, IconSun } from '@/lib/icons';
+import { IconFire, IconNavPantheon, IconSun } from '@/lib/icons';
 import { useAllPantheons, useAllDeities, useUpdatePantheon } from "@/composables/deities/useDeities";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";

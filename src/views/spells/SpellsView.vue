@@ -40,9 +40,7 @@
         label="Generate"
         @click="spellsUi.spellGeneratorOpen = true"
       />
-      <ListActionButton
-        variant="primary"
-        :icon="IconAdd"
+      <ListCreateButton
         label="New Spell"
         mobile-label="Spell"
         to="/spells/new"
@@ -128,13 +126,14 @@
 import { ref, watch, computed } from "vue";
 import { RouterView } from "vue-router";
 import { useDetailModal } from "@/composables/useDetailModal";
-import { IconAdd, IconGenerate, IconLibrary, IconListTodo } from '@/lib/icons';
+import { IconGenerate, IconLibrary, IconListTodo } from '@/lib/icons';
 import { useSpellsUiStore } from "@/stores/ui/spells";
 import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
 import { useListLayout } from "@/composables/useListLayout";
 import ListPageLayout from "@/components/common/list/ListPageLayout.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import ListActionButton from "@/components/common/list/ListActionButton.vue";
+import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/list/ListFilterGroup.vue";
