@@ -16,7 +16,7 @@ import {
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
-import { buildEntityImagePrompt, buildImagePromptAuthorSystem, isPortraitKind } from "../_shared/image-prompt.ts";
+import { buildEntityImagePrompt, buildImagePromptAuthorSystem, imageBoostFor } from "../_shared/image-prompt.ts";
 import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
@@ -206,7 +206,7 @@ serve(withCors(async (req: Request) => {
       provider: img.provider, model: img.model, apiKey: img.apiKey,
       screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "entity_image" },
       prompt: imagePrompt, size: ENTITY_IMAGE_SIZE, quality,
-      boostStyle: isPortraitKind(kind) ? "portrait" : true,
+      boostStyle: imageBoostFor(kind),
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);

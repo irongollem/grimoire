@@ -50,3 +50,15 @@ describe("client and edge image-prompt copies", () => {
     expect(client.buildImagePromptAuthorSystem(kind)).toBe(edge.buildImagePromptAuthorSystem(kind));
   });
 });
+
+describe("edge imageBoostFor", () => {
+  // A portrait given the scene booster is pushed back toward a deep-background
+  // hero shot; a scene given the portrait booster loses its atmospheric depth.
+  it.each(["npc_portrait", "party_member", "npc_disguise"])("gives a %s the portrait booster", (kind) => {
+    expect(edge.imageBoostFor(kind)).toBe("portrait");
+  });
+
+  it.each(["monster", "location", "chronicler"])("gives a %s the scene booster", (kind) => {
+    expect(edge.imageBoostFor(kind)).toBe(true);
+  });
+});
