@@ -13,13 +13,14 @@
         :to="`/monsters/${row.id}`"
         class="flex flex-col items-center gap-1.5 shrink-0 w-14 group"
       >
-        <div class="h-12 w-12 rounded-full overflow-hidden bg-secondary ring-2 ring-transparent group-hover:ring-primary/40 transition-all">
+        <div v-if="!lowArt" class="h-12 w-12 rounded-full overflow-hidden bg-secondary ring-2 ring-transparent group-hover:ring-primary/40 transition-all">
           <FocalImage
             :src="row.imageUrl"
             :focal-point="row.portraitFocalPoint"
             format="token"
             :alt="row.name"
             :placeholder="placeholderUrl('monster')"
+            record
           />
         </div>
         <p class="text-caption text-center text-muted-foreground group-hover:text-foreground transition-colors line-clamp-2 leading-tight w-full">
@@ -41,6 +42,7 @@ import { useCampaignDiscoveries } from "@/composables/encounters/useDiscoveredMo
 import { deriveRecentMonsters, RECENT_MONSTERS_LIMIT } from "@/lib/dashboard/recentMonsters";
 import { timeAgo } from "@/lib/utils";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import DashboardWidget from "../DashboardWidget.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
@@ -64,6 +66,7 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
  * No props: like every other list widget on the dashboard, it reads the
  * active campaign off the store through its own composables.
  */
+const { lowArt } = useLowArt();
 const { data: discoveries } = useCampaignDiscoveries();
 
 // The widget shows the newest few, so only those references are read (as rows,

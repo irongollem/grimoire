@@ -16,7 +16,7 @@
     <div class="px-3 py-2.5">
       <!-- Optional art object image -->
       <img
-        v-if="meta.image_url"
+        v-if="meta.image_url && !lowArt"
         :src="meta.image_url"
         alt=""
         class="w-full rounded mb-2 object-cover max-h-40"
@@ -193,6 +193,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useLowArt } from '@/composables/useLowArt';
 import { IconChevronDown, IconLoot } from '@/lib/icons';
 import ChatItemDropDetails from '@/components/chat/ChatItemDropDetails.vue';
 import ChatLootRollPanel from '@/components/chat/ChatLootRollPanel.vue';
@@ -223,6 +224,8 @@ const {
   npcSelectValue?: string;
   timeLabel: string;
 }>();
+
+const { lowArt } = useLowArt();
 
 /** The catalogue entry behind the drop: a vault uuid or a shared library id. */
 const itemRef = computed(() => inventoryItemRef({ item_id: meta.item_id, library_item_id: meta.library_item_id ?? null }));

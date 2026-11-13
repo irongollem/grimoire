@@ -9,13 +9,14 @@
       :row-estimate="ROW_PX"
     >
       <template #card="{ item: feat }">
-        <EntityTextCard
-          :to="`/features/${feat.id}`"
-          :title="feat.name"
-          :subtitle="feat.prerequisite"
-          :fallback-icon="fallbackIcon"
-          :tags="tagsFor(feat)"
-        />
+        <EntityGridCard :to="`/features/${feat.id}`" :title="feat.name" :plate="false">
+          <template #body>
+            <p v-if="feat.prerequisite" class="truncate text-caption text-muted-foreground italic">{{ feat.prerequisite }}</p>
+          </template>
+          <template #foot>
+            <span class="text-caption text-muted-foreground italic">{{ cardTags(feat) }}</span>
+          </template>
+        </EntityGridCard>
       </template>
       <template #row="{ item: feat }">
         <EntityListRow
@@ -35,7 +36,7 @@
 import type { Component } from "vue";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
-import EntityTextCard from "@/components/common/entity/EntityTextCard.vue";
+import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { useListLayout } from "@/composables/useListLayout";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
@@ -65,9 +66,14 @@ function tagsFor(feat: ClassFeature): string[] {
   return [...(book ? [book] : []), ...badgesFor(feat), ...feat.tags];
 }
 
+const MAX_CARD_TAGS = 4;
+function cardTags(feat: ClassFeature): string {
+  return tagsFor(feat).slice(0, MAX_CARD_TAGS).join(" · ");
+}
+
 // Row heights before measuring (px). Row: p-4 (32) + border (2) + title 20,
-// prerequisite 18, tags 26 = 98. Card: p-4 (32) + border (2) + header 40 +
-// gap 8 + tags 26 (pt-1 + 22) = 108.
+// prerequisite 18, tags 26 = 98. Art-free card: eyebrow row 24 + title 24 +
+// prerequisite 20 + foot 26 + paddings and gaps, about 130.
 const ROW_PX = 98;
-const GRID_ROW_PX = 108;
+const GRID_ROW_PX = 130;
 </script>

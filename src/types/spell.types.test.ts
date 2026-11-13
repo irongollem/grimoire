@@ -3,6 +3,7 @@ import {
   getDefaultSpellSlots,
   getMulticlassSpellSlots,
   multiclassCasterLevel,
+  spellLevelTab,
 } from "./spell.types";
 
 describe("edition-aware spell-slot progression", () => {
@@ -82,3 +83,11 @@ describe("multiclass caster level by the book", () => {
   });
 });
 
+
+describe("spell level bookmark tab", () => {
+  it("writes a cantrip as C, not 0, and every other level as its digit", () => {
+    expect(spellLevelTab(0)).toBe("C");
+    expect(spellLevelTab(1)).toBe("1");
+    expect(spellLevelTab(9)).toBe("9");
+  });
+});

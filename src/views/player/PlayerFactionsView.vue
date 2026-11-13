@@ -53,8 +53,8 @@
         >
           <div class="flex items-center gap-3 p-3">
             <!-- Emblem -->
-            <div class="h-12 w-12 shrink-0 rounded-md border border-border bg-muted overflow-hidden">
-              <FocalImage v-if="faction.emblem_url" :src="faction.emblem_url" format="square" :render-width="200" />
+            <div v-if="!lowArt" class="h-12 w-12 shrink-0 rounded-md border border-border bg-muted overflow-hidden">
+              <FocalImage v-if="faction.emblem_url" :src="faction.emblem_url" format="square" :render-width="200" record />
               <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
                 <IconShield class="h-6 w-6" />
               </div>
@@ -92,8 +92,8 @@
         >
           <!-- Header -->
           <div class="flex items-center gap-3 p-4 border-b border-border shrink-0">
-            <div class="h-14 w-14 shrink-0 rounded-md border border-border bg-muted overflow-hidden">
-              <FocalImage v-if="selected.emblem_url" :src="selected.emblem_url" format="square" :render-width="200" lightbox />
+            <div v-if="!lowArt" class="h-14 w-14 shrink-0 rounded-md border border-border bg-muted overflow-hidden">
+              <FocalImage v-if="selected.emblem_url" :src="selected.emblem_url" format="square" :render-width="200" lightbox record />
               <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground/30">
                 <IconShield class="h-7 w-7" />
               </div>
@@ -105,6 +105,10 @@
               </p>
               <p v-if="seatName" class="text-caption text-muted-foreground italic" data-testid="house-seat">seat: {{ seatName }}</p>
               <RelationshipMark v-if="selected.party_standing !== 'unknown'" :relationship="selected.party_standing" class="mt-1" />
+              <!-- Low art: the emblem tile is gone; the emblem waits behind a button (#1179). -->
+              <div v-if="lowArt && selected.emblem_url" class="mt-1.5">
+                <PortraitOnRequest :src="selected.emblem_url" :alt="selected.name" label="Emblem" />
+              </div>
             </div>
             <AppButton
               variant="ghost"
@@ -202,6 +206,8 @@ import { useAppUiStore } from "@/stores/ui/app";
 import { usePlayerUiStore } from "@/stores/ui/player";
 import type { Faction } from "@/types/faction.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
 import PlayerConnectionsList from "@/components/player/people/PlayerConnectionsList.vue";
@@ -216,6 +222,7 @@ import { useCampaignStore } from "@/stores/campaign";
 const auth = useAuthStore();
 const appUi = useAppUiStore();
 const playerUi = usePlayerUiStore();
+const { lowArt } = useLowArt();
 const { data: factions, isLoading } = usePlayerVisibleFactions();
 
 const selected = ref<Faction | null>(null);

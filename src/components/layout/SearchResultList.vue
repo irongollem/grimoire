@@ -25,7 +25,7 @@
             <!-- Only people and creatures have a face worth a thumbnail; the plate
                  stays when art is missing so every row's text lines up. -->
             <span
-              v-if="hasThumbnail(kindOf(item, group.type))"
+              v-if="!lowArt && hasThumbnail(kindOf(item, group.type))"
               class="flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-label-lg text-muted-foreground"
               :class="density === 'touch' ? 'size-10' : 'size-9'"
               aria-hidden="true"
@@ -95,6 +95,7 @@
  * empty search.
  */
 import { computed } from "vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { RouterLink } from "vue-router";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
@@ -132,6 +133,7 @@ const {
   exclude?: { kind: string; id: string } | null;
 }>();
 
+const { lowArt } = useLowArt();
 const emit = defineEmits<{
   navigate: [];
   dismissUpsell: [];

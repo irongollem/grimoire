@@ -1,7 +1,15 @@
 <template>
   <div class="flex flex-wrap items-center gap-1.5">
+    <!-- Low art (#1179): an initial in the tile, so no portrait is fetched. -->
+    <span
+      v-for="npc in lowArt ? previewMembers : []"
+      :key="npc.id"
+      class="flex size-9 items-center justify-center rounded-md border border-border bg-muted text-label-lg font-semibold text-muted-foreground"
+      :title="displayName(npc)"
+      data-testid="npc-initial"
+    >{{ displayName(npc).charAt(0) }}</span>
     <img
-      v-for="npc in previewMembers"
+      v-for="npc in lowArt ? [] : previewMembers"
       :key="npc.id"
       class="size-9 rounded-md border border-border bg-muted object-cover"
       :src="portrait(npc)"
@@ -23,6 +31,7 @@
  * first few NPCs in playlist order, then a "+N" chip.
  */
 import { computed } from "vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { NpcListRow } from "@/types/npc.types";
@@ -33,6 +42,7 @@ const { members, max = 6 } = defineProps<{
   max?: number;
 }>();
 
+const { lowArt } = useLowArt();
 const PLACEHOLDER = placeholderUrl("npc");
 
 const previewMembers = computed(() => members.slice(0, max));

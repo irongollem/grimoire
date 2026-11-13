@@ -1,7 +1,7 @@
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-[15rem_1fr] gap-5">
-    <!-- Left: portrait + meta -->
-    <div class="flex flex-col gap-4">
+  <div class="grid grid-cols-1 gap-5" :class="!lowArt && 'lg:grid-cols-[15rem_1fr]'">
+    <!-- Left: portrait + meta. Low art (#1179, frame 04): the column goes, its facts move to the fact line. -->
+    <div v-if="!lowArt" class="flex flex-col gap-4">
       <!-- Divine portrait -->
       <div
         class="relative aspect-3/4 rounded-lg border border-border overflow-hidden bg-muted max-w-150 mx-auto lg:max-w-none"
@@ -13,6 +13,7 @@
           format="portrait"
           :render-width="600"
           :lightbox="true"
+          record
           :placeholder="placeholderUrl('deity')"
           class="w-full h-full"
           ai-badge="right"
@@ -129,7 +130,12 @@
 
     <!-- Right: name + content -->
     <div class="flex flex-col gap-4">
-      <div>
+      <div class="relative" :class="alignmentTab && 'pr-10'">
+        <BookmarkTab
+          v-if="lowArt && alignmentTab"
+          :text="alignmentTab"
+          label="Alignment"
+        />
         <h1 class="text-title font-bold text-foreground leading-tight">
           {{ deity.name }}
         </h1>
@@ -140,6 +146,17 @@
           {{ deity.titles }}
         </p>
       </div>
+
+      <SheetFactLine v-if="lowArt" :portrait="deity.portrait_url" :portrait-alt="deity.name">
+        <RouterLink v-if="deity.pantheon_id && pantheonName" :to="`/pantheons/${deity.pantheon_id}`" class="text-primary hover:underline">{{ pantheonName }}</RouterLink>
+        <span v-else-if="pantheonName" class="text-foreground">{{ pantheonName }}</span>
+        <span v-if="deity.alignment && !alignmentTab" class="text-foreground">{{ deity.alignment }}</span>
+        <span v-if="deity.symbol" class="text-muted-foreground">Symbol: {{ deity.symbol }}</span>
+        <span v-if="deity.portfolio" class="text-muted-foreground">{{ deity.portfolio }}</span>
+        <span v-if="deity.domains?.length" class="text-primary">{{ deity.domains.join(" · ") }}</span>
+        <span v-if="deity.alternate_names?.length" class="text-muted-foreground">Also known as {{ deity.alternate_names.join(", ") }}</span>
+        <span v-if="deity.tags?.length" class="text-muted-foreground">{{ deity.tags.join(", ") }}</span>
+      </SheetFactLine>
 
       <div v-if="hasDescription">
         <RichTextViewer :content="deity.description" />
@@ -166,11 +183,17 @@ import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import BookmarkTab from "@/components/common/entity/BookmarkTab.vue";
+import SheetFactLine from "@/components/common/entity/SheetFactLine.vue";
+import { useLowArt } from "@/composables/useLowArt";
+import { alignmentAbbreviation } from "@/types/deity.types";
 
 const props = defineProps<{
   deity: Deity & { pantheon: Pick<Pantheon, "id" | "name"> | null };
 }>();
 
+const { lowArt } = useLowArt();
+const alignmentTab = computed(() => alignmentAbbreviation(props.deity.alignment));
 const pantheonName = computed(() => props.deity.pantheon?.name ?? null);
 
 function hasContent(d: string | null | undefined): boolean {

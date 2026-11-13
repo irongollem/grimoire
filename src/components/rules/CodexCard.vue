@@ -7,7 +7,7 @@
     <!-- aspect-3/4 matches the portrait focal-point format so the smart-crop
          centring math aligns with the actual display dimensions (previously h-44
          produced a ~1:1 container on mobile, mismatching the 2:3 crop target). -->
-    <div class="aspect-3/4 w-full shrink-0 overflow-hidden bg-muted">
+    <div v-if="!lowArt" class="aspect-3/4 w-full shrink-0 overflow-hidden bg-muted">
       <FocalImage
         v-if="imageUrl"
         :src="imageUrl"
@@ -39,6 +39,9 @@
 import type { Component } from "vue";
 import { IconBookMarked } from '@/lib/icons';
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
+
+const { lowArt } = useLowArt();
 
 const { imageUrl, focalPoint, fallbackIcon, title, subtitle, meta, badge, count } = defineProps<{
   imageUrl?: string | null;

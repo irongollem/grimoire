@@ -23,19 +23,7 @@
         <span class="text-label-lg font-semibold text-muted-foreground">Identity</span>
       </div>
       <div class="p-4 flex gap-4 items-start">
-        <div
-          v-if="sub.image_url"
-          class="card-plate relative shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted"
-        >
-          <FocalImage
-            :src="sub.image_url"
-            :alt="sub.subclass_name"
-            format="portrait"
-            :focal-point="sub.focal_point"
-            :lightbox="true"
-            class="w-full h-full"
-          />
-        </div>
+        <SheetThumb v-if="sub.image_url" plate :src="sub.image_url" :alt="sub.subclass_name" :focal-point="sub.focal_point" />
         <div class="flex flex-col gap-2 min-w-0 flex-1">
         <div class="flex flex-wrap gap-2 items-center">
           <span class="text-label bg-primary/10 text-primary rounded px-2 py-0.5">
@@ -45,6 +33,7 @@
           <span class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
             {{ sub.campaign_id ? 'Campaign-scoped' : 'All campaigns' }}
           </span>
+          <PortraitOnRequest v-if="lowArt" :src="sub.image_url" :alt="sub.subclass_name" />
         </div>
         <RichTextViewer v-if="sub.description" :content="sub.description" />
         </div>
@@ -129,6 +118,7 @@
 </template>
 
 <script setup lang="ts">
+import SheetThumb from "@/components/common/entity/SheetThumb.vue";
 import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { computed } from "vue";
@@ -139,13 +129,15 @@ import { canEditSubclass, useDeleteCustomSubclass } from "@/composables/rules/us
 import { useAuthStore } from "@/stores/auth";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { useSpellsByIds } from "@/composables/spells/useSpellsByIds";
-import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { SUBCLASS_ABILITY_OPTIONS, SUBCLASS_SLOT_COLUMNS } from "@/levelup/subclassSpellcasting";
 import type { CustomSubclass } from "@/levelup/customTypes";
 
 const props = defineProps<{ sub: CustomSubclass }>();
+const { lowArt } = useLowArt();
 
 const { labelFor } = useSourceTitles();
 const bookLabel = computed(() => labelFor(props.sub.source_document_key ?? props.sub.source));

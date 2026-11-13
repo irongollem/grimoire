@@ -22,7 +22,7 @@
     <!-- ── 1. App bar (glass, over hero) ──────────────────────────────────── -->
     <header
       class="fixed inset-x-0 top-0 z-30 flex items-center justify-between gap-2 px-3 pt-[calc(env(safe-area-inset-top)+0.5rem)] pb-2 transition-colors duration-200"
-      :class="scrolled ? 'border-b border-border bg-background/85 backdrop-blur-md' : ''"
+      :class="barSolid ? 'border-b border-border bg-background/85 backdrop-blur-md' : ''"
     >
       <AppButton
         variant="ghost"
@@ -49,10 +49,10 @@
         </template>
       </AppButton>
 
-      <!-- Name fades in once scrolled past the hero -->
+      <!-- Name fades in once scrolled past the hero; with no hero (low art) it is there from the start -->
       <h1
         class="min-w-0 flex-1 truncate text-center text-heading-sm font-bold text-foreground transition-opacity duration-200"
-        :class="scrolled ? 'opacity-100' : 'opacity-0'"
+        :class="scrolled || lowArt ? 'opacity-100' : 'opacity-0'"
       >
         {{ name }}
       </h1>
@@ -64,7 +64,7 @@
           needs the scrim to stay legible on the art, and once the bar solidifies
           into light glass that same scrim is a black pill on a pale bar.
         -->
-        <slot name="bar-actions" :scrolled="scrolled" />
+        <slot name="bar-actions" :scrolled="barSolid" />
         <AppButton
           v-if="$slots.menu"
           variant="ghost"
@@ -88,8 +88,9 @@
     </header>
 
     <!-- ── 2. Hero ────────────────────────────────────────────────────────── -->
-    <div class="relative h-80 w-full overflow-hidden bg-muted">
+    <div v-if="!lowArt" class="relative h-80 w-full overflow-hidden bg-muted">
       <FocalImage
+        record
         :src="image"
         :alt="name"
         format="portrait"
@@ -130,7 +131,17 @@
     </div>
 
     <!-- ── Body ───────────────────────────────────────────────────────────── -->
-    <div class="flex flex-col gap-4 bg-background px-4 pt-4 pb-32">
+    <div class="flex flex-col gap-4 bg-background px-4 pb-32" :class="lowArt ? 'pt-[calc(env(safe-area-inset-top)+4.75rem)]' : 'pt-4'">
+      <!-- Low art: the identity in ink under the bar, where the hero's overlay was -->
+      <div v-if="lowArt" class="flex flex-col gap-1.5">
+        <div v-if="$slots.pills" class="flex flex-wrap items-center gap-1.5">
+          <slot name="pills" />
+        </div>
+        <h2 class="text-display font-bold leading-tight text-foreground">{{ name }}</h2>
+        <p v-if="subtitle" class="text-body italic text-muted-foreground" :class="subtitleClass">{{ subtitle }}</p>
+        <slot name="identity" />
+      </div>
+
       <!-- 3. Quick-facts grid (2-col, hairline-separated) -->
       <div
         v-if="$slots.facts"
@@ -138,6 +149,9 @@
       >
         <slot name="facts" />
       </div>
+
+      <!-- The record's own picture, on request; none for a placeholder-only record. -->
+      <PortraitOnRequest v-if="lowArt" :src="image" :alt="name" class="self-start" />
 
       <slot name="after-facts" />
 
@@ -179,6 +193,8 @@ import { useRouter } from "vue-router";
 import { useScroll } from "@vueuse/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { ICON_TOUCH_TARGET } from "@/components/common/controls/appButtonVariants";
+import { useLowArt } from "@/composables/useLowArt";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 
@@ -197,15 +213,19 @@ const { backTo } = defineProps<{
 }>();
 
 const router = useRouter();
+const { lowArt } = useLowArt();
 
 // ── Scroll-driven app bar ──────────────────────────────────────────────────────
 const scrollRoot = ref<HTMLElement | null>(null);
 const { y: scrollY } = useScroll(scrollRoot);
 const scrolled = computed(() => scrollY.value > 150);
 
+// No hero in low art, so the bar sits over page ink from the start.
+const barSolid = computed(() => scrolled.value || lowArt.value);
+
 /** Over the hero: a scrimmed white glyph. On the solid bar: plain foreground. */
 const barButtonClass = computed(() =>
-  scrolled.value ? "text-foreground" : "bg-black/40 text-white hover:text-white active:bg-black/60",
+  barSolid.value ? "text-foreground" : "bg-black/40 text-white hover:text-white active:bg-black/60",
 );
 
 const showMenu = ref(false);

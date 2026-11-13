@@ -1,6 +1,7 @@
 import { computed, effectScope, type WritableComputedRef } from "vue";
 import { useStorage } from "@vueuse/core";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
+import { useLowArt } from "@/composables/useLowArt";
 
 /**
  * How a list shows its items: one per row, or as a grid of cards. Every catalogue
@@ -40,16 +41,21 @@ function store() {
  * ("npcs", "monsters"); `defaultLayout` is what a first visit gets, and what an
  * unrecognised stored value falls back to. Call it with the same key from the
  * page header (for `<ListLayoutToggle v-model>`) and from the list body.
+ *
+ * With low art on, a list nobody has chosen for opens on rows: a list with no
+ * pictures reads best down a column. A stored choice always wins.
  */
 export function useListLayout(
   listKey: string,
   defaultLayout: ListLayout,
 ): WritableComputedRef<ListLayout> {
   const all = store();
+  const { lowArt } = useLowArt();
   return computed({
     get: () => {
       const stored: unknown = all.value[listKey];
-      return isListLayout(stored) ? stored : defaultLayout;
+      if (isListLayout(stored)) return stored;
+      return lowArt.value ? "rows" : defaultLayout;
     },
     set: (value) => {
       all.value = { ...all.value, [listKey]: value };

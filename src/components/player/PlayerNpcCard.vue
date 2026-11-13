@@ -4,7 +4,7 @@
     @click="$emit('click')"
   >
     <!-- Portrait -->
-    <div class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
+    <div v-if="!lowArt" class="relative aspect-3/4 bg-muted overflow-hidden shrink-0 group">
       <MiniPortraitOverlay :source="{ table: 'npcs', id: npc.id }" badge-position="bottom-right">
         <FocalImage
           v-if="npc.player_visible_fields.includes('portrait') && displayPortrait"
@@ -15,6 +15,7 @@
           class="group-hover:scale-105 transition-transform duration-300"
           :class="npc.status === 'dead' && 'grayscale opacity-70'"
           ai-badge="left"
+          record
         />
         <img
           v-else-if="!npc.player_visible_fields.includes('portrait') && displayPortrait"
@@ -38,10 +39,16 @@
     <!-- Info. Shaped like the DM grid card's body (`p-3`, the name in a first-child row) so the
          vellum theme sets it as a wanted poster: the name centred in engraved capitals over a rule. -->
     <div class="p-3 flex flex-col gap-0.5 flex-1">
-      <div class="flex items-center">
+      <div class="flex items-center gap-2">
+        <EntityNewDot v-if="lowArt" :is-new="isNew ?? false" />
         <h3 class="text-heading-xs font-bold text-foreground leading-tight truncate">
           {{ npc.player_visible_fields.includes('name') ? displayName : '???' }}
         </h3>
+        <!-- Low art: the picture block that carried the relationship chip is gone, so it moves here (#1179). -->
+        <span v-if="lowArt" class="ml-auto flex h-6 shrink-0 items-center gap-1.5 text-label text-muted-foreground">
+          <span class="h-1.5 w-1.5 rounded-full" :class="npcRelationshipBg(npc.relationship)" aria-hidden="true" />
+          {{ npc.relationship }}
+        </span>
       </div>
       <!-- Status always shown — "unknown" is a valid soft-hidden state. -->
       <p class="flex items-center gap-1 text-caption text-muted-foreground">
@@ -67,6 +74,7 @@ import { computed } from "vue";
 import { IconCompassRose, IconUser } from '@/lib/icons';
 import { artUrl } from "@/lib/assets/artUrl";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 import NpcRatingStars from "@/components/player/NpcRatingStars.vue";
@@ -82,6 +90,7 @@ const props = defineProps<{
 
 defineEmits<{ click: [] }>();
 
+const { lowArt } = useLowArt();
 const mysteryFigureSrc = artUrl("/assets/npcs/mystery-figure.webp");
 
 const displayName = computed(() => getNpcDisplayName(props.npc) ?? "???");

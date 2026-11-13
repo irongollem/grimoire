@@ -16,9 +16,9 @@
           : 'border-border hover:border-primary/40'"
         @click="onClassSelect(cls.choice_key)">
         <!-- A direct-child plate: the vellum theme insets it and draws the double ink frame. -->
-        <div v-if="cls.image_url" class="relative h-24 shrink-0 overflow-hidden bg-muted">
+        <div v-if="cls.image_url && !lowArt" class="relative h-24 shrink-0 overflow-hidden bg-muted">
           <FocalImage :src="cls.image_url" :alt="cls.class_name" format="landscape"
-            :focal-point="cls.focal_point" />
+            :focal-point="cls.focal_point" record />
         </div>
         <div class="p-3">
         <div class="flex items-start gap-2">
@@ -217,6 +217,7 @@ import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { ref, computed, watch, nextTick } from "vue";
 import { revealInScrollParent } from "@/lib/motion";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { SAVE_STATS, PROF_LEVELS } from "@/rules/characterCreation";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
@@ -230,6 +231,7 @@ import TagPickerInput from "@/components/common/controls/TagPickerInput.vue";
 import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
+const { lowArt } = useLowArt();
 
 const {
   f, subclassId, subclassLevel, subclassDueAtStart, subclassOptions,

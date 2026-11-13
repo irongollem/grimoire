@@ -1,8 +1,9 @@
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { reactive, ref, toRef } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PlayerQuestDetailView from "./PlayerQuestDetailView.vue";
 import type { Quest } from "@/types/quest.types";
+import { useLowArt } from "@/composables/useLowArt";
 
 function quest(overrides: Partial<Quest> = {}): Quest {
   return {
@@ -165,5 +166,39 @@ describe("PlayerQuestDetailView", () => {
     expect(card).toContain("Elf");
     expect(card).toContain("???");
     wrapper.unmount();
+  });
+
+  describe("low art (#1179)", () => {
+    const { setLowArt } = useLowArt();
+    afterEach(() => {
+      setLowArt(false);
+      document.body.innerHTML = "";
+    });
+
+    async function openGiver() {
+      mocks.quest.value = quest({ giver_npc_id: "n1" });
+      mocks.npcs.value = [
+        { id: "n1", name: "Aldric", player_visible_fields: ["name", "portrait"], portrait_url: "https://cdn.test/aldric.webp" },
+      ];
+      const wrapper = mountView();
+      await flushPromises();
+      await wrapper.findAll("button").find((b) => b.text() === "Aldric")!.trigger("click");
+      await flushPromises();
+      return wrapper;
+    }
+
+    it("shows the giver's portrait banner when low art is off (the control for the guard below)", async () => {
+      const wrapper = await openGiver();
+      expect(document.body.querySelector("focal-image-stub")).not.toBeNull();
+      wrapper.unmount();
+    });
+
+    it("the giver card still shows a portrait banner in low art, and offers the portrait on request", async () => {
+      setLowArt(true);
+      const wrapper = await openGiver();
+      expect(document.body.querySelector("focal-image-stub")).toBeNull();
+      expect(Array.from(document.body.querySelectorAll("button")).some((b) => b.textContent?.trim() === "Portrait")).toBe(true);
+      wrapper.unmount();
+    });
   });
 });

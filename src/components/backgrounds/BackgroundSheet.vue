@@ -21,22 +21,17 @@
     <!-- Identity card -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="p-4 flex gap-4">
-        <div class="shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted flex items-center justify-center">
-          <FocalImage
-            :src="background.image_url"
-            :alt="background.name"
-            format="portrait"
-            :focal-point="background.focal_point ?? null"
-            :lightbox="true"
-            :placeholder="placeholderUrl('background')"
-            class="w-full h-full"
-            ai-badge="right"
-          />
-        </div>
+        <SheetThumb
+          :src="background.image_url"
+          :alt="background.name"
+          :focal-point="background.focal_point ?? null"
+          :placeholder="placeholderUrl('background')"
+        />
         <div class="flex-1 flex flex-col gap-2">
           <h1 class="text-heading-lg font-bold text-foreground leading-tight">{{ background.name }}</h1>
           <div class="flex flex-wrap gap-1.5">
             <SourceBadge :source="backgroundSourceKey(background)" :title="background.source_title" />
+            <PortraitOnRequest v-if="lowArt" :src="background.image_url" :alt="background.name" />
           </div>
         </div>
       </div>
@@ -258,6 +253,7 @@
 </template>
 
 <script setup lang="ts">
+import SheetThumb from "@/components/common/entity/SheetThumb.vue";
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAddItem, IconClose, IconDelete, IconEdit } from '@/lib/icons';
@@ -268,7 +264,8 @@ import { useParty } from "@/composables/party/useParty";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Background } from "@/types/background.types";
-import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -277,6 +274,7 @@ import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOrigin
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ background: Background }>();
+const { lowArt } = useLowArt();
 const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();

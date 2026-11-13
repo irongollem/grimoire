@@ -31,18 +31,11 @@
         <span class="text-label-lg font-semibold text-muted-foreground">Identity</span>
       </div>
       <div class="p-4 flex gap-4 items-center">
-        <div class="card-plate relative shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted flex items-center justify-center">
-          <FocalImage
-            v-if="cls.image_url"
-            :src="cls.image_url"
-            :alt="cls.class_name"
-            format="portrait"
-            :focal-point="cls.focal_point"
-            :lightbox="true"
-            class="w-full h-full"
-          />
-          <span v-else class="text-display font-bold text-primary/30">{{ cls.class_name.charAt(0).toUpperCase() }}</span>
-        </div>
+        <SheetThumb plate :src="cls.image_url" :alt="cls.class_name" :focal-point="cls.focal_point">
+          <template #fallback>
+            <span class="text-display font-bold text-primary/30">{{ cls.class_name.charAt(0).toUpperCase() }}</span>
+          </template>
+        </SheetThumb>
         <div class="flex flex-wrap gap-3 items-center">
         <span class="text-label bg-primary/10 text-primary rounded px-2 py-0.5">
           d{{ cls.hit_die }}
@@ -56,6 +49,7 @@
         <span v-if="isCustomClass(cls)" class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
           {{ cls.campaign_id ? 'Campaign-scoped' : 'All campaigns' }}
         </span>
+        <PortraitOnRequest v-if="lowArt" :src="cls.image_url" :alt="cls.class_name" />
         </div>
       </div>
     </div>
@@ -142,6 +136,7 @@
 </template>
 
 <script setup lang="ts">
+import SheetThumb from "@/components/common/entity/SheetThumb.vue";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -151,11 +146,13 @@ import { useToast } from "@/composables/useToast";
 import { canEditClass, isCustomClass, useDeleteCustomClass, useDuplicateClass } from "@/composables/rules/useCustomClasses";
 import { useAuthStore } from "@/stores/auth";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
-import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import type { CustomClass, SystemClass } from "@/levelup/customTypes";
 
 const props = defineProps<{ cls: CustomClass | SystemClass }>();
+const { lowArt } = useLowArt();
 const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();

@@ -113,12 +113,13 @@
               :key="companion.id"
               class="flex items-center gap-2.5"
             >
-              <div class="shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border bg-muted">
+              <div v-if="!lowArt" class="shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border bg-muted">
                 <FocalImage
                   :src="companion.portrait_url"
                   format="token"
                   :focal-point="companion.portrait_focal_point ?? null"
                   :placeholder="placeholderUrl('companion')"
+                  record
                 />
               </div>
               <span class="min-w-0 flex-1 text-body text-foreground truncate">{{ companion.name }}</span>
@@ -226,6 +227,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { IconClose, IconDice, IconEncounter, IconMap, IconScrollText } from '@/lib/icons';
 import { usePlayerVisibleLocation } from "@/composables/locations/useLocations";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
@@ -280,6 +282,7 @@ const playerVisibleFiredEvents = computed<FiredPlayerEvent[]>(() =>
   liveState.value?.fired_player_events ? liveState.value.fired_player_events : [],
 );
 
+const { lowArt } = useLowArt();
 const { turnAudioEnabled } = usePlayerCombatPrefs();
 const { playTurnChime } = useTurnChime();
 const { isShaking, triggerShake } = useScreenShake();

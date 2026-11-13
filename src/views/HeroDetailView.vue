@@ -26,9 +26,9 @@
     </div>
 
     <template v-else-if="hero">
-      <div class="grid grid-cols-1 gap-8 lg:grid-cols-[17.5rem_1fr]">
-        <!-- Left column: portrait + identity -->
-        <div class="space-y-4">
+      <div class="grid grid-cols-1 gap-8" :class="!lowArt && 'lg:grid-cols-[17.5rem_1fr]'">
+        <!-- Left column: portrait + identity. Low art (#1179, frame 04): it goes, the identity moves to the fact line. -->
+        <div v-if="!lowArt" class="space-y-4">
           <!-- Portrait -->
           <div class="relative overflow-hidden rounded-lg border border-border">
             <FocalImage
@@ -37,6 +37,7 @@
               :focal-point="hero.portrait_focal_point"
               format="portrait"
               :alt="hero.name"
+              record
               class="w-full"
               ai-badge="right"
             />
@@ -118,6 +119,16 @@
 
         <!-- Right column: lore -->
         <div class="space-y-6">
+          <SheetFactLine v-if="lowArt" :portrait="hero.portrait_url" :portrait-alt="hero.name">
+            <span v-if="hero.race" class="font-fell text-foreground">{{ hero.race }}</span>
+            <span v-if="hero.occupation" class="font-fell text-foreground">{{ hero.occupation }}</span>
+            <span v-if="hero.alignment" class="font-fell text-muted-foreground">{{ hero.alignment }}</span>
+            <span v-if="hero.age" class="font-fell text-muted-foreground">Age {{ hero.age }}</span>
+            <span class="font-fell capitalize" :style="{ color: STATUS_COLORS[hero.status] }">{{ hero.status }}</span>
+            <span class="font-fell text-muted-foreground">{{ settingLabel(hero.setting) }}</span>
+            <span v-if="hero.tags.length" class="text-muted-foreground">{{ hero.tags.join(", ") }}</span>
+          </SheetFactLine>
+
           <section v-if="hero.appearance">
             <h3
               class="mb-2 text-label-lg font-semibold text-muted-foreground uppercase"
@@ -169,6 +180,8 @@ import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
+import SheetFactLine from "@/components/common/entity/SheetFactLine.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
@@ -188,6 +201,7 @@ function settingLabel(val: string) {
   return settingLabelMap[val] ?? val;
 }
 
+const { lowArt } = useLowArt();
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();

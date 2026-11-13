@@ -47,7 +47,7 @@
         <div v-if="selectedSpecies" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
                   <div class="flex flex-col gap-4 p-5">
-                    <div v-if="selectedSpecies.image_url" class="rounded-lg overflow-hidden bg-muted">
+                    <div v-if="selectedSpecies.image_url && !lowArt" class="rounded-lg overflow-hidden bg-muted">
                       <FocalImage :src="selectedSpecies.image_url" :alt="selectedSpecies.name" format="landscape" :focal-point="selectedSpecies.focal_point ?? null" lightbox ai-badge="right" />
                     </div>
                     <RichTextViewer v-if="isRichText(selectedSpecies.description)" :content="selectedSpecies.description!" />
@@ -171,7 +171,7 @@
         <div v-if="selectedBackground" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
                   <div class="flex flex-col gap-4 p-5">
-                    <div v-if="selectedBackground.image_url" class="rounded-lg overflow-hidden bg-muted">
+                    <div v-if="selectedBackground.image_url && !lowArt" class="rounded-lg overflow-hidden bg-muted">
                       <FocalImage :src="selectedBackground.image_url" :alt="selectedBackground.name" format="landscape" :focal-point="selectedBackground.focal_point ?? null" lightbox ai-badge="right" />
                     </div>
                     <RichTextViewer v-if="isRichText(selectedBackground.description)" :content="selectedBackground.description!" />
@@ -395,10 +395,10 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
                   <!-- Left: portrait + symbol + domains -->
                   <div class="flex flex-col gap-4 p-5">
-                    <div v-if="selectedDeity.portrait_url" class="rounded-lg overflow-hidden bg-muted">
+                    <div v-if="selectedDeity.portrait_url && !lowArt" class="rounded-lg overflow-hidden bg-muted">
                       <FocalImage :src="selectedDeity.portrait_url" :alt="selectedDeity.name" format="landscape" :focal-point="selectedDeity.portrait_focal_point ?? null" lightbox ai-badge="right" />
                     </div>
-                    <div v-if="selectedDeity.symbol_image_url" class="flex justify-center">
+                    <div v-if="selectedDeity.symbol_image_url && !lowArt" class="flex justify-center">
                       <img :src="selectedDeity.symbol_image_url" :alt="selectedDeity.name + ' symbol'" class="h-16 w-16 object-contain" />
                     </div>
                     <div v-if="selectedDeity.domains?.length">
@@ -446,6 +446,7 @@ import type { Background } from "@/types/background.types";
 import type { Species } from "@/types/species.types";
 import { speciesSizeFromSubrace, subraceStatPills, walkSpeedFromSubrace } from "@/rules/speciesStats";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -471,6 +472,7 @@ const CODEX_SECTIONS = [
   { value: "deities",     label: "Deities" },
 ] as const satisfies readonly SegmentedOption<string>[];
 type CodexSection = (typeof CODEX_SECTIONS)[number]["value"];
+const { lowArt } = useLowArt();
 const codexSection = ref<CodexSection>("species");
 
 // ── Species ──

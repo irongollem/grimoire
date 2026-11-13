@@ -12,6 +12,7 @@
     empty-title="No notice boards yet"
     empty-description="A notice board is where you pin quests as notes, wanted posters and sealed letters, and your players take them down at the table."
     empty-action-label="New Notice Board"
+    :ledger="BOARD_LEDGER"
     @empty-action="router.push('/notice-boards/new')"
   >
     <template #filters>
@@ -24,7 +25,26 @@
       />
     </template>
     <template #card="{ item: board }">
+      <!--
+        Low art (#1179, frame 02): the live board preview goes (pins can carry
+        pictures) and the card is the art-free one, with the pin count and its state.
+      -->
+      <EntityGridCard
+        v-if="lowArt"
+        :to="`/notice-boards/${board.id}`"
+        :title="board.name"
+        :plate="false"
+        eyebrow="Notice board"
+      >
+        <template #body>
+          <p class="text-caption text-muted-foreground">{{ countLine(board.id) }}</p>
+        </template>
+        <template #foot>
+          <NoticeBoardStateChip v-if="board.is_revealed" :state="board.presented_at ? 'presenting' : 'shown'" />
+        </template>
+      </EntityGridCard>
       <RouterLink
+        v-else
         :to="`/notice-boards/${board.id}`"
         class="flex h-full flex-col gap-2 rounded-lg border border-border bg-card p-2 transition-colors hover:border-primary/50"
       >
@@ -51,6 +71,7 @@
         :subtitle="countLine(board.id)"
         :fallback-icon="IconNoticeBoard"
         :tags="stateTags(board)"
+        :cells="[countLine(board.id), stateTags(board).join(' · ')]"
       />
     </template>
   </DungeonCraftEntityGrid>
@@ -67,6 +88,8 @@ import { toPinFace } from "@/lib/noticeBoard/faces";
 import { NOTICE_BOARD_STATE_LABELS, noticeBoardState } from "@/lib/noticeBoard/state";
 import type { NoticeBoard, NoticeBoardPin as PinRow } from "@/types/noticeBoard.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import NoticeBoardStateChip from "@/components/noticeBoard/NoticeBoardStateChip.vue";
 import NoticeBoardPin from "@/components/noticeBoard/NoticeBoardPin.vue";
@@ -74,6 +97,13 @@ import NoticeBoardSurface from "@/components/noticeBoard/NoticeBoardSurface.vue"
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 
 const router = useRouter();
+const { lowArt } = useLowArt();
+
+// Low art's ledger (#1179, frame 03): the pin count, then the board's state.
+const BOARD_LEDGER = [
+  { label: "Notices", track: "minmax(0,1fr)" },
+  { label: "State", track: "8rem" },
+];
 const dungeonFeaturesUi = useDungeonFeaturesUiStore();
 const { data: boards, isLoading: boardsLoading } = useNoticeBoards();
 // One read of the campaign's pins feeds every card's preview, instead of a request per board.

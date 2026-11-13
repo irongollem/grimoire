@@ -54,7 +54,7 @@
     <!-- Recipes for active discipline -->
     <div class="flex flex-col gap-4">
 
-      <ListSkeleton v-if="isLoading" :variant="layout === 'grid' ? 'grid' : 'tiles'" :columns="layout === 'grid' ? 4 : 1" :count="6" />
+      <ListSkeleton v-if="isLoading" :variant="skeletonVariant" :columns="layout === 'grid' ? 4 : 1" :count="6" />
 
       <div v-else-if="disciplineRecipes.length === 0" class="rounded-lg border border-border border-dashed px-6 py-10 text-center">
         <component
@@ -79,6 +79,7 @@
         :grid-columns="columns"
         :grid-row-estimate="activeDiscipline ? GRID_ROW_PX : GRID_ROW_WITH_TAGS_PX"
         :row-estimate="activeDiscipline ? ROW_PX : ROW_WITH_TAGS_PX"
+        :ledger="RECIPE_LEDGER"
       >
         <template #card="{ item: recipe }">
           <EntityGridCard
@@ -87,6 +88,7 @@
             :image-url="artFor(recipe)?.url ?? null"
             :focal-point="artFor(recipe)?.focalPoint ?? null"
             :placeholder="placeholderUrl('item')"
+            :eyebrow="getDiscipline(recipe.discipline).label"
           >
             <template #image-footer>
               <div class="flex items-end gap-1.5">
@@ -101,30 +103,40 @@
                 </span>
               </div>
             </template>
-            <template #actions-end>
+            <template #actions-end="{ artFree }">
               <div @click.prevent.stop>
                 <AudienceRevealControl
                   :name="recipe.name"
                   :visible-to="recipe.player_visible_to"
-                  form="overlay"
+                  :form="artFree ? 'button' : 'overlay'"
                   @change="onVisibilityChange(recipe, $event)"
                 />
               </div>
               <AppButton
                 variant="ghost"
                 size="icon-xs"
-                :class="[CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
+                :class="artFree ? undefined : [CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
                 :icon="IconDelete"
                 tooltip="Delete recipe"
                 aria-label="Delete recipe"
                 @click="remove(recipe)"
               />
             </template>
-            <template #body>
+            <template #body="{ artFree }">
               <p class="text-caption text-muted-foreground">{{ recipeSubtitle(recipe) }}</p>
-              <div v-if="recipeTags(recipe).length" class="mt-auto flex flex-wrap gap-1">
+              <div v-if="!artFree && recipeTags(recipe).length" class="mt-auto flex flex-wrap gap-1">
                 <span
                   v-for="tag in recipeTags(recipe).slice(0, 4)"
+                  :key="tag"
+                  class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
+                >{{ tag }}</span>
+              </div>
+            </template>
+            <!-- Art-free the discipline is the eyebrow, so the foot carries the flags only. -->
+            <template #foot>
+              <div v-if="recipeFlags(recipe).length" class="flex flex-wrap gap-1">
+                <span
+                  v-for="tag in recipeFlags(recipe).slice(0, 4)"
                   :key="tag"
                   class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
                 >{{ tag }}</span>
@@ -147,6 +159,7 @@
             :fallback-icon="getDiscipline(recipe.discipline).icon"
             :tags="recipeTags(recipe)"
             :max-tags="3"
+            :cells="[getDiscipline(recipe.discipline).label, String(recipe.dc), recipeFlags(recipe).join(' · ')]"
           >
             <template #actions>
               <div class="flex items-center gap-1">
@@ -199,6 +212,7 @@ import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
 import { useListLayout } from "@/composables/useListLayout";
+import { useLowArt } from "@/composables/useLowArt";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { useCraftingUiStore } from "@/stores/ui/crafting";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
@@ -284,6 +298,17 @@ const recipeKey = (recipe: CraftingRecipe) => recipe.id;
 
 // The page header's toggle writes the same key. Rows is today's look.
 const layout = useListLayout("recipes", "rows");
+const { lowArt } = useLowArt();
+const skeletonVariant = computed(() => {
+  if (lowArt.value) return layout.value === "grid" ? "entries" : "ledger";
+  return layout.value === "grid" ? "grid" : "tiles";
+});
+// Low art's ledger (#1179, frame 03): discipline, DC, tags.
+const RECIPE_LEDGER = [
+  { label: "Discipline", track: "8rem" },
+  { label: "DC", track: "3rem" },
+  { label: "Tags", track: "minmax(0,1fr)" },
+];
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 
 function recipeSubtitle(recipe: CraftingRecipe): string {
@@ -294,6 +319,12 @@ function recipeSubtitle(recipe: CraftingRecipe): string {
 function recipeTags(recipe: CraftingRecipe): string[] {
   const tags: string[] = [];
   if (!activeDiscipline.value) tags.push(getDiscipline(recipe.discipline).label);
+  return [...tags, ...recipeFlags(recipe)];
+}
+
+// The flags alone: low art names the discipline in its own column / eyebrow.
+function recipeFlags(recipe: CraftingRecipe): string[] {
+  const tags: string[] = [];
   if (recipe.requires_proficiency) tags.push("PROF");
   if (recipe.requires_tools) tags.push("TOOLS");
   if (recipe.discoverable) tags.push("DISCOVERABLE");

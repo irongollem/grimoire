@@ -1,9 +1,10 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { defineComponent, h, reactive, ref, toRef } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PlayerFactionsView from "./PlayerFactionsView.vue";
 import { useAppUiStore } from "@/stores/ui/app";
+import { useLowArt } from "@/composables/useLowArt";
 
 type Row = Record<string, unknown>;
 const mocks = vi.hoisted(() => ({
@@ -65,6 +66,35 @@ describe("PlayerFactionsView", () => {
     mocks.factionNpcs.value = [];
     mocks.sharedNpcs.value = [];
     mocks.visibleKin.mockReset().mockReturnValue({ data: ref({ links: [], houses: [{ faction_id: "h1", members: ["npc:a"] }] }) });
+  });
+
+  describe("low art (#1179)", () => {
+    const { setLowArt } = useLowArt();
+    afterEach(() => {
+      setLowArt(false);
+    });
+
+    it("draws the emblem when low art is off (the control for the guards below)", () => {
+      mocks.factions.value = [{ ...house, emblem_url: "https://cdn.test/emblem.webp" }];
+      expect(mount(PlayerFactionsView, { global: { stubs } }).find("img").exists()).toBe(true);
+    });
+
+    it("the faction list still downloads emblems in low art, and the name still leads", () => {
+      setLowArt(true);
+      mocks.factions.value = [{ ...house, emblem_url: "https://cdn.test/emblem.webp" }];
+      const w = mount(PlayerFactionsView, { global: { stubs } });
+      expect(w.find("img").exists()).toBe(false);
+      expect(w.text()).toContain("House Thane");
+    });
+
+    it("a faction sheet swaps its emblem tile for an Emblem button in low art", async () => {
+      setLowArt(true);
+      mocks.factions.value = [{ ...house, emblem_url: "https://cdn.test/emblem.webp" }];
+      const w = mount(PlayerFactionsView, { global: { stubs } });
+      await w.find(".cursor-pointer").trigger("click");
+      expect(w.find("img").exists()).toBe(false);
+      expect(w.findAll("button").some((b) => b.text() === "Emblem")).toBe(true);
+    });
   });
 
   it("shows the seat only when the player can see the place", async () => {

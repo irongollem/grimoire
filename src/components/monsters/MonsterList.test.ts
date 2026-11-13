@@ -503,3 +503,37 @@ describe("MonsterList on a phone — which cards say they are shared with the pl
     expect(wrapper.findAllComponents({ name: "EntityMobileCard" }).every((c) => c.props("shared") === false)).toBe(true);
   });
 });
+
+describe("MonsterList in low art (#1179)", () => {
+  beforeEach(async () => {
+    const { useLowArt } = await import("@/composables/useLowArt");
+    useLowArt().setLowArt(true);
+    monstersData.value = [({ ...monster({ id: "m1", name: "Owlbear", image_url: "https://cdn.test/owlbear.webp" }), challenge_rating: "3", armor_class: 13, hit_points: "59" } as unknown as Monster)];
+  });
+  afterEach(async () => {
+    const { useLowArt } = await import("@/composables/useLowArt");
+    useLowArt().setLowArt(false);
+    monstersData.value = [];
+  });
+
+  // Bug: the bestiary list still downloads a portrait per monster although the DM turned art off.
+  it("lists the monster as a ledger row with its CR, and renders no picture", async () => {
+    const wrapper = mount(MonsterList, { global: { stubs: { RouterLink: true, PaywallModal: true, MonsterRevealControl: true } } });
+    await flushMicrotasks();
+    expect(wrapper.text()).toContain("Owlbear");
+    expect(wrapper.text()).toContain("Size and type");
+    expect(wrapper.find('[aria-label="Challenge rating 3"]').exists()).toBe(true);
+    expect(wrapper.find("img").exists()).toBe(false);
+  });
+
+  it("draws the grid card without a picture, with the CR as its tab and the AC and HP as its stat line", async () => {
+    const { useListLayout } = await import("@/composables/useListLayout");
+    useListLayout("monsters", "grid").value = "grid";
+    const wrapper = mount(MonsterList, { global: { stubs: { RouterLink: true, PaywallModal: true, MonsterRevealControl: true } } });
+    await flushMicrotasks();
+    expect(wrapper.text()).toContain("Owlbear");
+    expect(wrapper.text()).toContain("AC 13 · HP");
+    expect(wrapper.find('[aria-label="Challenge rating 3"]').exists()).toBe(true);
+    expect(wrapper.find("img").exists()).toBe(false);
+  });
+});

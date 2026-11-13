@@ -26,20 +26,17 @@
     <!-- Identity: image + name / type / CR / tags -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="p-4 flex gap-4">
-        <div class="shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted flex items-center justify-center">
-          <FocalImage
-            :src="trap.image_url"
-            :alt="trap.name"
-            format="portrait"
-            :focal-point="trap.image_focal_point ?? null"
-            :lightbox="true"
-            :placeholder="placeholderUrl('trap')"
-            class="w-full h-full"
-            ai-badge="right"
-          />
-        </div>
+        <SheetThumb
+          :src="trap.image_url"
+          :alt="trap.name"
+          :focal-point="trap.image_focal_point ?? null"
+          :placeholder="placeholderUrl('trap')"
+        />
         <div class="flex-1 flex flex-col gap-2">
           <h1 class="text-heading-lg font-bold text-foreground leading-tight">{{ trap.name }}</h1>
+          <div v-if="lowArt && trap.image_url" class="self-start">
+            <PortraitOnRequest :src="trap.image_url" :alt="trap.name" />
+          </div>
           <div class="flex flex-wrap gap-1.5">
             <span class="text-label font-semibold bg-muted/60 text-muted-foreground rounded px-2 py-0.5">
               {{ trap.trap_type }}
@@ -176,6 +173,7 @@
 </template>
 
 <script setup lang="ts">
+import SheetThumb from "@/components/common/entity/SheetThumb.vue";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconEdit } from '@/lib/icons';
@@ -184,7 +182,8 @@ import { useCloneLibraryTrap, useDeleteTrap } from "@/composables/dungeon-featur
 import { isLibraryTrap } from "@/lib/dungeon-features/library";
 import { CR_XP } from "@/types/encounter.types";
 import type { TrapEntry } from "@/types/trap.types";
-import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import LibraryReadOnlyBanner from "@/components/common/entity/LibraryReadOnlyBanner.vue";
@@ -192,6 +191,7 @@ import EntityPlacements from "@/components/locations/place/EntityPlacements.vue"
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props  = defineProps<{ trap: TrapEntry }>();
+const { lowArt } = useLowArt();
 const route  = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();

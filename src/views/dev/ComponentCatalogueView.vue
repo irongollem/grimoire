@@ -633,6 +633,13 @@
     >
       <DeckCatalogue />
     </CatalogueSection>
+
+    <CatalogueSection
+      title="Low art: entries, ledger, phone and skeletons"
+      note="This section turns Low art on while it is on screen (#1179). Check each theme and a narrow width: the art-free card with a CR tab and with a foot label, the ledger with column heads, the phone row and card, both skeletons and the bookmark tabs in md and sm."
+    >
+      <LowArtCatalogue />
+    </CatalogueSection>
   </div>
 </template>
 
@@ -678,6 +685,7 @@ import { SWITCH_SIZES } from "@/components/common/controls/toggleSwitchVariants"
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import CatalogueSection from "./CatalogueSection.vue";
+import LowArtCatalogue from "./LowArtCatalogue.vue";
 import DeckCatalogue from "@/components/soundboard/deck/DeckCatalogue.vue";
 import CoinAmount from "@/components/currency/CoinAmount.vue";
 import CoinInput from "@/components/currency/CoinInput.vue";

@@ -8,12 +8,13 @@
   <li class="rounded-lg border border-border bg-card" data-testid="party-row">
     <div class="flex items-start gap-3 p-3">
       <div class="flex min-w-0 flex-1 items-start gap-3" :class="shared ? '' : 'opacity-60'" data-testid="party-row-identity">
-        <div class="h-16 w-12 shrink-0 overflow-hidden rounded">
+        <div v-if="!lowArt" class="h-16 w-12 shrink-0 overflow-hidden rounded">
           <FocalImage
             :src="member.portrait_url"
             :focal-point="member.portrait_focal_point"
             format="portrait"
             :placeholder="placeholderUrl('character')"
+            record
           />
         </div>
         <div class="min-w-0">
@@ -113,6 +114,7 @@ import { computed, reactive, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
@@ -144,6 +146,8 @@ const { npc, member, shared, metAt = null, connection = null, others = [] } = de
 }>();
 
 const emit = defineEmits<{ (e: "toggle"): void }>();
+// Low art draws no portrait, so the tile goes rather than leaving an empty box (#1179).
+const { lowArt } = useLowArt();
 
 const MENU: OverflowMenuEntry[] = [{ key: "remove", label: "Remove connection", danger: true }];
 /** The type a told line files under when the DM writes one before choosing a type. */

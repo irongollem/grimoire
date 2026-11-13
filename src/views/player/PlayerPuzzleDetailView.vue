@@ -25,7 +25,7 @@
       <!-- Art + Title -->
       <div class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="flex gap-0">
-          <div v-if="puzzle.image_url" class="relative shrink-0 w-36 sm:w-44 self-stretch">
+          <div v-if="puzzle.image_url && !lowArt" class="relative shrink-0 w-36 sm:w-44 self-stretch">
             <FocalImage
               :src="puzzle.image_url"
               :alt="puzzle.name"
@@ -34,10 +34,13 @@
               :lightbox="true"
               class="h-full"
               ai-badge="right"
+              record
             />
           </div>
           <div class="flex-1 p-4 flex flex-col gap-2 min-w-0">
             <h2 class="text-heading font-bold text-foreground leading-tight">{{ puzzle.name }}</h2>
+            <!-- Low art: the picture column is gone; the picture waits behind a button (#1179). -->
+            <div v-if="lowArt && puzzle.image_url"><PortraitOnRequest :src="puzzle.image_url" :alt="puzzle.name" label="Picture" /></div>
             <div class="flex flex-wrap gap-2">
               <span
                 class="text-label px-2 py-0.5 rounded text-white font-bold"
@@ -113,11 +116,14 @@ import { useMarkRead } from "@/composables/player/useReadItems";
 import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 
 const route = useRoute();
 const id    = computed(() => route.params.id as string);
 
+const { lowArt } = useLowArt();
 const { data: puzzle, isLoading } = usePlayerVisiblePuzzle(id);
 
 const { mutate: markRead } = useMarkRead();

@@ -16,7 +16,7 @@
           @click="onBackgroundSelect(bg.id)">
 
           <!-- Portrait thumbnail -->
-          <div class="relative h-24 bg-muted overflow-hidden shrink-0">
+          <div v-if="!lowArt" class="relative h-24 bg-muted overflow-hidden shrink-0">
             <FocalImage
               :src="bg.image_url"
               :alt="bg.name"
@@ -24,6 +24,7 @@
               :focal-point="bg.focal_point ?? null"
               :placeholder="placeholderUrl('background')"
               class="group-hover:scale-105 transition-transform duration-300"
+              record
             />
             <!-- Selected badge -->
             <div v-if="f.background_id === bg.id"
@@ -38,7 +39,12 @@
           </div>
 
           <div class="p-2.5">
-            <p class="text-heading-sm font-bold text-foreground leading-tight">{{ bg.name }}</p>
+            <div class="flex items-start gap-2">
+              <p class="min-w-0 flex-1 text-heading-sm font-bold text-foreground leading-tight">{{ bg.name }}</p>
+              <!-- Low art: the picture block that carried the selected mark is gone (#1179). -->
+              <IconCheck v-if="lowArt && f.background_id === bg.id" class="size-4 shrink-0 text-primary" aria-label="Selected" />
+            </div>
+            <p v-if="lowArt && bg.feat_grant_name" class="mt-0.5 text-label text-primary">✦ {{ bg.feat_grant_name }}</p>
             <!-- Proficiencies summary -->
             <div class="mt-1.5 flex flex-wrap gap-1">
               <span v-for="sk in bg.skill_proficiencies" :key="sk"
@@ -229,6 +235,7 @@ import type { Background } from "@/types/background.types";
 import CalendarDateInput from "@/components/common/controls/CalendarDateInput.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
@@ -241,6 +248,7 @@ import type { CharacterCreationForm } from "@/composables/party/useCharacterCrea
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
+const { lowArt } = useLowArt();
 
 const { f, allBackgrounds, selectedBg, onBackgroundSelect, backgroundAsiChoice, originFeat } = form;
 const { is2024 } = useRuleset();

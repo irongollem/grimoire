@@ -16,7 +16,7 @@
       :class="compact ? 'size-8 text-label' : 'size-10 text-body'"
       aria-hidden="true"
     >
-      <img v-if="person.portraitUrl" :src="person.portraitUrl" alt="" class="size-full object-cover" loading="lazy" />
+      <img v-if="person.portraitUrl && !lowArt" :src="person.portraitUrl" alt="" class="size-full object-cover" loading="lazy" />
       <template v-else>{{ initial }}</template>
     </span>
     <span class="flex min-w-0 flex-col">
@@ -43,6 +43,7 @@ import { computed } from "vue";
 import { kinLifeMeta } from "@/components/kinship/kinLifeMeta";
 import { useKinClock } from "@/composables/kinship/useKinClock";
 import type { KinPersonView } from "@/composables/kinship/useKinGraph";
+import { useLowArt } from "@/composables/useLowArt";
 
 const { person, focus = false, marriedIn = false, rank = null, dimmed = false, compact = false } = defineProps<{
   person: KinPersonView;
@@ -53,6 +54,7 @@ const { person, focus = false, marriedIn = false, rank = null, dimmed = false, c
   compact?: boolean;
 }>();
 
+const { lowArt } = useLowArt();
 const clock = useKinClock();
 
 const dead = computed(() => person.dead);

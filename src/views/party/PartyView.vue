@@ -40,7 +40,7 @@
     <PartyMilestonesPanel class="mt-6" />
 
     <!-- Group Portrait -->
-    <div class="mt-6 rounded-lg border border-border bg-card overflow-hidden">
+    <div v-if="!lowArt || groupPortraitUrl" class="mt-6 rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between">
         <div>
           <span class="text-label-lg font-semibold text-muted-foreground">Group Portrait</span>
@@ -83,7 +83,10 @@
         <p class="text-caption text-destructive">{{ error }}</p>
       </div>
 
-      <div v-if="groupPortraitUrl" class="p-4 flex justify-center">
+      <div v-if="groupPortraitUrl && lowArt" class="p-4 flex justify-center">
+        <PortraitOnRequest :src="groupPortraitUrl" alt="Party group portrait" label="Group portrait" />
+      </div>
+      <div v-else-if="groupPortraitUrl" class="p-4 flex justify-center">
         <div class="relative w-full max-w-3xl">
           <img
             :src="groupPortraitUrl"
@@ -107,6 +110,8 @@
 import { ref, computed } from "vue";
 import { IconAdd, IconBeast, IconGenerate, IconNavFallen, IconUpload } from '@/lib/icons';
 import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -121,6 +126,7 @@ import { useGroupPortrait } from "@/composables/party/useGroupPortrait";
 // Hidden, not disabled, while the campaign owner has AI off (the server would 403).
 const campaignStore = useCampaignStore();
 const auth = useAuthStore();
+const { lowArt } = useLowArt();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 
 const tracker     = ref<InstanceType<typeof PartyTracker> | null>(null);

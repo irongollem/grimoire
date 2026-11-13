@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { useLowArt } from "@/composables/useLowArt";
 import { mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
@@ -68,5 +69,20 @@ describe("KinCard", () => {
     expect(w.find(".kin-rank").text()).toBe("2");
     expect(w.classes()).toContain("opacity-40");
     expect(w.attributes("data-compact")).toBe("true");
+  });
+});
+
+// Bug: a family tree in low art still downloads a portrait for every relative.
+describe("KinCard in low art", () => {
+  afterEach(() => {
+    useLowArt().setLowArt(false);
+  });
+
+  it("draws the initial instead of the portrait and keeps the name", () => {
+    useLowArt().setLowArt(true);
+    const w = card({ person: person({ portraitUrl: "/p.webp" }) });
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.text()).toContain("Maera Thane");
+    expect(w.text()).toContain("M");
   });
 });

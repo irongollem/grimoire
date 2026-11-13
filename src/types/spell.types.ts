@@ -340,6 +340,11 @@ export function spellLevelLabel(level: number): string {
   return level === 0 ? "Cantrip" : `${spellLevelOrdinal(level)}-Level`;
 }
 
+/** A spell's level as a bookmark tab's value (#1179): digits, a cantrip as "C". */
+export function spellLevelTab(level: number): string {
+  return level === 0 ? "C" : String(level);
+}
+
 // ── Default spell slots ───────────────────────────────────────────────────────
 // Per-level slot counts indexed by character level (index 0 = level 1).
 // Each row: [1st, 2nd, 3rd, 4th, 5th, 6th, 7th, 8th, 9th]

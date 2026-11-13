@@ -48,7 +48,7 @@
       </ListFilterBar>
     </template>
 
-    <ListSkeleton v-if="isLoading" :variant="layout === 'grid' ? 'grid' : 'tiles'" :columns="3" :count="9" />
+    <ListSkeleton v-if="isLoading" :variant="skeletonVariant" :columns="3" :count="9" />
 
     <EmptyState
       v-else-if="!factions?.length"
@@ -98,6 +98,7 @@
       :grid-row-estimate="GRID_ROW_PX"
       :row-estimate="ROW_PX"
       :row-columns="columns"
+      :ledger="LEDGER"
     >
       <template #card="{ item: faction }">
         <BulkSelectableCard
@@ -111,29 +112,37 @@
             :title="faction.name"
             :image-url="faction.emblem_url"
             :placeholder="placeholderUrl('faction')"
+            :eyebrow="faction.faction_type"
+            :badge-text="lowArt ? standingLabel(faction) : undefined"
+            :badge-class="npcRelationshipBg(faction.party_standing)"
           >
-            <template #actions-end>
+            <template #actions-end="{ artFree }">
               <div @click.prevent.stop>
                 <AudienceRevealControl
                   :name="faction.name"
                   :visible-to="faction.player_visible_to"
                   :book-entry="{ type: 'faction', id: faction.id }"
-                  form="overlay"
+                  :form="artFree ? 'inline' : 'overlay'"
                   @change="(next) => revealFaction(faction.id, next)"
                 />
               </div>
             </template>
-            <template #body>
-              <p class="truncate text-heading-xs font-bold text-foreground">{{ faction.name }}</p>
-              <p class="truncate text-label text-muted-foreground">{{ faction.faction_type }}</p>
-              <RelationshipMark v-if="faction.party_standing !== 'unknown'" :relationship="faction.party_standing" />
-              <div v-if="faction.tags.length" class="mt-auto flex flex-wrap gap-1 pt-1">
+            <template #body="{ artFree }">
+              <template v-if="!artFree">
+                <p class="truncate text-heading-xs font-bold text-foreground">{{ faction.name }}</p>
+                <p class="truncate text-label text-muted-foreground">{{ faction.faction_type }}</p>
+                <RelationshipMark v-if="faction.party_standing !== 'unknown'" :relationship="faction.party_standing" />
+              </template>
+              <div v-if="faction.tags.length && !artFree" class="mt-auto flex flex-wrap gap-1 pt-1">
                 <span
                   v-for="tag in faction.tags.slice(0, 3)"
                   :key="tag"
                   class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
                 >{{ tag }}</span>
               </div>
+            </template>
+            <template #foot>
+              <span v-if="faction.tags.length" class="line-clamp-1 text-label text-muted-foreground">{{ faction.tags.slice(0, 3).join(" · ") }}</span>
             </template>
           </EntityGridCard>
         </BulkSelectableCard>
@@ -152,6 +161,7 @@
             :image-url="faction.emblem_url"
             :fallback-icon="IconShield"
             :tags="faction.tags"
+            :cells="[faction.faction_type, standingLabel(faction) ?? null]"
           >
             <template v-if="faction.party_standing !== 'unknown'" #body>
               <RelationshipMark :relationship="faction.party_standing" class="mt-1.5" />
@@ -219,6 +229,8 @@ import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
 import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
 import { useListLayout } from "@/composables/useListLayout";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { useLowArt } from "@/composables/useLowArt";
+import { npcRelationshipBg } from "@/lib/npcDisplay";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
 import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
@@ -262,6 +274,23 @@ useScrollRestore("factions");
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
 // The page header's toggle writes the same key. Rows is today's look.
 const layout = useListLayout("factions", "rows");
+const { lowArt } = useLowArt();
+const skeletonVariant = computed(() => {
+  if (lowArt.value) return layout.value === "grid" ? "entries" : "ledger";
+  return layout.value === "grid" ? "grid" : "tiles";
+});
+
+// Low art (#1179, frame 03): the type the row shows as its subtitle, then the party's standing.
+const LEDGER = [
+  { label: "Type", track: "minmax(0,1fr)" },
+  { label: "Standing", track: "8rem" },
+];
+
+/** The party's standing as a word, or nothing while it is unknown. */
+function standingLabel(faction: { party_standing: string }): string | undefined {
+  return faction.party_standing === "unknown" ? undefined : faction.party_standing;
+}
+
 const factionKey = (faction: { id: string }) => faction.id;
 
 // Row height before a row is measured (px): 82-107px across 26 factions, 88 the median, measured at a 390px

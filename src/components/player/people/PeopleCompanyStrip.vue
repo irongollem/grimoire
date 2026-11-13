@@ -1,10 +1,10 @@
 <template>
   <HearthSection title="Your company">
     <ul class="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pt-1 pb-2">
-      <li v-if="groupPortraitUrl" class="shrink-0 snap-start">
+      <li v-if="groupPortraitUrl && !lowArt" class="shrink-0 snap-start">
         <button type="button" class="group flex w-32 flex-col gap-1 text-left" @click="emit('openGroup')">
           <span class="relative block h-19 overflow-hidden rounded-sm border border-border bg-muted">
-            <FocalImage :src="groupPortraitUrl" alt="Party group portrait" format="landscape" />
+            <FocalImage :src="groupPortraitUrl" alt="Party group portrait" format="landscape" record />
           </span>
           <span class="truncate text-caption font-semibold text-foreground">The party</span>
         </button>
@@ -18,7 +18,14 @@
               format="portrait"
               :focal-point="tile.focalPoint"
               :placeholder="tile.placeholder"
+              record
             />
+            <!-- Low art: the initial stands where the portrait was (#1179). -->
+            <span
+              v-if="lowArt"
+              class="absolute inset-0 flex items-center justify-center text-heading font-bold text-muted-foreground"
+              aria-hidden="true"
+            >{{ tile.name.charAt(0) }}</span>
             <span
               v-if="tile.hp !== null"
               class="absolute inset-x-0 bottom-0 h-1 bg-muted"
@@ -28,7 +35,8 @@
               <span class="block h-full" :class="tile.hp.color" :style="{ width: `${tile.hp.pct}%` }" />
             </span>
           </span>
-          <span class="truncate text-caption font-semibold text-foreground">{{ tile.name }}</span>
+          <!-- w-full: a flex item keeps its content width, so without it `truncate` never cuts and names run into each other. -->
+          <span class="w-full truncate text-caption font-semibold text-foreground">{{ tile.name }}</span>
           <span v-if="tile.isOwn" class="-mt-1 text-eyebrow font-bold uppercase text-primary">You</span>
         </button>
       </li>
@@ -39,6 +47,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import HearthSection from "@/components/player/hearth/HearthSection.vue";
 import type { PartyEntry } from "@/components/player/people/peopleParty";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
@@ -58,6 +67,8 @@ const { entries, groupPortraitUrl = null, viewerMemberId, showHp } = defineProps
   viewerMemberId: string | null;
   showHp: (entry: PartyEntry) => boolean;
 }>();
+
+const { lowArt } = useLowArt();
 
 const emit = defineEmits<{
   openMember: [member: PartyMember];

@@ -1,5 +1,6 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { useLowArt } from "@/composables/useLowArt";
 import { sourceLabel } from "@/lib/library/sourceLabel";
 import type { MonsterBrowseRow } from "@/types/monster.types";
 import SourceBadge from "@/components/common/entity/SourceBadge.vue";
@@ -90,5 +91,23 @@ describe("MonsterGridCard facts and actions", () => {
   it("shows at most three tags", () => {
     const w = mountCard(row({ tags: ["a", "b", "c", "d"] }));
     expect(w.findAll(".bg-muted").map((t) => t.text())).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("MonsterGridCard in low art (#1179)", () => {
+  afterEach(() => { useLowArt().setLowArt(false); });
+
+  // Bug: the bestiary card still shows (and fetches) the plate, or loses the CR/AC/HP when it goes.
+  it("shows no picture; the CR is a tab, the type the eyebrow and the stat line replaces the plate", () => {
+    useLowArt().setLowArt(true);
+    const w = mount(MonsterGridCard, {
+      props: { monster: row({ image_url: "https://cdn.test/owlbear.webp", armor_class: 15, hit_points: "110" }) },
+      global: { stubs: { RouterLink: true, MonsterRevealControl: true, AppButton: true, AiImageBadge: true } },
+    });
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.text()).toContain("Owlbear");
+    expect(w.text()).toContain("large monstrosity");
+    expect(w.text()).toContain("AC 15 · HP 110");
+    expect(w.find('[aria-label="Challenge rating 3"]').exists()).toBe(true);
   });
 });

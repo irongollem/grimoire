@@ -32,12 +32,20 @@
         <template #icon>
           <span class="relative block h-full w-full overflow-hidden rounded-full bg-muted">
             <FocalImage
+              v-if="!lowArt"
+              record
               :src="entry.member.portrait_url"
               :alt="entry.member.name"
               format="token"
               :focal-point="entry.member.portrait_focal_point ?? null"
               :placeholder="placeholderUrl('character')"
             />
+            <!-- Low art: the initial stands where the token was (#1179). -->
+            <span
+              v-else
+              class="absolute inset-0 grid place-items-center text-label font-bold text-muted-foreground"
+              aria-hidden="true"
+            >{{ entry.member.name.charAt(0) }}</span>
             <span
               v-if="switchingId === entry.member.id"
               class="absolute inset-0 grid place-items-center bg-background/70"
@@ -62,6 +70,7 @@
 import { computed, nextTick, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { formatCombo, isMacPlatform } from "@/lib/hotkeys";
@@ -69,6 +78,8 @@ import { useHotkeys } from "@/composables/useHotkeys";
 import { usePlayableCharacters, type PlayableCharacter } from "@/composables/party/usePlayableCharacters";
 import { nextPlayableId } from "@/lib/player/playableCharacters";
 import { canAnimate } from "@/lib/motion";
+
+const { lowArt } = useLowArt();
 
 const COMBO = "mod+shift+u";
 

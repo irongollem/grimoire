@@ -6,12 +6,13 @@
     <!-- Header row -->
     <div class="flex items-center gap-2">
       <!-- Token avatar -->
-      <div class="shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border bg-muted">
+      <div v-if="!lowArt" class="shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border bg-muted">
         <FocalImage
           :src="companion.portrait_url"
           format="token"
           :focal-point="companion.portrait_focal_point ?? null"
           :placeholder="placeholderUrl('companion')"
+          record
         />
       </div>
 
@@ -217,6 +218,7 @@ import {
 } from "@/types/companion.types";
 import type { Companion } from "@/types/companion.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 
 const props = defineProps<{
@@ -231,6 +233,7 @@ defineEmits<{
 }>();
 
 // A pet has no "with the party / elsewhere" state: it never fights (#1115).
+const { lowArt } = useLowArt();
 const fights = computed(() => takesPartInCombat(props.companion));
 
 const { mutateAsync: updateCompanion } = useUpdateCompanion();

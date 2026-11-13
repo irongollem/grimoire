@@ -10,7 +10,7 @@
     </div>
   </SettingsSection>
 
-  <AiLabelsSetting />
+  <PicturesSetting />
 
   <AccountNewsSettings />
 
@@ -49,7 +49,7 @@
 import { ref } from "vue";
 import AccountSummarySection from "@/components/account/AccountSummarySection.vue";
 import AccountDataExport from "@/components/account/AccountDataExport.vue";
-import AiLabelsSetting from "@/components/account/AiLabelsSetting.vue";
+import PicturesSetting from "@/components/account/PicturesSetting.vue";
 import AccountNewsSettings from "@/components/account/AccountNewsSettings.vue";
 import ConfirmByNameInput from "@/components/common/controls/ConfirmByNameInput.vue";
 import SettingsSection from "@/components/common/settings/SettingsSection.vue";

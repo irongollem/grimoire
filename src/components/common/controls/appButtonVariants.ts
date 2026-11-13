@@ -90,6 +90,12 @@ export const buttonVariants = cva(
          */
         tool: "border border-transparent text-muted-foreground hover:text-foreground hover:border-primary/50",
         /**
+         * A dashed box for "this opens something that is not on screen yet": the
+         * Portrait button on a low-art sheet, which fetches its picture on the click
+         * (#1179). Dashed because the thing behind it is not drawn, as an empty well is.
+         */
+        dashed: "border border-dashed border-foreground/40 text-foreground hover:border-primary hover:bg-primary/5",
+        /**
          * A colour swatch: a bordered square whose fill is the colour, set by the caller through `style`
          * (the colour IS the state, so no variant can name it). No hover change and no text. Pair with `icon-xs` or
          * `icon-sm`; `active` rings the swatch in use. The Illuminator's paint colours.
@@ -651,7 +657,7 @@ export type ButtonSurface = NonNullable<ButtonVariants["surface"]>;
 type Assert<T extends true> = T;
 
 export const BUTTON_VARIANTS = [
-  "primary", "live", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu", "well", "tool", "swatch",
+  "primary", "live", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu", "well", "tool", "dashed", "swatch",
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [

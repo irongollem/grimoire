@@ -4,6 +4,7 @@ import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref, computed } from "vue";
 import ItemList from "./ItemList.vue";
 import { useListLayout } from "@/composables/useListLayout";
+import { useLowArt } from "@/composables/useLowArt";
 import { IconDocument } from "@/lib/icons";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { ItemBrowseFilters } from "@/composables/items/useItemBrowse";
@@ -83,6 +84,7 @@ function makeItem(overrides: Partial<ItemBrowseRow> = {}): ItemBrowseRow {
     armor_class: null,
     charges: null,
     has_content: false,
+    requires_attunement: false,
     campaign_id: null,
     is_shared: false,
     source: null,
@@ -342,5 +344,52 @@ describe("ItemList — the one-per-row layout", () => {
     const text = wrapper.text();
     expect(text.indexOf("Grimoire Equipment")).toBeGreaterThanOrEqual(0);
     expect(text.indexOf("Grimoire Equipment")).toBeLessThan(text.indexOf("beast"));
+  });
+});
+
+describe("ItemList in low art (#1179)", () => {
+  const { setLowArt } = useLowArt();
+  const layout = useListLayout("items", "grid");
+  beforeEach(() => {
+    setLowArt(true);
+    layout.value = "grid";
+    mocks.rows = [
+      makeItem({ name: "Flame Tongue", rarity: "very_rare", item_type: "weapon", requires_attunement: true, image_url: "https://cdn.test/ft.webp" }),
+    ];
+  });
+  afterEach(() => {
+    setLowArt(false);
+    layout.value = "grid";
+  });
+
+  it("the item grid still downloads art in low art: no img renders, the card draws the name itself", async () => {
+    const w = await mountList();
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.find('[data-art-free="true"] h3').text()).toBe("Flame Tongue");
+  });
+
+  it("hangs the rarity as letters (VR) in a tab and names the type as the eyebrow, with attunement in the body", async () => {
+    const w = await mountList();
+    expect(w.find('[aria-label="Rarity VR"]').exists()).toBe(true);
+    const card = w.find('[data-art-free="true"]');
+    expect(card.text().toLowerCase()).toContain("weapon");
+    expect(card.text()).toContain("Requires attunement");
+  });
+
+  it("the ledger rows carry the rarity tab and attunement and draw no picture", async () => {
+    layout.value = "rows";
+    const w = await mountList();
+    for (let i = 0; i < 4; i += 1) await flushPromises();
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.find("[data-ledger-head]").text()).toContain("Attunement");
+    expect(w.find('[aria-label="Rarity VR"]').exists()).toBe(true);
+    expect(w.text()).toContain("Attunes");
+  });
+
+  it("with low art off the card still paints art and the rarity badge text", async () => {
+    setLowArt(false);
+    const w = await mountList();
+    expect(w.find("img").exists()).toBe(true);
+    expect(w.text()).toContain("Very Rare");
   });
 });

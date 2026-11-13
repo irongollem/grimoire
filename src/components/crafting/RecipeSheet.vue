@@ -22,14 +22,19 @@
     </div>
 
     <!-- The recipe's own picture, else the art of what it makes. Omitted when neither exists. -->
-    <div v-if="art" class="relative h-48 overflow-hidden rounded-lg border border-border bg-muted">
+    <div v-if="art && !lowArt" class="relative h-48 overflow-hidden rounded-lg border border-border bg-muted">
       <FocalImage
         :src="art.url"
         :alt="recipe.name"
         format="landscape"
         :focal-point="art.focalPoint"
         ai-badge="right"
+        record
       />
+    </div>
+    <!-- Low art: the banner is gone; the picture waits behind a button (frame 04). -->
+    <div v-else-if="art" class="flex">
+      <PortraitOnRequest :src="art.url" :alt="recipe.name" />
     </div>
 
     <!-- Core stats row -->
@@ -143,6 +148,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import { useStoredItemRefs } from "@/composables/items/useStoredItemRefs";
 import { inventoryItemRef } from "@/lib/itemRef";
 import { getDiscipline } from "@/lib/crafting/disciplines";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { resolveRecipeArt } from "@/lib/crafting/recipeArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
@@ -150,6 +157,7 @@ import { craftingTimeText } from "@/lib/crafting/craftingTime";
 import type { CraftingRecipe } from "@/types/crafting.types";
 
 const props = defineProps<{ recipe: CraftingRecipe }>();
+const { lowArt } = useLowArt();
 
 const route = useRoute();
 const router = useRouter();

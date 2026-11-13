@@ -1,9 +1,10 @@
 import { mount } from "@vue/test-utils";
 import { useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
 import { reactive, ref, defineComponent, h } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SpeciesList from "./SpeciesList.vue";
 import { useListLayout } from "@/composables/useListLayout";
+import { useLowArt } from "@/composables/useLowArt";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { Species } from "@/types/species.types";
 
@@ -388,6 +389,38 @@ describe("SpeciesList — layout", () => {
     } finally {
       useListLayout("codex-species", "grid").value = "grid";
     }
+  });
+});
+
+describe("SpeciesList in low art (#1179)", () => {
+  beforeEach(() => {
+    allSpecies.value = [customSpecies(1, { name: "Aasimar", image_url: "/a.webp", source: "Homebrew Book", tags: ["celestial"] })];
+    useLowArt().setLowArt(true);
+  });
+  afterEach(() => {
+    useLowArt().setLowArt(false);
+    useListLayout("codex-species", "grid").value = "grid";
+  });
+
+  // Bug: the species list still downloads portraits in low art.
+  it("grid cards draw no picture, keep the name once and name the kind in the eyebrow", async () => {
+    const wrapper = await mountList();
+    await flushMicrotasks();
+    expect(wrapper.find("img").exists()).toBe(false);
+    expect(wrapper.findAll("h3").map((h) => h.text())).toEqual(["Aasimar"]);
+    expect(wrapper.text()).toContain("Species");
+    expect(wrapper.text()).toContain("Medium");
+  });
+
+  // Bug: the list opts out of the ledger, so rows keep their emblem and have no column heads.
+  it("rows are a ledger with Size and speed and Source columns and no emblem", async () => {
+    useListLayout("codex-species", "grid").value = "rows";
+    const wrapper = await mountList();
+    await flushMicrotasks();
+    expect(wrapper.find("[data-ledger-head]").exists()).toBe(true);
+    expect(wrapper.find("[data-ledger-head]").text()).toContain("Source");
+    expect(wrapper.find("img").exists()).toBe(false);
+    expect(wrapper.text()).toContain("Aasimar");
   });
 });
 

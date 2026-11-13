@@ -15,7 +15,7 @@
     <template v-else>
       <header class="flex items-center gap-3">
         <span class="grid size-14 shrink-0 place-items-center overflow-hidden bg-muted text-title text-muted-foreground" aria-hidden="true">
-          <img v-if="person.portraitUrl" :src="person.portraitUrl" alt="" class="size-full object-cover" />
+          <img v-if="person.portraitUrl && !lowArt" :src="person.portraitUrl" alt="" class="size-full object-cover" />
           <template v-else>{{ person.name.trim().charAt(0).toUpperCase() }}</template>
         </span>
         <div class="min-w-0 flex-1">
@@ -63,12 +63,14 @@ import AddRelativeDialog from "@/components/kinship/AddRelativeDialog.vue";
 import FamilyTree from "@/components/kinship/FamilyTree.vue";
 import FamilyTreeToolbar from "@/components/kinship/FamilyTreeToolbar.vue";
 import { useDmKinGraph, usePlayerKinGraph } from "@/composables/kinship/useKinGraph";
+import { useLowArt } from "@/composables/useLowArt";
 import { IconAddUser, IconChevronLeft } from "@/lib/icons";
 import { parentsOf, spousesOf } from "@/lib/kinship/graph";
 import { selectAroundFocus } from "@/lib/kinship/select";
 import { useFamilyUiStore } from "@/stores/ui/family";
 import type { PersonKey } from "@/types/kinship.types";
 
+const { lowArt } = useLowArt();
 const route = useRoute();
 const router = useRouter();
 const ui = useFamilyUiStore();

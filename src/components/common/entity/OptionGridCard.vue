@@ -14,15 +14,17 @@
     :image-url="imageUrl"
     :focal-point="focalPoint"
     :placeholder="placeholder"
+    :plate="plate"
+    :eyebrow="eyebrow"
     :activates="selectMode"
     :class="selected ? 'border-primary! ring-1 ring-primary/20' : ''"
     @activate="emit('select')"
   >
-    <template v-if="editTo && !selectMode" #actions-start>
+    <template v-if="editTo && !selectMode" #actions-start="{ artFree }">
       <AppButton
         variant="ghost"
         size="icon-xs"
-        :class="[CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
+        :class="artFree ? undefined : [CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
         :icon="IconEdit"
         :to="editTo"
         :tooltip="editLabel"
@@ -36,8 +38,12 @@
       </span>
     </template>
 
-    <template #body>
-      <slot />
+    <template #foot="{ artFree }">
+      <slot name="foot" :art-free="artFree" />
+    </template>
+
+    <template #body="{ artFree }">
+      <slot :art-free="artFree" />
       <AppButton
         v-if="selectMode"
         variant="tinted"
@@ -59,10 +65,14 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";
 import { IconCheck, IconEdit } from "@/lib/icons";
 
-defineProps<{
+const { plate = true } = defineProps<{
   to: string;
   title: string;
-  placeholder: string;
+  placeholder?: string;
+  /** False: always art-free (an archetype borrows no picture). */
+  plate?: boolean;
+  /** Art-free only: the kind, in spaced capitals. */
+  eyebrow?: string | null;
   imageUrl?: string | null;
   focalPoint?: { x: number; y: number } | null;
   /** The player picker: the card selects instead of navigating. */
@@ -75,4 +85,9 @@ defineProps<{
 }>();
 
 const emit = defineEmits<{ select: [] }>();
+
+defineSlots<{
+  default?: (props: { artFree: boolean }) => unknown;
+  foot?: (props: { artFree: boolean }) => unknown;
+}>();
 </script>

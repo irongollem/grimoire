@@ -19,19 +19,12 @@
     <!-- Identity card: two-column layout -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="p-4 flex gap-4">
-        <!-- Portrait column -->
-        <div class="shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted flex items-center justify-center">
-          <FocalImage
-            :src="species.image_url"
-            :alt="species.name"
-            format="portrait"
-            :focal-point="species.focal_point ?? null"
-            :lightbox="true"
-            :placeholder="placeholderUrl('species')"
-            class="w-full h-full"
-            ai-badge="right"
-          />
-        </div>
+        <SheetThumb
+          :src="species.image_url"
+          :alt="species.name"
+          :focal-point="species.focal_point ?? null"
+          :placeholder="placeholderUrl('species')"
+        />
         <!-- Info column -->
         <div class="flex-1 flex flex-col gap-2">
           <h1 class="text-heading-lg font-bold text-foreground leading-tight">{{ species.name }}</h1>
@@ -45,6 +38,7 @@
               class="text-label bg-primary/10 text-primary rounded px-2 py-0.5"
             >Size by subrace</span>
             <SourceBadge :source="species.source" />
+            <PortraitOnRequest v-if="lowArt" :src="species.image_url" :alt="species.name" />
           </div>
           <div v-if="speedPills.length || speedFromSubrace" class="flex flex-wrap gap-1">
             <span
@@ -137,6 +131,7 @@
 </template>
 
 <script setup lang="ts">
+import SheetThumb from "@/components/common/entity/SheetThumb.vue";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconEdit } from '@/lib/icons';
@@ -144,7 +139,8 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteSpecies } from "@/composables/rules/useSpecies";
 import type { Species } from "@/types/species.types";
 import { asiToString, speciesSizeFromSubrace, speedLabels, subraceStatPills, walkSpeedFromSubrace } from "@/rules/speciesStats";
-import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SourceBadge from "@/components/common/entity/SourceBadge.vue";
@@ -154,6 +150,7 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 const props = defineProps<{ species: Species; isShared?: boolean }>();
 
 const { labelFor } = useSourceTitles();
+const { lowArt } = useLowArt();
 const sourceName = computed(() => labelFor(props.species.source));
 const route = useRoute();
 const router = useRouter();
