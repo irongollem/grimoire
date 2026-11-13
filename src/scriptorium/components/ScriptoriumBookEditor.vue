@@ -132,6 +132,8 @@
       :reading="reading"
       :focus-chapter-id="currentId"
       :furniture="settings.draft.furniture"
+      :dressing="settings.draft.pageDressing"
+      :handout="isHandout"
       :paper-tone="settings.draft.paperTone"
       :footer-style="settings.draft.footerStyle"
       @layout="layout = $event"
@@ -251,6 +253,8 @@ import { createFurnitureItem } from "@/scriptorium/lib/furniture/model";
 import { scriptoriumLook } from "@/scriptorium/lib/looks";
 import { paperLine, type PanelPageContext } from "@/scriptorium/lib/panel/pageInfo";
 import { PRINTED_BOOK_KEY, createPrintedBook } from "@/scriptorium/composables/usePrintedBook";
+import { BOOK_DRESSING_KEY, bookDressing } from "@/scriptorium/dressing/bookDressing";
+import { activeDressing } from "@/scriptorium/dressing/dressing";
 import { FOOTER_SETTINGS_KEY } from "@/scriptorium/lib/footerTitle";
 import { SCRIPTORIUM_THEME_KEY } from "@/scriptorium/lib/scriptoriumTheme";
 import type { BookLayoutResult, BookLayoutSettings } from "@/scriptorium/lib/bookLayout/types";
@@ -391,6 +395,9 @@ function onEdit(json: JSONContent) {
 }
 
 const layout = ref<BookLayoutResult | null>(null);
+// The editor's pages are dressed from the same placement as the preview and the PDF (#1181).
+const dressing = computed(() => activeDressing(settings.draft.pageDressing, settings.draft.inkFriendly));
+provide(BOOK_DRESSING_KEY, bookDressing({ dressing: () => dressing.value, handout: () => isHandout.value, layout: () => layout.value }));
 /** Where the open chapter's pages and columns start in the layout: the editor draws them (#1175). Null until the open chapter's first layout lands. */
 const flow = ref<ChapterFlow | null>(null);
 /** How far the rest of the book's first layout has got, for the chapter list's quiet footer. */
@@ -591,6 +598,8 @@ async function runExport(bundle?: GrimoireBundle): Promise<boolean> {
     footerTitle: settings.draft.footerTitle,
     pageNumberStart: settings.draft.pageNumberStart,
     furniture: settings.draft.furniture,
+    dressing: settings.draft.pageDressing,
+    handout: isHandout.value,
     bundle,
   });
   if (ok) toast.success("Your PDF is ready.");

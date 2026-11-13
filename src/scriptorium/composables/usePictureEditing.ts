@@ -10,17 +10,20 @@
  */
 import { computed, ref, watch, type Ref } from "vue";
 import type { Editor } from "@tiptap/core";
+import { ASSET_IMAGES_BUCKET, removeStorageImages } from "@/composables/useImageUpload";
 import { useToast } from "@/composables/useToast";
+import { reportHandledError } from "@/lib/observability/sentry";
 import { getCurrentUser } from "@/lib/supabase";
 import { parsePublicUrl } from "@/lib/storage";
 import type { WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
 import { parseSettings, type IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
+import { markSheetForSweep } from "@/scriptorium/composables/illuminatorSweep";
 import { usePictureBakes } from "@/scriptorium/composables/usePictureBakes";
 import { usePicturePreviews } from "@/scriptorium/composables/usePicturePreviews";
 import type { PictureActions, PictureTarget } from "@/scriptorium/composables/useEditorPictures";
 import type { PanelSelection } from "@/scriptorium/composables/useScriptoriumSelection";
 import { bookPageNumber } from "@/scriptorium/lib/panel/pageInfo";
-import { treatmentPatch } from "@/scriptorium/lib/panel/pictureTreatment";
+import { flattenPatch, treatmentPatch, type TreatmentPatch } from "@/scriptorium/lib/panel/pictureTreatment";
 import type { PageFurnitureItem } from "@/scriptorium/types";
 
 export interface OpenWorkbench {
@@ -32,10 +35,12 @@ export interface OpenWorkbench {
   name: string;
   /** "page 3": where Done goes back to. */
   pageLabel: string;
-  /** The tool it opens on (Crop, from the panel's Crop button). */
-  tool: WorkbenchTool;
+  /** The tool it opens on (Crop, from the panel's Crop button); absent, the one used last. */
+  tool?: WorkbenchTool;
   /** The page's width over height for art placed on the page (the crop's Page shape); null for a picture in the text. */
   pageAspect: number | null;
+  /** A blank sheet just made for this session: Cancel takes it away again instead of leaving an empty painting. */
+  justCreated: boolean;
 }
 
 interface Options {
@@ -51,6 +56,12 @@ interface Options {
   sheet: () => ParentNode | null;
   /** The page's width over height. */
   pageAspect: () => number;
+}
+
+/** A recipe that is only a paint step with no layers: a blank sheet nothing was painted on. */
+function isEmptySheet(settings: IlluminateSettings | null): boolean {
+  const steps = settings?.steps ?? [];
+  return steps.length === 1 && steps[0]!.type === "paint" && steps[0]!.layers.length === 0;
 }
 
 /**
@@ -118,9 +129,10 @@ export function usePictureEditing(opts: Options) {
 
   const workbench = ref<OpenWorkbench | null>(null);
 
-  function openWorkbench(tool: WorkbenchTool = "edges") {
-    const t = target.value;
-    const v = values.value;
+  /** `created` is art that was only just added: the selection and the furniture list have not caught up, so it is opened from the item itself. */
+  function openWorkbench(tool?: WorkbenchTool, created?: PageFurnitureItem) {
+    const t: PictureTarget | null = created ? { source: "furniture", id: created.id } : target.value;
+    const v = created ? { ...created.props } : values.value;
     const original = originalOf(v);
     if (!t || !v || !isEditablePicture(original)) return;
     const label = [v.alt, v.title].find((x): x is string => typeof x === "string" && x.trim() !== "");
@@ -136,13 +148,15 @@ export function usePictureEditing(opts: Options) {
       pageLabel: page === null ? "the page" : `page ${inBook ?? page}`,
       tool,
       pageAspect: t.source === "furniture" ? opts.pageAspect() : null,
+      justCreated: created !== undefined,
     };
   }
 
-  function onWorkbenchDone(settings: IlluminateSettings) {
+  /** Close the workbench and write to the picture it was opened on, if it is still that picture. */
+  function writeBack(patchOf: (now: Record<string, unknown>) => TreatmentPatch): Record<string, unknown> | null {
     const open = workbench.value;
     workbench.value = null;
-    if (!open) return;
+    if (!open) return null;
     // The document may have changed while the workbench was open (another device's save, text typed above):
     // find the picture again by what it is, and write nothing to anything else.
     let target = open.target;
@@ -150,19 +164,46 @@ export function usePictureEditing(opts: Options) {
       const pos = opts.pictures.nodePosByBlockId(open.blockId);
       if (pos === null) {
         toast.error(CHANGED);
-        return;
+        return null;
       }
       target = { source: "node", pos };
     }
     const now = opts.pictures.valuesOf(target);
     // Removed while open: nothing to write.
-    if (!now) return;
+    if (!now) return null;
     if (originalOf(now) !== open.original) {
       toast.error(CHANGED);
-      return;
+      return null;
     }
-    opts.pictures.treat(target, treatmentPatch(now, settings));
+    opts.pictures.treat(target, patchOf(now));
+    return now;
   }
 
-  return { canEditPicture, workbench, openWorkbench, onWorkbenchDone, currentUserId, bakeErrors: bakes.errors, retryBakes: bakes.retry };
+  function onWorkbenchDone(settings: IlluminateSettings) {
+    writeBack((now) => treatmentPatch(now, settings));
+  }
+
+  /** The painting was flattened and stored: that file is the picture and its original, and the recipe is empty. */
+  function onWorkbenchFlatten(url: string) {
+    const before = writeBack(() => flattenPatch(url));
+    // A blank sheet's or page painting's file was the original and is not any more; the sweep deletes it only if nothing else refers to it.
+    if (before) markSheetForSweep(originalOf(before));
+  }
+
+  /**
+   * Cancel drops the session. A blank sheet made a moment ago and still holding no paint would otherwise stay as an
+   * empty painting that already counts as the free canvas, so it goes, with its stored paper.
+   */
+  function onWorkbenchCancel() {
+    const open = workbench.value;
+    workbench.value = null;
+    if (!open?.justCreated) return;
+    const now = opts.pictures.valuesOf(open.target);
+    if (!now || !isEmptySheet(parseSettings(now.illuminate))) return;
+    opts.pictures.remove(open.target);
+    const file = typeof now.src === "string" ? now.src : null;
+    if (file) removeStorageImages(ASSET_IMAGES_BUCKET, file).catch((error: unknown) => reportHandledError(error, "scriptorium:blank-sheet-cancel"));
+  }
+
+  return { canEditPicture, workbench, openWorkbench, onWorkbenchDone, onWorkbenchFlatten, onWorkbenchCancel, currentUserId, bakeErrors: bakes.errors, retryBakes: bakes.retry };
 }

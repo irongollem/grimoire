@@ -67,7 +67,53 @@ export interface AiStep { type: "ai"; action: string; output: string }
  */
 export interface CropStep { type: "crop"; x: number; y: number; w: number; h: number }
 
-export type IlluminateStep = GradeStep | DofStep | VignetteStep | TextureStep | EdgesStep | WashStep | MaskStep | AiStep | CropStep;
+/** How a painted layer mixes with what is under it: a canvas `globalCompositeOperation` (#1181). */
+export type PaintLayerBlend = "source-over" | "multiply" | "screen" | "overlay" | "soft-light" | "color";
+
+/** One painted layer, stored as 1024 px chunks of the document, keyed "cx,cy". Absent chunks are empty. */
+export interface PaintLayerRecord {
+  id: string;
+  name: string;
+  blend: PaintLayerBlend;
+  opacity: number;
+  visible: boolean;
+  lockAlpha: boolean;
+  chunks: Record<string, string>;
+}
+
+/**
+ * The layers painted over the picture (#1181), drawn last so the paint sits on every treatment. The document is
+ * `width` × `height` pixels (the cropped picture at bake size); every renderer scales it to its own canvas.
+ * `paper` names the stock paper a blank sheet was started on, so brushes catch its grain when it is reopened.
+ */
+export interface PaintStep {
+  type: "paint";
+  width: number;
+  height: number;
+  paper: string | null;
+  /** Bottom first. */
+  layers: PaintLayerRecord[];
+  /** Saved versions to go back to, newest last. Absent when there are none. */
+  versions?: PaintVersion[];
+}
+
+/**
+ * A named snapshot of a painting's layers. Its chunk URLs are the files that were current when it was saved
+ * (a save never rewrites a chunk in place). It must never repeat the `"type": "paint"` marker: the plan's canvas
+ * count (`private.count_paint_canvases`) counts that text in book content, so a copy would count as another painting.
+ */
+export interface PaintVersion {
+  id: string;
+  name: string;
+  /** ISO time it was saved. */
+  savedAt: string;
+  layers: PaintLayerRecord[];
+}
+
+/** The size of a stored paint chunk, in document pixels. */
+export const PAINT_CHUNK = 1024;
+
+export type IlluminateStep = GradeStep | DofStep | VignetteStep | TextureStep | EdgesStep | WashStep | MaskStep | AiStep | CropStep | PaintStep;
 export type StepType = IlluminateStep["type"];
 
 export interface IlluminateSettings {
@@ -77,8 +123,8 @@ export interface IlluminateSettings {
   steps: IlluminateStep[];
 }
 
-/** The order the steps run in: the crop comes first, the texture sits under the vignette on purpose, the wash goes on after the edges, and the DM's own brush mask erases last. */
-export const STEP_ORDER: readonly StepType[] = ["ai", "crop", "grade", "dof", "texture", "vignette", "edges", "wash", "mask"];
+/** The order the steps run in: the crop comes first, the texture sits under the vignette on purpose, the wash goes on after the edges, the mask the Eraser paints on the picture erases it, and the painted layers go on last, over everything. */
+export const STEP_ORDER: readonly StepType[] = ["ai", "crop", "grade", "dof", "texture", "vignette", "edges", "wash", "mask", "paint"];
 
 // ─── Defensive parsing ──────────────────────────────────────────────────────
 
@@ -239,6 +285,74 @@ function parseCrop(raw: Record<string, unknown>): CropStep | null {
   return clampCrop(num(raw.x, 0), num(raw.y, 0), num(raw.w, 1), num(raw.h, 1));
 }
 
+const PAINT_BLENDS: readonly PaintLayerBlend[] = ["source-over", "multiply", "screen", "overlay", "soft-light", "color"];
+const MAX_PAINT_SIDE = 8192;
+
+function parsePaintSide(v: unknown): number | null {
+  return typeof v === "number" && Number.isInteger(v) && v > 0 && v <= MAX_PAINT_SIDE ? v : null;
+}
+
+function parsePaintLayer(raw: unknown, cols: number, rows: number): PaintLayerRecord | null {
+  if (!isRecord(raw)) return null;
+  const id = nonEmptyString(raw.id);
+  const blend = PAINT_BLENDS.find((b) => b === raw.blend);
+  if (!id || !blend) return null;
+  const chunks: Record<string, string> = {};
+  if (isRecord(raw.chunks)) {
+    for (const [key, url] of Object.entries(raw.chunks)) {
+      const m = /^(\d+),(\d+)$/.exec(key);
+      const value = nonEmptyString(url);
+      if (m && value && Number(m[1]) < cols && Number(m[2]) < rows) chunks[key] = value;
+    }
+  }
+  return {
+    id,
+    name: typeof raw.name === "string" ? raw.name : "",
+    blend,
+    opacity: clamp01(num(raw.opacity, 1)),
+    visible: bool(raw.visible, true),
+    lockAlpha: bool(raw.lockAlpha, false),
+    chunks,
+  };
+}
+
+/** A malformed version is dropped, never the painting. */
+function parsePaintVersion(raw: unknown, cols: number, rows: number): PaintVersion | null {
+  if (!isRecord(raw)) return null;
+  const id = nonEmptyString(raw.id);
+  const savedAt = nonEmptyString(raw.savedAt);
+  if (!id || !savedAt || !Array.isArray(raw.layers)) return null;
+  const layers = raw.layers.flatMap((l) => {
+    const layer = parsePaintLayer(l, cols, rows);
+    return layer ? [layer] : [];
+  });
+  return { id, name: typeof raw.name === "string" ? raw.name : "", savedAt, layers };
+}
+
+/** Invalid layers and chunks are dropped, not the step: a blank sheet with no layers still records its paper. */
+function parsePaint(raw: Record<string, unknown>): PaintStep | null {
+  const width = parsePaintSide(raw.width);
+  const height = parsePaintSide(raw.height);
+  if (width === null || height === null) return null;
+  const cols = Math.ceil(width / PAINT_CHUNK);
+  const rows = Math.ceil(height / PAINT_CHUNK);
+  const layers = Array.isArray(raw.layers)
+    ? raw.layers.flatMap((l) => {
+        const layer = parsePaintLayer(l, cols, rows);
+        return layer ? [layer] : [];
+      })
+    : [];
+  const step: PaintStep = { type: "paint", width, height, paper: nonEmptyString(raw.paper), layers };
+  if (Array.isArray(raw.versions)) {
+    const versions = raw.versions.flatMap((v) => {
+      const version = parsePaintVersion(v, cols, rows);
+      return version ? [version] : [];
+    });
+    if (versions.length > 0) step.versions = versions;
+  }
+  return step;
+}
+
 function parseStep(raw: unknown): IlluminateStep | null {
   if (!isRecord(raw)) return null;
   switch (raw.type) {
@@ -257,6 +371,7 @@ function parseStep(raw: unknown): IlluminateStep | null {
       const output = nonEmptyString(raw.output);
       return output ? { type: "ai", action: typeof raw.action === "string" ? raw.action : "", output } : null;
     }
+    case "paint": return parsePaint(raw);
     default: return null;
   }
 }
@@ -277,6 +392,23 @@ export function normaliseSettings(settings: IlluminateSettings): IlluminateSetti
  * furniture props store. Anything that is not version 1 settings is null (no
  * recipe), unknown or broken steps are dropped, and this never throws.
  */
+/**
+ * A recipe as print and previews read it (`data-illuminate`): without saved paint versions, which can be large and
+ * which nothing that reads the attribute needs. The book's JSON keeps them. Takes the recipe as an object (an image
+ * node's attr) or as JSON text (page art's props); text that is not JSON is passed on as it is.
+ */
+export function recipeForHtml(recipe: unknown): string {
+  let value = recipe;
+  if (typeof recipe === "string") {
+    try {
+      value = JSON.parse(recipe);
+    } catch {
+      return recipe;
+    }
+  }
+  return JSON.stringify(value, (key, v: unknown) => (key === "versions" ? undefined : v));
+}
+
 export function parseSettings(input: unknown): IlluminateSettings | null {
   let raw = input;
   if (typeof raw === "string") {
@@ -320,9 +452,20 @@ function cyrb53(text: string): number {
   return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 }
 
+/** The recipe as the bake sees it: saved versions never change a picture, so they are left out of the hash. */
+function withoutVersions(settings: IlluminateSettings): IlluminateSettings {
+  return {
+    ...settings,
+    steps: settings.steps.map((step) => {
+      if (step.type !== "paint" || step.versions === undefined) return step;
+      return { type: "paint", width: step.width, height: step.height, paper: step.paper, layers: step.layers };
+    }),
+  };
+}
+
 /** A stable hash of the normalised recipe: the same recipe always gives the same string. */
 export function hashSettings(settings: IlluminateSettings): string {
-  return cyrb53(stableStringify(normaliseSettings(settings))).toString(36);
+  return cyrb53(stableStringify(normaliseSettings(withoutVersions(settings)))).toString(36);
 }
 
 // ─── URLs ───────────────────────────────────────────────────────────────────
@@ -337,6 +480,9 @@ export function pictureUrls(settings: IlluminateSettings | null): string[] {
         return [step.url];
       case "ai":
         return [step.output];
+      case "paint":
+        // Saved versions keep their chunk files alive: cleanup compares two saves by this list.
+        return [...step.layers, ...(step.versions ?? []).flatMap((v) => v.layers)].flatMap((layer) => Object.values(layer.chunks));
       default:
         return [];
     }

@@ -10,9 +10,11 @@
   </EmptyState>
   <EditorContent
     v-else-if="editor"
+    ref="contentRef"
     :editor="editor"
     class="sc-theme sc-document-view"
-    :class="[themeClass, { 'sc-document-view--reader': layout === 'reader' }]"
+    :class="[themeClass, { 'sc-document-view--reader': layout === 'reader', 'sc-dressed': dressed }]"
+    :style="surfaceStyle"
   />
 </template>
 
@@ -44,7 +46,7 @@
  * parent passes the book's head and ONE chapter's Tiptap JSON (a book is
  * chapters, #1115); this never fetches anything itself.
  */
-import { computed, onUnmounted, provide, watch } from "vue";
+import { computed, onUnmounted, provide, ref, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import { createScriptoriumExtensions } from "@/scriptorium/lib/scriptoriumExtensions";
 import type { JSONContent } from "@tiptap/core";
@@ -54,12 +56,14 @@ import { SCRIPTORIUM_AUDIENCE_KEY, type ScriptoriumAudience } from "@/scriptoriu
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import { IconWarning } from "@/lib/icons";
 import { placedArtInFlow, type PlacedArt } from "@/scriptorium/lib/placedArtInFlow";
-import { bookSurfaceClasses } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses, bookSurfaceStyle } from "@/scriptorium/lib/looks";
+import { parseDressing } from "@/scriptorium/dressing/dressing";
+import { usePageDressing } from "@/scriptorium/dressing/usePageDressing";
 
 // Renamed from the prop's own name to avoid shadowing the global `document`.
 const { document: doc, content, layout = "page", audience = "dm", art } = defineProps<{
   /** The book's head: its look and its campaign. */
-  document: Pick<ReadableBook, "theme" | "paper_tone" | "campaign_id">;
+  document: Pick<ReadableBook, "theme" | "paper_tone" | "page_dressing" | "campaign_id"> & Partial<Pick<ReadableBook, "kind">>;
   /** The chapter to show, as the JSON object chapters are stored as. */
   content: JSONContent;
   /** "reader" adds the `sc-document-view--reader` modifier class for the
@@ -100,7 +104,14 @@ provide(SCRIPTORIUM_THEME_KEY, theme);
 // The paper is painted once. In the phone reader its scroll area is the paper (ScriptoriumReader), so this
 // view inside it is not one too: two surfaces drew a hairline frame around the text block alone, the text
 // flush against it (8 Nov 2026). Standing alone (the quest runner's handout tool), this view is the paper.
+const surfaceStyle = computed(() => bookSurfaceStyle({ paperTone: doc.paper_tone }));
 const themeClass = computed(() => [...bookSurfaceClasses({ theme: doc.theme, paperTone: doc.paper_tone }), ...(layout === "reader" ? [] : ["sc-paper-surface"])]);
+
+// The page dressing is drawn only where this view is the paper (the quest runner's handout tool). Inside the phone
+// reader the reader's surface is the page and draws it, so two layers never stack.
+const contentRef = ref<{ $el: HTMLElement } | null>(null);
+const dressing = computed(() => (layout === "reader" ? null : parseDressing(doc.page_dressing)));
+const { dressed } = usePageDressing(() => contentRef.value?.$el, { dressing: () => dressing.value, handout: () => doc.kind === "handout" });
 
 // A shared handout always has a campaign (the player projections are keyed on
 // it), so a player document without one is not renderable rather than being

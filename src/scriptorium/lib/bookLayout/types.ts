@@ -55,6 +55,8 @@ export interface BookPageInfo {
   /** 0-based position among all the book's pages, blanks included. */
   globalIndex: number;
   blank: boolean;
+  /** A cover page of any variant (front, inside, part or back): left undressed (#1181). */
+  cover: boolean;
   /** The printed page number; null for a cover, a skipped page or a blank. */
   label: string | null;
 }

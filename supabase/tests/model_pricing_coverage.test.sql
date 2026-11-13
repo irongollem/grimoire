@@ -48,6 +48,7 @@ select is_empty(
        ('image_model', c.image_model),
        ('map_style_model', c.map_style_model),
        ('chronicle_image_model', c.chronicle_image_model),
+       ('brush_tip_model', c.brush_tip_model),
        ('document_model', c.document_model),
        ('audio_model', c.audio_model),
        ('embedding_model', c.embedding_model)

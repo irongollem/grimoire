@@ -8,7 +8,11 @@ import type { IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment
 
 const toastError = vi.fn();
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: toastError }) }));
-vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "u1" }) }));
+const removeFiles = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock("@/composables/useImageUpload", () => ({ ASSET_IMAGES_BUCKET: "asset-images", removeStorageImages: removeFiles }));
+vi.mock("@/lib/observability/sentry", () => ({ reportHandledError: vi.fn() }));
+const rpc = vi.hoisted(() => vi.fn().mockResolvedValue({ data: [], error: null }));
+vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "u1" }), supabase: { rpc } }));
 // A URL is ours when the storage registry can read a bucket and a path out of it, in either URL shape.
 vi.mock("@/lib/storage", async () => {
   const urls = await vi.importActual<typeof import("@/lib/storage/urls")>("@/lib/storage/urls");
@@ -17,6 +21,8 @@ vi.mock("@/lib/storage", async () => {
 vi.mock("@/scriptorium/composables/usePictureBakes", () => ({ usePictureBakes: () => ({ schedule: vi.fn() }) }));
 vi.mock("@/scriptorium/composables/usePicturePreviews", () => ({ usePicturePreviews: () => ({ schedule: vi.fn() }) }));
 
+import { madeUrls } from "@/scriptorium/illuminator/lib/ownedPictures";
+import { clearSweepMarks, sweepIlluminatorFiles } from "@/scriptorium/composables/illuminatorSweep";
 import { originalOf, usePictureEditing } from "./usePictureEditing";
 
 const recipe: IlluminateSettings = { v: 1, seed: 1, steps: [{ type: "vignette", options: { strength: 0.3, softness: 0.5, mode: "transparent", colour: "#000000" } }] };
@@ -27,7 +33,9 @@ function setup(
   at: (id: string) => number | null = () => 5,
 ) {
   const treat = vi.fn();
+  const remove = vi.fn();
   const pictures = {
+    remove,
     valuesOf: () => values,
     nodePosByBlockId: at,
     treat,
@@ -48,7 +56,7 @@ function setup(
     }),
   );
   if (!api) throw new Error("no api");
-  return { api, treat, scope };
+  return { api, treat, remove, scope };
 }
 
 describe("originalOf", () => {
@@ -78,6 +86,14 @@ describe("the workbench for the selected picture", () => {
     expect(api.workbench.value).toMatchObject({ original: "https://x.supabase.co/storage/v1/object/public/asset-images/u/orig.webp", settings: recipe, name: "Rosie", pageLabel: "page 176" });
   });
 
+  // Fails on: a just-added sheet opening on whatever was selected (or nothing), because the selection has not caught up.
+  it("opens on art that was only just added, whatever is selected", () => {
+    const own = "https://x.supabase.co/storage/v1/object/public/asset-images/u/sheet-1.webp";
+    const { api } = setup(null, { kind: "page", page: 1 });
+    api.openWorkbench("brush", { id: "new-art", kind: "art", props: { src: own, original: own, illuminate: recipe } } as never);
+    expect(api.workbench.value).toMatchObject({ target: { source: "furniture", id: "new-art" }, original: own, tool: "brush", settings: recipe });
+  });
+
   it("does not open for a picture it cannot edit", () => {
     const { api } = setup({ src: "https://elsewhere.example/a.png" });
     api.openWorkbench();
@@ -92,7 +108,7 @@ describe("the workbench for the selected picture", () => {
     expect(inText.api.workbench.value).toMatchObject({ tool: "crop", pageAspect: null });
     const onPage = setup({ src: own }, { kind: "picture", source: "furniture", id: "f1" } as PanelSelection);
     onPage.api.openWorkbench();
-    expect(onPage.api.workbench.value).toMatchObject({ tool: "edges", pageAspect: 0.75 });
+    expect(onPage.api.workbench.value).toMatchObject({ tool: undefined, pageAspect: 0.75 });
   });
 
   // Fails on: Done writing the recipe without the original, so Reset has nothing to go back to.
@@ -102,6 +118,97 @@ describe("the workbench for the selected picture", () => {
     api.onWorkbenchDone(recipe);
     expect(treat).toHaveBeenCalledWith({ source: "node", pos: 5 }, { original: "https://x.supabase.co/storage/v1/object/public/asset-images/u/a.webp", illuminate: recipe, bakedFor: null });
     expect(api.workbench.value).toBeNull();
+  });
+
+  // Fails on: a flattened painting keeping its recipe, or its `ill-` file being offered to the sweep while the picture holds it.
+  it("flatten makes the stored file the original and the picture, clears the recipe, and keeps the file out of the sweep", () => {
+    const base = "https://x.supabase.co/storage/v1/object/public/asset-images/u/";
+    const before = { src: `${base}ill-bake-1.webp`, original: `${base}orig.webp`, illuminate: recipe, bakedFor: "h" };
+    const { api, treat } = setup(before);
+    api.openWorkbench("brush");
+    api.onWorkbenchFlatten(`${base}ill-flat-ab12cd34.webp`);
+    expect(api.workbench.value).toBeNull();
+    const patch = treat.mock.calls[0]![1] as Record<string, unknown>;
+    expect(patch).toEqual({ original: `${base}ill-flat-ab12cd34.webp`, src: `${base}ill-flat-ab12cd34.webp`, illuminate: null, bakedFor: null });
+    const after = Object.fromEntries(Object.entries({ ...before, ...patch }).filter(([, v]) => v !== null));
+    expect(madeUrls(after, "u")).toEqual([]);
+    // The old bake is now sweepable.
+    expect(madeUrls(before, "u")).toEqual([`${base}ill-bake-1.webp`]);
+  });
+
+  // Fails on: Flatten leaving the blank sheet's original in storage for good (Cancel removes it, Flatten did not).
+  it("flatten offers the old blank-sheet original to the sweep, which still checks it is unused", async () => {
+    clearSweepMarks();
+    removeFiles.mockClear();
+    const base = "https://x.supabase.co/storage/v1/object/public/asset-images/u1/";
+    const sheet = `${base}sheet-1.webp`;
+    const { api } = setup({ src: sheet, original: sheet, illuminate: recipe });
+    api.openWorkbench("brush");
+    api.onWorkbenchFlatten(`${base}ill-flat-ab12cd34.webp`);
+    rpc.mockResolvedValueOnce({ data: [sheet], error: null });
+    await sweepIlluminatorFiles();
+    // Still referenced elsewhere: kept.
+    expect(removeFiles).not.toHaveBeenCalled();
+    const second = setup({ src: sheet, original: sheet, illuminate: recipe });
+    second.api.openWorkbench("brush");
+    second.api.onWorkbenchFlatten(`${base}ill-flat-ef56.webp`);
+    await sweepIlluminatorFiles();
+    expect(removeFiles).toHaveBeenCalledWith("asset-images", sheet);
+  });
+
+  // Fails on: Flatten deleting an original that is the author's picture or somebody else's, because it was marked like a sheet.
+  it("flatten never marks an original that is not the author's own sheet file", async () => {
+    clearSweepMarks();
+    removeFiles.mockClear();
+    rpc.mockClear();
+    const base = "https://x.supabase.co/storage/v1/object/public/asset-images/";
+    for (const original of [`${base}u1/rte-170.webp`, `${base}u2/sheet-1.webp`, `${base}u1/sub/sheet-1.webp`, "https://x.supabase.co/storage/v1/object/public/monster-images/u1/sheet-1.webp"]) {
+      const { api } = setup({ src: original, original, illuminate: recipe });
+      api.openWorkbench("brush");
+      api.onWorkbenchFlatten(`${base}u1/ill-flat-1.webp`);
+    }
+    await sweepIlluminatorFiles();
+    expect(rpc).not.toHaveBeenCalled();
+    expect(removeFiles).not.toHaveBeenCalled();
+  });
+
+  // Fails on: Cancel straight after Blank sheet leaving an empty painting that already holds the free canvas.
+  it("cancel removes a blank sheet that was just made and holds no paint, and its stored paper", () => {
+    const own = "https://x.supabase.co/storage/v1/object/public/asset-images/u/sheet-1.webp";
+    const empty = { v: 1, seed: 1, steps: [{ type: "paint", width: 10, height: 10, paper: "kraft", layers: [] }] };
+    const item = { id: "new-art", kind: "art", props: { src: own, original: own, illuminate: empty } } as never;
+    const { api, remove } = setup({ src: own, original: own, illuminate: empty });
+    api.openWorkbench("brush", item);
+    api.onWorkbenchCancel();
+    expect(remove).toHaveBeenCalledWith({ source: "furniture", id: "new-art" });
+    expect(removeFiles).toHaveBeenCalledWith("asset-images", own);
+    expect(api.workbench.value).toBeNull();
+  });
+
+  // Fails on: Cancel straight after Paint on this page leaving an empty page-sized painting holding the free canvas.
+  it("cancel removes a page painting that was just made and holds no paint, and its stored sheet", () => {
+    const own = "https://x.supabase.co/storage/v1/object/public/asset-images/u/sheet-2.webp";
+    const empty = { v: 1, seed: 1, steps: [{ type: "paint", width: 10, height: 14, paper: "laid", layers: [] }] };
+    const props = { src: own, original: own, illuminate: empty, fill: "page", painting: 1 };
+    const { api, remove } = setup(props);
+    api.openWorkbench("brush", { id: "page-art", kind: "art", props } as never);
+    api.onWorkbenchCancel();
+    expect(remove).toHaveBeenCalledWith({ source: "furniture", id: "page-art" });
+    expect(removeFiles).toHaveBeenCalledWith("asset-images", own);
+  });
+
+  // Fails on: Cancel deleting a picture the author opened to edit, or a sheet that already carries painting.
+  it("cancel keeps a picture that was opened to edit, and a sheet that holds paint", () => {
+    const own = "https://x.supabase.co/storage/v1/object/public/asset-images/u/a.webp";
+    const opened = setup({ src: own });
+    opened.api.openWorkbench("brush");
+    opened.api.onWorkbenchCancel();
+    expect(opened.remove).not.toHaveBeenCalled();
+    const painted = { v: 1, seed: 1, steps: [{ type: "paint", width: 10, height: 10, paper: null, layers: [{ id: "l1", name: "L", blend: "source-over", opacity: 1, visible: true, lockAlpha: false, chunks: {} }] }] };
+    const sheet = setup({ src: own, original: own, illuminate: painted });
+    sheet.api.openWorkbench("brush", { id: "n", kind: "art", props: { src: own } } as never);
+    sheet.api.onWorkbenchCancel();
+    expect(sheet.remove).not.toHaveBeenCalled();
   });
 
   // Fails on: Done after the picture was deleted behind the workbench throwing or writing into nothing.

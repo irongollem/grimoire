@@ -55,9 +55,12 @@
       <!-- The chapter, as one flowing column — sc-theme + the theme class give it
            the same palette/typography as the desktop galley; ScriptoriumReader's
            own scoped styles below undo everything that assumes a physical page. -->
-      <div ref="scrollRef" class="sc-theme min-h-0 flex-1 overflow-y-auto px-4 py-4" :class="themeClass">
-        <LoadingSpinner v-if="loading || !shown" />
-        <ScriptoriumDocumentView v-else :document="book" :content="shown.content" :art="shown.art" layout="reader" :audience="audience" />
+      <!-- The surface is the paper and, with it, the page the dressing is drawn on; the text scrolls over it. -->
+      <div ref="surfaceRef" class="sc-theme relative min-h-0 flex-1" :class="[...surfaceClasses, { 'sc-dressed': dressed }]" :style="surfaceStyle">
+        <div ref="scrollRef" class="sc-theme absolute inset-0 overflow-y-auto px-4 py-4" :class="themeClass">
+          <LoadingSpinner v-if="loading || !shown" />
+          <ScriptoriumDocumentView v-else :document="book" :content="shown.content" :art="shown.art" layout="reader" :audience="audience" />
+        </div>
       </div>
 
       <footer v-if="multiple && shownIndex >= 0" class="flex justify-between gap-2 border-t border-border px-3 py-2">
@@ -115,7 +118,9 @@ import { KIND_LABELS } from "@/scriptorium/lib/documentCardMeta";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllDmCampaigns } from "@/composables/campaign/useCampaigns";
 import type { ReadableBook } from "@/scriptorium/types";
-import { bookSurfaceClasses } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses, bookSurfaceStyle } from "@/scriptorium/lib/looks";
+import { parseDressing } from "@/scriptorium/dressing/dressing";
+import { usePageDressing } from "@/scriptorium/dressing/usePageDressing";
 
 const {
   book,
@@ -148,7 +153,16 @@ function goBack() {
   else void router.push(backTo);
 }
 
-const themeClass = computed(() => [...bookSurfaceClasses({ theme: book.theme, paperTone: book.paper_tone }), "sc-paper-surface"]);
+const surfaceStyle = computed(() => bookSurfaceStyle({ paperTone: book.paper_tone }));
+const themeClass = computed(() => bookSurfaceClasses({ theme: book.theme, paperTone: book.paper_tone }));
+const surfaceClasses = computed(() => [...themeClass.value, "sc-paper-surface"]);
+const surfaceRef = ref<HTMLElement | null>(null);
+// The player's handout carries its dressing as it carries its paper (get_player_handout).
+const dressing = computed(() => parseDressing(book.page_dressing));
+const { dressed } = usePageDressing(() => surfaceRef.value, {
+  dressing: () => dressing.value,
+  handout: () => book.kind === "handout",
+});
 // The doc type is the DM's own filing ("Custom", "Adventure Module"); to a
 // player the document is simply a handout or a book the DM gave them.
 const kindLabel = computed(() => (audience === "player" ? KIND_LABELS[book.kind] : DOC_TYPES[book.doc_type].label));

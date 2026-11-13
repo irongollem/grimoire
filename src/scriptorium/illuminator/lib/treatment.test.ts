@@ -159,3 +159,78 @@ describe("the wash step", () => {
     expect(hashSettings(settings([wash({ seed: 10 }) as unknown as IlluminateSettings["steps"][number]]))).not.toBe(hashSettings(a));
   });
 });
+
+describe("the paint step", () => {
+  const layer = (over: Record<string, unknown> = {}) => ({ id: "a", name: "Ink", blend: "multiply", opacity: 0.5, visible: true, lockAlpha: false, chunks: { "0,0": "u/ill-paint-1.webp" }, ...over });
+  const parse = (step: Record<string, unknown>) => parseSettings({ v: 1, seed: 0, steps: [{ type: "paint", width: 2000, height: 1000, paper: null, layers: [layer()], ...step }] });
+
+  // Fails on: the step being dropped on reload, which would lose every painted layer.
+  it("keeps a well formed step and lists every chunk url", () => {
+    const s = parse({ layers: [layer(), layer({ id: "b", chunks: { "1,0": "u/ill-paint-2.webp" } })] });
+    expect(s?.steps[0]).toMatchObject({ type: "paint", width: 2000, height: 1000 });
+    expect(pictureUrls(s)).toEqual(["u/ill-paint-1.webp", "u/ill-paint-2.webp"]);
+  });
+
+  // Fails on: a blank sheet losing the paper it was started on.
+  it("keeps a step with no layers and its paper", () => {
+    expect(parse({ layers: [], paper: "parchment" })?.steps[0]).toMatchObject({ layers: [], paper: "parchment" });
+  });
+
+  // Fails on: a bad size reaching a renderer (a divide by zero or a canvas the browser refuses).
+  it("drops a step whose size is not a whole number from 1 to 8192", () => {
+    for (const bad of [{ width: 0 }, { width: -4 }, { height: 1.5 }, { width: 8193 }, { height: "9" }]) expect(parse(bad)?.steps).toEqual([]);
+  });
+
+  // Fails on: one bad layer, chunk key or url wiping the whole painting, or a chunk outside the grid being kept.
+  it("drops bad layers and chunks but keeps the rest", () => {
+    const s = parse({ layers: [
+      layer({ blend: "dodge" }),
+      layer({ id: "" }),
+      "nope",
+      layer({ id: "ok", chunks: { "0,0": "keep", "5,0": "outside", "x,y": "bad", "1,0": "", "1,1": 4 } }),
+    ] });
+    const step = s?.steps[0];
+    expect(step?.type === "paint" && step.layers.map((l) => l.id)).toEqual(["ok"]);
+    expect(pictureUrls(s)).toEqual(["keep"]);
+  });
+
+  // Fails on: an opacity outside 0..1 reaching globalAlpha.
+  it("clamps opacity", () => {
+    const step = parse({ layers: [layer({ opacity: 7 }), layer({ id: "b", opacity: -2 })] })?.steps[0];
+    expect(step?.type === "paint" && step.layers.map((l) => l.opacity)).toEqual([1, 0]);
+  });
+});
+
+describe("saved versions of a painting", () => {
+  const rec = (id: string, url: string) => ({ id, name: "Ink", blend: "multiply", opacity: 0.5, visible: true, lockAlpha: false, chunks: { "0,0": url } });
+  const version = (n: number, over: Record<string, unknown> = {}) => ({ id: `v${n}`, name: `Version ${n}`, savedAt: "2026-11-12T10:00:00.000Z", layers: [rec("a", `u/ill-paint-v${n}.webp`)], ...over });
+  const make = (versions: unknown[]) => parseSettings({ v: 1, seed: 0, steps: [{ type: "paint", width: 1000, height: 1000, paper: null, layers: [rec("a", "u/ill-paint-now.webp")], versions }] });
+
+  // Fails on: a version repeating the paint marker, which the free plan's canvas count reads as a second painting (ten versions would count as eleven canvases).
+  it("serialises the paint marker once, however many versions it holds", () => {
+    const s = make(Array.from({ length: 10 }, (_, i) => version(i + 1)));
+    const json = JSON.stringify(s);
+    expect(json.match(/"type":\s*"paint"/g)).toHaveLength(1);
+    expect(JSON.stringify(s, null, 2).match(/"type":\s*"paint"/g)).toHaveLength(1);
+    const step = s?.steps[0];
+    expect(step?.type === "paint" && step.versions).toHaveLength(10);
+  });
+
+  // Fails on: cleanup deleting a version's chunk files because only the current layers were counted.
+  it("lists a url only a version names", () => {
+    expect(pictureUrls(make([version(1)]))).toContain("u/ill-paint-v1.webp");
+  });
+
+  // Fails on: one malformed version wiping the painting or crashing the parse.
+  it("drops a malformed version and keeps the rest", () => {
+    const s = make([version(1), { id: "", layers: [] }, "junk", version(2, { layers: "x" }), version(3, { savedAt: "" }), version(4)]);
+    const step = s?.steps[0];
+    expect(step?.type === "paint" && step.versions?.map((v) => v.id)).toEqual(["v1", "v4"]);
+    expect(step?.type === "paint" && step.layers).toHaveLength(1);
+  });
+
+  // Fails on: saving a version changing the bake hash, which would rebake every picture for an edit the picture never shows.
+  it("does not change the hash", () => {
+    expect(hashSettings(make([version(1)])!)).toBe(hashSettings(make([])!));
+  });
+});

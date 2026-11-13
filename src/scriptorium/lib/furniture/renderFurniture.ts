@@ -17,6 +17,10 @@ import { watercolorAsset, watercolorSrc } from "@/data/watercolorAssets";
 import { followsBlock, placeAtAnchor, topPct } from "@/scriptorium/lib/furniture/anchorOffset";
 import { fillsPage } from "@/scriptorium/lib/furniture/model";
 import { artBlend } from "@/scriptorium/lib/furniture/blend";
+import { recipeForHtml } from "@/scriptorium/illuminator/lib/treatment";
+import type { Dressing, PageKind } from "@/scriptorium/dressing/dressing";
+import { buildDressingLayer, DRESSING_CLASS } from "@/scriptorium/dressing/dressingLayer";
+import { BLANK_PAGE_ATTR } from "@/scriptorium/lib/pageNumbering";
 
 const FURNITURE_CLASS = "sc-furniture";
 
@@ -108,7 +112,8 @@ export function buildFurnitureElement(item: PageFurnitureItem): HTMLElement {
     // A treated picture prints from its recipe (printImages.ts): the same keys the image node carries.
     for (const [prop, attr] of [["original", "data-original"], ["illuminate", "data-illuminate"], ["bakedFor", "data-baked-for"]] as const) {
       const value = str(item.props[prop]);
-      if (value) img.setAttribute(attr, value);
+      // The recipe goes without its saved paint versions, as the image node writes it (recipeForHtml).
+      if (value) img.setAttribute(attr, prop === "illuminate" ? recipeForHtml(value) : value);
     }
     // Filling the page covers the whole page box, cropped like object-fit: cover, whatever x, y, width or corner say.
     const fill = fillsPage(item);
@@ -200,6 +205,19 @@ export interface RenderFurnitureOptions {
   interactive?: boolean;
   /** Id of the currently selected item (only used when interactive). */
   selectedId?: string | null;
+  /** The book's page dressing, already resolved for its finish (`activeDressing`); null or absent draws none. */
+  dressing?: Dressing | null;
+  /** A handout is one sheet: its dressing is laid out as one page. */
+  handout?: boolean;
+}
+
+/** A cover page node: the full-page front, inside, part or back cover. */
+export const COVER_SELECTOR = '[data-type="coverPage"]';
+
+/** What a laid-out page is to the dressing: a blank page or a front or back cover is left bare. */
+function pageKindOf(page: HTMLElement): PageKind {
+  if (page.hasAttribute(BLANK_PAGE_ATTR)) return "blank";
+  return page.querySelector(COVER_SELECTOR) ? "cover" : "text";
 }
 
 /**
@@ -213,7 +231,7 @@ export function renderFurniture(
   items: PageFurnitureItem[],
   opts: RenderFurnitureOptions = {},
 ): void {
-  container.querySelectorAll(`.${FURNITURE_CLASS}`).forEach((e) => e.remove());
+  container.querySelectorAll(`.${FURNITURE_CLASS}, .${DRESSING_CLASS}`).forEach((e) => e.remove());
   const pages = Array.from(container.querySelectorAll<HTMLElement>(".pagedjs_page"));
   if (!pages.length) return;
 
@@ -247,6 +265,17 @@ export function renderFurniture(
       const top = block ? topPct(block.getBoundingClientRect().top, boxRect.top, boxRect.height) : null;
       if (top !== null) placeAtAnchor(el, item, box, top);
     }
+  }
+
+  // The page dressing is put in last, at the very start of the page box, so it is behind everything, "under" furniture included. A page's number is its
+  // place in the whole book (blank pages and covers counted), the same one the page panel shows.
+  if (opts.dressing) {
+    pages.forEach((page, index) => {
+      const box = page.querySelector<HTMLElement>(".pagedjs_pagebox") ?? page;
+      const aspect = box.offsetWidth > 0 && box.offsetHeight > 0 ? box.offsetHeight / box.offsetWidth : undefined;
+      const layer = buildDressingLayer(opts.dressing ?? null, index + 1, pageKindOf(page), { aspect, handout: opts.handout });
+      if (layer) box.insertBefore(layer, box.firstChild);
+    });
   }
 }
 

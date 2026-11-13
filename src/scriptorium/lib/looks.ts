@@ -8,10 +8,11 @@
 import type {
   ScriptoriumBookTheme,
   ScriptoriumFooterStyle,
-  ScriptoriumPaperTone,
   ScriptoriumPaper,
   ScriptoriumTheme,
 } from "@/scriptorium/types";
+import { artUrl } from "@/lib/assets/artUrl";
+import { paperById, type PaperId } from "@/scriptorium/papers/papers";
 import type { NoticePinStyle } from "@/types/noticeBoard.types";
 import grimoireCss from "@/scriptorium/styles/theme-grimoire.css?inline";
 import onednd2024Css from "@/scriptorium/styles/theme-onednd2024.css?inline";
@@ -45,26 +46,6 @@ const LOOKS: Record<ScriptoriumTheme, ScriptoriumLook> = {
 /** The handout papers, in the order "What is it written on?" shows them. */
 export const PAPERS: readonly ScriptoriumPaper[] = ["letter", "notice", "journal", "plain"];
 
-/** The book paper choices, in the order Book settings shows them. */
-export const PAPER_TONES: readonly ScriptoriumPaperTone[] = ["grey", "warm-grey", "white", "parchment"];
-export const PAPER_TONE_LABELS: Record<ScriptoriumPaperTone, string> = {
-  grey: "Grey",
-  "warm-grey": "Warm grey",
-  white: "White",
-  parchment: "Parchment",
-};
-
-
-/** What the Paper control offers; "own" is `paper_tone` null, which a segmented control cannot hold as a value. */
-export type PaperChoice = ScriptoriumPaperTone | "own";
-export const PAPER_CHOICES: readonly { value: PaperChoice; label: string }[] = [
-  { value: "own", label: "Look's own" },
-  ...PAPER_TONES.map((tone) => ({ value: tone, label: PAPER_TONE_LABELS[tone] })),
-];
-export function paperToneFromChoice(choice: PaperChoice): ScriptoriumPaperTone | null {
-  return choice === "own" ? null : choice;
-}
-
 export const FOOTER_STYLE_CHOICES: readonly { value: ScriptoriumFooterStyle; label: string }[] = [
   { value: "plain", label: "Plain" },
   { value: "ribbon", label: "Ribbon" },
@@ -84,24 +65,51 @@ export function scriptoriumThemeCss(theme: ScriptoriumTheme): string {
   return LOOKS[theme].css;
 }
 
+/** Both finishes that make a page print plain white and so leave a paper off. */
+function paperApplies(opts: { paperTone?: PaperId | null; inkFriendly?: boolean }): opts is { paperTone: PaperId; inkFriendly?: boolean } {
+  return Boolean(opts.paperTone) && !opts.inkFriendly;
+}
+
 /**
  * Every class a renderer puts on its `.sc-theme` element: the look's own, the
- * book's paper and the ribbon footer. One function so no renderer can forget
- * one. Paper is a book setting: a handout's paper is its theme, so it never
- * gets a paper class, and ink-friendly prints plain white whatever the paper.
+ * document's paper and the ribbon footer. One function so no renderer can
+ * forget one. A book or a handout may carry a paper (it replaces the look's
+ * own page background); ink-friendly prints plain white whatever the paper.
+ * The paper's picture comes with it as `bookSurfaceStyle`, bound beside this.
  */
 export function bookSurfaceClasses(opts: {
   theme: ScriptoriumTheme;
-  paperTone?: ScriptoriumPaperTone | null;
+  paperTone?: PaperId | null;
   footerStyle?: ScriptoriumFooterStyle | null;
   inkFriendly?: boolean;
 }): string[] {
   const classes = [LOOKS[opts.theme].className];
-  if (opts.paperTone && LOOKS[opts.theme].family === "book" && !opts.inkFriendly) {
-    classes.push(`sc-paper--${opts.paperTone}`);
-  }
+  if (paperApplies(opts)) classes.push("sc-paper");
   if (opts.footerStyle === "ribbon") classes.push("sc-footer-style--ribbon");
   return classes;
+}
+
+/**
+ * The inline custom properties the `.sc-paper` rule paints from. Papers are served from the art CDN, which a
+ * stylesheet cannot name, so the URL is set here. The tile is sized in millimetres, not pixels: a painted full
+ * page is 2480 px across an A4 sheet, so 1024 px of surface x `surfaceScale` is about 86.7 mm x `surfaceScale`
+ * of paper, and a page is laid out at real CSS size (the 96 dpi page model; the preview scales it with a
+ * transform, which scales the tile with it). The paper's features are then as large on a page as in a painting.
+ */
+export function paperSurfaceStyle(paperId: PaperId): Record<string, string> {
+  const paper = paperById(paperId);
+  const tile = `${((1024 * paper.surfaceScale * 210) / 2480).toFixed(2)}mm`;
+  return {
+    "--sc-paper-image": `url(${artUrl(paper.surfacePath)})`,
+    "--sc-paper-veil": `rgb(255 255 255 / ${paper.veil})`,
+    "--sc-paper-size": `${tile} ${tile}`,
+    "--sc-page-bg": paper.tint,
+  };
+}
+
+/** The inline style that goes with `bookSurfaceClasses`: empty when no paper applies. */
+export function bookSurfaceStyle(opts: { paperTone?: PaperId | null; inkFriendly?: boolean }): Record<string, string> {
+  return paperApplies(opts) ? paperSurfaceStyle(opts.paperTone) : {};
 }
 
 /** What a new handout on this paper starts with: one A5 column, no furniture. */

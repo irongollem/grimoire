@@ -76,13 +76,14 @@
           :can-edit-picture="canEditPicture"
           :campaign-id="campaignId"
           :page-aspect="sheetGeometry.width / sheetGeometry.height"
+          :paper-tone="paperTone"
           :closable="!wide"
           @close="closePanel"
           @open-settings="emit('openSettings')"
           @add-furniture="emit('addFurniture', $event)"
           @update-item="updateItem"
           @select-furniture="emit('update:selectedFurnitureId', $event)"
-          @edit-picture="openWorkbench($event)"
+          @edit-picture="(tool, created) => openWorkbench(tool, created)"
           @describe="described.start"
         />
       </aside>
@@ -117,7 +118,8 @@
       :start-tool="workbench.tool"
       :page-aspect="workbench.pageAspect"
       @done="onWorkbenchDone"
-      @cancel="workbench = null"
+      @flatten="onWorkbenchFlatten"
+      @cancel="onWorkbenchCancel"
     />
   </div>
 </template>
@@ -158,10 +160,11 @@ import { useAutosave, type AutosaveStatus } from "@/composables/useAutosave";
 import { useSaveChapter } from "@/scriptorium/composables/useScriptoriumChapters";
 import { usePictureEditing } from "@/scriptorium/composables/usePictureEditing";
 import { markForSweep } from "@/scriptorium/composables/illuminatorSweep";
+import { usePaintQuotaRefresh } from "@/scriptorium/composables/usePaintQuotaRefresh";
 import { chapterUrlsRemoved } from "@/scriptorium/lib/chapterImages";
 import { getCurrentUser } from "@/lib/supabase";
 import { countWords } from "@/scriptorium/lib/chapterTitle";
-import { bookSurfaceClasses } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses, bookSurfaceStyle } from "@/scriptorium/lib/looks";
 import { pageGeometry, pageGeometryCssVars } from "@/scriptorium/lib/pageGeometry";
 import { storeToRefs } from "pinia";
 import { useScriptoriumUiStore } from "@/scriptorium/stores/ui";
@@ -249,6 +252,7 @@ const sheetRef = ref<HTMLElement | null>(null);
 // --sc-sheet-scale is read by later waves (a drag measured on screen needs it).
 const sheetStyle = computed(() => ({
   ...pageGeometryCssVars(geometry.value),
+  ...bookSurfaceStyle({ paperTone, inkFriendly }),
   "--sc-sheet-scale": String(sheetScale.value),
 }));
 const scaleBoxStyle = computed(() => {
@@ -341,6 +345,7 @@ watch(
   { immediate: true },
 );
 
+const refreshPaintQuota = usePaintQuotaRefresh();
 const autosave = useAutosave({
   draft,
   initial: () => ({ edits: 0 }),
@@ -354,6 +359,7 @@ const autosave = useAutosave({
     const previous = savedJson;
     await saveChapter({ id: chapter.id, documentId, content });
     savedJson = json;
+    refreshPaintQuota(previous, json);
     // Marked, not deleted: the file may still be on a page or in another chapter, and undo may bring it back.
     markForSweep(...chapterUrlsRemoved(previous, json, getCurrentUser()?.id));
   },
@@ -500,7 +506,7 @@ const described = useDescribedPictures({ pictures, pageAspect: () => sheetGeomet
 watch(editor, (ed) => { if (ed) described.resume(); }, { immediate: true });
 
 // ── The Illuminator in the book (#1176 story 9b) ────────────────────────────
-const { canEditPicture, workbench, openWorkbench, onWorkbenchDone, currentUserId, bakeErrors, retryBakes } = usePictureEditing({
+const { canEditPicture, workbench, openWorkbench, onWorkbenchDone, onWorkbenchFlatten, onWorkbenchCancel, currentUserId, bakeErrors, retryBakes } = usePictureEditing({
   editor,
   selection,
   version: selectionVersion,

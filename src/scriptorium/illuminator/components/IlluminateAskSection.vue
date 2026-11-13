@@ -58,6 +58,7 @@
  * stored result goes up to the workbench, which makes it the base. Reset to the original asks first, because
  * the output cannot be made again for free.
  */
+import { aiOffered, canPayFor } from "@/scriptorium/illuminator/lib/aiOffer";
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
@@ -107,7 +108,7 @@ const EDGE_OPTIONS: SegmentedOption<PageEdge>[] = [
 ];
 const edge = ref<PageEdge>("right");
 /** AI is per campaign, so the actions exist only for a book of the active campaign with AI on there. */
-const offered = computed(() => campaignId !== null && campaignId === campaign.activeCampaignId && campaign.isAiEnabled);
+const offered = computed(() => aiOffered(campaignId, campaign));
 const running = ref<IlluminateAction | null>(null);
 
 /** The oblong the picture is sent in; null until it has loaded, so no price is shown that would then jump. */
@@ -118,7 +119,7 @@ const plainSize = computed<AiSize | null>(() => {
 });
 const extendSize = computed<AiSize | null>(() => (natural ? (extendLayout(natural, edge.value)?.size ?? null) : null));
 /** A price not known yet never blocks; a known one must be affordable. */
-const canPay = (credits: number | null) => credits === null || affordable(credits);
+const canPay = (credits: number | null) => canPayFor(credits, affordable);
 const priced = (size: AiSize | null) => (size ? costFor(size) : null);
 
 interface Row {

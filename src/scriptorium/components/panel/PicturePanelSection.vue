@@ -4,7 +4,7 @@
       <div class="flex items-center gap-3">
         <img v-if="src" :src="src" alt="" class="size-14 shrink-0 rounded-sm border border-border bg-muted object-cover" />
         <div class="min-w-0">
-          <h2 class="text-eyebrow uppercase text-primary">Picture</h2>
+          <h2 class="text-eyebrow uppercase text-primary">{{ item?.props.painting === 1 ? "Painting" : "Picture" }}</h2>
           <p class="text-body text-foreground" data-testid="panel-picture-where">{{ where }}</p>
           <!-- The label of record is in the picture's own bytes; this chip is for the author, and never prints. -->
           <AiImageBadge :src="src" inline />

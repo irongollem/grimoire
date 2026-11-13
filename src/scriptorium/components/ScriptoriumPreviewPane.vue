@@ -39,7 +39,7 @@
                 ...surfaceClasses,
                 { 'paged-book--spread': reading, 'paged-book--lone': reading && spread === 0 },
               ]"
-              :style="{ '--spread-page-width': `${pageBox.w}px` }"
+              :style="{ ...surfaceStyle, '--spread-page-width': `${pageBox.w}px` }"
             />
             <!-- Nothing written yet: the layout has no pages, so show the bare
                  sheet in its look rather than an empty stage. -->
@@ -47,6 +47,7 @@
               v-if="blankSheet"
               class="sc-theme"
               :class="[...surfaceClasses, { 'ink-friendly': settings.inkFriendly }]"
+              :style="surfaceStyle"
               data-testid="preview-blank-sheet"
               aria-hidden="true"
             >
@@ -91,10 +92,11 @@ import { useBookPreview } from "@/scriptorium/composables/useBookPreview";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { buildPagedPreviewCss } from "@/scriptorium/lib/pagedPreviewCss";
 import { renderFurniture } from "@/scriptorium/lib/furniture/renderFurniture";
+import { activeDressing, type Dressing } from "@/scriptorium/dressing/dressing";
 import { EDITOR_PAGE_DIMENSIONS_PX } from "@/scriptorium/lib/editorConstants";
 import { measureChapterFlow } from "@/scriptorium/lib/pageFlow/measureFlow";
 import type { ChapterFlow } from "@/scriptorium/lib/pageFlow/types";
-import { bookSurfaceClasses } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses, bookSurfaceStyle } from "@/scriptorium/lib/looks";
 import { activeThemeId, darkTwinStyle } from "@/lib/themeRuntime";
 import { spreadCount, spreadPages } from "@/scriptorium/lib/spreads";
 import type { BookChapterInput, BookLayoutResult, BookLayoutSettings } from "@/scriptorium/lib/bookLayout/types";
@@ -117,6 +119,8 @@ const {
   reading,
   focusChapterId = null,
   furniture = [],
+  dressing = null,
+  handout = false,
   paperTone = null,
   footerStyle = "plain",
 } = defineProps<{
@@ -133,6 +137,10 @@ const {
   focusChapterId?: string | null;
   /** Written onto the pages by the engine; never interactive here, the editor's pages are where furniture is edited. */
   furniture?: PageFurnitureItem[];
+  /** The book's page dressing, drawn under everything on each page (#1181); ink-friendly leaves it off. */
+  dressing?: Dressing | null;
+  /** A handout is one sheet: its dressing is laid out as one page. */
+  handout?: boolean;
   /** The book's own paper and footer style; they change no layout, so they are not part of `settings`. */
   paperTone?: ScriptoriumPaperTone | null;
   footerStyle?: ScriptoriumFooterStyle;
@@ -159,6 +167,13 @@ const surfaceClasses = computed(() =>
   bookSurfaceClasses({ theme: settings.theme, paperTone, footerStyle, inkFriendly: settings.inkFriendly }),
 );
 
+const surfaceStyle = computed(() => bookSurfaceStyle({ paperTone, inkFriendly: settings.inkFriendly }));
+
+/** Every pass that draws furniture draws the dressing with it, so a re-draw in place cannot lose it. */
+function furnitureOptions() {
+  return { interactive: false, selectedId: null, dressing: activeDressing(dressing, settings.inkFriendly), handout };
+}
+
 const { isRendering, error, result, progress } = useBookPreview({
   chapters: () => chapters(),
   changes: () => changes,
@@ -166,7 +181,7 @@ const { isRendering, error, result, progress } = useBookPreview({
   stylesheets: () => [
     { "scriptorium-paged.css": buildPagedPreviewCss({ pageSize: settings.pageSize, inkFriendly: settings.inkFriendly }) },
   ],
-  furniture: () => ({ items: furniture, options: { interactive: false, selectedId: null } }),
+  furniture: () => ({ items: furniture, options: furnitureOptions() }),
   focusChapterId: () => focusChapterId,
   container: hostRef,
   afterRender: () => {
@@ -232,9 +247,9 @@ const scaleBoxStyle = computed(() => {
 
 // ── Furniture (an overlay on the laid-out pages: re-drawn in place, never re-laid out) ──
 watch(
-  () => furniture,
+  [() => furniture, () => dressing, () => settings.inkFriendly],
   () => {
-    if (hostRef.value) renderFurniture(hostRef.value, furniture, { interactive: false, selectedId: null });
+    if (hostRef.value) renderFurniture(hostRef.value, furniture, furnitureOptions());
   },
   { deep: true },
 );

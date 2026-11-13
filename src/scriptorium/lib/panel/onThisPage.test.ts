@@ -64,6 +64,14 @@ describe("onThisPage", () => {
     expect(entry.label).toBe("Picture in front");
   });
 
+  // Fails on: a page painting being listed as an ordinary picture, so the DM cannot tell it from art.
+  it("names a painting on the page Painting", () => {
+    const { doc, pages, blockPos } = setup();
+    const painting = item("p1", "art", "b1", { props: { src: "p.webp", painting: 1 } });
+    const [entry] = onThisPage({ doc, pages, page: 1, chapterId: "c1", furniture: [painting], blockPos }).filter((e) => e.kind === "picture" && e.source === "furniture");
+    expect(entry.label).toBe("Painting");
+  });
+
   it("lists nothing for an empty page", () => {
     const { doc, pages, blockPos } = setup();
     expect(onThisPage({ doc, pages, page: 3, chapterId: "c1", furniture: [], blockPos })).toEqual([]);

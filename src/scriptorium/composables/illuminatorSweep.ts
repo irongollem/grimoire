@@ -1,6 +1,6 @@
 /*
  * One deferred, reference-checked removal of the files the Illuminator made
- * (bakes, brush masks, textures, AI results).
+ * (bakes, painted masks, textures, AI results).
  *
  * A save, a layer move, a cut and paste or an undo can each stop one place from
  * using a file while another still does, and each place only sees its own
@@ -12,9 +12,10 @@
 import { ASSET_IMAGES_BUCKET, removeStorageImages } from "@/composables/useImageUpload";
 import { reportHandledError } from "@/lib/observability/sentry";
 import { getCurrentUser, supabase } from "@/lib/supabase";
-import { isMadeByIlluminator } from "@/scriptorium/illuminator/lib/ownedPictures";
+import { isAuthorsSheet, isMadeByIlluminator } from "@/scriptorium/illuminator/lib/ownedPictures";
 
 const pending = new Set<string>();
+const RPC_BATCH = 500;
 
 /** Candidates for removal. Only the author's own Illuminator files are kept; an original is never a candidate. */
 export function markForSweep(...urls: (string | null | undefined)[]): void {
@@ -22,14 +23,27 @@ export function markForSweep(...urls: (string | null | undefined)[]): void {
   for (const url of urls) if (isMadeByIlluminator(url, userId)) pending.add(url);
 }
 
+/**
+ * The author's own blank-sheet file, offered once nothing on this picture holds it (Flatten replaced it as the
+ * original). Anything that is not `{user}/sheet-...` is ignored, so an original is never marked by this. The sweep
+ * still asks the server whether any chapter or page refers to it before deleting.
+ */
+export function markSheetForSweep(url: string | null | undefined): void {
+  if (isAuthorsSheet(url, getCurrentUser()?.id)) pending.add(url);
+}
+
 /** Remove every marked file nothing refers to any more. Throws when the check or the removal fails. */
 export async function sweepIlluminatorFiles(): Promise<void> {
   if (pending.size === 0) return;
   const snapshot = [...pending];
-  const { data, error } = await supabase.rpc("scriptorium_pictures_in_use", { p_urls: snapshot });
-  if (error) throw error;
-  if (!data) throw new Error("scriptorium_pictures_in_use answered nothing");
-  const inUse = new Set<string>(data);
+  // The server refuses more than RPC_BATCH urls at a time, and a painting holds many chunk files.
+  const inUse = new Set<string>();
+  for (let i = 0; i < snapshot.length; i += RPC_BATCH) {
+    const { data, error } = await supabase.rpc("scriptorium_pictures_in_use", { p_urls: snapshot.slice(i, i + RPC_BATCH) });
+    if (error) throw error;
+    if (!data) throw new Error("scriptorium_pictures_in_use answered nothing");
+    for (const url of data) inUse.add(url);
+  }
   const unused = snapshot.filter((url) => !inUse.has(url));
   if (unused.length > 0) await removeStorageImages(ASSET_IMAGES_BUCKET, ...unused);
   for (const url of snapshot) pending.delete(url);

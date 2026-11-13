@@ -21,6 +21,7 @@ function providerRow(overrides: Partial<ProviderConfig> = {}): ProviderConfig {
     image_model: null,
     map_style_model: null,
     chronicle_image_model: null,
+    brush_tip_model: null,
     image_quality: null,
     audio_model: null,
     embedding_model: null,

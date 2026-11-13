@@ -94,7 +94,7 @@ export interface QuestBoardSummary {
  * Whether the board shows a quest as in session. Threads never close on their
  * own (#850), so settling a quest's lane leaves its Main thread running; the
  * lane is the DM's statement that the quest is over, and it wins. The server's
- * `get_campaign_live_quests` applies the same rule (20261112220946).
+ * `get_campaign_live_quests` applies the same rule (20261113004130).
  */
 export function isQuestInSession(quest: Pick<Quest, "status">, summary: Pick<QuestBoardSummary, "isLive"> | undefined): boolean {
   return summary?.isLive === true && quest.status !== "completed" && quest.status !== "failed";

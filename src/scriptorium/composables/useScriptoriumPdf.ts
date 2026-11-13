@@ -52,7 +52,7 @@ import type {
   ScriptoriumTheme,
 } from "@/scriptorium/types";
 import scriptoriumFontsCss from "@/scriptorium/styles/fonts.css?inline";
-import { bookSurfaceClasses, scriptoriumThemeCss } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses, bookSurfaceStyle, scriptoriumThemeCss } from "@/scriptorium/lib/looks";
 import { buildPdfDocumentHtml, serializeStyle } from "@/scriptorium/lib/printDocument";
 import { inlineSameOriginAssets } from "@/scriptorium/lib/inlineSameOriginAssets";
 import { attachBundleToPdf } from "@/scriptorium/lib/campaignBundlePdf";
@@ -63,6 +63,8 @@ import { expectedPagesFromDom } from "@/scriptorium/lib/printCheckDom";
 import type { ExpectedPage, PrintMismatch } from "@/scriptorium/lib/printCheck";
 import { readPdfPageTexts } from "@/scriptorium/lib/pdfPageTexts";
 import type { BookPageInfo } from "@/scriptorium/lib/bookLayout/types";
+import { activeDressing, type Dressing } from "@/scriptorium/dressing/dressing";
+import { dressingCss } from "@/scriptorium/dressing/dressingLayer";
 import {
   chunkPagesHtml,
   mergePdfs,
@@ -146,6 +148,10 @@ export interface PdfDocumentOptions {
   footerTitle: ScriptoriumFooterTitle;
   pageNumberStart: number;
   furniture: PageFurnitureItem[];
+  /** The book's page dressing; ink-friendly prints none. */
+  dressing: Dressing | null;
+  /** A handout is one sheet: its dressing is laid out as one page. */
+  handout: boolean;
 }
 
 export interface PdfExportOptions extends PdfDocumentOptions {
@@ -206,6 +212,7 @@ export function useScriptoriumPdf() {
     // px on purpose: 794px is A4's width at 96 dpi, the geometry Paged.js
     // lays out against; a rem width would scale with the root font size.
     host.style.cssText = "position:fixed; left:-99999px; top:0; width:794px;";
+    for (const [name, value] of Object.entries(bookSurfaceStyle(opts))) host.style.setProperty(name, value);
     document.body.appendChild(host);
 
     // The same engine as the live preview, so the exported PDF breaks where
@@ -216,6 +223,7 @@ export function useScriptoriumPdf() {
       // Cropped pictures take the crop's shape before layout, so a stale bake cannot give them the wrong box.
       const chapters = await Promise.all(opts.chapters.map(async (c) => ({ ...c, html: await fitCroppedPictures(c.html) })));
       const furniture = await fitCroppedArt(opts.furniture);
+      const dressing = activeDressing(opts.dressing, opts.inkFriendly);
       const laid = await book.layout(
         {
           chapters,
@@ -231,7 +239,8 @@ export function useScriptoriumPdf() {
             theme: opts.theme,
           },
           stylesheets: [{ "scriptorium-paged.css": pagedCss }],
-          furniture: { items: furniture }, // non-interactive, decorations only
+          // Non-interactive, decorations only: the same placement the preview draws.
+          furniture: { items: furniture, options: { dressing, handout: opts.handout } },
         },
         {
           onChapter: ({ done, total }) => {
@@ -276,6 +285,7 @@ export function useScriptoriumPdf() {
           fontsCss: scriptoriumFontsCss,
           themeCss,
           pagedStyles,
+          dressingCss: dressing ? dressingCss() : undefined,
           pagesHtml: PAGES_MARKER,
         }),
         fetchCached,

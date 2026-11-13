@@ -5,7 +5,8 @@ import { changedSettings, themeForKind, toSettingsDraft, useBookSettings } from 
 import { createFurnitureItem } from "@/scriptorium/lib/furniture/model";
 import type { PageFurnitureItem, ScriptoriumDocument } from "@/scriptorium/types";
 
-const mocks = vi.hoisted(() => ({ update: vi.fn(), remove: vi.fn() }));
+const mocks = vi.hoisted(() => ({ update: vi.fn(), remove: vi.fn(), invalidateQuota: vi.fn() }));
+vi.mock("@/composables/billing/useQuota", () => ({ useInvalidateQuota: () => mocks.invalidateQuota }));
 // A file leaves storage only through the sweep; a save only marks it.
 vi.mock("@/scriptorium/composables/illuminatorSweep", () => ({ markForSweep: mocks.remove }));
 vi.mock("@/lib/supabase", () => ({ supabase: {}, getCurrentUser: () => ({ id: "u1" }) }));
@@ -22,6 +23,7 @@ const doc = {
 beforeEach(() => {
   mocks.update.mockReset().mockResolvedValue(doc);
   mocks.remove.mockReset().mockResolvedValue(undefined);
+  mocks.invalidateQuota.mockReset();
 });
 
 function mountSettings() {
@@ -52,6 +54,19 @@ describe("book settings", () => {
       paperTone: "parchment",
       footerStyle: "ribbon",
     });
+  });
+
+  it("saves the page dressing as its own column, and reads a malformed column as none", () => {
+    // Fails on: the dressing left out of the row (a choice in Book settings never saved), or a bad column
+    // reaching the draft and from there every renderer.
+    const dressing = { v: 1, seed: 9, stain: { on: true, strength: 0.6 }, wash: { on: false, strength: 0.5 }, corners: { on: false, strength: 0.8 } } as const;
+    const before = toSettingsDraft(doc);
+    expect(before.pageDressing).toBeNull();
+    expect(changedSettings(before, { ...before, pageDressing: dressing })).toEqual({ page_dressing: dressing });
+    expect(changedSettings({ ...before, pageDressing: dressing }, { ...before, pageDressing: null })).toEqual({ page_dressing: null });
+    expect(changedSettings(before, before)).toEqual({});
+    expect(toSettingsDraft({ ...doc, page_dressing: dressing }).pageDressing).toEqual(dressing);
+    expect(toSettingsDraft({ ...doc, page_dressing: { v: 7 } as never }).pageDressing).toBeNull();
   });
 
   it("keeps an edit that failed to save and sends it on the next try", async () => {
@@ -137,5 +152,37 @@ describe("book art cleanup", () => {
     mocks.update.mockRejectedValue(new Error("offline"));
     const removed = await saveWith([art({ src: bakeA, original: placeArt })], []);
     expect(removed).toEqual([]);
+  });
+});
+
+describe("the painting canvas count", () => {
+  const painted = (): PageFurnitureItem => {
+    const item = createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 });
+    return { ...item, props: { ...item.props, illuminate: JSON.stringify({ v: 1, seed: 1, steps: [{ type: "paint", width: 1, height: 1, paper: null, layers: [] }] }) } };
+  };
+
+  it("asks for the quota only after the furniture save has landed (asked at Done it counts the old state)", async () => {
+    let finish: () => void = () => undefined;
+    mocks.update.mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve(doc); }));
+    const { settings, scope } = mountSettings();
+    settings.patch({ furniture: [painted()] });
+    await nextTick();
+    const saving = settings.saveNow();
+    await nextTick();
+    expect(mocks.update).toHaveBeenCalledTimes(1);
+    expect(mocks.invalidateQuota).not.toHaveBeenCalled();
+    finish();
+    await saving;
+    expect(mocks.invalidateQuota).toHaveBeenCalledWith("paint_canvases");
+    scope.stop();
+  });
+
+  it("leaves it alone for a save that changed no painting", async () => {
+    const { settings, scope } = mountSettings();
+    settings.patch({ footerText: "x" });
+    await nextTick();
+    await settings.saveNow();
+    expect(mocks.invalidateQuota).not.toHaveBeenCalled();
+    scope.stop();
   });
 });

@@ -14,6 +14,8 @@ export interface ProviderRow {
   map_style_model: string | null;
   /** Chronicler scenes' and group portraits' image model; NULL = image_model. */
   chronicle_image_model: string | null;
+  /** Brush tips described in words (paint-brush-tips); NULL = image_model. */
+  brush_tip_model: string | null;
   /**
    * Model for document/image extraction (#353). Separate from `text_model`
    * because reading a document is a distinct capability: on Anthropic the
@@ -52,7 +54,7 @@ export async function fetchProviderConfigs(
     // function fell back to its hard-coded defaults without a word.
     const { data, error } = await admin
       .from("provider_config")
-      .select("provider, text_model, image_model, map_style_model, chronicle_image_model, image_quality, document_model, text_multiplier, image_multiplier, fast_text_model, text_enabled, image_enabled");
+      .select("provider, text_model, image_model, map_style_model, chronicle_image_model, brush_tip_model, image_quality, document_model, text_multiplier, image_multiplier, fast_text_model, text_enabled, image_enabled");
     if (error) throw error;
     providerCache = Object.fromEntries(
       data.map((row: { provider: string } & ProviderRow) => [row.provider, row]),

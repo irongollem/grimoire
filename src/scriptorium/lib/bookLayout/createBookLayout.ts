@@ -35,7 +35,7 @@ import { injectPagedFooters, isRectoIndex } from "../pagedFooters";
 import { chapterTitleOf, runningTitle } from "../footerTitle";
 import { computePageLabels, flagsFromHtml, BLANK_PAGE_ATTR } from "../pageNumbering";
 import type { PageNumberFlags } from "../pageNumbering";
-import { renderFurniture, CHAPTER_ID_ATTR, CHAPTER_PAGE_ATTR } from "../furniture/renderFurniture";
+import { renderFurniture, CHAPTER_ID_ATTR, CHAPTER_PAGE_ATTR, COVER_SELECTOR } from "../furniture/renderFurniture";
 import { createBlankPage, needsBlankPageAfter } from "./blankPages";
 import type {
   BookChapterSpan,
@@ -324,6 +324,7 @@ export function createBookLayout(host: HTMLElement, engineOptions: BookLayoutEng
       pageInChapter: s.pageInChapter,
       globalIndex: i,
       blank: s.pageInChapter === null,
+      cover: s.el.querySelector(COVER_SELECTOR) !== null,
       label: labels[i],
     }));
     const chapters: BookChapterSpan[] = input.chapters.map((c) => {

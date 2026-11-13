@@ -1,5 +1,7 @@
 import type { JSONContent } from "@tiptap/core";
 import type { AiProvenance } from "@/ai/provenance";
+import type { PaperId } from "@/scriptorium/papers/papers";
+import type { Dressing } from "@/scriptorium/dressing/dressing";
 
 export type ScriptoriumDocType =
   | "custom"
@@ -33,8 +35,8 @@ export type ScriptoriumPageSize = "A4" | "A5" | "Letter";
  * or the book's own footer text. Left-hand pages always carry the book's title.
  */
 export type ScriptoriumFooterTitle = "chapter" | "book" | "custom";
-/** A book's own paper, laid over its look's; null (the column's default) is the look's own. */
-export type ScriptoriumPaperTone = "grey" | "warm-grey" | "white" | "parchment";
+/** A document's own paper (the shared papers module's ids); null (the column's default) is the look's own. */
+export type ScriptoriumPaperTone = PaperId;
 /** How the running title is set at the foot of the page. */
 export type ScriptoriumFooterStyle = "plain" | "ribbon";
 
@@ -99,13 +101,15 @@ export interface ScriptoriumDocument {
   footer_text: string;
   /** Which running title the right-hand pages carry; `footer_text` is the "custom" one. */
   footer_title: ScriptoriumFooterTitle;
-  /** Books only: the paper the pages are printed on; null is the look's own. */
+  /** The paper the pages are printed on, for books and handouts; null is the look's own. */
   paper_tone: ScriptoriumPaperTone | null;
   footer_style: ScriptoriumFooterStyle;
   page_number_start: number;
   /** Page-furniture decorations (Phase D). JSONB column, defaults to [].
    * Optional until the column + editor wiring land (foundation-only for now). */
   page_furniture?: PageFurnitureItem[];
+  /** The hand-painted marks every page carries (#1181); null is none. Read it through `parseDressing`: it is jsonb. */
+  page_dressing?: Dressing | null;
   /** Set when the Scriptorium AI drafted the body (epic #910); `markEdited` on a body save. */
   ai_provenance?: AiProvenance | null;
   created_at: string;
@@ -117,7 +121,7 @@ export interface ScriptoriumDocument {
  *  provenance and owner id are filing, not part of the handout. */
 export type ReadableBook = Pick<
   ScriptoriumDocument,
-  "id" | "title" | "kind" | "doc_type" | "campaign_id" | "theme" | "paper_tone" | "updated_at"
+  "id" | "title" | "kind" | "doc_type" | "campaign_id" | "theme" | "paper_tone" | "page_dressing" | "updated_at"
 >;
 
 /** One chapter of a book: a Tiptap document of its own (#1115). */

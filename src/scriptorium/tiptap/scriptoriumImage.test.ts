@@ -138,3 +138,23 @@ describe("ScriptoriumImage blend", () => {
     expect(attrsOf('<img src="https://cdn/a.webp" data-blend="screen">')?.blend).toBeNull();
   });
 });
+
+describe("ScriptoriumImage recipe with saved paint versions", () => {
+  const version = { id: "v1", name: "Version 1", savedAt: "2026-11-12T10:00:00.000Z", layers: [{ id: "a", name: "Ink", blend: "source-over", opacity: 1, visible: true, lockAlpha: false, chunks: { "0,0": "https://cdn/u/ill-paint-old.webp" } }] };
+  const recipe = { v: 1, seed: 1, steps: [{ type: "paint", width: 1000, height: 1000, paper: null, layers: [{ ...version.layers[0], chunks: { "0,0": "https://cdn/u/ill-paint-now.webp" } }], versions: [version] }] };
+
+  // Fails if print and previews carry every saved version (large, and never read there) in the page HTML.
+  it("leaves the versions out of data-illuminate but keeps the painting", () => {
+    const html = generateHTML(image({ original: "https://cdn/o.webp", illuminate: recipe }), EXT);
+    expect(html).not.toContain("versions");
+    expect(html).not.toContain("ill-paint-old");
+    expect(html).toContain("ill-paint-now");
+  });
+
+  // Fails if the strip is applied to the node itself, so the chapter's JSON (what is saved) loses the versions.
+  it("does not touch the node's own attributes", () => {
+    const doc = image({ original: "https://cdn/o.webp", illuminate: recipe });
+    generateHTML(doc, EXT);
+    expect(JSON.stringify(doc)).toContain("ill-paint-old");
+  });
+});

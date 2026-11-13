@@ -84,8 +84,6 @@ const ART_EXTENSIONS = new Set([
  */
 const MANIFEST_EXCLUSIONS = new Set<string>([
   "/assets/scriptorium/page-background.webp",
-  "/assets/scriptorium/paper/grey.webp",
-  "/assets/scriptorium/paper/warm-grey.webp",
   "/assets/vellum/paper.webp",
 ]);
 

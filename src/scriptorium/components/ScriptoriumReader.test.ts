@@ -13,6 +13,7 @@ function flushEditor(): Promise<void> {
 }
 
 const mocks = vi.hoisted(() => ({
+  dressPage: vi.fn(),
   back: vi.fn(),
   push: vi.fn(),
   embedHtml: { value: null as string | null },
@@ -23,6 +24,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/scriptorium/composables/usePlayerEntityEmbed", () => ({
   usePlayerEntityEmbed: () => ({ html: computed(() => mocks.embedHtml.value), isLoading: computed(() => false) }),
 }));
+vi.mock("@/scriptorium/dressing/dressing", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/scriptorium/dressing/dressing")>();
+  mocks.dressPage.mockImplementation(actual.dressPage);
+  return { ...actual, dressPage: mocks.dressPage };
+});
 vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
   useRouter: () => ({ back: mocks.back, push: mocks.push }),
@@ -262,13 +268,51 @@ describe("ScriptoriumReader", () => {
   });
 
   it("wears the book's own paper, which a player's handout carries", () => {
-    expect(mountReader({ book: makeBook({ paper_tone: "parchment" }) }).find(".sc-paper--parchment").exists()).toBe(true);
-    expect(mountReader({ book: makeBook({ paper_tone: null }) }).find("[class*=sc-paper--]").exists()).toBe(false);
+    expect(mountReader({ book: makeBook({ paper_tone: "parchment" }) }).find(".sc-paper.sc-paper-surface").exists()).toBe(true);
+    expect(mountReader({ book: makeBook({ paper_tone: null }) }).find(".sc-paper.sc-paper-surface").exists()).toBe(false);
   });
 
   it("wears the document's own look, a paper included", () => {
     expect(mountReader({ book: makeBook({ theme: "phb2014" }) }).find(".theme-phb2014").exists()).toBe(true);
     expect(mountReader({ book: makeBook({ theme: "onednd2024" }) }).find(".theme-phb2014").exists()).toBe(false);
     expect(mountReader({ book: makeBook({ kind: "handout", theme: "notice" }) }).find(".theme-notice").exists()).toBe(true);
+  });
+
+  describe("page dressing", () => {
+    const DRESSING = {
+      v: 1,
+      seed: 5,
+      stain: { on: true, strength: 0.6 },
+      wash: { on: true, strength: 0.5 },
+      corners: { on: true, strength: 0.8 },
+    } as const;
+
+    it("draws the book's dressing on the paper behind the text, through the one placement function", async () => {
+      // Fails on: a player's handout read without the marks the DM chose, or a reader placing marks of its own.
+      mocks.dressPage.mockClear();
+      const w = mountReader({ book: makeBook({ kind: "handout", paper_tone: "parchment", page_dressing: DRESSING }) }, undefined);
+      await flushEditor();
+      const surface = w.get(".sc-paper-surface");
+      expect(surface.find(":scope > .sc-dressing").exists()).toBe(true);
+      expect(surface.classes()).toContain("sc-dressed");
+      expect(mocks.dressPage).toHaveBeenCalledWith(expect.objectContaining({ seed: 5 }), 1, "text", expect.objectContaining({ handout: true }));
+    });
+
+    it("draws nothing for a book without one, or with a column that does not parse", async () => {
+      for (const page_dressing of [null, { v: 9 } as never]) {
+        const w = mountReader({ book: makeBook({ page_dressing }) });
+        await flushEditor();
+        expect(w.find(".sc-dressing").exists()).toBe(false);
+        expect(w.find(".sc-dressed").exists()).toBe(false);
+      }
+    });
+
+    it("keeps the text scrolling over a page that stays put", async () => {
+      const w = mountReader({ book: makeBook({ page_dressing: DRESSING }) });
+      await flushEditor();
+      const surface = w.get(".sc-paper-surface, .sc-dressed");
+      expect(surface.find(".overflow-y-auto").exists()).toBe(true);
+      expect(surface.find(".sc-dressing").element.compareDocumentPosition(surface.get(".overflow-y-auto").element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
   });
 });

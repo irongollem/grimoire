@@ -95,6 +95,12 @@ export const buttonVariants = cva(
          * (#1179). Dashed because the thing behind it is not drawn, as an empty well is.
          */
         dashed: "border border-dashed border-foreground/40 text-foreground hover:border-primary hover:bg-primary/5",
+        /**
+         * A colour swatch: a bordered square whose fill is the colour, set by the caller through `style`
+         * (the colour IS the state, so no variant can name it). No hover change and no text. Pair with `icon-xs` or
+         * `icon-sm`; `active` rings the swatch in use. The Illuminator's paint colours.
+         */
+        swatch: "border border-border",
       },
       size: {
         /**
@@ -194,6 +200,11 @@ export const buttonVariants = cva(
          * anchors `KeyCap corner`; the word names its own role through the caller.
          */
         tile: "relative h-12 min-w-14 flex-col justify-center gap-0.5 rounded-md px-1 text-caption-sm",
+        /**
+         * An icon-only tool tile for a two-column rail: a fixed square, the key cap in its corner,
+         * the tool's name in its tooltip.
+         */
+        "tile-icon": "relative size-11 justify-center rounded-md text-caption-sm",
         "icon-2xs": "h-5 w-5 rounded text-label",
         "icon-xs": "h-6 w-6 rounded text-label-lg",
         "icon-sm": "h-8 w-8 rounded-md text-label-lg",
@@ -562,6 +573,9 @@ export const buttonVariants = cva(
       { variant: "menu", tone: "arcane", class: "text-tone-arcane" },
       { variant: "menu", tone: "caution", class: "text-tone-caution" },
 
+      // A selected swatch is ringed, not tinted: its fill is the colour it holds.
+      { variant: "swatch", active: true, class: "ring-2 ring-primary ring-offset-1 ring-offset-card" },
+
       // ── well × state ──────────────────────────────────────────────────────
       // A filled well is `active`: the generic compounds below give it the tint, this
       // makes the border solid and restates the hover fill the variant's base owns.
@@ -643,11 +657,11 @@ export type ButtonSurface = NonNullable<ButtonVariants["surface"]>;
 type Assert<T extends true> = T;
 
 export const BUTTON_VARIANTS = [
-  "primary", "live", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu", "well", "tool", "dashed",
+  "primary", "live", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu", "well", "tool", "dashed", "swatch",
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [
-  "inline-xs", "inline", "inline-body", "inline-caption", "xs", "sm", "md", "lg", "body", "caption", "toolbar", "strip", "well", "tile", "icon-2xs", "icon-xs", "icon-sm",
+  "inline-xs", "inline", "inline-body", "inline-caption", "xs", "sm", "md", "lg", "body", "caption", "toolbar", "strip", "well", "tile", "tile-icon", "icon-2xs", "icon-xs", "icon-sm",
 ] as const satisfies readonly ButtonSize[];
 
 // `[X] extends [never]` rather than `X extends never`: a naked conditional

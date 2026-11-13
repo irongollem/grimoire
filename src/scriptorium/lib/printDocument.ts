@@ -12,7 +12,7 @@ import type {
   ScriptoriumTheme,
 } from "@/scriptorium/types";
 import themeBaseCss from "@/scriptorium/styles/theme-base.css?inline";
-import { bookSurfaceClasses } from "@/scriptorium/lib/looks";
+import { bookSurfaceClasses, bookSurfaceStyle } from "@/scriptorium/lib/looks";
 import { escapeHtml } from "@/lib/escapeHtml";
 
 const PAGE_SIZE_KEYWORD: Record<ScriptoriumPageSize, string> = {
@@ -76,6 +76,8 @@ export interface PdfDocumentAssembly {
    * down and Sothery's calendar lost its last paragraph (#1115).
    */
   pagedStyles: string;
+  /** The page dressing's stylesheet (dressingCss), when the book has one: its mask pictures are named once, here. */
+  dressingCss?: string;
   /** The rendered `.pagedjs_pages` markup. */
   pagesHtml: string;
 }
@@ -88,13 +90,17 @@ export interface PdfDocumentAssembly {
  */
 export function buildPdfDocumentHtml(opts: PdfDocumentAssembly): string {
   const cls = bookSurfaceClasses(opts).join(" ");
+  const style = Object.entries(bookSurfaceStyle(opts))
+    .map(([name, value]) => `${name}: ${value}`)
+    .join("; ");
   return (
     `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(opts.title || "Untitled")}</title>` +
     `<style>${opts.fontsCss}</style>` +
     `<style>${themeBaseCss}</style><style>${opts.themeCss}</style>` +
     `<style>${opts.pagedStyles}</style>` +
+    (opts.dressingCss ? `<style>${opts.dressingCss}</style>` : "") +
     `<style>${printResetCss(opts.pageSize)}</style></head>` +
-    `<body class="sc-theme ${cls}">${opts.pagesHtml}</body></html>`
+    `<body class="sc-theme ${cls}"${style ? ` style="${escapeHtml(style)}"` : ""}>${opts.pagesHtml}</body></html>`
   );
 }
 

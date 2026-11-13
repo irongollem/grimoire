@@ -8,7 +8,12 @@ vi.mock("./dofBlur", () => ({ applyDofBlur: (_c: unknown, _w: number, _h: number
 vi.mock("./vignette", () => ({ applyVignette: (_c: unknown, _w: number, _h: number, o: { enabled: boolean }) => calls.push(`vignette:${o.enabled}`) }));
 vi.mock("./edgeTreatment", () => ({ applyEdgeTreatmentToCtx: () => calls.push("edges:classic") }));
 vi.mock("./tornPaper", () => ({ applyTornPaper: (_c: unknown, _w: number, _h: number, _o: unknown, seed: number) => calls.push(`edges:paper:${seed}`) }));
-vi.mock("./paperWash", () => ({ applyPaperWash: (_c: unknown, _w: number, _h: number, o: { from: string }) => calls.push(`wash:${o.from}`) }));
+vi.mock("./paperWash", () => ({
+  applyPaperWash: async (_c: unknown, _w: number, _h: number, o: { from: string }, _l: unknown, options: { draft?: boolean }) => {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    calls.push(`wash:${o.from}${options.draft ? ":draft" : ""}`);
+  },
+}));
 vi.mock("./textureOverlay", () => ({
   decodedSize: (i: { width: number; height: number }) => ({ width: i.width, height: i.height }),
   applyTextureOverlay: (_c: unknown, _w: number, _h: number, _o: unknown, tex: { id: string }, factor: number) => calls.push(`texture:${tex.id}:${factor}`),
@@ -36,7 +41,7 @@ function fakeCtx() {
 }
 
 const load = vi.fn(async (url: string) => ({ id: url, width: 8, height: 8 }) as unknown as HTMLImageElement);
-const run = (s: IlluminateSettings, opts?: { sourceWidth?: number }) => {
+const run = (s: IlluminateSettings, opts?: { sourceWidth?: number; draft?: boolean }) => {
   const { ctx, ops } = fakeCtx();
   return applySteps(ctx, 100, 50, s, load, opts).then(() => ops);
 };
@@ -72,6 +77,24 @@ describe("applySteps", () => {
   });
 
   // Fails on: the wash being skipped, drawn before the edges, or drawn after the DM's mask.
+  // Fails on: the wash not being awaited, so the mask (or the bake's PNG encode) runs before the wash is drawn.
+  it("waits for the wash to finish before the next step runs", async () => {
+    const wash = { type: "wash", from: "left", reach: 0.5, brush: 0.5, dry: 0.5, seed: 1 } as const;
+    const ops = await run({ v: 1, seed: 1, steps: [wash, mask] });
+    expect(calls).toEqual(["wash:left"]);
+    expect(ops).toContain("op:destination-out");
+  });
+
+  // Fails on: the draft flag being dropped, so the live preview paints the full-size wash and freezes.
+  it("passes draft through to the wash, and not by default", async () => {
+    const wash = { type: "wash", from: "left", reach: 0.5, brush: 0.5, dry: 0.5, seed: 1 } as const;
+    await run({ v: 1, seed: 1, steps: [wash] }, { draft: true });
+    expect(calls).toEqual(["wash:left:draft"]);
+    calls.length = 0;
+    await run({ v: 1, seed: 1, steps: [wash] });
+    expect(calls).toEqual(["wash:left"]);
+  });
+
   it("draws the wash after the edges and before the mask", async () => {
     const wash = { type: "wash", from: "right", reach: 0.5, brush: 0.5, dry: 0.5, seed: 1 } as const;
     const ops = await run({ v: 1, seed: 1, steps: [mask, wash, { type: "edges", style: "classic", top: classicSide, right: classicSide, bottom: classicSide, left: classicSide }] });
@@ -94,5 +117,87 @@ describe("applySteps", () => {
     await run({ v: 1, seed: 1, steps: [{ type: "ai", action: "cut-out", output: "ai.webp" }] });
     expect(calls).toEqual([]);
     expect(load).not.toHaveBeenCalled();
+  });
+
+  describe("the paint step", () => {
+    const layer = (id: string, over: Record<string, unknown> = {}) => ({
+      id, name: id, blend: "source-over", opacity: 1, visible: true, lockAlpha: false, chunks: {}, ...over,
+    });
+    const paint = (layers: unknown[], width = 2048, height = 1024) => ({ type: "paint", width, height, paper: null, layers }) as unknown as IlluminateSettings["steps"][number];
+
+    function recordingCtx() {
+      const ops: string[] = [];
+      let op = "source-over";
+      let alpha = 1;
+      const ctx = {
+        get globalCompositeOperation() { return op; },
+        set globalCompositeOperation(v: string) { op = v; },
+        get globalAlpha() { return alpha; },
+        set globalAlpha(v: number) { alpha = v; },
+        drawImage: (img: { id: string }, ...r: number[]) => ops.push(`${img.id}@${op}:${alpha}:${r.join(",")}`),
+      };
+      return { ctx: ctx as unknown as CanvasRenderingContext2D, ops, state: () => ({ op, alpha }) };
+    }
+
+    // Fails on: layers drawn top first, a hidden layer painting, or a chunk landing at the wrong place or scale
+    // (the 2048x1024 document is drawn at 1024x512, half size).
+    it("draws visible layers bottom first, each chunk at its place scaled to the target", async () => {
+      const { ctx, ops } = recordingCtx();
+      await applySteps(ctx, 1024, 512, { v: 1, seed: 1, steps: [paint([
+        layer("under", { chunks: { "0,0": "a", "1,0": "b" } }),
+        layer("hidden", { visible: false, chunks: { "0,0": "h" } }),
+        layer("over", { chunks: { "0,0": "c" } }),
+      ])] }, load);
+      expect(ops).toEqual([
+        "a@source-over:1:0,0,512,512",
+        "b@source-over:1:512,0,512,512",
+        "c@source-over:1:0,0,512,512",
+      ]);
+      expect(load).not.toHaveBeenCalledWith("h");
+    });
+
+    // Fails on: the blend or opacity being ignored, or leaking onto the steps and layers drawn after.
+    it("applies a layer's blend and opacity and puts both back", async () => {
+      const { ctx, ops, state } = recordingCtx();
+      await applySteps(ctx, 100, 50, { v: 1, seed: 1, steps: [paint([
+        layer("m", { blend: "multiply", opacity: 0.4, chunks: { "0,0": "a" } }),
+        layer("n", { chunks: { "0,0": "b" } }),
+        layer("o", { blend: "screen", opacity: 0.3, chunks: { "0,0": "c" } }),
+      ])] }, load);
+      expect(ops[0]).toMatch(/^a@multiply:0\.4:/);
+      expect(ops[1]).toMatch(/^b@source-over:1:/);
+      expect(state()).toEqual({ op: "source-over", alpha: 1 });
+    });
+
+    // Fails on: paint drawn under the mask (the mask would erase the DM's paint) or before the wash.
+    it("draws after the mask", async () => {
+      const { ctx } = recordingCtx();
+      const order: string[] = [];
+      const inner = ctx as unknown as { drawImage: (...a: unknown[]) => void };
+      const original = inner.drawImage;
+      inner.drawImage = (img: unknown, ...rest: unknown[]) => { order.push((img as { id: string }).id); original(img, ...rest); };
+      await applySteps(ctx, 100, 50, { v: 1, seed: 1, steps: [paint([layer("l", { chunks: { "0,0": "p.png" } })]), mask] }, load);
+      expect(order).toEqual(["mask.png", "p.png"]);
+    });
+
+    // Fails on: the paper being baked into a painting on the page, which would print an opaque sheet over the text
+    // and the page's own paper instead of leaving it transparent where nothing was painted.
+    it("draws no paper: a page painting's bake is transparent where no stroke landed", async () => {
+      const { ctx, ops } = recordingCtx();
+      const filled: unknown[] = [];
+      (ctx as unknown as { fillRect: (...a: number[]) => void }).fillRect = (...a) => filled.push(a);
+      await applySteps(ctx, 100, 50, { v: 1, seed: 1, steps: [{ type: "paint", width: 100, height: 50, paper: "kraft", layers: [] }] }, load);
+      expect(ops).toEqual([]);
+      expect(filled).toEqual([]);
+      expect(load).not.toHaveBeenCalled();
+    });
+
+    // Fails on: a blank sheet (no layers) or a layer with no chunks drawing or loading anything.
+    it("draws nothing for a blank sheet", async () => {
+      const { ctx, ops } = recordingCtx();
+      await applySteps(ctx, 100, 50, { v: 1, seed: 1, steps: [paint([]), paint([layer("e")])] }, load);
+      expect(ops).toEqual([]);
+      expect(load).not.toHaveBeenCalled();
+    });
   });
 });

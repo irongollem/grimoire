@@ -1601,63 +1601,27 @@
   margin-bottom: 0;
 }
 
-/* ── Book paper (#1176) ────────────────────────────────────────────────────
-   A book's own paper, laid over its look's: `sc-paper--<tone>` sits on the
-   same `.sc-theme` element as the look (bookSurfaceClasses). Each one sets the
-   colour token every page painter already reads and its grain. The two greys
-   are the maintainer's own handmade paper scans, tileable, at
-   /assets/scriptorium/paper/ (kept out of the art manifest for the same reason
-   as page-background.webp above: the PDF export inlines this literal path as a
-   data: URI, so the path must never move). White and parchment keep a faint
-   grain drawn as inline SVG noise. The class is never added in ink-friendly
-   mode, which prints plain white. */
-/* The scans are dark and strong on their own; a pale veil over them keeps their
-   fibres and lifts the sheet to the light grey of a printed supplement page
-   (the maintainer's references sit around #dcdad5). The token is the result's
-   average, for anything that paints the bare colour. */
-.sc-paper--grey {
-  --sc-page-bg: #dbd9d4;
-  --sc-paper-grain:
-    linear-gradient(rgb(244 243 239 / 0.62), rgb(244 243 239 / 0.62)),
-    url("/assets/scriptorium/paper/grey.webp") 0 0 / 627px 627px repeat;
-}
-.sc-paper--warm-grey {
-  --sc-page-bg: #dad5cd;
-  --sc-paper-grain:
-    linear-gradient(rgb(245 241 233 / 0.6), rgb(245 241 233 / 0.6)),
-    url("/assets/scriptorium/paper/warm-grey.webp") 0 0 / 627px 627px repeat;
-}
-.sc-paper--white {
-  --sc-page-bg: #fbfaf6;
-  --sc-paper-grain:
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='t'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .4 0 0 0 0 .4 0 0 0 0 .38 0 0 0 .05 0'/></filter><rect width='100%' height='100%' filter='url(%23t)'/></svg>") 0 0 / 200px 200px repeat;
-}
-.sc-paper--parchment {
-  --sc-page-bg: #efe2c4;
-  --sc-paper-grain:
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='t'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .45 0 0 0 0 .32 0 0 0 0 .15 0 0 0 .12 0'/></filter><rect width='100%' height='100%' filter='url(%23t)'/></svg>") 0 0 / 200px 200px repeat,
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='900'><filter id='s'><feTurbulence type='fractalNoise' baseFrequency='.005 .008' numOctaves='4' seed='9' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .55 0 0 0 0 .38 0 0 0 0 .16 0 0 0 .6 -.14'/></filter><rect width='100%' height='100%' filter='url(%23s)'/></svg>") 0 0 / 900px 900px repeat;
-}
-/* Every place a page is painted: the editor's sheet, the laid-out pages (preview
-   and print), the bare sheet and the reader's surface. These replace the look's
-   texture image: the paper is the book's own choice. */
-.phb-editor.sc-paper--grey .ProseMirror,
-.phb-editor.sc-paper--warm-grey .ProseMirror,
-.phb-editor.sc-paper--white .ProseMirror,
-.phb-editor.sc-paper--parchment .ProseMirror,
-.sc-paper--grey .pagedjs_page,
-.sc-paper--warm-grey .pagedjs_page,
-.sc-paper--white .pagedjs_page,
-.sc-paper--parchment .pagedjs_page,
-.sc-paper--grey .phb-page,
-.sc-paper--warm-grey .phb-page,
-.sc-paper--white .phb-page,
-.sc-paper--parchment .phb-page,
-.sc-paper-surface.sc-paper--grey,
-.sc-paper-surface.sc-paper--warm-grey,
-.sc-paper-surface.sc-paper--white,
-.sc-paper-surface.sc-paper--parchment {
-  background: var(--sc-paper-grain), var(--sc-page-bg);
+/* ── Paper (#1176, #1181) ──────────────────────────────────────────────────
+   A document's own paper, for books and handouts, laid over its look's. The
+   papers are the painting tool's stock papers (src/scriptorium/papers), served
+   from the art CDN, which a stylesheet cannot name: `bookSurfaceStyle` sets
+   the picture, the white veil, the tile size and the page colour as inline
+   custom properties beside the `sc-paper` class (bookSurfaceClasses), and
+   this one rule paints from them. The class is never added in ink-friendly
+   mode, which prints plain white; `:not(.ink-friendly)` says so again and
+   lifts the rule's specificity above every look's own page background, the
+   handouts' `--sc-paper-bg` gradients included. Every place a page is
+   painted: the editor's sheet, the laid-out pages (preview and print), the
+   bare sheet and the reader's surface. */
+.phb-editor.sc-paper:not(.ink-friendly) .ProseMirror,
+.sc-paper:not(.ink-friendly) .pagedjs_page,
+.sc-paper:not(.ink-friendly) .phb-page,
+.sc-paper-surface.sc-paper:not(.ink-friendly) {
+  background-color: var(--sc-page-bg);
+  background-image: linear-gradient(var(--sc-paper-veil), var(--sc-paper-veil)), var(--sc-paper-image);
+  background-size: auto, var(--sc-paper-size);
+  background-position: 0 0;
+  background-repeat: repeat;
 }
 
 /* ── Ribbon footer (#1176) ─────────────────────────────────────────────────
@@ -1709,4 +1673,16 @@
   margin-right: 0;
   padding: 0 24px 0 68px;
   clip-path: polygon(0 0, 100% 0, calc(100% - 11px) 50%, 100% 100%, 0 100%);
+}
+
+/* Page dressing (#1181) on a surface that is one page: the player's reader and a standing handout. The surface is
+   a stacking context of its own, so the layer at z-index -1 lies above its paper and below its text. On a laid-out
+   page the same layer is z-index 0 behind the text by DOM order instead (renderFurniture.ts). The marks themselves
+   are styled by dressingLayer.ts, which names their pictures. */
+.sc-dressed {
+  position: relative;
+  isolation: isolate;
+}
+.sc-dressed > .sc-dressing {
+  z-index: -1;
 }

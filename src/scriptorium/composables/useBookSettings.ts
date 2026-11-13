@@ -14,8 +14,10 @@ import { markForSweep } from "@/scriptorium/composables/illuminatorSweep";
 import { draftValueEqual } from "@/composables/useRecordDraft";
 import { getCurrentUser } from "@/lib/supabase";
 import { removedFurnitureUrls } from "@/scriptorium/lib/furniture/artUrls";
+import { usePaintQuotaRefresh } from "@/scriptorium/composables/usePaintQuotaRefresh";
 import { useUpdateScriptoriumDocument } from "@/scriptorium/composables/useScriptorium";
 import { scriptoriumLook } from "@/scriptorium/lib/looks";
+import { parseDressing, type Dressing } from "@/scriptorium/dressing/dressing";
 import type {
   PageFurnitureItem,
   ScriptoriumDocUpdate,
@@ -41,11 +43,13 @@ export interface BookSettingsDraft {
   footerText: string;
   footerTitle: ScriptoriumFooterTitle;
   footerStyle: ScriptoriumFooterStyle;
-  /** Books only; null is the look's own paper. */
+  /** Books and handouts; null is the look's own paper. */
   paperTone: ScriptoriumPaperTone | null;
   isPublished: boolean;
   tags: string[];
   furniture: PageFurnitureItem[];
+  /** The page dressing (#1181); null is none. A malformed column reads as none. */
+  pageDressing: Dressing | null;
 }
 
 export function toSettingsDraft(doc: ScriptoriumDocument): BookSettingsDraft {
@@ -66,6 +70,7 @@ export function toSettingsDraft(doc: ScriptoriumDocument): BookSettingsDraft {
     isPublished: doc.is_published,
     tags: [...doc.tags],
     furniture: [...(doc.page_furniture ?? [])],
+    pageDressing: parseDressing(doc.page_dressing),
   };
 }
 
@@ -88,6 +93,7 @@ export function settingsRow(d: BookSettingsDraft): ScriptoriumDocUpdate {
     is_published: d.isPublished,
     tags: d.tags,
     page_furniture: d.furniture,
+    page_dressing: d.pageDressing,
   };
 }
 
@@ -111,6 +117,7 @@ export function themeForKind(kind: ScriptoriumKind, theme: ScriptoriumTheme): Sc
 
 export function useBookSettings(doc: () => ScriptoriumDocument) {
   const { mutateAsync: update } = useUpdateScriptoriumDocument();
+  const refreshPaintQuota = usePaintQuotaRefresh();
   const draft = reactive<BookSettingsDraft>(toSettingsDraft(doc()));
   let lastSaved: BookSettingsDraft = toSettingsDraft(doc());
 
@@ -126,6 +133,7 @@ export function useBookSettings(doc: () => ScriptoriumDocument) {
       // Art the saved list no longer holds is only marked: a chapter may use it now, and
       // the sweep (when the editor closes) checks that before anything leaves storage.
       const removed = removedFurnitureUrls(lastSaved.furniture, snapshot.furniture, getCurrentUser()?.id);
+      refreshPaintQuota(JSON.stringify(lastSaved.furniture), JSON.stringify(snapshot.furniture));
       lastSaved = snapshot;
       markForSweep(...removed);
     },

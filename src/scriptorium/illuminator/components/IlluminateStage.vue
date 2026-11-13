@@ -27,29 +27,22 @@
         aria-label="The picture with your edits"
       />
 
-      <!-- Pointer layer: focus point and brush strokes, wherever the divider is. -->
+      <!-- Pointer layer: the focus point, wherever the divider is. -->
       <div
         class="absolute inset-0"
         :class="cursorClass"
         data-testid="workbench-pointer-layer"
         @click="emit('canvas-click', $event)"
-        @pointerdown="emit('brush-down', $event)"
-        @pointermove="emit('brush-move', $event)"
-        @pointerup="emit('brush-up')"
-        @pointercancel="emit('brush-up')"
-        @pointerenter="emit('brush-enter')"
-        @pointerleave="emit('brush-leave')"
         @contextmenu.prevent
       />
 
       <!-- A tool's own overlay: the crop box. -->
       <slot />
 
-      <template v-if="ready">
+      <template v-if="ready && compareShown">
         <span class="pointer-events-none absolute bottom-2 left-2 rounded-sm bg-background/80 px-2 py-0.5 text-eyebrow uppercase text-foreground">Before</span>
         <span class="pointer-events-none absolute bottom-2 right-2 rounded-sm bg-background/80 px-2 py-0.5 text-eyebrow uppercase text-primary">After</span>
         <div
-          v-if="!compareOff"
           class="absolute inset-y-0 w-8 -translate-x-1/2 cursor-ew-resize touch-none"
           :style="{ left: `${effectivePos}%` }"
           data-testid="workbench-divider"
@@ -63,69 +56,57 @@
       </template>
     </div>
 
-    <div v-if="ready" class="mt-4 flex w-full max-w-md flex-col items-center gap-1">
-      <label class="flex w-full items-center gap-3 text-caption text-muted-foreground">
-        Compare
-        <input
-          type="range"
-          min="0"
-          max="100"
-          class="min-w-0 flex-1 accent-primary"
-          aria-label="Before and after divider"
-          :disabled="compareOff"
-          :value="comparePos"
-          @input="emit('update:comparePos', Number(($event.target as HTMLInputElement).value))"
-        />
-      </label>
-      <span class="text-caption text-muted-foreground">Drag the divider, or hold B to see the original</span>
-    </div>
-
-    <!-- The brush's circle follows the pointer. Teleported out so no overflow clips it. -->
-    <Teleport to="body">
-      <div
-        v-if="brushCursor.visible"
-        class="pointer-events-none fixed z-[9999] rounded-full border border-white/80 mix-blend-difference"
-        :style="{ left: `${brushCursor.x}px`, top: `${brushCursor.y}px`, width: `${brushCursor.diameter}px`, height: `${brushCursor.diameter}px`, transform: 'translate(-50%, -50%)' }"
-      />
-    </Teleport>
+    <AppButton
+      v-if="ready"
+      variant="tool"
+      size="xs"
+      class="absolute right-3 top-3 bg-card"
+      :icon="IconColumns"
+      label="Compare"
+      :active="compareShown"
+      :disabled="compareOff"
+      :tooltip="compareOff ? 'Compare is off while this tool shows the whole picture' : `Show the original beside your edits (${COMPARE_KEY.toUpperCase()}). Hold O to peek`"
+      data-testid="compare-toggle"
+      @click="emit('update:compare', !compare)"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 /**
  * The workbench's stage (#1176 frame 12): the picture, with a before/after
- * divider you drag. It only draws and reports; the render and the brush are
- * the composable's. The two canvases are exposed so it can draw into them.
+ * divider you drag once Compare is on. It only draws and reports; the render is the composable's.
+ * Painting has a stage of its own (paint/components/PaintStage.vue). The two canvases are exposed so it can draw into them.
  */
 import { computed, ref } from "vue";
 import { useElementSize } from "@vueuse/core";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { IconColumns } from "@/lib/icons";
+import { COMPARE_KEY } from "../toolKeys";
 
 const CHECKER = "repeating-conic-gradient(#3a3a3a 0% 25%, #2a2a2a 0% 50%) 0 0 / 1.25rem 1.25rem";
-/** Room kept round the picture for the compare slider under it. */
-const CHROME_PX = 120;
+/** Room kept round the picture. */
+const CHROME_PX = 0;
 const PAD_PX = 48;
 
-const { size, comparePos, showOriginal, compareOff = false, cursorClass = "", loadError = "", brushCursor } = defineProps<{
+const { size, comparePos, compare, showOriginal, compareOff = false, cursorClass = "", loadError = "" } = defineProps<{
   /** The preview's pixel size; zero until the picture has loaded. */
   size: { width: number; height: number };
   comparePos: number;
-  /** Held B: the original in full. */
+  /** The before/after split is on (the Compare button). */
+  compare: boolean;
+  /** Held O: the original in full. */
   showOriginal: boolean;
-  /** Painting and picking a focus point want the whole edited picture, so the divider steps aside. */
+  /** Setting the crop and picking a focus point want the whole edited picture, so the divider steps aside. */
   compareOff?: boolean;
   cursorClass?: string;
   loadError?: string;
-  brushCursor: { visible: boolean; x: number; y: number; diameter: number };
 }>();
 
 const emit = defineEmits<{
   "update:comparePos": [value: number];
+  "update:compare": [value: boolean];
   "canvas-click": [event: MouseEvent];
-  "brush-down": [event: PointerEvent];
-  "brush-move": [event: PointerEvent];
-  "brush-up": [];
-  "brush-enter": [];
-  "brush-leave": [];
 }>();
 
 const holder = ref<HTMLElement | null>(null);
@@ -134,8 +115,9 @@ const afterEl = ref<HTMLCanvasElement | null>(null);
 const { width: holderW, height: holderH } = useElementSize(holder);
 
 const ready = computed(() => size.width > 0 && size.height > 0);
-/** Held B puts the divider all the way over: the whole picture is the original. */
-const effectivePos = computed(() => (showOriginal ? 100 : compareOff ? 0 : comparePos));
+/** Held O puts the divider all the way over: the whole picture is the original. */
+const compareShown = computed(() => compare && !compareOff);
+const effectivePos = computed(() => (showOriginal ? 100 : compareShown.value ? comparePos : 0));
 
 /** The preview fitted into the room there is, never larger than it was drawn. */
 const display = computed(() => {

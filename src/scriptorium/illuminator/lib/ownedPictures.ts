@@ -4,7 +4,7 @@
  * Any picture served from our storage can be edited now, so a picture's
  * `original` may be anyone's file: a place's art, a portrait, a picture the
  * author keeps in their own pictures. Editing only ever reads it. What the
- * Illuminator itself stores is a bake, a brush mask, a texture and an AI
+ * Illuminator itself stores is a bake, a painted mask, a texture and an AI
  * result, always in asset-images under the author's own id and named `ill-...`
  * (bakeUpload.ts, useIlluminateWorkbench.ts, useIlluminatePicture.ts). Those
  * are the only files cleanup may delete, and an `original` never is, whatever
@@ -23,6 +23,18 @@ export function isMadeByIlluminator(url: unknown, userId: string | null | undefi
   if (parsed?.bucket !== "assetImages") return false;
   const prefix = `${userId}/${MADE_PREFIX}`;
   return parsed.path.startsWith(prefix) && !parsed.path.slice(userId.length + 1).includes("/");
+}
+
+/**
+ * A blank sheet or page painting's own file: asset-images, directly under the author's id, named `sheet-...`.
+ * Deliberately not an `ill-` file, so `isMadeByIlluminator` (which protects originals) never matches it; this is
+ * the one narrow way to offer it to the sweep, once flattening has replaced it as the picture's original.
+ */
+export function isAuthorsSheet(url: unknown, userId: string | null | undefined): url is string {
+  if (typeof url !== "string" || !userId) return false;
+  const parsed = parsePublicUrl(url);
+  if (parsed?.bucket !== "assetImages") return false;
+  return parsed.path.startsWith(`${userId}/sheet-`) && !parsed.path.slice(userId.length + 1).includes("/");
 }
 
 /** What a picture holds: an image node's attrs, or art furniture's props. */

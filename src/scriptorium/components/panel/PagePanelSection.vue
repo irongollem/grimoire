@@ -32,6 +32,8 @@
     <PanelSection title="Add to this page">
       <div class="grid grid-cols-2 gap-2">
         <AppButton variant="subtle" size="sm" :icon="IconAddImage" label="Picture" @click="emit('addPicture')" />
+        <AppButton variant="subtle" size="sm" label="Blank sheet" data-testid="panel-add-sheet" @click="emit('addSheet')" />
+        <AppButton variant="subtle" size="sm" label="Paint on this page" :loading="painting" data-testid="panel-add-painting" @click="emit('addPainting')" />
         <AppButton variant="subtle" size="sm" label="Watercolour" @click="emit('addFurniture', 'watercolor')" />
         <AppButton variant="subtle" size="sm" label="Watermark" @click="emit('addFurniture', 'watermark')" />
         <AppButton variant="subtle" size="sm" label="Artist credit" @click="emit('addFurniture', 'artistCredit')" />
@@ -53,15 +55,19 @@ import type { PageEntry } from "@/scriptorium/lib/panel/onThisPage";
 import type { FurnitureKind } from "@/scriptorium/types";
 import { IconAddImage } from "@/lib/icons";
 
-defineProps<{
+const { painting = false } = defineProps<{
   description: PageDescription;
   paperLabel: string;
   entries: PageEntry[];
+  /** A page painting is being made (its sheet is uploading). */
+  painting?: boolean;
 }>();
 const emit = defineEmits<{
   openSettings: [];
   select: [entry: PageEntry];
   addPicture: [];
+  addSheet: [];
+  addPainting: [];
   addFurniture: [kind: FurnitureKind];
 }>();
 </script>

@@ -38,8 +38,8 @@ describe("verifyPrintedPdf", () => {
     { index: 1, label: "2", text: "Nothing waited in the cellar but cold water", ignorable: [] },
   ];
   const pages = [
-    { chapterId: "ch-a", pageInChapter: 1, globalIndex: 0, blank: false, label: "1" },
-    { chapterId: "ch-a", pageInChapter: 2, globalIndex: 1, blank: false, label: "2" },
+    { chapterId: "ch-a", pageInChapter: 1, globalIndex: 0, blank: false, cover: false, label: "1" },
+    { chapterId: "ch-a", pageInChapter: 2, globalIndex: 1, blank: false, cover: false, label: "2" },
   ];
   const bytes = new Uint8Array([1]);
 

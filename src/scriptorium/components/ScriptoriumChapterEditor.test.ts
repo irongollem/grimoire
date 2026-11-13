@@ -8,6 +8,7 @@ import ScriptoriumChapterEditor from "./ScriptoriumChapterEditor.vue";
 import type { ScriptoriumChapter } from "@/scriptorium/types";
 
 const mocks = vi.hoisted(() => ({
+  invalidateQuota: vi.fn(),
   save: vi.fn(),
   cleanup: vi.fn(),
 }));
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/scriptorium/composables/useScriptoriumChapters", () => ({
   useSaveChapter: () => ({ mutateAsync: mocks.save }),
 }));
+vi.mock("@/composables/billing/useQuota", () => ({ useInvalidateQuota: () => mocks.invalidateQuota }));
 vi.mock("@/composables/useImageUpload", () => ({
   ASSET_IMAGES_BUCKET: "asset-images",
   removeStorageImages: vi.fn(),
@@ -56,13 +58,14 @@ describe("the book surface", () => {
     const wrapper = open({ paperTone: "grey", footerStyle: "ribbon" });
     await flushPromises();
     const classes = wrapper.find('[data-testid="chapter-editor"]').classes();
-    expect(classes).toContain("sc-paper--grey");
+    expect(classes).toContain("sc-paper");
+    expect(wrapper.find('[data-testid="chapter-editor"]').attributes("style")).toContain("--sc-paper-image");
     expect(classes).toContain("sc-footer-style--ribbon");
     expect(classes).toContain("theme-onednd2024");
   });
 });
 
-type Exposed = { editor: { commands: { insertContent: (c: string) => void }; getJSON: () => unknown }; saveNow: () => Promise<void>; hold: () => Promise<void>; dirty: boolean };
+type Exposed = { editor: { commands: { insertContent: (c: string | Record<string, unknown>) => void }; getJSON: () => unknown }; saveNow: () => Promise<void>; hold: () => Promise<void>; dirty: boolean };
 
 async function typeInto(wrapper: ReturnType<typeof open>) {
   await flushPromises();
@@ -77,6 +80,7 @@ beforeEach(() => {
   setActivePinia(createPinia());
   mocks.save.mockReset().mockResolvedValue(chapter);
   mocks.cleanup.mockReset();
+  mocks.invalidateQuota.mockReset();
 });
 
 describe("ScriptoriumChapterEditor", () => {
@@ -184,5 +188,33 @@ describe("ScriptoriumChapterEditor zoom", () => {
     await flushPromises();
     expect(wrapper.get("[data-scale]").attributes("data-scale")).toBe("1.5");
     wrapper.unmount();
+  });
+});
+
+describe("the painting canvas count", () => {
+  const painting = { type: "image", attrs: { src: "https://x.supabase.co/storage/v1/object/public/asset-images/u1/sheet-1.webp", illuminate: { v: 1, seed: 1, steps: [{ type: "paint", width: 10, height: 10, paper: null, layers: [] }] } } };
+
+  it("asks for the quota only once the save that added a painting has landed (asked at Done it counts the old state)", async () => {
+    let finish: () => void = () => undefined;
+    mocks.save.mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve(chapter); }));
+    const wrapper = open();
+    await flushPromises();
+    const exposed = wrapper.vm as unknown as Exposed;
+    exposed.editor.commands.insertContent(painting);
+    await flushPromises();
+    const saving = exposed.saveNow();
+    await flushPromises();
+    expect(mocks.save).toHaveBeenCalledTimes(1);
+    expect(mocks.invalidateQuota).not.toHaveBeenCalled();
+    finish();
+    await saving;
+    expect(mocks.invalidateQuota).toHaveBeenCalledWith("paint_canvases");
+  });
+
+  it("leaves the quota alone when a save changed no painting (a refetch on every keystroke autosave)", async () => {
+    const exposed = await typeInto(open());
+    await exposed.saveNow();
+    expect(mocks.save).toHaveBeenCalledTimes(1);
+    expect(mocks.invalidateQuota).not.toHaveBeenCalled();
   });
 });
