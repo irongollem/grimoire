@@ -1,54 +1,12 @@
 <template>
   <div v-if="!beat.staged_at_location_id" class="rounded-xl border border-border bg-card p-4 text-caption italic text-muted-foreground">
-    This beat has no site staged. The cockpit should not have mounted the site handoff for it.
+    This beat has no site staged. The opened beat should not have mounted the site handoff for it.
   </div>
   <div v-else-if="!site" class="rounded-xl border border-border bg-card p-4 text-caption italic text-muted-foreground">
     Loading the site…
   </div>
 
   <div v-else class="@container flex flex-col gap-4">
-    <!-- Header strip -->
-    <!-- `min-w-0 flex-1` on the title gives it a 0% flex-basis, so `flex-wrap`
-         never actually wraps the button row onto its own line below xl — the
-         line-breaking decision is made on basis, not on shrunk size, so the
-         title just gets squeezed to whatever the button row doesn't claim
-         (a pre-existing bug this story's own phone verification pass turned
-         up: a beat title was rendering one letter per line at 390px). Below
-         xl the header stacks instead; at xl+ `xl:flex-row xl:flex-wrap
-         xl:justify-between` reproduce the original row layout exactly, so
-         nothing above the breakpoint changes. -->
-    <header class="flex flex-col items-start gap-3 rounded-lg border border-border bg-card px-4 py-3 xl:flex-row xl:flex-wrap xl:justify-between">
-      <div class="min-w-0 flex-1">
-        <div class="mb-1 flex flex-wrap items-center gap-2">
-          <span
-            class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-label uppercase"
-            :class="currentBadge ? [currentBadge.tone.bg, currentBadge.tone.text] : 'bg-muted text-muted-foreground'"
-          >
-            <IconNavigate class="h-3 w-3" aria-hidden="true" />
-            Thread {{ currentBadge?.letter ?? "?" }}
-          </span>
-          <TagChip class="uppercase">{{ quest?.title ?? "…" }}</TagChip>
-        </div>
-        <h1 class="text-heading font-bold text-foreground">{{ beat.title || "Untitled beat" }}</h1>
-        <p class="mt-0.5 text-caption text-muted-foreground">{{ kindLabel }} · staged at a site · {{ positionLabel }}</p>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <AppButton
-          variant="subtle"
-          size="sm"
-          :icon="IconImages"
-          :label="site.is_map_shared ? 'Hide map from players' : 'Show map to players'"
-          :loading="isTogglingShare"
-          @click="toggleMapShared"
-        />
-        <AppButton variant="subtle" size="sm" label="Leave site" @click="emit('leave')" />
-        <!-- Frame 4: the dock carries this same verb below xl, so the header's
-             own copy hides there rather than duplicating a control that is
-             now one tap away at any scroll position. -->
-        <AppButton variant="primary" size="sm" class="hidden xl:inline-flex" :icon="IconCheck" label="Advance beat" :disabled="!canAdvance" @click="emit('advance')" />
-      </div>
-    </header>
-
     <!-- A zone can name a beat (#868 S12): the party walking into a traced
          trigger room this beat itself is named on. Never fires the advance
          on its own — this only surfaces the same button the header already
@@ -254,10 +212,7 @@
         </p>
       </div>
 
-      <DockBar hide-from="xl">
-        <AppButton variant="subtle" size="md" class="min-h-12 flex-1" :label="roomsDockLabel" @click="roomsSheetOpen = true" />
-        <AppButton variant="primary" size="md" class="min-h-12 flex-1" :icon="IconCheck" label="Advance beat" :disabled="!canAdvance" @click="emit('advance')" />
-      </DockBar>
+      <AppButton variant="subtle" size="md" class="min-h-12 w-full" :label="roomsDockLabel" @click="roomsSheetOpen = true" />
 
       <MobileSheet v-model:open="roomsSheetOpen" show-until="xl" :title="siteSpaceHeading">
         <div v-if="unwrittenIds.size" class="mb-2 flex justify-end">
@@ -275,12 +230,6 @@
           :zone-notes="zoneNotes"
           @move="onRoomsSheetMove"
         />
-        <template #footer>
-          <div class="flex gap-2">
-            <AppButton variant="subtle" size="md" class="min-h-11 flex-1" label="Leave site" @click="emit('leave')" />
-            <AppButton variant="primary" size="md" class="min-h-11 flex-1" :icon="IconCheck" label="Advance beat" :disabled="!canAdvance" @click="emit('advance')" />
-          </div>
-        </template>
       </MobileSheet>
 
       <MobileSheet v-if="siteHasMap" v-model:open="mapExpandOpen" show-until="xl" title="Floor plan">
@@ -317,11 +266,11 @@
 /**
  * Frame `06 Site` (Quest Manager Redesign), reshaped for #868's frame 15 (S12):
  * a beat staged at a site with a floor plan runs as rooms. Replaces the
- * cockpit's beat card + held payoff for exactly that case (#850 story H):
+ * beat's own guidance for exactly that case (#850 story H):
  * "the thread's cursor stays on the beat, the room cursor lives inside it,
  * and leaving keeps both" — nothing here writes to `quest_runtime_state`.
- * `leave` and `advance` are the only two ways out, and both are emits; the
- * cockpit (story F) owns what happens next.
+ * The header (title, Advance, Leave site, map sharing) belongs to the opened
+ * beat (#1183); a trigger zone's "advance" is an emit it owns.
  *
  * The current room's own stack — read-aloud, prompt rows, payoff — is
  * `SiteRunRoomStack`, and its ways out are `SiteRunWaysOut`: the same two
@@ -330,11 +279,9 @@
  * the identical room surface rather than two components that can drift.
  * `SiteRoomList` is used here with `runCaptions` on (frame 08's reachability-driven captions).
  */
-import TagChip from "@/components/common/TagChip.vue";
 import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import DockBar from "@/components/common/DockBar.vue";
 import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import LocationMap from "@/components/locations/map/LocationMap.vue";
 import LocationStateControls from "@/components/locations/place/LocationStateControls.vue";
@@ -342,39 +289,34 @@ import SiteRoomList from "@/components/locations/site/SiteRoomList.vue";
 import SiteRunWaysOut from "@/components/locations/run/SiteRunWaysOut.vue";
 import SiteRunRoomStack from "@/components/locations/run/SiteRunRoomStack.vue";
 import TriggerBeatPrompt from "@/components/locations/run/TriggerBeatPrompt.vue";
-import { IconCheck, IconImages, IconNavigate, IconReveal } from "@/lib/icons";
-import { useLocation, useLocations, useUpdateLocation } from "@/composables/locations/useLocations";
+import { IconNavigate, IconReveal } from "@/lib/icons";
+import { useLocation, useLocations } from "@/composables/locations/useLocations";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useLocationStateForRooms, useDoorStateForSite } from "@/composables/locations/useLocationState";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useLootPlacements } from "@/composables/quests/useQuestFlow";
-import { useQuest } from "@/composables/quests/useQuests";
 import { useMoveParty } from "@/composables/locations/useMoveParty";
 import { useCampaignStore } from "@/stores/campaign";
-import { useToast } from "@/composables/useToast";
 import { useBelow } from "@/composables/useBreakpoint";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { bindableSpaces, childSpaceType, isInteriorType, isSiteType, spaceHeading, spaceNoun } from "@/lib/locations/tiers";
 import { compareSiblings } from "@/lib/locations/tree";
 import { partyRoomInSite, siteReachability } from "@/lib/locations/siteRun";
-import { threadBadge, threadBadges } from "@/lib/quests/threads";
+import { threadBadges } from "@/lib/quests/threads";
 import { roomOrdinal, unwrittenRoomIds } from "@/lib/quests/siteHandoff";
 import { zoneSummary } from "@/lib/locations/zones";
-import { QUEST_BEAT_KIND_LABELS } from "@/types/quest.types";
 import type { Location } from "@/types/location.types";
 import type { QuestBeat, QuestRuntimeContext } from "@/types/quest.types";
 
-const { questId, threadId, beat, context } = defineProps<{
-  questId: string;
+const { threadId, beat, context } = defineProps<{
   threadId: string;
   beat: QuestBeat;
   context: QuestRuntimeContext;
 }>();
-const emit = defineEmits<{ advance: []; leave: [] }>();
+const emit = defineEmits<{ advance: [] }>();
 
 const route = useRoute();
 const campaign = useCampaignStore();
-const toast = useToast();
 
 // Frame 4 ("On a phone the crawl is one room at a time") — a JS branch, not
 // a CSS one: the mobile arm mounts its own SiteRunRoomStack/SiteRunWaysOut/
@@ -385,12 +327,9 @@ const roomsSheetOpen = ref(false);
 const mapExpandOpen = ref(false);
 
 // ── Quest + thread chrome ────────────────────────────────────────────────
-const { data: quest } = useQuest(computed(() => questId));
 // The server refuses `advance` unless the thread is running (a thread parked
 // at a converge beat is `waiting`), so no Advance control is offered otherwise.
 const canAdvance = computed(() => context.state?.status === "running");
-const currentBadge = computed(() => threadBadge(context.threads, threadId));
-const kindLabel = computed(() => QUEST_BEAT_KIND_LABELS[beat.kind as keyof typeof QUEST_BEAT_KIND_LABELS] ?? beat.kind);
 
 const otherThreads = computed(() => threadBadges(context.threads).filter((b) => b.thread.id !== threadId && b.thread.status === "live"));
 const otherThreadsHeading = computed(() => otherThreads.value.length === 1
@@ -432,23 +371,10 @@ const siteSpaceNoun = computed(() => spaceNoun(site.value?.location_type));
 const siteSpaceHeading = computed(() => spaceHeading(site.value?.location_type));
 const siteIsGrounds = computed(() => childSpaceType(site.value?.location_type) === "grounds");
 
-// The room the beat is staged at directly, when it is one — "the party
-// starts here when Run enters the site" (frame 15). Never moves the party on
-// its own: the room list already requires a click to move them in, same as
-// every other room, this is only what the "not yet inside" caption points at.
-const openingRoom = computed(() => {
-  const staged = stagedLocationRecord.value;
-  return staged && isInteriorType(staged.location_type) ? rooms.value.find((r) => r.id === staged.id) ?? null : null;
-});
-
 const currentRoomId = computed(() =>
   partyRoomInSite(campaign.activeCampaign?.current_location_id ?? null, roomIds.value));
 const currentRoom = computed(() => rooms.value.find((r) => r.id === currentRoomId.value) ?? null);
 const roomOrdinalValue = computed(() => roomOrdinal(currentRoomId.value, roomIds.value));
-const positionLabel = computed(() => {
-  if (roomOrdinalValue.value !== null) return `${siteSpaceNoun.value.singular} ${roomOrdinalValue.value} of ${rooms.value.length}`;
-  return openingRoom.value ? `not yet inside, opens at ${openingRoom.value.name}` : "not yet inside";
-});
 const switchingCaption = computed(() => roomOrdinalValue.value === null
   ? "Switching back leaves this site"
   : `Switching back leaves this site at ${siteSpaceNoun.value.singular} ${roomOrdinalValue.value}`);
@@ -573,13 +499,6 @@ function onRoomsSheetMove(): void {
 }
 async function onExpandedMapMove(roomId: string): Promise<void> {
   if (await moveTo(roomId)) mapExpandOpen.value = false;
-}
-
-// ── Show/hide the map to players ────────────────────────────────────────
-const { mutate: updateLocation, isPending: isTogglingShare } = useUpdateLocation();
-function toggleMapShared(): void {
-  if (!site.value) return;
-  updateLocation({ id: site.value.id, update: { is_map_shared: !site.value.is_map_shared } }, { onError: (e) => toast.error(toast.fromError(e)) });
 }
 
 // ── Room state, for the shared room list ────────────────────────────────

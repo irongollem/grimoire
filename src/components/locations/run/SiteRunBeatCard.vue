@@ -31,7 +31,7 @@
 <script setup lang="ts">
 /**
  * Frame 08's beat card — the same beat presentation the run cockpit already
- * uses (`QuestRunBeatCard`'s read-aloud block, styled identically), for the
+ * uses (the opened beat's read-aloud block, styled identically), for the
  * one case where a DM opened a site straight from the Atlas rather than
  * through the cockpit and a beat is still waiting here. "Resolve beat" and
  * the header's "Back to the beat" both go to the same place — the run
@@ -46,7 +46,7 @@
  * omitted rather than faked.
  *
  * "Read aloud" has no existing action to reuse: the block above already
- * renders the text inline, same as `QuestRunBeatCard`, so this button opens
+ * renders the text inline, same as the opened beat, so this button opens
  * it full-screen for the DM to read from at the table without the rest of
  * the card's chrome competing for attention. Nothing about the beat changes
  * when it's clicked.

@@ -2,8 +2,7 @@
   <!--
     A bottom-docked action bar for phone-width surfaces (#872, "Quest Phone
     Frames"): the one or two controls that must stay one tap away at any
-    scroll position — "What happens next" in the run cockpit, "Rooms · n" and
-    "Advance beat" in the site handoff, "Reveal to players" on the beat page.
+    scroll position — Undo and Advance on the opened quest beat.
 
     Sticky inside the page's own scroll container rather than `fixed`, so it
     never floats over another route's chrome, and offset above the DM bar nav
@@ -14,7 +13,7 @@
 
     `-mx-4 md:-mx-6` cancels `PageHeader`'s own scroll-body padding
     (`px-4 md:px-6`, PageHeader.vue's `data-testid="page-body"`) — every
-    caller (QuestRunCockpit, QuestSiteHandoff, QuestBeatDetailView) mounts
+    caller (QuestOpenedBeat) mounts
     inside that body with no horizontal padding of its own in between, so this
     is the only padding actually in play. Keep the two in sync.
 

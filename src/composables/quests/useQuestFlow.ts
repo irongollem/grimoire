@@ -28,7 +28,6 @@ import type {
   QuestObjectiveStatus,
   CampaignLiveQuest,
   QuestRuntimeContext,
-  QuestRuntimeJumpTarget,
   QuestConsequence,
   QuestConsequenceInsert,
   QuestRuntimeState,
@@ -729,30 +728,6 @@ export function useCampaignLiveQuests() {
   });
 }
 
-/** Jump moves *this* chain's cursor, so the picker offers only this chain's
- * beats. Another quest is reached by navigating to its own Run surface. */
-export function useQuestRuntimeJumpTargets(questId: string | Ref<string>, search: string | Ref<string>, enabled?: () => boolean) {
-  const campaign = useCampaignStore();
-  const campaignId = computed(() => campaign.activeCampaignId);
-  const id = asRef(questId);
-  const query = asRef(search);
-  return useQuery({
-    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, "jump-targets", campaignId.value, id.value, query.value] as const),
-    queryFn: async ({ queryKey: [, , cid, qid, term] }): Promise<QuestRuntimeJumpTarget[]> => {
-      if (cid === null) throw new Error("useQuestRuntimeJumpTargets fetched without a campaign");
-      const { data, error } = await supabase.rpc("search_quest_runtime_jump_targets", {
-        p_campaign_id: cid,
-        p_quest_id: qid,
-        p_search: term,
-        p_limit: 30,
-      });
-      if (error) throw error;
-      return (data ?? []) as QuestRuntimeJumpTarget[];
-    },
-    enabled: () => !!campaignId.value && !!id.value && (enabled?.() ?? true),
-  });
-}
-
 export function useQuestRuntimeCommand() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -838,11 +813,12 @@ export interface QuestUndoMoveResult {
   current_beat_id: string | null;
 }
 
-/** Takes back the newest marked move of a thread, with its payoffs. */
+/** Takes back the newest move, with its payoffs: of `threadId` when given,
+ *  else the quest's newest move on any thread (the toolbar's Undo). */
 export function useUndoQuestMove() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { campaignId: string; questId: string; threadId: string }): Promise<QuestUndoMoveResult> => {
+    mutationFn: async (input: { campaignId: string; questId: string; threadId?: string }): Promise<QuestUndoMoveResult> => {
       const { data, error } = await supabase.rpc("undo_quest_move", {
         p_campaign_id: input.campaignId,
         p_quest_id: input.questId,

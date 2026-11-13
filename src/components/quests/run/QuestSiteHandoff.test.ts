@@ -13,7 +13,6 @@ import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 // safe because every test sets these fields before its own `mount()`, and a
 // fresh component instance re-invokes every composable during setup.
 const mocks = vi.hoisted(() => ({
-  quest: { id: "quest-1", title: "The Tithe of Ashmouth" } as Record<string, unknown> | undefined,
   site: undefined as Record<string, unknown> | undefined,
   // Keyed by location id, so `useLocation` can resolve both the staged
   // location AND (#868 S12) the site it resolves to when that's a room —
@@ -34,7 +33,6 @@ const mocks = vi.hoisted(() => ({
   // at setup time can't give it.
   campaignLocationRef: undefined as Ref<string | null> | undefined,
   moveParty: vi.fn((_request: unknown) => Promise.resolve(true)),
-  updateLocation: vi.fn(),
   route: { query: {} as Record<string, string> },
   // #872 frame 4: the phone composition is a JS branch (`belowXl`), not a CSS
   // one, so it needs a real mock rather than relying on jsdom/happy-dom's own
@@ -57,14 +55,11 @@ vi.mock("@/stores/campaign", () => ({
     };
   },
 }));
-vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: vi.fn() }) }));
-vi.mock("@/composables/quests/useQuests", () => ({ useQuest: () => ({ data: ref(mocks.quest) }) }));
 vi.mock("@/composables/locations/useLocations", () => ({
   useLocation: (id: { value: string } | string) => ({
     data: computed(() => mocks.locationsById[typeof id === "string" ? id : id.value]),
   }),
   useLocations: () => ({ data: ref(mocks.children) }),
-  useUpdateLocation: () => ({ mutate: mocks.updateLocation, isPending: ref(false) }),
 }));
 vi.mock("@/composables/locations/useLocationMapRegions", () => ({ useLocationMapRegions: () => ({ data: ref(mocks.regions) }) }));
 vi.mock("@/composables/locations/useLocationState", () => ({
@@ -180,14 +175,13 @@ const stubs = {
 
 function mountHandoff(overrides: { beat?: QuestBeat; context?: QuestRuntimeContext } = {}) {
   return mount(QuestSiteHandoff, {
-    props: { questId: "quest-1", threadId: "thread-2", beat: overrides.beat ?? beat(), context: overrides.context ?? context() },
+    props: { threadId: "thread-2", beat: overrides.beat ?? beat(), context: overrides.context ?? context() },
     global: { stubs },
   });
 }
 
 describe("QuestSiteHandoff", () => {
   beforeEach(() => {
-    mocks.quest = { id: "quest-1", title: "The Tithe of Ashmouth" };
     mocks.site = { id: "site-1", name: "The Drowned Vault", location_type: "dungeon", map_url: null, map_pins: [], is_map_shared: false, grid_calibration: null };
     mocks.locationsById = { "site-1": mocks.site };
     mocks.children = [];
@@ -200,7 +194,6 @@ describe("QuestSiteHandoff", () => {
     mocks.doorStateOf.mockReturnValue(undefined);
     mocks.currentLocationId = null;
     mocks.moveParty.mockClear();
-    mocks.updateLocation.mockClear();
     mocks.route.query = {};
     mocks.belowXl = false;
   });
@@ -210,20 +203,15 @@ describe("QuestSiteHandoff", () => {
     expect(wrapper.text()).toContain("no site staged");
   });
 
-  it("shows the thread chip, quest title, beat title and position, 'not yet inside' with no current room", () => {
+  // Bug: the handoff kept its own header and Advance, so the opened beat showed two
+  // of each. The header, Advance, Leave site and map sharing belong to the opened beat.
+  it("draws no header, Advance beat, Leave site or map toggle of its own", () => {
     const wrapper = mountHandoff();
     const text = wrapper.text();
-    expect(text).toContain("Thread B");
-    expect(text).toContain("The Tithe of Ashmouth");
-    expect(text).toContain("Descend the Drowned Vault");
-    expect(text).toContain("Explore · staged at a site · not yet inside");
-  });
-
-  it("says which room the party is in once they've entered one of the site's rooms", () => {
-    mocks.children = [room({ id: "room-1", sort_order: 0 }), room({ id: "room-2", name: "Antechamber", sort_order: 1 })];
-    mocks.currentLocationId = "room-2";
-    const wrapper = mountHandoff();
-    expect(wrapper.text()).toContain("room 2 of 2");
+    expect(text).not.toContain("Advance beat");
+    expect(text).not.toContain("Leave site");
+    expect(text).not.toContain("map to players");
+    expect(wrapper.find("h1").exists()).toBe(false);
   });
 
   // #887: a `wilds` site's parts are `grounds`, not `room`s — the heading,
@@ -239,7 +227,6 @@ describe("QuestSiteHandoff", () => {
     const text = wrapper.text();
     expect(text).toContain("Grounds");
     expect(text).not.toContain("Rooms");
-    expect(text).toContain("grounds 2 of 2");
   });
 
   it("says the party hasn't entered grounds yet, not a room, at a wilds site with nobody inside", () => {
@@ -254,15 +241,13 @@ describe("QuestSiteHandoff", () => {
   // at" in `QuestBeatSitePanel`. The crawl still has to run at that room's
   // PARENT site (a room has no rooms/map/doors of its own), and "not yet
   // inside" should say which room the DM configured as the entry point.
-  it("resolves the site from a room staging and names it as where the party opens", () => {
+  it("resolves the site from a room staging and ", () => {
     mocks.locationsById = {
       "room-1": { id: "room-1", name: "The flooded shaft", location_type: "room", parent_id: "site-1" },
       "site-1": { id: "site-1", name: "The Drowned Vault", location_type: "dungeon", map_url: null, map_pins: [], is_map_shared: false, grid_calibration: null },
     };
     mocks.children = [room({ id: "room-1" }), room({ id: "room-2", name: "Antechamber" })];
     const wrapper = mountHandoff({ beat: beat({ staged_at_location_id: "room-1" }) });
-    expect(wrapper.text()).toContain("The Tithe of Ashmouth");
-    expect(wrapper.text()).toContain("not yet inside, opens at The flooded shaft");
     const list = wrapper.findComponent({ name: "SiteRoomList" });
     expect(list.props("siteId")).toBe("site-1");
     expect(list.props("rooms")).toHaveLength(2);
@@ -272,36 +257,16 @@ describe("QuestSiteHandoff", () => {
   // rather than a `room` — `isInteriorType` is the single reader now, not a
   // copy of the `=== "room"` comparison this regression test would have
   // caught missing `grounds` entirely (the crawl silently would not run).
-  it("resolves the site from a grounds staging and names it as where the party opens", () => {
+  it("resolves the site from a grounds staging and ", () => {
     mocks.locationsById = {
       "grounds-1": { id: "grounds-1", name: "The clearing", location_type: "grounds", parent_id: "site-1" },
       "site-1": { id: "site-1", name: "The Thornwood", location_type: "wilds", map_url: null, map_pins: [], is_map_shared: false, grid_calibration: null },
     };
     mocks.children = [grounds({ id: "grounds-1" }), grounds({ id: "grounds-2", name: "The grave plot" })];
     const wrapper = mountHandoff({ beat: beat({ staged_at_location_id: "grounds-1" }) });
-    expect(wrapper.text()).toContain("not yet inside, opens at The clearing");
     const list = wrapper.findComponent({ name: "SiteRoomList" });
     expect(list.props("siteId")).toBe("site-1");
     expect(list.props("rooms")).toHaveLength(2);
-  });
-
-  it("toggles map sharing through useUpdateLocation and flips the button label", async () => {
-    const wrapper = mountHandoff();
-    const toggle = wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.text().includes("Show map to players"));
-    await toggle!.trigger("click");
-    expect(mocks.updateLocation).toHaveBeenCalledWith(
-      { id: "site-1", update: { is_map_shared: true } },
-      expect.objectContaining({ onError: expect.any(Function) }),
-    );
-  });
-
-  it("emits leave and advance, writing nothing itself", async () => {
-    const wrapper = mountHandoff();
-    await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.text().includes("Leave site"))!.trigger("click");
-    await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.text().includes("Advance beat"))!.trigger("click");
-    expect(wrapper.emitted("leave")).toHaveLength(1);
-    expect(wrapper.emitted("advance")).toHaveLength(1);
-    expect(mocks.moveParty).not.toHaveBeenCalled();
   });
 
   it("lists the other live threads, not the current one, with a Switch link carrying the thread id", () => {
@@ -387,18 +352,13 @@ describe("QuestSiteHandoff", () => {
   // Bug: the maintainer pressed Advance on a thread that was not running and
   // got "The transition could not be recorded", because the server refuses
   // `advance` unless the thread is running. The control must not be offered.
-  it.each(["waiting", "idle", "ended"] as const)("offers no Advance control while the thread is %s", async (status) => {
+  it.each(["waiting", "idle", "ended"] as const)("offers no Advance prompt while the thread is %s", (status) => {
     mocks.regions = [roomRegion({ space_location_id: "room-1", cells: ["0,0"] }), triggerZone({ zone_payload: { beat_id: "beat-1" }, cells: ["0,0"] })];
     mocks.currentLocationId = "room-1";
     mocks.children = [room({ id: "room-1" })];
-    const base = context();
-    const wrapper = mountHandoff({ context: { ...base, state: { status } as QuestRuntimeState } });
-    const advance = wrapper.findAllComponents({ name: "AppButton" }).filter((b) => b.text().includes("Advance beat"));
-    expect(advance.length).toBeGreaterThan(0);
-    for (const button of advance) expect(button.props("disabled")).toBe(true);
-    await advance[0]!.trigger("click");
-    expect(wrapper.emitted("advance")).toBeUndefined();
+    const wrapper = mountHandoff({ context: { ...context(), state: { status } as QuestRuntimeState } });
     expect(wrapper.text()).not.toContain("is staged on this floor. Advance?");
+    expect(wrapper.emitted("advance")).toBeUndefined();
   });
 
   it("dismisses the trigger prompt without advancing", async () => {
@@ -501,14 +461,6 @@ describe("QuestSiteHandoff", () => {
       expect(mocks.moveParty).not.toHaveBeenCalled();
     });
 
-    it("turns map sharing off again when it is already on", async () => {
-      mocks.site = { ...mocks.site, is_map_shared: true };
-      mocks.locationsById = { "site-1": mocks.site };
-      const wrapper = mountHandoff();
-      await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.text().includes("Hide map from players"))!.trigger("click");
-      expect(mocks.updateLocation).toHaveBeenCalledWith({ id: "site-1", update: { is_map_shared: false } }, expect.anything());
-    });
-
     it("names the other threads when there are several, and leaves out one that is closed or merged", () => {
       const ctx = context({
         threads: [
@@ -545,28 +497,18 @@ describe("QuestSiteHandoff", () => {
       mocks.currentLocationId = "room-1";
     });
 
-    it("docks Rooms · n and Advance beat instead of rendering the three-column grid", () => {
+    it("offers Rooms · n instead of rendering the three-column grid", () => {
       wrapper = mountHandoff();
       expect(wrapper.findComponent({ name: "SiteRoomList" }).exists()).toBe(false);
-      const dock = wrapper.findComponent({ name: "DockBar" });
-      expect(dock.exists()).toBe(true);
-      expect(dock.text()).toContain("Rooms · 2");
+      expect(wrapper.text()).toContain("Rooms · 2");
       const stack = wrapper.findComponent({ name: "SiteRunRoomStack" });
       expect(stack.props("room")).toMatchObject({ id: "room-1" });
       expect(wrapper.findComponent({ name: "SiteRunWaysOut" }).props("roomId")).toBe("room-1");
     });
 
-    it("the dock's Advance beat fires the same emit as the header's own button", async () => {
-      wrapper = mountHandoff();
-      const dock = wrapper.findComponent({ name: "DockBar" });
-      await dock.findAllComponents({ name: "AppButton" }).find((b) => b.text() === "Advance beat")!.trigger("click");
-      expect(wrapper.emitted("advance")).toHaveLength(1);
-    });
-
     it("opens the Rooms sheet from the dock, lists every room with run captions, and closes the sheet once one is picked", async () => {
       wrapper = mountHandoff();
-      const dock = wrapper.findComponent({ name: "DockBar" });
-      await dock.findAllComponents({ name: "AppButton" }).find((b) => b.text().startsWith("Rooms ·"))!.trigger("click");
+      await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.text().startsWith("Rooms ·"))!.trigger("click");
 
       const dialog = bodyWrapper().get("[role=dialog]");
       expect(dialog.text()).toContain("Rooms");
@@ -581,18 +523,6 @@ describe("QuestSiteHandoff", () => {
       await nextTick();
       expect(mocks.moveParty).not.toHaveBeenCalled();
       expect(bodyWrapper().find("[role=dialog]").exists()).toBe(false);
-    });
-
-    it("the sheet's footer Leave site and Advance beat fire the same emits as the header", async () => {
-      wrapper = mountHandoff();
-      const dock = wrapper.findComponent({ name: "DockBar" });
-      await dock.findAllComponents({ name: "AppButton" }).find((b) => b.text().startsWith("Rooms ·"))!.trigger("click");
-
-      const dialog = bodyWrapper().get("[role=dialog]");
-      await dialog.findAll("button").find((b) => b.text() === "Leave site")!.trigger("click");
-      await dialog.findAll("button").find((b) => b.text() === "Advance beat")!.trigger("click");
-      expect(wrapper.emitted("leave")).toHaveLength(1);
-      expect(wrapper.emitted("advance")).toHaveLength(1);
     });
 
     it("the trigger banner still emits its two actions", async () => {

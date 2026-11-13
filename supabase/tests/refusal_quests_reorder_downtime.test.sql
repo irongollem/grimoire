@@ -11,7 +11,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(26);
 
 -- ── Fixture ──────────────────────────────────────────────────────────────────
 
@@ -122,25 +122,6 @@ select lives_ok(
   'perform_quest_consequence: the DM of c1 can (positive control)');
 select isnt((select performed_at from public.quest_consequence_events where id = '93650000-0000-4000-8000-000000000095'), null,
   'perform_quest_consequence: the DM''s call performed the event');
-
--- ── search_quest_runtime_jump_targets (DM of the named campaign) ────────────
-
-select pg_temp.as_user(3);
-select throws_ok(
-  $$ select * from public.search_quest_runtime_jump_targets('93650000-0000-4000-8000-0000000000c1', '93650000-0000-4000-8000-000000000091', '') $$,
-  'P0001', 'Not authorized',
-  'search_quest_runtime_jump_targets: another campaign''s DM cannot list c1''s beats');
-
-select pg_temp.as_user(2);
-select throws_ok(
-  $$ select * from public.search_quest_runtime_jump_targets('93650000-0000-4000-8000-0000000000c1', '93650000-0000-4000-8000-000000000091', '') $$,
-  'P0001', 'Not authorized',
-  'search_quest_runtime_jump_targets: a player in c1 cannot list its beats (spoilers)');
-
-select pg_temp.as_user(1);
-select isnt_empty(
-  $$ select * from public.search_quest_runtime_jump_targets('93650000-0000-4000-8000-0000000000c1', '93650000-0000-4000-8000-000000000091', 'QRD') $$,
-  'search_quest_runtime_jump_targets: the DM of c1 sees the beat (positive control)');
 
 -- ── reorder_notes / reorder_player_journal_entries / reorder_soundboard_pages:
 --    the caller's own rows only (reorder_sounds went with sounds.sort_order in

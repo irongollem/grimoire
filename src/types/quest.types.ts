@@ -729,15 +729,6 @@ export interface QuestRuntimeChoice {
   loot: QuestRouteLoot[];
 }
 
-export interface QuestRuntimeJumpTarget {
-  quest_id: string;
-  beat_id: string;
-  quest_title: string;
-  beat_title: string;
-  beat_kind: string;
-  is_improvised: boolean;
-}
-
 /** A chain the party currently has open. Running first, then waiting. Now one
  *  row per thread (#853) — `sibling_count` says how many other threads this
  *  quest currently holds, so a list of chains can say "and 2 more" without a

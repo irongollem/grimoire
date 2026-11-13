@@ -14,20 +14,18 @@
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
-import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { useQuestBeats } from "@/composables/quests/useQuestFlow";
-import { useQuestObjectives, useUpdateQuest } from "@/composables/quests/useQuests";
+import { useQuestObjectives } from "@/composables/quests/useQuests";
+import { useShareQuest } from "@/composables/quests/useShareQuest";
 import { IconReveal } from "@/lib/icons";
-import { useCampaignStore } from "@/stores/campaign";
 import type { Quest } from "@/types/quest.types";
 import QuestPlayerPreviewDrawer from "../run/QuestPlayerPreviewDrawer.vue";
 
 const { quest } = defineProps<{ quest: Quest }>();
-const campaign = useCampaignStore();
 const questId = computed(() => quest.id);
 const { data: beatRows } = useQuestBeats(questId);
 const { data: objectiveRows } = useQuestObjectives(questId);
-const { mutateAsync: updateQuest } = useUpdateQuest();
+const { shareQuest } = useShareQuest();
 const previewOpen = ref(false);
 
 const beats = computed(() => beatRows.value ?? []);
@@ -36,15 +34,7 @@ const objectives = computed(() => objectiveRows.value ?? []);
 const seenBeats = computed(() => beats.value.filter((beat) => beat.visibility === "rumored" || beat.visibility === "revealed").length);
 const seenObjectives = computed(() => objectives.value.filter((objective) => objective.is_player_visible).length);
 
-async function onRevealChange(next: string[]) {
-  const wasShared = quest.player_visible_to.length > 0;
-  await updateQuest({ id: quest.id, update: { player_visible_to: next } });
-  // The first share tells the table; widening or narrowing it later does not.
-  if (!wasShared && next.length && campaign.activeCampaignId) {
-    void sendCampaignAnnouncement(campaign.activeCampaignId, `📋 Quest shared: "${quest.title || "Untitled Quest"}"`, {
-      entity_type: "quest",
-      entity_id: quest.id,
-    });
-  }
+function onRevealChange(next: string[]) {
+  return shareQuest(quest, next);
 }
 </script>

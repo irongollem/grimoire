@@ -37,7 +37,7 @@ export const QUEST_BEAT_VISIBILITY_CAPTIONS: Record<QuestBeatVisibility, string>
 /** Top-level block count of a Tiptap doc stored as a JSON string (the format
  *  `RichTextEditor` actually saves — `JSON.stringify(editor.getJSON())`), or
  *  `null` for legacy plain text / anything unparseable. Shared by
- *  `QuestRunBeatCard`'s DM-notes fold row and the beat page's own phone fold
+ *  the opened beat's guidance and the beat page's own phone fold
  *  (#872) — a caption that assumed HTML (`<p>` tags) would read every real
  *  beat's content as empty, since none of it is stored that way. */
 export function countQuestBeatContentBlocks(content: string | null): number | null {

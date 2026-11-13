@@ -53,7 +53,7 @@
  * page's "Beat" identity editor. Extracted so it can mount from both the
  * desktop column and the phone "Beat" fold (#872, review fix 2): before this,
  * the block was `hidden lg:grid`-ed away below `lg`, which cost the DM the
- * ability to change any of the three on a phone. `QuestBeatDetailView`
+ * ability to change any of the three on a phone. `QuestOpenedPrep`
  * JS-gates which copy actually mounts (`useBelow("lg")`) rather than mounting
  * both — the `EntityCombobox` here owns a `Teleport`, and two live copies of
  * the same dropdown is a different bug, not a safety margin.

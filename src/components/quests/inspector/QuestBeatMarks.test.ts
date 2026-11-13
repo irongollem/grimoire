@@ -1,11 +1,11 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import QuestBeatMarks from "./QuestBeatMarks.vue";
 import type { QuestBeat } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({
-  mark: vi.fn(), updateQuest: vi.fn(), updateBeat: vi.fn(),
+  share: vi.fn(), mark: vi.fn(), updateQuest: vi.fn(), updateBeat: vi.fn(),
 }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useMarkQuestMove: () => ({ mutateAsync: mocks.mark, isPending: { value: false } }),
@@ -19,6 +19,7 @@ vi.mock("@/composables/quests/useQuests", () => ({
   useQuestObjectives: () => ({ data: ref([]) }),
   useUpdateQuest: () => ({ mutateAsync: mocks.updateQuest, isPending: { value: false } }),
 }));
+vi.mock("@/composables/quests/useShareQuest", () => ({ useShareQuest: () => ({ shareIfBeatSeen: mocks.share }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: String }) }));
 
 const beat = { id: "b1", quest_id: "q1", campaign_id: "c1", title: "Vault", kind: "combat", visibility: "hidden" } as QuestBeat;
@@ -83,5 +84,21 @@ describe("QuestBeatMarks", () => {
     const wrapper = mountMarks();
     await wrapper.findAll("button").find((b) => b.text() === "Revealed")!.trigger("click");
     expect(mocks.updateBeat).toHaveBeenCalledWith({ id: "b1", questId: "q1", update: { visibility: "revealed" } });
+  });
+
+  // Fails if the beat write skips the auto-share, leaving a revealed beat on a quest players cannot see.
+  it("after a visibility write it asks to share the quest, with the new visibility", async () => {
+    mocks.updateBeat.mockResolvedValue({});
+    await mountMarks().findAll("button").find((b) => b.text() === "Rumored")!.trigger("click");
+    await flushPromises();
+    expect(mocks.share).toHaveBeenCalledWith("q1", "rumored");
+  });
+
+  // Fails if a failed beat write still shares the quest.
+  it("does not share the quest when the beat write fails", async () => {
+    mocks.updateBeat.mockRejectedValue(new Error("nope"));
+    await mountMarks().findAll("button").find((b) => b.text() === "Revealed")!.trigger("click");
+    await flushPromises();
+    expect(mocks.share).not.toHaveBeenCalled();
   });
 });
