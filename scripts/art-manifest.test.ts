@@ -144,7 +144,7 @@ describe("MANIFEST_EXCLUSIONS", () => {
     const root = mkdtempSync(join(tmpdir(), "art-manifest-exclusion-test-"));
     const publicAssets = join(root, "public-assets");
     mkdirSync(join(publicAssets, "scriptorium"), { recursive: true });
-    writeFileSync(join(publicAssets, "scriptorium", "page-background.webp"), "bg bytes");
+    writeFileSync(join(publicAssets, "scriptorium", "page-paper.webp"), "bg bytes");
     writeFileSync(join(publicAssets, "scriptorium", "other.webp"), "other bytes");
 
     const files = scanArtFiles([{ dir: publicAssets, keyPrefix: "/assets" }]);
@@ -152,8 +152,8 @@ describe("MANIFEST_EXCLUSIONS", () => {
 
     // scanArtFiles still finds the file (it's on disk); buildManifest is what
     // withholds it — the exclusion belongs to the manifest step, not the scan.
-    expect(files.some((f) => f.key === "/assets/scriptorium/page-background.webp")).toBe(true);
-    expect(manifest["/assets/scriptorium/page-background.webp"]).toBeUndefined();
+    expect(files.some((f) => f.key === "/assets/scriptorium/page-paper.webp")).toBe(true);
+    expect(manifest["/assets/scriptorium/page-paper.webp"]).toBeUndefined();
     expect(manifest["/assets/scriptorium/other.webp"]).toBeDefined();
     expect(fileCount).toBe(1);
 

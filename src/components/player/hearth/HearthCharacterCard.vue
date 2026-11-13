@@ -3,11 +3,12 @@
     <div class="flex gap-3">
       <div class="card-plate relative h-27 w-18 shrink-0 overflow-hidden rounded-md bg-muted/50">
         <FocalImage
-          v-if="portrait.src"
+          v-if="portrait.src && !lowArt"
           :src="portrait.src"
           :alt="portrait.alt"
           format="portrait"
           :focal-point="portrait.focalPoint"
+          record
         />
         <span
           v-else
@@ -91,6 +92,7 @@ import "./hearth-paper.css";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { IconChevronRight } from "@/lib/icons";
 import { useMemberVitals } from "@/composables/party/useMemberVitals";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
@@ -110,6 +112,7 @@ import type { PartyMember } from "@/types/party.types";
 const { member } = defineProps<{ member: PartyMember }>();
 
 const memberId = computed(() => member.id);
+const { lowArt } = useLowArt();
 const { data: classes } = useCharacterClasses(memberId);
 // One row by id rather than the whole edition list (#999); also finds a species of the other edition.
 const { data: speciesById } = useSpeciesByIds(() => [member.species_id]);

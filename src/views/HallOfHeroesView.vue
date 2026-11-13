@@ -35,7 +35,7 @@
     </template>
 
     <div ref="listRef">
-    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'tiles' : 'grid'" :columns="layout === 'rows' ? 1 : 4" :count="12" />
+    <ListSkeleton v-if="isLoading" :variant="skeletonVariant" :columns="layout === 'rows' ? 1 : 4" :count="12" />
 
     <EmptyState
       v-else-if="!filtered.length && !search && settingFilter === 'all'"
@@ -64,6 +64,7 @@
       :layout="layout"
       :grid-columns="columns"
       :grid-row-estimate="HERO_ROW_PX"
+      :ledger="LEDGER"
     >
       <template #row="{ item: hero }">
         <EntityListRow
@@ -73,6 +74,7 @@
           :image-url="hero.portrait_url"
           :fallback-icon="IconNavNpcs"
           :tags="[settingLabel(hero.setting), ...hero.tags]"
+          :cells="[heroSubtitle(hero) ?? null, settingLabel(hero.setting)]"
         >
           <template #actions>
             <AppButton
@@ -117,26 +119,18 @@
         :placeholder="placeholderUrl('npc')"
         :badge-text="settingLabel(hero.setting)"
         :badge-class="campaignSetting && hero.setting === campaignSetting ? 'bg-primary' : undefined"
+        :eyebrow="heroSubtitle(hero) ?? 'Hero'"
       >
-        <template #body>
-          <div class="flex items-start justify-between gap-1">
+        <template #body="{ artFree }">
+          <div v-if="!artFree" class="flex items-start justify-between gap-1">
             <h3 class="line-clamp-1 flex-1 text-heading-xs leading-tight font-bold text-foreground">
               {{ hero.name }}
             </h3>
           </div>
-          <p v-if="hero.race || hero.occupation" class="truncate text-caption text-muted-foreground italic">
+          <p v-if="(hero.race || hero.occupation) && !artFree" class="truncate text-caption text-muted-foreground italic">
             {{ [hero.race, hero.occupation].filter(Boolean).join(" · ") }}
           </p>
-          <div v-if="hero.tags.length" class="flex flex-wrap gap-1 pt-1">
-            <span
-              v-for="tag in hero.tags.slice(0, 3)"
-              :key="tag"
-              class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-            >{{ tag }}</span>
-            <span v-if="hero.tags.length > 3" class="self-center text-caption-sm text-muted-foreground italic">
-              +{{ hero.tags.length - 3 }}
-            </span>
-          </div>
+          <TagChips :tags="hero.tags" :max="3" overflow class="pt-1" />
           <!-- Above the whole-card link (z-2), like the corner chips. -->
           <AppButton
             class="relative z-10 mt-auto w-full"
@@ -150,11 +144,11 @@
           />
         </template>
 
-        <template v-if="isAppAdmin" #actions-start>
+        <template v-if="isAppAdmin" #actions-start="{ artFree }">
           <AppButton
             variant="ghost"
             size="icon-xs"
-            :class="[CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
+            :class="artFree ? undefined : [CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
             :icon="IconEdit"
             :to="`/hall-of-heroes/${hero.id}/edit`"
             tooltip="Edit hero"
@@ -163,7 +157,7 @@
           <AppButton
             variant="ghost"
             size="icon-xs"
-            :class="[CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
+            :class="artFree ? undefined : [CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
             :icon="IconDelete"
             tooltip="Delete hero"
             aria-label="Delete hero"
@@ -184,6 +178,8 @@
 </template>
 
 <script setup lang="ts">
+import { artFreeSkeleton } from "@/components/common/list/ledger";
+import TagChips from "@/components/common/TagChips.vue";
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useScrollRestore } from "@/composables/useScrollRestore";
@@ -210,6 +206,7 @@ import { useListLayout } from "@/composables/useListLayout";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { useLowArt } from "@/composables/useLowArt";
 import type { HallOfHero } from "@/types/npc.types";
 import { DND_SETTINGS } from "@/data/dndSettings";
 
@@ -228,6 +225,16 @@ const router = useRouter();
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 // The header's toggle writes the same key.
 const layout = useListLayout("hall-of-heroes", "grid");
+const { lowArt } = useLowArt();
+const skeletonVariant = computed(() => {
+  if (lowArt.value) return artFreeSkeleton(layout.value);
+  return layout.value === "rows" ? "tiles" : "grid";
+});
+// Low art (#1179, frame 03): species and occupation, then the setting.
+const LEDGER = [
+  { label: "Species and occupation", track: "minmax(0,1fr)" },
+  { label: "Setting", track: "10rem" },
+];
 const heroKey = (hero: HallOfHero) => hero.id;
 
 // Row height before a row is measured (px): 273-295px across 162 heroes, 295 the median, measured at a 390px

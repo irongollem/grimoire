@@ -1,5 +1,5 @@
 <template>
-  <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'tiles' : 'grid'" :columns="layout === 'rows' ? 1 : 4" :count="12" />
+  <ListSkeleton v-if="isLoading" :variant="skeletonVariant" :columns="layout === 'rows' ? 1 : 4" :count="12" />
 
   <!-- Empty state -->
   <div
@@ -60,20 +60,23 @@
         :grid-columns="columns"
         :grid-row-estimate="GRID_ROW_PX"
         :row-estimate="ROW_PX"
+        :ledger="LEDGER"
       >
         <template #card="{ item: sc }">
-          <!-- No picture of its own: the base class's art stands in, so a
-               Path of Hellfire card still reads as a barbarian at a glance. -->
+          <!-- Always art-free (#1179, frame 02): it used to borrow its base
+               class's picture. With the plate off there is nothing to borrow
+               for, and the eyebrow names the class instead. -->
           <EntityGridCard
             :to="`/levelup/custom/${sc.id}`"
             :title="sc.subclass_name"
-            :image-url="sc.image_url"
-            :focal-point="sc.focal_point"
-            :placeholder="classArt(sc.class_name)"
+            :plate="false"
+            :eyebrow="sc.class_name"
           >
             <template #body>
-              <h3 class="line-clamp-2 text-balance text-heading-xs leading-tight font-bold text-foreground">{{ sc.subclass_name }}</h3>
-              <p class="text-caption text-muted-foreground">{{ subtitle(sc) }}</p>
+              <p class="text-caption text-muted-foreground">{{ meta(sc) }}</p>
+            </template>
+            <template #foot>
+              <span v-if="bookOf(sc)" class="text-label text-muted-foreground">{{ bookOf(sc) }}</span>
             </template>
           </EntityGridCard>
         </template>
@@ -82,8 +85,9 @@
             :to="`/levelup/custom/${sc.id}`"
             :title="sc.subclass_name"
             :subtitle="subtitle(sc)"
-            :image-url="sc.image_url ?? classImage(sc.class_name)"
+            :image-url="sc.image_url"
             :fallback-icon="IconLayers"
+            :cells="[meta(sc), bookOf(sc)]"
           >
             <template #body>
               <p v-if="sc.description" class="mt-0.5 line-clamp-2 text-caption text-muted-foreground">
@@ -98,6 +102,7 @@
 </template>
 
 <script setup lang="ts">
+import { artFreeSkeleton } from "@/components/common/list/ledger";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { ref, computed, onBeforeUnmount } from "vue";
 import { IconAdd, IconLayers, IconPopulate } from '@/lib/icons';
@@ -106,9 +111,9 @@ import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { useListLayout } from "@/composables/useListLayout";
+import { useLowArt } from "@/composables/useLowArt";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import { useCodexUiStore } from "@/stores/ui/codex";
 import { useAllCustomSubclasses, useCreateCustomSubclass } from "@/composables/rules/useCustomSubclasses";
@@ -121,12 +126,25 @@ const codexUi = useCodexUiStore();
 // The Codex header's toggle writes the same key.
 const layout = useListLayout("codex-archetypes", "grid");
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
+const { lowArt } = useLowArt();
+const skeletonVariant = computed(() => {
+  if (lowArt.value) return artFreeSkeleton(layout.value);
+  return layout.value === "rows" ? "tiles" : "grid";
+});
+
+// Low art (#1179, frame 03): the meta line as one column, then its book. The
+// base class is the section heading, so it is not a column.
+const LEDGER = [
+  { label: "Features", track: "minmax(0,1fr)" },
+  { label: "Source", track: "10rem" },
+];
 const archetypeKey = (sc: CustomSubclass) => sc.id;
 
-// Row heights before measuring (px): the class list's card (art h-36 + body),
-// and a row with a two-line description.
+// Row heights before measuring (px): an art-free card (2 border + 12 + 24 top
+// and bottom padding + eyebrow 24 + name 20 + meta 17 + foot 24 and gaps), and a
+// row with a two-line description.
 const ROW_PX = 108;
-const GRID_ROW_PX = 228;
+const GRID_ROW_PX = 162;
 const { data: all, isLoading } = useAllCustomSubclasses();
 const { mutateAsync: create } = useCreateCustomSubclass();
 const { mutateAsync: createFeature } = useCreateFeature();
@@ -197,15 +215,20 @@ const grouped = computed<Record<string, CustomSubclass[]>>(() => {
   return result;
 });
 
-/** "4 feature levels · Tome of Heroes · Campaign only": the class list's meta line. */
-function subtitle(sc: CustomSubclass): string {
+function metaParts(sc: CustomSubclass, withBook: boolean): string {
   const n = featureLevelCount(sc);
   const parts = [n === 0 ? "No features yet" : `${n} feature level${n !== 1 ? "s" : ""}`];
-  const book = bookOf(sc);
+  const book = withBook ? bookOf(sc) : null;
   if (book) parts.push(book);
   if (sc.campaign_id) parts.push("Campaign only");
   return parts.join(" · ");
 }
+
+/** "4 feature levels · Campaign only": what the card says besides its book, which is its foot. */
+const meta = (sc: CustomSubclass) => metaParts(sc, false);
+
+/** "4 feature levels · Tome of Heroes · Campaign only": the class list's meta line. */
+const subtitle = (sc: CustomSubclass) => metaParts(sc, true);
 
 const { labelFor } = useSourceTitles();
 
@@ -216,17 +239,6 @@ const { labelFor } = useSourceTitles();
  */
 function bookOf(sc: CustomSubclass): string | null {
   return labelFor(sc.source_document_key ?? sc.source);
-}
-
-/** The base class's picture, from the library's classes or the DM's own; null when it has none. */
-function classImage(className: string): string | null {
-  const match = [...(systemClasses.value ?? []), ...(customClasses.value ?? [])]
-    .find((c) => c.class_name === className && c.image_url);
-  return match ? match.image_url : null;
-}
-
-function classArt(className: string): string {
-  return classImage(className) ?? placeholderUrl("character");
 }
 
 function featureLevelCount(sc: CustomSubclass): number {

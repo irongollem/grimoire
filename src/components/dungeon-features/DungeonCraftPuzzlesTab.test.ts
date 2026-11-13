@@ -1,3 +1,4 @@
+import { useLowArt } from "@/composables/useLowArt";
 import { mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import { createPinia, setActivePinia } from "pinia";
@@ -102,7 +103,7 @@ function mountTab() {
   return mount(DungeonCraftPuzzlesTab, {
     global: {
       plugins: [pinia],
-      stubs: { CopyToCampaignDialog: true, PaywallModal: true, RouterLink: RouterLinkStub },
+      stubs: { AiImageBadge: true, CopyToCampaignDialog: true, PaywallModal: true, RouterLink: RouterLinkStub },
     },
   });
 }
@@ -153,12 +154,12 @@ describe("DungeonCraftPuzzlesTab — filter state (Filter State Pattern)", () =>
     puzzlesUi.puzzlesSearch = "sphinx";
 
     const wrapper = mount(DungeonCraftPuzzlesTab, {
-      global: { plugins: [pinia], stubs: { CopyToCampaignDialog: true, PaywallModal: true, RouterLink: RouterLinkStub } },
+      global: { plugins: [pinia], stubs: { AiImageBadge: true, CopyToCampaignDialog: true, PaywallModal: true, RouterLink: RouterLinkStub } },
     });
     wrapper.unmount();
 
     const remounted = mount(DungeonCraftPuzzlesTab, {
-      global: { plugins: [pinia], stubs: { CopyToCampaignDialog: true, PaywallModal: true, RouterLink: RouterLinkStub } },
+      global: { plugins: [pinia], stubs: { AiImageBadge: true, CopyToCampaignDialog: true, PaywallModal: true, RouterLink: RouterLinkStub } },
     });
     expect(usePuzzlesUiStore().puzzlesSearch).toBe("sphinx");
     remounted.unmount();
@@ -210,10 +211,20 @@ describe("DungeonCraftPuzzlesTab — checkbox chip placement", () => {
     mocks.library = [];
   });
 
-  it("puts the checkbox chip in the top-right corner, clear of the type badge at top-left", async () => {
+  // Bug: the chip sat top-right over the type badge the card hangs there.
+  it("puts the checkbox chip bottom-right with art, clear of the type badge at top-right", async () => {
+    const wrapper = mountTab();
+    await flushMicrotasks();
+    expect(wrapper.findComponent(BulkSelectableCard).props("corner")).toBe("bottom-right");
+  });
+
+  // Bug: art-free, the type badge moves into the foot's right end, so bottom-right would cover it.
+  it("moves the chip top-right in low art, where the badge sits in the foot", async () => {
+    useLowArt().setLowArt(true);
     const wrapper = mountTab();
     await flushMicrotasks();
     expect(wrapper.findComponent(BulkSelectableCard).props("corner")).toBe("top-right");
+    useLowArt().setLowArt(false);
   });
 });
 

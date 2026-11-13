@@ -1,7 +1,7 @@
 <template>
   <article class="flex flex-col gap-3 rounded-xl border border-primary bg-card p-4">
     <div class="flex flex-wrap items-center gap-1.5">
-      <span v-if="beat.quest" class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ beat.quest.title }}</span>
+      <TagChip v-if="beat.quest" class="uppercase">{{ beat.quest.title }}</TagChip>
     </div>
     <h3 class="text-heading-sm font-bold text-foreground">Beat · {{ beat.title || "Untitled beat" }}</h3>
 
@@ -51,6 +51,7 @@
  * the card's chrome competing for attention. Nothing about the beat changes
  * when it's clicked.
  */
+import TagChip from "@/components/common/TagChip.vue";
 import { ref, computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";

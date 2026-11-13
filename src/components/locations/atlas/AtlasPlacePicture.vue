@@ -1,8 +1,8 @@
 <template>
   <section v-if="location.book_nook_id || location.image_url" class="mb-4 space-y-2" aria-label="Picture" data-testid="place-picture">
-    <div class="relative aspect-video overflow-hidden rounded-lg border border-border bg-muted">
+    <div v-if="location.book_nook_id || !lowArt" class="relative aspect-video overflow-hidden rounded-lg border border-border bg-muted">
       <BookNookPlayer v-if="nook" :scene="nook.scene" :still="nook.still_url ?? location.image_url" screen="wide" />
-      <img v-else-if="location.image_url" :src="location.image_url" :alt="location.name" class="size-full object-cover" />
+      <img v-else-if="location.image_url && !lowArt" :src="location.image_url" :alt="location.name" class="size-full object-cover" />
 
       <template v-if="nook">
         <span
@@ -55,6 +55,7 @@ import { computed } from "vue";
 import BookNookPlayer from "@/components/bookNook/BookNookPlayer.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/controls/appButtonVariants";
+import { useLowArt } from "@/composables/useLowArt";
 import { useStartNook } from "@/composables/bookNook/useStartNook";
 import { useNookForPlace } from "@/composables/bookNook/useShowNookAtPlace";
 import { IconEdit, IconMonitor, IconNavBookNook } from "@/lib/icons";
@@ -64,6 +65,7 @@ const { location } = defineProps<{ location: Location }>();
 
 const { data } = useNookForPlace(computed(() => location));
 const nook = computed(() => (location.book_nook_id ? (data.value ?? null) : null));
+const { lowArt } = useLowArt();
 const { starting, startFromPicture } = useStartNook();
 
 function openTableScreen() {

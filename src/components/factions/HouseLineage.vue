@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-3" data-testid="house-lineage">
     <header class="flex items-center gap-4">
-      <span class="grid size-16 shrink-0 place-items-center overflow-hidden bg-muted text-muted-foreground" aria-hidden="true">
+      <span v-if="!lowArt" class="grid size-16 shrink-0 place-items-center overflow-hidden bg-muted text-muted-foreground" aria-hidden="true">
         <img v-if="faction.emblem_url" :src="faction.emblem_url" alt="" class="size-full object-cover" />
         <IconShield v-else class="size-7" />
       </span>
@@ -92,6 +92,7 @@ import { useSetHouseSuccession } from "@/composables/factions/useHouseSuccession
 import { useLocationNames } from "@/composables/locations/useLocations";
 import { useDmKinGraph } from "@/composables/kinship/useKinGraph";
 import { useToast } from "@/composables/useToast";
+import { useLowArt } from "@/composables/useLowArt";
 import { IconClose, IconShield } from "@/lib/icons";
 import { childrenOf } from "@/lib/kinship/graph";
 import { houseLineage } from "@/lib/kinship/house";
@@ -102,6 +103,7 @@ import type { PersonKey } from "@/types/kinship.types";
 
 const { faction } = defineProps<{ faction: Faction }>();
 
+const { lowArt } = useLowArt();
 const route = useRoute();
 const router = useRouter();
 const ui = useFamilyUiStore();

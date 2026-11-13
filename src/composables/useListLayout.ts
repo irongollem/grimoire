@@ -1,6 +1,7 @@
 import { computed, effectScope, type WritableComputedRef } from "vue";
 import { useStorage } from "@vueuse/core";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
+import { useLowArt } from "@/composables/useLowArt";
 
 /**
  * How a list shows its items: one per row, or as a grid of cards. Every catalogue
@@ -36,20 +37,51 @@ function store() {
 }
 
 /**
+ * The lists that opted into low art (they pass `ledger` to their EntityCollection,
+ * or to DungeonCraftEntityGrid). Keep this equal to them: a list that never drew
+ * a ledger has no rows layout built for text, and its cards are its pictures, so
+ * low art must not flip it to rows.
+ */
+export const LOW_ART_LISTS: ReadonlySet<string> = new Set([
+  "npcs",
+  "monsters",
+  "spells",
+  "items",
+  "deities",
+  "factions",
+  "pantheons",
+  "hall-of-heroes",
+  "codex-species",
+  "codex-backgrounds",
+  "codex-classes",
+  "codex-archetypes",
+  "recipes",
+  "traps",
+  "puzzles",
+  "dungeon-features",
+  "notice-boards",
+]);
+
+/**
  * The persisted layout of one list, as a writable ref. `listKey` names the list
  * ("npcs", "monsters"); `defaultLayout` is what a first visit gets, and what an
  * unrecognised stored value falls back to. Call it with the same key from the
  * page header (for `<ListLayoutToggle v-model>`) and from the list body.
+ *
+ * With low art on, a low-art list nobody has chosen for opens on rows: a list with no
+ * pictures reads best down a column. A stored choice always wins.
  */
 export function useListLayout(
   listKey: string,
   defaultLayout: ListLayout,
 ): WritableComputedRef<ListLayout> {
   const all = store();
+  const { lowArt } = useLowArt();
   return computed({
     get: () => {
       const stored: unknown = all.value[listKey];
-      return isListLayout(stored) ? stored : defaultLayout;
+      if (isListLayout(stored)) return stored;
+      return lowArt.value && LOW_ART_LISTS.has(listKey) ? "rows" : defaultLayout;
     },
     set: (value) => {
       all.value = { ...all.value, [listKey]: value };

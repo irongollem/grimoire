@@ -26,18 +26,22 @@
 /* ── Physical page ───────────────────────────────────────────────────────── */
 .phb-page {
   position: relative;
-  /* /assets/scriptorium/page-background.webp is deliberately excluded from
+  /* The look's own paper: a seamless parchment tile repeated at its true
+     size, like the stock papers (#1181), with the darker page edges drawn by
+     a gradient so they stay sharp at any size. It used to be one 1024x1536
+     picture stretched over the whole page, which blurred on every A4 page.
+     /assets/scriptorium/page-paper.webp is deliberately excluded from
      src/generated/artManifest.json (see MANIFEST_EXCLUSIONS in
      scripts/art-manifest.ts). This file is `?inline`-imported into
      useScriptoriumPdf.ts and written verbatim into the HTML the render-pdf
      edge function prints, which runs no app JS and inherits none of the
      main document's CSS custom properties, so artUrl() and a runtime custom
      property are both unreachable here. The export inlines this literal
-     path as a data: URI before sending (inlineSameOriginAssets.ts, #565);
-     keeping the file at this path forever is what lets every context find
-     it. */
+     path as a data: URI before sending (inlineSameOriginAssets.ts, #565). */
   background:
-    url("/assets/scriptorium/page-background.webp") center / cover no-repeat,
+    linear-gradient(to right, rgb(162 93 28 / 0.34) 0%, rgb(162 93 28 / 0.25) 4%, rgb(162 93 28 / 0.16) 9%, rgb(162 93 28 / 0.075) 18%, rgb(162 93 28 / 0.025) 28%, rgb(162 93 28 / 0) 40%, rgb(162 93 28 / 0) 60%, rgb(162 93 28 / 0.025) 72%, rgb(162 93 28 / 0.075) 82%, rgb(162 93 28 / 0.16) 91%, rgb(162 93 28 / 0.25) 96%, rgb(162 93 28 / 0.34) 100%) 0 0 / 100% 100% no-repeat,
+    linear-gradient(to bottom, rgb(162 93 28 / 0.34) 0%, rgb(162 93 28 / 0.25) 4%, rgb(162 93 28 / 0.16) 9%, rgb(162 93 28 / 0.075) 18%, rgb(162 93 28 / 0.025) 28%, rgb(162 93 28 / 0) 40%, rgb(162 93 28 / 0) 60%, rgb(162 93 28 / 0.025) 72%, rgb(162 93 28 / 0.075) 82%, rgb(162 93 28 / 0.16) 91%, rgb(162 93 28 / 0.25) 96%, rgb(162 93 28 / 0.34) 100%) 0 0 / 100% 100% no-repeat,
+    url("/assets/scriptorium/page-paper.webp") 0 0 / 81.3mm 81.3mm repeat,
     var(--sc-page-bg);
   padding: 60px 68px 53px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);

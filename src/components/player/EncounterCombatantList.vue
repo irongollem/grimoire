@@ -33,7 +33,7 @@
         :class="isActive(combatant) ? 'bg-primary/8 ring-1 ring-inset ring-primary/20' : 'hover:bg-muted/20'"
         @click="$emit('combatant-click', combatant)"
       >
-        <div class="portrait-cell">
+        <div v-if="!lowArt" class="portrait-cell">
           <div class="portrait-inner" :class="isActive(combatant) ? 'portrait-active' : ''">
             <FocalImage
               :src="portraitOf(combatant).src"
@@ -41,11 +41,12 @@
               :alt="portraitOf(combatant).alt"
               :focal-point="portraitOf(combatant).focalPoint"
               format="square"
+              record
             />
           </div>
         </div>
 
-        <div class="row-content">
+        <div class="row-content" :class="lowArt && 'pl-3'">
           <div class="shrink-0 w-8 text-center self-center">
             <span
               class="text-heading-sm font-bold"
@@ -102,6 +103,7 @@
 
 <script setup lang="ts">
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import type { RunCombatant, HealthVisibility } from "@/types/encounter.types";
 import type { PartyMember } from "@/types/party.types";
 import { displayTempHp as calcDisplayTempHp } from "@/rules/hitPoints";
@@ -110,6 +112,8 @@ import { useFormPortraits } from "@/composables/party/useFormPortraits";
 import { placeholderKind } from "@/lib/wildshapePortrait";
 import { describeConditionEnd, type NameOf } from "@/rules/conditionLabels";
 import { combatantKindLabel } from "@/lib/encounters/combatantKind";
+
+const { lowArt } = useLowArt();
 
 const {
   visibleCombatants,

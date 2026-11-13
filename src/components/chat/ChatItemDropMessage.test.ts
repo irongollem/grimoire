@@ -1,5 +1,6 @@
+import { useLowArt } from "@/composables/useLowArt";
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import ChatItemDropMessage from "./ChatItemDropMessage.vue";
 import type { ItemDropClaim, ItemDropMetadata } from "@/types/chat.types";
 
@@ -89,5 +90,19 @@ describe("ChatItemDropMessage claiming", () => {
     pick.vm.$emit("update:modelValue", "");
     pick.vm.$emit("update:modelValue", "ghost");
     expect(w.emitted("claim-to-npc")).toEqual([[{ messageId: "m1", npcId: "n1", npcName: "Brakka" }]]);
+  });
+});
+
+describe("ChatItemDropMessage low art (#1179)", () => {
+  afterEach(() => {
+    useLowArt().setLowArt(false);
+  });
+
+  it("draws no item art in low art but keeps naming the item", () => {
+    expect(mountCard(meta({ image_url: "/sword.webp" })).find("img").exists()).toBe(true);
+    useLowArt().setLowArt(true);
+    const w = mountCard(meta({ image_url: "/sword.webp" }));
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.text()).toContain("Longsword");
   });
 });

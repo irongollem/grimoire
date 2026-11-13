@@ -10,13 +10,11 @@
     <h3 class="min-w-0 flex-1 truncate text-heading-sm font-bold text-foreground">{{ room.name }}</h3>
 
     <ul v-if="chips.length" class="flex flex-wrap items-center gap-1.5" aria-label="Room state">
-      <li
-        v-for="chip in chips"
-        :key="chip.fact"
-        class="flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-      >
-        <component :is="chip.icon" class="h-3 w-3 shrink-0" aria-hidden="true" />
-        {{ chip.label }}
+      <li v-for="chip in chips" :key="chip.fact">
+        <TagChip class="flex items-center gap-1">
+          <component :is="chip.icon" class="h-3 w-3 shrink-0" aria-hidden="true" />
+          {{ chip.label }}
+        </TagChip>
       </li>
     </ul>
 
@@ -37,6 +35,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, type Component } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useEncountersByLocation } from "@/composables/encounters/useEncounters";

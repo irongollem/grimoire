@@ -53,6 +53,7 @@
         pane and pushes every child row out of view.
       -->
       <div
+        v-if="!lowArt"
         class="h-14 w-14 shrink-0 overflow-hidden rounded-md"
         :style="{ backgroundColor: LOCATION_TYPE_COLORS[location.location_type] + '22' }"
       >
@@ -63,6 +64,7 @@
           :render-width="200"
           :focal-point="null"
           :placeholder="placeholderUrl('location')"
+          record
           class="h-full w-full object-cover"
         />
       </div>
@@ -93,13 +95,7 @@
             Tags belong beside the type, not after the child list: below a long
             set of tier groups they are past the fold and read as debris.
           -->
-          <span
-            v-for="tag in shownTags"
-            :key="tag"
-            class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-          >
-            {{ tag }}
-          </span>
+          <TagChip v-for="tag in shownTags" :key="tag">{{ tag }}</TagChip>
           <!--
             "Dungeon · tithe · flooded · [quest icon] 2 quests staged here"
             (#868, frame 02) — a beat staged at this place OR any of its
@@ -115,6 +111,8 @@
             <IconQuest class="h-3 w-3 shrink-0" aria-hidden="true" />
             {{ stagedQuestCount }} quest{{ stagedQuestCount === 1 ? "" : "s" }} staged here
           </span>
+          <!-- Low art (#1179): the place's own picture waits behind a button; the sigil box above is gone. -->
+          <PortraitOnRequest v-if="lowArt" :src="location.image_url" :alt="location.name" label="Picture" />
         </div>
       </div>
       <!--
@@ -290,13 +288,13 @@
                 of living inside it. `pointer-events-none` keeps it purely
                 informational: the row underneath stays the whole click target.
               -->
-              <span
+              <TagChip
                 v-if="levelChipFor(group, child)"
-                class="pointer-events-none absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
+                class="pointer-events-none absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1"
               >
                 <IconLayers class="h-3 w-3 shrink-0" aria-hidden="true" />
                 Level {{ levelChipFor(group, child) }}
-              </span>
+              </TagChip>
             </li>
           </ul>
         </section>
@@ -324,10 +322,13 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, useTemplateRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import TabBar from "@/components/common/controls/TabBar.vue";
 import AtlasScaleRail from "@/components/locations/atlas/AtlasScaleRail.vue";
 import AtlasSiteMapMode from "@/components/locations/atlas/AtlasSiteMapMode.vue";
@@ -386,6 +387,7 @@ const MODE_TABS = [
 // "Nothing inside here yet" must mean *nothing* — no sub-places and no body.
 // The shared sections component owns that second half, so ask it rather than
 // re-deriving six queries' worth of emptiness here.
+const { lowArt } = useLowArt();
 const sections = useTemplateRef("sectionsRef");
 
 // A `tavern` tag beside a Tavern badge says nothing twice. Legacy rows typed

@@ -1,7 +1,8 @@
 import { mount } from "@vue/test-utils";
 import { useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
 import { reactive, ref, defineComponent, h } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useLowArt } from "@/composables/useLowArt";
 import NpcList from "./NpcList.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { Npc } from "@/types/npc.types";
@@ -449,5 +450,51 @@ describe("NpcList: what the filters leave", () => {
     expect(await lockedIds({ unlimited: false, current: 3, limit: 2 })).toEqual(["new"]);
     expect(await lockedIds({ unlimited: false, current: 3, limit: 3 })).toEqual([]);
     expect(await lockedIds({ unlimited: true, current: 30, limit: 2 })).toEqual([]);
+  });
+});
+
+describe("NpcList in low art (#1179)", () => {
+  const { setLowArt } = useLowArt();
+  beforeEach(() => {
+    npcsData.value = [];
+    allLocations.value = [{ id: "inn", name: "The Gilded Bun" }];
+  });
+  afterEach(() => {
+    setLowArt(false);
+    allLocations.value = [];
+  });
+
+  const withPicture = () =>
+    npc({
+      id: "e1",
+      name: "Elowen Vance",
+      portrait_url: "https://cdn/elowen.webp",
+      location_id: "inn",
+      tags: ["baker", "rumours"],
+    });
+
+  // Bug: the NPC list still downloads portraits in low art.
+  it("draws the ledger without a single image, the name and its columns on the line", async () => {
+    npcsData.value = [withPicture()];
+    setLowArt(true);
+    const wrapper = mountList();
+    await flushMicrotasks();
+    expect(wrapper.find("img").exists()).toBe(false);
+    expect(wrapper.find("[data-ledger-head]").text()).toContain("Occupation");
+    const line = wrapper.text();
+    expect(line).toContain("Elowen Vance");
+    expect(line).toContain("Innkeeper");
+    expect(line).toContain("The Gilded Bun");
+    expect(line).toContain("friendly");
+    expect(line).toContain("baker · rumours");
+  });
+
+  // Bug: low art off must stay the picture list: no ledger head, the cards as before.
+  it("keeps the picture grid with low art off", async () => {
+    npcsData.value = [withPicture()];
+    const wrapper = mountList();
+    await flushMicrotasks();
+    expect(wrapper.find("[data-ledger-head]").exists()).toBe(false);
+    expect(wrapper.find(".stub-card").exists()).toBe(true);
   });
 });

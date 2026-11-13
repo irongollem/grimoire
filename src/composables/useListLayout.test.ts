@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { effectScope, nextTick } from "vue";
 import { useListLayout } from "./useListLayout";
+import { useLowArt } from "@/composables/useLowArt";
 
 const KEY = "grimoire:list-layouts";
 
@@ -52,5 +53,34 @@ describe("useListLayout", () => {
     fresh.useListLayout("monsters", "grid").value = "rows";
     await nextTick();
     expect(JSON.parse(localStorage.getItem(KEY) ?? "null")).toMatchObject({ monsters: "rows" });
+  });
+
+  describe("with low art", () => {
+    const { setLowArt } = useLowArt();
+    afterEach(() => {
+      setLowArt(false);
+    });
+
+    it("opens a low-art list nobody has chosen for on rows", () => {
+      setLowArt(true);
+      expect(useListLayout("npcs", "grid").value).toBe("rows");
+    });
+
+    // Bug: every list flipped to rows, including ones that never drew a ledger.
+    it("leaves a list that did not opt in on its default", () => {
+      setLowArt(true);
+      expect(useListLayout("minis", "grid").value).toBe("grid");
+    });
+
+    // Bug: low art overrides a viewer's explicit choice.
+    it("keeps a stored grid", () => {
+      setLowArt(true);
+      useListLayout("chosen", "rows").value = "grid";
+      expect(useListLayout("chosen", "rows").value).toBe("grid");
+    });
+
+    it("gives the default when off and nothing is stored", () => {
+      expect(useListLayout("fresh2", "grid").value).toBe("grid");
+    });
   });
 });

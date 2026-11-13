@@ -195,7 +195,7 @@
           @click="lightbox = null"
         />
 
-        <div class="relative h-48 bg-muted overflow-hidden rounded-t-xl">
+        <div v-if="!lowArt" class="relative h-48 bg-muted overflow-hidden rounded-t-xl">
           <MiniPortraitOverlay :source="{ table: 'monsters', id: lightboxMiniSourceId }" badge-position="bottom-right">
             <!-- Left, not right: the mini badge owns bottom-right. Both bottom corners are taken (CR left, mini badge right), so the chip stacks above the CR one. -->
             <FocalImage
@@ -206,6 +206,7 @@
               :placeholder="placeholderUrl('monster')"
               ai-badge="left"
               ai-badge-class="bottom-9!"
+              record
             />
             <!--
               `stat_block` is optional-chained because the player projection
@@ -229,6 +230,15 @@
             <p v-if="lightbox?.monster" class="text-body text-muted-foreground italic capitalize">
               {{ lightbox.monster.size }} {{ lightbox.monster.monster_type }}<span v-if="lightbox.monster.alignment && (lightbox.revealStats ?? activeTab === 'forms')"> · {{ lightbox.monster.alignment }}</span>
             </p>
+            <!-- Low art: the banner that carried the CR chip is gone; the picture waits behind a button (#1179). -->
+            <div v-if="lowArt" class="mt-1.5 flex flex-wrap items-center gap-2">
+              <span
+                v-if="lightbox?.monster"
+                class="px-2 py-0.5 rounded text-label font-bold text-white"
+                :class="crBg(lightbox.monster.stat_block?.challenge_rating)"
+              >CR {{ crText(lightbox.monster.stat_block?.challenge_rating) }}</span>
+              <PortraitOnRequest :src="lightbox?.imageUrl" :alt="lightbox?.name" label="Picture" />
+            </div>
           </div>
 
           <!--
@@ -367,6 +377,8 @@ import AppModal from "@/components/common/overlays/AppModal.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import PlayerNotesWidget from "@/components/player/PlayerNotesWidget.vue";
 import MonsterFormCard from "@/components/monsters/MonsterFormCard.vue";
@@ -383,6 +395,7 @@ interface FormEntry { monster: PlayerVisibleMonster; name: string; imageUrl: str
 const appUi = useAppUiStore();
 const playerUi = usePlayerUiStore();
 const auth = useAuthStore();
+const { lowArt } = useLowArt();
 const { sendRoll } = useCampaignMessages();
 const { speakerName } = useSpeaker();
 const { reportChatFailure } = useChatSendFailure();

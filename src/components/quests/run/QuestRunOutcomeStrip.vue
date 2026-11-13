@@ -5,9 +5,9 @@
     <div class="grid gap-2">
       <article v-for="choice in filteredChoices" :key="choice.edge_id" class="space-y-2 rounded-lg border border-border bg-card p-3">
         <div class="flex flex-wrap items-center gap-1.5">
-          <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ choice.beat_kind }}</span>
+          <TagChip class="uppercase">{{ choice.beat_kind }}</TagChip>
           <span class="rounded bg-primary/10 px-1.5 py-0.5 text-label uppercase text-primary">choice</span>
-          <span v-if="choice.isVisited" class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">Visited</span>
+          <TagChip v-if="choice.isVisited" class="uppercase">Visited</TagChip>
           <span v-if="choice.prepGapCount" class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">{{ choice.prepGapCount }} gap{{ choice.prepGapCount === 1 ? '' : 's' }}</span>
         </div>
         <div>
@@ -71,6 +71,7 @@
  * open that dialog — preselected on a route, or with its improvise option
  * selected.
  */
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, ref } from "vue";
 import type { QuestRuntimeStatus } from "@/types/quest.types";
 import type { QuestRunBranchChoice } from "@/lib/quests/run";

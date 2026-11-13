@@ -26,20 +26,17 @@
     <!-- Identity: image + name / type / tags -->
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="p-4 flex gap-4">
-        <div class="shrink-0 w-28 aspect-square rounded-md overflow-hidden bg-muted flex items-center justify-center">
-          <FocalImage
-            :src="feature.image_url"
-            :alt="feature.name"
-            format="portrait"
-            :focal-point="feature.image_focal_point ?? null"
-            :lightbox="true"
-            :placeholder="placeholderUrl('dungeonfeature')"
-            class="w-full h-full"
-            ai-badge="right"
-          />
-        </div>
+        <SheetThumb
+          :src="feature.image_url"
+          :alt="feature.name"
+          :focal-point="feature.image_focal_point ?? null"
+          :placeholder="placeholderUrl('dungeonfeature')"
+        />
         <div class="flex-1 flex flex-col gap-2">
           <h1 class="text-heading-lg font-bold text-foreground leading-tight">{{ feature.name }}</h1>
+          <div v-if="lowArt && feature.image_url" class="self-start">
+            <PortraitOnRequest :src="feature.image_url" :alt="feature.name" />
+          </div>
           <span class="text-label font-semibold bg-muted/60 text-muted-foreground rounded px-2 py-0.5 self-start">
             {{ feature.feature_type }}
           </span>
@@ -174,6 +171,7 @@
 </template>
 
 <script setup lang="ts">
+import SheetThumb from "@/components/common/entity/SheetThumb.vue";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconEdit } from '@/lib/icons';
@@ -182,7 +180,8 @@ import { useCloneLibraryDungeonFeature, useDeleteDungeonFeature } from "@/compos
 import { isLibraryFeature } from "@/lib/dungeon-features/library";
 import { OBJECT_DAMAGE_IMMUNITIES, OBJECT_MATERIAL_LABELS, OBJECT_SIZE_LABELS } from "@/rules/objects";
 import type { DungeonFeatureEntry } from "@/types/dungeonFeature.types";
-import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import LibraryReadOnlyBanner from "@/components/common/entity/LibraryReadOnlyBanner.vue";
@@ -190,6 +189,7 @@ import EntityPlacements from "@/components/locations/place/EntityPlacements.vue"
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props  = defineProps<{ feature: DungeonFeatureEntry }>();
+const { lowArt } = useLowArt();
 const route  = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();

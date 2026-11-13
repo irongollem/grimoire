@@ -1,6 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useLowArt } from "@/composables/useLowArt";
 import PartyTrackerRow from "./PartyTrackerRow.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Campaign } from "@/types/campaign.types";
@@ -243,5 +244,28 @@ describe("PartyTrackerRow hit point controls", () => {
     ]).findAllComponents({ name: "CompanionCard" });
     expect(cards.map((c) => [c.props("sourceName"), c.props("sourceLink")])).toEqual([["Wolf", "/bestiary/mon-1"], ["", ""]]);
     monsters.byId.clear();
+  });
+});
+
+// Bug: a DM who turned low art on still gets the 125 px portrait slab (and its download) on every hero.
+describe("PartyTrackerRow in low art", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    useLowArt().setLowArt(true);
+  });
+  afterEach(() => {
+    useLowArt().setLowArt(false);
+  });
+
+  it("draws no portrait and lets the name head the row", () => {
+    const w = mountRow({ ...member("2024", "sp"), portrait_url: "/hero.webp" } as PartyMember, "Elf");
+    expect(w.find("focal-image-stub").exists()).toBe(false);
+    expect(w.text()).toContain("Mira");
+  });
+
+  it("keeps the portrait when low art is off", () => {
+    useLowArt().setLowArt(false);
+    const w = mountRow({ ...member("2024", "sp"), portrait_url: "/hero.webp" } as PartyMember, "Elf");
+    expect(w.find("focal-image-stub").exists()).toBe(true);
   });
 });

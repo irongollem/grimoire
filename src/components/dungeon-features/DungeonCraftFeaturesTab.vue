@@ -12,6 +12,7 @@
     empty-title="No dungeon features yet"
     :empty-description="emptyDescription"
     empty-action-label="New Feature"
+    :ledger="FEATURE_LEDGER"
     @empty-action="router.push('/dungeon-features/new')"
   >
     <template #filters>
@@ -21,46 +22,19 @@
       </AppSelect>
     </template>
     <template #card="{ item: feature }">
-      <RouterLink
+      <DungeonCraftCard
         :to="`/dungeon-features/${feature.id}`"
-        class="flex h-full flex-col rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors group"
-      >
-        <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
-          <FocalImage
-            :src="feature.image_url"
-            :alt="feature.name"
-            format="portrait"
-            :focal-point="feature.image_focal_point"
-            :placeholder="placeholderUrl('dungeonfeature')"
-            class="group-hover:scale-105 transition-transform duration-300"
-            ai-badge="right"
-          />
-          <span
-            class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
-            :class="DUNGEON_FEATURE_TYPE_BG[feature.feature_type]"
-          >{{ feature.feature_type }}</span>
-        </div>
-        <div class="p-2.5 flex flex-col gap-1">
-          <div class="flex items-start justify-between gap-2">
-            <h3 class="flex-1 text-heading-xs font-bold text-foreground leading-tight truncate">{{ feature.name }}</h3>
-            <div class="flex shrink-0 items-center gap-1">
-              <SourceBadge :source="isLibraryFeature(feature) ? feature.source : undefined" class="max-w-22 truncate" />
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <span v-if="feature.trigger_type" class="text-caption-sm text-muted-foreground italic truncate">
-              {{ feature.trigger_type }}
-            </span>
-            <span v-if="feature.perception_dc" class="text-label text-muted-foreground">
-              Perc {{ feature.perception_dc }}
-            </span>
-            <span v-if="feature.object_ac !== null" class="text-label text-muted-foreground">
-              AC {{ feature.object_ac }}
-            </span>
-          </div>
-          <PlacedInLine :rooms="placedInRows(feature.id)" />
-        </div>
-      </RouterLink>
+        :name="feature.name"
+        kind="Dungeon feature"
+        :type="feature.feature_type"
+        :type-class="DUNGEON_FEATURE_TYPE_BG[feature.feature_type]"
+        :image-url="feature.image_url"
+        :focal-point="feature.image_focal_point"
+        :placeholder="placeholderUrl('dungeonfeature')"
+        :subtitle="featureSubtitle(feature)"
+        :rooms="placedInRows(feature.id)"
+        :source="isLibraryFeature(feature) ? feature.source : undefined"
+      />
     </template>
     <template #row="{ item: feature }">
       <EntityListRow
@@ -70,6 +44,7 @@
         :image-url="feature.image_url"
         :fallback-icon="IconNavDungeonCraft"
         :tags="featureTags(feature)"
+        :cells="[featureSubtitle(feature), featureSource(feature)]"
       />
     </template>
   </DungeonCraftEntityGrid>
@@ -78,9 +53,8 @@
 <script setup lang="ts">
 import { useDungeonCraftBooksOffered } from "@/composables/library/useEnabledSources";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
-import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import { ref, computed } from "vue";
-import { RouterLink, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 import { useDungeonFeatureIndex } from "@/composables/dungeon-features/useDungeonFeatures";
 import { isLibraryFeature } from "@/lib/dungeon-features/library";
 import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRooms";
@@ -88,14 +62,22 @@ import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_BG } from "@/types/dungeonF
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import { IconNavDungeonCraft } from "@/lib/icons";
 import type { DungeonFeatureEntry } from "@/types/dungeonFeature.types";
-import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
-import PlacedInLine from "./PlacedInLine.vue";
+import DungeonCraftCard from "./DungeonCraftCard.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
 const { labelFor } = useSourceTitles();
+
+// Low art's ledger (#1179, frame 03): the subtitle as one column, then the source.
+const FEATURE_LEDGER = [
+  { label: "Details", track: "minmax(0,1fr)" },
+  { label: "Source", track: "10rem" },
+];
+function featureSource(feature: DungeonFeatureEntry): string | null {
+  return isLibraryFeature(feature) ? labelFor(feature.source) : null;
+}
 
 // Only library rows carry a source; an own row's tags start at its type.
 function featureTags(feature: DungeonFeatureEntry): string[] {

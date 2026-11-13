@@ -7,8 +7,9 @@
     layout depending on a number nobody would think to update.
   -->
   <div class="flex flex-col gap-6 lg:h-full lg:flex-row lg:gap-6 lg:overflow-hidden">
-    <!-- Col 1 / top: portrait + badges, never scrolls on desktop -->
-    <div class="flex flex-col gap-3 lg:w-52 lg:shrink-0 lg:pb-6">
+    <!-- Col 1 / top: portrait + badges, never scrolls on desktop. Low art (#1179, frame 04):
+         the column goes and its facts become the fact line, so the text takes the width. -->
+    <div v-if="!lowArt" class="flex flex-col gap-3 lg:w-52 lg:shrink-0 lg:pb-6">
       <FocalImage
         :src="displayPortrait"
         :focal-point="displayFocalPoint"
@@ -17,14 +18,13 @@
         :placeholder="placeholderUrl('npc')"
         class="w-full rounded-lg overflow-hidden max-h-80 lg:max-h-none lg:flex-1 lg:min-h-0"
         ai-badge="right"
+        record
       />
       <div class="flex flex-wrap gap-1">
-        <span class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.status }}</span>
-        <span class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.relationship }}</span>
+        <TagChip class="capitalize">{{ npc.status }}</TagChip>
+        <TagChip class="capitalize">{{ npc.relationship }}</TagChip>
       </div>
-      <div v-if="npc.tags?.length" class="flex flex-wrap gap-1">
-        <span v-for="tag in npc.tags" :key="tag" class="text-label bg-muted/60 text-muted-foreground rounded px-2 py-0.5">{{ tag }}</span>
-      </div>
+      <TagChips :tags="npc.tags" />
 
       <!--
         ALTER EGO status, at a glance. The toggle itself now lives in the
@@ -41,6 +41,19 @@
 
     <!-- Col 2 / below: tabs + content, scrolls on desktop -->
     <div class="flex-1 min-w-0 lg:overflow-y-auto lg:pb-6">
+      <SheetFactLine v-if="lowArt" :portrait="npcPortrait" :portrait-alt="npc.name">
+        <span class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.status }}</span>
+        <span class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.relationship }}</span>
+        <span v-if="locationName" class="text-muted-foreground">
+          <IconCompassRose class="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{{ locationName }}
+        </span>
+        <span v-if="npc.tags?.length" class="flex flex-wrap gap-1">
+          <span v-for="tag in npc.tags" :key="tag" class="text-label bg-muted/60 text-muted-foreground rounded px-2 py-0.5">{{ tag }}</span>
+        </span>
+        <span v-if="hasDisguise" class="italic text-muted-foreground">
+          {{ npc.is_revealed ? `True form revealed` : `Disguised as ${npc.disguise_name || 'unknown'}` }}
+        </span>
+      </SheetFactLine>
       <NpcTabContent :npc="npc" :full="full" />
       <DmNoteBox class="mt-4" type="npc" :id="npc.id" :label="npc.name" />
     </div>
@@ -48,7 +61,13 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
+import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
+import SheetFactLine from "@/components/common/entity/SheetFactLine.vue";
+import { useAllLocations } from "@/composables/locations/useLocations";
+import { useLowArt } from "@/composables/useLowArt";
+import { IconCompassRose } from "@/lib/icons";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import NpcTabContent from "@/components/npcs/NpcTabContent.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
@@ -66,6 +85,15 @@ const props = defineProps<{
 const hasDisguise = computed(() =>
   !!(props.npc.disguise_name || props.npc.disguise_portrait_url)
 );
+
+const { lowArt } = useLowArt();
+// Read only while low art is on: the fact line is the one place this sheet names the place.
+const { data: allLocations } = useAllLocations(() => lowArt.value);
+const locationName = computed(() =>
+  props.npc.location_id ? allLocations.value?.find((l) => l.id === props.npc.location_id)?.name : undefined,
+);
+// The NPC's own (or its disguise's) picture, never a placeholder: what the Portrait button opens.
+const npcPortrait = computed(() => getNpcDisplayPortrait(props.npc));
 
 const displayPortrait = computed(() => getNpcDisplayPortrait(props.npc));
 const displayFocalPoint = computed(() => getNpcDisplayFocalPoint(props.npc));

@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import EntityCollection from "./EntityCollection.vue";
+import { useLowArt } from "@/composables/useLowArt";
 
 // VirtualGrid needs layout jsdom lacks; a stub that renders every item and
 // exposes the props it was given is enough to pin what EntityCollection decides.
@@ -49,5 +50,53 @@ describe("EntityCollection", () => {
     const vg = mountIt("rows", { rowEstimate: 82, rowColumns: 2 }).get("[data-vg]");
     expect(vg.attributes("data-columns")).toBe("2");
     expect(vg.attributes("data-estimate")).toBe("82");
+  });
+
+  describe("low art ledger", () => {
+    const ledger = [{ label: "Type", track: "8rem" }, { label: "CR", track: "3rem" }];
+    afterEach(() => {
+      useLowArt().setLowArt(false);
+    });
+
+    it("draws the column heads once on one sheet at 41 px lines", () => {
+      useLowArt().setLowArt(true);
+      const w = mountIt("rows", { ledger });
+      const head = w.get("[data-ledger-head]");
+      expect(head.text()).toContain("Type");
+      expect(head.text()).toContain("CR");
+      expect(w.findAll("[data-ledger-head]")).toHaveLength(1);
+      expect(w.get("[data-vg]").attributes("data-estimate")).toBe("41");
+      expect(w.get("[data-vg]").attributes("data-gap")).toBe("0");
+    });
+
+    // Bug: a list out of scope (notes, sessions) turns into a ledger.
+    it("keeps plain rows when the list names no ledger", () => {
+      useLowArt().setLowArt(true);
+      const w = mountIt("rows");
+      expect(w.find("[data-ledger-head]").exists()).toBe(false);
+      expect(w.get("[data-vg]").attributes("data-estimate")).toBe("98");
+    });
+
+    // Bug: the ledger shows outside low art.
+    it("draws no heads with low art off", () => {
+      const w = mountIt("rows", { ledger });
+      expect(w.find("[data-ledger-head]").exists()).toBe(false);
+    });
+
+    // Bug: low art reflows the minis or Book Nook grid.
+    it("leaves a grid without a ledger untouched in low art", () => {
+      useLowArt().setLowArt(true);
+      const vg = mountIt("grid").get("[data-vg]");
+      expect(vg.attributes("data-columns")).toBe("3");
+      expect(vg.attributes("data-estimate")).toBe("250");
+    });
+
+    // Bug: low art keeps the portrait grid's column count and card height.
+    it("ignores the grid columns and estimate in low art grids with a ledger", () => {
+      useLowArt().setLowArt(true);
+      const vg = mountIt("grid", { ledger }).get("[data-vg]");
+      expect(vg.attributes("data-estimate")).toBe("130");
+      expect(vg.attributes("data-columns")).not.toBe("3");
+    });
   });
 });

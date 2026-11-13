@@ -336,6 +336,9 @@ export async function resolveBeatCrossReferences(
    *  `importSweep.ts`) — an encounter's *own* id says nothing about where it
    *  is staged, so checking it against `siteRoomIndex` needs this lookup. */
   encounterLocationById: ReadonlyMap<string, string>,
+  /** Normalized printed names of NPCs the DM linked to one of their deities.
+   *  A beat cannot attach a deity, so naming one is skipped, not unresolved. */
+  deityNpcNames: ReadonlySet<string>,
 ): Promise<void> {
   // Every beat's attachments and loot are planned first and written in one
   // request each (#951) — they were one request per row, 39 attachments on
@@ -381,6 +384,8 @@ export async function resolveBeatCrossReferences(
       };
 
       for (const name of beat.npc_names ?? []) {
+        const norm = normalizeEntityName(name);
+        if (norm !== null && deityNpcNames.has(norm)) continue;
         const match = findByNameSourced(lookups.npcs ?? [], name);
         if (!match) { unresolvedLinks.push(`Beat "${beat.title}" → npc "${name}"`); continue; }
         addSweepRef("npc", match.id);

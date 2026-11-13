@@ -10,6 +10,7 @@
              biggest thing in the row is what a DM reaches for, and the eye
              button's player preview was the only obvious target left. -->
         <RouterLink
+          v-if="!lowArt"
           :to="`/party/${member.id}`"
           :aria-label="`Open ${member.name}`"
           class="card-plate card-plate-edge block h-31.25 bg-muted overflow-hidden"
@@ -21,6 +22,7 @@
             :focal-point="portrait.focalPoint"
             :placeholder="placeholderUrl(portrait.shaped ? 'monster' : 'character')"
             ai-badge="right"
+            record
           />
         </RouterLink>
 
@@ -317,6 +319,7 @@ import { isInDisguise } from "@/lib/partyMemberDisplay";
 import { effectiveLocationId as deriveEffectiveLocationId } from "@/lib/partyPosition";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { formPortrait } from "@/lib/wildshapePortrait";
 import { walkingSpeed } from "@/lib/movement";
 import DollAskNotice from "./DollAskNotice.vue";
@@ -360,6 +363,7 @@ const emit = defineEmits<{
   'delete-companion': [companion: Companion];
 }>();
 
+const { lowArt } = useLowArt();
 const router = useRouter();
 const appUi = useAppUiStore();
 const campaign = useCampaignStore();

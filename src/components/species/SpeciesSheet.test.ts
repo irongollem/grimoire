@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { shallowMount } from "@vue/test-utils";
 import SpeciesSheet from "./SpeciesSheet.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import type { Species } from "@/types/species.types";
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), del: vi.fn(), confirm: vi.fn() }));
@@ -104,5 +106,37 @@ describe("SpeciesSheet ownership and content", () => {
     expect(has(null)).toBe(false);
     expect(has("plain old text")).toBe(true);
     expect(has("   ")).toBe(false);
+  });
+});
+
+describe("SpeciesSheet in low art (#1179)", () => {
+  const withPicture = species({ name: "Aasimar", size: "medium", image_url: "/aasimar.webp" });
+  const real = { stubs: { RichTextViewer: true, AiImageBadge: true } };
+  afterEach(() => {
+    useLowArt().setLowArt(false);
+  });
+
+  // Bug: a low-art viewer still downloads the 7 rem species thumbnail.
+  it("drops the thumbnail, keeps the name, and offers the picture behind a Portrait button", () => {
+    useLowArt().setLowArt(true);
+    const w = mount(SpeciesSheet, { props: { species: withPicture, isShared: true }, global: real });
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.findComponent(FocalImage).exists()).toBe(false);
+    expect(w.find("h1").text()).toBe("Aasimar");
+    expect(w.text()).toContain("Portrait");
+  });
+
+  // Bug: a species with no picture of its own gets a Portrait button that opens nothing.
+  it("offers no Portrait button when the species has no picture", () => {
+    useLowArt().setLowArt(true);
+    const w = mount(SpeciesSheet, { props: { species: species({ name: "Aasimar" }), isShared: true }, global: real });
+    expect(w.text()).not.toContain("Portrait");
+  });
+
+  // Bug: with low art off the thumbnail is not marked as a record picture, so the switch cannot hide it later.
+  it("with low art off, the thumbnail is a record picture and there is no Portrait button", () => {
+    const w = mount(SpeciesSheet, { props: { species: withPicture, isShared: true }, global: real });
+    expect(w.findComponent(FocalImage).props("record")).toBe(true);
+    expect(w.text()).not.toContain("Portrait");
   });
 });

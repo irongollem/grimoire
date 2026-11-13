@@ -7,7 +7,7 @@
     <!-- aspect-3/4 matches the portrait focal-point format so the smart-crop
          centring math aligns with the actual display dimensions (previously h-44
          produced a ~1:1 container on mobile, mismatching the 2:3 crop target). -->
-    <div class="aspect-3/4 w-full shrink-0 overflow-hidden bg-muted">
+    <div v-if="!lowArt" class="aspect-3/4 w-full shrink-0 overflow-hidden bg-muted">
       <FocalImage
         v-if="imageUrl"
         :src="imageUrl"
@@ -28,7 +28,7 @@
         <p v-if="meta" class="text-label text-muted-foreground mt-0.5 truncate">{{ meta }}</p>
       </div>
       <div v-if="badge || count" class="shrink-0 flex flex-col items-end gap-0.5">
-        <span v-if="badge" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground capitalize">{{ badge }}</span>
+        <TagChip v-if="badge" class="capitalize">{{ badge }}</TagChip>
         <span v-if="count" class="text-label text-muted-foreground/60">{{ count }}</span>
       </div>
     </div>
@@ -36,9 +36,13 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import type { Component } from "vue";
 import { IconBookMarked } from '@/lib/icons';
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
+
+const { lowArt } = useLowArt();
 
 const { imageUrl, focalPoint, fallbackIcon, title, subtitle, meta, badge, count } = defineProps<{
   imageUrl?: string | null;

@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { useLowArt } from "@/composables/useLowArt";
 import { sourceLabel } from "@/lib/library/sourceLabel";
 import { mount } from "@vue/test-utils";
 import { computed, ref } from "vue";
@@ -100,5 +101,43 @@ describe("MonsterSheet connections", () => {
     const w = mounted();
     expect(w.text()).not.toContain("Featured In");
     expect(w.text()).not.toContain("Loot Tables");
+  });
+});
+
+describe("MonsterSheet in low art (#1179)", () => {
+  const lowArtSheet = (over: Partial<Monster> = {}) => {
+    useLowArt().setLowArt(true);
+    return mount(MonsterSheet, {
+      props: { monster: monster({ id: "m1", is_shared: false, habitat: "forest", tags: ["beast"], ...over }) },
+      global: { stubs: { ...stubs, FocalImage: { template: "<img class='record-img' />" } } },
+    });
+  };
+  afterEach(() => { useLowArt().setLowArt(false); });
+
+  // Bug: the sheet keeps its portrait column and downloads the picture the DM turned off.
+  it("has no portrait column and hangs the CR as a tab", () => {
+    const w = lowArtSheet({ image_url: "https://cdn.test/bear.webp" });
+    expect(w.find(".record-img").exists()).toBe(false);
+    expect(w.find('[aria-label="Challenge rating 1/2"]').exists()).toBe(true);
+  });
+
+  it("moves habitat, source and tags into the fact line and offers the Portrait button for the monster's own picture", () => {
+    const w = lowArtSheet({ image_url: "https://cdn.test/bear.webp" });
+    expect(w.text()).toContain("Habitat: forest");
+    expect(w.text()).toContain("beast");
+    expect(w.text()).toContain("Portrait");
+  });
+
+  it("offers no Portrait button when the monster has no picture of its own", () => {
+    expect(lowArtSheet({ image_url: null }).text()).not.toContain("Portrait");
+  });
+
+  it("keeps the picture column with art on", () => {
+    useLowArt().setLowArt(false);
+    const w = mount(MonsterSheet, {
+      props: { monster: monster({ id: "m1", is_shared: false }) },
+      global: { stubs: { ...stubs, FocalImage: { template: "<img class='record-img' />" } } },
+    });
+    expect(w.find(".record-img").exists()).toBe(true);
   });
 });

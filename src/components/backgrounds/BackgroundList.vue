@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'tiles' : 'grid'" :columns="layout === 'rows' ? 1 : 4" :count="12" />
+    <ListSkeleton v-if="isLoading" :variant="skeletonVariant" :columns="layout === 'rows' ? 1 : 4" :count="12" />
 
     <!-- A reader (a player choosing a background, or a non-DM in the Codex)
          cannot add one, so pointing them at /backgrounds/new sent them to a
@@ -35,6 +35,7 @@
       :layout="layout"
       :grid-columns="columns"
       :grid-row-estimate="gridRowEstimate"
+      :ledger="LEDGER"
     >
       <template #card="{ item: b }">
         <OptionGridCard
@@ -47,28 +48,28 @@
           :selected="!!selectedId && b.id === selectedId"
           :edit-to="!readonly && !isLibraryBackground(b) ? `/backgrounds/${b.id}?edit=true` : null"
           edit-label="Edit background"
+          eyebrow="Background"
           @select="emit('select', b)"
         >
-          <div class="flex items-start justify-between gap-2">
-            <h3 class="line-clamp-1 flex-1 text-heading-xs leading-tight font-bold text-foreground">{{ b.name }}</h3>
-            <div class="flex shrink-0 items-center gap-1">
-              <SourceBadge :source="backgroundSourceKey(b)" :title="b.source_title" class="max-w-22 truncate" />
+          <template #foot>
+            <SourceBadge :source="backgroundSourceKey(b)" :title="b.source_title" class="max-w-32 truncate" />
+          </template>
+          <template #default="{ artFree }">
+            <div v-if="!artFree" class="flex items-start justify-between gap-2">
+              <h3 class="line-clamp-1 flex-1 text-heading-xs leading-tight font-bold text-foreground">{{ b.name }}</h3>
+              <div class="flex shrink-0 items-center gap-1">
+                <SourceBadge :source="backgroundSourceKey(b)" :title="b.source_title" class="max-w-22 truncate" />
+              </div>
             </div>
-          </div>
-          <p
-            v-if="b.feature_name"
-            class="line-clamp-1 text-caption italic text-muted-foreground"
-            :title="b.feature_name"
-          >{{ b.feature_name }}</p>
-          <!-- Skills, tools and languages in one line; the full lists live on the detail page. -->
-          <p v-if="profsSummary(b)" class="line-clamp-2 text-caption text-foreground/70">{{ profsSummary(b) }}</p>
-          <div v-if="b.tags.length" class="mt-auto flex flex-wrap gap-1">
-            <span
-              v-for="tag in b.tags.slice(0, 3)"
-              :key="tag"
-              class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-            >{{ tag }}</span>
-          </div>
+            <p
+              v-if="b.feature_name"
+              class="line-clamp-1 text-caption italic text-muted-foreground"
+              :title="b.feature_name"
+            >{{ b.feature_name }}</p>
+            <!-- Skills, tools and languages in one line; the full lists live on the detail page. -->
+            <p v-if="profsSummary(b)" class="line-clamp-2 text-caption text-foreground/70">{{ profsSummary(b) }}</p>
+            <TagChips :tags="b.tags" :max="3" class="mt-auto" />
+          </template>
         </OptionGridCard>
       </template>
       <template #row="{ item: b }">
@@ -79,6 +80,7 @@
           :image-url="b.image_url"
           :fallback-icon="IconBookUser"
           :tags="rowTags(b)"
+          :cells="[backgroundSubtitle(b), labelFor(backgroundSourceKey(b), b.source_title)]"
         >
           <template v-if="!readonly && !isLibraryBackground(b)" #actions>
             <AppButton
@@ -104,6 +106,8 @@
 </template>
 
 <script setup lang="ts">
+import { artFreeSkeleton } from "@/components/common/list/ledger";
+import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
 import { IconBookUser, IconEdit } from '@/lib/icons';
 import { useCodexUiStore } from "@/stores/ui/codex";
@@ -111,6 +115,7 @@ import { backgroundBookKey, backgroundSourceKey, isLibraryBackground, useBackgro
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { useListLayout } from "@/composables/useListLayout";
+import { useLowArt } from "@/composables/useLowArt";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import OptionGridCard from "@/components/common/entity/OptionGridCard.vue";
@@ -128,6 +133,13 @@ const emit = defineEmits<{ select: [bg: Background] }>();
 const codexUi = useCodexUiStore();
 const { data: backgrounds, isLoading } = useBackgrounds();
 const { labelFor } = useSourceTitles();
+const { lowArt } = useLowArt();
+
+// Low art (#1179, frame 03): the subtitle the row shows today, then its book.
+const LEDGER = [
+  { label: "Feature and training", track: "minmax(0,1fr)" },
+  { label: "Source", track: "10rem" },
+];
 
 /** A row's tags, the book it comes from first. */
 function rowTags(b: Background): string[] {
@@ -183,6 +195,10 @@ const backgroundKey = (background: Background) => background.id;
 // toggle and selecting happens on a card, so it always shows the grid.
 const storedLayout = useListLayout("codex-backgrounds", "grid");
 const layout = computed(() => (selectMode ? "grid" : storedLayout.value));
+const skeletonVariant = computed(() => {
+  if (lowArt.value) return artFreeSkeleton(layout.value);
+  return layout.value === "rows" ? "tiles" : "grid";
+});
 
 // The row's one line under the name: the feature it grants, else what it trains.
 function backgroundSubtitle(b: Background): string | null {

@@ -1,5 +1,6 @@
+import { useLowArt } from "@/composables/useLowArt";
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import ConnectionSlip from "./ConnectionSlip.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 
@@ -71,5 +72,19 @@ describe("ConnectionSlip", () => {
     expect(token.findComponent(FocalImage).props("format")).toBe("token");
     const portrait = mount(ConnectionSlip, { props: { name: "Maera", image: "/p.webp" }, global: { stubs } });
     expect(portrait.findComponent(FocalImage).props("format")).toBe("square");
+  });
+});
+
+describe("ConnectionSlip low art (#1179)", () => {
+  afterEach(() => {
+    useLowArt().setLowArt(false);
+  });
+
+  it("shows the initial instead of the linked record's picture in low art", () => {
+    useLowArt().setLowArt(true);
+    const w = mountSlip({ image: "/p.webp" });
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.text()).toContain("M");
+    expect(w.text()).toContain("Maera");
   });
 });

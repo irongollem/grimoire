@@ -65,7 +65,7 @@ const ART_EXTENSIONS = new Set([
  * (vite.config.ts) can never strip them from `dist/` and `artUrl()` can never
  * resolve them to a CDN URL. Add an entry only with a documented reason.
  *
- * `/assets/scriptorium/page-background.webp` — referenced by literal
+ * `/assets/scriptorium/page-paper.webp` — referenced by literal
  * `url()`s in two plain CSS files (src/scriptorium/styles/scriptorium-editor.css,
  * src/scriptorium/styles/theme-base.css) that cannot call `artUrl()`.
  * Worse, theme-base.css is also `?inline`-imported into
@@ -83,7 +83,7 @@ const ART_EXTENSIONS = new Set([
  * at its literal path.
  */
 const MANIFEST_EXCLUSIONS = new Set<string>([
-  "/assets/scriptorium/page-background.webp",
+  "/assets/scriptorium/page-paper.webp",
   "/assets/vellum/paper.webp",
 ]);
 

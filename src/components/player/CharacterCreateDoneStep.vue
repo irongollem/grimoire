@@ -11,8 +11,8 @@
 
       <!-- Header -->
       <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center gap-3">
-        <div v-if="portraitUrl" class="w-10 h-10 rounded-full overflow-hidden shrink-0">
-          <FocalImage :src="portraitUrl" :alt="f.name" format="portrait" :focal-point="focalPoint" />
+        <div v-if="portraitUrl && !lowArt" class="w-10 h-10 rounded-full overflow-hidden shrink-0">
+          <FocalImage :src="portraitUrl" :alt="f.name" format="portrait" :focal-point="focalPoint" record />
         </div>
         <div>
           <p class="text-heading-sm font-bold text-foreground">{{ f.name || '—' }}</p>
@@ -161,6 +161,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import LevelUpChoices from "@/components/features/LevelUpChoices.vue";
 import { ABILITY_STATS, type AbilityKey } from "@/rules/characterCreation";
@@ -168,6 +169,7 @@ import { ordinal } from "@/lib/ordinal";
 import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
+const { lowArt } = useLowArt();
 
 const {
   f, isEditMode, saving, startingEquipmentDeferred,

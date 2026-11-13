@@ -20,13 +20,9 @@
     </div>
 
     <div v-if="entryCounts.length" class="flex flex-wrap gap-1.5">
-      <span
-        v-for="c in entryCounts"
-        :key="c.label"
-        class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
-      >
+      <TagChip v-for="c in entryCounts" :key="c.label">
         {{ c.count.toLocaleString() }} {{ c.label }}
-      </span>
+      </TagChip>
     </div>
 
     <p v-if="source.copyright_notice" class="text-caption text-muted-foreground italic whitespace-pre-wrap">
@@ -47,6 +43,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed } from "vue";
 import { IconExternalLink } from "@/lib/icons";
 import { licenseDescriptor } from "@/lib/library/contentLicenses";

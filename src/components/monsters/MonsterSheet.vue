@@ -1,7 +1,32 @@
 <template>
-  <div class="flex flex-col gap-6">
-    <!-- Top: portrait | stat block | lore -->
-    <div class="grid grid-cols-1 lg:grid-cols-[12.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-6">
+  <div class="relative flex flex-col gap-6">
+    <!-- Low art (#1179, frame 04): the picture column goes, what sat under it becomes a
+         fact line, and the CR hangs from the sheet as it does from the card. -->
+    <template v-if="lowArt">
+      <BookmarkTab
+        :text="crText(monster.stat_block.challenge_rating)"
+        label="Challenge rating"
+        :tone-class="crBg(monster.stat_block.challenge_rating)"
+      />
+      <SheetFactLine class="pr-10" :portrait="monster.image_url" :portrait-alt="monster.name">
+        <TagChip v-for="tag in monster.tags" :key="tag">{{ tag }}</TagChip>
+        <span v-if="monster.habitat" class="text-muted-foreground italic">Habitat: {{ monster.habitat }}</span>
+        <RouterLink
+          v-if="lairLocation"
+          :to="placeRoute(lairLocation.id)"
+          class="text-muted-foreground italic transition-colors hover:text-foreground hover:underline"
+        >
+          Lair: {{ lairLocation.name }}
+        </RouterLink>
+        <span v-if="sourceName" class="text-muted-foreground italic">Source: {{ sourceName }}</span>
+      </SheetFactLine>
+    </template>
+
+    <!-- Top: portrait | stat block | lore (two tracks in low art) -->
+    <div
+      class="grid grid-cols-1 gap-6"
+      :class="lowArt ? 'lg:grid-cols-2' : 'lg:grid-cols-[12.5rem_minmax(0,1fr)_minmax(0,1fr)]'"
+    >
       <!-- Left: portrait.
            `max-h-112` is a fixed cap rather than the `75vh` it replaces.
            The viewport measurement only ever bound below `lg`, where the
@@ -9,24 +34,18 @@
            started appearing in a modal, where three quarters of the viewport is
            most of the panel and the stat block fell off the bottom. At `lg` the
            12.5rem column decides the height anyway, so nothing changes there. -->
-      <div class="flex flex-col gap-3">
+      <div v-if="!lowArt" class="flex flex-col gap-3">
         <FocalImage
           :src="monster.image_url"
           :focal-point="monster.portrait_focal_point"
           format="portrait"
           :lightbox="true"
+          record
           :placeholder="placeholderUrl('monster')"
           class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-112"
           ai-badge="right"
         />
-        <div v-if="monster.tags?.length" class="flex flex-wrap gap-1">
-          <span
-            v-for="tag in monster.tags"
-            :key="tag"
-            class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5"
-            >{{ tag }}</span
-          >
-        </div>
+        <TagChips :tags="monster.tags" />
         <p v-if="monster.habitat" class="text-caption text-muted-foreground italic">
           Habitat: {{ monster.habitat }}
         </p>
@@ -95,15 +114,14 @@
         Featured In
       </h3>
       <div class="flex flex-wrap gap-1.5">
-        <RouterLink
+        <TagChip
           v-for="enc in featuredIn"
           :key="enc.id"
           :to="`/encounters/${enc.id}`"
-          class="inline-flex items-center gap-1 text-label px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
           :class="enc.is_finished ? 'opacity-50' : ''"
         >
           <IconEncounter class="h-2.5 w-2.5 shrink-0" />{{ enc.name }}
-        </RouterLink>
+        </TagChip>
       </div>
     </div>
 
@@ -113,23 +131,28 @@
         Loot Tables
       </h3>
       <div class="flex flex-wrap gap-1.5">
-        <RouterLink
+        <TagChip
           v-for="lt in lootTables"
           :key="lt.id"
           :to="`/loot-tables/${lt.id}`"
-          class="inline-flex items-center gap-1 text-label px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
         >
           <IconPackage class="h-2.5 w-2.5 shrink-0" />{{ lt.name }}
-        </RouterLink>
+        </TagChip>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
+import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconEncounter, IconPackage } from '@/lib/icons';
+import BookmarkTab from "@/components/common/entity/BookmarkTab.vue";
+import SheetFactLine from "@/components/common/entity/SheetFactLine.vue";
+import { useLowArt } from "@/composables/useLowArt";
+import { crBg, crText } from "@/lib/monsterDisplay";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import StatBlockPanel from "@/components/common/statblock/StatBlockPanel.vue";
@@ -146,6 +169,7 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ monster: Monster }>();
 
+const { lowArt } = useLowArt();
 const { labelFor } = useSourceTitles();
 const sourceName = computed(() => labelFor(props.monster.source, props.monster.source_title));
 

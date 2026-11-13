@@ -23,12 +23,12 @@
             <span v-if="linkedSession" class="text-label bg-primary/10 text-primary rounded px-2 py-0.5">
               {{ sessionShortLabel(linkedSession) }}
             </span>
-            <span v-if="linkedNote.session_real_date" class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5">
+            <TagChip v-if="linkedNote.session_real_date">
               {{ linkedNote.session_real_date }}
-            </span>
-            <span v-for="tag in linkedNote.tags" :key="tag" class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+            </TagChip>
+            <TagChip v-for="tag in linkedNote.tags" :key="tag" class="bg-muted/40">
               {{ tag }}
-            </span>
+            </TagChip>
           </div>
           <!-- Content -->
           <RichTextViewer :content="linkedNote.content" />
@@ -204,6 +204,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { watch, computed, ref, useId } from "vue";
 import { IconClose, IconGenerate, IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";

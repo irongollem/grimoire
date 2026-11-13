@@ -49,6 +49,7 @@
             @update:model-value="toggle(npc.id)"
           >
             <img
+              v-if="!lowArt"
               class="picker-thumb"
               :src="portrait(npc)"
               :alt="displayName(npc)"
@@ -91,6 +92,7 @@ import { getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import type { NpcListRow, NpcSet } from "@/types/npc.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { useLowArt } from "@/composables/useLowArt";
 
 const props = defineProps<{ set: NpcSet | null }>();
 const emit = defineEmits<{ close: []; saved: [] }>();
@@ -161,6 +163,9 @@ function toggle(id: string) {
     ? draft.npc_ids.filter((x) => x !== id)
     : [...draft.npc_ids, id];
 }
+
+// Low art (#1179): the thumbnail is not drawn or fetched; the name carries the row.
+const { lowArt } = useLowArt();
 
 function displayName(npc: NpcListRow): string {
   return getNpcDisplayName(npc) ?? "???";

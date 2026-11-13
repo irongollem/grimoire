@@ -175,7 +175,7 @@
           <p v-if="startCaption" class="text-caption font-semibold uppercase tracking-wider text-primary">{{ startCaption }}</p>
           <div class="flex items-center gap-2">
             <h3 class="font-fell text-lg font-semibold text-foreground">{{ resolvedStartBeat.title || "Untitled beat" }}</h3>
-            <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ resolvedStartBeat.kind }}</span>
+            <TagChip class="uppercase">{{ resolvedStartBeat.kind }}</TagChip>
           </div>
           <div v-if="startProse" class="line-clamp-4 text-body text-muted-foreground">
             <RichTextViewer :content="startProse" />
@@ -203,6 +203,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, defineAsyncComponent, ref, watch } from "vue";
 import { refDebounced } from "@vueuse/core";
 import { useRoute, useRouter } from "vue-router";

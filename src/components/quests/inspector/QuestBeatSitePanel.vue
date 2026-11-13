@@ -2,9 +2,9 @@
   <section class="rounded-xl border border-border bg-card p-3" aria-label="Site">
     <header class="flex items-center gap-2">
       <h3 class="text-heading-sm font-bold text-foreground">Site</h3>
-      <span class="ml-auto rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">
+      <TagChip class="ml-auto uppercase">
         {{ site ? `site · ${roomCountLabel}` : 'none' }}
-      </span>
+      </TagChip>
     </header>
 
     <div v-if="site" class="mt-2 flex flex-col gap-2">
@@ -106,6 +106,7 @@
  * without adding a column: a room IS a location, so the existing field
  * already accepts it.
  */
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, ref, watch } from "vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";

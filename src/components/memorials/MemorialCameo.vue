@@ -1,7 +1,12 @@
 <template>
   <div class="cameo" :style="{ '--cameo-u': `${0.0625 * scale}rem` }" :data-kind="kind">
     <div class="cameo-oval" :class="kind === 'fallen' ? 'cameo-oval-fallen' : 'cameo-oval-retired'">
+      <!-- Low art: the oval, ring and ribbon stay (they say fallen or retired); the
+           picture becomes the name's initial. -->
+      <span v-if="lowArt" class="cameo-initial" aria-hidden="true">{{ initial }}</span>
       <FocalImage
+        v-else
+        record
         :src="portraitUrl"
         :alt="`Portrait of ${name}`"
         format="portrait"
@@ -20,8 +25,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import MemorialLaurel from "@/components/memorials/MemorialLaurel.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { MemorialKind } from "@/types/memorial.types";
 
@@ -32,7 +39,7 @@ import type { MemorialKind } from "@/types/memorial.types";
  * preview draw the same cameo. Colours are the card's fixed mourning palette, not theme
  * tokens (see MemorialCard).
  */
-withDefaults(
+const props = withDefaults(
   defineProps<{
     kind: MemorialKind;
     name: string;
@@ -43,6 +50,9 @@ withDefaults(
   }>(),
   { scale: 1 },
 );
+
+const { lowArt } = useLowArt();
+const initial = computed(() => props.name.trim().charAt(0).toUpperCase() || "?");
 </script>
 
 <style scoped>
@@ -75,6 +85,19 @@ withDefaults(
 }
 .cameo-oval-retired :deep(img) {
   filter: sepia(0.12) saturate(0.95);
+}
+/* Low art (#1179): the name's initial engraved on the cameo's own paper and gilt,
+   the fixed palette the oval and ring above already use, so it scales with --u
+   like the rest of the piece rather than following a theme role. */
+.cameo-initial {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-cinzel, serif);
+  font-size: calc(var(--u) * 64);
+  color: #7a5a14;
+  background: #f6f0e3;
 }
 .cameo-ribbon {
   position: absolute;

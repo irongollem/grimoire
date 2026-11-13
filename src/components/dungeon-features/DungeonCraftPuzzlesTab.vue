@@ -15,6 +15,7 @@
     table="puzzle_rooms"
     :ids="puzzleFilteredIds"
     copy-label="puzzle"
+    :ledger="PUZZLE_LEDGER"
     @empty-action="router.push('/puzzles/new')"
   >
     <template #filters>
@@ -36,57 +37,31 @@
     </template>
     <template #card="{ item: puzzle, selecting, isSelected, toggle }">
       <BulkSelectableCard
-        corner="top-right"
+        :corner="lowArt ? 'top-right' : 'bottom-right'"
         :selected="isSelected(puzzle.id)"
         :selecting="selecting && !isLibraryPuzzle(puzzle)"
         @toggle="toggle(puzzle.id)"
       >
-        <RouterLink
+        <DungeonCraftCard
           :to="`/puzzles/${puzzle.id}`"
-          class="flex h-full flex-col rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors group"
-        >
-          <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
-            <FocalImage
-              :src="puzzle.image_url"
-              :alt="puzzle.name"
-              format="portrait"
-              :focal-point="puzzle.image_focal_point"
-              :placeholder="placeholderUrl('enigma')"
-              class="group-hover:scale-105 transition-transform duration-300"
-              ai-badge="left"
-            />
-            <span
-              class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
-              :class="PUZZLE_TYPE_BG[puzzle.puzzle_type]"
-            >{{ puzzle.puzzle_type }}</span>
-            <span
-              class="absolute bottom-2 right-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
-              :class="PUZZLE_DIFFICULTY_BG[puzzle.difficulty]"
-            >{{ puzzle.difficulty }}</span>
-          </div>
-          <div class="p-2.5 flex flex-col gap-1">
-            <div class="flex items-start justify-between gap-2">
-              <h3 class="flex-1 text-heading-xs font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
-              <div class="flex shrink-0 items-center gap-1">
-                <SourceBadge :source="isLibraryPuzzle(puzzle) ? puzzle.source : undefined" class="max-w-22 truncate" />
-              </div>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-caption-sm text-muted-foreground italic">
-                {{ puzzle.hints.length }} hint{{ puzzle.hints.length === 1 ? '' : 's' }}
-              </span>
-              <span v-if="puzzle.skill_checks.length" class="text-caption-sm text-muted-foreground italic truncate">
-                · {{ puzzle.skill_checks.map((s) => s.skill).join(', ') }}
-              </span>
-            </div>
-            <PlacedInLine v-if="!isLibraryPuzzle(puzzle)" :rooms="placedInRows(puzzle)" />
-          </div>
-        </RouterLink>
+          :name="puzzle.name"
+          kind="Puzzle"
+          :type="puzzle.puzzle_type"
+          :type-class="PUZZLE_TYPE_BG[puzzle.puzzle_type]"
+          :image-url="puzzle.image_url"
+          :focal-point="puzzle.image_focal_point"
+          :placeholder="placeholderUrl('enigma')"
+          :subtitle="puzzleSubtitle(puzzle)"
+          :rooms="isLibraryPuzzle(puzzle) ? null : placedInRows(puzzle)"
+          :source="isLibraryPuzzle(puzzle) ? puzzle.source : undefined"
+          :difficulty="puzzle.difficulty"
+          :difficulty-class="PUZZLE_DIFFICULTY_BG[puzzle.difficulty]"
+        />
       </BulkSelectableCard>
     </template>
     <template #row="{ item: puzzle, selecting, isSelected, toggle }">
       <BulkSelectableCard
-        corner="top-right"
+        :corner="lowArt ? 'top-right' : 'bottom-right'"
         :selected="isSelected(puzzle.id)"
         :selecting="selecting && !isLibraryPuzzle(puzzle)"
         @toggle="toggle(puzzle.id)"
@@ -98,6 +73,7 @@
           :image-url="puzzle.image_url"
           :fallback-icon="IconPuzzle"
           :tags="puzzleTags(puzzle)"
+          :cells="[puzzleSubtitle(puzzle), isLibraryPuzzle(puzzle) ? labelFor(puzzle.source) : null]"
         />
       </BulkSelectableCard>
     </template>
@@ -107,10 +83,9 @@
 <script setup lang="ts">
 import { useDungeonCraftBooksOffered } from "@/composables/library/useEnabledSources";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
-import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
-import { RouterLink, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 import { useLibraryPuzzles, usePuzzles } from "@/composables/dungeon-features/usePuzzles";
 import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRooms";
 import { directRoomPlacement } from "@/lib/dungeon-features/placedIn";
@@ -121,12 +96,12 @@ import { isLibraryId, shadowByName, featureRefOf } from "@/lib/dungeon-features/
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import { IconPuzzle } from "@/lib/icons";
-import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
-import PlacedInLine from "./PlacedInLine.vue";
+import DungeonCraftCard from "./DungeonCraftCard.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
@@ -148,6 +123,13 @@ const puzzles = computed<PuzzleEntry[] | undefined>(() =>
 const puzzlesLoading = computed(() => ownLoading.value || libraryLoading.value);
 const isLibraryPuzzle = (p: PuzzleEntry): p is LibraryPuzzle => isLibraryId(p.id);
 const { labelFor } = useSourceTitles();
+const { lowArt } = useLowArt();
+
+// Low art's ledger (#1179, frame 03): the subtitle as one column, then the source.
+const PUZZLE_LEDGER = [
+  { label: "Details", track: "minmax(0,1fr)" },
+  { label: "Source", track: "10rem" },
+];
 
 // Only library rows carry a source; an own row's tags start at its type.
 function puzzleTags(puzzle: PuzzleEntry): string[] {

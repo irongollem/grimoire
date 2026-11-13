@@ -37,9 +37,9 @@
           <div class="flex-1 min-w-0">
             <h2 :id="speciesHeadingId" class="text-heading font-bold text-foreground">{{ selectedSpecies.name }}</h2>
             <div class="flex flex-wrap gap-1.5 mt-1">
-              <span v-if="selectedSpecies.size" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground capitalize">{{ selectedSpecies.size }}</span>
-              <span v-else-if="speciesSizeFromSubrace(selectedSpecies)" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground">Size by subrace</span>
-              <span v-if="selectedSpecies.subraces?.length" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground/60">{{ selectedSpecies.subraces.length }} variant{{ selectedSpecies.subraces.length > 1 ? "s" : "" }}</span>
+              <TagChip v-if="selectedSpecies.size" class="capitalize">{{ selectedSpecies.size }}</TagChip>
+              <TagChip v-else-if="speciesSizeFromSubrace(selectedSpecies)">Size by subrace</TagChip>
+              <TagChip v-if="selectedSpecies.subraces?.length" class="text-muted-foreground/60">{{ selectedSpecies.subraces.length }} variant{{ selectedSpecies.subraces.length > 1 ? "s" : "" }}</TagChip>
             </div>
           </div>
           <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" :icon="IconClose" icon-size="md" @click="selectedSpecies = null" />
@@ -47,7 +47,7 @@
         <div v-if="selectedSpecies" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
                   <div class="flex flex-col gap-4 p-5">
-                    <div v-if="selectedSpecies.image_url" class="rounded-lg overflow-hidden bg-muted">
+                    <div v-if="selectedSpecies.image_url && !lowArt" class="rounded-lg overflow-hidden bg-muted">
                       <FocalImage :src="selectedSpecies.image_url" :alt="selectedSpecies.name" format="landscape" :focal-point="selectedSpecies.focal_point ?? null" lightbox ai-badge="right" />
                     </div>
                     <RichTextViewer v-if="isRichText(selectedSpecies.description)" :content="selectedSpecies.description!" />
@@ -58,8 +58,8 @@
                     <div v-if="selectedSpecies.speed || walkSpeedFromSubrace(selectedSpecies)">
                       <p class="text-eyebrow font-semibold text-muted-foreground mb-1.5">SPEED</p>
                       <div class="flex flex-wrap gap-2">
-                        <span v-if="walkSpeedFromSubrace(selectedSpecies)" class="px-2 py-0.5 rounded bg-muted text-label text-muted-foreground">By subrace</span>
-                        <span v-for="(val, mode) in selectedSpecies.speed" :key="mode" class="px-2 py-0.5 rounded bg-muted text-label text-muted-foreground capitalize">{{ mode }} {{ val }} ft</span>
+                        <TagChip v-if="walkSpeedFromSubrace(selectedSpecies)">By subrace</TagChip>
+                        <TagChip v-for="(val, mode) in selectedSpecies.speed" :key="mode" class="capitalize">{{ mode }} {{ val }} ft</TagChip>
                       </div>
                     </div>
                     <div v-if="selectedSpecies.ability_score_increases && Object.keys(selectedSpecies.ability_score_increases).length">
@@ -105,7 +105,7 @@
                           </AppButton>
                           <div v-if="open.has(`sp:${selectedSpecies.id}:sr:${sub.name}`)" class="px-3 pb-3 border-t border-border flex flex-col gap-2 pt-2">
                             <div v-if="subraceStatPills(sub).length" class="flex flex-wrap gap-1.5">
-                              <span v-for="pill in subraceStatPills(sub)" :key="pill" class="px-2 py-0.5 rounded bg-muted text-label text-muted-foreground capitalize">{{ pill }}</span>
+                              <TagChip v-for="pill in subraceStatPills(sub)" :key="pill" class="capitalize">{{ pill }}</TagChip>
                             </div>
                             <div v-if="sub.description" class="text-body text-muted-foreground">
                               <RichTextViewer v-if="isRichText(sub.description)" :content="sub.description" />
@@ -171,7 +171,7 @@
         <div v-if="selectedBackground" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
                   <div class="flex flex-col gap-4 p-5">
-                    <div v-if="selectedBackground.image_url" class="rounded-lg overflow-hidden bg-muted">
+                    <div v-if="selectedBackground.image_url && !lowArt" class="rounded-lg overflow-hidden bg-muted">
                       <FocalImage :src="selectedBackground.image_url" :alt="selectedBackground.name" format="landscape" :focal-point="selectedBackground.focal_point ?? null" lightbox ai-badge="right" />
                     </div>
                     <RichTextViewer v-if="isRichText(selectedBackground.description)" :content="selectedBackground.description!" />
@@ -265,10 +265,10 @@
           <div class="flex-1 min-w-0">
             <h2 :id="classHeadingId" class="text-heading font-bold text-foreground">{{ selectedClass.class_name }}</h2>
             <div class="flex flex-wrap gap-1.5 mt-1">
-              <span class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground">d{{ selectedClass.hit_die }}</span>
-              <span v-if="subclassesFor(selectedClass.class_name).length" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground/60">
+              <TagChip>d{{ selectedClass.hit_die }}</TagChip>
+              <TagChip v-if="subclassesFor(selectedClass.class_name).length" class="text-muted-foreground/60">
                 {{ subclassesFor(selectedClass.class_name).length }} subclass{{ subclassesFor(selectedClass.class_name).length > 1 ? "es" : "" }}
-              </span>
+              </TagChip>
             </div>
           </div>
           <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" :icon="IconClose" icon-size="md" @click="selectedClass = null" />
@@ -386,7 +386,7 @@
             <h2 :id="deityHeadingId" class="text-heading font-bold text-foreground">{{ selectedDeity.name }}</h2>
             <div class="flex flex-wrap items-center gap-2 mt-1">
               <span v-if="selectedDeity.titles" class="text-caption text-muted-foreground italic">{{ selectedDeity.titles }}</span>
-              <span v-if="selectedDeity.pantheon?.name" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground">{{ selectedDeity.pantheon.name }}</span>
+              <TagChip v-if="selectedDeity.pantheon?.name">{{ selectedDeity.pantheon.name }}</TagChip>
             </div>
           </div>
           <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" :icon="IconClose" icon-size="md" @click="selectedDeity = null" />
@@ -395,10 +395,10 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
                   <!-- Left: portrait + symbol + domains -->
                   <div class="flex flex-col gap-4 p-5">
-                    <div v-if="selectedDeity.portrait_url" class="rounded-lg overflow-hidden bg-muted">
+                    <div v-if="selectedDeity.portrait_url && !lowArt" class="rounded-lg overflow-hidden bg-muted">
                       <FocalImage :src="selectedDeity.portrait_url" :alt="selectedDeity.name" format="landscape" :focal-point="selectedDeity.portrait_focal_point ?? null" lightbox ai-badge="right" />
                     </div>
-                    <div v-if="selectedDeity.symbol_image_url" class="flex justify-center">
+                    <div v-if="selectedDeity.symbol_image_url && !lowArt" class="flex justify-center">
                       <img :src="selectedDeity.symbol_image_url" :alt="selectedDeity.name + ' symbol'" class="h-16 w-16 object-contain" />
                     </div>
                     <div v-if="selectedDeity.domains?.length">
@@ -439,6 +439,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { ref, computed, shallowRef, useId } from "vue";
 import { IconChevronRight, IconClose, IconParty, IconPopulate, IconQuest, IconSun } from '@/lib/icons';
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
@@ -446,6 +447,7 @@ import type { Background } from "@/types/background.types";
 import type { Species } from "@/types/species.types";
 import { speciesSizeFromSubrace, subraceStatPills, walkSpeedFromSubrace } from "@/rules/speciesStats";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -471,6 +473,7 @@ const CODEX_SECTIONS = [
   { value: "deities",     label: "Deities" },
 ] as const satisfies readonly SegmentedOption<string>[];
 type CodexSection = (typeof CODEX_SECTIONS)[number]["value"];
+const { lowArt } = useLowArt();
 const codexSection = ref<CodexSection>("species");
 
 // ── Species ──

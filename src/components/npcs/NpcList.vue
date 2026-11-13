@@ -77,6 +77,8 @@
             :to="`/npcs/${npc.id}`"
             :title="getNpcDisplayName(npc) ?? '???'"
             :subtitle="npcSubtitle(npc)"
+            :eyebrow="npc.race"
+            :stat="npc.occupation"
             :image-url="getNpcDisplayPortrait(npc)"
             :focal-point="getNpcDisplayFocalPoint(npc)"
             :placeholder="placeholderUrl('npc')"
@@ -100,8 +102,10 @@
       :items="filtered"
       :item-key="npcKey"
       :layout="layout"
+      :ledger="NPC_LEDGER"
       :grid-columns="desktopColumns"
       :grid-row-estimate="GRID_ROW_PX"
+      :art-free-row-estimate="ART_FREE_ROW_PX"
     >
       <template #card="{ item: npc }">
         <BulkSelectableCard
@@ -134,6 +138,8 @@
             :image-url="getNpcDisplayPortrait(npc)"
             :fallback-icon="IconNavNpcs"
             :tags="npcRowTags(npc)"
+            :cells="npcLedgerCells(npc)"
+            :status-class="npcStatusBg(npc.status)"
             :locked="lockedNpcIds.has(npc.id)"
             v-prefetch="`/npcs/${npc.id}`"
           />
@@ -170,6 +176,8 @@ import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
+import { useLowArt } from "@/composables/useLowArt";
+import { artFreeSkeleton, type LedgerCell, type LedgerColumn } from "@/components/common/list/ledger";
 import { useListLayout } from "@/composables/useListLayout";
 import EntityMobileGrid from "@/components/common/entity/EntityMobileGrid.vue";
 import { IconNavNpcs } from "@/lib/icons";
@@ -235,7 +243,10 @@ const isMobile = useIsMobile();
 // The page header's toggle writes the same key.
 const layout = useListLayout("npcs", "grid");
 // The phone's grid is the two-column gallery skeleton.
+// Low art swaps both for the text catalogue's (#1179): entries for a grid, the ledger for rows.
+const { lowArt } = useLowArt();
 const skeletonVariant = computed(() => {
+  if (lowArt.value) return artFreeSkeleton(layout.value, isMobile.value);
   if (layout.value === "rows") return isMobile.value ? "rows" : "tiles";
   return isMobile.value ? "gallery" : "grid";
 });
@@ -327,6 +338,10 @@ useScrollRestore("npcs");
 // 144 artwork + 24 body padding (p-3) + 82 body (name 17, race/occupation 17,
 // location 17, tag row 19 incl. pt-1, three gap-1 gaps) = 252.
 const GRID_ROW_PX = 252;
+// The art-free card (#1179) carries the place and a tag line besides the usual
+// eyebrow, name and foot: 147 px with one tag line, 167 when the tags wrap,
+// measured at 1440 px on 13 Nov 2026.
+const ART_FREE_ROW_PX = 150;
 
 // Mirrors the grid classes this list used to carry:
 // `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`.
@@ -345,6 +360,23 @@ const lockedNpcIds = computed((): Set<string> => {
 });
 
 
+
+// Low art's ledger (#1179, frame 03): what the grid card prints as occupation, place, relationship and tags.
+const NPC_LEDGER: readonly LedgerColumn[] = [
+  { label: "Occupation", track: "minmax(0,1fr)" },
+  { label: "Place", track: "minmax(0,1fr)" },
+  { label: "Standing", track: "6rem" },
+  { label: "Tags", track: "minmax(0,1.2fr)" },
+];
+
+function npcLedgerCells(npc: NpcListRow): LedgerCell[] {
+  return [
+    npc.occupation,
+    npc.location_id ? locationName(npc.location_id) : null,
+    npc.relationship,
+    npc.tags.length ? npc.tags.join(" · ") : null,
+  ];
+}
 
 // Tags on the desktop row: the same facts the grid card carries as badges.
 function npcRowTags(npc: NpcListRow): string[] {

@@ -8,12 +8,12 @@
       format === 'square' && 'overflow-hidden',
       isZoomed(zoom) && 'relative overflow-hidden',
       aiBadge && !isPositioned && 'relative',
-      lightbox && src && (lightboxPending ? 'cursor-progress' : 'cursor-zoom-in'),
+      lightbox && src && !hidden && (lightboxPending ? 'cursor-progress' : 'cursor-zoom-in'),
     ]"
     @click="handleImageClick"
   >
     <img
-      v-if="src"
+      v-if="!hidden && src"
       ref="imgRef"
       :src="displaySrc"
       :alt="alt ?? ''"
@@ -29,7 +29,7 @@
          object-position — so a placeholder pinned to `h-full object-cover`
          ignored its admin focal point entirely and showed its default crop. -->
     <img
-      v-else-if="placeholder"
+      v-else-if="!hidden && placeholder"
       ref="placeholderImgRef"
       :src="placeholder"
       :alt="alt ?? ''"
@@ -38,7 +38,7 @@
       loading="lazy"
       @load="onPlaceholderLoad"
     />
-    <AiImageBadge v-if="aiBadge && src" :src="src" :corner="aiBadge" :class="aiBadgeClass" />
+    <AiImageBadge v-if="!hidden && aiBadge && src" :src="src" :corner="aiBadge" :class="aiBadgeClass" />
   </div>
   <ImageLightbox
     v-if="lightbox"
@@ -58,6 +58,7 @@ import ImageLightbox from "@/components/common/overlays/ImageLightbox.vue";
 import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
 import type { ModalOrigin } from "@/lib/modalOrigin";
 import { focalZoomFrame, isZoomed, type FocalZoomFrame } from "@/components/common/media/focalZoom";
+import { useLowArt } from "@/composables/useLowArt";
 import { initPlaceholderFocalPoints, getPlaceholderFocalPoint } from "@/lib/placeholderFocalPoints";
 
 export type ImageFormat = "portrait" | "landscape" | "token" | "square";
@@ -113,7 +114,18 @@ const { zoom = 1, zoomAnchorY = 0.5, aiBadgeClass, ...props } = defineProps<{
   aiBadge?: "left" | "right";
   /** Extra classes for the chip, to lift it over a footer strip (e.g. `bottom-9!`). */
   aiBadgeClass?: string;
+  /** This picture belongs to a record (a portrait, a monster's or item's art, a place's picture,
+   *  an emblem). With low art on, a record's picture is not drawn. Opt-in on purpose: a surface
+   *  that is its picture (battle map, token, gallery tile, mini, handout) never sets it, so a
+   *  missed opt-in leaves a picture showing rather than blanking a map. */
+  record?: boolean;
 }>();
+
+const { lowArt } = useLowArt();
+// #1178 (Hide AI art) adds its AI-provenance condition to this same computed. When hidden the
+// root stays (callers' layout classes still apply) but holds no <img>, no chip (its provenance
+// lookup is a request) and runs no focal analysis, so nothing is fetched for this picture.
+const hidden = computed(() => props.record === true && lowArt.value);
 
 // The chip needs a positioned root. A caller that already positions the root itself
 // (`absolute inset-0` as the mobile hero does) keeps its own; adding `relative` beside
@@ -193,7 +205,7 @@ function preload(url: string): Promise<void> {
  * animation has something to carry.
  */
 async function handleImageClick() {
-  if (!props.lightbox || !props.src || lightboxPending.value) return;
+  if (hidden.value || !props.lightbox || !props.src || lightboxPending.value) return;
   const url = props.src;
 
   lightboxPending.value = true;
@@ -567,13 +579,13 @@ const intersectionObserver: IntersectionObserver | null = nearViewport.value
     );
 
 watch(
-  [() => props.src, () => props.placeholder, () => props.focalPoint, nearViewport],
-  ([url, ph, fp, visible]) => {
+  [() => props.src, () => props.placeholder, () => props.focalPoint, nearViewport, hidden],
+  ([url, ph, fp, visible, isHidden]) => {
     rawFocalPoint.value = null;
     objectPosition.value = FORMAT_DEFAULTS[props.format];
     zoomFrame.value = null;
     variantFailed.value = false;
-    if (!visible) return;
+    if (!visible || isHidden) return;
     if (url) {
       void resolve(url, fp);
     } else if (ph) {

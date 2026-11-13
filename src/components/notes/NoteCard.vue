@@ -74,15 +74,7 @@
 
       <!-- Tags + date -->
       <div class="flex items-end justify-between gap-2 mt-auto">
-        <div v-if="note.tags.length" class="flex flex-wrap gap-1">
-          <span
-            v-for="tag in note.tags.slice(0, 2)"
-            :key="tag"
-            class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
-          >
-            {{ tag }}
-          </span>
-        </div>
+        <TagChips :tags="note.tags" :max="2" />
         <span class="text-caption-sm text-muted-foreground italic shrink-0 ml-auto">
           {{ timeAgo(note.updated_at) }}
         </span>
@@ -92,6 +84,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import { useUpdateNote } from "@/composables/notes/useNotes";

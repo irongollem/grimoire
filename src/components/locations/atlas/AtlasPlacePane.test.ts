@@ -1,3 +1,5 @@
+import { useLowArt } from "@/composables/useLowArt";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mount, flushPromises, type VueWrapper } from "@vue/test-utils";
 import { ref } from "vue";
@@ -382,5 +384,25 @@ describe("AtlasPlacePane header facts", () => {
     const w = mountPane(top, [top, room, sub]);
     await flushPromises();
     expect(w.findAllComponents({ name: "AtlasTreeRow" }).map((r) => r.props("row").loc.id)).toEqual(["s1"]);
+  });
+});
+
+describe("AtlasPlacePane low art (#1179)", () => {
+  afterEach(() => {
+    useLowArt().setLowArt(false);
+  });
+
+  it("draws the place's picture in the header normally", () => {
+    const w = mountPane(place({ id: "l1", name: "Tavern", image_url: "/inn.webp" }));
+    expect(w.find("focal-image-stub").exists()).toBe(true);
+    expect(w.findComponent(PortraitOnRequest).exists()).toBe(false);
+  });
+
+  it("swaps the header picture for a Picture button in low art, the name still showing", () => {
+    useLowArt().setLowArt(true);
+    const w = mountPane(place({ id: "l1", name: "Tavern", image_url: "/inn.webp" }));
+    expect(w.find("focal-image-stub").exists()).toBe(false);
+    expect(w.findComponent(PortraitOnRequest).props("src")).toBe("/inn.webp");
+    expect(w.text()).toContain("Tavern");
   });
 });

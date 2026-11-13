@@ -191,4 +191,16 @@ describe("HouseLineage", () => {
     expect(w.text()).toContain("Setting the line of succession");
     expect(w.findAll("button").find((b) => b.text() === "Done")?.attributes("disabled")).toBeUndefined();
   });
+
+  // Bug: the House header still downloads its emblem in low art.
+  it("draws the emblem in the header, and not in low art (#1179)", async () => {
+    const { useLowArt } = await import("@/composables/useLowArt");
+    expect(mountIt({ ...house(), emblem_url: "https://cdn.test/e.webp" }).find("header img").exists()).toBe(true);
+    useLowArt().setLowArt(true);
+    try {
+      expect(mountIt({ ...house(), emblem_url: "https://cdn.test/e.webp" }).find("header img").exists()).toBe(false);
+    } finally {
+      useLowArt().setLowArt(false);
+    }
+  });
 });

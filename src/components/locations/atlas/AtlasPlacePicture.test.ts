@@ -1,5 +1,6 @@
+import { useLowArt } from "@/composables/useLowArt";
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { ref } from "vue";
 
@@ -60,5 +61,27 @@ describe("AtlasPlacePicture", () => {
   it("does not offer Bring it to life while the place's nook is still loading", () => {
     const v = mountPicture(place({ book_nook_id: "n1", image_url: "https://cdn.example.invalid/a.webp" }));
     expect(v.find("[data-label='Bring it to life']").exists()).toBe(false);
+  });
+});
+
+describe("AtlasPlacePicture low art (#1179)", () => {
+  afterEach(() => {
+    useLowArt().setLowArt(false);
+  });
+
+  // Bug: low art hid Bring it to life, the only way to make a nook from a place's picture.
+  it("draws no still but keeps Bring it to life in low art", async () => {
+    useLowArt().setLowArt(true);
+    const loc = place({ image_url: "https://cdn.example.invalid/a.webp" });
+    const v = mountPicture(loc);
+    expect(v.find("img").exists()).toBe(false);
+    await v.get("[data-label='Bring it to life']").trigger("click");
+    expect(m.start).toHaveBeenCalledWith(loc);
+  });
+
+  it("draws no still while the place's nook is still loading in low art", () => {
+    useLowArt().setLowArt(true);
+    const v = mountPicture(place({ book_nook_id: "n1", image_url: "https://cdn.example.invalid/a.webp" }));
+    expect(v.find("img").exists()).toBe(false);
   });
 });

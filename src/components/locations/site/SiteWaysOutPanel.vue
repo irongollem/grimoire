@@ -7,10 +7,10 @@
     <header v-if="!hideHeader" class="flex items-center gap-2">
       <IconDoor class="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <h3 class="text-heading-sm font-bold text-foreground">{{ verticalOnly ? "Vertical ways out" : "Ways out" }}</h3>
-      <span
+      <TagChip
         v-if="rows.length"
-        class="ml-auto rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground"
-      >{{ rows.length }}</span>
+        class="ml-auto uppercase"
+      >{{ rows.length }}</TagChip>
     </header>
 
     <div v-if="rows.length" class="flex flex-col gap-1.5">
@@ -22,7 +22,7 @@
           <span v-if="row.door.is_secret" class="shrink-0 rounded bg-tone-arcane/15 px-1.5 py-0.5 text-label uppercase text-ink-arcane">secret</span>
           <span v-if="row.door.starts_locked" class="shrink-0 rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">locked</span>
           <span v-if="row.isVertical" class="shrink-0 rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info">{{ DOOR_KIND_LABELS[row.door.door_kind] }}</span>
-          <span v-if="row.isOneSided" class="shrink-0 rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ ONE_SIDED_DOOR_LABEL }}</span>
+          <TagChip v-if="row.isOneSided" class="shrink-0 uppercase">{{ ONE_SIDED_DOOR_LABEL }}</TagChip>
 
           <template v-if="!verticalOnly && editable">
             <AppButton
@@ -50,7 +50,7 @@
           <!-- Read-only, an unplaced way out says so and points at the one
                place it can be fixed: the editor's Plan (#1125, frame 02). -->
           <template v-if="row.isUnplaced && !editable">
-            <span class="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground">not on the map</span>
+            <TagChip class="ml-1.5">not on the map</TagChip>
             <RouterLink
               :to="mapEditorRoute(siteId, 'zoning')"
               class="ml-1.5 text-caption font-semibold text-primary hover:underline"
@@ -202,6 +202,7 @@
  * a delete-and-recreate; everything else, including which feature governs a
  * door, is prep that gets revised.
  */
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";

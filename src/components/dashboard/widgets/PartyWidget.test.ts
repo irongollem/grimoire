@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { ref } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useLowArt } from "@/composables/useLowArt";
 import PartyWidget from "./PartyWidget.vue";
 import type { PartyMember } from "@/types/party.types";
 
@@ -180,5 +181,22 @@ describe("PartyWidget", () => {
     const w = mountParty([partyMember({ id: "a" }), partyMember({ id: "b" }), partyMember({ id: "c" })]);
     const dots = w.findAll("span.rounded-full").filter((d) => d.classes().some((c) => c.startsWith("bg-tone-success") || c.startsWith("bg-muted-foreground/30")));
     expect(dots.map((d) => d.classes().includes("bg-tone-success"))).toEqual([true, false, false]);
+  });
+});
+
+// Bug: the dashboard party card still draws each hero's portrait in low art, and an
+// empty avatar circle would hide the online dot with it.
+describe("PartyWidget in low art", () => {
+  afterEach(() => {
+    useLowArt().setLowArt(false);
+  });
+
+  it("draws no portrait, keeps the name and the online dot", () => {
+    useLowArt().setLowArt(true);
+    mocks.partyData = [partyMember({ id: "m1", name: "Mira" })];
+    const w = mount(PartyWidget, { global: { stubs: { RouterLink: true, FocalImage: true, DmTrackerButtons: true } } });
+    expect(w.find("focal-image-stub").exists()).toBe(false);
+    expect(w.text()).toContain("Mira");
+    expect(w.find("[title='Offline']").exists()).toBe(true);
   });
 });

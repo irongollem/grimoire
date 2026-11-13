@@ -20,6 +20,8 @@
  * nothing. Hence a neutral swatch and a "???" label.
  */
 
+import { formatHitPoints } from "@/lib/utils";
+
 /** As stored, not as typed: the key may be absent, null or blank. */
 export type ChallengeRating = string | null | undefined;
 
@@ -132,10 +134,15 @@ export function crVar(cr: ChallengeRating): string {
   return CR_VARS[crTier(cr)];
 }
 
-/** The rating as displayed — the stored text, or the unknown marker. */
+// About 290 library monsters store a fractional CR as a decimal ("0.25"), the
+// rest as the book writes it ("1/4"). The page always shows the book's form.
+const FRACTION_FOR_DECIMAL: Record<string, string> = { "0.125": "1/8", "0.25": "1/4", "0.5": "1/2" };
+
+/** The rating as displayed: the book's form of the stored text, or the unknown marker. */
 export function crText(cr: ChallengeRating): string {
   const trimmed = cr?.trim();
-  return trimmed ? trimmed : UNKNOWN_CR_LABEL;
+  if (!trimmed) return UNKNOWN_CR_LABEL;
+  return FRACTION_FOR_DECIMAL[trimmed] ?? trimmed;
 }
 
 /** "CR 5" / "CR ???" — the badge label used across the bestiary surfaces. */
@@ -159,4 +166,15 @@ export function monsterIdentityLine(
 ): string {
   const kind = [monster.size, monster.monster_type].filter(Boolean).join(" ");
   return [kind, monster.alignment].filter(Boolean).join(", ");
+}
+
+/** The bookmark tab a monster's challenge rating hangs in, art-free (#1179). */
+export function crTabFor(cr: ChallengeRating): { text: string; label: string; toneClass: string } {
+  return { text: crText(cr), label: "Challenge rating", toneClass: crBg(cr) };
+}
+
+/** "AC 15 · HP 110"; a creature with no armour class shows its hit points alone. */
+export function monsterStatLine(monster: { armor_class: number | null; hit_points: string | null | undefined }): string {
+  const hp = `HP ${formatHitPoints(monster.hit_points)}`;
+  return monster.armor_class === null ? hp : `AC ${monster.armor_class} · ${hp}`;
 }

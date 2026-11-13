@@ -106,6 +106,17 @@ export const RARITY_BG: Record<ItemRarity, string> = {
   artifact:     "bg-rarity-artifact",
 };
 
+/** The rarity as a bookmark tab's one-to-two letters (#1179): C U R VR L A, mundane "M". */
+export const RARITY_LETTERS: Record<ItemRarity, string> = {
+  mundane: "M",
+  common: "C",
+  uncommon: "U",
+  rare: "R",
+  very_rare: "VR",
+  legendary: "L",
+  artifact: "A",
+};
+
 /** Text-colour classes for the same ramp. */
 export const RARITY_TEXT: Record<ItemRarity, string> = {
   mundane:      "text-rarity-mundane",
@@ -186,6 +197,8 @@ export interface ItemBrowseRow {
   charges: number | null;
   /** An own row with a written document; library rows are always false. */
   has_content: boolean;
+  /** Whether the item must be attuned to; low art's ledger and card show it (#1179). */
+  requires_attunement: boolean;
   campaign_id: string | null;
   /** A shared library row rather than one of the DM's own. */
   is_shared: boolean;

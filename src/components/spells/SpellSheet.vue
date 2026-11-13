@@ -1,10 +1,27 @@
 <template>
-  <div class="flex flex-col gap-6">
-    <div class="grid grid-cols-1 gap-6" :class="{ 'lg:grid-cols-[18.75rem_1fr]': !compact }">
+  <div class="relative flex flex-col gap-6">
+    <!-- Low art (#1179, frame 04): the picture column goes, what sat under the picture
+         becomes a fact line, the level hangs as a tab, and the text takes the width. -->
+    <template v-if="lowArt && !compact">
+      <BookmarkTab
+        :text="spellLevelTab(spell.level)"
+        label="Spell level"
+        :tone-class="SCHOOL_BG[spell.school]"
+      />
+      <SheetFactLine class="pr-10" :portrait="spell.image_url" :portrait-alt="spell.name">
+        <span class="font-semibold">{{ spellLevelLabel(spell.level) }}</span>
+        <span class="font-bold capitalize" :class="SCHOOL_TEXT[spell.school]">{{ spell.school }}</span>
+        <span v-if="spell.ritual" class="font-bold text-primary">Ritual</span>
+        <span v-if="spell.concentration" class="font-bold text-primary">Concentration</span>
+        <TagChip v-for="tag in spell.tags" :key="tag">{{ tag }}</TagChip>
+      </SheetFactLine>
+    </template>
+    <div class="grid grid-cols-1 gap-6" :class="{ 'lg:grid-cols-[18.75rem_1fr]': !compact && !lowArt }">
       <!-- Left: image -->
-      <div v-if="!compact" class="flex flex-col gap-3">
+      <div v-if="!compact && !lowArt" class="flex flex-col gap-3">
         <FocalImage
           :src="spell.image_url"
+          record
           :focal-point="spell.image_focal_point"
           format="portrait"
           :lightbox="true"
@@ -36,14 +53,7 @@
             <span class="font-bold text-primary">Yes</span>
           </div>
         </div>
-        <div v-if="spell.tags?.length" class="flex flex-wrap gap-1">
-          <span
-            v-for="tag in spell.tags"
-            :key="tag"
-            class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5"
-            >{{ tag }}</span
-          >
-        </div>
+        <TagChips :tags="spell.tags" />
       </div>
 
       <!-- Right: details -->
@@ -64,10 +74,12 @@
               <span v-if="spell.ritual" class="ml-1 rounded border border-border px-1.5 text-label font-normal text-muted-foreground">Can be cast as a ritual</span>
             </dd>
           </dl>
+          <PortraitOnRequest v-if="lowArt" :src="spell.image_url" :alt="spell.name" />
           <!-- FocalImage fills its parent, so the thumbnail's size lives on a wrapper. -->
-          <div class="aspect-3/4 w-20 shrink-0 overflow-hidden rounded-lg">
+          <div v-else class="aspect-3/4 w-20 shrink-0 overflow-hidden rounded-lg">
             <FocalImage
               :src="spell.image_url"
+              record
               :focal-point="spell.image_focal_point"
               format="portrait"
               :lightbox="true"
@@ -155,15 +167,15 @@
             Known By
           </h3>
           <div class="flex flex-wrap gap-1.5">
-            <span
+            <TagChip
               v-for="k in knowers"
               :key="k.party_member_id"
-              class="inline-flex items-center gap-1 text-label px-2 py-0.5 rounded bg-muted text-muted-foreground"
+              class="inline-flex items-center gap-1"
             >
               <IconParty class="h-2.5 w-2.5 shrink-0" />
               {{ k.name }}
               <span v-if="k.is_prepared" class="text-primary">· prepared</span>
-            </span>
+            </TagChip>
           </div>
         </div>
 
@@ -173,15 +185,14 @@
             Cast By
           </h3>
           <div class="flex flex-wrap gap-1.5">
-            <RouterLink
+            <TagChip
               v-for="c in npcCasters"
               :key="c.npc_id"
               :to="`/npcs/${c.npc_id}`"
-              class="inline-flex items-center gap-1 text-label px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
             >
               <IconUser class="h-2.5 w-2.5 shrink-0" />
               {{ c.name }}
-            </RouterLink>
+            </TagChip>
           </div>
         </div>
       </div>
@@ -190,9 +201,15 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
+import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
 import { IconParty, IconUser } from '@/lib/icons';
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import BookmarkTab from "@/components/common/entity/BookmarkTab.vue";
+import SheetFactLine from "@/components/common/entity/SheetFactLine.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import TraitList from "@/components/common/statblock/TraitList.vue";
 import {
   needsConcentrationNote,
@@ -204,7 +221,7 @@ import {
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { useSpellKnowers } from "@/composables/party/useCharacterSpells";
 import { useNpcSpellCasters } from "@/composables/npcs/useNpcs";
-import { SCHOOL_TEXT, ATTACK_TYPES, spellLevelOrdinal } from "@/types/spell.types";
+import { SCHOOL_BG, SCHOOL_TEXT, ATTACK_TYPES, spellLevelLabel, spellLevelOrdinal, spellLevelTab } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
@@ -218,6 +235,7 @@ const props = defineProps<{
   compact?: boolean;
 }>();
 
+const { lowArt } = useLowArt();
 const { labelFor } = useSourceTitles();
 const sourceLabel = computed(() => labelFor(props.spell.source, props.spell.source_title));
 const { data: knowers } = useSpellKnowers(computed(() => props.spell.id));

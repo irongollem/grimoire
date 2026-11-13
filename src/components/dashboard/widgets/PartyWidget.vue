@@ -25,9 +25,15 @@
       <div v-for="member in party" :key="member.id" class="bg-card px-3 py-2.5 flex flex-col gap-1.5">
         <!-- Name row -->
         <div class="flex items-center gap-2">
-          <div class="relative h-8 w-8 shrink-0">
+          <div v-if="lowArt" class="shrink-0" :title="partyMemberOnline(member.id) ? 'Online' : 'Offline'">
+            <span
+              class="block h-2.5 w-2.5 rounded-full"
+              :class="partyMemberOnline(member.id) ? 'bg-tone-success' : 'bg-muted-foreground/30'"
+            />
+          </div>
+          <div v-else class="relative h-8 w-8 shrink-0">
             <div class="h-8 w-8 rounded-full overflow-hidden bg-secondary">
-              <FocalImage v-bind="portraitProps(member)" format="token" />
+              <FocalImage v-bind="portraitProps(member)" format="token" record />
             </div>
             <span
               class="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card"
@@ -53,10 +59,10 @@
         </div>
         <!-- Quick stats -->
         <div class="flex items-center gap-1 flex-wrap">
-          <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" :title="acTitle(member)">AC {{ acOf(member) }}</span>
-          <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" title="Passive Perception">
+          <TagChip class="inline-flex items-center gap-1" :title="acTitle(member)">AC {{ acOf(member) }}</TagChip>
+          <TagChip class="inline-flex items-center gap-1" title="Passive Perception">
             <IconReveal class="h-2.5 w-2.5" />{{ passiveScore(member, "perception", jackFor(member)) }}
-          </span>
+          </TagChip>
           <AwarenessRollButton
             v-if="awarenessOn"
             :member="member"
@@ -65,9 +71,9 @@
             :pending="spend.isPending.value"
             @use="spend.mutate([member.id])"
           />
-          <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" title="Passive Insight">
+          <TagChip class="inline-flex items-center gap-1" title="Passive Insight">
             <IconMind class="h-2.5 w-2.5" />{{ passiveScore(member, "insight", jackFor(member)) }}
-          </span>
+          </TagChip>
           <span v-if="member.inspiration" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/20 border border-primary/40 text-label text-primary">★ Insp.</span>
         </div>
         <!-- Conditions + Curses -->
@@ -87,6 +93,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed } from "vue";
 import { IconMind, IconNavParty, IconReveal } from "@/lib/icons";
 import { useActiveParty } from "@/composables/party/useActiveParty";
@@ -106,6 +113,7 @@ import type { CharacterClass } from "@/types/multiclass.types";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AwarenessRollButton from "@/components/party/AwarenessRollButton.vue";
 import UseAllAwarenessButton from "@/components/party/UseAllAwarenessButton.vue";
@@ -141,6 +149,7 @@ const spend = useUseAwarenessRolls();
  *  form took when it was assumed, which is null for a library beast whose
  *  picture lives in the art tables. */
 const formPortraitOf = useFormPortraits(() => (party.value ?? []).map((m) => m.wildshape_state));
+const { lowArt } = useLowArt();
 function portraitProps(member: PartyMember) {
   const { src, focalPoint, alt, shaped } = formPortraitOf(member, member.wildshape_state);
   return { src, focalPoint, alt, placeholder: placeholderUrl(shaped ? "monster" : "character") };

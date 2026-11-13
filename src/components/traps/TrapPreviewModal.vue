@@ -29,22 +29,20 @@
           <!-- Image + identity row -->
           <div v-if="trap.image_url || trap.tags.length" class="flex gap-4 px-5 pt-4">
             <FocalImage
-              v-if="trap.image_url"
+              v-if="trap.image_url && !lowArt"
               :src="trap.image_url"
               :alt="trap.name"
               format="portrait"
               :focal-point="trap.image_focal_point"
               class="w-24 h-24 rounded-lg shrink-0 object-cover"
               ai-badge="right"
+              record
             />
             <div class="flex-1 flex flex-col gap-2 justify-center">
-              <div v-if="trap.tags.length" class="flex flex-wrap gap-1">
-                <span
-                  v-for="tag in trap.tags"
-                  :key="tag"
-                  class="text-label px-2 py-0.5 rounded bg-muted text-muted-foreground"
-                >{{ tag }}</span>
+              <div v-if="lowArt && trap.image_url" class="self-start">
+                <PortraitOnRequest :src="trap.image_url" :alt="trap.name" />
               </div>
+              <TagChips :tags="trap.tags" />
               <div v-if="trap.damage_immunities?.length" class="flex flex-wrap gap-1">
                 <span class="text-label text-muted-foreground mr-1">Immune:</span>
                 <span
@@ -150,6 +148,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { computed, useId } from "vue";
 import { RouterLink } from "vue-router";
 import { IconClose, IconEdit } from '@/lib/icons';
@@ -157,6 +156,8 @@ import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { TRAP_TYPE_BG } from "@/types/trap.types";
 import { crToXp } from "@/types/encounter.types";
@@ -164,6 +165,7 @@ import type { TrapEntry } from "@/types/trap.types";
 import { isLibraryTrap } from "@/lib/dungeon-features/library";
 
 const props = defineProps<{ trap: TrapEntry | null }>();
+const { lowArt } = useLowArt();
 const emit = defineEmits<{ close: [] }>();
 const headingId = useId();
 

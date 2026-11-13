@@ -13,10 +13,19 @@
     :accent-class="SCHOOL_BG[spell.school]"
     :badge-text="spellLevelOrdinal(spell.level)"
     :badge-class="SCHOOL_BG[spell.school]"
+    :eyebrow="spell.school"
+    :tab="{ text: spellLevelTab(spell.level), label: 'Spell level', toneClass: SCHOOL_BG[spell.school] }"
     :activates="activates"
     @activate="emit('activate')"
   >
-    <template #body>
+    <template #body="{ artFree }">
+      <!-- Art-free: the card draws the name, the school is its eyebrow and the level its tab. -->
+      <p v-if="artFree" class="flex gap-3 text-label-lg text-muted-foreground">
+        <span class="min-w-0 truncate">{{ spell.casting_time }} · {{ spell.range }}</span>
+        <span v-if="spell.concentration" class="font-bold text-primary" title="Concentration">C</span>
+        <span v-if="spell.ritual" class="font-bold text-primary" title="Ritual">R</span>
+      </p>
+      <template v-else>
       <div class="flex items-start justify-between gap-2">
         <h3 class="line-clamp-1 flex-1 text-heading-xs leading-tight font-bold text-foreground">
           {{ spell.name }}
@@ -41,23 +50,24 @@
         <template v-if="spell.concentration"> · <em class="text-primary">Conc.</em></template>
       </p>
 
-      <div v-if="spell.tags.length" class="mt-auto flex flex-wrap gap-1">
-        <span
-          v-for="tag in spell.tags.slice(0, 3)"
-          :key="tag"
-          class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-        >
-          {{ tag }}
-        </span>
+      <TagChips :tags="spell.tags" :max="3" class="mt-auto" />
+      </template>
+    </template>
+
+    <!-- Art-free: tags or the book's name sit in the foot, where the plate's source badge was. -->
+    <template #foot>
+      <div class="flex flex-wrap items-center gap-1">
+        <SourceBadge :source="spell.source" :title="spell.source_title" class="max-w-22 truncate" />
+        <TagChips :tags="spell.tags" :max="2" />
       </div>
     </template>
 
     <!-- Edit is a custom-spell action and is absent on library rows and in the player portal. -->
-    <template v-if="canEdit" #actions-start>
+    <template v-if="canEdit" #actions-start="{ artFree }">
       <AppButton
         variant="ghost"
         size="icon-xs"
-        :class="[CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
+        :class="artFree ? undefined : [CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
         :icon="IconEdit"
         :to="`/spells/${spell.id}?edit=true`"
         tooltip="Edit spell"
@@ -66,20 +76,21 @@
     </template>
 
     <!-- The player portal's Learn / Prepare control, over the art's corner. -->
-    <template v-if="$slots.overlay" #image-overlay>
-      <slot name="overlay" />
+    <template v-if="$slots.overlay" #image-overlay="{ artFree }">
+      <slot name="overlay" :art-free="artFree" />
     </template>
   </EntityGridCard>
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";
 import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
 import { IconEdit } from "@/lib/icons";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
-import { SCHOOL_BG, spellLevelLabel, spellLevelOrdinal } from "@/types/spell.types";
+import { SCHOOL_BG, spellLevelLabel, spellLevelOrdinal, spellLevelTab } from "@/types/spell.types";
 import type { SpellBrowseRow } from "@/types/spell.types";
 
 const { spell } = defineProps<{
@@ -91,4 +102,9 @@ const { spell } = defineProps<{
 }>();
 
 const emit = defineEmits<{ activate: [] }>();
+
+defineSlots<{
+  /** The player portal's Learn control; `artFree` says it sits in the foot, off the plate. */
+  overlay?: (props: { artFree: boolean }) => unknown;
+}>();
 </script>

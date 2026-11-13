@@ -73,6 +73,9 @@
                 :badge-text="crLabel(monster.challenge_rating)"
                 :badge-class="crBg(monster.challenge_rating)"
                 :location="monster.habitat || undefined"
+                :eyebrow="monsterSubtitle(monster)"
+                :stat="monsterStatLine(monster)"
+                :tab="crTabFor(monster.challenge_rating)"
                 :shared="isDiscovered(monster)"
                 @pointerenter="prefetchDetail(monster.id)"
                 @focusin="prefetchDetail(monster.id)"
@@ -90,10 +93,11 @@
       :layout="layout"
       :grid-columns="desktopColumns"
       :grid-row-estimate="GRID_ROW_PX"
+      :ledger="LEDGER"
     >
       <template #card="{ item: monster }">
         <BulkSelectableCard
-          corner="top-right"
+          :corner="lowArt ? 'bottom-right' : 'top-right'"
           :selected="bulk.isSelected(monster.id)"
           :selecting="bulk.selecting.value && !monster.is_shared"
           @toggle="bulk.toggle(monster.id)"
@@ -120,6 +124,7 @@
             :image-url="monster.image_url"
             :fallback-icon="IconNavBestiary"
             :tags="monsterRowTags(monster)"
+            :cells="ledgerCells(monster)"
             :locked="lockedMonsterIds.has(monster.id)"
             @pointerenter="prefetchDetail(monster.id)"
             @focusin="prefetchDetail(monster.id)"
@@ -169,7 +174,10 @@ import { fetchResolvedMonster, RESOLVED_MONSTER_QUERY_KEY } from "@/composables/
 import { useMonsterBrowse } from "@/composables/monsters/useMonsterBrowse";
 import { useCampaignDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import MonsterGridCard from "@/components/monsters/MonsterGridCard.vue";
-import { crBg, crLabel } from "@/lib/monsterDisplay";
+import { crBg, crLabel, crTabFor, monsterStatLine } from "@/lib/monsterDisplay";
+import { formatHitPoints } from "@/lib/utils";
+import { artFreeSkeleton, type LedgerCell, type LedgerColumn } from "@/components/common/list/ledger";
+import { useLowArt } from "@/composables/useLowArt";
 import type { MonsterBrowseRow } from "@/types/monster.types";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
@@ -217,10 +225,31 @@ const monsterKey = (monster: MonsterBrowseRow) => monster.id;
 const layout = useListLayout("monsters", "grid");
 const { labelFor } = useSourceTitles();
 // The phone's grid is the two-column gallery skeleton.
+const { lowArt } = useLowArt();
 const skeletonVariant = computed(() => {
+  if (lowArt.value) return artFreeSkeleton(layout.value, isMobile.value);
   if (layout.value === "rows") return isMobile.value ? "rows" : "tiles";
   return isMobile.value ? "gallery" : "grid";
 });
+
+// Low art's ledger (frame 03): size and type, CR as a tab, AC, HP, source.
+const LEDGER: readonly LedgerColumn[] = [
+  { label: "Size and type", track: "minmax(0,10rem)" },
+  { label: "CR", track: "3rem" },
+  { label: "AC", track: "3rem" },
+  { label: "HP", track: "4.5rem" },
+  { label: "Source", track: "minmax(0,10rem)" },
+];
+
+function ledgerCells(monster: MonsterBrowseRow): LedgerCell[] {
+  return [
+    monsterSubtitle(monster),
+    { tab: crTabFor(monster.challenge_rating) },
+    monster.armor_class === null ? null : String(monster.armor_class),
+    formatHitPoints(monster.hit_points),
+    labelFor(monster.source, monster.source_title),
+  ];
+}
 
 // Tags on the desktop row: the book it is from, then challenge rating and habitat.
 function monsterRowTags(monster: MonsterBrowseRow): string[] {

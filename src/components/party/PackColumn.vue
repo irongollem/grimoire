@@ -11,7 +11,7 @@
       :class="stacked ? 'min-h-11' : ''"
     >
       <span class="pack-face flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-label-lg font-semibold text-muted-foreground">
-        <FocalImage v-if="column.portraitUrl" :src="column.portraitUrl" :alt="column.title" format="token" />
+        <FocalImage v-if="column.portraitUrl && !lowArt" :src="column.portraitUrl" :alt="column.title" format="token" record />
         <IconInventory v-else-if="column.memberId === null" class="h-4 w-4" />
         <template v-else>{{ initials }}</template>
       </span>
@@ -127,6 +127,7 @@ import { computed, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import { VueDraggable } from "vue-draggable-plus";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { IconChevronDown, IconInventory } from "@/lib/icons";
 import { RARITY_SURFACE_BG, type ItemRarity } from "@/types/item.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
@@ -171,6 +172,7 @@ const emit = defineEmits<{
 }>();
 
 /** The empty drop zone holds nothing and never changes. */
+const { lowArt } = useLowArt();
 const NO_ROWS: PartyInventoryItem[] = [];
 
 const open = ref(startOpen);

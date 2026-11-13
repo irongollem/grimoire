@@ -56,6 +56,9 @@
               :placeholder="placeholderUrl('spell')"
               :badge-text="spellLevelOrdinal(spell.level)"
               :badge-class="SCHOOL_BG[spell.school]"
+              :eyebrow="spell.school"
+              :stat="`${spell.casting_time} · ${spell.range}`"
+              :tab="levelTab(spell)"
               @pointerenter="prefetchSpell(spell.id)"
               @focusin="prefetchSpell(spell.id)"
             />
@@ -72,6 +75,7 @@
         :layout="desktopLayout"
         :grid-columns="columns"
         :grid-row-estimate="GRID_ROW_PX"
+        :ledger="LEDGER"
       >
         <template #card="{ item: spell }">
           <!--
@@ -82,7 +86,7 @@
             cannot be selected or re-scoped, same as their Edit button.
           -->
           <BulkSelectableCard
-            corner="top-right"
+            :corner="lowArt ? 'bottom-right' : 'top-right'"
             :selected="selectedIds.has(spell.id)"
             :selecting="selecting && spell.is_own && !spell.is_shared"
             @toggle="emit('toggle-select', spell.id)"
@@ -96,7 +100,7 @@
               @pointerenter="prefetchSpell(spell.id)"
               @focusin="prefetchSpell(spell.id)"
             >
-              <template v-if="showLearnButton" #overlay>
+              <template v-if="showLearnButton" #overlay="{ artFree }">
                 <AppButton
                   v-if="!isKnown(spell.id)"
                   variant="ghost"
@@ -105,8 +109,11 @@
                   :label="learnLabel(spell.level === 0)"
                   :disabled="isAdding || isChanging"
                   :class="[
-                    'absolute bottom-2 right-2 z-10 text-white hover:text-white bg-primary/80 hover:bg-primary max-md:min-h-11 max-md:px-3',
-                    '[@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
+                    'text-white hover:text-white bg-primary/80 hover:bg-primary max-md:min-h-11 max-md:px-3',
+                    // Over the plate the button hides until hover; in the art-free foot it is a plain control.
+                    artFree
+                      ? ''
+                      : 'absolute bottom-2 right-2 z-10 [@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
                   ]"
                   @click.prevent.stop="handleLearn(spell)"
                 />
@@ -119,10 +126,11 @@
                   :disabled="isRemoving"
                   :tooltip="casterType === 'prepared' ? 'Unprepare' : 'Remove from spellbook'"
                   :class="[
-                    CARD_OVERLAY_SCRIM,
+                    // The scrim darkens the plate under the button; off the plate it would be a dark patch.
+                    !artFree && CARD_OVERLAY_SCRIM,
                     isRemoving ? 'text-muted-foreground hover:text-muted-foreground' : 'text-ink-success hover:text-destructive',
-                    'absolute bottom-2 right-2 z-10 max-md:min-h-11 max-md:px-3',
-                    '[@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
+                    'max-md:min-h-11 max-md:px-3',
+                    !artFree && 'absolute bottom-2 right-2 z-10 [@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
                   ]"
                   @click.prevent.stop="handleKnownClick(spell)"
                 />
@@ -144,6 +152,7 @@
               :image-url="spell.image_url"
               :fallback-icon="IconNavSpellbook"
               :tags="rowTags(spell)"
+              :cells="ledgerCells(spell)"
               @pointerenter="prefetchSpell(spell.id)"
               @focusin="prefetchSpell(spell.id)"
             />
@@ -169,11 +178,13 @@ import { useSpellBrowse } from "@/composables/spells/useSpellBrowse";
 import { useAddCharacterSpell, useChangePreparedSpell, useRemoveCharacterSpell } from "@/composables/party/useCharacterSpells";
 import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
-import { SCHOOL_BG, spellLevelOrdinal } from "@/types/spell.types";
+import { SCHOOL_BG, spellLevelOrdinal, spellLevelTab } from "@/types/spell.types";
+import { artFreeSkeleton, type LedgerCell, type LedgerColumn } from "@/components/common/list/ledger";
 import type { CasterType, SpellBrowseRow } from "@/types/spell.types";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import { useListLayout } from "@/composables/useListLayout";
+import { useLowArt } from "@/composables/useLowArt";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
@@ -358,8 +369,13 @@ const layout = useListLayout("spells", "grid");
 // no room for, so it ignores the preference.
 const desktopLayout = computed(() => (playerMemberId ? "grid" : layout.value));
 // The phone's grid is the two-column gallery skeleton.
+const { lowArt } = useLowArt();
 const skeletonVariant = computed(() => {
-  if (!mobileLayout.value) return desktopLayout.value === "rows" ? "tiles" : "grid";
+  if (lowArt.value && mobileLayout.value) return artFreeSkeleton(layout.value, true);
+  if (!mobileLayout.value) {
+    if (lowArt.value) return artFreeSkeleton(desktopLayout.value);
+    return desktopLayout.value === "rows" ? "tiles" : "grid";
+  }
   return layout.value === "rows" ? "rows" : "gallery";
 });
 
@@ -370,6 +386,30 @@ function rowTags(spell: SpellBrowseRow): string[] {
   const label = labelFor(spell.source, spell.source_title);
   const level = spellLevelOrdinal(spell.level);
   return label ? [label, level] : [level];
+}
+
+/** Low art's ledger (frame 03): level, school, casting time, range, and the C/R markers. */
+const LEDGER: readonly LedgerColumn[] = [
+  { label: "Level", track: "3rem" },
+  { label: "School", track: "7rem" },
+  { label: "Casting time", track: "8rem" },
+  { label: "Range", track: "7rem" },
+  { label: "C/R", track: "3rem" },
+];
+
+function levelTab(spell: SpellBrowseRow) {
+  return { text: spellLevelTab(spell.level), label: "Spell level", toneClass: SCHOOL_BG[spell.school] };
+}
+
+function ledgerCells(spell: SpellBrowseRow): LedgerCell[] {
+  const markers = [spell.concentration ? "C" : "", spell.ritual ? "R" : ""].filter(Boolean).join(" ");
+  return [
+    { tab: levelTab(spell) },
+    spell.school,
+    spell.casting_time,
+    spell.range,
+    markers || null,
+  ];
 }
 
 function mobileSubtitle(spell: SpellBrowseRow): string {

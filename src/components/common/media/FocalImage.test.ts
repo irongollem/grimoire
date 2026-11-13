@@ -2,6 +2,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FocalImage from "./FocalImage.vue";
 import ImageLightbox from "@/components/common/overlays/ImageLightbox.vue";
+import { useLowArt } from "@/composables/useLowArt";
 
 // initPlaceholderFocalPoints/getPlaceholderFocalPoint are mocked so the test
 // exercises only the URL-parsing trap in resolvePlaceholder(), not the
@@ -267,5 +268,71 @@ describe("FocalImage where it crops", () => {
     const clearlyOver = await loaded({ frameH: 100, shownW: 200, shownH: 200, natural: 400 }, { x: 50, y: 100 });
     expect(clearlyOver.get("img").attributes("style")).toContain("translateY(-100px)");
     clearlyOver.unmount();
+  });
+});
+
+describe("FocalImage low art", () => {
+  const url = "https://cdn.example/npc-portraits/u1/owl.webp";
+  const stubs = { AiImageBadge: { props: ["src", "corner"], template: '<i class="ai-chip" />' } };
+  const { setLowArt } = useLowArt();
+  const mountWith = (props: Record<string, unknown>) =>
+    mount(FocalImage, {
+      props: { format: "portrait", src: url, placeholder: "/assets/placeholders/npc.webp", print: true, ...props },
+      attrs: { class: "h-40" },
+      global: { stubs: { ...stubs, ImageLightbox: true } },
+    });
+
+  afterEach(() => {
+    setLowArt(false);
+    vi.unstubAllGlobals();
+  });
+
+  // Bug: a low-art viewer still downloads the portrait, or sees the placeholder.
+  it("draws no img at all for a record's picture, src or placeholder alike", () => {
+    setLowArt(true);
+    expect(mountWith({ record: true }).find("img").exists()).toBe(false);
+    expect(mountWith({ record: true, src: null }).find("img").exists()).toBe(false);
+  });
+
+  it("keeps the empty root so the caller's layout classes still apply", () => {
+    setLowArt(true);
+    expect(mountWith({ record: true }).get("div").classes()).toContain("h-40");
+  });
+
+  // Bug: a hidden picture still costs a get_image_provenance call (the chip does the lookup).
+  it("renders no AI chip for a hidden picture", () => {
+    setLowArt(true);
+    expect(mountWith({ record: true, aiBadge: "left" }).find(".ai-chip").exists()).toBe(false);
+  });
+
+  // Bug: a hidden picture still opens its lightbox and downloads the original.
+  it("does nothing on click when hidden", async () => {
+    let preloaded = 0;
+    vi.stubGlobal("Image", class { src = ""; decode() { preloaded++; return Promise.resolve(); } });
+    setLowArt(true);
+    const wrapper = mountWith({ record: true, lightbox: true });
+    await wrapper.get("div").trigger("click");
+    await flushPromises();
+    expect(preloaded).toBe(0);
+  });
+
+  // Bug: low art blanks a battle map or a gallery tile.
+  it("still paints a picture that is not marked as a record's", () => {
+    setLowArt(true);
+    expect(mountWith({}).find("img").exists()).toBe(true);
+  });
+
+  it("paints a record's picture when low art is off", () => {
+    expect(mountWith({ record: true }).find("img").exists()).toBe(true);
+  });
+
+  // Bug: turning low art off needs a reload before pictures return.
+  it("paints again when low art is turned off", async () => {
+    setLowArt(true);
+    const wrapper = mountWith({ record: true });
+    expect(wrapper.find("img").exists()).toBe(false);
+    setLowArt(false);
+    await flushPromises();
+    expect(wrapper.find("img").exists()).toBe(true);
   });
 });

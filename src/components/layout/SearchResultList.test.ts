@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { useLowArt } from "@/composables/useLowArt";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createMemoryHistory, createRouter } from "vue-router";
 import SearchResultList from "./SearchResultList.vue";
@@ -171,5 +172,18 @@ describe("SearchResultList", () => {
     const wrapper = render();
     await wrapper.find("a").trigger("click");
     expect(wrapper.emitted("navigate")).toHaveLength(1);
+  });
+});
+
+describe("SearchResultList low art (#1179)", () => {
+  afterEach(() => {
+    useLowArt().setLowArt(false);
+  });
+
+  it("downloads and draws no thumbnail in low art, and the name still leads the row", () => {
+    useLowArt().setLowArt(true);
+    const w = render();
+    expect(w.find("[data-testid=thumb]").exists()).toBe(false);
+    expect(w.text()).toContain("Floss");
   });
 });

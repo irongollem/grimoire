@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useLowArt } from "@/composables/useLowArt";
 import { mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
 import SpellSheet from "./SpellSheet.vue";
@@ -87,5 +88,48 @@ describe("SpellSheet who else is shown", () => {
   it("shows the component letters in the full sheet but not the compact one", () => {
     expect(full().text()).toContain("V, S");
     expect(full(true).text()).not.toContain("V, S");
+  });
+});
+
+describe("SpellSheet in low art (#1179)", () => {
+  const { setLowArt } = useLowArt();
+  afterEach(() => {
+    setLowArt(false);
+  });
+  const art = "https://cdn.test/fireball.webp";
+  const open = (overrides: Partial<Spell> = {}, compact = false) => {
+    setLowArt(true);
+    // The real FocalImage: it is the guard under test (a stub would paint nothing either way).
+    return mount(SpellSheet, { props: { spell: spell({ image_url: art, ...overrides }), compact }, global: { stubs: { RouterLink: true, AiImageBadge: true } } });
+  };
+
+  it("the spell sheet still lays out a picture column in low art: no img and no 18.75rem track", () => {
+    const w = open();
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.html()).not.toContain("18.75rem");
+  });
+
+  it("puts the level and school on the fact line, with a level tab and a Portrait button for its own art", () => {
+    const w = open();
+    expect(w.find('[aria-label="Spell level 3"]').exists()).toBe(true);
+    expect(w.text()).toContain("3rd-Level");
+    expect(w.text()).toContain("Portrait");
+  });
+
+  it("offers no Portrait button for a spell with no art of its own", () => {
+    const w = open({ image_url: null });
+    expect(w.text()).not.toContain("Portrait");
+  });
+
+  it("the player's compact sheet drops its thumbnail too, leaving the Portrait button", () => {
+    const w = open({}, true);
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.text()).toContain("Portrait");
+  });
+
+  it("with low art off the sheet paints its picture", () => {
+    setLowArt(false);
+    const w = mount(SpellSheet, { props: { spell: spell({ image_url: art }) }, global: { stubs: { RouterLink: true, AiImageBadge: true } } });
+    expect(w.find("img").exists()).toBe(true);
   });
 });

@@ -13,10 +13,81 @@
   <RouterLink
     :to="to"
     class="rounded-xl border border-border bg-card transition-colors active:border-primary/50"
-    :class="layout === 'grid' ? 'flex flex-col overflow-hidden' : 'block'"
+    :class="[
+      layout === 'grid' ? 'flex flex-col overflow-hidden' : 'block',
+      lowArt && layout === 'grid' && 'relative h-22 gap-px px-2.5 pt-2 pb-2',
+    ]"
   >
+    <!-- ── Low art (#1179, frame 05): a text catalogue entry, no picture drawn or fetched ── -->
+    <template v-if="lowArt">
+      <div v-if="layout === 'rows'" class="flex items-center gap-2 pt-2 pr-2 pb-2.5 pl-3.5">
+        <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div class="flex items-center gap-1.75">
+            <span v-if="statusClass" class="size-1.75 shrink-0 rotate-45" :class="statusClass" />
+            <h3 class="truncate text-heading-xs font-bold leading-tight text-foreground">
+              {{ title }}
+            </h3>
+            <IconReveal
+              v-if="shared"
+              class="ml-auto size-3.5 shrink-0 text-primary"
+              aria-label="Shared with players"
+            />
+          </div>
+          <p v-if="subtitle" class="truncate text-caption italic text-muted-foreground">
+            {{ subtitle }}
+          </p>
+          <div v-if="location || badgeText" class="flex items-center justify-between gap-2 text-2xs">
+            <span v-if="location" class="min-w-0 truncate font-fell italic text-muted-foreground">
+              <IconCompassRose class="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{{ location }}
+            </span>
+            <span
+              v-if="badgeText"
+              class="ml-auto inline-flex shrink-0 items-center gap-1.5 text-eyebrow font-bold text-foreground"
+            >
+              <span class="size-1.75 rotate-45" :class="badgeClass ?? 'bg-muted-foreground'" />{{ badgeText }}
+            </span>
+          </div>
+        </div>
+        <svg
+          class="size-5 shrink-0 text-muted-foreground"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </div>
+
+      <template v-else>
+        <BookmarkTab
+          v-if="tab"
+          size="sm"
+          :text="tab.text"
+          :label="tab.label"
+          :tone-class="tab.toneClass"
+          :ink="tab.ink"
+        />
+        <span
+          v-if="eyebrow"
+          class="truncate pr-7.5 text-eyebrow font-bold text-muted-foreground"
+        >
+          {{ eyebrow }}
+        </span>
+        <h3 class="line-clamp-2 pr-6 text-heading-xs font-bold leading-tight text-foreground">
+          {{ title }}
+        </h3>
+        <p v-if="stat ?? subtitle" class="mt-auto truncate text-caption text-muted-foreground">
+          {{ stat ?? subtitle }}
+        </p>
+      </template>
+    </template>
+
     <!-- ── Rows layout ──────────────────────────────────────────────────── -->
-    <div v-if="layout === 'rows'" class="flex items-center gap-3 p-2.5">
+    <div v-else-if="layout === 'rows'" class="flex items-center gap-3 p-2.5">
       <div class="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted">
         <FocalImage
           :src="imageUrl"
@@ -24,6 +95,7 @@
           format="square"
           :focal-point="focalPoint"
           :placeholder="placeholder"
+          record
         />
       </div>
 
@@ -85,6 +157,7 @@
           format="portrait"
           :focal-point="focalPoint"
           :placeholder="placeholder"
+          record
           ai-badge="right"
         />
         <!-- The same chip as the desktop card's badge, so it becomes the same paper label. -->
@@ -119,8 +192,10 @@
 </template>
 
 <script setup lang="ts">
+import BookmarkTab from "@/components/common/entity/BookmarkTab.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import type { ListLayout } from "@/composables/useListLayout";
+import { useLowArt } from "@/composables/useLowArt";
 import { IconCompassRose, IconReveal } from "@/lib/icons";
 
 const {
@@ -141,5 +216,13 @@ const {
   statusClass?: string;
   location?: string;
   shared?: boolean;
+  /** Grid card's eyebrow in low art: a type or category, in spaced capitals. */
+  eyebrow?: string | null;
+  /** Grid card's one stat line in low art ("AC 15 · HP 110"); the subtitle stands in when absent. */
+  stat?: string | null;
+  /** Grid card's bookmark tab in low art (a CR, say); `BookmarkTab` props. */
+  tab?: { text: string; label?: string; toneClass?: string | null; ink?: "light" | "dark" } | null;
 }>();
+
+const { lowArt } = useLowArt();
 </script>

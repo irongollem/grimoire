@@ -15,6 +15,7 @@
     table="traps"
     :ids="trapFilteredIds"
     copy-label="trap"
+    :ledger="TRAP_LEDGER"
     @empty-action="router.push('/traps/new')"
   >
     <template #filters>
@@ -32,49 +33,29 @@
     </template>
     <template #card="{ item: trap, selecting, isSelected, toggle }">
       <BulkSelectableCard
-        corner="top-right"
+        :corner="lowArt ? 'top-right' : 'bottom-right'"
         :selected="isSelected(trap.id)"
         :selecting="selecting && !isLibraryTrap(trap)"
         @toggle="toggle(trap.id)"
       >
-        <RouterLink
+        <DungeonCraftCard
           :to="`/traps/${trap.id}`"
-          class="flex h-full flex-col rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors group"
-        >
-          <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
-            <FocalImage
-              :src="trap.image_url"
-              :alt="trap.name"
-              format="portrait"
-              :focal-point="trap.image_focal_point"
-              :placeholder="placeholderUrl('trap')"
-              class="group-hover:scale-105 transition-transform duration-300"
-              ai-badge="right"
-            />
-            <span
-              class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
-              :class="TRAP_TYPE_BG[trap.trap_type]"
-            >{{ trap.trap_type }}</span>
-          </div>
-          <div class="p-2.5 flex flex-col gap-1">
-            <div class="flex items-start justify-between gap-2">
-              <h3 class="flex-1 text-heading-xs font-bold text-foreground leading-tight truncate">{{ trap.name }}</h3>
-              <div class="flex shrink-0 items-center gap-1">
-                <SourceBadge :source="isLibraryTrap(trap) ? trap.source : undefined" class="max-w-22 truncate" />
-              </div>
-            </div>
-            <div class="flex items-center gap-2">
-              <span v-if="trap.cr" class="text-label text-muted-foreground">CR {{ trap.cr }}</span>
-              <span v-if="trap.trigger_type" class="text-caption-sm text-muted-foreground italic truncate">{{ trap.trigger_type }}</span>
-            </div>
-            <PlacedInLine :rooms="placedInRows(trap.id)" />
-          </div>
-        </RouterLink>
+          :name="trap.name"
+          kind="Trap"
+          :type="trap.trap_type"
+          :type-class="TRAP_TYPE_BG[trap.trap_type]"
+          :image-url="trap.image_url"
+          :focal-point="trap.image_focal_point"
+          :placeholder="placeholderUrl('trap')"
+          :subtitle="trapSubtitle(trap)"
+          :rooms="placedInRows(trap.id)"
+          :source="isLibraryTrap(trap) ? trap.source : undefined"
+        />
       </BulkSelectableCard>
     </template>
     <template #row="{ item: trap, selecting, isSelected, toggle }">
       <BulkSelectableCard
-        corner="top-right"
+        :corner="lowArt ? 'top-right' : 'bottom-right'"
         :selected="isSelected(trap.id)"
         :selecting="selecting && !isLibraryTrap(trap)"
         @toggle="toggle(trap.id)"
@@ -86,6 +67,7 @@
           :image-url="trap.image_url"
           :fallback-icon="IconTrap"
           :tags="trapTags(trap)"
+          :cells="[trapSubtitle(trap), isLibraryTrap(trap) ? labelFor(trap.source) : null]"
         />
       </BulkSelectableCard>
     </template>
@@ -95,10 +77,9 @@
 <script setup lang="ts">
 import { useDungeonCraftBooksOffered } from "@/composables/library/useEnabledSources";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
-import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
-import { RouterLink, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 import { useTrapIndex } from "@/composables/dungeon-features/useTraps";
 import { isLibraryTrap } from "@/lib/dungeon-features/library";
 import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRooms";
@@ -107,16 +88,23 @@ import { useTrapsUiStore } from "@/stores/ui/traps";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import { IconTrap } from "@/lib/icons";
 import type { TrapEntry } from "@/types/trap.types";
-import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
-import PlacedInLine from "./PlacedInLine.vue";
+import DungeonCraftCard from "./DungeonCraftCard.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
 const { labelFor } = useSourceTitles();
+const { lowArt } = useLowArt();
+
+// Low art's ledger (#1179, frame 03): the subtitle as one column, then the source.
+const TRAP_LEDGER = [
+  { label: "Details", track: "minmax(0,1fr)" },
+  { label: "Source", track: "10rem" },
+];
 
 // Only library rows carry a source; an own row's tags start at its type.
 function trapTags(trap: TrapEntry): string[] {

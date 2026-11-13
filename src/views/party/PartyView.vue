@@ -77,7 +77,10 @@
         <p class="text-caption text-destructive">{{ error }}</p>
       </div>
 
-      <div v-if="groupPortraitUrl" class="p-4 flex justify-center">
+      <div v-if="groupPortraitUrl && lowArt" class="p-4 flex justify-center">
+        <PortraitOnRequest :src="groupPortraitUrl" alt="Party group portrait" label="Group portrait" />
+      </div>
+      <div v-else-if="groupPortraitUrl" class="p-4 flex justify-center">
         <div class="relative w-full max-w-3xl">
           <img
             :src="groupPortraitUrl"
@@ -87,10 +90,10 @@
           <AiImageBadge :src="groupPortraitUrl" />
         </div>
       </div>
-      <div v-else-if="!generating" class="px-4 py-6 text-center">
+      <div v-else-if="!generating && !lowArt" class="px-4 py-6 text-center">
         <p class="text-body text-muted-foreground italic">No group portrait yet.</p>
       </div>
-      <div v-else class="px-4 py-6 text-center">
+      <div v-else-if="generating" class="px-4 py-6 text-center">
         <p class="text-body text-muted-foreground italic animate-pulse">Generating group portrait…</p>
       </div>
     </div>
@@ -101,6 +104,8 @@
 import { ref, computed } from "vue";
 import { IconBeast, IconGenerate, IconNavFallen, IconUpload } from '@/lib/icons';
 import AiImageBadge from "@/components/common/ai/AiImageBadge.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import ListCreateButton from "@/components/common/list/ListCreateButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
@@ -116,6 +121,7 @@ import { useGroupPortrait } from "@/composables/party/useGroupPortrait";
 // Hidden, not disabled, while the campaign owner has AI off (the server would 403).
 const campaignStore = useCampaignStore();
 const auth = useAuthStore();
+const { lowArt } = useLowArt();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 
 const tracker     = ref<InstanceType<typeof PartyTracker> | null>(null);

@@ -16,12 +16,13 @@
     <div class="card-plate relative h-27 w-18 shrink-0 overflow-hidden rounded-md bg-muted/50 @3xl:h-30 @3xl:w-20">
       <MiniPortraitOverlay :source="{ table: 'party_members', id: member.id }">
         <FocalImage
-          v-if="portrait.src"
+          v-if="portrait.src && !lowArt"
           :src="portrait.src"
           :alt="portrait.alt"
           format="portrait"
           :focal-point="portrait.focalPoint"
           :lightbox="true"
+          record
         />
         <span
           v-else
@@ -275,6 +276,7 @@ import { walkingSpeed } from "@/lib/movement";
 import { useAllSpecies } from "@/composables/rules/useSpecies";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import AcBreakdownPopover from "@/components/player/AcBreakdownPopover.vue";
 import SubclassVariantControl from "@/components/player/SubclassVariantControl.vue";
 import RestButtons from "@/components/player/RestButtons.vue";
@@ -292,6 +294,7 @@ const props = defineProps<{
   beastSpeed?: string | null;
   hidePlayerActions?: boolean;
 }>();
+const { lowArt } = useLowArt();
 const { jack } = useJackOfAllTrades(() => props.member);
 const portraitOf = useFormPortraits(() => [props.wildshape]);
 const portrait = computed(() => portraitOf(props.member, props.wildshape));

@@ -450,3 +450,28 @@ describe("FactionListView — finding factions and populating a setting", () => 
     expect(updateFaction).toHaveBeenCalledWith({ id: "f1", update: { player_visible_to: ["pc-1", "pc-2"] } });
   });
 });
+
+describe("FactionListView in low art (#1179)", () => {
+  beforeEach(async () => {
+    const { useLowArt } = await import("@/composables/useLowArt");
+    useLowArt().setLowArt(true);
+    factionsData.value = [faction({ id: "f1", emblem_url: "https://cdn.test/e.webp", party_standing: "friendly" })];
+  });
+  afterEach(async () => {
+    const { useLowArt } = await import("@/composables/useLowArt");
+    useLowArt().setLowArt(false);
+    factionsData.value = [];
+  });
+
+  // Bug: the faction list still downloads each emblem although art is off.
+  it.each(["rows", "grid"] as const)("draws a %s entry with its type and standing and no emblem", async (layout) => {
+    const { useListLayout } = await import("@/composables/useListLayout");
+    useListLayout("factions", "rows").value = layout;
+    const wrapper = mount(FactionListView, { global: { stubs: { RouterLink: true, PaywallModal: true, AudienceRevealControl: true } } });
+    await flushMicrotasks();
+    expect(wrapper.text()).toContain("The Iron Circle");
+    expect(wrapper.text()).toContain("Guild");
+    expect(wrapper.text().toLowerCase()).toContain("friendly");
+    expect(wrapper.find("img").exists()).toBe(false);
+  });
+});

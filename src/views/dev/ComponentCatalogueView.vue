@@ -393,6 +393,21 @@
       </div>
     </CatalogueSection>
 
+    <CatalogueSection title="TagChip / TagChips" note="The muted tag chip (#1185): a card's tags, a sheet's facts, a kind or a count beside a heading. TagChips caps a list at max and can say '+N' for the rest; TagChip with `to` is a link chip that lights on hover. Layout and case are classes at the call site.">
+      <div class="flex flex-col gap-3">
+        <TagChips :tags="catalogueTags" />
+        <TagChips :tags="catalogueTags" :max="3" overflow />
+        <TagChips :tags="catalogueTags" :max="3" />
+        <div class="flex flex-wrap items-center gap-2">
+          <TagChip>Plain</TagChip>
+          <TagChip class="uppercase">Kind</TagChip>
+          <TagChip class="inline-flex items-center gap-1"><IconStar class="h-2.5 w-2.5" />With a glyph</TagChip>
+          <TagChip to="/dev/components"><IconStar class="h-2.5 w-2.5 shrink-0" />Link chip</TagChip>
+          <TagChip class="max-w-24 truncate">A chip too long for its box</TagChip>
+        </div>
+      </div>
+    </CatalogueSection>
+
     <CatalogueSection title="AppInput" note="size × tone from fieldVariants: the same recipe AppSelect and EntityCombobox use. An input and a select at the same size must line up; the day/month/year row on the Dashboard is the case that matters.">
       <div class="flex flex-col gap-3">
         <div v-for="tone in FIELD_TONES" :key="tone" class="flex flex-wrap items-end gap-3">
@@ -633,6 +648,13 @@
     >
       <DeckCatalogue />
     </CatalogueSection>
+
+    <CatalogueSection
+      title="Low art: entries, ledger, phone and skeletons"
+      note="This section turns Low art on while it is on screen (#1179). Check each theme and a narrow width: the art-free card with a CR tab and with a foot label, the ledger with column heads, the phone row and card, both skeletons and the bookmark tabs in md and sm."
+    >
+      <LowArtCatalogue />
+    </CatalogueSection>
   </div>
 </template>
 
@@ -678,6 +700,9 @@ import { SWITCH_SIZES } from "@/components/common/controls/toggleSwitchVariants"
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import CatalogueSection from "./CatalogueSection.vue";
+import LowArtCatalogue from "./LowArtCatalogue.vue";
+import TagChip from "@/components/common/TagChip.vue";
+import TagChips from "@/components/common/TagChips.vue";
 import DeckCatalogue from "@/components/soundboard/deck/DeckCatalogue.vue";
 import CoinAmount from "@/components/currency/CoinAmount.vue";
 import CoinInput from "@/components/currency/CoinInput.vue";
@@ -787,6 +812,8 @@ const coinCurrencyDollars: CurrencyConfig = {
     { key: "c", name: "Cent", abbr: "c", value: 1, color: "#aa2244", makes_change: true },
   ],
 };
+const catalogueTags = ["merchant", "guild", "smuggler", "harbour", "informant"];
+
 const coinsFive = ref<Coins>({ gp: 12, sp: 3 });
 const coinsDollars = ref<Coins>({ d: 5, c: 30 });
 const numberValue = ref<string | number | null>(12);

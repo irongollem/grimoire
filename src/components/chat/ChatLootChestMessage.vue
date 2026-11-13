@@ -19,7 +19,7 @@
 
     <div class="px-3 py-2.5 flex flex-col gap-2.5">
       <img
-        v-if="meta.chest_image_url"
+        v-if="meta.chest_image_url && !lowArt"
         :src="meta.chest_image_url"
         alt="Chest"
         class="w-full rounded object-cover max-h-40"
@@ -38,7 +38,7 @@
         >
           <!-- Item atom -->
           <template v-if="(atom.type ?? 'item') === 'item'">
-            <div v-if="atom.item_image_url" class="w-7 h-7 rounded overflow-hidden shrink-0">
+            <div v-if="atom.item_image_url && !lowArt" class="w-7 h-7 rounded overflow-hidden shrink-0">
               <FocalImage :src="atom.item_image_url" :alt="atom.item_name" format="square" class="w-full h-full" />
             </div>
             <IconPackage v-else class="w-5 h-5 text-muted-foreground shrink-0" />
@@ -102,6 +102,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useLowArt } from '@/composables/useLowArt';
 import { IconCoins, IconPackage, IconPackageOpen } from '@/lib/icons';
 import CoinAmount from '@/components/currency/CoinAmount.vue';
 import FocalImage from '@/components/common/media/FocalImage.vue';
@@ -121,6 +122,7 @@ const {
   linkedPartyMemberId?: string | null;
 }>();
 
+const { lowArt } = useLowArt();
 const emit = defineEmits<{
   'claim-loot-chest': [payload: { messageId: string; atomId: string }];
 }>();

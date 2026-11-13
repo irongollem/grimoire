@@ -28,6 +28,7 @@ export interface NewToYouCover {
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { artUrl } from "@/lib/assets/artUrl";
 import { cardTurnStyle, prefersReducedMotion } from "@/lib/motion";
 import { npcRelationshipBg } from "@/lib/npcDisplay";
@@ -46,6 +47,8 @@ import { NPC_RELATIONSHIP_LABELS } from "@/types/npc.types";
  * fixed by the art in every theme, so it takes a fixed ink (Vellum's
  * foreground, #2b2019) rather than a theme token that could go pale.
  */
+const { lowArt } = useLowArt();
+
 const {
   kind,
   person,
@@ -148,7 +151,14 @@ function onTransitionEnd(event: TransitionEvent) {
               :focal-point="cover?.focalPoint ?? null"
               :placeholder="PLACEHOLDER"
               class="absolute inset-0 h-full w-full object-cover"
+              record
             />
+            <!-- Low art: a monogram stands where the picture was, so the card keeps its shape (#1179). -->
+            <span
+              v-if="lowArt"
+              class="absolute inset-0 grid place-items-center text-display font-bold text-muted-foreground/60"
+              aria-hidden="true"
+            >{{ coverName.charAt(0) }}</span>
             <span class="ntc-unmasked">Unmasked</span>
           </div>
           <div class="ntc-foot">
@@ -170,7 +180,13 @@ function onTransitionEnd(event: TransitionEvent) {
             :focal-point="person.focalPoint"
             :placeholder="PLACEHOLDER"
             class="absolute inset-0 h-full w-full object-cover"
+            record
           />
+          <span
+            v-if="lowArt"
+            class="absolute inset-0 grid place-items-center text-display font-bold text-muted-foreground/60"
+            aria-hidden="true"
+          >{{ personName.charAt(0) }}</span>
         </div>
         <div class="ntc-foot">
           <span class="ntc-display ntc-name">{{ personName }}</span>

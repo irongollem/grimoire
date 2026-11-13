@@ -15,13 +15,14 @@
         class="flex items-center gap-3 px-4 py-2.5"
         :class="member.isDead && 'bg-destructive/5'"
       >
-        <div class="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-secondary">
+        <div v-if="!lowArt" class="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-secondary">
           <FocalImage
             :src="member.portraitUrl"
             :focal-point="member.portraitFocalPoint"
             format="token"
             :alt="member.name"
             :placeholder="placeholderUrl('character')"
+            record
           />
         </div>
         <div class="min-w-0 flex-1">
@@ -57,6 +58,7 @@ import { computed } from "vue";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { deriveDyingPartyMembers } from "@/lib/dashboard/deathSaves";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import DashboardWidget from "../DashboardWidget.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
@@ -70,6 +72,7 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
  * `DashboardWidget`'s `loading`/`empty` slots that every other widget here
  * uses: there is no "nothing to show yet" state to render, only "not shown".
  */
+const { lowArt } = useLowArt();
 const { data: party } = useActiveParty();
 
 /**
