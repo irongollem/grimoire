@@ -69,3 +69,31 @@ describe("quest filter state", () => {
     expect(useQuestsUiStore().questsIsKanban).toBe(false);
   });
 });
+
+describe("quest mark session choice", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+  });
+
+  // Fails if one campaign's pick leaks into another, or is lost across a reload.
+  it("is kept per campaign and survives a reload", async () => {
+    const store = useQuestsUiStore();
+    store.markSessionChoiceFor("camp-a").value = "session-1";
+    await nextTick();
+    expect(store.markSessionChoiceFor("camp-b").value).toBe("");
+
+    setActivePinia(createPinia());
+    expect(useQuestsUiStore().markSessionChoiceFor("camp-a").value).toBe("session-1");
+  });
+
+  // Fails if the lens is persisted: a DM would reopen a quest looking through the players' eyes.
+  it("keeps the lens for the session only", async () => {
+    const store = useQuestsUiStore();
+    expect(store.questFlowLens).toBe("dm");
+    store.questFlowLens = "players";
+    await nextTick();
+    setActivePinia(createPinia());
+    expect(useQuestsUiStore().questFlowLens).toBe("dm");
+  });
+});

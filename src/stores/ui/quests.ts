@@ -42,6 +42,23 @@ export const useQuestsUiStore = defineStore("ui:quests", () => {
     return width;
   }
 
+  // Whose eyes the story flow is drawn for. Session-only: a DM returns to their
+  // own view, never to a lens left on from last week.
+  const questFlowLens = ref<"dm" | "players">("dm");
+
+  // The session the toolbar files marks under, kept per campaign. Only the DM's
+  // choice is stored ("" = no choice, so the default applies); the default is
+  // derived from the log each time and so never goes stale.
+  const markSessionChoices = new Map<string, Ref<string>>();
+  function markSessionChoiceFor(campaignId: string) {
+    let choice = markSessionChoices.get(campaignId);
+    if (!choice) {
+      choice = useStorage(`grimoire:quest-mark-session:${campaignId}`, "", safeLocalStorage());
+      markSessionChoices.set(campaignId, choice);
+    }
+    return choice;
+  }
+
   function resetQuestsFilters() {
     questsSearch.value = "";
     questsPartyFilter.value = false;
@@ -58,6 +75,8 @@ export const useQuestsUiStore = defineStore("ui:quests", () => {
     questsEntityFilter,
     questsPrepGapsFilter,
     drawerWidthFor,
+    questFlowLens,
+    markSessionChoiceFor,
     questsLootFilter,
     questsHasActiveFilters,
     resetQuestsFilters,

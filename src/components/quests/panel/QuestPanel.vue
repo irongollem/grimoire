@@ -2,8 +2,14 @@
   <!-- The drawer with nothing selected (epic #1183): everything about the quest
        as a whole, in the order the DM reaches for it. -->
   <div class="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto" aria-label="Quest panel">
+    <!-- Players' view puts what the party sees first. -->
+    <template v-if="playersFirst">
+      <QuestPlayersView :quest="quest" />
+      <!-- The third of the three controls: each objective's visibility toggle lives on its row. -->
+      <QuestObjectivesSection :quest-id="quest.id" />
+    </template>
     <QuestDetailsSection :quest="quest" />
-    <QuestPlayersSection :quest="quest" />
+    <QuestPlayersSection v-if="!playersFirst" :quest="quest" />
     <QuestThreadsPanel
       v-if="threads.length && quest.campaign_id"
       :quest-id="quest.id"
@@ -15,7 +21,7 @@
       :visited-count-by-thread="visitedCountByThread"
       @focus="emit('focus-thread', $event)"
     />
-    <QuestObjectivesSection :quest-id="quest.id" />
+    <QuestObjectivesSection v-if="!playersFirst" :quest-id="quest.id" />
     <QuestClocksPanel v-if="quest.campaign_id" :quest-id="quest.id" :campaign-id="quest.campaign_id" />
     <QuestRulesPanel :quest-id="quest.id" :campaign-id="quest.campaign_id" />
     <DmNoteBox type="quest" :id="quest.id" :label="quest.title" />
@@ -43,13 +49,15 @@ import QuestThreadsPanel from "../flow/QuestThreadsPanel.vue";
 import QuestDetailsSection from "./QuestDetailsSection.vue";
 import QuestObjectivesSection from "./QuestObjectivesSection.vue";
 import QuestPlayersSection from "./QuestPlayersSection.vue";
+import QuestPlayersView from "./QuestPlayersView.vue";
 
 // The cursors come from the flow's runtime read, which the designer already
 // holds, so they are handed down rather than fetched a second time.
-const { quest, currentBeatIdByThread = {}, visitedCountByThread = {} } = defineProps<{
+const { quest, currentBeatIdByThread = {}, visitedCountByThread = {}, playersFirst = false } = defineProps<{
   quest: Quest;
   currentBeatIdByThread?: Record<string, string | null>;
   visitedCountByThread?: Record<string, number>;
+  playersFirst?: boolean;
 }>();
 const emit = defineEmits<{ "focus-thread": [threadId: string] }>();
 

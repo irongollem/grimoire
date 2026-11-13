@@ -5,7 +5,12 @@
     <div class="flex shrink-0 flex-wrap items-center gap-2">
       <h2 class="sr-only">Story flow</h2>
       <div>
-        <p v-if="tallyTotal" class="flex flex-wrap items-center gap-1" aria-label="Story flow progress">
+        <p v-if="playersView" class="flex flex-wrap items-center gap-1" aria-label="What the party knows">
+          <span class="rounded bg-tone-success/15 px-1.5 py-0.5 text-label uppercase text-ink-success">{{ visibilityTally.revealed }} revealed</span>
+          <span class="rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info">{{ visibilityTally.rumored }} rumored</span>
+          <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ visibilityTally.hidden }} hidden</span>
+        </p>
+        <p v-else-if="tallyTotal" class="flex flex-wrap items-center gap-1" aria-label="Story flow progress">
           <span v-if="reachTally.visited" class="rounded bg-tone-success/15 px-1.5 py-0.5 text-label uppercase text-ink-success">{{ reachTally.visited }} visited</span>
           <span v-if="liveThreadCount" class="rounded bg-primary/15 px-1.5 py-0.5 text-label uppercase text-primary">{{ liveThreadCount }} live</span>
           <TagChip v-if="reachTally.ahead" class="uppercase">{{ reachTally.ahead }} ahead</TagChip>
@@ -17,7 +22,8 @@
            390px became four two-line blocks (#872). Fit and Current beat act
            on the canvas, which the outline replaces below 48rem, so they do
            not exist there. -->
-      <div class="ml-auto flex flex-wrap gap-2">
+      <div class="ml-auto flex flex-wrap items-center gap-2">
+        <QuestFlowMarksBar :quest-id="questId" :transitions="transitions" :beats="beats" />
         <AppButton :icon="IconAdd" label="Add beat" size="sm" variant="primary" class="whitespace-nowrap" @click="openComposer()" />
         <AppButton :icon="IconLayers" label="Add parallel route" size="sm" class="whitespace-nowrap" @click="openParallelComposer" />
         <AppButton :icon="IconMaximize" label="Fit" size="sm" variant="subtle" class="hidden whitespace-nowrap md:inline-flex" @click="canvas?.fitGraph()" />
@@ -80,13 +86,14 @@
           :initial-viewport="initialViewport"
           :frame-on-open="!initialViewport"
           :editable="true"
+          :lens="ui.questFlowLens"
           @command="onCommand"
           @viewport-change="writeQuestViewport(questId, $event)"
         />
       </div>
-      <QuestDrawer :quest-id="questId" :mode="drawerMode" :opened="drawerOpened" @update:opened="setOpened">
+      <QuestDrawer :quest-id="questId" :mode="drawerMode" :opened="drawerOpened" @update:opened="setOpened" @deselect="select({})">
         <template #quest>
-          <QuestPanel v-if="quest" :quest="quest" :current-beat-id-by-thread="currentBeatIdByThread" :visited-count-by-thread="visitedCountByThread" @focus-thread="focusThread" />
+          <QuestPanel v-if="quest" :quest="quest" :players-first="playersView" :current-beat-id-by-thread="currentBeatIdByThread" :visited-count-by-thread="visitedCountByThread" @focus-thread="focusThread" />
         </template>
         <template #route>
           <QuestRoutePanel
@@ -109,12 +116,13 @@
             :beats="beats"
             :target-staging="selectedEdgeTargetStaging"
             :thread-id="focusThreadId || null"
+            :session-id="markSession.sessionId.value"
             @save="saveEdge"
             @delete="deleteSelectedEdge"
           />
         </template>
         <template #beat>
-          <QuestSelectedBeatPanel v-if="selectedBeat" :beat="selectedBeat" :presentation="presentations[selectedBeat.id]" :staging="selectedBeatStaging" :entry-beat-id="entryBeatId" :thread-id="focusThreadId || null" @preview="openPreview({ draftVisibility: selectedBeat.visibility, savedVisibility: selectedBeat.visibility, unsaved: false })" />
+          <QuestSelectedBeatPanel v-if="selectedBeat" :beat="selectedBeat" :presentation="presentations[selectedBeat.id]" :staging="selectedBeatStaging" :entry-beat-id="entryBeatId" :thread-id="focusThreadId || null" :session-id="markSession.sessionId.value" @preview="openPreview({ draftVisibility: selectedBeat.visibility, savedVisibility: selectedBeat.visibility, unsaved: false })" />
         </template>
         <template #opened>
           <QuestOpenedBeat
@@ -128,6 +136,7 @@
             :current-beat-id-by-thread="currentBeatIdByThread"
             :presentations="presentations"
             :visible-to="visibleTo"
+            :session-id="markSession.sessionId.value"
             @collapse="setOpened(false)"
           />
         </template>
@@ -184,11 +193,13 @@ import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
 import { readQuestViewport, writeQuestViewport } from "@/lib/quests/viewport";
 import { extractTiptapText } from "@/lib/utils";
 import { useQuestSelection } from "@/composables/quests/useQuestSelection";
-import { retainSelectedBeatId, type QuestGraphCommand } from "@/lib/quests/flow";
+import { retainSelectedBeatId, tallyBeatVisibility, type QuestGraphCommand } from "@/lib/quests/flow";
 import { isDuplicateQuestEdge } from "@/lib/quests/mutations";
 import { defaultThreadId } from "@/lib/quests/threads";
 import { deriveQuestConsistency } from "@/lib/quests/consistency";
 import { useCampaignStore } from "@/stores/campaign";
+import { useQuestsUiStore } from "@/stores/ui/quests";
+import { useQuestMarkSession } from "@/composables/quests/useQuestMarkSession";
 import { useConfirm } from "@/composables/useConfirm";
 import { type QuestBeat, type QuestGateMode, type QuestRouteEffect, type QuestRouteKind } from "@/types/quest.types";
 import type { LocationSummary } from "@/types/location.types";
@@ -198,6 +209,7 @@ import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import QuestFlowCanvas from "./QuestFlowCanvas.vue";
 import QuestBeatComposer from "../inspector/QuestBeatComposer.vue";
 import QuestGapMenu, { type QuestGapRow } from "./QuestGapMenu.vue";
+import QuestFlowMarksBar from "./QuestFlowMarksBar.vue";
 import QuestPanel from "../panel/QuestPanel.vue";
 import QuestDrawer from "./QuestDrawer.vue";
 import QuestOpenedBeat from "../opened/QuestOpenedBeat.vue";
@@ -223,6 +235,9 @@ const lootQuery = useLootPlacements({ questId: questIdRef });
 const threadsQuery = useQuestThreads(questIdRef);
 const consequencesQuery = useQuestConsequences(questIdRef);
 const allLocationsQuery = useAllLocations();
+const ui = useQuestsUiStore();
+const markSession = useQuestMarkSession();
+const playersView = computed(() => ui.questFlowLens === "players");
 const quest = computed(() => questQuery.data.value ?? null);
 const threads = computed(() => threadsQuery.data.value ?? []);
 // The context is fetched by one thread id, but its `threads[]` carries every
@@ -375,6 +390,7 @@ const { selectedBeatId, selectedEdgeId, drawerOpened, select, setOpened } = useQ
 const liveThreadCount = computed(() => threads.value.filter((thread) => thread.status === "live").length);
 
 const selectedBeat = computed(() => beats.value.find((beat) => beat.id === selectedBeatId.value) ?? null);
+const visibilityTally = computed(() => tallyBeatVisibility(beats.value));
 const reachTally = computed(() => tallyQuestReach(presentations.value));
 const tallyTotal = computed(() => reachTally.value.visited + reachTally.value.ahead + reachTally.value.stranded + liveThreadCount.value + gapRows.value.length);
 // Every gap in one list: each beat's own prep gaps, then the wiring findings a

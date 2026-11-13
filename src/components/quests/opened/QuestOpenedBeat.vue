@@ -159,7 +159,7 @@ const QuestRunContainedTool = defineAsyncComponent({
  * party stands decides the moves: Undo and Advance when it is here, "Put the
  * party here" when it is not, and which side is open.
  */
-const { questId, beatId, quest, threads, focusThreadId, currentBeatIdByThread, presentations, visibleTo = [] } = defineProps<{
+const { questId, beatId, quest, threads, focusThreadId, currentBeatIdByThread, presentations, visibleTo = [], sessionId = null } = defineProps<{
   questId: string;
   beatId: string;
   quest: Quest | null;
@@ -170,6 +170,8 @@ const { questId, beatId, quest, threads, focusThreadId, currentBeatIdByThread, p
   currentBeatIdByThread: Record<string, string | null>;
   presentations: Record<string, QuestBeatPresentation>;
   visibleTo?: string[];
+  /** The session marks are filed under; null leaves it to the server's own stamping. */
+  sessionId?: string | null;
 }>();
 // Collapsing is the designer's: it owns the selection (`setOpened(false)`).
 const emit = defineEmits<{ collapse: [] }>();
@@ -233,7 +235,7 @@ async function guarded(fallback: string, work: () => Promise<unknown>) {
   error.value = "";
   try { await work(); } catch (caught) { error.value = caught instanceof Error ? caught.message : fallback; }
 }
-const putPartyHere = () => guarded("The party could not be placed here", () => markMove.mutateAsync({ campaignId: campaignId.value, questId, threadId: threadId.value, kind: "party_here", beatId }));
+const putPartyHere = () => guarded("The party could not be placed here", () => markMove.mutateAsync({ campaignId: campaignId.value, questId, threadId: threadId.value, kind: "party_here", beatId, sessionId }));
 // No thread: Undo takes back the quest's newest move, wherever it was made.
 const undo = () => guarded("The last move could not be undone", () => undoMove.mutateAsync({ campaignId: campaignId.value, questId }));
 const reveal = () => guarded("The player reveal could not be changed", async () => { if (beat.value) await setVisibility(beat.value, "revealed"); });

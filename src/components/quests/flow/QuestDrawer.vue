@@ -1,11 +1,16 @@
 <template>
   <div class="contents">
+    <QuestSheet v-if="belowMd && !opened" :quest-id="questId" :mode="mode" @deselect="emit('deselect')">
+      <template #quest><slot name="quest" /></template>
+      <template #beat><slot name="beat" /></template>
+      <template #route><slot name="route" /></template>
+    </QuestSheet>
     <!-- The summary column. While opened at lg it stays in the grid, empty and
          invisible, so the flow keeps its size and does not refit under the
          overlay; below lg the opened content replaces it in flow. -->
     <aside
       class="relative flex min-w-0 max-w-full flex-col gap-3 lg:h-full lg:min-h-0 lg:w-(--quest-drawer-w)"
-      :class="opened ? 'max-lg:hidden lg:invisible' : ''"
+      :class="[opened ? 'max-lg:hidden lg:invisible' : '', 'max-md:hidden']"
       :style="{ '--quest-drawer-w': `${width}rem` }"
       aria-label="Quest drawer"
     >
@@ -64,6 +69,8 @@ import { useQuestsUiStore } from "@/stores/ui/quests";
 import { clampDrawerWidth, DRAWER_MAX_REM, DRAWER_MIN_REM } from "@/lib/quests/drawer";
 import { canAnimate, whenSettled } from "@/lib/motion";
 import { IconChevronLeft } from "@/lib/icons";
+import { useBelow } from "@/composables/useBreakpoint";
+import QuestSheet from "./QuestSheet.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 
 const { questId, mode, opened = false } = defineProps<{
@@ -72,7 +79,9 @@ const { questId, mode, opened = false } = defineProps<{
   mode: "quest" | "beat" | "route";
   opened?: boolean;
 }>();
-const emit = defineEmits<{ "update:opened": [opened: boolean] }>();
+const emit = defineEmits<{ "update:opened": [opened: boolean]; deselect: [] }>();
+/** Below md the summary column is a bottom sheet instead. */
+const belowMd = useBelow("md");
 defineSlots<{ quest(): unknown; beat(): unknown; route(): unknown; opened(): unknown }>();
 
 const width = useQuestsUiStore().drawerWidthFor(questId);
