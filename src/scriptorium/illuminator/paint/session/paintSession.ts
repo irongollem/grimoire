@@ -398,6 +398,9 @@ export function createPaintSession(init: PaintSessionInit): PaintSessionApi {
       dirty.clear();
       edited = false;
     },
+    rebase(): void {
+      dirty.clear();
+    },
     get edited(): boolean {
       return edited;
     },

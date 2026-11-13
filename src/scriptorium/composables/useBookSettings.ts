@@ -14,6 +14,7 @@ import { markForSweep } from "@/scriptorium/composables/illuminatorSweep";
 import { draftValueEqual } from "@/composables/useRecordDraft";
 import { getCurrentUser } from "@/lib/supabase";
 import { removedFurnitureUrls } from "@/scriptorium/lib/furniture/artUrls";
+import { usePaintQuotaRefresh } from "@/scriptorium/composables/usePaintQuotaRefresh";
 import { useUpdateScriptoriumDocument } from "@/scriptorium/composables/useScriptorium";
 import { scriptoriumLook } from "@/scriptorium/lib/looks";
 import { parseDressing, type Dressing } from "@/scriptorium/dressing/dressing";
@@ -116,6 +117,7 @@ export function themeForKind(kind: ScriptoriumKind, theme: ScriptoriumTheme): Sc
 
 export function useBookSettings(doc: () => ScriptoriumDocument) {
   const { mutateAsync: update } = useUpdateScriptoriumDocument();
+  const refreshPaintQuota = usePaintQuotaRefresh();
   const draft = reactive<BookSettingsDraft>(toSettingsDraft(doc()));
   let lastSaved: BookSettingsDraft = toSettingsDraft(doc());
 
@@ -131,6 +133,7 @@ export function useBookSettings(doc: () => ScriptoriumDocument) {
       // Art the saved list no longer holds is only marked: a chapter may use it now, and
       // the sweep (when the editor closes) checks that before anything leaves storage.
       const removed = removedFurnitureUrls(lastSaved.furniture, snapshot.furniture, getCurrentUser()?.id);
+      refreshPaintQuota(JSON.stringify(lastSaved.furniture), JSON.stringify(snapshot.furniture));
       lastSaved = snapshot;
       markForSweep(...removed);
     },

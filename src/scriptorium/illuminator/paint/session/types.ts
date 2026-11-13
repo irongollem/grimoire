@@ -131,6 +131,11 @@ export interface PaintSessionApi {
    */
   readonly dirty: ReadonlyMap<string, ReadonlySet<number>>;
   markClean(): void;
+  /**
+   * Forgets the changed tiles without calling the session saved: the caller has just made the layers equal to a
+   * stored baseline (Go back to a version), so nothing is left to upload. Undo and redo mark their tiles again.
+   */
+  rebase(): void;
   /** Anything changed since the painting was loaded or last saved. Undo counts: it cannot tell it came back to the saved state. */
   readonly edited: boolean;
   /**

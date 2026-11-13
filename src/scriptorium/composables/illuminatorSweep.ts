@@ -12,7 +12,7 @@
 import { ASSET_IMAGES_BUCKET, removeStorageImages } from "@/composables/useImageUpload";
 import { reportHandledError } from "@/lib/observability/sentry";
 import { getCurrentUser, supabase } from "@/lib/supabase";
-import { isMadeByIlluminator } from "@/scriptorium/illuminator/lib/ownedPictures";
+import { isAuthorsSheet, isMadeByIlluminator } from "@/scriptorium/illuminator/lib/ownedPictures";
 
 const pending = new Set<string>();
 const RPC_BATCH = 500;
@@ -21,6 +21,15 @@ const RPC_BATCH = 500;
 export function markForSweep(...urls: (string | null | undefined)[]): void {
   const userId = getCurrentUser()?.id;
   for (const url of urls) if (isMadeByIlluminator(url, userId)) pending.add(url);
+}
+
+/**
+ * The author's own blank-sheet file, offered once nothing on this picture holds it (Flatten replaced it as the
+ * original). Anything that is not `{user}/sheet-...` is ignored, so an original is never marked by this. The sweep
+ * still asks the server whether any chapter or page refers to it before deleting.
+ */
+export function markSheetForSweep(url: string | null | undefined): void {
+  if (isAuthorsSheet(url, getCurrentUser()?.id)) pending.add(url);
 }
 
 /** Remove every marked file nothing refers to any more. Throws when the check or the removal fails. */

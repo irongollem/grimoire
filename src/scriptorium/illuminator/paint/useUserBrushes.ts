@@ -8,6 +8,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { computed } from "vue";
+import { reportHandledError } from "@/lib/observability/sentry";
 import { getCurrentUser, supabase } from "@/lib/supabase";
 import type { PaintAssetStore } from "./assets/loadPaintAssets";
 import { browserBrushFiles, type BrushFileDeps } from "./brushes/brushFiles";
@@ -193,7 +194,14 @@ export function useUserBrushes(assets: PaintAssetStore, files: BrushFileDeps = b
       if (error) throw error;
       patchRows((old) => old.filter((r) => r.id !== id));
       const urls = [row?.tip_url, row?.grain_url].filter((u): u is string => typeof u === "string");
-      if (urls.length > 0) await files.remove(urls);
+      if (urls.length > 0) {
+        // The brush is gone: a failed sweep of its files is reported, not thrown, or the painter sees a failure for a delete that happened and a retry finds no row to sweep from.
+        try {
+          await files.remove(urls);
+        } catch (e) {
+          reportHandledError(e, "useUserBrushes.remove");
+        }
+      }
     },
   });
 

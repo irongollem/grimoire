@@ -5,7 +5,8 @@ import { changedSettings, themeForKind, toSettingsDraft, useBookSettings } from 
 import { createFurnitureItem } from "@/scriptorium/lib/furniture/model";
 import type { PageFurnitureItem, ScriptoriumDocument } from "@/scriptorium/types";
 
-const mocks = vi.hoisted(() => ({ update: vi.fn(), remove: vi.fn() }));
+const mocks = vi.hoisted(() => ({ update: vi.fn(), remove: vi.fn(), invalidateQuota: vi.fn() }));
+vi.mock("@/composables/billing/useQuota", () => ({ useInvalidateQuota: () => mocks.invalidateQuota }));
 // A file leaves storage only through the sweep; a save only marks it.
 vi.mock("@/scriptorium/composables/illuminatorSweep", () => ({ markForSweep: mocks.remove }));
 vi.mock("@/lib/supabase", () => ({ supabase: {}, getCurrentUser: () => ({ id: "u1" }) }));
@@ -22,6 +23,7 @@ const doc = {
 beforeEach(() => {
   mocks.update.mockReset().mockResolvedValue(doc);
   mocks.remove.mockReset().mockResolvedValue(undefined);
+  mocks.invalidateQuota.mockReset();
 });
 
 function mountSettings() {
@@ -150,5 +152,37 @@ describe("book art cleanup", () => {
     mocks.update.mockRejectedValue(new Error("offline"));
     const removed = await saveWith([art({ src: bakeA, original: placeArt })], []);
     expect(removed).toEqual([]);
+  });
+});
+
+describe("the painting canvas count", () => {
+  const painted = (): PageFurnitureItem => {
+    const item = createFurnitureItem("art", { type: "page", chapterId: "c1", page: 1 });
+    return { ...item, props: { ...item.props, illuminate: JSON.stringify({ v: 1, seed: 1, steps: [{ type: "paint", width: 1, height: 1, paper: null, layers: [] }] }) } };
+  };
+
+  it("asks for the quota only after the furniture save has landed (asked at Done it counts the old state)", async () => {
+    let finish: () => void = () => undefined;
+    mocks.update.mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve(doc); }));
+    const { settings, scope } = mountSettings();
+    settings.patch({ furniture: [painted()] });
+    await nextTick();
+    const saving = settings.saveNow();
+    await nextTick();
+    expect(mocks.update).toHaveBeenCalledTimes(1);
+    expect(mocks.invalidateQuota).not.toHaveBeenCalled();
+    finish();
+    await saving;
+    expect(mocks.invalidateQuota).toHaveBeenCalledWith("paint_canvases");
+    scope.stop();
+  });
+
+  it("leaves it alone for a save that changed no painting", async () => {
+    const { settings, scope } = mountSettings();
+    settings.patch({ footerText: "x" });
+    await nextTick();
+    await settings.saveNow();
+    expect(mocks.invalidateQuota).not.toHaveBeenCalled();
+    scope.stop();
   });
 });

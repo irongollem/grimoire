@@ -1,17 +1,17 @@
 <template>
-  <!-- A raw button on purpose: the colour is the whole content, so none of AppButton's chrome applies. -->
-  <button
-    type="button"
-    class="rounded-md border border-border"
-    :class="[large ? 'h-8 w-8' : 'h-6 w-6', selected ? 'ring-2 ring-primary ring-offset-1 ring-offset-card' : '']"
+  <AppButton
+    variant="swatch"
+    :size="large ? 'icon-sm' : 'icon-xs'"
+    :active="selected"
     :style="{ backgroundColor: rgbToHex(colour) }"
     :aria-label="label"
-    :title="title"
+    :tooltip="title"
     @click="emit('pick', colour)"
   />
 </template>
 
 <script setup lang="ts">
+import AppButton from "@/components/common/controls/AppButton.vue";
 import type { Rgb } from "../engine/types";
 import { rgbToHex } from "./colourMath";
 

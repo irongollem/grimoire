@@ -11,7 +11,8 @@ vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: toastError 
 const removeFiles = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 vi.mock("@/composables/useImageUpload", () => ({ ASSET_IMAGES_BUCKET: "asset-images", removeStorageImages: removeFiles }));
 vi.mock("@/lib/observability/sentry", () => ({ reportHandledError: vi.fn() }));
-vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "u1" }) }));
+const rpc = vi.hoisted(() => vi.fn().mockResolvedValue({ data: [], error: null }));
+vi.mock("@/lib/supabase", () => ({ getCurrentUser: () => ({ id: "u1" }), supabase: { rpc } }));
 // A URL is ours when the storage registry can read a bucket and a path out of it, in either URL shape.
 vi.mock("@/lib/storage", async () => {
   const urls = await vi.importActual<typeof import("@/lib/storage/urls")>("@/lib/storage/urls");
@@ -21,6 +22,7 @@ vi.mock("@/scriptorium/composables/usePictureBakes", () => ({ usePictureBakes: (
 vi.mock("@/scriptorium/composables/usePicturePreviews", () => ({ usePicturePreviews: () => ({ schedule: vi.fn() }) }));
 
 import { madeUrls } from "@/scriptorium/illuminator/lib/ownedPictures";
+import { clearSweepMarks, sweepIlluminatorFiles } from "@/scriptorium/composables/illuminatorSweep";
 import { originalOf, usePictureEditing } from "./usePictureEditing";
 
 const recipe: IlluminateSettings = { v: 1, seed: 1, steps: [{ type: "vignette", options: { strength: 0.3, softness: 0.5, mode: "transparent", colour: "#000000" } }] };
@@ -132,6 +134,42 @@ describe("the workbench for the selected picture", () => {
     expect(madeUrls(after, "u")).toEqual([]);
     // The old bake is now sweepable.
     expect(madeUrls(before, "u")).toEqual([`${base}ill-bake-1.webp`]);
+  });
+
+  // Fails on: Flatten leaving the blank sheet's original in storage for good (Cancel removes it, Flatten did not).
+  it("flatten offers the old blank-sheet original to the sweep, which still checks it is unused", async () => {
+    clearSweepMarks();
+    removeFiles.mockClear();
+    const base = "https://x.supabase.co/storage/v1/object/public/asset-images/u1/";
+    const sheet = `${base}sheet-1.webp`;
+    const { api } = setup({ src: sheet, original: sheet, illuminate: recipe });
+    api.openWorkbench("brush");
+    api.onWorkbenchFlatten(`${base}ill-flat-ab12cd34.webp`);
+    rpc.mockResolvedValueOnce({ data: [sheet], error: null });
+    await sweepIlluminatorFiles();
+    // Still referenced elsewhere: kept.
+    expect(removeFiles).not.toHaveBeenCalled();
+    const second = setup({ src: sheet, original: sheet, illuminate: recipe });
+    second.api.openWorkbench("brush");
+    second.api.onWorkbenchFlatten(`${base}ill-flat-ef56.webp`);
+    await sweepIlluminatorFiles();
+    expect(removeFiles).toHaveBeenCalledWith("asset-images", sheet);
+  });
+
+  // Fails on: Flatten deleting an original that is the author's picture or somebody else's, because it was marked like a sheet.
+  it("flatten never marks an original that is not the author's own sheet file", async () => {
+    clearSweepMarks();
+    removeFiles.mockClear();
+    rpc.mockClear();
+    const base = "https://x.supabase.co/storage/v1/object/public/asset-images/";
+    for (const original of [`${base}u1/rte-170.webp`, `${base}u2/sheet-1.webp`, `${base}u1/sub/sheet-1.webp`, "https://x.supabase.co/storage/v1/object/public/monster-images/u1/sheet-1.webp"]) {
+      const { api } = setup({ src: original, original, illuminate: recipe });
+      api.openWorkbench("brush");
+      api.onWorkbenchFlatten(`${base}u1/ill-flat-1.webp`);
+    }
+    await sweepIlluminatorFiles();
+    expect(rpc).not.toHaveBeenCalled();
+    expect(removeFiles).not.toHaveBeenCalled();
   });
 
   // Fails on: Cancel straight after Blank sheet leaving an empty painting that already holds the free canvas.

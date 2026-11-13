@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { sameBytes } from "@/test/sameBytes";
 import { TiledLayer } from "./engine/tiledLayer";
 import { chunkPixels, fillChunk, paintedChunks, parseViewChunk, viewChunkUrl } from "./paintLayerIO";
 
@@ -12,11 +13,12 @@ function paintDot(layer: TiledLayer, x: number, y: number, rgba: [number, number
   const o = ((y % layer.tileSize) * layer.tileSize + (x % layer.tileSize)) * 4;
   tile.set(rgba, o);
 }
-const dump = (layer: TiledLayer) =>
-  layer
-    .keys()
-    .sort((a, b) => a - b)
-    .map((k) => [k, Array.from(layer.tile(k) ?? [])]);
+/** Same tiles, byte for byte. */
+function sameTiles(a: TiledLayer, b: TiledLayer): boolean {
+  const ka = a.keys().sort((x, y) => x - y);
+  const kb = b.keys().sort((x, y) => x - y);
+  return ka.length === kb.length && ka.every((k, i) => k === kb[i] && sameBytes(a.tile(k), b.tile(k)));
+}
 
 describe("a layer's chunks", () => {
   // Fails if a chunk read-back puts a pixel at the wrong place (a tile/chunk offset slip), loses its alpha, or
@@ -32,7 +34,7 @@ describe("a layer's chunks", () => {
       if (!pixels) throw new Error(`chunk ${key} is empty`);
       fillChunk(back, cx, cy, pixels);
     }
-    expect(dump(back)).toEqual(dump(layer));
+    expect(sameTiles(back, layer)).toBe(true);
   });
 
   // Fails if an empty chunk is reported as painted, so an erased chunk would be uploaded again as a blank file.

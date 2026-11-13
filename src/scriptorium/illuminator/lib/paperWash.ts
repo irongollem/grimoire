@@ -332,6 +332,8 @@ export function washAssets(loadImage: LoadImage): Promise<PaintAssetStore> {
 export interface WashOptions {
   /** Paint at DRAFT_REFERENCE_LONG, for the live preview. */
   draft?: boolean;
+  /** The reference long sides to paint at, for tests that need the full/draft split without painting a 2048 px wash. Production leaves this out. */
+  references?: { full: number; draft: number };
 }
 
 /** The last few washes, so a change to another step (or none) does not repaint the wash. Only preview-sized ones are kept: a bake's layers are large and used once. */
@@ -340,7 +342,8 @@ const MEMO_MAX_PIXELS = 4_000_000;
 const memo: { loader: LoadImage; key: string; layers: WashLayers }[] = [];
 
 export async function washLayers(w: number, h: number, step: WashStep, loadImage: LoadImage, options: WashOptions = {}): Promise<WashLayers> {
-  const referenceLong = options.draft ? DRAFT_REFERENCE_LONG : REFERENCE_LONG;
+  const references = options.references ?? { full: REFERENCE_LONG, draft: DRAFT_REFERENCE_LONG };
+  const referenceLong = options.draft ? references.draft : references.full;
   const key = JSON.stringify([step.from, step.reach, step.brush, step.dry, step.seed, w, h, referenceLong]);
   const hit = memo.find((m) => m.loader === loadImage && m.key === key);
   if (hit) return hit.layers;

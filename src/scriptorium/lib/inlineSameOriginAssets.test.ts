@@ -4,6 +4,14 @@ import { inlineSameOriginAssets, toBase64, ASSETS_LOAD_ERROR } from "./inlineSam
 // The art CDN of a production build; the module reads it once, at import.
 vi.mock("@/lib/storage/buckets", () => ({ ASSET_CDN_BASE: "https://cdn.test" }));
 
+// The build's art manifest: the papers and the dressing's marks are in it, a user's picture never is.
+vi.mock("@/generated/artManifest.json", () => ({
+  default: {
+    "/assets/papers/kraft.webp": "app-art/assets/papers/kraft.1a2b3c4d.webp",
+    "/assets/scriptorium/dressing/stain-ring.webp": "app-art/assets/scriptorium/dressing/stain-ring.5e6f7a8b.webp",
+  },
+}));
+
 const bytes = (s: string) => new TextEncoder().encode(s).buffer as ArrayBuffer;
 
 describe("inlineSameOriginAssets", () => {
@@ -39,6 +47,17 @@ describe("inlineSameOriginAssets", () => {
     const out = await inlineSameOriginAssets(html, fetchAsset);
     expect(out).toBe(`<body class="sc-paper" style="--sc-paper-image: url(data:image/webp;base64,cA==); --sc-paper-size: 130.00mm 130.00mm">`);
     expect(fetchAsset).toHaveBeenCalledWith("https://cdn.test/app-art/assets/papers/kraft.1a2b3c4d.webp");
+  });
+
+  it("leaves a user's picture on the CDN alone, in a src and in a css url", async () => {
+    // Fails on: inlining every CDN url, which fetches each painting into the request and fails the whole export when
+    // one file (a swept bake) is gone.
+    const fetchAsset = vi.fn(async () => bytes("x"));
+    const html =
+      `<img src="https://cdn.test/u1/picture.webp"><img src="https://cdn.test/app-art/assets/papers/kraft.1a2b3c4d.webp">` +
+      `<i style="background:url(https://cdn.test/u1/bake.webp)"></i><b style="background:url(https://cdn.test/app-art/unlisted.webp)"></b>`;
+    expect(await inlineSameOriginAssets(html, fetchAsset)).toBe(html);
+    expect(fetchAsset).not.toHaveBeenCalled();
   });
 
   it("leaves a url on some other host alone, even one that starts like the CDN's", async () => {
@@ -111,7 +130,7 @@ describe("page dressing masks", () => {
 
   it("inlines a mask set in a style attribute as well", async () => {
     const fetchAsset = vi.fn(async () => bytes("m"));
-    const html = `<div style="mask-image:url(https://cdn.test/app-art/assets/paintbox/marks/stain-ring.1a2b.webp);opacity:.4">`;
+    const html = `<div style="mask-image:url(https://cdn.test/app-art/assets/scriptorium/dressing/stain-ring.5e6f7a8b.webp);opacity:.4">`;
     expect(await inlineSameOriginAssets(html, fetchAsset)).toBe(`<div style="mask-image:url(data:image/webp;base64,bQ==);opacity:.4">`);
   });
 });

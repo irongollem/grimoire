@@ -89,6 +89,12 @@ export const buttonVariants = cva(
          * grid. The map editor's rail and options slip, and the Play toolbelt.
          */
         tool: "border border-transparent text-muted-foreground hover:text-foreground hover:border-primary/50",
+        /**
+         * A colour swatch: a bordered square whose fill is the colour, set by the caller through `style`
+         * (the colour IS the state, so no variant can name it). No hover change and no text. Pair with `icon-xs` or
+         * `icon-sm`; `active` rings the swatch in use. The Illuminator's paint colours.
+         */
+        swatch: "border border-border",
       },
       size: {
         /**
@@ -561,6 +567,9 @@ export const buttonVariants = cva(
       { variant: "menu", tone: "arcane", class: "text-tone-arcane" },
       { variant: "menu", tone: "caution", class: "text-tone-caution" },
 
+      // A selected swatch is ringed, not tinted: its fill is the colour it holds.
+      { variant: "swatch", active: true, class: "ring-2 ring-primary ring-offset-1 ring-offset-card" },
+
       // ── well × state ──────────────────────────────────────────────────────
       // A filled well is `active`: the generic compounds below give it the tint, this
       // makes the border solid and restates the hover fill the variant's base owns.
@@ -642,7 +651,7 @@ export type ButtonSurface = NonNullable<ButtonVariants["surface"]>;
 type Assert<T extends true> = T;
 
 export const BUTTON_VARIANTS = [
-  "primary", "live", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu", "well", "tool",
+  "primary", "live", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu", "well", "tool", "swatch",
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [

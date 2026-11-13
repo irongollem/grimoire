@@ -160,6 +160,7 @@ import { useAutosave, type AutosaveStatus } from "@/composables/useAutosave";
 import { useSaveChapter } from "@/scriptorium/composables/useScriptoriumChapters";
 import { usePictureEditing } from "@/scriptorium/composables/usePictureEditing";
 import { markForSweep } from "@/scriptorium/composables/illuminatorSweep";
+import { usePaintQuotaRefresh } from "@/scriptorium/composables/usePaintQuotaRefresh";
 import { chapterUrlsRemoved } from "@/scriptorium/lib/chapterImages";
 import { getCurrentUser } from "@/lib/supabase";
 import { countWords } from "@/scriptorium/lib/chapterTitle";
@@ -344,6 +345,7 @@ watch(
   { immediate: true },
 );
 
+const refreshPaintQuota = usePaintQuotaRefresh();
 const autosave = useAutosave({
   draft,
   initial: () => ({ edits: 0 }),
@@ -357,6 +359,7 @@ const autosave = useAutosave({
     const previous = savedJson;
     await saveChapter({ id: chapter.id, documentId, content });
     savedJson = json;
+    refreshPaintQuota(previous, json);
     // Marked, not deleted: the file may still be on a page or in another chapter, and undo may bring it back.
     markForSweep(...chapterUrlsRemoved(previous, json, getCurrentUser()?.id));
   },

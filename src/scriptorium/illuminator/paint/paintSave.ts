@@ -26,6 +26,11 @@ export interface SaveInput {
   dirty: ReadonlyMap<string, ReadonlySet<number>>;
   /** What the recipe holds now. */
   previous: PaintStep | null;
+  /**
+   * The layer records the session's untouched tiles equal, when that is not `previous` (after Go back to a saved
+   * version the layers are the version's). Chunks are reused from these, and `dirty` is measured against them.
+   */
+  baseline?: readonly PaintLayerRecord[];
   width: number;
   height: number;
   /** The sheet's id, or null for none. */
@@ -60,7 +65,7 @@ async function inBatches(jobs: readonly (() => Promise<void>)[], limit: number):
  * Throws when an upload fails; nothing is released then, because the recipe still names the old chunks.
  */
 export async function savePaintStep(input: SaveInput, deps: SaveDeps): Promise<PaintStep | null> {
-  const before = new Map((input.previous?.layers ?? []).map((l) => [l.id, l]));
+  const before = new Map((input.baseline ?? input.previous?.layers ?? []).map((l) => [l.id, l]));
   const released: string[] = [];
   const records: PaintLayerRecord[] = [];
   const jobs: (() => Promise<void>)[] = [];
@@ -90,9 +95,13 @@ export async function savePaintStep(input: SaveInput, deps: SaveDeps): Promise<P
 
   await inBatches(jobs, deps.concurrency ?? 4);
 
-  // Layers the author deleted leave their chunks behind.
+  // Layers the author deleted leave their chunks behind, and so do the recipe's own when the baseline is a version's.
   const kept = new Set(input.layers.map((l) => l.id));
   for (const [id, gone] of before) if (!kept.has(id)) released.push(...Object.values(gone.chunks));
+  if (input.baseline) {
+    const named = new Set(records.flatMap((r) => Object.values(r.chunks)));
+    for (const url of (input.previous?.layers ?? []).flatMap((l) => Object.values(l.chunks))) if (!named.has(url)) released.push(url);
+  }
   // A replaced chunk a saved version still names stays alive.
   const held = new Set((input.versions ?? []).flatMap((v) => v.layers.flatMap((l) => Object.values(l.chunks))));
   for (const url of released) if (!held.has(url)) deps.release(url);

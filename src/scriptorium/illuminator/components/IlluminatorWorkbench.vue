@@ -317,7 +317,7 @@ import { onClickOutside } from "@vueuse/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { PAINT_CANVAS_LIMIT_MESSAGE } from "@/scriptorium/illuminator/lib/paintQuota";
-import { useInvalidateQuota, useQuota } from "@/composables/billing/useQuota";
+import { useQuota } from "@/composables/billing/useQuota";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import IlluminateExportMenu from "@/scriptorium/illuminator/components/IlluminateExportMenu.vue";
@@ -404,7 +404,6 @@ const finishing = ref(false);
 const { canCreate: canMakeCanvas } = useQuota("paint_canvases");
 /** PNG downloads are a Pro extra; Free sees the button greyed out with the reason (maintainer, 12 Nov 2026). */
 const { isPro } = useSubscription();
-const invalidateQuota = useInvalidateQuota();
 const showPaintPaywall = ref(false);
 
 const wb = useIlluminateWorkbench({
@@ -584,8 +583,6 @@ async function done() {
   finishing.value = true;
   try {
     const recipe = await wb.finish();
-    // A painting saved here is a canvas on the plan from now on.
-    void invalidateQuota("paint_canvases");
     emit("done", recipe);
   } catch (err) {
     toast.error(err instanceof Error ? err.message : "Could not save your edits.");
@@ -597,7 +594,6 @@ async function done() {
 async function flatten() {
   const original = await wb.flatten();
   if (original === null) return;
-  void invalidateQuota("paint_canvases");
   emit("flatten", original);
 }
 </script>
