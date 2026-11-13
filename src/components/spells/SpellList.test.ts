@@ -356,7 +356,7 @@ describe("SpellList in low art (#1179)", () => {
     const card = w.find('[data-art-free="true"]');
     expect(card.text().toLowerCase()).toContain("evocation");
     expect(card.text()).toContain("1 action · 60 feet");
-    expect(card.find('[aria-label="Spell level C"]').exists()).toBe(true);
+    expect(card.findAll(".sr-only").some((e) => e.text() === "Spell level C")).toBe(true);
   });
 
   it("the ledger rows draw no picture and fill the level, school, casting time and range columns", async () => {

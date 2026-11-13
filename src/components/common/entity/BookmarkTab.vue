@@ -21,8 +21,11 @@
       toneClass ?? 'bg-foreground/80',
       ink === 'dark' ? 'text-black/80' : toneClass ? 'text-white' : 'text-background',
     ]"
-    :aria-label="label ? `${label} ${text}` : undefined"
-  >{{ text }}</span>
+  >
+    <!-- An aria-label on a role-less span is not announced, so the spoken form is text. -->
+    <span v-if="label" class="sr-only">{{ label }} {{ text }}</span>
+    <span :aria-hidden="label ? 'true' : undefined">{{ text }}</span>
+  </span>
 </template>
 
 <script setup lang="ts">

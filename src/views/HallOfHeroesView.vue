@@ -67,6 +67,7 @@
       :grid-columns="columns"
       :grid-row-estimate="HERO_ROW_PX"
       :ledger="LEDGER"
+      ledger-actions="14rem"
     >
       <template #row="{ item: hero }">
         <EntityListRow

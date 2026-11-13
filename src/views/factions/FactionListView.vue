@@ -99,6 +99,7 @@
       :row-estimate="ROW_PX"
       :row-columns="columns"
       :ledger="LEDGER"
+      ledger-actions="4rem"
     >
       <template #card="{ item: faction }">
         <BulkSelectableCard

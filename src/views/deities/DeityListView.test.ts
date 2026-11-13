@@ -81,7 +81,7 @@ describe("DeityListView in low art (#1179)", () => {
     await flushMicrotasks();
     expect(wrapper.text()).toContain("Tyr");
     expect(wrapper.text()).toContain("Pantheon");
-    expect(wrapper.find('[aria-label="Alignment LG"]').exists()).toBe(true);
+    expect(wrapper.findAll(".sr-only").some((e) => e.text() === "Alignment LG")).toBe(true);
     expect(wrapper.find("img").exists()).toBe(false);
   });
 
@@ -91,7 +91,7 @@ describe("DeityListView in low art (#1179)", () => {
     await flushMicrotasks();
     expect(wrapper.text()).toContain("The Maimed God");
     expect(wrapper.text()).toContain("War · Order");
-    expect(wrapper.find('[aria-label="Alignment LG"]').exists()).toBe(true);
+    expect(wrapper.findAll(".sr-only").some((e) => e.text() === "Alignment LG")).toBe(true);
     expect(wrapper.find("img").exists()).toBe(false);
   });
 
@@ -101,7 +101,7 @@ describe("DeityListView in low art (#1179)", () => {
     useListLayout("deities", "grid").value = "grid";
     const wrapper = mount(DeityListView, { global: { stubs } });
     await flushMicrotasks();
-    expect(wrapper.find('[aria-label^="Alignment"]').exists()).toBe(false);
+    expect(wrapper.findAll(".sr-only").some((e) => e.text().startsWith("Alignment"))).toBe(false);
   });
 });
 

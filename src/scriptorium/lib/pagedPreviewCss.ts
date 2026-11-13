@@ -28,9 +28,9 @@ export interface PagedPreviewCssOptions {
 /** The page's text area, specific enough to override Paged.js's own rule. */
 export const PAGE_CONTENT_SELECTOR = ".pagedjs_page .pagedjs_pagebox > .pagedjs_area > .pagedjs_page_content";
 
-/** The darker page edges of the look's own paper (theme-base.css .phb-page draws the same). */
+/** The darker page edges of the look's own paper, both layers with their position and size; the gradients are theme-base.css's `--sc-page-edge-x` and `-y`, defined once. */
 const PAGE_EDGES =
-  "linear-gradient(to right, rgb(162 93 28 / 0.34) 0%, rgb(162 93 28 / 0.25) 4%, rgb(162 93 28 / 0.16) 9%, rgb(162 93 28 / 0.075) 18%, rgb(162 93 28 / 0.025) 28%, rgb(162 93 28 / 0) 40%, rgb(162 93 28 / 0) 60%, rgb(162 93 28 / 0.025) 72%, rgb(162 93 28 / 0.075) 82%, rgb(162 93 28 / 0.16) 91%, rgb(162 93 28 / 0.25) 96%, rgb(162 93 28 / 0.34) 100%)" + " 0 0 / 100% 100% no-repeat, " + "linear-gradient(to bottom, rgb(162 93 28 / 0.34) 0%, rgb(162 93 28 / 0.25) 4%, rgb(162 93 28 / 0.16) 9%, rgb(162 93 28 / 0.075) 18%, rgb(162 93 28 / 0.025) 28%, rgb(162 93 28 / 0) 40%, rgb(162 93 28 / 0) 60%, rgb(162 93 28 / 0.025) 72%, rgb(162 93 28 / 0.075) 82%, rgb(162 93 28 / 0.16) 91%, rgb(162 93 28 / 0.25) 96%, rgb(162 93 28 / 0.34) 100%)";
+  "var(--sc-page-edge-x) 0 0 / 100% 100% no-repeat, var(--sc-page-edge-y) 0 0 / 100% 100% no-repeat";
 
 export function buildPagedPreviewCss(opts: PagedPreviewCssOptions): string {
   const { pageSize, inkFriendly } = opts;
@@ -54,7 +54,7 @@ export function buildPagedPreviewCss(opts: PagedPreviewCssOptions): string {
 
   const pageChrome = inkFriendly
     ? "background: #fff;"
-    : `background: ${PAGE_EDGES} 0 0 / 100% 100% no-repeat, url('${artUrl("/assets/scriptorium/page-paper.webp")}') 0 0 / 81.3mm 81.3mm repeat, var(--sc-page-bg, #f9f6ef);`;
+    : `background: ${PAGE_EDGES}, url('${artUrl("/assets/scriptorium/page-paper.webp")}') 0 0 / 81.3mm 81.3mm repeat, var(--sc-page-bg, #f9f6ef);`;
 
   return `
 @page {

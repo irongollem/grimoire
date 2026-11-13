@@ -36,6 +36,7 @@
       :grid-columns="columns"
       :grid-row-estimate="gridRowEstimate"
       :ledger="LEDGER"
+      ledger-actions="3rem"
     >
       <template #card="{ item: b }">
         <OptionGridCard

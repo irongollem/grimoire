@@ -58,7 +58,7 @@
               :badge-class="SCHOOL_BG[spell.school]"
               :eyebrow="spell.school"
               :stat="`${spell.casting_time} · ${spell.range}`"
-              :tab="levelTab(spell)"
+              :tab="spellTabFor(spell)"
               @pointerenter="prefetchSpell(spell.id)"
               @focusin="prefetchSpell(spell.id)"
             />
@@ -178,7 +178,7 @@ import { useSpellBrowse } from "@/composables/spells/useSpellBrowse";
 import { useAddCharacterSpell, useChangePreparedSpell, useRemoveCharacterSpell } from "@/composables/party/useCharacterSpells";
 import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
-import { SCHOOL_BG, spellLevelOrdinal, spellLevelTab } from "@/types/spell.types";
+import { SCHOOL_BG, spellLevelOrdinal, spellTabFor } from "@/types/spell.types";
 import { artFreeSkeleton, type LedgerCell, type LedgerColumn } from "@/components/common/list/ledger";
 import type { CasterType, SpellBrowseRow } from "@/types/spell.types";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
@@ -397,14 +397,10 @@ const LEDGER: readonly LedgerColumn[] = [
   { label: "C/R", track: "3rem" },
 ];
 
-function levelTab(spell: SpellBrowseRow) {
-  return { text: spellLevelTab(spell.level), label: "Spell level", toneClass: SCHOOL_BG[spell.school] };
-}
-
 function ledgerCells(spell: SpellBrowseRow): LedgerCell[] {
   const markers = [spell.concentration ? "C" : "", spell.ritual ? "R" : ""].filter(Boolean).join(" ");
   return [
-    { tab: levelTab(spell) },
+    { tab: spellTabFor(spell) },
     spell.school,
     spell.casting_time,
     spell.range,

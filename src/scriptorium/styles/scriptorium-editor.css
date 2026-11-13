@@ -43,14 +43,14 @@
      page height, since the editor is one long sheet.
      /assets/scriptorium/page-paper.webp is deliberately excluded from
      src/generated/artManifest.json (see MANIFEST_EXCLUSIONS in
-     scripts/art-manifest.ts) — a stylesheet cannot call artUrl(), and this
-     same path is also referenced by theme-base.css, which goes as raw CSS
+     scripts/art-manifest.ts): a stylesheet cannot call artUrl(), and the
+     same literal path is written in theme-base.css, which goes as raw CSS
      text into the HTML the PDF export sends to its renderer, with no app JS
-     (useScriptoriumPdf.ts). Keeping the file at this literal path forever
-     means both contexts resolve it without a CDN lookup. */
+     (useScriptoriumPdf.ts); the export inlines it as a data: URI there. The
+     edge gradients are theme-base.css's `--sc-page-edge-x` and `-y`. */
   background:
-    linear-gradient(to right, rgb(162 93 28 / 0.34) 0%, rgb(162 93 28 / 0.25) 4%, rgb(162 93 28 / 0.16) 9%, rgb(162 93 28 / 0.075) 18%, rgb(162 93 28 / 0.025) 28%, rgb(162 93 28 / 0) 40%, rgb(162 93 28 / 0) 60%, rgb(162 93 28 / 0.025) 72%, rgb(162 93 28 / 0.075) 82%, rgb(162 93 28 / 0.16) 91%, rgb(162 93 28 / 0.25) 96%, rgb(162 93 28 / 0.34) 100%) 0 0 / 100% var(--sc-page-height) repeat-y,
-    linear-gradient(to bottom, rgb(162 93 28 / 0.34) 0%, rgb(162 93 28 / 0.25) 4%, rgb(162 93 28 / 0.16) 9%, rgb(162 93 28 / 0.075) 18%, rgb(162 93 28 / 0.025) 28%, rgb(162 93 28 / 0) 40%, rgb(162 93 28 / 0) 60%, rgb(162 93 28 / 0.025) 72%, rgb(162 93 28 / 0.075) 82%, rgb(162 93 28 / 0.16) 91%, rgb(162 93 28 / 0.25) 96%, rgb(162 93 28 / 0.34) 100%) 0 0 / 100% var(--sc-page-height) repeat-y,
+    var(--sc-page-edge-x) 0 0 / 100% var(--sc-page-height) repeat-y,
+    var(--sc-page-edge-y) 0 0 / 100% var(--sc-page-height) repeat-y,
     url("/assets/scriptorium/page-paper.webp") 0 0 / 81.3mm 81.3mm repeat,
     var(--sc-page-bg);
   box-sizing: border-box;

@@ -3,11 +3,7 @@
     <!-- Low art (#1179, frame 04): the picture column goes, what sat under it becomes a
          fact line, and the CR hangs from the sheet as it does from the card. -->
     <template v-if="lowArt">
-      <BookmarkTab
-        :text="crText(monster.stat_block.challenge_rating)"
-        label="Challenge rating"
-        :tone-class="crBg(monster.stat_block.challenge_rating)"
-      />
+      <BookmarkTab v-bind="crTabFor(monster.stat_block.challenge_rating)" />
       <SheetFactLine class="pr-10" :portrait="monster.image_url" :portrait-alt="monster.name">
         <TagChip v-for="tag in monster.tags" :key="tag">{{ tag }}</TagChip>
         <span v-if="monster.habitat" class="text-muted-foreground italic">Habitat: {{ monster.habitat }}</span>
@@ -152,7 +148,7 @@ import { IconEncounter, IconPackage } from '@/lib/icons';
 import BookmarkTab from "@/components/common/entity/BookmarkTab.vue";
 import SheetFactLine from "@/components/common/entity/SheetFactLine.vue";
 import { useLowArt } from "@/composables/useLowArt";
-import { crBg, crText } from "@/lib/monsterDisplay";
+import { crTabFor } from "@/lib/monsterDisplay";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import StatBlockPanel from "@/components/common/statblock/StatBlockPanel.vue";

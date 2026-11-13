@@ -91,6 +91,7 @@ const {
   rowEstimate = 98,
   rowColumns = 1,
   ledger,
+  ledgerActions,
   artFreeRowEstimate = ART_FREE_CARD_PX,
 } = defineProps<{
   items: T[];
@@ -106,6 +107,9 @@ const {
   rowColumns?: number;
   /** Low art's columns after the name; without it rows stay rows (#1179). */
   ledger?: readonly LedgerColumn[];
+  /** The ledger's last track, for a list whose rows carry buttons in `#actions`: the width
+   *  of the widest set plus the chevron. Without it the track holds the chevron alone. */
+  ledgerActions?: string;
   /** The art-free card's row height in px before it is measured, when the list's cards
    *  carry more than the usual eyebrow, name, one line and foot (an NPC's place and tags). */
   artFreeRowEstimate?: number;
@@ -122,16 +126,18 @@ const { lowArt } = useLowArt();
 const LEDGER_LINE_PX = 41;
 
 const ledgerOn = computed(() => lowArt.value && layout === "rows" && !!ledger);
-const template = computed(() => (ledgerOn.value && ledger ? ledgerTemplate(ledger) : null));
+const template = computed(() => (ledgerOn.value && ledger ? ledgerTemplate(ledger, ledgerActions) : null));
 provide(LEDGER_TEMPLATE_KEY, template);
-
-// Hooks run whatever the layout; the ref only matters for the low-art grid.
-const containerRef = ref<HTMLElement | null>(null);
-const fillColumns = useAutoFillColumns(containerRef, 14.5, 0.75);
 
 // The ledger prop is the list's opt-in to low art as a whole: Minis and Book Nook
 // cards are their pictures, so without it nothing here reflows.
 const lowArtGrid = computed(() => lowArt.value && !!ledger && layout === "grid");
+
+// Only the low-art grid packs by width, so only then is the box watched: a
+// ResizeObserver per catalogue list would otherwise run for nothing.
+const containerRef = ref<HTMLElement | null>(null);
+const fillTarget = computed(() => (lowArtGrid.value ? containerRef.value : null));
+const fillColumns = useAutoFillColumns(fillTarget, 14.5, 0.75);
 const columns = computed(() => {
   if (layout !== "grid") return rowColumns;
   return lowArtGrid.value ? fillColumns.value : gridColumns;

@@ -39,6 +39,7 @@
       :grid-columns="columns"
       :grid-row-estimate="GRID_ROW_PX"
       :ledger="LEDGER"
+      ledger-actions="6.5rem"
     >
       <template #row="{ item }">
         <div

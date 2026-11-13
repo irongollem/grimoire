@@ -116,6 +116,7 @@
       :grid-columns="desktopColumns"
       :grid-row-estimate="GRID_ROW_PX"
       :ledger="LEDGER"
+      ledger-actions="6rem"
     >
         <template #card="{ item: deity }">
         <EntityGridCard

@@ -41,7 +41,7 @@
 
     <!-- Col 2 / below: tabs + content, scrolls on desktop -->
     <div class="flex-1 min-w-0 lg:overflow-y-auto lg:pb-6">
-      <SheetFactLine v-if="lowArt" :portrait="npcPortrait" :portrait-alt="npc.name">
+      <SheetFactLine v-if="lowArt" :portrait="displayPortrait" :portrait-alt="npc.name">
         <span class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.status }}</span>
         <span class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.relationship }}</span>
         <span v-if="locationName" class="text-muted-foreground">
@@ -65,7 +65,7 @@ import TagChip from "@/components/common/TagChip.vue";
 import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
 import SheetFactLine from "@/components/common/entity/SheetFactLine.vue";
-import { useAllLocations } from "@/composables/locations/useLocations";
+import { useLocation } from "@/composables/locations/useLocations";
 import { useLowArt } from "@/composables/useLowArt";
 import { IconCompassRose } from "@/lib/icons";
 import FocalImage from "@/components/common/media/FocalImage.vue";
@@ -87,14 +87,12 @@ const hasDisguise = computed(() =>
 );
 
 const { lowArt } = useLowArt();
-// Read only while low art is on: the fact line is the one place this sheet names the place.
-const { data: allLocations } = useAllLocations(() => lowArt.value);
-const locationName = computed(() =>
-  props.npc.location_id ? allLocations.value?.find((l) => l.id === props.npc.location_id)?.name : undefined,
-);
-// The NPC's own (or its disguise's) picture, never a placeholder: what the Portrait button opens.
-const npcPortrait = computed(() => getNpcDisplayPortrait(props.npc));
+// Read only while low art is on, and only the one place: the fact line is the one place
+// this sheet names it, and an NPC opened from another campaign has its place by id.
+const { data: location } = useLocation(() => (lowArt.value ? props.npc.location_id : null));
+const locationName = computed(() => location.value?.name);
 
+// The NPC's own (or its disguise's) picture, never a placeholder: what the Portrait button opens.
 const displayPortrait = computed(() => getNpcDisplayPortrait(props.npc));
 const displayFocalPoint = computed(() => getNpcDisplayFocalPoint(props.npc));
 </script>

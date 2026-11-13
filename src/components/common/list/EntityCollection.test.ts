@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
+import { nextTick } from "vue";
 import EntityCollection from "./EntityCollection.vue";
 import { useLowArt } from "@/composables/useLowArt";
 
@@ -89,6 +90,41 @@ describe("EntityCollection", () => {
       const vg = mountIt("grid").get("[data-vg]");
       expect(vg.attributes("data-columns")).toBe("3");
       expect(vg.attributes("data-estimate")).toBe("250");
+    });
+
+    // Bug: a row's buttons overflowed a fixed 2.5rem last track and drew over the column before it.
+    it("gives the head and the rows the list's actions track, the chevron's width otherwise", () => {
+      useLowArt().setLowArt(true);
+      const wide = mountIt("rows", { ledger, ledgerActions: "9rem" });
+      expect(wide.get("[data-ledger-head]").attributes("style")).toContain("8rem 3rem 9rem");
+      const plain = mountIt("rows", { ledger });
+      expect(plain.get("[data-ledger-head]").attributes("style")).toContain("8rem 3rem 2.5rem");
+    });
+
+    // Bug: every catalogue list ran a ResizeObserver although only the low-art grid reads it.
+    it("watches the box's width only for a low-art grid", async () => {
+      const observed: unknown[] = [];
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          observe(el: unknown) {
+            observed.push(el);
+          }
+          unobserve() {}
+          disconnect() {}
+        },
+      );
+      try {
+        mountIt("grid", { ledger });
+        await nextTick();
+        expect(observed).toHaveLength(0);
+        useLowArt().setLowArt(true);
+        mountIt("grid", { ledger });
+        await nextTick();
+        expect(observed.length).toBeGreaterThan(0);
+      } finally {
+        vi.unstubAllGlobals();
+      }
     });
 
     // Bug: low art keeps the portrait grid's column count and card height.

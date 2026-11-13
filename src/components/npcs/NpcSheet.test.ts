@@ -1,12 +1,22 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { defineComponent, ref } from "vue";
+import { computed, defineComponent } from "vue";
 import { useLowArt } from "@/composables/useLowArt";
 import NpcSheet from "./NpcSheet.vue";
 import type { Npc, NpcListRow } from "@/types/npc.types";
 
+const asked = vi.hoisted(() => [] as (string | null)[]);
+
 vi.mock("@/composables/locations/useLocations", () => ({
-  useAllLocations: () => ({ data: ref([{ id: "l1", name: "Sugarspun" }]) }),
+  // Answers only for the id the sheet asks for, as `useLocation` does: a place the sheet
+  // did not ask by id (the old every-place read) never reaches it.
+  useLocation: (id: () => string | null) => ({
+    data: computed(() => {
+      const asking = id();
+      asked.push(asking);
+      return asking === "l1" ? { id: "l1", name: "Sugarspun" } : undefined;
+    }),
+  }),
 }));
 
 const TabContentStub = defineComponent({
@@ -84,6 +94,18 @@ describe("NpcSheet", () => {
     it("shows no Portrait button when the NPC has no picture", () => {
       setLowArt(true);
       expect(mountLow(row).text()).not.toContain("Portrait");
+    });
+
+    // Bug: the sheet read every place of the active campaign to name one, and named nothing
+    // for an NPC opened from another campaign.
+    it("asks for its own place by id, and for none with low art off", () => {
+      asked.length = 0;
+      mountLow(withPicture);
+      expect(asked.every((id) => id === null)).toBe(true);
+      asked.length = 0;
+      setLowArt(true);
+      mountLow(withPicture);
+      expect(asked).toContain("l1");
     });
 
     it("keeps the portrait column with low art off", () => {
