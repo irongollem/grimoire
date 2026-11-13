@@ -1,17 +1,22 @@
 <template>
   <HearthSection title="Your company">
-    <ul class="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pt-1 pb-2">
-      <li v-if="groupPortraitUrl && !lowArt" class="shrink-0 snap-start">
-        <button type="button" class="group flex w-32 flex-col gap-1 text-left" @click="emit('openGroup')">
-          <span class="relative block h-19 overflow-hidden rounded-sm border border-border bg-muted">
+    <!-- A strip that scrolls on a phone; from md up a grid whose plates share
+         the width, so the company never sits packed against the left edge. -->
+    <ul
+      class="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pt-1 pb-2 md:mx-0 md:grid md:overflow-visible md:p-0"
+      :class="spread ? 'md:grid-cols-[repeat(auto-fit,minmax(5.5rem,10rem))] md:gap-4' : 'md:grid-cols-[repeat(auto-fit,minmax(4.5rem,1fr))]'"
+    >
+      <li v-if="groupPortraitUrl && !lowArt" class="shrink-0 snap-start md:col-span-2">
+        <button type="button" class="group flex w-32 flex-col gap-1 text-left md:w-full" @click="emit('openGroup')">
+          <span class="relative block h-19 overflow-hidden rounded-sm border border-border bg-muted" :class="plateHeight">
             <FocalImage :src="groupPortraitUrl" alt="Party group portrait" format="landscape" record />
           </span>
           <span class="truncate text-caption font-semibold text-foreground">The party</span>
         </button>
       </li>
       <li v-for="tile in tiles" :key="tile.key" class="shrink-0 snap-start">
-        <button type="button" class="group flex w-15 flex-col gap-1 text-left" @click="tile.open()">
-          <span class="relative block h-19 w-15 overflow-hidden rounded-sm border bg-muted" :class="tile.isOwn ? 'border-primary' : 'border-border'">
+        <button type="button" class="group flex w-15 flex-col gap-1 text-left md:w-full" @click="tile.open()">
+          <span class="relative block h-19 w-15 overflow-hidden rounded-sm border bg-muted md:w-full" :class="[tile.isOwn ? 'border-primary' : 'border-border', plateHeight]">
             <FocalImage
               :src="tile.src"
               :alt="tile.name"
@@ -61,14 +66,17 @@ import type { PartyMember } from "@/types/party.types";
  * portrait exactly as the full cards used to. A thin health bar shows under a
  * plate only where the viewer may see numeric HP.
  */
-const { entries, groupPortraitUrl = null, viewerMemberId, showHp } = defineProps<{
+const { entries, groupPortraitUrl = null, viewerMemberId, showHp, spread = false } = defineProps<{
   entries: PartyEntry[];
   groupPortraitUrl?: string | null;
   viewerMemberId: string | null;
   showHp: (entry: PartyEntry) => boolean;
+  /** The company has its row to itself (nobody is new), so its plates grow. */
+  spread?: boolean;
 }>();
 
 const { lowArt } = useLowArt();
+const plateHeight = computed(() => (spread ? "md:h-36" : "md:h-28"));
 
 const emit = defineEmits<{
   openMember: [member: PartyMember];

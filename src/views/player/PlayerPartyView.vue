@@ -18,29 +18,44 @@
       </template>
     </PageHeader>
 
-    <!-- ── Your company ────────────────────────────────────────────────────── -->
-    <!-- A system with no party (Generic) has no company; the ledger below stays. -->
-    <template v-if="!hasParty" />
-    <ListSkeleton v-else-if="partyLoading" variant="rows" :count="3" />
-    <p v-else-if="!members?.length" class="font-fell italic text-muted-foreground">
-      No party members yet.
-    </p>
-    <PeopleCompanyStrip
-      v-else
-      :entries="partyEntries"
-      :group-portrait-url="groupPortraitUrl"
-      :viewer-member-id="viewerMemberId"
-      :show-hp="showHp"
-      @open-member="selectedMember = $event"
-      @open-companion="selectedCompanion = $event"
-      @open-group="lightboxSrc = groupPortraitUrl"
-    />
+    <!-- ── Your company and New to you ──────────────────────────────────────── -->
+    <!-- From lg up they share one row; nobody new, the company has it to itself.
+         A system with no party (Generic) has no company; the ledger below stays. -->
+    <div
+      v-if="hasParty || newToYouItems.length"
+      class="space-y-8 lg:grid lg:items-stretch lg:gap-6 lg:space-y-0"
+      :class="topRowSplit && 'lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)]'"
+    >
+      <template v-if="!hasParty" />
+      <ListSkeleton v-else-if="partyLoading" variant="rows" :count="3" />
+      <p v-else-if="!members?.length" class="font-fell italic text-muted-foreground">
+        No party members yet.
+      </p>
+      <PeopleCompanyStrip
+        v-else
+        :entries="partyEntries"
+        :group-portrait-url="groupPortraitUrl"
+        :viewer-member-id="viewerMemberId"
+        :show-hp="showHp"
+        :spread="isLg && !newToYouItems.length"
+        @open-member="selectedMember = $event"
+        @open-companion="selectedCompanion = $event"
+        @open-group="lightboxSrc = groupPortraitUrl"
+      />
+
+      <NewToYouStrip v-if="ready" :items="newToYouItems" @turned="turnNewToYou" @open="openPerson" />
+    </div>
 
     <!-- ── People: the ledger ──────────────────────────────────────────────── -->
     <section v-if="npcs.length || npcsLoading">
       <ListSkeleton v-if="npcsLoading" variant="rows" :count="4" />
-      <div v-else class="lg:grid lg:grid-cols-[28rem_minmax(0,1fr)] lg:items-start lg:gap-8">
-        <div class="space-y-5">
+      <div
+        v-else
+        ref="peopleRow"
+        :class="isLg && 'grid grid-cols-[28rem_minmax(0,1fr)] gap-8'"
+        :style="peopleRowStyle"
+      >
+        <div class="flex min-h-0 flex-col gap-5">
           <header class="flex items-baseline gap-2.5 px-1">
             <h2 class="text-heading font-bold text-foreground">People</h2>
             <span class="font-fell text-caption italic text-muted-foreground">Dramatis personae</span>
@@ -58,14 +73,13 @@
             Your people could not be loaded. Try again in a moment.
           </p>
           <ListSkeleton v-else-if="!ready || groupsPending" variant="rows" :count="4" />
-          <template v-else>
-            <NewToYouStrip :items="newToYouItems" @turned="turnNewToYou" @open="openPerson" />
-
-            <p v-if="!people.length" class="text-body italic text-muted-foreground">
-              {{ ledger.length ? "No people match your filters." : "No one in the ledger yet." }}
-            </p>
+          <p v-else-if="!people.length" class="text-body italic text-muted-foreground">
+            {{ ledger.length ? "No people match your filters." : "No one in the ledger yet." }}
+          </p>
+          <!-- From lg up the ledger scrolls in its own box, so the person's page
+               beside it stays in view (the maintainer, 13 Nov 2026). -->
+          <div v-else class="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain">
             <PeopleLedger
-              v-else
               :groups="groups"
               :view="playerUi.playerPeopleView"
               :selected-id="isLg ? activeId : null"
@@ -74,15 +88,18 @@
               :place="place"
               @open="selectPerson"
             />
-          </template>
+          </div>
         </div>
 
-        <PeopleDetailPane
-          v-if="isLg && activeNpc"
-          :npc="activeNpc"
-          :place="place(activeNpc)?.name ?? null"
-          class="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto"
-        />
+        <template v-if="isLg">
+          <PeopleDetailPane
+            v-if="activeNpc"
+            :npc="activeNpc"
+            :place="place(activeNpc)?.name ?? null"
+            class="min-h-0 overflow-y-auto overscroll-contain"
+          />
+          <PeopleWaitingPane v-else :count="newToYouItems.length" />
+        </template>
       </div>
     </section>
 
@@ -129,6 +146,7 @@
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import { ref, computed, watch } from "vue";
+import { useElementSize } from "@vueuse/core";
 import { useRoute, useRouter } from "vue-router";
 import { IconAdd } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -157,6 +175,7 @@ import PeopleDetailPane from "@/components/player/people/PeopleDetailPane.vue";
 import PeopleFilterSheet from "@/components/player/people/PeopleFilterSheet.vue";
 import PeopleLedger from "@/components/player/people/PeopleLedger.vue";
 import PeopleToolbar from "@/components/player/people/PeopleToolbar.vue";
+import PeopleWaitingPane from "@/components/player/people/PeopleWaitingPane.vue";
 import { buildPartyEntries, type PartyEntry } from "@/components/player/people/peopleParty";
 import type { Companion } from "@/types/companion.types";
 import type { PartyMember } from "@/types/party.types";
@@ -181,7 +200,7 @@ const { data: members, isLoading: partyLoading } = useActiveParty();
 const { data: companions } = useCompanions();
 const { data: allSharedNpcs, isLoading: npcsLoading } = useSharedNpcs();
 const { data: revealMoments, isLoading: revealsLoading } = useMyNpcRevealMoments();
-const { isNew: isNpcNew, data: readMap, isError: readMapError } = useReadItems("npc");
+const { isNew: isNpcNew, readAt: readMap, isError: readMapError } = useReadItems("npc");
 const { mutate: markNpcRead } = useMarkRead();
 
 // If no character is linked yet the player has not been seated at a party member,
@@ -239,12 +258,31 @@ watch(
   },
   { immediate: true },
 );
+// A person opened from the "New to you" strip is not in the ledger yet, so
+// the strip counts as on view too: without it, opening a card from lg up did
+// nothing (no lightbox there, and the pane fell back to the ledger).
 const activeId = computed(() => {
   const id = selectedId.value;
-  if (id && people.value.some((p) => p.id === id)) return id;
+  if (id && (people.value.some((p) => p.id === id) || newToYouEntries.value.some((e) => e.npc.id === id))) return id;
   return people.value[0]?.id ?? null;
 });
 const activeNpc = computed(() => npcs.value.find((n) => n.id === activeId.value) ?? null);
+
+// From lg up the company shares its row with New to you while anyone is new.
+const topRowSplit = computed(() => hasParty.value && newToYouItems.value.length > 0);
+
+// From lg up the ledger row is exactly as tall as the window it scrolls in, so
+// the ledger scrolls inside its own box and the person's page stays beside it.
+// The player layout's <main> is that window; 3rem is its padded wrapper's
+// top and bottom padding (py-6). Outside that layout nothing is measured and
+// the row keeps its natural height.
+const peopleRow = ref<HTMLElement | null>(null);
+const { height: scrollerHeight } = useElementSize(() => peopleRow.value?.closest("main") ?? null);
+const peopleRowStyle = computed(() =>
+  isLg.value && scrollerHeight.value > 0
+    ? { height: `max(24rem, calc(${scrollerHeight.value}px - 3rem))` }
+    : undefined,
+);
 const lightboxNpc = ref<(typeof npcs.value)[number] | null>(null);
 
 function selectPerson(id: string) {

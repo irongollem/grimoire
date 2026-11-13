@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-6">
+  <div class="@container space-y-6">
     <component
       :is="group.title ? HearthSection : 'div'"
       v-for="group in groups"
@@ -12,8 +12,10 @@
         <span v-else class="text-caption font-semibold text-foreground">{{ group.people.length }}</span>
       </template>
 
-      <ul v-if="view === 'ledger'" class="torn hearth-card divide-y divide-border/60 rounded-lg">
-        <li v-for="npc in group.people" :key="npc.id">
+      <!-- Two columns once the ledger has the width (a portrait tablet), so a row
+           is not 50rem of air between a name and its relationship. -->
+      <ul v-if="view === 'ledger'" class="torn hearth-card grid divide-y divide-border/60 rounded-lg @2xl:grid-cols-2 @2xl:divide-y-0">
+        <li v-for="npc in group.people" :key="npc.id" class="@2xl:border-b @2xl:border-border/60 @2xl:odd:border-r">
           <PeopleLedgerRow
             :npc="npc"
             :rating="getRating(npc.id)"

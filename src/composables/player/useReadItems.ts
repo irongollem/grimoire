@@ -66,9 +66,23 @@ export function useReadMarkers(entityTypes: readonly string[]) {
   return { ...query, isNew };
 }
 
+/**
+ * Read markers for one entity type. `readAt` is keyed by the bare entity id;
+ * the shared entry's `data` (keyed `${type}:${id}`) is deliberately not passed
+ * through. The People page once looked up a bare id in it, found no NPC ever
+ * read, and kept every revealed person face down in "New to you" for good.
+ */
 export function useReadItems(entityType: string) {
-  const { isNew, ...query } = useReadMarkers([entityType]);
-  return { ...query, isNew: (entityId: string, updatedAt?: string) => isNew(entityType, entityId, updatedAt) };
+  const { isNew, data, ...query } = useReadMarkers([entityType]);
+  const prefix = `${entityType}:`;
+  const readAt = computed<ReadonlyMap<string, Date> | undefined>(() => {
+    const all = data.value;
+    if (!all) return undefined;
+    const own = new Map<string, Date>();
+    for (const [key, at] of all) if (key.startsWith(prefix)) own.set(key.slice(prefix.length), at);
+    return own;
+  });
+  return { ...query, readAt, isNew: (entityId: string, updatedAt?: string) => isNew(entityType, entityId, updatedAt) };
 }
 
 export function useMarkRead() {

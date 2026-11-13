@@ -12,7 +12,7 @@ const session = vi.hoisted(() => ({ user: { id: "u1" } as { id: string } | null 
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => session.user }));
 
 import { useCampaignStore } from "@/stores/campaign";
-import { useReadMarkers, useMarkRead } from "./useReadItems";
+import { useReadMarkers, useReadItems, useMarkRead } from "./useReadItems";
 
 function mountWith<T>(qc: QueryClient, setup: () => T): T {
   let out!: T;
@@ -88,6 +88,18 @@ describe("useReadMarkers", () => {
     const r = mountWith(new QueryClient(), () => useReadMarkers(["quest"]));
     await vi.waitFor(() => expect(r.data.value).toBeDefined());
     expect(r.isNew("quest", "q1", updatedAt)).toBe(expected);
+  });
+});
+
+describe("useReadItems", () => {
+  // The People page classifies NPCs by looking a bare id up in this map. The shared
+  // entry is keyed `npc:<id>`, and handing that through meant no NPC was ever found
+  // read: every turned card came back face down on the next visit.
+  it("readAt holds its own type's markers under the bare entity id", async () => {
+    fake.seed("player_read_items", [marker("npc", "n1"), marker("quest", "n2")]);
+    const r = mountWith(new QueryClient(), () => useReadItems("npc"));
+    await vi.waitFor(() => expect(r.readAt.value).toBeDefined());
+    expect([...(r.readAt.value?.keys() ?? [])]).toEqual(["n1"]);
   });
 });
 

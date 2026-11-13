@@ -1,5 +1,9 @@
 <script lang="ts">
+import { artUrl } from "@/lib/assets/artUrl";
 import type { NpcRelationship } from "@/types/npc.types";
+
+/** The face-down card a newly met person waits behind. Through artUrl: production serves /assets art from the CDN and strips it from dist (#877). */
+export const NPC_CARD_BACK = artUrl("/assets/cards/npc-card-back.webp");
 
 export type NewToYouKind = "new" | "unmasked";
 
@@ -29,7 +33,6 @@ export interface NewToYouCover {
 import { computed, ref } from "vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { useLowArt } from "@/composables/useLowArt";
-import { artUrl } from "@/lib/assets/artUrl";
 import { cardTurnStyle, prefersReducedMotion } from "@/lib/motion";
 import { npcRelationshipBg } from "@/lib/npcDisplay";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
@@ -65,8 +68,6 @@ const {
 
 const emit = defineEmits<{ turned: []; open: [] }>();
 
-/** Through artUrl: production serves /assets art from the CDN and strips it from dist (#877). */
-const CARD_BACK = artUrl("/assets/cards/npc-card-back.webp");
 
 const PLACEHOLDER = placeholderUrl("npc");
 
@@ -132,7 +133,7 @@ function onTransitionEnd(event: TransitionEvent) {
       >
         <template v-if="kind === 'new'">
           <img
-            :src="CARD_BACK"
+            :src="NPC_CARD_BACK"
             alt=""
             class="absolute inset-0 h-full w-full rounded-lg object-cover shadow-md"
             draggable="false"
