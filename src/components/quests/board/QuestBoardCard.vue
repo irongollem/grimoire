@@ -215,6 +215,7 @@
 
 <script setup lang="ts">
 import TagChips from "@/components/common/TagChips.vue";
+import { questLink } from "@/lib/quests/navigation";
 import { computed } from "vue";
 import { useLowArt } from "@/composables/useLowArt";
 import { RouterLink } from "vue-router";
@@ -270,7 +271,7 @@ const showAction = computed(() => !["completed", "failed"].includes(quest.status
 const actionTo = computed(() => `/quests/${quest.id}`);
 const isSettled = computed(() => quest.status === "completed" || quest.status === "failed");
 const inSession = computed(() => isQuestInSession(quest, summary));
-const storyFlowTo = computed(() => ({ path: `/quests/${quest.id}`, query: { view: "work" } }));
+const storyFlowTo = computed(() => questLink(quest.id));
 
 // `QuestBoardThreadSummary` satisfies `ThreadLike`, so the letter and tone
 // this card paints a thread with are the same ones the cockpit and the graph

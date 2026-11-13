@@ -20,7 +20,7 @@
       <QuestPhoneTopBar
         :title="beat.title"
         :subtitle="`Beat · ${quest?.title ?? ''}`"
-        :fallback-to="`/quests/${questId}?view=work`"
+        :fallback-to="questLinkHref(questId, { beat: beatId })"
       >
         <template #action>
           <AppButton
@@ -238,7 +238,7 @@ import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { useConfirm } from "@/composables/useConfirm";
-import { questReturnLabel, questSurfaceReturnTo, safeQuestReturnTo } from "@/lib/quests/navigation";
+import { questLinkHref, safeQuestReturnTo } from "@/lib/quests/navigation";
 import { childSpaceType, isInteriorType, isSiteType, spaceNoun } from "@/lib/locations/tiers";
 import { pluralizeCount } from "@/lib/utils";
 import { threadBadge } from "@/lib/quests/threads";
@@ -289,8 +289,8 @@ const beat = computed(() => beatQuery.data.value?.quest_id === questId.value ? b
 const attachments = computed(() => (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === beatId.value));
 const loot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.beat_id === beatId.value));
 const isLoading = computed(() => questLoading.value || beatQuery.isLoading.value || attachmentsQuery.isLoading.value || lootQuery.isLoading.value);
-const returnTo = computed(() => safeQuestReturnTo(route.query.returnTo, questSurfaceReturnTo(questId.value, beatId.value, "work")));
-const returnLabel = computed(() => questReturnLabel(returnTo.value));
+const returnTo = computed(() => safeQuestReturnTo(route.query.returnTo, questLinkHref(questId.value, { beat: beatId.value })));
+const returnLabel = "Back to story flow";
 
 // ── Eyebrow: kind · thread letter (only when a live thread stands here) · party here|— ──
 

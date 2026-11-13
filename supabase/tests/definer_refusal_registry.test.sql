@@ -46,7 +46,6 @@ insert into definer_registry (name, kind, reason) values
   ('approve_character_content', 'refuses', null),
   ('archive_quest_beat', 'refuses', null),
   ('assert_quest_objective_status', 'refuses', null),
-  ('assert_quest_runtime', 'refuses', null),
   ('assume_character', 'refuses', null),
   ('attach_party_member_to_campaign', 'refuses', null),
   ('cast_character_spell_v4', 'refuses', null),
@@ -120,6 +119,7 @@ insert into definer_registry (name, kind, reason) values
   ('grab_item_drop', 'refuses', null),
   ('join_campaign_via_invite', 'refuses', null),
   ('load_demo_campaign', 'self', 'copies the demo into a campaign the caller owns'),
+  ('mark_quest_move', 'refuses', null),
   ('merge_campaign_sessions', 'refuses', null),
   ('open_quest_thread', 'refuses', null),
   ('open_spell_change_windows', 'refuses', null),
@@ -145,6 +145,7 @@ insert into definer_registry (name, kind, reason) values
   ('touch_account_activity', 'self', 'stamps the caller''s own last activity; keys only on auth.uid() and the time is always now()'),
   ('transfer_campaign_ownership', 'refuses', null),
   ('transition_quest_runtime', 'refuses', null),
+  ('undo_quest_move', 'refuses', null),
   ('update_combatant_position', 'refuses', null),
   ('validate_app_invite', 'public', 'runs before login by definition; the token is the credential'),
   ('write_last_words', 'refuses', null);

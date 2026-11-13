@@ -968,8 +968,8 @@ export const routes: RouteRecordRaw[] = [
     path: "/quests/:id",
     name: "quest-detail",
     component: () => import("@/views/quests/QuestDetailView.vue"),
-    // Also NOT nested: a quest is a full page with three permanent tabs
-    // (Overview, Story flow, Run), never a modal over the log — "i utterly
+    // Also NOT nested: a quest is one full screen (the story flow with a
+    // drawer, #1183), never a modal over the log — "i utterly
     // dont like the quest in a modal. its too much data and inconsistent."
     // This used to be a child of `/quests` so the overview could pop over the
     // list the way an NPC's sheet does, but a quest holds far more state than
@@ -987,10 +987,12 @@ export const routes: RouteRecordRaw[] = [
   {
     path: "/quests/:id/beats/:beatId",
     name: "quest-beat-detail",
-    component: () => import("@/views/quests/QuestBeatDetailView.vue"),
-    // Also NOT nested: a beat is a full-screen surface in its own right, not a
-    // glance over the quest it belongs to. fullscreenMobile for the same reason
-    // as the quest page above (#872).
+    // A beat is the quest screen's opened drawer, not a page of its own (#1183):
+    // old links and bookmarks land on it, other query keys carried along.
+    redirect: (to) => ({
+      path: `/quests/${String(to.params.id)}`,
+      query: { ...to.query, beat: String(to.params.beatId), open: "1" },
+    }),
     meta: { requiresAuth: true, title: "Quest Beat", fullscreenMobile: true },
   },
 

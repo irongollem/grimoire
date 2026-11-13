@@ -39,7 +39,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import QuestConvergeControl from "../flow/QuestConvergeControl.vue";
 import { IconDungeon, IconReveal } from "@/lib/icons";
 import { placeRoute } from "@/lib/locations/placeRoute";
-import { questSurfaceReturnTo } from "@/lib/quests/navigation";
+import { questLink } from "@/lib/quests/navigation";
 import type { QuestBeatPresentation, QuestBeatStaging } from "@/lib/quests/presentation";
 import { QUEST_BEAT_KIND_LABELS, type QuestBeat } from "@/types/quest.types";
 
@@ -52,8 +52,5 @@ const { beat, presentation, staging = null } = defineProps<{
 const emit = defineEmits<{ preview: [] }>();
 
 const kindEyebrow = computed(() => `${QUEST_BEAT_KIND_LABELS[beat.kind as keyof typeof QUEST_BEAT_KIND_LABELS] ?? beat.kind} · ${beat.visibility}`);
-const openTo = computed(() => ({
-  path: `/quests/${beat.quest_id}/beats/${beat.id}`,
-  query: { returnTo: questSurfaceReturnTo(beat.quest_id, beat.id, "work") },
-}));
+const openTo = computed(() => questLink(beat.quest_id, { beat: beat.id, open: true }));
 </script>

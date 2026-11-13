@@ -1,3 +1,4 @@
+import { questLinkHref } from "@/lib/quests/navigation";
 import { generateEntityText } from "./entityTextGeneration";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
@@ -30,7 +31,7 @@ let lastQuestId = "";
 registerAiGenerator({
   ..._state,
   label: "Beat",
-  entityRoute: (beatId) => `/quests/${lastQuestId}/beats/${beatId}`,
+  entityRoute: (beatId) => questLinkHref(lastQuestId, { beat: beatId, open: true }),
   openPanel: () => {},
 });
 

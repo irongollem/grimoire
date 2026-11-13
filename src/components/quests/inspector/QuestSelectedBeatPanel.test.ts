@@ -49,12 +49,9 @@ describe("QuestSelectedBeatPanel — header and chips", () => {
     payoffCount: 0, unlocksQuest: false, convergeLabel: null, site: null, ...over,
   }) as never;
 
-  it("opens the beat page, handing it the way back to this beat in the story flow", () => {
+  it("opens the beat in the drawer by link, so the URL names it", () => {
     const link = mountPanel(null).findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Open beat")!;
-    expect(link.props("to")).toEqual({
-      path: "/quests/quest-1/beats/beat-1",
-      query: { returnTo: "/quests/quest-1?view=work&beat=beat-1" },
-    });
+    expect(link.props("to")).toEqual({ path: "/quests/quest-1", query: { beat: "beat-1", open: "1" } });
   });
 
   it("names a beat without a title, and states its kind and visibility", () => {

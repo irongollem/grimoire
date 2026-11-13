@@ -46,6 +46,7 @@
 </template>
 
 <script setup lang="ts">
+import { questLink } from "@/lib/quests/navigation";
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
@@ -112,7 +113,8 @@ const consistencyFindings = computed(() => deriveQuestConsistency({
 }));
 
 function workLinkFor(beatId: string) {
-  return { query: { ...route.query, view: "work", beat: beatId } };
+  const thread = typeof route.query.thread === "string" ? route.query.thread : undefined;
+  return questLink(questId.value, { beat: beatId, thread });
 }
 
 async function createOpeningBeat() {

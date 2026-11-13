@@ -37,13 +37,11 @@ describe("quest filter state", () => {
     }).toEqual({ search: "", party: false, entity: "", prep: false, loot: false });
   });
 
-  // The story-flow canvas remembers what was selected per quest; opening
-  // another quest must not inherit a beat id that belongs to the first.
-  it("hands back the remembered selection only to the quest it was made in", () => {
+  it("keeps a drawer width per quest, so a wide beat in one quest does not widen the others", () => {
     const store = useQuestsUiStore();
-    store.questFlowSelection = { questId: "q1", beatId: "b1", edgeId: null };
-    expect(store.questFlowSelectionFor("q1")).toEqual({ questId: "q1", beatId: "b1", edgeId: null });
-    expect(store.questFlowSelectionFor("q2")).toBeNull();
+    store.drawerWidthFor("q1").value = 32;
+    expect(store.drawerWidthFor("q1").value).toBe(32);
+    expect(store.drawerWidthFor("q2").value).toBe(25);
   });
 
   it("does not persist filters, so a later session opens on the whole board", async () => {

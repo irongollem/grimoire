@@ -96,7 +96,7 @@
 import TagChip from "@/components/common/TagChip.vue";
 import { computed, ref } from "vue";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatAttachmentType, QuestCheckAttachmentMetadata } from "@/types/quest.types";
-import { questSurfaceReturnTo } from "@/lib/quests/navigation";
+import { questLink } from "@/lib/quests/navigation";
 import type { ThreadBadge } from "@/lib/quests/threads";
 import { countQuestBeatContentBlocks, deriveQuestBeatPrepGaps, prepFactsOf } from "@/lib/quests/presentation";
 import { useBelow } from "@/composables/useBreakpoint";
@@ -131,11 +131,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ "open-attachment": [attachment: QuestBeatAttachmentSummary]; reveal: []; "enter-site": [] }>();
 
-const runReturn = computed(() => questSurfaceReturnTo(props.anchorQuestId, props.beat.id, "run"));
-const editUrl = computed(() => ({
-  path: `/quests/${props.beat.quest_id}/beats/${props.beat.id}`,
-  query: { returnTo: runReturn.value },
-}));
+const editUrl = computed(() => questLink(props.beat.quest_id, { beat: props.beat.id, open: true }));
 const prepGaps = computed(() => deriveQuestBeatPrepGaps(prepFactsOf(props.beat), props.attachments));
 
 // Wrapped in a `computed` rather than used directly: `useBelow` is mocked in

@@ -61,7 +61,7 @@
     <p v-else-if="!beats.length" class="rounded-lg border border-dashed border-border p-8 text-center text-body text-muted-foreground">
       This quest has no beats yet. Use “Add beat” to begin its story flow.
     </p>
-    <div v-else class="grid min-w-0 max-w-full items-start gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] lg:items-stretch">
+    <div v-else class="relative grid min-w-0 max-w-full items-start gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-stretch">
       <div id="quest-flow-canvas" class="min-w-0 lg:h-full lg:min-h-0">
         <QuestFlowCanvas
           ref="canvas"
@@ -84,54 +84,62 @@
           @viewport-change="writeQuestViewport(questId, $event)"
         />
       </div>
-      <div class="flex min-w-0 max-w-full flex-col gap-3 lg:h-full lg:min-h-0">
-        <QuestThreadsPanel
-          v-if="threads.length"
-          :quest-id="questId"
-          :campaign-id="campaign.activeCampaignId ?? ''"
-          :threads="threads"
-          :beats="beats"
-          :edges="edges"
-          :current-beat-id-by-thread="currentBeatIdByThread"
-          :visited-count-by-thread="visitedCountByThread"
-          @focus="focusThread"
-        />
-        <QuestRoutePanel
-          v-if="selectedEdge"
-          v-model:route-kind="edgeRouteKind"
-          v-model:thread-label="edgeThreadLabel"
-          v-model:gate-mode="edgeGateMode"
-          v-model:conditions="edgeGateConditions"
-          :gate-preview="edgeGatePreview"
-          :source-title="beatTitle(selectedEdge.source_beat_id)"
-          :target-title="beatTitle(selectedEdge.target_beat_id)"
-          :objective-options="objectiveOptions"
-          :effects="selectedEdgeEffects"
-          :edit-to="`/quests/${questId}/beats/${selectedEdge.source_beat_id}`"
-          :can-be-parallel="canSelectedEdgeBeParallel"
-          :saving="edgeSaving"
-          :error="mutationError"
-          @save="saveEdge"
-          @delete="deleteSelectedEdge"
-        />
-        <QuestSelectedBeatPanel v-else-if="selectedBeat" :beat="selectedBeat" :presentation="presentations[selectedBeat.id]" :staging="selectedBeatStaging" @preview="openPreview({ draftVisibility: selectedBeat.visibility, savedVisibility: selectedBeat.visibility, unsaved: false })" />
-        <div v-else class="hidden rounded-xl border border-dashed border-border p-6 text-center text-caption text-muted-foreground md:block">
-          Select a beat or route to see it here without leaving the flow.
-        </div>
-        <div class="hidden min-h-0 md:flex md:flex-1 md:flex-col">
-          <QuestGraphOutline
-            class="min-h-0 flex-1"
-            :beats="beats"
-            :presentations="presentations"
-            :edges="edges"
-            :transitions="transitions"
+      <QuestDrawer :quest-id="questId" :mode="drawerMode" :opened="drawerOpened" @update:opened="setOpened">
+        <template #quest>
+          <QuestThreadsPanel
+            v-if="threads.length"
+            :quest-id="questId"
+            :campaign-id="campaign.activeCampaignId ?? ''"
             :threads="threads"
-            :selected-beat-id="selectedBeatId"
-            :editable="true"
-            @command="onCommand"
+            :beats="beats"
+            :edges="edges"
+            :current-beat-id-by-thread="currentBeatIdByThread"
+            :visited-count-by-thread="visitedCountByThread"
+            @focus="focusThread"
           />
-        </div>
-      </div>
+          <div class="hidden min-h-0 md:flex md:flex-1 md:flex-col">
+            <QuestGraphOutline
+              class="min-h-0 flex-1"
+              :beats="beats"
+              :presentations="presentations"
+              :edges="edges"
+              :transitions="transitions"
+              :threads="threads"
+              :selected-beat-id="selectedBeatId"
+              :entry-beat-id="entryBeatId"
+              :editable="true"
+              @command="onCommand"
+            />
+          </div>
+        </template>
+        <template #route>
+          <QuestRoutePanel
+            v-if="selectedEdge"
+            v-model:route-kind="edgeRouteKind"
+            v-model:thread-label="edgeThreadLabel"
+            v-model:gate-mode="edgeGateMode"
+            v-model:conditions="edgeGateConditions"
+            :gate-preview="edgeGatePreview"
+            :source-title="beatTitle(selectedEdge.source_beat_id)"
+            :target-title="beatTitle(selectedEdge.target_beat_id)"
+            :objective-options="objectiveOptions"
+            :effects="selectedEdgeEffects"
+            :edit-to="questLinkHref(questId, { beat: selectedEdge.source_beat_id, open: true })"
+            :can-be-parallel="canSelectedEdgeBeParallel"
+            :saving="edgeSaving"
+            :error="mutationError"
+            @save="saveEdge"
+            @delete="deleteSelectedEdge"
+          />
+        </template>
+        <template #beat>
+          <QuestSelectedBeatPanel v-if="selectedBeat" :beat="selectedBeat" :presentation="presentations[selectedBeat.id]" :staging="selectedBeatStaging" @preview="openPreview({ draftVisibility: selectedBeat.visibility, savedVisibility: selectedBeat.visibility, unsaved: false })" />
+        </template>
+        <!-- Interim (story E replaces it): the opened beat is the run cockpit. -->
+        <template #opened>
+          <QuestRunCockpit :key="`opened-${questId}`" :anchor-quest-id="questId" :visible-to="visibleTo" />
+        </template>
+      </QuestDrawer>
     </div>
 
     <p v-if="saveError" role="alert" class="text-caption text-destructive">
@@ -153,7 +161,6 @@
 import TagChip from "@/components/common/TagChip.vue";
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useDebounceFn } from "@vueuse/core";
-import { useRoute, useRouter } from "vue-router";
 import { IconAdd, IconCenter, IconLayers, IconMaximize } from "@/lib/icons";
 import {
   useQuestBeatAttachmentSummaries,
@@ -178,19 +185,18 @@ import { useAllLocations } from "@/composables/locations/useLocations";
 import { useLocationDescriptions } from "@/composables/locations/useLocationDescriptions";
 import { useSiteBeatGaps } from "@/composables/quests/useSiteBeatGaps";
 import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
-import { questSurfaceReturnTo } from "@/lib/quests/navigation";
+import { questLinkHref } from "@/lib/quests/navigation";
 import { deriveQuestBeatPresentations, presentableBeatOf, tallyQuestReach, visitedRouteEdgeIds, type QuestBeatSiteInput, type QuestBeatStaging } from "@/lib/quests/presentation";
 import { deriveQuestRouteGates, draftRouteGate, validateGateDrafts, type GateConditionDraft } from "@/lib/quests/gates";
 import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
 import { readQuestViewport, writeQuestViewport } from "@/lib/quests/viewport";
 import { extractTiptapText } from "@/lib/utils";
-import { useQuestsUiStore } from "@/stores/ui/quests";
+import { useQuestSelection } from "@/composables/quests/useQuestSelection";
 import { retainSelectedBeatId, type QuestGraphCommand } from "@/lib/quests/flow";
 import { isDuplicateQuestEdge } from "@/lib/quests/mutations";
 import { defaultThreadId } from "@/lib/quests/threads";
 import { useCampaignStore } from "@/stores/campaign";
 import { useConfirm } from "@/composables/useConfirm";
-import { useIsMobile } from "@/composables/useBreakpoint";
 import { type QuestBeat, type QuestGateMode, type QuestRouteEffect, type QuestRouteKind } from "@/types/quest.types";
 import type { LocationSummary } from "@/types/location.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -200,21 +206,14 @@ import QuestFlowCanvas from "./QuestFlowCanvas.vue";
 import QuestBeatComposer from "../inspector/QuestBeatComposer.vue";
 import QuestGraphOutline from "./QuestGraphOutline.vue";
 import QuestThreadsPanel from "./QuestThreadsPanel.vue";
+import QuestDrawer from "./QuestDrawer.vue";
+import QuestRunCockpit from "../run/QuestRunCockpit.vue";
 import QuestRoutePanel from "../inspector/QuestRoutePanel.vue";
 import QuestSelectedBeatPanel from "../inspector/QuestSelectedBeatPanel.vue";
 import QuestPlayerPreviewDrawer from "../run/QuestPlayerPreviewDrawer.vue";
 
 const { questId, visibleTo = [], focusCurrentOnOpen = false, entryBeatId = null } = defineProps<{ questId: string; visibleTo?: string[]; focusCurrentOnOpen?: boolean; entryBeatId?: string | null }>();
 const canvas = ref<InstanceType<typeof QuestFlowCanvas> | null>(null);
-const route = useRoute();
-const router = useRouter();
-const isMobile = useIsMobile();
-// Switching to the quest overview unmounts this component, so the selection has
-// to be held outside it or every flip back lands on a blank inspector.
-const questsUi = useQuestsUiStore();
-const restoredSelection = questsUi.questFlowSelectionFor(questId);
-const selectedBeatId = ref<string | null>(restoredSelection?.beatId ?? null);
-const selectedEdgeId = ref<string | null>(restoredSelection?.edgeId ?? null);
 const saveError = ref("");
 const previewOpen = ref(false);
 const previewContext = ref<{ draftVisibility: QuestBeat["visibility"]; savedVisibility: QuestBeat["visibility"]; unsaved: boolean } | null>(null);
@@ -363,6 +362,13 @@ const visitedCountByThread = computed(() => {
 // The beat the "Fit"/"Current beat" controls focus on: the oldest live
 // thread's own cursor, since a canvas can only centre on one place at a time.
 const currentBeatId = computed(() => runtimeContextQuery.data.value?.state?.current_beat_id ?? null);
+// After the cursors it reads: its `open=party` watch runs immediately, so an
+// earlier call hit `currentBeatIdByThread` in its temporal dead zone and the
+// whole screen failed to mount.
+const { selectedBeatId, selectedEdgeId, drawerOpened, select, setOpened } = useQuestSelection({
+  partyBeatFor: (thread) => currentBeatIdByThread.value[thread ?? focusThreadId.value] ?? currentBeatId.value,
+  partyBeatSource: () => [currentBeatIdByThread.value, currentBeatId.value],
+});
 const liveThreadCount = computed(() => threads.value.filter((thread) => thread.status === "live").length);
 
 const selectedBeat = computed(() => beats.value.find((beat) => beat.id === selectedBeatId.value) ?? null);
@@ -448,13 +454,14 @@ async function flushPositions() {
 }
 const savePositions = useDebounceFn(flushPositions, 300, { maxWait: 1000 });
 
+// What the closed drawer shows.
+const drawerMode = computed<"quest" | "beat" | "route">(() => (selectedEdge.value ? "route" : selectedBeat.value ? "beat" : "quest"));
+
 function onCommand(command: QuestGraphCommand) {
-  if (command.type === "open" && isMobile.value) {
-    void router.push({ path: `/quests/${questId}/beats/${command.beatId}`, query: { returnTo: questSurfaceReturnTo(questId, command.beatId, "work") } });
-    return;
-  }
-  if (command.type === "select" || command.type === "open") { selectedBeatId.value = command.beatId; selectedEdgeId.value = null; }
-  if (command.type === "select-edge") { selectedEdgeId.value = command.edgeId; selectedBeatId.value = null; }
+  if (command.type === "select") select({ beat: command.beatId, open: drawerOpened.value });
+  if (command.type === "open") select({ beat: command.beatId, open: true });
+  if (command.type === "select-edge") select({ edge: command.edgeId });
+  if (command.type === "deselect") select({});
   if (command.type === "create") openComposer(command);
   if (command.type === "link") void linkExisting(command.sourceBeatId, command.targetBeatId);
   if (command.type === "delete-beat") {
@@ -516,7 +523,7 @@ async function createComposedBeat(value: { title: string; kind: string; threadLa
         await updateEdge.mutateAsync({ id: spawnedEdge.id, questId, update: { route_kind: "parallel", thread_label: value.threadLabel } });
       }
     }
-    selectedBeatId.value = created.id;
+    select({ beat: created.id });
     composer.value = null;
   } catch (error) {
     composerError.value = error instanceof Error ? error.message : "Could not create beat";
@@ -575,7 +582,7 @@ function beatTitle(id: string) {
 async function deleteSelectedEdge() {
   if (!selectedEdge.value || !(await confirm(`Delete this route to “${beatTitle(selectedEdge.value.target_beat_id)}”?`))) return;
   const edge = selectedEdge.value;
-  try { mutationError.value = ""; await deleteEdge.mutateAsync({ id: edge.id, questId }); selectedEdgeId.value = null; retryMutation.value = null; }
+  try { mutationError.value = ""; await deleteEdge.mutateAsync({ id: edge.id, questId }); select({}); retryMutation.value = null; }
   catch (error) { mutationError.value = error instanceof Error ? error.message : "Could not delete route"; retryMutation.value = () => void deleteSelectedEdge(); }
 }
 
@@ -596,7 +603,7 @@ async function archivePendingBeat() {
       replacements: standingThreadIds.map((threadId) => ({ threadId, beatId: endingRuntime ? null : replacementBeatId.value })),
     });
     pendingDeleteBeatId.value = null;
-    selectedBeatId.value = null;
+    select({});
     mutationError.value = "";
     retryMutation.value = null;
   } catch (error) {
@@ -608,21 +615,18 @@ async function archivePendingBeat() {
 function focusThread(threadId: string) {
   const beatId = currentBeatIdByThread.value[threadId];
   if (!beatId) return;
-  selectedBeatId.value = beatId;
-  selectedEdgeId.value = null;
+  select({ beat: beatId });
   void canvas.value?.focusCurrent();
 }
 
-watch(beats, (rows) => {
-  selectedBeatId.value = retainSelectedBeatId(selectedBeatId.value, rows);
+// A link naming a beat or route that is gone (deleted, or a stale bookmark)
+// must not leave the drawer pointing at nothing.
+watch([beats, edges], ([beatRows, edgeRows]) => {
+  if (!beatsQuery.isSuccess.value || !edgesQuery.isSuccess.value) return;
+  const beatGone = selectedBeatId.value && retainSelectedBeatId(selectedBeatId.value, beatRows) === null;
+  const edgeGone = selectedEdgeId.value && !edgeRows.some((edge) => edge.id === selectedEdgeId.value);
+  if (beatGone || edgeGone) select({});
 });
-
-const initialBeatId = typeof route.query.beat === "string" ? route.query.beat : null;
-if (initialBeatId) selectedBeatId.value = initialBeatId;
-
-watch([selectedBeatId, selectedEdgeId], ([beatId, edgeId]) => {
-  questsUi.questFlowSelection = { questId, beatId, edgeId };
-}, { immediate: true });
 
 let focusedOnOpen = false;
 watch([currentBeatId, beats, canvas], async ([current]) => {

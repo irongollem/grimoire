@@ -13,7 +13,7 @@
       <RouterLink
         v-for="row in rows"
         :key="row.quest.id"
-        :to="`/quests/${row.quest.id}?view=work`"
+        :to="questLink(row.quest.id)"
         class="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors group"
       >
         <div class="min-w-0 flex-1">
@@ -37,6 +37,7 @@
 </template>
 
 <script setup lang="ts">
+import { questLink } from "@/lib/quests/navigation";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";

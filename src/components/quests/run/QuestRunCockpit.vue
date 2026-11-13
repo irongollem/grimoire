@@ -204,6 +204,7 @@
 
 <script setup lang="ts">
 import TagChip from "@/components/common/TagChip.vue";
+import { questLinkHref } from "@/lib/quests/navigation";
 import { computed, defineAsyncComponent, ref, watch } from "vue";
 import { refDebounced } from "@vueuse/core";
 import { useRoute, useRouter } from "vue-router";
@@ -354,7 +355,7 @@ const currentBeat = computed(() => {
   if (!snapshot) return null;
   return (beatsQuery.data.value ?? []).find((beat) => beat.id === snapshot.id) ?? snapshot;
 });
-const runReturn = computed(() => `/quests/${anchorQuestId}?beat=${context.value?.current?.id ?? ""}`);
+const runReturn = computed(() => questLinkHref(anchorQuestId, { beat: context.value?.current?.id, open: true }));
 // The opening beat is a graph root (#793) — a beat with no incoming route —
 // computed here rather than read off a stored flag. A quest can legitimately
 // open from more than one place (the party can start at the tavern or the
