@@ -10,7 +10,7 @@
           <span v-if="liveThreadCount" class="rounded bg-primary/15 px-1.5 py-0.5 text-label uppercase text-primary">{{ liveThreadCount }} live</span>
           <TagChip v-if="reachTally.ahead" class="uppercase">{{ reachTally.ahead }} ahead</TagChip>
           <TagChip v-if="reachTally.stranded" class="uppercase">{{ reachTally.stranded }} cut off</TagChip>
-          <span v-if="prepGapBeatCount" class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">{{ prepGapBeatCount }} prep gaps</span>
+          <QuestGapMenu v-if="gapRows.length" :rows="gapRows" @select="select({ beat: $event })" />
         </p>
       </div>
       <!-- Wraps rather than squeezes: four labels in one non-wrapping row at
@@ -86,31 +86,7 @@
       </div>
       <QuestDrawer :quest-id="questId" :mode="drawerMode" :opened="drawerOpened" @update:opened="setOpened">
         <template #quest>
-          <QuestThreadsPanel
-            v-if="threads.length"
-            :quest-id="questId"
-            :campaign-id="campaign.activeCampaignId ?? ''"
-            :threads="threads"
-            :beats="beats"
-            :edges="edges"
-            :current-beat-id-by-thread="currentBeatIdByThread"
-            :visited-count-by-thread="visitedCountByThread"
-            @focus="focusThread"
-          />
-          <div class="hidden min-h-0 md:flex md:flex-1 md:flex-col">
-            <QuestGraphOutline
-              class="min-h-0 flex-1"
-              :beats="beats"
-              :presentations="presentations"
-              :edges="edges"
-              :transitions="transitions"
-              :threads="threads"
-              :selected-beat-id="selectedBeatId"
-              :entry-beat-id="entryBeatId"
-              :editable="true"
-              @command="onCommand"
-            />
-          </div>
+          <QuestPanel v-if="quest" :quest="quest" :current-beat-id-by-thread="currentBeatIdByThread" :visited-count-by-thread="visitedCountByThread" @focus-thread="focusThread" />
         </template>
         <template #route>
           <QuestRoutePanel
@@ -128,12 +104,17 @@
             :can-be-parallel="canSelectedEdgeBeParallel"
             :saving="edgeSaving"
             :error="mutationError"
+            :edge="selectedEdge"
+            :edges="edges"
+            :beats="beats"
+            :target-staging="selectedEdgeTargetStaging"
+            :thread-id="focusThreadId || null"
             @save="saveEdge"
             @delete="deleteSelectedEdge"
           />
         </template>
         <template #beat>
-          <QuestSelectedBeatPanel v-if="selectedBeat" :beat="selectedBeat" :presentation="presentations[selectedBeat.id]" :staging="selectedBeatStaging" @preview="openPreview({ draftVisibility: selectedBeat.visibility, savedVisibility: selectedBeat.visibility, unsaved: false })" />
+          <QuestSelectedBeatPanel v-if="selectedBeat" :beat="selectedBeat" :presentation="presentations[selectedBeat.id]" :staging="selectedBeatStaging" :entry-beat-id="entryBeatId" :thread-id="focusThreadId || null" @preview="openPreview({ draftVisibility: selectedBeat.visibility, savedVisibility: selectedBeat.visibility, unsaved: false })" />
         </template>
         <!-- Interim (story E replaces it): the opened beat is the run cockpit. -->
         <template #opened>
@@ -180,7 +161,7 @@ import {
   useSetQuestBeatPositions,
 } from "@/composables/quests/useQuestFlow";
 import { useQuestThreads } from "@/composables/quests/useQuestThreads";
-import { useQuestObjectives } from "@/composables/quests/useQuests";
+import { useQuest, useQuestObjectives } from "@/composables/quests/useQuests";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useLocationDescriptions } from "@/composables/locations/useLocationDescriptions";
 import { useSiteBeatGaps } from "@/composables/quests/useSiteBeatGaps";
@@ -195,6 +176,7 @@ import { useQuestSelection } from "@/composables/quests/useQuestSelection";
 import { retainSelectedBeatId, type QuestGraphCommand } from "@/lib/quests/flow";
 import { isDuplicateQuestEdge } from "@/lib/quests/mutations";
 import { defaultThreadId } from "@/lib/quests/threads";
+import { deriveQuestConsistency } from "@/lib/quests/consistency";
 import { useCampaignStore } from "@/stores/campaign";
 import { useConfirm } from "@/composables/useConfirm";
 import { type QuestBeat, type QuestGateMode, type QuestRouteEffect, type QuestRouteKind } from "@/types/quest.types";
@@ -204,8 +186,8 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import QuestFlowCanvas from "./QuestFlowCanvas.vue";
 import QuestBeatComposer from "../inspector/QuestBeatComposer.vue";
-import QuestGraphOutline from "./QuestGraphOutline.vue";
-import QuestThreadsPanel from "./QuestThreadsPanel.vue";
+import QuestGapMenu, { type QuestGapRow } from "./QuestGapMenu.vue";
+import QuestPanel from "../panel/QuestPanel.vue";
 import QuestDrawer from "./QuestDrawer.vue";
 import QuestRunCockpit from "../run/QuestRunCockpit.vue";
 import QuestRoutePanel from "../inspector/QuestRoutePanel.vue";
@@ -223,12 +205,14 @@ const questIdRef = computed(() => questId);
 const beatsQuery = useQuestBeats(questIdRef);
 const edgesQuery = useQuestBeatEdges(questIdRef);
 const edgeGatesQuery = useQuestBeatEdgeGates(questIdRef);
+const questQuery = useQuest(questIdRef);
 const objectivesQuery = useQuestObjectives(questIdRef);
 const attachmentsQuery = useQuestBeatAttachmentSummaries(questIdRef);
 const lootQuery = useLootPlacements({ questId: questIdRef });
 const threadsQuery = useQuestThreads(questIdRef);
 const consequencesQuery = useQuestConsequences(questIdRef);
 const allLocationsQuery = useAllLocations();
+const quest = computed(() => questQuery.data.value ?? null);
 const threads = computed(() => threadsQuery.data.value ?? []);
 // The context is fetched by one thread id, but its `threads[]` carries every
 // thread's own cursor — this is the one round trip that answers "where does
@@ -291,14 +275,22 @@ const stagedSites = computed(() => {
 // location itself, and the site it sits in when it is a room. Built for any
 // staged location — a tavern or a city, not only a site with rooms — since
 // the panel's job is to get the DM there without opening the beat first.
-const selectedBeatStaging = computed<QuestBeatStaging | null>(() => {
-  const stagedId = selectedBeat.value?.staged_at_location_id;
+// The route panel reads the same for the route's target, where taking the
+// route puts the party.
+function stagingFor(stagedId: string | null | undefined): QuestBeatStaging | null {
   if (!stagedId) return null;
   const staged = allLocationsRef.value.find((candidate) => candidate.id === stagedId);
   if (!staged) return null;
   const site = stagedSites.value.get(stagedId);
   const inSite = site && site.id !== staged.id ? site : null;
   return { locationId: staged.id, name: staged.name, siteId: inSite?.id ?? null, siteName: inSite?.name ?? null };
+}
+const selectedEdgeTargetStaging = computed(() => {
+  const targetId = selectedEdge.value?.target_beat_id;
+  return stagingFor(beats.value.find((beat) => beat.id === targetId)?.staged_at_location_id);
+});
+const selectedBeatStaging = computed<QuestBeatStaging | null>(() => {
+  return stagingFor(selectedBeat.value?.staged_at_location_id);
 });
 const stagedSiteIds = computed(() => [...new Set([...stagedSites.value.values()].map((site) => site.id))]);
 const { readinessBySite } = useSiteBeatGaps(stagedSiteIds, allLocationsRef);
@@ -373,8 +365,28 @@ const liveThreadCount = computed(() => threads.value.filter((thread) => thread.s
 
 const selectedBeat = computed(() => beats.value.find((beat) => beat.id === selectedBeatId.value) ?? null);
 const reachTally = computed(() => tallyQuestReach(presentations.value));
-const tallyTotal = computed(() => reachTally.value.visited + reachTally.value.ahead + reachTally.value.stranded + liveThreadCount.value + prepGapBeatCount.value);
-const prepGapBeatCount = computed(() => Object.values(presentations.value).filter((presentation) => presentation.prepGapCount > 0).length);
+const tallyTotal = computed(() => reachTally.value.visited + reachTally.value.ahead + reachTally.value.stranded + liveThreadCount.value + gapRows.value.length);
+// Every gap in one list: each beat's own prep gaps, then the wiring findings a
+// graph can prove. Held back until the inputs of the second have loaded, so a
+// finding is never derived from a half-loaded quest.
+const consistencyReady = computed(() => !objectivesQuery.isLoading.value && !consequencesQuery.isLoading.value && !edgeGatesQuery.isLoading.value);
+const gapRows = computed<QuestGapRow[]>(() => {
+  const rows: QuestGapRow[] = beats.value.flatMap((beat) => (presentations.value[beat.id]?.prepGaps ?? [])
+    .map((gap) => ({ key: `prep:${beat.id}:${gap.kind}`, beatId: beat.id, beatTitle: beat.title || "Untitled beat", text: gap.label })));
+  if (!consistencyReady.value) return rows;
+  const findings = deriveQuestConsistency({ beats: beats.value, edges: edges.value, objectives: objectives.value, consequences: consequences.value, gates: edgeGates.value });
+  findings.forEach((finding, index) => {
+    const beatId = finding.beatIds?.[0] ?? null;
+    rows.push({
+      key: `finding:${finding.kind}:${index}`,
+      beatId,
+      beatTitle: beats.value.find((beat) => beat.id === beatId)?.title || null,
+      text: finding.message,
+      advisory: finding.advisory,
+    });
+  });
+  return rows;
+});
 const presentations = computed(() => deriveQuestBeatPresentations({
   beats: beats.value.map(presentableBeatOf),
   edges: edges.value,

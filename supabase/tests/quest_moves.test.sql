@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(45);
+select plan(52);
 
 -- Cover for public.mark_quest_move and public.undo_quest_move (#1183, migration
 -- quest_one_screen_moves). Marking records a move that already happened as an
@@ -87,6 +87,10 @@ insert into public.quest_beats (id, quest_id, campaign_id, title, kind) values
 insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id)
 values ('11830000-0000-4000-8000-0000000a00e9', '11830000-0000-4000-8000-0000000a0001', '11830000-0000-4000-8000-000000000010',
         '11830000-0000-4000-8000-0000000a00b1', '11830000-0000-4000-8000-0000000a00b9');
+-- A parallel route out of A, for the "taking a parallel route opens a thread" cover.
+insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, route_kind, thread_label)
+values ('11830000-0000-4000-8000-0000000a00e2', '11830000-0000-4000-8000-0000000a0001', '11830000-0000-4000-8000-000000000010',
+        '11830000-0000-4000-8000-0000000a00b1', '11830000-0000-4000-8000-0000000a00b3', 'parallel', 'Scouting');
 insert into public.quest_threads (id, campaign_id, quest_id, label, status, merged_into_thread_id)
 values ('11830000-0000-4000-8000-0000000a0051', '11830000-0000-4000-8000-000000000010', '11830000-0000-4000-8000-0000000a0001', 'Side', 'merged',
         pg_temp.main_thread('11830000-0000-4000-8000-0000000a0001'));
@@ -190,7 +194,14 @@ select is(
       and provenance ->> 'by' = 'mark'),
   1, 'the route wrote one assert from A to B with the session and the edge'
 );
-select is((select jsonb_array_length(payload -> 'transition_ids') from route_result), 1, 'the result names that transition');
+select is((select jsonb_array_length(payload -> 'transition_ids') from route_result), 2, 'the result names the filled-in start and the route');
+select is(
+  (select count(*)::integer from public.quest_beat_transitions
+    where to_beat_id = '11830000-0000-4000-8000-0000000a00b1' and transition_kind = 'assert'
+      and provenance ->> 'filled_in' = 'true'
+      and provenance ->> 'move_id' = (select payload ->> 'move_id' from route_result)),
+  1, 'the thread never reached A, the route''s start, so the move filled it in first, as part of the same move'
+);
 select is(
   (select status from public.quest_objectives where id = '11830000-0000-4000-8000-0000000a0021'),
   'pending', 'the target beat''s arrival rule fired'
@@ -221,6 +232,10 @@ select is(
   0, 'the marked transition is gone'
 );
 select is(
+  (select count(*)::integer from public.quest_beat_transitions where to_beat_id = '11830000-0000-4000-8000-0000000a00b1'),
+  0, 'and so is the start it filled in: one Undo takes back the whole move'
+);
+select is(
   (select status from public.quest_objectives where id = '11830000-0000-4000-8000-0000000a0021'),
   'dormant', 'the objective its beat rule raised is back to dormant'
 );
@@ -241,7 +256,7 @@ insert into failed_result select public.mark_quest_move(
   pg_temp.main_thread('11830000-0000-4000-8000-0000000a0001'), 'failed',
   p_beat_id => '11830000-0000-4000-8000-0000000a00b3'::uuid);
 
-select is((select jsonb_array_length(payload -> 'transition_ids') from failed_result), 2, 'failing an unvisited beat wrote an arrival and a failure');
+select is((select jsonb_array_length(payload -> 'transition_ids') from failed_result), 3, 'failing an unvisited beat filled in the way there (A), then wrote an arrival and a failure');
 select is(
   (select count(*)::integer from public.quest_beat_transitions
     where to_beat_id = '11830000-0000-4000-8000-0000000a00b3' and outcome is null and transition_kind = 'assert'),
@@ -277,11 +292,11 @@ select is(
   array['arrived'], 'the arrival fired only arrival rules'
 );
 
--- Undo the failure first, then the arrival.
+-- One Undo takes the whole move back: the failure, the arrival and the way in.
 select lives_ok(
   $$select public.undo_quest_move('11830000-0000-4000-8000-000000000010'::uuid, '11830000-0000-4000-8000-0000000a0001'::uuid,
       pg_temp.main_thread('11830000-0000-4000-8000-0000000a0001'))$$,
-  'undo takes back the failure'
+  'undo takes back the failed move'
 );
 select is(
   (select status from public.quest_objectives where id = '11830000-0000-4000-8000-0000000a0025'),
@@ -289,7 +304,7 @@ select is(
 );
 select is(
   (select status from public.quest_objectives where id = '11830000-0000-4000-8000-0000000a0024'),
-  'pending', 'and the arrival''s own effect stays until it is undone too'
+  'dormant', 'and the arrival''s own effect too, since the arrival was part of the same move'
 );
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -315,7 +330,7 @@ select throws_ok(
 );
 select is(
   (select count(*)::integer from public.quest_beat_transitions where to_beat_id = '11830000-0000-4000-8000-0000000a00b3' and outcome is null),
-  1, 'the refused calls wrote nothing: C still has its one arrival'
+  0, 'the refused calls wrote nothing: C has no arrival yet'
 );
 
 create temporary table here_result(payload jsonb);
@@ -327,7 +342,7 @@ insert into here_result select public.mark_quest_move(
   p_dispatch_loot_ids => array['11830000-0000-4000-8000-0000000a0042'::uuid],
   p_move_party_to => '11830000-0000-4000-8000-0000000c0001'::uuid);
 
-select is((select jsonb_array_length(payload -> 'transition_ids') from here_result), 0, 'the thread had already arrived at C, so no second arrival is written');
+select is((select jsonb_array_length(payload -> 'transition_ids') from here_result), 2, 'party_here filled in the way there (A), then wrote the arrival at C');
 select is((select payload ->> 'current_beat_id' from here_result), '11830000-0000-4000-8000-0000000a00b3', 'party_here places the cursor');
 select ok(
   (select dispatched_at is not null from public.loot_placements where id = '11830000-0000-4000-8000-0000000a0042'),
@@ -374,6 +389,48 @@ select is(
   1, 'by writing a `previous` transition, as the verb does'
 );
 select is((select payload ->> 'current_beat_id' from played_undo), '11830000-0000-4000-8000-0000000b00b1', 'and the cursor is back on P');
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Taking a parallel route by marking opens a thread of its own, as Advance does
+-- at the table, and Undo with no thread named takes back the quest's newest
+-- move, closing the thread that move opened.
+-- ════════════════════════════════════════════════════════════════════════════
+
+create temporary table par_move(payload jsonb);
+grant all on par_move to authenticated;
+insert into par_move select public.mark_quest_move(
+  '11830000-0000-4000-8000-000000000010'::uuid, '11830000-0000-4000-8000-0000000a0001'::uuid,
+  pg_temp.main_thread('11830000-0000-4000-8000-0000000a0001'), 'route',
+  p_edge_id => '11830000-0000-4000-8000-0000000a00e2'::uuid);
+
+select isnt(
+  (select payload ->> 'thread_id' from par_move),
+  pg_temp.main_thread('11830000-0000-4000-8000-0000000a0001')::text,
+  'a marked parallel route records its move on a new thread, not the caller''s'
+);
+select is(
+  (select label from public.quest_threads where id = (select (payload ->> 'thread_id')::uuid from par_move)),
+  'Scouting', 'the new thread takes the route''s thread label'
+);
+select is(
+  (select current_beat_id from public.quest_runtime_state where thread_id = (select (payload ->> 'thread_id')::uuid from par_move)),
+  '11830000-0000-4000-8000-0000000a00b3'::uuid, 'and stands on the route''s target'
+);
+
+create temporary table par_undo(payload jsonb);
+grant all on par_undo to authenticated;
+insert into par_undo select public.undo_quest_move(
+  '11830000-0000-4000-8000-000000000010'::uuid, '11830000-0000-4000-8000-0000000a0001'::uuid);
+
+select is(
+  (select payload ->> 'closed_thread_id' from par_undo),
+  (select payload ->> 'thread_id' from par_move),
+  'Undo with no thread takes back the quest''s newest move, on whichever thread it was'
+);
+select is(
+  (select count(*)::integer from public.quest_threads where id = (select (payload ->> 'thread_id')::uuid from par_move)),
+  0, 'and closes the thread that move opened'
+);
 
 select * from finish();
 rollback;

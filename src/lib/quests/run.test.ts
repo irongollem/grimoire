@@ -276,7 +276,7 @@ describe("lootHeldByTheRun (#1164)", () => {
   const arrive = (to_beat_id: string, transition_kind: QuestBeatTransition["transition_kind"] = "enter", to_quest_id = "q1"): QuestBeatTransition => ({
     id: `t-${to_beat_id}-${transition_kind}`, campaign_id: "c1", from_quest_id: null, from_beat_id: null, to_quest_id, to_beat_id,
     transition_kind, reason: null, runtime_version: 1, from_quest_title: null, from_beat_title: null, to_quest_title: null,
-    to_beat_title: null, provenance: {}, created_by: null, created_at: "2026-11-08T00:00:00Z", thread_id: "th1",
+    to_beat_title: null, provenance: {}, created_by: null, created_at: "2026-11-08T00:00:00Z", thread_id: "th1", outcome: null,
   });
   const ids = (rows: LootPlacement[]) => rows.map((row) => row.id);
 

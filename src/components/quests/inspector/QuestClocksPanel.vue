@@ -5,7 +5,6 @@
         Clocks
         <span v-if="clocks?.length" class="font-fell font-normal">({{ clocks.length }})</span>
       </span>
-      <p class="text-caption text-muted-foreground">A clock fills one tick at a time during play. When it fills, the rules watching it fire.</p>
     </div>
     <div class="p-2 flex flex-col gap-1">
       <QuestClockEditRow

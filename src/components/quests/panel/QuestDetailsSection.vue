@@ -1,34 +1,15 @@
 <template>
-  <section class="space-y-3 rounded-lg border border-border bg-card p-3" aria-label="Quest-wide fields">
-    <div class="flex items-start gap-3">
-      <div class="min-w-0 flex-1">
-        <h3 class="text-heading-sm font-bold text-foreground">Quest identity</h3>
-        <p class="text-caption text-muted-foreground">What the quest is, rather than what happens in it. The story itself lives in its beats.</p>
-      </div>
+  <section class="space-y-3 rounded-lg border border-border bg-card p-3" aria-label="Details">
+    <div class="flex items-center gap-3">
+      <h3 class="min-w-0 flex-1 text-heading-sm font-bold text-foreground">Details</h3>
       <AutosaveStatus :status="status" :error="saveError" />
     </div>
     <DraftConflictNotice :fields="conflictLabels" :on-discard="resetDraft" />
 
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <label class="flex flex-col gap-1 sm:col-span-2">
-        <span class="text-label font-semibold text-muted-foreground">Title</span>
-        <AppInput
-          v-model="draft.title"
-          tone="card"
-          size="body"
-          placeholder="Untitled Quest"
-        />
-      </label>
-
-      <label class="flex flex-col gap-1 sm:col-span-2">
+    <div class="grid grid-cols-1 gap-3">
+      <label class="flex flex-col gap-1">
         <span class="text-label font-semibold text-muted-foreground">Premise</span>
-        <AppInput
-          v-model="draft.summary"
-          tone="card"
-          size="body"
-          :maxlength="QUEST_SUMMARY_MAX"
-          placeholder="Players see this verbatim: the blurb that tells you what the quest is without opening it. One sentence, no DM secrets."
-        />
+        <AppInput v-model="draft.summary" tone="card" size="body" :maxlength="QUEST_SUMMARY_MAX" placeholder="Players see this" />
       </label>
 
       <label class="flex flex-col gap-1">
@@ -37,17 +18,6 @@
           <option v-for="value in QUEST_STATUSES" :key="value" :value="value">{{ QUEST_STATUS_LABELS[value] }}</option>
         </AppSelect>
       </label>
-
-      <div class="flex flex-col gap-1">
-        <span class="text-label font-semibold text-muted-foreground">Player sharing</span>
-        <div class="flex min-h-9 items-center gap-2">
-          <AudienceRevealControl
-            :name="quest.title"
-            :visible-to="draft.playerVisibleTo"
-            @change="onRevealChange"
-          />
-        </div>
-      </div>
 
       <label class="flex flex-col gap-1">
         <span class="text-label font-semibold text-muted-foreground">Quest giver</span>
@@ -59,19 +29,12 @@
         <EntityCombobox v-model="draft.locationId" :options="locations ?? []" :selected-label="primaryLocation?.name ?? null" placeholder="Search locations…" @open="locationListWanted = true" />
       </label>
 
-      <label class="flex flex-col gap-1 sm:col-span-2">
+      <label class="flex flex-col gap-1">
         <span class="text-label font-semibold text-muted-foreground">Part of quest</span>
         <EntityCombobox v-model="draft.parentQuestId" :options="parentQuestOptions" placeholder="Search quests…" />
       </label>
 
-      <label class="flex flex-col gap-1 sm:col-span-2">
-        <span class="text-label font-semibold text-muted-foreground">Opens at</span>
-        <AppInput v-if="!beatOptions.length" model-value="" tone="card" size="body" placeholder="No beats yet" disabled />
-        <EntityCombobox v-else v-model="draft.entryBeatId" :options="beatOptions" placeholder="Choose the opening beat…" @update:model-value="onEntryBeatChange" />
-        <span class="text-caption text-muted-foreground">Where the story begins. The run starts here unless you choose otherwise.</span>
-      </label>
-
-      <div class="flex flex-col gap-1 sm:col-span-2">
+      <div class="flex flex-col gap-1">
         <span class="text-label font-semibold text-muted-foreground">Tags</span>
         <TagInput v-model="draft.tags" />
       </div>
@@ -86,33 +49,27 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AutosaveStatus from "@/components/common/feedback/AutosaveStatus.vue";
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
-import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import TagInput from "@/components/common/controls/TagInput.vue";
-import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { useAllLocations, useLocation } from "@/composables/locations/useLocations";
 import { useNpc, useNpcs } from "@/composables/npcs/useNpcs";
-import { useQuestBeats } from "@/composables/quests/useQuestFlow";
 import { useQuests, useUpdateQuest } from "@/composables/quests/useQuests";
 import { useAutosave } from "@/composables/useAutosave";
 import { draftValueEqual, useRecordDraft } from "@/composables/useRecordDraft";
-import { useCampaignStore } from "@/stores/campaign";
 import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 import { QUEST_STATUSES, QUEST_STATUS_LABELS, type Quest, type QuestStatus } from "@/types/quest.types";
 
-interface MetadataDraft {
-  title: string;
+// The title is the page header's and the opening beat is set on a beat, so
+// neither is a field here; sharing is the Players section's own write.
+interface DetailsDraft {
   summary: string;
   status: QuestStatus;
   giverNpcId: string;
   locationId: string;
   parentQuestId: string;
-  entryBeatId: string;
   tags: string[];
-  playerVisibleTo: string[];
 }
 
 const props = defineProps<{ quest: Quest }>();
-const campaign = useCampaignStore();
 // The campaign's NPC and place lists are read when a picker is first opened,
 // not at mount: the closed field only needs the one selected name, which the
 // single-row reads below give (and live sync keeps current).
@@ -121,20 +78,16 @@ const locationListWanted = ref(false);
 const { data: npcs } = useNpcs(() => npcListWanted.value);
 const { data: locations } = useAllLocations(() => locationListWanted.value);
 const { data: allQuests } = useQuests();
-const { data: beats } = useQuestBeats(computed(() => props.quest.id));
 const { mutateAsync: updateQuest } = useUpdateQuest();
 
-function questToDraft(quest: Quest): MetadataDraft {
+function questToDraft(quest: Quest): DetailsDraft {
   return {
-    title: quest.title,
     summary: quest.summary ?? "",
     status: quest.status,
     giverNpcId: quest.giver_npc_id ?? "",
     locationId: quest.location_id ?? "",
     parentQuestId: quest.parent_quest_id ?? "",
-    entryBeatId: quest.entry_beat_id ?? "",
     tags: [...quest.tags],
-    playerVisibleTo: [...quest.player_visible_to],
   };
 }
 
@@ -153,31 +106,25 @@ const { draft, changes, commit, reset: resetDraft, conflicts } = useRecordDraft(
 const { data: giver } = useNpc(computed(() => draft.giverNpcId));
 const { data: primaryLocation } = useLocation(() => draft.locationId || null);
 
-const CONFLICT_LABELS: Record<keyof MetadataDraft, string> = {
-  title: "Title",
+const CONFLICT_LABELS: Record<keyof DetailsDraft, string> = {
   summary: "Premise",
   status: "Board lane",
   giverNpcId: "Quest giver",
   locationId: "Primary location",
   parentQuestId: "Part of quest",
-  entryBeatId: "Opens at",
   tags: "Tags",
-  playerVisibleTo: "Player sharing",
 };
 const conflictLabels = computed(() => conflicts.value.map((key) => CONFLICT_LABELS[key]));
 
 /** Pure function of the draft, so a column the DM never touched is left out of the write. */
-function metadataRow(d: MetadataDraft) {
+function detailsRow(d: DetailsDraft) {
   return {
-    title: d.title.trim() || "Untitled Quest",
     summary: d.summary.trim() || null,
     status: d.status,
     giver_npc_id: d.giverNpcId || null,
     location_id: d.locationId || null,
     parent_quest_id: d.parentQuestId || null,
-    entry_beat_id: d.entryBeatId || null,
     tags: d.tags,
-    player_visible_to: d.playerVisibleTo,
   };
 }
 
@@ -185,7 +132,6 @@ function metadataRow(d: MetadataDraft) {
 // on to another quest (the debounce outlives the navigation) must still land on
 // the quest the DM was editing, not the one now on screen.
 let draftQuestId = props.quest.id;
-let draftWasShared = props.quest.player_visible_to.length > 0;
 
 const { status, saveError, saveNow, reset } = useAutosave({
   draft,
@@ -193,30 +139,19 @@ const { status, saveError, saveNow, reset } = useAutosave({
   equal: draftValueEqual,
   async save(snapshot) {
     // Only the columns the DM changed here: the run cockpit also writes `status`,
-    // and a metadata save must not put a stale lane back (#946).
-    const update = changes(metadataRow);
-    const nextTitle = snapshot.title.trim() || "Untitled Quest";
+    // and a details save must not put a stale lane back (#946).
+    const update = changes(detailsRow);
     if (Object.keys(update).length === 0) return;
     await updateQuest({ id: draftQuestId, update });
     // Edits made while the request was in flight are not part of what was sent;
     // they stay unsaved against the old baseline until the refetch confirms it.
-    if (draftValueEqual(metadataRow(draft), metadataRow(snapshot))) commit();
-    if (!draftWasShared && snapshot.playerVisibleTo.length && campaign.activeCampaignId) {
-      void sendCampaignAnnouncement(campaign.activeCampaignId, `📋 Quest shared: "${nextTitle}"`, {
-        entity_type: "quest",
-        entity_id: draftQuestId,
-      });
-    }
-    draftWasShared = snapshot.playerVisibleTo.length > 0;
+    if (draftValueEqual(detailsRow(draft), detailsRow(snapshot))) commit();
   },
 });
 
 const parentQuestOptions = computed(() => (allQuests.value ?? [])
   .filter((candidate) => candidate.id !== props.quest.id)
   .map((candidate) => ({ id: candidate.id, name: candidate.title || "Untitled Quest" })));
-
-const beatOptions = computed(() => (beats.value ?? [])
-  .map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
 
 // A refresh of the same quest (our own save echoing back, or a change made
 // elsewhere) merges into the draft through useRecordDraft. Another quest flushes
@@ -228,19 +163,7 @@ watch(() => props.quest, async (next) => {
   }
   await saveNow();
   draftQuestId = next.id;
-  draftWasShared = next.player_visible_to.length > 0;
   shown.value = next;
   reset();
 });
-
-// A quest with beats always has an entry — the DB would re-default it on the
-// next beat write anyway, so clearing the box here is not a state the DM can
-// actually choose. The combobox's clear affordance just snaps back.
-function onEntryBeatChange(next: string) {
-  draft.entryBeatId = next || (props.quest.entry_beat_id ?? "");
-}
-
-function onRevealChange(next: string[]) {
-  draft.playerVisibleTo = next;
-}
 </script>

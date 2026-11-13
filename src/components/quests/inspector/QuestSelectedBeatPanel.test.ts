@@ -10,7 +10,7 @@ const beat = {
 function mountPanel(staging: InstanceType<typeof QuestSelectedBeatPanel>["$props"]["staging"], extra: Partial<InstanceType<typeof QuestSelectedBeatPanel>["$props"]> = {}) {
   return mount(QuestSelectedBeatPanel, {
     props: { beat, staging, ...extra },
-    global: { stubs: { RouterLink: RouterLinkStub, QuestConvergeControl: true } },
+    global: { stubs: { RouterLink: RouterLinkStub, QuestConvergeControl: true, QuestBeatMarks: true } },
   });
 }
 
@@ -55,7 +55,7 @@ describe("QuestSelectedBeatPanel — header and chips", () => {
   });
 
   it("names a beat without a title, and states its kind and visibility", () => {
-    const wrapper = mount(QuestSelectedBeatPanel, { props: { beat: { ...beat, title: "" } }, global: { stubs: { RouterLink: RouterLinkStub, QuestConvergeControl: true } } });
+    const wrapper = mount(QuestSelectedBeatPanel, { props: { beat: { ...beat, title: "" } }, global: { stubs: { RouterLink: RouterLinkStub, QuestConvergeControl: true, QuestBeatMarks: true } } });
     expect(wrapper.text()).toContain("Untitled beat");
     expect(wrapper.text()).toContain("hidden");
   });

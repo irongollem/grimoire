@@ -230,8 +230,8 @@ export interface QuestBeatPresentation {
   isVisited: boolean;
   isDisconnected: boolean;
   reach: QuestBeatReach;
-  /** True once the beat has failed. Presentation only for now: nothing
-   *  derives it yet, so it is absent until a story supplies it. */
+  /** True while the newest transition that reached the beat carries
+   *  `outcome = 'failed'` (see {@link failedBeatIds}). */
   isFailed?: boolean;
   /** The threads (#853) currently standing at this beat — empty when none is.
    *  A quest can hold several live threads at once, and a converge-all beat
@@ -332,7 +332,7 @@ export interface QuestBeatPresentationInput {
    *  threads within one chain, run at once. */
   runtime?: QuestBeatRuntimeCursor[];
   /** Only where each move landed is read: a beat any move arrived at is visited. */
-  transitions?: Pick<QuestBeatTransition, "to_beat_id">[];
+  transitions?: QuestTransitionReach[];
   lootByBeat?: Record<string, QuestBeatLootSummary>;
   /** Only the rules conditioned on arrival (`on_beat_id`) matter here — a
    *  route's own rules are the edge's business, not the node's. */
@@ -340,6 +340,28 @@ export interface QuestBeatPresentationInput {
   /** Keyed by `staged_at_location_id`. Absent for a beat staged nowhere, or
    *  staged somewhere that has never had its rooms fetched. */
   sites?: Record<string, QuestBeatSiteInput>;
+}
+
+/** The facts about a move that decide whether it arrived and whether it failed. */
+export type QuestTransitionReach = Pick<QuestBeatTransition, "to_beat_id"> & Partial<Pick<QuestBeatTransition, "outcome" | "created_at">>;
+
+/**
+ * Beats whose newest arrival was marked failed. Newest wins, so a beat that
+ * failed and was later arrived at cleanly reads as not failed. Rows without a
+ * `created_at` keep their given order, which the transitions query makes
+ * oldest first.
+ */
+export function failedBeatIds(transitions: QuestTransitionReach[]): Set<string> {
+  const ordered = transitions
+    .map((transition, index) => ({ transition, index }))
+    .sort((a, b) => (a.transition.created_at ?? "").localeCompare(b.transition.created_at ?? "") || a.index - b.index);
+  const failed = new Set<string>();
+  for (const { transition } of ordered) {
+    if (!transition.to_beat_id) continue;
+    if (transition.outcome === "failed") failed.add(transition.to_beat_id);
+    else failed.delete(transition.to_beat_id);
+  }
+  return failed;
 }
 
 /** Shared source for Build, board and Run beat status. It only combines
@@ -364,6 +386,7 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
     consequencesByBeat.set(consequence.on_beat_id, list);
   }
   const visited = new Set((input.transitions ?? []).map((transition) => transition.to_beat_id));
+  const failed = failedBeatIds(input.transitions ?? []);
   // Connectivity is a per-quest question. The board passes campaign-wide beats
   // through here, so counting `input.beats` directly would make every quest
   // answer for every other one.
@@ -432,6 +455,7 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
       isReady: prepGaps.length === 0,
       isCurrent,
       isVisited,
+      isFailed: failed.has(beat.id),
       isDisconnected,
       reach,
       currentThreadIds,

@@ -811,6 +811,65 @@ grant execute on function private.apply_quest_consequences(uuid, uuid, uuid, uui
 --   party_here  the party is at a beat; its arrival rules fire once per thread
 --   failed      the beat was failed; arrival fires first when the thread never
 --               arrived, then only the fail-outcome rules fire
+-- The beats on the shortest route from one beat to another, both ends
+-- included, following quest_beat_edges forward (breadth first, so the
+-- shortest). Null when the goal cannot be reached from the start.
+CREATE OR REPLACE FUNCTION private.quest_beat_path(p_quest_id uuid, p_from uuid, p_to uuid)
+ RETURNS uuid[]
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO 'public', 'private'
+AS $function$
+declare
+  v_frontier uuid[] := array[p_from];
+  v_seen uuid[] := array[p_from];
+  v_parent jsonb := '{}'::jsonb;
+  v_next uuid[];
+  v_step record;
+  v_path uuid[];
+  v_cursor uuid;
+begin
+  if p_from is null or p_to is null then
+    return null;
+  end if;
+  if p_from = p_to then
+    return array[p_from];
+  end if;
+
+  while cardinality(v_frontier) > 0 and not (p_to = any(v_seen)) loop
+    v_next := '{}';
+    for v_step in
+      select e.source_beat_id as source, e.target_beat_id as target
+        from public.quest_beat_edges e
+        join public.quest_beats b on b.id = e.target_beat_id and b.kind <> 'archived'
+       where e.quest_id = p_quest_id
+         and e.source_beat_id = any(v_frontier)
+       order by e.created_at, e.id
+    loop
+      if not (v_step.target = any(v_seen)) then
+        v_seen := v_seen || v_step.target;
+        v_next := v_next || v_step.target;
+        v_parent := v_parent || jsonb_build_object(v_step.target::text, v_step.source);
+      end if;
+    end loop;
+    v_frontier := v_next;
+  end loop;
+
+  if not (p_to = any(v_seen)) then
+    return null;
+  end if;
+
+  v_cursor := p_to;
+  v_path := array[p_to];
+  while v_cursor <> p_from loop
+    v_cursor := (v_parent ->> v_cursor::text)::uuid;
+    v_path := v_cursor || v_path;
+  end loop;
+  return v_path;
+end $function$;
+
+revoke execute on function private.quest_beat_path(uuid, uuid, uuid) from public, anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public.mark_quest_move(
   p_campaign_id uuid,
   p_quest_id uuid,
@@ -828,20 +887,32 @@ CREATE OR REPLACE FUNCTION public.mark_quest_move(
  SECURITY DEFINER
  SET search_path TO 'public', 'private'
 AS $function$
+-- Records a move that already happened, as `assert` transitions that fire the
+-- consequences a played arrival would. Every transition one call writes
+-- carries the same `move_id` in its provenance, so Undo takes the whole move
+-- back at once. A move further along the story fills in the way there: the
+-- beats on the shortest route from where the thread last was (or from the
+-- quest's entry, when it has not started) that the thread has not reached.
 declare
   v_quest public.quests%rowtype;
   v_thread public.quest_threads%rowtype;
   v_state public.quest_runtime_state%rowtype;
   v_edge public.quest_beat_edges%rowtype;
   v_target uuid;
+  v_reach uuid;
   v_from uuid;
   v_prev uuid;
   v_title text;
-  v_from_title text;
   v_tid uuid;
   v_tids uuid[] := '{}';
   v_place boolean := coalesce(p_place_party, false);
   v_loot uuid[] := coalesce(p_dispatch_loot_ids, '{}');
+  v_move_id uuid := gen_random_uuid();
+  -- The thread the move lands on: the caller's, except that taking a
+  -- parallel route opens a thread of its own, as Advance does at the table.
+  v_move_thread uuid := p_thread_id;
+  v_path uuid[];
+  v_beat uuid;
 begin
   if auth.uid() is null or not coalesce(private.is_campaign_dm(p_campaign_id), false) then
     raise exception 'Not authorized';
@@ -873,7 +944,8 @@ begin
       raise exception 'That route does not belong to this quest' using errcode = '23503';
     end if;
     v_target := v_edge.target_beat_id;
-    v_from := v_edge.source_beat_id;
+    -- The way in leads to where the route leaves from.
+    v_reach := v_edge.source_beat_id;
     if exists (select 1 from public.quest_beats b where b.id = v_target and b.kind = 'archived') then
       raise exception 'That route leads to an archived beat' using errcode = '23514';
     end if;
@@ -885,6 +957,7 @@ begin
       raise exception 'That beat does not belong to this quest' using errcode = '23503';
     end if;
     v_target := p_beat_id;
+    v_reach := p_beat_id;
   end if;
 
   if cardinality(v_loot) > 0 and exists (
@@ -909,32 +982,85 @@ begin
   select * into v_state from public.quest_runtime_state
    where quest_id = p_quest_id and campaign_id = p_campaign_id and thread_id = p_thread_id;
 
+  -- Where the thread last was: its newest arrival, else its cursor. A thread
+  -- that never started begins at the quest's entry.
+  select t.to_beat_id into v_prev
+    from public.quest_beat_transitions t
+   where t.campaign_id = p_campaign_id and t.to_quest_id = p_quest_id
+     and t.thread_id = p_thread_id and t.to_beat_id is not null
+   order by t.seq desc
+   limit 1;
+  if v_prev is null then v_prev := v_state.current_beat_id; end if;
+
+  -- Fill in the way to v_reach: each beat on the shortest route there that
+  -- this thread has not reached, in story order. With no start, the route
+  -- runs from the entry, which is then filled in too.
+  v_path := private.quest_beat_path(p_quest_id, coalesce(v_prev, v_quest.entry_beat_id), v_reach);
+  if v_path is not null then
+    foreach v_beat in array v_path loop
+      -- v_reach itself is the move's own arrival below, except on a route,
+      -- where it is the source the route leaves from and is filled in here.
+      continue when v_beat = v_reach and p_kind <> 'route';
+      continue when exists (
+        select 1 from public.quest_beat_transitions t
+         where t.campaign_id = p_campaign_id and t.to_quest_id = p_quest_id
+           and t.thread_id = p_thread_id and t.to_beat_id = v_beat
+      );
+      select title into v_title from public.quest_beats where id = v_beat;
+      insert into public.quest_beat_transitions (
+        campaign_id, from_quest_id, from_beat_id, to_quest_id, to_beat_id,
+        transition_kind, created_by, from_quest_title, from_beat_title,
+        to_quest_title, to_beat_title, thread_id, session_id, provenance
+      ) values (
+        p_campaign_id, case when v_prev is null then null else p_quest_id end, v_prev,
+        p_quest_id, v_beat,
+        'assert', auth.uid(), case when v_prev is null then null else v_quest.title end,
+        (select title from public.quest_beats where id = v_prev),
+        v_quest.title, v_title, p_thread_id, p_session_id,
+        jsonb_build_object('by', 'mark', 'move_id', v_move_id, 'filled_in', true)
+      ) returning id into v_tid;
+      v_tids := v_tids || v_tid;
+      perform private.apply_quest_consequences(p_campaign_id, p_quest_id, v_tid, v_beat, null);
+      v_prev := v_beat;
+    end loop;
+  end if;
+
   select title into v_title from public.quest_beats where id = v_target;
 
   if p_kind = 'route' then
-    select title into v_from_title from public.quest_beats where id = v_from;
+    v_from := v_edge.source_beat_id;
+    if v_edge.route_kind = 'parallel' then
+      insert into public.quest_threads (
+        campaign_id, quest_id, label, status, opened_by_edge_id, parent_thread_id, created_by
+      ) values (
+        p_campaign_id, p_quest_id, coalesce(nullif(btrim(v_edge.thread_label), ''), v_title), 'live',
+        p_edge_id, p_thread_id, auth.uid()
+      ) returning id into v_move_thread;
+      insert into public.quest_runtime_state (
+        campaign_id, quest_id, thread_id, current_beat_id, status,
+        visit_stack, visit_index, return_stack, version, updated_by
+      ) values (
+        p_campaign_id, p_quest_id, v_move_thread, v_target,
+        private.compute_arrival_status(p_quest_id, v_target, v_move_thread),
+        jsonb_build_array(jsonb_build_object('beat_id', v_target)), 0, '[]'::jsonb, 1, auth.uid()
+      );
+      -- The new thread already stands on the target; the caller's thread stays put.
+      v_place := false;
+    end if;
     insert into public.quest_beat_transitions (
       campaign_id, from_quest_id, from_beat_id, to_quest_id, to_beat_id,
       transition_kind, reason, created_by, from_quest_title, from_beat_title,
       to_quest_title, to_beat_title, thread_id, session_id, provenance
     ) values (
       p_campaign_id, p_quest_id, v_from, p_quest_id, v_target,
-      'assert', null, auth.uid(), v_quest.title, v_from_title,
-      v_quest.title, v_title, p_thread_id, p_session_id,
-      jsonb_build_object('edge_id', p_edge_id, 'by', 'mark')
+      'assert', null, auth.uid(), v_quest.title, (select title from public.quest_beats where id = v_from),
+      v_quest.title, v_title, v_move_thread, p_session_id,
+      jsonb_build_object('edge_id', p_edge_id, 'by', 'mark', 'move_id', v_move_id,
+                         'opened_thread', v_move_thread <> p_thread_id)
     ) returning id into v_tid;
     v_tids := v_tids || v_tid;
     perform private.apply_quest_consequences(p_campaign_id, p_quest_id, v_tid, v_target, p_edge_id);
   else
-    -- Where the thread stood before: its newest arrival, else its cursor.
-    select t.to_beat_id into v_prev
-      from public.quest_beat_transitions t
-     where t.campaign_id = p_campaign_id and t.to_quest_id = p_quest_id
-       and t.thread_id = p_thread_id and t.to_beat_id is not null
-     order by t.seq desc
-     limit 1;
-    if v_prev is null then v_prev := v_state.current_beat_id; end if;
-
     if not exists (
       select 1 from public.quest_beat_transitions t
        where t.campaign_id = p_campaign_id and t.to_quest_id = p_quest_id
@@ -950,11 +1076,10 @@ begin
         'assert', auth.uid(), case when v_prev is null then null else v_quest.title end,
         (select title from public.quest_beats where id = v_prev),
         v_quest.title, v_title, p_thread_id, p_session_id,
-        jsonb_build_object('by', 'mark')
+        jsonb_build_object('by', 'mark', 'move_id', v_move_id)
       ) returning id into v_tid;
       v_tids := v_tids || v_tid;
       perform private.apply_quest_consequences(p_campaign_id, p_quest_id, v_tid, v_target, null);
-      v_prev := v_target;
     end if;
 
     if p_kind = 'failed' then
@@ -966,7 +1091,7 @@ begin
         p_campaign_id, p_quest_id, v_target, p_quest_id, v_target,
         'assert', auth.uid(), v_quest.title, v_title,
         v_quest.title, v_title, p_thread_id, p_session_id,
-        jsonb_build_object('by', 'mark'), 'failed'
+        jsonb_build_object('by', 'mark', 'move_id', v_move_id), 'failed'
       ) returning id into v_tid;
       v_tids := v_tids || v_tid;
       perform private.apply_quest_consequences(
@@ -1008,8 +1133,10 @@ begin
 
   return jsonb_build_object(
     'transition_ids', to_jsonb(v_tids),
+    'move_id', v_move_id,
+    'thread_id', v_move_thread,
     'current_beat_id', (select s.current_beat_id from public.quest_runtime_state s
-                         where s.quest_id = p_quest_id and s.campaign_id = p_campaign_id and s.thread_id = p_thread_id)
+                         where s.quest_id = p_quest_id and s.campaign_id = p_campaign_id and s.thread_id = v_move_thread)
   );
 end $function$;
 
@@ -1020,18 +1147,29 @@ grant execute on function public.mark_quest_move(uuid, uuid, uuid, text, uuid, u
 -- One Undo for the newest move on a thread. A marked move (`assert`) is taken
 -- back by undoing its consequence events and deleting it; a played move runs
 -- the existing `previous` verb at the thread's current version.
-CREATE OR REPLACE FUNCTION public.undo_quest_move(p_campaign_id uuid, p_quest_id uuid, p_thread_id uuid)
+CREATE OR REPLACE FUNCTION public.undo_quest_move(p_campaign_id uuid, p_quest_id uuid, p_thread_id uuid DEFAULT NULL::uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public', 'private'
 AS $function$
+-- Takes back the newest move: on p_thread_id when given, else the quest's
+-- newest move on any thread (the toolbar's Undo). A marked move is every
+-- transition sharing its `move_id` (the filled-in way there, a parallel
+-- route's opened thread), taken back together; a played move is stepped
+-- back exactly as the `previous` verb does.
 declare
   v_thread public.quest_threads%rowtype;
+  v_thread_id uuid;
   v_state public.quest_runtime_state%rowtype;
   v_last public.quest_beat_transitions%rowtype;
+  v_row public.quest_beat_transitions%rowtype;
+  v_move_id text;
+  v_first_from uuid;
+  v_opened uuid[] := '{}';
   v_new_cursor uuid;
   v_stack jsonb;
+  v_closed uuid;
 begin
   if auth.uid() is null or not coalesce(private.is_campaign_dm(p_campaign_id), false) then
     raise exception 'Not authorized';
@@ -1040,80 +1178,123 @@ begin
   if not exists (select 1 from public.quests where id = p_quest_id and campaign_id = p_campaign_id) then
     raise exception 'Quest not found in this campaign' using errcode = 'P0002';
   end if;
-  select * into v_thread from public.quest_threads
-   where id = p_thread_id and quest_id = p_quest_id and campaign_id = p_campaign_id;
-  if not found then
-    raise exception 'That thread does not belong to this quest' using errcode = 'P0002';
+  if p_thread_id is not null then
+    select * into v_thread from public.quest_threads
+     where id = p_thread_id and quest_id = p_quest_id and campaign_id = p_campaign_id;
+    if not found then
+      raise exception 'That thread does not belong to this quest' using errcode = 'P0002';
+    end if;
+    if v_thread.status = 'merged' then
+      raise exception 'This thread was merged into another thread' using errcode = '23514';
+    end if;
   end if;
-  if v_thread.status = 'merged' then
-    raise exception 'This thread was merged into another thread' using errcode = '23514';
-  end if;
-
-  perform pg_advisory_xact_lock(hashtextextended(p_campaign_id::text || ':' || p_quest_id::text || ':' || p_thread_id::text, 0));
 
   select * into v_last from public.quest_beat_transitions t
    where t.campaign_id = p_campaign_id and t.to_quest_id = p_quest_id
-     and t.thread_id = p_thread_id and t.to_beat_id is not null
+     and t.thread_id is not null and t.to_beat_id is not null
+     and (p_thread_id is null or t.thread_id = p_thread_id)
    order by t.seq desc
    limit 1;
   if not found then
     raise exception 'Nothing to undo' using errcode = 'P0002';
   end if;
+  v_thread_id := v_last.thread_id;
 
-  select * into v_state from public.quest_runtime_state
-   where quest_id = p_quest_id and campaign_id = p_campaign_id and thread_id = p_thread_id
-   for update;
+  select * into v_thread from public.quest_threads where id = v_thread_id;
+  if v_thread.status = 'merged' then
+    raise exception 'This thread was merged into another thread' using errcode = '23514';
+  end if;
 
-  if v_last.transition_kind = 'assert' then
-    perform private.undo_quest_transition_consequences(v_last.id);
-    delete from public.quest_beat_transitions where id = v_last.id;
+  perform pg_advisory_xact_lock(hashtextextended(p_campaign_id::text || ':' || p_quest_id::text || ':' || v_thread_id::text, 0));
 
-    if v_state.quest_id is not null then
-      v_new_cursor := v_state.current_beat_id;
-      v_stack := v_state.visit_stack;
-      -- A failed mark sits on a beat the thread had already arrived at: undoing it
-      -- takes nothing from the visit stack and the cursor stays.
-      if v_last.outcome is null and v_state.current_beat_id is not distinct from v_last.to_beat_id then
-        select t.to_beat_id into v_new_cursor
-          from public.quest_beat_transitions t
-         where t.campaign_id = p_campaign_id and t.to_quest_id = p_quest_id
-           and t.thread_id = p_thread_id and t.to_beat_id is not null
-         order by t.seq desc
-         limit 1;
-        if v_new_cursor is null then v_new_cursor := v_last.from_beat_id; end if;
-
-        -- Drop the visit the cursor stood on, keeping the stack consistent.
-        if jsonb_array_length(v_stack) > 0
-           and (v_stack -> (jsonb_array_length(v_stack) - 1) ->> 'beat_id')::uuid is not distinct from v_last.to_beat_id then
-          v_stack := v_stack - (jsonb_array_length(v_stack) - 1);
-        end if;
-        if jsonb_array_length(v_stack) = 0 and v_new_cursor is not null then
-          v_stack := jsonb_build_array(jsonb_build_object('beat_id', v_new_cursor));
-        end if;
-      end if;
-
-      update public.quest_runtime_state
-         set current_beat_id = v_new_cursor,
-             visit_stack = v_stack,
-             visit_index = jsonb_array_length(v_stack) - 1,
-             version = version + 1,
-             updated_by = auth.uid()
-       where quest_id = p_quest_id and campaign_id = p_campaign_id and thread_id = p_thread_id;
-    end if;
-  else
+  if v_last.transition_kind <> 'assert' then
+    select * into v_state from public.quest_runtime_state
+     where quest_id = p_quest_id and campaign_id = p_campaign_id and thread_id = v_thread_id;
     if v_state.quest_id is null then
       raise exception 'Nothing to undo' using errcode = 'P0002';
     end if;
     -- A played move: exactly the `previous` verb, at the version just read.
     perform public.transition_quest_runtime(
-      p_campaign_id, p_quest_id, p_thread_id, 'previous', v_state.version
+      p_campaign_id, p_quest_id, v_thread_id, 'previous', v_state.version
     );
+    return jsonb_build_object(
+      'undone_transition_id', v_last.id,
+      'current_beat_id', (select s.current_beat_id from public.quest_runtime_state s
+                           where s.quest_id = p_quest_id and s.campaign_id = p_campaign_id and s.thread_id = v_thread_id)
+    );
+  end if;
+
+  -- A marked move: every transition it wrote, newest first.
+  v_move_id := v_last.provenance ->> 'move_id';
+  for v_row in
+    select * from public.quest_beat_transitions t
+     where t.campaign_id = p_campaign_id and t.to_quest_id = p_quest_id
+       and (t.id = v_last.id or (v_move_id is not null and t.provenance ->> 'move_id' = v_move_id))
+     order by t.seq desc
+  loop
+    perform private.undo_quest_transition_consequences(v_row.id);
+    delete from public.quest_beat_transitions where id = v_row.id;
+    v_first_from := v_row.from_beat_id;
+    if coalesce((v_row.provenance ->> 'opened_thread')::boolean, false) then
+      v_opened := v_opened || v_row.thread_id;
+    end if;
+  end loop;
+
+  -- A thread the move opened, with nothing else on it, closes again.
+  foreach v_closed in array v_opened loop
+    if not exists (select 1 from public.quest_beat_transitions t where t.thread_id = v_closed) then
+      delete from public.quest_runtime_state where thread_id = v_closed;
+      delete from public.quest_threads where id = v_closed;
+      if v_closed = v_thread_id then
+        return jsonb_build_object('undone_transition_id', v_last.id, 'current_beat_id', null, 'closed_thread_id', v_closed);
+      end if;
+    end if;
+  end loop;
+
+  select * into v_state from public.quest_runtime_state
+   where quest_id = p_quest_id and campaign_id = p_campaign_id and thread_id = v_thread_id
+   for update;
+  -- The cursor goes back only when it stands on a beat no remaining
+  -- transition of this thread reaches: a failed mark leaves the party where
+  -- it was, a party-here move does not.
+  if v_state.quest_id is not null and v_state.current_beat_id is not null and not exists (
+    select 1 from public.quest_beat_transitions t
+     where t.thread_id = v_thread_id and t.to_beat_id = v_state.current_beat_id
+  ) then
+    select t.to_beat_id into v_new_cursor
+      from public.quest_beat_transitions t
+     where t.campaign_id = p_campaign_id and t.to_quest_id = p_quest_id
+       and t.thread_id = v_thread_id and t.to_beat_id is not null
+     order by t.seq desc
+     limit 1;
+    if v_new_cursor is null then v_new_cursor := v_first_from; end if;
+
+    -- Drop visits no remaining transition reaches, keeping the stack consistent.
+    v_stack := coalesce(v_state.visit_stack, '[]'::jsonb);
+    while jsonb_array_length(v_stack) > 0 and not exists (
+      select 1 from public.quest_beat_transitions t
+       where t.thread_id = v_thread_id
+         and t.to_beat_id = (v_stack -> (jsonb_array_length(v_stack) - 1) ->> 'beat_id')::uuid
+    ) loop
+      v_stack := v_stack - (jsonb_array_length(v_stack) - 1);
+    end loop;
+    if jsonb_array_length(v_stack) = 0 and v_new_cursor is not null then
+      v_stack := jsonb_build_array(jsonb_build_object('beat_id', v_new_cursor));
+    end if;
+
+    update public.quest_runtime_state
+       set current_beat_id = v_new_cursor,
+           visit_stack = v_stack,
+           visit_index = jsonb_array_length(v_stack) - 1,
+           version = version + 1,
+           updated_by = auth.uid()
+     where quest_id = p_quest_id and campaign_id = p_campaign_id and thread_id = v_thread_id;
   end if;
 
   return jsonb_build_object(
     'undone_transition_id', v_last.id,
     'current_beat_id', (select s.current_beat_id from public.quest_runtime_state s
-                         where s.quest_id = p_quest_id and s.campaign_id = p_campaign_id and s.thread_id = p_thread_id)
+                         where s.quest_id = p_quest_id and s.campaign_id = p_campaign_id and s.thread_id = v_thread_id)
   );
 end $function$;
 

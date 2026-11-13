@@ -11,6 +11,7 @@ import {
   questBeatKindLabel,
   tallyQuestReach,
   visitedRouteEdgeIds,
+  failedBeatIds,
 } from "./presentation";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatEdge, QuestBeatTransition, QuestConsequence } from "@/types/quest.types";
 import type { SiteReadiness } from "@/lib/locations/siteReadiness";
@@ -438,5 +439,30 @@ describe("formatUnwrittenRoomsLabel", () => {
 
   it("defaults to room/rooms when no site type is given", () => {
     expect(formatUnwrittenRoomsLabel([4, 5, 6])).toBe("rooms 4–6 empty");
+  });
+});
+
+describe("failedBeatIds", () => {
+  const move = (to: string, created_at: string, outcome: "failed" | null = null) =>
+    ({ from_beat_id: null, to_beat_id: to, created_at, outcome }) as QuestBeatTransition;
+
+  it("marks a beat whose arrival carried the failed outcome (fails if outcome is ignored)", () => {
+    expect([...failedBeatIds([move("a", "1", "failed")])]).toEqual(["a"]);
+  });
+
+  it("clears a beat that was arrived at cleanly after it failed (fails if any past failure sticks)", () => {
+    expect(failedBeatIds([move("a", "1", "failed"), move("a", "2")]).has("a")).toBe(false);
+  });
+
+  it("reads newest first by created_at, not by array order (fails if order is trusted)", () => {
+    expect(failedBeatIds([move("a", "2", "failed"), move("a", "1")]).has("a")).toBe(true);
+  });
+
+  it("flows into the presentation as isFailed", () => {
+    const result = deriveQuestBeatPresentations({
+      beats: [beat("a"), beat("b")], edges: [], attachments: [],
+      transitions: [move("a", "1", "failed"), move("b", "2")],
+    });
+    expect([result.a!.isFailed, result.b!.isFailed]).toEqual([true, false]);
   });
 });

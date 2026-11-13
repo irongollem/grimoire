@@ -1,11 +1,6 @@
 <template>
-  <section class="space-y-2 rounded-lg border border-border bg-card p-3" aria-label="Quest consequences">
-    <div>
-      <h3 class="text-heading-sm font-bold text-foreground">Consequences</h3>
-      <p class="text-caption text-muted-foreground">
-        When an objective becomes a status, a clock fills, the whole ledger settles, or a place gains a fact, do this, optionally after a delay.
-      </p>
-    </div>
+  <section class="space-y-2 rounded-lg border border-border bg-card p-3" aria-label="Payoffs">
+    <h3 class="text-heading-sm font-bold text-foreground">Payoffs</h3>
 
     <ul v-if="rows.length" class="space-y-1.5">
       <li v-for="row in rows" :key="row.id" class="flex min-w-0 flex-wrap items-center gap-2 rounded-md border border-border p-2 text-caption">
@@ -17,8 +12,7 @@
         <AppButton label="Remove" size="xs" variant="subtle" :loading="removingId === row.id" @click="remove(row.id)" />
       </li>
     </ul>
-    <p v-else class="text-caption italic text-muted-foreground">No quest-wide consequences yet.</p>
-
+    
     <div class="grid min-w-0 gap-2 sm:grid-cols-2">
       <!-- Condition -->
       <AppSelect v-model="conditionKind" class="min-w-0" aria-label="Condition" @change="conditionObjectiveId = ''; conditionLocationId = ''; conditionClockId = ''">
@@ -179,7 +173,7 @@ import QuestWorldVerbFields from "./QuestWorldVerbFields.vue";
  * when an objective becomes a status, when the whole ledger settles, or
  * (#869) when a place gains a durable fact (explored/cleared/looted) — the
  * honest version of the DM ticking a box twice, per frame 15 of the site
- * sheet. Mounted once, on the quest overview (`QuestOverviewLifecycle`).
+ * sheet. Mounted once, on the quest overview (`QuestPanel`).
  *
  * The beat-scoped half — arrival and branch conditions, authored on a beat —
  * moved into the Payoff list on the beat page (`QuestPayoffPanel.vue`,

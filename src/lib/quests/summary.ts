@@ -5,7 +5,7 @@
  * `char_length(summary) <= 280 and summary !~ E'[\n\r]'`. It is shown
  * verbatim to players (the DM quest card, the kanban board, the player quest
  * log and the player quest page, and it's matched by quest search), so it is
- * also a spoiler channel, not just a length limit — see `QuestOverviewMetadata.vue`
+ * also a spoiler channel, not just a length limit — see `QuestDetailsSection.vue`
  * and `QuestFlowStarter.vue`, the only two editors for this field.
  *
  * `QUEST_SUMMARY_MAX` is the one place the cap is a number; every input that
