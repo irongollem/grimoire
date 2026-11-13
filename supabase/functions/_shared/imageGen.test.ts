@@ -152,7 +152,7 @@ describe("generateImage — provider verdict recording", () => {
     expect(calls.some((url) => url.includes("/images/generations"))).toBe(false);
   });
 
-  it("adds the Gemini style booster only when asked, so a map is not given dramatic lighting", async () => {
+  it("adds the Gemini style booster only when asked, so a map is not given dramatic lighting and a portrait no deep background", async () => {
     const { admin } = fakeAdmin();
     const sentPrompts: string[] = [];
     vi.stubGlobal("fetch", vi.fn((url: string, init?: { body?: unknown }) => {
@@ -169,9 +169,15 @@ describe("generateImage — provider verdict recording", () => {
 
     await generateImage({ ...opts("gemini", admin), boostStyle: true });
     await generateImage({ ...opts("gemini", admin), boostStyle: false });
+    await generateImage({ ...opts("gemini", admin), boostStyle: "portrait" });
 
     expect(sentPrompts[0]).toMatch(/volumetric lighting/);
+    expect(sentPrompts[0]).toMatch(/foreground-to-background/);
     expect(sentPrompts[1]).toBe("a dwarven cleric");
+    // A portrait keeps painterly lighting but not the scene booster's deep
+    // background, which pushed NPCs toward a hero shot against a landscape.
+    expect(sentPrompts[2]).toMatch(/^a dwarven cleric — .*rim light/);
+    expect(sentPrompts[2]).not.toMatch(/foreground-to-background/);
   });
 
   it("renders unscreened, and logs nothing, when no screening context is given", async () => {
