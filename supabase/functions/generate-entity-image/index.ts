@@ -16,7 +16,7 @@ import {
   validatePromptInput,
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
-import { buildImagePromptAuthorSystem, buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
+import { buildEntityImagePrompt, buildImagePromptAuthorSystem, isPortraitKind } from "../_shared/image-prompt.ts";
 import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
@@ -192,7 +192,7 @@ serve(withCors(async (req: Request) => {
   }
 
   // ── 2. Render the image ────────────────────────────────────────────────────
-  const imagePrompt = buildSimpleImagePrompt({
+  const imagePrompt = buildEntityImagePrompt(kind, {
     base: imageBasePrompt,
     setting: campaign.ai_setting_prompt ?? "",
     subject,
@@ -205,7 +205,8 @@ serve(withCors(async (req: Request) => {
     imgResult = await generateImage({
       provider: img.provider, model: img.model, apiKey: img.apiKey,
       screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "entity_image" },
-      prompt: imagePrompt, size: ENTITY_IMAGE_SIZE, quality, boostStyle: true,
+      prompt: imagePrompt, size: ENTITY_IMAGE_SIZE, quality,
+      boostStyle: isPortraitKind(kind) ? "portrait" : true,
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);

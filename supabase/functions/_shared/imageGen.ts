@@ -97,6 +97,15 @@ const GEMINI_STYLE_BOOSTER =
   "dramatic volumetric lighting with a strong directional key light and deep chiaroscuro shadows, warm rim light, rich tonal range, layered foreground-to-background atmospheric depth, painterly dimensionality and confident form modeling; avoid flat, evenly-lit, washed-out rendering";
 
 /**
+ * The booster for character portraits. It keeps the painterly lighting but
+ * drops the scene booster's deep layered background, which (with the strong key
+ * light) pushed portraits toward a hero shot against a distant landscape,
+ * against the framing image-prompt.ts's PORTRAIT_FRAMING asks for.
+ */
+const GEMINI_PORTRAIT_BOOSTER =
+  "soft directional key light with gentle chiaroscuro, warm rim light, rich tonal range, painterly dimensionality and confident form modeling, the subject crisp against a simple soft background; avoid flat, evenly-lit, washed-out rendering";
+
+/**
  * Map a "WxH" size to the nearest Gemini `aspectRatio` bucket Gemini
  * actually accepts, rather than the three crude thresholds this used to
  * pick from — a map's own aspect (from the map's own dimensions, not a
@@ -282,9 +291,10 @@ export async function generateImage(opts: {
   /**
    * Append GEMINI_STYLE_BOOSTER (Gemini only) for scene/character/illustration
    * work to counter flash-image's flat literalness. Leave false for maps —
-   * dramatic lighting/depth ruins top-down cartography.
+   * dramatic lighting/depth ruins top-down cartography. "portrait" appends
+   * GEMINI_PORTRAIT_BOOSTER instead, for character portraits.
    */
-  boostStyle?: boolean;
+  boostStyle?: boolean | "portrait";
   sourceImages?: Blob[];
   /** OpenAI output background. Ignored by providers that do not expose it. */
   background?: "transparent" | "opaque" | "auto";
@@ -310,7 +320,8 @@ export async function generateImage(opts: {
     switch (provider) {
       case "gemini": {
         if (mask) throw new Error("Gemini cannot take an edit mask");
-        const geminiPrompt = boostStyle ? `${prompt} — ${GEMINI_STYLE_BOOSTER}` : prompt;
+        const booster = boostStyle === "portrait" ? GEMINI_PORTRAIT_BOOSTER : boostStyle ? GEMINI_STYLE_BOOSTER : null;
+        const geminiPrompt = booster ? `${prompt} — ${booster}` : prompt;
         return geminiGenerate(apiKey, model, geminiPrompt, size, quality, sourceImages);
       }
       default:       return openaiGenerate(apiKey, model, prompt, size, quality, sourceImages, background, mask); // openai

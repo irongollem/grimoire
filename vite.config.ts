@@ -125,6 +125,10 @@ function swPlugin(assetCdnOrigin: string): Plugin {
       distDir = path.resolve(config.root, config.build.outDir);
     },
     closeBundle() {
+      // Rolldown runs closeBundle after a failed build too, when nothing was
+      // written. Reading a missing index.html here then reported ENOENT in
+      // place of the error that actually stopped the build.
+      if (!existsSync(path.join(distDir, "index.html"))) return;
       const template = readFileSync(
         path.resolve(import.meta.dirname, "scripts/sw-template.js"),
         "utf8",
@@ -530,7 +534,10 @@ function bootBudgetPlugin(): Plugin {
       distDir = path.resolve(config.root, config.build.outDir);
       hasSupabaseEnv = typeof config.env.VITE_SUPABASE_URL === "string" && config.env.VITE_SUPABASE_URL !== "";
     },
-    closeBundle() {
+    // Checked at the start, not at closeBundle: a build without the env fails
+    // part-way (the classic songs page needs it too) and the first message the
+    // developer sees should be this one, which says what to set.
+    buildStart() {
       // A build without VITE_SUPABASE_URL is a build of an app that throws on
       // its first line (src/lib/supabase.ts refuses to start without it), and
       // since every boot module shares the `app-boot` chunk, the minifier treats
@@ -545,6 +552,9 @@ function bootBudgetPlugin(): Plugin {
             "Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (placeholders are fine), or use --mode localdb.",
         );
       }
+    },
+    closeBundle() {
+      if (!existsSync(path.join(distDir, "index.html"))) return;
       const html = readFileSync(path.join(distDir, "index.html"), "utf8");
 
       // Scripts plus modulepreloads only. Stylesheets, icons and the manifest

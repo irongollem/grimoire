@@ -9,25 +9,48 @@
 export const SUBJECT_OVERRIDES_SETTING =
   "If the Subject describes clothing, profession, or appearance that does not fit the Setting (for example, a butler or noble indoors in an otherwise wintry land), render the Subject exactly as described. The Setting is only background atmosphere, not a wardrobe override.";
 
+// Character portraits (NPCs, party members) get their own framing and their
+// own Precedence line. With only SUBJECT_OVERRIDES_SETTING, whose last
+// sentence calls the Setting "only background atmosphere", and nothing asking
+// for framing or gaze, the image model fell back to its heroic default: a
+// full-body, low-angle three-quarter shot looking off to the side, with the
+// campaign's landscape (snowy mountains) painted behind the subject. A
+// portrait now states its framing outright, and the Setting informs palette
+// and mood only. Locations, monsters and the rest keep SUBJECT_OVERRIDES_SETTING,
+// where the setting as a backdrop is wanted.
+export const PORTRAIT_FRAMING =
+  "Waist-up character portrait, camera at eye level, the subject facing the viewer. The subject looks directly at the viewer, or at the object or task in their own hands if the Subject says so; never off to the side, over the shoulder, or at anything out of frame. The background is only the subject's immediate surroundings, simple and softly out of focus: no distant landscape, vista, horizon or sky.";
+
+export const PORTRAIT_SETTING_ROLE =
+  "If the Subject describes clothing, profession, or appearance that does not fit the Setting (for example, a butler or noble indoors in an otherwise wintry land), render the Subject exactly as described. The Setting informs palette and mood only; it is not a backdrop to paint behind the subject.";
+
+/** Image-job kinds that are character portraits, framed by PORTRAIT_FRAMING. */
+export const PORTRAIT_KINDS: ReadonlySet<string> = new Set(["npc_portrait", "party_member"]);
+
+export function isPortraitKind(kind: string): boolean {
+  return PORTRAIT_KINDS.has(kind);
+}
+
 interface PromptParts {
   base: string;
   setting: string;
   subject: string;
 }
 
-/** Newline-joined, labelled prompt — used by NPC true portrait generation. */
+/** Newline-joined, labelled prompt — used by character portraits (NPCs, party members). */
 export function buildLabelledImagePrompt({ base, setting, subject }: PromptParts): string {
   return [
     `Style: ${base}`,
+    `Framing: ${PORTRAIT_FRAMING}`,
     setting ? `Setting: ${setting}` : null,
-    setting ? `Precedence: ${SUBJECT_OVERRIDES_SETTING}` : null,
+    setting ? `Precedence: ${PORTRAIT_SETTING_ROLE}` : null,
     `Subject: ${subject}`,
   ]
     .filter(Boolean)
     .join("\n");
 }
 
-/** " — "-joined prompt — used by everything except NPC true portrait. */
+/** " — "-joined prompt — used by everything except character portraits. */
 export function buildSimpleImagePrompt({ base, setting, subject }: PromptParts): string {
   return [
     base,
@@ -37,6 +60,11 @@ export function buildSimpleImagePrompt({ base, setting, subject }: PromptParts):
   ]
     .filter(Boolean)
     .join(" — ");
+}
+
+/** The prompt for an image-job kind: labelled and framed for a portrait, simple otherwise. */
+export function buildEntityImagePrompt(kind: string, parts: PromptParts): string {
+  return isPortraitKind(kind) ? buildLabelledImagePrompt(parts) : buildSimpleImagePrompt(parts);
 }
 
 // ── Image-prompt authoring (existing-entity "AI weighs in" step) ──────────────
@@ -73,8 +101,11 @@ export function buildImagePromptAuthorSystem(kind: string): string {
     `You are writing a prompt for an image generator. The subject is ${noun}.`,
     "Given the facts below, write one concise visual description of the subject's appearance.",
     "Describe only what should be visible in the image — physical appearance, attire, pose, mood, and notable details.",
+    isPortraitKind(kind)
+      ? "State where the subject is looking: directly at the viewer, or at the object or task in their own hands. Describe no distant scenery, landscape or sky."
+      : null,
     "Do not include game statistics, names, headings, or any preamble. Output only the description as a single paragraph.",
-  ].join(" ");
+  ].filter(Boolean).join(" ");
 }
 
 // ── Simulacrum stylize prompt (portrait → mini render) ─────────────────────
