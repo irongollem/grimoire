@@ -93,12 +93,9 @@
                 />
               </template>
               <span class="flex-1">{{ rule.title }}</span>
-              <span
-                v-if="rule.category"
-                class="shrink-0 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
-              >
+              <TagChip v-if="rule.category" class="shrink-0">
                 {{ rule.category }}
-              </span>
+              </TagChip>
               <div v-if="rule.tags.length" class="hidden sm:flex flex-wrap gap-1 shrink-0">
                 <span
                   v-for="tag in rule.tags"
@@ -131,6 +128,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { ref, computed, shallowRef } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";

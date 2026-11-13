@@ -110,10 +110,10 @@
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-0.5">
                 <p class="text-heading-xs font-bold text-foreground truncate">{{ recipe.name }}</p>
-                <span
+                <TagChip
                   v-if="!activeDiscipline"
-                  class="shrink-0 text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
-                >{{ getDiscipline(recipe.discipline).label }}</span>
+                  class="shrink-0"
+                >{{ getDiscipline(recipe.discipline).label }}</TagChip>
               </div>
               <p class="text-caption text-muted-foreground">
                 DC {{ recipe.dc }} · {{ craftingTimeText(recipe.crafting_time, recipe.crafting_time_unit) }}
@@ -203,6 +203,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed } from "vue";
 import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
 import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconListView, IconSearch, IconWand } from '@/lib/icons';

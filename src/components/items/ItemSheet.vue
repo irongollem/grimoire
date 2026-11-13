@@ -16,12 +16,7 @@
         <span v-if="item.weight" class="text-muted-foreground">{{ item.weight }}</span>
         <span v-if="displayCost" class="text-muted-foreground">{{ displayCost }}</span>
         <span v-if="!playerView" class="text-muted-foreground">{{ scopeLabel }}</span>
-        <span
-          v-for="tag in item.tags"
-          :key="tag"
-          class="rounded bg-muted px-2 py-0.5 text-label text-muted-foreground"
-          >{{ tag }}</span
-        >
+        <TagChip v-for="tag in item.tags" :key="tag">{{ tag }}</TagChip>
         <PortraitOnRequest :src="item.image_url" :alt="item.name" label="Identified" />
         <PortraitOnRequest :src="item.mundane_image_url" :alt="`${item.name}, unidentified`" label="Mundane" />
       </SheetFactLine>
@@ -106,14 +101,7 @@
             <span class="font-bold">{{ scopeLabel }}</span>
           </div>
         </div>
-        <div v-if="item.tags?.length" class="flex flex-wrap gap-1">
-          <span
-            v-for="tag in item.tags"
-            :key="tag"
-            class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5"
-            >{{ tag }}</span
-          >
-        </div>
+        <TagChips :tags="item.tags" />
       </div>
 
       <!-- Right: details -->
@@ -265,24 +253,24 @@
         Contained In
       </h3>
       <div class="flex flex-wrap gap-1.5">
-        <RouterLink
+        <TagChip
           v-for="table in containedIn"
           :key="table.id"
           :to="`/loot-tables/${table.id}`"
-          class="inline-flex items-center gap-1 text-label px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
         >
           <IconPackage class="h-2.5 w-2.5 shrink-0" />{{ table.name }}
-        </RouterLink>
+        </TagChip>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
+import TagChips from "@/components/common/TagChips.vue";
 import { ref, computed } from "vue";
 import { storeToRefs } from "pinia";
 import { IconPackage } from '@/lib/icons';
-import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
 import BookmarkTab from "@/components/common/entity/BookmarkTab.vue";

@@ -29,9 +29,9 @@
             </p>
             <p v-if="cls.primary_ability" class="text-caption text-muted-foreground mt-0.5">{{ cls.primary_ability }}</p>
           </div>
-          <span class="shrink-0 px-2 py-0.5 rounded bg-muted text-label text-muted-foreground">
+          <TagChip class="shrink-0">
             d{{ cls.hit_die }}
-          </span>
+          </TagChip>
         </div>
         <div v-if="cls.saving_throws?.length" class="mt-1.5 flex flex-wrap gap-1">
           <span v-for="st in cls.saving_throws" :key="st"
@@ -213,6 +213,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { ref, computed, watch, nextTick } from "vue";
 import { revealInScrollParent } from "@/lib/motion";

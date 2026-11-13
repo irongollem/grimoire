@@ -32,13 +32,7 @@
       </template>
       <div class="px-4 py-4">
         <RichTextViewer :content="note.content ?? ''" />
-        <div v-if="note.tags?.length" class="flex flex-wrap gap-1 mt-3">
-          <span
-            v-for="tag in note.tags"
-            :key="tag"
-            class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
-          >{{ tag }}</span>
-        </div>
+        <TagChips :tags="note.tags ?? []" class="mt-3" />
       </div>
     </JournalCard>
     </template>
@@ -46,6 +40,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { IconPin, IconPopulate } from '@/lib/icons';

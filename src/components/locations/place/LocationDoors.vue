@@ -61,10 +61,10 @@
           </template>
           <!-- Browse: the same three facts, read-only (#884). -->
           <template v-else>
-            <span
+            <TagChip
               v-if="view.door.is_one_way"
-              class="shrink-0 rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground"
-            >one-way</span>
+              class="shrink-0 uppercase"
+            >one-way</TagChip>
             <IconLock
               v-if="view.door.starts_locked"
               class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
@@ -165,6 +165,7 @@
  * site state with provenance and undo, and belongs to #787 keyed on the room.
  * Nothing here should ever be renamed to `is_locked` or `is_discovered`.
  */
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";

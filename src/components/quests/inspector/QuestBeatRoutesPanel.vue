@@ -20,7 +20,7 @@
             <component :is="route.edge.route_kind === 'parallel' ? IconLayers : IconShuffle" class="h-3 w-3" />
             {{ route.edge.route_kind }}
           </span>
-          <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ route.targetKind }}</span>
+          <TagChip class="uppercase">{{ route.targetKind }}</TagChip>
           <span v-if="route.edge.route_kind === 'parallel' && route.edge.thread_label" class="rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info">
             opens {{ route.edge.thread_label }}
           </span>
@@ -42,6 +42,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed } from "vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { isInteriorType, isSiteType, spaceNoun } from "@/lib/locations/tiers";

@@ -79,13 +79,7 @@
             <template #body="{ artFree }">
               <p v-if="!artFree" class="truncate text-heading-xs font-bold text-foreground">{{ pantheon.name }}</p>
               <p class="text-label text-muted-foreground">{{ deityCountLabel(pantheon.id) }}</p>
-              <div v-if="pantheon.tags.length && !artFree" class="mt-auto flex flex-wrap gap-1 pt-1">
-                <span
-                  v-for="tag in pantheon.tags.slice(0, 3)"
-                  :key="tag"
-                  class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-                >{{ tag }}</span>
-              </div>
+              <TagChips v-if="!artFree" :tags="pantheon.tags" :max="3" class="mt-auto pt-1" />
             </template>
             <template #foot>
               <span v-if="pantheon.tags.length" class="line-clamp-1 text-label text-muted-foreground">{{ pantheon.tags.slice(0, 3).join(" · ") }}</span>
@@ -122,6 +116,7 @@
 
 <script setup lang="ts">
 import { artFreeSkeleton } from "@/components/common/list/ledger";
+import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
 import { IconAdd, IconFire, IconNavPantheon, IconSun } from '@/lib/icons';
 import { useAllPantheons, useAllDeities, useUpdatePantheon } from "@/composables/deities/useDeities";

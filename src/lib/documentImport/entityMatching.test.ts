@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   canCreateFromPage,
   defaultDecision,
+  deityCandidatesFor,
+  withDeityCandidates,
   normalizeMonsterReferenceRows,
   parseImportMatches,
   type EntityCandidate,
@@ -234,4 +236,48 @@ describe("normalizeMonsterReferenceRows", () => {
     ).toEqual([]);
   });
 
+});
+
+describe("deity candidates for an NPC", () => {
+  const auril = { id: "d-auril", name: "Auril", titles: "the Frostmaiden" };
+  const ra = { id: "d-ra", name: "Ra", titles: null };
+
+  it("matches the same name exactly and a whole-word part of it as contains, either direction", () => {
+    expect(deityCandidatesFor("Auril", [auril])[0]).toMatchObject({ source: "deity", targetId: "d-auril", matchKind: "exact", detail: "the Frostmaiden", distance: null });
+    expect(deityCandidatesFor("Auril the Frostmaiden", [auril])[0]).toMatchObject({ matchKind: "contains" });
+    expect(deityCandidatesFor("Auril", [{ id: "x", name: "Auril the Frostmaiden" }])[0]).toMatchObject({ matchKind: "contains" });
+  });
+
+  it("does not match a substring that is not a whole word, or a name too short to contain", () => {
+    expect(deityCandidatesFor("Auri", [auril])).toEqual([]);
+    expect(deityCandidatesFor("Ra the Sun", [ra])).toEqual([]);
+    expect(deityCandidatesFor("Ra", [ra])[0]).toMatchObject({ matchKind: "exact" });
+  });
+
+  it("puts an exact deity first, so the default links to the god, and a partial one last", () => {
+    const own = candidate({ targetId: "npc-1", name: "Auril's Herald", matchKind: "contains" });
+    const out = withDeityCandidates(
+      new Map([["n1", [own]]]),
+      [{ ref: "n1", name: "Auril" }],
+      [auril, { id: "d-aurilus", name: "Auril the Cold" }],
+    );
+    expect(out.get("n1")!.map((c) => c.targetId)).toEqual(["d-auril", "npc-1", "d-aurilus"]);
+    expect(defaultDecision("npcs", { name: "Auril" }, out.get("n1")!)).toMatchObject({ action: "link", candidate: { source: "deity" } });
+  });
+
+  it("gives a ref with no server candidates an entry, and leaves the input untouched", () => {
+    const input = new Map<string, readonly EntityCandidate[]>([["n2", [candidate()]]]);
+    const out = withDeityCandidates(input, [{ ref: "n1", name: "Auril" }, { ref: "n2", name: "Nobody" }], [auril]);
+    expect(out.get("n1")).toHaveLength(1);
+    expect(out.get("n2")).toEqual([candidate()]);
+    expect(input.has("n1")).toBe(false);
+  });
+
+  it("never accepts a deity or chosen candidate from the server", () => {
+    const raw = { matches: { npcs: { n1: [
+      { targetId: "d", source: "deity", name: "Auril", matchKind: "exact" },
+      { targetId: "d", source: "campaign", name: "Auril", matchKind: "chosen" },
+    ] } } };
+    expect(parseImportMatches(raw).matches.size).toBe(0);
+  });
 });

@@ -157,13 +157,11 @@
                   <span v-if="displaySize" class="px-2 py-0.5 rounded bg-primary/10 text-primary text-label">{{ capitalize(displaySize) }}</span>
                   <SourceBadge :source="displaySpecies.source" />
                 </div>
-                <div v-if="speedPills.length" class="flex flex-wrap gap-1">
-                  <span v-for="pill in speedPills" :key="pill" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label">{{ pill }}</span>
-                </div>
+                <TagChips :tags="speedPills" />
                 <p v-if="asiText" class="text-body text-muted-foreground">{{ asiText }}</p>
                 <div v-if="displayLanguages.length" class="flex flex-wrap gap-1 items-center">
                   <span class="text-label text-muted-foreground">Lang:</span>
-                  <span v-for="lang in displayLanguages" :key="lang" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label">{{ lang }}</span>
+                  <TagChip v-for="lang in displayLanguages" :key="lang">{{ lang }}</TagChip>
                 </div>
               </div>
             </div>
@@ -202,6 +200,8 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
+import TagChips from "@/components/common/TagChips.vue";
 import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import { ref, computed, defineAsyncComponent } from "vue";
 import { useFormPortraits } from "@/composables/party/useFormPortraits";

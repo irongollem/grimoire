@@ -27,7 +27,7 @@
             <IconNavigate class="h-3 w-3" aria-hidden="true" />
             Thread {{ currentBadge?.letter ?? "?" }}
           </span>
-          <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ quest?.title ?? "…" }}</span>
+          <TagChip class="uppercase">{{ quest?.title ?? "…" }}</TagChip>
         </div>
         <h1 class="text-heading font-bold text-foreground">{{ beat.title || "Untitled beat" }}</h1>
         <p class="mt-0.5 text-caption text-muted-foreground">{{ kindLabel }} · staged at a site · {{ positionLabel }}</p>
@@ -330,6 +330,7 @@
  * the identical room surface rather than two components that can drift.
  * `SiteRoomList` is used here with `runCaptions` on (frame 08's reachability-driven captions).
  */
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";

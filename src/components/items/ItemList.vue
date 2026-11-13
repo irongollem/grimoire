@@ -163,13 +163,7 @@
                 :title="item.source_title"
                 class="max-w-full truncate"
               />
-              <span
-                v-for="tag in item.tags.slice(0, 2)"
-                :key="tag"
-                class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-              >
-                {{ tag }}
-              </span>
+              <TagChips :tags="item.tags" :max="2" />
             </div>
           </template>
 
@@ -222,6 +216,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { computed, ref, type Component as VueComponent } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { IconCaravan, IconCircle, IconCoins, IconComponent, IconDocument, IconEdit, IconFood, IconGem, IconGenerate, IconInventory, IconInvite, IconLightning, IconNavItemVault, IconPackage, IconPotion, IconScrollText, IconShield, IconSword, IconTool, IconWand } from '@/lib/icons';

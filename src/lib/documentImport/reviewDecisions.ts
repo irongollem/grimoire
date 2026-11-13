@@ -156,6 +156,7 @@ export function decisionStatus(decision: ImportDecision, generateCreditsLabel: s
     case "link": {
       const c = decision.candidate;
       const detail = c.detail ? ` · ${c.detail}` : "";
+      if (c.source === "deity") return { label: `Your deity: ${c.name}${detail}`, tone: "success" };
       // A library candidate is referenced in place, not copied; the status says which shelf it comes from.
       return c.source === "campaign"
         ? { label: `Links to ${c.name}${detail}`, tone: "success" }
@@ -174,6 +175,7 @@ export function matchKindHint(kind: EntityMatchKind): string {
   if (kind === "exact") return "same name";
   if (kind === "near") return "nearly the same name";
   if (kind === "contains") return "name contains";
+  if (kind === "chosen") return "picked by you";
   return "looks similar";
 }
 

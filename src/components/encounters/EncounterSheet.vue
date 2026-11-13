@@ -184,10 +184,7 @@
             v-if="c.factionName"
             class="text-label text-muted-foreground"
           >{{ c.factionName }}</span>
-          <span
-            v-if="c.cr"
-            class="text-label rounded px-1.5 py-0.5 bg-muted text-muted-foreground"
-          >CR {{ c.cr }}</span>
+          <TagChip v-if="c.cr">CR {{ c.cr }}</TagChip>
         </RouterLink>
       </div>
     </section>
@@ -238,6 +235,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import { IconCheckDouble, IconChevronLeft, IconClose, IconEdit, IconLocation, IconMonster, IconPackage, IconPlay, IconReset, IconScrollText, IconStop, IconTrap, IconUserRound } from '@/lib/icons';

@@ -2,7 +2,7 @@
   <section class="rounded-lg border border-border bg-card p-3" aria-label="Selected route">
     <header class="flex items-center gap-2">
       <h3 class="text-heading-sm font-bold text-foreground">Selected route</h3>
-      <span class="ml-auto truncate rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground">{{ sourceTitle }} → {{ targetTitle }}</span>
+      <TagChip class="ml-auto truncate">{{ sourceTitle }} → {{ targetTitle }}</TagChip>
     </header>
 
     <div class="mt-2 space-y-2">
@@ -68,6 +68,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";

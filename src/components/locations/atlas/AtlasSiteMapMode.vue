@@ -10,10 +10,10 @@
       <span class="truncate">{{ levelsContainer?.name }}</span>
       <IconChevronRight class="h-3 w-3 shrink-0 text-muted-foreground/50" />
       <span class="truncate font-semibold text-foreground">Level {{ currentLevelOrdinal }} · {{ location.name }}</span>
-      <span class="ml-1 flex shrink-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground">
+      <TagChip class="ml-1 flex shrink-0 items-center gap-1">
         <IconStairs class="h-3 w-3 shrink-0" aria-hidden="true" />
         {{ verticalWaysCount }} stair{{ verticalWaysCount === 1 ? "" : "s" }} down
-      </span>
+      </TagChip>
     </div>
 
     <div class="flex items-start gap-3">
@@ -156,6 +156,7 @@
  * `AtlasPlacePane` currently treats both the same way, but the distinction
  * is real at the point each event is emitted, and cheap to keep honest.
  */
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";

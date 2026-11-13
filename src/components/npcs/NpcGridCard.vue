@@ -38,11 +38,11 @@
         <IconCompassRose class="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{{ locationName }}
       </p>
 
-      <NpcCardTags v-if="!artFree" :tags="npc.tags" class="mt-auto pt-1" />
+      <TagChips v-if="!artFree" :tags="npc.tags" :max="3" overflow class="mt-auto pt-1" />
     </template>
 
     <template #foot>
-      <NpcCardTags :tags="npc.tags" />
+      <TagChips :tags="npc.tags" :max="3" overflow />
     </template>
 
     <!--
@@ -70,11 +70,11 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";
 import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
-import NpcCardTags from "@/components/npcs/NpcCardTags.vue";
 import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
 import { IconCompassRose, IconEdit } from "@/lib/icons";
 import {

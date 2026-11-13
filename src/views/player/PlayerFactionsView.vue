@@ -63,13 +63,7 @@
               <h3 class="text-heading-xs font-bold text-foreground truncate">{{ faction.name }}</h3>
               <p v-if="faction.faction_type" class="text-caption text-muted-foreground italic">{{ faction.faction_type }}</p>
               <RelationshipMark v-if="faction.party_standing !== 'unknown'" :relationship="faction.party_standing" class="mt-1" />
-              <div v-if="faction.tags?.length" class="flex flex-wrap gap-1 mt-1">
-                <span
-                  v-for="tag in faction.tags.slice(0, 3)"
-                  :key="tag"
-                  class="inline-block bg-muted rounded px-1.5 py-0.5 text-label text-muted-foreground"
-                >{{ tag }}</span>
-              </div>
+              <TagChips :tags="faction.tags ?? []" :max="3" class="mt-1" />
             </div>
           </div>
         </div>
@@ -190,6 +184,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";

@@ -17,13 +17,16 @@
  * everything past it is a validated `EntityCandidate`, never a guess.
  */
 import type { ImportEntityKind } from "@/types/documentImport.types";
+import { normalizeEntityName } from "./entityName";
 
 // ── Candidates ───────────────────────────────────────────────────────────────
 
 /** Where a candidate row lives — the caller's own campaign (or their global,
  *  campaign-less rows) versus the shared library. Mirrors the RPC's own
- *  `source` column (`match_import_entity_names`). */
-export type EntityMatchSource = "campaign" | "library";
+ *  `source` column (`match_import_entity_names`). `deity` is never sent by the
+ *  server: it is a row of the campaign's `deities` offered for an extracted
+ *  NPC (`deityCandidatesFor`), and linking to it writes nothing. */
+export type EntityMatchSource = "campaign" | "library" | "deity";
 
 /**
  * How a candidate was found. `exact`/`near`/`contains` are the name tier
@@ -33,7 +36,9 @@ export type EntityMatchSource = "campaign" | "library";
  * the embedding fallback the edge function adds on top, for a renamed variant
  * or a creature described but never named on the page.
  */
-export type EntityMatchKind = "exact" | "near" | "contains" | "similar";
+export type EntityMatchKind = "exact" | "near" | "contains" | "similar" | "chosen";
+// `chosen` is never sent by the server either: the DM picked the row by hand in
+// the review's search, because the matcher could not see the connection.
 
 /** One existing row the DM might mean to reuse instead of creating a
  *  duplicate. */
@@ -72,11 +77,13 @@ export type ImportDecision =
 
 // ── Parsing the edge function's response ────────────────────────────────────
 
-function asMatchSource(value: unknown): EntityMatchSource | null {
+// The server boundary accepts only what the server sends: "deity" and "chosen"
+// are made client-side and must never arrive through here.
+function asMatchSource(value: unknown): "campaign" | "library" | null {
   return value === "campaign" || value === "library" ? value : null;
 }
 
-function asMatchKind(value: unknown): EntityMatchKind | null {
+function asMatchKind(value: unknown): Exclude<EntityMatchKind, "chosen"> | null {
   return value === "exact" || value === "near" || value === "contains" || value === "similar" ? value : null;
 }
 
@@ -167,6 +174,68 @@ export function parseImportMatches(raw: unknown): {
 
   const semantic = rec.semantic === true;
   return { matches, semantic };
+}
+
+// ── Deities offered for an NPC ──────────────────────────────────────────────
+
+/** The slice of a `deities` row the matcher needs. */
+export interface DeityRow {
+  id: string;
+  name: string;
+  titles?: string | null;
+}
+
+/** Whether the shorter name appears in the longer as a run of whole words. */
+function containsWholeWords(a: string, b: string): boolean {
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  return ` ${long} `.includes(` ${short} `);
+}
+
+/**
+ * The campaign's deities an extracted name might really be. A page's "NPC"
+ * is sometimes a god ("Auril the Frostmaiden"); linking to the deity means
+ * "this is my deity, do not create an NPC". Same normalizer as every other
+ * name match; a partial match needs a 3-letter-plus name so "Ra" is not
+ * "Raven".
+ */
+export function deityCandidatesFor(name: string, deities: readonly DeityRow[]): EntityCandidate[] {
+  const norm = normalizeEntityName(name);
+  if (norm === null) return [];
+  const exact: EntityCandidate[] = [];
+  const contains: EntityCandidate[] = [];
+  for (const deity of deities) {
+    const deityNorm = normalizeEntityName(deity.name);
+    if (deityNorm === null) continue;
+    const base = { targetId: deity.id, source: "deity" as const, name: deity.name, detail: deity.titles || null, distance: null };
+    if (deityNorm === norm) exact.push({ ...base, matchKind: "exact" });
+    else if (deityNorm.length >= 3 && norm.length >= 3 && containsWholeWords(norm, deityNorm)) contains.push({ ...base, matchKind: "contains" });
+  }
+  return [...exact, ...contains];
+}
+
+/**
+ * Folds deity candidates into the server's candidates for each NPC. A deity
+ * named exactly goes first (the god named on the page is the god, so the
+ * default links to it); a partial one goes last, below the NPCs the DM owns.
+ */
+export function withDeityCandidates(
+  candidatesByRef: ReadonlyMap<string, readonly EntityCandidate[]>,
+  npcs: readonly { ref: string; name: string }[],
+  deities: readonly DeityRow[],
+): Map<string, EntityCandidate[]> {
+  const out = new Map<string, EntityCandidate[]>();
+  for (const [ref, candidates] of candidatesByRef) out.set(ref, [...candidates]);
+  for (const npc of npcs) {
+    const found = deityCandidatesFor(npc.name, deities);
+    if (found.length === 0) continue;
+    const existing = out.get(npc.ref) ?? [];
+    out.set(npc.ref, [
+      ...found.filter((c) => c.matchKind === "exact"),
+      ...existing,
+      ...found.filter((c) => c.matchKind !== "exact"),
+    ]);
+  }
+  return out;
 }
 
 // ── Can this kind's entity be created from what the page actually gave us? ──

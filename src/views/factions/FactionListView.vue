@@ -133,13 +133,7 @@
                 <p class="truncate text-label text-muted-foreground">{{ faction.faction_type }}</p>
                 <RelationshipMark v-if="faction.party_standing !== 'unknown'" :relationship="faction.party_standing" />
               </template>
-              <div v-if="faction.tags.length && !artFree" class="mt-auto flex flex-wrap gap-1 pt-1">
-                <span
-                  v-for="tag in faction.tags.slice(0, 3)"
-                  :key="tag"
-                  class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-                >{{ tag }}</span>
-              </div>
+              <TagChips v-if="!artFree" :tags="faction.tags" :max="3" class="mt-auto pt-1" />
             </template>
             <template #foot>
               <span v-if="faction.tags.length" class="line-clamp-1 text-label text-muted-foreground">{{ faction.tags.slice(0, 3).join(" · ") }}</span>
@@ -197,6 +191,7 @@
 
 <script setup lang="ts">
 import { artFreeSkeleton } from "@/components/common/list/ledger";
+import TagChips from "@/components/common/TagChips.vue";
 import { ref, computed, watch } from "vue";
 import { IconAdd, IconCheck, IconGenerate, IconNavFactions, IconPopulate, IconShield } from '@/lib/icons';
 import { useAllFactions, usePopulateFactions, useUpdateFaction } from "@/composables/factions/useFactions";

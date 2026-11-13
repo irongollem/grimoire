@@ -90,10 +90,10 @@
               :class="[dotClass(badge.index), badge.thread.id === threadId ? 'animate-pulse' : '']"
             />
             <span class="min-w-0 flex-1 truncate">{{ threadTitle(badge) }}</span>
-            <span
+            <TagChip
               v-if="isDimmed(badge.thread)"
-              class="shrink-0 rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground"
-            >{{ badge.thread.status }}</span>
+              class="shrink-0 uppercase"
+            >{{ badge.thread.status }}</TagChip>
           </AppButton>
         </li>
       </ul>
@@ -139,6 +139,7 @@
  * context does not otherwise surface (closed/merged), so it owns that query
  * itself instead of asking the cockpit to thread it through.
  */
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, ref } from "vue";
 import { useQuestBeats } from "@/composables/quests/useQuestFlow";
 import { useOpenQuestThread, useQuestThreads } from "@/composables/quests/useQuestThreads";

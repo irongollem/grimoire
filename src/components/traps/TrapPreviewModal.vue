@@ -42,13 +42,7 @@
               <div v-if="lowArt && trap.image_url" class="self-start">
                 <PortraitOnRequest :src="trap.image_url" :alt="trap.name" />
               </div>
-              <div v-if="trap.tags.length" class="flex flex-wrap gap-1">
-                <span
-                  v-for="tag in trap.tags"
-                  :key="tag"
-                  class="text-label px-2 py-0.5 rounded bg-muted text-muted-foreground"
-                >{{ tag }}</span>
-              </div>
+              <TagChips :tags="trap.tags" />
               <div v-if="trap.damage_immunities?.length" class="flex flex-wrap gap-1">
                 <span class="text-label text-muted-foreground mr-1">Immune:</span>
                 <span
@@ -154,6 +148,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { computed, useId } from "vue";
 import { RouterLink } from "vue-router";
 import { IconClose, IconEdit } from '@/lib/icons';

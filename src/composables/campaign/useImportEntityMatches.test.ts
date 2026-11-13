@@ -7,7 +7,14 @@ const mocks = vi.hoisted(() => ({
   invokeCalls: [] as { fn: string; body: unknown }[],
   response: { matches: {}, semantic: true } as unknown,
   error: null as Error | null,
+  deities: null as unknown as { data: unknown; isLoading: boolean },
 }));
+
+vi.mock("@/composables/deities/useDeities", async () => {
+  const { computed, reactive } = await import("vue");
+  mocks.deities = reactive({ data: undefined as unknown, isLoading: false });
+  return { useAllDeities: () => ({ data: computed(() => mocks.deities.data), isLoading: computed(() => mocks.deities.isLoading) }) };
+});
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
@@ -48,6 +55,7 @@ beforeEach(() => {
   mocks.invokeCalls = [];
   mocks.response = { matches: {}, semantic: true };
   mocks.error = null;
+  Object.assign(mocks.deities, { data: undefined, isLoading: false });
 });
 
 describe("buildImportMatchRequest", () => {
@@ -127,5 +135,26 @@ describe("useImportEntityMatches", () => {
     expect(api().error.value?.message).toContain("rate_limited");
     expect(mocks.invokeCalls).toHaveLength(1);
     expect(api().candidatesFor("npcs").size).toBe(0);
+  });
+
+  it("appends a deity the page names to the NPC's candidates, and stays loading until the deities arrive", async () => {
+    Object.assign(mocks.deities, { data: [{ id: "d1", name: "Moradin", titles: null }], isLoading: true });
+    const { api } = open("row-1", { npcs: [entity("n1", { name: "Moradin" })] });
+    await flushPromises();
+    // The match call is done, the deities are not: seeding now would default a god to "Create new".
+    expect(api().isLoading.value).toBe(true);
+
+    Object.assign(mocks.deities, { data: [{ id: "d1", name: "Moradin", titles: null }], isLoading: false });
+    await flushPromises();
+    expect(api().isLoading.value).toBe(false);
+    expect(api().candidatesFor("npcs").get("n1")?.some((c) => c.source === "deity" && c.targetId === "d1")).toBe(true);
+  });
+
+  it("leaves other kinds alone when there are deities", async () => {
+    Object.assign(mocks.deities, { data: [{ id: "d1", name: "Moradin", titles: null }], isLoading: false });
+    mocks.response = { matches: { items: { i1: [{ targetId: "x", source: "library", name: "Moradin", matchKind: "exact", detail: null, distance: null }] } }, semantic: true };
+    const { api } = open("row-1", { items: [entity("i1", { name: "Moradin" })] });
+    await flushPromises();
+    expect(api().candidatesFor("items").get("i1")).toHaveLength(1);
   });
 });

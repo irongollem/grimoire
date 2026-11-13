@@ -111,13 +111,7 @@
     <div class="min-w-0 flex-1">
       <p class="truncate text-heading-xs font-bold text-foreground">{{ title }}</p>
       <p v-if="subtitle" class="text-label text-muted-foreground mt-0.5">{{ subtitle }}</p>
-      <div v-if="tags.length" class="mt-1.5 flex flex-wrap gap-1">
-        <span
-          v-for="(tag, i) in tags.slice(0, maxTags)"
-          :key="i"
-          class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-        >{{ tag }}</span>
-      </div>
+      <TagChips :tags="tags" :max="maxTags" class="mt-1.5" />
       <slot name="body" />
     </div>
 
@@ -138,6 +132,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { computed, inject, type Component } from "vue";
 import { RouterLink } from "vue-router";
 import BookmarkTab from "@/components/common/entity/BookmarkTab.vue";

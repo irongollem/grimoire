@@ -124,23 +124,11 @@
             </template>
             <template #body="{ artFree }">
               <p class="text-caption text-muted-foreground">{{ recipeSubtitle(recipe) }}</p>
-              <div v-if="!artFree && recipeTags(recipe).length" class="mt-auto flex flex-wrap gap-1">
-                <span
-                  v-for="tag in recipeTags(recipe).slice(0, 4)"
-                  :key="tag"
-                  class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-                >{{ tag }}</span>
-              </div>
+              <TagChips v-if="!artFree" :tags="recipeTags(recipe)" :max="4" class="mt-auto" />
             </template>
             <!-- Art-free the discipline is the eyebrow, so the foot carries the flags only. -->
             <template #foot>
-              <div v-if="recipeFlags(recipe).length" class="flex flex-wrap gap-1">
-                <span
-                  v-for="tag in recipeFlags(recipe).slice(0, 4)"
-                  :key="tag"
-                  class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-                >{{ tag }}</span>
-              </div>
+              <TagChips :tags="recipeFlags(recipe)" :max="4" />
             </template>
           </EntityGridCard>
         </template>
@@ -188,6 +176,7 @@
 
 <script setup lang="ts">
 import { artFreeSkeleton } from "@/components/common/list/ledger";
+import TagChips from "@/components/common/TagChips.vue";
 import { computed, ref } from "vue";
 
 import { IconAdd, IconDelete, IconDownload, IconGenerate, IconListView, IconNavWorkshop, IconReveal } from '@/lib/icons';
