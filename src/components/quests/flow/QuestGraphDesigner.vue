@@ -8,8 +8,8 @@
         <p v-if="tallyTotal" class="flex flex-wrap items-center gap-1" aria-label="Story flow progress">
           <span v-if="reachTally.visited" class="rounded bg-tone-success/15 px-1.5 py-0.5 text-label uppercase text-ink-success">{{ reachTally.visited }} visited</span>
           <span v-if="liveThreadCount" class="rounded bg-primary/15 px-1.5 py-0.5 text-label uppercase text-primary">{{ liveThreadCount }} live</span>
-          <span v-if="reachTally.ahead" class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ reachTally.ahead }} ahead</span>
-          <span v-if="reachTally.stranded" class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ reachTally.stranded }} cut off</span>
+          <TagChip v-if="reachTally.ahead" class="uppercase">{{ reachTally.ahead }} ahead</TagChip>
+          <TagChip v-if="reachTally.stranded" class="uppercase">{{ reachTally.stranded }} cut off</TagChip>
           <span v-if="prepGapBeatCount" class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">{{ prepGapBeatCount }} prep gaps</span>
         </p>
       </div>
@@ -150,6 +150,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useDebounceFn } from "@vueuse/core";
 import { useRoute, useRouter } from "vue-router";

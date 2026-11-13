@@ -38,13 +38,7 @@
           </template>
           <div class="px-4 py-4">
             <RichTextViewer :content="entry.content" />
-            <div v-if="entry.tags?.length" class="flex flex-wrap gap-1 mt-3">
-              <span
-                v-for="tag in entry.tags"
-                :key="tag"
-                class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
-              >{{ tag }}</span>
-            </div>
+            <TagChips :tags="entry.tags" class="mt-3" />
           </div>
         </JournalCard>
       </div>
@@ -53,6 +47,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { nextTick, onMounted, ref, watch } from "vue";
 import type { Component } from "vue";
 import {

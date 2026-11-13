@@ -86,12 +86,9 @@
             </h3>
             <div class="flex items-center gap-1 shrink-0">
               <IconReveal v-if="rule.is_player_visible" class="h-3 w-3 text-primary/60" title="Visible to players" />
-              <span
-                v-if="rule.category"
-                class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
-              >
+              <TagChip v-if="rule.category">
                 {{ rule.category }}
-              </span>
+              </TagChip>
             </div>
           </div>
           <div v-if="rule.tags.length" class="flex flex-wrap gap-1">
@@ -134,6 +131,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, shallowRef } from "vue";
 import { renderBasicMarkdown } from "@/lib/sanitizeHtml";
 import { IconChevronRight, IconQuest, IconReveal } from '@/lib/icons';

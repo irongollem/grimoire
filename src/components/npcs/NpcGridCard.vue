@@ -34,21 +34,7 @@
         <IconCompassRose class="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{{ locationName }}
       </p>
 
-      <div v-if="npc.tags.length" class="mt-auto flex flex-wrap gap-1 pt-1">
-        <span
-          v-for="tag in npc.tags.slice(0, 3)"
-          :key="tag"
-          class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-        >
-          {{ tag }}
-        </span>
-        <span
-          v-if="npc.tags.length > 3"
-          class="self-center text-caption-sm text-muted-foreground italic"
-        >
-          +{{ npc.tags.length - 3 }}
-        </span>
-      </div>
+      <TagChips :tags="npc.tags" :max="3" overflow class="mt-auto pt-1" />
     </template>
 
     <!--
@@ -76,6 +62,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";

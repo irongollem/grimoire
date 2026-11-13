@@ -75,13 +75,7 @@
               </div>
             </div>
             <p class="text-caption text-muted-foreground italic">{{ speciesSubtitle(s) }}</p>
-            <div v-if="s.tags.length" class="mt-auto flex flex-wrap gap-1 pt-1">
-              <span
-                v-for="tag in s.tags.slice(0, 3)"
-                :key="tag"
-                class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-              >{{ tag }}</span>
-            </div>
+            <TagChips :tags="s.tags" :max="3" class="mt-auto pt-1" />
           </OptionGridCard>
         </BulkSelectableCard>
       </template>
@@ -135,6 +129,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { computed, watch } from "vue";
 import { IconEdit, IconSpecies } from '@/lib/icons';
 import type { Species } from "@/types/species.types";

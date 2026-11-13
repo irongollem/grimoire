@@ -76,12 +76,12 @@
 
     <!-- Quick stats + HP controls -->
     <div class="flex items-center gap-2 flex-wrap">
-      <span class="text-label text-muted-foreground px-1.5 py-0.5 rounded bg-muted" title="Armour Class">
+      <TagChip title="Armour Class">
         AC {{ companion.ac }}
-      </span>
-      <span class="text-label text-muted-foreground px-1.5 py-0.5 rounded bg-muted" title="Speed">
+      </TagChip>
+      <TagChip title="Speed">
         {{ companion.speed }} ft
-      </span>
+      </TagChip>
 
       <!-- Combat-ready toggle: whether this companion auto-joins new encounters (#569).
            Off state is `chip` (filled, muted) rather than `subtle`, which is what it
@@ -192,6 +192,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { ref, computed } from "vue";
 import { IconClose, IconEdit } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";

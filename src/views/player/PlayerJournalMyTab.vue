@@ -41,13 +41,7 @@
       <template v-if="editingId !== entry.id">
         <div class="px-4 py-4">
           <RichTextViewer :content="entry.content" />
-          <div v-if="entry.tags?.length" class="flex flex-wrap gap-1 mt-3">
-            <span
-              v-for="tag in entry.tags"
-              :key="tag"
-              class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
-            >{{ tag }}</span>
-          </div>
+          <TagChips :tags="entry.tags ?? []" class="mt-3" />
         </div>
         <div class="flex items-center gap-3 px-4 py-2 border-t border-border bg-muted/20">
           <AppButton variant="link" size="inline" @click="$emit('startEdit', entry)">Edit</AppButton>
@@ -196,6 +190,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { createReusableTemplate } from "@vueuse/core";

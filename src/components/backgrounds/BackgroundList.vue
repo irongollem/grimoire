@@ -62,13 +62,7 @@
           >{{ b.feature_name }}</p>
           <!-- Skills, tools and languages in one line; the full lists live on the detail page. -->
           <p v-if="profsSummary(b)" class="line-clamp-2 text-caption text-foreground/70">{{ profsSummary(b) }}</p>
-          <div v-if="b.tags.length" class="mt-auto flex flex-wrap gap-1">
-            <span
-              v-for="tag in b.tags.slice(0, 3)"
-              :key="tag"
-              class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-            >{{ tag }}</span>
-          </div>
+          <TagChips :tags="b.tags" :max="3" class="mt-auto" />
         </OptionGridCard>
       </template>
       <template #row="{ item: b }">
@@ -104,6 +98,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
 import { IconBookUser, IconEdit } from '@/lib/icons';
 import { useCodexUiStore } from "@/stores/ui/codex";

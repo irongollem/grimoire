@@ -127,13 +127,7 @@
               <p class="truncate text-heading-xs font-bold text-foreground">{{ faction.name }}</p>
               <p class="truncate text-label text-muted-foreground">{{ faction.faction_type }}</p>
               <RelationshipMark v-if="faction.party_standing !== 'unknown'" :relationship="faction.party_standing" />
-              <div v-if="faction.tags.length" class="mt-auto flex flex-wrap gap-1 pt-1">
-                <span
-                  v-for="tag in faction.tags.slice(0, 3)"
-                  :key="tag"
-                  class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-                >{{ tag }}</span>
-              </div>
+              <TagChips :tags="faction.tags" :max="3" class="mt-auto pt-1" />
             </template>
           </EntityGridCard>
         </BulkSelectableCard>
@@ -186,6 +180,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { ref, computed, watch } from "vue";
 import { IconAdd, IconCheck, IconGenerate, IconNavFactions, IconPopulate, IconShield } from '@/lib/icons';
 import { useAllFactions, usePopulateFactions, useUpdateFaction } from "@/composables/factions/useFactions";

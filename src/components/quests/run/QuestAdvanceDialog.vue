@@ -200,10 +200,10 @@
               <span class="block text-body font-semibold text-foreground">{{ describePayoff(entry) }}</span>
               <span class="block text-caption text-muted-foreground">{{ payoffHint(entry) }}</span>
             </span>
-            <span
+            <TagChip
               v-if="!firedConsequenceIds.includes(entry.consequence_id)"
-              class="shrink-0 rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground"
-            >held</span>
+              class="shrink-0 uppercase"
+            >held</TagChip>
           </AppCheckbox>
 
           <AppCheckbox
@@ -274,6 +274,7 @@
  * loot-drop flow with one submit that plans the whole transaction
  * (`planAdvance`, `src/lib/quests/advance.ts`) before it is sent.
  */
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, ref, watch, type Component } from "vue";
 import type {
   QuestConsequenceAction,

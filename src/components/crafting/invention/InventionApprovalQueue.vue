@@ -8,9 +8,9 @@
     <header class="flex flex-col gap-1">
       <h2 id="invention-queue-title" class="text-heading-sm font-semibold text-foreground">
         Inventions waiting for you
-        <span class="ml-1 rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground" data-testid="invention-count">{{
+        <TagChip class="ml-1" data-testid="invention-count">{{
           pending.length
-        }}</span>
+        }}</TagChip>
       </h2>
       <p class="text-caption text-muted-foreground">
         A player's invention only becomes a recipe once you approve it. Nothing here is in your world yet.
@@ -92,6 +92,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 /*
   The DM's gate for AI inventions (#1103). Every invention a player sends waits here until the
   DM approves it, sends it back with a note, or discards it; there is no automatic path. It is a

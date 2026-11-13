@@ -42,9 +42,9 @@
           <span class="text-label-lg font-semibold text-muted-foreground">TRACKER</span>
           <span v-if="rule.tracker.label" class="ml-2 text-caption font-semibold text-foreground">{{ rule.tracker.label }}</span>
         </div>
-        <span class="text-label text-muted-foreground capitalize px-2 py-0.5 rounded bg-muted">
+        <TagChip class="capitalize">
           {{ rule.tracker.type }} · {{ rule.tracker.min }}–{{ rule.tracker.max }}
-        </span>
+        </TagChip>
       </div>
 
       <!-- Levels -->
@@ -84,6 +84,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { IconDelete, IconEdit } from '@/lib/icons';
 import { useRoute, useRouter } from "vue-router";
 import { useConfirm } from "@/composables/useConfirm";

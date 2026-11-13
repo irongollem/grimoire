@@ -171,7 +171,7 @@
       <div v-if="!appUi.dmPreviewMode && offeredCharacters?.length" class="space-y-3">
         <div class="flex items-center gap-2">
           <h2 class="text-heading-sm font-semibold text-foreground">Available from your DM</h2>
-          <span class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{{ offeredCharacters.length }}</span>
+          <TagChip>{{ offeredCharacters.length }}</TagChip>
         </div>
         <div
           v-for="char in offeredCharacters"
@@ -232,6 +232,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import { ref, computed } from 'vue';

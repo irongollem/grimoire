@@ -8,9 +8,9 @@
         <span class="h-1.5 w-1.5 animate-pulse rounded-full" :class="threadBadge.tone.dot" />
         Party is here · Thread {{ threadBadge.letter }}
       </span>
-      <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ beat.kind }}</span>
-      <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ beat.visibility }}</span>
-      <span v-if="placeName" class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ placeName }}</span>
+      <TagChip class="uppercase">{{ beat.kind }}</TagChip>
+      <TagChip class="uppercase">{{ beat.visibility }}</TagChip>
+      <TagChip v-if="placeName" class="uppercase">{{ placeName }}</TagChip>
       <span v-for="gap in prepGaps" :key="gap.label" class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">{{ gap.label }}</span>
     </div>
 
@@ -93,6 +93,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, ref } from "vue";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatAttachmentType, QuestCheckAttachmentMetadata } from "@/types/quest.types";
 import { questSurfaceReturnTo } from "@/lib/quests/navigation";

@@ -78,14 +78,7 @@
             <span class="font-bold">{{ scopeLabel }}</span>
           </div>
         </div>
-        <div v-if="item.tags?.length" class="flex flex-wrap gap-1">
-          <span
-            v-for="tag in item.tags"
-            :key="tag"
-            class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5"
-            >{{ tag }}</span
-          >
-        </div>
+        <TagChips :tags="item.tags" />
       </div>
 
       <!-- Right: details -->
@@ -237,24 +230,24 @@
         Contained In
       </h3>
       <div class="flex flex-wrap gap-1.5">
-        <RouterLink
+        <TagChip
           v-for="table in containedIn"
           :key="table.id"
           :to="`/loot-tables/${table.id}`"
-          class="inline-flex items-center gap-1 text-label px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
         >
           <IconPackage class="h-2.5 w-2.5 shrink-0" />{{ table.name }}
-        </RouterLink>
+        </TagChip>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
+import TagChips from "@/components/common/TagChips.vue";
 import { ref, computed } from "vue";
 import { storeToRefs } from "pinia";
 import { IconPackage } from '@/lib/icons';
-import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import WeaponMasteryBadge from "@/components/items/WeaponMasteryBadge.vue";

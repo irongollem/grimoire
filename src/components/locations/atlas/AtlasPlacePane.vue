@@ -93,13 +93,7 @@
             Tags belong beside the type, not after the child list: below a long
             set of tier groups they are past the fold and read as debris.
           -->
-          <span
-            v-for="tag in shownTags"
-            :key="tag"
-            class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-          >
-            {{ tag }}
-          </span>
+          <TagChip v-for="tag in shownTags" :key="tag">{{ tag }}</TagChip>
           <!--
             "Dungeon · tithe · flooded · [quest icon] 2 quests staged here"
             (#868, frame 02) — a beat staged at this place OR any of its
@@ -290,13 +284,13 @@
                 of living inside it. `pointer-events-none` keeps it purely
                 informational: the row underneath stays the whole click target.
               -->
-              <span
+              <TagChip
                 v-if="levelChipFor(group, child)"
-                class="pointer-events-none absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
+                class="pointer-events-none absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1"
               >
                 <IconLayers class="h-3 w-3 shrink-0" aria-hidden="true" />
                 Level {{ levelChipFor(group, child) }}
-              </span>
+              </TagChip>
             </li>
           </ul>
         </section>
@@ -324,6 +318,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, useTemplateRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";

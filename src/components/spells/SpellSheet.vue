@@ -36,14 +36,7 @@
             <span class="font-bold text-primary">Yes</span>
           </div>
         </div>
-        <div v-if="spell.tags?.length" class="flex flex-wrap gap-1">
-          <span
-            v-for="tag in spell.tags"
-            :key="tag"
-            class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5"
-            >{{ tag }}</span
-          >
-        </div>
+        <TagChips :tags="spell.tags" />
       </div>
 
       <!-- Right: details -->
@@ -155,15 +148,15 @@
             Known By
           </h3>
           <div class="flex flex-wrap gap-1.5">
-            <span
+            <TagChip
               v-for="k in knowers"
               :key="k.party_member_id"
-              class="inline-flex items-center gap-1 text-label px-2 py-0.5 rounded bg-muted text-muted-foreground"
+              class="inline-flex items-center gap-1"
             >
               <IconParty class="h-2.5 w-2.5 shrink-0" />
               {{ k.name }}
               <span v-if="k.is_prepared" class="text-primary">· prepared</span>
-            </span>
+            </TagChip>
           </div>
         </div>
 
@@ -173,15 +166,14 @@
             Cast By
           </h3>
           <div class="flex flex-wrap gap-1.5">
-            <RouterLink
+            <TagChip
               v-for="c in npcCasters"
               :key="c.npc_id"
               :to="`/npcs/${c.npc_id}`"
-              class="inline-flex items-center gap-1 text-label px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
             >
               <IconUser class="h-2.5 w-2.5 shrink-0" />
               {{ c.name }}
-            </RouterLink>
+            </TagChip>
           </div>
         </div>
       </div>
@@ -190,6 +182,8 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
+import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
 import { IconParty, IconUser } from '@/lib/icons';
 import FocalImage from "@/components/common/media/FocalImage.vue";

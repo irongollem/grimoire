@@ -2,7 +2,7 @@
   <section class="flex min-h-0 flex-1 flex-col gap-2 rounded-xl border border-border bg-card p-3" aria-label="Payoff">
     <header class="flex items-center gap-2">
       <h3 class="text-heading-sm font-bold text-foreground">Payoff</h3>
-      <span v-if="rows.length" class="ml-auto rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ rows.length }} payoff{{ rows.length === 1 ? "" : "s" }}</span>
+      <TagChip v-if="rows.length" class="ml-auto uppercase">{{ rows.length }} payoff{{ rows.length === 1 ? "" : "s" }}</TagChip>
     </header>
     <p class="text-caption text-muted-foreground">
       Consequences fire on their own when the party arrives or takes a route. Loot waits until you hand it over.
@@ -129,6 +129,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, ref, watch, type Component } from "vue";
 import { useCreateLootPlacement, useCreateQuestConsequence, useDeleteLootPlacement, useDeleteQuestConsequence } from "@/composables/quests/useQuestFlow";
 import { useQuestObjectives, useQuests } from "@/composables/quests/useQuests";

@@ -41,11 +41,11 @@
            below renders exactly as before. -->
       <div class="flex flex-col gap-3 lg:hidden">
         <div class="flex flex-wrap items-center gap-1.5">
-          <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ questBeatKindLabel(beat.kind) }}</span>
-          <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ QUEST_BEAT_VISIBILITY_LABELS[beat.visibility] }}</span>
-          <span v-if="stagedLocationName" class="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">
+          <TagChip class="uppercase">{{ questBeatKindLabel(beat.kind) }}</TagChip>
+          <TagChip class="uppercase">{{ QUEST_BEAT_VISIBILITY_LABELS[beat.visibility] }}</TagChip>
+          <TagChip v-if="stagedLocationName" class="inline-flex items-center gap-1 uppercase">
             <IconLocation class="h-3 w-3" />{{ stagedLocationName }}
-          </span>
+          </TagChip>
           <span v-if="prepGapCount" class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">
             {{ prepGapCount }} prep gap{{ prepGapCount === 1 ? '' : 's' }}
           </span>
@@ -218,6 +218,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, nextTick, ref } from "vue";
 import { useRoute } from "vue-router";
 import { useQuest, useQuestObjectives } from "@/composables/quests/useQuests";

@@ -33,17 +33,12 @@
 
     <slot name="body" />
 
-    <div v-if="tags.length" class="mt-auto flex flex-wrap gap-1 pt-1">
-      <span
-        v-for="tag in tags.slice(0, maxTags)"
-        :key="tag"
-        class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-      >{{ tag }}</span>
-    </div>
+    <TagChips :tags="tags" :max="maxTags" class="mt-auto pt-1" />
   </div>
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import type { Component } from "vue";
 import { RouterLink } from "vue-router";
 

@@ -122,13 +122,7 @@
             </template>
             <template #body>
               <p class="text-caption text-muted-foreground">{{ recipeSubtitle(recipe) }}</p>
-              <div v-if="recipeTags(recipe).length" class="mt-auto flex flex-wrap gap-1">
-                <span
-                  v-for="tag in recipeTags(recipe).slice(0, 4)"
-                  :key="tag"
-                  class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-                >{{ tag }}</span>
-              </div>
+              <TagChips :tags="recipeTags(recipe)" :max="4" class="mt-auto" />
             </template>
           </EntityGridCard>
         </template>
@@ -174,6 +168,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { computed, ref } from "vue";
 
 import { IconAdd, IconDelete, IconDownload, IconGenerate, IconListView, IconNavWorkshop, IconReveal } from '@/lib/icons';

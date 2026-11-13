@@ -42,10 +42,10 @@
                 class="flex flex-wrap items-center gap-2"
                 :class="(beat.visibility === 'rumored' || hasBeatText(beat.player_text)) && 'mt-2.5 border-t border-border/60 pt-2'"
               >
-                <span v-if="beat.is_current" class="flex items-center gap-1.5 rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">
+                <TagChip v-if="beat.is_current" class="flex items-center gap-1.5 uppercase">
                   <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full" :class="[column.tone.dot, !reducedMotion && 'animate-pulse']" />
                   happening now
-                </span>
+                </TagChip>
                 <template v-for="(entry, entryIndex) in beat.payoff" :key="entryIndex">
                   <span
                     v-if="entry.kind === 'knowledge'"
@@ -64,10 +64,10 @@
                     :label="`Claim: ${entry.label}`"
                     @click="goToChat"
                   />
-                  <span v-else class="flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground opacity-60">
+                  <TagChip v-else class="flex items-center gap-1 uppercase opacity-60">
                     <IconLoot class="h-3 w-3 shrink-0" aria-hidden="true" />
                     {{ entry.label }} · claimed
-                  </span>
+                  </TagChip>
                 </template>
               </div>
             </article>
@@ -79,6 +79,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed } from "vue";
 import { useAppUiStore } from "@/stores/ui/app";
 import { IconLoot, IconNavigate, IconScrollText } from "@/lib/icons";

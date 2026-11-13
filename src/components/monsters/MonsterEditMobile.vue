@@ -136,13 +136,7 @@
         <section class="space-y-2.5 rounded-xl border border-border bg-card p-4">
           <h3 class="text-heading-sm font-bold text-foreground">Tags</h3>
           <TagInput v-if="!isShared" v-model="form.tags" />
-          <div v-else class="flex flex-wrap gap-1">
-            <span
-              v-for="tag in form.tags"
-              :key="tag"
-              class="inline-flex items-center rounded bg-muted px-2 py-0.5 text-label text-muted-foreground"
-            >{{ tag }}</span>
-          </div>
+          <TagChips v-else :tags="form.tags" />
         </section>
 
         <!-- Stat Block card (monsters always have one — no include toggle) -->
@@ -258,6 +252,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import LibraryReadOnlyBanner from "@/components/common/entity/LibraryReadOnlyBanner.vue";

@@ -17,7 +17,7 @@ describe("the mask between recipe and session", () => {
     fillMaskFromPixels(mask, src);
     const out = maskToPixels(mask);
     for (let i = 0; i < src.data.length; i += 4) expect(out.data[i + 3]).toBe(src.data[i + 3]);
-    expect(out.data[(0 * 300 + 0) * 4]).toBe(255);
+    expect(out.data[0]).toBe(255); // pixel (0, 0), red channel
   });
 
   // Fails if an untouched mask counts as having strokes, which would add a mask step to every recipe.

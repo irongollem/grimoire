@@ -12,7 +12,7 @@
     >
       <template #tags>
         <KinRelationPicker v-if="picker" :row="row" :kin="picker.kin" :bonds="picker.bonds" @kin="(o) => emit('retype-kin', row, o)" @bond="(c) => emit('retype-bond', row, c)" />
-        <span v-else class="rounded bg-muted px-1.5 py-0.5 text-label font-semibold text-muted-foreground" data-testid="kin-word-static">{{ row.word }}</span>
+        <TagChip v-else class="font-semibold" data-testid="kin-word-static">{{ row.word }}</TagChip>
       </template>
       <template v-if="row.door" #meta>
         <span v-if="row.meta.length" aria-hidden="true">·</span>
@@ -35,6 +35,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import ConnectionSlip from "@/components/common/entity/ConnectionSlip.vue";
