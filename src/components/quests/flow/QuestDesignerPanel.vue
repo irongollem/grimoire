@@ -143,6 +143,7 @@
 </template>
 
 <script setup lang="ts">
+import { questLink } from "@/lib/quests/navigation";
 /**
  * The Design it flow (#873) — a third way to start a quest, beside typing one
  * and pasting a page (QuestFlowStarter.vue). A multi-turn conversation with
@@ -347,7 +348,7 @@ async function onCreate() {
     }
     // Same landing as every other quest-creation flow — see the overview
     // note in QuestFlowStarter.vue for why the surface is named outright.
-    await router.push({ path: `/quests/${questId}`, query: { view: "overview" } });
+    await router.push(questLink(questId));
   } catch (e) {
     if (gateQuotaError(e)) return;
     throw e;

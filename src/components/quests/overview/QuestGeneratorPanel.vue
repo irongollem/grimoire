@@ -225,6 +225,7 @@
 </template>
 
 <script setup lang="ts">
+import { questLink } from "@/lib/quests/navigation";
 import { ref, computed } from "vue";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 
@@ -386,7 +387,7 @@ function buildCreated(index: number) {
     // The overview named outright, rather than forced by writing `dmMode = "prep"`
     // and leaning on prep's default landing — which ended a running session as a
     // side effect of building a generated quest. See #758.
-    router.push({ path: `/quests/${id}`, query: { view: "overview" } });
+    router.push(questLink(id));
   }
 }
 

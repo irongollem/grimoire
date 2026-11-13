@@ -1,3 +1,4 @@
+import { questLinkHref } from "@/lib/quests/navigation";
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { storeToRefs } from "pinia";
@@ -51,7 +52,7 @@ export function backlinkFromRow(row: BacklinkRow): EntityBacklink {
         kind: row.kind,
         id: row.id,
         title: `${row.quest_title || "Untitled quest"} · ${title}`,
-        to: `/quests/${row.quest_id}/beats/${row.id}`,
+        to: row.quest_id ? questLinkHref(row.quest_id, { beat: row.id, open: true }) : "/quests",
       };
     case "party-member":
       return { kind: row.kind, id: row.id, title, to: `/party/${row.id}` };

@@ -247,4 +247,35 @@ describe("QuestFlowNode", () => {
     expect(wrapper.get("article").classes()).toContain("border-tone-info");
     expect(wrapper.get("article").classes()).not.toContain("border-primary");
   });
+
+  it("a cut-off beat is struck through and marked unreachable, a merely pending one is neither", () => {
+    const mk = (reach: string) => mount(QuestFlowNode, {
+      props: { title: "T", kind: "neutral", visibility: "hidden", presentation: { reach, loot: { total: 0, undispatched: 0, unclaimed: 0 }, currentThreadIds: [] } as never },
+      global: { stubs: { Handle: true } },
+    });
+    const cut = mk("stranded");
+    expect(cut.get("article").classes()).toContain("is-stranded");
+    expect(cut.get("[data-testid=beat-bookmark]").attributes("data-state")).toBe("unreachable");
+    expect(cut.text()).toContain("unreachable");
+    const pending = mk("ahead");
+    expect(pending.get("article").classes()).not.toContain("is-stranded");
+    expect(pending.get("article").classes()).toContain("fill-pending");
+  });
+
+  it("an entry beat that is also current reads gold, not green", () => {
+    const w = mount(QuestFlowNode, { props: { title: "T", kind: "neutral", visibility: "hidden", isEntry: true, current: true }, global: { stubs: { Handle: true } } });
+    expect(w.get("article").classes()).toContain("fill-here");
+    expect(w.get("article").classes()).not.toContain("fill-start");
+    const start = mount(QuestFlowNode, { props: { title: "T", kind: "neutral", visibility: "hidden", isEntry: true }, global: { stubs: { Handle: true } } });
+    expect(start.get("article").classes()).toContain("fill-start");
+  });
+
+  it("a failed beat shows the failed bookmark and says so to screen readers", () => {
+    const w = mount(QuestFlowNode, {
+      props: { title: "T", kind: "neutral", visibility: "hidden", presentation: { reach: "visited", isFailed: true, loot: { total: 0, undispatched: 0, unclaimed: 0 }, currentThreadIds: [] } as never },
+      global: { stubs: { Handle: true } },
+    });
+    expect(w.get("[data-testid=beat-bookmark]").attributes("data-state")).toBe("failed");
+    expect(w.get("button").attributes("aria-label")).toContain("failed");
+  });
 });

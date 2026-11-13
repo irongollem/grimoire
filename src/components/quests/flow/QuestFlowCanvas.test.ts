@@ -183,6 +183,14 @@ describe("QuestFlowCanvas drag", () => {
   });
 });
 
+describe("QuestFlowCanvas deselect", () => {
+  it("reports a click on the empty canvas, so a selection can be cleared", () => {
+    const wrapper = mountCanvas();
+    wrapper.findComponent({ name: "VueFlow" }).vm.$emit("pane-click", new MouseEvent("click"));
+    expect(wrapper.emitted("command")).toEqual([[{ type: "deselect" }]]);
+  });
+});
+
 describe("QuestFlowCanvas canvas controls", () => {
   beforeEach(() => {
     mocks.fitView.mockReset().mockResolvedValue(true);

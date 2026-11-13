@@ -113,7 +113,7 @@ import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
  * the cockpit (`QuestRun*.vue`) on purpose — this is prep, not play, and it
  * must never share the cockpit's surface or its "start a session" affordances.
  *
- * It never touches `ui.dmMode` and never navigates with `?view=run`.
+ * It never touches `ui.dmMode` and never navigates to `?open=party`.
  * `assert_quest_runtime` leaves `status` as it found it, except that it
  * creates a `running` thread for a quest with no cursor yet, so a quest
  * asserted "already happened" holds a cursor like any other open chain.

@@ -82,7 +82,7 @@ describe("QuestBoardCard", () => {
   it("opens the story flow from the prep gap chip, where the gaps are drawn", () => {
     const wrapper = mount(QuestBoardCard, { props: { quest: quest(), summary }, global });
     const chip = wrapper.findAllComponents(RouterLinkStub).find((link) => link.text().includes("prep gap"));
-    expect(chip?.props("to")).toEqual({ path: "/quests/quest-1", query: { view: "work" } });
+    expect(chip?.props("to")).toEqual({ path: "/quests/quest-1", query: {} });
   });
 
   it("shows only party members the quest is shared with", () => {
@@ -151,7 +151,7 @@ describe("QuestBoardCard", () => {
     expect(wrapper.text()).toContain("Unlocked by The Vault's Keeper");
     expect(wrapper.text()).toContain("no beats yet");
     const draftBeats = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Draft beats");
-    expect(draftBeats?.props("to")).toMatchObject({ path: "/quests/quest-1", query: { view: "work" } });
+    expect(draftBeats?.props("to")).toMatchObject({ path: "/quests/quest-1", query: {} });
   });
 
   it("names where a bridge lands alongside what unlocked it", () => {

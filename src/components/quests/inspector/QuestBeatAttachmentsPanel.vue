@@ -48,7 +48,7 @@
     <QuestRunContainedTool
       v-if="opened"
       :attachment="opened"
-      :return-to="`/quests/${beat.quest_id}/beats/${beat.id}`"
+      :return-to="questLinkHref(beat.quest_id, { beat: beat.id, open: true })"
       :beat-title="beat.title"
       @close="opened = null"
     />
@@ -103,7 +103,7 @@ import { isDocumentUsableIn } from "@/scriptorium/lib/documentScope";
 import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useSounds } from "@/composables/soundboard/useSounds";
 import { QUEST_BEAT_ATTACHMENT_ADAPTERS } from "@/lib/quests/attachments";
-import { withQuestReturnTo } from "@/lib/quests/navigation";
+import { questLinkHref, withQuestReturnTo } from "@/lib/quests/navigation";
 import { IconCheck, IconWarning } from "@/lib/icons";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import { SKILLS } from "@/types/party.types";
@@ -176,7 +176,7 @@ const CREATE_URLS: Record<Exclude<QuestBeatAttachmentType, "check">, string> = {
 };
 const createUrl = computed(() => {
   const type = attachmentType.value;
-  return type === "check" ? "" : withQuestReturnTo(CREATE_URLS[type], `/quests/${props.beat.quest_id}/beats/${props.beat.id}`);
+  return type === "check" ? "" : withQuestReturnTo(CREATE_URLS[type], questLinkHref(props.beat.quest_id, { beat: props.beat.id, open: true }));
 });
 const canPlace = computed(() => attachmentType.value === "check"
   ? checkSkill.value !== "" && checkDc.value !== null && !Number.isNaN(checkDc.value)

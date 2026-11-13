@@ -58,7 +58,7 @@
             variant="link"
             size="inline-caption"
             :label="`“${duplicateQuestCandidate.name}”`"
-            :to="{ path: `/quests/${duplicateQuestCandidate.targetId}`, query: { view: 'overview' } }"
+            :to="questLink(duplicateQuestCandidate.targetId)"
           />.
         </p>
         <div>
@@ -189,6 +189,7 @@
 </template>
 
 <script setup lang="ts">
+import { questLink } from "@/lib/quests/navigation";
 import { safeSessionStorage } from "@/lib/safeLocalStorage";
 /**
  * The "paste a page" entry point in the create-quest flow (#839) — a third
@@ -663,7 +664,7 @@ async function confirmImport(): Promise<void> {
     if (report.createdQuestId) {
       const parts = [note && `Also imported: ${note}.`, shortfallNote && `${shortfallNote}.`, unresolvedNote].filter(Boolean);
       if (parts.length) toast.info(parts.join(" "), 8000);
-      await router.push({ path: `/quests/${report.createdQuestId}`, query: { view: "overview" } });
+      await router.push(questLink(report.createdQuestId));
     } else {
       const questOutcome = report.perKind.quests;
       const questQuotaHit = questOutcome?.stoppedAtQuota ?? false;

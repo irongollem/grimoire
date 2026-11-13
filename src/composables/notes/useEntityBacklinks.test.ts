@@ -30,7 +30,7 @@ describe("backlinkFromRow", () => {
     expect(backlinkFromRow({ kind: "note", id: "n1", title: "", quest_id: null, quest_title: null }))
       .toEqual({ kind: "note", id: "n1", title: "Untitled note", to: "/notes/n1" });
     expect(backlinkFromRow({ kind: "quest-beat", id: "b1", title: "Ambush", quest_id: "q1", quest_title: null }))
-      .toEqual({ kind: "quest-beat", id: "b1", title: "Untitled quest · Ambush", to: "/quests/q1/beats/b1" });
+      .toEqual({ kind: "quest-beat", id: "b1", title: "Untitled quest · Ambush", to: "/quests/q1?beat=b1&open=1" });
     expect(backlinkFromRow({ kind: "party-member", id: "p1", title: "Nessa", quest_id: null, quest_title: null }).to)
       .toBe("/party/p1");
   });

@@ -230,6 +230,9 @@ export interface QuestBeatPresentation {
   isVisited: boolean;
   isDisconnected: boolean;
   reach: QuestBeatReach;
+  /** True once the beat has failed. Presentation only for now: nothing
+   *  derives it yet, so it is absent until a story supplies it. */
+  isFailed?: boolean;
   /** The threads (#853) currently standing at this beat — empty when none is.
    *  A quest can hold several live threads at once, and a converge-all beat
    *  can legitimately be the arrival point for more than one of them before

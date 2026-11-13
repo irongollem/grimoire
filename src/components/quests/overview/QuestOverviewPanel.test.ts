@@ -79,7 +79,7 @@ describe("QuestOverviewPanel", () => {
     await flushPromises();
 
     expect(mocks.createBeat).toHaveBeenCalledWith(expect.objectContaining({ questId: "quest-1" }));
-    expect(mocks.push).toHaveBeenCalledWith({ query: { view: "work", beat: "beat-new" } });
+    expect(mocks.push).toHaveBeenCalledWith({ path: "/quests/quest-1", query: { beat: "beat-new" } });
   });
 
   it("lists every graph root as a link into Story flow, never a beat with an incoming route", () => {
@@ -125,7 +125,7 @@ describe("QuestOverviewPanel", () => {
     const wrapper = mountPanel();
     await wrapper.get("button").trigger("click");
     await flushPromises();
-    expect(mocks.push).toHaveBeenCalledWith({ query: { thread: "t2", view: "work", beat: "beat-new" } });
+    expect(mocks.push).toHaveBeenCalledWith({ path: "/quests/quest-1", query: { thread: "t2", beat: "beat-new" } });
   });
 
   it("a failed opening beat says why, can be retried, and the retry clears the message", async () => {

@@ -345,7 +345,7 @@ describe("QuestGeneratorPanel — the request and the created quest", () => {
     expect(mocks.ui.questGeneratorOpen).toBe(false);
     mocks.ui.questGeneratorOpen = true;
     await w.get('button[aria-label="Build flow →"]').trigger("click");
-    expect(mocks.push).toHaveBeenLastCalledWith({ path: "/quests/quest-new", query: { view: "overview" } });
+    expect(mocks.push).toHaveBeenLastCalledWith({ path: "/quests/quest-new", query: {} });
     expect(mocks.ui.questGeneratorOpen).toBe(false);
   });
 

@@ -58,11 +58,11 @@ import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { IconCheck, IconDocument } from "@/lib/icons";
-import { questSurfaceReturnTo } from "@/lib/quests/navigation";
+import { questLink } from "@/lib/quests/navigation";
 import type { StagedQuestBeat } from "@/composables/quests/useBeatsStagedAt";
 
 const { beat } = defineProps<{ beat: StagedQuestBeat }>();
 
-const cockpitTarget = computed(() => questSurfaceReturnTo(beat.quest_id, beat.id, "run"));
+const cockpitTarget = computed(() => questLink(beat.quest_id, { beat: beat.id, open: true }));
 const focused = ref(false);
 </script>

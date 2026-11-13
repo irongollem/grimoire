@@ -8,7 +8,7 @@
     See #759.
   -->
   <RouterLink
-    :to="row.runLink ? { path: `/quests/${row.id}`, query: { view: 'run' } } : `/quests/${row.id}`"
+    :to="row.runLink ? questLink(row.id, { party: true }) : questLink(row.id)"
     class="flex items-start gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 group"
   >
     <span
@@ -33,6 +33,7 @@
 </template>
 
 <script setup lang="ts">
+import { questLink } from "@/lib/quests/navigation";
 import { RouterLink } from "vue-router";
 import type { DashboardQuestRowModel } from "@/lib/dashboard/questRows";
 

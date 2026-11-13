@@ -61,6 +61,7 @@
 </template>
 
 <script setup lang="ts">
+import { questLink } from "@/lib/quests/navigation";
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
@@ -170,7 +171,7 @@ async function createFlow() {
     // and rely on prep's default landing — which meant improvising a quest at the
     // table silently ended the DM's broadcast, and the next NPC reveal went out
     // unannounced with nothing to connect it to. See #758.
-    await router.push({ path: `/quests/${created.id}`, query: { view: "overview" } });
+    await router.push(questLink(created.id));
   } catch (cause) {
     if (isQuotaExceeded(cause)) { showPaywall.value = true; return; }
     error.value = cause instanceof Error ? cause.message : "The quest flow could not be created";

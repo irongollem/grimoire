@@ -1,28 +1,18 @@
 <template>
+  <!--
+    One screen (epic #1183): the story flow with a drawer. There are no tabs;
+    the URL carries the selection (`questLink`), and the drawer's states are
+    the quest, a beat, a route, or a beat opened over the flow. The title, the
+    lane and More are all the header keeps.
+  -->
   <PageHeader
     :title="quest?.title || (isNew ? 'New Quest' : 'Loading…')"
     :description="quest ? QUEST_STATUS_LABELS[quest.status] : undefined"
-    :contained="showsGraph"
+    :contained="!isNew && !!quest"
     :owns-phone-bar="!isNew && !!quest"
   >
-    <!--
-      The three permanent tabs: "i utterly dont like the quest in a
-      modal. its too much data and inconsistent" / "perhaps we just need 3
-      menus always instead of 1 swapping around based on that state" (epic
-      #850). Overview, Story flow and Run are peers rendered by the same
-      control regardless of session state; nothing here swaps the control
-      itself for a different one. They sit beside the title rather than on a
-      row of their own, so the story flow's canvas keeps the height (12 Nov
-      2026: a tab row plus a toolbar row read as whitespace over a cramped
-      canvas).
-    -->
     <template v-if="!isNew && quest" #actions>
-      <SegmentedControl
-        :model-value="view"
-        :options="viewOptions"
-        size="sm"
-        @update:model-value="(value) => selectView(value as QuestDetailSurface)"
-      />
+      <AppButton :icon="IconMore" label="More" size="sm" variant="subtle" aria-haspopup="menu" />
     </template>
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -35,35 +25,12 @@
 
     <template v-else-if="quest">
       <QuestPhoneTopBar :title="quest.title" :subtitle="phoneSubtitle" />
-      <!-- Below md the page header is hidden behind the phone top bar, so the
-           tabs live in the body there; from md they sit beside the title. -->
-      <SegmentedControl
-        :model-value="view"
-        :options="viewOptions"
-        size="sm"
-        class="mb-3 md:hidden"
-        @update:model-value="(value) => selectView(value as QuestDetailSurface)"
-      />
-
-      <div v-if="view === 'overview'" class="space-y-3">
-        <QuestOverviewPanel :quest="quest" />
-        <!-- The story flow is a fixed-viewport canvas and the cockpit is a
-             live surface, so the note lives on the one flowing document. -->
-        <DmNoteBox type="quest" :id="quest.id" :label="quest.title" />
-      </div>
       <QuestGraphDesigner
-        v-else-if="view === 'work'"
         :key="`build-${quest.id}`"
         :quest-id="quest.id"
         :visible-to="quest.player_visible_to ?? []"
         :entry-beat-id="quest.entry_beat_id"
         :focus-current-on-open="route.query.focus === 'current'"
-      />
-      <QuestRunCockpit
-        v-else
-        :key="`run-${quest.id}`"
-        :anchor-quest-id="quest.id"
-        :visible-to="quest.player_visible_to ?? []"
       />
     </template>
   </PageHeader>
@@ -71,65 +38,34 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import { useQuest } from "@/composables/quests/useQuests";
-import { useQuestDetailSurface, type QuestDetailSurface } from "@/composables/quests/useQuestDetailSurface";
+import { useQuestBeats } from "@/composables/quests/useQuestFlow";
+import { IconMore } from "@/lib/icons";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
-import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import QuestFlowStarter from "@/components/quests/flow/QuestFlowStarter.vue";
 import QuestGraphDesigner from "@/components/quests/flow/QuestGraphDesigner.vue";
-import QuestRunCockpit from "@/components/quests/run/QuestRunCockpit.vue";
-import QuestOverviewPanel from "@/components/quests/overview/QuestOverviewPanel.vue";
-import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import QuestPhoneTopBar from "@/components/quests/overview/QuestPhoneTopBar.vue";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
 
 const route    = useRoute();
-const router   = useRouter();
 const isNew    = computed(() => route.name === "quest-new");
 const id       = computed(() => (isNew.value ? "" : (route.params.id as string)));
 const parentId = computed(() => (route.query.parent as string | undefined));
 
-const { view } = useQuestDetailSurface();
+const { data: quest, isLoading: questLoading } = useQuest(id);
+const { data: beats } = useQuestBeats(id);
+const isLoading = computed(() => !isNew.value && questLoading.value);
 
-/**
- * Containment belongs to the *graph*, not to either of its neighbours. The
- * canvas is a fixed-viewport surface that manages its own scrolling, so
- * `PageHeader` must stop scrolling around it; the overview and the cockpit
- * are both ordinary flowing documents and must not inherit that contract.
- * See #776.
- */
-const showsGraph = computed(() => !isNew.value && view.value === "work");
-
-// The phone top bar's second line: the lane, plus the surface when it is not
-// the overview — "Active · Run" tells a DM which of the three tabs they are
-// on without the tab strip having scrolled into view.
+// The phone top bar's second line: the lane, and the beat's title while one is
+// opened, so the bar says where the DM is without the drawer in view.
 const phoneSubtitle = computed(() => {
   if (!quest.value) return undefined;
   const lane = QUEST_STATUS_LABELS[quest.value.status];
-  const surface = view.value === "work" ? "Story flow" : view.value === "run" ? "Run" : null;
-  return surface ? `${lane} · ${surface}` : lane;
+  if (route.query.open !== "1") return lane;
+  const title = beats.value?.find((beat) => beat.id === route.query.beat)?.title;
+  return title ? `${lane} · ${title}` : lane;
 });
-
-const viewOptions = [
-  { value: "overview" as const, label: "Overview" },
-  { value: "work" as const, label: "Story flow" },
-  { value: "run" as const, label: "Run" },
-];
-
-/**
- * Every generator of a quest link now writes `?view=` directly (epic #850) —
- * there is no state to translate a request into any more, only a surface to
- * record. `mode`/`overview`/`edit` are stripped defensively on the way out so
- * a stale bookmark carrying one of the retired keys does not linger in the
- * query after the DM switches tabs by hand.
- */
-function selectView(next: QuestDetailSurface) {
-  const { mode: _mode, overview: _overview, edit: _edit, ...query } = route.query;
-  void router.replace({ query: { ...query, view: next } });
-}
-
-const { data: quest, isLoading: questLoading } = useQuest(id);
-const isLoading = computed(() => !isNew.value && questLoading.value);
 </script>

@@ -172,7 +172,7 @@ describe("QuestDesignerPanel", () => {
     expect(mocks.createFromHook).toHaveBeenCalledWith(
       expect.objectContaining({ hook: designerState.tree.value, parentQuestId: "parent-1" }),
     );
-    expect(mocks.push).toHaveBeenCalledWith({ path: "/quests/quest-new", query: { view: "overview" } });
+    expect(mocks.push).toHaveBeenCalledWith({ path: "/quests/quest-new", query: {} });
   });
 
   it("tells the DM when the created quest has no story beats yet", async () => {

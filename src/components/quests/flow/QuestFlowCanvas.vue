@@ -21,6 +21,7 @@
         :nodes-connectable="editable"
         :default-viewport="initialViewport ?? undefined"
         @node-click="onNodeClick"
+        @pane-click="emit('command', { type: 'deselect' })"
         @edge-click="emit('command', { type: 'select-edge', edgeId: $event.edge.id })"
         @node-drag-stop="onNodeDragStop"
         @connect-start="onConnectStart"
@@ -69,7 +70,7 @@
         </span>
       </div>
     </div>
-    <div class="quest-flow-outline"><QuestGraphOutline :beats="beats" :presentations="presentations" :selected-beat-id="selectedBeatId" :editable="editable" @command="emit('command', $event)" /></div>
+    <div class="quest-flow-outline"><QuestGraphOutline :beats="beats" :presentations="presentations" :selected-beat-id="selectedBeatId" :entry-beat-id="entryBeatId" :editable="editable" @command="emit('command', $event)" /></div>
   </div>
 </template>
 

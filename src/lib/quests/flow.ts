@@ -38,7 +38,8 @@ export type QuestGraphCommand =
   | { type: "move"; beatId: string; x: number; y: number }
   | { type: "link"; sourceBeatId: string; targetBeatId: string }
   | { type: "create"; sourceBeatId?: string; x?: number; y?: number }
-  | { type: "select-edge"; edgeId: string };
+  | { type: "select-edge"; edgeId: string }
+  | { type: "deselect" };
 
 export function toQuestFlowGraph(
   beats: QuestBeat[],
