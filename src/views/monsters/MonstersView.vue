@@ -310,6 +310,7 @@ import SourcesPickerPanel from "@/components/common/settings/SourcesPickerPanel.
 import { useMonstersUiStore } from "@/stores/ui/monsters";
 import { useCampaignStore } from "@/stores/campaign";
 import { useRouter } from "vue-router";
+import { useBarCreate } from "@/composables/useBarCreate";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
 import { useMonsterBrowse } from "@/composables/monsters/useMonsterBrowse";
@@ -342,6 +343,9 @@ function handleNew() {
   if (!canCreate.value) { showPaywall.value = true; return; }
   router.push("/monsters/new");
 }
+
+// The phone layout has no header, so its "New Monster" is the DM bar's "+" alone.
+useBarCreate(() => (isMobile.value && showList.value ? { label: "New Monster", run: handleNew } : null));
 
 const TYPE_OPTIONS = [
   { value: "all", label: "All types" },
