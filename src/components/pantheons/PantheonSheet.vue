@@ -1,7 +1,7 @@
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-[15rem_1fr] gap-5">
-    <!-- Left: emblem + deities in this pantheon -->
-    <div class="flex flex-col gap-4">
+  <div class="grid grid-cols-1 gap-5" :class="!lowArt && 'lg:grid-cols-[15rem_1fr]'">
+    <!-- Left: emblem + deities in this pantheon. Low art (#1179, frame 04): the column goes, its facts move to the fact line. -->
+    <div v-if="!lowArt" class="flex flex-col gap-4">
       <div
         class="relative aspect-square rounded-lg border border-border overflow-hidden bg-muted max-w-150 mx-auto lg:max-w-none"
       >
@@ -12,6 +12,7 @@
           format="portrait"
           :render-width="600"
           :lightbox="true"
+          record
           class="w-full h-full"
           ai-badge="right"
         />
@@ -58,6 +59,20 @@
         <h1 class="text-title font-bold text-foreground leading-tight">{{ pantheon.name }}</h1>
       </div>
 
+      <SheetFactLine v-if="lowArt">
+        <span v-if="memberDeities.length" class="flex flex-wrap items-center gap-x-3">
+          <span class="text-eyebrow font-semibold text-muted-foreground">Deities</span>
+          <RouterLink
+            v-for="d in memberDeities"
+            :key="d.id"
+            :to="`/deities/${d.id}`"
+            class="text-foreground transition-colors hover:text-primary"
+          >{{ d.name }}</RouterLink>
+        </span>
+        <span v-if="pantheon.tags?.length" class="text-muted-foreground">{{ pantheon.tags.join(", ") }}</span>
+        <PortraitOnRequest :src="pantheon.emblem_url" :alt="pantheon.name + ' emblem'" label="Emblem" />
+      </SheetFactLine>
+
       <div v-if="hasDescription">
         <RichTextViewer :content="pantheon.description" />
       </div>
@@ -76,10 +91,14 @@ import { IconFire, IconSun } from '@/lib/icons';
 import { useAllDeities } from "@/composables/deities/useDeities";
 import type { Pantheon } from "@/types/deity.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import SheetFactLine from "@/components/common/entity/SheetFactLine.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 
 const props = defineProps<{ pantheon: Pantheon }>();
 
+const { lowArt } = useLowArt();
 const { data: allDeities } = useAllDeities();
 
 const memberDeities = computed(() =>

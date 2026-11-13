@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { mount } from "@vue/test-utils";
 import { ref } from "vue";
@@ -33,6 +33,8 @@ vi.mock("@/composables/rules/useCustomClasses", async (orig) => ({
 }));
 
 import CustomClassSheet from "./CustomClassSheet.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 
 const base = {
   id: "i1",
@@ -142,5 +144,37 @@ describe("CustomClassSheet actions", () => {
     expect(text).toContain("Rage");
     expect(text).toContain("f-mystery");
     expect(text.indexOf("f-mystery")).toBeLessThan(text.indexOf("Rage"));
+  });
+});
+
+describe("CustomClassSheet in low art (#1179)", () => {
+  const pictured = { ...base, user_id: "u1", campaign_id: null, image_url: "/barb.webp" } as unknown as CustomClass;
+  const global = { stubs: { AiImageBadge: true } };
+  afterEach(() => {
+    useLowArt().setLowArt(false);
+  });
+
+  // Bug: a low-art viewer still downloads the class thumbnail beside the identity facts.
+  it("drops the thumbnail and offers the class picture behind a Portrait button", () => {
+    useLowArt().setLowArt(true);
+    const w = mount(CustomClassSheet, { props: { cls: pictured }, global });
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.findComponent(FocalImage).exists()).toBe(false);
+    expect(w.text()).toContain("d12");
+    expect(w.text()).toContain("Portrait");
+  });
+
+  // Bug: the initial-letter tile stands in for a picture the mode is meant to remove.
+  it("shows no letter tile and no Portrait button for a class without a picture", () => {
+    useLowArt().setLowArt(true);
+    const w = mount(CustomClassSheet, { props: { cls: { ...pictured, image_url: null } as unknown as CustomClass }, global });
+    expect(w.text()).not.toContain("Portrait");
+    expect(w.find(".card-plate").exists()).toBe(false);
+  });
+
+  // Bug: with low art off the thumbnail is not a record picture.
+  it("with low art off, the thumbnail is a record picture", () => {
+    const w = mount(CustomClassSheet, { props: { cls: pictured }, global });
+    expect(w.findComponent(FocalImage).props("record")).toBe(true);
   });
 });

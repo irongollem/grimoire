@@ -1,8 +1,8 @@
 <template>
   <div class="rounded-lg border border-border bg-card overflow-hidden">
     <div class="flex gap-0">
-      <!-- Portrait -->
-      <div class="shrink-0 w-40 sm:w-52 self-stretch">
+      <!-- Portrait. Low art: it goes and the name starts the card (frame 04). -->
+      <div v-if="!lowArt" class="shrink-0 w-40 sm:w-52 self-stretch">
         <FocalImage
           :src="puzzle.image_url"
           :alt="puzzle.name"
@@ -11,12 +11,16 @@
           :placeholder="placeholderUrl('enigma')"
           class="h-full"
           ai-badge="right"
+          record
         />
       </div>
 
       <!-- Title + meta -->
       <div class="flex-1 p-4 flex flex-col gap-2 min-w-0">
         <h2 class="text-heading-lg font-bold text-foreground leading-tight">{{ puzzle.name }}</h2>
+        <div v-if="lowArt && puzzle.image_url" class="self-start">
+          <PortraitOnRequest :src="puzzle.image_url" :alt="puzzle.name" />
+        </div>
         <div class="flex flex-wrap gap-2">
           <span
             class="text-label px-2 py-0.5 rounded text-white font-bold"
@@ -53,8 +57,12 @@
 <script setup lang="ts">
 import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
 import type { PuzzleRoom } from "@/types/puzzle.types";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+
+const { lowArt } = useLowArt();
 
 // Only the identity columns, so a library puzzle (no user, no sharing) renders too.
 const { puzzle } = defineProps<{

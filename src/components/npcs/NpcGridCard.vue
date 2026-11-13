@@ -13,9 +13,13 @@
     :locked="locked"
     :badge-text="npc.relationship"
     :badge-class="relClass"
+    :eyebrow="npc.race"
+    :status-class="statusClass"
   >
-    <template #body>
-      <div class="flex items-start justify-between gap-1">
+    <!-- Low art (#1179, frame 02): the card draws the title and its diamond, so the body keeps
+         the occupation and the place, and the tags move to the foot. -->
+    <template #body="{ artFree }">
+      <div v-if="!artFree" class="flex items-start justify-between gap-1">
         <h3 class="line-clamp-1 flex-1 text-heading-xs leading-tight font-bold text-foreground">
           {{ displayName }}
         </h3>
@@ -26,29 +30,19 @@
         />
       </div>
 
-      <p v-if="npc.race || npc.occupation" class="truncate text-caption text-muted-foreground italic">
-        {{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}
+      <p v-if="artFree ? npc.occupation : npc.race || npc.occupation" class="truncate text-caption text-muted-foreground italic">
+        {{ artFree ? npc.occupation : [npc.race, npc.occupation].filter(Boolean).join(" · ") }}
       </p>
 
       <p v-if="locationName" class="truncate text-caption text-muted-foreground">
         <IconCompassRose class="mr-1 inline h-3.5 w-3.5 -translate-y-px" />{{ locationName }}
       </p>
 
-      <div v-if="npc.tags.length" class="mt-auto flex flex-wrap gap-1 pt-1">
-        <span
-          v-for="tag in npc.tags.slice(0, 3)"
-          :key="tag"
-          class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-        >
-          {{ tag }}
-        </span>
-        <span
-          v-if="npc.tags.length > 3"
-          class="self-center text-caption-sm text-muted-foreground italic"
-        >
-          +{{ npc.tags.length - 3 }}
-        </span>
-      </div>
+      <NpcCardTags v-if="!artFree" :tags="npc.tags" class="mt-auto pt-1" />
+    </template>
+
+    <template #foot>
+      <NpcCardTags :tags="npc.tags" />
     </template>
 
     <!--
@@ -58,18 +52,18 @@
       than a distinction — Edit used to be a labelled pill that appeared only on
       hover, which made the pair look unrelated.
     -->
-    <template #actions-start>
+    <template #actions-start="{ artFree }">
       <AppButton
         variant="ghost"
         size="icon-xs"
-        :class="[CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
+        :class="artFree ? undefined : [CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
         :icon="IconEdit"
         :to="`/npcs/${npc.id}?edit=true`"
         tooltip="Edit NPC"
         aria-label="Edit NPC"
       />
       <div @click.prevent.stop>
-        <NpcRevealControl :npc="npc" form="overlay" />
+        <NpcRevealControl :npc="npc" :form="artFree ? 'inline' : 'overlay'" />
       </div>
     </template>
   </EntityGridCard>
@@ -80,6 +74,7 @@ import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";
 import EntityGridCard from "@/components/common/entity/EntityGridCard.vue";
+import NpcCardTags from "@/components/npcs/NpcCardTags.vue";
 import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
 import { IconCompassRose, IconEdit } from "@/lib/icons";
 import {

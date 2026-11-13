@@ -89,6 +89,12 @@ export const buttonVariants = cva(
          * grid. The map editor's rail and options slip, and the Play toolbelt.
          */
         tool: "border border-transparent text-muted-foreground hover:text-foreground hover:border-primary/50",
+        /**
+         * A dashed box for "this opens something that is not on screen yet": the
+         * Portrait button on a low-art sheet, which fetches its picture on the click
+         * (#1179). Dashed because the thing behind it is not drawn, as an empty well is.
+         */
+        dashed: "border border-dashed border-foreground/40 text-foreground hover:border-primary hover:bg-primary/5",
       },
       size: {
         /**
@@ -637,7 +643,7 @@ export type ButtonSurface = NonNullable<ButtonVariants["surface"]>;
 type Assert<T extends true> = T;
 
 export const BUTTON_VARIANTS = [
-  "primary", "live", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu", "well", "tool",
+  "primary", "live", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu", "well", "tool", "dashed",
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [

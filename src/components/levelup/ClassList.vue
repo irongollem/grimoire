@@ -1,5 +1,5 @@
 <template>
-  <ListSkeleton v-if="isLoading || systemLoading" :variant="layout === 'rows' ? 'tiles' : 'grid'" :columns="layout === 'rows' ? 1 : 4" :count="12" />
+  <ListSkeleton v-if="isLoading || systemLoading" :variant="skeletonVariant" :columns="layout === 'rows' ? 1 : 4" :count="12" />
 
   <template v-else>
     <!-- Empty state (no custom classes and no search active) -->
@@ -55,6 +55,7 @@
         :layout="layout"
         :grid-columns="columns"
         :grid-row-estimate="GRID_ROW_PX"
+        :ledger="LEDGER"
         class="mt-4"
       >
         <template #card="{ item: cls }">
@@ -64,10 +65,14 @@
             :image-url="cls.image_url"
             :focal-point="cls.focal_point"
             :placeholder="placeholderUrl('character')"
+            eyebrow="Class"
           >
-            <template #body>
-              <h3 class="line-clamp-1 text-heading-xs leading-tight font-bold text-foreground">{{ cls.class_name }}</h3>
-              <p class="text-caption text-muted-foreground">{{ customSubtitle(cls) }}</p>
+            <template #body="{ artFree }">
+              <h3 v-if="!artFree" class="line-clamp-1 text-heading-xs leading-tight font-bold text-foreground">{{ cls.class_name }}</h3>
+              <p class="text-caption text-muted-foreground">{{ artFree ? customMeta(cls) : customSubtitle(cls) }}</p>
+            </template>
+            <template #foot>
+              <span v-if="cls.source" class="text-label text-muted-foreground">{{ cls.source }}</span>
             </template>
           </EntityGridCard>
         </template>
@@ -78,6 +83,7 @@
             :subtitle="customSubtitle(cls)"
             :image-url="cls.image_url"
             :fallback-icon="IconPopulate"
+            :cells="[customMeta(cls), cls.source]"
           />
         </template>
       </EntityCollection>
@@ -94,6 +100,7 @@
         :layout="layout"
         :grid-columns="columns"
         :grid-row-estimate="GRID_ROW_PX"
+        :ledger="LEDGER"
       >
         <template #card="{ item: cls }">
           <EntityGridCard
@@ -102,13 +109,14 @@
             :image-url="cls.image_url"
             :focal-point="cls.focal_point"
             :placeholder="placeholderUrl('character')"
+            eyebrow="Class"
           >
-            <template #actions-end>
+            <template #actions-end="{ artFree }">
               <div @click.prevent.stop>
                 <AppButton
                   variant="ghost"
                   size="icon-xs"
-                  :class="[CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
+                  :class="artFree ? undefined : [CARD_OVERLAY_ACTION, 'text-white hover:text-white']"
                   :icon="IconCopy"
                   :disabled="duplicating === cls.id"
                   :tooltip="duplicating === cls.id ? 'Copying…' : 'Duplicate to customise'"
@@ -117,8 +125,8 @@
                 />
               </div>
             </template>
-            <template #body>
-              <h3 class="line-clamp-1 text-heading-xs leading-tight font-bold text-foreground">{{ cls.class_name }}</h3>
+            <template #body="{ artFree }">
+              <h3 v-if="!artFree" class="line-clamp-1 text-heading-xs leading-tight font-bold text-foreground">{{ cls.class_name }}</h3>
               <p class="text-caption text-muted-foreground">{{ systemSubtitle(cls) }}</p>
             </template>
           </EntityGridCard>
@@ -130,6 +138,7 @@
             :subtitle="systemSubtitle(cls)"
             :image-url="cls.image_url"
             :fallback-icon="IconPopulate"
+            :cells="[systemSubtitle(cls), null]"
           >
             <template #actions>
               <AppButton
@@ -154,6 +163,7 @@ import { useRouter } from "vue-router";
 import { IconAdd, IconCopy, IconPopulate } from '@/lib/icons';
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useListLayout } from "@/composables/useListLayout";
+import { useLowArt } from "@/composables/useLowArt";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";
@@ -178,6 +188,17 @@ const duplicating = ref<string | null>(null);
 
 // The Codex header's toggle writes the same key.
 const layout = useListLayout("codex-classes", "grid");
+const { lowArt } = useLowArt();
+const skeletonVariant = computed(() => {
+  if (lowArt.value) return layout.value === "rows" ? "ledger" : "entries";
+  return layout.value === "rows" ? "tiles" : "grid";
+});
+
+// Low art (#1179, frame 03): the subtitle the row shows today, then its book.
+const LEDGER = [
+  { label: "Hit die and saves", track: "minmax(0,1fr)" },
+  { label: "Source", track: "10rem" },
+];
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3, xl: 4 });
 const classKey = (cls: { id: string }) => cls.id;
 
@@ -191,14 +212,18 @@ function baseSubtitle(cls: { hit_die: number; saving_throws: readonly string[] }
   return `d${cls.hit_die}${saves}`;
 }
 
-function customSubtitle(cls: CustomClass): string {
+function customParts(cls: CustomClass, withBook: boolean): string {
   const levels = featureLevelCount(cls);
   const parts = [baseSubtitle(cls)];
   if (levels > 0) parts.push(`${levels} feature level${levels !== 1 ? "s" : ""}`);
-  if (cls.source) parts.push(cls.source);
+  if (withBook && cls.source) parts.push(cls.source);
   if (cls.campaign_id) parts.push("campaign only");
   return parts.join(" · ");
 }
+
+/** The meta line without its book: art-free, the book is the card's foot and the ledger's own column. */
+const customMeta = (cls: CustomClass) => customParts(cls, false);
+const customSubtitle = (cls: CustomClass) => customParts(cls, true);
 
 function systemSubtitle(cls: SystemClass): string {
   return cls.spell_slots ? `${baseSubtitle(cls)} · spellcaster` : baseSubtitle(cls);

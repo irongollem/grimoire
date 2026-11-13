@@ -1,13 +1,14 @@
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-[15rem_1fr] gap-5">
-    <!-- Left: emblem + meta chips -->
-    <div class="flex flex-col gap-4">
+  <div class="grid grid-cols-1 gap-5" :class="!lowArt && 'lg:grid-cols-[15rem_1fr]'">
+    <!-- Left: emblem + meta chips. Low art (#1179, frame 04): the column goes, its facts move to the fact line. -->
+    <div v-if="!lowArt" class="flex flex-col gap-4">
       <div class="relative aspect-square rounded-lg border border-border overflow-hidden bg-muted">
         <FocalImage
           :src="faction.emblem_url"
           :alt="faction.name + ' emblem'"
           format="portrait"
           :lightbox="true"
+          record
           :placeholder="placeholderUrl('faction')"
           class="w-full h-full"
           ai-badge="right"
@@ -60,6 +61,16 @@
         </div>
       </div>
 
+      <SheetFactLine v-if="lowArt">
+        <span v-if="faction.faction_type" class="text-foreground">{{ faction.faction_type }}</span>
+        <RelationshipMark v-if="faction.party_standing !== 'unknown'" :relationship="faction.party_standing" />
+        <span v-else class="italic text-muted-foreground">Standing unknown</span>
+        <span v-if="faction.alignment" class="text-muted-foreground">{{ faction.alignment }}</span>
+        <span v-if="faction.tags?.length" class="text-muted-foreground">{{ faction.tags.join(", ") }}</span>
+        <PortraitOnRequest :src="faction.emblem_url" :alt="faction.name + ' emblem'" label="Emblem" />
+      </SheetFactLine>
+      <HouseSheetFacts v-if="lowArt && faction.faction_type === 'House'" :faction="faction" />
+
       <div v-if="hasDescription">
         <RichTextViewer :content="faction.description" />
       </div>
@@ -82,9 +93,13 @@ import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import RelationshipMark from "@/components/common/entity/RelationshipMark.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import HouseSheetFacts from "@/components/factions/HouseSheetFacts.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import SheetFactLine from "@/components/common/entity/SheetFactLine.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ faction: Faction }>();
+const { lowArt } = useLowArt();
 const route  = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();

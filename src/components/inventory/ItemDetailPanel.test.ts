@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { reactive, ref } from "vue";
 import ItemDetailPanel from "./ItemDetailPanel.vue";
 import type { PartyInventoryItem } from "@/types/inventory.types";
+import type { Item } from "@/types/item.types";
+import { useLowArt } from "@/composables/useLowArt";
 
 const mocks = vi.hoisted(() => ({ updateItem: vi.fn(), isDM: false }));
 
@@ -297,5 +299,42 @@ describe("ItemDetailPanel notes with nothing in them", () => {
     await findButton(wrapper, "Save").trigger("click");
     await flushPromises();
     expect(mocks.updateItem).toHaveBeenCalledWith({ id: "inv-8", update: { notes: null } });
+  });
+});
+
+describe("ItemDetailPanel in low art (#1179)", () => {
+  const { setLowArt } = useLowArt();
+  afterEach(() => {
+    setLowArt(false);
+  });
+  const vaultItem = { image_url: "https://cdn.test/bag.webp", image_focal_point: null, requires_attunement: false } as unknown as Item;
+  // The panel sits in a modal that teleports to the body, so its markup is read from there.
+  const open = () =>
+    mount(ItemDetailPanel, {
+      attachTo: document.body,
+      props: { inv: makeInv(), vaultItem, attunedCount: 0, equipOptions: [] },
+      global: { stubs: { RichTextEditor: true, RichTextViewer: true, ItemDocumentSection: true, AiImageBadge: true } },
+    });
+
+  it("the inventory panel still downloads the item's picture in low art: no img, no picture column", () => {
+    setLowArt(true);
+    const w = open();
+    expect(document.body.querySelector("img")).toBeNull();
+    expect(document.body.innerHTML).not.toContain("11rem_1fr");
+    w.unmount();
+  });
+
+  it("keeps the picture reachable behind a Portrait button", () => {
+    setLowArt(true);
+    const w = open();
+    expect(document.body.textContent).toContain("Portrait");
+    w.unmount();
+  });
+
+  it("with low art off it paints the picture and offers no Portrait button", () => {
+    const w = open();
+    expect(document.body.querySelector("img")).not.toBeNull();
+    expect(document.body.textContent).not.toContain("Portrait");
+    w.unmount();
   });
 });

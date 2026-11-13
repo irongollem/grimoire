@@ -92,6 +92,14 @@ describe("crText / crLabel", () => {
     expect(crLabel("5")).toBe("CR 5");
   });
 
+  // Bug: a library monster stored as "0.25" shows "CR 0.25" where the book says 1/4.
+  it("shows a decimal-stored fraction as the book writes it", () => {
+    expect(crText("0.125")).toBe("1/8");
+    expect(crText("0.25")).toBe("1/4");
+    expect(crText("0.5")).toBe("1/2");
+    expect(crLabel("0.5")).toBe("CR 1/2");
+  });
+
   it("marks an absent rating instead of rendering 'undefined' or a blank", () => {
     expect(crText(undefined)).toBe(UNKNOWN_CR_LABEL);
     expect(crText(null)).toBe(UNKNOWN_CR_LABEL);

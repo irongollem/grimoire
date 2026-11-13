@@ -33,6 +33,29 @@ export const DEITY_ALIGNMENTS = [
   "Unaligned",
 ] as const;
 
+const ALIGNMENT_ABBREVIATIONS: Record<string, string> = {
+  "lawful good": "LG",
+  "neutral good": "NG",
+  "chaotic good": "CG",
+  "lawful neutral": "LN",
+  "true neutral": "N",
+  neutral: "N",
+  "chaotic neutral": "CN",
+  "lawful evil": "LE",
+  "neutral evil": "NE",
+  "chaotic evil": "CE",
+};
+
+/**
+ * The two-letter tab for a god's alignment (LG … CE, N for true neutral), or
+ * null for "Unaligned", free text a generator wrote, or nothing: no tab is
+ * better than a wrong one (#1179).
+ */
+export function alignmentAbbreviation(alignment: string | null | undefined): string | null {
+  if (!alignment) return null;
+  return ALIGNMENT_ABBREVIATIONS[alignment.trim().toLowerCase()] ?? null;
+}
+
 // ── Pantheons ─────────────────────────────────────────────────────────────────
 
 export interface Pantheon {

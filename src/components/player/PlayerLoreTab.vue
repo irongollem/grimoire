@@ -211,13 +211,14 @@
       <div class="p-4 space-y-3">
         <!-- Name + image -->
         <div class="flex gap-3 items-start">
-          <div v-if="background.image_url" class="shrink-0 h-16 w-16 rounded-md overflow-hidden bg-muted">
+          <div v-if="background.image_url && !lowArt" class="shrink-0 h-16 w-16 rounded-md overflow-hidden bg-muted">
             <FocalImage
               :src="background.image_url"
               :alt="background.name"
               format="portrait"
               :focal-point="background.focal_point ?? null"
               class="w-full h-full"
+              record
             />
           </div>
           <div>
@@ -285,6 +286,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { RouterLink } from "vue-router";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { backgroundSourceKey, useBackground } from "@/composables/rules/useBackgrounds";
@@ -304,6 +306,7 @@ import FocalImage from "@/components/common/media/FocalImage.vue";
 import type { PartyMember } from "@/types/party.types";
 
 const { member, isOwner } = defineProps<{ member: PartyMember; isOwner: boolean }>();
+const { lowArt } = useLowArt();
 
 function isChoicePlaceholder(s: string): boolean {
   return s.toLowerCase().includes("choice");

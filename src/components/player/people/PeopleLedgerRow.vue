@@ -6,7 +6,7 @@
     :aria-current="selected ? 'true' : undefined"
     @click="emit('open')"
   >
-    <span class="relative h-14 w-11 shrink-0 overflow-hidden rounded-sm border border-border bg-muted">
+    <span v-if="!lowArt" class="relative h-14 w-11 shrink-0 overflow-hidden rounded-sm border border-border bg-muted">
       <FocalImage
         v-if="portraitVisible && portrait"
         :src="portrait"
@@ -14,6 +14,7 @@
         format="portrait"
         :focal-point="focalPoint"
         :class="dead && 'grayscale opacity-60'"
+        record
       />
       <span
         v-else-if="!portraitVisible"
@@ -55,6 +56,7 @@ import { computed } from "vue";
 import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import RelationshipMark from "@/components/common/entity/RelationshipMark.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { IconUser } from "@/lib/icons";
 import {
   getNpcDisplayFocalPoint,
@@ -84,6 +86,7 @@ const {
 
 const emit = defineEmits<{ open: [] }>();
 
+const { lowArt } = useLowArt();
 const visible = (field: string) => npc.player_visible_fields.includes(field);
 const nameVisible = computed(() => visible("name"));
 const portraitVisible = computed(() => visible("portrait"));

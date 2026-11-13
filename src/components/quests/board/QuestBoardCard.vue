@@ -156,7 +156,7 @@
             :title="member.name"
           >
             <img
-              v-if="member.portrait_url"
+              v-if="member.portrait_url && !lowArt"
               :src="member.portrait_url"
               :alt="member.name"
               class="h-full w-full object-cover"
@@ -221,6 +221,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { RouterLink } from "vue-router";
 import {
   IconCheck,
@@ -252,6 +253,7 @@ const { quest, party = [], summary, dragging = false, draggable = true } = defin
   draggable?: boolean;
 }>();
 
+const { lowArt } = useLowArt();
 const emit = defineEmits<{
   dragstart: [questId: string];
   dragend: [];

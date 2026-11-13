@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useLowArt } from "@/composables/useLowArt";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { cardTurnStyle } from "@/lib/motion";
 import { RISK_LABELS } from "@/data/downtimeActivities";
@@ -26,6 +27,9 @@ const {
   pendingCount?: number;
 }>();
 
+const { lowArt } = useLowArt();
+// With low art on the card shows its glyph face, the same one an activity with no art gets.
+const showArt = computed(() => Boolean(activity.artUrl) && !lowArt.value);
 const emit = defineEmits<{ select: [activity: DowntimeActivity] }>();
 
 const turned = computed(() => pendingCount > 0);
@@ -79,7 +83,7 @@ function onSelect() {
         <!-- Card face -->
         <div class="relative flex-1 overflow-hidden bg-card">
           <FocalImage
-            v-if="activity.artUrl"
+            v-if="showArt"
             :src="activity.artUrl"
             :alt="activity.title"
             format="portrait"
@@ -87,7 +91,7 @@ function onSelect() {
           />
           <div v-else class="absolute inset-0" :style="faceStyle" aria-hidden="true" />
           <div
-            v-if="!activity.artUrl"
+            v-if="!showArt"
             class="absolute inset-0 flex items-center justify-center text-6xl opacity-80"
             aria-hidden="true"
           >

@@ -8,7 +8,8 @@
     class="flex items-center gap-3 rounded-md border border-border px-3 py-2"
     :class="former ? 'bg-muted/30 opacity-70' : 'bg-card'"
   >
-    <div class="h-8 w-8 shrink-0 rounded-full border border-border bg-muted overflow-hidden">
+    <!-- Low art (#1179): a member's portrait is a record's picture, so the avatar goes. -->
+    <div v-if="!lowArt" class="h-8 w-8 shrink-0 rounded-full border border-border bg-muted overflow-hidden">
       <FocalImage
         v-if="portraitUrl"
         :src="portraitUrl"
@@ -72,6 +73,7 @@
 <script setup lang="ts">
 import { type Component, computed } from "vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
@@ -97,6 +99,8 @@ const { readonlyRole = false, former = false, role, status, visibleTo, memberNam
   /** The member's name, for the reveal control's title. */
   memberName?: string;
 }>();
+
+const { lowArt } = useLowArt();
 
 const emit = defineEmits<{
   (e: "update:role", value: string): void;

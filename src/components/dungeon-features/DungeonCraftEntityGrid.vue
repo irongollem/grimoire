@@ -1,5 +1,5 @@
 <template>
-  <ListSkeleton v-if="isLoading" :variant="layout === 'grid' ? 'grid' : 'stack'" :columns="4" :count="8" />
+  <ListSkeleton v-if="isLoading" :variant="skeletonVariant" :columns="4" :count="8" />
   <template v-else-if="items?.length">
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <AppInput
@@ -45,6 +45,7 @@
       :grid-columns="columns"
       :grid-row-estimate="GRID_ROW_PX"
       :row-estimate="ROW_PX"
+      :ledger="ledger"
     >
       <template #card="{ item }">
         <slot
@@ -114,6 +115,8 @@ import { computed, ref, watch } from "vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import { useListLayout } from "@/composables/useListLayout";
+import { useLowArt } from "@/composables/useLowArt";
+import type { LedgerColumn } from "@/components/common/list/ledger";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
@@ -143,6 +146,7 @@ const {
   table,
   ids = [],
   copyLabel,
+  ledger,
 } = defineProps<{
   items: unknown[] | undefined;
   isLoading: boolean;
@@ -166,6 +170,8 @@ const {
    *  to CopyToCampaignDialog's `label` (#598). All four dungeon-craft nouns are
    *  regular, so the dialog's naive `${label}s` plural is never wrong here. */
   copyLabel?: string;
+  /** Opts the tab into low art (#1179): the ledger columns after the name. Absent for tabs that are not art-led (roll and loot tables). */
+  ledger?: readonly LedgerColumn[];
 }>();
 
 defineSlots<{
@@ -181,12 +187,19 @@ const emit = defineEmits<{
 
 // The Dungeon Craft header's toggle writes the same key. Cards is today's look.
 const layout = useListLayout(listKey, "grid");
+const { lowArt } = useLowArt();
+// Low art only changes a tab that named a ledger; the rest keep their skeleton.
+const skeletonVariant = computed(() => {
+  if (lowArt.value && ledger) return layout.value === "grid" ? "entries" : "ledger";
+  return layout.value === "grid" ? "grid" : "stack";
+});
 // Mirrors `grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5`.
 const columns = useBreakpointColumns({ base: 2, sm: 3, md: 4, lg: 5 });
-// Heights in px before a card or row is measured: a card is the square artwork
-// (about 10rem across five columns) plus a 4.5rem body; a row is the bare
-// EntityListRow, 82, or 98 with its tag line.
-const GRID_ROW_PX = 260;
+// Heights in px before a card or row is measured: a card is EntityGridCard's
+// portrait card, derived in the default Vellum theme: 2 border + 144 plate (h-36)
+// + 24 body padding (p-3) + 20 body (one 17 subtitle line and a gap) = 190;
+// a row is the bare EntityListRow, 82, or 98 with its tag line.
+const GRID_ROW_PX = 190;
 const ROW_PX = 98;
 
 // AppInput requires a v-model; this component receives its search value as a

@@ -4,7 +4,7 @@
          list, so the cards do not jump when they land. -->
     <ListSkeleton
       v-if="isLoading"
-      :variant="layout === 'rows' ? 'tiles' : 'grid'"
+      :variant="skeletonVariant"
       :columns="layout === 'rows' ? 1 : 'fill'"
       :count="12"
     />
@@ -38,6 +38,7 @@
       :layout="layout"
       :grid-columns="columns"
       :grid-row-estimate="GRID_ROW_PX"
+      :ledger="LEDGER"
     >
       <template #row="{ item }">
         <div
@@ -58,6 +59,7 @@
               :image-url="item.image_url"
               :fallback-icon="itemTypeIcon(item.item_type)"
               :tags="rowTags(item)"
+              :cells="ledgerCells(item)"
             >
               <template v-if="!selecting" #actions>
                 <AppButton
@@ -94,7 +96,9 @@
         @pointerover="prefetchDetail(item.id)"
         @focusin="prefetchDetail(item.id)"
       >
+      <!-- Art-free, the eyebrow owns the top-left and the tab the top-right, so the chip moves down. -->
       <BulkSelectableCard
+        :corner="lowArt ? 'bottom-right' : 'top-left'"
         :selected="selectedIds.has(item.id)"
         :selecting="selecting && !item.is_shared"
         @toggle="emit('toggle-select', item.id)"
@@ -107,10 +111,12 @@
           :placeholder="placeholderUrl('item')"
           :badge-text="ITEM_RARITY_LABELS[item.rarity]"
           :badge-class="RARITY_BG[item.rarity]"
+          :eyebrow="ITEM_TYPE_LABELS[item.item_type]"
+          :tab="rarityTab(item)"
         >
           <!-- Owned rows get Edit; shared rows say so and link through to the
                detail view's Clone action, which is the only way to change them. -->
-          <template #actions-start>
+          <template #actions-start="{ artFree }">
             <AppButton
               v-if="!item.is_shared && !selecting"
               :to="`/vault/${item.id}?edit=true`"
@@ -118,7 +124,7 @@
               size="xs"
               :icon="IconEdit"
               label="Edit"
-              :class="[
+              :class="artFree ? 'max-md:min-h-11 max-md:px-3' : [
                 CARD_OVERLAY_SCRIM,
                 'text-white hover:text-white max-md:min-h-11 max-md:px-3',
                 '[@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
@@ -148,8 +154,30 @@
             </div>
           </template>
 
-          <template #body>
-            <div v-if="sourceLabelOf(item)" class="flex items-center">
+          <!-- Art-free, the card draws the name; the book and the tags sit in the foot. -->
+          <template #foot>
+            <div class="flex flex-wrap items-center gap-1">
+              <SourceBadge
+                v-if="sourceLabelOf(item)"
+                :source="sourceKey(item)"
+                :title="item.source_title"
+                class="max-w-full truncate"
+              />
+              <span
+                v-for="tag in item.tags.slice(0, 2)"
+                :key="tag"
+                class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
+              >
+                {{ tag }}
+              </span>
+            </div>
+          </template>
+
+          <template #body="{ artFree }">
+            <p v-if="artFree && item.requires_attunement" class="text-caption text-primary italic">
+              Requires attunement
+            </p>
+            <div v-if="!artFree && sourceLabelOf(item)" class="flex items-center">
               <SourceBadge :source="sourceKey(item)" :title="item.source_title" class="max-w-full truncate" />
             </div>
 
@@ -174,7 +202,7 @@
               </span>
             </div>
 
-            <div v-if="item.tags.length" class="flex flex-wrap gap-1">
+            <div v-if="!artFree && item.tags.length" class="flex flex-wrap gap-1">
               <span
                 v-for="tag in item.tags.slice(0, 4)"
                 :key="tag"
@@ -194,7 +222,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, type Component as VueComponent } from "vue";
+import { computed, ref, type Component as VueComponent } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { IconCaravan, IconCircle, IconCoins, IconComponent, IconDocument, IconEdit, IconFood, IconGem, IconGenerate, IconInventory, IconInvite, IconLightning, IconNavItemVault, IconPackage, IconPotion, IconScrollText, IconShield, IconSword, IconTool, IconWand } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -234,6 +262,18 @@ function itemSubtitle(item: { item_type: ItemType; rarity: keyof typeof ITEM_RAR
   return `${ITEM_TYPE_LABELS[item.item_type]}, ${ITEM_RARITY_LABELS[item.rarity]}`;
 }
 
+/** Low art's ledger (frame 03): type, rarity as a tab, attunement, source. */
+const LEDGER: readonly LedgerColumn[] = [
+  { label: "Type", track: "9rem" },
+  { label: "Rarity", track: "3rem" },
+  { label: "Attunement", track: "6rem" },
+  { label: "Source", track: "minmax(0,10rem)" },
+];
+
+function rarityTab(item: { rarity: ItemRarity }) {
+  return { text: RARITY_LETTERS[item.rarity], label: "Rarity", toneClass: RARITY_BG[item.rarity], ink: "dark" as const };
+}
+
 function itemTypeIcon(type: ItemType): VueComponent {
   return ITEM_TYPE_ICONS[type] ?? IconComponent;
 }
@@ -241,7 +281,10 @@ import { useServerInfiniteScroll } from "@/composables/useServerInfiniteScroll";
 import { useItemBrowse } from "@/composables/items/useItemBrowse";
 import { fetchResolvedItem, resolvedItemKey } from "@/composables/items/useItems";
 import type { ItemScope } from "@/lib/items/itemScope";
-import { ITEM_RARITY_LABELS, ITEM_TYPE_LABELS, RARITY_BG } from "@/types/item.types";
+import { ITEM_RARITY_LABELS, ITEM_TYPE_LABELS, RARITY_BG, RARITY_LETTERS } from "@/types/item.types";
+import type { ItemRarity } from "@/types/item.types";
+import type { LedgerCell, LedgerColumn } from "@/components/common/list/ledger";
+import { useLowArt } from "@/composables/useLowArt";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import { useListLayout } from "@/composables/useListLayout";
@@ -283,6 +326,14 @@ const queryClient = useQueryClient();
 const { labelFor } = useSourceTitles();
 const sourceKey = (item: ItemBrowseRow) => item.source_document_key ?? item.source;
 const sourceLabelOf = (item: ItemBrowseRow) => labelFor(sourceKey(item), item.source_title);
+function ledgerCells(item: ItemBrowseRow): LedgerCell[] {
+  return [
+    ITEM_TYPE_LABELS[item.item_type],
+    { tab: rarityTab(item) },
+    item.requires_attunement ? "Attunes" : null,
+    sourceLabelOf(item),
+  ];
+}
 function rowTags(item: ItemBrowseRow): string[] {
   const label = sourceLabelOf(item);
   return label ? [label, ...item.tags] : item.tags;
@@ -296,6 +347,11 @@ const containerRef = ref<HTMLElement | null>(null);
 const columns = useAutoFillColumns(containerRef, GRID_MIN_WIDTH_REM, GRID_GAP_REM);
 // The page header's toggle writes the same key.
 const layout = useListLayout("items", "grid");
+const { lowArt } = useLowArt();
+const skeletonVariant = computed(() => {
+  if (lowArt.value) return layout.value === "rows" ? "ledger" : "entries";
+  return layout.value === "rows" ? "tiles" : "grid";
+});
 const itemKey = (item: { id: string }) => item.id;
 
 // Row height before a row is measured (px), in the default Vellum theme:

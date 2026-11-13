@@ -1,8 +1,13 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
-import { defineComponent } from "vue";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { defineComponent, ref } from "vue";
+import { useLowArt } from "@/composables/useLowArt";
 import NpcSheet from "./NpcSheet.vue";
 import type { Npc, NpcListRow } from "@/types/npc.types";
+
+vi.mock("@/composables/locations/useLocations", () => ({
+  useAllLocations: () => ({ data: ref([{ id: "l1", name: "Sugarspun" }]) }),
+}));
 
 const TabContentStub = defineComponent({
   props: { npc: { type: Object, required: true }, full: { type: Object, default: undefined } },
@@ -38,5 +43,51 @@ describe("NpcSheet", () => {
     const sheet = mountSheet();
     await sheet.setProps({ full: { ...row, appearance: "x", personality: null, backstory: null, notes: null } as Npc });
     expect(sheet.get('[data-testid="tabs"]').attributes("data-has-full")).toBe("true");
+  });
+
+  describe("low art", () => {
+    const { setLowArt } = useLowArt();
+    afterEach(() => {
+      setLowArt(false);
+    });
+    const withPicture = {
+      ...row,
+      portrait_url: "https://cdn/maera.webp",
+      location_id: "l1",
+      tags: ["innkeeper"],
+    } as unknown as NpcListRow;
+    const mountLow = (npc: NpcListRow) =>
+      mount(NpcSheet, {
+        props: { npc },
+        global: { stubs: { FocalImage: true, NpcTabContent: TabContentStub, DmNoteBox: DmNoteBoxStub } },
+      });
+
+    // Bug: the NPC sheet keeps its 13 rem portrait column (and fetches the portrait) in low art.
+    it("drops the portrait column and its picture", () => {
+      setLowArt(true);
+      const sheet = mountLow(withPicture);
+      expect(sheet.findComponent({ name: "FocalImage" }).exists()).toBe(false);
+      expect(sheet.find("img").exists()).toBe(false);
+    });
+
+    // Bug: what sat under the portrait (status, place, tags) vanishes with the column.
+    it("carries the status, place and tags on a fact line, with a Portrait button for the NPC's own picture", () => {
+      setLowArt(true);
+      const text = mountLow(withPicture).text();
+      expect(text).toContain("alive");
+      expect(text).toContain("Sugarspun");
+      expect(text).toContain("innkeeper");
+      expect(text).toContain("Portrait");
+    });
+
+    // Bug: a Portrait button that opens nothing, for an NPC that has no picture of its own.
+    it("shows no Portrait button when the NPC has no picture", () => {
+      setLowArt(true);
+      expect(mountLow(row).text()).not.toContain("Portrait");
+    });
+
+    it("keeps the portrait column with low art off", () => {
+      expect(mountLow(withPicture).findComponent({ name: "FocalImage" }).exists()).toBe(true);
+    });
   });
 });

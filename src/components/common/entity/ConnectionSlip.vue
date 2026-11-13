@@ -25,7 +25,7 @@
       aria-hidden="true"
     >
       <!-- Through FocalImage both ways: it maps a stored URL to the asset CDN, which a bare <img> would miss. -->
-      <FocalImage v-if="image" :src="image" alt="" :format="imageFormat === 'token' ? 'token' : 'square'" class="size-full" />
+      <FocalImage v-if="image && !lowArt" :src="image" alt="" record :format="imageFormat === 'token' ? 'token' : 'square'" class="size-full" />
       <template v-else>{{ initial }}</template>
     </span>
 
@@ -69,6 +69,9 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
+
+const { lowArt } = useLowArt();
 
 export interface ConnectionTag {
   label: string;

@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { useLowArt } from "@/composables/useLowArt";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mount, RouterLinkStub } from "@vue/test-utils";
 import type { QuestBoardSummary } from "@/lib/quests/board";
 import type { PartyMember } from "@/types/party.types";
@@ -245,5 +246,21 @@ describe("QuestBoardCard", () => {
     expect(here).toHaveLength(2);
     expect(here[0]?.classes()).not.toContain("bg-muted");
     expect(here[0]?.classes().join(" ")).not.toBe(here[1]?.classes().join(" "));
+  });
+});
+
+describe("QuestBoardCard low art (#1179)", () => {
+  afterEach(() => {
+    useLowArt().setLowArt(false);
+  });
+
+  it("shows a party member's initials, not their portrait, in low art", () => {
+    const member = { ...partyMember("pm1", "Brakka Stone"), portrait_url: "/brakka.webp" } as PartyMember;
+    const props = { quest: quest({ player_visible_to: ["pm1"] }), party: [member] };
+    expect(mount(QuestBoardCard, { props, global }).find("img").exists()).toBe(true);
+    useLowArt().setLowArt(true);
+    const w = mount(QuestBoardCard, { props, global });
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.text()).toContain("BS");
   });
 });

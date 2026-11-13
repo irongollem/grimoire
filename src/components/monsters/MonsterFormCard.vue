@@ -3,11 +3,13 @@
     <div class="h-1 w-full shrink-0" :class="crBg(monster?.stat_block?.challenge_rating)" />
     <div class="flex flex-1">
       <div class="relative shrink-0 w-20 h-24 bg-muted overflow-hidden">
-        <template v-if="imageUrl">
+        <!-- Low art (#1179): the CR-coloured initial stands in, never an empty box. -->
+        <template v-if="imageUrl && !lowArt">
           <FocalImage
             :src="imageUrl"
             :alt="name"
             format="portrait"
+            record
             :focal-point="monster?.portrait_focal_point"
             class="group-hover:scale-105 transition-transform duration-300"
             ai-badge="right"
@@ -53,6 +55,7 @@
 
 <script setup lang="ts">
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 // `PlayerVisibleMonster` rather than `Monster` (#842): this card renders on
 // player surfaces, where the projection nulls `stat_block` for an unrevealed
 // creature. A full `Monster` still satisfies it, so DM callers are unaffected —
@@ -67,4 +70,6 @@ defineProps<{
   imageUrl: string | null;
   revealStats?: boolean;
 }>();
+
+const { lowArt } = useLowArt();
 </script>

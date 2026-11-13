@@ -1,7 +1,37 @@
 <template>
-  <div class="flex flex-col gap-6">
-    <!-- Top: portrait | stat block | lore -->
-    <div class="grid grid-cols-1 lg:grid-cols-[12.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-6">
+  <div class="relative flex flex-col gap-6">
+    <!-- Low art (#1179, frame 04): the picture column goes, what sat under it becomes a
+         fact line, and the CR hangs from the sheet as it does from the card. -->
+    <template v-if="lowArt">
+      <BookmarkTab
+        :text="crText(monster.stat_block.challenge_rating)"
+        label="Challenge rating"
+        :tone-class="crBg(monster.stat_block.challenge_rating)"
+      />
+      <SheetFactLine class="pr-10" :portrait="monster.image_url" :portrait-alt="monster.name">
+        <span
+          v-for="tag in monster.tags"
+          :key="tag"
+          class="rounded bg-muted px-2 py-0.5 text-label text-muted-foreground"
+          >{{ tag }}</span
+        >
+        <span v-if="monster.habitat" class="text-muted-foreground italic">Habitat: {{ monster.habitat }}</span>
+        <RouterLink
+          v-if="lairLocation"
+          :to="placeRoute(lairLocation.id)"
+          class="text-muted-foreground italic transition-colors hover:text-foreground hover:underline"
+        >
+          Lair: {{ lairLocation.name }}
+        </RouterLink>
+        <span v-if="sourceName" class="text-muted-foreground italic">Source: {{ sourceName }}</span>
+      </SheetFactLine>
+    </template>
+
+    <!-- Top: portrait | stat block | lore (two tracks in low art) -->
+    <div
+      class="grid grid-cols-1 gap-6"
+      :class="lowArt ? 'lg:grid-cols-2' : 'lg:grid-cols-[12.5rem_minmax(0,1fr)_minmax(0,1fr)]'"
+    >
       <!-- Left: portrait.
            `max-h-112` is a fixed cap rather than the `75vh` it replaces.
            The viewport measurement only ever bound below `lg`, where the
@@ -9,12 +39,13 @@
            started appearing in a modal, where three quarters of the viewport is
            most of the panel and the stat block fell off the bottom. At `lg` the
            12.5rem column decides the height anyway, so nothing changes there. -->
-      <div class="flex flex-col gap-3">
+      <div v-if="!lowArt" class="flex flex-col gap-3">
         <FocalImage
           :src="monster.image_url"
           :focal-point="monster.portrait_focal_point"
           format="portrait"
           :lightbox="true"
+          record
           :placeholder="placeholderUrl('monster')"
           class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-112"
           ai-badge="right"
@@ -130,6 +161,10 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconEncounter, IconPackage } from '@/lib/icons';
+import BookmarkTab from "@/components/common/entity/BookmarkTab.vue";
+import SheetFactLine from "@/components/common/entity/SheetFactLine.vue";
+import { useLowArt } from "@/composables/useLowArt";
+import { crBg, crText } from "@/lib/monsterDisplay";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import StatBlockPanel from "@/components/common/statblock/StatBlockPanel.vue";
@@ -146,6 +181,7 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ monster: Monster }>();
 
+const { lowArt } = useLowArt();
 const { labelFor } = useSourceTitles();
 const sourceName = computed(() => labelFor(props.monster.source, props.monster.source_title));
 

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { useLowArt } from "@/composables/useLowArt";
 import { mount } from "@vue/test-utils";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import PackColumn, { type PackColumnData } from "./PackColumn.vue";
@@ -106,5 +107,25 @@ describe("PackColumn", () => {
     expect(w.emitted("drop")).toEqual([[r]]);
     expect(w.emitted("remove")).toEqual([[r]]);
     expect(w.emitted("count")).toEqual([[r, -1]]);
+  });
+});
+
+// Bug: a pack header still downloads the hero's portrait in low art; it must fall back to the initials.
+describe("PackColumn in low art", () => {
+  afterEach(() => {
+    useLowArt().setLowArt(false);
+  });
+
+  it("shows the initials, not the portrait, and keeps the name", () => {
+    useLowArt().setLowArt(true);
+    const w = mountColumn({ column: column({ portraitUrl: "/hero.webp" }) });
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.find(".pack-face").text()).toBe("IB");
+    expect(w.text()).toContain("Ilse Brandt");
+  });
+
+  it("shows the portrait when low art is off", () => {
+    const w = mountColumn({ column: column({ portraitUrl: "/hero.webp" }) });
+    expect(w.find("img").attributes("src")).toBe("/hero.webp");
   });
 });

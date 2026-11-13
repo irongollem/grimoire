@@ -14,7 +14,7 @@
       @copy="openCopyDialog"
     />
 
-    <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'tiles' : 'grid'" :columns="layout === 'rows' ? 1 : 4" :count="12" />
+    <ListSkeleton v-if="isLoading" :variant="skeletonVariant" :columns="layout === 'rows' ? 1 : 4" :count="12" />
 
     <!-- Nothing to pick: the DM disabled every species for this campaign. The
          codex CTA below is DM-only, so select mode gets its own message. -->
@@ -48,6 +48,7 @@
       :layout="layout"
       :grid-columns="columns"
       :grid-row-estimate="gridRowEstimate"
+      :ledger="LEDGER"
     >
       <template #card="{ item: s }">
         <BulkSelectableCard
@@ -66,22 +67,28 @@
             :selected="!!selectedId && s.id === selectedId"
             :edit-to="!readonly && isUuid(s.id) ? `/species/${s.id}?edit=true` : null"
             edit-label="Edit species"
+            eyebrow="Species"
             @select="emit('select', s)"
           >
-            <div class="flex items-start justify-between gap-2">
-              <h3 class="line-clamp-1 flex-1 text-heading-xs leading-tight font-bold text-foreground">{{ s.name }}</h3>
-              <div class="flex shrink-0 items-center gap-1">
-                <SourceBadge :source="s.source" class="max-w-22 truncate" />
+            <template #foot>
+              <SourceBadge :source="s.source" class="max-w-32 truncate" />
+            </template>
+            <template #default="{ artFree }">
+              <div v-if="!artFree" class="flex items-start justify-between gap-2">
+                <h3 class="line-clamp-1 flex-1 text-heading-xs leading-tight font-bold text-foreground">{{ s.name }}</h3>
+                <div class="flex shrink-0 items-center gap-1">
+                  <SourceBadge :source="s.source" class="max-w-22 truncate" />
+                </div>
               </div>
-            </div>
-            <p class="text-caption text-muted-foreground italic">{{ speciesSubtitle(s) }}</p>
-            <div v-if="s.tags.length" class="mt-auto flex flex-wrap gap-1 pt-1">
-              <span
-                v-for="tag in s.tags.slice(0, 3)"
-                :key="tag"
-                class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-              >{{ tag }}</span>
-            </div>
+              <p class="text-caption text-muted-foreground italic">{{ speciesSubtitle(s) }}</p>
+              <div v-if="s.tags.length" class="mt-auto flex flex-wrap gap-1 pt-1">
+                <span
+                  v-for="tag in s.tags.slice(0, 3)"
+                  :key="tag"
+                  class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
+                >{{ tag }}</span>
+              </div>
+            </template>
           </OptionGridCard>
         </BulkSelectableCard>
       </template>
@@ -99,6 +106,7 @@
             :image-url="s.image_url"
             :fallback-icon="IconSpecies"
             :tags="rowTags(s)"
+            :cells="[speciesSubtitle(s), labelFor(s.source)]"
           >
             <template v-if="!readonly && isUuid(s.id)" #actions>
               <AppButton
@@ -145,6 +153,7 @@ import { allowedSpecies } from "@/lib/campaignContentGating";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
 import { useListLayout } from "@/composables/useListLayout";
+import { useLowArt } from "@/composables/useLowArt";
 import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
@@ -168,6 +177,13 @@ const emit = defineEmits<{ select: [species: Species] }>();
 
 const speciesUi = useSpeciesUiStore();
 const { labelFor } = useSourceTitles();
+const { lowArt } = useLowArt();
+
+// Low art (#1179, frame 03): the subtitle the row shows today, then its book.
+const LEDGER = [
+  { label: "Size and speed", track: "minmax(0,1fr)" },
+  { label: "Source", track: "10rem" },
+];
 
 /** A row's tags, the book it comes from first. */
 function rowTags(s: Species): string[] {
@@ -223,6 +239,10 @@ const speciesKey = (species: Species) => species.id;
 // toggle and selecting happens on a card, so it always shows the grid.
 const storedLayout = useListLayout("codex-species", "grid");
 const layout = computed(() => (selectMode ? "grid" : storedLayout.value));
+const skeletonVariant = computed(() => {
+  if (lowArt.value) return layout.value === "rows" ? "ledger" : "entries";
+  return layout.value === "rows" ? "tiles" : "grid";
+});
 
 function speciesSubtitle(s: Species): string {
   const size = s.size ? s.size.charAt(0).toUpperCase() + s.size.slice(1) : "—";

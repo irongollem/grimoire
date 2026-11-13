@@ -36,9 +36,9 @@
             : 'border-border hover:border-primary/40'"
           @click="onSpeciesSelect(sp.id)">
           <!-- A direct-child plate: the vellum theme insets it and draws the double ink frame. -->
-          <div v-if="sp.image_url" class="relative h-24 shrink-0 overflow-hidden bg-muted">
+          <div v-if="sp.image_url && !lowArt" class="relative h-24 shrink-0 overflow-hidden bg-muted">
             <FocalImage :src="sp.image_url" :alt="sp.name" format="landscape"
-              :focal-point="sp.focal_point ?? null" />
+              :focal-point="sp.focal_point ?? null" record />
           </div>
           <div class="px-3 py-2 flex items-start gap-2">
             <div class="flex-1 min-w-0">
@@ -93,6 +93,7 @@
 <script setup lang="ts">
 import ImageUpload from "@/components/common/media/ImageUpload.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import type { Species } from "@/types/species.types";
@@ -100,6 +101,7 @@ import { effectiveSize, effectiveSpeed, walkSpeedFromSubrace } from "@/rules/spe
 import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
+const { lowArt } = useLowArt();
 
 const { f, auth, portraitUrl, focalPoint, speciesChoices, selectedSpecies, subraceOptions, onSpeciesSelect, onSubraceSelect } = form;
 

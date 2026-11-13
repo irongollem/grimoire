@@ -4,11 +4,12 @@ import { createPinia, setActivePinia } from "pinia";
 import { ref } from "vue";
 
 const updateMember = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+const bgRow = vi.hoisted(() => ({ value: null as Record<string, unknown> | null }));
 
 vi.mock("@/composables/party/useParty", () => ({ useUpdatePartyMember: () => ({ mutateAsync: updateMember }) }));
 vi.mock("@/composables/rules/useBackgrounds", () => ({
   backgroundSourceKey: () => "k",
-  useBackground: () => ({ data: ref(null) }),
+  useBackground: () => ({ data: ref(bgRow.value) }),
 }));
 vi.mock("@/composables/deities/useDeities", () => ({ useAllDeities: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/library/useSourceTitles", () => ({ useSourceTitles: () => ({ labelFor: () => null }) }));
@@ -23,6 +24,7 @@ vi.mock("@/components/common/richtext/TapToEditRichText.vue", () => ({
 }));
 
 import PlayerLoreTab from "./PlayerLoreTab.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import type { PartyMember } from "@/types/party.types";
 
 const member = (over: Partial<PartyMember> = {}) => ({ id: "m1", notes: null, bonds: null, ...over }) as unknown as PartyMember;
@@ -60,5 +62,29 @@ describe("PlayerLoreTab tap-to-edit", () => {
     await field(w, "bonds").trigger("click");
     await vi.advanceTimersByTimeAsync(600);
     expect(updateMember).toHaveBeenCalledWith({ id: "m1", update: { bonds: "new bonds" } });
+  });
+});
+
+describe("PlayerLoreTab low art (#1179)", () => {
+  const { setLowArt } = useLowArt();
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    bgRow.value = { id: "b1", name: "Sage", image_url: "https://cdn.test/sage.webp", focal_point: null, skill_proficiencies: [], tool_proficiencies: [], languages: [] };
+  });
+  afterEach(() => {
+    setLowArt(false);
+    bgRow.value = null;
+  });
+
+  it("draws the background thumbnail when low art is off (the control for the guard below)", () => {
+    const w = mount(PlayerLoreTab, { props: { member: member(), isOwner: false } });
+    expect(w.find("img").exists()).toBe(true);
+  });
+
+  it("the background card still downloads its thumbnail in low art, and the name starts the card", () => {
+    setLowArt(true);
+    const w = mount(PlayerLoreTab, { props: { member: member(), isOwner: false } });
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.text()).toContain("Sage");
   });
 });

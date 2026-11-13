@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useVirtualGridViewport } from "@/components/common/list/virtualGridTestViewport";
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { ref } from "vue";
@@ -7,6 +7,8 @@ import SpellList from "./SpellList.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import BulkSelectableCard from "@/components/common/list/BulkSelectableCard.vue";
 import type { SpellBrowseRow } from "@/types/spell.types";
+import { useLowArt } from "@/composables/useLowArt";
+import { useListLayout } from "@/composables/useListLayout";
 
 /** happy-dom ships no IntersectionObserver; the sentinel is not under test. */
 class IntersectionObserverStub {
@@ -324,5 +326,65 @@ describe("SpellList learning a spell", () => {
     await overlayButton(w).trigger("click");
     await flushPromises();
     expect(mocks.toastError).toHaveBeenCalledWith(expect.stringContaining("limit of 10"));
+  });
+});
+
+describe("SpellList in low art (#1179)", () => {
+  const { setLowArt } = useLowArt();
+  const layout = useListLayout("spells", "grid");
+  const settled = async () => {
+    for (let i = 0; i < 4; i += 1) await flushPromises();
+  };
+  beforeEach(() => {
+    setLowArt(true);
+    layout.value = "grid";
+    mocks.rows = [makeSpell({ name: "Fire Bolt", level: 0, concentration: true, image_url: "https://cdn.test/fire-bolt.webp" })];
+  });
+  afterEach(() => {
+    setLowArt(false);
+    layout.value = "grid";
+  });
+
+  it("the spell grid still downloads art in low art: a spell with art renders no img and the name still shows", async () => {
+    const w = await mountList();
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.text()).toContain("Fire Bolt");
+  });
+
+  it("a card carries the school as its eyebrow and a cantrip's level as the letter C, not 0", async () => {
+    const w = await mountList();
+    const card = w.find('[data-art-free="true"]');
+    expect(card.text().toLowerCase()).toContain("evocation");
+    expect(card.text()).toContain("1 action · 60 feet");
+    expect(card.find('[aria-label="Spell level C"]').exists()).toBe(true);
+  });
+
+  it("the ledger rows draw no picture and fill the level, school, casting time and range columns", async () => {
+    layout.value = "rows";
+    const w = await mountList();
+    await settled();
+    expect(w.find("img").exists()).toBe(false);
+    expect(w.find("[data-ledger-head]").text()).toContain("Casting time");
+    const line = w.text();
+    expect(line).toContain("Fire Bolt");
+    expect(line).toContain("60 feet");
+  });
+
+  it("the player's Learn button stays reachable in the card foot", async () => {
+    const w = mount(SpellList, {
+      props: {
+        search: "", levelFilter: "", schoolFilter: "", classFilter: "", sourceFilter: "all",
+        playerMemberId: "member-1", sourceClassId: "class-1", casterType: "known",
+      },
+      global: globalStubs,
+    });
+    await flushPromises();
+    expect(w.findAll("button").some((b) => b.text() === "Learn")).toBe(true);
+  });
+
+  it("with low art off the same row still paints its art", async () => {
+    setLowArt(false);
+    const w = await mountList();
+    expect(w.find("img").exists()).toBe(true);
   });
 });

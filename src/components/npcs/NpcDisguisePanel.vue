@@ -2,13 +2,14 @@
   <section class="rounded-lg border border-border bg-card p-3" data-testid="disguise-panel">
     <p class="mb-2 text-label font-semibold uppercase text-muted-foreground">In disguise</p>
     <div class="flex items-center gap-3">
-      <div class="h-18 w-14 shrink-0 overflow-hidden rounded">
+      <div v-if="!lowArt" class="h-18 w-14 shrink-0 overflow-hidden rounded">
         <FocalImage
           :src="npc.disguise_portrait_url"
           :focal-point="npc.disguise_portrait_focal_point"
           format="portrait"
           :placeholder="placeholderUrl('npc')"
           ai-badge="right"
+          record
         />
       </div>
       <div class="min-w-0">
@@ -28,10 +29,13 @@
 
 <script setup lang="ts">
 import AppButton from "@/components/common/controls/AppButton.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { NpcListRow } from "@/types/npc.types";
 
 defineProps<{ npc: NpcListRow; revealed: boolean }>();
+// Low art draws no portrait, so the tile goes rather than leaving an empty box (#1179).
+const { lowArt } = useLowArt();
 const emit = defineEmits<{ (e: "change", revealed: boolean): void }>();
 </script>

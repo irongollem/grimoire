@@ -10,7 +10,7 @@
       <PlayerSettingsNavigation />
       <PlayerSettingsNotifications />
       <PlayerSettingsAppearance />
-      <AiLabelsSetting />
+      <PicturesSetting />
 
       <AccountSummarySection link-to="/account" link-label="Manage account &amp; billing →" />
 
@@ -42,7 +42,7 @@
 import { legalUrl } from "@/lib/marketing";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import AccountSummarySection from "@/components/account/AccountSummarySection.vue";
-import AiLabelsSetting from "@/components/account/AiLabelsSetting.vue";
+import PicturesSetting from "@/components/account/PicturesSetting.vue";
 import PlayerSettingsDisplayName from "@/components/player/PlayerSettingsDisplayName.vue";
 import PlayerSettingsInstall from "@/components/player/PlayerSettingsInstall.vue";
 import PlayerSettingsSongs from "@/components/player/PlayerSettingsSongs.vue";

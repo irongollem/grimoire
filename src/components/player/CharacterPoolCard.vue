@@ -8,11 +8,12 @@
       <!-- Portrait -->
       <div class="w-16 h-20 rounded-md overflow-hidden bg-muted shrink-0 flex items-center justify-center">
         <FocalImage
-          v-if="character.portrait_url"
+          v-if="character.portrait_url && !lowArt"
           :src="character.portrait_url"
           :alt="character.name"
           format="portrait"
           :focal-point="character.portrait_focal_point ?? null"
+          record
         />
         <span v-else class="text-title font-bold text-muted-foreground/50">{{ initial }}</span>
       </div>
@@ -113,6 +114,7 @@ import { FALLEN_DELETE_REASON, hasMemorialInEffect, useWallMemorials } from "@/c
 import { useAttachCharacter, useDetachCharacter, useCloneCharacter, useDeletePoolCharacter } from "@/composables/party/useCharacterPool";
 import { StartingEquipmentError } from "@/composables/party/useCharacterEquipmentSeeding";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import OverflowMenu, { type OverflowMenuEntry } from "@/components/common/overlays/OverflowMenu.vue";
 import RulesetBounceDialog from "@/components/player/RulesetBounceDialog.vue";
@@ -135,6 +137,7 @@ const { character, attachedCampaign, availableCampaigns, waitingCount } = define
 const router = useRouter();
 const campaignStore = useCampaignStore();
 const auth = useAuthStore();
+const { lowArt } = useLowArt();
 const { confirm } = useConfirm();
 const toast = useToast();
 

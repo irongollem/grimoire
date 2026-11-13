@@ -94,13 +94,14 @@
           class="rounded-lg border border-border bg-card flex flex-col overflow-hidden"
         >
           <!-- Every card has the same banner, so a row's height varies only with its text. -->
-          <div class="h-28 shrink-0 overflow-hidden bg-muted">
+          <div v-if="!lowArt" class="h-28 shrink-0 overflow-hidden bg-muted">
             <FocalImage
               :src="artFor(recipe)?.url ?? null"
               :alt="recipe.name"
               format="landscape"
               :focal-point="artFor(recipe)?.focalPoint ?? null"
               :placeholder="placeholderUrl('item')"
+              record
             />
           </div>
 
@@ -212,6 +213,7 @@ import type { DisciplineConfig } from "@/lib/crafting/disciplines";
 import { useInventionAvailable } from "@/composables/crafting/useCraftInventions";
 import { usePlayerCrafting } from "@/composables/crafting/usePlayerCrafting";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
@@ -222,6 +224,7 @@ import type { CraftingRecipe, CraftingDiscipline } from "@/types/crafting.types"
 
 const craftingUi = useCraftingUiStore();
 const inventAvailable = useInventionAvailable();
+const { lowArt } = useLowArt();
 const { recipes, member, outputsFor, itemName, artFor, hasProficiency, hasTools, slotsFor } = usePlayerCrafting();
 
 // Only disciplines that have at least one accessible recipe

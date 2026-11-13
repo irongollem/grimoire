@@ -100,6 +100,9 @@
           :placeholder="placeholderUrl('deity')"
           :badge-text="deity.alignment ?? undefined"
           :shared="deity.player_visible_to.length > 0"
+          :eyebrow="deity.pantheon?.name ?? 'Deity'"
+          :stat="deity.domains?.slice(0, 2).join(' · ') || null"
+          :tab="alignmentTab(deity)"
         />
           </template>
       </EntityMobileGrid>
@@ -112,6 +115,7 @@
       :layout="layout"
       :grid-columns="desktopColumns"
       :grid-row-estimate="GRID_ROW_PX"
+      :ledger="LEDGER"
     >
         <template #card="{ item: deity }">
         <EntityGridCard
@@ -121,28 +125,30 @@
           :focal-point="deity.portrait_focal_point ?? null"
           :placeholder="placeholderUrl('deity')"
           :badge-text="deity.alignment"
+          :eyebrow="deity.pantheon?.name ?? 'Deity'"
+          :tab="alignmentTab(deity)"
         >
-          <template #actions-start>
+          <template #actions-start="{ artFree }">
             <div @click.prevent.stop>
               <AudienceRevealControl
                 :name="deity.name"
                 :visible-to="deity.player_visible_to"
                 :book-entry="{ type: 'deity', id: deity.id }"
-                form="overlay"
+                :form="artFree ? 'inline' : 'overlay'"
                 @change="(next) => revealDeity(deity.id, next)"
               />
             </div>
           </template>
 
-          <template #body>
-            <p class="truncate text-heading-xs font-bold text-foreground">{{ deity.name }}</p>
+          <template #body="{ artFree }">
+            <p v-if="!artFree" class="truncate text-heading-xs font-bold text-foreground">{{ deity.name }}</p>
             <p v-if="deity.titles" class="truncate text-caption italic text-muted-foreground">{{ deity.titles }}</p>
 
-            <p v-if="deity.pantheon?.name" class="text-label text-muted-foreground">
+            <p v-if="deity.pantheon?.name && !artFree" class="text-label text-muted-foreground">
               {{ deity.pantheon.name }}
             </p>
 
-            <div v-if="deity.domains?.length" class="mt-auto flex flex-wrap gap-1 pt-1">
+            <div v-if="deity.domains?.length && !artFree" class="mt-auto flex flex-wrap gap-1 pt-1">
               <span
                 v-for="domain in deity.domains.slice(0, 3)"
                 :key="domain"
@@ -154,6 +160,9 @@
               >+{{ deity.domains.length - 3 }}</span>
             </div>
           </template>
+          <template #foot>
+            <span v-if="deity.domains?.length" class="line-clamp-2 text-label text-muted-foreground">{{ deity.domains.join(" · ") }}</span>
+          </template>
         </EntityGridCard>
         </template>
         <template #row="{ item: deity }">
@@ -164,6 +173,7 @@
             :image-url="deity.portrait_url"
             :fallback-icon="IconNavPantheon"
             :tags="deityRowTags(deity)"
+            :cells="[deity.titles, deity.pantheon?.name ?? null, alignmentCell(deity), deity.domains?.join(', ') || null]"
           >
             <template #actions>
               <AudienceRevealControl
@@ -186,7 +196,7 @@ import { computed, ref } from "vue";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconAdd, IconFire, IconGenerate, IconNavPantheon, IconPopulate, IconReveal } from '@/lib/icons';
 import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities, useUpdateDeity } from "@/composables/deities/useDeities";
-import { CLERIC_DOMAINS } from "@/types/deity.types";
+import { alignmentAbbreviation, CLERIC_DOMAINS } from "@/types/deity.types";
 import { useDeitiesUiStore } from "@/stores/ui/deities";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
 import { useCampaignStore } from "@/stores/campaign";
@@ -212,6 +222,8 @@ import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import EntityListRow from "@/components/common/entity/EntityListRow.vue";
 import EntityMobileGrid from "@/components/common/entity/EntityMobileGrid.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { useLowArt } from "@/composables/useLowArt";
+import type { LedgerCell } from "@/components/common/list/ledger";
 
 const deitiesUi = useDeitiesUiStore();
 const generatorsUi = useGeneratorUiStore();
@@ -253,10 +265,33 @@ const isMobile = useIsMobile();
 // The page header's toggle writes the same key.
 const layout = useListLayout("deities", "grid");
 // The phone's grid is the two-column gallery skeleton.
+const { lowArt } = useLowArt();
 const skeletonVariant = computed(() => {
+  // A phone has no ledger or catalogue card: its low-art shapes are the text row and the 88 px card.
+  if (lowArt.value && isMobile.value) return layout.value === "rows" ? "rows-text" : "cards-text";
+  if (lowArt.value) return layout.value === "rows" ? "ledger" : "entries";
   if (layout.value === "rows") return isMobile.value ? "rows" : "tiles";
   return isMobile.value ? "gallery" : "grid";
 });
+
+// Low art (#1179, frame 03): titles, pantheon, alignment (a tab) and domains.
+const LEDGER = [
+  { label: "Titles", track: "minmax(0,1fr)" },
+  { label: "Pantheon", track: "10rem" },
+  { label: "Align", track: "4rem" },
+  { label: "Domains", track: "minmax(0,1fr)" },
+];
+
+/** The alignment's bookmark tab (LG … CE, N); none for Unaligned or free text. */
+function alignmentTab(deity: { alignment: string | null }) {
+  const text = alignmentAbbreviation(deity.alignment);
+  return text ? { text, label: "Alignment" } : null;
+}
+
+function alignmentCell(deity: { alignment: string | null }): LedgerCell {
+  const tab = alignmentTab(deity);
+  return tab ? { tab } : (deity.alignment ?? null);
+}
 
 // Tags on the desktop row: pantheon, then domains.
 function deityRowTags(deity: { pantheon?: { name: string } | null; domains?: string[] | null }): string[] {

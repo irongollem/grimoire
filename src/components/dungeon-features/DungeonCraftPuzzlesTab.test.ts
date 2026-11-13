@@ -102,7 +102,7 @@ function mountTab() {
   return mount(DungeonCraftPuzzlesTab, {
     global: {
       plugins: [pinia],
-      stubs: { CopyToCampaignDialog: true, PaywallModal: true, RouterLink: RouterLinkStub },
+      stubs: { AiImageBadge: true, CopyToCampaignDialog: true, PaywallModal: true, RouterLink: RouterLinkStub },
     },
   });
 }
@@ -153,12 +153,12 @@ describe("DungeonCraftPuzzlesTab — filter state (Filter State Pattern)", () =>
     puzzlesUi.puzzlesSearch = "sphinx";
 
     const wrapper = mount(DungeonCraftPuzzlesTab, {
-      global: { plugins: [pinia], stubs: { CopyToCampaignDialog: true, PaywallModal: true, RouterLink: RouterLinkStub } },
+      global: { plugins: [pinia], stubs: { AiImageBadge: true, CopyToCampaignDialog: true, PaywallModal: true, RouterLink: RouterLinkStub } },
     });
     wrapper.unmount();
 
     const remounted = mount(DungeonCraftPuzzlesTab, {
-      global: { plugins: [pinia], stubs: { CopyToCampaignDialog: true, PaywallModal: true, RouterLink: RouterLinkStub } },
+      global: { plugins: [pinia], stubs: { AiImageBadge: true, CopyToCampaignDialog: true, PaywallModal: true, RouterLink: RouterLinkStub } },
     });
     expect(usePuzzlesUiStore().puzzlesSearch).toBe("sphinx");
     remounted.unmount();

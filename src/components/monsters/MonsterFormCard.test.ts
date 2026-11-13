@@ -17,6 +17,7 @@ function queryPlugin(): [typeof VueQueryPlugin, { queryClient: QueryClient }] {
   return [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }];
 }
 import MonsterFormCard from "./MonsterFormCard.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import { buildAiProvenance } from "@/ai/provenance";
 import type { Monster } from "@/types/monster.types";
 
@@ -138,5 +139,22 @@ describe("MonsterFormCard", () => {
     });
     await flushPromises();
     expect(w.text()).not.toContain("AI");
+  });
+
+  // Bug: a player in low art sees an empty muted box where the monster's picture was.
+  it("shows the CR initial instead of the picture in low art", async () => {
+    useLowArt().setLowArt(true);
+    try {
+      const w = mount(MonsterFormCard, {
+        props: { monster: monster(null), name: "Grell", imageUrl: "https://cdn.test/grell.webp" },
+        global: { plugins: [queryPlugin()] },
+      });
+      await flushPromises();
+      expect(w.find("img").exists()).toBe(false);
+      expect(w.text()).toContain("G");
+      expect(w.findComponent({ name: "FocalImage" }).exists()).toBe(false);
+    } finally {
+      useLowArt().setLowArt(false);
+    }
   });
 });

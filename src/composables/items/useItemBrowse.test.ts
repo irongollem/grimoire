@@ -34,6 +34,7 @@ function row(i: number, over: Partial<ItemBrowseRow> = {}): ItemBrowseRow {
     armor_class: null,
     charges: null,
     has_content: false,
+    requires_attunement: false,
     campaign_id: null,
     is_shared: true,
     source: null,

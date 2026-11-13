@@ -25,7 +25,7 @@
 
               <!-- Left column: portrait + identity + stats -->
               <div class="sm:w-56 shrink-0 sm:border-r border-border">
-                <div v-if="portrait?.src" class="relative w-full h-52 sm:h-auto sm:aspect-3/4 overflow-hidden">
+                <div v-if="portrait?.src && !lowArt" class="relative w-full h-52 sm:h-auto sm:aspect-3/4 overflow-hidden">
                   <FocalImage
                     :src="portrait.src"
                     :alt="portrait.alt"
@@ -33,6 +33,7 @@
                     :focal-point="portrait.focalPoint"
                     class="w-full h-full"
                     ai-badge="right"
+                    record
                   />
                 </div>
                 <div class="p-3 space-y-2">
@@ -47,6 +48,10 @@
                       {{ [getDisplayRace(member, speciesName, viewerMemberId, viewerIsDm), member.class].filter(Boolean).join(' ') }}
                       <span v-if="member.level" class="font-cinzel not-italic text-primary ml-1">Lv{{ member.level }}</span>
                     </p>
+                    <!-- Low art: the picture column is gone; the portrait waits behind a button (#1179). -->
+                    <div v-if="lowArt && portrait?.src" class="mt-1.5">
+                      <PortraitOnRequest :src="portrait.src" :alt="portrait.alt" />
+                    </div>
                   </div>
 
                   <!-- HP -->
@@ -137,13 +142,14 @@
           <div class="overflow-y-auto p-4 space-y-4">
             <!-- Image + meta -->
             <div class="flex gap-3">
-              <div v-if="displaySpecies.image_url" class="shrink-0 w-20 aspect-square rounded-md overflow-hidden bg-muted">
+              <div v-if="displaySpecies.image_url && !lowArt" class="shrink-0 w-20 aspect-square rounded-md overflow-hidden bg-muted">
                 <FocalImage
                   :src="displaySpecies.image_url"
                   :alt="displaySpecies.name"
                   format="portrait"
                   :focal-point="displaySpecies.focal_point ?? null"
                   class="w-full h-full"
+                  record
                 />
               </div>
               <div class="flex flex-col gap-1.5">
@@ -203,6 +209,8 @@ import { IconClose, IconShield } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/controls/appButtonVariants";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
@@ -223,6 +231,7 @@ import { asiToString, effectiveLanguages, effectiveSize, effectiveSpeed } from "
 const PlayerNotesWidget = defineAsyncComponent(() => import("@/components/player/PlayerNotesWidget.vue"));
 
 const props = defineProps<{ member: PartyMember | null }>();
+const { lowArt } = useLowArt();
 // A wild-shaped member wears the beast's face, as on their sheet.
 const portraitOf = useFormPortraits(() => [props.member?.wildshape_state]);
 const portrait = computed(() => (props.member ? portraitOf(props.member, props.member.wildshape_state) : null));

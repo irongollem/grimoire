@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useLowArt } from "@/composables/useLowArt";
 import { reactive, ref } from "vue";
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
@@ -175,5 +176,28 @@ describe("FamilyTreeView", () => {
     route.params = { key: "npc:brenna" };
     await flushPromises();
     expect(names(w)).not.toContain("Pip");
+  });
+});
+
+// Bug: the family page header still draws the centred person's portrait in low art.
+describe("FamilyTreeView in low art", () => {
+  afterEach(() => {
+    useLowArt().setLowArt(false);
+  });
+
+  it("shows the initial in the header, not the portrait, and keeps the name", () => {
+    setActivePinia(createPinia());
+    mocks.route.params = { key: "npc:brenna" };
+    mocks.route.meta = {};
+    mocks.dm.mockReset().mockImplementation(() => {
+      const src = makeSource();
+      const brenna = src.people.value.get(k("brenna"))!;
+      src.people.value.set(k("brenna"), { ...brenna, portraitUrl: "/brenna.webp" });
+      return src;
+    });
+    useLowArt().setLowArt(true);
+    const w = mountView();
+    expect(w.find("header img").exists()).toBe(false);
+    expect(w.find("h1").text()).toBe("Brenna");
   });
 });

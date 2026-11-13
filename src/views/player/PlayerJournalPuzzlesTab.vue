@@ -11,7 +11,7 @@
       :to="`/play/puzzles/${puzzle.id}`"
       class="flex flex-col rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors group"
     >
-      <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
+      <div v-if="!lowArt" class="relative aspect-square bg-muted overflow-hidden shrink-0">
         <FocalImage
           :src="puzzle.image_url"
           :alt="puzzle.name"
@@ -20,6 +20,7 @@
           :placeholder="placeholderUrl('enigma')"
           class="group-hover:scale-105 transition-transform duration-300"
           ai-badge="left"
+          record
         />
         <span
           class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
@@ -31,6 +32,11 @@
         >{{ puzzle.difficulty }}</span>
       </div>
       <div class="p-2.5">
+        <!-- Low art: the picture block that carried these chips is gone (#1179). -->
+        <div v-if="lowArt" class="mb-1.5 flex flex-wrap gap-1">
+          <span class="text-label px-1.5 py-0.5 rounded text-white font-bold" :class="PUZZLE_TYPE_BG[puzzle.puzzle_type]">{{ puzzle.puzzle_type }}</span>
+          <span class="text-label px-1.5 py-0.5 rounded text-white font-bold" :class="PUZZLE_DIFFICULTY_BG[puzzle.difficulty]">{{ puzzle.difficulty }}</span>
+        </div>
         <div class="flex items-center gap-1.5 min-w-0">
           <EntityNewDot :is-new="isNew(puzzle.id, puzzle.updated_at)" size="sm" />
           <h3 class="text-heading-xs font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
@@ -48,11 +54,14 @@ import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import { RouterLink } from 'vue-router';
 import { IconPuzzle } from '@/lib/icons';
 import FocalImage from '@/components/common/media/FocalImage.vue';
+import { useLowArt } from "@/composables/useLowArt";
 import EntityNewDot from '@/components/common/entity/EntityNewDot.vue';
 import { useReadItems } from '@/composables/player/useReadItems';
 import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from '@/types/puzzle.types';
 import type { PuzzleRoom } from '@/types/puzzle.types';
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+
+const { lowArt } = useLowArt();
 
 defineProps<{
   isLoading: boolean;

@@ -75,7 +75,7 @@ function mountTab() {
   return mount(DungeonCraftTrapsTab, {
     global: {
       plugins: [pinia],
-      stubs: { CopyToCampaignDialog: true, RouterLink: true },
+      stubs: { AiImageBadge: true, CopyToCampaignDialog: true, RouterLink: true },
     },
   });
 }
@@ -124,12 +124,12 @@ describe("DungeonCraftTrapsTab — filter state (Filter State Pattern)", () => {
     trapsUi.trapsSearch = "dart";
 
     const wrapper = mount(DungeonCraftTrapsTab, {
-      global: { plugins: [pinia], stubs: { CopyToCampaignDialog: true, RouterLink: true } },
+      global: { plugins: [pinia], stubs: { AiImageBadge: true, CopyToCampaignDialog: true, RouterLink: true } },
     });
     wrapper.unmount();
 
     const remounted = mount(DungeonCraftTrapsTab, {
-      global: { plugins: [pinia], stubs: { CopyToCampaignDialog: true, RouterLink: true } },
+      global: { plugins: [pinia], stubs: { AiImageBadge: true, CopyToCampaignDialog: true, RouterLink: true } },
     });
     expect(useTrapsUiStore().trapsSearch).toBe("dart");
     remounted.unmount();
@@ -158,7 +158,7 @@ describe("DungeonCraftTrapsTab — library traps (#1060)", () => {
 
   it("badges library rows with their book, once, and links them by slug", async () => {
     const wrapper = mount(DungeonCraftTrapsTab, {
-      global: { plugins: [createPinia()], stubs: { CopyToCampaignDialog: true, RouterLink: RouterLinkStub } },
+      global: { plugins: [createPinia()], stubs: { AiImageBadge: true, CopyToCampaignDialog: true, RouterLink: RouterLinkStub } },
     });
     await flushMicrotasks();
     expect(wrapper.text()).toContain("Hidden Pit");
@@ -168,7 +168,7 @@ describe("DungeonCraftTrapsTab — library traps (#1060)", () => {
 
   it("never lets a library row be selected for bulk actions", async () => {
     const wrapper = mount(DungeonCraftTrapsTab, {
-      global: { plugins: [createPinia()], stubs: { CopyToCampaignDialog: true, RouterLink: RouterLinkStub } },
+      global: { plugins: [createPinia()], stubs: { AiImageBadge: true, CopyToCampaignDialog: true, RouterLink: RouterLinkStub } },
     });
     await flushMicrotasks();
     await findExact(wrapper, "Select")?.trigger("click");
@@ -201,7 +201,7 @@ function mountWithLinks() {
   const pinia = createPinia();
   setActivePinia(pinia);
   return mount(DungeonCraftTrapsTab, {
-    global: { plugins: [pinia], stubs: { CopyToCampaignDialog: true, RouterLink: RouterLinkStub } },
+    global: { plugins: [pinia], stubs: { AiImageBadge: true, CopyToCampaignDialog: true, RouterLink: RouterLinkStub } },
   });
 }
 

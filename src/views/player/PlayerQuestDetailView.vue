@@ -223,8 +223,8 @@
 
   <!-- NPC lightbox -->
   <AppModal :open="!!selectedNpc" size="md" :labelled-by="npcHeadingId" @close="selectedNpc = null">
-    <div class="relative shrink-0">
-      <div v-if="selectedNpc?.player_visible_fields?.includes('portrait') && getNpcDisplayPortrait(selectedNpc)" class="relative w-full h-72 overflow-hidden">
+    <div class="relative shrink-0" :class="lowArt && 'h-12'">
+      <div v-if="!lowArt && selectedNpc?.player_visible_fields?.includes('portrait') && getNpcDisplayPortrait(selectedNpc)" class="relative w-full h-72 overflow-hidden">
         <FocalImage
           :src="getNpcDisplayPortrait(selectedNpc)!"
           :alt="getNpcDisplayName(selectedNpc) ?? '???'"
@@ -232,6 +232,7 @@
           :focal-point="getNpcDisplayFocalPoint(selectedNpc)"
           :lightbox="true"
           ai-badge="right"
+          record
         />
       </div>
       <AppButton
@@ -253,6 +254,10 @@
           class="mt-1 text-body text-muted-foreground italic">{{ selectedNpc.race }}</p>
         <p v-if="selectedNpc?.player_visible_fields?.includes('occupation') && selectedNpc.occupation"
           class="text-body text-muted-foreground">{{ selectedNpc.occupation }}</p>
+        <!-- Low art: the portrait banner is gone; the portrait waits behind a button (#1179). -->
+        <div v-if="lowArt && selectedNpc?.player_visible_fields?.includes('portrait') && getNpcDisplayPortrait(selectedNpc)" class="mt-2">
+          <PortraitOnRequest :src="getNpcDisplayPortrait(selectedNpc)" :alt="getNpcDisplayName(selectedNpc) ?? '???'" />
+        </div>
       </div>
       <PlayerNotesWidget v-if="selectedNpc" entity-type="npc" :entity-id="selectedNpc.id" placeholder="Your observations about this character…" />
     </div>
@@ -285,6 +290,8 @@ import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
 import type { PlayerNpc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import PlayerQuestStoryThread from "@/components/player/PlayerQuestStoryThread.vue";
 import PlayerSiteMap from "@/components/player/PlayerSiteMap.vue";
 
@@ -292,6 +299,7 @@ const route = useRoute();
 const router = useRouter();
 const questId = computed(() => route.params.id as string);
 
+const { lowArt } = useLowArt();
 const { data: quest, isLoading } = usePlayerVisibleQuest(questId);
 const { data: playerBeats } = usePlayerQuestBeats(questId);
 const { mutate: markRead } = useMarkRead();

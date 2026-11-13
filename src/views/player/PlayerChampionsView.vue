@@ -50,7 +50,7 @@
           <div class="flex gap-3 p-3">
 
             <!-- Portrait -->
-            <div class="w-16 h-20 rounded-md overflow-hidden bg-muted shrink-0">
+            <div v-if="!lowArt" class="w-16 h-20 rounded-md overflow-hidden bg-muted shrink-0">
               <FocalImage
                 :src="char.portrait_url"
                 :alt="char.name"
@@ -58,6 +58,7 @@
                 :focal-point="char.portrait_focal_point ?? null"
                 :lightbox="true"
                 :placeholder="placeholderUrl('character')"
+                record
               />
             </div>
 
@@ -138,13 +139,14 @@
           :class="entry.member.id === auth.linkedPartyMemberId ? 'border-primary/50' : 'border-border'"
         >
           <div class="flex items-center gap-3 p-3">
-            <div class="w-12 h-16 rounded-md overflow-hidden bg-muted shrink-0">
+            <div v-if="!lowArt" class="w-12 h-16 rounded-md overflow-hidden bg-muted shrink-0">
               <FocalImage
                 :src="entry.member.portrait_url"
                 :alt="entry.member.name"
                 format="portrait"
                 :focal-point="entry.member.portrait_focal_point ?? null"
                 :placeholder="placeholderUrl('character')"
+                record
               />
             </div>
             <div class="flex-1 min-w-0">
@@ -180,7 +182,7 @@
         >
           <div class="flex gap-3 p-3">
             <!-- Portrait -->
-            <div class="w-16 h-20 rounded-md overflow-hidden bg-muted shrink-0">
+            <div v-if="!lowArt" class="w-16 h-20 rounded-md overflow-hidden bg-muted shrink-0">
               <FocalImage
                 :src="char.portrait_url"
                 :alt="char.name"
@@ -188,6 +190,7 @@
                 :focal-point="char.portrait_focal_point ?? null"
                 :lightbox="true"
                 :placeholder="placeholderUrl('character')"
+                record
               />
             </div>
 
@@ -253,6 +256,7 @@ import AppButton from '@/components/common/controls/AppButton.vue';
 import OverflowMenu, { type OverflowMenuEntry } from '@/components/common/overlays/OverflowMenu.vue';
 import { useToast } from '@/composables/useToast';
 import FocalImage from '@/components/common/media/FocalImage.vue';
+import { useLowArt } from "@/composables/useLowArt";
 import type { PartyMember } from '@/types/party.types';
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { activeMembers } from "@/composables/party/useActiveParty";
@@ -260,6 +264,7 @@ import { useCampaignMemorials } from "@/composables/memorials/useMemorials";
 
 const auth = useAuthStore();
 const appUi = useAppUiStore();
+const { lowArt } = useLowArt();
 const { activeCampaign } = storeToRefs(useCampaignStore());
 const { data: myChars,        isPending: myPending }  = useMyCharacters();
 const { data: allChars,       isPending: allPending }  = useParty();

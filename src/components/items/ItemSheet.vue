@@ -1,8 +1,34 @@
 <template>
-  <div class="flex flex-col gap-6">
-    <div class="grid grid-cols-1 lg:grid-cols-[18.75rem_1fr] gap-6">
+  <div class="relative flex flex-col gap-6">
+    <!-- Low art (#1179, frame 04): the picture column goes, what sat under it becomes a fact line,
+         the Identified/Mundane tabs become two Portrait buttons, rarity hangs as a tab. -->
+    <template v-if="lowArt">
+      <BookmarkTab
+        :text="RARITY_LETTERS[item.rarity]"
+        label="Rarity"
+        :tone-class="RARITY_BG[item.rarity]"
+        ink="dark"
+      />
+      <SheetFactLine class="pr-10">
+        <span class="font-semibold">{{ ITEM_TYPE_LABELS[item.item_type] }}</span>
+        <span v-if="item.subtype" class="text-muted-foreground">{{ item.subtype }}</span>
+        <span class="font-bold" :class="RARITY_TEXT[item.rarity]">{{ ITEM_RARITY_LABELS[item.rarity] }}</span>
+        <span v-if="item.weight" class="text-muted-foreground">{{ item.weight }}</span>
+        <span v-if="displayCost" class="text-muted-foreground">{{ displayCost }}</span>
+        <span v-if="!playerView" class="text-muted-foreground">{{ scopeLabel }}</span>
+        <span
+          v-for="tag in item.tags"
+          :key="tag"
+          class="rounded bg-muted px-2 py-0.5 text-label text-muted-foreground"
+          >{{ tag }}</span
+        >
+        <PortraitOnRequest :src="item.image_url" :alt="item.name" label="Identified" />
+        <PortraitOnRequest :src="item.mundane_image_url" :alt="`${item.name}, unidentified`" label="Mundane" />
+      </SheetFactLine>
+    </template>
+    <div class="grid grid-cols-1 gap-6" :class="{ 'lg:grid-cols-[18.75rem_1fr]': !lowArt }">
       <!-- Left: image(s) -->
-      <div class="flex flex-col gap-3">
+      <div v-if="!lowArt" class="flex flex-col gap-3">
         <!-- Tabbed art (identified / mundane) when both exist; otherwise single image -->
         <template v-if="item.image_url && item.mundane_image_url">
           <div class="flex border-b border-border mb-1">
@@ -18,6 +44,7 @@
           </div>
           <div class="w-full rounded-lg overflow-hidden" style="aspect-ratio: 2/3; max-height: 75vh">
             <FocalImage
+              record
               :src="sheetArtTab === 'identified' ? item.image_url : item.mundane_image_url"
               :focal-point="sheetArtTab === 'identified' ? item.image_focal_point : item.mundane_image_focal_point"
               format="portrait"
@@ -33,6 +60,7 @@
           style="aspect-ratio: 2/3; max-height: 75vh"
         >
           <FocalImage
+            record
             :src="item.image_url"
             :focal-point="item.image_focal_point"
             format="portrait"
@@ -256,6 +284,10 @@ import { storeToRefs } from "pinia";
 import { IconPackage } from '@/lib/icons';
 import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import BookmarkTab from "@/components/common/entity/BookmarkTab.vue";
+import SheetFactLine from "@/components/common/entity/SheetFactLine.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import WeaponMasteryBadge from "@/components/items/WeaponMasteryBadge.vue";
 import ItemDocumentSection from "@/components/items/ItemDocumentSection.vue";
@@ -268,6 +300,8 @@ import { useAuthStore } from "@/stores/auth";
 import {
   ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,
+  RARITY_BG,
+  RARITY_LETTERS,
   RARITY_SURFACE_VAR,
   RARITY_TEXT,
 } from "@/types/item.types";
@@ -290,6 +324,7 @@ const sourceLabel = computed(() =>
 const containedIn = useLootTablesByItem(computed(() => props.item.id));
 const { data: allCampaigns } = useDmCampaigns();
 
+const { lowArt } = useLowArt();
 const sheetArtTab = ref<'identified' | 'mundane'>('identified');
 
 // ── Written contents + entries ───────────────────────────────────────────────

@@ -9,11 +9,11 @@
       <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 md:p-5">
         <div
           class="grid gap-x-3 gap-y-4 md:gap-x-5"
-          :class="displayImageUrl ? 'grid-cols-[5rem_1fr] md:grid-cols-[11rem_1fr]' : 'grid-cols-1'"
+          :class="showPicture ? 'grid-cols-[5rem_1fr] md:grid-cols-[11rem_1fr]' : 'grid-cols-1'"
         >
           <!-- Art: mundane art when unidentified (if present), else identified art -->
           <div
-            v-if="displayImageUrl"
+            v-if="showPicture"
             class="self-start overflow-hidden rounded-lg border border-border md:row-span-2"
             style="aspect-ratio: 2/3"
           >
@@ -21,6 +21,7 @@
               :src="displayImageUrl"
               :focal-point="displayImageFocalPoint"
               :alt="`${inv.name}, full size`"
+              record
               format="portrait"
               lightbox
               class="h-full"
@@ -39,11 +40,13 @@
               Equipped<span v-if="inv.is_attuned">, attuned</span>
             </p>
             <p v-else-if="inv.is_attuned" class="text-caption text-muted-foreground">Attuned</p>
+            <!-- Low art: the picture column is gone, so its picture waits behind a button. -->
+            <PortraitOnRequest v-if="lowArt" :src="displayImageUrl" :alt="inv.name" />
           </div>
 
           <div
             class="min-w-0 space-y-4"
-            :class="displayImageUrl ? 'col-span-2 md:col-span-1' : ''"
+            :class="showPicture ? 'col-span-2 md:col-span-1' : ''"
           >
             <!-- Actions: only what applies to this item right now -->
             <div v-if="hasActions" class="space-y-2" aria-label="Item actions" role="group">
@@ -401,6 +404,8 @@ import { ITEM_QUALITIES, QUALITY_LABELS, QUALITY_MODIFIER } from "@/lib/items/qu
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import PortraitOnRequest from "@/components/common/media/PortraitOnRequest.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import ItemStatBlock from "@/components/inventory/ItemStatBlock.vue";
@@ -532,6 +537,10 @@ const displayImageUrl = computed(() =>
     ? props.vaultItem?.image_url
     : (props.vaultItem?.mundane_image_url || props.vaultItem?.image_url)
 );
+
+const { lowArt } = useLowArt();
+/** The picture column: gone in low art, where the picture waits behind a Portrait button. */
+const showPicture = computed(() => !!displayImageUrl.value && !lowArt.value);
 
 const displayImageFocalPoint = computed(() =>
   localIdentified.value

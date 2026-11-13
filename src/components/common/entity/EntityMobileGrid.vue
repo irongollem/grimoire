@@ -4,7 +4,7 @@
       :items="items"
       :item-key="itemKey"
       :columns="layout === 'grid' ? 2 : 1"
-      :estimate-row-height="layout === 'grid' ? GRID_ROW_PX : ROWS_ROW_PX"
+      :estimate-row-height="estimate"
       :gap="layout === 'grid' ? 0.75 : 0.5"
     >
       <template #default="slotProps">
@@ -21,7 +21,9 @@
  * holds every portrait decoded at once. One place for the card's measured row
  * heights, so a re-measure cannot leave the lists that share the card behind.
  */
+import { computed } from "vue";
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
+import { useLowArt } from "@/composables/useLowArt";
 import type { ListLayout } from "@/composables/useListLayout";
 
 const { items, itemKey, layout } = defineProps<{
@@ -40,4 +42,15 @@ defineSlots<{
 // put the DM nine rows away in a 911-monster bestiary.
 const ROWS_ROW_PX = 78;
 const GRID_ROW_PX = 275;
+// Low art (#1179, frame 05) drops the thumbnail and the plate, so the rows are
+// text only. Measured at a 390px phone on 13 Nov 2026: three lines and their
+// padding come to 73 (the canvas guessed 62), the grid card is its fixed 88.
+const LOW_ART_ROWS_ROW_PX = 73;
+const LOW_ART_GRID_ROW_PX = 88;
+
+const { lowArt } = useLowArt();
+const estimate = computed(() => {
+  if (layout === "grid") return lowArt.value ? LOW_ART_GRID_ROW_PX : GRID_ROW_PX;
+  return lowArt.value ? LOW_ART_ROWS_ROW_PX : ROWS_ROW_PX;
+});
 </script>

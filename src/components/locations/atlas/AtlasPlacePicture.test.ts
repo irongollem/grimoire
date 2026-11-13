@@ -1,5 +1,6 @@
+import { useLowArt } from "@/composables/useLowArt";
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { ref } from "vue";
 
@@ -60,5 +61,24 @@ describe("AtlasPlacePicture", () => {
   it("does not offer Bring it to life while the place's nook is still loading", () => {
     const v = mountPicture(place({ book_nook_id: "n1", image_url: "https://cdn.example.invalid/a.webp" }));
     expect(v.find("[data-label='Bring it to life']").exists()).toBe(false);
+  });
+});
+
+describe("AtlasPlacePicture low art (#1179)", () => {
+  afterEach(() => {
+    useLowArt().setLowArt(false);
+  });
+
+  it("draws no still and offers no nook to start from it in low art", () => {
+    useLowArt().setLowArt(true);
+    const v = mountPicture(place({ image_url: "https://cdn.example.invalid/a.webp" }));
+    expect(v.find("img").exists()).toBe(false);
+    expect(v.find("[data-label='Bring it to life']").exists()).toBe(false);
+  });
+
+  it("draws no still while the place's nook is still loading in low art", () => {
+    useLowArt().setLowArt(true);
+    const v = mountPicture(place({ book_nook_id: "n1", image_url: "https://cdn.example.invalid/a.webp" }));
+    expect(v.find("img").exists()).toBe(false);
   });
 });

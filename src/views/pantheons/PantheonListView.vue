@@ -27,7 +27,7 @@
     </template>
 
     <!-- Mirrors EntityListRow (emblem tile, name, deity count) in its grid. -->
-    <ListSkeleton v-if="isLoading" :variant="layout === 'grid' ? 'grid' : 'tiles'" :columns="3" :count="9" />
+    <ListSkeleton v-if="isLoading" :variant="skeletonVariant" :columns="3" :count="9" />
 
     <EmptyState
       v-else-if="!filtered.length"
@@ -55,6 +55,7 @@
         :grid-row-estimate="GRID_ROW_PX"
         :row-estimate="ROW_PX"
         :row-columns="columns"
+        :ledger="LEDGER"
       >
         <template #card="{ item: pantheon }">
           <EntityGridCard
@@ -62,28 +63,32 @@
             :title="pantheon.name"
             :image-url="pantheon.emblem_url"
             :placeholder="placeholderUrl('deity')"
+            eyebrow="Pantheon"
           >
-            <template #actions-end>
+            <template #actions-end="{ artFree }">
               <div @click.prevent.stop>
                 <AudienceRevealControl
                   :name="pantheon.name"
                   :visible-to="pantheon.player_visible_to"
                   :book-entry="{ type: 'pantheon', id: pantheon.id }"
-                  form="overlay"
+                  :form="artFree ? 'inline' : 'overlay'"
                   @change="(next) => revealPantheon(pantheon.id, next)"
                 />
               </div>
             </template>
-            <template #body>
-              <p class="truncate text-heading-xs font-bold text-foreground">{{ pantheon.name }}</p>
+            <template #body="{ artFree }">
+              <p v-if="!artFree" class="truncate text-heading-xs font-bold text-foreground">{{ pantheon.name }}</p>
               <p class="text-label text-muted-foreground">{{ deityCountLabel(pantheon.id) }}</p>
-              <div v-if="pantheon.tags.length" class="mt-auto flex flex-wrap gap-1 pt-1">
+              <div v-if="pantheon.tags.length && !artFree" class="mt-auto flex flex-wrap gap-1 pt-1">
                 <span
                   v-for="tag in pantheon.tags.slice(0, 3)"
                   :key="tag"
                   class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
                 >{{ tag }}</span>
               </div>
+            </template>
+            <template #foot>
+              <span v-if="pantheon.tags.length" class="line-clamp-1 text-label text-muted-foreground">{{ pantheon.tags.slice(0, 3).join(" · ") }}</span>
             </template>
           </EntityGridCard>
         </template>
@@ -95,6 +100,7 @@
             :image-url="pantheon.emblem_url"
             :fallback-icon="IconFire"
             :tags="pantheon.tags"
+            :cells="[deityCountLabel(pantheon.id)]"
           >
             <template #actions>
               <AudienceRevealControl
@@ -136,6 +142,7 @@ import ListLayoutToggle from "@/components/common/list/ListLayoutToggle.vue";
 import { useListLayout } from "@/composables/useListLayout";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useDeitiesUiStore } from "@/stores/ui/deities";
+import { useLowArt } from "@/composables/useLowArt";
 
 const deitiesUi = useDeitiesUiStore();
 const { data: pantheons, isLoading } = useAllPantheons();
@@ -165,6 +172,13 @@ useScrollRestore("pantheons");
 const columns = useBreakpointColumns({ base: 1, sm: 2, lg: 3 });
 // The page header's toggle writes the same key. Rows is today's look.
 const layout = useListLayout("pantheons", "rows");
+const { lowArt } = useLowArt();
+const skeletonVariant = computed(() => {
+  if (lowArt.value) return layout.value === "grid" ? "entries" : "ledger";
+  return layout.value === "grid" ? "grid" : "tiles";
+});
+// Low art (#1179, frame 03): the deity count the row shows as its subtitle. A pantheon has no source.
+const LEDGER = [{ label: "Deities", track: "minmax(0,1fr)" }];
 const pantheonKey = (pantheon: { id: string }) => pantheon.id;
 
 // Row height before a row is measured (px): 86px measured at a 390px

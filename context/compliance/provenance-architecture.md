@@ -162,7 +162,7 @@ The chip's corner is a prop (`corner="left"`) for hosts whose right corner is
 taken, and it never prints.
 
 **Each viewer can switch the labels off** (`useAiLabelPrefs`, on by default;
-the "AI Labels" section of the account page and the player settings page).
+the "Pictures" section of the account page and the player settings page, beside Low art, see `context/features/low-art.md`).
 That is safe because the label is not the legal duty: the Art 50(2) duty is
 the machine-readable mark, and the switch touches neither a file's mark nor
 its registry row; it hides the label on that viewer's screen only. (Library
