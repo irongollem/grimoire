@@ -83,7 +83,7 @@ h1 {
    engines get this from @page backgrounds in the server path) */
 .pagedjs_page {
   background:
-    url("/assets/scriptorium/page-background.webp") center / cover no-repeat,
+    url("/assets/scriptorium/page-paper.webp") 0 0 / 81.3mm 81.3mm repeat,
     #f9f6ef;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
   margin: 0 auto 1.5rem;

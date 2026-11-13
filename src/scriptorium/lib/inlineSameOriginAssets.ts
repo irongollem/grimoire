@@ -10,7 +10,7 @@ import { ART_PREFIX } from "@/lib/assets/artPrefix";
  * reach the app's origin, so anything the document loads from `/fonts/…` or
  * `/assets/…` has to travel inside the HTML. Fonts were the first case: one it
  * had to fetch would silently fall back to Georgia. The parchment page
- * background (`/assets/scriptorium/page-background.webp`, pagedPreviewCss.ts)
+ * background (`/assets/scriptorium/page-paper.webp`, pagedPreviewCss.ts)
  * was the second: without a CDN mapping it stays a bare path, and every page
  * would print plain. One pass over the whole document covers both and any
  * later one, rather than a list of known files.

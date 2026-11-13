@@ -65,10 +65,18 @@ describe("buildPagedPreviewCss", () => {
   });
 
   it("drops the page background in ink-friendly mode", () => {
-    expect(buildPagedPreviewCss(base)).toContain("page-background.webp");
+    expect(buildPagedPreviewCss(base)).toContain("page-paper.webp");
     const ink = buildPagedPreviewCss({ ...base, inkFriendly: true });
-    expect(ink).not.toContain("page-background.webp");
+    expect(ink).not.toContain("page-paper.webp");
     expect(ink).toContain("background: #fff;");
+  });
+
+  // The look's own paper was one picture stretched over the page (`cover`),
+  // which blurred on every A4 page. It is a tile repeated at a fixed size.
+  it("tiles the look's paper at a fixed size instead of stretching it over the page", () => {
+    const css = buildPagedPreviewCss(base);
+    expect(css).toMatch(/page-paper\.webp'\) 0 0 \/ 81\.3mm 81\.3mm repeat/);
+    expect(css).not.toMatch(/page-paper[^;]*cover/);
   });
 
   it("makes the page box the positioning context the injected footers sit in", () => {

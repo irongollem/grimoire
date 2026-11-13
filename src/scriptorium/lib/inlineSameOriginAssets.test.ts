@@ -27,10 +27,10 @@ describe("inlineSameOriginAssets", () => {
 
   it("inlines the page background, the case that printed every page plain (#565)", async () => {
     const fetchAsset = vi.fn(async () => bytes("w"));
-    const html = `<style>.p{background:url('/assets/scriptorium/page-background.webp') center}</style>`;
+    const html = `<style>.p{background:url('/assets/scriptorium/page-paper.webp') center}</style>`;
     const out = await inlineSameOriginAssets(html, fetchAsset);
     expect(out).toContain("url(data:image/webp;base64,dw==)");
-    expect(fetchAsset).toHaveBeenCalledWith("/assets/scriptorium/page-background.webp");
+    expect(fetchAsset).toHaveBeenCalledWith("/assets/scriptorium/page-paper.webp");
   });
 
   it("inlines a root-relative src attribute and keeps its quotes", async () => {

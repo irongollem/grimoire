@@ -28,6 +28,10 @@ export interface PagedPreviewCssOptions {
 /** The page's text area, specific enough to override Paged.js's own rule. */
 export const PAGE_CONTENT_SELECTOR = ".pagedjs_page .pagedjs_pagebox > .pagedjs_area > .pagedjs_page_content";
 
+/** The darker page edges of the look's own paper (theme-base.css .phb-page draws the same). */
+const PAGE_EDGES =
+  "linear-gradient(to right, rgb(162 93 28 / 0.34) 0%, rgb(162 93 28 / 0.25) 4%, rgb(162 93 28 / 0.16) 9%, rgb(162 93 28 / 0.075) 18%, rgb(162 93 28 / 0.025) 28%, rgb(162 93 28 / 0) 40%, rgb(162 93 28 / 0) 60%, rgb(162 93 28 / 0.025) 72%, rgb(162 93 28 / 0.075) 82%, rgb(162 93 28 / 0.16) 91%, rgb(162 93 28 / 0.25) 96%, rgb(162 93 28 / 0.34) 100%)" + " 0 0 / 100% 100% no-repeat, " + "linear-gradient(to bottom, rgb(162 93 28 / 0.34) 0%, rgb(162 93 28 / 0.25) 4%, rgb(162 93 28 / 0.16) 9%, rgb(162 93 28 / 0.075) 18%, rgb(162 93 28 / 0.025) 28%, rgb(162 93 28 / 0) 40%, rgb(162 93 28 / 0) 60%, rgb(162 93 28 / 0.025) 72%, rgb(162 93 28 / 0.075) 82%, rgb(162 93 28 / 0.16) 91%, rgb(162 93 28 / 0.25) 96%, rgb(162 93 28 / 0.34) 100%)";
+
 export function buildPagedPreviewCss(opts: PagedPreviewCssOptions): string {
   const { pageSize, inkFriendly } = opts;
   const size = PAGE_SIZE_KEYWORD[pageSize];
@@ -45,10 +49,12 @@ export function buildPagedPreviewCss(opts: PagedPreviewCssOptions): string {
   const contentHeightPx = EDITOR_PAGE_DIMENSIONS_PX[pageSize].h - PAGE_MARGINS_PX.top - PAGE_MARGINS_PX.bottom;
   const imageMaxHeightPx = Math.floor(contentHeightPx * 0.8);
 
-  // Parchment chrome on the rendered page boxes (omitted in ink-friendly mode).
+  // Parchment chrome on the rendered page boxes (omitted in ink-friendly mode): the look's own paper
+  // tiled at its true size with the darker edges as a gradient, as in theme-base.css .phb-page.
+
   const pageChrome = inkFriendly
     ? "background: #fff;"
-    : `background: url('${artUrl("/assets/scriptorium/page-background.webp")}') center / cover no-repeat, var(--sc-page-bg, #f9f6ef);`;
+    : `background: ${PAGE_EDGES} 0 0 / 100% 100% no-repeat, url('${artUrl("/assets/scriptorium/page-paper.webp")}') 0 0 / 81.3mm 81.3mm repeat, var(--sc-page-bg, #f9f6ef);`;
 
   return `
 @page {
