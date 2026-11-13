@@ -67,6 +67,17 @@ export function buildEntityImagePrompt(kind: string, parts: PromptParts): string
   return isPortraitKind(kind) ? buildLabelledImagePrompt(parts) : buildSimpleImagePrompt(parts);
 }
 
+/**
+ * The Gemini style booster for an image-job kind (imageGen.ts's `boostStyle`):
+ * the portrait booster for a character portrait, the scene booster otherwise.
+ * Edge-only, like buildMiniStylizePrompt: the booster is applied server-side.
+ * A disguise is a portrait too here although its prompt is not framed: it is an
+ * edit of the true portrait, so it inherits that picture's framing.
+ */
+export function imageBoostFor(kind: string): true | "portrait" {
+  return isPortraitKind(kind) || kind === "npc_disguise" ? "portrait" : true;
+}
+
 // ── Image-prompt authoring (existing-entity "AI weighs in" step) ──────────────
 // When generating art for an entity that ALREADY exists, the caller never types
 // the entity type ("NPC" on the NPC page). The author prompt therefore states

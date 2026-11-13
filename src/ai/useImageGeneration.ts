@@ -9,10 +9,7 @@ import {
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { b64ToBlob } from "@/ai/utils";
 import { fetchImageBasePrompt } from "@/ai/systemPrompts";
-import {
-  buildLabelledImagePrompt,
-  buildSimpleImagePrompt,
-} from "@/ai/imagePrompt";
+import { buildEntityImagePrompt } from "@/ai/imagePrompt";
 import { getImageProvider, localImageChoice } from "@/ai/providers";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { waitForImageJob } from "@/ai/useImageJob";
@@ -31,26 +28,25 @@ interface PurposeConfig {
   size: string;
   variants: boolean;
   scene: boolean;
-  labelled: boolean;
 }
 
 const PURPOSES: Record<ImagePurpose, PurposeConfig> = {
-  chronicler:     { bucket: "chronicle",      size: "1024x1024", variants: false, scene: true,  labelled: false },
-  group_portrait: { bucket: "chronicle",      size: "1536x1024", variants: false, scene: true,  labelled: false },
-  npc_portrait:   { bucket: "npcPortraits",   size: "1024x1536", variants: true,  scene: false, labelled: true },
-  npc_disguise:   { bucket: "npcPortraits",   size: "1024x1536", variants: true,  scene: false, labelled: false },
-  monster:        { bucket: "monsterImages",  size: "1024x1536", variants: true,  scene: false, labelled: false },
-  item:           { bucket: "itemImages",     size: "1024x1536", variants: true,  scene: false, labelled: false },
-  spell:          { bucket: "spellImages",    size: "1024x1024", variants: true,  scene: false, labelled: false },
-  faction:        { bucket: "factionImages",  size: "1024x1024", variants: true,  scene: false, labelled: false },
-  location:       { bucket: "locationImages", size: "1024x1024", variants: true,  scene: false, labelled: false },
-  location_map:   { bucket: "locationImages", size: "1024x1024", variants: true,  scene: false, labelled: false },
-  trap:           { bucket: "trapImages",     size: "1024x1536", variants: true,  scene: false, labelled: false },
-  puzzle:         { bucket: "puzzleImages",   size: "1024x1536", variants: true,  scene: false, labelled: false },
-  party_member:   { bucket: "chronicle",      size: "1024x1536", variants: false, scene: false, labelled: true },
-  species:        { bucket: "speciesImages",  size: "1024x1024", variants: true,  scene: false, labelled: false },
-  dungeon_feature: { bucket: "dungeonFeatureImages", size: "1024x1536", variants: true, scene: false, labelled: false },
-  deity:          { bucket: "pantheonEmblems", size: "1024x1536", variants: true,  scene: false, labelled: false },
+  chronicler:     { bucket: "chronicle",      size: "1024x1024", variants: false, scene: true },
+  group_portrait: { bucket: "chronicle",      size: "1536x1024", variants: false, scene: true },
+  npc_portrait:   { bucket: "npcPortraits",   size: "1024x1536", variants: true,  scene: false },
+  npc_disguise:   { bucket: "npcPortraits",   size: "1024x1536", variants: true,  scene: false },
+  monster:        { bucket: "monsterImages",  size: "1024x1536", variants: true,  scene: false },
+  item:           { bucket: "itemImages",     size: "1024x1536", variants: true,  scene: false },
+  spell:          { bucket: "spellImages",    size: "1024x1024", variants: true,  scene: false },
+  faction:        { bucket: "factionImages",  size: "1024x1024", variants: true,  scene: false },
+  location:       { bucket: "locationImages", size: "1024x1024", variants: true,  scene: false },
+  location_map:   { bucket: "locationImages", size: "1024x1024", variants: true,  scene: false },
+  trap:           { bucket: "trapImages",     size: "1024x1536", variants: true,  scene: false },
+  puzzle:         { bucket: "puzzleImages",   size: "1024x1536", variants: true,  scene: false },
+  party_member:   { bucket: "chronicle",      size: "1024x1536", variants: false, scene: false },
+  species:        { bucket: "speciesImages",  size: "1024x1024", variants: true,  scene: false },
+  dungeon_feature: { bucket: "dungeonFeatureImages", size: "1024x1536", variants: true, scene: false },
+  deity:          { bucket: "pantheonEmblems", size: "1024x1536", variants: true,  scene: false },
 };
 
 export interface ImageGenerationRequest {
@@ -189,9 +185,7 @@ async function runLocal(request: ImageGenerationRequest): Promise<string> {
     ? buildScenePrompt(request.subject, request.textDescriptions ?? [], setting, base)
     : request.purpose === "location_map"
       ? request.subject
-    : config.labelled
-      ? buildLabelledImagePrompt({ base, setting, subject: request.subject })
-      : buildSimpleImagePrompt({ base, setting, subject: request.subject });
+    : buildEntityImagePrompt(request.purpose, { base, setting, subject: request.subject });
   const provider = await getImageProvider({
     imageProvider: request.imageProvider,
     apiKey: request.imageApiKey,

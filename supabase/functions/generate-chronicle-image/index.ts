@@ -6,7 +6,7 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { createImageJob, completeImageJob, failImageJob, type ImageJobKind } from "../_shared/imageJob.ts";
-import { buildLabelledImagePrompt, buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
+import { buildEntityImagePrompt, imageBoostFor } from "../_shared/image-prompt.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
 import { generateImage, resolveImageProvider, type ImageProviderKey } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
@@ -39,12 +39,12 @@ const PURPOSE_CONFIG: Record<ImagePurpose, {
   bucket: string;
   prefix: string;
   creditType: "chronicle_image" | "entity_image" | "map_style_generation";
-  boostStyle: boolean | "portrait";
+  boostStyle: boolean;
 }> = {
   chronicler:     { kind: "chronicler",     bucket: "chronicle",       prefix: "scene",    creditType: "chronicle_image",    boostStyle: true },
   group_portrait: { kind: "group_portrait", bucket: "chronicle",       prefix: "group",    creditType: "chronicle_image",    boostStyle: true },
-  npc_portrait:   { kind: "npc_portrait",   bucket: "npc-portraits",   prefix: "npc",      creditType: "entity_image",       boostStyle: "portrait" },
-  npc_disguise:   { kind: "npc_disguise",   bucket: "npc-portraits",   prefix: "disguise", creditType: "entity_image",       boostStyle: "portrait" },
+  npc_portrait:   { kind: "npc_portrait",   bucket: "npc-portraits",   prefix: "npc",      creditType: "entity_image",       boostStyle: true },
+  npc_disguise:   { kind: "npc_disguise",   bucket: "npc-portraits",   prefix: "disguise", creditType: "entity_image",       boostStyle: true },
   monster:        { kind: "monster",        bucket: "monster-images",  prefix: "monster",  creditType: "entity_image",       boostStyle: true },
   item:           { kind: "item",           bucket: "item-images",     prefix: "item",     creditType: "entity_image",       boostStyle: true },
   spell:          { kind: "spell",          bucket: "spell-images",    prefix: "spell",    creditType: "entity_image",       boostStyle: true },
@@ -53,7 +53,7 @@ const PURPOSE_CONFIG: Record<ImagePurpose, {
   location_map:   { kind: "location_map",   bucket: "location-images", prefix: "map",      creditType: "entity_image",       boostStyle: false },
   trap:           { kind: "trap",           bucket: "trap-images",     prefix: "trap",     creditType: "entity_image",       boostStyle: true },
   puzzle:         { kind: "puzzle",         bucket: "puzzle-images",   prefix: "puzzle",   creditType: "entity_image",       boostStyle: true },
-  party_member:   { kind: "party_member",   bucket: "chronicle",       prefix: "party",    creditType: "entity_image",       boostStyle: "portrait" },
+  party_member:   { kind: "party_member",   bucket: "chronicle",       prefix: "party",    creditType: "entity_image",       boostStyle: true },
   species:        { kind: "species",        bucket: "species-images",  prefix: "species",  creditType: "entity_image",       boostStyle: true },
   dungeon_feature: { kind: "dungeon_feature", bucket: "dungeon-feature-images", prefix: "feature", creditType: "entity_image", boostStyle: true },
   deity:          { kind: "deity",          bucket: "pantheon-emblems", prefix: "deity",   creditType: "entity_image",       boostStyle: true },
@@ -89,12 +89,8 @@ function buildPurposePrompt(
   if (purpose === "chronicler" || purpose === "group_portrait") {
     return buildScenePrompt(subject, textDescriptions, settingPrompt, imageBasePrompt);
   }
-  // The same character-portrait kinds the client frames (useImageGeneration's `labelled`).
-  if (purpose === "npc_portrait" || purpose === "party_member") {
-    return buildLabelledImagePrompt({ base: imageBasePrompt, setting: settingPrompt, subject });
-  }
   if (purpose === "location_map") return subject;
-  return buildSimpleImagePrompt({ base: imageBasePrompt, setting: settingPrompt, subject });
+  return buildEntityImagePrompt(purpose, { base: imageBasePrompt, setting: settingPrompt, subject });
 }
 
 async function uploadResult(
@@ -176,7 +172,7 @@ async function runGeneration(args: {
     }
 
     const { b64, contentType, usage } = await generateImage({
-      provider, model, apiKey, prompt, size, quality, boostStyle: PURPOSE_CONFIG[purpose].boostStyle,
+      provider, model, apiKey, prompt, size, quality, boostStyle: PURPOSE_CONFIG[purpose].boostStyle && imageBoostFor(purpose),
       screening: { apiKey: moderationKey, admin, userId, generationType: purpose },
       sourceImages: portraitBlobs.length > 0 ? portraitBlobs : undefined,
     });
