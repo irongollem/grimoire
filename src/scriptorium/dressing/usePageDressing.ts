@@ -32,7 +32,26 @@ export function usePageDressing(
     if (layer) el.prepend(layer);
   }
 
-  watch([host, opts.dressing, opts.handout], draw, { flush: "post", immediate: true });
-  onBeforeUnmount(remove);
+  // A host that changes size (content arriving, a phone turning) needs its marks redrawn at the new aspect.
+  let observer: ResizeObserver | null = null;
+  watch(
+    [host, opts.dressing, opts.handout],
+    () => {
+      draw();
+      observer?.disconnect();
+      observer = null;
+      const el = host();
+      if (el && typeof ResizeObserver !== "undefined") {
+        observer = new ResizeObserver(draw);
+        observer.observe(el);
+      }
+    },
+    { flush: "post", immediate: true },
+  );
+  onBeforeUnmount(() => {
+    observer?.disconnect();
+    observer = null;
+    remove();
+  });
   return { dressed };
 }

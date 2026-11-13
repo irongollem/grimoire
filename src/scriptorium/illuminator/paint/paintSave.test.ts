@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { sameBytes } from "@/test/sameBytes";
+import type { PaintAssets, PenSample } from "./engine/types";
 import type { PaintStep } from "../lib/treatment";
 import { TiledLayer } from "./engine/tiledLayer";
 import type { Pixels } from "./maskPixels";
-import { chunkPixels } from "./paintLayerIO";
+import { chunkPixels, paintedChunks } from "./paintLayerIO";
 import { loadPaintLayers, savePaintStep, viewPaintStep } from "./paintSave";
 import { createPaintSession } from "./session/paintSession";
 import type { PaintLayer } from "./session/types";
@@ -52,6 +54,7 @@ const decoder = (files: Map<string, Pixels>) => async (url: string) => {
   return found;
 };
 const base = { width: W, height: H, paper: null };
+const paintedChunkKeys = (l: PaintLayer): string[] => [...paintedChunks(l.pixels)];
 
 describe("saving a painting", () => {
   // Fails if a new layer's chunks are not all uploaded, or its props are lost, so Done saves an empty painting.
@@ -156,7 +159,7 @@ describe("reopening a painting", () => {
       for (const cx of [0, 1]) for (const cy of [0, 1]) {
         const got = back[i]?.pixels;
         if (!got) throw new Error("no layer");
-        expect(chunkPixels(got, cx, cy)?.data ?? null).toEqual(chunkPixels(want.pixels, cx, cy)?.data ?? null);
+        expect(sameBytes(chunkPixels(got, cx, cy)?.data, chunkPixels(want.pixels, cx, cy)?.data), `${want.id} chunk ${cx},${cy}`).toBe(true);
       }
     }
   });
@@ -206,5 +209,103 @@ describe("saving a painting that holds versions", () => {
     const version = { id: "v1", name: "Version 1", savedAt: "2026-11-12T10:00:00.000Z", layers: [] };
     const step = await savePaintStep({ ...base, layers: [], dirty: new Map(), previous: null, versions: [version] }, fakeStore().deps);
     expect(step?.versions).toHaveLength(1);
+  });
+});
+
+describe("going back to a saved version", () => {
+  const assets: PaintAssets = { tip: () => undefined, grain: () => undefined };
+  const sample = (x: number, y: number): PenSample => ({ x, y, pressure: 0.5, tiltX: 0, tiltY: 0, twist: 0, time: 0, pointer: "pen" });
+  type Session = ReturnType<typeof createPaintSession>;
+  const stroke = (s: Session, x: number, y: number) => {
+    s.beginStroke(sample(x, y));
+    s.addSamples([sample(x + 4, y), sample(x + 8, y)]);
+    s.endStroke();
+  };
+  const paintLayers = (s: Session) => s.state.doc.layers.filter((l): l is PaintLayer => l.kind === "paint");
+
+  /** A saved painting with one layer over two chunks, a version of it, then a change in the first chunk. */
+  async function setup() {
+    const store = fakeStore();
+    const s = createPaintSession({ width: W, height: H, paper: null, picture: false, assets });
+    stroke(s, 40, 40);
+    stroke(s, 1100, 40);
+    const save = async (previous: PaintStep | null, extra: { baseline?: PaintStep["layers"]; versions?: PaintStep["versions"] } = {}) => {
+      const step = await savePaintStep({ ...base, layers: paintLayers(s), dirty: s.dirty, previous, ...extra }, store.deps);
+      s.markClean();
+      return step;
+    };
+    const first = (await save(null))!;
+    const version = { id: "v1", name: "Version 1", savedAt: "2026-11-12T10:00:00.000Z", layers: first.layers };
+    stroke(s, 60, 60);
+    const second = (await save(first, { versions: [version] }))!;
+    const goBack = async () => {
+      s.replaceLayers(await loadPaintLayers({ ...second, layers: version.layers }, decoder(store.files)));
+      s.rebase();
+    };
+    return { store, s, save, first, second, version, goBack };
+  }
+
+  /** The stored chunk for every painted chunk of every layer is exactly the pixels the layer holds, by layer id. */
+  function expectStepHolds(step: PaintStep, layers: PaintLayer[], files: Map<string, Pixels>) {
+    for (const layer of layers) {
+      const record = step.layers.find((r) => r.id === layer.id);
+      expect(record, layer.id).toBeDefined();
+      for (const key of paintedChunkKeys(layer)) {
+        const url = record!.chunks[key];
+        expect(url, `${layer.id} ${key}`).toBeDefined();
+        const [cx, cy] = key.split(",").map(Number) as [number, number];
+        // Compared as bytes: a deep equal of two 4 MB arrays takes seconds per chunk.
+        expect(sameBytes(files.get(url!)!.data, chunkPixels(layer.pixels, cx, cy)!.data), `${layer.id} ${key} pixels`).toBe(true);
+      }
+      expect(Object.keys(record!.chunks).sort()).toEqual(paintedChunkKeys(layer).sort());
+    }
+  }
+
+  // Fails on: Go back marking every tile dirty, so Done re-encodes and uploads byte-identical copies of the version's chunks.
+  it("saves nothing after Go back, and the step names the version's own urls", async () => {
+    const { store, save, second, version, goBack } = await setup();
+    const uploaded = store.files.size;
+    await goBack();
+    const step = (await save(second, { baseline: version.layers, versions: [version] }))!;
+    expect(store.files.size).toBe(uploaded);
+    expect(step.layers.map((l) => l.chunks)).toEqual(version.layers.map((l) => l.chunks));
+  });
+
+  // Fails on: the chunks the version replaced (the recipe's own) never being freed once Go back is saved, a leak per Go back.
+  it("frees the chunks only the replaced painting named, and keeps the version's", async () => {
+    const { store, save, first, second, version, goBack } = await setup();
+    const replaced = second.layers[0]!.chunks["0,0"]!;
+    expect(replaced).not.toBe(first.layers[0]!.chunks["0,0"]);
+    await goBack();
+    store.released.length = 0;
+    await save(second, { baseline: version.layers, versions: [version] });
+    expect(store.released).toContain(replaced);
+    expect(store.released).not.toContain(first.layers[0]!.chunks["0,0"]);
+  });
+
+  // Fails on: a stroke after Go back being skipped (stale url kept) or the untouched chunk being re-uploaded.
+  it("uploads only the chunk a stroke after Go back changed", async () => {
+    const { store, s, save, second, version, goBack } = await setup();
+    await goBack();
+    const uploaded = store.files.size;
+    stroke(s, 70, 70);
+    const step = (await save(second, { baseline: version.layers, versions: [version] }))!;
+    expect(store.files.size).toBe(uploaded + 1);
+    expect(step.layers[0]!.chunks["1,0"]).toBe(version.layers[0]!.chunks["1,0"]);
+    expect(step.layers[0]!.chunks["0,0"]).not.toBe(version.layers[0]!.chunks["0,0"]);
+    expectStepHolds(step, paintLayers(s), store.files);
+  });
+
+  // Fails on: undoing Go back leaving the tiles clean, so the save keeps the version's urls on pixels that differ.
+  it("after undoing Go back, saves the undone layers and never puts a version's url on other pixels", async () => {
+    const { store, s, save, second, version, goBack } = await setup();
+    stroke(s, 100, 100);
+    await goBack();
+    s.undo();
+    const step = (await save(second, { baseline: version.layers, versions: [version] }))!;
+    expectStepHolds(step, paintLayers(s), store.files);
+    s.redo();
+    const again = (await save(step, { versions: [version] }))!;
+    expectStepHolds(again, paintLayers(s), store.files);
   });
 });

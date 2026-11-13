@@ -1,4 +1,6 @@
 import { ASSET_CDN_BASE } from "@/lib/storage/buckets";
+import artManifestJson from "@/generated/artManifest.json";
+import { ART_PREFIX } from "@/lib/assets/artPrefix";
 
 /*
  * Rewrites every root-relative asset reference in the book's HTML, `url(/…)`
@@ -15,7 +17,8 @@ import { ASSET_CDN_BASE } from "@/lib/storage/buckets";
  *
  * The papers (#1181) are the third case: in production they are served from
  * the art CDN, so a book's `style` attribute names a CDN URL, which is
- * inlined like a root-relative path. Protocol-relative (`//host/…`), other
+ * inlined like a root-relative path, and so are the dressing's mask pictures. Only app art on the CDN: a user's
+ * picture there is left as it is. Protocol-relative (`//host/…`), other
  * absolute (`https:`) and `data:` references are left alone: the renderer can
  * load the first two itself.
  */
@@ -34,21 +37,34 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   svg: "image/svg+xml",
 };
 
+const escapeRe = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
- * What counts as ours: a root-relative path, or a URL on the art CDN (papers are served from it in production,
- * and a body `style` attribute names one). Never a protocol-relative `//host/x`.
+ * The CDN URLs of the app's own art (the build's art manifest, inverted the way `artUrl()` maps a path to the CDN).
+ * The CDN also serves users' pictures and bakes: those are never inlined, or one swept file would fail the export
+ * and a book of paintings would outgrow the render request.
  */
-const OURS = ASSET_CDN_BASE ? `(?:\\/(?!\\/)|${ASSET_CDN_BASE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\/)` : "\\/(?!\\/)";
-/** url("/x"), url('/x') and url(/x), and the same for a CDN URL. */
-const CSS_URL = new RegExp(`url\\(\\s*(["']?)(${OURS}[^"')\\s]+)\\1\\s*\\)`, "g");
-/** src="/x" and src='/x' on an element, never src="//host/x". */
-const SRC_ATTR = new RegExp(`(\\ssrc=)(["'])(${OURS}[^"']+)\\2`, "g");
+const CDN_ART_URLS: ReadonlySet<string> = new Set(
+  ASSET_CDN_BASE ? Object.values(artManifestJson as Record<string, string>).map((key) => `${ASSET_CDN_BASE}/${key}`) : [],
+);
+/** A CDN URL under the art prefix; whether it is really app art is decided by CDN_ART_URLS. */
+const CDN_ART = ASSET_CDN_BASE ? `${escapeRe(ASSET_CDN_BASE)}\\/${escapeRe(ART_PREFIX)}\\/` : null;
+
+/** url("/x"), url('/x') and url(/x), and the same for an app-art CDN URL (the papers, the dressing's masks). */
+const CSS_URL = new RegExp(`url\\(\\s*(["']?)((?:\\/(?!\\/)|${CDN_ART ?? "(?!)"})[^"')\\s]+)\\1\\s*\\)`, "g");
+/** src="/x" and src='/x' on an element, never src="//host/x" and never a CDN url (that is a user's picture). */
+const SRC_ATTR = /(\ssrc=)(["'])(\/(?!\/)[^"']+)\2/g;
 
 export const ASSETS_LOAD_ERROR = "Could not load the book's fonts or page art.";
 
 function mimeFor(path: string): string | null {
   const ext = path.split(/[?#]/)[0].split(".").pop()?.toLowerCase();
   return ext ? (MIME_BY_EXTENSION[ext] ?? null) : null;
+}
+
+/** A root-relative path, or a CDN url that is app art. */
+function isInlinable(path: string): boolean {
+  return path.startsWith("/") || CDN_ART_URLS.has(path);
 }
 
 /** Chunked so String.fromCharCode never exceeds the argument limit. */
@@ -74,7 +90,7 @@ export async function inlineSameOriginAssets(
   fetchAsset: (path: string) => Promise<ArrayBuffer>,
 ): Promise<string> {
   const paths = new Set<string>();
-  for (const m of html.matchAll(CSS_URL)) if (mimeFor(m[2])) paths.add(m[2]);
+  for (const m of html.matchAll(CSS_URL)) if (mimeFor(m[2]) && isInlinable(m[2])) paths.add(m[2]);
   for (const m of html.matchAll(SRC_ATTR)) if (mimeFor(m[3])) paths.add(m[3]);
 
   const uris = new Map<string, string>();

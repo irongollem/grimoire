@@ -17,6 +17,7 @@ import { getCurrentUser } from "@/lib/supabase";
 import { parsePublicUrl } from "@/lib/storage";
 import type { WorkbenchTool } from "@/scriptorium/illuminator/useIlluminateWorkbench";
 import { parseSettings, type IlluminateSettings } from "@/scriptorium/illuminator/lib/treatment";
+import { markSheetForSweep } from "@/scriptorium/composables/illuminatorSweep";
 import { usePictureBakes } from "@/scriptorium/composables/usePictureBakes";
 import { usePicturePreviews } from "@/scriptorium/composables/usePicturePreviews";
 import type { PictureActions, PictureTarget } from "@/scriptorium/composables/useEditorPictures";
@@ -152,10 +153,10 @@ export function usePictureEditing(opts: Options) {
   }
 
   /** Close the workbench and write to the picture it was opened on, if it is still that picture. */
-  function writeBack(patchOf: (now: Record<string, unknown>) => TreatmentPatch) {
+  function writeBack(patchOf: (now: Record<string, unknown>) => TreatmentPatch): Record<string, unknown> | null {
     const open = workbench.value;
     workbench.value = null;
-    if (!open) return;
+    if (!open) return null;
     // The document may have changed while the workbench was open (another device's save, text typed above):
     // find the picture again by what it is, and write nothing to anything else.
     let target = open.target;
@@ -163,18 +164,19 @@ export function usePictureEditing(opts: Options) {
       const pos = opts.pictures.nodePosByBlockId(open.blockId);
       if (pos === null) {
         toast.error(CHANGED);
-        return;
+        return null;
       }
       target = { source: "node", pos };
     }
     const now = opts.pictures.valuesOf(target);
     // Removed while open: nothing to write.
-    if (!now) return;
+    if (!now) return null;
     if (originalOf(now) !== open.original) {
       toast.error(CHANGED);
-      return;
+      return null;
     }
     opts.pictures.treat(target, patchOf(now));
+    return now;
   }
 
   function onWorkbenchDone(settings: IlluminateSettings) {
@@ -183,7 +185,9 @@ export function usePictureEditing(opts: Options) {
 
   /** The painting was flattened and stored: that file is the picture and its original, and the recipe is empty. */
   function onWorkbenchFlatten(url: string) {
-    writeBack(() => flattenPatch(url));
+    const before = writeBack(() => flattenPatch(url));
+    // A blank sheet's or page painting's file was the original and is not any more; the sweep deletes it only if nothing else refers to it.
+    if (before) markSheetForSweep(originalOf(before));
   }
 
   /**

@@ -8,8 +8,10 @@ const { fake } = await vi.hoisted(async () => {
   const { createSupabaseFake } = await import("@/test/supabaseFake");
   return { fake: createSupabaseFake() };
 });
+vi.mock("@/lib/observability/sentry", () => ({ reportHandledError: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "u1" }) }));
 
+import { reportHandledError } from "@/lib/observability/sentry";
 import { loadPaintAssets } from "./assets/loadPaintAssets";
 import type { BrushFileDeps } from "./brushes/brushFiles";
 import { STOCK_BRUSHES } from "./brushes/stockBrushes";
@@ -156,6 +158,16 @@ describe("useUserBrushes writing", () => {
     await api.remove("r2");
     expect(fake.rows("paint_brushes").map((r) => r.id)).toEqual(["r2"]);
     expect(removed).toEqual([["https://cdn/t.webp"]]);
+  });
+
+  it("still resolves, and reports, when the files cannot be removed after the row is gone", async () => {
+    // Fails on: letting the sweep's rejection fail a delete that already happened, so the painter sees a failure and a retry finds no row.
+    fake.seed("paint_brushes", [seedRow({ id: "r1", tip_url: "https://cdn/t.webp" })]);
+    const { api } = mountIt(files({ remove: async () => { throw new Error("r2 down"); } }).deps);
+    await flushPromises();
+    await expect(api.remove("r1")).resolves.toBeUndefined();
+    expect(fake.rows("paint_brushes")).toEqual([]);
+    expect(reportHandledError).toHaveBeenCalledWith(expect.any(Error), "useUserBrushes.remove");
   });
 
   it("writes the settings of a brush and renames it", async () => {

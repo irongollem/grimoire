@@ -25,6 +25,18 @@ export function isMadeByIlluminator(url: unknown, userId: string | null | undefi
   return parsed.path.startsWith(prefix) && !parsed.path.slice(userId.length + 1).includes("/");
 }
 
+/**
+ * A blank sheet or page painting's own file: asset-images, directly under the author's id, named `sheet-...`.
+ * Deliberately not an `ill-` file, so `isMadeByIlluminator` (which protects originals) never matches it; this is
+ * the one narrow way to offer it to the sweep, once flattening has replaced it as the picture's original.
+ */
+export function isAuthorsSheet(url: unknown, userId: string | null | undefined): url is string {
+  if (typeof url !== "string" || !userId) return false;
+  const parsed = parsePublicUrl(url);
+  if (parsed?.bucket !== "assetImages") return false;
+  return parsed.path.startsWith(`${userId}/sheet-`) && !parsed.path.slice(userId.length + 1).includes("/");
+}
+
 /** What a picture holds: an image node's attrs, or art furniture's props. */
 export interface PictureValues {
   src?: unknown;

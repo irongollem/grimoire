@@ -40,12 +40,12 @@ import { DEFAULT_PAPER_SIDE, PAPER_SIDES, type PaperEdgeOptions, type PaperSide 
 import { baseImageUrl, clampCrop, type AiStep, type IlluminateSettings, type IlluminateStep, type PaintStep, type WashStep } from "@/scriptorium/illuminator/lib/treatment";
 import { DEFAULT_VIGNETTE, type VignetteOptions } from "@/scriptorium/illuminator/lib/vignette";
 import { renderPaintPicture } from "@/scriptorium/illuminator/paint/paintPicture";
-import { chunkCanvas, decodePixels, parseViewChunk, pixelsCanvas } from "@/scriptorium/illuminator/paint/paintLayerIO";
-import { loadPaintLayers, savePaintStep, viewPaintStep } from "@/scriptorium/illuminator/paint/paintSave";
+import { chunkCanvas, parseViewChunk } from "@/scriptorium/illuminator/paint/paintLayerIO";
+import { loadPaintLayers, viewPaintStep } from "@/scriptorium/illuminator/paint/paintSave";
 import type { PaintLayer, PaintTool } from "@/scriptorium/illuminator/paint/session/types";
 import { STOCK_PAPERS } from "@/scriptorium/papers/papers";
 import { usePaintSession } from "@/scriptorium/illuminator/paint/usePaintSession";
-import { usePaintVersions } from "@/scriptorium/illuminator/paint/usePaintVersions";
+import { useWorkbenchPaint } from "@/scriptorium/illuminator/useWorkbenchPaint";
 
 /** The tools that change the recipe's picture, and the ones that paint on it (#1181). */
 export type PictureTool = "crop" | "edges" | "grade" | "vignette" | "texture" | "wash" | "focus";
@@ -89,9 +89,6 @@ const MAX_PREVIEW = 900;
 const VIEW_MASK = "view:mask";
 /** The mask only needs its alpha, so it is stored compact. */
 const MASK_QUALITY = 0.9;
-/** A painted chunk is stored like the mask: WebP keeps its alpha. */
-const CHUNK_QUALITY = MASK_QUALITY;
-const CHUNK_UPLOADS = 4;
 
 /** A transparent pixel: drawing it changes nothing, and unlike an empty canvas it can be drawn. */
 function emptyChunk(): HTMLCanvasElement {
@@ -176,8 +173,6 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   const cropShape = ref<CropShape>("free");
   const pageAspect = computed(() => opts.pageAspect?.() ?? null);
   const paint = usePaintSession({ redraw: () => opts.redrawPaint?.(), canMakeCanvas: opts.canMakeCanvas, onCanvasRefused: opts.onCanvasRefused });
-  /** The painting as the recipe holds it: stored chunks, until Done saves what the session changed. */
-  const paintStep = ref<PaintStep | null>(null);
   /** The sheet the painting lies on (a stock paper's id), kept even if the paper list no longer knows it. */
   const paperId = ref<string | null>(null);
   /** A saved mask the picture came with, until the author erases differently on the picture. */
@@ -188,6 +183,23 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
    */
   const hasMask = computed(() => (paint.ready.value ? paint.hasMask.value : maskUrl.value !== null));
   const paintError = ref("");
+
+  // The painting's stored side (saving chunks, reading them back, saved versions, flatten) lives in useWorkbenchPaint.
+  const stored = useWorkbenchPaint({
+    paint,
+    paperId,
+    userId: opts.userId,
+    isPro: () => opts.isPro?.() === true,
+    loadImage: (url) => loader(url),
+    confirm,
+    fail: (message) => toast.error(message),
+    busy: () => busy.value,
+    setBusy: (value) => { busy.value = value; },
+    hasPicture: () => image.value !== null,
+    renderPng: () => renderPng(),
+    exportName: () => exportName(),
+  });
+  const { paintStep, savePaint, decodeChunk, versions, flatten, forgetPainting, startedSession } = stored;
 
   const busy = ref(false);
   const copied = ref(false);
@@ -356,35 +368,6 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     const painted = paintStepOf(forPreview);
     if (painted) steps.push(painted);
     return { v: 1, seed: seed.value, steps };
-  }
-
-  /**
-   * Stores the chunks of every layer the author changed (and none that they did not), and makes the result the
-   * recipe's painting. A failed upload throws and leaves the recipe's painting as it was.
-   */
-  async function savePaint(): Promise<void> {
-    const s = paint.session.value;
-    if (!s) return;
-    const layers = paintLayers();
-    if (layers.length === 0 && paintStep.value === null && paperId.value === null) return;
-    paintStep.value = await savePaintStep(
-      { layers, dirty: s.dirty, previous: paintStep.value, width: s.state.doc.width, height: s.state.doc.height, paper: paperId.value, versions: paintStep.value?.versions },
-      {
-        concurrency: CHUNK_UPLOADS,
-        release: markForSweep,
-        async upload(pixels) {
-          const user = opts.userId();
-          if (!user) throw new Error("Sign in again to save the painting.");
-          const blob = await encodeWebp(pixelsCanvas(pixels), CHUNK_QUALITY);
-          const url = await uploadToBucket({ bucket: "assetImages", blob, path: `${user}/ill-paint-${crypto.randomUUID().slice(0, 8)}.webp`, contentType: "image/webp" });
-          if (!url) throw new Error("Could not store the painting.");
-          // Marked at once: the sweep keeps it only if the saved recipe refers to it.
-          markForSweep(url);
-          return url;
-        },
-      },
-    );
-    s.markClean();
   }
 
   /** Upload what is only local (the painting, the painted mask) and hand back the finished recipe. */
@@ -557,6 +540,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     paintError.value = "";
     try {
       dropMismatchedPainting();
+      startedSession();
       const key = pictureKey.value;
       const picture = await renderPaintPicture(img, size, buildSettings(true), loader);
       let mask: CanvasImageSource | null = null;
@@ -599,7 +583,7 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
   function discardPaint() {
     pictureToken++;
     paint.stop();
-    paintStep.value = null;
+    forgetPainting();
     paperId.value = null;
     maskUrl.value = null;
     paint.maskDirty.value = false;
@@ -694,28 +678,6 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
     ],
     { layer: "overlay", enabled: () => opts.active?.() ?? true },
   );
-
-  /** A stored chunk read back into pixels, the way opening a painting does. */
-  const decodeChunk = async (url: string, w: number, h: number) => decodePixels((await loader(url)) as CanvasImageSource, w, h);
-
-  // ── Saved versions ────────────────────────────────────────────────────────
-  const versions = usePaintVersions({
-    step: paintStep,
-    ready: () => paint.ready.value,
-    hasPainting: () => paint.hasPaintLayers.value,
-    isPro: () => opts.isPro?.() === true,
-    hasChanges: () => paint.edited.value,
-    save: savePaint,
-    async restore(records) {
-      const s = paint.session.value;
-      if (!s) return;
-      const layers = await loadPaintLayers({ type: "paint", width: s.state.doc.width, height: s.state.doc.height, paper: paperId.value, layers: records }, decodeChunk);
-      paint.replaceLayers(layers);
-    },
-    confirm,
-    release: (urls) => markForSweep(...urls),
-    fail: (message) => toast.error(message),
-  });
 
   // ── Texture ───────────────────────────────────────────────────────────────
   async function pickTexture(file: File) {
@@ -825,38 +787,6 @@ export function useIlluminateWorkbench(opts: WorkbenchOptions) {
       if (!url) throw new Error("Upload failed");
       toast.success("Saved as a new picture in your pictures.");
     });
-
-  /**
-   * The picture as it looks now (every step, the painting included) becomes the picture's original, and the
-   * recipe goes empty: the painting is part of the picture and no longer holds a canvas on the plan. Asks
-   * first, uploads the flat picture, and returns its URL for the page to take as the original; null when the
-   * author declines or it fails (said in a toast).
-   */
-  async function flatten(): Promise<string | null> {
-    if (busy.value || !image.value) return null;
-    const ok = await confirm("The picture, painting included, becomes one flat picture. This frees a painting slot.", {
-      title: "Flatten into the picture?",
-      confirmLabel: "Flatten",
-    });
-    if (!ok) return null;
-    busy.value = true;
-    try {
-      const user = opts.userId();
-      if (!user) throw new Error("Not signed in.");
-      const png = await renderPng();
-      const webp = await toWebP(new File([png], `${exportName()}.png`, { type: "image/png" }));
-      const ext = webp.type === "image/jpeg" ? "jpeg" : "webp";
-      const url = await uploadToBucket({ bucket: "assetImages", blob: webp, path: `${user}/ill-flat-${crypto.randomUUID().slice(0, 8)}.${ext}`, contentType: webp.type });
-      if (!url) throw new Error("Upload failed");
-      markForSweep(url);
-      return url;
-    } catch {
-      toast.error("The painting could not be flattened. Try again.");
-      return null;
-    } finally {
-      busy.value = false;
-    }
-  }
 
   /** Whether the tools hold any edit at all. An AI result is the base picture, undone on its own, not a tool. */
   const hasEdits = computed(() => buildSettings(true).steps.some((step) => step.type !== "ai"));

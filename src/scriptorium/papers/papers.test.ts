@@ -91,12 +91,22 @@ describe("paper legibility", () => {
     // Fails on: a veil too light for a dark paper (kraft, the greys, treasure map's mottling), which makes text hard to read.
     const paper = paperById(id);
     const { data } = await sharp(join(PUBLIC, paper.surfacePath)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    // Every pixel is read (a sample would thin out the darkest patches this guards), but the veil and the
+    // linearisation are looked up per channel value instead of recomputed (and re-allocated) per pixel.
+    const veiled = new Float64Array(256);
+    const lin = new Float64Array(256);
+    for (let v = 0; v < 256; v++) {
+      veiled[v] = v * (1 - paper.veil) + 255 * paper.veil;
+      lin[v] = linear(veiled[v]!);
+    }
     const lums = new Float32Array(data.length / 3);
-    let mean = [0, 0, 0];
+    const sums = [0, 0, 0];
     for (let i = 0, j = 0; i < data.length; i += 3, j++) {
-      const rgb = [0, 1, 2].map((k) => data[i + k]! * (1 - paper.veil) + 255 * paper.veil);
-      lums[j] = luminance(rgb[0]!, rgb[1]!, rgb[2]!);
-      mean = mean.map((m, k) => m + rgb[k]!);
+      const r = data[i]!, g = data[i + 1]!, b = data[i + 2]!;
+      sums[0]! += veiled[r]!;
+      sums[1]! += veiled[g]!;
+      sums[2]! += veiled[b]!;
+      lums[j] = 0.2126 * lin[r]! + 0.7152 * lin[g]! + 0.0722 * lin[b]!;
     }
     lums.sort();
     const darkest = lums[Math.floor(lums.length * 0.05)]!;
@@ -106,8 +116,8 @@ describe("paper legibility", () => {
       expect(contrast, `${id} behind ${file} ink ${ink}`).toBeGreaterThanOrEqual(4.5);
     }
     // The stored tint is the veiled surface's mean, so page tints match what is drawn.
-    const tint = mean.map((m) => Math.round(m / lums.length));
+    const tint = sums.map((m) => Math.round(m / lums.length));
     const stored = [1, 3, 5].map((h) => parseInt(paper.tint.slice(h, h + 2), 16));
     stored.forEach((c, k) => expect(Math.abs(c - tint[k]!), `${id} tint channel ${k}`).toBeLessThanOrEqual(3));
-  }, 30_000);
+  });
 });
