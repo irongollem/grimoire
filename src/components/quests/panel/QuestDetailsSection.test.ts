@@ -73,12 +73,12 @@ describe("QuestDetailsSection", () => {
   const box = (w: ReturnType<typeof mountDetails>, placeholder: string) =>
     w.findAllComponents({ name: "EntityCombobox" }).find((c) => c.props("placeholder") === placeholder)!;
 
-  // Fails on a title, an "Opens at" or a sharing field creeping back into the
-  // panel: the title is the page header's, the entry is set on a beat, and
-  // sharing is the Players section's own write.
-  it("shows the quest-level details only: no title, no opening beat, no sharing", () => {
+  // Fails on an "Opens at" or a sharing field creeping back into the
+  // panel: the entry is set on a beat, and sharing is the Players section's own write.
+  it("shows the quest-level details only: no opening beat, no sharing", () => {
     const fields = mountDetails().findAll("span.text-caption").map((span) => span.text());
     expect(fields).toEqual(["Board lane", "Giver", "Location", "Part of", "Tags"]);
+    expect(mountDetails().findAll("input")[0]!.attributes("aria-label")).toBe("Title");
     expect(mountDetails().find('input[aria-label="Premise"]').attributes("aria-label")).toBe("Premise");
   });
 
@@ -126,5 +126,21 @@ describe("QuestDetailsSection", () => {
     await flushPromises();
     expect(mocks.updateQuest).toHaveBeenCalledTimes(1);
     expect(mocks.updateQuest).toHaveBeenCalledWith({ id: "quest-1", update: { summary: "Edited premise" } });
+  });
+
+  // Fails if the quest title cannot be edited from the panel, now that the header only shows it.
+  it("saves an edited title, trimmed", async () => {
+    const wrapper = mountDetails();
+    await wrapper.find('input[aria-label="Title"]').setValue("  The Seen  ");
+    await settle();
+    expect(mocks.updateQuest).toHaveBeenCalledWith({ id: "quest-1", update: { title: "The Seen" } });
+  });
+
+  // Fails if clearing the field writes an empty title over the quest's name.
+  it("never saves an empty title: the last saved one stays", async () => {
+    const wrapper = mountDetails();
+    await wrapper.find('input[aria-label="Title"]').setValue("   ");
+    await settle();
+    expect(mocks.updateQuest).not.toHaveBeenCalled();
   });
 });

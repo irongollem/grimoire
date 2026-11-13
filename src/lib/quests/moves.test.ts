@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { previewRoute } from "./moves";
+import { newestUndoableMove, previewRoute } from "./moves";
 import type { QuestConsequence } from "@/types/quest.types";
 
 const edge = (id: string, source: string, target: string, route_kind: "choice" | "parallel" = "choice") =>
@@ -38,5 +38,20 @@ describe("previewRoute", () => {
 
   it("names an untitled target", () => {
     expect(previewRoute({ edge: edge("e9", "a", "d"), edges, beats, consequences: [], objectiveLabel: label }).doneTitle).toBe("Untitled beat");
+  });
+});
+
+describe("newestUndoableMove", () => {
+  const t = (id: string, to: string | null, at: string) => ({ id, to_beat_id: to, created_at: at });
+
+  it("is null with nothing to undo", () => {
+    expect(newestUndoableMove([])).toBeNull();
+    expect(newestUndoableMove([t("a", null, "2026-01-02T00:00:00Z")])).toBeNull();
+  });
+
+  // Fails if an assert row (no beat) or an older row is named as the move Undo takes back.
+  it("names the newest transition that arrives at a beat", () => {
+    const moves = [t("old", "b1", "2026-01-01T00:00:00Z"), t("new", "b2", "2026-01-03T00:00:00Z"), t("assert", null, "2026-01-04T00:00:00Z")];
+    expect(newestUndoableMove(moves)?.id).toBe("new");
   });
 });

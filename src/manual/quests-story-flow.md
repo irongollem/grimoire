@@ -3,18 +3,18 @@ title: "Quest Story Flow: Beats, Routes & Objectives"
 section: Quests
 section_order: 3
 order: 1
-summary: How beats, routes, threads and payoff fit together, with a worked example, and how to build the story on the Story Flow tab.
-keywords: story flow, beat, route, objective, thread, parallel, gate, payoff, converge, check, attachment, placement, site, canvas
+summary: How beats, routes, threads and payoff fit together, with a worked example, and how to build and mark the story on the quest's flow.
+keywords: story flow, beat, route, objective, thread, parallel, gate, payoff, converge, check, attachment, placement, site, canvas, drawer, take this route, party here, failed, entry, bookmark, undo
 ---
 
-Grimoire builds a quest as a **story flow**: a web of **beats** connected by **routes**, walked by one or more **threads**. It's built on a visual canvas where you drag connections between boxes, but the ideas behind it map directly onto how you already think about a quest. This page explains the model with a worked example, then covers the **Story Flow** tab (one of the three tabs on a quest's page, alongside Overview and Run) where you build it.
+Grimoire builds a quest as a **story flow**: a web of **beats** connected by **routes**, walked by one or more **threads**. It's built on a visual canvas where you drag connections between boxes, but the ideas behind it map directly onto how you already think about a quest. This page explains the model with a worked example, then covers the quest's page, where you build it: the flow in the middle and a drawer on its right.
 
 ## Key ideas
 
 | Term | What it means |
 | --- | --- |
 | Beat | A single scene or event: past tense, the story's side. "The bandits ambush the wagon." |
-| Objective | What the party wants: future tense, the players' side. "Rescue the merchant." Lives on the quest overview, not on any one beat. |
+| Objective | What the party wants: future tense, the players' side. "Rescue the merchant." Lives in the quest panel, not on any one beat. |
 | Route | A connection from one beat to another. Can be gated by an objective's status. |
 | Choice route | A route that moves the thread forward and strands every sibling choice: the normal fork. |
 | Parallel route | A route that opens a *second* thread at its target while the current thread stays exactly where it was. |
@@ -26,7 +26,7 @@ Grimoire builds a quest as a **story flow**: a web of **beats** connected by **r
 
 Say you're running a one-session rescue: bandits have taken a merchant, and the party has to get her back.
 
-1. **Opening beat: "The merchant is missing."** This is the beat with no incoming route, so it's where the run starts. Its Payoff **raises** two objectives: *Rescue the merchant* and *Learn who took her*.
+1. **Opening beat: "The merchant is missing."** This is the quest's entry, so it's where the run starts. Its Payoff **raises** two objectives: *Rescue the merchant* and *Learn who took her*.
 2. From here you draw a **choice route** to **"Confront the bandit camp."** The party tracks the bandits down. On this route (or on arrival at the beat, your choice), a rule **completes** *Learn who took her* once the party identifies the gang.
 3. From "Confront the bandit camp," two more choice routes fork the outcome: **"The bandits stand and fight"** and **"The bandits flee with the merchant."** The first leads to a beat whose Payoff **achieves** (completes) *Rescue the merchant*; the second leads to a beat whose Payoff **fails** it and **raises** a new objective, *Track the fleeing bandits*: one beat, ending one objective and starting another in the same breath.
 4. Optionally, from "Confront the bandit camp" you also add a **parallel route** to **"Meanwhile, the town guard closes the gates."** A side thread that opens without moving the main thread, useful if you want a second thing happening at the same time the party doesn't control directly.
@@ -39,21 +39,26 @@ Click **Add beat** to open the beat composer, fill in a **title** and pick a **k
 
 Drag a connection from one beat to another on the canvas to link two existing beats with a plain choice route.
 
+## The drawer and what it shows
+
+The drawer on the right of the flow shows whatever you've selected: the quest, a beat, or a route. Click empty canvas or press **Esc** to go back to the quest. **Open** on a beat pulls the whole beat open over the flow (see below); **Flow** at its top puts it back. The address of the page remembers your selection.
+
 ## Editing a route
 
-Click a route on the canvas to open **Selected route** in the side rail:
+Click a route on the canvas to see it in the drawer:
 
 - **Route kind**: Choice or Parallel (Parallel is disabled here too until the beat has a choice route).
 - A **thread label** field, for a parallel route.
 - **Gate**: with no conditions the route is always open (the default, and what most routes should stay, since the fork is usually already decided at the table). **Add condition** to gate it. Each condition is an objective plus the statuses that satisfy it, ticked from **Not yet raised**, **Open**, **Completed** and **Failed** (up to three, since all four would mean no condition at all). Ticking several lets you say "unless her trust is broken" as Not yet raised, Open or Completed. With two or more conditions a switch appears: **All of these** (every condition must hold) or **Any of these** (one is enough). A line under the conditions reads the gate back in plain words. An objective can be a condition only once per route.
-- Any consequences already attached to this route, with an **Edit** shortcut into the beat page.
+- Any consequences already attached to this route.
 - **Save route** / **Delete route**.
+- **Take this route**, to mark that the party took it (see Marking what happened, below).
 
-A closed route (its gate condition isn't met) shows greyed out on the canvas, and in the Run cockpit its **Choose** button is disabled and the card says why ("needs “Rescue the merchant” completed and “Learn who took her” failed"). **Jump**, in the Run cockpit, still reaches a closed beat directly: the deliberate override for when the table decides something the story flow doesn't know about, and it always asks for a reason.
+A closed route (its gate condition isn't met) shows greyed out on the canvas, and on an opened beat it says why ("needs “Rescue the merchant” completed and “Learn who took her” failed") and can't be chosen. Marking is the deliberate override: **Take this route**, or **Party here** on a beat, records what the table decided even where the story flow's gates say otherwise.
 
 ## Several threads meeting at one beat
 
-When a quest has a parallel route and a beat has a way in, selecting that beat shows **When threads arrive** in the side rail, with two choices:
+When a quest has a parallel route and a beat has a way in, selecting that beat shows **When threads arrive** in the drawer, with two choices:
 
 - **Each runs on** (the default): every thread that arrives carries on by itself.
 - **Wait for the others**: a thread that arrives waits while any other open thread could still reach this beat. Once none can, the waiting threads merge into one and the beat's payoff fires once.
@@ -62,33 +67,55 @@ Waiting only counts threads that are still open and could really get here. A sid
 
 ## Threads
 
-The rail's **Threads** panel lists every thread the quest is running: its letter, label, and current beat, with **Focus** (centres the canvas on it) and **Close thread** for a live one. Closing a thread is always your call: nothing closes on its own. A quest is born with one thread, "Main"; a parallel route opens another automatically, and the Run cockpit's thread bar can open one by hand too.
+The quest panel's **Threads** section lists every thread the quest is running: its letter, label, and current beat, with **Focus** (centres the canvas on it) and **Close thread** for a live one. Closing a thread is always your call: nothing closes on its own. A quest is born with one thread, "Main"; a parallel route opens another automatically, and **Open a thread**, on the thread bar above an opened beat, can open one by hand too.
+
+## How a beat looks on the flow
+
+Each beat's colour says where it sits in the story: **gold** where the party is, **green** the start (the entry), **white** already past, **light grey** still to come. Gold wins over green, and green over white.
+
+A small bookmark in the beat's corner says what happened to it. You never click it. **Grey** means untouched, **green** done, **gold** the party is here, **red with an x** failed, and **dark and slashed, with the title struck through**, unreachable: a route the party didn't take cut it off.
+
+The toolbar above the flow shows a tally (visited, live, ahead, cut off) and, if any beats need something, **N prep gaps**: a menu listing each one that takes you to that beat. The **View** switch, **Your view** / **Players' view**, shows the flow as the party knows it.
 
 ## Selecting a beat
 
-Click a beat with no route selected to see **Selected beat**: its kind and visibility, chips for prep gaps, payoff count, held loot, converge mode, and, if staged at a site, a room count. **Open beat** goes to its full page; **Preview as players** shows exactly what a player would see at its current visibility.
+Click a beat to see its summary in the drawer: its kind and visibility, chips for prep gaps, payoff count, held loot, converge mode, and, if staged at a site, a room count. **Open** pulls the whole beat open, and **Preview as players** shows exactly what a player would see at its current visibility.
 
-## The beat page
+The beat's summary has the marks row: **Entry**, **Party here** and **Failed**.
 
-Click **Open beat** (or a beat on mobile) to reach its full page, with everything about that one beat:
+## Marking what happened
 
-- **Beat**: kind, staged location (see Sites below), visibility, each saved the moment you change it.
-- **Read aloud**: the boxed text you read at the table.
-- **DM lead**, **How it plays**: free text, autosaved.
-- **Rumor copy** / **Reveal copy**: the exact text players see while the beat is rumored, and once it's revealed.
+You can record what the party did right on the flow, without running anything live and without switching to a mode.
+
+- **Take this route.** Select a route. The drawer says what taking it will do (which beat it marks done, which payoffs fire, which other choices become unreachable, or that it opens a thread, for a parallel route), with ticks for **Party here** and for loot to **Hand out**. Selecting a route never commits; **Take this route** does. Choices not taken become unreachable; parallel routes stay open.
+- **Entry, Party here, Failed.** On a beat, tick one. **Entry** is the beat the story begins at, and there's only one per quest: ticking it on another beat moves it. **Party here** puts the party's thread there, and ticking it on another beat moves it. **Failed** marks a beat the party didn't get past; the payoffs you set to fire **if it goes wrong** fire, and the payoffs for arriving don't fire a second time.
+- **The way there is filled in.** Mark a beat further along and Grimoire marks the beats in between, along the shortest route, so you don't tick ten of them.
+- **A parallel route opens a thread**, just as it does at the table.
+- **Undo** (toolbar, or **⌘Z** / **Ctrl+Z**) takes back the newest move in one go, including the beats it filled in and any thread it opened. It works on moves you played live as well as ones you marked.
+- Marks are filed under the session in **Marks go to** in the toolbar. Marking never starts a session.
+
+## Opening a beat
+
+**Open** on a beat (or a beat on a phone) pulls the whole beat open over the flow. There's no separate edit mode and no Play/Prep switch: everything saves as you type. The table's side is at the top, the prep at the foot.
+
+- **Read aloud**, the boxed text you read at the table (folded away when a site takes the middle of the page).
+- **DM lead** and **How it plays**: your guidance.
+- **Placed at this beat**: its placements as chips. A **Check** leads with its roll.
+- **Where Advance can go**: the routes out, while the party is here.
+- Beside it: the objectives, the clocks, anything held back, and **Players see**.
+- At the foot, three folds that are open while the party is elsewhere (when you're preparing it) and closed while it's here:
+  - **Rumor and reveal copy**: the beat's kind, staged location, visibility, and the exact text players see while the beat is rumored and once it's revealed.
+  - **Attachments**: the material this beat needs: Encounter, NPC, Faction, Item, Monster, Sound, Audio scene, Playlist, Note, Handout, or a **Check** (a skill, a DC, an optional contested-by skill and note, prepared here and rolled at the table). Mark each **Needed** (flags a prep gap if it goes missing) or **Optional**. The beat's site is here too (see below).
+  - **Payoffs and routes**: this beat's routes out, and its **Payoff**, one list combining its consequences and loot, each tagged **auto** (fires by itself) or **you dispatch** (you hand it over). Quick-adds cover the common cases without opening a full condition form: **Item**, **Riches** (loot); **Influence**, **Knowledge**, **Quest**, **Favour**, **Milestone**, **Event**, **Handout**, **Tick clock**, **Move NPC**, **Companion**, **Standing** (consequences). **Move NPC** puts an NPC in another place, **Companion** brings an NPC into the party as an ally (with the hit points, armour class and speed from their stat block, unassigned until you give them an owner on the Party page), and **Standing** moves the party's standing with a faction up or down the same five-step ladder an NPC's stance uses. A payoff can fire when the party arrives or **if it goes wrong**, when the beat is failed. Each can be taken back with Undo.
 - **Fill with AI**: with AI on for the campaign, a **Fill** control at the top of the beat's text fields drafts a title, read-aloud and DM lead. It reads the quest, the beats before and after this one, the objectives still open and the place the beat is staged at, so the draft continues your story rather than starting a new one. Add a steer if you like ("a tense negotiation"). It never overwrites without asking: if the beat already has read-aloud or DM lead text, you are asked before anything is spent, and the title is only replaced when it is still blank. Each fill costs credits, shown beside the button, and the draft is marked as AI-written until you edit it.
-- **Placements**: the material this beat needs: Encounter, NPC, Faction, Item, Monster, Sound, Audio scene, Playlist, Note, Handout, or a **Check** (a skill, a DC, an optional contested-by skill and note, prepared here and rolled at the table). Mark each **Needed** (flags a prep gap if it goes missing) or **Optional**.
-- **Routes out**: every outgoing route, with its kind, target, and a site chip if the destination is staged at a room-bearing site.
-- **Payoff**: one list combining this beat's consequences and loot, each tagged **auto** (fires by itself) or **you dispatch** (you hand it over). Quick-adds cover the common cases without opening a full condition form: **Item**, **Riches** (loot); **Influence**, **Knowledge**, **Quest**, **Favour**, **Milestone**, **Event**, **Handout**, **Tick clock**, **Move NPC**, **Companion**, **Standing** (consequences). **Move NPC** puts an NPC in another place, **Companion** brings an NPC into the party as an ally (with the hit points, armour class and speed from their stat block, unassigned until you give them an owner on the Party page), and **Standing** moves the party's standing with a faction up or down the same five-step ladder an NPC's stance uses. Each can be undone with Previous.
-- **Site**: see below.
 
-**Revealing a beat.** The action row (or the phone dock) carries **Reveal to players** (for a hidden beat) or **Reveal fully** (for a rumored one). Revealing is separate from advancing: moving a thread onto a beat doesn't reveal it by itself.
+**Revealing a beat.** **Players see** carries **Reveal to players** (for a hidden beat) or **Reveal fully** (for a rumored one), and the beat's summary has a **Hidden / Rumored / Revealed** control. Revealing is separate from advancing: moving a thread onto a beat doesn't reveal it by itself. If the quest isn't shared with anyone yet, revealing or rumoring one of its beats shares the quest with your whole party, since otherwise no one could see it. A quest you shared with only some players stays as you set it.
 
 ## Staging a beat at a site
 
-If a beat plays out somewhere with its own floor plan, the **Site** panel's **Choose site** lets you stage it there. Once staged, the panel shows:
+If a beat plays out somewhere with its own floor plan, the **Site** panel's **Choose site** (under **Attachments** on an opened beat) lets you stage it there. Once staged, the panel shows:
 
-- **Opens at**: the party's entry room when Run enters the site (or "the site itself" if none is chosen).
+- **Opens at**: the party's entry room when the party enters the site (or "the site itself" if none is chosen).
 - **Prepared on the way**: traps, encounters and puzzles reachable from that entry point.
 - **Ambience**: the resolved theme that plays.
 - **Site readiness**: whether the floor plan is published and its ways out are traced; an unready site is flagged as its own beat gap.
@@ -105,8 +132,8 @@ Nothing about a beat is visible until its **visibility** reaches at least "rumor
 
 - A parallel route can never be the only way out of a beat: add a choice route first.
 - **Kind** is a presentation hint only; it never restricts which attachments a beat can carry.
-- Settled is final: a rule that completes or fails an objective only touches one that is still open (Not yet raised or Open). An objective that is already Completed or Failed stays that way, and does not set off the rules watching it a second time. Your own assertions in the quest log and stepping back with Previous still change anything.
-- Prep gaps (shown as chips throughout Story Flow) flag missing required material, an unwritten guidance field, or an unready staged site: not a design defect, just something left to fill in before the table gets there.
+- Settled is final: a rule that completes or fails an objective only touches one that is still open (Not yet raised or Open). An objective that is already Completed or Failed stays that way, and does not set off the rules watching it a second time. Your own marks and Undo still change anything.
+- Prep gaps (shown as chips on the flow and in the toolbar's **N prep gaps** list) flag missing required material, an unwritten guidance field, or an unready staged site: not a design defect, just something left to fill in before the table gets there.
 
 ## Related
 

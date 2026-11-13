@@ -133,7 +133,7 @@ Moving the party into a room is a single write to the campaign's current locatio
 
 ### Quests staged at a site
 
-A quest beat can be staged at a site, or at one specific room inside it (see [Running a Quest at the Table](#running-a-quest-at-the-table)). When one is, the room card shows a beat card with a **Resolve beat**/**Back to the beat** link into the quest's run cockpit: the room stack you're looking at is the same read-aloud-and-payoff idiom the cockpit itself uses, because a room is, in effect, a zoomed-in beat. A room's **Cleared** fact can also satisfy a quest objective directly, authored from [Quest Story Flow](#quest-story-flow-beats-routes-objectives) or from the room's own Spaces panel in Build.
+A quest beat can be staged at a site, or at one specific room inside it (see [Running a Quest at the Table](#running-a-quest-at-the-table)). When one is, the room card shows a beat card with a **Resolve beat**/**Back to the beat** link into the quest's opened beat: the room stack you're looking at is the same read-aloud-and-payoff idiom the opened beat itself uses, because a room is, in effect, a zoomed-in beat. A room's **Cleared** fact can also satisfy a quest objective directly, authored from [Quest Story Flow](#quest-story-flow-beats-routes-objectives) or from the room's own Spaces panel in Build.
 
 ## What your players see
 

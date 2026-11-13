@@ -61,14 +61,14 @@ const stubs = {
   QuestPlayerPreviewDrawer: true, QuestRunContainedTool: true, DockBar: { template: "<div data-test='dock'><slot /></div>" },
 };
 
-async function mountOpened(partyBeatId: string | null = "beat-1", path = "/quests/quest-1") {
+async function mountOpened(partyBeatId: string | null = "beat-1", path = "/quests/quest-1", sessionId: string | null = null) {
   setActivePinia(createPinia());
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: "/quests/:id", component: { template: "<div />" } }] });
   await router.push(path);
   const wrapper = mount(QuestOpenedBeat, {
     props: {
       questId: "quest-1", beatId: "beat-1", quest: null, threads: [], focusThreadId: "thread-1",
-      currentBeatIdByThread: { "thread-1": partyBeatId }, presentations: {},
+      currentBeatIdByThread: { "thread-1": partyBeatId }, presentations: {}, sessionId,
     },
     global: { plugins: [router], stubs },
   });
@@ -101,7 +101,14 @@ describe("QuestOpenedBeat", () => {
     expect(button(wrapper, "Advance")).toHaveLength(0);
     expect(button(wrapper, "Undo")).toHaveLength(0);
     await button(wrapper, "Put the party here")[0]!.trigger("click");
-    expect(mocks.markMove).toHaveBeenCalledWith({ campaignId: "campaign-1", questId: "quest-1", threadId: "thread-1", kind: "party_here", beatId: "beat-1" });
+    expect(mocks.markMove).toHaveBeenCalledWith({ campaignId: "campaign-1", questId: "quest-1", threadId: "thread-1", kind: "party_here", beatId: "beat-1", sessionId: null });
+  });
+
+  // Bug: a put-here from the opened beat filed under no session ignores the toolbar's "Marks go to".
+  it("files Put the party here under the session the toolbar names", async () => {
+    const { wrapper } = await mountOpened("beat-9", "/quests/quest-1", "session-7");
+    await button(wrapper, "Put the party here")[0]!.trigger("click");
+    expect(mocks.markMove).toHaveBeenCalledWith(expect.objectContaining({ kind: "party_here", sessionId: "session-7" }));
   });
 
   // Bug: Undo scoped to one thread would leave the quest's newest move, made on another thread, in place.

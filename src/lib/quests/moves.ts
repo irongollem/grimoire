@@ -1,5 +1,5 @@
 import { describeQuestConsequenceAction } from "@/lib/quests/consequences";
-import type { QuestBeat, QuestBeatEdge, QuestConsequence } from "@/types/quest.types";
+import type { QuestBeat, QuestBeatEdge, QuestBeatTransition, QuestConsequence } from "@/types/quest.types";
 
 export interface RoutePreview {
   /** The beat the route marks done. */
@@ -35,4 +35,19 @@ export function previewRoute(input: {
       .map((other) => titleOf(other.target_beat_id))
     : [];
   return { doneTitle: titleOf(edge.target_beat_id), payoffs, cutOff, opensThread: edge.route_kind === "parallel" };
+}
+
+/**
+ * The move the toolbar's Undo would take back: the quest's newest transition
+ * that arrives at a beat, which is what `undo_quest_move` with no thread undoes
+ * (every transition of that move together, so one row names it). Null when the
+ * quest has no move to take back.
+ */
+export function newestUndoableMove<T extends Pick<QuestBeatTransition, "to_beat_id" | "created_at">>(transitions: readonly T[]): T | null {
+  let newest: T | null = null;
+  for (const transition of transitions) {
+    if (!transition.to_beat_id) continue;
+    if (!newest || Date.parse(transition.created_at) >= Date.parse(newest.created_at)) newest = transition;
+  }
+  return newest;
 }

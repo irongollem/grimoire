@@ -141,7 +141,7 @@ The `?? []` in that widget is load-bearing on `isLoading`: while either query is
 
 **Unclaimed loot (`QuestLootWidget.vue`)** — the missing reader for `undispatchedLootCount` and `unclaimedLootCount`, which `QuestBoardSummary` (`src/lib/quests/board.ts:27-28`) has computed for every quest since the board shipped and which nothing outside the board ever read.
 
-**The two counts are different states and are never summed.** `undispatchedLootCount` is loot in `delivery_state: "held"` — the DM prepared a reward and never dropped it into chat, so nobody at the table knows it exists; that is the DM's own action item and takes the caution tint. `unclaimedLootCount` is `"chat"` or `"partially_claimed"` — already dropped, the party just has not taken it; the DM's part is done, so it reads quieter. (Semantics from `src/lib/quests/loot.ts:9-10`, confirmed against the `delivery_state` a payoff row's caption renders in `QuestPayoffPanel.vue`, the beat page's payoff list that replaced the old beat loot panel — see [quests.md](quests.md).) Adding them would ask the DM to act on a number describing nothing real, so the row shows two badges or one, never a total.
+**The two counts are different states and are never summed.** `undispatchedLootCount` is loot in `delivery_state: "held"` — the DM prepared a reward and never dropped it into chat, so nobody at the table knows it exists; that is the DM's own action item and takes the caution tint. `unclaimedLootCount` is `"chat"` or `"partially_claimed"` — already dropped, the party just has not taken it; the DM's part is done, so it reads quieter. (Semantics from `src/lib/quests/loot.ts:9-10`, confirmed against the `delivery_state` a payoff row's caption renders in `QuestPayoffPanel.vue`, the opened beat's payoff list that replaced the old beat loot panel — see [quests.md](quests.md).) Adding them would ask the DM to act on a number describing nothing real, so the row shows two badges or one, never a total.
 
 `isLoading` comes from the queries' own flags rather than `data === undefined`: a query that errored also leaves `data` undefined but is no longer loading, and this card has no error state of its own, so it should stop spinning rather than spin forever.
 
@@ -169,7 +169,7 @@ The `?? []` inside `memberEntries` is unreachable in the render path: `loading` 
 
 **Recent quest activity (`QuestActivityWidget.vue`)** — the beat-to-beat feed out of `quest_beat_transitions`, a complete audit trail that nothing read. Not self-hiding: "no beats played yet" is informative for a fresh campaign.
 
-Nothing in the app turned a transition into a sentence, so `questActivity.ts`'s phrasing is new rather than a duplicate — the cockpit's own path rendering (`QuestRunStorySoFar.vue`, which replaced `QuestRunPath.vue` in the Quest Manager Redesign) reads a different, narrower shape (`QuestRuntimeContext.path_so_far`). The table denormalises `from_quest_title` / `from_beat_title` / `to_*` at write time (`20260810000007_atomic_quest_runtime_navigation.sql:34-53`), so no beat fetch is needed. The null pairs are not defensive padding: only `start` leaves the `from_*` columns null (kind `enter`) and only `end` leaves the `to_*` null, and table check constraints guarantee each pair is null-null or both-present.
+Nothing in the app turned a transition into a sentence, so `questActivity.ts`'s phrasing is new rather than a duplicate — the runtime context's own path (`QuestRuntimeContext.path_so_far`) is a different, narrower shape. The table denormalises `from_quest_title` / `from_beat_title` / `to_*` at write time (`20260810000007_atomic_quest_runtime_navigation.sql:34-53`), so no beat fetch is needed. The null pairs are not defensive padding: only `start` leaves the `from_*` columns null (kind `enter`) and only `end` leaves the `to_*` null, and table check constraints guarantee each pair is null-null or both-present.
 
 **Deities (`DeityLookupWidget.vue`)** — domains, alignment and symbol, in `ConditionsWidget`'s accordion. `selfHiding: true`: an empty pantheon is "not set up yet" rather than news, and most campaigns never record one.
 
@@ -282,7 +282,7 @@ Held in `questRows.test.ts`: ending a session no longer pauses anything (`202610
 - `useRecentNpcs` — `src/composables/dashboard/useRecentNpcs.ts` — module-level singleton, localStorage-backed.
 - `useSetCampaignToday` / `useSetCampaignLocation` — `src/composables/campaign/useCampaigns.ts`.
 - `useSyncPartyLocation` — `src/composables/party/useParty.ts` — batch `UPDATE party_members SET current_location_id WHERE id IN (...)`.
-- `useCampaignLiveQuests` — `src/composables/quests/useQuestFlow.ts` — the open-chain set. Shared with the Run cockpit and, per [session-mode.md](../../docs/session-mode.md), the planned `LiveRail`; add consumers to it rather than re-querying `get_campaign_live_quests`.
+- `useCampaignLiveQuests` — `src/composables/quests/useQuestFlow.ts` — the open-chain set. Shared with the session rail and, per [session-mode.md](../../docs/session-mode.md), the planned `LiveRail`; add consumers to it rather than re-querying `get_campaign_live_quests`.
 
 ### campaigns table additions (migration `20260508000008`)
 

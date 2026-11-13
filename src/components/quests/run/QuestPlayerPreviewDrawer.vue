@@ -27,11 +27,7 @@
           <p v-if="selectedBeatId" class="text-2xs text-muted-foreground">Contextual preview is focused from the selected beat, but shows the whole saved player thread.</p>
         </div>
         <main class="min-h-0 flex-1 overflow-y-auto p-4">
-          <div v-if="!audienceId" class="rounded-lg border border-dashed border-border p-6 text-center text-body text-muted-foreground">Choose an audience to load the player-safe quest.</div>
-          <LoadingSpinner v-else-if="beatsQuery.isLoading.value" class="mx-auto my-12" />
-          <div v-else-if="beatsQuery.error.value" role="alert" class="rounded-lg border border-destructive/40 p-3 text-body text-destructive">The safe player projection could not be loaded.</div>
-          <div v-else-if="!beats.length" class="rounded-lg border border-dashed border-border p-6 text-center text-body text-muted-foreground">No rumored or revealed story moments are currently visible to this audience.</div>
-          <PlayerQuestStoryThread v-else :beats="beats" />
+          <QuestPlayerPreviewBody :audience-id="audienceId" :loading="beatsQuery.isLoading.value" :error="Boolean(beatsQuery.error.value)" :beats="beats" />
         </main>
         <footer class="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border p-4">
           <AppButton label="Close preview" variant="subtle" @click="emit('close')" />
@@ -43,17 +39,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import { useParty } from "@/composables/party/useParty";
-import { usePlayerQuestBeats } from "@/composables/quests/useQuestFlow";
-import { groupPlayerBeatsByThread } from "@/lib/quests/playerThreads";
+import { useQuestPreviewAudience } from "@/composables/quests/useQuestPreviewAudience";
 import { useAppUiStore } from "@/stores/ui/app";
 import type { QuestBeatVisibility } from "@/types/quest.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
-import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
-import PlayerQuestStoryThread from "@/components/player/PlayerQuestStoryThread.vue";
+import QuestPlayerPreviewBody from "./QuestPlayerPreviewBody.vue";
 
 const props = defineProps<{
   questId: string;
@@ -65,25 +58,7 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>();
 const appUi = useAppUiStore();
 const router = useRouter();
-const { data: party } = useParty();
-const audienceId = ref(appUi.dmPreviewPartyMemberId ?? "");
-const audienceOptions = computed(() => (party.value ?? []).filter((member) => props.visibleTo.includes(member.id)));
-const audience = computed(() => audienceOptions.value.find((member) => member.id === audienceId.value) ?? null);
-// The `<select>` needs "" for its empty option, but the RPC parameter is a uuid
-// and `??` would forward the empty string straight into Postgres (22P02). No
-// audience is chosen until the party resolves, and never for a quest shared
-// with nobody.
-const previewAudienceId = computed(() => audienceId.value || null);
-const beatsQuery = usePlayerQuestBeats(computed(() => props.questId), previewAudienceId);
-const beats = computed(() => beatsQuery.data.value ?? []);
-// Widens the drawer once there is more than one thread to read side by side —
-// a single narrow column is fine for a linear quest, but two thread columns
-// squeezed into max-w-xl would wrap every card to one word per line.
-const hasMultipleThreads = computed(() => groupPlayerBeatsByThread(beats.value).length > 1);
-
-watch(audienceOptions, (options) => {
-  if (!options.some((member) => member.id === audienceId.value)) audienceId.value = options[0]?.id ?? "";
-}, { immediate: true });
+const { audienceId, audienceOptions, audience, beatsQuery, beats, hasMultipleThreads } = useQuestPreviewAudience(() => props.questId, () => props.visibleTo);
 
 function openActualRoute() {
   if (!audienceId.value) return;

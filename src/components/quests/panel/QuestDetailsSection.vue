@@ -6,6 +6,8 @@
     </div>
     <DraftConflictNotice :fields="conflictLabels" :on-discard="resetDraft" />
 
+    <AppInput v-model="draft.title" tone="card" size="body-xs" aria-label="Title" placeholder="Title" />
+
     <!-- No premise label: the field says what it is, and the drawer is narrow. -->
     <AppInput
       v-model="draft.summary"
@@ -61,9 +63,10 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 import { QUEST_STATUSES, QUEST_STATUS_LABELS, type Quest, type QuestStatus } from "@/types/quest.types";
 
-// The title is the page header's and the opening beat is set on a beat, so
-// neither is a field here; sharing is the Players section's own write.
+// The opening beat is set on a beat, and sharing is the Players section's own
+// write, so neither is a field here. The page header only shows the title.
 interface DetailsDraft {
+  title: string;
   summary: string;
   status: QuestStatus;
   giverNpcId: string;
@@ -85,6 +88,7 @@ const { mutateAsync: updateQuest } = useUpdateQuest();
 
 function questToDraft(quest: Quest): DetailsDraft {
   return {
+    title: quest.title,
     summary: quest.summary ?? "",
     status: quest.status,
     giverNpcId: quest.giver_npc_id ?? "",
@@ -110,6 +114,7 @@ const { data: giver } = useNpc(computed(() => draft.giverNpcId));
 const { data: primaryLocation } = useLocation(() => draft.locationId || null);
 
 const CONFLICT_LABELS: Record<keyof DetailsDraft, string> = {
+  title: "Title",
   summary: "Premise",
   status: "Board lane",
   giverNpcId: "Quest giver",
@@ -122,6 +127,8 @@ const conflictLabels = computed(() => conflicts.value.map((key) => CONFLICT_LABE
 /** Pure function of the draft, so a column the DM never touched is left out of the write. */
 function detailsRow(d: DetailsDraft) {
   return {
+    // A quest is never saved untitled: an emptied field keeps the last saved title.
+    title: d.title.trim() || shown.value.title,
     summary: d.summary.trim() || null,
     status: d.status,
     giver_npc_id: d.giverNpcId || null,
