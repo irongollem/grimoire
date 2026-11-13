@@ -48,10 +48,9 @@
               </p>
             </div>
             <div class="flex flex-col items-end gap-1 shrink-0">
-              <span v-if="shownSize(sp)"
-                class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground capitalize">
+              <TagChip v-if="shownSize(sp)" class="capitalize">
                 {{ shownSize(sp) }}
-              </span>
+              </TagChip>
               <span v-if="shownWalk(sp) !== null" class="text-caption-sm text-muted-foreground">
                 {{ shownWalk(sp) }} ft
               </span>
@@ -91,6 +90,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import ImageUpload from "@/components/common/media/ImageUpload.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";

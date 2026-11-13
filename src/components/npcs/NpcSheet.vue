@@ -19,12 +19,10 @@
         ai-badge="right"
       />
       <div class="flex flex-wrap gap-1">
-        <span class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.status }}</span>
-        <span class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize">{{ npc.relationship }}</span>
+        <TagChip class="capitalize">{{ npc.status }}</TagChip>
+        <TagChip class="capitalize">{{ npc.relationship }}</TagChip>
       </div>
-      <div v-if="npc.tags?.length" class="flex flex-wrap gap-1">
-        <span v-for="tag in npc.tags" :key="tag" class="text-label bg-muted/60 text-muted-foreground rounded px-2 py-0.5">{{ tag }}</span>
-      </div>
+      <TagChips :tags="npc.tags" />
 
       <!--
         ALTER EGO status, at a glance. The toggle itself now lives in the
@@ -48,6 +46,8 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
+import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import NpcTabContent from "@/components/npcs/NpcTabContent.vue";

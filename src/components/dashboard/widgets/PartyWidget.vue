@@ -53,10 +53,10 @@
         </div>
         <!-- Quick stats -->
         <div class="flex items-center gap-1 flex-wrap">
-          <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" :title="acTitle(member)">AC {{ acOf(member) }}</span>
-          <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" title="Passive Perception">
+          <TagChip class="inline-flex items-center gap-1" :title="acTitle(member)">AC {{ acOf(member) }}</TagChip>
+          <TagChip class="inline-flex items-center gap-1" title="Passive Perception">
             <IconReveal class="h-2.5 w-2.5" />{{ passiveScore(member, "perception", jackFor(member)) }}
-          </span>
+          </TagChip>
           <AwarenessRollButton
             v-if="awarenessOn"
             :member="member"
@@ -65,9 +65,9 @@
             :pending="spend.isPending.value"
             @use="spend.mutate([member.id])"
           />
-          <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground" title="Passive Insight">
+          <TagChip class="inline-flex items-center gap-1" title="Passive Insight">
             <IconMind class="h-2.5 w-2.5" />{{ passiveScore(member, "insight", jackFor(member)) }}
-          </span>
+          </TagChip>
           <span v-if="member.inspiration" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/20 border border-primary/40 text-label text-primary">★ Insp.</span>
         </div>
         <!-- Conditions + Curses -->
@@ -87,6 +87,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed } from "vue";
 import { IconMind, IconNavParty, IconReveal } from "@/lib/icons";
 import { useActiveParty } from "@/composables/party/useActiveParty";

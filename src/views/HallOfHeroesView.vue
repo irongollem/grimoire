@@ -129,16 +129,7 @@
           <p v-if="hero.race || hero.occupation" class="truncate text-caption text-muted-foreground italic">
             {{ [hero.race, hero.occupation].filter(Boolean).join(" · ") }}
           </p>
-          <div v-if="hero.tags.length" class="flex flex-wrap gap-1 pt-1">
-            <span
-              v-for="tag in hero.tags.slice(0, 3)"
-              :key="tag"
-              class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-            >{{ tag }}</span>
-            <span v-if="hero.tags.length > 3" class="self-center text-caption-sm text-muted-foreground italic">
-              +{{ hero.tags.length - 3 }}
-            </span>
-          </div>
+          <TagChips :tags="hero.tags" :max="3" overflow class="pt-1" />
           <!-- Above the whole-card link (z-2), like the corner chips. -->
           <AppButton
             class="relative z-10 mt-auto w-full"
@@ -186,6 +177,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useScrollRestore } from "@/composables/useScrollRestore";

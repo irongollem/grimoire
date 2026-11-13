@@ -28,7 +28,7 @@
         <p v-if="meta" class="text-label text-muted-foreground mt-0.5 truncate">{{ meta }}</p>
       </div>
       <div v-if="badge || count" class="shrink-0 flex flex-col items-end gap-0.5">
-        <span v-if="badge" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground capitalize">{{ badge }}</span>
+        <TagChip v-if="badge" class="capitalize">{{ badge }}</TagChip>
         <span v-if="count" class="text-label text-muted-foreground/60">{{ count }}</span>
       </div>
     </div>
@@ -36,6 +36,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import type { Component } from "vue";
 import { IconBookMarked } from '@/lib/icons';
 import FocalImage from "@/components/common/media/FocalImage.vue";

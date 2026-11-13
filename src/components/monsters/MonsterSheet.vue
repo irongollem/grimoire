@@ -19,14 +19,7 @@
           class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-112"
           ai-badge="right"
         />
-        <div v-if="monster.tags?.length" class="flex flex-wrap gap-1">
-          <span
-            v-for="tag in monster.tags"
-            :key="tag"
-            class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5"
-            >{{ tag }}</span
-          >
-        </div>
+        <TagChips :tags="monster.tags" />
         <p v-if="monster.habitat" class="text-caption text-muted-foreground italic">
           Habitat: {{ monster.habitat }}
         </p>
@@ -95,15 +88,14 @@
         Featured In
       </h3>
       <div class="flex flex-wrap gap-1.5">
-        <RouterLink
+        <TagChip
           v-for="enc in featuredIn"
           :key="enc.id"
           :to="`/encounters/${enc.id}`"
-          class="inline-flex items-center gap-1 text-label px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
           :class="enc.is_finished ? 'opacity-50' : ''"
         >
           <IconEncounter class="h-2.5 w-2.5 shrink-0" />{{ enc.name }}
-        </RouterLink>
+        </TagChip>
       </div>
     </div>
 
@@ -113,20 +105,21 @@
         Loot Tables
       </h3>
       <div class="flex flex-wrap gap-1.5">
-        <RouterLink
+        <TagChip
           v-for="lt in lootTables"
           :key="lt.id"
           :to="`/loot-tables/${lt.id}`"
-          class="inline-flex items-center gap-1 text-label px-2 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
         >
           <IconPackage class="h-2.5 w-2.5 shrink-0" />{{ lt.name }}
-        </RouterLink>
+        </TagChip>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
+import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconEncounter, IconPackage } from '@/lib/icons';

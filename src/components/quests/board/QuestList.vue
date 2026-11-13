@@ -96,13 +96,7 @@
             <div v-else class="flex-1" />
 
             <div class="flex items-end justify-between gap-2 mt-auto">
-              <div v-if="quest.tags.length" class="flex flex-wrap gap-1">
-                <span
-                  v-for="tag in quest.tags.slice(0, 2)"
-                  :key="tag"
-                  class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
-                >{{ tag }}</span>
-              </div>
+              <TagChips :tags="quest.tags" :max="2" />
               <span class="text-caption-sm text-muted-foreground italic shrink-0 ml-auto">
                 {{ timeAgo(quest.updated_at) }}
               </span>
@@ -120,6 +114,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
 import { IconNavQuests, IconScrollText } from '@/lib/icons';
 import {

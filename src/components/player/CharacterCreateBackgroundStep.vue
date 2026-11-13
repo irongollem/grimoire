@@ -45,14 +45,12 @@
                 class="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-label text-primary">
                 {{ sk }}
               </span>
-              <span v-for="t in bg.tool_proficiencies" :key="t"
-                class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground">
+              <TagChip v-for="t in bg.tool_proficiencies" :key="t">
                 {{ t }}
-              </span>
-              <span v-if="bg.languages?.length"
-                class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground">
+              </TagChip>
+              <TagChip v-if="bg.languages?.length">
                 {{ bg.languages.length === 1 ? bg.languages[0] : `${bg.languages.length} languages` }}
-              </span>
+              </TagChip>
             </div>
             <p v-if="bg.feature_name" class="text-caption text-muted-foreground mt-1.5 italic line-clamp-1">
               {{ bg.feature_name }}
@@ -222,6 +220,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { ref, computed } from "vue";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { backgroundSourceKey } from "@/composables/rules/useBackgrounds";

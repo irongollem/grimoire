@@ -134,13 +134,7 @@
       </span>
     </div>
 
-    <div v-else-if="quest.tags.length" class="mt-2 flex flex-wrap gap-1">
-      <span
-        v-for="tag in quest.tags.slice(0, 3)"
-        :key="tag"
-        class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-      >{{ tag }}</span>
-    </div>
+    <TagChips v-else :tags="quest.tags" :max="3" class="mt-2" />
 
     <footer class="mt-3 grid gap-2 border-t border-muted pt-2 text-caption-sm text-muted-foreground">
       <div class="flex min-w-0 items-center gap-2">
@@ -220,6 +214,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChips from "@/components/common/TagChips.vue";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import {

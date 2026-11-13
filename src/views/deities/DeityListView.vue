@@ -148,10 +148,7 @@
                 :key="domain"
                 class="rounded border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-label text-primary"
               >{{ domain }}</span>
-              <span
-                v-if="deity.domains.length > 3"
-                class="rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
-              >+{{ deity.domains.length - 3 }}</span>
+              <TagChip v-if="deity.domains.length > 3">+{{ deity.domains.length - 3 }}</TagChip>
             </div>
           </template>
         </EntityGridCard>
@@ -182,6 +179,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { computed, ref } from "vue";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { IconAdd, IconFire, IconGenerate, IconNavPantheon, IconPopulate, IconReveal } from '@/lib/icons';

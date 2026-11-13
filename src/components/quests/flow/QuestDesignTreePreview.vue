@@ -10,7 +10,7 @@
         <div class="flex flex-wrap items-center gap-1.5">
           <span class="text-label text-primary shrink-0">{{ i + 1 }}.</span>
           <span class="font-semibold text-body text-foreground">{{ beat.title }}</span>
-          <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ beat.kind }}</span>
+          <TagChip class="uppercase">{{ beat.kind }}</TagChip>
           <span
             v-if="changeBadge(beat.key)"
             class="rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info"
@@ -66,6 +66,7 @@
  * src/lib/quests/spine.ts) so this can never show a beat, route or objective
  * status that createFromHook would then silently drop or resolve differently.
  */
+import TagChip from "@/components/common/TagChip.vue";
 import { computed } from "vue";
 import { planSpineBeats, planSpineRoutes, deriveObjectiveStatuses } from "@/lib/quests/spine";
 import QuestObjectiveStatusMark from "@/components/quests/inspector/QuestObjectiveStatusMark.vue";

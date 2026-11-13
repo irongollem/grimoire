@@ -17,10 +17,10 @@
     <div>
       <div class="flex items-center gap-2">
         <h2 class="text-heading font-bold text-foreground">{{ companion?.name }}</h2>
-        <span
+        <TagChip
           v-if="companion && takesPartInCombat(companion) && !companion.combat_ready"
-          class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground italic"
-        >Elsewhere</span>
+          class="italic"
+        >Elsewhere</TagChip>
       </div>
       <p v-if="ownerName" class="text-body text-muted-foreground italic">
         {{ ownerName }}'s companion
@@ -163,6 +163,7 @@
 </template>
 
 <script setup lang="ts">
+import TagChip from "@/components/common/TagChip.vue";
 import { ref, computed } from "vue";
 import { IconShield, IconEdit, IconClose } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
