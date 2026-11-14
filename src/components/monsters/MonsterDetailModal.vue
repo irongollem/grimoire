@@ -4,6 +4,7 @@
     :subtitle="subtitle"
     :loading="isLoading"
     height="content"
+    size="2xl"
     :origin-key="`/monsters/${id}`"
     @close="emit('close')"
   >

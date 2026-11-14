@@ -21,24 +21,27 @@
     <!-- Top: portrait | stat block | lore (two tracks in low art) -->
     <div
       class="grid grid-cols-1 gap-6"
-      :class="lowArt ? 'lg:grid-cols-2' : 'lg:grid-cols-[12.5rem_minmax(0,1fr)_minmax(0,1fr)]'"
+      :class="lowArt ? 'lg:grid-cols-2' : 'lg:grid-cols-[16rem_minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)_minmax(0,1fr)]'"
     >
-      <!-- Left: portrait.
-           `max-h-112` is a fixed cap rather than the `75vh` it replaces.
-           The viewport measurement only ever bound below `lg`, where the
-           portrait spans the full width — and it bound badly once this sheet
-           started appearing in a modal, where three quarters of the viewport is
-           most of the panel and the stat block fell off the bottom. At `lg` the
-           12.5rem column decides the height anyway, so nothing changes there. -->
-      <div v-if="!lowArt" class="flex flex-col gap-3">
+      <!-- Left: portrait, in its own 2:3 shape at every width (#1193).
+           It used to be a 12.5rem column stretched to the stat block's height,
+           which cut a 2:3 painting down to a strip: a laptop showed less of the
+           monster than a phone did. Now the column is wider, the picture keeps
+           the shape it was painted in, and the modal is `2xl` so the stat block
+           and lore keep their measure beside it.
+           `max-h-112` binds only below `lg`, where the portrait spans the full
+           width of a modal and a full 2:3 would push the stat block off the
+           bottom; it is a fixed cap rather than a `vh` for the same reason. -->
+      <div v-if="!lowArt" class="flex flex-col gap-3 self-start">
         <FocalImage
           :src="monster.image_url"
           :focal-point="monster.portrait_focal_point"
           format="portrait"
           :lightbox="true"
+          :render-width="600"
           record
           :placeholder="placeholderUrl('monster')"
-          class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-112"
+          class="w-full rounded-lg overflow-hidden aspect-2/3 max-h-112 lg:max-h-none"
           ai-badge="right"
         />
         <TagChips :tags="monster.tags" />
@@ -67,9 +70,7 @@
       <!-- Lore sits beside the numbers, not under every action: it is the
            first thing a DM reads about a creature, and in a column it keeps a
            readable measure where full width would run past 100 characters.
-           No "Description" label; prose beside a stat block needs none.
-           Only the portrait column stretches to the row, so the picture ends
-           where the stat block does; the two text columns keep their height. -->
+           No "Description" label; prose beside a stat block needs none. -->
       <div class="flex flex-col gap-4 self-start">
         <RichTextViewer v-if="description" :content="description" class="lore" />
         <p v-if="!description" class="text-body italic text-muted-foreground">

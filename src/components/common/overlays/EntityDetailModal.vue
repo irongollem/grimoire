@@ -94,7 +94,7 @@ const { title, subtitle, loading, contained, originKey, size = "xl", height = "f
   contained?: boolean;
   /** Route this modal was opened towards, so it can fly out of its card. */
   originKey?: string;
-  size?: "lg" | "xl" | "full";
+  size?: "lg" | "xl" | "2xl" | "full";
   /**
    * `fill` (default) fixes the panel height, which is what a sheet that manages
    * its own columns needs — something has to have a height for them to be

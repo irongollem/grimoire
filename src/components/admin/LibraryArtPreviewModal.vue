@@ -3,7 +3,7 @@
     :title="entity?.name ?? 'Loading…'"
     :subtitle="subtitle"
     :loading="!entity"
-    size="xl"
+    :size="monster ? '2xl' : 'xl'"
     height="content"
     @close="emit('close')"
   >

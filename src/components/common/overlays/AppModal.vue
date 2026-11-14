@@ -104,6 +104,8 @@ const SIZES = {
   md: "max-w-lg",
   lg: "max-w-3xl",
   xl: "max-w-5xl",
+  // A sheet with a picture column beside two text columns (the monster sheet, #1193).
+  "2xl": "max-w-6xl",
   full: "max-w-none",
 } as const;
 

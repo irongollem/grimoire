@@ -453,7 +453,7 @@ Route: `/play/bestiary` (`PlayerBestiaryView.vue`)
 
 Two tabs:
 
-- **Bestiary** — Monsters the player has discovered during play, auto-populated by the encounter runner when stat reveals are enabled. Each card shows portrait, name, type, CR. Clicking opens a lightbox with full stat block (when `reveal_stats = true`), rollable attack/damage buttons, and player notes.
+- **Bestiary** — Monsters the player has discovered during play, auto-populated by the encounter runner when stat reveals are enabled. Each card shows portrait, name, type, CR. Clicking opens a lightbox with full stat block (when `reveal_stats = true`), rollable attack/damage buttons, and player notes. Clicking the picture at its top opens it full size, as on the DM's sheet (#1193).
 - **Wild Forms** (Druids and Rangers only) — Shows pinned forms (DM-placed) and eligible discovered beasts within CR cap. DM Preview Mode shows a "Share all eligible beasts" shortcut. Each form opens the stat block lightbox with full rolls.
 
 ### Spells

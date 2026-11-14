@@ -88,6 +88,8 @@
     </header>
 
     <!-- ── 2. Hero ────────────────────────────────────────────────────────── -->
+    <!-- A tap on the picture opens it full size, as the desktop sheets of every
+         host (monster, NPC, spell) already do; the hero is a 20rem crop (#1193). -->
     <div v-if="!lowArt" class="relative h-80 w-full overflow-hidden bg-muted">
       <FocalImage
         record
@@ -97,6 +99,7 @@
         :focal-point="focalPoint"
         :render-width="600"
         :placeholder="placeholder"
+        :lightbox="true"
         class="absolute inset-0"
         ai-badge="right"
         ai-badge-class="z-10"

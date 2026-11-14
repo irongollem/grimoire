@@ -205,6 +205,7 @@
               :placeholder="placeholderUrl('monster')"
               ai-badge="left"
               ai-badge-class="bottom-9!"
+              :lightbox="true"
               record
             />
             <!--
