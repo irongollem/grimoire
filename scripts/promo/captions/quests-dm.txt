@@ -1,8 +1,8 @@
 Quests in Dungeon Grimoire, from the DM's side.
 
-Open a quest and press Run: the Session cockpit shows where the party is and the read-aloud for the scene in front of you. Reveal it to your players and it lands in their story. When the party moves on, choose what happens next, see the payoff that route fires, and advance.
+Open a quest and the whole story is on one screen, with the read-aloud for the scene in front of the party in the drawer beside it. Tick Party here and your players see the scene the moment the party arrives. When they move on, take a route, see the payoff it fires, and advance.
 
-The player's side went up earlier this week.
+The player's side went up last night.
 
 Music: the Grimoire theme, made in the app's own soundboard.
 
