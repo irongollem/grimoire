@@ -3,7 +3,7 @@
     <div class="space-y-5 pb-2">
       <section class="space-y-2">
         <h3 class="text-eyebrow font-bold uppercase text-muted-foreground">Sort by</h3>
-        <PeopleSortControl v-model:sort-by="sortBy" v-model:dir="playerUi.playerPeopleSortDir" :options="sortOptions" />
+        <SortControl v-model:sort-by="sortBy" v-model:sort-dir="playerUi.playerPeopleSortDir" :options="sortOptions" display="segmented" />
       </section>
 
       <section class="space-y-2">
@@ -46,7 +46,7 @@ import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
-import PeopleSortControl from "@/components/player/people/PeopleSortControl.vue";
+import SortControl from "@/components/common/controls/SortControl.vue";
 import type { PeoplePlace } from "@/composables/player/usePlayerPeople";
 import type { PlayerNpcSortField } from "@/lib/npcs/playerNpcSort";
 import { usePlayerUiStore } from "@/stores/ui/player";

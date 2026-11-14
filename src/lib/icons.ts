@@ -157,7 +157,9 @@ export { ChevronDown as IconChevronDown }
 export { ChevronUp as IconChevronUp }
 export { ChevronLeft as IconChevronLeft }
 export { ChevronRight as IconChevronRight }
-export { ChevronsUpDown as IconSort }
+/** A menu that opens above or below its button (the sidebar's account menu).
+ *  Not a sort glyph: a sort shows its direction with `IconSortAsc` / `IconSortDesc`. */
+export { ChevronsUpDown as IconChevronsUpDown }
 /** A sort's direction, on the toggle beside its field: bars that widen downward
  *  (descending) or upward (ascending). Never a chevron, which reads as "open a menu". */
 export { ArrowDownWideNarrow as IconSortDesc }

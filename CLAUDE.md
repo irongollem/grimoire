@@ -526,6 +526,7 @@ A new `<button class="px-2 py-0.5 border rounded …">` or `<input class="bg-mut
 | `<input type="checkbox">` — any, labelled or not      | `AppCheckbox` — size + labelRole + accent (#751) |
 | A coloured pill whose colour means something          | `AppButton variant="tinted"` + `tone` + `emphasis` |
 | A toggle/segmented picker                             | `AppButton :active` or `SegmentedControl`   |
+| A sort with a direction (field + asc/desc)            | `SortControl` (`display="segmented"` for a few fixed fields). Its direction is `IconSortAsc` / `IconSortDesc`, never a chevron, and nothing draws ⇕ beside a sort: three arrows side by side meaning three things is what the maintainer never wants to see again (14 Nov 2026) |
 | A spinner: `animate-spin`, a ring, a lucide loader    | `BannerLoader` (sized by height); in a button, `AppButton :loading`; for a whole block, `LoadingSpinner` |
 | A list body whose data has not arrived yet            | `ListSkeleton` in the variant the real items use (`rows` / `gallery` / `grid` / `text` / `tiles` / `stack`, with `columns` matching the list's track); a one-off shape no variant fits (a tree, a kanban) is composed from `SkeletonBlock` |
 | A list that can grow without bound (a catalogue, a campaign's entities) | `VirtualGrid`, with `useBreakpointColumns` / `useAutoFillColumns` mirroring the CSS grid it replaces. Every card stays mounted otherwise: ~1,000 bestiary cards froze an iPhone (8 Oct 2026). Measure the row estimate on a real page |

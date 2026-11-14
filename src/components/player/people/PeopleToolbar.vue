@@ -13,7 +13,7 @@
     </div>
 
     <div class="flex flex-wrap items-center gap-2">
-      <PeopleSortControl v-model:sort-by="sortBy" v-model:dir="playerUi.playerPeopleSortDir" :options="sortOptions" />
+      <SortControl v-model:sort-by="sortBy" v-model:sort-dir="playerUi.playerPeopleSortDir" :options="sortOptions" display="segmented" />
 
       <!-- Below md the filters live in a sheet; from md up they sit inline. -->
       <AppButton
@@ -57,7 +57,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
-import PeopleSortControl from "@/components/player/people/PeopleSortControl.vue";
+import SortControl from "@/components/common/controls/SortControl.vue";
 import type { PeoplePlace } from "@/composables/player/usePlayerPeople";
 import { IconMixer, IconSearch } from "@/lib/icons";
 import type { PlayerNpcSortField } from "@/lib/npcs/playerNpcSort";

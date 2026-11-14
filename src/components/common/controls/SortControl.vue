@@ -1,15 +1,20 @@
 <template>
-  <!-- One caret, the select's own: the field is a dropdown and the direction is
-       a separate toggle drawn as bars that widen the way the list runs. It used
-       to wrap the select in a box behind a sort glyph (⇕) and draw the direction
-       as a chevron, so three arrows sat side by side meaning three different
-       things (the maintainer, 14 Nov 2026). -->
-  <div class="flex items-center gap-1">
-    <AppSelect v-model="sortBy" size="sm" aria-label="Sort by">
+  <!-- The one sort control: a field and its direction. The field is a dropdown
+       (one caret, the select's own) or, for a few fixed fields, segmented
+       buttons; the direction is a separate toggle drawn as bars that widen the
+       way the list runs. It used to sit behind a sort glyph (⇕) with a chevron
+       for direction, three arrows side by side meaning three different things,
+       and the People page drew its own copy with a lone chevron that read as a
+       menu (the maintainer, 14 Nov 2026: "I never want to see that confusing
+       jumble again"). A sort with a direction goes through here. -->
+  <div class="flex items-center gap-1.5">
+    <SegmentedControl v-if="display === 'segmented'" v-model="sortBy" :options="options" wrap />
+    <AppSelect v-else v-model="sortBy" size="sm" aria-label="Sort by">
       <option v-for="opt in options" :key="opt.value" :value="opt.value">
         {{ opt.label }}
       </option>
     </AppSelect>
+    <!-- A hand-made order has no direction to reverse. -->
     <AppButton
       v-if="sortBy !== 'manual'"
       variant="subtle"
@@ -24,11 +29,14 @@
 <script setup lang="ts" generic="F extends string">
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import { IconSortAsc, IconSortDesc } from "@/lib/icons";
 import type { SortDir } from "@/lib/noteSort";
 
-defineProps<{
+const { display = "select" } = defineProps<{
   options: readonly { value: F; label: string }[];
+  /** A dropdown by default; `segmented` lays a few fixed fields out as buttons (the People page). */
+  display?: "select" | "segmented";
 }>();
 
 const sortBy = defineModel<F>("sortBy", { required: true });

@@ -193,7 +193,7 @@
           <span class="text-label-lg text-foreground font-semibold">{{ userInitial }}</span>
         </div>
         <span class="flex-1 truncate text-caption text-muted-foreground text-left">{{ shownName }}</span>
-        <IconSort class="h-3 w-3 text-muted-foreground/60 shrink-0" />
+        <IconChevronsUpDown class="h-3 w-3 text-muted-foreground/60 shrink-0" />
       </AppButton>
 
       <BugReportModal v-if="bugReportMounted" v-model="bugReportOpen" />
@@ -206,7 +206,7 @@
 import BrandLogo from "@/components/brand/BrandLogo.vue";
 import { ref, computed, defineAsyncComponent } from "vue";
 import { useRouter } from "vue-router";
-import { IconBilling, IconBug, IconCheck, IconClose, IconDownload, IconEdit, IconLogOut, IconShieldCheck, IconSort, IconUserCircle } from '@/lib/icons';
+import { IconBilling, IconBug, IconCheck, IconChevronsUpDown, IconClose, IconDownload, IconEdit, IconLogOut, IconShieldCheck, IconUserCircle } from '@/lib/icons';
 import { usePwaInstall } from "@/composables/usePwaInstall";
 import { onClickOutside } from "@vueuse/core";
 import { useAuthStore } from "@/stores/auth";
