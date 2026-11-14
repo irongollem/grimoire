@@ -86,7 +86,7 @@ export const RAIL_FAMILIES: RailFamily[] = TOOL_FAMILIES.map((f) => ({
 const PLAN_TOOL_ICONS: Record<PlanTool, AppIcon> = {
   zone: IconHighlight,
   door: IconDoor,
-  fill: IconFill,
+  assign: IconFill,
   erase: IconEraser,
 };
 export const PLAN_RAIL_FAMILIES: RailFamily[] = PLAN_TOOLS.map((t) => ({

@@ -715,7 +715,7 @@ describe("MapWorkbench", () => {
       expect(pressed("Zone")).toBe("true");
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "f", code: "KeyF", cancelable: true }));
       await flushPromises();
-      expect(pressed("Fill")).toBe("true");
+      expect(pressed("Assign")).toBe("true");
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "e", code: "KeyE", cancelable: true }));
       await flushPromises();
       expect(pressed("Erase")).toBe("true");

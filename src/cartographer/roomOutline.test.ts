@@ -3,7 +3,7 @@ import type { CellKey, DungeonMapLayers, EdgeSegType, PackRef, WallEdge } from "
 import { cellKey } from "@/types/dungeonMap.types";
 import { brushDisc, brushDiscs } from "@/test/brushDisc";
 import { canonicaliseEdge, type Side } from "./edges";
-import { findFaces, simplifyLoop } from "./roomOutline";
+import { findFaces, simplifyLoop, wallFaceAt } from "./roomOutline";
 import { deriveSpaces } from "./structure";
 import { putWall } from "./testWalls";
 import { wallAt } from "./wallGraph";
@@ -390,5 +390,86 @@ describe("a floor edge that faces a void a wall closes off", () => {
     // The outline is the wall's triangle, not the staircase of floor edges under it.
     expect(face.outline).toHaveLength(3);
     expect(face.outline).toContainEqual([4, 4]);
+  });
+});
+
+describe("wallFaceAt: the ring of walls round a point, with no floor painted", () => {
+  /** A closed box of lattice walls: top and bottom edges, left and right edges. */
+  function ring(layers: DungeonMapLayers, x0: number, y0: number, w: number, h: number): void {
+    for (let x = x0; x < x0 + w; x++) {
+      wall(layers, x, y0, "N");
+      wall(layers, x, y0 + h - 1, "S");
+    }
+    for (let y = y0; y < y0 + h; y++) {
+      wall(layers, x0, y, "W");
+      wall(layers, x0 + w - 1, y, "E");
+    }
+  }
+  const box = (x0: number, y0: number, w: number, h: number): CellKey[] => {
+    const out: CellKey[] = [];
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) out.push(cellKey(x, y));
+    return out;
+  };
+
+  it("takes the smaller of two nested rings and leaves its squares out of the ring around it", () => {
+    // Outer ring 6x6 at (0,0), a pillar ringed by walls 2x2 at (2,2). Fails on a bug that returns the largest face or
+    // forgets that the inner ring's squares already belong to it.
+    const layers = emptyLayers();
+    ring(layers, 0, 0, 6, 6);
+    ring(layers, 2, 2, 2, 2);
+    expect(wallFaceAt(layers, [3, 3])!.cells.slice().sort()).toEqual(box(2, 2, 2, 2).sort());
+    const outer = wallFaceAt(layers, [0.5, 0.5])!;
+    expect(outer.cells).toHaveLength(32); // 36 squares minus the pillar's 4
+    expect(outer.cells).not.toContain(cellKey(2, 2));
+  });
+
+  it("is null outside every ring and for walls that do not close", () => {
+    const layers = emptyLayers();
+    ring(layers, 0, 0, 3, 3);
+    expect(wallFaceAt(layers, [5.5, 5.5])).toBeNull();
+    // Three sides of a box: no face, so a click inside is not in any ring.
+    const open = emptyLayers();
+    wall(open, 0, 0, "N");
+    wall(open, 1, 0, "N");
+    wall(open, 0, 0, "W");
+    wall(open, 1, 0, "E");
+    wall(open, 0, 1, "W");
+    wall(open, 1, 1, "E");
+    expect(wallFaceAt(open, [1, 1])).toBeNull();
+  });
+
+  it("finds the squares of a ring of angled walls with no floor under it", () => {
+    // A diamond with corners (3,-0.2) (6.2,3) (3,6.2) (-0.2,3), centre (3,3). The 0.2 keeps every square middle off the
+    // edge. A square at (x,y) counts when |x+0.5-3| + |y+0.5-3| < 3.2. Columns x=2,3 (offset 0.5): |b| < 2.7 gives
+    // y=0..5. Columns x=1,4 (offset 1.5): |b| < 1.7 gives y=1..4. Columns x=0,5 (offset 2.5): |b| < 0.7 gives y=2,3.
+    const layers = emptyLayers();
+    angled(layers, "a", [3, -0.2], [6.2, 3]);
+    angled(layers, "b", [6.2, 3], [3, 6.2]);
+    angled(layers, "c", [3, 6.2], [-0.2, 3]);
+    angled(layers, "d", [-0.2, 3], [3, -0.2]);
+    const want = [...box(2, 0, 2, 6), ...box(1, 1, 1, 4), ...box(4, 1, 1, 4), ...box(0, 2, 1, 2), ...box(5, 2, 1, 2)];
+    const face = wallFaceAt(layers, [3, 3])!;
+    expect(face.cells.slice().sort()).toEqual(want.sort());
+    expect(face.outline).toHaveLength(4);
+  });
+
+  it("keeps solid blocks out of the cells", () => {
+    const layers = emptyLayers();
+    ring(layers, 0, 0, 3, 3);
+    layers.solidBlock[cellKey(1, 1)] = { ...PACK };
+    const face = wallFaceAt(layers, [0.5, 0.5])!;
+    expect(face.cells).toHaveLength(8);
+    expect(face.cells).not.toContain(cellKey(1, 1));
+  });
+
+  it("closes a ring whose walls cross each other mid-way", () => {
+    // Four angled walls overshoot a 4x4 box by one cell each side, so each crosses its neighbours part-way along.
+    // Uncut, no face closes. Inside: x and y 0..4, 16 squares.
+    const layers = emptyLayers();
+    angled(layers, "t", [-1, 0], [5, 0]);
+    angled(layers, "b", [-1, 4], [5, 4]);
+    angled(layers, "l", [0, -1], [0, 5]);
+    angled(layers, "r", [4, -1], [4, 5]);
+    expect(wallFaceAt(layers, [2, 2])!.cells.slice().sort()).toEqual(box(0, 0, 4, 4).sort());
   });
 });

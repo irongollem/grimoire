@@ -272,13 +272,13 @@ describe("Zoning keys through resolveKeyAction", () => {
   const zoningTools = [
     { id: "zone", shortcut: "z" },
     { id: "door", shortcut: "d" },
-    { id: "fill", shortcut: "f" },
+    { id: "assign", shortcut: "f" },
     { id: "erase", shortcut: "e" },
   ];
   const on = (layer: KeyContext["layer"], activeTool = "select"): KeyContext => ({ ...ctx(activeTool), layer, zoningTools });
 
-  it("Z, D, F and E pick the Zone, Door, Fill and Erase tools on the Zoning tab", () => {
-    for (const [key, tool] of [["z", "zone"], ["d", "door"], ["f", "fill"], ["e", "erase"]] as const) {
+  it("Z, D, F and E pick the Zone, Door, Assign and Erase tools on the Zoning tab", () => {
+    for (const [key, tool] of [["z", "zone"], ["d", "door"], ["f", "assign"], ["e", "erase"]] as const) {
       expect(resolveKeyAction(ev({ key }), on("plan"))).toEqual({ kind: "selectZoningTool", tool });
     }
   });

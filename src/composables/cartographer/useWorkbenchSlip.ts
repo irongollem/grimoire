@@ -3,7 +3,7 @@
 
 import { computed, type ComputedRef, type Ref } from "vue";
 import { useAllLibraryDressing } from "@/composables/cartographer/useLibraryDressing";
-import { PLAN_TOOLS, TRACE_TOOL_OPTIONS, type usePlanPalette } from "@/composables/cartographer/usePlanPalette";
+import { PLAN_TOOLS, TRACE_TOOL_OPTIONS, ZONING_KIND_LABELS, type usePlanPalette } from "@/composables/cartographer/usePlanPalette";
 import { INVERTIBLE_TOOLS, RAIL_FAMILIES, TOOL_FAMILIES } from "@/composables/cartographer/workbenchTools";
 import { placeItemLabel } from "@/cartographer/placeItem";
 import type { PlaceItem, Tool } from "@/cartographer/tools";
@@ -58,10 +58,13 @@ export function useWorkbenchSlip(inputs: {
     return family?.caption;
   });
 
-  /** The Zoning slip's title: the tool and, for the Zone tool, how it is being traced ("Zone · Pen"). */
+  /** The Zoning slip's title: the tool and, for the Zone tool, how it is being traced ("Zone · Pen"); for Assign, what a click will make ("Assign as room"). */
   const planToolLabel = computed(() => {
     const tool = plan.planTool.value;
     const toolLabel = PLAN_TOOLS.find((t) => t.id === tool)?.label ?? tool;
+    if (tool === "assign") {
+      return `Assign as ${ZONING_KIND_LABELS[plan.zoneKind.value].toLowerCase()}`;
+    }
     if (tool !== "zone") return toolLabel;
     const trace = TRACE_TOOL_OPTIONS.find((o) => o.value === plan.traceTool.value)?.label;
     return trace ? `${toolLabel} · ${trace}` : toolLabel;

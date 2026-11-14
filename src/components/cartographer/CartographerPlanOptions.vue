@@ -2,7 +2,7 @@
   <CartographerOptionsSlip :title="title">
     <!-- Zoning's options, in the same slip the Drawing's tool options use. The tools themselves are the
          rail's: this only says what kind the Zone tool makes, how it traces, and what it is for. -->
-    <template v-if="planTool === 'zone'">
+    <template v-if="planTool === 'zone' || planTool === 'assign'">
       <SegmentedControl
         v-model="zoneKind"
         :options="KIND_OPTIONS"
@@ -11,7 +11,11 @@
         aria-label="Kind of zone"
       />
 
-      <div class="flex flex-wrap items-center gap-1.5">
+      <span v-if="planTool === 'assign'" class="basis-full text-caption text-muted-foreground">
+        Click inside a ring of walls, or on a painted floor. That area becomes a {{ kindWord }} shaped by its walls.
+      </span>
+
+      <div v-else class="flex flex-wrap items-center gap-1.5">
         <span class="text-label text-muted-foreground">Trace with</span>
         <SegmentedControl v-model="traceTool" :options="TRACE_TOOL_OPTIONS" size="xs" />
         <AppSelect
@@ -27,7 +31,7 @@
         <AppButton variant="ghost" fill="muted" size="xs" @click="$emit('start-new')">New zone</AppButton>
       </div>
 
-      <span class="basis-full text-caption-sm text-muted-foreground">
+      <span v-if="planTool === 'zone'" class="basis-full text-caption-sm text-muted-foreground">
         Most rooms are already here, found from the walls. Draw a zone to add one, or drag over a found room to reshape it.
         A room is a place in the Atlas; any other kind only marks the floor.
       </span>
@@ -43,10 +47,6 @@
     <span v-else-if="planTool === 'door'" class="text-caption text-muted-foreground">
       Click a cell edge to place a door there. It joins the rooms within a cell of either side. Click a placed one to
       cycle door and arch. Alt-click removes it.
-    </span>
-
-    <span v-else-if="planTool === 'fill'" class="text-caption text-muted-foreground">
-      Click a painted floor region of the Drawing to pour a zone of the chosen kind up to its walls.
     </span>
 
     <span v-else-if="planTool === 'erase'" class="text-caption text-muted-foreground">
@@ -66,9 +66,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 // Zoning's options (epic #884 S7b; Map Table frame 19 made Space and Zone one tool). The Zone tool traces with the
 // same brush/pen/shape gestures the Drawing offers (`src/lib/map/gestures/`, via `useRegionPointer`, see
-// `usePlanCanvasTools.ts`), Door snaps to a cell edge, Fill pours a zone over a floored region of the Drawing.
+// `usePlanCanvasTools.ts`), Door snaps to a cell edge, Assign makes a room or zone of the area a click lands in.
 // Binding a traced room to its place, and naming it, are actions of the Zoning list; this never opens or names a
 // location.
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -87,7 +88,7 @@ import {
 } from "@/composables/cartographer/usePlanPalette";
 import type { TemplateShape, TraceTool } from "@/lib/locations/polygon";
 
-defineProps<{
+const { planTool } = defineProps<{
   /** The tool's name, with how it traces ("Zone · Pen"). */
   title: string;
   planTool: PlanTool;
@@ -111,5 +112,6 @@ defineEmits<{
   "cancel-door": [];
 }>();
 
+const kindWord = computed(() => ZONING_KIND_LABELS[zoneKind.value].toLowerCase());
 const KIND_OPTIONS: SegmentedOption<ZoningKind>[] = ZONING_KINDS.map((kind) => ({ value: kind, label: ZONING_KIND_LABELS[kind] }));
 </script>

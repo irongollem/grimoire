@@ -578,7 +578,7 @@ watch(activeTool, (tool) => {
 });
 
 /** "Reshape" in the list: makes the room or zone the one being traced and arms the Zone tool, so the next drag
- *  on the map redraws it (a bare `activeRegionId` write does nothing while the tool is Door or Fill, per
+ *  on the map redraws it (a bare `activeRegionId` write does nothing while the tool is Door or Assign, per
  *  `usePlanCanvasTools.ts`'s `isTraceTool()`). A found room is written first; tapping again lets go of it. */
 async function reshapeEntry(entry: ZoningEntry): Promise<void> {
   const id = entryId(entry);

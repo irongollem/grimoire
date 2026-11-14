@@ -2844,7 +2844,7 @@ describe("one key path (Zoning keys through resolveKeyAction)", () => {
     key("z");
     expect(plan.planTool.value).toBe("zone");
     key("f");
-    expect(plan.planTool.value).toBe("fill");
+    expect(plan.planTool.value).toBe("assign");
   });
 
   it("D on the Drawing tab still picks the Door tool and leaves Zoning's alone", () => {

@@ -15,14 +15,14 @@
 // `useMapCanvasEditor.ts`'s Drawing tools already use — see that module's
 // `pointerToWorld`/`viewportToCell`, which the geometry callbacks below wrap.
 //
-// The Door and Fill tools are NOT trace gestures (no stroke, no ring, no
+// The Door and Assign tools are NOT trace gestures (no stroke, no ring, no
 // drag) and so are not routed through `useRegionPointer` — Door mirrors
 // `MapRegionsLayer.vue`'s own separate `onDoorPointerDown`/`onDoorPointerMove`
 // pair (edge-snap, place/cycle/alt-delete), reusing the exact edge-detection
 // primitives (`detectHoveredEdge`, `canonicaliseEdge`) the Drawing's own
-// wall/door tools already share. Fill is a one-shot click with no analogue
-// in the Atlas at all: it reads the Drawing's floor layer via `floodFill`
-// and writes straight to the Plan.
+// wall/door tools already share. Assign is a one-shot click with no analogue
+// in the Atlas at all: it reads the Drawing's floor layer via `floodFill`, or the ring of walls round the click
+// (`wallFaceAt`) where no floor is painted, and writes straight to the Plan.
 //
 // Panning stays universal: RMB and the middle button are never claimed here
 // (and Space+drag is settled by the editor before this is asked), so
@@ -38,6 +38,7 @@ import { eraseFromRegions, type UsePlanPaletteReturn } from "@/composables/carto
 import { canonicaliseEdge } from "@/cartographer/edges";
 import { detectHoveredEdge } from "@/cartographer/edgeHover";
 import { floodFill } from "@/cartographer/floodFill";
+import { wallFaceAt } from "@/cartographer/roomOutline";
 import { DOOR_EDGE_SNAP_THRESHOLD, indexSpacesByCell, resolveEdgeEndpoints } from "@/lib/locations/doors";
 import { templateRing as buildTemplateRing } from "@/lib/locations/polygon";
 import { cellKey, type CellKey, type DungeonMapLayers } from "@/types/dungeonMap.types";
@@ -48,7 +49,7 @@ import type { PlanWayLike } from "@/cartographer/planOverlay";
 
 export interface PlanCanvasToolsOptions {
   plan: UsePlanPaletteReturn;
-  /** The Drawing's own floor layer — read-only here, the Fill tool's source. */
+  /** The Drawing's own floor layer — read-only here, the Assign tool's source. */
   layers: Ref<DungeonMapLayers>;
   /** Client (event) coordinates → the cell under them, in the tile grid both
    *  layers share (see `MapWorkbench.vue`'s `buildReferenceImage` docblock
@@ -192,18 +193,30 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     plan.askDoorEnds(edgeKey);
   }
 
-  // ── Fill tool ───────────────────────────────────────────────────────────
+  // ── Assign tool ─────────────────────────────────────────────────────────
 
-  function fillAt(clientX: number, clientY: number): void {
+  /** A click on painted floor assigns that floor's region. A click anywhere else assigns the ring of walls round it,
+   *  so a map that is a picture with only walls drawn over it still gets rooms: the DM picks which rings count. */
+  function assignAt(clientX: number, clientY: number): void {
     const cell = cellAt(clientX, clientY);
     if (!cell) return;
-    if (!layers.value.floor[cell]?.floor) {
-      toastError("Click a painted floor cell to fill it.");
+    if (layers.value.floor[cell]?.floor) {
+      const [xs, ys] = cell.split(",");
+      const region = floodFill(Number(xs), Number(ys), (x, y) => !!layers.value.floor[cellKey(x, y)]?.floor);
+      void plan.assignArea([...region]);
       return;
     }
-    const [xs, ys] = cell.split(",");
-    const region = floodFill(Number(xs), Number(ys), (x, y) => !!layers.value.floor[cellKey(x, y)]?.floor);
-    void plan.fillFloorRegion([...region]);
+    const point = gridPointAt(clientX, clientY);
+    const face = point ? wallFaceAt(layers.value, point) : null;
+    if (!face) {
+      toastError("Click inside a closed ring of walls, or on a painted floor.");
+      return;
+    }
+    if (face.cells.length === 0) {
+      toastError("That ring of walls is smaller than a square, so there is nothing to assign.");
+      return;
+    }
+    void plan.assignArea(face.cells, face.outline);
   }
 
   // ── Dispatch ─────────────────────────────────────────────────────────────
@@ -235,9 +248,9 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
       return true;
     }
 
-    if (tool === "fill") {
+    if (tool === "assign") {
       if (isPanGesture(ev)) return false;
-      fillAt(ev.clientX, ev.clientY);
+      assignAt(ev.clientX, ev.clientY);
       return true;
     }
 
@@ -271,7 +284,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
       return;
     }
     planHoveredDoorEdge.value = null;
-    if (tool === "fill" || tool === "erase") return;
+    if (tool === "assign" || tool === "erase") return;
     regionPointer.onPointerMove(ev);
   }
 
@@ -291,7 +304,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
   }
 
   /** Abandons whatever Zone gesture is in flight without committing it
-   *  — the Door and Fill tools have no in-flight gesture to abandon (each
+   *  — the Door and Assign tools have no in-flight gesture to abandon (each
    *  is a single click). See `useRegionPointer.abandonGesture`'s own
    *  docblock (#884 review finding 2). */
   function abandonGesture(): void {

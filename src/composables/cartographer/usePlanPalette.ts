@@ -74,7 +74,7 @@ import {
 } from "@/types/locationMapRegion.types";
 
 /** Zoning's four tools (#1125 frame 19). The old Space tool is the Zone tool with the Room kind. */
-export type PlanTool = "zone" | "door" | "fill" | "erase";
+export type PlanTool = "zone" | "door" | "assign" | "erase";
 
 /** What a zone is. Room is a place in the Atlas (`region_role: 'space'`); every other kind only marks the floor
  *  (`region_role: 'zone'` + `zone_kind`). One list for the chips, the Zone tool and the rows. */
@@ -94,7 +94,7 @@ export const TRACE_TOOL_OPTIONS: readonly { value: TraceTool; label: string }[] 
 export const PLAN_TOOLS: readonly { id: PlanTool; label: string; shortcut: string }[] = [
   { id: "zone", label: "Zone", shortcut: "z" },
   { id: "door", label: "Door", shortcut: "d" },
-  { id: "fill", label: "Fill", shortcut: "f" },
+  { id: "assign", label: "Assign", shortcut: "f" },
   { id: "erase", label: "Erase", shortcut: "e" },
 ];
 
@@ -378,22 +378,26 @@ export function usePlanPalette(siteId: ComputedRef<string | null>, derived: () =
     return regions.value.find((r) => r.region_role === "space" && r.cells.some((c) => claimed.has(c))) ?? null;
   }
 
-  /** The Fill tool: pours the chosen kind over a floored region of the Drawing, up to its walls, "so the DM stops
-   *  re-tracing by hand what they just drew." A Room is the walls' own room (`derived_from: 'floodfill'`, the
+  /** The Assign tool: makes the chosen kind of an area the DM clicked, up to its walls, "so the DM stops re-tracing
+   *  by hand what they just drew." The area is a painted floor region, or (with an `outline`) the ring of walls round the
+   *  click, which needs no floor at all. A Room from floor is the walls' own room (`derived_from: 'floodfill'`, the
    *  provenance this exact shape exists for); any other kind is the DM's ink. Zones may overlap a room, so only a
-   *  Room is held to the no-duplicates rule. */
-  async function fillFloorRegion(cells: CellKey[]): Promise<void> {
+   *  Room is held to the no-duplicates rule, on both paths. */
+  async function assignArea(cells: CellKey[], outline?: GridPoint[]): Promise<void> {
     if (!siteId.value || cells.length === 0) return;
-    // The poured zone gets the walls' own outline, so a round chapel is filled along its curve.
-    const outline = outlineOfCells(cells);
-    const insert = { ...newInsert(siteId.value, cells), ...(outline ? { vertices: outline } : {}) };
+    // The assigned zone gets the walls' own outline, so a round chapel is assigned along its curve.
+    const vertices = outline ?? outlineOfCells(cells);
+    const insert = { ...newInsert(siteId.value, cells), ...(vertices ? { vertices } : {}) };
     if (zoneKind.value === "room") {
       const covering = findCoveringSpace(cells);
       if (covering) {
         activeRegionId.value = covering.id;
         return;
       }
-      await createRegionTracked({ ...insert, derived_from: "floodfill" });
+      // "floodfill" says the row mirrors a room found from painted floor, which Find again may redraw. A ring of
+      // walls with no floor is in no found-room list, so Find again would read such a row as a room whose walls are
+      // gone: a row made from a ring is the DM's own ("dm") whatever its kind.
+      await createRegionTracked({ ...insert, derived_from: outline ? "dm" : "floodfill" });
       return;
     }
     await createRegionTracked({ ...insert, derived_from: "dm" });
@@ -645,7 +649,7 @@ export function usePlanPalette(siteId: ComputedRef<string | null>, derived: () =
     commitRing,
     commitTemplate,
     confirmConvert,
-    fillFloorRegion,
+    assignArea,
     existingDoorAtEdge,
     placingDoorId,
     armDoorPlacement,
