@@ -18,7 +18,7 @@ import { computed, ref, watch } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { bakeMap, computeBakedDimensions } from "@/cartographer/bake";
 import { buildMapLive } from "@/cartographer/mapLive";
-import type { DressingCatalog } from "@/cartographer/dressing";
+import type { CellBounds, DressingCatalog } from "@/cartographer/dressing";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { PackCategory } from "@/cartographer/packSchema";
 import { placementColumnFor, placementTargetId } from "@/lib/dungeon-features/library";
@@ -59,6 +59,8 @@ import { insertLocationDoors, updateLocationDoors } from "@/composables/location
 import { useSitePlacements } from "@/composables/locations/useSitePlacements";
 import { insertLocationPlacements, updateLocationPlacements } from "@/composables/locations/useLocationPlacements";
 import { queueEmbeddingsInBackground } from "@/lib/queueEmbeddings";
+import { pictureCellBounds } from "@/composables/cartographer/useWorkbenchPicture";
+import { measureImage } from "@/lib/measureImage";
 import { usePublishedSites } from "@/composables/cartographer/usePublishedSites";
 import type { LocationPlacement } from "@/types/locationPlacement.types";
 
@@ -140,6 +142,21 @@ function publishErrorMessage(e: unknown): string {
     return (e as { message: string }).message;
   }
   return "Something went wrong";
+}
+
+/**
+ * The cells the site's Picture covers, or null when it has no calibrated picture (or the picture cannot be read: a
+ * publish is never held up by it, it just frames the drawing alone as before). The frame the grid, fog and tokens
+ * play in is the bake's image, so it has to be at least the picture it sits over.
+ */
+async function pictureCover(site: Location | null): Promise<CellBounds | null> {
+  if (!site?.map_url || !site.grid_calibration) return null;
+  try {
+    return pictureCellBounds(site.grid_calibration, await measureImage(site.map_url));
+  } catch (e) {
+    console.warn("Publish: the picture could not be measured, so the bake covers the drawing only:", e instanceof Error ? e.message : e);
+    return null;
+  }
 }
 
 export function useMapPublish(opts: {
@@ -241,9 +258,23 @@ export function useMapPublish(opts: {
 
   const plan = computed<PublishPlan | null>(() => (inputs.value ? planPublish(inputs.value) : null));
 
+  // The review shows the size the publish will bake, so it reads the same cover. Null while the picture loads;
+  // publish() measures again itself rather than trust this.
+  const cover = ref<CellBounds | null>(null);
+  watch(
+    () => [targetSite.value?.map_url, JSON.stringify(targetSite.value?.grid_calibration)],
+    async () => {
+      const site = targetSite.value;
+      cover.value = null;
+      const measured = await pictureCover(site);
+      if (site === targetSite.value) cover.value = measured;
+    },
+    { immediate: true },
+  );
+
   const bakedDims = computed(() => {
     const map = opts.map();
-    return map ? computeBakedDimensions(map, opts.dressing()) : null;
+    return map ? computeBakedDimensions(map, opts.dressing(), undefined, cover.value) : null;
   });
 
   // ── Mutations ─────────────────────────────────────────────────────────
@@ -296,15 +327,16 @@ export function useMapPublish(opts: {
       // something itself, a third: the standing half without it, which the battle map shows only while the live layer
       // runs. It leaves out the swaying props and the leaf of every door the snapshot carries art for (the battle map
       // swings those open or shut), so a still copy of either would double them.
-      const dims = computeBakedDimensions(map, dressing);
+      const pictureBox = await pictureCover(targetSite.value);
+      const dims = computeBakedDimensions(map, dressing, undefined, pictureBox);
       const mapLive = buildMapLive(map, opts.runtimes(), dressing, dims.originCellX, dims.originCellY);
       // The bakes stay one after another: each renders its full-size canvas synchronously, so running them together
       // would only hold three of those canvases in memory at once. The uploads are network and run together.
-      const groundBlob = await bakeMap(map, opts.runtimes(), dressing, { transparent: true, pass: "ground" }, opts.glyphs());
-      const standBlob = await bakeMap(map, opts.runtimes(), dressing, { transparent: true, pass: "standing" }, opts.glyphs());
+      const groundBlob = await bakeMap(map, opts.runtimes(), dressing, { transparent: true, pass: "ground", cover: pictureBox }, opts.glyphs());
+      const standBlob = await bakeMap(map, opts.runtimes(), dressing, { transparent: true, pass: "standing", cover: pictureBox }, opts.glyphs());
       const standLiveBlob =
         mapLive.sprites.length > 0 || mapLive.doors.some((door) => door.leaf !== null)
-          ? await bakeMap(map, opts.runtimes(), dressing, { transparent: true, pass: "standing", omitLive: true }, opts.glyphs())
+          ? await bakeMap(map, opts.runtimes(), dressing, { transparent: true, pass: "standing", omitLive: true, cover: pictureBox }, opts.glyphs())
           : null;
       const user = getCurrentUser();
       if (!user) throw new Error("Not authenticated");
