@@ -47,7 +47,9 @@ const DEFAULT_ART_MAP = "~/Documents/Claude/Projects/Sothery Book I - manuscript
 const DEFAULT_SOURCE_DIR = "~/Documents/Claude/Projects/Late in the Kind Country - stay as long as you like/";
 const DEFAULT_DESKTOP_DIR = "~/Desktop";
 const ART_BUCKET = "monster-images";
-const DEFAULT_CAMPAIGN = "f6220b21-bff2-4419-a8c1-3dd7d6fc371b";
+// Late in the Kind Country, the commercial campaign and the content master since 14 Nov 2026.
+// The table campaign copied from it, "Stay a little longer", is f6220b21-bff2-4419-a8c1-3dd7d6fc371b.
+const DEFAULT_CAMPAIGN = "668080bf-6330-4ff9-8a24-3e9e46a41628";
 const DEFAULT_OWNER = "fc8ae595-641f-4127-87ad-03588f3710d1";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
