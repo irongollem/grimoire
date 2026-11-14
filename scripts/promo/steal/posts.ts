@@ -93,7 +93,7 @@ export const STEAL_POSTS: StealPost[] = [
     documentId: "5e7a1000-0000-4000-8000-000000000006",
     kicker: "Steal this monster",
     hook: "It puts out every lamp left burning",
-    ambience: "dungeon/dungeon-ambience-loop",
+    ambience: "night/cicadas-bed",
     blocks: [
       h1("The Snuffer"),
       p(text("The road's night-watch, and it is very polite.", ["italic"])),
@@ -110,7 +110,7 @@ export const STEAL_POSTS: StealPost[] = [
     documentId: "5e7a1000-0000-4000-8000-000000000007",
     kicker: "Steal this monster",
     hook: "The friendliest hole in the road",
-    ambience: "dungeon/dungeon-ambience-loop",
+    ambience: "town/church-bells-birds",
     blocks: [
       h1("The Sinkmouth"),
       p(text("It only wants a taste of whatever you have.", ["italic"])),
@@ -127,7 +127,7 @@ export const STEAL_POSTS: StealPost[] = [
     documentId: "5e7a1000-0000-4000-8000-000000000008",
     kicker: "Steal this monster",
     hook: "The hill you stopped on for lunch",
-    ambience: "dungeon/dungeon-ambience-loop",
+    ambience: "wind/park-wind",
     blocks: [
       h1("The Blinkhill"),
       p(text("A good place to eat lunch, until the afternoon it opens an eye.", ["italic"])),
