@@ -1,32 +1,37 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import SortControl from "./SortControl.vue";
+import type { SortOption } from "@/lib/sortOptions";
 
 const OPTIONS = [
-  { value: "created", label: "Created" },
-  { value: "manual", label: "Manual" },
-] as const;
+  { value: "created", label: "Created", order: "date" },
+  { value: "manual", label: "Manual", order: "fixed" },
+] as const satisfies readonly SortOption<"created" | "manual">[];
 
-function mountControl(sortBy: string) {
+const REVERSE = '[aria-label$="Click to reverse."]';
+
+function mountControl(sortBy: string, sortDir?: "asc" | "desc") {
   return mount(SortControl, {
-    props: {
-      options: OPTIONS,
-      sortBy,
-      sortDir: "desc" as const,
-      "onUpdate:sortDir": () => {},
-    },
+    props: { options: OPTIONS, sortBy, ...(sortDir ? { sortDir, "onUpdate:sortDir": () => {} } : {}) },
   });
 }
 
 describe("SortControl", () => {
-  it("reverses the direction from its own toggle", async () => {
-    const w = mountControl("created");
-    await w.find('[aria-label="Descending: click to reverse"]').trigger("click");
+  it("says the direction in the field's words and reverses it from its own button", async () => {
+    const w = mountControl("created", "desc");
+    const button = w.find(REVERSE);
+    expect(button.attributes("aria-label")).toBe("Newest first. Click to reverse.");
+    await button.trigger("click");
     expect(w.emitted("update:sortDir")).toEqual([["asc"]]);
   });
 
-  // A hand-made order has no direction, so a toggle there would do nothing visible.
-  it("offers no direction for a manual order", () => {
-    expect(mountControl("manual").find('[aria-label$="click to reverse"]').exists()).toBe(false);
+  // A hand-made order has nothing to reverse, so a button there would do nothing.
+  it("offers no direction for a field with a fixed order", () => {
+    expect(mountControl("manual", "desc").find(REVERSE).exists()).toBe(false);
+  });
+
+  // A provider's ranking keeps no direction at all: the list leaves sortDir unbound.
+  it("offers no direction when the list keeps none", () => {
+    expect(mountControl("created").find(REVERSE).exists()).toBe(false);
   });
 });

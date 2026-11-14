@@ -169,6 +169,7 @@
 </template>
 
 <script setup lang="ts">
+import type { SortDir } from "@/lib/noteSort";
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
@@ -233,6 +234,8 @@ const props = defineProps<{
   locationFilter: string;
   partyMemberFilter: string;
   sortBy: "name" | "location";
+  /** A name sort's direction; the location sort follows the Atlas and ignores it. */
+  sortDir: SortDir;
 }>();
 
 const { data: npcs, isLoading } = useNpcs();
@@ -324,7 +327,8 @@ const filtered = computed(() => {
       return a.name.localeCompare(b.name);
     });
   } else {
-    list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+    const mult = props.sortDir === "desc" ? -1 : 1;
+    list = [...list].sort((a, b) => a.name.localeCompare(b.name) * mult);
   }
   return list;
 });

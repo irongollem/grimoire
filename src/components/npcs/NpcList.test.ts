@@ -167,6 +167,7 @@ const requiredProps = {
   locationFilter: "",
   partyMemberFilter: "",
   sortBy: "name" as const,
+  sortDir: "asc" as const,
 };
 
 function mountList(props: Partial<typeof requiredProps> & Record<string, unknown> = {}) {
@@ -388,9 +389,10 @@ describe("NpcList: what the filters leave", () => {
     npc({ id: "c", name: "Cora", race: "Human", occupation: "Mayor", status: "alive", relationship: "hostile", location_id: "mill" }),
   ];
 
-  it("sorts by name", async () => {
+  it("sorts by name, and runs Z to A when the direction is reversed", async () => {
     npcsData.value = [roster()[2], roster()[0], roster()[1]];
     expect(await shown()).toEqual(["a", "b", "c"]);
+    expect(await shown({ sortDir: "desc" })).toEqual(["c", "b", "a"]);
   });
 
   it("searches name, disguise, race, occupation, tag and place, and finds nothing for a stranger", async () => {
@@ -433,6 +435,8 @@ describe("NpcList: what the filters leave", () => {
     npcsData.value = [...roster(), npc({ id: "d", name: "Dax", location_id: "mill" })];
     treeOptions.value = [{ id: "mill", name: "Old Mill" }, { id: "town", name: "Brightwater" }];
     expect(await shown({ sortBy: "location" })).toEqual(["c", "d", "a", "b"]);
+    // The Atlas's order has no reverse: a direction left over from a name sort changes nothing.
+    expect(await shown({ sortBy: "location", sortDir: "desc" })).toEqual(["c", "d", "a", "b"]);
   });
 
   it("locks the newest NPCs over a free plan's limit, and none within it", async () => {

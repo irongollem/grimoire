@@ -3,7 +3,7 @@
     <div class="space-y-5 pb-2">
       <section class="space-y-2">
         <h3 class="text-eyebrow font-bold uppercase text-muted-foreground">Sort by</h3>
-        <SortControl v-model:sort-by="sortBy" v-model:sort-dir="playerUi.playerPeopleSortDir" :options="sortOptions" display="segmented" />
+        <SortControl v-model:sort-by="sortBy" v-model:sort-dir="playerUi.playerPeopleSortDir" :options="sortOptions" />
       </section>
 
       <section class="space-y-2">
@@ -49,12 +49,13 @@ import SegmentedControl from "@/components/common/controls/SegmentedControl.vue"
 import SortControl from "@/components/common/controls/SortControl.vue";
 import type { PeoplePlace } from "@/composables/player/usePlayerPeople";
 import type { PlayerNpcSortField } from "@/lib/npcs/playerNpcSort";
+import type { SortOption } from "@/lib/sortOptions";
 import { usePlayerUiStore } from "@/stores/ui/player";
 import { NPC_RELATIONSHIP_LABELS, type NpcRelationship } from "@/types/npc.types";
 
 /** The phone's "Sort and filter" sheet. It does not exist from md up, where the toolbar carries the filters inline. */
 const { places } = defineProps<{
-  sortOptions: ReadonlyArray<{ value: PlayerNpcSortField; label: string }>;
+  sortOptions: readonly SortOption<PlayerNpcSortField>[];
   places: PeoplePlace[];
   resultCount: number;
 }>();

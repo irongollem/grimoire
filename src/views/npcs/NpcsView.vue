@@ -86,11 +86,8 @@
           @update:model-value="partyMemberFilter = $event"
         />
 
-        <ListFilterGroup
-          v-model="sortBy"
-          :options="SORT_OPTIONS"
-          aria-label="Sort by"
-        />
+        <!-- The sort ends the row, as on every list. -->
+        <SortControl v-model:sort-by="sortBy" v-model:sort-dir="sortDir" :options="SORT_OPTIONS" class="ml-auto" />
       </ListFilterBar>
     </template>
 
@@ -103,6 +100,7 @@
       :location-filter="locationFilter"
       :party-member-filter="partyMemberFilter"
       :sort-by="sortBy"
+      :sort-dir="sortDir"
     />
   </ListPageLayout>
 
@@ -200,6 +198,7 @@
         :location-filter="locationFilter"
         :party-member-filter="partyMemberFilter"
         :sort-by="sortBy"
+        :sort-dir="sortDir"
       />
     </div>
 
@@ -240,7 +239,7 @@
         </div>
         <div>
           <p class="mb-1.5 text-label-lg font-semibold text-muted-foreground">Sort by</p>
-          <ListFilterGroup v-model="sortBy" :options="SORT_OPTIONS" aria-label="Sort by" />
+          <SortControl v-model:sort-by="sortBy" v-model:sort-dir="sortDir" :options="SORT_OPTIONS" />
         </div>
       </div>
 
@@ -366,6 +365,8 @@ import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
 import MobileSheet from "@/components/common/overlays/MobileSheet.vue";
 import NpcRelationshipFilter from "@/components/npcs/NpcRelationshipFilter.vue";
 import NpcList from "@/components/npcs/NpcList.vue";
+import SortControl from "@/components/common/controls/SortControl.vue";
+import { directionLabel, type SortOption } from "@/lib/sortOptions";
 import SortFamilyLinksNotice from "@/components/kinship/SortFamilyLinksNotice.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
@@ -462,10 +463,11 @@ const REL_OPTIONS = [
   { value: "unknown", label: "Unknown" },
 ] as const satisfies ReadonlyArray<{ value: NpcRelationship | "all"; label: string }>;
 
+// Location follows the Atlas's tree, which has no reverse; a name runs both ways.
 const SORT_OPTIONS = [
-  { value: "name", label: "Name" },
-  { value: "location", label: "Location" },
-] as const satisfies ReadonlyArray<{ value: "name" | "location"; label: string }>;
+  { value: "location", label: "Location", order: "fixed" },
+  { value: "name", label: "Name", order: "text" },
+] as const satisfies readonly SortOption<"name" | "location">[];
 
 const search = computed({ get: () => npcsUi.npcsSearchQuery, set: (v) => { npcsUi.npcsSearchQuery = v; } });
 const statusFilter = computed({ get: () => npcsUi.npcsFilterStatus, set: (v: NpcStatus | "all") => { npcsUi.npcsFilterStatus = v; } });
@@ -473,6 +475,7 @@ const relFilter = computed({ get: () => npcsUi.npcsFilterRelationship, set: (v: 
 const locationFilter = computed({ get: () => npcsUi.npcsFilterLocation, set: (v) => { npcsUi.npcsFilterLocation = v; } });
 const partyMemberFilter = computed({ get: () => npcsUi.npcsFilterPartyMember, set: (v) => { npcsUi.npcsFilterPartyMember = v; } });
 const sortBy = computed({ get: () => npcsUi.npcsFilterSortBy, set: (v) => { npcsUi.npcsFilterSortBy = v; } });
+const sortDir = computed({ get: () => npcsUi.npcsFilterSortDir, set: (v) => { npcsUi.npcsFilterSortDir = v; } });
 
 const partyOptions = computed(() => (party.value ?? []).map((m) => ({ id: m.id, name: m.name })));
 
@@ -494,7 +497,15 @@ const activeChips = computed(() => {
   if (relFilter.value !== "all") chips.push({ key: "rel", label: relLabel(relFilter.value), clear: () => { relFilter.value = "all"; } });
   if (locationFilter.value) chips.push({ key: "loc", label: locationLabel(locationFilter.value), clear: () => { locationFilter.value = ""; } });
   if (partyMemberFilter.value) chips.push({ key: "party", label: partyLabel(partyMemberFilter.value), clear: () => { partyMemberFilter.value = ""; } });
-  if (sortBy.value !== "location") chips.push({ key: "sort", label: `Sort: ${sortBy.value}`, clear: () => { sortBy.value = "location"; } });
+  if (sortBy.value !== "location" || sortDir.value !== "asc") {
+    const option = SORT_OPTIONS.find((o) => o.value === sortBy.value) ?? SORT_OPTIONS[0];
+    const direction = directionLabel(option, sortDir.value);
+    chips.push({
+      key: "sort",
+      label: direction ? `${option.label}, ${direction}` : option.label,
+      clear: () => { sortBy.value = "location"; sortDir.value = "asc"; },
+    });
+  }
   return chips;
 });
 

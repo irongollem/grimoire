@@ -13,15 +13,14 @@
     </div>
 
     <div class="flex flex-wrap items-center gap-2">
-      <SortControl v-model:sort-by="sortBy" v-model:sort-dir="playerUi.playerPeopleSortDir" :options="sortOptions" display="segmented" />
-
-      <!-- Below md the filters live in a sheet; from md up they sit inline. -->
+      <!-- Below md, sorting and the filters share one sheet; from md up the
+           filters sit inline and the sort ends the row, as on every list. -->
       <AppButton
         class="md:hidden"
         variant="subtle"
         size="sm"
         :icon="IconMixer"
-        :label="activeFilterCount ? `Filter (${activeFilterCount})` : 'Filter'"
+        :label="activeFilterCount ? `Sort and filter (${activeFilterCount})` : 'Sort and filter'"
         @click="emit('openFilters')"
       />
       <div class="hidden flex-wrap items-center gap-2 md:flex">
@@ -48,6 +47,9 @@
           @click="playerUi.resetPlayerPeopleFilters()"
         />
       </div>
+      <div class="ml-auto hidden md:block">
+        <SortControl v-model:sort-by="sortBy" v-model:sort-dir="playerUi.playerPeopleSortDir" :options="sortOptions" />
+      </div>
     </div>
   </div>
 </template>
@@ -61,12 +63,13 @@ import SortControl from "@/components/common/controls/SortControl.vue";
 import type { PeoplePlace } from "@/composables/player/usePlayerPeople";
 import { IconMixer, IconSearch } from "@/lib/icons";
 import type { PlayerNpcSortField } from "@/lib/npcs/playerNpcSort";
+import type { SortOption } from "@/lib/sortOptions";
 import { usePlayerUiStore } from "@/stores/ui/player";
 import { NPC_RELATIONSHIP_LABELS } from "@/types/npc.types";
 
 /** Search, view, sort and (from md up) the filters of the People page. Filter state lives in a domain UI store. */
 defineProps<{
-  sortOptions: ReadonlyArray<{ value: PlayerNpcSortField; label: string }>;
+  sortOptions: readonly SortOption<PlayerNpcSortField>[];
   places: PeoplePlace[];
   activeFilterCount: number;
 }>();

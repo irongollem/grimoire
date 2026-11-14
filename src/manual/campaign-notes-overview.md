@@ -38,7 +38,7 @@ Mentions are safe to share. When players read a note you've shared, each mention
 
 - **Search notes…** filters by title and content.
 - Filter by category using the chips: **All / General / Session / Lore / Location / Quest / Faction**.
-- Sort with the **Created / Updated / Title A–Z / Manual** control. Pinned notes float to the top no matter which sort you pick.
+- Sort with the control at the end of the filter row: pick **Created**, **Updated**, **Title** or **Manual**, and use the button beside it to reverse the order (newest or oldest first, A to Z or Z to A). Pinned notes float to the top no matter which sort you pick.
 - In **Manual** sort, drag notes by their handle to set your own order.
 
 ## Sharing a note with players

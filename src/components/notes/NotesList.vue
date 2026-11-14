@@ -7,12 +7,13 @@
       @clear="notesUi.resetNotesFilters()"
     >
       <ListSearchInput v-model="notesUi.notesSearchQuery" placeholder="Search notes…" />
-      <SortControl v-model:sort-by="sortBy" v-model:sort-dir="sortDir" :options="SORT_OPTIONS" />
       <ListFilterGroup
         v-model="notesUi.notesFilterCategory"
         :options="CATEGORY_OPTIONS"
         aria-label="Note category filter"
       />
+      <!-- The sort ends the row, as on every list. -->
+      <SortControl v-model:sort-by="sortBy" v-model:sort-dir="sortDir" :options="SORT_OPTIONS" class="ml-auto" />
     </ListFilterBar>
 
     <ListSkeleton v-if="isLoading" :variant="layout === 'rows' ? 'tiles' : 'text'" :columns="layout === 'rows' ? 1 : 4" />
@@ -92,6 +93,7 @@
 </template>
 
 <script setup lang="ts">
+import type { SortOption } from "@/lib/sortOptions";
 import { ref, computed, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
@@ -136,11 +138,11 @@ const CATEGORY_OPTIONS = [
 ] as const satisfies readonly { value: NoteCategory | "all"; label: string }[];
 
 const SORT_OPTIONS = [
-  { value: "created", label: "Created" },
-  { value: "updated", label: "Updated" },
-  { value: "title", label: "Title A–Z" },
-  { value: "manual", label: "Manual" },
-] as const satisfies readonly { value: SortField; label: string }[];
+  { value: "created", label: "Created", order: "date" },
+  { value: "updated", label: "Updated", order: "date" },
+  { value: "title", label: "Title", order: "text" },
+  { value: "manual", label: "Manual", order: "fixed" },
+] as const satisfies readonly SortOption<SortField>[];
 
 // Mirrors the `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` the pinned
 // and manual-sort grids still carry.

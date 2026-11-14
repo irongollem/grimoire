@@ -44,7 +44,7 @@ All filter state is stored in `useNpcsUiStore` and survives navigation within th
 | Relationship | Toggle group | All / Helpful / Friendly / Indifferent / Unfriendly / Hostile / Unknown (warmest first) |
 | Location     | Combobox     | Hierarchical location tree; selecting a parent includes all descendants      |
 | Connected to | Combobox     | Any party member — shows only NPCs with a PC-connection note for that player |
-| Sort         | Toggle group | Name (alphabetical) / Location (tree order, then alphabetical)               |
+| Sort         | `SortControl`, ending the row | Location (the Atlas's tree order, then name; no reverse) / Name (A to Z or Z to A, `npcsFilterSortDir`) |
 
 A **Clear** button appears when any filter is active, calling `resetNpcsFilters()`.
 

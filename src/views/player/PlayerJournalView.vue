@@ -251,6 +251,7 @@
 </template>
 
 <script setup lang="ts">
+import type { SortOption } from "@/lib/sortOptions";
 import { useAbove } from "@/composables/useBreakpoint";
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
@@ -353,11 +354,11 @@ const notesUi = useNotesUiStore();
 const { journalSortBy: sortBy, journalSortDir: sortDir, journalFilterCategory: filterCategory } = storeToRefs(notesUi);
 
 const SORT_OPTIONS_FULL = [
-  { value: "created", label: "Created" },
-  { value: "updated", label: "Updated" },
-  { value: "title", label: "Title A–Z" },
-  { value: "manual", label: "Manual" },
-] as const satisfies readonly { value: SortField; label: string }[];
+  { value: "created", label: "Created", order: "date" },
+  { value: "updated", label: "Updated", order: "date" },
+  { value: "title", label: "Title", order: "text" },
+  { value: "manual", label: "Manual", order: "fixed" },
+] as const satisfies readonly SortOption<SortField>[];
 // Party Journal holds other players' entries, which the current player can't reorder.
 const SORT_OPTIONS_NO_MANUAL = SORT_OPTIONS_FULL.filter((o) => o.value !== "manual");
 

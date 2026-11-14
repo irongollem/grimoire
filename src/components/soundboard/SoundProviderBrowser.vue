@@ -55,18 +55,6 @@
         />
       </div>
 
-      <AppSelect
-        v-model="filters.sort"
-        tone="default"
-        size="caption"
-        weight="normal"
-        aria-label="Sort results"
-      >
-        <option v-for="option in PROVIDER_SORTS" :key="option.value" :value="option.value">
-          {{ option.label }}
-        </option>
-      </AppSelect>
-
       <AppButton
         v-if="hasActiveFilters"
         variant="subtle"
@@ -74,6 +62,9 @@
         label="Clear"
         @click="resetFilters"
       />
+
+      <!-- The sort ends the row, as on every list. -->
+      <SortControl v-model:sort-by="sortField" v-model:sort-dir="sortDir" :options="SORT_OPTIONS" class="ml-auto" />
     </div>
 
     <!-- Status -->
@@ -136,14 +127,15 @@ import { RouterLink } from "vue-router";
 import { refDebounced } from "@vueuse/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
-import AppSelect from "@/components/common/controls/AppSelect.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
+import SortControl from "@/components/common/controls/SortControl.vue";
+import type { SortOption } from "@/lib/sortOptions";
+import type { SortDir } from "@/lib/noteSort";
 import SoundProviderRow from "./SoundProviderRow.vue";
 import { useProviderSearch } from "@/composables/soundboard/useProviderSearch";
 import {
   SOUND_PROVIDERS,
   LIBRARY_PROVIDER_ID,
-  PROVIDER_SORTS,
   DEFAULT_PROVIDER_FILTERS,
   defaultProvider,
   type ProviderHit,
@@ -162,6 +154,23 @@ const query = ref("");
 const debouncedQuery = refDebounced(query, 400);
 const page = ref(1);
 const filters = ref<ProviderFilters>({ ...DEFAULT_PROVIDER_FILTERS });
+
+// The provider takes one key ("shortest", "longest", "relevance"); the sort
+// control shows it as a field and a direction, as every list does. Best match
+// is the provider's own ranking, so it has no direction to reverse.
+type SortField = "relevance" | "length";
+const SORT_OPTIONS = [
+  { value: "relevance", label: "Best match", order: "fixed" },
+  { value: "length", label: "Length", order: "number", directions: { asc: "Shortest first", desc: "Longest first" } },
+] as const satisfies readonly SortOption<SortField>[];
+const sortDir = computed<SortDir>({
+  get: () => (filters.value.sort === "longest" ? "desc" : "asc"),
+  set: (dir) => { filters.value.sort = dir === "desc" ? "longest" : "shortest"; },
+});
+const sortField = computed<SortField>({
+  get: () => (filters.value.sort === "relevance" ? "relevance" : "length"),
+  set: (field) => { filters.value.sort = field === "relevance" ? "relevance" : "shortest"; },
+});
 
 // Any change to what is being asked for starts again at page one — otherwise a
 // narrowed search lands the DM on page 4 of a 2-page result set.

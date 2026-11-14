@@ -1,3 +1,4 @@
+import type { SortOption } from "@/lib/sortOptions";
 import { computed, watch, toValue, type MaybeRefOrGetter } from "vue";
 import { useSharedLocations } from "@/composables/locations/useLocations";
 import { usePlayerSessions } from "@/composables/sessions/usePlayerSessions";
@@ -15,11 +16,11 @@ export interface PeoplePlace {
 }
 
 export const PEOPLE_SORT_OPTIONS = [
-  { value: "rating", label: "Rating" },
-  { value: "revealed", label: "Met" },
-  { value: "location", label: "Place" },
-  { value: "name", label: "Name" },
-] as const satisfies readonly { value: PlayerNpcSortField; label: string }[];
+  { value: "rating", label: "Rating", order: "number" },
+  { value: "revealed", label: "Met", order: "date" },
+  { value: "location", label: "Place", order: "text" },
+  { value: "name", label: "Name", order: "text" },
+] as const satisfies readonly SortOption<PlayerNpcSortField>[];
 
 /**
  * The player People page's search, sort, filter and grouping, over the people

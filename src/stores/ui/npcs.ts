@@ -2,6 +2,7 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
+import type { SortDir } from "@/lib/noteSort";
 
 export const useNpcsUiStore = defineStore("ui:npcs", () => {
   // NPC UI state
@@ -11,6 +12,8 @@ export const useNpcsUiStore = defineStore("ui:npcs", () => {
   const npcsFilterLocation = ref("");
   const npcsFilterPartyMember = ref("");
   const npcsFilterSortBy = ref<"name" | "location">("location");
+  /** Only a name sort runs both ways; location keeps the Atlas's own order. */
+  const npcsFilterSortDir = ref<SortDir>("asc");
   const activeNpcId = ref<string | null>(null);
   const npcGeneratorOpen = ref(false);
 
@@ -20,7 +23,8 @@ export const useNpcsUiStore = defineStore("ui:npcs", () => {
     npcsFilterRelationship.value !== "all" ||
     npcsFilterLocation.value !== "" ||
     npcsFilterPartyMember.value !== "" ||
-    npcsFilterSortBy.value !== "location",
+    npcsFilterSortBy.value !== "location" ||
+    npcsFilterSortDir.value !== "asc",
   );
 
   function resetNpcsFilters() {
@@ -30,6 +34,7 @@ export const useNpcsUiStore = defineStore("ui:npcs", () => {
     npcsFilterLocation.value = "";
     npcsFilterPartyMember.value = "";
     npcsFilterSortBy.value = "location";
+    npcsFilterSortDir.value = "asc";
   }
 
   return {
@@ -39,6 +44,7 @@ export const useNpcsUiStore = defineStore("ui:npcs", () => {
     npcsFilterLocation,
     npcsFilterPartyMember,
     npcsFilterSortBy,
+    npcsFilterSortDir,
     npcsHasActiveFilters,
     activeNpcId,
     npcGeneratorOpen,

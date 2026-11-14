@@ -32,5 +32,5 @@ export type {
   ProviderHit,
   ProviderFilters,
 } from "./types";
-export { PROVIDER_SORTS, DEFAULT_PROVIDER_FILTERS } from "./types";
+export { DEFAULT_PROVIDER_FILTERS } from "./types";
 export { LIBRARY_PROVIDER_ID } from "./library";

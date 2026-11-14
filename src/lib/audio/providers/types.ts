@@ -79,11 +79,6 @@ export interface ProviderSearchResult {
  */
 export type ProviderSortKey = "relevance" | "shortest" | "longest";
 
-export const PROVIDER_SORTS: readonly { value: ProviderSortKey; label: string }[] = [
-  { value: "relevance", label: "Best match" },
-  { value: "shortest", label: "Shortest first" },
-  { value: "longest", label: "Longest first" },
-];
 
 /**
  * Narrowing filters. Nulls mean "unset", which is distinct from zero — a
