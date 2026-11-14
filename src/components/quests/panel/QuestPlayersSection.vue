@@ -32,7 +32,7 @@ const beats = computed(() => beatRows.value ?? []);
 const objectives = computed(() => objectiveRows.value ?? []);
 // A beat is seen once it is a rumor or revealed; an objective when it is player-visible.
 const seenBeats = computed(() => beats.value.filter((beat) => beat.visibility === "rumored" || beat.visibility === "revealed").length);
-const seenObjectives = computed(() => objectives.value.filter((objective) => objective.is_player_visible).length);
+const seenObjectives = computed(() => objectives.value.filter((objective) => objective.status !== "dormant").length);
 
 function onRevealChange(next: string[]) {
   return shareQuest(quest, next);

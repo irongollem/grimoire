@@ -73,16 +73,30 @@ describe("writeQuestSpine", () => {
     expect(result.beatIdByKey.get("resolve")).toBe("beat-2");
   });
 
-  it("writes plain choice routes, hidden unreviewed beats, and objectives that stay DM-only", async () => {
+  it("writes plain choice routes and hidden unreviewed beats", async () => {
     const deps = makeDeps();
     await writeQuestSpine(baseInput({
       beats: twoBeats,
       routes: [{ from: "opening", to: "confront" }],
       objectives: [{ description: "Learn who rings", raised_by: "opening" }],
     }), deps);
-    expect(rowsOf(deps.createBeatEdges)).toEqual([expect.objectContaining({ route_kind: "choice", thread_label: null, source_beat_id: "beat-0", target_beat_id: "beat-1" })]);
+    expect(rowsOf(deps.createBeatEdges)).toEqual([expect.objectContaining({ route_kind: "choice", label: null, note: null, source_beat_id: "beat-0", target_beat_id: "beat-1" })]);
     expect(rowsOf(deps.createBeats).every((b) => b.visibility === "hidden" && b.converge_mode === "any" && b.how_it_plays === null)).toBe(true);
-    expect(rowsOf(deps.createObjectives).every((o) => o.is_player_visible === false)).toBe(true);
+  });
+
+  it("carries a parallel route's kind, trimmed label and note onto the edge, and a blank label becomes null", async () => {
+    const deps = makeDeps();
+    await writeQuestSpine(baseInput({
+      beats: threeBeats,
+      routes: [
+        { from: "opening", to: "confront", kind: "parallel", label: "  Follow the ringer ", note: " Needs the key " },
+        { from: "confront", to: "resolve", kind: "choice", label: "   " },
+      ],
+    }), deps);
+    expect(rowsOf(deps.createBeatEdges)).toEqual([
+      expect.objectContaining({ route_kind: "parallel", label: "Follow the ringer", note: "Needs the key" }),
+      expect.objectContaining({ route_kind: "choice", label: null, note: null }),
+    ]);
   });
 
   it("raises each objective on the beat that names it, not on another", async () => {

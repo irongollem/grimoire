@@ -37,7 +37,7 @@ vi.mock("@/composables/quests/useQuests", () => ({
       const targetId = typeof id === "string" ? id : id.value;
       if (targetId !== "quest-1") return [];
       return [
-        { id: "obj-1", quest_id: "quest-1", description: "Recover the relic", status: "pending", is_player_visible: true, sort_order: 1 },
+        { id: "obj-1", quest_id: "quest-1", description: "Recover the relic", status: "pending", sort_order: 1 },
       ];
     } },
   }),

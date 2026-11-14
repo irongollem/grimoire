@@ -13,7 +13,7 @@ import {
 import type { QuestConsequence, QuestObjective, QuestRouteGate, QuestRuntimeChoice } from "@/types/quest.types";
 
 const objective = (id: string, description: string, status: QuestObjective["status"] = "pending"): QuestObjective => ({
-  id, quest_id: "q1", description, status, is_player_visible: false, sort_order: 0, due_year: null, due_month: null, due_day: null,
+  id, quest_id: "q1", description, status, sort_order: 0, due_year: null, due_month: null, due_day: null,
 });
 
 const rule = (
@@ -44,16 +44,15 @@ const gate = (overrides: { is_open?: boolean; current_status?: QuestObjective["s
 
 const choice = (edgeId: string, beatId: string, title: string, g: QuestRouteGate | null = null): QuestRuntimeChoice => ({
   edge_id: edgeId, quest_id: "q1", beat_id: beatId, beat_title: title, beat_kind: "social", gate: g, effects: [],
-  route_kind: "choice", thread_label: null, converge_mode: "any", site: null, payoff: [], loot: [],
+  route_kind: "choice", label: null, note: null, converge_mode: "any", site: null, payoff: [], loot: [],
 });
 
 describe("ledger verbs", () => {
-  it("names the four verbs the design uses, with `complete` read as achieve", () => {
-    expect(LEDGER_VERBS).toEqual(["raise", "achieve", "fail", "reveal"]);
+  it("names the three verbs the design uses, with `complete` read as achieve", () => {
+    expect(LEDGER_VERBS).toEqual(["raise", "achieve", "fail"]);
     expect(ledgerVerbOf("complete")).toBe("achieve");
     expect(ledgerVerbOf("raise")).toBe("raise");
     expect(ledgerVerbOf("fail")).toBe("fail");
-    expect(ledgerVerbOf("reveal")).toBe("reveal");
   });
 
   it("treats every world action as no ledger verb at all", () => {

@@ -33,7 +33,7 @@ function buildContext(): QuestRuntimeContext {
     state: { campaign_id: "campaign-1", quest_id: "quest-1", thread_id: "thread-a", current_beat_id: "beat-current", return_stack: [], visit_stack: [], visit_index: 0, status: "running", version: 4, updated_by: null, created_at: "2026-09-01T00:00:00Z", updated_at: "2026-09-01T00:00:00Z" },
     current: {
       id: "beat-current", quest_id: "quest-1", campaign_id: "campaign-1", title: "Confront Ser Vallis",
-      dm_content: null, read_aloud: null, how_it_plays: null, rumor_text: null, reveal_text: null,
+      dm_content: null, secret: false, read_aloud: null, how_it_plays: null, rumor_text: null, reveal_text: null,
       visibility: "revealed", kind: "social", presentation_hint: null, converge_mode: "any",
       staged_at_location_id: null, canvas_x: 0, canvas_y: 0, is_improvised: false, improv_reviewed_at: null,
       created_by: null, created_at: "2026-09-01T00:00:00Z", updated_at: "2026-09-01T00:00:00Z",
@@ -47,7 +47,7 @@ function buildContext(): QuestRuntimeContext {
     outgoing: [
       {
         edge_id: "edge-1", quest_id: "quest-1", beat_id: "beat-target", beat_title: "Testify before the Guild", beat_kind: "social",
-        gate: null, effects: [], route_kind: "choice", thread_label: null, converge_mode: "any", site: null,
+        gate: null, effects: [], route_kind: "choice", label: null, note: null, converge_mode: "any", site: null,
         payoff: [
           { consequence_id: "c1", action: "shift_npc_relationship", target_objective_id: null, target_objective: null, target_npc_id: "npc-1", target_npc: "Ashmouth Guild", target_quest_id: null, target_quest: null, target_document_id: null, target_document: null, target_clock_id: null, target_clock: null, target_location_id: null, target_location: null, target_faction_id: null, target_faction: null, action_payload: { step: -1 }, after_days: 0, on_edge: true },
           { consequence_id: "c2", action: "owe_favor", target_objective_id: null, target_objective: null, target_npc_id: "npc-2", target_npc: "Ser Vallis", target_quest_id: null, target_quest: null, target_document_id: null, target_document: null, target_clock_id: null, target_clock: null, target_location_id: null, target_location: null, target_faction_id: null, target_faction: null, action_payload: { text: "Ser Vallis owes the party" }, after_days: 0, on_edge: false },
@@ -57,11 +57,11 @@ function buildContext(): QuestRuntimeContext {
       {
         edge_id: "edge-2", quest_id: "quest-1", beat_id: "beat-watch", beat_title: "Flee the cloister", beat_kind: "combat",
         gate: { mode: "all", is_open: false, conditions: [{ objective_id: "o1", objective: "the guard is dealt with", statuses: ["complete"], current_status: "pending", met: false }] },
-        effects: [], route_kind: "choice", thread_label: null, converge_mode: "any", site: null, payoff: [], loot: [],
+        effects: [], route_kind: "choice", label: null, note: null, converge_mode: "any", site: null, payoff: [], loot: [],
       },
       {
         edge_id: "edge-3", quest_id: "quest-1", beat_id: "beat-crypt", beat_title: "The cloister's sealed crypt", beat_kind: "explore",
-        gate: null, effects: [], route_kind: "parallel", thread_label: "C", converge_mode: "any",
+        gate: null, effects: [], route_kind: "parallel", label: "C", note: null, converge_mode: "any",
         site: { location_id: "loc-1", name: "The sealed crypt", room_count: 3 }, payoff: [], loot: [],
       },
     ],
@@ -115,7 +115,7 @@ describe("QuestAdvanceDialog", () => {
 
   // Design frame `05 Advance`: "Creates Thread C at that beat" — the caption
   // names the letter the spawned thread will actually get, not the route's
-  // authored thread_label ("C" here), and a route with no projected letter
+  // authored label ("C" here), and a route with no projected letter
   // yet (no choice picked) reads as an open offer instead.
   it("names the projected spawn letter once a route is chosen, and reads as an open offer before that", async () => {
     const wrapper = await mountDialog();
@@ -123,7 +123,7 @@ describe("QuestAdvanceDialog", () => {
 
     await radios(wrapper)[0]!.trigger("change");
     // One existing thread ("Main") becomes A; the ticked parallel route's
-    // projected thread is B — the fixture's authored thread_label "C" is
+    // projected thread is B — the fixture's authored label "C" is
     // quoted as the route's name, not mistaken for the thread's own letter.
     expect(wrapper.text()).toContain("Creates Thread B, “C”, at that beat.");
   });
@@ -278,7 +278,7 @@ describe("QuestAdvanceDialog", () => {
       context.outgoing.push({
         edge_id: "edge-4", quest_id: "quest-1", beat_id: "beat-locked", beat_title: "The locked vault", beat_kind: "explore",
         gate: { mode: "all", is_open: false, conditions: [{ objective_id: "o1", objective: "the key is found", statuses: ["complete"], current_status: "pending", met: false }] },
-        effects: [], route_kind: "parallel", thread_label: "D", converge_mode: "any", site: null, payoff: [], loot: [],
+        effects: [], route_kind: "parallel", label: "D", note: null, converge_mode: "any", site: null, payoff: [], loot: [],
       });
       const wrapper = await mountDialog({ context, improvise: true });
       await titleInput(wrapper).setValue("A goat is sacrificed");

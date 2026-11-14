@@ -45,6 +45,8 @@ export interface Quest {
    * `QUEST_SUMMARY_MAX` (`src/lib/quests/summary.ts`) for the enforced cap.
    */
   summary: string | null;
+  /** The quest's own DM notes: rich-text JSON, the same encoding as `quest_beats.dm_content`. */
+  dm_content: string | null;
   status: QuestStatus;
   giver_npc_id: string | null;
   location_id: string | null;
@@ -64,7 +66,10 @@ export interface Quest {
   updated_at: string;
 }
 
-export type QuestInsert = Omit<Quest, "id" | "user_id" | "created_at" | "updated_at" | "entry_beat_id">;
+export type QuestInsert = Omit<Quest, "id" | "user_id" | "created_at" | "updated_at" | "entry_beat_id" | "dm_content"> & {
+  /** Omit to take the column default of null. */
+  dm_content?: string | null;
+};
 export type QuestUpdate = Partial<QuestInsert> & { entry_beat_id?: string | null };
 
 /**
@@ -73,7 +78,7 @@ export type QuestUpdate = Partial<QuestInsert> & { entry_beat_id?: string | null
  * without resolving it. A `dormant` objective belongs to a branch the party
  * has not been sent down yet — it is a stored fact the ledger carries, not a
  * derived "not reachable from here" (see migration `20260905101454`), and the
- * database refuses `dormant` + `is_player_visible` together.
+ * players see an objective once its status is not `dormant`.
  */
 export type QuestObjectiveStatus = "dormant" | "pending" | "complete" | "failed";
 
@@ -86,7 +91,6 @@ export interface QuestObjective {
    * *failed* — the one outcome a branching story exists to produce.
    */
   status: QuestObjectiveStatus;
-  is_player_visible: boolean;
   sort_order: number;
   /**
    * An in-world due date (#1011, migration `20261007214426`): all three set or
@@ -131,9 +135,8 @@ export const QUEST_CLOCK_MAX_SEGMENTS = 12;
 
 /**
  * `raise` lifts an objective out of `dormant` and does nothing to one already
- * settled. It is deliberately not `reveal`: raising makes the objective live
- * for the DM, revealing tells the party — an objective is routinely one
- * without the other.
+ * settled. Raising is also how the party learns of it: players see an
+ * objective once it is no longer `dormant`, so there is no separate reveal.
  *
  * The **world actions** are everything else — what a beat does to the campaign
  * rather than to its own quest. One vocabulary for both ends of a consequence
@@ -156,7 +159,6 @@ export const QUEST_CLOCK_MAX_SEGMENTS = 12;
  */
 export type QuestConsequenceAction =
   | "raise"
-  | "reveal"
   | "complete"
   | "fail"
   | "create_calendar_event"
@@ -175,7 +177,7 @@ export type QuestConsequenceAction =
 /** Engine state: these move inside the transition and cascade. `tick_clock`
  *  is one of them (#1011): a clock it fills fires its own rules in the same
  *  transition, exactly as an objective a rule completes does. */
-export const QUEST_CONSEQUENCE_LEDGER_ACTIONS: readonly QuestConsequenceAction[] = ["raise", "reveal", "complete", "fail", "tick_clock"];
+export const QUEST_CONSEQUENCE_LEDGER_ACTIONS: readonly QuestConsequenceAction[] = ["raise", "complete", "fail", "tick_clock"];
 export const QUEST_CONSEQUENCE_WORLD_ACTIONS: readonly QuestConsequenceAction[] = [
   "create_calendar_event",
   "send_broadcast",
@@ -449,6 +451,8 @@ export interface QuestBeat {
   campaign_id: string;
   title: string;
   dm_content: string | null;
+  /** A secret beat is never rumored on a move: it stays hidden until revealed by hand or arrived at. */
+  secret: boolean;
   read_aloud: string | null;
   /**
    * `outcomes`/`consequences` are gone (migration `20260908210320`): a beat's
@@ -489,8 +493,10 @@ export interface QuestBeat {
   updated_at: string;
 }
 
-export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at" | "updated_at" | "staged_at_location_id"> & {
+export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at" | "updated_at" | "staged_at_location_id" | "secret"> & {
   id?: string;
+  /** Omit to take the column default of false. */
+  secret?: boolean;
   /** Omit to take the column default of null — stage it after creation. */
   staged_at_location_id?: string | null;
 };
@@ -509,9 +515,11 @@ export interface QuestBeatEdge {
   created_by: string | null;
   created_at: string;
   route_kind: QuestRouteKind;
-  /** The label a `parallel` route gives the thread it opens — shown to the DM
-   *  and on the player thread. Null on a `choice`. */
-  thread_label: string | null;
+  /** What the party does to take this route. On a `parallel` route it also
+   *  names the thread the route opens. */
+  label: string | null;
+  /** The DM's note on this route. */
+  note: string | null;
   /** How the route's gate conditions combine (#1011): `all` must each hold,
    *  `any` needs one. Meaningless with fewer than two conditions. */
   gate_mode: QuestGateMode;
@@ -527,8 +535,10 @@ export interface QuestBeatEdge {
   gate?: QuestRouteGate | null;
 }
 
-export type QuestBeatEdgeInsert = Omit<QuestBeatEdge, "id" | "created_by" | "created_at" | "gate" | "gate_mode"> & {
+export type QuestBeatEdgeInsert = Omit<QuestBeatEdge, "id" | "created_by" | "created_at" | "gate" | "gate_mode" | "note"> & {
   gate_mode?: QuestGateMode;
+  /** Omit to take the column default of null. */
+  note?: string | null;
 };
 
 /** `all`: every condition must hold. `any`: one is enough (#1011). */
@@ -722,7 +732,8 @@ export interface QuestRuntimeChoice {
   gate: QuestRouteGate | null;
   effects: QuestRouteEffect[];
   route_kind: QuestRouteKind;
-  thread_label: string | null;
+  label: string | null;
+  note: string | null;
   converge_mode: QuestConvergeMode;
   site: QuestRouteSite | null;
   payoff: QuestRoutePayoff[];

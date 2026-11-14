@@ -76,14 +76,11 @@ export interface QuestConsistencyInput {
 /**
  * The status a ledger verb leaves its target in.
  *
- * `reveal` maps to `pending` alongside `raise` because revealing implies
- * raising — a constraint the database enforces (`quest_objectives_dormant_is_hidden`
- * makes dormant-and-visible unstorable), and one this epic learned by shipping
- * the opposite and getting a 23514 mid-transition.
+ * `raise` is also how the party learns of an objective: players see it once
+ * it is no longer `dormant`, so there is no separate reveal verb.
  */
 const ACTION_RESULT: Partial<Record<QuestConsequenceAction, QuestConsequenceObjectiveStatus>> = {
   raise: "pending",
-  reveal: "pending",
   complete: "complete",
   fail: "failed",
 };

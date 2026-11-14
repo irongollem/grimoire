@@ -38,9 +38,9 @@ values ('86900000-0000-4000-8000-000000000025', '86900000-0000-4000-8000-0000000
 insert into public.quests (id, user_id, campaign_id, title, status)
 values ('86900000-0000-4000-8000-000000000030', '86900000-0000-4000-8000-000000000001', '86900000-0000-4000-8000-000000000010', 'The Crypt Below', 'active');
 
-insert into public.quest_objectives (id, quest_id, description, status, is_player_visible, sort_order) values
-  ('86900000-0000-4000-8000-000000000051', '86900000-0000-4000-8000-000000000030', 'Clear the Antechamber', 'pending', false, 1),
-  ('86900000-0000-4000-8000-000000000052', '86900000-0000-4000-8000-000000000030', 'Follow-on', 'dormant', false, 2);
+insert into public.quest_objectives (id, quest_id, description, status, sort_order) values
+  ('86900000-0000-4000-8000-000000000051', '86900000-0000-4000-8000-000000000030', 'Clear the Antechamber', 'pending', 1),
+  ('86900000-0000-4000-8000-000000000052', '86900000-0000-4000-8000-000000000030', 'Follow-on', 'dormant', 2);
 
 insert into public.quest_beats (id, quest_id, campaign_id, title)
 values ('86900000-0000-4000-8000-000000000041', '86900000-0000-4000-8000-000000000030', '86900000-0000-4000-8000-000000000010', 'Into the crypt');

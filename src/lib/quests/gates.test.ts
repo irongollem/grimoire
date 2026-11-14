@@ -3,7 +3,7 @@ import { deriveQuestRouteGates, describeGateStatuses, describeQuestRouteEffect, 
 import type { QuestBeatEdgeGate, QuestObjective, QuestRouteEffect, QuestRouteGate } from "@/types/quest.types";
 
 const objective = (id: string, status: QuestObjective["status"], description = id): QuestObjective => ({
-  id, quest_id: "quest", description, status, is_player_visible: false, sort_order: 0, due_year: null, due_month: null, due_day: null,
+  id, quest_id: "quest", description, status, sort_order: 0, due_year: null, due_month: null, due_day: null,
 });
 
 const gate = (edgeId: string, objectiveId: string, statuses: QuestBeatEdgeGate["statuses"]): QuestBeatEdgeGate => ({

@@ -154,7 +154,7 @@ select is(
 select is(
   public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main')) -> 'return_target' ->> 'beat_id',
   '66800000-0000-4000-8000-000000000033', 'a within-quest jump still saves an explicit return point');
-select is((select visibility from public.quest_beats where id = '66800000-0000-4000-8000-000000000034'), 'hidden', 'navigation never changes player visibility');
+select is((select visibility from public.quest_beats where id = '66800000-0000-4000-8000-000000000034'), 'revealed', 'a jump reveals the beat it arrives at (#1194)');
 select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'return', 2) -> 'current' ->> 'title', 'Side scene', 'return restores the saved beat');
 
 select throws_ok(
@@ -234,10 +234,10 @@ select is(
   (select jsonb_array_length(public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000050' and label = 'Main')) -> 'outgoing')),
   2, 'outgoing lists both authored routes from the gate beat');
 select ok(
-  (select bool_and(not (elem ? 'label')) from jsonb_array_elements(
+  (select bool_and(elem ? 'label' and elem ? 'note') from jsonb_array_elements(
     public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000050' and label = 'Main')) -> 'outgoing'
   ) elem),
-  'outgoing routes no longer carry the free-text label'
+  'outgoing routes carry the label and note the DM wrote (#1194)'
 );
 select is(
   (select elem -> 'gate' -> 'conditions' -> 0 -> 'statuses' ->> 0 from jsonb_array_elements(

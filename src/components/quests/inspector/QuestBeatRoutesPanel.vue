@@ -21,8 +21,8 @@
             {{ route.edge.route_kind }}
           </span>
           <TagChip class="uppercase">{{ route.targetKind }}</TagChip>
-          <span v-if="route.edge.route_kind === 'parallel' && route.edge.thread_label" class="rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info">
-            opens {{ route.edge.thread_label }}
+          <span v-if="route.edge.route_kind === 'parallel' && route.edge.label" class="rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info">
+            opens {{ route.edge.label }}
           </span>
           <span v-if="route.site && route.site.roomCount > 0" class="ml-auto text-label text-ink-info">site · {{ route.site.roomLabel }}</span>
         </div>

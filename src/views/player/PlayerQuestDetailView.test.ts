@@ -13,6 +13,7 @@ function quest(overrides: Partial<Quest> = {}): Quest {
     parent_quest_id: null,
     title: "The Silent Bell",
     summary: "Something rings under the church at night.",
+    dm_content: null,
     status: "active",
     giver_npc_id: null,
     location_id: null,
@@ -103,14 +104,12 @@ describe("PlayerQuestDetailView", () => {
     id,
     description,
     status: "active",
-    is_player_visible: true,
     ...over,
   });
 
   it("lists only objectives the party may see, keeps a failed one, and counts done out of those shown", async () => {
     mocks.objectives.value = [
       objective("o1", "Find the bell", { status: "complete" }),
-      objective("o2", "Secret betrayal", { is_player_visible: false }),
       objective("o3", "Take the north road", { status: "dormant" }),
       objective("o4", "Save the miller", { status: "failed" }),
     ];
@@ -118,7 +117,6 @@ describe("PlayerQuestDetailView", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("Find the bell");
     expect(wrapper.text()).toContain("Save the miller");
-    expect(wrapper.text()).not.toContain("Secret betrayal");
     expect(wrapper.text()).not.toContain("Take the north road");
     expect(wrapper.text()).toContain("1/2");
   });

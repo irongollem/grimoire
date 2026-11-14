@@ -175,7 +175,6 @@ export function describeQuestRouteGate(gate: QuestRouteGate): string {
 
 const EFFECT_VERBS: Record<QuestConsequenceAction, string> = {
   raise: "raises",
-  reveal: "reveals",
   complete: "completes",
   fail: "fails",
   create_calendar_event: "schedules a calendar event",

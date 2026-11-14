@@ -18,6 +18,7 @@ function quest(id: string, overrides: Partial<Quest> = {}): Quest {
     parent_quest_id: null,
     title: `Quest ${id}`,
     summary: null,
+    dm_content: null,
     status: "active",
     giver_npc_id: null,
     location_id: null,
@@ -213,7 +214,7 @@ const cursor = (questId: string, threadId: string, beatId: string, status: Quest
   quest_id: questId, thread_id: threadId, current_beat_id: beatId, status,
 });
 const consequence = (over: Partial<QuestBoardPayload["consequences"][number]>): QuestBoardPayload["consequences"][number] => ({
-  quest_id: "quest-a", on_beat_id: null, action: "reveal", target_quest_id: null, entry_beat_id: null, ...over,
+  quest_id: "quest-a", on_beat_id: null, action: "raise", target_quest_id: null, entry_beat_id: null, ...over,
 });
 
 describe("deriveQuestBoardSummaries", () => {
@@ -374,7 +375,7 @@ describe("deriveQuestBoardSummaries", () => {
       beats,
       consequences: [
         // A rule of another kind that merely points at a quest does not unlock it.
-        consequence({ quest_id: "quest-source", on_beat_id: "beat-x", action: "reveal", target_quest_id: "quest-plain" }),
+        consequence({ quest_id: "quest-source", on_beat_id: "beat-x", action: "raise", target_quest_id: "quest-plain" }),
         // Two unlock rules on one quest: the one without a beat is held, the one with a beat names it.
         consequence({ quest_id: "quest-source", action: "unlock_quest", target_quest_id: "quest-locked" }),
         consequence({ quest_id: "quest-source", on_beat_id: "beat-x", action: "unlock_quest", target_quest_id: "quest-locked" }),

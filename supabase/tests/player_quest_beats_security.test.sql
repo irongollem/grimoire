@@ -47,9 +47,9 @@ insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, targ
   ('67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000040', '67400000-0000-4000-8000-000000000042'),
   ('67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000040', '67400000-0000-4000-8000-000000000041');
 
-insert into public.quest_objectives (id, quest_id, description, is_player_visible) values
-  ('67400000-0000-4000-8000-000000000050', '67400000-0000-4000-8000-000000000030', 'Visible objective', true),
-  ('67400000-0000-4000-8000-000000000051', '67400000-0000-4000-8000-000000000030', 'Secret objective', false);
+insert into public.quest_objectives (id, quest_id, description, status) values
+  ('67400000-0000-4000-8000-000000000050', '67400000-0000-4000-8000-000000000030', 'Visible objective', 'pending'),
+  ('67400000-0000-4000-8000-000000000051', '67400000-0000-4000-8000-000000000030', 'Secret objective', 'dormant');
 insert into public.npcs (id, user_id, campaign_id, name) values
   ('67400000-0000-4000-8000-000000000060', '67400000-0000-4000-8000-000000000001', '67400000-0000-4000-8000-000000000010', 'Visible ref target'),
   ('67400000-0000-4000-8000-000000000061', '67400000-0000-4000-8000-000000000001', '67400000-0000-4000-8000-000000000010', 'Secret ref target');
@@ -75,6 +75,12 @@ insert into public.quest_beat_transitions (
   ('67400000-0000-4000-8000-000000000091', '67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000042', 'jump', 2, 'Quest A only', 'Hidden branch', '{"edge_label":"Secret betrayal route"}', now() - interval '3 minutes'),
   ('67400000-0000-4000-8000-000000000092', '67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000043', 'improv', 3, 'Quest A only', 'Improvised secret', '{"reason":"unexpected"}', now() - interval '2 minutes'),
   ('67400000-0000-4000-8000-000000000093', '67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000031', '67400000-0000-4000-8000-000000000044', 'jump', 4, 'Quest B only', 'B scene', '{}', now() - interval '1 minute');
+
+-- Inserting a transition now reveals its beat (#1194's arrival trigger); this
+-- file pins what players are shown for beats in specific states, so put the
+-- authored visibility back after the history is seeded.
+update public.quest_beats set visibility = 'rumored' where id = '67400000-0000-4000-8000-000000000040';
+update public.quest_beats set visibility = 'hidden' where id in ('67400000-0000-4000-8000-000000000042', '67400000-0000-4000-8000-000000000043');
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);

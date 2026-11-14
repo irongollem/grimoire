@@ -12,6 +12,7 @@ function quest(id: string, status: Quest["status"]): Quest {
     parent_quest_id: null,
     title: `Quest ${id}`,
     summary: null,
+    dm_content: null,
     status,
     giver_npc_id: null,
     location_id: null,

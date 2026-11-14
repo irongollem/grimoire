@@ -203,8 +203,8 @@ async function main() {
        insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id)
        values (v_quest, ${campaign}, v_open, v_road), (v_quest, ${campaign}, v_road, v_end);
 
-       insert into public.quest_objectives (quest_id, description, status, is_player_visible, sort_order)
-       values (v_quest, 'Reach the finale', 'pending', true, 0);
+       insert into public.quest_objectives (quest_id, description, status, sort_order)
+       values (v_quest, 'Reach the finale', 'pending', 0);
      end $$;`,
   );
 

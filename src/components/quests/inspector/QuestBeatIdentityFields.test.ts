@@ -6,7 +6,7 @@ import type { QuestBeat } from "@/types/quest.types";
 function beat(overrides: Partial<QuestBeat> = {}): QuestBeat {
   return {
     id: "beat-1", quest_id: "quest-1", campaign_id: "campaign-1", title: "Confront Ser Vallis",
-    dm_content: null, read_aloud: null, how_it_plays: null, converge_mode: "any",
+    dm_content: null, secret: false, read_aloud: null, how_it_plays: null, converge_mode: "any",
     rumor_text: null, reveal_text: null, visibility: "rumored", kind: "social",
     presentation_hint: null, staged_at_location_id: null, canvas_x: 0, canvas_y: 0, is_improvised: false,
     improv_reviewed_at: null, created_by: "dm", created_at: "now", updated_at: "version-1",

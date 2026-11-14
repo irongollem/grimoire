@@ -10,7 +10,7 @@ import { describeQuestRouteHeld, describeQuestRouteNeeds } from "./gates";
 
 /**
  * The ledger model, as the design canvas states it (`Main` board): *beats are
- * events, objectives are state. A beat raises, achieves, fails or reveals
+ * events, objectives are state. A beat raises, achieves or fails
  * objectives — objectives are the balance and beats are the entries that move
  * it.* Every surface that shows what a beat does to the ledger — a node's chips
  * on the story graph, a branch card's condition in the cockpit, the story-so-far
@@ -20,16 +20,15 @@ import { describeQuestRouteHeld, describeQuestRouteNeeds } from "./gates";
  * The database stores the achieve verb as `complete` (`quest_consequences.action`);
  * this module is where that name becomes the design's word. Nothing here writes.
  */
-export type LedgerVerb = "raise" | "achieve" | "fail" | "reveal";
+export type LedgerVerb = "raise" | "achieve" | "fail";
 
-export const LEDGER_VERBS: readonly LedgerVerb[] = ["raise", "achieve", "fail", "reveal"];
+export const LEDGER_VERBS: readonly LedgerVerb[] = ["raise", "achieve", "fail"];
 
 /** The `quest_consequences.action` a verb is stored as. */
 export const LEDGER_VERB_ACTIONS: Record<LedgerVerb, QuestConsequenceAction> = {
   raise: "raise",
   achieve: "complete",
   fail: "fail",
-  reveal: "reveal",
 };
 
 /** The verb a stored action is, or `null` for a world action. */
@@ -38,7 +37,6 @@ export function ledgerVerbOf(action: QuestConsequenceAction): LedgerVerb | null 
     case "raise": return "raise";
     case "complete": return "achieve";
     case "fail": return "fail";
-    case "reveal": return "reveal";
     case "create_calendar_event":
     case "send_broadcast":
     case "shift_npc_relationship":
@@ -130,7 +128,6 @@ const VERB_PHRASES: Record<LedgerVerb, string> = {
   raise: "raises",
   achieve: "achieves",
   fail: "fails",
-  reveal: "reveals",
 };
 
 /**

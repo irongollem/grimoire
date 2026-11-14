@@ -39,8 +39,8 @@ describe("QuestRunObjectivesLedger", () => {
 
   it("shows the tally alongside the ledger", () => {
     mocks.objectives.value = [
-      { id: "o1", quest_id: "q1", description: "Save the princess", status: "complete", is_player_visible: true },
-      { id: "o2", quest_id: "q1", description: "Find the tunnel", status: "pending", is_player_visible: false, sort_order: 0, due_year: null, due_month: null, due_day: null },
+      { id: "o1", quest_id: "q1", description: "Save the princess", status: "complete" },
+      { id: "o2", quest_id: "q1", description: "Find the tunnel", status: "pending", sort_order: 0, due_year: null, due_month: null, due_day: null },
     ];
     const wrapper = mountLedger();
     expect(wrapper.text()).toContain("1/2");
@@ -50,7 +50,7 @@ describe("QuestRunObjectivesLedger", () => {
 
   it("cycles a status through the sole writer, not a second editor", async () => {
     mocks.objectives.value = [
-      { id: "o1", quest_id: "q1", description: "Save the princess", status: "pending", is_player_visible: false, sort_order: 0, due_year: null, due_month: null, due_day: null },
+      { id: "o1", quest_id: "q1", description: "Save the princess", status: "pending", sort_order: 0, due_year: null, due_month: null, due_day: null },
     ];
     const wrapper = mountLedger();
     await wrapper.find("button").trigger("click");
@@ -59,7 +59,7 @@ describe("QuestRunObjectivesLedger", () => {
 
   it("names the route an objective gates", () => {
     mocks.objectives.value = [
-      { id: "o1", quest_id: "q1", description: "Name the true collector", status: "pending", is_player_visible: false, sort_order: 0, due_year: null, due_month: null, due_day: null },
+      { id: "o1", quest_id: "q1", description: "Name the true collector", status: "pending", sort_order: 0, due_year: null, due_month: null, due_day: null },
     ];
     const wrapper = mountLedger({
       outgoing: [{ edge_id: "e1", beat_id: "b1", beat_title: "The finale", gate: { mode: "all", is_open: false, conditions: [{ objective_id: "o1", objective: "x", statuses: ["complete"], current_status: "pending", met: false }] } }] as unknown as QuestRuntimeChoice[],
@@ -69,7 +69,7 @@ describe("QuestRunObjectivesLedger", () => {
 
   it("names the sibling thread that raised an objective", () => {
     mocks.objectives.value = [
-      { id: "o1", quest_id: "q1", description: "Recover the seal", status: "pending", is_player_visible: false, sort_order: 0, due_year: null, due_month: null, due_day: null },
+      { id: "o1", quest_id: "q1", description: "Recover the seal", status: "pending", sort_order: 0, due_year: null, due_month: null, due_day: null },
     ];
     mocks.consequences.value = [
       { id: "c1", quest_id: "q1", on_beat_id: "beat-b", on_edge_id: null, on_objective_id: null, on_objective_status: null, on_quest_settled: false, entry_beat_id: null, after_days: 0, action: "raise", target_objective_id: "o1", target_npc_id: null, target_quest_id: null, action_payload: {}, created_at: "now" },
@@ -85,7 +85,7 @@ describe("QuestRunObjectivesLedger", () => {
 
   it("shows how close a pending objective's deadline is, and nothing once it is resolved", () => {
     // An empty campaign store sits at year 1 month 1 day 1; due the 2nd is tomorrow.
-    const base = { quest_id: "q1", is_player_visible: false, sort_order: 0, due_year: 1, due_month: 1, due_day: 2 };
+    const base = { quest_id: "q1", sort_order: 0, due_year: 1, due_month: 1, due_day: 2 };
     mocks.objectives.value = [
       { ...base, id: "o1", description: "Stop the ritual", status: "pending" },
       { ...base, id: "o2", description: "Warn the mayor", status: "complete" },
@@ -96,7 +96,7 @@ describe("QuestRunObjectivesLedger", () => {
   });
 
   it("shows no deadline on an objective that is failed or not yet raised", () => {
-    const base = { quest_id: "q1", is_player_visible: false, sort_order: 0, due_year: 1, due_month: 1, due_day: 2 };
+    const base = { quest_id: "q1", sort_order: 0, due_year: 1, due_month: 1, due_day: 2 };
     mocks.objectives.value = [
       { ...base, id: "o1", description: "Lost cause", status: "failed" },
       { ...base, id: "o2", description: "Not yet", status: "dormant" },
@@ -106,7 +106,7 @@ describe("QuestRunObjectivesLedger", () => {
 
   it("names every route an objective gates, comma separated", () => {
     mocks.objectives.value = [
-      { id: "o1", quest_id: "q1", description: "Name the true collector", status: "pending", is_player_visible: false, sort_order: 0, due_year: null, due_month: null, due_day: null },
+      { id: "o1", quest_id: "q1", description: "Name the true collector", status: "pending", sort_order: 0, due_year: null, due_month: null, due_day: null },
     ];
     const route = (id: string, title: string) => ({ edge_id: id, beat_id: id, beat_title: title, gate: { mode: "all", is_open: false, conditions: [{ objective_id: "o1", objective: "x", statuses: ["complete"], current_status: "pending", met: false }] } });
     const wrapper = mountLedger({ outgoing: [route("e1", "The finale"), route("e2", "The escape")] as unknown as QuestRuntimeChoice[] });

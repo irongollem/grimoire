@@ -455,7 +455,7 @@ const canSelectedEdgeBeParallel = computed(() => {
 });
 watch(selectedEdge, (edge) => {
   edgeRouteKind.value = edge?.route_kind ?? "choice";
-  edgeThreadLabel.value = edge?.thread_label ?? "";
+  edgeThreadLabel.value = edge?.label ?? "";
   edgeGateMode.value = edge?.gate_mode ?? "all";
   edgeGateConditions.value = edge
     ? edgeGates.value.filter((gate) => gate.edge_id === edge.id).map((gate) => ({ key: gate.id, gateId: gate.id, objectiveId: gate.objective_id, statuses: [...gate.statuses] }))
@@ -559,7 +559,7 @@ async function createComposedBeat(value: { title: string; kind: string; threadLa
       const refreshed = await edgesQuery.refetch();
       const spawnedEdge = (refreshed.data ?? []).find((edge) => edge.source_beat_id === draft.sourceBeatId && edge.target_beat_id === created.id);
       if (spawnedEdge) {
-        await updateEdge.mutateAsync({ id: spawnedEdge.id, questId, update: { route_kind: "parallel", thread_label: value.threadLabel } });
+        await updateEdge.mutateAsync({ id: spawnedEdge.id, questId, update: { route_kind: "parallel", label: value.threadLabel } });
       }
     }
     select({ beat: created.id });
@@ -580,7 +580,7 @@ async function linkExisting(sourceBeatId: string, targetBeatId: string) {
     await createEdge.mutateAsync({
       quest_id: questId, campaign_id: campaign.activeCampaignId,
       source_beat_id: sourceBeatId, target_beat_id: targetBeatId,
-      route_kind: "choice", thread_label: null,
+      route_kind: "choice", label: null,
     });
     retryMutation.value = null;
   } catch (error) { mutationError.value = error instanceof Error ? error.message : "Could not create route"; retryMutation.value = retry; }
@@ -600,7 +600,7 @@ async function saveEdge() {
   edgeSaving.value = true;
   try {
     mutationError.value = "";
-    await updateEdge.mutateAsync({ id: edge.id, questId, update: { route_kind: edgeRouteKind.value, thread_label: edgeRouteKind.value === "parallel" ? edgeThreadLabel.value.trim() : null } });
+    await updateEdge.mutateAsync({ id: edge.id, questId, update: { route_kind: edgeRouteKind.value, label: edgeRouteKind.value === "parallel" ? edgeThreadLabel.value.trim() : null } });
     await setRouteGate.mutateAsync({ edgeId: edge.id, questId, mode, conditions });
     // Re-read the stored rows before the editor can save again, so a condition
     // just added is an update next time rather than a second insert.

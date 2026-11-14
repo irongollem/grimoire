@@ -32,6 +32,7 @@ function quest(overrides: Partial<Quest> = {}): Quest {
     parent_quest_id: null,
     title: "The Unseen",
     summary: "A rumor of something wrong at the mill.",
+    dm_content: null,
     status: "active",
     giver_npc_id: null,
     location_id: null,

@@ -29,7 +29,6 @@ function objective(overrides: Partial<QuestObjective> & { id: string }): QuestOb
     quest_id: "quest-1",
     description: "Find the missing miller",
     status: "pending",
-    is_player_visible: false,
     sort_order: 0,
     due_year: null,
     due_month: null,
@@ -82,13 +81,6 @@ describe("QuestObjectivesSection", () => {
     expect(mocks.updateObjective).not.toHaveBeenCalled();
   });
 
-  it("disables the reveal control on a dormant objective, since dormant + visible is refused at the database", () => {
-    mocks.objectives = [objective({ id: "obj-1", status: "dormant" })];
-    const wrapper = mountLifecycle();
-    const revealButton = wrapper.findAll("button").find((button) => (button.attributes("aria-label") ?? "").includes("Dormant"));
-    expect(revealButton?.attributes("disabled")).toBeDefined();
-  });
-
   it("Enter adds the objective trimmed, numbered after those already there, and empties the box; spaces alone add nothing", async () => {
     mocks.objectives = [objective({ id: "a", sort_order: 0 }), objective({ id: "b", sort_order: 1 })];
     const wrapper = mountLifecycle();
@@ -98,19 +90,8 @@ describe("QuestObjectivesSection", () => {
     expect(wrapper.get('button[aria-label="Add objective"]').attributes("disabled")).toBeDefined();
     await objectiveInput(wrapper).setValue("  Warn the village  ");
     await objectiveInput(wrapper).trigger("keydown.enter");
-    expect(mocks.createObjective).toHaveBeenCalledWith(expect.objectContaining({ description: "Warn the village", sort_order: 2, is_player_visible: false }));
+    expect(mocks.createObjective).toHaveBeenCalledWith(expect.objectContaining({ description: "Warn the village", sort_order: 2 }));
     expect((objectiveInput(wrapper).element as HTMLInputElement).value).toBe("");
-  });
-
-  it("the reveal control flips what players can see, both ways", async () => {
-    mocks.objectives = [objective({ id: "hid", is_player_visible: false }), objective({ id: "vis", is_player_visible: true })];
-    const wrapper = mountLifecycle();
-    await wrapper.get('[aria-label="Hidden from players: click to reveal"]').trigger("click");
-    await wrapper.get('[aria-label="Visible to players: click to hide"]').trigger("click");
-    expect(mocks.updateObjective.mock.calls).toEqual([
-      [{ id: "hid", questId: "quest-1", update: { is_player_visible: true } }],
-      [{ id: "vis", questId: "quest-1", update: { is_player_visible: false } }],
-    ]);
   });
 
   it("a due date is stored year, month and day, and clearing it stores nulls; a refused save is toasted", async () => {

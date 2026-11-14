@@ -616,7 +616,7 @@ export function useDeleteQuestBeatEdge() {
 export function useUpdateQuestBeatEdge() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; questId: string; update: Partial<Pick<QuestBeatEdge, "source_beat_id" | "target_beat_id" | "route_kind" | "thread_label">> }) => {
+    mutationFn: async (input: { id: string; questId: string; update: Partial<Pick<QuestBeatEdge, "source_beat_id" | "target_beat_id" | "route_kind" | "label" | "note">> }) => {
       const { data, error } = await supabase.from("quest_beat_edges").update(input.update).eq("id", input.id).select().single();
       if (error) throw error;
       return data as QuestBeatEdge;

@@ -46,6 +46,7 @@ function interruptedRow(): ArchiveDocumentImport {
     display_name: "My vault",
     page_count: 2,
     status: "review",
+    own_writing: false,
     extracted: manifest,
     imported_counts: {},
     rights_attested_at: "2026-10-07T00:00:00Z",

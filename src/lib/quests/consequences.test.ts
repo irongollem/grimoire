@@ -10,9 +10,8 @@ const row = (overrides: Partial<QuestConsequence>): Pick<QuestConsequence, "acti
 });
 
 describe("isLedgerConsequenceAction", () => {
-  it("treats the four objective verbs as ledger actions", () => {
+  it("treats the objective verbs as ledger actions", () => {
     expect(isLedgerConsequenceAction("raise")).toBe(true);
-    expect(isLedgerConsequenceAction("reveal")).toBe(true);
     expect(isLedgerConsequenceAction("complete")).toBe(true);
     expect(isLedgerConsequenceAction("fail")).toBe(true);
   });

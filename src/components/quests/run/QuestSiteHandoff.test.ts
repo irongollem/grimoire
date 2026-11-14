@@ -81,6 +81,7 @@ function beat(overrides: Partial<QuestBeat> = {}): QuestBeat {
     campaign_id: "c1",
     title: "Descend the Drowned Vault",
     dm_content: null,
+    secret: false,
     read_aloud: null,
     how_it_plays: null,
     rumor_text: null,

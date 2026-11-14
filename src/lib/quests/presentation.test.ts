@@ -281,13 +281,13 @@ describe("quest beat presentation", () => {
 
   it("counts a beat's payoffs as its own arrival rules plus loot still held, and flags an unlock rule", () => {
     const unlock = { id: "c1", on_beat_id: "b", action: "unlock_quest" } as QuestConsequence;
-    const reveal = { id: "c2", on_beat_id: "b", action: "reveal" } as QuestConsequence;
+    const second = { id: "c2", on_beat_id: "b", action: "raise" } as QuestConsequence;
     const onARoute = { id: "c3", on_beat_id: null, on_edge_id: "ab", action: "raise" } as QuestConsequence;
     const result = deriveQuestBeatPresentations({
       beats: [beat("a"), beat("b")],
       edges: [edge("ab", "a", "b")],
       attachments: [],
-      consequences: [unlock, reveal, onARoute],
+      consequences: [unlock, second, onARoute],
       lootByBeat: { b: { total: 2, undispatched: 2, unclaimed: 0 } },
     });
     expect(result.b!.payoffCount).toBe(4); // two on-beat rules + two loot held
@@ -301,7 +301,7 @@ describe("quest beat presentation", () => {
       beats: [beat("a"), beat("b")],
       edges: [edge("ab", "a", "b")],
       attachments: [],
-      consequences: [{ id: "c", on_beat_id: "b", action: "reveal" } as QuestConsequence],
+      consequences: [{ id: "c", on_beat_id: "b", action: "raise" } as QuestConsequence],
     });
     expect(result.b!.unlocksQuest).toBe(false);
   });

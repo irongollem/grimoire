@@ -47,7 +47,7 @@ function resetSql(shared: boolean): string {
     update public.quest_beats set visibility = 'hidden' where quest_id = ${q};
     ${reveals}
     update public.quest_objectives set status = 'pending' where quest_id = ${q} and status <> 'dormant';
-    update public.quest_objectives set status = 'dormant', is_player_visible = false where quest_id = ${q} and sort_order = 3;
+    update public.quest_objectives set status = 'dormant' where quest_id = ${q} and sort_order = 3;
     update public.quests set status = 'active', player_visible_to = ${shared ? `array[${member}]::uuid[]` : "'{}'::uuid[]"} where id = ${q} and campaign_id = ${c};
   commit;`;
 }

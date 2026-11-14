@@ -158,11 +158,11 @@
               <span class="block text-heading-sm font-bold text-foreground">{{ route.beat_title || "Untitled beat" }}</span>
               <span v-if="!isClosed(route)" class="block text-caption text-muted-foreground">
                 <template v-if="plan?.spawnLetters[route.edge_id]">
-                  Creates Thread {{ plan.spawnLetters[route.edge_id] }}, “{{ route.thread_label || route.beat_title }}”, at that beat. Thread {{ threadLetter }} keeps its own cursor:
+                  Creates Thread {{ plan.spawnLetters[route.edge_id] }}, “{{ route.label || route.beat_title }}”, at that beat. Thread {{ threadLetter }} keeps its own cursor:
                   untick to prepare the layer without opening it yet.
                 </template>
                 <template v-else>
-                  Would open a thread “{{ route.thread_label || route.beat_title }}” at that beat.
+                  Would open a thread “{{ route.label || route.beat_title }}” at that beat.
                 </template>
               </span>
               <span v-else class="block text-caption text-destructive">{{ routeCondition(route.gate)?.text }}</span>
@@ -309,7 +309,6 @@ import {
   IconParty,
   IconPin,
   IconQuest,
-  IconReveal,
   IconScrollText,
   IconShuffle,
   IconWarning,
@@ -454,7 +453,6 @@ function describePayoff(entry: QuestRoutePayoff): string {
 // the ones the mock happened to draw.
 const PAYOFF_ICON: Record<QuestConsequenceAction, Component> = {
   raise: IconQuest,
-  reveal: IconReveal,
   // A flag, not a tick: each payoff row already has its checkbox, and a tick in a green tile beside it
   // read as a second, already-ticked box (8 Nov 2026).
   complete: IconFlag,
@@ -479,7 +477,6 @@ function payoffIcon(action: QuestConsequenceAction): Component {
 type PayoffTone = "success" | "danger" | "caution" | "arcane" | "info" | "gold";
 const PAYOFF_TONE: Record<QuestConsequenceAction, PayoffTone> = {
   raise: "info",
-  reveal: "info",
   complete: "success",
   fail: "danger",
   create_calendar_event: "info",
@@ -515,7 +512,6 @@ function payoffTone(entry: QuestRoutePayoff): { bg: string; text: string } {
 
 const PAYOFF_HINT: Record<QuestConsequenceAction, string> = {
   raise: "fires with the transition · undoable from the event log",
-  reveal: "fires with the transition · undoable from the event log",
   complete: "fires with the transition · undoable from the event log",
   fail: "fires with the transition · undoable from the event log",
   shift_npc_relationship: "fires with the transition · undoable from the event log",

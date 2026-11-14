@@ -88,7 +88,7 @@ insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, 
 values ('11830000-0000-4000-8000-0000000a00e9', '11830000-0000-4000-8000-0000000a0001', '11830000-0000-4000-8000-000000000010',
         '11830000-0000-4000-8000-0000000a00b1', '11830000-0000-4000-8000-0000000a00b9');
 -- A parallel route out of A, for the "taking a parallel route opens a thread" cover.
-insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, route_kind, thread_label)
+insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, route_kind, label)
 values ('11830000-0000-4000-8000-0000000a00e2', '11830000-0000-4000-8000-0000000a0001', '11830000-0000-4000-8000-000000000010',
         '11830000-0000-4000-8000-0000000a00b1', '11830000-0000-4000-8000-0000000a00b3', 'parallel', 'Scouting');
 insert into public.quest_threads (id, campaign_id, quest_id, label, status, merged_into_thread_id)

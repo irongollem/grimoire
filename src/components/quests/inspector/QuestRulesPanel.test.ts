@@ -29,8 +29,8 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
 }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useQuestObjectives: () => ({ data: { value: [
-    { id: "obj-1", quest_id: "quest-1", description: "Keep the bridge standing", status: "pending", is_player_visible: true, sort_order: 1 },
-    { id: "obj-2", quest_id: "quest-1", description: "Warn the village", status: "dormant", is_player_visible: false, sort_order: 2 },
+    { id: "obj-1", quest_id: "quest-1", description: "Keep the bridge standing", status: "pending", sort_order: 1 },
+    { id: "obj-2", quest_id: "quest-1", description: "Warn the village", status: "dormant", sort_order: 2 },
   ] } }),
   // #836: only `undiscovered` quests can be unlocked, and the quest being
   // edited is excluded — the database refuses a self-unlock.

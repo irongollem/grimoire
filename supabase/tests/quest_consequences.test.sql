@@ -47,9 +47,9 @@ on conflict (campaign_id, user_id) do update set role = excluded.role;
 insert into public.quests (id, user_id, campaign_id, title, status)
 values ('79400000-0000-4000-8000-000000a00030', '79400000-0000-4000-8000-000000a00001', '79400000-0000-4000-8000-000000a00010', 'Two roads', 'active');
 
-insert into public.quest_objectives (id, quest_id, description, status, is_player_visible, sort_order) values
-  ('79400000-0000-4000-8000-000000a00051', '79400000-0000-4000-8000-000000a00030', 'Save the caravan', 'pending', false, 1),
-  ('79400000-0000-4000-8000-000000a00052', '79400000-0000-4000-8000-000000a00030', 'Keep the bridge standing', 'pending', true, 2);
+insert into public.quest_objectives (id, quest_id, description, status, sort_order) values
+  ('79400000-0000-4000-8000-000000a00051', '79400000-0000-4000-8000-000000a00030', 'Save the caravan', 'dormant', 1),
+  ('79400000-0000-4000-8000-000000a00052', '79400000-0000-4000-8000-000000a00030', 'Keep the bridge standing', 'pending', 2);
 
 insert into public.quest_beats (id, quest_id, campaign_id, title) values
   ('79400000-0000-4000-8000-000000a00041', '79400000-0000-4000-8000-000000a00030', '79400000-0000-4000-8000-000000a00010', 'The fork'),
@@ -59,10 +59,10 @@ insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, 
   ('79400000-0000-4000-8000-000000a00062', '79400000-0000-4000-8000-000000a00030', '79400000-0000-4000-8000-000000a00010',
    '79400000-0000-4000-8000-000000a00041', '79400000-0000-4000-8000-000000a00043');
 
--- Arriving at the fork reveals the caravan objective.
+-- Arriving at the fork raises the caravan objective.
 insert into public.quest_consequences (id, quest_id, on_beat_id, action, target_objective_id)
 values ('79400000-0000-4000-8000-000000a00071', '79400000-0000-4000-8000-000000a00030',
-        '79400000-0000-4000-8000-000000a00041', 'reveal', '79400000-0000-4000-8000-000000a00051');
+        '79400000-0000-4000-8000-000000a00041', 'raise', '79400000-0000-4000-8000-000000a00051');
 
 -- Taking the bridge fails it — the branch, not the beat.
 insert into public.quest_consequences (id, quest_id, on_edge_id, action, target_objective_id)
@@ -86,9 +86,9 @@ select lives_ok($$select public.transition_quest_runtime(
   'entering the fork runs the beat''s consequences');
 
 select is(
-  (select is_player_visible from public.quest_objectives where id = '79400000-0000-4000-8000-000000a00051'),
-  true,
-  'arriving at a beat reveals the objective its rule targets'
+  (select status from public.quest_objectives where id = '79400000-0000-4000-8000-000000a00051'),
+  'pending',
+  'arriving at a beat raises the objective its rule targets'
 );
 
 select is(
@@ -283,20 +283,19 @@ insert into public.quest_beats (id, quest_id, campaign_id, title)
 values ('79400000-0000-4000-8000-000000c00041', '79400000-0000-4000-8000-000000c00030', '79400000-0000-4000-8000-000000c00010', 'Start');
 
 insert into public.quest_objectives (id, quest_id, description, status, sort_order) values
-  ('79400000-0000-4000-8000-000000c00051', '79400000-0000-4000-8000-000000c00030', 'A', 'pending', 1),
-  ('79400000-0000-4000-8000-000000c00052', '79400000-0000-4000-8000-000000c00030', 'B', 'pending', 2);
+  ('79400000-0000-4000-8000-000000c00051', '79400000-0000-4000-8000-000000c00030', 'A', 'dormant', 1),
+  ('79400000-0000-4000-8000-000000c00052', '79400000-0000-4000-8000-000000c00030', 'B', 'dormant', 2);
 
--- Arriving reveals A. A's status stays 'pending' — reveal never changes status
--- for a non-dormant objective — so the rule below's condition is true both
--- before and after it fires.
+-- Arriving raises A. A's status stays 'pending' — raising A makes it 'pending' and it stays there, so the rule below's
+-- condition is true from then on, however often the engine looks.
 insert into public.quest_consequences (id, quest_id, on_beat_id, action, target_objective_id)
 values ('79400000-0000-4000-8000-000000c00071', '79400000-0000-4000-8000-000000c00030',
-        '79400000-0000-4000-8000-000000c00041', 'reveal', '79400000-0000-4000-8000-000000c00051');
+        '79400000-0000-4000-8000-000000c00041', 'raise', '79400000-0000-4000-8000-000000c00051');
 
 -- A permanently-true condition: A is, and remains, 'pending'.
 insert into public.quest_consequences (id, quest_id, on_objective_id, on_objective_status, action, target_objective_id)
 values ('79400000-0000-4000-8000-000000c00072', '79400000-0000-4000-8000-000000c00030',
-        '79400000-0000-4000-8000-000000c00051', 'pending', 'reveal', '79400000-0000-4000-8000-000000c00052');
+        '79400000-0000-4000-8000-000000c00051', 'pending', 'raise', '79400000-0000-4000-8000-000000c00052');
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -314,9 +313,9 @@ select is(
 );
 
 select is(
-  (select is_player_visible from public.quest_objectives where id = '79400000-0000-4000-8000-000000c00052'),
-  true,
-  'the single fire still cascaded to reveal the second objective'
+  (select status from public.quest_objectives where id = '79400000-0000-4000-8000-000000c00052'),
+  'pending',
+  'the single fire still cascaded to raise the second objective'
 );
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -404,11 +403,11 @@ values ('79400000-0000-4000-8000-000000e00030', '79400000-0000-4000-8000-000000e
 
 insert into public.quest_objectives (id, quest_id, description, status, sort_order) values
   ('79400000-0000-4000-8000-000000e00051', '79400000-0000-4000-8000-000000e00030', 'A', 'pending', 1),
-  ('79400000-0000-4000-8000-000000e00052', '79400000-0000-4000-8000-000000e00030', 'B', 'pending', 2);
+  ('79400000-0000-4000-8000-000000e00052', '79400000-0000-4000-8000-000000e00030', 'B', 'dormant', 2);
 
 insert into public.quest_consequences (id, quest_id, on_objective_id, on_objective_status, action, target_objective_id)
 values ('79400000-0000-4000-8000-000000e00071', '79400000-0000-4000-8000-000000e00030',
-        '79400000-0000-4000-8000-000000e00051', 'complete', 'reveal', '79400000-0000-4000-8000-000000e00052');
+        '79400000-0000-4000-8000-000000e00051', 'complete', 'raise', '79400000-0000-4000-8000-000000e00052');
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -425,8 +424,8 @@ select is(
 );
 
 select is(
-  (select is_player_visible from public.quest_objectives where id = '79400000-0000-4000-8000-000000e00052'),
-  true,
+  (select status from public.quest_objectives where id = '79400000-0000-4000-8000-000000e00052'),
+  'pending',
   'the assertion seeds the engine, which cascades into the objective-became rule'
 );
 

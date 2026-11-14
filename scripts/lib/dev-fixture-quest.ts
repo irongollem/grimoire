@@ -196,14 +196,14 @@ function buildFixtureQuest(dbUrl: string, campaignId: string, ownerId: string): 
       returning id into v_edge_road_vault;
 
       -- A real, non-dormant objective for the gate to read.
-      insert into public.quest_objectives (quest_id, description, status, is_player_visible, sort_order)
-      values (v_quest_id, 'Secure safe passage north', 'pending', true, 0)
+      insert into public.quest_objectives (quest_id, description, status, sort_order)
+      values (v_quest_id, 'Secure safe passage north', 'pending', 0)
       returning id into v_obj_passage;
 
       -- Dormant: the party has not been given this thread, because it lives
       -- behind the branch they did not take.
-      insert into public.quest_objectives (quest_id, description, status, is_player_visible, sort_order)
-      values (v_quest_id, 'Uncover why the vault was sealed', 'dormant', false, 1)
+      insert into public.quest_objectives (quest_id, description, status, sort_order)
+      values (v_quest_id, 'Uncover why the vault was sealed', 'dormant', 1)
       returning id into v_obj_sealed;
 
       -- The route into the vault stays shut until passage is secured -- a

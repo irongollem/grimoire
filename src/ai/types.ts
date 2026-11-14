@@ -313,6 +313,9 @@ export interface QuestSpineBeatResult {
 export interface QuestSpineRouteResult {
   from: string;
   to: string;
+  kind?: "choice" | "parallel" | null;
+  label?: string | null;
+  note?: string | null;
 }
 
 /**

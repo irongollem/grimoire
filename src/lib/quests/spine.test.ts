@@ -129,7 +129,7 @@ describe("planSpineRoutes", () => {
       { from: "a", to: "b" },
       { from: "a", to: "ghost" },
     ];
-    expect(planSpineRoutes(beats, routes)).toEqual([{ from: "a", to: "b" }]);
+    expect(planSpineRoutes(beats, routes)).toEqual([{ from: "a", to: "b", kind: "choice", label: null, note: null }]);
   });
 
   it("returns nothing when routes itself isn't an array", () => {

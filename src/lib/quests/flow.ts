@@ -37,7 +37,7 @@ export interface QuestFlowEdgeData {
   routeKind: QuestRouteKind;
   threadLabel: string | null;
   /** The route's destination, for the self-labelling pill's fallback text —
-   *  a parallel route with no authored `thread_label` still has something to
+   *  a parallel route with no authored `label` still has something to
    *  say ("opens <target title>"), and a choice route always names its target. */
   targetTitle: string;
   /** The target beat's own reach is `stranded` — the run has walked past the
@@ -109,7 +109,7 @@ export function toQuestFlowGraph(
         visited: visitedEdgeIds.has(edge.id),
         gate,
         routeKind: edge.route_kind,
-        threadLabel: edge.thread_label,
+        threadLabel: edge.label,
         targetTitle: beatsById.get(edge.target_beat_id)?.title || "Untitled beat",
         stranded,
         unseen,

@@ -65,7 +65,6 @@ export function objectiveThreadHint(
 
 const HELD_PAYOFF_ACTION_LABELS: Record<QuestConsequenceAction, string> = {
   raise: "Raises an objective",
-  reveal: "Reveals an objective",
   complete: "Achieves an objective",
   fail: "Fails an objective",
   create_calendar_event: "Schedules a calendar event",

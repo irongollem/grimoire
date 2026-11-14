@@ -55,6 +55,9 @@ export interface SpineBeatDraft {
 export interface SpineRoutePlanEntry {
   from: string;
   to: string;
+  kind: "choice" | "parallel";
+  label: string | null;
+  note: string | null;
 }
 
 export interface SpineConsequencePlanEntry {
@@ -128,7 +131,13 @@ export function planSpineRoutes(beats: SpineBeatDraft[], routes: QuestSpineRoute
     const dedupeKey = `${from}->${to}`;
     if (seen.has(dedupeKey)) continue;
     seen.add(dedupeKey);
-    planned.push({ from, to });
+    planned.push({
+      from,
+      to,
+      kind: route.kind === "parallel" ? "parallel" : "choice",
+      label: asTrimmedString(route.label) || null,
+      note: asTrimmedString(route.note) || null,
+    });
   }
   return planned;
 }

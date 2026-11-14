@@ -9,6 +9,7 @@ const quest = (id: string, title: string): Quest => ({
   parent_quest_id: null,
   title,
   summary: null,
+  dm_content: null,
   status: "active",
   giver_npc_id: null,
   location_id: null,

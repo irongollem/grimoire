@@ -112,7 +112,7 @@ describe("QuestGraphDesigner", () => {
   });
 
   it("lists a wiring finding with no beat of its own, and does not offer to select it", async () => {
-    mocks.objectives = [{ id: "obj-1", quest_id: "quest-1", description: "Find the miller", status: "dormant", is_player_visible: false, sort_order: 0, due_year: null, due_month: null, due_day: null } satisfies Partial<QuestObjective>];
+    mocks.objectives = [{ id: "obj-1", quest_id: "quest-1", description: "Find the miller", status: "dormant", sort_order: 0, due_year: null, due_month: null, due_day: null } satisfies Partial<QuestObjective>];
     const { wrapper, router } = await mountDesigner();
     const chip = wrapper.findAll("button").find((button) => button.text().includes("prep gaps"))!;
     await chip.trigger("click");

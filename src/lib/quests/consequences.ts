@@ -15,8 +15,7 @@ import { NPC_RELATIONSHIP_LABELS } from "@/types/npc.types";
 import { pluralizeCount } from "@/lib/utils";
 
 export const QUEST_CONSEQUENCE_ACTION_LABELS: Record<QuestConsequenceAction, string> = {
-  raise: "Raise",
-  reveal: "Reveal to players",
+  raise: "Raise (players learn of it)",
   complete: "Complete",
   fail: "Fail",
   create_calendar_event: "Create calendar event",
@@ -272,7 +271,6 @@ export function describeWorldConsequenceAction(
     case "unlock_quest":
     case "give_handout":
     case "raise":
-    case "reveal":
     case "complete":
     case "fail":
       return QUEST_CONSEQUENCE_ACTION_LABELS[action];

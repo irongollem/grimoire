@@ -552,6 +552,8 @@ export interface DocumentImportBase {
   display_name: string;
   page_count: number;
   status: DocumentImportStatus;
+  /** The DM wrote this themselves: the import keeps their words rather than rewriting them. */
+  own_writing: boolean;
   /**
    * Kind → how many rows that step imported. Absent means "not reviewed yet",
    * 0 means "reviewed and skipped everything" — the wizard resumes on the
@@ -599,9 +601,11 @@ export function isArchiveImport(row: DocumentImport): row is ArchiveDocumentImpo
 
 export type DocumentImportInsert = Omit<
   DocumentImportBase,
-  "id" | "user_id" | "status" | "error" | "expires_at" | "created_at" | "updated_at"
+  "id" | "user_id" | "status" | "error" | "expires_at" | "created_at" | "updated_at" | "own_writing"
 > & {
   source_kind: DocumentImportSourceKind;
+  /** Omit to take the column default of false. */
+  own_writing?: boolean;
   status?: DocumentImportStatus;
   expires_at?: string;
 };

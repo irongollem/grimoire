@@ -14,6 +14,7 @@ function quest(overrides: Partial<Quest> = {}): Quest {
     parent_quest_id: null,
     title: "The Salt-Drowned Bell",
     summary: "Something beneath the harbour rings on the wrong tide.",
+    dm_content: null,
     status: "active",
     giver_npc_id: null,
     location_id: null,

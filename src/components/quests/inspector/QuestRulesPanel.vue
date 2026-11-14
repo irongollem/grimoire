@@ -199,7 +199,6 @@ const ACTION_LABELS = QUEST_CONSEQUENCE_ACTION_LABELS;
 // mid-session.
 const ACTION_TONES: Record<QuestConsequenceAction, string> = {
   raise: "text-tone-info",
-  reveal: "text-primary",
   complete: "text-tone-success",
   fail: "text-destructive",
   create_calendar_event: "text-tone-info",

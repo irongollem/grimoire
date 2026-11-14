@@ -43,9 +43,9 @@ describe("QuestBeatRoutesPanel", () => {
 
   it("counts choice and parallel routes separately, ignoring routes that belong to another beat", () => {
     const edges = [
-      { id: "edge-confess", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-confess", route_kind: "choice", thread_label: null },
-      { id: "edge-crypt", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-crypt", route_kind: "parallel", thread_label: "Thread C" },
-      { id: "edge-elsewhere", quest_id: "quest-1", source_beat_id: "beat-confess", target_beat_id: "beat-crypt", route_kind: "choice", thread_label: null },
+      { id: "edge-confess", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-confess", route_kind: "choice", label: null, note: null },
+      { id: "edge-crypt", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-crypt", route_kind: "parallel", label: "Thread C", note: null },
+      { id: "edge-elsewhere", quest_id: "quest-1", source_beat_id: "beat-confess", target_beat_id: "beat-crypt", route_kind: "choice", label: null, note: null },
     ] as QuestBeatEdge[];
     const wrapper = mount(QuestBeatRoutesPanel, { props: { beat, edges, beats }, global });
     expect(wrapper.text()).toContain("1 choice · 1 parallel");
@@ -54,7 +54,7 @@ describe("QuestBeatRoutesPanel", () => {
 
   it("names the target beat's title and kind on a choice route", () => {
     const edges = [
-      { id: "edge-confess", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-confess", route_kind: "choice", thread_label: null },
+      { id: "edge-confess", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-confess", route_kind: "choice", label: null, note: null },
     ] as QuestBeatEdge[];
     const wrapper = mount(QuestBeatRoutesPanel, { props: { beat, edges, beats }, global });
     const row = wrapper.get("li");
@@ -65,7 +65,7 @@ describe("QuestBeatRoutesPanel", () => {
 
   it("shows the opened thread label and the site's room count on a parallel route", () => {
     const edges = [
-      { id: "edge-crypt", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-crypt", route_kind: "parallel", thread_label: "Thread C" },
+      { id: "edge-crypt", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-crypt", route_kind: "parallel", label: "Thread C", note: null },
     ] as QuestBeatEdge[];
     const wrapper = mount(QuestBeatRoutesPanel, { props: { beat, edges, beats }, global });
     const row = wrapper.get("li");
@@ -79,7 +79,7 @@ describe("QuestBeatRoutesPanel", () => {
   // #887: and once counted, the chip must call them `grounds`, not `rooms`.
   it("counts a wilds site's grounds, not just its rooms, and calls them grounds", () => {
     const edges = [
-      { id: "edge-wilds", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-wilds", route_kind: "parallel", thread_label: "Thread C" },
+      { id: "edge-wilds", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-wilds", route_kind: "parallel", label: "Thread C", note: null },
     ] as QuestBeatEdge[];
     const wrapper = mount(QuestBeatRoutesPanel, { props: { beat, edges, beats }, global });
     const row = wrapper.get("li");
@@ -88,7 +88,7 @@ describe("QuestBeatRoutesPanel", () => {
 
   it("sends Edit route to the story flow with this beat and that edge selected", () => {
     const edges = [
-      { id: "edge-confess", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-confess", route_kind: "choice", thread_label: null },
+      { id: "edge-confess", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-confess", route_kind: "choice", label: null, note: null },
     ] as QuestBeatEdge[];
     const wrapper = mount(QuestBeatRoutesPanel, { props: { beat, edges, beats }, global });
     const editRoute = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Edit route");
@@ -96,7 +96,7 @@ describe("QuestBeatRoutesPanel", () => {
   });
 
   const edgeTo = (target: string, route_kind: "choice" | "parallel" = "choice") =>
-    [{ id: `edge-${target}`, quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: target, route_kind, thread_label: null }] as QuestBeatEdge[];
+    [{ id: `edge-${target}`, quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: target, route_kind, label: null, note: null }] as QuestBeatEdge[];
 
   it("says 'Missing beat' for a route whose target no longer exists", () => {
     const row = mount(QuestBeatRoutesPanel, { props: { beat, edges: edgeTo("beat-deleted"), beats }, global }).get("li");

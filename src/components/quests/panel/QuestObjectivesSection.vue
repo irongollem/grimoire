@@ -42,16 +42,6 @@
         </span>
         <AppButton
           variant="ghost"
-          size="inline-xs"
-          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-          :class="obj.is_player_visible ? 'text-elven-green' : ''"
-          :icon="obj.is_player_visible ? IconReveal : IconHide"
-          :disabled="obj.status === 'dormant'"
-          :tooltip="visibilityTooltip(obj)"
-          @click="toggleObjectiveVisibility(obj)"
-        />
-        <AppButton
-          variant="ghost"
           tone="danger"
           size="inline-xs"
           class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
@@ -89,7 +79,7 @@ import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import { useToast } from "@/composables/useToast";
-import { IconAdd, IconClose, IconHide, IconReveal } from "@/lib/icons";
+import { IconAdd, IconClose } from "@/lib/icons";
 import {
   useAssertQuestObjectiveStatus,
   useCreateObjective,
@@ -130,7 +120,7 @@ function submitObjective() {
 }
 
 async function addObjective(description: string) {
-  await createObjective({ quest_id: props.questId, description, status: "pending", is_player_visible: false, sort_order: objectives.value?.length ?? 0, due_year: null, due_month: null, due_day: null });
+  await createObjective({ quest_id: props.questId, description, status: "pending", sort_order: objectives.value?.length ?? 0, due_year: null, due_month: null, due_day: null });
 }
 
 // Routed through the RPC, not a PATCH — see useAssertQuestObjectiveStatus.
@@ -139,21 +129,6 @@ async function addObjective(description: string) {
 async function toggleObjective(objective: QuestObjective) {
   const status = nextObjectiveStatus(objective.status);
   await assertObjectiveStatus({ objectiveId: objective.id, questId: props.questId, status });
-}
-
-// A dormant objective is one the party has not been sent down the branch for
-// yet; the database refuses dormant + visible together (23514), so the
-// control is disabled rather than left to surface that error. Raising it
-// first — by hand here, or via a beat's `raise` effect during play — is what
-// makes Reveal available again.
-function visibilityTooltip(objective: QuestObjective) {
-  if (objective.status === "dormant") return "Dormant objectives are hidden until raised. Raise it first";
-  return objective.is_player_visible ? "Visible to players: click to hide" : "Hidden from players: click to reveal";
-}
-
-async function toggleObjectiveVisibility(objective: QuestObjective) {
-  if (objective.status === "dormant") return;
-  await updateObjective({ id: objective.id, questId: props.questId, update: { is_player_visible: !objective.is_player_visible } });
 }
 
 async function setDueDate(objective: QuestObjective, date: CalendarDate | null) {

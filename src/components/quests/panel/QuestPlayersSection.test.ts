@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   updateQuest: vi.fn(),
   announce: vi.fn(),
   beats: [] as Array<{ id: string; visibility: string }>,
-  objectives: [] as Array<{ id: string; is_player_visible: boolean }>,
+  objectives: [] as Array<{ id: string; status: string }>,
   activeCampaignId: "campaign-1" as string | null,
 }));
 
@@ -43,10 +43,10 @@ describe("QuestPlayersSection", () => {
     mocks.activeCampaignId = "campaign-1";
   });
 
-  // Fails on counting a hidden beat, or an objective the players cannot see, as seen.
-  it("counts a beat seen when rumored or revealed, and an objective when player-visible", () => {
+  // Fails on counting a hidden beat, or a dormant objective, as seen.
+  it("counts a beat seen when rumored or revealed, and an objective once it is not dormant", () => {
     mocks.beats = [{ id: "a", visibility: "hidden" }, { id: "b", visibility: "rumored" }, { id: "c", visibility: "revealed" }];
-    mocks.objectives = [{ id: "o1", is_player_visible: true }, { id: "o2", is_player_visible: false }];
+    mocks.objectives = [{ id: "o1", status: "pending" }, { id: "o2", status: "dormant" }];
     expect(mountPlayers().text()).toContain("See 2 of 3 beats · 1 of 2 objectives");
   });
 

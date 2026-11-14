@@ -152,7 +152,7 @@ const fillContext = computed<BeatFillContext | undefined>(() => {
     outgoing: outgoingEdges.flatMap((edge) => byId.get(edge.target_beat_id) ?? []),
     objectives: objectivesQuery.data.value ?? [],
     stagedAt: stagedLocation.value?.name ?? null,
-    threadLabel: threads.length > 1 ? (incomingEdges.find((edge) => edge.thread_label)?.thread_label ?? null) : null,
+    threadLabel: threads.length > 1 ? (incomingEdges.find((edge) => edge.label)?.label ?? null) : null,
   };
 });
 </script>

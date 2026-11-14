@@ -78,11 +78,6 @@ describe("deriveQuestConsistency", () => {
       expect(kinds(findings)).not.toContain("objective_never_raised");
     });
 
-    it("treats reveal as raising, because revealing implies raising", () => {
-      const findings = check({ objectives: [objective("o1", "dormant")], consequences: [rule("reveal", "o1")] });
-      expect(kinds(findings)).not.toContain("objective_never_raised");
-    });
-
     it("does not count a world action as raising anything", () => {
       const findings = check({
         objectives: [objective("o1", "dormant")],

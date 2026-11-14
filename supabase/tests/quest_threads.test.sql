@@ -12,7 +12,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(82);
+select plan(81);
 
 -- Fixture inserts below run as postgres between scenarios (reset role), so
 -- none of them should be quota-checked against a stale sub left by whichever
@@ -51,22 +51,22 @@ insert into public.quest_beats (id, quest_id, campaign_id, title) values
   ('85200000-0000-4000-8000-000000000034', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000010', 'R4 manual thread beat'),
   ('85200000-0000-4000-8000-000000000035', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000010', 'R5 payoff target');
 
-insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, route_kind, thread_label) values
+insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, route_kind, label) values
   ('85200000-0000-4000-8000-000000000040', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000030', '85200000-0000-4000-8000-000000000031', 'choice', null),
   ('85200000-0000-4000-8000-000000000041', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000030', '85200000-0000-4000-8000-000000000032', 'parallel', 'Side jaunt'),
   ('85200000-0000-4000-8000-000000000042', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000030', '85200000-0000-4000-8000-000000000033', 'parallel', 'Gated jaunt'),
   ('85200000-0000-4000-8000-000000000043', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000031', '85200000-0000-4000-8000-000000000035', 'choice', null);
 
-insert into public.quest_objectives (id, quest_id, description, status, is_player_visible, sort_order) values
-  ('85200000-0000-4000-8000-000000000050', '85200000-0000-4000-8000-000000000020', 'Spawned thread found something', 'dormant', false, 1),
-  ('85200000-0000-4000-8000-000000000051', '85200000-0000-4000-8000-000000000020', 'Find the passphrase', 'pending', true, 2),
-  ('85200000-0000-4000-8000-000000000052', '85200000-0000-4000-8000-000000000020', 'Held on arrival at R2', 'dormant', false, 3),
-  ('85200000-0000-4000-8000-000000000053', '85200000-0000-4000-8000-000000000020', 'Payoff for R2->R5', 'pending', true, 4);
+insert into public.quest_objectives (id, quest_id, description, status, sort_order) values
+  ('85200000-0000-4000-8000-000000000050', '85200000-0000-4000-8000-000000000020', 'Spawned thread found something', 'dormant', 1),
+  ('85200000-0000-4000-8000-000000000051', '85200000-0000-4000-8000-000000000020', 'Find the passphrase', 'pending', 2),
+  ('85200000-0000-4000-8000-000000000052', '85200000-0000-4000-8000-000000000020', 'Held on arrival at R2', 'dormant', 3),
+  ('85200000-0000-4000-8000-000000000053', '85200000-0000-4000-8000-000000000020', 'Payoff for R2->R5', 'pending', 4);
 
 insert into public.quest_consequences (id, quest_id, on_edge_id, action, target_objective_id) values
-  ('85200000-0000-4000-8000-000000000060', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000041', 'reveal', '85200000-0000-4000-8000-000000000050');
+  ('85200000-0000-4000-8000-000000000060', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000041', 'raise', '85200000-0000-4000-8000-000000000050');
 insert into public.quest_consequences (id, quest_id, on_beat_id, action, target_objective_id) values
-  ('85200000-0000-4000-8000-000000000061', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000031', 'reveal', '85200000-0000-4000-8000-000000000052');
+  ('85200000-0000-4000-8000-000000000061', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000031', 'raise', '85200000-0000-4000-8000-000000000052');
 insert into public.quest_consequences (id, quest_id, on_edge_id, action, target_objective_id) values
   ('85200000-0000-4000-8000-000000000062', '85200000-0000-4000-8000-000000000020', '85200000-0000-4000-8000-000000000043', 'complete', '85200000-0000-4000-8000-000000000053');
 
@@ -276,11 +276,7 @@ select lives_ok($$
 $$, 'a held ledger verb can be performed later from the log');
 select is(
   (select o.status from public.quest_objectives o where o.id = '85200000-0000-4000-8000-000000000052'),
-  'pending', 'firing the held reveal wakes the dormant objective'
-);
-select ok(
-  (select is_player_visible from public.quest_objectives where id = '85200000-0000-4000-8000-000000000052'),
-  'firing the held reveal makes the objective player-visible'
+  'pending', 'firing the held raise wakes the dormant objective'
 );
 select ok(
   (select performed_at is not null and held_at is null
@@ -320,7 +316,7 @@ insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, 
 insert into public.quest_objectives (id, quest_id, description, status, sort_order) values
   ('85200000-0000-4000-8000-000000000080', '85200000-0000-4000-8000-000000000021', 'Both stories converge', 'dormant', 1);
 insert into public.quest_consequences (id, quest_id, on_beat_id, action, target_objective_id) values
-  ('85200000-0000-4000-8000-000000000081', '85200000-0000-4000-8000-000000000021', '85200000-0000-4000-8000-000000000062', 'reveal', '85200000-0000-4000-8000-000000000080');
+  ('85200000-0000-4000-8000-000000000081', '85200000-0000-4000-8000-000000000021', '85200000-0000-4000-8000-000000000062', 'raise', '85200000-0000-4000-8000-000000000080');
 -- A rule on the C1 ROUTE, not on the beat: the route was walked whether or
 -- not the beat parks the thread, so this one fires on arrival.
 insert into public.quest_objectives (id, quest_id, description, status, sort_order) values

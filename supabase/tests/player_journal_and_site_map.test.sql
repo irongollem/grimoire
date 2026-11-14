@@ -4,7 +4,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(18);
 
 select has_function('public', 'get_player_visible_site_state', array['uuid', 'uuid'],
   'the inside of a site reaches players through a dedicated projection');
@@ -39,23 +39,12 @@ on conflict (campaign_id, user_id) do update set role = excluded.role, party_mem
 insert into public.quests (id, user_id, campaign_id, title, player_visible_to)
 values ('79800000-0000-4000-8000-000000000030', '79800000-0000-4000-8000-000000000001', '79800000-0000-4000-8000-000000000010', 'The Sunken Courtyard', array['79800000-0000-4000-8000-000000000020']::uuid[]);
 
--- Three revealed statuses, plus a dormant branch. Dormant is inserted HIDDEN
--- because #792's CHECK makes dormant-and-visible unstorable — which is the
--- protection, and is asserted directly below.
-insert into public.quest_objectives (id, quest_id, description, status, is_player_visible) values
-  ('79800000-0000-4000-8000-000000000040', '79800000-0000-4000-8000-000000000030', 'Find the rider',   'pending',  true),
-  ('79800000-0000-4000-8000-000000000041', '79800000-0000-4000-8000-000000000030', 'Reach the gate',   'complete', true),
-  ('79800000-0000-4000-8000-000000000042', '79800000-0000-4000-8000-000000000030', 'Save the princess','failed',   true),
-  ('79800000-0000-4000-8000-000000000043', '79800000-0000-4000-8000-000000000030', 'Avenge Sildar',    'dormant',  false);
-
--- The invariant the player journal leans on, pinned at its source. Without
--- this, `quest_objectives_player_select` would happily serve an untaken branch,
--- because that policy never mentions status.
-select throws_ok($$
-  insert into public.quest_objectives (quest_id, description, status, is_player_visible)
-  values ('79800000-0000-4000-8000-000000000030', 'A branch nobody took', 'dormant', true)
-$$, '23514', null,
-  'a dormant objective cannot be marked player-visible in the first place');
+-- Three raised statuses, plus a dormant branch.
+insert into public.quest_objectives (id, quest_id, description, status) values
+  ('79800000-0000-4000-8000-000000000040', '79800000-0000-4000-8000-000000000030', 'Find the rider',   'pending'),
+  ('79800000-0000-4000-8000-000000000041', '79800000-0000-4000-8000-000000000030', 'Reach the gate',   'complete'),
+  ('79800000-0000-4000-8000-000000000042', '79800000-0000-4000-8000-000000000030', 'Save the princess','failed'),
+  ('79800000-0000-4000-8000-000000000043', '79800000-0000-4000-8000-000000000030', 'Avenge Sildar',    'dormant');
 
 -- A site with two rooms; one explored, one not.
 insert into public.locations (id, user_id, campaign_id, name, location_type, map_url, is_map_shared, player_visible_to) values

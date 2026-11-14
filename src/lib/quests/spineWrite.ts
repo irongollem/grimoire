@@ -158,10 +158,9 @@ export async function writeQuestSpine(
     campaign_id: campaignId,
     source_beat_id: beatIdByKey.get(route.from)!,
     target_beat_id: beatIdByKey.get(route.to)!,
-    // A generated spine has no notion of parallel routes or thread
-    // labels (#853) — every route it plans is a plain either/or choice.
-    route_kind: "choice",
-    thread_label: null,
+    route_kind: route.kind,
+    label: route.label,
+    note: route.note,
   }));
 
   // Reachability (#822): an objective the root beat raises is live from the
@@ -175,7 +174,6 @@ export async function writeQuestSpine(
     quest_id: questId,
     description: objective.description,
     status: objectiveStatuses[i]!,
-    is_player_visible: false,
     sort_order: i,
     // A generated objective has no calendar deadline; the DM sets one.
     due_year: null,

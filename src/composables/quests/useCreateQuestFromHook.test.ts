@@ -93,7 +93,7 @@ describe("useCreateQuestFromHook", () => {
     // objective still lands `pending`, exactly as the reachability rule says.
     expect(mocks.createObjective).toHaveBeenCalledTimes(2);
     for (const call of mocks.createObjective.mock.calls) {
-      expect(call[0]).toMatchObject({ status: "pending", is_player_visible: false });
+      expect(call[0]).toMatchObject({ status: "pending" });
     }
   });
 
@@ -138,9 +138,6 @@ describe("useCreateQuestFromHook", () => {
     // to wire).
     const statuses = mocks.createObjective.mock.calls.map((call) => call[0]!.status);
     expect(statuses).toEqual(["pending", "dormant", "pending"]);
-    for (const call of mocks.createObjective.mock.calls) {
-      expect(call[0]!.is_player_visible).toBe(false);
-    }
   });
 
   it("creates one raise consequence per objective whose raised_by names a real beat, resolved to real ids", async () => {

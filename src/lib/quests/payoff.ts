@@ -32,7 +32,7 @@ export interface PayoffRow {
 }
 
 /**
- * Icon and tint per consequence verb. Ledger verbs (raise/reveal/complete/
+ * Icon and tint per consequence verb. Ledger verbs (raise/complete/
  * fail) and the two world actions without a dedicated payoff meaning
  * (calendar event, broadcast) share the neutral "muted" treatment used
  * elsewhere for a ledger pill; the four verbs that carry their own kind of
@@ -40,7 +40,6 @@ export interface PayoffRow {
  */
 const CONSEQUENCE_STYLE: Record<QuestConsequenceAction, { tone: PayoffTone; icon: PayoffIcon }> = {
   raise: { tone: "muted", icon: "check" },
-  reveal: { tone: "muted", icon: "check" },
   complete: { tone: "muted", icon: "check" },
   fail: { tone: "muted", icon: "check" },
   create_calendar_event: { tone: "muted", icon: "calendar" },

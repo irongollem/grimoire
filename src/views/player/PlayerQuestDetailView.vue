@@ -383,7 +383,7 @@ const { data: questMonsters } = usePlayerMonstersByIds(() => linkedMonsterRefs.v
 // can't silently leak one back in. A `failed` objective is never excluded —
 // "we lost that one" is something the party needs to keep seeing.
 const visibleObjectives = computed(() =>
-  (objectives.value ?? []).filter((o) => o.is_player_visible && o.status !== "dormant"),
+  (objectives.value ?? []).filter((o) => o.status !== "dormant"),
 );
 const doneCount = computed(
   () => countObjectivesComplete(visibleObjectives.value),

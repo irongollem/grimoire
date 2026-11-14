@@ -4,7 +4,7 @@ import type { QuestBeat, QuestBeatEdge, QuestRouteGate } from "@/types/quest.typ
 import type { QuestBeatPresentation } from "./presentation";
 
 const beat = (id: string, x: number, y: number): QuestBeat => ({
-  id, quest_id: "quest", campaign_id: "campaign", title: id, dm_content: null,
+  id, quest_id: "quest", campaign_id: "campaign", title: id, dm_content: null, secret: false,
   read_aloud: null, how_it_plays: null, converge_mode: "any",
   rumor_text: null, reveal_text: null, visibility: "hidden", kind: "neutral",
   presentation_hint: null, canvas_x: x, canvas_y: y, is_improvised: false, staged_at_location_id: null, improv_reviewed_at: null,
@@ -53,7 +53,7 @@ describe("quest flow adapter", () => {
   });
 
   it("calls a route's untitled target 'Untitled beat', and flags no beat as gated by an open gate", () => {
-    const edges = [{ id: "e", source_beat_id: "a", target_beat_id: "b", route_kind: "choice", thread_label: null }] as QuestBeatEdge[];
+    const edges = [{ id: "e", source_beat_id: "a", target_beat_id: "b", route_kind: "choice", label: null, note: null }] as QuestBeatEdge[];
     const openGate = { mode: "all" as const, is_open: true, conditions: [] } satisfies QuestRouteGate;
     const graph = toQuestFlowGraph([beat("a", 0, 0), { ...beat("b", 1, 1), title: "" }], edges, {}, new Set(), { e: openGate });
     expect(graph.edges[0]!.data!.targetTitle).toBe("Untitled beat");
@@ -67,8 +67,8 @@ describe("quest flow adapter", () => {
 
   it("draws route kind and the opened thread's label into the edge, and the target's own title as the fallback", () => {
     const edges = [
-      { id: "choice", source_beat_id: "a", target_beat_id: "b", route_kind: "choice", thread_label: null },
-      { id: "parallel", source_beat_id: "a", target_beat_id: "b", route_kind: "parallel", thread_label: "The Drowned Vault" },
+      { id: "choice", source_beat_id: "a", target_beat_id: "b", route_kind: "choice", label: null, note: null },
+      { id: "parallel", source_beat_id: "a", target_beat_id: "b", route_kind: "parallel", label: "The Drowned Vault", note: null },
     ] as QuestBeatEdge[];
     const graph = toQuestFlowGraph([beat("a", 0, 0), beat("b", 1, 1)], edges);
     expect(graph.edges[0]!.class).toBe("quest-flow-route");
@@ -79,7 +79,7 @@ describe("quest flow adapter", () => {
 
   it("flags an edge into a beat the run has cut off, and flags that beat as gated when a route in is closed", () => {
     const presentation = { isCurrent: false, isVisited: false, isReady: true, isDisconnected: false, reach: "stranded", prepGapCount: 0, prepGaps: [], handoutCount: 0, loot: { total: 0, undispatched: 0, unclaimed: 0 }, currentThreadIds: [], payoffCount: 0, unlocksQuest: false, convergeLabel: null, site: null } satisfies QuestBeatPresentation;
-    const edges = [{ id: "e", source_beat_id: "a", target_beat_id: "b", route_kind: "choice", thread_label: null }] as QuestBeatEdge[];
+    const edges = [{ id: "e", source_beat_id: "a", target_beat_id: "b", route_kind: "choice", label: null, note: null }] as QuestBeatEdge[];
     const closedGate = { mode: "all" as const, is_open: false, conditions: [{ objective_id: "o1", objective: "Save the princess", statuses: ["complete" as const], current_status: "pending" as const, met: false }] } satisfies QuestRouteGate;
     const graph = toQuestFlowGraph([beat("a", 0, 0), beat("b", 1, 1)], edges, { b: presentation }, new Set(), { e: closedGate });
     expect(graph.edges[0]!.class).toBe("quest-flow-route is-closed is-stranded");
