@@ -132,11 +132,13 @@ const { portrait, typeTag, typeLine, stats } = useNpcCardData(
   padding: 8px 11px 12px;
   z-index: 2;
 }
+/* UnifrakturCook's glyphs stand taller than 1.05 lines: the box overflowed by 2px, which the
+   saved PNG (modern-screenshot) read as clamped text and ended with an ellipsis. */
 .ik-name {
   font-family: "UnifrakturCook", "Cinzel", serif;
   font-size: 19px;
   font-weight: 700;
-  line-height: 1.05;
+  line-height: 1.2;
   text-shadow: 0 0 8px rgba(0, 0, 0, 0.95);
   display: -webkit-box;
   -webkit-line-clamp: 2;

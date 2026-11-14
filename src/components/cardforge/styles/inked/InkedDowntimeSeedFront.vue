@@ -72,9 +72,11 @@ const { portrait, accent, glyph, rewardName, rewardNoun, typeTag, effects } =
   flex: 1; min-height: 0; overflow: hidden;
   padding: 6px 9px 8px; display: flex; flex-direction: column; gap: 3px;
 }
+/* UnifrakturCook's glyphs stand taller than 1.05 lines: the box overflowed by 2px, which the
+   saved PNG (modern-screenshot) read as clamped text and ended with an ellipsis. */
 .ik-name {
   font-family: "UnifrakturCook", "Cinzel", serif; font-size: 13px; font-weight: 700;
-  line-height: 1.05; flex-shrink: 0;
+  line-height: 1.2; flex-shrink: 0;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .ik-vignette {

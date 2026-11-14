@@ -79,9 +79,11 @@ const { portrait, typeTag, typeLine, stats } = useItemCardData(
   padding: 2px 5px; border-radius: 2px; flex-shrink: 0;
 }
 .ik-bottom { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 11px 12px; z-index: 2; }
+/* UnifrakturCook's glyphs stand taller than 1.05 lines: the box overflowed by 2px, which the
+   saved PNG (modern-screenshot) read as clamped text and ended with an ellipsis. */
 .ik-name {
   font-family: "UnifrakturCook", "Cinzel", serif; font-size: 19px; font-weight: 700;
-  line-height: 1.05; text-shadow: 0 0 8px rgba(0, 0, 0, 0.95);
+  line-height: 1.2; text-shadow: 0 0 8px rgba(0, 0, 0, 0.95);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   margin-bottom: 3px;
 }
