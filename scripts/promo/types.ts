@@ -143,6 +143,10 @@ export interface Episode {
   /** The episode that shows the other side of the same feature (DM or player). */
   pairedWith?: string;
   account: Account;
+  /** `false`: cut with no brand card at either end and no theme under it (the manifest's `brand`), for a Reel whose own sound is the point. */
+  brand?: false;
+  /** A sound a shot starts (a song tapped on the page) keeps playing through the later shots, under the narration. */
+  carryCues?: true;
   /** The campaign the filmed pages have active, `kind-country` for the full campaign the demo comes from; the demo copy when omitted. */
   campaign?: "kind-country";
   /** What the finished video is cut for; a Reel when omitted. */
@@ -201,6 +205,8 @@ export interface EpisodeManifest {
    * is on the picture, whose sound is its own, and which loops without a seam with no card at either end.
    */
   brand?: false;
+  /** A sound a shot starts plays on through the later shots, under the narration (assemble.ts `DUCKED_FX`). */
+  carryCues?: true;
   /**
    * Seconds into the first shot the cover is taken from, when its middle is the wrong moment (a scene whose view
    * is mid-pan there). Absent, the cover is the first shot's middle.

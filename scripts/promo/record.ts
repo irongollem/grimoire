@@ -140,6 +140,8 @@ const manifest: EpisodeManifest = {
   pairedWith: episode.pairedWith ?? null,
   account: episode.account,
   ...(episode.format === undefined ? {} : { format: episode.format }),
+  ...(episode.brand === false ? { brand: false as const } : {}),
+  ...(episode.carryCues ? { carryCues: true as const } : {}),
   recordedAt: new Date().toISOString(),
   shots: recorded,
 };

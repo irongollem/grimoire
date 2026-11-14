@@ -113,3 +113,24 @@ export function coverOffset(manifest: Pick<EpisodeManifest, "coverAt">, length: 
   }
   return manifest.coverAt;
 }
+
+/** A sound from an earlier shot that is still playing when a later shot starts. */
+export interface CarriedCue {
+  src: string;
+  gain: number;
+  /** Seconds into the source at the shot's start. */
+  offset: number;
+}
+
+/**
+ * What an episode with `carryCues` still hears at the start of shot `index`: every sound an earlier shot started,
+ * picked up where it has got to. The recorder logs only when a page starts a sound, so a song tapped in one shot
+ * would otherwise stop at the cut while the phone it plays on keeps playing it.
+ */
+export function carriedCues(shots: readonly PlannedShot[], index: number): CarriedCue[] {
+  const shot = shots[index];
+  return shots.slice(0, index).flatMap((earlier) =>
+    earlier.cues.map((c) => ({ src: c.src, gain: c.gain, offset: shot.start - c.program })),
+  );
+}
+

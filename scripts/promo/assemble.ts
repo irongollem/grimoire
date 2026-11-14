@@ -14,7 +14,7 @@ import { formatCanvas, layoutFor, type Layout } from "./layouts";
 import { chaptersText, srtText } from "./sidecars";
 import { BED_CROSSFADE, bedWindow, planBeds } from "./beds";
 import { BED_DB, FULL_DB, SILENT_DB, THEME_MOTIF_END, gainExpression, planTheme } from "./theme";
-import { coverOffset, planTimeline, VO_LEAD, type PlannedShot, type ShotInput, type Timeline } from "./timeline";
+import { carriedCues, coverOffset, planTimeline, VO_LEAD, type CarriedCue, type PlannedShot, type ShotInput, type Timeline } from "./timeline";
 import type { EpisodeManifest, Format, RecordedShot, Surface } from "./types";
 
 // Every piece in the standard video range, tagged so. The recordings come from the browser in full range, and a
@@ -162,18 +162,34 @@ function renderVoWav(p: PlannedShot, vo: string | null, gainDb: number, out: str
   ffmpeg(["-i", vo, "-af", `volume=${gainDb.toFixed(2)}dB,${VOICE_POLISH},${STEREO_48K},adelay=${ms}|${ms},apad=whole_dur=${p.length},atrim=0:${p.length}`, ...WAV, out]);
 }
 
-/** Sound cues for one shot as a wav exactly as long as the shot. */
-function renderFxWav(p: PlannedShot, out: string): void {
-  if (p.cues.length === 0) return ffmpeg([...silence(p.length), ...WAV, out]);
-  const inputs = p.cues.flatMap((c) => ["-i", c.src]);
-  const chains = p.cues.map((c, i) => {
-    const ms = Math.round(c.local * 1000);
-    return `[${i + 1}:a]${STEREO_48K},volume=${c.gain},adelay=${ms}|${ms}[c${i}]`;
-  });
-  const labels = p.cues.map((_, i) => `[c${i}]`).join("");
+/**
+ * A carried song (`carryCues`) plays under the narration like a bed: the voice keys a compressor on the sounds, so
+ * the song sinks while someone speaks and comes back between the lines. Leaves `[vo1]` and `[fx]` for the mix.
+ */
+const DUCKED_FX = "[1:a]asplit=2[vo1][vokey];[2:a][vokey]sidechaincompress=threshold=0.02:ratio=12:attack=30:release=600[fx];";
+
+/**
+ * Sound cues for one shot as a wav exactly as long as the shot, plus the sounds `carried` in from earlier shots
+ * (`carryCues`), each picked up `offset` seconds into its source.
+ */
+function renderFxWav(p: PlannedShot, carried: CarriedCue[], out: string): void {
+  if (p.cues.length === 0 && carried.length === 0) return ffmpeg([...silence(p.length), ...WAV, out]);
+  const inputs = [
+    ...p.cues.flatMap((c) => ["-i", c.src]),
+    ...carried.flatMap((c) => ["-ss", c.offset.toFixed(3), "-i", c.src]),
+  ];
+  const chains = [
+    ...p.cues.map((c, i) => {
+      const ms = Math.round(c.local * 1000);
+      return `[${i + 1}:a]${STEREO_48K},volume=${c.gain},adelay=${ms}|${ms}[c${i}]`;
+    }),
+    ...carried.map((c, i) => `[${p.cues.length + i + 1}:a]${STEREO_48K},volume=${c.gain}[c${p.cues.length + i}]`),
+  ];
+  const count = p.cues.length + carried.length;
+  const labels = Array.from({ length: count }, (_, i) => `[c${i}]`).join("");
   ffmpeg([
     ...silence(p.length), ...inputs, "-filter_complex",
-    `${chains.join(";")};[0:a]${labels}amix=inputs=${p.cues.length + 1}:duration=first:normalize=0,atrim=0:${p.length}[o]`,
+    `${chains.join(";")};[0:a]${labels}amix=inputs=${count + 1}:duration=first:normalize=0,atrim=0:${p.length}[o]`,
     "-map", "[o]", ...WAV, out,
   ]);
 }
@@ -280,7 +296,7 @@ async function main() {
     console.log(`shot ${p.id}: start ${p.start.toFixed(2)}s, length ${p.length.toFixed(2)}s${p.voStart === null ? " (no VO)" : ""}, ${p.cues.length} cue(s)`);
     renderShotVideo(p, manifest.shots[i], format, join(dir, manifest.shots[i].file), work, v);
     renderVoWav(p, voFiles[i], voGains[i], vo);
-    renderFxWav(p, fx);
+    renderFxWav(p, manifest.carryCues ? carriedCues(tl.shots, i) : [], fx);
     videos.push(v); voWavs.push(vo); fxWavs.push(fx);
   });
   if (outro) { videos.push(outro.video); voWavs.push(silenceWav(work, "outro-vo", outro.length)); fxWavs.push(outro.audio); }
@@ -307,7 +323,7 @@ async function main() {
     "-i", videoAll, "-i", voAll, "-i", fxAll,
     ...(themeFile ? ["-i", themeFile] : []),
     ...(themeFile ? bedFiles.flatMap((f) => ["-i", f]) : []),
-    "-filter_complex", `[1:a]anull[vo1];[2:a]anull[fx];${theme};[mix]aresample=48000,${STEREO_48K}[a]`,
+    "-filter_complex", `${manifest.carryCues ? DUCKED_FX : "[1:a]anull[vo1];[2:a]anull[fx];"}${theme};[mix]aresample=48000,${STEREO_48K}[a]`,
     "-map", "[a]", "-t", String(T), ...WAV, mixWav,
   ]);
   const gain = -14 - loudnessOf(mixWav);
