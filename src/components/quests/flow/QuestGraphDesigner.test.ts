@@ -95,7 +95,7 @@ describe("QuestGraphDesigner", () => {
 
   it("mounts, with the toolbar and the quest drawer", async () => {
     const { wrapper } = await mountDesigner();
-    expect(wrapper.text()).toContain("Add beat");
+    expect(wrapper.find('[aria-label="Add a beat"]').exists()).toBe(true);
     expect(wrapper.find('[aria-label="Quest drawer"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="quest-column"]').exists()).toBe(true);
   });

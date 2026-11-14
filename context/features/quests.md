@@ -1246,7 +1246,7 @@ registry, which already leaves text fields alone; a click on empty canvas
 deselects too. The drawer remembers its width per quest (`drawerWidthFor` in the
 quests UI store, a drag handle on its left edge).
 
-The header keeps the title, the lane and a **More** menu; the rest of what the
+The flow's toolbar leads with the title and ends with **Send to Scriptorium** and **Delete quest** as icon buttons (no header band, no More menu, 14 Nov 2026); the rest of what the
 page header used to carry lives in the quest column (below).
 
 Below `md` the drawer is a bottom sheet (`QuestSheet.vue`), over the outline
@@ -1293,7 +1293,7 @@ as **Payoffs**, the way a beat's do.
 The wide part (`QuestWide`) holds the rest, one autosaved editor per field and no
 explanatory prose: the Details (board lane, giver, location, **Part of**, tags),
 clocks, the quest's own **Payoffs** (`QuestRulesPanel`) and threads once the
-quest holds one. **More** in the page header (`QuestMoreMenu`): **Send to
+quest holds one. The toolbar's end (`QuestMoreMenu`, now two icon buttons): **Send to
 Scriptorium** and **Delete quest**, which navigates to `/quests`.
 
 **Why the quest has notes again (#1194).** #793 moved all quest prose onto beats,
@@ -1352,8 +1352,9 @@ notes folded, so the table side never has to leave the beat to find them.
   unreachable. Both are paired with text for screen readers.
 - **The toolbar** carries the progress tally (visited, live, ahead, cut off) with
   the **prep-gap list** (`QuestGapMenu`, "N prep gaps", a menu of beats that
-  need something, each selecting its beat); **Add beat**, **Add parallel route**,
-  **Fit** and **Current beat**. Beside them (story H of #1183, `QuestFlowMarksBar`):
+  need something, each selecting its beat); **+ Beat** (one dialog for a beat and
+  its route's kind; the separate parallel-route button is gone). **Fit** and
+  **Current beat** are icon buttons in the flow's top-right corner. Beside them (story H of #1183, `QuestFlowMarksBar`):
   an **Undo** button, with **⌘Z / Ctrl+Z** through `useHotkeys` (inside a text
   field ⌘Z stays the field's own undo), which takes back the newest move on the
   quest, whether it was played at the table or marked afterwards, and replaces
@@ -1384,11 +1385,12 @@ notes folded, so the table side never has to leave the beat to find them.
   _and_ the quest has a parallel route somewhere (a quest of choices alone has
   one cursor and nothing to wait for). Saves on click through
   `useUpdateQuestBeat`.
-- **"Add parallel route"** opens the beat composer already carrying
-  `parallel: true`. The invariant it and `QuestRouteColumn` both enforce: **a
-  parallel route may never be the only way out of a beat** — the Parallel
-  option is disabled, with a tooltip explaining why, until the beat already
-  has a `choice` route.
+- **The new-beat dialog** (`QuestBeatComposer`) asks for the route's kind when
+  the beat follows another: "They choose one" or "And also", plus what the
+  party does. The invariant it and `QuestRouteColumn` both enforce: **a
+  parallel route may never be the only way out of a beat**, so "And also" is
+  disabled, with a tooltip explaining why, until the beat already has a
+  `choice` route.
 
 **The route column** (`QuestRouteColumn`, frame `10`): a route says **what the
 party does** (`label`), **what it costs** (`note`, one line) and its **kind**,

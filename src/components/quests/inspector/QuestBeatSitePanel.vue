@@ -86,7 +86,9 @@
     </p>
     <p class="flex items-center gap-1.5 text-caption">
       <component :is="readiness.waysOut ? IconCheck : IconWarning" class="h-3.5 w-3.5 shrink-0" :class="readiness.waysOut ? 'text-tone-success' : 'text-tone-caution'" />
-      <span :class="readiness.waysOut ? 'text-foreground' : 'text-ink-caution'">Ways out {{ readiness.waysOut ? `traced: ${doorCount}` : "not traced yet" }}</span>
+      <!-- The doors on the site's floor plan, not the quest's routes out of the beat:
+           "Ways out" read as the routes and contradicted them (14 Nov 2026). -->
+      <span :class="readiness.waysOut ? 'text-foreground' : 'text-ink-caution'">Doors between rooms: {{ readiness.waysOut ? doorCount : "none drawn yet" }}</span>
     </p>
     <p v-if="readiness.caption" class="flex items-center gap-1.5 text-caption">
       <IconWarning class="h-3.5 w-3.5 shrink-0 text-tone-caution" />

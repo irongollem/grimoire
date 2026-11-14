@@ -36,7 +36,7 @@ const quest = { id: "quest-1", title: "The Unseen", status: "active", giver_npc_
 function mountMenu(overrides: Partial<Quest> = {}) {
   return mount(QuestMoreMenu, { props: { quest: { ...quest, ...overrides } as Quest }, global: { stubs: { MenuPopover: MenuPopoverStub, PaywallModal: true } } });
 }
-const item = (w: ReturnType<typeof mountMenu>, label: string) => w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === label)!;
+const item = (w: ReturnType<typeof mountMenu>, label: string) => w.findAllComponents({ name: "AppButton" }).find((b) => b.attributes("aria-label") === label)!;
 
 describe("QuestMoreMenu", () => {
   beforeEach(() => {

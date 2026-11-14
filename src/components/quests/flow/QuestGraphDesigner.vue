@@ -22,10 +22,8 @@
            not exist there. -->
       <div class="ml-auto flex flex-wrap items-center gap-2">
         <QuestFlowMarksBar :quest-id="questId" :transitions="transitions" :beats="beats" />
-        <AppButton :icon="IconAdd" label="Add beat" size="sm" variant="primary" class="whitespace-nowrap" @click="openComposer()" />
-        <AppButton :icon="IconLayers" label="Add parallel route" size="sm" class="whitespace-nowrap" @click="openParallelComposer" />
-        <AppButton :icon="IconMaximize" label="Fit" size="sm" variant="subtle" class="hidden whitespace-nowrap md:inline-flex" @click="canvas?.fitGraph()" />
-        <AppButton v-if="currentBeatId" :icon="IconCenter" label="Current beat" size="sm" variant="subtle" class="hidden whitespace-nowrap md:inline-flex" @click="canvas?.focusCurrent()" />
+        <!-- One way to add: the dialog asks for the route's kind (14 Nov 2026). -->
+        <AppButton :icon="IconAdd" label="Beat" aria-label="Add a beat" size="sm" variant="primary" class="whitespace-nowrap" @click="openComposer()" />
         <slot name="end" />
       </div>
     </div>
@@ -33,7 +31,7 @@
     <QuestBeatComposer
       v-if="composer"
       :source-beat-id="composer.sourceBeatId"
-      :parallel="composer.parallel"
+      :can-be-parallel="composerCanBeParallel"
       :saving="composerSaving"
       :error="composerError"
       @cancel="composer = null"
@@ -67,7 +65,13 @@
       This quest has no beats yet. Use “Add beat” to begin its story flow.
     </p>
     <div v-else class="relative grid min-w-0 max-w-full items-start gap-3 lg:max-w-none lg:-mr-6 lg:min-h-0 lg:flex-1 lg:gap-0 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-stretch">
-      <div id="quest-flow-canvas" class="min-w-0 lg:isolate lg:h-full lg:min-h-0">
+      <div id="quest-flow-canvas" class="relative min-w-0 lg:isolate lg:h-full lg:min-h-0">
+        <!-- Views of the canvas live on the canvas (14 Nov 2026). The outline
+             replaces the canvas below 48rem, so they do not exist there. -->
+        <div class="absolute right-2 top-2 z-10 hidden gap-1 md:flex">
+          <AppButton :icon="IconMaximize" size="icon-sm" variant="subtle" aria-label="Fit the flow" tooltip="Fit the flow" @click="canvas?.fitGraph()" />
+          <AppButton v-if="currentBeatId" :icon="IconCenter" size="icon-sm" variant="subtle" aria-label="Go to the current beat" tooltip="Current beat" @click="canvas?.focusCurrent()" />
+        </div>
         <QuestFlowCanvas
           ref="canvas"
           :graph-id="`quest-${questId}`"
@@ -165,7 +169,7 @@
 import TagChip from "@/components/common/TagChip.vue";
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useDebounceFn } from "@vueuse/core";
-import { IconAdd, IconCenter, IconLayers, IconMaximize } from "@/lib/icons";
+import { IconAdd, IconCenter, IconMaximize } from "@/lib/icons";
 import {
   useQuestBeatAttachmentSummaries,
   useQuestBeatEdgeGates,
@@ -206,7 +210,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import QuestFlowCanvas from "./QuestFlowCanvas.vue";
-import QuestBeatComposer from "../inspector/QuestBeatComposer.vue";
+import QuestBeatComposer, { type ComposedBeat } from "../inspector/QuestBeatComposer.vue";
 import QuestGapMenu, { type QuestGapRow } from "./QuestGapMenu.vue";
 import QuestFlowMarksBar from "./QuestFlowMarksBar.vue";
 import QuestDrawer from "./QuestDrawer.vue";
@@ -418,7 +422,12 @@ const presentations = computed(() => deriveQuestBeatPresentations({
 const visitedEdgeIds = computed(() => visitedRouteEdgeIds(edges.value, transitions.value));
 const isLoading = computed(() => beatsQuery.isLoading.value || edgesQuery.isLoading.value || attachmentsQuery.isLoading.value || lootQuery.isLoading.value);
 const selectedEdge = computed(() => edges.value.find((edge) => edge.id === selectedEdgeId.value) ?? null);
-const composer = ref<{ sourceBeatId?: string; parallel: boolean; x: number; y: number } | null>(null);
+const composer = ref<{ sourceBeatId?: string; x: number; y: number } | null>(null);
+// "And also" may never be a beat's only way out: the source needs a choice route already.
+const composerCanBeParallel = computed(() => {
+  const source = composer.value?.sourceBeatId;
+  return !!source && edges.value.some((edge) => edge.source_beat_id === source && edge.route_kind === "choice");
+});
 const composerSaving = ref(false);
 const composerError = ref("");
 const pendingDeleteBeatId = ref<string | null>(null);
@@ -485,25 +494,10 @@ function openComposer(command: Extract<QuestGraphCommand, { type: "create" }> = 
   const sourceBeat = beats.value.find((beat) => beat.id === source);
   composerError.value = "";
   mutationError.value = "";
-  composer.value = { sourceBeatId: source, parallel: false, x: command.x ?? ((sourceBeat?.canvas_x ?? Math.max(0, ...beats.value.map((beat) => beat.canvas_x))) + 320), y: command.y ?? sourceBeat?.canvas_y ?? 0 };
+  composer.value = { sourceBeatId: source, x: command.x ?? ((sourceBeat?.canvas_x ?? Math.max(0, ...beats.value.map((beat) => beat.canvas_x))) + 320), y: command.y ?? sourceBeat?.canvas_y ?? 0 };
 }
 
-// A parallel route may never be the only way out of a beat — the same
-// invariant the design's frame `01 Delta` names. Refusing here, before the
-// composer even opens, is cheaper than letting the DM fill in a thread label
-// for a route the save would have to reject anyway.
-function openParallelComposer() {
-  const source = selectedBeatId.value;
-  if (!source) { mutationError.value = "Select the beat this parallel route branches from first."; return; }
-  const hasChoiceRoute = edges.value.some((edge) => edge.source_beat_id === source && edge.route_kind === "choice");
-  if (!hasChoiceRoute) { mutationError.value = "This beat has no choice route yet. Add one before opening a parallel route, or its thread would have nowhere to send the cursor."; return; }
-  const sourceBeat = beats.value.find((beat) => beat.id === source);
-  composerError.value = "";
-  mutationError.value = "";
-  composer.value = { sourceBeatId: source, parallel: true, x: (sourceBeat?.canvas_x ?? 0) + 320, y: (sourceBeat?.canvas_y ?? 0) + 260 };
-}
-
-async function createComposedBeat(value: { title: string; kind: string; threadLabel?: string }) {
+async function createComposedBeat(value: ComposedBeat) {
   if (!composer.value || !campaign.activeCampaignId) return;
   const draft = composer.value;
   composerSaving.value = true;
@@ -517,7 +511,7 @@ async function createComposedBeat(value: { title: string; kind: string; threadLa
       canvasY: draft.y,
       sourceBeatId: draft.sourceBeatId,
     });
-    if (draft.parallel && draft.sourceBeatId && value.threadLabel) {
+    if (draft.sourceBeatId && value.route && (value.route.kind === "parallel" || value.route.label)) {
       // `create_quest_beat_with_route` knows nothing of route kinds — it
       // always creates a plain edge — so opening the thread is a second
       // write against the edge the RPC just made. Refetching rather than
@@ -526,7 +520,7 @@ async function createComposedBeat(value: { title: string; kind: string; threadLa
       const refreshed = await edgesQuery.refetch();
       const spawnedEdge = (refreshed.data ?? []).find((edge) => edge.source_beat_id === draft.sourceBeatId && edge.target_beat_id === created.id);
       if (spawnedEdge) {
-        await updateEdge.mutateAsync({ id: spawnedEdge.id, questId, update: { route_kind: "parallel", label: value.threadLabel } });
+        await updateEdge.mutateAsync({ id: spawnedEdge.id, questId, update: { route_kind: value.route.kind, label: value.route.label } });
       }
     }
     select({ beat: created.id });

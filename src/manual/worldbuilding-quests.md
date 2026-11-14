@@ -62,7 +62,7 @@ Open it wide for the rest: the **Board lane** (the same status the kanban board 
 
 The beat the story begins at is set on the beat itself: select a beat and tick **Entry**. A quest has one entry, so ticking it on another beat moves it. Grimoire sets it to the first beat you write.
 
-The **More** menu in the page header has **Send to Scriptorium** and **Delete quest**.
+At the end of the story flow's toolbar, two buttons: the Scriptorium icon (**Send to Scriptorium**) and the bin (**Delete quest**).
 
 ## Objectives
 
@@ -115,7 +115,7 @@ Selecting a route never changes anything by itself; only **Take this route** doe
 
 ## Other actions
 
-- **Send to Scriptorium**, in the **More** menu, formats the quest (title, premise, objectives, giver, location) as a publishable document: handy for handouts.
+- **Send to Scriptorium**, the Scriptorium icon at the end of the toolbar, formats the quest (title, premise, objectives, giver, location) as a publishable document: handy for handouts.
 - **Delete quest**, in the same menu, removes the quest and its whole story flow. Linked entities, encounters, chat messages, and inventory are not deleted.
 
 ## What your players see

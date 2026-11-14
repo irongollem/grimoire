@@ -36,7 +36,7 @@ That's the whole shape: beats are the scenes, objectives are the scoreboard, and
 
 ## Adding beats
 
-Click **Add beat** to open the beat composer, fill in a **title** and pick a **kind** (Neutral, Combat, Social, Explore, or Discovery: a presentation hint, not a rule), then **Create beat**. If a beat is already selected, the new beat is added with a route already drawn from it. This is the fastest way to extend a chain. **Add parallel route** does the same for an **and also** route. It is disabled until the selected beat already has a choice route, because an "and also" route can never be the only way out of a beat: its thread would have nowhere to go.
+Click **+ Beat** to open the new-beat dialog, fill in a **title** and pick a **kind** (Neutral, Combat, Social, Explore, or Discovery: a presentation hint, not a rule), then **Create beat**. If a beat is already selected, the new beat follows it, and the dialog asks about the route there: **They choose one** or **And also**, and what the party does. **And also** is greyed out until the selected beat already has a choice route, because an "and also" route can never be the only way out of a beat: its thread would have nowhere to go. **Add route** in a beat's prep opens the same dialog. To fit the whole flow on screen or jump to the party's beat, use the two small buttons in the flow's top-right corner.
 
 Drag a connection from one beat to another on the canvas to link two existing beats with a plain choice route.
 

@@ -1,13 +1,10 @@
 <template>
-  <MenuPopover label="Quest actions" data-testid="quest-more-menu">
-    <template #trigger="{ toggle, open }">
-      <AppButton :icon="IconMore" label="More" size="sm" variant="subtle" aria-haspopup="menu" :aria-expanded="open" :loading="sending" @click="toggle" />
-    </template>
-    <template #default="{ close }">
-      <AppButton variant="menu" size="md" block class="rounded-none" role="menuitem" label="Send to Scriptorium" @click="close(false); void sendToScriptorium()" />
-      <AppButton variant="menu" size="md" block class="rounded-none" role="menuitem" tone="danger" label="Delete quest" :disabled="deleting" @click="close(false); void removeQuest()" />
-    </template>
-  </MenuPopover>
+  <!-- Two actions, two icon buttons: a menu holding only these hid them behind
+       a "More" (14 Nov 2026). -->
+  <div class="flex items-center gap-1" data-testid="quest-more-menu">
+    <AppButton :icon="IconNavScriptorium" size="icon-sm" variant="subtle" aria-label="Send to Scriptorium" tooltip="Send to Scriptorium" :loading="sending" @click="sendToScriptorium()" />
+    <AppButton :icon="IconDelete" size="icon-sm" variant="subtle" tone="danger" aria-label="Delete quest" tooltip="Delete quest" :disabled="deleting" @click="removeQuest()" />
+  </div>
   <PaywallModal v-model="showScriptoriumPaywall" resource="scriptorium_documents" />
 </template>
 
@@ -15,7 +12,6 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import MenuPopover from "@/components/common/overlays/MenuPopover.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
@@ -25,7 +21,7 @@ import { useDeleteQuest, useQuestObjectives } from "@/composables/quests/useQues
 import { useCreateScriptoriumBook } from "@/scriptorium/composables/useScriptorium";
 import { bookInsertFromImport, formatQuestForScriptorium } from "@/scriptorium/lib/scriptoriumImport";
 import { buildEntityEmbedDocumentJson } from "@/scriptorium/lib/entityEmbeds";
-import { IconMore } from "@/lib/icons";
+import { IconDelete, IconNavScriptorium } from "@/lib/icons";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import type { Quest } from "@/types/quest.types";
 

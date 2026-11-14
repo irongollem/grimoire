@@ -135,7 +135,7 @@ describe("QuestBeatSitePanel", () => {
       global: { stubs: { EntityCombobox: true, RouterLink: RouterLinkStub } },
     });
     expect(wrapper.text()).toContain("Floor plan not published yet");
-    expect(wrapper.text()).toContain("Ways out not traced yet");
+    expect(wrapper.text()).toContain("Doors between rooms: none drawn yet");
   });
 
   it("reads the readiness rows from the readiness object's own facts, not a proxy for them", () => {
@@ -149,7 +149,7 @@ describe("QuestBeatSitePanel", () => {
     // neither in this fixture, so it stays unpublished even though a region
     // has been traced.
     expect(wrapper.text()).toContain("Floor plan not published yet");
-    expect(wrapper.text()).toContain("Ways out traced: 1");
+    expect(wrapper.text()).toContain("Doors between rooms: 1");
     expect(wrapper.text()).toContain("1 space unbound");
   });
 
