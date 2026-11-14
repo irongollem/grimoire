@@ -9,7 +9,9 @@ describe("describeMotion", () => {
     for (const name of MOTION_NAMES) {
       for (const strength of STRENGTHS) {
         for (const pace of PACES) {
-          expect(describeMotion(motionFor(name, strength, pace, layer, loop), layer, loop)).toEqual({ name, strength, pace });
+          // Strength means nothing to a path or a spin: they read back as the middle one.
+          const meaningless = name === "Along a path" || name === "Spinning";
+          expect(describeMotion(motionFor(name, strength, pace, layer, loop), layer, loop)).toEqual({ name, strength: meaningless ? "gentle" : strength, pace });
         }
       }
     }

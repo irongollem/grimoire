@@ -1,15 +1,15 @@
 /**
- * The studio's vocabulary over the engine's numbers. Six motions named for what they suit (Flame, Cloth,
- * Hanging, Wagging, Floating, Wandering), each with one Strength and one Pace; the engine's own numbers sit behind
+ * The studio's vocabulary over the engine's numbers. Eight motions named for what they suit (Flame, Cloth,
+ * Hanging, Wagging, Floating, Wandering, Along a path, Spinning), each with one Strength and one Pace; the engine's own numbers sit behind
  * "Exact". Everything is pure; a preset is a plain engine motion or effect, so a scene stores nothing new.
  */
 import { loopFrequency, type Effect, type Layer, type Motion, type Point, type Rect } from "./scene.ts";
 
-export type MotionName = "Flame" | "Cloth" | "Hanging" | "Wagging" | "Floating" | "Wandering";
+export type MotionName = "Flame" | "Cloth" | "Hanging" | "Wagging" | "Floating" | "Wandering" | "Along a path" | "Spinning";
 export type Strength = "faint" | "gentle" | "lively";
 export type Pace = "slow" | "steady" | "quick";
 
-export const MOTION_NAMES: MotionName[] = ["Flame", "Cloth", "Hanging", "Wagging", "Floating", "Wandering"];
+export const MOTION_NAMES: MotionName[] = ["Flame", "Cloth", "Hanging", "Wagging", "Floating", "Wandering", "Along a path", "Spinning"];
 export const STRENGTHS: Strength[] = ["faint", "gentle", "lively"];
 export const PACES: Pace[] = ["slow", "steady", "quick"];
 
@@ -31,13 +31,23 @@ const PACE = {
   Floating: [5, 3, 2],
   cycles: [1, 2, 3],
 };
+/** Spinning: whole turns a loop for Slow, Steady, Quick (a slow turn is still one a loop, so it stays seamless). */
+const SPIN_TURNS = [1, 2, 4];
 const CLOTH_WAVES = 0.8;
 /** A tuned number within this share of a preset's still reads as that preset. */
 const TOLERANCE = 0.08;
 
 const at = <T>(list: T[], strength: Strength | Pace, order: readonly string[]): T => list[order.indexOf(strength)];
 
-export function motionFor(name: MotionName, strength: Strength, pace: Pace, layer: Pick<Layer, "width">, loop: number): Motion {
+/**
+ * `points` are only for "Along a path", which a preset cannot invent: the stage draws them. Without them the
+ * path has none yet (the engine leaves the part standing still until the maker draws two). Strength means
+ * nothing for "Along a path" (the maker's points are the distance) or "Spinning" (a turn is a turn), so it is
+ * ignored for both, and `describeMotion` reads them back as "gentle".
+ */
+export function motionFor(name: MotionName, strength: Strength, pace: Pace, layer: Pick<Layer, "width">, loop: number, points: Point[] = []): Motion {
+  if (name === "Along a path") return { kind: "path", points, period: loop / at(PACE.cycles, pace, PACES) };
+  if (name === "Spinning") return { kind: "spin", period: loop / at(SPIN_TURNS, pace, PACES) };
   const amount = at(AMOUNT[name], strength, STRENGTHS);
   const cycles = at(PACE.cycles, pace, PACES);
   switch (name) {
@@ -67,7 +77,9 @@ export function describeMotion(
   loop: number,
 ): { name: MotionName; strength: Strength; pace: Pace } | { custom: true } {
   for (const name of namesOf(motion)) {
-    for (const strength of STRENGTHS) {
+    // Strength means nothing to these two, so the middle one stands for it (a faint spin would be a lie).
+    const strengths = name === "Along a path" || name === "Spinning" ? (["gentle"] as Strength[]) : STRENGTHS;
+    for (const strength of strengths) {
       for (const pace of PACES) {
         const preset = motionFor(name, strength, pace, layer, loop);
         if (isPreset(motion, preset, loop)) return { name, strength, pace };
@@ -91,14 +103,16 @@ function namesOf(motion: Motion): MotionName[] {
     case "drift":
       return ["Wandering"];
     case "path":
-      // No named preset yet: a path is always a hand-drawn motion.
-      return [];
+      return ["Along a path"];
+    case "spin":
+      return ["Spinning"];
   }
 }
 
 function isPreset(motion: Motion, preset: Motion, loop: number): boolean {
-  // A shifted start is a hand-tuned motion.
-  if ("phase" in motion && motion.phase) return false;
+  // A shifted start is a hand-tuned motion, except for a path and a spin: their Start is a control of its own
+  // (spreading five apples round one path sets it), and direction, points and group do not change what they are.
+  if (motion.kind !== "path" && motion.kind !== "spin" && "phase" in motion && motion.phase) return false;
   switch (motion.kind) {
     case "flicker":
       return preset.kind === "flicker" && near(motion.amount, preset.amount) && near(motion.speed, preset.speed);
@@ -109,7 +123,9 @@ function isPreset(motion: Motion, preset: Motion, loop: number): boolean {
     case "bob":
       return preset.kind === "bob" && near(motion.dy, preset.dy) && samePeriod(loop, motion.period, preset.period);
     case "path":
-      return false;
+      return preset.kind === "path" && samePeriod(loop, motion.period, preset.period);
+    case "spin":
+      return preset.kind === "spin" && samePeriod(loop, motion.period, preset.period);
     case "drift":
       return preset.kind === "drift" && near(motion.dx, preset.dx) && near(motion.dy, preset.dy) && samePeriod(loop, motion.period, preset.period);
   }

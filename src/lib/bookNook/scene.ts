@@ -150,9 +150,16 @@ export type Motion =
    * Travels a smooth curve through `points` (offsets in pixels from the layer's `at`, at least two) at a steady
    * pace, once round per `period`. Closed (the default) comes back to the first point; open goes to the last
    * and back. `phase` is where along it the part starts, so several parts share one path evenly spread.
-   * `turn` rotates the part to face the way it is going.
+   * `turn` rotates the part to face the way it is going. `group` is the studio's: paths sharing a group id are
+   * kept identical by its editing helpers (`motions.ts`); the engine ignores it.
    */
-  | { kind: "path"; points: Point[]; period: number; phase?: number; closed?: boolean; turn?: boolean }
+  | { kind: "path"; points: Point[]; period: number; phase?: number; closed?: boolean; turn?: boolean; group?: string }
+  /**
+   * Turns about the anchor, whole turns only: one turn per `period` (rounded to whole turns per loop, so the
+   * loop is seamless). `reverse` turns anticlockwise. `phase` (0 by default) is how far round it starts, 0..1.
+   * It adds to the part's rotation, so it stacks with a path (position from the path, spin from this).
+   */
+  | { kind: "spin"; period: number; phase?: number; reverse?: boolean }
   /** A flame's life: stretches and narrows, leans and dims, by up to `amount` (0.1 is ten per cent), `speed` flickers a second. */
   | { kind: "flicker"; amount: number; speed: number }
   /** Hanging cloth: the free end moves up to `amount` pixels sideways, the fixed end (the anchor's row) not at all. */
@@ -398,7 +405,8 @@ export function poseAt(scene: Scene, layer: Layer, t: number): Pose {
       continue;
     }
     const b = a + (m.phase ?? 0) * TAU;
-    if (m.kind === "sway") pose.rotate += ((m.angle * Math.PI) / 180) * Math.sin(b);
+    if (m.kind === "spin") pose.rotate += m.reverse ? -b : b;
+    else if (m.kind === "sway") pose.rotate += ((m.angle * Math.PI) / 180) * Math.sin(b);
     else if (m.kind === "bob") pose.dy += m.dy * Math.sin(b);
     else {
       pose.dx += m.dx * Math.sin(b);

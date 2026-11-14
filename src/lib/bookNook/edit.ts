@@ -89,7 +89,7 @@ export function pictureOf(scene: Scene): Layer {
 }
 
 /** Applies `change` to one layer. The picture is the room itself: it is never moved, resized or re-pinned. */
-function mapLayer(scene: Scene, id: string, change: (layer: Layer) => Layer): Scene {
+export function mapLayer(scene: Scene, id: string, change: (layer: Layer) => Layer): Scene {
   if (!layersOf(scene).some((l) => l.id === id)) throw new Error(`There is no layer "${id}" in this scene.`);
   if (isPicture(scene, id)) throw new Error("The picture stays where it is.");
   return { ...scene, stack: scene.stack.map((item) => (item.kind === "layer" && item.id === id ? change(item) : item)) };
@@ -137,6 +137,7 @@ function scaleMotion(motion: Motion, ratio: number): Motion {
       return { ...motion, amount: motion.amount * ratio };
     case "sway":
     case "flicker":
+    case "spin":
       return motion;
     case "path":
       // The arc is the scene's, not the part's: resizing an apple does not change where it is thrown.
