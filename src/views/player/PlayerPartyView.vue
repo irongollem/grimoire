@@ -1,23 +1,5 @@
 <template>
   <div class="space-y-8">
-
-    <PageHeader
-      flush
-      :title="hasParty ? 'Party' : 'People'"
-      :description="hasParty ? 'The heroes and companions travelling with you.' : 'The people your character has met.'"
-    >
-      <template #actions>
-        <AppButton
-          v-if="hasParty && viewerMemberId"
-          variant="subtle"
-          size="sm"
-          :icon="IconAdd"
-          label="Add companion"
-          @click="openCompanionForm(null)"
-        />
-      </template>
-    </PageHeader>
-
     <!-- ── Your company and New to you ──────────────────────────────────────── -->
     <!-- From lg up they share one row; nobody new, the company has it to itself.
          A system with no party (Generic) has no company; the ledger below stays. -->
@@ -38,9 +20,11 @@
         :viewer-member-id="viewerMemberId"
         :show-hp="showHp"
         :spread="isLg && !newToYouItems.length"
+        :can-add="!!viewerMemberId"
         @open-member="selectedMember = $event"
         @open-companion="selectedCompanion = $event"
         @open-group="lightboxSrc = groupPortraitUrl"
+        @add="openCompanionForm(null)"
       />
 
       <NewToYouStrip v-if="ready" :items="newToYouItems" @turned="turnNewToYou" @open="openPerson" />
@@ -144,12 +128,9 @@
 
 <script setup lang="ts">
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
-import PageHeader from "@/components/common/list/PageHeader.vue";
 import { ref, computed, watch } from "vue";
 import { useElementSize } from "@vueuse/core";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd } from "@/lib/icons";
-import AppButton from "@/components/common/controls/AppButton.vue";
 import ImageLightbox from "@/components/common/overlays/ImageLightbox.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";

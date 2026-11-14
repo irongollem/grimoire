@@ -17,8 +17,8 @@
     <!-- Header section -->
     <div :class="[
         'max-w-full min-w-0 bg-background',
-        flush ? '' : 'px-4 pt-4 md:px-6 md:pt-6',
-        (flush && !$slots.actions) || ownsPhoneBar ? 'hidden md:block' : '',
+        'px-4 pt-4 md:px-6 md:pt-6',
+        ownsPhoneBar ? 'hidden md:block' : '',
       ]"
     >
       <div
@@ -106,13 +106,6 @@ defineProps<{
   title: string;
   description?: string;
   contained?: boolean;
-  /**
-   * For a page whose shell already pads it (the player layout's `px-4 py-6`
-   * main): drops the header's own padding so the title is not indented twice,
-   * and, with no actions, hides the whole block on phones where the top bar
-   * already names the page.
-   */
-  flush?: boolean;
   /**
    * The page draws its own phone top bar (a `fullscreenMobile` takeover such
    * as the quest and beat pages), which already names it. Below `md` the

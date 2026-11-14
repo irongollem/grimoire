@@ -1,5 +1,17 @@
 <template>
   <HearthSection title="Your company">
+    <!-- Adding a companion adds to this row, so its "+" ends this row's rubric. -->
+    <template v-if="canAdd" #end>
+      <AppButton
+        variant="link"
+        size="icon-xs"
+        :icon="IconAdd"
+        icon-size="md"
+        tooltip="Add companion"
+        class="-my-1 shrink-0"
+        @click="emit('add')"
+      />
+    </template>
     <!-- A strip that scrolls on a phone; from md up a grid whose plates share
          the width, so the company never sits packed against the left edge. -->
     <ul
@@ -51,7 +63,9 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import { IconAdd } from "@/lib/icons";
 import { useLowArt } from "@/composables/useLowArt";
 import HearthSection from "@/components/player/hearth/HearthSection.vue";
 import type { PartyEntry } from "@/components/player/people/peopleParty";
@@ -66,13 +80,15 @@ import type { PartyMember } from "@/types/party.types";
  * portrait exactly as the full cards used to. A thin health bar shows under a
  * plate only where the viewer may see numeric HP.
  */
-const { entries, groupPortraitUrl = null, viewerMemberId, showHp, spread = false } = defineProps<{
+const { entries, groupPortraitUrl = null, viewerMemberId, showHp, spread = false, canAdd = false } = defineProps<{
   entries: PartyEntry[];
   groupPortraitUrl?: string | null;
   viewerMemberId: string | null;
   showHp: (entry: PartyEntry) => boolean;
   /** The company has its row to itself (nobody is new), so its plates grow. */
   spread?: boolean;
+  /** The viewer plays a character here, so they may add a companion to the company. */
+  canAdd?: boolean;
 }>();
 
 const { lowArt } = useLowArt();
@@ -82,6 +98,7 @@ const emit = defineEmits<{
   openMember: [member: PartyMember];
   openCompanion: [companion: Companion];
   openGroup: [];
+  add: [];
 }>();
 
 function hpBar(current: number, max: number) {

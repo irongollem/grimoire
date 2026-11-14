@@ -2,18 +2,9 @@
   <div class="space-y-6 pb-8">
     <PickerCharacterNotFound v-if="notFound" />
     <template v-else>
-    <!-- Header row -->
-    <PageHeader flush title="Choose Species" :description="headerDescription ?? undefined">
-      <template #actions>
-      <AppButton
-        to="/play/character"
-        variant="subtle"
-        size="sm"
-        class="shrink-0"
-        label="← Back"
-      />
-      </template>
-    </PageHeader>
+    <!-- Whose species this is, and what a tap does. The page's name and its
+         way back are in the top bar. -->
+    <p v-if="headerDescription" class="text-body text-muted-foreground italic">{{ headerDescription }}</p>
 
     <!-- Filter bar -->
     <ListFilterBar
@@ -133,7 +124,6 @@
 </template>
 
 <script setup lang="ts">
-import PageHeader from "@/components/common/list/PageHeader.vue";
 import PickerCharacterNotFound from "@/components/player/PickerCharacterNotFound.vue";
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";

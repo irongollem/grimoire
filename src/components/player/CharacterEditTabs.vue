@@ -1,9 +1,8 @@
 <template>
   <div class="max-w-2xl mx-auto space-y-6 pb-8">
+    <!-- The page's name is in the top bar; whose sheet this is stays here. -->
     <div>
-      <h1 class="text-heading-lg font-bold text-foreground">
-        Edit {{ existingMember?.name ?? "Character" }}
-      </h1>
+      <p class="text-heading-sm font-semibold text-foreground">{{ existingMember?.name ?? "New character" }}</p>
       <p class="text-body text-muted-foreground italic mt-1">Changes save as you make them.</p>
       <AutosaveStatus
         v-if="autosave"

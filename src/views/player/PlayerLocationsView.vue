@@ -1,6 +1,5 @@
 <template>
   <div>
-    <PageHeader flush title="Atlas" description="Maps shared by your DM." />
 
     <ListSkeleton v-if="isLoading" variant="rows" :count="6" />
 
@@ -152,7 +151,6 @@
 
 <script setup lang="ts">
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
-import PageHeader from "@/components/common/list/PageHeader.vue";
 import { ref, computed, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconNavAtlas } from '@/lib/icons';

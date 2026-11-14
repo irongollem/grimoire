@@ -1,12 +1,11 @@
 <template>
   <div class="max-w-2xl mx-auto pb-8 space-y-6">
 
-    <!-- Step indicator -->
+    <!-- Step indicator. The player's top bar names the page; the DM's shell
+         (/party/new) has no bar from md up, so the DM's heading stays. -->
     <div>
-      <h1 class="text-heading-lg font-bold text-foreground">
-        {{ isEditMode ? 'Edit Character' : 'Create Your Character' }}
-      </h1>
-      <div ref="stepBar" class="mt-3 flex items-center gap-1 overflow-x-auto pb-1">
+      <h1 v-if="isDmCreate" class="mb-3 text-heading-lg font-bold text-foreground">Create Character</h1>
+      <div ref="stepBar" class="flex items-center gap-1 overflow-x-auto pb-1">
         <template v-for="(step, idx) in activeSteps" :key="step.id">
           <AppButton
             variant="ghost"

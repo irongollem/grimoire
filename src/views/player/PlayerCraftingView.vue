@@ -1,5 +1,5 @@
 <template>
-  <PageHeader flush title="Workshop" description="Your known recipes and craft attempts">
+  <div>
 
     <div v-if="!member" class="text-body text-muted-foreground italic">
       No linked character found.
@@ -199,7 +199,7 @@
       </VirtualGrid>
     </template>
 
-  </PageHeader>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -207,7 +207,6 @@ import TagChip from "@/components/common/TagChip.vue";
 import { computed } from "vue";
 import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
 import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconListView, IconSearch, IconWand } from '@/lib/icons';
-import PageHeader from "@/components/common/list/PageHeader.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting/disciplines";
 import type { DisciplineConfig } from "@/lib/crafting/disciplines";

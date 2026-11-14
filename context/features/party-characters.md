@@ -1100,7 +1100,7 @@ The catalogue headers list each gap. In short: spell choices and spell lists (Ma
 
 ### The Party Section
 
-An **Add companion** button beside the section heading opens `CompanionForm` as a side-sheet with the owner locked to the viewer's own character (#569) — see the Companions note above for the RLS/role-gating changes that made this safe.
+An **Add companion** "+" at the end of the *Your company* rubric (`PeopleCompanyStrip`'s `canAdd`) opens `CompanionForm` as a side-sheet with the owner locked to the viewer's own character (#569) — see the Companions note above for the RLS/role-gating changes that made this safe.
 
 A responsive grid of character cards for all party members plus companions. Each card shows:
 

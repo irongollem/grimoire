@@ -485,8 +485,11 @@
 /* Tabs (TabBar): small spaced capitals on a ruled line, and the active tab
    marked by a bookmark ribbon hanging from the rule, the logo's bookmark,
    instead of an underline. */
-:root[data-theme^="vellum"] .tab-bar {
-  gap: 0.25rem;
+:root[data-theme^="vellum"] .tab-bar { gap: 0.25rem; }
+/* `.tab-bar-end`: actions sitting at a tab row's right end, outside the
+   scrolling tabs, carry the same rule on so it runs unbroken (the player
+   Journal's sort and New Entry). */
+:root[data-theme^="vellum"] :is(.tab-bar, .tab-bar-end) {
   border-bottom: 1px solid color-mix(in oklab, var(--foreground) 30%, transparent);
   box-shadow: 0 3px 0 -2px color-mix(in oklab, var(--foreground) 14%, transparent);
 }

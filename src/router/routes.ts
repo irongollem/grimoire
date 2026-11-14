@@ -168,7 +168,7 @@ export const routes: RouteRecordRaw[] = [
     path: "/play/party",
     name: "play-party",
     component: () => import("@/views/player/PlayerPartyView.vue"),
-    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "Party" },
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "People" },
   },
   {
     path: "/play/quests",
@@ -214,13 +214,13 @@ export const routes: RouteRecordRaw[] = [
     path: "/play/background",
     name: "play-background",
     component: () => import("@/views/player/PlayerBackgroundPickerView.vue"),
-    meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Choose Background" },
+    meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Choose Background", back: "/play/character" },
   },
   {
     path: "/play/species",
     name: "play-species",
     component: () => import("@/views/player/PlayerSpeciesPickerView.vue"),
-    meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Choose Species" },
+    meta: { requiresAuth: true, requiresPlayer: true, playerStandalone: true, layout: "player", title: "Choose Species", back: "/play/character" },
   },
   {
     path: "/play/crafting",

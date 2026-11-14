@@ -2,16 +2,9 @@
   <div class="space-y-6 pb-8">
     <PickerCharacterNotFound v-if="notFound" />
     <template v-else>
-    <!-- Header row -->
-    <div class="flex items-start justify-between gap-4">
-      <div>
-        <h1 class="text-heading-lg font-bold text-foreground">Choose a Background</h1>
-        <p v-if="headerDescription" class="text-body text-muted-foreground italic mt-1">
-          {{ headerDescription }}
-        </p>
-      </div>
-      <AppButton to="/play/character" variant="subtle" size="sm" label="← Back" />
-    </div>
+    <!-- Whose background this is, and what a tap does. The page's name and its
+         way back are in the top bar. -->
+    <p v-if="headerDescription" class="text-body text-muted-foreground italic">{{ headerDescription }}</p>
 
     <!-- Filter bar -->
     <ListFilterBar

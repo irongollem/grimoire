@@ -1,6 +1,5 @@
 <template>
   <div>
-    <PageHeader flush title="Factions" description="Organizations and powers at play in the world." />
 
     <ListSkeleton v-if="isLoading" variant="tiles" :columns="2" />
 
@@ -188,7 +187,6 @@ import TagChips from "@/components/common/TagChips.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import PageHeader from "@/components/common/list/PageHeader.vue";
 import { ref, computed } from "vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { IconClose, IconShield } from '@/lib/icons';

@@ -1,6 +1,5 @@
 <template>
   <div class="space-y-4 pb-8">
-    <PageHeader flush title="Character Sheet" description="Print or save your sheet as a PDF." />
     <!-- No character linked -->
     <div v-if="!linkedMemberId" class="flex flex-col items-center gap-4 py-16 text-center">
       <p class="font-fell text-base text-muted-foreground italic">No character linked to your account.</p>
@@ -42,7 +41,6 @@
 </template>
 
 <script setup lang="ts">
-import PageHeader from "@/components/common/list/PageHeader.vue";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";

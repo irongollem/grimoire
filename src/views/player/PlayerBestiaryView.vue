@@ -1,6 +1,5 @@
 <template>
   <div class="space-y-4 pb-8">
-    <PageHeader flush title="Bestiary" description="Creatures your party has met." />
     <!-- Tabs: only when there is a second one (Forms, for a character who
          qualifies). A lone "Bestiary" chip under the Bestiary title read as a
          second title. -->
@@ -342,7 +341,6 @@
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
-import PageHeader from "@/components/common/list/PageHeader.vue";
 import { ref, computed, useId } from "vue";
 import { refDebounced } from "@vueuse/core";
 import { IconClose, IconPin, IconSearch } from '@/lib/icons';

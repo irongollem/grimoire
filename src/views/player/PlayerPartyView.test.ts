@@ -64,7 +64,7 @@ vi.mock("@/composables/useBreakpoint", async (importOriginal) => ({
 
 const stub = (name: string) => ({ name, template: `<div data-test="${name}" />` });
 const stubs = {
-  PeopleCompanyStrip: stub("PeopleCompanyStrip"),
+  PeopleCompanyStrip: { name: "PeopleCompanyStrip", props: ["canAdd"], emits: ["add"], template: '<div data-test="PeopleCompanyStrip" />' },
   PeopleLedger: stub("PeopleLedger"),
   PeopleToolbar: stub("PeopleToolbar"),
   NewToYouStrip: { name: "NewToYouStrip", emits: ["open", "turned"], template: '<div data-test="NewToYouStrip" />' },
@@ -93,17 +93,21 @@ beforeEach(() => {
 describe("PlayerPartyView", () => {
   // #934: the People tab carries the neutral NPC ledger as well as the party, so a
   // Generic campaign keeps the ledger and loses only the company.
-  it("keeps the company strip and the add-companion action in a system with a party", () => {
+  // Adding a companion lives on the company's own rubric now, not in a page header.
+  it("keeps the company strip in a system with a party, and its add opens the companion form", async () => {
     const w = mountView();
-    expect(w.find('[data-test="PeopleCompanyStrip"]').exists()).toBe(true);
-    expect(w.text()).toContain("Add companion");
+    const strip = w.findComponent({ name: "PeopleCompanyStrip" });
+    expect(strip.props("canAdd")).toBe(true);
+    expect(w.find('[data-test="CompanionForm"]').exists()).toBe(false);
+    strip.vm.$emit("add");
+    await w.vm.$nextTick();
+    expect(w.find('[data-test="CompanionForm"]').exists()).toBe(true);
   });
 
   it("in a Generic campaign drops the company but keeps the NPC ledger", () => {
     mocks.system = "generic";
     const w = mountView();
     expect(w.find('[data-test="PeopleCompanyStrip"]').exists()).toBe(false);
-    expect(w.text()).not.toContain("Add companion");
     expect(w.find('[data-test="PeopleLedger"]').exists()).toBe(true);
   });
 

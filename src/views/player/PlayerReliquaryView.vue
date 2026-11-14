@@ -1,6 +1,5 @@
 <template>
   <div class="flex flex-col gap-4">
-    <PageHeader flush title="Reliquary" description="Rules, references and the codex." />
 
     <!-- Tab bar -->
     <TabBar :tabs="tabs" v-model="activeTab" wrapper-class="overflow-x-auto" />
@@ -14,7 +13,6 @@
 </template>
 
 <script setup lang="ts">
-import PageHeader from "@/components/common/list/PageHeader.vue";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconBookMarked, IconLandmark, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';

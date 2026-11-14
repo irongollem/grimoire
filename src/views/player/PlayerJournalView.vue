@@ -1,31 +1,5 @@
 <template>
   <div class="space-y-4">
-    <!-- Header -->
-    <PageHeader flush title="Journal" description="Your notes, quests and handouts from the adventure.">
-      <template #actions>
-        <AppButton
-          v-if="notesUi.journalHasActiveFilters && (activeTab === 'mine' || activeTab === 'party')"
-          variant="subtle"
-          size="md"
-          label="Clear"
-          @click="notesUi.resetJournalFilters()"
-        />
-        <SortControl
-          v-if="showSort"
-          v-model:sort-by="sortBy"
-          v-model:sort-dir="sortDir"
-          :options="sortOptions"
-        />
-        <AppButton
-          v-if="!activeTome && activeTab !== 'dm-notes' && activeTab !== 'handouts' && activeTab !== 'notice-boards' && activeTab !== 'quest-log' && activeTab !== 'puzzles'"
-          variant="primary"
-          size="md"
-          :icon="IconAdd"
-          label="New Entry"
-          @click="openNew"
-        />
-      </template>
-    </PageHeader>
 
     <!-- New entry form -->
     <div v-if="showForm" class="rounded-lg border border-primary/30 bg-card overflow-hidden shadow-sm">
@@ -124,8 +98,51 @@
       </div>
     </div>
 
-    <!-- Tab bar -->
-    <TabBar :tabs="TABS" :model-value="activeTab" wrapper-class="overflow-x-auto" @update:model-value="setTab" />
+    <!-- Tab bar, with the open list's own actions at its right end: they act
+         on the tab beside them, so they sit on its row rather than in a page
+         header above it, and carry the tab rule on so it runs unbroken. On a
+         phone the tabs need the width, so only the "+" stays beside them and
+         Clear and sort drop to a row of their own underneath. -->
+    <div class="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+      <TabBar
+        :tabs="TABS"
+        :model-value="activeTab"
+        wrapper-class="col-start-1 row-start-1 min-w-0 overflow-x-auto"
+        @update:model-value="setTab"
+      />
+      <div
+        v-if="showClear || showSort"
+        class="col-span-2 row-start-2 flex items-center justify-end gap-2 pt-3 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:pt-0 sm:pb-1 sm:pl-2"
+        :class="smUp && 'tab-bar-end border-b border-border'"
+      >
+        <AppButton
+          v-if="showClear"
+          variant="subtle"
+          size="sm"
+          label="Clear"
+          @click="notesUi.resetJournalFilters()"
+        />
+        <SortControl
+          v-if="showSort"
+          v-model:sort-by="sortBy"
+          v-model:sort-dir="sortDir"
+          :options="sortOptions"
+        />
+      </div>
+      <div
+        v-if="showNewEntry"
+        class="tab-bar-end col-start-2 row-start-1 flex items-center border-b border-border pb-1 pl-2 sm:col-start-3"
+      >
+        <AppButton
+          variant="primary"
+          size="sm"
+          :icon="IconAdd"
+          label="New Entry"
+          collapse-label-on-mobile
+          @click="openNew"
+        />
+      </div>
+    </div>
 
     <!-- Tome tabs — one per document item currently in the party's inventory -->
     <PlayerJournalTomeStrip
@@ -234,7 +251,7 @@
 </template>
 
 <script setup lang="ts">
-import PageHeader from "@/components/common/list/PageHeader.vue";
+import { useAbove } from "@/composables/useBreakpoint";
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, watch } from "vue";
@@ -344,7 +361,15 @@ const SORT_OPTIONS_FULL = [
 // Party Journal holds other players' entries, which the current player can't reorder.
 const SORT_OPTIONS_NO_MANUAL = SORT_OPTIONS_FULL.filter((o) => o.value !== "manual");
 
+const smUp = useAbove("sm");
 const showSort = computed(() => ["mine", "party", "dm-notes"].includes(activeTab.value));
+const showClear = computed(
+  () => notesUi.journalHasActiveFilters && (activeTab.value === "mine" || activeTab.value === "party"),
+);
+// A tome tab and the DM's, handout, board, quest and puzzle tabs hold nothing the player writes.
+const showNewEntry = computed(
+  () => !activeTome.value && !["dm-notes", "handouts", "notice-boards", "quest-log", "puzzles"].includes(activeTab.value),
+);
 const sortOptions = computed(() =>
   activeTab.value === "party" ? SORT_OPTIONS_NO_MANUAL : SORT_OPTIONS_FULL,
 );

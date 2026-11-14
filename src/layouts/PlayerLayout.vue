@@ -3,27 +3,46 @@
     <!-- Top bar: branding + character + sign out. A full-screen phone route
          (meta.fullscreenMobile, e.g. a handout in the reader) brings its own
          header and back button, as it does under DefaultLayout. -->
-    <header v-if="!fullscreenMobile" class="h-14 border-b border-border bg-card flex items-center px-4 gap-3 shrink-0">
-      <!-- Phones name the page here (as the DM top bar does), so a player always
-           sees where they are; the brand mark stays on Adventurer's Rest and
-           from md up, where each page draws its own heading. -->
-      <h1
-        v-if="phoneTitle"
-        class="md:hidden min-w-0 flex-1 truncate text-heading font-semibold text-gold-500"
+    <header v-if="!fullscreenMobile" class="relative h-14 border-b border-border bg-card flex items-center px-4 gap-3 shrink-0">
+      <!-- The page's name lives here and nowhere else: a player page draws no
+           heading of its own, so its content starts under this bar instead of
+           under a title block a third of a screen tall (the maintainer, 14 Nov
+           2026: "I already know where I am"). On a phone it leads the bar, as
+           the DM top bar does; from md up it sits in the bar's centre, between
+           the brand and the table's state. A sub-page (`meta.back`) carries its
+           way back beside its name rather than as a button in the page. -->
+      <div
+        v-if="pageTitle"
+        class="min-w-0 flex-1 items-center gap-1 md:absolute md:left-1/2 md:max-w-[34%] md:-translate-x-1/2 md:flex-none"
+        :class="onHome ? 'hidden md:flex' : 'flex'"
       >
-        {{ phoneTitle }}
-      </h1>
-      <div class="flex items-center gap-2 shrink-0" :class="phoneTitle ? 'hidden md:flex' : ''">
-        <BrandLogo class="h-7 w-auto" />
-        <span class="text-caption text-muted-foreground italic hidden sm:inline">
+        <AppButton
+          v-if="backTo"
+          :to="backTo"
+          variant="ghost"
+          size="icon-xs"
+          :icon="IconChevronLeft"
+          icon-size="md"
+          tooltip="Back"
+          class="-ml-1 shrink-0"
+        />
+        <h1 class="min-w-0 truncate text-heading font-semibold text-gold-500">
+          {{ pageTitle }}
+        </h1>
+      </div>
+      <!-- The wordmark: Adventurer's Rest keeps it on a phone (it is the front
+           door, not a page in a campaign); every page keeps it from md up. -->
+      <div class="flex min-w-0 items-center gap-2 shrink-0" :class="pageTitle && !onHome ? 'hidden md:flex' : ''">
+        <BrandLogo class="h-7 w-auto shrink-0" />
+        <span class="hidden max-w-40 truncate text-caption text-muted-foreground italic lg:inline">
           · {{ campaignName }}
         </span>
       </div>
 
-      <div class="flex-1" :class="phoneTitle ? 'hidden md:block' : ''" />
+      <div class="flex-1" :class="pageTitle && !onHome ? 'hidden md:block' : ''" />
 
-      <!-- In-game today date -->
-      <span class="hidden md:inline-flex items-center gap-1 text-body text-muted-foreground italic shrink-0">
+      <!-- In-game today date. From lg: at md the centred title needs the room. -->
+      <span class="hidden lg:inline-flex items-center gap-1 text-body text-muted-foreground italic shrink-0">
         <IconCalendarDays class="h-3 w-3 text-primary shrink-0" />
         {{ todayLabel }}
       </span>
@@ -349,7 +368,7 @@ import BrandLogo from "@/components/brand/BrandLogo.vue";
 import { ref, computed, watch, defineAsyncComponent, useTemplateRef } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useIsMobile } from "@/composables/useBreakpoint";
-import { IconBug, IconCalendarDays, IconClose, IconEncounter, IconLogOut, IconMenu, IconMessage, IconReveal, IconSettingsAlt } from '@/lib/icons';
+import { IconBug, IconCalendarDays, IconChevronLeft, IconClose, IconEncounter, IconLogOut, IconMenu, IconMessage, IconReveal, IconSettingsAlt } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import RouteSkeleton from "@/components/common/feedback/RouteSkeleton.vue";
@@ -526,11 +545,10 @@ watch([runningLoaded, anyRunning], ([loaded, isRunning], oldVals) => {
   }
 }, { immediate: true });
 
-// Adventurer's Rest keeps the wordmark: it is the front door, not a page in a campaign.
-const phoneTitle = computed(() => {
-  const title = route.meta.title;
-  return typeof title === "string" && route.name !== "play-home" ? title : null;
-});
+const pageTitle = computed(() => (typeof route.meta.title === "string" ? route.meta.title : null));
+const onHome = computed(() => route.name === "play-home");
+// A sub-page names the page it belongs to (`meta.back`), and the bar draws the way back.
+const backTo = computed(() => (typeof route.meta.back === "string" ? route.meta.back : null));
 const campaignName = computed(() => campaign.activeCampaign?.name ?? "Campaign");
 
 const calendarStore = useCalendarStore();

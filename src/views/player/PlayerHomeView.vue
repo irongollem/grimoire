@@ -1,13 +1,5 @@
 <template>
   <div class="max-w-3xl mx-auto space-y-8">
-
-    <div>
-      <h1 class="text-heading-lg font-bold text-foreground">Adventurer's Rest</h1>
-      <p class="text-body text-muted-foreground italic mt-0.5">
-        Your characters and campaigns, all in one place.
-      </p>
-    </div>
-
     <!-- Why the campaign you had open isn't, when the lens fence closed it (#847). -->
     <CampaignLensNotice />
 

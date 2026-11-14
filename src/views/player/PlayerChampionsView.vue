@@ -1,18 +1,6 @@
 <template>
   <div class="max-w-2xl mx-auto space-y-6">
 
-    <PageHeader flush title="Champions" description="Your characters in this campaign">
-      <template #actions>
-      <AppButton
-        variant="primary"
-        size="sm"
-        :to="{ name: 'play-character-create' }"
-        :icon="IconAdd"
-        label="New Character"
-      />
-      </template>
-    </PageHeader>
-
     <!-- Loading -->
     <ListSkeleton v-if="isPending" variant="rows" :count="3" />
 
@@ -129,6 +117,16 @@
         </div>
       </div>
 
+      <!-- A new champion joins the cards above, so its button ends that list. -->
+      <AppButton
+        variant="dashed"
+        size="md"
+        block
+        :to="{ name: 'play-character-create' }"
+        :icon="IconAdd"
+        label="New Character"
+      />
+
       <!-- Characters handed to me for a session (#1059): played, never rebuilt -->
       <div v-if="!appUi.dmPreviewMode && minded.length" class="space-y-3">
         <h2 class="text-heading-sm font-semibold text-foreground">Looking after</h2>
@@ -237,7 +235,6 @@
 <script setup lang="ts">
 import TagChip from "@/components/common/TagChip.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
-import PageHeader from "@/components/common/list/PageHeader.vue";
 import { ref, computed } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';

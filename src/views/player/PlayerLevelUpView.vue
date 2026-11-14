@@ -1,6 +1,5 @@
 <template>
   <div class="pb-8 space-y-6">
-    <PageHeader flush title="Level Up" description="Choose what your character gains." />
     <MindedCharacterGate v-if="minded" :name="minded.member.name" :owner-name="minded.ownerName" />
     <div v-else-if="!member" class="text-center py-16">
       <p class="text-body text-muted-foreground italic">No character linked.</p>
@@ -22,7 +21,6 @@
 </template>
 
 <script setup lang="ts">
-import PageHeader from "@/components/common/list/PageHeader.vue";
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
