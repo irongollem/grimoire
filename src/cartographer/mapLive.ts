@@ -4,7 +4,8 @@
 // own image-cell space (cell (0,0) = the image's top-left cell, the space the fog mask and tokens use). Doors carry
 // their leaf art and hinge too, so the battle map can draw each at the state the DM sets in play.
 
-import { groundContains, groundLoops, orderedGround } from "./groundRegions";
+import { groundContains, orderedGround } from "./groundRegions";
+import { groundLoops } from "./groundLoops";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { MAP_LIVE_VERSION, type MapLive, type MapLiveDoor, type MapLiveDoorLeaf, type MapLiveWall, type MapLiveGroup, type MapLiveSprite, type MotionOverlay } from "@/types/mapLive.types";
 import type { TilePackRuntime } from "@/cartographer/packLoader";

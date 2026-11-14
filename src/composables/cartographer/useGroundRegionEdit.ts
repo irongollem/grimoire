@@ -2,7 +2,8 @@
 // shape is selected; virtual edges never enter sight, room discovery, or publish as walls.
 import { computed, ref, watch, type Ref } from "vue";
 import { type DungeonMapLayers, type GroundWallMode } from "@/types/dungeonMap.types";
-import { groundLoops, groundRegionAt, putGroundRegion, removeGroundRegion, setGroundWalls } from "@/cartographer/groundRegions";
+import { groundRegionAt, putGroundRegion, removeGroundRegion, setGroundWalls } from "@/cartographer/groundRegions";
+import { groundLoops } from "@/cartographer/groundLoops";
 import { applyWallCommit, useWallNodeEdit, type WallNodeMods, type WallNodePack } from "./useWallNodeEdit";
 import { buildGraph, runAt } from "@/cartographer/wallEdit/graph";
 import { projectOnSegment } from "@/cartographer/wallEdit/geometry";

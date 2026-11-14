@@ -7,7 +7,7 @@ import { findFaces, simplifyLoop } from "./roomOutline";
 import { deriveSpaces } from "./structure";
 import { putWall } from "./testWalls";
 import { wallAt } from "./wallGraph";
-import { applyBrushStroke } from "./groundRegions";
+import { applyBrushStroke, paintGroundCells } from "./groundRegions";
 
 const PACK: PackRef = { pack_id: "p", pack_version: 1, variant: 0 };
 
@@ -158,6 +158,163 @@ describe("rooms found from the walls", () => {
     const cells = findFaces(l).flatMap((f) => f.cells);
     expect(cells).not.toContain("4,4");
     expect(cells).toContain("1,4");
+  });
+
+  // Maintainer, 14 Nov 2026: "even hand drawn maps convert the paint strokes into squares". A floor brushed with
+  // Walls: None has no wall to follow, and its room used to close along the edges of its squares.
+  describe("an unwalled floor's room follows the painted shape, not its squares", () => {
+    let key = 0;
+    const brush = (l: DungeonMapLayers, x: number, y: number, r: number, over: { category?: "floor" | "terrainWater" } = {}): DungeonMapLayers =>
+      applyBrushStroke(l, { discs: [{ x, y, r }] }, { pack: PACK, wall: PACK, erase: false, walls: "none", newKey: () => `g-${key++}`, ...over });
+    const offDisc = (outline: readonly (readonly [number, number])[], x: number, y: number): number[] =>
+      outline.map(([px, py]) => Math.hypot(px - x, py - y));
+
+    it("a round floor with no walls is a round room", () => {
+      const l = brush(emptyLayers(), 4, 4, 3.2);
+      const faces = findFaces(l);
+      expect(faces).toHaveLength(1);
+      // Every outline point hugs the disc. The staircase of its squares has corners about 2.5 and 3.8 from the middle.
+      for (const d of offDisc(faces[0].outline, 4, 4)) {
+        expect(d).toBeGreaterThan(3.0);
+        expect(d).toBeLessThan(3.4);
+      }
+      // The squares underneath are still exactly the floor: fog, footprints and the room's signature do not move.
+      expect([...faces[0].cells].sort()).toEqual(Object.keys(l.floor).sort());
+    });
+
+    it("two floors that do not touch are two rooms, even where their squares are neighbours", () => {
+      // The discs end at x = 3.6 and start at x = 3.7, but squares (3,1) and (4,1) each have their middle on one.
+      const l = brush(brush(emptyLayers(), 2, 2, 1.6), 5.3, 2, 1.6);
+      expect(l.floor["3,1"]).toBeDefined();
+      expect(l.floor["4,1"]).toBeDefined();
+      const faces = findFaces(l);
+      expect(faces).toHaveLength(2);
+      expect(faces.flatMap((f) => f.cells)).toHaveLength(Object.keys(l.floor).length);
+    });
+
+    it("water painted inside a floor does not cut the room along its shore", () => {
+      const land = brush(emptyLayers(), 6, 6, 5);
+      const l = brush(land, 6, 6, 1.6, { category: "terrainWater" });
+      const faces = findFaces(l);
+      expect(faces).toHaveLength(1);
+      expect(faces[0].cells).toHaveLength(Object.keys(l.floor).length);
+      for (const d of offDisc(faces[0].outline, 6, 6)) expect(d).toBeGreaterThan(4.5);
+    });
+
+    it("two floors painted over each other are one room round the outside of both", () => {
+      const l = brush(brush(emptyLayers(), 4, 4, 3), 8, 4, 3);
+      const faces = findFaces(l);
+      expect(faces).toHaveLength(1);
+      expect(faces[0].cells).toHaveLength(Object.keys(l.floor).length);
+      // No outline point lies inside either disc: the buried arcs between x = 5 and x = 7 are gone.
+      for (const [x, y] of faces[0].outline) {
+        expect(Math.hypot(x - 4, y - 4)).toBeGreaterThan(2.8);
+        expect(Math.hypot(x - 8, y - 4)).toBeGreaterThan(2.8);
+      }
+    });
+
+    it("two square floors laid side by side, one longer than the other, are one room with no line between them", () => {
+      const cells = rect;
+      // A 5 x 2 floor above a 3 x 2 floor: their shared line runs x = 1..4 of the upper floor's x = 0..5.
+      const l = paintGroundCells(paintGroundCells(emptyLayers(), cells(0, 0, 5, 2), PACK), cells(1, 2, 3, 2), { ...PACK, pack_id: "q" });
+      const faces = findFaces(l);
+      expect(faces).toHaveLength(1);
+      expect(faces[0].cells).toHaveLength(16);
+      // The T's eight corners, and nothing on the line the two floors share.
+      expect(simplifyLoop(faces[0].outline).map(([x, y]) => `${x},${y}`).sort()).toEqual(["0,0", "0,2", "1,2", "1,4", "4,2", "4,4", "5,0", "5,2"]);
+    });
+
+    const rect = (x0: number, y0: number, w: number, h: number): Set<CellKey> => {
+      const out = new Set<CellKey>();
+      for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) out.add(cellKey(x, y));
+      return out;
+    };
+
+    it.each([
+      ["a round floor", (): DungeonMapLayers => brush(emptyLayers(), 5, 5, 4.3)],
+      ["a square floor", (): DungeonMapLayers => paintGroundCells(emptyLayers(), rect(1, 1, 9, 9), PACK)],
+    ])("a run of solid blocks across %s still makes two rooms of it", (_name, make) => {
+      const l = make();
+      for (let y = 0; y < 11; y++) l.solidBlock[cellKey(5, y)] = { ...PACK };
+      const faces = findFaces(l);
+      expect(faces).toHaveLength(2);
+      // One room each side of the column x = 5, and no square of the column in either.
+      const sides = faces.map((f) => new Set(f.cells.map((c) => Math.sign(Number(c.split(",")[0]) - 5))));
+      expect(sides.map((s) => [...s]).sort()).toEqual([[-1], [1]]);
+    });
+
+    it("the same floor painted twice is still one room", () => {
+      const l = paintGroundCells(paintGroundCells(emptyLayers(), rect(0, 0, 3, 2), PACK), rect(0, 0, 3, 2), PACK);
+      const faces = findFaces(l);
+      expect(faces).toHaveLength(1);
+      expect(simplifyLoop(faces[0].outline)).toHaveLength(4);
+    });
+
+    // Shapes whose sides are one long line each (a fitted straight stroke), not a run of square edges: the stretch
+    // two of them share has to be judged apart from the rest of the longer line, whichever was painted first.
+    it.each([["under", "a", "b"], ["over", "b", "a"]])("a short floor laid along part of a long one's side (painted %s it) leaves one room", (_name, wide, narrow) => {
+      const box = (x0: number, y0: number, x1: number, y1: number): Record<string, WallEdge> => ({
+        n: { ...PACK, type: "wall", a: [x0, y0], b: [x1, y0] },
+        e: { ...PACK, type: "wall", a: [x1, y0], b: [x1, y1] },
+        s: { ...PACK, type: "wall", a: [x1, y1], b: [x0, y1] },
+        w: { ...PACK, type: "wall", a: [x0, y1], b: [x0, y0] },
+      });
+      const shape = (boundary: Record<string, WallEdge>, z: number) => ({
+        name: "floor", material: PACK, category: "floor" as const, z, boundary, variants: {},
+        walls: { mode: "none" as const, material: PACK, ids: [], segments: {}, excluded: [] },
+      });
+      const l = emptyLayers();
+      l.ground[wide] = shape(box(0, 0, 4, 2), 0);
+      l.ground[narrow] = shape(box(1, 2, 3, 4), 1);
+      room(l, 0, 0, 4, 2);
+      room(l, 1, 2, 2, 2);
+      const faces = findFaces(l);
+      expect(faces).toHaveLength(1);
+      expect(faces[0].cells).toHaveLength(12);
+    });
+
+    it("a grid wall on one square of a long straight floor side is that side's line there, and the room still closes", () => {
+      const l = emptyLayers();
+      l.ground.a = {
+        name: "floor", material: PACK, category: "floor", z: 0, variants: {},
+        boundary: {
+          n: { ...PACK, type: "wall", a: [0, 0], b: [4, 0] },
+          e: { ...PACK, type: "wall", a: [4, 0], b: [4, 2] },
+          s: { ...PACK, type: "wall", a: [4, 2], b: [0, 2] },
+          w: { ...PACK, type: "wall", a: [0, 2], b: [0, 0] },
+        },
+        walls: { mode: "none", material: PACK, ids: [], segments: {}, excluded: [] },
+      };
+      room(l, 0, 0, 4, 2);
+      wall(l, 1, 0, "N");
+      const faces = findFaces(l);
+      expect(faces).toHaveLength(1);
+      expect(faces[0].cells).toHaveLength(8);
+    });
+
+    it("a wall along part of a square floor's side is that side's line there, and the room still closes", () => {
+      const l = paintGroundCells(emptyLayers(), rect(0, 0, 3, 2), PACK);
+      angled(l, "half", [0.5, 0], [2.5, 0]);
+      const faces = findFaces(l);
+      expect(faces).toHaveLength(1);
+      expect(faces[0].cells).toHaveLength(6);
+    });
+
+    it("a void pocket between a painted floor and a wall that closes it belongs to the room", () => {
+      // The chamfered room below, with its floor painted as a shape: the outline follows the wall across the missing
+      // corner square, not the floor's own edge under it.
+      const cells = rect(0, 0, 4, 4);
+      cells.delete(cellKey(3, 0));
+      const l = paintGroundCells(emptyLayers(), cells, PACK);
+      for (const x of [0, 1]) wall(l, x, 0, "N");
+      for (let x = 0; x < 4; x++) wall(l, x, 3, "S");
+      for (let y = 0; y < 4; y++) wall(l, 0, y, "W");
+      for (let y = 1; y < 4; y++) wall(l, 3, y, "E");
+      angled(l, "chamfer", [2, 0], [4, 1]);
+      const [face] = findFaces(l);
+      expect(face.outline).toContainEqual([4, 1]);
+      expect(face.outline).not.toContainEqual([3, 1]);
+    });
   });
 
   it("a room partly bounded by an unwalled floor edge closes along that square edge", () => {

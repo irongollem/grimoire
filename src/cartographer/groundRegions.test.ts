@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { emptyLayers, type GroundRegion, type PackRef } from "@/types/dungeonMap.types";
-import { applyGroundStroke, cellBoundary, convertCellGround, eraseGroundCells, groundLoops, paintGroundCells, projectGround, putGroundRegion, removeGroundRegion, setGroundWalls } from "./groundRegions";
+import { applyGroundStroke, cellBoundary, convertCellGround, eraseGroundCells, paintGroundCells, projectGround, putGroundRegion, removeGroundRegion, setGroundWalls } from "./groundRegions";
+import { groundLoops } from "./groundLoops";
 import { deriveSpaces } from "./structure";
 import { cachedWallGeometry } from "./wallGeometry";
 import { moveNode } from "./wallEdit/edit";

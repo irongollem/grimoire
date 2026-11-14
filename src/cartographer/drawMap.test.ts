@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { putWall } from "./testWalls";
-import { applyGroundStroke, convertCellGround, groundLoops, orderedGround } from "./groundRegions";
+import { applyGroundStroke, convertCellGround, orderedGround } from "./groundRegions";
+import { groundLoops } from "./groundLoops";
 import { drawMapContent, renderShadowLayer, variantAt } from "./drawMap";
 import type { DrawMapInput } from "./drawFrame";
 import { emptyLayers, cellKey, type DungeonMapLayers } from "@/types/dungeonMap.types";

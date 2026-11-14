@@ -71,4 +71,9 @@ describe("found room ids", () => {
     expect(foundSpaceKey("a-real-uuid")).toBeNull();
     expect(dressed.derived_from).toBe("floodfill");
   });
+
+  // A room nobody has touched has no row, and was drawn as squares while its saved row would follow the walls.
+  it("a found room is drawn along its outline before it has a row", () => {
+    expect(foundRegionOf(space, "site").vertices).toEqual(space.outline);
+  });
 });

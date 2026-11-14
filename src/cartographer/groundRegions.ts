@@ -9,6 +9,7 @@ import { dist, lerp, projectOnSegment, samePt } from "./wallEdit/geometry";
 import { boundaryEdges } from "./floodFill";
 import { canonicaliseEdge } from "./edges";
 import { findFaces } from "./roomOutline";
+import { groundLoops } from "./groundLoops";
 import { edgeSegOf, latticeWall, isLatticeKey } from "./wallGraph";
 import { latticeKey } from "@/lib/battlemap/walls";
 import { FIT_TOLERANCE, outlineToWalls, type BrushOptions } from "./brushWalls";
@@ -16,16 +17,6 @@ import { groundStrokeLoops } from "./groundRaster";
 import type { Disc } from "./area";
 
 type P = [number, number];
-const loopsCache = new WeakMap<GroundRegion["boundary"], P[][]>();
-
-/** The exact sampled curves shared by drawing, projection, boolean operations and node hit testing. */
-export function groundLoops(region: GroundRegion): P[][] {
-  const hit = loopsCache.get(region.boundary);
-  if (hit) return hit;
-  const loops = detectRooms(buildGraph(wallsAsPieces(region.boundary))).map((r) => r.polygon);
-  loopsCache.set(region.boundary, loops);
-  return loops;
-}
 
 export const orderedGround = (layers: DungeonMapLayers): [string, GroundRegion][] =>
   Object.entries(layers.ground).sort(([a, p], [b, q]) => p.z - q.z || a.localeCompare(b));

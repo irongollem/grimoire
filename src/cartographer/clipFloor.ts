@@ -4,7 +4,8 @@ import type { Frame, Target } from "./drawFrame";
 import type { PackCategory } from "./packSchema";
 import type { TilePackRuntime } from "./packLoader";
 export type VariantAt = (runtime: TilePackRuntime, category: PackCategory, x: number, y: number, stored: number) => number;
-import { groundBounds, groundLoops, orderedGround } from "./groundRegions";
+import { groundBounds, orderedGround } from "./groundRegions";
+import { groundLoops } from "./groundLoops";
 
 export function paintGroundRegions(frame: Frame, target: Target, variantAt: VariantAt): void {
   const { tilePx, bounds, runtime } = frame;

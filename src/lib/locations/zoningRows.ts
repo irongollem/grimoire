@@ -29,7 +29,8 @@ export function foundRegionOf(space: DerivedSpace, siteId: string): LocationMapR
     zone_payload: {},
     derived_from: "floodfill",
     cell_signature: space.signature,
-    vertices: null,
+    // Its outline too, or a room nobody has touched yet is drawn as squares while its saved row would follow the curve.
+    vertices: space.outline,
     created_at: "",
     updated_at: "",
   };

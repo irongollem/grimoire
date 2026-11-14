@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { putWall } from "./testWalls";
-import { convertCellGround, groundLoops, paintGroundCells } from "./groundRegions";
+import { convertCellGround, paintGroundCells } from "./groundRegions";
+import { groundLoops } from "./groundLoops";
 import type { MapLiveSource } from "./mapLive";
 import { buildMapLive } from "./mapLive";
 import { cellKey, emptyLayers, type DungeonMap } from "@/types/dungeonMap.types";
