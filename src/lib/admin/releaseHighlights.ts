@@ -38,4 +38,6 @@ export const RELEASE_HIGHLIGHTS: readonly ReleaseHighlight[] = [
   { releasedAt: "2026-10-24", line: "Battle maps come alive: moving water, flickering fires, and light and darkness by the rules" },
   { releasedAt: "2026-11-02", line: "Players discover and invent recipes in the Workshop, and pass items and coins to each other" },
   { releasedAt: "2026-11-02", line: "Every character, NPC and place shows its connections in one place, with a map of your whole world's ties" },
+  { releasedAt: "2026-11-14", line: "The battle map is the table: players move on their phones, and the fog remembers what the party has seen" },
+  { releasedAt: "2026-11-14", line: "A soundboard deck under every page, and painting with real brushes in the Scriptorium" },
 ];
