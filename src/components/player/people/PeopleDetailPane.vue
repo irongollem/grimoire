@@ -1,5 +1,8 @@
 <template>
-  <aside class="torn hearth-card overflow-hidden rounded-lg p-4" aria-label="Selected person">
+  <!-- No scroll box of its own: the page grows to its content and sets the height
+       of the ledger beside it, so the whole screen scrolls (the maintainer,
+       14 Nov 2026). -->
+  <aside class="torn hearth-card rounded-lg p-4" aria-label="Selected person">
     <PlayerNpcProfile :npc="npc" :place="place">
       <template #plate>
         <!-- Low art: no plate, the portrait waits behind a button when the NPC has one (#1179). -->

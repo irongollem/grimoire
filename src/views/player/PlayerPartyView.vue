@@ -39,7 +39,9 @@
         :class="isLg && 'grid grid-cols-[28rem_minmax(0,1fr)] gap-8'"
         :style="peopleRowStyle"
       >
-        <div class="flex min-h-0 flex-col gap-5">
+        <!-- `contain-size` takes the ledger column out of the row's height, so the
+             person's page beside it sets the height and the ledger scrolls within it. -->
+        <div class="flex min-h-0 flex-col gap-5 lg:contain-size">
           <header class="flex items-baseline gap-2.5 px-1">
             <h2 class="text-heading font-bold text-foreground">People</h2>
             <span class="font-fell text-caption italic text-muted-foreground">Dramatis personae</span>
@@ -60,8 +62,9 @@
           <p v-else-if="!people.length" class="text-body italic text-muted-foreground">
             {{ ledger.length ? "No people match your filters." : "No one in the ledger yet." }}
           </p>
-          <!-- From lg up the ledger scrolls in its own box, so the person's page
-               beside it stays in view (the maintainer, 13 Nov 2026). -->
+          <!-- From lg up the ledger scrolls in its own box, as tall as the person's
+               page beside it; the page itself never scrolls inside, it grows the
+               whole screen (the maintainer, 13 and 14 Nov 2026). -->
           <div v-else class="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain">
             <PeopleLedger
               :groups="groups"
@@ -80,7 +83,6 @@
             v-if="activeNpc"
             :npc="activeNpc"
             :place="place(activeNpc)?.name ?? null"
-            class="min-h-0 overflow-y-auto overscroll-contain"
           />
           <PeopleWaitingPane v-else :count="newToYouItems.length" />
         </template>
@@ -252,16 +254,16 @@ const activeNpc = computed(() => npcs.value.find((n) => n.id === activeId.value)
 // From lg up the company shares its row with New to you while anyone is new.
 const topRowSplit = computed(() => hasParty.value && newToYouItems.value.length > 0);
 
-// From lg up the ledger row is exactly as tall as the window it scrolls in, so
-// the ledger scrolls inside its own box and the person's page stays beside it.
-// The player layout's <main> is that window; 3rem is its padded wrapper's
-// top and bottom padding (py-6). Outside that layout nothing is measured and
-// the row keeps its natural height.
+// From lg up the person's page sets the ledger row's height and the ledger
+// scrolls inside it. A short page would leave the ledger a stub, so the row is
+// at least as tall as the window it sits in: the player layout's <main>, less
+// its padded wrapper's top and bottom padding (py-6, 3rem). Outside that layout
+// nothing is measured and the row is the page's height.
 const peopleRow = ref<HTMLElement | null>(null);
 const { height: scrollerHeight } = useElementSize(() => peopleRow.value?.closest("main") ?? null);
 const peopleRowStyle = computed(() =>
   isLg.value && scrollerHeight.value > 0
-    ? { height: `max(24rem, calc(${scrollerHeight.value}px - 3rem))` }
+    ? { minHeight: `max(24rem, calc(${scrollerHeight.value}px - 3rem))` }
     : undefined,
 );
 const lightboxNpc = ref<(typeof npcs.value)[number] | null>(null);
