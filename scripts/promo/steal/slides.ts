@@ -15,8 +15,8 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { quote, sql } from "../../lib/dev-db.ts";
-import { demoCampaignId, localDb } from "../setup/demo";
-import { STEAL_POSTS, type StealPost } from "./posts";
+import { localDb } from "../setup/demo";
+import { campaignIdFor, STEAL_POSTS, type StealPost } from "./posts";
 
 const W = 1080;
 const H = 1350;
@@ -49,6 +49,10 @@ function pngSize(file: string): { width: number; height: number } {
 function slides(post: StealPost, dir: string, art: string): string[] {
   const pages = join(dir, "pages");
   const lore = { ...pngSize(join(pages, "page-1.png")), ...(JSON.parse(readFileSync(join(pages, "lore.json"), "utf8")) as { writtenTo: number }) };
+  // The sheet shows the page down to just below its writing. A long page is narrowed to fit the slide's
+  // height rather than cut off at the foot (a 1000px-wide sheet held only the top 74% of a page).
+  const loreHeight = Math.round(lore.height * Math.min(1, lore.writtenTo + 0.05));
+  const loreWidth = Math.min(1000, Math.floor((1120 * lore.width) / loreHeight));
   return [
     page(
       `<div class="art" style="background-image:url('${url(art)}')"></div>
@@ -62,9 +66,9 @@ function slides(post: StealPost, dir: string, art: string): string[] {
     ),
     page(
       `<div class="art" style="background-image:url('${url(art)}'); filter: blur(10px) brightness(.5); transform: scale(1.08)"></div>
-       <div class="sheet" style="aspect-ratio: ${lore.width} / ${Math.round(lore.height * Math.min(1, lore.writtenTo + 0.05))}; background-image:url('${url(join(pages, "page-1.png"))}')"></div>
+       <div class="sheet" style="width: ${loreWidth}px; aspect-ratio: ${lore.width} / ${loreHeight}; background-image:url('${url(join(pages, "page-1.png"))}')"></div>
        <img class="brand" src="${WORDMARK}">`,
-      `.sheet { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%) rotate(-1.2deg); width: 1000px; max-height: 1120px; background-size: 100% auto; background-position: top center; background-repeat: no-repeat; box-shadow: 0 30px 80px rgba(0,0,0,.6); border-radius: 4px; }`,
+      `.sheet { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%) rotate(-1.2deg); background-size: 100% auto; background-position: top center; background-repeat: no-repeat; box-shadow: 0 30px 80px rgba(0,0,0,.6); border-radius: 4px; }`,
     ),
     page(
       `<div class="art" style="background-image:url('${url(art)}'); filter: brightness(.62)"></div>
@@ -110,9 +114,9 @@ const ART_COLUMN = { monster: "image_url", item: "image_url", npc: "portrait_url
 async function artFor(post: StealPost, dir: string): Promise<string> {
   const src = sql(
     localDb(),
-    `select ${ART_COLUMN[post.entity.type]} from public.${TABLE[post.entity.type]} where campaign_id = ${quote(demoCampaignId())} and name = ${quote(post.entity.name)} limit 1`,
+    `select ${ART_COLUMN[post.entity.type]} from public.${TABLE[post.entity.type]} where campaign_id = ${quote(campaignIdFor(post))} and name = ${quote(post.entity.name)} limit 1`,
   );
-  if (!src) throw new Error(`${post.id}: ${post.entity.name} has no art in the demo`);
+  if (!src) throw new Error(`${post.id}: ${post.entity.name} has no art`);
   const file = join(dir, `art.${src.split(".").pop()}`);
   if (!existsSync(file)) {
     const res = await fetch(src);
@@ -125,7 +129,7 @@ async function artFor(post: StealPost, dir: string): Promise<string> {
 async function main() {
   const only = process.argv[2];
   const posts = STEAL_POSTS.filter((p) => !only || p.id === only);
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ channel: "chrome" });
   try {
     for (const post of posts) {
       const dir = resolve("promo-out", post.id);

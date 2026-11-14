@@ -9,9 +9,9 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { quote, sql } from "../../lib/dev-db.ts";
-import { demoCampaignId, localDb } from "../setup/demo";
+import { localDb } from "../setup/demo";
 import { launchOffstage, openOffstage } from "../stage";
-import { STEAL_POSTS, type StealPost } from "./posts";
+import { campaignIdFor, STEAL_POSTS, type StealPost } from "./posts";
 
 const TABLE = { monster: "monsters", item: "items", npc: "npcs" } as const;
 
@@ -54,60 +54,81 @@ async function main() {
   const posts = STEAL_POSTS.filter((p) => !only || p.id === only);
   if (posts.length === 0) throw new Error(`No post ${only}`);
 
-  const campaignId = demoCampaignId();
+  // A signed-in page has one active campaign, so the posts are captured campaign by campaign.
+  const groups = new Map<string, StealPost[]>();
+  for (const post of posts) {
+    const id = campaignIdFor(post);
+    groups.set(id, [...(groups.get(id) ?? []), post]);
+  }
   const browser = await launchOffstage();
   try {
-    const { page, open } = await openOffstage(browser, { base, account: "dm", campaignId, seed: 1 });
-    /** Opens the page in the editor and waits for the layout, which settles after the embed's stat block has loaded. */
-    async function openBook(post: StealPost): Promise<void> {
-      await page.setViewportSize({ width: 1440, height: 900 });
-      await open(`/scriptorium/${post.documentId}`);
-      await page.waitForSelector(".pagedjs_page", { timeout: 30_000 });
-      await page.waitForTimeout(3000);
-    }
-    /** Tall enough that a whole page sits below the editor's sticky bars, which would otherwise be in the shot. */
-    async function tall(): Promise<void> {
-      await page.setViewportSize({ width: 1440, height: 2400 });
-      await page.waitForTimeout(1500);
-    }
+    for (const [campaignId, group] of groups) {
+      const { page, open } = await openOffstage(browser, { base, account: "dm", campaignId, seed: 1 });
+      /**
+       * Opens the page in the editor and waits for the layout, which settles after the embed's stat block has loaded.
+       * Since #1176 the editor is the page and the laid-out book only measures, off screen and hidden
+       * (`.preview-offscreen` in ScriptoriumPreviewPane), at full scale: the layout that prints. A style laid over
+       * the shot brings it on screen as it is; Read as spreads would show it lamplit instead, not as printed.
+       */
+      async function openBook(post: StealPost): Promise<void> {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await open(`/scriptorium/${post.documentId}`);
+        await page.waitForSelector(".pagedjs_page", { state: "attached", timeout: 30_000 });
+        await page.waitForTimeout(3000);
+      }
+      /** Brings the laid-out pages over the editor, after the editor screenshot. */
+      async function showPages(): Promise<void> {
+        await page.addStyleTag({
+          content: ".preview-offscreen { height: auto !important; overflow: visible !important; visibility: visible !important; z-index: 9999 !important; background: var(--background); }",
+        });
+        await page.locator(".pagedjs_page").filter({ visible: true }).first().waitFor({ timeout: 10_000 });
+      }
+      /** Tall enough that a whole page sits below the editor's sticky bars, which would otherwise be in the shot. */
+      async function tall(): Promise<void> {
+        await page.setViewportSize({ width: 1440, height: 2400 });
+        await page.waitForTimeout(1500);
+      }
 
-    for (const post of posts) {
-      const out = resolve("promo-out", post.id, "pages");
-      rmSync(out, { recursive: true, force: true });
-      mkdirSync(out, { recursive: true });
+      for (const post of group) {
+        const out = resolve("promo-out", post.id, "pages");
+        rmSync(out, { recursive: true, force: true });
+        mkdirSync(out, { recursive: true });
 
-      // A5 for the lore page: a narrow page keeps its text large on a phone-sized slide.
-      writeHandout(post, campaignId, "A5");
-      await openBook(post);
-      // The editor as the DM sees it, for the closing slide: this is where the page was written.
-      await page.screenshot({ path: join(out, "editor.png") });
-      await tall();
-      const lorePage = page.locator(".pagedjs_page").filter({ visible: true }).first();
-      await lorePage.scrollIntoViewIfNeeded();
-      await lorePage.screenshot({ path: join(out, "page-1.png") });
-      // How far down the page its writing reaches, so the lore slide can crop off the empty parchment.
-      const writtenTo = await lorePage.evaluate((node) => {
-        const el = node as unknown as Box;
-        const r = el.getBoundingClientRect();
-        let bottom = r.top;
-        // Every written block carries a block id; Paged.js's own boxes (margins, footnote area) do not.
-        for (const e of Array.from(el.querySelectorAll(".pagedjs_page_content [data-block-id]"))) {
-          const b = e.getBoundingClientRect();
-          if (b.height > 0 && b.bottom <= r.bottom) bottom = Math.max(bottom, b.bottom);
-        }
-        return (bottom - r.top) / r.height;
-      });
-      writeFileSync(join(out, "lore.json"), JSON.stringify({ writtenTo }) + "\n");
+        // A5 for the lore page: a narrow page keeps its text large on a phone-sized slide.
+        writeHandout(post, campaignId, "A5");
+        await openBook(post);
+        // The editor as the DM sees it, for the closing slide: this is where the page was written.
+        await page.screenshot({ path: join(out, "editor.png") });
+        await showPages();
+        await tall();
+        const lorePage = page.locator(".pagedjs_page").filter({ visible: true }).first();
+        await lorePage.scrollIntoViewIfNeeded();
+        await lorePage.screenshot({ path: join(out, "page-1.png") });
+        // How far down the page its writing reaches, so the lore slide can crop off the empty parchment.
+        const writtenTo = await lorePage.evaluate((node) => {
+          const el = node as unknown as Box;
+          const r = el.getBoundingClientRect();
+          let bottom = r.top;
+          // Every written block carries a block id; Paged.js's own boxes (margins, footnote area) do not.
+          for (const e of Array.from(el.querySelectorAll(".pagedjs_page_content [data-block-id]"))) {
+            const b = e.getBoundingClientRect();
+            if (b.height > 0 && b.bottom <= r.bottom) bottom = Math.max(bottom, b.bottom);
+          }
+          return (bottom - r.top) / r.height;
+        });
+        writeFileSync(join(out, "lore.json"), JSON.stringify({ writtenTo }) + "\n");
 
-      // A4 for the stat block: the 2024 ability table needs a wide card (#1140).
-      writeHandout(post, campaignId, "A4");
-      await openBook(post);
-      await tall();
-      // The embed's own box has no height; the card is the stat block inside its entry.
-      const card = page.locator(".pagedjs_page .sc-statblock").filter({ visible: true }).first();
-      await card.scrollIntoViewIfNeeded();
-      await card.screenshot({ path: join(out, "card.png") });
-      console.log(`${post.id}: lore page, card and editor in ${out}`);
+        // A4 for the stat block: the 2024 ability table needs a wide card (#1140).
+        writeHandout(post, campaignId, "A4");
+        await openBook(post);
+        await showPages();
+        await tall();
+        // The embed's own box has no height; the card is the stat block inside its entry.
+        const card = page.locator(".pagedjs_page .sc-statblock").filter({ visible: true }).first();
+        await card.scrollIntoViewIfNeeded();
+        await card.screenshot({ path: join(out, "card.png") });
+        console.log(`${post.id}: lore page, card and editor in ${out}`);
+      }
     }
   } finally {
     await browser.close();

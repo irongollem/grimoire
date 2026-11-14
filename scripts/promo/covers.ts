@@ -82,7 +82,7 @@ html, body { margin: 0; }
 async function main() {
   const ids = process.argv.slice(2);
   const todo = ids.length > 0 ? ids : Object.keys(COVERS);
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ channel: "chrome" });
   try {
     for (const id of todo) {
       const spec = COVERS[id];

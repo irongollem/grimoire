@@ -156,7 +156,7 @@ async function render(post: StealPost) {
 
   const html = join(work, "reel.html");
   writeFileSync(html, page(post, join(source, artFile), front, back));
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ channel: "chrome" });
   try {
     const tab = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
     await tab.goto(url(html));
