@@ -83,6 +83,13 @@ describe("poseAt", () => {
     const scene: Scene = { ...ROOM, loop: 11, stack: [swing] };
     for (const t of [0, 1.3, 7]) expect(poseAt(scene, swing, t + 11).rotate).toBeCloseTo(poseAt(scene, swing, t).rotate, 9);
   });
+
+  // Scenes are stored as the studio left them: a path saved with one point used to stop the whole nook drawing.
+  it("leaves a part on a path with fewer than two points standing still instead of throwing", () => {
+    const apple = layer({ id: "a", motions: [{ kind: "path", points: [{ x: 10, y: 0 }], period: 4 }] });
+    const scene: Scene = { ...ROOM, loop: 8, stack: [apple] };
+    expect(poseAt(scene, apple, 1.5)).toMatchObject({ dx: 0, dy: 0, rotate: 0 });
+  });
 });
 
 describe("uncovered", () => {

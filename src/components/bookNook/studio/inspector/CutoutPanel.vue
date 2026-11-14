@@ -136,7 +136,8 @@ function setHold(value: Hold) {
 }
 
 // ── Motion ────────────────────────────────────────────────────────────────────────────────────────────────────
-const KIND_NAME: Record<Motion["kind"], MotionName> = { flicker: "Flame", billow: "Cloth", sway: "Hanging", bob: "Floating", drift: "Wandering" };
+// A path has no named preset yet (the studio story adds "Along a path"), so it names none.
+const KIND_NAME: Record<Exclude<Motion["kind"], "path">, MotionName> = { flicker: "Flame", billow: "Cloth", sway: "Hanging", bob: "Floating", drift: "Wandering" };
 const motion = computed(() => (layer.motions?.length === 1 ? layer.motions[0] : null));
 const described = computed(() => (motion.value ? describeMotion(motion.value, layer, scene.loop) : null));
 const custom = computed(() => (layer.motions?.length ?? 0) > 1 || (described.value !== null && "custom" in described.value));
@@ -144,7 +145,7 @@ const preset = computed(() => (described.value && "name" in described.value ? de
 const motionValue = computed(() => {
   if (!layer.motions?.length) return "None";
   if (preset.value) return preset.value.name;
-  return motion.value ? KIND_NAME[motion.value.kind] : "";
+  return motion.value && motion.value.kind !== "path" ? KIND_NAME[motion.value.kind] : "";
 });
 
 function pickMotion(value: string) {

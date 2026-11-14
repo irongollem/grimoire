@@ -1,3 +1,5 @@
+import { pathSampler } from "./pathMotion.ts";
+
 /**
  * A picture-book scene: one painting cut into layers, moved a little by code.
  *
@@ -144,6 +146,13 @@ export type Motion =
   | { kind: "bob"; dy: number; period: number; phase?: number }
   /** Wanders by up to `dx`, `dy` pixels on a slow closed path. */
   | { kind: "drift"; dx: number; dy: number; period: number; phase?: number }
+  /**
+   * Travels a smooth curve through `points` (offsets in pixels from the layer's `at`, at least two) at a steady
+   * pace, once round per `period`. Closed (the default) comes back to the first point; open goes to the last
+   * and back. `phase` is where along it the part starts, so several parts share one path evenly spread.
+   * `turn` rotates the part to face the way it is going.
+   */
+  | { kind: "path"; points: Point[]; period: number; phase?: number; closed?: boolean; turn?: boolean }
   /** A flame's life: stretches and narrows, leans and dims, by up to `amount` (0.1 is ten per cent), `speed` flickers a second. */
   | { kind: "flicker"; amount: number; speed: number }
   /** Hanging cloth: the free end moves up to `amount` pixels sideways, the fixed end (the anchor's row) not at all. */
@@ -348,6 +357,18 @@ export function pathAt(path: { at: number; x: number; y: number }[], loop: numbe
   return { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e };
 }
 
+const samplers = new WeakMap<object, ReturnType<typeof pathSampler>>();
+
+/** The curve table of a path motion, built once per motion: `poseAt` runs every frame. */
+function pathSamplerOf(m: Extract<Motion, { kind: "path" }>): ReturnType<typeof pathSampler> {
+  let sampler = samplers.get(m);
+  if (!sampler) {
+    sampler = pathSampler(m.points, m.closed ?? true);
+    samplers.set(m, sampler);
+  }
+  return sampler;
+}
+
 /** A layer's own movement at time `t`, before the camera moves it with its depth. */
 export function poseAt(scene: Scene, layer: Layer, t: number): Pose {
   const pose: Pose = { dx: 0, dy: 0, rotate: 0, scaleX: 1, scaleY: 1, alpha: 1, billow: null };
@@ -363,6 +384,17 @@ export function poseAt(scene: Scene, layer: Layer, t: number): Pose {
     const a = TAU * loopFrequency(scene.loop, m.period) * t;
     if (m.kind === "billow") {
       pose.billow = { amount: m.amount, phase: a % TAU, waves: m.waves ?? 1 };
+      continue;
+    }
+    if (m.kind === "path") {
+      // A path with fewer than two points (one saved mid-drawing) has nowhere to go: the part stands still rather
+      // than the whole nook failing to draw, since scenes are stored as the studio left them.
+      if (m.points.length < 2) continue;
+      // `closed` defaults to true: the documented default, a path that runs round.
+      const at = pathSamplerOf(m)((a / TAU + (m.phase ?? 0)) % 1);
+      pose.dx += at.x;
+      pose.dy += at.y;
+      if (m.turn) pose.rotate += at.angle;
       continue;
     }
     const b = a + (m.phase ?? 0) * TAU;

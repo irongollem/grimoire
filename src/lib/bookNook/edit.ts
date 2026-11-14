@@ -138,6 +138,9 @@ function scaleMotion(motion: Motion, ratio: number): Motion {
     case "sway":
     case "flicker":
       return motion;
+    case "path":
+      // The arc is the scene's, not the part's: resizing an apple does not change where it is thrown.
+      return motion;
   }
 }
 

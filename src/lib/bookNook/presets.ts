@@ -90,6 +90,9 @@ function namesOf(motion: Motion): MotionName[] {
       return ["Floating"];
     case "drift":
       return ["Wandering"];
+    case "path":
+      // No named preset yet: a path is always a hand-drawn motion.
+      return [];
   }
 }
 
@@ -105,6 +108,8 @@ function isPreset(motion: Motion, preset: Motion, loop: number): boolean {
       return preset.kind === "sway" && near(motion.angle, preset.angle) && samePeriod(loop, motion.period, preset.period);
     case "bob":
       return preset.kind === "bob" && near(motion.dy, preset.dy) && samePeriod(loop, motion.period, preset.period);
+    case "path":
+      return false;
     case "drift":
       return preset.kind === "drift" && near(motion.dx, preset.dx) && near(motion.dy, preset.dy) && samePeriod(loop, motion.period, preset.period);
   }
