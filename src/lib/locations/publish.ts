@@ -23,7 +23,7 @@ import { placementTargetId } from "@/lib/dungeon-features/library";
 import type { CellKey, CellMetadata } from "@/types/dungeonMap.types";
 import type { LocationType } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
-import type { DoorKind, LocationDoor, SourceEdgeKey } from "@/types/locationDoor.types";
+import type { DoorKind, LocationDoor } from "@/types/locationDoor.types";
 import type { LocationPlacement, LocationPlacementKind } from "@/types/locationPlacement.types";
 import { placementKind } from "@/types/locationPlacement.types";
 import type {
@@ -273,7 +273,7 @@ function planSpaces(input: PublishInputs): { changes: SpaceChange[]; spaceIdFor:
 // ── Ways (doors, arches, stairs) ─────────────────────────────────────────
 
 function planWays(input: PublishInputs, spaceIdFor: Map<string, string>): WayChange[] {
-  const doorsByEdge = new Map<SourceEdgeKey, LocationDoor>();
+  const doorsByEdge = new Map<string, LocationDoor>();
   for (const door of input.doors) {
     if (door.edge_key !== null) doorsByEdge.set(door.edge_key, door);
   }

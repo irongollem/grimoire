@@ -310,6 +310,19 @@ describe("usePlanPalette pen rings, conversions and doors", () => {
     expect(deleteDoorStub.mutateAsync).toHaveBeenLastCalledWith("door-2");
   });
 
+  // The database holds edge_key and segment together (a CHECK): a wall-uuid
+  // door re-inserted without its line would be refused and the undo would fail.
+  it("undoing the removal of an angled door re-inserts its line with its wall id", async () => {
+    const wallId = "6f1c2d3e-0000-4000-8000-000000000001";
+    const line = [[2, 2], [4, 4]];
+    const plan = usePlanPalette(computed(() => "site-1"));
+    plan.removeDoor(door({ edge_key: wallId, segment: line }));
+    deleteDoorStub.calls[0]!.onSuccess?.({});
+    createDoorStub.mutateAsync.mockResolvedValueOnce({ id: "door-2" });
+    await plan.undo.undo();
+    expect(createDoorStub.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ edge_key: wallId, segment: line }));
+  });
+
   it("starts a new zone with the chosen kind and a trimmed label, or none when blank, and makes it active", async () => {
     createRegionStub.mutateAsync.mockResolvedValueOnce({ id: "z1" });
     const plan = usePlanPalette(computed(() => "site-1"));

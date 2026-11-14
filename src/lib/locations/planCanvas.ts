@@ -11,12 +11,13 @@
 // picking an order for them.
 
 import { cellFractionSize, cellRectInImageFractions, gridExtent } from "@/lib/locations/gridCalibration";
-import { edgeSegment } from "@/lib/locations/planSvg";
+import { waySegment } from "@/lib/locations/planSvg";
+import { doorSegment, gridEdgeSegment } from "@/lib/locations/doors";
 import { drawnRing, enclosingRing, tracePath, usableRing } from "@/lib/locations/regionShape";
 import { ZONE_KIND_FILL } from "@/lib/locations/zones";
 import { isNearFirstNode } from "@/lib/map/gestures/pen";
 import { cellKey, type CellKey } from "@/types/dungeonMap.types";
-import type { DoorKind, SourceEdgeKey } from "@/types/locationDoor.types";
+import type { DoorKind, DoorSegment, SourceEdgeKey } from "@/types/locationDoor.types";
 import type { GridCalibration } from "@/types/location.types";
 import { ZONE_KIND_LABELS, type GridPoint, type LocationMapRegion } from "@/types/locationMapRegion.types";
 
@@ -213,7 +214,9 @@ export function drawSpacesPass(
 // ── Ways pass (doors, arches, stairs) ───────────────────────────────────
 
 export interface WayLike {
-  edge_key: SourceEdgeKey | null;
+  /** Where the way sits: a grid edge or a wall uuid (then `segment` is set). */
+  edge_key: string | null;
+  segment: DoorSegment | null;
   door_kind: DoorKind;
   starts_locked: boolean;
   is_secret: boolean;
@@ -243,7 +246,8 @@ export function drawWaysPass(
   const { calibration: cal, imageWidth: w, imageHeight: h, canvasWidth } = geometry;
 
   for (const way of ways) {
-    if (!way.edge_key) continue;
+    const line = doorSegment(way);
+    if (!line) continue;
     const isArch = way.door_kind === "arch";
     const size = cellFractionSize(cal, w, h);
     const cellPxWidth = size ? size.cellWFrac * canvasWidth : 0;
@@ -253,7 +257,7 @@ export function drawWaysPass(
     // 100-unit cell, inset 5 units from the cell corners so the bar reads as
     // a gap in the wall rather than a full wall-length stroke.
     const lineWidth = Math.max(1, (isArch ? 0.06 : 0.08) * cellPxWidth);
-    const seg = edgeSegment(way.edge_key, 0.05);
+    const seg = waySegment(line, 0.05);
     const p1 = pointToCanvas([seg.x1, seg.y1]);
     const p2 = pointToCanvas([seg.x2, seg.y2]);
     const isOneSided = way.to_location_id === null;
@@ -291,7 +295,7 @@ export function drawDoorToolHoverPass(
   if (cellPxWidth <= 0) return;
 
   const lineWidth = Math.max(2, 0.12 * cellPxWidth);
-  const seg = edgeSegment(edgeKey, 0.02);
+  const seg = waySegment(gridEdgeSegment(edgeKey), 0.02);
   const p1 = pointToCanvas([seg.x1, seg.y1]);
   const p2 = pointToCanvas([seg.x2, seg.y2]);
 

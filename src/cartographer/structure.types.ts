@@ -26,7 +26,6 @@
 // what `signature` (a space) and `edgeKey` (a way out) are for.
 
 import type { CellKey, CellMetadata } from "@/types/dungeonMap.types";
-import type { SourceEdgeKey } from "@/types/locationDoor.types";
 
 export interface DerivedSpace {
   /** `s:<lowest cell key>` — stable within this derivation. */
@@ -46,8 +45,10 @@ export interface DerivedSpace {
 }
 
 export interface DerivedWay {
-  /** Canonical NW edge (`edges.ts`), which is also `location_doors.edge_key`. */
-  edgeKey: SourceEdgeKey;
+  /** Canonical NW edge (`edges.ts`) for a grid-edge way, or a wall uuid for a
+   *  way cut into an angled wall; either is `location_doors.edge_key`. Story
+   *  3b makes publish derive the second kind; today every derived way is a grid edge. */
+  edgeKey: string;
   /** `doorClosed` → `door`, `doorOpen` → `arch`. */
   kind: "door" | "arch";
   /** The space owning the edge's cell (the cell whose N or W edge it is). */

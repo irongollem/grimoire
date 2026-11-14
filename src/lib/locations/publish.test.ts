@@ -74,6 +74,7 @@ function makeDoor(overrides: Partial<LocationDoor> = {}): LocationDoor {
     sort_order: null,
     door_kind: "door",
     edge_key: "0,1:N",
+    segment: null,
     derived_from: "publish",
     dungeon_feature_id: null,
     library_dungeon_feature_id: null,

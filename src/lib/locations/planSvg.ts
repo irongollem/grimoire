@@ -14,7 +14,7 @@
 
 import { canonicalCells } from "@/cartographer/cellSignature";
 import type { CellKey } from "@/types/dungeonMap.types";
-import type { SourceEdgeKey } from "@/types/locationDoor.types";
+import type { DoorSegment } from "@/types/locationDoor.types";
 
 export interface CellRect {
   x: number;
@@ -103,22 +103,22 @@ export function textureCells(cells: readonly CellKey[]): CellKey[] {
 }
 
 /**
- * The grid-unit segment a door's `edge_key` names. `"x,y:N"` is the
- * top of cell (x,y), from (x,y) to (x+1,y); `"x,y:W"` is its left side, from
- * (x,y) to (x,y+1) — the same NW ownership `src/cartographer/edges.ts` and
- * `LocationDoor.edge_key` use.
- *
- * `inset` shortens the bar symmetrically from both ends (so it reads as a
- * gap in the wall rather than a full wall-length stroke); 0 draws the full
- * cell edge.
+ * The drawn bar for a door's line (`doorSegment`, grid units), shortened by
+ * `inset` at both ends along the line's own direction so it reads as a gap in
+ * the wall rather than a full wall-length stroke; 0 draws the whole line. The
+ * inset is in cell units, so a grid edge (length 1) comes out exactly as the
+ * old `edgeSegment` did, endpoints in the line's stored order. It never
+ * exceeds half the line, so a short line shrinks to a point instead of
+ * turning inside out. A zero-length line is returned as it is.
  */
-export function edgeSegment(edgeKey: SourceEdgeKey, inset = 0): EdgeSegment {
-  const [coords, side] = edgeKey.split(":");
-  const [x, y] = coords.split(",").map(Number);
-  if (side === "N") {
-    return { x1: x + inset, y1: y, x2: x + 1 - inset, y2: y };
-  }
-  return { x1: x, y1: y + inset, x2: x, y2: y + 1 - inset };
+export function waySegment(segment: DoorSegment, inset = 0): EdgeSegment {
+  const [[ax, ay], [bx, by]] = segment;
+  const len = Math.hypot(bx - ax, by - ay);
+  if (!(len > 0)) return { x1: ax, y1: ay, x2: bx, y2: by };
+  const k = Math.min(inset, len / 2);
+  const ux = (bx - ax) / len;
+  const uy = (by - ay) / len;
+  return { x1: ax + ux * k, y1: ay + uy * k, x2: bx - ux * k, y2: by - uy * k };
 }
 
 /**

@@ -46,7 +46,7 @@ import {
 } from "@/lib/locations/planCanvas";
 import type { PlayerSitePlanGlimpse } from "@/composables/locations/usePlayerVisibleSiteState";
 import type { CellKey } from "@/types/dungeonMap.types";
-import type { DoorKind, SourceEdgeKey } from "@/types/locationDoor.types";
+import type { DoorKind, DoorSegment } from "@/types/locationDoor.types";
 import type { GridCalibration } from "@/types/location.types";
 import type { GridPoint, LocationMapRegion } from "@/types/locationMapRegion.types";
 
@@ -103,7 +103,8 @@ const {
    *  ones with a `edge_key` actually draw. */
   ways?: ReadonlyArray<{
     id: string;
-    edge_key: SourceEdgeKey | null;
+    edge_key: string | null;
+    segment: DoorSegment | null;
     door_kind: DoorKind;
     starts_locked: boolean;
     is_secret: boolean;

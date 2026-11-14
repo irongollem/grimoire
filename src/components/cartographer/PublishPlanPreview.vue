@@ -51,8 +51,10 @@
  * published from) the Drawing.
  */
 import { computed } from "vue";
-import { cellsRects, edgeSegment, outlinePath, planViewBox } from "@/lib/locations/planSvg";
+import { cellsRects, outlinePath, planViewBox, waySegment } from "@/lib/locations/planSvg";
+import { gridEdgeSegment } from "@/lib/locations/doors";
 import type { PublishPlan } from "@/lib/locations/publish";
+import { isGridEdgeKey } from "@/types/locationDoor.types";
 import type { CellKey } from "@/types/dungeonMap.types";
 
 const COLORS = {
@@ -109,9 +111,12 @@ interface DoorBar {
 // and a create-stair has no edge key at all, so neither draws a bar here.
 const doorBars = computed<DoorBar[]>(() =>
   plan.ways.flatMap((change): DoorBar[] => {
-    if (change.kind === "create") return [{ ...edgeSegment(change.way.edgeKey, 0.15), color: COLORS.new.stroke }];
-    if (change.kind === "held") return [{ ...edgeSegment(change.way.edgeKey, 0.15), color: COLORS.changed.stroke }];
-    return [];
+    // Publish derives grid-edge ways only until story 3b; a wall-uuid way has
+    // no line on a DerivedWay, so it draws no bar rather than a wrong one.
+    if (change.kind !== "create" && change.kind !== "held") return [];
+    if (!isGridEdgeKey(change.way.edgeKey)) return [];
+    const color = change.kind === "create" ? COLORS.new.stroke : COLORS.changed.stroke;
+    return [{ ...waySegment(gridEdgeSegment(change.way.edgeKey), 0.15), color }];
   }),
 );
 

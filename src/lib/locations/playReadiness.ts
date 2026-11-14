@@ -11,7 +11,6 @@ import { siteReadiness, type SiteReadinessInput } from "@/lib/locations/siteRead
 import { pluralizeCount } from "@/lib/utils";
 import type { MapLive } from "@/types/mapLive.types";
 import type { DarknessLevel } from "@/types/dungeonMap.types";
-import type { SourceEdgeKey } from "@/types/locationDoor.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 
 export type ReadyStatus = "ok" | "gap" | "neutral";
@@ -40,7 +39,7 @@ export interface ReadyRow {
 
 export interface ReadyDoor {
   id: string;
-  edge_key: SourceEdgeKey | null;
+  edge_key: string | null;
   to_location_id: string | null;
   from_location_id: string;
   from_name: string | null;

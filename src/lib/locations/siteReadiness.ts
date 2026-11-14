@@ -15,7 +15,6 @@ import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { LocationType } from "@/types/location.types";
 import { spaceNoun } from "@/lib/locations/tiers";
 import { pluralizeCount } from "@/lib/utils";
-import type { SourceEdgeKey } from "@/types/locationDoor.types";
 import type { DungeonMap } from "@/types/dungeonMap.types";
 import { deriveStructure, structureDelta } from "@/cartographer/structure";
 import type { DerivedStructure, DerivedWay } from "@/cartographer/structure.types";
@@ -34,7 +33,7 @@ export interface ReadinessDoor {
    *  now counts, since it resolves itself only when the DM traces the far
    *  side, exactly like an untraced room does. */
   to_location_id: string | null;
-  edge_key: SourceEdgeKey | null;
+  edge_key: string | null;
 }
 
 export interface SiteReadinessInput {
@@ -134,7 +133,7 @@ export function siteReadiness(input: SiteReadinessInput): SiteReadiness {
  */
 export function structureFromSite(
   regions: readonly LocationMapRegion[],
-  doors: readonly { edge_key: SourceEdgeKey | null }[],
+  doors: readonly { edge_key: string | null }[],
 ): DerivedStructure {
   const spaceRegions = regions.filter((r) => r.region_role === "space" && r.cells.length > 0);
   const spaces = spaceRegions.map((r) => ({

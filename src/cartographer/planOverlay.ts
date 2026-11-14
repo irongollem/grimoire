@@ -28,7 +28,8 @@ import {
 import { drawnRing, enclosingRing, tracePath } from "@/lib/locations/regionShape";
 import { ZONE_KIND_FILL } from "@/lib/locations/zones";
 import { ZONE_KIND_LABELS, type GridPoint, type LocationMapRegion } from "@/types/locationMapRegion.types";
-import type { DoorKind, SourceEdgeKey } from "@/types/locationDoor.types";
+import type { DoorKind, DoorSegment, SourceEdgeKey } from "@/types/locationDoor.types";
+import { doorSegment, gridEdgeSegment } from "@/lib/locations/doors";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { TemplateDragState } from "@/lib/map/gestures/pen";
 
@@ -48,21 +49,6 @@ export function tileCellRect(x: number, y: number, viewport: TileViewport): { x:
 
 export function tileGridPointToCanvas(point: GridPoint, viewport: TileViewport): { x: number; y: number } {
   return { x: point[0] * viewport.tilePx - viewport.viewportOffset.x, y: point[1] * viewport.tilePx - viewport.viewportOffset.y };
-}
-
-function parseEdgeKey(key: SourceEdgeKey): { x: number; y: number; side: "N" | "W" } {
-  const [coords, side] = key.split(":") as [string, "N" | "W"];
-  const [x, y] = coords.split(",").map(Number) as [number, number];
-  return { x, y, side };
-}
-
-/** The two grid-point endpoints of a plan edge, in the same cell-corner
- *  space `tileGridPointToCanvas` already draws in — the tile-space
- *  equivalent of `lib/locations/planSvg.ts`'s `edgeSegment`, which computes
- *  the same thing in image fractions. */
-function edgeEndpoints(edgeKey: SourceEdgeKey): [GridPoint, GridPoint] {
-  const { x, y, side } = parseEdgeKey(edgeKey);
-  return side === "N" ? [[x, y], [x + 1, y]] : [[x, y], [x, y + 1]];
 }
 
 function fillCells(ctx: CanvasRenderingContext2D, cells: readonly CellKey[], viewport: TileViewport): void {
@@ -191,21 +177,24 @@ export function drawPlanZones(
 }
 
 export interface PlanWayLike {
-  edge_key: SourceEdgeKey | null;
+  /** A grid edge or a wall uuid (then `segment` is set); see `doorSegment`. */
+  edge_key: string | null;
+  segment: DoorSegment | null;
   door_kind: DoorKind;
   starts_locked: boolean;
   is_secret: boolean;
   to_location_id: string | null;
 }
 
-/** Doors on the plan — a bar across the door's own cell edge, colour
+/** Doors on the plan — a bar along the door's own line (a grid edge or an angled wall), colour
  *  precedence mirroring `planCanvas.ts`'s `drawWaysPass`. */
 export function drawPlanWays(ctx: CanvasRenderingContext2D, viewport: TileViewport, ways: readonly PlanWayLike[]): void {
   for (const way of ways) {
-    if (!way.edge_key) continue;
+    const line = doorSegment(way);
+    if (!line) continue;
     const isArch = way.door_kind === "arch";
     const lineWidth = Math.max(1, (isArch ? 0.06 : 0.08) * viewport.tilePx);
-    const [a, b] = edgeEndpoints(way.edge_key);
+    const [a, b] = line;
     const p1 = tileGridPointToCanvas(a, viewport);
     const p2 = tileGridPointToCanvas(b, viewport);
     const isOneSided = way.to_location_id === null;
@@ -227,7 +216,7 @@ export function drawPlanWays(ctx: CanvasRenderingContext2D, viewport: TileViewpo
  *  cycle a door on. */
 export function drawPlanDoorHover(ctx: CanvasRenderingContext2D, viewport: TileViewport, edgeKey: SourceEdgeKey): void {
   const lineWidth = Math.max(2, 0.12 * viewport.tilePx);
-  const [a, b] = edgeEndpoints(edgeKey);
+  const [a, b] = gridEdgeSegment(edgeKey);
   const p1 = tileGridPointToCanvas(a, viewport);
   const p2 = tileGridPointToCanvas(b, viewport);
   ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";

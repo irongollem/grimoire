@@ -606,6 +606,8 @@ export function usePlanPalette(siteId: ComputedRef<string | null>, derived: () =
       sort_order: door.sort_order,
       door_kind: door.door_kind,
       edge_key: door.edge_key,
+      // A wall-uuid door must come back with its line or the database refuses it (CHECK on edge_key/segment).
+      segment: door.segment,
       derived_from: door.derived_from,
       dungeon_feature_id: door.dungeon_feature_id,
       library_dungeon_feature_id: door.library_dungeon_feature_id,

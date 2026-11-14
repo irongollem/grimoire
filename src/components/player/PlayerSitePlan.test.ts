@@ -27,3 +27,30 @@ describe("PlayerSitePlan floor", () => {
     expect(w.findAll("path").some((p) => p.attributes("d") === "M5 5 L7 5 L6 7 Z")).toBe(true);
   });
 });
+
+describe("PlayerSitePlan ways", () => {
+  const withWays = (ways: Plan["ways"]): Plan => ({ ...planOf([space({})]), ways });
+
+  // Line (1,1)-(3,2) is not a grid edge, so only its stored segment can say where to draw it.
+  it("draws a wall-uuid way from its segment", () => {
+    const w = mount(PlayerSitePlan, {
+      props: {
+        plan: withWays([
+          { from_space_id: "a", to_space_id: null, door_kind: "door", edge_key: "6f1c2d3e-0000-4000-8000-000000000001", segment: [[1, 1], [3, 2]] },
+        ]),
+      },
+    });
+    const line = w.findAll("line").filter((l) => l.attributes("stroke") === "#e7d9bd");
+    expect(line).toHaveLength(1);
+    expect(line[0]!.attributes()).toMatchObject({ x1: "1", y1: "1", x2: "3", y2: "2" });
+  });
+
+  it("draws no bar for a wall-uuid way that carries no segment", () => {
+    const w = mount(PlayerSitePlan, {
+      props: {
+        plan: withWays([{ from_space_id: "a", to_space_id: null, door_kind: "door", edge_key: "6f1c2d3e-0000-4000-8000-000000000001", segment: null }]),
+      },
+    });
+    expect(w.findAll("line").filter((l) => l.attributes("stroke") === "#e7d9bd")).toHaveLength(0);
+  });
+});

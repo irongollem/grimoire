@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
-import { drawPlanSpaces, drawPlanZones, type TileViewport } from "./planOverlay";
+import { drawPlanSpaces, drawPlanWays, drawPlanZones, type PlanWayLike, type TileViewport } from "./planOverlay";
 
 const VIEWPORT: TileViewport = { tilePx: 10, viewportOffset: { x: 0, y: 0 } };
 
@@ -41,5 +41,41 @@ describe("the Zoning overlay", () => {
     drawPlanZones(ctx, VIEWPORT, [room, zone], null, undefined);
     expect(calls.indexOf("clip()")).toBeGreaterThan(-1);
     expect(calls.indexOf("clip()")).toBeLessThan(calls.findIndex((c) => c.startsWith("fillRect")));
+  });
+});
+
+describe("the Zoning overlay's ways", () => {
+  const way = (over: Partial<PlanWayLike>): PlanWayLike => ({
+    edge_key: null,
+    segment: null,
+    door_kind: "door",
+    starts_locked: false,
+    is_secret: false,
+    to_location_id: "room-b",
+    ...over,
+  });
+
+  // Tile size 10, no offset: line (1,2)-(4,6) lands on (10,20)-(40,60).
+  it("draws an angled way at its real end points, not on a grid edge", () => {
+    const { ctx, calls } = recorder();
+    drawPlanWays(ctx, VIEWPORT, [
+      way({ edge_key: "6f1c2d3e-0000-4000-8000-000000000001", segment: [[1, 2], [4, 6]] }),
+    ]);
+    expect(calls).toContain("moveTo(10,20)");
+    expect(calls).toContain("lineTo(40,60)");
+  });
+
+  it("draws a grid-edge way on its edge: the W edge of cell 2,3 is x = 20 from y = 40 to 30", () => {
+    const { ctx, calls } = recorder();
+    drawPlanWays(ctx, VIEWPORT, [way({ edge_key: "2,3:W" })]);
+    // gridEdgeSegment stores a W edge bottom to top: (2,4) then (2,3).
+    expect(calls).toContain("moveTo(20,40)");
+    expect(calls).toContain("lineTo(20,30)");
+  });
+
+  it("skips a way with no line, whether unplaced or a wall uuid that lost its segment", () => {
+    const { ctx, calls } = recorder();
+    drawPlanWays(ctx, VIEWPORT, [way({}), way({ edge_key: "6f1c2d3e-0000-4000-8000-000000000001" })]);
+    expect(calls).toEqual([]);
   });
 });
