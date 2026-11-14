@@ -2,9 +2,10 @@
   <div class="space-y-6 pb-8">
     <PickerCharacterNotFound v-if="notFound" />
     <template v-else>
-    <!-- Whose species this is, and what a tap does. The page's name and its
-         way back are in the top bar. -->
-    <p v-if="headerDescription" class="text-body text-muted-foreground italic">{{ headerDescription }}</p>
+    <!-- The top bar names the page and the active character, and the card in
+         use carries a check. Only a pick for another character (`?memberId=`)
+         needs saying, so the player sees whose sheet changes. -->
+    <p v-if="isOtherCharacter && me" class="text-body text-muted-foreground italic">Choosing for {{ me.name }}</p>
 
     <!-- Filter bar -->
     <ListFilterBar
@@ -165,13 +166,6 @@ provideCharacterRuleset(() => me.value);
 const { data: allSpecies } = useAllSpecies();
 
 const currentSpeciesId = computed(() => me.value?.species_id ?? "");
-
-const headerDescription = computed(() => {
-  if (!me.value) return null;
-  return me.value.species_id
-    ? `${me.value.name}: tap a species card to change`
-    : `${me.value.name}: no species selected`;
-});
 
 // ── Confirmation panel state ──────────────────────────────────────────────────
 

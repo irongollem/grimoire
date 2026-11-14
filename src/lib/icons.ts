@@ -4,7 +4,7 @@ export type { LucideIcon as AppIcon } from '@lucide/vue'
 
 import {
   AlertCircle, AlertTriangle, AlignCenter, AlignLeft, AlignRight,
-  Archive, ArrowUpFromLine, Award, 
+  Archive, ArrowDownWideNarrow, ArrowUpFromLine, ArrowUpNarrowWide, Award, 
   Backpack, BetweenHorizontalEnd, BetweenVerticalEnd, Cast,
   BookMarked, BookOpen, BookPlus, BookText, BookUser, Bookmark, Box, Brain, BrickWall, Brush, Bug,
   Calendar, CalendarCheck, CalendarDays, CalendarPlus, CalendarX,
@@ -158,6 +158,10 @@ export { ChevronUp as IconChevronUp }
 export { ChevronLeft as IconChevronLeft }
 export { ChevronRight as IconChevronRight }
 export { ChevronsUpDown as IconSort }
+/** A sort's direction, on the toggle beside its field: bars that widen downward
+ *  (descending) or upward (ascending). Never a chevron, which reads as "open a menu". */
+export { ArrowDownWideNarrow as IconSortDesc }
+export { ArrowUpNarrowWide as IconSortAsc }
 export { GripVertical as IconDrag }
 export { MoveHorizontal as IconMoveH }
 export { MoveVertical as IconMoveV }

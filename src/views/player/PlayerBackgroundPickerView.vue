@@ -2,9 +2,10 @@
   <div class="space-y-6 pb-8">
     <PickerCharacterNotFound v-if="notFound" />
     <template v-else>
-    <!-- Whose background this is, and what a tap does. The page's name and its
-         way back are in the top bar. -->
-    <p v-if="headerDescription" class="text-body text-muted-foreground italic">{{ headerDescription }}</p>
+    <!-- The top bar names the page and the active character, and the card in
+         use carries a check. Only a pick for another character (`?memberId=`)
+         needs saying, so the player sees whose sheet changes. -->
+    <p v-if="isOtherCharacter && me" class="text-body text-muted-foreground italic">Choosing for {{ me.name }}</p>
 
     <!-- Filter bar -->
     <ListFilterBar
@@ -169,7 +170,7 @@ const { mutateAsync: update } = useUpdatePartyMember();
 // Member first, then the scope. Which character this acts on is decided once, for all
 // three pickers (usePickerCharacter): ?memberId= for a benched or pool character,
 // refused when it names nobody the viewer owns, else the active one.
-const { resolvedMemberId, member: me, notFound, afterChangeRoute } = usePickerCharacter();
+const { resolvedMemberId, member: me, notFound, isOtherCharacter, afterChangeRoute } = usePickerCharacter();
 // Backgrounds are build rules: the list shown is the character's edition (useRuleset.ts).
 provideCharacterRuleset(() => me.value);
 const { is2024, ruleset } = useRuleset();
@@ -181,14 +182,6 @@ const currentBgId = computed(() => me.value?.background_id ?? "");
 // than the list below offers.
 const { data: currentBgRow } = useBackground(currentBgId);
 const currentBg = computed(() => currentBgRow.value ?? null);
-
-const headerDescription = computed(() => {
-  if (!me.value) return null;
-  const bgName = currentBg.value?.name;
-  return bgName
-    ? `${me.value.name}, currently ${bgName}`
-    : `${me.value.name}: no background selected`;
-});
 
 // ── Confirmation panel state ──────────────────────────────────────────────────
 
