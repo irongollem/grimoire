@@ -1,7 +1,8 @@
 #!/usr/bin/env tsx
 /**
- * Copies the maintainer's own production campaigns onto the local DM fixture,
- * and gives the player fixture a seat and player-side content to look at.
+ * Copies the maintainer's commercial campaign, Late in the Kind Country, onto
+ * the local DM fixture, and gives the player fixture a seat and player-side
+ * content to look at.
  *
  * ## Why this exists
  *
@@ -9,16 +10,21 @@
  * recipes are a virtualised list, a long scroll and a search that has to be
  * fast, none of which the synthetic fixture (a handful of rows) can show.
  * `dev:demo` brings in the one campaign that is public by design; this brings
- * in the maintainer's real ones, for the same account the app is tested as.
+ * in the maintainer's real one, for the same account the app is tested as.
+ * Only Late in the Kind Country (maintainer, 14 Nov 2026): it is the marketing
+ * and demo material, so anything the fixture shows may go into a promo film.
+ * The maintainer's other campaigns (a table campaign with players in it, and
+ * games run from published adventures) never come to the fixture, and a copy
+ * an earlier run made of one is removed.
  *
  * ## What it does
  *
  * 1. Resolves the source account from the LOCAL database: the one account with
  *    the admin role, which is the author `seed.sql` was dumped from. Nothing
  *    that identifies it is written down anywhere in this repo.
- * 2. Lists that account's production campaigns, leaving out the demo template
- *    and any demo copy (`dev:demo` owns those).
- * 3. For each, reads every table `private.demo_campaign_tables` marks as
+ * 2. Finds that account's production campaign named `COPIED_CAMPAIGN`, leaving
+ *    out the demo template and any demo copy (`dev:demo` owns those).
+ * 3. Reads every table `private.demo_campaign_tables` marks as
  *    copied, plus the shared-library rows the campaign points at.
  * 4. Gives the rows to `dm-fixture` (`remapToFixture` in `lib/dev-ownership.ts`):
  *    fresh ids for every row and the campaign, the source account replaced by
@@ -32,12 +38,14 @@
  *    not used here. The source account's own local data is not touched.
  *    The previous copies this script made are removed after a successful import with
  *    `private.purge_demo_campaign`; they are recognised as campaigns the
- *    fixture owns, with no demo source, named like a source campaign.
+ *    fixture owns, with no demo source, named like a source campaign. That
+ *    includes copies of the account's other campaigns from before the script
+ *    took only one.
  *    (`dev-auth.ts` names its own clone "<name> (fixture)", so the two cannot
  *    be mistaken for each other.)
  * 5. Copies the account's Hall of Heroes, which belongs to the account rather
  *    than a campaign.
- * 6. Seats `player-fixture` in the copy with the most rows, claims a character,
+ * 6. Seats `player-fixture` in the copy, claims a character,
  *    and writes the player-side rows that can never come from production
  *    because they are the players' own: journal entries, discovered monsters
  *    and recipes shared with the character, all invented and generic (`lib/dev-fixture-sql.ts`).
@@ -134,6 +142,18 @@ function fixtureId(dbUrl: string): string {
   const id = sql(dbUrl, `select id from auth.users where email = ${quote(FIXTURE_EMAIL)}`);
   if (!id) throw new Error(`${FIXTURE_EMAIL} does not exist locally. Run \`npm run dev:auth\` first.`);
   return id;
+}
+
+/**
+ * The one campaign the fixture gets: the commercial Late in the Kind Country, the content master with no
+ * players in it. Its table campaign, "Stay a little longer", was copied from it and holds real players.
+ */
+const COPIED_CAMPAIGN = "Late in the Kind Country";
+
+/** Releases the player fixture's claim and removes a local copy (see the purge in `pullAndCopy`). */
+function purgeCopy(dbUrl: string, id: string): void {
+  sql(dbUrl, `update public.party_members set owner_user_id = null where campaign_id = ${quote(id)}`);
+  sql(dbUrl, `select private.purge_demo_campaign(${quote(id)})`);
 }
 
 /** The maintainer's real campaigns: not the template, not a demo copy. `not.is.true` also admits null. */
@@ -268,14 +288,11 @@ export async function pullAndCopy(
   const cleared = emptyLocalSpeciesReferences(dbUrl, id, sourceSpecies.gone);
   if (cleared > 0) report.detached["species references in the source's own rows"] = cleared;
   // A failed import must leave the previous working copies intact.
-  for (const old of previous) {
-    // The player fixture's claim would outlive the purge: a claimed character's
-    // delete is refused, and the campaign's ON DELETE SET NULL then leaves it in
-    // dm-fixture's pool, pointing at species the purge just removed. One more
-    // stray copy every run (#1034). The claim is this script's own; release it.
-    sql(dbUrl, `update public.party_members set owner_user_id = null where campaign_id = ${quote(old)}`);
-    sql(dbUrl, `select private.purge_demo_campaign(${quote(old)})`);
-  }
+  // The player fixture's claim would outlive the purge: a claimed character's
+  // delete is refused, and the campaign's ON DELETE SET NULL then leaves it in
+  // dm-fixture's pool, pointing at species the purge just removed. One more
+  // stray copy every run (#1034). The claim is this script's own; purgeCopy releases it.
+  for (const old of previous) purgeCopy(dbUrl, old);
   return {
     id: String(mine.campaign.id),
     name: String(campaign.name),
@@ -327,8 +344,13 @@ const tally = (counts: Record<string, number>) =>
 async function check(dbUrl: string, remote: URL, key: string, source: string): Promise<void> {
   const owner = fixtureId(dbUrl);
   const columns = readLocalColumns(dbUrl, MAIN_TABLES);
-  const campaigns = await listOwnCampaigns(remote, key, source);
-  console.log(`production: ${campaigns.length} campaign(s) the source account owns, excluding the template and demo copies`);
+  const own = await listOwnCampaigns(remote, key, source);
+  const campaigns = own.filter((c) => c.name === COPIED_CAMPAIGN);
+  console.log(`production: copies "${COPIED_CAMPAIGN}" only, ${campaigns.length ? "found" : "NOT FOUND"}`);
+  for (const other of own.filter((c) => c.name !== COPIED_CAMPAIGN)) {
+    const stale = previousCopies(dbUrl, owner, String(other.name));
+    if (stale.length) console.log(`  a run removes ${FIXTURE_EMAIL}'s ${stale.length} old copy of another campaign`);
+  }
   for (const campaign of campaigns) {
     const name = String(campaign.name);
     const summary = await remoteSummary(remote, key, columns, source, String(campaign.id));
@@ -372,8 +394,9 @@ async function main(): Promise<void> {
   if (values.check) return check(stack.DB_URL, remote, key, source);
 
   const owner = fixtureId(stack.DB_URL);
-  const campaigns = await listOwnCampaigns(remote, key, source);
-  if (campaigns.length === 0) throw new Error("The source account owns no campaigns in production besides the demo.");
+  const own = await listOwnCampaigns(remote, key, source);
+  const campaigns = own.filter((c) => c.name === COPIED_CAMPAIGN);
+  if (campaigns.length === 0) throw new Error(`The source account owns no campaign named "${COPIED_CAMPAIGN}" in production.`);
 
   const copies: { imported: Imported; copyId: string; counts: Record<string, number> }[] = [];
   for (const row of campaigns) {
@@ -383,6 +406,14 @@ async function main(): Promise<void> {
     console.log(`Copied "${imported.name}" to ${FIXTURE_EMAIL} as ${copyId}`);
   }
   ensureFixtureCanHoldThem(stack.DB_URL, owner);
+  // Copies of the other campaigns, from before the fixture took only one: removed once the copy above succeeded.
+  const removed: string[] = [];
+  for (const other of own.filter((c) => c.name !== COPIED_CAMPAIGN)) {
+    for (const old of previousCopies(stack.DB_URL, owner, String(other.name))) {
+      purgeCopy(stack.DB_URL, old);
+      removed.push(String(other.name));
+    }
+  }
 
   const heroes = await copyHall(stack.DB_URL, remote, key, source, owner);
 
@@ -403,6 +434,7 @@ async function main(): Promise<void> {
     console.log(`    emptied (column kept, row kept): ${tally(imported.detached) || "nothing"}`);
   }
   console.log(`  hall of heroes: ${heroes} copied`);
+  if (removed.length) console.log(`  removed local copies of: ${removed.map((n) => `"${n}"`).join(", ")}`);
   console.log(
     player
       ? `  ${PLAYER_EMAIL}: seated in "${biggest.imported.name}"` +

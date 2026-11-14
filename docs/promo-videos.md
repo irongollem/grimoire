@@ -161,9 +161,10 @@ day when the snapshots began (11 Nov 2026) have no 24h figure.
 ## How it works
 
 - **Filmed where it is safe to show.** Every episode runs in the DM fixture's
-  copy of the published demo campaign (`setup/demo.ts`), never another
-  campaign: `dev:campaigns` puts the maintainer's real games on the same
-  account. Each episode's `setup` puts the scene back (ingredients, pending
+  copy of the published demo campaign (`setup/demo.ts`), or in its copy of
+  Late in the Kind Country, the maintainer's commercial campaign, which is
+  marketing material too (`dev:campaigns` copies that one campaign and no
+  other). Each episode's `setup` puts the scene back (ingredients, pending
   rows) before every take, through the loopback guard.
 - **A real browser at device size.** `stage.ts` opens a visible Chrome window
   at the device's CSS size and scale and records it through the DevTools
