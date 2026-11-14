@@ -13,9 +13,12 @@
       </template>
 
       <!-- Two columns once the ledger has the width (a portrait tablet), so a row
-           is not 50rem of air between a name and its relationship. -->
-      <ul v-if="view === 'ledger'" class="torn hearth-card grid divide-y divide-border/60 rounded-lg @2xl:grid-cols-2 @2xl:divide-y-0">
-        <li v-for="npc in group.people" :key="npc.id" class="@2xl:border-b @2xl:border-border/60 @2xl:odd:border-r">
+           is not 50rem of air between a name and its relationship. `grid-cols-1`
+           and `min-w-0` are load-bearing: a grid track and a grid item both grow
+           to their content by default, so the longest untruncated subtitle
+           pushed every row's padding and relationship past the scroll box. -->
+      <ul v-if="view === 'ledger'" class="torn hearth-card grid grid-cols-1 divide-y divide-border/60 rounded-lg @2xl:grid-cols-2 @2xl:divide-y-0">
+        <li v-for="npc in group.people" :key="npc.id" class="min-w-0 @2xl:border-b @2xl:border-border/60 @2xl:odd:border-r">
           <PeopleLedgerRow
             :npc="npc"
             :rating="getRating(npc.id)"

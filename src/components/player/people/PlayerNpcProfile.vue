@@ -16,11 +16,11 @@
       </div>
       <p v-if="what" class="mt-1 text-body italic text-muted-foreground">{{ what }}</p>
       <dl v-if="met || place" class="mt-2 space-y-0.5 text-caption text-muted-foreground">
-        <div v-if="met" class="flex gap-2">
+        <div v-if="met" class="flex items-baseline gap-2">
           <dt class="text-eyebrow font-bold uppercase">Met</dt>
           <dd>{{ met }}</dd>
         </div>
-        <div v-if="place" class="flex gap-2">
+        <div v-if="place" class="flex items-baseline gap-2">
           <dt class="text-eyebrow font-bold uppercase">Where</dt>
           <dd>{{ place }}</dd>
         </div>
