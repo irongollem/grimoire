@@ -138,6 +138,8 @@ export interface Episode {
   /** The episode that shows the other side of the same feature (DM or player). */
   pairedWith?: string;
   account: Account;
+  /** The campaign the filmed pages have active, `kind-country` for the full campaign the demo comes from; the demo copy when omitted. */
+  campaign?: "kind-country";
   /** What the finished video is cut for; a Reel when omitted. */
   format?: Format;
   /** The screen the episode is filmed on; phone when omitted. */

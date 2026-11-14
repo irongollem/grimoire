@@ -11,6 +11,7 @@ import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { EPISODES } from "./episodes/index.ts";
 import { demoCampaignId, settleAiChoice } from "./setup/demo.ts";
+import { kindCountryCampaignId } from "./setup/kind-country.ts";
 import { startPromoServer } from "./server.ts";
 import { DEVICES } from "./devices.ts";
 import { launch, launchOffstage, openOffstage, openStage, type Stage } from "./stage.ts";
@@ -46,7 +47,7 @@ if (values.shot && !episode.shots.some((s) => s.id === values.shot)) {
 
 settleAiChoice(demoCampaignId());
 await episode.setup?.();
-const campaignId = demoCampaignId();
+const campaignId = episode.campaign === "kind-country" ? kindCountryCampaignId() : demoCampaignId();
 // PROMO_BASE_URL films an app server you run yourself; by default the take gets its own (see server.ts).
 const external = process.env.PROMO_BASE_URL;
 const server = external === undefined ? await startPromoServer() : null;

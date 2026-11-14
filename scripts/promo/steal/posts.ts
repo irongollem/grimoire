@@ -9,9 +9,8 @@
  * demo comes from (put on the DM fixture by `npm run dev:campaigns`), whose
  * creatures carry the setting book's own lore, art and 2024 stat blocks.
  */
-import { quote, sql } from "../../lib/dev-db.ts";
-import { FIXTURE_EMAIL } from "../../lib/dev-campaign-io.ts";
-import { demoCampaignId, localDb } from "../setup/demo";
+import { demoCampaignId } from "../setup/demo";
+import { kindCountryCampaignId } from "../setup/kind-country";
 
 export interface StealPost {
   id: string;
@@ -34,18 +33,9 @@ export interface StealPost {
   blocks: unknown[];
 }
 
-const KIND_COUNTRY = "Late in the Kind Country";
-
 /** The local campaign a post's row is read from. */
 export function campaignIdFor(post: StealPost): string {
-  if (post.campaign !== "kind-country") return demoCampaignId();
-  const id = sql(
-    localDb(),
-    `select c.id from public.campaigns c join auth.users u on u.id = c.user_id
-      where c.name = ${quote(KIND_COUNTRY)} and u.email = ${quote(FIXTURE_EMAIL)} limit 1`,
-  );
-  if (!id) throw new Error(`${post.id}: the DM fixture has no "${KIND_COUNTRY}". Run \`npm run dev:campaigns\`.`);
-  return id;
+  return post.campaign === "kind-country" ? kindCountryCampaignId() : demoCampaignId();
 }
 
 const text = (t: string, marks?: string[]) => ({ type: "text", text: t, ...(marks ? { marks: marks.map((type) => ({ type })) } : {}) });
