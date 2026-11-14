@@ -99,6 +99,7 @@ try {
     // before the chosen one still runs; only the filming is skipped.
     if (shot.startAt) await stage.open(shot.startAt);
     else if (stage.page.url() === "about:blank") throw new Error(`Shot "${shot.id}" is the first on the ${account}'s ${device} and needs a startAt.`);
+    await shot.ready?.(stage.page);
     const out = join(dir, "shots", `${shot.id}.mp4`);
     const keep = values.shot && values.shot !== shot.id ? previous?.shots.find((s) => s.id === shot.id) : undefined;
     console.log(`${keep ? "running" : "filming"} ${shot.id} (${account}, ${device})`);

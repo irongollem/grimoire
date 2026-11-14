@@ -3,6 +3,7 @@ import { combatDm } from "./combat-dm.ts";
 import { combatPlayer } from "./combat-player.ts";
 import { questsDm } from "./quests-dm.ts";
 import { questsPlayer } from "./quests-player.ts";
+import { illuminator } from "./illuminator.ts";
 import { songs } from "./songs.ts";
 import { handoutsDm } from "./handouts-dm.ts";
 import { handoutsPlayer } from "./handouts-player.ts";
@@ -19,4 +20,4 @@ import { ytScriptorium } from "./yt-scriptorium.ts";
 import { ytSheets } from "./yt-sheets.ts";
 
 /** Every episode the recorder knows, by id. */
-export const EPISODES: Episode[] = [workshopDm, workshopPlayer, sheetsPlayer, sheetsDm, sessionDm, sessionPlayer, combatDm, combatPlayer, questsDm, questsPlayer, songs, handoutsDm, handoutsPlayer, ytGettingStarted, ytCombat, ytSheets, ytSession, ytScriptorium];
+export const EPISODES: Episode[] = [workshopDm, workshopPlayer, sheetsPlayer, sheetsDm, sessionDm, sessionPlayer, combatDm, combatPlayer, questsDm, questsPlayer, songs, illuminator, handoutsDm, handoutsPlayer, ytGettingStarted, ytCombat, ytSheets, ytSession, ytScriptorium];

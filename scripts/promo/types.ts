@@ -127,6 +127,11 @@ export interface Shot {
   account?: Account;
   /** YouTube: this shot starts a chapter with this title (the first chapter is forced to 0:00). */
   chapter?: string;
+  /**
+   * Runs after `startAt` has opened the page and before filming starts: a wait the viewer should not sit through
+   * (a big book laying itself out on first open) or a step the shot assumes is done. Never filmed.
+   */
+  ready?(page: Page): Promise<void>;
   run(ctx: ShotContext): Promise<void>;
 }
 
