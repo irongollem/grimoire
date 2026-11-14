@@ -4,8 +4,8 @@
  * Both episodes film "The Locked Workshop" in the DM fixture's demo campaign. A take leaves a running cursor
  * (`quest_runtime_state`), transitions, revealed beats, ticked objectives and fired consequences, so `setupQuests`
  * puts the quest back to "active, nothing run yet, shared with Chicory" before every take and `teardownQuests`
- * puts it back as the demo ships it (hidden from players, no words written for the reveal). The cursor itself is
- * made in a browser (`startThread`), because a thread only has one once the DM has pressed Start here.
+ * puts it back as the demo ships it (hidden from players, no words written for the reveal). The party's first
+ * position is made in a browser (Party here on the entry beat), the way the DM makes it.
  */
 import { runSqlFile } from "../../lib/dev-campaign-io.ts";
 import { quote, sql } from "../../lib/dev-db.ts";
@@ -60,32 +60,19 @@ export function teardownQuests(): void {
   runSqlFile(localDb(), resetSql(false));
 }
 
-export const QUEST_PATH = () => `/quests/${questId()}?view=run`;
+export const QUEST_PATH = () => `/quests/${questId()}`;
 
-/** The DM's own page (never filmed) presses Start here, so the cockpit opens on a beat already in front of the party. */
-export async function startThread(dm: Offstage): Promise<void> {
+/** The offstage DM ticks Party here on the entry beat. Arriving reveals a beat (#1194), so this is what shows the first scene to players. */
+export async function arriveAtEntry(dm: Offstage): Promise<void> {
   await dm.page.goto(`${dm.base}${QUEST_PATH()}`);
-  await dm.page.getByRole("button", { name: "Start here" }).click({ timeout: 30_000 });
-  await dm.page.getByText("Party is here", { exact: false }).first().waitFor({ timeout: 20_000 });
-  await dm.page.waitForTimeout(1200);
+  await dm.page.getByText("Sister Ribbon's Offer").first().click({ timeout: 30_000 });
+  await dm.page.getByRole("checkbox", { name: "Party here" }).first().click();
+  await dm.page.getByText("Party is here", { exact: false }).filter({ visible: true }).first().waitFor({ timeout: 20_000 });
 }
 
-
-/** The offstage DM reveals the beat in front of the party: Reveal to players, then Confirm. */
-export async function revealCurrentBeat(dm: Offstage): Promise<void> {
-  await dm.page.getByRole("button", { name: "Reveal to players" }).first().click();
-  await dm.page.getByRole("button", { name: "Confirm" }).click();
-  await dm.page.getByText("Visible to players").first().waitFor({ timeout: 20_000 });
-}
-
-/** The offstage DM reveals the next beat from What happens next, chooses it and advances: The Sealed Door, which completes the first objective. */
+/** The offstage DM takes the one route out under Where it can go and advances: The Sealed Door, which completes the first objective. */
 export async function advanceToNextBeat(dm: Offstage): Promise<void> {
-  const next = dm.page.getByRole("region", { name: "What happens next" });
-  await next.getByRole("button", { name: "Reveal", exact: true }).click();
-  const confirm = dm.page.getByRole("button", { name: "Confirm" });
-  if (await confirm.isVisible({ timeout: 300 }).catch(() => false)) await confirm.click();
-  await next.getByText("Visible to players").waitFor({ timeout: 20_000 });
-  await next.getByRole("button", { name: "Choose" }).click();
+  await dm.page.getByRole("region", { name: "Where it can go" }).getByRole("button", { name: /^Take / }).first().click();
   await dm.page.getByRole("button", { name: "Advance", exact: true }).last().click();
-  await dm.page.getByRole("heading", { name: "The Sealed Door" }).first().waitFor({ timeout: 20_000 });
+  await dm.page.getByRole("dialog").waitFor({ state: "detached", timeout: 20_000 });
 }

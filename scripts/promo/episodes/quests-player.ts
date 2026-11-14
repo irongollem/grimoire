@@ -1,4 +1,4 @@
-import { advanceToNextBeat, revealCurrentBeat, setupQuests, startThread, teardownQuests } from "../setup/quests.ts";
+import { advanceToNextBeat, arriveAtEntry, setupQuests, teardownQuests } from "../setup/quests.ts";
 import type { Episode } from "../types.ts";
 
 /** A player's phone while the DM runs the quest. Its pair, `quests-dm`, is the DM's side of it. */
@@ -11,9 +11,6 @@ export const questsPlayer: Episode = {
   setup: setupQuests,
   teardown: teardownQuests,
   seed: 6,
-  async prepare({ offstage }) {
-    await startThread(await offstage("dm"));
-  },
   shots: [
     {
       id: "log",
@@ -36,7 +33,7 @@ export const questsPlayer: Episode = {
         const dm = await offstage("dm");
         await scroll(520, 900);
         await hold(900);
-        await revealCurrentBeat(dm);
+        await arriveAtEntry(dm);
         await page.getByText("Story so far").first().waitFor({ timeout: 20_000 });
         await scrollTo(page.getByText("Story so far").first(), 900, 110);
         await hold(4200);
