@@ -9,10 +9,11 @@
  * OpenAI key is never read, so every doll is charged. The model is PINNED
  * (DOLL_IMAGE_MODEL), not taken from provider_config: the fidelity spike proved
  * placement and likeness on that one model, and a different default would
- * quietly break the cell grid the whole doll depends on. For the same reason
- * the price is ONE flat `character_doll` cost, with no provider or size
- * multiplier: the model and sheet size are fixed, and the three renders are
- * priced as one set.
+ * quietly break the cell grid the whole doll depends on. The three renders are
+ * priced as one set: the `character_doll` base (three pictures' worth) times
+ * OpenAI's image multiplier times the sheet size's multiplier, like every
+ * other OpenAI picture. It was once a flat price with neither multiplier, which
+ * ignored the admin's provider rate (20261113223710).
  *
  * Two rounds, not three parallel renders. Round 1 draws the garb sheet from
  * the portrait (the character's own body). Round 2 draws the armour and burden
@@ -34,13 +35,14 @@ import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import decode from "@jsquash/webp/decode";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
-import { fetchProviderConfigs } from "../_shared/provider-config.ts";
+import { applyMultiplier, fetchProviderConfigs } from "../_shared/provider-config.ts";
 import {
   fetchCreditCost,
   recordGeneration,
   releaseCredits,
   reserveCredits,
   reservationFailureResponse,
+  sizeMultiplier,
   wholeCredits,
 } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
@@ -403,8 +405,10 @@ serve(withCors(async (req: Request) => {
   });
   if (!img) return jsonError("no_image_provider", 422);
 
-  // Flat price: no provider or size multiplier, see file doc.
-  const cost = wholeCredits(await fetchCreditCost(admin, "character_doll"));
+  // Priced like every OpenAI picture: base × the provider's image multiplier ×
+  // the sheet size's multiplier. Mirrored by useCharacterDollCost in the app.
+  const baseCost = await fetchCreditCost(admin, "character_doll");
+  const cost = wholeCredits(applyMultiplier(baseCost, img.imageMultiplier) * sizeMultiplier(DOLL_SHEET_SIZE));
 
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
     return jsonError("rate_limited", 429);

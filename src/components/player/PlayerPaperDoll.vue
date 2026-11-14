@@ -182,7 +182,7 @@ import AppButton from '@/components/common/controls/AppButton.vue';
 import BannerLoader from '@/components/brand/BannerLoader.vue';
 import GenerationCostBadge from '@/components/common/ai/GenerationCostBadge.vue';
 import type { DollAction } from '@/lib/paperDoll/dollAction';
-import { useAiCredits } from '@/composables/ai/useAiCredits';
+import { useCharacterDollCost } from '@/composables/party/useCharacterDoll';
 import type { MemberDoll } from '@/composables/party/useDollArt';
 import { slotAnchors, type SlotAnchorKey } from '@/lib/paperDoll/slotAnchors';
 import { useDollLegend } from '@/composables/party/useDollLegend';
@@ -227,8 +227,7 @@ defineEmits<{
   'withdraw-doll': [];
 }>();
 
-const { costOf } = useAiCredits();
-const dollCost = computed(() => costOf('character_doll'));
+const dollCost = useCharacterDollCost();
 
 const anchors = computed(() => (doll ? slotAnchors(doll.art.layout.anatomy) : null));
 

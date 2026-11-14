@@ -32,8 +32,7 @@
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
-import { useCharacterDoll } from "@/composables/party/useCharacterDoll";
+import { useCharacterDoll, useCharacterDollCost } from "@/composables/party/useCharacterDoll";
 import type { PartyMember } from "@/types/party.types";
 
 /**
@@ -43,8 +42,7 @@ import type { PartyMember } from "@/types/party.types";
  */
 const { member } = defineProps<{ member: PartyMember }>();
 
-const { costOf } = useAiCredits();
-const dollCost = computed(() => costOf("character_doll"));
+const dollCost = useCharacterDollCost();
 const { isGenerating, error, make, clearAsk, isAskPending } = useCharacterDoll();
 
 const hasPortrait = computed(() => !!member.portrait_url);

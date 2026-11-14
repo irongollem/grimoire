@@ -1,14 +1,28 @@
-import { ref } from "vue";
+import { computed, ref, type ComputedRef } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
+import { wholeCredits } from "@edge-shared/credit-math.ts";
+import { DOLL_SHEET_SIZE } from "@edge-shared/paperDoll/prompts.ts";
 import { supabase } from "@/lib/supabase";
 import { reportHandledError } from "@/lib/observability/sentry";
 import { startAiQuotes, stopAiQuotes } from "@/ai/aiGenerationState";
 import { waitForImageJob } from "@/ai/useImageJob";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { DOLL_ASK_ERROR, dollErrorMessage } from "@/composables/party/characterDollErrors";
+
+/**
+ * What drawing a doll costs: the `character_doll` price for its 1536x1024 sheets on OpenAI, the
+ * same formula generate-character-doll charges (base × OpenAI's image multiplier × the size multiplier).
+ * Dolls always render on OpenAI with platform keys, so the campaign's own provider never applies.
+ */
+export function useCharacterDollCost(): ComputedRef<number> {
+  const { costOf } = useAiCredits();
+  const { imageMultiplierFor } = useProviderConfig();
+  return computed(() => wholeCredits(costOf("character_doll", { size: DOLL_SHEET_SIZE }) * imageMultiplierFor("openai")));
+}
 
 /**
  * Manage a character's own paper doll from its portrait (#975). `make` starts
@@ -19,7 +33,7 @@ import { DOLL_ASK_ERROR, dollErrorMessage } from "@/composables/party/characterD
 export function useCharacterDoll() {
   const queryClient = useQueryClient();
   const { ensureLikenessAck } = useLikenessGate();
-  const { costOf } = useAiCredits();
+  const dollCost = useCharacterDollCost();
   const { requireCredits } = useOutOfCredits();
 
   const isGenerating = ref(false);
@@ -34,7 +48,7 @@ export function useCharacterDoll() {
   async function make(memberId: string): Promise<boolean> {
     if (isGenerating.value) return false;
     if (!(await ensureLikenessAck())) return false;
-    if (!requireCredits(costOf("character_doll"), false)) return false;
+    if (!requireCredits(dollCost.value, false)) return false;
 
     isGenerating.value = true;
     error.value = null;

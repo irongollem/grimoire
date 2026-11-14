@@ -162,7 +162,7 @@ import { useDollArt } from "@/composables/party/useDollArt";
 import { burdenPicture } from "@/lib/paperDoll/dollStack";
 import { dollAction } from "@/lib/paperDoll/dollAction";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
-import { useCharacterDoll } from "@/composables/party/useCharacterDoll";
+import { useCharacterDoll, useCharacterDollCost } from "@/composables/party/useCharacterDoll";
 import { useCampaignStore } from "@/stores/campaign";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerItemProjection } from "@/composables/items/useItems";
@@ -301,7 +301,8 @@ const {
   clearAsk: clearDollAsk,
   isAskPending,
 } = useCharacterDoll();
-const { affordable: canAfford, costOf } = useAiCredits();
+const { affordable: canAfford } = useAiCredits();
+const dollCost = useCharacterDollCost();
 // A player with credits makes their own doll; one without asks their DM, who
 // draws it from theirs. A DM may draw any character's doll unasked.
 const dollControl = computed(() => {
@@ -310,7 +311,7 @@ const dollControl = computed(() => {
   return dollAction({
     isOwner: m.owner_user_id !== null && m.owner_user_id === auth.user?.id,
     isDm: auth.isDM,
-    affordable: canAfford(costOf("character_doll")),
+    affordable: canAfford(dollCost.value),
     asked: !!m.doll_requested_at,
     hasDoll: doll.value?.art.source === "character",
   });
