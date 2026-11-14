@@ -70,10 +70,10 @@ export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureCon
       "campaign_sessions",
       `insert into public.campaign_sessions (user_id, campaign_id, number, title, played_on)
        values
-         (${owner}, ${campaign}, 3, 'Ashes in Easthaven', '2026-09-13'),
-         (${owner}, ${campaign}, 4, 'The Cold Pursuit of Sephek', '2026-09-20'),
-         (${owner}, ${campaign}, 5, 'What the Speaker Would Not Say', '2026-09-27'),
-         (${owner}, ${campaign}, 6, 'The Road to Bryn Shander', '2026-10-04');`,
+         (${owner}, ${campaign}, 3, 'A Crack in the Candy-Glass', '2026-09-13'),
+         (${owner}, ${campaign}, 4, 'The Sticky Pursuit of Crumbkin', '2026-09-20'),
+         (${owner}, ${campaign}, 5, 'What the Syrup-Warden Would Not Say', '2026-09-27'),
+         (${owner}, ${campaign}, 6, 'The Road to Toffee Bridge', '2026-10-04');`,
     ),
 
     notes: seed(
@@ -81,23 +81,23 @@ export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureCon
       `insert into public.notes
          (user_id, campaign_id, title, content, category, tags, session_id, player_visible_to)
        values
-         (${owner}, ${campaign}, 'Ashes in Easthaven',
-          ${prose("The party reached Easthaven wanting warmth and answers, and got a body in the ice instead.")},
-          'session', '{murder,easthaven}', ${sessionOf(3)}, ${all}),
-         (${owner}, ${campaign}, 'The Cold Pursuit of Sephek',
-          ${prose("Tracks led north out of Caer-Konig. Whatever made them was not walking on two legs the whole way.")},
+         (${owner}, ${campaign}, 'A Crack in the Candy-Glass',
+          ${prose("The party reached the market wanting warmth and answers, and got a cracked pane and a missing spoon instead.")},
+          'session', '{mystery,market}', ${sessionOf(3)}, ${all}),
+         (${owner}, ${campaign}, 'The Sticky Pursuit of Crumbkin',
+          ${prose("Footprints in spilled treacle led out past the last lamp. Whatever made them was not walking on two legs the whole way.")},
           'session', '{chase}', ${sessionOf(4)}, ${some}),
-         (${owner}, ${campaign}, 'What the Speaker Would Not Say',
+         (${owner}, ${campaign}, 'What the Syrup-Warden Would Not Say',
           ${prose("She answered every question put to her, and not one that mattered.")},
           'session', '{politics}', ${sessionOf(5)}, ${hidden}),
-         (${owner}, ${campaign}, 'The Rime and Who Profits By It',
-          ${prose("Someone is selling firewood at four times last winter's price, and it is not a Ten-Towns speaker.")},
-          'lore', '{economy,winter}', null, ${some}),
-         (${owner}, ${campaign}, 'Chardalyn, and What It Does to People',
-          ${prose("Black stone that takes a spell and gives it back wrong. The tribes will not carry it uncut.")},
-          'lore', '{chardalyn}', null, ${all}),
-         (${owner}, ${campaign}, 'Frostmaiden — DM only',
-          ${prose("Auril is not the villain of this campaign. The people deciding who eats this winter are.")},
+         (${owner}, ${campaign}, 'The Marmalade Tide and Who Profits By It',
+          ${prose("Someone is selling jar lids at four times last season's price, and it is not a Guild warden.")},
+          'lore', '{economy,marmalade}', null, ${some}),
+         (${owner}, ${campaign}, 'Burnt Sugar, and What It Does to People',
+          ${prose("Dark glaze that takes a spell and gives it back bitter. The drifters will not carry it uncooled.")},
+          'lore', '{glaze}', null, ${all}),
+         (${owner}, ${campaign}, 'The Sugar Moth: DM only',
+          ${prose("The Sugar Moth is not the villain of this campaign. The people deciding who gets the last jar are.")},
           'general', '{spoilers}', null, ${hidden});`,
     ),
 
@@ -105,10 +105,10 @@ export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureCon
       "factions",
       `insert into public.factions (user_id, campaign_id, name, faction_type, tags, player_visible_to)
        values
-         (${owner}, ${campaign}, 'Council of Speakers', 'Government', '{political,civic,"ten towns"}', ${all}),
-         (${owner}, ${campaign}, 'The Frostbloom Syndicate', 'Criminal', '{"thieves guild",easthaven}', ${some}),
-         (${owner}, ${campaign}, 'Reghed: Elk Tribe', 'Tribe', '{nomads,tundra}', ${some}),
-         (${owner}, ${campaign}, 'Knights of the Black Sword', 'Cult', '{levistus,secretive}', ${hidden});`,
+         (${owner}, ${campaign}, 'Board of Syrup-Wardens', 'Government', '{political,civic,"sugar city"}', ${all}),
+         (${owner}, ${campaign}, 'The Sweet-Tooth Syndicate', 'Criminal', '{"thieves guild",market}', ${some}),
+         (${owner}, ${campaign}, 'Pastille Drifters', 'Tribe', '{nomads,spice-flats}', ${some}),
+         (${owner}, ${campaign}, 'Order of the Bitter Almond', 'Cult', '{almond,secretive}', ${hidden});`,
     ),
 
     /**
@@ -257,8 +257,8 @@ export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureCon
       "pantheons",
       `insert into public.pantheons (user_id, campaign_id, name, tags, player_visible_to)
        values
-         (${owner}, ${campaign}, 'Gods of the Reghed Tribes', '{tribal,shamanic}', ${all}),
-         (${owner}, ${campaign}, 'The Frostmaiden and Her Kin', '{winter,auril}', ${hidden});`,
+         (${owner}, ${campaign}, 'Powers of the Pastille Drifters', '{tribal,shamanic}', ${all}),
+         (${owner}, ${campaign}, 'The Bitter Almond and Its Kin', '{bitter,almond}', ${hidden});`,
     ),
 
     deities: seed(
@@ -266,14 +266,14 @@ export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureCon
       `insert into public.deities
          (user_id, campaign_id, name, titles, alignment, domains, tags, player_visible_to)
        values
-         (${owner}, ${campaign}, 'Amaunator', 'Keeper of the Yellow Sun', 'Lawful Neutral',
-          '{Life,Light}', '{sun,law}', ${all}),
-         (${owner}, ${campaign}, 'Tempus', 'Lord of Battles', 'Chaotic Neutral',
+         (${owner}, ${campaign}, 'Lumen Lollop', 'Keeper of the Yellow Lamp', 'Lawful Neutral',
+          '{Life,Light}', '{lamp,law}', ${all}),
+         (${owner}, ${campaign}, 'Brandysnap', 'Lord of the Brittle Charge', 'Chaotic Neutral',
           '{War}', '{battle}', ${some}),
-         (${owner}, ${campaign}, 'Auril', 'The Frostmaiden', 'Neutral Evil',
-          '{Nature,Tempest}', '{winter}', ${hidden}),
-         (${owner}, ${campaign}, 'Ulutiu', 'Lord of the Glaciers', 'Lawful Neutral',
-          '{Nature}', '{ice,sleeping}', ${hidden});`,
+         (${owner}, ${campaign}, 'Mother Bitterglaze', 'The Burnt-Sugar Queen', 'Neutral Evil',
+          '{Nature,Tempest}', '{glaze}', ${hidden}),
+         (${owner}, ${campaign}, 'Old Rockcandy', 'Lord of the Slow Crystals', 'Lawful Neutral',
+          '{Nature}', '{crystal,sleeping}', ${hidden});`,
     ),
 
     // Not quota'd, but the item card carries a rarity badge and a quick-stat
@@ -284,17 +284,17 @@ export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureCon
       `insert into public.items
          (user_id, campaign_id, name, item_type, rarity, tags, damage_rolls, armor_class, charges)
        values
-         (${owner}, ${campaign}, 'Icingdeath', 'weapon', 'legendary', '{scimitar,frost}',
+         (${owner}, ${campaign}, 'Peppermint Scimitar', 'weapon', 'legendary', '{scimitar,mint}',
           '[{"dice":"1d6","type":"slashing"}]'::jsonb, null, null),
-         (${owner}, ${campaign}, 'Frost Giant Plate', 'armor', 'very_rare', '{heavy,cold}',
+         (${owner}, ${campaign}, 'Gingerbread Plate', 'armor', 'very_rare', '{heavy,spiced}',
           null, 18, null),
-         (${owner}, ${campaign}, 'Wand of Winter', 'wand', 'very_rare', '{arcane,cold}',
+         (${owner}, ${campaign}, 'Wand of Spun Sugar', 'wand', 'very_rare', '{arcane,sticky}',
           null, null, 7),
-         (${owner}, ${campaign}, 'Chardalyn Shard', 'crafting_material', 'rare', '{chardalyn,cursed}',
+         (${owner}, ${campaign}, 'Burnt-Sugar Shard', 'crafting_material', 'rare', '{glaze,cursed}',
           null, null, 3),
-         (${owner}, ${campaign}, 'Potion of Heroism', 'potion', 'rare', '{consumable}',
+         (${owner}, ${campaign}, 'Draught of Bravery', 'potion', 'rare', '{consumable}',
           null, null, null),
-         (${owner}, ${campaign}, 'Ring of Warmth', 'ring', 'uncommon', '{attunement}',
+         (${owner}, ${campaign}, 'Ring of the Warm Oven', 'ring', 'uncommon', '{attunement}',
           null, null, null);`,
     ),
   };

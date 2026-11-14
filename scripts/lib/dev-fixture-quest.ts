@@ -32,13 +32,13 @@
  * and a beat staged at a cloned dungeon so the site runner has a real place to
  * open onto.
  *
- *   The plea at the hearth (root, revealed)
- *     -> The road north (revealed)          -> Into the frozen vault (hidden, staged at a dungeon)
- *          [gated: "Secure safe passage north" must be complete]
- *     -> Bargain at the checkpoint (hidden, the untaken branch)
- *          [reaching it raises the dormant "Uncover why the vault was sealed"]
+ *   The plea at the oven (root, revealed)
+ *     -> The marmalade road (revealed)          -> Into the sealed pantry (hidden, staged at a dungeon)
+ *          [gated: "Secure safe passage along the road" must be complete]
+ *     -> Bargain at the toll-gate (hidden, the untaken branch)
+ *          [reaching it raises the dormant "Uncover why the pantry was sealed"]
  *
- * `quest_runtime_state` is seeded mid-chain, sitting on "The road north" --
+ * `quest_runtime_state` is seeded mid-chain, sitting on "The marmalade road" --
  * one beat past the opening, one gated route still shut -- so the Runner and
  * the outline both open onto a quest already in progress rather than an empty
  * cockpit.
@@ -54,9 +54,9 @@
 import { quote, sql } from "./dev-db.ts";
 import { fixtureCampaign } from "./dev-fixture-campaign.ts";
 
-const QUEST_TITLE = "The Speaker's Missing Rider";
+const QUEST_TITLE = "The Missing Sugar-Courier";
 const QUEST_SUMMARY =
-  "A rider from the Council never reached Easthaven, and the roads north are colder than usual.";
+  "A courier from the Confectioners' Guild never reached the Pulled Sugar Inn, and the marmalade road has gone strangely slow.";
 
 /** What `ensureFixtureQuest` converged on, for the CLI summary. */
 export interface FixtureQuestSummary {
@@ -86,11 +86,13 @@ export function ensureFixtureQuest(dbUrl: string, ownerId: string): FixtureQuest
 
 /**
  * A dungeon-or-building location already sitting in the fixture campaign, to
- * stage the vault beat at. Dungeon preferred over building, since #797's site
+ * stage the pantry beat at. Dungeon preferred over building, since #797's site
  * runner -- the surface this exists to exercise -- only lights up for a site
  * with a floor plan. Absent only if the clone ever runs against a source
- * campaign with neither type; locally that source is Icewind Dale, which has
- * both in quantity.
+ * campaign with neither type. The source is whichever 5e campaign holds the
+ * most locations on this machine (`cloneRichestCampaign`); both campaigns the
+ * local fixture is built from, the Sugarwell demo and Late in the Kind Country,
+ * have dungeons and buildings in quantity.
  */
 function stagingSiteId(dbUrl: string, campaignId: string): string | null {
   return (
@@ -125,8 +127,8 @@ function buildFixtureQuest(dbUrl: string, campaignId: string, ownerId: string): 
       v_beat_open uuid;
       v_beat_road uuid;
       v_beat_checkpoint uuid;
-      v_beat_vault uuid;
-      v_edge_road_vault uuid;
+      v_beat_pantry uuid;
+      v_edge_road_pantry uuid;
       v_obj_passage uuid;
       v_obj_sealed uuid;
     begin
@@ -140,27 +142,27 @@ function buildFixtureQuest(dbUrl: string, campaignId: string, ownerId: string): 
       -- Root: the only beat with no incoming edge, so rootBeatIds and the
       -- outline both have a real opening to render.
       insert into public.quest_beats (quest_id, campaign_id, title, kind, visibility, canvas_x, canvas_y)
-      values (v_quest_id, ${quote(campaignId)}, 'The plea at the hearth', 'social', 'revealed', 0, 0)
+      values (v_quest_id, ${quote(campaignId)}, 'The plea at the oven', 'social', 'revealed', 0, 0)
       returning id into v_beat_open;
 
       insert into public.quest_beats (quest_id, campaign_id, title, kind, visibility, canvas_x, canvas_y)
-      values (v_quest_id, ${quote(campaignId)}, 'The road north', 'explore', 'revealed', 320, -140)
+      values (v_quest_id, ${quote(campaignId)}, 'The marmalade road', 'explore', 'revealed', 320, -140)
       returning id into v_beat_road;
 
       -- The untaken branch. Hidden, same as any authored route the party has
       -- not walked -- reaching it is what raises the dormant objective below.
       insert into public.quest_beats (quest_id, campaign_id, title, kind, visibility, canvas_x, canvas_y)
-      values (v_quest_id, ${quote(campaignId)}, 'Bargain at the checkpoint', 'social', 'hidden', 320, 140)
+      values (v_quest_id, ${quote(campaignId)}, 'Bargain at the toll-gate', 'social', 'hidden', 320, 140)
       returning id into v_beat_checkpoint;
 
       insert into public.quest_beats (
         quest_id, campaign_id, title, kind, visibility, canvas_x, canvas_y, staged_at_location_id
       )
       values (
-        v_quest_id, ${quote(campaignId)}, 'Into the frozen vault', 'explore', 'hidden', 640, -140,
+        v_quest_id, ${quote(campaignId)}, 'Into the sealed pantry', 'explore', 'hidden', 640, -140,
         ${stagingSiteLiteral}
       )
-      returning id into v_beat_vault;
+      returning id into v_beat_pantry;
 
       -- The fork: the opening beat has two outgoing routes.
       insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id)
@@ -170,24 +172,24 @@ function buildFixtureQuest(dbUrl: string, campaignId: string, ownerId: string): 
       values (v_quest_id, ${quote(campaignId)}, v_beat_open, v_beat_checkpoint);
 
       insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id)
-      values (v_quest_id, ${quote(campaignId)}, v_beat_road, v_beat_vault)
-      returning id into v_edge_road_vault;
+      values (v_quest_id, ${quote(campaignId)}, v_beat_road, v_beat_pantry)
+      returning id into v_edge_road_pantry;
 
       -- A real, non-dormant objective for the gate to read.
       insert into public.quest_objectives (quest_id, description, status, sort_order)
-      values (v_quest_id, 'Secure safe passage north', 'pending', 0)
+      values (v_quest_id, 'Secure safe passage along the road', 'pending', 0)
       returning id into v_obj_passage;
 
       -- Dormant: the party has not been given this thread, because it lives
       -- behind the branch they did not take.
       insert into public.quest_objectives (quest_id, description, status, sort_order)
-      values (v_quest_id, 'Uncover why the vault was sealed', 'dormant', 1)
+      values (v_quest_id, 'Uncover why the pantry was sealed', 'dormant', 1)
       returning id into v_obj_sealed;
 
-      -- The route into the vault stays shut until passage is secured -- a
+      -- The route into the pantry stays shut until passage is secured -- a
       -- gated route visible without any prep beyond this seed.
       insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, statuses)
-      values (v_edge_road_vault, v_quest_id, ${quote(campaignId)}, v_obj_passage, array['complete']);
+      values (v_edge_road_pantry, v_quest_id, ${quote(campaignId)}, v_obj_passage, array['complete']);
 
       -- Reaching the untaken branch is what wakes the dormant objective.
       insert into public.quest_consequences (quest_id, on_beat_id, action, target_objective_id)
