@@ -14,6 +14,7 @@ const h = await vi.hoisted(async () => {
     nook: vueRef<string | null>(null),
     shows: vueRef<string | null>("map"),
     settled: vueRef(true),
+    mapUrl: vueRef<string | null>(null),
   };
 });
 
@@ -30,7 +31,7 @@ vi.mock("@/composables/encounters/useEncounterRoom", async () => {
   };
 });
 
-vi.mock("@/composables/locations/useLocations", () => ({ useLocation: () => ({ data: ref({ id: "s1", book_nook_id: h.nook.value }) }) }));
+vi.mock("@/composables/locations/useLocations", () => ({ useLocation: () => ({ data: ref({ id: "s1", book_nook_id: h.nook.value, map_url: h.mapUrl.value }) }) }));
 vi.mock("@/composables/bookNook/useTableShows", () => ({ useTableShows: () => ({ tableShows: h.shows }) }));
 
 import { useAppUiStore } from "@/stores/ui/app";
@@ -39,10 +40,11 @@ import MapTableView from "./MapTableView.vue";
 const Fight = defineComponent({ name: "MapTableFight", props: ["encounterId"], template: "<div data-testid='fight' />" });
 const Explore = defineComponent({ name: "MapTableExplore", props: ["placeId"], template: "<div data-testid='explore' />" });
 
+const Plain = defineComponent({ name: "MapTablePlainMap", props: ["placeId"], template: "<div data-testid='plain' />" });
 const Picture = defineComponent({ name: "MapTablePicture", props: ["placeId"], template: "<div data-testid='picture' />" });
 
 function mountView() {
-  return mount(MapTableView, { global: { stubs: { MapTableFight: Fight, MapTableExplore: Explore, MapTablePicture: Picture } } });
+  return mount(MapTableView, { global: { stubs: { MapTableFight: Fight, MapTableExplore: Explore, MapTablePicture: Picture, MapTablePlainMap: Plain } } });
 }
 
 describe("MapTableView", () => {
@@ -54,6 +56,7 @@ describe("MapTableView", () => {
     h.nook.value = null;
     h.shows.value = "map";
     h.settled.value = true;
+    h.mapUrl.value = null;
   });
 
   describe("the living picture (#1142)", () => {
@@ -115,6 +118,41 @@ describe("MapTableView", () => {
     it("leaves the no-grid message to the map layer when there is neither map nor nook", () => {
       h.thisMap.value = null;
       expect(shown(mountView())).toEqual({ picture: false, map: true, fight: false });
+    });
+  });
+
+  describe("a map with no grid", () => {
+    // Bug (Targos): a picture map without a grid calibration has no battle surface, so it counted as "no map" and the
+    // TV showed the place's nook instead of its map.
+    it("shows the plain map, not the nook, when the DM chose Map", () => {
+      h.thisMap.value = null;
+      h.mapUrl.value = "https://cdn/targos.webp";
+      h.nook.value = "n1";
+      h.shows.value = "map";
+      const w = mountView();
+      expect(w.find("[data-testid='plain']").exists()).toBe(true);
+      expect(w.find("[data-testid='picture']").exists()).toBe(false);
+      expect(w.find("[data-testid='explore']").exists()).toBe(false);
+    });
+
+    // Bug: without a nook the TV said "no grid yet" and the players never saw the map at all.
+    it("shows the plain map instead of the no-grid message when there is no nook", () => {
+      h.thisMap.value = null;
+      h.mapUrl.value = "https://cdn/targos.webp";
+      const w = mountView();
+      expect(w.find("[data-testid='plain']").exists()).toBe(true);
+      expect(w.find("[data-testid='explore']").exists()).toBe(false);
+    });
+
+    // The switch must still win over a gridless map.
+    it("shows the picture over a gridless map when the DM chose Picture", () => {
+      h.thisMap.value = null;
+      h.mapUrl.value = "https://cdn/targos.webp";
+      h.nook.value = "n1";
+      h.shows.value = "picture";
+      const w = mountView();
+      expect(w.find("[data-testid='picture']").exists()).toBe(true);
+      expect(w.find("[data-testid='plain']").exists()).toBe(false);
     });
   });
 
