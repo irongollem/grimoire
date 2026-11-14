@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { checkCarousel, isCarousel, postCarousel } from "./carousels";
 import { accountSummary, findAccount, postsLeft, recentMedia, type RecentMedia } from "./instagram";
 import { checkReel, postReel, readSchedule, readPosted, setScheduled, TITLE_COVER, writeCaption, type PostedRecord } from "./publishing";
+import { ceilingLine, readLog, reportFromDisk } from "./strategy";
 import type { EpisodeManifest } from "./types";
 
 export const EPISODE_ID = /^[a-z0-9][a-z0-9-]*$/i;
@@ -189,6 +190,13 @@ export async function handleSocials(req: IncomingMessage, res: ServerResponse, u
       reels,
       recent: ig.recent,
     });
+    return true;
+  }
+
+  // Read-only, from disk and stats.jsonl: no Instagram call, so it answers offline.
+  if (method === "GET" && path === "/api/socials/strategy") {
+    const report = reportFromDisk(ctx.root);
+    json(res, 200, { kinds: report.kinds, ceiling: ceilingLine(report), log: readLog(3) });
     return true;
   }
 

@@ -57,6 +57,7 @@
     "promo:voice": "tsx --env-file-if-exists=.env.local --tsconfig tsconfig.node.json scripts/promo/voice.ts",
     "promo:post": "tsx --env-file=.env.local --tsconfig tsconfig.node.json scripts/promo/post.ts",
     "promo:stats": "tsx --env-file=.env.local --tsconfig tsconfig.node.json scripts/promo/stats.ts",
+    "promo:strategy": "tsx --tsconfig tsconfig.node.json scripts/promo/strategy.ts",
     "promo:scene": "tsx --tsconfig tsconfig.node.json scripts/promo/scenes/film.ts",
     "dev:campaigns": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/dev-campaigns.ts",
     "scriptorium:print-check": "tsx --tsconfig tsconfig.node.json scripts/scriptorium/print-check.ts",

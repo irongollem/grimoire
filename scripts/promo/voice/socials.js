@@ -310,6 +310,30 @@
     }));
   }
 
+  // ---------- what works ----------
+  const pct = (n, digits = 0) => (n === null || n === undefined ? "-" : `${(n * 100).toFixed(digits)}%`);
+  const orDash = (n, fmt = (v) => String(Math.round(v))) => (n === null || n === undefined ? "-" : fmt(n));
+
+  function renderWorks(works) {
+    const holder = $("soc-works");
+    if (!works.kinds.length) {
+      holder.replaceChildren(el("p", { className: "empty", textContent: "No posts to compare yet." }));
+      return;
+    }
+    const head = ["kind", "posts", "at 24h", "views", "watch", "watched", "likes/reach", "best watched"];
+    const rows = works.kinds.map((k) => [
+      k.kind, k.posts, k.at24h, orDash(k.medianViews), orDash(k.medianWatchS, (v) => `${v.toFixed(1)}s`), pct(k.medianWatchedShare),
+      pct(k.medianLikesPerReach, 1), k.best ? `${k.best.id} ${pct(k.best.watchedShare)}` : "-",
+    ]);
+    const table = el("table", {},
+      el("thead", {}, el("tr", {}, ...head.map((h) => el("th", { textContent: h })))),
+      el("tbody", {}, ...rows.map((r) => el("tr", {}, ...r.map((c) => el("td", { textContent: String(c) }))))));
+    holder.replaceChildren(
+      el("div", { className: "scroll" }, table),
+      el("p", { className: "empty", textContent: `${works.ceiling} Medians use only posts with a snapshot at the 24 hour mark. Watched is average watch time over the video's length.` }),
+      ...works.log.map((entry) => el("pre", { className: "log", textContent: entry })));
+  }
+
   // ---------- load ----------
   async function load() {
     const res = await fetch("/api/socials");
@@ -323,6 +347,11 @@
     renderQueue();
     renderDetail();
     renderRecent();
+    // Its own request: a failure here must not hide the queue.
+    fetch("/api/socials/strategy")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`The server answered ${r.status}`))))
+      .then(renderWorks)
+      .catch((e) => $("soc-works").replaceChildren(el("p", { className: "err", textContent: `Could not read the strategy: ${e.message || e}` })));
   }
 
   // Arrow keys move through the queue.

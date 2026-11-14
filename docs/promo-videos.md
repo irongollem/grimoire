@@ -158,6 +158,24 @@ one day old (`dayMarkDue`; with a post every night that is the same run). A
 failed read is logged and never stops a post. Posts that were older than a
 day when the snapshots began (11 Nov 2026) have no 24h figure.
 
+### Strategy: which kind of post holds people
+
+Every post of a small account gets the same ~100 to 180 views (Instagram's
+first test audience), so views do not separate them; how much of the video is
+watched does. `npm run promo:strategy` reads only `promo-out/stats.jsonl` and
+the disk (no API call) and prints a per-kind table, a per-post table and the
+newest log entries; the Socials tab shows the same under "What works". A post's
+kind comes from its folder (`strategy.ts`, `classifyKind`): `steal-carousel`
+(slides, no manifest), `steal-teaser` (all shots are scenes, id starts
+`steal-`), `living-painting` (all shots are scenes), `short-feature` (a screen
+Reel with `brand: false`, the payoff-first cut), `feature` (the rest);
+YouTube videos are left out. "Watched" is average watch time over the finished
+video's length (above 100% when a looped Reel is rewatched). Medians use only
+posts with a snapshot at the 24h mark; one taken later or earlier is shown as
+`late` or `early` and never compared. The log of what we learned and the
+experiments it started is `scripts/promo/strategy.md`, newest first, edited by
+hand.
+
 ## How it works
 
 - **Filmed where it is safe to show.** Every episode runs in the DM fixture's
