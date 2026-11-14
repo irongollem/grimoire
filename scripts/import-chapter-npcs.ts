@@ -72,7 +72,9 @@ import {
 
 // Defaults for the Kind Country campaign.
 const DEFAULT_USER_ID = "fc8ae595-641f-4127-87ad-03588f3710d1";
-const DEFAULT_CAMPAIGN_ID = "f6220b21-bff2-4419-a8c1-3dd7d6fc371b";
+// Late in the Kind Country, the commercial campaign and the content master since 14 Nov 2026.
+// The table campaign copied from it, "Stay a little longer", is f6220b21-bff2-4419-a8c1-3dd7d6fc371b.
+const DEFAULT_CAMPAIGN_ID = "668080bf-6330-4ff9-8a24-3e9e46a41628";
 const DEFAULT_PARENT_LOCATION = "Sothery";
 
 interface CliArgs {
