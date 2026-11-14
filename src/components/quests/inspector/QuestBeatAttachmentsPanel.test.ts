@@ -52,7 +52,7 @@ describe("QuestBeatAttachmentsPanel", () => {
     const wrapper = shallowMount(QuestBeatAttachmentsPanel, { props: { beat, attachments: [attachment({ id: "a-1" })] } });
     expect(wrapper.get(".sr-only").text()).toBe("Required, present");
     const buttons = wrapper.findAllComponents({ name: "AppButton" });
-    expect(buttons.some((button) => button.props("label") === "Edit")).toBe(true);
+    expect(buttons.some((button) => button.props("label") === "Open")).toBe(true);
     expect(buttons.some((button) => button.props("label") === "Attach")).toBe(false);
   });
 
@@ -63,7 +63,29 @@ describe("QuestBeatAttachmentsPanel", () => {
     expect(wrapper.get(".sr-only").text()).toBe("Required, missing, prep gap");
     const buttons = wrapper.findAllComponents({ name: "AppButton" });
     expect(buttons.some((button) => button.props("label") === "Attach")).toBe(true);
-    expect(buttons.some((button) => button.props("label") === "Edit")).toBe(false);
+    expect(buttons.some((button) => button.props("label") === "Open")).toBe(false);
+  });
+
+  it("Open hands the placement to the owner instead of opening anything itself", async () => {
+    const row = attachment({ id: "a-open" });
+    const wrapper = fullMount([row]);
+    await btn(wrapper, "Open").trigger("click");
+    expect(wrapper.emitted("open")).toEqual([[row]]);
+  });
+
+  it("keeps the add form folded behind the link button until it is pressed", async () => {
+    const wrapper = fullMount();
+    const form = () => wrapper.get('[data-testid="beat-attachment-form"]').element.parentElement as HTMLElement;
+    expect(form().style.display).toBe("none");
+    await btn(wrapper, "Link someone or something").trigger("click");
+    expect(form().style.display).toBe("");
+  });
+
+  it("Attach on a missing placement opens the form on that kind of material", async () => {
+    const wrapper = fullMount([attachment({ id: "a-gap", attachment_type: "npc", target_exists: false })]);
+    await btn(wrapper, "Attach").trigger("click");
+    expect((wrapper.get('[aria-label="Attachment type"]').element as HTMLSelectElement).value).toBe("npc");
+    expect((wrapper.get('[data-testid="beat-attachment-form"]').element.parentElement as HTMLElement).style.display).toBe("");
   });
 
   it("falls back to explaining an optional placement stays out of the prep-gap count when it carries no detail of its own", () => {

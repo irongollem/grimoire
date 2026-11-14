@@ -22,8 +22,8 @@ export const QUEST_SUMMARY_MAX = 280;
  * 600-character prose cap it uses for a character backstory, which is how a
  * five-sentence adventure blurb ended up in a one-line field (#799).
  *
- * `head` becomes `summary`; `tail`, when non-empty, is appended to the
- * opening beat's `dm_content` — prose belongs on a beat, not the quest header.
+ * `head` becomes `summary`; `tail`, when non-empty, is prepended to the
+ * quest's own `dm_content` (#1194), never to a beat and never as a beat of its own.
  *
  * Mirrors the migration's own split (`^[^.!?]*[.!?]`), deliberately unbounded:
  * Postgres caps bounded repetition at 255, so a `{1,280}` quantifier there

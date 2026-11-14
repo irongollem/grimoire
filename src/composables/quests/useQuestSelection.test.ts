@@ -39,9 +39,32 @@ describe("useQuestSelection", () => {
     expect(selection.drawerOpened.value).toBe(true);
   });
 
-  it("is never opened on nothing: open=1 without a beat is a closed drawer", () => {
+  it("opens wide on the quest itself: open=1 with nothing selected", () => {
     route.query = { open: "1" };
+    expect(start().drawerOpened.value).toBe(true);
+  });
+
+  it("a route has no wide part: open=1 with an edge selected is a closed drawer", () => {
+    route.query = { edge: "e1", open: "1" };
     expect(start().drawerOpened.value).toBe(false);
+  });
+
+  it("opening wide with nothing selected asks for the quest's wide part, and a route ignores it", () => {
+    const selection = start();
+    selection.setOpened(true);
+    expect(mocks.replace).toHaveBeenLastCalledWith({ query: { open: "1" } });
+    mocks.replace.mockClear();
+    route.query = { edge: "e1" };
+    selection.setOpened(true);
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("keeps the wide part when another beat is picked from the flow, and drops it for a route", () => {
+    const selection = start();
+    selection.select({ beat: "b2", open: true });
+    expect(mocks.replace).toHaveBeenLastCalledWith({ query: { beat: "b2", open: "1" } });
+    selection.select({ edge: "e1", open: true });
+    expect(mocks.replace).toHaveBeenLastCalledWith({ query: { edge: "e1" } });
   });
 
   it("keeps keys it does not own and drops the retired view key when selecting", () => {
@@ -50,11 +73,11 @@ describe("useQuestSelection", () => {
     expect(mocks.replace).toHaveBeenCalledWith({ query: { thread: "t1", beat: "b2" } });
   });
 
-  it("collapses an opened drawer on the first Esc and deselects on the second", () => {
+  it("deselects on Esc, but leaves a wide drawer to fold itself first", () => {
     route.query = { beat: "b1", open: "1" };
     start();
     esc();
-    expect(mocks.replace).toHaveBeenLastCalledWith({ query: { beat: "b1" } });
+    expect(mocks.replace).not.toHaveBeenCalled();
     route.query = { beat: "b1" };
     esc();
     expect(mocks.replace).toHaveBeenLastCalledWith({ query: {} });

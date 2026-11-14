@@ -86,14 +86,4 @@ describe("quest mark session choice", () => {
     setActivePinia(createPinia());
     expect(useQuestsUiStore().markSessionChoiceFor("camp-a").value).toBe("session-1");
   });
-
-  // Fails if the lens is persisted: a DM would reopen a quest looking through the players' eyes.
-  it("keeps the lens for the session only", async () => {
-    const store = useQuestsUiStore();
-    expect(store.questFlowLens).toBe("dm");
-    store.questFlowLens = "players";
-    await nextTick();
-    setActivePinia(createPinia());
-    expect(useQuestsUiStore().questFlowLens).toBe("dm");
-  });
 });

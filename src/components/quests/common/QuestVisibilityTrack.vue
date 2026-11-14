@@ -13,15 +13,20 @@
       <span v-for="(step, i) in VISIBILITY_STEPS" :key="step" class="flex flex-col items-center gap-1">
         <span class="flex items-center">
           <span v-if="i > 0" :class="[lineBase, lineWidth]" aria-hidden="true" />
+          <!-- The circle is drawn small; the press area around it is not (padding
+               taken back by a negative margin, so the line still meets the circle). -->
           <button
             type="button"
-            :class="[dotBase, dotSize, filled(step) ? 'bg-[var(--live,var(--primary))]' : 'bg-card', belowFloor(step) ? 'cursor-not-allowed opacity-60' : 'cursor-pointer']"
+            class="-m-1.5 rounded-full p-1.5 focus-visible:outline-2 focus-visible:outline-primary"
+            :class="belowFloor(step) ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'"
             :aria-label="step"
             :aria-pressed="step === current"
             :disabled="belowFloor(step)"
             :title="belowFloor(step) ? floorHint : undefined"
             @click="pick(step)"
-          />
+          >
+            <span class="block" :class="[dotBase, dotSize, filled(step) ? 'bg-[var(--live,var(--primary))]' : 'bg-card']" />
+          </button>
         </span>
         <span v-if="size === 'lg'" class="text-caption capitalize" :class="step === current ? 'font-bold text-foreground' : 'text-muted-foreground'">{{ step }}</span>
       </span>

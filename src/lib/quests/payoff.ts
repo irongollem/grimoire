@@ -64,11 +64,13 @@ function delaySuffix(afterDays: number): string {
   return afterDays > 0 ? ` (+${afterDays}d)` : "";
 }
 
-/** `<verb> · on arrival` or `<verb> · on "<route target>"`, the style the
- *  story names: "verb name and condition." */
+/** `<verb> · on arrival`, `<verb> · if it goes wrong` (a rule on the beat's
+ *  failed outcome, which the panel files under "If it goes wrong") or
+ *  `<verb> · on "<route target>"`, the style the story names: "verb name and
+ *  condition." */
 function consequenceCaption(row: QuestConsequence, outgoingEdges: readonly QuestBeatEdge[], beats: readonly QuestBeat[]): string {
   const edge = row.on_edge_id ? outgoingEdges.find((candidate) => candidate.id === row.on_edge_id) : undefined;
-  const condition = edge ? `on "${beatTitle(beats, edge.target_beat_id)}"` : "on arrival";
+  const condition = edge ? `on "${beatTitle(beats, edge.target_beat_id)}"` : row.on_beat_outcome === "failed" ? "if it goes wrong" : "on arrival";
   return `${row.action} · ${condition}${delaySuffix(row.after_days)}`;
 }
 

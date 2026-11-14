@@ -271,8 +271,9 @@ const SPELL_DATA = obj({
 // `QuestObjectiveResult` — one spine shape, two producers.
 //
 // `description`, `notes` and `rewards` are gone rather than deprecated.
-// `quests.description`/`.notes` were dropped by #793 (their prose now lives on
-// a beat) and `quests.rewards` by #799 (loot belongs to the beat that grants
+// `quests.description`/`.notes` were dropped by #793 (their prose lived on a
+// beat; the quest has had its own `dm_content` again since #1194, asked for as
+// `dm_content` above) and `quests.rewards` by #799 (loot belongs to the beat that grants
 // it). `rewards` in particular had gone on being *asked of the model* long
 // after `mapExtractedQuest` stopped reading it — a field extracted, paid for
 // in tokens, and dropped on the floor.
@@ -304,9 +305,16 @@ const QUEST_BEAT = obj({
   faction_names: NULLABLE_STRING_ARRAY,
 });
 
+// A route is a labelled way on: `kind` says whether the party takes one of
+// several ways (choice) or the ways run side by side (parallel), `label` is
+// what the party does, `note` what it costs. All three nullable: a page that
+// only says "then the vault" has none of them.
 const QUEST_ROUTE = obj({
   from: { type: "string" },
   to: { type: "string" },
+  kind: { type: ["string", "null"], enum: ["choice", "parallel", null] },
+  label: NULLABLE_STRING,
+  note: NULLABLE_STRING,
 });
 
 const QUEST_OBJECTIVE = obj({
@@ -319,6 +327,9 @@ const QUEST_OBJECTIVE = obj({
 const QUEST_DATA = obj({
   title: { type: "string" },
   summary: NULLABLE_STRING,
+  // The quest's own notes (premise, goals, themes, prep): the DM-only prose
+  // that is about the whole quest rather than one scene (#1194).
+  dm_content: NULLABLE_STRING,
   beats: nullableArrayOf(QUEST_BEAT),
   routes: nullableArrayOf(QUEST_ROUTE),
   objectives: nullableArrayOf(QUEST_OBJECTIVE),

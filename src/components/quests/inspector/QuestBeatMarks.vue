@@ -1,18 +1,12 @@
 <template>
-  <div class="mt-2 space-y-2">
-    <SegmentedControl :model-value="beat.visibility" size="sm" :options="visibilityOptions" aria-label="Visibility" @update:model-value="setVisibility" />
-    <div class="flex flex-wrap gap-x-4 gap-y-1" role="group" aria-label="Marks">
-      <AppCheckbox :model-value="isEntry" label="Entry" label-role="caption" size="sm" :disabled="isEntry || busy" @update:model-value="markEntry" />
-      <AppCheckbox :model-value="isPartyHere" label="Party here" label-role="caption" size="sm" :disabled="isPartyHere || noThread || busy" @update:model-value="markMoveFor('party_here', $event)" />
-      <AppCheckbox :model-value="isFailed" label="Failed" label-role="caption" size="sm" :disabled="isFailed || noThread || busy" @update:model-value="markMoveFor('failed', $event)" />
-    </div>
-    <div v-if="onArrival.length" class="text-caption">
-      <p class="font-semibold text-foreground">On arrival</p>
-      <ul class="text-muted-foreground"><li v-for="(line, index) in onArrival" :key="index">{{ line }}</li></ul>
-    </div>
-    <div v-if="ifItGoesWrong.length" class="text-caption">
-      <p class="font-semibold text-foreground">If it goes wrong</p>
-      <ul class="text-muted-foreground"><li v-for="(line, index) in ifItGoesWrong" :key="index">{{ line }}</li></ul>
+  <div class="space-y-2">
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+      <div class="flex flex-wrap gap-x-4 gap-y-1" role="group" aria-label="Marks">
+        <AppCheckbox :model-value="isEntry" label="Entry" label-role="caption" size="sm" :disabled="isEntry || busy" @update:model-value="markEntry" />
+        <AppCheckbox :model-value="isPartyHere" label="Party here" label-role="caption" size="sm" :disabled="isPartyHere || noThread || busy" @update:model-value="markMoveFor('party_here', $event)" />
+        <AppCheckbox :model-value="isFailed" label="Failed" label-role="caption" size="sm" :disabled="isFailed || noThread || busy" @update:model-value="markMoveFor('failed', $event)" />
+      </div>
+      <QuestVisibilityTrack class="ml-auto" size="sm" :floor="floor" :model-value="beat.visibility" @update:model-value="setVisibility" />
     </div>
   </div>
 </template>
@@ -20,16 +14,15 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
-import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
-import { useMarkQuestMove, useQuestConsequences, useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
-import { useQuestObjectives, useUpdateQuest } from "@/composables/quests/useQuests";
-import { useShareQuest } from "@/composables/quests/useShareQuest";
+import QuestVisibilityTrack from "../common/QuestVisibilityTrack.vue";
+import { useMarkQuestMove } from "@/composables/quests/useQuestFlow";
+import { useUpdateQuest } from "@/composables/quests/useQuests";
+import { useSetBeatVisibility } from "@/composables/quests/useSetBeatVisibility";
 import { useToast } from "@/composables/useToast";
-import { describeQuestConsequenceAction } from "@/lib/quests/consequences";
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
 import type { QuestBeat, QuestBeatVisibility } from "@/types/quest.types";
 
-const { beat, presentation, entryBeatId = null, threadId = null, sessionId = null } = defineProps<{
+const { beat, presentation, entryBeatId = null, threadId = null, sessionId = null, floor = "hidden" } = defineProps<{
   beat: QuestBeat;
   presentation?: QuestBeatPresentation;
   /** The quest's entry beat. */
@@ -38,39 +31,20 @@ const { beat, presentation, entryBeatId = null, threadId = null, sessionId = nul
   threadId?: string | null;
   /** Null lets the server stamp the open session. */
   sessionId?: string | null;
+  /** The lowest the DM may set what players know (`visibilityFloor()`). */
+  floor?: QuestBeatVisibility;
 }>();
 
 const toast = useToast();
-const updateBeat = useUpdateQuestBeat();
 const updateQuest = useUpdateQuest();
-const { shareIfBeatSeen } = useShareQuest();
+const setBeatVisibility = useSetBeatVisibility();
 const markMoveMutation = useMarkQuestMove();
-const { data: consequences } = useQuestConsequences(computed(() => beat.quest_id));
-const { data: objectives } = useQuestObjectives(computed(() => beat.quest_id));
-
-const visibilityOptions: SegmentedOption<QuestBeatVisibility>[] = [
-  { value: "hidden", label: "Hidden" },
-  { value: "rumored", label: "Rumored" },
-  { value: "revealed", label: "Revealed" },
-];
 
 const isEntry = computed(() => entryBeatId === beat.id);
 const isPartyHere = computed(() => threadId !== null && (presentation?.currentThreadIds.includes(threadId) ?? false));
 const isFailed = computed(() => presentation?.isFailed === true);
 const noThread = computed(() => threadId === null);
 const busy = computed(() => updateQuest.isPending.value || markMoveMutation.isPending.value);
-
-function objectiveLabel(id: string | null): string {
-  if (!id) return "";
-  return objectives.value?.find((objective) => objective.id === id)?.description ?? "Objective removed";
-}
-function linesFor(outcome: "arrived" | "failed"): string[] {
-  return (consequences.value ?? [])
-    .filter((rule) => rule.on_beat_id === beat.id && rule.on_beat_outcome === outcome)
-    .map((rule) => describeQuestConsequenceAction(rule, objectiveLabel));
-}
-const onArrival = computed(() => linesFor("arrived"));
-const ifItGoesWrong = computed(() => linesFor("failed"));
 
 async function run(action: () => Promise<unknown>) {
   try {
@@ -82,11 +56,8 @@ async function run(action: () => Promise<unknown>) {
 
 function setVisibility(visibility: QuestBeatVisibility) {
   if (visibility === beat.visibility) return;
-  void run(async () => {
-    await updateBeat.mutateAsync({ id: beat.id, questId: beat.quest_id, update: { visibility } });
-    // Showing the table a beat of a quest it cannot see would leave the beat nowhere.
-    await shareIfBeatSeen(beat.quest_id, visibility);
-  });
+  // A move sets visibility server-side; only a hand-set step comes through here.
+  void run(() => setBeatVisibility(beat, visibility));
 }
 
 function markEntry(checked: boolean) {

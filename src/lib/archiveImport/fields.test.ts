@@ -47,21 +47,21 @@ describe("fieldsForKind", () => {
     if (f.kind !== "quest") throw new Error("kind");
     expect(f.summary).toBe("A rumour at the mill.");
     expect(typeof f.summary).toBe("string");
-    expect(text(f.beatContent)).toContain("It grows.");
-    expect(text(f.beatContent)).toContain("Objectives");
-    expect(text(f.beatContent)).not.toContain("A rumour at the mill");
+    expect(text(f.notes)).toContain("It grows.");
+    expect(text(f.notes)).toContain("Objectives");
+    expect(text(f.notes)).not.toContain("A rumour at the mill");
 
     const long = fieldsForKind(pageOf(`${"word ".repeat(80)}ends.`), "quest");
     if (long.kind !== "quest") throw new Error("kind");
     expect(long.summary).toBeNull();
-    expect(long.beatContent).toBeDefined();
+    expect(long.notes).toBeDefined();
   });
 
   it("takes a quest's summary from its first paragraph, not a title heading, and does not repeat the rest on the beat", () => {
     const f = fieldsForKind(pageOf("# The Bell\n\nA bell rings. Nobody hears it."), "quest");
     if (f.kind !== "quest") throw new Error("kind");
     expect(f.summary).toBe("A bell rings.");
-    expect(text(f.beatContent).match(/Nobody hears it/g)).toHaveLength(1);
+    expect(text(f.notes).match(/Nobody hears it/g)).toHaveLength(1);
   });
 
   it("only drops a leading Description heading, not a paragraph that says the word", () => {

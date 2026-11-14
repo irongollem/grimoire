@@ -22,9 +22,9 @@ import { collectLinkTargets, resolveArchiveLinks } from "./links";
 import type { ArchiveMentionTarget, ArchivePage, ArchivePageKind, TiptapDoc } from "./types";
 
 export type ArchiveRecordKind = Exclude<ArchivePageKind, "skip">;
-export type ArchiveTable = "npcs" | "locations" | "factions" | "items" | "quests" | "notes" | "quest_beats";
+export type ArchiveTable = "npcs" | "locations" | "factions" | "items" | "quests" | "notes";
 
-export const TABLE_FOR_KIND: Record<ArchiveRecordKind, Exclude<ArchiveTable, "quest_beats">> = {
+export const TABLE_FOR_KIND: Record<ArchiveRecordKind, ArchiveTable> = {
   npc: "npcs",
   location: "locations",
   faction: "factions",
@@ -43,7 +43,7 @@ export interface DocColumn {
   doc: TiptapDoc;
 }
 
-/** Every rich-text column the page fills, per the kind the DM settled. A quest's beat prose is a column of its opening beat. */
+/** Every rich-text column the page fills, per the kind the DM settled. A quest's prose is its own `dm_content`. */
 export function docColumnsOf(fields: ArchiveFields): DocColumn[] {
   switch (fields.kind) {
     case "npc":
@@ -57,7 +57,7 @@ export function docColumnsOf(fields: ArchiveFields): DocColumn[] {
     case "item":
       return fields.description ? [{ table: "items", column: "description", doc: fields.description }] : [];
     case "quest":
-      return fields.beatContent ? [{ table: "quest_beats", column: "dm_content", doc: fields.beatContent }] : [];
+      return fields.notes ? [{ table: "quests", column: "dm_content", doc: fields.notes }] : [];
     case "note":
       return fields.content ? [{ table: "notes", column: "content", doc: fields.content }] : [];
   }
@@ -102,8 +102,7 @@ export function locationTypeOf(page: ArchivePage): LocationType {
 }
 
 /**
- * The columns of the row a page becomes. Quests return the quest row only; the
- * opening beat that carries the prose is built by `openingBeatRow`.
+ * The columns of the row a page becomes.
  */
 export function buildRecordRow(page: ArchivePage, kind: ArchiveRecordKind, ctx: RowContext): BuiltRow {
   const fields = fieldsForKind(page, kind);
@@ -159,6 +158,7 @@ export function buildRecordRow(page: ArchivePage, kind: ArchiveRecordKind, ctx: 
     case "quest": {
       row.title = page.title;
       setIf(row, "summary", fields.summary);
+      setIf(row, "dm_content", docText(fields.notes));
       // The same value a hand-made quest starts with: an imported page is not a live quest on the board.
       row.status = "undiscovered";
       row.tags = page.tags;
@@ -173,17 +173,4 @@ export function buildRecordRow(page: ArchivePage, kind: ArchiveRecordKind, ctx: 
     }
   }
   return { row, notes };
-}
-
-/** The opening beat that holds a quest page's prose (the quest's `summary` is one plain line, so the rest has to live somewhere). */
-export function openingBeatRow(questId: string, campaignId: string, title: string, doc: TiptapDoc): Record<string, unknown> {
-  return {
-    quest_id: questId,
-    campaign_id: campaignId,
-    title,
-    dm_content: storedDoc(doc, noMention),
-    // Written hidden, like every beat: showing it to players is the DM's call per beat.
-    visibility: "hidden",
-    kind: "neutral",
-  };
 }

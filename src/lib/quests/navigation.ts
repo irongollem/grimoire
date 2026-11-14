@@ -12,7 +12,7 @@ export function withQuestReturnTo(path: string, returnTo: string) {
 export interface QuestLinkOptions {
   beat?: string;
   edge?: string;
-  /** Open the drawer on `beat`. */
+  /** Open the drawer wide, on `beat` or (with no beat) on the quest itself. */
   open?: boolean;
   /** Open the drawer on the party's current beat (what "Run" and "Resume" mean). */
   party?: boolean;
@@ -30,7 +30,7 @@ export function questLink(questId: string, opts: QuestLinkOptions = {}): { path:
   if (opts.beat) query.beat = opts.beat;
   if (opts.edge) query.edge = opts.edge;
   if (opts.party) query.open = "party";
-  else if (opts.open && opts.beat) query.open = "1";
+  else if (opts.open && !opts.edge) query.open = "1";
   if (opts.thread) query.thread = opts.thread;
   return { path: `/quests/${questId}`, query };
 }

@@ -29,6 +29,10 @@
     </div>
 
     <AppCheckbox v-model="rightsAttested" size="md" label="I have the right to use this material." />
+    <AppCheckbox v-model="ownWriting" size="md" label="This is my own writing" />
+    <p class="-mt-2 text-caption text-muted-foreground">
+      Kept word for word. Leave it off for a published book: its scenes are put in other words, in full.
+    </p>
 
     <p v-if="submitError" class="text-caption text-destructive">{{ submitError }}</p>
 
@@ -121,6 +125,7 @@ const { estimate: costEstimate, isLoading: costLoading, isError: costErrored } =
 
 const displayName = ref("");
 const rightsAttested = ref(false);
+const ownWriting = ref(false);
 const submitError = ref<string | null>(null);
 
 const canSubmit = computed(
@@ -136,6 +141,7 @@ function resetForm() {
   pasteEditorRef.value?.reset();
   displayName.value = "";
   rightsAttested.value = false;
+  ownWriting.value = false;
   submitError.value = null;
 }
 
@@ -150,6 +156,7 @@ async function submit() {
       displayName: displayName.value.trim(),
       pageCount: pageCount.value,
       rightsAttested: rightsAttested.value,
+      ownWriting: ownWriting.value,
     });
     resetForm();
   } catch (err) {

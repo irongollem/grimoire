@@ -138,9 +138,7 @@ const LOCATION_TYPE_CHUNK = 100;
 function buildDeps(userId: string): ArchiveSweepDeps {
   return {
     insertRow: async (table, row) => {
-      // A beat's owner is its `created_by` column (defaulted to the caller); every other table takes `user_id`.
-      const payload = table === "quest_beats" ? row : { ...row, user_id: userId };
-      const { data, error } = await supabase.from(table).insert(payload).select("id").single();
+      const { data, error } = await supabase.from(table).insert({ ...row, user_id: userId }).select("id").single();
       if (error) {
         if (isQuotaExceeded(error)) return { status: "quota_exceeded" };
         return { status: "failed", message: error.message };

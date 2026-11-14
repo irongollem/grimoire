@@ -1,15 +1,13 @@
 <template>
   <article
     class="quest-flow-node"
-    :class="playersView
-      ? { 'is-selected': selected, 'lens-hidden': visibility === 'hidden', 'lens-rumored': visibility === 'rumored' }
-      : [
-        { 'is-selected': selected, 'is-current': isCurrent, 'is-visited': presentation?.isVisited, 'is-stranded': mark.unreachable, [`fill-${mark.fill}`]: true, 'has-gaps': presentation && !presentation.isReady, 'is-gated': gated },
-        isCurrent ? currentBorderTone?.border : null,
-      ]"
+    :class="[
+      { 'is-selected': selected, 'is-current': isCurrent, 'is-visited': presentation?.isVisited, 'is-stranded': mark.unreachable, [`fill-${mark.fill}`]: true, 'has-gaps': presentation && !presentation.isReady, 'is-gated': gated },
+      isCurrent ? currentBorderTone?.border : null,
+    ]"
   >
     <Handle v-if="editable" type="target" :position="Position.Left" aria-hidden="true" />
-    <QuestBeatBookmark v-if="!playersView" :state="mark.bookmark" class="quest-flow-node__bookmark" />
+    <QuestBeatBookmark :state="mark.bookmark" class="quest-flow-node__bookmark" />
     <button
       type="button"
       class="quest-flow-node__main"
@@ -18,15 +16,15 @@
       @keydown.enter.stop.prevent="emit('open')"
       @keydown.delete.stop.prevent="editable && deletable && emit('delete')"
     >
-      <span v-if="!playersView && partyChips.length" class="quest-flow-node__party-row">
+      <span v-if="partyChips.length" class="quest-flow-node__party-row">
         <span v-for="chip in partyChips" :key="chip.key" class="quest-flow-node__party" :class="chip.textClass">
           <IconParty class="h-3 w-3" aria-hidden="true" />{{ chip.label }}
         </span>
       </span>
       <span class="quest-flow-node__kind">{{ kindEyebrow }}</span>
-      <strong class="quest-flow-node__title">{{ shownTitle }}</strong>
-      <span v-if="!playersView" class="sr-only">{{ mark.label }}</span>
-      <span v-if="!playersView" class="quest-flow-node__facts">
+      <strong class="quest-flow-node__title">{{ title || "Untitled beat" }}</strong>
+      <span class="sr-only">{{ mark.label }}</span>
+      <span class="quest-flow-node__facts">
         <span v-if="isEntry" class="is-entry">Entry</span>
         <span v-if="presentation?.prepGapCount" class="is-gap">{{ presentation.prepGapCount }} prep gap{{ presentation.prepGapCount === 1 ? '' : 's' }}</span>
         <span v-if="presentation?.handoutCount">{{ presentation.handoutCount }} handout{{ presentation.handoutCount === 1 ? '' : 's' }}</span>
@@ -40,6 +38,10 @@
         <span v-if="presentation?.unlocksQuest">unlocks a quest</span>
         <span v-if="reachLabel" :class="reachClass">{{ reachLabel }}</span>
       </span>
+      <span class="quest-flow-node__players">
+        <QuestVisibilityTrack :model-value="players" size="xs" />
+        <span v-if="secret" class="quest-flow-node__secret">secret</span>
+      </span>
     </button>
     <AppButton v-if="editable" label="Add next" size="xs" variant="subtle" @click.stop="emit('create-next')" />
     <Handle v-if="editable" type="source" :position="Position.Right" aria-hidden="true" />
@@ -52,17 +54,18 @@ import { Handle, Position } from "@vue-flow/core";
 import { IconDungeon, IconParty } from "@/lib/icons";
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
 import { threadBadge, type ThreadLike } from "@/lib/quests/threads";
-import { QUEST_BEAT_KIND_LABELS } from "@/types/quest.types";
-import type { QuestFlowLens } from "@/lib/quests/flow";
+import { QUEST_BEAT_KIND_LABELS, type QuestBeatVisibility } from "@/types/quest.types";
 import { beatMark } from "@/lib/quests/beatMark";
+import QuestVisibilityTrack from "../common/QuestVisibilityTrack.vue";
 import QuestBeatBookmark from "./QuestBeatBookmark.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 
-const { title, kind, visibility, current, presentation, editable = true, deletable = true, threads = [], gated = false, isEntry = false, lens = "dm", rumorLine = null } = defineProps<{ lens?: QuestFlowLens; rumorLine?: string | null; title: string; kind: string; visibility: string; selected?: boolean; current?: boolean; presentation?: QuestBeatPresentation; editable?: boolean; deletable?: boolean; threads?: ThreadLike[]; gated?: boolean; isEntry?: boolean }>();
+const { title, kind, visibility, current, presentation, editable = true, deletable = true, threads = [], gated = false, isEntry = false, secret = false } = defineProps<{ secret?: boolean; title: string; kind: string; visibility: string; selected?: boolean; current?: boolean; presentation?: QuestBeatPresentation; editable?: boolean; deletable?: boolean; threads?: ThreadLike[]; gated?: boolean; isEntry?: boolean }>();
 const emit = defineEmits<{ select: []; open: []; delete: []; "create-next": [] }>();
 
 const kindLabel = computed(() => QUEST_BEAT_KIND_LABELS[kind as keyof typeof QUEST_BEAT_KIND_LABELS] ?? kind);
-const kindEyebrow = computed(() => `${kindLabel.value} · ${visibility}`);
+const kindEyebrow = computed(() => kindLabel.value);
+const players = computed(() => visibility as QuestBeatVisibility);
 
 /** One chip per thread standing on this beat, in thread order — a
  *  converge-all beat can legitimately hold more than one before they merge.
@@ -79,12 +82,6 @@ const partyChips = computed(() => {
   return current ? [{ key: "current", label: "Party is here", textClass: "text-primary" }] : [];
 });
 const isCurrent = computed(() => Boolean(current) || partyChips.value.length > 0);
-const playersView = computed(() => lens === "players");
-// A rumored beat shows the party only its rumor, never the DM's title.
-const shownTitle = computed(() => {
-  if (playersView.value && visibility === "rumored") return rumorLine ?? "A rumor";
-  return title || "Untitled beat";
-});
 const mark = computed(() => beatMark(presentation, isEntry, isCurrent.value));
 // The border colour follows whichever thread is first in line — the same
 // order the thread bar and swimlanes use, so a node under two thread borders
@@ -110,10 +107,11 @@ const siteTitle = computed(() => {
 });
 const reachLabel = computed(() => presentation ? REACH_LABELS[presentation.reach] ?? "" : "");
 const reachClass = computed(() => presentation?.reach === "stranded" ? "is-cutoff" : "");
-const accessibleLabel = computed(() => playersView.value ? [shownTitle.value, visibility].join(", ") : [
+const accessibleLabel = computed(() => [
   title || "Untitled beat",
   kindLabel.value,
   visibility,
+  secret ? "secret" : "",
   isEntry ? "quest entry" : "",
   isCurrent.value ? "current beat, party is here" : "",
   mark.value.bookmark === "failed" ? "failed" : "",
@@ -145,12 +143,11 @@ const accessibleLabel = computed(() => playersView.value ? [shownTitle.value, vi
 .quest-flow-node__party-row { display: flex; flex-wrap: wrap; gap: .25rem; justify-content: flex-start; }
 .quest-flow-node__party { display: inline-flex; align-items: center; gap: .25rem; border-radius: 999px; background: var(--muted); padding: .1rem .4rem; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .quest-flow-node.has-gaps { border-color: var(--color-tone-caution); border-style: dashed; }
-/* Players' view: what the party knows. Hidden recedes, rumored keeps only its copy. */
-.quest-flow-node.lens-hidden { background: transparent; box-shadow: none; border-style: dashed; color: var(--muted-foreground); }
-.quest-flow-node.lens-rumored { border-color: var(--color-tone-info); }
 .quest-flow-node.is-gated { border-color: var(--muted-foreground); border-style: dashed; }
 .quest-flow-node__main { display: grid; gap: .25rem; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .quest-flow-node__main:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: .25rem; }
+.quest-flow-node__players { display: flex; align-items: center; gap: .4rem; }
+.quest-flow-node__secret { border-radius: 999px; background: var(--muted); padding: .1rem .35rem; font-size: .7rem; color: var(--muted-foreground); }
 .quest-flow-node__kind { color: var(--muted-foreground); font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; }
 .quest-flow-node__facts { display: flex; flex-wrap: wrap; gap: .3rem; color: var(--muted-foreground); font-size: .7rem; }
 .quest-flow-node__facts span { border-radius: 999px; background: var(--muted); padding: .1rem .35rem; }

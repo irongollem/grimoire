@@ -34,13 +34,12 @@
             :title="slotProps.data.title"
             :kind="slotProps.data.kind"
             :visibility="slotProps.data.visibility"
+            :secret="slotProps.data.secret"
             :selected="slotProps.id === selectedBeatId"
             :current="slotProps.id === currentBeatId"
             :presentation="slotProps.data.presentation"
             :gated="slotProps.data.isGated"
             :is-entry="slotProps.data.isEntry"
-            :lens="lens"
-            :rumor-line="slotProps.data.rumorLine"
             :threads="threads"
             :editable="editable"
             @select="emit('command', { type: 'select', beatId: slotProps.id })"
@@ -87,7 +86,7 @@ import QuestFlowNode from "./QuestFlowNode.vue";
 import QuestFlowEdge from "./QuestFlowEdge.vue";
 import QuestFlowSwimlanes from "./QuestFlowSwimlanes.vue";
 import QuestGraphOutline from "./QuestGraphOutline.vue";
-import { moveBeatCommand, toQuestFlowGraph, type QuestFlowLens, type QuestGraphCommand } from "@/lib/quests/flow";
+import { moveBeatCommand, toQuestFlowGraph, type QuestGraphCommand } from "@/lib/quests/flow";
 import { prefersReducedMotion } from "@/lib/motion";
 import { openingBeatId, QUEST_FLOW_MIN_ZOOM, QUEST_FLOW_READABLE_ZOOM, viewportShowsAnyNode } from "@/lib/quests/viewport";
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
@@ -101,11 +100,11 @@ import type { QuestBeat, QuestBeatEdge, QuestRouteGate } from "@/types/quest.typ
 // needs to fully enclose the node, not hug it exactly.
 const SWIMLANE_NODE_SIZE = { width: 240, height: 150 };
 
-const { graphId, beats, edges, presentations = {}, visitedEdgeIds = new Set<string>(), edgeGates = {}, threads = [], runtime = [], transitions = [], selectedBeatId = null, currentBeatId = null, entryBeatId = null, frameOnOpen = true, initialViewport = null, editable = true, lens = "dm" } = defineProps<{ lens?: QuestFlowLens; graphId: string; beats: QuestBeat[]; edges: QuestBeatEdge[]; presentations?: Record<string, QuestBeatPresentation>; visitedEdgeIds?: ReadonlySet<string>; edgeGates?: Record<string, QuestRouteGate>; threads?: ThreadLike[]; runtime?: SwimlaneRuntimeCursor[]; transitions?: SwimlaneTransition[]; selectedBeatId?: string | null; currentBeatId?: string | null; entryBeatId?: string | null; frameOnOpen?: boolean; initialViewport?: ViewportTransform | null; editable?: boolean }>();
+const { graphId, beats, edges, presentations = {}, visitedEdgeIds = new Set<string>(), edgeGates = {}, threads = [], runtime = [], transitions = [], selectedBeatId = null, currentBeatId = null, entryBeatId = null, frameOnOpen = true, initialViewport = null, editable = true } = defineProps<{ graphId: string; beats: QuestBeat[]; edges: QuestBeatEdge[]; presentations?: Record<string, QuestBeatPresentation>; visitedEdgeIds?: ReadonlySet<string>; edgeGates?: Record<string, QuestRouteGate>; threads?: ThreadLike[]; runtime?: SwimlaneRuntimeCursor[]; transitions?: SwimlaneTransition[]; selectedBeatId?: string | null; currentBeatId?: string | null; entryBeatId?: string | null; frameOnOpen?: boolean; initialViewport?: ViewportTransform | null; editable?: boolean }>();
 const emit = defineEmits<{ command: [command: QuestGraphCommand]; "viewport-change": [viewport: ViewportTransform] }>();
 const flow = useVueFlow(graphId);
 const canvasEl = ref<HTMLElement | null>(null);
-const graph = computed(() => toQuestFlowGraph(beats, edges, presentations, visitedEdgeIds, edgeGates, entryBeatId, lens));
+const graph = computed(() => toQuestFlowGraph(beats, edges, presentations, visitedEdgeIds, edgeGates, entryBeatId));
 const nodes = computed({ get: () => graph.value.nodes, set: () => undefined });
 const flowEdges = computed({ get: () => graph.value.edges, set: () => undefined });
 const swimlanes = computed(() => deriveSwimlanes({ threads, runtime, transitions, beats, nodeSize: SWIMLANE_NODE_SIZE }));
@@ -315,7 +314,6 @@ defineExpose({ fitGraph, focusCurrent });
    edge is both. */
 :deep(.vue-flow__edge.is-closed .vue-flow__edge-path),
 :deep(.vue-flow__edge.is-stranded .vue-flow__edge-path) { stroke: var(--muted-foreground); stroke-width: .1rem; stroke-dasharray: 4 3; }
-:deep(.vue-flow__edge.is-unseen .vue-flow__edge-path) { stroke: var(--muted-foreground); stroke-width: .1rem; stroke-dasharray: 4 3; opacity: .45; }
 :deep(.vue-flow__edge-text) { fill: var(--foreground); }
 :deep(.vue-flow__edge-textbg) { fill: var(--card); }
 :deep(.vue-flow__handle) { background: var(--primary); border-color: var(--card); width: .65rem; height: .65rem; }

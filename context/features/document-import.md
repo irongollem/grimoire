@@ -132,6 +132,20 @@ page cap is load-bearing for the same reason (EU database right — extracting a
 *substantial part* of a compilation), so it is not merely a cost guardrail and
 should not be raised as if it were. Full reasoning on #353.
 
+**Scenes are paraphrased in full, not summarised (#1194).** A quest's beats are
+the DM's table notes, so each scene is put in the model's own words with every
+detail needed to run it (who is here, what they want, what happens, what it
+costs) and no length cap. "Summarise" produced a skeleton a DM could not run
+from. Short fields elsewhere (names, one-line summaries, rumor and reveal copy)
+stay concise.
+
+**"This is my own writing" keeps the words (#1194).** A tick on the paste step and
+the upload step sets `document_imports.own_writing`, and `import-extract` then
+tells the model to keep the DM's prose word for word instead of paraphrasing. It
+is the DM's own text, so the legal reasoning above does not apply; the tick is
+off by default and the helper line under it says a published book's scenes are
+put in other words, in full. Mechanics are copied exactly either way.
+
 **Copy is deliberately neutral.** "Import from a PDF or page photos" — never a
 named book, publisher, or D&D Beyond, anywhere in UI, docs or marketing.
 
@@ -151,6 +165,17 @@ fields the wire schema refuses a `null` for (`QUEST_BEAT` in
 an import that left them empty (as it did until `20261002211019`) handed the DM
 a quest that could not be shared without retyping every beat. See "The spine,
 and its two producers" in [quests.md](quests.md).
+
+**A route says what the party does and what it costs (#1194).** Each route on the
+wire carries `kind` (`choice`, or `parallel` when the party can do both: "if the
+party can do both, it is *and also*"), `label` (what the party does) and `note`
+(what it costs), all nullable because a page that only says "then the vault" has
+none. An approach table is one route per row. `label` replaced `thread_label`.
+
+**The quest's own notes.** The quest carries `dm_content` (premise, goals, themes
+and prep: what belongs to no single scene), written as rich text. The summary's
+overflow, which `splitQuestSummary` used to send to the opening beat, is
+prepended to it, so a long premise lands on the quest rather than on one scene.
 
 ### Pasting is a third source kind, and the box is rich text on purpose (#829)
 
@@ -250,8 +275,9 @@ items, quests, notes. Everything is DM-only, uncapped, one insert per row so a
 quota refusal is reported for that row. A quota refusal stops *that kind* (every
 later row would be refused identically) and the other kinds go on. Quests are
 created like a hand-made one, with the plain one-line `summary`; a quest page's
-prose goes on an **opening beat's `dm_content`** (a hand-made quest creates no
-beat, but `summary` is one plain line and the prose has to live somewhere).
+prose goes in the **quest's own `dm_content`** (#1194), written on the quest row
+itself: a wiki page is about the quest as a whole, not a scene, so no beat is
+created and pass 2 rewrites `quests.dm_content` by the quest's id.
 
 **Mentions resolve in two passes**, because a link can point at a record that
 does not exist yet. Pass 1 inserts every row with each link as its plain label

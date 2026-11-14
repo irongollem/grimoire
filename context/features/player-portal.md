@@ -193,19 +193,18 @@ The site map sits between the thread and the notes; the reference sections
 useful, they are just no longer what the page leads with.
 
 **The objectives are the DM's own rows**, not a copy — the same
-`quest_objectives` the DM ticks, read through `quest_objectives_player_select`
-(`is_player_visible and private.is_quest_player_visible(quest_id)`). Two rules
-about status:
+`quest_objectives` the DM ticks, read through the `quest_objectives_select`
+policy (`status <> 'dormant' and private.is_quest_player_visible(quest_id)`).
+An objective has no visibility column of its own since #1194: it follows its
+beat, and a beat's `raise` is what makes it show. Two rules about status:
 
 - **A failed objective stays visible, shown as failed.** It must not vanish;
   "we lost that one" is a thing a party needs to remember.
-- **A dormant objective never appears**, and needs no filter to make that true.
-  `quest_objectives_dormant_is_hidden CHECK (status <> 'dormant' OR NOT
-  is_player_visible)` from #792 makes the combination unstorable, so the policy's
-  visibility test excludes dormant transitively. #798 deliberately did **not**
-  add `status <> 'dormant'` to the policy: it would be unreachable code inside a
-  security boundary, and the CHECK is the stronger rule because it stops the row
-  existing rather than stopping it being read.
+- **A dormant objective never appears.** The policy itself says
+  `status <> 'dormant'`; since #1194 removed `is_player_visible` there is no
+  second column for a CHECK to bind it to, so the policy is the rule. (Until
+  then #792's `quest_objectives_dormant_is_hidden` CHECK made the pair
+  unstorable and #798 left the filter out of the policy on purpose.)
 
 ### The map fills in
 

@@ -571,7 +571,7 @@ describe("mapExtractedQuest", () => {
 
     // The whole point of #829: a graph arrives as a graph.
     expect(questSpine?.beats).toHaveLength(2);
-    expect(questSpine?.routes).toEqual([{ from: "b1", to: "b2" }]);
+    expect(questSpine?.routes).toEqual([{ from: "b1", to: "b2", kind: "choice", label: null, note: null }]);
     expect(questSpine?.objectives).toHaveLength(2);
     // Boxed text stays on its own field rather than being folded into the DM
     // prose — the distinction a published adventure hands us for free.
@@ -662,22 +662,19 @@ describe("mapExtractedQuest", () => {
     const { row, questSpine } = mapExtractedQuest({ title: "X", summary }, CAMPAIGN_ID, PROVENANCE);
 
     expect(row.summary).toBe("A farmer's daughter vanished near the old mill.");
-    // No beats came back, so one is minted to hold the remainder — the narrow
-    // exception documented on `mapExtractedQuest`. Losing the text instead
-    // would be the #799 regression all over again.
-    expect(questSpine?.beats).toHaveLength(1);
-    expect(questSpine?.beats[0]?.dm_content).toBe(
-      "The miller swears he heard singing at midnight. Something pale has been seen wading the millpond.",
-    );
-    // No word from the original summary is lost between the two fields.
-    expect(`${row.summary} ${questSpine?.beats[0]?.dm_content}`).toBe(summary);
+    // No beats came back and none is minted: the remainder is the quest's
+    // notes, and no word of the original summary is lost between the fields.
+    expect(questSpine).toBeUndefined();
+    expect(`${row.summary} ${row.dm_content}`).toContain("The miller swears he heard singing at midnight.");
+    expect(row.dm_content).toContain("Something pale has been seen wading the millpond.");
   });
 
-  it("prepends the summary's overflow to the first beat's prose, rather than replacing it", () => {
+  it("puts the summary's overflow in the quest's notes, ahead of its own, and leaves every beat alone", () => {
     const { row, questSpine } = mapExtractedQuest(
       {
         title: "X",
         summary: "The party is hired to clear the old mill. It has stood empty for a decade.",
+        dm_content: "Goals: find the miller.",
         beats: [
           { key: "b1", title: "Arrival", kind: "neutral", dm_content: "The mill sits half-swallowed by ivy." },
           { key: "b2", title: "Inside", kind: "explore", dm_content: "Something moves upstairs." },
@@ -688,11 +685,49 @@ describe("mapExtractedQuest", () => {
     );
 
     expect(row.summary).toBe("The party is hired to clear the old mill.");
-    expect(questSpine?.beats[0]?.dm_content).toBe(
-      "It has stood empty for a decade.\n\nThe mill sits half-swallowed by ivy.",
-    );
-    // Only the first beat is touched.
+    const notes = row.dm_content ?? "";
+    expect(notes).toContain("It has stood empty for a decade.");
+    expect(notes).toContain("Goals: find the miller.");
+    expect(notes.indexOf("stood empty")).toBeLessThan(notes.indexOf("Goals"));
+    expect(questSpine?.beats[0]?.dm_content).toBe("The mill sits half-swallowed by ivy.");
     expect(questSpine?.beats[1]?.dm_content).toBe("Something moves upstairs.");
+  });
+
+  it("mints no beat for an overflow when the page has none", () => {
+    const { row, questSpine } = mapExtractedQuest(
+      { title: "X", summary: "Hired to clear the mill. It has stood empty for a decade." },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(questSpine).toBeUndefined();
+    expect(row.dm_content).toContain("stood empty");
+  });
+
+  it("stores no notes when there are none", () => {
+    const { row } = mapExtractedQuest({ title: "X", summary: "Find the lost sword." }, CAMPAIGN_ID, PROVENANCE);
+    expect(row.dm_content).toBeNull();
+  });
+
+  it("keeps a route's kind, label and note; an unknown kind is a choice and a blank label is null", () => {
+    const { questSpine } = mapExtractedQuest(
+      {
+        title: "X",
+        beats: [
+          { key: "a", title: "A", kind: "neutral", dm_content: "" },
+          { key: "b", title: "B", kind: "neutral", dm_content: "" },
+        ],
+        routes: [
+          { from: "a", to: "b", kind: "parallel", label: "  Take the stairs ", note: "Costs a day" },
+          { from: "a", to: "b", kind: "sideways" as unknown as "choice", label: "   ", note: "" },
+        ],
+      },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(questSpine?.routes).toEqual([
+      { from: "a", to: "b", kind: "parallel", label: "Take the stairs", note: "Costs a day" },
+      { from: "a", to: "b", kind: "choice", label: null, note: null },
+    ]);
   });
 
   it("does not mint an overflow beat when the summary is a single sentence", () => {

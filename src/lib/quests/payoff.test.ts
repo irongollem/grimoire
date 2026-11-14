@@ -96,6 +96,20 @@ describe("derivePayoffRows", () => {
     expect(rows[1]!.caption).toBe('shift_npc_relationship · on "He confesses the tithe"');
   });
 
+  // Fails if a failed-outcome rule still captions itself "on arrival" while the panel lists it under "If it goes wrong".
+  it("captions a rule on the beat's failed outcome 'if it goes wrong', not 'on arrival'", () => {
+    const rows = derivePayoffRows({
+      beatId: "beat-fork",
+      consequences: [consequence({ id: "c-fail", on_beat_id: "beat-fork", on_beat_outcome: "failed", action: "grant_knowledge", action_payload: { text: "Alarm" } })],
+      outgoingEdges,
+      beats,
+      loot: [],
+      objectiveLabel,
+    });
+
+    expect(rows[0]!.caption).toBe("grant_knowledge · if it goes wrong");
+  });
+
   it("appends a delay suffix only when the rule is actually delayed", () => {
     const rows = derivePayoffRows({
       beatId: "beat-fork",

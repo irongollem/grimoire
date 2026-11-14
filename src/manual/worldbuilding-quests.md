@@ -3,11 +3,11 @@ title: Quest Log
 section: Quests
 section_order: 3
 order: 0
-summary: The list of every quest in your campaign: finding, filtering and creating one, and the quest panel that describes it as a whole.
-keywords: quest, quests, quest log, kanban, list, quest panel, objectives, clocks, payoffs, consequences, premise, mark, undo, generator, board lane, sub-quest
+summary: The list of every quest in your campaign: finding, filtering and creating one, and the quest drawer that describes it as a whole.
+keywords: quest, quests, quest log, kanban, list, quest drawer, objectives, clocks, payoffs, consequences, premise, mark, undo, generator, board lane, sub-quest
 ---
 
-A quest in Grimoire is not a checklist: it's a small story flow you build once and then run at the table, made of **beats** (things that happen) and **objectives** (what the party is trying to achieve). This page covers the quest list, creating a quest, and the quest panel that describes a quest as a whole. Find it under **Campaign → Quests** in the sidebar (`/quests`).
+A quest in Grimoire is not a checklist: it's a small story flow you build once and then run at the table, made of **beats** (things that happen) and **objectives** (what the party is trying to achieve). This page covers the quest list, creating a quest, and the quest drawer that describes a quest as a whole. Find it under **Campaign → Quests** in the sidebar (`/quests`).
 
 The next two pages in this section go deeper: [Quest Story Flow](#quest-story-flow-beats-routes-objectives) explains beats, routes and objectives with a worked example, and [Running a Quest at the Table](#running-a-quest-at-the-table) covers opening a beat to run it.
 
@@ -16,13 +16,13 @@ The next two pages in this section go deeper: [Quest Story Flow](#quest-story-fl
 | Term | What it means |
 | --- | --- |
 | Beat | A single scene or event in the quest's story: the thing that happened. |
-| Objective | What the party is trying to achieve: raised, revealed, completed or failed by beats. |
+| Objective | What the party is trying to achieve: raised, completed or failed by beats. Players see it once a beat raises it. |
 | Route | A connection from one beat to another; can require one or more objectives to be in particular states before it opens. |
 | Thread | A live marker tracking where the party currently stands in the story. A quest starts with one ("Main") and can run several at once. |
 | Clock | A named progress clock with 2 to 12 segments, ticked by you at the table or by a rule. A full clock fires the rules watching it. |
 | Payoff | What a beat gives: consequences (things that fire automatically) and loot (things you hand over). |
-| Opened beat | One beat pulled open over the flow: what to read, what to run, where the story can go next. |
-| Quest panel | What the quest page shows when nothing on the flow is selected: everything about the quest as a whole. |
+| Drawer | The column on the right of the flow. It shows the quest, a beat or a route, and opens wide from its tab. |
+| Quest drawer | What the quest page shows when nothing on the flow is selected: the quest as a whole. |
 
 ## Finding a quest
 
@@ -43,23 +43,22 @@ A quest the party is in shows **Party is here** on its card, with one progress s
 Click **New Quest** to open the full-page quest editor. Choose how you want to start it, from the segmented control at the top (**Paste a page** and **Design it** only appear when AI is switched on for the campaign):
 
 - **Type it**: fill in **Quest title** (required), a **Starting lane**, and an optional **Premise**, then **Create quest**. The quest is created with one beat, "The rumor," and you land on the quest's page.
-- **Paste a page**: copy a page from an adventure book into the box. Grimoire reads it, proposes a title and premise for the quest (with its story beats and routes already wired from the page's prose, and each beat's **Rumor copy** and **Reveal copy** written for you to check before you share it), and, if the page mentions other things worth keeping, offers to link, create, or ignore any NPCs, locations, or monsters it found, the same review each entity kind gets in Document Import. If your campaign already has a same-titled quest, you're warned before you create a duplicate.
+- **Paste a page**: copy a page from an adventure book into the box. Grimoire reads it, proposes a title and premise for the quest (with its story beats and routes already wired from the page's prose, each route named for what the party does and what it costs, and each beat's **Rumor copy** and **Reveal copy** written for you to check before you share it). The page's premise, goals and prep notes come in as the quest's own notes. Tick **This is my own writing** and your prose is kept word for word; leave it off for a published book, whose scenes are put in other words, in full, and, if the page mentions other things worth keeping, offers to link, create, or ignore any NPCs, locations, or monsters it found, the same review each entity kind gets in Document Import. If your campaign already has a same-titled quest, you're warned before you create a duplicate.
 - **Design it**: a back-and-forth conversation with the AI that proposes a full beat tree from your description. See [Quest Designer (AI)](#quest-designer-ai).
 
 There's a fourth way that doesn't require opening New Quest: click **Generate** on the quest list to open the **Quest Generator** drawer (needs the campaign's AI Assistant switched on). Fill in the party level (read from your party), an optional **Quest Giver**, **Location**, and a free-text **Theme**, then **Generate Quest Hooks**: the button shows its credit cost before you confirm. Grimoire proposes exactly five hooks, each with a premise, suggested objectives, and a preview of its story beats and how they connect. Click **Create Quest** on any hook to land it in your campaign with its beats, routes, and objectives already wired; **View Quest →** and **Build flow →** open it once created.
 
 ## The quest page
 
-A quest is one screen: the story flow, with a panel on its right. Click a beat or a route and the panel shows that; click the empty canvas, or press **Esc**, and it goes back to the quest. The page's address remembers what you selected, so a link or the back button returns you to the same place. The panel's width is yours to drag, and it remembers it for each quest.
+A quest is one screen: the story flow, with a drawer on its right. Click a beat or a route and the drawer shows that; click the empty canvas, or press **Esc**, and it goes back to the quest. The tab on the drawer's left edge opens it wide, with the rest of the quest (or the beat) beside the column; click the tab, the flow strip or anywhere outside to fold it back. The page's address remembers what you selected, so a link or the back button returns you to the same place. The drawer's width is yours to drag, and it remembers it for each quest.
 
-With nothing selected, the **quest panel** holds everything about the quest as a whole, from top to bottom:
+With nothing selected, the **quest drawer** holds the quest as a whole, top to bottom:
 
-- **Details**: the **Premise** (the one-or-two-sentence blurb players see; it autosaves as you type, capped to a length that keeps it one line, with no DM secrets, because it's shown to players as-is), the **Board lane** (the same status the kanban board uses: Undiscovered, Active, Completed, Failed), the **Giver** and **Location** (an NPC and a place), **Part of** (makes this a sub-quest of another, with no depth limit) and **Tags**.
-- **Players**: who can see the quest at all; nothing in it is visible to a player until this names someone. **Preview as…** shows the quest the way one party member sees it.
-- **Threads**, once the quest holds one.
-- **Objectives** and **Clocks**, covered below.
-- **Payoffs**: the quest's own rules, covered below.
-- Your **DM note**, then **sub-quests** and shared notes, then a **Calendar** section.
+- **Players read**: the one-or-two-sentence blurb players see. It autosaves as you type, is capped to a length that keeps it one line, and must hold no DM secrets, because it's shown to players as-is.
+- **Notes**: yours alone. The premise, goals, themes and prep that belong to the whole quest and no single scene. Each beat shows them folded, so you can read them without leaving it.
+- **Objectives**, at the foot, covered below.
+
+Open it wide for the rest: the **Board lane** (the same status the kanban board uses: Undiscovered, Active, Completed, Failed), the **Giver** and **Location** (an NPC and a place), **Part of** (makes this a sub-quest of another, with no depth limit), **Tags**, who can see the quest at all (nothing in it is visible to a player until this names someone), **Clocks**, **Payoffs** (the quest's own rules, covered below) and **Threads**, once the quest holds one.
 
 The beat the story begins at is set on the beat itself: select a beat and tick **Entry**. A quest has one entry, so ticking it on another beat moves it. Grimoire sets it to the first beat you write.
 
@@ -67,10 +66,10 @@ The **More** menu in the page header has **Send to Scriptorium** and **Delete qu
 
 ## Objectives
 
-The quest panel's **Objectives** list is the one place every goal in the quest is tracked. Type into **Add objective…** and press Enter (or click the **+**) to add one. Each row has:
+The **Objectives** list at the foot of the quest drawer is the one place every goal in the quest is tracked, each naming the beat that raises it. A new objective is added from a beat's **When the party gets here** list (**New objective this beat raises**), so it grows from the scene that puts it in play. Each row has:
 
 - A status mark you click to cycle it: **Open → Completed → Failed → Open** (failure sits after completion on purpose, since it's the rarer, more destructive click). An objective starts life as **Open** unless something set it dormant first: a dormant ("not yet raised") objective can only be raised by a beat or a quest-wide rule; you can't click one back into dormant by hand.
-- A reveal/hide toggle: hidden objectives are invisible to players even if the whole quest is shared; a dormant objective can't be revealed until it's raised.
+- No switch for players. An objective follows its beat: players see it once a beat raises it, and not while it is still "not yet raised".
 - A **Set due date** link (see below).
 - A remove (✕) button.
 
@@ -84,11 +83,11 @@ The **Clocks** section holds named progress clocks for the quest: "The ritual co
 
 ## Quest-wide payoffs
 
-The **Payoffs** section of the quest panel lets you write rules that fire automatically: "when this becomes true, do this." Each rule has:
+The **Payoffs** section of the wide quest drawer lets you write rules that fire automatically: "when this becomes true, do this." Each rule has:
 
 - **A condition**: one of **When the quest settles** (nothing left open), **When a clock fills…** (pick the clock), **When an objective becomes…** (pick the objective and the status: Open, Completed, or Failed), or **When a place…** (pick a location and whether it's Explored, Cleared, or Looted).
 - **A delay**: an optional number of in-world days between the condition firing and the action happening.
-- **An action**: grouped **Objective** (Raise, Reveal to players, Complete, Fail: moves another objective) **Clock** (Tick clock), or **World** (Create calendar event, Send broadcast, Shift an NPC's disposition, Unlock a quest, Grant knowledge, Owe a favor, Award a milestone, Give a handout, Move NPC, Add companion, Shift faction standing).
+- **An action**: grouped **Objective** (Raise, Complete, Fail: moves another objective; Raise is also how an objective reaches the players) **Clock** (Tick clock), or **World** (Create calendar event, Send broadcast, Shift an NPC's disposition, Unlock a quest, Grant knowledge, Owe a favor, Award a milestone, Give a handout, Move NPC, Add companion, Shift faction standing).
 
 The newer world actions work like this:
 
@@ -121,11 +120,11 @@ Selecting a route never changes anything by itself; only **Take this route** doe
 
 ## What your players see
 
-Nothing about a quest is visible to players until **Player sharing** names at least one of them. Once shared, the quest appears in their Player Portal journal under the **Quest Log** tab, showing its title, status, premise, visible objectives, and its own story-so-far, covered fully in [Quest Story Flow](#quest-story-flow-beats-routes-objectives).
+Nothing about a quest is visible to players until **Player sharing** names at least one of them. Once shared, the quest appears in their Player Portal journal under the **Quest Log** tab, showing its title, status, premise, the objectives a beat has raised, and its own story-so-far, covered fully in [Quest Story Flow](#quest-story-flow-beats-routes-objectives).
 
 ## Tips
 
-> A quest's premise is capped at one line on purpose: it's what a DM (and a player) reads to remember what the quest is without opening it. Put backstory and lore in the opening beat instead.
+> A quest's premise is capped at one line on purpose: it's what a DM (and a player) reads to remember what the quest is without opening it. Put backstory and lore in the quest's **Notes** or on the beat it belongs to.
 
 - The **Generate** drawer works on every plan, billed to credits, the same as **Type it** and **Paste a page**.
 - Deleting an objective that a consequence targets is safe: the rule that referenced it is cleaned up along with it.

@@ -4,7 +4,7 @@ section: Running the Table
 section_order: 1
 order: 1
 summary: Start a session when the table sits down, and end it when they leave: what changes while it runs, how sessions are numbered, and the Sessions log that remembers every evening.
-keywords: session, play, prep, live, broadcast, reveal, announce, start, end, encounter, soundboard, perform, opened beat, log, number, history, learned, recap
+keywords: session, play, prep, live, broadcast, reveal, announce, start, end, encounter, soundboard, perform, quest drawer, log, number, history, learned, recap
 ---
 
 Grimoire has two halves. Most of the time you are **preparing**: writing NPCs, drawing the map, laying out a quest. That is just the app; it needs no mode and no switch.
@@ -45,7 +45,7 @@ The four things the start dialog lists for you:
 
 - **Reveals announce themselves.** Showing an NPC to the party posts a line into your players' chat: *"The party encounters Sephek Kaltro."* While no session is running, the same reveal is silent.
 - **The deck is ready to play.** On a phone its first four pads sit above the bottom bar, and the Soundboard page opens in Play rather than Build. To rearrange the deck mid-evening, switch that page to Build.
-- **Quests open on the beat the party is standing on**, opened over the flow, instead of on the quest panel.
+- **Quests open on the beat the party is standing on**, in the drawer beside the flow, instead of on the quest as a whole.
 - **The bottom bar reshuffles** on touch devices: table-side sections come first, and the centre button becomes the dice roller instead of ＋.
 
 ## Ending a session
@@ -127,6 +127,6 @@ Below the session control, a small indented list shows everything currently runn
 - [Dashboard](#dashboard): open quest chains, the Next Session countdown and the Sessions widget live here between sessions.
 - [Campaign Notes](#campaign-notes): a session's notes, and how a note is linked to its session.
 - [Soundboard](#soundboard): Arrange vs Perform, and what changes when a session starts.
-- [Running a Quest at the Table](#running-a-quest-at-the-table): the opened beat sessions open quests onto.
+- [Running a Quest at the Table](#running-a-quest-at-the-table): the beat drawer sessions open quests onto.
 - [Campaign Chat](#campaign-chat): where reveal announcements and the session-start line land.
 - [Player Portal: Overview](#player-portal-overview): what players see while a session runs.

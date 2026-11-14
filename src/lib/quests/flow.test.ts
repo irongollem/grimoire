@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyFlowPositions, moveBeatCommand, retainSelectedBeatId, tallyBeatVisibility, toQuestFlowGraph } from "./flow";
+import { applyFlowPositions, moveBeatCommand, retainSelectedBeatId, routeLabelText, toQuestFlowGraph } from "./flow";
 import type { QuestBeat, QuestBeatEdge, QuestRouteGate } from "@/types/quest.types";
 import type { QuestBeatPresentation } from "./presentation";
 
@@ -89,36 +89,11 @@ describe("quest flow adapter", () => {
   });
 });
 
-describe("Players' view lens", () => {
-  const doc = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
-  const rumored = { ...beat("r", 0, 0), visibility: "rumored" as const, rumor_text: doc("Whispers of a mill") };
-  const hidden = { ...beat("h", 0, 0), visibility: "hidden" as const };
-  const revealed = { ...beat("v", 0, 0), visibility: "revealed" as const, rumor_text: doc("old rumor") };
-  const edge = (id: string, target: string) => ({ id, quest_id: "quest", campaign_id: "campaign", source_beat_id: "v", target_beat_id: target, route_kind: "choice", created_by: "dm", created_at: "now" }) as QuestBeatEdge;
-
-  // Fails if the rumor copy is not what the node carries for a rumored beat, or leaks onto the DM's own view.
-  it("carries a rumored beat's first copy line, only in the players' lens", () => {
-    expect(toQuestFlowGraph([rumored], [], {}, new Set(), {}, null, "players").nodes[0]!.data!.rumorLine).toBe("Whispers of a mill");
-    expect(toQuestFlowGraph([rumored], [], {}, new Set(), {}, null, "dm").nodes[0]!.data!.rumorLine).toBeNull();
-  });
-
-  // Fails if a revealed beat is rewritten into its rumor, or a rumored one without copy invents text.
-  it("gives no rumor line to a revealed beat or a rumored beat without copy", () => {
-    const bare = { ...rumored, rumor_text: null };
-    const nodes = toQuestFlowGraph([revealed, bare], [], {}, new Set(), {}, null, "players").nodes;
-    expect(nodes.map((node) => node.data!.rumorLine)).toEqual([null, null]);
-  });
-
-  // Fails if edges into hidden beats stay drawn as solid routes.
-  it("marks only the edges into hidden beats as unseen", () => {
-    const graph = toQuestFlowGraph([revealed, hidden, rumored], [edge("e1", "h"), edge("e2", "r")], {}, new Set(), {}, null, "players");
-    expect(graph.edges.map((e) => e.data!.unseen)).toEqual([true, false]);
-    expect(graph.edges[0]!.class).toContain("is-unseen");
-    expect(toQuestFlowGraph([revealed, hidden], [edge("e1", "h")]).edges[0]!.data!.unseen).toBe(false);
-  });
-
-  // Fails if the toolbar tally miscounts what the party knows.
-  it("tallies revealed, rumored and hidden beats", () => {
-    expect(tallyBeatVisibility([revealed, revealed, rumored, hidden, hidden, hidden])).toEqual({ revealed: 2, rumored: 1, hidden: 3 });
+describe("routeLabelText", () => {
+  // Fails if a choice route's authored label (what the party does) is replaced by the target title.
+  it("prefers the route's own label and falls back to the target", () => {
+    expect(routeLabelText("Bribe the guard", "The gate")).toBe("Bribe the guard");
+    expect(routeLabelText(null, "The gate")).toBe("The gate");
+    expect(routeLabelText("   ", "The gate")).toBe("The gate");
   });
 });

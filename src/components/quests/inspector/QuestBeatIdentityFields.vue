@@ -30,27 +30,14 @@
       </EntityCombobox>
       <AppButton v-else label="Change" size="xs" variant="subtle" @click="editingLocation = true" />
     </div>
-
-    <div class="flex min-w-0 items-center gap-2 rounded-md border border-border p-2 text-caption">
-      <span class="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><IconReveal class="h-3.5 w-3.5" /></span>
-      <div class="min-w-0 flex-1">
-        <p class="text-label-lg font-bold text-foreground">Visibility · {{ QUEST_BEAT_VISIBILITY_LABELS[beat.visibility] }}</p>
-        <p class="truncate text-muted-foreground">{{ QUEST_BEAT_VISIBILITY_CAPTIONS[beat.visibility] }}</p>
-      </div>
-      <AppSelect v-if="editingVisibility" v-model="visibilityInternal" class="w-36 shrink-0" aria-label="Player visibility">
-        <option value="hidden">Hidden</option>
-        <option value="rumored">Rumored</option>
-        <option value="revealed">Revealed</option>
-      </AppSelect>
-      <AppButton v-else label="Edit" size="xs" variant="subtle" @click="editingVisibility = true" />
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 /**
- * Kind / staged-location / Visibility, each saved immediately — the beat
- * page's "Beat" identity editor. Extracted so it can mount from both the
+ * Kind and staged location, each saved immediately — the beat page's "Beat"
+ * identity editor. Visibility is not here any more: the "What players read" track
+ * owns it (#1194). Extracted so it can mount from both the
  * desktop column and the phone "Beat" fold (#872, review fix 2): before this,
  * the block was `hidden lg:grid`-ed away below `lg`, which cost the DM the
  * ability to change any of the three on a phone. `QuestOpenedPrep`
@@ -58,21 +45,19 @@
  * both — the `EntityCombobox` here owns a `Teleport`, and two live copies of
  * the same dropdown is a different bug, not a safety margin.
  *
- * The two "editing" toggles are local rather than lifted to the parent: only
- * one copy of this component is ever mounted at a time, so there is nothing
- * for a second copy to keep in sync with. Selecting a value both saves (via
- * the parent's `kind`/`visibility`/`staged-location-id` models, which still
- * own the actual mutation and its no-op guard) and closes the toggle, exactly
- * as the single desktop-only computed setter used to do both at once.
+ * The location toggle is local rather than lifted to the parent: only one
+ * copy of this component is ever mounted at a time. Selecting a value both
+ * saves (via the parent's `kind`/`staged-location-id` models, which still own
+ * the actual mutation and its no-op guard) and closes the toggle.
  */
 import { computed, ref, watch } from "vue";
-import { QUEST_BEAT_KINDS, type QuestBeat, type QuestBeatVisibility } from "@/types/quest.types";
-import { questBeatKindLabel, QUEST_BEAT_VISIBILITY_CAPTIONS, QUEST_BEAT_VISIBILITY_LABELS } from "@/lib/quests/presentation";
+import { QUEST_BEAT_KINDS, type QuestBeat } from "@/types/quest.types";
+import { questBeatKindLabel } from "@/lib/quests/presentation";
 import type { LocationSummary } from "@/types/location.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
-import { IconLocation, IconQuest, IconReveal } from "@/lib/icons";
+import { IconLocation, IconQuest } from "@/lib/icons";
 
 type LocationOption = LocationSummary & { depth: number };
 
@@ -84,19 +69,13 @@ const { beat, kindOptions, locationOptions, stagedLocationName, stagedSiteCaptio
   stagedSiteCaption: string;
 }>();
 const kind = defineModel<string>("kind", { required: true });
-const visibility = defineModel<QuestBeatVisibility>("visibility", { required: true });
 const stagedLocationId = defineModel<string>("stagedLocationId", { required: true });
 
 const editingLocation = ref(false);
-const editingVisibility = ref(false);
-watch(() => beat.id, () => { editingLocation.value = false; editingVisibility.value = false; });
+watch(() => beat.id, () => { editingLocation.value = false; });
 
 const stagedLocationIdInternal = computed<string>({
   get: () => stagedLocationId.value,
   set: (next) => { editingLocation.value = false; stagedLocationId.value = next; },
-});
-const visibilityInternal = computed<QuestBeatVisibility>({
-  get: () => visibility.value,
-  set: (next) => { editingVisibility.value = false; visibility.value = next; },
 });
 </script>

@@ -38,8 +38,8 @@ export interface QuestFields {
    * enough; the DM writes one.
    */
   summary: string | null;
-  /** Prose that does not fit the one-liner, for the opening beat's `dm_content` (rich text). */
-  beatContent?: TiptapDoc;
+  /** Prose that does not fit the one-liner, for the quest's own `dm_content` (rich text). */
+  notes?: TiptapDoc;
 }
 export interface NoteFields {
   kind: "note";
@@ -167,12 +167,12 @@ function questFields(page: ArchivePage): QuestFields {
     leftover = page.body.content;
   }
   const { head, tail } = splitQuestSummary(source);
-  // A premise longer than one sentence keeps its tail: it is prose and belongs on the beat.
+  // A premise longer than one sentence keeps its tail: it is prose and belongs in the quest's notes.
   const tailNodes: TiptapNode[] = tail && premise ? [{ type: "paragraph", content: [{ type: "text", text: tail }] }] : [];
   // splitQuestSummary refuses a over-long head (null head, whole text as tail), so the cap always holds.
   const summary = head && head.length <= QUEST_SUMMARY_MAX ? head : null;
   const doc = docOf([...tailNodes, ...leftover]);
-  return doc ? { kind: "quest", summary, beatContent: doc } : { kind: "quest", summary };
+  return doc ? { kind: "quest", summary, notes: doc } : { kind: "quest", summary };
 }
 
 function noteFields(page: ArchivePage): NoteFields {

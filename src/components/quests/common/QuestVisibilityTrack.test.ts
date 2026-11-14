@@ -27,7 +27,7 @@ describe("QuestVisibilityTrack", () => {
 
   it("fills every step up to the current one", () => {
     const w = mount(QuestVisibilityTrack, { props: { modelValue: "rumored" } });
-    expect(buttons(w).map((b) => b.classes().includes("bg-card"))).toEqual([false, false, true]);
+    expect(buttons(w).map((b) => b.get("span").classes().includes("bg-card"))).toEqual([false, false, true]);
   });
 
   it("marks only the current step pressed and disables steps under the floor", () => {

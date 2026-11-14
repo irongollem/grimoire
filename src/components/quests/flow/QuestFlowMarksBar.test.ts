@@ -137,11 +137,4 @@ describe("QuestFlowMarksBar", () => {
     expect(select.attributes("disabled")).toBeDefined();
     expect(select.text()).toBe("No sessions yet");
   });
-
-  // Fails if the lens control does not write the store the canvas reads.
-  it("switches the lens", async () => {
-    const wrapper = mountBar();
-    await wrapper.findAll("button").find((b) => b.text().includes("Players' view"))!.trigger("click");
-    expect(useQuestsUiStore().questFlowLens).toBe("players");
-  });
 });

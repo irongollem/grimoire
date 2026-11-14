@@ -492,7 +492,7 @@ serve(withCors(async (req: Request) => {
   // name someone else's staging row.
   const { data: importRow } = await admin
     .from("document_imports")
-    .select("id, campaign_id, source_kind, source_paths, source_text, page_count, display_name, status")
+    .select("id, campaign_id, source_kind, source_paths, source_text, page_count, display_name, status, own_writing")
     .eq("id", documentImportId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -713,10 +713,13 @@ serve(withCors(async (req: Request) => {
   // final content block regardless of how many document/image parts precede
   // it, so an empty `parts` array degrades a document/vision call into a
   // plain text-only one for free, no changes needed there.
-  const instruction = importRow.source_kind === "text"
-    ? `Extract every entity you can find from the following source text and return them as JSON matching the provided schema. ${TEXT_SOURCE_GUIDANCE}\n\n---\n${sourceText}`
-    : `Extract every entity you can find from the attached ${importRow.source_kind === "pdf" ? "PDF document" : "page photographs"} ` +
-      `and return them as JSON matching the provided schema. There ${actualPageCount === 1 ? "is 1 page" : `are ${actualPageCount} pages`}.`;
+  const instruction = buildInstruction({
+    sourceKind: importRow.source_kind,
+    sourceText,
+    pageCount: actualPageCount,
+    ownWriting: importRow.own_writing,
+    textGuidance: TEXT_SOURCE_GUIDANCE,
+  });
 
   let outcome: Awaited<ReturnType<typeof callDocument>>;
   try {

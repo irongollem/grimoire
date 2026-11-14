@@ -12,8 +12,9 @@ function queryString(value: unknown): string | null {
  * party's beat, traded for a plain `beat` + `open=1` as soon as it resolves.
  * A link, a bookmark and the back button then all say what the screen says.
  *
- * Esc collapses an opened drawer to the beat summary; a second press deselects.
- * It goes through the hotkey registry, which already ignores text fields.
+ * Esc deselects. Folding a wide drawer back is the drawer's own Esc (page layer,
+ * which shadows this global one while it is wide), so one press folds and the
+ * next deselects. Both go through the hotkey registry, which ignores text fields.
  */
 export function useQuestSelection(options: {
   /** The party's beat on `thread` (null: the primary live thread); null until the runtime answers. */
@@ -26,7 +27,7 @@ export function useQuestSelection(options: {
 
   const selectedBeatId = computed(() => queryString(route.query.beat));
   const selectedEdgeId = computed(() => (selectedBeatId.value ? null : queryString(route.query.edge)));
-  const drawerOpened = computed(() => route.query.open === "1" && !!selectedBeatId.value);
+  const drawerOpened = computed(() => route.query.open === "1" && !selectedEdgeId.value);
 
   /**
    * Replaces rather than pushes: picking a beat is not a place to go back to.
@@ -38,22 +39,18 @@ export function useQuestSelection(options: {
     const query: Record<string, typeof route.query[string]> = { ...rest };
     if (next.beat) query.beat = next.beat;
     else if (next.edge) query.edge = next.edge;
-    if (next.beat && next.open) query.open = "1";
+    if (next.open && !next.edge) query.open = "1";
     void router.replace({ query });
   }
 
   function setOpened(open: boolean) {
-    if (selectedBeatId.value) select({ beat: selectedBeatId.value, open });
-  }
-
-  function escape() {
-    if (drawerOpened.value) setOpened(false);
-    else select({});
+    if (selectedEdgeId.value) return;
+    select({ beat: selectedBeatId.value, open });
   }
 
   useHotkeys(
-    [{ combo: "Escape", description: "Close the beat, then deselect", hidden: true, handler: escape }],
-    { enabled: () => !!selectedBeatId.value || !!selectedEdgeId.value },
+    [{ combo: "Escape", description: "Deselect", hidden: true, handler: () => select({}) }],
+    { layer: "global", enabled: () => (!!selectedBeatId.value || !!selectedEdgeId.value) && !drawerOpened.value },
   );
 
   watch([() => route.query.open, options.partyBeatSource], ([open]) => {

@@ -5,12 +5,7 @@
     <div class="flex shrink-0 flex-wrap items-center gap-2">
       <h2 class="sr-only">Story flow</h2>
       <div>
-        <p v-if="playersView" class="flex flex-wrap items-center gap-1" aria-label="What the party knows">
-          <span class="rounded bg-tone-success/15 px-1.5 py-0.5 text-label uppercase text-ink-success">{{ visibilityTally.revealed }} revealed</span>
-          <span class="rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info">{{ visibilityTally.rumored }} rumored</span>
-          <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ visibilityTally.hidden }} hidden</span>
-        </p>
-        <p v-else-if="tallyTotal" class="flex flex-wrap items-center gap-1" aria-label="Story flow progress">
+        <p v-if="tallyTotal" class="flex flex-wrap items-center gap-1" aria-label="Story flow progress">
           <span v-if="reachTally.visited" class="rounded bg-tone-success/15 px-1.5 py-0.5 text-label uppercase text-ink-success">{{ reachTally.visited }} visited</span>
           <span v-if="liveThreadCount" class="rounded bg-primary/15 px-1.5 py-0.5 text-label uppercase text-primary">{{ liveThreadCount }} live</span>
           <TagChip v-if="reachTally.ahead" class="uppercase">{{ reachTally.ahead }} ahead</TagChip>
@@ -86,47 +81,55 @@
           :initial-viewport="initialViewport"
           :frame-on-open="!initialViewport"
           :editable="true"
-          :lens="ui.questFlowLens"
           @command="onCommand"
           @viewport-change="writeQuestViewport(questId, $event)"
         />
       </div>
-      <QuestDrawer :quest-id="questId" :mode="drawerMode" :opened="drawerOpened" @update:opened="setOpened" @deselect="select({})">
-        <template #quest>
-          <QuestPanel v-if="quest" :quest="quest" :players-first="playersView" :current-beat-id-by-thread="currentBeatIdByThread" :visited-count-by-thread="visitedCountByThread" @focus-thread="focusThread" />
-        </template>
-        <template #route>
-          <QuestRoutePanel
-            v-if="selectedEdge"
-            v-model:route-kind="edgeRouteKind"
-            v-model:thread-label="edgeThreadLabel"
-            v-model:gate-mode="edgeGateMode"
-            v-model:conditions="edgeGateConditions"
-            :gate-preview="edgeGatePreview"
-            :source-title="beatTitle(selectedEdge.source_beat_id)"
-            :target-title="beatTitle(selectedEdge.target_beat_id)"
-            :objective-options="objectiveOptions"
-            :effects="selectedEdgeEffects"
-            :edit-to="questLinkHref(questId, { beat: selectedEdge.source_beat_id, open: true })"
-            :can-be-parallel="canSelectedEdgeBeParallel"
-            :saving="edgeSaving"
-            :error="mutationError"
-            :edge="selectedEdge"
-            :edges="edges"
-            :beats="beats"
-            :target-staging="selectedEdgeTargetStaging"
-            :thread-id="focusThreadId || null"
+      <QuestDrawer
+        :quest-id="questId"
+        :mode="drawerMode"
+        :open="drawerOpened"
+        :title="drawerTitle"
+        :subtitle="drawerSubtitle"
+        @update:open="setOpened"
+        @deselect="select({})"
+      >
+        <template #column>
+          <QuestRouteColumn
+            v-if="drawerMode === 'route' && selectedEdgeId"
+            :key="selectedEdgeId"
+            :quest-id="questId"
+            :edge-id="selectedEdgeId"
+            :thread-id="focusThreadId"
             :session-id="markSession.sessionId.value"
-            @save="saveEdge"
-            @delete="deleteSelectedEdge"
+            @deselect="select({})"
+            @deleted="select({})"
+            @select-beat="select({ beat: $event, open: drawerOpened })"
           />
+          <QuestBeatColumn
+            v-else-if="drawerMode === 'beat' && selectedBeatId"
+            :key="selectedBeatId"
+            ref="beatColumn"
+            v-model:editing="editingBeatText"
+            :quest-id="questId"
+            :beat-id="selectedBeatId"
+            :quest="quest"
+            :threads="threads"
+            :focus-thread-id="focusThreadId"
+            :current-beat-id-by-thread="currentBeatIdByThread"
+            :presentations="presentations"
+            :entry-beat-id="entryBeatId"
+            :session-id="markSession.sessionId.value"
+            :staging="selectedBeatStaging"
+            @deselect="select({})"
+            @select-beat="select({ beat: $event, open: drawerOpened })"
+            @select-edge="select({ edge: $event })"
+          />
+          <QuestColumn v-else-if="quest" :quest="quest" @select-beat="select({ beat: $event, open: drawerOpened })" />
         </template>
-        <template #beat>
-          <QuestSelectedBeatPanel v-if="selectedBeat" :beat="selectedBeat" :presentation="presentations[selectedBeat.id]" :staging="selectedBeatStaging" :entry-beat-id="entryBeatId" :thread-id="focusThreadId || null" :session-id="markSession.sessionId.value" @preview="openPreview({ draftVisibility: selectedBeat.visibility, savedVisibility: selectedBeat.visibility, unsaved: false })" />
-        </template>
-        <template #opened>
-          <QuestOpenedBeat
-            v-if="selectedBeatId"
+        <template #wide>
+          <QuestBeatWide
+            v-if="drawerMode === 'beat' && selectedBeatId"
             :key="selectedBeatId"
             :quest-id="questId"
             :beat-id="selectedBeatId"
@@ -135,10 +138,10 @@
             :focus-thread-id="focusThreadId"
             :current-beat-id-by-thread="currentBeatIdByThread"
             :presentations="presentations"
-            :visible-to="visibleTo"
-            :session-id="markSession.sessionId.value"
-            @collapse="setOpened(false)"
+            @edit-text="editingBeatText = true"
+            @advance="beatColumn?.openAdvance()"
           />
+          <QuestWide v-else-if="drawerMode === 'quest' && quest" :quest="quest" :current-beat-id-by-thread="currentBeatIdByThread" :visited-count-by-thread="visitedCountByThread" @focus-thread="focusThread" />
         </template>
       </QuestDrawer>
     </div>
@@ -146,15 +149,6 @@
     <p v-if="saveError" role="alert" class="text-caption text-destructive">
       The last position could not be saved and was restored. {{ saveError }}
     </p>
-    <QuestPlayerPreviewDrawer
-      v-if="previewOpen"
-      :quest-id="questId"
-      :visible-to="visibleTo"
-      :selected-beat-id="selectedBeat?.id"
-      :saved-visibility="previewContext?.savedVisibility"
-      :draft-visibility="previewContext?.draftVisibility"
-      @close="previewOpen = false"
-    />
   </section>
 </template>
 
@@ -170,14 +164,12 @@ import {
   useArchiveQuestBeat,
   useCreateQuestBeatWithRoute,
   useCreateQuestBeatEdge,
-  useDeleteQuestBeatEdge,
   useQuestBeatEdges,
   useQuestBeats,
   useQuestBeatTransitionsForQuest,
   useQuestConsequences,
   useQuestRuntimeContext,
   useUpdateQuestBeatEdge,
-  useSetQuestRouteGate,
   useSetQuestBeatPositions,
 } from "@/composables/quests/useQuestFlow";
 import { useQuestThreads } from "@/composables/quests/useQuestThreads";
@@ -186,22 +178,18 @@ import { useAllLocations } from "@/composables/locations/useLocations";
 import { useLocationDescriptions } from "@/composables/locations/useLocationDescriptions";
 import { useSiteBeatGaps } from "@/composables/quests/useSiteBeatGaps";
 import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
-import { questLinkHref } from "@/lib/quests/navigation";
 import { deriveQuestBeatPresentations, presentableBeatOf, tallyQuestReach, visitedRouteEdgeIds, type QuestBeatSiteInput, type QuestBeatStaging } from "@/lib/quests/presentation";
-import { deriveQuestRouteGates, draftRouteGate, validateGateDrafts, type GateConditionDraft } from "@/lib/quests/gates";
+import { deriveQuestRouteGates } from "@/lib/quests/gates";
 import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
 import { readQuestViewport, writeQuestViewport } from "@/lib/quests/viewport";
 import { extractTiptapText } from "@/lib/utils";
 import { useQuestSelection } from "@/composables/quests/useQuestSelection";
-import { retainSelectedBeatId, tallyBeatVisibility, type QuestGraphCommand } from "@/lib/quests/flow";
+import { retainSelectedBeatId, type QuestGraphCommand } from "@/lib/quests/flow";
 import { isDuplicateQuestEdge } from "@/lib/quests/mutations";
 import { defaultThreadId } from "@/lib/quests/threads";
 import { deriveQuestConsistency } from "@/lib/quests/consistency";
 import { useCampaignStore } from "@/stores/campaign";
-import { useQuestsUiStore } from "@/stores/ui/quests";
 import { useQuestMarkSession } from "@/composables/quests/useQuestMarkSession";
-import { useConfirm } from "@/composables/useConfirm";
-import { type QuestBeat, type QuestGateMode, type QuestRouteEffect, type QuestRouteKind } from "@/types/quest.types";
 import type { LocationSummary } from "@/types/location.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
@@ -210,18 +198,19 @@ import QuestFlowCanvas from "./QuestFlowCanvas.vue";
 import QuestBeatComposer from "../inspector/QuestBeatComposer.vue";
 import QuestGapMenu, { type QuestGapRow } from "./QuestGapMenu.vue";
 import QuestFlowMarksBar from "./QuestFlowMarksBar.vue";
-import QuestPanel from "../panel/QuestPanel.vue";
 import QuestDrawer from "./QuestDrawer.vue";
-import QuestOpenedBeat from "../opened/QuestOpenedBeat.vue";
-import QuestRoutePanel from "../inspector/QuestRoutePanel.vue";
-import QuestSelectedBeatPanel from "../inspector/QuestSelectedBeatPanel.vue";
-import QuestPlayerPreviewDrawer from "../run/QuestPlayerPreviewDrawer.vue";
+import QuestColumn from "../drawer/QuestColumn.vue";
+import QuestWide from "../drawer/QuestWide.vue";
+import QuestBeatColumn from "../drawer/QuestBeatColumn.vue";
+import QuestBeatWide from "../drawer/QuestBeatWide.vue";
+import QuestRouteColumn from "../drawer/QuestRouteColumn.vue";
 
-const { questId, visibleTo = [], focusCurrentOnOpen = false, entryBeatId = null } = defineProps<{ questId: string; visibleTo?: string[]; focusCurrentOnOpen?: boolean; entryBeatId?: string | null }>();
+const { questId, focusCurrentOnOpen = false, entryBeatId = null } = defineProps<{ questId: string; focusCurrentOnOpen?: boolean; entryBeatId?: string | null }>();
 const canvas = ref<InstanceType<typeof QuestFlowCanvas> | null>(null);
+const beatColumn = ref<InstanceType<typeof QuestBeatColumn> | null>(null);
+/** The beat column's text form is open; the wide part's "Edit text" asks for it. */
+const editingBeatText = ref(false);
 const saveError = ref("");
-const previewOpen = ref(false);
-const previewContext = ref<{ draftVisibility: QuestBeat["visibility"]; savedVisibility: QuestBeat["visibility"]; unsaved: boolean } | null>(null);
 const initialViewport = readQuestViewport(questId);
 const questIdRef = computed(() => questId);
 
@@ -235,15 +224,13 @@ const lootQuery = useLootPlacements({ questId: questIdRef });
 const threadsQuery = useQuestThreads(questIdRef);
 const consequencesQuery = useQuestConsequences(questIdRef);
 const allLocationsQuery = useAllLocations();
-const ui = useQuestsUiStore();
 const markSession = useQuestMarkSession();
-const playersView = computed(() => ui.questFlowLens === "players");
 const quest = computed(() => questQuery.data.value ?? null);
 const threads = computed(() => threadsQuery.data.value ?? []);
 // The context is fetched by one thread id, but its `threads[]` carries every
 // thread's own cursor — this is the one round trip that answers "where does
 // each of this quest's threads stand right now."
-const focusThreadId = computed(() => defaultThreadId(threads.value) ?? "");
+const focusThreadId = computed(() => defaultThreadId(threads.value));
 const runtimeContextQuery = useQuestRuntimeContext(questIdRef, focusThreadId);
 const transitionsQuery = useQuestBeatTransitionsForQuest(questIdRef);
 const setPositions = useSetQuestBeatPositions();
@@ -251,22 +238,12 @@ const createBeatWithRoute = useCreateQuestBeatWithRoute();
 const archiveBeat = useArchiveQuestBeat();
 const createEdge = useCreateQuestBeatEdge();
 const updateEdge = useUpdateQuestBeatEdge();
-const deleteEdge = useDeleteQuestBeatEdge();
-const setRouteGate = useSetQuestRouteGate();
 const campaign = useCampaignStore();
-const { confirm } = useConfirm();
-
-function openPreview(context: { draftVisibility: QuestBeat["visibility"]; savedVisibility: QuestBeat["visibility"]; unsaved: boolean }) {
-  previewContext.value = context;
-  previewOpen.value = true;
-}
 
 const beats = computed(() => beatsQuery.data.value ?? []);
 const edges = computed(() => edgesQuery.data.value ?? []);
 const edgeGates = computed(() => edgeGatesQuery.data.value ?? []);
 const objectives = computed(() => objectivesQuery.data.value ?? []);
-const objectiveOptions = computed(() => objectives.value.map((objective) => ({ id: objective.id, name: objective.description })));
-const objectiveDescriptionById = computed(() => new Map(objectives.value.map((objective) => [objective.id, objective.description])));
 // Joined here rather than server-side (unlike Run mode's `outgoing.gate`)
 // because Build mode edits the gate rather than only reading it — the pill
 // and the editor's pre-fill share this one derivation.
@@ -311,10 +288,6 @@ function stagingFor(stagedId: string | null | undefined): QuestBeatStaging | nul
   const inSite = site && site.id !== staged.id ? site : null;
   return { locationId: staged.id, name: staged.name, siteId: inSite?.id ?? null, siteName: inSite?.name ?? null };
 }
-const selectedEdgeTargetStaging = computed(() => {
-  const targetId = selectedEdge.value?.target_beat_id;
-  return stagingFor(beats.value.find((beat) => beat.id === targetId)?.staged_at_location_id);
-});
 const selectedBeatStaging = computed<QuestBeatStaging | null>(() => {
   return stagingFor(selectedBeat.value?.staged_at_location_id);
 });
@@ -384,13 +357,15 @@ const currentBeatId = computed(() => runtimeContextQuery.data.value?.state?.curr
 // earlier call hit `currentBeatIdByThread` in its temporal dead zone and the
 // whole screen failed to mount.
 const { selectedBeatId, selectedEdgeId, drawerOpened, select, setOpened } = useQuestSelection({
-  partyBeatFor: (thread) => currentBeatIdByThread.value[thread ?? focusThreadId.value] ?? currentBeatId.value,
+  partyBeatFor: (thread) => {
+    const id = thread ?? focusThreadId.value;
+    return (id ? currentBeatIdByThread.value[id] : undefined) ?? currentBeatId.value;
+  },
   partyBeatSource: () => [currentBeatIdByThread.value, currentBeatId.value],
 });
 const liveThreadCount = computed(() => threads.value.filter((thread) => thread.status === "live").length);
 
 const selectedBeat = computed(() => beats.value.find((beat) => beat.id === selectedBeatId.value) ?? null);
-const visibilityTally = computed(() => tallyBeatVisibility(beats.value));
 const reachTally = computed(() => tallyQuestReach(presentations.value));
 const tallyTotal = computed(() => reachTally.value.visited + reachTally.value.ahead + reachTally.value.stranded + liveThreadCount.value + gapRows.value.length);
 // Every gap in one list: each beat's own prep gaps, then the wiring findings a
@@ -427,41 +402,6 @@ const presentations = computed(() => deriveQuestBeatPresentations({
 const visitedEdgeIds = computed(() => visitedRouteEdgeIds(edges.value, transitions.value));
 const isLoading = computed(() => beatsQuery.isLoading.value || edgesQuery.isLoading.value || attachmentsQuery.isLoading.value || lootQuery.isLoading.value);
 const selectedEdge = computed(() => edges.value.find((edge) => edge.id === selectedEdgeId.value) ?? null);
-const edgeRouteKind = ref<QuestRouteKind>("choice");
-const edgeThreadLabel = ref("");
-const edgeGateMode = ref<QuestGateMode>("all");
-const edgeGateConditions = ref<GateConditionDraft[]>([]);
-const edgeGatePreview = computed(() => draftRouteGate(edgeGateConditions.value, edgeGateMode.value, objectives.value));
-const edgeSaving = ref(false);
-const selectedEdgeEffects = computed<QuestRouteEffect[]>(() => {
-  const edge = selectedEdge.value;
-  if (!edge) return [];
-  return consequences.value
-    .filter((consequence) => consequence.on_edge_id === edge.id)
-    .map((consequence) => ({
-      action: consequence.action,
-      objective: consequence.target_objective_id ? objectiveDescriptionById.value.get(consequence.target_objective_id) ?? null : null,
-      after_days: consequence.after_days,
-    }));
-});
-// Switching this route to parallel is only safe when the beat it leaves keeps
-// somewhere else to send the cursor — the same invariant the composer
-// enforces when a route is created from scratch.
-const canSelectedEdgeBeParallel = computed(() => {
-  const edge = selectedEdge.value;
-  if (!edge) return false;
-  if (edge.route_kind === "parallel") return true;
-  return edges.value.some((candidate) => candidate.id !== edge.id && candidate.source_beat_id === edge.source_beat_id && candidate.route_kind === "choice");
-});
-watch(selectedEdge, (edge) => {
-  edgeRouteKind.value = edge?.route_kind ?? "choice";
-  edgeThreadLabel.value = edge?.label ?? "";
-  edgeGateMode.value = edge?.gate_mode ?? "all";
-  edgeGateConditions.value = edge
-    ? edgeGates.value.filter((gate) => gate.edge_id === edge.id).map((gate) => ({ key: gate.id, gateId: gate.id, objectiveId: gate.objective_id, statuses: [...gate.statuses] }))
-    : [];
-});
-
 const composer = ref<{ sourceBeatId?: string; parallel: boolean; x: number; y: number } | null>(null);
 const composerSaving = ref(false);
 const composerError = ref("");
@@ -495,6 +435,11 @@ const savePositions = useDebounceFn(flushPositions, 300, { maxWait: 1000 });
 
 // What the closed drawer shows.
 const drawerMode = computed<"quest" | "beat" | "route">(() => (selectedEdge.value ? "route" : selectedBeat.value ? "beat" : "quest"));
+// The phone page the drawer opens to, when wide: the beat's title under the quest's, else the quest's.
+const drawerTitle = computed(() => (drawerMode.value === "beat" ? selectedBeat.value?.title || "Untitled beat" : quest.value?.title ?? ""));
+const drawerSubtitle = computed(() => (drawerMode.value === "beat" ? quest.value?.title : undefined));
+// The text form belongs to one beat: picking another starts it closed.
+watch(selectedBeatId, () => { editingBeatText.value = false; });
 
 function onCommand(command: QuestGraphCommand) {
   if (command.type === "select") select({ beat: command.beatId, open: drawerOpened.value });
@@ -584,45 +529,6 @@ async function linkExisting(sourceBeatId: string, targetBeatId: string) {
     });
     retryMutation.value = null;
   } catch (error) { mutationError.value = error instanceof Error ? error.message : "Could not create route"; retryMutation.value = retry; }
-}
-
-async function saveEdge() {
-  if (!selectedEdge.value) return;
-  const gateProblem = validateGateDrafts(edgeGateConditions.value);
-  if (gateProblem) { mutationError.value = gateProblem; return; }
-  if (edgeRouteKind.value === "parallel" && !edgeThreadLabel.value.trim()) { mutationError.value = "A parallel route needs a thread label. It is shown to the DM and on the player thread."; return; }
-  if (edgeRouteKind.value === "parallel" && !canSelectedEdgeBeParallel.value) { mutationError.value = "This beat has no other choice route. Switching this one to parallel would leave its thread nowhere to go."; return; }
-  const edge = selectedEdge.value;
-  // Captured before any await: the refetch after updateEdge re-fires the
-  // selectedEdge watcher, which resets these refs to the stored values.
-  const mode = edgeGateMode.value;
-  const conditions = edgeGateConditions.value.map((draft) => ({ objectiveId: draft.objectiveId, statuses: [...draft.statuses] }));
-  edgeSaving.value = true;
-  try {
-    mutationError.value = "";
-    await updateEdge.mutateAsync({ id: edge.id, questId, update: { route_kind: edgeRouteKind.value, label: edgeRouteKind.value === "parallel" ? edgeThreadLabel.value.trim() : null } });
-    await setRouteGate.mutateAsync({ edgeId: edge.id, questId, mode, conditions });
-    // Re-read the stored rows before the editor can save again, so a condition
-    // just added is an update next time rather than a second insert.
-    await edgeGatesQuery.refetch();
-    edgeGateConditions.value = edgeGates.value
-      .filter((gate) => gate.edge_id === edge.id)
-      .map((gate) => ({ key: gate.id, gateId: gate.id, objectiveId: gate.objective_id, statuses: [...gate.statuses] }));
-    retryMutation.value = null;
-  }
-  catch (error) { mutationError.value = error instanceof Error ? error.message : "Could not save route"; retryMutation.value = () => void saveEdge(); }
-  finally { edgeSaving.value = false; }
-}
-
-function beatTitle(id: string) {
-  return beats.value.find((beat) => beat.id === id)?.title || "Missing beat";
-}
-
-async function deleteSelectedEdge() {
-  if (!selectedEdge.value || !(await confirm(`Delete this route to “${beatTitle(selectedEdge.value.target_beat_id)}”?`))) return;
-  const edge = selectedEdge.value;
-  try { mutationError.value = ""; await deleteEdge.mutateAsync({ id: edge.id, questId }); select({}); retryMutation.value = null; }
-  catch (error) { mutationError.value = error instanceof Error ? error.message : "Could not delete route"; retryMutation.value = () => void deleteSelectedEdge(); }
 }
 
 async function archivePendingBeat() {

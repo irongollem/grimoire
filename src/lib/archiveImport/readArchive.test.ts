@@ -104,7 +104,7 @@ describe("round trip: our own Markdown vault", () => {
     const f = fieldsForKind(page("Quests/The Bell.md"), "quest");
     if (f.kind !== "quest") throw new Error("kind");
     expect(f.summary).toBe("Something rings under the tide.");
-    expect(JSON.stringify(f.beatContent)).toContain("Find the bell");
+    expect(JSON.stringify(f.notes)).toContain("Find the bell");
   });
 });
 

@@ -28,8 +28,9 @@ describe("questLink", () => {
     expect(questLink("q", { beat: "b", open: true })).toEqual({ path: "/quests/q", query: { beat: "b", open: "1" } });
   });
 
-  it("never opens the drawer on nothing: open without a beat is dropped", () => {
-    expect(questLink("q", { open: true })).toEqual({ path: "/quests/q", query: {} });
+  it("opens the quest's own wide part with open and no beat, and never on a route", () => {
+    expect(questLink("q", { open: true })).toEqual({ path: "/quests/q", query: { open: "1" } });
+    expect(questLink("q", { edge: "e", open: true })).toEqual({ path: "/quests/q", query: { edge: "e" } });
   });
 
   it("names a route with ?edge= and the party's beat with open=party plus its thread", () => {

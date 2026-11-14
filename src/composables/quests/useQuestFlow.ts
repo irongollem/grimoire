@@ -47,8 +47,8 @@ export function invalidatePlayerQuestBeatProjections(queryClient: ReturnType<typ
   return queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "player"] });
 }
 
-function asRef(value: string | Ref<string>): Ref<string> {
-  return isRef(value) ? value : ref(value);
+function asRef<T extends string | null>(value: T | Ref<T>): Ref<T> {
+  return isRef(value) ? value : (ref(value) as Ref<T>);
 }
 
 export function prepareQuestBeatOptimisticUpdate(
@@ -689,13 +689,14 @@ export function useQuestRuntimeState(questId: string | Ref<string>, threadId: st
  *  just to learn which id to ask for. `null` data means the quest has no open
  *  thread at all (the server answers `thread: null`); there is no context to
  *  show until one exists. */
-export function useQuestRuntimeContext(questId: string | Ref<string>, threadId: string | Ref<string>) {
+/** `threadId` null asks for the quest's primary live thread. */
+export function useQuestRuntimeContext(questId: string | Ref<string>, threadId: string | null | Ref<string | null>) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const id = asRef(questId);
   const thread = asRef(threadId);
   return useQuery({
-    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, campaignId.value, id.value, thread.value || null] as const),
+    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, campaignId.value, id.value, thread.value] as const),
     queryFn: async ({ queryKey: [, cid, qid, tid] }): Promise<QuestRuntimeContext | null> => {
       if (cid === null) throw new Error("useQuestRuntimeContext fetched without a campaign");
       const { data, error } = await supabase.rpc("get_quest_runtime_context", {

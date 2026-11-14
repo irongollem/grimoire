@@ -25,7 +25,8 @@ Instead of typing up a chapter of an adventure by hand, hand Grimoire the source
 3. Once a source is selected, its page count and estimated credit cost appear. Free plans are capped at **10 pages** per import; Pro raises that to **50**.
 4. Enter a **Name** for the import (auto-suggested from a single PDF's filename).
 5. Tick **I have the right to use this material.** This is required before you can upload.
-6. Click **Upload**.
+6. Tick **This is my own writing** if you wrote the source yourself. Your prose is then kept word for word. Leave it off for a published book, whose scenes are put in other words, in full.
+7. Click **Upload**.
 
 ## Starting extraction
 
@@ -62,7 +63,7 @@ Moving over from LegendKeeper, World Anvil or Obsidian? Choose **Wiki export** a
 4. **Review.** Each page matching something you already have is linked rather than copied; you can change it to **Create** or **Ignore**, and open a page to see how its text will be stored. If the import would go past your plan's limits, it tells you before anything is written.
 5. **Import.** One exported page becomes one record, kept whole as rich text. Pages nested under a place in your wiki put their NPCs and sub-places inside it, and links between pages become @mentions of places, factions and NPCs. A link to a quest, item or note stays as plain text, and the result lists any link that could not be turned into a mention.
 
-A quest page becomes a quest with a one-line summary, and the rest of its text goes on the quest's first beat as DM notes.
+A quest page becomes a quest with a one-line summary, and the rest of its text goes into the quest's own DM notes. No beat is made for it.
 
 Afterwards you can optionally tick imported pages to be **read by AI** for stat blocks and other details. That is a normal AI import of just those pages, with its usual page limit, credit cost and review; it is not offered when AI is turned off for the campaign.
 
@@ -74,7 +75,7 @@ Nothing: this entire feature, from upload through review, is DM-only. Whatever c
 
 ## Tips
 
-> A page's mechanics (stat blocks, damage values, spell effects) are copied exactly; descriptive prose is summarised in the model's own words rather than copied verbatim: this is a deliberate legal choice, not a quality setting, so don't expect flavour text to read identically to the source.
+> A page's mechanics (stat blocks, damage values, spell effects) are copied exactly; descriptive prose is put in the model's own words rather than copied verbatim, and a quest's scenes are paraphrased in full, with every detail you need to run them: this is a deliberate legal choice, not a quality setting, so don't expect flavour text to read identically to the source. The **This is my own writing** tick is the exception, for text that is already yours.
 
 - Only one import can be in progress per campaign at a time: starting a new one while another is uploading, extracting, or under review isn't offered until the current one finishes or is abandoned/discarded.
 - Page photos are automatically resized before upload; you don't need to compress them yourself.

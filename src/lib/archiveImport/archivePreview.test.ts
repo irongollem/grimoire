@@ -27,10 +27,10 @@ describe("previewSections", () => {
     expect(sections.map((s) => s.label)).toEqual(["Appearance", "Backstory", "DM notes"]);
   });
 
-  it("shows a quest's one-line summary and the prose that goes on its opening beat", () => {
+  it("shows a quest's one-line summary and the prose that goes in its notes", () => {
     const sections = previewSections(p(para("A bell rings."), para("More prose.")), "quest");
     expect(sections[0]).toEqual({ label: "Summary", text: "A bell rings." });
-    expect(sections[1].label).toBe("Opening beat (DM notes)");
+    expect(sections[1].label).toBe("Quest notes");
   });
 
   it("flattens link placeholders to their label", () => {

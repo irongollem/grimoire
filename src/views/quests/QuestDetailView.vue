@@ -28,7 +28,6 @@
       <QuestGraphDesigner
         :key="`build-${quest.id}`"
         :quest-id="quest.id"
-        :visible-to="quest.player_visible_to ?? []"
         :entry-beat-id="quest.entry_beat_id"
         :focus-current-on-open="route.query.focus === 'current'"
       />

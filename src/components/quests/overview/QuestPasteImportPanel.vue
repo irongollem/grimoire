@@ -74,6 +74,12 @@
         <p v-if="beatCount > 0" class="text-caption text-muted-foreground">
           {{ beatCount }} story beat{{ beatCount === 1 ? "" : "s" }} found, wired into a draft flow you can edit.
         </p>
+        <p v-if="hasQuestNotes" class="text-caption text-muted-foreground">
+          The page's premise, goals and prep notes come in as the quest's notes.
+        </p>
+        <p v-if="labelledRouteCount > 0" class="text-caption text-muted-foreground">
+          {{ labelledRouteCount }} route{{ labelledRouteCount === 1 ? "" : "s" }} named.
+        </p>
         <p v-if="primaryQuest.extraCount > 0" class="text-caption text-muted-foreground">
           This page describes {{ primaryQuest.extraCount + 1 }} possible quests. Only the first is used here. Open
           Document Import in Campaign Settings to review the rest.
@@ -170,6 +176,10 @@
       </div>
 
       <AppCheckbox v-model="rightsAttested" size="md" label="I have the right to use this material." />
+      <AppCheckbox v-model="ownWriting" size="md" label="This is my own writing" />
+      <p class="-mt-2 text-caption text-muted-foreground">
+        Kept word for word. Leave it off for a published book: its scenes are put in other words, in full.
+      </p>
 
       <p v-if="startError" class="text-caption text-destructive">{{ startError }}</p>
 
@@ -344,6 +354,7 @@ const { runImportSweep } = useDocumentImportRunner();
 const content = ref("");
 const pasteEditorRef = ref<InstanceType<typeof DocumentPasteEditor> | null>(null);
 const rightsAttested = ref(false);
+const ownWriting = ref(false);
 const startError = ref<string | null>(null);
 
 /** Bridges the gap between "Extract" being clicked and `activeImport`
@@ -380,10 +391,12 @@ async function startPasteImport(): Promise<void> {
       displayName: deriveImportDisplayName(text),
       pageCount: pageCount.value,
       rightsAttested: rightsAttested.value,
+      ownWriting: ownWriting.value,
     });
     rememberRow(created.id);
     pasteEditorRef.value?.reset();
     rightsAttested.value = false;
+    ownWriting.value = false;
 
     const outcome = await startExtraction.mutateAsync(created.id);
     if (outcome.warning) toast.info(outcome.warning, 8000);
@@ -438,6 +451,16 @@ const hasQuest = computed(() => primaryQuest.value.entity !== null);
 const beatCount = computed(() => {
   const beats = primaryQuest.value.entity?.data.beats;
   return Array.isArray(beats) ? beats.length : 0;
+});
+
+const hasQuestNotes = computed(() => {
+  const notes = primaryQuest.value.entity?.data.dm_content;
+  return typeof notes === "string" && notes.trim().length > 0;
+});
+const labelledRouteCount = computed(() => {
+  const routes = primaryQuest.value.entity?.data.routes;
+  if (!Array.isArray(routes)) return 0;
+  return routes.filter((r) => typeof r?.label === "string" && r.label.trim().length > 0).length;
 });
 
 const questTitle = ref("");

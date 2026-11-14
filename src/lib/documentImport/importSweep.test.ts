@@ -357,6 +357,40 @@ describe("runImportSweep", () => {
       expect(report.unresolvedLinks).toEqual([]);
     });
 
+    it("inserts the quest with its own notes and hands the labelled routes to the spine write", async () => {
+      const deps = fakeDeps({
+        writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"], ["b2", "beat-2"]]) })),
+      });
+      await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: {
+            quests: [
+              usable("q1", {
+                title: "The Sunken Bell",
+                dm_content: "Premise: a bell rings under the lake.",
+                beats: [
+                  { key: "b1", title: "Shore", kind: "neutral", dm_content: "" },
+                  { key: "b2", title: "Dive", kind: "explore", dm_content: "" },
+                ],
+                routes: [{ from: "b1", to: "b2", kind: "parallel", label: "Dive in", note: "Costs a day" }],
+              }),
+            ],
+          },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([["quests", new Map([["q1", CREATE]])]]),
+        }),
+        deps,
+      );
+      const questRow = vi.mocked(deps.insertRow).mock.calls[0]?.[1] as unknown as Record<string, unknown>;
+      expect(typeof questRow.dm_content).toBe("string");
+      expect(questRow.dm_content).toContain("a bell rings under the lake");
+      expect(deps.writeQuestSpine).toHaveBeenCalledWith(
+        expect.objectContaining({
+          routes: [expect.objectContaining({ from: "b1", to: "b2", kind: "parallel", label: "Dive in", note: "Costs a day" })],
+        }),
+      );
+    });
+
     it("a deity link writes no attachment, quest_ref or unresolved message for the beat that names it", async () => {
       const deity: ImportDecision = {
         action: "link",

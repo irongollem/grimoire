@@ -374,10 +374,16 @@ export interface ExtractedQuest {
   /**
    * One line, player-facing. Not the page — `quests_summary_is_one_line`
    * (migration 20260906160921) caps this at 280 characters with no line
-   * breaks, and `splitQuestSummary` sends the remainder to the opening beat
+   * breaks, and `splitQuestSummary` sends the remainder to the quest's `dm_content`
    * rather than truncating. A cut sentence is a lie (#799).
    */
   summary?: string;
+  /**
+   * The quest's own DM notes (premise, goals, themes, prep) as plain or
+   * markdown text. The summary's overflow is prepended to it, then it is
+   * stored as rich-text JSON in `quests.dm_content` (#1194).
+   */
+  dm_content?: string | null;
   /**
    * The scenes the page describes, in source order. Absent or empty is not an
    * error and never manufactures a placeholder beat: a page that yields no

@@ -23,10 +23,8 @@ function mountFields(overrides: Partial<InstanceType<typeof QuestBeatIdentityFie
       stagedLocationName: "",
       stagedSiteCaption: "nowhere yet",
       kind: "social",
-      visibility: "rumored",
       stagedLocationId: "",
       "onUpdate:kind": () => {},
-      "onUpdate:visibility": () => {},
       "onUpdate:stagedLocationId": () => {},
       ...overrides,
     },
@@ -48,16 +46,10 @@ describe("QuestBeatIdentityFields", () => {
     expect(wrapper.emitted("update:kind")).toEqual([["combat"]]);
   });
 
-  it("keeps the visibility select hidden until Edit is clicked, then emits and closes it again", async () => {
-    const wrapper = mountFields({ visibility: "hidden" });
+  it("no longer offers visibility: the players-read track owns it", () => {
+    const wrapper = mountFields();
     expect(wrapper.find('select[aria-label="Player visibility"]').exists()).toBe(false);
-
-    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Edit")!.trigger("click");
-    const select = wrapper.get('select[aria-label="Player visibility"]');
-    await select.setValue("revealed");
-
-    expect(wrapper.emitted("update:visibility")).toEqual([["revealed"]]);
-    expect(wrapper.find('select[aria-label="Player visibility"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("Visibility");
   });
 
   it("keeps the location combobox hidden until Change is clicked, then emits and closes it again", async () => {
@@ -83,15 +75,12 @@ describe("QuestBeatIdentityFields", () => {
     expect(staged.text()).toContain("staged at · site: 2 rooms");
   });
 
-  it("resets both editing toggles back closed when the beat changes", async () => {
+  it("resets the location toggle back closed when the beat changes", async () => {
     const wrapper = mountFields({ beat: beat({ id: "beat-1" }) });
-    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Edit")!.trigger("click");
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Change")!.trigger("click");
-    expect(wrapper.find('select[aria-label="Player visibility"]').exists()).toBe(true);
     expect(wrapper.findComponent({ name: "EntityCombobox" }).exists()).toBe(true);
 
     await wrapper.setProps({ beat: beat({ id: "beat-2" }) });
-    expect(wrapper.find('select[aria-label="Player visibility"]').exists()).toBe(false);
     expect(wrapper.findComponent({ name: "EntityCombobox" }).exists()).toBe(false);
   });
 });

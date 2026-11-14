@@ -5,11 +5,10 @@ import QuestBeatMarks from "./QuestBeatMarks.vue";
 import type { QuestBeat } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({
-  share: vi.fn(), mark: vi.fn(), updateQuest: vi.fn(), updateBeat: vi.fn(),
+  setVisibility: vi.fn(), shareIfSeen: vi.fn(), mark: vi.fn(), updateQuest: vi.fn(),
 }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useMarkQuestMove: () => ({ mutateAsync: mocks.mark, isPending: { value: false } }),
-  useUpdateQuestBeat: () => ({ mutateAsync: mocks.updateBeat }),
   useQuestConsequences: () => ({ data: ref([
     { id: "r1", on_beat_id: "b1", on_beat_outcome: "arrived", action: "grant_knowledge", target_objective_id: null, action_payload: { text: "Learns the code" } },
     { id: "r2", on_beat_id: "b1", on_beat_outcome: "failed", action: "grant_knowledge", target_objective_id: null, action_payload: { text: "Alarm rings" } },
@@ -19,10 +18,11 @@ vi.mock("@/composables/quests/useQuests", () => ({
   useQuestObjectives: () => ({ data: ref([]) }),
   useUpdateQuest: () => ({ mutateAsync: mocks.updateQuest, isPending: { value: false } }),
 }));
-vi.mock("@/composables/quests/useShareQuest", () => ({ useShareQuest: () => ({ shareIfBeatSeen: mocks.share }) }));
+vi.mock("@/composables/quests/useSetBeatVisibility", () => ({ useSetBeatVisibility: () => mocks.setVisibility }));
+vi.mock("@/composables/quests/useShareQuest", () => ({ useShareQuest: () => ({ shareIfBeatSeen: mocks.shareIfSeen }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: String }) }));
 
-const beat = { id: "b1", quest_id: "q1", campaign_id: "c1", title: "Vault", kind: "combat", visibility: "hidden" } as QuestBeat;
+const beat = { id: "b1", quest_id: "q1", campaign_id: "c1", title: "Vault", kind: "combat", visibility: "hidden", updated_at: "t0" } as QuestBeat;
 const presentation = (over: Record<string, unknown> = {}) => ({ currentThreadIds: [], isFailed: false, ...over }) as never;
 
 function mountMarks(props: Record<string, unknown> = {}) {
@@ -74,31 +74,45 @@ describe("QuestBeatMarks", () => {
     expect(mocks.mark).not.toHaveBeenCalled();
   });
 
-  it("lists payoffs under On arrival and If it goes wrong separately", () => {
+  // Fails if the payoff lines creep back into the column header; they live in the wide part.
+  it("holds only the marks and the track, even when the beat has payoff rules", () => {
     const text = mountMarks().text();
-    expect(text).toMatch(/On arrival[\s\S]*Learns the code[\s\S]*If it goes wrong[\s\S]*Alarm rings/);
-    expect(text).not.toMatch(/On arrival[\s\S]*Alarm rings[\s\S]*If it goes wrong/);
+    expect(text).not.toContain("On arrival");
+    expect(text).not.toContain("If it goes wrong");
+    expect(text).not.toContain("Learns the code");
   });
 
-  it("changing visibility writes it through the beat update", async () => {
-    const wrapper = mountMarks();
-    await wrapper.findAll("button").find((b) => b.text() === "Revealed")!.trigger("click");
-    expect(mocks.updateBeat).toHaveBeenCalledWith({ id: "b1", questId: "q1", update: { visibility: "revealed" } });
+  const dot = (wrapper: ReturnType<typeof mountMarks>, step: string) =>
+    wrapper.findAll("button").find((b) => b.attributes("aria-label") === step)!;
+
+  it("picking a step on the track writes it through the one visibility write", async () => {
+    mocks.setVisibility.mockResolvedValue(undefined);
+    await dot(mountMarks(), "revealed").trigger("click");
+    expect(mocks.setVisibility).toHaveBeenCalledWith(expect.objectContaining({ id: "b1", updated_at: "t0" }), "revealed");
   });
 
-  // Fails if the beat write skips the auto-share, leaving a revealed beat on a quest players cannot see.
-  it("after a visibility write it asks to share the quest, with the new visibility", async () => {
-    mocks.updateBeat.mockResolvedValue({});
-    await mountMarks().findAll("button").find((b) => b.text() === "Rumored")!.trigger("click");
+  // Fails if the floor is not handed to the track, letting a reached beat be hidden again.
+  it("steps below the floor are disabled and write nothing", async () => {
+    const wrapper = mountMarks({ beat: { ...beat, visibility: "revealed" }, floor: "revealed" });
+    expect(dot(wrapper, "hidden").attributes("disabled")).toBeDefined();
+    expect(dot(wrapper, "rumored").attributes("disabled")).toBeDefined();
+    await dot(wrapper, "hidden").trigger("click");
+    expect(mocks.setVisibility).not.toHaveBeenCalled();
+  });
+
+  // Fails if a mark goes back to sharing the quest itself: a move shares server-side now.
+  it("a mark moves the party and shares nothing itself", async () => {
+    await box(mountMarks(), "Party here").setValue(true);
     await flushPromises();
-    expect(mocks.share).toHaveBeenCalledWith("q1", "rumored");
+    expect(mocks.shareIfSeen).not.toHaveBeenCalled();
+    expect(mocks.setVisibility).not.toHaveBeenCalled();
   });
 
-  // Fails if a failed beat write still shares the quest.
-  it("does not share the quest when the beat write fails", async () => {
-    mocks.updateBeat.mockRejectedValue(new Error("nope"));
-    await mountMarks().findAll("button").find((b) => b.text() === "Revealed")!.trigger("click");
+  // Fails if a rejected visibility write is swallowed or throws unhandled.
+  it("a failed visibility write does not throw out of the click", async () => {
+    mocks.setVisibility.mockRejectedValue(new Error("nope"));
+    await dot(mountMarks(), "rumored").trigger("click");
     await flushPromises();
-    expect(mocks.share).not.toHaveBeenCalled();
+    expect(mocks.setVisibility).toHaveBeenCalled();
   });
 });

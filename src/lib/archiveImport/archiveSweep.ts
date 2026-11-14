@@ -32,7 +32,6 @@ import {
   buildRecordRow,
   docColumnsOf,
   hasLinks,
-  openingBeatRow,
   storedDoc,
   type ArchiveRecordKind,
   type ArchiveTable,
@@ -206,7 +205,7 @@ export async function runArchiveSweep(
   const tick = (): void => onProgress?.({ phase: "creating", done, total });
   tick();
 
-  const created = new Map<string, { entry: ArchiveSweepEntry; id: string; beatId: string | null }>();
+  const created = new Map<string, { entry: ArchiveSweepEntry; id: string }>();
 
   for (const kind of ARCHIVE_CREATE_ORDER) {
     const ofKind = toCreate.filter((entry) => entry.kind === kind);
@@ -251,23 +250,7 @@ export async function runArchiveSweep(
       registry.set(entry.page.ref, { id: result.id, kind, entityType: MENTION_TYPE[kind] ?? null, locationType: placeType });
       report.created.push({ ref: entry.page.ref, kind, id: result.id });
 
-      let beatId: string | null = null;
-      if (kind === "quest") {
-        const fields = fieldsForKind(entry.page, "quest");
-        if (fields.kind === "quest" && fields.beatContent) {
-          const beat = await deps.insertRow("quest_beats", openingBeatRow(result.id, campaignId, entry.page.title, fields.beatContent));
-          if (beat.status === "inserted") beatId = beat.id;
-          else {
-            report.failures.push({
-              ref: entry.page.ref,
-              title: entry.page.title,
-              kind,
-              message: `The quest was created but its prose was not saved${beat.status === "failed" ? `: ${beat.message}` : ": your plan's limit was reached"}.`,
-            });
-          }
-        }
-      }
-      created.set(entry.page.ref, { entry, id: result.id, beatId });
+      created.set(entry.page.ref, { entry, id: result.id });
       tick();
     }
   }
@@ -286,7 +269,7 @@ export async function runArchiveSweep(
 
   let linkDone = 0;
   onProgress?.({ phase: "linking", done: linkDone, total: withLinks.length });
-  for (const { entry, id, beatId } of withLinks) {
+  for (const { entry, id } of withLinks) {
     const resolve = (target: string): ArchiveMentionTarget | null => {
       const hit = findPageForLink(target, allPages);
       if (!hit) {
@@ -308,13 +291,11 @@ export async function runArchiveSweep(
     const patches = new Map<string, { id: string; table: ArchiveTable; patch: Record<string, unknown> }>();
     for (const column of docColumnsOf(fieldsForKind(entry.page, entry.kind))) {
       if (!hasLinks(column.doc)) continue;
-      const targetId = column.table === "quest_beats" ? beatId : id;
-      if (!targetId) continue;
-      const key = `${column.table}:${targetId}`;
+      const key = `${column.table}:${id}`;
       const resolved = storedDoc(column.doc, resolve);
       // Nothing resolved to a mention: the first pass already wrote exactly this text.
       if (resolved === storedDoc(column.doc, () => null)) continue;
-      const slot = patches.get(key) ?? { id: targetId, table: column.table, patch: {} };
+      const slot = patches.get(key) ?? { id, table: column.table, patch: {} };
       slot.patch[column.column] = resolved;
       patches.set(key, slot);
     }

@@ -102,7 +102,7 @@ describe("QuestFlowNode", () => {
     expect(wrapper.get("article").classes()).not.toContain("is-stranded");
   });
 
-  it("draws a kind · visibility eyebrow, and the payoff/converge/site/unlock facts", () => {
+  it("draws the kind eyebrow, and the payoff/converge/site/unlock facts", () => {
     const wrapper = mount(QuestFlowNode, {
       props: {
         title: "Descend the Drowned Vault",
@@ -120,7 +120,7 @@ describe("QuestFlowNode", () => {
       },
       global: { stubs: { Handle: true } },
     });
-    expect(wrapper.text()).toContain("Explore · hidden");
+    expect(wrapper.text()).toContain("Explore");
     expect(wrapper.text()).toContain("2 payoffs");
     expect(wrapper.text()).toContain("converge · all");
     expect(wrapper.text()).toContain("site · 6 rooms");
@@ -280,30 +280,25 @@ describe("QuestFlowNode", () => {
   });
 });
 
-describe("QuestFlowNode in Players' view", () => {
-  const mountLens = (props: Record<string, unknown>) => mount(QuestFlowNode, {
-    props: { title: "The miller's secret", kind: "discovery", visibility: "rumored", lens: "players", ...props },
+describe("QuestFlowNode what players know", () => {
+  const mountNode = (props: Record<string, unknown>) => mount(QuestFlowNode, {
+    props: { title: "The miller", kind: "discovery", visibility: "rumored", ...props },
     global: { stubs: { Handle: true } },
   });
 
-  // Fails if the DM's own title reaches the party's picture of a rumored beat.
-  it("shows a rumored beat's rumor copy in place of its title", () => {
-    const wrapper = mountLens({ rumorLine: "Whispers of a mill" });
-    expect(wrapper.get(".quest-flow-node__title").text()).toBe("Whispers of a mill");
-    expect(wrapper.text()).not.toContain("miller's secret");
-    expect(wrapper.classes()).toContain("lens-rumored");
+  // Fails if the node drops the three dots, or draws them for the wrong visibility.
+  it("shows the dots for the beat's visibility, not as a word in the eyebrow", () => {
+    const wrapper = mountNode({});
+    expect(wrapper.get('[role="img"]').attributes("aria-label")).toBe("rumored");
+    expect(wrapper.get(".quest-flow-node__kind").text()).toBe("Discovery");
+    expect(mountNode({ visibility: "revealed" }).get('[role="img"]').attributes("aria-label")).toBe("revealed");
   });
 
-  // Fails if the DM bookmark survives into the players' lens.
-  it("hides the bookmark, which belongs to the DM's view", () => {
-    expect(mountLens({}).find('[data-testid="beat-bookmark"]').exists()).toBe(false);
-    expect(mount(QuestFlowNode, { props: { title: "x", kind: "neutral", visibility: "revealed" }, global: { stubs: { Handle: true } } }).find('[data-testid="beat-bookmark"]').exists()).toBe(true);
-  });
-
-  it("recedes a hidden beat and keeps a revealed beat as normal", () => {
-    expect(mountLens({ visibility: "hidden" }).classes()).toContain("lens-hidden");
-    const revealed = mountLens({ visibility: "revealed" });
-    expect(revealed.get(".quest-flow-node__title").text()).toBe("The miller's secret");
-    expect(revealed.classes()).not.toContain("lens-hidden");
+  // Fails if a secret beat looks like any other, or the chip shows on an ordinary beat.
+  it("marks a secret beat with a chip and says so to a screen reader", () => {
+    const secret = mountNode({ secret: true, visibility: "hidden" });
+    expect(secret.get(".quest-flow-node__secret").text()).toBe("secret");
+    expect(secret.get("button.quest-flow-node__main").attributes("aria-label")).toContain("secret");
+    expect(mountNode({}).find(".quest-flow-node__secret").exists()).toBe(false);
   });
 });

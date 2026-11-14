@@ -24,7 +24,7 @@ async function mountDrawer(mode: "quest" | "beat" | "route", isBelow = true) {
   await router.push("/quests/q1");
   const wrapper = mount(QuestDrawer, {
     props: { questId: "q1", mode },
-    slots: { quest: "<p>quest panel</p>", beat: "<p>beat panel</p>", route: "<p>route panel</p>" },
+    slots: { column: `<p>${mode} column</p>`, wide: `<p>${mode} wide</p>` },
     global: { plugins: [router] },
   });
   await flushPromises();
@@ -45,7 +45,7 @@ describe("QuestSheet", () => {
   it("is half height with a beat selected, showing that panel", async () => {
     const { wrapper } = await mountDrawer("beat");
     expect(wrapper.get('[aria-label="Quest sheet"]').attributes("data-level")).toBe("half");
-    expect(wrapper.text()).toContain("beat panel");
+    expect(wrapper.text()).toContain("beat column");
   });
 
   it("collapsing a selection deselects instead of resizing", async () => {
@@ -58,7 +58,23 @@ describe("QuestSheet", () => {
     const { wrapper } = await mountDrawer("quest");
     await wrapper.get('button[aria-label="Expand"]').trigger("click");
     expect(wrapper.get('[aria-label="Quest sheet"]').attributes("data-level")).toBe("full");
-    expect(wrapper.text()).toContain("quest panel");
+    expect(wrapper.text()).toContain("quest column");
+  });
+
+  // Fails if the phone has no way to the wide part, or shows it over the sheet.
+  it("Open wide swaps the sheet for a page with the column and the wide part, and Back to the flow returns", async () => {
+    const { wrapper } = await mountDrawer("beat");
+    await wrapper.findAll("button").find((b) => b.text() === "Open wide")!.trigger("click");
+    expect(wrapper.find('[aria-label="Quest sheet"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain("beat column");
+    expect(wrapper.text()).toContain("beat wide");
+    await wrapper.findAll("button").find((b) => b.text() === "Back to the flow")!.trigger("click");
+    expect(wrapper.find('[aria-label="Quest sheet"]').exists()).toBe(true);
+  });
+
+  it("a route has no wide part to open on the phone", async () => {
+    const { wrapper } = await mountDrawer("route");
+    expect(wrapper.findAll("button").some((b) => b.text() === "Open wide")).toBe(false);
   });
 
   it("does not render from md up", async () => {

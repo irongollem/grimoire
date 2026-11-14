@@ -216,6 +216,9 @@ export interface CreateDocumentImportInput {
    *  an unattested upload must fail here rather than the mutation silently
    *  stamping "now" on the DM's behalf. */
   rightsAttested: boolean;
+  /** The DM wrote the source themselves: the extraction keeps their prose word
+   *  for word instead of putting scenes in other words. Omit for false. */
+  ownWriting?: boolean;
   /** The pasted source markdown, required when `sourceKind === "text"` and
    *  ignored otherwise. */
   sourceText?: string;
@@ -272,6 +275,7 @@ export function useCreateDocumentImport() {
             display_name: input.displayName,
             page_count: input.pageCount,
             rights_attested_at: new Date().toISOString(),
+            own_writing: input.ownWriting === true,
             user_id: user.id,
           })
           .select()
@@ -318,6 +322,7 @@ export function useCreateDocumentImport() {
           display_name: input.displayName,
           page_count: input.pageCount,
           rights_attested_at: new Date().toISOString(),
+          own_writing: input.ownWriting === true,
         };
         const { data: row, error: insertError } = await supabase
           .from("document_imports")

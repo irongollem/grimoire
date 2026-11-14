@@ -32,3 +32,13 @@ export function visibilityFloor(input: VisibilityFloorInput): QuestBeatVisibilit
   if (!secret && edges.some((edge) => edge.target_beat_id === beatId && partyBeatIds.has(edge.source_beat_id))) return "rumored";
   return "hidden";
 }
+
+/** The beats a thread's cursor stands on, from the designer's per-thread map. */
+export function partyBeatIdsOf(currentBeatIdByThread: Readonly<Record<string, string | null>>): Set<string> {
+  return new Set(Object.values(currentBeatIdByThread).filter((id): id is string => id !== null));
+}
+
+/** Every beat the party has arrived at, from the quest's transitions. */
+export function reachedBeatIdsOf(transitions: ReadonlyArray<{ to_beat_id: string | null }>): Set<string> {
+  return new Set(transitions.map((transition) => transition.to_beat_id).filter((id): id is string => id !== null));
+}

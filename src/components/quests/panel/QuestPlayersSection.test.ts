@@ -28,7 +28,7 @@ const base = { id: "quest-1", title: "The Unseen", player_visible_to: [] as stri
 function mountPlayers(overrides: Partial<Quest> = {}) {
   return mount(QuestPlayersSection, {
     props: { quest: { ...base, ...overrides } as Quest },
-    global: { stubs: { AudienceRevealControl: true, QuestPlayerPreviewDrawer: true } },
+    global: { stubs: { AudienceRevealControl: true } },
   });
 }
 const reveal = (w: ReturnType<typeof mountPlayers>, ids: string[]) => w.findComponent({ name: "AudienceRevealControl" }).vm.$emit("change", ids);
@@ -68,10 +68,11 @@ describe("QuestPlayersSection", () => {
     expect(mocks.announce).not.toHaveBeenCalled();
   });
 
-  it("Preview as… opens the player preview", async () => {
+  // Fails if a preview control creeps back: the drawer shows no player previews (#1194).
+  it("offers no preview of what players see", () => {
     const wrapper = mountPlayers();
+    expect(wrapper.text()).not.toContain("Preview");
+    expect(wrapper.findAllComponents({ name: "AppButton" })).toHaveLength(0);
     expect(wrapper.findComponent({ name: "QuestPlayerPreviewDrawer" }).exists()).toBe(false);
-    await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Preview as…")!.trigger("click");
-    expect(wrapper.findComponent({ name: "QuestPlayerPreviewDrawer" }).exists()).toBe(true);
   });
 });

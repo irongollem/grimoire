@@ -26,8 +26,8 @@ of shipped behaviour.
 - A **beat** is what _happened_ — past tense, the story's side, a moment that
   changed the situation.
 
-A beat does exactly four things to the ledger: it **raises**, **achieves**,
-**fails** or **reveals** objectives.
+A beat does exactly three things to the ledger: it **raises** (the party learns
+of it), **achieves** or **fails** objectives.
 
 A beat is not itself a fork. The fork is the set of beats that _could_ follow, and
 what decides between them is the objective ledger. "The princess dies" is one beat
@@ -85,7 +85,7 @@ than one cursor through that same ledger at once.
   unreachable from never strands it.
 - **A payoff can be held instead of fired.** The Advance dialog lets the DM
   untick a consequence before submitting; a held rule still logs its event
-  (`held_at` set) but performs nothing, and sits in the opened beat's Held payoff
+  (`held_at` set) but performs nothing, and sits in the beat's Held payoff
   panel and the quest card's "Held payoff — not yet fired" until the DM fires
   it from the log.
 - **Three verbs the system had no word for, so knowledge, favours and
@@ -220,7 +220,9 @@ purpose: a premise is identity, like title and tags, and no beat field means
 title/status/giver/location/parent/tags/sharing (the Details section of the quest panel, `QuestDetailsSection`); it was write-once at creation
 before that. `quests.description`/`.notes` are gone outright; the same prose is
 now the opening beat's `dm_content`/`how_it_plays`, moved once by #793's
-migration and never duplicated again.
+migration and never duplicated again. What belongs to no scene (premise, goals,
+themes, prep) is the quest's own `dm_content` (#1194), which partly reverses
+#793: a session plan's premise has no single beat to live on.
 
 **Dead residue — all of it swept by #799.** `quests.flow_enabled_at` was
 `NOT NULL DEFAULT now()`, so it was always set: a dead opt-in flag, non-null on
@@ -238,8 +240,8 @@ pointer, admitted by the CHECK and offered by no UI — went too, at zero rows.
 
 | Surface              | Component                                                                                                                                                                                                                     | What it says an objective is                                                                                                                                                                                            |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A checklist you tick | `QuestObjectivesSection.vue` (the quest panel's Objectives)                                                                                                                                                           | a to-do the DM asserts via `assert_quest_objective_status` — the mark cycles dormant → pending → complete → failed                                                                                                      |
-| A rule you author    | `QuestPayoffPanel.vue`'s quick-adds (beat scope, the opened beat's Payoffs fold) and `QuestRulesPanel.vue` (quest scope, shown as **Payoffs** in the quest panel; this row's component was `QuestConsequencesPanel.vue` before the Quest Manager Redesign split it in two) | one `quest_consequences` row: a beat/edge condition (beat scope) or an objective-became/quest-settled/location-fact condition (quest scope), doing one of the four ledger verbs or one of the seven world actions alike |
+| A checklist you tick | `QuestObjectivesFoot.vue` (the quest column's Objectives)                                                                                                                                                           | a to-do the DM asserts via `assert_quest_objective_status` — the mark cycles dormant → pending → complete → failed                                                                                                      |
+| A rule you author    | `QuestPayoffPanel.vue`'s quick-adds (beat scope, the beat's payoffs in the wide drawer) and `QuestRulesPanel.vue` (quest scope, shown as **Payoffs** in the wide quest part; this row's component was `QuestConsequencesPanel.vue` before the Quest Manager Redesign split it in two) | one `quest_consequences` row: a beat/edge condition (beat scope) or an objective-became/quest-settled/location-fact condition (quest scope), doing one of the three ledger verbs or one of the eleven world actions alike |
 
 Until #794 the second row showed only _reveal / complete / fail_ and no status at all —
 `quest_objective_effects` couldn't raise a dormant objective or watch one settle. One
@@ -335,24 +337,26 @@ campaign_id — and is out of scope for #596.
 
 ### `quest_objectives`
 
-`description`, `sort_order`, `is_player_visible`, `status` (`dormant` |
+`description`, `sort_order`, `status` (`dormant` |
 `pending` | `complete` | `failed` — `dormant` added by `20260905101454`, #792:
-a branch the party has not been sent down yet, not derived, refused paired
-with `is_player_visible`). `is_done` was dropped in `20260818212305` after
+a branch the party has not been sent down yet). **An objective has no visibility
+of its own (#1194):** players see it once it is raised, that is once its status
+is no longer `dormant`, so it follows its beat; `is_player_visible` is gone.
+`is_done` was dropped in `20260818212305` after
 backfilling `status`; the cycle lives in `lib/quests/objectives.ts`.
 
 **`status` has exactly one writer since #794:** `assert_quest_objective_status`.
-A column-level grant revokes it from a plain client `UPDATE` (`description`,
-`sort_order` and `is_player_visible` still go straight through PostgREST) —
+A column-level grant revokes it from a plain client `UPDATE` (`description` and
+`sort_order` still go straight through PostgREST) —
 `transition_quest_runtime` is the only other writer, and both funnel through
 `private.apply_quest_consequences` so a status change can never bypass the
 consequence engine watching it.
 
 **Settled is final for rules (#1011).** `complete` and `fail` (as rule verbs)
-move only an objective whose status is `dormant` or `pending`; `raise` and
-`reveal` were already guarded the other way. The cascade (a rule firing
+move only an objective whose status is `dormant` or `pending`; `raise` was
+already guarded the other way. The cascade (a rule firing
 because an objective changed, which changes another) is seeded only by an
-objective that actually moved, status or visibility, so a rule aimed at an
+objective that actually moved, so a rule aimed at an
 already-settled objective is a no-op that cannot re-trigger the rules
 watching it. Both are decisions with reasons: see **Do not "fix" these**.
 `assert_quest_objective_status` and `previous` are unchanged and still move
@@ -413,7 +417,7 @@ advance by events.
 Client: `useQuestClocks` / `useCreateQuestClock` / `useUpdateQuestClock` /
 `useDeleteQuestClock` / `useTickQuestClock` (`composables/quests/useQuestClocks.ts`),
 `QuestClocksPanel.vue` (authoring, a "Clocks" section of the quest panel between
-Objectives and Payoffs), `QuestRunClocks.vue` (the opened beat's Clocks
+Objectives and Payoffs), `QuestRunClocks.vue` (the Clocks
 card, in its side column: dial, "n of N", Tick and Untick; a fill toasts "‹label› filled. Its
 rules fired."), `QuestClockDial.vue` (display only; `lib/quests/clockDial.ts`).
 
@@ -478,11 +482,12 @@ strings live in the beat's read-aloud/prose today rather than in a dedicated
 field. The other 39 forks needed no text because the target beat's title
 already was the outcome.
 
-**`route_kind`, `thread_label` (#850) and `gate_mode` (#1011).** `route_kind` is `choice` (default)
+**`route_kind` (#850), `label`, `note` (#1194) and `gate_mode` (#1011).** `route_kind` is `choice` (default)
 or `parallel` — see "Threads, parallel routes and payoff" in the model above.
-`thread_label` is the name a `parallel` route gives the thread it opens
-("shown to the DM and on the player thread," frame `02 Story flow`'s Selected
-route panel); it is null on a `choice` edge. Neither column reopens the
+`label` is what the party does to take the route and `note` is one line on
+what it leads to or costs; both show in the beat's **Where it can go** and on the
+route's column. `label` replaced `thread_label` (#1194): a `parallel` route's
+label already names the thread it opens, so it is one field, not two. Neither column reopens the
 one-route-per-pair question #795 closed: a parallel route is still a single
 edge from source to target, it just spawns a thread instead of moving the
 existing one.
@@ -528,7 +533,7 @@ display), so they cannot disagree. `get_quest_runtime_context(campaign, quest,
 thread)`'s `outgoing` entries carry `gate` (`null`, or `{mode, is_open,
 conditions: [{objective_id, objective, statuses, current_status, met}]}`), `effects`
 (`quest_consequences` rows keyed by `on_edge_id`, read rather than duplicated
-— see #794 above), and, since #850, `route_kind`, `thread_label`,
+— see #794 above), and, since #850, `route_kind`, `label`, `note`,
 `converge_mode`, `site` and `payoff`/`loot` — see **The runtime** below for the
 full shape. Build mode joins the gate shape client-side, in
 `lib/quests/gates.ts#deriveQuestRouteGates`, against `useQuestObjectives` —
@@ -552,7 +557,7 @@ was backfilled onto (see above).
 
 **`check` (#850) carries its own data instead of pointing at a row.** A skill
 check ("Insight DC 15 · Contested by Deception") is prepared on a beat and
-rolled at the table (the opened beat's `Roll Insight` action, first among its
+rolled at the table (the beat's `Roll Insight` action, first among its
 attachments). Its `ref_id` is the literal string `'check'` — there is no
 row to reference — and the actual content lives in `metadata`: `skill`
 (required, non-blank), `dc` (required, a numeric string), `contested_by` and
@@ -598,7 +603,7 @@ means staged at a site-tier location" now resolves the site itself first —
 the location if it is already site-tier, else its `parent_id` — before doing
 anything with rooms, doors or the map: `QuestBeatSitePanel.vue`,
 `QuestGraphDesigner.vue`'s `site · N rooms` fact, `useBeatStagedSite.ts` (which
-the opened beat's handoff gate and staged-site caption share), and
+the beat's handoff gate and staged-site caption share), and
 `QuestSiteHandoff.vue` itself all repeat this same one-line resolution rather
 than sharing a helper, because each already had its own staged-location read
 and the fix is the same three lines everywhere.
@@ -714,7 +719,7 @@ a beat _holds_ loot the way a chest does, and _does_ consequences.
 **The Quest Manager Redesign overturned the surface half of that guidance, not
 the data-model half.** This doc used to say "do not build a combined Outcomes
 surface over the two" — and the design built exactly that: `QuestPayoffPanel.vue`
-(the opened beat's Payoffs fold) is one list rendering both a beat's
+(the beat's payoffs) is one list rendering both a beat's
 `quest_consequences` rows and its `loot_placements` rows, because at the table
 "what this beat gives" is one question a DM asks once, not two panels to check
 separately. What the old warning got right, and what still holds, is the
@@ -722,7 +727,7 @@ _tables_: they stay two mechanisms with the three axes above, `derivePayoffRows`
 (`src/lib/quests/payoff.ts`) merely reads both and renders one list — nothing
 was added to either table's action enum to make this work, and a `drop_loot`
 action on `quest_consequences` would still be the wrong fix for the same
-reason it always was. See **The opened beat** under DM surfaces below.
+reason it always was. See **The beat in the drawer** under DM surfaces below.
 
 Dropping a room's loot **is** looting the room — `dispatch_loot` appends the
 `looted` fact itself. One way only: a drop implies looted, never the reverse,
@@ -773,7 +778,7 @@ event.
 `on_location_id` + `on_location_fact`, or since #1011 `on_clock_id`, a clock
 filling), an **`after_days`** delay, and an
 **`action`**. An `on_quest_settled` rule applies an engine-state verb (raise,
-reveal, complete, fail, `tick_clock`) the moment the ledger settles, like any
+complete, fail, `tick_clock`) the moment the ledger settles, like any
 other condition; until the #1011 review it only ever performed world actions,
 so "when the quest settles, raise the epilogue objective" was logged and never
 applied. It does not cascade further: settling is the end of the cascade.
@@ -781,7 +786,7 @@ The action is one of:
 
 | action                                                       | kind         | needs                                                              |
 | ------------------------------------------------------------ | ------------ | ------------------------------------------------------------------ |
-| `raise` `reveal` `complete` `fail`                           | ledger verb  | `target_objective_id`                                              |
+| `raise` `complete` `fail`                                    | ledger verb  | `target_objective_id`                                              |
 | `create_calendar_event` `send_broadcast`                     | world action | `action_payload`                                                   |
 | `shift_npc_relationship` (#831, `to` since `20260908210324`) | world action | `target_npc_id` + `action_payload.step` **or** `action_payload.to` |
 | `unlock_quest` (#836, `entry_beat_id` since #871)            | world action | `target_quest_id` + optional `entry_beat_id` of that quest         |
@@ -794,9 +799,9 @@ The action is one of:
 | `add_companion` (#1011)                                      | world action | `target_npc_id`                                                    |
 | `shift_faction_standing` (#1011)                             | world action | `target_faction_id` + `action_payload.step` **or** `.to`           |
 
-**Eleven world actions and five engine-state verbs.** `private.quest_action_is_world`
+**Eleven world actions and four engine-state verbs.** `private.quest_action_is_world`
 lists the eleven that `perform_quest_consequence` performs (now or after
-`after_days`); the five engine-state verbs (`raise`, `reveal`, `complete`,
+`after_days`); the four engine-state verbs (`raise`, `complete`,
 `fail` and `tick_clock`) move inline inside the transition and cascade, and
 `QUEST_CONSEQUENCE_LEDGER_ACTIONS` lists them. `tick_clock` is the odd one: it
 is engine state like the objective verbs but its target is a clock, so
@@ -850,7 +855,7 @@ verb, and undo withdraws only the recipients it added. The beat payoff list
 adds it as the "Handout" quick-add; the Advance dialog reads "The party
 receives `<title>`". The runtime RPC's payoff and held payloads must carry
 `target_document_id` and the title as `target_document` for the Advance dialog
-to name it. In the opened beat, an attached handout's contained view has a "Give to
+to name it. In the beat's wide part, an attached handout's contained view has a "Give to
 players" button, which is the Scriptorium's own `HandoutShareControl`
 starting on the whole party (`initialRecipients`), not a second share flow.
 
@@ -875,8 +880,8 @@ two pieces of knowledge from one beat are two rules, and the payload is not an
 identity. `supabase/tests/quest_consequence_dedupe.test.sql` pins all three.
 
 **Authored on two surfaces now, since the beat scope moved.** A beat/edge
-condition (`on_beat_id` or `on_edge_id`) is authored from the opened beat's
-Payoffs fold (`QuestPayoffPanel.vue`'s quick-adds — see **The opened beat** under
+condition (`on_beat_id` or `on_edge_id`) is authored from the beat's
+payoffs (`QuestPayoffPanel.vue`'s quick-adds — see **The beat in the drawer** under
 DM surfaces) rather than a standalone editor. An objective-became or
 quest-settled condition (`on_objective_id`/`on_objective_status`, or
 `on_quest_settled`) is still authored from the quest panel, in
@@ -992,7 +997,7 @@ trigger, and that is very hard to undo once data exists.
 `private.apply_quest_consequences` runs it from both `assert_quest_objective_status`
 and `transition_quest_runtime`, in the same transaction as the write that made
 the condition true — which is what lets `previous` undo a rule's effect by
-replaying the event's `previous_status`/`previous_is_player_visible`, and by
+replaying the event's `previous_status`, and by
 handle for a world action: `calendar_event_id`, `message_id`, and, since #850,
 `journal_entry_id`, `favor_id`, `milestone_id` for the three new verbs.
 Every handle follows the same pattern `calendar_event_id`/`message_id` set:
@@ -1002,7 +1007,7 @@ to remove.
 **`held_at` (#850) is the Advance dialog's "hold this back" tick.** A rule the
 DM unticks before submitting still logs an event — the record that this beat
 or route carried it — with `held_at` set and nothing performed: no objective
-moved, no journal entry written, no calendar event created. The opened beat's
+moved, no journal entry written, no calendar event created. The beat's
 Held payoff panel (`QuestRunHeldPayoff.vue`) and the quest card's "Held
 payoff — not yet fired" read `held_at is not null and performed_at is null`.
 A held event that also carries a delay is **never auto-performed when its day
@@ -1015,7 +1020,7 @@ a due delayed action uses, which clears `held_at` alongside setting
 `performed_at` — the one function performs both a due delayed row and a held
 one, distinguished only by which column got it there. A held **ledger** verb
 is the one case `perform_quest_consequence` records
-`previous_status`/`previous_is_player_visible` **at fire time** rather than at
+`previous_status` **at fire time** rather than at
 log time (a normal ledger verb moves the objective inline, in
 `apply_quest_consequences`, so its previous state is already known when the
 event is written) — which is what lets `previous` undo it correctly however
@@ -1194,46 +1199,49 @@ different feature (#834's diff surface, not built), and nothing here touches
 runtime, the ledger or an existing quest.
 
 `/quests/:id` is **one screen** (epic #1183, 13 Nov 2026, canvas *Quest One
-Screen*, frames `01 Delta` to `07 Phone`): the story flow with a drawer on its
-right. There are no tabs. The quest used to be three (Overview, Story flow and
-Run), each holding part of one quest, with a tab row and a flow header that took
-a full row each; Overview was the only place to edit a quest's details, and Run
-a second screen for one beat at a time. The drawer has four states:
+Screen*, frames `01 Delta` to `07 Phone`; second pass #1194, 14 Nov 2026, frames
+`08 Second pass` to `11 Nothing selected: the quest`): the story flow with a
+drawer on its right. There are no tabs. The drawer reads what is selected:
 
-- **Nothing selected: the quest** (`QuestPanel`).
-- **A beat selected: its summary** (`QuestSelectedBeatPanel`).
-- **A route selected: the route** (`QuestRoutePanel`).
-- **A beat pulled open over the flow: the whole beat** (`QuestOpenedBeat`): the
-  beat's page and its run surface in one.
+- **Nothing selected: the quest** (`QuestColumn`).
+- **A beat selected: the beat** (`QuestBeatColumn`).
+- **A route selected: the route** (`QuestRouteColumn`).
+
+**The drawer is a drawer.** Each state is one column, and a **tab on the
+drawer's left edge** is the only way to open it wide. Wide keeps the same column
+in the same place and unfolds the rest of the beat (`QuestBeatWide`) or the
+quest (`QuestWide`) to its left, over the flow, in two columns sized to the
+screen. It folds back from the tab, from a click on the flow strip left showing,
+from **Esc**, or from a click anywhere outside the drawer. The drawer has its own
+padding in every state. Wide is not stored: opening it is a choice made again each
+time. The tab is a bare `<button>` with scoped CSS in `QuestDrawer.vue` on purpose,
+not a missing `AppButton`: it is a one-off flap (border on three sides, rounded on
+one, anchored to the drawer's edge) that no button variant describes. The three
+circles of `QuestVisibilityTrack` are bare buttons for the same reason, each with a
+padded press area around a small drawn circle.
 
 **The selection is the URL** (`useQuestSelection`): `?beat=` a beat, `?edge=` a
-route, `open=1` the drawer opened on that beat, `open=party` "run", which opens
+route, `open=1` the drawer wide on that beat, `open=party` "run", which selects
 the beat the party stands on (on `?thread=`, else the primary live thread) and
 trades itself for a plain `beat` plus `open=1` once the runtime answers. A link,
 a bookmark and the back button then all say what the screen says; selecting
 replaces rather than pushes, because picking a beat is not a place to go back to
 (`questLink`, `lib/quests/navigation.ts`, builds every such link; the retired
-`view`, `mode`, `overview` and `edit` keys are dropped). **Esc** collapses an
-opened beat to its summary and a second press deselects, through the hotkey
+`view`, `mode`, `overview` and `edit` keys are dropped). **Esc** folds a wide
+drawer back to its column and a second press deselects, through the hotkey
 registry, which already leaves text fields alone; a click on empty canvas
 deselects too. The drawer remembers its width per quest (`drawerWidthFor` in the
 quests UI store, a drag handle on its left edge).
 
 The header keeps the title, the lane and a **More** menu; the rest of what the
-page header used to carry moved into the quest panel (below). Opened at `lg` the
-beat overlays the flow and the summary column stays in the grid, invisible, so
-the flow keeps its size and does not refit underneath; below `lg` the opened beat
-replaces the drawer in flow, with **Back to the flow** above it (shown below `md`
-only, where the opened beat's own header gives way to the phone top bar, whose
-back button would leave the page).
+page header used to carry lives in the quest column (below).
 
 Below `md` the drawer is a bottom sheet (`QuestSheet.vue`), over the outline
 that replaces the canvas there. It **peeks** with nothing selected: "The quest",
 one status line (objectives done of total, the first unfilled clock) and **Run**
 (`questLink(id, { party: true })`). It rises to **half** for a selected beat or
 route, where collapsing deselects (`select({})`), and to **full** for the quest
-panel. A spacer of the sheet's height keeps the outline's last row reachable.
-The opened beat is full screen on a phone and never sits in the sheet.
+column. A spacer of the sheet's height keeps the outline's last row reachable.
 
 **A quest is never a modal.** It was, briefly: `/quests/:id` nested under
 `/quests` so the overview could pop over the log the way an NPC sheet does,
@@ -1251,34 +1259,35 @@ scrolls itself, and the quest screen is the graph, so the page is always
 contained (`:contained` in `QuestDetailView`). Do not put a second, long-document
 surface inside it: it would inherit the canvas's `overflow:hidden` (#776).
 
-### The quest panel (frame `03 Inspector`, nothing selected)
+### The quest column (frame `11 Nothing selected: the quest`)
 
-`QuestPanel.vue`: everything about the quest as a whole, in the order the DM
-reaches for it. A quest shares a beat's data model, so the quest's own rules show as
-**Payoffs**, the way a beat's do.
-The sections, top to bottom:
+`QuestColumn.vue`: the quest as the table reads it, with the objectives pinned
+at the foot. A quest shares a beat's data model, so the quest's own rules show
+as **Payoffs**, the way a beat's do.
 
-- **Details** (`QuestDetailsSection`): premise (`summary`), board lane, giver,
-  location, **Part of** (the parent quest) and tags, one autosaved editor per field. No explanatory
-  prose, here or in any drawer panel (decision 10): the canvas's frame 01 and
-  these docs explain.
-- **Players** (`QuestPlayersSection`): the three visibility controls in one
-  place: who the quest is shared with (`AudienceRevealControl`) and **Preview as…**, which
-  shows it as one party member sees it. Each beat's **Hidden / Rumored /
-  Revealed** sits on the beat's panel and each objective's reveal toggle in the
-  list below.
-- **Threads** (`QuestThreadsPanel`), only once the quest holds one.
-- **Objectives** (`QuestObjectivesSection`), each with an optional due date, and
-  `QuestSettledPrompt` at its head ("Every objective is resolved.", **Mark
-  completed**, **Mark failed**, **Keep running**; #1011).
-- **Clocks** (`QuestClocksPanel`).
-- **Payoffs** (`QuestRulesPanel`): the quest's own rules.
-- The **DM note**, then **sub-quests** and shared notes (`QuestSidebarPanels`),
-  then a **Calendar** accordion.
-- **More** in the page header (`QuestMoreMenu`): **Send to Scriptorium** and
-  **Delete quest**, which navigates to `/quests`.
+- **Where it stands**: a status line (shared with whom, objectives done) over the
+  title.
+- **Players read**: `quests.summary`, one plain-text line the players read about
+  the quest.
+- **Notes** (`quests.dm_content`, rich text, DM only): what belongs to no single
+  scene, a session plan's premise, goals, themes and prep. Read by default,
+  **Write notes** / **Edit notes** to change it.
+- **Objectives** (`QuestObjectivesFoot`), pinned at the foot, each naming the
+  beat that raises it. `QuestSettledPrompt` heads it ("Every objective is
+  resolved.", **Mark completed**, **Mark failed**, **Keep running**; #1011).
 
-The consistency-warnings panel is gone: its warnings join the prep-gap tally.
+The wide part (`QuestWide`) holds the rest, one autosaved editor per field and no
+explanatory prose: the Details (board lane, giver, location, **Part of**, tags),
+who the quest is shared with (`QuestPlayersSection`, `AudienceRevealControl`),
+clocks, the quest's own **Payoffs** (`QuestRulesPanel`) and threads once the
+quest holds one. **More** in the page header (`QuestMoreMenu`): **Send to
+Scriptorium** and **Delete quest**, which navigates to `/quests`.
+
+**Why the quest has notes again (#1194).** #793 moved all quest prose onto beats,
+and `summary` stayed because a premise is identity. A real session plan carries a
+premise, goals and themes that belong to no one scene, and an imported plan lost
+all of it into whichever beat came first. Every beat's wide part carries the
+notes folded, so the table side never has to leave the beat to find them.
 
 ### The story flow (frame `02 Story flow`)
 
@@ -1310,14 +1319,16 @@ The consistency-warnings panel is gone: its warnings join the prep-gap tally.
   plus payoff, loot, converge and site facts, so the graph reads as a state
   board rather than a static flowchart.
 - **The drawer** (`QuestGraphDesigner.vue`) shows one of three things, chosen by
-  the selection in the URL: the quest panel (above); a selected beat's summary
-  (`QuestSelectedBeatPanel`: prep-gap, payoff, loot, converge and site chips, the
-  converge control, the marks row, **Preview as players**, and **Open** to pull
-  the beat open); or a selected route (`QuestRoutePanel`: its
-  `route_kind`/`thread_label` as writable fields, its gate, its payoff,
-  Save/Delete, and **Take this route**). `QuestGraphOutline` is the
-  sub-`48rem` and screen-reader fallback of the canvas, one row per beat with its
-  thread and state; it reads the same marks the nodes do.
+  the selection in the URL: the quest column (above); a selected beat
+  (`QuestBeatColumn`: where and title, the marks, read-aloud, description and
+  **Where it can go**); or a selected route (`QuestRouteColumn`, below).
+  `QuestGraphOutline` is the sub-`48rem` and screen-reader fallback of the
+  canvas, one row per beat with its thread and state; it reads the same marks
+  the nodes do.
+- **Visibility on the flow.** Every node carries three circles on a black line
+  (`QuestFlowNode`): black outlines, only the fill grows, in grimoire red
+  (`--live`), for hidden, rumored and revealed. The beat column shows the same
+  small track beside its marks.
 - **Beat fills and bookmarks (#1183, story F).** `beatMark` (`lib/quests/beatMark.ts`)
   is the one place that decides how a beat reads, so a canvas node and an outline
   row cannot disagree. The **fill** says where the beat sits: gold where the party
@@ -1333,13 +1344,11 @@ The consistency-warnings panel is gone: its warnings join the prep-gap tally.
   an **Undo** button, with **⌘Z / Ctrl+Z** through `useHotkeys` (inside a text
   field ⌘Z stays the field's own undo), which takes back the newest move on the
   quest, whether it was played at the table or marked afterwards, and replaces
-  Previous and every Clear; **Marks go to:**, a session select (**No session**
+  Previous and every Clear; and **Marks go to:**, a session select (**No session**
   or one of the sessions; it defaults to the open session, else the last one
-  played; `useQuestMarkSession`); and a **View** switch, **Your view** /
-  **Players' view** (`questFlowLens` in the quests UI store), the lens that
-  shows the flow as the party knows it, with the drawer showing the Players
-  section and a chosen shared character's view (`QuestPlayersView`).
-- **The gate editor (#1011)** in `QuestRoutePanel`: with no conditions the
+  played; `useQuestMarkSession`). There is no Players' view: the three circles on
+  every node (below) say what the party knows.
+- **The gate editor (#1011)** in the route column (`QuestRouteColumn`): with no conditions the
   panel reads "No conditions: this route is always open." **Add condition**
   appends a card (an objective `EntityCombobox`, which excludes objectives
   already used by another condition, and one `AppCheckbox` per status, the
@@ -1352,7 +1361,7 @@ The consistency-warnings panel is gone: its warnings join the prep-gap tally.
   than the DM meant (which could open it), and a refetch mid-save cannot
   swallow a mode change; `validateGateDrafts` names the first problem in the
   DM's words first. The canvas pill for a closed
-  route and the opened beat use the same sentences.
+  route and the beat use the same sentences.
 - **`QuestConvergeControl` (#1011)** on the selected beat: "When threads
   arrive", a `SegmentedControl` of **Each runs on** (`any`) / **Wait for the
   others** (`all`) with the one-sentence explanation under it (`lib/quests/converge.ts`).
@@ -1363,31 +1372,94 @@ The consistency-warnings panel is gone: its warnings join the prep-gap tally.
   one cursor and nothing to wait for). Saves on click through
   `useUpdateQuestBeat`.
 - **"Add parallel route"** opens the beat composer already carrying
-  `parallel: true`. The invariant it and `QuestRoutePanel` both enforce: **a
+  `parallel: true`. The invariant it and `QuestRouteColumn` both enforce: **a
   parallel route may never be the only way out of a beat** — the Parallel
   option is disabled, with a tooltip explaining why, until the beat already
   has a `choice` route.
 
-**There is no beat inspector form in the drawer.** The selected-beat panel is a
-summary (`QuestSelectedBeatPanel`'s chips for prep gaps, payoff, loot, converge
-and site, plus the marks row), and everything else about a beat is edited in the
-opened beat (below), which is the actual inspector.
+**The route column** (`QuestRouteColumn`, frame `10`): a route says **what the
+party does** (`label`), **what it costs** (`note`, one line) and its **kind**,
+*choice* or *and also* (`parallel`). `label` replaced `thread_label` (#1194): an
+"and also" route's label already names the thread it opens, so it is the one
+field. Below them the gate editor, what taking the route does, **Save route**, and
+pinned at the foot **Take this route** and **Delete route**. A route read in a beat's
+**Where it can go** shows the same label and note.
 
-### The beat's prep: three folds at the foot of the opened beat
+### The beat in the drawer (frames `09 The beat`, `10`)
 
-`QuestOpenedPrep.vue`, under the table's side of `QuestOpenedBeat` (next
-section). Everything edits in place and saves itself, so there is no Play/Prep
-switch and no Save button. The folds (`QuestFoldRow`) show a caption with the
-beat's prep gaps and **open by default when the party is elsewhere**, which is
-when the DM is preparing the beat, and close while it is here.
+A selected beat is one column (`QuestBeatColumn`), in table order:
 
-**Rumor and reveal copy**: `QuestBeatIdentityFields` (kind, staged-at location
-with a site room count, visibility) then `QuestBeatFields` for the prose (the
-rumor and reveal copy players see, the read-aloud, the DM lead, how it plays).
-**Attachments**: `QuestBeatAttachmentsPanel` for placements (needed/optional
-marks, the eleven attachment types including `check`), and `QuestBeatSitePanel`
-for the site — the
-"This beat can become a crawl" empty state when nothing is chosen yet, or,
+1. **Where and title**: the kind and where it is staged (a link to the place),
+   and the title.
+2. **Marks** (`QuestBeatMarks`): **Entry**, **Party here**, **Failed**, with the
+   small visibility track (below).
+3. **Read-aloud**, then the **description** (`dm_content`) and **How it plays**.
+   Reading by default; **Edit text** swaps the body for the one autosaving form
+   (`QuestBeatFields`), so there is no Save button and no Play/Prep switch.
+4. **Where it can go**, pinned at the foot (`QuestBeatWays`): the routes out
+   drawn as a fork. Choices share a solid stem ("They choose one" when there are
+   several), "and also" routes a dashed one. Each route shows its label and note,
+   and **Take** when the party is here (it opens `QuestAdvanceDialog` preselected
+   on that route; **Alt+Right** does the same when exactly one route is open). A
+   closed route says why first (`describeQuestRouteNeeds`, #1011).
+
+The wide part (`QuestBeatWide`), in order: **the site** first when the beat is
+staged at one with rooms (`QuestSiteHandoff`, **Enter site** / **Leave site**,
+**Show map to players** / **Hide map from players**); who and what is here
+(links), the placements (`QuestBeatAttachmentsPanel`; a **Check** attachment leads
+with its roll, e.g. **Roll Insight**, and every other placement opens in
+`QuestRunContainedTool` without leaving the beat) and loot; the **quest's notes**
+folded; **what players read** (`QuestBeatWideRead`: the rumor and reveal lines,
+and the **Secret** tick); **when the party gets here** (`QuestPayoffPanel`: the
+payoffs, objectives among them, and held payoff); and **prep** (`QuestBeatWidePrep`:
+the prep gaps, kind and staged-at place). The drawer used to run one thread at a
+time through a thread bar; the thread is still `?thread=`, defaulting to the
+quest's oldest live thread, and switching it is pure navigation (the quest's
+threads panel in the wide quest part focuses one).
+
+Where the party stands decides the moves: with the party here, **Take** on a
+route and **Undo**; elsewhere, **Party here** on the marks, which fills in the way
+there (below).
+
+**Held payoff** (`QuestRunHeldPayoff`): loot sitting in `loot_placements` with
+`delivery_state: "held"` **on a beat some thread of this quest has entered**
+(`lootHeldByTheRun`), and `quest_consequence_events` rows with `held_at` set,
+both quest-wide because a payoff held three beats ago is still the DM's to
+dispatch today; `delivery_state: "held"` alone only means "not dropped yet", which
+all prepared loot is, and filtering on that alone listed the whole quest's loot as
+already fired on the first beat of a fresh run (#1164). The quest's objectives and
+clocks live in the quest column and its wide part, not in the beat.
+
+**Ending a session is the session rail's job, not the quest's**: the beat holds no
+session controls. Ending a session leaves threads where they are (see "Semantics
+not to re-litigate").
+
+Runtime context, live chains, runtime state and the thread list refresh when
+the campaign doorbell rings for `quest_runtime_state`, `quest_threads` or
+`quest_beat_transitions` (`20260928225909`); none of them polls. The tables are
+never published as rows: `20260810000012` keeps DM-only quest history out of
+realtime payloads, and the doorbell carries only the table's name. Every
+command carries `expectedVersion`.
+
+**Audio no longer calls the soundboard store directly (#870).** A `sound` /
+`audio_scene` / `playlist` attachment's play/stop/fire button goes through
+`requestAudioCue` / `releaseAudioTheme` (`src/lib/audio/audioTriggers.ts`),
+the same trigger bus an encounter's theme and a location's ambience use, with
+`sourceId = beat:<beatId>:<attachmentId>`. That is what makes a beat's cue the
+loudest, most deliberate intent in the room — see soundboard.md's "Who wins
+the slot" — rather than a raw store call that could silently stomp whatever
+ambience or encounter theme was already running with no way to hand it back.
+The button's own "is this active" state reads `useActiveAudioTriggers()`
+(a cue owned by _this_ attachment's `sourceId`, not merely "is this playlist
+playing somewhere") so it never disagrees with the `CausedByChip`. Closing the
+beat's wide part (unmount) releases the cue, mirroring `EncounterRunner`, whose
+battle music would otherwise follow the DM around the app with nothing left on
+screen to stop it.
+
+### The beat's site (wide part)
+
+`QuestBeatSitePanel`, in the beat's wide part, is the site a beat is staged at:
+the "This beat can become a crawl" empty state when nothing is chosen yet, or,
 once staged, the full sheet epic #868 (S12) grew it into.
 
 **`QuestBeatSitePanel`'s picker now offers a site's rooms indented beneath it,
@@ -1447,26 +1519,24 @@ site rather than mounting one `useSiteStructure` per site, and
 `QuestGraphDesigner.vue` feeds the result into `QuestBeatSiteInput.readiness`
 alongside the existing `site · N rooms` fact.
 
-**Payoffs and routes**: `QuestBeatRoutesPanel` ("Routes out": one card per outgoing
-edge, its `route_kind` badge, its thread label if parallel, a site chip if the
-target is staged at a room-bearing site, "Add route"); `QuestPayoffPanel`
-("Payoff": this beat's `quest_consequences` and `loot_placements` rows as
-**one list**, each row tagged `auto` (fires from the engine) or `you dispatch`
-(a human action) — see "Threads, parallel routes and payoff" above for why the
-tables stay separate while the surface does not, with **thirteen quick-adds**:
-Item, Riches (loot); Influence, Knowledge, Quest, Favour, Milestone, Event,
-Handout, Tick clock, Move NPC, Companion, Standing (consequences, one button
-per action the DM might reach for without opening a condition form first).
-The last four of those are #1011's: they share `QuestWorldVerbFields.vue`
-with the Rules panel and `PayoffIcon` grew `clock`, `pin`, `party` and
-`faction` for their rows.
+### The beat's payoffs
 
-**Deletes** `QuestBeatLootPanel.vue` and the beat-scoped half of
-`QuestConsequencesPanel.vue`; the quest-scoped half survives, renamed
-`QuestRulesPanel.vue`, mounted in the quest panel (as **Payoffs**) exactly where
-the old panel was.
+`QuestPayoffPanel` ("when the party gets here"): this beat's
+`quest_consequences` and `loot_placements` rows as **one list**, each row tagged
+`auto` (fires from the engine) or `you dispatch` (a human action), objectives
+among them. See "Threads, parallel routes and payoff" above for why the tables
+stay separate while the surface does not. It has **thirteen quick-adds**: Item,
+Riches (loot); Influence, Knowledge, Quest, Favour, Milestone, Event, Handout,
+Tick clock, Move NPC, Companion, Standing (consequences, one button per action
+the DM might reach for without opening a condition form first). The last four
+are #1011's: they share `QuestWorldVerbFields.vue` with the Rules panel and
+`PayoffIcon` grew `clock`, `pin`, `party` and `faction` for their rows. A new
+objective is added here, as **New objective this beat raises**: a dormant
+objective and the `raise` rule that surfaces it, in one step (#1194). The
+quest-scoped rules live in `QuestRulesPanel.vue` (**Payoffs** in the wide quest
+part).
 
-### Fill with AI on the opened beat (#910)
+### Fill with AI on the beat (#910)
 
 `QuestBeatFillBar.vue`, mounted at the top of `QuestBeatFields.vue`, proposes the beat's **title, read-aloud and DM lead** from the quest around it. It shows only when AI is enabled; steer box, cost badge and button. State: `src/ai/useQuestBeatFill.ts` (label "Beat"). `generate-entity-text` with `generator: "quest_beat"`, ledger reason `quest_beat_generation`.
 
@@ -1476,88 +1546,31 @@ _It writes into the beat's draft, not the database._ `applyBeatFill` (`beatDraft
 
 _Provenance signature:_ the draft carries `ai_provenance` plus `ai_content`, a signature of title, lead and read-aloud at the moment the fill landed (`contentSignature`). `questBeatDraftToUpdate` keeps the provenance as generated while the live text still matches that signature and stores `markEdited()` once the DM changes any of the three; edits to unrelated fields (such as how it plays) do not flip it, and a refetched row compares equal by value so it is not seen as a change.
 
-### The opened beat (frame `04 Run`)
+### What players know: visibility is written by moves (#1194, frame 08)
 
-`QuestOpenedBeat.vue`: one beat pulled open over the flow. It is the beat's page and its run
-surface in one (decision 2 of #1183): the table's side, what to read, what to run
-and where Advance goes, above; the prep at the foot (the previous section).
-There is no Play/Prep switch. "Run" means opening the party's beat
-(`open=party`), and `/quests/:id/beats/:beatId` lands on the same drawer.
+A beat's `visibility` is `hidden`, `rumored` or `revealed`, and **a move writes it**
+rather than the DM tapping a control:
 
-**It runs one thread at a time.** `?thread=` names which; the thread bar
-(`QuestThreadBar`, on top of the opened beat) switches it, defaulting to the
-quest's oldest live thread. The bar holds one pill per thread (live and waiting
-selectable, closed and merged shown dimmed for context) and **Open a thread**
-(a beat picker, a label, an optional reason: the manual open path, distinct from a
-parallel route's automatic one). Switching threads is pure navigation: no cursor
-moves, nothing is recorded.
+- **Arriving reveals** the beat.
+- **One route away rumors** a beat on its own, unless the beat is **Secret**
+  (`quest_beats.secret`: players hear nothing until the party arrives).
+- **Undo and a step back take it back.** `private.quest_arrival_visibility`
+  (a trigger on `quest_beat_transitions`) records what it changed on the
+  transition (`visibility_changes`), so Undo restores exactly that and no more.
+- **The DM may raise a beat by hand, never below its floor.** `visibilityFloor`
+  (`lib/quests/visibility.ts`): a beat the party has stood on is at least
+  revealed, a non-secret beat one route ahead of a live thread is at least
+  rumored. The beat's small track offers only the steps at or above the floor.
+- **Auto-share.** The first move that shows a beat on a quest shared with
+  nobody shares it with the whole party, server-side in the same trigger
+  (`shared_with` and `shared_message_id` on the transition, so Undo takes the
+  share back too). A partial share stays as the DM set it, and a party of
+  nobody shares nothing. The client no longer sets visibility on a move, which
+  is why this moved off `useShareQuest`.
 
-**Where the party stands decides the moves** (`QuestOpenedActions`): with the
-party here, **Undo** and **Advance**; elsewhere, **Put the party here**. There is
-where a run begins is the quest's one entry beat, and a beat the party has not
-reached is reached by **Put the party here**, which fills in the way there
-(below). The header (`QuestOpenedHeader`) has **Flow** (collapse), the
-title with a party badge, and, for a beat staged at a site, **Enter site** /
-**Leave site** and **Show map to players** / **Hide map from players**.
-
-The middle, in order:
-
-- `QuestOpenedReadAloud`, folded when a site takes the middle.
-- **At a site, the site takes the middle** (`QuestSiteHandoff`, below): rooms,
-  the plan, then the room the party is in.
-- **Guidance**: the DM lead and how it plays.
-- **Placed at this beat** (`QuestOpenedAttachments`): one chip per placement. A
-  **Check** attachment leads with its roll (e.g. **Roll Insight**); every other
-  placement opens in `QuestRunContainedTool` without leaving the beat (encounters
-  embed `EncounterRunSurface`; objectives get a next-status button; notes and
-  handouts render their bodies, a handout with **Give to players**).
-- **Where Advance can go** (`QuestOpenedRoutes`), only while the party is here:
-  every `choice` route out, a closed one saying why first (`describeQuestRouteNeeds`,
-  e.g. `needs “A” complete or “B” complete`, from #1011). Choosing one opens
-  `QuestAdvanceDialog` preselected on that route; **Alt+→** does the same when
-  exactly one route is open.
-
-The side column (`QuestOpenedRail`): `QuestRunObjectivesLedger` (gate hints; a
-pending objective with a due date also shows "due in N days" / overdue, from
-`describeDeadline`), `QuestRunClocks` (dials with Tick and Untick; nothing for a
-quest without clocks), **Held payoff** (`QuestRunHeldPayoff`: loot sitting in
-`loot_placements` with `delivery_state: "held"` **on a beat some thread of this
-quest has entered** (`lootHeldByTheRun`), and `quest_consequence_events` rows with
-`held_at` set, both quest-wide because a payoff held three beats ago is still the
-DM's to dispatch today; `delivery_state: "held"` alone only means "not dropped
-yet", which all prepared loot is, and filtering on that alone listed the whole
-quest's loot as already fired on the first beat of a fresh run, #1164; more than
-four entries fold behind **Show all N**), and **Players see**: the beat's
-visibility with **Reveal to players** (or **Reveal fully** for a rumored beat)
-and **Preview**. Reveal writes `visibility: revealed` with no confirm (#1164: the
-move a DM makes most, and a dialog explained rather than protected), and, on a
-quest nobody can see, shares it (see **Visibility** below).
-
-**Ending a session is the session rail's job, not the quest's**: the opened beat
-holds no session controls. Ending a session leaves threads where
-they are (see "Semantics not to re-litigate").
-
-Runtime context, live chains, runtime state and the thread list refresh when
-the campaign doorbell rings for `quest_runtime_state`, `quest_threads` or
-`quest_beat_transitions` (`20260928225909`); none of them polls. The tables are
-never published as rows: `20260810000012` keeps DM-only quest history out of
-realtime payloads, and the doorbell carries only the table's name. Every
-command carries `expectedVersion`.
-
-**Audio no longer calls the soundboard store directly (#870).** A `sound` /
-`audio_scene` / `playlist` attachment's play/stop/fire button goes through
-`requestAudioCue` / `releaseAudioTheme` (`src/lib/audio/audioTriggers.ts`),
-the same trigger bus an encounter's theme and a location's ambience use, with
-`sourceId = beat:<beatId>:<attachmentId>`. That is what makes a beat's cue the
-loudest, most deliberate intent in the room — see soundboard.md's "Who wins
-the slot" — rather than a raw store call that could silently stomp whatever
-ambience or encounter theme was already running with no way to hand it back.
-The button's own "is this active" state reads `useActiveAudioTriggers()`
-(a cue owned by _this_ attachment's `sourceId`, not merely "is this playlist
-playing somewhere") so it never disagrees with the `CausedByChip`. Closing the
-opened beat (unmount) releases the cue, mirroring `EncounterRunner`, whose battle
-music would otherwise follow the DM around the app with nothing left on
-screen to stop it.
+There is **no player preview** of a quest: no eye on a beat, no Preview, no
+Players' view lens, no preview drawer. A beat shows the lines players read and
+every node shows its three circles.
 
 ### Marking what happened, on the flow (#1183, frame `05 Advance`'s other half)
 
@@ -1568,15 +1581,15 @@ tonight's session replayed the whole quest, so marking records history on the
 flow itself, **with no mode**, and the server does it in one transaction.
 _"Backfilling ten sessions of history should not mean performing them."_
 
-- **A route's panel** has **Take this route** (`QuestTakeRoute`) and a "Taking it
+- **A route's column** has **Take this route** (`QuestTakeRoute`) and a "Taking it
   will" preview (`previewRoute`, `lib/quests/moves.ts`): the beat it marks done,
   each payoff that fires, the sibling choices that become unreachable, and, for a
   parallel route, "Open a thread". Two ticks ride with it: **Party here** (named
   for the target's staged place when it has one) and **Hand out ‹loot›** per held
   loot row on the target. **Selecting a route never commits**; only the button
   does. Choices not taken become unreachable and parallel routes stay open.
-- **A beat's panel** has one row of checkboxes (`QuestBeatMarks`): **Entry**,
-  **Party here**, **Failed**, under its **Hidden / Rumored / Revealed** control,
+- **A beat's column** has one row of checkboxes (`QuestBeatMarks`): **Entry**,
+  **Party here**, **Failed**, beside its small visibility track,
   with "On arrival" and "If it goes wrong" listing the payoffs that fire for each.
   Checking Entry or Party here moves it from another beat; a checked box stays
   checked and is moved, not cleared. Party here and Failed need a thread (the
@@ -1623,14 +1636,7 @@ beat's Payoffs fold), and `apply_quest_consequences` gained a trailing
 "on arrival, complete X" and "on failure, complete X" on one beat are different
 rules. A failed beat is reversible like any move, through Undo.
 
-**Visibility, and auto-share.** A quest shared with nobody shares itself with the
-whole party when any of its beats becomes Rumored or Revealed (`useShareQuest`,
-`shareIfBeatSeen`): showing the table a beat of a quest it cannot see would leave
-the beat nowhere. A partial share stays as the DM set it, Hidden never shares, a
-party of nobody shares nothing, and the quest is read fresh rather than from a
-list on screen, so a share made a moment ago is not overwritten. The Players
-section and a beat's visibility control both go through this one composable, so
-"Quest shared" is announced once, in one wording.
+**Visibility is written by the move**, not by a click: see "What players know" above. A marked move records what it revealed and any share it made, and Undo takes both back.
 
 ### The Advance dialog (frame `05 Advance`)
 
@@ -1647,7 +1653,7 @@ before sending it as a single `transition_quest_runtime` call (or
    inline from the deleted `QuestRunImprovPanel.vue`).
 2. **Also opens** — every `parallel` route off the beat, ticked by default:
    each spawns its own thread in the same transaction, labelled by the edge's
-   `thread_label`. Unticking prepares the layer without opening it yet. Absent
+   `label`. Unticking prepares the layer without opening it yet. Absent
    for the improvise option — an improvised beat has no authored parallel
    routes to spawn.
 3. **Payoff from this route** — every `quest_consequences` row on the chosen
@@ -1665,7 +1671,7 @@ moved on another device — reopen to advance," via
 
 ### Site handoff (frame `06 Site`, reshaped by epic #868 S12)
 
-When the opened beat is staged at a site with rooms, `QuestSiteHandoff.vue`
+When a beat is staged at a site with rooms, `QuestSiteHandoff.vue`
 takes the middle of it, as frame 06 draws it: rooms, the plan, then the room the
 party is in, with the read-aloud folded above it; **Leave site** gives the
 middle back. Until 2 Oct 2026 the handoff sat
@@ -1678,16 +1684,16 @@ the handoff gets the full width of its place, and its column count is a **contai
 on its own width (`@6xl`, 72rem, for the third column; below that Ways out and
 Progress drop beneath the plan). The explore screen (`SiteExploreView`) follows the same rule inside
 its own panels. Do not put a viewport breakpoint back on either grid. "Advance
-beat" in the handoff's header opens the same Advance dialog the opened beat's
+beat" in the handoff's header opens the same Advance dialog the beat's
 routes do, so nothing is unreachable while the site is open. "Leave site"
-keeps the room cursor, and **Enter site** in the opened beat's header is the way
+keeps the room cursor, and **Enter site** in the beat's wide part is the way
 back in; until 2 Oct 2026 there was none,
 and the handoff stayed gone until the beat itself changed. Moving the party is
 `useMoveParty`, shared with the Atlas Run surface: see world-building.md for
 why reachability never refuses a move. #850 built this as its own
 room card and its own `LootPlacementList` mount; #868 replaced both with the
 same room surface the Atlas Run action uses, per the maintainer's framing
-for that epic: **a room is a zoomed-in beat**, so the opened beat's crawl and the
+for that epic: **a room is a zoomed-in beat**, so the beat's crawl and the
 Atlas's crawl should look like the same crawl, not two components that can
 drift.
 
@@ -1782,13 +1788,13 @@ entirely — it prompts a beat's advance when the party's token enters the
 zone, not a durable place-fact — and this story left it untouched.
 
 **Ledger verbs only, not the full seven-action vocabulary.** `QuestRulesPanel.vue`
-lets a location condition drive any of the four ledger verbs or three world
+lets a location condition drive any of the three ledger verbs or three world
 actions (calendar events, NPC shifts/favours, quest unlocks, knowledge,
 milestones) alike. Reproducing every one of those forms in the room-scoped
 editor too would duplicate roughly half that file's markup with no shared
 component to route both through, and `QuestRulesPanel.vue` is a different
-story's file. `SiteMapRoomRules.vue` therefore authors the four ledger verbs
-only (`raise`/`reveal`/`complete`/`fail`), which is the case the complaint
+story's file. `SiteMapRoomRules.vue` therefore authors the three ledger verbs
+only (`raise`/`complete`/`fail`), which is the case the complaint
 actually named ("Cleared → complete objective X") — a DM who wants a world
 action on a room-fact condition still has it, in the quest panel's Payoffs.
 The room panel's existing-rules list still _displays_ any rule on that room
@@ -1804,7 +1810,7 @@ the explore screen's left column is the party panel. Before #868 only the room
 list was shared (#850 story H); the room card and its ways-out were each
 hand-rolled per caller. There is now exactly
 one implementation of "what does the DM see when the party is in this room,"
-so the opened beat's crawl and the Atlas's crawl can never quietly disagree again.
+so the beat's crawl and the Atlas's crawl can never quietly disagree again.
 Pure derivations shared by both callers (which rooms are unwritten, a room's
 list caption, the party's ordinal position, which rooms hold loot) live in
 `src/lib/quests/siteHandoff.ts`; the room's own stack (`buildRoomStack`) lives
@@ -1812,13 +1818,13 @@ in `src/lib/locations/roomStack.ts` and is documented in world-building.md's
 "The site runner".
 
 Other threads the quest holds are still listed as "still open" with a
-Switch button, unchanged from #850. Three exits, all emits the opened beat owns:
+Switch button, unchanged from #850. Three exits, all emits the beat's wide part owns:
 "Show map to players" (toggles `is_map_shared`), "Leave site" (dismisses the
 handoff for this visit; nothing here writes `quest_runtime_state`), "Advance
 beat" (opens `QuestAdvanceDialog` the normal way).
 
 **The handoff's own gate no longer checks `isSiteType` on the staged location
-alone.** `useBeatStagedSite` (`composables/quests/`), which the opened beat's
+alone.** `useBeatStagedSite` (`composables/quests/`), which the beat's
 handoff gate and staged-site caption share, resolves the site first
 (itself, or its parent when a room was staged directly) before asking whether
 it has rooms — otherwise a beat staged at a room, the entire point of this
@@ -1895,7 +1901,7 @@ removed rather than kept dead.
 
 The detail view gates on `player_visible_to` being non-empty, then shows title and
 status, giver (NPC lightbox) and primary location (link only if actually shared),
-summary, **`PlayerQuestStoryThread`** ("Story so far"), visible objectives with
+summary, **`PlayerQuestStoryThread`** ("Story so far"), objectives that are raised (any not `dormant`) with
 a progress count, rewards, visible refs, and a `PlayerNotesWidget`. It used to
 also show `quest.description` — a DM-authored field with no visibility gate of
 its own — until #793 removed the column; the story thread is the player
@@ -1956,8 +1962,9 @@ goes through.
 The runtime cursor is invisible to players — `quest_runtime_state` has a single
 `private.is_campaign_dm()` policy.
 
-DM preview: `QuestPlayerPreviewDrawer` renders the real player projection for a
-chosen party member, and "Open actual player route" enters `ui.dmPreviewMode`.
+There is no quest preview for the DM (#1194): what players know is the three
+circles on each node, and the player projection itself is read in the player
+portal.
 
 ---
 
@@ -2023,7 +2030,7 @@ merged.
 
 `get_quest_runtime_context(campaign, quest, thread)` — one thread's state,
 current beat, previous, outgoing edges (each carrying `route_kind`,
-`thread_label`, `converge_mode`, `site`, `gate`, `effects`, `payoff`, `loot`),
+`label`, `note`, `converge_mode`, `site`, `gate`, `effects`, `payoff`, `loot`),
 return target, the most recent **100** transitions (re-read whenever the runtime doorbell rings),
 plus — since #850 — `thread` (this thread's own summary), `threads` (every
 sibling thread of the quest, each with its own current beat and status), and
@@ -2038,7 +2045,7 @@ carrying `thread_id`/`thread_label`/`thread_status` and a `sibling_count` (how
 many threads that thread's quest currently has open).
 
 `tick_quest_clock(clock, step?, reason?)` (#1011, DM-gated, `authenticated`
-only: ticks a clock from the opened beat; see `quest_clocks`).
+only: ticks a clock from the quest; see `quest_clocks`).
 
 `improvise_quest_runtime`, `mark_quest_move` and `undo_quest_move` (see
 **Marking what happened**; **Put the party here** is how the DM goes to any beat

@@ -1,0 +1,380 @@
+{
+  "hash": "c2a3a76a",
+  "configHash": "83626ea9",
+  "lockfileHash": "8bd16494",
+  "browserHash": "e54c6e02",
+  "optimized": {
+    "@google/model-viewer": {
+      "src": "../../../DnD helper/node_modules/@google/model-viewer/lib/model-viewer.js",
+      "file": "@google_model-viewer.js",
+      "fileHash": "53daf103",
+      "needsInterop": false
+    },
+    "@lucide/vue": {
+      "src": "../../../DnD helper/node_modules/@lucide/vue/dist/esm/lucide-vue.mjs",
+      "file": "@lucide_vue.js",
+      "fileHash": "b98967bd",
+      "needsInterop": false
+    },
+    "@sentry/vue": {
+      "src": "../../../DnD helper/node_modules/@sentry/vue/build/esm/index.js",
+      "file": "@sentry_vue.js",
+      "fileHash": "c5d04039",
+      "needsInterop": false
+    },
+    "@supabase/supabase-js": {
+      "src": "../../../DnD helper/node_modules/@supabase/supabase-js/dist/index.mjs",
+      "file": "@supabase_supabase-js.js",
+      "fileHash": "c8920cc5",
+      "needsInterop": false
+    },
+    "@tanstack/vue-query": {
+      "src": "../../../DnD helper/node_modules/@tanstack/vue-query/build/modern/index.js",
+      "file": "@tanstack_vue-query.js",
+      "fileHash": "b071425b",
+      "needsInterop": false
+    },
+    "@tanstack/vue-virtual": {
+      "src": "../../../DnD helper/node_modules/@tanstack/vue-virtual/dist/esm/index.js",
+      "file": "@tanstack_vue-virtual.js",
+      "fileHash": "e4e21c56",
+      "needsInterop": false
+    },
+    "@tiptap/core": {
+      "src": "../../../DnD helper/node_modules/@tiptap/core/dist/index.js",
+      "file": "@tiptap_core.js",
+      "fileHash": "a8a5fa60",
+      "needsInterop": false
+    },
+    "@tiptap/extension-highlight": {
+      "src": "../../../DnD helper/node_modules/@tiptap/extension-highlight/dist/index.js",
+      "file": "@tiptap_extension-highlight.js",
+      "fileHash": "44f2a90b",
+      "needsInterop": false
+    },
+    "@tiptap/extension-image": {
+      "src": "../../../DnD helper/node_modules/@tiptap/extension-image/dist/index.js",
+      "file": "@tiptap_extension-image.js",
+      "fileHash": "61bb9df2",
+      "needsInterop": false
+    },
+    "@tiptap/extension-placeholder": {
+      "src": "../../../DnD helper/node_modules/@tiptap/extension-placeholder/dist/index.js",
+      "file": "@tiptap_extension-placeholder.js",
+      "fileHash": "e81d1b1e",
+      "needsInterop": false
+    },
+    "@tiptap/extension-table-cell": {
+      "src": "../../../DnD helper/node_modules/@tiptap/extension-table-cell/dist/index.js",
+      "file": "@tiptap_extension-table-cell.js",
+      "fileHash": "c1c8c828",
+      "needsInterop": false
+    },
+    "@tiptap/extension-table-header": {
+      "src": "../../../DnD helper/node_modules/@tiptap/extension-table-header/dist/index.js",
+      "file": "@tiptap_extension-table-header.js",
+      "fileHash": "0e4df725",
+      "needsInterop": false
+    },
+    "@tiptap/extension-table-row": {
+      "src": "../../../DnD helper/node_modules/@tiptap/extension-table-row/dist/index.js",
+      "file": "@tiptap_extension-table-row.js",
+      "fileHash": "da4276b6",
+      "needsInterop": false
+    },
+    "@tiptap/extension-table": {
+      "src": "../../../DnD helper/node_modules/@tiptap/extension-table/dist/index.js",
+      "file": "@tiptap_extension-table.js",
+      "fileHash": "90531f12",
+      "needsInterop": false
+    },
+    "@tiptap/extension-task-item": {
+      "src": "../../../DnD helper/node_modules/@tiptap/extension-task-item/dist/index.js",
+      "file": "@tiptap_extension-task-item.js",
+      "fileHash": "628c2381",
+      "needsInterop": false
+    },
+    "@tiptap/extension-task-list": {
+      "src": "../../../DnD helper/node_modules/@tiptap/extension-task-list/dist/index.js",
+      "file": "@tiptap_extension-task-list.js",
+      "fileHash": "c4a50d77",
+      "needsInterop": false
+    },
+    "@tiptap/extension-text-align": {
+      "src": "../../../DnD helper/node_modules/@tiptap/extension-text-align/dist/index.js",
+      "file": "@tiptap_extension-text-align.js",
+      "fileHash": "6ab9e319",
+      "needsInterop": false
+    },
+    "@tiptap/extension-typography": {
+      "src": "../../../DnD helper/node_modules/@tiptap/extension-typography/dist/index.js",
+      "file": "@tiptap_extension-typography.js",
+      "fileHash": "d3d10d2d",
+      "needsInterop": false
+    },
+    "@tiptap/pm/model": {
+      "src": "../../../DnD helper/node_modules/@tiptap/pm/dist/model/index.js",
+      "file": "@tiptap_pm_model.js",
+      "fileHash": "75bb7565",
+      "needsInterop": false
+    },
+    "@tiptap/pm/state": {
+      "src": "../../../DnD helper/node_modules/@tiptap/pm/dist/state/index.js",
+      "file": "@tiptap_pm_state.js",
+      "fileHash": "254d3be8",
+      "needsInterop": false
+    },
+    "@tiptap/pm/transform": {
+      "src": "../../../DnD helper/node_modules/@tiptap/pm/dist/transform/index.js",
+      "file": "@tiptap_pm_transform.js",
+      "fileHash": "652d5312",
+      "needsInterop": false
+    },
+    "@tiptap/pm/view": {
+      "src": "../../../DnD helper/node_modules/@tiptap/pm/dist/view/index.js",
+      "file": "@tiptap_pm_view.js",
+      "fileHash": "4648f62d",
+      "needsInterop": false
+    },
+    "@tiptap/starter-kit": {
+      "src": "../../../DnD helper/node_modules/@tiptap/starter-kit/dist/index.js",
+      "file": "@tiptap_starter-kit.js",
+      "fileHash": "684aa569",
+      "needsInterop": false
+    },
+    "@tiptap/suggestion": {
+      "src": "../../../DnD helper/node_modules/@tiptap/suggestion/dist/index.js",
+      "file": "@tiptap_suggestion.js",
+      "fileHash": "1329fee5",
+      "needsInterop": false
+    },
+    "@tiptap/vue-3": {
+      "src": "../../../DnD helper/node_modules/@tiptap/vue-3/dist/index.js",
+      "file": "@tiptap_vue-3.js",
+      "fileHash": "90edbcee",
+      "needsInterop": false
+    },
+    "@tiptap/vue-3/menus": {
+      "src": "../../../DnD helper/node_modules/@tiptap/vue-3/dist/menus/index.js",
+      "file": "@tiptap_vue-3_menus.js",
+      "fileHash": "a150299f",
+      "needsInterop": false
+    },
+    "@vercel/speed-insights/vue": {
+      "src": "../../../DnD helper/node_modules/@vercel/speed-insights/dist/vue/index.mjs",
+      "file": "@vercel_speed-insights_vue.js",
+      "fileHash": "02726861",
+      "needsInterop": false
+    },
+    "@vue-flow/core": {
+      "src": "../../../DnD helper/node_modules/@vue-flow/core/dist/vue-flow-core.mjs",
+      "file": "@vue-flow_core.js",
+      "fileHash": "e4bb912f",
+      "needsInterop": false
+    },
+    "@vuepic/vue-datepicker": {
+      "src": "../../../DnD helper/node_modules/@vuepic/vue-datepicker/dist/vue-datepicker.js",
+      "file": "@vuepic_vue-datepicker.js",
+      "fileHash": "afb148f3",
+      "needsInterop": false
+    },
+    "@vueuse/core": {
+      "src": "../../../DnD helper/node_modules/@vueuse/core/dist/index.js",
+      "file": "@vueuse_core.js",
+      "fileHash": "beaa8cfa",
+      "needsInterop": false
+    },
+    "class-variance-authority": {
+      "src": "../../../DnD helper/node_modules/class-variance-authority/dist/index.mjs",
+      "file": "class-variance-authority.js",
+      "fileHash": "b0fe356d",
+      "needsInterop": false
+    },
+    "clsx": {
+      "src": "../../../DnD helper/node_modules/clsx/dist/clsx.mjs",
+      "file": "clsx.js",
+      "fileHash": "21405b91",
+      "needsInterop": false
+    },
+    "dompurify": {
+      "src": "../../../DnD helper/node_modules/dompurify/dist/purify.es.mjs",
+      "file": "dompurify.js",
+      "fileHash": "8b4d0fda",
+      "needsInterop": false
+    },
+    "driver.js": {
+      "src": "../../../DnD helper/node_modules/driver.js/dist/driver.js.mjs",
+      "file": "driver__js.js",
+      "fileHash": "95352364",
+      "needsInterop": false
+    },
+    "fflate": {
+      "src": "../../../DnD helper/node_modules/fflate/esm/browser.js",
+      "file": "fflate.js",
+      "fileHash": "123a12f6",
+      "needsInterop": false
+    },
+    "html2canvas": {
+      "src": "../../../DnD helper/node_modules/html2canvas/dist/html2canvas.js",
+      "file": "html2canvas.js",
+      "fileHash": "5c3edc5d",
+      "needsInterop": true
+    },
+    "jspdf": {
+      "src": "../../../DnD helper/node_modules/jspdf/dist/jspdf.es.min.js",
+      "file": "jspdf.js",
+      "fileHash": "37b351c8",
+      "needsInterop": false
+    },
+    "marked": {
+      "src": "../../../DnD helper/node_modules/marked/lib/marked.esm.js",
+      "file": "marked.js",
+      "fileHash": "9e4d320c",
+      "needsInterop": false
+    },
+    "modern-screenshot": {
+      "src": "../../../DnD helper/node_modules/modern-screenshot/dist/index.mjs",
+      "file": "modern-screenshot.js",
+      "fileHash": "443860a9",
+      "needsInterop": false
+    },
+    "pagedjs": {
+      "src": "../../../DnD helper/node_modules/pagedjs/src/index.js",
+      "file": "pagedjs.js",
+      "fileHash": "3f772f9f",
+      "needsInterop": false
+    },
+    "pdf-lib": {
+      "src": "../../../DnD helper/node_modules/pdf-lib/es/index.js",
+      "file": "pdf-lib.js",
+      "fileHash": "941a83ca",
+      "needsInterop": false
+    },
+    "pdfjs-dist": {
+      "src": "../../../DnD helper/node_modules/pdfjs-dist/build/pdf.mjs",
+      "file": "pdfjs-dist.js",
+      "fileHash": "c02f27a4",
+      "needsInterop": false
+    },
+    "pinia": {
+      "src": "../../../DnD helper/node_modules/pinia/dist/pinia.js",
+      "file": "pinia.js",
+      "fileHash": "549d68d8",
+      "needsInterop": false
+    },
+    "reka-ui": {
+      "src": "../../../DnD helper/node_modules/reka-ui/dist/index.js",
+      "file": "reka-ui.js",
+      "fileHash": "7aaca393",
+      "needsInterop": false
+    },
+    "smartcrop": {
+      "src": "../../../DnD helper/node_modules/smartcrop/smartcrop.js",
+      "file": "smartcrop.js",
+      "fileHash": "cb8b0b27",
+      "needsInterop": true
+    },
+    "tailwind-merge": {
+      "src": "../../../DnD helper/node_modules/tailwind-merge/dist/bundle-mjs.mjs",
+      "file": "tailwind-merge.js",
+      "fileHash": "322a8914",
+      "needsInterop": false
+    },
+    "v-network-graph": {
+      "src": "../../../DnD helper/node_modules/v-network-graph/lib/index.js",
+      "file": "v-network-graph.js",
+      "fileHash": "3f89dfe2",
+      "needsInterop": false
+    },
+    "v-network-graph/lib/force-layout": {
+      "src": "../../../DnD helper/node_modules/v-network-graph/lib/force-layout.js",
+      "file": "v-network-graph_lib_force-layout.js",
+      "fileHash": "2cc75258",
+      "needsInterop": false
+    },
+    "vue-draggable-plus": {
+      "src": "../../../DnD helper/node_modules/vue-draggable-plus/dist/vue-draggable-plus.js",
+      "file": "vue-draggable-plus.js",
+      "fileHash": "f980f99c",
+      "needsInterop": false
+    },
+    "vue-router": {
+      "src": "../../../DnD helper/node_modules/vue-router/dist/vue-router.js",
+      "file": "vue-router.js",
+      "fileHash": "9b65ea6e",
+      "needsInterop": false
+    },
+    "vue": {
+      "src": "../../../DnD helper/node_modules/vue/dist/vue.runtime.esm-bundler.js",
+      "file": "vue.js",
+      "fileHash": "5a076840",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "dist-BgYMzsBB": {
+      "file": "dist-BgYMzsBB.js",
+      "isDynamicEntry": false
+    },
+    "dist-BxFsHs9P": {
+      "file": "dist-BxFsHs9P.js",
+      "isDynamicEntry": false
+    },
+    "dist-CL9j1usr": {
+      "file": "dist-CL9j1usr.js",
+      "isDynamicEntry": false
+    },
+    "dist-CnqGEpwe": {
+      "file": "dist-CnqGEpwe.js",
+      "isDynamicEntry": false
+    },
+    "dist-CrIvfOQu": {
+      "file": "dist-CrIvfOQu.js",
+      "isDynamicEntry": false
+    },
+    "dist-DMR5aO-v": {
+      "file": "dist-DMR5aO-v.js",
+      "isDynamicEntry": false
+    },
+    "dist-EB57nve8": {
+      "file": "dist-EB57nve8.js",
+      "isDynamicEntry": false
+    },
+    "dist-UMat9FgZ": {
+      "file": "dist-UMat9FgZ.js",
+      "isDynamicEntry": false
+    },
+    "esm-B9iTxpXW": {
+      "file": "esm-B9iTxpXW.js",
+      "isDynamicEntry": false
+    },
+    "floating-ui.dom-BsrkDKcO": {
+      "file": "floating-ui.dom-BsrkDKcO.js",
+      "isDynamicEntry": false
+    },
+    "index.es-CkCNFRYn": {
+      "file": "index.es-CkCNFRYn.js",
+      "isDynamicEntry": true
+    },
+    "rolldown-runtime-SbdDWaPq": {
+      "file": "rolldown-runtime-SbdDWaPq.js",
+      "isDynamicEntry": false
+    },
+    "tables-BQHYV5Ky": {
+      "file": "tables-BQHYV5Ky.js",
+      "isDynamicEntry": false
+    },
+    "typeof-61W_JiUh": {
+      "file": "typeof-61W_JiUh.js",
+      "isDynamicEntry": false
+    },
+    "vue-router-CqBDesTw": {
+      "file": "vue-router-CqBDesTw.js",
+      "isDynamicEntry": false
+    },
+    "vue.runtime.esm-bundler-Bwv4pGxO": {
+      "file": "vue.runtime.esm-bundler-Bwv4pGxO.js",
+      "isDynamicEntry": false
+    }
+  }
+}

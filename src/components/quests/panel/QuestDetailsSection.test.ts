@@ -1,7 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import QuestDetailsSection from "./QuestDetailsSection.vue";
-import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 import type { Quest } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({
@@ -80,31 +79,18 @@ describe("QuestDetailsSection", () => {
     const fields = mountDetails().findAll("span.text-caption").map((span) => span.text());
     expect(fields).toEqual(["Board lane", "Giver", "Location", "Part of", "Tags"]);
     expect(mountDetails().findAll("input")[0]!.attributes("aria-label")).toBe("Title");
-    expect(mountDetails().find('input[aria-label="Premise"]').attributes("aria-label")).toBe("Premise");
-  });
-
-  it("caps the premise input at QUEST_SUMMARY_MAX, since players see it verbatim", () => {
-    const summaryInput = mountDetails().find('input[aria-label="Premise"]');
-    expect(summaryInput.attributes("maxlength")).toBe(String(QUEST_SUMMARY_MAX));
-    expect(summaryInput.attributes("placeholder")).toContain("players see this");
-  });
-
-  it("saves the premise trimmed, or null when cleared", async () => {
-    const wrapper = mountDetails({ summary: "Something." });
-    await wrapper.find('input[aria-label="Premise"]').setValue("   ");
-    expect(mocks.updateQuest).not.toHaveBeenCalled();
-    await settle();
-    expect(mocks.updateQuest).toHaveBeenCalledWith({ id: "quest-1", update: { summary: null } });
+    // The players' line moved to the quest column; a second copy here would fight it.
+    expect(mountDetails().find('input[aria-label="Premise"]').exists()).toBe(false);
   });
 
   // The run cockpit also writes `status`; a details save must not put a stale lane back.
   it("sends only what changed here: an untouched status stays out of the write, and follows the server", async () => {
     const wrapper = mountDetails({ status: "active" });
     await wrapper.setProps({ quest: quest({ status: "completed" }) });
-    await wrapper.find('input[aria-label="Premise"]').setValue("A new premise");
+    await wrapper.find('input[aria-label="Title"]').setValue("A new title");
     await settle();
     expect(mocks.updateQuest).toHaveBeenCalledOnce();
-    expect(mocks.updateQuest.mock.calls[0]![0].update).toEqual({ summary: "A new premise" });
+    expect(mocks.updateQuest.mock.calls[0]![0].update).toEqual({ title: "A new title" });
   });
 
   it("a cleared quest giver is saved as no giver, not as an empty id", async () => {
@@ -122,11 +108,11 @@ describe("QuestDetailsSection", () => {
 
   it("opening another quest saves the pending edit to the quest it was made on, at once", async () => {
     const wrapper = mountDetails();
-    await wrapper.find('input[aria-label="Premise"]').setValue("Edited premise");
-    await wrapper.setProps({ quest: quest({ id: "quest-2", summary: "Another" }) });
+    await wrapper.find('input[aria-label="Title"]').setValue("Edited title");
+    await wrapper.setProps({ quest: quest({ id: "quest-2", title: "Another" }) });
     await flushPromises();
     expect(mocks.updateQuest).toHaveBeenCalledTimes(1);
-    expect(mocks.updateQuest).toHaveBeenCalledWith({ id: "quest-1", update: { summary: "Edited premise" } });
+    expect(mocks.updateQuest).toHaveBeenCalledWith({ id: "quest-1", update: { title: "Edited title" } });
   });
 
   // Fails if the quest title cannot be edited from the panel, now that the header only shows it.

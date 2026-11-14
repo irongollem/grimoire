@@ -12,6 +12,7 @@ import type { QuestBeat, QuestObjective } from "@/types/quest.types";
 // Plain objects, not refs: `vi.hoisted` runs before "vue" is evaluated.
 const mocks = vi.hoisted(() => ({
   beats: [] as unknown[],
+  edges: [] as unknown[],
   objectives: [] as unknown[],
   transitions: [] as unknown[],
   sessions: [] as unknown[],
@@ -27,7 +28,7 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
   useCreateQuestBeatWithRoute: mocks.mutation,
   useCreateQuestBeatEdge: mocks.mutation,
   useDeleteQuestBeatEdge: mocks.mutation,
-  useQuestBeatEdges: () => mocks.query(() => []),
+  useQuestBeatEdges: () => mocks.query(() => mocks.edges),
   useQuestBeats: () => mocks.query(() => mocks.beats),
   useQuestBeatTransitionsForQuest: () => mocks.query(() => mocks.transitions),
   useUndoQuestMove: mocks.mutation,
@@ -68,11 +69,11 @@ async function mountDesigner(path = "/quests/quest-1") {
       plugins: [router],
       stubs: {
         QuestFlowCanvas: true,
-        QuestPanel: { props: ["playersFirst"], template: '<div data-test="quest-panel" :data-players-first="playersFirst" />' },
-        QuestOpenedBeat: true,
-        QuestPlayerPreviewDrawer: true,
-        QuestRoutePanel: true,
-        QuestSelectedBeatPanel: { props: ["sessionId"], template: '<div data-test="beat-panel" :data-session="sessionId" />' },
+        QuestColumn: { template: '<div data-test="quest-column" />' },
+        QuestWide: { template: '<div data-test="quest-wide" />' },
+        QuestBeatColumn: { props: ["sessionId", "beatId"], template: '<div data-test="beat-column" :data-session="sessionId" :data-beat="beatId" />' },
+        QuestBeatWide: { template: '<div data-test="beat-wide" />' },
+        QuestRouteColumn: { props: ["edgeId"], template: '<div data-test="route-column" :data-edge="edgeId" />' },
       },
     },
   });
@@ -83,6 +84,7 @@ async function mountDesigner(path = "/quests/quest-1") {
 describe("QuestGraphDesigner", () => {
   beforeEach(() => {
     mocks.beats = [beat({ id: "beat-1" })];
+    mocks.edges = [];
     mocks.objectives = [];
     mocks.transitions = [];
     mocks.sessions = [];
@@ -94,7 +96,36 @@ describe("QuestGraphDesigner", () => {
     const { wrapper } = await mountDesigner();
     expect(wrapper.text()).toContain("Add beat");
     expect(wrapper.find('[aria-label="Quest drawer"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="quest-panel"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="quest-column"]').exists()).toBe(true);
+  });
+
+  // Fails if the quest's wide part is not reachable with nothing selected, or shows while folded.
+  it("shows the quest's wide part only when open=1 with nothing selected", async () => {
+    expect((await mountDesigner()).wrapper.find('[data-test="quest-wide"]').exists()).toBe(false);
+    const { wrapper } = await mountDesigner("/quests/quest-1?open=1");
+    expect(wrapper.find('[data-test="quest-wide"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="quest-column"]').exists()).toBe(true);
+  });
+
+  // Fails if a beat mounts the quest's column, or its wide part ignores open.
+  it("a selected beat mounts the beat column, and its wide part only when opened", async () => {
+    const { wrapper } = await mountDesigner("/quests/quest-1?beat=beat-1");
+    expect(wrapper.get('[data-test="beat-column"]').attributes("data-beat")).toBe("beat-1");
+    expect(wrapper.find('[data-test="quest-column"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="beat-wide"]').exists()).toBe(false);
+    const opened = await mountDesigner("/quests/quest-1?beat=beat-1&open=1");
+    expect(opened.wrapper.find('[data-test="beat-wide"]').exists()).toBe(true);
+  });
+
+  // Fails if a route gets a wide part, even when the URL asks for one.
+  it("a selected route mounts the route column and never a wide part", async () => {
+    mocks.beats = [beat({ id: "beat-1" }), beat({ id: "beat-2" })];
+    mocks.edges = [{ id: "edge-1", quest_id: "quest-1", source_beat_id: "beat-1", target_beat_id: "beat-2", route_kind: "choice" }];
+    const { wrapper } = await mountDesigner("/quests/quest-1?edge=edge-1&open=1");
+    expect(wrapper.get('[data-test="route-column"]').attributes("data-edge")).toBe("edge-1");
+    expect(wrapper.find('[data-test="beat-wide"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="quest-wide"]').exists()).toBe(false);
+    expect(wrapper.find('[aria-label="Wide part"]').exists()).toBe(false);
   });
 
   it("lists a beat's prep gap in the tally, and picking it selects that beat", async () => {
@@ -129,23 +160,17 @@ describe("QuestGraphDesigner", () => {
   });
 
   // Fails if the toolbar's session pick never reaches the panels that file marks.
-  it("hands the chosen session to the beat panel", async () => {
+  it("hands the chosen session to the beat column", async () => {
     mocks.sessions = [{ id: "s1", number: 11, title: null, played_on: null, started_at: "2026-02-01T18:00:00Z", ended_at: "2026-02-01T22:00:00Z", created_at: "2026-02-01T00:00:00Z" }];
     const { wrapper } = await mountDesigner("/quests/quest-1?beat=beat-1");
-    expect(wrapper.get('[data-test="beat-panel"]').attributes("data-session")).toBe("s1");
+    expect(wrapper.get('[data-test="beat-column"]').attributes("data-session")).toBe("s1");
   });
 
-  // Fails if the lens swaps the tally text but leaves the DM tally, or the reverse.
-  it("swaps the tally for what the party knows in Players' view", async () => {
-    mocks.beats = [beat({ id: "b1", visibility: "revealed" }), beat({ id: "b2", visibility: "rumored" }), beat({ id: "b3", visibility: "hidden" }), beat({ id: "b4", visibility: "hidden" })];
+  // Fails if the progress tally stays hidden behind a lens state that no longer exists.
+  it("shows the progress tally without any lens", async () => {
+    mocks.beats = [beat({ id: "b1", visibility: "revealed" }), beat({ id: "b2", visibility: "hidden" })];
     const { wrapper } = await mountDesigner();
-    expect(wrapper.text()).not.toContain("revealed");
-    await wrapper.findAll("button").find((b) => b.text().includes("Players' view"))!.trigger("click");
-    await flushPromises();
-    const text = wrapper.get('[aria-label="What the party knows"]').text();
-    expect(text).toContain("1 revealed");
-    expect(text).toContain("1 rumored");
-    expect(text).toContain("2 hidden");
-    expect(wrapper.get('[data-test="quest-panel"]').attributes("data-players-first")).toBe("true");
+    expect(wrapper.find('[aria-label="Story flow progress"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label="What the party knows"]').exists()).toBe(false);
   });
 });

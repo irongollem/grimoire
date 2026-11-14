@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   removeConsequence: vi.fn(),
   createLoot: vi.fn(),
   removeLoot: vi.fn(),
+  createObjective: vi.fn(),
 }));
 
 vi.mock("@/composables/quests/useQuestFlow", () => ({
@@ -31,7 +32,8 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
   }),
 }));
 vi.mock("@/composables/quests/useQuests", () => ({
-  useQuestObjectives: () => ({ data: { value: [{ id: "obj-1", description: "Keep the bridge standing" }] } }),
+  useQuestObjectives: () => ({ data: { value: [{ id: "obj-1", description: "Keep the bridge standing", status: "pending", sort_order: 3 }] } }),
+  useCreateObjective: () => ({ mutateAsync: mocks.createObjective }),
   // The panel and the shared unlock picker both read the campaign list and filter it themselves.
   useQuests: () => ({ data: { value: [
     { id: "quest-sequel", title: "The stolen cauldron", status: "undiscovered", entry_beat_id: "beat-rumor" },
@@ -98,6 +100,16 @@ function mountPanel(props: Partial<InstanceType<typeof QuestPayoffPanel>["$props
   });
 }
 
+const OBJECTIVE_BUTTONS = ["An objective it raises, completes or fails", "New objective this beat raises", "Other payoff", "Add", "Cancel", "Remove"];
+/** Presses a quick-add button; the reward kinds sit behind "Other payoff", so it is opened first. */
+async function press(wrapper: ReturnType<typeof mountPanel>, label: string) {
+  const find = (name: string) => wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === name);
+  if (!OBJECTIVE_BUTTONS.includes(label) && !find(label)) {
+    await find("Other payoff")!.trigger("click");
+  }
+  await find(label)!.trigger("click");
+}
+
 describe("QuestPayoffPanel", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
@@ -105,6 +117,7 @@ describe("QuestPayoffPanel", () => {
     mocks.removeConsequence.mockReset();
     mocks.createLoot.mockReset();
     mocks.removeLoot.mockReset();
+    mocks.createObjective.mockReset();
   });
 
   it("merges this beat's consequences and loot into one ordered list", () => {
@@ -146,7 +159,7 @@ describe("QuestPayoffPanel", () => {
 
   it("opens the influence quick-add and authors a disposition shift with a signed step", async () => {
     const wrapper = mountPanel();
-    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Influence")!.trigger("click");
+    await press(wrapper, "Influence");
     wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "npc-1");
     await wrapper.findAll("select").at(-1)!.setValue("step:-1");
     await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
@@ -167,7 +180,7 @@ describe("QuestPayoffPanel", () => {
   // for at the table.
   it("authors an absolute stance by default — the NPC becomes friendly", async () => {
     const wrapper = mountPanel();
-    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Influence")!.trigger("click");
+    await press(wrapper, "Influence");
     wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "npc-1");
     await flushPromises();
     expect(wrapper.findAll("select").at(-1)!.text()).toContain("Becomes helpful");
@@ -183,7 +196,7 @@ describe("QuestPayoffPanel", () => {
 
   it("quick-adds a clock tick, a move, a companion and a standing shift", async () => {
     const quickAdd = async (wrapper: ReturnType<typeof mountPanel>, label: string) => {
-      await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === label)!.trigger("click");
+      await press(wrapper, label);
       await flushPromises();
     };
     const add = async (wrapper: ReturnType<typeof mountPanel>) => {
@@ -232,7 +245,7 @@ describe("QuestPayoffPanel", () => {
 
   it("conditions a quick-add on a named route rather than arrival", async () => {
     const wrapper = mountPanel();
-    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Milestone")!.trigger("click");
+    await press(wrapper, "Milestone");
     await wrapper.findAll("select")[0]!.setValue("edge-confess");
     await wrapper.find('input[placeholder="What did the party earn…"]').setValue("Renown among the dockworkers.");
     await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
@@ -251,7 +264,7 @@ describe("QuestPayoffPanel", () => {
     ["a shared library item", "srd_grimoire_bundled_torch", { item_id: null, library_item_id: "srd_grimoire_bundled_torch" }],
   ])("opens the item quick-add and prepares loot for %s in the matching column", async (_name, pickedId, columns) => {
     const wrapper = mountPanel();
-    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Item")!.trigger("click");
+    await press(wrapper, "Item");
     wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", pickedId);
     await flushPromises();
     await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
@@ -275,7 +288,7 @@ describe("QuestPayoffPanel", () => {
   // #871: the "Enters at" combobox on the Quest quick-add.
   describe("the entry-beat bridge on a quest unlock", () => {
     async function openQuestQuickAdd(wrapper: ReturnType<typeof mountPanel>) {
-      await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Quest")!.trigger("click");
+      await press(wrapper, "Quest");
     }
 
     it("preselects the target's own entry beat, marked in its option name", async () => {
@@ -338,7 +351,7 @@ describe("QuestPayoffPanel", () => {
   describe("give_handout", () => {
     it("adds a Handout payoff naming one of the campaign's own documents", async () => {
       const wrapper = mountPanel();
-      await wrapper.findAll("button").find((button) => button.text() === "Handout")!.trigger("click");
+      await press(wrapper, "Handout");
       const box = wrapper.findComponent({ name: "EntityCombobox" });
       expect((box.props("options") as Array<{ id: string }>).map((o) => o.id)).toEqual(["doc-map"]);
       box.vm.$emit("update:modelValue", "doc-map");
@@ -357,7 +370,7 @@ describe("QuestPayoffPanel", () => {
 
   describe("authoring a payoff", () => {
     const open = async (wrapper: ReturnType<typeof mountPanel>, label: string) => {
-      await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === label)!.trigger("click");
+      await press(wrapper, label);
     };
     const addButton = (w: ReturnType<typeof mountPanel>) => w.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Add")!;
     const text = (w: ReturnType<typeof mountPanel>, placeholder: string) => w.get(`input[placeholder^="${placeholder}"]`);
@@ -372,7 +385,7 @@ describe("QuestPayoffPanel", () => {
       const wrapper = mountPanel({ edges: [...edges, elsewhere] });
       await open(wrapper, "Knowledge");
       const options = wrapper.get('select[aria-label="When this fires"]').findAll("option").map((o) => o.text());
-      expect(options).toEqual(["On arriving here", "On taking the route to He confesses the tithe"]);
+      expect(options).toEqual(["On arriving here", "If it goes wrong", "On taking the route to He confesses the tithe"]);
     });
 
     it("a row about an objective that has since been deleted says so", () => {
@@ -531,6 +544,78 @@ describe("QuestPayoffPanel", () => {
       await remove().trigger("click");
       await flushPromises();
       expect(remove().props("loading")).toBe(false);
+    });
+
+    it("splits rules that fire on failure from arrival rules, under their own heading", () => {
+      const wrapper = mountPanel({ consequences: [
+        consequence({ id: "c-arrive", on_beat_id: "beat-fork", action: "award_milestone", action_payload: { text: "Renown" } }),
+        consequence({ id: "c-wrong", on_beat_id: "beat-fork", on_beat_outcome: "failed", action: "fail", target_objective_id: "obj-1" }),
+      ] });
+      expect(wrapper.text()).toContain("If it goes wrong");
+      expect(wrapper.get('ul[aria-label="On arrival"]').text()).toContain("Renown");
+      expect(wrapper.get('ul[aria-label="On arrival"]').text()).not.toContain("Keep the bridge standing");
+      expect(wrapper.get('ul[aria-label="If it goes wrong"]').text()).toContain("Keep the bridge standing");
+    });
+
+    it("shows no 'If it goes wrong' heading while no rule fires on failure", () => {
+      const wrapper = mountPanel({ consequences: [consequence({ id: "c-1", on_beat_id: "beat-fork", action: "award_milestone", action_payload: { text: "Renown" } })] });
+      expect(wrapper.text()).not.toContain("If it goes wrong");
+    });
+
+    it("authors a raise, complete or fail rule against an existing objective on arrival", async () => {
+      const wrapper = mountPanel();
+      await open(wrapper, "An objective it raises, completes or fails");
+      await wrapper.get('select[aria-label="What happens to the objective"]').setValue("complete");
+      expect(addButton(wrapper).props("disabled")).toBe(true);
+      await wrapper.get('select[aria-label="Which objective"]').setValue("obj-1");
+      await submit(wrapper);
+      expect(mocks.createObjective).not.toHaveBeenCalled();
+      expect(mocks.createConsequence).toHaveBeenCalledWith(expect.objectContaining({
+        action: "complete", target_objective_id: "obj-1", on_beat_id: "beat-fork", on_edge_id: null,
+      }));
+      expect(mocks.createConsequence.mock.calls[0]![0]).not.toHaveProperty("on_beat_outcome");
+    });
+
+    it("'If it goes wrong' writes the failed outcome on this beat, not a route", async () => {
+      const wrapper = mountPanel();
+      await open(wrapper, "An objective it raises, completes or fails");
+      await wrapper.get('select[aria-label="What happens to the objective"]').setValue("fail");
+      await wrapper.get('select[aria-label="Which objective"]').setValue("obj-1");
+      await wrapper.get('select[aria-label="When this fires"]').setValue("failed");
+      await submit(wrapper);
+      expect(mocks.createConsequence).toHaveBeenCalledWith(expect.objectContaining({
+        action: "fail", target_objective_id: "obj-1", on_beat_id: "beat-fork", on_edge_id: null, on_beat_outcome: "failed",
+      }));
+    });
+
+    it("a new objective is created dormant and raised by this beat in one action", async () => {
+      mocks.createObjective.mockResolvedValue({ id: "obj-new" });
+      const wrapper = mountPanel();
+      await open(wrapper, "New objective this beat raises");
+      expect(addButton(wrapper).props("disabled")).toBe(true);
+      await wrapper.get('input[aria-label="New objective"]').setValue("  Get the boats back  ");
+      await submit(wrapper);
+      expect(mocks.createObjective).toHaveBeenCalledWith(expect.objectContaining({
+        quest_id: "quest-1", description: "Get the boats back", status: "dormant", sort_order: 4,
+      }));
+      expect(mocks.createConsequence).toHaveBeenCalledWith(expect.objectContaining({
+        action: "raise", target_objective_id: "obj-new", on_beat_id: "beat-fork", on_edge_id: null,
+      }));
+      expect(mocks.createObjective.mock.invocationCallOrder[0]).toBeLessThan(mocks.createConsequence.mock.invocationCallOrder[0]!);
+    });
+
+    it("a new objective whose creation fails adds no rule", async () => {
+      mocks.createObjective.mockRejectedValue(new Error("nope"));
+      const wrapper = mountPanel();
+      await open(wrapper, "New objective this beat raises");
+      await wrapper.get('input[aria-label="New objective"]').setValue("Get the boats back");
+      await submit(wrapper);
+      expect(mocks.createConsequence).not.toHaveBeenCalled();
+      expect(wrapper.get('[role="alert"]').text()).toBe("nope");
+    });
+
+    it("never talks about revealing an objective to players separately", () => {
+      expect(mountPanel().text()).not.toMatch(/reveal/i);
     });
 
     it("a payoff that is not about an NPC names no NPC", async () => {

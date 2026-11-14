@@ -24,7 +24,6 @@
         <option v-for="option in markSession.options.value" :key="option.id" :value="option.id">{{ option.label }}</option>
       </AppSelect>
     </label>
-    <SegmentedControl :model-value="ui.questFlowLens" size="sm" :options="lensOptions" aria-label="View" @update:model-value="ui.questFlowLens = $event" />
   </div>
 </template>
 
@@ -37,24 +36,16 @@ import { useHotkeys } from "@/composables/useHotkeys";
 import { useToast } from "@/composables/useToast";
 import { newestUndoableMove } from "@/lib/quests/moves";
 import { useCampaignStore } from "@/stores/campaign";
-import { useQuestsUiStore } from "@/stores/ui/quests";
 import type { QuestBeat, QuestBeatTransition } from "@/types/quest.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
-import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 
 const { questId, transitions, beats } = defineProps<{ questId: string; transitions: QuestBeatTransition[]; beats: QuestBeat[] }>();
 
-const ui = useQuestsUiStore();
 const campaign = useCampaignStore();
 const toast = useToast();
 const undoMove = useUndoQuestMove();
 const markSession = useQuestMarkSession();
-
-const lensOptions: SegmentedOption<"dm" | "players">[] = [
-  { value: "dm", label: "Your view" },
-  { value: "players", label: "Players' view" },
-];
 
 const undoTarget = computed(() => newestUndoableMove(transitions));
 const undoTitle = computed(() => {

@@ -23,7 +23,7 @@ const COLUMN_LABELS: Record<string, string> = {
   backstory: "Backstory",
   notes: "DM notes",
   description: "Description",
-  dm_content: "Opening beat (DM notes)",
+  dm_content: "Quest notes",
   content: "Note",
 };
 

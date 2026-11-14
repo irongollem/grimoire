@@ -85,6 +85,7 @@ import { MONSTER_SIZES, MONSTER_TYPES } from "@/types/monster.types";
 import type { NpcInsert } from "@/types/npc.types";
 import type { QuestInsert } from "@/types/quest.types";
 import { splitQuestSummary } from "@/lib/quests/summary";
+import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import type { SpellInsert, SpellSchool } from "@/types/spell.types";
 import { SPELL_SCHOOLS } from "@/types/spell.types";
 import { normalizeEntityName } from "./entityName";
@@ -605,6 +606,28 @@ export function mapExtractedSpell(
 
 // ── Quests ───────────────────────────────────────────────────────────────────
 
+/** The quest's notes as the rich-text JSON the app stores, the summary's
+ *  overflow first. Null when there is nothing to keep. */
+function questNotesJson(dmContent: string | null | undefined, summaryTail: string | undefined): string | null {
+  const own = typeof dmContent === "string" ? dmContent.trim() : "";
+  const tail = summaryTail?.trim() ?? "";
+  const plain = tail && own ? `${tail}\n\n${own}` : tail || own;
+  return plain ? toTiptapJson(plain) : null;
+}
+
+/** A route keeps its label and note; an unknown kind is a choice and a blank
+ *  label or note is absent. */
+function normalizeExtractedRoute(route: QuestSpineRouteResult): QuestSpineRouteResult {
+  const label = typeof route.label === "string" ? route.label.trim() : "";
+  const note = typeof route.note === "string" ? route.note.trim() : "";
+  return {
+    ...route,
+    kind: route.kind === "parallel" ? "parallel" : "choice",
+    label: label || null,
+    note: note || null,
+  };
+}
+
 export function mapExtractedQuest(
   payload: ExtractedQuest,
   campaignId: string,
@@ -617,8 +640,8 @@ export function mapExtractedQuest(
   // (the same cut used for a character backstory) is how a five-sentence
   // adventure blurb ended up in a one-line field (#799): a cut sentence is a
   // lie, so the fix is to split at the first sentence rather than truncate.
-  // The remainder joins the opening beat's prose below, where story text
-  // belongs.
+  // The remainder joins the quest's own notes (`dm_content`) below, where
+  // prose about the whole quest belongs, never a beat's.
   const { head: summaryHead, tail: summaryTail } = splitQuestSummary(payload.summary);
 
   const row: QuestInsert = {
@@ -626,6 +649,7 @@ export function mapExtractedQuest(
     parent_quest_id: null,
     title: payload.title,
     summary: summaryHead,
+    dm_content: questNotesJson(payload.dm_content, summaryTail),
     // 'undiscovered', matching the live column default — and semantically the
     // only defensible value. A quest lifted off a page is one the party has not
     // met yet; importing a setting book's twenty plot hooks as 'active' would
@@ -656,38 +680,16 @@ export function mapExtractedQuest(
   const routes = Array.isArray(payload.routes) ? payload.routes : [];
   const objectives = Array.isArray(payload.objectives) ? payload.objectives : [];
 
-  // Overflow past the summary's first sentence joins the first beat's prose,
-  // the same rule migration 20260906160921 applies to production rows over 280
-  // characters — and it must not be lost, because `quests` has carried no
-  // prose column since #793/#799.
-  //
-  // When the model returns a long summary and no beats at all, one beat is
-  // minted to hold the remainder, and that is a deliberate exception to #822's
-  // ban on fallback beats rather than an oversight. The two cases differ in
-  // what the beat is *for*: #822 forbids fabricating a spine to paper over a
-  // malformed one, because a manufactured "Opening beat" would let the
-  // generation-one shape survive its own deletion. This mints a beat to hold
-  // prose that genuinely exists and has nowhere else to live. A beat minted to
-  // carry text is not the same as a beat minted to hide the absence of text —
-  // and the alternative here is silent data loss, which is exactly the #799
-  // regression (`normalize.test.ts` asserts the split reassembles losslessly).
-  //
-  // It should be rare either way: the contract now asks for a one-line summary,
-  // so a tail means the model overran a field it was told the width of.
-  const withOverflow: ExtractedQuestBeat[] = !summaryTail
-    ? beats
-    : beats.length > 0
-      ? beats.map((beat, i) =>
-          i === 0
-            ? { ...beat, dm_content: beat.dm_content ? `${summaryTail}\n\n${beat.dm_content}` : summaryTail }
-            : beat,
-        )
-      : [{ key: "summary-overflow", title: payload.title, kind: "neutral", dm_content: summaryTail }];
-  const spineBeats = withOverflow;
+  // The summary's overflow went to the quest's `dm_content` above (it must
+  // not be lost, and a quest has its own notes again since #1194). It is
+  // never put in a beat and never mints one: a beat is a scene the page
+  // describes, and #822 bans a fabricated spine.
+  const spineBeats = beats;
+  const spineRoutes = routes.map(normalizeExtractedRoute);
 
   const questSpine =
     spineBeats.length > 0 || objectives.length > 0
-      ? { beats: spineBeats, routes, objectives }
+      ? { beats: spineBeats, routes: spineRoutes, objectives }
       : undefined;
 
   return {

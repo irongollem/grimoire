@@ -250,7 +250,7 @@ describe("useRunArchiveSweep", () => {
     expect(mocks.inserts).toEqual([]);
   });
 
-  it("writes a quest's opening beat without an owner column, which that table does not have", async () => {
+  it("writes a quest under the signed-in user and creates no beat for it", async () => {
     const { runSweep } = setup(() => useRunArchiveSweep());
     await runSweep(
       { id: "row-1", campaign_id: "camp-1" },
@@ -259,7 +259,6 @@ describe("useRunArchiveSweep", () => {
     const quest = mocks.inserts.find((i) => i.table === "quests");
     const beat = mocks.inserts.find((i) => i.table === "quest_beats");
     expect(quest?.row.user_id).toBe("user-1");
-    expect(beat).toBeDefined();
-    expect(beat?.row).not.toHaveProperty("user_id");
+    expect(beat).toBeUndefined();
   });
 });

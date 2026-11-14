@@ -27,7 +27,7 @@
     >
       <IconLayers v-if="kindLabel === 'parallel'" class="h-3 w-3" aria-hidden="true" />
       <IconLock v-else-if="kindLabel === 'gate'" class="h-3 w-3" aria-hidden="true" />
-      {{ pillText }}
+      <span class="quest-flow-edge-label__text">{{ pillText }}</span>
     </span>
   </EdgeLabelRenderer>
 </template>
@@ -41,7 +41,7 @@ import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type Position } from "@
 // warned on every render. Everything this edge draws comes through its props.
 defineOptions({ inheritAttrs: false });
 import { IconLayers, IconLock } from "@/lib/icons";
-import type { QuestFlowEdgeData } from "@/lib/quests/flow";
+import { routeLabelText, type QuestFlowEdgeData } from "@/lib/quests/flow";
 import { describeQuestRouteGateLines, questRouteGateLabel } from "@/lib/quests/gates";
 
 const {
@@ -88,8 +88,8 @@ const kindLabel = computed<"gate" | "parallel" | "choice">(() => {
 });
 const pillText = computed(() => {
   if (kindLabel.value === "gate" && gate.value) return `gate · ${questRouteGateLabel(gate.value)}`;
-  if (kindLabel.value === "parallel") return `parallel · opens ${data?.threadLabel || data?.targetTitle || "a new thread"}`;
-  return `choice · ${data?.targetTitle ?? "?"}`;
+  // Just the route's label; a parallel one is told apart by its layers glyph and double rail.
+  return routeLabelText(data?.threadLabel, data?.targetTitle) || "?";
 });
 const labelTooltip = computed(() => gate.value ? describeQuestRouteGateLines(gate.value).join("\n") : undefined);
 const labelClass = computed(() => ({
@@ -99,7 +99,6 @@ const labelClass = computed(() => ({
   // frame): gold border and text. A stranded sibling drops the accent
   // entirely — the default muted pill — which is why this is checked first.
   "is-stranded": kindLabel.value === "choice" && Boolean(data?.stranded),
-  "is-unseen": Boolean(data?.unseen),
   "is-choice": kindLabel.value === "choice" && !data?.stranded,
 }));
 // The double-rail look is the "open, parallel" state only — a closed gate or
@@ -128,12 +127,13 @@ const labelY = computed(() => sourceY + (route.value[2] - sourceY) * 2 * LABEL_T
   background: var(--card);
   color: var(--muted-foreground);
   pointer-events: all;
+  max-width: 12rem;
 }
+.quest-flow-edge-label__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 /* An open choice route is the "pri" pill in the Story flow frame — gold
    border and text. Stranded siblings and gates keep the muted default. */
 .quest-flow-edge-label.is-choice { border-color: color-mix(in oklab, var(--primary) 55%, transparent); color: var(--primary); }
 .quest-flow-edge-label.is-parallel { border-color: color-mix(in oklab, var(--color-tone-info) 55%, transparent); color: var(--color-ink-info); }
 .quest-flow-edge-label.is-gate { border-color: var(--muted-foreground); color: var(--muted-foreground); }
-.quest-flow-edge-label.is-unseen { opacity: .45; border-style: dashed; }
 .quest-flow-edge-label.is-stranded { color: var(--muted-foreground); }
 </style>

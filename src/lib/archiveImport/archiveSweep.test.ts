@@ -101,7 +101,7 @@ describe("runArchiveSweep: order and parents", () => {
     ];
     const { deps, inserts } = fakeDeps();
     await run(pages, deps);
-    expect(inserts.filter((c) => c.table !== "quest_beats").map((c) => c.table)).toEqual([
+    expect(inserts.map((c) => c.table)).toEqual([
       "locations",
       "factions",
       "npcs",
@@ -216,7 +216,7 @@ describe("runArchiveSweep: columns", () => {
     expect(inserts.map((c) => c.row.category)).toEqual(["session", "lore"]);
   });
 
-  it("creates a quest with a one-line summary and puts the prose on an opening beat", async () => {
+  it("creates a quest with a one-line summary and keeps the prose in the quest's own notes, with no beat", async () => {
     const q = page("The Bell.md", {
       kind: "quest",
       content: [para(text("Something rings under the tide.")), para(text("Long prose for the DM."))],
@@ -224,11 +224,10 @@ describe("runArchiveSweep: columns", () => {
     const { deps, inserts } = fakeDeps();
     await run([entry(q, "quest")], deps);
     const quest = inserts.find((c) => c.table === "quests")!;
-    const beat = inserts.find((c) => c.table === "quest_beats")!;
     expect(quest.row.summary).toBe("Something rings under the tide.");
     expect(quest.row.status).toBe("undiscovered");
-    expect(beat.row).toMatchObject({ quest_id: quest.id, campaign_id: CAMPAIGN, visibility: "hidden" });
-    expect(beat.row.dm_content).toContain("Long prose for the DM.");
+    expect(quest.row.dm_content).toContain("Long prose for the DM.");
+    expect(inserts.map((c) => String(c.table))).not.toContain("quest_beats");
   });
 });
 
@@ -289,7 +288,7 @@ describe("runArchiveSweep: mentions", () => {
     ]);
   });
 
-  it("resolves links in a quest's opening beat, and never writes a placeholder anywhere", async () => {
+  it("resolves links in a quest's notes, and never writes a placeholder anywhere", async () => {
     const town = page("Dunmere.md", { kind: "location" });
     const quest = page("Bell.md", {
       kind: "quest",
@@ -297,8 +296,10 @@ describe("runArchiveSweep: mentions", () => {
     });
     const { deps, inserts, updates } = fakeDeps();
     await run([entry(quest, "quest"), entry(town, "location")], deps);
-    const beatUpdate = updates.find((u) => u.table === "quest_beats");
-    expect(beatUpdate?.patch.dm_content as string).toContain("entityMention");
+    const noteUpdate = updates.find((u) => u.table === "quests");
+    expect(noteUpdate?.id).toBe(inserts.find((c) => c.table === "quests")!.id);
+    expect(noteUpdate?.patch.dm_content as string).toContain("entityMention");
+    expect(updates.map((u) => String(u.table))).not.toContain("quest_beats");
     const everything = JSON.stringify([...inserts, ...updates]);
     expect(everything).not.toContain("archiveLink");
   });
@@ -319,19 +320,6 @@ describe("runArchiveSweep: mentions", () => {
     const { deps } = fakeDeps();
     const report = await run([entry(quest, "quest")], deps);
     expect(report.unresolvedLinks).toHaveLength(1);
-  });
-
-  it("does not rewrite an opening beat that was never saved", async () => {
-    const town = page("Dunmere.md", { kind: "location" });
-    const quest = page("Bell.md", { kind: "quest", content: [para(text("Rings.")), para(link("Dunmere", "Dunmere"))] });
-    const { deps, updates } = fakeDeps({
-      insertRow: vi.fn(async (table): Promise<InsertRowOutcome> =>
-        table === "quest_beats" ? { status: "failed", message: "no beat" } : { status: "inserted", id: `${table}-ok` },
-      ),
-    });
-    const report = await run([entry(quest, "quest"), entry(town, "location")], deps);
-    expect(updates.filter((u) => u.table === "quest_beats")).toEqual([]);
-    expect(report.failures[0].message).toContain("prose was not saved: no beat");
   });
 
   it("does not file an NPC under a faction page it nests beneath", async () => {

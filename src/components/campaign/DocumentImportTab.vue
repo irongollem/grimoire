@@ -222,6 +222,10 @@
 
         <!-- Rights attestation -->
         <AppCheckbox v-model="rightsAttested" size="md" label="I have the right to use this material." />
+        <AppCheckbox v-model="ownWriting" size="md" label="This is my own writing" />
+        <p class="-mt-2 text-caption text-muted-foreground">
+          Kept word for word. Leave it off for a published book: its scenes are put in other words, in full.
+        </p>
 
         <p v-if="uploadError" class="text-caption text-destructive">{{ uploadError }}</p>
 
@@ -526,6 +530,7 @@ const countResult = ref<PageCountResult | null>(null);
 const counting = ref(false);
 const displayName = ref("");
 const rightsAttested = ref(false);
+const ownWriting = ref(false);
 const uploadError = ref<string | null>(null);
 
 function openFilePicker() {
@@ -607,6 +612,7 @@ function resetUploadForm() {
   countResult.value = null;
   displayName.value = "";
   rightsAttested.value = false;
+  ownWriting.value = false;
   uploadError.value = null;
 }
 
@@ -620,6 +626,7 @@ async function submitUpload() {
       displayName: displayName.value.trim(),
       pageCount: countResult.value.pageCount,
       rightsAttested: rightsAttested.value,
+      ownWriting: ownWriting.value,
     });
     resetUploadForm();
   } catch (err) {

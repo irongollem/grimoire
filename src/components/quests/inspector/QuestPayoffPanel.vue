@@ -1,32 +1,41 @@
 <template>
-  <section class="flex min-h-0 flex-1 flex-col gap-2 rounded-xl border border-border bg-card p-3" aria-label="Payoff">
+  <section class="flex min-w-0 flex-col gap-2" aria-label="When the party gets here">
     <header class="flex items-center gap-2">
-      <h3 class="text-heading-sm font-bold text-foreground">Payoff</h3>
+      <h3 class="text-heading-sm font-bold text-foreground">When the party gets here</h3>
       <TagChip v-if="rows.length" class="ml-auto uppercase">{{ rows.length }} payoff{{ rows.length === 1 ? "" : "s" }}</TagChip>
     </header>
     <p class="text-caption text-muted-foreground">
-      Consequences fire on their own when the party arrives or takes a route. Loot waits until you hand it over.
+      Rules fire on their own when the party arrives or takes a route. Loot waits until you hand it over.
     </p>
 
-    <ul v-if="rows.length" class="min-h-0 flex-1 space-y-1.5 overflow-y-auto">
-      <li v-for="row in rows" :key="row.id" class="flex min-w-0 flex-wrap items-center gap-2 rounded-md border border-border p-2 text-caption">
-        <span class="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-md" :class="TONE_ICON_BOX[row.tone]">
-          <component :is="ICON_COMPONENTS[row.icon]" class="h-3.5 w-3.5" />
-        </span>
-        <div class="min-w-0 flex-1">
-          <p class="truncate text-label-lg font-bold text-foreground">{{ row.summary }}</p>
-          <p class="truncate text-muted-foreground">{{ row.caption }}</p>
-        </div>
-        <span
-          class="rounded px-1.5 py-0.5 text-label uppercase"
-          :class="row.chip === 'you dispatch' ? 'bg-tone-caution/15 text-ink-caution' : 'bg-muted text-muted-foreground'"
-        >{{ row.chip }}</span>
-        <AppButton label="Remove" size="xs" variant="subtle" :loading="removingId === row.id" @click="remove(row)" />
-      </li>
-    </ul>
-    <p v-else class="text-caption italic text-muted-foreground">Nothing this beat gives yet.</p>
+    <template v-for="group in groups" :key="group.key">
+      <p v-if="group.title" class="text-label-lg font-bold text-foreground">{{ group.title }}</p>
+      <ul class="space-y-1.5" :aria-label="group.label">
+        <li v-for="row in group.rows" :key="row.id" class="flex min-w-0 flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2 text-caption">
+          <span class="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-md" :class="TONE_ICON_BOX[row.tone]">
+            <component :is="ICON_COMPONENTS[row.icon]" class="h-3.5 w-3.5" />
+          </span>
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-label-lg font-bold text-foreground">{{ row.summary }}</p>
+            <p class="truncate text-muted-foreground">{{ row.caption }}</p>
+          </div>
+          <span
+            class="rounded px-1.5 py-0.5 text-label uppercase"
+            :class="row.chip === 'you dispatch' ? 'bg-tone-caution/15 text-ink-caution' : 'bg-muted text-muted-foreground'"
+          >{{ row.chip }}</span>
+          <AppButton label="Remove" size="xs" variant="subtle" :loading="removingId === row.id" @click="remove(row)" />
+        </li>
+      </ul>
+    </template>
+    <p v-if="!rows.length" class="text-caption italic text-muted-foreground">Nothing this beat gives yet.</p>
 
-    <div class="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+    <div class="flex flex-wrap gap-1.5">
+      <AppButton label="An objective it raises, completes or fails" :icon="IconAdd" size="xs" class="max-sm:min-h-11" :active="activeQuickAdd === 'objective'" @click="toggleQuickAdd('objective')" />
+      <AppButton label="New objective this beat raises" :icon="IconAdd" size="xs" class="max-sm:min-h-11" :active="activeQuickAdd === 'newObjective'" @click="toggleQuickAdd('newObjective')" />
+      <AppButton label="Other payoff" :icon="IconAdd" size="xs" class="max-sm:min-h-11" :active="othersOpen" :aria-expanded="othersOpen" @click="toggleOthers" />
+    </div>
+
+    <div v-if="othersOpen" class="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
       <AppButton
         v-for="option in QUICK_ADD_OPTIONS"
         :key="option.kind"
@@ -41,7 +50,29 @@
 
     <Transition v-bind="drawerTransition()">
       <div v-if="activeQuickAdd" class="space-y-2 rounded-md border border-dashed border-border p-2">
-        <template v-if="activeQuickAdd === 'item' || activeQuickAdd === 'riches'">
+        <template v-if="activeQuickAdd === 'newObjective'">
+          <AppInput v-model="newObjectiveText" size="body-xs" placeholder="What the party now has to do…" aria-label="New objective" />
+          <p class="text-caption text-muted-foreground">Players see it once the party gets here.</p>
+        </template>
+
+        <template v-else-if="activeQuickAdd === 'objective'">
+          <AppSelect v-model="ledgerAction" block aria-label="What happens to the objective">
+            <option value="raise">Raise</option>
+            <option value="complete">Complete</option>
+            <option value="fail">Fail</option>
+          </AppSelect>
+          <AppSelect v-if="objectiveOptions.length" v-model="targetObjectiveId" block aria-label="Which objective">
+            <option value="">Which objective…</option>
+            <option v-for="objective in objectiveOptions" :key="objective.id" :value="objective.id">{{ objective.name }}</option>
+          </AppSelect>
+          <p v-else class="text-caption italic text-muted-foreground">No objectives yet. Add one this beat raises.</p>
+          <AppSelect v-model="conditionEdgeId" block aria-label="When this fires">
+            <option value="">On arriving here</option>
+            <option value="failed">If it goes wrong</option>
+          </AppSelect>
+        </template>
+
+        <template v-else-if="activeQuickAdd === 'item' || activeQuickAdd === 'riches'">
           <EntityCombobox
             v-if="activeQuickAdd === 'item'"
             v-model="itemId"
@@ -59,6 +90,7 @@
         <template v-else>
           <AppSelect v-model="conditionEdgeId" block aria-label="When this fires">
             <option value="">On arriving here</option>
+            <option value="failed">If it goes wrong</option>
             <option v-for="edge in outgoingEdges" :key="edge.id" :value="edge.id">On taking the route to {{ beatTitle(edge.target_beat_id) }}</option>
           </AppSelect>
           <label class="flex items-center gap-1 text-caption text-muted-foreground">
@@ -132,7 +164,7 @@
 import TagChip from "@/components/common/TagChip.vue";
 import { computed, ref, watch, type Component } from "vue";
 import { useCreateLootPlacement, useCreateQuestConsequence, useDeleteLootPlacement, useDeleteQuestConsequence } from "@/composables/quests/useQuestFlow";
-import { useQuestObjectives, useQuests } from "@/composables/quests/useQuests";
+import { useCreateObjective, useQuestObjectives, useQuests } from "@/composables/quests/useQuests";
 import { useUnlockEntryPicker } from "@/composables/quests/useUnlockEntryPicker";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import { itemRefColumns } from "@/lib/itemRef";
@@ -145,7 +177,7 @@ import { type QuestBeat, type QuestConsequenceAction, type QuestBeatEdge, type Q
 import { DEFAULT_RELATIONSHIP_SHIFT_KEY, RELATIONSHIP_SHIFT_OPTIONS, isTargetedWorldVerb, relationshipShiftPayload, worldVerbInsertFields, worldVerbReady, type WorldVerbDraft } from "@/lib/quests/consequences";
 import { EVENT_TYPE_COLORS, type CalendarEventType } from "@/types/calendar.types";
 import {
-  IconAward, IconCalendar, IconCheck, IconClock, IconCoins, IconDocument, IconFaction, IconHand, IconInvite, IconPackage, IconParty, IconPin, IconQuest, IconScrollText, IconSend,
+  IconAdd, IconAward, IconCalendar, IconCheck, IconClock, IconCoins, IconDocument, IconFaction, IconHand, IconInvite, IconPackage, IconParty, IconPin, IconQuest, IconScrollText, IconSend,
 } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
@@ -205,6 +237,20 @@ const rows = computed<PayoffRow[]>(() => derivePayoffRows({
   factionLabel: (id) => targets.factionLabel(id),
 }));
 
+// "If it goes wrong" is a rule's own outcome (`on_beat_outcome`), not a route, so it
+// is the one thing that sets a row apart: everything else reads "when the party gets here".
+const failedRuleIds = computed(() => new Set(consequences
+  .filter((row) => row.on_beat_id === beat.id && row.on_beat_outcome === "failed")
+  .map((row) => row.id)));
+const groups = computed(() => {
+  const failed = rows.value.filter((row) => row.source === "consequence" && failedRuleIds.value.has(row.id));
+  const arrival = rows.value.filter((row) => !failed.includes(row));
+  return [
+    { key: "arrival", title: "", label: "On arrival", rows: arrival },
+    { key: "failed", title: "If it goes wrong", label: "If it goes wrong", rows: failed },
+  ].filter((group) => group.rows.length);
+});
+
 function beatTitle(id: string): string {
   return beats.find((row) => row.id === id)?.title || "Missing beat";
 }
@@ -231,7 +277,7 @@ async function remove(row: PayoffRow) {
 
 // ── Quick adds ───────────────────────────────────────────────────────────────
 
-type QuickAddKind = "item" | "riches" | "influence" | "knowledge" | "quest" | "favor" | "milestone" | "event" | "handout" | "clock" | "move" | "companion" | "standing";
+type QuickAddKind = "objective" | "newObjective" | "item" | "riches" | "influence" | "knowledge" | "quest" | "favor" | "milestone" | "event" | "handout" | "clock" | "move" | "companion" | "standing";
 const QUICK_ADD_OPTIONS: Array<{ kind: QuickAddKind; label: string; icon: Component }> = [
   { kind: "item", label: "Item", icon: IconPackage },
   { kind: "riches", label: "Riches", icon: IconCoins },
@@ -257,6 +303,12 @@ const WORLD_VERB_FOR_KIND: Partial<Record<QuickAddKind, QuestConsequenceAction>>
 };
 
 const activeQuickAdd = ref<QuickAddKind | null>(null);
+// The #1011 and reward quick-adds sit behind "Other payoff": objectives lead, since a beat mostly moves those.
+const othersOpen = ref(false);
+function toggleOthers() {
+  othersOpen.value = !othersOpen.value;
+  if (!othersOpen.value && activeQuickAdd.value && activeQuickAdd.value !== "objective" && activeQuickAdd.value !== "newObjective") closeQuickAdd();
+}
 const adding = ref(false);
 const error = ref("");
 
@@ -270,6 +322,13 @@ const coins = ref<Coins>({});
 const { formatCoins } = useCurrency();
 // Library rows are offered as references; the index already holds only this account's own rows.
 const itemOptions = computed(() => (items.value ?? []).map((item) => ({ id: item.id, name: item.name })));
+
+// Objective fields
+const createObjective = useCreateObjective();
+const ledgerAction = ref<"raise" | "complete" | "fail">("raise");
+const targetObjectiveId = ref("");
+const newObjectiveText = ref("");
+const objectiveOptions = computed(() => (objectives.value ?? []).map((objective) => ({ id: objective.id, name: objective.description })));
 
 // Consequence fields
 const createConsequence = useCreateQuestConsequence();
@@ -323,6 +382,7 @@ function resetQuickAddFields() {
   knowledgeText.value = ""; favorText.value = ""; milestoneText.value = "";
   calendarTitle.value = ""; calendarType.value = "quest"; calendarDescription.value = "";
   targetClockId.value = ""; clockStep.value = 1; targetLocationId.value = ""; targetFactionId.value = "";
+  ledgerAction.value = "raise"; targetObjectiveId.value = ""; newObjectiveText.value = "";
   error.value = "";
 }
 
@@ -345,6 +405,8 @@ const worldDraft = computed<WorldVerbDraft>(() => ({
 
 const canAdd = computed(() => {
   switch (activeQuickAdd.value) {
+    case "newObjective": return !!newObjectiveText.value.trim();
+    case "objective": return !!targetObjectiveId.value;
     case "item": return !!itemId.value && quantity.value > 0;
     case "riches": return hasCoins(coins.value);
     case "influence": return !!targetNpcId.value && relationshipShiftPayload(relationshipShiftKey.value) !== null;
@@ -382,7 +444,23 @@ async function submit() {
         sort_order: loot.length,
       });
     } else {
-      const action = { influence: "shift_npc_relationship", knowledge: "grant_knowledge", quest: "unlock_quest", favor: "owe_favor", milestone: "award_milestone", event: "create_calendar_event", handout: "give_handout", clock: "tick_clock", move: "move_npc", companion: "add_companion", standing: "shift_faction_standing" }[activeQuickAdd.value] as QuestConsequenceInsert["action"];
+      // A new objective is raised on arrival, whatever the form last said about when.
+      const when = activeQuickAdd.value === "newObjective" ? "" : conditionEdgeId.value;
+      const goesWrong = when === "failed";
+      const edgeId = goesWrong ? "" : when;
+      let objectiveId: string | null = null;
+      if (activeQuickAdd.value === "newObjective") {
+        // Dormant, so players see nothing until the raise below fires on arrival.
+        const created = await createObjective.mutateAsync({
+          quest_id: beat.quest_id,
+          description: newObjectiveText.value.trim(),
+          status: "dormant",
+          sort_order: Math.max(-1, ...(objectives.value ?? []).map((objective) => objective.sort_order)) + 1,
+          due_year: null, due_month: null, due_day: null,
+        });
+        objectiveId = created.id;
+      } else if (activeQuickAdd.value === "objective") objectiveId = targetObjectiveId.value;
+      const action = { objective: ledgerAction.value, newObjective: "raise", influence: "shift_npc_relationship", knowledge: "grant_knowledge", quest: "unlock_quest", favor: "owe_favor", milestone: "award_milestone", event: "create_calendar_event", handout: "give_handout", clock: "tick_clock", move: "move_npc", companion: "add_companion", standing: "shift_faction_standing" }[activeQuickAdd.value] as QuestConsequenceInsert["action"];
       const world = isTargetedWorldVerb(action) ? worldVerbInsertFields(action, worldDraft.value) : null;
       const payload: QuestConsequenceActionPayload = world
         ? world.action_payload
@@ -399,8 +477,9 @@ async function submit() {
                 : {};
       const insert: QuestConsequenceInsert = {
         quest_id: beat.quest_id,
-        on_beat_id: conditionEdgeId.value ? null : beat.id,
-        on_edge_id: conditionEdgeId.value || null,
+        on_beat_id: edgeId ? null : beat.id,
+        on_edge_id: edgeId || null,
+        ...(goesWrong ? { on_beat_outcome: "failed" as const } : {}),
         on_objective_id: null,
         on_objective_status: null,
         on_quest_settled: false,
@@ -409,7 +488,7 @@ async function submit() {
         on_clock_id: null,
         after_days: afterDays.value || 0,
         action,
-        target_objective_id: null,
+        target_objective_id: objectiveId,
         target_npc_id: activeQuickAdd.value === "influence" || activeQuickAdd.value === "favor" ? targetNpcId.value : null,
         target_clock_id: null,
         target_location_id: null,

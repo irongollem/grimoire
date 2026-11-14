@@ -29,9 +29,14 @@
         </div>
         <AppButton :icon="IconPlay" label="Run" size="md" variant="primary" @click="run" />
       </div>
-      <div v-else class="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-        <slot :name="mode" />
-      </div>
+      <template v-else>
+        <div v-if="canOpenWide" class="flex shrink-0 justify-end px-4 pb-2">
+          <AppButton :icon="IconMaximize" label="Open wide" size="xs" variant="subtle" @click="emit('open-wide')" />
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto pb-4">
+          <slot name="column" />
+        </div>
+      </template>
     </section>
   </div>
 </template>
@@ -43,12 +48,12 @@ import { useQuestClocks } from "@/composables/quests/useQuestClocks";
 import { useQuestObjectives } from "@/composables/quests/useQuests";
 import { questLink } from "@/lib/quests/navigation";
 import { canAnimate, whenSettled } from "@/lib/motion";
-import { IconPlay } from "@/lib/icons";
+import { IconMaximize, IconPlay } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 
-const { questId, mode } = defineProps<{ questId: string; mode: "quest" | "beat" | "route" }>();
-const emit = defineEmits<{ deselect: [] }>();
-defineSlots<{ quest(): unknown; beat(): unknown; route(): unknown }>();
+const { questId, mode, canOpenWide = false } = defineProps<{ questId: string; mode: "quest" | "beat" | "route"; canOpenWide?: boolean }>();
+const emit = defineEmits<{ deselect: []; "open-wide": [] }>();
+defineSlots<{ column(): unknown }>();
 
 const router = useRouter();
 const objectives = useQuestObjectives(toRef(() => questId));
