@@ -166,7 +166,7 @@ function renderVoWav(p: PlannedShot, vo: string | null, gainDb: number, out: str
  * A carried song (`carryCues`) plays under the narration like a bed: the voice keys a compressor on the sounds, so
  * the song sinks while someone speaks and comes back between the lines. Leaves `[vo1]` and `[fx]` for the mix.
  */
-const DUCKED_FX = "[1:a]asplit=2[vo1][vokey];[2:a][vokey]sidechaincompress=threshold=0.02:ratio=12:attack=30:release=600[fx];";
+const DUCKED_FX = "[1:a]asplit=2[vo1][vokey];[2:a][vokey]sidechaincompress=threshold=0.02:ratio=6:knee=6:attack=250:release=1500[fx];";
 
 /** Sound cues for one shot as a wav exactly as long as the shot. */
 function renderFxWav(p: PlannedShot, out: string): void {
