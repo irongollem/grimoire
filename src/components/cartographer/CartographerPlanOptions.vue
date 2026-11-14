@@ -33,8 +33,16 @@
       </span>
     </template>
 
+    <CartographerDoorEnds
+      v-else-if="planTool === 'door' && doorPending"
+      :rooms="rooms"
+      @place="(from, to) => $emit('place-door', from, to)"
+      @cancel="$emit('cancel-door')"
+    />
+
     <span v-else-if="planTool === 'door'" class="text-caption text-muted-foreground">
-      Click a cell edge to place a door there. Click a placed one to cycle door and arch. Alt-click removes it.
+      Click a cell edge to place a door there. It joins the rooms within a cell of either side. Click a placed one to
+      cycle door and arch. Alt-click removes it.
     </span>
 
     <span v-else-if="planTool === 'fill'" class="text-caption text-muted-foreground">
@@ -67,6 +75,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
+import CartographerDoorEnds from "@/components/cartographer/CartographerDoorEnds.vue";
 import CartographerOptionsSlip from "@/components/cartographer/CartographerOptionsSlip.vue";
 import { TEMPLATE_SHAPE_LABELS, TEMPLATE_SHAPES } from "@/composables/locations/useRegionPen";
 import {
@@ -84,6 +93,10 @@ defineProps<{
   planTool: PlanTool;
   /** Zoning's list of zones is open in the drawer. */
   listOpen: boolean;
+  /** The Door tool clicked an edge with no room in reach (#1195): the slip asks which rooms the door joins. */
+  doorPending?: boolean;
+  /** The site's rooms, for that question. */
+  rooms?: readonly { id: string; name: string }[];
 }>();
 
 const traceTool = defineModel<TraceTool>("traceTool", { required: true });
@@ -91,7 +104,12 @@ const templateShape = defineModel<TemplateShape>("templateShape", { required: tr
 const zoneKind = defineModel<ZoningKind>("zoneKind", { required: true });
 const zoneLabel = defineModel<string>("zoneLabel", { required: true });
 
-defineEmits<{ "start-new": []; "toggle-list": [] }>();
+defineEmits<{
+  "start-new": [];
+  "toggle-list": [];
+  "place-door": [fromLocationId: string, toLocationId: string | null];
+  "cancel-door": [];
+}>();
 
 const KIND_OPTIONS: SegmentedOption<ZoningKind>[] = ZONING_KINDS.map((kind) => ({ value: kind, label: ZONING_KIND_LABELS[kind] }));
 </script>

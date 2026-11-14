@@ -250,22 +250,37 @@ export interface EdgeEndpoints {
  *   traced room, say), so it is not a way out and callers must not touch an
  *   existing door's endpoints on the strength of it — see
  *   `resolveDoorEndpoints`, which reads this null as "leave it alone".
+ *
+ * **"Traced" reaches one cell past the edge (#1195).** A side whose own cell
+ * is untraced takes the space on the next cell out, straight across the edge.
+ * Zones are painted in whole cells and on a picture-only map they often stop
+ * a cell short of the painted wall line, so the edge in the real doorway has
+ * a gap beside it; the Door tool used to refuse that edge, or call the door
+ * one-sided with the room it leads to a cell away. The reach lives here, not
+ * in the tool, so re-derivation agrees with placement: a door placed across a
+ * gap keeps both rooms when a zone is reshaped later. A reached space that is
+ * the same one as the other side is ignored (a one-cell notch in a room is
+ * still a way out of that room, not a line across its middle).
  */
 export function resolveEdgeEndpoints(edgeKey: SourceEdgeKey, cellToSpace: ReadonlyMap<CellKey, string>): EdgeEndpoints | null {
   const { x, y, side } = parseEdgeKey(edgeKey);
-  const ownerCell = cellKey(x, y);
-  const neighborCell = side === "N" ? cellKey(x, y - 1) : cellKey(x - 1, y);
+  // Step from the owner cell towards the neighbour: north for an N edge, west for a W edge.
+  const [dx, dy] = side === "N" ? [0, -1] : [-1, 0];
+  const spaceAt = (steps: number): string | null => cellToSpace.get(cellKey(x + dx * steps, y + dy * steps)) ?? null;
 
-  const ownerSpace = cellToSpace.get(ownerCell) ?? null;
-  const neighborSpace = cellToSpace.get(neighborCell) ?? null;
+  const ownerAdjacent = spaceAt(0);
+  const neighborAdjacent = spaceAt(1);
+  if (ownerAdjacent && neighborAdjacent && ownerAdjacent === neighborAdjacent) return null; // internal to one room
 
-  if (ownerSpace && neighborSpace) {
-    if (ownerSpace === neighborSpace) return null; // not a way out — internal to one room
+  const ownerSpace = ownerAdjacent ?? spaceAt(-1);
+  const neighborSpace = neighborAdjacent ?? spaceAt(2);
+
+  if (ownerSpace && neighborSpace && ownerSpace !== neighborSpace) {
     return { fromLocationId: ownerSpace, toLocationId: neighborSpace };
   }
-  if (ownerSpace) return { fromLocationId: ownerSpace, toLocationId: null };
-  if (neighborSpace) return { fromLocationId: neighborSpace, toLocationId: null };
-  return null; // neither side traced
+  // One side only, or a reach that found the same room again.
+  const only = ownerSpace ?? neighborSpace;
+  return only ? { fromLocationId: only, toLocationId: null } : null;
 }
 
 export interface DoorEndpointResolution {

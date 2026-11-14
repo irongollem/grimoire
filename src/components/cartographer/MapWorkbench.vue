@@ -242,6 +242,10 @@
           :title="planToolLabel"
           :plan-tool="plan.planTool.value"
           :list-open="drawer === 'zoning'"
+          :door-pending="plan.pendingDoorEdge.value !== null"
+          :rooms="plan.spaceOptions.value"
+          @place-door="plan.placePendingDoor"
+          @cancel-door="plan.cancelPendingDoor()"
           @start-new="plan.startNew()"
           @toggle-list="drawer = drawer === 'zoning' ? null : 'zoning'"
         />

@@ -330,7 +330,7 @@ describe("usePlanPalette armDoorPlacement", () => {
   it("the next edge takes the listed door rather than making a second one", () => {
     const plan = usePlanPalette(computed(() => "site-1"));
     plan.armDoorPlacement("door-1");
-    plan.placeDoorAt("2,3:N", "crypt", "gallery");
+    expect(plan.placeArmedDoorOn("2,3:N")).toBe(true);
     expect(updateDoorStub.calls.map((c) => c.vars)).toEqual([{ id: "door-1", update: { edge_key: "2,3:N" } }]);
     expect(createDoorStub.mutate).not.toHaveBeenCalled();
   });
@@ -338,9 +338,9 @@ describe("usePlanPalette armDoorPlacement", () => {
   it("only the first edge takes it: the one after is a new door", () => {
     const plan = usePlanPalette(computed(() => "site-1"));
     plan.armDoorPlacement("door-1");
-    plan.placeDoorAt("2,3:N", "crypt", "gallery");
-    plan.placeDoorAt("5,5:W", "crypt", null);
-    expect(createDoorStub.mutate).toHaveBeenCalledTimes(1);
+    plan.placeArmedDoorOn("2,3:N");
+    expect(plan.placeArmedDoorOn("5,5:W")).toBe(false);
+    expect(updateDoorStub.mutate).toHaveBeenCalledTimes(1);
   });
 
   it("choosing another tool lets the door go", async () => {
@@ -349,9 +349,45 @@ describe("usePlanPalette armDoorPlacement", () => {
     await nextTick();
     plan.planTool.value = "zone";
     await nextTick();
-    plan.placeDoorAt("2,3:N", "crypt", "gallery");
+    expect(plan.placeArmedDoorOn("2,3:N")).toBe(false);
     expect(updateDoorStub.mutate).not.toHaveBeenCalled();
-    expect(createDoorStub.mutate).toHaveBeenCalledTimes(1);
+  });
+});
+
+// #1195: an edge with no room in reach waits here while the options slip asks which rooms the door joins.
+describe("usePlanPalette pending door", () => {
+  beforeEach(() => {
+    createDoorStub.calls.length = 0;
+    createDoorStub.mutate.mockClear();
+  });
+
+  it("places the door on the edge that was asked about, with the rooms the DM chose", () => {
+    const plan = usePlanPalette(computed(() => "site-1"));
+    plan.planTool.value = "door";
+    plan.askDoorEnds("4,2:W");
+    plan.placePendingDoor("crypt", null);
+    expect(createDoorStub.calls.map((c) => c.vars)).toEqual([
+      { from_location_id: "crypt", to_location_id: null, door_kind: "door", edge_key: "4,2:W", derived_from: "dm" },
+    ]);
+    expect(plan.pendingDoorEdge.value).toBeNull();
+  });
+
+  it("an answer with no edge waiting places nothing (cancelled, or answered twice)", () => {
+    const plan = usePlanPalette(computed(() => "site-1"));
+    plan.askDoorEnds("4,2:W");
+    plan.cancelPendingDoor();
+    plan.placePendingDoor("crypt", "gallery");
+    expect(createDoorStub.mutate).not.toHaveBeenCalled();
+  });
+
+  it("choosing another tool drops the question", async () => {
+    const plan = usePlanPalette(computed(() => "site-1"));
+    plan.planTool.value = "door";
+    await nextTick();
+    plan.askDoorEnds("4,2:W");
+    plan.planTool.value = "zone";
+    await nextTick();
+    expect(plan.pendingDoorEdge.value).toBeNull();
   });
 });
 

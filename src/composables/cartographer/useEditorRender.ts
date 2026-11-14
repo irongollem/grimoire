@@ -216,7 +216,7 @@ export function useEditorRender(inputs: {
   const planRenderDeps = planTools
     ? [
         plan!.regions, plan!.ways, plan!.activeRegionId, plan!.planTool, plan!.traceTool,
-        planTools.renderDeps.hoveredDoorEdge, planTools.renderDeps.strokeCells, planTools.renderDeps.draftRing,
+        planTools.renderDeps.hoveredDoorEdge, planTools.renderDeps.pendingDoorEdge, planTools.renderDeps.strokeCells, planTools.renderDeps.draftRing,
         planTools.renderDeps.templateDraft, planTools.renderDeps.liveDrag, planTools.renderDeps.penHoverPoint, planTools.renderDeps.eraseTouched,
       ]
     : [];

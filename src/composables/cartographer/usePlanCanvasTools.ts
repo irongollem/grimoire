@@ -175,13 +175,21 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
       plan.cycleDoorKind(existing);
       return;
     }
+    // A listed door being placed keeps its own two ends, so it needs no room beside the edge.
+    if (plan.placeArmedDoorOn(edgeKey)) return;
     const cellToSpace = indexSpacesByCell(plan.regions.value);
     const resolved = resolveEdgeEndpoints(edgeKey, cellToSpace);
-    if (!resolved) {
-      toastError("Trace a room on at least one side of this edge before placing a door there.");
+    if (resolved) {
+      plan.placeDoorAt(edgeKey, resolved.fromLocationId, resolved.toLocationId);
       return;
     }
-    plan.placeDoorAt(edgeKey, resolved.fromLocationId, resolved.toLocationId);
+    // No room within a cell of either side (#1195): the plan cannot tell what this door joins, so the options
+    // slip asks. Only a site with no rooms at all has nothing to ask about.
+    if (plan.spaceOptions.value.length === 0) {
+      toastError("This map has no rooms yet. Add a room zone first, then place its doors.");
+      return;
+    }
+    plan.askDoorEnds(edgeKey);
   }
 
   // ── Fill tool ───────────────────────────────────────────────────────────
@@ -323,7 +331,8 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
       ways: plan.ways.value,
       activeRegionId: plan.activeRegionId.value,
       cellsOverride: overrides,
-      hoveredDoorEdge: plan.planTool.value === "door" ? planHoveredDoorEdge.value : null,
+      // The edge waiting for its rooms stays lit while the slip asks about it.
+      hoveredDoorEdge: plan.planTool.value === "door" ? (plan.pendingDoorEdge.value ?? planHoveredDoorEdge.value) : null,
       tracingRing,
       tracingClosed,
       tracingHoverPoint,
@@ -345,6 +354,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     // read of these lives inside `renderScene()` above.
     renderDeps: {
       hoveredDoorEdge: planHoveredDoorEdge,
+      pendingDoorEdge: plan.pendingDoorEdge,
       strokeCells: regionPointer.strokeCells,
       eraseTouched,
       draftRing: regionPointer.draftRing,

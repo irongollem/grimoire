@@ -150,6 +150,9 @@ export function usePlanPalette(siteId: ComputedRef<string | null>, derived: () =
   const traceTool = ref<TraceTool>("paint");
   /** A listed door waiting for its edge (see `armDoorPlacement`). */
   const placingDoorId = ref<string | null>(null);
+  /** An edge clicked with the Door tool where no room is in reach on either side (#1195). The options slip asks
+   *  which rooms the door joins instead of refusing it; see `askDoorEnds`. */
+  const pendingDoorEdge = ref<SourceEdgeKey | null>(null);
   // Shared singleton with the Atlas's own template picker (`useRegionPen.ts`)
   // — deliberate: "only one tracing session can be live at a time" already
   // covers a DM being in the Cartographer instead of the Atlas, not just
@@ -478,12 +481,6 @@ export function usePlanPalette(siteId: ComputedRef<string | null>, derived: () =
   /** Places a new door on `edgeKey` with the given (already-resolved)
    *  endpoints. */
   function placeDoorAt(edgeKey: SourceEdgeKey, fromLocationId: string, toLocationId: string | null): void {
-    const arrivingId = placingDoorId.value;
-    if (arrivingId) {
-      placingDoorId.value = null;
-      putListedDoorOnEdge(arrivingId, edgeKey);
-      return;
-    }
     const insert = {
       from_location_id: fromLocationId,
       to_location_id: toLocationId,
@@ -511,8 +508,46 @@ export function usePlanPalette(siteId: ComputedRef<string | null>, derived: () =
     planTool.value = "door";
   }
   watch(planTool, (tool) => {
-    if (tool !== "door") placingDoorId.value = null;
+    if (tool === "door") return;
+    placingDoorId.value = null;
+    pendingDoorEdge.value = null;
   });
+
+  /** Puts the armed listed door on `edgeKey` and says whether there was one. It keeps the two ends it was listed
+   *  with, so the Door tool asks this before it looks for rooms beside the edge: a listed door is never refused
+   *  for landing where no zone is traced (#1195). */
+  function placeArmedDoorOn(edgeKey: SourceEdgeKey): boolean {
+    const arrivingId = placingDoorId.value;
+    if (!arrivingId) return false;
+    placingDoorId.value = null;
+    putListedDoorOnEdge(arrivingId, edgeKey);
+    return true;
+  }
+
+  // ── A door where the plan cannot tell its rooms (#1195) ─────────────────
+  // On a picture-only map the zones may sit well clear of the doorway. The Door tool then holds the edge here and
+  // the options slip asks "connects which rooms?". The answer is authored: `resolveDoorEndpoints` reads an edge
+  // with no room in reach as "leave this door alone", so the chosen ends stay until a zone grows up to the door.
+
+  /** The site's rooms by name: what the pending door's two ends are picked from. */
+  const spaceOptions = computed(() =>
+    (childLocations.value ?? []).map((l) => ({ id: l.id, name: l.name })).sort((a, b) => a.name.localeCompare(b.name)),
+  );
+
+  function askDoorEnds(edgeKey: SourceEdgeKey): void {
+    pendingDoorEdge.value = edgeKey;
+  }
+
+  function placePendingDoor(fromLocationId: string, toLocationId: string | null): void {
+    const edgeKey = pendingDoorEdge.value;
+    if (!edgeKey) return;
+    pendingDoorEdge.value = null;
+    placeDoorAt(edgeKey, fromLocationId, toLocationId);
+  }
+
+  function cancelPendingDoor(): void {
+    pendingDoorEdge.value = null;
+  }
 
   function putListedDoorOnEdge(doorId: string, edgeKey: SourceEdgeKey): void {
     const handle: PlanEntityHandle = { id: doorId };
@@ -614,7 +649,13 @@ export function usePlanPalette(siteId: ComputedRef<string | null>, derived: () =
     existingDoorAtEdge,
     placingDoorId,
     armDoorPlacement,
+    placeArmedDoorOn,
     placeDoorAt,
+    pendingDoorEdge,
+    spaceOptions,
+    askDoorEnds,
+    placePendingDoor,
+    cancelPendingDoor,
     cycleDoorKind,
     removeDoor,
   };

@@ -189,7 +189,13 @@ describe("usePlanCanvasTools Door and Claim tools", () => {
   const EDGE = "3,2:W" as SourceEdgeKey;
   const { toasts } = useToast();
 
-  function doorHarness(tool: "door" | "fill", rooms: LocationMapRegion[] = [], floor: CellKey[] = []) {
+  function doorHarness(
+    tool: "door" | "fill",
+    rooms: LocationMapRegion[] = [],
+    floor: CellKey[] = [],
+    siteRooms: { id: string; name: string }[] = [{ id: "loc-west", name: "West" }, { id: "loc-east", name: "East" }],
+  ) {
+    const armed = ref(false);
     const layers = ref(emptyLayers());
     for (const cell of floor) layers.value.floor[cell] = { floor: { pack_id: "base", pack_version: 1, variant: 0 } };
     const existing = ref<string | null>(null);
@@ -203,6 +209,10 @@ describe("usePlanCanvasTools Door and Claim tools", () => {
       activeRegion: computed(() => null),
       existingDoorAtEdge: vi.fn(() => existing.value),
       placeDoorAt: vi.fn(),
+      placeArmedDoorOn: vi.fn(() => armed.value),
+      askDoorEnds: vi.fn(),
+      pendingDoorEdge: ref<SourceEdgeKey | null>(null),
+      spaceOptions: ref(siteRooms),
       cycleDoorKind: vi.fn(),
       removeDoor: vi.fn(),
       fillFloorRegion: vi.fn(async () => {}),
@@ -216,7 +226,7 @@ describe("usePlanCanvasTools Door and Claim tools", () => {
       tilePixelSize: () => TILE,
     });
     toasts.value = [];
-    return { tools, plan, existing };
+    return { tools, plan, existing, armed };
   }
 
   const roomsEitherSide = [
@@ -234,11 +244,44 @@ describe("usePlanCanvasTools Door and Claim tools", () => {
     expect(new Set([from, to])).toEqual(new Set(["loc-west", "loc-east"]));
   });
 
-  it("refuses a door where no room is traced, and says so", () => {
+  // #1195: the tool used to refuse this edge with "Trace a room on at least one side".
+  it("asks which rooms a door joins where no zone is in reach, instead of refusing it", () => {
     const { tools, plan } = doorHarness("door", []);
     expect(tools.onPointerDown(press())).toBe(true);
+    expect(plan.askDoorEnds).toHaveBeenCalledWith(EDGE);
     expect(plan.placeDoorAt).not.toHaveBeenCalled();
+    expect(toasts.value).toHaveLength(0);
+  });
+
+  it("says so, and asks nothing, on a map with no rooms to choose from", () => {
+    const { tools, plan } = doorHarness("door", [], [], []);
+    tools.onPointerDown(press());
+    expect(plan.askDoorEnds).not.toHaveBeenCalled();
     expect(toasts.value).toHaveLength(1);
+  });
+
+  it("puts a listed door on an edge with no zone beside it, asking nothing (it keeps its own ends)", () => {
+    const { tools, plan, armed } = doorHarness("door", []);
+    armed.value = true;
+    tools.onPointerDown(press());
+    expect(plan.placeArmedDoorOn).toHaveBeenCalledWith(EDGE);
+    expect(plan.askDoorEnds).not.toHaveBeenCalled();
+    expect(plan.placeDoorAt).not.toHaveBeenCalled();
+  });
+
+  it("a click on a placed door cycles it even while a listed door is armed", () => {
+    const { tools, plan, existing, armed } = doorHarness("door", roomsEitherSide);
+    existing.value = "door-1";
+    armed.value = true;
+    tools.onPointerDown(press());
+    expect(plan.cycleDoorKind).toHaveBeenCalledWith("door-1");
+    expect(plan.placeArmedDoorOn).not.toHaveBeenCalled();
+  });
+
+  it("keeps the edge waiting for its rooms lit while the pointer is elsewhere", () => {
+    const { tools, plan } = doorHarness("door", []);
+    plan.pendingDoorEdge.value = EDGE;
+    expect(tools.renderScene().hoveredDoorEdge).toBe(EDGE);
   });
 
   it("cycles an existing door's kind on a plain click, and removes it only on Alt-click", () => {

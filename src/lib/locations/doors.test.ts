@@ -298,6 +298,62 @@ describe("resolveEdgeEndpoints", () => {
     ] as const);
     expect(resolveEdgeEndpoints("1,1:N", sameRoom)).toBeNull();
   });
+
+  // #1195: zones on a picture-only map stop a cell short of the painted wall, so the doorway's own edge has a gap
+  // beside it. Column 4 holds the door; "4,2:W" is the edge between (3,2) and (4,2).
+  describe("reaches one cell past the edge (#1195)", () => {
+    it("joins the rooms a cell away on both sides when neither touches the edge", () => {
+      // west room ends at x=2, east room starts at x=5: one empty cell each side of the edge.
+      const gapBothSides = new Map([
+        ["5,2", "room-east"],
+        ["2,2", "room-west"],
+      ] as const);
+      expect(resolveEdgeEndpoints("4,2:W", gapBothSides)).toEqual({ fromLocationId: "room-east", toLocationId: "room-west" });
+    });
+
+    it("joins a room touching the edge to the one a cell beyond the far side", () => {
+      const gapOneSide = new Map([
+        ["4,2", "room-east"],
+        ["2,2", "room-west"],
+      ] as const);
+      expect(resolveEdgeEndpoints("4,2:W", gapOneSide)).toEqual({ fromLocationId: "room-east", toLocationId: "room-west" });
+    });
+
+    it("does the same across an N edge, reaching north and south", () => {
+      // "3,4:N" sits between (3,3) and (3,4); the rooms are at (3,2) and (3,5).
+      const gapBothSides = new Map([
+        ["3,5", "room-south"],
+        ["3,2", "room-north"],
+      ] as const);
+      expect(resolveEdgeEndpoints("3,4:N", gapBothSides)).toEqual({ fromLocationId: "room-south", toLocationId: "room-north" });
+    });
+
+    it("does not reach a room two cells away", () => {
+      const tooFar = new Map([
+        ["6,2", "room-east"],
+        ["1,2", "room-west"],
+      ] as const);
+      expect(resolveEdgeEndpoints("4,2:W", tooFar)).toBeNull();
+    });
+
+    it("prefers the room touching the edge to a different one a cell behind it", () => {
+      const cellToSpace = new Map([
+        ["4,2", "room-east"],
+        ["3,2", "room-west"],
+        ["2,2", "room-far-west"],
+      ] as const);
+      expect(resolveEdgeEndpoints("4,2:W", cellToSpace)).toEqual({ fromLocationId: "room-east", toLocationId: "room-west" });
+    });
+
+    it("keeps a notch in one room a way out of that room, not a line across its middle", () => {
+      // (3,2) is a hole in room-a: the edge touches room-a on the east and reaches room-a again on the west.
+      const notch = new Map([
+        ["4,2", "room-a"],
+        ["2,2", "room-a"],
+      ] as const);
+      expect(resolveEdgeEndpoints("4,2:W", notch)).toEqual({ fromLocationId: "room-a", toLocationId: null });
+    });
+  });
 });
 
 describe("resolveDoorEndpoints", () => {
