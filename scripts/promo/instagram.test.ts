@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAPTION_MAX_CHARS, CAPTION_MAX_HASHTAGS, captionProblems, reelContainerParams } from "./instagram";
+import { CAPTION_MAX_CHARS, CAPTION_MAX_HASHTAGS, captionProblems, reelContainerParams, uploadOutcome } from "./instagram";
 
 const OK = "Combat in Dungeon Grimoire.\n\nRoll your own initiative.\n\n#dnd #dnd5e #ttrpg";
 
@@ -43,5 +43,22 @@ describe("reelContainerParams", () => {
     const p = reelContainerParams({ caption: OK, cover: { atMs: 5500.4 } });
     expect(p.thumb_offset).toBe("5500");
     expect(p).not.toHaveProperty("cover_url");
+  });
+});
+
+describe("uploadOutcome", () => {
+  it("takes rupload's success as uploaded", () => {
+    expect(uploadOutcome(true, '{"success":true}')).toBe("uploaded");
+  });
+
+  // Fails on: retrying a container whose video is already in, which can never succeed (13 Nov 2026, an hour late).
+  it("reads 'not in the status to upload' as the video already being in", () => {
+    const answer = '{"debug_info":{"retriable":false,"type":"ProcessingFailedError","message":"{\\"success\\":false,\\"error\\":{\\"message\\":\\"The ig container is not in the status to upload a video\\"}}"}}';
+    expect(uploadOutcome(false, answer)).toBe("already-in");
+  });
+
+  // Fails on: treating the first, often false "Request processing failed" as final, without the retries.
+  it("keeps 'Request processing failed' a refusal to retry", () => {
+    expect(uploadOutcome(false, '{"debug_info":{"retriable":false,"type":"ProcessingFailedError","message":"Request processing failed"}}')).toBe("refused");
   });
 });

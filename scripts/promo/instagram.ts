@@ -164,6 +164,24 @@ export function reelContainerParams(input: { caption: string; cover: ReelCover }
   };
 }
 
+/**
+ * What rupload's answer to one upload try means. "Request processing failed" is often a lie: on 13 Nov 2026 every
+ * retry into the same container then heard "not in the status to upload a video", because the first try's bytes had
+ * gone in after all. Retrying could never succeed, so the post gave up and went out an hour late on the next run.
+ * That answer means the video is in: go on to wait for processing.
+ */
+export function uploadOutcome(ok: boolean, text: string): "uploaded" | "already-in" | "refused" {
+  let json: { success?: boolean } = {};
+  try {
+    json = JSON.parse(text) as typeof json;
+  } catch {
+    // Not JSON: judged on the raw text below.
+  }
+  if (ok && json.success === true) return "uploaded";
+  if (text.includes("not in the status to upload")) return "already-in";
+  return "refused";
+}
+
 /** Creates the Reel container, uploads the file into it, and returns the container id once Instagram has processed it. */
 export async function uploadReel(
   token: string,
@@ -189,13 +207,18 @@ export async function uploadReel(
       body: input.video,
     });
     const text = await up.text();
-    let upJson: { success?: boolean; message?: string; debug_info?: { message?: string } } = {};
+    const outcome = uploadOutcome(up.ok, text);
+    if (outcome === "uploaded") break;
+    if (outcome === "already-in") {
+      log("the earlier try went in after all; waiting for processing");
+      break;
+    }
+    let upJson: { message?: string; debug_info?: { message?: string } } = {};
     try {
       upJson = JSON.parse(text) as typeof upJson;
     } catch {
       // Not JSON: the raw text goes into the error below.
     }
-    if (up.ok && upJson.success === true) break;
     const why = `${upJson.debug_info?.message ?? upJson.message ?? `HTTP ${up.status}`} (HTTP ${up.status}: ${text.slice(0, 300)})`;
     if (attempt === waits.length - 1) throw new Error(`Upload refused ${waits.length} times: ${why}`);
     log(`upload refused, trying again in ${waits[attempt + 1] / 1000} s: ${why}`);
