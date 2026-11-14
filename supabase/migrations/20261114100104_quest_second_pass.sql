@@ -667,8 +667,12 @@ begin
 end $function$;
 
 drop policy quest_objectives_select on public.quest_objectives;
+-- Created here, defined in section 7 once a beat has an audience.
+create or replace function private.is_objective_player_visible(p_objective_id uuid, p_quest_id uuid)
+returns boolean language sql stable security definer set search_path = public
+as $$ select false; $$;
 create policy quest_objectives_select on public.quest_objectives for select using (
-  ((status <> 'dormant') and private.is_quest_player_visible(quest_id))
+  ((status <> 'dormant') and private.is_objective_player_visible(id, quest_id))
   or exists (select 1 from public.quests q where q.id = quest_objectives.quest_id)
 );
 
@@ -1803,6 +1807,38 @@ as $$
   );
 $$;
 
+-- An objective a beat raises follows that beat's audience: a private beat's
+-- objective is the private beat's members' alone. One no beat raises follows
+-- the quest. Total: no seat, no quest, no beat seen is false.
+create or replace function private.is_objective_player_visible(p_objective_id uuid, p_quest_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+      from public.quests q
+      join public.campaign_members cm on cm.campaign_id = q.campaign_id
+     where q.id = p_quest_id
+       and cm.user_id = (select auth.uid())
+       and cm.party_member_id is not null
+       and case
+         when exists (
+           select 1 from public.quest_consequences c
+            where c.target_objective_id = p_objective_id and c.action = 'raise' and c.on_beat_id is not null
+         ) then exists (
+           select 1 from public.quest_consequences c
+             join public.quest_beats b on b.id = c.on_beat_id
+            where c.target_objective_id = p_objective_id and c.action = 'raise'
+              and private.beat_seen_by(b.visibility, b.visible_to, cm.party_member_id)
+         )
+         else private.quest_shown_to(q.id, cm.party_member_id)
+       end
+  );
+$$;
+
 -- What a handout or a notice-board pin does to a quest those members learn
 -- of: an undiscovered quest becomes active, and its entry beat is shown to
 -- them (null: the whole party). A beat already shown to some gains the rest.
@@ -2625,7 +2661,8 @@ update public.quest_beats b set visible_to = q.player_visible_to
                 where pm.campaign_id = q.campaign_id and not pm.id = any (q.player_visible_to));
 
 -- Moving a quest to Active (the board, a rule, a handout) rumors its entry
--- beat; so does naming a new entry beat on an active quest.
+-- beat. Only the move does: the database names an entry beat by itself when a
+-- quest's first beat is made, and that must not show a quest being written.
 create or replace function private.quest_active_rumors_entry()
 returns trigger
 language plpgsql
@@ -2633,8 +2670,7 @@ security definer
 set search_path = public
 as $$
 begin
-  if new.status = 'active' and new.entry_beat_id is not null
-     and (tg_op = 'INSERT' or old.status is distinct from new.status or old.entry_beat_id is distinct from new.entry_beat_id) then
+  if new.status = 'active' and old.status is distinct from 'active' and new.entry_beat_id is not null then
     update public.quest_beats set visibility = 'rumored'
      where id = new.entry_beat_id and visibility = 'hidden';
   end if;
@@ -2643,7 +2679,7 @@ end;
 $$;
 revoke execute on function private.quest_active_rumors_entry() from public, anon, authenticated;
 create trigger quests_active_rumors_entry
-  after insert or update of status, entry_beat_id on public.quests
+  after update of status on public.quests
   for each row execute procedure private.quest_active_rumors_entry();
 
 -- The first beat players can see tells the table the quest is there.
@@ -2658,7 +2694,7 @@ declare
 begin
   -- Only a beat the whole party sees is told to the whole table.
   if new.visibility = 'hidden' or new.visible_to is not null
-     or (tg_op = 'UPDATE' and old.visibility <> 'hidden' and old.visible_to is null)
+     or (old.visibility <> 'hidden' and old.visible_to is null)
      or exists (select 1 from public.quest_beats b
                  where b.quest_id = new.quest_id and b.id <> new.id
                    and b.visibility <> 'hidden' and b.visible_to is null) then
@@ -2675,8 +2711,10 @@ begin
 end;
 $$;
 revoke execute on function private.quest_first_seen_announcement() from public, anon, authenticated;
+-- On update only: a beat made already visible (a demo copied into a campaign,
+-- an import) is not news told to the table.
 create trigger quest_beats_first_seen_announcement
-  after insert or update of visibility, visible_to on public.quest_beats
+  after update of visibility, visible_to on public.quest_beats
   for each row execute procedure private.quest_first_seen_announcement();
 
 alter table public.quests drop column player_visible_to;

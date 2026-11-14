@@ -47,6 +47,10 @@ insert into public.quest_beat_transitions (
   '66100000-0000-4000-8000-000000000010', '66100000-0000-4000-8000-000000000040',
   '66100000-0000-4000-8000-000000000050', 'enter', 1, now() - interval '1 minute'
 );
+-- Entering the beat reveals it, which tells the table the quest is there (a
+-- "Quest shared" message, #1194). The tests below count the chat this file's
+-- loot dispatches write, so start from an empty chat.
+delete from public.campaign_messages where campaign_id = '66100000-0000-4000-8000-000000000010';
 
 select throws_ok($$
   insert into public.loot_placements (beat_id, quest_id, campaign_id, kind, payload)

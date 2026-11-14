@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(82);
+select plan(89);
 
 -- Cover for the arrival trigger on quest_beat_transitions
 -- (private.quest_arrival_visibility), its undo in
@@ -395,8 +395,8 @@ select is((select visibility from public.quest_beats where id = '11940000-0000-4
 select is((select visibility from public.quest_beats where id = '11940000-0000-4000-8000-0000001200b1'), 'rumored',
   'an active quest given an entry beat on the same write rumors it');
 update public.quests set entry_beat_id = '11940000-0000-4000-8000-0000001200b2' where id = '11940000-0000-4000-8000-000000120001';
-select is((select visibility from public.quest_beats where id = '11940000-0000-4000-8000-0000001200b2'), 'rumored',
-  'a quest already active whose entry beat changes rumors the new entry (fails if only a status change fires it)');
+select is((select visibility from public.quest_beats where id = '11940000-0000-4000-8000-0000001200b2'), 'hidden',
+  'naming a new entry beat on an already active quest shows nothing: only moving a quest to active does (the database names an entry when a first beat is made, and that must not show a quest being written)');
 
 update public.quests set entry_beat_id = '11940000-0000-4000-8000-0000001100b1' where id = '11940000-0000-4000-8000-000000110001';
 select is((select visibility from public.quest_beats where id = '11940000-0000-4000-8000-0000001100b1'), 'hidden',
@@ -552,6 +552,60 @@ select is((select array(select unnest(visible_to) order by 1) from public.quest_
 select private.reveal_quest('11940000-0000-4000-8000-000000000010', '11940000-0000-4000-8000-000000160001', null);
 select is((select visible_to from public.quest_beats where id = '11940000-0000-4000-8000-0000001600b1'), null,
   'a reveal to everyone widens the entry beat to the whole party');
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 11. Creating beats announces nothing, and an objective follows the beat that raises it.
+-- ════════════════════════════════════════════════════════════════════════════
+
+insert into public.quests (id, user_id, campaign_id, title, status) values
+  ('11940000-0000-4000-8000-000000170001', '11940000-0000-4000-8000-000000000001', '11940000-0000-4000-8000-000000000010', 'Quest T', 'active');
+insert into public.quest_beats (id, quest_id, campaign_id, title) values
+  ('11940000-0000-4000-8000-0000001700b1', '11940000-0000-4000-8000-000000170001', '11940000-0000-4000-8000-000000000010', 'T first');
+select isnt((select entry_beat_id from public.quests where id = '11940000-0000-4000-8000-000000170001'), null,
+  'precondition: the first beat became the entry beat of the already active quest');
+select is((select visibility from public.quest_beats where id = '11940000-0000-4000-8000-0000001700b1'), 'hidden',
+  'creating the first beat of an active quest leaves it hidden (fails if naming the entry beat rumors it)');
+select is(pg_temp.shared_messages('11940000-0000-4000-8000-000000170001'), 0,
+  'and posts no Quest shared message (fails if a beat created for an active quest announces it)');
+
+insert into public.quest_beats (id, quest_id, campaign_id, title, visibility) values
+  ('11940000-0000-4000-8000-0000001700b2', '11940000-0000-4000-8000-000000170001', '11940000-0000-4000-8000-000000000010', 'T copied in', 'revealed');
+select is(pg_temp.shared_messages('11940000-0000-4000-8000-000000170001'), 0,
+  'a beat inserted already revealed (an import, a demo copy) posts no message, because that is not news');
+update public.quest_beats set visibility = 'rumored' where id = '11940000-0000-4000-8000-0000001700b1';
+select is(pg_temp.shared_messages('11940000-0000-4000-8000-000000170001'), 0,
+  'while the quest already shows a whole-party beat, a further one posts nothing');
+
+-- Quest U: a whole-party rumor shows the quest to both heroes; a beat shown
+-- only to Hero 1 raises an objective.
+insert into public.quests (id, user_id, campaign_id, title) values
+  ('11940000-0000-4000-8000-000000180001', '11940000-0000-4000-8000-000000000001', '11940000-0000-4000-8000-000000000010', 'Quest U');
+insert into public.quest_beats (id, quest_id, campaign_id, title, visibility, visible_to) values
+  ('11940000-0000-4000-8000-0000001800b1', '11940000-0000-4000-8000-000000180001', '11940000-0000-4000-8000-000000000010', 'U for all', 'rumored', null),
+  ('11940000-0000-4000-8000-0000001800b2', '11940000-0000-4000-8000-000000180001', '11940000-0000-4000-8000-000000000010', 'U for Hero 1', 'revealed',
+   array['11940000-0000-4000-8000-000000000020']::uuid[]);
+insert into public.quest_objectives (id, quest_id, description, status, sort_order) values
+  ('11940000-0000-4000-8000-000000180021', '11940000-0000-4000-8000-000000180001', 'Raised by the Hero 1 beat', 'pending', 1),
+  ('11940000-0000-4000-8000-000000180022', '11940000-0000-4000-8000-000000180001', 'Raised by nothing', 'pending', 2),
+  ('11940000-0000-4000-8000-000000180023', '11940000-0000-4000-8000-000000180001', 'Still dormant', 'dormant', 3);
+insert into public.quest_consequences (id, quest_id, on_beat_id, action, target_objective_id)
+values ('11940000-0000-4000-8000-000000180031', '11940000-0000-4000-8000-000000180001',
+        '11940000-0000-4000-8000-0000001800b2', 'raise', '11940000-0000-4000-8000-000000180021');
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', '11940000-0000-4000-8000-000000000002', 'role', 'authenticated')::text, true);
+select is(
+  (select array_agg(description order by description) from public.quest_objectives where quest_id = '11940000-0000-4000-8000-000000180001'),
+  array['Raised by nothing', 'Raised by the Hero 1 beat'],
+  'Hero 1 reads the objective their beat raises and the one nothing raises, and not the dormant one');
+select set_config('request.jwt.claims',
+  json_build_object('sub', '11940000-0000-4000-8000-000000000003', 'role', 'authenticated')::text, true);
+select is(
+  (select array_agg(description order by description) from public.quest_objectives where quest_id = '11940000-0000-4000-8000-000000180001'),
+  array['Raised by nothing'],
+  'Hero 2 sees the quest but not the objective a beat they cannot see raises (fails if objectives follow the quest alone); the unraised one is the positive control');
+reset role;
 
 -- The reveal verb is gone.
 select throws_ok(
