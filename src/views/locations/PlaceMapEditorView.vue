@@ -1,5 +1,5 @@
 <template>
-  <div v-if="loading" class="flex h-dvh items-center justify-center bg-background">
+  <div v-if="loading || redirecting" class="flex h-dvh items-center justify-center bg-background">
     <LoadingSpinner />
   </div>
 
@@ -14,18 +14,10 @@
   <!-- Keyed by place: a level switch lands here with another id, and each
        place gets an editor of its own (its autosave remembers what it made). -->
   <SiteMapEditor
-    v-else-if="isSite"
-    :key="location.id"
-    :location="location"
-    :index="index"
-    :back-to="backTo"
-    :start-layer="layer"
-  />
-  <PlaceMapSimpleEditor
     v-else
     :key="location.id"
     :location="location"
-    :locations="allLocations"
+    :index="index"
     :back-to="backTo"
     :start-layer="layer"
   />
@@ -35,19 +27,20 @@
 /**
  * A place's full-screen map editor (#1125, frame 07), at `/locations/:id/map`.
  * Like the Scriptorium's, it takes the whole viewport: the app's sidebar and
- * bars give way (`editorFocus`). A site gets the Cartographer workbench with
- * its Plan; every other place gets Picture and Pins.
+ * bars give way (`editorFocus`). A site, and a battle map of any type, get the
+ * Cartographer workbench (it takes any place; a battle map's spaces may be
+ * empty). Every other place edits on its Atlas Map tab (measure, grid, pins and
+ * the image menu, 14 Nov 2026), so an old link to its editor lands there.
  *
  * Back always lands on the place's Map tab, however the editor was reached, so
  * the tab is selected on arrival rather than on the way out: a browser Back
  * from here returns to it too.
  */
-import { computed, onBeforeUnmount } from "vue";
-import { useRoute } from "vue-router";
+import { computed, onBeforeUnmount, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
-import PlaceMapSimpleEditor from "@/components/locations/map/PlaceMapSimpleEditor.vue";
 import SiteMapEditor from "@/components/locations/map/SiteMapEditor.vue";
 import { useAllLocations, useLocation } from "@/composables/locations/useLocations";
 import { placeRoute, startLayer } from "@/lib/locations/placeRoute";
@@ -57,6 +50,7 @@ import { useAppUiStore } from "@/stores/ui/app";
 import { useLocationsUiStore } from "@/stores/ui/locations";
 
 const route = useRoute();
+const router = useRouter();
 
 const placeId = computed(() => {
   const p = route.params.id;
@@ -84,6 +78,12 @@ const index = computed(() => buildAtlasIndex(allLocations.value));
 
 const loading = computed(() => (!!placeId.value && isPending.value) || allPending.value);
 
-const isSite = computed(() => !!location.value && isSiteType(location.value.location_type));
-const layer = computed(() => startLayer(route.query.layer, isSite.value));
+const hasEditor = computed(() => !!location.value && (isSiteType(location.value.location_type) || location.value.is_battle_map));
+const layer = computed(() => startLayer(route.query.layer));
+
+// A place with no full-screen editor goes to the Map tab, where its tools are. Replace, not push: Back must not return here.
+const redirecting = computed(() => !!location.value && !hasEditor.value);
+watch(redirecting, (go) => {
+  if (go) void router.replace(placeRoute(placeId.value));
+}, { immediate: true });
 </script>

@@ -1,4 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils";
+import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { useMapImportStore } from "@/stores/mapImport";
@@ -10,14 +11,18 @@ const mocks = vi.hoisted(() => ({
   openDrawing: vi.fn(),
   update: vi.fn(),
   toastError: vi.fn(),
+  setBattleMap: vi.fn(),
 }));
 
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: mocks.push }) }));
 vi.mock("@/composables/locations/useOpenSiteDrawing", () => ({ useOpenSiteDrawing: () => ({ openDrawing: mocks.openDrawing }) }));
 vi.mock("@/composables/locations/useLocations", () => ({ useUpdateLocation: () => ({ mutateAsync: mocks.update }) }));
+vi.mock("@/composables/locations/usePlacePicture", () => ({
+  usePlacePicture: () => ({ busy: ref(false), setBattleMap: mocks.setBattleMap }),
+}));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: mocks.toastError, fromError: (e: unknown) => String(e) }) }));
 
-const place = { id: "ash", name: "Ashmouth", source_map_id: null, is_battle_map: false };
+const place = { id: "ash", name: "Ashmouth", source_map_id: null, is_battle_map: false, map_url: null, map_motion: null };
 
 function mountCard(isSite: boolean, over: Partial<typeof place> = {}) {
   return mount(PlaceMapEmpty, { props: { location: { ...place, ...over }, isSite } });
@@ -101,5 +106,25 @@ describe("PlaceMapEmpty", () => {
 
   it("says a battle map is why the Atlas shows nothing", () => {
     expect(mountCard(false, { is_battle_map: true }).text()).toContain("battle map");
+  });
+
+  // A battle map is the one non-site place with a full-screen editor left: the Cartographer workbench.
+  it("offers a battle map its own editor, on the Base image", async () => {
+    const w = mountCard(false, { is_battle_map: true });
+    press(w, "Edit battle map");
+    await flushPromises();
+    expect(mocks.push).toHaveBeenCalledWith("/locations/ash/map?layer=base");
+  });
+
+  it("offers a battle map the way back into the Atlas, by unflagging it", () => {
+    const w = mountCard(false, { is_battle_map: true });
+    press(w, "Show it in the Atlas");
+    expect(mocks.setBattleMap).toHaveBeenCalledWith(false);
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("offers an ordinary place neither battle-map action, and no editor", () => {
+    const labels = mountCard(false).findAllComponents(AppButton).map((b) => b.props("label"));
+    expect(labels).toEqual(["Bring a map"]);
   });
 });

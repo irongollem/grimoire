@@ -12,8 +12,8 @@ type PictureHost = Pick<Location, "id" | "map_url" | "map_motion" | "is_battle_m
 
 /**
  * Every write a place's Picture layer makes (#1125, frame 07): upload or replace (moving maps kept on this device),
- * remove, line up the grid, and the battle-map flag. The workbench's Picture palette and the town editor are both
- * drawn from this, so a Picture behaves the same wherever it is edited.
+ * remove, line up the grid, and the battle-map flag. The workbench's Picture palette and the Atlas map's own
+ * buttons are both drawn from this, so a Picture behaves the same wherever it is edited.
  */
 export function usePlacePicture(place: MaybeRefOrGetter<PictureHost>) {
   const toast = useToast();

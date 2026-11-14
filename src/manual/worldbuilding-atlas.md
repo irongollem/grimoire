@@ -28,7 +28,7 @@ The Atlas is a two-pane explorer: a **location tree** on the left, and a **place
 - Search and the **Type** filter (top of the page) flatten the tree to a flat list of matches. If the tree is folded away, or you are reading a place on a phone, searching brings the list back; picking a match puts it away again.
 - Selecting a place is remembered in your browser's address bar, so the Back button walks the trail of places you've visited instead of leaving the Atlas.
 
-The place pane shows: a breadcrumb of clickable ancestors, the sigil, name and type badge, a "N quests staged here" note when a quest beat is waiting at this place or one of its rooms, the **scale rail**, then two tabs on every place: **Overview** (the full detail body first, then its children grouped by tier) and **Map** (its map, with a gilt **Edit map** button at the top right that opens the full-screen map editor; a place with no map shows a card to start one. See Sites for site-tier places).
+The place pane shows: a breadcrumb of clickable ancestors, the sigil, name and type badge, a "N quests staged here" note when a quest beat is waiting at this place or one of its rooms, the **scale rail**, then two tabs on every place: **Overview** (the full detail body first, then its children grouped by tier) and **Map** (its map, with four small buttons at the top right for measuring, lining up the grid, pins and the map image; a site shows a gilt **Edit map** button instead, which opens the full-screen map editor; a place with no map shows a card to start one. See Sites for site-tier places).
 
 Beside the name, each button does one job:
 
@@ -55,7 +55,14 @@ Click **Generate** on the Atlas list page to open the Location Generator panel. 
 
 ## Interactive maps and pins
 
-Open the **Map** tab, press **Edit map** (or **Bring a map** on a place with none yet) and upload an image as this location's **Base image** on the **Base image** tab; then switch to **Pins** and drag to drop them, each linked to a direct child. Clicking a vague-container child's pin position instead offers the concrete places nested inside it, so a regional map can still pin individual towns. Each pin has its own **visible to players** flag; whether players see the map at all is the **Map** switch in Reveal. Tick **Battle map** on the Base image tab for tactical encounter art: it is kept out of the player Atlas and offered to the battle map instead. A site-tier place additionally shows traced room regions on the same map: see the Sites page.
+Open the **Map** tab. A place that is not a site edits its map right there, with four icon-only buttons at the top right of the map. Only one tool is on at a time; press its button again, or Esc, to leave it.
+
+- **Ruler** measures a route (see the next section).
+- **Hash** lines up the grid on the picture, in place: drag the grid over it, set how many squares fit across, then press **Done**. It shows only when the place has a picture.
+- **Pin** lets you place pins: drag one to move it, and each links to a direct child. Clicking a vague-container child's pin position instead offers the concrete places nested inside it, so a regional map can still pin individual towns. Each pin has its own **visible to players** flag, and every change saves as you make it. Whether players see the map at all is the **Map** switch in Reveal.
+- **Folder** opens the map image menu: **Replace image…**, **Remove image**, a note when the map is a moving one, and the **This is a battle map, not a region** box. A battle map is kept out of the player Atlas and offered to the battle map instead, and then the Map tab shows a card with **Edit battle map** and **Show it in the Atlas**. A battle map, like a site, edits in the full-screen Cartographer.
+
+A site-tier place additionally shows traced room regions on the same map: see the Sites page.
 
 Descending into a child that also has its own map plays a zoom transition rather than a flat page change, and an **Up to `<parent>`** control on the map lets you rise the same way.
 
@@ -63,10 +70,9 @@ Descending into a child that also has its own map plays a zoom transition rather
 
 A world, region or city map can tell you how far it is from one place to another and how long the walk takes. It needs a **scale** first.
 
-1. On the **Map** tab press **Edit map** and switch to **Pins**. Above the map, choose **Set scale**.
-2. Drag the two handles onto two places whose distance you know, type the distance, and pick **Miles** or **Kilometres**. Each map keeps its own unit. Press **Save Scale**. **Edit scale** changes it later, and **Clear scale** removes it.
-3. Press the back link to return to the Map tab, then choose **Measure** at the top right of the map.
-4. Tap the map to drop stops along your route. Tapping a pin snaps to that place, so a route from Waterdeep to Daggerford is just two taps. **Undo** removes the last stop and **Clear** starts over.
+1. On the **Map** tab press the **ruler** at the top right of the map. Its panel opens under the map; with no scale yet, choose **Set scale**.
+2. Drag the two handles onto two places whose distance you know, type the distance, and pick **Miles** or **Kilometres**. Each map keeps its own unit. Press **Save Scale**. **Edit scale** in the panel changes it later, and **Clear scale** removes it.
+3. Tap the map to drop stops along your route. Tapping a pin snaps to that place, so a route from Waterdeep to Daggerford is just two taps. **Undo** removes the last stop and **Clear** starts over.
 
 The panel under the map shows the total distance and the travel time. Pick a **Slow**, **Normal** or **Fast** pace: the pace table is the one in the rulebook (24 miles a day at a normal pace, 30 fast, 18 slow, eight hours of travel to a day), and a fast pace costs −5 to passive Perception while a slow pace lets the party use Stealth. Press **Esc** or the close button to leave Measure.
 

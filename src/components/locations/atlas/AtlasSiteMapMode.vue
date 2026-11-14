@@ -1,8 +1,9 @@
 <template>
   <div class="flex flex-col gap-3">
-    <!-- A place's map as it is read (#1125, frames 03 and 04). Changing the
-         map is the gilt Edit map button, which leaves for the full-screen
-         editor and comes back to this tab. -->
+    <!-- A place's map as it is read (#1125, frames 03 and 04). A site changes
+         its map with the gilt Edit map button, which leaves for the full-screen
+         editor and comes back to this tab; any other place edits right here,
+         through the four icon buttons (`AtlasMapTools`). -->
     <!-- "<site> › Level N · <name> [chip]" (#868, frame 06) — the stairs
          chip travels with the level it counts, in the same trail row, rather
          than as a standalone line the map otherwise has to make room for. -->
@@ -33,12 +34,19 @@
            exists here; the guard stays because `LocationMap` needs a real
            stack to draw. -->
       <div v-if="mapStack.hasAnyLayer" class="relative min-w-0 flex-1">
+        <!-- Lining the grid up takes the map's own spot: the picture fitted, the grid over it. The tools stay in
+             their corner, so the grid button that opened it is also the one that leaves it. -->
+        <div v-if="tool === 'grid' && location.map_url" class="relative">
+          <AtlasGridLineUp :location="location" :map-url="location.map_url" @close="tool = null" />
+          <AtlasMapTools v-model:tool="tool" :location="location" class="absolute top-2 right-2 z-30" />
+        </div>
         <LocationMap
+          v-else
           ref="mapRef"
+          v-model:pins="pins"
           :stack="mapStack"
-          :pins="location.map_pins"
-          :children="children"
-          mode="view"
+          :children="editingPins ? pinCandidates : children"
+          :mode="editingPins ? 'edit' : 'view'"
           show-hidden-pins
           compact
           :offer-peek="false"
@@ -49,9 +57,9 @@
           :measuring="measure.measuring.value"
           :route-points="measure.points.value"
           @measure-point="measure.addPoint"
-          @pin-click="descendTo"
-          @pin-go="descendTo"
-          @pin-watch="descendTo"
+          @pin-click="onPinOpen"
+          @pin-go="onPinOpen"
+          @pin-watch="onPinOpen"
           @descend="onRegionClick"
         >
           <!--
@@ -72,20 +80,11 @@
               @click="ascend"
             />
             <div v-if="!zoomPlan" class="absolute top-2 right-2 z-30 flex items-center gap-1.5">
-              <!-- Measure (#932): places with pins only. A site is measured in
-                   feet on its own grid, not miles on a scaled map. -->
-              <AppButton
-                v-if="!isSite"
-                variant="subtle"
-                size="xs"
-                class="bg-background/85 backdrop-blur-sm"
-                :icon="IconRuler"
-                :active="measure.measuring.value"
-                label="Measure"
-                @click="measure.toggle()"
-              />
-              <!-- The one way into changing the map (#1125, frames 03 and 04). -->
-              <AppButton variant="primary" size="xs" :icon="IconEdit" label="Edit map" @click="editMap" />
+              <!-- A site is measured in feet on its own grid and edited in the
+                   Cartographer; every other place measures, lines up its grid,
+                   pins and swaps its image right here (#932, 14 Nov 2026). -->
+              <AppButton v-if="isSite" variant="primary" size="xs" :icon="IconEdit" label="Edit map" @click="editMap" />
+              <AtlasMapTools v-else v-model:tool="tool" :location="location" />
             </div>
           </template>
 
@@ -109,6 +108,8 @@
           v-if="measure.measuring.value && !isSite"
           v-model:pace="measure.paceId.value"
           :location-id="location.id"
+          :map-url="mapStack.primary?.url ?? null"
+          :stand-url="mapStack.standing?.url ?? null"
           class="mt-3"
           :scale="measureScale"
           :points="measure.points.value"
@@ -146,7 +147,9 @@
  * derivations off the `index` this component already has. `AtlasPlacePane`
  * keeps identity, the Contents/Map toggle row, and Contents mode — the
  * parts that render whether or not this place has a map at all. Editing the
- * map is not here: its Edit map button leaves for `PlaceMapEditorView` (#1125).
+ * map is only half here: a site's gilt Edit map button leaves for
+ * `PlaceMapEditorView` (#1125), while every other place edits on the map itself
+ * through `AtlasMapTools` (measure, line up the grid, pins, the image menu).
  *
  * Two distinct outward events rather than one: `select` is an ordinary
  * jump (a sibling level in the rail, or landing after an ascend/pin
@@ -160,6 +163,8 @@ import TagChip from "@/components/common/TagChip.vue";
 import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import AtlasGridLineUp from "@/components/locations/atlas/AtlasGridLineUp.vue";
+import AtlasMapTools from "@/components/locations/atlas/AtlasMapTools.vue";
 import AtlasMapZoom from "@/components/locations/atlas/AtlasMapZoom.vue";
 import LocationMap from "@/components/locations/map/LocationMap.vue";
 import SiteLevelsColumn from "@/components/locations/site/SiteLevelsColumn.vue";
@@ -168,13 +173,16 @@ import SiteRoomCard from "@/components/locations/site/SiteRoomCard.vue";
 import SiteWaysOutPanel from "@/components/locations/site/SiteWaysOutPanel.vue";
 import { useLocation } from "@/composables/locations/useLocations";
 import { useMapMeasure } from "@/composables/locations/useMapMeasure";
+import { usePlaceMapPins } from "@/composables/locations/usePlaceMapPins";
+import { useHotkeys } from "@/composables/useHotkeys";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
-import { IconChevronRight, IconChevronUp, IconEdit, IconRuler, IconStairs } from "@/lib/icons";
+import { IconChevronRight, IconChevronUp, IconEdit, IconStairs } from "@/lib/icons";
 import { verticalWays } from "@/lib/locations/doors";
 import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
 import { parseMapScale } from "@/lib/locations/mapScale";
 import { buildMapStack } from "@/lib/locations/mapStack";
+import type { MapTool } from "@/lib/locations/mapTool";
 import { mapEditorRoute, type MapEditorLayer } from "@/lib/locations/placeRoute";
 import { planAscent, planDescent, regionOrigin } from "@/lib/locations/mapZoom";
 import type { ZoomPlan } from "@/lib/locations/mapZoom";
@@ -211,11 +219,41 @@ const measure = useMapMeasure({
 });
 watch(() => location.id, measure.stop);
 
-// ── Edit map (#1125) — the full-screen editor, which opens on the layer this
-//    place's map is mostly made of. ───────────────────────────────────────────
+// ── The map's tools (14 Nov 2026) — one on at a time, none by default. Measure
+//    keeps its own state and Esc in `useMapMeasure`, so the two are held in step
+//    from both sides: the tool starts and stops it, and it clearing the tool when
+//    it stops by itself (its Esc, its close button). ──────────────────────────────
+const tool = ref<MapTool | null>(null);
+watch(tool, (next) => {
+  if (next === "measure") measure.start();
+  else if (measure.measuring.value) measure.stop();
+});
+watch(measure.measuring, (on) => {
+  if (!on && tool.value === "measure") tool.value = null;
+});
+watch(() => location.id, () => { tool.value = null; });
+// Grid line-up works on a picture: if it goes (removed from another tab), the tool has nothing to work on.
+watch(() => location.map_url, (url) => {
+  if (!url && tool.value === "grid") tool.value = null;
+});
+useHotkeys(
+  [{ combo: "escape", description: "Leave the map tool", hidden: true, handler: () => { tool.value = null; } }],
+  { layer: "overlay", enabled: () => tool.value === "pins" || tool.value === "grid" },
+);
+
+// ── Pins, written live while the pins tool is on (#958). ─────────────────────
+const { pins, candidates: pinCandidates } = usePlaceMapPins(() => location, () => [...index.byId.values()]);
+const editingPins = computed(() => tool.value === "pins");
+
+/** A pin opens its place, except while pins are being edited: there a click selects, it does not travel. */
+function onPinOpen(childId: string): void {
+  if (!editingPins.value) descendTo(childId);
+}
+
+// ── Edit map (#1125) — a site's full-screen editor, which opens on the layer
+//    this place's map is mostly made of. ───────────────────────────────────────
 const router = useRouter();
 const editorLayer = computed<MapEditorLayer>(() => {
-  if (!isSite.value) return "base";
   if (mapStack.value.drawing) return "drawing";
   return mapStack.value.picture ? "base" : "zoning";
 });

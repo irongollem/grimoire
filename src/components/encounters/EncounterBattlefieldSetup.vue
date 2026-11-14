@@ -157,11 +157,11 @@ const readinessHint = computed(() => {
     // the single reader of that distinction.
     if (isInteriorType(location.value.location_type)) {
       return hasAnyMapLayer(location.value)
-        ? "This room's map has no grid yet. Line up its grid in Edit map to enable placement."
+        ? "This room's map has no grid yet. Line up its grid from the room's Map tab in the Atlas to enable placement."
         : "This room has no map of its own, and its site's map has no grid either.";
     }
     return hasAnyMapLayer(location.value)
-      ? "Line up the grid on this place's map (Edit map) to enable placement."
+      ? "Line up the grid on this place's map (its Map tab in the Atlas) to enable placement."
       : "The linked location has no map.";
   }
   return "";

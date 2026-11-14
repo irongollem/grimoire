@@ -8,12 +8,13 @@
       <AppButton variant="ghost" size="icon-xs" :icon="IconClose" tooltip="Stop measuring (Esc)" @click="emit('close')" />
     </div>
 
-    <!-- Nothing can be measured without a scale; say where it is set. -->
+    <!-- Nothing can be measured without a scale, so it is set right here: it is a fact about this picture, set by
+         marking two points on it. -->
     <div v-if="!scale" class="flex flex-wrap items-center gap-2">
       <p class="min-w-0 flex-1 text-body text-muted-foreground">
-        This map has no scale yet, so it cannot tell a distance. Edit the map and choose Set scale.
+        This map has no scale yet, so it cannot tell a distance.
       </p>
-      <AppButton variant="outline" size="xs" label="Edit map" @click="openEditor" />
+      <AppButton variant="outline" size="xs" label="Set scale" @click="scaleOpen = true" />
     </div>
 
     <template v-else>
@@ -35,6 +36,14 @@
         </div>
         <p v-if="routeNames" class="text-caption text-muted-foreground">{{ routeNames }}</p>
       </template>
+
+      <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-muted-foreground">
+        <span>
+          Scale: <span class="font-semibold text-foreground">{{ formatDistance(scale.distance, scale.unit) }}</span>
+          between the two marked points
+        </span>
+        <AppButton variant="ghost" size="inline-xs" label="Edit scale" @click="scaleOpen = true" />
+      </div>
 
       <div class="flex flex-col gap-1">
         <SegmentedControl v-model="paceId" :options="PACE_OPTIONS" size="sm" />
@@ -61,21 +70,33 @@
     <!-- The travel event is the record of a trip; the route itself is not
          kept. Opens prefilled, and the DM can still edit everything. -->
     <EventModal v-model="eventOpen" :prefill="eventPrefill" />
+
+    <MapScaleDialog
+      :open="scaleOpen"
+      :map-url="mapUrl"
+      :stand-url="standUrl"
+      :existing="scale"
+      :saving="isSavingScale"
+      @cancel="scaleOpen = false"
+      @save="saveScale"
+      @clear="saveScale(null)"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import EventModal from "@/components/calendar/EventModal.vue";
+import MapScaleDialog from "@/components/locations/map/MapScaleDialog.vue";
+import { useUpdateLocationMapScale } from "@/composables/locations/useLocations";
+import { useToast } from "@/composables/useToast";
 import { useParty } from "@/composables/party/useParty";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { IconAddEvent, IconClose, IconEraser, IconRuler, IconUndo } from "@/lib/icons";
 import { routeDescription, routeEventPrefill, type RoutePoint, type RouteSummary } from "@/lib/locations/mapRoute";
 import { formatDistance } from "@/lib/locations/mapScale";
-import { mapEditorRoute } from "@/lib/locations/placeRoute";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import {
   formatTravelTime,
@@ -92,9 +113,12 @@ import type { MapScale } from "@/types/location.types";
 
 const paceId = defineModel<TravelPaceId>("pace", { required: true });
 
-const { locationId, scale, points, summary } = defineProps<{
-  /** The place whose map is measured: where "Edit map" goes to set the scale. */
+const { locationId, scale, points, summary, mapUrl, standUrl = null } = defineProps<{
+  /** The place whose map is measured: whose scale is written. */
   locationId: string;
+  /** The picture the scale is marked on, and a Drawing's standing half drawn over it. */
+  mapUrl: string | null;
+  standUrl?: string | null;
   scale: MapScale | null;
   points: readonly RoutePoint[];
   summary: RouteSummary | null;
@@ -104,12 +128,20 @@ const emit = defineEmits<{ undo: []; clear: []; close: [] }>();
 
 const PACE_OPTIONS = TRAVEL_PACES.map((p) => ({ value: p.id, label: p.label }));
 
-const router = useRouter();
 const campaign = useCampaignStore();
+const toast = useToast();
 
-/** The map editor is where the scale is set (`PlaceMapPinsEditor`). */
-function openEditor() {
-  void router.push(mapEditorRoute(locationId, "base"));
+// ── The scale (#932), written live like the pins: there is no Save. ──────────
+const scaleOpen = ref(false);
+const { mutateAsync: updateScale, isPending: isSavingScale } = useUpdateLocationMapScale();
+
+async function saveScale(next: MapScale | null) {
+  try {
+    await updateScale({ id: locationId, scale: next });
+    scaleOpen.value = false;
+  } catch (e) {
+    toast.error(toast.fromError(e));
+  }
 }
 
 /** "Waterdeep to Daggerford", when the route's ends are places. */

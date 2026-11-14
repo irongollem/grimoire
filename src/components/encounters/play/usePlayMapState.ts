@@ -304,11 +304,11 @@ export function usePlayMapState(
       // while its site's plan is also uncalibrated, and that needs "calibrate", not "no map".
       if (isInteriorType(own.location_type)) {
         return hasAnyMapLayer(own)
-          ? "This room's map has no grid yet. Open the room's Edit map and line up the grid on its base image."
+          ? "This room's map has no grid yet. Line up its grid from the room's Map tab in the Atlas."
           : "This room has no map of its own, and its site's map has no grid either. Line up the site's grid in Edit map first.";
       }
       return hasAnyMapLayer(own)
-        ? "This map has no grid yet. Open the place's Edit map and line up the grid on its base image."
+        ? "This map has no grid yet. Line up its grid from the place's Map tab in the Atlas."
         : "The linked location has no map. Upload or bake a map for this location first.";
     }
     if (following.value && liveStateLoaded.value && !isLive.value) {

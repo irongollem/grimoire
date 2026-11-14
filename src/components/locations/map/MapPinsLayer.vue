@@ -396,7 +396,7 @@ function onPlacePin(e: MouseEvent) {
 // ── Drag to reposition (edit mode) ────────────────────────────────────────────
 // The pin follows the pointer through this preview and the model changes once,
 // on drop. Writing `pins` on every pointermove made a caller that persists the
-// model (Build's `PlaceMapPinsEditor`, which saves on each change) send dozens
+// model (the Atlas map's `usePlaceMapPins`, which saves on each change) send dozens
 // of unordered writes per drag, whose refetches yanked the pin back mid-drag.
 const dragPosition = ref<{ id: string; x: number; y: number } | null>(null);
 let draggingId: string | null = null;

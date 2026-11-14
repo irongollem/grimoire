@@ -13,10 +13,12 @@ const mocks = vi.hoisted(() => ({
   location: null as unknown,
   pending: false,
   allArgs: [] as unknown[],
+  replace: vi.fn(),
 }));
 
 vi.mock("vue-router", () => ({
   useRoute: () => ({ params: mocks.params, query: mocks.query }),
+  useRouter: () => ({ replace: mocks.replace }),
 }));
 vi.mock("@/composables/locations/useLocations", () => ({
   useLocation: () => ({ data: ref(mocks.location), isPending: ref(mocks.pending) }),
@@ -26,11 +28,11 @@ vi.mock("@/composables/locations/useLocations", () => ({
   },
 }));
 
-const place = (over: Partial<Location>) => ({ id: "ash", name: "Ashmouth", location_type: "dungeon", ...over }) as Location;
+const place = (over: Partial<Location>) => ({ id: "ash", name: "Ashmouth", location_type: "dungeon", is_battle_map: false, ...over }) as Location;
 
 function mountView() {
   return mount(PlaceMapEditorView, {
-    global: { stubs: { SiteMapEditor: true, PlaceMapSimpleEditor: true, LoadingSpinner: true, EmptyState: true, AppButton: true } },
+    global: { stubs: { SiteMapEditor: true, LoadingSpinner: true, EmptyState: true, AppButton: true } },
   });
 }
 
@@ -40,6 +42,7 @@ beforeEach(() => {
   mocks.query = {};
   mocks.location = place({});
   mocks.pending = false;
+  mocks.replace.mockReset();
 });
 
 // #1125 decision 4: the editor is full screen, comes back to the place's Map tab, and `?layer=` picks the start.
@@ -76,28 +79,34 @@ describe("PlaceMapEditorView", () => {
     expect(mountView().findComponent({ name: "SiteMapEditor" }).props("startLayer")).toBe("drawing");
   });
 
-  it("gives a place that is not a site the Picture and Pins editor", () => {
-    mocks.location = place({ location_type: "city" });
+  // Bug: a battle map of any type must open the workbench, or its picture could not be lined up or its walls drawn.
+  it("opens a battle map that is not a site in the Cartographer workbench", () => {
+    mocks.location = place({ location_type: "city", is_battle_map: true });
+    const w = mountView();
+    expect(w.findComponent({ name: "SiteMapEditor" }).exists()).toBe(true);
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  // The Atlas Map tab has the tools now; an old link must land there, not on an editor with nothing under it.
+  it("sends a place that is neither a site nor a battle map to its Map tab, replacing the entry", () => {
+    mocks.location = place({ location_type: "city", is_battle_map: false });
     mocks.query = { layer: "pins" };
     const w = mountView();
     expect(w.findComponent({ name: "SiteMapEditor" }).exists()).toBe(false);
-    const simple = w.findComponent({ name: "PlaceMapSimpleEditor" });
-    expect(simple.props("startLayer")).toBe("pins");
-    expect(simple.props("backTo")).toBe("/locations?at=ash");
+    expect(mocks.replace).toHaveBeenCalledWith("/locations?at=ash");
+    expect(useLocationsUiStore().locationsPaneMode).toBe("map");
   });
 
-  it("shows neither editor while the place is still loading, nor for a place that is gone", async () => {
+  it("shows no editor while the place is still loading, nor for a place that is gone", async () => {
     mocks.pending = true;
     let w = mountView();
     expect(w.findComponent({ name: "SiteMapEditor" }).exists()).toBe(false);
-    expect(w.findComponent({ name: "PlaceMapSimpleEditor" }).exists()).toBe(false);
 
     mocks.pending = false;
     mocks.location = undefined;
     w = mountView();
     await flushPromises();
     expect(w.findComponent({ name: "SiteMapEditor" }).exists()).toBe(false);
-    expect(w.findComponent({ name: "PlaceMapSimpleEditor" }).exists()).toBe(false);
     expect(w.findComponent({ name: "EmptyState" }).exists()).toBe(true);
   });
 });

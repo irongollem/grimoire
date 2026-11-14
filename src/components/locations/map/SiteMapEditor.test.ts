@@ -286,6 +286,12 @@ describe("SiteMapEditor", () => {
     expect(mocks.push).toHaveBeenCalledWith("/locations?at=ash");
   });
 
+  // A battle map of another type opens this editor, and a level means nothing to it.
+  it("offers levels to a site and not to a battle map of another type", () => {
+    expect(mountEditor(place({ id: "ash" })).findComponent({ name: "SiteLevelPicker" }).exists()).toBe(true);
+    expect(mountEditor(place({ id: "ash", location_type: "city" })).findComponent({ name: "SiteLevelPicker" }).exists()).toBe(false);
+  });
+
   it("switches level by saving first, then opening that level's editor on the same layer", async () => {
     const w = mountEditor(place({ id: "ash" }));
     w.findComponent({ name: "SiteLevelPicker" }).vm.$emit("select", "cellar");

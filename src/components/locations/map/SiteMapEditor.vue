@@ -48,6 +48,7 @@
         <!-- The levels ride in the bar: without them a DM drawing one floor
              could not see or reach the others. -->
         <SiteLevelPicker
+          v-if="isSite"
           :levels="levelList"
           :active-id="location.id"
           :adding="isAddingLevel"
@@ -156,7 +157,7 @@ import { levelsOf } from "@/lib/locations/levels";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import { editorLayerOf, mapEditorRoute, type MapEditorLayer } from "@/lib/locations/placeRoute";
 import { playReadiness, type ReadyFixAction } from "@/lib/locations/playReadiness";
-import { bindableSpaces } from "@/lib/locations/tiers";
+import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
 import { childrenOf, type AtlasIndex } from "@/lib/locations/tree";
 import type { DarknessLevel } from "@/types/dungeonMap.types";
 import { useCampaignStore } from "@/stores/campaign";
@@ -193,6 +194,8 @@ const campaignAiEnabled = computed(() =>
     : otherCampaign.value?.ai_enabled === true && !authStore.isChildAccount,
 );
 
+// A battle map of another type opens this editor too, and levels mean nothing there.
+const isSite = computed(() => isSiteType(location.location_type));
 const siteSpaces = computed(() => bindableSpaces(childrenOf(index, location.id)));
 const mapStack = computed(() => buildMapStack(location));
 

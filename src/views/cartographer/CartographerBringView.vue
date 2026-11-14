@@ -134,6 +134,7 @@ import { useAllLocations } from "@/composables/locations/useLocations";
 import { useToast } from "@/composables/useToast";
 import { IconChevronLeft, IconPause, IconPlay } from "@/lib/icons";
 import { mapEditorRoute, placeRoute } from "@/lib/locations/placeRoute";
+import { isSiteType } from "@/lib/locations/tiers";
 import { describeFile, isUniversalVttName, nameFromFile } from "@/lib/mapImport/bringFile";
 import {
   calibrationFor,
@@ -148,6 +149,7 @@ import { detectMotion, type MapMotion } from "@/lib/mapImport/motionDetect";
 import { isUvttError, parseUniversalVtt, type UniversalVttMap } from "@/lib/mapImport/universalVtt";
 import { useMapImportStore } from "@/stores/mapImport";
 import { useAppUiStore } from "@/stores/ui/app";
+import { useLocationsUiStore } from "@/stores/ui/locations";
 import type { GridCalibration } from "@/types/location.types";
 
 const router = useRouter();
@@ -297,7 +299,14 @@ async function add(): Promise<void> {
     const { placeId: placed } = await addMap(input);
     store.clear();
     // A created thing opens (like a new Scriptorium book): the editor saves itself, so there is no list to confirm on.
-    await router.push(mapEditorRoute(placed, "base"));
+    // A new place is a battle map and a site has the Cartographer; any other existing place has its tools on the Map tab.
+    const place = target === null ? undefined : pickedPlace.value;
+    if (place && !isSiteType(place.location_type) && !place.is_battle_map) {
+      useLocationsUiStore().locationsPaneMode = "map";
+      await router.push(placeRoute(placed));
+    } else {
+      await router.push(mapEditorRoute(placed, "base"));
+    }
   } catch (e) {
     toast.error(toast.fromError(e));
   } finally {

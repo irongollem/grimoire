@@ -1,8 +1,10 @@
 <template>
   <!-- A place with no map yet (#1125, frame 04): a dashed card that is also
        the drop target, because "bring a map" is most often a file already on
-       the desk. Every action opens the full-screen editor and comes back to
-       this tab. -->
+       the desk. A site's actions open the full-screen editor and come back; a
+       place that is not one brings its picture and then edits on the Map tab
+       itself. A battle map is kept out of the Atlas's maps, so its card offers
+       its own full-screen editor, or the way back into the Atlas. -->
   <section
     class="flex flex-col items-center gap-4 rounded-lg border-2 border-dashed px-6 py-12 text-center transition-colors"
     :class="dragging ? 'border-primary bg-primary/5' : 'border-border bg-muted/30'"
@@ -17,7 +19,7 @@
       <h3 class="text-heading-sm font-bold text-foreground">{{ location.name }} has no map.</h3>
       <p v-if="location.is_battle_map" class="max-w-md text-body text-muted-foreground">
         Its picture is marked as a battle map, which the Atlas keeps out of its maps.
-        Open the editor to change that.
+        Edit the battle map, or show it in the Atlas as a region.
       </p>
       <p v-else class="max-w-md text-body text-muted-foreground">
         {{ isSite ? "Draw the floor plan, bring a scan, or start from an empty grid." : "Bring a picture of it and pin what is on it." }}
@@ -25,8 +27,24 @@
     </div>
 
     <div class="flex flex-wrap items-center justify-center gap-2">
+      <AppButton
+        v-if="location.is_battle_map"
+        variant="primary"
+        :icon="IconEdit"
+        label="Edit battle map"
+        :disabled="busy"
+        @click="startThen('base')"
+      />
+      <AppButton
+        v-if="location.is_battle_map"
+        variant="outline"
+        :icon="IconMap"
+        label="Show it in the Atlas"
+        :disabled="busy || picture.busy.value"
+        @click="picture.setBattleMap(false)"
+      />
       <AppButton v-if="isSite" variant="primary" :icon="IconEdit" label="Draw one" :disabled="busy" @click="onDraw" />
-      <AppButton :variant="isSite ? 'outline' : 'primary'" :icon="IconUpload" label="Bring a map" :disabled="busy" @click="fileInput?.click()" />
+      <AppButton :variant="isSite || location.is_battle_map ? 'outline' : 'primary'" :icon="IconUpload" label="Bring a map" :disabled="busy" @click="fileInput?.click()" />
       <AppButton v-if="isSite" variant="outline" :icon="IconGrid" label="Blank grid" :disabled="busy" @click="onBlankGrid" />
     </div>
 
@@ -51,6 +69,7 @@ import { useMapImportStore } from "@/stores/mapImport";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
+import { usePlacePicture } from "@/composables/locations/usePlacePicture";
 import { useUpdateLocation } from "@/composables/locations/useLocations";
 import { useToast } from "@/composables/useToast";
 import { IconEdit, IconGrid, IconMap, IconUpload } from "@/lib/icons";
@@ -62,9 +81,9 @@ import type { Location } from "@/types/location.types";
 const BLANK_GRID = { cols: 30, rows: 20 };
 
 const { location, isSite } = defineProps<{
-  location: Pick<Location, "id" | "name" | "source_map_id" | "is_battle_map">;
+  location: Pick<Location, "id" | "name" | "source_map_id" | "is_battle_map" | "map_url" | "map_motion">;
   /** Site-tier places get the Drawing and Plan to start from; every other
-   *  place has Picture and Pins alone. */
+   *  place brings a picture and pins what is on it, on the Map tab. */
   isSite: boolean;
 }>();
 
@@ -90,6 +109,7 @@ async function startThen(layer: MapEditorLayer, setup?: () => Promise<void>): Pr
   }
 }
 
+const picture = usePlacePicture(() => location);
 const { openDrawing } = useOpenSiteDrawing();
 const { mutateAsync: updateLocation } = useUpdateLocation();
 

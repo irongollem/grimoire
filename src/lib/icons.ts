@@ -13,9 +13,9 @@ import {
   Columns2, Component, Copy, CreditCard, Crop, Crosshair, Crown,
   Dna, DoorClosed, DoorOpen, Download, Droplets,
   Eraser, ExternalLink, Eye, EyeOff,
-  Feather, FileDown, FileText, Flag, Flame, FlaskConical,
+  Feather, FileDown, FileText, Flag, Flame, FlaskConical, FolderOpen,
   Gem, Ghost, Gift, Globe, Globe2, GraduationCap, GripVertical, Grid3x3,
-  Hand, Handshake, Hexagon, Highlighter, Home, Image, ImagePlus, Images, Info,
+  Hand, Handshake, Hash, Hexagon, Highlighter, Home, Image, ImagePlus, Images, Info,
   Cloud, CloudDrizzle, CloudFog, CloudRain, CloudSnow, Snowflake,
   Keyboard, KeyRound, Lamp, Landmark, Layers, LayoutGrid, LayoutList,
   Shrink,
@@ -167,6 +167,9 @@ export { ZoomOut as IconZoomOut }
 export { Maximize2 as IconMaximize }
 export { Navigation as IconNavigate }
 export { Ruler as IconRuler }
+/** Line up the grid (a hash is the grid's own mark) and the map image's menu: the Atlas map's icon-only tools. */
+export { Hash as IconHash }
+export { FolderOpen as IconFolder }
 
 // ── Status / Feedback ─────────────────────────────────────────────────────────
 export { Info as IconInfo }

@@ -1,3 +1,6 @@
+/** What a place's picture takes (#1125): images and moving maps. A Universal VTT file goes through "Bring a map", where its grid, walls and lights are read. */
+export const PICTURE_ACCEPT = "image/png,image/jpeg,image/webp,image/gif,video/webm,video/mp4";
+
 /** What "Bring a map" takes (#1125 decision 7): pictures, moving maps, and Universal VTT files by their extensions. */
 export const BRING_ACCEPT = "image/png,image/jpeg,image/webp,image/gif,video/webm,video/mp4,.dd2vtt,.uvtt,.df2vtt";
 

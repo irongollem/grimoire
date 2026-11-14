@@ -1,5 +1,5 @@
 <template>
-  <!-- The Base image's own controls (canvas frame 07): shared by the workbench's Base image tab and the town editor,
+  <!-- The Base image's own controls (canvas frame 07): the workbench's Base image tab,
        so a base image is edited the same way wherever it lives. They only report what the DM chose; the host writes. -->
   <div class="flex flex-col gap-2">
     <div class="flex flex-wrap items-center gap-1.5">
@@ -61,9 +61,7 @@ import { ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { IconDelete, IconGrid, IconUpload } from "@/lib/icons";
-
-/** Images and moving maps. A Universal VTT file goes through "Bring a map", where its grid, walls and lights are read. */
-const PICTURE_ACCEPT = "image/png,image/jpeg,image/webp,image/gif,video/webm,video/mp4";
+import { PICTURE_ACCEPT } from "@/lib/mapImport/bringFile";
 
 defineProps<{
   hasPicture: boolean;

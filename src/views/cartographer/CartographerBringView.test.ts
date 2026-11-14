@@ -4,6 +4,7 @@ import { computed } from "vue";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useMapImportStore } from "@/stores/mapImport";
+import { useLocationsUiStore } from "@/stores/ui/locations";
 
 const m = vi.hoisted(() => ({
   push: vi.fn(),
@@ -23,7 +24,7 @@ vi.mock("@/composables/locations/useBringMap", () => ({ useBringMap: () => ({ ad
 
 const state = vi.hoisted(() => ({
   packs: [] as { pack_id: string; pack_version: number }[],
-  locations: [] as { id: string; name: string; source_map_id: string | null }[],
+  locations: [] as { id: string; name: string; source_map_id: string | null; location_type?: string; is_battle_map?: boolean }[],
 }));
 vi.mock("@/composables/cartographer/useLibraryTilePacks", () => ({
   useLibraryTilePacks: () => ({ publishedPacks: computed(() => state.packs) }),
@@ -181,6 +182,22 @@ describe("CartographerBringView", () => {
       await press(w, "Add map").trigger("click");
       await flushPromises();
       expect(m.addMap.mock.calls[0]![0].target).toEqual({ kind: "existing", id: "town1" });
+    });
+
+    // An ordinary place has no full-screen editor: its tools are on the Atlas Map tab, so that is where Add map lands.
+    it.each([
+      ["a town", { location_type: "town", is_battle_map: false }, "/locations?at=town1", "map"],
+      ["a site", { location_type: "dungeon", is_battle_map: false }, "/locations/town1/map?layer=base", undefined],
+      ["a town marked as a battle map", { location_type: "town", is_battle_map: true }, "/locations/town1/map?layer=base", undefined],
+    ])("after adding to %s, lands on %s", async (_label, kind, expected, paneMode) => {
+      state.locations = [{ id: "town1", name: "Daggerford", source_map_id: null, ...kind }];
+      m.addMap.mockResolvedValue({ placeId: "town1", couldNotKeepMoving: false });
+      const w = await mountBring(png("a.png"), "town1");
+      await measured(w);
+      await press(w, "Add map").trigger("click");
+      await flushPromises();
+      expect(m.push).toHaveBeenCalledWith(expected);
+      if (paneMode) expect(useLocationsUiStore().locationsPaneMode).toBe(paneMode);
     });
 
     it("Cancel gives the file back and returns to the place it was dropped on", async () => {

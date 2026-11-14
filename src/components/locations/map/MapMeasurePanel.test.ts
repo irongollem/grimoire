@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import MapMeasurePanel from "./MapMeasurePanel.vue";
@@ -6,14 +6,16 @@ import { summarizeRoute, type RoutePoint } from "@/lib/locations/mapRoute";
 import type { MapScale } from "@/types/location.types";
 
 const mocks = vi.hoisted(() => ({
-  push: vi.fn(),
+  updateScale: vi.fn(),
+  toastError: vi.fn(),
   party: [] as Array<{ id: string; current_location_id: string | null }>,
   system: "dnd5e-2014",
 }));
 
-vi.mock("vue-router", () => ({
-  useRouter: () => ({ push: mocks.push }),
+vi.mock("@/composables/locations/useLocations", () => ({
+  useUpdateLocationMapScale: () => ({ mutateAsync: mocks.updateScale, isPending: ref(false) }),
 }));
+vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: mocks.toastError, fromError: String }) }));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref(mocks.party) }) }));
 vi.mock("@/composables/rules/useRuleset", () => ({ useTableRuleset: () => ({ ruleset: ref("2014") }) }));
 vi.mock("@/stores/calendar", () => ({
@@ -44,6 +46,13 @@ const POINTS: RoutePoint[] = [
   { x: 0.42, y: 0, pin: { id: "loc-b", name: "Daggerford" } },
 ];
 
+const ScaleDialogStub = {
+  name: "MapScaleDialog",
+  props: ["open", "mapUrl", "standUrl", "existing", "saving"],
+  emits: ["cancel", "save", "clear"],
+  template: "<div data-test='scale-dialog' />",
+};
+
 const EventModalStub = {
   name: "EventModal",
   props: ["modelValue", "prefill"],
@@ -54,29 +63,73 @@ function mountPanel(props: Partial<InstanceType<typeof MapMeasurePanel>["$props"
   return mount(MapMeasurePanel, {
     props: {
       locationId: "place-1",
+      mapUrl: "https://cdn.test/map.webp",
       pace: "normal",
       scale: SCALE,
       points: POINTS,
       summary: summarizeRoute(POINTS, SCALE, SIZE, "normal"),
       ...props,
     },
-    global: { stubs: { EventModal: EventModalStub } },
+    global: { stubs: { EventModal: EventModalStub, MapScaleDialog: ScaleDialogStub } },
   });
 }
 
 beforeEach(() => {
-  mocks.push.mockClear();
+  mocks.updateScale.mockReset().mockResolvedValue({});
+  mocks.toastError.mockReset();
   mocks.party = [];
   mocks.system = "dnd5e-2014";
 });
 
 describe("MapMeasurePanel", () => {
-  // #1125: Build is retired; the scale is set in the full-screen editor on this place's Picture.
-  it("says a scale is needed, and opens this place's map editor to set one", async () => {
-    const wrapper = mountPanel({ scale: null, summary: null });
-    expect(wrapper.text()).toContain("no scale");
-    await wrapper.findAll("button").find((b) => b.text() === "Edit map")!.trigger("click");
-    expect(mocks.push).toHaveBeenCalledWith("/locations/place-1/map?layer=base");
+  // The scale is set right here, on this place's own picture, not in a full-screen editor.
+  describe("the scale", () => {
+    const dialog = (w: ReturnType<typeof mountPanel>) => w.findComponent({ name: "MapScaleDialog" });
+    const press = (w: ReturnType<typeof mountPanel>, label: string) => w.findAll("button").find((b) => b.text() === label)!;
+
+    it("says a scale is needed, and Set scale opens the dialog on this map", async () => {
+      const wrapper = mountPanel({ scale: null, summary: null });
+      expect(wrapper.text()).toContain("no scale");
+      expect(dialog(wrapper).props("open")).toBe(false);
+      await press(wrapper, "Set scale").trigger("click");
+      expect(dialog(wrapper).props("open")).toBe(true);
+      expect(dialog(wrapper).props("mapUrl")).toBe("https://cdn.test/map.webp");
+    });
+
+    it("names the scale it measures with, and Edit scale opens the dialog on it", async () => {
+      const wrapper = mountPanel();
+      expect(wrapper.text()).toContain("Scale: 100 mi between the two marked points");
+      await press(wrapper, "Edit scale").trigger("click");
+      expect(dialog(wrapper).props("open")).toBe(true);
+      expect(dialog(wrapper).props("existing")).toEqual(SCALE);
+    });
+
+    it("writes the scale to this place and closes the dialog", async () => {
+      const wrapper = mountPanel({ scale: null, summary: null });
+      await press(wrapper, "Set scale").trigger("click");
+      dialog(wrapper).vm.$emit("save", SCALE);
+      await flushPromises();
+      expect(mocks.updateScale).toHaveBeenCalledWith({ id: "place-1", scale: SCALE });
+      expect(dialog(wrapper).props("open")).toBe(false);
+    });
+
+    it("clears the scale by writing null", async () => {
+      const wrapper = mountPanel();
+      await press(wrapper, "Edit scale").trigger("click");
+      dialog(wrapper).vm.$emit("clear");
+      await flushPromises();
+      expect(mocks.updateScale).toHaveBeenCalledWith({ id: "place-1", scale: null });
+    });
+
+    it("keeps the dialog open, and says why, when the write fails", async () => {
+      mocks.updateScale.mockRejectedValue(new Error("denied"));
+      const wrapper = mountPanel({ scale: null, summary: null });
+      await press(wrapper, "Set scale").trigger("click");
+      dialog(wrapper).vm.$emit("save", SCALE);
+      await flushPromises();
+      expect(dialog(wrapper).props("open")).toBe(true);
+      expect(mocks.toastError).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("prompts for the first tap on an empty route", () => {

@@ -44,38 +44,33 @@ describe("mapEditorRoute", () => {
 });
 
 describe("startLayer", () => {
-  // #1125 frame 04 and Map Table frame 18: a town's editor has only the Base image and Pins; a site's has the
-  // Base image, Drawing and Zoning.
-  it("keeps a layer the kind of place has", () => {
-    expect(startLayer("zoning", true)).toBe("zoning");
-    expect(startLayer("base", true)).toBe("base");
-    expect(startLayer("pins", false)).toBe("pins");
+  it("keeps a layer the editor has", () => {
+    expect(startLayer("zoning")).toBe("zoning");
+    expect(startLayer("base")).toBe("base");
+    expect(startLayer("drawing")).toBe("drawing");
   });
 
-  it("falls back to the first layer for one the kind of place lacks", () => {
-    expect(startLayer("pins", true)).toBe("drawing");
-    expect(startLayer("zoning", false)).toBe("base");
-    expect(startLayer("drawing", false)).toBe("base");
+  // An ordinary place no longer has an editor with Pins: its old `?layer=pins` link must not open some other tab.
+  it("falls back to the Drawing for the retired Pins layer", () => {
+    expect(startLayer("pins")).toBe("drawing");
   });
 
   it("no longer understands the old names, so an old link falls back instead of opening the wrong tab", () => {
-    expect(startLayer("plan", true)).toBe("drawing");
-    expect(startLayer("picture", true)).toBe("drawing");
-    expect(startLayer("picture", false)).toBe("base");
+    expect(startLayer("plan")).toBe("drawing");
+    expect(startLayer("picture")).toBe("drawing");
   });
 
   it("falls back for a missing, repeated or unknown value", () => {
-    expect(startLayer(undefined, true)).toBe("drawing");
-    expect(startLayer(["zoning", "base"], true)).toBe("drawing");
-    expect(startLayer("nonsense", false)).toBe("base");
+    expect(startLayer(undefined)).toBe("drawing");
+    expect(startLayer(["zoning", "base"])).toBe("drawing");
+    expect(startLayer("nonsense")).toBe("drawing");
   });
 });
 
 describe("editorLayerOf", () => {
-  it("names the workbench's tab for an address layer, and none for Pins", () => {
+  it("names the workbench's tab for an address layer", () => {
     expect(editorLayerOf("base")).toBe("picture");
     expect(editorLayerOf("drawing")).toBe("drawing");
     expect(editorLayerOf("zoning")).toBe("plan");
-    expect(editorLayerOf("pins")).toBeUndefined();
   });
 });
