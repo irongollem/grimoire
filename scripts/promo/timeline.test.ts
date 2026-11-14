@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { carriedCues, coverOffset, planTimeline, snapToFrame, VO_LEAD, type PlannedShot, type ShotInput } from "./timeline";
+import { coverOffset, planTimeline, snapToFrame, VO_LEAD, type ShotInput } from "./timeline";
 
 const shot = (over: Partial<ShotInput> = {}): ShotInput => ({
   id: "a",
@@ -115,24 +115,3 @@ describe("coverOffset", () => {
     expect(() => coverOffset({ coverAt: at }, 25)).toThrow(/outside the first shot/);
   });
 });
-
-describe("carriedCues", () => {
-  const shot = (start: number, cues: PlannedShot["cues"] = []): PlannedShot => ({ id: `s${start}`, start, length: 4, clipDuration: 4, freeze: 0, voStart: null, cues });
-  const song = { src: "song.mp3", gain: 1, local: 1.5, program: 2.5 };
-
-  // The bug it guards: a song tapped in the first shot stopped at the first cut.
-  it("carries a sound into every later shot, picked up where it has got to", () => {
-    const shots = [shot(1, [song]), shot(5), shot(9)];
-    expect(carriedCues(shots, 1)).toEqual([{ src: "song.mp3", gain: 1, offset: 2.5 }]);
-    expect(carriedCues(shots, 2)).toEqual([{ src: "song.mp3", gain: 1, offset: 6.5 }]);
-  });
-
-  // The shot that starts the sound mixes it itself; carrying it there too would play it twice.
-  it("leaves a sound out of the shot that starts it, and out of the shots before it", () => {
-    const shots = [shot(1), shot(5, [{ ...song, local: 0.5, program: 5.5 }]), shot(9)];
-    expect(carriedCues(shots, 0)).toEqual([]);
-    expect(carriedCues(shots, 1)).toEqual([]);
-    expect(carriedCues(shots, 2)).toEqual([{ src: "song.mp3", gain: 1, offset: 3.5 }]);
-  });
-});
-

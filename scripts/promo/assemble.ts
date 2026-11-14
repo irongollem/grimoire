@@ -14,7 +14,7 @@ import { formatCanvas, layoutFor, type Layout } from "./layouts";
 import { chaptersText, srtText } from "./sidecars";
 import { BED_CROSSFADE, bedWindow, planBeds } from "./beds";
 import { BED_DB, FULL_DB, SILENT_DB, THEME_MOTIF_END, gainExpression, planTheme } from "./theme";
-import { carriedCues, coverOffset, planTimeline, VO_LEAD, type CarriedCue, type PlannedShot, type ShotInput, type Timeline } from "./timeline";
+import { coverOffset, planTimeline, VO_LEAD, type PlannedShot, type ShotInput, type Timeline } from "./timeline";
 import type { EpisodeManifest, Format, RecordedShot, Surface } from "./types";
 
 // Every piece in the standard video range, tagged so. The recordings come from the browser in full range, and a
@@ -168,28 +168,38 @@ function renderVoWav(p: PlannedShot, vo: string | null, gainDb: number, out: str
  */
 const DUCKED_FX = "[1:a]asplit=2[vo1][vokey];[2:a][vokey]sidechaincompress=threshold=0.02:ratio=12:attack=30:release=600[fx];";
 
-/**
- * Sound cues for one shot as a wav exactly as long as the shot, plus the sounds `carried` in from earlier shots
- * (`carryCues`), each picked up `offset` seconds into its source.
- */
-function renderFxWav(p: PlannedShot, carried: CarriedCue[], out: string): void {
-  if (p.cues.length === 0 && carried.length === 0) return ffmpeg([...silence(p.length), ...WAV, out]);
-  const inputs = [
-    ...p.cues.flatMap((c) => ["-i", c.src]),
-    ...carried.flatMap((c) => ["-ss", c.offset.toFixed(3), "-i", c.src]),
-  ];
-  const chains = [
-    ...p.cues.map((c, i) => {
-      const ms = Math.round(c.local * 1000);
-      return `[${i + 1}:a]${STEREO_48K},volume=${c.gain},adelay=${ms}|${ms}[c${i}]`;
-    }),
-    ...carried.map((c, i) => `[${p.cues.length + i + 1}:a]${STEREO_48K},volume=${c.gain}[c${p.cues.length + i}]`),
-  ];
-  const count = p.cues.length + carried.length;
-  const labels = Array.from({ length: count }, (_, i) => `[c${i}]`).join("");
+/** Sound cues for one shot as a wav exactly as long as the shot. */
+function renderFxWav(p: PlannedShot, out: string): void {
+  if (p.cues.length === 0) return ffmpeg([...silence(p.length), ...WAV, out]);
+  const inputs = p.cues.flatMap((c) => ["-i", c.src]);
+  const chains = p.cues.map((c, i) => {
+    const ms = Math.round(c.local * 1000);
+    return `[${i + 1}:a]${STEREO_48K},volume=${c.gain},adelay=${ms}|${ms}[c${i}]`;
+  });
+  const labels = p.cues.map((_, i) => `[c${i}]`).join("");
   ffmpeg([
     ...silence(p.length), ...inputs, "-filter_complex",
-    `${chains.join(";")};[0:a]${labels}amix=inputs=${count + 1}:duration=first:normalize=0,atrim=0:${p.length}[o]`,
+    `${chains.join(";")};[0:a]${labels}amix=inputs=${p.cues.length + 1}:duration=first:normalize=0,atrim=0:${p.length}[o]`,
+    "-map", "[o]", ...WAV, out,
+  ]);
+}
+
+/**
+ * `carryCues`: every sound the shots start, placed at its program time on ONE track as long as the whole program,
+ * so a song tapped in the first shot plays on through every cut as it does on the phone. Rendered in one piece:
+ * cut per shot and joined, an mp3 cannot be re-opened at an exact sample, and every join stuttered.
+ */
+function renderCarriedWav(shots: PlannedShot[], total: number, out: string): void {
+  const cues = shots.flatMap((p) => p.cues);
+  if (cues.length === 0) return ffmpeg([...silence(total), ...WAV, out]);
+  const chains = cues.map((c, i) => {
+    const ms = Math.round(c.program * 1000);
+    return `[${i + 1}:a]${STEREO_48K},volume=${c.gain},adelay=${ms}|${ms}[c${i}]`;
+  });
+  const labels = cues.map((_, i) => `[c${i}]`).join("");
+  ffmpeg([
+    ...silence(total), ...cues.flatMap((c) => ["-i", c.src]), "-filter_complex",
+    `${chains.join(";")};[0:a]${labels}amix=inputs=${cues.length + 1}:duration=first:normalize=0,atrim=0:${total}[o]`,
     "-map", "[o]", ...WAV, out,
   ]);
 }
@@ -296,17 +306,25 @@ async function main() {
     console.log(`shot ${p.id}: start ${p.start.toFixed(2)}s, length ${p.length.toFixed(2)}s${p.voStart === null ? " (no VO)" : ""}, ${p.cues.length} cue(s)`);
     renderShotVideo(p, manifest.shots[i], format, join(dir, manifest.shots[i].file), work, v);
     renderVoWav(p, voFiles[i], voGains[i], vo);
-    renderFxWav(p, manifest.carryCues ? carriedCues(tl.shots, i) : [], fx);
+    renderFxWav(manifest.carryCues ? { ...p, cues: [] } : p, fx);
     videos.push(v); voWavs.push(vo); fxWavs.push(fx);
   });
   if (outro) { videos.push(outro.video); voWavs.push(silenceWav(work, "outro-vo", outro.length)); fxWavs.push(outro.audio); }
 
   const videoAll = join(work, "video.mp4");
   const voAll = join(work, "vo.wav");
-  const fxAll = join(work, "fx.wav");
+  const shotsFx = join(work, "fx-shots.wav");
   ffmpeg(["-f", "concat", "-safe", "0", "-i", concatList(work, "video.txt", videos), "-c", "copy", videoAll]);
   ffmpeg(["-f", "concat", "-safe", "0", "-i", concatList(work, "vo.txt", voWavs), "-c", "copy", voAll]);
-  ffmpeg(["-f", "concat", "-safe", "0", "-i", concatList(work, "fx.txt", fxWavs), "-c", "copy", fxAll]);
+  ffmpeg(["-f", "concat", "-safe", "0", "-i", concatList(work, "fx.txt", fxWavs), "-c", "copy", shotsFx]);
+  // `carryCues`: the shots' own sounds are on one continuous track instead (renderCarriedWav), laid over the rest.
+  let fxAll = shotsFx;
+  if (manifest.carryCues) {
+    const carried = join(work, "carried.wav");
+    renderCarriedWav(tl.shots, tl.total, carried);
+    fxAll = join(work, "fx.wav");
+    ffmpeg(["-i", shotsFx, "-i", carried, "-filter_complex", "[0:a][1:a]amix=inputs=2:duration=first:normalize=0[o]", "-map", "[o]", ...WAV, fxAll]);
+  }
 
   // Audio: narration + cues/brand audio, over a theme bed that ducks under the narration.
   const T = tl.total;

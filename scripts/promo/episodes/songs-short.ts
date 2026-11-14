@@ -26,15 +26,17 @@ export const songsShort: Episode = {
       caption: "Step right up",
       narration: "",
       startAt: "/songs",
-      async run({ page, tap, hold, focus, settled }) {
+      // Not filmed: the picture is on screen before the first frame, so the take opens on the tap.
+      async ready(page) {
+        await page.getByRole("button", { name: "Play Brilianto!" }).filter({ visible: true }).first().waitFor({ timeout: 20_000 });
+      },
+      async run({ page, tap, hold, focus }) {
         const tile = page.getByRole("button", { name: "Play Brilianto!" }).filter({ visible: true }).first();
-        await tile.waitFor({ timeout: 20_000 });
-        await settled();
-        // The camera starts on the picture: the Reel opens on a painting, not on a page.
-        await focus(tile, { padding: 16 });
-        await hold(700);
-        await tap(tile, 600);
-        await page.getByRole("button", { name: "Pause Brilianto!" }).filter({ visible: true }).first().waitFor({ timeout: 10_000 });
+        // The song starts at once (the tap is the first thing filmed) while the camera closes in on its picture:
+        // a Reel decides in its first second, and a still second before the music lost it.
+        await tap(tile, 0);
+        // Playing, the same tile is named for what a tap does next.
+        await focus(page.getByRole("button", { name: "Pause Brilianto!" }).filter({ visible: true }).first(), { padding: 16 });
         await hold(3200);
       },
     },
