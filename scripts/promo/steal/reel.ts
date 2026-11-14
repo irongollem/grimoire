@@ -177,16 +177,17 @@ async function render(post: StealPost) {
   }
 
   const ambience = await librarySound(post.ambience, work);
+  // Every short sound in the bed: a paper flick on each turn of the card, then the post's own cues.
   const flip = await librarySound(FLIP_SOUND, work);
+  const hits = [...FLIPS_AT.map((at) => ({ file: flip, at })), ...(await Promise.all((post.cues ?? []).map(async (c) => ({ file: await librarySound(c.sound, work), at: c.at }))))];
   const bed = join(work, "bed.wav");
   ffmpeg([
-    "-stream_loop", "-1", "-i", ambience, "-i", flip,
+    "-stream_loop", "-1", "-i", ambience, ...hits.flatMap((h) => ["-i", h.file]),
     "-filter_complex",
     [
       `[0:a]atrim=0:${SECONDS},afade=t=in:d=0.6,afade=t=out:st=${SECONDS - 1.2}:d=1.2,aresample=48000,aformat=channel_layouts=stereo[amb]`,
-      `[1:a]aresample=48000,aformat=channel_layouts=stereo,asplit=${FLIPS_AT.length}${FLIPS_AT.map((_, i) => `[f${i}]`).join("")}`,
-      ...FLIPS_AT.map((t, i) => `[f${i}]adelay=${Math.round(t * 1000)}:all=1[d${i}]`),
-      `[amb]${FLIPS_AT.map((_, i) => `[d${i}]`).join("")}amix=inputs=${FLIPS_AT.length + 1}:duration=first:normalize=0[mix]`,
+      ...hits.map((h, i) => `[${i + 1}:a]aresample=48000,aformat=channel_layouts=stereo,adelay=${Math.round(h.at * 1000)}:all=1[d${i}]`),
+      `[amb]${hits.map((_, i) => `[d${i}]`).join("")}amix=inputs=${hits.length + 1}:duration=first:normalize=0[mix]`,
     ].join(";"),
     "-map", "[mix]", "-t", String(SECONDS), bed,
   ]);

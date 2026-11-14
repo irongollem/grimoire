@@ -28,6 +28,8 @@ export interface StealPost {
   hook: string;
   /** The teaser Reel's sound: a CC0 loop from the soundboard library (`sound_library.slug`), so it needs no credit. */
   ambience: string;
+  /** Sounds of its own laid over the ambience, at a time in seconds (CC0 library slugs, like the ambience). */
+  cues?: { sound: string; at: number }[];
   /** The handout's chapter, as Tiptap JSON blocks (the embed is appended). */
   blocks: unknown[];
 }
@@ -145,6 +147,8 @@ export const STEAL_POSTS: StealPost[] = [
     kicker: "Steal this monster",
     hook: "Close the door. Quickly.",
     ambience: "dungeon/dungeon-ambience-loop",
+    // The wardrobe door creaking open as the card comes up (a slow stick-slip hinge, 2.8 s).
+    cues: [{ sound: "foley/sfx-100-pack--door-01", at: 0.4 }],
     blocks: [
       h1("The Hand from the Closet"),
       p(text("You never see what it is attached to.", ["italic"])),
