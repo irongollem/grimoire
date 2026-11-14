@@ -20,7 +20,8 @@ describe("EntityEditorActionBar autosave mode", () => {
       props: { ...base, autosave: { status: "saved", error: "" } },
     });
     expect(labels(wrapper)).toEqual(["Done", "Delete"]);
-    expect(wrapper.text()).toContain("Saved");
+    // The status line takes Save's place; at rest it says nothing (AutosaveStatus.test.ts).
+    expect(wrapper.findComponent({ name: "AutosaveStatus" }).exists()).toBe(true);
   });
 
   it("shows the paused label and emits cancel from Done", async () => {

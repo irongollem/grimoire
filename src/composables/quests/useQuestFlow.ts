@@ -761,6 +761,10 @@ export type QuestMoveInput = {
   questId: string;
   threadId: string;
   sessionId?: string | null;
+  /** The way the party came to the move's beat, as beat ids in order (#1194):
+   *  from where the thread last was to the route's source (or the beat). Omit
+   *  to let the server take the shortest way. */
+  via?: string[];
 } & (
   | { kind: "route"; edgeId: string; placeParty: boolean; dispatchLootIds: string[]; movePartyTo?: string | null }
   | { kind: "party_here" | "failed"; beatId: string }
@@ -801,6 +805,7 @@ export function useMarkQuestMove() {
         p_place_party: route ? input.placeParty : false,
         p_dispatch_loot_ids: route ? input.dispatchLootIds : [],
         p_move_party_to: route ? input.movePartyTo ?? null : null,
+        ...(input.via ? { p_via: input.via } : {}),
       });
       if (error) throw error;
       return data as QuestMoveResult;

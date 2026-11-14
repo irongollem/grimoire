@@ -30,9 +30,9 @@ insert into public.campaign_members (campaign_id, user_id, role, display_name, p
   ('67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000002', 'player', 'Player A', '67400000-0000-4000-8000-000000000020'),
   ('67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000003', 'player', 'Player B', '67400000-0000-4000-8000-000000000021');
 
-insert into public.quests (id, user_id, campaign_id, title, player_visible_to) values
-  ('67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000001', '67400000-0000-4000-8000-000000000010', 'Quest A only', array['67400000-0000-4000-8000-000000000020']::uuid[]),
-  ('67400000-0000-4000-8000-000000000031', '67400000-0000-4000-8000-000000000001', '67400000-0000-4000-8000-000000000010', 'Quest B only', array['67400000-0000-4000-8000-000000000021']::uuid[]);
+insert into public.quests (id, user_id, campaign_id, title) values
+  ('67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000001', '67400000-0000-4000-8000-000000000010', 'Quest A'),
+  ('67400000-0000-4000-8000-000000000031', '67400000-0000-4000-8000-000000000001', '67400000-0000-4000-8000-000000000010', 'Quest B');
 
 insert into public.quest_beats (
   id, quest_id, campaign_id, title, dm_content, rumor_text, reveal_text, read_aloud, how_it_plays, visibility, is_improvised
@@ -86,7 +86,7 @@ set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
 select set_config('request.jwt.claim.sub', '67400000-0000-4000-8000-000000000002', true);
 
-select is((select count(*)::integer from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010')), 2, 'player A sees only rumored and revealed beats on their shared quest');
+select is((select count(*)::integer from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010')), 3, 'player A sees only the rumored and revealed beats of the quests that show one (2 of quest A, 1 of quest B; the 2 hidden never)');
 select is((select player_text from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') where id = '67400000-0000-4000-8000-000000000040'), 'Rumor A', 'rumored beats expose only rumor text');
 select is((select player_text from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') where id = '67400000-0000-4000-8000-000000000041'), 'Reveal B', 'revealed beats expose only reveal text');
 select ok((select not (to_jsonb(b) ?| array['title', 'dm_content', 'read_aloud', 'how_it_plays']) from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') b limit 1), 'projection contains no DM narrative fields');
@@ -114,12 +114,12 @@ update public.quest_beats
 set visibility = 'revealed'
 where id = '67400000-0000-4000-8000-000000000043';
 set local role authenticated;
-select is((select sum(jsonb_array_length(visits))::integer from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010')), 2, 'a previously hidden improvised visit appears only after deliberate reveal');
+select is((select sum(jsonb_array_length(visits))::integer from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010')), 3, 'a previously hidden improvised visit appears only after deliberate reveal (quest A now has two visits, quest B one)');
 select is((select player_text from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') where id = '67400000-0000-4000-8000-000000000043'), 'Improvised reveal', 'revealed improv history uses only explicit player copy');
 
 select set_config('request.jwt.claim.sub', '67400000-0000-4000-8000-000000000003', true);
-select is((select count(*)::integer from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010')), 1, 'player B sees only their separately shared quest');
-select is((select sum(jsonb_array_length(visits))::integer from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010')), 1, 'player B history is independently scoped to their quest share');
+select is((select count(*)::integer from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010')), 4, 'player B reads exactly what player A reads: a quest shows to the whole party through its beats, not per member (fails if a per-member filter returns)');
+select is((select sum(jsonb_array_length(visits))::integer from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010')), 3, 'player B reads the same visit history as player A');
 
 select set_config('request.jwt.claim.sub', '67400000-0000-4000-8000-000000000004', true);
 select is((select count(*)::integer from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010')), 0, 'non-member attackers receive no beats');
@@ -137,7 +137,8 @@ select ok(
   'the projection carries the thread and payoff columns'
 );
 select is(
-  (select count(distinct b.thread_id)::integer from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') b),
+  (select count(distinct b.thread_id)::integer from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') b
+    where b.quest_id = '67400000-0000-4000-8000-000000000030'),
   1, 'a quest with no parallel thread shows one column'
 );
 select ok(

@@ -49,6 +49,9 @@ export interface QuestBoardSummary {
    * a waiting chain still holds its cursor but is not where the table is.
    * Reads as the first live thread's status (#853) — see `threads` for the rest. */
   isLive: boolean;
+  /** Players can see this quest: one of its beats is rumored or revealed. A quest
+   *  has no audience of its own (#1194); this is the whole of "shared". */
+  shownToPlayers: boolean;
   currentBeatTitle: string | null;
   beatSegments: QuestBeatSegment[];
   prepGapCount: number;
@@ -316,6 +319,7 @@ export function deriveQuestBoardSummaries(input: QuestBoardPayload) {
 
     result[questId] = {
       isLive: liveThreadCount > 0,
+      shownToPlayers: beats.some((beat) => beat.visibility !== "hidden"),
       currentBeatTitle: primary?.currentBeatTitle ?? null,
       beatSegments: primary?.beatSegments ?? beatSegmentsForThread(beats, presentations, null, visitedByThread),
       prepGapCount: beats.reduce((total, beat) => total + (presentations[beat.id]?.prepGapCount ?? 0), 0),
@@ -359,7 +363,7 @@ export function filterQuestBoard(
       quest.tags.some((tag) => tag.toLowerCase().includes(query))
     )) return false;
 
-    if (filters.partyOnly && !(quest.player_visible_to?.length)) return false;
+    if (filters.partyOnly && data.summaries && !data.summaries[quest.id]?.shownToPlayers) return false;
 
     if (entityType && entityId) {
       const primaryMatch =

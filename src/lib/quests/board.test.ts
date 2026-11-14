@@ -23,7 +23,6 @@ function quest(id: string, overrides: Partial<Quest> = {}): Quest {
     giver_npc_id: null,
     location_id: null,
     tags: [],
-    player_visible_to: [],
     started_at: null,
     resolved_at: null,
     entry_beat_id: null,
@@ -47,6 +46,7 @@ const emptyFilters: QuestBoardFilters = {
 
 const ready: QuestBoardSummary = {
   isLive: false,
+  shownToPlayers: false,
   currentBeatTitle: null,
   beatSegments: [],
   prepGapCount: 0,
@@ -62,16 +62,17 @@ const ready: QuestBoardSummary = {
 };
 
 describe("filterQuestBoard", () => {
-  it("composes text and party sharing with AND semantics", () => {
+  it("composes text and shown-to-players with AND semantics", () => {
     const quests = [
-      quest("a", { title: "Harbour Bell", player_visible_to: ["pc-1"] }),
+      quest("a", { title: "Harbour Bell" }),
       quest("b", { title: "Harbour Ledger" }),
-      quest("c", { title: "Forest Bell", player_visible_to: ["pc-1"] }),
+      quest("c", { title: "Forest Bell" }),
     ];
+    const summaries = { a: { ...ready, shownToPlayers: true }, b: ready, c: { ...ready, shownToPlayers: true } };
     const result = filterQuestBoard(
       quests,
       { ...emptyFilters, search: "harbour", partyOnly: true },
-      { refs: [] },
+      { refs: [], summaries },
     );
     expect(result.map((item) => item.id)).toEqual(["a"]);
   });
@@ -162,15 +163,15 @@ describe("filterQuestBoard", () => {
 
   it("counts each boolean facet with all other active filters composed", () => {
     const quests = [
-      quest("ready", { title: "Harbour ready", player_visible_to: ["pc"] }),
-      quest("prep", { title: "Harbour prep", player_visible_to: ["pc"] }),
-      quest("loot", { title: "Forest loot", player_visible_to: ["pc"] }),
+      quest("ready", { title: "Harbour ready" }),
+      quest("prep", { title: "Harbour prep" }),
+      quest("loot", { title: "Forest loot" }),
       quest("both", { title: "Harbour both" }),
     ];
     const summaries = {
-      ready,
-      prep: { ...ready, prepGapCount: 1 },
-      loot: { ...ready, unclaimedLootCount: 1 },
+      ready: { ...ready, shownToPlayers: true },
+      prep: { ...ready, prepGapCount: 1, shownToPlayers: true },
+      loot: { ...ready, unclaimedLootCount: 1, shownToPlayers: true },
       both: { ...ready, prepGapCount: 1, undispatchedLootCount: 1 },
     };
     expect(countQuestBoardFilters(
@@ -218,6 +219,19 @@ const consequence = (over: Partial<QuestBoardPayload["consequences"][number]>): 
 });
 
 describe("deriveQuestBoardSummaries", () => {
+  // Fails if "shown" is read from anything but the beats: a quest has no audience of its own.
+  it("marks a quest shown to players when any one of its beats is rumored or revealed", () => {
+    const summaries = deriveQuestBoardSummaries(payload({
+      beats: [
+        boardBeat("a1", "quest-a"), boardBeat("a2", "quest-a", { visibility: "rumored" }),
+        boardBeat("b1", "quest-b"), boardBeat("c1", "quest-c", { visibility: "revealed" }),
+      ],
+    }));
+    expect(summaries["quest-a"].shownToPlayers).toBe(true);
+    expect(summaries["quest-b"].shownToPlayers).toBe(false);
+    expect(summaries["quest-c"].shownToPlayers).toBe(true);
+  });
+
   it("combines live, readiness, history, and loot without card-level fetching", () => {
     const summaries = deriveQuestBoardSummaries(payload({
       beats: [boardBeat("beat-a", "quest-a", { title: "Arrival" }), boardBeat("beat-b", "quest-a", { title: "Vault" })],

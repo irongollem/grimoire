@@ -138,31 +138,14 @@
 
     <footer class="mt-3 grid gap-2 border-t border-muted pt-2 text-caption-sm text-muted-foreground">
       <div class="flex min-w-0 items-center gap-2">
-        <div
-          v-if="visibleParty.length"
-          class="flex shrink-0 -space-x-1.5"
-          :aria-label="`Shared with ${visibleParty.map((member) => member.name).join(', ')}`"
+        <span
+          v-if="summary?.shownToPlayers"
+          class="inline-flex shrink-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-label font-semibold text-foreground"
+          title="One of this quest's beats is visible to the players"
         >
-          <span
-            v-for="member in visibleParty.slice(0, 4)"
-            :key="member.id"
-            class="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border-2 border-card bg-secondary text-label font-semibold text-foreground"
-            :title="member.name"
-          >
-            <img
-              v-if="member.portrait_url && !lowArt"
-              :src="member.portrait_url"
-              :alt="member.name"
-              class="h-full w-full object-cover"
-            />
-            <span v-else aria-hidden="true">{{ initials(member.name) }}</span>
-          </span>
-          <span
-            v-if="hiddenPartyCount"
-            class="relative z-10 flex h-6 items-center justify-center rounded-full border-2 border-card bg-muted px-1.5 text-label font-semibold"
-            :title="hiddenPartyLabel"
-          >+{{ hiddenPartyCount }} {{ hiddenPartyCount === 1 ? "player" : "players" }}</span>
-        </div>
+          <IconReveal class="h-3 w-3" aria-hidden="true" />
+          Shown to players
+        </span>
 
         <span class="min-w-0 truncate italic">Updated {{ timeAgo(quest.updated_at) }}</span>
       </div>
@@ -217,7 +200,6 @@
 import TagChips from "@/components/common/TagChips.vue";
 import { questLink } from "@/lib/quests/navigation";
 import { computed } from "vue";
-import { useLowArt } from "@/composables/useLowArt";
 import { RouterLink } from "vue-router";
 import {
   IconCheck,
@@ -227,12 +209,12 @@ import {
   IconLoot,
   IconNetwork,
   IconParty,
+  IconReveal,
   IconWarning,
 } from "@/lib/icons";
 import { timeAgo } from "@/lib/utils";
 import { isQuestInSession, type QuestBoardSummary, type QuestBeatSegment } from "@/lib/quests/board";
 import { threadBadges, type ThreadTone } from "@/lib/quests/threads";
-import type { PartyMember } from "@/types/party.types";
 import {
   QUEST_STATUSES,
   QUEST_STATUS_LABELS,
@@ -241,27 +223,19 @@ import {
 } from "@/types/quest.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
 
-const { quest, party = [], summary, dragging = false, draggable = true } = defineProps<{
+const { quest, summary, dragging = false, draggable = true } = defineProps<{
   quest: Quest;
-  party?: PartyMember[];
   summary?: QuestBoardSummary;
   dragging?: boolean;
   draggable?: boolean;
 }>();
 
-const { lowArt } = useLowArt();
 const emit = defineEmits<{
   dragstart: [questId: string];
   dragend: [];
   move: [status: QuestStatus];
 }>();
 
-const visibleParty = computed(() => {
-  const ids = new Set(quest.player_visible_to ?? []);
-  return party.filter((member) => ids.has(member.id));
-});
-const hiddenPartyCount = computed(() => Math.max(visibleParty.value.length - 4, 0));
-const hiddenPartyLabel = computed(() => `${hiddenPartyCount.value} more ${hiddenPartyCount.value === 1 ? "player" : "players"}`);
 const statusIndex = computed(() => QUEST_STATUSES.indexOf(quest.status));
 const previousStatus = computed<QuestStatus | null>(() => QUEST_STATUSES[statusIndex.value - 1] ?? null);
 const nextStatus = computed<QuestStatus | null>(() => QUEST_STATUSES[statusIndex.value + 1] ?? null);
@@ -305,10 +279,6 @@ const lootLabel = computed(() => {
   }
   return `${summary.unclaimedLootCount} unclaimed`;
 });
-
-function initials(name: string) {
-  return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "?";
-}
 
 function segmentClass(segment: QuestBeatSegment, tone?: ThreadTone) {
   if (segment === "done") return "bg-tone-success";

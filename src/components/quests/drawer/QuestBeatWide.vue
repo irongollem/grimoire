@@ -48,7 +48,7 @@
           <QuestRunClocks :quest-id="questId" />
         </section>
         <QuestBeatWideRead :beat="beat" :edges="edges" :reached-beat-ids="reachedBeatIds" :party-beat-ids="partyBeatIds" @edit-text="emit('edit-text')" />
-        <QuestBeatWidePrep :beat="beat" :edges="edges" :beats="beats" :gaps="presentations[beat.id]?.prepGaps ?? NO_GAPS" />
+        <QuestBeatWidePrep :beat="beat" :edges="edges" :beats="beats" :gaps="presentations[beat.id]?.prepGaps ?? NO_GAPS" @add-route="emit('add-route')" />
       </div>
     </div>
 
@@ -126,7 +126,7 @@ const { questId, beatId, quest, focusThreadId, currentBeatIdByThread, presentati
   presentations: Record<string, QuestBeatPresentation>;
 }>();
 // The column owns the one text form; `advance` is the site handoff's own Advance button.
-const emit = defineEmits<{ "edit-text": []; advance: [] }>();
+const emit = defineEmits<{ "edit-text": []; advance: []; "add-route": [] }>();
 
 const NO_GAPS: QuestBeatPrepGap[] = [];
 const NO_HELD: QuestHeldPayoff[] = [];

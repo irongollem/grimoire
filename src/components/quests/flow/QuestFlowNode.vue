@@ -41,6 +41,7 @@
       <span class="quest-flow-node__players">
         <QuestVisibilityTrack :model-value="players" size="xs" />
         <span v-if="secret" class="quest-flow-node__secret">secret</span>
+        <span v-if="audience" class="quest-flow-node__secret" :title="audience.names" data-testid="node-audience">{{ audience.label }}</span>
       </span>
     </button>
     <AppButton v-if="editable" label="Add next" size="xs" variant="subtle" @click.stop="emit('create-next')" />
@@ -60,7 +61,7 @@ import QuestVisibilityTrack from "../common/QuestVisibilityTrack.vue";
 import QuestBeatBookmark from "./QuestBeatBookmark.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 
-const { title, kind, visibility, current, presentation, editable = true, deletable = true, threads = [], gated = false, isEntry = false, secret = false } = defineProps<{ secret?: boolean; title: string; kind: string; visibility: string; selected?: boolean; current?: boolean; presentation?: QuestBeatPresentation; editable?: boolean; deletable?: boolean; threads?: ThreadLike[]; gated?: boolean; isEntry?: boolean }>();
+const { title, kind, visibility, current, presentation, editable = true, deletable = true, threads = [], gated = false, isEntry = false, secret = false, audience = null } = defineProps<{ secret?: boolean; /** Set only for a beat shown to some members: the chip text and the names behind it. */ audience?: { label: string; names: string } | null; title: string; kind: string; visibility: string; selected?: boolean; current?: boolean; presentation?: QuestBeatPresentation; editable?: boolean; deletable?: boolean; threads?: ThreadLike[]; gated?: boolean; isEntry?: boolean }>();
 const emit = defineEmits<{ select: []; open: []; delete: []; "create-next": [] }>();
 
 const kindLabel = computed(() => QUEST_BEAT_KIND_LABELS[kind as keyof typeof QUEST_BEAT_KIND_LABELS] ?? kind);
@@ -112,6 +113,7 @@ const accessibleLabel = computed(() => [
   kindLabel.value,
   visibility,
   secret ? "secret" : "",
+  audience ? `shown to ${audience.names}` : "",
   isEntry ? "quest entry" : "",
   isCurrent.value ? "current beat, party is here" : "",
   mark.value.bookmark === "failed" ? "failed" : "",

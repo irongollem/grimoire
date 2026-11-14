@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import QuestGraphOutline from "./QuestGraphOutline.vue";
 import type { QuestBeat } from "@/types/quest.types";
 
-const beat = (id: string): QuestBeat => ({ id, quest_id: "q", campaign_id: "c", title: id, dm_content: null, secret: false, read_aloud: null, how_it_plays: null, converge_mode: "any", rumor_text: null, reveal_text: null, visibility: "hidden", kind: "neutral", presentation_hint: null, canvas_x: 0, canvas_y: 0, is_improvised: false, staged_at_location_id: null, improv_reviewed_at: null, created_by: "dm", created_at: "now", updated_at: "now" });
+const beat = (id: string): QuestBeat => ({ id, quest_id: "q", campaign_id: "c", title: id, dm_content: null, secret: false, visible_to: null, read_aloud: null, how_it_plays: null, converge_mode: "any", rumor_text: null, reveal_text: null, visibility: "hidden", kind: "neutral", presentation_hint: null, canvas_x: 0, canvas_y: 0, is_improvised: false, staged_at_location_id: null, improv_reviewed_at: null, created_by: "dm", created_at: "now", updated_at: "now" });
 
 describe("QuestGraphOutline", () => {
   it("offers open, link, and delete without the canvas — creation lives on the header's own Add beat button now", async () => {

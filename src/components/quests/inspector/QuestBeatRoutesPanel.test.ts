@@ -33,12 +33,10 @@ const beats = [
 const global = { stubs: { RouterLink: RouterLinkStub } };
 
 describe("QuestBeatRoutesPanel", () => {
-  it("shows an empty state and a working Add route link when the beat has no routes yet", () => {
+  it("shows an empty state when the beat has no routes yet", () => {
     const wrapper = mount(QuestBeatRoutesPanel, { props: { beat, edges: [], beats }, global });
     expect(wrapper.text()).toContain("No routes out of this beat yet.");
     expect(wrapper.text()).toContain("0 choice · 0 parallel");
-    const addRoute = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Add route");
-    expect(addRoute?.props("to")).toEqual({ path: "/quests/quest-1", query: { beat: "beat-fork" } });
   });
 
   it("counts choice and parallel routes separately, ignoring routes that belong to another beat", () => {
@@ -118,4 +116,12 @@ describe("QuestBeatRoutesPanel", () => {
     const row = mount(QuestBeatRoutesPanel, { props: { beat, edges: edgeTo("beat-confess", "parallel"), beats }, global }).get("li");
     expect(row.text()).not.toContain("site ·");
   });
+
+  // Fails if Add route goes back to linking the beat it is already on, which did nothing.
+  it("asks for a new route when Add route is pressed", async () => {
+    const wrapper = mount(QuestBeatRoutesPanel, { props: { beat, edges: [], beats }, global });
+    await wrapper.findAll("button").find((button) => button.text().includes("Add route"))!.trigger("click");
+    expect(wrapper.emitted("add-route")).toHaveLength(1);
+  });
 });
+

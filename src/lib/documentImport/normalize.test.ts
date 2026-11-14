@@ -621,7 +621,7 @@ describe("mapExtractedQuest", () => {
     expect(row).not.toHaveProperty("reward_currency_pools");
     expect(row).not.toHaveProperty("reward_item_ids");
     expect(row.tags).toEqual([]);
-    expect(row.player_visible_to).toEqual([]);
+    expect(row).not.toHaveProperty("player_visible_to");
     expect(row.giver_npc_id).toBeNull();
     expect(row.location_id).toBeNull();
     expect(links).toEqual({});

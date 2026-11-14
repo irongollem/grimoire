@@ -14,8 +14,9 @@
     </ul>
     
     <div class="grid min-w-0 gap-2 sm:grid-cols-2">
-      <!-- Condition -->
-      <AppSelect v-model="conditionKind" class="min-w-0" aria-label="Condition" @change="conditionObjectiveId = ''; conditionLocationId = ''; conditionClockId = ''">
+      <!-- Condition: half the row when a picker for its objective, clock or place
+           sits beside it; "When the quest settles" has none, so it takes the row. -->
+      <AppSelect v-model="conditionKind" class="min-w-0" :class="conditionKind === 'settled' && 'sm:col-span-2'" aria-label="Condition" @change="conditionObjectiveId = ''; conditionLocationId = ''; conditionClockId = ''">
         <option value="settled">When the quest settles</option>
         <option value="clock">When a clock fills…</option>
         <option value="objective">When an objective becomes…</option>

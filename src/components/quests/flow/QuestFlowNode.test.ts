@@ -294,6 +294,14 @@ describe("QuestFlowNode what players know", () => {
     expect(mountNode({ visibility: "revealed" }).get('[role="img"]').attributes("aria-label")).toBe("revealed");
   });
 
+  // Fails if a members-only beat shows no chip (or names no one to a screen reader), or an ordinary beat shows one.
+  it("chips a beat shown to only some members", () => {
+    expect(mountNode({}).find("[data-testid='node-audience']").exists()).toBe(false);
+    const some = mountNode({ audience: { label: "2 of 4", names: "Brannigan, Edda" } });
+    expect(some.get("[data-testid='node-audience']").text()).toBe("2 of 4");
+    expect(some.get("button.quest-flow-node__main").attributes("aria-label")).toContain("shown to Brannigan, Edda");
+  });
+
   // Fails if a secret beat looks like any other, or the chip shows on an ordinary beat.
   it("marks a secret beat with a chip and says so to a screen reader", () => {
     const secret = mountNode({ secret: true, visibility: "hidden" });

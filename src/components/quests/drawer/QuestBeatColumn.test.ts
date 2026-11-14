@@ -22,7 +22,8 @@ vi.mock("@/lib/quests/beatText", () => ({ hasBeatText: (v: string | null | undef
 vi.mock("@/lib/quests/threads", () => ({ threadBadge: () => null, threadTone: () => "t" }));
 
 const text = (c: string) => defineComponent({ props: ["content"], setup: (p) => () => h("div", { "data-testid": c }, String(p.content)) });
-const Marks = defineComponent({ props: ["floor", "beat"], setup: (p) => () => h("div", { "data-testid": "marks", "data-floor": p.floor }) });
+const Marks = defineComponent({ props: ["beat"], setup: () => () => h("div", { "data-testid": "marks" }) });
+const Seen = defineComponent({ props: ["floor", "beat"], setup: (p) => () => h("div", { "data-testid": "seen", "data-floor": p.floor }) });
 const Fields = defineComponent({ props: ["fillContext"], setup: (p) => () => h("div", { "data-testid": "fields", "data-fill": p.fillContext ? "yes" : "no" }) });
 const ThreadBar = defineComponent({ props: ["threadId"], emits: ["switch"], setup: (p, { emit }) => () => h("button", { "data-testid": "threads", onClick: () => emit("switch", "t9") }, p.threadId) });
 const Dialog = defineComponent({ props: ["preselectedEdgeId"], setup: (p) => () => h("div", { "data-testid": "dialog", "data-edge": p.preselectedEdgeId }) });
@@ -31,9 +32,9 @@ function mountColumn(props: Record<string, unknown> = {}) {
   return mount(QuestBeatColumn, {
     props: {
       questId: "q1", beatId: "b1", quest: null, threads: [], focusThreadId: "t1",
-      currentBeatIdByThread: { t1: null }, presentations: {}, entryBeatId: null, ...props,
+      currentBeatIdByThread: { t1: null }, standingByThread: {}, presentations: {}, entryBeatId: null, ...props,
     },
-    global: { stubs: { QuestBeatMarks: Marks, QuestBeatFields: Fields, QuestAdvanceDialog: Dialog, QuestThreadBar: ThreadBar, RichTextViewer: text("rt") } },
+    global: { stubs: { QuestBeatMarks: Marks, QuestBeatVisibilityControl: Seen, QuestBeatFields: Fields, QuestAdvanceDialog: Dialog, QuestThreadBar: ThreadBar, RichTextViewer: text("rt") } },
   });
 }
 
@@ -41,19 +42,19 @@ beforeEach(() => { mocks.replace.mockClear(); mocks.ai = true; mocks.thread = un
 
 describe("QuestBeatColumn", () => {
   // Fails if the floor ignores the transitions, letting a beat the party has stood on be hidden again.
-  it("passes a revealed floor to the marks for a beat the party reached", () => {
+  it("passes a revealed floor to what players know for a beat the party reached", () => {
     mocks.transitions = [{ to_beat_id: "b1" }];
-    expect(mountColumn().get('[data-testid="marks"]').attributes("data-floor")).toBe("revealed");
+    expect(mountColumn().get('[data-testid="seen"]').attributes("data-floor")).toBe("revealed");
   });
 
   // Fails if the party's cursor is not counted: a beat one route ahead of the party is rumored at least.
-  it("passes a rumored floor to the marks for a beat one route ahead of the party", () => {
+  it("passes a rumored floor to what players know for a beat one route ahead of the party", () => {
     const wrapper = mountColumn({ beatId: "b2", currentBeatIdByThread: { t1: "b1" } });
-    expect(wrapper.get('[data-testid="marks"]').attributes("data-floor")).toBe("rumored");
+    expect(wrapper.get('[data-testid="seen"]').attributes("data-floor")).toBe("rumored");
   });
 
   it("leaves the floor at hidden for a beat nobody has reached", () => {
-    expect(mountColumn({ beatId: "b2" }).get('[data-testid="marks"]').attributes("data-floor")).toBe("hidden");
+    expect(mountColumn({ beatId: "b2" }).get('[data-testid="seen"]').attributes("data-floor")).toBe("hidden");
   });
 
   // Fails if "How it plays" renders its heading for an empty column, or the read-aloud loses its own box.

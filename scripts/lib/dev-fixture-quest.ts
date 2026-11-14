@@ -43,10 +43,10 @@
  * the outline both open onto a quest already in progress rather than an empty
  * cockpit.
  *
- * Shared with the player fixture's claimed party member via
- * `quests.player_visible_to`, so `/play` has a journal to render (#798): the
- * revealed beats carry a real staged location for the filling-in map to
- * follow, per `get_player_visible_quest_beats`.
+ * Visible to the player fixture because its opening beats are revealed (a
+ * quest shows when one of its beats does), so `/play` has a journal to render
+ * (#798): the revealed beats carry a real staged location for the filling-in
+ * map to follow, per `get_player_visible_quest_beats`.
  *
  * Idempotent by title: a second run finds the quest already there and only
  * recomputes the summary, the same guard shape as `ensureFixtureBestiary`.
@@ -85,23 +85,6 @@ export function ensureFixtureQuest(dbUrl: string, ownerId: string): FixtureQuest
 }
 
 /**
- * The party member the player fixture claimed, if any. `player_visible_to` is
- * keyed on `party_member_id` -- `private.is_quest_player_visible` joins
- * through `campaign_members.party_member_id`, never through the auth user id
- * directly -- so sharing the quest means naming that id, not the player's.
- */
-function claimedPartyMemberId(dbUrl: string, campaignId: string): string | null {
-  return (
-    sql(
-      dbUrl,
-      `select party_member_id from public.campaign_members
-        where campaign_id = ${quote(campaignId)} and role = 'player' and party_member_id is not null
-        order by joined_at limit 1`,
-    ) || null
-  );
-}
-
-/**
  * A dungeon-or-building location already sitting in the fixture campaign, to
  * stage the vault beat at. Dungeon preferred over building, since #797's site
  * runner -- the surface this exists to exercise -- only lights up for a site
@@ -130,11 +113,6 @@ function stagingSiteId(dbUrl: string, campaignId: string): string | null {
  * bulk SELECT with no ORDER BY to get wrong.
  */
 function buildFixtureQuest(dbUrl: string, campaignId: string, ownerId: string): string {
-  const playerVisibleTo = claimedPartyMemberId(dbUrl, campaignId);
-  const playerVisibleToLiteral = playerVisibleTo
-    ? `array[${quote(playerVisibleTo)}]::uuid[]`
-    : "'{}'::uuid[]";
-
   const stagingSite = stagingSiteId(dbUrl, campaignId);
   const stagingSiteLiteral = stagingSite ? quote(stagingSite) : "null";
 
@@ -152,10 +130,10 @@ function buildFixtureQuest(dbUrl: string, campaignId: string, ownerId: string): 
       v_obj_passage uuid;
       v_obj_sealed uuid;
     begin
-      insert into public.quests (user_id, campaign_id, title, summary, status, player_visible_to)
+      insert into public.quests (user_id, campaign_id, title, summary, status)
       values (
         ${quote(ownerId)}, ${quote(campaignId)}, ${quote(QUEST_TITLE)}, ${quote(QUEST_SUMMARY)},
-        'undiscovered', ${playerVisibleToLiteral}
+        'undiscovered'
       )
       returning id into v_quest_id;
 

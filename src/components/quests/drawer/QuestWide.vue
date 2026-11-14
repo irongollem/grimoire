@@ -4,7 +4,6 @@
   <div class="grid gap-0 lg:grid-cols-2" aria-label="Quest, in full">
     <div class="flex min-w-0 flex-col gap-5 px-6 py-5">
       <QuestDetailsSection :quest="quest" />
-      <QuestPlayersSection :quest="quest" />
       <DmNoteBox type="quest" :id="quest.id" :label="quest.title" />
       <QuestSidebarPanels :is-new="false" :quest-id="quest.id" :sub-quests="subQuests" :shared-notes="sharedNotes" />
       <AccordionSection v-model:open="calendarOpen" title="Calendar">
@@ -44,7 +43,6 @@ import QuestThreadsPanel from "../flow/QuestThreadsPanel.vue";
 import QuestClocksPanel from "../inspector/QuestClocksPanel.vue";
 import QuestRulesPanel from "../inspector/QuestRulesPanel.vue";
 import QuestDetailsSection from "../panel/QuestDetailsSection.vue";
-import QuestPlayersSection from "../panel/QuestPlayersSection.vue";
 
 // The cursors come from the flow's runtime read, which the page already holds.
 const { quest, currentBeatIdByThread = {}, visitedCountByThread = {} } = defineProps<{

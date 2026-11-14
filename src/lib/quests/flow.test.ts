@@ -4,7 +4,7 @@ import type { QuestBeat, QuestBeatEdge, QuestRouteGate } from "@/types/quest.typ
 import type { QuestBeatPresentation } from "./presentation";
 
 const beat = (id: string, x: number, y: number): QuestBeat => ({
-  id, quest_id: "quest", campaign_id: "campaign", title: id, dm_content: null, secret: false,
+  id, quest_id: "quest", campaign_id: "campaign", title: id, dm_content: null, secret: false, visible_to: null,
   read_aloud: null, how_it_plays: null, converge_mode: "any",
   rumor_text: null, reveal_text: null, visibility: "hidden", kind: "neutral",
   presentation_hint: null, canvas_x: x, canvas_y: y, is_improvised: false, staged_at_location_id: null, improv_reviewed_at: null,

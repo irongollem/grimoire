@@ -22,9 +22,8 @@ insert into public.campaign_members (campaign_id, user_id, role, display_name, p
   ('97300000-0000-4000-8000-000000000010', '97300000-0000-4000-8000-000000000002', 'player', 'P1', '97300000-0000-4000-8000-000000000020')
 on conflict (campaign_id, user_id) do update set role = excluded.role, party_member_id = excluded.party_member_id;
 
-insert into public.quests (id, user_id, campaign_id, title, player_visible_to) values
-  ('97300000-0000-4000-8000-000000000030', '97300000-0000-4000-8000-000000000001', '97300000-0000-4000-8000-000000000010', 'The Long Steep',
-   array['97300000-0000-4000-8000-000000000020']::uuid[]);
+insert into public.quests (id, user_id, campaign_id, title) values
+  ('97300000-0000-4000-8000-000000000030', '97300000-0000-4000-8000-000000000001', '97300000-0000-4000-8000-000000000010', 'The Long Steep');
 
 -- Revealed: open text, a [secret] block, and a lens pair. Rumoured: an emptied editor.
 insert into public.quest_beats (id, quest_id, campaign_id, title, visibility, reveal_text, rumor_text) values

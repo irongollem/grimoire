@@ -36,8 +36,11 @@ insert into public.campaign_members (campaign_id, user_id, role, display_name, p
   ('79800000-0000-4000-8000-000000000010', '79800000-0000-4000-8000-000000000002', 'player', 'Player', '79800000-0000-4000-8000-000000000020')
 on conflict (campaign_id, user_id) do update set role = excluded.role, party_member_id = excluded.party_member_id;
 
-insert into public.quests (id, user_id, campaign_id, title, player_visible_to)
-values ('79800000-0000-4000-8000-000000000030', '79800000-0000-4000-8000-000000000001', '79800000-0000-4000-8000-000000000010', 'The Sunken Courtyard', array['79800000-0000-4000-8000-000000000020']::uuid[]);
+insert into public.quests (id, user_id, campaign_id, title)
+values ('79800000-0000-4000-8000-000000000030', '79800000-0000-4000-8000-000000000001', '79800000-0000-4000-8000-000000000010', 'The Sunken Courtyard');
+-- A quest shows to players through a beat they can see.
+insert into public.quest_beats (id, quest_id, campaign_id, title, visibility)
+values ('79800000-0000-4000-8000-000000000039', '79800000-0000-4000-8000-000000000030', '79800000-0000-4000-8000-000000000010', 'Rumour', 'rumored');
 
 -- Three raised statuses, plus a dormant branch.
 insert into public.quest_objectives (id, quest_id, description, status) values

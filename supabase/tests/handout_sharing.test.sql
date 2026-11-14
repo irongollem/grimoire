@@ -6,7 +6,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(36);
+select plan(37);
 
 -- A DM shares a Scriptorium handout with players (#970, 20261004105821).
 --
@@ -174,13 +174,18 @@ select is(
   '{}'::uuid[], 'an NPC from another campaign is never revealed, whatever the embed says');
 
 select is(
-  (select row(status, player_visible_to)::text from public.quests where id = '97000000-0000-4000-8000-000000000040'),
-  row('active'::quest_status_enum, array['97000000-0000-4000-8000-000000000030']::uuid[])::text,
-  'the handout starts the quest and shows it to Nessa');
+  (select status::text from public.quests where id = '97000000-0000-4000-8000-000000000040'),
+  'active',
+  'the handout starts the quest');
 
 select is(
   (select visibility from public.quest_beats where id = '97000000-0000-4000-8000-000000000041'),
   'rumored', 'its entry beat becomes the rumour');
+
+select is(
+  (select visible_to from public.quest_beats where id = '97000000-0000-4000-8000-000000000041'),
+  array['97000000-0000-4000-8000-000000000030']::uuid[],
+  'and only for the member the handout was given to (fails if a handout shows the quest to the whole party)');
 
 select is(
   (select row(visible_to, reveal_stats)::text from public.discovered_monsters

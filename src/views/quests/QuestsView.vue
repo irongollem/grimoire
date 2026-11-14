@@ -32,8 +32,8 @@
         />
         <AppButton
           :icon="IconParty"
-          :label="filterCounts ? `Shared with party (${filterCounts.party})` : 'Shared with party'"
-          :mobile-label="filterCounts ? `Party ${filterCounts.party}` : 'Party'"
+          :label="filterCounts ? `Shown to players (${filterCounts.party})` : 'Shown to players'"
+          :mobile-label="filterCounts ? `Shown ${filterCounts.party}` : 'Shown'"
           variant="subtle"
           size="md"
           :active="questsUi.questsPartyFilter"

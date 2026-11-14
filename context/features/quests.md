@@ -217,7 +217,7 @@ were this table's third row until #794: two ends of one idea, reconciled by merg
 `quests.summary` is the one quest-wide field the model keeps on the quest row on
 purpose: a premise is identity, like title and tags, and no beat field means
 "premise." #793 gave it its own editor, alongside
-title/status/giver/location/parent/tags/sharing (the Details section of the quest panel, `QuestDetailsSection`); it was write-once at creation
+title/status/giver/location/parent/tags (the Details section of the quest panel, `QuestDetailsSection`); it was write-once at creation
 before that. `quests.description`/`.notes` are gone outright; the same prose is
 now the opening beat's `dm_content`/`how_it_plays`, moved once by #793's
 migration and never duplicated again. What belongs to no scene (premise, goals,
@@ -283,7 +283,7 @@ rare, the gap does not exist.
 `completed`, `failed` — **`rumor` was retired by #874**; a rumour is a beat's
 `visibility`, see `quest_beats`), `summary`, `giver_npc_id`, `location_id`,
 `parent_quest_id` (sub-quests, no depth limit), `tags`,
-`player_visible_to uuid[]` (null = never shared), `started_at` / `resolved_at`
+`started_at` / `resolved_at`
 (**`started_at` is never written by anything**), `ai_provenance`.
 
 `description`/`notes` are gone (#793) and the whole `reward_*` family with
@@ -979,13 +979,26 @@ still `active`** — one the DM has since settled is not yanked back into hiding
 by an unrelated step-back — and does not revert the beat's visibility: a rumour
 heard is not unheard, and the DM can hide the beat.
 
-**Revealing a quest to the party is one function: `private.reveal_quest_to(campaign, quest, members)`**
-(`20261015234112`, #1064). It is `unlock_quest`'s write plus the recipients, which `unlock_quest` alone never adds: a
-quest nobody may see is not one the party has heard of. Two paths call it. A shared handout that embeds the quest
-(`apply_handout_reveals`), and a player taking a notice from a presented notice board (`take_notice_board_pin`), the
-first quest reveal a player sets off rather than the DM. The campaign is a parameter, not a courtesy: the take runs as a
-definer, so a quest outside the campaign is left alone. A notice can no longer name one (`20261016002013` refuses a
-campaign-less quest or handout on a pin, which the generic same-campaign trigger allows), so the guard is a second line. Add a third path through this function, never beside it.
+**A quest has no audience of its own (#1194): it is visible when one of its beats is.**
+`quests.player_visible_to` and per-member quest sharing are gone. `private.quest_shown_to_players(quest)` is true when
+any beat is rumored or revealed (false for a quest with no beats), and `private.is_quest_player_visible` is that plus
+"the caller plays in the quest's campaign". `get_player_visible_quests` and `get_player_visible_quest_beats` apply it,
+so the client never filters quests by audience. Moving a quest to Active (board, rule, handout) rumors its entry beat in
+a trigger, which is what makes it appear, and the first beat that becomes visible posts the "Quest shared" chat message,
+also on the server. `private.reveal_quest(campaign, quest)` is what a handout (`apply_handout_reveals`) and a notice
+taken from a presented notice board (`take_notice_board_pin`) call: an undiscovered quest becomes active and its entry
+beat is rumored. The campaign is a parameter, not a courtesy: the take runs as a definer, so a quest outside the
+campaign is left alone. Add a third path through this function, never beside it.
+
+**A beat has an audience, and the quest follows it (#1194).** `quest_beats.visible_to uuid[]` is null for the whole
+party, else the party member ids who see the beat once it is rumored or revealed (never an empty array; hidden beats
+keep theirs for when they are shown). A player sees a quest when they can see one of its beats, so a quest reaches
+exactly the union of its shown beats' audiences, and any shown whole-party beat makes it whole-party. The "Quest shared"
+announcement is posted only when the beat that shows is a whole-party one. A handout reveals what it names to its
+recipients, and a notice pin reaches everyone. Client: `QuestBeatVisibilityControl` writes it through
+`useSetBeatAudience` (ticking everyone returns to null; the last member cannot be unticked), the flow node chips a
+members-only beat ("2 of 4"), and the quest column's standing line reads `questAudienceOf()` in
+`src/lib/quests/visibility.ts` ("Shown to the whole party", "Shown to Brannigan and Edda", "Hidden from players").
 
 **`unlock_quest` deliberately leaves `parent_quest_id` alone.** "Unlocked by"
 and "child of" are different relations: one trigger can legitimately open both a
@@ -1265,8 +1278,9 @@ surface inside it: it would inherit the canvas's `overflow:hidden` (#776).
 at the foot. A quest shares a beat's data model, so the quest's own rules show
 as **Payoffs**, the way a beat's do.
 
-- **Where it stands**: a status line (shared with whom, objectives done) over the
-  title.
+- **Where it stands**: a status line over the title, the lane then "Shown to players"
+  or "Hidden from players" (derived from the beats: shown when any beat is rumored or
+  revealed).
 - **Players read**: `quests.summary`, one plain-text line the players read about
   the quest.
 - **Notes** (`quests.dm_content`, rich text, DM only): what belongs to no single
@@ -1278,7 +1292,6 @@ as **Payoffs**, the way a beat's do.
 
 The wide part (`QuestWide`) holds the rest, one autosaved editor per field and no
 explanatory prose: the Details (board lane, giver, location, **Part of**, tags),
-who the quest is shared with (`QuestPlayersSection`, `AudienceRevealControl`),
 clocks, the quest's own **Payoffs** (`QuestRulesPanel`) and threads once the
 quest holds one. **More** in the page header (`QuestMoreMenu`): **Send to
 Scriptorium** and **Delete quest**, which navigates to `/quests`.
@@ -1561,12 +1574,10 @@ rather than the DM tapping a control:
   (`lib/quests/visibility.ts`): a beat the party has stood on is at least
   revealed, a non-secret beat one route ahead of a live thread is at least
   rumored. The beat's small track offers only the steps at or above the floor.
-- **Auto-share.** The first move that shows a beat on a quest shared with
-  nobody shares it with the whole party, server-side in the same trigger
-  (`shared_with` and `shared_message_id` on the transition, so Undo takes the
-  share back too). A partial share stays as the DM set it, and a party of
-  nobody shares nothing. The client no longer sets visibility on a move, which
-  is why this moved off `useShareQuest`.
+- **No sharing step.** A quest shows when one of its beats does, so a move that
+  shows a beat shows the quest; nothing is shared with anyone. The first beat that
+  becomes visible posts the "Quest shared" chat message, server-side in a trigger.
+  `useSetBeatVisibility` only writes the beat's visibility.
 
 There is **no player preview** of a quest: no eye on a beat, no Preview, no
 Players' view lens, no preview drawer. A beat shows the lines players read and
@@ -1595,10 +1606,31 @@ _"Backfilling ten sessions of history should not mean performing them."_
   checked and is moved, not cleared. Party here and Failed need a thread (the
   focus thread) and are disabled without one.
 - **A move fills in the way there.** Marking a beat further along (or taking a
-  route that is not the next one) writes the beats between as well: the shortest
-  route from where the thread last was, or from the entry when it has not started,
-  that the thread has not reached (`private.quest_beat_path`), each with its
-  arrival rules.
+  route that is not the next one) writes the beats between as well: the way from
+  where the thread last was, or from the entry when it has not started, that the
+  thread has not reached, each with its arrival rules, the route it took as
+  provenance `edge_id`, and that route's payoffs.
+- **A route has three states (#1194, `routeTakeState`, `lib/quests/moves.ts`)** by
+  where the focus thread stands (`threadStandings`: its newest arrival, else its
+  cursor, else the entry, as `mark_quest_move` reads it). Leaving from the party's
+  beat: **Take this route**. Further on (a forward way from the party to its
+  source): **Mark as taken**, and the preview adds "Marks X, Y done on the way".
+  Behind or cut off: the button is greyed with the reason ("Already taken" when
+  its target was reached, "The party is past this route; use Undo to go back"
+  when its source was passed, "Cut off by an earlier choice" otherwise). It is
+  never offered backwards.
+- **The way is the DM's to name when there are several** (`waysBetween`: simple
+  forward paths, shortest first, capped at 6). The player's quest log is told in
+  the order of the filled-in beats, so a guessed way would tell scenes the party
+  never played. With two or more, the route column lists them as radios
+  (`QuestWayPicker`, each way named by the beats it fills in) with none picked and
+  the button disabled; **Party here** and **Failed** on a beat open a small
+  `data-slip` popover with the same picker and a confirm button. With one way
+  there is no picker; the preview names it. The client always sends the way as
+  `p_via` (beat ids in order from where the thread stands to the route's source,
+  or to the beat), so the server never guesses; without `p_via` it takes the
+  shortest (`private.quest_beat_path`). A way that does not start where the thread
+  stands, or has a step that is no route, is refused with 22023.
 - **A parallel route opens a thread**, as Advance does at the table.
 - **One Undo takes a whole move back.** Every transition one call writes carries
   one `move_id` in its provenance, so the filled-in way there and an opened
@@ -1608,7 +1640,7 @@ _"Backfilling ten sessions of history should not mean performing them."_
   play.
 
 Backed by `mark_quest_move(campaign, quest, thread, kind, edge?, beat?, session?,
-place_party?, dispatch_loot_ids?, move_party_to?)` and `undo_quest_move(campaign,
+place_party?, dispatch_loot_ids?, move_party_to?, via?)` and `undo_quest_move(campaign,
 quest, thread?)` (`20261113010129`, both `SECURITY DEFINER`, DM-gated first). Kinds
 are `route` (the party took an edge; the target's arrival rules and the edge's own
 rules fire, and a choice route closes its sibling choices), `party_here` (the party
@@ -1899,7 +1931,7 @@ removed rather than kept dead.
 | `/play/journal?tab=quest-log` | `PlayerJournalQuestLogTab.vue`           |
 | `/play/quests/:id`            | `views/player/PlayerQuestDetailView.vue`   |
 
-The detail view gates on `player_visible_to` being non-empty, then shows title and
+The detail view reads the quest through `get_player_visible_quests`, which returns it only while one of its beats shows, then shows title and
 status, giver (NPC lightbox) and primary location (link only if actually shared),
 summary, **`PlayerQuestStoryThread`** ("Story so far"), objectives that are raised (any not `dormant`) with
 a progress count, rewards, visible refs, and a `PlayerNotesWidget`. It used to

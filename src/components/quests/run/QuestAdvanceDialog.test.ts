@@ -33,7 +33,7 @@ function buildContext(): QuestRuntimeContext {
     state: { campaign_id: "campaign-1", quest_id: "quest-1", thread_id: "thread-a", current_beat_id: "beat-current", return_stack: [], visit_stack: [], visit_index: 0, status: "running", version: 4, updated_by: null, created_at: "2026-09-01T00:00:00Z", updated_at: "2026-09-01T00:00:00Z" },
     current: {
       id: "beat-current", quest_id: "quest-1", campaign_id: "campaign-1", title: "Confront Ser Vallis",
-      dm_content: null, secret: false, read_aloud: null, how_it_plays: null, rumor_text: null, reveal_text: null,
+      dm_content: null, secret: false, visible_to: null, read_aloud: null, how_it_plays: null, rumor_text: null, reveal_text: null,
       visibility: "revealed", kind: "social", presentation_hint: null, converge_mode: "any",
       staged_at_location_id: null, canvas_x: 0, canvas_y: 0, is_improvised: false, improv_reviewed_at: null,
       created_by: null, created_at: "2026-09-01T00:00:00Z", updated_at: "2026-09-01T00:00:00Z",

@@ -20,8 +20,8 @@ values ('65900000-0000-4000-8000-000000000020', '65900000-0000-4000-8000-0000000
 insert into public.campaign_members (campaign_id, user_id, role, display_name, party_member_id)
 values ('65900000-0000-4000-8000-000000000010', '65900000-0000-4000-8000-000000000002', 'player', 'Sable', '65900000-0000-4000-8000-000000000020');
 
-insert into public.quests (id, user_id, campaign_id, title, status, player_visible_to)
-values ('65900000-0000-4000-8000-000000000030', '65900000-0000-4000-8000-000000000001', '65900000-0000-4000-8000-000000000010', 'The long road', 'active', array['65900000-0000-4000-8000-000000000020']::uuid[]);
+insert into public.quests (id, user_id, campaign_id, title, status)
+values ('65900000-0000-4000-8000-000000000030', '65900000-0000-4000-8000-000000000001', '65900000-0000-4000-8000-000000000010', 'The long road', 'active');
 
 -- A -> B -> C, revealed in the order C, A, B — the sequence a DM produces when
 -- catching the log up after a session rather than during one.

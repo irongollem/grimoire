@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("vue-router", () => ({ useRoute: () => reactive(mocks.route) }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useQuest: () => ({
-    data: ref({ id: "quest-1", title: "The Unseen", status: "active", player_visible_to: [] }),
+    data: ref({ id: "quest-1", title: "The Unseen", status: "active" }),
     isLoading: ref(false),
   }),
 }));

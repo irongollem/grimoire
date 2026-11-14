@@ -15,7 +15,7 @@
     ]"
   >
     <!-- Header section -->
-    <div :class="[
+    <div v-if="!headless" :class="[
         'max-w-full min-w-0 bg-background',
         'px-4 pt-4 md:px-6 md:pt-6',
         ownsPhoneBar ? 'hidden md:block' : '',
@@ -85,6 +85,7 @@
         data-testid="page-body"
         :class="[
           'min-w-0 max-w-full px-4 pb-4 md:px-6 md:pb-6 lg:min-h-0 lg:flex-1',
+          headless ? 'pt-4 md:pt-6' : '',
           contained ? 'lg:overflow-hidden' : 'lg:overflow-y-auto',
         ]"
       >
@@ -113,5 +114,11 @@ defineProps<{
    * rule: an empty band above the page's own bar. This hides it there.
    */
   ownsPhoneBar?: boolean;
+  /**
+   * The page carries its title in its own toolbar (the quest page puts it on
+   * the story flow's row), so the header band, title and gold rule go and the
+   * body starts at the top. The quest screen won about 200px of height this way.
+   */
+  headless?: boolean;
 }>();
 </script>

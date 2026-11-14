@@ -31,4 +31,17 @@ describe("QuestFlowEdge", () => {
     expect(wrapper.find(".quest-flow-edge-label svg").exists()).toBe(true);
     expect(wrapper.find(".quest-flow-edge-rail").exists()).toBe(true);
   });
+
+  // Fails if clicking a route's pill does nothing: the pill is drawn outside the edge, so the line's click never reaches it.
+  it("selects its route when the pill is clicked", async () => {
+    const wrapper = pill({ threadLabel: "Bribe the guard" });
+    await wrapper.get(".quest-flow-edge-label").trigger("click");
+    expect(wrapper.emitted("select")).toEqual([["e1"]]);
+  });
+
+  // Fails if a selected route's pill looks like every other: the selection must read on the flow.
+  it("marks the selected route's pill", () => {
+    expect(pill({ selected: true }).get(".quest-flow-edge-label").classes()).toContain("is-selected");
+    expect(pill({}).get(".quest-flow-edge-label").classes()).not.toContain("is-selected");
+  });
 });

@@ -38,6 +38,7 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
   useSetQuestRouteGate: mocks.mutation,
   useSetQuestBeatPositions: mocks.mutation,
 }));
+vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: { value: [] } }) }));
 vi.mock("@/composables/quests/useQuestThreads", () => ({ useQuestThreads: () => mocks.query(() => []) }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useQuest: () => mocks.query(() => ({ id: "quest-1", title: "The Unseen", campaign_id: "campaign-1" })),

@@ -665,7 +665,6 @@ export function mapExtractedQuest(
     giver_npc_id: null, // resolved from links.giver_npc_name in a second pass, see file header
     location_id: null, // resolved from links.location_name in a second pass, see file header
     tags: [], // not extracted
-    player_visible_to: [], // schema default '{}'
     started_at: null,
     resolved_at: null,
     ai_provenance: provenance,

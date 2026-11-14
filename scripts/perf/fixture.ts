@@ -189,8 +189,8 @@ async function main() {
        v_road uuid;
        v_end uuid;
      begin
-       insert into public.quests (user_id, campaign_id, title, summary, status, player_visible_to)
-       values (${dm}, ${campaign}, 'Perf Quest', 'A quest with a few beats.', 'active', array[${quote(characterId)}]::uuid[])
+       insert into public.quests (user_id, campaign_id, title, summary, status)
+       values (${dm}, ${campaign}, 'Perf Quest', 'A quest with a few beats.', 'active')
        returning id into v_quest;
 
        insert into public.quest_beats (quest_id, campaign_id, title, kind, visibility, canvas_x, canvas_y)

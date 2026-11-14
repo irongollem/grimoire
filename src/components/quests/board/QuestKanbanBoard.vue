@@ -33,7 +33,6 @@
           v-for="quest in group.quests"
           :key="quest.id"
           :quest="quest"
-          :party="party"
           :summary="summaries?.[quest.id]"
           :dragging="draggedQuestId === quest.id"
           @dragstart="startDrag"
@@ -67,17 +66,15 @@
 import { computed, ref, type Component } from "vue";
 import { IconCheck, IconLock, IconQuest } from "@/lib/icons";
 import type { QuestBoardSummary } from "@/lib/quests/board";
-import type { PartyMember } from "@/types/party.types";
 import {
   type Quest,
   type QuestStatus,
 } from "@/types/quest.types";
 import QuestBoardCard from "./QuestBoardCard.vue";
 
-const { quests, allQuests, party = [], summaries } = defineProps<{
+const { quests, allQuests, summaries } = defineProps<{
   quests: Quest[];
   allQuests?: Quest[];
-  party?: PartyMember[];
   summaries?: Record<string, QuestBoardSummary>;
 }>();
 

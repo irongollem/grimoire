@@ -15,7 +15,6 @@ const quest = (id: string, title: string): Quest => ({
   giver_npc_id: null,
   location_id: null,
   tags: [],
-  player_visible_to: [],
   started_at: null,
   resolved_at: null,
   entry_beat_id: null,
@@ -25,6 +24,7 @@ const quest = (id: string, title: string): Quest => ({
 
 const summary = (undispatched: number, unclaimed: number): QuestBoardSummary => ({
   isLive: false,
+  shownToPlayers: false,
   currentBeatTitle: null,
   beatSegments: [],
   prepGapCount: 0,

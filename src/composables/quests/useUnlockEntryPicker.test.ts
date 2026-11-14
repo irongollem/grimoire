@@ -27,7 +27,7 @@ import { useUnlockEntryPicker } from "./useUnlockEntryPicker";
 function quest(overrides: Partial<Quest> & { id: string; title: string }): Quest {
   return {
     user_id: "dm", campaign_id: "campaign-1", parent_quest_id: null, summary: null, status: "undiscovered",
-    giver_npc_id: null, location_id: null, tags: [], player_visible_to: [], started_at: null,
+    giver_npc_id: null, location_id: null, tags: [], started_at: null,
     entry_beat_id: null,
     ...overrides,
   } as Quest;

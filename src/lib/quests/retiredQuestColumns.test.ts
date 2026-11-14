@@ -20,7 +20,7 @@ describe("stripRetiredQuestColumns", () => {
     // and 20260906160921 (the reward columns, flow_enabled_at) are the source of truth.
     const dropped = [
       "description", "notes", "rewards", "reward_pp", "reward_gp", "reward_ep", "reward_sp", "reward_cp",
-      "reward_item_ids", "reward_art_objects", "reward_currency_pools", "flow_enabled_at",
+      "reward_item_ids", "reward_art_objects", "reward_currency_pools", "flow_enabled_at", "player_visible_to",
     ];
     const row = { id: "q1", ...Object.fromEntries(dropped.map((c) => [c, "legacy"])) };
     expect(stripRetiredQuestColumns(row)).toEqual({ id: "q1" });
@@ -33,7 +33,7 @@ describe("stripRetiredQuestColumns", () => {
       summary: null,
       status: "active",
       started_at: 0,
-      player_visible_to: [],
+      tags: [],
       description: "retired",
     });
     expect(kept).toEqual({
@@ -42,7 +42,7 @@ describe("stripRetiredQuestColumns", () => {
       summary: null,
       status: "active",
       started_at: 0,
-      player_visible_to: [],
+      tags: [],
     });
   });
 

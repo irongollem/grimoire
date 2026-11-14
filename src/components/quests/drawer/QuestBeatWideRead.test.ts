@@ -4,13 +4,14 @@ import QuestBeatWideRead from "./QuestBeatWideRead.vue";
 import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({ setVisibility: vi.fn(), updateBeat: vi.fn() }));
+vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: { value: [] } }) }));
 vi.mock("@/composables/quests/useSetBeatVisibility", () => ({ useSetBeatVisibility: () => mocks.setVisibility }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({ useUpdateQuestBeat: () => ({ mutateAsync: mocks.updateBeat }) }));
 
 const doc = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
 function beat(overrides: Partial<QuestBeat> = {}): QuestBeat {
   return {
-    id: "beat-1", quest_id: "quest-1", campaign_id: "campaign-1", title: "Naerth", secret: false, visibility: "hidden",
+    id: "beat-1", quest_id: "quest-1", campaign_id: "campaign-1", title: "Naerth", secret: false, visible_to: null, visibility: "hidden",
     rumor_text: doc("The Speaker takes an interest."), reveal_text: doc("Speaker Naerth welcomed us."), updated_at: "v1",
     ...overrides,
   } as QuestBeat;

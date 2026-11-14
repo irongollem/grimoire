@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(47);
+select plan(48);
 
 -- notice_boards (20261015234112, #1064): the DM pins notices to a board; players read a revealed board only through
 -- get_player_notice_boards, which shows a pin's face and keeps its quest and handout back until it is taken; and while
@@ -35,6 +35,12 @@ on conflict (campaign_id, user_id) do update set role = excluded.role, party_mem
 insert into public.quests (id, user_id, campaign_id, title, status) values
   ('10640000-0000-4000-8000-000000000030', '10640000-0000-4000-8000-000000000001', '10640000-0000-4000-8000-000000000010', 'The Ratcatcher''s Bounty', 'undiscovered'),
   ('10640000-0000-4000-8000-000000000031', '10640000-0000-4000-8000-000000000004', '10640000-0000-4000-8000-000000000011', 'Theirs', 'undiscovered');
+
+-- The bounty's first scene. A quest shows through a beat, so taking the notice
+-- has to rumor this one for the party to hear of the quest (#1194).
+insert into public.quest_beats (id, quest_id, campaign_id, title, visibility) values
+  ('10640000-0000-4000-8000-000000000032', '10640000-0000-4000-8000-000000000030', '10640000-0000-4000-8000-000000000010', 'The cellar rats', 'hidden');
+update public.quests set entry_beat_id = '10640000-0000-4000-8000-000000000032' where id = '10640000-0000-4000-8000-000000000030';
 
 insert into public.scriptorium_documents (id, user_id, campaign_id, title) values
   ('10640000-0000-4000-8000-000000000040', '10640000-0000-4000-8000-000000000001', '10640000-0000-4000-8000-000000000010', 'Writ of Bounty');
@@ -187,8 +193,10 @@ select is(public.take_notice_board_pin('10640000-0000-4000-8000-000000000080') -
 
 select set_config('request.jwt.claim.sub', '10640000-0000-4000-8000-000000000001', true);
 select is((select status::text from public.quests where id = '10640000-0000-4000-8000-000000000030'), 'active', 'the quest has begun');
-select is((select player_visible_to @> array['10640000-0000-4000-8000-000000000020', '10640000-0000-4000-8000-000000000021']::uuid[]
-             from public.quests where id = '10640000-0000-4000-8000-000000000030'), true, 'the whole party sees the quest');
+select is((select visibility from public.quest_beats where id = '10640000-0000-4000-8000-000000000032'), 'rumored',
+  'taking the notice rumors the quest''s entry beat, which is what shows the quest to the whole party (fails if reveal_quest leaves it hidden)');
+select is((select visible_to from public.quest_beats where id = '10640000-0000-4000-8000-000000000032'), null,
+  'for the whole party, not named members (fails if a notice pin narrows the reveal)');
 select is((select player_visible_to @> array['10640000-0000-4000-8000-000000000020', '10640000-0000-4000-8000-000000000021']::uuid[]
              from public.scriptorium_documents where id = '10640000-0000-4000-8000-000000000040'), true, 'the whole party has the handout');
 select is((select taken_session_number from public.notice_board_pins where id = '10640000-0000-4000-8000-000000000080'), 12,

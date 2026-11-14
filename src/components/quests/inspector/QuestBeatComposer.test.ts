@@ -2,19 +2,21 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import QuestBeatComposer from "./QuestBeatComposer.vue";
 
+// The composer is a dialog; its panel is teleported, so it is drawn in place here.
+const global = { stubs: { teleport: true } };
+
 describe("QuestBeatComposer", () => {
-  it("keeps an untitled beat local and cancelable", async () => {
-    const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source" } });
-    await wrapper.get("input").trigger("keydown", { key: "Escape" });
-    expect(wrapper.emitted("cancel")).toHaveLength(1);
+  // Fails if an untitled beat can be submitted, or the dialog cannot be closed without creating one.
+  it("refuses an untitled beat and closes without creating one", async () => {
+    const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source" }, global });
     await wrapper.get("form").trigger("submit");
     expect(wrapper.emitted("submit")).toBeUndefined();
-    await wrapper.get("form").trigger("focusout");
-    expect(wrapper.emitted("cancel")?.length).toBeGreaterThanOrEqual(2);
+    await wrapper.findAll("button").find((button) => button.text() === "Cancel")!.trigger("click");
+    expect(wrapper.emitted("cancel")).toHaveLength(1);
   });
 
   it("submits trimmed title and kind — a beat is title and kind only, no route text", async () => {
-    const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source" } });
+    const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source" }, global });
     await wrapper.get("input").setValue("  The bargain  ");
     await wrapper.get("select").setValue("social");
     await wrapper.get("form").trigger("submit");
@@ -22,7 +24,7 @@ describe("QuestBeatComposer", () => {
   });
 
   it("asks for a thread label in parallel mode and refuses to submit without one", async () => {
-    const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source", parallel: true } });
+    const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source", parallel: true }, global });
     expect(wrapper.text()).toContain("Add parallel route");
     const inputs = wrapper.findAll("input");
     await inputs[0]!.setValue("Rumour: the Drowned Vault");
@@ -35,7 +37,7 @@ describe("QuestBeatComposer", () => {
   });
 
   it("trims the parallel route's thread label", async () => {
-    const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source", parallel: true } });
+    const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source", parallel: true }, global });
     const inputs = wrapper.findAll("input");
     await inputs[0]!.setValue("Rumour");
     await inputs[1]!.setValue("  The Drowned Vault  ");
@@ -44,17 +46,10 @@ describe("QuestBeatComposer", () => {
   });
 
   it("leaving the form does not cancel a beat that already has a title", async () => {
-    const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source" } });
+    const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source" }, global });
     await wrapper.get("input").setValue("The bargain");
     await wrapper.get("form").trigger("focusout");
     expect(wrapper.emitted("cancel")).toBeUndefined();
   });
 
-  it("moving focus between the form's own fields does not cancel an untitled beat", async () => {
-    const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source" }, attachTo: document.body });
-    (wrapper.get("select").element as HTMLSelectElement).focus();
-    await wrapper.get("form").trigger("focusout");
-    expect(wrapper.emitted("cancel")).toBeUndefined();
-    wrapper.unmount();
-  });
 });

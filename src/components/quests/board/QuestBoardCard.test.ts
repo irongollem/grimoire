@@ -1,8 +1,6 @@
-import { useLowArt } from "@/composables/useLowArt";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mount, RouterLinkStub } from "@vue/test-utils";
 import type { QuestBoardSummary } from "@/lib/quests/board";
-import type { PartyMember } from "@/types/party.types";
 import type { Quest } from "@/types/quest.types";
 import QuestBoardCard from "./QuestBoardCard.vue";
 
@@ -19,7 +17,6 @@ function quest(overrides: Partial<Quest> = {}): Quest {
     giver_npc_id: null,
     location_id: null,
     tags: ["harbour", "mystery"],
-    player_visible_to: [],
     started_at: null,
     resolved_at: null,
     entry_beat_id: null,
@@ -29,12 +26,9 @@ function quest(overrides: Partial<Quest> = {}): Quest {
   };
 }
 
-function partyMember(id: string, name: string): PartyMember {
-  return { id, name, portrait_url: null } as PartyMember;
-}
-
 const summary: QuestBoardSummary = {
   isLive: true,
+  shownToPlayers: false,
   currentBeatTitle: "Bell-wardens rise from the silt",
   beatSegments: ["done", "here", "gap", "upcoming"],
   prepGapCount: 1,
@@ -87,30 +81,10 @@ describe("QuestBoardCard", () => {
     expect(chip?.props("to")).toEqual({ path: "/quests/quest-1", query: {} });
   });
 
-  it("shows only party members the quest is shared with", () => {
-    const party = [partyMember("pc-1", "Kestrel Vale"), partyMember("pc-2", "Bryn")];
-    const wrapper = mount(QuestBoardCard, {
-      props: {
-        quest: quest({ player_visible_to: ["pc-1"] }),
-        party,
-      },
-      global,
-    });
-
-    expect(wrapper.find('[aria-label="Shared with Kestrel Vale"]').exists()).toBe(true);
-    expect(wrapper.find('[title="Kestrel Vale"]').exists()).toBe(true);
-    expect(wrapper.find('[title="Bryn"]').exists()).toBe(false);
-  });
-
-  it("labels party overflow instead of showing an unexplained number", () => {
-    const party = ["1", "2", "3", "4", "5"].map((id) => partyMember(`pc-${id}`, `Player ${id}`));
-    const wrapper = mount(QuestBoardCard, {
-      props: { quest: quest({ player_visible_to: party.map((member) => member.id) }), party },
-      global,
-    });
-
-    expect(wrapper.text()).toContain("+1 player");
-    expect(wrapper.find('[title="1 more player"]').exists()).toBe(true);
+  // Fails if the chip follows anything but the summary's beat-derived flag.
+  it("says Shown to players only when a beat of the quest shows", () => {
+    expect(mount(QuestBoardCard, { props: { quest: quest(), summary }, global }).text()).not.toContain("Shown to players");
+    expect(mount(QuestBoardCard, { props: { quest: quest(), summary: { ...summary, shownToPlayers: true } }, global }).text()).toContain("Shown to players");
   });
 
   it("offers compact keyboard-native moves to adjacent lanes", async () => {
@@ -219,13 +193,6 @@ describe("QuestBoardCard", () => {
     expect(wrapper.text()).not.toContain("loot to drop");
   });
 
-  it("initials the shared players by their first two words", () => {
-    const party = [partyMember("pc-1", "Kestrel Vale the Third"), partyMember("pc-2", "bryn")];
-    const wrapper = mount(QuestBoardCard, { props: { quest: quest({ player_visible_to: ["pc-1", "pc-2"] }), party }, global });
-    expect(wrapper.get('[title="Kestrel Vale the Third"]').text()).toBe("KV");
-    expect(wrapper.get('[title="bryn"]').text()).toBe("B");
-  });
-
   it("starts a drag carrying the quest id", async () => {
     const wrapper = mount(QuestBoardCard, { props: { quest: quest() }, global });
     const dataTransfer = { setData: vi.fn(), effectAllowed: "" };
@@ -247,21 +214,5 @@ describe("QuestBoardCard", () => {
     expect(here).toHaveLength(2);
     expect(here[0]?.classes()).not.toContain("bg-muted");
     expect(here[0]?.classes().join(" ")).not.toBe(here[1]?.classes().join(" "));
-  });
-});
-
-describe("QuestBoardCard low art (#1179)", () => {
-  afterEach(() => {
-    useLowArt().setLowArt(false);
-  });
-
-  it("shows a party member's initials, not their portrait, in low art", () => {
-    const member = { ...partyMember("pm1", "Brakka Stone"), portrait_url: "/brakka.webp" } as PartyMember;
-    const props = { quest: quest({ player_visible_to: ["pm1"] }), party: [member] };
-    expect(mount(QuestBoardCard, { props, global }).find("img").exists()).toBe(true);
-    useLowArt().setLowArt(true);
-    const w = mount(QuestBoardCard, { props, global });
-    expect(w.find("img").exists()).toBe(false);
-    expect(w.text()).toContain("BS");
   });
 });

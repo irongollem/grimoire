@@ -2,7 +2,7 @@
   <section class="flex min-w-0 flex-col gap-3" aria-label="What players read">
     <h3 class="text-heading-sm font-bold text-foreground">What players read</h3>
 
-    <QuestVisibilityTrack v-model="visibility" size="lg" :floor="floor" />
+    <QuestBeatVisibilityControl :beat="beat" size="lg" :floor="floor" />
     <p v-if="floorLine" class="text-caption text-muted-foreground" data-testid="floor-line">{{ floorLine }}</p>
 
     <div class="flex flex-col gap-2">
@@ -27,14 +27,13 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
-import { useSetBeatVisibility } from "@/composables/quests/useSetBeatVisibility";
 import { hasBeatText } from "@/lib/quests/beatText";
 import { visibilityFloor } from "@/lib/quests/visibility";
-import type { QuestBeat, QuestBeatEdge, QuestBeatVisibility } from "@/types/quest.types";
+import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
-import QuestVisibilityTrack from "../common/QuestVisibilityTrack.vue";
+import QuestBeatVisibilityControl from "../common/QuestBeatVisibilityControl.vue";
 
 /**
  * Frame 10, "What players read": the three-circle track the DM moves a beat along
@@ -52,7 +51,6 @@ const { beat, edges, reachedBeatIds, partyBeatIds } = defineProps<{
 }>();
 const emit = defineEmits<{ "edit-text": [] }>();
 
-const setBeatVisibility = useSetBeatVisibility();
 const updateBeat = useUpdateQuestBeat();
 const error = ref("");
 const saving = ref(false);
@@ -73,10 +71,6 @@ async function save(fallback: string, write: () => Promise<unknown>) {
   saving.value = true;
   try { await write(); } catch (caught) { error.value = caught instanceof Error ? caught.message : fallback; } finally { saving.value = false; }
 }
-const visibility = computed<QuestBeatVisibility>({
-  get: () => beat.visibility,
-  set: (next) => { if (next !== beat.visibility) void save("Could not change what players know", () => setBeatVisibility(beat, next)); },
-});
 function setSecret(next: boolean) {
   if (next === beat.secret) return;
   void save("Could not change this beat's secrecy", () => updateBeat.mutateAsync({ id: beat.id, questId: beat.quest_id, update: { secret: next } }));

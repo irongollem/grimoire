@@ -75,7 +75,7 @@ Where each thread stands, the history of what's happened, and the thread list ar
 
 ## Tips
 
-- Moving the party shows players what the party reaches, and Undo hides it again. To show a beat sooner, raise its circles by hand from its drawer; you can't hide one the party has already reached. If the quest isn't shared with anyone yet, the first move that shows a beat shares it with your whole party.
+- Moving the party shows players what the party reaches, and Undo hides it again. To show a beat sooner, raise its circles by hand from its drawer; you can't hide one the party has already reached. A quest shows to your players as soon as one of its beats does.
 - A beat set to **Wait for the others** parks each arriving thread while another open thread could still reach it, then merges them and fires its arrival rules once: you'll see the parked thread as "waiting" rather than live. Threads that never opened, have ended or have gone elsewhere do not hold it up, and a waiting thread is released as soon as nothing can reach the beat any more.
 - If the table does something the flow didn't plan, **Party here** on any beat, or **Something else happened** in the Advance dialog, records it without fighting the gates.
 

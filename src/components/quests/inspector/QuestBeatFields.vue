@@ -41,16 +41,17 @@
       <RichTextEditor v-model="draft.how_it_plays" size="md" placeholder="Checks, pacing, social pressure, exploration, or combat guidance…" :entity-mention-items="entityMentionItems" />
     </label>
 
-    <div class="grid gap-3 md:grid-cols-2">
-      <label class="space-y-1 text-caption font-semibold text-foreground">
-        Rumor copy
-        <RichTextEditor v-model="draft.rumor_text" size="md" allow-secrets placeholder="Shown to players while rumored…" :entity-mention-items="entityMentionItems" />
-      </label>
-      <label class="space-y-1 text-caption font-semibold text-foreground">
-        Reveal copy
-        <RichTextEditor v-model="draft.reveal_text" size="md" allow-secrets placeholder="Shown to players once revealed…" :entity-mention-items="entityMentionItems" />
-      </label>
-    </div>
+    <!-- One or two sentences each: a sentence-sized box, stacked, with the compact
+         toolbar that shows only while typing. A full toolbar over half the
+         column dwarfed the text it edits (14 Nov 2026). -->
+    <label class="block space-y-1 text-caption font-semibold text-foreground">
+      Rumor copy
+      <RichTextEditor v-model="draft.rumor_text" size="sm" toolbar="focus" allow-secrets placeholder="Shown to players while rumored…" :entity-mention-items="entityMentionItems" />
+    </label>
+    <label class="block space-y-1 text-caption font-semibold text-foreground">
+      Reveal copy
+      <RichTextEditor v-model="draft.reveal_text" size="sm" toolbar="focus" allow-secrets placeholder="Shown to players once revealed…" :entity-mention-items="entityMentionItems" />
+    </label>
 
     <AutosaveStatus :status="status" :error="saveError" paused-label="Autosave paused until the beat has a title">
       <template #error-action>

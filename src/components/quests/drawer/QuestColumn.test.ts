@@ -6,11 +6,12 @@ import type { Quest } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({
   updateQuest: vi.fn(),
-  party: [{ id: "p1" }, { id: "p2" }, { id: "p3" }, { id: "p4" }] as Array<{ id: string }>,
+  beats: [] as Array<{ id: string; visibility: string; visible_to: string[] | null }>,
 }));
 
 vi.mock("@/composables/quests/useQuests", () => ({ useUpdateQuest: () => ({ mutateAsync: mocks.updateQuest }) }));
-vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref(mocks.party) }) }));
+vi.mock("@/composables/quests/useQuestFlow", () => ({ useQuestBeats: () => ({ data: ref(mocks.beats) }) }));
+vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref([{ id: "m1", name: "Brannigan" }, { id: "m2", name: "Edda" }, { id: "m3", name: "Corin" }]) }) }));
 vi.mock("@/composables/notes/useEntityMentionItems", () => ({ useEntityMentionItems: () => ({ mentionItems: ref([]) }) }));
 
 const doc = (text: string) => JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
@@ -20,7 +21,7 @@ function quest(overrides: Partial<Quest> = {}): Quest {
   return {
     id: "quest-1", user_id: "u1", campaign_id: "campaign-1", parent_quest_id: null, title: "The Unseen",
     summary: "A rumor at the mill.", dm_content: null, status: "active", giver_npc_id: null, location_id: null,
-    tags: [], player_visible_to: [], started_at: null, resolved_at: null, entry_beat_id: null,
+    tags: [], started_at: null, resolved_at: null, entry_beat_id: null,
     created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z", ...overrides,
   };
 }
@@ -36,6 +37,7 @@ describe("QuestColumn", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mocks.updateQuest.mockReset();
+    mocks.beats = [];
     mocks.updateQuest.mockResolvedValue(undefined);
   });
   afterEach(() => vi.useRealTimers());
@@ -45,12 +47,22 @@ describe("QuestColumn", () => {
     await flushPromises();
   }
 
-  // Fails on a miscount: ids of members who left the party must not count, none/some/all must read differently.
-  it("says where the quest stands and how many of the party have it", () => {
-    expect(mountColumn().text()).toContain("Active · Not shared yet");
-    expect(mountColumn({ player_visible_to: ["p1", "p3"] }).text()).toContain("Shared with 2 of 4");
-    expect(mountColumn({ player_visible_to: ["p1", "p2", "p3", "p4"] }).text()).toContain("Shared with the whole party");
-    expect(mountColumn({ player_visible_to: ["p1", "gone"] }).text()).toContain("Shared with 1 of 4");
+  // Fails if the standing line ignores the beats or their audiences: a quest has no audience of its own,
+  // so it is hidden with no shown beat, the whole party when a shown beat has no audience (null wins
+  // over a members-only one), and otherwise only the union of the shown beats' members.
+  it("says where the quest stands and who the shown beats reach", () => {
+    mocks.beats = [];
+    expect(mountColumn().text()).toContain("Active · Hidden from players");
+    mocks.beats = [{ id: "b1", visibility: "hidden", visible_to: null }, { id: "b2", visibility: "hidden", visible_to: ["m1"] }];
+    expect(mountColumn().text()).toContain("Active · Hidden from players");
+    mocks.beats = [{ id: "b1", visibility: "hidden", visible_to: null }, { id: "b2", visibility: "rumored", visible_to: null }];
+    expect(mountColumn().text()).toContain("Active · Shown to the whole party");
+    mocks.beats = [{ id: "b1", visibility: "revealed", visible_to: ["m1"] }, { id: "b2", visibility: "rumored", visible_to: null }];
+    expect(mountColumn({ status: "completed" }).text()).toContain("Completed · Shown to the whole party");
+    mocks.beats = [{ id: "b1", visibility: "revealed", visible_to: ["m1"] }, { id: "b2", visibility: "hidden", visible_to: ["m2"] }];
+    expect(mountColumn().text()).toContain("Active · Shown to Brannigan");
+    mocks.beats = [{ id: "b1", visibility: "revealed", visible_to: ["m1"] }, { id: "b2", visibility: "revealed", visible_to: ["m2"] }];
+    expect(mountColumn().text()).toContain("Active · Shown to Brannigan and Edda");
   });
 
   // Fails if the line players read writes other columns, or does not trim / null an empty line.

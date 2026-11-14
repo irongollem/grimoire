@@ -28,7 +28,6 @@ export interface PayoffRow {
   caption: string;
   /** "auto" fires from the engine; "you dispatch" is loot, a human action —
    *  the mechanism a row belongs to, not its current delivery state. */
-  chip: "auto" | "you dispatch";
 }
 
 /**
@@ -70,8 +69,9 @@ function delaySuffix(afterDays: number): string {
  *  condition." */
 function consequenceCaption(row: QuestConsequence, outgoingEdges: readonly QuestBeatEdge[], beats: readonly QuestBeat[]): string {
   const edge = row.on_edge_id ? outgoingEdges.find((candidate) => candidate.id === row.on_edge_id) : undefined;
-  const condition = edge ? `on "${beatTitle(beats, edge.target_beat_id)}"` : row.on_beat_outcome === "failed" ? "if it goes wrong" : "on arrival";
-  return `${row.action} · ${condition}${delaySuffix(row.after_days)}`;
+  // When it fires, in words; what it does is the row's summary, so the verb is not said twice.
+  const condition = edge ? `On the route to "${beatTitle(beats, edge.target_beat_id)}"` : row.on_beat_outcome === "failed" ? "If it goes wrong" : "On arrival";
+  return `${condition}${delaySuffix(row.after_days)}`;
 }
 
 function lootSummary(entry: LootPlacement, formatCoins?: (coins: Coins) => string): string {
@@ -143,7 +143,6 @@ export function derivePayoffRows(input: DerivePayoffRowsInput): PayoffRow[] {
           factionLabel: input.factionLabel,
         }),
         caption: consequenceCaption(row, input.outgoingEdges, input.beats),
-        chip: "auto",
       };
     });
   const lootRows = input.loot.map((entry): PayoffRow => ({
@@ -152,8 +151,8 @@ export function derivePayoffRows(input: DerivePayoffRowsInput): PayoffRow[] {
     tone: "primary",
     icon: entry.kind === "currency" ? "coins" : "package",
     summary: lootSummary(entry, input.formatCoins),
-    caption: `loot_placement · ${entry.kind} · ${entry.delivery_state}`,
-    chip: "you dispatch",
+    // Loot is the one payoff that waits for the DM; a rule fires on its own.
+    caption: "Loot: you hand it over",
   }));
   return [...consequenceRows, ...lootRows];
 }

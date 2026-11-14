@@ -10,10 +10,8 @@
     :description="quest ? QUEST_STATUS_LABELS[quest.status] : undefined"
     :contained="!isNew && !!quest"
     :owns-phone-bar="!isNew && !!quest"
+    :headless="!isNew && !!quest"
   >
-    <template v-if="!isNew && quest" #actions>
-      <QuestMoreMenu :quest="quest" />
-    </template>
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
@@ -30,7 +28,17 @@
         :quest-id="quest.id"
         :entry-beat-id="quest.entry_beat_id"
         :focus-current-on-open="route.query.focus === 'current'"
-      />
+      >
+        <!-- The title leads the flow's own row and More ends it: one row instead
+             of a header band above it. The lane is not repeated here; the quest
+             column names it, and the beats show where the story stands. -->
+        <template #lead>
+          <h1 class="hidden min-w-0 truncate text-heading-lg font-bold text-foreground md:block">{{ quest.title || "Untitled Quest" }}</h1>
+        </template>
+        <template #end>
+          <QuestMoreMenu :quest="quest" />
+        </template>
+      </QuestGraphDesigner>
     </template>
   </PageHeader>
 </template>

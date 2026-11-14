@@ -1,8 +1,11 @@
 <template>
-  <section class="space-y-3 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-3 lg:space-y-0 lg:overflow-hidden" aria-label="Quest Build mode">
-    <!-- One toolbar row: the active tab already names the surface, so no
-         heading of its own above the tally (12 Nov 2026). -->
-    <div class="flex shrink-0 flex-wrap items-center gap-2">
+  <!-- From lg the section reaches over the page body's right padding (and pads itself back) and the
+       grid below pulls out again, so the flow and the drawer's rest width reach the screen edge. -->
+  <section class="space-y-3 lg:-mr-6 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-3 lg:space-y-0 lg:overflow-hidden lg:pr-6" aria-label="Quest Build mode">
+    <!-- One toolbar row: the page's title and lane lead it (`lead`), More ends
+         it (`end`), so the quest screen has no header band (14 Nov 2026). -->
+    <div class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2">
+      <slot name="lead" />
       <h2 class="sr-only">Story flow</h2>
       <div>
         <p v-if="tallyTotal" class="flex flex-wrap items-center gap-1" aria-label="Story flow progress">
@@ -23,6 +26,7 @@
         <AppButton :icon="IconLayers" label="Add parallel route" size="sm" class="whitespace-nowrap" @click="openParallelComposer" />
         <AppButton :icon="IconMaximize" label="Fit" size="sm" variant="subtle" class="hidden whitespace-nowrap md:inline-flex" @click="canvas?.fitGraph()" />
         <AppButton v-if="currentBeatId" :icon="IconCenter" label="Current beat" size="sm" variant="subtle" class="hidden whitespace-nowrap md:inline-flex" @click="canvas?.focusCurrent()" />
+        <slot name="end" />
       </div>
     </div>
 
@@ -62,12 +66,13 @@
     <p v-else-if="!beats.length" class="rounded-lg border border-dashed border-border p-8 text-center text-body text-muted-foreground">
       This quest has no beats yet. Use “Add beat” to begin its story flow.
     </p>
-    <div v-else class="relative grid min-w-0 max-w-full items-start gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-stretch">
-      <div id="quest-flow-canvas" class="min-w-0 lg:h-full lg:min-h-0">
+    <div v-else class="relative grid min-w-0 max-w-full items-start gap-3 lg:max-w-none lg:-mr-6 lg:min-h-0 lg:flex-1 lg:gap-0 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-stretch">
+      <div id="quest-flow-canvas" class="min-w-0 lg:isolate lg:h-full lg:min-h-0">
         <QuestFlowCanvas
           ref="canvas"
           :graph-id="`quest-${questId}`"
           :beats="beats"
+          :party="partyMembers"
           :edges="edges"
           :presentations="presentations"
           :visited-edge-ids="visitedEdgeIds"
@@ -76,6 +81,7 @@
           :runtime="runtimeCursors"
           :transitions="transitions"
           :selected-beat-id="selectedBeatId"
+          :selected-edge-id="selectedEdgeId"
           :current-beat-id="currentBeatId"
           :entry-beat-id="entryBeatId"
           :initial-viewport="initialViewport"
@@ -100,6 +106,7 @@
             :key="selectedEdgeId"
             :quest-id="questId"
             :edge-id="selectedEdgeId"
+            :standing="focusThreadId ? standingByThread[focusThreadId] ?? null : null"
             :thread-id="focusThreadId"
             :session-id="markSession.sessionId.value"
             @deselect="select({})"
@@ -117,6 +124,7 @@
             :threads="threads"
             :focus-thread-id="focusThreadId"
             :current-beat-id-by-thread="currentBeatIdByThread"
+            :standing-by-thread="standingByThread"
             :presentations="presentations"
             :entry-beat-id="entryBeatId"
             :session-id="markSession.sessionId.value"
@@ -140,6 +148,7 @@
             :presentations="presentations"
             @edit-text="editingBeatText = true"
             @advance="beatColumn?.openAdvance()"
+            @add-route="addRouteFrom(selectedBeatId)"
           />
           <QuestWide v-else-if="drawerMode === 'quest' && quest" :quest="quest" :current-beat-id-by-thread="currentBeatIdByThread" :visited-count-by-thread="visitedCountByThread" @focus-thread="focusThread" />
         </template>
@@ -172,6 +181,7 @@ import {
   useUpdateQuestBeatEdge,
   useSetQuestBeatPositions,
 } from "@/composables/quests/useQuestFlow";
+import { useParty } from "@/composables/party/useParty";
 import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import { useQuest, useQuestObjectives } from "@/composables/quests/useQuests";
 import { useAllLocations } from "@/composables/locations/useLocations";
@@ -180,6 +190,7 @@ import { useSiteBeatGaps } from "@/composables/quests/useSiteBeatGaps";
 import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { deriveQuestBeatPresentations, presentableBeatOf, tallyQuestReach, visitedRouteEdgeIds, type QuestBeatSiteInput, type QuestBeatStaging } from "@/lib/quests/presentation";
 import { deriveQuestRouteGates } from "@/lib/quests/gates";
+import { threadStandings } from "@/lib/quests/moves";
 import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
 import { readQuestViewport, writeQuestViewport } from "@/lib/quests/viewport";
 import { extractTiptapText } from "@/lib/utils";
@@ -215,6 +226,8 @@ const initialViewport = readQuestViewport(questId);
 const questIdRef = computed(() => questId);
 
 const beatsQuery = useQuestBeats(questIdRef);
+const { data: partyData } = useParty();
+const partyMembers = computed(() => (partyData.value ?? []).map((member) => ({ id: member.id, name: member.name })));
 const edgesQuery = useQuestBeatEdges(questIdRef);
 const edgeGatesQuery = useQuestBeatEdgeGates(questIdRef);
 const questQuery = useQuest(questIdRef);
@@ -340,6 +353,9 @@ const sites = computed<Record<string, QuestBeatSiteInput>>(() => {
 const runtimeCursors = computed(() => (runtimeContextQuery.data.value?.threads ?? [])
   .map((thread) => ({ quest_id: questId, thread_id: thread.id, current_beat_id: thread.current_beat_id })));
 const currentBeatIdByThread = computed(() => Object.fromEntries((runtimeContextQuery.data.value?.threads ?? []).map((thread) => [thread.id, thread.current_beat_id])));
+// Where each thread stands the way the server reads it, so a route or a beat
+// further on can say how the party gets there (#1194).
+const standingByThread = computed(() => threadStandings({ transitions: transitions.value, cursors: currentBeatIdByThread.value, entryBeatId }));
 const visitedCountByThread = computed(() => {
   const counts = new Map<string, Set<string>>();
   for (const transition of transitions.value) {
@@ -456,6 +472,12 @@ function onCommand(command: QuestGraphCommand) {
     pendingMoves.set(command.beatId, command);
     void savePositions();
   }
+}
+
+// "Add route" in a beat's prep opens the composer dialog for a new beat after
+// this one; the drawer stays as it is.
+function addRouteFrom(beatId: string) {
+  openComposer({ type: "create", sourceBeatId: beatId });
 }
 
 function openComposer(command: Extract<QuestGraphCommand, { type: "create" }> = { type: "create" }) {

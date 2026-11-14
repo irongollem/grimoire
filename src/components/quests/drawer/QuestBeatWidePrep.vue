@@ -21,7 +21,7 @@
     <p v-if="saveError" role="alert" class="text-caption text-destructive">{{ saveError }}</p>
     <QuestBeatSitePanel :beat="beat" />
     <QuestConvergeControl :beat="beat" />
-    <QuestBeatRoutesPanel :beat="beat" :edges="edges" :beats="beats" />
+    <QuestBeatRoutesPanel :beat="beat" :edges="edges" :beats="beats" @add-route="emit('add-route')" />
   </section>
 </template>
 
@@ -49,6 +49,7 @@ const { beat, edges, beats, gaps } = defineProps<{
   beats: QuestBeat[];
   gaps: QuestBeatPrepGap[];
 }>();
+const emit = defineEmits<{ "add-route": [] }>();
 
 const { locationOptions } = useLocationTree();
 const updateBeat = useUpdateQuestBeat();

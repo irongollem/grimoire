@@ -19,16 +19,22 @@
   -->
   <path v-if="showRail" :d="path" class="quest-flow-edge-rail nodrag nopan" aria-hidden="true" />
   <EdgeLabelRenderer>
-    <span
+    <!-- The pill is teleported out of the edge, so the edge's own click never
+         reaches it; it selects its route itself, as the line does. A bare button:
+         the pill's look is the edge's, not a button recipe. -->
+    <button
+      type="button"
       class="quest-flow-edge-label text-eyebrow nodrag nopan"
       :class="labelClass"
       :title="labelTooltip"
+      :aria-label="`Route: ${pillText}`"
       :style="{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }"
+      @click.stop="emit('select', id)"
     >
       <IconLayers v-if="kindLabel === 'parallel'" class="h-3 w-3" aria-hidden="true" />
       <IconLock v-else-if="kindLabel === 'gate'" class="h-3 w-3" aria-hidden="true" />
       <span class="quest-flow-edge-label__text">{{ pillText }}</span>
-    </span>
+    </button>
   </EdgeLabelRenderer>
 </template>
 
@@ -66,6 +72,7 @@ const {
   interactionWidth?: number;
   data?: QuestFlowEdgeData;
 }>();
+const emit = defineEmits<{ select: [edgeId: string] }>();
 
 const route = computed(() => getSmoothStepPath({
   sourceX,
@@ -100,6 +107,7 @@ const labelClass = computed(() => ({
   // entirely — the default muted pill — which is why this is checked first.
   "is-stranded": kindLabel.value === "choice" && Boolean(data?.stranded),
   "is-choice": kindLabel.value === "choice" && !data?.stranded,
+  "is-selected": Boolean(data?.selected),
 }));
 // The double-rail look is the "open, parallel" state only — a closed gate or
 // a stranded target already reads as dashed muted-foreground, and drawing
@@ -128,6 +136,8 @@ const labelY = computed(() => sourceY + (route.value[2] - sourceY) * 2 * LABEL_T
   color: var(--muted-foreground);
   pointer-events: all;
   max-width: 12rem;
+  cursor: pointer;
+  font: inherit;
 }
 .quest-flow-edge-label__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 /* An open choice route is the "pri" pill in the Story flow frame — gold
@@ -136,4 +146,5 @@ const labelY = computed(() => sourceY + (route.value[2] - sourceY) * 2 * LABEL_T
 .quest-flow-edge-label.is-parallel { border-color: color-mix(in oklab, var(--color-tone-info) 55%, transparent); color: var(--color-ink-info); }
 .quest-flow-edge-label.is-gate { border-color: var(--muted-foreground); color: var(--muted-foreground); }
 .quest-flow-edge-label.is-stranded { color: var(--muted-foreground); }
+.quest-flow-edge-label.is-selected { background: var(--primary-fill, var(--primary)); border-color: var(--primary-edge, var(--primary)); color: var(--primary-fill-foreground, var(--primary-foreground)); }
 </style>

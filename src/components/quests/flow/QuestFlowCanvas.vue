@@ -35,6 +35,7 @@
             :kind="slotProps.data.kind"
             :visibility="slotProps.data.visibility"
             :secret="slotProps.data.secret"
+            :audience="audienceOf(slotProps.data.visibleTo)"
             :selected="slotProps.id === selectedBeatId"
             :current="slotProps.id === currentBeatId"
             :presentation="slotProps.data.presentation"
@@ -49,7 +50,7 @@
           />
         </template>
         <template #edge-questRoute="slotProps">
-          <QuestFlowEdge v-bind="slotProps" />
+          <QuestFlowEdge v-bind="slotProps" @select="emit('command', { type: 'select-edge', edgeId: $event })" />
         </template>
       </VueFlow>
       <!-- Story flow frame's canvas legend: the same three colours the wires
@@ -92,6 +93,7 @@ import { openingBeatId, QUEST_FLOW_MIN_ZOOM, QUEST_FLOW_READABLE_ZOOM, viewportS
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
 import { deriveSwimlanes, type SwimlaneRuntimeCursor, type SwimlaneTransition } from "@/lib/quests/swimlanes";
 import type { ThreadLike } from "@/lib/quests/threads";
+import { audienceNames, type AudienceMember } from "@/lib/quests/visibility";
 import type { QuestBeat, QuestBeatEdge, QuestRouteGate } from "@/types/quest.types";
 
 // A beat card is 15rem (240px) wide; it has no fixed height (its content
@@ -100,13 +102,26 @@ import type { QuestBeat, QuestBeatEdge, QuestRouteGate } from "@/types/quest.typ
 // needs to fully enclose the node, not hug it exactly.
 const SWIMLANE_NODE_SIZE = { width: 240, height: 150 };
 
-const { graphId, beats, edges, presentations = {}, visitedEdgeIds = new Set<string>(), edgeGates = {}, threads = [], runtime = [], transitions = [], selectedBeatId = null, currentBeatId = null, entryBeatId = null, frameOnOpen = true, initialViewport = null, editable = true } = defineProps<{ graphId: string; beats: QuestBeat[]; edges: QuestBeatEdge[]; presentations?: Record<string, QuestBeatPresentation>; visitedEdgeIds?: ReadonlySet<string>; edgeGates?: Record<string, QuestRouteGate>; threads?: ThreadLike[]; runtime?: SwimlaneRuntimeCursor[]; transitions?: SwimlaneTransition[]; selectedBeatId?: string | null; currentBeatId?: string | null; entryBeatId?: string | null; frameOnOpen?: boolean; initialViewport?: ViewportTransform | null; editable?: boolean }>();
+const { graphId, beats, edges, presentations = {}, visitedEdgeIds = new Set<string>(), edgeGates = {}, threads = [], runtime = [], transitions = [], selectedBeatId = null, selectedEdgeId = null, currentBeatId = null, entryBeatId = null, frameOnOpen = true, initialViewport = null, editable = true, party = [] } = defineProps<{ graphId: string; beats: QuestBeat[]; edges: QuestBeatEdge[]; presentations?: Record<string, QuestBeatPresentation>; visitedEdgeIds?: ReadonlySet<string>; edgeGates?: Record<string, QuestRouteGate>; threads?: ThreadLike[]; runtime?: SwimlaneRuntimeCursor[]; transitions?: SwimlaneTransition[]; selectedBeatId?: string | null; selectedEdgeId?: string | null; currentBeatId?: string | null; entryBeatId?: string | null; frameOnOpen?: boolean; initialViewport?: ViewportTransform | null; editable?: boolean; party?: AudienceMember[] }>();
+
+/** The chip a members-only beat carries on its node ("2 of 4"); the whole party has none. */
+function audienceOf(visibleTo: string[] | null): { label: string; names: string } | null {
+  // No chip for the whole party, and none until the party has loaded (a count of 0 would read wrong).
+  if (!visibleTo || party.length === 0) return null;
+  return { label: `${visibleTo.length} of ${party.length}`, names: audienceNames(visibleTo, party) };
+}
 const emit = defineEmits<{ command: [command: QuestGraphCommand]; "viewport-change": [viewport: ViewportTransform] }>();
 const flow = useVueFlow(graphId);
 const canvasEl = ref<HTMLElement | null>(null);
 const graph = computed(() => toQuestFlowGraph(beats, edges, presentations, visitedEdgeIds, edgeGates, entryBeatId));
 const nodes = computed({ get: () => graph.value.nodes, set: () => undefined });
-const flowEdges = computed({ get: () => graph.value.edges, set: () => undefined });
+// The selected route reads as selected on the flow, as a selected beat does.
+const flowEdges = computed({
+  get: () => graph.value.edges.map((edge) => (edge.id === selectedEdgeId
+    ? { ...edge, class: `${edge.class ?? ""} is-selected`.trim(), data: { ...edge.data, selected: true } }
+    : edge)),
+  set: () => undefined,
+});
 const swimlanes = computed(() => deriveSwimlanes({ threads, runtime, transitions, beats, nodeSize: SWIMLANE_NODE_SIZE }));
 let pendingConnectionSource: string | null = null;
 let connectionCompleted = false;
@@ -308,6 +323,7 @@ defineExpose({ fitGraph, focusCurrent });
    the thin background-coloured groove drawn by `QuestFlowEdge`'s own
    `.quest-flow-edge-rail` path on top of it. */
 :deep(.vue-flow__edge.is-parallel .vue-flow__edge-path) { stroke: var(--color-tone-info); stroke-width: .35rem; }
+:deep(.vue-flow__edge.is-selected .vue-flow__edge-path) { stroke: var(--primary); stroke-width: .3rem; }
 :deep(.vue-flow__edge .quest-flow-edge-rail) { fill: none; stroke: var(--background); stroke-width: .1rem; pointer-events: none; }
 /* Gated-closed and stranded both read as "not open right now," regardless of
    route kind — placed last so it wins over the parallel rule above when an

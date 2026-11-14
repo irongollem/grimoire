@@ -10,10 +10,7 @@
 --   3. A beat can be Secret: no rumour before the party arrives.
 --   4. A move writes what players know. Arriving reveals the beat; a beat one
 --      route away becomes rumored unless it is Secret. The transition records
---      what it changed, so Undo takes exactly that back. The first beat a move
---      shows on a quest shared with nobody shares it with the whole party, as
---      the client did before (useShareQuest), now server-side because the
---      client no longer sets visibility on a move.
+--      what it changed, so Undo takes exactly that back.
 --   5. Objectives follow their beat: players see an objective once it is
 --      raised (status is no longer 'dormant'). quest_objectives
 --      .is_player_visible goes, and the `reveal` ledger verb folds into
@@ -23,6 +20,14 @@
 --   6. document_imports.own_writing, and the import prompt: scenes are
 --      paraphrased in full, routes carry kind/label/note, and the quest has
 --      dm_content.
+--   7. A quest has no visibility of its own: players see it when any of its
+--      beats is visible to them. A beat is shown to the whole party or to
+--      only some members (quest_beats.visible_to). quests.player_visible_to and per-member
+--      sharing go (the maintainer, 14 Nov 2026: a quest hidden while its
+--      beats showed was "exactly the kind of thing I said I don't want").
+--      Moving a quest to Active rumors its entry beat, which is what makes a
+--      quest appear; the first visible beat announces it. Existing shares are
+--      translated into beats below so players keep seeing the same quests.
 
 -- 1–3. ─────────────────────────────────────────────────────────────────────
 alter table public.quests add column dm_content text;
@@ -671,7 +676,8 @@ alter table public.quest_objectives drop column is_player_visible;
 alter table public.quest_consequence_events drop column previous_is_player_visible;
 
 -- 2. The edge's label, everywhere it was thread_label ──────────────────────
-CREATE OR REPLACE FUNCTION public.mark_quest_move(p_campaign_id uuid, p_quest_id uuid, p_thread_id uuid, p_kind text, p_edge_id uuid DEFAULT NULL::uuid, p_beat_id uuid DEFAULT NULL::uuid, p_session_id uuid DEFAULT NULL::uuid, p_place_party boolean DEFAULT false, p_dispatch_loot_ids uuid[] DEFAULT NULL::uuid[], p_move_party_to uuid DEFAULT NULL::uuid)
+drop function public.mark_quest_move(uuid, uuid, uuid, text, uuid, uuid, uuid, boolean, uuid[], uuid);
+CREATE OR REPLACE FUNCTION public.mark_quest_move(p_campaign_id uuid, p_quest_id uuid, p_thread_id uuid, p_kind text, p_edge_id uuid DEFAULT NULL::uuid, p_beat_id uuid DEFAULT NULL::uuid, p_session_id uuid DEFAULT NULL::uuid, p_place_party boolean DEFAULT false, p_dispatch_loot_ids uuid[] DEFAULT NULL::uuid[], p_move_party_to uuid DEFAULT NULL::uuid, p_via uuid[] DEFAULT NULL::uuid[])
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -681,8 +687,12 @@ AS $function$
 -- consequences a played arrival would. Every transition one call writes
 -- carries the same `move_id` in its provenance, so Undo takes the whole move
 -- back at once. A move further along the story fills in the way there: the
--- beats on the shortest route from where the thread last was (or from the
--- quest's entry, when it has not started) that the thread has not reached.
+-- beats from where the thread last was (or from the quest's entry, when it
+-- has not started) that the thread has not reached. When more than one way
+-- leads there the DM names it (`p_via`, the beats in order, start to end,
+-- #1194): the player's quest log is told in that order, so a guessed way
+-- would tell scenes the party never played. Without `p_via` the way is the
+-- shortest, which the client only relies on when there is one way.
 declare
   v_quest public.quests%rowtype;
   v_thread public.quest_threads%rowtype;
@@ -703,6 +713,8 @@ declare
   v_move_thread uuid := p_thread_id;
   v_path uuid[];
   v_beat uuid;
+  v_step_edge uuid;
+  i int;
 begin
   if auth.uid() is null or not coalesce(private.is_campaign_dm(p_campaign_id), false) then
     raise exception 'Not authorized';
@@ -785,7 +797,26 @@ begin
   -- Fill in the way to v_reach: each beat on the shortest route there that
   -- this thread has not reached, in story order. With no start, the route
   -- runs from the entry, which is then filled in too.
-  v_path := private.quest_beat_path(p_quest_id, coalesce(v_prev, v_quest.entry_beat_id), v_reach);
+  if p_via is not null then
+    -- The named way must be a real one: from where the thread stands to the
+    -- move's beat, every step along a route of this quest.
+    if cardinality(p_via) < 1
+       or p_via[1] is distinct from coalesce(v_prev, v_quest.entry_beat_id)
+       or p_via[cardinality(p_via)] is distinct from v_reach then
+      raise exception 'That way does not lead from where the party is to this beat' using errcode = '22023';
+    end if;
+    for i in 2 .. cardinality(p_via) loop
+      if not exists (
+        select 1 from public.quest_beat_edges e
+         where e.quest_id = p_quest_id and e.source_beat_id = p_via[i - 1] and e.target_beat_id = p_via[i]
+      ) then
+        raise exception 'That way does not follow the routes of this quest' using errcode = '22023';
+      end if;
+    end loop;
+    v_path := p_via;
+  else
+    v_path := private.quest_beat_path(p_quest_id, coalesce(v_prev, v_quest.entry_beat_id), v_reach);
+  end if;
   if v_path is not null then
     foreach v_beat in array v_path loop
       -- v_reach itself is the move's own arrival below, except on a route,
@@ -797,6 +828,11 @@ begin
            and t.thread_id = p_thread_id and t.to_beat_id = v_beat
       );
       select title into v_title from public.quest_beats where id = v_beat;
+      -- The route this step took, so it reads as taken (its siblings cut off)
+      -- and its own payoffs fire, as they would at the table.
+      select e.id into v_step_edge from public.quest_beat_edges e
+       where e.quest_id = p_quest_id and e.source_beat_id = v_prev and e.target_beat_id = v_beat
+       order by e.created_at limit 1;
       insert into public.quest_beat_transitions (
         campaign_id, from_quest_id, from_beat_id, to_quest_id, to_beat_id,
         transition_kind, created_by, from_quest_title, from_beat_title,
@@ -807,10 +843,10 @@ begin
         'assert', auth.uid(), case when v_prev is null then null else v_quest.title end,
         (select title from public.quest_beats where id = v_prev),
         v_quest.title, v_title, p_thread_id, p_session_id,
-        jsonb_build_object('by', 'mark', 'move_id', v_move_id, 'filled_in', true)
+        jsonb_strip_nulls(jsonb_build_object('by', 'mark', 'move_id', v_move_id, 'filled_in', true, 'edge_id', v_step_edge))
       ) returning id into v_tid;
       v_tids := v_tids || v_tid;
-      perform private.apply_quest_consequences(p_campaign_id, p_quest_id, v_tid, v_beat, null);
+      perform private.apply_quest_consequences(p_campaign_id, p_quest_id, v_tid, v_beat, v_step_edge);
       v_prev := v_beat;
     end loop;
   end if;
@@ -929,6 +965,9 @@ begin
                          where s.quest_id = p_quest_id and s.campaign_id = p_campaign_id and s.thread_id = v_move_thread)
   );
 end $function$;
+
+revoke execute on function public.mark_quest_move(uuid, uuid, uuid, text, uuid, uuid, uuid, boolean, uuid[], uuid, uuid[]) from public, anon;
+grant execute on function public.mark_quest_move(uuid, uuid, uuid, text, uuid, uuid, uuid, boolean, uuid[], uuid, uuid[]) to authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.transition_quest_runtime(p_campaign_id uuid, p_quest_id uuid, p_thread_id uuid, p_command text, p_expected_version bigint, p_target_beat_id uuid DEFAULT NULL::uuid, p_edge_id uuid DEFAULT NULL::uuid, p_reason text DEFAULT NULL::text, p_push_return boolean DEFAULT false, p_provenance jsonb DEFAULT '{}'::jsonb, p_spawn_edge_ids uuid[] DEFAULT '{}'::uuid[], p_hold_consequence_ids uuid[] DEFAULT '{}'::uuid[], p_dispatch_loot_ids uuid[] DEFAULT '{}'::uuid[])
  RETURNS jsonb
@@ -1175,7 +1214,6 @@ begin
            where ev.transition_id = t.id and ev.undone_at is null
         )
         or t.visibility_changes <> '[]'::jsonb
-        or t.shared_with is not null
       )
     order by t.created_at desc, t.id desc
     limit 1;
@@ -1489,13 +1527,9 @@ $function$;
 
 -- 4. A move writes what players know ──────────────────────────────────────
 alter table public.quest_beat_transitions
-  add column visibility_changes jsonb not null default '[]'::jsonb,
-  add column shared_with uuid[],
-  add column shared_message_id uuid;
+  add column visibility_changes jsonb not null default '[]'::jsonb;
 comment on column public.quest_beat_transitions.visibility_changes is
   'Beats whose visibility this arrival changed: [{beat_id, from, to}]. Undo restores them. #1194.';
-comment on column public.quest_beat_transitions.shared_with is
-  'Party members this arrival auto-shared the quest with, so Undo can take only those back. #1194.';
 
 create or replace function private.quest_arrival_visibility()
 returns trigger
@@ -1506,8 +1540,6 @@ as $$
 declare
   v_row record;
   v_changes jsonb := '[]'::jsonb;
-  v_quest public.quests%rowtype;
-  v_members uuid[];
 begin
   if new.to_beat_id is null then
     return new;
@@ -1533,30 +1565,6 @@ begin
     v_changes := v_changes || jsonb_build_object('beat_id', v_row.id, 'from', v_row.prev, 'to', v_row.next);
   end loop;
   new.visibility_changes := v_changes;
-
-  if jsonb_array_length(v_changes) = 0 then
-    return new;
-  end if;
-
-  -- A quest shared with nobody is shared with the whole party the first time
-  -- a move shows players one of its beats. A partial share stays as the DM
-  -- set it.
-  select q.* into v_quest
-    from public.quests q
-    join public.quest_beats b on b.quest_id = q.id
-   where b.id = new.to_beat_id;
-  if found and cardinality(v_quest.player_visible_to) = 0 then
-    v_members := array(select pm.id from public.party_members pm where pm.campaign_id = v_quest.campaign_id order by pm.created_at);
-    if cardinality(v_members) > 0 then
-      update public.quests set player_visible_to = v_members where id = v_quest.id;
-      insert into public.campaign_messages (campaign_id, user_id, recipient_user_id, sender_name, message, type, metadata)
-      values (v_quest.campaign_id, v_quest.user_id, null, null,
-              '📋 Quest shared: "' || coalesce(nullif(btrim(v_quest.title), ''), 'Untitled Quest') || '"', 'system',
-              jsonb_build_object('entity_type', 'quest', 'entity_id', v_quest.id))
-      returning id into new.shared_message_id;
-      new.shared_with := v_members;
-    end if;
-  end if;
   return new;
 end;
 $$;
@@ -1575,8 +1583,8 @@ AS $function$
 begin
   -- #1194: what a move made the players know goes back with it, but only
   -- where the beat still shows what the move set, so a DM's later change by
-  -- hand stands. The auto-share goes back the same way, with its
-  -- announcement, and only the members that move added.
+  -- hand stands. (Whether players see the quest follows from its beats, so
+  -- there is no share to take back.)
   update public.quest_beats b
      set visibility = c.value ->> 'from'
     from public.quest_beat_transitions t
@@ -1585,23 +1593,9 @@ begin
      and b.id = (c.value ->> 'beat_id')::uuid
      and b.visibility = c.value ->> 'to';
 
-  update public.quests q
-     set player_visible_to = array(
-           select x from unnest(q.player_visible_to) x
-           except
-           select y from unnest(t.shared_with) y)
-    from public.quest_beat_transitions t
-   where t.id = p_transition_id
-     and t.shared_with is not null
-     and q.id = t.to_quest_id;
-
-  delete from public.campaign_messages m
-   using public.quest_beat_transitions t
-   where t.id = p_transition_id and m.id = t.shared_message_id;
-
   -- Spent: a second step back must not find this arrival again.
   update public.quest_beat_transitions
-     set visibility_changes = '[]'::jsonb, shared_with = null, shared_message_id = null
+     set visibility_changes = '[]'::jsonb
    where id = p_transition_id;
 
   update public.quest_objectives o
@@ -1746,6 +1740,946 @@ begin
    where transition_id = p_transition_id and undone_at is null;
 end;
 $function$;
+
+
+-- 7. A quest is visible when one of its beats is ─────────────────────────
+-- A beat is shown to the whole party, or to only some of it (a private offer
+-- to one character). Players see a quest when they can see one of its beats.
+alter table public.quest_beats add column visible_to uuid[];
+comment on column public.quest_beats.visible_to is
+  'Who of the party sees this beat while it is rumored or revealed: null is the whole party, else only these party members. #1194.';
+
+create or replace function private.beat_seen_by(p_visibility text, p_visible_to uuid[], p_member uuid)
+returns boolean
+language sql
+immutable
+set search_path = public
+as $$
+  -- Total: no member (a seat-less account) sees nothing.
+  select p_visibility <> 'hidden' and p_member is not null
+     and (p_visible_to is null or p_member = any (p_visible_to));
+$$;
+
+create or replace function private.quest_shown_to(p_quest_id uuid, p_member uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.quest_beats b
+     where b.quest_id = p_quest_id and private.beat_seen_by(b.visibility, b.visible_to, p_member)
+  );
+$$;
+comment on function private.quest_shown_to(uuid, uuid) is
+  'True when this party member can see the quest: one of its beats is shown to them. #1194.';
+
+create or replace function private.quest_shown_to_all(p_quest_id uuid, p_members uuid[])
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(bool_and(private.quest_shown_to(p_quest_id, m)), false) from unnest(p_members) m;
+$$;
+
+create or replace function private.is_quest_player_visible(p_quest_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  -- The caller holds a seat in the quest's campaign and can see one of its beats.
+  select exists (
+    select 1
+      from public.quests q
+      join public.campaign_members cm on cm.campaign_id = q.campaign_id
+     where q.id = p_quest_id
+       and cm.user_id = (select auth.uid())
+       and private.quest_shown_to(q.id, cm.party_member_id)
+  );
+$$;
+
+-- What a handout or a notice-board pin does to a quest those members learn
+-- of: an undiscovered quest becomes active, and its entry beat is shown to
+-- them (null: the whole party). A beat already shown to some gains the rest.
+create or replace function private.reveal_quest(p_campaign_id uuid, p_quest_id uuid, p_members uuid[])
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  -- The beat first: activating the quest fires quests_active_rumors_entry,
+  -- which would show a still-hidden entry beat to the whole party before the
+  -- members could be named.
+  update public.quest_beats b
+     set visibility = case when b.visibility = 'hidden' then 'rumored' else b.visibility end,
+         visible_to = case
+           when p_members is null then null
+           when b.visibility = 'hidden' then p_members
+           when b.visible_to is null then null
+           else array(select distinct x from unnest(b.visible_to || p_members) x)
+         end
+    from public.quests q
+   where q.id = p_quest_id and q.campaign_id = p_campaign_id and b.id = q.entry_beat_id;
+  update public.quests
+     set status = 'active'::quest_status_enum
+   where id = p_quest_id and campaign_id = p_campaign_id and status = 'undiscovered';
+end;
+$$;
+-- Called by private.apply_handout_reveals, which runs as the DM sharing the
+-- handout, so the DM's role needs it, as it needed reveal_quest_to. private is
+-- not published, so no client can call it directly.
+revoke execute on function private.reveal_quest(uuid, uuid, uuid[]) from public, anon;
+grant execute on function private.reveal_quest(uuid, uuid, uuid[]) to authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.get_player_visible_quests(p_campaign_id uuid DEFAULT NULL::uuid, p_quest_id uuid DEFAULT NULL::uuid, p_preview_party_member_id uuid DEFAULT NULL::uuid)
+ RETURNS SETOF quests
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'private'
+AS $function$
+begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+  if p_preview_party_member_id is not null and not exists (
+    select 1 from public.party_members pm
+    where pm.id = p_preview_party_member_id
+      and (p_campaign_id is null or pm.campaign_id = p_campaign_id)
+      and coalesce(private.is_campaign_dm(pm.campaign_id), false)
+  ) then raise exception 'Preview audience is not available to this DM'; end if;
+
+  -- Column list narrowed by #799. A SETOF quests projection cannot name a
+  -- column that no longer exists, and the quest-level payout fields are dropped
+  -- below: loot is an event, so it reaches players through the beat that grants
+  -- it (loot_placements, renamed from quest_beat_loot by #830 when rooms
+  -- gained the same verb), not through the quest header.
+  return query select q.*
+  from public.quests q
+  where q.campaign_id is not null
+    and (p_campaign_id is null or q.campaign_id = p_campaign_id)
+    and (p_quest_id is null or q.id = p_quest_id)
+    and case
+      when p_preview_party_member_id is null then private.is_quest_player_visible(q.id)
+      else private.quest_shown_to(q.id, p_preview_party_member_id)
+        and coalesce(private.is_campaign_dm(q.campaign_id), false)
+    end;
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_player_visible_quest_beats(p_campaign_id uuid, p_quest_id uuid DEFAULT NULL::uuid, p_preview_party_member_id uuid DEFAULT NULL::uuid)
+ RETURNS TABLE(id uuid, quest_id uuid, campaign_id uuid, visibility text, kind text, presentation_hint text, player_text text, story_order integer, attachments jsonb, visits jsonb, updated_at timestamp with time zone, staged_at_location_id uuid, thread_id uuid, thread_label text, is_current boolean, payoff jsonb)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'private'
+AS $function$
+declare
+  v_member uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+  if p_preview_party_member_id is not null and not coalesce(private.is_campaign_dm(p_campaign_id), false) then
+    raise exception 'Only a campaign DM can choose a preview audience';
+  end if;
+  if p_preview_party_member_id is not null and not exists (
+    select 1 from public.party_members pm
+    where pm.id = p_preview_party_member_id and pm.campaign_id = p_campaign_id
+  ) then
+    raise exception 'Preview audience is not in this campaign';
+  end if;
+
+  v_member := coalesce(p_preview_party_member_id, (
+    select cm.party_member_id from public.campaign_members cm
+     where cm.campaign_id = p_campaign_id and cm.user_id = auth.uid()
+     limit 1));
+
+  return query
+  with recursive scoped as (
+    select b.id, b.quest_id, b.is_improvised, b.kind
+    from public.quest_beats b
+    join public.quests q on q.id = b.quest_id and q.campaign_id = b.campaign_id
+    where b.campaign_id = p_campaign_id
+      and (p_quest_id is null or b.quest_id = p_quest_id)
+      and case
+        when p_preview_party_member_id is null then private.is_quest_player_visible(b.quest_id)
+        else private.quest_shown_to(b.quest_id, p_preview_party_member_id)
+      end
+  ),
+  roots as (
+    select s.id
+    from scoped s
+    where not exists (
+        select 1 from public.quest_beat_edges e where e.target_beat_id = s.id
+      )
+      and not s.is_improvised
+      and s.kind is distinct from 'archived'
+  ),
+  walk as (
+    select r.id as beat_id, 0 as depth, array[r.id] as seen
+    from roots r
+    union all
+    select e.target_beat_id, w.depth + 1, w.seen || e.target_beat_id
+    from walk w
+    join public.quest_beat_edges e on e.source_beat_id = w.beat_id
+    where not (e.target_beat_id = any(w.seen))
+  ),
+  depths as (
+    select w.beat_id, max(w.depth) as depth
+    from walk w
+    group by w.beat_id
+  ),
+
+  -- ── Which thread a beat belongs to, on the player's side ─────────────────
+  --
+  -- Every quest has a "Main" thread from the day it is created (the
+  -- create_quest_main_thread trigger), used both as the fallback and as the
+  -- column a thread folds into until it has said something the party heard.
+  main_threads as (
+    select t.quest_id, t.id as main_thread_id
+    from public.quest_threads t
+    where t.campaign_id = p_campaign_id
+      and (p_quest_id is null or t.quest_id = p_quest_id)
+      and t.label = 'Main'
+  ),
+  -- The thread that actually walked into a beat, first. Asserts count — a
+  -- beat recorded as already played is a real arrival. `seq`, not
+  -- `created_at`: two transitions in one transaction share a timestamp.
+  first_visit_thread as (
+    select distinct on (tr.to_quest_id, tr.to_beat_id)
+      tr.to_quest_id as quest_id, tr.to_beat_id as beat_id, tr.thread_id
+    from public.quest_beat_transitions tr
+    where tr.campaign_id = p_campaign_id
+      and tr.thread_id is not null
+      and tr.to_beat_id is not null
+      and (p_quest_id is null or tr.to_quest_id = p_quest_id)
+    order by tr.to_quest_id, tr.to_beat_id, tr.seq asc
+  ),
+  -- For a beat nobody has visited yet (revealed early, or rumoured ahead of
+  -- the party), whichever live cursor can still reach it forward claims it.
+  -- A waiting thread can still reach beyond its converge point; a closed or
+  -- merged one reaches nowhere new.
+  live_cursors as (
+    select s.quest_id, s.thread_id, s.current_beat_id
+    from public.quest_runtime_state s
+    join public.quest_threads t on t.id = s.thread_id
+    where s.campaign_id = p_campaign_id
+      and (p_quest_id is null or s.quest_id = p_quest_id)
+      and s.current_beat_id is not null
+      and t.status in ('live', 'waiting')
+  ),
+  reach as (
+    select lc.quest_id, lc.thread_id, lc.current_beat_id as beat_id, array[lc.current_beat_id] as seen
+    from live_cursors lc
+    union all
+    select r.quest_id, r.thread_id, e.target_beat_id, r.seen || e.target_beat_id
+    from reach r
+    join public.quest_beat_edges e
+      on e.source_beat_id = r.beat_id and e.quest_id = r.quest_id
+    where not (e.target_beat_id = any(r.seen))
+  ),
+  -- Two live threads reaching the same beat: the senior one (oldest, Main
+  -- when it qualifies) wins — deterministic, and keeps a foreshadowed beat
+  -- out of a thread that only glimpses it from a spur.
+  forward_thread as (
+    select distinct on (r.quest_id, r.beat_id)
+      r.quest_id, r.beat_id, r.thread_id
+    from reach r
+    join public.quest_threads t on t.id = r.thread_id
+    order by r.quest_id, r.beat_id, t.created_at asc, t.id asc
+  ),
+  raw_assign as (
+    select
+      b.id as beat_id, b.quest_id,
+      coalesce(fv.thread_id, ft.thread_id, mt.main_thread_id) as raw_thread_id
+    from public.quest_beats b
+    join scoped s on s.id = b.id
+    left join first_visit_thread fv on fv.quest_id = b.quest_id and fv.beat_id = b.id
+    left join forward_thread ft on ft.quest_id = b.quest_id and ft.beat_id = b.id
+    left join main_threads mt on mt.quest_id = b.quest_id
+    where private.beat_seen_by(b.visibility, b.visible_to, v_member)
+  ),
+  -- A thread earns its own column once at least one beat assigned to it is
+  -- revealed. All rumour or hidden means a layer opened in secret: it stays
+  -- folded into Main until it says something the party has heard.
+  earned_threads as (
+    select distinct ra.quest_id, ra.raw_thread_id
+    from raw_assign ra
+    join public.quest_beats b on b.id = ra.beat_id
+    where b.visibility = 'revealed' and private.beat_seen_by(b.visibility, b.visible_to, v_member) and ra.raw_thread_id is not null
+  ),
+  assign as (
+    select
+      ra.beat_id,
+      case when et.raw_thread_id is not null then ra.raw_thread_id else mt.main_thread_id end as thread_id
+    from raw_assign ra
+    left join earned_threads et on et.quest_id = ra.quest_id and et.raw_thread_id = ra.raw_thread_id
+    left join main_threads mt on mt.quest_id = ra.quest_id
+  )
+
+  select
+    b.id,
+    b.quest_id,
+    b.campaign_id,
+    b.visibility,
+    b.kind,
+    b.presentation_hint,
+    -- The one change in this version: the text passes the secret-block strip.
+    private.withhold_secret_blocks(case b.visibility when 'rumored' then b.rumor_text when 'revealed' then b.reveal_text end),
+    coalesce(d.depth, 1000000)::integer,
+    case when b.visibility = 'revealed' then coalesce((
+      select jsonb_agg(safe.summary order by safe.sort_order, safe.created_at, safe.attachment_id)
+      from (
+        select a.id attachment_id, a.sort_order, a.created_at,
+          jsonb_strip_nulls(jsonb_build_object(
+            'attachment_id', a.id, 'type', qr.ref_type, 'ref_id', qr.ref_id,
+            'role', nullif(a.role, '')
+          )) summary
+        from public.quest_beat_attachments a
+        join public.quest_refs qr on qr.quest_id = a.quest_id and qr.is_player_visible and (
+          (a.attachment_type = 'quest_ref' and qr.id::text = a.ref_id)
+          or (a.attachment_type in ('encounter', 'npc', 'faction', 'item', 'monster')
+            and qr.ref_type = a.attachment_type
+            and qr.ref_id::text = a.ref_id)
+        )
+        where a.beat_id = b.id
+      ) safe
+    ), '[]'::jsonb) else '[]'::jsonb end,
+    coalesce((
+      select jsonb_agg(jsonb_build_object('visit_id', t.id, 'visited_at', t.created_at) order by t.created_at, t.id)
+      from public.quest_beat_transitions t
+      where t.campaign_id = b.campaign_id and t.to_quest_id = b.quest_id and t.to_beat_id = b.id
+    ), '[]'::jsonb),
+    b.updated_at,
+    case when b.visibility = 'revealed' then b.staged_at_location_id end,
+    a.thread_id,
+    th.label,
+    exists (
+      select 1
+      from public.quest_runtime_state s2
+      join public.quest_threads t2 on t2.id = s2.thread_id
+      where s2.campaign_id = b.campaign_id
+        and s2.quest_id = b.quest_id
+        and s2.current_beat_id = b.id
+        and t2.status in ('live', 'waiting')
+    ),
+    case when b.visibility = 'revealed' then coalesce((
+      select jsonb_agg(entry.item order by entry.item_group, entry.sort_at, entry.tiebreak)
+      from (
+        -- Knowledge the party learned here: journal entries a grant_knowledge
+        -- rule wrote from an event on one of this beat's arrival transitions.
+        select 1 as item_group, ev.created_at as sort_at, ev.id as tiebreak,
+          jsonb_build_object('kind', 'knowledge', 'text', pje.content) as item
+        from public.quest_consequence_events ev
+        join public.quest_beat_transitions trx on trx.id = ev.transition_id
+        join public.player_journal_entries pje on pje.id = ev.journal_entry_id
+        where trx.campaign_id = b.campaign_id
+          and trx.to_quest_id = b.quest_id
+          and trx.to_beat_id = b.id
+          and ev.journal_entry_id is not null
+
+        union all
+
+        -- Loot dispatched from this beat. Only dispatched rows: loot still
+        -- held is DM prep, not yet part of the party's story. The delivery
+        -- ladder collapses to the two states a player acts on.
+        select 2, l.dispatched_at, l.id,
+          jsonb_build_object(
+            'kind', 'loot',
+            'label', coalesce(nullif(l.label, ''), i.name, li.name, l.payload ->> 'loot_table_name', 'Loot'),
+            'state', computed.state,
+            'claimed_by', case when computed.state = 'claimed' then computed.claimed_by else null end,
+            'message_id', l.dispatch_message_id
+          )
+        from public.loot_placements l
+        left join public.items i on i.id = l.item_id
+        left join public.library_items li on li.id = l.library_item_id
+        left join public.campaign_messages m on m.id = l.dispatch_message_id
+        cross join lateral (
+          select
+            case
+              when m.id is null then 'claimed'
+              when l.kind = 'item' and coalesce((m.metadata ->> 'quantity_remaining')::integer, l.quantity) <= 0 then 'claimed'
+              when l.kind = 'currency' and m.metadata ->> 'claimed_by_user_id' is not null then 'claimed'
+              when l.kind = 'loot_chest' and jsonb_array_length(coalesce(m.metadata -> 'claims', '[]'::jsonb)) >= coalesce((m.metadata ->> 'claims_total')::integer, 0) then 'claimed'
+              else 'claimable'
+            end as state,
+            case
+              when l.kind = 'currency' then m.metadata ->> 'claimed_by_name'
+              else (
+                select string_agg(distinct coalesce(claim ->> 'name', claim ->> 'claimed_by_name'), ', ')
+                from jsonb_array_elements(coalesce(m.metadata -> 'claims', '[]'::jsonb)) claim
+              )
+            end as claimed_by
+        ) computed
+        where l.beat_id = b.id and l.dispatched_at is not null
+      ) entry
+    ), '[]'::jsonb) else '[]'::jsonb end
+  from public.quest_beats b
+  join scoped s on s.id = b.id
+  left join depths d on d.beat_id = b.id
+  left join assign a on a.beat_id = b.id
+  left join public.quest_threads th on th.id = a.thread_id
+  where private.beat_seen_by(b.visibility, b.visible_to, v_member)
+  order by 8, b.canvas_x, b.created_at, b.id;
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION private.player_world_ties(p_campaign_id uuid, p_member uuid, p_preview uuid)
+ RETURNS TABLE(source text, row_id uuid, type text, from_kind text, from_id uuid, from_name text, from_image text, to_kind text, to_id uuid, to_name text, to_image text, told text, role text, status text)
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  with seen_npcs as (
+    select v.id, v.name, v.portrait_url, v.location_id
+      from public.get_player_visible_npcs(p_campaign_id, null, p_preview) v
+     where v.name is not null
+  ),
+  seen_factions as (
+    select v.id, v.name, v.emblem_url, v.seat_location_id
+      from public.get_player_visible_factions(p_campaign_id, p_preview) v
+  ),
+  seen_locations as (
+    select lo.id, lo.name, lo.image_url, lo.is_inventory_shared
+      from public.locations lo
+     where lo.campaign_id = p_campaign_id and p_member = any (lo.player_visible_to)
+  ),
+  seen_items as (
+    select i.id, i.name, i.image_url from public.items i
+     where exists (select 1 from public.party_inventory pi
+                    where pi.campaign_id = p_campaign_id and pi.item_id = i.id)
+        or exists (select 1 from public.store_items s join seen_locations sl on sl.id = s.location_id
+                    where s.item_id = i.id and s.visible and sl.is_inventory_shared)
+  ),
+  seen (kind, id, name, image) as (
+    select 'npc', n.id, n.name, n.portrait_url from seen_npcs n
+    union all
+    select 'party_member', pm.id, pm.name, pm.portrait_url from public.party_members pm
+     where pm.campaign_id = p_campaign_id
+    union all
+    select 'faction', f.id, f.name, f.emblem_url from seen_factions f
+    union all
+    select 'location', lo.id, lo.name, lo.image_url from seen_locations lo
+    union all
+    select 'deity', d.id, d.name, coalesce(d.portrait_url, d.symbol_image_url) from public.deities d
+     where d.campaign_id = p_campaign_id and p_member = any (d.player_visible_to)
+    union all
+    select 'item', i.id, i.name, i.image_url from seen_items i
+    union all
+    select 'quest', q.id, q.title, null from public.quests q
+     where q.campaign_id = p_campaign_id and private.quest_shown_to(q.id, p_member)
+  ),
+  ties (source, row_id, type, from_kind, from_id, to_kind, to_id, told, role, status) as (
+    select 'link', l.id, l.type, l.from_kind, l.from_id, l.to_kind, l.to_id, nullif(l.told, ''), null, null
+      from public.world_links l where l.campaign_id = p_campaign_id and p_member = any (l.player_visible_to)
+    union all
+    select 'membership', m.id, 'member_of', 'npc', m.npc_id, 'faction', m.faction_id, null, m.role, m.status
+      from public.faction_npcs m join seen_factions f on f.id = m.faction_id
+     where (p_member = any (m.player_visible_to) or private.in_faction(m.faction_id, p_member))
+       -- A disguised NPC is seen under the cover; the true one's allegiances stay the DM's until the cover falls.
+       and not exists (select 1 from public.npcs n
+                        where n.id = m.npc_id and not n.is_revealed
+                          and (n.disguise_name is not null or n.disguise_portrait_url is not null))
+    union all
+    select 'membership', m.id, 'member_of', 'party_member', m.party_member_id, 'faction', m.faction_id, null, m.role,
+           m.status
+      from public.faction_party_members m join seen_factions f on f.id = m.faction_id
+     where m.party_member_id = p_member or p_member = any (m.player_visible_to)
+        or private.in_faction(m.faction_id, p_member)
+    union all
+    select 'npc_home', n.id, 'lives_in', 'npc', n.id, 'location', n.location_id, null, null, null
+      from seen_npcs n where n.location_id is not null
+    union all
+    select 'pc_place', pm.id, 'is_at', 'party_member', pm.id, 'location', pm.current_location_id, null, null, null
+      from public.party_members pm where pm.campaign_id = p_campaign_id and pm.current_location_id is not null
+    union all
+    select 'keeper', lo.id, 'keeps', 'npc', lo.npc_owner_id, 'location', lo.id, null, null, null
+      from public.locations lo where lo.campaign_id = p_campaign_id and lo.npc_owner_id is not null
+    union all
+    select 'seat', f.id, 'seat', 'faction', f.id, 'location', f.seat_location_id, null, null, null
+      from seen_factions f where f.seat_location_id is not null
+    union all
+    select 'patron_deity', pm.id, 'patron_deity', 'party_member', pm.id, 'deity', pm.deity_id, null, null, null
+      from public.party_members pm where pm.campaign_id = p_campaign_id and pm.deity_id is not null
+    union all
+    select 'inventory', i.id, 'carries', 'party_member', i.carried_by, 'item', i.item_id, null, null, null
+      from public.party_inventory i
+     where i.campaign_id = p_campaign_id and i.item_id is not null and i.carried_by is not null
+    union all
+    select 'store', s.id, 'sold_at', 'item', s.item_id, 'location', s.location_id, null, null, null
+      from public.store_items s join seen_locations sl on sl.id = s.location_id
+     where s.item_id is not null and s.visible and sl.is_inventory_shared
+    union all
+    select 'quest', q.id, 'quest_giver', 'quest', q.id, 'npc', q.giver_npc_id, null, null, q.status::text
+      from public.quests q where q.campaign_id = p_campaign_id and q.giver_npc_id is not null
+    union all
+    select 'quest', q.id, 'quest_place', 'quest', q.id, 'location', q.location_id, null, null, q.status::text
+      from public.quests q where q.campaign_id = p_campaign_id and q.location_id is not null
+    union all
+    select 'quest', r.id, 'quest_ref', 'quest', q.id, r.ref_type, case when r.ref_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then r.ref_id::uuid end, null, null, q.status::text
+      from public.quest_refs r join public.quests q on q.id = r.quest_id
+     where q.campaign_id = p_campaign_id and r.is_player_visible and r.ref_type in ('npc', 'location', 'faction', 'item')
+       and r.ref_id is distinct from q.giver_npc_id::text and r.ref_id is distinct from q.location_id::text
+       -- A shared-library ref holds a text slug, not a row of this campaign: it names nothing a tie can reach.
+       and r.ref_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+  )
+  -- Both ends must be seen; the joins are the rule.
+  select t.source, t.row_id, t.type, t.from_kind, t.from_id, a.name, a.image, t.to_kind, t.to_id, b.name, b.image,
+         t.told, t.role, t.status
+    from ties t
+    join seen a on a.kind = t.from_kind and a.id = t.from_id
+    join seen b on b.kind = t.to_kind and b.id = t.to_id
+$function$;
+
+CREATE OR REPLACE FUNCTION private.apply_handout_reveals(p_campaign_id uuid, p_content text, p_members uuid[], p_dry_run boolean)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_doc jsonb;
+  v_attrs jsonb;
+  v_reveal jsonb;
+  v_type text;
+  v_uuid uuid;
+  v_off boolean;
+  v_fields text[];
+  v_new_fields text[];
+  v_new_to uuid[];
+  v_owner uuid;
+  v_name text;
+  v_flag boolean;
+  v_revealed jsonb := '[]'::jsonb;
+  v_withheld jsonb := '[]'::jsonb;
+  r_npc record;
+  r_loc record;
+  r_quest record;
+  r_disc record;
+  r_shared record;
+begin
+  if p_members is null or cardinality(p_members) = 0 then
+    return jsonb_build_object('revealed', v_revealed, 'withheld', v_withheld);
+  end if;
+
+  v_doc := coalesce(nullif(p_content, '')::jsonb, '{}'::jsonb);
+  select c.user_id into v_owner from public.campaigns c where c.id = p_campaign_id;
+
+  -- Document order, each embed node once (the result is collapsed to one line
+  -- per entity after the loop): the share dialog lists what it reveals in the
+  -- order the DM reads it on the page.
+  for v_attrs in
+    select t.attrs
+      from (select e -> 'attrs' as attrs, min(ord) as first_at
+              from jsonb_path_query(v_doc, 'strict $.**') with ordinality as q(e, ord)
+             where jsonb_typeof(e) = 'object' and e ->> 'type' = 'entityEmbed'
+             group by e -> 'attrs') t
+     order by t.first_at
+  loop
+    v_type := v_attrs ->> 'entityType';
+    v_reveal := case when jsonb_typeof(v_attrs -> 'reveal') = 'object' then v_attrs -> 'reveal' end;
+    -- jsonb comparisons, never ::boolean casts: a malformed value in the
+    -- document must reveal less, not abort a quest's Advance mid-transition.
+    v_off := v_reveal -> 'off' = 'true'::jsonb;
+    v_off := coalesce(v_off, false);
+    -- A library monster's id is text; anything else is a uuid or nothing.
+    -- (private.try_uuid exists but is closed to clients, and this runs as one.)
+    begin
+      v_uuid := (v_attrs ->> 'entityId')::uuid;
+    exception when invalid_text_representation then
+      v_uuid := null;
+    end;
+
+    -- ── npc: who (player_visible_to) and what (player_visible_fields) ──
+    if v_type = 'npc' then
+      select n.id, n.name, n.player_visible_to, n.player_visible_fields, n.disguise_name, n.is_revealed
+        into r_npc
+        from public.npcs n
+       where n.id = v_uuid and n.campaign_id = p_campaign_id;
+      if not found then
+        v_withheld := v_withheld || jsonb_build_object('type', v_type, 'id', v_attrs ->> 'entityId', 'reason', 'outside_campaign');
+        continue;
+      end if;
+      if v_reveal ? 'fields' and jsonb_typeof(v_reveal -> 'fields') = 'array' then
+        select coalesce(array_agg(f), '{}') into v_fields
+          from jsonb_array_elements_text(v_reveal -> 'fields') f
+         where f in ('name', 'portrait', 'race', 'occupation', 'location');
+      else
+        v_fields := array['name']
+          || case when v_attrs -> 'showArt' is distinct from 'false'::jsonb then array['portrait'] else '{}'::text[] end;
+      end if;
+
+      -- No fields is no reveal (effectiveEmbedReveal says the same): sharing
+      -- an NPC with nothing of it visible would only add an invisible entry.
+      if v_off or cardinality(v_fields) = 0 then
+        if not (r_npc.player_visible_to @> p_members) then
+          v_withheld := v_withheld || jsonb_build_object('type', v_type, 'id', r_npc.id, 'name', r_npc.name, 'reason', 'not_revealed');
+        end if;
+        continue;
+      end if;
+
+      v_new_fields := array(select distinct x from unnest(r_npc.player_visible_fields || v_fields) x order by 1);
+      v_new_to := array(select distinct x from unnest(r_npc.player_visible_to || p_members) x);
+
+      if not (r_npc.player_visible_fields @> v_fields and r_npc.player_visible_to @> p_members) then
+        v_revealed := v_revealed || jsonb_build_object(
+          'type', v_type, 'id', r_npc.id, 'name', r_npc.name, 'fields', to_jsonb(v_fields),
+          -- A disguised NPC is revealed as its cover: the projection shows the
+          -- disguise until the DM unmasks it, so say so before the DM confirms.
+          'seen_as', case when r_npc.disguise_name is not null and not r_npc.is_revealed then r_npc.disguise_name end);
+        if not p_dry_run then
+          update public.npcs
+             set player_visible_to = v_new_to, player_visible_fields = v_new_fields
+           where id = r_npc.id;
+        end if;
+      end if;
+
+    -- ── location: shared, and optionally its description ──
+    elsif v_type = 'location' then
+      select l.id, l.name, l.player_visible_to, l.is_description_shared
+        into r_loc
+        from public.locations l
+       where l.id = v_uuid and l.campaign_id = p_campaign_id;
+      if not found then
+        v_withheld := v_withheld || jsonb_build_object('type', v_type, 'id', v_attrs ->> 'entityId', 'reason', 'outside_campaign');
+        continue;
+      end if;
+      if v_off then
+        if not (r_loc.player_visible_to @> p_members) then
+          v_withheld := v_withheld || jsonb_build_object('type', v_type, 'id', r_loc.id, 'name', r_loc.name, 'reason', 'not_revealed');
+        end if;
+        continue;
+      end if;
+      v_flag := coalesce(v_reveal -> 'description' = 'true'::jsonb, false);
+      if not (r_loc.player_visible_to @> p_members) or (v_flag and not r_loc.is_description_shared) then
+        v_revealed := v_revealed || jsonb_build_object(
+          'type', v_type, 'id', r_loc.id, 'name', r_loc.name, 'description', v_flag);
+        if not p_dry_run then
+          update public.locations
+             set player_visible_to = array(select distinct x from unnest(player_visible_to || p_members) x),
+                 is_description_shared = is_description_shared or v_flag
+           where id = r_loc.id;
+        end if;
+      end if;
+
+    -- ── quest: a handout can start one ──
+    -- What unlock_quest does (undiscovered -> active, a hidden entry beat
+    -- becomes its rumour), plus the recipients, which unlock_quest alone never
+    -- adds: a quest nobody may see is not one the party has heard of.
+    elsif v_type = 'quest' then
+      select q.id, q.title, q.status, q.entry_beat_id
+        into r_quest
+        from public.quests q
+       where q.id = v_uuid and q.campaign_id = p_campaign_id;
+      if not found then
+        v_withheld := v_withheld || jsonb_build_object('type', v_type, 'id', v_attrs ->> 'entityId', 'reason', 'outside_campaign');
+        continue;
+      end if;
+      if v_off then
+        if not private.quest_shown_to_all(r_quest.id, p_members) then
+          v_withheld := v_withheld || jsonb_build_object('type', v_type, 'id', r_quest.id, 'name', r_quest.title, 'reason', 'not_revealed');
+        end if;
+        continue;
+      end if;
+      if not private.quest_shown_to_all(r_quest.id, p_members) or r_quest.status = 'undiscovered' then
+        v_revealed := v_revealed || jsonb_build_object(
+          'type', v_type, 'id', r_quest.id, 'name', r_quest.title,
+          'starts', r_quest.status = 'undiscovered');
+        if not p_dry_run then
+          perform private.reveal_quest(p_campaign_id, r_quest.id, p_members);
+        end if;
+      end if;
+
+    -- ── monster: discovered, optionally with its stats ──
+    elsif v_type = 'monster' then
+      if v_uuid is not null then
+        select m.name into v_name
+          from public.monsters m
+         where m.id = v_uuid
+           and (m.campaign_id = p_campaign_id or (m.campaign_id is null and m.user_id = v_owner));
+      else
+        select lm.name into v_name from public.library_monsters lm where lm.id = v_attrs ->> 'entityId';
+      end if;
+      if v_name is null then
+        v_withheld := v_withheld || jsonb_build_object('type', v_type, 'id', v_attrs ->> 'entityId', 'reason', 'outside_campaign');
+        continue;
+      end if;
+
+      select d.id, d.visible_to, d.reveal_stats into r_disc
+        from public.discovered_monsters d
+       where d.campaign_id = p_campaign_id
+         and (case when v_uuid is not null then d.monster_id = v_uuid
+                   else d.library_monster_id = v_attrs ->> 'entityId' end);
+
+      if v_off then
+        if r_disc.id is null or not (r_disc.visible_to is null or r_disc.visible_to @> p_members) then
+          v_withheld := v_withheld || jsonb_build_object('type', v_type, 'id', v_attrs ->> 'entityId', 'name', v_name, 'reason', 'not_revealed');
+        end if;
+        continue;
+      end if;
+
+      v_flag := coalesce(v_reveal -> 'stats' = 'true'::jsonb, false);
+      -- visible_to null means the whole table already knows it.
+      if r_disc.id is null
+         or not (r_disc.visible_to is null or r_disc.visible_to @> p_members)
+         or (v_flag and not r_disc.reveal_stats) then
+        v_revealed := v_revealed || jsonb_build_object(
+          'type', v_type, 'id', v_attrs ->> 'entityId', 'name', v_name, 'stats', v_flag);
+        if not p_dry_run then
+          if r_disc.id is null then
+            insert into public.discovered_monsters (campaign_id, monster_id, library_monster_id, visible_to, reveal_stats)
+            values (p_campaign_id, v_uuid,
+                    case when v_uuid is null then v_attrs ->> 'entityId' end,
+                    p_members, v_flag);
+          else
+            update public.discovered_monsters
+               set visible_to = case when visible_to is null then null
+                                     else array(select distinct x from unnest(visible_to || p_members) x) end,
+                   reveal_stats = reveal_stats or v_flag
+             where id = r_disc.id;
+          end if;
+        end if;
+      end if;
+
+    -- ── deity, faction: shared with the recipients, as a place is ──
+    -- No sub-options: a player reads a shared deity's row directly and a shared
+    -- faction through get_player_visible_factions, both keyed on
+    -- player_visible_to alone. A faction row may have no campaign; one outside
+    -- this campaign is never touched.
+    elsif v_type in ('deity', 'faction') then
+      if v_type = 'deity' then
+        select d.id, d.name, d.player_visible_to into r_shared
+          from public.deities d
+         where d.id = v_uuid and d.campaign_id = p_campaign_id;
+      else
+        select f.id, f.name, f.player_visible_to into r_shared
+          from public.factions f
+         where f.id = v_uuid and f.campaign_id = p_campaign_id;
+      end if;
+      if not found then
+        v_withheld := v_withheld || jsonb_build_object('type', v_type, 'id', v_attrs ->> 'entityId', 'reason', 'outside_campaign');
+        continue;
+      end if;
+      if r_shared.player_visible_to @> p_members then
+        continue;
+      end if;
+      if v_off then
+        v_withheld := v_withheld || jsonb_build_object('type', v_type, 'id', r_shared.id, 'name', r_shared.name, 'reason', 'not_revealed');
+        continue;
+      end if;
+      v_revealed := v_revealed || jsonb_build_object('type', v_type, 'id', r_shared.id, 'name', r_shared.name);
+      if not p_dry_run then
+        if v_type = 'deity' then
+          update public.deities
+             set player_visible_to = array(select distinct x from unnest(player_visible_to || p_members) x)
+           where id = r_shared.id;
+        else
+          update public.factions
+             set player_visible_to = array(select distinct x from unnest(player_visible_to || p_members) x)
+           where id = r_shared.id;
+        end if;
+      end if;
+
+    -- ── item: never revealed by paper; the party sees it once it has it ──
+    elsif v_type = 'item' then
+      select i.name into v_name from public.items i where i.id = v_uuid;
+      v_withheld := v_withheld || jsonb_build_object(
+        'type', v_type, 'id', v_attrs ->> 'entityId', 'name', v_name, 'reason', 'found_only');
+    end if;
+    -- spell, species, subclass: rules text a campaign's players can already
+    -- read; nothing to reveal.
+  end loop;
+
+  -- One line per entity. The loop above runs once per embed node (each has its
+  -- own blockId in attrs), so an NPC linked twice would otherwise be listed
+  -- twice: duplicate rows in the share dialog and a doubled pending count.
+  -- An entity some other embed of it reveals is not also "withheld".
+  v_revealed := (
+    select coalesce(jsonb_agg(s.x order by s.o), '[]'::jsonb)
+      from (select distinct on (t.x ->> 'type', t.x ->> 'id') t.x, t.o
+              from jsonb_array_elements(v_revealed) with ordinality t(x, o)
+             order by t.x ->> 'type', t.x ->> 'id', t.o) s);
+  v_withheld := (
+    select coalesce(jsonb_agg(s.x order by s.o), '[]'::jsonb)
+      from (select distinct on (t.x ->> 'type', t.x ->> 'id') t.x, t.o
+              from jsonb_array_elements(v_withheld) with ordinality t(x, o)
+             where not exists (
+               select 1 from jsonb_array_elements(v_revealed) r
+                where r ->> 'type' = t.x ->> 'type' and r ->> 'id' = t.x ->> 'id')
+             order by t.x ->> 'type', t.x ->> 'id', t.o) s);
+
+  return jsonb_build_object('revealed', v_revealed, 'withheld', v_withheld);
+end;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.take_notice_board_pin(p_pin_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_pin public.notice_board_pins;
+  v_board public.notice_boards;
+  v_member uuid;
+  v_taker text;
+  v_party uuid[];
+  v_doc public.scriptorium_documents;
+  v_added uuid[];
+  v_what text;
+  v_campaign uuid;
+begin
+  -- Authorize first, on the campaign alone, and only then lock: a caller outside the campaign learns nothing (a pin
+  -- that does not exist is refused the same way) and holds no lock.
+  select p.campaign_id into v_campaign from public.notice_board_pins p where p.id = p_pin_id;
+  v_member := private.my_party_member_id(v_campaign);
+  if (select auth.uid()) is null or v_campaign is null or v_member is null then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+  -- Locked before anything else is read from it: two players tapping at once queue here, and the second finds it taken.
+  select * into v_pin from public.notice_board_pins where id = p_pin_id for update;
+  if not found or v_pin.status = 'draft' then
+    raise exception 'Notice not found' using errcode = 'P0002';
+  end if;
+  select * into v_board from public.notice_boards where id = v_pin.board_id;
+  if not v_board.is_revealed or v_board.presented_at is null then
+    raise exception 'The board is not in front of the party' using errcode = '42501';
+  end if;
+  if v_pin.quest_id is null and v_pin.handout_id is null then
+    raise exception 'This notice offers nothing to take' using errcode = '22023';
+  end if;
+  if v_pin.status = 'taken' then
+    return jsonb_build_object(
+      'outcome', 'already_taken',
+      'taken_by_name', (select pm.name from public.party_members pm where pm.id = v_pin.taken_by),
+      'quest_id', v_pin.quest_id,
+      'handout_id', v_pin.handout_id);
+  end if;
+
+  select pm.name into v_taker from public.party_members pm where pm.id = v_member;
+  update public.notice_board_pins
+     set status = 'taken',
+         taken_by = v_member,
+         taken_at = now(),
+         taken_session_number = (select s.number from public.campaign_sessions s
+                                  where s.campaign_id = v_pin.campaign_id
+                                    and s.started_at is not null and s.ended_at is null)
+   where id = v_pin.id;
+
+  v_party := array(select pm.id from public.party_members pm where pm.campaign_id = v_pin.campaign_id);
+  if v_pin.quest_id is not null then
+    perform private.reveal_quest(v_pin.campaign_id, v_pin.quest_id, null);
+  end if;
+  if v_pin.handout_id is not null then
+    -- give_handout's share: add who lacks it, and apply the handout's own entity reveals.
+    select * into v_doc from public.scriptorium_documents d
+     where d.id = v_pin.handout_id and d.campaign_id = v_pin.campaign_id;
+    if found then
+      v_added := array(select x from unnest(v_party) x except select y from unnest(v_doc.player_visible_to) y);
+      perform private.apply_handout_reveals(v_pin.campaign_id, private.book_body(v_doc.id)::text, v_doc.player_visible_to || v_added, false);
+      if cardinality(v_added) > 0 then
+        update public.scriptorium_documents set player_visible_to = v_doc.player_visible_to || v_added where id = v_doc.id;
+      end if;
+    end if;
+  end if;
+
+  -- Worded as the player's own toast words it (noticePhrase in src/lib/noticeBoard/faces.ts).
+  v_what := case when nullif(btrim(v_pin.headline), '') is null then
+                   case v_pin.style when 'poster' then 'a wanted poster' when 'letter' then 'a sealed letter'
+                                    when 'image' then 'a picture' else 'a notice' end
+                 when v_pin.style = 'poster' then 'the wanted poster for ' || btrim(v_pin.headline)
+                 else '“' || btrim(v_pin.headline) || '”' end;
+  insert into public.campaign_messages (campaign_id, user_id, sender_name, message, type)
+  values (v_pin.campaign_id, v_board.user_id, 'Grimoire',
+          '📌 ' || coalesce(v_taker, 'Someone') || ' took ' || v_what || ' from ' || v_board.name || '.', 'system');
+
+  return jsonb_build_object('outcome', 'taken', 'taken_by_name', v_taker,
+                            'quest_id', v_pin.quest_id, 'handout_id', v_pin.handout_id);
+end;
+$function$;
+
+drop function private.reveal_quest_to(uuid, uuid, uuid[]);
+
+-- Today's shares, translated into beats so that, quest by quest, players
+-- keep seeing what they saw (checked on production, 14 Nov 2026). Run before
+-- the announcement trigger below exists, so it tells no table anything.
+-- A quest shared with nobody shows no beat:
+update public.quest_beats b set visibility = 'hidden'
+  from public.quests q
+ where q.id = b.quest_id and cardinality(q.player_visible_to) = 0 and b.visibility <> 'hidden';
+-- a shared quest that showed no beat shows its entry beat as a rumour.
+update public.quest_beats b set visibility = 'rumored'
+  from public.quests q
+ where q.id = b.quest_id and cardinality(q.player_visible_to) > 0
+   and b.id = q.entry_beat_id and b.visibility = 'hidden'
+   and not exists (select 1 from public.quest_beats o where o.quest_id = q.id and o.visibility <> 'hidden');
+-- A quest shared with only part of the party keeps that audience, on its beats.
+update public.quest_beats b set visible_to = q.player_visible_to
+  from public.quests q
+ where q.id = b.quest_id and b.visibility <> 'hidden'
+   and cardinality(q.player_visible_to) > 0
+   and exists (select 1 from public.party_members pm
+                where pm.campaign_id = q.campaign_id and not pm.id = any (q.player_visible_to));
+
+-- Moving a quest to Active (the board, a rule, a handout) rumors its entry
+-- beat; so does naming a new entry beat on an active quest.
+create or replace function private.quest_active_rumors_entry()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.status = 'active' and new.entry_beat_id is not null
+     and (tg_op = 'INSERT' or old.status is distinct from new.status or old.entry_beat_id is distinct from new.entry_beat_id) then
+    update public.quest_beats set visibility = 'rumored'
+     where id = new.entry_beat_id and visibility = 'hidden';
+  end if;
+  return null;
+end;
+$$;
+revoke execute on function private.quest_active_rumors_entry() from public, anon, authenticated;
+create trigger quests_active_rumors_entry
+  after insert or update of status, entry_beat_id on public.quests
+  for each row execute procedure private.quest_active_rumors_entry();
+
+-- The first beat players can see tells the table the quest is there.
+create or replace function private.quest_first_seen_announcement()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_quest public.quests%rowtype;
+begin
+  -- Only a beat the whole party sees is told to the whole table.
+  if new.visibility = 'hidden' or new.visible_to is not null
+     or (tg_op = 'UPDATE' and old.visibility <> 'hidden' and old.visible_to is null)
+     or exists (select 1 from public.quest_beats b
+                 where b.quest_id = new.quest_id and b.id <> new.id
+                   and b.visibility <> 'hidden' and b.visible_to is null) then
+    return null;
+  end if;
+  select * into v_quest from public.quests where id = new.quest_id;
+  if found then
+    insert into public.campaign_messages (campaign_id, user_id, recipient_user_id, sender_name, message, type, metadata)
+    values (v_quest.campaign_id, v_quest.user_id, null, null,
+            '📋 Quest shared: "' || coalesce(nullif(btrim(v_quest.title), ''), 'Untitled Quest') || '"', 'system',
+            jsonb_build_object('entity_type', 'quest', 'entity_id', v_quest.id));
+  end if;
+  return null;
+end;
+$$;
+revoke execute on function private.quest_first_seen_announcement() from public, anon, authenticated;
+create trigger quest_beats_first_seen_announcement
+  after insert or update of visibility, visible_to on public.quest_beats
+  for each row execute procedure private.quest_first_seen_announcement();
+
+alter table public.quests drop column player_visible_to;
 
 -- 6. The import prompt ─────────────────────────────────────────────────────
 update public.ai_system_prompts

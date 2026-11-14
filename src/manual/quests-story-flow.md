@@ -56,7 +56,7 @@ With nothing selected the drawer shows the quest, in the order you reach for it:
 - **Notes**: yours alone. Premise, goals, themes, prep: anything that belongs to the whole quest and no single scene. Every beat's wide part shows them folded, so you never leave the beat to find them.
 - **Objectives**, at the foot, each naming the beat that raises it.
 
-Open it wide for the rest: lane, giver, location, who the quest is shared with, clocks, rules and threads.
+Open it wide for the rest: lane, giver, location, clocks, rules and threads.
 
 ## Routes
 
@@ -104,7 +104,13 @@ Every beat on the flow carries three small circles on a line, filled as far as t
 
 By hand you can move a beat further ahead (a rumour the party heard sessions early), but never behind where the party has been. There is no preview: the circles are what players know, and the lines they read sit on the beat.
 
-If the quest isn't shared with anyone yet, the first move that shows one of its beats shares the quest with your whole party, since otherwise no one could see it. A quest you shared with only some players stays as you set it. Undo takes the share back too.
+A quest has no sharing setting of its own. Players can see a quest as soon as one of its beats is rumored or revealed, and not before. Moving a quest to Active on the board rumors its opening beat, which is what makes it appear, and the first beat that shows tells the table "Quest shared" in chat. Undo hides a beat again, and a quest with no visible beat disappears from the players' log.
+
+### Showing a beat to only some players
+
+Under the three circles of a beat, a small line says who it is shown to: "Whole party" to begin with. Click it and tick the players who should see this beat. Untick one to leave them out, or choose "Whole party" to go back to everyone. At least one player must stay ticked. A beat you have not shown yet keeps its choice and uses it when you do show it.
+
+A quest follows its beats. If every beat you have shown is for some players only, only those players see the quest, and the quest's heading tells you who ("Shown to Brannigan and Edda"). As soon as one shown beat is for the whole party, the whole party sees the quest. The "Quest shared" message in chat is posted only when a beat for the whole party is shown. On the story flow, a beat for only some players carries a small chip such as "2 of 4".
 
 ## Selecting a beat
 
@@ -118,7 +124,8 @@ You can record what the party did right on the flow, without running anything li
 
 - **Take this route.** Select a route. The drawer says what taking it will do (which beat it marks done, which payoffs fire, which other choices become unreachable, or that it opens a thread, for a parallel route), with ticks for **Party here** and for loot to **Hand out**. Selecting a route never commits; **Take this route** does. Choices not taken become unreachable; parallel routes stay open.
 - **Entry, Party here, Failed.** On a beat, tick one. **Entry** is the beat the story begins at, and there's only one per quest: ticking it on another beat moves it. **Party here** puts the party's thread there, and ticking it on another beat moves it. **Failed** marks a beat the party didn't get past; the payoffs you set to fire **if it goes wrong** fire, and the payoffs for arriving don't fire a second time.
-- **The way there is filled in.** Mark a beat further along and Grimoire marks the beats in between, along the shortest route, so you don't tick ten of them.
+- **Mark a route from further back.** Where the party stands decides what a route offers. If the route leaves from the beat the party is at, the button reads **Take this route**. If the route lies ahead, it reads **Mark as taken**, and the drawer says what it fills in on the way ("Marks Approaching the Lodge done on the way"). If the party is already past it, or an earlier choice cut it off, the button is greyed out and says why; to go back, use Undo.
+- **The way there is filled in.** Mark a route or a beat further along and Grimoire marks the beats in between, so you don't tick ten of them. When more than one way leads there (two routes through the kennels or the tunnel, say), the drawer lists them and you pick the one the party took before the button works. For a beat, ticking **Party here** or **Failed** opens a small list of the ways first. The order matters because the players' quest log is told in the order the beats were filled in. With only one way, there is nothing to pick.
 - **An and-also route opens a thread**, just as it does at the table.
 - **Undo** (toolbar, or **⌘Z** / **Ctrl+Z**) takes back the newest move in one go, including the beats it filled in and any thread it opened. It works on moves you played live as well as ones you marked.
 - Marks are filed under the session in **Marks go to** in the toolbar. Marking never starts a session.
@@ -150,7 +157,7 @@ See [Sites: Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon
 
 ## What your players see
 
-Nothing about a beat is visible until it is at least "rumored" (see What players know), and the quest itself has to be shared first. An objective shows once a beat has raised it. In the Player Portal, a shared quest's **Story so far** shows one column per thread the party has heard from (a thread with nothing revealed yet doesn't get a column at all): a rumored beat renders as "_Rumoured:_ …", a revealed one shows its reveal copy, both in story order. Any knowledge granted or loot dropped at a beat shows as a chip underneath it; claimable loot links into campaign chat, where the actual claim button lives. The one beat a live thread currently stands on is marked "happening now."
+Nothing about a beat is visible until it is at least "rumored" (see What players know), and a quest shows only once one of its beats does. An objective shows once a beat has raised it. In the Player Portal, a visible quest's **Story so far** shows one column per thread the party has heard from (a thread with nothing revealed yet doesn't get a column at all): a rumored beat renders as "_Rumoured:_ …", a revealed one shows its reveal copy, both in story order. Any knowledge granted or loot dropped at a beat shows as a chip underneath it; claimable loot links into campaign chat, where the actual claim button lives. The one beat a live thread currently stands on is marked "happening now."
 
 ## Tips
 

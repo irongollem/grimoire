@@ -31,7 +31,7 @@ The quest list has two views, toggled from the filter bar: **Kanban** (drag card
 Filter the list with:
 
 - **Search quests…**: matches title and premise.
-- **Shared with party (N)**: only quests visible to at least one player.
+- **Shown to players (N)**: only quests with at least one beat the players can see.
 - The **NPC, faction, or location…** combobox: only quests referencing that entity.
 - **Prep gaps (N)**: only quests with a beat missing required material.
 - **Loot pending (N)**: only quests with loot prepared but not yet handed over.
@@ -58,7 +58,7 @@ With nothing selected, the **quest drawer** holds the quest as a whole, top to b
 - **Notes**: yours alone. The premise, goals, themes and prep that belong to the whole quest and no single scene. Each beat shows them folded, so you can read them without leaving it.
 - **Objectives**, at the foot, covered below.
 
-Open it wide for the rest: the **Board lane** (the same status the kanban board uses: Undiscovered, Active, Completed, Failed), the **Giver** and **Location** (an NPC and a place), **Part of** (makes this a sub-quest of another, with no depth limit), **Tags**, who can see the quest at all (nothing in it is visible to a player until this names someone), **Clocks**, **Payoffs** (the quest's own rules, covered below) and **Threads**, once the quest holds one.
+Open it wide for the rest: the **Board lane** (the same status the kanban board uses: Undiscovered, Active, Completed, Failed), the **Giver** and **Location** (an NPC and a place), **Part of** (makes this a sub-quest of another, with no depth limit), **Tags**, **Clocks**, **Payoffs** (the quest's own rules, covered below) and **Threads**, once the quest holds one.
 
 The beat the story begins at is set on the beat itself: select a beat and tick **Entry**. A quest has one entry, so ticking it on another beat moves it. Grimoire sets it to the first beat you write.
 
@@ -120,7 +120,7 @@ Selecting a route never changes anything by itself; only **Take this route** doe
 
 ## What your players see
 
-Nothing about a quest is visible to players until **Player sharing** names at least one of them. Once shared, the quest appears in their Player Portal journal under the **Quest Log** tab, showing its title, status, premise, the objectives a beat has raised, and its own story-so-far, covered fully in [Quest Story Flow](#quest-story-flow-beats-routes-objectives).
+Nothing about a quest is visible to players until one of its beats is rumored or revealed. Moving a quest to Active on the board rumors its opening beat, so it appears from then on. Once visible, the quest appears in their Player Portal journal under the **Quest Log** tab, showing its title, status, premise, the objectives a beat has raised, and its own story-so-far, covered fully in [Quest Story Flow](#quest-story-flow-beats-routes-objectives).
 
 ## Tips
 

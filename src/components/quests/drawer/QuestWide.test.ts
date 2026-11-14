@@ -21,7 +21,7 @@ vi.mock("@/composables/notes/useEntityNotes", () => ({
 
 const quest = { id: "quest-1", campaign_id: "campaign-1" } as Quest;
 const stubs = {
-  QuestDetailsSection: true, QuestPlayersSection: true, QuestClocksPanel: true, QuestRulesPanel: true,
+  QuestDetailsSection: true, QuestClocksPanel: true, QuestRulesPanel: true,
   DmNoteBox: true, QuestSidebarPanels: true, AccordionSection: true, EntityCalendarSection: true,
 };
 

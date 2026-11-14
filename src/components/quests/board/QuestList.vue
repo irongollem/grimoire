@@ -42,7 +42,6 @@
       v-else-if="isKanban"
       :quests="filtered"
       :all-quests="allQuests ?? []"
-      :party="party ?? []"
       :summaries="boardSummaries"
       @move="onMove"
     />
@@ -122,7 +121,6 @@ import {
   useCampaignQuestRefs,
   useUpdateQuest,
 } from "@/composables/quests/useQuests";
-import { useParty } from "@/composables/party/useParty";
 import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
 import { useQuestsUiStore } from "@/stores/ui/quests";
 import SkeletonBlock from "@/components/common/feedback/SkeletonBlock.vue";
@@ -157,7 +155,6 @@ const search = computed(() => questsUi.questsSearch);
 const isKanban = computed(() => questsUi.questsIsKanban);
 
 const { data: allQuests, isLoading } = useQuests();
-const { data: party } = useParty(() => isKanban.value);
 const { data: campaignRefs } = useCampaignQuestRefs();
 const { data: boardSummaries } = useQuestBoardSummaries();
 const { mutateAsync: updateQuest } = useUpdateQuest();

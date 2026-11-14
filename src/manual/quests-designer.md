@@ -29,7 +29,7 @@ keywords: quest designer, design it, ai, conversation, beat tree, propose, excha
 
 ## What your players see
 
-Nothing: this is a prep-time tool. Nothing about a quest is visible to players until you share it, exactly as for any other quest.
+Nothing: this is a prep-time tool. Nothing about a quest is visible to players until one of its beats is rumored or revealed, exactly as for any other quest.
 
 ## Tips
 

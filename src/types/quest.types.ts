@@ -51,7 +51,6 @@ export interface Quest {
   giver_npc_id: string | null;
   location_id: string | null;
   tags: string[];
-  player_visible_to: string[];
   started_at: string | null;
   resolved_at: string | null;
   ai_provenance?: AiProvenance | null;
@@ -465,6 +464,12 @@ export interface QuestBeat {
   rumor_text: string | null;
   reveal_text: string | null;
   visibility: QuestBeatVisibility;
+  /**
+   * Who sees this beat once it is shown: null is the whole party, else only
+   * these party member ids (never an empty array). A quest follows its beats,
+   * so a members-only beat is a members-only quest for everyone else.
+   */
+  visible_to: string[] | null;
   kind: QuestBeatKind;
   presentation_hint: string | null;
   /**
@@ -493,8 +498,10 @@ export interface QuestBeat {
   updated_at: string;
 }
 
-export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at" | "updated_at" | "staged_at_location_id" | "secret"> & {
+export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at" | "updated_at" | "staged_at_location_id" | "secret" | "visible_to"> & {
   id?: string;
+  /** Omit to take the column default of null (the whole party). */
+  visible_to?: string[] | null;
   /** Omit to take the column default of false. */
   secret?: boolean;
   /** Omit to take the column default of null — stage it after creation. */

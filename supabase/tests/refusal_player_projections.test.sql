@@ -7,13 +7,14 @@
 -- 03 Bo (player, character e2), 04 Sam (a stranger who runs their own table
 -- c2 and so is a legitimate user of the app, just not of c1).
 --
--- Everything at c1 is shared with Ada only, so Bo is a member who was not
--- given it and Sam is not a member at all.
+-- Everything at c1 except quests is shared with Ada only, so Bo is a member who
+-- was not given it and Sam is not a member at all. A quest shows to the whole
+-- party through its beats (#1194), so it has no per-member share to refuse.
 
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(39);
 
 -- ── Fixture ──────────────────────────────────────────────────────────────────
 
@@ -80,9 +81,14 @@ insert into public.npcs (id, user_id, campaign_id, name, player_visible_fields, 
 insert into public.puzzle_rooms (id, user_id, campaign_id, name, player_visible_to) values
   ('93640000-0000-4000-8000-000000000063', '93640000-0000-4000-8000-000000000001', '93640000-0000-4000-8000-0000000000c1',
    'The riddle door', array['93640000-0000-4000-8000-0000000000e1']::uuid[]);
-insert into public.quests (id, user_id, campaign_id, player_visible_to) values
-  ('93640000-0000-4000-8000-000000000064', '93640000-0000-4000-8000-000000000001', '93640000-0000-4000-8000-0000000000c1',
-   array['93640000-0000-4000-8000-0000000000e1']::uuid[]);
+insert into public.quests (id, user_id, campaign_id) values
+  ('93640000-0000-4000-8000-000000000064', '93640000-0000-4000-8000-000000000001', '93640000-0000-4000-8000-0000000000c1');
+insert into public.quest_beats (quest_id, campaign_id, title, visibility) values
+  ('93640000-0000-4000-8000-000000000064', '93640000-0000-4000-8000-0000000000c1', 'Shown', 'revealed');
+insert into public.quests (id, user_id, campaign_id) values
+  ('93640000-0000-4000-8000-000000000066', '93640000-0000-4000-8000-000000000001', '93640000-0000-4000-8000-0000000000c1');
+insert into public.quest_beats (quest_id, campaign_id, title, visibility) values
+  ('93640000-0000-4000-8000-000000000066', '93640000-0000-4000-8000-0000000000c1', 'Kept back', 'hidden');
 insert into public.minis (id, user_id, campaign_id, source_table, source_id, format, status) values
   ('93640000-0000-4000-8000-000000000065', '93640000-0000-4000-8000-000000000001', '93640000-0000-4000-8000-0000000000c1',
    'party_members', '93640000-0000-4000-8000-0000000000e1', 'vtt', 'ready');
@@ -200,8 +206,10 @@ select isnt_empty($$ select * from public.get_player_visible_quests('93640000-00
   'the player a quest is shared with sees it');
 
 select pg_temp.as_user(3);
-select is_empty($$ select * from public.get_player_visible_quests('93640000-0000-4000-8000-0000000000c1') $$,
-  'a member it was not shared with sees no quest');
+select isnt_empty($$ select * from public.get_player_visible_quests('93640000-0000-4000-8000-0000000000c1') $$,
+  'every seated member sees a quest that shows a beat');
+select is_empty($$ select * from public.get_player_visible_quests('93640000-0000-4000-8000-0000000000c1', '93640000-0000-4000-8000-000000000066') $$,
+  'a quest whose beats are all hidden is withheld from a seated member (the positive control is the shown quest above)');
 
 select pg_temp.as_user(4);
 select is_empty($$ select * from public.get_player_visible_quests('93640000-0000-4000-8000-0000000000c1', '93640000-0000-4000-8000-000000000064') $$,

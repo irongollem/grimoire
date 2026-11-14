@@ -27,12 +27,12 @@ describe("describeQuestConsequenceAction", () => {
 
   it("names the target objective for a ledger verb", () => {
     expect(describeQuestConsequenceAction(row({ action: "complete" }), objectiveLabel))
-      .toBe('Complete "Kill the dragon"');
+      .toBe('Completes "Kill the dragon"');
   });
 
   it("falls back to a removed-objective label when the target no longer resolves", () => {
     expect(describeQuestConsequenceAction(row({ action: "fail", target_objective_id: "gone" }), objectiveLabel))
-      .toBe('Fail "Objective removed"');
+      .toBe('Fails "Objective removed"');
   });
 
   it("summarizes a calendar-event world action from its payload title", () => {

@@ -1,7 +1,8 @@
 <template>
   <!-- The drawer with nothing selected (#1194, frame 11): the quest as a table
        reads it. Where it stands, the line players read, the quest's own notes,
-       and its objectives pinned at the foot. -->
+       then its objectives. They scroll with the notes rather than pinning a
+       foot: a quest with many objectives squeezed the notes out of view. -->
   <QuestColumnFrame label="The quest">
     <template #header>
       <p class="text-caption text-muted-foreground">{{ standing }}</p>
@@ -42,9 +43,7 @@
       </div>
     </section>
 
-    <template #foot>
-      <QuestObjectivesFoot :quest-id="quest.id" @select-beat="emit('select-beat', $event)" />
-    </template>
+    <QuestObjectivesFoot :quest-id="quest.id" class="border-t border-border pt-3" @select-beat="emit('select-beat', $event)" />
   </QuestColumnFrame>
 </template>
 
@@ -57,9 +56,11 @@ import RichTextEditor from "@/components/common/richtext/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import { useParty } from "@/composables/party/useParty";
+import { useQuestBeats } from "@/composables/quests/useQuestFlow";
 import { useUpdateQuest } from "@/composables/quests/useQuests";
 import { useAutosave } from "@/composables/useAutosave";
 import { hasBeatText } from "@/lib/quests/beatText";
+import { audienceLabel, questAudienceOf } from "@/lib/quests/visibility";
 import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 import { QUEST_STATUS_LABELS, type Quest } from "@/types/quest.types";
 import QuestColumnFrame from "./QuestColumnFrame.vue";
@@ -70,13 +71,15 @@ const emit = defineEmits<{ "select-beat": [beatId: string] }>();
 
 const { mutateAsync: updateQuest } = useUpdateQuest();
 const { mentionItems: entityMentionItems } = useEntityMentionItems();
-const { data: party } = useParty();
 
-// "Active · Shared with 2 of 4": the quest's lane, then how many of the party can read it.
+// "Active · Shown to the whole party": the quest's lane, then whether any beat shows. A quest has no
+// audience of its own; it is visible when one of its beats is rumored or revealed.
+const { data: beats } = useQuestBeats(computed(() => quest.id));
+const { data: party } = useParty();
 const standing = computed(() => {
-  const members = new Set((party.value ?? []).map((member) => member.id));
-  const shared = quest.player_visible_to.filter((id) => members.has(id)).length;
-  const who = shared === 0 ? "Not shared yet" : shared === members.size ? "Shared with the whole party" : `Shared with ${shared} of ${members.size}`;
+  const audience = questAudienceOf(beats.value ?? []);
+  const members = (party.value ?? []).map((member) => ({ id: member.id, name: member.name }));
+  const who = audience.kind === "hidden" ? "Hidden from players" : audience.kind === "party" ? "Shown to the whole party" : `Shown to ${audienceLabel(audience.memberIds, members)}`;
   return `${QUEST_STATUS_LABELS[quest.status]} · ${who}`;
 });
 

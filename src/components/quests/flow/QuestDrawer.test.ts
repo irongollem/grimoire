@@ -55,6 +55,17 @@ describe("QuestDrawer", () => {
     expect(w.find('[data-test="wide"]').exists()).toBe(false);
   });
 
+  // Fails if the wide part is put before the column, or shown at rest (the column is the drawer's left-most part).
+  it("holds the column first and the wide part after it, and only the column at rest", async () => {
+    const w = await mountDrawer("beat");
+    expect(w.find('[data-test="wide"]').exists()).toBe(false);
+    await tab(w).trigger("click");
+    const column = w.get('[data-test="column"]').element;
+    const wide = w.get('[data-test="wide"]').element;
+    expect(column.compareDocumentPosition(wide) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(w.get('[aria-label="Quest drawer"]').element.contains(wide)).toBe(true);
+  });
+
   // Fails if a route can be opened wide: it has no wide part to show.
   it("a route has no tab and no wide part, even when asked open", async () => {
     const w = await mountDrawer("route", true);

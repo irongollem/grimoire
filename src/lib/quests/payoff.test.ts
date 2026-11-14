@@ -92,8 +92,8 @@ describe("derivePayoffRows", () => {
       objectiveLabel,
     });
 
-    expect(rows[0]!.caption).toBe("grant_knowledge · on arrival");
-    expect(rows[1]!.caption).toBe('shift_npc_relationship · on "He confesses the tithe"');
+    expect(rows[0]!.caption).toBe("On arrival");
+    expect(rows[1]!.caption).toBe('On the route to "He confesses the tithe"');
   });
 
   // Fails if a failed-outcome rule still captions itself "on arrival" while the panel lists it under "If it goes wrong".
@@ -107,7 +107,7 @@ describe("derivePayoffRows", () => {
       objectiveLabel,
     });
 
-    expect(rows[0]!.caption).toBe("grant_knowledge · if it goes wrong");
+    expect(rows[0]!.caption).toBe("If it goes wrong");
   });
 
   it("appends a delay suffix only when the rule is actually delayed", () => {
@@ -123,8 +123,8 @@ describe("derivePayoffRows", () => {
       objectiveLabel,
     });
 
-    expect(rows[0]!.caption).toBe("award_milestone · on arrival");
-    expect(rows[1]!.caption).toBe("award_milestone · on arrival (+5d)");
+    expect(rows[0]!.caption).toBe("On arrival");
+    expect(rows[1]!.caption).toBe("On arrival (+5d)");
   });
 
   it("styles the #1011 verbs and names their targets", () => {
@@ -151,21 +151,7 @@ describe("derivePayoffRows", () => {
     ]);
   });
 
-  it("marks every consequence row 'auto' and every loot row 'you dispatch'", () => {
-    const rows = derivePayoffRows({
-      beatId: "beat-fork",
-      consequences: [consequence({ id: "c-1", on_beat_id: "beat-fork", action: "award_milestone", action_payload: { text: "x" } })],
-      outgoingEdges,
-      beats,
-      loot: [loot({ id: "loot-1" })],
-      objectiveLabel,
-    });
-
-    expect(rows.find((row) => row.id === "c-1")!.chip).toBe("auto");
-    expect(rows.find((row) => row.id === "loot-1")!.chip).toBe("you dispatch");
-  });
-
-  it("orders loot after every consequence, and captions it with its kind and delivery state", () => {
+  it("orders loot after every consequence, and captions it as the payoff the DM hands over", () => {
     const rows = derivePayoffRows({
       beatId: "beat-fork",
       consequences: [consequence({ id: "c-1", on_beat_id: "beat-fork", action: "award_milestone", action_payload: { text: "x" } })],
@@ -177,7 +163,7 @@ describe("derivePayoffRows", () => {
 
     expect(rows.map((row) => row.id)).toEqual(["c-1", "loot-1"]);
     const lootRow = rows[1]!;
-    expect(lootRow.caption).toBe("loot_placement · currency · held");
+    expect(lootRow.caption).toBe("Loot: you hand it over");
     expect(lootRow.tone).toBe("primary");
     expect(lootRow.icon).toBe("coins");
   });
@@ -200,7 +186,7 @@ describe("derivePayoffRows", () => {
       loot: [loot({ id: "loot-1", kind: "item" })],
       objectiveLabel,
     });
-    expect(rows[0]!.caption).toBe('award_milestone · on "Missing beat"');
+    expect(rows[0]!.caption).toBe('On the route to "Missing beat"');
     expect(rows[1]!.icon).toBe("package");
   });
 

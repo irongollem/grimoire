@@ -128,16 +128,16 @@ describe("QuestPayoffPanel", () => {
     const rows = wrapper.findAll("ul li");
     expect(rows).toHaveLength(2);
     expect(rows[0]!.text()).toContain("Milestone: \"Renown\"");
-    expect(rows[0]!.text()).toContain("auto");
+    expect(rows[0]!.text()).toContain("On arrival");
     expect(rows[1]!.text()).toContain("Tally-stick of the widow");
-    expect(rows[1]!.text()).toContain("you dispatch");
+    expect(rows[1]!.text()).toContain("Loot: you hand it over");
   });
 
   it("removes a consequence row through the consequence mutation", async () => {
     const wrapper = mountPanel({
       consequences: [consequence({ id: "c-1", on_beat_id: "beat-fork", action: "award_milestone", action_payload: { text: "Renown" } })],
     });
-    await wrapper.findAll("button").find((button) => button.text() === "Remove")!.trigger("click");
+    await wrapper.findAll("button").find((button) => button.attributes("aria-label")?.startsWith("Remove "))!.trigger("click");
     await flushPromises();
     expect(mocks.removeConsequence).toHaveBeenCalledWith({ id: "c-1", questId: "quest-1" });
   });
@@ -145,14 +145,14 @@ describe("QuestPayoffPanel", () => {
   it("says so when a remove is refused, instead of leaving the row there in silence", async () => {
     mocks.removeLoot.mockRejectedValue(new Error("permission denied"));
     const wrapper = mountPanel({ loot: [loot({ id: "loot-1" })] });
-    await wrapper.findAll("button").find((button) => button.text() === "Remove")!.trigger("click");
+    await wrapper.findAll("button").find((button) => button.attributes("aria-label")?.startsWith("Remove "))!.trigger("click");
     await flushPromises();
     expect(wrapper.get('[role="alert"]').text()).toBe("permission denied");
   });
 
   it("removes a loot row through the loot mutation, keyed by campaign", async () => {
     const wrapper = mountPanel({ loot: [loot({ id: "loot-1" })] });
-    await wrapper.findAll("button").find((button) => button.text() === "Remove")!.trigger("click");
+    await wrapper.findAll("button").find((button) => button.attributes("aria-label")?.startsWith("Remove "))!.trigger("click");
     await flushPromises();
     expect(mocks.removeLoot).toHaveBeenCalledWith({ id: "loot-1", campaignId: "campaign-1" });
   });
@@ -540,7 +540,7 @@ describe("QuestPayoffPanel", () => {
     it("a finished removal releases the row's Remove button", async () => {
       mocks.removeConsequence.mockResolvedValue(undefined);
       const wrapper = mountPanel({ consequences: [consequence({ id: "c-1", on_beat_id: "beat-fork", action: "award_milestone", action_payload: { text: "Renown" } })] });
-      const remove = () => wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Remove")!;
+      const remove = () => wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("tooltip") === "Remove")!;
       await remove().trigger("click");
       await flushPromises();
       expect(remove().props("loading")).toBe(false);
@@ -626,4 +626,14 @@ describe("QuestPayoffPanel", () => {
       expect(mocks.createConsequence.mock.calls.at(-1)![0].target_npc_id).toBeNull();
     });
   });
+
+  // Fails if the payoff being written opens below the add buttons again, away from the payoffs it joins.
+  it("opens the payoff being written between the payoffs and the add buttons", async () => {
+    const wrapper = mountPanel({ consequences: [consequence({ id: "c-1", on_beat_id: "beat-fork", action: "award_milestone", action_payload: { text: "Renown" } })] });
+    await press(wrapper, "New objective this beat raises");
+    const html = wrapper.html();
+    expect(html.indexOf("What the party now has to do")).toBeGreaterThan(html.indexOf("Renown"));
+    expect(html.indexOf("What the party now has to do")).toBeLessThan(html.indexOf("An objective it raises, completes or fails"));
+  });
 });
+

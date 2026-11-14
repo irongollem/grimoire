@@ -15,7 +15,7 @@ Five tabs, each with a live count badge:
 
 - **My Journal**: private entries only the player sees.
 - **Party Journal**: entries any player has marked Shared.
-- **Quest Log**: every quest you've shared with this player, grouped by status (Active / On Hold / Completed / Failed). This *is* the player's quest list: there's no separate Quests tab in the nav bar.
+- **Quest Log**: every quest with a beat the party has heard of or seen, grouped by status (Active / On Hold / Completed / Failed). This *is* the player's quest list: there's no separate Quests tab in the nav bar.
 - **Puzzles**: every puzzle you've shared, with hint counts. Also not a separate nav tab.
 - **DM Notes**: a read-only view of session notes you've shared with this player.
 

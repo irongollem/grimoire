@@ -170,7 +170,7 @@ Two parts: **Your company**, a slim strip of the party, and **People**, the ledg
 
 Route: `/play/journal?tab=quest-log` (a tab inside `PlayerJournalView.vue`, not a standalone nav destination — `/play/quests` redirects here) → `/play/quests/:id`
 
-Only quests that the DM has explicitly shared with the player appear (via `usePlayerVisibleQuests()`). Quests are grouped by status:
+Only quests with a beat that is rumored or revealed appear (via `usePlayerVisibleQuests()`; a quest has no audience of its own, #1194). Quests are grouped by status:
 
 - Active
 - On Hold
@@ -630,7 +630,7 @@ The DM opens `/locations/:id/table` in a second window for a screen built into t
 
 - Full NPC profiles, secret notes, stat blocks for all monsters
 - Full location descriptions (players see only `player_summary` unless `is_description_shared`)
-- Quest details before they are shared
+- Quest details before one of the quest's beats is rumored or revealed
 - Encounter builder and runner controls (HP editing, spawning combatants, initiative management)
 - All party members' character sheets simultaneously (Party Tracker)
 - The DM Preview toggle to temporarily adopt a player's perspective

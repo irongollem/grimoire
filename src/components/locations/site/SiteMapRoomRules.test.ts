@@ -96,7 +96,7 @@ describe("SiteMapRoomRules", () => {
     const row = wrapper.findAll("ul li")[0]!;
     expect(row.text()).toContain("The Sunken Reliquary");
     expect(row.text()).toContain("when cleared");
-    expect(row.text()).toContain('Complete "Recover the relic"');
+    expect(row.text()).toContain('Completes "Recover the relic"');
   });
 
   it("degrades to 'Quest removed' / 'Objective removed' rather than a blank when either no longer resolves", () => {

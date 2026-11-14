@@ -14,11 +14,16 @@
             <AppButton variant="link" size="inline-caption" :label="staging.name" :to="placeRoute(staging.locationId)" />
           </template>
         </p>
-        <AppButton :icon="IconClose" size="icon-xs" variant="subtle" aria-label="Back to the quest" @click="emit('deselect')" />
+        <!-- Back up to the quest, said in words: an × means delete elsewhere on this screen. -->
+        <AppButton :icon="IconChevronLeft" label="Quest" aria-label="Back to the quest" size="xs" variant="subtle" @click="emit('deselect')" />
       </div>
       <template v-if="beat">
-        <h2 class="text-heading-sm font-bold text-foreground">{{ beat.title || "Untitled beat" }}</h2>
-        <QuestBeatMarks :beat="beat" :presentation="presentations[beat.id]" :entry-beat-id="entryBeatId" :thread-id="threadId" :session-id="sessionId" :floor="floor" />
+        <!-- The title on the left, what players know of it on the right. -->
+        <div class="flex items-start justify-between gap-3">
+          <h2 class="min-w-0 text-heading-sm font-bold text-foreground">{{ beat.title || "Untitled beat" }}</h2>
+          <QuestBeatVisibilityControl class="shrink-0" :beat="beat" :floor="floor" />
+        </div>
+        <QuestBeatMarks :beat="beat" :beats="beats" :edges="edges" :standing="threadId ? standingByThread[threadId] ?? null : null" :presentation="presentations[beat.id]" :entry-beat-id="entryBeatId" :thread-id="threadId" :session-id="sessionId" />
       </template>
     </template>
 
@@ -43,20 +48,29 @@
           <AppButton size="xs" variant="subtle" label="Write it" @click="editing = true" />
         </div>
       </template>
-    </template>
-
-    <template #foot>
-      <QuestBeatWays :beat-id="beatId" :edges="edges" :beats="beats" :can-take="canAdvance" @select-beat="emit('select-beat', $event)" @select-edge="emit('select-edge', $event)" @take="openAdvance" />
-      <QuestAdvanceDialog
-        v-if="advanceOpen && advanceContext"
-        :open="advanceOpen"
-        :context="advanceContext"
-        :thread-letter="threadLetter"
-        :preselected-edge-id="advanceEdgeId"
-        @close="advanceOpen = false"
-        @advanced="advanceOpen = false"
+      <!-- Where it can go reads after the beat's text and scrolls with it: pinned,
+           it took the column's height from the text above it (14 Nov 2026). -->
+      <QuestBeatWays
+        class="mt-2 border-t-2 border-foreground pt-3"
+        :beat-id="beatId"
+        :edges="edges"
+        :beats="beats"
+        :can-take="canAdvance"
+        @select-beat="emit('select-beat', $event)"
+        @select-edge="emit('select-edge', $event)"
+        @take="openAdvance"
       />
     </template>
+
+    <QuestAdvanceDialog
+      v-if="advanceOpen && advanceContext"
+      :open="advanceOpen"
+      :context="advanceContext"
+      :thread-letter="threadLetter"
+      :preselected-edge-id="advanceEdgeId"
+      @close="advanceOpen = false"
+      @advanced="advanceOpen = false"
+    />
   </QuestColumnFrame>
 </template>
 
@@ -73,11 +87,12 @@ import {
 } from "@/composables/quests/useQuestFlow";
 import { useQuestObjectives } from "@/composables/quests/useQuests";
 import { useHotkeys } from "@/composables/useHotkeys";
-import { IconClose } from "@/lib/icons";
+import { IconChevronLeft } from "@/lib/icons";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import type { BeatFillContext } from "@/lib/quests/beatFill";
 import { hasBeatText } from "@/lib/quests/beatText";
 import { questBeatKindLabel, type QuestBeatPresentation, type QuestBeatStaging } from "@/lib/quests/presentation";
+import type { ThreadStanding } from "@/lib/quests/moves";
 import { soleOpenOutgoingEdgeId } from "@/lib/quests/run";
 import { threadBadge } from "@/lib/quests/threads";
 import { partyBeatIdsOf, reachedBeatIdsOf, visibilityFloor } from "@/lib/quests/visibility";
@@ -86,6 +101,7 @@ import type { Quest, QuestThread } from "@/types/quest.types";
 import QuestThreadBar from "../flow/QuestThreadBar.vue";
 import QuestBeatFields from "../inspector/QuestBeatFields.vue";
 import QuestBeatMarks from "../inspector/QuestBeatMarks.vue";
+import QuestBeatVisibilityControl from "../common/QuestBeatVisibilityControl.vue";
 import QuestBeatWays from "./QuestBeatWays.vue";
 import QuestColumnFrame from "./QuestColumnFrame.vue";
 
@@ -97,7 +113,7 @@ const QuestAdvanceDialog = defineAsyncComponent(() => import("../run/QuestAdvanc
  * the marks, what to read and say, and "Where it can go" pinned at the foot.
  * Reading by default; `editing` swaps the body for the one autosaving form.
  */
-const { questId, beatId, quest, threads, focusThreadId, currentBeatIdByThread, presentations, entryBeatId, sessionId = null, staging = null } = defineProps<{
+const { questId, beatId, quest, threads, focusThreadId, currentBeatIdByThread, standingByThread, presentations, entryBeatId, sessionId = null, staging = null } = defineProps<{
   questId: string;
   beatId: string;
   quest: Quest | null;
@@ -105,6 +121,8 @@ const { questId, beatId, quest, threads, focusThreadId, currentBeatIdByThread, p
   /** Null when the quest has no live thread yet. */
   focusThreadId: string | null;
   currentBeatIdByThread: Record<string, string | null>;
+  /** Where each thread stands (#1194), for the ways Party here and Failed ask about. */
+  standingByThread: Record<string, ThreadStanding>;
   presentations: Record<string, QuestBeatPresentation>;
   entryBeatId: string | null;
   sessionId?: string | null;

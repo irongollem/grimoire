@@ -38,7 +38,7 @@ export function isLedgerConsequenceAction(action: QuestConsequenceAction): boole
 
 /** A ledger verb that moves an *objective* (needs `target_objective_id`).
  *  `tick_clock` is engine state like them, but its target is a clock. */
-export function isObjectiveConsequenceAction(action: QuestConsequenceAction): boolean {
+export function isObjectiveConsequenceAction(action: QuestConsequenceAction): action is "raise" | "complete" | "fail" {
   return isLedgerConsequenceAction(action) && action !== "tick_clock";
 }
 
@@ -132,6 +132,8 @@ function standingChangePhrase(payload: Partial<RelationshipShiftConsequencePaylo
   return `${step > 0 ? "improves" : "worsens"} by ${Math.abs(step)}`;
 }
 
+const OBJECTIVE_VERBS: Record<"raise" | "complete" | "fail", string> = { raise: "Raises", complete: "Completes", fail: "Fails" };
+
 /**
  * One line describing what a consequence rule does — `Complete "Kill the
  * dragon"`, or `Calendar event: "The bridge collapses"`. Shared by the rule
@@ -175,7 +177,9 @@ export function describeQuestConsequenceAction(
     if (faction && change) return `${faction}: standing ${change}`;
   }
   if (isObjectiveConsequenceAction(row.action)) {
-    return `${QUEST_CONSEQUENCE_ACTION_LABELS[row.action]} "${objectiveLabel(row.target_objective_id)}"`;
+    // A plain verb with its objective ("Raises "Free the boy""): the picker's
+    // label explains what raising means; a summary only has to say it.
+    return `${OBJECTIVE_VERBS[row.action]} "${objectiveLabel(row.target_objective_id)}"`;
   }
   if (row.action === "unlock_quest" && resolver?.questLabel) {
     // A resolver that comes back empty (still loading, or a target the caller

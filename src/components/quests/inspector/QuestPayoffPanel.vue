@@ -16,38 +16,17 @@
             <component :is="ICON_COMPONENTS[row.icon]" class="h-3.5 w-3.5" />
           </span>
           <div class="min-w-0 flex-1">
-            <p class="truncate text-label-lg font-bold text-foreground">{{ row.summary }}</p>
-            <p class="truncate text-muted-foreground">{{ row.caption }}</p>
+            <p class="wrap-break-word text-body font-bold text-foreground">{{ row.summary }}</p>
+            <p class="text-muted-foreground">{{ row.caption }}</p>
           </div>
-          <span
-            class="rounded px-1.5 py-0.5 text-label uppercase"
-            :class="row.chip === 'you dispatch' ? 'bg-tone-caution/15 text-ink-caution' : 'bg-muted text-muted-foreground'"
-          >{{ row.chip }}</span>
-          <AppButton label="Remove" size="xs" variant="subtle" :loading="removingId === row.id" @click="remove(row)" />
+          <AppButton :icon="IconClose" size="icon-xs" variant="subtle" :aria-label="`Remove ${row.summary}`" tooltip="Remove" :loading="removingId === row.id" @click="remove(row)" />
         </li>
       </ul>
     </template>
     <p v-if="!rows.length" class="text-caption italic text-muted-foreground">Nothing this beat gives yet.</p>
 
-    <div class="flex flex-wrap gap-1.5">
-      <AppButton label="An objective it raises, completes or fails" :icon="IconAdd" size="xs" class="max-sm:min-h-11" :active="activeQuickAdd === 'objective'" @click="toggleQuickAdd('objective')" />
-      <AppButton label="New objective this beat raises" :icon="IconAdd" size="xs" class="max-sm:min-h-11" :active="activeQuickAdd === 'newObjective'" @click="toggleQuickAdd('newObjective')" />
-      <AppButton label="Other payoff" :icon="IconAdd" size="xs" class="max-sm:min-h-11" :active="othersOpen" :aria-expanded="othersOpen" @click="toggleOthers" />
-    </div>
-
-    <div v-if="othersOpen" class="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-      <AppButton
-        v-for="option in QUICK_ADD_OPTIONS"
-        :key="option.kind"
-        :label="option.label"
-        :icon="option.icon"
-        size="xs"
-        class="max-sm:min-h-11"
-        :active="activeQuickAdd === option.kind"
-        @click="toggleQuickAdd(option.kind)"
-      />
-    </div>
-
+    <!-- The payoff being written opens under the payoffs it joins, above the
+         buttons that add more (14 Nov 2026). -->
     <Transition v-bind="drawerTransition()">
       <div v-if="activeQuickAdd" class="space-y-2 rounded-md border border-dashed border-border p-2">
         <template v-if="activeQuickAdd === 'newObjective'">
@@ -155,6 +134,25 @@
         </div>
       </div>
     </Transition>
+    <div class="flex flex-wrap gap-1.5">
+      <AppButton label="An objective it raises, completes or fails" :icon="IconAdd" size="xs" class="max-sm:min-h-11" :active="activeQuickAdd === 'objective'" @click="toggleQuickAdd('objective')" />
+      <AppButton label="New objective this beat raises" :icon="IconAdd" size="xs" class="max-sm:min-h-11" :active="activeQuickAdd === 'newObjective'" @click="toggleQuickAdd('newObjective')" />
+      <AppButton label="Other payoff" :icon="IconAdd" size="xs" class="max-sm:min-h-11" :active="othersOpen" :aria-expanded="othersOpen" @click="toggleOthers" />
+    </div>
+
+    <div v-if="othersOpen" class="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+      <AppButton
+        v-for="option in QUICK_ADD_OPTIONS"
+        :key="option.kind"
+        :label="option.label"
+        :icon="option.icon"
+        size="xs"
+        class="max-sm:min-h-11"
+        :active="activeQuickAdd === option.kind"
+        @click="toggleQuickAdd(option.kind)"
+      />
+    </div>
+
     <!-- Outside the add form: a refused remove reports here too, with the form closed. -->
     <p v-if="error" role="alert" class="text-caption text-destructive">{{ error }}</p>
   </section>
@@ -177,7 +175,7 @@ import { type QuestBeat, type QuestConsequenceAction, type QuestBeatEdge, type Q
 import { DEFAULT_RELATIONSHIP_SHIFT_KEY, RELATIONSHIP_SHIFT_OPTIONS, isTargetedWorldVerb, relationshipShiftPayload, worldVerbInsertFields, worldVerbReady, type WorldVerbDraft } from "@/lib/quests/consequences";
 import { EVENT_TYPE_COLORS, type CalendarEventType } from "@/types/calendar.types";
 import {
-  IconAdd, IconAward, IconCalendar, IconCheck, IconClock, IconCoins, IconDocument, IconFaction, IconHand, IconInvite, IconPackage, IconParty, IconPin, IconQuest, IconScrollText, IconSend,
+  IconAdd, IconAward, IconCalendar, IconCheck, IconClock, IconClose, IconCoins, IconDocument, IconFaction, IconHand, IconInvite, IconPackage, IconParty, IconPin, IconQuest, IconScrollText, IconSend,
 } from "@/lib/icons";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";

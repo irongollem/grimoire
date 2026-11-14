@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import QuestTakeRoute from "./QuestTakeRoute.vue";
+import type { ThreadStanding } from "@/lib/quests/moves";
 import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({ mark: vi.fn() }));
@@ -23,11 +24,12 @@ const edge = (id: string, target: string) => ({ id, quest_id: "q", campaign_id: 
 const beats = [{ id: "a", title: "Gate" }, { id: "b", title: "Cellar" }, { id: "c", title: "Roof" }] as QuestBeat[];
 const staging = { locationId: "loc-9", name: "The Cellar", siteId: null, siteName: null };
 
+const atGate: ThreadStanding = { partyBeatId: "a", reachedBeatIds: new Set(["a"]), entryBeatId: "a" };
 function mountTake(props: Record<string, unknown> = {}) {
-  return mount(QuestTakeRoute, { props: { edge: edge("e1", "b"), edges: [edge("e1", "b"), edge("e2", "c")], beats, threadId: "t1", targetStaging: staging, ...props } });
+  return mount(QuestTakeRoute, { props: { edge: edge("e1", "b"), edges: [edge("e1", "b"), edge("e2", "c")], beats, standing: atGate, threadId: "t1", targetStaging: staging, ...props } });
 }
 const box = (wrapper: ReturnType<typeof mountTake>, text: string) => wrapper.findAll("label").find((l) => l.text().includes(text))!.find("input");
-const take = (wrapper: ReturnType<typeof mountTake>) => wrapper.findAll("button").find((b) => b.text() === "Take this route")!;
+const take = (wrapper: ReturnType<typeof mountTake>) => wrapper.findAll("button").find((b) => b.text() === "Take this route" || b.text() === "Mark as taken")!;
 
 beforeEach(() => { vi.clearAllMocks(); mocks.mark.mockResolvedValue({}); });
 
@@ -46,7 +48,7 @@ describe("QuestTakeRoute", () => {
     await take(wrapper).trigger("click");
     expect(mocks.mark).toHaveBeenCalledWith({
       kind: "route", campaignId: "camp", questId: "q", threadId: "t1", sessionId: "s1",
-      edgeId: "e1", placeParty: true, dispatchLootIds: ["l1"], movePartyTo: "loc-9",
+      edgeId: "e1", via: ["a"], placeParty: true, dispatchLootIds: ["l1"], movePartyTo: "loc-9",
     });
   });
 
@@ -68,5 +70,54 @@ describe("QuestTakeRoute", () => {
     expect(take(wrapper).attributes("disabled")).toBeDefined();
     await take(wrapper).trigger("click");
     expect(mocks.mark).not.toHaveBeenCalled();
+  });
+
+  describe("where the party stands (#1194)", () => {
+    // Gate -> Kennels/Tunnel -> Lodge -> Vault; the route under test leaves the Lodge.
+    const lodgeEdges = [
+      { ...edge("k", "kennels"), source_beat_id: "a" }, { ...edge("k2", "lodge"), source_beat_id: "kennels" },
+      { ...edge("t", "tunnel"), source_beat_id: "a" }, { ...edge("t2", "lodge"), source_beat_id: "tunnel" },
+      { ...edge("go", "vault"), source_beat_id: "lodge" },
+    ];
+    const lodgeBeats = [{ id: "a", title: "Gate" }, { id: "kennels", title: "Kennels" }, { id: "tunnel", title: "Tunnel" }, { id: "lodge", title: "Lodge" }, { id: "vault", title: "Vault" }] as QuestBeat[];
+    const ahead = (edges = lodgeEdges) => mountTake({ edge: edges.at(-1), edges, beats: lodgeBeats });
+
+    it("from further back the button reads Mark as taken and names what it fills in on the way", () => {
+      const wrapper = mountTake({ edge: lodgeEdges[4], edges: lodgeEdges.filter((e) => e.id !== "t" && e.id !== "t2"), beats: lodgeBeats });
+      expect(take(wrapper).text()).toBe("Mark as taken");
+      expect(wrapper.find("[data-on-the-way]").text()).toBe("Marks Kennels, Lodge done on the way");
+      expect(wrapper.find("input[type=radio]").exists()).toBe(false);
+    });
+
+    it("with one way it sends that way without asking (fails if via is left to the server's guess)", async () => {
+      const wrapper = mountTake({ edge: lodgeEdges[4], edges: lodgeEdges.filter((e) => e.id !== "t" && e.id !== "t2"), beats: lodgeBeats });
+      await take(wrapper).trigger("click");
+      expect(mocks.mark).toHaveBeenCalledWith(expect.objectContaining({ edgeId: "go", via: ["a", "kennels", "lodge"] }));
+    });
+
+    it("with two ways it lists them, stays disabled until one is picked and then sends exactly that way", async () => {
+      const wrapper = ahead();
+      const radios = wrapper.findAll("input[type=radio]");
+      expect(radios).toHaveLength(2);
+      expect(wrapper.text()).toContain("Tunnel, Lodge");
+      expect(wrapper.text()).toContain("Kennels, Lodge");
+      expect(take(wrapper).attributes("disabled")).toBeDefined();
+      await take(wrapper).trigger("click");
+      expect(mocks.mark).not.toHaveBeenCalled();
+      await wrapper.findAll("label").find((l) => l.text() === "Kennels, Lodge")!.find("input").setValue(true);
+      expect(take(wrapper).attributes("disabled")).toBeUndefined();
+      await take(wrapper).trigger("click");
+      expect(mocks.mark).toHaveBeenCalledWith(expect.objectContaining({ via: ["a", "kennels", "lodge"] }));
+    });
+
+    it("past or cut off: greyed out with the reason, and it sends nothing", async () => {
+      const wrapper = mountTake({ standing: { partyBeatId: "c", reachedBeatIds: new Set(["a", "b", "c"]), entryBeatId: "a" } });
+      expect(wrapper.find("[data-past-reason]").text()).toBe("Already taken");
+      expect(take(wrapper).attributes("disabled")).toBeDefined();
+      await take(wrapper).trigger("click");
+      expect(mocks.mark).not.toHaveBeenCalled();
+      const cut = mountTake({ edge: edge("z", "b"), edges: [edge("e1", "b")], standing: { partyBeatId: "c", reachedBeatIds: new Set(["c"]), entryBeatId: "a" } });
+      expect(cut.find("[data-past-reason]").text()).toBe("Cut off by an earlier choice");
+    });
   });
 });

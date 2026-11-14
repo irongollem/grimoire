@@ -1027,7 +1027,6 @@ export async function executeImport(opts: ImportBundleOptions): Promise<ImportRe
         parent_quest_id: rCamp(q.parent_quest_id, idMap),
         giver_npc_id: rCamp(q.giver_npc_id, idMap),
         location_id: rCamp(q.location_id, idMap),
-        player_visible_to: [],
       };
     });
     await batchInsert("quests", questRows);

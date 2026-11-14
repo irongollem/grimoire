@@ -10,7 +10,7 @@
 import { runSqlFile } from "../../lib/dev-campaign-io.ts";
 import { quote, sql } from "../../lib/dev-db.ts";
 import type { Offstage } from "../types.ts";
-import { demoCampaignId, localDb, playerCharacter } from "./demo.ts";
+import { demoCampaignId, localDb } from "./demo.ts";
 
 const TITLE = "The Locked Workshop";
 
@@ -31,11 +31,10 @@ function questId(): string {
   return id;
 }
 
-/** Everything a run leaves behind on the quest, as one statement block. `shared` is whether Chicory has been told of it. */
+/** Everything a run leaves behind on the quest, as one statement block. `shared` is whether Chicory has been told of it: a quest shows when one of its beats does, so that is the entry beat rumored. */
 function resetSql(shared: boolean): string {
   const c = quote(demoCampaignId());
   const q = quote(questId());
-  const member = quote(playerCharacter(demoCampaignId()).id);
   const reveals = Object.entries(REVEAL_TEXT)
     .map(([title, text]) => `update public.quest_beats set reveal_text = ${shared ? doc(text) : "null"} where quest_id = ${q} and title = ${quote(title)};`)
     .join("\n");
@@ -48,7 +47,8 @@ function resetSql(shared: boolean): string {
     ${reveals}
     update public.quest_objectives set status = 'pending' where quest_id = ${q} and status <> 'dormant';
     update public.quest_objectives set status = 'dormant' where quest_id = ${q} and sort_order = 3;
-    update public.quests set status = 'active', player_visible_to = ${shared ? `array[${member}]::uuid[]` : "'{}'::uuid[]"} where id = ${q} and campaign_id = ${c};
+    update public.quests set status = 'active' where id = ${q} and campaign_id = ${c};
+    ${shared ? `update public.quest_beats set visibility = 'rumored' where id = (select entry_beat_id from public.quests where id = ${q});` : ""}
   commit;`;
 }
 

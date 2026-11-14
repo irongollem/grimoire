@@ -42,4 +42,11 @@ describe("QuestVisibilityTrack", () => {
     expect(w.findAll("button")).toHaveLength(0);
     expect(w.attributes("aria-label")).toBe("hidden");
   });
+
+  // Fails if the current step stops being named under the circles, or the flow's boxes start naming it.
+  it("names the current step beneath the circles, except on the flow's boxes", () => {
+    expect(mount(QuestVisibilityTrack, { props: { modelValue: "rumored", size: "sm" } }).text()).toBe("rumored");
+    expect(mount(QuestVisibilityTrack, { props: { modelValue: "rumored", size: "lg" } }).text()).toBe("rumored");
+    expect(mount(QuestVisibilityTrack, { props: { modelValue: "rumored", size: "xs" } }).text()).toBe("");
+  });
 });

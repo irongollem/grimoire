@@ -14,7 +14,7 @@
     </div>
 
     <div
-      v-else-if="!quest || !quest.player_visible_to?.length"
+      v-else-if="!quest"
       class="text-center py-16 space-y-3"
     >
       <IconScrollText class="h-10 w-10 text-muted-foreground/30 mx-auto" />

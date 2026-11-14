@@ -36,7 +36,8 @@
     <p v-else class="mt-2 rounded-md border border-dashed border-border p-3 text-center text-caption text-muted-foreground">No routes out of this beat yet.</p>
 
     <div class="mt-2 flex justify-center">
-      <AppButton :to="addRouteTo" label="Add route" :icon="IconAdd" size="xs" variant="subtle" />
+      <!-- A new beat after this one, with its route: the flow's own composer. -->
+      <AppButton label="Add route" :icon="IconAdd" size="xs" variant="subtle" @click="emit('add-route')" />
     </div>
   </section>
 </template>
@@ -58,6 +59,7 @@ const { beat, edges, beats } = defineProps<{
   edges: QuestBeatEdge[];
   beats: QuestBeat[];
 }>();
+const emit = defineEmits<{ "add-route": [] }>();
 
 const { locationOptions } = useLocationTree();
 
@@ -101,5 +103,4 @@ const summaryChip = computed(() => {
 function editRouteTo(edgeId: string) {
   return questLink(beat.quest_id, { edge: edgeId });
 }
-const addRouteTo = computed(() => questLink(beat.quest_id, { beat: beat.id }));
 </script>

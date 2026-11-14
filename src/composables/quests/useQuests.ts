@@ -177,7 +177,8 @@ export function useQuests() {
  * get_player_visible_quests SECURITY DEFINER projection (migration
  * 20260711000012) — NOT a base-table `select *` — so DM `notes` (Tiptap JSON)
  * never reaches the client. Players have no direct base-table read path (RLS is
- * owner-only); the projection gates rows on the player's player_visible_to.
+ * owner-only); the projection shows a quest only when one of its beats is rumored or
+ * revealed (`private.quest_shown_to_players`).
  */
 export function usePlayerVisibleQuests() {
   const campaign = useCampaignStore();

@@ -133,7 +133,6 @@ async function createFlow() {
       giver_npc_id: null,
       location_id: null,
       tags: [],
-      player_visible_to: [],
       started_at: null,
       resolved_at: null,
     });

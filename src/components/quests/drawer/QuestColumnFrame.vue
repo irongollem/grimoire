@@ -8,20 +8,16 @@
         <slot />
       </div>
     </div>
-    <!-- What comes next stays in view however long the body is: the routes out
-         of a beat, a quest's objectives (#1194, frames 09 and 11). -->
-    <footer v-if="$slots.foot" class="shrink-0 border-t-2 border-foreground bg-muted/40 px-5 pb-4 pt-3">
-      <slot name="foot" />
-    </footer>
   </section>
 </template>
 
 <script setup lang="ts">
 /**
  * The drawer's column (#1194): the same frame whether it holds the quest, a beat
- * or a route, small or with the wide part beside it. Header for who and where,
- * a body that scrolls on its own, and a foot pinned below it.
+ * or a route, small or with the wide part beside it: a header for who and
+ * where, and one body that scrolls. Nothing is pinned below it: a pinned foot
+ * took the column's height from the text above it (14 Nov 2026).
  */
 const { label } = defineProps<{ label: string }>();
-defineSlots<{ header(): unknown; default(): unknown; foot?(): unknown }>();
+defineSlots<{ header(): unknown; default(): unknown }>();
 </script>

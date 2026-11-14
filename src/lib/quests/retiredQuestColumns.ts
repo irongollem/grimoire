@@ -38,6 +38,9 @@ const RETIRED_QUEST_COLUMNS = [
   // #799 — the flag that declared the flow migration complete while both
   // stores were still taking writes.
   "flow_enabled_at",
+  // #1194 — a quest has no audience of its own: it is visible when one of its
+  // beats is rumored or revealed, so per-member quest sharing is gone.
+  "player_visible_to",
 ] as const;
 
 /**

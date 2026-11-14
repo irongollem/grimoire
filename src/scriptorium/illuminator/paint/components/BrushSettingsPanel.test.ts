@@ -13,7 +13,8 @@ describe("BrushSettingsPanel autosave line", () => {
     // Fails on: a failed autosave being visible only as a toast that has already gone.
     const w = mountIt({ saveStatus: "error", saveError: '"Mine" could not be saved.' });
     expect(w.get('[data-testid="brush-autosave"]').text()).toContain("could not be saved");
-    expect(mountIt({ saveStatus: "saved" }).get('[data-testid="brush-autosave"]').text()).toBe("Saved");
+    // At rest a saved brush says nothing; "Saved" is said only right after a save (AutosaveStatus).
+    expect(mountIt({ saveStatus: "saved" }).get('[data-testid="brush-autosave"]').text()).toBe("");
   });
 
   it("shows no line for a stock brush, which never saves", () => {

@@ -695,7 +695,6 @@ export async function executeImport(
           parent_quest_id: r(q.parent_quest_id, idMap),
           giver_npc_id: r(q.giver_npc_id, idMap),
           location_id: r(q.location_id, idMap),
-          player_visible_to: rArr(q.player_visible_to, idMap),
           // This backup format has never carried the beat graph (see the
           // on_beat_id/on_edge_id note on quest_consequences below), so a
           // spread-through entry_beat_id would point at a beat that was never

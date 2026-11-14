@@ -9,6 +9,8 @@ export interface QuestFlowNodeData {
   visibility: string;
   /** A secret beat is never rumored by a move: the node says so beside the dots. */
   secret: boolean;
+  /** Null is the whole party; else only these party members see the beat (the node chips it). */
+  visibleTo: string[] | null;
   presentation?: QuestBeatPresentation;
   /** True when at least one incoming route is currently closed by a gate —
    *  drawn as a dashed muted border, independent of the wire itself (a beat
@@ -32,6 +34,8 @@ export interface QuestFlowEdgeData {
   /** The target beat's own reach is `stranded` — the run has walked past the
    *  last junction that could still lead here. */
   stranded: boolean;
+  /** The route selected in the drawer; set by the canvas, not the graph. */
+  selected?: boolean;
 }
 export type QuestFlowEdge = Edge<QuestFlowEdgeData>;
 
@@ -68,6 +72,7 @@ export function toQuestFlowGraph(
       kind: beat.kind,
       visibility: beat.visibility,
       secret: beat.secret,
+      visibleTo: beat.visible_to,
       presentation: presentations[beat.id],
       isGated: gatedClosedTargetIds.has(beat.id),
       isEntry: beat.id === entryBeatId,

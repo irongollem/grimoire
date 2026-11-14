@@ -7,7 +7,7 @@
       <span v-if="objectives?.length" class="font-fell font-normal text-muted-foreground">({{ doneCount }}/{{ objectives.length }})</span>
     </h3>
     <QuestSettledPrompt :quest-id="questId" compact />
-    <ul class="flex max-h-[40vh] min-h-0 flex-col gap-0.5 overflow-y-auto">
+    <ul class="flex flex-col gap-0.5">
       <li
         v-for="row in rows"
         :key="row.objective.id"

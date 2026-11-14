@@ -110,7 +110,6 @@ export function useCreateQuestFromHook() {
       giver_npc_id: giverNpcId || null,
       location_id: locationId || null,
       parent_quest_id: parentQuestId ?? null,
-      player_visible_to: [],
       started_at: null,
       resolved_at: null,
       ai_provenance: aiProvenance,

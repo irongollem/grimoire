@@ -2,10 +2,11 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import QuestBeatMarks from "./QuestBeatMarks.vue";
-import type { QuestBeat } from "@/types/quest.types";
+import type { ThreadStanding } from "@/lib/quests/moves";
+import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({
-  setVisibility: vi.fn(), shareIfSeen: vi.fn(), mark: vi.fn(), updateQuest: vi.fn(),
+  setVisibility: vi.fn(), mark: vi.fn(), updateQuest: vi.fn(),
 }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useMarkQuestMove: () => ({ mutateAsync: mocks.mark, isPending: { value: false } }),
@@ -19,14 +20,14 @@ vi.mock("@/composables/quests/useQuests", () => ({
   useUpdateQuest: () => ({ mutateAsync: mocks.updateQuest, isPending: { value: false } }),
 }));
 vi.mock("@/composables/quests/useSetBeatVisibility", () => ({ useSetBeatVisibility: () => mocks.setVisibility }));
-vi.mock("@/composables/quests/useShareQuest", () => ({ useShareQuest: () => ({ shareIfBeatSeen: mocks.shareIfSeen }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: String }) }));
 
 const beat = { id: "b1", quest_id: "q1", campaign_id: "c1", title: "Vault", kind: "combat", visibility: "hidden", updated_at: "t0" } as QuestBeat;
 const presentation = (over: Record<string, unknown> = {}) => ({ currentThreadIds: [], isFailed: false, ...over }) as never;
 
+const here: ThreadStanding = { partyBeatId: "b1", reachedBeatIds: new Set(["b1"]), entryBeatId: "b1" };
 function mountMarks(props: Record<string, unknown> = {}) {
-  return mount(QuestBeatMarks, { props: { beat, presentation: presentation(), threadId: "t1", entryBeatId: "other", ...props } });
+  return mount(QuestBeatMarks, { attachTo: document.body, props: { beat, beats: [beat], edges: [], standing: here, presentation: presentation(), threadId: "t1", entryBeatId: "other", ...props } });
 }
 const box = (wrapper: ReturnType<typeof mountMarks>, label: string) =>
   wrapper.findAll("label").find((l) => l.text() === label)!.find("input");
@@ -48,7 +49,7 @@ describe("QuestBeatMarks", () => {
 
   it("checking Party here marks a party_here move on the focus thread", async () => {
     await box(mountMarks({ sessionId: "s1" }), "Party here").setValue(true);
-    expect(mocks.mark).toHaveBeenCalledWith({ kind: "party_here", campaignId: "c1", questId: "q1", threadId: "t1", beatId: "b1", sessionId: "s1" });
+    expect(mocks.mark).toHaveBeenCalledWith({ kind: "party_here", campaignId: "c1", questId: "q1", threadId: "t1", beatId: "b1", sessionId: "s1", via: undefined });
   });
 
   it("Party here is checked and disabled where the focus thread stands, not for another thread's cursor", () => {
@@ -82,37 +83,55 @@ describe("QuestBeatMarks", () => {
     expect(text).not.toContain("Learns the code");
   });
 
-  const dot = (wrapper: ReturnType<typeof mountMarks>, step: string) =>
-    wrapper.findAll("button").find((b) => b.attributes("aria-label") === step)!;
-
-  it("picking a step on the track writes it through the one visibility write", async () => {
-    mocks.setVisibility.mockResolvedValue(undefined);
-    await dot(mountMarks(), "revealed").trigger("click");
-    expect(mocks.setVisibility).toHaveBeenCalledWith(expect.objectContaining({ id: "b1", updated_at: "t0" }), "revealed");
-  });
-
-  // Fails if the floor is not handed to the track, letting a reached beat be hidden again.
-  it("steps below the floor are disabled and write nothing", async () => {
-    const wrapper = mountMarks({ beat: { ...beat, visibility: "revealed" }, floor: "revealed" });
-    expect(dot(wrapper, "hidden").attributes("disabled")).toBeDefined();
-    expect(dot(wrapper, "rumored").attributes("disabled")).toBeDefined();
-    await dot(wrapper, "hidden").trigger("click");
-    expect(mocks.setVisibility).not.toHaveBeenCalled();
-  });
-
-  // Fails if a mark goes back to sharing the quest itself: a move shares server-side now.
-  it("a mark moves the party and shares nothing itself", async () => {
+  // Fails if a mark writes a beat visibility itself: a move shows the beat server-side now.
+  it("a mark moves the party and writes no visibility itself", async () => {
     await box(mountMarks(), "Party here").setValue(true);
     await flushPromises();
-    expect(mocks.shareIfSeen).not.toHaveBeenCalled();
     expect(mocks.setVisibility).not.toHaveBeenCalled();
   });
 
-  // Fails if a rejected visibility write is swallowed or throws unhandled.
-  it("a failed visibility write does not throw out of the click", async () => {
-    mocks.setVisibility.mockRejectedValue(new Error("nope"));
-    await dot(mountMarks(), "rumored").trigger("click");
-    await flushPromises();
-    expect(mocks.setVisibility).toHaveBeenCalled();
+
+  describe("a beat further ahead (#1194)", () => {
+    const titled = (id: string, title: string) => ({ ...beat, id, title }) as QuestBeat;
+    const beats = [titled("s", "Gate"), titled("k", "Kennels"), titled("t", "Tunnel"), beat];
+    const link = (source: string, target: string) => ({ source_beat_id: source, target_beat_id: target }) as QuestBeatEdge;
+    const standing: ThreadStanding = { partyBeatId: "s", reachedBeatIds: new Set(["s"]), entryBeatId: "s" };
+    const popover = () => document.body.querySelector<HTMLElement>("[data-slip]");
+
+    it("with one way it marks directly and sends that way", async () => {
+      await box(mountMarks({ beats, standing, edges: [link("s", "k"), link("k", "b1")] }), "Party here").setValue(true);
+      expect(popover()).toBeNull();
+      expect(mocks.mark).toHaveBeenCalledWith(expect.objectContaining({ kind: "party_here", via: ["s", "k", "b1"] }));
+    });
+
+    it("with two ways it asks first, marks nothing until one is picked, and sends that way (fails if it guesses the shortest)", async () => {
+      const wrapper = mountMarks({ beats, standing, edges: [link("s", "k"), link("k", "b1"), link("s", "k2"), link("k2", "t"), link("t", "b1")] });
+      await box(wrapper, "Failed").setValue(true);
+      expect(mocks.mark).not.toHaveBeenCalled();
+      const radios = [...document.body.querySelectorAll<HTMLInputElement>("[data-slip] input[type=radio]")];
+      expect(radios).toHaveLength(2);
+      const confirm = [...document.body.querySelectorAll<HTMLButtonElement>("[data-slip] button")].find((b) => b.textContent?.includes("Mark failed"))!;
+      expect(confirm.disabled).toBe(true);
+      radios[1]!.click();
+      await flushPromises();
+      confirm.click();
+      await flushPromises();
+      expect(mocks.mark).toHaveBeenCalledWith(expect.objectContaining({ kind: "failed", via: ["s", "k2", "t", "b1"] }));
+      wrapper.unmount();
+    });
+
+    // Fails if a tick that only opened the question stays ticked after the popover is dismissed.
+    it("dismissing the question marks nothing and leaves the box unticked", async () => {
+      const wrapper = mountMarks({ beats, standing, edges: [link("s", "k"), link("k", "b1"), link("s", "k2"), link("k2", "b1")] });
+      const failed = box(wrapper, "Failed");
+      await failed.setValue(true);
+      expect(popover()).not.toBeNull();
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      await flushPromises();
+      expect(popover()).toBeNull();
+      expect((box(wrapper, "Failed").element as HTMLInputElement).checked).toBe(false);
+      expect(mocks.mark).not.toHaveBeenCalled();
+      wrapper.unmount();
+    });
   });
 });

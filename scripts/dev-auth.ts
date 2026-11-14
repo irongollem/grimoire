@@ -179,8 +179,8 @@ async function main() {
   if (player.passwordChanged) changed.push(PLAYER_EMAIL);
   const beasts = ensureFixtureBestiary(stack.DB_URL, fixtureId);
   const content = ensureFixtureContent(stack.DB_URL, fixtureId);
-  // After the player, not before: it shares the quest with the party member
-  // ensureFixturePlayer just claimed.
+  // After the player, not before: its revealed opening beats are what the
+  // claimed party member reads in /play.
   const quest = ensureFixtureQuest(stack.DB_URL, fixtureId);
 
   const inventory = [
