@@ -83,9 +83,11 @@
             :t="clock.t.value"
             :selection="selection"
             :hidden="hidden"
+            :drawing="drawing"
             @select="selection = $event"
             @op="run"
             @grab="onGrab"
+            @draw-done="drawing = null"
           />
           <StudioSideView
             v-else
@@ -128,7 +130,9 @@
           :target="selection"
           :scene="scene"
           :aspects="nookImages.aspects.value"
+          :drawing="drawing"
           :apply="run"
+          @draw-path="startDrawing"
           @side-view="viewMode = 'side'"
           @replace-room="pickRoom"
         />
@@ -263,6 +267,14 @@ const screen = ref<StudioScreen>("tv");
 const screenWord = computed(() => (screen.value === "phone" ? "phone" : screenOf(screen.value).label));
 
 const selection = ref<Target | null>(null);
+/** The path being drawn on the stage: a cut-out and which of its motions. Studio-only, never saved. */
+const drawing = ref<{ id: string; index: number } | null>(null);
+function startDrawing(index: number | null) {
+  const s = selection.value;
+  drawing.value = index !== null && s?.kind === "layer" ? { id: s.id, index } : null;
+}
+// Drawing belongs to what is selected: pick something else (or the Side view) and it ends.
+watch([() => (selection.value ? targetKey(selection.value) : null), viewMode], () => { drawing.value = null; });
 /** Studio-only hiding (`layerKey` / `effectKey`): never saved. */
 const hidden = ref<ReadonlySet<string>>(new Set());
 function toggleHidden(key: string) {

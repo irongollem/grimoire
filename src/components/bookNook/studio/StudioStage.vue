@@ -44,6 +44,19 @@
           :data-grab="overlay.kind === 'layer' ? 'pin' : 'effect'"
         />
       </div>
+
+      <PathOverlay
+        v-if="pathEdit"
+        :points="pathEdit.points"
+        :closed="pathEdit.closed"
+        :layer="pathEdit.layer"
+        :projector="projector"
+        :size="size"
+        :drawing="pathEdit.drawing"
+        @points="(points) => emit('op', { op: 'pathPoints', id: pathEdit!.layer.id, index: pathEdit!.index, points })"
+        @done="emit('draw-done')"
+        @grab="(held) => emit('grab', held)"
+      />
     </div>
   </div>
 </template>
@@ -51,7 +64,9 @@
 <script setup lang="ts">
 import { computed, ref, watchPostEffect } from "vue";
 import { useElementSize } from "@vueuse/core";
+import PathOverlay from "@/components/bookNook/studio/PathOverlay.vue";
 import { useHotkeys } from "@/composables/useHotkeys";
+import { withPathsResting } from "@/lib/bookNook/pathEdit";
 import { effectPoint, PICTURE_ID, withHidden, type StudioOp, type Target } from "@/lib/bookNook/edit";
 import { windowFor } from "@/lib/bookNook/framing";
 import { drawScene, framedImages, type Images } from "@/lib/bookNook/render";
@@ -67,7 +82,7 @@ import {
  * on a cut-out, starts moving it; the corners resize it; the pin moves the anchor. The stage owns no scene: it
  * draws what it is given and reports every change as a `StudioOp`. Arrow keys nudge the selection.
  */
-const { scene, images, aspects, ready, screen, t, selection, hidden } = defineProps<{
+const { scene, images, aspects, ready, screen, t, selection, hidden, drawing } = defineProps<{
   scene: Scene;
   images: Images;
   /** Each layer's image height over width, by id. */
@@ -79,6 +94,8 @@ const { scene, images, aspects, ready, screen, t, selection, hidden } = definePr
   t: number;
   selection: Target | null;
   hidden: ReadonlySet<string>;
+  /** The path being drawn, if any: a cut-out and which of its motions. */
+  drawing: { id: string; index: number } | null;
 }>();
 
 const emit = defineEmits<{
@@ -86,6 +103,8 @@ const emit = defineEmits<{
   op: [op: StudioOp];
   /** A press on the stage is held; the clock stands still until it lets go. */
   grab: [held: boolean];
+  /** Drawing a path ended (Done or Enter, or Esc, which puts the points back first). */
+  "draw-done": [];
 }>();
 
 /** Where each corner handle sits on the outline. A corner drag resizes about the pin, wherever the corner is. */
@@ -117,7 +136,9 @@ watchPostEffect(() => {
   if (!el || !ready || pixels.value.width === 0) return;
   const ctx = el.getContext("2d");
   if (!ctx) return;
-  const drawn = withHidden(scene, hidden);
+  // While a cut-out's path is shown its paths stand still, so the handles sit on the part itself.
+  const resting = pathEdit.value ? withPathsResting(scene, pathEdit.value.layer.id) : scene;
+  const drawn = withHidden(resting, hidden);
   drawScene(ctx, framed.value ? drawn : { ...drawn, frame: undefined }, drawnImages.value, t, view.value);
 });
 
@@ -127,6 +148,16 @@ const selectedLayer = computed<Layer | null>(() => {
   return s?.kind === "layer" ? (layers.value.find((l) => l.id === s.id) ?? null) : null;
 });
 const movableLayer = computed(() => (selectedLayer.value && selectedLayer.value.id !== PICTURE_ID ? selectedLayer.value : null));
+
+/** The selected cut-out's path, for the overlay: the one being drawn, else its first. */
+const pathEdit = computed(() => {
+  const layer = movableLayer.value;
+  if (!layer?.motions) return null;
+  const index = drawing?.id === layer.id && layer.motions[drawing.index]?.kind === "path" ? drawing.index : layer.motions.findIndex((m) => m.kind === "path");
+  const motion = layer.motions[index];
+  if (!motion || motion.kind !== "path") return null;
+  return { layer, index, points: motion.points, closed: motion.closed ?? true, drawing: drawing?.id === layer.id && drawing.index === index };
+});
 
 type Overlay = { kind: "layer" | "effect"; rect: Rect; pin: Point };
 const overlay = computed<Overlay | null>(() => {

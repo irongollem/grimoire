@@ -12,23 +12,22 @@
     </InspectorSection>
 
     <InspectorSection title="How it moves">
-      <SegmentedControl :model-value="motionValue" :options="MOTION_OPTIONS" size="sm" wrap @update:model-value="pickMotion" />
-      <p v-if="motionValue === 'Wagging'" class="text-caption text-muted-foreground" data-testid="wag-hint">
-        Swings quickly about its pin. Drag the pin (the dot) to where it joins, such as a tail's root.
-      </p>
-      <template v-if="custom">
-        <p class="text-caption text-muted-foreground" data-testid="motion-custom">Custom: tuned by hand. The numbers are under Exact.</p>
-      </template>
-      <template v-else-if="preset">
-        <div class="flex flex-col gap-1">
-          <span class="text-label uppercase text-muted-foreground">Strength</span>
-          <SegmentedControl :model-value="preset.strength" :options="STRENGTH_OPTIONS" size="sm" block @update:model-value="setStrength" />
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="text-label uppercase text-muted-foreground">Pace</span>
-          <SegmentedControl :model-value="preset.pace" :options="PACE_OPTIONS" size="sm" block @update:model-value="setPace" />
-        </div>
-      </template>
+      <p v-if="!motions.length" class="text-caption text-muted-foreground" data-testid="motion-none">It stands still.</p>
+      <MotionRow
+        v-for="(m, i) in motions"
+        :key="i"
+        :layer="layer"
+        :index="i"
+        :motion="m"
+        :scene="scene"
+        :drawing="drawing?.id === layer.id && drawing.index === i"
+        :apply="apply"
+        @draw="(index) => emit('draw-path', index)"
+      />
+      <AppSelect :key="pickCount" :model-value="''" size="body" tone="default" weight="normal" block aria-label="Add a motion" @update:model-value="addMotion">
+        <option value="" disabled>Add a motion…</option>
+        <option v-for="name in MOTION_NAMES" :key="name" :value="name">{{ name }}</option>
+      </AppSelect>
     </InspectorSection>
 
     <div class="flex flex-col gap-3">
@@ -62,7 +61,7 @@
     </div>
 
     <ExactFold>
-      <p v-if="layer.motions?.length" class="font-mono break-words" data-testid="exact-motion">Moves: {{ layer.motions.map(describeRaw).join("; ") }}</p>
+      <p v-for="(m, i) in motions" :key="i" class="font-mono break-words" data-testid="exact-motion">Motion {{ i + 1 }}: {{ describeRaw(m) }}</p>
       <p class="font-mono">Width {{ round(layer.width) }}, depth {{ round(layer.depth) }}, pinned at {{ round(layer.anchor.x) }}, {{ round(layer.anchor.y) }}</p>
       <p v-if="layer.shadow" class="font-mono">Shadow under it: {{ round(layer.shadow.rx) }} by {{ round(layer.shadow.ry) }}, {{ round(layer.shadow.opacity) }}</p>
       <p v-if="layer.cast" class="font-mono">Casts: from {{ layer.cast.light }} at depth {{ round(layer.cast.depth) }}, {{ round(layer.cast.opacity) }}</p>
@@ -81,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
@@ -90,10 +89,9 @@ import DepthBar from "./DepthBar.vue";
 import ExactFold from "./ExactFold.vue";
 import InspectorSection from "./InspectorSection.vue";
 import InspectorToggle from "./InspectorToggle.vue";
+import MotionRow from "./MotionRow.vue";
 import { depthSentence, effectLabel, holdOf, lightOf, surfaceOf, type StudioOp, type Surface } from "@/lib/bookNook/edit";
-import {
-  describeMotion, MOTION_NAMES, PACES, STRENGTHS, type Hold, type MotionName, type Pace, type Strength,
-} from "@/lib/bookNook/presets";
+import { MOTION_NAMES, type Hold, type MotionName } from "@/lib/bookNook/presets";
 import type { Layer, Motion, Scene } from "@/lib/bookNook/scene";
 
 /**
@@ -101,14 +99,16 @@ import type { Layer, Motion, Scene } from "@/lib/bookNook/scene";
  * how it moves, and the shadows and light that go with it. Every control sends one `StudioOp`; the engine's
  * numbers are behind Exact.
  */
-const { layer, scene, aspect, apply } = defineProps<{
+const { layer, scene, aspect, drawing, apply } = defineProps<{
   layer: Layer;
   scene: Scene;
   /** The layer's image height over width, once its picture has loaded. */
   aspect: number | undefined;
+  /** The path being drawn on the stage, if any: which cut-out and which of its motions. */
+  drawing: { id: string; index: number } | null;
   apply: (op: StudioOp) => void;
 }>();
-const emit = defineEmits<{ "side-view": [] }>();
+const emit = defineEmits<{ "side-view": []; "draw-path": [index: number | null] }>();
 
 const HOLD_HINTS: Record<Hold, string> = {
   stands: "Pinned at its feet. It gets a soft shadow where it meets what it stands on.",
@@ -120,10 +120,6 @@ const HOLD_OPTIONS = [
   { value: "hangs", label: "Hangs" },
   { value: "floats", label: "Floats" },
 ] as const;
-const cap = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
-const MOTION_OPTIONS = [{ value: "None", label: "None" }, ...MOTION_NAMES.map((n) => ({ value: n, label: n }))];
-const STRENGTH_OPTIONS = STRENGTHS.map((s) => ({ value: s, label: cap(s) }));
-const PACE_OPTIONS = PACES.map((p) => ({ value: p, label: cap(p) }));
 const SURFACE_OPTIONS = [
   { value: "wall", label: "Wall behind" },
   { value: "floor", label: "Floor" },
@@ -136,29 +132,13 @@ function setHold(value: Hold) {
 }
 
 // ── Motion ────────────────────────────────────────────────────────────────────────────────────────────────────
-// A path has no named preset yet (the studio story adds "Along a path"), so it names none.
-const KIND_NAME: Record<Exclude<Motion["kind"], "path">, MotionName> = { flicker: "Flame", billow: "Cloth", sway: "Hanging", bob: "Floating", drift: "Wandering", spin: "Spinning" };
-const motion = computed(() => (layer.motions?.length === 1 ? layer.motions[0] : null));
-const described = computed(() => (motion.value ? describeMotion(motion.value, layer, scene.loop) : null));
-const custom = computed(() => (layer.motions?.length ?? 0) > 1 || (described.value !== null && "custom" in described.value));
-const preset = computed(() => (described.value && "name" in described.value ? described.value : null));
-const motionValue = computed(() => {
-  if (!layer.motions?.length) return "None";
-  if (preset.value) return preset.value.name;
-  return motion.value && motion.value.kind !== "path" ? KIND_NAME[motion.value.kind] : "";
-});
-
-function pickMotion(value: string) {
-  if (value === "None") return apply({ op: "motion", id: layer.id, choice: null });
-  const name = value as MotionName;
-  if (name === motionValue.value && !custom.value) return;
-  apply({ op: "motion", id: layer.id, choice: { name, strength: preset.value?.strength ?? "gentle", pace: preset.value?.pace ?? "steady" } });
-}
-function setStrength(strength: Strength) {
-  if (preset.value) apply({ op: "motion", id: layer.id, choice: { name: preset.value.name, strength, pace: preset.value.pace } });
-}
-function setPace(pace: Pace) {
-  if (preset.value) apply({ op: "motion", id: layer.id, choice: { name: preset.value.name, strength: preset.value.strength, pace } });
+const motions = computed(() => layer.motions ?? []);
+// The picker is a prompt, not a setting: it is rebuilt after each pick so it reads "Add a motion…" again.
+const pickCount = ref(0);
+function addMotion(value: string | number | null | undefined) {
+  if (typeof value !== "string" || value === "") return;
+  pickCount.value++;
+  apply({ op: "addMotion", id: layer.id, choice: { name: value as MotionName, strength: "gentle", pace: "steady" } });
 }
 
 // ── Light and shadow ──────────────────────────────────────────────────────────────────────────────────────────
@@ -194,6 +174,7 @@ function setPlane(field: "horizon" | "far", value: string | number | null | unde
 const round = (n: number) => Math.round(n * 1000) / 1000;
 function describeRaw(m: Motion): string {
   const { kind, ...rest } = m;
-  return `${kind} ${Object.entries(rest).map(([k, v]) => `${k} ${typeof v === "number" ? round(v) : v}`).join(", ")}`;
+  const show = (k: string, v: unknown) => (Array.isArray(v) ? `${k} ${v.length}` : `${k} ${typeof v === "number" ? round(v) : v}`);
+  return `${kind} ${Object.entries(rest).map(([k, v]) => show(k, v)).join(", ")}`;
 }
 </script>

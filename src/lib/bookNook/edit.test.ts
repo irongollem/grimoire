@@ -3,7 +3,7 @@ import {
   addCutout, addTouch, applyOp, breathingOf, depthBand, gentler, moveEffect, moveLayer, newScene, removeItem,
   reorderWithinDepth, resizeLayer, setAnchor, setBreathing, setDepth, setLoop, setMood, effectPoint,
   reorderTo, newLayerId, layerName, withHidden, layerKey, effectKey, pictureOf, PICTURE_ID,
-  renameItem, effectLabel, holdOf, setHold, setMotion, setShadowOn, setThrowsLight, lightOf, setCast, surfaceOf, setPlane,
+  renameItem, effectLabel, holdOf, setHold, addMotionChoice, setMotionAt, setShadowOn, setThrowsLight, lightOf, setCast, surfaceOf, setPlane,
   setTouchAmount, amountOf, setGlowFollows, depthSentence, glowIdOf, setFrame,
 } from "./edit.ts";
 import { windowFor } from "./framing.ts";
@@ -319,17 +319,17 @@ describe("hold", () => {
 });
 
 describe("motion", () => {
-  const lit = () => setMotion(addCutout(base(), cut("torch"), { x: 1000, y: 800 }), "torch", { name: "Flame", strength: "gentle", pace: "steady" });
-  it("sets one named motion and none removes it", () => {
+  const lit = () => addMotionChoice(addCutout(base(), cut("torch"), { x: 1000, y: 800 }), "torch", { name: "Flame", strength: "gentle", pace: "steady" });
+  it("adds one named motion and removing the row leaves no list at all", () => {
     expect(layer(lit(), "torch").motions).toEqual([expect.objectContaining({ kind: "flicker" })]);
-    expect(layer(setMotion(lit(), "torch", null), "torch").motions).toBeUndefined();
+    expect(layer(setMotionAt(lit(), "torch", 0, null), "torch").motions).toBeUndefined();
   });
   it("stops a light following a part that no longer flickers, which the engine would refuse", () => {
     // Bug: lightAt throws for a light that follows a layer with no flicker.
     const s = setThrowsLight(lit(), "torch", true, 1.5);
     expect(lightOf(s, "torch")?.follows).toBe("torch");
-    expect(lightOf(setMotion(s, "torch", { name: "Cloth", strength: "faint", pace: "slow" }), "torch")?.follows).toBeUndefined();
-    expect(lightOf(setMotion(s, "torch", { name: "Flame", strength: "lively", pace: "quick" }), "torch")?.follows).toBe("torch");
+    expect(lightOf(setMotionAt(s, "torch", 0, { name: "Cloth", strength: "faint", pace: "slow" }), "torch")?.follows).toBeUndefined();
+    expect(lightOf(setMotionAt(s, "torch", 0, { name: "Flame", strength: "lively", pace: "quick" }), "torch")?.follows).toBe("torch");
   });
 });
 
@@ -421,7 +421,7 @@ describe("glow follows", () => {
   it("follows only a part with a flame", () => {
     // Bug: a light following a part without a flicker makes the engine throw on every frame.
     let s = addCutout(addCutout(base(), cut("torch"), { x: 1, y: 1 }), cut("rock"), { x: 1, y: 1 });
-    s = setMotion(s, "torch", { name: "Flame", strength: "gentle", pace: "steady" });
+    s = addMotionChoice(s, "torch", { name: "Flame", strength: "gentle", pace: "steady" });
     s = addTouch(s, "glow", { x: 5, y: 5 });
     const glow = s.stack.findIndex((i) => i.kind === "light");
     expect((setGlowFollows(s, glow, "torch").stack[glow] as { follows?: string }).follows).toBe("torch");
@@ -447,7 +447,7 @@ describe("applyOp new ops", () => {
     const s = addCutout(base(), cut("a"), { x: 1, y: 1 });
     expect(layer(applyOp(s, { op: "rename", target: { kind: "layer", id: "a" }, name: "Z" }), "a").name).toBe("Z");
     expect(holdOf(layer(applyOp(s, { op: "hold", id: "a", hold: "hangs", aspect: 1 }), "a"))).toBe("hangs");
-    expect(layer(applyOp(s, { op: "motion", id: "a", choice: { name: "Hanging", strength: "faint", pace: "slow" } }), "a").motions).toHaveLength(1);
+    expect(layer(applyOp(s, { op: "addMotion", id: "a", choice: { name: "Hanging", strength: "faint", pace: "slow" } }), "a").motions).toHaveLength(1);
     expect(layer(applyOp(s, { op: "shadowOn", id: "a", on: false }), "a").shadow).toBeUndefined();
     expect(lightOf(applyOp(s, { op: "light", id: "a", on: true, aspect: 1 }), "a")).toBeDefined();
     expect(layer(applyOp(s, { op: "plane", id: "a", plane: { horizon: 1, far: 0.5 } }), "a").plane).toBeDefined();
@@ -467,5 +467,60 @@ describe("setFrame", () => {
   // Bug: a frame with neither shape saved, which shows nothing and reads as chosen.
   it("refuses a frame with no picture", () => {
     expect(() => setFrame(base, { style: "frame-arch" })).toThrow(/no picture/);
+  });
+});
+
+describe("stacked motion ops", () => {
+  const first = (scene: Scene, id: string): { group?: string; phase?: number } => {
+    const m = layer(scene, id).motions?.[0];
+    return m && ("group" in m || "phase" in m) ? m : {};
+  };
+  const steady = { strength: "gentle", pace: "steady" } as const;
+  const withApples = () => {
+    let s = addCutout(base(), cut("a"), { x: 1, y: 1 });
+    s = addCutout(s, cut("b"), { x: 2, y: 2 });
+    return s;
+  };
+
+  it("adds a motion after the part's others instead of replacing them", () => {
+    // Bug: picking Spinning on a part that already travels a path throws the path away.
+    let s = applyOp(withApples(), { op: "addMotion", id: "a", choice: { name: "Along a path", ...steady } });
+    s = applyOp(s, { op: "addMotion", id: "a", choice: { name: "Spinning", ...steady } });
+    expect(layer(s, "a").motions?.map((m) => m.kind)).toEqual(["path", "spin"]);
+  });
+
+  it("keeps a path's points, direction and group when only its pace changes", () => {
+    // Bug: changing Pace on Along a path wipes the drawn points.
+    let s = applyOp(withApples(), { op: "addMotion", id: "a", choice: { name: "Along a path", ...steady } });
+    s = applyOp(s, { op: "pathPoints", id: "a", index: 0, points: [{ x: 0, y: 0 }, { x: 9, y: 9 }] });
+    s = applyOp(s, { op: "motionAt", id: "a", index: 0, choice: { name: "Along a path", strength: "gentle", pace: "quick" } });
+    const path = layer(s, "a").motions?.[0];
+    expect(path?.kind === "path" && path.points).toHaveLength(2);
+    expect(path?.kind === "path" && path.period).toBeCloseTo(s.loop / 3);
+  });
+
+  it("removes only the chosen row, and lights stop following a flame that is gone", () => {
+    // Bug: removing the flame leaves a light following a flicker that no longer exists, which the engine refuses.
+    let s = applyOp(withApples(), { op: "addMotion", id: "a", choice: { name: "Flame", ...steady } });
+    s = applyOp(s, { op: "addMotion", id: "a", choice: { name: "Spinning", ...steady } });
+    s = applyOp(s, { op: "light", id: "a", on: true, aspect: 1 });
+    expect(lightOf(s, "a")?.follows).toBe("a");
+    s = applyOp(s, { op: "motionAt", id: "a", index: 0, choice: null });
+    expect(layer(s, "a").motions?.map((m) => m.kind)).toEqual(["spin"]);
+    expect(lightOf(s, "a")?.follows).toBeUndefined();
+  });
+
+  it("routes start, share, spread and unshare to the motion helpers", () => {
+    let s = applyOp(withApples(), { op: "addMotion", id: "a", choice: { name: "Along a path", ...steady } });
+    s = applyOp(s, { op: "pathPoints", id: "a", index: 0, points: [{ x: 0, y: 0 }, { x: 9, y: 9 }] });
+    s = applyOp(s, { op: "sharePath", id: "a", index: 0, to: ["b"] });
+    const group = first(s, "a").group;
+    expect(group).toBeDefined();
+    s = applyOp(s, { op: "spreadPath", group: group ?? "" });
+    expect(first(s, "b").phase).toBe(0.5);
+    s = applyOp(s, { op: "motionStart", id: "a", index: 0, start: 0.25 });
+    expect(first(s, "a").phase).toBe(0.25);
+    s = applyOp(s, { op: "unsharePath", id: "b", index: 0 });
+    expect(first(s, "b").group).toBeUndefined();
   });
 });

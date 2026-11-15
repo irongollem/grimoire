@@ -5,7 +5,9 @@
  * stack order is the painter's order, which `reorderWithinDepth` changes.
  */
 import { windowFor } from "./framing.ts";
+import { mapLayer } from "./layerMap.ts";
 import { gradeOf, type MoodId } from "./moods.ts";
+import { addMotion, removeMotion, replaceMotion, setPathPoints, setStart, sharePath, spreadAlongPath, unsharePath } from "./motions.ts";
 import { PICTURE_ID } from "./plateId.ts";
 import {
   anchorFor,
@@ -86,13 +88,6 @@ export function pictureOf(scene: Scene): Layer {
   const picture = layersOf(scene).find((l) => l.id === PICTURE_ID);
   if (!picture) throw new Error("This scene has no picture.");
   return picture;
-}
-
-/** Applies `change` to one layer. The picture is the room itself: it is never moved, resized or re-pinned. */
-export function mapLayer(scene: Scene, id: string, change: (layer: Layer) => Layer): Scene {
-  if (!layersOf(scene).some((l) => l.id === id)) throw new Error(`There is no layer "${id}" in this scene.`);
-  if (isPicture(scene, id)) throw new Error("The picture stays where it is.");
-  return { ...scene, stack: scene.stack.map((item) => (item.kind === "layer" && item.id === id ? change(item) : item)) };
 }
 
 function effectAt(scene: Scene, index: number): Effect {
@@ -458,15 +453,29 @@ export interface MotionChoice {
   pace: Pace;
 }
 
-/** Sets the one motion a part moves with (a named preset), or none. Lights that followed a flame stop following. */
-export function setMotion(scene: Scene, id: string, choice: MotionChoice | null): Scene {
-  const next = mapLayer(scene, id, (layer) => {
-    const { motions: _m, ...rest } = layer;
-    return choice ? { ...rest, motions: [motionFor(choice.name, choice.strength, choice.pace, layer, scene.loop)] } : rest;
-  });
-  // A light follows a flicker, and only a flame has one: the engine refuses a follow without it.
-  if (choice?.name === "Flame") return next;
-  return { ...next, stack: next.stack.map((i) => (i.kind === "light" && i.follows === id ? { ...i, follows: undefined } : i)) };
+/** A light follows a flicker, and only a flame has one: when the part has none left, lights that followed it stop. */
+function releaseLights(scene: Scene, id: string): Scene {
+  if (layerById(scene, id).motions?.some((m) => m.kind === "flicker")) return scene;
+  return { ...scene, stack: scene.stack.map((i) => (i.kind === "light" && i.follows === id ? { ...i, follows: undefined } : i)) };
+}
+
+/** Adds a named motion after the part's others (an apple travels a path and spins as it flies). */
+export function addMotionChoice(scene: Scene, id: string, choice: MotionChoice): Scene {
+  const layer = layerById(scene, id);
+  return addMotion(scene, id, motionFor(choice.name, choice.strength, choice.pace, layer, scene.loop));
+}
+
+/**
+ * Changes the motion at `index` to a named preset, or takes it away (null). Choosing a path or a spin that
+ * the row already is keeps what the maker set (points, direction, start, group) and changes only its pace.
+ */
+export function setMotionAt(scene: Scene, id: string, index: number, choice: MotionChoice | null): Scene {
+  if (!choice) return releaseLights(removeMotion(scene, id, index), id);
+  const layer = layerById(scene, id);
+  const old = layer.motions?.[index];
+  const fresh = motionFor(choice.name, choice.strength, choice.pace, layer, scene.loop);
+  const kept = old && old.kind === fresh.kind && (fresh.kind === "path" || fresh.kind === "spin") ? { ...old, period: fresh.period } : fresh;
+  return releaseLights(replaceMotion(scene, id, index, kept), id);
 }
 
 /** The contact shadow under a part that stands, on or off. Only a part that stands has one. */
@@ -628,7 +637,16 @@ export type StudioOp =
   | { op: "mood"; mood: MoodId }
   | { op: "rename"; target: Target; name: string }
   | { op: "hold"; id: string; hold: Hold; aspect: number }
-  | { op: "motion"; id: string; choice: MotionChoice | null }
+  | { op: "addMotion"; id: string; choice: MotionChoice }
+  /** Changes the motion at `index` to a preset, or takes it away (null). */
+  | { op: "motionAt"; id: string; index: number; choice: MotionChoice | null }
+  /** Puts an engine motion in place at `index` (a path's Goes and Turns, a spin's direction). */
+  | { op: "motionExact"; id: string; index: number; motion: Motion }
+  | { op: "motionStart"; id: string; index: number; start: number }
+  | { op: "pathPoints"; id: string; index: number; points: Point[] }
+  | { op: "sharePath"; id: string; index: number; to: string[] }
+  | { op: "spreadPath"; group: string }
+  | { op: "unsharePath"; id: string; index: number }
   | { op: "shadowOn"; id: string; on: boolean }
   | { op: "light"; id: string; on: boolean; aspect: number }
   | { op: "cast"; id: string; cast: { light: string; surface: Surface } | null }
@@ -664,8 +682,22 @@ export function applyOp(scene: Scene, op: StudioOp): Scene {
       return renameItem(scene, op.target, op.name);
     case "hold":
       return setHold(scene, op.id, op.hold, op.aspect);
-    case "motion":
-      return setMotion(scene, op.id, op.choice);
+    case "addMotion":
+      return addMotionChoice(scene, op.id, op.choice);
+    case "motionAt":
+      return setMotionAt(scene, op.id, op.index, op.choice);
+    case "motionExact":
+      return replaceMotion(scene, op.id, op.index, op.motion);
+    case "motionStart":
+      return setStart(scene, op.id, op.index, op.start);
+    case "pathPoints":
+      return setPathPoints(scene, op.id, op.index, op.points);
+    case "sharePath":
+      return sharePath(scene, op.id, op.index, op.to);
+    case "spreadPath":
+      return spreadAlongPath(scene, op.group);
+    case "unsharePath":
+      return unsharePath(scene, op.id, op.index);
     case "shadowOn":
       return setShadowOn(scene, op.id, op.on);
     case "light":

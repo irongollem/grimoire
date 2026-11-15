@@ -18,7 +18,7 @@
       </header>
 
       <PicturePanel v-if="subject.picture" :scene="scene" @replace-room="emit('replace-room')" />
-      <CutoutPanel v-else-if="subject.layer" :layer="subject.layer" :scene="scene" :aspect="aspects.get(subject.layer.id)" :apply="apply" @side-view="emit('side-view')" />
+      <CutoutPanel v-else-if="subject.layer" :layer="subject.layer" :scene="scene" :aspect="aspects.get(subject.layer.id)" :drawing="drawing" :apply="apply" @side-view="emit('side-view')" @draw-path="(index) => emit('draw-path', index)" />
       <TouchPanel v-else-if="subject.effect && target?.kind === 'effect'" :effect="subject.effect" :index="target.index" :scene="scene" :apply="apply" @side-view="emit('side-view')" />
 
       <AppButton v-if="!subject.picture" variant="destructive" size="sm" :icon="IconDelete" label="Delete" @click="remove" />
@@ -44,14 +44,16 @@ import { IconDelete } from "@/lib/icons";
  * selection (`target`), the `scene` it lives in and each image's `aspects`, and every change goes through
  * `apply`, the one door. Depth is only shown here: it is set in the side view.
  */
-const { target, scene, aspects, apply } = defineProps<{
+const { target, scene, aspects, drawing, apply } = defineProps<{
   target: Target | null;
   scene: Scene;
   /** Each layer's image height over its width, by id, once its picture has loaded. */
   aspects: ReadonlyMap<string, number>;
+  /** The path being drawn on the stage, if any. */
+  drawing: { id: string; index: number } | null;
   apply: (op: StudioOp) => void;
 }>();
-const emit = defineEmits<{ "side-view": []; "replace-room": [] }>();
+const emit = defineEmits<{ "side-view": []; "replace-room": []; "draw-path": [index: number | null] }>();
 
 const { confirm } = useConfirm();
 

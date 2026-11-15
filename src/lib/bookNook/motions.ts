@@ -3,7 +3,7 @@
  * motions at once (an apple travels a path and spins as it flies); `poseAt` already sums them. Every function
  * is pure and returns a new scene, like `mapLayer`'s other callers.
  */
-import { mapLayer } from "./edit.ts";
+import { mapLayer } from "./layerMap.ts";
 import { layersOf, type Layer, type Motion, type Point, type Scene } from "./scene.ts";
 
 type PathMotion = Extract<Motion, { kind: "path" }>;
@@ -23,7 +23,7 @@ function motionsOf(layer: Layer, index: number): Motion[] {
 }
 
 function withMotions(layer: Layer, motions: Motion[]): Layer {
-  // A part with none carries no list at all, as `setMotion(null)` leaves it.
+  // A part with none carries no list at all, so a removed last motion leaves the part as it was before any.
   if (motions.length > 0) return { ...layer, motions };
   const { motions: _gone, ...rest } = layer;
   return rest;
