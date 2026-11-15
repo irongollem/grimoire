@@ -256,6 +256,7 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import { useKeyedRecordDrafts } from "@/composables/admin/useKeyedRecordDrafts";
 import { useAdminPlans } from "@/composables/admin/useAdminPlans";
+import { mergeQuotas } from "@/lib/admin/planQuotas";
 import { useGenerationCreditCosts } from "@/composables/billing/useCreditConfig";
 import { sizeMultiplier } from "@/composables/ai/useAiCredits";
 import { QUOTA_RESOURCES } from "@/types/subscription.types";
@@ -335,7 +336,9 @@ async function savePlan(plan: Plan) {
       const quotas = Object.fromEntries(
         QUOTA_RESOURCES.map((r) => [r, changed[quotaKey(r)] ?? base[quotaKey(r)]]),
       ) as Record<QuotaResource, number>;
-      await updateQuotas.mutateAsync({ planId: plan.id, quotas });
+      // #1182: the column also holds keys this form never lists (the storage
+      // ceiling). Writing only the form's keys would drop them and lift the limit.
+      await updateQuotas.mutateAsync({ planId: plan.id, quotas: mergeQuotas(plan.quotas, quotas) });
     }
     if (changed.monthlyCredits !== undefined) {
       await updateMonthlyCredits.mutateAsync({ planId: plan.id, monthlyCredits: changed.monthlyCredits });

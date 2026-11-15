@@ -8,6 +8,12 @@
 // no caller-supplied user id, because that is the shape of bug the `grab_item_drop`
 // fix (migration 20260629000002) exists to prevent.
 //
+// It also records each object's size against its owner (#1182). Sign time is the
+// only moment the size is known and trusted: it is pinned into the signature, and
+// there is no completion call from the client, so a size taken later would have to
+// be listed back out of R2. A per-account ceiling is enforced here, quietly, and a
+// refusal signs nothing. Accounting trouble fails open (see storage-accounting.ts).
+//
 // The signed URL is a bearer credential. It is returned once, over TLS, to the
 // caller that was just authorized, and is never logged.
 
@@ -16,6 +22,7 @@ import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
 import { r2ConfigFrom, r2ObjectKey } from "../_shared/r2/config.ts";
 import { presignPut } from "../_shared/r2/client.ts";
+import { reserveStoredObjects, signReservation, STORAGE_FULL_CODE } from "../_shared/storage-accounting.ts";
 import {
   parseSignUploadRequest,
   authorizeUploads,
@@ -63,6 +70,17 @@ serve(withCors(async (req) => {
 
   const authorized = authorizeUploads(parsed.value, identity);
   if (!authorized.allowed) return json({ error: authorized.reason }, 403);
+
+  // Which keys count and whether the ceiling applies is decided in signReservation.
+  const admin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+  const reserve = signReservation(parsed.value.objects, identity);
+  const reservation = await reserveStoredObjects(admin, user.id, parsed.value.bucket, reserve.objects, reserve.enforce);
+  if (!reservation.allowed) {
+    return json({ error: "Storage is full for this account", code: STORAGE_FULL_CODE }, 403);
+  }
 
   const uploads = await Promise.all(
     parsed.value.objects.map(async (object) => ({

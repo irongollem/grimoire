@@ -44,7 +44,8 @@ export interface Plan {
   stripe_monthly_currency_options: Record<string, CurrencyOption> | null
   stripe_annual_currency_options: Record<string, CurrencyOption> | null
   prices: Record<string, PlanPrice>
-  quotas: Partial<Record<QuotaResource, number>>
+  /** The listed resources, plus keys the admin form never shows (storage_mb, #1182): a save must preserve them. */
+  quotas: Partial<Record<QuotaResource, number>> & Record<string, number | undefined>
   /** Monthly included AI credits granted each billing period (use-it-or-lose-it). 0 = none. */
   monthly_credits: number
 }

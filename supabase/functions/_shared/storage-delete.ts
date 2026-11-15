@@ -14,6 +14,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { r2ConfigFrom, r2ObjectKey, isR2Bucket } from "./r2/config.ts";
+import { releaseStoredObjects } from "./storage-accounting.ts";
 import { listObjects, deleteObjects } from "./r2/client.ts";
 
 /**
@@ -70,6 +71,8 @@ export async function deleteByPrefix(
   if (removeResult.error) {
     throw new Error(`deleteByPrefix: removing ${bucket}/${prefix} from storage failed: ${removeResult.error.message}`);
   }
+
+  await releaseStoredObjects(admin, bucket, all);
 
   return all.length;
 }

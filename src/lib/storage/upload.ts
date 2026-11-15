@@ -16,7 +16,8 @@ import { reportHandledError } from "@/lib/observability/sentry";
 import { BUCKETS, VARIANT_WIDTHS, variantPath, type BucketKey } from "./buckets";
 import { getPublicUrl, parsePublicUrl } from "./urls";
 import { registerImageProvenance, clearImageProvenance } from "./imageProvenance";
-import { usesR2, uploadToR2, uploadAllToR2, R2UnavailableError, type PreparedUpload } from "./r2";
+import { usesR2, uploadToR2, uploadAllToR2, R2UnavailableError, StorageFullError, type PreparedUpload } from "./r2";
+import { notifyStorageFull, storageFullKind } from "./storageFull";
 
 export interface UploadParams {
   bucket: BucketKey;
@@ -141,6 +142,7 @@ export async function uploadToBucket({
       // real answer — Supabase's policies would give the same one — so retrying
       // there would just replace a clear error with a vague one.
       if (!(err instanceof R2UnavailableError)) {
+        if (err instanceof StorageFullError) notifyStorageFull(storageFullKind([mime]));
         console.warn(`[uploadToBucket] ${cfg.id}/${storagePath}:`, err);
         return null;
       }
@@ -271,6 +273,7 @@ export async function uploadWithVariants({
       return getPublicUrl(bucket, originalPath);
     } catch (err) {
       if (!(err instanceof R2UnavailableError)) {
+        if (err instanceof StorageFullError) notifyStorageFull(storageFullKind([mime, ...variants.map((v) => v.contentType)]));
         console.warn(`[uploadWithVariants] ${BUCKETS[bucket].id}/${originalPath}:`, err);
         return null;
       }
@@ -363,6 +366,9 @@ export async function backfillVariants(originalUrl: string): Promise<void> {
       console.warn(`[backfillVariants] ${failed}/${total} variant uploads failed for`, originalUrl);
     }
   } catch (err) {
+    // Never notifies, even for StorageFullError: this runs in the background
+    // from merely viewing an image, so a user who uploaded nothing must not be
+    // told their storage is full (#1182).
     console.warn("[backfillVariants] unexpected error for", originalUrl, err);
   }
 }

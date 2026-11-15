@@ -18,6 +18,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { r2ConfigFrom, r2ObjectKey, r2WritesEnabled, IMMUTABLE_CACHE_CONTROL } from "./r2/config.ts";
 import { putObject } from "./r2/client.ts";
+import { recordStoredObject } from "./storage-accounting.ts";
 import { publicAssetUrl } from "./cdn-buckets.ts";
 
 /**
@@ -46,13 +47,13 @@ export async function fetchBytes(url: string): Promise<Uint8Array> {
   return new Uint8Array(await res.arrayBuffer());
 }
 
-export async function uploadWithRetry(
+async function writeWithRetry(
   admin: SupabaseClient,
   bucket: string,
   path: string,
   bytes: Uint8Array | Blob,
   contentType: string,
-): Promise<void> {
+): Promise<Uint8Array> {
   const r2 =
     r2WritesEnabled(bucket, Deno.env.get("ASSET_CDN_URL"))
       ? r2ConfigFrom((key) => Deno.env.get(key))
@@ -80,7 +81,7 @@ export async function uploadWithRetry(
           contentType,
           cacheControl: IMMUTABLE_CACHE_CONTROL,
         });
-        return;
+        return body;
       } catch (err) {
         lastErr = err instanceof Error ? err.message : String(err);
         if (attempt === 2) {
@@ -92,10 +93,22 @@ export async function uploadWithRetry(
         contentType,
         upsert: true,
       });
-      if (!error) return;
+      if (!error) return body;
       lastErr = error.message;
     }
     if (attempt < 4) await new Promise((r) => setTimeout(r, 500 * attempt));
   }
   throw new Error(`Upload failed after 4 attempts (${path}): ${lastErr}`);
+}
+
+/** Writes the bytes, then records their size against the owner named by the path (#1182). */
+export async function uploadWithRetry(
+  admin: SupabaseClient,
+  bucket: string,
+  path: string,
+  bytes: Uint8Array | Blob,
+  contentType: string,
+): Promise<void> {
+  const written = await writeWithRetry(admin, bucket, path, bytes, contentType);
+  await recordStoredObject(admin, bucket, path, written.byteLength);
 }

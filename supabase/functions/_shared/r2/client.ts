@@ -188,33 +188,37 @@ function unescapeXml(value: string): string {
 }
 
 /**
- * Parse object keys and the continuation token out of a ListObjectsV2 response.
+ * Parse each object's key and size, and the continuation token, out of a
+ * ListObjectsV2 response.
  *
  * Extracted from the request so it can be tested against a captured response
  * body. Regex rather than an XML parser because Deno has no DOM, the shape is
  * fixed and shallow, and `<Key>` is only ever read from inside `<Contents>` —
  * `<CommonPrefixes>` uses `<Prefix>`, so there is nothing to confuse it with.
+ * Size is read from the same block as its key, so two objects never share one.
  */
-export function parseListResponse(xml: string): { keys: string[]; nextToken: string | null } {
+export function parseListResponse(xml: string): {
+  keys: string[];
+  objects: { key: string; size: number | null }[];
+  nextToken: string | null;
+} {
   const keys: string[] = [];
+  const objects: { key: string; size: number | null }[] = [];
   for (const [, contents] of xml.matchAll(/<Contents\b[^>]*>([\s\S]*?)<\/Contents>/g)) {
     const key = /<Key>([\s\S]*?)<\/Key>/.exec(contents);
-    if (key) keys.push(unescapeXml(key[1]));
+    if (!key) continue;
+    const name = unescapeXml(key[1]);
+    keys.push(name);
+    const size = /<Size>\s*(\d+)\s*<\/Size>/.exec(contents);
+    objects.push({ key: name, size: size ? Number(size[1]) : null });
   }
   const truncated = /<IsTruncated>\s*true\s*<\/IsTruncated>/i.test(xml);
   const token = /<NextContinuationToken>([\s\S]*?)<\/NextContinuationToken>/.exec(xml);
-  return { keys, nextToken: truncated && token ? unescapeXml(token[1]) : null };
+  return { keys, objects, nextToken: truncated && token ? unescapeXml(token[1]) : null };
 }
 
-/**
- * Every key under `prefix`, following continuation tokens to the end.
- *
- * Needed because "delete everything belonging to this entity" is expressed as a
- * prefix everywhere in this codebase — S3 has no prefix delete, so the keys have
- * to be enumerated first.
- */
-export async function listObjects(config: R2Config, prefix: string): Promise<string[]> {
-  const keys: string[] = [];
+async function listAll(config: R2Config, prefix: string): Promise<{ key: string; size: number | null }[]> {
+  const found: { key: string; size: number | null }[] = [];
   let token: string | null = null;
 
   do {
@@ -236,11 +240,35 @@ export async function listObjects(config: R2Config, prefix: string): Promise<str
       throw new Error(`R2 LIST ${prefix} failed (${response.status}): ${await safeText(response)}`);
     }
     const parsed = parseListResponse(await response.text());
-    keys.push(...parsed.keys);
+    found.push(...parsed.objects);
     token = parsed.nextToken;
   } while (token);
 
-  return keys;
+  return found;
+}
+
+/**
+ * Every key under `prefix`, following continuation tokens to the end.
+ *
+ * Needed because "delete everything belonging to this entity" is expressed as a
+ * prefix everywhere in this codebase — S3 has no prefix delete, so the keys have
+ * to be enumerated first.
+ */
+export async function listObjects(config: R2Config, prefix: string): Promise<string[]> {
+  return (await listAll(config, prefix)).map((object) => object.key);
+}
+
+/** Like `listObjects`, but with each object's byte size (storage accounting, #1182). */
+export async function listObjectsWithSizes(
+  config: R2Config,
+  prefix: string,
+): Promise<{ key: string; size: number }[]> {
+  return (await listAll(config, prefix)).map((object) => {
+    // A listing without a size would be recorded as zero bytes and quietly
+    // under-count an account, so it is an error rather than a default.
+    if (object.size === null) throw new Error(`R2 LIST ${prefix}: no <Size> for ${object.key}`);
+    return { key: object.key, size: object.size };
+  });
 }
 
 export interface PresignPutInput {

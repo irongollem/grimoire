@@ -61,6 +61,7 @@ import ManualRollPrompt from "@/components/common/dice/ManualRollPrompt.vue";
 import RollModePicker from "@/components/common/dice/RollModePicker.vue";
 import FirstRunTour from "@/components/common/wizard/FirstRunTour.vue";
 import { pendingBundleFile } from "@/composables/campaign/usePendingBundle";
+import { useStorageFullNotice } from "@/composables/billing/useStorageFullNotice";
 import { useLazyMount } from "@/composables/useLazyMount";
 import LoadingScreen from "@/components/auth/LoadingScreen.vue";
 import { useTheme } from "@/composables/useTheme";
@@ -188,6 +189,7 @@ const { pullPx, readyToReload } = usePullToRefresh();
 
 if (!import.meta.env.SSR) useTheme().initTheme();
 if (!import.meta.env.SSR) useMediaSession();
+useStorageFullNotice();
 
 // When the Supabase session expires mid-session (refresh token exhausted or
 // network failure), onAuthStateChange emits SIGNED_OUT and sets user to null.

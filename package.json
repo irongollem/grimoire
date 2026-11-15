@@ -38,6 +38,7 @@
     "import-chapter-npcs": "tsx --env-file=.env.local scripts/import-chapter-npcs.ts",
     "ingest-mini-bases": "tsx --env-file=.env.local scripts/ingest-mini-bases.ts",
     "r2:copy": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/r2-copy.ts",
+    "storage:usage": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/storage-usage.ts",
     "seed-library-spells": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-spells.ts",
     "seed-library-monsters": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-monsters.ts",
     "seed-library-species": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-species.ts",

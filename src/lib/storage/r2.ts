@@ -19,6 +19,7 @@
 import { supabase } from "@/lib/supabase";
 import { r2WritesEnabled } from "@edge-shared/r2/config.ts";
 import { MAX_DELETE_PATHS } from "@edge-shared/r2/api.ts";
+import { functionErrorPayload } from "@edge-shared/functionError.ts";
 import { ASSET_CDN_BASE, BUCKETS, type BucketKey } from "./buckets";
 
 export interface PreparedUpload {
@@ -59,6 +60,10 @@ export function usesR2(bucket: BucketKey): boolean {
  *     never permission, and the correct response is to store the bytes the way
  *     we did yesterday rather than lose the user's upload.
  *
+ *   Authorization refused because the account is over its storage ceiling
+ *   (403 with code "storage_full")  →  StorageFullError, a R2RefusedError that
+ *     upload.ts tells apart so it can raise the plain message once (#1182).
+ *
  * That second line is what makes flipping a bucket to R2 a low-risk change: the
  * worst case of a misconfiguration is that uploads quietly keep working exactly
  * as before, with a warning in the console, rather than failing app-wide.
@@ -67,6 +72,14 @@ export class R2RefusedError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
     this.name = "R2RefusedError";
+  }
+}
+
+/** The signer refused because the account has used its storage (#1182). Still a refusal: no fallback. */
+export class StorageFullError extends R2RefusedError {
+  constructor(message: string, status: number) {
+    super(message, status);
+    this.name = "StorageFullError";
   }
 }
 
@@ -102,7 +115,11 @@ async function signUploads(bucket: BucketKey, uploads: readonly PreparedUpload[]
     // or no status at all because the function was unreachable) is us failing
     // to ask, not R2 answering no.
     const status = (error as { context?: { status?: number } }).context?.status ?? 0;
-    if (status === 403) throw new R2RefusedError(error.message, status);
+    if (status === 403) {
+      const payload = await functionErrorPayload<{ code?: string }>(error);
+      if (payload?.code === "storage_full") throw new StorageFullError(error.message, status);
+      throw new R2RefusedError(error.message, status);
+    }
     throw new R2UnavailableError(`r2-sign-upload failed (${status || "unreachable"}): ${error.message}`);
   }
   if (!data?.uploads?.length) throw new R2UnavailableError("r2-sign-upload returned no URLs");

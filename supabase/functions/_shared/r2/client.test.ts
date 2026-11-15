@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { parseListResponse, headObject, putObject, getObject, deleteObjects, listObjects, __testing } from "./client.ts";
+import { parseListResponse, headObject, putObject, getObject, deleteObjects, listObjects, listObjectsWithSizes, __testing } from "./client.ts";
 import { r2ConfigFrom } from "./config.ts";
 
 const config = r2ConfigFrom((key) =>
@@ -47,6 +47,14 @@ describe("parseListResponse", () => {
     ]);
   });
 
+  it("pairs each size with its own key, never swapped or shared", () => {
+    expect(parseListResponse(LISTING).objects).toEqual([
+      { key: "mini-models/u1/m7/model.stl", size: 1024 },
+      { key: "mini-models/u1/m7/nested/thumb.webp", size: 2048 },
+      { key: "mini-models/u1/m7/rock & roll.stl", size: 32 },
+    ]);
+  });
+
   it("unescapes XML entities in a key", () => {
     // Deleting the escaped form targets a key that does not exist, and S3
     // answers 204 for that — a silent no-op that leaves the object behind.
@@ -73,6 +81,7 @@ describe("parseListResponse", () => {
   it("handles an empty listing", () => {
     expect(parseListResponse("<ListBucketResult><KeyCount>0</KeyCount></ListBucketResult>")).toEqual({
       keys: [],
+      objects: [],
       nextToken: null,
     });
   });
@@ -246,6 +255,14 @@ describe("the object operations, against an in-memory store", () => {
     });
     const keys = await listObjects(config, "chronicle/u1/");
     expect(keys).toEqual(["1", "2", "3", "4", "5"].map((n) => `chronicle/u1/${n}.webp`));
+  });
+
+  it("refuses a listing entry with no size rather than counting it as zero bytes", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<ListBucketResult><Contents><Key>a/b</Key></Contents></ListBucketResult>")),
+    );
+    await expect(listObjectsWithSizes(config, "a/")).rejects.toThrow(/Size/);
   });
 
   it("reports a failed listing rather than returning a partial one", async () => {

@@ -58,3 +58,5 @@ export {
   imageProvenanceKey,
   loadImageProvenance,
 } from "./imageProvenance";
+
+export { onStorageFull, type StorageFullKind } from "./storageFull";

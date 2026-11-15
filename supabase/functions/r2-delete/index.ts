@@ -14,6 +14,7 @@ import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
 import { r2ConfigFrom, r2ObjectKey } from "../_shared/r2/config.ts";
 import { deleteObjects } from "../_shared/r2/client.ts";
+import { releaseStoredObjects } from "../_shared/storage-accounting.ts";
 import { parseDeleteRequest, authorizeDeletes } from "../_shared/r2/api.ts";
 
 const json = (body: unknown, status: number) =>
@@ -51,6 +52,12 @@ serve(withCors(async (req) => {
   if (!authorized.allowed) return json({ error: authorized.reason }, 403);
 
   await deleteObjects(config, parsed.value.paths.map((path) => r2ObjectKey(parsed.value.bucket, path)));
+
+  await releaseStoredObjects(
+    createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!),
+    parsed.value.bucket,
+    parsed.value.paths,
+  );
 
   return json({ deleted: parsed.value.paths.length }, 200);
 }));

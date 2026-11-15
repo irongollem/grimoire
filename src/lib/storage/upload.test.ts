@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, onTestFinished } from "vitest";
 import { buildXmpPacket } from "@edge-shared/provenance/xmp.ts";
 import type { AiProvenance } from "@edge-shared/provenance/types.ts";
+import { onStorageFull } from "./storageFull";
 import {
   readEmbeddedXmp,
   inheritXmpIntoVariant,
@@ -21,6 +22,7 @@ const session = vi.hoisted(() => ({ user: { id: "session-user", app_metadata: {}
 const r2 = vi.hoisted(() => ({
   on: false,
   uploadToR2: undefined as unknown as (...args: unknown[]) => Promise<unknown>,
+  uploadAllToR2: (async () => ({ uploaded: [], failed: [] })) as (...args: unknown[]) => Promise<unknown>,
 }));
 const registerImageProvenance = vi.fn<(...args: unknown[]) => Promise<void>>(async () => undefined);
 const clearImageProvenance = vi.fn<(...args: unknown[]) => Promise<void>>(async () => undefined);
@@ -34,11 +36,13 @@ vi.mock("@/lib/supabase", () => ({
 }));
 vi.mock("./r2", () => {
   class R2UnavailableError extends Error {}
+  class StorageFullError extends Error {}
   return {
     R2UnavailableError,
+    StorageFullError,
     usesR2: () => r2.on,
     uploadToR2: (...args: unknown[]) => r2.uploadToR2(...args),
-    uploadAllToR2: async () => ({ uploaded: [], failed: [] }),
+    uploadAllToR2: (...args: unknown[]) => r2.uploadAllToR2(...args),
   };
 });
 vi.mock("./imageProvenance", () => ({
@@ -374,6 +378,51 @@ describe("what uploadToBucket accepts and where it files it", () => {
       };
       expect(await run()).toBeNull();
       expect(storageUpload).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["uploadToBucket", () => uploadToBucket({ bucket: "npcPortraits", blob: webp(8), userId: "u1" })],
+      ["uploadWithVariants", () => uploadWithVariants({ bucket: "npcPortraits", blob: webp(8), userId: "u1" })],
+    ])("%s raises one picture notice for a storage-full refusal, still returns null and never retries in Supabase", async (_name, run) => {
+      const { StorageFullError } = await import("./r2");
+      r2.uploadToR2 = async () => {
+        throw new StorageFullError("full", 403);
+      };
+      const heard: string[] = [];
+      const off = onStorageFull((kind) => heard.push(kind));
+      expect(await run()).toBeNull();
+      off();
+      expect(heard).toEqual(["pictures"]);
+      expect(storageUpload).not.toHaveBeenCalled();
+    });
+
+    it("an ordinary refusal raises no notice, so a permission error is not told as a full account", async () => {
+      r2.uploadToR2 = async () => {
+        throw refused;
+      };
+      const heard: string[] = [];
+      const off = onStorageFull((kind) => heard.push(kind));
+      await uploadToBucket({ bucket: "npcPortraits", blob: webp(8), userId: "u1" });
+      off();
+      expect(heard).toEqual([]);
+    });
+
+    it("backfillVariants stays silent on a full account, since the user uploaded nothing", async () => {
+      const { StorageFullError } = await import("./r2");
+      const original = r2.uploadAllToR2;
+      onTestFinished(() => {
+        r2.uploadAllToR2 = original;
+      });
+      r2.uploadAllToR2 = async () => {
+        throw new StorageFullError("full", 403);
+      };
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(new Uint8Array(buildMinimalWebp()), { status: 200 })));
+      const heard: string[] = [];
+      const off = onStorageFull((kind) => heard.push(kind));
+      await backfillVariants(IMAGE_BUCKET_URL("session-user/full-account.webp"));
+      off();
+      expect(heard).toEqual([]);
     });
 
     it.each([

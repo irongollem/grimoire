@@ -153,6 +153,51 @@ flowchart LR
   `{userId}/` — mixing them up is the wipe-all-canonical-art hazard
   (CLAUDE.md § Storage Path Convention).
 
+### Storage accounting and the quiet ceiling (#1182)
+
+Every file an account stores in a registry bucket has a row in `stored_objects`
+(bucket, path, owner, bytes), and `storage_usage` holds the account's total,
+kept by a trigger. The owner is the first path segment; shared prefixes
+(`srd/`, `library/`, `bases/`) belong to no account and are not recorded.
+
+- **The ceiling is never advertised** (maintainer, 12 Nov 2026: "or people will
+  try and fill them"). Free 250 MB, paid plans 10 GB, held as `storage_mb` in
+  `plans.quotas` so a young player inherits it through
+  `private.effective_quotas`. It is not a `QuotaResource`: no meter, no number
+  on the Billing or pricing page, no row in the admin plan editor (whose save
+  keeps keys it does not know, `mergeQuotas`). Do not add one.
+- **A row is written when an upload is signed** (`r2-sign-upload` calls
+  `reserve_storage`), because the size is pinned into the signature and there is
+  no completion call. Over the ceiling, the function answers 403 with
+  `code: "storage_full"` and signs nothing; the browser turns that into
+  `StorageFullError`, and `useStorageFullNotice` shows the one message. Nothing
+  is ever deleted by the ceiling, and writing over a key with the same or fewer
+  bytes always passes, so an account that is over can still shrink.
+- **Counted, never refused:** bytes the server made (`uploadWithRetry`, a
+  generation the user already paid credits for), an app admin's uploads, and
+  the backfill.
+- **Accounting fails open.** If `reserve_storage` errors, the upload goes ahead
+  and the error is logged: this is a backstop, not a gate that may take uploads
+  down.
+- **Deletes give the room back:** `r2-delete` and `deleteByPrefix` call
+  `release_storage`; deleting the account cascades.
+- **A row cannot shrink or vanish while its signed URL still works** (sixteen
+  minutes, `private.storage_signature_window()`, which must stay above
+  `UPLOAD_URL_TTL_SECONDS`). Otherwise signing a large file, then signing the
+  same key small or deleting it, then sending the large body to the first URL
+  would store bytes the total never saw. Inside the window a second signature
+  keeps the larger size and a delete only sets `released_at`; the row stops
+  counting at the account's next upload after the window. So a user at the
+  ceiling who deletes a picture uploaded minutes ago waits out the window
+  before that room is theirs again.
+- **`npm run storage:usage`** reconciles the table against an R2 listing: the
+  one-off backfill, and the repair for rows left by uploads that were signed and
+  never sent (a dry run by default; it prints counts only).
+- **Outside it on purpose:** `tile-packs` and `import-documents` are not in the
+  bucket registry and live in Supabase Storage, so they are not counted. An
+  upload that falls back to Supabase Storage because the sign call itself was
+  unreachable is not recorded either; nothing reads those bytes into the total.
+
 ### Static app art (#864/#877) — `app-art/` in the same bucket
 
 The 91 shipped art files (card backs, damage/movement/vision glyphs,

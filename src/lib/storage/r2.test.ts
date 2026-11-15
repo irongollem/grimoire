@@ -72,6 +72,23 @@ describe("failure classification", () => {
     await expect(uploadToR2("npcPortraits", upload)).rejects.toBeInstanceOf(R2RefusedError);
   });
 
+  it("tells a storage_full 403 from an ordinary refusal by the body's code, and a 503 stays recoverable", async () => {
+    const { uploadToR2, StorageFullError, R2RefusedError, R2UnavailableError } = await loadR2();
+    const failure = (status: number, body: object) =>
+      Object.assign(new Error("x"), { context: new Response(JSON.stringify(body), { status }) });
+
+    invoke.mockResolvedValue({ data: null, error: failure(403, { error: "full", code: "storage_full" }) });
+    await expect(uploadToR2("npcPortraits", upload)).rejects.toBeInstanceOf(StorageFullError);
+
+    invoke.mockResolvedValue({ data: null, error: failure(403, { error: "not yours" }) });
+    const plain = await uploadToR2("npcPortraits", upload).catch((e: unknown) => e);
+    expect(plain).toBeInstanceOf(R2RefusedError);
+    expect(plain).not.toBeInstanceOf(StorageFullError);
+
+    invoke.mockResolvedValue({ data: null, error: failure(503, { error: "x", code: "storage_full" }) });
+    await expect(uploadToR2("npcPortraits", upload)).rejects.toBeInstanceOf(R2UnavailableError);
+  });
+
   it("treats an unconfigured R2 (503) as recoverable", async () => {
     const { uploadToR2, R2UnavailableError } = await loadR2();
     invoke.mockResolvedValue({ data: null, error: Object.assign(new Error("nope"), { context: { status: 503 } }) });
