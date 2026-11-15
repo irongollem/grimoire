@@ -73,6 +73,7 @@ vi.mock("@/composables/ai/useCampaignProviders", () => ({
   useCampaignProviders: () => ({ textMultiplier: ref(1), textCredits: (base: number) => Math.ceil(base), textIsByok: ref(false) }),
 }));
 const coachLines = ref<string[]>([]);
+const coachReveals = ref<boolean[]>([]);
 vi.mock("@/composables/campaign/useCampaignSession", () => ({
   useCampaignSession: () => ({ session: ref({ id: "run-1" }), isRunning: ref(true) }),
 }));
@@ -90,6 +91,7 @@ vi.mock("@/ai/useNpcVoiceCoach", () => ({
     isGenerating: ref(false),
     error: ref(null),
     lines: coachLines,
+    reveals: coachReveals,
     provenance: ref({ generatorType: "npc_voice", provider: "openai", model: "m", generatedAt: "t", edited: false }),
     suggest: mocks.suggest,
     clear: mocks.clear,
@@ -112,6 +114,7 @@ describe("NpcVoiceCoach", () => {
     mocks.toastError.mockReset();
     mocks.requireCredits.mockReset().mockReturnValue(true);
     coachLines.value = [];
+    coachReveals.value = [];
   });
 
   it("shows the real Suggest lines button on a Free account once AI is on", () => {
@@ -125,6 +128,15 @@ describe("NpcVoiceCoach", () => {
     const wrapper = mountCoach();
     expect(wrapper.find('button[aria-label="Suggest lines"]').exists()).toBe(false);
     expect(wrapper.text()).toContain("AI is off for this campaign");
+  });
+
+  it("shows the disguise caution beside a flagged line only, never on its neighbours", () => {
+    coachLines.value = ["Safe line.", "Risky line."];
+    coachReveals.value = [false, true];
+    const wrapper = mountCoach();
+    const items = wrapper.findAll("li");
+    expect(items[0].find('[data-testid="reveal-caution"]').exists()).toBe(false);
+    expect(items[1].find('[data-testid="reveal-caution"]').text()).toContain("May give the disguise away");
   });
 
   it("files a suggested line as a DM-only revealed memory in the running session", async () => {

@@ -12,12 +12,14 @@ import { buildNpcVoiceProfile } from "@/lib/npcs/buildNpcVoiceProfile";
 import { buildAiProvenance, type AiProvenance } from "./provenance";
 import { formatNpcMemories, loadPromptMemories } from "@edge-shared/npcMemories";
 import type { Npc } from "@/types/npc.types";
-import type { NpcVoiceAiResult } from "./types";
+import { parseVoiceLines } from "./npcVoiceLines";
 
-const MAX_LINES = 3;
-
-/** The coach's reply; the provider and model ride along when the caller knows them. */
-type VoiceReply = NpcVoiceAiResult & { provider?: string; model?: string };
+/** The coach's reply; `lines` is parsed by parseVoiceLines. The provider and model ride along when the caller knows them. */
+interface VoiceReply {
+  lines?: unknown;
+  provider?: string;
+  model?: string;
+}
 
 /**
  * At-the-table NPC dialogue suggester (#336).
@@ -43,22 +45,16 @@ export function useNpcVoiceCoach() {
   const isGenerating = ref(false);
   const error = ref<string | null>(null);
   const lines = ref<string[]>([]);
+  /** Parallel to `lines`: true where the disguise check says the line may give the disguise away. */
+  const reveals = ref<boolean[]>([]);
   /** Which model wrote the current lines; null when the path did not report it. */
   const provenance = ref<AiProvenance | null>(null);
-
-  /** Keep only non-empty, trimmed lines, capped at MAX_LINES. */
-  function sanitizeLines(raw: unknown): string[] {
-    if (!Array.isArray(raw)) return [];
-    return raw
-      .filter((l): l is string => typeof l === "string" && l.trim().length > 0)
-      .map((l) => l.trim())
-      .slice(0, MAX_LINES);
-  }
 
   async function suggest(npc: Npc, situation: string): Promise<void> {
     isGenerating.value = true;
     error.value = null;
     lines.value = [];
+    reveals.value = [];
     provenance.value = null;
 
     if (!npc.campaign_id) {
@@ -74,12 +70,13 @@ export function useNpcVoiceCoach() {
         ? await suggestClientSide(npc, npc.campaign_id, situation)
         : await suggestServerSide(npc, npc.campaign_id, situation);
 
-      const sanitized = sanitizeLines(result.lines);
+      const sanitized = parseVoiceLines(result.lines);
       if (sanitized.length === 0) {
         error.value = "AI returned no usable dialogue. Please try again.";
         return;
       }
-      lines.value = sanitized;
+      lines.value = sanitized.map((l) => l.text);
+      reveals.value = sanitized.map((l) => l.reveals);
       if (result.provider && result.model) {
         provenance.value = buildAiProvenance("npc_voice", result.provider, result.model);
       }
@@ -135,9 +132,9 @@ export function useNpcVoiceCoach() {
     // A fenced or truncated response would otherwise surface a raw
     // SyntaxError ("Unexpected token ... in JSON") to the DM mid-session.
     // The edge function guards its own parse identically.
-    let parsed: NpcVoiceAiResult;
+    let parsed: VoiceReply;
     try {
-      parsed = JSON.parse(content) as NpcVoiceAiResult;
+      parsed = JSON.parse(content) as VoiceReply;
     } catch {
       throw new Error("AI returned malformed dialogue. Please try again.");
     }
@@ -149,8 +146,9 @@ export function useNpcVoiceCoach() {
   function clear(): void {
     error.value = null;
     lines.value = [];
+    reveals.value = [];
     provenance.value = null;
   }
 
-  return { isGenerating, error, lines, provenance, suggest, clear };
+  return { isGenerating, error, lines, reveals, provenance, suggest, clear };
 }

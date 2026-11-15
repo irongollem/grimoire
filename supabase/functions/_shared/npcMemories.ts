@@ -95,7 +95,7 @@ const NOT_A_WORD_CHAR_AFTER = "(?![\\p{L}\\p{N}_])";
  * turn "a bold move" into nonsense. The disguise name goes in through a
  * function, so a "$&" in it is text and not the matched true name.
  */
-function maskTrueName(body: string, identity: NpcMemoryIdentity): string {
+export function maskTrueName(body: string, identity: NpcMemoryIdentity): string {
   const disguise = identity.disguise_name;
   if (!disguise || identity.is_revealed) return body;
   const trueName = identity.name.trim();
@@ -161,7 +161,7 @@ function promptSessionLabel(number: number | null, title: string | null): string
 }
 
 /**
- * The newest MEMORY_PROMPT_LIMIT memories of an NPC, oldest first, with session
+ * The newest `limit` (default MEMORY_PROMPT_LIMIT) memories of an NPC, oldest first, with session
  * labels and the names of who was present resolved within the campaign. The
  * edge function passes its service-role client and the BYOK path the user's,
  * so both send the model the same thing. Failure is logged and answered with no
@@ -171,6 +171,7 @@ export async function loadPromptMemories(
   client: SupabaseClient,
   npcId: string,
   campaignId: string,
+  limit: number = MEMORY_PROMPT_LIMIT,
 ): Promise<PromptNpcMemory[]> {
   try {
     const { data, error } = await client
@@ -178,7 +179,7 @@ export async function loadPromptMemories(
       .select("kind, body, created_at, session_id, party_member_ids")
       .eq("npc_id", npcId)
       .order("created_at", { ascending: false })
-      .limit(MEMORY_PROMPT_LIMIT);
+      .limit(limit);
     if (error) throw error;
     const rows = (data as MemoryRow[]).reverse();
     if (rows.length === 0) return [];

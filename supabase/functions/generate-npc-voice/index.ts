@@ -11,6 +11,7 @@ import {
   releaseCredits,
   reserveCredits,
   reservationFailureResponse,
+  recordFreeGeneration,
 } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
@@ -26,6 +27,9 @@ import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResul
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { campaignToday, promptAge, type DatePoint } from "../_shared/npcAge.ts";
 import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts";
+import { judge, JEV_MODEL, noulOf, scoreOf } from "../_shared/typesafe.ts";
+import { MEMORY_CANDIDATE_LIMIT, pickPromptMemories, RELEVANCE_QUESTION } from "./memoryRelevance.ts";
+import { buildHiddenIdentity, checkLinesForReveal, REVEAL_QUESTION } from "./disguiseCheck.ts";
 
 /**
  * At-the-table NPC dialogue suggester (#336).
@@ -43,6 +47,13 @@ import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts
  * profile, so a suggested line does not contradict last session. The disguise
  * rule below covers them too (formatNpcMemories masks the true name). A failed
  * memory read never fails the generation.
+ *
+ * With a `typesafe` platform key two small judgments run (#1061, both free to the
+ * user and recorded as `entity_judgment`): the newest 60 memories are scored for
+ * how much they bear on the situation and the prompt carries the most relevant
+ * twelve, and for a disguised NPC each suggested line is checked for giving the
+ * disguise away (a flagged line is returned with `reveals: true`, never dropped).
+ * Without the key, or when judging fails, the function behaves as it did before.
  */
 
 const admin = createClient(
@@ -200,7 +211,7 @@ serve(withCors(async (req: Request) => {
   // Started now and awaited when the prompt is built, so the memory read runs
   // alongside the prompt, plan, key and provider lookups below instead of after
   // them. It never rejects: a failed read answers with no memories.
-  const memoriesPending = loadPromptMemories(admin, npc.id, campaign_id);
+  const memoriesPending = loadPromptMemories(admin, npc.id, campaign_id, MEMORY_CANDIDATE_LIMIT);
 
   const { data: promptRow } = await admin
     .from("ai_system_prompts").select("content")
@@ -221,12 +232,28 @@ serve(withCors(async (req: Request) => {
       decryptKey(campaign.anthropic_api_key),
       decryptKey(campaign.gemini_api_key),
     ]),
-    fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
+    fetchPlatformKeys(admin, ["openai", "anthropic", "gemini", "typesafe"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
 
   const systemContent = promptRow.content + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
-  const memoryBlock = formatNpcMemories(await memoriesPending, npc);
+  // Judging is an enhancement: a missing key, or any failure, leaves the newest twelve.
+  const jevKey = platformKeys.typesafe && platformKeys.typesafe.length > 0 ? platformKeys.typesafe : null;
+  let jevTokens = 0;
+  let jevJudged = 0;
+  const picked = await pickPromptMemories({
+    candidates: await memoriesPending,
+    situation,
+    identity: npc,
+    apiKey: jevKey,
+    judgeScore: async (request, signal) => {
+      const res = await judge(request, { apiKey: jevKey!, signal });
+      return { score: scoreOf(res, RELEVANCE_QUESTION), inputTokens: res.inputTokens };
+    },
+  });
+  jevTokens += picked.inputTokens;
+  jevJudged += picked.judged;
+  const memoryBlock = formatNpcMemories(picked.memories, npc);
   const userContent =
     `${wrapUserInput(situation)}\n\nNPC Profile:\n${buildNpcProfile(npc, campaignToday(campaign))}` +
     (memoryBlock ? `\n\n${memoryBlock}` : "");
@@ -314,6 +341,24 @@ serve(withCors(async (req: Request) => {
     );
   }
 
+  // The disguise check. The true name and the backstory go to TypeSafe here:
+  // the same data this function already sends to the text model for generation,
+  // under the same AI switch, so it adds a processor but no new category of data.
+  let reveals = lines.map(() => false);
+  if (jevKey && !!npc.disguise_name && !npc.is_revealed) {
+    const check = await checkLinesForReveal({
+      lines,
+      hidden: buildHiddenIdentity(npc.name, toPlainText(npc.backstory).slice(0, BACKSTORY_CHAR_LIMIT), npc.disguise_name),
+      judgeReveal: async (request, signal) => {
+        const res = await judge(request, { apiKey: jevKey, signal });
+        return { probability: noulOf(res, REVEAL_QUESTION), inputTokens: res.inputTokens };
+      },
+    });
+    reveals = check.reveals;
+    jevTokens += check.inputTokens;
+    jevJudged += check.judged;
+  }
+
   // Release the hold; record the real spend (delta 0 on BYOK).
   await releaseCredits(admin, reservation.ids);
   await recordGeneration(admin, user.id, "npc_voice_generation", text.isByok, cost, {
@@ -321,10 +366,17 @@ serve(withCors(async (req: Request) => {
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });
 
+  // One row per call, platform-paid: the tokens were spent whatever the verdicts.
+  if (jevJudged > 0) {
+    await recordFreeGeneration(admin, user.id, "entity_judgment", {
+      model: JEV_MODEL, provider: "typesafe", input_tokens: jevTokens,
+    });
+  }
+
   // The provider and model ride along so a line the DM marks as said is stored
   // with its provenance (npc_memories.ai_provenance, #1019).
   return new Response(
-    JSON.stringify({ lines, provider: textResult.usage.provider, model: textResult.usage.model }),
+    JSON.stringify({ lines: lines.map((text, i) => ({ text, reveals: reveals[i] })), provider: textResult.usage.provider, model: textResult.usage.model }),
     { headers: { "Content-Type": "application/json" } },
   );
 }));
