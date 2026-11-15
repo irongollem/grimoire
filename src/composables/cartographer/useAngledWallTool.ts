@@ -9,7 +9,7 @@
 import { ref, type Ref } from "vue";
 import type { PaintedWallKind } from "@/cartographer/paintOps";
 import * as paintOps from "@/cartographer/paintOps";
-import { snapPoint, nearestAngledWall, type CellPoint } from "@/cartographer/wallPick";
+import { snapRunPoint, nearestAngledWall, type CellPoint, type RunSnapKind } from "@/cartographer/wallPick";
 import type { WallKind } from "@/cartographer/wallKinds";
 import type { DungeonMapLayers } from "@/types/dungeonMap.types";
 
@@ -33,6 +33,8 @@ export function useAngledWallTool(opts: AngledWallToolOptions) {
   const run = ref<CellPoint[]>([]);
   /** The snapped point under the pointer, where the next click would land. */
   const hover = ref<CellPoint | null>(null);
+  /** What `hover` snapped to, so the canvas can say a click would close the ring or catch a wall end. */
+  const hoverSnap = ref<RunSnapKind | null>(null);
   /** The angled wall picked with Select (or just drawn), for Delete and the highlight. */
   const selectedId = ref<string | null>(null);
 
@@ -41,18 +43,23 @@ export function useAngledWallTool(opts: AngledWallToolOptions) {
   }
 
   function track(frac: CellPoint, free: boolean): void {
-    hover.value = snapPoint(frac, free);
+    const snapped = snapRunPoint(frac, free, run.value, layers.value.walls);
+    hover.value = snapped.point;
+    hoverSnap.value = snapped.kind;
   }
 
   /** A click: the first starts a run, the rest add a point. A click on the point just placed is ignored, which is what
    *  makes the second click of a double-click harmless. */
   function click(frac: CellPoint, free: boolean): void {
-    const point = snapPoint(frac, free);
+    const { point, kind } = snapRunPoint(frac, free, run.value, layers.value.walls);
     hover.value = point;
+    hoverSnap.value = kind;
     const last = run.value.at(-1);
     if (last && last[0] === point[0] && last[1] === point[1]) return;
     run.value = [...run.value, point];
     selectedId.value = null;
+    // A click on the run's own first point closes the ring: the run ends there, in the same one undo step.
+    if (kind === "start") finish();
   }
 
   /** Ends the run: one wall per segment, one undo step. A run of a single point is just thrown away. */
@@ -84,6 +91,7 @@ export function useAngledWallTool(opts: AngledWallToolOptions) {
 
   function abandon(): void {
     run.value = [];
+    hoverSnap.value = null;
   }
 
   function pickAt(frac: CellPoint): string | null {
@@ -118,5 +126,5 @@ export function useAngledWallTool(opts: AngledWallToolOptions) {
     if (selectedId.value && !layers.value.walls[selectedId.value]) selectedId.value = null;
   }
 
-  return { run, hover, selectedId, track, click, finish, abandon, pickAt, deleteSelected, wallNear, toggleDoor, dropStaleSelection };
+  return { run, hover, hoverSnap, selectedId, track, click, finish, abandon, pickAt, deleteSelected, wallNear, toggleDoor, dropStaleSelection };
 }

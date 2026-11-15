@@ -69,10 +69,10 @@ vi.mock("@/composables/cartographer/usePlanCanvasTools", () => ({
     renderScene: vi.fn(() => ({
       regions: [], ways: [], activeRegionId: null, cellsOverride: undefined,
       hoveredDoorEdge: null, tracingRing: null, tracingClosed: false, tracingHoverPoint: null,
-      templateDraft: null, templateRingPreview: [],
+      templateDraft: null, templateRingPreview: [], assignHover: null,
     })),
     renderDeps: {
-      hoveredDoorEdge: ref(null), pendingDoorEdge: ref(null), strokeCells: ref(null), draftRing: ref([]),
+      hoveredDoorEdge: ref(null), assignHover: ref(null), pendingDoorEdge: ref(null), strokeCells: ref(null), draftRing: ref([]),
       templateDraft: ref(null), liveDrag: ref(null), penHoverPoint: ref(null),
     },
   }),

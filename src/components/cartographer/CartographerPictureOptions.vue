@@ -14,6 +14,10 @@
       <p v-else-if="!hasPicture" class="basis-full text-caption text-muted-foreground">
         A scan, a screenshot or a render. Add one and it sits under the drawing and the zones.
       </p>
+      <div v-else class="flex basis-full items-center gap-2">
+        <span class="text-caption text-muted-foreground">Grid lined up.</span>
+        <AppButton variant="primary" size="sm" label="Trace the walls" @click="emit('trace-walls')" />
+      </div>
       <MapPictureControls
         class="basis-full"
         :has-picture="hasPicture"
@@ -56,6 +60,8 @@ const emit = defineEmits<{
   upload: [file: File];
   remove: [];
   "line-up": [];
+  /** The grid is lined up: go to Drawing with the Angled wall tool (frame 02). */
+  "trace-walls": [];
   done: [];
   cancel: [];
   "update:battleMap": [value: boolean];

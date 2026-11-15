@@ -201,7 +201,7 @@
           @delete-selected="deleteSelectedDressing"
           @open-catalogue="drawer = 'place'"
           @update:active-wall-kind="activeWallKind = $event"
-          @update:wall-visible="wallVisible = $event"
+          @update:wall-visible="setWallVisible"
           @update:selected-wall-visible="setSelectedWallVisible"
           @update:active-wall-decal="activeWallDecal = $event"
           @update:annotation-text="annotationText = $event"
@@ -229,6 +229,7 @@
           @upload="emit('picture-upload', $event)"
           @remove="emit('picture-remove')"
           @line-up="startLineUp"
+          @trace-walls="traceTheWalls"
           @done="finishLineUp"
           @cancel="cancelLineUp"
           @update:battle-map="emit('update:isBattleMap', $event)"
@@ -408,7 +409,7 @@ import type { BindableSpace } from "@/types/locationMapRegion.types";
 import type { ZoningEntry } from "@/lib/locations/foundRooms";
 import { entryId } from "@/lib/locations/zoningRows";
 import type { GridCalibration, LocationType } from "@/types/location.types";
-import { squareReadout, useCanvasFraming, useFitMapOnFirstEntry, useReferencePicture, useWorkbenchPicture } from "@/composables/cartographer/useWorkbenchPicture";
+import { initialWallVisible, squareReadout, useCanvasFraming, useFitMapOnFirstEntry, useReferencePicture, useWorkbenchPicture } from "@/composables/cartographer/useWorkbenchPicture";
 
 const {
   map, site, spaces, saveState, menuActions = [], reviewCount, showReady = false, startLayer,
@@ -539,7 +540,7 @@ const referencePicture = computed(() => stack.value.picture);
 // Built unconditionally: every query in `usePlanPalette` is `enabled`-guarded on a real site id, so on the
 // standalone route (no `site`, no layer selector) it is inert: no request, no mutation possible.
 const siteId = computed(() => site?.id ?? null);
-const plan = usePlanPalette(siteId, () => structure.structure.value.spaces);
+const plan = usePlanPalette(siteId, () => structure.structure.value.spaces, () => layers.value);
 const {
   activeFamily, placeItemInfo, selectedDressingInfo, slipTitle, slipCaption, planToolLabel, changedRegionsCaution,
 } = useWorkbenchSlip({
@@ -661,6 +662,23 @@ onMounted(() => {
 // ── Map load ───────────────────────────────────────────────────────────────
 
 watch(() => map, (m) => applyMapToState(m ?? null), { immediate: true });
+
+// New walls start Hidden on a map that is a picture and nothing else (frame 02). Only an initial value: it is
+// decided when a map arrives, never again for the same map once the DM has set the control themselves.
+const wallVisibleChosen = ref(false);
+function setWallVisible(visible: boolean): void {
+  wallVisibleChosen.value = true;
+  wallVisible.value = visible;
+}
+watch(() => map?.id, () => {
+  if (!wallVisibleChosen.value) wallVisible.value = initialWallVisible(layers.value, !!referencePicture.value);
+}, { immediate: true });
+
+/** "Trace the walls" on the Base image tab: straight to Drawing with the Angled wall tool in hand. */
+function traceTheWalls(): void {
+  activeLayer.value = "drawing";
+  activeTool.value = "angledWall";
+}
 
 defineExpose({
   getName: () => name.value,

@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import { nextTick } from "vue";
-import { pictureCellBounds, unionBounds, useFitMapOnFirstEntry, useReferencePicture, useWorkbenchPicture, type WorkbenchPicture } from "./useWorkbenchPicture";
+import { initialWallVisible, pictureCellBounds, unionBounds, useFitMapOnFirstEntry, useReferencePicture, useWorkbenchPicture, type WorkbenchPicture } from "./useWorkbenchPicture";
 import { calibrationFor } from "@/lib/mapImport/pictureGrid";
+import { emptyLayers } from "@/types/dungeonMap.types";
+import type { WallEdge } from "@/types/dungeonMap.types";
 
 function setup(picture: WorkbenchPicture | null = { url: "a.png", calibration: null }) {
   const pic = ref<WorkbenchPicture | null>(picture);
@@ -169,5 +171,31 @@ describe("useFitMapOnFirstEntry", () => {
     activeLayer.value = "plan";
     await nextTick();
     expect(fitCanvasTo).not.toHaveBeenCalled();
+  });
+});
+
+describe("initialWallVisible (frame 02: hidden by default on a picture)", () => {
+  const wall: WallEdge = { pack_id: "p", pack_version: 1, variant: 0, type: "wall", a: [0, 0], b: [1, 0] };
+
+  it("starts Hidden for a picture and no tiles", () => {
+    expect(initialWallVisible(emptyLayers(), true)).toBe(false);
+  });
+  it("starts Hidden for a picture with only walls traced so far", () => {
+    const layers = emptyLayers();
+    layers.walls.w = wall;
+    expect(initialWallVisible(layers, true)).toBe(false);
+  });
+  it("keeps Visible for a picture with painted floor", () => {
+    const layers = emptyLayers();
+    layers.floor["1,1"] = {};
+    expect(initialWallVisible(layers, true)).toBe(true);
+  });
+  it("keeps Visible for a picture with only a ground region", () => {
+    const layers = emptyLayers();
+    layers.ground.g = {} as never;
+    expect(initialWallVisible(layers, true)).toBe(true);
+  });
+  it("keeps Visible when there is no picture", () => {
+    expect(initialWallVisible(emptyLayers(), false)).toBe(true);
   });
 });

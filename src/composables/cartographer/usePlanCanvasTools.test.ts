@@ -206,6 +206,7 @@ describe("usePlanCanvasTools Door and Assign tools", () => {
       foundRegions: ref([]),
       ways: ref([]),
       planTool: ref(tool),
+      zoneKind: ref("room"),
       traceTool: ref("paint"),
       activeRegionId: ref(null),
       activeRegion: computed(() => null),
@@ -378,6 +379,142 @@ describe("usePlanCanvasTools Door and Assign tools", () => {
     tools.onPointerMove(new PointerEvent("pointermove", { clientX: 0, clientY: 0 }));
     plan.planTool.value = "door";
     expect(tools.renderScene().hoveredDoorEdge).toBeNull();
+  });
+
+  describe("the Assign hover", () => {
+    const hoverAt = (tools: ReturnType<typeof usePlanCanvasTools>, x: number, y: number) =>
+      tools.onPointerMove(new PointerEvent("pointermove", { clientX: x, clientY: y }));
+    const box2x2 = (layers: ReturnType<typeof doorHarness>["layers"]) => {
+      for (const [x, y, side] of [[0, 0, "N"], [1, 0, "N"], [0, 1, "S"], [1, 1, "S"], [0, 0, "W"], [0, 1, "W"], [1, 0, "E"], [1, 1, "E"]] as const) {
+        const o = canonicaliseEdge(x, y, side);
+        putWall(layers.value, o.x, o.y, o.side, { pack_id: "base", pack_version: 1, variant: 0, type: "wall" });
+      }
+    };
+
+    it("lights the connected floor under the pointer by its squares, not the separate patch beside it", () => {
+      // Floor 0,0 1,0 1,1 is one patch (4-connected); 8,8 is another. Pointer on 1,0 lights the first three only.
+      const { tools } = doorHarness("assign", [], ["0,0", "1,0", "1,1", "8,8"] as CellKey[]);
+      hoverAt(tools, 1, 0);
+      const hover = tools.renderScene().assignHover!;
+      expect(hover.cells.slice().sort()).toEqual(["0,0", "1,0", "1,1"]);
+      expect(hover.outline).toBeNull();
+    });
+
+    it("lights the ring of walls round the pointer with its squares and outline where no floor is painted", () => {
+      // A 2x2 box covers squares 0,0 0,1 1,0 1,1; its outline has four corners. The pointer (1,1) is inside it.
+      const { tools, layers } = doorHarness("assign", []);
+      box2x2(layers);
+      hoverAt(tools, 1, 1);
+      const hover = tools.renderScene().assignHover!;
+      expect(hover.cells.slice().sort()).toEqual(["0,0", "0,1", "1,0", "1,1"]);
+      expect(hover.outline).toHaveLength(4);
+    });
+
+    it("lights nothing outside every ring", () => {
+      const { tools, layers } = doorHarness("assign", []);
+      box2x2(layers);
+      hoverAt(tools, 1, 1);
+      hoverAt(tools, 6, 6);
+      expect(tools.renderScene().assignHover).toBeNull();
+    });
+
+    it("lights nothing over floor that is already a room, where a click only selects it", () => {
+      const room = makeRegion({ id: "r", cells: ["0,0", "1,0"] as CellKey[] });
+      const { tools } = doorHarness("assign", [room], ["0,0", "1,0", "5,5"] as CellKey[]);
+      hoverAt(tools, 1, 0);
+      expect(tools.renderScene().assignHover).toBeNull();
+      // The patch beside it is not a room, so it still lights: the rule is about the covered area, not the tool.
+      hoverAt(tools, 5, 5);
+      expect(tools.renderScene().assignHover!.cells).toEqual(["5,5"]);
+    });
+
+    it("lights nothing over a ring whose squares are already a room", () => {
+      const room = makeRegion({ id: "r", cells: ["0,0", "0,1", "1,0", "1,1"] as CellKey[] });
+      const { tools, layers } = doorHarness("assign", [room]);
+      box2x2(layers);
+      hoverAt(tools, 1, 1);
+      expect(tools.renderScene().assignHover).toBeNull();
+    });
+
+    it("lights a room for any other kind, since a click there makes a zone over it, and follows the kind as it changes", () => {
+      const room = makeRegion({ id: "r", cells: ["0,0", "0,1", "1,0", "1,1"] as CellKey[] });
+      const { tools, layers, plan } = doorHarness("assign", [room]);
+      box2x2(layers);
+      plan.zoneKind.value = "hazard";
+      hoverAt(tools, 1, 1);
+      expect(tools.renderScene().assignHover!.cells).toHaveLength(4);
+      // Back to Room with the pointer still in the same ring: the click would only select it again.
+      plan.zoneKind.value = "room";
+      hoverAt(tools, 1, 1);
+      expect(tools.renderScene().assignHover).toBeNull();
+    });
+
+    it("lights nothing over a ring too small to hold a square", () => {
+      const { tools, layers } = doorHarness("assign", []);
+      layers.value.walls.a = { pack_id: "base", pack_version: 1, variant: 0, type: "wall", a: [0.6, 0.6], b: [1.4, 0.6] };
+      layers.value.walls.b = { pack_id: "base", pack_version: 1, variant: 0, type: "wall", a: [1.4, 0.6], b: [1.4, 1.4] };
+      layers.value.walls.c = { pack_id: "base", pack_version: 1, variant: 0, type: "wall", a: [1.4, 1.4], b: [0.6, 1.4] };
+      layers.value.walls.d = { pack_id: "base", pack_version: 1, variant: 0, type: "wall", a: [0.6, 1.4], b: [0.6, 0.6] };
+      hoverAt(tools, 1, 1);
+      expect(tools.renderScene().assignHover).toBeNull();
+    });
+
+    it("clears when the pointer leaves the canvas", () => {
+      const { tools } = doorHarness("assign", [], ["0,0"] as CellKey[]);
+      hoverAt(tools, 0, 0);
+      expect(tools.renderScene().assignHover).not.toBeNull();
+      tools.onPointerLeave();
+      expect(tools.renderScene().assignHover).toBeNull();
+    });
+
+    it("clears the moment the tool changes, so Zone never draws under a stale amber area", () => {
+      const { tools, plan } = doorHarness("assign", [], ["0,0"] as CellKey[]);
+      hoverAt(tools, 0, 0);
+      plan.planTool.value = "zone";
+      expect(tools.renderDeps.assignHover.value).toBeNull();
+    });
+
+    it("clears after a click makes the area a room", () => {
+      const { tools } = doorHarness("assign", [], ["0,0"] as CellKey[]);
+      hoverAt(tools, 0, 0);
+      tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 0, clientY: 0 }));
+      expect(tools.renderDeps.assignHover.value).toBeNull();
+    });
+
+    it("does not work the area out again while the pointer stays in the same floor patch or the same ring", () => {
+      // Same object back means nothing was recomputed (a recompute builds a new one).
+      const floor = doorHarness("assign", [], ["0,0", "1,0"] as CellKey[]);
+      hoverAt(floor.tools, 0, 0);
+      const lit = floor.tools.renderScene().assignHover;
+      hoverAt(floor.tools, 1, 0);
+      expect(floor.tools.renderScene().assignHover).toBe(lit);
+
+      const ringed = doorHarness("assign", []);
+      box2x2(ringed.layers);
+      hoverAt(ringed.tools, 1, 1);
+      const ringLit = ringed.tools.renderScene().assignHover;
+      hoverAt(ringed.tools, 0.5, 1.5);
+      expect(ringed.tools.renderScene().assignHover).toBe(ringLit);
+    });
+
+    it("stops lighting a floor patch once a room is written over it, though the pointer stays in the patch", () => {
+      const { tools, plan } = doorHarness("assign", [], ["0,0", "1,0"] as CellKey[]);
+      hoverAt(tools, 0, 0);
+      expect(tools.renderScene().assignHover).not.toBeNull();
+      (plan.regions as unknown as { value: LocationMapRegion[] }).value = [makeRegion({ id: "new", cells: ["0,0", "1,0"] as CellKey[] })];
+      hoverAt(tools, 1, 0);
+      expect(tools.renderScene().assignHover).toBeNull();
+    });
+
+    it("works the area out again once the walls change under a stationary pointer", () => {
+      const { tools, layers } = doorHarness("assign", []);
+      box2x2(layers);
+      hoverAt(tools, 1, 1);
+      expect(tools.renderScene().assignHover).not.toBeNull();
+      layers.value = { ...layers.value, walls: {} };
+      hoverAt(tools, 1, 1);
+      expect(tools.renderScene().assignHover).toBeNull();
+    });
   });
 });
 

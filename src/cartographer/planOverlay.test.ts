@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
-import { drawPlanSpaces, drawPlanWays, drawPlanZones, type PlanWayLike, type TileViewport } from "./planOverlay";
+import { drawPlanAssignHover, drawPlanSpaces, drawPlanWays, drawPlanZones, type PlanWayLike, type TileViewport } from "./planOverlay";
 
 const VIEWPORT: TileViewport = { tilePx: 10, viewportOffset: { x: 0, y: 0 } };
 
@@ -77,5 +77,25 @@ describe("the Zoning overlay's ways", () => {
     const { ctx, calls } = recorder();
     drawPlanWays(ctx, VIEWPORT, [way({}), way({ edge_key: "6f1c2d3e-0000-4000-8000-000000000001" })]);
     expect(calls).toEqual([]);
+  });
+});
+
+describe("the Assign hover", () => {
+  // Tile size 10: the ring's corner (2,3) lands on (20,30).
+  it("fills a ring of walls along its outline, not by squares, and edges it", () => {
+    const { ctx, calls } = recorder();
+    drawPlanAssignHover(ctx, VIEWPORT, { cells: ["2,3"], outline: [[2, 3], [5, 3], [5, 7]] });
+    expect(calls.filter((c) => c.startsWith("fillRect"))).toEqual([]);
+    expect(calls).toContain("lineTo(50,30)");
+    expect(calls).toContain("lineTo(50,70)");
+    expect(calls.filter((c) => c === "fill()")).toHaveLength(1);
+    expect(calls.filter((c) => c === "stroke()")).toHaveLength(1);
+  });
+
+  it("fills painted floor by its squares, with no outline stroked", () => {
+    const { ctx, calls } = recorder();
+    drawPlanAssignHover(ctx, VIEWPORT, { cells: ["0,0", "1,0"], outline: null });
+    expect(calls.filter((c) => c.startsWith("fillRect"))).toHaveLength(2);
+    expect(calls.filter((c) => c === "stroke()")).toEqual([]);
   });
 });

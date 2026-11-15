@@ -5,7 +5,7 @@
 import { FEET_PER_CELL, type TileLight } from "@/cartographer/packSchema";
 import type { Ctx2D } from "@/cartographer/dressing";
 import type { DungeonMapLayers } from "@/types/dungeonMap.types";
-import type { CellPoint } from "@/cartographer/wallPick";
+import { isWallEnd, MIN_POINTS_TO_CLOSE, type CellPoint } from "@/cartographer/wallPick";
 import { lineOfWall } from "@/cartographer/wallGeometry";
 import { paintWallNodes, type WallNodeMarks } from "@/cartographer/drawWallNodes";
 
@@ -56,6 +56,19 @@ function lightDot(ctx: Ctx2D, cx: number, cy: number, light: TileLight, tilePx: 
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+const GILT = "#c9962e";
+
+function giltRing(ctx: Ctx2D, x: number, y: number, tilePx: number, width: number): void {
+  ctx.save();
+  ctx.strokeStyle = GILT;
+  ctx.lineWidth = width;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(x, y, tilePx * 0.2, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }
@@ -121,6 +134,15 @@ export function paintEditorMarks(
       ctx.fill();
     }
     ctx.restore();
+    // Gilt rings, no text: a thick one round the first point when the next click closes the ring, a thin one round
+    // a wall end the hover has caught. Derived from the points, so the render path needs nothing beyond them.
+    const hover = run.hover;
+    const first = run.points[0];
+    if (hover) {
+      const closes = run.points.length >= MIN_POINTS_TO_CLOSE && hover[0] === first[0] && hover[1] === first[1];
+      if (closes) giltRing(ctx, px(first[0]), py(first[1]), tilePx, 2.5);
+      else if (isWallEnd(layers.walls, hover)) giltRing(ctx, px(hover[0]), py(hover[1]), tilePx, 1.5);
+    }
   }
 
   for (const outline of marks.selectedProps ?? NO_OUTLINES) {

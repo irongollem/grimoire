@@ -14,7 +14,9 @@ import { computed, nextTick, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { eraseFromRegions, usePlanPalette } from "./usePlanPalette";
 import type { DerivedSpace } from "@/cartographer/structure.types";
-import type { CellKey } from "@/types/dungeonMap.types";
+import { emptyLayers, type CellKey } from "@/types/dungeonMap.types";
+import { canonicaliseEdge } from "@/cartographer/edges";
+import { putWall } from "@/cartographer/testWalls";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 
 interface MutationCall {
@@ -532,5 +534,69 @@ describe("usePlanPalette found rooms", () => {
     expect(createRegionStub.mutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({ region_role: "zone", zone_kind: "hazard", derived_from: "dm", cells: ["0,0", "0,1"] }),
     );
+  });
+
+  describe("wallRings: the rings of walls and how many are not a room yet", () => {
+    /** A box of lattice walls w x h at (x0, y0): no floor painted, only walls. */
+    function boxOfWalls(layers: ReturnType<typeof emptyLayers>, x0: number, y0: number, w: number, h: number): void {
+      const put = (x: number, y: number, side: "N" | "S" | "W" | "E"): void => {
+        const o = canonicaliseEdge(x, y, side);
+        putWall(layers, o.x, o.y, o.side, { pack_id: "p", pack_version: 1, variant: 0, type: "wall" });
+      };
+      for (let x = x0; x < x0 + w; x++) {
+        put(x, y0, "N");
+        put(x, y0 + h - 1, "S");
+      }
+      for (let y = y0; y < y0 + h; y++) {
+        put(x0, y, "W");
+        put(x0 + w - 1, y, "E");
+      }
+    }
+    const left = ["0,0", "1,0", "0,1", "1,1"] as CellKey[];
+
+    it("counts none when no layers are given or the walls close nothing", () => {
+      expect(usePlanPalette(computed(() => "site-1")).wallRings.value).toEqual({ rings: 0, unassigned: 0 });
+      expect(usePlanPalette(computed(() => "site-1"), () => [], () => emptyLayers()).wallRings.value).toEqual({ rings: 0, unassigned: 0 });
+    });
+
+    it("counts one ring, not a room yet, when no row covers it", () => {
+      const layers = emptyLayers();
+      boxOfWalls(layers, 0, 0, 2, 2);
+      const plan = usePlanPalette(computed(() => "site-1"), () => [], () => layers);
+      expect(plan.wallRings.value).toEqual({ rings: 1, unassigned: 1 });
+    });
+
+    it("leaves out a ring too small to hold a square, which could never be assigned", () => {
+      // A 0.8-cell ring (0.6 to 1.4) holds no square middle; the 2x2 box beside it is the one ring that counts.
+      const layers = emptyLayers();
+      layers.walls.a = { pack_id: "p", pack_version: 1, variant: 0, type: "wall", a: [10.6, 0.6], b: [11.4, 0.6] };
+      layers.walls.b = { pack_id: "p", pack_version: 1, variant: 0, type: "wall", a: [11.4, 0.6], b: [11.4, 1.4] };
+      layers.walls.c = { pack_id: "p", pack_version: 1, variant: 0, type: "wall", a: [11.4, 1.4], b: [10.6, 1.4] };
+      layers.walls.d = { pack_id: "p", pack_version: 1, variant: 0, type: "wall", a: [10.6, 1.4], b: [10.6, 0.6] };
+      boxOfWalls(layers, 0, 0, 2, 2);
+      const plan = usePlanPalette(computed(() => "site-1"), () => [], () => layers);
+      expect(plan.wallRings.value).toEqual({ rings: 1, unassigned: 1 });
+    });
+
+    it("counts a ring as assigned once a room row holds all its squares, and the other still waiting", () => {
+      // Two 2x2 rings, one at x 0..1 and one at x 5..6. Only the first has a room row.
+      const layers = emptyLayers();
+      boxOfWalls(layers, 0, 0, 2, 2);
+      boxOfWalls(layers, 5, 0, 2, 2);
+      regionsData.value = [makeRegion({ id: "room", cells: left })];
+      const plan = usePlanPalette(computed(() => "site-1"), () => [], () => layers);
+      expect(plan.wallRings.value).toEqual({ rings: 2, unassigned: 1 });
+    });
+
+    it("does not count a ring as assigned by a zone, or by a room that holds only some of its squares", () => {
+      const layers = emptyLayers();
+      boxOfWalls(layers, 0, 0, 2, 2);
+      regionsData.value = [
+        makeRegion({ id: "zone", region_role: "zone", zone_kind: "hazard", cells: left }),
+        makeRegion({ id: "partial", cells: ["0,0", "1,0"] }),
+      ];
+      const plan = usePlanPalette(computed(() => "site-1"), () => [], () => layers);
+      expect(plan.wallRings.value).toEqual({ rings: 1, unassigned: 1 });
+    });
   });
 });

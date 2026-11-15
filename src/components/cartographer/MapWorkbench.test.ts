@@ -465,6 +465,62 @@ describe("MapWorkbench", () => {
       expect(wrapper.findAll("button").some((b) => b.text() === "Grid not lined up")).toBe(false);
     });
 
+    describe("Trace the walls (frame 02)", () => {
+      const calibrated = { ...siteWithPicture, is_battle_map: false };
+      const armAngledWall = async (wrapper: ReturnType<typeof mount>) => {
+        await wrapper.find('nav[aria-label="Map tools"] [aria-label="Walls"]').trigger("click");
+        await wrapper.findAll('[data-slip] [aria-label="Walls tools"] button').find((b) => b.text().startsWith("Angled wall"))!.trigger("click");
+      };
+      /** The pressed side of the "New wall visibility" control. */
+      const newWallVisibility = (wrapper: ReturnType<typeof mount>): string => {
+        const group = wrapper.find('[aria-label="New wall visibility"]');
+        const on = group.findAll("button").find((b) => b.attributes("aria-pressed") === "true" || b.attributes("aria-checked") === "true");
+        return on!.text();
+      };
+      const tiledMap: DungeonMap = { ...baseMap, layers: { ...emptyLayers(), solidBlock: { "1,1": { pack_id: "p", pack_version: 1, variant: 0 } } } };
+
+      it("starts new walls Hidden on a picture map with nothing painted", async () => {
+        const wrapper = await mountPicture(calibrated, { startLayer: "drawing" });
+        await armAngledWall(wrapper);
+        expect(newWallVisibility(wrapper)).toBe("Hidden");
+      });
+
+      it("keeps new walls Visible on a tiled map, even with a picture", async () => {
+        const wrapper = await mountPicture(calibrated, { startLayer: "drawing", map: tiledMap });
+        await armAngledWall(wrapper);
+        expect(newWallVisibility(wrapper)).toBe("Visible");
+      });
+
+      it("keeps new walls Visible on a map with no picture", async () => {
+        const wrapper = await mountPicture(siteWithNoImagery, { startLayer: "drawing" });
+        await armAngledWall(wrapper);
+        expect(newWallVisibility(wrapper)).toBe("Visible");
+      });
+
+      it("leaves the DM's own choice alone when another map arrives", async () => {
+        const wrapper = await mountPicture(calibrated, { startLayer: "drawing" });
+        await armAngledWall(wrapper);
+        await wrapper.find('[aria-label="New wall visibility"]').findAll("button").find((b) => b.text() === "Visible")!.trigger("click");
+        await wrapper.setProps({ map: { ...baseMap, id: "another-level" } });
+        expect(newWallVisibility(wrapper)).toBe("Visible");
+      });
+
+      it("offers the action on a lined-up grid, and it goes to Drawing with the Angled wall tool", async () => {
+        const wrapper = await mountPicture(calibrated, { startLayer: "picture" });
+        await press(wrapper, "Trace the walls");
+        expect(tool(wrapper, "Draw")).toBe(true);
+        expect(wrapper.find("[data-slip]").text()).toContain("Click the first point to close the ring");
+      });
+
+      it("does not offer it before the grid is lined up, nor while lining it up", async () => {
+        const wrapper = await mountPicture(uncalibrated, { startLayer: "picture" });
+        expect(wrapper.findAll("button").some((b) => b.text() === "Trace the walls")).toBe(false);
+        const lined = await mountPicture(calibrated, { startLayer: "picture" });
+        await press(lined, "Line up the grid");
+        expect(lined.findAll("button").some((b) => b.text() === "Trace the walls")).toBe(false);
+      });
+    });
+
     it("names an unnamed drawing after the site, not 'Untitled Map'", async () => {
       const wrapper = await mountPicture(siteWithNoImagery, { map: null, defaultName: "Karkholok" });
       expect((wrapper.vm as unknown as { getName(): string }).getName()).toBe("Karkholok");

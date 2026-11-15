@@ -393,35 +393,77 @@ export function findFaces(layers: DungeonMapLayers, opts: { simplify?: boolean }
   return out;
 }
 
-/**
- * The smallest closed ring of walls around a point, whether or not any floor is painted inside it. This is what lets
- * the Assign tool make a room of a picture map that has only walls drawn over it: the DM picks which rings are rooms by
- * clicking inside them, so a ring is never a room by itself (a wall round a pillar must not become one by accident).
- * Floor edges and floor-shape outlines are left out on purpose, so only walls close a face here. Its `cells` are the
- * squares whose middle lies in the ring and in no smaller ring nested inside it, minus solid blocks. Null when the
- * point is in no closed ring.
- */
-export function wallFaceAt(layers: DungeonMapLayers, point: readonly [number, number]): FoundFace | null {
+/** What the walls alone make, before solid blocks are taken out: each ring's polygon and the squares it owns once
+ *  the smaller rings nested inside have claimed theirs. Solid blocks cut a square out of every ring, so they are
+ *  applied after, and the result per `solidBlock` object is kept beside it. */
+interface WallRings {
+  /** The walls as they were when the rings were found: an edit that keeps the object but adds, removes or replaces a
+   *  wall (the lattice is edited in place) is noticed by comparing these, as `cachedWallGeometry` does. */
+  keys: string[];
+  values: WallEdge[];
+  polygons: GridPoint[][];
+  owned: CellKey[][];
+  faces: WeakMap<object, FoundFace[]>;
+}
+
+// Keyed on the walls object and checked against its contents, like `cachedWallGeometry`. Welding and walking the
+// whole graph is too much to redo on every pointer move, which the Assign tool's hover would do.
+const wallRingsCache = new WeakMap<object, WallRings>();
+
+function wallRingsOf(layers: DungeonMapLayers): WallRings {
+  const keys = Object.keys(layers.walls);
+  const hit = wallRingsCache.get(layers.walls);
+  if (hit && hit.keys.length === keys.length && keys.every((k, i) => hit.keys[i] === k && hit.values[i] === layers.walls[k])) return hit;
   const pieces = weld(wallSegments(layers), () => false);
   const walls: Record<string, WallEdge> = {};
   pieces.forEach((s, i) => {
     walls[`f${i}`] = { type: "wall", pack_id: "", pack_version: 0, variant: 0, a: s.a, b: s.b };
   });
   const faces = detectRooms(buildGraph(walls)).sort((p, q) => p.area - q.area);
-  const index = faces.findIndex((f) => pointInRing(point[0], point[1], f.polygon));
-  if (index < 0) return null;
-
   // Smaller faces claim their squares first, so a ring nested inside keeps its squares out of the one around it.
-  const owner = new Set<CellKey>();
-  let cells: CellKey[] = [];
-  for (let i = 0; i <= index; i++) {
+  const claimed = new Set<CellKey>();
+  const owned = faces.map((face) => {
     const mine: CellKey[] = [];
-    for (const k of floorCellsOf(faces[i].polygon)) {
-      if (owner.has(k) || layers.solidBlock[k]) continue;
-      owner.add(k);
+    for (const k of floorCellsOf(face.polygon)) {
+      if (claimed.has(k)) continue;
+      claimed.add(k);
       mine.push(k);
     }
-    if (i === index) cells = mine;
-  }
-  return { cells, outline: simplifyLoop(faces[index].polygon) };
+    return mine;
+  });
+  const rings: WallRings = { keys, values: keys.map((k) => layers.walls[k]), polygons: faces.map((f) => f.polygon), owned, faces: new WeakMap() };
+  wallRingsCache.set(layers.walls, rings);
+  return rings;
+}
+
+/**
+ * Every closed ring of the walls alone, smallest first, floor or no floor. A ring's `cells` are the squares whose
+ * middle lies in it and in no smaller ring nested inside, minus solid blocks (so a ring can hold none); its `outline`
+ * is the ring itself. The same array comes back for the same walls and solid blocks, so a hover can ask on every
+ * pointer move.
+ */
+export function wallFaces(layers: DungeonMapLayers): FoundFace[] {
+  const rings = wallRingsOf(layers);
+  const hit = rings.faces.get(layers.solidBlock);
+  if (hit) return hit;
+  const faces = rings.polygons.map((polygon, i): FoundFace => ({
+    cells: rings.owned[i].filter((k) => !layers.solidBlock[k]),
+    outline: simplifyLoop(polygon),
+  }));
+  rings.faces.set(layers.solidBlock, faces);
+  return faces;
+}
+
+/**
+ * The smallest closed ring of walls around a point, whether or not any floor is painted inside it. This is what lets
+ * the Assign tool make a room of a picture map that has only walls drawn over it: the DM picks which rings are rooms by
+ * clicking inside them, so a ring is never a room by itself (a wall round a pillar must not become one by accident).
+ * Floor edges and floor-shape outlines are left out on purpose, so only walls close a face here. Null when the
+ * point is in no closed ring.
+ */
+export function wallFaceAt(layers: DungeonMapLayers, point: readonly [number, number]): FoundFace | null {
+  const faces = wallFaces(layers);
+  const { polygons } = wallRingsOf(layers);
+  const index = polygons.findIndex((ring) => pointInRing(point[0], point[1], ring));
+  return index < 0 ? null : faces[index];
 }

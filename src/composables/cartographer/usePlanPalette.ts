@@ -62,7 +62,8 @@ import { foundRegionOf, foundSpaceKey } from "@/lib/locations/zoningRows";
 import { emptyZoneInsert } from "@/lib/locations/zones";
 import { cellsInsideRing } from "@/lib/locations/polygon";
 import type { TraceTool } from "@/lib/locations/polygon";
-import type { CellKey } from "@/types/dungeonMap.types";
+import { wallFaces } from "@/cartographer/roomOutline";
+import type { CellKey, DungeonMapLayers } from "@/types/dungeonMap.types";
 import type { DoorKind, SourceEdgeKey } from "@/types/locationDoor.types";
 import {
   ZONE_KINDS,
@@ -127,8 +128,13 @@ export interface PlanEntityHandle {
 /**
  * @param derived the rooms the Drawing's walls make right now; they are in the Zoning list from the moment it opens
  *   (#1125 frame 19), written as rows only when the DM acts on one.
+ * @param layers the Drawing's layers, read for the rings of walls the list counts (a ring is not a room until assigned).
  */
-export function usePlanPalette(siteId: ComputedRef<string | null>, derived: () => readonly DerivedSpace[] = () => []) {
+export function usePlanPalette(
+  siteId: ComputedRef<string | null>,
+  derived: () => readonly DerivedSpace[] = () => [],
+  layers: () => DungeonMapLayers | null = () => null,
+) {
   const { error: toastError, fromError } = useToast();
   const { confirm } = useConfirm();
 
@@ -423,6 +429,16 @@ export function usePlanPalette(siteId: ComputedRef<string | null>, derived: () =
   });
   const foundCount = computed(() => derived().length);
 
+  /** The closed rings the walls alone make (with at least one square in them), and how many of those no room covers
+   *  yet. A ring counts as a room only when every one of its squares is already in a room row. */
+  const wallRings = computed<{ rings: number; unassigned: number }>(() => {
+    const l = layers();
+    if (!l) return { rings: 0, unassigned: 0 };
+    const inRooms = new Set(regions.value.filter((r) => r.region_role === "space").flatMap((r) => r.cells));
+    const faces = wallFaces(l).filter((f) => f.cells.length > 0);
+    return { rings: faces.length, unassigned: faces.filter((f) => !f.cells.every((c) => inRooms.has(c))).length };
+  });
+
   type RowEdit = Pick<LocationMapRegionInsert, "label" | "space_location_id" | "cells" | "vertices">;
 
   /** The DM changes a room: a found one with no row becomes one stamped `dm`; an existing row gets `derived_from:
@@ -641,6 +657,7 @@ export function usePlanPalette(siteId: ComputedRef<string | null>, derived: () =
     zoning,
     foundRegions,
     foundCount,
+    wallRings,
     spaceNames,
     renameEntry,
     bindEntry,

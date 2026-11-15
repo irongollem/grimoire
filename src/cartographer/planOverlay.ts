@@ -228,6 +228,31 @@ export function drawPlanDoorHover(ctx: CanvasRenderingContext2D, viewport: TileV
   ctx.stroke();
 }
 
+/** What the Assign tool would make of a click here: the squares, and the ring of walls when the area is one. */
+export interface AssignHover {
+  cells: readonly CellKey[];
+  outline: readonly GridPoint[] | null;
+}
+
+/** The fill of a room no place is bound to yet, as `regionFillColor` paints it, so the preview is what the click
+ *  will leave behind. */
+const UNBOUND_AMBER = "rgba(251, 191, 36, 0.28)";
+const UNBOUND_AMBER_EDGE = "rgba(251, 191, 36, 0.9)";
+
+/** The Assign tool's hover: the area a click would assign, lit before the click. A ring of walls is filled along its
+ *  outline (and edged, since there may be no floor to show where it ends); painted floor is filled by its squares. */
+export function drawPlanAssignHover(ctx: CanvasRenderingContext2D, viewport: TileViewport, hover: AssignHover): void {
+  ctx.fillStyle = UNBOUND_AMBER;
+  if (hover.outline) {
+    fillRing(ctx, hover.outline, viewport);
+    ctx.strokeStyle = UNBOUND_AMBER_EDGE;
+    ctx.lineWidth = 2;
+    strokeRing(ctx, hover.outline, viewport);
+  } else {
+    fillCells(ctx, hover.cells, viewport);
+  }
+}
+
 const NODE_SIZE_PX = 9;
 const SNAP_HIT_RADIUS_CELLS = 0.4;
 
