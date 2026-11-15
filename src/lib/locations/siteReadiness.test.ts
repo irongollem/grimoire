@@ -218,13 +218,31 @@ describe("structureFromSite", () => {
     expect(structure.spaces[0].signature).toMatch(/^1:/);
   });
 
-  it("keeps only doors with a source edge key", () => {
+  it("keeps only doors with a line: a grid edge, or a wall id with its segment", () => {
     const structure = structureFromSite(
       [],
-      [{ edge_key: "0,0:N" }, { edge_key: null }],
+      [
+        { edge_key: "0,0:N", segment: null },
+        { edge_key: null, segment: null },
+        {
+          edge_key: "wall-id",
+          segment: [
+            [2, 2],
+            [3, 3],
+          ],
+        },
+        { edge_key: "wall-id-lost", segment: null },
+      ],
     );
-    expect(structure.ways).toHaveLength(1);
-    expect(structure.ways[0].edgeKey).toBe("0,0:N");
+    expect(structure.ways.map((w) => w.edgeKey)).toEqual(["0,0:N", "wall-id"]);
+    expect(structure.ways[0].segment).toEqual([
+      [0, 0],
+      [1, 0],
+    ]);
+    expect(structure.ways[1].segment).toEqual([
+      [2, 2],
+      [3, 3],
+    ]);
   });
 });
 

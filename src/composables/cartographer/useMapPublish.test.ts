@@ -339,6 +339,39 @@ describe("useMapPublish.publish", () => {
     expect(placements).toEqual([expect.objectContaining({ location_id: hall, trap_id: TRAP_UUID })]);
   });
 
+  // The database holds an edge key and a segment together by a CHECK: a wall id must carry its line, a grid edge must not.
+  describe("door lines", () => {
+    const LINE: [[number, number], [number, number]] = [[0.6, -0.2], [1.4, 1.2]];
+    const gridLine: [[number, number], [number, number]] = [[0, 0], [1, 0]];
+
+    function onlyWays(ways: unknown[]): void {
+      mocks.plan = { spaces: [], ways, placements: [], summary: {} } as unknown as PublishPlan;
+    }
+
+    it("writes the segment for a wall id and none for a grid edge", async () => {
+      onlyWays([
+        { kind: "create", way: { kind: "door", edgeKey: "wall-uuid", segment: LINE }, fromSpaceId: "room-a", toSpaceId: "room-b" },
+        { kind: "create", way: { kind: "door", edgeKey: "0,0:N", segment: gridLine }, fromSpaceId: "room-a", toSpaceId: "room-b" },
+      ]);
+      await setup().publish();
+      const doors = mocks.insertDoors.mock.calls[0]![0] as { edge_key: string; segment: unknown }[];
+      expect(doors.map((d) => [d.edge_key, d.segment])).toEqual([["wall-uuid", LINE], ["0,0:N", null]]);
+    });
+
+    it("writes a null far end for a way with one room beside it", async () => {
+      onlyWays([{ kind: "create", way: { kind: "door", edgeKey: "0,0:N", segment: gridLine }, fromSpaceId: "room-a", toSpaceId: null }]);
+      await setup().publish();
+      const doors = mocks.insertDoors.mock.calls[0]![0] as { from_location_id: string; to_location_id: string | null }[];
+      expect(doors).toEqual([expect.objectContaining({ from_location_id: "room-a", to_location_id: null })]);
+    });
+
+    it("writes nothing for a way with no room beside it", async () => {
+      onlyWays([{ kind: "no-room", way: { kind: "door", edgeKey: "wall-uuid", segment: LINE, fromKey: null, toKey: null } }]);
+      await setup().publish();
+      expect(mocks.insertDoors.mock.calls[0]![0]).toEqual([]);
+    });
+  });
+
   // A published room is drawn along its walls' outline in the Atlas and on the player's plan; squares alone are a staircase.
   it("writes each published room's outline with its squares", async () => {
     const { publish } = setup();

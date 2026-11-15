@@ -11,6 +11,8 @@ import type {
 } from "@/cartographer/structure.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { LocationDoor } from "@/types/locationDoor.types";
+import { isGridEdgeKey } from "@/types/locationDoor.types";
+import { gridEdgeSegment } from "@/lib/locations/doors";
 import type { LocationPlacement } from "@/types/locationPlacement.types";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { LocationType } from "@/types/location.types";
@@ -115,8 +117,16 @@ function makeLink(overrides: Partial<DerivedLink> = {}): DerivedLink {
 }
 
 function makeWay(overrides: Partial<DerivedWay> = {}): DerivedWay {
+  const edgeKey = overrides.edgeKey ?? "0,1:N";
   return {
-    edgeKey: "0,1:N",
+    edgeKey,
+    // A grid key implies its line; any other key (a wall id) gets an arbitrary one unless the test names it.
+    segment: isGridEdgeKey(edgeKey)
+      ? gridEdgeSegment(edgeKey)
+      : [
+          [0, 0],
+          [1, 0],
+        ],
     kind: "door",
     fromKey: "s:from",
     toKey: "s:to",
@@ -304,6 +314,14 @@ describe("planPublish — spaces", () => {
     expect(plan.spaces).toEqual([{ kind: "orphan", region }]);
   });
 
+  // #1197: on a map that is a picture with only walls drawn over it, rooms are assigned by hand and the drawing
+  // derives none. The first publish of its walls orphaned (emptied) every one of them.
+  it("leaves a room the DM made by hand alone when the drawing derives no room there", () => {
+    const assigned = makeRegion({ cells: ["7,7"], label: "Assigned", derived_from: "dm", cell_signature: null });
+    const plan = planPublish(makeInput({ regions: [assigned] }));
+    expect(plan.spaces).toEqual([]);
+  });
+
   it("matches a reshaped space by its bound room's name when overlap falls short", () => {
     const region = makeRegion({ cells: ["0,0", "0,1"], space_location_id: "room-ossuary", derived_from: "floodfill" });
     // Cells barely overlap (1 of 4 shared -> jaccard 0.2), so only the name ties them together.
@@ -478,6 +496,71 @@ describe("planPublish — ways", () => {
 });
 
 // ── planPublish: placements ──────────────────────────────────────────────
+
+// A way with no painted floor either side (a picture with walls over it): its rooms come from the site's own regions.
+// Way "0,1:N" lies on the line [[0,1],[1,1]], d = (1,0), so n = (-dy,dx) = (0,1). The `+` side (from) is 0.5 south, in cell
+// (0,1); the `-` side (to) is 0.5 north, in cell (0,0).
+describe("planPublish: ways with no painted floor", () => {
+  const floorless = () => makeWay({ edgeKey: "0,1:N", fromKey: null, toKey: null });
+  const south = (over: Partial<LocationMapRegion> = {}) => makeRegion({ cells: ["0,1"], space_location_id: "room-south", ...over });
+  const north = (over: Partial<LocationMapRegion> = {}) => makeRegion({ cells: ["0,0"], space_location_id: "room-north", ...over });
+  const plan = (regions: LocationMapRegion[], doors: LocationDoor[] = []) =>
+    planPublish(makeInput({ derived: makeDerived({ ways: [floorless()] }), regions, doors }));
+
+  it("joins the two bound rooms either side, the + side first", () => {
+    expect(plan([north(), south()]).ways).toEqual([
+      { kind: "create", way: floorless(), fromSpaceId: "room-south", toSpaceId: "room-north" },
+    ]);
+  });
+
+  it("with one bound room beside it, creates a door that leads nowhere yet", () => {
+    expect(plan([south()]).ways).toEqual([{ kind: "create", way: floorless(), fromSpaceId: "room-south", toSpaceId: null }]);
+    expect(plan([north()]).ways).toEqual([{ kind: "create", way: floorless(), fromSpaceId: "room-north", toSpaceId: null }]);
+  });
+
+  it("with no room beside it, plans nothing to write and counts it apart from the creates", () => {
+    const result = plan([]);
+    expect(result.ways).toEqual([{ kind: "no-room", way: floorless() }]);
+    expect(result.summary.noRoomWays).toBe(1);
+    expect(result.summary.newDoors).toBe(0);
+  });
+
+  it("a region the DM has not bound to a place yet is no room", () => {
+    expect(plan([south({ space_location_id: null })]).ways).toEqual([{ kind: "no-room", way: floorless() }]);
+  });
+
+  it("a way that matches an existing door is held, updated or skipped as before, rooms or none", () => {
+    const skipDoor = makeDoor({ edge_key: "0,1:N", door_kind: "door" });
+    expect(plan([], [skipDoor]).ways).toEqual([{ kind: "skip", way: floorless(), door: skipDoor }]);
+    const updateDoor = makeDoor({ edge_key: "0,1:N", door_kind: "arch" });
+    expect(plan([], [updateDoor]).ways).toEqual([
+      { kind: "update", way: floorless(), door: updateDoor, before: "arch", after: "door" },
+    ]);
+    const heldDoor = makeDoor({ edge_key: "0,1:N", label: "iron grille" });
+    expect(plan([north(), south()], [heldDoor]).ways).toEqual([
+      { kind: "held", way: floorless(), door: heldDoor, reason: "dm-edited" },
+    ]);
+  });
+
+  it("a way with space keys ignores the site's regions and refers to the spaces the drawing derived", () => {
+    const way = makeWay({ edgeKey: "0,1:N", fromKey: "s:from", toKey: "s:to" });
+    const result = planPublish(
+      makeInput({
+        derived: makeDerived({ spaces: [makeSpace({ key: "s:from" }), makeSpace({ key: "s:to", cells: ["5,5"] })], ways: [way] }),
+        regions: [north(), south()],
+      }),
+    );
+    expect(result.ways).toEqual([{ kind: "create", way, fromSpaceId: "created:s:from", toSpaceId: "created:s:to" }]);
+  });
+
+  it("orders ways by the middle of their line, so a wall id sorts among grid edges", () => {
+    // Middles: "zzz" (2.5, 0.5), "5,3:N" (5.5, 3). Key text would put "5,3:N" first.
+    const zzz = makeWay({ edgeKey: "zzz", segment: [[2, 0], [3, 1]], fromKey: null, toKey: null });
+    const grid = makeWay({ edgeKey: "5,3:N", fromKey: null, toKey: null });
+    const result = planPublish(makeInput({ derived: makeDerived({ ways: [grid, zzz] }) }));
+    expect(result.ways.map((c) => (c.kind === "no-room" ? c.way.edgeKey : "?"))).toEqual(["zzz", "5,3:N"]);
+  });
+});
 
 describe("planPublish — placements", () => {
   it("keeps a placement whose cell is still in the same room", () => {
@@ -674,6 +757,7 @@ describe("planPublish — summary", () => {
       doorUpdates: 0,
       heldSpaces: 1,
       heldWays: 1,
+      noRoomWays: 0,
       orphans: 1,
       reanchored: 1,
     });

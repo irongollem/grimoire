@@ -19,6 +19,8 @@
 // the Rooms panel), and a placement whose cell now falls outside every
 // derived space becomes `lost-room` (stays room-level, cell key kept).
 
+import { compareWaysByPosition } from "@/cartographer/structure";
+import { indexSpacesByCell, resolveSegmentEndpoints } from "@/lib/locations/doors";
 import { placementTargetId } from "@/lib/dungeon-features/library";
 import type { CellKey, CellMetadata } from "@/types/dungeonMap.types";
 import type { LocationType } from "@/types/location.types";
@@ -59,7 +61,8 @@ export type SpaceChange =
   | { kind: "orphan"; region: LocationMapRegion }; // bound region whose signature/overlap has no derived space any more
 
 export type WayChange =
-  | { kind: "create"; way: DerivedWay; fromSpaceId: string; toSpaceId: string } // ids resolved through SpaceChange results (a "create" space gets its id at apply time — see spaceIdFor helper below)
+  | { kind: "create"; way: DerivedWay; fromSpaceId: string; toSpaceId: string | null } // ids resolved through SpaceChange results (a "create" space gets its id at apply time — see spaceIdFor helper below); a null far end is a door that leads nowhere yet (one room beside a floorless way)
+  | { kind: "no-room"; way: DerivedWay } // a floorless way with no bound room beside it: writes nothing, the review says so
   | { kind: "held"; way: DerivedWay; door: LocationDoor; reason: "dm-edited" } // matched by edgeKey but the door has starts_locked/is_secret/lock_note/label set by the DM → keep mine
   | { kind: "update"; way: DerivedWay; door: LocationDoor; before: DoorKind; after: DoorKind } // matched by edgeKey, door carries NO DM authoring, but the drawing's door_kind changed (a closed door redrawn as an arch) → apply the new kind
   | { kind: "skip"; way: DerivedWay; door: LocationDoor }
@@ -87,6 +90,8 @@ export interface PublishPlan {
     doorUpdates: number;
     heldSpaces: number;
     heldWays: number;
+    /** Floorless ways with no bound room beside them: written nowhere, listed in the review. */
+    noRoomWays: number;
     orphans: number;
     reanchored: number;
   };
@@ -264,7 +269,13 @@ function planSpaces(input: PublishInputs): { changes: SpaceChange[]; spaceIdFor:
     }
   }
 
-  const orphans = [...unmatched].sort((a, b) => compareByCell(a.cells[0] ?? "0,0", b.cells[0] ?? "0,0"));
+  // Only a room the drawing once made can be lost by the drawing. A room the DM made by hand (the Zone tool, or
+  // Assign inside a ring of walls on a map with no painted floor, #1197) carries no `cell_signature`: it never
+  // mirrored a derived space, so a publish that derives none where it stands must leave it alone. Emptying it here
+  // took every assigned room off a picture map the first time its walls were published.
+  const orphans = unmatched
+    .filter((region) => region.cell_signature !== null)
+    .sort((a, b) => compareByCell(a.cells[0] ?? "0,0", b.cells[0] ?? "0,0"));
   for (const region of orphans) changes.push({ kind: "orphan", region });
 
   return { changes, spaceIdFor };
@@ -282,10 +293,18 @@ function planWays(input: PublishInputs, spaceIdFor: Map<string, string>): WayCha
 
   const changes: WayChange[] = [];
 
-  const sortedWays = [...input.derived.ways].sort((a, b) => compareByCell(a.edgeKey, b.edgeKey));
+  const cellToSite = indexSpacesByCell(input.regions);
+  const sortedWays = [...input.derived.ways].sort(compareWaysByPosition);
   for (const way of sortedWays) {
     const door = doorsByEdge.get(way.edgeKey);
     if (!door) {
+      if (way.fromKey === null || way.toKey === null) {
+        // No painted floor either side: the rooms the DM assigned in Zoning decide.
+        const ends = resolveSegmentEndpoints(way.segment, cellToSite);
+        if (ends === null) changes.push({ kind: "no-room", way });
+        else changes.push({ kind: "create", way, fromSpaceId: ends.fromLocationId, toSpaceId: ends.toLocationId });
+        continue;
+      }
       changes.push({ kind: "create", way, fromSpaceId: spaceRefId(way.fromKey), toSpaceId: spaceRefId(way.toKey) });
       continue;
     }
@@ -473,6 +492,7 @@ export function planPublish(input: PublishInputs): PublishPlan {
       doorUpdates: ways.filter((c) => c.kind === "update").length,
       heldSpaces: spaces.filter((c) => c.kind === "held").length,
       heldWays: ways.filter((c) => c.kind === "held").length,
+      noRoomWays: ways.filter((c) => c.kind === "no-room").length,
       orphans: spaces.filter((c) => c.kind === "orphan").length,
       reanchored: placements.filter((c) => c.kind === "reanchor").length,
     },

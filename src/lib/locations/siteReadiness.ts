@@ -19,6 +19,8 @@ import type { DungeonMap } from "@/types/dungeonMap.types";
 import { deriveStructure, structureDelta } from "@/cartographer/structure";
 import type { DerivedStructure, DerivedWay } from "@/cartographer/structure.types";
 import { cellSignature } from "@/cartographer/cellSignature";
+import { doorSegment } from "@/lib/locations/doors";
+import type { DoorSegment } from "@/types/locationDoor.types";
 import { frameCalibration, hasAnyMapLayer, type MapStackSource } from "@/lib/locations/mapStack";
 
 // ── Readiness ─────────────────────────────────────────────────────────────
@@ -133,7 +135,7 @@ export function siteReadiness(input: SiteReadinessInput): SiteReadiness {
  */
 export function structureFromSite(
   regions: readonly LocationMapRegion[],
-  doors: readonly { edge_key: string | null }[],
+  doors: readonly { edge_key: string | null; segment: DoorSegment | null }[],
 ): DerivedStructure {
   const spaceRegions = regions.filter((r) => r.region_role === "space" && r.cells.length > 0);
   const spaces = spaceRegions.map((r) => ({
@@ -145,14 +147,12 @@ export function structureFromSite(
     name: r.label,
     nameSource: null,
   }));
-  const ways: DerivedWay[] = doors
-    .filter((d): d is { edge_key: NonNullable<typeof d.edge_key> } => d.edge_key !== null)
-    .map((d) => ({
-      edgeKey: d.edge_key,
-      kind: "door",
-      fromKey: "",
-      toKey: "",
-    }));
+  const ways: DerivedWay[] = doors.flatMap((d): DerivedWay[] => {
+    const segment = doorSegment(d);
+    // A door with no line (never placed, or a uuid key with no segment) is not part of the drawn structure.
+    if (d.edge_key === null || segment === null) return [];
+    return [{ edgeKey: d.edge_key, segment, kind: "door", fromKey: "", toKey: "" }];
+  });
   return { spaces, ways, stairs: [], links: [] };
 }
 

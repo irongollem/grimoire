@@ -202,6 +202,11 @@ describe("deriveWays", () => {
     const toSpace = spaceContaining("0,0", spaces);
     expect(ways[0].fromKey).toBe(fromSpace?.key);
     expect(ways[0].toKey).toBe(toSpace?.key);
+    // W edge of (1,0): bottom to top, so the normal points east at the owner cell.
+    expect(ways[0].segment).toEqual([
+      [1, 1],
+      [1, 0],
+    ]);
   });
 
   it("an open door between two spaces is one way of kind arch", () => {
@@ -422,6 +427,10 @@ describe("structureDelta", () => {
   it("counts ways that appeared and disappeared", () => {
     const way = (edgeKey: string): DerivedWay => ({
       edgeKey: edgeKey as DerivedWay["edgeKey"],
+      segment: [
+        [0, 0],
+        [1, 0],
+      ],
       kind: "door",
       fromKey: "s:a",
       toKey: "s:b",
@@ -482,11 +491,92 @@ describe("deriveSpaces with angled walls", () => {
     expect(deriveSpaces(free)).toHaveLength(2);
   });
 
-  it("an angled door is not a way out: ways are named by a grid edge key, which it has none of", () => {
+  // The door [0.6,-0.2]->[1.4,1.2]: d = (0.8,1.4), |d| = sqrt(2.6) = 1.6125, so n = (-dy,dx)/|d| = (-0.868, 0.496) and the
+  // middle m is (1.0, 0.5). The `+` side m + 0.5n = (0.566, 0.748) is cell (0,0); the `-` side m - 0.5n = (1.434, 0.252)
+  // is cell (1,0). So from is the room of (0,0) and to the room of (1,0).
+  const DOOR_A: [number, number] = [0.6, -0.2];
+  const DOOR_B: [number, number] = [1.4, 1.2];
+
+  it("an angled door between two floored rooms is a way keyed by the wall id, from the + side to the - side", () => {
     const layers = strip();
-    angled(layers, "door", [0.6, -0.2], [1.4, 1.2], "doorClosed");
+    angled(layers, "door-uuid", DOOR_A, DOOR_B, "doorClosed");
     const spaces = deriveSpaces(layers);
     expect(spaces).toHaveLength(2);
+    expect(deriveWays(layers, spaces)).toEqual([
+      {
+        edgeKey: "door-uuid",
+        segment: [DOOR_A, DOOR_B],
+        kind: "door",
+        fromKey: spaceContaining("0,0", spaces)?.key,
+        toKey: spaceContaining("1,0", spaces)?.key,
+      },
+    ]);
+  });
+
+  it("an open angled door is an arch", () => {
+    const layers = strip();
+    angled(layers, "door-uuid", DOOR_A, DOOR_B, "doorOpen");
+    expect(deriveWays(layers, deriveSpaces(layers)).map((w) => w.kind)).toEqual(["arch"]);
+  });
+
+  it("an angled door inside one room (the rows below join both sides) is not a way", () => {
+    // The wall ends at y = 1.2, inside the second row of floor, so the room wraps round it: one space, both samples in it.
+    const layers = strip();
+    addFloor(layers, 0, 1);
+    addFloor(layers, 1, 1);
+    angled(layers, "door-uuid", DOOR_A, DOOR_B, "doorClosed");
+    const spaces = deriveSpaces(layers);
+    expect(spaces).toHaveLength(1);
     expect(deriveWays(layers, spaces)).toEqual([]);
+  });
+
+  it("an angled door with floor on one side only leads nowhere and is not a way", () => {
+    const layers = emptyLayers();
+    addFloor(layers, 0, 0);
+    angled(layers, "door-uuid", DOOR_A, DOOR_B, "doorClosed");
+    expect(deriveWays(layers, deriveSpaces(layers))).toEqual([]);
+  });
+
+  it("an angled door with no floor either side is a way with no space keys", () => {
+    const layers = emptyLayers();
+    angled(layers, "door-uuid", DOOR_A, DOOR_B, "doorClosed");
+    expect(deriveWays(layers, deriveSpaces(layers))).toEqual([
+      { edgeKey: "door-uuid", segment: [DOOR_A, DOOR_B], kind: "door", fromKey: null, toKey: null },
+    ]);
+  });
+
+  it("a grid door with no floor either side is a way with no space keys and its grid line", () => {
+    const layers = emptyLayers();
+    addEdge(layers, 0, 0, "E", "doorOpen");
+    // E of (0,0) is the W edge of (1,0): [[1,1],[1,0]].
+    expect(deriveWays(layers, deriveSpaces(layers))).toEqual([
+      {
+        edgeKey: "1,0:W",
+        segment: [
+          [1, 1],
+          [1, 0],
+        ],
+        kind: "arch",
+        fromKey: null,
+        toKey: null,
+      },
+    ]);
+  });
+
+  it("orders ways by the middle of their line, not by the text of a uuid key", () => {
+    // Middles: zzz (2.5, 0.5), 5,3:N (5.5, 3), aaa (9.5, 6.5). Reading order is zzz, 5,3:N, aaa; key text would give
+    // 5,3:N, aaa, zzz.
+    const layers = emptyLayers();
+    angled(layers, "aaa", [9, 6], [10, 7], "doorClosed");
+    addEdge(layers, 5, 3, "N", "doorClosed");
+    angled(layers, "zzz", [2, 0], [3, 1], "doorClosed");
+    expect(deriveWays(layers, []).map((w) => w.edgeKey)).toEqual(["zzz", "5,3:N", "aaa"]);
+  });
+
+  it("two ways with the same middle are ordered by key", () => {
+    const layers = emptyLayers();
+    angled(layers, "b", [0, 0], [2, 2], "doorClosed");
+    angled(layers, "a", [0, 2], [2, 0], "doorClosed");
+    expect(deriveWays(layers, []).map((w) => w.edgeKey)).toEqual(["a", "b"]);
   });
 });

@@ -52,9 +52,7 @@
  */
 import { computed } from "vue";
 import { cellsRects, outlinePath, planViewBox, waySegment } from "@/lib/locations/planSvg";
-import { gridEdgeSegment } from "@/lib/locations/doors";
 import type { PublishPlan } from "@/lib/locations/publish";
-import { isGridEdgeKey } from "@/types/locationDoor.types";
 import type { CellKey } from "@/types/dungeonMap.types";
 
 const COLORS = {
@@ -106,17 +104,15 @@ interface DoorBar {
   color: string;
 }
 
-// "Doors as bars where the edge key is known (create = green bar, held =
-// amber)" — an update/skip is a door that already exists and hasn't moved,
-// and a create-stair has no edge key at all, so neither draws a bar here.
+// "Doors as bars (create = green bar, held = amber)" — an update/skip is a
+// door that already exists and hasn't moved, and a create-stair has no line
+// at all, so neither draws a bar here. Every way carries its own line, so an
+// angled door is drawn at its real end points.
 const doorBars = computed<DoorBar[]>(() =>
   plan.ways.flatMap((change): DoorBar[] => {
-    // Publish derives grid-edge ways only until story 3b; a wall-uuid way has
-    // no line on a DerivedWay, so it draws no bar rather than a wrong one.
     if (change.kind !== "create" && change.kind !== "held") return [];
-    if (!isGridEdgeKey(change.way.edgeKey)) return [];
     const color = change.kind === "create" ? COLORS.new.stroke : COLORS.changed.stroke;
-    return [{ ...waySegment(gridEdgeSegment(change.way.edgeKey), 0.15), color }];
+    return [{ ...waySegment(change.way.segment, 0.15), color }];
   }),
 );
 

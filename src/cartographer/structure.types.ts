@@ -26,6 +26,7 @@
 // what `signature` (a space) and `edgeKey` (a way out) are for.
 
 import type { CellKey, CellMetadata } from "@/types/dungeonMap.types";
+import type { DoorSegment } from "@/types/locationDoor.types";
 
 export interface DerivedSpace {
   /** `s:<lowest cell key>` — stable within this derivation. */
@@ -45,16 +46,20 @@ export interface DerivedSpace {
 }
 
 export interface DerivedWay {
-  /** Canonical NW edge (`edges.ts`) for a grid-edge way, or a wall uuid for a
-   *  way cut into an angled wall; either is `location_doors.edge_key`. Story
-   *  3b makes publish derive the second kind; today every derived way is a grid edge. */
+  /** Canonical NW edge (`edges.ts`) for a way on a grid line, or the wall's uuid for a way cut into an angled wall;
+   *  either is `location_doors.edge_key`. */
   edgeKey: string;
+  /** The line the door covers, in cell units: `gridEdgeSegment(edgeKey)` for a grid edge, the wall's own `[a, b]` for an
+   *  angled one. Always set; it is what `location_doors.segment` stores for a uuid key. */
+  segment: DoorSegment;
   /** `doorClosed` → `door`, `doorOpen` → `arch`. */
   kind: "door" | "arch";
-  /** The space owning the edge's cell (the cell whose N or W edge it is). */
-  fromKey: string;
-  /** The space on the other side of the edge. */
-  toKey: string;
+  /** The derived space on the `+` side of the line (the side `(-dy, dx)` points to; for a grid edge, the cell that owns
+   *  it). Null together with `toKey`: the drawing has no painted floor either side (a picture with only walls over it),
+   *  so the site's own rooms decide at publish. Both are strings or both are null, never one of each. */
+  fromKey: string | null;
+  /** The derived space on the other side; null exactly when `fromKey` is. */
+  toKey: string | null;
 }
 
 export interface DerivedStair {

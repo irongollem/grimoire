@@ -37,6 +37,7 @@ import {
 import type { DerivedSpace, DerivedStructure } from "@/cartographer/structure.types";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import type { Location, LocationInsert } from "@/types/location.types";
+import { isGridEdgeKey } from "@/types/locationDoor.types";
 import type { LocationDoorInsert, LocationDoorUpdate } from "@/types/locationDoor.types";
 import type { LocationMapRegionInsert, LocationMapRegionUpdate } from "@/types/locationMapRegion.types";
 import type { LocationPlacementInsert, LocationPlacementUpdate } from "@/types/locationPlacement.types";
@@ -476,16 +477,18 @@ export function useMapPublish(opts: {
       }
 
       // (c) Ways — doors, arches and newly-resolved stairs. Held and skipped
-      // rows, and stairs still unresolved, write nothing.
+      // rows, no-room ways and stairs still unresolved write nothing.
       const doorRows: LocationDoorInsert[] = [];
       const doorUpdates: { id: string; update: LocationDoorUpdate }[] = [];
       for (const change of currentPlan.ways) {
         if (change.kind === "create") {
           doorRows.push({
             from_location_id: resolveWayEndpoint(change.fromSpaceId, spaceKeyToLocationId),
-            to_location_id: resolveWayEndpoint(change.toSpaceId, spaceKeyToLocationId),
+            to_location_id: change.toSpaceId === null ? null : resolveWayEndpoint(change.toSpaceId, spaceKeyToLocationId),
             door_kind: change.way.kind,
             edge_key: change.way.edgeKey,
+            // A grid edge implies its line; the database refuses a segment beside one, and requires it beside a wall uuid.
+            segment: isGridEdgeKey(change.way.edgeKey) ? null : change.way.segment,
             derived_from: "publish",
           });
         } else if (change.kind === "update") {

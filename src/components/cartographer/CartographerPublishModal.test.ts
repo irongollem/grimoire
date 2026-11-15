@@ -27,6 +27,7 @@ function planWith(summary: Partial<PublishPlan["summary"]> = {}): PublishPlan {
       doorUpdates: 0,
       heldSpaces: 0,
       heldWays: 0,
+      noRoomWays: 0,
       orphans: 0,
       reanchored: 0,
       ...summary,
