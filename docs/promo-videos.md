@@ -350,7 +350,7 @@ npm run promo:post -- inn-dawn              # dry run, once captions/inn-dawn.tx
 plate, then each moving part on a transparent background with the plate
 attached, so the part takes the room's style and light. The queue holds a
 part until its plate exists and moves aside a PNG without an alpha channel.
-Keep the briefs quiet: few objects, large calm areas, one light. Paint
+The same queue can be painted through the image API instead of by hand: `scripts/promo/scenes/paint.ts --only <prefix>` lists what it would paint, and with `--yes-spend` paints the room first and then each part with the room attached, setting aside any part that comes back without transparency (run with `--env-file=.env.local`; `--redo <file>` repaints one). Its `figure` lane is for a person of the setting on their own, which the room lane forbids. Keep the briefs quiet: few objects, large calm areas, one light. Paint
 from Sothery (Sugarwell is the demo campaign, and every scene of the setting
 promotes it) and from classic D&D too: a rough tavern, a dungeon, a dragon's
 hoard (the maintainer, 4 Nov 2026). Brief the next plates wide, so the
