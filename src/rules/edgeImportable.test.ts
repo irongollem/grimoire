@@ -21,6 +21,8 @@ import { describe, expect, it } from "vitest";
 const ROOT = resolve(__dirname, "../..");
 const SRC = join(ROOT, "src") + sep;
 const FUNCTIONS = join(ROOT, "supabase/functions");
+/** Modules written for the edge before any function loads them (#1202), held to the rule from the start. */
+const PENDING_ENTRIES = [join(SRC, "rules/fight/terrain/reach.ts")];
 const FORBIDDEN_PACKAGES = ["vue", "pinia"];
 
 function edgeFiles(dir: string): string[] {
@@ -87,7 +89,7 @@ function problemsIn(name: string, source: ts.SourceFile): { problems: string[]; 
 function scan(): { files: string[]; problems: string[] } {
   const seen = new Set<string>();
   const problems: string[] = [];
-  const queue: string[] = [];
+  const queue: string[] = [...PENDING_ENTRIES];
   // Where edge code steps into src/.
   for (const file of edgeFiles(FUNCTIONS)) {
     for (const { specifier } of specifiers(parse(file))) {

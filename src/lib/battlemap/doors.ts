@@ -2,8 +2,8 @@
 // per door. The override list lives on the map (`map_memory.door_states`, #1134), a door it does not name keeps its
 // drawn state, and "everything as drawn" is the empty list. Pure and DOM-free.
 
-import type { Point } from "@/lib/battlemap/walls";
-import type { MapLiveDoor, MapLiveDoorState } from "@/types/mapLive.types";
+import type { Point } from "./walls.ts";
+import type { MapLiveDoor, MapLiveDoorState } from "../../types/mapLive.types.ts";
 
 /** The doors at the state they have in play: the drawn doors with the DM's overrides laid over them. */
 export function effectiveDoors(drawn: readonly MapLiveDoor[], overrides: readonly MapLiveDoorState[]): MapLiveDoor[] {
