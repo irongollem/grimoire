@@ -67,6 +67,16 @@ describe("cutDoorIntoWall", () => {
     expect(Object.keys(kept.walls)).toHaveLength(3);
   });
 
+  it("runs the door to the wall's end where the stretch beside it is dropped, leaving no gap", () => {
+    // 0.04 cells short of each end: both stretches are dropped, so the door must reach (0,0) and (10,0) itself.
+    const cut = cutDoorIntoWall(walls, "w", [0.04, 0], [9.96, 0], counter())!;
+    expect(Object.keys(cut.walls)).toEqual(["new-1"]);
+    expect([cut.walls["new-1"]!.a, cut.walls["new-1"]!.b]).toEqual([[0, 0], [10, 0]]);
+    // Only the dropped side moves: a kept stretch still meets the door where the door was asked for.
+    const oneSide = cutDoorIntoWall(walls, "w", [0.04, 0], [5, 0], counter())!;
+    expect([oneSide.walls["new-1"]!.a, oneSide.walls["new-1"]!.b]).toEqual([[0, 0], [5, 0]]);
+  });
+
   it("leaves just the door when it covers the whole wall", () => {
     const cut = cutDoorIntoWall({ w: wall([0, 0], [1, 0]) }, "w", [0, 0], [1, 0], counter())!;
     expect(Object.keys(cut.walls)).toEqual(["new-1"]);

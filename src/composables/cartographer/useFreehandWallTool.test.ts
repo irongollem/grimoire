@@ -54,6 +54,19 @@ const line = (x0: number, x1: number, y = 0): CellPoint[] => {
   return out;
 };
 
+describe("where the wall ends", () => {
+  it("ends on the point of release even when that is nearer the last recorded point than the drag spacing", () => {
+    // The last recorded point is (4, 0); the pointer is let go 0.03 cells on, under the 0.05 spacing. Alt: no welds.
+    const { layers, tool } = setup();
+    tool.start([0, 0]);
+    tool.move([2, 0]);
+    tool.move([4, 0]);
+    expect(tool.release([4.03, 0], true)).toBe(true);
+    const ends = wallsOf(layers.value).flatMap((w) => [w.a[0], w.b[0]]);
+    expect(Math.max(...ends)).toBe(4.03);
+  });
+});
+
 describe("fitting a dragged arc", () => {
   it("turns a 61-point semicircle into a short chain of walls with smooth inner nodes and corner ends", () => {
     // Semicircle radius 3 is 9.4 cells long; the fit keeps only the nodes a 0.08 tolerance needs, far below the 60

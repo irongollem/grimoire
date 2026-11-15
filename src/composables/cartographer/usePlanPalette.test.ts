@@ -10,7 +10,7 @@
 // - Finding 5: `assignArea` always inserted a new region, so claiming
 //   the same floor twice (or floor already traced as a Space) made two
 //   overlapping rows.
-import { computed, nextTick, ref } from "vue";
+import { computed, nextTick } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { doorSiteSegment, eraseFromRegions, TRACE_TOOL_OPTIONS, usePlanPalette, type DoorSite, type DrawingEditor } from "./usePlanPalette";
 import type { DerivedSpace } from "@/cartographer/structure.types";
@@ -60,7 +60,13 @@ vi.mock("@/composables/locations/useLocationDoors", () => ({
   useUpdateLocationDoor: () => updateDoorStub,
   useDeleteLocationDoor: () => deleteDoorStub,
 }));
-vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ data: ref([]) }) }));
+/** The site's listed doors. "door-1" is the door the placement tests arm; a test that needs another kind replaces it
+ *  BEFORE making its palette (the palette reads this once). */
+const { waysData } = vi.hoisted(() => ({ waysData: { value: [] as { id: string; door_kind: "door" | "arch" }[] } }));
+vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ data: waysData }) }));
+beforeEach(() => {
+  waysData.value = [{ id: "door-1", door_kind: "door" }];
+});
 const { childLocations } = vi.hoisted(() => ({ childLocations: { value: [] as { id: string; name: string }[] } }));
 vi.mock("@/composables/locations/useLocations", () => ({ useLocations: () => ({ data: childLocations }) }));
 
@@ -141,6 +147,29 @@ describe("usePlanPalette", () => {
       await plan.undo.undo(); // undoes stroke 1
       const secondUndoCall = updateRegionStub.mutateAsync.mock.calls.at(-1)![0] as { update: { cells: string[] } };
       expect(secondUndoCall.update.cells).toEqual(["0,0"]); // back to the true original
+    });
+  });
+
+  describe("commitCells that fails to save", () => {
+    it("goes back to the shape that is saved, so the next stroke does not build on squares that were never written", () => {
+      regionsData.value = [makeRegion({ id: "r1", cells: ["0,0"], vertices: [[0, 0], [1, 0], [1, 1], [0, 1]] })];
+      const plan = usePlanPalette(computed(() => "site-1"));
+      plan.commitCells("r1", ["0,0", "0,1"]);
+      expect(plan.regionStateNow("r1").cells).toEqual(["0,0", "0,1"]);
+
+      updateRegionStub.calls.at(-1)!.onError?.(new Error("offline"));
+      expect(plan.regionStateNow("r1")).toEqual({ cells: ["0,0"], vertices: [[0, 0], [1, 0], [1, 1], [0, 1]] });
+    });
+
+    it("leaves a newer stroke alone when an older one fails after it", () => {
+      regionsData.value = [makeRegion({ id: "r1", cells: ["0,0"] })];
+      const plan = usePlanPalette(computed(() => "site-1"));
+      plan.commitCells("r1", ["0,0", "0,1"]);
+      const older = updateRegionStub.calls.at(-1)!;
+      plan.commitCells("r1", ["0,0", "0,1", "0,2"]);
+
+      older.onError?.(new Error("offline"));
+      expect(plan.regionStateNow("r1").cells).toEqual(["0,0", "0,1", "0,2"]);
     });
   });
 
@@ -617,15 +646,25 @@ describe("usePlanPalette found rooms", () => {
       expect(plan.wallRings.value).toEqual({ rings: 2, unassigned: 1 });
     });
 
-    it("does not count a ring as assigned by a zone, or by a room that holds only some of its squares", () => {
+    it("does not count a ring as assigned by a zone", () => {
       const layers = emptyLayers();
       boxOfWalls(layers, 0, 0, 2, 2);
-      regionsData.value = [
-        makeRegion({ id: "zone", region_role: "zone", zone_kind: "hazard", cells: left }),
-        makeRegion({ id: "partial", cells: ["0,0", "1,0"] }),
-      ];
+      regionsData.value = [makeRegion({ id: "zone", region_role: "zone", zone_kind: "hazard", cells: left })];
       const plan = usePlanPalette(computed(() => "site-1"), () => [], () => layers);
       expect(plan.wallRings.value).toEqual({ rings: 1, unassigned: 1 });
+    });
+
+    it("counts a ring a room reaches into as that room's, as Assign does: a click there selects it and makes nothing", async () => {
+      const layers = emptyLayers();
+      boxOfWalls(layers, 0, 0, 2, 2);
+      regionsData.value = [makeRegion({ id: "partial", cells: ["0,0", "1,0"] })];
+      const plan = usePlanPalette(computed(() => "site-1"), () => [], () => layers);
+      expect(plan.wallRings.value).toEqual({ rings: 1, unassigned: 0 });
+      // The other half of the one rule: Assign on that ring writes no row.
+      createRegionStub.mutateAsync.mockClear();
+      await plan.assignArea(left, [[0, 0], [2, 0], [2, 2], [0, 2]]);
+      expect(createRegionStub.mutateAsync).not.toHaveBeenCalled();
+      expect(plan.activeRegionId.value).toBe("partial");
     });
   });
 });
@@ -792,6 +831,23 @@ describe("usePlanPalette doors cut into the Drawing", () => {
     await plan.undo.undo();
     expect(updateDoorStub.mutateAsync).toHaveBeenCalledWith({ id: "door-1", update: { edge_key: null, segment: null } });
     expect(state.layers.walls).toEqual(original);
+  });
+
+  it("a listed arch is cut as an arch whatever the Door or Arch chip says, since its row stays an arch", () => {
+    waysData.value = [{ id: "door-1", door_kind: "arch" }];
+    const { plan, state } = palette({ w: wall([0, 0], [10, 0]) });
+    plan.newDoorKind.value = "door";
+    plan.armDoorPlacement("door-1");
+    plan.placeArmedDoorOn(wallSite("w", [4, 0], [5, 0]));
+    expect(Object.values(state.layers.walls).map((w) => w.type).sort()).toEqual(["doorOpen", "wall", "wall"]);
+  });
+
+  it("a listed door is cut as a door with the Arch chip chosen", () => {
+    const { plan, state } = palette({ w: wall([0, 0], [10, 0]) });
+    plan.newDoorKind.value = "arch";
+    plan.armDoorPlacement("door-1");
+    plan.placeArmedDoorOn(wallSite("w", [4, 0], [5, 0]));
+    expect(Object.values(state.layers.walls).map((w) => w.type).sort()).toEqual(["doorClosed", "wall", "wall"]);
   });
 
   const way = (over: Partial<SiteDoorWithSpaces>): SiteDoorWithSpaces =>

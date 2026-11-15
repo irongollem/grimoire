@@ -226,9 +226,11 @@ export function useEditorRender(inputs: {
         plan!.regions, plan!.ways, plan!.activeRegionId, plan!.planTool, plan!.traceTool,
         planTools.renderDeps.hoveredDoor, planTools.renderDeps.doorDrag, planTools.renderDeps.pendingDoor, planTools.renderDeps.strokePreview, planTools.renderDeps.draftRing,
         planTools.renderDeps.templateDraft, planTools.renderDeps.liveDrag, planTools.renderDeps.penHoverPoint, planTools.renderDeps.eraseTouched,
-        planTools.renderDeps.assignHover,
       ]
     : [];
+  // The Assign hover is a whole floor's squares, replaced and never changed in place: watched by itself and not
+  // deeply, or every pointer move would walk all of it again.
+  if (planTools) watch(planTools.renderDeps.assignHover, () => scheduleRender());
   watch(
     [
       zoom, viewportOffset, layers, loadedRuntimes, dressing, currentPackId, darkness, hoverCell, hoverPoint, brushRadius, altHeld, hoveredEdge, activeTool,

@@ -57,7 +57,11 @@ vi.mock("@/cartographer/groundRegions", async (importOriginal) => {
 // Plan here is that a layer switch calls `abandonGesture()` — everything
 // else `usePlanCanvasTools` does has its own coverage in
 // usePlanCanvasTools.ts's own consumers (`useRegionPointer.test.ts`).
-const { abandonGestureMock } = vi.hoisted(() => ({ abandonGestureMock: vi.fn() }));
+const { abandonGestureMock, assignHoverRef } = vi.hoisted(() => {
+  // eslint-disable-next-line no-restricted-imports -- vi.hoisted runs before the module's own imports
+  const { shallowRef } = require("vue") as typeof import("vue");
+  return { abandonGestureMock: vi.fn(), assignHoverRef: shallowRef<unknown>(null) };
+});
 vi.mock("@/composables/cartographer/usePlanCanvasTools", () => ({
   usePlanCanvasTools: () => ({
     onPointerDown: vi.fn(() => false),
@@ -73,7 +77,7 @@ vi.mock("@/composables/cartographer/usePlanCanvasTools", () => ({
       templateDraft: null, templateRingPreview: [], assignHover: null,
     })),
     renderDeps: {
-      hoveredDoor: ref(null), doorDrag: ref(null), assignHover: ref(null), pendingDoor: ref(null), strokePreview: ref(null), draftRing: ref([]),
+      hoveredDoor: ref(null), doorDrag: ref(null), assignHover: assignHoverRef, pendingDoor: ref(null), strokePreview: ref(null), draftRing: ref([]),
       templateDraft: ref(null), liveDrag: ref(null), penHoverPoint: ref(null),
     },
   }),
@@ -1313,12 +1317,52 @@ describe("Plan layer", () => {
       expect(layers.value.walls).toEqual({});
     });
 
+    it("undoing a wall on the Drawing takes it away even when a door was cut into it and undone since", () => {
+      const { editor, layers, drawing } = bound("drawing");
+      // A wall drawn on the Drawing, so it is filed on the Drawing's own stack.
+      editor.freehandTool.start([0, 0]);
+      editor.freehandTool.move([2, 0]);
+      expect(editor.freehandTool.release([4, 0], true)).toBe(true);
+      const drawn = layers.value.walls;
+      const id = Object.keys(drawn)[0]!;
+
+      const history = drawing.editDrawing((l) => ({ ...l, walls: { ...l.walls, [id]: { ...l.walls[id]!, type: "doorClosed" } } }))!;
+      history.undo(); // the door is gone again; the wall is a plain wall
+      expect(layers.value.walls).toEqual(drawn);
+
+      editor.undoEdit(); // and now the wall itself is undone
+      expect(layers.value.walls).toEqual({});
+    });
+
+    it("a door undone from Zoning stays undone when a later Drawing edit is undone and redone", () => {
+      const { editor, layers, drawing } = bound("drawing");
+      const history = drawing.editDrawing((l) => ({ ...l, walls: { ...l.walls, w: WALL } }))!;
+      clickCell(editor, 10, 10); // filed after the door, so both of its snapshots hold the door's wall
+      history.undo();
+      expect(layers.value.walls).toEqual({});
+
+      editor.undoEdit();
+      expect(layers.value.walls).toEqual({});
+      editor.redoEdit();
+      expect(layers.value.walls).toEqual({});
+    });
+
     it("changes nothing and marks nothing when the edit declines", () => {
       const { layers, dirty, drawing } = bound();
       expect(drawing.editDrawing(() => null)).toBeNull();
       expect(dirty.value).toBe(false);
       expect(layers.value.walls).toEqual({});
     });
+  });
+
+  it("draws again when the Assign hover is replaced, which is watched apart from the deep render watch", async () => {
+    const { getReferenceImage } = makeHarness({ plan: fakePlan(), activeLayer: ref<"drawing" | "plan">("plan") });
+    await nextTick();
+    getReferenceImage.mockClear();
+    assignHoverRef.value = { cells: ["0,0"], outline: null };
+    await nextTick();
+    expect(getReferenceImage).toHaveBeenCalled();
+    assignHoverRef.value = null;
   });
 
   it("does not abandon anything while staying on the Plan layer, or with no site at all", async () => {
