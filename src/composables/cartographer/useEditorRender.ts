@@ -19,6 +19,7 @@ import {
 } from "@/cartographer/planOverlay";
 import type { useDressingTool } from "@/composables/cartographer/useDressingTool";
 import type { useAngledWallTool } from "@/composables/cartographer/useAngledWallTool";
+import type { useFreehandWallTool } from "@/composables/cartographer/useFreehandWallTool";
 import type { useLightTool } from "@/composables/cartographer/useLightTool";
 import type { usePlanCanvasTools } from "@/composables/cartographer/usePlanCanvasTools";
 import type { useGroundRegionEdit } from "./useGroundRegionEdit";
@@ -46,6 +47,7 @@ export function useEditorRender(inputs: {
   brush: EditorBrush;
   dressingTool: ReturnType<typeof useDressingTool>;
   angledTool: ReturnType<typeof useAngledWallTool>;
+  freehandTool: ReturnType<typeof useFreehandWallTool>;
   lightTool: ReturnType<typeof useLightTool>;
   selectTool: ReturnType<typeof useSelectTool>;
   wallNodes: ReturnType<typeof useGroundRegionEdit>["controller"];
@@ -54,7 +56,7 @@ export function useEditorRender(inputs: {
 }) {
   const {
     opts, zoom, viewportOffset, canvasBox, hoverCell, hoverPoint, hoveredEdge, altHeld, previewCells, shownLayers, geometry, brush,
-    dressingTool, angledTool, lightTool, selectTool, wallNodes, planTools, isPlanLayerActive,
+    dressingTool, angledTool, freehandTool, lightTool, selectTool, wallNodes, planTools, isPlanLayerActive,
   } = inputs;
   const {
     canvasEl, layers, metadata, editRevision, currentPackId, darkness, packRuntime, loadedRuntimes, dressing, placeItem,
@@ -138,6 +140,7 @@ export function useEditorRender(inputs: {
       editorMarks: {
         brushStroke: brush.footprint() && !brush.result.value ? { path: brush.footprint()!, erase: brush.erase() } : null,
         wallRun: activeTool.value === "angledWall" ? { points: angledTool.run.value, hover: angledTool.hover.value } : null,
+        freehandStroke: activeTool.value === "freehandWall" && freehandTool.stroke.value.length > 1 ? freehandTool.stroke.value : null,
         selectedWallId: angledTool.selectedId.value,
         wallNodes: activeTool.value === "select" && wallNodes.hasSelection.value ? wallNodeMarks() : null,
         showLights: activeTool.value === "light" || activeTool.value === "select",
@@ -218,7 +221,7 @@ export function useEditorRender(inputs: {
   const planRenderDeps = planTools
     ? [
         plan!.regions, plan!.ways, plan!.activeRegionId, plan!.planTool, plan!.traceTool,
-        planTools.renderDeps.hoveredDoorEdge, planTools.renderDeps.pendingDoorEdge, planTools.renderDeps.strokeCells, planTools.renderDeps.draftRing,
+        planTools.renderDeps.hoveredDoorEdge, planTools.renderDeps.pendingDoorEdge, planTools.renderDeps.strokePreview, planTools.renderDeps.draftRing,
         planTools.renderDeps.templateDraft, planTools.renderDeps.liveDrag, planTools.renderDeps.penHoverPoint, planTools.renderDeps.eraseTouched,
         planTools.renderDeps.assignHover,
       ]
@@ -227,7 +230,7 @@ export function useEditorRender(inputs: {
     [
       zoom, viewportOffset, layers, loadedRuntimes, dressing, currentPackId, darkness, hoverCell, hoverPoint, brushRadius, altHeld, hoveredEdge, activeTool,
       previewCells, metadata, selectedCell, cellGlyphs,
-      dressingTool.hover, placeItem, placeRotation, selectedDressingId, angledTool.run, angledTool.hover, angledTool.selectedId, lightTool.hover, lightTool.selectedId, lightDraft, gridAlpha,
+      dressingTool.hover, placeItem, placeRotation, selectedDressingId, angledTool.run, angledTool.hover, freehandTool.stroke, angledTool.selectedId, lightTool.hover, lightTool.selectedId, lightDraft, gridAlpha,
       shownLayers, wallNodes.selection, wallNodes.focus, wallNodes.hoverNode, wallNodes.snap, selectTool.marquee, selectTool.multiProps, selectTool.multiLights, selectTool.multiObjects, ...extraRenderDeps, ...planRenderDeps,
     ],
     () => scheduleRender(),

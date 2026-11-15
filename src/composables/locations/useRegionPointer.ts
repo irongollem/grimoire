@@ -1,8 +1,8 @@
 // The pointer/gesture state machine `MapRegionsLayer.vue` drove inline until
 // it crossed the 600-line soft cap (#868 wave 3). Everything here is *how a
-// gesture unfolds* — paint stroke, pen node, template drag, tap-vs-drag,
+// gesture unfolds* — round-brush stroke, lasso, pen node, template drag, tap-vs-drag,
 // hover — never *what a gesture means to the app*: every effect (write a
-// cell set, navigate, select, move the party) is a callback the component
+// ring, navigate, select, move the party) is a callback the component
 // supplies via `options`, so this module never touches `regions`, routing,
 // toasts or the mutation composable directly. That split is also why the
 // window-level pointermove/pointerup idiom moves here unchanged: `MapFrame`
@@ -34,8 +34,9 @@ import {
   moveRingVertex,
   type TemplateDragState,
 } from "@/lib/map/gestures/pen";
-import { applyBrushStroke, startBrushStroke, touchBrushStroke, type BrushStroke } from "@/lib/map/gestures/brush";
-import { nearestEdge, nearestVertex, snapPoint, templateCells, templateRing } from "@/lib/locations/polygon";
+import { nearestEdge, nearestVertex, snapPoint, templateCells, templateRing, type TraceTool } from "@/lib/locations/polygon";
+import { lassoRing, regionLoops, strokeZoneRing } from "@/lib/locations/zoneBrush";
+import type { Disc } from "@/cartographer/area";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { GridPoint, LocationMapRegion } from "@/types/locationMapRegion.types";
 
@@ -43,6 +44,20 @@ import type { GridPoint, LocationMapRegion } from "@/types/locationMapRegion.typ
  *  moved from `MapRegionsLayer.vue` unchanged; only the hit-testing gestures
  *  that live here need it now. */
 const SNAP_HIT_RADIUS_CELLS = 0.4;
+
+/** A lasso point closer than this to the last one adds nothing the smoothing would keep. */
+const LASSO_MIN_STEP_CELLS = 0.05;
+
+/** The in-flight brush shape is recomputed at most this often (a raster union per recompute), and once more on release. */
+const BRUSH_PREVIEW_MS = 60;
+
+/** The shape a lasso or brush stroke shows while it is still being drawn: an open path for a lasso, the closed
+ *  result so far for a brush. Only ever a preview: nothing is stored until release. */
+export interface StrokePreview {
+  regionId: string;
+  ring: GridPoint[];
+  closed: boolean;
+}
 
 /** A live node drag on a *persisted* ring, keyed by the region it belongs
  *  to. The key exists only to reproduce a narrow edge case exactly: a pen
@@ -57,7 +72,7 @@ export interface LiveDrag {
 
 export interface UseRegionPointerOptions extends UseRegionNavPointerOptions {
   /** Whether a cell `cellAt` resolved is one of the whole cells the
-   *  calibration actually lays across the image — painting's own
+   *  calibration actually lays across the image — the brush's own
    *  addressability guard. */
   isPaintable(cell: CellKey): boolean;
   /** The same event as a continuous, unsnapped grid point (pen/template
@@ -71,10 +86,13 @@ export interface UseRegionPointerOptions extends UseRegionNavPointerOptions {
    *  dangling) selection exists is still "already tracing something",
    *  never a fresh selection. */
   hasActiveRegionId(): boolean;
-  tool(): "paint" | "pen" | "template";
-  /** Fire-and-forget: write a finished paint stroke's cells. */
+  tool(): TraceTool;
+  /** The round brush's radius in cells (Zoning's Brush tool). */
+  brushRadius(): number;
+  /** Fire-and-forget: write a region's squares with no ring. Only a brush or lasso that leaves nothing needs it
+   *  here: a zone drawn by hand is a ring, and its squares are derived from that. */
   commitCells(regionId: string, cells: CellKey[]): void;
-  /** Write a pen-ring edit (drag/delete/insert, or a closing draft). Must
+  /** Write a ring (a pen edit, a lasso, a finished brush stroke, or a closing draft). Must
    *  reject on failure — the draft-close gesture needs that signal to put
    *  its ring back; every other call site swallows it, since the host has
    *  already toasted. */
@@ -83,10 +101,6 @@ export interface UseRegionPointerOptions extends UseRegionNavPointerOptions {
    *  because a template's cell fill (`templateCells`) is its own algorithm,
    *  not the generic ring-fill `commitRing`'s host uses for a pen shape. */
   commitTemplate(regionId: string, ring: GridPoint[], cells: CellKey[]): void;
-  /** Confirms, and performs, the one-way vertices→cells conversion a paint
-   *  stroke needs before it can start on a pen-traced region. `false` on
-   *  cancel or failure (already toasted). */
-  confirmConvert(region: LocationMapRegion): Promise<boolean>;
 }
 
 export interface UseRegionPointerReturn {
@@ -95,11 +109,8 @@ export interface UseRegionPointerReturn {
   onPointerLeave: () => void;
   onDoubleClick: (e: MouseEvent) => void;
   onKeyDown: (e: KeyboardEvent) => void;
-  /** The in-progress paint stroke's cells, `null` between strokes — the
-   *  transient half of the render override; the host merges it with its own
-   *  `pendingStroke` (the after-commit-before-refetch half), since only the
-   *  host can compare a stroke's cells against the live `regions` prop. */
-  strokeCells: Ref<{ regionId: string; cells: CellKey[] } | null>;
+  /** The lasso or brush stroke being drawn, `null` between strokes. */
+  strokePreview: Ref<StrokePreview | null>;
   /** The pen tool's unsaved ring, from the `useRegionPen` instance this
    *  composable owns. */
   draftRing: Ref<GridPoint[]>;
@@ -113,7 +124,7 @@ export interface UseRegionPointerReturn {
    *  `onUnmounted` (which already removes its resize observer there), the
    *  same place the original component's cleanup always ran. */
   dispose: () => void;
-  /** Abandons whatever gesture is in flight — paint/erase stroke, a live
+  /** Abandons whatever gesture is in flight — brush or lasso stroke, a live
    *  drag on a persisted pen ring, a template drag, or an unsaved pen draft
    *  — without committing it, and detaches the `window` listeners the
    *  gesture attached. `Escape` already abandons an unsaved pen draft
@@ -137,16 +148,23 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
   // never attaches a second set of `window` listeners or duplicates hover.
   const nav = useRegionNavPointer(options);
 
-  const strokeCells = ref<{ regionId: string; cells: CellKey[] } | null>(null) as Ref<{
-    regionId: string;
-    cells: CellKey[];
-  } | null>;
-  /** The live paint/erase stroke (`src/lib/map/gestures/brush.ts`) — direction
-   *  locked from the first cell touched, per the merged Brush gesture (#884
-   *  S7a). `base` is the region's own cells at stroke start, so
-   *  `applyBrushStroke` can rebuild `strokeCells.value` from scratch on every
-   *  touch rather than mutating it in place. */
-  let activeBrush: { regionId: string; base: readonly CellKey[]; stroke: BrushStroke } | null = null;
+  const strokePreview = ref<StrokePreview | null>(null) as Ref<StrokePreview | null>;
+  /** The live lasso or brush stroke. A brush keeps the region's own shape as loops (`base`, worked out once at the
+   *  start) and the discs stamped so far; Alt at the start makes it a carve. */
+  type ActiveStroke =
+    | { kind: "lasso"; regionId: string; points: GridPoint[] }
+    | {
+        kind: "brush";
+        regionId: string;
+        base: GridPoint[][];
+        discs: Disc[];
+        last: GridPoint;
+        erase: boolean;
+        radius: number;
+        lastComputeAt: number;
+        timer: ReturnType<typeof setTimeout> | null;
+      };
+  let activeStroke: ActiveStroke | null = null;
 
   const liveDrag = ref<LiveDrag | null>(null) as Ref<LiveDrag | null>;
   /** Mirrors `liveDrag` but also remembers whether the ring it's dragging
@@ -173,23 +191,12 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
   let pointerDownAt: { x: number; y: number } | null = null;
   let movedBeyondTapThreshold = false;
 
-  /** True while a pointerdown handler is mid-`await` (a confirm dialog, a
-   *  mutation) with no `strokeCells`/`penDrag`/`templateDrag` yet set to
-   *  show for it. The corresponding `pointerup` can arrive before that
-   *  await resolves — a real click's down/up pair is not guaranteed to
-   *  straddle a network round trip — and without this flag `onWindowPointerUp`
-   *  would read no gesture in flight and misread the release as a plain
-   *  tap-click. */
+  /** True while a pointerdown handler is mid-`await` (a mutation) with no
+   *  `penDrag`/`templateDrag` yet set to show for it. The corresponding
+   *  `pointerup` can arrive before that await resolves, and without this flag
+   *  `onWindowPointerUp` would read no gesture in flight and misread the
+   *  release as a plain tap-click. */
   let pendingAsyncGesture = false;
-  /** Set by `onWindowPointerUp` when it bails out because `pendingAsyncGesture`
-   *  was true — i.e. the pointer already came up while a handler was still
-   *  awaiting. The `{ once: true }` pointerup listener is gone by then, so
-   *  nothing else will ever fire for this gesture; whichever handler resumes
-   *  after the await is responsible for checking this and finishing the
-   *  gesture itself instead of waiting on a pointerup that already happened.
-   *  Reset at the top of every `onPointerDown` so a stale `true` from one
-   *  gesture can never leak into the next. */
-  let pointerUpDuringAsyncGesture = false;
 
   let lastHoverRegionId: string | null = null;
 
@@ -210,35 +217,105 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
     nav.handleClick(e);
   }
 
-  /** Converting a pen-traced region to painted cells is one-way and lossy
-   *  (the diagonal is gone once `vertices` is null), so it's confirmed once
-   *  here rather than silently on the first paint stroke (#868 Build step
-   *  2). Keeps the same cell set — only `vertices` drops — so the stroke
-   *  that follows starts from exactly what the DM was already looking at. */
-  async function handlePaintPointerDown(e: PointerEvent, region: LocationMapRegion): Promise<void> {
-    const key = options.cellAt(e.clientX, e.clientY);
-    if (!key || !options.isPaintable(key)) return;
+  /** Recomputes the shape a brush stroke has made so far and shows it as the closed ring. A carve that leaves
+   *  nothing shows nothing. */
+  function brushResult(stroke: Extract<ActiveStroke, { kind: "brush" }>): GridPoint[] | null {
+    stroke.lastComputeAt = Date.now();
+    return strokeZoneRing(stroke.base, stroke.discs, stroke.erase);
+  }
 
-    if (region.vertices !== null) {
-      pendingAsyncGesture = true;
-      try {
-        const ok = await options.confirmConvert(region);
-        if (!ok) return;
-      } finally {
-        pendingAsyncGesture = false;
-      }
+  function showBrush(stroke: Extract<ActiveStroke, { kind: "brush" }>): void {
+    const ring = brushResult(stroke);
+    // `null` = the stroke has changed nothing yet, so the region's own shape is what it still is.
+    strokePreview.value = { regionId: stroke.regionId, ring: ring === null ? flattenBase(stroke.base) : ring, closed: true };
+  }
+
+  function flattenBase(base: GridPoint[][]): GridPoint[] {
+    return base.length > 0 ? base[0] : [];
+  }
+
+  /** Stamps discs from the last one to `to`, at most a third of a radius apart, so a fast drag is one smooth stroke
+   *  rather than a string of dots (the Drawing's round brush spaces its discs the same way). */
+  function stampBrush(stroke: Extract<ActiveStroke, { kind: "brush" }>, to: GridPoint): void {
+    const r = stroke.radius;
+    const [fx, fy] = stroke.last;
+    const dist = Math.hypot(to[0] - fx, to[1] - fy);
+    const n = Math.max(1, Math.ceil(dist / (r / 3)));
+    for (let i = 1; i <= n; i++) {
+      const t = i / n;
+      stroke.discs.push({ x: fx + (to[0] - fx) * t, y: fy + (to[1] - fy) * t, r });
     }
+    stroke.last = to;
+  }
 
-    const stroke = startBrushStroke(key, (c) => region.cells.includes(c));
-    activeBrush = { regionId: region.id, base: region.cells, stroke };
-    strokeCells.value = { regionId: region.id, cells: applyBrushStroke(stroke, region.cells) };
+  /** Throttled live preview: at most one recompute per `BRUSH_PREVIEW_MS`; between recomputes the last ring stays,
+   *  and a trailing timer makes sure the last move is shown. */
+  function scheduleBrushPreview(stroke: Extract<ActiveStroke, { kind: "brush" }>): void {
+    if (stroke.timer !== null) return;
+    const wait = BRUSH_PREVIEW_MS - (Date.now() - stroke.lastComputeAt);
+    if (wait <= 0) {
+      showBrush(stroke);
+      return;
+    }
+    stroke.timer = setTimeout(() => {
+      stroke.timer = null;
+      if (activeStroke === stroke) showBrush(stroke);
+    }, wait);
+  }
 
-    // The physical pointerup can already have happened while `confirmConvert`
-    // was awaiting (`onWindowPointerUp` recorded it and bailed, since there
-    // was nothing to commit yet). No further pointerup is coming for this
-    // gesture, so finish it now instead of leaving a one-cell stroke stranded
-    // until the next click's mousedown paints over it.
-    if (pointerUpDuringAsyncGesture) commitStroke();
+  /** The brush paints a smooth shape (#1197, frame 05): round discs along the stroke, unioned into the region's
+   *  current shape on release, or carved out of it with Alt. With no active region the click only selects. */
+  function handleBrushPointerDown(e: PointerEvent, region: LocationMapRegion): void {
+    const key = options.cellAt(e.clientX, e.clientY);
+    const gp = options.gridPointAt(e.clientX, e.clientY);
+    if (!key || !options.isPaintable(key) || !gp) return;
+    const stroke: Extract<ActiveStroke, { kind: "brush" }> = {
+      kind: "brush",
+      regionId: region.id,
+      base: regionLoops(region.vertices, region.cells),
+      discs: [],
+      last: gp,
+      erase: e.altKey,
+      radius: options.brushRadius(),
+      lastComputeAt: Number.NEGATIVE_INFINITY,
+      timer: null,
+    };
+    activeStroke = stroke;
+    stampBrush(stroke, gp);
+    showBrush(stroke);
+  }
+
+  /** The lasso (#1197, frame 05): one freehand drag round the area, closed and smoothed on release. Never snapped. */
+  function handleLassoPointerDown(e: PointerEvent, region: LocationMapRegion): void {
+    const gp = options.gridPointAt(e.clientX, e.clientY);
+    if (!gp) return;
+    activeStroke = { kind: "lasso", regionId: region.id, points: [gp] };
+    strokePreview.value = { regionId: region.id, ring: [gp], closed: false };
+  }
+
+  /** Ends a lasso or brush stroke: stores what it made. A lasso REPLACES the region's shape, as closing a pen ring
+   *  does; a brush that leaves nothing empties the region. */
+  function finishStroke(): void {
+    const stroke = activeStroke;
+    if (!stroke) return;
+    activeStroke = null;
+    strokePreview.value = null;
+    if (stroke.kind === "lasso") {
+      const ring = lassoRing(stroke.points);
+      if (ring) void options.commitRing(stroke.regionId, ring).catch(() => {});
+      return;
+    }
+    if (stroke.timer !== null) clearTimeout(stroke.timer);
+    const ring = brushResult(stroke);
+    if (ring === null) return;
+    if (ring.length === 0) options.commitCells(stroke.regionId, []);
+    else void options.commitRing(stroke.regionId, ring).catch(() => {});
+  }
+
+  function cancelStroke(): void {
+    if (activeStroke?.kind === "brush" && activeStroke.timer !== null) clearTimeout(activeStroke.timer);
+    activeStroke = null;
+    strokePreview.value = null;
   }
 
   /**
@@ -316,30 +393,21 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
   function onPointerDown(e: PointerEvent): void {
     pointerDownAt = { x: e.clientX, y: e.clientY };
     movedBeyondTapThreshold = false;
-    pointerUpDuringAsyncGesture = false;
 
     // Listeners attach synchronously, before any of the branches below touch
-    // the network — `handlePaintPointerDown` and `handlePenPointerDown` both
-    // `await` a mutation partway through (the conversion confirm, the ring
-    // close). A real click's `pointerup` can arrive before that await
-    // resolves, and this function returning a pending promise doesn't delay
-    // the browser's own event dispatch — so registering the listeners after
-    // the `await` risked losing that pointerup entirely, leaving the next
-    // gesture reading a stale `pointerDownAt`.
+    // the network — `handlePenPointerDown` `await`s a mutation partway through
+    // (the ring close). A real click's `pointerup` can arrive before that
+    // await resolves, and this function returning a pending promise doesn't
+    // delay the browser's own event dispatch — so registering the listeners
+    // after the `await` risked losing that pointerup entirely, leaving the
+    // next gesture reading a stale `pointerDownAt`.
     //
-    // That still leaves the case where the pointerup arrives *before* the
-    // await resolves: the `{ once: true }` listener below has already fired
-    // and detached itself, so nothing will ever call `onWindowPointerUp`
-    // again for this gesture. `pendingAsyncGesture` tells `onWindowPointerUp`
-    // there's an awaiting handler to defer to (so it doesn't misread the
-    // release as a plain tap-click), and when it bails out for that reason it
-    // sets `pointerUpDuringAsyncGesture`. `handlePaintPointerDown` checks that
-    // flag once its own await resolves and, if set, finishes the gesture
-    // itself via `commitStroke()` rather than waiting for a pointerup that
-    // already happened. `handlePenPointerDown`'s two async branches (alt-click
-    // delete, draft-close) don't need the same check — each commits directly
-    // inside its own `await` rather than deferring to a later pointerup, so a
-    // pointerup landing mid-flight there has nothing left to finish.
+    // `pendingAsyncGesture` tells `onWindowPointerUp` there's an awaiting
+    // handler to defer to (so it doesn't misread the release as a plain
+    // tap-click). The pen's two async branches (alt-click delete, draft-close)
+    // each commit directly inside their own `await` rather than deferring to
+    // a later pointerup, so a pointerup landing mid-flight has nothing left
+    // to finish.
     window.addEventListener("pointermove", onWindowPointerMove);
     window.addEventListener("pointerup", onWindowPointerUp, { once: true });
 
@@ -347,7 +415,8 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
       const region = options.activeRegion();
       if (region) {
         const tool = options.tool();
-        if (tool === "paint") void handlePaintPointerDown(e, region);
+        if (tool === "paint") handleBrushPointerDown(e, region);
+        else if (tool === "lasso") handleLassoPointerDown(e, region);
         else if (tool === "pen") void handlePenPointerDown(e, region);
         else if (tool === "template") handleTemplatePointerDown(e, region);
       }
@@ -360,13 +429,21 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
       movedBeyondTapThreshold = true;
     }
 
-    if (strokeCells.value && activeBrush) {
+    const stroke = activeStroke;
+    if (stroke) {
+      const gp = options.gridPointAt(e.clientX, e.clientY);
+      if (!gp) return;
+      if (stroke.kind === "lasso") {
+        const last = stroke.points[stroke.points.length - 1];
+        if (Math.hypot(gp[0] - last[0], gp[1] - last[1]) < LASSO_MIN_STEP_CELLS) return;
+        stroke.points.push(gp);
+        strokePreview.value = { regionId: stroke.regionId, ring: [...stroke.points], closed: false };
+        return;
+      }
       const key = options.cellAt(e.clientX, e.clientY);
       if (!key || !options.isPaintable(key)) return;
-      const nextStroke = touchBrushStroke(activeBrush.stroke, key);
-      if (nextStroke === activeBrush.stroke) return; // direction lock: already touched this stroke
-      activeBrush = { ...activeBrush, stroke: nextStroke };
-      strokeCells.value = { regionId: activeBrush.regionId, cells: applyBrushStroke(nextStroke, activeBrush.base) };
+      stampBrush(stroke, gp);
+      scheduleBrushPreview(stroke);
       return;
     }
 
@@ -385,27 +462,15 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
     }
   }
 
-  /** The one place that calls `options.commitCells` — used both by the
-   *  ordinary pointerup path below and by `handlePaintPointerDown` when the
-   *  pointerup already happened mid-`confirmConvert` (see
-   *  `pointerUpDuringAsyncGesture`). */
-  function commitStroke(): void {
-    const current = strokeCells.value;
-    if (!current) return;
-    strokeCells.value = null;
-    activeBrush = null;
-    options.commitCells(current.regionId, current.cells);
-  }
-
-  /** Commits whichever gesture was in flight — a paint stroke, a pen node
+  /** Commits whichever gesture was in flight — a brush or lasso stroke, a pen node
    *  drag, or a template drop — or, when none started, resolves a plain,
    *  unmoved tap into a click on whatever region is under it. */
   function onWindowPointerUp(e: PointerEvent): void {
     window.removeEventListener("pointermove", onWindowPointerMove);
     pointerDownAt = null;
 
-    if (strokeCells.value) {
-      commitStroke();
+    if (activeStroke) {
+      finishStroke();
       return;
     }
 
@@ -434,10 +499,8 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
     }
 
     if (pendingAsyncGesture) {
-      // Nothing to commit yet — whichever handler is still awaiting will
-      // check this once it resumes, rather than this pointerup (the only one
-      // coming) being lost or misread as a click.
-      pointerUpDuringAsyncGesture = true;
+      // Nothing to commit yet — the awaiting handler finishes by itself, so
+      // this pointerup must not be misread as a click.
       return;
     }
 
@@ -452,7 +515,7 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
   // across several regions rather than the one actually being painted.
 
   function onPointerMove(e: PointerEvent): void {
-    if (strokeCells.value) return;
+    if (activeStroke) return;
 
     // The pen tool's own cursor tracking (rubber-band + first-node gold
     // highlight) — kept in step with whatever the next click would snap to.
@@ -496,11 +559,14 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
     else pen.draftRing.value = next;
   }
 
-  /** `Escape` abandons an unsaved pen draft (frame 12) — a no-op once the
-   *  ring has already been persisted, since there is nothing left to
-   *  abandon. */
+  /** `Escape` drops a lasso or brush stroke in flight, and abandons an unsaved pen draft (frame 12) — a no-op
+   *  once the ring has already been persisted, since there is nothing left to abandon. */
   function onKeyDown(e: KeyboardEvent): void {
     if (e.key !== "Escape") return;
+    if (activeStroke) {
+      abandonGesture();
+      return;
+    }
     if (options.mode() !== "browse" || options.tool() !== "pen") return;
     const region = options.activeRegion();
     if (!region || region.vertices !== null || pen.draftRing.value.length === 0) return;
@@ -508,6 +574,7 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
   }
 
   function dispose(): void {
+    cancelStroke();
     window.removeEventListener("pointermove", onWindowPointerMove);
     window.removeEventListener("pointerup", onWindowPointerUp);
     window.removeEventListener("keydown", onKeyDown);
@@ -524,10 +591,7 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
     pointerDownAt = null;
     movedBeyondTapThreshold = false;
 
-    if (strokeCells.value) {
-      strokeCells.value = null;
-      activeBrush = null;
-    }
+    cancelStroke();
     if (penDrag) {
       penDrag = null;
       liveDrag.value = null;
@@ -544,7 +608,7 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
     onPointerLeave,
     onDoubleClick,
     onKeyDown,
-    strokeCells,
+    strokePreview,
     draftRing: pen.draftRing,
     templateDraft: pen.templateDrag,
     liveDrag,

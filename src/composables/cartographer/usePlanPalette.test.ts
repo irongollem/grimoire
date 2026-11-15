@@ -12,7 +12,7 @@
 //   overlapping rows.
 import { computed, nextTick, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { eraseFromRegions, usePlanPalette } from "./usePlanPalette";
+import { eraseFromRegions, TRACE_TOOL_OPTIONS, usePlanPalette } from "./usePlanPalette";
 import type { DerivedSpace } from "@/cartographer/structure.types";
 import { emptyLayers, type CellKey } from "@/types/dungeonMap.types";
 import { canonicaliseEdge } from "@/cartographer/edges";
@@ -25,7 +25,7 @@ interface MutationCall {
   onError?: (err: unknown) => void;
 }
 
-const { updateRegionStub, createRegionStub, deleteRegionStub, createDoorStub, updateDoorStub, deleteDoorStub, regionsData, confirmAnswer } = vi.hoisted(() => {
+const { updateRegionStub, createRegionStub, deleteRegionStub, createDoorStub, updateDoorStub, deleteDoorStub, regionsData } = vi.hoisted(() => {
   function stub() {
     const calls: MutationCall[] = [];
     const mutate = vi.fn((vars: unknown, opts?: { onSuccess?: (data: unknown) => void; onError?: (err: unknown) => void }) => {
@@ -42,7 +42,6 @@ const { updateRegionStub, createRegionStub, deleteRegionStub, createDoorStub, up
     updateDoorStub: stub(),
     deleteDoorStub: stub(),
     regionsData: { value: [] as LocationMapRegion[] },
-    confirmAnswer: { value: true },
   };
 });
 
@@ -58,7 +57,6 @@ vi.mock("@/composables/locations/useLocationDoors", () => ({
   useUpdateLocationDoor: () => updateDoorStub,
   useDeleteLocationDoor: () => deleteDoorStub,
 }));
-vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: async () => confirmAnswer.value }) }));
 vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ data: ref([]) }) }));
 const { childLocations } = vi.hoisted(() => ({ childLocations: { value: [] as { id: string; name: string }[] } }));
 vi.mock("@/composables/locations/useLocations", () => ({ useLocations: () => ({ data: childLocations }) }));
@@ -87,7 +85,6 @@ function makeRegion(overrides: Partial<LocationMapRegion> = {}): LocationMapRegi
 describe("usePlanPalette", () => {
   beforeEach(() => {
     regionsData.value = [];
-    confirmAnswer.value = true;
     for (const stub of [updateRegionStub, createRegionStub, deleteRegionStub, createDoorStub, updateDoorStub, deleteDoorStub]) {
       stub.calls.length = 0;
       stub.mutate.mockClear();
@@ -105,7 +102,7 @@ describe("usePlanPalette", () => {
       const plan = usePlanPalette(computed(() => "site-1"));
       plan.eraseCells(new Set(["1,0"]));
       expect(updateRegionStub.calls.map((c) => c.vars)).toEqual([
-        { id: "room", update: { cells: ["0,0"], derived_from: "dm" } },
+        { id: "room", update: { cells: ["0,0"], vertices: null, derived_from: "dm" } },
       ]);
     });
 
@@ -232,7 +229,6 @@ describe("usePlanPalette", () => {
 describe("usePlanPalette pen rings, conversions and doors", () => {
   beforeEach(() => {
     regionsData.value = [];
-    confirmAnswer.value = true;
     for (const stub of [updateRegionStub, createRegionStub, deleteRegionStub, createDoorStub, updateDoorStub, deleteDoorStub]) {
       stub.calls.length = 0;
       stub.mutate.mockClear();
@@ -272,19 +268,47 @@ describe("usePlanPalette pen rings, conversions and doors", () => {
     expect((updateRegionStub.calls[0]!.vars as { update: { cells: string[] } }).update.cells).toEqual([]);
   });
 
-  it("painting over a pen-traced shape converts it to cells only when the DM confirms", async () => {
-    const pen = makeRegion({ id: "r1", cells: ["1,1", "2,1"], vertices: SQUARE });
-    confirmAnswer.value = false;
-    const plan = usePlanPalette(computed(() => "site-1"));
-    expect(await plan.confirmConvert(pen)).toBe(false);
-    expect(updateRegionStub.mutateAsync).not.toHaveBeenCalled();
-    expect(plan.undo.canUndo.value).toBe(false);
+  describe("erase on a region with a ring (#1197)", () => {
+    // A 6 by 6 ring over the squares 0..5 in both directions.
+    const BIG: [number, number][] = [[0, 0], [6, 0], [6, 6], [0, 6]];
+    const BIG_CELLS = Array.from({ length: 36 }, (_, i) => `${i % 6},${Math.floor(i / 6)}` as CellKey);
 
-    confirmAnswer.value = true;
-    expect(await plan.confirmConvert(pen)).toBe(true);
-    expect(updateRegionStub.mutateAsync).toHaveBeenCalledWith({ id: "r1", update: expect.objectContaining({ vertices: null, cells: ["1,1", "2,1"] }) });
-    await plan.undo.undo();
-    expect(updateRegionStub.mutateAsync).toHaveBeenLastCalledWith({ id: "r1", update: expect.objectContaining({ vertices: SQUARE }) });
+    it("carves the ring itself, so the shape drawn matches the squares left (vertices never describe the old shape)", () => {
+      regionsData.value = [makeRegion({ id: "r1", cells: BIG_CELLS, vertices: BIG })];
+      const plan = usePlanPalette(computed(() => "site-1"));
+      // Erasing the squares with x 3..5 (all rows) leaves the left half: a 3 by 6 rectangle.
+      plan.eraseCells(new Set(BIG_CELLS.filter((c) => Number(c.split(",")[0]) >= 3)));
+      // `commitRing` reaches the mutation synchronously, before its first await.
+      expect(updateRegionStub.mutateAsync).toHaveBeenCalledOnce();
+      const update = (updateRegionStub.mutateAsync.mock.calls[0]![0] as { update: { vertices: [number, number][]; cells: string[] } }).update;
+      // Reasoned: the kept half is x in [0, 3], so no vertex may sit right of x = 3 (plus raster slack), and its
+      // squares are exactly the 18 with x 0..2.
+      expect(Math.max(...update.vertices.map((v) => v[0]))).toBeLessThan(3.2);
+      expect([...update.cells].sort()).toEqual(BIG_CELLS.filter((c) => Number(c.split(",")[0]) < 3).sort());
+    });
+
+    it("erasing every square empties the region and drops its ring, so no ring outlives its squares", () => {
+      regionsData.value = [makeRegion({ id: "r1", cells: BIG_CELLS, vertices: BIG })];
+      const plan = usePlanPalette(computed(() => "site-1"));
+      plan.eraseCells(new Set(BIG_CELLS));
+      expect(updateRegionStub.calls.map((c) => c.vars)).toEqual([
+        { id: "r1", update: { cells: [], vertices: null, derived_from: "dm" } },
+      ]);
+    });
+
+    it("an erase that touches no square of the ring writes nothing", () => {
+      regionsData.value = [makeRegion({ id: "r1", cells: BIG_CELLS, vertices: BIG })];
+      const plan = usePlanPalette(computed(() => "site-1"));
+      plan.eraseCells(new Set(["20,20"]));
+      expect(updateRegionStub.calls).toEqual([]);
+      expect(updateRegionStub.mutateAsync).not.toHaveBeenCalled();
+    });
+  });
+
+  it("starts with a brush of three quarters of a square and offers Lasso as a fourth way to trace", () => {
+    const plan = usePlanPalette(computed(() => "site-1"));
+    expect(plan.brushRadius.value).toBe(0.75);
+    expect(TRACE_TOOL_OPTIONS.map((o) => o.value)).toEqual(["paint", "pen", "template", "lasso"]);
   });
 
   it("cycles a door to an arch and an arch back to a door, undoably", async () => {

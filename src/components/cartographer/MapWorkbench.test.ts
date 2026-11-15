@@ -692,7 +692,7 @@ describe("MapWorkbench", () => {
       expect(slipTools).toEqual({
         Select: ["SelectV", "PanH"],
         Draw: ["BrushB", "RectangleR", "RoomM", "LineL", "FillF", "One tileI"],
-        Walls: ["WallW", "DoorD", "WrapJ", "Angled wallN"],
+        Walls: ["WallW", "DoorD", "WrapJ", "Angled wallN", "FreehandP"],
         Terrain: ["WaterA", "RockS"],
         // Rooms are picked and named on the Zoning tab, so the Drawing has no Space tool (and P picks nothing).
         Notes: ["LabelT", "LinkK"],

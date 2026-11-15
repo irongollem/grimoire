@@ -5,7 +5,7 @@ import type { Component } from "vue";
 import {
   IconSelect, IconBrush, IconWater, IconEraser, IconHand, IconWall, IconDoor, IconCube, IconRect, IconDrawLine,
   IconFill, IconWrapWalls, IconObjectStamp, IconAnnotate, IconEntityLink, IconRoomTemplate, IconCave, IconHighlight,
-  IconAngledWall, IconLight, type AppIcon,
+  IconAngledWall, IconPencilLine, IconLight, type AppIcon,
 } from "@/lib/icons";
 import type { RailFamily } from "@/components/cartographer/CartographerToolRail.vue";
 import type { Tool } from "@/cartographer/tools";
@@ -40,6 +40,7 @@ export const TOOLS: ToolDef[] = [
   { id: "door",     label: "Door",          icon: IconDoor,         shortcut: "d" },
   { id: "wrap",     label: "Wrap",          icon: IconWrapWalls,    shortcut: "j" },
   { id: "angledWall", label: "Angled wall",  icon: IconAngledWall, shortcut: "n" },
+  { id: "freehandWall", label: "Freehand", icon: IconPencilLine, shortcut: "p" },
   { id: "place",    label: "Place",         icon: IconObjectStamp,  shortcut: "o" },
   { id: "light",    label: "Light",         icon: IconLight,       shortcut: "u" },
   { id: "annotate", label: "Label",         icon: IconAnnotate,     shortcut: "t" },
@@ -63,7 +64,7 @@ export interface ToolFamilyDef {
 export const TOOL_FAMILIES: readonly ToolFamilyDef[] = [
   { id: "select", label: "Select",  icon: IconSelect,      caption: "look, don't paint",           tools: ["select", "pan"] },
   { id: "draw",   label: "Draw",    icon: IconBrush,       caption: "floor",       tools: ["brush", "rect", "template", "line", "fill", "floor"] },
-  { id: "walls",  label: "Walls",   icon: IconWall,        caption: "walls",         tools: ["wall", "door", "wrap", "angledWall"] },
+  { id: "walls",  label: "Walls",   icon: IconWall,        caption: "walls",         tools: ["wall", "door", "wrap", "angledWall", "freehandWall"] },
   { id: "things", label: "Things",  icon: IconObjectStamp, caption: "objects, props and lights",           tools: ["place", "light"] },
   { id: "terrain", label: "Terrain", icon: IconWater,                                           tools: ["terrain", "solid"] },
   { id: "notes",  label: "Notes",   icon: IconAnnotate,    caption: "labels and links",    tools: ["annotate", "link"] },

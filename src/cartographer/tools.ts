@@ -25,6 +25,8 @@ export type Tool =
   | "wrap"
   // A wall run at any angle (#1125 story 5): click points, Enter or a double-click ends it.
   | "angledWall"
+  // One drag along a wall in the picture, fitted to few smooth nodes on release (#1197 frame 03).
+  | "freehandWall"
   // Place (#1073 story 11): the set's objects (chest, barrel, stairs, rubble) and the
   // Dressing books' props (tables, beds, coffins at any angle) from one picture catalogue.
   | "place"

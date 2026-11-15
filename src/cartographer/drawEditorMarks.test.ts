@@ -81,3 +81,32 @@ describe("run rings (Trace the walls)", () => {
     expect(arcs).toEqual([]);
   });
 });
+
+describe("freehand stroke preview (#1197)", () => {
+  function lineCtx() {
+    const moves: [number, number][] = [];
+    const lines: [number, number][] = [];
+    const ctx = {
+      save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), fill: vi.fn(), stroke: vi.fn(), arc: vi.fn(),
+      moveTo: vi.fn((x: number, y: number) => moves.push([x, y])),
+      lineTo: vi.fn((x: number, y: number) => lines.push([x, y])),
+      fillStyle: "", strokeStyle: "", lineWidth: 0, lineCap: "", lineJoin: "",
+    };
+    return { ctx: ctx as unknown as CanvasRenderingContext2D, moves, lines };
+  }
+
+  it("strokes one solid line through every dragged point, in screen pixels", () => {
+    // tile 100 px, offset (50, 0): cell (1, 2) is at x = 1*100-50 = 50, y = 2*100 = 200; cell (3, 2) at (250, 200).
+    const { ctx, moves, lines } = lineCtx();
+    paintEditorMarks(ctx, emptyLayers(), { freehandStroke: [[1, 2], [2, 2], [3, 2]] }, 100, { x: 50, y: 0 });
+    expect(moves).toEqual([[50, 200]]);
+    expect(lines).toEqual([[150, 200], [250, 200]]);
+    expect(ctx.stroke).toHaveBeenCalledOnce();
+  });
+
+  it("draws nothing for a stroke of a single point", () => {
+    const { ctx } = lineCtx();
+    paintEditorMarks(ctx, emptyLayers(), { freehandStroke: [[1, 2]] }, 100, { x: 0, y: 0 });
+    expect(ctx.stroke).not.toHaveBeenCalled();
+  });
+});

@@ -28,7 +28,7 @@ import { cellKey } from "@/types/dungeonMap.types";
 import { cellsForTemplate } from "@/lib/map/gestures/template";
 import { canonicalCells } from "@/cartographer/cellSignature";
 
-export type TraceTool = "paint" | "pen" | "template";
+export type TraceTool = "paint" | "pen" | "template" | "lasso";
 export type TemplateShape = "circle" | "octagon" | "hex";
 
 function keyOf(p: GridPoint): string {

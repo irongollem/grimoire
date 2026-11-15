@@ -237,6 +237,7 @@
         <CartographerPlanOptions
           v-else
           v-model:trace-tool="plan.traceTool.value"
+          v-model:brush-radius="plan.brushRadius.value"
           v-model:template-shape="plan.templateShape.value"
           v-model:zone-kind="plan.zoneKind.value"
           v-model:zone-label="plan.zoneLabel.value"

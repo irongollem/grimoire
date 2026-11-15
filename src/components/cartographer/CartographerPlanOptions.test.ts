@@ -17,6 +17,7 @@ function makeProps(planTool: PlanTool = "zone") {
     listOpen: false,
     planTool,
     traceTool: "paint" as TraceTool,
+    brushRadius: 0.75,
     templateShape: "circle" as TemplateShape,
     zoneKind: "room" as ZoningKind,
     zoneLabel: "",
@@ -36,6 +37,7 @@ describe("CartographerPlanOptions", () => {
     expect(wrapper.text()).toContain("Brush");
     expect(wrapper.text()).toContain("Pen");
     expect(wrapper.text()).toContain("Shape");
+    expect(wrapper.text()).toContain("Lasso");
 
     const traceWith = wrapper.findAll("span").find((s) => s.text() === "Trace with");
     expect(traceWith).toBeTruthy();
@@ -93,5 +95,25 @@ describe("CartographerPlanOptions", () => {
     const penButton = wrapper.findAll("button").find((b) => b.text() === "Pen");
     await penButton?.trigger("click");
     expect(wrapper.emitted("update:traceTool")?.[0]).toEqual(["pen"]);
+  });
+
+  it("Lasso says how it works and offers no brush size", () => {
+    const wrapper = mount(CartographerPlanOptions, { props: { ...makeProps("zone"), traceTool: "lasso" as TraceTool } });
+    expect(wrapper.text()).toContain("Drag round the area. Let go and the outline closes and is smoothed.");
+    expect(wrapper.find("#zone-brush-size").exists()).toBe(false);
+  });
+
+  it("Brush offers a size that reaches the palette, and says Alt carves", async () => {
+    const wrapper = mount(CartographerPlanOptions, { props: makeProps("zone") });
+    expect(wrapper.text()).toContain("Alt carves it away");
+    expect(wrapper.text()).toContain("7.5 ft across"); // 0.75 cells across both sides, 5 ft a cell
+    await wrapper.find("#zone-brush-size").setValue("2");
+    expect(wrapper.emitted("update:brushRadius")?.[0]).toEqual([2]);
+  });
+
+  it("Pen shows neither the brush size nor the lasso hint", () => {
+    const wrapper = mount(CartographerPlanOptions, { props: { ...makeProps("zone"), traceTool: "pen" as TraceTool } });
+    expect(wrapper.find("#zone-brush-size").exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("Drag round the area");
   });
 });

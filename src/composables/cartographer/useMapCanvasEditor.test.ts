@@ -72,7 +72,7 @@ vi.mock("@/composables/cartographer/usePlanCanvasTools", () => ({
       templateDraft: null, templateRingPreview: [], assignHover: null,
     })),
     renderDeps: {
-      hoveredDoorEdge: ref(null), assignHover: ref(null), pendingDoorEdge: ref(null), strokeCells: ref(null), draftRing: ref([]),
+      hoveredDoorEdge: ref(null), assignHover: ref(null), pendingDoorEdge: ref(null), strokePreview: ref(null), draftRing: ref([]),
       templateDraft: ref(null), liveDrag: ref(null), penHoverPoint: ref(null),
     },
   }),
@@ -108,7 +108,6 @@ function fakePlan(): ReturnType<typeof usePlanPalette> {
     commitCells: vi.fn(),
     commitRing: vi.fn(async () => {}),
     commitTemplate: vi.fn(),
-    confirmConvert: vi.fn(async () => true),
     claimFloorRegion: vi.fn(async () => {}),
     existingDoorAtEdge: vi.fn(() => null),
     placeDoorAt: vi.fn(),
@@ -2254,6 +2253,49 @@ const key = (k: string): void => {
   window.dispatchEvent(new KeyboardEvent("keydown", { key: k }));
 };
 const px = (cell: number): number => cell * BASE_TILE_SIZE;
+
+describe("Freehand wall tool (#1197)", () => {
+  /** Drags an L: along y = 1 cell from x = 0 to 4, then down x = 4 to y = 5, through every half cell. */
+  function dragL(editor: ReturnType<typeof useMapCanvasEditor>): void {
+    editor.onPointerDown(down(px(0), px(1)));
+    for (let x = 0.5; x <= 4; x += 0.5) editor.onPointerMove(move(px(x), px(1)));
+    for (let y = 1.5; y <= 5; y += 0.5) editor.onPointerMove(move(px(4), px(y)));
+    editor.onPointerUp(up(px(4), px(5)));
+  }
+
+  it("a press, drag and release writes the fitted walls and is one undo step", () => {
+    const { editor, layers, activeTool } = makeHarness();
+    activeTool.value = "freehandWall";
+    dragL(editor);
+    // The two straight legs fit to two walls meeting at the corner (4,1): without the dragged points in between, the
+    // stroke would be one diagonal from (0,1) to (4,5).
+    expect(Object.values(layers.value.walls).map((w) => [w.a, w.b])).toEqual([[[0, 1], [4, 1]], [[4, 1], [4, 5]]]);
+    editor.undoEdit();
+    expect(layers.value.walls).toEqual({});
+  });
+
+  it("leaving the canvas mid-stroke drops it and writes nothing", () => {
+    const { editor, layers, activeTool } = makeHarness();
+    activeTool.value = "freehandWall";
+    editor.onPointerDown(down(px(0), px(1)));
+    editor.onPointerMove(move(px(3), px(1)));
+    editor.onPointerLeave(new PointerEvent("pointerleave", { clientX: px(6), clientY: px(1), pointerId: 1 }));
+    expect(layers.value.walls).toEqual({});
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("changing tool mid-stroke drops it, so a later release writes nothing", async () => {
+    const { editor, layers, activeTool } = makeHarness();
+    activeTool.value = "freehandWall";
+    await nextTick(); // the tool watcher must see Freehand become active before it can see it leave
+    editor.onPointerDown(down(px(0), px(1)));
+    editor.onPointerMove(move(px(3), px(1)));
+    activeTool.value = "select";
+    await nextTick();
+    editor.onPointerUp(up(px(5), px(1)));
+    expect(layers.value.walls).toEqual({});
+  });
+});
 
 describe("Angled wall tool", () => {
   it("a run of clicks ended by a double-click becomes one wall per segment, as one undo step", () => {

@@ -5,7 +5,7 @@
 // WHAT (data, mutations, undo); this module is only "how a pointer event on
 // THIS canvas becomes one of those calls."
 //
-// Zone tracing (paint/pen/template) is not reinvented here — it
+// Zone tracing (brush/pen/shape/lasso) is not reinvented here — it
 // delegates straight to `useRegionPointer`, the exact gesture state machine
 // the Atlas's own `MapRegionsLayer.vue` uses, via the same plain-callback
 // contract that module already exposes. Only the geometry callbacks differ:
@@ -107,6 +107,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     activeRegion: () => (isTraceTool() ? plan.activeRegion.value : null),
     hasActiveRegionId: () => isTraceTool() && plan.activeRegionId.value !== null,
     tool: () => plan.traceTool.value,
+    brushRadius: () => plan.brushRadius.value,
     mode: () => "browse",
     // Found rooms with no row yet answer a click like any unbound room; `selectRegion` writes the row then.
     regionAt: (cell) => rooms().find((r) => r.cells.includes(cell)) ?? null,
@@ -117,7 +118,6 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     commitCells: plan.commitCells,
     commitRing: plan.commitRing,
     commitTemplate: plan.commitTemplate,
-    confirmConvert: plan.confirmConvert,
     // Clicking an already-traced-but-unbound shape resumes tracing it — the
     // Cartographer has no region list to pick from, so this IS how a DM gets
     // back to a shape they started earlier without abandoning it.
@@ -374,11 +374,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
   }
 
   function renderScene(): PlanRenderScene {
-    const overrides = eraseTouched.value
-      ? eraseFromRegions(plan.regions.value, eraseTouched.value)
-      : regionPointer.strokeCells.value
-        ? new Map([[regionPointer.strokeCells.value.regionId, regionPointer.strokeCells.value.cells]])
-        : undefined;
+    const overrides = eraseTouched.value ? eraseFromRegions(plan.regions.value, eraseTouched.value) : undefined;
 
     let tracingRing: readonly GridPoint[] | null = null;
     let tracingClosed = false;
@@ -393,6 +389,13 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
       tracingRing = dragging ?? (persisted ? region.vertices! : regionPointer.draftRing.value);
       tracingClosed = persisted;
       tracingHoverPoint = regionPointer.penHoverPoint.value;
+    }
+
+    // A lasso in flight is an open ring; a brush stroke in flight is the closed shape so far.
+    const stroke = regionPointer.strokePreview.value;
+    if (isTraceTool() && stroke && stroke.regionId === plan.activeRegionId.value) {
+      tracingRing = stroke.ring;
+      tracingClosed = stroke.closed;
     }
 
     const templateDraft = regionPointer.templateDraft.value;
@@ -431,7 +434,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
       hoveredDoorEdge: planHoveredDoorEdge,
       assignHover,
       pendingDoorEdge: plan.pendingDoorEdge,
-      strokeCells: regionPointer.strokeCells,
+      strokePreview: regionPointer.strokePreview,
       eraseTouched,
       draftRing: regionPointer.draftRing,
       templateDraft: regionPointer.templateDraft,

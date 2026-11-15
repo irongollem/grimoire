@@ -125,7 +125,7 @@
     </template>
 
     <!-- Angled wall: the kind it draws, and how a run is driven. -->
-    <template v-else-if="activeTool === 'angledWall'">
+    <template v-else-if="activeTool === 'angledWall' || activeTool === 'freehandWall'">
       <SegmentedControl
         :model-value="wallVisible === false ? 'hidden' : 'visible'"
         :options="WALL_VISIBILITY"
@@ -140,7 +140,8 @@
         @update:model-value="$emit('update:activeWallKind', $event)"
       />
       <span class="text-caption-sm text-muted-foreground">
-        Click to start, click to add points. A point snaps to the end of a wall already drawn. Click the first point to close the ring. Enter or a double-click ends the run, Esc drops it. Alt places a point freely.
+        <template v-if="activeTool === 'freehandWall'">Drag along the wall in the picture. Let go and the line is fitted to a few smooth nodes you can move with Select. End on a wall, or on your own start, and it joins there.</template>
+        <template v-else>Click to start, click to add points. A point snaps to the end of a wall already drawn. Click the first point to close the ring. Enter or a double-click ends the run, Esc drops it. Alt places a point freely.</template>
       </span>
     </template>
 
@@ -302,18 +303,7 @@
         @update:category="emit('update:brushCategory', $event)"
         @update:wall-mode="emit('update:brushWallMode', $event)"
       />
-      <label class="text-label text-muted-foreground" for="brush-size">Size</label>
-      <input
-        id="brush-size"
-        type="range"
-        :min="BRUSH_RADIUS_MIN"
-        :max="BRUSH_RADIUS_MAX"
-        :step="BRUSH_RADIUS_STEP"
-        :value="brushRadius"
-        class="h-1.5 w-32 cursor-pointer appearance-none rounded-full bg-border accent-primary"
-        @input="(e) => $emit('update:brushRadius', parseFloat((e.target as HTMLInputElement).value))"
-      />
-      <span class="text-caption text-muted-foreground tabular-nums">{{ brushRadius * 2 * 5 }} ft across</span>
+      <BrushSizeControl id="brush-size" :model-value="brushRadius" @update:model-value="$emit('update:brushRadius', $event)" />
       <span class="text-caption-sm text-muted-foreground">[ and ] resize.</span>
       <span class="text-caption-sm text-muted-foreground">Shift+click draws a straight line from where the last stroke ended.</span>
     </template>
@@ -352,7 +342,7 @@ import type { AppInputHandle } from "@/components/common/controls/fieldVariants"
 import type { EdgeSegType } from "@/types/dungeonMap.types";
 import { MAX_LIGHT_FEET, type PackCategory, type TileLight, type TilePackManifest } from "@/cartographer/packSchema";
 import { decalLabel, stampLabel } from "@/cartographer/stampCategories";
-import { BRUSH_RADIUS_MAX, BRUSH_RADIUS_MIN, BRUSH_RADIUS_STEP } from "@/cartographer/keymap";
+import BrushSizeControl from "@/components/cartographer/BrushSizeControl.vue";
 import { WALL_KINDS, type WallKind } from "@/cartographer/wallKinds";
 import type { PlaceItem, Tool } from "@/cartographer/tools";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
@@ -503,6 +493,7 @@ const HINTS: Record<Tool, string> = {
   eraser: "Drag to take out floor, walls and objects.",
   wall: "",
   angledWall: "",
+  freehandWall: "",
   light: "",
   door: "Click a wall edge to add a door; click a door to open or close it. Right-click removes it.",
   solid: "Paint thick, full-cell rock. Shift+click draws a straight line from the last cell. Alt erases.",

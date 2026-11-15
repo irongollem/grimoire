@@ -16,6 +16,7 @@ import { cellsInLine } from "@/lib/map/gestures/line";
 import { constrainShapeEnd, isCellPainter, type useStraightStrokes } from "@/composables/cartographer/useStraightStrokes";
 import type { useDressingTool } from "@/composables/cartographer/useDressingTool";
 import type { useAngledWallTool } from "@/composables/cartographer/useAngledWallTool";
+import type { useFreehandWallTool } from "@/composables/cartographer/useFreehandWallTool";
 import type { useLightTool } from "@/composables/cartographer/useLightTool";
 import type { useCanvasNavigation } from "@/composables/cartographer/useCanvasNavigation";
 import type { usePlanCanvasTools } from "@/composables/cartographer/usePlanCanvasTools";
@@ -55,6 +56,7 @@ export function useEditorPointer(inputs: {
   brush: EditorBrush;
   dressingTool: ReturnType<typeof useDressingTool>;
   angledTool: ReturnType<typeof useAngledWallTool>;
+  freehandTool: ReturnType<typeof useFreehandWallTool>;
   lightTool: ReturnType<typeof useLightTool>;
   selectTool: ReturnType<typeof useSelectTool>;
   wallNodes: ReturnType<typeof useGroundRegionEdit>["controller"];
@@ -69,7 +71,7 @@ export function useEditorPointer(inputs: {
   const {
     canvasEl, layers, metadata, activeTool, selectedCell, toolOptionsRef, rectWalls, activeTemplateShape, activeLayer,
     viewportOffset, isPanning, isPainting, previewCells, hoverCell, hoverPoint, hoveredEdge, geometry, navigation, straight,
-    painting, brush, dressingTool, angledTool, lightTool, selectTool, wallNodes, planTools, isPlanLayerActive,
+    painting, brush, dressingTool, angledTool, freehandTool, lightTool, selectTool, wallNodes, planTools, isPlanLayerActive,
     snapshotStr, pushCommand, markDirty, dropTouch,
   } = inputs;
   const { getLocalPointer, viewportToCell, fractionalCellAt, pointerToWorld, tilePixelSize, devicePixelDims } = geometry;
@@ -164,6 +166,13 @@ export function useEditorPointer(inputs: {
     // Angled wall: each left click adds a point to the run (right button still pans).
     if (activeTool.value === "angledWall" && ev.button === 0) {
       angledTool.click(fractionalCellAt(ev), ev.altKey);
+      return;
+    }
+
+    // Freehand wall: a left-button drag is one stroke; capture keeps it going if the pointer leaves the canvas.
+    if (activeTool.value === "freehandWall" && ev.button === 0) {
+      freehandTool.start(fractionalCellAt(ev));
+      canvasEl.value?.setPointerCapture(ev.pointerId);
       return;
     }
 
@@ -305,6 +314,7 @@ export function useEditorPointer(inputs: {
     dressingTool.setHover([cx, cy]);
     dressingTool.onPointerMove([cx, cy]);
     if (activeTool.value === "angledWall") angledTool.track(fractionalCellAt(ev), ev.altKey);
+    if (activeTool.value === "freehandWall") freehandTool.move(fractionalCellAt(ev));
     if (activeTool.value === "light" || lightTool.isHolding()) lightTool.onPointerMove(fractionalCellAt(ev), ev.altKey);
     if (activeTool.value === "select" && !isPanning.value && !isPlanLayerActive()) {
       selectTool.move(fractionalCellAt(ev), { shift: ev.shiftKey, alt: ev.altKey });
@@ -398,6 +408,10 @@ export function useEditorPointer(inputs: {
     }
     if (dressingTool.isHolding()) {
       dressingTool.onPointerUp();
+      canvasEl.value?.releasePointerCapture(ev.pointerId);
+    }
+    if (freehandTool.stroke.value.length > 0) {
+      freehandTool.release(fractionalCellAt(ev), ev.altKey);
       canvasEl.value?.releasePointerCapture(ev.pointerId);
     }
     if (lightTool.isHolding()) {
