@@ -10,6 +10,7 @@ import type { NpcListRow } from "@/types/npc.types";
 import type { Companion } from "@/types/companion.types";
 import { sizeToFootprint } from "../../lib/battlemap/tokenFootprint.ts";
 import { buildMonsterCombatants, buildNpcCombatants } from "../encounterCombatLogic.ts";
+import { sortCombatantsByInitiative } from "../combatantSort.ts";
 
 /** What a spawn is built from, supplied by whoever runs the fight (the store's `availableMonsters` / `availableNpcs`). */
 export interface SpawnSources {
@@ -81,4 +82,25 @@ export function companionCombatant(comp: Companion, factionId: string): RunComba
     size: comp.size,
     footprint: sizeToFootprint(comp.size),
   };
+}
+
+/**
+ * The roster and the turn pointer after `newcomers` join.
+ *
+ * `activeIndex` is a position in the initiative order, not a combatant. A creature that joins a running fight with a
+ * higher initiative than whoever is acting sorts in ahead of them and pushes them one place down, so the same number
+ * would now name the newcomer: the turn would silently pass to it, and the creature that was acting would get a
+ * second turn later in the round. The pointer follows the combatant instead. Before combat starts there is no turn
+ * to keep.
+ */
+export function joinFight(
+  fight: { combatants: readonly RunCombatant[]; activeIndex: number; started: boolean },
+  newcomers: readonly RunCombatant[],
+): { combatants: RunCombatant[]; activeIndex: number } {
+  const combatants = [...fight.combatants, ...newcomers];
+  if (!fight.started || newcomers.length === 0) return { combatants, activeIndex: fight.activeIndex };
+  const acting = sortCombatantsByInitiative(fight.combatants)[fight.activeIndex];
+  if (!acting) return { combatants, activeIndex: fight.activeIndex };
+  const at = sortCombatantsByInitiative(combatants).findIndex((c) => c.instance_id === acting.instance_id);
+  return { combatants, activeIndex: at };
 }

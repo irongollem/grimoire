@@ -17,7 +17,7 @@ import { rollInitiativeValue, adoptStatBlock } from "@/rules/encounterCombatLogi
 import { applyFightCommand } from "@/rules/fight/fightCommands";
 import { checkFightEvents, fireFightEvent, type FightDeps, type FightResult } from "@/rules/fight/fightEvents";
 import { isTurnEvent, startedFromRound, type FightEffect, type FightState } from "@/rules/fight/fightState";
-import { companionCombatant, spawnMonsters, spawnNpcs } from "@/rules/fight/fightSpawn";
+import { companionCombatant, joinFight, spawnMonsters, spawnNpcs } from "@/rules/fight/fightSpawn";
 import { adoptTempHp, ingestPartyRow, type PartyIngestContext, type PartyIngestRow } from "@/rules/fight/partyIngest";
 
 /** Persists a player-combatant change to party_members and invalidates the
@@ -433,12 +433,19 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     c.reveal_state = order[(idx + 1) % order.length];
   }
 
+  /** Newcomers join the roster, and the turn stays with whoever is acting (see `joinFight`). */
+  function join(newcomers: RunCombatant[]) {
+    const joined = joinFight({ combatants: combatants.value, activeIndex: activeIndex.value, started: started.value }, newcomers);
+    combatants.value = joined.combatants;
+    activeIndex.value = joined.activeIndex;
+  }
+
   function addMonster(monsterId: string, factionId: string, count: number, customName?: string) {
-    combatants.value.push(...spawnMonsters(fightDeps(), started.value, monsterId, { factionId, count, customName }, true));
+    join(spawnMonsters(fightDeps(), started.value, monsterId, { factionId, count, customName }, true));
   }
 
   function addNpc(npcId: string, factionId: string, count: number, customName?: string) {
-    combatants.value.push(...spawnNpcs(fightDeps(), started.value, npcId, { factionId, count, customName }));
+    join(spawnNpcs(fightDeps(), started.value, npcId, { factionId, count, customName }));
   }
 
   /** Gives every combatant that joined on stand-in numbers the real ones, once
@@ -475,7 +482,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
    *  the companion is already present. */
   function addCompanionCombatant(comp: Companion, factionId: string) {
     if (combatants.value.some((c) => c.instance_id === `c-${comp.id}`)) return;
-    combatants.value.push(companionCombatant(comp, factionId));
+    join([companionCombatant(comp, factionId)]);
   }
 
   function applyEventResult(before: FightState, result: FightResult) {

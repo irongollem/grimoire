@@ -3,11 +3,11 @@
  * the state calls for, and what firing one does. Moved out of the encounterRun
  * store so a server can fire the same events the DM's browser does.
  */
-import type { EncounterEvent } from "@/types/encounter.types";
+import type { EncounterEvent, RunCombatant } from "@/types/encounter.types";
 import { evaluateTrigger } from "../encounterCombatLogic.ts";
 import type { EncounterTurnDeps } from "../encounterTurn.ts";
 import type { FightEffect, FightState } from "./fightState.ts";
-import { spawnFromDef, type SpawnSources } from "./fightSpawn.ts";
+import { joinFight, spawnFromDef, type SpawnSources } from "./fightSpawn.ts";
 
 /** What a fight needs from outside itself: the dice the reducer may roll, and the sources a spawn is built from. */
 export interface FightDeps extends EncounterTurnDeps, SpawnSources {}
@@ -20,13 +20,13 @@ export interface FightResult {
 function executeEvent(state: FightState, event: EncounterEvent, deps: FightDeps): FightResult {
   const effects: FightEffect[] = [];
   const eventsFired = state.eventsFired.includes(event.id) ? state.eventsFired : [...state.eventsFired, event.id];
-  let combatants = state.combatants;
+  let roster = { combatants: state.combatants as readonly RunCombatant[], activeIndex: state.activeIndex };
   for (const action of event.actions) {
     if (action.type === "spawn_combatants") {
       for (const spawn of action.spawns) {
         const built = spawnFromDef(deps, state.started, spawn);
         if (built.length === 0) continue;
-        combatants = [...combatants, ...built];
+        roster = joinFight({ ...roster, started: state.started }, built);
         effects.push({ type: "spawned", combatants: built });
       }
     } else if (action.type === "broadcast_message") {
@@ -40,7 +40,7 @@ function executeEvent(state: FightState, event: EncounterEvent, deps: FightDeps)
       effects.push({ type: "broadcast", message: `${action.label}: ${action.description}` });
     }
   }
-  return { state: { ...state, combatants, eventsFired }, effects };
+  return { state: { ...state, combatants: [...roster.combatants], activeIndex: roster.activeIndex, eventsFired }, effects };
 }
 
 /**
