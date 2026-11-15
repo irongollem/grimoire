@@ -104,3 +104,19 @@ export function joinFight(
   const at = sortCombatantsByInitiative(combatants).findIndex((c) => c.instance_id === acting.instance_id);
   return { combatants, activeIndex: at };
 }
+
+/**
+ * A clock for spawn ids that never gives the same number twice.
+ *
+ * A spawned creature's instance id carries the time it was made (`spawn-<monster>-<ms>-<n>`). Two adds of the same
+ * monster inside one millisecond (a double click, an event with two spawn actions of one creature) got the same
+ * ids: two combatants answering to one id, and since `add_combatants` refuses an id already in the fight, the second
+ * group now simply would not appear. Each reading is at least one more than the last.
+ */
+export function idClock(clock: () => number = Date.now): () => number {
+  let last = Number.NEGATIVE_INFINITY;
+  return () => {
+    last = Math.max(clock(), last + 1);
+    return last;
+  };
+}

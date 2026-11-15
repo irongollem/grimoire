@@ -18,6 +18,7 @@ import type { EncounterEvent } from "../../../src/types/encounter.types.ts";
 import type { Monster } from "../../../src/types/monster.types.ts";
 import type { NpcListRow } from "../../../src/types/npc.types.ts";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
+import { idClock } from "../../../src/rules/fight/fightSpawn.ts";
 import {
   FightCommandError,
   MAX_BODY_CHARACTERS,
@@ -193,7 +194,7 @@ serve(withCors(async (req: Request) => {
       },
       rollD20: () => secureDie(20),
       rollD6: () => secureDie(6),
-      now: Date.now,
+      now: idClock(),
     };
 
     return json(await runBatch(request, deps));

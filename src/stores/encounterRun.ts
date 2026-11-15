@@ -17,7 +17,7 @@ import { rollInitiativeValue, adoptedStatsFor } from "@/rules/encounterCombatLog
 import { applyFightCommand, type FightCommand } from "@/rules/fight/fightCommands";
 import type { FightDeps } from "@/rules/fight/fightEvents";
 import { isTurnEvent, startedFromRound, type FightEffect, type FightState } from "@/rules/fight/fightState";
-import { companionCombatant, spawnMonsters, spawnNpcs } from "@/rules/fight/fightSpawn";
+import { companionCombatant, idClock, spawnMonsters, spawnNpcs } from "@/rules/fight/fightSpawn";
 import { adoptTempHp, ingestPartyRow, type PartyIngestContext, type PartyIngestRow } from "@/rules/fight/partyIngest";
 
 /** Persists a player-combatant change to party_members and invalidates the
@@ -40,6 +40,9 @@ export interface MoveRecord {
 }
 
 /** The commands that hand the turn to someone else (or restart the order). */
+/** One clock for the tab, so no two spawns share an id however fast they follow each other (see `idClock`). */
+const spawnClock = idClock();
+
 const TURN_CHANGING = new Set<FightCommand["type"]>(["next_turn", "prev_turn", "reshuffle_initiative", "start_combat"]);
 
 export const useEncounterRunStore = defineStore("encounterRun", () => {
@@ -166,7 +169,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
 
   /** What a spawn is built from: the monsters and NPCs the runner holds, and the clock for instance ids. */
   function fightDeps(): FightDeps {
-    return { monsters: availableMonsters.value, npcs: availableNpcs.value, now: Date.now };
+    return { monsters: availableMonsters.value, npcs: availableNpcs.value, now: spawnClock };
   }
 
   /** Adopts the state the pure rules computed and acts on what they asked for:
