@@ -2258,6 +2258,7 @@ function mountWithKeys(tool: Tool, over: Partial<MapCanvasEditorOptions> = {}): 
   layers: Ref<DungeonMapLayers>;
   activeTool: Ref<Tool>;
   activeWallKind: Ref<WallKind>;
+  wrapper: ReturnType<typeof mount>;
 } {
   const layers = ref<DungeonMapLayers>(emptyLayers());
   const activeTool = ref<Tool>(tool);
@@ -2302,8 +2303,8 @@ function mountWithKeys(tool: Tool, over: Partial<MapCanvasEditorOptions> = {}): 
       return () => h("div");
     },
   });
-  mount(Host);
-  return { editor, layers, activeTool, activeWallKind };
+  const wrapper = mount(Host);
+  return { editor, layers, activeTool, activeWallKind, wrapper };
 }
 
 const key = (k: string): void => {
@@ -3102,5 +3103,81 @@ describe("Select picks pack objects and walls on a material edge", () => {
     sandWithWall(layers);
     clickCell(editor, px(2), onCell(2)); // the left edge: no wall there
     expect(editor.selectedGroundRegion.value).not.toBeNull();
+  });
+});
+
+describe("Find walls in the picture on the canvas (#1197)", () => {
+  /** A ring round cells 2..6, open on the finder with the Floor tool still in hand. */
+  function openFinder(tool: Tool = "floor") {
+    const mounted = mountWithKeys(tool);
+    mounted.editor.wallFinder.proposals.value = [{ ring: [[2, 2], [6, 2], [6, 6], [2, 6]], kept: true }];
+    mounted.editor.wallFinder.active.value = true;
+    return mounted;
+  }
+  const press = (editor: ReturnType<typeof useMapCanvasEditor>, cx: number, cy: number, init: PointerEventInit = {}): void => {
+    editor.onPointerDown(down(px(cx), px(cy), init));
+    editor.onPointerUp(up(px(cx), px(cy), init));
+  };
+
+  it("a click within 0.3 cells of a ring's outline drops it, and the Floor tool paints nothing", () => {
+    const { editor, layers } = openFinder();
+    press(editor, 2.2, 4); // 0.2 from the left side x = 2
+    expect(editor.wallFinder.proposals.value[0].kept).toBe(false);
+    expect(layers.value.floor).toEqual({});
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("a second click on the same ring keeps it again", () => {
+    const { editor } = openFinder();
+    press(editor, 2.2, 4);
+    press(editor, 2.2, 4);
+    expect(editor.wallFinder.proposals.value[0].kept).toBe(true);
+  });
+
+  it("a click that hits no ring does nothing, not even with a tool that would paint there", () => {
+    const { editor, layers } = openFinder();
+    press(editor, 2.5, 4); // 0.5 from the nearest side: past the 0.3 reach
+    expect(editor.wallFinder.proposals.value[0].kept).toBe(true);
+    expect(layers.value.floor).toEqual({});
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("the right button still pans the map instead of picking a ring", () => {
+    const { editor } = openFinder();
+    editor.onPointerDown(down(px(2.2), px(4), { button: 2 }));
+    expect(editor.isPanning.value).toBe(true);
+    editor.onPointerUp(up(px(2.2), px(4), { button: 2 }));
+    expect(editor.wallFinder.proposals.value[0].kept).toBe(true);
+  });
+
+  it("a click on a ring works on the Base image tab too, which otherwise only pans", () => {
+    const { editor } = mountWithKeys("floor", { activeLayer: ref("picture"), hasLayerTabs: true });
+    editor.wallFinder.proposals.value = [{ ring: [[2, 2], [6, 2], [6, 6], [2, 6]], kept: true }];
+    editor.wallFinder.active.value = true;
+    press(editor, 2.2, 4);
+    expect(editor.wallFinder.proposals.value[0].kept).toBe(false);
+  });
+
+  it("Escape closes the finder and leaves the tool as it was", () => {
+    const { editor, activeTool } = openFinder();
+    key("Escape");
+    expect(editor.wallFinder.active.value).toBe(false);
+    expect(activeTool.value).toBe("floor"); // the ordinary Escape would have gone back to Select
+  });
+
+  it("unmounting the editor closes the finder, so a proposal never outlives its workbench", () => {
+    const { editor, wrapper } = openFinder();
+    wrapper.unmount();
+    expect(editor.wallFinder.active.value).toBe(false);
+    expect(editor.wallFinder.proposals.value).toEqual([]);
+  });
+
+  it("the canvas draws the proposal while the finder is open, and not after", async () => {
+    const { editor } = openFinder();
+    await nextTick();
+    expect(mockedRenderMap.mock.calls.at(-1)![0].editorMarks!.wallProposals).toEqual([{ ring: [[2, 2], [6, 2], [6, 6], [2, 6]], kept: true }]);
+    editor.wallFinder.cancel();
+    await nextTick();
+    expect(mockedRenderMap.mock.calls.at(-1)![0].editorMarks!.wallProposals).toBeNull();
   });
 });

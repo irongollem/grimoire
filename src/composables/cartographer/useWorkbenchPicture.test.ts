@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import { nextTick } from "vue";
-import { initialWallVisible, pictureCellBounds, unionBounds, useFitMapOnFirstEntry, useReferencePicture, useWorkbenchPicture, type WorkbenchPicture } from "./useWorkbenchPicture";
+import { initialWallVisible, pictureCellBounds, pictureCellPlacement, unionBounds, useFitMapOnFirstEntry, useReferencePicture, useWorkbenchPicture, type WorkbenchPicture } from "./useWorkbenchPicture";
 import { calibrationFor } from "@/lib/mapImport/pictureGrid";
 import { emptyLayers } from "@/types/dungeonMap.types";
 import type { WallEdge } from "@/types/dungeonMap.types";
@@ -197,5 +197,16 @@ describe("initialWallVisible (frame 02: hidden by default on a picture)", () => 
   });
   it("keeps Visible when there is no picture", () => {
     expect(initialWallVisible(emptyLayers(), false)).toBe(true);
+  });
+});
+
+describe("pictureCellPlacement", () => {
+  it("lies the picture's corner where the grid origin says, to the fraction", () => {
+    // 20 squares across; the grid's origin (cell 12, 7) sits at 0.25 across and 0.5 down the picture. Across 20 on both
+    // axes: left = 12 - 0.25 * 20 = 7, top = 7 - 0.5 * 20 = -3. A bounds helper would round these; the finder must not.
+    expect(pictureCellPlacement({ cells_per_image_width: 20, origin_x_pct: 0.25, origin_y_pct: 0.5, origin_cell_x: 12, origin_cell_y: 7 }))
+      .toEqual({ left: 7, top: -3, across: 20 });
+    expect(pictureCellPlacement({ cells_per_image_width: 10, origin_x_pct: 0.15, origin_y_pct: 0, origin_cell_x: 0 }))
+      .toEqual({ left: -1.5, top: 0, across: 10 });
   });
 });

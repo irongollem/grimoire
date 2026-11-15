@@ -14,9 +14,10 @@
       <p v-else-if="!hasPicture" class="basis-full text-caption text-muted-foreground">
         A scan, a screenshot or a render. Add one and it sits under the drawing and the zones.
       </p>
-      <div v-else class="flex basis-full items-center gap-2">
+      <div v-else class="flex basis-full flex-wrap items-center gap-2">
         <span class="text-caption text-muted-foreground">Grid lined up.</span>
         <AppButton variant="primary" size="sm" label="Trace the walls" @click="emit('trace-walls')" />
+        <AppButton variant="ghost" fill="muted" size="sm" label="Find walls in the picture" :loading="finding" @click="emit('find-walls')" />
       </div>
       <MapPictureControls
         class="basis-full"
@@ -47,6 +48,8 @@ defineProps<{
   moving: boolean;
   battleMap: boolean;
   busy: boolean;
+  /** The picture is being read for its walls. */
+  finding?: boolean;
   liningUp: boolean;
   /** The picture's pixel size, known once it has loaded. */
   natural: ImageSize | null;
@@ -62,6 +65,8 @@ const emit = defineEmits<{
   "line-up": [];
   /** The grid is lined up: go to Drawing with the Angled wall tool (frame 02). */
   "trace-walls": [];
+  /** Look for the walls in the picture (#1197): a proposal laid over it, kept or dropped by the DM. */
+  "find-walls": [];
   done: [];
   cancel: [];
   "update:battleMap": [value: boolean];

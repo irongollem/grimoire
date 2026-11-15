@@ -19,6 +19,8 @@ export interface EditorMarks {
   selectedWallId?: string | null;
   /** The wall run Select picked (#1125 frame 17): its bones, its draggable nodes and where a drag would land. */
   wallNodes?: WallNodeMarks | null;
+  /** The rings "Find walls in the picture" proposes, in cells: kept ones strong, dropped ones faint (#1197). */
+  wallProposals?: readonly { ring: readonly CellPoint[]; kept: boolean }[] | null;
   /** The Light tool is active: every placed light is marked with its reach. */
   showLights?: boolean;
   selectedLightId?: string | null;
@@ -63,6 +65,8 @@ function lightDot(ctx: Ctx2D, cx: number, cy: number, light: TileLight, tilePx: 
 }
 
 const GILT = "#c9962e";
+const PROPOSAL_BLUE = "#8fb0dd";
+const DROPPED_PROPOSAL_ALPHA = 0.3;
 
 function giltRing(ctx: Ctx2D, x: number, y: number, tilePx: number, width: number): void {
   ctx.save();
@@ -84,6 +88,23 @@ export function paintEditorMarks(
 ): void {
   const px = (v: number): number => v * tilePx - viewportOffset.x;
   const py = (v: number): number => v * tilePx - viewportOffset.y;
+
+  // Dotted, so a proposal reads as a suggestion over the picture and never as a wall. No text: the slip says the rest.
+  for (const { ring, kept } of marks.wallProposals ?? []) {
+    if (ring.length < 3) continue;
+    ctx.save();
+    ctx.strokeStyle = PROPOSAL_BLUE;
+    ctx.globalAlpha = kept ? 1 : DROPPED_PROPOSAL_ALPHA;
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.setLineDash([0, 8]);
+    ctx.beginPath();
+    ring.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(px(x), py(y)) : ctx.lineTo(px(x), py(y))));
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
 
   if (marks.brushStroke) {
     ctx.save();

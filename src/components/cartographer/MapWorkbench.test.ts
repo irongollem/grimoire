@@ -17,6 +17,7 @@ import { emptyLayers, type DungeonMap } from "@/types/dungeonMap.types";
 import type { MapStackSource } from "@/lib/locations/mapStack";
 import type { LibraryTilePack } from "@/cartographer/userPack.types";
 import type { TilePackManifest } from "@/cartographer/packSchema";
+import { useToast } from "@/composables/useToast";
 
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({ activeCampaignId: null }),
@@ -78,6 +79,24 @@ vi.mock("@/composables/cartographer/useLibraryTilePacks", () => ({
   }),
   loadLibraryPack: mockLoadLibraryPack,
 }));
+
+// "Find walls in the picture" (#1197): the finder's own behaviour is covered in usePictureWallFinder.test.ts. Here it is a
+// stand-in whose state the test sets, so what is under test is what the workbench does with it: which slip shows, what
+// the entry buttons ask for, and where the DM lands after Keep.
+const { fakeFinder } = vi.hoisted(() => {
+  // eslint-disable-next-line no-restricted-imports -- see note above
+  const { ref, reactive, computed } = require("vue") as typeof import("vue");
+  const proposals = ref<{ ring: [number, number][]; kept: boolean }[]>([]);
+  return {
+    fakeFinder: {
+      active: ref(false), busy: ref(false), proposals,
+      options: reactive({ tolerance: 0.2, inset: 0.15, snapToGrid: true }),
+      keptCount: computed(() => proposals.value.filter((p) => p.kept).length),
+      find: vi.fn(), toggle: vi.fn(), keepAll: vi.fn(), dropAll: vi.fn(), cancel: vi.fn(), apply: vi.fn(() => 0), ringAt: vi.fn(() => null),
+    },
+  };
+});
+vi.mock("@/composables/cartographer/usePictureWallFinder", () => ({ usePictureWallFinder: () => fakeFinder }));
 
 function libraryPack(overrides: Partial<LibraryTilePack> & { pack_id: string; name: string }): LibraryTilePack {
   const manifest: TilePackManifest = {
@@ -518,6 +537,73 @@ describe("MapWorkbench", () => {
         const lined = await mountPicture(calibrated, { startLayer: "picture" });
         await press(lined, "Line up the grid");
         expect(lined.findAll("button").some((b) => b.text() === "Trace the walls")).toBe(false);
+      });
+    });
+
+    describe("Find walls in the picture (#1197)", () => {
+      const calibrated = { ...siteWithPicture, is_battle_map: false };
+      const square: [number, number][] = [[0, 0], [4, 0], [4, 4], [0, 4]];
+      beforeEach(() => {
+        fakeFinder.active.value = false;
+        fakeFinder.proposals.value = [{ ring: square, kept: true }, { ring: square, kept: true }];
+        for (const f of [fakeFinder.find, fakeFinder.cancel, fakeFinder.apply]) f.mockClear();
+      });
+      // The stand-in is shared by the whole file: a test that opened it must not leave it open for the next.
+      afterEach(() => { fakeFinder.active.value = false; });
+
+      it("is asked for from the Base image slip and from the Angled wall slip", async () => {
+        const onPicture = await mountPicture(calibrated, { startLayer: "picture" });
+        await press(onPicture, "Find walls in the picture");
+        expect(fakeFinder.find).toHaveBeenCalledTimes(1);
+        const onDrawing = await mountPicture(calibrated, { startLayer: "drawing" });
+        await onDrawing.find('nav[aria-label="Map tools"] [aria-label="Walls"]').trigger("click");
+        await onDrawing.findAll('[data-slip] [aria-label="Walls tools"] button').find((b) => b.text().startsWith("Angled wall"))!.trigger("click");
+        await press(onDrawing, "Find walls in the picture");
+        expect(fakeFinder.find).toHaveBeenCalledTimes(2);
+      });
+
+      it("is not offered under the Angled wall tool for a picture whose grid is not lined up", async () => {
+        const wrapper = await mountPicture(uncalibrated, { startLayer: "drawing" });
+        await wrapper.find('nav[aria-label="Map tools"] [aria-label="Walls"]').trigger("click");
+        await wrapper.findAll('[data-slip] [aria-label="Walls tools"] button').find((b) => b.text().startsWith("Angled wall"))!.trigger("click");
+        expect(wrapper.findAll("button").some((b) => b.text() === "Find walls in the picture")).toBe(false);
+      });
+
+      it.each(["picture", "drawing", "plan"] as const)("replaces the %s tab's slip while it is open", async (layer) => {
+        fakeFinder.active.value = true;
+        const wrapper = await mountPicture(calibrated, { startLayer: layer });
+        const slips = wrapper.findAll("[data-slip]").filter((n) => n.text().includes("Walls found in the picture"));
+        expect(slips).toHaveLength(1);
+        expect(slips[0].text()).toContain("2 rings proposed.");
+        // The tab's own slip is gone: Trace the walls belongs to the Base image slip.
+        expect(wrapper.findAll("button").some((b) => b.text() === "Trace the walls")).toBe(false);
+      });
+
+      it("Keep takes the DM to the Drawing with Select in hand, and says what was added", async () => {
+        // From the Base image tab, with the Wall tool the last one used on the Drawing (Select is the default, so it
+        // would pass for nothing).
+        const wrapper = await mountPicture(calibrated, { startLayer: "drawing" });
+        await wrapper.find('nav[aria-label="Map tools"] [aria-label="Walls"]').trigger("click");
+        await layerTab(wrapper, "Base image")!.trigger("click");
+        fakeFinder.active.value = true;
+        fakeFinder.apply.mockReturnValueOnce(2);
+        await flushPromises();
+        await press(wrapper, "Keep all 2");
+        expect(fakeFinder.apply).toHaveBeenCalledTimes(1);
+        const select = wrapper.find('nav[aria-label="Map tools"] [aria-label="Select"]');
+        expect(select.exists()).toBe(true); // the Drawing's rail, not the Base image's
+        expect(select.attributes("aria-pressed")).toBe("true");
+        expect(useToast().toasts.value.map((t) => [t.type, t.message])).toContainEqual(["success", "2 rings of hidden wall added. Adjust them with Select."]);
+      });
+
+      it("Keep with nothing written moves nobody and says nothing", async () => {
+        fakeFinder.active.value = true;
+        const wrapper = await mountPicture(calibrated, { startLayer: "picture" });
+        const before = useToast().toasts.value.length;
+        expect(wrapper.find('nav[aria-label="Map tools"]').exists()).toBe(false); // on the Base image tab
+        await press(wrapper, "Keep all 2");
+        expect(wrapper.find('nav[aria-label="Map tools"]').exists()).toBe(false);
+        expect(useToast().toasts.value).toHaveLength(before);
       });
     });
 

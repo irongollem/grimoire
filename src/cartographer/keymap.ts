@@ -30,6 +30,8 @@ export type KeyAction =
   | { kind: "finishAngledWall" }
   /** Angled wall: Escape throws the unfinished run away and stays in the tool. */
   | { kind: "abandonAngledWall" }
+  /** The wall finder is open: Escape closes it and writes nothing (#1197). */
+  | { kind: "cancelWallFinder" }
   /** Select, Angled wall or Light: removes the selected angled wall or placed light (a no-op when none is). */
   | { kind: "deleteSelected" }
   /** Select: puts down whatever is picked (prop, light, wall or cell). */
@@ -74,6 +76,8 @@ export interface KeyContext {
   layer?: EditorLayer;
   /** Zoning's tools and their keys (#1125 frame 19). Answered only while `layer` is "plan". */
   zoningTools?: ReadonlyArray<{ id: string; shortcut: string }>;
+  /** "Find walls in the picture" is open, so Escape closes it before it means anything else. */
+  wallFinderOpen?: boolean;
   /** Place has something armed (an object or a prop); Escape then puts it down before it leaves the tool. */
   placeArmed?: boolean;
   /** Angled wall has points down that are not yet a wall; Enter ends the run, Escape abandons it. */
@@ -139,6 +143,7 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
   // `{ kind: "selectTool", tool: "select" }`, so it stays a no-op if a future
   // context ever disables the tool instead of assuming it's always there.
   if (key === "escape") {
+    if (ctx.wallFinderOpen) return { kind: "cancelWallFinder" };
     if (ctx.activeTool === "place" && ctx.placeArmed) return { kind: "disarmPlace" };
     if (ctx.activeTool === "angledWall" && ctx.angledRunOpen) return { kind: "abandonAngledWall" };
     if (ctx.activeTool === "select" && ctx.selectionPresent) return { kind: "clearSelection" };
