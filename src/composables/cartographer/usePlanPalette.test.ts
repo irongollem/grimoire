@@ -12,9 +12,12 @@
 //   overlapping rows.
 import { computed, nextTick, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { eraseFromRegions, TRACE_TOOL_OPTIONS, usePlanPalette } from "./usePlanPalette";
+import { doorSiteSegment, eraseFromRegions, TRACE_TOOL_OPTIONS, usePlanPalette, type DoorSite, type DrawingEditor } from "./usePlanPalette";
 import type { DerivedSpace } from "@/cartographer/structure.types";
-import { emptyLayers, type CellKey } from "@/types/dungeonMap.types";
+import { emptyLayers, type CellKey, type DungeonMapLayers, type WallEdge } from "@/types/dungeonMap.types";
+import type { SiteDoorWithSpaces } from "@/composables/locations/useSiteDoors";
+import type { DoorSegment, SourceEdgeKey } from "@/types/locationDoor.types";
+import { useToast } from "@/composables/useToast";
 import { canonicaliseEdge } from "@/cartographer/edges";
 import { putWall } from "@/cartographer/testWalls";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
@@ -60,6 +63,8 @@ vi.mock("@/composables/locations/useLocationDoors", () => ({
 vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ data: ref([]) }) }));
 const { childLocations } = vi.hoisted(() => ({ childLocations: { value: [] as { id: string; name: string }[] } }));
 vi.mock("@/composables/locations/useLocations", () => ({ useLocations: () => ({ data: childLocations }) }));
+
+const edgeSite = (edgeKey: string): DoorSite => ({ kind: "edge", edgeKey: edgeKey as SourceEdgeKey });
 
 function makeRegion(overrides: Partial<LocationMapRegion> = {}): LocationMapRegion {
   return {
@@ -389,16 +394,16 @@ describe("usePlanPalette armDoorPlacement", () => {
   it("the next edge takes the listed door rather than making a second one", () => {
     const plan = usePlanPalette(computed(() => "site-1"));
     plan.armDoorPlacement("door-1");
-    expect(plan.placeArmedDoorOn("2,3:N")).toBe(true);
-    expect(updateDoorStub.calls.map((c) => c.vars)).toEqual([{ id: "door-1", update: { edge_key: "2,3:N" } }]);
+    expect(plan.placeArmedDoorOn(edgeSite("2,3:N"))).toBe(true);
+    expect(updateDoorStub.calls.map((c) => c.vars)).toEqual([{ id: "door-1", update: { edge_key: "2,3:N", segment: null } }]);
     expect(createDoorStub.mutate).not.toHaveBeenCalled();
   });
 
   it("only the first edge takes it: the one after is a new door", () => {
     const plan = usePlanPalette(computed(() => "site-1"));
     plan.armDoorPlacement("door-1");
-    plan.placeArmedDoorOn("2,3:N");
-    expect(plan.placeArmedDoorOn("5,5:W")).toBe(false);
+    plan.placeArmedDoorOn(edgeSite("2,3:N"));
+    expect(plan.placeArmedDoorOn(edgeSite("5,5:W"))).toBe(false);
     expect(updateDoorStub.mutate).toHaveBeenCalledTimes(1);
   });
 
@@ -408,7 +413,7 @@ describe("usePlanPalette armDoorPlacement", () => {
     await nextTick();
     plan.planTool.value = "zone";
     await nextTick();
-    expect(plan.placeArmedDoorOn("2,3:N")).toBe(false);
+    expect(plan.placeArmedDoorOn(edgeSite("2,3:N"))).toBe(false);
     expect(updateDoorStub.mutate).not.toHaveBeenCalled();
   });
 });
@@ -423,17 +428,17 @@ describe("usePlanPalette pending door", () => {
   it("places the door on the edge that was asked about, with the rooms the DM chose", () => {
     const plan = usePlanPalette(computed(() => "site-1"));
     plan.planTool.value = "door";
-    plan.askDoorEnds("4,2:W");
+    plan.askDoorEnds(edgeSite("4,2:W"));
     plan.placePendingDoor("crypt", null);
     expect(createDoorStub.calls.map((c) => c.vars)).toEqual([
       { from_location_id: "crypt", to_location_id: null, door_kind: "door", edge_key: "4,2:W", derived_from: "dm" },
     ]);
-    expect(plan.pendingDoorEdge.value).toBeNull();
+    expect(plan.pendingDoor.value).toBeNull();
   });
 
   it("an answer with no edge waiting places nothing (cancelled, or answered twice)", () => {
     const plan = usePlanPalette(computed(() => "site-1"));
-    plan.askDoorEnds("4,2:W");
+    plan.askDoorEnds(edgeSite("4,2:W"));
     plan.cancelPendingDoor();
     plan.placePendingDoor("crypt", "gallery");
     expect(createDoorStub.mutate).not.toHaveBeenCalled();
@@ -443,10 +448,10 @@ describe("usePlanPalette pending door", () => {
     const plan = usePlanPalette(computed(() => "site-1"));
     plan.planTool.value = "door";
     await nextTick();
-    plan.askDoorEnds("4,2:W");
+    plan.askDoorEnds(edgeSite("4,2:W"));
     plan.planTool.value = "zone";
     await nextTick();
-    expect(plan.pendingDoorEdge.value).toBeNull();
+    expect(plan.pendingDoor.value).toBeNull();
   });
 });
 
@@ -622,5 +627,236 @@ describe("usePlanPalette found rooms", () => {
       const plan = usePlanPalette(computed(() => "site-1"), () => [], () => layers);
       expect(plan.wallRings.value).toEqual({ rings: 1, unassigned: 1 });
     });
+  });
+});
+
+// #1197 frame 06: a door is a stretch of the wall. The click writes the way out and cuts the Drawing, as one undo step.
+describe("usePlanPalette doors cut into the Drawing", () => {
+  const MATERIAL = { pack_id: "stone", pack_version: 1, variant: 0 };
+  const wall = (a: [number, number], b: [number, number], over: Partial<WallEdge> = {}): WallEdge => ({ ...MATERIAL, type: "wall", a, b, ...over });
+  const { toasts } = useToast();
+
+  /** A Drawing the palette edits through the same contract the canvas editor offers: snapshots, no command stack. */
+  function drawing(walls: Record<string, WallEdge>) {
+    const state: { layers: DungeonMapLayers } = { layers: { ...emptyLayers(), walls } };
+    const editor: DrawingEditor = {
+      editDrawing(mutate) {
+        const before = structuredClone(state.layers);
+        const next = mutate(state.layers);
+        if (!next) return null;
+        state.layers = next;
+        const after = structuredClone(next);
+        return {
+          undo: () => { state.layers = structuredClone(before); },
+          redo: () => { state.layers = structuredClone(after); },
+        };
+      },
+    };
+    return { state, editor };
+  }
+
+  function palette(walls: Record<string, WallEdge>, bind = true) {
+    const d = drawing(walls);
+    const plan = usePlanPalette(computed(() => "site-1"), () => [], () => d.state.layers);
+    if (bind) plan.bindDrawingEditor(d.editor);
+    return { plan, ...d };
+  }
+
+  const wallSite = (wallId: string, from: [number, number], to: [number, number]): DoorSite => ({ kind: "wall", wallId, from, to });
+
+  beforeEach(() => {
+    for (const stub of [createDoorStub, updateDoorStub, deleteDoorStub]) {
+      stub.calls.length = 0;
+      stub.mutate.mockClear();
+      stub.mutateAsync.mockClear();
+      stub.mutateAsync.mockImplementation(async (vars: unknown) => vars);
+    }
+    toasts.value = [];
+  });
+
+  it("a click on an angled wall cuts the Drawing and writes the row under the door's wall key, with its line", () => {
+    const { plan, state } = palette({ w: wall([0, 0], [10, 0]) });
+    plan.placeDoorAt(wallSite("w", [4, 0], [5, 0]), "nave", "crypt");
+
+    const ids = Object.keys(state.layers.walls);
+    expect(ids).toHaveLength(3);
+    const doorKey = ids.find((id) => state.layers.walls[id]!.type === "doorClosed")!;
+    expect(doorKey).not.toBe("w");
+    // The row names the door's own wall, so a later publish matches the two instead of making a second door.
+    expect(createDoorStub.calls.map((c) => c.vars)).toEqual([
+      { from_location_id: "nave", to_location_id: "crypt", door_kind: "door", edge_key: doorKey, segment: [[4, 0], [5, 0]], derived_from: "dm" },
+    ]);
+  });
+
+  it("a click on a grid wall switches it in place and writes a row with no segment, as the database requires", () => {
+    const { plan, state } = palette({ "3,2:W": wall([3, 3], [3, 2]) });
+    plan.placeDoorAt(wallSite("3,2:W", [3, 3], [3, 2]), "a", null);
+    expect(state.layers.walls["3,2:W"]!.type).toBe("doorClosed");
+    expect(createDoorStub.calls[0]!.vars).toEqual({ from_location_id: "a", to_location_id: null, door_kind: "door", edge_key: "3,2:W", derived_from: "dm" });
+  });
+
+  it("an arch cuts the wall open and writes an arch row", () => {
+    const { plan, state } = palette({ w: wall([0, 0], [10, 0]) });
+    plan.newDoorKind.value = "arch";
+    plan.placeDoorAt(wallSite("w", [4, 0], [5, 0]), "a", "b");
+    expect(Object.values(state.layers.walls).filter((w) => w.type === "doorOpen")).toHaveLength(1);
+    expect(createDoorStub.calls[0]!.vars).toMatchObject({ door_kind: "arch" });
+  });
+
+  it("a door drawn where there is no wall adds a hidden door wall and its row", () => {
+    const { plan, state } = palette({});
+    plan.placeDoorAt({ kind: "free", from: [2, 2], to: [3, 2] }, "a", "b");
+    const [key, door] = Object.entries(state.layers.walls)[0]!;
+    expect(door).toEqual({ type: "doorClosed", a: [2, 2], b: [3, 2], visible: false, pack_id: "", pack_version: 0, variant: 0 });
+    expect(createDoorStub.calls[0]!.vars).toMatchObject({ edge_key: key, segment: [[2, 2], [3, 2]] });
+  });
+
+  it("a grid edge with no wall writes only the row and leaves the Drawing alone, even with no editor bound", () => {
+    const { plan, state } = palette({}, false);
+    plan.placeDoorAt(edgeSite("4,2:W"), "a", "b");
+    expect(state.layers.walls).toEqual({});
+    expect(createDoorStub.mutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("cuts nothing until the DM answers 'connects which rooms', and cancelling cuts nothing at all", () => {
+    const { plan, state } = palette({ w: wall([0, 0], [10, 0]) });
+    plan.askDoorEnds(wallSite("w", [4, 0], [5, 0]));
+    expect(Object.keys(state.layers.walls)).toEqual(["w"]);
+    plan.cancelPendingDoor();
+    plan.placePendingDoor("a", "b");
+    expect(Object.keys(state.layers.walls)).toEqual(["w"]);
+    expect(createDoorStub.mutate).not.toHaveBeenCalled();
+
+    plan.askDoorEnds(wallSite("w", [4, 0], [5, 0]));
+    plan.placePendingDoor("a", "b");
+    expect(Object.keys(state.layers.walls)).toHaveLength(3);
+    expect(createDoorStub.mutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("one Plan undo takes out the row and the cut together, and one redo puts both back", async () => {
+    const { plan, state } = palette({ w: wall([0, 0], [10, 0]) });
+    const original = structuredClone(state.layers.walls);
+    plan.placeDoorAt(wallSite("w", [4, 0], [5, 0]), "a", "b");
+    const cutWalls = structuredClone(state.layers.walls);
+    createDoorStub.calls[0]!.onSuccess?.({ id: "row-1" });
+
+    // The row is deleted first, so no row ever outlives its wall.
+    deleteDoorStub.mutateAsync.mockImplementation(async () => {
+      expect(state.layers.walls).toEqual(cutWalls);
+    });
+    await plan.undo.undo();
+    expect(deleteDoorStub.mutateAsync).toHaveBeenCalledWith("row-1");
+    expect(state.layers.walls).toEqual(original);
+
+    createDoorStub.mutateAsync.mockImplementation(async () => {
+      // The wall is back before the row is.
+      expect(state.layers.walls).toEqual(cutWalls);
+      return { id: "row-2" };
+    });
+    await plan.undo.redo();
+    expect(state.layers.walls).toEqual(cutWalls);
+    expect(createDoorStub.mutateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes the cut back out when the database refuses the row", () => {
+    const { plan, state } = palette({ w: wall([0, 0], [10, 0]) });
+    const original = structuredClone(state.layers.walls);
+    plan.placeDoorAt(wallSite("w", [4, 0], [5, 0]), "a", "b");
+    createDoorStub.calls[0]!.onError?.(new Error("no"));
+    expect(state.layers.walls).toEqual(original);
+    expect(toasts.value).toHaveLength(1);
+  });
+
+  it("says so, and writes nothing, when the wall has gone by the time the door is placed", () => {
+    const { plan } = palette({});
+    plan.placeDoorAt(wallSite("gone", [4, 0], [5, 0]), "a", "b");
+    expect(createDoorStub.mutate).not.toHaveBeenCalled();
+    expect(toasts.value).toHaveLength(1);
+  });
+
+  it("refuses a wall or free door while no Drawing is bound rather than writing a row with no wall", () => {
+    const { plan } = palette({ w: wall([0, 0], [10, 0]) }, false);
+    plan.placeDoorAt(wallSite("w", [4, 0], [5, 0]), "a", "b");
+    expect(createDoorStub.mutate).not.toHaveBeenCalled();
+    expect(toasts.value).toHaveLength(1);
+  });
+
+  it("puts a listed door on a wall with the same cut, and its undo clears the line as well as the key", async () => {
+    const { plan, state } = palette({ w: wall([0, 0], [10, 0]) });
+    const original = structuredClone(state.layers.walls);
+    plan.armDoorPlacement("door-1");
+    plan.placeArmedDoorOn(wallSite("w", [4, 0], [5, 0]));
+    const doorKey = Object.keys(state.layers.walls).find((id) => state.layers.walls[id]!.type === "doorClosed")!;
+    expect(updateDoorStub.calls[0]!.vars).toEqual({ id: "door-1", update: { edge_key: doorKey, segment: [[4, 0], [5, 0]] } });
+    updateDoorStub.calls[0]!.onSuccess?.({});
+    await plan.undo.undo();
+    expect(updateDoorStub.mutateAsync).toHaveBeenCalledWith({ id: "door-1", update: { edge_key: null, segment: null } });
+    expect(state.layers.walls).toEqual(original);
+  });
+
+  const way = (over: Partial<SiteDoorWithSpaces>): SiteDoorWithSpaces =>
+    ({
+      id: "row-1", from_location_id: "a", to_location_id: "b", label: "", is_one_way: false, starts_locked: false, lock_note: null,
+      is_secret: false, sort_order: null, door_kind: "door", edge_key: null, segment: null, derived_from: "dm",
+      dungeon_feature_id: null, library_dungeon_feature_id: null, ...over,
+    }) as SiteDoorWithSpaces;
+
+  it("cycling a way flips the matching door in the Drawing in the same undo step, for a wall key as for a grid key", async () => {
+    const { plan, state } = palette({ d: wall([4, 0], [5, 0], { type: "doorClosed" }), "1,1:N": wall([1, 1], [2, 1], { type: "doorClosed" }) });
+    plan.cycleDoorKind(way({ edge_key: "d", segment: [[4, 0], [5, 0]] }));
+    updateDoorStub.calls[0]!.onSuccess?.({});
+    expect(state.layers.walls.d!.type).toBe("doorOpen");
+    await plan.undo.undo();
+    expect(state.layers.walls.d!.type).toBe("doorClosed");
+
+    plan.cycleDoorKind(way({ edge_key: "1,1:N" }));
+    updateDoorStub.calls[1]!.onSuccess?.({});
+    expect(state.layers.walls["1,1:N"]!.type).toBe("doorOpen");
+  });
+
+  it("cycling a way whose key names no wall changes only the row", () => {
+    const { plan, state } = palette({ w: wall([0, 0], [10, 0]) });
+    const before = structuredClone(state.layers.walls);
+    plan.cycleDoorKind(way({ edge_key: "4,2:W" }));
+    updateDoorStub.calls[0]!.onSuccess?.({});
+    expect(state.layers.walls).toEqual(before);
+    expect(updateDoorStub.calls[0]!.vars).toEqual({ id: "row-1", update: { door_kind: "arch" } });
+  });
+
+  it("removing a way turns a cut door back into a wall and deletes a free-standing one, and undo restores either", async () => {
+    // The door at (4,0)-(5,0) meets the wall before it, so it was cut. The free door at (7,7) meets nothing.
+    const { plan, state } = palette({
+      before: wall([0, 0], [4, 0]),
+      cut: wall([4, 0], [5, 0], { type: "doorClosed" }),
+      free: wall([7, 7], [8, 7], { type: "doorClosed", visible: false }),
+    });
+    plan.removeDoor(way({ id: "r-cut", edge_key: "cut", segment: [[4, 0], [5, 0]] }));
+    deleteDoorStub.calls[0]!.onSuccess?.({});
+    expect(state.layers.walls.cut!.type).toBe("wall");
+    plan.removeDoor(way({ id: "r-free", edge_key: "free", segment: [[7, 7], [8, 7]] }));
+    deleteDoorStub.calls[1]!.onSuccess?.({});
+    expect(state.layers.walls.free).toBeUndefined();
+
+    createDoorStub.mutateAsync.mockImplementation(async () => {
+      // The door is back in the Drawing before its row is.
+      expect(state.layers.walls.free).toBeDefined();
+      return { id: "r-free-2" };
+    });
+    await plan.undo.undo();
+    expect(state.layers.walls.free!.type).toBe("doorClosed");
+    expect(state.layers.walls.cut!.type).toBe("wall");
+  });
+
+  it("removing a grid-edge way with no wall under it changes only the row", () => {
+    const { plan, state } = palette({ w: wall([0, 0], [10, 0]) });
+    const before = structuredClone(state.layers.walls);
+    plan.removeDoor(way({ edge_key: "4,2:W" }));
+    deleteDoorStub.calls[0]!.onSuccess?.({});
+    expect(state.layers.walls).toEqual(before);
+  });
+
+  it("doorSiteSegment gives a grid edge's own line and a wall or free site's two points", () => {
+    expect(doorSiteSegment(edgeSite("3,2:W"))).toEqual([[3, 3], [3, 2]] satisfies DoorSegment);
+    expect(doorSiteSegment({ kind: "free", from: [1, 1], to: [2, 3] })).toEqual([[1, 1], [2, 3]]);
   });
 });

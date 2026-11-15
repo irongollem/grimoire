@@ -15,12 +15,15 @@
 // `useMapCanvasEditor.ts`'s Drawing tools already use — see that module's
 // `pointerToWorld`/`viewportToCell`, which the geometry callbacks below wrap.
 //
-// The Door and Assign tools are NOT trace gestures (no stroke, no ring, no
-// drag) and so are not routed through `useRegionPointer` — Door mirrors
-// `MapRegionsLayer.vue`'s own separate `onDoorPointerDown`/`onDoorPointerMove`
-// pair (edge-snap, place/cycle/alt-delete), reusing the exact edge-detection
-// primitives (`detectHoveredEdge`, `canonicaliseEdge`) the Drawing's own
-// wall/door tools already share. Assign is a one-shot click with no analogue
+// The Door and Assign tools are NOT trace gestures (no stroke, no ring) and so
+// are not routed through `useRegionPointer`. Door is a stretch of whatever is
+// under the pointer (#1197, frame 06): a placed door first (click cycles,
+// Alt-click removes), else a door-wide stretch of a plain wall of the Drawing
+// (a click cuts the door into it), else the nearest grid edge (a click writes
+// the way alone, as it always did, reusing the edge-detection primitives
+// `detectHoveredEdge` and `canonicaliseEdge` the Drawing's wall/door tools
+// share). A short drag across an opening with no wall places a door on its own
+// line. Assign is a one-shot click with no analogue
 // in the Atlas at all: it reads the Drawing's floor layer via `floodFill`, or the ring of walls round the click
 // (`wallFaceAt`) where no floor is painted, and writes straight to the Plan.
 //
@@ -31,18 +34,20 @@
 // returns whether it claimed the event for exactly this reason — the caller
 // falls through to its own pan-trigger check when it didn't.
 
-import { ref, shallowRef, watch, type Ref } from "vue";
+import { computed, ref, shallowRef, watch, type Ref } from "vue";
 import { useRegionPointer, type UseRegionPointerOptions } from "@/composables/locations/useRegionPointer";
 import { useToast } from "@/composables/useToast";
-import { eraseFromRegions, type UsePlanPaletteReturn } from "@/composables/cartographer/usePlanPalette";
+import { doorSiteSegment, eraseFromRegions, type DoorSite, type UsePlanPaletteReturn } from "@/composables/cartographer/usePlanPalette";
+import type { SiteDoorWithSpaces } from "@/composables/locations/useSiteDoors";
 import { canonicaliseEdge } from "@/cartographer/edges";
 import { detectHoveredEdge } from "@/cartographer/edgeHover";
 import { floodFill } from "@/cartographer/floodFill";
 import { wallFaceAt, type FoundFace } from "@/cartographer/roomOutline";
-import { DOOR_EDGE_SNAP_THRESHOLD, indexSpacesByCell, resolveEdgeEndpoints } from "@/lib/locations/doors";
+import { distanceToSegment, nearestWallFoot, WALL_PICK_RADIUS, type CellPoint } from "@/cartographer/wallPick";
+import { DOOR_EDGE_SNAP_THRESHOLD, doorSegment, gridEdgeSegment, indexSpacesByCell, resolveSegmentEndpoints } from "@/lib/locations/doors";
 import { templateRing as buildTemplateRing } from "@/lib/locations/polygon";
 import { cellKey, type CellKey, type DungeonMapLayers } from "@/types/dungeonMap.types";
-import type { SourceEdgeKey } from "@/types/locationDoor.types";
+import { isGridEdgeKey, type DoorSegment, type SourceEdgeKey } from "@/types/locationDoor.types";
 import type { GridPoint, LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { TemplateDragState } from "@/lib/map/gestures/pen";
 import type { AssignHover, PlanWayLike } from "@/cartographer/planOverlay";
@@ -62,12 +67,26 @@ export interface PlanCanvasToolsOptions {
   tilePixelSize: () => number;
 }
 
+/** What the Door tool would act on at the pointer, and the line to light for it. A placed door wins over a wall, and a
+ *  wall over a bare grid edge; `free` is the line a drag is drawing. */
+export type DoorHover =
+  | { target: "way"; segment: DoorSegment; way: SiteDoorWithSpaces }
+  | { target: "wall"; segment: DoorSegment; site: DoorSite }
+  | { target: "edge"; segment: DoorSegment; site: DoorSite }
+  | { target: "free"; segment: DoorSegment };
+
+/** A press this far from its release, in cells, is a drag that draws a door; anything shorter is a click. */
+export const DOOR_DRAG_MIN_CELLS = 0.5;
+/** A drawn door is never longer than this, in cells: a doorway, not a wall. */
+export const DOOR_DRAG_MAX_CELLS = 3;
+
 export interface PlanRenderScene {
   regions: readonly LocationMapRegion[];
   ways: readonly PlanWayLike[];
   activeRegionId: string | null;
   cellsOverride: ReadonlyMap<string, readonly CellKey[]> | undefined;
-  hoveredDoorEdge: SourceEdgeKey | null;
+  /** The line the Door tool lights: what is under the pointer, the line being dragged, or the door waiting for its rooms. */
+  hoveredDoor: DoorSegment | null;
   tracingRing: readonly GridPoint[] | null;
   tracingClosed: boolean;
   tracingHoverPoint: GridPoint | null;
@@ -81,7 +100,9 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
   const { plan, layers, cellAt, gridPointAt, worldPointAt, tilePixelSize } = opts;
   const { error: toastError } = useToast();
 
-  const planHoveredDoorEdge = ref<SourceEdgeKey | null>(null);
+  const planHoveredDoor = ref<DoorHover | null>(null);
+  /** A Door press that may become a drag: where it began (cells) and what a plain click there would have acted on. */
+  const doorDrag = ref<{ from: CellPoint; to: CellPoint; edge: DoorHover | null } | null>(null);
   // Shallow: the cells of a large floor are replaced as a whole, never edited, and must not be walked by a deep watch.
   const assignHover = shallowRef<AssignHover | null>(null);
   /** What the hover was last worked out from, so a pointer that stays inside the same floor region or the same ring
@@ -174,31 +195,148 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     return `${canon.x},${canon.y}:${canon.side}` as SourceEdgeKey;
   }
 
-  function handleDoorClick(edgeKey: SourceEdgeKey, altKey: boolean): void {
-    const existing = plan.existingDoorAtEdge(edgeKey);
-    if (altKey) {
-      if (existing) plan.removeDoor(existing);
-      return;
+  /** The door-wide stretch of a wall under the pointer, centred on its foot point and kept inside the piece it lies on
+   *  (a piece shorter than the door gives the whole piece). A wall on a grid line is a single 5 ft edge, so it is
+   *  always that whole edge whatever the width: it cannot hold half a door. */
+  function wallStretch(point: CellPoint): { segment: DoorSegment; wallId: string } | null {
+    const hit = nearestWallFoot(layers.value.walls, point, WALL_PICK_RADIUS);
+    if (!hit || layers.value.walls[hit.wallId]?.type !== "wall") return null;
+    if (isGridEdgeKey(hit.wallId)) return { segment: gridEdgeSegment(hit.wallId), wallId: hit.wallId };
+    const length = Math.hypot(hit.b[0] - hit.a[0], hit.b[1] - hit.a[1]);
+    const ux = length === 0 ? 0 : (hit.b[0] - hit.a[0]) / length;
+    const uy = length === 0 ? 0 : (hit.b[1] - hit.a[1]) / length;
+    const width = Math.min(plan.doorWidth.value, length);
+    const start = Math.max(0, Math.min(length - width, hit.t * length - width / 2));
+    const segment: DoorSegment = [
+      [hit.a[0] + ux * start, hit.a[1] + uy * start],
+      [hit.a[0] + ux * (start + width), hit.a[1] + uy * (start + width)],
+    ];
+    return { segment, wallId: hit.wallId };
+  }
+
+  /** What the Door tool would act on at the pointer: a placed door, else a plain wall, else the nearest grid edge. */
+  function doorHoverAt(clientX: number, clientY: number): DoorHover | null {
+    const point = gridPointAt(clientX, clientY);
+    if (point) {
+      let nearest: { way: SiteDoorWithSpaces; segment: DoorSegment } | null = null;
+      let nearestDistance = WALL_PICK_RADIUS;
+      for (const way of plan.ways.value) {
+        const segment = doorSegment(way);
+        if (!segment) continue;
+        const d = distanceToSegment(point, segment[0], segment[1]);
+        if (d <= nearestDistance) {
+          nearest = { way, segment };
+          nearestDistance = d;
+        }
+      }
+      if (nearest) return { target: "way", segment: nearest.segment, way: nearest.way };
+      const stretch = wallStretch(point);
+      if (stretch) {
+        return { target: "wall", segment: stretch.segment, site: { kind: "wall", wallId: stretch.wallId, from: stretch.segment[0], to: stretch.segment[1] } };
+      }
     }
-    if (existing) {
-      plan.cycleDoorKind(existing);
-      return;
+    const edgeKey = edgeAt(clientX, clientY);
+    return edgeKey ? { target: "edge", segment: gridEdgeSegment(edgeKey), site: { kind: "edge", edgeKey } } : null;
+  }
+
+  /** The door line a drag from `from` to `to` draws: press to release, at most `DOOR_DRAG_MAX_CELLS` long. */
+  function draggedLine(from: CellPoint, to: CellPoint): DoorSegment {
+    const length = Math.hypot(to[0] - from[0], to[1] - from[1]);
+    if (length <= DOOR_DRAG_MAX_CELLS) return [from, to];
+    const k = DOOR_DRAG_MAX_CELLS / length;
+    return [from, [from[0] + (to[0] - from[0]) * k, from[1] + (to[1] - from[1]) * k]];
+  }
+
+  const roomsBeside = (segment: DoorSegment) => resolveSegmentEndpoints(segment, indexSpacesByCell(plan.regions.value));
+
+  /** The line under the pointer says which rooms it would join, before the click (frame 06): the options slip shows it. */
+  const doorTip = computed<string | null>(() => {
+    const hover = planHoveredDoor.value;
+    if (!hover || hover.target === "free") return null;
+    const name = (id: string | null): string | null => (id === null ? null : (plan.spaceNames.value.get(id) ?? "an unnamed room"));
+    if (hover.target === "way") {
+      const from = name(hover.way.from_location_id);
+      const to = name(hover.way.to_location_id);
+      const joins = to === null ? `${from}, leading nowhere yet` : `${from} to ${to}`;
+      return `${joins}. Click to switch door and arch, Alt-click to remove.`;
     }
-    // A listed door being placed keeps its own two ends, so it needs no room beside the edge.
-    if (plan.placeArmedDoorOn(edgeKey)) return;
-    const cellToSpace = indexSpacesByCell(plan.regions.value);
-    const resolved = resolveEdgeEndpoints(edgeKey, cellToSpace);
+    const rooms = roomsBeside(hover.segment);
+    if (!rooms) return "No room beside this wall yet. You will be asked which rooms it joins.";
+    const from = name(rooms.fromLocationId);
+    const to = name(rooms.toLocationId);
+    return to === null ? `Door here: ${from}, leading nowhere yet` : `Door here: ${from} and ${to}`;
+  });
+
+  /** Puts a door on `site`: a listed door being placed keeps its own two ends, else the rooms either side of the line
+   *  are the door's, else the options slip asks. */
+  function placeDoorOn(site: DoorSite): void {
+    // A listed door being placed keeps its own two ends, so it needs no room beside the line.
+    if (plan.placeArmedDoorOn(site)) return;
+    const resolved = roomsBeside(doorSiteSegment(site));
     if (resolved) {
-      plan.placeDoorAt(edgeKey, resolved.fromLocationId, resolved.toLocationId);
+      plan.placeDoorAt(site, resolved.fromLocationId, resolved.toLocationId);
       return;
     }
     // No room within a cell of either side (#1195): the plan cannot tell what this door joins, so the options
-    // slip asks. Only a site with no rooms at all has nothing to ask about.
+    // slip asks, and the Drawing is cut only on the answer. Only a site with no rooms at all has nothing to ask about.
     if (plan.spaceOptions.value.length === 0) {
       toastError("This map has no rooms yet. Add a room zone first, then place its doors.");
       return;
     }
-    plan.askDoorEnds(edgeKey);
+    plan.askDoorEnds(site);
+  }
+
+  /** A click: a placed door cycles (Alt removes it), a wall or edge gets a door, anything else does nothing. */
+  function handleDoorClick(hover: DoorHover | null, altKey: boolean): void {
+    if (hover?.target === "way") {
+      if (altKey) plan.removeDoor(hover.way);
+      else plan.cycleDoorKind(hover.way);
+      return;
+    }
+    if (altKey || !hover || hover.target === "free") return;
+    placeDoorOn(hover.site);
+  }
+
+  function endDoorDrag(): void {
+    doorDrag.value = null;
+    window.removeEventListener("pointermove", onDoorWindowMove);
+    window.removeEventListener("pointerup", onDoorWindowUp);
+  }
+
+  function onDoorWindowMove(ev: PointerEvent): void {
+    const drag = doorDrag.value;
+    const point = gridPointAt(ev.clientX, ev.clientY);
+    if (drag && point) doorDrag.value = { ...drag, to: point };
+  }
+
+  function onDoorWindowUp(ev: PointerEvent): void {
+    const drag = doorDrag.value;
+    onDoorWindowMove(ev);
+    const end = doorDrag.value;
+    endDoorDrag();
+    if (!drag || !end) return;
+    if (Math.hypot(end.to[0] - end.from[0], end.to[1] - end.from[1]) < DOOR_DRAG_MIN_CELLS) {
+      handleDoorClick(drag.edge, false);
+      return;
+    }
+    const [from, to] = draggedLine(end.from, end.to);
+    placeDoorOn({ kind: "free", from, to });
+  }
+
+  /** A press with the Door tool. A placed door or a wall under it acts at once; anything else waits for the release,
+   *  which makes a door of the drag, or of a click on the nearest grid edge when it did not move. */
+  function pressDoor(ev: PointerEvent): void {
+    const hover = doorHoverAt(ev.clientX, ev.clientY);
+    if (ev.altKey || hover?.target === "way" || hover?.target === "wall") {
+      handleDoorClick(hover, ev.altKey);
+      return;
+    }
+    const point = gridPointAt(ev.clientX, ev.clientY);
+    if (!point) return;
+    endDoorDrag();
+    doorDrag.value = { from: point, to: point, edge: hover };
+    window.addEventListener("pointermove", onDoorWindowMove);
+    window.addEventListener("pointerup", onDoorWindowUp);
   }
 
   // ── Assign tool ─────────────────────────────────────────────────────────
@@ -272,6 +410,8 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
 
   // Switching tool drops the hover at once, so Zone's own preview is never drawn under a stale amber area.
   watch(plan.planTool, clearAssignHover, { flush: "sync" });
+  // Likewise a Door drag in flight is dropped, not finished, when the tool changes.
+  watch(plan.planTool, endDoorDrag, { flush: "sync" });
 
   // ── Dispatch ─────────────────────────────────────────────────────────────
   // Pan (RMB / middle) is never claimed — the caller's own pan logic
@@ -291,14 +431,12 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
       // one, which would otherwise read as a pan — alt is the door tool's
       // own modifier.
       if (isPanGesture(ev) && !ev.altKey) return false;
-      const edgeKey = edgeAt(ev.clientX, ev.clientY);
       // Still claimed even with nothing to target: the Door tool being active
       // must never leak a click through to the Drawing's own tool dispatch
       // underneath (see `useMapCanvasEditor.ts`'s `activeLayer` branch) —
       // only a genuine pan gesture is allowed to fall through.
-      if (!edgeKey) return true;
       ev.preventDefault();
-      handleDoorClick(edgeKey, ev.altKey);
+      pressDoor(ev);
       return true;
     }
 
@@ -336,10 +474,10 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
   function onPointerMove(ev: PointerEvent): void {
     const tool = plan.planTool.value;
     if (tool === "door") {
-      planHoveredDoorEdge.value = edgeAt(ev.clientX, ev.clientY);
+      planHoveredDoor.value = doorHoverAt(ev.clientX, ev.clientY);
       return;
     }
-    planHoveredDoorEdge.value = null;
+    planHoveredDoor.value = null;
     if (tool === "assign") {
       updateAssignHover(ev.clientX, ev.clientY);
       return;
@@ -349,7 +487,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
   }
 
   function onPointerLeave(): void {
-    planHoveredDoorEdge.value = null;
+    planHoveredDoor.value = null;
     clearAssignHover();
     regionPointer.onPointerLeave();
   }
@@ -361,16 +499,28 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
 
   function dispose(): void {
     endErase();
+    endDoorDrag();
     regionPointer.dispose();
   }
 
-  /** Abandons whatever Zone gesture is in flight without committing it
-   *  — the Door and Assign tools have no in-flight gesture to abandon (each
-   *  is a single click). See `useRegionPointer.abandonGesture`'s own
+  /** Abandons whatever Zone, Erase or Door-drag gesture is in flight without
+   *  committing it. The Assign tool has none (it is a single click). See `useRegionPointer.abandonGesture`'s own
    *  docblock (#884 review finding 2). */
   function abandonGesture(): void {
     endErase();
+    endDoorDrag();
     regionPointer.abandonGesture();
+  }
+
+  /** The line lit for the Door tool: the one waiting for its rooms while the slip asks about it, else the line being
+   *  dragged once it is long enough to be a door, else what is under the pointer. */
+  function doorLine(): DoorSegment | null {
+    if (plan.pendingDoor.value) return doorSiteSegment(plan.pendingDoor.value);
+    const drag = doorDrag.value;
+    if (drag && Math.hypot(drag.to[0] - drag.from[0], drag.to[1] - drag.from[1]) >= DOOR_DRAG_MIN_CELLS) {
+      return draggedLine(drag.from, drag.to);
+    }
+    return planHoveredDoor.value?.segment ?? null;
   }
 
   function renderScene(): PlanRenderScene {
@@ -408,8 +558,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
       ways: plan.ways.value,
       activeRegionId: plan.activeRegionId.value,
       cellsOverride: overrides,
-      // The edge waiting for its rooms stays lit while the slip asks about it.
-      hoveredDoorEdge: plan.planTool.value === "door" ? (plan.pendingDoorEdge.value ?? planHoveredDoorEdge.value) : null,
+      hoveredDoor: plan.planTool.value === "door" ? doorLine() : null,
       tracingRing,
       tracingClosed,
       tracingHoverPoint,
@@ -427,13 +576,15 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     dispose,
     abandonGesture,
     renderScene,
+    doorTip,
     // Exposed only so the caller's render-triggering `watch` array can see
     // them (`useMapCanvasEditor.ts`'s `scheduleRender` deps) — every actual
     // read of these lives inside `renderScene()` above.
     renderDeps: {
-      hoveredDoorEdge: planHoveredDoorEdge,
+      hoveredDoor: planHoveredDoor,
+      doorDrag,
       assignHover,
-      pendingDoorEdge: plan.pendingDoorEdge,
+      pendingDoor: plan.pendingDoor,
       strokePreview: regionPointer.strokePreview,
       eraseTouched,
       draftRing: regionPointer.draftRing,

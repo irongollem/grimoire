@@ -244,7 +244,10 @@
           :title="planToolLabel"
           :plan-tool="plan.planTool.value"
           :list-open="drawer === 'zoning'"
-          :door-pending="plan.pendingDoorEdge.value !== null"
+          v-model:door-kind="plan.newDoorKind.value"
+          v-model:door-width="plan.doorWidth.value"
+          :door-pending="plan.pendingDoor.value !== null"
+          :door-tip="doorTip"
           :rooms="plan.spaceOptions.value"
           @place-door="plan.placePendingDoor"
           @cancel-door="plan.cancelPendingDoor()"
@@ -596,7 +599,7 @@ const {
   rotateSelectedDressing, deleteSelectedDressing, selectedLightId, updateSelectedLight, deleteSelectedLight,
   selectedWallRun, wallRefusal, deleteSelectedWall, canvasBox, gestureBusy,
   selectedGroundRegion, setGroundWallMode, deleteGroundRegion,
-  selectedWallVisible, setSelectedWallVisible, renameGroundRegion,
+  selectedWallVisible, setSelectedWallVisible, renameGroundRegion, doorTip,
 } = useMapCanvasEditor({
   canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
   dressing: dressingCatalog, placeItem, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS,

@@ -64,15 +64,16 @@ vi.mock("@/composables/cartographer/usePlanCanvasTools", () => ({
     onPointerMove: vi.fn(),
     onPointerLeave: vi.fn(),
     onDoubleClick: vi.fn(),
+    doorTip: ref(null),
     dispose: vi.fn(),
     abandonGesture: abandonGestureMock,
     renderScene: vi.fn(() => ({
       regions: [], ways: [], activeRegionId: null, cellsOverride: undefined,
-      hoveredDoorEdge: null, tracingRing: null, tracingClosed: false, tracingHoverPoint: null,
+      hoveredDoor: null, tracingRing: null, tracingClosed: false, tracingHoverPoint: null,
       templateDraft: null, templateRingPreview: [], assignHover: null,
     })),
     renderDeps: {
-      hoveredDoorEdge: ref(null), assignHover: ref(null), pendingDoorEdge: ref(null), strokePreview: ref(null), draftRing: ref([]),
+      hoveredDoor: ref(null), doorDrag: ref(null), assignHover: ref(null), pendingDoor: ref(null), strokePreview: ref(null), draftRing: ref([]),
       templateDraft: ref(null), liveDrag: ref(null), penHoverPoint: ref(null),
     },
   }),
@@ -109,7 +110,7 @@ function fakePlan(): ReturnType<typeof usePlanPalette> {
     commitRing: vi.fn(async () => {}),
     commitTemplate: vi.fn(),
     claimFloorRegion: vi.fn(async () => {}),
-    existingDoorAtEdge: vi.fn(() => null),
+    bindDrawingEditor: vi.fn(),
     placeDoorAt: vi.fn(),
     cycleDoorKind: vi.fn(),
     removeDoor: vi.fn(),
@@ -1245,6 +1246,62 @@ describe("Plan layer", () => {
     activeLayer.value = "drawing"; // renders again, with no scrim
     await nextTick();
     expect(fillRect).toHaveBeenCalledTimes(1);
+  });
+
+  describe("editDrawing, the Plan's way into the Drawing (#1197)", () => {
+    const WALL = { pack_id: "p", pack_version: 1, variant: 0, type: "wall" as const, a: [0, 0] as [number, number], b: [4, 0] as [number, number] };
+    function bound(layer: "drawing" | "plan" = "plan") {
+      const plan = fakePlan();
+      const harness = makeHarness({ plan, activeLayer: ref<"drawing" | "plan">(layer) });
+      const editor = vi.mocked(plan.bindDrawingEditor).mock.calls[0]![0]!;
+      return { ...harness, editor: harness.editor, drawing: editor };
+    }
+
+    it("hands the palette an editor at construction", () => {
+      const plan = fakePlan();
+      makeHarness({ plan });
+      expect(plan.bindDrawingEditor).toHaveBeenCalledTimes(1);
+    });
+
+    it("applies the edit, marks the Drawing dirty so it autosaves, and returns closures that undo and redo it", () => {
+      const { layers, dirty, editRevision, drawing } = bound();
+      const before = editRevision.value;
+      const history = drawing.editDrawing((l) => ({ ...l, walls: { w: WALL } }))!;
+      expect(layers.value.walls).toEqual({ w: WALL });
+      expect(dirty.value).toBe(true);
+      expect(editRevision.value).toBeGreaterThan(before);
+
+      history.undo();
+      expect(layers.value.walls).toEqual({});
+      history.redo();
+      expect(layers.value.walls).toEqual({ w: WALL });
+    });
+
+    it("undo puts back only the walls the edit changed, so a wall drawn since is not thrown away with the door", () => {
+      const { layers, drawing } = bound();
+      const history = drawing.editDrawing((l) => ({ ...l, walls: { w: WALL } }))!;
+      // The DM switches to Drawing and adds a wall of their own, then undoes the door from Zoning.
+      const LATER = { ...WALL, a: [0, 3] as [number, number], b: [4, 3] as [number, number] };
+      layers.value = { ...layers.value, walls: { ...layers.value.walls, later: LATER } };
+      history.undo();
+      expect(layers.value.walls).toEqual({ later: LATER });
+      history.redo();
+      expect(layers.value.walls).toEqual({ w: WALL, later: LATER });
+    });
+
+    it("does not file the edit on the Drawing's own command stack, or the door would need two undos", () => {
+      // On the Drawing layer `canUndo` reads the Drawing's own stack (on Zoning it reads the Plan's).
+      const { editor, drawing } = bound("drawing");
+      drawing.editDrawing((l) => ({ ...l, walls: { w: WALL } }));
+      expect(editor.canUndo.value).toBe(false);
+    });
+
+    it("changes nothing and marks nothing when the edit declines", () => {
+      const { layers, dirty, drawing } = bound();
+      expect(drawing.editDrawing(() => null)).toBeNull();
+      expect(dirty.value).toBe(false);
+      expect(layers.value.walls).toEqual({});
+    });
   });
 
   it("does not abandon anything while staying on the Plan layer, or with no site at all", async () => {

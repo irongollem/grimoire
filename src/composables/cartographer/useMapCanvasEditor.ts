@@ -22,6 +22,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { resolveKeyAction } from "@/cartographer/keymap";
 import { clampBrushRadius } from "@/cartographer/keymap";
 import { cellKey, type CellKey, type CellMetadata, type DungeonMapLayers, type BrushRegionMode, type GroundRegion, type GroundWallMode } from "@/types/dungeonMap.types";
+import type { WallEdge } from "@/types/dungeonMap.types";
 import { BASE_TILE_SIZE, categoryLabel } from "@/cartographer/packSchema";
 import { CommandStack } from "@/cartographer/commandStack";
 import { groundCellBounds } from "@/cartographer/groundRegions";
@@ -115,16 +116,16 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // Shift+click joins a stroke to where the last one ended (#1096).
   const straight = useStraightStrokes({ activeTool, mapKey });
 
+  /** Puts a snapshot string (see `snapshotStr`) back as the Drawing: what both the command stack and `editDrawing` undo with. */
+  function restoreSnapshot(snapshot: string): void {
+    const s = JSON.parse(snapshot) as { layers: DungeonMapLayers; metadata: Record<CellKey, CellMetadata> };
+    layers.value = s.layers; metadata.value = s.metadata; markDirty();
+  }
+
   function pushCommand(beforeStr: string, afterStr: string): void {
     cmdStack.apply({
-      apply() {
-        const s = JSON.parse(afterStr) as { layers: DungeonMapLayers; metadata: Record<CellKey, CellMetadata> };
-        layers.value = s.layers; metadata.value = s.metadata; markDirty();
-      },
-      revert() {
-        const s = JSON.parse(beforeStr) as { layers: DungeonMapLayers; metadata: Record<CellKey, CellMetadata> };
-        layers.value = s.layers; metadata.value = s.metadata; markDirty();
-      },
+      apply() { restoreSnapshot(afterStr); },
+      revert() { restoreSnapshot(beforeStr); },
     });
     canUndo.value = cmdStack.canUndo();
     canRedo.value = cmdStack.canRedo();
@@ -170,6 +171,38 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     const rect = canvas.getBoundingClientRect();
     return pointerToWorld({ x: clientX - rect.left, y: clientY - rect.top });
   }
+  /** An edit to the Drawing's WALLS that does NOT go on its own command stack: the Zoning layer undoes through the
+   *  Plan's stack, and a door that is both a row and a cut wall must undo as one step. The caller files the returned
+   *  closures in that stack. `mutate` gets the current layers and returns the next ones (null: nothing to change,
+   *  nothing is marked dirty); only its `walls` are taken.
+   *
+   *  The closures put back just the walls this edit changed, not a whole snapshot. The Plan's stack and the Drawing's
+   *  are separate, so the DM can cut a door, switch to Drawing, paint, switch back and undo the door: a snapshot
+   *  would throw that painting away with it. */
+  function editDrawing(mutate: (current: DungeonMapLayers) => DungeonMapLayers | null): { undo: () => void; redo: () => void } | null {
+    const before = layers.value.walls;
+    const next = mutate(layers.value);
+    if (!next) return null;
+    const after = next.walls;
+    const changed = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter(
+      (key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]),
+    );
+    const put = (side: Readonly<Record<string, WallEdge>>): void => {
+      const walls = { ...layers.value.walls };
+      for (const key of changed) {
+        if (side[key] === undefined) delete walls[key];
+        else walls[key] = JSON.parse(JSON.stringify(side[key])) as WallEdge;
+      }
+      layers.value = { ...layers.value, walls };
+      markDirty();
+    };
+    const beforeWalls: Record<string, WallEdge> = JSON.parse(JSON.stringify(before));
+    const afterWalls: Record<string, WallEdge> = JSON.parse(JSON.stringify(after));
+    put(afterWalls);
+    return { undo: () => put(beforeWalls), redo: () => put(afterWalls) };
+  }
+  plan?.bindDrawingEditor({ editDrawing });
+
   const planTools = plan
     ? usePlanCanvasTools({
         plan,
@@ -531,6 +564,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     },
     onDoubleClick,
     onWheel: navigation.onWheel,
+    /** Which rooms the Door tool's hover would join, for the Zoning slip (null off the Door tool or with nothing under it). */
+    doorTip: computed(() => (planTools && plan!.planTool.value === "door" ? planTools.doorTip.value : null)),
     /** The picked wall run's counts for the slip (null when none), and what Delete does to it. */
     selectedGroundRegion,
     selectedGroundRegionId: groundEdit.selectedId,

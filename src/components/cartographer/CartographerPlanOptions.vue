@@ -1,5 +1,5 @@
 <template>
-  <CartographerOptionsSlip :title="title">
+  <CartographerOptionsSlip :title="title" :caption="planTool === 'door' ? 'on any wall' : undefined">
     <!-- Zoning's options, in the same slip the Drawing's tool options use. The tools themselves are the
          rail's: this only says what kind the Zone tool makes, how it traces, and what it is for. -->
     <template v-if="planTool === 'zone' || planTool === 'assign'">
@@ -54,10 +54,16 @@
       @cancel="$emit('cancel-door')"
     />
 
-    <span v-else-if="planTool === 'door'" class="text-caption text-muted-foreground">
-      Click a cell edge to place a door there. It joins the rooms within a cell of either side. Click a placed one to
-      cycle door and arch. Alt-click removes it.
-    </span>
+    <template v-else-if="planTool === 'door'">
+      <SegmentedControl v-model="doorKind" :options="DOOR_KIND_OPTIONS" size="xs" aria-label="Kind of door" />
+      <SegmentedControl v-model="doorWidth" :options="DOOR_WIDTH_OPTIONS" size="xs" aria-label="Width" />
+      <span v-if="doorTip" class="basis-full text-caption text-foreground">{{ doorTip }}</span>
+      <span class="basis-full text-caption text-muted-foreground">
+        Point at a wall, straight, slanted or curved, and click to cut a door into it there. Where the picture has an
+        opening and no wall is drawn, drag a short line across it. Click a placed door to cycle door and arch. Alt-click
+        removes it.
+      </span>
+    </template>
 
     <span v-else-if="planTool === 'erase'" class="text-caption text-muted-foreground">
       Drag across cells to take them out of any zone. A room whose area you empty keeps its page in the Atlas.
@@ -79,7 +85,7 @@
 import { computed } from "vue";
 // Zoning's options (epic #884 S7b; Map Table frame 19 made Space and Zone one tool). The Zone tool traces with the
 // same brush/pen/shape/lasso gestures the Drawing offers (`src/lib/map/gestures/`, via `useRegionPointer`, see
-// `usePlanCanvasTools.ts`), Door snaps to a cell edge, Assign makes a room or zone of the area a click lands in.
+// `usePlanCanvasTools.ts`), Door cuts a door into any wall, Assign makes a room or zone of the area a click lands in.
 // Binding a traced room to its place, and naming it, are actions of the Zoning list; this never opens or names a
 // location.
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -109,6 +115,8 @@ const { planTool } = defineProps<{
   doorPending?: boolean;
   /** The site's rooms, for that question. */
   rooms?: readonly { id: string; name: string }[];
+  /** The Door tool's line for what is under the pointer: which rooms it would join (frame 06). */
+  doorTip?: string | null;
 }>();
 
 const traceTool = defineModel<TraceTool>("traceTool", { required: true });
@@ -116,6 +124,8 @@ const brushRadius = defineModel<number>("brushRadius", { required: true });
 const templateShape = defineModel<TemplateShape>("templateShape", { required: true });
 const zoneKind = defineModel<ZoningKind>("zoneKind", { required: true });
 const zoneLabel = defineModel<string>("zoneLabel", { required: true });
+const doorKind = defineModel<"door" | "arch">("doorKind", { default: "door" });
+const doorWidth = defineModel<1 | 2>("doorWidth", { default: 1 });
 
 defineEmits<{
   "start-new": [];
@@ -125,5 +135,14 @@ defineEmits<{
 }>();
 
 const kindWord = computed(() => ZONING_KIND_LABELS[zoneKind.value].toLowerCase());
+const DOOR_KIND_OPTIONS: SegmentedOption<"door" | "arch">[] = [
+  { value: "door", label: "Door" },
+  { value: "arch", label: "Arch" },
+];
+// Width in cells; a cell is 5 ft.
+const DOOR_WIDTH_OPTIONS: SegmentedOption<1 | 2>[] = [
+  { value: 1, label: "5 ft" },
+  { value: 2, label: "10 ft" },
+];
 const KIND_OPTIONS: SegmentedOption<ZoningKind>[] = ZONING_KINDS.map((kind) => ({ value: kind, label: ZONING_KIND_LABELS[kind] }));
 </script>
