@@ -26,7 +26,13 @@
           class="flex items-start gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3.5"
         >
           <IconQuote class="h-4 w-4 shrink-0 mt-0.5 text-primary/60" />
-          <p class="flex-1 text-body leading-relaxed text-foreground">{{ line }}</p>
+          <div class="flex-1">
+            <p class="text-body leading-relaxed text-foreground">{{ line }}</p>
+            <p v-if="reveals[i]" class="mt-1 flex items-center gap-1 text-caption text-destructive" data-testid="reveal-caution">
+              <IconWarning class="h-3.5 w-3.5 shrink-0" />
+              May give the disguise away
+            </p>
+          </div>
           <AppButton
             variant="ghost"
             size="inline-caption"
@@ -101,7 +107,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
-import { IconBookmark, IconCheck, IconGenerate, IconQuote, IconRefresh } from "@/lib/icons";
+import { IconBookmark, IconCheck, IconGenerate, IconQuote, IconRefresh, IconWarning } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
@@ -130,7 +136,7 @@ const { textCredits, textIsByok } = useCampaignProviders();
 
 const situation = ref("");
 
-const { isGenerating, error, lines, provenance, suggest, clear } = useNpcVoiceCoach();
+const { isGenerating, error, lines, reveals, provenance, suggest, clear } = useNpcVoiceCoach();
 
 const toast = useToast();
 const { session: openSession, isRunning } = useCampaignSession();

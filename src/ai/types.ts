@@ -478,11 +478,6 @@ export interface ComplicationAiResult {
   ai_provenance?: AiProvenance;
 }
 
-export interface NpcVoiceAiResult {
-  /** 2–3 short, immediately speakable in-character replies. */
-  lines: string[];
-}
-
 export interface EncounterCombatantAiResult {
   /** Monster name as the AI wrote it — resolved against the Bestiary by name. */
   name: string;
