@@ -67,7 +67,7 @@ export function isHostileTo(mover: { faction_id: string }, other: { faction_id: 
 const keyOf = (x: number, y: number) => `${x},${y}`;
 
 /** The whole cells a token covers. A Tiny token covers the one cell it stands in. */
-function coverCells(at: Cell, footprint: number): Cell[] {
+export function coverCells(at: Cell, footprint: number): Cell[] {
   const x0 = Math.floor(at.x + EPS);
   const y0 = Math.floor(at.y + EPS);
   const span = footprint < 1 ? 1 : Math.ceil(footprint - EPS);

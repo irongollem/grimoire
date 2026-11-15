@@ -22,7 +22,7 @@ const ROOT = resolve(__dirname, "../..");
 const SRC = join(ROOT, "src") + sep;
 const FUNCTIONS = join(ROOT, "supabase/functions");
 /** Modules written for the edge before any function loads them (#1202), held to the rule from the start. */
-const PENDING_ENTRIES = [join(SRC, "rules/fight/terrain/reach.ts")];
+const PENDING_ENTRIES = [join(SRC, "rules/fight/terrain/reach.ts"), join(SRC, "rules/fight/terrain/sight.ts")];
 const FORBIDDEN_PACKAGES = ["vue", "pinia"];
 
 function edgeFiles(dir: string): string[] {
