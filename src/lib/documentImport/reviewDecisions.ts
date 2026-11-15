@@ -179,6 +179,15 @@ export function matchKindHint(kind: EntityMatchKind): string {
   return "looks similar";
 }
 
+/** How the model's judgment of a pair reads in the review: always a suggestion,
+ *  never a fact. `null` (not judged) shows nothing. */
+export function verdictHint(verdict: number | null): string | null {
+  if (verdict === null) return null;
+  if (verdict >= 1.5) return "suggested match";
+  if (verdict >= 0.5) return "related, may not be the same";
+  return "probably a different one";
+}
+
 /** A, B, C… Z, AA, AB… — the same wrapping idiom `lib/quests/threads.ts`'s
  *  `threadLetter` uses, though five candidates in practice never gets close. */
 export function candidateLetter(index: number): string {

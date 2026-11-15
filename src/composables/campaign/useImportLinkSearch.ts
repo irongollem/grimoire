@@ -40,6 +40,7 @@ export function hitToCandidate(
     matchKind: "chosen",
     detail: hit.detail ?? hit.descriptor ?? null,
     distance: null,
+    verdict: null,
   };
 }
 

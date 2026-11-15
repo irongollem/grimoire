@@ -84,7 +84,7 @@ describe("runImportKind", () => {
         entities,
         decisions: decisions([
           ["a", CREATE],
-          ["b", { action: "link", candidate: { targetId: "mon-1", source: "campaign", name: "Owlbear", matchKind: "exact", detail: null, distance: null } }],
+          ["b", { action: "link", candidate: { targetId: "mon-1", source: "campaign", name: "Owlbear", matchKind: "exact", detail: null, distance: null, verdict: null } }],
           ["c", IGNORE],
           // "d" is absent from the map entirely.
         ]),
@@ -173,7 +173,7 @@ describe("runImportKind", () => {
         kind: "monsters",
         entities,
         decisions: decisions([
-          ["a", { action: "link", candidate: { targetId: "mon-1", source: "campaign", name: "Owlbear", matchKind: "exact", detail: null, distance: null } }],
+          ["a", { action: "link", candidate: { targetId: "mon-1", source: "campaign", name: "Owlbear", matchKind: "exact", detail: null, distance: null, verdict: null } }],
           ["b", GENERATE],
         ]),
         campaignId: CAMPAIGN_ID,
@@ -377,7 +377,7 @@ describe("runLocationsImportKind", () => {
     const existingLocations: LocationParentCandidate[] = [{ id: "gem-mine-id", name: "Gem Mine", locationType: "dungeon" }];
     const LINK_TO_GEM_MINE: ImportDecision = {
       action: "link",
-      candidate: { targetId: "gem-mine-id", source: "campaign", name: "Gem Mine", matchKind: "contains", detail: null, distance: null },
+      candidate: { targetId: "gem-mine-id", source: "campaign", name: "Gem Mine", matchKind: "contains", detail: null, distance: null, verdict: null },
     };
     const deps = fakeLocationDeps();
 

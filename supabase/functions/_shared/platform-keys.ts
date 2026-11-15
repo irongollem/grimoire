@@ -11,7 +11,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // the returned record until then, so existing callers are unaffected.
 // "github" holds the fine-grained PAT used by create-bug-report to file
 // issues — not an AI provider, but reuses the same encrypted-at-rest vault.
-export type Provider = "openai" | "anthropic" | "gemini" | "meshy" | "github";
+// "typesafe" holds the TypeSafe API key for the Jev judgment model (#1061).
+export type Provider = "openai" | "anthropic" | "gemini" | "meshy" | "github" | "typesafe";
 
 export async function fetchPlatformKeys(
   admin: SupabaseClient,

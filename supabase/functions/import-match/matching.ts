@@ -64,6 +64,12 @@ export interface Candidate {
   matchKind: MatchKind;
   detail: string | null;
   distance: number | null;
+  /**
+   * The judging tier's Score for (imported entity, this candidate): 0 different,
+   * 1 related but distinct, 2 the same entity. Null = not judged, whether the
+   * tier did not run or this pair failed or was over a cap (#1061).
+   */
+  verdict: number | null;
 }
 
 // ── Payload validation ───────────────────────────────────────────────────────
@@ -321,7 +327,7 @@ export function itemDetail(row: SemanticItemRow): string | null {
 // weaker signal (nearest-neighbour, not a name match) and to keep the
 // candidate list from ballooning when a kind has both a large vault and a
 // crowded library.
-const MAX_SIMILAR_APPEND = 3;
+export const MAX_SIMILAR_APPEND = 3;
 
 /**
  * Name candidates first, ALL of them, in the order `match_import_entity_names`

@@ -81,7 +81,7 @@ describe("runImportSweep", () => {
             "monsters",
             new Map<string, ImportDecision>([
               ["m1", CREATE],
-              ["m2", { action: "link", candidate: { targetId: "mon-existing", source: "campaign", name: "Owlbear", matchKind: "exact", detail: null, distance: null } }],
+              ["m2", { action: "link", candidate: { targetId: "mon-existing", source: "campaign", name: "Owlbear", matchKind: "exact", detail: null, distance: null, verdict: null } }],
               ["m3", IGNORE],
             ]),
           ],
@@ -261,7 +261,7 @@ describe("runImportSweep", () => {
           locations: [usable("l1", { name: "Upper Gallery" })],
         },
         decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
-          ["factions", new Map([["f1", { action: "link", candidate: { targetId: "fac-existing", source: "campaign", name: "Council of Speakers", matchKind: "exact", detail: null, distance: null } }]])],
+          ["factions", new Map([["f1", { action: "link", candidate: { targetId: "fac-existing", source: "campaign", name: "Council of Speakers", matchKind: "exact", detail: null, distance: null, verdict: null } }]])],
           ["locations", new Map([["l1", CREATE]])],
         ]),
       }),
@@ -394,7 +394,7 @@ describe("runImportSweep", () => {
     it("a deity link writes no attachment, quest_ref or unresolved message for the beat that names it", async () => {
       const deity: ImportDecision = {
         action: "link",
-        candidate: { targetId: "deity-1", source: "deity", name: "Father Corvin", matchKind: "exact", detail: null, distance: null },
+        candidate: { targetId: "deity-1", source: "deity", name: "Father Corvin", matchKind: "exact", detail: null, distance: null, verdict: null },
       };
       const base = questInput();
       const deps = fakeDeps({ writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })) });
@@ -537,7 +537,7 @@ describe("runImportSweep", () => {
           },
           decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
             ["quests", new Map([["q1", CREATE]])],
-            ["monsters", new Map([["m1", { action: "link", candidate: { targetId: "srd_owlbear", source: "library", name: "Owlbear", matchKind: "exact", detail: null, distance: null } }]])],
+            ["monsters", new Map([["m1", { action: "link", candidate: { targetId: "srd_owlbear", source: "library", name: "Owlbear", matchKind: "exact", detail: null, distance: null, verdict: null } }]])],
           ]),
         }),
         deps,
@@ -562,7 +562,7 @@ describe("runImportSweep", () => {
           },
           decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
             ["quests", new Map([["q1", CREATE]])],
-            ["items", new Map([["i1", { action: "link", candidate: { targetId: "srd_bag_of_holding", source: "library", name: "Bag of Holding", matchKind: "exact", detail: null, distance: null } }]])],
+            ["items", new Map([["i1", { action: "link", candidate: { targetId: "srd_bag_of_holding", source: "library", name: "Bag of Holding", matchKind: "exact", detail: null, distance: null, verdict: null } }]])],
           ]),
         }),
         deps,
@@ -593,7 +593,7 @@ describe("runImportSweep", () => {
           },
           decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
             ["quests", new Map([["q1", CREATE]])],
-            ["items", new Map([["i1", { action: "link", candidate: { targetId: "srd_bag_of_holding", source: "library", name: "Bag of Holding", matchKind: "exact", detail: null, distance: null } }]])],
+            ["items", new Map([["i1", { action: "link", candidate: { targetId: "srd_bag_of_holding", source: "library", name: "Bag of Holding", matchKind: "exact", detail: null, distance: null, verdict: null } }]])],
           ]),
         }),
         deps,
@@ -620,7 +620,7 @@ describe("runImportSweep", () => {
           },
           decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
             ["quests", new Map([["q1", CREATE]])],
-            ["monsters", new Map([["m1", { action: "link", candidate: { targetId: "srd_owlbear", source: "library", name: "Owlbear", matchKind: "exact", detail: null, distance: null } }]])],
+            ["monsters", new Map([["m1", { action: "link", candidate: { targetId: "srd_owlbear", source: "library", name: "Owlbear", matchKind: "exact", detail: null, distance: null, verdict: null } }]])],
           ]),
         }),
         deps,
@@ -639,8 +639,8 @@ describe("runImportSweep", () => {
             [
               "monsters",
               new Map([
-                ["m1", { action: "link", candidate: { targetId: "srd_goblin", source: "library", name: "Goblin", matchKind: "exact", detail: null, distance: null } }],
-                ["m2", { action: "link", candidate: { targetId: "srd_orc", source: "library", name: "Orc", matchKind: "exact", detail: null, distance: null } }],
+                ["m1", { action: "link", candidate: { targetId: "srd_goblin", source: "library", name: "Goblin", matchKind: "exact", detail: null, distance: null, verdict: null } }],
+                ["m2", { action: "link", candidate: { targetId: "srd_orc", source: "library", name: "Orc", matchKind: "exact", detail: null, distance: null, verdict: null } }],
               ]),
             ],
           ]),
@@ -694,7 +694,7 @@ describe("runImportSweep", () => {
             [
               "locations",
               new Map([
-                ["r1", { action: "link", candidate: { targetId: "existing-room", source: "campaign", name: "Tool Room", matchKind: "contains", detail: null, distance: null } }],
+                ["r1", { action: "link", candidate: { targetId: "existing-room", source: "campaign", name: "Tool Room", matchKind: "contains", detail: null, distance: null, verdict: null } }],
               ]),
             ],
             ["items", new Map([["i1", CREATE]])],
@@ -719,7 +719,7 @@ describe("runImportSweep", () => {
           },
           decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
             ["locations", new Map([["r1", CREATE]])],
-            ["items", new Map([["i1", { action: "link", candidate: { targetId: "srd_bag_of_holding", source: "library", name: "Bag of Holding", matchKind: "exact", detail: null, distance: null } }]])],
+            ["items", new Map([["i1", { action: "link", candidate: { targetId: "srd_bag_of_holding", source: "library", name: "Bag of Holding", matchKind: "exact", detail: null, distance: null, verdict: null } }]])],
           ]),
         }),
         deps,

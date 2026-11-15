@@ -55,7 +55,7 @@ describe("batchEntities", () => {
 
 describe("mergeCandidates", () => {
   it("folds batches into one map per kind", () => {
-    const c = (name: string): EntityCandidate => ({ targetId: name, source: "campaign", name, matchKind: "exact", detail: null, distance: null });
+    const c = (name: string): EntityCandidate => ({ targetId: name, source: "campaign", name, matchKind: "exact", detail: null, distance: null, verdict: null });
     const into: CandidatesByKind = new Map([["npcs", new Map([["a", [c("A")]]])]]);
     mergeCandidates(into, new Map([["npcs", new Map([["b", [c("B")]]])], ["locations", new Map([["c", [c("C")]]])]]));
     expect([...(into.get("npcs")?.keys() ?? [])]).toEqual(["a", "b"]);

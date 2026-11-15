@@ -77,7 +77,7 @@ describe("hasSourcedCreate", () => {
   const CREATE: ImportDecision = { action: "create" };
   const LINK: ImportDecision = {
     action: "link",
-    candidate: { targetId: "x", source: "campaign", name: "X", matchKind: "exact", detail: null, distance: null },
+    candidate: { targetId: "x", source: "campaign", name: "X", matchKind: "exact", detail: null, distance: null, verdict: null },
   };
   const GENERATE: ImportDecision = { action: "generate" };
   const IGNORE: ImportDecision = { action: "ignore" };

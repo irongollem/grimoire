@@ -23,6 +23,7 @@ const existing: EntityCandidate = {
   matchKind: "exact",
   detail: null,
   distance: null,
+  verdict: null,
 };
 
 function mountReview(matchesReady: boolean, candidates: Map<string, EntityCandidate[]>) {
