@@ -75,13 +75,20 @@ export const circus: ReelScene = {
   size: FRAME,
   loop: LOOP,
   duration: LOOP,
-  // Enough sway that the bench, Brilianto! and the far stands slide past each other: the depth is the point.
-  camera: { drift: 0.03, push: 0.03 },
+  // The view circles Brilianto!: his depth is the focus, so he and the floor he stands on hold still while the
+  // stands behind slide one way and the ring's near edge and the bench in front slide the other (the maintainer's
+  // idea, 15 Nov 2026: with one depth for the whole room he floated over the floor).
+  camera: { drift: 0.06, push: 0.03, focus: PERFORMER },
   seed: 1198,
   caption: "Step right up!",
   captionAt: [0.6, 6],
   stack: [
-    { kind: "layer", id: "plate", src: "circus-plate.png", depth: 1, anchor: { x: 0.5, y: 0.5 }, at: { x: FRAME.width / 2, y: FRAME.height / 2 }, width: ROOM_DRAWN },
+    // The room in three bands, each a cut of the same painting drawn the same way: the whole picture behind (the
+    // stands and the canvas show above the floor), the ring floor he stands on with its far kerb, cut along the far
+    // kerb's top edge and the near kerb's rim, and the near kerb and floor in front (circus-ring-floor.png and
+    // circus-ring-front.png, cut from circus-plate.png with soft edges along those two arcs).
+    { kind: "layer", id: "plate", src: "circus-plate.png", depth: 0.6, anchor: { x: 0.5, y: 0.5 }, at: { x: FRAME.width / 2, y: FRAME.height / 2 }, width: ROOM_DRAWN },
+    { kind: "layer", id: "ring-floor", src: "circus-ring-floor.png", depth: PERFORMER, anchor: { x: 0.5, y: 0.5 }, at: { x: FRAME.width / 2, y: FRAME.height / 2 }, width: ROOM_DRAWN },
     // Dust turning in the spotlight's beam over the ring.
     { kind: "motes", area: { x: 260, y: 300, w: 560, h: 1000 }, depth: 1.1, count: 40, size: [1.5, 3.2], opacity: 0.55, color: [255, 236, 200] },
     {
@@ -115,10 +122,11 @@ export const circus: ReelScene = {
       width: ARM_DRAWN,
       motions: [{ kind: "sway", angle: 12, period: CATCH, phase: 0.5 }],
     },
+    { kind: "layer", id: "ring-front", src: "circus-ring-front.png", depth: 1.6, anchor: { x: 0.5, y: 0.5 }, at: { x: FRAME.width / 2, y: FRAME.height / 2 }, width: ROOM_DRAWN },
     ...[0, 1, 2, 3, 4].map(apple),
     // The back of the bench row in front, nearest of all, across the bottom of the frame. Painted 1536x1024 with its
     // top edge at y 470, drawn 1300 wide (0.846), so its top edge sits at y 1700.
-    { kind: "layer", id: "bench", src: "circus-bench-front.png", depth: 1.8, anchor: { x: 0.5, y: 1 }, at: { x: FRAME.width / 2, y: 1700 + (1024 - 470) * (1300 / 1536) }, width: 1300 },
+    { kind: "layer", id: "bench", src: "circus-bench-front.png", depth: 2, anchor: { x: 0.5, y: 1 }, at: { x: FRAME.width / 2, y: 1700 + (1024 - 470) * (1300 / 1536) }, width: 1300 },
   ],
   grade: { tint: { color: [255, 210, 160], amount: 0.08 }, vignette: 0.3 },
   sound: {
