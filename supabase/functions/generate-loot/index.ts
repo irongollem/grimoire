@@ -30,6 +30,8 @@ import {
   EmbeddingProviderConfigError,
 } from "../_shared/embeddings.ts";
 import { retrieveLootItems, formatItemBlock, type CandidateItem } from "../_shared/itemRetrieval.ts";
+import { repairGeneratedNames } from "../_shared/nameRepairWire.ts";
+import { repaired } from "../_shared/nameRepair.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { currencyPromptBlock, loadCampaignCurrency } from "../_shared/currency.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
@@ -421,6 +423,22 @@ serve(withCors(async (req: Request) => {
     model: textResult.usage.model, provider: textResult.usage.provider,
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });
+
+  // A near miss ("Potion of Healing (greater)") is put to a judgment model against exactly the items the
+  // prompt offered and rewritten to the offered name when it is confident, so the client's exact-name
+  // resolver finds the row (#1061). Free to the user; off until a typesafe key exists.
+  const [itemRepairs] = await repairGeneratedNames(admin, user.id, [{
+    names: lootData.entries
+      .filter((e) => e?.type === "item" && typeof e.item_name === "string")
+      .map((e) => ({ name: e.item_name as string, note: typeof e.notes === "string" ? e.notes : undefined })),
+    offered: candidates.map((c) => ({ name: c.name, hint: `${c.rarity} ${c.itemType}` })),
+    context: "Treasure for a D&D loot table. Each entry names one item.",
+  }]);
+  lootData = {
+    ...lootData,
+    entries: lootData.entries.map((e) =>
+      e?.type === "item" && typeof e.item_name === "string" ? { ...e, item_name: repaired(itemRepairs, e.item_name) } : e),
+  };
 
   const ai_provenance: AiProvenance = {
     generatorType: "loot_generation",

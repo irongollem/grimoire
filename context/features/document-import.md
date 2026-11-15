@@ -402,7 +402,13 @@ local stack on 15 Nov 2026, made 46 right links, 0 wrong links and missed 2,
 and created all 32 new entities; it took 5 seconds and about 216,000 input
 tokens (under one US cent). Of the two misses, one existing monster was outside
 the campaign's ruleset, which the embedding lookup filters on, and the other
-scored 1.3 and is shown as "related, may not be the same". Link thresholds from
+scored 1.3 and is shown as "related, may not be the same". On a large campaign
+(about 266 NPCs, 231 places; 120 labelled entities, 75 an existing row and 45
+new, many with near neighbours) the old default made 50 right links, 26 wrong
+links and missed 19; the built tier made 75 right links, 1 wrong link and
+missed none, in 11 seconds for about 407,000 input tokens. All 15 "same name,
+different entity" cases link wrongly today; 14 of them are created with the
+tier on. Link thresholds from
 1.5 to 1.8 gave identical results on the prototype, so 1.5 has margin. The set is
 small, comes from one campaign, and was written by a model, so treat the numbers
 as a pilot result and not a guarantee.

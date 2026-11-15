@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { judge, noulOf, scoreOf, TypeSafeError, type JudgeRequest } from "./typesafe";
+import { choiceOf, judge, noulOf, scoreOf, TypeSafeError, type JudgeRequest } from "./typesafe";
 
 const KEY = "tsk-secret-key-123";
 const request: JudgeRequest = {
@@ -113,5 +113,33 @@ describe("scoreOf / noulOf", () => {
     expect(scoreOf(result, "missing")).toBeNull();
     expect(scoreOf(result, "flag")).toBeNull();
     expect(noulOf(result, "relation")).toBeNull();
+  });
+});
+
+describe("choiceOf", () => {
+  const CHOICE = {
+    model: "jev-1.14.0",
+    answers: {
+      pick: { type: "choice", choice: "Skeleton Archer", confidence: 0.7, probabilities: { "Skeleton Archer": 0.8, "none of these": 0.2 } },
+      bad: { type: "choice", choice: "x" },
+      scored: { type: "score", score: 1 },
+    },
+    usage: { input_tokens: 40, output_tokens: 5 },
+  };
+
+  it("returns the choice, confidence and probabilities of a choice answer (a dropped probability would make every repair look unsure)", async () => {
+    const result = await judge(request, { apiKey: KEY, fetch: vi.fn().mockResolvedValue(reply(200, CHOICE)) });
+    expect(choiceOf(result, "pick")).toEqual({
+      choice: "Skeleton Archer",
+      confidence: 0.7,
+      probabilities: { "Skeleton Archer": 0.8, "none of these": 0.2 },
+    });
+  });
+
+  it("is null for a malformed choice answer, an answer of another type and a missing name (never a guessed pick)", async () => {
+    const result = await judge(request, { apiKey: KEY, fetch: vi.fn().mockResolvedValue(reply(200, CHOICE)) });
+    expect(choiceOf(result, "bad")).toBeNull();
+    expect(choiceOf(result, "scored")).toBeNull();
+    expect(choiceOf(result, "absent")).toBeNull();
   });
 });

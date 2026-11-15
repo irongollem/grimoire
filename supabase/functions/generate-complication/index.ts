@@ -35,6 +35,8 @@ import {
   type CandidateEntity,
 } from "../_shared/campaignEntityRetrieval.ts";
 import { retrieveMonsterCandidates, type CandidateMonster } from "../_shared/monsterRetrieval.ts";
+import { repairGeneratedNames } from "../_shared/nameRepairWire.ts";
+import { repaired } from "../_shared/nameRepair.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
@@ -430,6 +432,28 @@ serve(withCors(async (req: Request) => {
     model: textResult.usage.model, provider: textResult.usage.provider,
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });
+
+  // A near miss in a reinforcement's name is put to a judgment model against exactly the creatures and NPCs
+  // the prompt offered (the two lists the client resolves a reinforcement against) and rewritten to the
+  // offered name when it is confident (#1061). Free to the user; off until a typesafe key exists.
+  if (Array.isArray(data.reinforcements)) {
+    const reinforcements = data.reinforcements;
+    const [reinforcementRepairs] = await repairGeneratedNames(admin, user.id, [{
+      names: reinforcements
+        .filter((r) => typeof r?.name === "string")
+        .map((r) => ({ name: r.name, note: typeof r.role === "string" ? r.role : undefined })),
+      offered: [
+        ...monsters.map((c) => ({ name: c.name, hint: `CR ${c.cr} ${c.type}` })),
+        ...entities.npcs.map((c) => (c.descriptor ? { name: c.name, hint: c.descriptor } : { name: c.name })),
+      ],
+      context: "Reinforcements joining a D&D combat encounter. Each is a creature or a person.",
+    }]);
+    data = {
+      ...data,
+      reinforcements: reinforcements.map((r) =>
+        typeof r?.name === "string" ? { ...r, name: repaired(reinforcementRepairs, r.name) } : r),
+    };
+  }
 
   const ai_provenance: AiProvenance = {
     generatorType: "complication_generation",

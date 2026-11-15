@@ -34,6 +34,8 @@ import {
   formatEntityBlock,
   type CandidateEntity,
 } from "../_shared/campaignEntityRetrieval.ts";
+import { repairGeneratedNames } from "../_shared/nameRepairWire.ts";
+import { ENTITY_KINDS, entityRepairGroups, namesIn, repairedList } from "../_shared/nameRepair.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
@@ -408,6 +410,31 @@ serve(withCors(async (req: Request) => {
     model: textResult.usage.model, provider: textResult.usage.provider,
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });
+
+  // A near miss in a hook's npcs, locations or factions is put to a judgment model against exactly the
+  // entities the prompt offered (per kind) and rewritten to the offered name when it is confident, so the
+  // client's exact-name resolver finds the record (#1061). Free to the user; off until a typesafe key exists.
+  const named = { npcs: new Set<string>(), locations: new Set<string>(), factions: new Set<string>() };
+  for (const hook of questData.hooks) {
+    for (const kind of ENTITY_KINDS) for (const n of namesIn(hook?.[kind])) named[kind].add(n);
+  }
+  const questRepairs = await repairGeneratedNames(admin, user.id, entityRepairGroups(
+    candidates,
+    { npcs: [...named.npcs], locations: [...named.locations], factions: [...named.factions] },
+    "Quest hooks for a D&D campaign.",
+  ));
+  questData = {
+    ...questData,
+    hooks: questData.hooks.map((hook) => {
+      if (!hook || typeof hook !== "object") return hook;
+      const fixed: QuestHookAiResult = { ...hook };
+      ENTITY_KINDS.forEach((kind, i) => {
+        const list = repairedList(questRepairs[i], hook[kind]);
+        if (list !== undefined) fixed[kind] = list as string[];
+      });
+      return fixed;
+    }),
+  };
 
   const ai_provenance: AiProvenance = {
     generatorType: "quest_generation",
