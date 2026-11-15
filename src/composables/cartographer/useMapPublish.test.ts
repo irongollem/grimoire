@@ -53,7 +53,7 @@ vi.mock("@/cartographer/bake", () => ({
   },
   computeBakedDimensions: (_m: unknown, _d: unknown, _p: unknown, cover: unknown) => {
     mocks.dimsCovers.push(cover);
-    return { cols: 4, rows: 4, originCellX: -2, originCellY: -3 };
+    return { cols: 4, rows: 3, originCellX: -2, originCellY: -3 };
   },
 }));
 vi.mock("@/lib/measureImage", () => ({ measureImage: mocks.measure }));
@@ -215,9 +215,10 @@ describe("useMapPublish.publish", () => {
     mocks.picture = CALIBRATED;
     mocks.measure.mockResolvedValue({ width: 100, height: 50 });
     await setup().publish();
-    // The mocked dims are 4 columns at origin (-2,-3); the percentages stay 0.
+    // The mocked dims are 4 columns by 3 rows at origin (-2,-3); the percentages stay 0. The bake is 3/4 as tall as wide,
+    // and that shape is what the server reads to know where the map ends.
     expect(mocks.updateDrawing.mock.calls[0]![0].mapLayerCalibration).toEqual({
-      cells_per_image_width: 4, origin_x_pct: 0, origin_y_pct: 0, origin_cell_x: -2, origin_cell_y: -3,
+      cells_per_image_width: 4, origin_x_pct: 0, origin_y_pct: 0, origin_cell_x: -2, origin_cell_y: -3, image_height_over_width: 0.75,
     });
   });
 

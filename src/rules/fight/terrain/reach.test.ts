@@ -20,11 +20,18 @@ function run(o: {
   solid?: string[];
   others?: ReachCreature[];
   ruleset?: RulesetKey;
+  bounds?: ReachInput["terrain"]["bounds"];
 }) {
   const input: ReachInput = {
     mover: { anchor: o.at === undefined ? { x: 0, y: 0 } : o.at, footprint: o.footprint ?? 1, size: o.size ?? "medium" },
     budgetFeet: o.budget,
-    terrain: { difficult: new Set(o.difficult ?? []), blocking: o.blocking ?? [], solid: new Set(o.solid ?? []) },
+    terrain: {
+      difficult: new Set(o.difficult ?? []),
+      blocking: o.blocking ?? [],
+      solid: new Set(o.solid ?? []),
+      // Far wider than any search below, so the edge only matters in the tests that set `bounds`.
+      bounds: o.bounds ?? { minX: -50, minY: -50, maxX: 50, maxY: 50 },
+    },
     others: o.others ?? [],
     ruleset: o.ruleset ?? "2014",
   };
@@ -205,5 +212,50 @@ describe("determinism and who is hostile", () => {
   it("hostile means a different faction, as targetCandidates reads it", () => {
     expect(isHostileTo({ faction_id: "party" }, { faction_id: "goblins" })).toBe(true);
     expect(isHostileTo({ faction_id: "party" }, { faction_id: "party" })).toBe(false);
+  });
+});
+
+describe("the edge of the map (#1202): a step that would cover a cell off the picture is refused", () => {
+  // A picture 16 squares across and 12 down (1000 by 750 px: 16 x 0.75 = 12 rows), so x runs 0 to 15 and y runs 0 to 11.
+  const EDGES = { minX: 0, minY: 0, maxX: 15, maxY: 11 };
+
+  it("the last column and the last row are reachable and the one past each is not", () => {
+    // Bug it fails on: no edge at all, so a fleeing creature ran to x = -10. Mover at (14,10) with 15 ft (three squares):
+    // x can reach 15 (1 step) but not 16; y can reach 11 but not 12.
+    const r = run({ at: { x: 14, y: 10 }, budget: 15, bounds: EDGES });
+    expect(feetAt(r, 15, 10)).toBe(5);
+    expect(feetAt(r, 16, 10)).toBeUndefined();
+    expect(feetAt(r, 14, 11)).toBe(5);
+    expect(feetAt(r, 14, 12)).toBeUndefined();
+    expect(feetAt(r, 15, 11)).toBe(5);
+    expect(feetAt(r, 16, 12)).toBeUndefined();
+  });
+
+  it("the first column and the first row are reachable and the one before each is not", () => {
+    // Bug it fails on: bounding only the far side. Mover at (1,1), 15 ft: (0,0) is one diagonal step; (-1,0) and (0,-1) are off.
+    const r = run({ at: { x: 1, y: 1 }, budget: 15, bounds: EDGES });
+    expect(feetAt(r, 0, 0)).toBe(5);
+    expect(feetAt(r, -1, 0)).toBeUndefined();
+    expect(feetAt(r, 0, -1)).toBeUndefined();
+  });
+
+  it("a Large creature may not stand with its far cells off the picture", () => {
+    // Bug it fails on: checking only the anchor. A Large (2x2) anchored at (14,10) covers 14..15 by 10..11: on the map.
+    // Anchored at (15,10) it would cover x = 16: refused. Anchored at (14,11) it would cover y = 12: refused.
+    const r = run({ at: { x: 14, y: 10 }, size: "large", footprint: 2, budget: 15, bounds: EDGES });
+    expect(feetAt(r, 14, 10)).toBe(0);
+    expect(feetAt(r, 15, 10)).toBeUndefined();
+    expect(feetAt(r, 14, 11)).toBeUndefined();
+    expect(feetAt(r, 13, 9)).toBe(5);
+  });
+
+  it("a creature that old data left off the map may step back onto it but not further out", () => {
+    // Bug it fails on: judging the bounds only from the start, so a creature already at x = 16 could keep walking away.
+    // Mover at (16,5), 15 ft: (15,5) is back on the map; (17,5) is further out.
+    const r = run({ at: { x: 16, y: 5 }, budget: 15, bounds: EDGES });
+    expect(feetAt(r, 15, 5)).toBe(5);
+    expect(feetAt(r, 14, 5)).toBe(10);
+    expect(feetAt(r, 17, 5)).toBeUndefined();
+    expect(feetAt(r, 16, 5)).toBe(0);
   });
 });

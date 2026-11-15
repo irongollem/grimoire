@@ -162,6 +162,7 @@ import { usePreparedEncounters } from "@/composables/encounters/usePreparedEncou
 import { useStartFight } from "@/composables/encounters/useStartFight";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useExploreParty, usePartyTokenSizes } from "@/composables/locations/useExploreParty";
+import { useHealPictureShape } from "@/composables/locations/useHealPictureShape";
 import { useLocation, useLocations } from "@/composables/locations/useLocations";
 import { useDoorStateForSite, useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { useToast } from "@/composables/useToast";
@@ -192,6 +193,7 @@ import { partyRoomInSite, siteReachability } from "@/lib/locations/siteRun";
 import { bindableSpaces, isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { compareSiblings } from "@/lib/locations/tree";
 import { questLink } from "@/lib/quests/navigation";
+import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useLocationsUiStore } from "@/stores/ui/locations";
 import type { TableShows } from "@/types/bookNook.types";
@@ -200,6 +202,7 @@ import type { Location } from "@/types/location.types";
 const route = useRoute();
 const router = useRouter();
 const campaign = useCampaignStore();
+const auth = useAuthStore();
 const locationsUi = useLocationsUiStore();
 
 const siteId = computed(() => route.params.id as string);
@@ -226,6 +229,8 @@ const { stateOf } = useLocationStateForRooms(roomIds);
 const isExplored = (roomId: string) => stateOf(roomId, "explored")?.value === true;
 
 const { surface, regions: regionRows } = useLocationBattleSurface(siteId);
+// The picture's shape is how the fight server knows where the map ends (#1202); the DM opening the map records it.
+useHealPictureShape({ place: () => surface.value?.mapLocation, enabled: () => auth.isDM });
 const regions = computed(() => regionRows.value ?? []);
 const doorsQuery = useSiteDoors(roomIds);
 const doors = computed(() => doorsQuery.data.value ?? []);

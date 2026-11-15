@@ -7,6 +7,7 @@
 // which was verified one step earlier.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { decodeFogMask } from "../../../src/lib/battlemap/fogMask.ts";
 import { resolveBattleSurface, type PlanRegion, type SurfaceLocation } from "../../../src/lib/battlemap/roomBridge.ts";
 import { isInteriorType } from "../../../src/lib/locations/tiers.ts";
 import type { FightMapInput } from "../../../src/rules/fight/terrain/battleMap.ts";
@@ -67,8 +68,8 @@ export async function loadFightMapInput(
 
   const regions = await readRegions(admin, regionSiteOf(encounterLocation, parent));
   const doorPlace = doorPlaceOf(encounterLocation, parent);
-  const doorStates = doorPlace === null ? [] : await readDoorStates(admin, campaignId, doorPlace);
-  return { encounterLocation, parent, regions, doorStates };
+  const memory = doorPlace === null ? { doorStates: [], seen: new Set<string>() } : await readMemory(admin, campaignId, doorPlace);
+  return { encounterLocation, parent, regions, doorStates: memory.doorStates, seen: memory.seen };
 }
 
 async function readLocation(admin: SupabaseClient, campaignId: string, id: string): Promise<FightMapLocation | null> {
@@ -90,14 +91,21 @@ async function readRegions(admin: SupabaseClient, siteId: string | null): Promis
   return data as unknown as PlanRegion[];
 }
 
-async function readDoorStates(admin: SupabaseClient, campaignId: string, placeId: string): Promise<MapLiveDoorState[]> {
+/** The map's door states and the cells the party has seen, from its one `map_memory` row. */
+async function readMemory(
+  admin: SupabaseClient,
+  campaignId: string,
+  placeId: string,
+): Promise<{ doorStates: MapLiveDoorState[]; seen: Set<string> }> {
   const { data, error } = await admin
     .from("map_memory")
-    .select("door_states")
+    .select("door_states, seen")
     .eq("campaign_id", campaignId)
     .eq("location_id", placeId)
     .maybeSingle();
   if (error) throw new Error(`map_memory: ${error.message}`);
-  // No row: nobody has opened or shut a door on this map. The column's check constraint holds the list's shape.
-  return data === null ? [] : (data.door_states as MapLiveDoorState[]);
+  // No row: nobody has opened or shut a door, or seen a square, on this map. The door column's check constraint holds
+  // its shape; `seen` is the fog mask's own encoding.
+  if (data === null) return { doorStates: [], seen: new Set() };
+  return { doorStates: data.door_states as MapLiveDoorState[], seen: decodeFogMask(data.seen as string) };
 }

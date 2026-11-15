@@ -74,6 +74,9 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
   let chosen: { optionId: string; reason: string };
   let picked: "rules" | "caller";
   if (command.optionId === undefined) {
+    // With the Action spent, a move is the only turn on offer, and the rules-only picker would walk the creature away
+    // from its target into an opportunity attack (found live: an ogre attacked, then a second call walked it off).
+    if (mover.action_used === true) return refuse(`${mover.name} has already used its Action this turn; name an option to move it.`);
     const pick = pickTurn(gated, profile, { combatants: state.combatants, moverId: mover.instance_id, armorClassOf });
     if (pick === null) return refuse(`${mover.name} has no turn to take.`);
     chosen = pick;

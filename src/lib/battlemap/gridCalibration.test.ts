@@ -15,6 +15,13 @@ describe("calibrateGrid", () => {
     expect(result.cells_per_image_width).toBeCloseTo(12);
   });
 
+  it("records the picture's shape, and none for a picture with no height", () => {
+    // 600 by 400 px is two thirds as tall as wide. Bug it fails on: a hand-lined grid that leaves the server without a map edge.
+    const base = { pointAPct: { x: 0, y: 0 }, pointBPct: { x: 100 / 600, y: 0 }, cellsBetween: 2, imageNaturalWidth: 600 };
+    expect(calibrateGrid({ ...base, imageNaturalHeight: 400 }).image_height_over_width).toBeCloseTo(2 / 3);
+    expect(calibrateGrid({ ...base, imageNaturalHeight: 0 }).image_height_over_width).toBeUndefined();
+  });
+
   it("works on a vertical line by accounting for image height in pixel space", () => {
     // 400px tall image; line spans (0,0)→(0,100) = 100 px tall = 4 cells → 25 px/cell
     // → 800px wide image fits 32 cells across.

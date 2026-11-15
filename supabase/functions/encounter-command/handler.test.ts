@@ -1027,6 +1027,9 @@ function mapOf(...walls: [[number, number], [number, number]][]): FightMap {
     difficult: new Set(),
     solid: new Set(),
     calibration: { cells_per_image_width: 20, origin_x_pct: 0, origin_y_pct: 0 },
+    // A map far wider than any fight in these tests, so its edge never matters here (reach.test.ts holds the edge).
+    bounds: { minX: -50, minY: -50, maxX: 50, maxY: 50 },
+    rowsKnown: true,
   };
 }
 
@@ -1192,6 +1195,22 @@ describe("take_turn", () => {
       turn: { instanceId: "wolf", optionId: "attack:actions:Bite:victim", kind: "attack", picked: "rules", reason: expect.stringMatching(/^Attacks victim/) },
     });
     expect(result.effects.findIndex((e) => e.type === "resolved")).toBeGreaterThan(0);
+  });
+
+  // The wolf has already bitten this turn (Action used) and the ox stands at (4,0), four squares off. Move is the only turn
+  // left on offer; the rules-only picker would take it and walk the wolf away from a target it just attacked.
+  it("fails if take_turn with no option walks a creature whose Action is already spent, or if naming the move stops working", async () => {
+    const spent = duel({ wolf: { action_used: true } });
+    const h = harness(spent, { sources: SOURCES, map: mapOf(), dieFaces: [] });
+    await expect(runBatch(batch("b1", takeTurn()), h.deps)).rejects.toMatchObject({
+      status: 400,
+      message: "wolf has already used its Action this turn; name an option to move it.",
+    });
+    expect(h.saves).toBe(0);
+    expect(combatantOf(stored(h), "wolf").position).toEqual({ x: 0, y: 0 });
+    // A caller may still name the option: it walks 15 ft to the square beside the ox (the top row, (3,-1), is on this wide test map).
+    await runBatch(batch("b2", takeTurn({ optionId: "move:victim" })), h.deps);
+    expect(combatantOf(stored(h), "wolf").position).toEqual({ x: 3, y: -1 });
   });
 
   // The caller names Dodge: no movement, no dice, the Action used, and the effect says the caller chose.

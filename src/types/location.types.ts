@@ -403,6 +403,14 @@ export interface GridCalibration {
    */
   origin_cell_x?: number;
   origin_cell_y?: number;
+  /**
+   * The picture's natural height divided by its natural width (#1202). A property of the picture, so it survives a
+   * change of `cells_per_image_width`. It exists so the server, which never loads the picture, knows where the map
+   * ends: rows run 0 to `ceil(cells_per_image_width * image_height_over_width) - 1`. Written where a calibration is
+   * made from a picture whose size is known, and healed by the DM's browser when it opens the map (`useHealPictureShape`).
+   * Optional: a calibration written before this field, on a map nobody has opened since, has none.
+   */
+  image_height_over_width?: number;
 }
 
 /**

@@ -34,6 +34,14 @@ describe("initialGrid", () => {
   });
 });
 
+describe("calibrationFor records the picture's shape", () => {
+  it("3000 by 2000 px is 0.667 tall, and the squares-across stepper keeps it true", () => {
+    // Bug it fails on: a grid made on a picture that does not say how tall the picture is, so the server cannot bound the map.
+    expect(calibrationFor(pic, 30).image_height_over_width).toBeCloseTo(2 / 3);
+    expect(withSquaresAcross(calibrationFor(pic, 30), pic, 20).image_height_over_width).toBeCloseTo(2 / 3);
+  });
+});
+
 describe("squaresDown", () => {
   it("follows the picture's shape: 3000 x 2000 at 30 across is 20 down", () => {
     expect(squaresDown({ cells_per_image_width: 30 }, pic)).toBe(20);

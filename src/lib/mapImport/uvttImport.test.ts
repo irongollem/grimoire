@@ -25,6 +25,11 @@ describe("uvttToDrawing", () => {
     expect(drawing.calibration.origin_x_pct).toBe(0);
   });
 
+  it("records the picture's shape: 3000 by 2000 px is two thirds as tall as wide", () => {
+    // Bug it fails on: an imported map with no shape, so the fight server could not know where the picture ends.
+    expect(drawing.calibration.image_height_over_width).toBeCloseTo(2 / 3);
+  });
+
   it("keeps every wall as an angled wall that blocks sight but is not drawn over the picture", () => {
     const walls = Object.values(drawing.layers.walls).filter((w) => w.type === "wall");
     expect(walls).toHaveLength(1);

@@ -41,5 +41,7 @@ export function calibrateGrid(input: CalibrateGridInput): GridCalibration {
     cells_per_image_width: imageNaturalWidth / pixelsPerCell,
     origin_x_pct: imageNaturalWidth > 0 ? originXpx / imageNaturalWidth : 0,
     origin_y_pct: imageNaturalHeight > 0 ? originYpx / imageNaturalHeight : 0,
+    // Only where the picture has a size: a zero height says nothing about its shape.
+    ...(imageNaturalWidth > 0 && imageNaturalHeight > 0 ? { image_height_over_width: imageNaturalHeight / imageNaturalWidth } : {}),
   };
 }

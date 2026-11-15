@@ -541,7 +541,7 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
     reachable({
       mover: { anchor: mover.position ?? null, footprint: combatantFootprint(mover), size: sizeOf(mover) },
       budgetFeet,
-      terrain: reachTerrainOf(map),
+      terrain: reachTerrainOf(map, [mover, ...onBoard].map((c) => ({ anchor: boxOf(c).anchor, footprint: combatantFootprint(c) }))),
       others: onBoard.map((o) => ({ anchor: boxOf(o).anchor, footprint: combatantFootprint(o), size: sizeOf(o), hostile: isHostileTo(mover, o), incapacitated: isIncapacitated(o) })),
       ruleset: input.ruleset,
     });

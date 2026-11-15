@@ -3,7 +3,8 @@
 //
 // The search is Dijkstra over whole-cell anchors in 8 directions. Every step is priced by `stepCost` in
 // `lib/battlemap/movement.ts`, the very function the DM's move counter uses, so the two cannot disagree. Rules:
-// - A wall or closed-door segment between the two positions blocks the step; solid rock blocks entering it.
+// - A wall or closed-door segment between the two positions blocks the step; solid rock blocks entering it; so does
+//   the edge of the map (`terrain.bounds`): no cell the mover would cover may lie off the picture.
 // - Other creatures (PHB 2014 ch. 9 "Moving Around Other Creatures"; PHB 2024 "Moving around Other Creatures"):
 //   see `creatureRule`. A creature never ends its move in another's space.
 // - Dash, cover, opportunity attacks and speed-changing conditions are not here: the caller passes the budget.
@@ -31,6 +32,14 @@ export interface ReachCreature {
   incapacitated: boolean;
 }
 
+/** The cells a map has, inclusive: cell (0,0) is the picture's top-left. */
+export interface ReachBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
 export interface ReachInput {
   mover: { anchor: Cell | null; footprint: number; size: MonsterSize };
   budgetFeet: number;
@@ -41,6 +50,8 @@ export interface ReachInput {
     blocking: readonly WallSegment[];
     /** Solid rock cells (`"x,y"`). */
     solid: ReadonlySet<string>;
+    /** The cells the map has, inclusive. A step is refused when any cell the mover would cover lies outside them. */
+    bounds: ReachBounds;
   };
   others: readonly ReachCreature[];
   ruleset: RulesetKey;
@@ -148,7 +159,10 @@ export function reachable(input: ReachInput): ReachResult {
       const to: Cell = { x: node.cell.x + d.x, y: node.cell.y + d.y };
       const toKey = keyOf(to.x, to.y);
       if (settled.has(toKey)) continue;
-      if (coverCells(to, mover.footprint).some((c) => terrain.solid.has(keyOf(c.x, c.y)))) continue;
+      // Wherever the mover starts: a creature that old data left off the map may step back onto it, never further off.
+      const covered = coverCells(to, mover.footprint);
+      if (covered.some((c) => c.x < terrain.bounds.minX || c.x > terrain.bounds.maxX || c.y < terrain.bounds.minY || c.y > terrain.bounds.maxY)) continue;
+      if (covered.some((c) => terrain.solid.has(keyOf(c.x, c.y)))) continue;
       if (wallBetween(node.cell, to, mover.footprint, terrain.blocking)) continue;
       const there = occupantsAt(to);
       if (there.some((o) => !o.rule.passable)) continue;

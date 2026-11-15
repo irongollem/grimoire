@@ -20,9 +20,12 @@ import {
 
 const CALIBRATION = { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0, origin_cell_x: 0, origin_cell_y: 0 } as GridCalibration;
 
+// A map far wider than any fight below, so its edge never matters here (the edge has its own tests in reach.test.ts).
+const FAR_EDGES = { minX: -50, minY: -50, maxX: 50, maxY: 50 };
+
 function mapOf(walls: [[number, number], [number, number]][] = []): FightMap {
   const occ = walls.length === 0 ? NO_OCCLUDERS : occluders({ walls: walls.map(([a, b], i): WallSegment => ({ id: `w${i}`, a, b })), doors: [], solid: [] });
-  return { mapLocationId: "site", occluders: occ, difficult: new Set(), solid: occ.solid, calibration: CALIBRATION };
+  return { mapLocationId: "site", occluders: occ, difficult: new Set(), solid: occ.solid, calibration: CALIBRATION, bounds: FAR_EDGES, rowsKnown: true };
 }
 const OPEN = mapOf();
 
@@ -419,6 +422,25 @@ describe("rule 10: flee", () => {
     expect(o?.feet).toBe(60);
     expect(o?.provokes).toEqual([{ enemyId: "chicory", step: 0 }]);
     expect(o?.summary).toBe("Flee: dash 60 ft away, ending 65 ft from the nearest enemy; provokes an opportunity attack from Chicory");
+  });
+
+  it("never flees off the picture: the farthest square is the farthest ON the map", () => {
+    // Bug it fails on: a search with no edge, which sent a fleeing creature to x = -10. A picture 6 squares across and as
+    // tall (x and y 0 to 5). Ogre (1,1), Chicory (2,1) beside it. With 60 ft every square of the map is in reach, and the
+    // distance from Chicory is the larger gap of the two axes: only row 5 gives 4 ((0,5) is 2 across and 4 down, (5,5) is
+    // 3 across and 4 down); column 5 gives 3. Ties go to the top row then the left column, so (0,5).
+    const bounded: FightMap = { ...mapOf(), bounds: { minX: 0, minY: 0, maxX: 5, maxY: 5 } };
+    const o = find(run({ combatants: [ogre(1, 1), chicory(2, 1)], map: bounded }), "flee");
+    expect(o?.destination).toEqual({ x: 0, y: 5 });
+  });
+
+  it("without the picture's height, flees only over rows that are known to exist", () => {
+    // Bug it fails on: treating an unknown height as unbounded, which is what ran a creature off the picture. Nothing is
+    // known of the rows except where the two creatures stand (both on row 1), so rows 0 and 1 are the whole map: the
+    // farthest square from Chicory (2,1) in columns 0 to 5 is column 5, three across; of (5,0) and (5,1) the top row wins.
+    const unknown: FightMap = { ...mapOf(), bounds: { minX: 0, minY: 0, maxX: 5, maxY: -1 }, rowsKnown: false };
+    const o = find(run({ combatants: [ogre(1, 1), chicory(2, 1)], map: unknown }), "flee");
+    expect(o?.destination).toEqual({ x: 5, y: 0 });
   });
 
   it("measures from the NEAREST of the enemies, not from the first one listed or from one alone", () => {

@@ -33,6 +33,7 @@ export function calibrationFor(
     cells_per_image_width: squaresAcross,
     origin_x_pct: mod(origin.x, cellPx) / natural.width,
     origin_y_pct: mod(origin.y, cellPx) / natural.height,
+    image_height_over_width: natural.height / natural.width,
   };
 }
 

@@ -12,7 +12,8 @@ import { emptyDefenses, type StatBlockEntry } from "../../../src/types/statBlock
 import { meleeReachFeet } from "../_shared/turnOptionsFor";
 import { computeOptions, OptionsError, validateOptionsRequest, type OptionsDeps, type OptionsFight } from "./handler";
 
-const CALIBRATION = { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0, origin_cell_x: 0, origin_cell_y: 0 } as GridCalibration;
+// A square picture, 10 across: cells 0 to 9 both ways. Its shape is recorded (`image_height_over_width`), so the map's edge is known.
+const CALIBRATION = { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0, origin_cell_x: 0, origin_cell_y: 0, image_height_over_width: 1 } as GridCalibration;
 // A calibrated picture with nothing drawn on it: open ground.
 const OPEN_GROUND: FightMapInput = {
   encounterLocation: {
@@ -22,6 +23,7 @@ const OPEN_GROUND: FightMapInput = {
   parent: null,
   regions: [],
   doorStates: [],
+  seen: new Set(),
 };
 
 const attack = (name: string, extra: Record<string, unknown> = {}): StatBlockEntry => ({
@@ -56,12 +58,12 @@ const ids = (r: { options: { id: string }[] }) => r.options.map((o) => o.id);
 
 describe("computeOptions", () => {
   it("offers the stat block's attack from the speed on the stat block, and names the row version it read", async () => {
-    // Wolf (0,0) speed 30; the hero stands at (4,0). Squares beside the hero are x=3: 3 steps, 15 ft; the top row, (3,-1).
+    // Wolf (0,0) speed 30; the hero stands at (4,0). Squares beside the hero are x=3: 3 steps, 15 ft; the map's top row is y=0 (the square above it, (3,-1), is off the picture), so (3,0).
     const r = await ask({ combatants: [wolf(), hero(4, 0)], version: 7 });
     expect(r.version).toBe(7);
     const bite = r.options.find((o) => o.id === "attack:actions:Bite:pc");
     expect(bite?.feet).toBe(15);
-    expect(bite?.destination).toEqual({ x: 3, y: -1 });
+    expect(bite?.destination).toEqual({ x: 3, y: 0 });
   });
 
   it("leaves out an ability that is spent: a used recharge", async () => {
@@ -86,9 +88,9 @@ describe("computeOptions", () => {
   });
 
   it("gives a player Dodge and movement only, at the sheet's speed", async () => {
-    // The hero (0,0) has speed 25 on the sheet; the wolf is at (3,0). No stat block, so no attack. A Dash (50 ft) reaches the
-    // squares beside the wolf at x=2: 2 steps, 10 ft; the top row (2,-1). A player is also offered Flee (the farthest square from the wolf).
-    const r = await ask({ combatants: [hero(0, 0, { faction_id: "m" }), wolf({ faction_id: "p", position: { x: 3, y: 0 } })], speeds: [{ id: "pm-pc", speed: 25 }] }, "pc");
+    // The hero (0,3) has speed 25 on the sheet; the wolf is at (3,3). No stat block, so no attack. A Dash (50 ft) reaches the
+    // squares beside the wolf at x=2: 2 steps, 10 ft; the top row (2,2). A player is also offered Flee (the farthest square from the wolf).
+    const r = await ask({ combatants: [hero(0, 3, { faction_id: "m" }), wolf({ faction_id: "p", position: { x: 3, y: 3 } })], speeds: [{ id: "pm-pc", speed: 25 }] }, "pc");
     expect(ids(r)).toEqual(["dash:wolf", "flee", "dodge"]);
     expect(r.options[0].feet).toBe(10);
   });

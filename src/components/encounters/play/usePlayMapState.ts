@@ -5,6 +5,8 @@ import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useToast } from "@/composables/useToast";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
+import { useHealPictureShape } from "@/composables/locations/useHealPictureShape";
 import { roomBattleCells, roomCellIndex, roomsUnder, seatFromExploring } from "@/lib/locations/explore";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
@@ -13,7 +15,7 @@ import { scatterInRoom as scatterInCells } from "@/lib/battlemap/scatter";
 import { useLocationNames } from "@/composables/locations/useLocations";
 import type { FogCellKey } from "@/lib/battlemap/fogMask";
 import type { CellKey } from "@/types/dungeonMap.types";
-import { imageGrid, type MapGrid } from "@/lib/battlemap/partySight";
+import { imageGrid, type MapGrid } from "@/lib/battlemap/imageGrid";
 import { useMapMemory } from "@/composables/locations/useMapMemory";
 import { useMapDoors } from "@/composables/locations/useMapDoors";
 import { usePartySight } from "@/composables/encounters/usePartySight";
@@ -49,6 +51,7 @@ export function usePlayMapState(
   const { encounter, location: encounterLocation, mapLocation: location, surface, focusRoom, terrainZones, regions } = room;
   const store = useEncounterRunStore();
   const campaign = useCampaignStore();
+  const auth = useAuthStore();
   const toast = useToast();
   const { isLive, liveStateLoaded, scheduleMapPush, moveToken } = useEncounterLive(encounterId, { follow: true });
 
@@ -99,6 +102,8 @@ export function usePlayMapState(
   // The fog is the map's memory (epic #1133): shared by exploring and every fight on this map, so a fight owns no
   // fog of its own. Only the DM's window writes; a follower reads.
   const canWrite = computed(() => !following.value);
+  // The picture's shape is how the fight server knows where the map ends (#1202); only the DM's own window records it.
+  useHealPictureShape({ place: () => surface.value?.mapLocation, enabled: () => canWrite.value && auth.isDM });
   const memory = useMapMemory(
     () => campaign.activeCampaign?.id ?? null,
     () => surface.value?.mapLocation.id ?? null,

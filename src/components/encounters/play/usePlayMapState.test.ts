@@ -26,7 +26,12 @@ const h = vi.hoisted(() => ({
   doors: { value: [] as { id: string; open: boolean }[] },
   setDoor: vi.fn(() => Promise.resolve()),
   doorArgs: [] as unknown[],
+  heal: vi.fn(),
+  isDM: { value: true },
 }));
+
+vi.mock("@/composables/locations/useHealPictureShape", () => ({ useHealPictureShape: h.heal }));
+vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ get isDM() { return h.isDM.value; } }) }));
 
 vi.mock("@/composables/locations/useMapDoors", () => ({
   useMapDoors: (...args: unknown[]) => {
@@ -123,6 +128,20 @@ describe("usePlayMapState", () => {
       calibration: { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 },
       live: { doors: [door] },
     };
+  });
+
+  // Recording the picture's shape writes the location row: a follower window and a player's account must never do it.
+  it("records the map's shape only from the DM's own window", () => {
+    const enabled = (mode: "dm" | "follower", isDM: boolean) => {
+      h.heal.mockClear();
+      h.isDM.value = isDM;
+      setup(mode);
+      return (h.heal.mock.calls[0]![0] as { enabled: () => boolean }).enabled();
+    };
+    expect(enabled("dm", true)).toBe(true);
+    expect(enabled("follower", true)).toBe(false);
+    expect(enabled("dm", false)).toBe(false);
+    h.isDM.value = true;
   });
 
   // The same component is reused from /encounters/A/run to /encounters/B/run: live state bound to A's id would push B's

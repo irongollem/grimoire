@@ -56,6 +56,7 @@ export function liveDrawingCalibration(map: DungeonMap, dressing: DressingCatalo
     origin_y_pct: 0,
     origin_cell_x: dims.originCellX,
     origin_cell_y: dims.originCellY,
+    image_height_over_width: dims.rows / dims.cols,
   };
 }
 
@@ -86,6 +87,8 @@ export function styledPictureCalibration(map: DungeonMap, dressing: DressingCata
     origin_cell_x,
     origin_cell_y,
     grid_opacity: DEFAULT_GRID_OPACITY,
+    // The render keeps the sent image's aspect (see above), so the shape is the padded content's.
+    image_height_over_width: geometry.effHeight / geometry.effWidth,
   };
 }
 

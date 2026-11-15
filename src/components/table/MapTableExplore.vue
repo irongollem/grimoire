@@ -33,7 +33,8 @@ import { useLocation, useLocations } from "@/composables/locations/useLocations"
 import { useMapDoors } from "@/composables/locations/useMapDoors";
 import { useMapMemory } from "@/composables/locations/useMapMemory";
 import { useActiveParty } from "@/composables/party/useActiveParty";
-import { imageGrid, shownCells, tableTokens } from "@/lib/battlemap/partySight";
+import { imageGrid } from "@/lib/battlemap/imageGrid";
+import { shownCells, tableTokens } from "@/lib/battlemap/partySight";
 import { combatantFootprint } from "@/lib/battlemap/tokenFootprint";
 import { exploreTokens } from "@/lib/locations/explore";
 import { partyRoomInSite } from "@/lib/locations/siteRun";
