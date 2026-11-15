@@ -562,6 +562,12 @@ describe("MapWorkbench", () => {
         expect(fakeFinder.find).toHaveBeenCalledTimes(2);
       });
 
+      it("lays the proposals over the Drawing when asked from the Base image tab, which has no grid to draw rings on", async () => {
+        const wrapper = await mountPicture(calibrated, { startLayer: "picture" });
+        await press(wrapper, "Find walls in the picture");
+        expect(layerTab(wrapper, "Drawing")!.attributes("aria-pressed")).toBe("true");
+      });
+
       it("is not offered under the Angled wall tool for a picture whose grid is not lined up", async () => {
         const wrapper = await mountPicture(uncalibrated, { startLayer: "drawing" });
         await wrapper.find('nav[aria-label="Map tools"] [aria-label="Walls"]').trigger("click");

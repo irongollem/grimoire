@@ -11,8 +11,8 @@
       <AppButton variant="ghost" fill="muted" size="xs" @click="$emit('cancel')">Cancel</AppButton>
     </div>
     <span class="text-caption-sm text-muted-foreground">
-      No room is drawn within a cell of this edge, so the map cannot tell. Leave the second empty for a way that leads
-      nowhere yet.
+      No room bound to a place lies beside this door, so the map cannot tell. Leave the second empty for a way that
+      leads nowhere yet.
     </span>
   </div>
 </template>
