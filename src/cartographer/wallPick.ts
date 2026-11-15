@@ -96,6 +96,48 @@ export function nearestAngledWall(
   return best;
 }
 
+/** Where a point lands on a wall's drawn line: the wall, the straight piece it is nearest to, and the foot point. */
+export interface WallFoot {
+  wallId: string;
+  /** The piece's own ends: the wall's ends for a straight or grid wall, the sampled piece for a curved one. */
+  a: CellPoint;
+  b: CellPoint;
+  /** The nearest point on that piece. */
+  foot: CellPoint;
+  /** The foot's distance along the piece, 0 at `a` to 1 at `b`. */
+  t: number;
+  distance: number;
+}
+
+/**
+ * The wall of ANY kind (a grid line or an angled one, a curve by its sampled pieces) nearest to `p` within `radius`
+ * cells, with where on it `p` lands. Only the nearest counts, and it is returned whatever its type: a caller that
+ * wants plain walls checks `walls[wallId].type`, so a door never lets the wall beside it be picked through it.
+ */
+export function nearestWallFoot(
+  walls: Readonly<Record<string, WallEdge>>,
+  p: CellPoint,
+  radius: number = WALL_PICK_RADIUS,
+): WallFoot | null {
+  let best: WallFoot | null = null;
+  const geometry = cachedWallGeometry(walls);
+  for (const [id, wall] of Object.entries(walls)) {
+    const pieces = isLatticeKey(id) ? [{ a: wall.a, b: wall.b }] : (geometry.lines.get(id)?.pieces ?? []);
+    for (const piece of pieces) {
+      const dx = piece.b[0] - piece.a[0];
+      const dy = piece.b[1] - piece.a[1];
+      const lengthSq = dx * dx + dy * dy;
+      const t = lengthSq === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - piece.a[0]) * dx + (p[1] - piece.a[1]) * dy) / lengthSq));
+      const foot: CellPoint = [piece.a[0] + t * dx, piece.a[1] + t * dy];
+      const distance = Math.hypot(p[0] - foot[0], p[1] - foot[1]);
+      if (distance <= radius && (best === null || distance < best.distance)) {
+        best = { wallId: id, a: [piece.a[0], piece.a[1]], b: [piece.b[0], piece.b[1]], foot, t, distance };
+      }
+    }
+  }
+  return best;
+}
+
 /** The placed light nearest to `p` within `radius` cells, or null. */
 export function nearestLight(
   lights: Readonly<Record<string, PlacedLight>>,

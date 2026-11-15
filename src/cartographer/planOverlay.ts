@@ -28,8 +28,8 @@ import {
 import { drawnRing, enclosingRing, tracePath } from "@/lib/locations/regionShape";
 import { ZONE_KIND_FILL } from "@/lib/locations/zones";
 import { ZONE_KIND_LABELS, type GridPoint, type LocationMapRegion } from "@/types/locationMapRegion.types";
-import type { DoorKind, DoorSegment, SourceEdgeKey } from "@/types/locationDoor.types";
-import { doorSegment, gridEdgeSegment } from "@/lib/locations/doors";
+import type { DoorKind, DoorSegment } from "@/types/locationDoor.types";
+import { doorSegment } from "@/lib/locations/doors";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { TemplateDragState } from "@/lib/map/gestures/pen";
 
@@ -212,11 +212,11 @@ export function drawPlanWays(ctx: CanvasRenderingContext2D, viewport: TileViewpo
   }
 }
 
-/** The door tool's own hover highlight — the edge a click would place or
- *  cycle a door on. */
-export function drawPlanDoorHover(ctx: CanvasRenderingContext2D, viewport: TileViewport, edgeKey: SourceEdgeKey): void {
+/** The door tool's own hover highlight: the line a click would put a door on or cycle, whatever it lies along (a grid
+ *  edge, a door-wide stretch of a slanted wall, a placed door, or the line being dragged). */
+export function drawPlanDoorHover(ctx: CanvasRenderingContext2D, viewport: TileViewport, segment: DoorSegment): void {
   const lineWidth = Math.max(2, 0.12 * viewport.tilePx);
-  const [a, b] = gridEdgeSegment(edgeKey);
+  const [a, b] = segment;
   const p1 = tileGridPointToCanvas(a, viewport);
   const p2 = tileGridPointToCanvas(b, viewport);
   ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";

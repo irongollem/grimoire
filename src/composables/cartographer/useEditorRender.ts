@@ -188,7 +188,7 @@ export function useEditorRender(inputs: {
           overlayCtx, viewport, planScene.tracingRing, planScene.tracingClosed, planScene.tracingHoverPoint,
           planScene.templateDraft, planScene.templateRingPreview,
         );
-        if (planScene.hoveredDoorEdge) drawPlanDoorHover(overlayCtx, viewport, planScene.hoveredDoorEdge);
+        if (planScene.hoveredDoor) drawPlanDoorHover(overlayCtx, viewport, planScene.hoveredDoor);
         if (planScene.assignHover) drawPlanAssignHover(overlayCtx, viewport, planScene.assignHover);
       }
     }
@@ -221,7 +221,7 @@ export function useEditorRender(inputs: {
   const planRenderDeps = planTools
     ? [
         plan!.regions, plan!.ways, plan!.activeRegionId, plan!.planTool, plan!.traceTool,
-        planTools.renderDeps.hoveredDoorEdge, planTools.renderDeps.pendingDoorEdge, planTools.renderDeps.strokePreview, planTools.renderDeps.draftRing,
+        planTools.renderDeps.hoveredDoor, planTools.renderDeps.doorDrag, planTools.renderDeps.pendingDoor, planTools.renderDeps.strokePreview, planTools.renderDeps.draftRing,
         planTools.renderDeps.templateDraft, planTools.renderDeps.liveDrag, planTools.renderDeps.penHoverPoint, planTools.renderDeps.eraseTouched,
         planTools.renderDeps.assignHover,
       ]

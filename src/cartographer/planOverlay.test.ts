@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
-import { drawPlanAssignHover, drawPlanSpaces, drawPlanWays, drawPlanZones, type PlanWayLike, type TileViewport } from "./planOverlay";
+import { drawPlanAssignHover, drawPlanDoorHover, drawPlanSpaces, drawPlanWays, drawPlanZones, type PlanWayLike, type TileViewport } from "./planOverlay";
 
 const VIEWPORT: TileViewport = { tilePx: 10, viewportOffset: { x: 0, y: 0 } };
 
@@ -97,5 +97,15 @@ describe("the Assign hover", () => {
     drawPlanAssignHover(ctx, VIEWPORT, { cells: ["0,0", "1,0"], outline: null });
     expect(calls.filter((c) => c.startsWith("fillRect"))).toHaveLength(2);
     expect(calls.filter((c) => c === "stroke()")).toEqual([]);
+  });
+});
+
+describe("the Door tool's hover", () => {
+  // Tile size 10: a stretch from (3.5, 2) to (4.5, 2.4) lands on (35,20) to (45,24), a slanted line a grid edge
+  // could not be. Drawing along the segment it is given, not along a grid edge, is the whole point of the change.
+  it("draws along the segment it is given, a slanted one included", () => {
+    const { ctx, calls } = recorder();
+    drawPlanDoorHover(ctx, VIEWPORT, [[3.5, 2], [4.5, 2.4]]);
+    expect(calls).toEqual(["beginPath()", "moveTo(35,20)", "lineTo(45,24)", "stroke()"]);
   });
 });

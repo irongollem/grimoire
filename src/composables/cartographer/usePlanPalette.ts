@@ -37,7 +37,7 @@
 // a rapid second edit reads the first edit's result as its `before`, not
 // whatever the lagging query still shows.
 
-import { computed, ref, watch, type ComputedRef } from "vue";
+import { computed, ref, shallowRef, watch, type ComputedRef } from "vue";
 import { useToast } from "@/composables/useToast";
 import { useLocations } from "@/composables/locations/useLocations";
 import {
@@ -63,8 +63,11 @@ import { cellsInsideRing } from "@/lib/locations/polygon";
 import { regionLoops, strokeZoneRing } from "@/lib/locations/zoneBrush";
 import type { TraceTool } from "@/lib/locations/polygon";
 import { wallFaces } from "@/cartographer/roomOutline";
+import { addFreeDoor, cutDoorIntoWall, doorWallTypeOf, removeDoorWall, setDoorWallType } from "@/cartographer/doorCut";
+import type { CellPoint } from "@/cartographer/wallPick";
+import { gridEdgeSegment } from "@/lib/locations/doors";
 import type { CellKey, DungeonMapLayers } from "@/types/dungeonMap.types";
-import type { DoorKind, SourceEdgeKey } from "@/types/locationDoor.types";
+import { isGridEdgeKey, type DoorKind, type DoorSegment, type SourceEdgeKey } from "@/types/locationDoor.types";
 import {
   ZONE_KINDS,
   ZONE_KIND_LABELS,
@@ -120,6 +123,30 @@ export function eraseFromRegions(
 export { ZONE_KINDS, ZONE_KIND_LABELS };
 export type { TraceTool };
 
+/** Where a Door tool click puts a door (#1197): on a grid edge with the Drawing left alone, in a wall of the Drawing
+ *  (a grid wall is switched in place, any other is cut by the door's two points), or on a line of its own with no wall
+ *  under it. `from` and `to` are in cell units. */
+export type DoorSite =
+  | { kind: "edge"; edgeKey: SourceEdgeKey }
+  | { kind: "wall"; wallId: string; from: CellPoint; to: CellPoint }
+  | { kind: "free"; from: CellPoint; to: CellPoint };
+
+/** The line a door site covers. */
+export function doorSiteSegment(site: DoorSite): DoorSegment {
+  return site.kind === "edge" ? gridEdgeSegment(site.edgeKey) : [site.from, site.to];
+}
+
+/** What the palette needs of the Drawing to cut a door into it as one undo step with the row: edit the layers through
+ *  `mutate` (null leaves them alone) and hand back the closures that restore them. Bound by the canvas editor, which
+ *  owns the Drawing, once it exists (`bindDrawingEditor`). */
+export interface DrawingEditor {
+  editDrawing: (mutate: (layers: DungeonMapLayers) => DungeonMapLayers | null) => DrawingHistory | null;
+}
+export interface DrawingHistory {
+  undo: () => void;
+  redo: () => void;
+}
+
 /** A one-field mutable box — see the module docblock for why a CREATE's undo
  *  lineage needs one instead of a plain string. */
 export interface PlanEntityHandle {
@@ -159,9 +186,17 @@ export function usePlanPalette(
   const brushRadius = ref(0.75);
   /** A listed door waiting for its edge (see `armDoorPlacement`). */
   const placingDoorId = ref<string | null>(null);
-  /** An edge clicked with the Door tool where no room is in reach on either side (#1195). The options slip asks
-   *  which rooms the door joins instead of refusing it; see `askDoorEnds`. */
-  const pendingDoorEdge = ref<SourceEdgeKey | null>(null);
+  /** Where the Door tool clicked with no room in reach on either side (#1195). The options slip asks which rooms the
+   *  door joins instead of refusing it; see `askDoorEnds`. The Drawing is cut only when the DM answers. */
+  const pendingDoor = ref<DoorSite | null>(null);
+  /** What the next door is: the slip's Door / Arch chips. An arch cuts the wall as an open doorway. */
+  const newDoorKind = ref<"door" | "arch">("door");
+  /** How wide the next door is in cells (5 ft or 10 ft). A grid wall is one 5 ft edge whatever this says. */
+  const doorWidth = ref<1 | 2>(1);
+  const drawingEditor = shallowRef<DrawingEditor | null>(null);
+  function bindDrawingEditor(editor: DrawingEditor | null): void {
+    drawingEditor.value = editor;
+  }
   // Shared singleton with the Atlas's own template picker (`useRegionPen.ts`)
   // — deliberate: "only one tracing session can be live at a time" already
   // covers a DM being in the Cartographer instead of the Atlas, not just
@@ -488,26 +523,74 @@ export function usePlanPalette(
     return ways.value.find((w) => w.edge_key === edgeKey) ?? null;
   }
 
-  /** Places a new door on `edgeKey` with the given (already-resolved)
-   *  endpoints. */
-  function placeDoorAt(edgeKey: SourceEdgeKey, fromLocationId: string, toLocationId: string | null): void {
+  /** What putting a door on `site` writes: the key the row carries, its line (null for a grid key, as the database
+   *  holds them together), and the Drawing's own undo for the cut that made it (null when nothing was cut). */
+  interface DoorWritten {
+    key: string;
+    segment: DoorSegment | null;
+    history: DrawingHistory | null;
+  }
+
+  /** The Drawing half of a door: a grid edge writes nothing, a wall or a free line is cut into the Drawing through the
+   *  editor so it autosaves and undoes with the row. Null (and a toast) when the Drawing cannot take it. */
+  function writeDoorIntoDrawing(site: DoorSite): DoorWritten | null {
+    if (site.kind === "edge") return { key: site.edgeKey, segment: null, history: null };
+    const editor = drawingEditor.value;
+    if (!editor) {
+      toastError("The drawing is not ready yet. Try the door again in a moment.");
+      return null;
+    }
+    const type = doorWallTypeOf(newDoorKind.value);
+    const newKey = (): string => crypto.randomUUID();
+    const result: { doorId: string | null; line: DoorSegment | null } = { doorId: null, line: null };
+    const history = editor.editDrawing((l) => {
+      const cut =
+        site.kind === "wall"
+          ? cutDoorIntoWall(l.walls, site.wallId, site.from, site.to, newKey, type)
+          : addFreeDoor(l.walls, site.from, site.to, newKey, type);
+      if (!cut) return null;
+      result.doorId = cut.doorId;
+      const door = cut.walls[cut.doorId]!;
+      result.line = [[door.a[0], door.a[1]], [door.b[0], door.b[1]]];
+      return { ...l, walls: cut.walls };
+    });
+    if (!history || result.doorId === null) {
+      toastError("That wall is no longer there, so no door was cut.");
+      return null;
+    }
+    // The row holds a line only for a wall-uuid key: the key is the grid edge itself when a grid wall was switched.
+    return { key: result.doorId, segment: isGridEdgeKey(result.doorId) ? null : result.line, history };
+  }
+
+  /** Places a new door on `site` with the given (already-resolved) endpoints: the Drawing's cut and the way out in one
+   *  undo step. */
+  function placeDoorAt(site: DoorSite, fromLocationId: string, toLocationId: string | null): void {
+    const written = writeDoorIntoDrawing(site);
+    if (!written) return;
+    const { key, segment, history } = written;
     const insert = {
       from_location_id: fromLocationId,
       to_location_id: toLocationId,
-      door_kind: "door" as DoorKind,
-      edge_key: edgeKey,
+      door_kind: newDoorKind.value,
+      edge_key: key,
+      ...(segment ? { segment } : {}),
       derived_from: "dm" as const,
     };
     createDoor.mutate(insert, {
       onSuccess: (created) => {
         const handle: PlanEntityHandle = { id: created.id };
+        // A row whose wall is missing is the bad state, a door wall without its row is not (publish makes the row),
+        // so the row goes first on the way out and comes last on the way in.
         undo.push({
           label: "place door",
-          undo: async () => { await deleteDoor.mutateAsync(handle.id); },
-          redo: async () => { const recreated = await createDoor.mutateAsync(insert); handle.id = recreated.id; },
+          undo: async () => { await deleteDoor.mutateAsync(handle.id); history?.undo(); },
+          redo: async () => { history?.redo(); const recreated = await createDoor.mutateAsync(insert); handle.id = recreated.id; },
         });
       },
-      onError: (err) => toastError(fromError(err)),
+      onError: (err) => {
+        history?.undo();
+        toastError(fromError(err));
+      },
     });
   }
 
@@ -520,17 +603,17 @@ export function usePlanPalette(
   watch(planTool, (tool) => {
     if (tool === "door") return;
     placingDoorId.value = null;
-    pendingDoorEdge.value = null;
+    pendingDoor.value = null;
   });
 
-  /** Puts the armed listed door on `edgeKey` and says whether there was one. It keeps the two ends it was listed
-   *  with, so the Door tool asks this before it looks for rooms beside the edge: a listed door is never refused
+  /** Puts the armed listed door on `site` and says whether there was one. It keeps the two ends it was listed
+   *  with, so the Door tool asks this before it looks for rooms beside the door: a listed door is never refused
    *  for landing where no zone is traced (#1195). */
-  function placeArmedDoorOn(edgeKey: SourceEdgeKey): boolean {
+  function placeArmedDoorOn(site: DoorSite): boolean {
     const arrivingId = placingDoorId.value;
     if (!arrivingId) return false;
     placingDoorId.value = null;
-    putListedDoorOnEdge(arrivingId, edgeKey);
+    putListedDoorOnSite(arrivingId, site);
     return true;
   }
 
@@ -544,39 +627,59 @@ export function usePlanPalette(
     (childLocations.value ?? []).map((l) => ({ id: l.id, name: l.name })).sort((a, b) => a.name.localeCompare(b.name)),
   );
 
-  function askDoorEnds(edgeKey: SourceEdgeKey): void {
-    pendingDoorEdge.value = edgeKey;
+  function askDoorEnds(site: DoorSite): void {
+    pendingDoor.value = site;
   }
 
+  /** The DM's answer: only now is the Drawing cut, so cancelling leaves it untouched. */
   function placePendingDoor(fromLocationId: string, toLocationId: string | null): void {
-    const edgeKey = pendingDoorEdge.value;
-    if (!edgeKey) return;
-    pendingDoorEdge.value = null;
-    placeDoorAt(edgeKey, fromLocationId, toLocationId);
+    const site = pendingDoor.value;
+    if (!site) return;
+    pendingDoor.value = null;
+    placeDoorAt(site, fromLocationId, toLocationId);
   }
 
   function cancelPendingDoor(): void {
-    pendingDoorEdge.value = null;
+    pendingDoor.value = null;
   }
 
-  function putListedDoorOnEdge(doorId: string, edgeKey: SourceEdgeKey): void {
+  function putListedDoorOnSite(doorId: string, site: DoorSite): void {
+    const written = writeDoorIntoDrawing(site);
+    if (!written) return;
+    const { key, segment, history } = written;
     const handle: PlanEntityHandle = { id: doorId };
+    const placed = { edge_key: key, segment };
+    const unplaced = { edge_key: null, segment: null };
     updateDoor.mutate(
-      { id: doorId, update: { edge_key: edgeKey } },
+      { id: doorId, update: placed },
       {
         onSuccess: () => {
           undo.push({
             label: "place door",
-            undo: async () => { await updateDoor.mutateAsync({ id: handle.id, update: { edge_key: null } }); },
-            redo: async () => { await updateDoor.mutateAsync({ id: handle.id, update: { edge_key: edgeKey } }); },
+            undo: async () => { await updateDoor.mutateAsync({ id: handle.id, update: unplaced }); history?.undo(); },
+            redo: async () => { history?.redo(); await updateDoor.mutateAsync({ id: handle.id, update: placed }); },
           });
         },
-        onError: (err) => toastError(fromError(err)),
+        onError: (err) => {
+          history?.undo();
+          toastError(fromError(err));
+        },
       },
     );
   }
 
-  /** A click on a placed door cycles the only two kinds a 2D plan edge
+  /** Runs `change` on the Drawing's walls for the door whose key is `key`, as one undoable edit; null when the Drawing
+   *  has no such door (a way that is only a row) or no editor is bound. */
+  function editDoorWall(key: string | null, change: (walls: DungeonMapLayers["walls"], key: string) => DungeonMapLayers["walls"] | null): DrawingHistory | null {
+    const editor = drawingEditor.value;
+    if (!editor || key === null) return null;
+    return editor.editDrawing((l) => {
+      const walls = change(l.walls, key);
+      return walls ? { ...l, walls } : null;
+    });
+  }
+
+  /** A click on a placed door cycles the only two kinds a 2D plan door
    *  distinguishes — `door` ↔ `arch`, mirroring the Atlas's own door tool. */
   function cycleDoorKind(door: SiteDoorWithSpaces): void {
     const before = door.door_kind;
@@ -586,10 +689,12 @@ export function usePlanPalette(
       { id: door.id, update: { door_kind: after } },
       {
         onSuccess: () => {
+          // A door the Drawing also holds changes with its row, in the same step.
+          const history = editDoorWall(door.edge_key, (walls, key) => setDoorWallType(walls, key, doorWallTypeOf(after)));
           undo.push({
             label: "cycle door kind",
-            undo: async () => { await updateDoor.mutateAsync({ id: handle.id, update: { door_kind: before } }); },
-            redo: async () => { await updateDoor.mutateAsync({ id: handle.id, update: { door_kind: after } }); },
+            undo: async () => { await updateDoor.mutateAsync({ id: handle.id, update: { door_kind: before } }); history?.undo(); },
+            redo: async () => { history?.redo(); await updateDoor.mutateAsync({ id: handle.id, update: { door_kind: after } }); },
           });
         },
         onError: (err) => toastError(fromError(err)),
@@ -621,10 +726,12 @@ export function usePlanPalette(
     const handle: PlanEntityHandle = { id: door.id };
     deleteDoor.mutate(door.id, {
       onSuccess: () => {
+        // The Drawing's door goes with its way: a cut one is a plain wall again, a free-standing one is gone.
+        const history = editDoorWall(door.edge_key, removeDoorWall);
         undo.push({
           label: "remove door",
-          undo: async () => { const recreated = await createDoor.mutateAsync(insert); handle.id = recreated.id; },
-          redo: async () => { await deleteDoor.mutateAsync(handle.id); },
+          undo: async () => { history?.undo(); const recreated = await createDoor.mutateAsync(insert); handle.id = recreated.id; },
+          redo: async () => { await deleteDoor.mutateAsync(handle.id); history?.redo(); },
         });
       },
       onError: (err) => toastError(fromError(err)),
@@ -664,7 +771,10 @@ export function usePlanPalette(
     armDoorPlacement,
     placeArmedDoorOn,
     placeDoorAt,
-    pendingDoorEdge,
+    pendingDoor,
+    newDoorKind,
+    doorWidth,
+    bindDrawingEditor,
     spaceOptions,
     askDoorEnds,
     placePendingDoor,

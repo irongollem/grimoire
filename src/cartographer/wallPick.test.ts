@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { distanceToSegment, isWallEnd, nearestAngledWall, nearestLight, snapPoint, snapRunPoint } from "./wallPick";
+import { distanceToSegment, isWallEnd, nearestAngledWall, nearestLight, nearestWallFoot, snapPoint, snapRunPoint } from "./wallPick";
 import type { WallEdge } from "@/types/dungeonMap.types";
 import { cachedWallGeometry } from "./wallGeometry";
 
@@ -122,5 +122,48 @@ describe("isWallEnd", () => {
     expect(isWallEnd(walls, [1, 1])).toBe(true);
     expect(isWallEnd(walls, [5, 1])).toBe(true);
     expect(isWallEnd(walls, [3, 1])).toBe(false);
+  });
+});
+
+describe("nearestWallFoot (the Door tool's wall under the pointer, #1197)", () => {
+  it("finds a grid wall as well as an angled one, with the foot point and how far along it lands", () => {
+    const walls = { "3,2:W": wall([3, 3], [3, 2]), s: wall([10, 0], [20, 0]) };
+    // 0.1 east of the grid wall, 0.25 of the way from its (3,3) end up to (3,2): foot (3, 2.75).
+    const grid = nearestWallFoot(walls, [3.1, 2.75])!;
+    expect(grid.wallId).toBe("3,2:W");
+    expect(grid.foot[0]).toBeCloseTo(3, 9);
+    expect(grid.foot[1]).toBeCloseTo(2.75, 9);
+    expect(grid.t).toBeCloseTo(0.25, 9);
+    expect(nearestWallFoot(walls, [14, 0.2])).toMatchObject({ wallId: "s", foot: [14, 0], t: 0.4 });
+  });
+
+  it("returns nothing beyond the reach and picks the nearer of two walls", () => {
+    const walls = { far: wall([0, 0], [10, 0]), near: wall([0, 0.2], [10, 0.2]) };
+    expect(nearestWallFoot(walls, [5, 2])).toBeNull();
+    expect(nearestWallFoot(walls, [5, 0.15])!.wallId).toBe("near");
+  });
+
+  it("measures to the end of a wall, not to its line carried on past the end", () => {
+    const walls = { w: wall([0, 0], [10, 0]) };
+    // 0.25 past the end and 0.2 off the line: 0.32 from the end point, outside the 0.3 reach (0.2 if the line ran on).
+    expect(nearestWallFoot(walls, [10.25, 0.2])).toBeNull();
+    // Inside the reach of the end, the foot is the end itself, at t = 1.
+    expect(nearestWallFoot(walls, [10.1, 0.1])).toMatchObject({ foot: [10, 0], t: 1 });
+  });
+
+  it("hands back the sampled piece of a curved wall, not its chord", () => {
+    const walls = { p: { ...wall([0, 0], [4, 0]), smoothB: true as const }, q: { ...wall([4, 0], [4, 4]), smoothA: true as const } };
+    // The curve's bulge, more than 0.25 cells past the chord x = 4 (as the test above establishes).
+    const bulge = cachedWallGeometry(walls).lines.get("q")!.path.reduce((best, pt) => (pt[0] > best[0] ? pt : best));
+    const hit = nearestWallFoot(walls, bulge)!;
+    expect(hit.wallId).toBe("q");
+    expect(hit.distance).toBeCloseTo(0, 9);
+    expect(hit.foot[0]).toBeGreaterThan(4.25);
+    // A chord pick would have put the foot on x = 4.
+  });
+
+  it("returns a door as the nearest wall so a plain wall behind it cannot be picked through it", () => {
+    const walls = { d: { ...wall([0, 0], [2, 0]), type: "doorClosed" as const }, w: wall([0, 0.25], [2, 0.25]) };
+    expect(nearestWallFoot(walls, [1, 0.05])!.wallId).toBe("d");
   });
 });

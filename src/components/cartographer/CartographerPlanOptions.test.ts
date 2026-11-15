@@ -71,9 +71,37 @@ describe("CartographerPlanOptions", () => {
 
   it("shows the Door hint with no `hidden` class when Door is active", () => {
     const wrapper = mount(CartographerPlanOptions, { props: makeProps("door") });
-    const hint = wrapper.findAll("span").find((s) => s.text().includes("Click a cell edge"));
+    const hint = wrapper.findAll("span").find((s) => s.text().includes("Point at a wall"));
     expect(hint).toBeTruthy();
     expect(hint!.classes()).not.toContain("hidden");
+  });
+
+  describe("the Door tool's options (#1197)", () => {
+    const chip = (wrapper: ReturnType<typeof mount>, label: string) => wrapper.findAll("button").find((b) => b.text() === label);
+
+    it("picks door or arch and 5 ft or 10 ft, each reaching the palette as the value the cut reads", async () => {
+      const wrapper = mount(CartographerPlanOptions, { props: makeProps("door") });
+      await chip(wrapper, "Arch")?.trigger("click");
+      expect(wrapper.emitted("update:doorKind")?.[0]).toEqual(["arch"]);
+      // The width is in cells (5 ft each), so 10 ft is 2: the number the tools' stretch maths multiplies by.
+      await chip(wrapper, "10 ft")?.trigger("click");
+      expect(wrapper.emitted("update:doorWidth")?.[0]).toEqual([2]);
+    });
+
+    it("shows the tip for what is under the pointer, and no tip line with nothing there", () => {
+      const tipped = mount(CartographerPlanOptions, { props: { ...makeProps("door"), doorTip: "Door here: Nave and Crypt" } });
+      expect(tipped.text()).toContain("Door here: Nave and Crypt");
+      const bare = mount(CartographerPlanOptions, { props: { ...makeProps("door"), doorTip: null } });
+      expect(bare.text()).not.toContain("Door here");
+    });
+
+    it("asks which rooms instead of showing the chips and the tip while a door is waiting for its rooms", () => {
+      const wrapper = mount(CartographerPlanOptions, {
+        props: { ...makeProps("door"), doorPending: true, doorTip: "Door here: Nave and Crypt", rooms: [{ id: "a", name: "Nave" }] },
+      });
+      expect(wrapper.text()).not.toContain("Door here");
+      expect(chip(wrapper, "Arch")).toBeUndefined();
+    });
   });
 
   it("Assign offers the kind chips, so the DM picks what the area becomes without switching tools", async () => {

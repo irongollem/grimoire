@@ -13,7 +13,9 @@ import { emptyLayers, type CellKey } from "@/types/dungeonMap.types";
 import { canonicaliseEdge } from "@/cartographer/edges";
 import { putWall } from "@/cartographer/testWalls";
 import { useToast } from "@/composables/useToast";
-import type { SourceEdgeKey } from "@/types/locationDoor.types";
+import type { DoorSite } from "./usePlanPalette";
+import type { SiteDoorWithSpaces } from "@/composables/locations/useSiteDoors";
+import type { WallEdge } from "@/types/dungeonMap.types";
 import type { usePlanPalette } from "./usePlanPalette";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 
@@ -206,23 +208,13 @@ describe("usePlanCanvasTools pan boundary", () => {
   });
 });
 
-describe("usePlanCanvasTools Door and Assign tools", () => {
+describe("usePlanCanvasTools Assign tool", () => {
   const TILE = 32;
-  // The vertical edge between cell 2 and cell 3 on row 2: a pointer 1px off it, mid-row.
-  const EDGE_POINT = { x: 3 * TILE + 1, y: 2 * TILE + TILE / 2 };
-  const EDGE = "3,2:W" as SourceEdgeKey;
   const { toasts } = useToast();
 
-  function doorHarness(
-    tool: "door" | "assign",
-    rooms: LocationMapRegion[] = [],
-    floor: CellKey[] = [],
-    siteRooms: { id: string; name: string }[] = [{ id: "loc-west", name: "West" }, { id: "loc-east", name: "East" }],
-  ) {
-    const armed = ref(false);
+  function doorHarness(tool: "assign", rooms: LocationMapRegion[] = [], floor: CellKey[] = []) {
     const layers = ref(emptyLayers());
     for (const cell of floor) layers.value.floor[cell] = { floor: { pack_id: "base", pack_version: 1, variant: 0 } };
-    const existing = ref<string | null>(null);
     const plan = {
       regions: ref(rooms),
       foundRegions: ref([]),
@@ -232,14 +224,6 @@ describe("usePlanCanvasTools Door and Assign tools", () => {
       traceTool: ref("paint"),
       activeRegionId: ref(null),
       activeRegion: computed(() => null),
-      existingDoorAtEdge: vi.fn(() => existing.value),
-      placeDoorAt: vi.fn(),
-      placeArmedDoorOn: vi.fn(() => armed.value),
-      askDoorEnds: vi.fn(),
-      pendingDoorEdge: ref<SourceEdgeKey | null>(null),
-      spaceOptions: ref(siteRooms),
-      cycleDoorKind: vi.fn(),
-      removeDoor: vi.fn(),
       assignArea: vi.fn(async () => {}),
     } as unknown as ReturnType<typeof usePlanPalette>;
     const tools = usePlanCanvasTools({
@@ -251,92 +235,8 @@ describe("usePlanCanvasTools Door and Assign tools", () => {
       tilePixelSize: () => TILE,
     });
     toasts.value = [];
-    return { tools, plan, existing, armed, layers };
+    return { tools, plan, layers };
   }
-
-  const roomsEitherSide = [
-    makeRegion({ id: "west", space_location_id: "loc-west", cells: ["2,2"] as CellKey[] }),
-    makeRegion({ id: "east", space_location_id: "loc-east", cells: ["3,2"] as CellKey[] }),
-  ];
-  const press = (over: PointerEventInit = {}) => new PointerEvent("pointerdown", { clientX: EDGE_POINT.x, clientY: EDGE_POINT.y, ...over });
-
-  it("places a door on an edge joining the rooms traced either side of it", () => {
-    const { tools, plan } = doorHarness("door", roomsEitherSide);
-    expect(tools.onPointerDown(press())).toBe(true);
-    expect(plan.placeDoorAt).toHaveBeenCalledTimes(1);
-    const [edge, from, to] = vi.mocked(plan.placeDoorAt).mock.calls[0]!;
-    expect(edge).toBe(EDGE);
-    expect(new Set([from, to])).toEqual(new Set(["loc-west", "loc-east"]));
-  });
-
-  // #1195: the tool used to refuse this edge with "Trace a room on at least one side".
-  it("asks which rooms a door joins where no zone is in reach, instead of refusing it", () => {
-    const { tools, plan } = doorHarness("door", []);
-    expect(tools.onPointerDown(press())).toBe(true);
-    expect(plan.askDoorEnds).toHaveBeenCalledWith(EDGE);
-    expect(plan.placeDoorAt).not.toHaveBeenCalled();
-    expect(toasts.value).toHaveLength(0);
-  });
-
-  it("says so, and asks nothing, on a map with no rooms to choose from", () => {
-    const { tools, plan } = doorHarness("door", [], [], []);
-    tools.onPointerDown(press());
-    expect(plan.askDoorEnds).not.toHaveBeenCalled();
-    expect(toasts.value).toHaveLength(1);
-  });
-
-  it("puts a listed door on an edge with no zone beside it, asking nothing (it keeps its own ends)", () => {
-    const { tools, plan, armed } = doorHarness("door", []);
-    armed.value = true;
-    tools.onPointerDown(press());
-    expect(plan.placeArmedDoorOn).toHaveBeenCalledWith(EDGE);
-    expect(plan.askDoorEnds).not.toHaveBeenCalled();
-    expect(plan.placeDoorAt).not.toHaveBeenCalled();
-  });
-
-  it("a click on a placed door cycles it even while a listed door is armed", () => {
-    const { tools, plan, existing, armed } = doorHarness("door", roomsEitherSide);
-    existing.value = "door-1";
-    armed.value = true;
-    tools.onPointerDown(press());
-    expect(plan.cycleDoorKind).toHaveBeenCalledWith("door-1");
-    expect(plan.placeArmedDoorOn).not.toHaveBeenCalled();
-  });
-
-  it("keeps the edge waiting for its rooms lit while the pointer is elsewhere", () => {
-    const { tools, plan } = doorHarness("door", []);
-    plan.pendingDoorEdge.value = EDGE;
-    expect(tools.renderScene().hoveredDoorEdge).toBe(EDGE);
-  });
-
-  it("cycles an existing door's kind on a plain click, and removes it only on Alt-click", () => {
-    const { tools, plan, existing } = doorHarness("door", roomsEitherSide);
-    existing.value = "door-1";
-    tools.onPointerDown(press());
-    expect(plan.cycleDoorKind).toHaveBeenCalledWith("door-1");
-    expect(plan.removeDoor).not.toHaveBeenCalled();
-    tools.onPointerDown(press({ altKey: true }));
-    expect(plan.removeDoor).toHaveBeenCalledWith("door-1");
-    expect(plan.placeDoorAt).not.toHaveBeenCalled();
-  });
-
-  it("Alt-click where there is no door places nothing", () => {
-    const { tools, plan } = doorHarness("door", roomsEitherSide);
-    tools.onPointerDown(press({ altKey: true }));
-    expect(plan.placeDoorAt).not.toHaveBeenCalled();
-    expect(plan.removeDoor).not.toHaveBeenCalled();
-  });
-
-  it("leaves a right-click to the pan unless Alt turns it into a delete, and swallows a press that finds no edge", () => {
-    const { tools, plan, existing } = doorHarness("door", roomsEitherSide);
-    existing.value = "door-1";
-    expect(tools.onPointerDown(press({ button: 2 }))).toBe(false);
-    expect(plan.removeDoor).not.toHaveBeenCalled();
-    expect(tools.onPointerDown(press({ button: 2, altKey: true }))).toBe(true);
-    expect(plan.removeDoor).toHaveBeenCalledWith("door-1");
-    // Mid-tile, far from any edge: claimed so the click never reaches the Drawing underneath.
-    expect(tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 2 * TILE + 16, clientY: 2 * TILE + 16 }))).toBe(true);
-  });
 
   it("assigns the whole connected floor under a click, not the separate patch beside it", () => {
     const { tools, plan } = doorHarness("assign", [], ["0,0", "1,0", "1,1", "8,8"] as CellKey[]);
@@ -385,22 +285,6 @@ describe("usePlanCanvasTools Door and Assign tools", () => {
     const { tools, plan } = doorHarness("assign", [], ["0,0"] as CellKey[]);
     expect(tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 0, clientY: 0, button: 2 }))).toBe(false);
     expect(plan.assignArea).not.toHaveBeenCalled();
-  });
-
-  it("shows the hovered door edge only while the Door tool is the one in use", () => {
-    const { tools, plan } = doorHarness("door", roomsEitherSide);
-    tools.onPointerMove(new PointerEvent("pointermove", { clientX: EDGE_POINT.x, clientY: EDGE_POINT.y }));
-    expect(tools.renderScene().hoveredDoorEdge).toBe(EDGE);
-    tools.onPointerLeave();
-    expect(tools.renderScene().hoveredDoorEdge).toBeNull();
-
-    tools.onPointerMove(new PointerEvent("pointermove", { clientX: EDGE_POINT.x, clientY: EDGE_POINT.y }));
-    plan.planTool.value = "assign";
-    expect(tools.renderScene().hoveredDoorEdge).toBeNull();
-    // Moving under another tool forgets the edge, so switching back does not show a stale one.
-    tools.onPointerMove(new PointerEvent("pointermove", { clientX: 0, clientY: 0 }));
-    plan.planTool.value = "door";
-    expect(tools.renderScene().hoveredDoorEdge).toBeNull();
   });
 
   describe("the Assign hover", () => {
@@ -576,5 +460,350 @@ describe("usePlanCanvasTools found rooms", () => {
     tools.onPointerDown(down(4, 4));
     window.dispatchEvent(up(4, 4));
     expect(selectRegion).toHaveBeenCalledWith("found:s:0,0");
+  });
+});
+
+// #1197 frame 06: the Door tool lights and cuts a door-wide stretch of whatever wall is under the pointer.
+describe("usePlanCanvasTools Door tool", () => {
+  const TILE = 32;
+  const { toasts } = useToast();
+  const MATERIAL = { pack_id: "stone", pack_version: 1, variant: 0 };
+  const wall = (a: [number, number], b: [number, number], over: Partial<WallEdge> = {}): WallEdge => ({ ...MATERIAL, type: "wall", a, b, ...over });
+  // A slanted wall 10 cells long, direction (0.6, 0.8): one cell along it is (0.6, 0.8).
+  const SLANTED = wall([10, 10], [16, 18]);
+  // Its midpoint (13,14) has the owner side at cell 12,14 (m + 0.5n with n = (-0.8, 0.6)) and the other at 13,13.
+  const roomsEitherSide = [
+    makeRegion({ id: "ra", space_location_id: "loc-a", cells: ["12,14"] as CellKey[] }),
+    makeRegion({ id: "rb", space_location_id: "loc-b", cells: ["13,13"] as CellKey[] }),
+  ];
+  const NAMES: [string, string][] = [["loc-a", "Nave"], ["loc-b", "Crypt"]];
+  const ROOMS = [{ id: "loc-a", name: "Nave" }, { id: "loc-b", name: "Crypt" }];
+
+  const way = (over: Partial<SiteDoorWithSpaces>): SiteDoorWithSpaces =>
+    ({ id: "way-1", from_location_id: "loc-a", to_location_id: "loc-b", door_kind: "door", edge_key: null, segment: null, ...over }) as SiteDoorWithSpaces;
+
+  function harness(opts: { regions?: LocationMapRegion[]; ways?: SiteDoorWithSpaces[]; walls?: Record<string, WallEdge>; rooms?: { id: string; name: string }[] } = {}) {
+    const layers = ref(emptyLayers());
+    layers.value.walls = opts.walls ?? { w: SLANTED };
+    const armed = ref(false);
+    const ways = ref(opts.ways ?? []);
+    const plan = {
+      regions: ref(opts.regions ?? []),
+      foundRegions: ref([]),
+      ways,
+      planTool: ref("door"),
+      traceTool: ref("paint"),
+      activeRegionId: ref(null),
+      activeRegion: computed(() => null),
+      zoneKind: ref("room"),
+      spaceNames: ref(new Map(NAMES)),
+      spaceOptions: ref(opts.rooms ?? ROOMS),
+      doorWidth: ref<1 | 2>(1),
+      newDoorKind: ref("door"),
+      pendingDoor: ref<DoorSite | null>(null),
+      placeDoorAt: vi.fn(),
+      placeArmedDoorOn: vi.fn(() => armed.value),
+      askDoorEnds: vi.fn(),
+      cycleDoorKind: vi.fn(),
+      removeDoor: vi.fn(),
+    } as unknown as ReturnType<typeof usePlanPalette>;
+    const tools = usePlanCanvasTools({
+      plan,
+      layers,
+      cellAt: (x, y) => `${Math.floor(x / TILE)},${Math.floor(y / TILE)}` as CellKey,
+      // The real canvas maps a pointer to cell units like this, and to world pixels as is.
+      gridPointAt: (x, y) => [x / TILE, y / TILE],
+      worldPointAt: (x, y) => ({ x, y }),
+      tilePixelSize: () => TILE,
+    });
+    toasts.value = [];
+    return { tools, plan, armed, layers, ways };
+  }
+
+  const at = (cx: number, cy: number, init: PointerEventInit = {}, type = "pointerdown") =>
+    new PointerEvent(type, { clientX: cx * TILE, clientY: cy * TILE, ...init });
+  const hover = (tools: ReturnType<typeof usePlanCanvasTools>, cx: number, cy: number) => tools.onPointerMove(at(cx, cy, {}, "pointermove"));
+  const expectSegment = (actual: readonly (readonly number[])[] | null, expected: number[][]) => {
+    expect(actual).not.toBeNull();
+    expected.forEach((point, i) => point.forEach((v, j) => expect(actual![i]![j]).toBeCloseTo(v, 9)));
+  };
+
+  describe("what the pointer finds", () => {
+    it("prefers a placed door over a wall over a bare grid edge", () => {
+      // The pointer is on the way (a grid edge door at x=13) and 0.08 from the slanted wall, so both are in reach.
+      const placed = way({ edge_key: "13,13:W" });
+      const { tools, ways } = harness({ ways: [placed] });
+      hover(tools, 13, 13.9);
+      expectSegment(tools.renderScene().hoveredDoor, [[13, 14], [13, 13]]);
+      ways.value = [];
+      hover(tools, 13, 13.9);
+      // The wall now: a door-wide stretch of the slanted wall (0.6 across, 0.8 down), not the grid edge.
+      const stretch = tools.renderScene().hoveredDoor!;
+      expect(Math.hypot(stretch[1][0] - stretch[0][0], stretch[1][1] - stretch[0][1])).toBeCloseTo(1, 9);
+      expect(stretch[1][0]).not.toBe(stretch[0][0]);
+      // Far from every wall: the nearest grid edge, x = 20.
+      hover(tools, 20, 3.5);
+      expectSegment(tools.renderScene().hoveredDoor, [[20, 4], [20, 3]]);
+    });
+
+    it("lights a door-wide stretch of a slanted wall centred on the pointer's foot point", () => {
+      const { tools } = harness();
+      hover(tools, 13, 14);
+      // The foot is the wall's midpoint (13,14); half a cell either way along (0.6, 0.8) is (0.3, 0.4).
+      expectSegment(tools.renderScene().hoveredDoor, [[12.7, 13.6], [13.3, 14.4]]);
+    });
+
+    it("doubles the stretch at 10 ft on a slanted wall, and leaves a grid wall as its one 5 ft edge", () => {
+      const slanted = harness();
+      slanted.plan.doorWidth.value = 2;
+      hover(slanted.tools, 13, 14);
+      expectSegment(slanted.tools.renderScene().hoveredDoor, [[12.4, 13.2], [13.6, 14.8]]);
+
+      const grid = harness({ walls: { "5,5:N": wall([5, 5], [6, 5]) } });
+      grid.plan.doorWidth.value = 2;
+      hover(grid.tools, 5.5, 5.05);
+      expectSegment(grid.tools.renderScene().hoveredDoor, [[5, 5], [6, 5]]);
+    });
+
+    it("lights a grid wall as the edge's own line, not the wall's stored direction, so the rooms either side do not swap", () => {
+      // A W wall is stored top to bottom, (3,2) to (3,3); the edge's line runs bottom to top, which is the direction
+      // that puts the owner cell (3,2) on the "from" side.
+      const grid = harness({ walls: { "3,2:W": wall([3, 2], [3, 3]) } });
+      hover(grid.tools, 3.05, 2.5);
+      expectSegment(grid.tools.renderScene().hoveredDoor, [[3, 3], [3, 2]]);
+    });
+
+    it("gives the whole of a wall that is shorter than the door, and keeps the stretch inside the wall near its end", () => {
+      const short = harness({ walls: { s: wall([0, 0], [0.6, 0]) } });
+      hover(short.tools, 0.3, 0.05);
+      expectSegment(short.tools.renderScene().hoveredDoor, [[0, 0], [0.6, 0]]);
+
+      // Pointing 0.1 from the end of a 10 long wall: the door is shifted in to start at the wall, not hang off it.
+      const long = harness({ walls: { l: wall([0, 0], [10, 0]) } });
+      hover(long.tools, 0.1, 0.05);
+      expectSegment(long.tools.renderScene().hoveredDoor, [[0, 0], [1, 0]]);
+    });
+
+    it("only cuts a plain wall: a door already in the wall is not a place to cut another", () => {
+      const { tools } = harness({ walls: { d: wall([0, 0], [10, 0], { type: "doorClosed" }) } });
+      hover(tools, 5.4, 0.05);
+      // No wall target, so the pointer 0.05 cells off the grid edge y = 0 lights that whole edge. (Treated as a wall it
+      // would have lit a stretch centred on 5.4, from 4.9 to 5.9.)
+      expectSegment(tools.renderScene().hoveredDoor, [[5, 0], [6, 0]]);
+    });
+
+    it("lights only under the Door tool, forgets on leave, and does not keep a stale line when the tool changes", () => {
+      const { tools, plan } = harness();
+      hover(tools, 13, 14);
+      expect(tools.renderScene().hoveredDoor).not.toBeNull();
+      tools.onPointerLeave();
+      expect(tools.renderScene().hoveredDoor).toBeNull();
+      hover(tools, 13, 14);
+      plan.planTool.value = "assign";
+      expect(tools.renderScene().hoveredDoor).toBeNull();
+      tools.onPointerMove(at(0, 0, {}, "pointermove"));
+      plan.planTool.value = "door";
+      expect(tools.renderScene().hoveredDoor).toBeNull();
+    });
+
+    it("keeps the line waiting for its rooms lit while the pointer is elsewhere", () => {
+      const { tools, plan } = harness();
+      plan.pendingDoor.value = { kind: "wall", wallId: "w", from: [12.7, 13.6], to: [13.3, 14.4] };
+      expectSegment(tools.renderScene().hoveredDoor, [[12.7, 13.6], [13.3, 14.4]]);
+    });
+  });
+
+  describe("the tip", () => {
+    it("names the two rooms the door would join, the one it would leave, or says there are none", () => {
+      const both = harness({ regions: roomsEitherSide });
+      hover(both.tools, 13, 14);
+      expect(both.tools.doorTip.value).toBe("Door here: Nave and Crypt");
+
+      const one = harness({ regions: [roomsEitherSide[0]!] });
+      hover(one.tools, 13, 14);
+      expect(one.tools.doorTip.value).toBe("Door here: Nave, leading nowhere yet");
+
+      const none = harness();
+      hover(none.tools, 13, 14);
+      expect(none.tools.doorTip.value).toBe("No room beside this wall yet. You will be asked which rooms it joins.");
+    });
+
+    it("names the rooms of a placed door and what a click and Alt-click do", () => {
+      const { tools, ways } = harness({ ways: [way({ edge_key: "13,13:W" })] });
+      hover(tools, 13, 13.9);
+      expect(tools.doorTip.value).toBe("Nave to Crypt. Click to switch door and arch, Alt-click to remove.");
+      ways.value = [way({ edge_key: "13,13:W", to_location_id: null })];
+      hover(tools, 13, 13.9);
+      expect(tools.doorTip.value).toBe("Nave, leading nowhere yet. Click to switch door and arch, Alt-click to remove.");
+    });
+
+    it("says nothing with nothing under the pointer", () => {
+      const { tools } = harness();
+      hover(tools, 3.5, 3.5);
+      expect(tools.doorTip.value).toBeNull();
+    });
+  });
+
+  describe("a click", () => {
+    it("on a wall puts the door on that stretch of it, joining the rooms either side", () => {
+      const { tools, plan } = harness({ regions: roomsEitherSide });
+      expect(tools.onPointerDown(at(13, 14))).toBe(true);
+      expect(plan.placeDoorAt).toHaveBeenCalledTimes(1);
+      const [site, from, to] = vi.mocked(plan.placeDoorAt).mock.calls[0]!;
+      expect(site).toMatchObject({ kind: "wall", wallId: "w" });
+      if (site.kind !== "wall") throw new Error("a wall site");
+      expectSegment([site.from, site.to], [[12.7, 13.6], [13.3, 14.4]]);
+      expect([from, to]).toEqual(["loc-a", "loc-b"]);
+    });
+
+    it("on a wall with no room in reach asks which rooms, naming the wall to cut only on the answer", () => {
+      const { tools, plan } = harness();
+      tools.onPointerDown(at(13, 14));
+      expect(plan.askDoorEnds).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(plan.askDoorEnds).mock.calls[0]![0]).toMatchObject({ kind: "wall", wallId: "w" });
+      expect(plan.placeDoorAt).not.toHaveBeenCalled();
+      expect(toasts.value).toHaveLength(0);
+    });
+
+    it("on a map with no rooms to choose from says so and cuts nothing", () => {
+      const { tools, plan } = harness({ rooms: [] });
+      tools.onPointerDown(at(13, 14));
+      expect(plan.askDoorEnds).not.toHaveBeenCalled();
+      expect(plan.placeDoorAt).not.toHaveBeenCalled();
+      expect(toasts.value).toHaveLength(1);
+    });
+
+    it("on a wall puts an armed listed door there, asking nothing", () => {
+      const { tools, plan, armed } = harness();
+      armed.value = true;
+      tools.onPointerDown(at(13, 14));
+      expect(vi.mocked(plan.placeArmedDoorOn).mock.calls[0]![0]).toMatchObject({ kind: "wall", wallId: "w" });
+      expect(plan.askDoorEnds).not.toHaveBeenCalled();
+      expect(plan.placeDoorAt).not.toHaveBeenCalled();
+    });
+
+    it("on a bare grid edge writes the way alone, as before, once the press is released", () => {
+      const { tools, plan } = harness({ regions: [
+        makeRegion({ id: "west", space_location_id: "loc-a", cells: ["19,3"] as CellKey[] }),
+        makeRegion({ id: "east", space_location_id: "loc-b", cells: ["20,3"] as CellKey[] }),
+      ] });
+      expect(tools.onPointerDown(at(20, 3.5))).toBe(true);
+      // Nothing yet: the press might still become a drag across an opening.
+      expect(plan.placeDoorAt).not.toHaveBeenCalled();
+      window.dispatchEvent(at(20, 3.5, {}, "pointerup"));
+      const [site, from, to] = vi.mocked(plan.placeDoorAt).mock.calls[0]!;
+      expect(site).toEqual({ kind: "edge", edgeKey: "20,3:W" });
+      expect(new Set([from, to])).toEqual(new Set(["loc-a", "loc-b"]));
+    });
+
+    it("on a bare grid edge with no room in reach asks which rooms", () => {
+      const { tools, plan } = harness();
+      tools.onPointerDown(at(20, 3.5));
+      window.dispatchEvent(at(20, 3.5, {}, "pointerup"));
+      expect(plan.askDoorEnds).toHaveBeenCalledWith({ kind: "edge", edgeKey: "20,3:W" });
+    });
+
+    it("on a placed door cycles it for a wall key and a grid key alike, even while a listed door is armed", () => {
+      const placed = way({ edge_key: "door-wall", segment: [[13, 14], [14, 14]] });
+      const grid = way({ id: "way-2", edge_key: "20,3:W" });
+      const { tools, plan, armed } = harness({ ways: [placed, grid] });
+      armed.value = true;
+      tools.onPointerDown(at(13.5, 14));
+      expect(plan.cycleDoorKind).toHaveBeenLastCalledWith(placed);
+      tools.onPointerDown(at(20, 3.5));
+      expect(plan.cycleDoorKind).toHaveBeenLastCalledWith(grid);
+      expect(plan.placeArmedDoorOn).not.toHaveBeenCalled();
+      expect(plan.removeDoor).not.toHaveBeenCalled();
+    });
+
+    it("with Alt removes a placed door of either kind, and places nothing where there is none", () => {
+      const placed = way({ edge_key: "door-wall", segment: [[13, 14], [14, 14]] });
+      const { tools, plan } = harness({ ways: [placed] });
+      tools.onPointerDown(at(13.5, 14, { altKey: true }));
+      expect(plan.removeDoor).toHaveBeenCalledWith(placed);
+      // Alt on a wall (no door) and on empty ground do nothing.
+      tools.onPointerDown(at(11, 12, { altKey: true }));
+      tools.onPointerDown(at(3.5, 3.5, { altKey: true }));
+      expect(plan.placeDoorAt).not.toHaveBeenCalled();
+      expect(plan.askDoorEnds).not.toHaveBeenCalled();
+      expect(plan.removeDoor).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves a right-click to the pan unless Alt turns it into a delete, and swallows a press that finds nothing", () => {
+      const placed = way({ edge_key: "door-wall", segment: [[13, 14], [14, 14]] });
+      const { tools, plan } = harness({ ways: [placed] });
+      expect(tools.onPointerDown(at(13.5, 14, { button: 2 }))).toBe(false);
+      expect(plan.removeDoor).not.toHaveBeenCalled();
+      expect(tools.onPointerDown(at(13.5, 14, { button: 2, altKey: true }))).toBe(true);
+      expect(plan.removeDoor).toHaveBeenCalledWith(placed);
+      // Mid-cell, far from any wall or edge: claimed so the click never reaches the Drawing underneath.
+      expect(tools.onPointerDown(at(2.5, 2.5))).toBe(true);
+      window.dispatchEvent(at(2.5, 2.5, {}, "pointerup"));
+      expect(plan.placeDoorAt).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a drag with no wall under the press (#1196)", () => {
+    // Pressed mid-cell at (20.5, 3.5): the owner side of a rightward line is the cell below (21,4), the other above (21,3).
+    const roomsAcross = [
+      makeRegion({ id: "below", space_location_id: "loc-a", cells: ["21,4"] as CellKey[] }),
+      makeRegion({ id: "above", space_location_id: "loc-b", cells: ["21,3"] as CellKey[] }),
+    ];
+
+    it("places a free-standing door from press to release, joining the rooms either side of that line", () => {
+      const { tools, plan } = harness({ regions: roomsAcross });
+      tools.onPointerDown(at(20.5, 3.5));
+      window.dispatchEvent(at(21.5, 3.5, {}, "pointermove"));
+      window.dispatchEvent(at(21.5, 3.5, {}, "pointerup"));
+      const [site, from, to] = vi.mocked(plan.placeDoorAt).mock.calls[0]!;
+      expect(site).toEqual({ kind: "free", from: [20.5, 3.5], to: [21.5, 3.5] });
+      expect([from, to]).toEqual(["loc-a", "loc-b"]);
+    });
+
+    it("clamps the door to 3 cells, keeping the press point and the direction", () => {
+      const { tools, plan } = harness();
+      tools.onPointerDown(at(20.5, 3.5));
+      window.dispatchEvent(at(28.5, 3.5, {}, "pointermove"));
+      window.dispatchEvent(at(28.5, 3.5, {}, "pointerup"));
+      expect(vi.mocked(plan.askDoorEnds).mock.calls[0]![0]).toEqual({ kind: "free", from: [20.5, 3.5], to: [23.5, 3.5] });
+    });
+
+    it("asks which rooms when none are beside the line, cutting nothing until the answer", () => {
+      const { tools, plan } = harness();
+      tools.onPointerDown(at(20.5, 3.5));
+      window.dispatchEvent(at(21.5, 3.5, {}, "pointerup"));
+      expect(plan.askDoorEnds).toHaveBeenCalledTimes(1);
+      expect(plan.placeDoorAt).not.toHaveBeenCalled();
+    });
+
+    it("lights the line while it is being drawn, clamped to 3 cells, and nothing once released", () => {
+      const { tools } = harness();
+      tools.onPointerDown(at(20.5, 3.5));
+      window.dispatchEvent(at(28.5, 3.5, {}, "pointermove"));
+      expectSegment(tools.renderScene().hoveredDoor, [[20.5, 3.5], [23.5, 3.5]]);
+      window.dispatchEvent(at(28.5, 3.5, {}, "pointerup"));
+      expect(tools.renderScene().hoveredDoor).toBeNull();
+    });
+
+    it("treats a release under 0.5 cells from the press as a click on the grid edge, and 0.6 as a drag", () => {
+      const click = harness();
+      click.tools.onPointerDown(at(20, 3.5));
+      window.dispatchEvent(at(20.3, 3.5, {}, "pointerup"));
+      expect(click.plan.askDoorEnds).toHaveBeenCalledWith({ kind: "edge", edgeKey: "20,3:W" });
+
+      const drag = harness();
+      drag.tools.onPointerDown(at(20, 3.5));
+      window.dispatchEvent(at(20.6, 3.5, {}, "pointerup"));
+      expect(vi.mocked(drag.plan.askDoorEnds).mock.calls[0]![0].kind).toBe("free");
+    });
+
+    it("is dropped, not finished, when the gesture is abandoned", () => {
+      const { tools, plan } = harness();
+      tools.onPointerDown(at(20.5, 3.5));
+      tools.abandonGesture();
+      window.dispatchEvent(at(22.5, 3.5, {}, "pointerup"));
+      expect(plan.placeDoorAt).not.toHaveBeenCalled();
+      expect(plan.askDoorEnds).not.toHaveBeenCalled();
+    });
   });
 });
