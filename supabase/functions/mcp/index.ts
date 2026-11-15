@@ -7,7 +7,7 @@
 //      401 + WWW-Authenticate so MCP clients can discover where to log in;
 //   2. validates the Supabase-issued OAuth JWT and runs the tools through an
 //      RLS-scoped client (so existing RLS policies enforce tenancy on reads and
-//      writes alike).
+//      writes alike). The one exception is the `roll` tool's stamped insert (#1204).
 //
 // Gateway JWT verification is OFF (`[functions.mcp] verify_jwt = false` in
 // config.toml) because we must serve the public discovery document and emit our
@@ -165,7 +165,19 @@ Deno.serve(withErrorReporting(async (req: Request) => {
     return new Response(JSON.stringify({ error: "account_check_failed" }), { status: 500, headers: jsonHeaders });
   }
 
-  const ctx: ToolContext = { supabase, userId: user.id, email: user.email };
+  // The only service-role client in this server, made when a tool asks for it
+  // and used for exactly one write: the `roll` tool's `server_rolled` stamp,
+  // which a caller's RLS client can never write (migration 20261115133158).
+  // Identity and membership are still derived from the caller's JWT above.
+  let service: ReturnType<typeof createClient> | undefined;
+  const serviceClient = () => {
+    service ??= createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    return service;
+  };
+
+  const ctx: ToolContext = { supabase, userId: user.id, email: user.email, serviceClient };
 
   // ── Parse + dispatch JSON-RPC (single message; batching removed in 2025 spec) ─
   let body: unknown;

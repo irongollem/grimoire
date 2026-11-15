@@ -208,6 +208,11 @@ export interface CampaignMessage {
   type: MessageType;
   metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | VendorOfferMetadata | PlayerOfferMetadata | FlavorMetadata | SpeakerMetadata | LootChestMetadata | EntityLinkMetadata | null;
   created_at: string;
+  /**
+   * True for a roll the server made (#1204): only a service-role insert can set it,
+   * so it tells a roll Grimoire threw from one a member typed or rolled on a device.
+   */
+  server_rolled: boolean;
 }
 
 export type CampaignMessageInsert = Pick<

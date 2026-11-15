@@ -1,6 +1,6 @@
-import { ALL_DICE, formatCounts } from "./dice";
-import type { DieResult } from "./dice";
-import { NORMAL_ROLL, type DiceRules } from "./diceRules";
+import { ALL_DICE, formatCounts } from "./dice.ts";
+import type { DieResult } from "./dice.ts";
+import { NORMAL_ROLL, type DiceRules } from "./diceRules.ts";
 
 /**
  * Dice with no game system's rules on them (#934): every die is summed, no roll

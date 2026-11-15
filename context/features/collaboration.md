@@ -415,6 +415,16 @@ Ten of the triggered tables have a *nullable* `campaign_id` (general-scope rows 
 **`useCampaignPresence`** (`src/composables/campaign/useCampaignPresence.ts`)
 Uses Supabase Realtime Presence to track who is currently online. Each connected client broadcasts `{ user_id, display_name, online_at }`. The `MembersTab` uses `isOnline(userId)` to show a green/grey dot next to each member. This is the same channel referenced by the campaign chat system.
 
+## Rolls the server makes (#1204)
+
+Every dice button in the app rolls on the device (`src/lib/dice/roller.ts`) and posts the result as a `campaign_messages` row its author writes, so a member can post any total. That stays: a campaign-level choice of who rolls is a later story of epic #1021. What this adds is a roll the **server** makes, for an AI Dungeon Master (which must never supply a number) and for a fight the server advances (#1201).
+
+- **What it is.** `supabase/functions/_shared/serverRoll.ts` parses a request (`expression`, optional `mode`, `label`, `hidden`, `isDamage`), rolls it with a CSPRNG die (`secureDie`, rejection sampling so no face is favoured) under the campaign's own rules (5e rules for a 5e campaign, plain dice for Generic, the same `rollWithRules` the app uses), and inserts the log row the way the client's `sendRoll` does: `message` "rolled <label> = <total>", `type` `roll`, or `dm_roll` when hidden, `metadata` the `RollResult`. Limits: at most 100 dice, a modifier within -1000..1000, a label of at most 80 characters, only the d4 to d100 sizes the app rolls, and only a mode the rules offer. A critical is never hidden, as on the client.
+- **Who can make one.** Any member of the campaign (DM or player). Only the DM may ask for `hidden`, and the row is then a `dm_roll` addressed to the DM themself, so only they read it. Identity and membership come from the caller's own JWT and RLS reads, never from an argument.
+- **The stamp.** `campaign_messages.server_rolled` is true only for these rows. A before-insert trigger (`20261115133158`) clears it on any insert made as `authenticated` or `anon` and refuses it on a message that is not a roll, and the table has no update policy, so a client can neither write nor edit it. The insert is made with a service-role client, which is the one write in the MCP server not made under the caller's RLS. The chat shows a "Rolled by Grimoire" mark (`ChatRollMessage`) on a stamped roll; a typed, physical or on-device roll looks as before. `supabase/tests/server_rolled_stamp.test.sql` proves the trigger.
+- **The MCP `roll` tool.** `roll(campaign_id, expression, mode?, label?, hidden?)` rolls, posts and returns the total, the faces (dropped faces apart), the label and whether it was shown to the table. Its description tells the model never to state a number it did not get from the tool.
+- **Dice in edge code.** The dice modules (`src/lib/dice/dice.ts`, `diceRules.ts`, `plainDiceRules.ts`, `src/systems/dnd5e/dice/*`) import each other by relative path with `.ts` extensions so Deno can load them; `rollDice` and `rollWithRules` take an optional die source, which defaults to the browser's `Math.random`.
+
 ## Key Capabilities
 
 - **True multi-user**: not just "share a link to a Google Doc" — each player has a real account with their own authenticated session and their own character data.

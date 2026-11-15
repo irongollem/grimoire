@@ -1,7 +1,7 @@
-import { ALL_DICE, formatCounts, keepOne } from "@/lib/dice/dice";
-import type { DieResult, DieSize, RollResult } from "@/lib/dice/dice";
-import type { RollModeKey, RolledFaces } from "@/lib/dice/diceRules";
-import { modeSuffix, toRollMode } from "./rollMode";
+import { ALL_DICE, formatCounts, keepOne } from "../../../lib/dice/dice.ts";
+import type { DieResult, DieSize, RollResult } from "../../../lib/dice/dice.ts";
+import type { RollModeKey, RolledFaces } from "../../../lib/dice/diceRules.ts";
+import { modeSuffix, toRollMode } from "./rollMode.ts";
 
 /** 5e advantage and disadvantage change only a lone d20; on any other pool the mode does nothing. */
 export function modeTakesEffect(counts: Partial<Record<DieSize, number>>): boolean {

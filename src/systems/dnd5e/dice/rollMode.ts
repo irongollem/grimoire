@@ -1,5 +1,5 @@
-import type { DieSize } from "@/lib/dice/dice";
-import type { RollModeKey } from "@/lib/dice/diceRules";
+import type { DieSize } from "../../../lib/dice/dice.ts";
+import type { RollModeKey } from "../../../lib/dice/diceRules.ts";
 
 /** 5e roll modes: advantage / disadvantage apply to a single d20. */
 export type RollMode = "normal" | "advantage" | "disadvantage";

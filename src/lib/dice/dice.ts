@@ -100,13 +100,18 @@ export function formatCounts(counts: Partial<Record<DieSize, number>>, modifier:
 }
 
 /** Plain roll of a pool: every die in ALL_DICE order, summed with the modifier. No game rules. */
-export function rollDice(counts: Partial<Record<DieSize, number>>, modifier: number): RollResult {
+export function rollDice(
+  counts: Partial<Record<DieSize, number>>,
+  modifier: number,
+  /** The die source; the server passes a CSPRNG die (#1204). */
+  roll: (sides: number) => number = rollDie,
+): RollResult {
   const breakdown: DieResult[] = [];
   let sum = 0;
   for (const sides of ALL_DICE) {
     const n = counts[sides] ?? 0;
     for (let i = 0; i < n; i++) {
-      const r = rollDie(sides);
+      const r = roll(sides);
       breakdown.push({ val: r, dropped: false });
       sum += r;
     }

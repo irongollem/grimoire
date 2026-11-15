@@ -147,6 +147,7 @@
             :is-dm-roll="msg.type === 'dm_roll'"
             :is-own="msg.user_id === myUserId"
             :is-whisper="!!msg.recipient_user_id"
+            :server-rolled="msg.server_rolled"
             :sender-name="msg.sender_name"
             :roll="asRoll(msg.metadata)"
             :flavor-skill-label="flavorForRoll(msg) ? (flavorForRoll(msg)!.metadata as FlavorMetadata).skill_label : null"

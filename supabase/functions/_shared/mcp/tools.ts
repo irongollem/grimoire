@@ -21,6 +21,8 @@ import {
 import type { CreateStepName, EntityDef, FieldDef } from "./registry.ts";
 import { isSafeStorageUrl } from "../storage-url.ts";
 import { edgeErrorMessage } from "../edgeError.ts";
+import { isCampaignDm } from "../campaignAccess.ts";
+import { performServerRoll } from "../serverRoll.ts";
 
 export interface ToolContext {
   supabase: SupabaseClient;
@@ -29,6 +31,11 @@ export interface ToolContext {
   /** The account's email, as Supabase Auth reports it. Absent for an account
    *  without one; `whoami` reports that as null rather than guessing. */
   email: string | undefined;
+  /**
+   * A service-role client, made on first use, for the one write a caller's RLS
+   * can never make: a roll's `server_rolled` stamp (#1204). Only `roll` uses it.
+   */
+  serviceClient: () => SupabaseClient;
 }
 
 export interface ToolDef {
@@ -335,6 +342,26 @@ export function listTools(): ToolDef[] {
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
     },
     {
+      name: "roll",
+      description:
+        "Roll dice on the Grimoire server and post the result to the campaign's chat log, stamped as rolled by Grimoire. " +
+        "Use this for every roll: never state a number you did not get from this tool. " +
+        "The server rolls with the campaign's own rules (5e criticals, advantage and disadvantage on a d20) and returns the total, " +
+        "the faces and the label. A DM can set `hidden` to roll for the DM's eyes alone (a critical is always shown to the table).",
+      inputSchema: {
+        type: "object",
+        properties: {
+          campaign_id: { type: "string", description: "The campaign to roll in." },
+          expression: { type: "string", description: "Dice notation, e.g. \"1d20+5\" or \"2d6+3\". At most 100 dice, modifier within +/-1000." },
+          mode: { type: "string", description: "A roll option the campaign's rules offer, e.g. \"advantage\" or \"disadvantage\" for a d20. Omit for a normal roll." },
+          label: { type: "string", description: "What the roll is for, shown in the chat (e.g. \"Goblin shortbow attack\"). At most 80 characters." },
+          hidden: { type: "boolean", description: "DM only: roll where only the DM can see it." },
+        },
+        required: ["campaign_id", "expression"],
+        additionalProperties: false,
+      },
+    },
+    {
       name: "list_campaigns",
       description:
         "List the DM's campaigns (id, name, setting). Use this first to find a campaign_id to scope other calls to.",
@@ -522,6 +549,8 @@ export async function callTool(
   switch (name) {
     case "whoami":
       return whoami(ctx);
+    case "roll":
+      return roll(ctx, args);
     case "list_campaigns":
       return listCampaigns(ctx);
     case "search":
@@ -566,6 +595,91 @@ async function whoami(ctx: ToolContext) {
     email: ctx.email ?? null,
     campaigns_as_dm: data.filter((c) => c.user_id === ctx.userId).map(pick),
     campaigns_as_player: data.filter((c) => c.user_id !== ctx.userId).map(pick),
+  };
+}
+
+/** The server rolls, posts the stamped row, and tells the model what came up (#1204). */
+async function roll(ctx: ToolContext, args: Record<string, unknown>) {
+  const { messageId, result, hidden } = await performServerRoll(
+    {
+      campaignId: args.campaign_id,
+      expression: args.expression,
+      mode: args.mode,
+      label: args.label,
+      hidden: args.hidden,
+    },
+    // Identity is the validated JWT's, never an argument.
+    ctx.userId,
+    {
+      // Reads go through the caller's own RLS client: a campaign they cannot see is "not found".
+      loadCampaign: async (id) => {
+        const { data, error } = await ctx.supabase.from("campaigns").select("id, user_id, game_system").eq("id", id).maybeSingle();
+        if (error) throw new Error(error.message);
+        return data;
+      },
+      isMember: async (campaignId, userId) => {
+        const { data: campaign, error: cErr } = await ctx.supabase.from("campaigns").select("user_id").eq("id", campaignId).maybeSingle();
+        if (cErr) throw new Error(cErr.message);
+        if (campaign?.user_id === userId) return true;
+        const { data, error } = await ctx.supabase
+          .from("campaign_members")
+          .select("user_id")
+          .eq("campaign_id", campaignId)
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (error) throw new Error(error.message);
+        return data !== null;
+      },
+      isDm: async (campaignId, userId) => {
+        const { data, error } = await ctx.supabase.from("campaigns").select("id, user_id").eq("id", campaignId).maybeSingle();
+        if (error) throw new Error(error.message);
+        return data !== null && (await isCampaignDm(ctx.supabase, data, userId));
+      },
+      speakerName: async (campaignId, userId) => {
+        const { data: member, error: mErr } = await ctx.supabase
+          .from("campaign_members")
+          .select("display_name")
+          .eq("campaign_id", campaignId)
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (mErr) throw new Error(mErr.message);
+        const display = member?.display_name?.trim();
+        if (display) return display;
+        const { data: profile, error: pErr } = await ctx.supabase.from("profiles").select("username").eq("user_id", userId).maybeSingle();
+        if (pErr) throw new Error(pErr.message);
+        // Never the account's email: this name is shown to the whole table.
+        return profile?.username?.trim() || "Unknown";
+      },
+      // Why this one write is not made under the caller's RLS: `server_rolled`
+      // is what tells a roll the server made from one a member typed, so no
+      // client may be able to write it, and the trigger in migration
+      // 20261115133158 clears it on every authenticated or anon insert. Only a
+      // service-role insert can set it. Everything above this line (who the
+      // caller is, that they belong to the campaign, that only a DM rolls
+      // hidden) was decided from the caller's own JWT and RLS reads.
+      insertMessage: async (row) => {
+        const { data, error } = await ctx.serviceClient().from("campaign_messages").insert(row).select("id").single();
+        if (error) throw new Error(error.message);
+        return data.id;
+      },
+    },
+  );
+  const faces = result.breakdown.filter((d) => !d.dropped).map((d) => d.val);
+  const dropped = result.breakdown.filter((d) => d.dropped).map((d) => d.val);
+  return {
+    total: result.total,
+    label: result.label,
+    faces,
+    dropped_faces: dropped,
+    modifier: result.modifier,
+    critical: result.isCrit,
+    fumble: result.isFumble,
+    hidden,
+    message_id: messageId,
+    summary:
+      `${result.label} = ${result.total}` +
+      ` (dice: ${faces.join(", ")}${dropped.length ? `; dropped: ${dropped.join(", ")}` : ""}; modifier ${result.modifier})` +
+      (result.isCrit ? ", critical" : result.isFumble ? ", fumble" : ""),
   };
 }
 

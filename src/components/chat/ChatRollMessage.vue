@@ -65,7 +65,16 @@
             class="text-label text-ink-arcane  px-1"
           >{{ roll.modifier > 0 ? `+${roll.modifier}` : roll.modifier }}</span>
         </div>
-        <p class="text-caption-sm text-muted-foreground/50">{{ timeLabel }}</p>
+        <p class="text-caption-sm text-muted-foreground/50">
+          <span
+            v-if="serverRolled"
+            data-testid="server-rolled-mark"
+            title="Rolled by Grimoire"
+            class="inline-flex items-center gap-0.5"
+          >
+            <IconShieldCheck class="h-3 w-3 shrink-0" aria-hidden="true" />Rolled by Grimoire<span aria-hidden="true"> · </span>
+          </span>{{ timeLabel }}
+        </p>
       </div>
     </div>
   </div>
@@ -148,7 +157,14 @@
           </span>
         </div>
         <p class="text-caption-sm text-muted-foreground/50">
-          {{ timeLabel }}
+          <span
+            v-if="serverRolled"
+            data-testid="server-rolled-mark"
+            title="Rolled by Grimoire"
+            class="inline-flex items-center gap-0.5"
+          >
+            <IconShieldCheck class="h-3 w-3 shrink-0" aria-hidden="true" />Rolled by Grimoire<span aria-hidden="true"> · </span>
+          </span>{{ timeLabel }}
         </p>
       </div>
     </div>
@@ -156,13 +172,14 @@
 </template>
 
 <script setup lang="ts">
-import { IconHide } from '@/lib/icons';
+import { IconHide, IconShieldCheck } from '@/lib/icons';
 import type { RollMetadata } from '@/types/chat.types';
 
 const {
   isDmRoll = false,
   isOwn = false,
   isWhisper = false,
+  serverRolled = false,
   senderName,
   roll,
   flavorSkillLabel = null,
@@ -172,6 +189,8 @@ const {
   isDmRoll?: boolean;
   isOwn?: boolean;
   isWhisper?: boolean;
+  /** A roll the server made (#1204): shows the "Rolled by Grimoire" mark. */
+  serverRolled?: boolean;
   senderName: string | null;
   roll: RollMetadata;
   /** For dm_roll: skill label from the preceding system/flavor message. */
