@@ -2,6 +2,13 @@
 
 Newest first. Edited by hand; `npm run promo:strategy` and the Socials tab show the latest entries. Numbers are read at the 24 hour mark (`promo:stats`).
 
+## 15 Nov 2026: a nook and a feature on the same tune, a day apart
+
+Experiment started:
+
+- `circus` (19 Nov, a living painting: Brilianto! juggling to his song, "Step right up!") and `songs-short` (20 Nov, the songs page, opening on the same song) go out a day apart. The question: does a feature Reel hold people longer when the day before has already given them its tune? Compare songs-short's watch time with the features' and with circus's.
+- `songs-short` replaces the long `songs` Reel on Instagram; posting both would tell the same story twice.
+
 ## 14 Nov 2026: every post lands in the same band, and only a living painting held people
 
 Findings:
