@@ -26,17 +26,20 @@ import { startedFromRound, type FightEffect, type FightState } from "../../../sr
 import type { PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { FightCommandError } from "./commandError.ts";
+import { applyTakeTurn, isTakeTurnCommand, validateTakeTurnCommand, type TakeTurnCommand } from "./takeTurn.ts";
 import {
   applyResolvingCommand,
   isResolvingCommand,
   statBlockIdsOf,
   validateResolvingCommand,
   type PostedRoll,
+  type ResolveEnv,
   type ResolvingCommand,
   type StatBlockSources,
 } from "./resolve.ts";
 
 export { FightCommandError };
+export type { TakeTurnCommand };
 export { ALL_RESOLVING_COMMANDS_LISTED, RESOLVING_COMMAND_TYPES, type ResolvingCommand, type PostedRoll, type StatBlockSources } from "./resolve.ts";
 
 export const MAX_COMMANDS = 50;
@@ -85,7 +88,7 @@ export type LifecycleCommand =
   /** The DM turns Go Live off: the players' screens leave the fight, which goes on. Nothing else about it changes. */
   | { type: "go_private" };
 export const LIFECYCLE_TYPES: ReadonlySet<string> = new Set(["open", "go_live", "end_combat", "abandon", "go_private"]);
-export type BatchCommand = FightCommand | SyncPartyCommand | LifecycleCommand | ResolvingCommand;
+export type BatchCommand = FightCommand | SyncPartyCommand | LifecycleCommand | ResolvingCommand | TakeTurnCommand;
 
 export const MAX_ADDED_COMBATANTS = 30;
 export const MAX_OPENED_COMBATANTS = 60;
@@ -182,6 +185,10 @@ export function validateRequest(body: unknown): CommandRequest {
     } else if (LIFECYCLE_TYPES.has(command.type)) {
       if (commands.length !== 1) throw new FightCommandError(400, `${command.type} is sent alone.`);
       validateLifecycleCommand(command);
+    } else if (isTakeTurnCommand(command as { type: string })) {
+      // The server's own turn is worked out from the fight as it stands, so nothing is sent beside it.
+      if (commands.length !== 1) throw new FightCommandError(400, "take_turn is sent alone.");
+      validateTakeTurnCommand(command);
     } else if (isResolvingCommand(command as { type: string })) {
       // Resolving commands mix with ordinary ones in a batch, and are applied in order with them.
       validateResolvingCommand(command);
@@ -386,26 +393,36 @@ async function attempt(
   let sources: StatBlockSources | null = null;
   let players: PlayerSheets | null = null;
   let map: FightMap | null | undefined;
+  /** Reads what resolving an action needs, the first time something asks. */
+  const resolveEnv = async (): Promise<ResolveEnv> => {
+    if (sources === null) {
+      const fetched = await deps.loadStatBlocks(statBlockIdsOf(state.combatants));
+      // What a fight's own events spawn is already loaded; a spawn earlier in the batch can be acted with.
+      sources = {
+        monsters: [...fetched.monsters, ...loaded.monsters],
+        npcs: [...fetched.npcs, ...loaded.npcs],
+        companions: fetched.companions,
+      };
+    }
+    if (players === null) {
+      const memberIds = [...new Set(state.combatants.flatMap((c) => (c.type === "player" && c.party_member_id ? [c.party_member_id] : [])))];
+      // A fight with no player in it has nothing to read.
+      players = memberIds.length > 0 ? await deps.loadPlayerSheets(memberIds) : { members: [], inventory: [], items: [], beasts: [] };
+    }
+    // `undefined` is "not asked yet" (a null map is an answer: this fight has none).
+    if (map === undefined) map = await deps.loadFightMap(request.encounterId);
+    return { fightDeps, sources, players, map, rollDie: deps.rollDie, posted: rolls };
+  };
   for (const command of request.commands) {
     if (command.type === "sync_party" || LIFECYCLE_TYPES.has(command.type)) continue;
+    if (isTakeTurnCommand(command)) {
+      const result = await applyTakeTurn(state, command, await resolveEnv());
+      state = result.state;
+      effects.push(...result.effects);
+      continue;
+    }
     if (isResolvingCommand(command)) {
-      if (sources === null) {
-        const fetched = await deps.loadStatBlocks(statBlockIdsOf(state.combatants));
-        // What a fight's own events spawn is already loaded; a spawn earlier in the batch can be acted with.
-        sources = {
-          monsters: [...fetched.monsters, ...loaded.monsters],
-          npcs: [...fetched.npcs, ...loaded.npcs],
-          companions: fetched.companions,
-        };
-      }
-      if (players === null) {
-        const memberIds = [...new Set(state.combatants.flatMap((c) => (c.type === "player" && c.party_member_id ? [c.party_member_id] : [])))];
-        // A fight with no player in it has nothing to read.
-        players = memberIds.length > 0 ? await deps.loadPlayerSheets(memberIds) : { members: [], inventory: [], items: [], beasts: [] };
-      }
-      // `undefined` is "not asked yet" (a null map is an answer: this fight has none).
-      if (map === undefined) map = await deps.loadFightMap(request.encounterId);
-      const result = await applyResolvingCommand(state, command, { fightDeps, sources, players, map, rollDie: deps.rollDie, posted: rolls });
+      const result = await applyResolvingCommand(state, command, await resolveEnv());
       state = result.state;
       effects.push(...result.effects);
       continue;

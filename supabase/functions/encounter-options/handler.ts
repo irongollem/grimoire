@@ -6,16 +6,12 @@
 // A creature with no stat block (a player character, a lost source) has no attacks to offer: it gets Dodge and the
 // movement options only, because a player picks their own turn. Its speed is the character sheet's.
 
-import { combatantSpeed } from "../../../src/lib/encounters/combatantSpeed.ts";
-import { actionAvailability } from "../../../src/rules/encounterTurn.ts";
 import { fightMapOf, type FightMapInput } from "../../../src/rules/fight/terrain/battleMap.ts";
-import { movementBudgetFeet } from "../../../src/rules/fight/terrain/movementBudget.ts";
-import { DEFAULT_REACH_FEET } from "../../../src/rules/fight/terrain/sight.ts";
-import { turnOptions, type TurnOption, type UsableAttack } from "../../../src/rules/fight/terrain/turnOptions.ts";
+import type { TurnOption } from "../../../src/rules/fight/terrain/turnOptions.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
-import type { MonsterStatBlock } from "../../../src/types/monster.types.ts";
 import type { RulesetKey } from "../../../src/types/ruleset.types.ts";
-import { statBlockIdsOf, statBlockOf, type StatBlockSources } from "../_shared/fightStatBlocks.ts";
+import { statBlockIdsOf, type StatBlockSources } from "../_shared/fightStatBlocks.ts";
+import { assembleTurnOptions } from "../_shared/turnOptionsFor.ts";
 
 export const MAX_BODY_CHARACTERS = 2_000;
 
@@ -67,32 +63,6 @@ export interface OptionsResponse {
   options: TurnOption[];
 }
 
-/**
- * A creature's melee reach in feet: the longest `reach` among the melee attacks (and melee-or-ranged ones) of its
- * Actions, else 5 ft. A player's is 5 ft too: the weapon's reach on the character sheet is not read.
- */
-export function meleeReachFeet(block: MonsterStatBlock | null): number {
-  if (block === null || !block.actions) return DEFAULT_REACH_FEET;
-  const reaches = block.actions.flatMap((e) => {
-    const a = e.structured.kind === "attack" ? e.structured.attack : undefined;
-    if (!a || a.delivery === "ranged") return [];
-    return [a.reach === undefined ? DEFAULT_REACH_FEET : a.reach];
-  });
-  return reaches.length === 0 ? DEFAULT_REACH_FEET : Math.max(...reaches);
-}
-
-/** The Actions and Bonus Actions the creature can use now: a spent recharge or a used-up N/day ability is left out. */
-function usableAttacks(mover: RunCombatant, block: MonsterStatBlock | null): UsableAttack[] {
-  if (block === null) return [];
-  const out: UsableAttack[] = [];
-  for (const list of ["actions", "bonus_actions"] as const) {
-    for (const entry of block[list] ?? []) {
-      if (actionAvailability(mover, entry, list).available) out.push({ list, entry });
-    }
-  }
-  return out;
-}
-
 export async function computeOptions(request: OptionsRequest, deps: OptionsDeps): Promise<OptionsResponse> {
   const fight = await deps.loadFight();
   if (fight === null) throw new OptionsError(404, "This encounter has no saved fight yet.");
@@ -104,20 +74,13 @@ export async function computeOptions(request: OptionsRequest, deps: OptionsDeps)
   const members = memberIds.length === 0 ? [] : await deps.loadMemberSpeeds(memberIds);
   const mapInput = await deps.loadMapInput();
 
-  const budgetFeet = movementBudgetFeet({
-    speed: combatantSpeed(mover, { monsters: sources.monsters, npcs: sources.npcs, members }),
-    movementUsed: mover.movement_used,
-    conditions: mover.conditions,
-    ruleset: fight.ruleset,
-  });
-  const options = turnOptions({
+  const { options } = assembleTurnOptions({
     combatants: fight.combatants,
-    moverId: mover.instance_id,
-    map: mapInput === null ? null : fightMapOf(mapInput),
-    budgetFeet,
-    attacks: usableAttacks(mover, statBlockOf(mover, sources)),
-    reachOf: (c) => meleeReachFeet(statBlockOf(c, sources)),
+    mover,
     ruleset: fight.ruleset,
+    sources,
+    members,
+    map: mapInput === null ? null : fightMapOf(mapInput),
   });
   return { version: fight.version, options };
 }

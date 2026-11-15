@@ -1139,3 +1139,165 @@ describe("cover on a resolving command", () => {
     expect(twice.mapLoads).toBe(1);
   });
 });
+
+// ── the server plays a creature's turn (#1203 story 2b) ──────────────────────────
+
+const takeTurn = (over: Record<string, unknown> = {}) => ({ type: "take_turn", instanceId: "wolf", ...over }) as CommandRequest["commands"][number];
+const MULTI = (steps: { action: string; count: number }[]): StatBlockEntry => ({
+  name: "Multiattack", description: "", structured: { kind: "multiattack", source: "manual", multiattack: steps },
+});
+const BREATH: StatBlockEntry = {
+  name: "Breath", description: "",
+  structured: { kind: "attack", source: "manual", recharge: { min: 5, max: 6 }, attack: { delivery: "melee", bonus: 4, hit: [{ dice: "1d6+2", type: "fire" }] } },
+};
+const combatantOf = (r: { combatants_live: RunCombatant[] }, id: string) => r.combatants_live.find((c) => c.instance_id === id) as RunCombatant;
+
+/**
+ * A wolf (11 HP, Int 10, speed 30 ft: five-foot squares, six of them) at (0,0) on open ground, and an enemy 40-HP ox
+ * (AC 13) at (4,0). The squares beside the ox with the fewest steps are x=3, three steps (15 ft); the top row wins a tie.
+ */
+function duel(over: { wolf?: Partial<RunCombatant>; victim?: Partial<RunCombatant>; extra?: RunCombatant[] } = {}) {
+  return row({
+    combatants_live: [
+      combatant("wolf", { monster_id: "m-wolf", faction_id: "m", hp: 11, max_hp: 11, initiative: 12, position: { x: 0, y: 0 }, ...over.wolf }),
+      combatant("victim", { monster_id: "m-ox", faction_id: "p", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 4, y: 0 }, ...over.victim }),
+      ...(over.extra ?? []),
+    ],
+  });
+}
+
+describe("take_turn", () => {
+  // The rules-only pick is the Bite (the only attack, the only enemy). It walks to (3,-1), 15 ft, then bites: d20 9 + 4 = 13
+  // meets AC 13; 1d6+2 with a 5 deals 7, so the ox has 33. The Action is used. The turn is not advanced.
+  it("fails if the picked bite does not move the token, tally the 15 feet, resolve the attack and use the Action, in one saved batch", async () => {
+    const h = harness(duel(), { sources: SOURCES, map: mapOf(), dieFaces: [9, 5] });
+    const before = stored(h);
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    const wolf = combatantOf(stored(h), "wolf");
+    expect(wolf.position).toEqual({ x: 3, y: -1 });
+    expect(wolf.movement_used).toBe(15);
+    expect(wolf.action_used).toBe(true);
+    expect(hpOf(stored(h), "victim")).toBe(33);
+    expect(h.saves).toBe(1);
+    expect(h.posted.map((p) => p.result.total)).toEqual([13, 7]);
+    expect(result.state.active_combatant_index).toBe(before.active_combatant_index);
+    expect(result.state.current_round).toBe(before.current_round);
+  });
+
+  it("fails if the reply does not lead with turn_taken saying what was done, why, and that the rules picked", async () => {
+    const h = harness(duel(), { sources: SOURCES, map: mapOf(), dieFaces: [9, 5] });
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({
+      type: "turn_taken",
+      turn: { instanceId: "wolf", optionId: "attack:actions:Bite:victim", kind: "attack", picked: "rules", reason: expect.stringMatching(/^Attacks victim/) },
+    });
+    expect(result.effects.findIndex((e) => e.type === "resolved")).toBeGreaterThan(0);
+  });
+
+  // The caller names Dodge: no movement, no dice, the Action used, and the effect says the caller chose.
+  it("fails if a named option is taken for the picker's, or Dodge moves or rolls", async () => {
+    const h = harness(duel(), { sources: SOURCES, map: mapOf(), dieFaces: [] });
+    const result = await runBatch(batch("b1", takeTurn({ optionId: "dodge" })), h.deps);
+    const wolf = combatantOf(stored(h), "wolf");
+    expect(wolf.position).toEqual({ x: 0, y: 0 });
+    expect(wolf.action_used).toBe(true);
+    expect(wolf.movement_used ?? 0).toBe(0);
+    expect(h.dieCalls).toBe(0);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { optionId: "dodge", kind: "dodge", picked: "caller" } });
+  });
+
+  // An Int 3 wolf is "instinct" (APP CONVENTION): it is offered attack, dash, move and flee, and Dodge is not on its menu.
+  it("fails if an option the profile's gate dropped is accepted from the caller", async () => {
+    const dim: StatBlockSources = { monsters: [monster("m-wolf", { int: 3 }), monster("m-ox")], npcs: [], companions: [] };
+    const h = harness(duel(), { sources: dim, map: mapOf(), dieFaces: [9, 5] });
+    await expect(runBatch(batch("b", takeTurn({ optionId: "dodge" })), h.deps)).rejects.toMatchObject({ status: 400, message: "That option is not on offer." });
+    expect(h.saves).toBe(0);
+    // The same wolf with Int 10 is offered Dodge (the test above takes it).
+  });
+
+  it("fails if an option that was never computed (an enemy not in the fight, a made-up id) is accepted from the caller, or if anything is saved for it", async () => {
+    for (const optionId of ["attack:actions:Bite:ghost", "teleport"]) {
+      const h = harness(duel(), { sources: SOURCES, map: mapOf(), dieFaces: [9, 5] });
+      await expect(runBatch(batch("b", takeTurn({ optionId })), h.deps)).rejects.toMatchObject({ status: 400, message: "That option is not on offer." });
+      expect(h.saves).toBe(0);
+      expect(h.posted).toEqual([]);
+    }
+  });
+
+  it("fails if a player character, a downed creature, an Incapacitated one or a stranger is given a turn", async () => {
+    const refuse = async (fight: FightRow, command: CommandRequest["commands"][number], pattern: RegExp) => {
+      const h = harness(fight, { sources: SOURCES, map: mapOf(), dieFaces: [9, 5] });
+      await expect(runBatch(batch("b", command), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(pattern) });
+      expect(h.saves).toBe(0);
+    };
+    await refuse(duel({ extra: [pc("nessa", { faction_id: "p", position: { x: 6, y: 0 }, hp: 12, max_hp: 12 })] }), takeTurn({ instanceId: "nessa" }), /no stat block/);
+    await refuse(duel({ wolf: { hp: 0 } }), takeTurn(), /0 hit points/);
+    await refuse(duel({ wolf: { conditions: [{ name: "Stunned" }] } }), takeTurn(), /Incapacitated/);
+    await refuse(duel(), takeTurn({ instanceId: "ghost" }), /No creature "ghost"/);
+  });
+
+  // Multiattack: two Bites, 7 each (d20 9 + 4 = 13 meets AC 13; 5 + 2). 40 -> 33 -> 26. Four dice are thrown, four rolls posted.
+  it("fails if a Multiattack does not resolve every swing as its own attack", async () => {
+    const sources: StatBlockSources = { monsters: [monster("m-wolf", { actions: [MULTI([{ action: "Bite", count: 2 }]), bite] }), monster("m-ox")], npcs: [], companions: [] };
+    const fight = duel({ wolf: { position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
+    const h = harness(fight, { sources, map: mapOf(), dieFaces: [9, 5, 9, 5] });
+    await runBatch(batch("b1", takeTurn({ optionId: "attack:actions:Multiattack:victim" })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(26);
+    expect(h.dieCalls).toBe(4);
+    expect(h.posted).toHaveLength(4);
+    expect(combatantOf(stored(h), "wolf").action_used).toBe(true);
+  });
+
+  // The ox has 7 HP: the first bite deals 7 and drops it to 0, so the second swing is never made (no die is scripted for it).
+  it("fails if a Multiattack keeps swinging at a target that has already dropped", async () => {
+    const sources: StatBlockSources = { monsters: [monster("m-wolf", { actions: [MULTI([{ action: "Bite", count: 2 }]), bite] }), monster("m-ox")], npcs: [], companions: [] };
+    const fight = duel({ wolf: { position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 }, hp: 7 } });
+    const h = harness(fight, { sources, map: mapOf(), dieFaces: [9, 5] });
+    await runBatch(batch("b1", takeTurn({ optionId: "attack:actions:Multiattack:victim" })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(0);
+    expect(h.dieCalls).toBe(2);
+    expect(combatantOf(stored(h), "wolf").action_used).toBe(true);
+  });
+
+  // A Recharge 5-6 breath used once is spent; with the Action freed again it is no longer on offer.
+  it("fails if a recharge ability is not spent by the turn that used it", async () => {
+    const sources: StatBlockSources = { monsters: [monster("m-wolf", { actions: [bite, BREATH] }), monster("m-ox")], npcs: [], companions: [] };
+    const fight = duel({ wolf: { position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
+    const h = harness(fight, { sources, map: mapOf(), dieFaces: [9, 5] });
+    await runBatch(batch("b1", takeTurn({ optionId: "attack:actions:Breath:victim" })), h.deps);
+    expect(combatantOf(stored(h), "wolf").action_uses?.["actions/Breath"]).toMatchObject({ used: 1, recharge: { min: 5, max: 6 } });
+    await runBatch(batch("b2", { type: "set_action_used", instanceId: "wolf", used: false }), h.deps);
+    await expect(runBatch(batch("b3", takeTurn({ optionId: "attack:actions:Breath:victim" })), h.deps)).rejects.toMatchObject({ status: 400, message: "That option is not on offer." });
+  });
+
+  // A creature at 2 of 11 hit points is at 18%, under the quarter at which a creature breaks (APP CONVENTION), and flees
+  // rather than attacking the ox beside it: no die is thrown.
+  it("fails if a broken creature attacks instead of falling back", async () => {
+    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
+    const h = harness(fight, { sources: SOURCES, map: mapOf(), dieFaces: [] });
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { kind: "flee", picked: "rules" } });
+    expect(h.dieCalls).toBe(0);
+    expect(combatantOf(stored(h), "wolf").action_used).toBe(true);
+    expect(hpOf(stored(h), "victim")).toBe(40);
+  });
+
+  // The wolf's bite at a character whose sheet the server cannot read refuses after the move step has run in the attempt:
+  // nothing of the move, the Action or the roll may be saved.
+  it("fails if a step that refuses leaves the move or the used Action behind", async () => {
+    const fight = duel({ victim: { monster_id: undefined, type: "player", party_member_id: "pm-gone" } });
+    const h = harness(fight, { sources: SOURCES, map: mapOf(), dieFaces: [9, 5] });
+    await expect(runBatch(batch("b1", takeTurn({ optionId: "attack:actions:Bite:victim" })), h.deps)).rejects.toMatchObject({ status: 400 });
+    expect(h.saves).toBe(0);
+    expect(h.posted).toEqual([]);
+    expect(combatantOf(stored(h), "wolf").position).toEqual({ x: 0, y: 0 });
+  });
+
+  it("fails if take_turn is accepted beside other commands, without a creature, or with an option that is not a string", () => {
+    expect(() => validateRequest(batch("b", takeTurn()))).not.toThrow();
+    expect(() => validateRequest(batch("b", takeTurn({ optionId: "dodge" })))).not.toThrow();
+    expect(() => validateRequest(batch("b", { type: "next_turn" }, takeTurn()))).toThrow(FightCommandError);
+    expect(() => validateRequest(batch("b", takeTurn({ instanceId: "" })))).toThrow(FightCommandError);
+    expect(() => validateRequest(batch("b", takeTurn({ optionId: 5 })))).toThrow(FightCommandError);
+  });
+});

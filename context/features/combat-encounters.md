@@ -753,6 +753,20 @@ How a creature chooses its turn when the app plays it. **All of it is app conven
 
 Not modelled: damage resistance, immunity and vulnerability (the numbers are damage as printed), automatic critical hits on Paralyzed or Unconscious targets, riders that need a saving throw, a `leader`'s effect on its allies (the role only changes what a lurker is offered), `note` (carried for the prompt), and any group tactics (focus fire, flanking). Tiers above "simple" differ only in what is offered and how targets and cover are weighed, never in rules of play.
 
+### The server plays a turn (#1203)
+
+`encounter-command` accepts one more command: `{ type: "take_turn", instanceId, optionId? }`, sent alone in its batch. The server builds the creature's options (`assembleTurnOptions` in `supabase/functions/_shared/turnOptionsFor.ts`, the same assembly `encounter-options` serves, so the two cannot disagree), narrows them with `gateOptions` by `tacticalProfile(statBlock, monster_type)` (an NPC or companion has no creature type: null), puts numbers on them with `withNumbers` (a target's armor class is `knownArmorClass`: a player's from the sheet, null when it cannot be read, which leaves its numbers out), and then either picks with `pickTurn` (no `optionId`, `picked: "rules"`) or takes the one named (`picked: "caller"`). The id must be one of the *gated* options computed at that moment; anything else is a 400 "That option is not on offer." that lists nothing.
+
+**Carrying it out** is `stepsFor(option, attacks)` (`src/rules/fight/tactics/carryOut.ts`, pure), applied in order inside the attempt that may be saved, so a refusal at any step writes nothing:
+
+1. **Move.** The token's `position` is set to the option's destination and `record_move` adds the option's feet to `movement_used`. A position is not a command (the Play screen writes it through `update_combatant_position`, and the server's own saves keep the row's), so the saved fight takes it from the attempt's state. `record_move` is issued whoever's turn it is, because the options' own movement budget reads `movement_used` the same way.
+2. **Attack.** Each swing is a `resolve_attack` against the option's target from the new position (cover and distance come from the map, as for any resolved attack). A Multiattack makes each step `count` times in printed order, each its own resolved attack with its own rolls; a swing is skipped once the target is at 0 hit points, and the swings left are not redirected. A limited or recharge entry is then spent with `use_action` (`actionUseKey`, `actionLimit`), as the runner does, so the same ability is not offered again; only the chosen entry is spent, not the entries a Multiattack names.
+3. **Slot.** `set_action_used` for Dash, Flee, Disengage, Dodge, Hide and an attack from Actions; `set_bonus_used` for an attack from Bonus Actions. Move and Surrender use neither. Surrender changes no state.
+
+The reply's `effects` begin with `{ type: "turn_taken", turn: { instanceId, optionId, kind, summary, reason, picked } }`, then the resolved effects. It is refused (400) when the creature is not in the fight, is at 0 hit points, is Incapacitated (it has no options), or has no stat block (a player character takes their own turn). It need not be the active creature's turn: the DM may run a creature out of turn, as the runner allows, and `take_turn` never advances the turn.
+
+Not in this story: the opportunity attacks a path provokes (the enemies do not react), the effect of Dodge and Hide (the Action is used and no condition is applied), picking by a model, ending the turn, legendary and lair actions, spells.
+
 ## Key Capabilities / USPs
 
 1. **Unified initiative tracker and stat block browser in one panel.** Clicking any combatant instantly opens their full stat block in a resizable side panel without navigating away. Every ability score, save, skill, and action has a roll button. The DM never needs to look up a second window.

@@ -30,6 +30,7 @@ const PENDING_ENTRIES = [
   join(SRC, "rules/fight/tactics/profile.ts"),
   join(SRC, "rules/fight/tactics/numbers.ts"),
   join(SRC, "rules/fight/tactics/pick.ts"),
+  join(SRC, "rules/fight/tactics/carryOut.ts"),
   join(SRC, "lib/encounters/combatantSpeed.ts"),
 ];
 const FORBIDDEN_PACKAGES = ["vue", "pinia"];

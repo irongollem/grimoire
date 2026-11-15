@@ -291,6 +291,19 @@ function armorClassOf(c: RunCombatant, players: PlayerSheets): number | null {
   return ac;
 }
 
+/**
+ * A target's armour class as far as the server can tell, or null when it cannot (a character it could not read): what
+ * the numbers on a turn option are weighed against. Unlike `armorClassOf` it never refuses; a null leaves the numbers out.
+ */
+export function knownArmorClass(c: RunCombatant, players: PlayerSheets): number | null {
+  try {
+    return armorClassOf(c, players);
+  } catch (e) {
+    if (e instanceof ActionRefused) return null;
+    throw e;
+  }
+}
+
 /** The bonus on a save: a player's from their sheet, a creature's from its stat block. */
 function saveBonusOf(c: RunCombatant, ability: SaveAbility, env: ResolveEnv): number | null {
   if (c.type !== "player") return saveBonusFromBlock(statBlockOf(c, env.sources), ability);

@@ -9,7 +9,8 @@ import type { GridCalibration } from "../../../src/types/location.types";
 import type { Monster } from "../../../src/types/monster.types";
 import type { RunCombatant } from "../../../src/types/encounter.types";
 import { emptyDefenses, type StatBlockEntry } from "../../../src/types/statBlock.types";
-import { computeOptions, meleeReachFeet, OptionsError, validateOptionsRequest, type OptionsDeps, type OptionsFight } from "./handler";
+import { meleeReachFeet } from "../_shared/turnOptionsFor";
+import { computeOptions, OptionsError, validateOptionsRequest, type OptionsDeps, type OptionsFight } from "./handler";
 
 const CALIBRATION = { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0, origin_cell_x: 0, origin_cell_y: 0 } as GridCalibration;
 // A calibrated picture with nothing drawn on it: open ground.

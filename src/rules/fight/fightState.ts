@@ -4,6 +4,7 @@ import type { SaveAbility, SrdConditionName } from "../../types/statBlock.types.
 import type { DefenseApplied } from "../combat/typedDamage.ts";
 import type { DyingOutcome } from "../dying.ts";
 import type { EncounterTurnEvent, EncounterTurnState } from "../encounterTurn.ts";
+import type { TurnOptionKind } from "./terrain/turnOptions.ts";
 
 /**
  * Everything a fight holds that a server must also hold to advance it: the
@@ -34,11 +35,25 @@ export type FightEffect =
   /** Combatants an event brought into the fight. They are already in the returned state; this says it happened. */
   | { type: "spawned"; combatants: RunCombatant[] }
   /** What a resolving command (`resolve_attack` ...) rolled and did, for a caller to show or narrate. Only the server raises it. */
-  | { type: "resolved"; resolved: ResolvedAction };
+  | { type: "resolved"; resolved: ResolvedAction }
+  /** What a creature the server played did with its turn and why, raised before the effects of the steps themselves (#1203). Only the server raises it. */
+  | { type: "turn_taken"; turn: TurnTaken };
+
+/** One creature's turn as the server played it: the option, in the words a narrator or the log can quote, and who chose it. */
+export interface TurnTaken {
+  instanceId: string;
+  optionId: string;
+  kind: TurnOptionKind;
+  summary: string;
+  /** Why this option: the picker's sentence, or a plain note that the caller chose. */
+  reason: string;
+  /** "rules": the rules-only picker chose. "caller": a DM (or a model) named the option. */
+  picked: "rules" | "caller";
+}
 
 /** The reducer's events, told apart from the effects a fight adds. */
 export function isTurnEvent(effect: FightEffect): effect is EncounterTurnEvent {
-  return effect.type !== "broadcast" && effect.type !== "spawned" && effect.type !== "resolved";
+  return effect.type !== "broadcast" && effect.type !== "spawned" && effect.type !== "resolved" && effect.type !== "turn_taken";
 }
 
 /** One damage part after the target's defenses: what was rolled, what was taken, and which defense changed it. */
