@@ -40,18 +40,20 @@ export function ownerOfPath(path: string): string | null {
 
 /**
  * What a sign request reserves: only the caller's own keys, and whether the
- * ceiling applies to them. An admin's srd/ or library/ upload belongs to no
- * account, so it is not counted against the admin; an admin's own files are
- * counted but never refused.
+ * ceiling applies to them. An app admin is neither counted nor held to the
+ * ceiling (maintainer, 15 Nov 2026), so nothing of theirs is reserved. A
+ * shared srd/ or library/ key belongs to no account and is never counted.
  */
 export function signReservation(
   objects: readonly StoredObject[],
   caller: { readonly userId: string; readonly isAdmin: boolean },
 ): { objects: StoredObject[]; enforce: boolean } {
   return {
-    objects: objects
-      .filter((object) => ownerOfPath(object.path) === caller.userId)
-      .map((object) => ({ path: object.path, size: object.size })),
+    objects: caller.isAdmin
+      ? []
+      : objects
+          .filter((object) => ownerOfPath(object.path) === caller.userId)
+          .map((object) => ({ path: object.path, size: object.size })),
     enforce: !caller.isAdmin,
   };
 }

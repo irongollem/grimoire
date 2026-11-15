@@ -1,9 +1,10 @@
 /**
  * Reconciles `public.stored_objects` against what Cloudflare R2 actually holds (#1182).
  *
- * Two jobs, one script. It is the one-off backfill that records every existing object's size so each account has a
- * storage total, and it is the repair for rows left by uploads that were signed and never sent (a row is written when an
- * upload is signed, so a PUT that never happened leaves a row with no file behind it).
+ * Two jobs, one script. It is the repair for rows left by uploads that were signed and never sent (a row is written when
+ * an upload is signed, so a PUT that never happened leaves a row with no file behind it), and it is a backfill that
+ * records every existing object's size. The backfill is NOT a required step: what accounts already hold is a bonus
+ * (maintainer, 15 Nov 2026), so the totals start at zero. Run it only if that is ever withdrawn.
  *
  * Per bucket it lists the objects with their sizes, keeps those owned by an account (first path segment a UUID; srd/,
  * library/ and bases/ belong to nobody), and plans: record what is missing or has a different size, remove rows whose

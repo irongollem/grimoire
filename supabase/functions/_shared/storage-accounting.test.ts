@@ -100,13 +100,21 @@ describe("releaseStoredObjects", () => {
 describe("signReservation", () => {
   const OTHER = "223e4567-e89b-12d3-a456-426614174000";
 
-  it("does not bill an admin for a shared srd upload, and never holds an admin to the ceiling", () => {
+  it("neither counts an admin's uploads, shared or their own, nor holds them to the ceiling", () => {
     const plan = signReservation(
       [{ path: "srd/owlbear.webp", size: 10 }, { path: `${USER}/own.webp`, size: 20 }],
       { userId: USER, isAdmin: true },
     );
-    expect(plan.objects).toEqual([{ path: `${USER}/own.webp`, size: 20 }]);
+    expect(plan.objects).toEqual([]);
     expect(plan.enforce).toBe(false);
+  });
+
+  it("counts an ordinary account's own keys but not a shared srd key", () => {
+    const plan = signReservation(
+      [{ path: "srd/owlbear.webp", size: 10 }, { path: `${USER}/own.webp`, size: 20 }],
+      { userId: USER, isAdmin: false },
+    );
+    expect(plan.objects).toEqual([{ path: `${USER}/own.webp`, size: 20 }]);
   });
 
   it("holds an ordinary account to the ceiling", () => {

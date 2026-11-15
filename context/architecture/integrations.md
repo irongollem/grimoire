@@ -174,8 +174,12 @@ kept by a trigger. The owner is the first path segment; shared prefixes
   is ever deleted by the ceiling, and writing over a key with the same or fewer
   bytes always passes, so an account that is over can still shrink.
 - **Counted, never refused:** bytes the server made (`uploadWithRetry`, a
-  generation the user already paid credits for), an app admin's uploads, and
-  the backfill.
+  generation the user already paid credits for). **Not counted at all:** an app
+  admin's browser uploads (maintainer, 15 Nov 2026).
+- **Nothing is backfilled** (maintainer, 15 Nov 2026): what an account already
+  holds is a bonus, and the total starts at zero for everyone, counting only
+  uploads signed from now on. This needs no special case: releasing a path that
+  was never recorded is a no-op, and the trigger clamps at zero.
 - **Accounting fails open.** If `reserve_storage` errors, the upload goes ahead
   and the error is logged: this is a backstop, not a gate that may take uploads
   down.
@@ -190,9 +194,10 @@ kept by a trigger. The owner is the first path segment; shared prefixes
   counting at the account's next upload after the window. So a user at the
   ceiling who deletes a picture uploaded minutes ago waits out the window
   before that room is theirs again.
-- **`npm run storage:usage`** reconciles the table against an R2 listing: the
-  one-off backfill, and the repair for rows left by uploads that were signed and
-  never sent (a dry run by default; it prints counts only).
+- **`npm run storage:usage`** reconciles the table against an R2 listing. It is
+  not a required step: it is the repair for rows left by uploads that were
+  signed and never sent, and a backfill if the bonus above is ever withdrawn
+  (a dry run by default; it prints counts only).
 - **Outside it on purpose:** `tile-packs` and `import-documents` are not in the
   bucket registry and live in Supabase Storage, so they are not counted. An
   upload that falls back to Supabase Storage because the sign call itself was
