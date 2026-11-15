@@ -4,6 +4,15 @@ Sign in, pick a character, and play through your own campaign while an AI runs t
 table: it narrates, voices your NPCs, stages your quest beats, and runs the fights.
 Before you start, you choose how much it may invent beyond what you have authored.
 
+> **Re-targeted on 15 Nov 2026.** The first step is no longer the MCP spike of section 4a. The
+> maintainer chose to build the solo table as Grimoire's own product (section 4), solo first, with
+> combat designed first. The review behind that, the new story list and the proposal for the
+> player-and-DM question are on epic #1021; the new foundations are #1201 (combat on the server),
+> #1202 (terrain as legal options), #1203 (monster tactics), #1204 (server dice) and #1205 (the agent
+> runtime). Section 4a is kept as the record of the route not taken: read against the code, it could
+> not hide secrets, hold Canon or let us see the narration. Phases in section 5 are superseded by the
+> epic's table.
+
 Status: **scoped, not started** (8 Oct 2026). This document is the scoping record. It
 says what exists, what is missing, and the order to build it in. Four foundations are
 filed as their own issues because each is worth having without solo mode: #1016,
