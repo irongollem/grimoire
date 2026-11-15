@@ -4,6 +4,7 @@
 import type { PlacedLight, WallEdge } from "@/types/dungeonMap.types";
 import { isLatticeKey } from "@/cartographer/wallGraph";
 import { cachedWallGeometry } from "@/cartographer/wallGeometry";
+import { SNAP_TOLERANCE } from "@/cartographer/wallEdit/snap";
 
 export type CellPoint = [number, number];
 
@@ -16,6 +17,53 @@ export const LIGHT_PICK_RADIUS = 0.4;
 export function snapPoint(point: CellPoint, free: boolean): CellPoint {
   if (free) return [point[0], point[1]];
   return [Math.round(point[0] * 2) / 2, Math.round(point[1] * 2) / 2];
+}
+
+/** What a run point landed on: the run's own first point, the end of a wall already drawn, the grid, or nothing (Alt). */
+export type RunSnapKind = "start" | "wall-end" | "grid" | "free";
+
+/** How near the pointer must be to a wall end or the run's start to snap to it, in cells. This is the node drag's
+ *  reach (`SNAP_TOLERANCE`, 0.25 cells, wallEdit/snap.ts), which is also in cells, so no zoom factor is needed. */
+export const RUN_SNAP_REACH = SNAP_TOLERANCE;
+
+/** A run needs three points placed before a click on the first one can close it: with two, "closing" would lay a
+ *  second wall back over the first. */
+export const MIN_POINTS_TO_CLOSE = 3;
+
+/**
+ * Where a point of the Angled wall run lands (Trace the walls, frame 02): the run's own first point (so the next
+ * click closes the ring), else the end of any wall already drawn, else the half-cell grid. Alt (`free`) snaps to
+ * nothing and keeps the exact point.
+ */
+export function snapRunPoint(
+  frac: CellPoint,
+  free: boolean,
+  run: readonly CellPoint[],
+  walls: Readonly<Record<string, WallEdge>>,
+): { point: CellPoint; kind: RunSnapKind } {
+  if (free) return { point: [frac[0], frac[1]], kind: "free" };
+  const first = run[0];
+  if (first && run.length >= MIN_POINTS_TO_CLOSE && Math.hypot(frac[0] - first[0], frac[1] - first[1]) <= RUN_SNAP_REACH) {
+    return { point: [first[0], first[1]], kind: "start" };
+  }
+  let best: CellPoint | null = null;
+  let bestDistance = RUN_SNAP_REACH;
+  for (const wall of Object.values(walls)) {
+    for (const end of [wall.a, wall.b]) {
+      const d = Math.hypot(frac[0] - end[0], frac[1] - end[1]);
+      if (d <= bestDistance) {
+        best = [end[0], end[1]];
+        bestDistance = d;
+      }
+    }
+  }
+  if (best) return { point: best, kind: "wall-end" };
+  return { point: snapPoint(frac, false), kind: "grid" };
+}
+
+/** Whether `p` is exactly an end of some wall, for marking where a run has caught on. */
+export function isWallEnd(walls: Readonly<Record<string, WallEdge>>, p: CellPoint): boolean {
+  return Object.values(walls).some((w) => (w.a[0] === p[0] && w.a[1] === p[1]) || (w.b[0] === p[0] && w.b[1] === p[1]));
 }
 
 /** Distance from p to the segment a-b. */

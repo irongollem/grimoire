@@ -22,6 +22,19 @@
           Name a room, bind it to a place or reshape it and it is yours from then on. Find again leaves it alone.
         </p>
       </template>
+      <template v-else-if="!hasDrawing && wallRings.rings > 0">
+        <p class="text-caption font-semibold text-foreground">{{ ringsHeading }}</p>
+        <p class="text-caption-sm text-muted-foreground">
+          No floor is drawn on this map, so you choose the rooms. Assign a ring, or draw a zone.
+        </p>
+        <AppButton
+          variant="ghost"
+          size="inline-xs"
+          label="Use the Assign tool"
+          class="self-start"
+          @click="emit('pick-assign-tool')"
+        />
+      </template>
       <template v-else>
         <p class="text-caption font-semibold text-foreground">
           {{ hasDrawing ? "No closed rooms found" : "Nothing to find from the walls yet" }}
@@ -238,7 +251,7 @@ import { isPlayerVisible, ZONE_KIND_FILL } from "@/lib/locations/zones";
 import { ZONE_KIND_LABELS, type BindableSpace, type LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { QuestConsequence } from "@/types/quest.types";
 
-const { entries, spaces, activeRegionId, foundCount, hasDrawing } = defineProps<{
+const { entries, spaces, activeRegionId, foundCount, hasDrawing, wallRings = { rings: 0, unassigned: 0 } } = defineProps<{
   entries: ZoningEntry[];
   /** Every child that can carry a shape on this map: a room, or a nested site (#818). */
   spaces: BindableSpace[];
@@ -247,11 +260,14 @@ const { entries, spaces, activeRegionId, foundCount, hasDrawing } = defineProps<
   foundCount: number;
   /** The Drawing has anything painted; without it there is nothing to find, and the header says so. */
   hasDrawing: boolean;
+  /** The closed rings the walls make, and how many are not a room yet: what a map with no floor has to choose from. */
+  wallRings?: { rings: number; unassigned: number };
 }>();
 
 const emit = defineEmits<{
   "find-again": [];
   "pick-zone-tool": [];
+  "pick-assign-tool": [];
   rename: [entry: ZoningEntry, label: string | null];
   bind: [entry: ZoningEntry, spaceId: string | null];
   reshape: [entry: ZoningEntry];
@@ -263,6 +279,12 @@ const { confirm } = useConfirm();
 const { error: toastError, fromError } = useToast();
 const updateRegion = useUpdateLocationMapRegion();
 const deleteRegion = useDeleteLocationMapRegion();
+
+const ringsHeading = computed(() => {
+  const { rings, unassigned } = wallRings;
+  const noun = rings === 1 ? "ring of walls" : "rings of walls";
+  return unassigned === 0 ? `${rings} ${noun}, all rooms` : `${rings} ${noun}, ${unassigned} not a room yet`;
+});
 
 const rooms = computed(() => entries.filter(isRoomEntry));
 const others = computed(() => entries.filter((e) => !isRoomEntry(e)));

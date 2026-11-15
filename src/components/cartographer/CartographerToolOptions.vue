@@ -140,7 +140,7 @@
         @update:model-value="$emit('update:activeWallKind', $event)"
       />
       <span class="text-caption-sm text-muted-foreground">
-        Click to start, click to add points. Enter or a double-click ends the run, Esc drops it. Alt places a point freely.
+        Click to start, click to add points. A point snaps to the end of a wall already drawn. Click the first point to close the ring. Enter or a double-click ends the run, Esc drops it. Alt places a point freely.
       </span>
     </template>
 

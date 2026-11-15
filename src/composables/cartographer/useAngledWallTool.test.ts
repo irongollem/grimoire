@@ -117,3 +117,53 @@ describe("angled wall run", () => {
     expect(tool.selectedId.value).toBe(Object.keys(layers.value.walls)[0]);
   });
 });
+
+// Trace the walls (frame 02): "A run catches wall ends. A point snaps to the end of any wall, and a gilt ring on the
+// first point says the next click closes the ring."
+describe("a run catches wall ends and closes its ring", () => {
+  it("a click near the end of an existing wall lands exactly on it, and the hover says so", () => {
+    const { layers, tool } = setup();
+    layers.value.walls.old = { pack_id: "p", pack_version: 1, variant: 0, type: "wall", a: [4.2, 4.1], b: [9, 9] };
+    tool.track([4.3, 4.2], false);
+    expect(tool.hoverSnap.value).toBe("wall-end");
+    tool.click([4.3, 4.2], false);
+    expect(tool.run.value).toEqual([[4.2, 4.1]]);
+  });
+
+  it("a click on the first point of a three-point run closes the ring in one undo step, last b equal to first a", () => {
+    const { layers, tool, pushCommand } = setup();
+    tool.click([0, 0], false);
+    tool.click([3, 0], false);
+    tool.click([3, 3], false);
+    expect(tool.run.value).toHaveLength(3);
+    tool.track([0.1, 0.1], false);
+    expect(tool.hoverSnap.value).toBe("start");
+    tool.click([0.1, 0.1], false);
+    // Three segments: (0,0)-(3,0), (3,0)-(3,3), (3,3)-(0,0); the run is over without Enter.
+    const walls = Object.values(layers.value.walls);
+    expect(walls).toHaveLength(3);
+    expect(walls[2].b).toEqual(walls[0].a);
+    expect(tool.run.value).toEqual([]);
+    expect(pushCommand).toHaveBeenCalledTimes(1);
+  });
+
+  it("two points cannot close on the start: that would lay the wall back over itself", () => {
+    const { layers, tool } = setup();
+    tool.click([0, 0], false);
+    tool.click([3, 0], false);
+    tool.click([0.1, 0.1], false);
+    // Grid point (0, 0) is a third point of an open run, not a closing click: nothing is written yet.
+    expect(tool.run.value).toHaveLength(3);
+    expect(layers.value.walls).toEqual({});
+  });
+
+  it("Alt on the start does not close the ring", () => {
+    const { layers, tool } = setup();
+    tool.click([0, 0], false);
+    tool.click([3, 0], false);
+    tool.click([3, 3], false);
+    tool.click([0.1, 0.1], true);
+    expect(tool.run.value).toHaveLength(4);
+    expect(layers.value.walls).toEqual({});
+  });
+});

@@ -31,21 +31,21 @@
 // returns whether it claimed the event for exactly this reason — the caller
 // falls through to its own pan-trigger check when it didn't.
 
-import { ref, type Ref } from "vue";
+import { ref, shallowRef, watch, type Ref } from "vue";
 import { useRegionPointer, type UseRegionPointerOptions } from "@/composables/locations/useRegionPointer";
 import { useToast } from "@/composables/useToast";
 import { eraseFromRegions, type UsePlanPaletteReturn } from "@/composables/cartographer/usePlanPalette";
 import { canonicaliseEdge } from "@/cartographer/edges";
 import { detectHoveredEdge } from "@/cartographer/edgeHover";
 import { floodFill } from "@/cartographer/floodFill";
-import { wallFaceAt } from "@/cartographer/roomOutline";
+import { wallFaceAt, type FoundFace } from "@/cartographer/roomOutline";
 import { DOOR_EDGE_SNAP_THRESHOLD, indexSpacesByCell, resolveEdgeEndpoints } from "@/lib/locations/doors";
 import { templateRing as buildTemplateRing } from "@/lib/locations/polygon";
 import { cellKey, type CellKey, type DungeonMapLayers } from "@/types/dungeonMap.types";
 import type { SourceEdgeKey } from "@/types/locationDoor.types";
 import type { GridPoint, LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { TemplateDragState } from "@/lib/map/gestures/pen";
-import type { PlanWayLike } from "@/cartographer/planOverlay";
+import type { AssignHover, PlanWayLike } from "@/cartographer/planOverlay";
 
 export interface PlanCanvasToolsOptions {
   plan: UsePlanPaletteReturn;
@@ -73,6 +73,8 @@ export interface PlanRenderScene {
   tracingHoverPoint: GridPoint | null;
   templateDraft: TemplateDragState | null;
   templateRingPreview: readonly GridPoint[];
+  /** The area an Assign click would make a room of, lit before the click. */
+  assignHover: AssignHover | null;
 }
 
 export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
@@ -80,6 +82,12 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
   const { error: toastError } = useToast();
 
   const planHoveredDoorEdge = ref<SourceEdgeKey | null>(null);
+  // Shallow: the cells of a large floor are replaced as a whole, never edited, and must not be walked by a deep watch.
+  const assignHover = shallowRef<AssignHover | null>(null);
+  /** What the hover was last worked out from, so a pointer that stays inside the same floor region or the same ring
+   *  of walls costs nothing, and an edit to the floor or the rooms makes it be worked out again. (A ring is told by
+   *  its face, which is a new object once the walls change.) */
+  let hoverBasis: { floor: object; regions: object; kind: string; cells: ReadonlySet<CellKey> | null; face: FoundFace | null } | null = null;
 
   // ── Zone tracing — delegated to useRegionPointer ─────────────────
   function isTraceTool(): boolean {
@@ -219,6 +227,52 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     void plan.assignArea(face.cells, face.outline);
   }
 
+  /** Lights what a click would assign: painted floor's connected region, else the ring of walls round the pointer.
+   *  With the Room kind, an area that is already a room lights nothing, since a click there only selects it. Any
+   *  other kind makes a zone over the room, so it lights. */
+  function updateAssignHover(clientX: number, clientY: number): void {
+    const cell = cellAt(clientX, clientY);
+    if (!cell) return clearAssignHover();
+    const l = layers.value;
+    const regions = plan.regions.value;
+    const kind = plan.zoneKind.value;
+    const fresh = hoverBasis && hoverBasis.floor === l.floor && hoverBasis.regions === regions && hoverBasis.kind === kind;
+    const alreadyARoom = (cells: readonly CellKey[]): boolean => {
+      if (kind !== "room") return false;
+      const claimed = new Set(cells);
+      return regions.some((r) => r.region_role === "space" && r.cells.some((c) => claimed.has(c)));
+    };
+
+    if (l.floor[cell]?.floor) {
+      if (fresh && hoverBasis!.cells?.has(cell)) return;
+      const [xs, ys] = cell.split(",");
+      const region = floodFill(Number(xs), Number(ys), (x, y) => !!l.floor[cellKey(x, y)]?.floor);
+      hoverBasis = { floor: l.floor, regions, kind, cells: region, face: null };
+      const cells = [...region];
+      showAssignHover(alreadyARoom(cells) ? null : { cells, outline: null });
+      return;
+    }
+
+    const point = gridPointAt(clientX, clientY);
+    const face = point ? wallFaceAt(l, point) : null;
+    if (fresh && hoverBasis!.face === face && hoverBasis!.cells === null) return;
+    hoverBasis = { floor: l.floor, regions, kind, cells: null, face };
+    showAssignHover(face && face.cells.length > 0 && !alreadyARoom(face.cells) ? { cells: face.cells, outline: face.outline } : null);
+  }
+
+  /** Sets the hover, leaving the basis alone: an area that lights nothing is still the area the pointer is in. */
+  function showAssignHover(next: AssignHover | null): void {
+    if (assignHover.value !== null || next !== null) assignHover.value = next;
+  }
+
+  function clearAssignHover(): void {
+    hoverBasis = null;
+    showAssignHover(null);
+  }
+
+  // Switching tool drops the hover at once, so Zone's own preview is never drawn under a stale amber area.
+  watch(plan.planTool, clearAssignHover, { flush: "sync" });
+
   // ── Dispatch ─────────────────────────────────────────────────────────────
   // Pan (RMB / middle) is never claimed — the caller's own pan logic
   // runs when this returns false, exactly the boundary
@@ -251,6 +305,8 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     if (tool === "assign") {
       if (isPanGesture(ev)) return false;
       assignAt(ev.clientX, ev.clientY);
+      // The click made it a room (or selected the one it was), so there is nothing left to offer here.
+      clearAssignHover();
       return true;
     }
 
@@ -284,12 +340,17 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
       return;
     }
     planHoveredDoorEdge.value = null;
-    if (tool === "assign" || tool === "erase") return;
+    if (tool === "assign") {
+      updateAssignHover(ev.clientX, ev.clientY);
+      return;
+    }
+    if (tool === "erase") return;
     regionPointer.onPointerMove(ev);
   }
 
   function onPointerLeave(): void {
     planHoveredDoorEdge.value = null;
+    clearAssignHover();
     regionPointer.onPointerLeave();
   }
 
@@ -351,6 +412,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
       tracingHoverPoint,
       templateDraft,
       templateRingPreview,
+      assignHover: assignHover.value,
     };
   }
 
@@ -367,6 +429,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     // read of these lives inside `renderScene()` above.
     renderDeps: {
       hoveredDoorEdge: planHoveredDoorEdge,
+      assignHover,
       pendingDoorEdge: plan.pendingDoorEdge,
       strokeCells: regionPointer.strokeCells,
       eraseTouched,

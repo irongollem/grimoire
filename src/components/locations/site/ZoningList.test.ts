@@ -90,6 +90,42 @@ describe("ZoningList", () => {
     expect(w.emitted("pick-zone-tool")).toHaveLength(1);
   });
 
+  describe("a map with no floor but rings of walls", () => {
+    it("says how many rings are not rooms yet", () => {
+      const w = mountList({ hasDrawing: false, wallRings: { rings: 3, unassigned: 2 } });
+      expect(w.text()).toContain("3 rings of walls, 2 not a room yet");
+      expect(w.text()).toContain("No floor is drawn on this map, so you choose the rooms. Assign a ring, or draw a zone.");
+    });
+
+    it("says ring in the singular for one", () => {
+      const w = mountList({ hasDrawing: false, wallRings: { rings: 1, unassigned: 1 } });
+      expect(w.text()).toContain("1 ring of walls, 1 not a room yet");
+    });
+
+    it("says all rooms when every ring is one", () => {
+      const w = mountList({ hasDrawing: false, wallRings: { rings: 2, unassigned: 0 } });
+      expect(w.text()).toContain("2 rings of walls, all rooms");
+      expect(w.text()).not.toContain("not a room yet");
+    });
+
+    it("offers the Assign tool, and reports the click", async () => {
+      const w = mountList({ hasDrawing: false, wallRings: { rings: 2, unassigned: 1 } });
+      expect(button(w, "Use the Zone tool")).toBeUndefined();
+      await button(w, "Use the Assign tool")!.trigger("click");
+      expect(w.emitted("pick-assign-tool")).toHaveLength(1);
+    });
+
+    it("keeps the old note when there are no rings", () => {
+      const w = mountList({ hasDrawing: false, wallRings: { rings: 0, unassigned: 0 } });
+      expect(w.text()).toContain("Nothing to find from the walls yet");
+    });
+
+    it("leaves the ring count to the found rooms once a floor is drawn", () => {
+      const w = mountList({ hasDrawing: true, wallRings: { rings: 2, unassigned: 1 } });
+      expect(w.text()).not.toContain("rings of walls");
+    });
+  });
+
   it("renaming a found room reports it, and clearing the name reports null rather than an empty label", async () => {
     const entry = foundEntry("a");
     const w = mountList({ entries: [entry], foundCount: 1 });

@@ -3,7 +3,7 @@ import type { CellKey, DungeonMapLayers, EdgeSegType, PackRef, WallEdge } from "
 import { cellKey } from "@/types/dungeonMap.types";
 import { brushDisc, brushDiscs } from "@/test/brushDisc";
 import { canonicaliseEdge, type Side } from "./edges";
-import { findFaces, simplifyLoop, wallFaceAt } from "./roomOutline";
+import { findFaces, simplifyLoop, wallFaceAt, wallFaces } from "./roomOutline";
 import { deriveSpaces } from "./structure";
 import { putWall } from "./testWalls";
 import { wallAt } from "./wallGraph";
@@ -471,5 +471,49 @@ describe("wallFaceAt: the ring of walls round a point, with no floor painted", (
     angled(layers, "l", [0, -1], [0, 5]);
     angled(layers, "r", [4, -1], [4, 5]);
     expect(wallFaceAt(layers, [2, 2])!.cells.slice().sort()).toEqual(box(0, 0, 4, 4).sort());
+  });
+
+  describe("wallFaces: every ring at once", () => {
+    it("lists two separate rings and a nested one, smallest first, each with its own squares", () => {
+      // A 6x6 ring at (0,0) holding a 2x2 pillar ring at (2,2), and a separate 3x3 ring at (10,0).
+      // Areas: pillar 4, separate 9, outer 36, so that is the order. The outer keeps 36 - 4 = 32 squares.
+      const layers = emptyLayers();
+      ring(layers, 0, 0, 6, 6);
+      ring(layers, 2, 2, 2, 2);
+      ring(layers, 10, 0, 3, 3);
+      const faces = wallFaces(layers);
+      expect(faces.map((f) => f.cells.length)).toEqual([4, 9, 32]);
+      expect(faces[0].cells.slice().sort()).toEqual(box(2, 2, 2, 2).sort());
+    });
+
+    it("hands back the same array for the same walls, and a fresh one once a wall is added in place", () => {
+      const layers = emptyLayers();
+      ring(layers, 0, 0, 3, 3);
+      const first = wallFaces(layers);
+      expect(wallFaces(layers)).toBe(first);
+      // The lattice is edited in place on the same walls object: a second ring must show up.
+      ring(layers, 10, 0, 2, 2);
+      const second = wallFaces(layers);
+      expect(second).not.toBe(first);
+      expect(second.map((f) => f.cells.length)).toEqual([4, 9]);
+    });
+
+    it("takes a solid block out of the squares when the solid blocks change, though the walls did not", () => {
+      // A 3x3 ring has 9 squares; one solid block leaves 8. Fails on a cache keyed on the walls alone.
+      const layers = emptyLayers();
+      ring(layers, 0, 0, 3, 3);
+      expect(wallFaces(layers)[0].cells).toHaveLength(9);
+      layers.solidBlock = { [cellKey(1, 1)]: { ...PACK } };
+      expect(wallFaces(layers)[0].cells).toHaveLength(8);
+    });
+
+    it("keeps a ring too small for any square in the list, with no cells, so the tool can say so", () => {
+      const layers = emptyLayers();
+      angled(layers, "a", [0.6, 0.6], [1.4, 0.6]);
+      angled(layers, "b", [1.4, 0.6], [1.4, 1.4]);
+      angled(layers, "c", [1.4, 1.4], [0.6, 1.4]);
+      angled(layers, "d", [0.6, 1.4], [0.6, 0.6]);
+      expect(wallFaces(layers).map((f) => f.cells.length)).toEqual([0]);
+    });
   });
 });

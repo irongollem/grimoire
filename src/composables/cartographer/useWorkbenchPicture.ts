@@ -5,6 +5,7 @@ import type { EditorLayer } from "@/cartographer/keymap";
 import { fitViewport, type CellBounds } from "@/cartographer/viewport";
 import { DEFAULT_SQUARES_ACROSS, calibrationFor, gridSizeText, squaresDown, type ImageSize } from "@/lib/mapImport/pictureGrid";
 import type { GridCalibration } from "@/types/location.types";
+import type { DungeonMapLayers } from "@/types/dungeonMap.types";
 
 /** Zoom and pan the canvas so a box of cells fills it, `margin` cells to spare. A no-op until the canvas has a width. */
 export type FitCanvasTo = (bounds: CellBounds, margin: number) => boolean;
@@ -40,6 +41,17 @@ export function pictureCellBounds(cal: GridCalibration, natural: ImageSize): Cel
   const left = (cal.origin_cell_x ?? 0) - cal.origin_x_pct * across;
   const top = (cal.origin_cell_y ?? 0) - cal.origin_y_pct * across;
   return { minX: Math.floor(left), minY: Math.floor(top), maxX: Math.ceil(left + across) - 1, maxY: Math.ceil(top + down) - 1 };
+}
+
+/**
+ * Whether a new wall starts Visible (frame 02 "Trace the walls"): "A map with a picture and no tiles starts new walls
+ * Hidden: the picture already shows them. A tiled map keeps Visible." Tiles are floor, solid blocks, terrain and ground
+ * regions; walls and lights alone do not count, since tracing a picture is exactly that.
+ */
+export function initialWallVisible(layers: DungeonMapLayers, hasPicture: boolean): boolean {
+  const hasTiles = Object.keys(layers.floor).length > 0 || Object.keys(layers.solidBlock).length > 0
+    || Object.keys(layers.terrain).length > 0 || Object.keys(layers.ground).length > 0;
+  return !(hasPicture && !hasTiles);
 }
 
 /** Both boxes in one; either may be absent, and both absent means there is nothing to fit. */
