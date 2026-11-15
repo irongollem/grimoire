@@ -10,12 +10,13 @@ import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
 import { gameSystemEdition } from "../_shared/gameSystem.ts";
-import { secureDie } from "../_shared/serverRoll.ts";
+import { rollMessageRow, secureDie } from "../_shared/serverRoll.ts";
 import { isUuid } from "../../../src/lib/library/contentIdentity.ts";
 import { libraryMonsterRow } from "../../../src/lib/library/libraryMonsterRow.ts";
 import { DEFAULT_RULESET } from "../../../src/types/ruleset.types.ts";
 import type { EncounterEvent } from "../../../src/types/encounter.types.ts";
 import type { ExploreParty } from "../../../src/types/exploreParty.types.ts";
+import type { Companion } from "../../../src/types/companion.types.ts";
 import type { Monster } from "../../../src/types/monster.types.ts";
 import type { NpcListRow } from "../../../src/types/npc.types.ts";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
@@ -236,6 +237,29 @@ serve(withCors(async (req: Request) => {
         });
         if (error) throw new Error(`campaign_messages: ${error.message}`);
       },
+      async loadStatBlocks({ monsterIds, npcIds, companionIds }) {
+        const monsters = await loadMonsters(monsterIds);
+        let npcs: NpcListRow[] = [];
+        if (npcIds.length > 0) {
+          const { data, error } = await admin.from("npcs").select("*").eq("campaign_id", campaignId).in("id", npcIds);
+          if (error) throw new Error(`npcs: ${error.message}`);
+          npcs = data as NpcListRow[];
+        }
+        let companions: Companion[] = [];
+        if (companionIds.length > 0) {
+          const { data, error } = await admin.from("companions").select("*").eq("campaign_id", campaignId).in("id", companionIds);
+          if (error) throw new Error(`companions: ${error.message}`);
+          companions = data as Companion[];
+        }
+        return { monsters, npcs, companions };
+      },
+      async postRoll({ result, speaker, serverRolled }) {
+        // The campaign log row of a roll, as the client posts one; the stamp is only for dice the server threw.
+        const row = rollMessageRow(result, { campaignId, userId, senderName: speaker, recipientUserId: null }, serverRolled);
+        const { error } = await admin.from("campaign_messages").insert(row);
+        if (error) throw new Error(`campaign_messages: ${error.message}`);
+      },
+      rollDie: (sides) => secureDie(sides),
       rollD20: () => secureDie(20),
       rollD6: () => secureDie(6),
       now: idClock(),

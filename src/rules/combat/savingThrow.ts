@@ -1,8 +1,8 @@
-import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
+import type { RollMode } from "../../systems/dnd5e/dice/rollMode.ts";
 import { hasCondition, hasSaveDisadvantage } from "../conditions.ts";
-import type { AppliedCondition } from "@/types/condition.types";
-import type { RulesetKey } from "@/types/ruleset.types";
-import type { SaveAbility } from "@/types/statBlock.types";
+import type { AppliedCondition } from "../../types/condition.types.ts";
+import type { RulesetKey } from "../../types/ruleset.types.ts";
+import type { SaveAbility } from "../../types/statBlock.types.ts";
 
 /** These conditions make the creature automatically fail Strength and Dexterity saves (SRD). */
 export const AUTO_FAIL_STR_DEX_CONDITIONS = new Set<string>(["Paralyzed", "Stunned", "Petrified", "Unconscious"]);

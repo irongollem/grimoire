@@ -1,4 +1,8 @@
+import type { DamageType } from "../../types/damage.types.ts";
 import type { EncounterEvent, RunCombatant } from "../../types/encounter.types.ts";
+import type { SaveAbility, SrdConditionName } from "../../types/statBlock.types.ts";
+import type { DefenseApplied } from "../combat/typedDamage.ts";
+import type { DyingOutcome } from "../dying.ts";
 import type { EncounterTurnEvent, EncounterTurnState } from "../encounterTurn.ts";
 
 /**
@@ -28,12 +32,62 @@ export type FightEffect =
   /** A line for the table: the server posts it to the chat; the browser never does. */
   | { type: "broadcast"; message: string }
   /** Combatants an event brought into the fight. They are already in the returned state; this says it happened. */
-  | { type: "spawned"; combatants: RunCombatant[] };
+  | { type: "spawned"; combatants: RunCombatant[] }
+  /** What a resolving command (`resolve_attack` ...) rolled and did, for a caller to show or narrate. Only the server raises it. */
+  | { type: "resolved"; resolved: ResolvedAction };
 
-/** The reducer's events, told apart from the two effects a fight adds. */
+/** The reducer's events, told apart from the effects a fight adds. */
 export function isTurnEvent(effect: FightEffect): effect is EncounterTurnEvent {
-  return effect.type !== "broadcast" && effect.type !== "spawned";
+  return effect.type !== "broadcast" && effect.type !== "spawned" && effect.type !== "resolved";
 }
+
+/** One damage part after the target's defenses: what was rolled, what was taken, and which defense changed it. */
+export interface ResolvedDamage {
+  type: DamageType | null;
+  rolled: number;
+  applied: number;
+  defense: DefenseApplied;
+}
+
+/** One target's save in an action: its roll (null when no die was thrown), what it took and gained. */
+export interface ResolvedSave {
+  targetId: string;
+  natural: number | null;
+  total: number | null;
+  autoFail: boolean;
+  success: boolean;
+  share: "full" | "half" | "none" | null;
+  damage: ResolvedDamage[];
+  damageTotal: number;
+  dying: DyingOutcome;
+  conditionsApplied: SrdConditionName[];
+  conditionsImmune: SrdConditionName[];
+}
+
+/** The plain outcome of a resolving command: plain JSON, the numbers a narrator may quote and nothing it may invent. */
+export type ResolvedAction =
+  | {
+      kind: "attack";
+      attackerId: string;
+      targetId: string;
+      action: string;
+      natural: number;
+      total: number;
+      targetAc: number;
+      mode: "normal" | "advantage" | "disadvantage";
+      hit: boolean;
+      critical: boolean;
+      fumble: boolean;
+      damage: ResolvedDamage[];
+      damageTotal: number;
+      dying: DyingOutcome;
+      /** The save the hit forced on the creature that was hit, when the action has one. */
+      save: ResolvedSave | null;
+    }
+  | { kind: "save"; attackerId: string; action: string; ability: SaveAbility; dc: number; targets: ResolvedSave[] }
+  | { kind: "concentration"; instanceId: string; dc: number; natural: number; total: number; maintained: boolean }
+  | { kind: "condition_save"; instanceId: string; name: string; dc: number; total: number | null; success: boolean }
+  | { kind: "ongoing_damage"; instanceId: string; name: string; damage: ResolvedDamage[]; damageTotal: number; dying: DyingOutcome };
 
 /** A fight is under way once its round counter has left the lobby's 0 (the live row stores no separate flag). */
 export function startedFromRound(currentRound: number): boolean {

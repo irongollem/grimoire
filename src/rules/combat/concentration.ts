@@ -1,5 +1,5 @@
-import type { AppliedCondition } from "@/types/condition.types";
-import type { RulesetKey } from "@/types/ruleset.types";
+import type { AppliedCondition } from "../../types/condition.types.ts";
+import type { RulesetKey } from "../../types/ruleset.types.ts";
 
 /** Incapacitated ends concentration; these all include Incapacitated (SRD), so list them. */
 export const CONCENTRATION_BREAKING_CONDITIONS = new Set<string>([

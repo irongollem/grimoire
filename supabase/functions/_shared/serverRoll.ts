@@ -141,13 +141,18 @@ export interface RollMessageRow {
   message: string;
   type: "roll" | "dm_roll";
   metadata: RollResult;
-  server_rolled: true;
+  /** True for dice Grimoire's server threw; false for a roll a person made and the server only scored. */
+  server_rolled: boolean;
 }
 
-/** The `campaign_messages` row for a roll, built as the client's `sendRoll` builds it, plus the stamp. */
+/**
+ * The `campaign_messages` row for a roll, built as the client's `sendRoll` builds it, plus the stamp. A roll a
+ * person made and the server only scored (`serverRolled: false`, its metadata already `manual`) is posted unstamped.
+ */
 export function rollMessageRow(
   result: RollResult,
   to: { campaignId: string; userId: string; senderName: string; recipientUserId: string | null },
+  serverRolled = true,
 ): RollMessageRow {
   // Crits are always public, as on the client: too exciting to hide.
   const recipient = result.isCrit ? null : to.recipientUserId;
@@ -159,7 +164,7 @@ export function rollMessageRow(
     message: `rolled ${result.label} = ${result.total}`,
     type: recipient ? "dm_roll" : "roll",
     metadata: result,
-    server_rolled: true,
+    server_rolled: serverRolled,
   };
 }
 

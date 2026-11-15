@@ -1,7 +1,7 @@
-import type { ParsedExpression } from "@/lib/dice/dice";
-import type { AppliedCondition, ConditionEnds, ConditionSource } from "@/types/condition.types";
-import type { DamageType } from "@/types/damage.types";
-import type { AttackStructure, DamagePart, SaveCondition, SaveStructure } from "@/types/statBlock.types";
+import type { ParsedExpression } from "../../lib/dice/dice.ts";
+import type { AppliedCondition, ConditionEnds, ConditionSource } from "../../types/condition.types.ts";
+import type { DamageType } from "../../types/damage.types.ts";
+import type { AttackStructure, DamagePart, SaveCondition, SaveStructure } from "../../types/statBlock.types.ts";
 import { autoCritOnHit, resolveAttack } from "./attackRoll.ts";
 import { autoFailsSave, resolveSave } from "./savingThrow.ts";
 import { damageRollsFor } from "./typedDamage.ts";

@@ -23,6 +23,19 @@ import type { FightDeps } from "../../../src/rules/fight/fightEvents.ts";
 import { ingestPartyRow, type PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
 import { endOfFightPatches } from "../../../src/rules/fight/fightEnd.ts";
 import { startedFromRound, type FightEffect, type FightState } from "../../../src/rules/fight/fightState.ts";
+import { FightCommandError } from "./commandError.ts";
+import {
+  applyResolvingCommand,
+  isResolvingCommand,
+  statBlockIdsOf,
+  validateResolvingCommand,
+  type PostedRoll,
+  type ResolvingCommand,
+  type StatBlockSources,
+} from "./resolve.ts";
+
+export { FightCommandError };
+export { ALL_RESOLVING_COMMANDS_LISTED, RESOLVING_COMMAND_TYPES, type ResolvingCommand, type PostedRoll, type StatBlockSources } from "./resolve.ts";
 
 export const MAX_COMMANDS = 50;
 export const MAX_BATCH_ID_LENGTH = 80;
@@ -70,7 +83,7 @@ export type LifecycleCommand =
   /** The DM turns Go Live off: the players' screens leave the fight, which goes on. Nothing else about it changes. */
   | { type: "go_private" };
 export const LIFECYCLE_TYPES: ReadonlySet<string> = new Set(["open", "go_live", "end_combat", "abandon", "go_private"]);
-export type BatchCommand = FightCommand | SyncPartyCommand | LifecycleCommand;
+export type BatchCommand = FightCommand | SyncPartyCommand | LifecycleCommand | ResolvingCommand;
 
 export const MAX_ADDED_COMBATANTS = 30;
 export const MAX_OPENED_COMBATANTS = 60;
@@ -80,16 +93,6 @@ export interface CommandRequest {
   encounterId: string;
   batchId: string;
   commands: BatchCommand[];
-}
-
-export class FightCommandError extends Error {
-  constructor(
-    public readonly status: 400 | 404 | 409,
-    message: string,
-  ) {
-    super(message);
-    this.name = "FightCommandError";
-  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -177,6 +180,9 @@ export function validateRequest(body: unknown): CommandRequest {
     } else if (LIFECYCLE_TYPES.has(command.type)) {
       if (commands.length !== 1) throw new FightCommandError(400, `${command.type} is sent alone.`);
       validateLifecycleCommand(command);
+    } else if (isResolvingCommand(command as { type: string })) {
+      // Resolving commands mix with ordinary ones in a batch, and are applied in order with them.
+      validateResolvingCommand(command);
     } else if (!ACCEPTED_TYPE_SET.has(command.type)) {
       throw new FightCommandError(400, `Unknown command type: ${command.type}.`);
     } else {
@@ -257,6 +263,12 @@ export interface BatchDeps {
   setExploreParty(party: ExploreParty): Promise<void>;
   nowIso(): string;
   postBroadcast(message: string): Promise<void>;
+  /** The stat blocks a fight's creatures came from; asked for only by a batch that resolves an action. */
+  loadStatBlocks(ids: { monsterIds: string[]; npcIds: string[]; companionIds: string[] }): Promise<StatBlockSources>;
+  /** Posts a roll to the campaign log, stamped when `serverRolled`. */
+  postRoll(roll: PostedRoll): Promise<void>;
+  /** One die of any size, from the server's secure source: what a resolving command rolls with. */
+  rollDie(sides: number): number;
   rollD20(): number;
   rollD6(): number;
   now(): number;
@@ -317,8 +329,13 @@ function buildState(loaded: LoadedFight, row: StateSource): FightState {
   };
 }
 
-/** One attempt: everything worked out from the row as loaded, nothing written yet. */
-async function attempt(request: CommandRequest, loaded: LoadedFight, row: FightRow, deps: BatchDeps): Promise<{ state: FightState; effects: FightEffect[] }> {
+/** One attempt: everything worked out from the row as loaded, nothing written yet. `rolls` are what its resolving commands rolled, to be posted only if this attempt is the one saved. */
+async function attempt(
+  request: CommandRequest,
+  loaded: LoadedFight,
+  row: FightRow,
+  deps: BatchDeps,
+): Promise<{ state: FightState; effects: FightEffect[]; rolls: PostedRoll[] }> {
   const fightDeps: FightDeps = {
     monsters: loaded.monsters,
     npcs: loaded.npcs,
@@ -351,13 +368,31 @@ async function attempt(request: CommandRequest, loaded: LoadedFight, row: FightR
     }
   }
 
+  const rolls: PostedRoll[] = [];
+  // The stat blocks are read once per attempt, and only when the batch has an action to resolve.
+  let sources: StatBlockSources | null = null;
   for (const command of request.commands) {
     if (command.type === "sync_party" || LIFECYCLE_TYPES.has(command.type)) continue;
+    if (isResolvingCommand(command)) {
+      if (sources === null) {
+        const fetched = await deps.loadStatBlocks(statBlockIdsOf(state.combatants));
+        // What a fight's own events spawn is already loaded; a spawn earlier in the batch can be acted with.
+        sources = {
+          monsters: [...fetched.monsters, ...loaded.monsters],
+          npcs: [...fetched.npcs, ...loaded.npcs],
+          companions: fetched.companions,
+        };
+      }
+      const result = await applyResolvingCommand(state, command, { fightDeps, sources, rollDie: deps.rollDie, posted: rolls });
+      state = result.state;
+      effects.push(...result.effects);
+      continue;
+    }
     const result = applyFightCommand(state, command as FightCommand, fightDeps);
     state = result.state;
     effects.push(...result.effects);
   }
-  return { state, effects };
+  return { state, effects, rolls };
 }
 
 /** Whether a write would leave the fight exactly as the row has it (the batch id aside). */
@@ -583,7 +618,7 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
       throw new FightCommandError(409, "This fight has ended.");
     }
 
-    const { state, effects } = await attempt(request, loaded, row, deps);
+    const { state, effects, rolls } = await attempt(request, loaded, row, deps);
     const write = writeOf(state, row.applied_command_ids, request.batchId);
     // Most syncs find the sheets as the fight already has them (the ring was this fight's own write to a sheet
     // coming back). Saving anyway would raise the version and ring every screen for nothing, on every hit.
@@ -592,6 +627,8 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
     if (!saved) continue;
 
     const effectFailures = await perform(effects, deps);
+    // The rolls are the log's record of what the fight now holds, so they are posted only for the attempt that was saved.
+    effectFailures.push(...(await performAll(rolls.map((roll) => ({ name: "roll", run: () => deps.postRoll(roll) })))));
     return resultOf(true, saved.version, row, write, effects, effectFailures);
   }
   throw new FightCommandError(409, "The fight kept changing under this command; try again.");

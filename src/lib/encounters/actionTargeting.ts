@@ -1,10 +1,10 @@
-import { combatantFootprint } from "@/lib/battlemap/tokenFootprint";
-import { sortCombatantsByInitiative } from "@/rules/combatantSort";
-import type { RunCombatant } from "@/types/encounter.types";
-import type { Companion } from "@/types/companion.types";
-import type { Monster, MonsterStatBlock } from "@/types/monster.types";
-import type { NpcListRow } from "@/types/npc.types";
-import { emptyDefenses, type Defenses, type SrdConditionName } from "@/types/statBlock.types";
+import { combatantFootprint } from "../battlemap/tokenFootprint.ts";
+import { sortCombatantsByInitiative } from "../../rules/combatantSort.ts";
+import type { RunCombatant } from "../../types/encounter.types.ts";
+import type { Companion } from "../../types/companion.types.ts";
+import type { Monster, MonsterStatBlock } from "../../types/monster.types.ts";
+import type { NpcListRow } from "../../types/npc.types.ts";
+import { emptyDefenses, type Defenses, type SrdConditionName } from "../../types/statBlock.types.ts";
 
 /** The number in a printed AC ("15", "15 (natural armor)", "13 (hide armor), 15 with shield"), or null when there is none. */
 export function parseArmorClass(ac: string): number | null {

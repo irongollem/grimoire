@@ -6,10 +6,13 @@
 import { describe, expect, it } from "vitest";
 import type { EncounterEvent } from "../../../src/types/encounter.types";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest";
+import type { Monster } from "../../../src/types/monster.types";
+import { emptyDefenses, type StatBlockEntry } from "../../../src/types/statBlock.types";
 import { broadcastEvent, combatant, pc } from "../../../src/rules/fight/fightTestKit";
 import {
   ALL_FIGHT_COMMANDS_LISTED,
   ALL_REDUCER_COMMANDS_LISTED,
+  ALL_RESOLVING_COMMANDS_LISTED,
   FightCommandError,
   runBatch,
   validateRequest,
@@ -19,6 +22,8 @@ import {
   type FightWrite,
   type FightLifecycleWrite,
   type LoadedFight,
+  type PostedRoll,
+  type StatBlockSources,
 } from "./handler";
 import type { ExploreParty } from "../../../src/types/exploreParty.types";
 
@@ -55,13 +60,25 @@ interface Harness {
   loads: number;
   persisted: Array<{ id: string; patch: unknown }>;
   broadcasts: string[];
+  /** The rolls posted to the campaign log, in order, with the stamp each carries. */
+  posted: PostedRoll[];
+  /** How many times the server threw a die. */
+  dieCalls: number;
   /** Runs once, between a load and its save: another writer got in. */
   rival: { run: (() => void) | null; always: boolean };
 }
 
 function harness(
   initial: FightRow | null,
-  options: { events?: EncounterEvent[]; party?: PartyIngestRow[]; d6?: number; d20?: number } = {},
+  options: {
+    events?: EncounterEvent[];
+    party?: PartyIngestRow[];
+    d6?: number;
+    d20?: number;
+    sources?: StatBlockSources;
+    /** The faces the server's die shows, one per throw in order; a throw past the end fails the test. */
+    dieFaces?: number[];
+  } = {},
 ): Harness {
   const h: Harness = {
     store: { row: initial ? structuredClone(initial) : null },
@@ -75,6 +92,8 @@ function harness(
     loads: 0,
     persisted: [],
     broadcasts: [],
+    posted: [],
+    dieCalls: 0,
     rival: { run: null, always: false },
     deps: undefined as unknown as BatchDeps,
   };
@@ -140,6 +159,19 @@ function harness(
     async postBroadcast(message) {
       h.log.push("broadcast");
       h.broadcasts.push(message);
+    },
+    async loadStatBlocks() {
+      return structuredClone(options.sources ?? { monsters: [], npcs: [], companions: [] });
+    },
+    async postRoll(roll) {
+      h.log.push("roll");
+      h.posted.push(structuredClone(roll));
+    },
+    rollDie() {
+      h.dieCalls += 1;
+      const face = options.dieFaces?.shift();
+      if (face === undefined) throw new Error("The server threw a die the test did not script");
+      return face;
     },
     rollD20: () => 13,
     rollD6: () => options.d6 ?? 3,
@@ -647,5 +679,252 @@ describe("validateRequest", () => {
   it("fails if a curse that is not a string reaches the engine", () => {
     expect(() => validateRequest({ ...ok, commands: [{ type: "add_curse", instanceId: "a", curse: 3 }] })).toThrow(FightCommandError);
     expect(() => validateRequest({ ...ok, commands: [{ type: "set_reveal_state", instanceId: "a", revealState: "gone" }] })).toThrow(FightCommandError);
+  });
+});
+
+
+// ── resolving commands (#1201 stage 3) ───────────────────────────────────────────
+
+const bite: StatBlockEntry = {
+  name: "Bite",
+  description: "",
+  structured: { kind: "attack", source: "manual", attack: { delivery: "melee", bonus: 4, hit: [{ dice: "1d6+2", type: "piercing" }] } },
+};
+const roar: StatBlockEntry = {
+  name: "Roar",
+  description: "Frightens.",
+  structured: { kind: "other", source: "manual", review: "unreadable" },
+};
+const burst: StatBlockEntry = {
+  name: "Burst",
+  description: "",
+  structured: {
+    kind: "save", source: "manual",
+    save: { ability: "dex", dc: 14, fail: [{ dice: "2d6", type: "fire" }], success: "half", conditions: [] },
+  },
+};
+
+function monster(id: string, over: Record<string, unknown> = {}): Monster {
+  return {
+    id,
+    name: id,
+    stat_block: {
+      armor_class: 13, hit_points: "1d8", speed: "30 ft.", str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10, challenge_rating: "1",
+      defenses: emptyDefenses(), actions: [bite, roar, burst], ...over,
+    },
+  } as unknown as Monster;
+}
+
+const SOURCES: StatBlockSources = { monsters: [monster("m-wolf"), monster("m-ox")], npcs: [], companions: [] };
+
+/** A wolf (11 HP) and a victim (40 HP, AC 13) side by side on the map. */
+function arena(extra: Partial<FightRow> = {}) {
+  return row({
+    combatants_live: [
+      combatant("wolf", { monster_id: "m-wolf", hp: 11, max_hp: 11, initiative: 12, position: { x: 1, y: 1 } }),
+      combatant("victim", { monster_id: "m-ox", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 2, y: 1 } }),
+    ],
+    ...extra,
+  });
+}
+
+const attack = (over: Record<string, unknown> = {}): CommandRequest["commands"][number] =>
+  ({ type: "resolve_attack", attackerId: "wolf", list: "actions", action: "Bite", targetId: "victim", ...over }) as CommandRequest["commands"][number];
+
+describe("resolving commands", () => {
+  // PHB 2014 "Making an Attack": d20 9 + 4 = 13 meets AC 13 and hits; 1d6+2 with a 5 deals 7. The victim's 40 HP leave 33.
+  it("rolls the attack with the server's die, takes the damage off, saves, and says what happened in the reply", async () => {
+    const h = harness(arena(), { sources: SOURCES, dieFaces: [9, 5] });
+    const result = await runBatch(batch("b1", attack()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(33);
+    const resolved = result.effects.find((e) => e.type === "resolved");
+    expect(resolved).toMatchObject({ resolved: { kind: "attack", attackerId: "wolf", targetId: "victim", natural: 9, total: 13, hit: true, damageTotal: 7 } });
+    expect(h.dieCalls).toBe(2);
+  });
+
+  // The paralyzed target is attacked with advantage and a hit within 5 feet is a critical (PHB 2014 appendix A "Paralyzed"):
+  // the d20 takes two faces (4 and 12, keeping 12; 12 + 4 = 16 beats AC 13) and the critical rolls 2d6 (3 + 4) + 2 = 9.
+  // If the attack ran before the condition was applied it would be a plain d20 and 1d6, and the scripted dice would not line up.
+  it("applies a resolving command and an ordinary one in the order sent", async () => {
+    const h = harness(arena(), { sources: SOURCES, dieFaces: [4, 12, 3, 4] });
+    const result = await runBatch(
+      batch("b1", { type: "apply_condition", instanceId: "victim", condition: { name: "Paralyzed" } }, attack(), { type: "adjust_hp", instanceId: "victim", delta: -1 }),
+      h.deps,
+    );
+    // 40 - 9 (the critical) - 1 (the damage sent after it).
+    expect(hpOf(stored(h), "victim")).toBe(30);
+    expect(result.effects).toContainEqual(expect.objectContaining({ type: "resolved", resolved: expect.objectContaining({ critical: true, damageTotal: 9 }) }));
+  });
+
+  // The second attempt rolls again on the winner's row: d20 15 + 4 = 19 hits; 1d6+2 with a 2 is 4; 40 - 4 = 36. Only that
+  // attempt's two rolls are posted, with the totals 19 and 4; the first attempt's 13 and 7 were never written anywhere.
+  it("rolls again after a lost race and posts only the rolls of the attempt that was saved", async () => {
+    const h = harness(arena(), { sources: SOURCES, dieFaces: [9, 5, 15, 2] });
+    h.rival.run = rivalEdit(h, (r) => {
+      r.combatants_live = r.combatants_live.map((c) => (c.instance_id === "wolf" ? { ...c, hp: 10 } : c));
+    });
+    await runBatch(batch("b1", attack()), h.deps);
+    expect(h.saves).toBe(2);
+    expect(hpOf(stored(h), "victim")).toBe(36);
+    expect(h.posted.map((p) => p.result.total)).toEqual([19, 4]);
+    expect(h.log.filter((entry) => entry === "roll")).toHaveLength(2);
+  });
+
+  // The log rows: dice the server threw carry the stamp; faces a person rolled are scored, never re-rolled, are posted as
+  // theirs (`manual`) and carry none. Mixed: the person's d20 (9 + 4 = 13 hits) is unstamped, the server's damage die (5 + 2) is stamped.
+  it("stamps a posted roll only when the server threw the dice", async () => {
+    const server = harness(arena(), { sources: SOURCES, dieFaces: [9, 5] });
+    await runBatch(batch("b1", attack()), server.deps);
+    expect(server.posted.map((p) => [p.speaker, p.serverRolled, p.result.manual])).toEqual([["wolf", true, undefined], ["wolf", true, undefined]]);
+
+    const person = harness(arena(), { sources: SOURCES, dieFaces: [] });
+    await runBatch(batch("b1", attack({ faces: { attack: [9], damage: [[5]] } })), person.deps);
+    expect(person.dieCalls).toBe(0);
+    expect(hpOf(stored(person), "victim")).toBe(33);
+    expect(person.posted.map((p) => [p.serverRolled, p.result.manual])).toEqual([[false, true], [false, true]]);
+
+    const mixed = harness(arena(), { sources: SOURCES, dieFaces: [5] });
+    await runBatch(batch("b1", attack({ faces: { attack: [9] } })), mixed.deps);
+    expect(mixed.posted.map((p) => p.serverRolled)).toEqual([false, true]);
+    expect(hpOf(stored(mixed), "victim")).toBe(33);
+  });
+
+  it("refuses faces a die does not have, too few, and damage faces without the d20 that decides their count", async () => {
+    // A d20 never shows 21.
+    const h = harness(arena(), { sources: SOURCES });
+    await expect(runBatch(batch("b1", attack({ faces: { attack: [21] } })), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/d20 shows 1 to 20/) });
+    // A target with advantage on it needs two d20 faces.
+    const blind = harness(row({ combatants_live: [arena().combatants_live[0], { ...arena().combatants_live[1], conditions: [{ name: "Blinded" }] }] }), { sources: SOURCES });
+    await expect(runBatch(batch("b2", attack({ faces: { attack: [10] } })), blind.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/expected 2 faces/) });
+    // A critical would double the damage dice, so damage faces cannot be accepted before the d20 is known.
+    expect(() => validateRequest(batch("b3", attack({ faces: { damage: [[5]] } })))).toThrow(FightCommandError);
+    expect(() => validateRequest(batch("b4", attack({ faces: { attack: [0] } })))).toThrow(FightCommandError);
+    expect(h.saves + blind.saves).toBe(0);
+  });
+
+  it("refuses an action with no structured payload, an unknown action, a dead or unknown attacker, and a target outside the fight, saving nothing", async () => {
+    const refuse = async (command: CommandRequest["commands"][number], pattern: RegExp, fight = arena()) => {
+      const h = harness(fight, { sources: SOURCES, dieFaces: [9, 5] });
+      await expect(runBatch(batch("b", command), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(pattern) });
+      expect(h.saves).toBe(0);
+      expect(h.posted).toEqual([]);
+    };
+    await refuse(attack({ action: "Roar" }), /no structured attack/);
+    await refuse(attack({ action: "Fly" }), /no "Fly" under actions/);
+    await refuse(attack({ attackerId: "ghost" }), /No attacker "ghost"/);
+    await refuse(attack({ targetId: "ghost" }), /No target "ghost"/);
+    const dead = arena();
+    dead.combatants_live[0] = { ...dead.combatants_live[0], hp: 0 };
+    await refuse(attack(), /0 hit points and cannot act/, dead);
+    // A player has no stat block here, so it has no action to resolve.
+    const player = arena();
+    player.combatants_live[0] = pc("nessa", { hp: 12, max_hp: 12 });
+    await refuse(attack({ attackerId: "nessa" }), /no stat block/, player);
+  });
+
+  it("refuses a player target whose sheet armour class the server cannot work out, and says why", async () => {
+    const fight = arena();
+    fight.combatants_live[1] = pc("nessa", { hp: 12, max_hp: 12, ac: "12" });
+    const h = harness(fight, { sources: SOURCES, dieFaces: [9, 5] });
+    await expect(runBatch(batch("b", attack({ targetId: "nessa", withinFiveFeet: true })), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/character sheet/) });
+    expect(h.saves).toBe(0);
+  });
+
+  it("asks where the creatures stand when neither the command nor the map says how close they are", async () => {
+    const fight = arena();
+    fight.combatants_live[1] = { ...fight.combatants_live[1], position: undefined };
+    const h = harness(fight, { sources: SOURCES, dieFaces: [9, 5] });
+    await expect(runBatch(batch("b", attack()), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/within five feet/) });
+    // Said outright, the command goes through.
+    await runBatch(batch("b2", attack({ withinFiveFeet: true })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(33);
+  });
+
+  // PHB 2014 "Saving Throws": each target rolls its own save, one damage roll serves all. The ox (Dex +0): 5 < DC 14 fails and
+  // takes 2d6 = 3 + 4 = 7 (40 -> 33). The victim's person-rolled 15 saves and takes half of 7, rounded down, 3 (40 -> 37).
+  it("resolves a save for several targets, a person's own roll standing for the one who made it", async () => {
+    const fight = arena();
+    fight.combatants_live.push(combatant("other", { monster_id: "m-ox", hp: 40, max_hp: 40, initiative: 3 }));
+    const h = harness(fight, { sources: SOURCES, dieFaces: [5, 3, 4] });
+    const result = await runBatch(
+      batch("b", { type: "resolve_save", attackerId: "wolf", list: "actions", action: "Burst", targetIds: ["victim", "other"], faces: { saves: [null, [15]] } }),
+      h.deps,
+    );
+    expect([hpOf(stored(h), "victim"), hpOf(stored(h), "other")]).toEqual([33, 37]);
+    expect(h.posted.map((p) => [p.speaker, p.serverRolled])).toEqual([["victim", true], ["other", false], ["wolf", true]]);
+    expect(result.effects).toContainEqual(expect.objectContaining({ type: "resolved", resolved: expect.objectContaining({ kind: "save" }) }));
+  });
+
+  it("refuses a save for a player, whose bonus the server does not have", async () => {
+    const fight = arena();
+    fight.combatants_live[1] = pc("nessa", { hp: 12, max_hp: 12 });
+    const h = harness(fight, { sources: SOURCES, dieFaces: [5, 3, 4] });
+    await expect(
+      runBatch(batch("b", { type: "resolve_save", attackerId: "wolf", list: "actions", action: "Burst", targetIds: ["nessa"] }), h.deps),
+    ).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/player rolls it/) });
+  });
+
+  // PHB 2014 "Concentration": DC max(10, half the damage): 24 damage is DC 12. d20 7 + 0 = 7 loses it.
+  it("a lost concentration save ends the spell, and only a creature that is concentrating owes one", async () => {
+    const fight = arena();
+    fight.combatants_live[1] = {
+      ...fight.combatants_live[1],
+      concentration: { spellId: null, spellName: "Bless", castAtLevel: 1, startedRound: 1, appliedEffectIds: [] },
+    };
+    const h = harness(fight, { sources: SOURCES, dieFaces: [7] });
+    await runBatch(batch("b", { type: "resolve_concentration", instanceId: "victim", damage: 24 }), h.deps);
+    expect(stored(h).combatants_live.find((c) => c.instance_id === "victim")?.concentration).toBeNull();
+    expect(h.posted[0]).toMatchObject({ speaker: "victim", serverRolled: true });
+
+    const idle = harness(arena(), { sources: SOURCES, dieFaces: [7] });
+    await expect(runBatch(batch("b", { type: "resolve_concentration", instanceId: "victim", damage: 24 }), idle.deps)).rejects.toMatchObject({
+      status: 400, message: expect.stringMatching(/not concentrating/),
+    });
+  });
+
+  // A repeat save is owed only when the turn hooks marked it due. d20 13 + 0 = 13 meets DC 13: the condition ends.
+  it("rolls a condition's repeat save only while it is due, and settles it", async () => {
+    const fight = arena();
+    fight.combatants_live[1] = {
+      ...fight.combatants_live[1],
+      conditions: [{ name: "Frightened", ends: { kind: "save", ability: "wis", dc: 13, at: "end" }, due: { save: true } }],
+    };
+    const h = harness(fight, { sources: SOURCES, dieFaces: [13] });
+    await runBatch(batch("b", { type: "roll_condition_save", instanceId: "victim", name: "Frightened" }), h.deps);
+    expect(stored(h).combatants_live.find((c) => c.instance_id === "victim")?.conditions).toEqual([]);
+
+    const notDue = arena();
+    notDue.combatants_live[1] = { ...notDue.combatants_live[1], conditions: [{ name: "Frightened", ends: { kind: "save", ability: "wis", dc: 13, at: "end" } }] };
+    const idle = harness(notDue, { sources: SOURCES, dieFaces: [13] });
+    await expect(runBatch(batch("b", { type: "roll_condition_save", instanceId: "victim", name: "Frightened" }), idle.deps)).rejects.toMatchObject({
+      status: 400, message: expect.stringMatching(/owes no repeat save/),
+    });
+  });
+
+  // Ongoing damage: 1d4 fire with a 3 takes 3 off 40, and the debt is cleared.
+  it("rolls ongoing damage that is due, takes it off, and clears what was owed", async () => {
+    const fight = arena();
+    fight.combatants_live[1] = {
+      ...fight.combatants_live[1],
+      conditions: [{ name: "Burning", ongoing: { dice: "1d4", type: "fire", at: "start" }, due: { damage: true } }],
+    };
+    const h = harness(fight, { sources: SOURCES, dieFaces: [3] });
+    await runBatch(batch("b", { type: "roll_ongoing_damage", instanceId: "victim", name: "Burning" }), h.deps);
+    const victim = stored(h).combatants_live.find((c) => c.instance_id === "victim");
+    expect(victim?.hp).toBe(37);
+    expect(victim?.conditions[0].due?.damage).toBeFalsy();
+  });
+
+  it("validates the shape of a resolving command, mixed with an ordinary one", () => {
+    const ok = (command: unknown) => () => validateRequest(batch("b", { type: "next_turn" }, command as CommandRequest["commands"][number]));
+    expect(ok(attack())).not.toThrow();
+    expect(ok(attack({ targetId: "" }))).toThrow(FightCommandError);
+    expect(ok(attack({ list: "powers" }))).toThrow(FightCommandError);
+    // A penalty only ever makes the roll harder: a positive one is a bonus the caller has no business adding.
+    expect(ok(attack({ penalty: 2 }))).toThrow(FightCommandError);
+    expect(ok(attack({ penalty: -5 }))).not.toThrow();
+    expect(ok({ type: "resolve_save", attackerId: "a", list: "actions", action: "Burst", targetIds: ["x", "x"] })).toThrow(FightCommandError);
+    expect(ok({ type: "resolve_concentration", instanceId: "a", damage: 0 })).toThrow(FightCommandError);
+    expect(ALL_RESOLVING_COMMANDS_LISTED).toBe(true);
   });
 });

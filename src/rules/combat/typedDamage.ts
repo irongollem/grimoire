@@ -1,6 +1,6 @@
 import { type ParsedExpression, parseExpression } from "../../lib/dice/dice.ts";
-import type { DamageType } from "@/types/damage.types";
-import type { DamagePart, Defenses, DamageDefense, DefenseBypass } from "@/types/statBlock.types";
+import type { DamageType } from "../../types/damage.types.ts";
+import type { DamagePart, Defenses, DamageDefense, DefenseBypass } from "../../types/statBlock.types.ts";
 
 /**
  * What to roll for each damage part. A critical hit doubles the dice, never the

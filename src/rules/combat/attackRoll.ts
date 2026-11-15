@@ -1,7 +1,7 @@
-import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
+import type { RollMode } from "../../systems/dnd5e/dice/rollMode.ts";
 import { hasAttackDisadvantage, hasCondition } from "../conditions.ts";
-import type { AppliedCondition } from "@/types/condition.types";
-import type { RulesetKey } from "@/types/ruleset.types";
+import type { AppliedCondition } from "../../types/condition.types.ts";
+import type { RulesetKey } from "../../types/ruleset.types.ts";
 
 /** Target conditions that give attackers advantage (SRD: Blinded, Paralyzed, Petrified, Restrained, Stunned, Unconscious). */
 export const ATTACK_ADV_TARGET_CONDITIONS = new Set<string>([
