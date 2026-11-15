@@ -76,6 +76,8 @@ export function usePictureWallFinder(opts: PictureWallFinderOptions) {
   const busy = ref(false);
   const options = reactive<TraceOptions>({ ...DEFAULT_TRACE_OPTIONS });
   const proposals = ref<WallProposal[]>([]);
+  /** A changed option is waiting to be proposed again, so the rings on screen are not the ones the options ask for. */
+  const settling = ref(false);
   const keptCount = computed(() => proposals.value.filter((p) => p.kept).length);
 
   /** The picture's pixels and where it lies, held while the finder is open so another sensitivity re-reads nothing. */
@@ -92,13 +94,25 @@ export function usePictureWallFinder(opts: PictureWallFinderOptions) {
   function clearTimer(): void {
     if (timer !== null) clearTimeout(timer);
     timer = null;
+    settling.value = false;
   }
 
   watch(options, () => {
     if (!held) return;
     clearTimer();
-    timer = setTimeout(() => { timer = null; propose(); }, REPROPOSE_MS);
+    settling.value = true;
+    timer = setTimeout(() => { clearTimer(); propose(); }, REPROPOSE_MS);
   });
+
+  // The pixels and their placement are the picture's as it was when it was read. Another picture, or the same one
+  // lined up again, would have these rings written where the picture no longer is, so the finding is given up.
+  watch(
+    () => {
+      const pic = picture();
+      return pic ? `${pic.url}|${JSON.stringify(pic.calibration)}` : null;
+    },
+    () => { if (active.value || busy.value) close(); },
+  );
 
   function close(): void {
     ticket++;
@@ -138,6 +152,9 @@ export function usePictureWallFinder(opts: PictureWallFinderOptions) {
 
   /** Writes every kept ring as hidden walls, one undo step, and closes. Returns how many rings were written. */
   function apply(): number {
+    // The rings on screen are from the options as they were; writing them now would keep walls the DM is no longer
+    // looking at. The slip disables Keep for the same moment.
+    if (settling.value) return 0;
     const rings = proposals.value.filter((p) => p.kept).map((p) => p.ring);
     if (rings.length === 0) {
       close();
@@ -173,7 +190,7 @@ export function usePictureWallFinder(opts: PictureWallFinderOptions) {
 
   if (getCurrentScope()) onScopeDispose(close);
 
-  return { active, busy, options, proposals, keptCount, find, toggle, keepAll, dropAll, cancel: close, apply, ringAt };
+  return { active, busy, settling, options, proposals, keptCount, find, toggle, keepAll, dropAll, cancel: close, apply, ringAt };
 }
 
 export type PictureWallFinder = ReturnType<typeof usePictureWallFinder>;

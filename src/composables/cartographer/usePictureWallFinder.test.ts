@@ -133,6 +133,39 @@ describe("options", () => {
     expect(reader).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps nothing while a changed option has not been proposed again: those rings are not what the options ask for", async () => {
+    const { finder, layers, pushCommand } = setup();
+    await finder.find();
+    finder.options.tolerance = 0.4;
+    await nextTick();
+    expect(finder.settling.value).toBe(true);
+    expect(finder.apply()).toBe(0);
+    expect(layers.value.walls).toEqual({});
+    expect(pushCommand).not.toHaveBeenCalled();
+    expect(finder.active.value).toBe(true); // still open, waiting for the new rings
+
+    vi.advanceTimersByTime(100);
+    expect(finder.settling.value).toBe(false);
+    expect(finder.apply()).toBe(2);
+  });
+
+  it("gives the finding up when the picture is lined up again, since the rings lie where the picture was", async () => {
+    const { finder, picture } = setup();
+    await finder.find();
+    picture.value = { url: picture.value!.url, calibration: calibration({ origin_cell_x: 7 }) };
+    await nextTick();
+    expect(finder.active.value).toBe(false);
+    expect(finder.proposals.value).toEqual([]);
+  });
+
+  it("gives the finding up when the site gets another picture", async () => {
+    const { finder, picture } = setup();
+    await finder.find();
+    picture.value = { url: "https://cdn.test/other.png", calibration: picture.value!.calibration };
+    await nextTick();
+    expect(finder.active.value).toBe(false);
+  });
+
   it("asks once for a run of changes", async () => {
     const { finder } = setup();
     await finder.find();

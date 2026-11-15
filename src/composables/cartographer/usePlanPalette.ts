@@ -294,7 +294,8 @@ export function usePlanPalette(
    *  region's prior shape for the undo entry before the mutation lands. */
   function commitCells(regionId: string, cells: CellKey[]): void {
     const prior = regionStateNow(regionId);
-    localRegionState.set(regionId, { vertices: null, cells });
+    const mine = { vertices: null, cells };
+    localRegionState.set(regionId, mine);
     const handle: PlanEntityHandle = { id: regionId };
     updateRegion.mutate(
       { id: regionId, update: dmEdit({ vertices: null, cells }) },
@@ -312,7 +313,12 @@ export function usePlanPalette(
             },
           });
         },
-        onError: (err) => toastError(fromError(err)),
+        onError: (err) => {
+          // Nothing was saved, so the shape is what it was: the next stroke must not build on squares that only
+          // this palette believes in. A stroke made since owns the entry now and is left alone.
+          if (localRegionState.get(regionId) === mine) localRegionState.set(regionId, prior);
+          toastError(fromError(err));
+        },
       },
     );
   }
@@ -455,14 +461,16 @@ export function usePlanPalette(
   });
   const foundCount = computed(() => derived().length);
 
-  /** The closed rings the walls alone make (with at least one square in them), and how many of those no room covers
-   *  yet. A ring counts as a room only when every one of its squares is already in a room row. */
+  /** The closed rings the walls alone make (with at least one square in them), and how many of those Assign would
+   *  still make a room of. The rule is Assign's own (`findCoveringSpace`): a ring a room already reaches into is that
+   *  room's, since a click there selects it and makes no second one. Counting it as waiting would ask the DM for a
+   *  click that does nothing. */
   const wallRings = computed<{ rings: number; unassigned: number }>(() => {
     const l = layers();
     if (!l) return { rings: 0, unassigned: 0 };
     const inRooms = new Set(regions.value.filter((r) => r.region_role === "space").flatMap((r) => r.cells));
     const faces = wallFaces(l).filter((f) => f.cells.length > 0);
-    return { rings: faces.length, unassigned: faces.filter((f) => !f.cells.every((c) => inRooms.has(c))).length };
+    return { rings: faces.length, unassigned: faces.filter((f) => !f.cells.some((c) => inRooms.has(c))).length };
   });
 
   type RowEdit = Pick<LocationMapRegionInsert, "label" | "space_location_id" | "cells" | "vertices">;
@@ -530,14 +538,14 @@ export function usePlanPalette(
 
   /** The Drawing half of a door: a grid edge writes nothing, a wall or a free line is cut into the Drawing through the
    *  editor so it autosaves and undoes with the row. Null (and a toast) when the Drawing cannot take it. */
-  function writeDoorIntoDrawing(site: DoorSite): DoorWritten | null {
+  function writeDoorIntoDrawing(site: DoorSite, kind: "door" | "arch"): DoorWritten | null {
     if (site.kind === "edge") return { key: site.edgeKey, segment: null, history: null };
     const editor = drawingEditor.value;
     if (!editor) {
       toastError("The drawing is not ready yet. Try the door again in a moment.");
       return null;
     }
-    const type = doorWallTypeOf(newDoorKind.value);
+    const type = doorWallTypeOf(kind);
     const newKey = (): string => crypto.randomUUID();
     const result: { doorId: string | null; line: DoorSegment | null } = { doorId: null, line: null };
     const history = editor.editDrawing((l) => {
@@ -562,7 +570,7 @@ export function usePlanPalette(
   /** Places a new door on `site` with the given (already-resolved) endpoints: the Drawing's cut and the way out in one
    *  undo step. */
   function placeDoorAt(site: DoorSite, fromLocationId: string, toLocationId: string | null): void {
-    const written = writeDoorIntoDrawing(site);
+    const written = writeDoorIntoDrawing(site, newDoorKind.value);
     if (!written) return;
     const { key, segment, history } = written;
     const insert = {
@@ -641,7 +649,12 @@ export function usePlanPalette(
   }
 
   function putListedDoorOnSite(doorId: string, site: DoorSite): void {
-    const written = writeDoorIntoDrawing(site);
+    // The row keeps its kind (only its place is written), so the Drawing's wall takes the row's kind, not the chip's.
+    const listed = ways.value.find((w) => w.id === doorId);
+    if (!listed) return;
+    // A stair, shaft or portal has no wall type of its own, so for those the chip still decides how the wall is cut.
+    const kind = listed.door_kind === "door" || listed.door_kind === "arch" ? listed.door_kind : newDoorKind.value;
+    const written = writeDoorIntoDrawing(site, kind);
     if (!written) return;
     const { key, segment, history } = written;
     const handle: PlanEntityHandle = { id: doorId };

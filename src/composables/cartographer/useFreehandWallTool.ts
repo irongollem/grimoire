@@ -68,8 +68,17 @@ export function useFreehandWallTool(opts: FreehandWallToolOptions) {
 
   /** Ends the drag: weld, fit, write. Returns whether anything was written. `free` (Alt) skips welding and closing. */
   function release(frac: CellPoint, free: boolean): boolean {
-    move(frac);
-    const points = stroke.value;
+    // The wall ends where the pointer was let go, however near the last recorded point that is: a closer point takes
+    // that one's place instead of being dropped, so the end is not left up to `MIN_POINT_SPACING` short.
+    const recorded = stroke.value;
+    const tail = recorded.at(-1);
+    const end: CellPoint = [frac[0], frac[1]];
+    const points =
+      tail && recorded.length > 1 && Math.hypot(end[0] - tail[0], end[1] - tail[1]) < MIN_POINT_SPACING
+        ? [...recorded.slice(0, -1), end]
+        : tail && (tail[0] !== end[0] || tail[1] !== end[1])
+          ? [...recorded, end]
+          : recorded;
     stroke.value = [];
     if (points.length < 2) return false;
     const total = pathLength(points);

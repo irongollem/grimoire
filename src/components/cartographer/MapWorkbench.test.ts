@@ -89,7 +89,7 @@ const { fakeFinder } = vi.hoisted(() => {
   const proposals = ref<{ ring: [number, number][]; kept: boolean }[]>([]);
   return {
     fakeFinder: {
-      active: ref(false), busy: ref(false), proposals,
+      active: ref(false), busy: ref(false), settling: ref(false), proposals,
       options: reactive({ tolerance: 0.2, inset: 0.15, snapToGrid: true }),
       keptCount: computed(() => proposals.value.filter((p) => p.kept).length),
       find: vi.fn(), toggle: vi.fn(), keepAll: vi.fn(), dropAll: vi.fn(), cancel: vi.fn(), apply: vi.fn(() => 0), ringAt: vi.fn(() => null),
@@ -530,6 +530,26 @@ describe("MapWorkbench", () => {
         await wrapper.find('[aria-label="New wall visibility"]').findAll("button").find((b) => b.text() === "Visible")!.trigger("click");
         await wrapper.setProps({ map: { ...baseMap, id: "another-level" } });
         expect(newWallVisibility(wrapper)).toBe("Visible");
+      });
+
+      it("gives up a wall finding when another map arrives, and not when the same map is saved again", async () => {
+        const wrapper = await mountPicture(calibrated, { startLayer: "drawing" });
+        fakeFinder.cancel.mockClear();
+        await wrapper.setProps({ map: { ...baseMap, name: "Renamed" } });
+        expect(fakeFinder.cancel).not.toHaveBeenCalled();
+        await wrapper.setProps({ map: { ...baseMap, id: "another-level" } });
+        expect(fakeFinder.cancel).toHaveBeenCalledTimes(1);
+      });
+
+      it("drops a door that is waiting for its rooms when the DM leaves Zoning, since its wall can move on the Drawing", async () => {
+        const wrapper = await mountPicture(calibrated, { startLayer: "plan" });
+        const { plan } = wrapper.vm as unknown as {
+          plan: { askDoorEnds(site: { kind: "wall"; wallId: string; from: [number, number]; to: [number, number] }): void; pendingDoor: { value: unknown } };
+        };
+        plan.askDoorEnds({ kind: "wall", wallId: "w", from: [4, 0], to: [5, 0] });
+        expect(plan.pendingDoor.value).not.toBeNull();
+        await layerTab(wrapper, "Drawing")!.trigger("click");
+        expect(plan.pendingDoor.value).toBeNull();
       });
 
       it("offers the action on a lined-up grid, and it goes to Drawing with the Angled wall tool", async () => {

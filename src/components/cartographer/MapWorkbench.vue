@@ -152,6 +152,7 @@
           v-model:snap-to-grid="wallFinder.options.snapToGrid"
           :proposed="wallFinder.proposals.value.length"
           :kept="wallFinder.keptCount.value"
+          :settling="wallFinder.settling.value"
           @apply="keepFoundWalls"
           @keep-all="wallFinder.keepAll"
           @drop-all="wallFinder.dropAll"
@@ -593,6 +594,9 @@ const DRAWER_TITLE: Record<DrawerId, string> = { place: "Place", zoning: "Zones 
 const drawerTitle = computed(() => (drawer.value ? DRAWER_TITLE[drawer.value] : ""));
 watch(activeLayer, (layer) => {
   drawer.value = layer === "plan" ? "zoning" : null;
+  // A door waiting for its rooms holds two points on a wall as it was. On another layer that wall can be moved, so
+  // the question is dropped rather than answered later against a wall that is somewhere else.
+  if (layer !== "plan") plan.cancelPendingDoor();
 });
 watch(activeTool, (tool) => {
   if (activeLayer.value !== "drawing") return;
@@ -685,6 +689,8 @@ onMounted(() => {
 // ── Map load ───────────────────────────────────────────────────────────────
 
 watch(() => map, (m) => applyMapToState(m ?? null), { immediate: true });
+// Rings proposed over one map are not walls for the next one.
+watch(() => map?.id, () => wallFinder.cancel());
 
 // New walls start Hidden on a map that is a picture and nothing else (frame 02). Only an initial value: it is
 // decided when a map arrives and again when its picture does (a picture uploaded after the map opened is the usual

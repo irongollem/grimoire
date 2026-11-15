@@ -26,7 +26,7 @@ export const doorWallTypeOf = (kind: "door" | "arch"): DoorWallType => (kind ===
  * - Any other wall becomes up to three: the stretch before the door (it keeps the original id, so whatever names the
  *   wall still names a wall, and the original `a` and `smoothA`), the door (a fresh key, `doorType`, straight, no
  *   smooth flags) and the stretch after (the original `b` and `smoothB`). A stretch shorter than `MIN_REMAINDER` is
- *   dropped, and the original id then goes to whichever one is left. All three keep the original's material and
+ *   dropped and the door runs to the wall's end on that side; the original id then goes to whichever one is left. All three keep the original's material and
  *   visibility.
  * - A curved wall (one with a smooth flag) is cut at two points on its sampled line. The stretches either side run
  *   from the wall's own ends to the door as straight chords, so the curve flattens a little beside the door. That is an
@@ -60,15 +60,19 @@ export function cutDoorIntoWall(
   const next: Walls = { ...walls };
   delete next[wallId];
 
-  const doorId = newKey();
-  next[doorId] = { ...base, type: doorType, a: [first[0], first[1]], b: [second[0], second[1]] };
-
   const before: WallEdge | null = longEnough(wall.a, first)
     ? { ...base, a: wall.a, b: [first[0], first[1]], ...(smoothA ? { smoothA } : {}) }
     : null;
   const after: WallEdge | null = longEnough(second, wall.b)
     ? { ...base, a: [second[0], second[1]], b: wall.b, ...(smoothB ? { smoothB } : {}) }
     : null;
+
+  // Where a stretch is dropped the door runs to the wall's own end, or a sliver of nothing would be left beside it
+  // for sight and movement to slip through.
+  const doorA = before ? first : wall.a;
+  const doorB = after ? second : wall.b;
+  const doorId = newKey();
+  next[doorId] = { ...base, type: doorType, a: [doorA[0], doorA[1]], b: [doorB[0], doorB[1]] };
   if (before) next[wallId] = before;
   if (after) next[before ? newKey() : wallId] = after;
   return { walls: next, doorId };

@@ -117,35 +117,47 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // Shift+click joins a stroke to where the last one ended (#1096).
   const straight = useStraightStrokes({ activeTool, mapKey });
 
-  /** The wall edits `editDrawing` has made from outside this stack (a door cut from Zoning), oldest first. Each is
-   *  the walls it set (`null`: taken away). */
-  const outsideWallEdits: Record<string, WallEdge | null>[] = [];
+  /** The wall edits `editDrawing` has made from outside this stack (a door cut from Zoning), oldest first: the walls
+   *  each one changed as they were before and after it (`null`: no such wall), and whether it stands now. Undoing a
+   *  door from Zoning turns its edit off, it does not add a second one. */
+  interface OutsideWallEdit { before: Record<string, WallEdge | null>; after: Record<string, WallEdge | null>; applied: boolean }
+  const outsideWallEdits: OutsideWallEdit[] = [];
 
-  /** Puts a snapshot string (see `snapshotStr`) back as the Drawing, then lays every outside wall edit made after
-   *  the snapshot was filed (`since`) back over it. A snapshot is the whole Drawing, so without that an undo or redo
-   *  here would silently take a Zoning door's wall away and leave its way out naming a wall that is gone. */
-  function restoreSnapshot(snapshot: string, since: number): void {
+  function layWalls(walls: Record<string, WallEdge>, side: Record<string, WallEdge | null>): void {
+    for (const [key, wall] of Object.entries(side)) {
+      if (wall === null) delete walls[key];
+      else walls[key] = JSON.parse(JSON.stringify(wall)) as WallEdge;
+    }
+  }
+
+  /** Puts a snapshot string (see `snapshotStr`) back as the Drawing, then brings every outside wall edit to the
+   *  state it is in NOW. A snapshot is the whole Drawing, so without that an undo or redo here would silently take a
+   *  Zoning door's wall away and leave its way out naming a wall that is gone. `seen` is which outside edits stood
+   *  when the snapshot was filed: one that stood then and was undone since is taken out again (newest first), one
+   *  that stands now and did not then is laid over it. An edit that was made and undone in between changes nothing,
+   *  or undoing the wall a door was once cut into would put that wall back. */
+  function restoreSnapshot(snapshot: string, seen: readonly boolean[]): void {
     const s = JSON.parse(snapshot) as { layers: DungeonMapLayers; metadata: Record<CellKey, CellMetadata> };
-    const later = outsideWallEdits.slice(since);
-    if (later.length > 0) {
+    const stood = (i: number): boolean => seen[i] === true;
+    if (outsideWallEdits.some((edit, i) => edit.applied !== stood(i))) {
       const walls = { ...s.layers.walls };
-      for (const edit of later) {
-        for (const [key, wall] of Object.entries(edit)) {
-          if (wall === null) delete walls[key];
-          else walls[key] = JSON.parse(JSON.stringify(wall)) as WallEdge;
-        }
+      for (let i = outsideWallEdits.length - 1; i >= 0; i--) {
+        if (stood(i) && !outsideWallEdits[i].applied) layWalls(walls, outsideWallEdits[i].before);
       }
+      outsideWallEdits.forEach((edit, i) => {
+        if (!stood(i) && edit.applied) layWalls(walls, edit.after);
+      });
       s.layers = { ...s.layers, walls };
     }
     layers.value = s.layers; metadata.value = s.metadata; markDirty();
   }
 
   function pushCommand(beforeStr: string, afterStr: string): void {
-    // Both snapshots already hold every outside edit made so far; only later ones need laying back over them.
-    const since = outsideWallEdits.length;
+    // Both snapshots hold the outside edits as they stand at this moment.
+    const seen = outsideWallEdits.map((edit) => edit.applied);
     cmdStack.apply({
-      apply() { restoreSnapshot(afterStr, since); },
-      revert() { restoreSnapshot(beforeStr, since); },
+      apply() { restoreSnapshot(afterStr, seen); },
+      revert() { restoreSnapshot(beforeStr, seen); },
     });
     canUndo.value = cmdStack.canUndo();
     canRedo.value = cmdStack.canRedo();
@@ -198,8 +210,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
    *
    *  The closures put back just the walls this edit changed, not a whole snapshot. The Plan's stack and the Drawing's
    *  are separate, so the DM can cut a door, switch to Drawing, paint, switch back and undo the door: a snapshot
-   *  would throw that painting away with it. Each put is also noted in `outsideWallEdits`, so the Drawing's own
-   *  undo and redo (which do restore whole snapshots) keep it. */
+   *  would throw that painting away with it. The edit and whether it stands are kept in `outsideWallEdits`, so the
+   *  Drawing's own undo and redo (which do restore whole snapshots) keep it. */
   function editDrawing(mutate: (current: DungeonMapLayers) => DungeonMapLayers | null): { undo: () => void; redo: () => void } | null {
     const before = layers.value.walls;
     const next = mutate(layers.value);
@@ -212,20 +224,17 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     // Only the changed walls are kept, each as its own copy: the closures outlive this call in the Plan's stack.
     const side = (walls: Readonly<Record<string, WallEdge>>): Record<string, WallEdge | null> =>
       Object.fromEntries(changed.map((key) => [key, walls[key] === undefined ? null : (JSON.parse(JSON.stringify(walls[key])) as WallEdge)]));
-    const put = (edit: Record<string, WallEdge | null>): void => {
+    const entry: OutsideWallEdit = { before: side(before), after: side(after), applied: false };
+    outsideWallEdits.push(entry);
+    const put = (applied: boolean): void => {
       const walls = { ...layers.value.walls };
-      for (const [key, wall] of Object.entries(edit)) {
-        if (wall === null) delete walls[key];
-        else walls[key] = JSON.parse(JSON.stringify(wall)) as WallEdge;
-      }
+      layWalls(walls, applied ? entry.after : entry.before);
       layers.value = { ...layers.value, walls };
-      outsideWallEdits.push(edit);
+      entry.applied = applied;
       markDirty();
     };
-    const beforeWalls = side(before);
-    const afterWalls = side(after);
-    put(afterWalls);
-    return { undo: () => put(beforeWalls), redo: () => put(afterWalls) };
+    put(true);
+    return { undo: () => put(false), redo: () => put(true) };
   }
   plan?.bindDrawingEditor({ editDrawing });
 

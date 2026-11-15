@@ -4,11 +4,11 @@
       {{ proposed === 1 ? "1 ring proposed." : `${proposed} rings proposed.` }} Nothing is a wall until you keep it.
     </p>
     <p v-else class="basis-full text-caption text-ink-caution">
-      No outline found. The picture may fill its page edge to edge. Raise the sensitivity, or trace the walls by hand.
+      No outline found. The picture may fill its page edge to edge. Lower the sensitivity, or trace the walls by hand.
     </p>
 
     <div class="flex basis-full flex-wrap items-center gap-1.5">
-      <AppButton v-if="proposed > 0" variant="primary" size="sm" :label="keepLabel" :disabled="kept === 0" @click="emit('apply')" />
+      <AppButton v-if="proposed > 0" variant="primary" size="sm" :label="keepLabel" :disabled="kept === 0 || settling" @click="emit('apply')" />
       <AppButton
         v-if="proposed > 0"
         variant="ghost"
@@ -60,11 +60,13 @@ import CartographerOptionsSlip from "@/components/cartographer/CartographerOptio
 import RangeControl from "@/components/cartographer/RangeControl.vue";
 import { FEET_PER_CELL } from "@/cartographer/packSchema";
 
-const { proposed, kept } = defineProps<{
+const { proposed, kept, settling = false } = defineProps<{
   /** How many rings the picture gave. */
   proposed: number;
   /** How many of them are kept. */
   kept: number;
+  /** A changed option has not been proposed again yet, so there is nothing settled to keep. */
+  settling?: boolean;
 }>();
 
 /** How far a colour may be from the page's and still count as page (0 to 1). */
