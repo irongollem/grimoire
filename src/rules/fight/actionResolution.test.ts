@@ -23,6 +23,7 @@ import {
 import { effectiveArmorClass, parseArmorClass } from "@/lib/encounters/actionTargeting";
 import { applyFightCommand } from "./fightCommands";
 import { combatant, deps, fight, pc } from "./fightTestKit";
+import type { Cover } from "./terrain/sight";
 
 /** Dice that come back as the faces the script lists, one list per roll, scored by the 5e rules like a physical roll typed in. */
 function scripted(rolls: number[][]) {
@@ -51,6 +52,8 @@ interface Setup {
   bonus?: Record<string, number>;
   defenses?: Record<string, Defenses>;
   ruleset?: "2014" | "2024";
+  /** The cover each target (by instance id) has against whoever acts; supplying this installs the context's `coverFor` hook, like the server does. A target not listed is unknown (null). */
+  cover?: Record<string, Cover>;
 }
 
 /** A fight, and the context that resolves against it. `state()` is the fight as the resolution left it. */
@@ -64,6 +67,12 @@ function table(combatants: RunCombatant[], setup: Setup) {
     defensesFor: (c) => setup.defenses?.[c.instance_id] ?? emptyDefenses(),
     saveBonusFor: (c) => setup.bonus?.[c.instance_id] ?? null,
     live: (c) => current.combatants.find((x) => x.instance_id === c.instance_id) ?? c,
+    coverFor: setup.cover
+      ? (_attacker, target) => {
+          const found = setup.cover?.[target.instance_id];
+          return found === undefined ? null : found;
+        }
+      : undefined,
     apply(command) {
       const result = applyFightCommand(current, command, deps());
       current = result.state;
@@ -354,5 +363,103 @@ describe("concentration, repeat saves and ongoing damage", () => {
     });
     await resolveOngoingDamageOn(resistant.ctx, { target: resistant.get("g"), condition: resistant.get("g").conditions[0] });
     expect(resistant.hp("g")).toBe(9);
+  });
+});
+
+// PHB 2014 ch. 9 "Cover": half cover +2 to AC and Dexterity saves, three-quarters +5, total cannot be targeted directly.
+describe("cover on the server's attacks and saves", () => {
+  const attackWith = async (cover: Cover | undefined, faces: number[][], targetOver: Partial<RunCombatant> = {}) => {
+    const s = scripted(faces);
+    const t = table([wolf(), victim(targetOver)], { dice: s.dice, cover: cover === undefined ? undefined : { victim: cover } });
+    const done = await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    return { done, t, s };
+  };
+
+  // Wolf +4, d20 11: total 15. AC 13 plus half cover +2 is 15, and 15 meets 15, so it hits (boundary). With d20 10 the total
+  // is 14: it would hit AC 13 and misses AC 15. Cover that was dropped would leave "targetAc: 13" and the 14 a hit.
+  it("fails if half cover does not add 2 to the armour class, on both sides of the new number", async () => {
+    const hit = await attackWith("half", [[11], [5]]);
+    expect(hit.done.summary).toMatchObject({ total: 15, targetAc: 15, cover: "half", coverAc: 2, hit: true, damageTotal: 7 });
+    const miss = await attackWith("half", [[10]]);
+    expect(miss.done.summary).toMatchObject({ total: 14, targetAc: 15, cover: "half", coverAc: 2, hit: false, damageTotal: 0 });
+    expect(miss.t.hp("victim")).toBe(40);
+  });
+
+  // Same wolf: AC 13 + 5 = 18. d20 14 totals 18 and hits; d20 13 totals 17 and misses (it would be a hit against 15, half cover's AC).
+  it("fails if three-quarters cover adds 2 instead of 5, on both sides of the new number", async () => {
+    const hit = await attackWith("three_quarters", [[14], [5]]);
+    expect(hit.done.summary).toMatchObject({ total: 18, targetAc: 18, cover: "three_quarters", coverAc: 5, hit: true });
+    const miss = await attackWith("three_quarters", [[13]]);
+    expect(miss.done.summary).toMatchObject({ total: 17, targetAc: 18, coverAc: 5, hit: false });
+  });
+
+  // No cover, or an unknown one, leaves AC 13: d20 9 + 4 = 13 hits, and the summary says what was known.
+  it("fails if 'none' or an unknown cover changes the armour class", async () => {
+    const none = await attackWith("none", [[9], [5]]);
+    expect(none.done.summary).toMatchObject({ targetAc: 13, cover: "none", coverAc: 0, hit: true });
+    const unknown = await attackWith(undefined, [[9], [5]]);
+    expect(unknown.done.summary).toMatchObject({ targetAc: 13, cover: null, coverAc: 0, hit: true });
+    const notKnown = table([wolf(), victim()], { dice: scripted([[9], [5]]).dice, cover: {} });
+    const done = await resolveAttackOn(notKnown.ctx, { attacker: notKnown.get("wolf"), entry: bite("1d6+2"), target: notKnown.get("victim"), withinFiveFeet: true });
+    expect(done.summary).toMatchObject({ targetAc: 13, cover: null, coverAc: 0 });
+  });
+
+  // PHB 2014 ch. 9: total cover cannot be targeted directly. Refused naming both, before any die is thrown (the script holds none).
+  it("fails if an attack on a target with total cover rolls a die or hurts it", async () => {
+    const s = scripted([]);
+    const t = table([wolf(), victim()], { dice: s.dice, cover: { victim: "total" } });
+    await expect(
+      resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true }),
+    ).rejects.toThrow(/victim has total cover from wolf/);
+    expect(s.asks).toHaveLength(0);
+    expect(t.hp("victim")).toBe(40);
+  });
+
+  const burst = (ability: "dex" | "con"): StatBlockEntry => ({
+    name: "Burst",
+    description: "",
+    structured: { kind: "save", source: "manual", save: { ability, dc: 14, fail: [{ dice: "2d6", type: "fire" }], success: "half", conditions: [] } },
+  });
+  const saveWith = async (cover: Cover | undefined, d20: number, ability: "dex" | "con" = "dex") => {
+    // A failed or successful save both take damage here (half on a success), so the damage die is always scripted: 3 + 4 = 7.
+    const s = scripted([[d20], [3, 4]]);
+    const t = table([wolf(), combatant("a", { hp: 40, max_hp: 40 })], { dice: s.dice, bonus: { a: 0 }, cover: cover === undefined ? undefined : { a: cover } });
+    const done = await resolveSaveOn(t.ctx, { attacker: t.get("wolf"), entry: burst(ability), targets: [t.get("a")] });
+    return { target: done.summary.targets[0], s };
+  };
+
+  // DC 14, Dex +0. Half cover +2: d20 12 totals 14 and saves (boundary); d20 11 totals 13 and fails. Without the cover 12 fails.
+  it("fails if half cover does not add 2 to a Dexterity save, on both sides of the DC", async () => {
+    const saved = await saveWith("half", 12);
+    expect(saved.target).toMatchObject({ total: 14, coverBonus: 2, success: true, share: "half" });
+    expect(saved.s.asks[0].modifier).toBe(2);
+    const failed = await saveWith("half", 11);
+    expect(failed.target).toMatchObject({ total: 13, coverBonus: 2, success: false, share: "full" });
+  });
+
+  it("fails if three-quarters cover does not add 5 to a Dexterity save, on both sides of the DC", async () => {
+    const saved = await saveWith("three_quarters", 9);
+    expect(saved.target).toMatchObject({ total: 14, coverBonus: 5, success: true });
+    const failed = await saveWith("three_quarters", 8);
+    expect(failed.target).toMatchObject({ total: 13, coverBonus: 5, success: false });
+  });
+
+  // App convention: a save action is not refused at total cover (areas can round corners); the target gets the three-quarters
+  // bonus. d20 9 + 5 = 14 saves; a refusal or a +0 would not leave this save.
+  it("fails if a target at total cover is refused a save or given no bonus", async () => {
+    const saved = await saveWith("total", 9);
+    expect(saved.target).toMatchObject({ total: 14, coverBonus: 5, success: true });
+  });
+
+  // PHB 2014 ch. 9 gives cover to Dexterity saves only. A Constitution save of d20 12 + 0 = 12 fails DC 14 under half cover.
+  it("fails if cover is added to a save that is not a Dexterity save", async () => {
+    const failed = await saveWith("half", 12, "con");
+    expect(failed.target).toMatchObject({ total: 12, coverBonus: 0, success: false });
+  });
+
+  // Nothing known (no hook, or no entry for the target) is no bonus: the same d20 12 fails DC 14.
+  it("fails if a save with no known cover gets a bonus", async () => {
+    const failed = await saveWith(undefined, 12);
+    expect(failed.target).toMatchObject({ total: 12, coverBonus: 0, success: false });
   });
 });

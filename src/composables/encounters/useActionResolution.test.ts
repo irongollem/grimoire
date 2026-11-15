@@ -323,7 +323,7 @@ describe("useActionResolution", () => {
       const store = sources();
       const saver = combatant("b", { monster_id: "m-goblin" });
       store.combatants = [saver];
-      const base = { dc: 13, ability: "dex" as const, bonus: 0, mode: "normal" as const, reasons: [], autoFail: false, natural: null, total: null, roll: null };
+      const base = { dc: 13, ability: "dex" as const, bonus: 0, coverBonus: 0 as const, mode: "normal" as const, reasons: [], autoFail: false, natural: null, total: null, roll: null };
       const [applied] = useActionResolution().applySaveOutcome({
         attacker: combatant("x"),
         entry: breath,
@@ -355,7 +355,7 @@ describe("useActionResolution", () => {
       const pending = combatant("d", { monster_id: "m-goblin" });
       store.combatants = [failer, saver, undead, pending];
       const { applySaveOutcome } = useActionResolution();
-      const base = { dc: 13, ability: "dex" as const, bonus: 0, mode: "normal" as const, reasons: [], autoFail: false, natural: null, total: null, roll: null };
+      const base = { dc: 13, ability: "dex" as const, bonus: 0, coverBonus: 0 as const, mode: "normal" as const, reasons: [], autoFail: false, natural: null, total: null, roll: null };
       const applied = applySaveOutcome({
         attacker: combatant("x"),
         entry: breath,
@@ -388,7 +388,7 @@ describe("useActionResolution", () => {
       const store = sources();
       const prone = combatant("p", { monster_id: "m-goblin", conditions: [{ name: "Prone" }] });
       store.combatants = [prone];
-      const base = { dc: 13, ability: "dex" as const, bonus: 0, mode: "normal" as const, reasons: [], autoFail: false, natural: null, total: null, roll: null };
+      const base = { dc: 13, ability: "dex" as const, bonus: 0, coverBonus: 0 as const, mode: "normal" as const, reasons: [], autoFail: false, natural: null, total: null, roll: null };
       const web: StatBlockEntry = {
         ...breath,
         structured: { ...breath.structured, save: { ability: "dex", dc: 13, fail: [], success: "none", conditions: [{ name: "Prone" }] } },
@@ -404,7 +404,7 @@ describe("useActionResolution", () => {
       const store = sources();
       const target = combatant("t", { monster_id: "m-goblin" });
       store.combatants = [target];
-      const base = { dc: 10, ability: "con" as const, bonus: 0, mode: "normal" as const, reasons: [], autoFail: false, natural: null, total: null, roll: null };
+      const base = { dc: 10, ability: "con" as const, bonus: 0, coverBonus: 0 as const, mode: "normal" as const, reasons: [], autoFail: false, natural: null, total: null, roll: null };
       const claws: StatBlockEntry = {
         ...breath,
         name: "Claws",

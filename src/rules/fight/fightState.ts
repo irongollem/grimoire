@@ -55,6 +55,8 @@ export interface ResolvedSave {
   natural: number | null;
   total: number | null;
   autoFail: boolean;
+  /** What cover added to the save (+2 or +5 on a Dexterity save), already in `total`; 0 when none was known. */
+  coverBonus: 0 | 2 | 5;
   success: boolean;
   share: "full" | "half" | "none" | null;
   damage: ResolvedDamage[];
@@ -73,7 +75,12 @@ export type ResolvedAction =
       action: string;
       natural: number;
       total: number;
+      /** The AC the roll was compared against: the target's own plus `coverAc`. */
       targetAc: number;
+      /** The cover the target had against the attacker; null when none was known (no map, or a creature with no place). */
+      cover: "none" | "half" | "three_quarters" | "total" | null;
+      /** The part of `targetAc` that is cover: 2 for half, 5 for three-quarters, else 0. */
+      coverAc: 0 | 2 | 5;
       mode: "normal" | "advantage" | "disadvantage";
       hit: boolean;
       critical: boolean;

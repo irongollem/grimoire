@@ -45,6 +45,7 @@ import { applyDefenses, damageRollsFor, type AppliedPart } from "../combat/typed
 import { getExhaustionD20Penalty, getExhaustionLevel, hasCondition, setExhaustionLevel } from "../conditions.ts";
 import type { DyingOutcome } from "../dying.ts";
 import type { FightCommand } from "./fightCommands.ts";
+import { coverBonus, type Cover } from "./terrain/sight.ts";
 import type { FightEffect, ResolvedAction, ResolvedDamage, ResolvedSave } from "./fightState.ts";
 
 // ── the outside world ───────────────────────────────────────────────────────────
@@ -92,6 +93,12 @@ export interface ResolutionContext {
   live(c: RunCombatant): RunCombatant;
   /** Puts a command into the fight and returns what the rules raised (a dying player's outcome, a concentration check owed ...). */
   apply(command: ResolutionCommand): FightEffect[];
+  /**
+   * The cover the target has against the attacker (PHB 2014 ch. 9 "Cover"), or null when it is not known (no map, a
+   * creature with no place on it). Absent in the browser, where the DM adjudicates cover at the table; the server
+   * supplies it from the fight's map. Null or absent means no bonus, never a guess.
+   */
+  coverFor?(attacker: RunCombatant, target: RunCombatant): Cover | null;
 }
 
 /** The action cannot be resolved as asked: nothing to roll, a creature the server has no data for. The server answers it with a 400. */
@@ -122,8 +129,12 @@ export interface AttackOutcome {
   natural: number;
   /** d20 + attack bonus + 2024 exhaustion penalty. */
   total: number;
-  /** The target's AC as a number; null when its printed AC has none, so the DM rules. */
+  /** The AC the roll was compared against: the target's own plus `coverAc`; null when its printed AC has none, so the DM rules. */
   targetAc: number | null;
+  /** The cover the target had against the attacker, null when none was known (the browser never supplies it). Total cover refuses before the roll, so it is never "total" here. */
+  cover: Cover | null;
+  /** The part of `targetAc` that is cover: +2 for half, +5 for three-quarters, else 0. */
+  coverAc: 0 | 2 | 5;
   /** Null only when AC is unreadable and the die alone does not decide (not a natural 1 or 20). */
   hit: boolean | null;
   critical: boolean;
@@ -143,6 +154,8 @@ export interface SaveTargetResult {
   bonus: number | null;
   mode: RollMode;
   reasons: string[];
+  /** What cover added to this save: +2 or +5 on a Dexterity save against the acting creature, else 0. Included in `total`, not in `bonus`. */
+  coverBonus: 0 | 2 | 5;
   /** Paralyzed, Stunned, Petrified or Unconscious on a Strength or Dexterity save: no roll is made. */
   autoFail: boolean;
   /** Null when no die was rolled (auto-fail, no bonus, or the prompt was cancelled). */
@@ -265,7 +278,12 @@ export async function rollToHit(ctx: ResolutionContext, input: AttackInput): Pro
   });
   const penalty = getExhaustionD20Penalty(attacker.conditions, ctx.ruleset) + (input.extraPenalty ?? 0);
   // Looked up before the die is thrown: a lookup that refuses (the server cannot know a player's sheet AC) should not cost a roll.
-  const targetAc = ctx.armorClassFor(target);
+  const printedAc = ctx.armorClassFor(target);
+  // Cover likewise: PHB 2014 ch. 9, a target with total cover cannot be targeted directly by an attack.
+  const cover = ctx.coverFor ? ctx.coverFor(attacker, target) : null;
+  if (cover === "total") throw new ActionRefused(`${target.name} has total cover from ${attacker.name}, so it cannot be targeted by "${entry.name}".`);
+  const coverAc = cover === null ? 0 : coverBonus(cover).ac;
+  const targetAc = printedAc === null ? null : printedAc + coverAc;
   const roll = await rollD20(ctx, `${entry.name} attack vs ${target.name}`, attack.bonus + penalty, mode, attacker, input);
   if (!roll) return null;
 
@@ -288,6 +306,8 @@ export async function rollToHit(ctx: ResolutionContext, input: AttackInput): Pro
     natural,
     total,
     targetAc,
+    cover,
+    coverAc,
     hit,
     critical,
     fumble,
@@ -428,7 +448,7 @@ export async function rollConditionSaveFor(
  */
 export async function rollSaves(
   ctx: ResolutionContext,
-  input: { entry: StatBlockEntry; targets: RunCombatant[] } & RollOptions,
+  input: { entry: StatBlockEntry; targets: RunCombatant[]; attacker?: RunCombatant } & RollOptions,
 ): Promise<SaveTargetResult[]> {
   const save = input.entry.structured.save;
   if (!save) throw new ActionRefused(`"${input.entry.name}" has no structured saving throw`);
@@ -436,7 +456,12 @@ export async function rollSaves(
   for (const target of input.targets) {
     const bonus = ctx.saveBonusFor(target, save.ability);
     const { mode, reasons } = saveRollMode({ conditions: target.conditions, ability: save.ability, ruleset: ctx.ruleset });
-    const base = { target, ability: save.ability, dc: save.dc, bonus, mode, reasons };
+    // PHB 2014 ch. 9 "Cover": +2 or +5 on Dexterity saves. App convention: the effect starts at the creature using
+    // it (an area with another origin is not modelled), and a target at total cover gets the three-quarters bonus
+    // rather than a refusal, since an area can reach round a corner in ways this does not model.
+    const cover = save.ability === "dex" && input.attacker && ctx.coverFor ? ctx.coverFor(input.attacker, target) : null;
+    const coverSave = cover === null ? 0 : coverBonus(cover === "total" ? "three_quarters" : cover).dexSave;
+    const base = { target, ability: save.ability, dc: save.dc, bonus, coverBonus: coverSave, mode, reasons };
     const penalty = getExhaustionD20Penalty(target.conditions, ctx.ruleset);
     const autoFail = autoFailsSave(target.conditions, save.ability);
     if (autoFail) {
@@ -450,7 +475,7 @@ export async function rollSaves(
     const roll = await rollD20(
       ctx,
       `${input.entry.name}: ${save.ability.toUpperCase()} save (DC ${save.dc})`,
-      bonus + penalty,
+      bonus + penalty + coverSave,
       mode,
       target,
       input,
@@ -460,7 +485,7 @@ export async function rollSaves(
       continue;
     }
     const natural = keptD20(roll);
-    const resolved = resolveSaveAction({ save, d20: natural, saveBonus: bonus, targetConditions: target.conditions, penalty });
+    const resolved = resolveSaveAction({ save, d20: natural, saveBonus: bonus + coverSave, targetConditions: target.conditions, penalty });
     results.push({ ...base, autoFail: false, natural, total: resolved.roll.total, success: resolved.roll.success, roll });
   }
   return results;
@@ -561,6 +586,7 @@ function resolvedSave(a: SaveApplied, r: SaveTargetResult): ResolvedSave {
     natural: r.natural,
     total: r.total,
     autoFail: r.autoFail,
+    coverBonus: r.coverBonus,
     success: r.success === true,
     share: a.share,
     damage: appliedDamage(a.damage),
@@ -594,7 +620,7 @@ export async function resolveSaveOn(
   const save = entry.structured.save;
   if (!save) throw new ActionRefused(`"${entry.name}" has no structured saving throw`);
   if (input.targets.length === 0) throw new ActionRefused(`"${entry.name}" has no one to save against it`);
-  const results = await rollSaves(ctx, input);
+  const results = await rollSaves(ctx, { ...input, attacker });
   const unrolled = results.find((r) => r.success === null);
   if (unrolled) {
     throw new ActionRefused(
@@ -686,6 +712,8 @@ export async function resolveAttackOn(
       natural: outcome.natural,
       total: outcome.total,
       targetAc: outcome.targetAc,
+      cover: outcome.cover,
+      coverAc: outcome.coverAc,
       mode: outcome.mode,
       hit: outcome.hit === true,
       critical: outcome.critical,

@@ -116,7 +116,7 @@ function isIncapacitated(c: RunCombatant): boolean {
 const isLiving = (c: RunCombatant): boolean => c.hp > 0;
 
 /** Takes up a square: placed, and alive, or a player down at 0 (who lies where they fell). A monster at 0 is dead. */
-const isOnBoard = (c: RunCombatant): boolean => c.position !== null && c.position !== undefined && (c.hp > 0 || c.type === "player");
+export const isOnBoard = (c: RunCombatant): boolean => c.position !== null && c.position !== undefined && (c.hp > 0 || c.type === "player");
 
 /** A creature's size for the movement rules. A creature with none baked is Medium, as `sizeToFootprint` does. */
 function sizeOf(c: RunCombatant): MonsterSize {

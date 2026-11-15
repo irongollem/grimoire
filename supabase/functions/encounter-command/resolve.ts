@@ -35,6 +35,10 @@ import {
   type ResolutionContext,
 } from "../../../src/rules/fight/actionResolution.ts";
 import { playerArmorClass, playerSaveBonus, type PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
+import { combatantFootprint } from "../../../src/lib/battlemap/tokenFootprint.ts";
+import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
+import { coverBetween, type Box, type Cover } from "../../../src/rules/fight/terrain/sight.ts";
+import { isOnBoard } from "../../../src/rules/fight/terrain/turnOptions.ts";
 import { FightCommandError } from "./commandError.ts";
 
 /** Faces a person rolled for an attack: the d20 (two with advantage or disadvantage), then each rolled damage part's dice. */
@@ -302,8 +306,30 @@ export interface ResolveEnv {
   /** What the server read of the fight's player characters: their armour class and saves are worked out from it. */
   players: PlayerSheets;
   rollDie: (sides: number) => number;
+  /** The fight's map, or null when it has none the rules can use (no place, no calibrated map, an old snapshot): then no cover is applied. */
+  map: FightMap | null;
   /** Receives every roll the command makes, in order, for the caller to post once the fight is saved. */
   posted: PostedRoll[];
+}
+
+function boxOf(c: RunCombatant): Box | null {
+  return c.position ? { anchor: c.position, footprint: combatantFootprint(c) } : null;
+}
+
+/**
+ * The cover the target has against the attacker on the fight's map, as the whole-turn options measure it
+ * (`coverBetween`, with every other creature on the board as a possible screen). Null, meaning "no bonus", when there
+ * is no map or either creature has no place on it: cover is never guessed.
+ */
+function coverOf(map: FightMap | null, state: FightState, attacker: RunCombatant, target: RunCombatant): Cover | null {
+  if (map === null) return null;
+  const from = boxOf(attacker);
+  const to = boxOf(target);
+  if (from === null || to === null) return null;
+  const others = state.combatants
+    .filter((c) => c.instance_id !== attacker.instance_id && c.instance_id !== target.instance_id && isOnBoard(c))
+    .flatMap((c) => boxOf(c) ?? []);
+  return coverBetween(from, to, map.occluders, others);
 }
 
 function combatantIn(state: FightState, id: string, role: string): RunCombatant {
@@ -346,6 +372,8 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     defensesFor: (c) => combatantDefenses(c, env.sources),
     saveBonusFor: (c, ability) => saveBonusOf(c, ability, env),
     live: (c) => holder.state.combatants.find((x) => x.instance_id === c.instance_id) ?? c,
+    // Positions are read from the fight as it stands now: an earlier command in the batch may have moved a creature.
+    coverFor: (attacker, target) => coverOf(env.map, holder.state, ctx.live(attacker), ctx.live(target)),
     apply(cmd) {
       const result = applyFightCommand(holder.state, cmd, env.fightDeps);
       holder.state = result.state;

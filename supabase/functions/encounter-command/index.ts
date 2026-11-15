@@ -7,7 +7,9 @@ import { serve } from "std/http/server.ts";
 import { withCors } from "../_shared/cors.ts";
 import { adminClient, callerUserId, loadEncounterAsDm } from "../_shared/fightAccess.ts";
 import { loadMonsters, loadNpcs, loadStatBlocks } from "../_shared/fightStatBlocks.ts";
+import { loadFightMapInput } from "../_shared/fightMap.ts";
 import { gameSystemEdition } from "../_shared/gameSystem.ts";
+import { fightMapOf } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { rollMessageRow, secureDie } from "../_shared/serverRoll.ts";
 import { inventoryItemRef } from "../../../src/lib/itemRef.ts";
 import { isUuid } from "../../../src/lib/library/contentIdentity.ts";
@@ -235,6 +237,11 @@ serve(withCors(async (req: Request) => {
           beasts.push(...(data as BeastScores[]));
         }
         return { members: members as PlayerSheetRow[], inventory: rows, items, beasts };
+      },
+      async loadFightMap(encounterId) {
+        // Read in this campaign's own scope (`loadFightMapInput` filters on it); null is "no map the rules can use".
+        const input = await loadFightMapInput(admin, campaignId, encounterId);
+        return input === null ? null : fightMapOf(input);
       },
       async postRoll({ result, speaker, serverRolled }) {
         // The campaign log row of a roll, as the client posts one; the stamp is only for dice the server threw.

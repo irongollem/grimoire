@@ -24,6 +24,7 @@ import { ingestPartyRow, type PartyIngestRow } from "../../../src/rules/fight/pa
 import { endOfFightPatches } from "../../../src/rules/fight/fightEnd.ts";
 import { startedFromRound, type FightEffect, type FightState } from "../../../src/rules/fight/fightState.ts";
 import type { PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
+import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { FightCommandError } from "./commandError.ts";
 import {
   applyResolvingCommand,
@@ -272,6 +273,11 @@ export interface BatchDeps {
    * an action and has a player in the fight. A member of another campaign is never returned.
    */
   loadPlayerSheets(partyMemberIds: string[]): Promise<PlayerSheets>;
+  /**
+   * The battle map of an encounter as the rules read it (walls, closed doors), or null when it has none they can use.
+   * Asked for only by a batch that resolves an action: cover counts on its attacks and Dexterity saves.
+   */
+  loadFightMap(encounterId: string): Promise<FightMap | null>;
   /** Posts a roll to the campaign log, stamped when `serverRolled`. */
   postRoll(roll: PostedRoll): Promise<void>;
   /** One die of any size, from the server's secure source: what a resolving command rolls with. */
@@ -379,6 +385,7 @@ async function attempt(
   // The stat blocks and the player sheets are read once per attempt, and only when the batch has an action to resolve.
   let sources: StatBlockSources | null = null;
   let players: PlayerSheets | null = null;
+  let map: FightMap | null | undefined;
   for (const command of request.commands) {
     if (command.type === "sync_party" || LIFECYCLE_TYPES.has(command.type)) continue;
     if (isResolvingCommand(command)) {
@@ -396,7 +403,9 @@ async function attempt(
         // A fight with no player in it has nothing to read.
         players = memberIds.length > 0 ? await deps.loadPlayerSheets(memberIds) : { members: [], inventory: [], items: [], beasts: [] };
       }
-      const result = await applyResolvingCommand(state, command, { fightDeps, sources, players, rollDie: deps.rollDie, posted: rolls });
+      // `undefined` is "not asked yet" (a null map is an answer: this fight has none).
+      if (map === undefined) map = await deps.loadFightMap(request.encounterId);
+      const result = await applyResolvingCommand(state, command, { fightDeps, sources, players, map, rollDie: deps.rollDie, posted: rolls });
       state = result.state;
       effects.push(...result.effects);
       continue;

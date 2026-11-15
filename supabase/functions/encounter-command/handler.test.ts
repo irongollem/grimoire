@@ -4,11 +4,13 @@
  * Every expected value is worked out from the rules in the comment above it.
  */
 import { describe, expect, it } from "vitest";
-import type { EncounterEvent } from "../../../src/types/encounter.types";
+import type { EncounterEvent, RunCombatant } from "../../../src/types/encounter.types";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest";
 import type { Monster } from "../../../src/types/monster.types";
 import { emptyDefenses, type StatBlockEntry } from "../../../src/types/statBlock.types";
 import type { PlayerSheets } from "../../../src/rules/fight/playerSheet";
+import type { FightMap } from "../../../src/rules/fight/terrain/battleMap";
+import { occluders } from "../../../src/lib/battlemap/occlusion";
 import type { Item } from "../../../src/types/item.types";
 import type { PartyInventoryItem } from "../../../src/types/inventory.types";
 import { broadcastEvent, combatant, pc } from "../../../src/rules/fight/fightTestKit";
@@ -69,6 +71,8 @@ interface Harness {
   dieCalls: number;
   /** The party member ids of each `loadPlayerSheets` call. */
   playerLoads: string[][];
+  /** How many times the fight's map was read. */
+  mapLoads: number;
   /** Runs once, between a load and its save: another writer got in. */
   rival: { run: (() => void) | null; always: boolean };
 }
@@ -85,6 +89,8 @@ function harness(
     players?: PlayerSheets;
     /** The faces the server's die shows, one per throw in order; a throw past the end fails the test. */
     dieFaces?: number[];
+    /** The fight's battle map; absent or null is a fight with no map the rules can use. */
+    map?: FightMap | null;
   } = {},
 ): Harness {
   const h: Harness = {
@@ -102,6 +108,7 @@ function harness(
     posted: [],
     dieCalls: 0,
     playerLoads: [],
+    mapLoads: 0,
     rival: { run: null, always: false },
     deps: undefined as unknown as BatchDeps,
   };
@@ -174,6 +181,10 @@ function harness(
     async loadPlayerSheets(ids) {
       h.playerLoads.push(ids);
       return structuredClone(options.players ?? { members: [], inventory: [], items: [], beasts: [] });
+    },
+    async loadFightMap() {
+      h.mapLoads += 1;
+      return options.map === undefined ? null : options.map;
     },
     async postRoll(roll) {
       h.log.push("roll");
@@ -1003,5 +1014,128 @@ describe("resolving commands", () => {
     expect(ok({ type: "resolve_save", attackerId: "a", list: "actions", action: "Burst", targetIds: ["x", "x"] })).toThrow(FightCommandError);
     expect(ok({ type: "resolve_concentration", instanceId: "a", damage: 0 })).toThrow(FightCommandError);
     expect(ALL_RESOLVING_COMMANDS_LISTED).toBe(true);
+  });
+});
+
+// ── cover (#1202 story 3c) ───────────────────────────────────────────────────────
+
+/** A map of the given walls, each written as its two end points in cell units (x right, y down). */
+function mapOf(...walls: [[number, number], [number, number]][]): FightMap {
+  return {
+    mapLocationId: "loc-1",
+    occluders: occluders({ walls: walls.map(([a, b], i) => ({ id: `w${i}`, a, b })), doors: [], solid: [] }),
+    difficult: new Set(),
+    solid: new Set(),
+    calibration: { cells_per_image_width: 20, origin_x_pct: 0, origin_y_pct: 0 },
+  };
+}
+
+// A short wall on the target's near edge blocks two of the four lines: half cover (sight.test.ts, same shape one row down).
+const HALF_WALL: [[number, number], [number, number]] = [[3, 1], [3, 1.5]];
+// Add a wall through the whole square at x=3.5: three of four lines blocked, three-quarters cover.
+const THREE_QUARTERS_WALLS: [[number, number], [number, number]][] = [HALF_WALL, [[3.5, 1], [3.5, 2]]];
+// A full-height wall between them: every line blocked.
+const TOTAL_WALL: [[number, number], [number, number]] = [[2, 1], [2, 2]];
+
+/** The wolf at (0,1) and the victim (AC 13, Dex +0) three squares along the same row; the command says they are within reach. */
+function coverArena(extra: RunCombatant[] = [], victimOver: Record<string, unknown> = {}) {
+  return row({
+    combatants_live: [
+      combatant("wolf", { monster_id: "m-wolf", hp: 11, max_hp: 11, initiative: 12, position: { x: 0, y: 1 } }),
+      combatant("victim", { monster_id: "m-ox", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 3, y: 1 }, ...victimOver }),
+      ...extra,
+    ],
+  });
+}
+const near = (over: Record<string, unknown> = {}) => attack({ withinFiveFeet: true, ...over });
+const resolved = (r: { effects: Array<{ type: string }> }) => r.effects.find((e) => e.type === "resolved");
+
+describe("cover on a resolving command", () => {
+  // PHB 2014 ch. 9 "Cover": half cover is +2 to AC, so AC 13 is 15. Wolf +4: d20 11 totals 15 and hits (damage 5 + 2 = 7, 40 -> 33);
+  // d20 10 totals 14, which would hit AC 13 and misses 15 (40 stays 40).
+  it("fails if half cover from a wall does not add 2 to the armour class, on both sides of it", async () => {
+    const hit = harness(coverArena(), { sources: SOURCES, map: mapOf(HALF_WALL), dieFaces: [11, 5] });
+    const hitResult = await runBatch(batch("b1", near()), hit.deps);
+    expect(hpOf(stored(hit), "victim")).toBe(33);
+    expect(resolved(hitResult)).toMatchObject({ resolved: { total: 15, targetAc: 15, cover: "half", coverAc: 2, hit: true } });
+
+    const miss = harness(coverArena(), { sources: SOURCES, map: mapOf(HALF_WALL), dieFaces: [10] });
+    const missResult = await runBatch(batch("b2", near()), miss.deps);
+    expect(hpOf(stored(miss), "victim")).toBe(40);
+    expect(resolved(missResult)).toMatchObject({ resolved: { total: 14, targetAc: 15, cover: "half", hit: false } });
+  });
+
+  // Three-quarters is +5: AC 18. d20 13 totals 17 and misses (it would hit 13 and 15).
+  it("fails if three-quarters cover from walls adds less than 5", async () => {
+    const h = harness(coverArena(), { sources: SOURCES, map: mapOf(...THREE_QUARTERS_WALLS), dieFaces: [13] });
+    const result = await runBatch(batch("b", near()), h.deps);
+    expect(resolved(result)).toMatchObject({ resolved: { total: 17, targetAc: 18, cover: "three_quarters", coverAc: 5, hit: false } });
+    expect(hpOf(stored(h), "victim")).toBe(40);
+  });
+
+  // PHB 2014 ch. 9: total cover cannot be targeted directly. Refused with a 400 before any die is thrown or anything saved.
+  it("fails if an attack on a target behind a full wall rolls, posts or saves anything", async () => {
+    const h = harness(coverArena(), { sources: SOURCES, map: mapOf(TOTAL_WALL), dieFaces: [20, 6] });
+    await expect(runBatch(batch("b", near()), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/victim has total cover from wolf/) });
+    expect(h.dieCalls).toBe(0);
+    expect(h.saves).toBe(0);
+    expect(h.posted).toEqual([]);
+  });
+
+  // The same d20 10 that misses behind half cover (14 against 15) hits AC 13 when no map is known: nothing is guessed.
+  it("fails if an attack with no map, or between creatures without a place on it, counts cover", async () => {
+    const noMap = harness(coverArena(), { sources: SOURCES, map: null, dieFaces: [10, 5] });
+    const noMapResult = await runBatch(batch("b1", near()), noMap.deps);
+    expect(resolved(noMapResult)).toMatchObject({ resolved: { targetAc: 13, cover: null, coverAc: 0, hit: true } });
+
+    const unplaced = harness(coverArena([], { position: undefined }), { sources: SOURCES, map: mapOf(TOTAL_WALL), dieFaces: [10, 5] });
+    const unplacedResult = await runBatch(batch("b2", near()), unplaced.deps);
+    expect(resolved(unplacedResult)).toMatchObject({ resolved: { targetAc: 13, cover: null, hit: true } });
+    expect(hpOf(stored(unplaced), "victim")).toBe(33);
+  });
+
+  // PHB 2014 ch. 9 "Cover" lists a creature as half cover. A living ox standing between them on an open map (no walls) gives
+  // +2: d20 10 totals 14 against 15 and misses. An ox at 0 hit points is dead and takes no square, so the same roll hits AC 13.
+  it("fails if a creature in the way is not counted as a screen, or a dead one is", async () => {
+    const live = combatant("screen", { monster_id: "m-ox", hp: 40, max_hp: 40, initiative: 3, position: { x: 1.5, y: 1 } });
+    const screened = harness(coverArena([live]), { sources: SOURCES, map: mapOf(), dieFaces: [10] });
+    const screenedResult = await runBatch(batch("b1", near()), screened.deps);
+    expect(resolved(screenedResult)).toMatchObject({ resolved: { targetAc: 15, cover: "half", hit: false } });
+
+    const dead = combatant("screen", { monster_id: "m-ox", hp: 0, max_hp: 40, initiative: 3, position: { x: 1.5, y: 1 } });
+    const open = harness(coverArena([dead]), { sources: SOURCES, map: mapOf(), dieFaces: [10, 5] });
+    const openResult = await runBatch(batch("b2", near()), open.deps);
+    expect(resolved(openResult)).toMatchObject({ resolved: { targetAc: 13, cover: "none", hit: true } });
+  });
+
+  const burstOn = (ids: string[]) => ({ type: "resolve_save", attackerId: "wolf", list: "actions", action: "Burst", targetIds: ids }) as CommandRequest["commands"][number];
+
+  // DC 14, Dex +0, half cover +2: d20 12 totals 14 and saves, taking half of 2d6 (3 + 4 = 7) rounded down = 3 (40 -> 37). Without
+  // the bonus the 12 fails and takes 7 (33).
+  it("fails if a Dexterity save behind half cover gets no bonus", async () => {
+    const h = harness(coverArena(), { sources: SOURCES, map: mapOf(HALF_WALL), dieFaces: [12, 3, 4] });
+    const result = await runBatch(batch("b", burstOn(["victim"])), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(37);
+    const summary = resolved(result) as unknown as { resolved: { targets: Array<Record<string, unknown>> } };
+    expect(summary.resolved.targets[0]).toMatchObject({ total: 14, coverBonus: 2, success: true });
+  });
+
+  // A save action is not refused at total cover (areas can reach round corners): the target gets the three-quarters bonus.
+  // d20 9 + 5 = 14 saves and takes half of 7 = 3 (40 -> 37).
+  it("fails if a save action refuses a target at total cover instead of resolving it with the largest bonus", async () => {
+    const h = harness(coverArena(), { sources: SOURCES, map: mapOf(TOTAL_WALL), dieFaces: [9, 3, 4] });
+    await runBatch(batch("b", burstOn(["victim"])), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(37);
+  });
+
+  // The map is read once however many commands there are, and only when something is resolved.
+  it("fails if the map is read for a batch that resolves nothing, or once per command", async () => {
+    const plain = harness(coverArena(), { sources: SOURCES, map: mapOf() });
+    await runBatch(batch("b1", { type: "adjust_hp", instanceId: "victim", delta: -1 }), plain.deps);
+    expect(plain.mapLoads).toBe(0);
+
+    const twice = harness(coverArena(), { sources: SOURCES, map: mapOf(), dieFaces: [10, 5, 10, 5] });
+    await runBatch(batch("b2", near(), near()), twice.deps);
+    expect(twice.mapLoads).toBe(1);
   });
 });
