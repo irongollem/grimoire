@@ -369,3 +369,17 @@ describe("Select shows what it picked", () => {
     expect(mountOptions({ ...select, selectedCell: [1, 1] }).text()).toContain("Cell 1, 1");
   });
 });
+
+describe("Find walls in the picture (#1197)", () => {
+  it.each(["angledWall", "freehandWall"])("offers it under %s only for a picture with a lined-up grid, and asks for it when pressed", async (activeTool) => {
+    const lined = mountOptions({ title: "Walls", activeTool, canFindWalls: true });
+    await button(lined, "Find walls in the picture").trigger("click");
+    expect(lined.emitted("find-walls")).toHaveLength(1);
+    const bare = mountOptions({ title: "Walls", activeTool, canFindWalls: false });
+    expect(bare.text()).not.toContain("Find walls in the picture");
+  });
+
+  it("is not offered under a tool that draws no walls from a picture", () => {
+    expect(mountOptions({ title: "Tiles", activeTool: "floor", canFindWalls: true }).text()).not.toContain("Find walls in the picture");
+  });
+});

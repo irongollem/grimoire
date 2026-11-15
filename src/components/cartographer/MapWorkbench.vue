@@ -144,8 +144,21 @@
 
         <!-- The active tool and its options, top left where the eye lands first. On a phone
              it spans the top and the rail lies along the bottom. -->
+        <!-- Walls found in the picture (#1197): the proposal's own slip stands in for the tab's, on any tab. -->
+        <CartographerWallFinder
+          v-if="wallFinder.active.value"
+          v-model:tolerance="wallFinder.options.tolerance"
+          v-model:inset="wallFinder.options.inset"
+          v-model:snap-to-grid="wallFinder.options.snapToGrid"
+          :proposed="wallFinder.proposals.value.length"
+          :kept="wallFinder.keptCount.value"
+          @apply="keepFoundWalls"
+          @keep-all="wallFinder.keepAll"
+          @drop-all="wallFinder.dropAll"
+          @cancel="wallFinder.cancel"
+        />
         <CartographerToolOptions
-          v-if="activeLayer === 'drawing'"
+          v-else-if="activeLayer === 'drawing'"
           ref="toolOptionsRef"
           :title="slipTitle"
           :caption="slipCaption"
@@ -162,6 +175,7 @@
           :manifest="packRuntime?.manifest ?? null"
           :active-wall-kind="activeWallKind"
           :wall-visible="wallVisible"
+          :can-find-walls="canFindWalls"
           :selected-wall-visible="selectedWallVisible"
           :active-wall-decal="activeWallDecal"
           :wall-decal-count="packRuntime?.variantCount('wallDecal') ?? 0"
@@ -192,6 +206,7 @@
           :light-selected="selectedLightId !== null"
           :wall-run="selectedWallRun"
           :wall-refusal="wallRefusal"
+          @find-walls="wallFinder.find"
           @delete-wall-run="deleteSelectedWall"
           @update:light="onLightEdit"
           @delete-light="deleteSelectedLight"
@@ -225,11 +240,12 @@
           v-model:box-mode="boxMode"
           :has-picture="!!referencePicture" :calibrated="!!referencePicture?.calibration"
           :moving="stack.motion !== null" :battle-map="site?.is_battle_map ?? false"
-          :busy="pictureBusy" :lining-up="liningUp" :natural="pictureNatural"
+          :busy="pictureBusy" :finding="wallFinder.busy.value" :lining-up="liningUp" :natural="pictureNatural"
           @upload="emit('picture-upload', $event)"
           @remove="emit('picture-remove')"
           @line-up="startLineUp"
           @trace-walls="traceTheWalls"
+          @find-walls="wallFinder.find"
           @done="finishLineUp"
           @cancel="cancelLineUp"
           @update:battle-map="emit('update:isBattleMap', $event)"
@@ -378,11 +394,13 @@ import CartographerDrawerPanels from "@/components/cartographer/CartographerDraw
 import CartographerStatusBar from "@/components/cartographer/CartographerStatusBar.vue";
 import CartographerToolRail from "@/components/cartographer/CartographerToolRail.vue";
 import CartographerPlanOptions from "@/components/cartographer/CartographerPlanOptions.vue";
+import CartographerWallFinder from "@/components/cartographer/CartographerWallFinder.vue";
 import CartographerPictureOptions from "@/components/cartographer/CartographerPictureOptions.vue";
 import WorkbenchPictureStage from "@/components/cartographer/WorkbenchPictureStage.vue";
 import CartographerMotionLayer from "@/components/cartographer/CartographerMotionLayer.vue";
 import CartographerMotionButton from "@/components/cartographer/CartographerMotionButton.vue";
 import CartographerToolOptions from "@/components/cartographer/CartographerToolOptions.vue";
+import { useToast } from "@/composables/useToast";
 import { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
 import { useMapCanvasEditor } from "@/composables/cartographer/useMapCanvasEditor";
 import type { TemplateShape } from "@/composables/cartographer/mapCanvasEditor.types";
@@ -599,7 +617,7 @@ const {
   rotateSelectedDressing, deleteSelectedDressing, selectedLightId, updateSelectedLight, deleteSelectedLight,
   selectedWallRun, wallRefusal, deleteSelectedWall, canvasBox, gestureBusy,
   selectedGroundRegion, setGroundWallMode, deleteGroundRegion,
-  selectedWallVisible, setSelectedWallVisible, renameGroundRegion, doorTip,
+  selectedWallVisible, setSelectedWallVisible, renameGroundRegion, doorTip, wallFinder,
 } = useMapCanvasEditor({
   canvasEl, layers, metadata, dirty, editRevision, currentPackId, darkness, packRuntime, selectablePacks, loadedRuntimes,
   dressing: dressingCatalog, placeItem, selectedDressingId, cellGlyphs, activeTool, tools: TOOLS,
@@ -608,6 +626,7 @@ const {
   wallVisible,
   selectedCell, toolOptionsRef, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
+  picture: () => referencePicture.value,
   extraRenderDeps: [referenceImageEl],
   plan, activeLayer, hasLayerTabs: !!site, gridAlpha, toggleGrid, keysActive, swapTileSets,
   groundCanvasEl, aidsCanvasEl, motionPlaying: () => motionOn.value,
@@ -682,6 +701,19 @@ watch(() => map?.id, () => {
 function traceTheWalls(): void {
   activeLayer.value = "drawing";
   activeTool.value = "angledWall";
+}
+
+/** The site has a picture with its grid lined up, so its walls can be looked for. */
+const canFindWalls = computed(() => !!referencePicture.value?.calibration);
+
+/** "Keep" on the wall finder: the kept rings become hidden walls, and Select is in hand to adjust their nodes. */
+const toast = useToast();
+function keepFoundWalls(): void {
+  const rings = wallFinder.apply();
+  if (rings === 0) return;
+  activeLayer.value = "drawing";
+  activeTool.value = "select";
+  toast.success(`${rings === 1 ? "1 ring" : `${rings} rings`} of hidden wall added. Adjust them with Select.`);
 }
 
 defineExpose({

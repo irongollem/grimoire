@@ -110,3 +110,49 @@ describe("freehand stroke preview (#1197)", () => {
     expect(ctx.stroke).not.toHaveBeenCalled();
   });
 });
+
+describe("walls proposed from the picture (#1197)", () => {
+  interface Stroke { style: string; alpha: number; width: number; cap: string; dash: number[]; points: [number, number][]; closed: boolean }
+  function proposalCtx() {
+    const strokes: Stroke[] = [];
+    let points: [number, number][] = [];
+    let closed = false;
+    let dash: number[] = [];
+    const state = { strokeStyle: "", globalAlpha: 1, lineWidth: 0, lineCap: "", lineJoin: "" };
+    const ctx = {
+      ...state,
+      save: vi.fn(), restore: vi.fn(), fill: vi.fn(), arc: vi.fn(),
+      beginPath: vi.fn(() => { points = []; closed = false; }),
+      moveTo: vi.fn((x: number, y: number) => points.push([x, y])),
+      lineTo: vi.fn((x: number, y: number) => points.push([x, y])),
+      closePath: vi.fn(() => { closed = true; }),
+      setLineDash: vi.fn((d: number[]) => { dash = d; }),
+      stroke: vi.fn(function (this: typeof state) {
+        strokes.push({ style: this.strokeStyle, alpha: this.globalAlpha, width: this.lineWidth, cap: this.lineCap, dash, points, closed });
+      }),
+    };
+    return { ctx: ctx as unknown as CanvasRenderingContext2D, strokes };
+  }
+  const ring: [number, number][] = [[1, 1], [4, 1], [4, 3]];
+
+  it("draws a kept ring as a closed run of round dots in blue, over the picture, at screen position", () => {
+    // tile 100 px, offset (50, 0): cell (1, 1) is at (50, 100), (4, 1) at (350, 100), (4, 3) at (350, 300).
+    const { ctx, strokes } = proposalCtx();
+    paintEditorMarks(ctx, emptyLayers(), { wallProposals: [{ ring, kept: true }] }, 100, { x: 50, y: 0 });
+    expect(strokes).toEqual([{
+      style: "#8fb0dd", alpha: 1, width: 3, cap: "round", dash: [0, 8], closed: true, points: [[50, 100], [350, 100], [350, 300]],
+    }]);
+  });
+
+  it("draws a dropped ring in the same blue at 30 percent", () => {
+    const { ctx, strokes } = proposalCtx();
+    paintEditorMarks(ctx, emptyLayers(), { wallProposals: [{ ring, kept: false }] }, 100, { x: 0, y: 0 });
+    expect(strokes.map((s) => [s.style, s.alpha])).toEqual([["#8fb0dd", 0.3]]);
+  });
+
+  it("draws nothing when there is no proposal", () => {
+    const { ctx, strokes } = proposalCtx();
+    paintEditorMarks(ctx, emptyLayers(), { wallProposals: null }, 100, { x: 0, y: 0 });
+    expect(strokes).toEqual([]);
+  });
+});

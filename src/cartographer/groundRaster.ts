@@ -4,7 +4,8 @@ import { AREA_RES, type Disc } from "./area";
 type P = [number, number];
 // ── Raster ───────────────────────────────────────────────────────────────
 
-interface Grid {
+/** A raster over the map: `w` x `h` samples, `AREA_RES` to a square, its corner at cell (`ox`, `oy`). */
+export interface Grid {
   ox: number;
   oy: number;
   w: number;
@@ -38,7 +39,7 @@ function fillRing(g: Grid, ring: readonly P[], visit: (idx: number) => void): vo
  * Marching squares over the sample grid: contour at the midpoints between samples, so a full-square edge lies exactly
  * on the grid line. Returns every closed loop (outer rings and holes alike), in cell units.
  */
-function traceField(g: Grid, field: Uint8Array): P[][] {
+export function traceField(g: Grid, field: Uint8Array): P[][] {
   const { w, h } = g;
   const hId = (i: number, j: number): number => (j * w + i) * 2;
   const vId = (i: number, j: number): number => (j * w + i) * 2 + 1;

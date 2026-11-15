@@ -143,6 +143,14 @@
         <template v-if="activeTool === 'freehandWall'">Drag along the wall in the picture. Let go and the line is fitted to a few smooth nodes you can move with Select. End on a wall, or on your own start, and it joins there.</template>
         <template v-else>Click to start, click to add points. A point snaps to the end of a wall already drawn. Click the first point to close the ring. Enter or a double-click ends the run, Esc drops it. Alt places a point freely.</template>
       </span>
+      <AppButton
+        v-if="canFindWalls"
+        variant="ghost"
+        fill="muted"
+        size="xs"
+        label="Find walls in the picture"
+        @click="emit('find-walls')"
+      />
     </template>
 
     <!-- Light: colour and reach of the next one, or of the one picked. -->
@@ -395,6 +403,8 @@ const props = defineProps<{
   manifest: Pick<TilePackManifest, "labels"> | null;
   activeWallKind: WallKind;
   wallVisible?: boolean;
+  /** The site has a picture with a lined-up grid, so its walls can be looked for (#1197). */
+  canFindWalls?: boolean;
   selectedWallVisible?: boolean;
   activeWallDecal: number;
   wallDecalCount: number;
@@ -442,6 +452,8 @@ const emit = defineEmits<{
   openCatalogue: [];
   "update:activeWallKind": [kind: WallKind];
   "update:wallVisible": [visible: boolean];
+  /** Look for the walls in the picture (#1197). */
+  "find-walls": [];
   "update:selectedWallVisible": [visible: boolean];
   "update:activeWallDecal": [variant: number];
   "update:annotationText": [text: string];

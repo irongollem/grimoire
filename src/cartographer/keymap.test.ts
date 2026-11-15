@@ -196,6 +196,12 @@ describe("angled wall and selection keys", () => {
     expect(resolveKeyAction(ev({ key: "Escape" }), withCtx("angledWall", { angledRunOpen: false }))).toEqual({ kind: "selectTool", tool: "select" });
   });
 
+  it("Escape closes the wall finder first, whatever tool or open run it finds", () => {
+    expect(resolveKeyAction(ev({ key: "Escape" }), withCtx("angledWall", { wallFinderOpen: true, angledRunOpen: true }))).toEqual({ kind: "cancelWallFinder" });
+    expect(resolveKeyAction(ev({ key: "Escape" }), withCtx("select", { wallFinderOpen: true, selectionPresent: true }))).toEqual({ kind: "cancelWallFinder" });
+    expect(resolveKeyAction(ev({ key: "Escape" }), withCtx("floor", { wallFinderOpen: false }))).toEqual({ kind: "selectTool", tool: "select" });
+  });
+
   it("Escape in another tool goes back to Select even if a run was left open", () => {
     expect(resolveKeyAction(ev({ key: "Escape" }), withCtx("wall", { angledRunOpen: true }))).toEqual({ kind: "selectTool", tool: "select" });
   });

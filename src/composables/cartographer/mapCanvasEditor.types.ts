@@ -11,6 +11,7 @@ import type { WallKind } from "@/cartographer/wallKinds";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { DressingCatalog } from "@/cartographer/dressing";
 import type { MapRenderReferenceImage } from "@/cartographer/renderMap";
+import type { WorkbenchPicture } from "@/composables/cartographer/useWorkbenchPicture";
 import type { usePlanPalette } from "@/composables/cartographer/usePlanPalette";
 
 export type TemplateShape = "circle" | "octagon" | "hex";
@@ -68,6 +69,8 @@ export interface MapCanvasEditorOptions {
    *  this frame's own `tilePx`/`viewportOffset` — see MapWorkbench's
    *  `buildReferenceImage`. Null when there's no site (the standalone route). */
   getReferenceImage: (tilePx: number, viewportOffset: { x: number; y: number }) => MapRenderReferenceImage | null;
+  /** The site's Picture and its grid, for "Find walls in the picture" (#1197). Absent: there is nothing to find walls in. */
+  picture?: () => WorkbenchPicture | null | undefined;
   /** Extra reactive values that should trigger a re-render when they change
    *  (the reference-layer toggle + its loaded image) — kept as an opaque
    *  list so this module doesn't need to know what they mean. */

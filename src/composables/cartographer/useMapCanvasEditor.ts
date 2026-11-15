@@ -34,6 +34,7 @@ import { useDressingTool } from "@/composables/cartographer/useDressingTool";
 import { useAngledWallTool } from "@/composables/cartographer/useAngledWallTool";
 import { useFreehandWallTool } from "@/composables/cartographer/useFreehandWallTool";
 import { useLightTool } from "@/composables/cartographer/useLightTool";
+import { usePictureWallFinder } from "@/composables/cartographer/usePictureWallFinder";
 import { PLAN_TOOLS } from "@/composables/cartographer/usePlanPalette";
 import { usePlanCanvasTools } from "@/composables/cartographer/usePlanCanvasTools";
 import { isTextEntry } from "@/lib/canvasControls/keyTargets";
@@ -262,6 +263,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     snapshotStr, pushCommand, markDirty,
   });
   const lightTool = useLightTool({ layers, draft: lightDraft, snapshotStr, pushCommand, markDirty });
+  // "Find walls in the picture" (#1197): proposes rings from the site's picture; keeping them writes hidden walls.
+  const wallFinder = usePictureWallFinder({ picture: () => opts.picture?.(), layers, snapshotStr, pushCommand, markDirty });
 
   // Wall nodes (#1125 frame 17): Select picks a wall's whole run, and its nodes and bones are then dragged, split and
   // removed by this controller. Each gesture is one undo step, floor included.
@@ -336,7 +339,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
   const render = useEditorRender({
     opts, zoom, viewportOffset, canvasBox, hoverCell, hoverPoint, hoveredEdge, altHeld, previewCells, shownLayers, geometry, brush,
-    dressingTool, angledTool, freehandTool, lightTool, selectTool, wallNodes, planTools, isPlanLayerActive,
+    dressingTool, angledTool, freehandTool, lightTool, wallFinder, selectTool, wallNodes, planTools, isPlanLayerActive,
   });
 
   /** Inclusive bounds of every cell that holds floor; null for an empty map. */
@@ -365,7 +368,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const pointer = useEditorPointer({
     canvasEl, layers, metadata, activeTool, selectedCell, toolOptionsRef, rectWalls, activeTemplateShape, activeLayer,
     viewportOffset, isPanning, isPainting, previewCells, hoverCell, hoverPoint, hoveredEdge, geometry, navigation, straight,
-    painting, brush, dressingTool, angledTool, freehandTool, lightTool, selectTool, wallNodes, planTools, isPlanLayerActive,
+    painting, brush, dressingTool, angledTool, freehandTool, lightTool, wallFinder, selectTool, wallNodes, planTools, isPlanLayerActive,
     snapshotStr, pushCommand, markDirty, dropTouch: () => touch.dropPending(),
   });
   const { syncBusy, gestureBusy } = pointer;
@@ -416,6 +419,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         hasLayerTabs,
         layer: activeLayer?.value,
         zoningTools: planTools ? PLAN_TOOLS : undefined,
+        wallFinderOpen: wallFinder.active.value,
         placeArmed: placeItem.value !== null,
         angledRunOpen: angledTool.run.value.length > 0,
         selectionDeletable:
@@ -470,6 +474,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       case "disarmPlace": placeItem.value = null; break;
       case "finishAngledWall": angledTool.finish(); break;
       case "abandonAngledWall": angledTool.abandon(); break;
+      case "cancelWallFinder": wallFinder.cancel(); break;
       case "deleteSelected":
         if (activeTool.value === "select" && selectTool.deleteAll()) break;
         if (activeTool.value === "select" && wallNodes.deleteSelection()) break;
@@ -589,6 +594,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     selectedLightId: lightTool.selectedId,
     updateSelectedLight: lightTool.updateSelected,
     deleteSelectedLight: lightTool.deleteSelected,
+    /** "Find walls in the picture": the proposal the slip and the canvas show. */
+    wallFinder,
     /** The Angled wall tool's state, for tests and the status line. */
     angledTool,
     freehandTool,

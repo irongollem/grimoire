@@ -17,6 +17,7 @@ import { constrainShapeEnd, isCellPainter, type useStraightStrokes } from "@/com
 import type { useDressingTool } from "@/composables/cartographer/useDressingTool";
 import type { useAngledWallTool } from "@/composables/cartographer/useAngledWallTool";
 import type { useFreehandWallTool } from "@/composables/cartographer/useFreehandWallTool";
+import type { PictureWallFinder } from "@/composables/cartographer/usePictureWallFinder";
 import type { useLightTool } from "@/composables/cartographer/useLightTool";
 import type { useCanvasNavigation } from "@/composables/cartographer/useCanvasNavigation";
 import type { usePlanCanvasTools } from "@/composables/cartographer/usePlanCanvasTools";
@@ -27,6 +28,9 @@ import type { EditorBrush } from "./useEditorBrush";
 import type { EditorGeometry } from "./useEditorGeometry";
 import type { EditorPainting } from "./useEditorPainting";
 import type { TemplateShape } from "./mapCanvasEditor.types";
+
+/** How near (cells) a click must be to a proposed ring's outline to pick it, as for an angled wall. */
+const PROPOSAL_PICK_REACH = 0.3;
 
 // Edge-hover threshold: how close the cursor must get to a cell edge for it
 // to "snap" to wall placement. 0.25 = within the outer 25% of the cell.
@@ -58,6 +62,7 @@ export function useEditorPointer(inputs: {
   angledTool: ReturnType<typeof useAngledWallTool>;
   freehandTool: ReturnType<typeof useFreehandWallTool>;
   lightTool: ReturnType<typeof useLightTool>;
+  wallFinder: PictureWallFinder;
   selectTool: ReturnType<typeof useSelectTool>;
   wallNodes: ReturnType<typeof useGroundRegionEdit>["controller"];
   planTools: ReturnType<typeof usePlanCanvasTools> | null;
@@ -71,7 +76,7 @@ export function useEditorPointer(inputs: {
   const {
     canvasEl, layers, metadata, activeTool, selectedCell, toolOptionsRef, rectWalls, activeTemplateShape, activeLayer,
     viewportOffset, isPanning, isPainting, previewCells, hoverCell, hoverPoint, hoveredEdge, geometry, navigation, straight,
-    painting, brush, dressingTool, angledTool, freehandTool, lightTool, selectTool, wallNodes, planTools, isPlanLayerActive,
+    painting, brush, dressingTool, angledTool, freehandTool, lightTool, wallFinder, selectTool, wallNodes, planTools, isPlanLayerActive,
     snapshotStr, pushCommand, markDirty, dropTouch,
   } = inputs;
   const { getLocalPointer, viewportToCell, fractionalCellAt, pointerToWorld, tilePixelSize, devicePixelDims } = geometry;
@@ -115,6 +120,18 @@ export function useEditorPointer(inputs: {
     // Middle button, or left with Space held: pans with any tool on either layer.
     if (navigation.isForcedPan(ev)) {
       startPan(ev);
+      return;
+    }
+
+    // Walls are being found in the picture (#1197): the proposal is all a click can mean, on any layer and under any
+    // tool. A click on a ring keeps or drops it; one that hits none does nothing. Panning stays with the Pan tool and
+    // the right button.
+    if (wallFinder.active.value) {
+      if (navigation.isPanStart(ev, activeTool.value)) startPan(ev);
+      else if (ev.button === 0) {
+        const hit = wallFinder.ringAt(fractionalCellAt(ev), PROPOSAL_PICK_REACH);
+        if (hit !== null) wallFinder.toggle(hit);
+      }
       return;
     }
 

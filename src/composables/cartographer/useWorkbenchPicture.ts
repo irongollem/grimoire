@@ -6,6 +6,7 @@ import { fitViewport, type CellBounds } from "@/cartographer/viewport";
 import { DEFAULT_SQUARES_ACROSS, calibrationFor, gridSizeText, squaresDown, type ImageSize } from "@/lib/mapImport/pictureGrid";
 import type { GridCalibration } from "@/types/location.types";
 import type { DungeonMapLayers } from "@/types/dungeonMap.types";
+import type { TracePlacement } from "@/cartographer/pictureTrace";
 
 /** Zoom and pan the canvas so a box of cells fills it, `margin` cells to spare. A no-op until the canvas has a width. */
 export type FitCanvasTo = (bounds: CellBounds, margin: number) => boolean;
@@ -41,6 +42,19 @@ export function pictureCellBounds(cal: GridCalibration, natural: ImageSize): Cel
   const left = (cal.origin_cell_x ?? 0) - cal.origin_x_pct * across;
   const top = (cal.origin_cell_y ?? 0) - cal.origin_y_pct * across;
   return { minX: Math.floor(left), minY: Math.floor(top), maxX: Math.ceil(left + across) - 1, maxY: Math.ceil(top + down) - 1 };
+}
+
+/**
+ * Where a lined-up picture lies on the grid, to the fraction: the cell coordinate of its top-left corner and how many
+ * cells it spans. `pictureCellBounds` is this rounded out to whole cells; the wall finder needs the exact corner.
+ */
+export function pictureCellPlacement(cal: GridCalibration): TracePlacement {
+  const across = cal.cells_per_image_width;
+  return {
+    left: (cal.origin_cell_x ?? 0) - cal.origin_x_pct * across,
+    top: (cal.origin_cell_y ?? 0) - cal.origin_y_pct * across,
+    across,
+  };
 }
 
 /**
