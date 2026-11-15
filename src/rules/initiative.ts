@@ -1,6 +1,6 @@
-import { abilityMod } from "@/rules/weaponAttack";
-import { jackOfAllTradesBonus, type JackOfAllTrades } from "@/rules/skillCheck";
-import { getExhaustionD20Penalty, hasCheckDisadvantage } from "@/rules/conditions";
+import { abilityMod } from "./weaponAttack.ts";
+import { jackOfAllTradesBonus, type JackOfAllTrades } from "./skillCheck.ts";
+import { getExhaustionD20Penalty, hasCheckDisadvantage } from "./conditions.ts";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { AppliedCondition } from "@/types/condition.types";
 import type { WildshapeState } from "@/types/encounter.types";

@@ -6,7 +6,7 @@
 // Behavior is preserved EXACTLY from the original inline implementation;
 // this is a pure extraction, not a redesign.
 
-import { parseExpression } from "@/lib/dice/dice";
+import { parseExpression } from "../lib/dice/dice.ts";
 import type { ParsedExpression } from "@/lib/dice/dice";
 import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
 

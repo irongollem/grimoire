@@ -1,5 +1,5 @@
 import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
-import { hasCondition, hasSaveDisadvantage } from "@/rules/conditions";
+import { hasCondition, hasSaveDisadvantage } from "../conditions.ts";
 import type { AppliedCondition } from "@/types/condition.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import type { SaveAbility } from "@/types/statBlock.types";

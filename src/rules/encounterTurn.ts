@@ -3,23 +3,23 @@ import type { MonsterSize } from "@/types/monster.types";
 import type { AppliedCondition, TurnEdge } from "@/types/condition.types";
 import type { StatBlockEntry } from "@/types/statBlock.types";
 import type { StatBlockListKey } from "@/rules/statBlock/parseAction";
-import { rechargeSucceeds } from "@/rules/combat/recharge";
-import { rollDie } from "@/lib/dice/dice";
+import { rechargeSucceeds } from "./combat/recharge.ts";
+import { rollDie } from "../lib/dice/dice.ts";
 import type { PartyMemberUpdate } from "@/types/party.types";
-import { sortCombatantsByInitiative } from "@/rules/combatantSort";
-import { applyDamage, applyHealing, betterTempHp, formHpPools } from "@/rules/hitPoints";
-import { damageOutcome, healingOutcome, UNCONSCIOUS, type DyingOutcome } from "@/rules/dying";
-import { hasCondition, sameConditions, withCondition, withoutCondition } from "@/rules/conditions";
+import { sortCombatantsByInitiative } from "./combatantSort.ts";
+import { applyDamage, applyHealing, betterTempHp, formHpPools } from "./hitPoints.ts";
+import { damageOutcome, healingOutcome, UNCONSCIOUS, type DyingOutcome } from "./dying.ts";
+import { hasCondition, sameConditions, withCondition, withoutCondition } from "./conditions.ts";
 import {
   conditionsAtTurnEdge,
   endSourcedConditions,
   holdsConcentration,
   type ConditionEvent,
   type ConditionPassResult,
-} from "@/rules/conditionDurations";
+} from "./conditionDurations.ts";
 import type { RulesetKey } from "@/types/ruleset.types";
-import { rollAllInitiativeValues } from "@/rules/encounterCombatLogic";
-import { findFirstActiveIndex, stepTurnIndex } from "@/rules/turnOrder";
+import { rollAllInitiativeValues } from "./encounterCombatLogic.ts";
+import { findFirstActiveIndex, stepTurnIndex } from "./turnOrder.ts";
 
 /**
  * The encounter turn state machine, as a pure reducer.

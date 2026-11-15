@@ -28,9 +28,15 @@ const NEUTRAL = [
 /** The core never picks a system: it takes rules as a parameter. */
 const CORE = "src/lib/dice";
 
-/** Any `@/systems/` import (static or dynamic) except the registry. */
-const SYSTEM_IMPORT = /(?:from\s+|import\s*\(\s*|import\s+)["']@\/systems\/(?!registry["'])/;
-const REGISTRY_IMPORT = /(?:from\s+|import\s*\(\s*)["']@\/systems\/registry["']/;
+/**
+ * Any import of a game-system module (static or dynamic) except the registry, through the `@/` alias or by a
+ * relative path. Relative paths with a `.ts` extension are how code shared with the edge functions imports
+ * (`src/rules/edgeImportable.test.ts`), so the alias alone no longer covers every way in. Nothing listed in NEUTRAL
+ * lives under `src/systems/`, so a relative path with a `systems/` segment can only point into it.
+ */
+const INTO_SYSTEMS = String.raw`["'](?:@\/|\.{1,2}\/(?:[^"']*\/)?)systems\/`;
+const SYSTEM_IMPORT = new RegExp(String.raw`(?:from\s+|import\s*\(\s*|import\s+)` + INTO_SYSTEMS + String.raw`(?!registry(?:\.ts)?["'])`);
+const REGISTRY_IMPORT = new RegExp(String.raw`(?:from\s+|import\s*\(\s*)` + INTO_SYSTEMS + String.raw`registry(?:\.ts)?["']`);
 const DAMAGE_TYPES_IMPORT = /(?:from\s+|import\s*\(\s*)["']@\/types\/damage\.types["']/;
 
 const SRC_ROOT = join(import.meta.dirname, "..");
@@ -51,6 +57,21 @@ function offenders(entry: string, re: RegExp): string[] {
     .filter((f) => re.test(readFileSync(f, "utf8")))
     .map((f) => relative(REPO_ROOT, f));
 }
+
+describe("what counts as importing a game system", () => {
+  it("catches a relative import into src/systems, not only the alias (a 5e rule reaching the dice core by ../../)", () => {
+    expect(SYSTEM_IMPORT.test('import { rules } from "@/systems/dnd5e/dice/rules";')).toBe(true);
+    expect(SYSTEM_IMPORT.test('import { rules } from "../../systems/dnd5e/dice/rules.ts";')).toBe(true);
+    expect(SYSTEM_IMPORT.test('const m = await import("../systems/dnd5e/currency/index.ts");')).toBe(true);
+  });
+
+  it("lets the registry through by either spelling, and leaves a sibling file alone", () => {
+    expect(SYSTEM_IMPORT.test('import { offers } from "@/systems/registry";')).toBe(false);
+    expect(SYSTEM_IMPORT.test('import { offers } from "../systems/registry.ts";')).toBe(false);
+    expect(SYSTEM_IMPORT.test('import { rollDie } from "./dice.ts";')).toBe(false);
+    expect(REGISTRY_IMPORT.test('import { offers } from "../../systems/registry.ts";')).toBe(true);
+  });
+});
 
 describe("neutral surfaces", () => {
   it.each(NEUTRAL)(

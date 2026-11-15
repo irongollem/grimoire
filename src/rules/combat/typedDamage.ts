@@ -1,4 +1,4 @@
-import { type ParsedExpression, parseExpression } from "@/lib/dice/dice";
+import { type ParsedExpression, parseExpression } from "../../lib/dice/dice.ts";
 import type { DamageType } from "@/types/damage.types";
 import type { DamagePart, Defenses, DamageDefense, DefenseBypass } from "@/types/statBlock.types";
 

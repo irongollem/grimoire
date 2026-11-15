@@ -6,12 +6,12 @@
  * keeps state mutation, persistence, and realtime orchestration and delegates
  * the actual computation here.
  */
-import { rollDie } from "@/lib/dice/dice";
-import { initiativeModifier, initiativeRoll, type InitiativeSource } from "@/rules/initiative";
+import { rollDie } from "../lib/dice/dice.ts";
+import { initiativeModifier, initiativeRoll, type InitiativeSource } from "./initiative.ts";
 import type { RulesetKey } from "@/types/ruleset.types";
-import { hitPointsToMax } from "@/lib/dice/dice";
-import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
-import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
+import { hitPointsToMax } from "../lib/dice/dice.ts";
+import { sizeToFootprint } from "../lib/battlemap/tokenFootprint.ts";
+import { resolveTokenArt } from "../lib/battlemap/tokenArt.ts";
 import type { RunCombatant, EventTrigger } from "@/types/encounter.types";
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
 import type { NpcListRow } from "@/types/npc.types";
