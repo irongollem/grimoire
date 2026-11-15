@@ -1,10 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 
-// "meshy" is managed from the Simulacrum panel (SimulacrumConfig.vue), and
-// "github" from GithubIntegrationConfig.vue — neither is an AI provider, so
-// both are deliberately absent from PROVIDERS below.
-export type KeyProvider = "openai" | "anthropic" | "gemini" | "meshy" | "github";
+// "meshy" is managed from the Simulacrum panel (SimulacrumConfig.vue),
+// "github" from GithubIntegrationConfig.vue and "typesafe" (the Jev judgment
+// model, #1061) from JudgmentModelConfig.vue. None of them is a provider a
+// campaign can choose for text or images, so all three are deliberately absent
+// from PROVIDERS below.
+export type KeyProvider = "openai" | "anthropic" | "gemini" | "meshy" | "github" | "typesafe";
 
 export interface PlatformKeyRow {
   provider: KeyProvider;

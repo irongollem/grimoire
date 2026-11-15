@@ -73,6 +73,7 @@ vi.mock("@/composables/ai/useAiUsageStats", () => ({
 
 vi.mock("@/components/admin/SimulacrumConfig.vue", () => ({ default: { template: "<div />" } }));
 vi.mock("@/components/admin/GithubIntegrationConfig.vue", () => ({ default: { template: "<div />" } }));
+vi.mock("@/components/admin/JudgmentModelConfig.vue", () => ({ default: { template: "<div />" } }));
 vi.mock("@/components/admin/EmbeddingVendorControl.vue", () => ({ default: { template: "<div />" } }));
 vi.mock("@/components/admin/PlatformKeyField.vue", () => ({ default: { template: "<div />" } }));
 
