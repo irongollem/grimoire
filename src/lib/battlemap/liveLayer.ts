@@ -3,26 +3,22 @@
 // here touches the DOM, so it can be tested with plain numbers.
 
 import { toRaw } from "vue";
-import { MAP_LIVE_VERSION, type MapLive, type MapLiveDoorState, type MapLiveGroup, type MapLiveLight, type MapLiveSprite, type MotionOverlay } from "@/types/mapLive.types";
+import { type MapLive, type MapLiveDoorState, type MapLiveGroup, type MapLiveLight, type MapLiveSprite, type MotionOverlay } from "@/types/mapLive.types";
 import { FLICKER_REACH, lightMotion, lightReachCells, PULSE_PERIOD_S, PULSE_REACH } from "@/cartographer/lights";
 import { lightMask, type LightMask } from "@/cartographer/lightMask";
 import { NO_DOOR_STATES, occludersOf } from "@/lib/battlemap/occlusion";
+import { currentVersionOf } from "@/lib/battlemap/mapLiveVersion";
 
 /**
- * The snapshot a reader may use: only the current version. A version-1 snapshot's standing bakes hold every door leaf,
- * which the live layer would draw a second time, so a site published before the doors went live reads as a plain
- * picture until it is published again (#1073). The DB may still hold 1, hence the comparison through `number`.
- *
- * Returned unwrapped from Vue's reactivity. The snapshot arrives inside a query's reactive row, and the light and
- * sight grids read its walls and lights millions of times: through the proxy each read was also a dependency to track,
- * which made one illumination grid take most of a second instead of 15 ms. Nothing inside a snapshot changes in place
- * (a re-read brings a new row), so nothing is lost by not tracking it.
+ * The snapshot a reader may use (`currentVersionOf`), returned unwrapped from Vue's reactivity. The snapshot arrives
+ * inside a query's reactive row, and the light and sight grids read its walls and lights millions of times: through
+ * the proxy each read was also a dependency to track, which made one illumination grid take most of a second instead
+ * of 15 ms. Nothing inside a snapshot changes in place (a re-read brings a new row), so nothing is lost by not
+ * tracking it.
  */
 export function currentMapLive(snapshot: MapLive | null): MapLive | null {
   if (snapshot === null) return null;
-  const plain = toRaw(snapshot);
-  const version: number = plain.version;
-  return version === MAP_LIVE_VERSION ? plain : null;
+  return currentVersionOf(toRaw(snapshot));
 }
 
 export interface OverlayFrame {

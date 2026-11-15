@@ -24,8 +24,8 @@
 // admits. This file does not re-derive that rule; a rejection surfaces to
 // the DM as a toast instead, same as `LocationDoor`'s endpoint guard.
 
-import type { CellKey } from "@/types/dungeonMap.types";
-import type { LocationType } from "@/types/location.types";
+import type { CellKey } from "./dungeonMap.types.ts";
+import type { LocationType } from "./location.types.ts";
 
 // ── A region has a role (#868) ───────────────────────────────────────────────
 //

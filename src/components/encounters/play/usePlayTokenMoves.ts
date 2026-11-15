@@ -15,7 +15,7 @@ import type { PartyMember } from "@/types/party.types";
 import type { PathLine } from "./PlayMovePath.vue";
 import type { usePlayMapState } from "./usePlayMapState";
 import { footprintOf, movementUsedOf } from "./playRoster";
-import { combatantSpeed } from "./playSpeed";
+import { combatantSpeed } from "@/lib/encounters/combatantSpeed";
 import type { PlayTool } from "./playTypes";
 
 /** What token moves read of the map's state: a fight's (`usePlayMapState`) or an exploring party's. */

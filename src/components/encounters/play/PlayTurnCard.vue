@@ -98,7 +98,8 @@ import type { PartyMember } from "@/types/party.types";
 import PlayPcAttacks from "./PlayPcAttacks.vue";
 import PlayPortrait from "./PlayPortrait.vue";
 import { adjacentFoes, movementUsedOf } from "./playRoster";
-import { combatantSpeed, moveBarShares } from "./playSpeed";
+import { combatantSpeed } from "@/lib/encounters/combatantSpeed";
+import { moveBarShares } from "./playSpeed";
 
 /**
  * The right column while it is a combatant's turn (#1125 decision 10, frame 10): read top to bottom, move, act,

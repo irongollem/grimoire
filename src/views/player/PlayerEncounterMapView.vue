@@ -150,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, toRaw } from "vue";
 import { usePlayerVisibleLocation } from "@/composables/locations/useLocations";
 import { liveState } from "@/composables/encounters/useEncounterLive";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
@@ -206,7 +206,7 @@ const parentIdRef = computed(() =>
 const { data: parentLocation } = usePlayerVisibleLocation(parentIdRef);
 // The room's traced cells only focus the DM's camera; the phone draws the whole plan, so it needs no regions.
 const surface = computed(() =>
-  resolveBattleSurface({ encounterLocation: encounterLocation.value, parent: parentLocation.value, regions: [] }),
+  resolveBattleSurface({ encounterLocation: encounterLocation.value, parent: parentLocation.value, regions: [], plain: toRaw }),
 );
 // The place whose map is on screen: the memory is read, and the snapshot taken, for this place and not the encounter's.
 const location = computed(() => surface.value?.mapLocation ?? null);

@@ -1,7 +1,7 @@
 // The phone battle map's own turn and move (#1125 decision 14): whose turn it is for the header, the character's speed
 // and feet used, and the tap-a-token-then-a-square plan with its confirm. The view wires the map to it.
 import { computed, ref, type ComputedRef, type Ref } from "vue";
-import { combatantSpeed } from "@/components/encounters/play/playSpeed";
+import { combatantSpeed } from "@/lib/encounters/combatantSpeed";
 import type { PathLine } from "@/components/encounters/play/PlayMovePath.vue";
 import { actsBefore, moveTo, ownMove, type OwnMove } from "@/components/player/playerMapMove";
 import { liveState, updateCombatantPosition } from "@/composables/encounters/useEncounterLive";

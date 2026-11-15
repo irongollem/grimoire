@@ -1,4 +1,4 @@
-import { cellKey, type CellKey } from "@/types/dungeonMap.types";
+import { cellKey, type CellKey } from "../../types/dungeonMap.types.ts";
 
 /**
  * Which half-cell units of a room are taken. Tokens claim space in half cells so a Tiny token (half a square a side,
