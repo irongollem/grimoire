@@ -2,8 +2,8 @@
  * Where the party stands on a site's grid, and where the fight leaves them.
  * Pure data in and out, so it runs wherever a fight is advanced.
  */
-import type { ExploreParty } from "@/types/campaign.types";
-import type { RunCombatant } from "@/types/encounter.types";
+import type { ExploreParty } from "../../types/exploreParty.types.ts";
+import type { RunCombatant } from "../../types/encounter.types.ts";
 
 export type ExploreCell = { x: number; y: number };
 

@@ -17,8 +17,10 @@ import {
   type CommandRequest,
   type FightRow,
   type FightWrite,
+  type FightLifecycleWrite,
   type LoadedFight,
 } from "./handler";
+import type { ExploreParty } from "../../../src/types/exploreParty.types";
 
 function row(over: Partial<FightRow> = {}): FightRow {
   return {
@@ -30,13 +32,24 @@ function row(over: Partial<FightRow> = {}): FightRow {
     events_fired: [],
     lair_fired_rounds: [],
     applied_command_ids: [],
+    is_running: false,
+    ended_at: null,
     ...over,
   };
 }
 
 interface Harness {
   deps: BatchDeps;
-  store: { row: FightRow };
+  /** The encounter's fight row; null before `open` has made one. */
+  store: { row: FightRow | null };
+  /** Other fights of the campaign: encounter id to whether it is running. */
+  others: Record<string, boolean>;
+  companions: Array<{ id: string; patch: unknown }>;
+  explore: { before: ExploreParty | null; written: ExploreParty[] };
+  /** What `loadEndContext` treats as this campaign's places. */
+  sites: string[];
+  /** The fight's batch writes, as `saveFight` received them (lifecycle fields included). */
+  saved: Array<FightWrite & Partial<FightLifecycleWrite>>;
   log: string[];
   saves: number;
   loads: number;
@@ -47,11 +60,16 @@ interface Harness {
 }
 
 function harness(
-  initial: FightRow,
+  initial: FightRow | null,
   options: { events?: EncounterEvent[]; party?: PartyIngestRow[]; d6?: number; d20?: number } = {},
 ): Harness {
   const h: Harness = {
-    store: { row: structuredClone(initial) },
+    store: { row: initial ? structuredClone(initial) : null },
+    others: {},
+    companions: [],
+    explore: { before: null, written: [] },
+    sites: [],
+    saved: [],
     log: [],
     saves: 0,
     loads: 0,
@@ -64,7 +82,7 @@ function harness(
     async loadFight() {
       h.loads += 1;
       const loaded: LoadedFight = {
-        row: structuredClone(h.store.row),
+        row: h.store.row ? structuredClone(h.store.row) : null,
         events: options.events ?? [],
         lairEnabled: false,
         lairOwnerDefId: null,
@@ -78,15 +96,24 @@ function harness(
     async loadPartyRows() {
       return structuredClone(options.party ?? []);
     },
-    async saveFight(_id: string, expected: number, next: FightWrite) {
+    async createFight(_encounterId, first) {
+      if (h.store.row) return null;
+      h.store.row = { id: "row-new", version: 1, ...structuredClone(first) };
+      h.log.push("create");
+      return { id: "row-new", version: 1 };
+    },
+    async saveFight(_id, expected, next) {
       h.saves += 1;
+      h.saved.push(structuredClone(next));
       if (h.rival.run) {
         const run = h.rival.run;
         if (!h.rival.always) h.rival.run = null;
         run();
       }
-      if (h.store.row.version !== expected) return null;
-      h.store.row = { ...h.store.row, ...structuredClone(next), version: expected + 1 };
+      if (!h.store.row || h.store.row.version !== expected) return null;
+      // Only the columns the database has: the lifecycle's started_at and session_id are not on the fixture row.
+      const { started_at: _s, session_id: _i, magical_darkness: _m, ...columns } = structuredClone(next);
+      h.store.row = { ...h.store.row, ...columns, version: expected + 1 };
       h.log.push("save");
       return { version: h.store.row.version };
     },
@@ -94,6 +121,22 @@ function harness(
       h.log.push("persist");
       h.persisted.push({ id, patch });
     },
+    async persistCompanion(id, patch) {
+      h.log.push("companion");
+      h.companions.push({ id, patch });
+    },
+    async stopOtherRunningFights() {
+      h.log.push("stop_others");
+      for (const key of Object.keys(h.others)) h.others[key] = false;
+    },
+    async loadEndContext(siteId) {
+      return { exploreParty: h.explore.before, siteId: siteId !== null && h.sites.includes(siteId) ? siteId : null };
+    },
+    async setExploreParty(party) {
+      h.log.push("explore_party");
+      h.explore.written.push(party);
+    },
+    nowIso: () => "2026-11-15T20:00:00.000Z",
     async postBroadcast(message) {
       h.log.push("broadcast");
       h.broadcasts.push(message);
@@ -108,12 +151,13 @@ function harness(
 /** Another writer's committed change: edits the stored row and raises the version, as the database trigger does. */
 function rivalEdit(h: Harness, edit: (r: FightRow) => void): () => void {
   return () => {
-    edit(h.store.row);
-    h.store.row.version += 1;
+    edit(h.store.row!);
+    h.store.row!.version += 1;
   };
 }
 
 const batch = (id: string, ...commands: CommandRequest["commands"]): CommandRequest => ({ encounterId: "enc-1", batchId: id, commands });
+const stored = (h: Harness): FightRow => h.store.row!;
 const hpOf = (r: { combatants_live: { instance_id: string; hp: number }[] }, id: string) => r.combatants_live.find((c) => c.instance_id === id)?.hp;
 
 describe("runBatch", () => {
@@ -124,8 +168,8 @@ describe("runBatch", () => {
     expect(result.applied).toBe(true);
     expect(result.version).toBe(8);
     expect(hpOf(result.state, "brug")).toBe(26);
-    expect(hpOf(h.store.row, "brug")).toBe(26);
-    expect(h.store.row.applied_command_ids).toEqual(["b1"]);
+    expect(hpOf(stored(h), "brug")).toBe(26);
+    expect(stored(h).applied_command_ids).toEqual(["b1"]);
   });
 
   it("retries a lost race on the fresh state, so the command lands on top of the other writer's change", async () => {
@@ -138,8 +182,8 @@ describe("runBatch", () => {
     // Two loads, two save attempts. Brug 30 - 4 = 26 and the goblin keeps the rival's 7: neither change replaced the other.
     expect(h.loads).toBe(2);
     expect(h.saves).toBe(2);
-    expect(hpOf(h.store.row, "brug")).toBe(26);
-    expect(hpOf(h.store.row, "goblin")).toBe(7);
+    expect(hpOf(stored(h), "brug")).toBe(26);
+    expect(hpOf(stored(h), "goblin")).toBe(7);
     // The rival's update raised 7 to 8; ours then raised it to 9.
     expect(result.version).toBe(9);
   });
@@ -170,9 +214,9 @@ describe("runBatch", () => {
     const h = harness(row({ applied_command_ids: old }));
     await runBatch(batch("fresh", { type: "next_turn" }), h.deps);
     // 64 kept + 1 new = 65, so the oldest ("old-0") goes and the new one is last.
-    expect(h.store.row.applied_command_ids).toHaveLength(64);
-    expect(h.store.row.applied_command_ids[0]).toBe("old-1");
-    expect(h.store.row.applied_command_ids.at(-1)).toBe("fresh");
+    expect(stored(h).applied_command_ids).toHaveLength(64);
+    expect(stored(h).applied_command_ids[0]).toBe("old-1");
+    expect(stored(h).applied_command_ids.at(-1)).toBe("fresh");
   });
 
   it("performs effects only after the save, and once even when a race was lost first", async () => {
@@ -249,11 +293,11 @@ describe("runBatch", () => {
     // The wrap into round 2 starts the dragon's turn, and its spent Recharge 5-6 rolls a d6: a 6 brings it back.
     const back = harness(start(), { d6: 6 });
     await runBatch(batch("b1", { type: "next_turn" }), back.deps);
-    expect(back.store.row.combatants_live[0].action_uses?.["Fire Breath"].used).toBe(0);
+    expect(stored(back).combatants_live[0].action_uses?.["Fire Breath"].used).toBe(0);
     // A 2 is outside 5-6, so it stays spent.
     const spent = harness(start(), { d6: 2 });
     await runBatch(batch("b1", { type: "next_turn" }), spent.deps);
-    expect(spent.store.row.combatants_live[0].action_uses?.["Fire Breath"].used).toBe(1);
+    expect(stored(spent).combatants_live[0].action_uses?.["Fire Breath"].used).toBe(1);
   });
 
   it("fires an event alone, with fire_event", async () => {
@@ -271,8 +315,8 @@ describe("runBatch", () => {
       h.deps,
     );
     expect(result.version).toBe(8);
-    expect(hpOf(h.store.row, "brug")).toBe(26);
-    expect(h.store.row.combatants_live.find((c) => c.instance_id === "goblin")?.curses).toEqual(["hex"]);
+    expect(hpOf(stored(h), "brug")).toBe(26);
+    expect(stored(h).combatants_live.find((c) => c.instance_id === "goblin")?.curses).toEqual(["hex"]);
   });
 
   it("fails if add_combatants mid-fight hands the turn to a newcomer who sorts in ahead of the acting combatant", async () => {
@@ -306,15 +350,192 @@ describe("runBatch", () => {
     const h = harness(row({ combatants_live: [pc("nessa", { hp: 12, max_hp: 20, initiative: 15 })] }), { party: [nessaRow] });
     const result = await runBatch(batch("b1", { type: "sync_party" }), h.deps);
     expect(result.applied).toBe(true);
-    expect(hpOf(h.store.row, "nessa")).toBe(18);
+    expect(hpOf(stored(h), "nessa")).toBe(18);
     // Adopting a row is never written back to it.
     expect(h.persisted).toEqual([]);
   });
 
   it("answers a missing fight with a 404", async () => {
-    const h = harness(row());
-    h.deps.loadFight = async () => null;
+    const h = harness(null);
     await expect(runBatch(batch("b1", { type: "next_turn" }), h.deps)).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+const opened = (over: Partial<FightRow> = {}) => row({ current_round: 0, is_running: false, ...over });
+const roster = () => [pc("nessa", { hp: 20, max_hp: 20, initiative: null as unknown as number }), combatant("goblin", { hp: 7, max_hp: 7 })];
+
+describe("fight lifecycle", () => {
+  it("fails if open on an encounter with no row does not create the fight unstarted and hidden from players", async () => {
+    const h = harness(null);
+    const result = await runBatch(batch("o1", { type: "open", combatants: roster() }), h.deps);
+    // A new fight is round 0, turn 0, saved but not shown to players, with this batch remembered.
+    expect(stored(h)).toMatchObject({ current_round: 0, active_combatant_index: 0, is_running: false, ended_at: null, applied_command_ids: ["o1"] });
+    expect(stored(h).combatants_live.map((c) => c.instance_id)).toEqual(["nessa", "goblin"]);
+    expect(result).toMatchObject({ applied: true, version: 1, is_running: false, ended_at: null });
+  });
+
+  it("fails if open primes no legendary pool when caps are given", async () => {
+    const h = harness(null);
+    await runBatch(batch("o1", { type: "open", combatants: roster(), legendaryCaps: { goblin: 3 } }), h.deps);
+    expect(stored(h).combatants_live.find((c) => c.instance_id === "goblin")).toMatchObject({ legendary_action_cap: 3, legendary_actions_remaining: 3 });
+  });
+
+  it("fails if a second open resets a fight that is under way (a reload must not wipe the damage)", async () => {
+    const h = harness(null);
+    await runBatch(batch("o1", { type: "open", combatants: roster() }), h.deps);
+    await runBatch(batch("d1", { type: "adjust_hp", instanceId: "goblin", delta: -3 }), h.deps);
+    const before = structuredClone(stored(h));
+    const again = await runBatch(batch("o2", { type: "open", combatants: roster() }), h.deps);
+    // The goblin took 3 of its 7 and still has 4; nothing was written, so the version and the id list stand.
+    expect(hpOf(again.state, "goblin")).toBe(4);
+    expect(again.applied).toBe(false);
+    expect(stored(h)).toEqual(before);
+  });
+
+  it("fails if open on an ended fight carries anything of the old one over", async () => {
+    const old = row({
+      ended_at: "2026-11-14T10:00:00.000Z", current_round: 4, active_combatant_index: 1, events_fired: ["r2"], lair_fired_rounds: [20],
+      applied_command_ids: ["old-1"], combatants_live: [combatant("ogre", { hp: 0, max_hp: 59 })],
+    });
+    const h = harness(old);
+    const result = await runBatch(batch("o9", { type: "open", combatants: roster() }), h.deps);
+    // Round 0, turn 0, no fired events, no lair rounds, only this batch's id, the new roster, not ended, not shown.
+    expect(stored(h)).toMatchObject({
+      current_round: 0, active_combatant_index: 0, events_fired: [], lair_fired_rounds: [], applied_command_ids: ["o9"], ended_at: null, is_running: false,
+    });
+    expect(stored(h).combatants_live.map((c) => c.instance_id)).toEqual(["nessa", "goblin"]);
+    expect(result.applied).toBe(true);
+    // Session and start time go with the old fight, and so do its spheres of darkness.
+    expect(h.saved[0]).toMatchObject({ started_at: null, session_id: null, magical_darkness: [] });
+  });
+
+  it("fails if go_live does not show the fight, does not stop the campaign's other live fight, or clears no rolls before combat", async () => {
+    const h = harness(opened({ combatants_live: [pc("nessa", { hp: 20, max_hp: 20, initiative: 15 }), combatant("goblin", { initiative: 5 })] }));
+    h.others = { "enc-other": true, "enc-idle": false };
+    const result = await runBatch(batch("g1", { type: "go_live", sessionId: "sess-1" }), h.deps);
+    expect(result).toMatchObject({ is_running: true, ended_at: null });
+    expect(h.saved[0]).toMatchObject({ is_running: true, session_id: "sess-1", started_at: "2026-11-15T20:00:00.000Z" });
+    expect(h.others).toEqual({ "enc-other": false, "enc-idle": false });
+    // Round 0: the player's roll from the last session is blanked, on the fight and on their sheet; the goblin's stays.
+    expect(stored(h).combatants_live.map((c) => c.initiative)).toEqual([null, 5]);
+    expect(h.persisted).toEqual([{ id: "pm-nessa", patch: { current_initiative: null } }]);
+    // The fight's own row first, the other tables after.
+    expect(h.log).toEqual(["save", "persist", "stop_others"]);
+  });
+
+  it("fails if go_live in round 2 wipes the rolls that are the turn order", async () => {
+    const h = harness(row({ current_round: 2, combatants_live: [pc("nessa", { hp: 20, max_hp: 20, initiative: 15 })] }));
+    await runBatch(batch("g1", { type: "go_live", sessionId: null }), h.deps);
+    expect(stored(h).combatants_live[0].initiative).toBe(15);
+    expect(h.persisted).toEqual([]);
+    expect(stored(h).is_running).toBe(true);
+  });
+
+  it("fails if end_combat does not write each player's hit points, conditions without due flags, the companion and the party's standing", async () => {
+    const poisoned = { name: "Poisoned", due: { save: true } };
+    const h = harness(row({
+      is_running: true,
+      combatants_live: [
+        pc("nessa", { hp: 9, max_hp: 20, conditions: [poisoned], curses: ["hex"], death_saves: { successes: 1, failures: 2 }, position: { x: 3, y: 4 } }),
+        combatant("wolf", { type: "player", companion_id: "comp-1", hp: 5, max_hp: 11, conditions: [{ name: "Prone" }] }),
+        combatant("goblin", { hp: 0, max_hp: 7 }),
+      ],
+    }));
+    h.sites = ["site-1"];
+    const result = await runBatch(batch("e1", { type: "end_combat", siteId: "site-1" }), h.deps);
+    // Nessa: 9 hp, Poisoned with its due flag removed, the hex, 1/2 death saves, and her initiative blank.
+    expect(h.persisted).toEqual([{
+      id: "pm-nessa",
+      patch: { current_hp: 9, conditions: [{ name: "Poisoned" }], curses: ["hex"], current_initiative: null, death_save_successes: 1, death_save_failures: 2 },
+    }]);
+    // The wolf walks into the next fight at the 5 hit points combat left it.
+    expect(h.companions).toEqual([{ id: "comp-1", patch: { current_hp: 5, conditions: [{ name: "Prone" }] } }]);
+    // The party stands where Nessa's token is; the wolf has no token and the goblin is no player.
+    expect(h.explore.written).toEqual([{ site_id: "site-1", positions: { "pm-nessa": { x: 3, y: 4 } } }]);
+    expect(result).toMatchObject({ is_running: false, ended_at: "2026-11-15T20:00:00.000Z" });
+    expect(stored(h)).toMatchObject({ is_running: false, ended_at: "2026-11-15T20:00:00.000Z" });
+    expect(h.log[0]).toBe("save");
+  });
+
+  it("fails if end_combat writes a site position for a place that is not this campaign's", async () => {
+    const h = harness(row({ combatants_live: [pc("nessa", { hp: 9, max_hp: 20, position: { x: 3, y: 4 } })] }));
+    await runBatch(batch("e1", { type: "end_combat", siteId: "someone-elses" }), h.deps);
+    expect(h.explore.written).toEqual([]);
+  });
+
+  it("fails if end_combat writes back stale hit points over what a player changed on their own sheet", async () => {
+    const sheet: PartyIngestRow = {
+      id: "pm-nessa", current_hp: 20, temp_hp: 0, current_initiative: 15, conditions: [], concentration: null,
+      wildshape_state: null, death_save_successes: 0, death_save_failures: 0,
+    };
+    const h = harness(row({ combatants_live: [pc("nessa", { hp: 9, max_hp: 20, initiative: 15 })] }), { party: [sheet] });
+    await runBatch(batch("e1", { type: "end_combat" }), h.deps);
+    // The sheet says 20 (healed there); writing the fight's 9 would undo it.
+    expect(h.persisted).toMatchObject([{ id: "pm-nessa", patch: { current_hp: 20 } }]);
+  });
+
+  it("fails if abandon writes hit points, or leaves the fight open", async () => {
+    const h = harness(row({ is_running: true, combatants_live: [pc("nessa", { hp: 9, max_hp: 20, initiative: 15 })] }));
+    const result = await runBatch(batch("a1", { type: "abandon" }), h.deps);
+    expect(result).toMatchObject({ is_running: false, ended_at: "2026-11-15T20:00:00.000Z" });
+    // Only the roll is cleared: nothing about hit points, conditions or curses reaches the sheet.
+    expect(h.persisted).toEqual([{ id: "pm-nessa", patch: { current_initiative: null } }]);
+    expect(h.companions).toEqual([]);
+    expect(h.explore.written).toEqual([]);
+    // The fight keeps the 9 hit points it had.
+    expect(hpOf(stored(h), "nessa")).toBe(9);
+  });
+
+  it("fails if a fight command or go_live is accepted on an ended fight", async () => {
+    const ended = row({ ended_at: "2026-11-14T10:00:00.000Z" });
+    const h = harness(ended);
+    await expect(runBatch(batch("b1", { type: "next_turn" }), h.deps)).rejects.toMatchObject({ status: 409 });
+    await expect(runBatch(batch("b2", { type: "go_live", sessionId: null }), h.deps)).rejects.toMatchObject({ status: 409 });
+    await expect(runBatch(batch("b3", { type: "end_combat" }), h.deps)).rejects.toMatchObject({ status: 409 });
+    await expect(runBatch(batch("b4", { type: "abandon" }), h.deps)).rejects.toMatchObject({ status: 409 });
+    expect(h.saves).toBe(0);
+  });
+
+  it("fails if a lifecycle command without a fight is anything but a 404", async () => {
+    const h = harness(null);
+    await expect(runBatch(batch("g1", { type: "go_live", sessionId: null }), h.deps)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("fails if a lifecycle batch sent twice is applied twice", async () => {
+    const h = harness(row({ combatants_live: [pc("nessa", { hp: 9, max_hp: 20, initiative: 15 })] }));
+    const first = await runBatch(batch("e1", { type: "end_combat" }), h.deps);
+    const second = await runBatch(batch("e1", { type: "end_combat" }), h.deps);
+    // The retry is answered with the ended fight, not refused for it, and the sheet was written once.
+    expect(first.applied).toBe(true);
+    expect(second).toMatchObject({ applied: false, ended_at: "2026-11-15T20:00:00.000Z" });
+    expect(h.persisted).toHaveLength(1);
+    expect(h.saves).toBe(1);
+  });
+
+  it("fails if a write after the fight's save that keeps failing is thrown instead of reported", async () => {
+    const h = harness(row({ combatants_live: [pc("nessa", { hp: 9, max_hp: 20 })] }));
+    let calls = 0;
+    h.deps.persistPartyMember = async () => {
+      calls += 1;
+      throw new Error("down");
+    };
+    const result = await runBatch(batch("e1", { type: "end_combat" }), h.deps);
+    expect(calls).toBe(3);
+    expect(result.effectFailures).toEqual(["player_persist: down"]);
+    expect(result.ended_at).not.toBeNull();
+  });
+
+  it("refuses a lifecycle command mixed with another, and open with no or too many combatants", () => {
+    const send = (commands: unknown[]) => () => validateRequest({ encounterId: "e", batchId: "b", commands });
+    const one = { instance_id: "a", type: "monster", name: "A", hp: 1, max_hp: 1 };
+    expect(send([{ type: "abandon" }, { type: "next_turn" }])).toThrow(FightCommandError);
+    expect(send([{ type: "next_turn" }, { type: "end_combat" }])).toThrow(FightCommandError);
+    expect(send([{ type: "go_live", sessionId: null }, { type: "go_live", sessionId: null }])).toThrow(FightCommandError);
+    expect(send([{ type: "go_live" }])).toThrow(FightCommandError);
+    expect(send([{ type: "open", combatants: [] }])).toThrow(FightCommandError);
+    expect(send([{ type: "open", combatants: Array.from({ length: 61 }, () => one) }])).toThrow(FightCommandError);
+    expect(send([{ type: "open", combatants: Array.from({ length: 60 }, () => one) }])).not.toThrow();
+    expect(send([{ type: "end_combat", siteId: 4 }])).toThrow(FightCommandError);
   });
 });
 

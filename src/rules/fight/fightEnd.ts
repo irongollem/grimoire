@@ -4,10 +4,10 @@
  * site. The runner (or a server) does the writes; this is the deciding half of
  * the runner's "End combat".
  */
-import type { AppliedCondition } from "@/types/condition.types";
-import type { ExploreParty } from "@/types/campaign.types";
-import type { RunCombatant } from "@/types/encounter.types";
-import type { PartyMemberUpdate } from "@/types/party.types";
+import type { AppliedCondition } from "../../types/condition.types.ts";
+import type { ExploreParty } from "../../types/exploreParty.types.ts";
+import type { RunCombatant } from "../../types/encounter.types.ts";
+import type { PartyMemberUpdate } from "../../types/party.types.ts";
 import { withoutDue } from "../conditions.ts";
 import { partyAfterFight } from "./explorePositions.ts";
 

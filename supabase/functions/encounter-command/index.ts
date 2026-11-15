@@ -15,6 +15,7 @@ import { isUuid } from "../../../src/lib/library/contentIdentity.ts";
 import { libraryMonsterRow } from "../../../src/lib/library/libraryMonsterRow.ts";
 import { DEFAULT_RULESET } from "../../../src/types/ruleset.types.ts";
 import type { EncounterEvent } from "../../../src/types/encounter.types.ts";
+import type { ExploreParty } from "../../../src/types/exploreParty.types.ts";
 import type { Monster } from "../../../src/types/monster.types.ts";
 import type { NpcListRow } from "../../../src/types/npc.types.ts";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
@@ -138,14 +139,13 @@ serve(withCors(async (req: Request) => {
       async loadFight(encounterId) {
         const { data, error } = await admin
           .from("encounter_state")
-          .select("id, version, combatants_live, current_round, active_combatant_index, events_fired, lair_fired_rounds, applied_command_ids")
+          .select("id, version, combatants_live, current_round, active_combatant_index, events_fired, lair_fired_rounds, applied_command_ids, is_running, ended_at")
           .eq("encounter_id", encounterId)
           .eq("campaign_id", campaignId)
           .maybeSingle();
         if (error) throw new Error(`encounter_state: ${error.message}`);
-        if (!data) return null;
         const loaded: LoadedFight = {
-          row: data as FightRow,
+          row: data ? (data as FightRow) : null,
           events,
           lairEnabled: encounter.lair_enabled,
           lairOwnerDefId: encounter.lair_owner_def_id,
@@ -155,6 +155,18 @@ serve(withCors(async (req: Request) => {
           npcs,
         };
         return loaded;
+      },
+      async createFight(encounterId, first) {
+        const { data, error } = await admin
+          .from("encounter_state")
+          .insert({ ...first, encounter_id: encounterId, campaign_id: campaignId, user_id: userId })
+          .select("id, version");
+        // The one row per encounter is a unique constraint: losing the insert race is not a failure, the caller loads the winner's row.
+        if (error) {
+          if (error.code === "23505") return null;
+          throw new Error(`encounter_state insert: ${error.message}`);
+        }
+        return { id: data[0].id as string, version: data[0].version as number };
       },
       async loadPartyRows(ids) {
         const { data, error } = await admin
@@ -180,6 +192,38 @@ serve(withCors(async (req: Request) => {
         const { error } = await admin.from("party_members").update(patch).eq("id", id).eq("campaign_id", campaignId);
         if (error) throw new Error(`party_members update: ${error.message}`);
       },
+      async persistCompanion(id, patch) {
+        const { error } = await admin.from("companions").update(patch).eq("id", id).eq("campaign_id", campaignId);
+        if (error) throw new Error(`companions update: ${error.message}`);
+      },
+      async stopOtherRunningFights(encounterId) {
+        // One live fight per campaign, so a player's single-live-row view cannot flip between two.
+        const { error } = await admin
+          .from("encounter_state")
+          .update({ is_running: false })
+          .eq("campaign_id", campaignId)
+          .eq("is_running", true)
+          .neq("encounter_id", encounterId);
+        if (error) throw new Error(`encounter_state stop: ${error.message}`);
+      },
+      async loadEndContext(siteId) {
+        const { data, error } = await admin.from("campaigns").select("explore_party").eq("id", campaignId).maybeSingle();
+        if (error) throw new Error(`campaigns: ${error.message}`);
+        if (!data) throw new FightCommandError(404, "Campaign not found.");
+        let site: string | null = null;
+        if (siteId !== null) {
+          // Resolved by the caller through the map stack; here it only has to be a place of this campaign.
+          const { data: place, error: placeError } = await admin
+            .from("locations").select("id").eq("id", siteId).eq("campaign_id", campaignId).maybeSingle();
+          if (placeError) throw new Error(`locations: ${placeError.message}`);
+          site = place ? siteId : null;
+        }
+        return { exploreParty: data.explore_party as ExploreParty | null, siteId: site };
+      },
+      async setExploreParty(party) {
+        const { error } = await admin.from("campaigns").update({ explore_party: party }).eq("id", campaignId);
+        if (error) throw new Error(`campaigns update: ${error.message}`);
+      },
       async postBroadcast(message) {
         const { error } = await admin.from("campaign_messages").insert({
           campaign_id: campaignId,
@@ -195,6 +239,7 @@ serve(withCors(async (req: Request) => {
       rollD20: () => secureDie(20),
       rollD6: () => secureDie(6),
       now: idClock(),
+      nowIso: () => new Date().toISOString(),
     };
 
     return json(await runBatch(request, deps));

@@ -5,19 +5,15 @@ import type { GameSystemKey } from "@/systems/registry";
 import type { CurrencyConfig } from "@/lib/currency/currency";
 
 import type { TableShows } from "@/types/bookNook.types";
+import type { ExploreParty } from "./exploreParty.types.ts";
+
+/** Re-exported: the shape lives in its own file so the server can read it without this module's imports. */
+export type { ExploreParty };
 
 /** Per-campaign house-rule toggles. Shape is open-ended; known keys are typed. */
 export interface CampaignOptionalRules {
   /** PHB multiclass prereqs waived — any character can multiclass regardless of ability scores. */
   ignore_multiclass_prereqs?: boolean;
-}
-
-/** Where the party stands on one site's grid while exploring it, in the site map's image cells (the cell space a fight's
- *  tokens use, so a fight started there seats everyone where they stood). `campaigns.explore_party`; one site at a time. */
-export interface ExploreParty {
-  site_id: string;
-  /** party_members.id -> top-left corner of the character's square. */
-  positions: Record<string, { x: number; y: number }>;
 }
 
 export interface Campaign {
