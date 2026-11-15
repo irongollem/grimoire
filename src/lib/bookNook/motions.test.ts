@@ -28,8 +28,9 @@ describe("spin in poseAt", () => {
   // Bug: a period not rounded to whole turns per loop leaves the part at a different angle when the loop restarts.
   it("completes whole turns per loop, so the loop closes without a seam", () => {
     const odd: Motion = { kind: "spin", period: 5 }; // 12 / 5 = 2.4 turns: rounds to 2
-    expect(poseOf([odd], 12).rotate).toBeCloseTo(poseOf([odd], 0).rotate + 2 * Math.PI * 2, 9);
-    expect(Math.sin(poseOf([odd], 12).rotate)).toBeCloseTo(Math.sin(poseOf([odd], 0).rotate), 9);
+    expect(poseOf([odd], 12).rotate).toBeCloseTo(poseOf([odd], 0).rotate, 9);
+    // A quarter of the loop in: two whole turns are half a turn round; 2.4 unrounded would be 0.6 of one.
+    expect(poseOf([odd], 3).rotate).toBeCloseTo(Math.PI, 9);
   });
 
   // Bug: ignoring `reverse` turns every spin clockwise.

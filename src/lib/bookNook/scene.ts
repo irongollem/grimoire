@@ -405,7 +405,12 @@ export function poseAt(scene: Scene, layer: Layer, t: number): Pose {
       continue;
     }
     const b = a + (m.phase ?? 0) * TAU;
-    if (m.kind === "spin") pose.rotate += m.reverse ? -b : b;
+    if (m.kind === "spin") {
+      // Taken round one turn: the same on screen, but an angle that grew by whole turns every loop never repeated
+      // exactly, and on a TV left playing for hours it would grow without bound.
+      const turn = b % TAU;
+      pose.rotate += m.reverse ? -turn : turn;
+    }
     else if (m.kind === "sway") pose.rotate += ((m.angle * Math.PI) / 180) * Math.sin(b);
     else if (m.kind === "bob") pose.dy += m.dy * Math.sin(b);
     else {
