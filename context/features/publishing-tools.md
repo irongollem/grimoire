@@ -700,6 +700,17 @@ Players cannot create or edit rules.
 
 ---
 
+
+### Manual question search (#1061)
+
+The Manual tab's substring search matches title, summary, keywords and page text against the whole query, so a typed question ("how do I hide an NPC from the players") matches nothing. When the search finds nothing, a judgment model (TypeSafe's Jev) is asked which pages the question is about, and up to three show under a **Suggested pages** heading in place of "No matches". The substring search is unchanged and wins whenever it finds something. AI help for authoring (epic #910) is separate: it lives on the generator buttons, and nothing else answers free-text questions over the manual.
+
+- **When it runs** (`useManualSuggestions`, `src/composables/rules/`): the substring search is empty, the trimmed query is at least 8 characters, the active campaign has AI on (`useCampaignStore().isAiEnabled`) and typing has paused for 600 ms. One request per distinct query; a newer query supersedes the older, and a failed request shows nothing. While it waits the sidebar shows a `ListSkeleton`.
+- **The function** (`supabase/functions/search-manual`, pure parts in `ranking.ts`): the caller must be the campaign's owner or a member of any role, the campaign must have `ai_enabled === true` (else 403: nothing typed goes to a model with AI off), child accounts are refused fail-closed, and it shares the `ai_generation` rate limit. Without a `typesafe` platform key, or on any Jev failure, it answers `{ suggestions: [], judged: false }`.
+- **What is sent**: the question, plus each page's id, title and summary (never page text). One Choice question whose options are the page ids and a `none` option. A page is offered when its probability is at least `SUGGEST_MIN_PROBABILITY` (0.08, a first setting awaiting a live check), at most three, best first, and none at all when `none` leads with 0.5 or more. An id the model returns that was not sent is dropped.
+- **Cost**: platform-paid and free to the user, recorded through `recordFreeGeneration` as `entity_judgment` under `JEV_MODEL`.
+- **Limits**: query 8 to 300 characters; 1 to 150 pages; ids unique, at most 80 characters, and never `none`; titles at most 120; summaries over 300 are cut. Live check on 15 Nov 2026: twelve typed questions each put the right page first (often at 0.9 or more), and an off-topic one ("what does the weather in tokyo look like") put `none` at 1.00. About 4,250 input tokens a question, because all 87 pages are the options.
+
 ## Key Capabilities / USPs
 
 - **All output is print-ready without external software.** Card Forge, The Mint and character sheets print through the browser's print dialog; a Scriptorium book downloads as a real PDF made by the `render-pdf` edge function (Cloudflare Browser Run), so it no longer depends on the reader's browser or print settings (#565).

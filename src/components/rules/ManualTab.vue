@@ -27,7 +27,24 @@
           :label="page.title"
           @click="selectPage(page.id)"
         />
-        <p v-if="!searchResults.length" class="text-caption text-muted-foreground italic px-1">No matches.</p>
+        <template v-if="!searchResults.length">
+          <ListSkeleton v-if="isSuggesting" variant="stack" :count="3" />
+          <template v-else-if="suggestedPages.length">
+            <p class="px-2.5 pt-1 text-eyebrow font-bold text-muted-foreground">Suggested pages</p>
+            <AppButton
+              v-for="page in suggestedPages"
+              :key="page.id"
+              variant="menu"
+              size="body"
+              block
+              :active="selectedId === page.id"
+              :class="selectedId === page.id ? 'font-semibold' : ''"
+              :label="page.title"
+              @click="selectPage(page.id)"
+            />
+          </template>
+          <p v-else class="text-caption text-muted-foreground italic px-1">No matches.</p>
+        </template>
       </template>
 
       <template v-else>
@@ -116,6 +133,8 @@ import { useIsMobile } from "@/composables/useBreakpoint";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
+import { useManualSuggestions } from "@/composables/rules/useManualSuggestions";
 
 const route = useRoute();
 const router = useRouter();
@@ -163,6 +182,17 @@ const searchResults = computed(() => {
       p.html.toLowerCase().includes(q),
   );
 });
+
+// A whole question matches no page text. When the substring search is empty,
+// a judgment model (campaign AI on only) suggests the pages it is about.
+const { suggestedIds, isWaiting: isSuggesting } = useManualSuggestions(
+  () => rulesUi.manualSearch,
+  allPages,
+  () => searchResults.value.length > 0,
+);
+const suggestedPages = computed(() =>
+  suggestedIds.value.flatMap((id) => allPages.value.find((p) => p.id === id) ?? []),
+);
 
 const selectedPage = computed(() => allPages.value.find((p) => p.id === selectedId.value));
 const selectedSection = computed(() =>
