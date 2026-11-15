@@ -131,86 +131,7 @@ describe("useEncounterLive loading", () => {
   });
 });
 
-describe("goLive", () => {
-  const rowOf = (id: string) => fake.rows("encounter_state").find((r) => r.encounter_id === id);
-
-  // A second go-live of the same encounter upserts onto the same row, so darkness
-  // left from the previous fight would survive into the new one. Doors are the map's now, not the fight's (#1134).
-  it("starts a repeat fight clean: no magical darkness", async () => {
-    fake.seed("encounter_state", [
-      stateRow("encounter-1", {
-        is_running: false,
-        magical_darkness: [{ id: "z1", x: 1, y: 1, radius: 15 }],
-        events_fired: ["old"],
-      }),
-    ]);
-    const { goLive } = useEncounterLive(() => "encounter-1");
-    await flushPromises();
-
-    await goLive({ round: 1, activeIndex: 0, combatants: [] });
-
-    expect(rowOf("encounter-1")).toMatchObject({
-      is_running: true,
-      magical_darkness: [],
-      events_fired: [],
-    });
-    expect(fake.rows("encounter_state")).toHaveLength(1);
-  });
-
-  it("files the fight under the session log row, the caller and the campaign, and reports whether it started the session", async () => {
-    session.started = true;
-    const { goLive } = useEncounterLive(() => "encounter-1");
-    await flushPromises();
-
-    const result = await goLive({ round: 2, activeIndex: 1, combatants: [tokenAt("a", null)] });
-
-    expect(result).toEqual({ startedSession: true });
-    expect(rowOf("encounter-1")).toMatchObject({
-      session_id: "session-1",
-      user_id: "user-1",
-      campaign_id: "campaign-1",
-      current_round: 2,
-      active_combatant_index: 1,
-    });
-    expect(liveState.value?.encounter_id).toBe("encounter-1");
-  });
-
-  it("keeps one live encounter per campaign: stops the others there, leaves another campaign's fight running", async () => {
-    fake.seed("encounter_state", [
-      stateRow("encounter-0"),
-      stateRow("elsewhere", { campaign_id: "campaign-2" }),
-    ]);
-    const { goLive } = useEncounterLive(() => "encounter-1");
-    await flushPromises();
-
-    await goLive({ round: 1, activeIndex: 0, combatants: [] });
-
-    expect(rowOf("encounter-0")?.is_running).toBe(false);
-    expect(rowOf("elsewhere")?.is_running).toBe(true);
-    expect(rowOf("encounter-1")?.is_running).toBe(true);
-  });
-
-  it("does nothing without an active campaign", async () => {
-    session.activeCampaignId = null;
-    const { goLive } = useEncounterLive(() => "encounter-1");
-    await flushPromises();
-
-    expect(await goLive({ round: 1, activeIndex: 0, combatants: [] })).toEqual({ startedSession: false });
-    expect(fake.rows("encounter_state")).toEqual([]);
-  });
-
-  it("throws the upsert's error and leaves the other fight running", async () => {
-    fake.seed("encounter_state", [stateRow("encounter-0")]);
-    const { goLive } = useEncounterLive(() => "encounter-1");
-    await flushPromises();
-    fake.failNext("encounter_state", { message: "denied" });
-
-    await expect(goLive({ round: 1, activeIndex: 0, combatants: [] })).rejects.toMatchObject({ message: "denied" });
-    expect(rowOf("encounter-0")?.is_running).toBe(true);
-  });
-});
-
-describe("pushing state", () => {
+describe("the map's own state", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
@@ -220,32 +141,7 @@ describe("pushing state", () => {
     await vi.advanceTimersByTimeAsync(0);
     return api;
   }
-  const base = { round: 4, activeIndex: 2, combatants: [] as RunCombatant[], eventsFired: ["e1"] };
   const updates = () => fake.calls.filter((c) => c.target === "encounter_state" && c.op === "update");
-
-  it("collapses a burst of pushes into one write of the last state", async () => {
-    const { schedulePush } = await live();
-    schedulePush({ ...base, round: 2 });
-    schedulePush({ ...base, round: 3 });
-    schedulePush(base);
-    await vi.advanceTimersByTimeAsync(400);
-    expect(updates()).toHaveLength(1);
-    expect(fake.rows("encounter_state")[0]).toMatchObject({ current_round: 4, active_combatant_index: 2, events_fired: ["e1"] });
-    expect(liveState.value).toMatchObject({ current_round: 4 });
-  });
-
-  it("lets a position written by a map window win over the runner's stale one", async () => {
-    const { schedulePush } = await live({
-      combatants_live: [tokenAt("moved", { x: 5, y: 5 }), tokenAt("unplaced", null)],
-    });
-    schedulePush({ ...base, combatants: [tokenAt("moved", { x: 0, y: 0 }), tokenAt("unplaced", { x: 1, y: 1 })] });
-    await vi.advanceTimersByTimeAsync(400);
-    const stored = fake.rows("encounter_state")[0]!.combatants_live as RunCombatant[];
-    expect(stored.map((c) => [c.instance_id, c.position])).toEqual([
-      ["moved", { x: 5, y: 5 }],
-      ["unplaced", { x: 1, y: 1 }],
-    ]);
-  });
 
   // #1120: a second map window writes the map's own state. Riding the roster
   // push, it wrote its stale copy of the roster over the runner's last change.
@@ -267,48 +163,25 @@ describe("pushing state", () => {
     expect(fake.rows("encounter_state")[0]).toMatchObject({ magical_darkness: [{ id: "z2", x: 2, y: 2, radius: 15 }] });
   });
 
-  // Leaving the runner for the battle map unmounts it, and dropping its pending
-  // push kept the last HP change from the players.
-  it("sends a pending push when the runner unmounts, rather than dropping it", async () => {
+  // Leaving the runner for the battle map unmounts it, and dropping a pending
+  // push kept the last sphere of darkness from the players.
+  it("sends a pending map push when the window unmounts, rather than dropping it", async () => {
     fake.seed("encounter_state", [stateRow("encounter-1")]);
     let api!: ReturnType<typeof useEncounterLive>;
     const wrapper = mount(defineComponent({ setup() { api = useEncounterLive(() => "encounter-1"); return () => null; } }));
     await vi.advanceTimersByTimeAsync(0);
-    api.schedulePush({ ...base, round: 7 });
+    api.scheduleMapPush({ magicalDarkness: [{ id: "z9", x: 1, y: 1, radius: 15 }] });
     wrapper.unmount();
     await vi.advanceTimersByTimeAsync(0);
-    expect(fake.rows("encounter_state")[0]!.current_round).toBe(7);
+    expect(fake.rows("encounter_state")[0]!.magical_darkness).toEqual([{ id: "z9", x: 1, y: 1, radius: 15 }]);
   });
 
-  it("writes nothing when no encounter is live", async () => {
-    const { schedulePush } = useEncounterLive(() => "encounter-1");
+  it("writes nothing when there is no row to write to", async () => {
+    const { scheduleMapPush } = useEncounterLive(() => "encounter-1");
     await vi.advanceTimersByTimeAsync(0);
-    schedulePush(base);
+    scheduleMapPush({ magicalDarkness: [] });
     await vi.advanceTimersByTimeAsync(400);
     expect(updates()).toEqual([]);
-  });
-});
-
-describe("endLive", () => {
-  it("stops only this encounter and clears the live state", async () => {
-    fake.seed("encounter_state", [stateRow("encounter-1"), stateRow("encounter-2")]);
-    const { endLive } = useEncounterLive(() => "encounter-1");
-    await flushPromises();
-    await endLive();
-    expect(fake.rows("encounter_state").map((r) => [r.encounter_id, r.is_running])).toEqual([
-      ["encounter-1", false],
-      ["encounter-2", true],
-    ]);
-    expect(liveState.value).toBeNull();
-  });
-
-  it("keeps the fight on screen when stopping it fails", async () => {
-    fake.seed("encounter_state", [stateRow("encounter-1")]);
-    const { endLive } = useEncounterLive(() => "encounter-1");
-    await flushPromises();
-    fake.failNext("encounter_state", { message: "denied" });
-    await expect(endLive()).rejects.toMatchObject({ message: "denied" });
-    expect(liveState.value?.encounter_id).toBe("encounter-1");
   });
 });
 
@@ -493,6 +366,16 @@ describe("following the live row", () => {
     expect(liveState.value?.combatants_live[0]?.position).toEqual({ x: 4, y: 2 });
     await moving;
     expect(moves).toEqual([{ p_encounter_state_id: "state-encounter-1", p_instance_id: "g1", p_position: { x: 4, y: 2 } }]);
+  });
+
+  // Every run is a saved row (#1201): a token is placed before the fight is shown to the players.
+  it("fails if a token cannot be placed on a fight that is not live yet", async () => {
+    const moves: unknown[] = [];
+    fake.onRpc("update_combatant_position", (args) => { moves.push(args); return null; });
+    const { api } = await mountLive(true, { is_running: false, combatants_live: [tokenAt("g1", null)] });
+    await api.moveToken("g1", { x: 4, y: 2 });
+    expect(moves).toHaveLength(1);
+    expect(liveState.value?.combatants_live[0]?.position).toEqual({ x: 4, y: 2 });
   });
 
   it("puts a refused move back where the row has it, and says so", async () => {

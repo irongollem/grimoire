@@ -66,8 +66,10 @@ export type LifecycleCommand =
   | { type: "go_live"; sessionId: string | null }
   /** `siteId` is the site the fight is anchored in, resolved by the caller through the map stack; the server only checks it is this campaign's place. */
   | { type: "end_combat"; siteId?: string | null }
-  | { type: "abandon" };
-export const LIFECYCLE_TYPES: ReadonlySet<string> = new Set(["open", "go_live", "end_combat", "abandon"]);
+  | { type: "abandon" }
+  /** The DM turns Go Live off: the players' screens leave the fight, which goes on. Nothing else about it changes. */
+  | { type: "go_private" };
+export const LIFECYCLE_TYPES: ReadonlySet<string> = new Set(["open", "go_live", "end_combat", "abandon", "go_private"]);
 export type BatchCommand = FightCommand | SyncPartyCommand | LifecycleCommand;
 
 export const MAX_ADDED_COMBATANTS = 30;
@@ -339,7 +341,9 @@ async function attempt(request: CommandRequest, loaded: LoadedFight, row: FightR
         state,
         partyRow,
         // The spell the fight last knew the member concentrating on, so a spell dropped on the sheet ends what it held.
-        { live: state.started, lastConcentration: held ? (held.concentration?.spellName ?? null) : undefined },
+        // "Live" is whether the players' screens are in this fight (the lobby included), not whether combat has
+        // started: a player rolls initiative in the lobby, and a row read before the lobby opens still carries last session's roll.
+        { live: row.is_running, lastConcentration: held ? (held.concentration?.spellName ?? null) : undefined },
         fightDeps,
       );
       state = result.state;
@@ -354,6 +358,17 @@ async function attempt(request: CommandRequest, loaded: LoadedFight, row: FightR
     effects.push(...result.effects);
   }
   return { state, effects };
+}
+
+/** Whether a write would leave the fight exactly as the row has it (the batch id aside). */
+function sameFight(row: FightRow, write: FightWrite): boolean {
+  return (
+    row.current_round === write.current_round &&
+    row.active_combatant_index === write.active_combatant_index &&
+    JSON.stringify(row.combatants_live) === JSON.stringify(write.combatants_live) &&
+    JSON.stringify(row.events_fired) === JSON.stringify(write.events_fired) &&
+    JSON.stringify(row.lair_fired_rounds) === JSON.stringify(write.lair_fired_rounds)
+  );
 }
 
 /** A write to another table is tried this many times before it is given up on. */
@@ -505,6 +520,15 @@ async function runLifecycle(
     return resultOf(true, saved.version, next, next, [], failures);
   }
 
+  if (command.type === "go_private") {
+    // Only the flag: the roster, the turn and the rolls are the fight's, and it is not over.
+    const state = buildState(loaded, row);
+    const next = { ...writeOf(state, row.applied_command_ids, request.batchId), is_running: false } satisfies FightWrite & Partial<FightLifecycleWrite>;
+    const saved = await deps.saveFight(row.id, row.version, next);
+    if (!saved) return null;
+    return resultOf(true, saved.version, { is_running: false, ended_at: row.ended_at }, next, [], []);
+  }
+
   if (command.type === "abandon") {
     // Hit points and conditions stay as they were; only the rolls, which belonged to this fight, are cleared.
     const state = buildState(loaded, row);
@@ -550,11 +574,20 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
       continue;
     }
 
+    const syncOnly = request.commands.length === 1 && request.commands[0].type === "sync_party";
     if (!row) throw new FightCommandError(404, "This encounter has no fight.");
-    if (row.ended_at !== null) throw new FightCommandError(409, "This fight has ended.");
+    if (row.ended_at !== null) {
+      // The runner asks for a sync whenever a character's row rings, and ending a fight writes those rows: the
+      // sync that follows finds the fight over. That is nothing lost, so it is answered, not refused.
+      if (syncOnly) return resultOf(false, row.version, row, row, [], []);
+      throw new FightCommandError(409, "This fight has ended.");
+    }
 
     const { state, effects } = await attempt(request, loaded, row, deps);
     const write = writeOf(state, row.applied_command_ids, request.batchId);
+    // Most syncs find the sheets as the fight already has them (the ring was this fight's own write to a sheet
+    // coming back). Saving anyway would raise the version and ring every screen for nothing, on every hit.
+    if (syncOnly && sameFight(row, write)) return resultOf(false, row.version, row, row, [], []);
     const saved = await deps.saveFight(row.id, row.version, write);
     if (!saved) continue;
 

@@ -54,18 +54,20 @@ export function usePlayMapState(
 
   const following = computed(() => toValue(mode) === "follower");
 
-  // While live, both windows draw the live row, which the doorbell keeps current: the runner pushes
-  // HP, turns and conditions into it, and every battle map, the players' included, writes token
-  // positions into it. Before going live there is no row, and only the DM's own tab has a fight.
+  // Every run is a saved row (#1201), live or not, and both windows draw it: the server saves the runner's
+  // commands into it, and every battle map, the players' included, writes token positions into it. The row
+  // is read for the map's own sake, so a click in the runner reaches the tokens once the server has answered
+  // (the runner's list shows it at once). Only the moment before the row is first read falls back to the store.
+  const row = computed(() => (liveState.value?.encounter_id === encounterId.value ? liveState.value : null));
   const combatants = computed<RunCombatant[]>(() => {
-    if (isLive.value && liveState.value) return liveState.value.combatants_live;
+    if (row.value) return row.value.combatants_live;
     return following.value ? [] : store.combatants;
   });
-  const round = computed(() => (isLive.value && liveState.value ? liveState.value.current_round : store.round));
-  // The live row's turn indexes the initiative-sorted order, as on the player map.
+  const round = computed(() => (row.value ? row.value.current_round : store.round));
+  // The row's turn indexes the initiative-sorted order, as on the player map.
   const activeInstanceId = computed(() => {
-    if (!isLive.value || !liveState.value) return following.value ? null : (store.activeCombatant?.instance_id ?? null);
-    return sortCombatantsByInitiative(liveState.value.combatants_live)[liveState.value.active_combatant_index]?.instance_id ?? null;
+    if (!row.value) return following.value ? null : (store.activeCombatant?.instance_id ?? null);
+    return sortCombatantsByInitiative(row.value.combatants_live)[row.value.active_combatant_index]?.instance_id ?? null;
   });
   const factions = computed(() => {
     if (!following.value) return store.factions;
@@ -86,16 +88,11 @@ export function usePlayMapState(
     toast.error(toast.fromError(error, "Couldn't move that token."));
   }
 
-  // Live, a move goes straight to the row through the position function, which lets the DM move any
-  // token; the runner's own pushes keep the row's position. Before going live the move stays in the
-  // runner's store, which Go live sends.
+  // A move goes straight to the row through the position function, which lets the DM move any token, live
+  // or not. A position is not a command: the server's own saves keep the row's, and the runner's store takes
+  // it from the row's next read.
   function moveCombatant(instanceId: string, position: { x: number; y: number }) {
-    if (isLive.value) {
-      moveToken(instanceId, position).catch(reportMoveFailure);
-      return;
-    }
-    const target = store.combatants.find((c) => c.instance_id === instanceId);
-    if (target) target.position = position;
+    moveToken(instanceId, position).catch(reportMoveFailure);
   }
 
   // ── Fog of war ──────────────────────────────────────────────────────────
@@ -172,7 +169,7 @@ export function usePlayMapState(
       hit === null
         ? [...darknessZones.value, { id: crypto.randomUUID(), x, y, radius }]
         : darknessZones.value.filter((z) => z.id !== hit);
-    if (isLive.value) scheduleMapPush({ magicalDarkness: darknessZones.value });
+    if (row.value) scheduleMapPush({ magicalDarkness: darknessZones.value });
   }
 
   // ── Doors ───────────────────────────────────────────────────────────────
@@ -205,21 +202,21 @@ export function usePlayMapState(
   // runner's store, which does not hear players' moves.
   function seedRoomIfNeeded() {
     const s = surface.value;
-    const row = liveState.value;
-    if (!s || !row) return;
+    const seated = row.value;
+    if (!s || !seated) return;
 
     // A fight started while exploring this site stands everyone where they were (#1125 decision 9); whoever has no
     // explored square, or the room has to seat, falls through to the room's cells below.
-    const walked = seatFromExploring(row.combatants_live, campaign.activeCampaign?.explore_party ?? null, s.mapLocation.id, s.calibration.cells_per_image_width);
+    const walked = seatFromExploring(seated.combatants_live, campaign.activeCampaign?.explore_party ?? null, s.mapLocation.id, s.calibration.cells_per_image_width);
     const seeded = seedTokenPositions(walked, s.focusCells);
     seeded.forEach((c, i) => {
-      if (c.position && !row.combatants_live[i]?.position) moveToken(c.instance_id, c.position).catch(reportMoveFailure);
+      if (c.position && !seated.combatants_live[i]?.position) moveToken(c.instance_id, c.position).catch(reportMoveFailure);
     });
   }
 
   // A combatant spawned mid-fight joins the roster without a place; the count changing seats it like the rest.
   watch(
-    () => [isLive.value, surface.value, liveState.value?.combatants_live.length, following.value] as const,
+    () => [isLive.value, surface.value, row.value?.combatants_live.length, following.value] as const,
     ([live, , , follower]) => {
       if (live && !follower) seedRoomIfNeeded();
     },

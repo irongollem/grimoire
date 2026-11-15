@@ -32,6 +32,7 @@
         :class="ICON_TOUCH_TARGET"
         :icon="IconChevronLeft"
         aria-label="Previous turn"
+        :disabled="store.busy"
         @click="emit('prev')"
       />
       <AppButton
@@ -62,6 +63,7 @@
         size="lg"
         :icon-right="IconChevronRight"
         label="Next"
+        :loading="store.busy"
         @click="emit('next')"
       />
     </template>

@@ -15,10 +15,8 @@ const h = await vi.hoisted(async () => {
     replace: vi.fn(),
     push: vi.fn(),
     confirm: vi.fn(),
-    goLive: vi.fn(),
-    endLive: vi.fn(),
-    setExploreParty: vi.fn(),
-    liveRow: vueRef<{ encounter_id: string; combatants_live: unknown[] } | null>(null),
+    lifecycle: vi.fn(),
+    ensureSession: vi.fn(),
     isLive: vueRef(false),
     loaded: vueRef(true),
     site: vueRef<{ id: string; name: string } | null>(null),
@@ -45,23 +43,19 @@ vi.mock("@/composables/encounters/useCombatExploration", () => ({
     mapPlaceId: ref("map-place"),
   }),
 }));
-vi.mock("@/composables/campaign/useCampaigns", () => ({ useSetExploreParty: () => ({ mutateAsync: h.setExploreParty }) }));
+vi.mock("@/composables/campaign/useCampaignSession", () => ({ ensureCampaignSession: h.ensureSession }));
 vi.mock("@/composables/party/useActiveParty", () => ({ useActiveParty: () => ({ data: ref([]) }) }));
-vi.mock("@/composables/encounters/useCompanions", () => ({
-  useCompanions: () => ({ data: ref([]) }),
-  useUpdateCompanion: () => ({ mutateAsync: vi.fn() }),
-}));
+vi.mock("@/composables/encounters/useCompanions", () => ({ useCompanions: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useUpdateNpc: () => ({ mutateAsync: vi.fn() }) }));
 // The point of the test: not live, and not able to go live.
 vi.mock("@/composables/encounters/useEncounterLive", () => ({
-  useEncounterLive: () => ({ isLive: h.isLive, liveStateLoaded: h.loaded, goLive: h.goLive, schedulePush: vi.fn(), endLive: h.endLive }),
-  get liveState() {
-    return h.liveRow;
-  },
+  useEncounterLive: () => ({ isLive: h.isLive, liveStateLoaded: h.loaded }),
+}));
+// The transport is tested on its own (useFightCommands.test.ts); here only what the runner sends through it.
+vi.mock("@/composables/encounters/useFightCommands", () => ({
+  useFightCommands: () => ({ lifecycle: h.lifecycle, requestPartySync: vi.fn() }),
 }));
 vi.mock("@/composables/encounters/useDiscoveredMonsters", () => ({ useAutoDiscoverMonsters: () => ({ mutateAsync: vi.fn() }) }));
-vi.mock("@/composables/campaign/useCampaignMessages", () => ({ useCampaignMessages: () => ({ sendSystemMessages: vi.fn() }) }));
-vi.mock("@/composables/campaign/chatSendErrors", () => ({ useChatSendFailure: () => ({ reportChatFailure: vi.fn() }) }));
 vi.mock("@/composables/dice/usePromptedRoll", () => ({ usePromptedRoll: () => ({ promptRoll: vi.fn() }) }));
 vi.mock("@/composables/rules/useOptionalRules", () => ({
   useOptionalRules: () => ({ data: ref(undefined) }),
@@ -71,9 +65,6 @@ vi.mock("@/composables/encounters/useTurnTimerConfig", () => ({
   useTurnTimerConfig: () => ({ turnTimerSeconds: ref(null), turnResetKey: ref("k") }),
 }));
 vi.mock("@/lib/audio/audioTriggers", () => ({ requestAudioTheme: vi.fn(), releaseAudioTheme: vi.fn() }));
-vi.mock("@/composables/encounters/useRunnerPartySync", () => ({
-  useRunnerPartySync: () => ({ clearPartyInitiatives: vi.fn(), writePartyMember: vi.fn() }),
-}));
 vi.mock("@/composables/encounters/useEvergreenWildShape", () => ({ useEvergreenWildShape: vi.fn() }));
 
 import EncounterRunner from "./EncounterRunner.vue";
@@ -117,9 +108,11 @@ describe("EncounterRunner", () => {
     h.site.value = null;
     h.isLive.value = false;
     h.loaded.value = true;
-    for (const fn of [h.replace, h.push, h.confirm, h.goLive, h.endLive, h.setExploreParty]) fn.mockReset();
+    for (const fn of [h.replace, h.push, h.confirm, h.lifecycle, h.ensureSession]) fn.mockReset();
     h.confirm.mockResolvedValue(true);
-    h.goLive.mockResolvedValue({ startedSession: false });
+    h.lifecycle.mockResolvedValue({ effectFailures: [] });
+    h.ensureSession.mockResolvedValue({ id: "session-1", started: false });
+    useCampaignStore().activeCampaignId = "camp-1";
   });
 
   // A DM who is not live (or has no campaign, so no Go Live) could never begin combat.
@@ -240,11 +233,12 @@ describe("EncounterRunner", () => {
 
   // #1133 decision 7: the Explore screen's "Start it" lands here with ?live=1.
   describe("arriving with ?live=1", () => {
-    it("goes live once and drops the query", async () => {
+    it("goes live once, in the session it ensured, and drops the query", async () => {
       h.query.value = { live: "1", keep: "x" };
       mountRunner();
       await flushPromises();
-      expect(h.goLive).toHaveBeenCalledTimes(1);
+      expect(h.lifecycle).toHaveBeenCalledTimes(1);
+      expect(h.lifecycle).toHaveBeenCalledWith({ type: "go_live", sessionId: "session-1" });
       expect(h.replace).toHaveBeenCalledWith({ query: { keep: "x" } });
     });
 
@@ -253,8 +247,7 @@ describe("EncounterRunner", () => {
       h.isLive.value = true;
       mountRunner();
       await flushPromises();
-      expect(h.goLive).not.toHaveBeenCalled();
-      expect(h.endLive).not.toHaveBeenCalled();
+      expect(h.lifecycle).not.toHaveBeenCalled();
       expect(h.replace).toHaveBeenCalledWith({ query: {} });
     });
 
@@ -263,67 +256,79 @@ describe("EncounterRunner", () => {
       h.loaded.value = false;
       mountRunner();
       await flushPromises();
-      expect(h.goLive).not.toHaveBeenCalled();
+      expect(h.lifecycle).not.toHaveBeenCalled();
     });
 
     it("does nothing without the query", async () => {
       mountRunner();
       await flushPromises();
-      expect(h.goLive).not.toHaveBeenCalled();
+      expect(h.lifecycle).not.toHaveBeenCalled();
       expect(h.replace).not.toHaveBeenCalled();
     });
   });
 
-  describe("ending the fight on a site (#1133 decision 7)", () => {
-    function placeHero() {
+  const handlers = (w: ReturnType<typeof mountRunner>) =>
+    (w.vm as unknown as { $: { setupState: { handleEndCombat: () => Promise<void>; handleAbandon: () => Promise<void>; handleGoLive: () => Promise<void> } } }).$.setupState;
+
+  describe("Go Live, End combat and Abandon are commands the server carries out", () => {
+    it("fails if turning Go Live off ends the fight instead of only stopping the show to the players", async () => {
+      h.isLive.value = true;
+      await handlers(mountRunner()).handleGoLive();
+      expect(h.lifecycle).toHaveBeenCalledTimes(1);
+      expect(h.lifecycle).toHaveBeenCalledWith({ type: "go_private" });
+      expect(h.push).not.toHaveBeenCalled();
+    });
+
+    it("fails if End combat names no site, or still writes the characters and the party's standing itself", async () => {
+      h.site.value = { id: "site-1", name: "The Barrow" };
       const store = useEncounterRunStore();
-      store.combatants = [{ ...combatant("h"), type: "player", party_member_id: "pm1", position: { x: 4, y: 5 } }];
+      const w = mountRunner();
+      await handlers(w).handleEndCombat();
+      expect(h.lifecycle).toHaveBeenCalledWith({ type: "end_combat", siteId: "site-1" });
+      expect(store.encounterId).toBeNull(); // the run is let go of
+      expect(h.push).toHaveBeenCalledWith("/locations/site-1/explore");
+    });
+
+    it("fails if End combat on a fight outside any site names one", async () => {
+      await handlers(mountRunner()).handleEndCombat();
+      expect(h.lifecycle).toHaveBeenCalledWith({ type: "end_combat", siteId: null });
+    });
+
+    it("fails if a refused End combat clears the run and leaves, losing the fight the server still holds", async () => {
+      h.lifecycle.mockRejectedValue(new Error("down"));
+      const store = useEncounterRunStore();
+      store.encounterId = "enc1";
+      await handlers(mountRunner()).handleEndCombat();
+      expect(store.encounterId).toBe("enc1");
+      expect(h.push).not.toHaveBeenCalled();
+    });
+
+    it("fails if Abandon is not sent as the abandon command, or does not go back to the encounter", async () => {
+      await handlers(mountRunner()).handleAbandon();
+      expect(h.lifecycle).toHaveBeenCalledWith({ type: "abandon" });
+      expect(h.push).toHaveBeenCalledWith("/encounters/enc1");
+    });
+
+    it("fails if cancelling the confirm still sends the command", async () => {
+      h.confirm.mockResolvedValue(false);
+      const w = mountRunner();
+      await handlers(w).handleEndCombat();
+      await handlers(w).handleAbandon();
+      expect(h.lifecycle).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("while a command waits for the server", () => {
+    it("fails if the turn can still be passed while the fight is busy", () => {
+      canOpenBattleMap.value = true;
+      isMobile.value = false;
+      const store = useEncounterRunStore();
       store.started = true;
       store.round = 1;
-    }
-
-    it("End combat stands the party where the fight left them", async () => {
-      h.site.value = { id: "site-1", name: "The Barrow" };
-      useCampaignStore().activeCampaign = { id: "camp-1", explore_party: null } as never;
-      placeHero();
+      store.busy = true;
       const w = mountRunner();
-      await (w.vm as unknown as { $: { setupState: { handleEndCombat: () => Promise<void> } } }).$.setupState.handleEndCombat();
-      expect(h.setExploreParty).toHaveBeenCalledWith({
-        id: "camp-1",
-        explore: { site_id: "site-1", positions: { pm1: { x: 4, y: 5 } } },
-      });
-    });
-
-    // A player moves their own token from their phone; only the live row hears it, never the runner's store.
-    it("stands the party on the squares the live row holds, not the runner's older copy", async () => {
-      h.site.value = { id: "site-1", name: "The Barrow" };
-      useCampaignStore().activeCampaign = { id: "camp-1", explore_party: null } as never;
-      placeHero();
-      h.liveRow.value = { encounter_id: "enc1", combatants_live: [{ ...combatant("h"), type: "player", party_member_id: "pm1", position: { x: 9, y: 2 } }] };
-      const w = mountRunner();
-      await (w.vm as unknown as { $: { setupState: { handleEndCombat: () => Promise<void> } } }).$.setupState.handleEndCombat();
-      expect(h.setExploreParty).toHaveBeenCalledWith({
-        id: "camp-1",
-        explore: { site_id: "site-1", positions: { pm1: { x: 9, y: 2 } } },
-      });
-      h.liveRow.value = null;
-    });
-
-    it("End combat on a fight outside any site writes no explore party", async () => {
-      useCampaignStore().activeCampaign = { id: "camp-1", explore_party: null } as never;
-      placeHero();
-      const w = mountRunner();
-      await (w.vm as unknown as { $: { setupState: { handleEndCombat: () => Promise<void> } } }).$.setupState.handleEndCombat();
-      expect(h.setExploreParty).not.toHaveBeenCalled();
-    });
-
-    it("Abandon writes no explore party", async () => {
-      h.site.value = { id: "site-1", name: "The Barrow" };
-      useCampaignStore().activeCampaign = { id: "camp-1", explore_party: null } as never;
-      placeHero();
-      const w = mountRunner();
-      await (w.vm as unknown as { $: { setupState: { handleAbandon: () => Promise<void> } } }).$.setupState.handleAbandon();
-      expect(h.setExploreParty).not.toHaveBeenCalled();
+      const next = w.findAll("button").find((b) => b.text().includes("Next turn"))!;
+      expect(next.attributes("disabled")).toBeDefined();
     });
   });
 });

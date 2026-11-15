@@ -55,7 +55,7 @@
           size="sm"
           :icon="IconChevronLeft"
           aria-label="Previous turn"
-          :disabled="store.round === 0"
+          :disabled="store.round === 0 || store.busy"
           @click="store.prevTurn()"
         />
         <span class="round-label">{{ store.round === 0 ? 'Pre-Combat' : 'Round ' + store.round }}</span>
@@ -70,6 +70,7 @@
           label="Next Turn"
           :icon-right="IconChevronRight"
           :disabled="store.round === 0"
+          :loading="store.busy"
           @click="store.nextTurn()"
         />
       </div>
@@ -247,27 +248,24 @@ import AppButton from '@/components/common/controls/AppButton.vue';
 import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
 import { useEncounter } from "@/composables/encounters/useEncounters";
 import { useCombatExploration } from "@/composables/encounters/useCombatExploration";
-import { useSetExploreParty } from "@/composables/campaign/useCampaigns";
-import { endOfFightPatches } from "@/rules/fight/fightEnd";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useActiveParty } from "@/composables/party/useActiveParty";
-import { useCompanions, useUpdateCompanion } from "@/composables/encounters/useCompanions";
+import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useUpdateNpc } from "@/composables/npcs/useNpcs";
 import { buildNpcSyncUpdate } from "@/lib/encounters/npcEncounterSync";
-import { useEncounterLive, liveState } from "@/composables/encounters/useEncounterLive";
+import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
+import { useFightCommands } from "@/composables/encounters/useFightCommands";
+import { ensureCampaignSession } from "@/composables/campaign/useCampaignSession";
 import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useAutoDiscoverMonsters } from "@/composables/encounters/useDiscoveredMonsters";
-import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
-import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { initiativeRoll } from "@/rules/initiative";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { useTurnTimerConfig } from "@/composables/encounters/useTurnTimerConfig";
 import { requestAudioTheme, releaseAudioTheme } from "@/lib/audio/audioTriggers";
-import { useRunnerPartySync } from "@/composables/encounters/useRunnerPartySync";
 import { useEvergreenWildShape } from "@/composables/encounters/useEvergreenWildShape";
 import RunnerCombatantList from "./RunnerCombatantList.vue";
 import RunnerDueConditions from "./RunnerDueConditions.vue";
@@ -299,10 +297,19 @@ const fightSite = useEncounterSite(encounterId);
 const campaign = useCampaignStore();
 const appUi = useAppUiStore();
 const toast = useToast();
-const { isLive, liveStateLoaded, goLive, schedulePush, endLive } = useEncounterLive(encounterId.value);
+const { isLive, liveStateLoaded } = useEncounterLive(encounterId.value);
 const goingLive = ref(false);
-const { sendSystemMessages } = useCampaignMessages();
-const { reportChatFailure } = useChatSendFailure();
+
+// Every change to the fight goes to the server as a command (`store.dispatch`, queued behind what the screen
+// shows at once); this keeps them moving and brings the server's answers back. It also sends the lifecycle
+// commands below: going live, going private, ending and abandoning. A fight the server will not take
+// commands for any more (ended on another device, gone) leaves the runner.
+const fight = useFightCommands(encounterId, {
+  onLost: () => {
+    releaseEncounterAudio();
+    void router.push(`/encounters/${encounterId.value}`).then(() => store.reset());
+  },
+});
 
 // The runner resolves combatants' stored monster_id (detail panel, auto-discover
 // on go-live) rather than letting the DM pick, so scoping must stay off here.
@@ -312,14 +319,12 @@ const { data: encounter } = useEncounter(encounterId);
 // Shared with the Play map (via useEncounterRoom internally): the two must never disagree
 // about which map an encounter opens on, which cells are its focus room, or when it is legal.
 const { canOpenBattleMap, battleMapDisabledReason, mapPlaceId } = useCombatExploration(encounterId);
-const { mutateAsync: setExploreParty } = useSetExploreParty();
 
 /** The table screen is the map's own, a second window for the TV; it follows this fight while it is live (#1133). */
 function openTableScreen() {
   if (mapPlaceId.value === null) return;
   window.open(`/locations/${mapPlaceId.value}/table`, "_blank", "noopener,noreferrer");
 }
-const { mutateAsync: updateCompanion } = useUpdateCompanion();
 const { mutateAsync: updateNpc } = useUpdateNpc();
 const { mutateAsync: autoDiscover } = useAutoDiscoverMonsters();
 
@@ -459,21 +464,29 @@ async function handleStartCombat() {
 
 async function handleGoLive() {
   if (isLive.value) {
-    await endLive();
+    // Stops showing the fight to the players; the fight itself goes on.
+    try {
+      await fight.lifecycle({ type: "go_private" });
+    } catch (error) {
+      toast.error(toast.fromError(error, "Couldn't stop sharing with players."));
+    }
     return;
   }
+  const campaignId = campaign.activeCampaignId;
+  if (!campaignId) return;
   goingLive.value = true;
   try {
-    // Opening the lobby: wipe last session's rolls first, so the only initiative
-    // the runner ever ingests is one made for this encounter. Going live again
-    // once combat has started is resuming it, and those rolls are the turn order.
-    if (!store.started) await clearPartyInitiatives();
-    const { startedSession } = await goLive({ round: store.round, activeIndex: store.activeIndex, combatants: store.combatants });
+    // Combat runs *inside* a session, so going live starts one if the DM has not (unnumbered; the DM can
+    // number it from the log). `session_id` is that `campaign_sessions` row, which is what makes "what did we
+    // play on Thursday" answerable from one column. See #758. The server stops the campaign's other live
+    // fight and, in the lobby, blanks last session's rolls so the only initiative a fight ever takes was made for it.
+    const session = await ensureCampaignSession(campaignId);
+    await fight.lifecycle({ type: "go_live", sessionId: session.id });
     // Going live starts the session when there isn't one, because a DM hitting
     // Run is at the table. Said out loud rather than done quietly: the session
     // is what makes NPC reveals announce themselves to players, and that is not
     // a thing to switch on behind someone's back. See #758.
-    if (startedSession) toast.info("Session started. Reveals now announce to your players.");
+    if (session.started) toast.info("Session started. Reveals now announce to your players.");
 
     // Auto-discover only revealed monsters when going live — hidden/unseen
     // combatants haven't been seen by players yet.
@@ -494,21 +507,8 @@ async function handleGoLive() {
   }
 }
 
-watch(
-  [() => store.round, () => store.activeIndex, () => store.combatants, () => store.eventsFired],
-  () => {
-    if (isLive.value) {
-      schedulePush({ round: store.round, activeIndex: store.activeIndex, combatants: store.combatants, eventsFired: store.eventsFired });
-    }
-  },
-  { deep: true },
-);
-
-// ── Bidirectional HP sync between runner and party_members ───────────────────
-// Debounced HP writes out, Realtime ingest (HP / temp HP / player-rolled
-// initiative) in, and the store's persist handler — see useRunnerPartySync.
-const { clearPartyInitiatives, writePartyMember } = useRunnerPartySync(isLive);
-// 2024 Evergreen Wild Shape: a level 20 druid regains a use on rolling initiative with none left.
+// The party's sheets reach the fight through the server (`sync_party`, see useFightCommands), and the
+// character-row writes a fight makes are the server's too, so nothing here reads or writes a party row.
 useEvergreenWildShape();
 
 // ── Live roster-NPC sync ─────────────────────────────────────────────────────
@@ -577,19 +577,6 @@ onUnmounted(() => {
   releaseEncounterAudio();
 });
 
-watch(
-  () => store.pendingBroadcasts.length,
-  async () => {
-    if (!store.pendingBroadcasts.length) return;
-    const messages = [...store.pendingBroadcasts];
-    for (const msg of messages) store.clearPendingBroadcast(msg);
-    // One insert for the whole burst; posting is best-effort from the runner.
-    await sendSystemMessages(messages, "⚔ Encounter").catch((e) =>
-      reportChatFailure(e, "post the encounter events to the chat"),
-    );
-  },
-);
-
 // The Explore screen's "Start it" arrives with ?live=1 (#1133 decision 7): go live once the live row has been read,
 // (declared after the party sync it uses, since an immediate watch runs at once) through the same handler as the button (which also ensures a session), then drop the query so a reload does not retry.
 let liveIntentHandled = false;
@@ -608,51 +595,31 @@ watch(
 
 async function handleAbandon() {
   if (!await confirm("Abandon this run? Party HP and conditions will NOT be updated.")) return;
-  await endLive();
-  releaseEncounterAudio();
-  // Abandoning keeps HP and conditions as they were, but the rolls belonged to
-  // this encounter and must not carry into the next.
   try {
-    await clearPartyInitiatives();
+    // Hit points and conditions stay as they were; the server clears the rolls, which belonged to this fight.
+    await fight.lifecycle({ type: "abandon" });
   } catch (error) {
-    toast.error(toast.fromError(error, "Couldn't clear the party's initiative."));
+    toast.error(toast.fromError(error, "Couldn't abandon the fight."));
+    return;
   }
+  releaseEncounterAudio();
   store.reset();
   router.push(`/encounters/${encounterId.value}`);
 }
 
 async function handleEndCombat() {
   if (!await confirm("End combat? Party HP, conditions, and curses will be updated.")) return;
-  // A change still waiting for its debounced write is absorbed by the
-  // authoritative write below (writePartyMember merges it); nothing is dropped.
-  // Where the tokens stand comes from the live row, read before endLive() clears it: the runner's store does not
-  // hear a player moving their own token.
-  const tokensAtEnd = liveState.value?.encounter_id === encounterId.value ? liveState.value.combatants_live : store.combatants;
-  await endLive();
+  try {
+    // The server writes what the fight leaves on each character, companion and the party's standing, from the
+    // sheets as the players last changed them and the tokens as they stand (#1133 decision 7).
+    await fight.lifecycle({ type: "end_combat", siteId: fightSite.value?.id ?? null });
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't end the fight."));
+    return;
+  }
   // Hands the music slot back to whatever was playing before the fight, or
   // stops it if the DM had nothing running.
   releaseEncounterAudio();
-
-  // Sync player combatants back to party_members. (Roster-NPC death/reveal is
-  // handled live as it happens — see the NPC-sync watcher above — not here.)
-  // Companions persist HP + conditions the same way (#569). Abandon skips this
-  // block entirely, same as it does for party members. What each write carries,
-  // and where the party stands afterwards, is decided in `rules/fight/fightEnd`.
-  const activeCampaign = campaign.activeCampaign;
-  const patches = endOfFightPatches({
-    combatants: store.combatants,
-    tokensAtEnd,
-    exploreParty: activeCampaign?.explore_party ?? null,
-    siteId: fightSite.value?.id ?? null,
-  });
-  await Promise.all([
-    ...patches.partyMembers.map(({ id, patch }) => writePartyMember(id, patch)),
-    ...patches.companions.map(({ id, patch }) => updateCompanion({ id, update: patch })),
-  ]);
-
-  // The party stands where the fight left them (#1133 decision 7). Rooms were marked explored live as they entered.
-  if (activeCampaign && patches.exploreParty) await setExploreParty({ id: activeCampaign.id, explore: patches.exploreParty });
-
   store.reset();
   // A fight anchored in a site goes back to exploring it; any other back to its encounter (#1125).
   router.push(afterFightRoute(encounterId.value, fightSite.value));

@@ -118,15 +118,6 @@ describe("runner initiative", () => {
     expect(roller).not.toHaveBeenCalled();
   });
 
-  it("ingested temp HP is taken as the sheet says it, and 0 clears it", () => {
-    const store = useEncounterRunStore();
-    store.combatants = [combatant("a")];
-    store.ingestTempHp("a", 6);
-    expect(store.combatants[0]!.temp_hp).toBe(6);
-    store.ingestTempHp("a", 0);
-    expect(store.combatants[0]!.temp_hp).toBeUndefined();
-  });
-
   it("names the party members who have not rolled, not monsters or companions", () => {
     const store = useEncounterRunStore();
     store.combatants = [
@@ -148,13 +139,6 @@ describe("runner initiative", () => {
       monster("n"),
     ];
     expect([...store.tiedInstanceIds].sort()).toEqual(["a", "m"]);
-  });
-
-  it("clearing blanks party members only", () => {
-    const store = useEncounterRunStore();
-    store.combatants = [combatant("a", { initiative: 13 }), monster("m", { initiative: 13 })];
-    store.clearPlayerInitiatives();
-    expect(store.combatants.map((c) => c.initiative)).toEqual([null, 13]);
   });
 });
 

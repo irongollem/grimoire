@@ -77,7 +77,7 @@
         Damage and healing land on whoever is selected on the map or in the list, not only on {{ c.name }}.
         <template v-if="next">Next turn moves the card to {{ next.name }}.</template>
       </p>
-      <AppButton class="mt-2" variant="primary" size="md" :icon="IconChevronRight" label="Next turn" @click="store.nextTurn()" />
+      <AppButton class="mt-2" variant="primary" size="md" :icon="IconChevronRight" label="Next turn" :loading="store.busy" @click="store.nextTurn()" />
     </section>
 
     <AppButton class="self-start" variant="link" size="inline" label="Open the full sheet" @click="emit('open-sheet')" />

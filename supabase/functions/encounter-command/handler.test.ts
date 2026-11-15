@@ -248,6 +248,18 @@ describe("runBatch", () => {
     expect(hpOf(result.state, "nessa")).toBe(15);
   });
 
+  it("fails if a player's roll in the lobby is not ingested, or a stale roll is ingested before the lobby is open", async () => {
+    const lobby = (is_running: boolean) => row({ is_running, current_round: 0, combatants_live: [pc("nessa", { hp: 20, max_hp: 20, initiative: null as unknown as number })] });
+    const rolled: PartyIngestRow = {
+      id: "pm-nessa", current_hp: 20, temp_hp: 0, current_initiative: 17, conditions: [], concentration: null,
+      wildshape_state: null, death_save_successes: 0, death_save_failures: 0,
+    };
+    const shown = await runBatch(batch("l1", { type: "sync_party" }), harness(lobby(true), { party: [rolled] }).deps);
+    expect(shown.state.combatants_live[0].initiative).toBe(17);
+    const hidden = await runBatch(batch("l2", { type: "sync_party" }), harness(lobby(false), { party: [rolled] }).deps);
+    expect(hidden.state.combatants_live[0].initiative).toBeNull();
+  });
+
   it("tries a character-row write again when it fails once (a lost write lets the next ingest undo the damage)", async () => {
     const h = harness(row({ combatants_live: [pc("nessa", { hp: 12, max_hp: 20, initiative: 15 })] }));
     let calls = 0;
@@ -353,6 +365,28 @@ describe("runBatch", () => {
     expect(hpOf(stored(h), "nessa")).toBe(18);
     // Adopting a row is never written back to it.
     expect(h.persisted).toEqual([]);
+  });
+
+  it("does not save a party sync that finds the sheets as the fight has them (a write and a ring to every screen for nothing)", async () => {
+    const nessaRow: PartyIngestRow = {
+      id: "pm-nessa", current_hp: 12, temp_hp: 0, current_initiative: 15, conditions: [], concentration: null,
+      wildshape_state: null, death_save_successes: 0, death_save_failures: 0,
+    };
+    const h = harness(row({ combatants_live: [pc("nessa", { hp: 12, max_hp: 20, initiative: 15 })] }), { party: [nessaRow] });
+    const before = h.store.row?.version;
+    const result = await runBatch(batch("b1", { type: "sync_party" }), h.deps);
+    expect(result.applied).toBe(false);
+    expect(h.saves).toBe(0);
+    expect(result.version).toBe(before);
+  });
+
+  it("answers a party sync on an ended fight instead of refusing it (ending a fight rings the sheets it wrote)", async () => {
+    const h = harness(row({ ended_at: "2026-11-15T12:00:00Z", combatants_live: [pc("nessa", { hp: 12, max_hp: 20, initiative: 15 })] }));
+    const result = await runBatch(batch("b1", { type: "sync_party" }), h.deps);
+    expect(result.applied).toBe(false);
+    expect(h.saves).toBe(0);
+    // A real command on the ended fight is still refused.
+    await expect(runBatch(batch("b2", { type: "next_turn" }), h.deps)).rejects.toMatchObject({ status: 409 });
   });
 
   it("answers a missing fight with a 404", async () => {
@@ -484,6 +518,29 @@ describe("fight lifecycle", () => {
     expect(h.explore.written).toEqual([]);
     // The fight keeps the 9 hit points it had.
     expect(hpOf(stored(h), "nessa")).toBe(9);
+  });
+
+  it("fails if go_private ends the fight, clears the rolls, or leaves it shown to the players", async () => {
+    const h = harness(row({ is_running: true, current_round: 2, combatants_live: [pc("nessa", { hp: 9, max_hp: 20, initiative: 15 })] }));
+    const result = await runBatch(batch("p1", { type: "go_private" }), h.deps);
+    expect(result).toMatchObject({ applied: true, is_running: false, ended_at: null });
+    // The fight goes on exactly as it was: same round, same rolls, no write to any character.
+    expect(stored(h)).toMatchObject({ is_running: false, ended_at: null, current_round: 2 });
+    expect(stored(h).combatants_live[0]).toMatchObject({ hp: 9, initiative: 15 });
+    expect(h.persisted).toEqual([]);
+    expect(h.companions).toEqual([]);
+    // A retry of the same batch is answered, not applied again.
+    const again = await runBatch(batch("p1", { type: "go_private" }), h.deps);
+    expect(again.applied).toBe(false);
+    expect(h.saves).toBe(1);
+  });
+
+  it("fails if go_private is accepted on an ended fight or with no fight, or mixed with another command", async () => {
+    const ended = harness(row({ ended_at: "2026-11-14T10:00:00.000Z" }));
+    await expect(runBatch(batch("p2", { type: "go_private" }), ended.deps)).rejects.toMatchObject({ status: 409 });
+    const none = harness(null);
+    await expect(runBatch(batch("p3", { type: "go_private" }), none.deps)).rejects.toMatchObject({ status: 404 });
+    expect(() => validateRequest({ encounterId: "e", batchId: "b", commands: [{ type: "go_private" }, { type: "next_turn" }] })).toThrow(FightCommandError);
   });
 
   it("fails if a fight command or go_live is accepted on an ended fight", async () => {

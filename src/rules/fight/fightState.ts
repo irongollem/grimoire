@@ -25,7 +25,7 @@ export interface FightState extends EncounterTurnState {
  */
 export type FightEffect =
   | EncounterTurnEvent
-  /** A line for the table: the store puts it on `pendingBroadcasts`, a server posts it to the chat. */
+  /** A line for the table: the server posts it to the chat; the browser never does. */
   | { type: "broadcast"; message: string }
   /** Combatants an event brought into the fight. They are already in the returned state; this says it happened. */
   | { type: "spawned"; combatants: RunCombatant[] };

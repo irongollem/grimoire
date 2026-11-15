@@ -1,9 +1,8 @@
 import { ref, computed, watch, onUnmounted, toValue, type MaybeRefOrGetter } from "vue";
-import { supabase, getCurrentUser } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { useCampaignStore } from "@/stores/campaign";
-import { ensureCampaignSession } from "@/composables/campaign/useCampaignSession";
-import type { EncounterState, MagicalDarknessZone, RunCombatant, RunningEncounterState } from "@/types/encounter.types";
+import type { EncounterState, MagicalDarknessZone, RunningEncounterState } from "@/types/encounter.types";
 
 // ── Module-level singleton for running encounters ──────────────────────────────
 let stopRunRings: (() => void) | null = null;
@@ -114,16 +113,14 @@ const liveStateLoaded = ref(false);
 let stopPlayerRings: (() => void) | null = null;
 
 // ── DM writes ──────────────────────────────────────────────────────────────────
-// Three kinds of write reach the live row, and each owns its own columns:
-//   - the roster (round, turn, combatants, fired events), written only by the
-//     runner, which owns the run;
-//   - token positions, written one combatant at a time by
-//     `update_combatant_position` from any battle map, the DM's and the players';
-//   - the map's own state (magical darkness, doors), written by the DM's
-//     battle map without touching the roster.
-// A second map window follows the run rather than owning it (#1120), so it writes
-// positions and map state only: pushing its copy of the roster would undo the
-// runner's last change.
+// The fight itself (roster, turn, fired events, going live, ending) is never written from here: the
+// runner sends commands to the server, which saves the row (`useFightCommands`, #1201). What is left
+// are the two writes that are not commands:
+//   - token positions, written one combatant at a time by `update_combatant_position` from any
+//     battle map, the DM's and the players';
+//   - the map's own state (magical darkness), written by the DM's battle map without touching the
+//     roster.
+// Both show at once and are written behind it; a read of the row waits for them (see `follow`).
 
 /** One debounced write: a burst collapses into the last call, and `flush` sends it now. */
 function debounced() {
@@ -148,7 +145,6 @@ function debounced() {
     },
   };
 }
-const rosterPush = debounced();
 const mapPush = debounced();
 let pendingMapPatch: MapPatch = {};
 let writesInFlight = 0;
@@ -160,7 +156,7 @@ interface MapPatch {
 }
 
 function writesPending(): boolean {
-  return rosterPush.pending || mapPush.pending || writesInFlight > 0;
+  return mapPush.pending || writesInFlight > 0;
 }
 
 async function trackWrite<T>(write: () => Promise<T>): Promise<T> {
@@ -185,13 +181,12 @@ async function trackWrite<T>(write: () => Promise<T>): Promise<T> {
 // second window is the one the runner shows.
 //
 // A read never lands over this tab's own pending write. The tab holds a change
-// the row does not have yet (a door, a ring of HP), and adopting the
-// older row would flash it back, or hand the runner a roster behind its own. Such
-// a read waits for the writes to settle and is made again; the write's own ring
-// would bring one, but a failed write rings nothing.
+// the row does not have yet (a token just dragged, a sphere of darkness), and adopting the
+// older row would flash it back. Such a read waits for the writes to settle and is made
+// again; the write's own ring would bring one, but a failed write rings nothing.
 const followers = new Map<string, { refs: number; reread: () => void; stop: () => void }>();
 
-/** Bumped each time a followed read is adopted, so a runner can tell a change made elsewhere from its own. */
+/** Bumped each time a followed read is adopted: the runner's transport takes the row from it (`useFightCommands`). */
 export const liveRevision = ref(0);
 
 function follow(encounterId: string, campaignId: string): () => void {
@@ -277,93 +272,6 @@ export function useEncounterLive(
 
   const isLive = computed(() => liveState.value?.encounter_id === toValue(encounterId) && liveState.value?.is_running === true);
 
-  async function goLive(state: {
-    round: number;
-    activeIndex: number;
-    combatants: RunCombatant[];
-  }): Promise<{ startedSession: boolean }> {
-    if (!campaign.activeCampaignId) return { startedSession: false };
-    const user = getCurrentUser();
-    // Combat runs *inside* a session, so going live starts one if the DM has
-    // not (unnumbered; the DM can number it from the log). `session_id` is that
-    // `campaign_sessions` row, which is what makes "what did we play on
-    // Thursday" answerable from one column. See #758.
-    const session = await ensureCampaignSession(campaign.activeCampaignId);
-    const payload = {
-      encounter_id: toValue(encounterId),
-      campaign_id: campaign.activeCampaignId,
-      user_id: user!.id,
-      session_id: session.id,
-      is_running: true,
-      current_round: state.round,
-      active_combatant_index: state.activeIndex,
-      combatants_live: state.combatants,
-      events_fired: [],
-      started_at: new Date().toISOString(),
-      // Likewise a new fight starts without the last one's spheres of darkness.
-      magical_darkness: [],
-    };
-    const { data, error } = await trackWrite(async () =>
-      supabase.from("encounter_state").upsert(payload, { onConflict: "encounter_id" }).select().single(),
-    );
-    if (error) throw error;
-    // Enforce one live encounter per campaign: stop any other running rows so the
-    // player's single-live-row view can't flip-flop between two encounters.
-    await supabase
-      .from("encounter_state")
-      .update({ is_running: false })
-      .eq("campaign_id", campaign.activeCampaignId)
-      .eq("is_running", true)
-      .neq("encounter_id", toValue(encounterId));
-    liveState.value = data as EncounterState;
-    return { startedSession: session.started };
-  }
-
-  interface RosterState {
-    round: number;
-    activeIndex: number;
-    combatants: RunCombatant[];
-    eventsFired: string[];
-  }
-
-  /** The runner's roster, debounced. Only the window that owns the run calls this. */
-  function schedulePush(state: RosterState) {
-    rosterPush.schedule(() => void trackWrite(() => pushState(state)));
-  }
-
-  async function pushState(state: RosterState) {
-    if (!liveState.value) return;
-    // Token positions are written straight into DB combatants_live by the battle
-    // maps via update_combatant_position; the runner store never ingests them, so
-    // a full-replace here would revert every token to its seed position on the
-    // next HP/turn/condition push. Read the live positions and merge them onto the
-    // outgoing combatants (DB position wins) so moves persist across pushes.
-    const { data: current } = await supabase
-      .from("encounter_state")
-      .select("combatants_live")
-      .eq("encounter_id", toValue(encounterId))
-      .maybeSingle();
-    const dbPositions = new Map<string, RunCombatant["position"]>();
-    for (const c of (current?.combatants_live as RunCombatant[] | null) ?? []) {
-      if (c.position) dbPositions.set(c.instance_id, c.position);
-    }
-    const mergedCombatants = state.combatants.map((c) =>
-      dbPositions.has(c.instance_id) ? { ...c, position: dbPositions.get(c.instance_id) } : c,
-    );
-    const patch = {
-      current_round: state.round,
-      active_combatant_index: state.activeIndex,
-      combatants_live: mergedCombatants,
-      events_fired: state.eventsFired,
-    };
-    const { error } = await supabase
-      .from("encounter_state")
-      .update(patch)
-      .eq("encounter_id", toValue(encounterId));
-    if (error) throw error;
-    if (liveState.value) liveState.value = { ...liveState.value, ...patch };
-  }
-
   /**
    * The battle map's own state, debounced: only the columns given are written, and
    * patches inside one burst merge, so one burst of pushes is one write.
@@ -388,13 +296,14 @@ export function useEncounterLive(
   }
 
   /**
-   * Moves one token on the live board: shown at once, then written through the
+   * Moves one token on the fight's board: shown at once, then written through the
    * same atomic function the players use, which lets the campaign's DM move any
    * combatant. A refused move is re-read away and thrown for the caller to report.
+   * Every run is a saved row, so a token can be placed before the fight goes live.
    */
   async function moveToken(instanceId: string, position: { x: number; y: number } | null) {
     const row = liveState.value;
-    if (!row || !isLive.value) return;
+    if (!row || row.encounter_id !== toValue(encounterId)) return;
     liveState.value = {
       ...row,
       combatants_live: row.combatants_live.map((c) => (c.instance_id === instanceId ? { ...c, position } : c)),
@@ -408,16 +317,6 @@ export function useEncounterLive(
       else void loadState();
       throw error;
     }
-  }
-
-  async function endLive() {
-    if (!liveState.value) return;
-    const { error } = await supabase
-      .from("encounter_state")
-      .update({ is_running: false })
-      .eq("encounter_id", toValue(encounterId));
-    if (error) throw error;
-    liveState.value = null;
   }
 
   // Load existing state on mount (in case DM navigated away and back)
@@ -434,11 +333,16 @@ export function useEncounterLive(
       return;
     }
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("encounter_state")
       .select("*")
       .eq("encounter_id", id)
       .maybeSingle();
+    // Reported from a timer: this runs from a watcher, where a throw does not reliably reach Sentry.
+    if (error) {
+      setTimeout(() => { throw error; });
+      return;
+    }
 
     // The id may have moved on while this was in flight — switching encounters
     // quickly starts a second load before the first returns, and without this
@@ -464,13 +368,16 @@ export function useEncounterLive(
 
   onUnmounted(() => {
     unfollow?.();
-    // Send what is pending rather than drop it. Leaving the runner for the battle
-    // map unmounts it, and a change made just before that never reached the players.
-    rosterPush.flush();
+    // Send what is pending rather than drop it: a sphere of darkness placed just before leaving never reached the players.
     mapPush.flush();
   });
 
-  return { isLive, liveState, liveStateLoaded, goLive, schedulePush, scheduleMapPush, moveToken, endLive };
+  return { isLive, liveState, liveStateLoaded, scheduleMapPush, moveToken };
+}
+
+/** Reads the followed row again now (after the DM's own lifecycle command), without waiting for its ring. A no-op when nothing follows it. */
+export function refreshLiveState(encounterId: string): void {
+  followers.get(encounterId)?.reread();
 }
 
 // ── Player composable ──────────────────────────────────────────────────────────

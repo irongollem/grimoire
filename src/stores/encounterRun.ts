@@ -4,7 +4,6 @@ import type { RunCombatant, FactionDef, RevealState, EncounterEvent, WildshapeSt
 import type { Monster, MonsterSize } from "@/types/monster.types";
 import type { NpcListRow } from "@/types/npc.types";
 import type { TrapEntry } from "@/types/trap.types";
-import type { PartyMemberUpdate } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import { initiativeRoll } from "@/rules/initiative";
@@ -16,15 +15,10 @@ import type { ActionLimit, EncounterTurnEvent } from "@/rules/encounterTurn";
 import { rollInitiativeValue, adoptedStatsFor } from "@/rules/encounterCombatLogic";
 import { applyFightCommand, type FightCommand } from "@/rules/fight/fightCommands";
 import type { FightDeps } from "@/rules/fight/fightEvents";
-import { isTurnEvent, startedFromRound, type FightEffect, type FightState } from "@/rules/fight/fightState";
+import { isTurnEvent, type FightEffect, type FightState } from "@/rules/fight/fightState";
 import { companionCombatant, idClock, spawnMonsters, spawnNpcs } from "@/rules/fight/fightSpawn";
-import { adoptTempHp, ingestPartyRow, type PartyIngestContext, type PartyIngestRow } from "@/rules/fight/partyIngest";
-
-/** Persists a player-combatant change to party_members and invalidates the
- *  party query cache. The store stays UI-only — the actual DB write + cache
- *  invalidation is owned by a TanStack Query mutation registered by the
- *  encounter runner via `setPersistHandler`. */
-export type PersistPlayerHandler = (partyMemberId: string, patch: PartyMemberUpdate) => void;
+import type { ConfirmedFight, FightFrame } from "@/lib/encounters/fightSync";
+import { createFightLink } from "./encounterRunLink";
 
 /** Rolls one combatant's initiative. Registered by the encounter runner so the
  *  DM's dice-mode preference is honoured — in "physical" mode this resolves via
@@ -44,16 +38,10 @@ export interface MoveRecord {
 const spawnClock = idClock();
 
 const TURN_CHANGING = new Set<FightCommand["type"]>(["next_turn", "prev_turn", "reshuffle_initiative", "start_combat"]);
+/** Commands whose recharge and condition lines replace the last turn's instead of adding to them. */
+const TURN_STARTING = new Set<FightCommand["type"]>(["next_turn", "reshuffle_initiative"]);
 
 export const useEncounterRunStore = defineStore("encounterRun", () => {
-  /** Registered by the encounter runner; routes persistence through the
-   *  `useUpdatePartyMember` mutation so the party cache is invalidated. */
-  let persistHandler: PersistPlayerHandler | null = null;
-
-  function setPersistHandler(handler: PersistPlayerHandler | null) {
-    persistHandler = handler;
-  }
-
   /** Registered by the encounter runner; routes initiative rolls through
    *  `usePromptedRoll` so physical-dice mode prompts the DM for each result. */
   let initiativeRoller: InitiativeRoller | null = null;
@@ -76,7 +64,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   const traps = ref<TrapEntry[]>([]);
   const availableMonsters = ref<Monster[]>([]);
   const availableNpcs = ref<NpcListRow[]>([]);
-  const pendingBroadcasts = ref<string[]>([]);
   /** condition_ended events: replaced at every next_turn / reshuffle_initiative with that turn's
    *  endings; other commands that end conditions (save resolution, concentration, source down or
    *  removed) append. Cleared by `reset()`. */
@@ -172,12 +159,19 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     return { monsters: availableMonsters.value, npcs: availableNpcs.value, now: spawnClock };
   }
 
-  /** Adopts the state the pure rules computed and acts on what they asked for:
-   *  player changes go to the registered persist handler, concentration saves
-   *  owed are queued, an event's broadcast lines wait for the runner to post
-   *  them. `command` is what raised the effects (a turn change replaces the
-   *  last turn's recharge and condition lines; anything else appends). */
-  function adopt(before: FightState, state: FightState, effects: FightEffect[], command: FightCommand["type"] | null) {
+  /** The encounter's own settings a fight is played under, which the saved row does not hold. */
+  function frame(): FightFrame {
+    return {
+      randomizeInitiativeEachRound: randomizeInitiativeEachRound.value,
+      ruleset: ruleset.value,
+      lairEnabled: lairEnabled.value,
+      lairOwnerInstanceId: lairOwnerInstanceId.value,
+      events: events.value,
+    };
+  }
+
+  /** Shows a fight state: what the pure rules computed, or what a reconcile replayed. */
+  function adoptState(before: FightState, state: FightState) {
     if (state.combatants !== before.combatants) combatants.value = state.combatants;
     round.value = state.round;
     activeIndex.value = state.activeIndex;
@@ -186,6 +180,19 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     lairOwnerInstanceId.value = state.lairOwnerInstanceId;
     if (state.lairFiredRounds !== before.lairFiredRounds) lairFiredRounds.value = state.lairFiredRounds;
     if (state.eventsFired !== before.eventsFired) eventsFired.value = state.eventsFired;
+    dropStaleChecks();
+  }
+
+  /** A check is owed only while its holder is still in the fight and still holds something. */
+  function dropStaleChecks() {
+    const stale = concentrationChecks.value.filter((k) => !holdsConcentration(combatants.value, k.instanceId));
+    if (stale.length > 0) concentrationChecks.value = concentrationChecks.value.filter((k) => !stale.includes(k));
+  }
+
+  /** What the DM is told of the effects the rules raised: concentration saves owed, conditions that ended,
+   *  recharge rolls. Character-row writes and chat lines are the server's to make, never the browser's.
+   *  `turnStart` is true when a turn change raised them (it replaces the last turn's lines; anything else appends). */
+  function raise(effects: FightEffect[], turnStart: boolean) {
     const raised = effects.filter(isTurnEvent);
     const recharges = raised.flatMap((e) =>
       e.type === "action_recharged" || e.type === "recharge_failed"
@@ -194,16 +201,14 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     );
     // Exactly this turn's rolls: a turn that rolled none must clear the old lines,
     // or "still spent" lingers for rounds. Other commands leave it alone.
-    if (command === "next_turn" || command === "reshuffle_initiative") lastRechargeEvents.value = recharges;
+    if (turnStart) lastRechargeEvents.value = recharges;
     const endings = raised.flatMap((e) =>
       e.type === "condition_ended" ? [{ instanceId: e.instanceId, name: e.name, reason: e.reason }] : [],
     );
-    if (command === "next_turn" || command === "reshuffle_initiative") lastConditionEvents.value = endings;
+    if (turnStart) lastConditionEvents.value = endings;
     else if (endings.length > 0) lastConditionEvents.value = [...lastConditionEvents.value, ...endings];
     for (const effect of effects) {
-      if (effect.type === "player_persist") persistHandler?.(effect.partyMemberId, effect.patch);
-      else if (effect.type === "broadcast") pendingBroadcasts.value.push(effect.message);
-      else if (effect.type === "concentration_check_due") {
+      if (effect.type === "concentration_check_due") {
         concentrationSeq += 1;
         concentrationChecks.value = [
           ...concentrationChecks.value,
@@ -211,25 +216,42 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
         ];
       }
     }
-    // A check is owed only while its holder is still in the fight and still holds something.
-    const stale = concentrationChecks.value.filter((k) => !holdsConcentration(combatants.value, k.instanceId));
-    if (stale.length > 0) concentrationChecks.value = concentrationChecks.value.filter((k) => !stale.includes(k));
+    dropStaleChecks();
   }
+
+  /** A move can only be taken back within the turn it was made in. */
+  function turnChanged(commands: readonly FightCommand[]) {
+    if (commands.some((c) => TURN_CHANGING.has(c.type))) moveHistory.value = {};
+  }
+
+  const link = createFightLink({ snapshot, frame, deps: fightDeps, show: adoptState, raise, turnChanged });
+  const { busy } = link;
 
   /** Runs a command through the pure fight rules (`rules/fight`: the turn
    *  reducer and the fight's own commands, then the event check when the
-   *  reducer asked for one). Every change to the roster, the turn and the fired
-   *  events goes through here, so a server applying the same command ends with
-   *  the same fight. Adopts the resulting
-   *  state and acts on what it raised. Returns the reducer's events for callers
-   *  that need an outcome (HP changes, legendary spend). */
+   *  reducer asked for one) and shows the result at once. With a fight attached the command is also queued for
+   *  the server, which applies the same rules and whose answer, when it differs, replaces what is shown here.
+   *  A command whose result the browser cannot know (it needs dice, or builds ids) is queued and not shown: the
+   *  fight is `busy` until the answer comes. Returns the reducer's events for callers that need an outcome
+   *  (HP changes, legendary spend), none for a command that waits. */
   function dispatch(command: FightCommand): EncounterTurnEvent[] {
     const before = snapshot();
-    const { state, effects } = applyFightCommand(before, command, fightDeps());
-    // A move can only be taken back within the turn it was made in.
-    if (TURN_CHANGING.has(command.type)) moveHistory.value = {};
-    adopt(before, state, effects, command.type);
-    return effects.filter(isTurnEvent);
+    const result = link.queue(command, before) ?? applyFightCommand(before, command, fightDeps());
+    if (result.state === null) return [];
+    turnChanged([command]);
+    adoptState(before, result.state);
+    raise(result.effects, TURN_STARTING.has(command.type));
+    return result.effects.filter(isTurnEvent);
+  }
+
+  /** Attaches a fight the server holds: shows it, and from now on keeps what it confirmed beside what is pending. */
+  function startFight(meta: { encounterId: string; encounterName: string; factions: FactionDef[]; events: EncounterEvent[]; traps: TrapEntry[] }, confirmed: ConfirmedFight) {
+    encounterId.value = meta.encounterId;
+    encounterName.value = meta.encounterName;
+    factions.value = meta.factions;
+    events.value = meta.events;
+    traps.value = meta.traps;
+    link.attach(confirmed);
   }
 
   /** Re-roll everyone's initiative silently (auto d20 — never a physical-dice
@@ -303,16 +325,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     return new Set([...byTotal.values()].filter((ids) => ids.length > 1).flat());
   });
 
-  /** Blank every PC's initiative. A party member's `current_initiative` outlives
-   *  the encounter it was rolled for, so the runner clears it when a lobby opens;
-   *  this is the store half of that, so a stale value read before going live
-   *  does not survive into the fight. */
-  function clearPlayerInitiatives() {
-    for (const c of combatants.value) {
-      if (c.type === "player" && c.party_member_id) dispatch({ type: "set_initiative", instanceId: c.instance_id, value: null });
-    }
-  }
-
   async function startCombat() {
     if (!started.value) await rollAllInitiatives();
     // Combat starts even if the DM cancelled a manual-entry prompt: anyone left
@@ -357,23 +369,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
 
   function setTempHp(instanceId: string, value: number) {
     dispatch({ type: "set_temp_hp", instanceId, value });
-  }
-
-  /** Adopt a temp-HP value that came FROM party_members; see `adoptTempHp`. */
-  function ingestTempHp(instanceId: string, value: number) {
-    const before = snapshot();
-    adopt(before, adoptTempHp(before, instanceId, value), [], null);
-  }
-
-  /** Apply one party_members row by the rules in `rules/fight/partyIngest`. Returns
-   *  what the row says the member concentrates on (null for none) when the fight
-   *  has that member, for the caller to remember; undefined when it does not. */
-  function ingestParty(row: PartyIngestRow, context: PartyIngestContext): string | null | undefined {
-    const before = snapshot();
-    const result = ingestPartyRow(before, row, context, fightDeps());
-    if (!result.matched) return undefined;
-    adopt(before, result.state, result.effects, null);
-    return result.concentration;
   }
 
   function setHp(instanceId: string, value: number) {
@@ -511,11 +506,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     dispatch({ type: "check_events" });
   }
 
-  function clearPendingBroadcast(message: string) {
-    const idx = pendingBroadcasts.value.indexOf(message);
-    if (idx >= 0) pendingBroadcasts.value.splice(idx, 1);
-  }
-
   function reset() {
     encounterId.value = null;
     encounterName.value = "";
@@ -529,7 +519,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     traps.value = [];
     availableMonsters.value = [];
     availableNpcs.value = [];
-    pendingBroadcasts.value = [];
     lastRechargeEvents.value = [];
     lastConditionEvents.value = [];
     concentrationChecks.value = [];
@@ -542,12 +531,16 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     lairOwnerInstanceId.value = null;
     lairFiredRounds.value = [];
     moveHistory.value = {};
+    link.detach();
   }
 
   // ── Boss mechanics ───────────────────────────────────────────────────────────
 
+  /** The encounter's lair settings, from its row: part of the frame a fight is played under, which the
+   *  server reads from the same row, so there is nothing to send. */
   function setBossMechanics(opts: { lairEnabled: boolean; lairOwnerInstanceId: string | null }) {
-    dispatch({ type: "set_boss_mechanics", ...opts });
+    lairEnabled.value = opts.lairEnabled;
+    lairOwnerInstanceId.value = opts.lairOwnerInstanceId;
   }
 
   function toggleSurprised(instanceId: string) {
@@ -599,14 +592,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     dispatch({ type: "set_bonus_used", instanceId, used });
   }
 
-  /** Seed legendary-action state on every combatant whose monster has a
-   *  non-empty `legendary_actions` array. Called once at combat start after
-   *  monsters are loaded so the runner knows who gets a pool. */
-  function primeLegendaryActions(caps: Record<string, number>) {
-    // caps: instance_id → cap (typically 3). Missing entries get no pool.
-    dispatch({ type: "prime_legendary_actions", caps });
-  }
-
   /** Spend N legendary actions from `instanceId` — clamped at zero. Returns
    *  the actual amount spent (0 if there weren't enough). */
   function spendLegendaryActions(instanceId: string, cost: number): number {
@@ -626,29 +611,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     dispatch({ type: "mark_lair_fired" });
   }
 
-  function hydrateFromLive(state: {
-    encounter_id: string;
-    encounter_name: string;
-    factions: FactionDef[];
-    current_round: number;
-    active_combatant_index: number;
-    combatants_live: RunCombatant[];
-    events?: EncounterEvent[];
-    events_fired?: string[];
-    traps?: TrapEntry[];
-  }) {
-    encounterId.value = state.encounter_id;
-    encounterName.value = state.encounter_name;
-    factions.value = state.factions;
-    combatants.value = state.combatants_live;
-    round.value = state.current_round;
-    activeIndex.value = state.active_combatant_index;
-    started.value = startedFromRound(state.current_round);
-    if (state.events) events.value = state.events;
-    if (state.events_fired) eventsFired.value = state.events_fired;
-    if (state.traps) traps.value = state.traps;
-  }
-
   return {
     encounterId,
     encounterName,
@@ -663,7 +625,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     traps,
     availableMonsters,
     availableNpcs,
-    pendingBroadcasts,
+    busy,
     lastRechargeEvents,
     lastConditionEvents,
     dueConditions,
@@ -683,7 +645,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     rollAllInitiatives,
     unrolledPlayers,
     tiedInstanceIds,
-    clearPlayerInitiatives,
     setInitiativeRoller,
     startCombat,
     setInitiative,
@@ -693,8 +654,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     setHp,
     setMaxHp,
     setTempHp,
-    ingestTempHp,
-    ingestParty,
     applyCondition,
     removeCondition,
     setConditions,
@@ -718,10 +677,14 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     fireEvent,
     addGeneratedEvent,
     checkEvents,
-    clearPendingBroadcast,
     reset,
-    setPersistHandler,
-    hydrateFromLive,
+    startFight,
+    setWaker: link.setWaker,
+    nextBatch: link.nextBatch,
+    hasQueued: link.hasQueued,
+    answered: link.answered,
+    observed: link.observed,
+    dropPendingCommands: link.dropPending,
     // Boss mechanics helpers
     setBossMechanics,
     toggleSurprised,
@@ -733,7 +696,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     setBonusUsed,
     useAction,
     restoreAction,
-    primeLegendaryActions,
     spendLegendaryActions,
     markLairFired,
   };

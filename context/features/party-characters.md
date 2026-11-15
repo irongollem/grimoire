@@ -1251,7 +1251,7 @@ Fonts: the illustrated themes need EB Garamond + Shippori Mincho (added to the `
 
 ## Key Capabilities / USPs
 
-- **Real-time sync:** `party_members` rings the campaign doorbell on every write, and `SIGNAL_KEYS` refreshes `party`, `my-characters` and `offered-characters`, so a DM's HP edit reaches the player's sheet (and the reverse) without a page refresh. The encounter runner hears the same ring through `onCampaignRing` (`useRunnerPartySync`).
+- **Real-time sync:** `party_members` rings the campaign doorbell on every write, and `SIGNAL_KEYS` refreshes `party`, `my-characters` and `offered-characters`, so a DM's HP edit reaches the player's sheet (and the reverse) without a page refresh. The encounter runner hears the same ring through `onCampaignRing` (`useFightCommands`), which asks the `encounter-command` function to ingest the rows (`sync_party`).
 - **Multiclass support:** `character_classes` table tracks multiple class/level rows per character; `formatMulticlassLabel()` builds display strings like "Fighter 4 / Wizard 3"; total level from `totalLevel()`.
 - **Wild Shape as a first-class feature:** Full CR/level/type filtering, stat block preview lightbox, beast HP tracking separate from character HP, ability score override (STR/DEX/CON from beast), automatic tab visibility for Druids only.
 - **Custom class/archetype system:** DMs can build fully custom classes with per-level feature tables and custom spell slot grids. Resource pools, scaling, damage riders, Ability Score Improvements and player-facing choices are all features with `mechanics`, and surface automatically in the level-up wizard and the character sheet.

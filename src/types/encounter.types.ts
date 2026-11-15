@@ -466,4 +466,11 @@ export interface EncounterState {
   magical_darkness: MagicalDarknessZone[];
   started_at: string | null;
   updated_at: string;
+  /** The DM's own read of the row only (the players' projection has none of these four): it rises on every update, and a batch is saved only against the one it loaded (#1201). */
+  version?: number;
+  /** When End combat or Abandon closed the fight; null while it is being set up or played. */
+  ended_at?: string | null;
+  /** The newest batch ids the server has applied to this row, so a read can tell which pending batch it already holds. */
+  applied_command_ids?: string[];
+  lair_fired_rounds?: number[];
 }

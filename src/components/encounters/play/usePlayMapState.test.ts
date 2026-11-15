@@ -220,7 +220,7 @@ describe("usePlayMapState", () => {
   // Seeding the focus room's cells open used to put a fight's start into the map's memory.
   it("going live in a room reveals nothing: the focus room is not seeded into the memory", () => {
     h.isLive.value = true;
-    h.liveState.value = { combatants_live: [combatant("a")], current_round: 0, active_combatant_index: 0 };
+    h.liveState.value = { encounter_id: "e1", combatants_live: [combatant("a")], current_round: 0, active_combatant_index: 0 };
     h.surface.value = { ...(h.surface.value as object), focusRoomId: "r1", focusCells: ["0,0", "1,0"] };
     setup();
     expect(h.remember).not.toHaveBeenCalled();
@@ -237,7 +237,7 @@ describe("usePlayMapState", () => {
     function inRooms(tokens: RunCombatant[]) {
       h.regions.value = [region("room-a", [[0, 0], [1, 0]]), region("room-b", [[5, 5]])];
       h.isLive.value = true;
-      h.liveState.value = { combatants_live: tokens, current_round: 1, active_combatant_index: 0 };
+      h.liveState.value = { encounter_id: "e1", combatants_live: tokens, current_round: 1, active_combatant_index: 0 };
       return setup();
     }
 
@@ -263,7 +263,7 @@ describe("usePlayMapState", () => {
     it("a follower window asserts nothing", () => {
       h.regions.value = [region("room-a", [[0, 0]])];
       h.isLive.value = true;
-      h.liveState.value = { combatants_live: [pc("p1", { x: 0, y: 0 })], current_round: 1, active_combatant_index: 0 };
+      h.liveState.value = { encounter_id: "e1", combatants_live: [pc("p1", { x: 0, y: 0 })], current_round: 1, active_combatant_index: 0 };
       setup("follower");
       expect(h.assert).not.toHaveBeenCalled();
     });
@@ -283,17 +283,26 @@ describe("usePlayMapState", () => {
     const store = useEncounterRunStore();
     store.combatants = [combatant("a")];
     h.isLive.value = true;
-    h.liveState.value = { combatants_live: [combatant("a", { x: 4, y: 4 })], current_round: 1, active_combatant_index: 0 };
+    h.liveState.value = { encounter_id: "e1", combatants_live: [combatant("a", { x: 4, y: 4 })], current_round: 1, active_combatant_index: 0 };
     expect(setup().unplaced.value).toEqual([]);
   });
 
-  it("moves a token in the runner's store before going live, and through the row once live", () => {
+  it("fails if the map draws the runner's store instead of the saved row before the fight is live", () => {
+    useEncounterRunStore().combatants = [combatant("a")];
+    h.liveState.value = { encounter_id: "e1", combatants_live: [combatant("a", { x: 4, y: 4 })], current_round: 0, active_combatant_index: 0 };
+    expect(setup().unplaced.value).toEqual([]);
+  });
+
+  // Every run is a saved row (#1201): a position is not a command, so it goes through the row before the fight is live too,
+  // where a store-only move would be thrown away the next time the server's answer is shown.
+  it("fails if a token moved before going live stays in the runner's store, where the next answer would undo it", () => {
     const store = useEncounterRunStore();
     store.combatants = [combatant("a")];
+    h.liveState.value = { encounter_id: "e1", combatants_live: [combatant("a")], current_round: 0, active_combatant_index: 0 };
     const s = setup();
     s.moveCombatant("a", { x: 2, y: 3 });
-    expect(store.combatants[0].position).toEqual({ x: 2, y: 3 });
-    expect(h.moveToken).not.toHaveBeenCalled();
+    expect(h.moveToken).toHaveBeenCalledWith("a", { x: 2, y: 3 });
+    expect(store.combatants[0].position).toBeUndefined();
 
     h.isLive.value = true;
     s.moveCombatant("a", { x: 5, y: 5 });
@@ -333,7 +342,7 @@ describe("usePlayMapState", () => {
     function fightFrom(explore: ExploreParty | null) {
       useCampaignStore().activeCampaign = { id: "c1", explore_party: explore } as Campaign;
       h.isLive.value = true;
-      h.liveState.value = { combatants_live: [hero("pm1"), hero("pm2")], current_round: 0, active_combatant_index: 0 };
+      h.liveState.value = { encounter_id: "e1", combatants_live: [hero("pm1"), hero("pm2")], current_round: 0, active_combatant_index: 0 };
       h.surface.value = {
         ...(h.surface.value as object),
         focusRoomId: "r1", focusCells: ["0,0", "1,0", "2,0"],
@@ -366,7 +375,7 @@ describe("usePlayMapState", () => {
     function liveWith(tokens: RunCombatant[], mode: "dm" | "follower" = "dm") {
       h.regions.value = [region("r1", ["0,0", "1,0"]), region("r2", ["5,5", "6,5", "5,6", "6,6"])];
       h.isLive.value = true;
-      h.liveState.value = { combatants_live: tokens, current_round: 1, active_combatant_index: 0 };
+      h.liveState.value = { encounter_id: "e1", combatants_live: tokens, current_round: 1, active_combatant_index: 0 };
       return setup(mode);
     }
 
