@@ -13,6 +13,7 @@ import {
 } from "@/composables/bookNook/useBookNooks";
 import { useShowNookAtPlace } from "@/composables/bookNook/useShowNookAtPlace";
 import { newScene } from "@/lib/bookNook/edit";
+import { measureImage } from "@/lib/measureImage";
 import { removeNookImages, uploadNookImage } from "@/lib/bookNook/upload";
 import { reportHandledError } from "@/lib/observability/sentry";
 import { getCurrentUser } from "@/lib/supabase";
@@ -31,19 +32,6 @@ export interface StartPlace {
   id: string;
   name: string;
   image_url: string | null;
-}
-
-/** The natural size of an image, which becomes the size of the nook's room. */
-export function measureImage(src: string): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      if (!img.naturalWidth || !img.naturalHeight) reject(new Error("The picture has no size."));
-      else resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    };
-    img.onerror = () => reject(new Error("The picture could not be loaded."));
-    img.src = src;
-  });
 }
 
 /**

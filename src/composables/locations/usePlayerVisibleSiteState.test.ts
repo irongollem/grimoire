@@ -210,8 +210,8 @@ describe("exploredRooms", () => {
 describe("wayCount", () => {
   it("counts every way the plan carries, known-edge or not", () => {
     const ways: PlayerSitePlan["ways"] = [
-      { from_space_id: "room-a", to_space_id: "room-b", door_kind: "door", edge_key: "0,0:N" },
-      { from_space_id: "room-a", to_space_id: null, door_kind: "arch", edge_key: null },
+      { from_space_id: "room-a", to_space_id: "room-b", door_kind: "door", edge_key: "0,0:N", segment: null },
+      { from_space_id: "room-a", to_space_id: null, door_kind: "arch", edge_key: null, segment: null },
     ];
     expect(wayCount(plan({ ways }))).toBe(2);
   });

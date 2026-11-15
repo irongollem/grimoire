@@ -13,10 +13,11 @@
 
 import type { CellKey, CellMetadata, DungeonMap, DungeonMapLayers } from "@/types/dungeonMap.types";
 import { cellKey, parseCellKey } from "@/types/dungeonMap.types";
-import type { SourceEdgeKey } from "@/types/locationDoor.types";
+import { isGridEdgeKey } from "@/types/locationDoor.types";
+import type { DoorSegment } from "@/types/locationDoor.types";
+import { gridEdgeSegment } from "@/lib/locations/doors";
 import { canonicalCells, cellSignature } from "./cellSignature";
 import { findFaces } from "./roomOutline";
-import { latticeWalls } from "./wallGraph";
 import type { DerivedLink, DerivedSpace, DerivedStair, DerivedStructure, DerivedWay } from "./structure.types";
 
 // ── Spaces ───────────────────────────────────────────────────────────────
@@ -86,36 +87,68 @@ const DOOR_EDGE_KIND: Record<"doorClosed" | "doorOpen", "door" | "arch"> = {
   doorOpen: "arch",
 };
 
+/** Where a way sits: the middle of its line, which is what orders ways without reading the text of a uuid key. */
+function wayMidpoint(way: Pick<DerivedWay, "segment">): [number, number] {
+  const [[ax, ay], [bx, by]] = way.segment;
+  return [(ax + bx) / 2, (ay + by) / 2];
+}
+
+/** Ways in reading order of their line's middle (top to bottom, then left to right), ties by key. A wall uuid has no
+ *  position in its text, so the key alone cannot order an angled door among grid ones. */
+export function compareWaysByPosition(a: Pick<DerivedWay, "segment" | "edgeKey">, b: Pick<DerivedWay, "segment" | "edgeKey">): number {
+  const [ax, ay] = wayMidpoint(a);
+  const [bx, by] = wayMidpoint(b);
+  if (ay !== by) return ay - by;
+  if (ax !== bx) return ax - bx;
+  return a.edgeKey < b.edgeKey ? -1 : a.edgeKey > b.edgeKey ? 1 : 0;
+}
+
+/**
+ * Every door wall of the drawing, as a way out. Three outcomes per door, decided by the two squares half a square off
+ * the line's middle (the `+` side, where `(-dy, dx)` points, is `from`, as in `resolveSegmentEndpoints`):
+ *  - floor on both sides, in two different derived spaces: a way between them;
+ *  - floor on both sides, same space (internal) or on only one side (leads nowhere): not a way;
+ *  - no painted floor on either side (a picture with walls drawn over it): a way with null space keys, which publish
+ *    resolves from the rooms the DM assigned in Zoning.
+ */
 export function deriveWays(layers: DungeonMapLayers, spaces: readonly DerivedSpace[]): DerivedWay[] {
   const index = indexSpaces(spaces);
   const ways: DerivedWay[] = [];
 
-  for (const entry of latticeWalls(layers)) {
-    const { x, y, side, wall } = entry;
-    const key = cellKey(x, y);
+  for (const [key, wall] of Object.entries(layers.walls)) {
     if (wall.type !== "doorClosed" && wall.type !== "doorOpen") continue;
 
-    const [ox, oy] = side === "N" ? [x, y - 1] : [x - 1, y];
-    // A door edge with floor on only one side leads nowhere — not a way.
-    if (!isOpenFloor(layers, x, y) || !isOpenFloor(layers, ox, oy)) continue;
+    const segment: DoorSegment = isGridEdgeKey(key) ? gridEdgeSegment(key) : [wall.a, wall.b];
+    const [[ax, ay], [bx, by]] = segment;
+    const len = Math.hypot(bx - ax, by - ay);
+    if (!(len > 0)) continue;
+    const mx = (ax + bx) / 2;
+    const my = (ay + by) / 2;
+    const nx = -(by - ay) / len;
+    const ny = (bx - ax) / len;
+    const from: [number, number] = [Math.floor(mx + 0.5 * nx), Math.floor(my + 0.5 * ny)];
+    const to: [number, number] = [Math.floor(mx - 0.5 * nx), Math.floor(my - 0.5 * ny)];
+    const fromOpen = isOpenFloor(layers, from[0], from[1]);
+    const toOpen = isOpenFloor(layers, to[0], to[1]);
+    const kind = DOOR_EDGE_KIND[wall.type];
 
-    const fromSpace = index.get(key);
-    const toSpace = index.get(cellKey(ox, oy));
+    if (!fromOpen && !toOpen) {
+      ways.push({ edgeKey: key, segment, kind, fromKey: null, toKey: null });
+      continue;
+    }
+    const fromSpace = index.get(cellKey(from[0], from[1]));
+    const toSpace = index.get(cellKey(to[0], to[1]));
+    // A door with floor on only one side leads nowhere: not a way. (Only floored squares are in a space.)
     if (!fromSpace || !toSpace) continue;
     // The fill already cuts at every door edge, so two open-floor cells on
     // either side land in different spaces UNLESS another route already
-    // joins them — in which case this door is internal, not a way out.
+    // joins them, in which case this door is internal, not a way out.
     if (fromSpace.key === toSpace.key) continue;
 
-    ways.push({
-      edgeKey: `${x},${y}:${side}` as SourceEdgeKey,
-      kind: DOOR_EDGE_KIND[wall.type],
-      fromKey: fromSpace.key,
-      toKey: toSpace.key,
-    });
+    ways.push({ edgeKey: key, segment, kind, fromKey: fromSpace.key, toKey: toSpace.key });
   }
 
-  return ways.sort((a, b) => (a.edgeKey < b.edgeKey ? -1 : a.edgeKey > b.edgeKey ? 1 : 0));
+  return ways.sort(compareWaysByPosition);
 }
 
 // ── Stairs ───────────────────────────────────────────────────────────────

@@ -26,7 +26,17 @@
 // (`unlocked`, `found` — `locationState.types.ts`, #868). Do not add
 // `is_locked` / `is_discovered` here, or anywhere that reads this type.
 //
-// ── A door is an edge on the plan (#884, migration `20260915070839`) ─────────
+// ── A door is a line on the plan (#884, migration `20260915070839`; #1197) ───
+//
+// Where a door sits is `edge_key`, in one of two shapes. A grid edge
+// (`"x,y:N"`, `SourceEdgeKey`) is a wall along a grid line and needs no more
+// data. A wall uuid is a door cut into an angled or curved wall of the map
+// Drawing (migration `20261114233616`): the uuid names the wall, and the
+// door's own `segment` holds the line it covers, because the plan has no wall
+// table to look a uuid up in. The database holds the two together: `segment`
+// is set exactly when `edge_key` is a uuid. `doorSegment`
+// (`src/lib/locations/doors.ts`) is the one reader that turns either shape,
+// or an unplaced door, into a line.
 //
 // A door's two endpoints are no longer picked from a list — they are
 // *derived* from whichever traced regions sit either side of `edge_key` on
@@ -56,7 +66,19 @@ export const DOOR_KIND_LABELS: Record<DoorKind, string> = {
 /** The kinds that join two levels rather than two rooms on one floor. */
 export const VERTICAL_DOOR_KINDS: ReadonlySet<DoorKind> = new Set(["stair", "shaft"]);
 
-/** `"x,y:N"` / `"x,y:W"` — the plan edge a door sits on, NW ownership as in
+/** `[[ax, ay], [bx, by]]` in the plan's cell space (fractional numbers
+ *  allowed): the line a door covers. For a grid-edge door it is implied by the
+ *  key and never stored; see `LocationDoor.segment`. */
+export type DoorSegment = [[number, number], [number, number]];
+
+const GRID_EDGE_KEY = /^-?\d+,-?\d+:[NW]$/;
+
+/** True for a grid-edge key (`"x,y:N"` / `"x,y:W"`), false for a wall uuid. */
+export function isGridEdgeKey(key: string): key is SourceEdgeKey {
+  return GRID_EDGE_KEY.test(key);
+}
+
+/** `"x,y:N"` / `"x,y:W"` — the grid edge a door sits on, NW ownership as in
  *  `src/cartographer/edges.ts`. The type name predates #884 and still says
  *  "source" (it was, at the time, always a Cartographer publish); the
  *  *column* it types is `edge_key` now, and means "where", not "from where". */
@@ -94,11 +116,16 @@ export interface LocationDoor {
    *  add one without another migration. */
   sort_order: number | null;
   door_kind: DoorKind;
-  /** Where this door sits on the site's plan grid. Null for a door that has
-   *  never been placed — a hand-made row from before #884, or one added from
-   *  a form since without using the plan's door tool. See `SiteWaysOutPanel`'s
-   *  "Place it" affordance for turning one of those into a placed door. */
-  edge_key: SourceEdgeKey | null;
+  /** Where this door sits on the site's plan: a grid edge (`SourceEdgeKey`),
+   *  or the uuid of an angled or curved wall (then `segment` is set). Null for
+   *  a door that has never been placed — a hand-made row from before #884, or
+   *  one added from a form since without using the plan's door tool. See
+   *  `SiteWaysOutPanel`'s "Place it" affordance for turning one of those into
+   *  a placed door. Test with `isGridEdgeKey` before treating it as an edge. */
+  edge_key: string | null;
+  /** The line a uuid-keyed door covers. Null for a grid-edge door (the key
+   *  implies it) and for an unplaced one; never null for a uuid key. */
+  segment: DoorSegment | null;
   derived_from: DoorProvenance;
   /** The Secret Door / Hidden Passage / Moving Wall that governs this way out. */
   dungeon_feature_id: string | null;
@@ -125,7 +152,9 @@ export interface LocationDoorInsert {
   sort_order?: number | null;
   /** Omit to take the column default of `'door'`. */
   door_kind?: DoorKind;
-  edge_key?: SourceEdgeKey | null;
+  edge_key?: string | null;
+  /** Must be set exactly when `edge_key` is a wall uuid. */
+  segment?: DoorSegment | null;
   /** Omit to take the column default of `'dm'`. */
   derived_from?: DoorProvenance;
   dungeon_feature_id?: string | null;
@@ -154,6 +183,7 @@ export type LocationDoorUpdate = Partial<
     | "sort_order"
     | "door_kind"
     | "edge_key"
+    | "segment"
     | "derived_from"
     | "dungeon_feature_id"
     | "library_dungeon_feature_id"

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { cellsRects, centroid, edgeSegment, outlinePath, planViewBox, textureCells } from "./planSvg";
+import { cellsRects, centroid, outlinePath, planViewBox, textureCells, waySegment } from "./planSvg";
+import { gridEdgeSegment } from "./doors";
 import type { CellKey } from "@/types/dungeonMap.types";
 
 describe("cellsRects", () => {
@@ -78,21 +79,65 @@ describe("textureCells", () => {
   });
 });
 
-describe("edgeSegment", () => {
-  it("resolves an N edge to the cell's top side", () => {
-    expect(edgeSegment("2,3:N")).toEqual({ x1: 2, y1: 3, x2: 3, y2: 3 });
+describe("waySegment", () => {
+  // Grid edges keep the numbers the old edgeSegment gave; a W edge is stored
+  // bottom to top (see gridEdgeSegment), so its ends come out in that order.
+  it("draws an N edge along the cell's top", () => {
+    expect(waySegment(gridEdgeSegment("2,3:N"))).toEqual({ x1: 2, y1: 3, x2: 3, y2: 3 });
   });
 
-  it("resolves a W edge to the cell's left side", () => {
-    expect(edgeSegment("2,3:W")).toEqual({ x1: 2, y1: 3, x2: 2, y2: 4 });
+  it("draws a W edge along the cell's left side", () => {
+    expect(waySegment(gridEdgeSegment("2,3:W"))).toEqual({ x1: 2, y1: 4, x2: 2, y2: 3 });
   });
 
   it("shortens a W edge symmetrically from both ends when inset", () => {
-    expect(edgeSegment("2,3:W", 0.2)).toEqual({ x1: 2, y1: 3.2, x2: 2, y2: 3.8 });
+    expect(waySegment(gridEdgeSegment("2,3:W"), 0.2)).toEqual({ x1: 2, y1: 3.8, x2: 2, y2: 3.2 });
   });
 
-  it("shortens symmetrically from both ends when inset", () => {
-    expect(edgeSegment("2,3:N", 0.2)).toEqual({ x1: 2.2, y1: 3, x2: 2.8, y2: 3 });
+  it("shortens an N edge symmetrically from both ends when inset", () => {
+    expect(waySegment(gridEdgeSegment("2,3:N"), 0.2)).toEqual({ x1: 2.2, y1: 3, x2: 2.8, y2: 3 });
+  });
+
+  // (0,0)-(3,4) is length 5 with unit direction (0.6, 0.8); an inset of 1
+  // moves each end 1 along it: (0.6, 0.8) and (3-0.6, 4-0.8) = (2.4, 3.2).
+  it("shortens an angled line along its own direction", () => {
+    const seg = waySegment(
+      [
+        [0, 0],
+        [3, 4],
+      ],
+      1,
+    );
+    expect(seg.x1).toBeCloseTo(0.6);
+    expect(seg.y1).toBeCloseTo(0.8);
+    expect(seg.x2).toBeCloseTo(2.4);
+    expect(seg.y2).toBeCloseTo(3.2);
+  });
+
+  // An inset past half the length would swap the ends and draw the bar
+  // backwards; it stops at the midpoint (0.5, 0).
+  it("collapses a short line to its midpoint rather than inverting it", () => {
+    expect(
+      waySegment(
+        [
+          [0, 0],
+          [1, 0],
+        ],
+        0.8,
+      ),
+    ).toEqual({ x1: 0.5, y1: 0, x2: 0.5, y2: 0 });
+  });
+
+  it("returns a zero-length line unchanged instead of dividing by zero", () => {
+    expect(
+      waySegment(
+        [
+          [1, 1],
+          [1, 1],
+        ],
+        0.2,
+      ),
+    ).toEqual({ x1: 1, y1: 1, x2: 1, y2: 1 });
   });
 });
 

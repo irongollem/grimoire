@@ -9,7 +9,8 @@
 // implementations happening to match.
 
 import { DOOR_KIND_LABELS, VERTICAL_DOOR_KINDS } from "@/types/locationDoor.types";
-import type { DoorKind, SourceEdgeKey } from "@/types/locationDoor.types";
+import { isGridEdgeKey } from "@/types/locationDoor.types";
+import type { DoorKind, DoorSegment, SourceEdgeKey } from "@/types/locationDoor.types";
 import { IconArch, IconDoor, IconPortal, IconShaft, IconStairs } from "@/lib/icons";
 import type { AppIcon } from "@/lib/icons";
 import { canonicaliseEdge } from "@/cartographer/edges";
@@ -215,10 +216,37 @@ export function indexSpacesByCell(regions: readonly LocationMapRegion[]): Map<Ce
   return index;
 }
 
-function parseEdgeKey(key: SourceEdgeKey): { x: number; y: number; side: "N" | "W" } {
-  const [coords, side] = key.split(":") as [string, "N" | "W"];
-  const [x, y] = coords.split(",").map(Number) as [number, number];
-  return { x, y, side };
+/**
+ * The line a grid edge covers, in the plan's cell space. The order is not
+ * cosmetic: `resolveSegmentEndpoints` reads the "from side" off the direction
+ * (the side the left-hand normal `(-dy, dx)` points to), so it must be the
+ * NW-owner side for both shapes. N edge of (x,y): left to right, owner below
+ * (the cell (x,y) itself). W edge of (x,y): bottom to top, so the normal
+ * points east, again at the owner cell (x,y). Drawn the other way round the
+ * W edge would hand ownership to the west cell and flip every door's from/to.
+ */
+export function gridEdgeSegment(key: SourceEdgeKey): DoorSegment {
+  const [coords, side] = key.split(":");
+  const [x, y] = coords.split(",").map(Number);
+  return side === "N"
+    ? [
+        [x, y],
+        [x + 1, y],
+      ]
+    : [
+        [x, y + 1],
+        [x, y],
+      ];
+}
+
+/** The line a door covers: its stored segment for a wall-uuid key, the
+ *  implied one for a grid edge, null for an unplaced door. A uuid key with no
+ *  segment cannot exist (a CHECK holds them together) and also gives null,
+ *  so a drawer skips it rather than drawing at NaN. */
+export function doorSegment(door: { edge_key: string | null; segment: DoorSegment | null }): DoorSegment | null {
+  if (door.edge_key === null) return null;
+  if (isGridEdgeKey(door.edge_key)) return gridEdgeSegment(door.edge_key);
+  return door.segment;
 }
 
 export interface EdgeEndpoints {
@@ -263,17 +291,44 @@ export interface EdgeEndpoints {
  * still a way out of that room, not a line across its middle).
  */
 export function resolveEdgeEndpoints(edgeKey: SourceEdgeKey, cellToSpace: ReadonlyMap<CellKey, string>): EdgeEndpoints | null {
-  const { x, y, side } = parseEdgeKey(edgeKey);
-  // Step from the owner cell towards the neighbour: north for an N edge, west for a W edge.
-  const [dx, dy] = side === "N" ? [0, -1] : [-1, 0];
-  const spaceAt = (steps: number): string | null => cellToSpace.get(cellKey(x + dx * steps, y + dy * steps)) ?? null;
+  return resolveSegmentEndpoints(gridEdgeSegment(edgeKey), cellToSpace);
+}
 
-  const ownerAdjacent = spaceAt(0);
-  const neighborAdjacent = spaceAt(1);
+/**
+ * `resolveEdgeEndpoints` for any line (a door cut into an angled wall, #1197).
+ * Every rule in the docblock above holds; only the way the two sides and the
+ * reach are found is general. With m the segment's midpoint and
+ * n = (-dy, dx) / len for (dx, dy) = b - a, the "owner" side is the side n
+ * points to, and the four cells sampled are the ones containing m + 0.5n
+ * (owner-adjacent), m - 0.5n (neighbour-adjacent), m + 1.5n (owner reach) and
+ * m - 1.5n (neighbour reach).
+ *
+ * For a grid edge this lands on the old cells exactly (see `gridEdgeSegment`
+ * for why the order matters). N edge of (x,y): a=(x,y), b=(x+1,y), m=(x+.5,y),
+ * n=(0,1): adjacent (x,y) and (x,y-1), reach (x,y+1) and (x,y-2). W edge:
+ * a=(x,y+1), b=(x,y), m=(x,y+.5), n=(1,0): adjacent (x,y) and (x-1,y), reach
+ * (x+1,y) and (x-2,y). Those are the owner, neighbour and the two reaches
+ * `resolveEdgeEndpoints` used to step to.
+ */
+export function resolveSegmentEndpoints(segment: DoorSegment, cellToSpace: ReadonlyMap<CellKey, string>): EdgeEndpoints | null {
+  const [[ax, ay], [bx, by]] = segment;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len = Math.hypot(dx, dy);
+  // A zero-length line has a NaN normal, so every sample is the key "NaN,NaN" and finds no space: null, as a point separates nothing.
+  const nx = -dy / len;
+  const ny = dx / len;
+  const mx = (ax + bx) / 2;
+  const my = (ay + by) / 2;
+  const spaceAt = (k: number): string | null =>
+    cellToSpace.get(cellKey(Math.floor(mx + k * nx), Math.floor(my + k * ny))) ?? null;
+
+  const ownerAdjacent = spaceAt(0.5);
+  const neighborAdjacent = spaceAt(-0.5);
   if (ownerAdjacent && neighborAdjacent && ownerAdjacent === neighborAdjacent) return null; // internal to one room
 
-  const ownerSpace = ownerAdjacent ?? spaceAt(-1);
-  const neighborSpace = neighborAdjacent ?? spaceAt(2);
+  const ownerSpace = ownerAdjacent ?? spaceAt(1.5);
+  const neighborSpace = neighborAdjacent ?? spaceAt(-1.5);
 
   if (ownerSpace && neighborSpace && ownerSpace !== neighborSpace) {
     return { fromLocationId: ownerSpace, toLocationId: neighborSpace };
@@ -291,8 +346,8 @@ export interface DoorEndpointResolution {
 }
 
 /**
- * Batches `resolveEdgeEndpoints` over every placed door (one with an
- * `edge_key`) against one `cellToSpace` index — the shape both the door tool
+ * Batches `resolveSegmentEndpoints` over every placed door (one with a
+ * line, grid edge or wall uuid) against one `cellToSpace` index — the shape both the door tool
  * and site-wide re-derivation need, so neither has to rebuild the index
  * itself. A door with no `edge_key` (never placed) is skipped: there is no
  * edge to resolve anything from.
@@ -315,7 +370,8 @@ export interface DoorEndpointResolution {
 export function resolveDoorEndpoints(
   doors: readonly {
     id: string;
-    edge_key: SourceEdgeKey | null;
+    edge_key: string | null;
+    segment: DoorSegment | null;
     from_location_id?: string | null;
   }[],
   regions: readonly LocationMapRegion[],
@@ -323,8 +379,9 @@ export function resolveDoorEndpoints(
   const cellToSpace = indexSpacesByCell(regions);
   const results: DoorEndpointResolution[] = [];
   for (const door of doors) {
-    if (door.edge_key === null) continue;
-    const derived = resolveEdgeEndpoints(door.edge_key, cellToSpace);
+    const line = doorSegment(door);
+    if (line === null) continue;
+    const derived = resolveSegmentEndpoints(line, cellToSpace);
     results.push({ doorId: door.id, endpoints: keepAuthoredDirection(derived, door.from_location_id ?? null) });
   }
   return results;

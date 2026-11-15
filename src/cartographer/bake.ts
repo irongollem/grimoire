@@ -16,7 +16,7 @@ import { nearestGeminiAspect } from "@edge-shared/geminiAspect.ts";
 import { STYLE_PIXEL_BUDGET } from "@edge-shared/imageSize.ts";
 import { encodeWebp } from "@/lib/webpEncode";
 import { groundBounds } from "./groundRegions";
-import { dressingCellBounds, type DressingCatalog } from "./dressing";
+import { dressingCellBounds, type CellBounds, type DressingCatalog } from "./dressing";
 
 export interface BakeOptions {
   /** Cells of black padding around the painted extent. Default: 3. */
@@ -44,6 +44,12 @@ export interface BakeOptions {
    * rides under the live layer. Default false: every other surface shows the full standing image.
    */
   omitLive?: boolean;
+  /**
+   * A box of cells the bake must also cover, inclusive. A site's Picture is bigger than a Drawing of a few
+   * hidden walls, and the Drawing layer's image is the frame the grid, fog and tokens play in, so publish passes the
+   * Picture's box here and the frame can never be smaller than the picture it sits over.
+   */
+  cover?: CellBounds | null;
 }
 
 export const DEFAULT_BAKE_PADDING_CELLS = 3;
@@ -69,8 +75,9 @@ export function computeBakedDimensions(
   map: DungeonMap,
   dressing: DressingCatalog,
   paddingCells: number = DEFAULT_BAKE_PADDING_CELLS,
+  cover: CellBounds | null = null,
 ): { cols: number; rows: number; originCellX: number; originCellY: number } {
-  const { minX, minY, maxX, maxY } = paintedExtent(map, dressing);
+  const { minX, minY, maxX, maxY } = paintedExtent(map, dressing, cover);
   return {
     cols: maxX - minX + 1 + paddingCells * 2,
     rows: maxY - minY + 1 + paddingCells * 2,
@@ -85,7 +92,7 @@ export function computeBakedDimensions(
  * its rotated footprint reaches, not by its anchor, so a table at the edge
  * is never cut off.
  */
-function paintedExtent(map: DungeonMap, dressing: DressingCatalog): { minX: number; minY: number; maxX: number; maxY: number } {
+function paintedExtent(map: DungeonMap, dressing: DressingCatalog, cover: CellBounds | null = null): { minX: number; minY: number; maxX: number; maxY: number } {
   const layers = map.layers;
   const allKeys = [
     ...Object.keys(layers.floor),
@@ -114,6 +121,16 @@ function paintedExtent(map: DungeonMap, dressing: DressingCatalog): { minX: numb
     const b = dressingCellBounds(placement, dressing);
     include(b.minX, b.minY, b.maxX, b.maxY);
   }
+  // A visible wall can stand away from any floor, and a drawing of only walls or lights has no floor at all: both
+  // count, or the frame collapses to the 7-cell default and the wall is clipped out of the bake. A wall lying
+  // exactly on a grid line still occupies the row it borders, so it never spans less than one cell.
+  for (const w of Object.values(layers.walls)) {
+    const x0 = Math.floor(Math.min(w.a[0], w.b[0]));
+    const y0 = Math.floor(Math.min(w.a[1], w.b[1]));
+    include(x0, y0, Math.max(Math.ceil(Math.max(w.a[0], w.b[0])) - 1, x0), Math.max(Math.ceil(Math.max(w.a[1], w.b[1])) - 1, y0));
+  }
+  for (const l of Object.values(layers.lights)) include(Math.floor(l.x), Math.floor(l.y));
+  if (cover) include(cover.minX, cover.minY, cover.maxX, cover.maxY);
   return { minX, minY, maxX, maxY };
 }
 
@@ -128,11 +145,12 @@ function renderToCanvas(
   transparent: boolean = false,
   pass: MapPass = "all",
   omitLive: boolean = false,
+  cover: CellBounds | null = null,
 ): OffscreenCanvas {
   const ts = BASE_TILE_SIZE;
   const layers = map.layers;
 
-  const { minX, minY, maxX, maxY } = paintedExtent(map, dressing);
+  const { minX, minY, maxX, maxY } = paintedExtent(map, dressing, cover);
 
   const cols = maxX - minX + 1 + paddingCells * 2;
   const rows = maxY - minY + 1 + paddingCells * 2;
@@ -202,7 +220,7 @@ export async function bakeMap(
   options: BakeOptions = {},
   glyphs: Record<CellKey, PackCategory> = {},
 ): Promise<Blob> {
-  const canvas = renderToCanvas(map, runtimes, dressing, options.paddingCells ?? 3, glyphs, options.transparent ?? false, options.pass ?? "all", options.omitLive ?? false);
+  const canvas = renderToCanvas(map, runtimes, dressing, options.paddingCells ?? 3, glyphs, options.transparent ?? false, options.pass ?? "all", options.omitLive ?? false, options.cover ?? null);
   let blob = await encodeWebp(canvas, 0.9);
   if (blob.size > MAX_BYTES) {
     blob = await encodeWebp(canvas, 0.75);

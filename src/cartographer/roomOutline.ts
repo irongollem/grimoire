@@ -99,12 +99,11 @@ const SIDES: readonly [dx: number, dy: number, side: Side][] = [
   [-1, 0, "W"],
 ];
 
-/** Every line a room can be bounded by, before the pieces are cut where they meet. */
-function collectSegments(layers: DungeonMapLayers, onShape: (x: number, y: number) => boolean): Seg[] {
+/** The walls alone: lattice walls and angled or curved ones (doors included), with no floor in the picture. */
+function wallSegments(layers: DungeonMapLayers): Seg[] {
   const segs: Seg[] = [];
-  const wallKeys = Object.keys(layers.walls).sort();
   const geometry = cachedWallGeometry(layers.walls);
-  for (const key of wallKeys) {
+  for (const key of Object.keys(layers.walls).sort()) {
     if (isLatticeKey(key)) {
       const s = wallSegment(key, layers.walls[key]);
       segs.push({ a: [s.a[0], s.a[1]], b: [s.b[0], s.b[1]], kind: "lattice" });
@@ -115,6 +114,13 @@ function collectSegments(layers: DungeonMapLayers, onShape: (x: number, y: numbe
       if (!samePt(p.a, p.b)) segs.push({ a: [p.a[0], p.a[1]], b: [p.b[0], p.b[1]], kind: "angled" });
     }
   }
+  return segs;
+}
+
+/** Every line a room can be bounded by, before the pieces are cut where they meet. */
+function collectSegments(layers: DungeonMapLayers, onShape: (x: number, y: number) => boolean): Seg[] {
+  const wallKeys = Object.keys(layers.walls).sort();
+  const segs = wallSegments(layers);
 
   // The outline of every painted floor shape. Which pieces are the floor's outside is settled once they are cut.
   for (const id of Object.keys(layers.ground).sort()) {
@@ -385,4 +391,37 @@ export function findFaces(layers: DungeonMapLayers, opts: { simplify?: boolean }
     out.push({ cells: cellsOf[i], outline: opts.simplify === false ? face.polygon : simplifyLoop(face.polygon) });
   });
   return out;
+}
+
+/**
+ * The smallest closed ring of walls around a point, whether or not any floor is painted inside it. This is what lets
+ * the Assign tool make a room of a picture map that has only walls drawn over it: the DM picks which rings are rooms by
+ * clicking inside them, so a ring is never a room by itself (a wall round a pillar must not become one by accident).
+ * Floor edges and floor-shape outlines are left out on purpose, so only walls close a face here. Its `cells` are the
+ * squares whose middle lies in the ring and in no smaller ring nested inside it, minus solid blocks. Null when the
+ * point is in no closed ring.
+ */
+export function wallFaceAt(layers: DungeonMapLayers, point: readonly [number, number]): FoundFace | null {
+  const pieces = weld(wallSegments(layers), () => false);
+  const walls: Record<string, WallEdge> = {};
+  pieces.forEach((s, i) => {
+    walls[`f${i}`] = { type: "wall", pack_id: "", pack_version: 0, variant: 0, a: s.a, b: s.b };
+  });
+  const faces = detectRooms(buildGraph(walls)).sort((p, q) => p.area - q.area);
+  const index = faces.findIndex((f) => pointInRing(point[0], point[1], f.polygon));
+  if (index < 0) return null;
+
+  // Smaller faces claim their squares first, so a ring nested inside keeps its squares out of the one around it.
+  const owner = new Set<CellKey>();
+  let cells: CellKey[] = [];
+  for (let i = 0; i <= index; i++) {
+    const mine: CellKey[] = [];
+    for (const k of floorCellsOf(faces[i].polygon)) {
+      if (owner.has(k) || layers.solidBlock[k]) continue;
+      owner.add(k);
+      mine.push(k);
+    }
+    if (i === index) cells = mine;
+  }
+  return { cells, outline: simplifyLoop(faces[index].polygon) };
 }

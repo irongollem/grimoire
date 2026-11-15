@@ -200,7 +200,8 @@
  */
 import { computed } from "vue";
 import { featherEdges, featherRect } from "@/lib/battlemap/fogMask";
-import { cellsRects, centroid, edgeSegment, outlinePath, planViewBox, textureCells as pickTextureCells } from "@/lib/locations/planSvg";
+import { doorSegment } from "@/lib/locations/doors";
+import { cellsRects, centroid, outlinePath, planViewBox, textureCells as pickTextureCells, waySegment } from "@/lib/locations/planSvg";
 import type { PlayerSitePlan } from "@/composables/locations/usePlayerVisibleSiteState";
 import type { CellKey } from "@/types/dungeonMap.types";
 import { ringPathD, usableRing } from "@/lib/locations/regionShape";
@@ -300,10 +301,10 @@ const zoneLayers = computed(() =>
 
 const doorSegments = computed(() =>
   plan.ways
-    .filter((way) => way.edge_key !== null)
-    .map((way) => {
-      const seg = edgeSegment(way.edge_key!);
-      return { ...seg, width: way.door_kind === "arch" ? ARCH_WIDTH : DOOR_WIDTH };
+    .flatMap((way) => {
+      const line = doorSegment(way);
+      if (!line) return [];
+      return [{ ...waySegment(line), width: way.door_kind === "arch" ? ARCH_WIDTH : DOOR_WIDTH }];
     }),
 );
 

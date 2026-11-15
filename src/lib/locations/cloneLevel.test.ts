@@ -87,6 +87,7 @@ function door(over: Partial<LocationDoor> = {}): LocationDoor {
     sort_order: null,
     door_kind: "door",
     edge_key: "0,0:N",
+    segment: null,
     derived_from: "dm",
     dungeon_feature_id: "feature-1",
     library_dungeon_feature_id: null,

@@ -17,6 +17,7 @@ function door(overrides: Partial<SiteDoorWithSpaces> = {}): SiteDoorWithSpaces {
     // fully-resolved door; the "unplaced"/"one-sided" tests below override
     // this explicitly rather than every other test needing to.
     edge_key: "0,0:N",
+    segment: null,
     derived_from: "dm",
     dungeon_feature_id: null,
     library_dungeon_feature_id: null,

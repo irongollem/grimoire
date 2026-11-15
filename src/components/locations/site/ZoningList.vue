@@ -27,7 +27,7 @@
           {{ hasDrawing ? "No closed rooms found" : "Nothing to find from the walls yet" }}
         </p>
         <p class="text-caption-sm text-muted-foreground">
-          {{ hasDrawing ? "Close a room's walls in the Drawing and it appears here." : "This map has no drawing, so rooms are drawn by hand." }}
+          {{ hasDrawing ? "Close a room's walls in the Drawing and it appears here." : "No floor is drawn on this map, so rooms are made by hand: Assign a ring of walls, or draw a zone." }}
         </p>
         <AppButton
           variant="ghost"

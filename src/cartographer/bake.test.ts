@@ -1,8 +1,33 @@
-import { describe, it, expect } from "vitest";
-import { chooseStyleImageSize, computeBakedDimensions, padToAspect, padToStyleAspect } from "./bake";
+import { describe, it, expect, vi } from "vitest";
+import { bakeMap, chooseStyleImageSize, computeBakedDimensions, padToAspect, padToStyleAspect } from "./bake";
 import { emptyLayers, type DungeonMap } from "@/types/dungeonMap.types";
 import type { DressingCatalog } from "./dressing";
+import { BASE_TILE_SIZE } from "./packSchema";
 import { applyGroundStroke } from "./groundRegions";
+
+// The raster test below needs a canvas that only records its size; drawing is not what it checks.
+const drawn = vi.hoisted(() => ({ canvases: [] as { width: number; height: number }[], origin: null as { x: number; y: number } | null }));
+vi.mock("./drawMap", () => ({
+  drawMapContent: (input: { origin: { x: number; y: number } }) => {
+    drawn.origin = input.origin;
+  },
+  offscreenMakeCanvas: () => () => null,
+}));
+vi.mock("@/lib/webpEncode", () => ({
+  encodeWebp: async (canvas: { width: number; height: number }) => {
+    drawn.canvases.push({ width: canvas.width, height: canvas.height });
+    return new Blob();
+  },
+}));
+vi.stubGlobal(
+  "OffscreenCanvas",
+  class {
+    constructor(public width: number, public height: number) {}
+    getContext() {
+      return { fillRect() {}, fillText() {} };
+    }
+  },
+);
 
 const none: DressingCatalog = new Map();
 const props: DressingCatalog = new Map([
@@ -71,6 +96,60 @@ describe("computeBakedDimensions", () => {
     map.layers.floor["0,0"] = { floor: { pack_id: "p", pack_version: 1, variant: 0 } };
     expect(computeBakedDimensions(map, none, 0)).toEqual({ cols: 1, rows: 1, originCellX: 0, originCellY: 0 });
     expect(computeBakedDimensions(map, none, 5)).toEqual({ cols: 11, rows: 11, originCellX: -5, originCellY: -5 });
+  });
+});
+
+describe("computeBakedDimensions with walls and lights", () => {
+  const wall = (a: [number, number], b: [number, number]) => ({ a, b }) as unknown as DungeonMap["layers"]["walls"][string];
+
+  it("a drawing of only walls frames the walls, not the 7-cell default", () => {
+    const map = emptyMap();
+    // Fractional wall (2.5,3.5)-(5.5,3.5): cells x floor(2.5)=2 to ceil(5.5)-1=5, y 3 to max(ceil(3.5)-1,3)=3.
+    map.layers.walls.w = wall([2.5, 3.5], [5.5, 3.5]);
+    expect(computeBakedDimensions(map, none, 0)).toEqual({ cols: 4, rows: 1, originCellX: 2, originCellY: 3 });
+  });
+
+  it("a wall lying exactly on a grid line still takes the row it borders", () => {
+    const map = emptyMap();
+    // (2,3)-(5,3): ceil(3)-1 = 2 would put maxY above minY=3; the one-cell minimum keeps row 3. x is 2 to 4.
+    map.layers.walls.w = wall([2, 3], [5, 3]);
+    expect(computeBakedDimensions(map, none, 0)).toEqual({ cols: 3, rows: 1, originCellX: 2, originCellY: 3 });
+  });
+
+  it("a placed light alone frames its cell", () => {
+    const map = emptyMap();
+    map.layers.lights.l = { x: 9.7, y: 4.2, light: {} } as unknown as DungeonMap["layers"]["lights"][string];
+    expect(computeBakedDimensions(map, none, 0)).toEqual({ cols: 1, rows: 1, originCellX: 9, originCellY: 4 });
+  });
+});
+
+describe("computeBakedDimensions with a cover box", () => {
+  const cover = { minX: -10, minY: -4, maxX: 20, maxY: 15 };
+
+  it("an empty drawing takes the cover alone, not the cover joined to cell 0,0", () => {
+    // The cover sits away from the origin so that a bug unioning the (0,0) default in would stretch the box to
+    // reach cell 0,0 instead of leaving it 4 x 2 at 30,40.
+    const away = { minX: 30, minY: 40, maxX: 33, maxY: 41 };
+    expect(computeBakedDimensions(emptyMap(), none, 0, away)).toEqual({ cols: 4, rows: 2, originCellX: 30, originCellY: 40 });
+  });
+
+  it("a painted drawing grows to the union of itself and the cover", () => {
+    const map = emptyMap();
+    map.layers.floor["25,0"] = { floor: { pack_id: "p", pack_version: 1, variant: 0 } };
+    // x: cover -10..20 joined with cell 25 gives -10..25 = 36 columns; y: cover -4..15 contains 0 = 20 rows.
+    expect(computeBakedDimensions(map, none, 0, cover)).toEqual({ cols: 36, rows: 20, originCellX: -10, originCellY: -4 });
+  });
+
+  it("the raster is sized and placed from the same cover as the dimensions", async () => {
+    const map = emptyMap();
+    map.layers.walls.w = { a: [0, 0], b: [2, 0] } as unknown as DungeonMap["layers"]["walls"][string];
+    drawn.canvases.length = 0;
+    await bakeMap(map, new Map(), none, { paddingCells: 1, cover }, {});
+    const dims = computeBakedDimensions(map, none, 1, cover);
+    // Padding 1 around -10..20 by -4..15 is 33 x 22 cells at 64 px (BASE_TILE_SIZE); the origin is the padded corner.
+    expect(dims).toEqual({ cols: 33, rows: 22, originCellX: -11, originCellY: -5 });
+    expect(drawn.canvases[0]).toEqual({ width: 33 * BASE_TILE_SIZE, height: 22 * BASE_TILE_SIZE });
+    expect(drawn.origin).toEqual({ x: -11 * BASE_TILE_SIZE, y: -5 * BASE_TILE_SIZE });
   });
 });
 

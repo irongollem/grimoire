@@ -51,7 +51,7 @@
  * published from) the Drawing.
  */
 import { computed } from "vue";
-import { cellsRects, edgeSegment, outlinePath, planViewBox } from "@/lib/locations/planSvg";
+import { cellsRects, outlinePath, planViewBox, waySegment } from "@/lib/locations/planSvg";
 import type { PublishPlan } from "@/lib/locations/publish";
 import type { CellKey } from "@/types/dungeonMap.types";
 
@@ -104,14 +104,15 @@ interface DoorBar {
   color: string;
 }
 
-// "Doors as bars where the edge key is known (create = green bar, held =
-// amber)" — an update/skip is a door that already exists and hasn't moved,
-// and a create-stair has no edge key at all, so neither draws a bar here.
+// "Doors as bars (create = green bar, held = amber)" — an update/skip is a
+// door that already exists and hasn't moved, and a create-stair has no line
+// at all, so neither draws a bar here. Every way carries its own line, so an
+// angled door is drawn at its real end points.
 const doorBars = computed<DoorBar[]>(() =>
   plan.ways.flatMap((change): DoorBar[] => {
-    if (change.kind === "create") return [{ ...edgeSegment(change.way.edgeKey, 0.15), color: COLORS.new.stroke }];
-    if (change.kind === "held") return [{ ...edgeSegment(change.way.edgeKey, 0.15), color: COLORS.changed.stroke }];
-    return [];
+    if (change.kind !== "create" && change.kind !== "held") return [];
+    const color = change.kind === "create" ? COLORS.new.stroke : COLORS.changed.stroke;
+    return [{ ...waySegment(change.way.segment, 0.15), color }];
   }),
 );
 

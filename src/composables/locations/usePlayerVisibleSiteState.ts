@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useAppUiStore } from "@/stores/ui/app";
 import type { CellKey } from "@/types/dungeonMap.types";
-import type { DoorKind, SourceEdgeKey } from "@/types/locationDoor.types";
+import type { DoorKind, DoorSegment } from "@/types/locationDoor.types";
 import type { GridPoint, ZoneKind } from "@/types/locationMapRegion.types";
 
 const QUERY_KEY = "player-visible-site-state";
@@ -42,7 +42,9 @@ export interface PlayerSitePlanWay {
   from_space_id: string | null;
   to_space_id: string | null;
   door_kind: DoorKind;
-  edge_key: SourceEdgeKey | null;
+  /** A grid edge or a wall uuid (then `segment` is set); see `doorSegment`. */
+  edge_key: string | null;
+  segment: DoorSegment | null;
 }
 
 /** A DM-marked zone, already clipped to explored cells by the RPC — this

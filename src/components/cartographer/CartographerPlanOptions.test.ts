@@ -3,7 +3,7 @@
 // #878 S2: the "Trace with" switcher (Brush/Pen/Shape) used to be `hidden lg:block`,
 // which is why a DM who traced rooms never found Pen or Shape. The slip shows it at
 // every width, with no `hidden` class gating it behind a breakpoint, and so with the
-// Door and Fill hints.
+// Door hint.
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import CartographerPlanOptions from "./CartographerPlanOptions.vue";
@@ -74,11 +74,18 @@ describe("CartographerPlanOptions", () => {
     expect(hint!.classes()).not.toContain("hidden");
   });
 
-  it("shows the Fill hint with no `hidden` class when Fill is active", () => {
-    const wrapper = mount(CartographerPlanOptions, { props: makeProps("fill") });
-    const hint = wrapper.findAll("span").find((s) => s.text().includes("Click a painted floor region"));
-    expect(hint).toBeTruthy();
-    expect(hint!.classes()).not.toContain("hidden");
+  it("Assign offers the kind chips, so the DM picks what the area becomes without switching tools", async () => {
+    const wrapper = mount(CartographerPlanOptions, { props: makeProps("assign") });
+    await wrapper.findAll("button").find((b) => b.text() === "Hazard")?.trigger("click");
+    expect(wrapper.emitted("update:zoneKind")?.[0]).toEqual(["hazard"]);
+    expect(wrapper.text()).not.toContain("Trace with");
+  });
+
+  it("Assign's hint names the kind a click will make", () => {
+    const room = mount(CartographerPlanOptions, { props: makeProps("assign") });
+    expect(room.text()).toContain("That area becomes a room shaped by its walls.");
+    const hazard = mount(CartographerPlanOptions, { props: { ...makeProps("assign"), zoneKind: "hazard" as ZoningKind } });
+    expect(hazard.text()).toContain("That area becomes a hazard shaped by its walls.");
   });
 
   it("switching the trace tool to Pen emits update:traceTool", async () => {

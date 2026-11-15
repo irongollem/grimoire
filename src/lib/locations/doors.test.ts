@@ -5,12 +5,16 @@ import {
   verticalWays,
   doorTitle,
   doorSubtitle,
+  doorSegment,
   edgeAtImageFraction,
+  gridEdgeSegment,
   indexSpacesByCell,
   resolveDoorEndpoints,
   resolveEdgeEndpoints,
+  resolveSegmentEndpoints,
   type DoorPerspectiveRow,
 } from "./doors";
+import type { CellKey } from "@/types/dungeonMap.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { GridCalibration } from "@/types/location.types";
 
@@ -364,15 +368,15 @@ describe("resolveDoorEndpoints", () => {
 
   it("resolves every placed door against the region set", () => {
     const doors = [
-      { id: "door-1", edge_key: "1,1:N" as const },
-      { id: "door-2", edge_key: null },
+      { id: "door-1", edge_key: "1,1:N" as const, segment: null },
+      { id: "door-2", edge_key: null, segment: null },
     ];
     const results = resolveDoorEndpoints(doors, regions);
     expect(results).toEqual([{ doorId: "door-1", endpoints: { fromLocationId: "room-south", toLocationId: "room-north" } }]);
   });
 
   it("skips a never-placed door entirely — there is no edge to resolve", () => {
-    const results = resolveDoorEndpoints([{ id: "door-1", edge_key: null }], regions);
+    const results = resolveDoorEndpoints([{ id: "door-1", edge_key: null, segment: null }], regions);
     expect(results).toEqual([]);
   });
 
@@ -383,13 +387,13 @@ describe("resolveDoorEndpoints", () => {
   // authored. Found by the #884 review pass.
   it("keeps the authored direction when the far side is traced later", () => {
     const onlyNorth = [mapRegion({ id: "north", space_location_id: "room-north", cells: ["1,0"] })];
-    const oneSided = resolveDoorEndpoints([{ id: "d", edge_key: "1,1:N" as const }], onlyNorth);
+    const oneSided = resolveDoorEndpoints([{ id: "d", edge_key: "1,1:N" as const, segment: null }], onlyNorth);
     expect(oneSided[0].endpoints).toEqual({ fromLocationId: "room-north", toLocationId: null });
 
     const nowBoth = resolveDoorEndpoints(
       // `from_location_id` is the whole input: the far side is what the edge
       // now says it is, the near side is what the DM authored.
-      [{ id: "d", edge_key: "1,1:N" as const, from_location_id: "room-north" }],
+      [{ id: "d", edge_key: "1,1:N" as const, segment: null, from_location_id: "room-north" }],
       regions,
     );
     expect(nowBoth[0].endpoints).toEqual({ fromLocationId: "room-north", toLocationId: "room-south" });
@@ -397,10 +401,182 @@ describe("resolveDoorEndpoints", () => {
 
   it("takes the derivation when the door's own from is no longer one of the two spaces", () => {
     const results = resolveDoorEndpoints(
-      [{ id: "d", edge_key: "1,1:N" as const, from_location_id: "room-elsewhere" }],
+      [{ id: "d", edge_key: "1,1:N" as const, segment: null, from_location_id: "room-elsewhere" }],
       regions,
     );
     expect(results[0].endpoints).toEqual({ fromLocationId: "room-south", toLocationId: "room-north" });
+  });
+});
+
+const WALL_ID = "6f1c2d3e-0000-4000-8000-000000000001";
+
+describe("gridEdgeSegment", () => {
+  it("runs an N edge left to right along the cell's top", () => {
+    expect(gridEdgeSegment("2,3:N")).toEqual([
+      [2, 3],
+      [3, 3],
+    ]);
+  });
+
+  // Bottom to top, not top to bottom: the from side is the left-hand normal
+  // of the direction, and (0,-1) puts it on the east, the owner cell (2,3).
+  it("runs a W edge bottom to top so the owner cell is on its normal side", () => {
+    expect(gridEdgeSegment("2,3:W")).toEqual([
+      [2, 4],
+      [2, 3],
+    ]);
+  });
+});
+
+describe("doorSegment", () => {
+  it("returns the stored line for a wall-uuid door", () => {
+    const segment: [[number, number], [number, number]] = [
+      [1.5, 2],
+      [3, 4.25],
+    ];
+    expect(doorSegment({ edge_key: WALL_ID, segment })).toEqual(segment);
+  });
+
+  it("derives the line from a grid edge key and ignores any stored segment", () => {
+    expect(doorSegment({ edge_key: "2,3:N", segment: null })).toEqual([
+      [2, 3],
+      [3, 3],
+    ]);
+    expect(
+      doorSegment({
+        edge_key: "2,3:N",
+        segment: [
+          [9, 9],
+          [9, 10],
+        ],
+      }),
+    ).toEqual([
+      [2, 3],
+      [3, 3],
+    ]);
+  });
+
+  it("is null for an unplaced door, and for a wall uuid that lost its line", () => {
+    expect(doorSegment({ edge_key: null, segment: null })).toBeNull();
+    expect(doorSegment({ edge_key: WALL_ID, segment: null })).toBeNull();
+  });
+});
+
+// The 45 degree line from (2,2) to (4,4): d = (2,2), n = (-d_y, d_x)/len =
+// (-0.7071, 0.7071), m = (3,3). Owner (n side) adjacent: m + 0.5n = (2.65,
+// 3.35) is cell 2,3. Neighbour adjacent: m - 0.5n = (3.35, 2.65) is cell 3,2.
+// Owner reach: m + 1.5n = (1.94, 4.06) is cell 1,4. Neighbour reach: m - 1.5n
+// = (4.06, 1.94) is cell 4,1.
+describe("resolveSegmentEndpoints", () => {
+  const DIAGONAL: [[number, number], [number, number]] = [
+    [2, 2],
+    [4, 4],
+  ];
+  const spaces = (entries: [CellKey, string][]) => new Map<CellKey, string>(entries);
+
+  it("takes the normal side as from when a room sits each side of an angled line", () => {
+    const map = spaces([
+      ["2,3", "room-a"],
+      ["3,2", "room-b"],
+    ]);
+    expect(resolveSegmentEndpoints(DIAGONAL, map)).toEqual({ fromLocationId: "room-a", toLocationId: "room-b" });
+  });
+
+  it("flips from and to when the same line is drawn the other way round", () => {
+    const map = spaces([
+      ["2,3", "room-a"],
+      ["3,2", "room-b"],
+    ]);
+    // Reversed, n = (0.7071, -0.7071): the owner side is now cell 3,2.
+    expect(
+      resolveSegmentEndpoints(
+        [
+          [4, 4],
+          [2, 2],
+        ],
+        map,
+      ),
+    ).toEqual({ fromLocationId: "room-b", toLocationId: "room-a" });
+  });
+
+  it("makes the only traced side from, with no far room", () => {
+    expect(resolveSegmentEndpoints(DIAGONAL, spaces([["3,2", "room-b"]]))).toEqual({
+      fromLocationId: "room-b",
+      toLocationId: null,
+    });
+  });
+
+  it("reaches one cell past an untraced owner side, as a grid edge does (#1195)", () => {
+    const map = spaces([
+      ["1,4", "room-a"],
+      ["3,2", "room-b"],
+    ]);
+    expect(resolveSegmentEndpoints(DIAGONAL, map)).toEqual({ fromLocationId: "room-a", toLocationId: "room-b" });
+  });
+
+  it("reaches one cell past an untraced neighbour side", () => {
+    const map = spaces([
+      ["2,3", "room-a"],
+      ["4,1", "room-b"],
+    ]);
+    expect(resolveSegmentEndpoints(DIAGONAL, map)).toEqual({ fromLocationId: "room-a", toLocationId: "room-b" });
+  });
+
+  it("ignores a reach that lands in the same room as the other side", () => {
+    const map = spaces([
+      ["2,3", "room-a"],
+      ["4,1", "room-a"],
+    ]);
+    expect(resolveSegmentEndpoints(DIAGONAL, map)).toEqual({ fromLocationId: "room-a", toLocationId: null });
+  });
+
+  it("is null when one room sits on both sides (a line across the middle of a room)", () => {
+    const map = spaces([
+      ["2,3", "room-a"],
+      ["3,2", "room-a"],
+    ]);
+    expect(resolveSegmentEndpoints(DIAGONAL, map)).toBeNull();
+  });
+
+  it("is null with no room in reach, and for a zero-length line", () => {
+    expect(resolveSegmentEndpoints(DIAGONAL, spaces([["0,0", "room-a"]]))).toBeNull();
+    expect(
+      resolveSegmentEndpoints(
+        [
+          [2, 2],
+          [2, 2],
+        ],
+        spaces([["2,2", "room-a"]]),
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("resolveDoorEndpoints on a wall-uuid door", () => {
+  const regions = [
+    mapRegion({ id: "a", space_location_id: "room-a", cells: ["2,3"] }),
+    mapRegion({ id: "b", space_location_id: "room-b", cells: ["3,2"] }),
+  ];
+  const line: [[number, number], [number, number]] = [
+    [2, 2],
+    [4, 4],
+  ];
+
+  it("re-derives the door from its stored line instead of skipping it", () => {
+    const results = resolveDoorEndpoints([{ id: "d", edge_key: WALL_ID, segment: line }], regions);
+    expect(results).toEqual([{ doorId: "d", endpoints: { fromLocationId: "room-a", toLocationId: "room-b" } }]);
+  });
+
+  it("keeps the authored direction when the line's own normal side says otherwise", () => {
+    const results = resolveDoorEndpoints(
+      [{ id: "d", edge_key: WALL_ID, segment: line, from_location_id: "room-b" }],
+      regions,
+    );
+    expect(results[0].endpoints).toEqual({ fromLocationId: "room-b", toLocationId: "room-a" });
+  });
+
+  it("skips a wall uuid that has no line", () => {
+    expect(resolveDoorEndpoints([{ id: "d", edge_key: WALL_ID, segment: null }], regions)).toEqual([]);
   });
 });
 

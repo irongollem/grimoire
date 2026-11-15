@@ -10,6 +10,8 @@ import { computed, ref } from "vue";
 import { describe, expect, it, vi } from "vitest";
 import { usePlanCanvasTools } from "./usePlanCanvasTools";
 import { emptyLayers, type CellKey } from "@/types/dungeonMap.types";
+import { canonicaliseEdge } from "@/cartographer/edges";
+import { putWall } from "@/cartographer/testWalls";
 import { useToast } from "@/composables/useToast";
 import type { SourceEdgeKey } from "@/types/locationDoor.types";
 import type { usePlanPalette } from "./usePlanPalette";
@@ -51,7 +53,7 @@ function makeHarness() {
     commitRing: vi.fn(async () => {}),
     commitTemplate: vi.fn(),
     confirmConvert: vi.fn(async () => true),
-    fillFloorRegion: vi.fn(async () => {}),
+    assignArea: vi.fn(async () => {}),
     existingDoorAtEdge: vi.fn(() => null),
     placeDoorAt: vi.fn(),
     cycleDoorKind: vi.fn(),
@@ -97,7 +99,7 @@ describe("usePlanCanvasTools.abandonGesture (#884 review finding 2)", () => {
     expect(commitCells).not.toHaveBeenCalled();
   });
 
-  it("is a harmless no-op when nothing is in flight (e.g. the Door/Fill tools, which have no gesture to abandon)", () => {
+  it("is a harmless no-op when nothing is in flight (e.g. the Door/Assign tools, which have no gesture to abandon)", () => {
     const { tools } = makeHarness();
     expect(() => tools.abandonGesture()).not.toThrow();
   });
@@ -182,7 +184,7 @@ describe("usePlanCanvasTools pan boundary", () => {
   });
 });
 
-describe("usePlanCanvasTools Door and Claim tools", () => {
+describe("usePlanCanvasTools Door and Assign tools", () => {
   const TILE = 32;
   // The vertical edge between cell 2 and cell 3 on row 2: a pointer 1px off it, mid-row.
   const EDGE_POINT = { x: 3 * TILE + 1, y: 2 * TILE + TILE / 2 };
@@ -190,7 +192,7 @@ describe("usePlanCanvasTools Door and Claim tools", () => {
   const { toasts } = useToast();
 
   function doorHarness(
-    tool: "door" | "fill",
+    tool: "door" | "assign",
     rooms: LocationMapRegion[] = [],
     floor: CellKey[] = [],
     siteRooms: { id: string; name: string }[] = [{ id: "loc-west", name: "West" }, { id: "loc-east", name: "East" }],
@@ -215,7 +217,7 @@ describe("usePlanCanvasTools Door and Claim tools", () => {
       spaceOptions: ref(siteRooms),
       cycleDoorKind: vi.fn(),
       removeDoor: vi.fn(),
-      fillFloorRegion: vi.fn(async () => {}),
+      assignArea: vi.fn(async () => {}),
     } as unknown as ReturnType<typeof usePlanPalette>;
     const tools = usePlanCanvasTools({
       plan,
@@ -226,7 +228,7 @@ describe("usePlanCanvasTools Door and Claim tools", () => {
       tilePixelSize: () => TILE,
     });
     toasts.value = [];
-    return { tools, plan, existing, armed };
+    return { tools, plan, existing, armed, layers };
   }
 
   const roomsEitherSide = [
@@ -313,23 +315,53 @@ describe("usePlanCanvasTools Door and Claim tools", () => {
     expect(tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 2 * TILE + 16, clientY: 2 * TILE + 16 }))).toBe(true);
   });
 
-  it("fills the whole connected floor under a click, not the separate patch beside it", () => {
-    const { tools, plan } = doorHarness("fill", [], ["0,0", "1,0", "1,1", "8,8"] as CellKey[]);
+  it("assigns the whole connected floor under a click, not the separate patch beside it", () => {
+    const { tools, plan } = doorHarness("assign", [], ["0,0", "1,0", "1,1", "8,8"] as CellKey[]);
     expect(tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 0, clientY: 0 }))).toBe(true);
-    expect(vi.mocked(plan.fillFloorRegion).mock.calls[0]![0].slice().sort()).toEqual(["0,0", "1,0", "1,1"]);
+    expect(vi.mocked(plan.assignArea).mock.calls[0]![0].slice().sort()).toEqual(["0,0", "1,0", "1,1"]);
+    // The floor path passes no outline of its own: the palette looks the found room's up.
+    expect(vi.mocked(plan.assignArea).mock.calls[0]).toHaveLength(1);
   });
 
-  it("will not fill an unpainted cell, and tells the DM", () => {
-    const { tools, plan } = doorHarness("fill", [], ["0,0"] as CellKey[]);
-    tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 4, clientY: 4 }));
-    expect(plan.fillFloorRegion).not.toHaveBeenCalled();
-    expect(toasts.value).toHaveLength(1);
+  it("assigns the ring of walls round an unpainted click, cells and outline together", () => {
+    const { tools, plan, layers } = doorHarness("assign", []);
+    // A 2x2 box of lattice walls: top, bottom, left and right edges of cells (0,0)..(1,1).
+    for (const [x, y, side] of [[0, 0, "N"], [1, 0, "N"], [0, 1, "S"], [1, 1, "S"], [0, 0, "W"], [0, 1, "W"], [1, 0, "E"], [1, 1, "E"]] as const) {
+      const o = canonicaliseEdge(x, y, side);
+      putWall(layers.value, o.x, o.y, o.side, { pack_id: "base", pack_version: 1, variant: 0, type: "wall" });
+    }
+    // This harness reads pointer pixels as cell units, so (1,1) is the middle of the box and cell "1,1" has no floor.
+    expect(tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 1, clientY: 1 }))).toBe(true);
+    const [cells, outline] = vi.mocked(plan.assignArea).mock.calls[0]!;
+    expect(cells.slice().sort()).toEqual(["0,0", "0,1", "1,0", "1,1"]);
+    expect(outline).toHaveLength(4);
+    expect(toasts.value).toHaveLength(0);
   });
 
-  it("leaves a right-click with the Fill tool to the pan", () => {
-    const { tools, plan } = doorHarness("fill", [], ["0,0"] as CellKey[]);
+  it("says there is no ring when an unpainted click is inside no closed walls", () => {
+    const { tools, plan } = doorHarness("assign", [], ["0,0"] as CellKey[]);
+    tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 4 * TILE, clientY: 4 * TILE }));
+    expect(plan.assignArea).not.toHaveBeenCalled();
+    expect(toasts.value.map((t) => t.message)).toEqual(["Click inside a closed ring of walls, or on a painted floor."]);
+  });
+
+  it("says a ring smaller than a square has nothing to assign", () => {
+    // A ring 0.8 cells across (0.6 to 1.4) holds no square middle, which would sit at 0.5 or 1.5.
+    const { tools, plan, layers } = doorHarness("assign", []);
+    layers.value.walls.a = { pack_id: "base", pack_version: 1, variant: 0, type: "wall", a: [0.6, 0.6], b: [1.4, 0.6] };
+    layers.value.walls.b = { pack_id: "base", pack_version: 1, variant: 0, type: "wall", a: [1.4, 0.6], b: [1.4, 1.4] };
+    layers.value.walls.c = { pack_id: "base", pack_version: 1, variant: 0, type: "wall", a: [1.4, 1.4], b: [0.6, 1.4] };
+    layers.value.walls.d = { pack_id: "base", pack_version: 1, variant: 0, type: "wall", a: [0.6, 1.4], b: [0.6, 0.6] };
+    // Click at (1,1): no floor there, and the point is inside the tiny ring.
+    tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 1, clientY: 1 }));
+    expect(plan.assignArea).not.toHaveBeenCalled();
+    expect(toasts.value.map((t) => t.message)).toEqual(["That ring of walls is smaller than a square, so there is nothing to assign."]);
+  });
+
+  it("leaves a right-click with the Assign tool to the pan", () => {
+    const { tools, plan } = doorHarness("assign", [], ["0,0"] as CellKey[]);
     expect(tools.onPointerDown(new PointerEvent("pointerdown", { clientX: 0, clientY: 0, button: 2 }))).toBe(false);
-    expect(plan.fillFloorRegion).not.toHaveBeenCalled();
+    expect(plan.assignArea).not.toHaveBeenCalled();
   });
 
   it("shows the hovered door edge only while the Door tool is the one in use", () => {
@@ -340,7 +372,7 @@ describe("usePlanCanvasTools Door and Claim tools", () => {
     expect(tools.renderScene().hoveredDoorEdge).toBeNull();
 
     tools.onPointerMove(new PointerEvent("pointermove", { clientX: EDGE_POINT.x, clientY: EDGE_POINT.y }));
-    plan.planTool.value = "fill";
+    plan.planTool.value = "assign";
     expect(tools.renderScene().hoveredDoorEdge).toBeNull();
     // Moving under another tool forgets the edge, so switching back does not show a stale one.
     tools.onPointerMove(new PointerEvent("pointermove", { clientX: 0, clientY: 0 }));

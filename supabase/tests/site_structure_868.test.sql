@@ -12,7 +12,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(51);
+select plan(56);
 
 -- This file traces many locations, regions and doors across eight sections;
 -- none of it is what free-tier quotas exist to police, and a fixture that size
@@ -148,6 +148,52 @@ select throws_ok(
             '86800000-0000-4000-8000-000000000201', '86800000-0000-4000-8000-000000000202', 'edge bad', '3,4:E')$$,
   '23514', null,
   'an edge key naming a non-NW side ("3,4:E") is rejected'
+);
+
+-- #1197: a door may sit on any wall. A wall's uuid is a key too, and such a
+-- door carries its line, because a uuid does not say where it is.
+select lives_ok(
+  $$insert into public.location_doors (user_id, from_location_id, to_location_id, label, edge_key, segment)
+    values ('86800000-0000-4000-8000-000000000001',
+            '86800000-0000-4000-8000-000000000201', '86800000-0000-4000-8000-000000000202', 'angled ok',
+            '7f3c1a2e-0b4d-4c6f-9a1b-2c3d4e5f6a7b', '[[2, 3.5], [3.5, 5]]'::jsonb)$$,
+  'a wall''s uuid is accepted as a door''s key when the door carries its line'
+);
+
+select throws_ok(
+  $$insert into public.location_doors (user_id, from_location_id, to_location_id, label, edge_key)
+    values ('86800000-0000-4000-8000-000000000001',
+            '86800000-0000-4000-8000-000000000201', '86800000-0000-4000-8000-000000000202', 'angled no line',
+            '7f3c1a2e-0b4d-4c6f-9a1b-2c3d4e5f6a7c')$$,
+  '23514', null,
+  'a uuid-keyed door with no line is rejected: nothing could draw it'
+);
+
+select throws_ok(
+  $$insert into public.location_doors (user_id, from_location_id, to_location_id, label, edge_key, segment)
+    values ('86800000-0000-4000-8000-000000000001',
+            '86800000-0000-4000-8000-000000000201', '86800000-0000-4000-8000-000000000202', 'edge with line',
+            '6,6:N', '[[6, 6], [7, 6]]'::jsonb)$$,
+  '23514', null,
+  'a grid-edge door with a line is rejected: its key already is its line'
+);
+
+select throws_ok(
+  $$insert into public.location_doors (user_id, from_location_id, to_location_id, label, segment)
+    values ('86800000-0000-4000-8000-000000000001',
+            '86800000-0000-4000-8000-000000000201', '86800000-0000-4000-8000-000000000202', 'line no key',
+            '[[6, 6], [7, 6]]'::jsonb)$$,
+  '23514', null,
+  'an unplaced door with a line is rejected'
+);
+
+select throws_ok(
+  $$insert into public.location_doors (user_id, from_location_id, to_location_id, label, edge_key, segment)
+    values ('86800000-0000-4000-8000-000000000001',
+            '86800000-0000-4000-8000-000000000201', '86800000-0000-4000-8000-000000000202', 'bad line',
+            '7f3c1a2e-0b4d-4c6f-9a1b-2c3d4e5f6a7d', '[[2, 3.5], [3.5]]'::jsonb)$$,
+  '23514', null,
+  'a line that is not two points of two numbers is rejected'
 );
 
 -- one derived door per edge, per originating space

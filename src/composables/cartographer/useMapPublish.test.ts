@@ -35,19 +35,28 @@ const mocks = vi.hoisted(() => ({
   emptyLiveUpload: false,
   user: { id: "user-1" } as { id: string } | null,
   previous: { map_layer_url: "https://cdn/old.webp", map_layer_stand_url: "https://cdn/old-stand.webp", map_layer_stand_live_url: null as string | null },
+  covers: [] as unknown[],
+  dimsCovers: [] as unknown[],
+  picture: { map_url: null as string | null, grid_calibration: null as unknown },
+  measure: vi.fn(),
   deleteNow: vi.fn(),
   deleteUnreferenced: vi.fn(),
 }));
 
 vi.mock("@tanstack/vue-query", () => ({ useQueryClient: () => ({ invalidateQueries: mocks.invalidate }) }));
 vi.mock("@/cartographer/bake", () => ({
-  bakeMap: async (_m: unknown, _r: unknown, _d: unknown, options: { pass?: string; omitLive?: boolean }) => {
+  bakeMap: async (_m: unknown, _r: unknown, _d: unknown, options: { pass?: string; omitLive?: boolean; cover?: unknown }) => {
+    mocks.covers.push(options.cover);
     mocks.passes.push(options.pass);
     mocks.omits.push(options.omitLive);
     return new Blob();
   },
-  computeBakedDimensions: () => ({ cols: 4, rows: 4, originCellX: 0, originCellY: 0 }),
+  computeBakedDimensions: (_m: unknown, _d: unknown, _p: unknown, cover: unknown) => {
+    mocks.dimsCovers.push(cover);
+    return { cols: 4, rows: 4, originCellX: -2, originCellY: -3 };
+  },
 }));
+vi.mock("@/lib/measureImage", () => ({ measureImage: mocks.measure }));
 const SNAPSHOT = { version: 2, darkness: "daylight", groups: [], lights: [], sprites: [], walls: [], doors: [], solid: [] };
 const SWAYING = { ...SNAPSHOT, sprites: [{ url: "https://cdn/tree.webp", x: 1, y: 1, w: 1, h: 1, rotation: 0, sway: { amount: 3, speed: 1, phase: 0 } }] };
 const LEAF = { url: "https://cdn/leaf.webp", hingeX: 0.25, hingeY: 0.5, openDegrees: 80 };
@@ -83,6 +92,7 @@ vi.mock("@/composables/locations/useLocations", () => ({
       location_type: "dungeon",
       campaign_id: "camp-1",
       ...mocks.previous,
+      ...mocks.picture,
     }),
   }),
   useUpdateLocation: () => ({ mutateAsync: mocks.updateLocation }),
@@ -128,6 +138,10 @@ describe("useMapPublish.publish", () => {
     mocks.order.length = 0;
     mocks.passes.length = 0;
     mocks.omits.length = 0;
+    mocks.covers.length = 0;
+    mocks.dimsCovers.length = 0;
+    mocks.picture = { map_url: null, grid_calibration: null };
+    mocks.measure.mockReset();
     mocks.snapshot = SNAPSHOT;
     mocks.uploads.length = 0;
     mocks.failStandUpload = false;
@@ -178,6 +192,51 @@ describe("useMapPublish.publish", () => {
     const { publish } = setup();
     await publish();
     expect(mocks.updateDrawing.mock.calls[0]![0]).toMatchObject({ mapLive: SNAPSHOT });
+  });
+
+  // A 100 x 50 px picture at 10 cells across is 10 x 5 cells; origin cell (4, 6) at the image's top-left (pct 0)
+  // puts it on cells x 4..13, y 6..10 (pictureCellBounds floors the left/top and ceils the right/bottom, minus one).
+  const CALIBRATED = {
+    map_url: "https://cdn/picture.webp",
+    grid_calibration: { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0, origin_cell_x: 4, origin_cell_y: 6 },
+  };
+  const PICTURE_BOX = { minX: 4, minY: 6, maxX: 13, maxY: 10 };
+
+  it("frames the Drawing to cover the Picture: the same box reaches the dimensions and every bake", async () => {
+    mocks.picture = CALIBRATED;
+    mocks.measure.mockResolvedValue({ width: 100, height: 50 });
+    mocks.snapshot = SWAYING; // three bakes
+    await setup().publish();
+    expect(mocks.dimsCovers).toContainEqual(PICTURE_BOX);
+    expect(mocks.covers).toEqual([PICTURE_BOX, PICTURE_BOX, PICTURE_BOX]);
+  });
+
+  it("writes the calibration from the dimensions the cover produced", async () => {
+    mocks.picture = CALIBRATED;
+    mocks.measure.mockResolvedValue({ width: 100, height: 50 });
+    await setup().publish();
+    // The mocked dims are 4 columns at origin (-2,-3); the percentages stay 0.
+    expect(mocks.updateDrawing.mock.calls[0]![0].mapLayerCalibration).toEqual({
+      cells_per_image_width: 4, origin_x_pct: 0, origin_y_pct: 0, origin_cell_x: -2, origin_cell_y: -3,
+    });
+  });
+
+  it("bakes with no cover when the site has a picture but no calibration, and never measures it", async () => {
+    mocks.picture = { map_url: "https://cdn/picture.webp", grid_calibration: null };
+    await setup().publish();
+    expect(mocks.covers).toEqual([null, null]);
+    expect(mocks.measure).not.toHaveBeenCalled();
+  });
+
+  it("a picture that cannot be loaded does not block the publish: it bakes with no cover and warns", async () => {
+    mocks.picture = CALIBRATED;
+    mocks.measure.mockRejectedValue(new Error("The picture could not be loaded."));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    await setup().publish();
+    expect(mocks.covers).toEqual([null, null]);
+    expect(mocks.updateDrawing).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("could not be measured"), "The picture could not be loaded.");
+    warn.mockRestore();
   });
 
   it("bakes the ground and the standing half and writes both urls", async () => {
@@ -278,6 +337,39 @@ describe("useMapPublish.publish", () => {
 
     const placements = mocks.insertPlacements.mock.calls[0]![0] as { location_id: string; trap_id: string }[];
     expect(placements).toEqual([expect.objectContaining({ location_id: hall, trap_id: TRAP_UUID })]);
+  });
+
+  // The database holds an edge key and a segment together by a CHECK: a wall id must carry its line, a grid edge must not.
+  describe("door lines", () => {
+    const LINE: [[number, number], [number, number]] = [[0.6, -0.2], [1.4, 1.2]];
+    const gridLine: [[number, number], [number, number]] = [[0, 0], [1, 0]];
+
+    function onlyWays(ways: unknown[]): void {
+      mocks.plan = { spaces: [], ways, placements: [], summary: {} } as unknown as PublishPlan;
+    }
+
+    it("writes the segment for a wall id and none for a grid edge", async () => {
+      onlyWays([
+        { kind: "create", way: { kind: "door", edgeKey: "wall-uuid", segment: LINE }, fromSpaceId: "room-a", toSpaceId: "room-b" },
+        { kind: "create", way: { kind: "door", edgeKey: "0,0:N", segment: gridLine }, fromSpaceId: "room-a", toSpaceId: "room-b" },
+      ]);
+      await setup().publish();
+      const doors = mocks.insertDoors.mock.calls[0]![0] as { edge_key: string; segment: unknown }[];
+      expect(doors.map((d) => [d.edge_key, d.segment])).toEqual([["wall-uuid", LINE], ["0,0:N", null]]);
+    });
+
+    it("writes a null far end for a way with one room beside it", async () => {
+      onlyWays([{ kind: "create", way: { kind: "door", edgeKey: "0,0:N", segment: gridLine }, fromSpaceId: "room-a", toSpaceId: null }]);
+      await setup().publish();
+      const doors = mocks.insertDoors.mock.calls[0]![0] as { from_location_id: string; to_location_id: string | null }[];
+      expect(doors).toEqual([expect.objectContaining({ from_location_id: "room-a", to_location_id: null })]);
+    });
+
+    it("writes nothing for a way with no room beside it", async () => {
+      onlyWays([{ kind: "no-room", way: { kind: "door", edgeKey: "wall-uuid", segment: LINE, fromKey: null, toKey: null } }]);
+      await setup().publish();
+      expect(mocks.insertDoors.mock.calls[0]![0]).toEqual([]);
+    });
   });
 
   // A published room is drawn along its walls' outline in the Atlas and on the player's plan; squares alone are a staircase.

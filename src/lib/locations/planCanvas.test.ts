@@ -289,7 +289,7 @@ describe("drawWaysPass", () => {
     drawWaysPass(
       ctx,
       GEOMETRY,
-      [{ edge_key: "0,0:N", door_kind: "door", starts_locked: false, is_secret: false, to_location_id: "room-b" }],
+      [{ edge_key: "0,0:N", segment: null, door_kind: "door", starts_locked: false, is_secret: false, to_location_id: "room-b" }],
       identityPointToCanvas,
     );
     expect(calls).toContain("strokeStyle=#e7d9bd");
@@ -303,7 +303,7 @@ describe("drawWaysPass", () => {
     drawWaysPass(
       ctx,
       GEOMETRY,
-      [{ edge_key: "0,0:N", door_kind: "arch", starts_locked: true, is_secret: true, to_location_id: "room-b" }],
+      [{ edge_key: "0,0:N", segment: null, door_kind: "arch", starts_locked: true, is_secret: true, to_location_id: "room-b" }],
       identityPointToCanvas,
     );
     expect(calls).toContain("strokeStyle=#a78bfa");
@@ -315,7 +315,7 @@ describe("drawWaysPass", () => {
     drawWaysPass(
       locked.ctx,
       GEOMETRY,
-      [{ edge_key: "0,0:N", door_kind: "door", starts_locked: true, is_secret: false, to_location_id: "room-b" }],
+      [{ edge_key: "0,0:N", segment: null, door_kind: "door", starts_locked: true, is_secret: false, to_location_id: "room-b" }],
       identityPointToCanvas,
     );
     expect(locked.calls).toContain("strokeStyle=#fbbf24");
@@ -323,7 +323,7 @@ describe("drawWaysPass", () => {
     drawWaysPass(
       arch.ctx,
       GEOMETRY,
-      [{ edge_key: "0,0:N", door_kind: "arch", starts_locked: false, is_secret: false, to_location_id: "room-b" }],
+      [{ edge_key: "0,0:N", segment: null, door_kind: "arch", starts_locked: false, is_secret: false, to_location_id: "room-b" }],
       identityPointToCanvas,
     );
     expect(arch.calls).toContain("strokeStyle=#6b5c47");
@@ -334,7 +334,46 @@ describe("drawWaysPass", () => {
     drawWaysPass(
       ctx,
       { ...GEOMETRY, calibration: { ...CALIBRATION, cells_per_image_width: 0 } },
-      [{ edge_key: "0,0:N", door_kind: "door", starts_locked: false, is_secret: false, to_location_id: "room-b" }],
+      [{ edge_key: "0,0:N", segment: null, door_kind: "door", starts_locked: false, is_secret: false, to_location_id: "room-b" }],
+      identityPointToCanvas,
+    );
+    expect(calls).toHaveLength(0);
+  });
+
+  // Line (0,0)-(2,2) has unit direction (0.7071, 0.7071); the 0.05 inset moves
+  // each end 0.0354 along it, so on the 100px-per-cell POINT scale it runs
+  // from (3.54, 3.54) to (196.46, 196.46). identityPointToCanvas is 1px per
+  // cell, so scale the expectation to that: (0.04, 0.04) to (1.96, 1.96).
+  it("draws a wall-uuid way along its own stored line, not along a grid edge", () => {
+    const { ctx, calls } = createRecordingCtx();
+    drawWaysPass(
+      ctx,
+      GEOMETRY,
+      [
+        {
+          edge_key: "6f1c2d3e-0000-4000-8000-000000000001",
+          segment: [
+            [0, 0],
+            [2, 2],
+          ],
+          door_kind: "door",
+          starts_locked: false,
+          is_secret: false,
+          to_location_id: "room-b",
+        },
+      ],
+      identityPointToCanvas,
+    );
+    expect(calls).toContain("moveTo(0.04,0.04)");
+    expect(calls).toContain("lineTo(1.96,1.96)");
+  });
+
+  it("skips a wall-uuid way whose line is missing instead of drawing at NaN", () => {
+    const { ctx, calls } = createRecordingCtx();
+    drawWaysPass(
+      ctx,
+      GEOMETRY,
+      [{ edge_key: "6f1c2d3e-0000-4000-8000-000000000001", segment: null, door_kind: "door", starts_locked: false, is_secret: false, to_location_id: "room-b" }],
       identityPointToCanvas,
     );
     expect(calls).toHaveLength(0);
@@ -345,7 +384,7 @@ describe("drawWaysPass", () => {
     drawWaysPass(
       ctx,
       GEOMETRY,
-      [{ edge_key: null, door_kind: "door", starts_locked: false, is_secret: false, to_location_id: "room-b" }],
+      [{ edge_key: null, segment: null, door_kind: "door", starts_locked: false, is_secret: false, to_location_id: "room-b" }],
       identityPointToCanvas,
     );
     expect(calls).toHaveLength(0);
@@ -356,7 +395,7 @@ describe("drawWaysPass", () => {
     drawWaysPass(
       ctx,
       GEOMETRY,
-      [{ edge_key: "0,0:N", door_kind: "door", starts_locked: false, is_secret: false, to_location_id: null }],
+      [{ edge_key: "0,0:N", segment: null, door_kind: "door", starts_locked: false, is_secret: false, to_location_id: null }],
       identityPointToCanvas,
     );
     expect(calls).toContain("strokeStyle=#e7d9bd");

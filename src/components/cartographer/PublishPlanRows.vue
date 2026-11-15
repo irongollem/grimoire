@@ -82,7 +82,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import CautionNotice from "@/components/common/feedback/CautionNotice.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { IconStar, IconWarning } from "@/lib/icons";
-import { DOOR_KIND_LABELS } from "@/types/locationDoor.types";
+import { DOOR_KIND_LABELS, isGridEdgeKey } from "@/types/locationDoor.types";
 import { LOCATION_PLACEMENT_KIND_LABELS, placementKind, type LocationPlacement } from "@/types/locationPlacement.types";
 import type { LocationPlacementWithEntity } from "@/composables/locations/useLocationPlacements";
 import { createdRefKey, type PublishPlan } from "@/lib/locations/publish";
@@ -230,7 +230,7 @@ const wayRows = computed<Row[]>(() => {
         key: `create:${change.way.edgeKey}`,
         tone: "new",
         text: `${endpointName(change.fromSpaceId)} → ${endpointName(change.toSpaceId)}`,
-        action: `${DOOR_KIND_LABELS[change.way.kind]} edge \`${change.way.edgeKey}\` → Create`,
+        action: `${DOOR_KIND_LABELS[change.way.kind]} ${isGridEdgeKey(change.way.edgeKey) ? `edge \`${change.way.edgeKey}\`` : "angled door"} → Create`,
       });
     } else if (change.kind === "update") {
       rows.push({
@@ -255,6 +255,13 @@ const wayRows = computed<Row[]>(() => {
         action: "Lands on a level this map does not contain",
         stairCellKey: change.stair.cellKey,
       });
+    } else if (change.kind === "no-room") {
+      rows.push({
+        key: `no-room:${change.way.edgeKey}`,
+        tone: "changed",
+        text: `${DOOR_KIND_LABELS[change.way.kind]} ${isGridEdgeKey(change.way.edgeKey) ? `at \`${change.way.edgeKey}\`` : "(angled door)"}`,
+        action: "No room beside this door yet. Assign the rooms it joins, bind them to places, then publish again.",
+      });
     } else if (change.kind === "create-stair") {
       rows.push({
         key: `create-stair:${change.stair.cellKey}`,
@@ -278,7 +285,8 @@ function heldDoorReason(door: { starts_locked: boolean; is_secret: boolean; lock
 const waySummary = computed(() => {
   const created = plan.ways.filter((c) => c.kind === "create" || c.kind === "create-stair").length;
   const held = plan.ways.filter((c) => c.kind === "held").length;
-  return `${created} new · ${held} held`;
+  const noRoom = plan.ways.filter((c) => c.kind === "no-room").length;
+  return noRoom > 0 ? `${created} new · ${held} held · ${noRoom} without a room` : `${created} new · ${held} held`;
 });
 
 // ── Prepared here ────────────────────────────────────────────────────────
