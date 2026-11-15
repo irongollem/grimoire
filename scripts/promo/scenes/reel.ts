@@ -15,6 +15,13 @@ export interface ReelScene extends Scene {
   coverAt?: number;
   /** A second line, below the picture's middle, given its own time so the first can be read alone. */
   tagline?: { text: string; at: [number, number] };
+  /**
+   * The scene told as a story before its title: lines in the DM's read-aloud voice, one at a time in the title's
+   * place, so a viewer has a reason to stay for what the camera has not reached yet (the maintainer, 15 Nov 2026:
+   * a nook is storytelling, which is the core of D&D; Cup Town's first cut showed a picnic and nothing to wait for,
+   * and was watched 4.4 s of 22).
+   */
+  story?: { text: string; at: [number, number] }[];
   sound?: {
     /**
      * Everything heard: room sounds and the scene's own tune, mixed together; a scene has no brand theme. `src`

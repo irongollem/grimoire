@@ -2,6 +2,23 @@
 
 Newest first. Edited by hand; `npm run promo:strategy` and the Socials tab show the latest entries. Numbers are read at the 24 hour mark (`promo:stats`).
 
+## 15 Nov 2026: cup-town lost its viewers before the town came up
+
+Findings:
+
+- `cup-town` reached 36 accounts at 24 hours, under every earlier post (the lowest was 76), and was watched 4.4 s of 22.7 (19%). inn-dawn, the same format with the same hashtags at the same hour, was watched 19.6 s (89%).
+- The cut held still on a picnic basket for 3 s with no words, the teacup town crested the hill at about 6 s, and its title came at 11.5 s. Most viewers had gone before any of it. Instagram shows a new Reel to a small test audience first and stops there when they swipe away.
+
+Decisions:
+
+- A book nook tells a story (the maintainer: storytelling is the core of D&D). From its first second it carries lines in the DM's read-aloud voice, each matched to what the camera shows, ending on something the picture then answers. Scenes take `story` lines for this.
+- The camera moves within the first 2 to 3 s, and the scene's subject is on screen by about 5 s.
+- `prison-cell` was recut the same way before it posted: "Night in the cells. The torch outside has burned low." / "The jailer's chair is empty. But you are not alone." Then the dog with the keys.
+
+Experiment started:
+
+- `cup-town-told`: the same painting and song with three story lines and the tilt starting at 2.2 s. A clean test of the opening, since nothing else changed. Compare its 24 h views and watch time with `cup-town`.
+
 ## 15 Nov 2026: a nook and a feature on the same tune, a day apart
 
 Experiment started:

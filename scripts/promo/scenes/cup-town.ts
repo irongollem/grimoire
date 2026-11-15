@@ -2,8 +2,10 @@
  * The checkered hilltop above Cup Town, the prologue's opening in Sothery (Late in the Kind Country, Act One):
  * the party wakes on grass mown in saucer-sized squares, finds a picnic left for them, and below the hill lies
  * a town inside a teacup. The camera starts close on the picnic and tilts up until the town rises from behind
- * the crest, holds while the bell strikes three times, then eases back. Briefed in
- * ~/Desktop/art-955/scenes/briefs.json (the cup-* files).
+ * the crest, holds while the bell strikes three times, then eases back. Three lines tell it as the DM would on
+ * the way up, so the viewer has a reason to wait for the town. Briefed in
+ * ~/Desktop/art-955/scenes/briefs.json (the cup-* files). Filmed as `cup-town-told`: the cut posted on 14 Nov 2026
+ * as `cup-town` had no story and lost its viewers before the town came up, and its folder keeps that post's stats.
  */
 import type { Point } from "../../../src/lib/bookNook/scene.ts";
 import type { ReelScene } from "./reel.ts";
@@ -42,7 +44,7 @@ const LOOP = 680 / 30;
 const SONG_FROM = 151.0;
 
 export const cupTown: ReelScene = {
-  id: "cup-town",
+  id: "cup-town-told",
   title: "Will you join us?",
   size: FRAME,
   loop: LOOP,
@@ -50,21 +52,29 @@ export const cupTown: ReelScene = {
   camera: {
     drift: 0.006,
     push: 0.01,
-    // Close on the picnic, up to the town, a hold while the bell rings, and back down by the loop's end.
+    // Close on the picnic, up to the town, a hold while the bell rings, and back down by the loop's end. The tilt
+    // starts as soon as the first line has been read: the first cut held the picnic still for 3 s with nothing on screen and was watched 4.4 s on average, so most
+    // viewers left before the town came up (15 Nov 2026).
     path: [
       { at: 0, x: 0, y: TILT },
-      { at: 3, x: 0, y: TILT },
-      { at: 11, x: 0, y: -TILT },
+      { at: 2.2, x: 0, y: TILT },
+      { at: 9, x: 0, y: -TILT },
       { at: 17.5, x: 0, y: -TILT },
     ],
   },
   seed: 1142,
+  // The story on the way up, in the read-aloud's voice, each line with what the camera shows: the picnic at your
+  // feet, the bell as the town crests the hill, the teacup once it is all in view.
+  story: [
+    { text: "You wake on checkered grass. Someone has left you a picnic.", at: [0.2, 3.4] },
+    { text: "Below the hill, a bell is ringing.", at: [3.6, 6.6] },
+    { text: "A whole town, inside a teacup.", at: [6.8, 9.6] },
+  ],
   caption: "Will you join us?",
-  // The line arrives with the town, after the tilt (3 s to 11 s) has brought it up, and stays until the
-  // camera starts back down. The setting's own subtitle follows once the question has been read alone.
-  // "and some to make you stay" is sung at 12.4 s, between the two lines.
-  captionAt: [11.5, 17.5],
-  tagline: { text: "Stay as long as you like", at: [14, 17.5] },
+  // The question arrives with the town and stays until the camera starts back down. The setting's own subtitle
+  // follows once the question has been read alone.
+  captionAt: [10, 17.5],
+  tagline: { text: "Stay as long as you like", at: [12.5, 17.5] },
   stack: [
     // Far, so it moves least: a third of the tilt. At the start the town is still hidden behind the crest.
     { kind: "layer", id: "vista", src: "cup-vista.png", depth: 0.3, anchor: { x: TOWN.x / 1024, y: TOWN.y / 1536 }, at: TOWN_AT, width: VISTA_DRAWN },
@@ -144,8 +154,8 @@ export const cupTown: ReelScene = {
       // Wind over the hilltop, CC0 from the soundboard library.
       { src: "https://cdn.dungeongrimoire.com/sounds/library/wind/park-wind.ogg", gain: 0.35 },
       // Act One ends when Cup Town's bell has rung the same single note three times: a CC0 low G bell from
-      // Freesound, on the maintainer's soundboard, struck as the town comes into view.
-      { src: "https://cdn.dungeongrimoire.com/sounds/fc8ae595-641f-4127-87ad-03588f3710d1/d425b427-43c1-4531-82d4-b739b50ba531.mp3", gain: 0.55, clip: [0, 8.76], at: 10.5 },
+      // Freesound, on the maintainer's soundboard, struck as the line names it and the town comes into view.
+      { src: "https://cdn.dungeongrimoire.com/sounds/fc8ae595-641f-4127-87ad-03588f3710d1/d425b427-43c1-4531-82d4-b739b50ba531.mp3", gain: 0.55, clip: [0, 8.76], at: 3.6 },
       // The setting's title song, the maintainer's own version (made through a service that forwards to Suno; they
       // chose it over every Lyria take of the same lyrics, 4 Nov 2026). It opens on the refrain, the maintainer's
       // pick, and runs on past the loop's end into the next refrain, which the blend lays over the first.

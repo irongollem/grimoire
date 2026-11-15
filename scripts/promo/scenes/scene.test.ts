@@ -80,3 +80,17 @@ describe("runsToEnd", () => {
     expect(runsToEnd(0, [0, 24 - 1 / 30], 24)).toBe(false);
   });
 });
+
+// A story told over a scene is read a line at a time, then the title: two lines on screen at once, in the same
+// place, print over each other, and a line still up when the title arrives is lost under it.
+describe.each(SCENES.flatMap((s) => (s.story ? [[s.id, s, s.story] as const] : [])))("scene %s story", (_, scene, story) => {
+  it("tells its lines in order, one at a time, each gone before the title arrives", () => {
+    const titleFrom = (scene.captionAt ?? [0, scene.duration])[0];
+    story.forEach((line, i) => {
+      expect(line.at[0]).toBeGreaterThanOrEqual(0);
+      expect(line.at[1]).toBeGreaterThan(line.at[0]);
+      if (i > 0) expect(line.at[0]).toBeGreaterThanOrEqual(story[i - 1].at[1]);
+    });
+    expect(story[story.length - 1].at[1]).toBeLessThanOrEqual(titleFrom);
+  });
+});

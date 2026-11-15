@@ -195,21 +195,31 @@ export const captionCard = (file: string, text: string, layout: Layout, chapter?
   };
 };
 
+/** A line in the title's hand, smaller than the title (`size` px), with no wordmark, set in `box`. */
+const sceneLine = (file: string, text: string, box: { w: number; h: number }, size: number): Card => ({
+  file,
+  width: box.w,
+  height: box.h,
+  transparent: true,
+  body: `<div class="w"><div id="fit" data-lines="2">${esc(text)}</div></div>`,
+  css: `.w{width:${box.w}px;height:${box.h}px;display:flex;align-items:center;justify-content:center}
+    #fit{text-align:center;text-wrap:balance;font:400 ${size}px/1.2 'Fondamento',serif;color:#fbf3e2;
+      text-shadow:0 0 16px rgba(30,18,10,.85),0 0 36px rgba(30,18,10,.6),0 2px 4px rgba(30,18,10,.7)}`,
+});
+
 /** A painted scene's second line, for the title layout's tagline slot: the title's hand, smaller, with no wordmark. */
 export const taglineCard = (file: string, text: string, layout: Layout): Card => {
   const c = layout.caption;
   if (c.kind !== "title" || !c.tagline) throw new Error("This layout has no tagline slot.");
-  const t = c.tagline;
-  return {
-    file,
-    width: t.w,
-    height: t.h,
-    transparent: true,
-    body: `<div class="w"><div id="fit" data-lines="2">${esc(text)}</div></div>`,
-    css: `.w{width:${t.w}px;height:${t.h}px;display:flex;align-items:center;justify-content:center}
-    #fit{text-align:center;text-wrap:balance;font:400 54px/1.2 'Fondamento',serif;color:#fbf3e2;
-      text-shadow:0 0 16px rgba(30,18,10,.85),0 0 36px rgba(30,18,10,.6),0 2px 4px rgba(30,18,10,.7)}`,
-  };
+  return sceneLine(file, text, c.tagline, 54);
+};
+
+/** One of a painted scene's story lines, told before its title and in the title's place. */
+export const storyCard = (file: string, text: string, layout: Layout): Card => {
+  const c = layout.caption;
+  if (c.kind !== "title") throw new Error("Story lines need a scene's title slot.");
+  // Larger than a tagline: the story is the voice the viewer stays for, read on a phone before the title.
+  return sceneLine(file, text, c, 64);
 };
 
 /** A shot's narration written out under a desktop window (`Layout.subtitles`), up to four lines. */

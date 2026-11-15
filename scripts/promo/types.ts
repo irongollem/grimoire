@@ -185,6 +185,8 @@ export interface RecordedShot {
   captionAt?: [number, number];
   /** A painted scene's second line, shown `at` seconds into the shot in the layout's tagline slot. */
   tagline?: { text: string; at: [number, number] };
+  /** A painted scene's story, told a line at a time in the title's place before the title arrives. */
+  story?: { text: string; at: [number, number] }[];
   /** Camera moves, in clip time. Absent means the whole screen throughout. */
   camera?: CameraKeyframe[];
   /** Seconds. */

@@ -74,6 +74,12 @@ export const prisonCell: ReelScene = {
   },
   seed: 1142,
   frame: { style: "stone-bars", fit: "cover", tall: "frame-stone-bars-tall.png", follow: FOLLOW },
+  // The story on the way to the dog, in the read-aloud's voice, ending on a question the dog answers: without it the
+  // first 8 s were a torch and a pan with nothing to wait for (the maintainer, 15 Nov 2026, after Cup Town).
+  story: [
+    { text: "Night in the cells. The torch outside has burned low.", at: [0.2, 3.6] },
+    { text: "The jailer's chair is empty. But you are not alone.", at: [3.8, 8.2] },
+  ],
   caption: "The keys are right there.",
   captionAt: [8.5, 19.5],
   // The middle (12.5 s) is already on its way to the door, with the dog behind the middle bar.
