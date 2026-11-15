@@ -16,6 +16,7 @@ import { afterEach, describe, it, expect, vi } from "vitest";
 import { defineComponent, h } from "vue";
 import { mount } from "@vue/test-utils";
 import { useRegionPointer, type UseRegionPointerOptions } from "./useRegionPointer";
+import { cellsInsideRing, type TraceTool } from "@/lib/locations/polygon";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { GridPoint, LocationMapRegion } from "@/types/locationMapRegion.types";
 
@@ -46,7 +47,8 @@ function makeRegion(overrides: Partial<LocationMapRegion> = {}): LocationMapRegi
 function makeHarness(overrides: Partial<UseRegionPointerOptions> = {}) {
   const region: { current: LocationMapRegion | null } = { current: makeRegion() };
   const mode: { current: "browse" | "run" } = { current: "browse" };
-  const tool: { current: "paint" | "pen" | "template" } = { current: "paint" };
+  const tool: { current: TraceTool } = { current: "paint" };
+  const radius = { current: 0.75 };
 
   const options: UseRegionPointerOptions = {
     cellAt: vi.fn((x: number, y: number) => `${x},${y}` as CellKey),
@@ -55,13 +57,13 @@ function makeHarness(overrides: Partial<UseRegionPointerOptions> = {}) {
     activeRegion: vi.fn(() => region.current),
     hasActiveRegionId: vi.fn(() => region.current !== null),
     tool: vi.fn(() => tool.current),
+    brushRadius: vi.fn(() => radius.current),
     mode: vi.fn(() => mode.current),
     regionAt: vi.fn(() => null),
     hoverRegionAt: vi.fn(() => null),
     commitCells: vi.fn(),
     commitRing: vi.fn().mockResolvedValue(undefined),
     commitTemplate: vi.fn(),
-    confirmConvert: vi.fn().mockResolvedValue(true),
     onSelect: vi.fn(),
     onNavigate: vi.fn(),
     onDescend: vi.fn(),
@@ -72,7 +74,7 @@ function makeHarness(overrides: Partial<UseRegionPointerOptions> = {}) {
   };
 
   const pointer = useRegionPointer(options);
-  return { options, pointer, region, mode, tool };
+  return { options, pointer, region, mode, tool, radius };
 }
 
 function down(x: number, y: number, init: PointerEventInit = {}): PointerEvent {
@@ -85,55 +87,290 @@ function up(x: number, y: number, init: PointerEventInit = {}): PointerEvent {
   return new PointerEvent("pointerup", { clientX: x, clientY: y, ...init });
 }
 
-describe("paint stroke", () => {
-  it("locks the paint direction — a cell already toggled this stroke doesn't toggle back", () => {
-    const { pointer, region } = makeHarness();
+
+/** Even-odd point-in-ring, written out here so a test never leans on the code it checks. */
+function inside(ring: readonly GridPoint[], x: number, y: number): boolean {
+  let hit = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
+  }
+  return hit;
+}
+
+function lastRing(options: UseRegionPointerOptions): GridPoint[] {
+  const calls = vi.mocked(options.commitRing).mock.calls;
+  return calls[calls.length - 1][1];
+}
+
+/** `n` points round a circle, the way a hand's drag samples it. */
+function circle(cx: number, cy: number, r: number, n: number): GridPoint[] {
+  return Array.from({ length: n }, (_, i) => [cx + r * Math.cos((2 * Math.PI * i) / n), cy + r * Math.sin((2 * Math.PI * i) / n)] as GridPoint);
+}
+
+function drag(pointer: ReturnType<typeof useRegionPointer>, points: readonly GridPoint[], init: PointerEventInit = {}): void {
+  pointer.onPointerDown(down(points[0][0], points[0][1], init));
+  for (const [x, y] of points.slice(1)) window.dispatchEvent(move(x, y, init));
+  const last = points[points.length - 1];
+  window.dispatchEvent(up(last[0], last[1], init));
+}
+
+const SQUARE_5_9: GridPoint[] = [[5, 5], [9, 5], [9, 9], [5, 9]];
+
+afterEach(() => vi.useRealTimers());
+
+describe("round brush (#1197, frame 05)", () => {
+  it.each([2, 3])("a single disc of radius %s on an empty region commits a ring hugging the disc, not a run of squares", (r) => {
+    const { pointer, options, region, radius } = makeHarness();
+    radius.current = r;
     region.current = makeRegion({ cells: [] });
 
-    pointer.onPointerDown(down(0, 0));
-    expect(pointer.strokeCells.value).toEqual({ regionId: "region-1", cells: ["0,0"] });
+    drag(pointer, [[10, 10]]);
 
-    window.dispatchEvent(move(0, 0)); // same cell again — no re-toggle
-    expect(pointer.strokeCells.value?.cells).toEqual(["0,0"]);
-
-    window.dispatchEvent(move(1, 1)); // a new cell — added
-    expect(pointer.strokeCells.value?.cells).toEqual(["0,0", "1,1"]);
-
-    window.dispatchEvent(move(0, 0)); // back over the first cell — still locked to "paint"
-    expect(pointer.strokeCells.value?.cells).toEqual(["0,0", "1,1"]);
+    // Reasoned: one disc centred (10,10) of radius r; the raster is 1/8 square fine and the fit tolerance 0.08.
+    const ring = lastRing(options);
+    expect(ring.length).toBeGreaterThanOrEqual(8);
+    for (const [x, y] of ring) expect(Math.abs(Math.hypot(x - 10, y - 10) - r)).toBeLessThan(0.25);
+    expect(options.commitCells).not.toHaveBeenCalled();
   });
 
-  it("commits the finished stroke on pointerup and clears the in-flight state", () => {
+  it("extends an existing ring: the result holds the old shape and the new stroke", () => {
+    const { pointer, options, region } = makeHarness();
+    region.current = makeRegion({ vertices: SQUARE_5_9, cells: ["5,5"] });
+
+    // A stroke of radius 0.75 from the square's right edge out to x = 12.
+    drag(pointer, [[9, 7], [12, 7]]);
+
+    const ring = lastRing(options);
+    expect(inside(ring, 7, 7)).toBe(true); // the old square's middle
+    expect(inside(ring, 11, 7)).toBe(true); // well past its right edge, on the stroke
+    expect(inside(ring, 11, 9)).toBe(false); // a stroke is not a bounding box
+  });
+
+  it("grows a zone that was painted as squares, from its squares", () => {
+    const { pointer, options, region } = makeHarness();
+    const cells = ["5,5", "6,5", "7,5", "5,6", "6,6", "7,6", "5,7", "6,7", "7,7"] as CellKey[]; // 5..8 square
+    region.current = makeRegion({ vertices: null, cells });
+
+    drag(pointer, [[8.5, 6.5], [10, 6.5]]);
+
+    const ring = lastRing(options);
+    expect(inside(ring, 6.5, 6.5)).toBe(true); // an old square survives
+    expect(inside(ring, 9.5, 6.5)).toBe(true); // the stroke
+    expect(inside(ring, 6.5, 8.6)).toBe(false); // outside both
+    expect(options.commitCells).not.toHaveBeenCalled();
+  });
+
+  it("Alt carves the shape away instead of adding to it", () => {
+    const { pointer, options, region } = makeHarness();
+    region.current = makeRegion({ vertices: [[0, 0], [6, 0], [6, 6], [0, 6]], cells: ["0,0"] });
+
+    drag(pointer, [[6, 3]], { altKey: true });
+
+    const ring = lastRing(options);
+    expect(inside(ring, 1, 3)).toBe(true); // the far side stays
+    expect(inside(ring, 5.7, 3)).toBe(false); // 0.3 from the disc's centre: carved
+  });
+
+  it("a carve that splits the zone keeps the larger part", () => {
+    const { pointer, options, region, radius } = makeHarness();
+    radius.current = 1.2;
+    region.current = makeRegion({ vertices: [[0, 0], [10, 0], [10, 2], [0, 2]], cells: ["0,0"] });
+
+    // A disc of radius 1.2 at (8,1) spans the whole height (0..2): the long left part (about 7 by 2) and a short
+    // right part (about 1 by 2) are left.
+    drag(pointer, [[8, 1]], { altKey: true });
+
+    const ring = lastRing(options);
+    expect(inside(ring, 3, 1)).toBe(true);
+    expect(Math.max(...ring.map((p) => p[0]))).toBeLessThan(7.6);
+  });
+
+  it("carving everything away leaves an empty region, with no ring committed", () => {
+    const { pointer, options, region, radius } = makeHarness();
+    radius.current = 3;
+    region.current = makeRegion({ vertices: [[0, 0], [2, 0], [2, 2], [0, 2]], cells: ["0,0"] });
+    drag(pointer, [[1, 1]], { altKey: true });
+
+    expect(options.commitCells).toHaveBeenCalledWith("region-1", []);
+    expect(options.commitRing).not.toHaveBeenCalled();
+  });
+
+  it("a carve that leaves less than one square empties the region", () => {
+    const { pointer, options, region, radius } = makeHarness();
+    radius.current = 2.7;
+    region.current = makeRegion({ vertices: [[0, 0], [2, 0], [2, 2], [0, 2]], cells: ["0,0"] });
+
+    // Reasoned: the disc at (3,1) of radius 2.7 reaches x = 0.3 at y = 1 and x = 0.49 at the edges, leaving a
+    // sliver about 0.8 square in area.
+    drag(pointer, [[3, 1]], { altKey: true });
+
+    expect(options.commitCells).toHaveBeenCalledWith("region-1", []);
+    expect(options.commitRing).not.toHaveBeenCalled();
+  });
+
+  it("a stroke that changes nothing commits nothing", () => {
+    const { pointer, options, region } = makeHarness();
+    region.current = makeRegion({ vertices: SQUARE_5_9, cells: ["5,5"] });
+
+    drag(pointer, [[30, 30]], { altKey: true }); // carving far away
+
+    expect(options.commitRing).not.toHaveBeenCalled();
+    expect(options.commitCells).not.toHaveBeenCalled();
+  });
+
+  it("shows the shape so far on a throttle and commits only on release", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
     const { pointer, options, region } = makeHarness();
     region.current = makeRegion({ cells: [] });
 
-    pointer.onPointerDown(down(2, 2));
-    window.dispatchEvent(up(2, 2));
+    pointer.onPointerDown(down(10, 10));
+    expect(pointer.strokePreview.value?.closed).toBe(true);
+    const widest = () => Math.max(...pointer.strokePreview.value!.ring.map((p) => p[0]));
+    expect(widest()).toBeLessThan(11); // one disc round (10,10)
 
-    expect(options.commitCells).toHaveBeenCalledWith("region-1", ["2,2"]);
-    expect(pointer.strokeCells.value).toBeNull();
+    vi.advanceTimersByTime(10);
+    window.dispatchEvent(move(14, 10));
+    expect(widest()).toBeLessThan(11); // inside the throttle window: the last ring stays
+    vi.advanceTimersByTime(60);
+    expect(widest()).toBeGreaterThan(14); // the trailing recompute shows the drag
+    expect(options.commitRing).not.toHaveBeenCalled(); // a preview is never stored
+
+    window.dispatchEvent(up(14, 10));
+    expect(options.commitRing).toHaveBeenCalledTimes(1);
+    expect(pointer.strokePreview.value).toBeNull();
+  });
+
+  it("only starts on a cell the grid actually lays across the image", () => {
+    const { pointer } = makeHarness({ isPaintable: vi.fn(() => false) });
+    pointer.onPointerDown(down(2, 2));
+    expect(pointer.strokePreview.value).toBeNull();
+  });
+
+  it("ignores cells outside the grid while a stroke is dragged across them", () => {
+    const paintable = new Set(["2,2", "3,3"]);
+    const { pointer, options } = makeHarness({ isPaintable: vi.fn((cell: CellKey) => paintable.has(cell)) });
+    pointer.onPointerDown(down(2, 2));
+    window.dispatchEvent(move(9, 9)); // outside the grid
+    window.dispatchEvent(up(9, 9));
+    // Reasoned: only the disc at (2,2) was stamped, so the ring stays near x 2.
+    expect(Math.max(...lastRing(options).map((p) => p[0]))).toBeLessThan(3.2);
+  });
+});
+
+describe("lasso (#1197, frame 05)", () => {
+  it("one drag round a circle of radius 3 commits a smooth ring on the circle, with the squares whose middle it holds", () => {
+    const { pointer, options, region, tool } = makeHarness();
+    tool.current = "lasso";
+    region.current = makeRegion({ cells: [] });
+
+    drag(pointer, circle(10, 10, 3, 48));
+
+    expect(options.commitRing).toHaveBeenCalledTimes(1);
+    const ring = lastRing(options);
+    // Reasoned: the dragged points are exact on the circle and the fit only drops points, so each kept point is on it.
+    for (const [x, y] of ring) expect(Math.abs(Math.hypot(x - 10, y - 10) - 3)).toBeLessThan(0.01);
+    // The squares: a square whose middle is 2.8 or less from the centre is inside the (slightly inscribed) ring, and one
+    // whose middle is 3.2 or more away is out.
+    const cells = new Set(cellsInsideRing(ring));
+    for (let x = 4; x <= 16; x++) {
+      for (let y = 4; y <= 16; y++) {
+        const d = Math.hypot(x + 0.5 - 10, y + 0.5 - 10);
+        if (d <= 2.8) expect(cells.has(`${x},${y}`)).toBe(true);
+        if (d >= 3.2) expect(cells.has(`${x},${y}`)).toBe(false);
+      }
+    }
+  });
+
+  it("a click or a scribble smaller than one square commits nothing", () => {
+    const { pointer, options, region, tool } = makeHarness();
+    tool.current = "lasso";
+    region.current = makeRegion();
+
+    drag(pointer, [[0, 0], [0.3, 0], [0.3, 0.3], [0, 0.3]]); // 0.09 square
+    drag(pointer, [[0, 0], [5, 5]]); // two points make no area
+
+    expect(options.commitRing).not.toHaveBeenCalled();
+  });
+
+  it("replaces the shape the region already has, even when the drag starts on one of its nodes", () => {
+    const { pointer, options, region, tool } = makeHarness();
+    tool.current = "lasso";
+    region.current = makeRegion({ vertices: TRIANGLE, cells: ["9,9"] });
+
+    // Starts exactly on the triangle's node at (0,0), where the pen would start dragging that node.
+    drag(pointer, [[0, 0], [6, 0], [6, 6], [0, 6]]);
+
+    expect(pointer.liveDrag.value).toBeNull();
+    expect(options.commitRing).toHaveBeenCalledTimes(1);
+    const ring = lastRing(options);
+    expect(vi.mocked(options.commitRing).mock.calls[0][0]).toBe("region-1");
+    expect(inside(ring, 5, 5)).toBe(true); // the new square, where the triangle never reached
+  });
+
+  it("shows the drag as an open, unsnapped ring and skips a point under 0.05 from the last", () => {
+    const { pointer, region, tool } = makeHarness();
+    tool.current = "lasso";
+    region.current = makeRegion();
+
+    pointer.onPointerDown(down(0.37, 0.61));
+    expect(pointer.strokePreview.value).toEqual({ regionId: "region-1", ring: [[0.37, 0.61]], closed: false });
+    window.dispatchEvent(move(0.4, 0.61)); // 0.03 away
+    expect(pointer.strokePreview.value?.ring).toHaveLength(1);
+    window.dispatchEvent(move(1.2, 0.9));
+    expect(pointer.strokePreview.value?.ring).toEqual([[0.37, 0.61], [1.2, 0.9]]);
+  });
+
+  it("abandoning mid-drag commits nothing, even when the release still comes", () => {
+    const { pointer, options, region, tool } = makeHarness();
+    tool.current = "lasso";
+    region.current = makeRegion();
+
+    pointer.onPointerDown(down(0, 0));
+    window.dispatchEvent(move(6, 0));
+    window.dispatchEvent(move(6, 6));
+    pointer.abandonGesture();
+    window.dispatchEvent(up(0, 6));
+
+    expect(pointer.strokePreview.value).toBeNull();
+    expect(options.commitRing).not.toHaveBeenCalled();
+  });
+
+  it("Escape drops a lasso in flight", () => {
+    const { pointer, options, region, tool } = makeHarness();
+    tool.current = "lasso";
+    region.current = makeRegion();
+
+    pointer.onPointerDown(down(0, 0));
+    window.dispatchEvent(move(6, 0));
+    pointer.onKeyDown(new KeyboardEvent("keydown", { key: "Escape" }));
+    window.dispatchEvent(move(6, 6));
+    window.dispatchEvent(up(0, 6));
+
+    expect(pointer.strokePreview.value).toBeNull();
+    expect(options.commitRing).not.toHaveBeenCalled();
   });
 });
 
 describe("abandonGesture (#884 review finding 2)", () => {
-  it("an abandoned paint stroke's stray pointerup does not commit it", () => {
-    // The bug this reproduces: a DM starts a Space/Zone brush stroke, then
-    // switches the active layer away from Plan with the pointer still down.
-    // The window pointermove/pointerup listeners `onPointerDown` attached
-    // outlive that switch (nothing used to tear them down), so the eventual
-    // pointerup would otherwise still commit the abandoned stroke.
+  it("an abandoned brush stroke's stray pointerup does not commit it", () => {
+    // The bug this reproduces: a DM starts a Zone brush stroke, then switches the active layer away from Plan with
+    // the pointer still down. The window pointermove/pointerup listeners `onPointerDown` attached outlive that
+    // switch, so the eventual pointerup would otherwise still commit the abandoned stroke.
     const { pointer, options, region } = makeHarness();
     region.current = makeRegion({ cells: [] });
 
     pointer.onPointerDown(down(2, 2));
     window.dispatchEvent(move(3, 3));
-    expect(pointer.strokeCells.value?.cells).toEqual(["2,2", "3,3"]);
+    expect(pointer.strokePreview.value).not.toBeNull();
 
     pointer.abandonGesture();
-    expect(pointer.strokeCells.value).toBeNull();
+    expect(pointer.strokePreview.value).toBeNull();
 
-    // The stray pointerup a caller can no longer prevent from firing.
     window.dispatchEvent(up(3, 3));
+    expect(options.commitRing).not.toHaveBeenCalled();
     expect(options.commitCells).not.toHaveBeenCalled();
   });
 
@@ -261,7 +498,7 @@ describe("pen tool", () => {
 describe("composition — click while tracing", () => {
   it("adding a draft node never also resolves as a fresh selection", () => {
     // A pen click that misses every existing node just calls `pen.addPoint`
-    // locally — none of strokeCells/penDrag/templateDrag get set, so the
+    // locally — none of strokePreview/penDrag/templateDrag get set, so the
     // pointerup would otherwise fall through to a plain click. The
     // `hasActiveRegionId` guard in `handleClick` is what stops that from
     // also routing through `useRegionNavPointer`'s click logic.
@@ -307,93 +544,6 @@ describe("template drag", () => {
   });
 });
 
-describe("async-gesture guard", () => {
-  it("commits immediately when the pointerup already landed mid-confirm, instead of losing the stroke", async () => {
-    let resolveConfirm!: (ok: boolean) => void;
-    const { pointer, options, region } = makeHarness({
-      confirmConvert: vi.fn(
-        () =>
-          new Promise<boolean>((resolve) => {
-            resolveConfirm = resolve;
-          }),
-      ),
-    });
-    // A pen-traced region: painting it needs the vertices→cells confirm.
-    region.current = makeRegion({
-      vertices: [
-        [0, 0],
-        [4, 0],
-        [2, 4],
-      ],
-      cells: ["9,9"],
-    });
-
-    pointer.onPointerDown(down(0, 0));
-    expect(options.confirmConvert).toHaveBeenCalled();
-    expect(pointer.strokeCells.value).toBeNull(); // still waiting on the confirm
-
-    // The down/up pair completes before the confirm dialog resolves — the
-    // `{ once: true }` pointerup listener is already gone by the time the
-    // confirm settles, so nothing else will ever call `commitCells` for this
-    // gesture unless the resuming handler notices and commits itself.
-    window.dispatchEvent(up(0, 0));
-    expect(options.onSelect).not.toHaveBeenCalled();
-    expect(options.regionAt).not.toHaveBeenCalled();
-    expect(options.commitCells).not.toHaveBeenCalled();
-
-    resolveConfirm(true);
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(options.commitCells).toHaveBeenCalledTimes(1);
-    expect(options.commitCells).toHaveBeenCalledWith("region-1", ["9,9", "0,0"]);
-    expect(pointer.strokeCells.value).toBeNull(); // committed and cleared, not left stranded
-  });
-
-  it("commits nothing when the confirm is rejected", async () => {
-    let resolveConfirm!: (ok: boolean) => void;
-    const { pointer, options, region } = makeHarness({
-      confirmConvert: vi.fn(
-        () =>
-          new Promise<boolean>((resolve) => {
-            resolveConfirm = resolve;
-          }),
-      ),
-    });
-    region.current = makeRegion({
-      vertices: [
-        [0, 0],
-        [4, 0],
-        [2, 4],
-      ],
-      cells: ["9,9"],
-    });
-
-    pointer.onPointerDown(down(0, 0));
-    window.dispatchEvent(up(0, 0)); // lands mid-confirm, same as above
-
-    resolveConfirm(false);
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(options.commitCells).not.toHaveBeenCalled();
-    expect(pointer.strokeCells.value).toBeNull();
-  });
-
-  it("an ordinary paint drag on a cell region (no confirm needed) still commits on pointerup", () => {
-    const { pointer, options, region } = makeHarness();
-    region.current = makeRegion({ cells: [] }); // vertices: null — no conversion confirm
-
-    pointer.onPointerDown(down(3, 3));
-    window.dispatchEvent(move(4, 4));
-    window.dispatchEvent(up(4, 4));
-
-    expect(options.commitCells).toHaveBeenCalledTimes(1);
-    expect(options.commitCells).toHaveBeenCalledWith("region-1", ["3,3", "4,4"]);
-    expect(pointer.strokeCells.value).toBeNull();
-  });
-});
-
 describe("hover", () => {
   it("emits on change and suppresses while a stroke is in flight", () => {
     const { pointer, options, region } = makeHarness();
@@ -406,7 +556,7 @@ describe("hover", () => {
     pointer.onPointerMove(move(0, 0)); // unchanged — no repeat emit
     expect(options.onHover).toHaveBeenCalledTimes(1);
 
-    pointer.onPointerDown(down(1, 1)); // starts a paint stroke
+    pointer.onPointerDown(down(1, 1)); // starts a brush stroke
     vi.mocked(options.hoverRegionAt).mockReturnValue(null);
     pointer.onPointerMove(move(2, 2));
     expect(options.onHover).toHaveBeenCalledTimes(1); // suppressed mid-stroke
@@ -457,24 +607,7 @@ describe("what a tap does in run mode and in browse mode", () => {
 
     pointer.onPointerDown(down(2, 2));
 
-    expect(pointer.strokeCells.value).toBeNull();
-  });
-});
-
-describe("painting", () => {
-  it("only starts a stroke on a cell the grid actually lays across the image", () => {
-    const { pointer } = makeHarness({ isPaintable: vi.fn(() => false) });
-    pointer.onPointerDown(down(2, 2));
-    expect(pointer.strokeCells.value).toBeNull();
-  });
-
-  it("ignores cells outside the grid while a stroke is dragged across them", () => {
-    const paintable = new Set(["2,2", "3,3"]);
-    const { pointer } = makeHarness({ isPaintable: vi.fn((cell: CellKey) => paintable.has(cell)) });
-    pointer.onPointerDown(down(2, 2));
-    window.dispatchEvent(move(9, 9));
-    window.dispatchEvent(move(3, 3));
-    expect(pointer.strokeCells.value?.cells).toEqual(["2,2", "3,3"]);
+    expect(pointer.strokePreview.value).toBeNull();
   });
 });
 
@@ -606,34 +739,6 @@ describe("template details", () => {
     pointer.onPointerDown(down(5.4, 5.6));
 
     expect(pointer.templateDraft.value?.center).toEqual([5, 6]);
-  });
-});
-
-describe("a release that came in during a confirmation does not leak into the next gesture", () => {
-  it("the next stroke on a pen-traced region waits for its own release", async () => {
-    const resolvers: ((ok: boolean) => void)[] = [];
-    const { pointer, options, region } = makeHarness({
-      confirmConvert: vi.fn(() => new Promise<boolean>((resolve) => { resolvers.push(resolve); })),
-    });
-    region.current = makeRegion({ vertices: TRIANGLE, cells: ["9,9"] });
-
-    // Gesture 1: released mid-confirm, then declined.
-    pointer.onPointerDown(down(0, 0));
-    window.dispatchEvent(up(0, 0));
-    resolvers[0]!(false);
-    await Promise.resolve();
-    await Promise.resolve();
-
-    // Gesture 2: the confirm is accepted while the pointer is still down.
-    pointer.onPointerDown(down(1, 1));
-    resolvers[1]!(true);
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(options.commitCells).not.toHaveBeenCalled();
-    expect(pointer.strokeCells.value).not.toBeNull();
-
-    window.dispatchEvent(up(1, 1));
-    expect(options.commitCells).toHaveBeenCalledWith("region-1", ["9,9", "1,1"]);
   });
 });
 

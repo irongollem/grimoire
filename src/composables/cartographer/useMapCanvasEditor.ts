@@ -31,6 +31,7 @@ import { useSelectTool } from "./useSelectTool";
 import { useStraightStrokes } from "@/composables/cartographer/useStraightStrokes";
 import { useDressingTool } from "@/composables/cartographer/useDressingTool";
 import { useAngledWallTool } from "@/composables/cartographer/useAngledWallTool";
+import { useFreehandWallTool } from "@/composables/cartographer/useFreehandWallTool";
 import { useLightTool } from "@/composables/cartographer/useLightTool";
 import { PLAN_TOOLS } from "@/composables/cartographer/usePlanPalette";
 import { usePlanCanvasTools } from "@/composables/cartographer/usePlanCanvasTools";
@@ -219,6 +220,14 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     pack: () => ({ packId: currentPackId.value, packVersion: activePackVersion() }),
     snapshotStr, pushCommand, markDirty,
   });
+  // Freehand shares the Angled wall tool's selection, so Delete and the highlight read one pick.
+  const freehandTool = useFreehandWallTool({
+    layers, wallKind: activeWallKind,
+    visible: () => wallVisible.value,
+    pack: () => ({ packId: currentPackId.value, packVersion: activePackVersion() }),
+    selectedId: angledTool.selectedId,
+    snapshotStr, pushCommand, markDirty,
+  });
   const lightTool = useLightTool({ layers, draft: lightDraft, snapshotStr, pushCommand, markDirty });
 
   // Wall nodes (#1125 frame 17): Select picks a wall's whole run, and its nodes and bones are then dragged, split and
@@ -277,7 +286,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   watch(activeTool, (tool, previous) => {
     if (previous === "brush" && tool !== "brush") brush.clear();
     if (previous === "angledWall" && tool !== "angledWall") angledTool.abandon();
-    if (tool !== "angledWall") angledTool.selectedId.value = null;
+    if (previous === "freehandWall" && tool !== "freehandWall") freehandTool.abandon();
+    if (tool !== "angledWall" && tool !== "freehandWall") angledTool.selectedId.value = null;
     if (tool !== "light" && tool !== "select") lightTool.selectedId.value = null;
     if (tool !== "select") { selectTool.clear(); wallNodes.clearSelection(); }
   });
@@ -293,7 +303,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
   const render = useEditorRender({
     opts, zoom, viewportOffset, canvasBox, hoverCell, hoverPoint, hoveredEdge, altHeld, previewCells, shownLayers, geometry, brush,
-    dressingTool, angledTool, lightTool, selectTool, wallNodes, planTools, isPlanLayerActive,
+    dressingTool, angledTool, freehandTool, lightTool, selectTool, wallNodes, planTools, isPlanLayerActive,
   });
 
   /** Inclusive bounds of every cell that holds floor; null for an empty map. */
@@ -322,7 +332,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const pointer = useEditorPointer({
     canvasEl, layers, metadata, activeTool, selectedCell, toolOptionsRef, rectWalls, activeTemplateShape, activeLayer,
     viewportOffset, isPanning, isPainting, previewCells, hoverCell, hoverPoint, hoveredEdge, geometry, navigation, straight,
-    painting, brush, dressingTool, angledTool, lightTool, selectTool, wallNodes, planTools, isPlanLayerActive,
+    painting, brush, dressingTool, angledTool, freehandTool, lightTool, selectTool, wallNodes, planTools, isPlanLayerActive,
     snapshotStr, pushCommand, markDirty, dropTouch: () => touch.dropPending(),
   });
   const { syncBusy, gestureBusy } = pointer;
@@ -512,6 +522,8 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     onPointerUp,
     /** The pointer left the canvas: ends any gesture, and the Dressing ghost goes with it. */
     onPointerLeave(ev: PointerEvent): void {
+      // A stroke that is still open when the pointer leaves the canvas is dropped, not written (captured drags never get here).
+      freehandTool.abandon();
       onPointerUp(ev);
       dressingTool.clearHover();
       // The brush's cursor circle follows the pointer; with the pointer gone it goes too.
@@ -544,6 +556,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     deleteSelectedLight: lightTool.deleteSelected,
     /** The Angled wall tool's state, for tests and the status line. */
     angledTool,
+    freehandTool,
     /** Turns the selected Dressing prop (one undo step) and the brush with it. */
     rotateSelectedDressing: (degrees: number) => {
       if (selectTool.multiObjects.value.size > 0) selectTool.rotateObjects(degrees);

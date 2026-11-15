@@ -89,7 +89,7 @@ export interface KeyContext {
 // Delete and Backspace are the same key on the two keyboard families.
 const DRESSING_DELETE_KEYS = new Set(["delete", "backspace"]);
 /** The tools in which a selected angled wall or placed light can be taken away with Delete. */
-const SELECTION_TOOLS = new Set<Tool>(["select", "angledWall", "light"]);
+const SELECTION_TOOLS = new Set<Tool>(["select", "angledWall", "freehandWall", "light"]);
 
 export const BRUSH_RADIUS_MIN = 0.5;
 export const BRUSH_RADIUS_MAX = 6;

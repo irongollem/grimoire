@@ -14,6 +14,8 @@ export interface EditorMarks {
   brushStroke?: { path: Path2D; erase: boolean } | null;
   /** The Angled wall run in progress and the snapped point the next click would add. */
   wallRun?: { points: CellPoint[]; hover: CellPoint | null } | null;
+  /** The freehand wall dragged so far, a thin solid line in the run colour; null when none. */
+  freehandStroke?: CellPoint[] | null;
   selectedWallId?: string | null;
   /** The wall run Select picked (#1125 frame 17): its bones, its draggable nodes and where a drag would land. */
   wallNodes?: WallNodeMarks | null;
@@ -107,6 +109,19 @@ export function paintEditorMarks(
   }
 
   if (marks.wallNodes) paintWallNodes(ctx, marks.wallNodes, tilePx, viewportOffset);
+
+  const dragged = marks.freehandStroke;
+  if (dragged && dragged.length > 1) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,220,100,0.9)";
+    ctx.lineWidth = Math.max(2, tilePx * 0.05);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    dragged.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(px(x), py(y)) : ctx.lineTo(px(x), py(y))));
+    ctx.stroke();
+    ctx.restore();
+  }
 
   const run = marks.wallRun;
   if (run && run.points.length > 0) {

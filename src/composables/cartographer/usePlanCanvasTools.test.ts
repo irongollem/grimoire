@@ -47,12 +47,12 @@ function makeHarness() {
     ways: ref([]),
     planTool: ref("zone"),
     traceTool: ref("paint"),
+    brushRadius: ref(0.75),
     activeRegionId: ref("r1"),
     activeRegion: computed(() => region),
     commitCells,
     commitRing: vi.fn(async () => {}),
     commitTemplate: vi.fn(),
-    confirmConvert: vi.fn(async () => true),
     assignArea: vi.fn(async () => {}),
     existingDoorAtEdge: vi.fn(() => null),
     placeDoorAt: vi.fn(),
@@ -84,8 +84,8 @@ function up(x: number, y: number): PointerEvent {
 }
 
 describe("usePlanCanvasTools.abandonGesture (#884 review finding 2)", () => {
-  it("abandons an in-flight Zone paint stroke so the stray pointerup does not commit it", () => {
-    const { tools, commitCells } = makeHarness();
+  it("abandons an in-flight Zone brush stroke so the stray pointerup does not commit it", () => {
+    const { tools, plan, commitCells } = makeHarness();
 
     tools.onPointerDown(down(0, 0));
     tools.onPointerMove(move(1, 1));
@@ -97,11 +97,33 @@ describe("usePlanCanvasTools.abandonGesture (#884 review finding 2)", () => {
     window.dispatchEvent(up(1, 1));
 
     expect(commitCells).not.toHaveBeenCalled();
+    expect(plan.commitRing).not.toHaveBeenCalled();
   });
 
   it("is a harmless no-op when nothing is in flight (e.g. the Door/Assign tools, which have no gesture to abandon)", () => {
     const { tools } = makeHarness();
     expect(() => tools.abandonGesture()).not.toThrow();
+  });
+});
+
+describe("usePlanCanvasTools stroke preview (#1197)", () => {
+  it("shows a lasso in flight as an open tracing ring and a brush stroke as a closed one, and neither after release", () => {
+    const { tools, plan } = makeHarness();
+
+    plan.traceTool.value = "lasso";
+    tools.onPointerDown(down(0, 0));
+    window.dispatchEvent(move(4, 0));
+    expect(tools.renderScene()).toMatchObject({ tracingRing: [[0, 0], [4, 0]], tracingClosed: false });
+    window.dispatchEvent(up(4, 0));
+    expect(tools.renderScene().tracingRing).toBeNull();
+
+    plan.traceTool.value = "paint";
+    tools.onPointerDown(down(10, 10));
+    const scene = tools.renderScene();
+    expect(scene.tracingClosed).toBe(true);
+    expect(scene.tracingRing?.length).toBeGreaterThan(3);
+    window.dispatchEvent(up(10, 10));
+    expect(tools.renderScene().tracingRing).toBeNull();
   });
 });
 

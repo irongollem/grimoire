@@ -31,6 +31,16 @@
         <AppButton variant="ghost" fill="muted" size="xs" @click="$emit('start-new')">New zone</AppButton>
       </div>
 
+      <div v-if="planTool === 'zone' && traceTool === 'paint'" class="flex basis-full flex-wrap items-center gap-1.5">
+        <BrushSizeControl id="zone-brush-size" v-model="brushRadius" />
+        <span class="text-caption-sm text-muted-foreground">Paint the area. The shape follows your stroke, and Alt carves it away.</span>
+      </div>
+
+      <span v-if="planTool === 'zone' && traceTool === 'lasso'" class="basis-full text-caption-sm text-muted-foreground">
+        Drag round the area. Let go and the outline closes and is smoothed. The squares it covers are worked out for you,
+        for fog, footprints and rules.
+      </span>
+
       <span v-if="planTool === 'zone'" class="basis-full text-caption-sm text-muted-foreground">
         Most rooms are already here, found from the walls. Draw a zone to add one, or drag over a found room to reshape it.
         A room is a place in the Atlas; any other kind only marks the floor.
@@ -68,7 +78,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 // Zoning's options (epic #884 S7b; Map Table frame 19 made Space and Zone one tool). The Zone tool traces with the
-// same brush/pen/shape gestures the Drawing offers (`src/lib/map/gestures/`, via `useRegionPointer`, see
+// same brush/pen/shape/lasso gestures the Drawing offers (`src/lib/map/gestures/`, via `useRegionPointer`, see
 // `usePlanCanvasTools.ts`), Door snaps to a cell edge, Assign makes a room or zone of the area a click lands in.
 // Binding a traced room to its place, and naming it, are actions of the Zoning list; this never opens or names a
 // location.
@@ -86,6 +96,7 @@ import {
   type PlanTool,
   type ZoningKind,
 } from "@/composables/cartographer/usePlanPalette";
+import BrushSizeControl from "@/components/cartographer/BrushSizeControl.vue";
 import type { TemplateShape, TraceTool } from "@/lib/locations/polygon";
 
 const { planTool } = defineProps<{
@@ -101,6 +112,7 @@ const { planTool } = defineProps<{
 }>();
 
 const traceTool = defineModel<TraceTool>("traceTool", { required: true });
+const brushRadius = defineModel<number>("brushRadius", { required: true });
 const templateShape = defineModel<TemplateShape>("templateShape", { required: true });
 const zoneKind = defineModel<ZoningKind>("zoneKind", { required: true });
 const zoneLabel = defineModel<string>("zoneLabel", { required: true });

@@ -38,7 +38,6 @@
 // whatever the lagging query still shows.
 
 import { computed, ref, watch, type ComputedRef } from "vue";
-import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useLocations } from "@/composables/locations/useLocations";
 import {
@@ -61,6 +60,7 @@ import { findAgain, materializeFound, zoningList, type ZoningEntry } from "@/lib
 import { foundRegionOf, foundSpaceKey } from "@/lib/locations/zoningRows";
 import { emptyZoneInsert } from "@/lib/locations/zones";
 import { cellsInsideRing } from "@/lib/locations/polygon";
+import { regionLoops, strokeZoneRing } from "@/lib/locations/zoneBrush";
 import type { TraceTool } from "@/lib/locations/polygon";
 import { wallFaces } from "@/cartographer/roomOutline";
 import type { CellKey, DungeonMapLayers } from "@/types/dungeonMap.types";
@@ -89,6 +89,7 @@ export const TRACE_TOOL_OPTIONS: readonly { value: TraceTool; label: string }[] 
   { value: "paint", label: "Brush" },
   { value: "pen", label: "Pen" },
   { value: "template", label: "Shape" },
+  { value: "lasso", label: "Lasso" },
 ];
 
 /** Each tool's key, the letters the Drawing's rail also uses for its own tools (the tab decides which set is live). */
@@ -136,7 +137,6 @@ export function usePlanPalette(
   layers: () => DungeonMapLayers | null = () => null,
 ) {
   const { error: toastError, fromError } = useToast();
-  const { confirm } = useConfirm();
 
   // ── Data ───────────────────────────────────────────────────────────────
   const { data: regionsData } = useLocationMapRegions(computed(() => siteId.value ?? ""));
@@ -154,6 +154,9 @@ export function usePlanPalette(
   // ── Tool state ─────────────────────────────────────────────────────────
   const planTool = ref<PlanTool>("zone");
   const traceTool = ref<TraceTool>("paint");
+  /** Zoning's round Brush, in cells (the Drawing's brush runs 0.5 to 6 too). A zone is a smooth shape, so a small
+   *  default: a stroke at 0.75 is a line a little over a square wide. */
+  const brushRadius = ref(0.75);
   /** A listed door waiting for its edge (see `armDoorPlacement`). */
   const placingDoorId = ref<string | null>(null);
   /** An edge clicked with the Door tool where no room is in reach on either side (#1195). The options slip asks
@@ -250,26 +253,27 @@ export function usePlanPalette(
     return cells.length > 0 ? { ...base, cells } : base;
   }
 
-  /** Fire-and-forget cell-set commit for the brush/paint trace tool —
-   *  `useRegionPointer`'s `commitCells` contract. Captures the region's
-   *  pre-stroke cells for the undo entry before the mutation lands. */
+  /** Fire-and-forget square-set commit with no ring: `useRegionPointer`'s `commitCells` contract (a brush or lasso
+   *  that leaves nothing) and the Erase tool on a region with no ring. A region written this way has no vertices, so
+   *  an emptied ring-shaped region never keeps a ring that describes squares it no longer has. Captures the
+   *  region's prior shape for the undo entry before the mutation lands. */
   function commitCells(regionId: string, cells: CellKey[]): void {
     const prior = regionStateNow(regionId);
-    localRegionState.set(regionId, { vertices: prior.vertices, cells });
+    localRegionState.set(regionId, { vertices: null, cells });
     const handle: PlanEntityHandle = { id: regionId };
     updateRegion.mutate(
-      { id: regionId, update: dmEdit({ cells }) },
+      { id: regionId, update: dmEdit({ vertices: null, cells }) },
       {
         onSuccess: () => {
           undo.push({
             label: "paint stroke",
             undo: async () => {
-              localRegionState.set(handle.id, { vertices: prior.vertices, cells: prior.cells });
-              await updateRegion.mutateAsync({ id: handle.id, update: dmEdit({ cells: prior.cells }) });
+              localRegionState.set(handle.id, prior);
+              await updateRegion.mutateAsync({ id: handle.id, update: dmEdit(prior) });
             },
             redo: async () => {
-              localRegionState.set(handle.id, { vertices: prior.vertices, cells });
-              await updateRegion.mutateAsync({ id: handle.id, update: dmEdit({ cells }) });
+              localRegionState.set(handle.id, { vertices: null, cells });
+              await updateRegion.mutateAsync({ id: handle.id, update: dmEdit({ vertices: null, cells }) });
             },
           });
         },
@@ -282,10 +286,27 @@ export function usePlanPalette(
    *  touched cells. Any region, bound or not, active or not: the trace
    *  brush's own erase only reaches the shape being traced, which left a
    *  bound room's area with no way to shrink it from the canvas. A room
-   *  whose area empties keeps its Atlas page, like an orphan on publish. */
+   *  whose area empties keeps its Atlas page, like an orphan on publish.
+   *
+   *  A region with a ring (a lasso, a brush or a pen shape) is carved out of its ring, not just stripped of squares:
+   *  taking the squares alone would leave `vertices` describing the old shape, and the canvas would keep drawing it.
+   *  The carved ring is the largest loop left (a region holds one ring), written with its squares derived. */
   function eraseCells(erased: ReadonlySet<CellKey>): void {
-    const current = regions.value.map((region) => ({ ...region, cells: regionStateNow(region.id).cells }));
-    for (const [regionId, cells] of eraseFromRegions(current, erased)) commitCells(regionId, cells);
+    const current = regions.value.map((region) => {
+      const now = regionStateNow(region.id);
+      return { ...region, cells: now.cells, vertices: now.vertices };
+    });
+    for (const [regionId, cells] of eraseFromRegions(current, erased)) {
+      const vertices = current.find((r) => r.id === regionId)?.vertices ?? null;
+      if (vertices === null) {
+        commitCells(regionId, cells);
+        continue;
+      }
+      const ring = strokeZoneRing(regionLoops(vertices, []), [], true, erased);
+      if (ring === null) continue;
+      if (ring.length === 0) commitCells(regionId, []);
+      else void commitRing(regionId, ring).catch(() => {});
+    }
   }
 
   /** Pen-ring commit — `useRegionPointer`'s `commitRing` contract. Must
@@ -342,37 +363,6 @@ export function usePlanPalette(
         onError: (err) => toastError(fromError(err)),
       },
     );
-  }
-
-  /** The one-way vertices→cells conversion `useRegionPointer` needs before a
-   *  paint stroke can start on a pen-traced region — confirmed once, same
-   *  wording the Atlas uses. */
-  async function confirmConvert(region: LocationMapRegion): Promise<boolean> {
-    const ok = await confirm("Painting converts this pen-traced shape to cells. The diagonal edges are lost. Continue?", { danger: true });
-    if (!ok) return false;
-    const before = { vertices: region.vertices, cells: region.cells };
-    const after = { vertices: null, cells: region.cells };
-    const handle: PlanEntityHandle = { id: region.id };
-    localRegionState.set(region.id, after);
-    try {
-      await updateRegion.mutateAsync({ id: region.id, update: dmEdit(after) });
-      undo.push({
-        label: "convert to cells",
-        undo: async () => {
-          localRegionState.set(handle.id, before);
-          await updateRegion.mutateAsync({ id: handle.id, update: dmEdit(before) });
-        },
-        redo: async () => {
-          localRegionState.set(handle.id, after);
-          await updateRegion.mutateAsync({ id: handle.id, update: dmEdit(after) });
-        },
-      });
-      return true;
-    } catch (err) {
-      localRegionState.set(region.id, before);
-      toastError(fromError(err));
-      return false;
-    }
   }
 
   /** An existing space region that already covers some of `cells`: filling the same floor twice (or floor already
@@ -646,6 +636,7 @@ export function usePlanPalette(
     ways,
     planTool,
     traceTool,
+    brushRadius,
     templateShape,
     zoneKind,
     zoneLabel,
@@ -667,7 +658,6 @@ export function usePlanPalette(
     eraseCells,
     commitRing,
     commitTemplate,
-    confirmConvert,
     assignArea,
     existingDoorAtEdge,
     placingDoorId,

@@ -84,7 +84,7 @@ describe("material shape options", () => {
 });
 
 describe("physical wall visibility", () => {
-  it.each(["wall", "angledWall"])("exposes visible and hidden creation for %s", async (activeTool) => {
+  it.each(["wall", "angledWall", "freehandWall"])("exposes visible and hidden creation for %s", async (activeTool) => {
     const wrapper = mountOptions({ activeTool, wallVisible: true });
     expect(button(wrapper, "Visible").attributes("aria-pressed")).toBe("true");
     await button(wrapper, "Hidden").trigger("click");
@@ -276,6 +276,16 @@ describe("angled wall options (#1125 story 5)", () => {
     expect(wrapper.text()).toContain("Enter or a double-click ends the run");
     await button(wrapper, "Grate").trigger("click");
     expect(wrapper.emitted("update:activeWallKind")?.[0]).toEqual(["grate"]);
+  });
+});
+
+describe("freehand wall options (#1197)", () => {
+  it("says how a stroke is drawn and joined, not how an angled run is ended, and still offers the wall kinds", async () => {
+    const wrapper = mountOptions({ title: "Walls", activeTool: "freehandWall" });
+    expect(wrapper.text()).toContain("Drag along the wall in the picture");
+    expect(wrapper.text()).not.toContain("double-click");
+    await button(wrapper, "Sluice").trigger("click");
+    expect(wrapper.emitted("update:activeWallKind")?.[0]).toEqual(["sluice"]);
   });
 });
 
