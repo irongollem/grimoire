@@ -5,7 +5,7 @@
  * full combat module would be fetched as a file of its own (the 8 kB rule in
  * vite.config.ts `codeSplitting`).
  */
-import type { RunCombatant } from "@/types/encounter.types";
+import type { RunCombatant } from "../types/encounter.types.ts";
 
 type TurnCombatant = Pick<RunCombatant, "instance_id" | "hp" | "type">;
 type AliveCombatant = Pick<RunCombatant, "hp" | "type">;

@@ -14,7 +14,7 @@
 // successes. `dyingStatus` is the ONE place that says so; every screen asks it.
 
 import { withCondition, withoutCondition } from "./conditions.ts";
-import type { AppliedCondition } from "@/types/condition.types";
+import type { AppliedCondition } from "../types/condition.types.ts";
 import { applyDamage, applyHealing, type HpPools } from "./hitPoints.ts";
 
 export const UNCONSCIOUS = "Unconscious";

@@ -1,4 +1,4 @@
-import type { EncounterEvent, RunCombatant } from "@/types/encounter.types";
+import type { EncounterEvent, RunCombatant } from "../../types/encounter.types.ts";
 import type { EncounterTurnEvent, EncounterTurnState } from "../encounterTurn.ts";
 
 /**

@@ -1,4 +1,4 @@
-import type { RunCombatant } from "@/types/encounter.types";
+import type { RunCombatant } from "../types/encounter.types.ts";
 import { initiativeModifier } from "./initiative.ts";
 
 // Canonical initiative order for a live encounter: initiative desc (unrolled = last),

@@ -1,4 +1,4 @@
-import type { RulesetKey } from "@/types/ruleset.types";
+import type { RulesetKey } from "./ruleset.types.ts";
 
 /** Shared identity/provenance contract for every rules-bearing content row. */
 export interface VersionedContentMetadata {

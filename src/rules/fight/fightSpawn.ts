@@ -4,10 +4,10 @@
  * monsters and NPCs come in as data and the id source is injected, so a server
  * builds exactly what the DM's browser does.
  */
-import type { RunCombatant, SpawnDef } from "@/types/encounter.types";
-import type { Monster } from "@/types/monster.types";
-import type { NpcListRow } from "@/types/npc.types";
-import type { Companion } from "@/types/companion.types";
+import type { RunCombatant, SpawnDef } from "../../types/encounter.types.ts";
+import type { Monster } from "../../types/monster.types.ts";
+import type { NpcListRow } from "../../types/npc.types.ts";
+import type { Companion } from "../../types/companion.types.ts";
 import { sizeToFootprint } from "../../lib/battlemap/tokenFootprint.ts";
 import { buildMonsterCombatants, buildNpcCombatants } from "../encounterCombatLogic.ts";
 import { sortCombatantsByInitiative } from "../combatantSort.ts";

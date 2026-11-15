@@ -1,5 +1,5 @@
-import type { AppliedCondition } from "@/types/condition.types";
-import type { MonsterSize, MonsterStatBlock } from "@/types/monster.types";
+import type { AppliedCondition } from "./condition.types.ts";
+import type { MonsterSize, MonsterStatBlock } from "./monster.types.ts";
 
 export type CompanionType = "familiar" | "animal_companion" | "mount" | "ally" | "sidekick" | "pet";
 export type CompanionSourceType = "monster" | "npc" | "custom";

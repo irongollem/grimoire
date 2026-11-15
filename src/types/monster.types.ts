@@ -1,7 +1,7 @@
-import type { SpellcastingBlock } from "@/types/npc.types";
-import type { VersionedContentMetadata } from "@/types/content.types";
-import type { AiProvenance } from "@/ai/provenance";
-import type { Defenses, StatBlockEntry } from "@/types/statBlock.types";
+import type { SpellcastingBlock } from "./npc.types.ts";
+import type { VersionedContentMetadata } from "./content.types.ts";
+import type { AiProvenance } from "../ai/provenance.ts";
+import type { Defenses, StatBlockEntry } from "./statBlock.types.ts";
 
 export const MONSTER_TYPES = [
   "aberration",

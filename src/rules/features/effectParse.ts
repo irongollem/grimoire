@@ -1,6 +1,6 @@
-import { DAMAGE_TYPES } from "@/types/damage.types";
-import { EFFECT_KINDS, type EffectAdd, type FeatureEffect } from "./mechanics.types";
-import { ABILITY_KEYS, isCount, isDice, isMember, isNonEmptyString, isRecord, parseByLevel } from "./parsePrimitives";
+import { DAMAGE_TYPES } from "../../types/damage.types.ts";
+import { EFFECT_KINDS, type EffectAdd, type FeatureEffect } from "./mechanics.types.ts";
+import { ABILITY_KEYS, isCount, isDice, isMember, isNonEmptyString, isRecord, parseByLevel } from "./parsePrimitives.ts";
 
 /**
  * Parsing a feature's rollable `effect` (and the `add` lists a flat rider

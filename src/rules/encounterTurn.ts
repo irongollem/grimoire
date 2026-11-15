@@ -1,11 +1,11 @@
-import type { ActionUse, RunCombatant, WildshapeState } from "@/types/encounter.types";
-import type { MonsterSize } from "@/types/monster.types";
-import type { AppliedCondition, TurnEdge } from "@/types/condition.types";
-import type { StatBlockEntry } from "@/types/statBlock.types";
-import type { StatBlockListKey } from "@/rules/statBlock/parseAction";
+import type { ActionUse, RunCombatant, WildshapeState } from "../types/encounter.types.ts";
+import type { MonsterSize } from "../types/monster.types.ts";
+import type { AppliedCondition, TurnEdge } from "../types/condition.types.ts";
+import type { StatBlockEntry } from "../types/statBlock.types.ts";
+import type { StatBlockListKey } from "./statBlock/parseAction.ts";
 import { rechargeSucceeds } from "./combat/recharge.ts";
 import { rollDie } from "../lib/dice/dice.ts";
-import type { PartyMemberUpdate } from "@/types/party.types";
+import type { PartyMemberUpdate } from "../types/party.types.ts";
 import { sortCombatantsByInitiative } from "./combatantSort.ts";
 import { applyDamage, applyHealing, betterTempHp, formHpPools } from "./hitPoints.ts";
 import { damageOutcome, healingOutcome, UNCONSCIOUS, type DyingOutcome } from "./dying.ts";
@@ -17,7 +17,7 @@ import {
   type ConditionEvent,
   type ConditionPassResult,
 } from "./conditionDurations.ts";
-import type { RulesetKey } from "@/types/ruleset.types";
+import type { RulesetKey } from "../types/ruleset.types.ts";
 import { rollAllInitiativeValues } from "./encounterCombatLogic.ts";
 import { findFirstActiveIndex, stepTurnIndex } from "./turnOrder.ts";
 

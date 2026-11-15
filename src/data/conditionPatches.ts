@@ -16,8 +16,8 @@
 // written in second person ("you"); it is kept verbatim rather than
 // restyled to the 2014 file's third person so future diffs against the
 // source stay trivial.
-import type { Condition } from "@/types/condition.types";
-import type { RulesetKey } from "@/types/ruleset.types";
+import type { Condition } from "../types/condition.types.ts";
+import type { RulesetKey } from "../types/ruleset.types.ts";
 
 /**
  * Patch map for a single edition: condition id -> complete replacement

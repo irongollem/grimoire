@@ -1,8 +1,8 @@
 import { SRD_CONDITIONS_2014 } from "../data/srdConditions2014.ts";
 import { SRD_CONDITIONS_2024 } from "../data/srdConditions2024.ts";
 import { CONDITION_PATCHES } from "../data/conditionPatches.ts";
-import type { AppliedCondition, Condition } from "@/types/condition.types";
-import type { RulesetKey } from "@/types/ruleset.types";
+import type { AppliedCondition, Condition } from "../types/condition.types.ts";
+import type { RulesetKey } from "../types/ruleset.types.ts";
 
 export type { Condition };
 

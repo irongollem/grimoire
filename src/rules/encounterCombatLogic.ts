@@ -8,13 +8,13 @@
  */
 import { rollDie } from "../lib/dice/dice.ts";
 import { initiativeModifier, initiativeRoll, type InitiativeSource } from "./initiative.ts";
-import type { RulesetKey } from "@/types/ruleset.types";
+import type { RulesetKey } from "../types/ruleset.types.ts";
 import { hitPointsToMax } from "../lib/dice/dice.ts";
 import { sizeToFootprint } from "../lib/battlemap/tokenFootprint.ts";
 import { resolveTokenArt } from "../lib/battlemap/tokenArt.ts";
-import type { RunCombatant, EventTrigger } from "@/types/encounter.types";
-import type { Monster, MonsterStatBlock } from "@/types/monster.types";
-import type { NpcListRow } from "@/types/npc.types";
+import type { RunCombatant, EventTrigger } from "../types/encounter.types.ts";
+import type { Monster, MonsterStatBlock } from "../types/monster.types.ts";
+import type { NpcListRow } from "../types/npc.types.ts";
 
 // ── Initiative rolling ──────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
-import type { Coins } from "@/lib/currency/currency";
-import type { LocationType } from "@/types/location.types";
-import type { AiProvenance } from "@/ai/provenance";
-import { LOCATION_STATE_FACT_LABELS, type LocationStateFact } from "@/types/locationState.types";
+import type { Coins } from "../lib/currency/currency.ts";
+import type { LocationType } from "./location.types.ts";
+import type { AiProvenance } from "../ai/provenance.ts";
+import { LOCATION_STATE_FACT_LABELS, type LocationStateFact } from "./locationState.types.ts";
 
 export type QuestStatus =
   | "undiscovered"

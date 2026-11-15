@@ -1,7 +1,7 @@
 // Tile pack schema — source of truth for what every pack must contain.
 // See context/features/cartographer.md "Tile Pack System".
 
-import type { MotionOverlay } from "@/types/mapLive.types";
+import type { MotionOverlay } from "../types/mapLive.types.ts";
 
 export interface RandomCategoryDef {
   kind: "random";

@@ -1,6 +1,6 @@
-import type { RulesetKey } from "@/types/ruleset.types";
-import type { AiProvenance } from "@/ai/provenance";
-import { ordinal } from "@/lib/ordinal";
+import type { RulesetKey } from "./ruleset.types.ts";
+import type { AiProvenance } from "../ai/provenance.ts";
+import { ordinal } from "../lib/ordinal.ts";
 
 export const SPELL_SCHOOLS = [
   "abjuration",
@@ -206,7 +206,7 @@ export interface Spell {
   attack_type: string | null; // ranged_spell | melee_spell | save | automatic | none
   save_attribute: string | null; // STR | DEX | CON | INT | WIS | CHA
   save_effect: string | null; // half | negates | special
-  damage_rolls: import("@/systems/dnd5e/dice/damageExpression").DamageRoll[] | null; // e.g. [{dice:"8d6",type:"fire"}]
+  damage_rolls: import("../systems/dnd5e/dice/damageExpression.ts").DamageRoll[] | null; // e.g. [{dice:"8d6",type:"fire"}]
   healing_dice: string | null; // e.g. "1d8"
   target_description: string | null; // e.g. "one creature you can see within range", "up to three creatures"
   aoe_shape: string | null; // sphere | cone | line | cylinder | cube | emanation
@@ -463,7 +463,7 @@ const WARLOCK_PACT_SLOTS: [number, number][] = [
   [5,3],[5,3],[5,3],[5,3],[5,3],[5,3],[5,4],[5,4],[5,4],[5,4],
 ];
 
-function slotsFromRow(row: number[]): import("@/types/party.types").SpellSlotEntry[] {
+function slotsFromRow(row: number[]): import("./party.types.ts").SpellSlotEntry[] {
   return row
     .map((max, i) => ({ level: i + 1, max, used: 0, pool: "spellcasting" as const, recovery: "long" as const }))
     .filter((s) => s.max > 0);
@@ -474,7 +474,7 @@ export function getDefaultSpellSlots(
   cls: string | null | undefined,
   level: number,
   ruleset: RulesetKey,
-): import("@/types/party.types").SpellSlotEntry[] {
+): import("./party.types.ts").SpellSlotEntry[] {
   const l = Math.max(1, Math.min(20, Math.round(level)));
   const idx = l - 1;
   switch (cls) {
@@ -576,7 +576,7 @@ export function multiclassCasterLevel(
 export function getMulticlassSpellSlots(
   classes: CasterClassEntry[],
   ruleset: RulesetKey,
-): import("@/types/party.types").SpellSlotEntry[] {
+): import("./party.types.ts").SpellSlotEntry[] {
   if (classes.length === 0) return [];
   if (classes.length === 1) {
     const only = classes[0];
@@ -584,7 +584,7 @@ export function getMulticlassSpellSlots(
     return getDefaultSpellSlots(only.class_name, only.levels, ruleset);
   }
 
-  const out: import("@/types/party.types").SpellSlotEntry[] = [];
+  const out: import("./party.types.ts").SpellSlotEntry[] = [];
 
   const casterLevel = multiclassCasterLevel(classes, ruleset);
   if (casterLevel > 0) {

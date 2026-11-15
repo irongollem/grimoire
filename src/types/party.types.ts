@@ -1,8 +1,8 @@
-import type { AppliedCondition } from "@/types/condition.types";
-import type { LevelChoiceRecord } from "@/rules/features/levelUpChoices";
-import type { RulesetKey } from "@/types/ruleset.types";
-import type { WildshapeState } from "@/types/encounter.types";
-import type { Coins } from "@/lib/currency/currency";
+import type { AppliedCondition } from "./condition.types.ts";
+import type { LevelChoiceRecord } from "../rules/features/levelUpChoices.ts";
+import type { RulesetKey } from "./ruleset.types.ts";
+import type { WildshapeState } from "./encounter.types.ts";
+import type { Coins } from "../lib/currency/currency.ts";
 
 export type SkillProfLevel = "none" | "proficient" | "expertise";
 export type SaveKey = "str" | "dex" | "con" | "int" | "wis" | "cha";

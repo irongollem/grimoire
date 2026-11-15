@@ -1,10 +1,10 @@
 import { abilityMod } from "./weaponAttack.ts";
 import { jackOfAllTradesBonus, type JackOfAllTrades } from "./skillCheck.ts";
 import { getExhaustionD20Penalty, hasCheckDisadvantage } from "./conditions.ts";
-import type { RulesetKey } from "@/types/ruleset.types";
-import type { AppliedCondition } from "@/types/condition.types";
-import type { WildshapeState } from "@/types/encounter.types";
-import type { PartyMember } from "@/types/party.types";
+import type { RulesetKey } from "../types/ruleset.types.ts";
+import type { AppliedCondition } from "../types/condition.types.ts";
+import type { WildshapeState } from "../types/encounter.types.ts";
+import type { PartyMember } from "../types/party.types.ts";
 
 /**
  * The one initiative rule (#1149). Every place that rolls or shows initiative

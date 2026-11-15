@@ -1,6 +1,6 @@
-import type { AbilityKey } from "@/rules/characterCreation";
-import { parseExpression } from "@/lib/dice/dice";
-import type { ByLevel } from "./mechanics.types";
+import type { AbilityKey } from "../characterCreation.ts";
+import { parseExpression } from "../../lib/dice/dice.ts";
+import type { ByLevel } from "./mechanics.types.ts";
 
 /**
  * The value checks every part of the mechanics parser shares (mechanics.ts,

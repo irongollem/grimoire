@@ -2,7 +2,7 @@
 // Shared by useCharacterCreationForm and its composed sub-composables, plus the
 // step/tab components that render off these tables directly.
 
-import type { PartyMemberInsert, SaveKey, SkillProfLevel } from "@/types/party.types";
+import type { PartyMemberInsert, SaveKey, SkillProfLevel } from "../types/party.types.ts";
 
 /**
  * Shape of the reactive `f` form-state object built by

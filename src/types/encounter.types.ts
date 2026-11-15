@@ -1,7 +1,7 @@
-import type { AppliedCondition } from "@/types/condition.types";
-import type { RewardCurrencyPool } from "@/types/quest.types";
-import type { AiProvenance } from "@/ai/provenance";
-import type { MonsterSize } from "@/types/monster.types";
+import type { AppliedCondition } from "./condition.types.ts";
+import type { RewardCurrencyPool } from "./quest.types.ts";
+import type { AiProvenance } from "../ai/provenance.ts";
+import type { MonsterSize } from "./monster.types.ts";
 export type { RewardCurrencyPool };
 
 // Faction definition — who fights whom

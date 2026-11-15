@@ -7,8 +7,8 @@
  * same rules. The browser-only guards around it (writes in flight, read ticks)
  * stay in the composable: they are about when to apply a row, never what to do.
  */
-import type { AppliedCondition } from "@/types/condition.types";
-import type { RunCombatant, WildshapeState } from "@/types/encounter.types";
+import type { AppliedCondition } from "../../types/condition.types.ts";
+import type { RunCombatant, WildshapeState } from "../../types/encounter.types.ts";
 import { deepEqual } from "../../lib/deepEqual.ts";
 import { sameConditions } from "../conditions.ts";
 import { applyFightCommand } from "./fightCommands.ts";

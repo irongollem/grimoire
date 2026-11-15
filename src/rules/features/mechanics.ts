@@ -1,5 +1,5 @@
-import type { AbilityKey } from "@/rules/characterCreation";
-import type { SkillKey } from "@/types/party.types";
+import type { AbilityKey } from "../characterCreation.ts";
+import type { SkillKey } from "../../types/party.types.ts";
 import {
   ACTIVATIONS,
   FEAT_CATEGORIES,
@@ -26,8 +26,8 @@ import {
   type SubAction,
   type UsesAmount,
   type UsesCost,
-} from "./mechanics.types";
-import { parseAddList, parseEffect } from "./effectParse";
+} from "./mechanics.types.ts";
+import { parseAddList, parseEffect } from "./effectParse.ts";
 import {
   ABILITY_KEYS,
   ARMOR_KINDS,
@@ -39,7 +39,7 @@ import {
   isNonEmptyString,
   isRecord,
   parseByLevel,
-} from "./parsePrimitives";
+} from "./parsePrimitives.ts";
 
 /**
  * Validation of `class_features.mechanics` jsonb (#976). The column is

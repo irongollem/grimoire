@@ -1,4 +1,4 @@
-import type { AbilityKey } from "@/rules/characterCreation";
+import type { AbilityKey } from "../characterCreation.ts";
 import type {
   ByLevel,
   DamageRider,
@@ -10,7 +10,7 @@ import type {
   Recharge,
   UsesAmount,
   UsesCost,
-} from "./mechanics.types";
+} from "./mechanics.types.ts";
 
 /**
  * Resolving feature mechanics at a level (#976). Pure: the sheet, the roller

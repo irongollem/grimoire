@@ -1,4 +1,4 @@
-import type { Monster } from "@/types/monster.types";
+import type { Monster } from "../../types/monster.types.ts";
 
 /**
  * A `library_monsters` row as a `Monster`.

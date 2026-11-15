@@ -1,6 +1,6 @@
 // Cartographer map data — see context/features/cartographer.md
 
-import type { PackCategory, TileLight } from "@/cartographer/packSchema";
+import type { PackCategory, TileLight } from "../cartographer/packSchema.ts";
 
 export type CellKey = `${number},${number}`;
 

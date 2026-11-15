@@ -1,4 +1,4 @@
-import { DAMAGE_TYPES } from "@/types/damage.types";
+import { DAMAGE_TYPES } from "../../../types/damage.types.ts";
 
 export interface DamageRoll {
   dice: string; // e.g. "2d6", "1d8+4", "5"

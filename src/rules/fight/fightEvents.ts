@@ -3,7 +3,7 @@
  * the state calls for, and what firing one does. Moved out of the encounterRun
  * store so a server can fire the same events the DM's browser does.
  */
-import type { EncounterEvent, RunCombatant } from "@/types/encounter.types";
+import type { EncounterEvent, RunCombatant } from "../../types/encounter.types.ts";
 import { evaluateTrigger } from "../encounterCombatLogic.ts";
 import type { EncounterTurnDeps } from "../encounterTurn.ts";
 import type { FightEffect, FightState } from "./fightState.ts";

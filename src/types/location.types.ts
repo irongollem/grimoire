@@ -1,6 +1,6 @@
-import type { Climate, Terrain } from "@/types/calendar.types";
-import type { AiProvenance } from "@/ai/provenance";
-import type { MapLive } from "@/types/mapLive.types";
+import type { Climate, Terrain } from "./calendar.types.ts";
+import type { AiProvenance } from "../ai/provenance.ts";
+import type { MapLive } from "./mapLive.types.ts";
 
 export type LocationType =
   | "world"

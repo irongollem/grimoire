@@ -1,9 +1,9 @@
-import type { AbilityKey } from "@/rules/characterCreation";
-import type { ClassFeature } from "@/types/feature.types";
-import type { PartyMember } from "@/types/party.types";
-import type { Activation, DamageRider, FeatureEffect, FeatureMechanics, Recharge, UsesCost } from "./mechanics.types";
-import { parseMechanics } from "./mechanics";
-import { ridersFor, riderDice, scalingAt, usesMaxAt, rechargeAt, type AttackShape } from "./resolve";
+import type { AbilityKey } from "../characterCreation.ts";
+import type { ClassFeature } from "../../types/feature.types.ts";
+import type { PartyMember } from "../../types/party.types.ts";
+import type { Activation, DamageRider, FeatureEffect, FeatureMechanics, Recharge, UsesCost } from "./mechanics.types.ts";
+import { parseMechanics } from "./mechanics.ts";
+import { ridersFor, riderDice, scalingAt, usesMaxAt, rechargeAt, type AttackShape } from "./resolve.ts";
 
 /**
  * What a character has from its features and feats (#976), derived from the
