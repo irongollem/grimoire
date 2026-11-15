@@ -26,6 +26,8 @@ interface Brief {
   references?: string[];
   /** What a creature or person looks like, shape and colours only (next.mjs's ANATOMY_NOTE). */
   anatomy?: string[];
+  /** A picture to change rather than paint anew: sent first, kept as it is except what the brief asks (next.mjs's EDIT_NOTE). */
+  editReference?: string;
   check?: string;
 }
 
@@ -43,6 +45,8 @@ const LANE: Record<string, string> = {
 };
 const REF_NOTE =
   "The first attached image(s) are the scene this part belongs in: match their painting style, brushwork, palette, light direction and light colour exactly, but paint only the subject the brief names, never the scene, its furniture or its background.";
+const EDIT_NOTE =
+  "The first attached image is the edit target. Preserve its figures, composition, pose, setting and finish; change only what the brief explicitly requests. Any later attached references are for anatomy, materials and finish only, and must not replace the edit target's subjects or composition.";
 const ANATOMY_NOTE =
   "The last attached image(s) show only what the figure looks like: its shape, features and colours. Paint it in the scene's own quiet style and light, never in the style, finish or setting of those images.";
 
@@ -58,7 +62,7 @@ export function promptFor(b: Brief): string {
     lane,
     b.subject,
     b.rules,
-    (b.references ?? []).length ? REF_NOTE : null,
+    b.editReference ? EDIT_NOTE : (b.references ?? []).length ? REF_NOTE : null,
     (b.anatomy ?? []).length ? ANATOMY_NOTE : null,
     `Single image, no panels, ${orientation(sizeOf(b))} ${sizeOf(b)}.`,
   ]
@@ -76,7 +80,8 @@ export function hasAlpha(bytes: Buffer): boolean {
 const MIME: Record<string, string> = { png: "image/png", webp: "image/webp", jpg: "image/jpeg", jpeg: "image/jpeg" };
 
 async function paint(apiKey: string, model: string, quality: string, b: Brief, dir: string): Promise<Buffer> {
-  const refs = [...(b.references ?? []), ...(b.anatomy ?? [])].map((r) => join(dir, r));
+  // The edit target goes first, as next.mjs sends it: the model keeps the first image and changes what is asked.
+  const refs = [...(b.editReference ? [b.editReference] : []), ...(b.references ?? []).filter((r) => r !== b.editReference), ...(b.anatomy ?? [])].map((r) => join(dir, r));
   for (const r of refs) if (!existsSync(r)) throw new Error(`${b.file}: reference ${r} is not there yet.`);
   const common = { model, prompt: promptFor(b), size: sizeOf(b), quality, output_format: "png", moderation: "low", ...(b.alpha ? { background: "transparent" } : {}) };
   let res: Response;

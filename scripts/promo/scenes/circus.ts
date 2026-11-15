@@ -12,45 +12,47 @@ import type { ReelScene } from "./reel.ts";
 const FRAME = { width: 1080, height: 1920 };
 
 /**
- * The loop: twelve catches of 1.2 s. The apples go round their path twice a loop (7.2 s a round, five apples, one
- * reaching a hand every 1.44 s would not divide the loop evenly, so the round is 6 s: 1.2 s between apples), the
- * arms swing once per catch and each apple turns four times.
+ * The loop. A round of the cascade takes 4.8 s, three a loop; five apples on it put one in a hand every 0.96 s,
+ * so the arms swing once per catch, fifteen times a loop, and each apple turns four times.
  */
 const LOOP = 14.4;
-const CATCH = 1.2;
-const ROUND = CATCH * 5;
+const ROUND = LOOP / 3;
+const CATCH = ROUND / 5;
 
 /** The big top, painted 1024x1536, drawn 1400 wide so it covers the frame at every drift. */
 const ROOM_DRAWN = 1400;
 
-/** Brilianto!, painted 1024x1024: feet at (528, 952), elbow joints at (248, 264) and (789, 259). */
+/**
+ * Brilianto!, painted 1024x1024 with his arms ending at the elbows (a jointed puppet's: the forearms are their own
+ * pieces): feet at (527, 971), elbow joints at (343, 364) and (713, 365). Drawn about 600 tall.
+ */
 const FEET_AT = { x: FRAME.width / 2, y: 1430 };
-const B_DRAWN = 664;
+const B_DRAWN = 645;
 const kB = B_DRAWN / 1024;
-const onBrilianto = (x: number, y: number): Point => ({ x: FEET_AT.x + (x - 528) * kB, y: FEET_AT.y + (y - 952) * kB });
-const LEFT_ELBOW = onBrilianto(248, 264);
-const RIGHT_ELBOW = onBrilianto(789, 259);
+const onBrilianto = (x: number, y: number): Point => ({ x: FEET_AT.x + (x - 527) * kB, y: FEET_AT.y + (y - 971) * kB });
+const LEFT_ELBOW = onBrilianto(343, 364);
+const RIGHT_ELBOW = onBrilianto(713, 365);
 
 /** The forearms, painted 1024x1024 with their joint balls at (920, 840) (left) and (144, 840) (right). */
-const ARM_DRAWN = 174;
+const ARM_DRAWN = 160;
 
 /** Brilianto!, his forearms and the apples share one depth, nearer than the room: they move together as the view breathes. */
 const PERFORMER = 1.25;
 
 /**
- * The apples' path in the frame: up from his left palm, over his head, down to his right palm and back across low
- * in front of him, a shower. Stored as offsets from `JUGGLE` (where every apple rests), as the engine wants.
+ * The apples' path in the frame, a cascade: caught at the outside of one hand, carried in low, thrown up and across
+ * over his head to the outside of the other hand, carried in, thrown back. The two throws cross above his head, so
+ * the curve is a figure of eight; a ring around him read as a wheel turning, not juggling (the maintainer, 15 Nov
+ * 2026). Stored as offsets from `JUGGLE` (where every apple rests), as the engine wants.
  */
-const JUGGLE = { x: 540, y: 700 };
+const JUGGLE = { x: 540, y: 760 };
 const PATH: Point[] = [
-  { x: 254, y: 897 },
-  { x: 300, y: 640 },
-  { x: 420, y: 470 },
-  { x: 540, y: 430 },
-  { x: 660, y: 470 },
-  { x: 780, y: 640 },
-  { x: 821, y: 903 },
-  { x: 540, y: 1040 },
+  { x: 300, y: 960 },
+  { x: 420, y: 1000 },
+  { x: 610, y: 560 },
+  { x: 785, y: 965 },
+  { x: 660, y: 1000 },
+  { x: 470, y: 560 },
 ].map((p) => ({ x: p.x - JUGGLE.x, y: p.y - JUGGLE.y }));
 
 const apple = (i: number): Layer => ({
@@ -73,7 +75,8 @@ export const circus: ReelScene = {
   size: FRAME,
   loop: LOOP,
   duration: LOOP,
-  camera: { drift: 0.008, push: 0.012 },
+  // Enough sway that the bench, Brilianto! and the far stands slide past each other: the depth is the point.
+  camera: { drift: 0.03, push: 0.03 },
   seed: 1198,
   caption: "Step right up!",
   captionAt: [0.6, 6],
@@ -90,8 +93,6 @@ export const circus: ReelScene = {
       at: FEET_AT,
       width: B_DRAWN,
       shadow: { rx: 120, ry: 18, opacity: 0.35 },
-      // A small bounce on every catch, in time with the arms.
-      motions: [{ kind: "bob", dy: 5, period: CATCH, phase: 0.25 }],
     },
     // The forearms swing about their elbows, mirrored (the right half a cycle on), so both go up together.
     {

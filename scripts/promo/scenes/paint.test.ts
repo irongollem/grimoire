@@ -36,4 +36,11 @@ describe("promptFor", () => {
     expect(prompt).toContain("match their painting style");
     expect(prompt).toContain("portrait 1024x1536");
   });
+
+  // An edit sent with the room's style note repaints the figure from scratch and loses the face it should keep.
+  it("asks an edit to keep its target and change only what the brief says", () => {
+    const prompt = promptFor({ ...base, lane: "figure", editReference: "references/v1.png", references: ["out/room.png"] });
+    expect(prompt).toContain("The first attached image is the edit target");
+    expect(prompt).not.toContain("match their painting style");
+  });
 });
