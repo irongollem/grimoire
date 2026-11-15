@@ -32,6 +32,8 @@ import { recordFreeGeneration } from "../_shared/credits.ts";
 import { retrieveMonsterCandidates, type CandidateMonster } from "../_shared/monsterRetrieval.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
+import { repairGeneratedNames } from "../_shared/nameRepairWire.ts";
+import { repaired } from "../_shared/nameRepair.ts";
 
 /**
  * Party-aware AI encounter suggester (#337).
@@ -449,6 +451,22 @@ serve(withCors(async (req: Request) => {
     model: textResult.usage.model, provider: textResult.usage.provider,
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });
+
+  // A near miss ("Skeletal Archers", "Dire Wolf Alpha") is put to a judgment model against exactly the
+  // creatures the prompt offered and rewritten to the offered name when it is confident, so the client's
+  // exact-name resolver finds the row (#1061). Free to the user; off until a typesafe key exists.
+  const [combatantRepairs] = await repairGeneratedNames(admin, user.id, [{
+    names: encounterData.combatants
+      .filter((c) => typeof c?.name === "string")
+      .map((c) => ({ name: c.name, note: typeof c.role === "string" ? c.role : undefined })),
+    offered: candidateBlock.map((c) => ({ name: c.name, hint: `CR ${c.cr} ${c.type}` })),
+    context: "A D&D combat encounter. Each combatant is a creature, from the DM's bestiary where possible.",
+  }]);
+  encounterData = {
+    ...encounterData,
+    combatants: encounterData.combatants.map((c) =>
+      typeof c?.name === "string" ? { ...c, name: repaired(combatantRepairs, c.name) } : c),
+  };
 
   const ai_provenance: AiProvenance = {
     generatorType: "encounter_generation",

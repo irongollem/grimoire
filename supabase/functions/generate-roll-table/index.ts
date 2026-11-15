@@ -34,6 +34,8 @@ import {
   formatEntityBlock,
   type CandidateEntity,
 } from "../_shared/campaignEntityRetrieval.ts";
+import { repairGeneratedNames } from "../_shared/nameRepairWire.ts";
+import { ENTITY_KINDS, entityRepairGroups, namesIn, repairedList } from "../_shared/nameRepair.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 
@@ -394,6 +396,21 @@ serve(withCors(async (req: Request) => {
     model: textResult.usage.model, provider: textResult.usage.provider,
     input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
   });
+
+  // A near miss in the table's npcs, locations or factions is put to a judgment model against exactly the
+  // entities the prompt offered (per kind) and rewritten to the offered name when it is confident, so the
+  // client's exact-name resolver finds the record (#1061). Free to the user; off until a typesafe key exists.
+  const tableRepairs = await repairGeneratedNames(admin, user.id, entityRepairGroups(
+    candidates,
+    { npcs: namesIn(rollTableData.npcs), locations: namesIn(rollTableData.locations), factions: namesIn(rollTableData.factions) },
+    "A random table for a D&D campaign.",
+  ));
+  const fixedTable: RollTableGenerationResult = { ...rollTableData };
+  ENTITY_KINDS.forEach((kind, i) => {
+    const list = repairedList(tableRepairs[i], rollTableData[kind]);
+    if (list !== undefined) fixedTable[kind] = list as string[];
+  });
+  rollTableData = fixedTable;
 
   const ai_provenance: AiProvenance = {
     generatorType: "roll_table_generation",

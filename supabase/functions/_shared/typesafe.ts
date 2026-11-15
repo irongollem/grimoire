@@ -34,7 +34,14 @@ export interface NoulQuestion {
   criteria?: { true: string; false: string };
 }
 
-export type Question = ScoreQuestion | NoulQuestion;
+export interface ChoiceQuestion {
+  type: "choice";
+  instructions: string;
+  /** Option name to its description: 1 to 255 options. Order can bias the answer, so keep the list short. */
+  criteria: Record<string, string>;
+}
+
+export type Question = ScoreQuestion | NoulQuestion | ChoiceQuestion;
 
 export interface JudgeRequest {
   model?: string;
@@ -53,7 +60,14 @@ export interface NoulAnswer {
   noul: number;
 }
 
-export type Answer = ScoreAnswer | NoulAnswer;
+export interface ChoiceAnswer {
+  type: "choice";
+  choice: string;
+  confidence: number;
+  probabilities: Record<string, number>;
+}
+
+export type Answer = ScoreAnswer | NoulAnswer | ChoiceAnswer;
 
 export interface JudgeResult {
   /** The model that actually answered (e.g. "jev-1.14.0"), not the alias asked for. */
@@ -98,6 +112,13 @@ function parseAnswer(raw: unknown): Answer | null {
   }
   if (raw.type === "noul" && typeof raw.noul === "number" && Number.isFinite(raw.noul)) {
     return { type: "noul", noul: raw.noul };
+  }
+  if (raw.type === "choice" && typeof raw.choice === "string" && typeof raw.confidence === "number" && Number.isFinite(raw.confidence) && isPlainObject(raw.probabilities)) {
+    const probabilities: Record<string, number> = {};
+    for (const [option, p] of Object.entries(raw.probabilities)) {
+      if (typeof p === "number" && Number.isFinite(p)) probabilities[option] = p;
+    }
+    return { type: "choice", choice: raw.choice, confidence: raw.confidence, probabilities };
   }
   return null;
 }
@@ -179,4 +200,14 @@ export function scoreOf(result: JudgeResult, name: string): number | null {
 export function noulOf(result: JudgeResult, name: string): number | null {
   const answer = result.answers[name];
   return answer && answer.type === "noul" ? answer.noul : null;
+}
+
+/** The named Choice answer, or null when absent or another type. */
+export function choiceOf(
+  result: JudgeResult,
+  name: string,
+): { choice: string; confidence: number; probabilities: Record<string, number> } | null {
+  const answer = result.answers[name];
+  if (!answer || answer.type !== "choice") return null;
+  return { choice: answer.choice, confidence: answer.confidence, probabilities: answer.probabilities };
 }
