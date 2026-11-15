@@ -1,0 +1,136 @@
+// The numbers on an attack option (#1203): the chance to hit and the damage to expect, so a picker (or a model) can
+// weigh one attack against another. A turn option carries `hitChance` and `expectedDamage` as null until this fills
+// them in.
+//
+// What is a book rule here: a natural 1 always misses and a natural 20 always hits (PHB 2014 ch. 9 "Rolling 1 or 20"),
+// advantage and disadvantage on the d20 (ch. 9 "Advantage and Disadvantage"), long range and an enemy within 5 feet
+// both imposing disadvantage on a ranged attack (ch. 9 "Ranged Attacks"), cover's bonus to AC (ch. 9 "Cover"), and a
+// critical hit rolling the damage dice twice (ch. 9 "Critical Hits"). What is app convention: reading a stat block's
+// structure to average it, the mean over a Multiattack, and what is left out.
+//
+// Not modelled: damage resistance, immunity and vulnerability (the numbers are the damage as printed), a hit that is an
+// automatic critical against a Paralyzed or Unconscious target, riders that need a saving throw, a creature that
+// attacks with a weapon it has not got. Nothing is rounded here; only a summary line rounds, for display.
+//
+// Pure and edge-importable (relative `.ts` imports only).
+
+import { parseExpression } from "../../../lib/dice/dice.ts";
+import type { RollMode } from "../../../systems/dnd5e/dice/rollMode.ts";
+import type { RunCombatant } from "../../../types/encounter.types.ts";
+import type { RulesetKey } from "../../../types/ruleset.types.ts";
+import type { AttackStructure, DamagePart } from "../../../types/statBlock.types.ts";
+import { attackRollMode } from "../../combat/attackRoll.ts";
+import { getExhaustionD20Penalty } from "../../conditions.ts";
+import { coverBonus, DEFAULT_REACH_FEET } from "../terrain/sight.ts";
+import type { TurnOption, TurnOptionAttack, UsableAttack } from "../terrain/turnOptions.ts";
+
+export interface NumbersContext {
+  /** The mover's usable attacks: where an option's entry, and a Multiattack's steps, are found by name. */
+  attacks: readonly UsableAttack[];
+  combatants: readonly RunCombatant[];
+  moverId: string;
+  /** A target's armor class, or null when it is not known: both numbers of its options stay null. */
+  armorClassOf: (target: RunCombatant) => number | null;
+  ruleset: RulesetKey;
+}
+
+/**
+ * The chance one d20 attack hits: the faces that reach `ac` with `bonus`, a natural 20 always, a natural 1 never
+ * (PHB 2014 ch. 9 "Rolling 1 or 20"). Need 9 on the die: faces 9 to 19 are 11, plus the 20 is 12 of 20.
+ */
+export function chanceToHit(bonus: number, ac: number, mode: RollMode): number {
+  const need = ac - bonus;
+  const faces = Math.max(0, 20 - Math.max(need, 2)) + 1;
+  return withMode(faces / 20, mode);
+}
+
+/** The chance a natural 20 shows on the kept die. */
+export function chanceOfNatural20(mode: RollMode): number {
+  return withMode(1 / 20, mode);
+}
+
+/** Advantage keeps the better of two dice (1 - (1 - p)^2), disadvantage the worse (p^2). PHB 2014 ch. 9. */
+function withMode(p: number, mode: RollMode): number {
+  if (mode === "advantage") return 1 - (1 - p) * (1 - p);
+  if (mode === "disadvantage") return p * p;
+  return p;
+}
+
+/** The average of what a hit rolls, and of its dice alone (a critical rolls those twice). Null when a part cannot be read. */
+function averageOf(parts: readonly DamagePart[]): { all: number; diceOnly: number } | null {
+  let all = 0;
+  let diceOnly = 0;
+  for (const part of parts) {
+    const parsed = parseExpression(part.dice);
+    if (parsed === null) return null;
+    const dice = parsed.terms.reduce((sum, t) => sum + (t.count * (t.sides + 1)) / 2, 0);
+    all += dice + parsed.modifier;
+    diceOnly += dice;
+  }
+  return { all, diceOnly };
+}
+
+/** The mode of one attack from one square: the existing rule, plus disadvantage at long range. */
+function modeOf(attack: AttackStructure, facts: TurnOptionAttack, mover: RunCombatant, target: RunCombatant, ruleset: RulesetKey): RollMode {
+  const distance = facts.distanceFeet;
+  const near = distance !== null && distance <= DEFAULT_REACH_FEET;
+  // A melee-or-ranged attack is thrown when the target is beyond the reach it would swing at.
+  const reach = attack.reach === undefined ? DEFAULT_REACH_FEET : attack.reach;
+  const thrown = attack.delivery === "melee_or_ranged" && distance !== null && distance > reach;
+  const delivery = attack.delivery === "ranged" || thrown ? "ranged" : "melee";
+  return attackRollMode({
+    attackerConditions: mover.conditions,
+    targetConditions: target.conditions,
+    delivery,
+    // Prone asks whether the attacker is within 5 ft of the target; a ranged attack's close combat asks whether any enemy is.
+    withinFiveFeet: near || (delivery === "ranged" && facts.closeCombat === true),
+    ruleset,
+    ...(facts.longRange === true && delivery === "ranged" ? { dmMode: "disadvantage" as const } : {}),
+  }).mode;
+}
+
+/** One attack's hit chance and the damage it adds (null when a damage part cannot be read). */
+function oneAttack(attack: AttackStructure, facts: TurnOptionAttack, mover: RunCombatant, target: RunCombatant, ac: number, ruleset: RulesetKey): { hit: number; damage: number | null } {
+  // Total cover cannot be targeted at all; no attack option is ever made from such a square, so this is only a guard.
+  if (facts.cover === "total") return { hit: 0, damage: 0 };
+  const mode = modeOf(attack, facts, mover, target, ruleset);
+  // Cover adds to the target's AC (PHB 2014 ch. 9 "Cover"); the 2024 exhaustion penalty lowers the roll.
+  const bonus = attack.bonus + getExhaustionD20Penalty(mover.conditions, ruleset);
+  const hit = chanceToHit(bonus, ac + coverBonus(facts.cover === null ? "none" : facts.cover).ac, mode);
+  const avg = averageOf(attack.hit);
+  // A critical hit rolls the dice twice: the extra roll is the dice alone, on a natural 20 (ch. 9 "Critical Hits").
+  const damage = avg === null ? null : hit * avg.all + chanceOfNatural20(mode) * avg.diceOnly;
+  return { hit, damage };
+}
+
+function numbersFor(attack: TurnOptionAttack, mover: RunCombatant, target: RunCombatant, ac: number, ctx: NumbersContext): { hitChance: number; expectedDamage: number | null } | null {
+  const named = (name: string) => ctx.attacks.find((a) => a.entry.name === name)?.entry.structured.attack;
+  const steps = attack.steps ?? [{ action: attack.action, count: 1 }];
+  let swings = 0;
+  let hits = 0;
+  let damage: number | null = 0;
+  for (const step of steps) {
+    const structure = named(step.action);
+    if (structure === undefined) return null;
+    const one = oneAttack(structure, attack, mover, target, ac, ctx.ruleset);
+    swings += step.count;
+    hits += one.hit * step.count;
+    damage = damage === null || one.damage === null ? null : damage + one.damage * step.count;
+  }
+  // A Multiattack's hit chance is the mean over its attacks, each weighted by how many it makes.
+  return swings === 0 ? null : { hitChance: hits / swings, expectedDamage: damage };
+}
+
+/** The options with the numbers filled in on each attack. Other options pass through untouched. */
+export function withNumbers(options: readonly TurnOption[], ctx: NumbersContext): TurnOption[] {
+  const mover = ctx.combatants.find((c) => c.instance_id === ctx.moverId);
+  return options.map((option) => {
+    if (option.kind !== "attack" || option.attack === null || mover === undefined) return option;
+    const target = ctx.combatants.find((c) => c.instance_id === option.targetId);
+    if (target === undefined) return option;
+    const ac = ctx.armorClassOf(target);
+    if (ac === null) return option;
+    const found = numbersFor(option.attack, mover, target, ac, ctx);
+    return found === null ? option : { ...option, attack: { ...option.attack, hitChance: found.hitChance, expectedDamage: found.expectedDamage } };
+  });
+}

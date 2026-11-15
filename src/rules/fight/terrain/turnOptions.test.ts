@@ -389,21 +389,87 @@ describe("rule 8: multiattack", () => {
 });
 
 describe("rule 9: the cap", () => {
-  it("keeps Dodge and the options against the nearest targets, dropping the farthest first", () => {
+  it("keeps Dodge, Flee and the options against the nearest targets, dropping the farthest first", () => {
     // Seven hostiles in a column at x=3, listed farthest first. Each is reachable, and with two attacks that is 14
-    // attack options against a room of 11. Distances from the Ogre (0,0): y=0, 2, -2 are 15 ft (3 targets, 6 options);
-    // y=4, -4 are 20 ft (4 options); y=6, -6 are 30 ft. Room for one more: the first of the 30 ft targets in the
-    // listed order (h7, y=-6), first attack. Taking the first 11 in listed order would keep the farthest instead.
+    // attack options against a room of 10 (12 minus the two fixed options, Flee and Dodge; the column leaves nothing to
+    // Disengage from or Hide behind). Distances from the Ogre (0,0): y=0, 2, -2 are 15 ft (3 targets, 6 options);
+    // y=4, -4 are 20 ft (4 options); y=6, -6 are 30 ft and get no room. Taking the first 10 in listed order would keep
+    // the farthest instead.
     const slam: UsableAttack = { list: "actions", entry: attackEntry("Slam", {}) };
     const ys = [-6, 6, -4, 4, -2, 2, 0];
     const hostiles = ys.map((y, i) => creature(`h${i + 1}`, `H${i + 1}`, "p", 3, y));
     const options = run({ combatants: [ogre(), ...hostiles], attacks: [CLUB, slam] });
     expect(options).toHaveLength(MAX_TURN_OPTIONS);
-    expect(options[options.length - 1].id).toBe("dodge");
+    expect(options.slice(-2).map((o) => o.id)).toEqual(["flee", "dodge"]);
     const targets = new Set(options.filter((o) => o.kind === "attack").map((o) => o.targetId));
-    // h3 (y=-4), h4 (y=4), h5 (-2), h6 (2), h7 (0) all kept; h2 (y=6) dropped; h1 (y=-6) holds the last place.
-    for (const id of ["h3", "h4", "h5", "h6", "h7", "h1"]) expect(targets.has(id)).toBe(true);
+    // h3 (y=-4), h4 (y=4), h5 (-2), h6 (2), h7 (0) all kept; h1 (y=-6) and h2 (y=6) dropped.
+    for (const id of ["h3", "h4", "h5", "h6", "h7"]) expect(targets.has(id)).toBe(true);
+    expect(targets.has("h1")).toBe(false);
     expect(targets.has("h2")).toBe(false);
-    expect(find(options, "attack:actions:Slam:h1")).toBeUndefined();
+  });
+});
+
+describe("rule 10: flee", () => {
+  it("dashes to the square farthest from the nearest enemy, with twice the budget, and says what it provokes", () => {
+    // Ogre (0,0), Chicory (1,0) beside it with her reaction free. The doubled budget is 60 ft: 12 steps west reaches
+    // x=-12, whose cell is 13 steps (65 ft) from Chicory's. Every square of column x=-12, y -12..12 costs 60 ft, is 65 ft
+    // away, and leaves Chicory's reach at the first step (one opportunity attack); the top row wins, (-12,-12).
+    const o = find(run({ combatants: [ogre(), chicory(1, 0)] }), "flee");
+    expect(o?.destination).toEqual({ x: -12, y: -12 });
+    expect(o?.feet).toBe(60);
+    expect(o?.provokes).toEqual([{ enemyId: "chicory", step: 0 }]);
+    expect(o?.summary).toBe("Flee: dash 60 ft away, ending 65 ft from the nearest enemy; provokes an opportunity attack from Chicory");
+  });
+
+  it("measures from the NEAREST of the enemies, not from the first one listed or from one alone", () => {
+    // Budget 5 ft, so a flee reaches 2 steps: x and y in -2..2. Ogre (0,0), Fresco (-4,-4) listed first, Chicory (1,0).
+    // Steps to the nearer enemy from each candidate: x=-2 squares are 3 from Chicory; from Fresco (-2,-2) is 2 steps
+    // away, (-2,-1) is 3, (-2,0) 4, (-2,1) 5, (-2,2) 6. So (-2,-2) is only 2 from its nearest enemy and drops out; the best
+    // is 3, at (-2,-1) to (-2,2), 10 ft each, with no cover and one opportunity attack from Chicory each: top row (-2,-1).
+    // Chicory alone would give (-2,-2); Fresco alone would give (2,2).
+    const o = find(run({ combatants: [ogre(), fresco(-4, -4), chicory(1, 0)], budgetFeet: 5 }), "flee");
+    expect(o?.destination).toEqual({ x: -2, y: -1 });
+  });
+
+  it("prefers the square where it has cover from the enemy when several are equally far", () => {
+    // Budget 5 ft, so a flee reaches 2 steps (10 ft). Ogre (0,0), Chicory (1,0). The squares farthest away are x=-2,
+    // y -2..2 (3 steps, 15 ft); without a tie-break the top row, (-2,-2), wins. A pillar (a wall across x=-1 at
+    // y 0.2 to 0.8, between the Ogre's start and Chicory's square) hides the squares behind it from Chicory, so one
+    // of them is better covered than the open top-left square.
+    const pillar = mapOf([[[-1, 0.2], [-1, 0.8]]]);
+    const o = find(run({ combatants: [ogre(), chicory(1, 0)], map: pillar, budgetFeet: 5 }), "flee");
+    expect(o?.exposure).toEqual([{ enemyId: "chicory", cover: expect.not.stringMatching(/^none$/) }]);
+  });
+
+  it("prefers the square that provokes fewer opportunity attacks when equally far and equally covered", () => {
+    // Budget 5 ft: a flee reaches 2 steps. Ogre (0,0), Chicory (1,0) beside it (reach 5). Fresco (0,10) is far off but has
+    // a 50 ft reach, which still holds the start (10 steps = 50 ft). The squares farthest from the nearest enemy are
+    // x=-2, y -2..2, each 3 steps from Chicory. Their distance to Fresco is max(2, 10 - y) steps: for y=-2 and y=-1 that
+    // is 12 and 11 steps (60 and 55 ft), outside Fresco's reach, so the dash leaves it and provokes her too; for
+    // y=0, 1, 2 it is 10, 9, 8 steps (50, 45, 40 ft), inside it, so only Chicory is provoked. The top row of all five is
+    // (-2,-2) and provokes twice. (-2,0) is reached by the search through (-1,-1), 55 ft from Fresco, so the step
+    // out and back in provokes her as well; the first square that provokes only Chicory is (-2,1).
+    const reachOf = (c: RunCombatant) => (c.instance_id === "fresco" ? 50 : 5);
+    const o = find(run({ combatants: [ogre(), chicory(1, 0), fresco(0, 10)], budgetFeet: 5, reachOf }), "flee");
+    expect(o?.provokes.map((p) => p.enemyId)).toEqual(["chicory"]);
+    expect(o?.destination).toEqual({ x: -2, y: 1 });
+  });
+
+  it("is not offered when the Action is spent, since a Dash is an Action", () => {
+    expect(find(run({ combatants: [ogre(0, 0, { action_used: true }), chicory(1, 0)] }), "flee")).toBeUndefined();
+  });
+
+  it("is not offered with nobody to flee from", () => {
+    expect(find(run({ combatants: [ogre()] }), "flee")).toBeUndefined();
+    expect(find(run({ combatants: [ogre(), chicory(1, 0, { hp: 0 })] }), "flee")).toBeUndefined();
+  });
+
+  it("is not offered when no reachable square is farther from the enemy than where it stands", () => {
+    // Speed 0: the only square is the one it stands on.
+    expect(find(run({ combatants: [ogre(), chicory(1, 0)], budgetFeet: 0 }), "flee")).toBeUndefined();
+  });
+
+  it("is not offered when nothing can be measured", () => {
+    expect(find(run({ combatants: [ogre(), chicory(1, 0)], map: null }), "flee")).toBeUndefined();
   });
 });

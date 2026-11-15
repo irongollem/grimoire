@@ -86,9 +86,9 @@ describe("computeOptions", () => {
 
   it("gives a player Dodge and movement only, at the sheet's speed", async () => {
     // The hero (0,0) has speed 25 on the sheet; the wolf is at (3,0). No stat block, so no attack. A Dash (50 ft) reaches the
-    // squares beside the wolf at x=2: 2 steps, 10 ft; the top row (2,-1).
+    // squares beside the wolf at x=2: 2 steps, 10 ft; the top row (2,-1). A player is also offered Flee (the farthest square from the wolf).
     const r = await ask({ combatants: [hero(0, 0, { faction_id: "m" }), wolf({ faction_id: "p", position: { x: 3, y: 0 } })], speeds: [{ id: "pm-pc", speed: 25 }] }, "pc");
-    expect(ids(r)).toEqual(["dash:wolf", "dodge"]);
+    expect(ids(r)).toEqual(["dash:wolf", "flee", "dodge"]);
     expect(r.options[0].feet).toBe(10);
   });
 

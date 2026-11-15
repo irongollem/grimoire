@@ -34,10 +34,14 @@ import {
   type ProvokedAttack,
 } from "./sight.ts";
 
-/** The most options a creature is offered. Dodge, Disengage and Hide always keep their place; the rest is attacks and approaches against the nearest targets first (rule 9). */
+/** The most options a creature is offered. Dodge, Disengage, Hide and Flee always keep their place; the rest is attacks and approaches against the nearest targets first (rule 9). */
 export const MAX_TURN_OPTIONS = 12;
 
-export type TurnOptionKind = "attack" | "dash" | "move" | "disengage" | "dodge" | "hide";
+/**
+ * `flee` (rule 10) is a Dash away. `surrender` is never produced here: the tactics gate (`gateOptions`, #1203) puts it
+ * in place of the whole list when a creature that yields has broken.
+ */
+export type TurnOptionKind = "attack" | "dash" | "move" | "disengage" | "dodge" | "hide" | "flee" | "surrender";
 
 /** What an attack option does, with the facts of the square it is made from. Null facts mean there is no map to measure on. */
 export interface TurnOptionAttack {
@@ -52,6 +56,10 @@ export interface TurnOptionAttack {
   cover: Cover | null;
   longRange: boolean | null;
   closeCombat: boolean | null;
+  /** Chance one attack hits, 0 to 1 (a Multiattack: the mean over its attacks). Null until `withNumbers` fills it. */
+  hitChance: number | null;
+  /** Expected damage of the whole option against the target's armor. Null until `withNumbers` fills it. */
+  expectedDamage: number | null;
 }
 
 export interface TurnOptionExposure {
@@ -61,7 +69,7 @@ export interface TurnOptionExposure {
 }
 
 export interface TurnOption {
-  /** Stable: the same input always yields the same ids. `attack:<list>:<action>:<targetId>`, `dash:<targetId>`, `move:<targetId>`, `disengage`, `dodge`, `hide`. */
+  /** Stable: the same input always yields the same ids. `attack:<list>:<action>:<targetId>`, `dash:<targetId>`, `move:<targetId>`, `disengage`, `dodge`, `hide`, `flee`, `surrender`. */
   id: string;
   kind: TurnOptionKind;
   targetId: string | null;
@@ -320,7 +328,7 @@ function attackOption(scene: Scene, names: Map<string, string>, planned: Planned
     destination: rc.cell,
     path: rc.path,
     feet,
-    attack: { list: planned.list, action: planned.entry.name, steps: planned.steps, distanceFeet: facts.distanceFeet, cover: facts.cover, longRange: facts.longRange, closeCombat: facts.closeCombat },
+    attack: { list: planned.list, action: planned.entry.name, steps: planned.steps, distanceFeet: facts.distanceFeet, cover: facts.cover, longRange: facts.longRange, closeCombat: facts.closeCombat, hitChance: null, expectedDamage: null },
     distanceFeet: null,
     provokes,
     exposure,
@@ -412,6 +420,44 @@ function disengageOption(scene: Scene): TurnOption | null {
 }
 
 /**
+ * Rule 10: Flee, a Dash away (PHB 2014 ch. 9 "Dash"). With twice the budget it ends on the reachable square farthest
+ * from its nearest living hostile; ties go to the most cover, then fewest opportunity attacks provoked, then fewest feet,
+ * then top-left first. Only offered when there is a hostile and some square is farther from it than where the creature
+ * stands (with no hostile the nearest distance is infinite everywhere, so nothing is farther). The path may provoke: unlike Disengage, this is a Dash.
+ */
+function fleeOption(scene: Scene, names: Map<string, string>, dashReach: ReachResult): TurnOption | null {
+  if (dashReach.start === null) return null;
+  const nearest = (box: Box) => Math.min(...scene.hostiles.map((h) => distanceFeet(box, boxOf(h))));
+  const hereAway = nearest({ anchor: dashReach.start, footprint: scene.moverFootprint });
+  let best: { rc: ReachCell; away: number; provokes: ProvokedAttack[] } | null = null;
+  for (const rc of cellsOf(dashReach)) {
+    const away = nearest({ anchor: rc.cell, footprint: scene.moverFootprint });
+    const found = { rc, away, provokes: provokesOf(scene, rc) };
+    if (best === null || away > best.away) {
+      best = found;
+    } else if (away === best.away) {
+      const exposure = compareExposure(exposureAt(scene, rc.cell), exposureAt(scene, best.rc.cell));
+      if (exposure < 0 || (exposure === 0 && (found.provokes.length < best.provokes.length || (found.provokes.length === best.provokes.length && rc.feet < best.rc.feet)))) best = found;
+    }
+  }
+  if (best === null || best.away <= hereAway) return null;
+  const exposure = exposureAt(scene, best.rc.cell);
+  return {
+    id: "flee",
+    kind: "flee",
+    targetId: null,
+    destination: best.rc.cell,
+    path: best.rc.path,
+    feet: best.rc.feet,
+    attack: null,
+    distanceFeet: null,
+    provokes: best.provokes,
+    exposure,
+    summary: `Flee: dash ${best.rc.feet} ft away, ending ${best.away} ft from the nearest enemy${exposurePhrase(names, exposure)}${provokesPhrase(names, best.provokes)}`,
+  };
+}
+
+/**
  * Rule 5: Hide, only when some reachable square has total cover against every living hostile on the map; the nearest
  * such square (fewest feet). Darkness and invisibility are not modelled, only walls, closed doors and rock.
  */
@@ -446,7 +492,7 @@ function unmeasuredAttack(planned: Planned, target: RunCombatant): TurnOption {
     kind: "attack",
     targetId: target.instance_id,
     ...emptyMovement(),
-    attack: { list: planned.list, action: planned.entry.name, steps: planned.steps, distanceFeet: null, cover: null, longRange: null, closeCombat: null },
+    attack: { list: planned.list, action: planned.entry.name, steps: planned.steps, distanceFeet: null, cover: null, longRange: null, closeCombat: null, hitChance: null, expectedDamage: null },
     summary: `Attack ${target.name} with ${withWhat}; the distance is not known, so no movement is offered`,
   };
 }
@@ -460,7 +506,7 @@ function listIsOpen(mover: RunCombatant, list: StatBlockListKey): boolean {
 
 /**
  * The options of the creature whose id is `moverId`. Rules, in the order they are listed in the docs:
- * 1 Attack, 2 Dash, 3 Disengage, 4 Dodge, 5 Hide, 6 nothing measurable, 7 who gets nothing, 8 Multiattack, 9 the cap.
+ * 1 Attack, 2 Dash, 3 Disengage, 4 Dodge, 5 Hide, 6 nothing measurable, 7 who gets nothing, 8 Multiattack, 9 the cap, 10 Flee.
  *
  * Rule 7: a creature at 0 hit points, or Incapacitated, gets an empty list. A creature whose Action is spent
  * (`action_used`) gets only what needs no Action: Bonus Action attacks (unless `bonus_used`) and a plain `move`
@@ -532,11 +578,13 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
       const dash = approachOption("dash", scene, names, t, dashReach);
       if (dash) options.push({ option: dash, nearness: nearness(t) });
     }
-    // Rule 3, 5, 4: Disengage, Hide, Dodge keep their place under the cap.
+    // Rule 3, 5, 10, 4: Disengage, Hide, Flee, Dodge keep their place under the cap.
     const disengage = disengageOption(scene);
     if (disengage) fixed.push(disengage);
     const hide = hideOption(scene, names);
     if (hide) fixed.push(hide);
+    const flee = fleeOption(scene, names, dashReach);
+    if (flee) fixed.push(flee);
     fixed.push(dodgeOption(scene));
   } else {
     // Rule 7: the Action is spent, so only a plain move toward each hostile no attack reaches is left.
@@ -549,7 +597,7 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
   return capped(options, fixed);
 }
 
-/** Rule 9: Dodge, Disengage and Hide stay; attacks, dashes and moves against the nearest targets are kept first, up to `MAX_TURN_OPTIONS`. */
+/** Rule 9: Dodge, Disengage, Hide and Flee stay; attacks, dashes and moves against the nearest targets are kept first, up to `MAX_TURN_OPTIONS`. */
 function capped(options: { option: TurnOption; nearness: number }[], fixed: TurnOption[]): TurnOption[] {
   const room = Math.max(0, MAX_TURN_OPTIONS - fixed.length);
   const kept = [...options].sort((a, b) => a.nearness - b.nearness).slice(0, room).map((o) => o.option);
