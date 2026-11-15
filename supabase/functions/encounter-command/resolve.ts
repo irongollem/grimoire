@@ -12,11 +12,10 @@ import { ALL_DICE, type RollResult } from "../../../src/lib/dice/dice.ts";
 import { NORMAL_ROLL, rollWithRules, type RolledFaces } from "../../../src/lib/dice/diceRules.ts";
 import { dnd5eDiceRules } from "../../../src/systems/dnd5e/dice/rules.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
-import type { Companion } from "../../../src/types/companion.types.ts";
-import type { Monster, MonsterStatBlock } from "../../../src/types/monster.types.ts";
-import type { NpcListRow } from "../../../src/types/npc.types.ts";
+import type { MonsterStatBlock } from "../../../src/types/monster.types.ts";
 import type { SaveAbility } from "../../../src/types/statBlock.types.ts";
 import type { StatBlockEntry } from "../../../src/types/statBlock.types.ts";
+import { statBlockOf, type StatBlockSources } from "../_shared/fightStatBlocks.ts";
 import type { StatBlockListKey } from "../../../src/rules/statBlock/parseAction.ts";
 import { holdsConcentration } from "../../../src/rules/conditionDurations.ts";
 import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "../../../src/lib/encounters/actionTargeting.ts";
@@ -272,26 +271,7 @@ function supplyFor(command: ResolvingCommand): Supply {
 
 // ── what the server knows ───────────────────────────────────────────────────────
 
-/** The stat blocks the combatants of a fight came from. */
-export interface StatBlockSources {
-  monsters: Monster[];
-  npcs: NpcListRow[];
-  companions: Companion[];
-}
-
-/** The ids a roster's stat blocks are read by. */
-export function statBlockIdsOf(combatants: readonly RunCombatant[]): { monsterIds: string[]; npcIds: string[]; companionIds: string[] } {
-  const ids = (pick: (c: RunCombatant) => string | undefined | null) => [...new Set(combatants.flatMap((c) => pick(c) ?? []))];
-  return { monsterIds: ids((c) => c.monster_id), npcIds: ids((c) => c.npc_id), companionIds: ids((c) => c.companion_id) };
-}
-
-/** The stat block behind a combatant, or null for a party member or a source that is gone. */
-function statBlockOf(c: RunCombatant, sources: StatBlockSources): MonsterStatBlock | null {
-  if (c.monster_id) return sources.monsters.find((m) => m.id === c.monster_id)?.stat_block ?? null;
-  if (c.npc_id) return sources.npcs.find((n) => n.id === c.npc_id)?.stat_block ?? null;
-  if (c.companion_id) return sources.companions.find((x) => x.id === c.companion_id)?.stat_block ?? null;
-  return null;
-}
+export { statBlockIdsOf, type StatBlockSources } from "../_shared/fightStatBlocks.ts";
 
 /** A player combatant's character row, or the refusal that says it could not be read. */
 function playerMemberId(c: RunCombatant): string {
