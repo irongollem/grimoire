@@ -362,6 +362,51 @@ one — the same own-vault-first reasoning #837 already established for monsters
 `"exact"` | `"near"` | `"contains"` (name tier) | `"similar"` (embedding tier,
 carrying a cosine `distance`).
 
+**The third tier: a small model judges each pair (#1061).** The name tier and
+the embedding tier propose; a small model (TypeSafe's Jev) then judges each
+(imported entity, candidate) pair and scores it from 0 to 2: 0 a different
+entity, 1 closely related but distinct, 2 one and the same. It runs when the
+campaign has AI on and a `typesafe` platform key is present (no key in production
+means the tier is off there, which is the switch for the legal questions on #1061);
+otherwise nothing is judged,
+every `verdict` is `null`, `judged` is false and the importer behaves as it did
+before this tier. It is free to the user and recorded in the ledger as
+`entity_judgment` under the model alias `jev-latest`, which is the name its price
+hangs on in `ai_model_pricing` (`20261115114855`). At most 8 pairs an entity and
+1,600 a request are judged, 16 at a time, inside 45 seconds; a pair that fails
+or is over a cap is unjudged and takes the old distance rule. The pool it judges is every name match plus the five nearest
+rows by meaning, with the embedding distance cut-off lifted only when a verdict
+will gate them. Judged candidates arrive ordered by verdict, highest first, with
+weak "similar" ones already removed server side; name-tier candidates are always
+kept, even with a low verdict. Beside a candidate judged the same (1.5 or more),
+merely related similar rows are dropped, and with none judged the same only the
+two closest are shown: in a small campaign every neighbour is "related", and
+three of them under a confident match were noise in the review. `EntityCandidate.verdict` is `number | null`, and
+`parseImportMatches` reads it leniently (a malformed verdict becomes `null`, the
+candidate stays) and returns `judged`.
+
+**The default follows the verdict.** `defaultDecision` links the candidate with
+the highest verdict when it is at least `LINK_VERDICT` (1.5), and otherwise falls
+to create (or generate, for a monster with no stat block). Two cases keep the
+old rule: nothing judged at all, and an unjudged candidate ranked first (the
+client-made exact deity candidate), which still links. Quests still always
+create. The review shows the verdict after the match-kind hint as a suggestion
+(`verdictHint`): "suggested match" from 1.5, "related, may not be the same" from
+0.5, "probably a different one" below that. A model's judgment is shown as a
+suggestion, never as a fact.
+
+**Evaluation.** On 80 labelled entities from the public demo campaign (48 an
+existing row, 32 new), the old default (link the first candidate) made 31 right
+links, 8 wrong links and missed 17. The built tier, run end to end against the
+local stack on 15 Nov 2026, made 46 right links, 0 wrong links and missed 2,
+and created all 32 new entities; it took 5 seconds and about 216,000 input
+tokens (under one US cent). Of the two misses, one existing monster was outside
+the campaign's ruleset, which the embedding lookup filters on, and the other
+scored 1.3 and is shown as "related, may not be the same". Link thresholds from
+1.5 to 1.8 gave identical results on the prototype, so 1.5 has margin. The set is
+small, comes from one campaign, and was written by a model, so treat the numbers
+as a pilot result and not a guarantee.
+
 **The name tier carries every difference in how a name is written; the
 embedding tier does not rescue one.** Migration `20261002131333` exists because
 a real chapter (2 Oct 2026) came back with every NPC and every location marked

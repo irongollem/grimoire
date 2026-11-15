@@ -19,6 +19,17 @@
  *      quest-hook generator (#600) and the loot generator (#602) already
  *      query. Appended after the name tier, capped, and dropped entirely on
  *      any failure — see the semantic-tier try/catch below.
+ *   3. JUDGMENT (Jev, TypeSafe, #1061): a distance cannot tell "the same
+ *      innkeeper, described differently" from "the innkeeper's brother", so
+ *      when the tier below is available the meaning tier keeps its five
+ *      nearest rows per RPC WITHOUT the distance cut-off and every
+ *      (imported, existing) pair, name candidates first, up to 8 per entity,
+ *      is scored 0 to 2 by Jev (`Candidate.verdict`). A similar candidate
+ *      under 0.5 is dropped, a name candidate never is, and candidates are
+ *      ordered best verdict first. A pair that fails, times out (the whole
+ *      tier has 45 s) or is over a cap is left unjudged and falls back to the
+ *      distance rule, so this tier can only improve on tier 2, never break it.
+ *      Pure parts live in judging.ts and judgeTier.ts.
  *
  * Auth + DM-gate shape is copied from import-extract/index.ts: anon client
  * with the caller's own Authorization header to derive `auth.uid()`, then the
@@ -27,9 +38,15 @@
  * only. This function does not spend the DM's credits — the embedding call is
  * platform-paid and recorded via `recordFreeGeneration`, the same shape
  * generate-quest's own retrieval step uses — and it does not require
- * `ai_enabled`: dedupe is not generation, it is "does this already exist,"
- * and gating it behind the AI toggle would strand a DM who has AI disabled
- * with nothing but duplicate rows on every import.
+ * `ai_enabled` for tiers 1 and 2: dedupe is not generation, it is "does this
+ * already exist," and gating it behind the AI toggle would strand a DM who has
+ * AI disabled with nothing but duplicate rows on every import. Tier 3 does
+ * respect it: a Jev verdict is a model judgment of the DM's campaign text sent
+ * to a third party, so it runs only when `ai_enabled` is true, a `typesafe`
+ * platform key exists and tier 2 ran. With AI off the importer behaves exactly
+ * as before (every verdict null, `judged: false`). Like the embedding call it
+ * is platform-paid and recorded through `recordFreeGeneration`
+ * ("entity_judgment").
  */
 import { gameSystemEdition } from "../_shared/gameSystem.ts";
 import { serve } from "std/http/server.ts";
@@ -38,12 +55,21 @@ import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
+import { judge, JEV_MODEL, scoreOf } from "../_shared/typesafe.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
 import {
   EmbeddingProviderConfigError,
   resolveEmbeddingProvider,
   toVectorLiteral,
 } from "../_shared/embeddings.ts";
+import {
+  applyVerdicts,
+  buildPool,
+  judgeTable,
+  JUDGE_ROW_SELECT,
+  RELATION_QUESTION,
+} from "./judging.ts";
+import { judgingKey, runJudgingTier, type TierEntity } from "./judgeTier.ts";
 import {
   buildQueryText,
   isSemanticKind,
@@ -115,6 +141,7 @@ async function fetchNameMatches(
       matchKind: row.match_kind as MatchKind,
       detail: row.detail,
       distance: null,
+      verdict: null,
     });
     byName.set(row.query_name, list);
   }
@@ -143,12 +170,14 @@ function toSimilarCandidate(
   detail: string | null,
   distance: number,
 ): Candidate {
-  return { targetId: id, source, name, matchKind: "similar", detail, distance };
+  return { targetId: id, source, name, matchKind: "similar", detail, distance, verdict: null };
 }
 
 /**
- * One entity's embedding-tier candidates for its kind, already filtered to
- * `SIMILAR_MAX_DISTANCE[kind]` and shaped into `Candidate`s. Throws on any
+ * One entity's embedding-tier candidates for its kind, filtered to
+ * `SIMILAR_MAX_DISTANCE[kind]` (unless `cutoff` is false, when the judging tier
+ * will decide, and every nearest row is returned with its distance) and shaped
+ * into `Candidate`s. Throws on any
  * RPC error — the caller wraps the whole semantic tier in one try/catch, same
  * "an enhancement, never a requirement" contract every retrieval-backed
  * generator in this codebase already follows (generate-quest, generate-loot,
@@ -158,8 +187,9 @@ async function fetchSimilarCandidates(
   kind: SemanticKind,
   queryVector: string,
   ctx: RetrievalContext,
+  cutoff: boolean,
 ): Promise<Candidate[]> {
-  const maxDistance = SIMILAR_MAX_DISTANCE[kind];
+  const maxDistance = cutoff ? SIMILAR_MAX_DISTANCE[kind] : Number.POSITIVE_INFINITY;
 
   if (kind === "npcs") {
     const { data, error } = await admin.rpc("match_campaign_npcs", {
@@ -323,7 +353,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, game_system")
+    .select("id, user_id, game_system, ai_enabled")
     .eq("id", importRow.campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -379,6 +409,19 @@ serve(withCors(async (req: Request) => {
   // same "retrieval never takes the feature down" contract generate-quest,
   // generate-loot and generate-encounter's complication pass all apply.
   let semantic = false;
+  let judged = false;
+
+  // Judging needs AI on and a key; resolved before the embeddings are fetched
+  // because it decides whether the meaning tier keeps its distance cut-off. A
+  // failed key read means no judging, never a failed import.
+  let jevKey: string | null = null;
+  if (campaign.ai_enabled === true) {
+    try {
+      jevKey = judgingKey(campaign.ai_enabled, (await fetchPlatformKeys(admin, ["typesafe"])).typesafe);
+    } catch (e) {
+      console.error(`import-match could not read the typesafe key for import ${payload.documentImportId}:`, e);
+    }
+  }
   try {
     const semanticEntities: { kind: SemanticKind; ref: string; name: string; data: Record<string, unknown> }[] = [];
     for (const kind of SUPPORTED_KINDS) {
@@ -431,10 +474,19 @@ serve(withCors(async (req: Request) => {
         enabledSlugs,
       };
 
+      const toJudge: (TierEntity & { ref: string })[] = [];
       for (let i = 0; i < semanticEntities.length; i++) {
         const entity = semanticEntities[i];
         const queryVector = toVectorLiteral(vectors[i]);
-        const similar = await fetchSimilarCandidates(entity.kind, queryVector, ctx);
+        const similar = await fetchSimilarCandidates(entity.kind, queryVector, ctx, jevKey === null);
+
+        if (jevKey !== null) {
+          const pool = buildPool(matches[entity.kind]?.[entity.ref] ?? [], similar);
+          if (pool.length > 0) {
+            toJudge.push({ key: `${entity.kind}:${entity.ref}`, ref: entity.ref, kind: entity.kind, importedText: texts[i], pool });
+          }
+          continue;
+        }
         if (similar.length === 0) continue;
 
         const kindMatches = (matches[entity.kind] ??= {});
@@ -442,6 +494,50 @@ serve(withCors(async (req: Request) => {
       }
 
       semantic = true;
+
+      if (jevKey !== null) {
+        const apiKey = jevKey;
+        judged = true;
+        let verdicts = new Map<string, number>();
+        try {
+          const tier = await runJudgingTier(toJudge, {
+            loadRows: async (kind, source, ids) => {
+              const table = judgeTable(kind, source);
+              if (!table) return new Map();
+              const { data, error } = await admin.from(table).select(JUDGE_ROW_SELECT[kind]).in("id", ids);
+              if (error) throw new Error(`${table}: ${error.message}`);
+              const byId = new Map<string, Record<string, unknown>>();
+              for (const row of (data ?? []) as unknown as Record<string, unknown>[]) {
+                if (typeof row.id === "string") byId.set(row.id, row);
+              }
+              return byId;
+            },
+            judgePair: async (request, signal) => {
+              const res = await judge(request, { apiKey, signal });
+              return { score: scoreOf(res, RELATION_QUESTION), model: res.model, inputTokens: res.inputTokens };
+            },
+          });
+          verdicts = tier.verdicts;
+          // Recorded as soon as the tier returns: the tokens were spent, and
+          // nothing after this line may lose the row.
+          if (tier.judged > 0) {
+            await recordFreeGeneration(admin, userId, "entity_judgment", {
+              model: JEV_MODEL,
+              provider: "typesafe",
+              input_tokens: tier.inputTokens,
+            });
+          }
+        } catch (e) {
+          // Judging is an enhancement: whatever is missing is unjudged and
+          // takes the distance rule below.
+          console.error(`import-match judging tier failed for import ${payload.documentImportId}:`, e instanceof Error ? e.message : "unknown error");
+        }
+
+        for (const entity of toJudge) {
+          const candidates = applyVerdicts(entity.kind, entity.key, entity.pool, verdicts);
+          if (candidates.length > 0) (matches[entity.kind] ??= {})[entity.ref] = candidates;
+        }
+      }
     } else {
       // Nothing to embed (every entity was a kind with no semantic corpus) --
       // not a failure, just nothing for this tier to add.
@@ -455,7 +551,7 @@ serve(withCors(async (req: Request) => {
     semantic = false;
   }
 
-  return new Response(JSON.stringify({ matches, semantic }), {
+  return new Response(JSON.stringify({ matches, semantic, judged }), {
     headers: { "Content-Type": "application/json" },
   });
 }));

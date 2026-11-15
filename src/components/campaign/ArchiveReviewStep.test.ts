@@ -49,7 +49,7 @@ function page(ref: string, kind: ArchivePageKind): ArchivePage {
 }
 
 const importRow = { id: "row-1", campaign_id: "camp-1", source_paths: [] } as unknown as ArchiveDocumentImport;
-const existing: EntityCandidate = { targetId: "npc-existing", source: "campaign", name: "Mara", matchKind: "exact", detail: null, distance: null };
+const existing: EntityCandidate = { targetId: "npc-existing", source: "campaign", name: "Mara", matchKind: "exact", detail: null, distance: null, verdict: null };
 
 function mountStep(pages: ArchivePage[], kinds = new Map<string, ArchivePageKind>()) {
   return mount(ArchiveReviewStep, { props: { importRow, pages, kinds } });

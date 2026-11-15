@@ -10,13 +10,14 @@ import {
   resetToSuggestedDecisions,
   seedImportDecisions,
   tallyDecisions,
+  verdictHint,
 } from "./reviewDecisions";
 import type { EntityCandidate, ImportDecision } from "./entityMatching";
 import type { UsableEntity } from "./sanitizeEntities";
 import type { ImportEntityKind } from "@/types/documentImport.types";
 
 function candidate(overrides: Partial<EntityCandidate> = {}): EntityCandidate {
-  return { targetId: "id-1", source: "campaign", name: "Goblin", matchKind: "exact", detail: null, distance: null, ...overrides };
+  return { targetId: "id-1", source: "campaign", name: "Goblin", matchKind: "exact", detail: null, distance: null, verdict: null, ...overrides };
 }
 
 function entity(ref: string, data: Record<string, unknown> = { name: "Goblin" }): UsableEntity {
@@ -167,6 +168,22 @@ describe("deity and hand-picked candidates", () => {
     expect(needsDmChoice([deity])).toBe(false);
     expect(needsDmChoice([deity, candidate({ targetId: "n" })])).toBe(true);
     expect(needsDmChoice([{ ...deity, matchKind: "contains" }])).toBe(true);
+  });
+});
+
+describe("verdictHint", () => {
+  it("says nothing for a pair that was not judged", () => {
+    expect(verdictHint(null)).toBeNull();
+  });
+
+  it("reads 1.5 as a suggested match and 1.49 as only related", () => {
+    expect(verdictHint(1.5)).toBe("suggested match");
+    expect(verdictHint(1.49)).toBe("related, may not be the same");
+  });
+
+  it("reads 0.5 as related and 0.49 as probably a different one", () => {
+    expect(verdictHint(0.5)).toBe("related, may not be the same");
+    expect(verdictHint(0.49)).toBe("probably a different one");
   });
 });
 

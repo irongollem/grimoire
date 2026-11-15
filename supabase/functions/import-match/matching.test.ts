@@ -264,7 +264,7 @@ describe("detail builders", () => {
 // ── Merge ────────────────────────────────────────────────────────────────────
 
 function candidate(targetId: string, matchKind: Candidate["matchKind"] = "exact"): Candidate {
-  return { targetId, source: "campaign", name: targetId, matchKind, detail: null, distance: null };
+  return { targetId, source: "campaign", name: targetId, matchKind, detail: null, distance: null, verdict: null };
 }
 
 describe("mergeCandidates", () => {

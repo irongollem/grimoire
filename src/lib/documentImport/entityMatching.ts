@@ -58,9 +58,21 @@ export interface EntityCandidate {
   /** Cosine distance for a `similar` candidate; `null` for the name tier's
    *  `exact`/`near`/`contains`, which have no embedding involved. */
   distance: number | null;
+  /** The small model's judgment of this pair, 0 to 2: 0 a different entity, 1
+   *  closely related but distinct, 2 one and the same. `null` when the pair was
+   *  not judged (AI off, no key, or a candidate made in the client). */
+  verdict: number | null;
 }
 
 // ── Decisions ────────────────────────────────────────────────────────────────
+
+/**
+ * The verdict at or above which the default links a candidate. Measured on 80
+ * labelled entities: linking the first candidate made 8 wrong links, linking
+ * only a candidate judged 1.5 or higher made none and kept every right link.
+ * Thresholds from 1.5 to 1.8 gave identical results, so 1.5 has margin.
+ */
+export const LINK_VERDICT = 1.5;
 
 /**
  * What the DM chose to do with one extracted entity. Every kind supports
@@ -132,7 +144,13 @@ function asEntityCandidate(raw: unknown): EntityCandidate | null {
   const rawDistance = rec.distance;
   const distance = typeof rawDistance === "number" && Number.isFinite(rawDistance) ? rawDistance : null;
 
-  return { targetId, source, name, matchKind, detail, distance };
+  // Optional: a bad verdict means "not judged", never a dropped candidate. The
+  // range test also rejects NaN, which compares false against both bounds.
+  const rawVerdict = rec.verdict;
+  const verdict =
+    typeof rawVerdict === "number" && rawVerdict >= 0 && rawVerdict <= 2 ? rawVerdict : null;
+
+  return { targetId, source, name, matchKind, detail, distance, verdict };
 }
 
 /**
@@ -149,9 +167,11 @@ function asEntityCandidate(raw: unknown): EntityCandidate | null {
 export function parseImportMatches(raw: unknown): {
   matches: Map<ImportEntityKind, Map<string, EntityCandidate[]>>;
   semantic: boolean;
+  /** Whether the judging tier ran at all (candidates then carry verdicts). */
+  judged: boolean;
 } {
   const matches = new Map<ImportEntityKind, Map<string, EntityCandidate[]>>();
-  if (!raw || typeof raw !== "object") return { matches, semantic: false };
+  if (!raw || typeof raw !== "object") return { matches, semantic: false, judged: false };
   const rec = raw as Record<string, unknown>;
 
   const rawMatches = rec.matches;
@@ -173,7 +193,7 @@ export function parseImportMatches(raw: unknown): {
   }
 
   const semantic = rec.semantic === true;
-  return { matches, semantic };
+  return { matches, semantic, judged: rec.judged === true };
 }
 
 // ── Deities offered for an NPC ──────────────────────────────────────────────
@@ -206,7 +226,7 @@ export function deityCandidatesFor(name: string, deities: readonly DeityRow[]): 
   for (const deity of deities) {
     const deityNorm = normalizeEntityName(deity.name);
     if (deityNorm === null) continue;
-    const base = { targetId: deity.id, source: "deity" as const, name: deity.name, detail: deity.titles || null, distance: null };
+    const base = { targetId: deity.id, source: "deity" as const, name: deity.name, detail: deity.titles || null, distance: null, verdict: null };
     if (deityNorm === norm) exact.push({ ...base, matchKind: "exact" });
     else if (deityNorm.length >= 3 && norm.length >= 3 && containsWholeWords(norm, deityNorm)) contains.push({ ...base, matchKind: "contains" });
   }
@@ -336,8 +356,14 @@ export function defaultDecision(
   data: Record<string, unknown>,
   candidates: readonly EntityCandidate[],
 ): ImportDecision {
-  if (kind !== "quests" && candidates.length > 0) {
-    return { action: "link", candidate: candidates[0]! };
+  const first = candidates[0];
+  if (kind !== "quests" && first) {
+    const judged = candidates.filter((c) => c.verdict !== null);
+    // Nothing judged (AI off), or an unjudged candidate ranked first (a client-made
+    // exact deity): the rank order decides, as it always did.
+    if (judged.length === 0 || first.verdict === null) return { action: "link", candidate: first };
+    const best = judged.reduce((a, b) => (b.verdict! > a.verdict! ? b : a));
+    if (best.verdict! >= LINK_VERDICT) return { action: "link", candidate: best };
   }
   if (kind === "monsters" && !canCreateFromPage(kind, data)) {
     return { action: "generate" };

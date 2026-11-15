@@ -13,6 +13,7 @@
           <span class="text-body font-semibold text-foreground">{{ candidateLetter(idx) }}. {{ candidate.name }}</span>
           <span class="text-caption text-muted-foreground">{{ sourceText(candidate) }}</span>
           <span class="text-caption text-muted-foreground">· {{ matchKindHint(candidate.matchKind) }}</span>
+          <span v-if="verdictHint(candidate.verdict)" class="text-caption text-muted-foreground">· {{ verdictHint(candidate.verdict) }}</span>
         </span>
         <span v-if="candidate.detail" class="block text-caption text-muted-foreground">{{ candidate.detail }}</span>
       </span>
@@ -91,7 +92,7 @@
  * which has no generate option and no field editor, offers the very same
  * choice instead of a second copy of it.
  */
-import { candidateLetter, matchKindHint } from "@/lib/documentImport/reviewDecisions";
+import { candidateLetter, matchKindHint, verdictHint } from "@/lib/documentImport/reviewDecisions";
 import type { EntityCandidate, ImportDecision } from "@/lib/documentImport/entityMatching";
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";

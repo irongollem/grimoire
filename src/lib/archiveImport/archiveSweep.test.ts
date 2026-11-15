@@ -126,7 +126,7 @@ describe("runArchiveSweep: order and parents", () => {
     await run([entry(npc, "npc"), entry(town, "location")], made.deps);
     expect(made.inserts.find((c) => c.table === "npcs")?.row.location_id).toBe("locations-1");
 
-    const candidate: EntityCandidate = { targetId: "existing-place", source: "campaign", name: "Dunmere", matchKind: "exact", detail: null, distance: null };
+    const candidate: EntityCandidate = { targetId: "existing-place", source: "campaign", name: "Dunmere", matchKind: "exact", detail: null, distance: null, verdict: null };
     const linked = fakeDeps();
     await run([entry(npc, "npc"), entry(town, "location", { action: "link", candidate })], linked.deps);
     expect(linked.inserts).toHaveLength(1);
@@ -152,7 +152,7 @@ describe("runArchiveSweep: order and parents", () => {
   it("asks for the type of a linked place before deciding about an interior child", async () => {
     const hall = page("Hall.md", { kind: "location" });
     const room = page("Hall/Cellar.md", { kind: "location", parentRef: hall.ref, fm: { location_type: "room" } });
-    const candidate: EntityCandidate = { targetId: "old-hall", source: "campaign", name: "Hall", matchKind: "exact", detail: null, distance: null };
+    const candidate: EntityCandidate = { targetId: "old-hall", source: "campaign", name: "Hall", matchKind: "exact", detail: null, distance: null, verdict: null };
     const { deps, inserts } = fakeDeps({ locationTypes: vi.fn(async () => new Map<string, LocationType>([["old-hall", "dungeon"]])) });
     await run([entry(hall, "location", { action: "link", candidate }), entry(room, "location")], deps);
     expect(inserts[0].row.location_type).toBe("room");
@@ -259,7 +259,7 @@ describe("runArchiveSweep: mentions", () => {
   it("points a mention at an existing record when the page was linked to one", async () => {
     const town = page("Dunmere.md", { kind: "location" });
     const mara = page("Mara.md", { kind: "npc", content: [para(link("Dunmere", "Dunmere"))] });
-    const candidate: EntityCandidate = { targetId: "existing-place", source: "campaign", name: "Dunmere", matchKind: "exact", detail: null, distance: null };
+    const candidate: EntityCandidate = { targetId: "existing-place", source: "campaign", name: "Dunmere", matchKind: "exact", detail: null, distance: null, verdict: null };
     const { deps, updates } = fakeDeps();
     await run([entry(mara, "npc"), entry(town, "location", { action: "link", candidate })], deps);
     expect(updates[0].patch.backstory as string).toContain("existing-place");
@@ -307,7 +307,7 @@ describe("runArchiveSweep: mentions", () => {
   it("never turns a link to a shared-library row into a mention, nor asks its place type", async () => {
     const town = page("Dunmere.md", { kind: "location" });
     const mara = page("Mara.md", { kind: "npc", content: [para(link("Dunmere", "Dunmere"))] });
-    const candidate: EntityCandidate = { targetId: "library-place", source: "library", name: "Dunmere", matchKind: "exact", detail: null, distance: null };
+    const candidate: EntityCandidate = { targetId: "library-place", source: "library", name: "Dunmere", matchKind: "exact", detail: null, distance: null, verdict: null };
     const { deps, updates } = fakeDeps();
     const report = await run([entry(mara, "npc"), entry(town, "location", { action: "link", candidate })], deps);
     expect(updates).toEqual([]);
@@ -331,7 +331,7 @@ describe("runArchiveSweep: mentions", () => {
   });
 
   it("does not touch pages linked to an existing record", async () => {
-    const candidate: EntityCandidate = { targetId: "x", source: "campaign", name: "Mara", matchKind: "exact", detail: null, distance: null };
+    const candidate: EntityCandidate = { targetId: "x", source: "campaign", name: "Mara", matchKind: "exact", detail: null, distance: null, verdict: null };
     const mara = page("Mara.md", { kind: "npc", content: [para(link("Mara", "Mara"))] });
     const { deps, inserts, updates } = fakeDeps();
     const report = await run([entry(mara, "npc", { action: "link", candidate })], deps);

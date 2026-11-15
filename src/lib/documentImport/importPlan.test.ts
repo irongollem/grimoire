@@ -138,7 +138,7 @@ describe("buildImportPlan", () => {
       "monsters",
       entities,
       decisions([
-        ["m1", { action: "link", candidate: { targetId: "mon-1", source: "campaign", name: "Kobold", matchKind: "exact", detail: null, distance: null } }],
+        ["m1", { action: "link", candidate: { targetId: "mon-1", source: "campaign", name: "Kobold", matchKind: "exact", detail: null, distance: null, verdict: null } }],
         ["m2", CREATE],
       ]),
       CAMPAIGN_ID,

@@ -98,18 +98,24 @@ async function main(): Promise<void> {
     throw new Error(`That does not look like a ${chosen.provider} key (expected it to start with '${chosen.prefix}').`);
   }
   const provider = chosen.provider;
-  const apiKey = chosen.key;
 
-  const encrypted = await encryptValue(apiKey, vaultKey);
+  // The TypeSafe (Jev) key for the importer's judging tier (#1061) is loaded
+  // in addition to the AI provider's, not instead of it, so a local import can
+  // run every tier. No prefix check: TypeSafe documents no key shape.
+  const toLoad = [{ provider, key: chosen.key }];
+  if (env.JEV_API_KEY) toLoad.push({ provider: "typesafe", key: env.JEV_API_KEY });
 
-  // Via psql through the same helper the other dev-fixture scripts use, rather
-  // than adding a Postgres driver to package.json for one local script.
-  sql(
-    DB_URL,
-    `insert into platform_api_keys (provider, encrypted_key)
-     values (${quote(provider)}, ${quote(encrypted)})
-     on conflict (provider) do update set encrypted_key = excluded.encrypted_key`,
-  );
+  for (const row of toLoad) {
+    const encrypted = await encryptValue(row.key, vaultKey);
+    // Via psql through the same helper the other dev-fixture scripts use, rather
+    // than adding a Postgres driver to package.json for one local script.
+    sql(
+      DB_URL,
+      `insert into platform_api_keys (provider, encrypted_key)
+       values (${quote(row.provider)}, ${quote(encrypted)})
+       on conflict (provider) do update set encrypted_key = excluded.encrypted_key`,
+    );
+  }
 
   const rows = sql(DB_URL, "select provider, length(encrypted_key) from platform_api_keys order by provider");
   console.log("platform_api_keys now holds:");
@@ -117,7 +123,7 @@ async function main(): Promise<void> {
     const [provider, len] = line.split("\t");
     console.log(`  ${provider} (${len} chars, encrypted)`);
   }
-  console.log(`\nThe ${provider} row is encrypted with the VAULT_KEY in supabase/functions/.env.`);
+  console.log(`\nThe ${toLoad.map((r) => r.provider).join(" and ")} row(s) are encrypted with the VAULT_KEY in supabase/functions/.env.`);
   console.log("Both are local-only and gitignored. Nothing was printed in plaintext.");
 }
 

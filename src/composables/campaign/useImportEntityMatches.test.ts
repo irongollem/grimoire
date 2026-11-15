@@ -112,7 +112,7 @@ describe("useImportEntityMatches", () => {
 
     expect(mocks.invokeCalls).toEqual([{ fn: "import-match", body: { id: "row-1", entities: { npcs: [{ ref: "n1", name: "Goblin", data: { name: "Goblin" } }] } } }]);
     expect(api().candidatesFor("npcs").get("n1")).toEqual([
-      { targetId: "id-1", source: "campaign", name: "Goblin Scout", matchKind: "exact", detail: null, distance: null },
+      { targetId: "id-1", source: "campaign", name: "Goblin Scout", matchKind: "exact", detail: null, distance: null, verdict: null },
     ]);
     expect(api().semantic.value).toBe(true);
     expect(api().isLoading.value).toBe(false);

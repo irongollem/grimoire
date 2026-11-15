@@ -8,8 +8,8 @@ vi.mock("@/components/campaign/ImportLinkPicker.vue", () => ({
 import ImportDecisionChoice from "./ImportDecisionChoice.vue";
 import type { EntityCandidate, ImportDecision } from "@/lib/documentImport/entityMatching";
 
-const suggested: EntityCandidate = { targetId: "a", source: "campaign", name: "Armor, hide", matchKind: "near", detail: null, distance: null };
-const byHand: EntityCandidate = { targetId: "b", source: "deity", name: "Moradin", matchKind: "chosen", detail: "the Soul Forger", distance: null };
+const suggested: EntityCandidate = { targetId: "a", source: "campaign", name: "Armor, hide", matchKind: "near", detail: null, distance: null, verdict: null };
+const byHand: EntityCandidate = { targetId: "b", source: "deity", name: "Moradin", matchKind: "chosen", detail: "the Soul Forger", distance: null, verdict: null };
 
 function open(decision: ImportDecision, props: Record<string, unknown> = {}) {
   return mount(ImportDecisionChoice, { props: { heading: "Hide armor", groupName: "g", candidates: [suggested], modelValue: decision, ...props } });
@@ -24,6 +24,15 @@ describe("ImportDecisionChoice", () => {
     const checked = w.findAll("input:checked");
     expect(checked).toHaveLength(1);
     expect(checked[0].element.closest("label")?.textContent).toContain("Moradin");
+  });
+
+  it("shows the model's judgment as a suggestion on a judged candidate and nothing on an unjudged one", () => {
+    const judged = { ...suggested, verdict: 1.8 };
+    expect(open({ action: "create" }, { candidates: [judged] }).text()).toContain("suggested match");
+    const unjudged = open({ action: "create" }).text();
+    expect(unjudged).not.toMatch(/suggested match|related, may not|probably a different/);
+    // Only the match-kind hint's separator: no empty "· " left behind for a null verdict.
+    expect(unjudged.match(/·/g)).toHaveLength(1);
   });
 
   it("does not add a second row when the chosen link is one of the suggestions", () => {
