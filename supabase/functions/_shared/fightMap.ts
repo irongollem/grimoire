@@ -8,6 +8,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decodeFogMask } from "../../../src/lib/battlemap/fogMask.ts";
+import type { ExitRegion } from "../../../src/lib/battlemap/mapExits.ts";
 import { resolveBattleSurface, type PlanRegion, type SurfaceLocation } from "../../../src/lib/battlemap/roomBridge.ts";
 import { isInteriorType } from "../../../src/lib/locations/tiers.ts";
 import type { FightMapInput } from "../../../src/rules/fight/terrain/battleMap.ts";
@@ -19,7 +20,7 @@ export type FightMapLocation = SurfaceLocation & Pick<Location, "parent_id">;
 
 const LOCATION_COLUMNS =
   "id, location_type, parent_id, map_url, grid_calibration, map_layer_url, map_layer_stand_url, map_layer_stand_live_url, map_layer_calibration, plan_size, map_live";
-const REGION_COLUMNS = "region_role, space_location_id, cells, zone_payload";
+const REGION_COLUMNS = "region_role, space_location_id, cells, zone_payload, zone_kind, label";
 
 /**
  * The place whose regions the fight reads: an interior space (a room) reads its parent site's, anything else its own.
@@ -84,11 +85,11 @@ async function readLocation(admin: SupabaseClient, campaignId: string, id: strin
   return data === null ? null : (data as unknown as FightMapLocation);
 }
 
-async function readRegions(admin: SupabaseClient, siteId: string | null): Promise<PlanRegion[]> {
+async function readRegions(admin: SupabaseClient, siteId: string | null): Promise<(PlanRegion & ExitRegion)[]> {
   if (siteId === null) return [];
   const { data, error } = await admin.from("location_map_regions").select(REGION_COLUMNS).eq("site_location_id", siteId);
   if (error) throw new Error(`location_map_regions: ${error.message}`);
-  return data as unknown as PlanRegion[];
+  return data as unknown as (PlanRegion & ExitRegion)[];
 }
 
 /** The map's door states and the cells the party has seen, from its one `map_memory` row. */

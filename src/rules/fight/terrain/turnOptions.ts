@@ -20,8 +20,9 @@ import type { RulesetKey } from "../../../types/ruleset.types.ts";
 import type { AttackStructure, MultiattackStep, StatBlockEntry } from "../../../types/statBlock.types.ts";
 import type { StatBlockListKey } from "../../statBlock/parseAction.ts";
 import { concentrationBreaksOn } from "../../combat/concentration.ts";
+import type { MapExit } from "../../../lib/battlemap/mapExits.ts";
 import { reachTerrainOf, type FightMap } from "./battleMap.ts";
-import { isHostileTo, reachable, type ReachCell, type ReachResult } from "./reach.ts";
+import { coverCells, isHostileTo, reachable, type ReachCell, type ReachResult } from "./reach.ts";
 import {
   attackFrom,
   coverBetween,
@@ -88,6 +89,21 @@ export interface TurnOption {
   exposure: TurnOptionExposure[];
   /** One plain-English line built from the facts above. */
   summary: string;
+  /**
+   * Only a `flee` sets these (#1203; absent means the option does not leave). `leavesMap`: the destination is a way
+   * off the map, so the creature is gone from the fight once it gets there. `exitLabel` is the Entrance zone's name,
+   * null for an unnamed zone and for the edge of open country; `exitKind` says which kind of way off it is.
+   */
+  leavesMap?: boolean;
+  exitLabel?: string | null;
+  exitKind?: MapExit["kind"] | null;
+}
+
+/** How a way off reads in a sentence, "leave the map ..." / "toward ...". */
+export function wayOffPhrase(kind: MapExit["kind"], label: string | null, leaving: boolean): string {
+  if (kind === "edge") return leaving ? "over the edge of the map" : "the edge of the map";
+  const name = label === null ? "the entrance" : `"${label}"`;
+  return leaving ? `through ${name}` : name;
 }
 
 /** One attack the creature may make this turn: an entry of its Actions or Bonus Actions that the caller found available. */
@@ -208,6 +224,17 @@ interface Scene {
   enemies: OpportunityEnemy[];
   ruleset: RulesetKey;
   exposureMemo: Map<string, TurnOptionExposure[]>;
+  /** The map's ways off by cell; a square that is both an entrance and an edge says the entrance (it may carry a name). */
+  exitsByCell: ReadonlyMap<string, MapExit>;
+}
+
+function exitsByCellOf(exits: readonly MapExit[]): Map<string, MapExit> {
+  const byCell = new Map<string, MapExit>();
+  for (const e of exits) {
+    const known = byCell.get(e.cell);
+    if (known === undefined || (known.kind === "edge" && e.kind === "entrance")) byCell.set(e.cell, e);
+  }
+  return byCell;
 }
 
 function exposureAt(scene: Scene, cell: Cell): TurnOptionExposure[] {
@@ -420,13 +447,26 @@ function disengageOption(scene: Scene): TurnOption | null {
 }
 
 /**
- * Rule 10: Flee, a Dash away (PHB 2014 ch. 9 "Dash"). With twice the budget it ends on the reachable square farthest
- * from its nearest living hostile; ties go to the most cover, then fewest opportunity attacks provoked, then fewest feet,
- * then top-left first. Only offered when there is a hostile and some square is farther from it than where the creature
- * stands (with no hostile the nearest distance is infinite everywhere, so nothing is farther). The path may provoke: unlike Disengage, this is a Dash.
+ * Rule 10: Flee, a Dash away (PHB 2014 ch. 9 "Dash"). Only offered when there is a living hostile. The path may
+ * provoke: unlike Disengage, this is a Dash. Where it ends depends on whether the map has ways off it (#1203):
+ *
+ * - A way off is reachable this turn (twice the budget): it ends on the nearest one by movement cost (ties: fewest
+ *   opportunity attacks, then top-left) and leaves the map. A creature covers an exit when any square it fills is one.
+ * - Ways off exist, none is reachable this turn: it ends on the reachable square that leaves the shortest walk to the
+ *   nearest way off. That walk is measured along the cheapest path from where it stands (one search with no budget over
+ *   the same terrain, so walls and rock count): the farthest square of that path the Dash reaches, and the rest of
+ *   the path is what is left. Never straight-line distance through a wall. A way off nobody can walk to at all, or a
+ *   Dash that cannot take even one step along the path, is no way off: the next rule.
+ * - No way off: the reachable square farthest from its nearest living hostile; ties go to the most cover, then fewest
+ *   opportunity attacks provoked, then fewest feet, then top-left first. Only when some square is farther from it than
+ *   where the creature stands.
  */
-function fleeOption(scene: Scene, names: Map<string, string>, dashReach: ReachResult): TurnOption | null {
-  if (dashReach.start === null) return null;
+function fleeOption(scene: Scene, names: Map<string, string>, dashReach: ReachResult, walkAnywhere: () => ReachResult): TurnOption | null {
+  if (dashReach.start === null || scene.hostiles.length === 0) return null;
+  if (scene.map.exits.length > 0) {
+    const way = fleeByWayOff(scene, names, dashReach, walkAnywhere);
+    if (way !== null) return way;
+  }
   const nearest = (box: Box) => Math.min(...scene.hostiles.map((h) => distanceFeet(box, boxOf(h))));
   const hereAway = nearest({ anchor: dashReach.start, footprint: scene.moverFootprint });
   let best: { rc: ReachCell; away: number; provokes: ProvokedAttack[] } | null = null;
@@ -453,7 +493,95 @@ function fleeOption(scene: Scene, names: Map<string, string>, dashReach: ReachRe
     distanceFeet: null,
     provokes: best.provokes,
     exposure,
+    leavesMap: false,
+    exitLabel: null,
+    exitKind: null,
     summary: `Flee: dash ${best.rc.feet} ft away, ending ${best.away} ft from the nearest enemy${exposurePhrase(names, exposure)}${provokesPhrase(names, best.provokes)}`,
+  };
+}
+
+/** The exit a creature standing with its anchor here covers, the named one when it covers several; null when it covers none. */
+function exitCovered(scene: Scene, anchor: Cell): MapExit | null {
+  let found: MapExit | null = null;
+  for (const c of coverCells(anchor, scene.moverFootprint)) {
+    const exit = scene.exitsByCell.get(`${c.x},${c.y}`);
+    if (exit === undefined) continue;
+    if (exit.label !== null) return exit;
+    if (found === null) found = exit;
+  }
+  return found;
+}
+
+const topLeftFirst = (a: Cell, b: Cell) => a.y - b.y || a.x - b.x;
+
+/** Rule 10, the two ways-off cases (see `fleeOption`). Null when no way off is within any walk, or the Dash cannot start one. */
+function fleeByWayOff(scene: Scene, names: Map<string, string>, dashReach: ReachResult, walkAnywhere: () => ReachResult): TurnOption | null {
+  // 1. A way off the Dash reaches: the nearest by cost.
+  let leave: { rc: ReachCell; exit: MapExit; provokes: ProvokedAttack[] } | null = null;
+  for (const rc of cellsOf(dashReach)) {
+    const exit = exitCovered(scene, rc.cell);
+    if (exit === null) continue;
+    const found = { rc, exit, provokes: provokesOf(scene, rc) };
+    if (
+      leave === null || rc.feet < leave.rc.feet ||
+      (rc.feet === leave.rc.feet && (found.provokes.length < leave.provokes.length || (found.provokes.length === leave.provokes.length && topLeftFirst(rc.cell, leave.rc.cell) < 0)))
+    ) leave = found;
+  }
+  if (leave !== null) {
+    const { rc, exit, provokes } = leave;
+    const way = wayOffPhrase(exit.kind, exit.label, true);
+    return {
+      id: "flee",
+      kind: "flee",
+      targetId: null,
+      destination: rc.cell,
+      path: rc.path,
+      feet: rc.feet,
+      attack: null,
+      distanceFeet: null,
+      provokes,
+      exposure: exposureAt(scene, rc.cell),
+      leavesMap: true,
+      exitLabel: exit.label,
+      exitKind: exit.kind,
+      summary: `Flee: ${rc.feet === 0 ? "" : `dash ${rc.feet} ft and `}leave the map ${way}${provokesPhrase(names, provokes)}`,
+    };
+  }
+  // 2. None this turn: along the cheapest whole walk to the nearest way off, as far as the Dash goes.
+  const far = walkAnywhere();
+  let goal: ReachCell | null = null;
+  for (const rc of cellsOf(far)) {
+    if (exitCovered(scene, rc.cell) === null) continue;
+    if (goal === null || rc.feet < goal.feet || (rc.feet === goal.feet && topLeftFirst(rc.cell, goal.cell) < 0)) goal = rc;
+  }
+  if (goal === null) return null;
+  const exit = exitCovered(scene, goal.cell) as MapExit;
+  const key = (c: Cell) => `${c.x},${c.y}`;
+  // The last square of the walk the Dash can end on (the start, index 0, is no progress).
+  let at = -1;
+  for (let i = goal.path.length - 1; i > 0; i--) {
+    if (dashReach.cells.has(key(goal.path[i]))) { at = i; break; }
+  }
+  if (at < 0) return null;
+  const rc = dashReach.cells.get(key(goal.path[at])) as ReachCell;
+  const walked = far.cells.get(key(rc.cell));
+  const short = walked === undefined ? goal.feet - rc.feet : goal.feet - walked.feet;
+  const provokes = provokesOf(scene, rc);
+  return {
+    id: "flee",
+    kind: "flee",
+    targetId: null,
+    destination: rc.cell,
+    path: rc.path,
+    feet: rc.feet,
+    attack: null,
+    distanceFeet: null,
+    provokes,
+    exposure: exposureAt(scene, rc.cell),
+    leavesMap: false,
+    exitLabel: null,
+    exitKind: null,
+    summary: `Flee: dash ${rc.feet} ft toward ${wayOffPhrase(exit.kind, exit.label, false)}, ${short} ft short of it${provokesPhrase(names, provokes)}`,
   };
 }
 
@@ -555,7 +683,9 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
     enemies: hostiles.map((h) => ({ id: h.instance_id, box: boxOf(h), reachFeet: input.reachOf(h), reactionUsed: h.reactionUsed === true, incapacitated: isIncapacitated(h) })),
     ruleset: input.ruleset,
     exposureMemo: new Map(),
+    exitsByCell: exitsByCellOf(map.exits),
   };
+  let farWalk: ReachResult | undefined;
   const here = boxOf(mover);
   const nearness = (t: RunCombatant) => distanceFeet(here, boxOf(t));
 
@@ -583,7 +713,7 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
     if (disengage) fixed.push(disengage);
     const hide = hideOption(scene, names);
     if (hide) fixed.push(hide);
-    const flee = fleeOption(scene, names, dashReach);
+    const flee = fleeOption(scene, names, dashReach, () => (farWalk ??= search(Number.POSITIVE_INFINITY)));
     if (flee) fixed.push(flee);
     fixed.push(dodgeOption(scene));
   } else {

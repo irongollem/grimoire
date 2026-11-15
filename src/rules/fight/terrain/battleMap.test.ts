@@ -38,8 +38,9 @@ function place(over: Partial<Place> & Pick<Place, "id" | "location_type">): Plac
 
 const site = place({ id: "site", location_type: "dungeon", map_layer_url: "site.png", map_layer_calibration: calibration, map_live: live });
 const mapless = (id: string) => place({ id, location_type: "room" });
-const zone = (cells: CellKey[], cost: number | undefined) => ({ region_role: "zone" as const, space_location_id: null, cells, zone_payload: { movement_cost: cost } });
-const roomRegion = (roomId: string, cells: CellKey[]) => ({ region_role: "space" as const, space_location_id: roomId, cells, zone_payload: {} });
+const zone = (cells: CellKey[], cost: number | undefined) => ({ region_role: "zone" as const, space_location_id: null, cells, zone_payload: { movement_cost: cost }, zone_kind: null, label: null });
+const roomRegion = (roomId: string, cells: CellKey[]) => ({ region_role: "space" as const, space_location_id: roomId, cells, zone_payload: {}, zone_kind: null, label: null });
+const entrance = (cells: CellKey[], label: string | null) => ({ region_role: "zone" as const, space_location_id: null, cells, zone_payload: {}, zone_kind: "entrance" as const, label });
 const noDoors: readonly MapLiveDoorState[] = [];
 const NOTHING_SEEN: ReadonlySet<string> = new Set();
 
@@ -170,5 +171,89 @@ describe("where the map ends (#1202)", () => {
     if (known === null) throw new Error("expected a map");
     // 10 across and half as tall is rows 0-4; a creature standing on row 6 (old data) does not stretch the picture.
     expect(reachTerrainOf(known, [{ anchor: { x: 2, y: 6 }, footprint: 1 }]).bounds.maxY).toBe(4);
+  });
+});
+
+describe("the ways off the map (#1203)", () => {
+  // A map 10 across and 0.5 tall (rows 0-4), origin cell 0,0, so map cells are image cells. `kind` is the place's type.
+  const shape = { ...calibration, origin_cell_x: 0, image_height_over_width: 0.5 as number | undefined };
+  const clear: MapLive = { ...live, walls: [], doors: [], solid: [] };
+  const exitsOf = (kind: "dungeon" | "wilds", regions: (ReturnType<typeof entrance> | ReturnType<typeof zone>)[] = [], over: { solid?: string[]; ratio?: number | undefined } = {}) => {
+    const map = fightMapOf({
+      encounterLocation: place({
+        id: "p", location_type: kind, map_layer_url: "p.png", map_live: { ...clear, solid: over.solid ?? [] },
+        map_layer_calibration: { ...shape, image_height_over_width: "ratio" in over ? over.ratio : 0.5 },
+      }),
+      parent: null, regions, doorStates: noDoors, seen: NOTHING_SEEN,
+    });
+    return map?.exits.map((e) => e.cell).sort();
+  };
+
+  it("an Entrance zone is a way off, and one far from any room still is", () => {
+    // Bug it fails on: reading only the zones that touch the room (terrainZonesOf's focus), which would have no gate
+    // for a goblin that flees the room. Room r1 is at map cell 0,0; the gate is at 8,3, nowhere near it.
+    const regions = [roomRegion("r1", ["0,0"]), entrance(["8,3", "9,3"], "East gate")];
+    const map = fightMapOf({ encounterLocation: mapless("r1"), parent: { ...site, map_layer_calibration: shape, map_live: clear }, regions, doorStates: noDoors, seen: NOTHING_SEEN });
+    expect(map?.exits).toEqual([{ cell: "8,3", label: "East gate", kind: "entrance" }, { cell: "9,3", label: "East gate", kind: "entrance" }]);
+  });
+
+  it("a zone that is not an Entrance is no way off", () => {
+    // Bug it fails on: treating any zone (here difficult ground) as a way out.
+    expect(exitsOf("dungeon", [zone(["4,2"], 2)])).toEqual([]);
+  });
+
+  it("a sealed dungeon level has no way off", () => {
+    // Bug it fails on: giving every map its border as a way off, so a goblin in a sealed vault walks out through rock.
+    expect(exitsOf("dungeon")).toEqual([]);
+  });
+
+  it("open country is left over any edge: every border cell of 10 by 5 is a way off, the middle is not", () => {
+    // Bug it fails on: no edges for a wilds, or a border that skips a side. Columns 0 and 9 (5 rows each) plus rows 0 and
+    // 4 over columns 1-8 (8 each): 5 + 5 + 8 + 8 = 26 cells; the interior 8 by 3 = 24 cells are not.
+    const cells = exitsOf("wilds");
+    expect(cells).toHaveLength(26);
+    expect(cells).toContain("0,2");
+    expect(cells).toContain("9,2");
+    expect(cells).toContain("4,0");
+    expect(cells).toContain("4,4");
+    expect(cells).not.toContain("4,2");
+  });
+
+  it("without the picture's height the bottom is not an edge, and left, top and right still are", () => {
+    // Bug it fails on: treating the guessed bottom row as the edge of the world. The only thing known of the rows is a
+    // seen cell on row 2, so the bounds are rows 0-2: row 2 must not be a way off (except at the left and right edges).
+    const map = fightMapOf({
+      encounterLocation: place({ id: "p", location_type: "wilds", map_layer_url: "p.png", map_live: clear, map_layer_calibration: { ...shape, image_height_over_width: undefined } }),
+      parent: null, regions: [], doorStates: noDoors, seen: new Set(["4,2"]),
+    });
+    const cells = map?.exits.map((e) => e.cell) ?? [];
+    expect(map?.rowsKnown).toBe(false);
+    expect(cells).toContain("4,0");
+    expect(cells).toContain("0,2");
+    expect(cells).toContain("9,2");
+    expect(cells).not.toContain("4,2");
+  });
+
+  it("solid rock is not a way off, even on the edge or in a gate", () => {
+    // Bug it fails on: offering a square nobody can stand on. Rock on the border cell 0,0 and in the gate cell 8,3.
+    const cells = exitsOf("wilds", [entrance(["8,3", "7,3"], null)], { solid: ["0,0", "8,3"] });
+    expect(cells).not.toContain("0,0");
+    expect(cells).not.toContain("8,3");
+    expect(cells).toContain("7,3");
+  });
+
+  it("an Entrance zone on the map's place is shifted by the calibration origin like every other region", () => {
+    // Bug it fails on: reading the zone's map cell as an image cell. Origin cell (2,0): map cell 5,1 is image cell 3,1.
+    const map = fightMapOf({ encounterLocation: site, parent: null, regions: [entrance(["5,1"], null)], doorStates: noDoors, seen: NOTHING_SEEN });
+    expect(map?.exits).toEqual([{ cell: "3,1", label: null, kind: "entrance" }]);
+  });
+
+  it("an Entrance zone proves the row it lies on when the picture's height is unknown", () => {
+    // Bug it fails on: dropping a gate on row 6 because nothing else is known to reach it (bounds would end at row -1).
+    const map = fightMapOf({
+      encounterLocation: place({ id: "p", location_type: "dungeon", map_layer_url: "p.png", map_live: clear, map_layer_calibration: { ...shape, image_height_over_width: undefined } }),
+      parent: null, regions: [entrance(["5,6"], null)], doorStates: noDoors, seen: NOTHING_SEEN,
+    });
+    expect(map?.exits.map((e) => e.cell)).toEqual(["5,6"]);
   });
 });

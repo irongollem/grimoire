@@ -222,7 +222,8 @@ describe("seating on a frame with no room to stand in", () => {
 });
 
 describe("the Entrance zone", () => {
-  const zone = (kind: "entrance" | "marker", cells: CellKey[]) => ({ region_role: "zone", zone_kind: kind, cells }) as LocationMapRegion;
+  const zone = (kind: "entrance" | "marker", cells: CellKey[], payload: LocationMapRegion["zone_payload"] = {}) =>
+    ({ region_role: "zone", zone_kind: kind, cells, zone_payload: payload }) as LocationMapRegion;
 
   // Region cells are in the Cartographer's space; tokens stand in image cells, offset by the calibration origin (10, 20).
   it("reads an entrance zone's squares in battle cells and ignores other zone kinds and rooms", () => {
@@ -232,6 +233,12 @@ describe("the Entrance zone", () => {
 
   it("counts a square two entrance zones share once", () => {
     expect(entranceBattleCells([zone("entrance", ["10,20"]), zone("entrance", ["10,20", "11,20"])], calibration)).toHaveLength(2);
+  });
+
+  it("does not seat the party on a way out only, such as a back gate the DM marked for fleeing creatures", () => {
+    // Two zones: the front gate (the party arrives) and a postern with "The party arrives here" unticked.
+    const cells = entranceBattleCells([zone("entrance", ["10,20"]), zone("entrance", ["15,20"], { party_arrives: false })], calibration);
+    expect(cells).toEqual(["0,0"]);
   });
 
   it("finds no entrance cells on a site without one", () => {

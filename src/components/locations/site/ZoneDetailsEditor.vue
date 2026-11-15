@@ -77,9 +77,19 @@
       />
     </template>
 
-    <span v-else-if="zone.zone_kind === 'entrance'" class="text-caption text-muted-foreground italic">
-      The party walks in here when you explore this site.
-    </span>
+    <template v-else-if="zone.zone_kind === 'entrance'">
+      <AppCheckbox
+        :model-value="zone.zone_payload.party_arrives !== false"
+        label="The party arrives here"
+        size="sm"
+        @update:model-value="updatePayload({ party_arrives: $event ? undefined : false })"
+      />
+      <span class="text-caption text-muted-foreground italic">
+        {{ zone.zone_payload.party_arrives === false
+          ? "A way out only: a creature that flees leaves the map here."
+          : "The party walks in here when you explore this site, and a creature that flees leaves the map here." }}
+      </span>
+    </template>
 
     <span v-else class="text-caption text-muted-foreground italic">
       Geometry with no mechanics: the honest default for cover, a ritual circle, anything read-aloud only.
@@ -93,6 +103,7 @@
  * and the run surface, never enforced). Lifted out of the old zone list when Zoning became one list (#1125).
  */
 import { computed, ref, watch } from "vue";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";

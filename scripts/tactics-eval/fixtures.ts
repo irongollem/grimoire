@@ -139,7 +139,7 @@ export function mapOf(t: Terrain = {}): FightMap {
   const walls = (t.walls ?? []).map(([a, b], i): WallSegment => ({ id: `w${i}`, a, b }));
   const doors = (t.doors ?? []).map(([a, b], i) => ({ id: `d${i}`, a, b, open: false }));
   const occ = walls.length === 0 && doors.length === 0 ? NO_OCCLUDERS : occluders({ walls, doors, solid: [] });
-  return { mapLocationId: "evaluation", occluders: occ, difficult: new Set(t.difficult ?? []), solid: occ.solid, calibration: CALIBRATION, bounds: FAR_EDGES, rowsKnown: true };
+  return { mapLocationId: "evaluation", occluders: occ, difficult: new Set(t.difficult ?? []), solid: occ.solid, calibration: CALIBRATION, bounds: FAR_EDGES, rowsKnown: true, exits: [] };
 }
 
 // ── preparing a scenario ────────────────────────────────────────────────────────

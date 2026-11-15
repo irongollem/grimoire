@@ -107,11 +107,14 @@ export function roomBattleCells(regions: readonly LocationMapRegion[], calibrati
   return byRoom;
 }
 
-/** The squares of the site's Entrance zones in battle cells, de-duplicated: where the party walks in (#1125). Empty when the site has none. */
+/** The squares of the site's Entrance zones in battle cells, de-duplicated: where the party walks in (#1125). A zone
+ *  marked as a way out only (`party_arrives: false`) is left out: creatures leave by it, nobody arrives. Empty when
+ *  the site has none. */
 export function entranceBattleCells(regions: readonly LocationMapRegion[], calibration: GridCalibration): CellKey[] {
   const cells = new Set<CellKey>();
   for (const region of regions) {
     if (region.region_role !== "zone" || region.zone_kind !== "entrance") continue;
+    if (region.zone_payload.party_arrives === false) continue;
     for (const cell of region.cells) cells.add(regionCellToBattleCell(cell, calibration));
   }
   return [...cells];

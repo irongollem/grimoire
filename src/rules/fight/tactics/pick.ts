@@ -8,7 +8,7 @@
 // Pure and edge-importable (relative `.ts` imports only).
 
 import type { RunCombatant } from "../../../types/encounter.types.ts";
-import { compareExposure, type TurnOption } from "../terrain/turnOptions.ts";
+import { compareExposure, wayOffPhrase, type TurnOption } from "../terrain/turnOptions.ts";
 import type { TacticalProfile } from "./profile.ts";
 
 export interface PickContext {
@@ -207,7 +207,13 @@ export function pickTurn(options: readonly TurnOption[], profile: TacticalProfil
     }
     if (profile.morale.then === "flee") {
       const retreat = find("flee") ?? find("disengage") ?? find("dodge");
-      if (retreat) return { optionId: retreat.id, reason: `Falls back: ${standing} and ${RETREAT_VERB[retreat.kind]}.` };
+      if (retreat) {
+        const { exitKind, exitLabel } = retreat;
+        const leaving = retreat.leavesMap === true && exitKind !== undefined && exitKind !== null
+          ? `, leaving the map ${wayOffPhrase(exitKind, exitLabel === undefined ? null : exitLabel, true)}`
+          : "";
+        return { optionId: retreat.id, reason: `Falls back: ${standing} and ${RETREAT_VERB[retreat.kind]}${leaving}.` };
+      }
     }
   }
 

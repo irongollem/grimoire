@@ -9,6 +9,7 @@ import { gridFromRatio } from "../../../lib/battlemap/imageGrid.ts";
 import { NO_OCCLUDERS, occludersOf, type Occluders } from "../../../lib/battlemap/occlusion.ts";
 import { resolveBattleSurface, type PlanRegion, type SurfaceLocation } from "../../../lib/battlemap/roomBridge.ts";
 import { terrainZonesOf } from "../../../lib/battlemap/terrainZones.ts";
+import { edgeExits, entranceExits, type ExitRegion, type MapExit } from "../../../lib/battlemap/mapExits.ts";
 import type { GridCalibration } from "../../../types/location.types.ts";
 import type { MapLive, MapLiveDoorState } from "../../../types/mapLive.types.ts";
 import { coverCells, type ReachBounds, type ReachInput } from "./reach.ts";
@@ -20,7 +21,7 @@ export interface FightMapInput {
   /** Its parent, when it is an interior space (a room) that may live on its site's plan. */
   parent: SurfaceLocation | null;
   /** The regions of the encounter's site (`useLocationBattleSurface`'s `siteId`: the parent of an interior, else the place). */
-  regions: readonly PlanRegion[];
+  regions: readonly (PlanRegion & ExitRegion)[];
   /** `map_memory.door_states` of the map place: what the DM opened or shut in play. */
   doorStates: readonly MapLiveDoorState[];
   /** `map_memory.seen` of the map place, decoded: the cells (`"x,y"`) the party has seen. Proof that those rows exist. */
@@ -44,6 +45,12 @@ export interface FightMap {
    * deepest row known to be on the map and `reachTerrainOf` adds the rows the creatures stand on.
    */
   rowsKnown: boolean;
+  /**
+   * The ways off the map (#1203), in battle cells: every Entrance zone square of the map's place, plus, for open
+   * country (a `wilds`), every cell on the border of the bounds. Solid rock and cells outside the bounds are not
+   * exits. Empty for a map with neither (a sealed dungeon level): a creature there has no way off.
+   */
+  exits: readonly MapExit[];
 }
 
 /**
@@ -58,14 +65,14 @@ export interface FightMap {
  */
 function boundsOf(
   calibration: GridCalibration,
-  known: { seen: ReadonlySet<string>; solid: ReadonlySet<string>; difficult: ReadonlySet<string>; live: MapLive | null },
+  known: { seen: ReadonlySet<string>; solid: ReadonlySet<string>; difficult: ReadonlySet<string>; entrances: ReadonlySet<string>; live: MapLive | null },
 ): { bounds: ReachBounds; rowsKnown: boolean } {
   const maxX = Math.ceil(calibration.cells_per_image_width) - 1;
   const grid = gridFromRatio(calibration.cells_per_image_width, calibration.image_height_over_width);
   if (grid !== null) return { bounds: { minX: 0, minY: 0, maxX, maxY: grid.rows - 1 }, rowsKnown: true };
   let maxY = -1;
   const ofKey = (key: string) => Number(key.slice(key.indexOf(",") + 1));
-  for (const set of [known.seen, known.solid, known.difficult]) for (const key of set) maxY = Math.max(maxY, ofKey(key));
+  for (const set of [known.seen, known.solid, known.difficult, known.entrances]) for (const key of set) maxY = Math.max(maxY, ofKey(key));
   // A point on a line between two rows proves the row above it; a point inside a row proves that row.
   const ofPoint = (y: number) => Math.ceil(y) - 1;
   for (const w of known.live?.walls ?? []) maxY = Math.max(maxY, ofPoint(w.a[1]), ofPoint(w.b[1]));
@@ -91,7 +98,17 @@ export function fightMapOf(input: FightMapInput): FightMap | null {
   if (surface.live === null && surface.mapLocation.map_live !== null) return null;
   const occluders = surface.live === null ? NO_OCCLUDERS : occludersOf(surface.live, input.doorStates);
   const difficult = new Set(terrainZonesOf(input.regions, surface).flatMap((z) => z.battleCells));
-  const { bounds, rowsKnown } = boundsOf(surface.calibration, { seen: input.seen, solid: occluders.solid, difficult, live: surface.live });
+  // An Entrance zone is on the map by definition, so it proves the rows it lies on when the picture's height is unknown.
+  const entrances = entranceExits(input.regions, surface.calibration);
+  const { bounds, rowsKnown } = boundsOf(surface.calibration, {
+    seen: input.seen, solid: occluders.solid, difficult, entrances: new Set(entrances.map((e) => e.cell)), live: surface.live,
+  });
+  const openCountry = surface.mapLocation.location_type === "wilds";
+  const inside = (cell: string) => {
+    const [x, y] = cell.split(",").map(Number);
+    return x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY;
+  };
+  const exits = [...entrances, ...(openCountry ? edgeExits(bounds, rowsKnown) : [])].filter((e) => inside(e.cell) && !occluders.solid.has(e.cell));
   return {
     mapLocationId: surface.mapLocation.id,
     occluders,
@@ -100,6 +117,7 @@ export function fightMapOf(input: FightMapInput): FightMap | null {
     calibration: surface.calibration,
     bounds,
     rowsKnown,
+    exits,
   };
 }
 

@@ -46,6 +46,11 @@ describe("zoneSummary", () => {
     expect(zoneSummary(region(kind))).toBe(label);
   });
 
+  it("says a way out only is one, where calling it the party's way in would be untrue", () => {
+    expect(zoneSummary(region("entrance"))).toBe("where the party walks in");
+    expect(zoneSummary({ ...region("entrance"), zone_payload: { party_arrives: false } })).toBe("a way out only");
+  });
+
   it("returns empty for a region with no zone_kind at all", () => {
     expect(zoneSummary(region(null))).toBe("");
   });

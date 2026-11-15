@@ -3,7 +3,8 @@
 // which and in what order, so it can be read and tested without a fight.
 //
 // APP CONVENTION throughout: the books do not say how a turn is bookkept, only what each action does. The order is
-// move first (an attack is made from where the creature ends), then the swings, then what the turn spent.
+// move first (an attack is made from where the creature ends), then the swings, then what the turn spent, and last,
+// for a creature that fled off the map, its leaving.
 //
 // Not modelled: the effect of Dodge and Hide (no condition is applied), the opportunity attacks a path provokes.
 //
@@ -22,7 +23,9 @@ export type TurnStep =
   /** One use of a limited or recharge ability, as the runner records it. */
   | { type: "spend"; useKey: string; limit: ActionLimit }
   /** The Action or the Bonus Action of the turn is used up. */
-  | { type: "use"; slot: "action" | "bonus" };
+  | { type: "use"; slot: "action" | "bonus" }
+  /** A flee that ends on a way off the map (#1203): the creature is taken out of the fight, after everything else it did. */
+  | { type: "leave" };
 
 /** What each kind of turn costs: the Action, the Bonus Action (an attack from that list), or nothing. */
 function slotOf(option: TurnOption): "action" | "bonus" | null {
@@ -68,5 +71,7 @@ export function stepsFor(option: TurnOption, attacks: readonly UsableAttack[]): 
   }
   const slot = slotOf(option);
   if (slot !== null) steps.push({ type: "use", slot });
+  // Only a flee leaves, and only when its destination is a way off: nothing else ever offers one (decision 4, #1203).
+  if (option.kind === "flee" && option.leavesMap === true) steps.push({ type: "leave" });
   return steps;
 }

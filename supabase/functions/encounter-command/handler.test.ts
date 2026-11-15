@@ -1046,7 +1046,13 @@ function mapOf(...walls: [[number, number], [number, number]][]): FightMap {
     // A map far wider than any fight in these tests, so its edge never matters here (reach.test.ts holds the edge).
     bounds: { minX: -50, minY: -50, maxX: 50, maxY: 50 },
     rowsKnown: true,
+    exits: [],
   };
+}
+
+/** The same open map with ways off it (battle cells). */
+function mapWithExits(exits: FightMap["exits"]): FightMap {
+  return { ...mapOf(), exits };
 }
 
 // A short wall on the target's near edge blocks two of the four lines: half cover (sight.test.ts, same shape one row down).
@@ -1315,6 +1321,40 @@ describe("take_turn", () => {
     expect(h.dieCalls).toBe(0);
     expect(combatantOf(stored(h), "wolf").action_used).toBe(true);
     expect(hpOf(stored(h), "victim")).toBe(40);
+  });
+
+  // The wolf (2 of 11 hit points, so it breaks) at (1,0) beside the ox at (2,0). The West gate is (-2,0): 3 steps, 15 ft.
+  it("fails if a broken creature that flees to a way off stays in the fight, or the reply does not say it left and by where", async () => {
+    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
+    const h = harness(fight, { sources: SOURCES, map: mapWithExits([{ cell: "-2,0", label: "West gate", kind: "entrance" }]), dieFaces: [] });
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(stored(h).combatants_live.map((c) => c.instance_id)).toEqual(["victim"]);
+    expect(result.effects[0]).toMatchObject({
+      type: "turn_taken",
+      turn: { kind: "flee", leftTheMap: true, reason: 'Falls back: at 2 of 11 hit points it breaks and flees, leaving the map through "West gate".' },
+    });
+    // Not a kill: nobody is hurt, no die is thrown, and the ox is untouched.
+    expect(h.dieCalls).toBe(0);
+    expect(hpOf(stored(h), "victim")).toBe(40);
+  });
+
+  it("fails if a creature that flees on a map with no way off is taken out of the fight", async () => {
+    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
+    const h = harness(fight, { sources: SOURCES, map: mapOf(), dieFaces: [] });
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(stored(h).combatants_live.map((c) => c.instance_id).sort()).toEqual(["victim", "wolf"]);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { kind: "flee", reason: "Falls back: at 2 of 11 hit points it breaks and flees." } });
+    expect(result.effects[0]).not.toMatchObject({ turn: { leftTheMap: true } });
+  });
+
+  it("fails if a creature that is not fleeing is removed for ending its turn on a way off", async () => {
+    // The wolf (healthy) bites the ox: it walks to a square beside it, and the gate (3,-1) is exactly that square.
+    const fight = duel();
+    const h = harness(fight, { sources: SOURCES, map: mapWithExits([{ cell: "3,-1", label: "East gate", kind: "entrance" }]), dieFaces: [9, 5] });
+    const result = await runBatch(batch("b1", takeTurn({ optionId: "attack:actions:Bite:victim" })), h.deps);
+    expect(combatantOf(stored(h), "wolf").position).toEqual({ x: 3, y: -1 });
+    expect(stored(h).combatants_live).toHaveLength(2);
+    expect(result.effects[0]).not.toMatchObject({ turn: { leftTheMap: true } });
   });
 
   // The wolf's bite at a character whose sheet the server cannot read refuses after the move step has run in the attempt:

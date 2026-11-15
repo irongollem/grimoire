@@ -4,6 +4,7 @@ import type { WallSegment } from "../../../lib/battlemap/walls.ts";
 import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { GridCalibration } from "../../../types/location.types.ts";
 import type { ActionStructure, AttackStructure, StatBlockEntry } from "../../../types/statBlock.types.ts";
+import type { MapExit } from "../../../lib/battlemap/mapExits.ts";
 import type { FightMap } from "./battleMap.ts";
 import {
   compareExposure,
@@ -25,7 +26,7 @@ const FAR_EDGES = { minX: -50, minY: -50, maxX: 50, maxY: 50 };
 
 function mapOf(walls: [[number, number], [number, number]][] = []): FightMap {
   const occ = walls.length === 0 ? NO_OCCLUDERS : occluders({ walls: walls.map(([a, b], i): WallSegment => ({ id: `w${i}`, a, b })), doors: [], solid: [] });
-  return { mapLocationId: "site", occluders: occ, difficult: new Set(), solid: occ.solid, calibration: CALIBRATION, bounds: FAR_EDGES, rowsKnown: true };
+  return { mapLocationId: "site", occluders: occ, difficult: new Set(), solid: occ.solid, calibration: CALIBRATION, bounds: FAR_EDGES, rowsKnown: true, exits: [] };
 }
 const OPEN = mapOf();
 
@@ -493,5 +494,107 @@ describe("rule 10: flee", () => {
 
   it("is not offered when nothing can be measured", () => {
     expect(find(run({ combatants: [ogre(), chicory(1, 0)], map: null }), "flee")).toBeUndefined();
+  });
+});
+
+describe("rule 10: flee by a way off the map (#1203)", () => {
+  const gate = (cell: string, label: string | null = null): MapExit => ({ cell, label, kind: "entrance" });
+  const edge = (cell: string): MapExit => ({ cell, label: null, kind: "edge" });
+  // A map 20 across and 5 tall (x 0-19, y 0-4) with the given ways off and walls.
+  const mapWith = (exits: MapExit[], walls: [[number, number], [number, number]][] = []): FightMap => ({
+    ...mapOf(walls), bounds: { minX: 0, minY: 0, maxX: 19, maxY: 4 }, exits,
+  });
+
+  it("ends ON a way off it can reach this turn, rather than just far from the enemy, and leaves the map", () => {
+    // Bug it fails on: ignoring ways off, which ends on the farthest square from Chicory and never leaves. Ogre (10,2),
+    // Chicory (9,2) beside it to the west; the dash is 60 ft (12 steps). The gate at (15,2) is 5 steps, 25 ft. The farthest
+    // square from Chicory would be x=19 instead.
+    const o = find(run({ combatants: [ogre(10, 2), chicory(9, 2)], map: mapWith([gate("15,2", "East gate")]) }), "flee");
+    expect(o).toMatchObject({ destination: { x: 15, y: 2 }, feet: 25, leavesMap: true, exitLabel: "East gate", exitKind: "entrance" });
+    expect(o?.summary).toBe('Flee: dash 25 ft and leave the map through "East gate"; provokes an opportunity attack from Chicory');
+  });
+
+  it("takes the nearest way off by cost, not the first listed or the farthest", () => {
+    // Bug it fails on: taking exits[0]. Far gate (18,2) is listed first: 8 steps, 40 ft. Near gate (12,2): 2 steps, 10 ft.
+    const o = find(run({ combatants: [ogre(10, 2), chicory(9, 2)], map: mapWith([gate("18,2", "Far"), gate("12,2", "Near")]) }), "flee");
+    expect(o).toMatchObject({ destination: { x: 12, y: 2 }, feet: 10, exitLabel: "Near" });
+  });
+
+  it("among ways off at the same cost, the top-left one", () => {
+    // Bug it fails on: an arbitrary tie. Ogre (10,2): gates at (12,1) and (12,3) both cost 2 steps; Chicory is far west.
+    const o = find(run({ combatants: [ogre(10, 2), chicory(0, 2)], map: mapWith([gate("12,3"), gate("12,1")]) }), "flee");
+    expect(o?.destination).toEqual({ x: 12, y: 1 });
+  });
+
+  it("a creature that already stands on a way off leaves without moving", () => {
+    // Bug it fails on: demanding a move, so a goblin standing in the gate could not use it. Ogre on (3,2) which is a gate.
+    const o = find(run({ combatants: [ogre(3, 2), chicory(2, 2)], map: mapWith([gate("3,2")]) }), "flee");
+    expect(o).toMatchObject({ destination: { x: 3, y: 2 }, feet: 0, leavesMap: true });
+    expect(o?.summary).toBe("Flee: leave the map through the entrance");
+  });
+
+  it("open country's edge reads as over the edge of the map, with no name", () => {
+    // Bug it fails on: naming an edge like a gate. Ogre (17,2) is 2 steps from the right edge x=19.
+    const o = find(run({ combatants: [ogre(17, 2), chicory(16, 2)], map: mapWith([edge("19,2")]) }), "flee");
+    expect(o).toMatchObject({ destination: { x: 19, y: 2 }, leavesMap: true, exitLabel: null, exitKind: "edge" });
+    expect(o?.summary).toContain("leave the map over the edge of the map");
+  });
+
+  it("a creature that covers a way off with any square leaves, not only by its top-left", () => {
+    // Bug it fails on: testing the anchor alone, so a Large creature could never use a gate at the edge. A Large ogre
+    // (2x2) must end inside the map: anchors (18,1) and (18,2) both cover x 18-19 and the edge cell (19,2); 3 steps, 15 ft, and the top one wins the tie. Ogre (15,2), Chicory (13,2).
+    const large = ogre(15, 2, { size: "large" });
+    const o = find(run({ combatants: [large, chicory(13, 2)], map: mapWith([edge("19,2")]) }), "flee");
+    expect(o?.leavesMap).toBe(true);
+    expect(o?.destination).toEqual({ x: 18, y: 1 });
+    expect(o?.feet).toBe(15);
+  });
+
+  it("with no way to reach one this turn it walks the shortest way toward it, and says how far short", () => {
+    // Bug it fails on: ending on the square farthest from the enemy (or leaving at all). Ogre (5,2), Chicory (4,2), the gate
+    // at (19,2): 14 steps = 70 ft, the dash 60 ft. A one-row corridor (y 2 only) so the walk is the straight line: it ends
+    // at (17,2), 12 steps, and is 10 ft short. Chicory is beside it, so the first step provokes.
+    const narrow: FightMap = { ...mapWith([gate("19,2", "Far gate")]), bounds: { minX: 0, minY: 2, maxX: 19, maxY: 2 } };
+    const o = find(run({ combatants: [ogre(5, 2), chicory(4, 2)], map: narrow }), "flee");
+    expect(o).toMatchObject({ destination: { x: 17, y: 2 }, feet: 60, leavesMap: false, exitLabel: null });
+    expect(o?.summary).toBe('Flee: dash 60 ft toward "Far gate", 10 ft short of it; provokes an opportunity attack from Chicory');
+  });
+
+  it("measures the walk around a wall, not through it", () => {
+    // Bug it fails on: straight-line distance to the way off. A wall on x=7 from y=0 to y=4 closes rows 0-3 (row 4 is open);
+    // the gate is at (8,0), 2 squares from Ogre (6,0) across the wall but a 9-step walk away: down column 6 to row 4,
+    // across at (7,4), and back up column 8. Budget 5 ft, so the dash is 2 steps. The walk's second square is on row 2
+    // ((6,2) or (5,2), both 2 steps down); the squares nearest the gate in a straight line are (6,0) and (6,1), on rows 0-1.
+    // The remaining walk from there is 7 steps, 35 ft.
+    const walled = mapWith([gate("8,0", "Gate")], [[[7, 0], [7, 4]]]);
+    const o = find(run({ combatants: [ogre(6, 0), chicory(0, 0)], map: walled, budgetFeet: 5 }), "flee");
+    expect(o).toMatchObject({ feet: 10, leavesMap: false });
+    expect(o?.destination?.y).toBe(2);
+    expect(o?.summary).toContain("35 ft short of it");
+  });
+
+  it("a way off no walk can reach is no way off: it flees from the enemy as before", () => {
+    // Bug it fails on: offering nothing (or a walk into the wall) when every way off is sealed away. A wall on x=7 closes
+    // the whole map (y -1 to 6); the gate (9,2) is on the far side. Ogre (5,2), Chicory (4,2): the old rule applies.
+    const sealed = mapWith([gate("9,2")], [[[7, -1], [7, 6]]]);
+    const o = find(run({ combatants: [ogre(5, 2), chicory(4, 2)], map: sealed }), "flee");
+    expect(o?.leavesMap).toBe(false);
+    expect(o?.destination?.x).toBeLessThanOrEqual(6);
+    expect(o?.summary).toContain("away, ending");
+  });
+
+  it("a map with no way off flees from the enemy, and the option does not leave", () => {
+    // Bug it fails on: marking every flee as leaving. Same geometry as the first test with no gate: the farthest square.
+    const o = find(run({ combatants: [ogre(10, 2), chicory(9, 2)], map: mapWith([]) }), "flee");
+    expect(o?.leavesMap).toBe(false);
+    expect(o?.exitLabel).toBeNull();
+    expect(o?.destination?.x).toBe(19);
+  });
+
+  it("no other kind of turn is ever offered a way off", () => {
+    // Bug it fails on: marking any option that ends on a gate as leaving. Ogre (10,2) with Fresco standing at (13,2) on the
+    // far side of a gate at (12,2): the attack option ends beside Fresco, the dash does not, and neither leaves.
+    const options = run({ combatants: [ogre(10, 2), fresco(13, 2)], map: mapWith([gate("12,2")]) });
+    for (const o of options.filter((x) => x.kind !== "flee")) expect(o.leavesMap).not.toBe(true);
   });
 });

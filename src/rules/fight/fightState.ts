@@ -54,6 +54,11 @@ export interface TurnTaken {
   picked: "rules" | "rules_with_note" | "caller";
   /** Only with "rules_with_note": the turns the note ruled out, so a DM can see why a creature held still. */
   ruledOutByNote?: { optionId: string; summary: string }[];
+  /**
+   * Only when true (#1203): the creature fled off the map by a way off it (an Entrance zone, or the edge of open
+   * country) and was removed from the fight after its move. It is not slain: no defeat or loot is recorded, it is simply gone.
+   */
+  leftTheMap?: true;
 }
 
 /** The reducer's events, told apart from the effects a fight adds. */

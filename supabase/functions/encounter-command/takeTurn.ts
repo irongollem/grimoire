@@ -8,7 +8,8 @@
 //
 // Not in this command: the opportunity attacks a path provokes (the enemies' reactions), the effect of Dodge and Hide
 // (the Action is used and nothing more is recorded), picking by a model, ending the turn, legendary and lair actions,
-// spells. A Multiattack that drops its target does not redirect the swings it has left.
+// spells. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
+// the fight after its move and the reply says so (`leftTheMap`); that is not a defeat. A Multiattack that drops its target does not redirect the swings it has left.
 
 import { applyFightCommand, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
@@ -113,8 +114,10 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
   const option = gated.find((o) => o.id === chosen.optionId);
   if (option === undefined) return refuse("That option is not on offer.");
 
+  const steps = stepsFor(option, attacks);
+  const leaves = steps.some((s) => s.type === "leave");
   const effects: FightEffect[] = [
-    { type: "turn_taken", turn: { instanceId: mover.instance_id, optionId: option.id, kind: option.kind, summary: option.summary, reason: chosen.reason, picked, ...(ruledOutByNote === undefined ? {} : { ruledOutByNote }) } },
+    { type: "turn_taken", turn: { instanceId: mover.instance_id, optionId: option.id, kind: option.kind, summary: option.summary, reason: chosen.reason, picked, ...(ruledOutByNote === undefined ? {} : { ruledOutByNote }), ...(leaves ? { leftTheMap: true as const } : {}) } },
   ];
   let next = state;
   const apply = (cmd: FightCommand) => {
@@ -123,7 +126,7 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
     effects.push(...result.effects);
   };
 
-  for (const step of stepsFor(option, attacks)) {
+  for (const step of steps) {
     switch (step.type) {
       case "move":
         // A position is not a command (the Play screen writes it straight to the row), so the saved fight takes it here.
@@ -148,6 +151,10 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
         apply(step.slot === "action"
           ? { type: "set_action_used", instanceId: mover.instance_id, used: true }
           : { type: "set_bonus_used", instanceId: mover.instance_id, used: true });
+        break;
+      case "leave":
+        // Gone from this fight: not slain, so no defeat and no loot (the creature just is not there any more).
+        apply({ type: "remove_combatant", instanceId: mover.instance_id });
         break;
     }
   }

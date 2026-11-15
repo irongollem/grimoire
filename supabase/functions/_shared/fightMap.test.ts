@@ -97,6 +97,14 @@ describe("what the loader reads of the map's memory", () => {
     ]);
   });
 
+  it("reads each region's kind and name, which is all the ways off a map are made of", async () => {
+    // Bug it fails on: leaving `zone_kind` and `label` out of the region read, so no Entrance zone could ever be a way off.
+    const { admin, selected } = fakeAdmin(rooms);
+    await loadFightMapInput(admin, "camp", "enc");
+    expect(selected.location_map_regions).toContain("zone_kind");
+    expect(selected.location_map_regions).toContain("label");
+  });
+
   it("a map nobody has seen any of has an empty set, not an error", async () => {
     const { admin } = fakeAdmin(rooms);
     const input = await loadFightMapInput(admin, "camp", "enc");

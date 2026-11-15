@@ -128,6 +128,14 @@ describe("pickTurn: broken morale", () => {
     const pick = pickTurn([...attacks, other("dodge"), other("disengage"), other("flee")], prof(), hurt);
     expect(pick).toEqual({ optionId: "flee", reason: "Falls back: at 6 of 30 hit points it breaks and flees." });
   });
+  it("says where a flee that leaves the map leaves it: by the named gate, over the edge, and nothing of a flee that stays", () => {
+    // Bug it fails on: a reason that never names the way out, or names one for a flee that only runs toward it.
+    const flee = (over: Partial<TurnOption>): TurnOption => ({ ...other("flee"), ...over });
+    const reason = (o: TurnOption) => pickTurn([...attacks, o], prof(), hurt)?.reason;
+    expect(reason(flee({ leavesMap: true, exitKind: "entrance", exitLabel: "East gate" }))).toBe('Falls back: at 6 of 30 hit points it breaks and flees, leaving the map through "East gate".');
+    expect(reason(flee({ leavesMap: true, exitKind: "edge", exitLabel: null }))).toBe("Falls back: at 6 of 30 hit points it breaks and flees, leaving the map over the edge of the map.");
+    expect(reason(flee({ leavesMap: false, exitKind: null, exitLabel: null }))).toBe("Falls back: at 6 of 30 hit points it breaks and flees.");
+  });
   it("disengages when there is no flee, and dodges when there is neither", () => {
     expect(pickTurn([...attacks, other("dodge"), other("disengage")], prof(), hurt)?.optionId).toBe("disengage");
     expect(pickTurn([...attacks, other("dodge")], prof(), hurt)?.optionId).toBe("dodge");

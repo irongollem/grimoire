@@ -39,6 +39,23 @@ describe("stepsFor", () => {
     ]);
   });
 
+  // The goblin runs five squares to the gate at (5,0), 25 ft, spends its Action, and only then is out of the fight.
+  it("fails if a flee that leaves the map does not end with the leave, after the move and the Action", () => {
+    const flee = option("flee", { destination: { x: 5, y: 0 }, feet: 25, path: [{ x: 0, y: 0 }, { x: 5, y: 0 }], leavesMap: true });
+    expect(stepsFor(flee, [])).toEqual([
+      { type: "move", to: { x: 5, y: 0 }, feet: 25 },
+      { type: "use", slot: "action" },
+      { type: "leave" },
+    ]);
+  });
+
+  it("fails if a flee that only runs toward a way off, or any other turn, is told to leave", () => {
+    const flee = option("flee", { destination: { x: 5, y: 0 }, feet: 25, path: [{ x: 0, y: 0 }, { x: 5, y: 0 }], leavesMap: false });
+    expect(stepsFor(flee, []).some((s) => s.type === "leave")).toBe(false);
+    // A dash that happens to carry the flag is still not a flee.
+    expect(stepsFor(option("dash", { leavesMap: true, destination: { x: 5, y: 0 }, feet: 25, path: [{ x: 0, y: 0 }, { x: 5, y: 0 }] }), []).some((s) => s.type === "leave")).toBe(false);
+  });
+
   it("fails if a creature that stays where it is (a path of one cell, or none) is told to move", () => {
     const stay = stepsFor(option("dodge", { destination: { x: 1, y: 1 }, path: [{ x: 1, y: 1 }], feet: 0 }), []);
     expect(stay).toEqual([{ type: "use", slot: "action" }]);

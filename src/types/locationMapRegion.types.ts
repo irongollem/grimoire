@@ -57,8 +57,10 @@ export const ZONE_KIND_LABELS: Record<ZoneKind, string> = {
   light: "Light",
   trigger: "Trigger",
   marker: "Marker",
-  // #1125: where the party walks in when the DM explores the site; it draws like a marker.
-  entrance: "Entrance",
+  // #1125: where the party walks in when the DM explores the site; it draws like a marker. Since #1203 it is also
+  // where a creature that flees leaves the map, and a zone may be a way out only (`party_arrives: false`), so the
+  // label names both directions. The stored kind stays `entrance`.
+  entrance: "Way in or out",
 };
 
 export const REGION_PROVENANCES = ["dm", "floodfill", "annotation"] as const;
@@ -80,6 +82,9 @@ export interface ZonePayload {
   /** For `trigger` zones: what entering prompts. Never fires on its own. */
   encounter_id?: string;
   beat_id?: string;
+  /** For `entrance` zones: false makes it a way out only, so the party is not seated here when the DM first explores
+   *  the site (a cemetery's back fence, a postern). Absent means the party arrives here, as every entrance did. */
+  party_arrives?: boolean;
   /** Zones are DM ink by default. */
   visible_to_players?: boolean;
 }
