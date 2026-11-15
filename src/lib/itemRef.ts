@@ -1,4 +1,4 @@
-import { isUuid } from "@/lib/library/contentIdentity";
+import { isUuid } from "./library/contentIdentity.ts";
 
 /**
  * A `party_inventory` row points at its catalogue entry through one of two

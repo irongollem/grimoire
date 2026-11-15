@@ -1,7 +1,7 @@
-import type { PartyInventoryItem, InventorySlot } from "@/types/inventory.types";
-import type { Item } from "@/types/item.types";
-import type { RulesetKey } from "@/types/ruleset.types";
-import { inventoryItemRef } from "@/lib/itemRef";
+import type { PartyInventoryItem, InventorySlot } from "../types/inventory.types.ts";
+import type { Item } from "../types/item.types.ts";
+import type { RulesetKey } from "../types/ruleset.types.ts";
+import { inventoryItemRef } from "../lib/itemRef.ts";
 
 /**
  * Armour Class is worked out from the character and their gear, never stored.

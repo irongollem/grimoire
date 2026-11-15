@@ -8,6 +8,9 @@ import type { EncounterEvent } from "../../../src/types/encounter.types";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest";
 import type { Monster } from "../../../src/types/monster.types";
 import { emptyDefenses, type StatBlockEntry } from "../../../src/types/statBlock.types";
+import type { PlayerSheets } from "../../../src/rules/fight/playerSheet";
+import type { Item } from "../../../src/types/item.types";
+import type { PartyInventoryItem } from "../../../src/types/inventory.types";
 import { broadcastEvent, combatant, pc } from "../../../src/rules/fight/fightTestKit";
 import {
   ALL_FIGHT_COMMANDS_LISTED,
@@ -64,6 +67,8 @@ interface Harness {
   posted: PostedRoll[];
   /** How many times the server threw a die. */
   dieCalls: number;
+  /** The party member ids of each `loadPlayerSheets` call. */
+  playerLoads: string[][];
   /** Runs once, between a load and its save: another writer got in. */
   rival: { run: (() => void) | null; always: boolean };
 }
@@ -76,6 +81,8 @@ function harness(
     d6?: number;
     d20?: number;
     sources?: StatBlockSources;
+    /** What the server reads of the fight's player characters. */
+    players?: PlayerSheets;
     /** The faces the server's die shows, one per throw in order; a throw past the end fails the test. */
     dieFaces?: number[];
   } = {},
@@ -94,6 +101,7 @@ function harness(
     broadcasts: [],
     posted: [],
     dieCalls: 0,
+    playerLoads: [],
     rival: { run: null, always: false },
     deps: undefined as unknown as BatchDeps,
   };
@@ -162,6 +170,10 @@ function harness(
     },
     async loadStatBlocks() {
       return structuredClone(options.sources ?? { monsters: [], npcs: [], companions: [] });
+    },
+    async loadPlayerSheets(ids) {
+      h.playerLoads.push(ids);
+      return structuredClone(options.players ?? { members: [], inventory: [], items: [], beasts: [] });
     },
     async postRoll(roll) {
       h.log.push("roll");
@@ -715,6 +727,22 @@ function monster(id: string, over: Record<string, unknown> = {}): Monster {
   } as unknown as Monster;
 }
 
+const CHAIN_MAIL = { id: "chain", user_id: "u1", name: "Chain Mail", item_type: "armor", rarity: "mundane", armor_class: "16", tags: [], description: "", conceptual_key: "chain_mail" } as unknown as Item;
+const SHIELD = { id: "shield", user_id: "u1", name: "Shield", item_type: "shield", rarity: "mundane", armor_class: "2", tags: [], description: "", conceptual_key: "shield" } as unknown as Item;
+const wornRow = (itemId: string, slot: string) =>
+  ({ id: `inv-${itemId}`, item_id: itemId, library_item_id: null, carried_by: "pm-nessa", location: "equipped", slot, is_attuned: false, quality: "standard" }) as unknown as PartyInventoryItem;
+
+/** Nessa: a fighter with Dex 14, Con 14 (proficient save), proficiency +2, in chain mail and with a shield. */
+const NESSA_IN_PLATE: PlayerSheets = {
+  members: [{
+    id: "pm-nessa", ruleset: "2014", class: "Fighter", subclass: null, ac_formula: null, class_choices: {},
+    str: 10, dex: 14, con: 14, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: ["con"], wildshape_state: null,
+  }],
+  inventory: [wornRow("chain", "body"), wornRow("shield", "off_hand")],
+  items: [CHAIN_MAIL, SHIELD],
+  beasts: [],
+};
+
 const SOURCES: StatBlockSources = { monsters: [monster("m-wolf"), monster("m-ox")], npcs: [], companions: [] };
 
 /** A wolf (11 HP) and a victim (40 HP, AC 13) side by side on the map. */
@@ -822,12 +850,46 @@ describe("resolving commands", () => {
     await refuse(attack({ attackerId: "nessa" }), /no stat block/, player);
   });
 
-  it("refuses a player target whose sheet armour class the server cannot work out, and says why", async () => {
+  // PHB 2014 "Armor": chain mail 16 (heavy, no Dex) + shield 2 = 18. The wolf's d20 13 + 4 = 17 misses AC 18. Were the gear
+  // not read, the unarmoured 10 + Dex 14 (+2) = 12 would be hit and take 1d6+2.
+  it("fails if an attack on a player ignores the gear they wear and hits an armour class of 12", async () => {
     const fight = arena();
-    fight.combatants_live[1] = pc("nessa", { hp: 12, max_hp: 12, ac: "12" });
-    const h = harness(fight, { sources: SOURCES, dieFaces: [9, 5] });
-    await expect(runBatch(batch("b", attack({ targetId: "nessa", withinFiveFeet: true })), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/character sheet/) });
+    fight.combatants_live[1] = pc("nessa", { hp: 40, max_hp: 40, ac: "12", position: { x: 2, y: 1 } });
+    const h = harness(fight, { sources: SOURCES, players: NESSA_IN_PLATE, dieFaces: [13] });
+    const result = await runBatch(batch("b", attack({ targetId: "nessa" })), h.deps);
+    expect(hpOf(stored(h), "nessa")).toBe(40);
+    expect(result.effects).toContainEqual(expect.objectContaining({ type: "resolved", resolved: expect.objectContaining({ hit: false, total: 17 }) }));
+    expect(h.playerLoads).toEqual([["pm-nessa"]]);
+  });
+
+  it("refuses a player whose character the server could not read, rather than rolling against a made-up armour class", async () => {
+    const fight = arena();
+    fight.combatants_live[1] = pc("nessa", { hp: 40, max_hp: 40 });
+    const h = harness(fight, { sources: SOURCES, dieFaces: [13] });
+    await expect(runBatch(batch("b", attack({ targetId: "nessa", withinFiveFeet: true })), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/could not be read/) });
     expect(h.saves).toBe(0);
+    // The same for a save: a null bonus would leave it to the player, and the server cannot tell that from a creature with no stat block.
+    await expect(
+      runBatch(batch("b2", { type: "resolve_save", attackerId: "wolf", list: "actions", action: "Burst", targetIds: ["nessa"] }), h.deps),
+    ).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/could not be read/) });
+    expect(h.saves).toBe(0);
+  });
+
+  // The sheets are for a batch that resolves something in a fight with a player in it: no query otherwise, one query however many commands.
+  it("reads the player sheets only when a resolving command meets a fight with a player, and once per attempt", async () => {
+    const noPlayer = harness(arena(), { sources: SOURCES, dieFaces: [9, 5, 9, 5] });
+    await runBatch(batch("b1", attack(), attack()), noPlayer.deps);
+    expect(noPlayer.playerLoads).toEqual([]);
+
+    const fight = arena();
+    fight.combatants_live.push(pc("nessa", { hp: 40, max_hp: 40 }));
+    const plain = harness(fight, { sources: SOURCES, players: NESSA_IN_PLATE });
+    await runBatch(batch("b2", { type: "adjust_hp", instanceId: "victim", delta: -1 }), plain.deps);
+    expect(plain.playerLoads).toEqual([]);
+
+    const twice = harness(fight, { sources: SOURCES, players: NESSA_IN_PLATE, dieFaces: [9, 5, 9, 5] });
+    await runBatch(batch("b3", attack(), attack()), twice.deps);
+    expect(twice.playerLoads).toEqual([["pm-nessa"]]);
   });
 
   it("asks where the creatures stand when neither the command nor the map says how close they are", async () => {
@@ -855,13 +917,28 @@ describe("resolving commands", () => {
     expect(result.effects).toContainEqual(expect.objectContaining({ type: "resolved", resolved: expect.objectContaining({ kind: "save" }) }));
   });
 
-  it("refuses a save for a player, whose bonus the server does not have", async () => {
+  // PHB 2014 "Saving Throws": nessa's Dex 14 is +2 and she is not proficient: d20 12 + 2 = 14 meets DC 14 and saves, taking half of
+  // 2d6 = 3 + 4 = 7, rounded down, 3 (40 -> 37). With no bonus known the 12 would fail and take 7 (33).
+  it("rolls a player's save with the bonus from their sheet", async () => {
     const fight = arena();
-    fight.combatants_live[1] = pc("nessa", { hp: 12, max_hp: 12 });
-    const h = harness(fight, { sources: SOURCES, dieFaces: [5, 3, 4] });
-    await expect(
-      runBatch(batch("b", { type: "resolve_save", attackerId: "wolf", list: "actions", action: "Burst", targetIds: ["nessa"] }), h.deps),
-    ).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/player rolls it/) });
+    fight.combatants_live[1] = pc("nessa", { hp: 40, max_hp: 40 });
+    const h = harness(fight, { sources: SOURCES, players: NESSA_IN_PLATE, dieFaces: [12, 3, 4] });
+    await runBatch(batch("b", { type: "resolve_save", attackerId: "wolf", list: "actions", action: "Burst", targetIds: ["nessa"] }), h.deps);
+    expect(hpOf(stored(h), "nessa")).toBe(37);
+    expect(h.posted[0]).toMatchObject({ speaker: "nessa", serverRolled: true });
+  });
+
+  // PHB 2014 "Concentration": 24 damage is DC 12. Nessa's Con 14 is +2 and she is proficient (+2): d20 8 + 4 = 12 holds the spell.
+  // Without the proficiency bonus it would be 10 and the spell would end.
+  it("fails if a player's concentration save leaves out their proficiency", async () => {
+    const fight = arena();
+    fight.combatants_live[1] = {
+      ...pc("nessa", { hp: 40, max_hp: 40 }),
+      concentration: { spellId: null, spellName: "Bless", castAtLevel: 1, startedRound: 1, appliedEffectIds: [] },
+    };
+    const h = harness(fight, { sources: SOURCES, players: NESSA_IN_PLATE, dieFaces: [8] });
+    await runBatch(batch("b", { type: "resolve_concentration", instanceId: "nessa", damage: 24 }), h.deps);
+    expect(stored(h).combatants_live.find((c) => c.instance_id === "nessa")?.concentration).not.toBeNull();
   });
 
   // PHB 2014 "Concentration": DC max(10, half the damage): 24 damage is DC 12. d20 7 + 0 = 7 loses it.

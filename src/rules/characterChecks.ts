@@ -1,6 +1,6 @@
-import type { AbilityScores } from "@/types/multiclass.types";
-import { abilityMod } from "@/rules/weaponAttack";
-import type { PartyMember, SaveKey } from "@/types/party.types";
+import type { AbilityScores } from "../types/multiclass.types.ts";
+import { abilityMod } from "./weaponAttack.ts";
+import type { PartyMember, SaveKey } from "../types/party.types.ts";
 
 export const ABILITY_KEYS: readonly SaveKey[] = ["str", "dex", "con", "int", "wis", "cha"];
 

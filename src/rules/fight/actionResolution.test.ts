@@ -11,7 +11,6 @@ import type { RunCombatant } from "@/types/encounter.types";
 import { emptyDefenses, type Defenses, type StatBlockEntry } from "@/types/statBlock.types";
 import {
   ActionRefused,
-  armorClassWithoutSheet,
   resolveAttackOn,
   resolveConcentrationOn,
   resolveConditionSaveOn,
@@ -21,6 +20,7 @@ import {
   type DiceSource,
   type ResolutionContext,
 } from "./actionResolution";
+import { effectiveArmorClass, parseArmorClass } from "@/lib/encounters/actionTargeting";
 import { applyFightCommand } from "./fightCommands";
 import { combatant, deps, fight, pc } from "./fightTestKit";
 
@@ -60,7 +60,7 @@ function table(combatants: RunCombatant[], setup: Setup) {
   const ctx: ResolutionContext = {
     ruleset,
     dice: setup.dice,
-    armorClassFor: armorClassWithoutSheet,
+    armorClassFor: (c) => parseArmorClass(effectiveArmorClass(c)),
     defensesFor: (c) => setup.defenses?.[c.instance_id] ?? emptyDefenses(),
     saveBonusFor: (c) => setup.bonus?.[c.instance_id] ?? null,
     live: (c) => current.combatants.find((x) => x.instance_id === c.instance_id) ?? c,
@@ -192,16 +192,11 @@ describe("resolveAttackOn: to hit and damage", () => {
     expect(done.summary).toMatchObject({ total: 16, hit: false });
   });
 
-  it("refuses a target whose armour class has no number, and a player whose sheet armour class the server cannot know", async () => {
-    const t = table([wolf(), victim({ ac: "see sheet" }), pc("nessa")], { dice: scripted([[15]]).dice });
+  it("refuses a target whose armour class has no number, instead of guessing a hit", async () => {
+    const t = table([wolf(), victim({ ac: "see sheet" })], { dice: scripted([[15]]).dice });
     await expect(
       resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6"), target: t.get("victim"), withinFiveFeet: true }),
     ).rejects.toBeInstanceOf(ActionRefused);
-    await expect(
-      resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6"), target: t.get("nessa"), withinFiveFeet: true }),
-    ).rejects.toThrow(/character sheet/);
-    // A player in Wild Shape is attacked at the beast's AC, which the fight itself carries.
-    expect(armorClassWithoutSheet(pc("druid", { wildshape: { beast_ac: "13", beast_dex: 12 } as RunCombatant["wildshape"] }))).toBe(13);
   });
 
   it("resolves the save a hit forces on the creature that was hit, after the damage", async () => {

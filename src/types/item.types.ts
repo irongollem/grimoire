@@ -1,7 +1,7 @@
-import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
-import type { VersionedContentMetadata } from "@/types/content.types";
-import type { AiProvenance } from "@/ai/provenance";
-import type { RulesetKey } from "@/types/ruleset.types";
+import type { DamageRoll } from "../systems/dnd5e/dice/damageExpression.ts";
+import type { VersionedContentMetadata } from "./content.types.ts";
+import type { AiProvenance } from "../ai/provenance.ts";
+import type { RulesetKey } from "./ruleset.types.ts";
 
 export const ITEM_TYPES = [
   "weapon",

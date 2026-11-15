@@ -23,6 +23,7 @@ import type { FightDeps } from "../../../src/rules/fight/fightEvents.ts";
 import { ingestPartyRow, type PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
 import { endOfFightPatches } from "../../../src/rules/fight/fightEnd.ts";
 import { startedFromRound, type FightEffect, type FightState } from "../../../src/rules/fight/fightState.ts";
+import type { PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
 import { FightCommandError } from "./commandError.ts";
 import {
   applyResolvingCommand,
@@ -265,6 +266,12 @@ export interface BatchDeps {
   postBroadcast(message: string): Promise<void>;
   /** The stat blocks a fight's creatures came from; asked for only by a batch that resolves an action. */
   loadStatBlocks(ids: { monsterIds: string[]; npcIds: string[]; companionIds: string[] }): Promise<StatBlockSources>;
+  /**
+   * The player characters of a fight (by party member id), read for what their armour class and saves are worked out
+   * from: their sheet rows, the campaign's inventory and the items it names. Asked for only by a batch that resolves
+   * an action and has a player in the fight. A member of another campaign is never returned.
+   */
+  loadPlayerSheets(partyMemberIds: string[]): Promise<PlayerSheets>;
   /** Posts a roll to the campaign log, stamped when `serverRolled`. */
   postRoll(roll: PostedRoll): Promise<void>;
   /** One die of any size, from the server's secure source: what a resolving command rolls with. */
@@ -369,8 +376,9 @@ async function attempt(
   }
 
   const rolls: PostedRoll[] = [];
-  // The stat blocks are read once per attempt, and only when the batch has an action to resolve.
+  // The stat blocks and the player sheets are read once per attempt, and only when the batch has an action to resolve.
   let sources: StatBlockSources | null = null;
+  let players: PlayerSheets | null = null;
   for (const command of request.commands) {
     if (command.type === "sync_party" || LIFECYCLE_TYPES.has(command.type)) continue;
     if (isResolvingCommand(command)) {
@@ -383,7 +391,12 @@ async function attempt(
           companions: fetched.companions,
         };
       }
-      const result = await applyResolvingCommand(state, command, { fightDeps, sources, rollDie: deps.rollDie, posted: rolls });
+      if (players === null) {
+        const memberIds = [...new Set(state.combatants.flatMap((c) => (c.type === "player" && c.party_member_id ? [c.party_member_id] : [])))];
+        // A fight with no player in it has nothing to read.
+        players = memberIds.length > 0 ? await deps.loadPlayerSheets(memberIds) : { members: [], inventory: [], items: [], beasts: [] };
+      }
+      const result = await applyResolvingCommand(state, command, { fightDeps, sources, players, rollDie: deps.rollDie, posted: rolls });
       state = result.state;
       effects.push(...result.effects);
       continue;

@@ -36,7 +36,7 @@ import type {
   SrdConditionName,
   StatBlockEntry,
 } from "../../types/statBlock.types.ts";
-import { effectiveArmorClass, filterImmuneConditions, parseArmorClass } from "../../lib/encounters/actionTargeting.ts";
+import { filterImmuneConditions } from "../../lib/encounters/actionTargeting.ts";
 import { attackRollMode, autoCritOnHit, resolveAttack as resolveAttackRoll } from "../combat/attackRoll.ts";
 import { concentrationDc, resolveConcentration } from "../combat/concentration.ts";
 import { halveParts, imposedCondition, resolveSaveAction } from "../combat/resolveAction.ts";
@@ -223,20 +223,6 @@ async function rollD20(
 ): Promise<RollResult | null> {
   const rolled = await ctx.dice({ counts: { 20: 1 }, modifier, label, mode, senderName: roller.name, rollerId: roller.instance_id, silent: opts.silent });
   return rolled ? rolled.result : null;
-}
-
-/** The AC of a combatant when no character sheet is at hand: the printed one, or the beast's in Wild Shape. A player's comes from gear the server cannot work out. */
-export function armorClassWithoutSheet(c: RunCombatant): number | null {
-  if (c.type === "player") {
-    const beast = c.wildshape?.beast_ac;
-    if (!beast) {
-      throw new ActionRefused(
-        `${c.name}'s armour class is worked out from the gear on their character sheet, which the server cannot reach; it has no sheet armour class for ${c.name}.`,
-      );
-    }
-    return parseArmorClass(beast);
-  }
-  return parseArmorClass(effectiveArmorClass(c));
 }
 
 /** A save bonus from the stat block a combatant came from, or null for one with none (a party member: the player rolls their own). */

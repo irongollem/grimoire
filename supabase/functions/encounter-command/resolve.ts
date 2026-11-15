@@ -15,16 +15,16 @@ import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { Companion } from "../../../src/types/companion.types.ts";
 import type { Monster, MonsterStatBlock } from "../../../src/types/monster.types.ts";
 import type { NpcListRow } from "../../../src/types/npc.types.ts";
+import type { SaveAbility } from "../../../src/types/statBlock.types.ts";
 import type { StatBlockEntry } from "../../../src/types/statBlock.types.ts";
 import type { StatBlockListKey } from "../../../src/rules/statBlock/parseAction.ts";
 import { holdsConcentration } from "../../../src/rules/conditionDurations.ts";
-import { combatantDefenses, withinFiveFeet } from "../../../src/lib/encounters/actionTargeting.ts";
+import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "../../../src/lib/encounters/actionTargeting.ts";
 import { applyFightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightDeps, FightResult } from "../../../src/rules/fight/fightEvents.ts";
 import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
 import {
   ActionRefused,
-  armorClassWithoutSheet,
   resolveAttackOn,
   resolveConcentrationOn,
   resolveConditionSaveOn,
@@ -35,6 +35,7 @@ import {
   type DiceSource,
   type ResolutionContext,
 } from "../../../src/rules/fight/actionResolution.ts";
+import { playerArmorClass, playerSaveBonus, type PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
 import { FightCommandError } from "./commandError.ts";
 
 /** Faces a person rolled for an attack: the d20 (two with advantage or disadvantage), then each rolled damage part's dice. */
@@ -292,10 +293,34 @@ function statBlockOf(c: RunCombatant, sources: StatBlockSources): MonsterStatBlo
   return null;
 }
 
+/** A player combatant's character row, or the refusal that says it could not be read. */
+function playerMemberId(c: RunCombatant): string {
+  if (!c.party_member_id) throw new ActionRefused(`${c.name} is a player combatant with no character behind it, so the server cannot work out their armour class or saves.`);
+  return c.party_member_id;
+}
+
+/** The AC the runner shows: a player's is worked out from their sheet and gear, anyone else's is the printed one (the beast's in Wild Shape). */
+function armorClassOf(c: RunCombatant, players: PlayerSheets): number | null {
+  if (c.type !== "player") return parseArmorClass(effectiveArmorClass(c));
+  const ac = playerArmorClass(players, playerMemberId(c));
+  if (ac === null) throw new ActionRefused(`${c.name}'s character could not be read in this campaign, so there is no armour class to roll against.`);
+  return ac;
+}
+
+/** The bonus on a save: a player's from their sheet, a creature's from its stat block. */
+function saveBonusOf(c: RunCombatant, ability: SaveAbility, env: ResolveEnv): number | null {
+  if (c.type !== "player") return saveBonusFromBlock(statBlockOf(c, env.sources), ability);
+  const bonus = playerSaveBonus(env.players, playerMemberId(c), ability);
+  if (bonus === null) throw new ActionRefused(`${c.name}'s character could not be read in this campaign, so there is no save bonus to roll with.`);
+  return bonus;
+}
+
 export interface ResolveEnv {
   /** The sources a fight's own rules use (spawns); the resolving rules read their dice from `rollDie`. */
   fightDeps: FightDeps;
   sources: StatBlockSources;
+  /** What the server read of the fight's player characters: their armour class and saves are worked out from it. */
+  players: PlayerSheets;
   rollDie: (sides: number) => number;
   /** Receives every roll the command makes, in order, for the caller to post once the fight is saved. */
   posted: PostedRoll[];
@@ -337,9 +362,9 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
   const ctx: ResolutionContext = {
     ruleset: state.ruleset,
     dice: makeDice(env.rollDie, supplyFor(command), env.posted),
-    armorClassFor: armorClassWithoutSheet,
+    armorClassFor: (c) => armorClassOf(c, env.players),
     defensesFor: (c) => combatantDefenses(c, env.sources),
-    saveBonusFor: (c, ability) => saveBonusFromBlock(statBlockOf(c, env.sources), ability),
+    saveBonusFor: (c, ability) => saveBonusOf(c, ability, env),
     live: (c) => holder.state.combatants.find((x) => x.instance_id === c.instance_id) ?? c,
     apply(cmd) {
       const result = applyFightCommand(holder.state, cmd, env.fightDeps);
