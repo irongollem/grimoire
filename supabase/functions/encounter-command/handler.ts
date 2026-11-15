@@ -25,6 +25,7 @@ import { endOfFightPatches } from "../../../src/rules/fight/fightEnd.ts";
 import { startedFromRound, type FightEffect, type FightState } from "../../../src/rules/fight/fightState.ts";
 import type { PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
+import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import { FightCommandError } from "./commandError.ts";
 import { applyTakeTurn, isTakeTurnCommand, validateTakeTurnCommand, type TakeTurnCommand } from "./takeTurn.ts";
 import {
@@ -289,6 +290,14 @@ export interface BatchDeps {
   postRoll(roll: PostedRoll): Promise<void>;
   /** One die of any size, from the server's secure source: what a resolving command rolls with. */
   rollDie(sides: number): number;
+  /**
+   * One note judgment (#1203): whether each turn goes against a creature's note. Null when it is not allowed (campaign
+   * AI off, no platform key, `alreadyThisBatch` plus the fight's earlier ones at the cap) or did not work; it never
+   * throws. A non-null answer is a real call, recorded afterwards through `recordNoteJudgment`.
+   */
+  judgeNote(request: JudgeRequest, alreadyThisBatch: number): Promise<JudgeResult | null>;
+  /** The cost row of one real note judgment. Free to the user; called only after the fight is saved. */
+  recordNoteJudgment(inputTokens: number): Promise<void>;
   rollD20(): number;
   rollD6(): number;
   now(): number;
@@ -349,12 +358,39 @@ function buildState(loaded: LoadedFight, row: StateSource): FightState {
   };
 }
 
+/**
+ * The note judgments of one request. A fight that changed under the batch reruns the attempt, and the answer to
+ * "does this turn go against the note" is the same for the same creature and the same turns, so it is asked once per
+ * request: a rerun with the same options reuses it (a refusal too, so a failed call is not repeated), and only a
+ * different set asks again. `answered` holds the real calls, the ones to bill.
+ */
+interface NoteJudgments {
+  ask(key: string, request: JudgeRequest): Promise<JudgeResult | null>;
+  answered: JudgeResult[];
+}
+
+function noteJudgmentsOf(deps: BatchDeps): NoteJudgments {
+  const remembered = new Map<string, JudgeResult | null>();
+  const answered: JudgeResult[] = [];
+  return {
+    answered,
+    async ask(key, request) {
+      if (remembered.has(key)) return remembered.get(key) ?? null;
+      const answer = await deps.judgeNote(request, answered.length);
+      remembered.set(key, answer);
+      if (answer !== null) answered.push(answer);
+      return answer;
+    },
+  };
+}
+
 /** One attempt: everything worked out from the row as loaded, nothing written yet. `rolls` are what its resolving commands rolled, to be posted only if this attempt is the one saved. */
 async function attempt(
   request: CommandRequest,
   loaded: LoadedFight,
   row: FightRow,
   deps: BatchDeps,
+  notes: NoteJudgments,
 ): Promise<{ state: FightState; effects: FightEffect[]; rolls: PostedRoll[] }> {
   const fightDeps: FightDeps = {
     monsters: loaded.monsters,
@@ -411,7 +447,7 @@ async function attempt(
     }
     // `undefined` is "not asked yet" (a null map is an answer: this fight has none).
     if (map === undefined) map = await deps.loadFightMap(request.encounterId);
-    return { fightDeps, sources, players, map, rollDie: deps.rollDie, posted: rolls };
+    return { fightDeps, sources, players, map, rollDie: deps.rollDie, posted: rolls, judgeNote: notes.ask };
   };
   for (const command of request.commands) {
     if (command.type === "sync_party" || LIFECYCLE_TYPES.has(command.type)) continue;
@@ -614,7 +650,7 @@ async function runLifecycle(
   }
 
   // end_combat: what the players changed on their own sheets comes first, so the write-back carries what the table really has.
-  const { state } = await attempt({ ...request, commands: [] }, loaded, row, deps);
+  const { state } = await attempt({ ...request, commands: [] }, loaded, row, deps, noteJudgmentsOf(deps));
   const context = await deps.loadEndContext(command.siteId === undefined ? null : command.siteId);
   // The saved roster is the authority for where the tokens stand: the browser's store does not hear a player moving their own token.
   const patches = endOfFightPatches({ combatants: state.combatants, tokensAtEnd: state.combatants, exploreParty: context.exploreParty, siteId: context.siteId });
@@ -630,6 +666,7 @@ async function runLifecycle(
 }
 
 export async function runBatch(request: CommandRequest, deps: BatchDeps): Promise<BatchResult> {
+  const notes = noteJudgmentsOf(deps);
   const first = request.commands[0];
   const lifecycle = request.commands.length === 1 && LIFECYCLE_TYPES.has(first.type) ? (first as LifecycleCommand) : null;
   for (let tries = 1; tries <= MAX_ATTEMPTS; tries++) {
@@ -657,7 +694,7 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
       throw new FightCommandError(409, "This fight has ended.");
     }
 
-    const { state, effects, rolls } = await attempt(request, loaded, row, deps);
+    const { state, effects, rolls } = await attempt(request, loaded, row, deps, notes);
     const write = writeOf(state, row.applied_command_ids, request.batchId);
     // Most syncs find the sheets as the fight already has them (the ring was this fight's own write to a sheet
     // coming back). Saving anyway would raise the version and ring every screen for nothing, on every hit.
@@ -668,6 +705,8 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
     const effectFailures = await perform(effects, deps);
     // The rolls are the log's record of what the fight now holds, so they are posted only for the attempt that was saved.
     effectFailures.push(...(await performAll(rolls.map((roll) => ({ name: "roll", run: () => deps.postRoll(roll) })))));
+    // Billed after the save, like the rolls, and only for calls that answered: a refused or failed one cost nothing we know of.
+    effectFailures.push(...(await performAll(notes.answered.map((answer) => ({ name: "note_judgment", run: () => deps.recordNoteJudgment(answer.inputTokens) })))));
     return resultOf(true, saved.version, row, write, effects, effectFailures);
   }
   throw new FightCommandError(409, "The fight kept changing under this command; try again.");

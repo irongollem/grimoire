@@ -361,3 +361,15 @@ export function optionsAllowedByNote(result: JudgeResult, options: readonly Turn
   const allowed = options.filter((_, i) => (probabilities[i] as number) < threshold);
   return allowed.length === 0 ? [...options] : allowed;
 }
+
+// ── the cap ─────────────────────────────────────────────────────────────────────
+
+/**
+ * At most this many note judgments a fight. One is asked per turn of a creature that has a note, so a fight of ten
+ * rounds with three noted creatures asks 30: a long fight in normal play stays under it, while a client that calls
+ * take_turn without end stops here instead of spending without limit.
+ */
+export const MAX_NOTE_JUDGMENTS_PER_FIGHT = 60;
+
+/** Whether one more judgment may be asked: `made` are the fight's earlier ones, `thisBatch` the ones of the request in hand not yet counted. */
+export const underNoteCap = (made: number, thisBatch: number): boolean => made + thisBatch < MAX_NOTE_JUDGMENTS_PER_FIGHT;

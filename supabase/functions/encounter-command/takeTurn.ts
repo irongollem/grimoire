@@ -17,8 +17,10 @@ import { stepsFor } from "../../../src/rules/fight/tactics/carryOut.ts";
 import { gateOptions, pickTurn } from "../../../src/rules/fight/tactics/pick.ts";
 import { withNumbers } from "../../../src/rules/fight/tactics/numbers.ts";
 import { tacticalProfile } from "../../../src/rules/fight/tactics/profile.ts";
+import type { TurnOption } from "../../../src/rules/fight/terrain/turnOptions.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import { statBlockOf } from "../_shared/fightStatBlocks.ts";
+import { noteRequest, optionsAllowedByNote } from "../_shared/tacticsJudge.ts";
 import { assembleTurnOptions } from "../_shared/turnOptionsFor.ts";
 import { FightCommandError } from "./commandError.ts";
 import { applyResolvingCommand, knownArmorClass, type ResolveEnv } from "./resolve.ts";
@@ -52,6 +54,16 @@ function creatureTypeOf(c: RunCombatant, env: ResolveEnv) {
   return row === undefined ? null : row.monster_type;
 }
 
+/** A turn goes against the note when the model puts its probability at or above this (the threshold `optionsAllowedByNote` rules out at). */
+export const NOTE_THRESHOLD = 0.5;
+
+/**
+ * The words the note decided it: the picker's own sentence, led by what the note ruled out. Not model prose.
+ * Exported so the reply's wording is pinned in one place.
+ */
+export const noteReason = (ruledOut: readonly TurnOption[], pickerReason: string): string =>
+  `Its note ruled out ${ruledOut.length === 1 ? "one other turn" : `${ruledOut.length} other turns`}, so: ${pickerReason}`;
+
 export async function applyTakeTurn(state: FightState, command: TakeTurnCommand, env: ResolveEnv): Promise<FightResult> {
   const mover = state.combatants.find((c) => c.instance_id === command.instanceId);
   if (!mover) return refuse(`No creature "${command.instanceId}" is in this fight.`);
@@ -72,15 +84,27 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
   });
 
   let chosen: { optionId: string; reason: string };
-  let picked: "rules" | "caller";
+  let picked: "rules" | "rules_with_note" | "caller";
+  let ruledOutByNote: { optionId: string; summary: string }[] | undefined;
   if (command.optionId === undefined) {
     // With the Action spent, a move is the only turn on offer, and the rules-only picker would walk the creature away
     // from its target into an opportunity attack (found live: an ogre attacked, then a second call walked it off).
     if (mover.action_used === true) return refuse(`${mover.name} has already used its Action this turn; name an option to move it.`);
-    const pick = pickTurn(gated, profile, { combatants: state.combatants, moverId: mover.instance_id, armorClassOf });
+    // The note is consulted only for a creature that has one and only when the server is the one picking. An answer
+    // that is missing, or that would rule out every turn, leaves the list as it is (`optionsAllowedByNote`).
+    let pool = gated;
+    if (env.judgeNote !== undefined) {
+      const request = noteRequest({ mover, profile, combatants: state.combatants, options: gated });
+      const answer = request === null ? null : await env.judgeNote(`${mover.instance_id}|${gated.map((o) => o.id).join(",")}`, request);
+      if (answer !== null) {
+        pool = optionsAllowedByNote(answer, gated, NOTE_THRESHOLD);
+        if (pool.length < gated.length) ruledOutByNote = gated.filter((o) => !pool.includes(o)).map((o) => ({ optionId: o.id, summary: o.summary }));
+      }
+    }
+    const pick = pickTurn(pool, profile, { combatants: state.combatants, moverId: mover.instance_id, armorClassOf });
     if (pick === null) return refuse(`${mover.name} has no turn to take.`);
-    chosen = pick;
-    picked = "rules";
+    chosen = ruledOutByNote === undefined ? pick : { ...pick, reason: noteReason(gated.filter((o) => !pool.includes(o)), pick.reason) };
+    picked = ruledOutByNote === undefined ? "rules" : "rules_with_note";
   } else {
     chosen = { optionId: command.optionId, reason: "Chosen by the caller." };
     picked = "caller";
@@ -90,7 +114,7 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
   if (option === undefined) return refuse("That option is not on offer.");
 
   const effects: FightEffect[] = [
-    { type: "turn_taken", turn: { instanceId: mover.instance_id, optionId: option.id, kind: option.kind, summary: option.summary, reason: chosen.reason, picked } },
+    { type: "turn_taken", turn: { instanceId: mover.instance_id, optionId: option.id, kind: option.kind, summary: option.summary, reason: chosen.reason, picked, ...(ruledOutByNote === undefined ? {} : { ruledOutByNote }) } },
   ];
   let next = state;
   const apply = (cmd: FightCommand) => {

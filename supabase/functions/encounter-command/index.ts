@@ -10,6 +10,11 @@ import { loadMonsters, loadNpcs, loadStatBlocks } from "../_shared/fightStatBloc
 import { loadFightMapInput } from "../_shared/fightMap.ts";
 import { gameSystemEdition } from "../_shared/gameSystem.ts";
 import { fightMapOf } from "../../../src/rules/fight/terrain/battleMap.ts";
+import { recordFreeGeneration } from "../_shared/credits.ts";
+import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
+import { underNoteCap } from "../_shared/tacticsJudge.ts";
+import { judge, JEV_MODEL } from "../_shared/typesafe.ts";
+import { rerankKey } from "../search-campaign/rerank.ts";
 import { rollMessageRow, secureDie } from "../_shared/serverRoll.ts";
 import { inventoryItemRef } from "../../../src/lib/itemRef.ts";
 import { isUuid } from "../../../src/lib/library/contentIdentity.ts";
@@ -34,6 +39,14 @@ import {
 } from "./handler.ts";
 
 const admin = adminClient();
+
+/** The operation name of a note judgment's cost row (`ai_credit_ledger.reason`). It is also what the fight's cap counts. */
+const NOTE_JUDGMENT_OPERATION = "tactics_note_judgment";
+
+/** A judgment waits this long before the turn is picked without it, as search's rerank does. */
+const NOTE_TIMEOUT_MS = 6_000;
+/** How far back the cap looks for a fight that has not started yet. */
+const NOTE_CAP_WINDOW_BEFORE_START_MS = 60 * 60 * 1000;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -249,6 +262,39 @@ serve(withCors(async (req: Request) => {
         const { error } = await admin.from("campaign_messages").insert(row);
         if (error) throw new Error(`campaign_messages: ${error.message}`);
       },
+      async judgeNote(noteQuestions, alreadyThisBatch) {
+        // The same rule as campaign search's rerank: AI on for the campaign and a platform key, else the rules pick alone.
+        // Nothing in here may fail the turn: any problem reads as "no answer".
+        try {
+          const { data: ai, error: aiError } = await admin.from("campaigns").select("ai_enabled").eq("id", campaignId).maybeSingle();
+          if (aiError) throw new Error(`campaigns: ${aiError.message}`);
+          if (!ai) return null;
+          const key = rerankKey(ai.ai_enabled, (await fetchPlatformKeys(admin, ["typesafe"])).typesafe);
+          if (key === null) return null;
+          // The cap counts this fight's cost rows: the DM's rows of this operation since the fight began (the ledger
+          // carries no encounter id, and a DM runs one live fight per campaign, so this over-counts at worst).
+          const { data: fightRow, error: fightError } = await admin
+            .from("encounter_state").select("started_at").eq("encounter_id", request.encounterId).eq("campaign_id", campaignId).maybeSingle();
+          if (fightError) throw new Error(`encounter_state: ${fightError.message}`);
+          if (!fightRow) return null;
+          // A fight that was opened but whose combat has not started has no start time (the row has no creation
+          // time either), so its window is the last hour: more than the cap in an hour before a fight begins is a loop.
+          const started = fightRow.started_at as string | null;
+          const since = started !== null ? started : new Date(Date.now() - NOTE_CAP_WINDOW_BEFORE_START_MS).toISOString();
+          const { count, error: countError } = await admin
+            .from("ai_credit_ledger").select("id", { count: "exact", head: true })
+            .eq("user_id", userId).eq("reason", NOTE_JUDGMENT_OPERATION).gte("created_at", since);
+          if (countError) throw new Error(`ai_credit_ledger: ${countError.message}`);
+          if (count === null) throw new Error("ai_credit_ledger: no count came back");
+          if (!underNoteCap(count, alreadyThisBatch)) return null;
+          return await judge(noteQuestions, { apiKey: key, timeoutMs: NOTE_TIMEOUT_MS });
+        } catch (e) {
+          console.error("encounter-command: note judgment failed, the rules pick alone:", e instanceof Error ? e.message : "unknown error");
+          return null;
+        }
+      },
+      recordNoteJudgment: (inputTokens) =>
+        recordFreeGeneration(admin, userId, NOTE_JUDGMENT_OPERATION, { model: JEV_MODEL, provider: "typesafe", input_tokens: inputTokens }),
       rollDie: (sides) => secureDie(sides),
       rollD20: () => secureDie(20),
       rollD6: () => secureDie(6),

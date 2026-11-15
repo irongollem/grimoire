@@ -4,6 +4,8 @@ import type { TurnOption } from "../../../src/rules/fight/terrain/turnOptions.ts
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import {
   CHOICE_QUESTION,
+  MAX_NOTE_JUDGMENTS_PER_FIGHT,
+  underNoteCap,
   choiceRequest,
   howItThinks,
   noteRequest,
@@ -250,5 +252,13 @@ describe("optionsAllowedByNote", () => {
 
   it("keeps the order of the options it keeps", () => {
     expect(ids(optionsAllowedByNote(noul({ turn_1: 0.1, turn_2: 0.9, turn_3: 0.1 }), OPTIONS, 0.5))).toEqual(["attack:actions:Club:fresco", "flee"]);
+  });
+});
+
+describe("underNoteCap", () => {
+  it("fails if a fight at the cap may ask again, or a batch's own earlier asks are not counted", () => {
+    expect(underNoteCap(MAX_NOTE_JUDGMENTS_PER_FIGHT - 1, 0)).toBe(true);
+    expect(underNoteCap(MAX_NOTE_JUDGMENTS_PER_FIGHT, 0)).toBe(false);
+    expect(underNoteCap(MAX_NOTE_JUDGMENTS_PER_FIGHT - 1, 1)).toBe(false);
   });
 });

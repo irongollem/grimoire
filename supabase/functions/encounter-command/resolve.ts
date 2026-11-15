@@ -36,6 +36,7 @@ import {
 } from "../../../src/rules/fight/actionResolution.ts";
 import { playerArmorClass, playerSaveBonus, type PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
 import { combatantFootprint } from "../../../src/lib/battlemap/tokenFootprint.ts";
+import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { coverBetween, type Box, type Cover } from "../../../src/rules/fight/terrain/sight.ts";
 import { isOnBoard } from "../../../src/rules/fight/terrain/turnOptions.ts";
@@ -323,6 +324,11 @@ export interface ResolveEnv {
   map: FightMap | null;
   /** Receives every roll the command makes, in order, for the caller to post once the fight is saved. */
   posted: PostedRoll[];
+  /**
+   * Asks whether each turn goes against a creature's note (#1203), once per distinct `key`; null when asking is not
+   * allowed or did not work. Left out where no note is ever consulted.
+   */
+  judgeNote?: (key: string, request: JudgeRequest) => Promise<JudgeResult | null>;
 }
 
 function boxOf(c: RunCombatant): Box | null {

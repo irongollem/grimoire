@@ -14,6 +14,7 @@ import { occluders } from "../../../src/lib/battlemap/occlusion";
 import type { Item } from "../../../src/types/item.types";
 import type { PartyInventoryItem } from "../../../src/types/inventory.types";
 import { broadcastEvent, combatant, pc } from "../../../src/rules/fight/fightTestKit";
+import type { JudgeRequest, JudgeResult } from "../_shared/typesafe";
 import {
   ALL_FIGHT_COMMANDS_LISTED,
   ALL_REDUCER_COMMANDS_LISTED,
@@ -75,6 +76,10 @@ interface Harness {
   mapLoads: number;
   /** Runs once, between a load and its save: another writer got in. */
   rival: { run: (() => void) | null; always: boolean };
+  /** Every note judgment the server asked for: the request, and the count it said it had already made this batch. */
+  noteAsks: Array<{ request: JudgeRequest; already: number }>;
+  /** The input tokens of each note cost row written, with how many saves had happened when it was written. */
+  noteCosts: Array<{ inputTokens: number; savesBefore: number }>;
 }
 
 function harness(
@@ -91,6 +96,8 @@ function harness(
     dieFaces?: number[];
     /** The fight's battle map; absent or null is a fight with no map the rules can use. */
     map?: FightMap | null;
+    /** What a note judgment answers; absent is "not allowed" (AI off, no key, over the cap, or a failed call). */
+    judge?: (request: JudgeRequest) => JudgeResult | null;
   } = {},
 ): Harness {
   const h: Harness = {
@@ -110,6 +117,8 @@ function harness(
     playerLoads: [],
     mapLoads: 0,
     rival: { run: null, always: false },
+    noteAsks: [],
+    noteCosts: [],
     deps: undefined as unknown as BatchDeps,
   };
   h.deps = {
@@ -195,6 +204,13 @@ function harness(
       const face = options.dieFaces?.shift();
       if (face === undefined) throw new Error("The server threw a die the test did not script");
       return face;
+    },
+    async judgeNote(request, already) {
+      h.noteAsks.push({ request, already });
+      return options.judge ? options.judge(request) : null;
+    },
+    async recordNoteJudgment(inputTokens) {
+      h.noteCosts.push({ inputTokens, savesBefore: h.saves });
     },
     rollD20: () => 13,
     rollD6: () => options.d6 ?? 3,
@@ -1318,5 +1334,127 @@ describe("take_turn", () => {
     expect(() => validateRequest(batch("b", { type: "next_turn" }, takeTurn()))).toThrow(FightCommandError);
     expect(() => validateRequest(batch("b", takeTurn({ instanceId: "" })))).toThrow(FightCommandError);
     expect(() => validateRequest(batch("b", takeTurn({ optionId: 5 })))).toThrow(FightCommandError);
+  });
+});
+
+// ── the note decides among the turns (#1203) ──────────────────────────────────────
+
+/** An answer to a note request: the probability that each turn goes against the note, by what the turn says it does. */
+const noteSays = (probability: (what: string) => number) => (request: JudgeRequest): JudgeResult => ({
+  model: "jev-test",
+  inputTokens: 321,
+  answers: Object.fromEntries(
+    Object.entries((request.state as { turns: Record<string, { what: string }> }).turns).map(([key, facts]) => [key, { type: "noul" as const, noul: probability(facts.what) }]),
+  ),
+});
+const NOTED = { tactics: { note: "Never leaves its square." } };
+const notedDuel = (note: string | null = NOTED.tactics.note) => ({
+  sources: { monsters: [monster("m-wolf", note === null ? {} : { tactics: { note } }), monster("m-ox")], npcs: [], companions: [] } as StatBlockSources,
+  map: mapOf(),
+});
+const leaves = (what: string) => /^(Move|Flee)/.test(what);
+
+describe("take_turn with a note", () => {
+  const OX_BITES = "attack:actions:Bite:victim";
+
+  // The turns on offer are Move 15 ft and Bite (the rules' pick), Flee, and Dodge. The note says every turn that leaves
+  // the square goes against it, so the rules pick among Dodge alone.
+  it("fails if a turn the note rules out is still picked, or the pick is not made among the rest", async () => {
+    const h = harness(duel(), { ...notedDuel(), judge: noteSays((w) => (leaves(w) ? 0.9 : 0.1)) });
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { optionId: "dodge", kind: "dodge" } });
+    expect(combatantOf(stored(h), "wolf").position).toEqual({ x: 0, y: 0 });
+    expect(h.dieCalls).toBe(0);
+  });
+
+  it("fails if the reply does not say the note decided it, list what it ruled out, and carry the picker's own sentence", async () => {
+    const h = harness(duel(), { ...notedDuel(), judge: noteSays((w) => (leaves(w) ? 0.9 : 0.1)) });
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    const turn = (result.effects[0] as { turn: { picked: string; reason: string; ruledOutByNote: { optionId: string; summary: string }[] } }).turn;
+    expect(turn.picked).toBe("rules_with_note");
+    expect(turn.reason).toMatch(/^Its note ruled out 2 other turns, so: /);
+    expect(turn.ruledOutByNote.map((t) => t.summary)).toEqual(["Move 15 ft to attack victim with Bite", "Flee: dash 60 ft away, ending 80 ft from the nearest enemy"]);
+  });
+
+  // The note rules out every turn: it then decides nothing, and today's pick (the bite) stands, as plain "rules".
+  it("fails if a note that rules out every turn changes the pick or claims it decided", async () => {
+    const h = harness(duel(), { ...notedDuel(), dieFaces: [9, 5], judge: noteSays(() => 0.95) });
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    const first = result.effects[0];
+    if (first.type !== "turn_taken") throw new Error("the reply does not lead with turn_taken");
+    const turn = first.turn;
+    expect(turn).toMatchObject({ optionId: OX_BITES, picked: "rules" });
+    expect(turn.ruledOutByNote).toBeUndefined();
+    expect(turn.reason).not.toMatch(/note/);
+  });
+
+  // A real answer that rules nothing out leaves the pick alone, says "rules", and still costs a row: the call happened.
+  it("fails if an answer that rules nothing out is reported as the note deciding, or goes unrecorded", async () => {
+    const h = harness(duel(), { ...notedDuel(), dieFaces: [9, 5], judge: noteSays(() => 0.1) });
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ turn: { optionId: OX_BITES, picked: "rules" } });
+    expect(h.noteCosts).toHaveLength(1);
+  });
+
+  it("fails if a creature with no note, or a blank one, is ever asked", async () => {
+    for (const note of [null, "   "]) {
+      const h = harness(duel(), { ...notedDuel(note), dieFaces: [9, 5], judge: noteSays(() => 0.9) });
+      await runBatch(batch("b1", takeTurn()), h.deps);
+      expect(h.noteAsks).toHaveLength(0);
+      expect(h.noteCosts).toHaveLength(0);
+    }
+  });
+
+  it("fails if a turn the caller named is run through the note", async () => {
+    const h = harness(duel(), { ...notedDuel(), dieFaces: [9, 5], judge: noteSays(() => 0.9) });
+    const result = await runBatch(batch("b1", takeTurn({ optionId: OX_BITES })), h.deps);
+    expect(h.noteAsks).toHaveLength(0);
+    expect(result.effects[0]).toMatchObject({ turn: { picked: "caller", optionId: OX_BITES } });
+  });
+
+  // Not allowed (AI off, no key, over the cap) and a failed or timed-out call all reach the batch as "no answer".
+  it("fails if no answer from the judge changes today's pick, raises an error, or writes a cost row", async () => {
+    const h = harness(duel(), { ...notedDuel(), dieFaces: [9, 5] });
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(h.noteAsks).toHaveLength(1);
+    expect(result.effects[0]).toMatchObject({ turn: { optionId: OX_BITES, picked: "rules" } });
+    expect(result.effectFailures).toEqual([]);
+    expect(h.noteCosts).toEqual([]);
+  });
+
+  it("fails if a lost race asks the judge again for the same turns, or bills the one answer twice", async () => {
+    const h = harness(duel(), { ...notedDuel(), judge: noteSays((w) => (leaves(w) ? 0.9 : 0.1)) });
+    h.rival.run = rivalEdit(h, (r) => {
+      r.combatants_live = r.combatants_live.map((c) => (c.instance_id === "victim" ? { ...c, hp: 30 } : c));
+    });
+    await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(h.saves).toBe(2);
+    expect(h.noteAsks).toHaveLength(1);
+    expect(h.noteCosts).toHaveLength(1);
+  });
+
+  // A second enemy arrives between the attempts: the turns on offer are not the same set, so the earlier answer says nothing about them.
+  it("fails if an answer is reused for a different set of turns", async () => {
+    const h = harness(duel(), { ...notedDuel(), judge: noteSays((w) => (leaves(w) ? 0.9 : 0.1)) });
+    h.rival.run = rivalEdit(h, (r) => {
+      r.combatants_live = [...r.combatants_live, combatant("second", { monster_id: "m-ox", faction_id: "p", hp: 40, max_hp: 40, ac: "13", initiative: 1, position: { x: 0, y: 1 } })];
+    });
+    await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(h.noteAsks).toHaveLength(2);
+    expect(h.noteAsks[1].already).toBe(1);
+    expect(h.noteCosts).toHaveLength(2);
+  });
+
+  it("fails if the cost row is written before the fight is saved, or for a turn that was refused", async () => {
+    const saved = harness(duel(), { ...notedDuel(), judge: noteSays((w) => (leaves(w) ? 0.9 : 0.1)) });
+    await runBatch(batch("b1", takeTurn()), saved.deps);
+    expect(saved.noteCosts).toEqual([{ inputTokens: 321, savesBefore: 1 }]);
+
+    // The rules pick the bite at a character whose sheet the server cannot read: the step refuses and nothing is saved.
+    const refused = harness(duel({ victim: { monster_id: undefined, type: "player", party_member_id: "pm-gone" } }), {
+      ...notedDuel(), dieFaces: [9, 5], judge: noteSays(() => 0.1),
+    });
+    await expect(runBatch(batch("b2", takeTurn()), refused.deps)).rejects.toMatchObject({ status: 400 });
+    expect(refused.noteCosts).toEqual([]);
   });
 });

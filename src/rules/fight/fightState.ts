@@ -47,8 +47,13 @@ export interface TurnTaken {
   summary: string;
   /** Why this option: the picker's sentence, or a plain note that the caller chose. */
   reason: string;
-  /** "rules": the rules-only picker chose. "caller": a DM (or a model) named the option. */
-  picked: "rules" | "caller";
+  /**
+   * "rules": the rules-only picker chose. "rules_with_note": the creature's note ruled out at least one turn first and
+   * the rules-only picker chose among the rest. "caller": a DM (or a model) named the option.
+   */
+  picked: "rules" | "rules_with_note" | "caller";
+  /** Only with "rules_with_note": the turns the note ruled out, so a DM can see why a creature held still. */
+  ruledOutByNote?: { optionId: string; summary: string }[];
 }
 
 /** The reducer's events, told apart from the effects a fight adds. */
