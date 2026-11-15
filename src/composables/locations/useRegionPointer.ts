@@ -35,7 +35,7 @@ import {
   type TemplateDragState,
 } from "@/lib/map/gestures/pen";
 import { nearestEdge, nearestVertex, snapPoint, templateCells, templateRing, type TraceTool } from "@/lib/locations/polygon";
-import { lassoRing, regionLoops, strokeZoneRing } from "@/lib/locations/zoneBrush";
+import { lassoRing, regionLoops, strokeZoneShape, type ZoneShape } from "@/lib/locations/zoneBrush";
 import type { Disc } from "@/cartographer/area";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { GridPoint, LocationMapRegion } from "@/types/locationMapRegion.types";
@@ -217,17 +217,23 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
     nav.handleClick(e);
   }
 
-  /** Recomputes the shape a brush stroke has made so far and shows it as the closed ring. A carve that leaves
-   *  nothing shows nothing. */
-  function brushResult(stroke: Extract<ActiveStroke, { kind: "brush" }>): GridPoint[] | null {
+  /** Recomputes the shape a brush stroke has made so far. */
+  function brushResult(stroke: Extract<ActiveStroke, { kind: "brush" }>): ZoneShape | null {
     stroke.lastComputeAt = Date.now();
-    return strokeZoneRing(stroke.base, stroke.discs, stroke.erase);
+    return strokeZoneShape(stroke.base, stroke.discs, stroke.erase);
   }
 
+  /** Shows the stroke so far as a closed ring. A shape in several pieces has no one ring, so the preview leaves the
+   *  region's stored shape on screen until the release writes its squares; a carve that leaves nothing shows nothing. */
   function showBrush(stroke: Extract<ActiveStroke, { kind: "brush" }>): void {
-    const ring = brushResult(stroke);
+    const shape = brushResult(stroke);
+    if (shape !== null && "cells" in shape && shape.cells.length > 0) {
+      strokePreview.value = null;
+      return;
+    }
     // `null` = the stroke has changed nothing yet, so the region's own shape is what it still is.
-    strokePreview.value = { regionId: stroke.regionId, ring: ring === null ? flattenBase(stroke.base) : ring, closed: true };
+    const ring = shape === null ? flattenBase(stroke.base) : "ring" in shape ? shape.ring : [];
+    strokePreview.value = { regionId: stroke.regionId, ring, closed: true };
   }
 
   function flattenBase(base: GridPoint[][]): GridPoint[] {
@@ -294,7 +300,7 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
   }
 
   /** Ends a lasso or brush stroke: stores what it made. A lasso REPLACES the region's shape, as closing a pen ring
-   *  does; a brush that leaves nothing empties the region. */
+   *  does; a brush that leaves nothing empties the region, and one that leaves several pieces stores their squares. */
   function finishStroke(): void {
     const stroke = activeStroke;
     if (!stroke) return;
@@ -306,10 +312,10 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
       return;
     }
     if (stroke.timer !== null) clearTimeout(stroke.timer);
-    const ring = brushResult(stroke);
-    if (ring === null) return;
-    if (ring.length === 0) options.commitCells(stroke.regionId, []);
-    else void options.commitRing(stroke.regionId, ring).catch(() => {});
+    const shape = brushResult(stroke);
+    if (shape === null) return;
+    if ("cells" in shape) options.commitCells(stroke.regionId, shape.cells);
+    else void options.commitRing(stroke.regionId, shape.ring).catch(() => {});
   }
 
   function cancelStroke(): void {

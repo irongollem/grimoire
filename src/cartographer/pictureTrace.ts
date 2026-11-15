@@ -11,6 +11,7 @@
 import { AREA_RES } from "./area";
 import { fitLoop } from "./brushWalls";
 import { traceField, type Grid } from "./groundRaster";
+import { ringArea } from "@/lib/locations/polygon";
 
 type P = [number, number];
 
@@ -60,12 +61,6 @@ function colourDistance(r: number, g: number, b: number, ground: readonly [numbe
   const cool = g - b - (ground[1] - ground[2]);
   return light * light + HUE_WEIGHT * (warm * warm + cool * cool);
 }
-
-const ringArea = (ring: readonly P[]): number => {
-  let s = 0;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) s += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
-  return Math.abs(s / 2);
-};
 
 function median(values: number[]): number {
   const sorted = values.slice().sort((a, b) => a - b);

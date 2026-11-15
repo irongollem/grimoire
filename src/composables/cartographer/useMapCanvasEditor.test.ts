@@ -1296,6 +1296,23 @@ describe("Plan layer", () => {
       expect(editor.canUndo.value).toBe(false);
     });
 
+    it("a door cut from Zoning survives undo and redo on the Drawing, which restore whole snapshots", () => {
+      const { editor, layers, drawing } = bound("drawing");
+      clickCell(editor, 10, 10); // a floor square, filed on the Drawing's own stack
+      const history = drawing.editDrawing((l) => ({ ...l, walls: { ...l.walls, w: WALL } }))!;
+
+      editor.undoEdit(); // back to before the floor: a snapshot with no wall in it
+      expect(layers.value.floor).toEqual({});
+      expect(layers.value.walls).toEqual({ w: WALL });
+      editor.redoEdit();
+      expect(layers.value.walls).toEqual({ w: WALL });
+
+      // The door's own undo (the Plan's stack) still takes it away, and the Drawing's undo then leaves it away.
+      history.undo();
+      editor.undoEdit();
+      expect(layers.value.walls).toEqual({});
+    });
+
     it("changes nothing and marks nothing when the edit declines", () => {
       const { layers, dirty, drawing } = bound();
       expect(drawing.editDrawing(() => null)).toBeNull();
@@ -2338,6 +2355,23 @@ describe("Freehand wall tool (#1197)", () => {
     editor.onPointerDown(down(px(0), px(1)));
     editor.onPointerMove(move(px(3), px(1)));
     editor.onPointerLeave(new PointerEvent("pointerleave", { clientX: px(6), clientY: px(1), pointerId: 1 }));
+    expect(layers.value.walls).toEqual({});
+    expect(editor.canUndo.value).toBe(false);
+  });
+
+  it("a second finger landing mid-stroke (a pinch) drops it, so no later release writes the half-drawn wall", () => {
+    const touch = (id: number) => ({ pointerType: "touch", pointerId: id }) as PointerEventInit;
+    const { editor, layers, activeTool } = makeHarness();
+    activeTool.value = "freehandWall";
+    editor.onPointerDown(down(px(0), px(1), touch(1)));
+    editor.onPointerMove(move(px(3), px(1), touch(1)));
+    editor.onPointerMove(move(px(5), px(1), touch(1)));
+    editor.onPointerDown(down(px(8), px(8), touch(2)));
+    editor.onPointerUp(up(px(5), px(1), touch(1)));
+    editor.onPointerUp(up(px(8), px(8), touch(2)));
+    // The fingers' own lifts never reach the tool during a pinch, so a stroke left open would be written by the next
+    // release that does (a mouse button coming up over the canvas).
+    editor.onPointerUp(up(px(6), px(1)));
     expect(layers.value.walls).toEqual({});
     expect(editor.canUndo.value).toBe(false);
   });

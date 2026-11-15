@@ -53,10 +53,10 @@ function makeHarness() {
     activeRegionId: ref("r1"),
     activeRegion: computed(() => region),
     commitCells,
+    regionStateNow: vi.fn(() => ({ vertices: region.vertices, cells: region.cells })),
     commitRing: vi.fn(async () => {}),
     commitTemplate: vi.fn(),
     assignArea: vi.fn(async () => {}),
-    existingDoorAtEdge: vi.fn(() => null),
     placeDoorAt: vi.fn(),
     cycleDoorKind: vi.fn(),
     removeDoor: vi.fn(),
@@ -100,6 +100,20 @@ describe("usePlanCanvasTools.abandonGesture (#884 review finding 2)", () => {
 
     expect(commitCells).not.toHaveBeenCalled();
     expect(plan.commitRing).not.toHaveBeenCalled();
+  });
+
+  it("builds a brush stroke on the shape the palette last wrote, not on the row a refetch has yet to bring", () => {
+    const { tools, plan } = makeHarness();
+    // The row still says "no shape" (the first stroke's refetch has not landed); the palette knows the first stroke
+    // left a 6 by 6 square. A second stroke on its right edge must keep that square.
+    vi.mocked(plan.regionStateNow).mockReturnValue({ vertices: [[0, 0], [6, 0], [6, 6], [0, 6]], cells: [] });
+
+    tools.onPointerDown(down(6, 3));
+    window.dispatchEvent(up(6, 3));
+
+    const ring = vi.mocked(plan.commitRing).mock.calls[0]![1];
+    expect(Math.min(...ring.map((p) => p[0]))).toBeLessThan(0.5);
+    expect(Math.max(...ring.map((p) => p[0]))).toBeGreaterThan(6.3);
   });
 
   it("is a harmless no-op when nothing is in flight (e.g. the Door/Assign tools, which have no gesture to abandon)", () => {

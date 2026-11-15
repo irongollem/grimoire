@@ -486,6 +486,18 @@ describe("wallFaceAt: the ring of walls round a point, with no floor painted", (
       expect(faces[0].cells.slice().sort()).toEqual(box(2, 2, 2, 2).sort());
     });
 
+    it("sees a solid block painted in place after the rings were first asked for", () => {
+      // The Drawing paints solid rock into the same object (paintOps), so a ring hovered before the rock went in must
+      // not keep counting the rock's square as its own.
+      const layers = emptyLayers();
+      ring(layers, 0, 0, 3, 3);
+      expect(wallFaceAt(layers, [0.5, 0.5])!.cells).toHaveLength(9);
+      layers.solidBlock[cellKey(1, 1)] = { ...PACK };
+      expect(wallFaceAt(layers, [0.5, 0.5])!.cells).not.toContain(cellKey(1, 1));
+      delete layers.solidBlock[cellKey(1, 1)];
+      expect(wallFaceAt(layers, [0.5, 0.5])!.cells).toHaveLength(9);
+    });
+
     it("hands back the same array for the same walls, and a fresh one once a wall is added in place", () => {
       const layers = emptyLayers();
       ring(layers, 0, 0, 3, 3);

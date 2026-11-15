@@ -106,6 +106,8 @@ export interface WallFoot {
   foot: CellPoint;
   /** The foot's distance along the piece, 0 at `a` to 1 at `b`. */
   t: number;
+  /** Which of the wall's pieces this is, counted from the wall's `a` end. */
+  piece: number;
   distance: number;
 }
 
@@ -123,7 +125,7 @@ export function nearestWallFoot(
   const geometry = cachedWallGeometry(walls);
   for (const [id, wall] of Object.entries(walls)) {
     const pieces = isLatticeKey(id) ? [{ a: wall.a, b: wall.b }] : (geometry.lines.get(id)?.pieces ?? []);
-    for (const piece of pieces) {
+    for (const [index, piece] of pieces.entries()) {
       const dx = piece.b[0] - piece.a[0];
       const dy = piece.b[1] - piece.a[1];
       const lengthSq = dx * dx + dy * dy;
@@ -131,11 +133,41 @@ export function nearestWallFoot(
       const foot: CellPoint = [piece.a[0] + t * dx, piece.a[1] + t * dy];
       const distance = Math.hypot(p[0] - foot[0], p[1] - foot[1]);
       if (distance <= radius && (best === null || distance < best.distance)) {
-        best = { wallId: id, a: [piece.a[0], piece.a[1]], b: [piece.b[0], piece.b[1]], foot, t, distance };
+        best = { wallId: id, a: [piece.a[0], piece.a[1]], b: [piece.b[0], piece.b[1]], foot, t, piece: index, distance };
       }
     }
   }
   return best;
+}
+
+/**
+ * A stretch of `width` cells along the wall `hit` lies on, centred on the foot point and kept inside the wall: the
+ * line a door of that width takes. It is measured along the wall's drawn line, so on a curve (which is drawn as many
+ * short pieces) the stretch runs over as many pieces as it needs and is returned as the straight line between its two
+ * ends. A wall shorter than `width` gives the whole wall.
+ */
+export function wallStretch(walls: Readonly<Record<string, WallEdge>>, hit: WallFoot, width: number): [CellPoint, CellPoint] {
+  const wall = walls[hit.wallId];
+  const drawn = isLatticeKey(hit.wallId) ? undefined : cachedWallGeometry(walls).lines.get(hit.wallId)?.pieces;
+  const pieces = drawn && drawn.length > 0 ? drawn : [{ a: wall?.a ?? hit.a, b: wall?.b ?? hit.b }];
+  const lengths = pieces.map((piece) => Math.hypot(piece.b[0] - piece.a[0], piece.b[1] - piece.a[1]));
+  const total = lengths.reduce((sum, length) => sum + length, 0);
+  const index = Math.min(hit.piece, pieces.length - 1);
+  const footAt = lengths.slice(0, index).reduce((sum, length) => sum + length, 0) + hit.t * lengths[index];
+  const span = Math.min(width, total);
+  const start = Math.max(0, Math.min(total - span, footAt - span / 2));
+  const at = (distance: number): CellPoint => {
+    let left = distance;
+    for (const [i, piece] of pieces.entries()) {
+      if (left <= lengths[i] || i === pieces.length - 1) {
+        const k = lengths[i] === 0 ? 0 : Math.min(1, left / lengths[i]);
+        return [piece.a[0] + (piece.b[0] - piece.a[0]) * k, piece.a[1] + (piece.b[1] - piece.a[1]) * k];
+      }
+      left -= lengths[i];
+    }
+    return [hit.foot[0], hit.foot[1]];
+  };
+  return [at(start), at(start + span)];
 }
 
 /** The placed light nearest to `p` within `radius` cells, or null. */

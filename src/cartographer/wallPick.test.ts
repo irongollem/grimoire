@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { distanceToSegment, isWallEnd, nearestAngledWall, nearestLight, nearestWallFoot, snapPoint, snapRunPoint } from "./wallPick";
+import { distanceToSegment, isWallEnd, nearestAngledWall, nearestLight, nearestWallFoot, snapPoint, snapRunPoint, wallStretch } from "./wallPick";
 import type { WallEdge } from "@/types/dungeonMap.types";
 import { cachedWallGeometry } from "./wallGeometry";
 
@@ -165,5 +165,36 @@ describe("nearestWallFoot (the Door tool's wall under the pointer, #1197)", () =
   it("returns a door as the nearest wall so a plain wall behind it cannot be picked through it", () => {
     const walls = { d: { ...wall([0, 0], [2, 0]), type: "doorClosed" as const }, w: wall([0, 0.25], [2, 0.25]) };
     expect(nearestWallFoot(walls, [1, 0.05])!.wallId).toBe("d");
+  });
+});
+
+describe("wallStretch (how wide a door is cut, #1197)", () => {
+  const length = (s: [number[], number[]]): number => Math.hypot(s[1][0] - s[0][0], s[1][1] - s[0][1]);
+
+  it("centres a door of the asked width on the pointer along a straight wall", () => {
+    const walls = { s: wall([0, 0], [10, 0]) };
+    expect(wallStretch(walls, nearestWallFoot(walls, [4, 0.1])!, 2)).toEqual([[3, 0], [5, 0]]);
+  });
+
+  it("keeps the door inside the wall near its end, and gives the whole of a wall shorter than the door", () => {
+    const walls = { s: wall([0, 0], [10, 0]), short: wall([20, 0], [20.6, 0]) };
+    expect(wallStretch(walls, nearestWallFoot(walls, [9.9, 0.1])!, 2)).toEqual([[8, 0], [10, 0]]);
+    const whole = wallStretch(walls, nearestWallFoot(walls, [20.3, 0.1])!, 1);
+    expect(whole[0][0]).toBeCloseTo(20, 9);
+    expect(whole[1][0]).toBeCloseTo(20.6, 9);
+  });
+
+  it("is a full door wide on a curved wall, not as wide as one drawn piece of the curve", () => {
+    // Two walls that both ask to curve through their shared node: each is drawn as many short pieces, a sixth of a
+    // square long. A 5 ft door clicked in the middle of one must still be about a square wide.
+    const walls = { p: { ...wall([0, 0], [4, 0]), smoothB: true as const }, q: { ...wall([4, 0], [4, 4]), smoothA: true as const } };
+    const pieces = cachedWallGeometry(walls).lines.get("p")!.pieces;
+    expect(pieces.length).toBeGreaterThan(4);
+    const middle = pieces[Math.floor(pieces.length / 2)];
+    const hit = nearestWallFoot(walls, [(middle.a[0] + middle.b[0]) / 2, (middle.a[1] + middle.b[1]) / 2])!;
+    expect(hit.wallId).toBe("p");
+    const door = wallStretch(walls, hit, 1);
+    expect(length(door)).toBeGreaterThan(0.9);
+    expect(length(door)).toBeLessThanOrEqual(1 + 1e-9);
   });
 });

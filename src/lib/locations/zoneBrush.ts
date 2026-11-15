@@ -4,28 +4,21 @@
 // `vertices`; the squares it covers (`cellsInsideRing`) are derived from it
 // afterwards, for fog, footprints and rules. Pure: no DOM, no Vue.
 //
-// A region holds ONE ring (no holes, no second loop), so every result here is
-// reduced to its largest outer loop.
+// A region holds ONE ring (no holes, no second loop). A shape that is one piece
+// is stored as that ring; a shape in several pieces is stored as its squares.
 
 import { fitLoop } from "@/cartographer/brushWalls";
 import { groundStrokeLoops } from "@/cartographer/groundRaster";
 import type { Disc } from "@/cartographer/area";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { GridPoint } from "@/types/locationMapRegion.types";
+import { pointInRing, ringArea } from "@/lib/locations/polygon";
 
 /** A smaller enclosed area than one square holds no square, so it is no zone. */
 const MIN_AREA = 1;
-
-/** Absolute area of a ring, in squares (shoelace). */
-export function ringArea(ring: readonly GridPoint[]): number {
-  let twice = 0;
-  for (let i = 0; i < ring.length; i++) {
-    const a = ring[i];
-    const b = ring[(i + 1) % ring.length];
-    twice += a[0] * b[1] - b[0] * a[1];
-  }
-  return Math.abs(twice) / 2;
-}
+/** A piece or a hole this small holds no square's middle worth keeping. Half a square, not a whole one: a one-square
+ *  hole (a pillar) traces to a hair under one square, and must still count as a hole. */
+const MIN_PIECE_AREA = 0.5;
 
 /** A loop reduced to the nodes a hand would put; `null` when nothing worth a zone is left. */
 function smoothed(loop: readonly GridPoint[]): GridPoint[] | null {
@@ -51,32 +44,48 @@ export function regionLoops(vertices: readonly GridPoint[] | null, cells: readon
   return groundStrokeLoops([], [], false, new Set(cells)) ?? [];
 }
 
+/** What a stroke leaves of a zone: one smooth ring, or (when it is in several parts, or has a hole) its squares. */
+export type ZoneShape = { ring: GridPoint[] } | { cells: CellKey[] };
+
+/** The squares whose middle lies inside the loops, counted even-odd so a loop inside another is a hole. */
+function cellsInsideLoops(loops: readonly (readonly GridPoint[])[]): CellKey[] {
+  const xs = loops.flatMap((loop) => loop.map((p) => p[0]));
+  const ys = loops.flatMap((loop) => loop.map((p) => p[1]));
+  const cells: CellKey[] = [];
+  for (let y = Math.floor(Math.min(...ys)); y < Math.ceil(Math.max(...ys)); y++) {
+    for (let x = Math.floor(Math.min(...xs)); x < Math.ceil(Math.max(...xs)); x++) {
+      const inside = loops.filter((loop) => pointInRing(x + 0.5, y + 0.5, loop)).length % 2 === 1;
+      if (inside) cells.push(`${x},${y}` as CellKey);
+    }
+  }
+  return cells;
+}
+
 /**
- * What a brush stroke (round discs) does to a shape: unions it in, or carves it out when `erase`. The result is one
- * smoothed ring: the largest loop, since a region holds a single ring (a carve may split a zone; a stroke far from it
- * is a second blob). `[]` means nothing is left; `null` means the stroke changed nothing.
+ * What a brush stroke (round discs) does to a shape: unions it in, or carves it out when `erase`.
+ *
+ * A region holds a single ring, so the result is a smoothed ring only when one piece with no hole is left. A zone in
+ * two parts, one with a hole in it, a carve that cuts a zone in two, or a stroke that lands away from the zone is
+ * kept whole as its squares instead: reducing it to its largest piece would silently delete the rest, far from
+ * where the DM painted. Pieces under half a square are dropped either way.
+ *
+ * `{ cells: [] }` means nothing is left of a shape that was there; `null` means the stroke changed nothing, or made
+ * nothing worth a zone where there was none.
  */
-export function strokeZoneRing(
+export function strokeZoneShape(
   base: readonly (readonly GridPoint[])[],
   discs: readonly Disc[],
   erase: boolean,
   erasedCells: ReadonlySet<CellKey> = new Set(),
-): GridPoint[] | null {
+): ZoneShape | null {
   const loops = groundStrokeLoops(base, discs, erase, erasedCells);
   if (loops === null) return null;
-  return largestRing(loops);
-}
-
-function largestRing(loops: readonly GridPoint[][]): GridPoint[] {
-  let best: GridPoint[] | null = null;
-  let bestArea = 0;
-  for (const loop of loops) {
-    const area = ringArea(loop);
-    if (area > bestArea) {
-      best = loop;
-      bestArea = area;
-    }
+  const pieces = loops.filter((loop) => ringArea(loop) >= MIN_PIECE_AREA);
+  if (pieces.length === 1) {
+    const ring = smoothed(pieces[0]);
+    if (ring) return { ring };
+  } else if (pieces.length > 1) {
+    return { cells: cellsInsideLoops(pieces) };
   }
-  const ring = best === null ? null : smoothed(best);
-  return ring === null ? [] : ring;
+  return base.length === 0 ? null : { cells: [] };
 }
