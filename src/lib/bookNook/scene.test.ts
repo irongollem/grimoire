@@ -100,6 +100,23 @@ describe("poseAt", () => {
   });
 });
 
+describe("parallax", () => {
+  const camera = { dx: 30, dy: -10, scale: 1.02 };
+
+  // Without a focus everything moved one way, so a juggler at depth 1.25 floated over the floor drawn at depth 1.
+  it("holds the focus depth still and moves nearer and farther parts in opposite directions", () => {
+    const at = { ...camera, focus: 1.25 };
+    const still = parallax(at, 1.25);
+    expect([still.dx, still.dy, still.scale].map((v) => v + 0)).toEqual([0, 0, 1]);
+    expect(Math.sign(parallax(at, 1.6).dx)).toBe(1);
+    expect(Math.sign(parallax(at, 0.8).dx)).toBe(-1);
+  });
+
+  it("moves by depth from nothing when the scene names no focus, as every nook did before", () => {
+    expect(parallax(camera, 2)).toEqual({ dx: 60, dy: -20, scale: 1.04 });
+  });
+});
+
 describe("uncovered", () => {
   it("reports the gap when a plate only just fills a frame the camera drifts across", () => {
     const scene: Scene = { ...ROOM, size: { width: 1080, height: 1920 }, stack: [] };

@@ -89,6 +89,13 @@ export interface Scene {
      * points in a row hold the view. The drift and push still play on top.
      */
     path?: { at: number; x: number; y: number }[];
+    /**
+     * The depth that holds still as the view moves, 0 when absent (then a part moves by its depth times the drift,
+     * all one way). With a focus, everything at that depth stays put, nearer things move one way and farther things
+     * the other, as when the eye circles what it looks at: a juggler stays on the floor he stands on while the stands
+     * behind him and the bench in front slide apart (the maintainer, 15 Nov 2026).
+     */
+    focus?: number;
   };
   /** Everything drawn, back to front: the plate, the parts, and the effects between them. */
   stack: Item[];
@@ -259,6 +266,8 @@ export interface Camera {
   dy: number;
   /** Scale about the frame's centre for a layer at depth 1. */
   scale: number;
+  /** The depth that does not move (the scene camera's `focus`); 0 when absent. */
+  focus?: number;
 }
 
 const TAU = Math.PI * 2;
@@ -311,6 +320,7 @@ export function cameraAt(scene: Scene, t: number, view?: View): Camera {
     dx: breathe * scene.camera.drift * width * Math.sin(a) - path.x - (tilt && view ? tilt.x * TILT_REACH.x * view.window.w : 0),
     dy: breathe * scene.camera.drift * width * 0.5 * Math.sin(2 * a) - path.y - (tilt && view ? tilt.y * TILT_REACH.y * view.window.h : 0),
     scale: 1 + breathe * scene.camera.push * (0.5 - 0.5 * Math.cos(a)),
+    ...(scene.camera.focus === undefined ? {} : { focus: scene.camera.focus }),
   };
 }
 
@@ -527,7 +537,9 @@ export function motesAt(scene: Scene, motes: Extract<Effect, { kind: "motes" }>,
  * moves less, the near more. A layer at depth 1 moves with the camera exactly.
  */
 export function parallax(camera: Camera, depth: number): { dx: number; dy: number; scale: number } {
-  return { dx: camera.dx * depth, dy: camera.dy * depth, scale: 1 + (camera.scale - 1) * depth };
+  // Measured from the focus: a part at it holds still, one in front moves with the camera, one behind against it.
+  const d = depth - (camera.focus ?? 0);
+  return { dx: camera.dx * d, dy: camera.dy * d, scale: 1 + (camera.scale - 1) * d };
 }
 
 /**
