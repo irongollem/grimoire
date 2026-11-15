@@ -102,6 +102,11 @@ function sameJson(a: unknown, b: unknown): boolean {
   return keysA.every((k) => sameJson((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
 }
 
+/** Conditions as they leave a fight: nothing owes a roll out of combat, so `due` is dropped from every record. */
+export function withoutDue(conditions: readonly AppliedCondition[]): AppliedCondition[] {
+  return conditions.map(({ due: _due, ...rest }) => rest);
+}
+
 /** Current exhaustion level on a creature, or 0 if none. */
 export function getExhaustionLevel(list: readonly AppliedCondition[]): number {
   return findCondition(list, EXHAUSTION)?.level ?? 0;

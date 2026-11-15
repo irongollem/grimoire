@@ -4,10 +4,7 @@ import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/ring
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCampaignStore } from "@/stores/campaign";
-import { deepEqual } from "@/lib/utils";
-import { sameConditions } from "@/rules/conditions";
-import type { AppliedCondition } from "@/types/condition.types";
-import type { WildshapeState } from "@/types/encounter.types";
+import type { PartyIngestRow } from "@/rules/fight/partyIngest";
 import type { PartyMemberUpdate } from "@/types/party.types";
 
 const FLUSH_MS = 400;
@@ -128,81 +125,19 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
   // The spell each member was last read concentrating on (null: none). Absent until first read.
   const lastConcentration = new Map<string, string | null>();
 
-  interface PartyMemberSyncRow {
-    id: string;
-    current_hp: number;
-    temp_hp: number;
-    current_initiative: number | null;
-    conditions: AppliedCondition[];
-    concentration: { spellName: string } | null;
-    wildshape_state: WildshapeState | null;
-    death_save_successes: number;
-    death_save_failures: number;
-  }
-
   /**
    * Apply one party_members row to the run store. Shared by the ring re-read and
-   * the post-gap resync, so a recovered row lands through exactly the same rules.
-   * The caller has already dropped any member this client is writing to.
+   * the post-gap resync, so a recovered row lands through exactly the same rules
+   * (`rules/fight/partyIngest`). The caller has already dropped any member this
+   * client is writing to: that guard is about this browser's write timing, and
+   * stays here.
    */
-  function applyPartyRow(row: PartyMemberSyncRow): void {
-    const combatant = store.combatants.find((c) => c.party_member_id === row.id);
-    if (!combatant) return;
-
-    // Temp HP the player granted themselves (or spent) on their own sheet.
-    if ((combatant.temp_hp ?? 0) !== (row.temp_hp ?? 0)) {
-      store.ingestTempHp(combatant.instance_id, row.temp_hp ?? 0);
-    }
-
-    // A re-read selects its columns, so none is ever omitted the way an UPDATE
-    // payload omitted an unchanged TOAST column: an empty array is a real empty.
-    if (!sameConditions(combatant.conditions, row.conditions)) {
-      store.ingestConditions(combatant.instance_id, row.conditions);
-    }
-
-    // A spell the player stopped concentrating on, or swapped for another, on
-    // their own sheet (or through any runner path that ends it via the sheet):
-    // what that concentration held on others ends with it (#1018). The first
-    // read of a member only records what they hold.
-    const spell = row.concentration?.spellName ?? null;
-    if (lastConcentration.has(row.id)) {
-      const before = lastConcentration.get(row.id) ?? null;
-      if (before !== null && before !== spell) store.endConcentration(combatant.instance_id, before);
-    }
-    lastConcentration.set(row.id, spell);
-
-    // A form the player took or dropped on their own sheet. Compared
-    // structurally: the row is jsonb, whose key order is Postgres's own, never
-    // the order the client built.
-    if (!deepEqual(combatant.wildshape ?? null, row.wildshape_state ?? null)) {
-      store.ingestWildshape(combatant.instance_id, row.wildshape_state ?? null);
-    }
-
-    // Death saves a player rolled on their own sheet. Without this the runner
-    // keeps the tally from when the fight began, and end of combat writes it
-    // straight back over the character's real one.
-    if (
-      combatant.death_saves.successes !== row.death_save_successes ||
-      combatant.death_saves.failures !== row.death_save_failures
-    ) {
-      store.ingestDeathSaves(combatant.instance_id, {
-        successes: row.death_save_successes,
-        failures: row.death_save_failures,
-      });
-    }
-
-    // Ingest player-rolled initiative (#504). Only apply a fresh non-null value
-    // that differs: this keeps the player's own roll and lets "Roll Initiative"
-    // skip anyone who already rolled. Only while live: a row read before the
-    // lobby opens still carries last session's roll, and `clearPartyInitiatives`
-    // blanks it as the lobby opens.
-    if (isLive.value && row.current_initiative !== null && combatant.initiative !== row.current_initiative) {
-      store.setInitiative(combatant.instance_id, row.current_initiative);
-    }
-
-    if (combatant.hp !== row.current_hp) {
-      store.ingestHp(combatant.instance_id, row.current_hp);
-    }
+  function applyPartyRow(row: PartyIngestRow): void {
+    const concentration = store.ingestParty(row, {
+      live: isLive.value,
+      lastConcentration: lastConcentration.get(row.id),
+    });
+    if (concentration !== undefined) lastConcentration.set(row.id, concentration);
   }
 
   /**
@@ -223,7 +158,7 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
     if (error) throw error;
     if (campaignId !== subscribedCampaignId) return false;
     let again = false;
-    for (const row of data as PartyMemberSyncRow[]) {
+    for (const row of data as PartyIngestRow[]) {
       // A change still waiting for its write is newer than this read, whatever
       // column it holds. Its write rings, and that ring reads the row again.
       if (pending.has(row.id)) continue;

@@ -1,6 +1,16 @@
-import { positionsOnSite } from "@/lib/locations/explore";
+/**
+ * Where the party stands on a site's grid, and where the fight leaves them.
+ * Pure data in and out, so it runs wherever a fight is advanced.
+ */
 import type { ExploreParty } from "@/types/campaign.types";
 import type { RunCombatant } from "@/types/encounter.types";
+
+export type ExploreCell = { x: number; y: number };
+
+/** Where the party stands on this site, or an empty record when `explore_party` is for another site (one site at a time). */
+export function positionsOnSite(explore: ExploreParty | null, siteId: string): Record<string, ExploreCell> {
+  return explore !== null && explore.site_id === siteId ? explore.positions : {};
+}
 
 /**
  * End combat stands the party where the fight left them (#1133 decision 7): the explore party for the site the fight

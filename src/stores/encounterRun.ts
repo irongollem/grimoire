@@ -1,8 +1,7 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
-import type { RunCombatant, FactionDef, RevealState, EncounterEvent, EventTrigger, SpawnDef, WildshapeState } from "@/types/encounter.types";
+import type { RunCombatant, FactionDef, RevealState, EncounterEvent, WildshapeState } from "@/types/encounter.types";
 import type { Monster, MonsterSize } from "@/types/monster.types";
-import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import type { NpcListRow } from "@/types/npc.types";
 import type { TrapEntry } from "@/types/trap.types";
 import type { PartyMemberUpdate } from "@/types/party.types";
@@ -13,20 +12,13 @@ import { DEFAULT_RULESET, type RulesetKey } from "@/types/ruleset.types";
 import type { DyingOutcome } from "@/rules/dying";
 import type { AppliedCondition } from "@/types/condition.types";
 import { holdsConcentration, type ConditionEndReason } from "@/rules/conditionDurations";
-import {
-  reduceEncounterTurn,
-  type ActionLimit,
-  type EncounterTurnCommand,
-  type EncounterTurnEvent,
-  type EncounterTurnState,
-} from "@/rules/encounterTurn";
-import {
-  rollInitiativeValue,
-  evaluateTrigger,
-  buildMonsterCombatants,
-  buildNpcCombatants,
-  adoptStatBlock,
-} from "@/rules/encounterCombatLogic";
+import type { ActionLimit, EncounterTurnCommand, EncounterTurnEvent } from "@/rules/encounterTurn";
+import { rollInitiativeValue, adoptStatBlock } from "@/rules/encounterCombatLogic";
+import { applyFightCommand } from "@/rules/fight/fightCommands";
+import { checkFightEvents, fireFightEvent, type FightDeps, type FightResult } from "@/rules/fight/fightEvents";
+import { isTurnEvent, startedFromRound, type FightEffect, type FightState } from "@/rules/fight/fightState";
+import { companionCombatant, spawnMonsters, spawnNpcs } from "@/rules/fight/fightSpawn";
+import { adoptTempHp, ingestPartyRow, type PartyIngestContext, type PartyIngestRow } from "@/rules/fight/partyIngest";
 
 /** Persists a player-combatant change to party_members and invalidates the
  *  party query cache. The store stays UI-only — the actual DB write + cache
@@ -155,13 +147,9 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     ruleset.value = value;
   }
 
-  /** Runs a command through the pure turn reducer (`rules/encounterTurn`), adopts
-   *  the resulting state, then acts on the events it raised: player changes go to
-   *  the registered persist handler, and `check_events` runs the event triggers
-   *  once the new state is in place. Returns the events for callers that need
-   *  an outcome (HP changes, legendary spend). */
-  function dispatch(command: EncounterTurnCommand): EncounterTurnEvent[] {
-    const before: EncounterTurnState = {
+  /** The fight as the pure rules see it: this store's refs, read once. */
+  function snapshot(): FightState {
+    return {
       combatants: combatants.value,
       round: round.value,
       activeIndex: activeIndex.value,
@@ -171,10 +159,22 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
       lairEnabled: lairEnabled.value,
       lairOwnerInstanceId: lairOwnerInstanceId.value,
       lairFiredRounds: lairFiredRounds.value,
+      events: events.value,
+      eventsFired: eventsFired.value,
     };
-    const { state, events: raised } = reduceEncounterTurn(before, command);
-    // A move can only be taken back within the turn it was made in.
-    if (TURN_CHANGING.has(command.type)) moveHistory.value = {};
+  }
+
+  /** What a spawn is built from: the monsters and NPCs the runner holds, and the clock for instance ids. */
+  function fightDeps(): FightDeps {
+    return { monsters: availableMonsters.value, npcs: availableNpcs.value, now: Date.now };
+  }
+
+  /** Adopts the state the pure rules computed and acts on what they asked for:
+   *  player changes go to the registered persist handler, concentration saves
+   *  owed are queued, an event's broadcast lines wait for the runner to post
+   *  them. `command` is what raised the effects (a turn change replaces the
+   *  last turn's recharge and condition lines; anything else appends). */
+  function adopt(before: FightState, state: FightState, effects: FightEffect[], command: EncounterTurnCommand["type"] | null) {
     if (state.combatants !== before.combatants) combatants.value = state.combatants;
     round.value = state.round;
     activeIndex.value = state.activeIndex;
@@ -182,7 +182,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     lairEnabled.value = state.lairEnabled;
     lairOwnerInstanceId.value = state.lairOwnerInstanceId;
     if (state.lairFiredRounds !== before.lairFiredRounds) lairFiredRounds.value = state.lairFiredRounds;
-    let checkNow = false;
+    if (state.eventsFired !== before.eventsFired) eventsFired.value = state.eventsFired;
+    const raised = effects.filter(isTurnEvent);
     const recharges = raised.flatMap((e) =>
       e.type === "action_recharged" || e.type === "recharge_failed"
         ? [{ instanceId: e.instanceId, action: e.action, roll: e.roll, recharged: e.type === "action_recharged" }]
@@ -190,28 +191,39 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     );
     // Exactly this turn's rolls: a turn that rolled none must clear the old lines,
     // or "still spent" lingers for rounds. Other commands leave it alone.
-    if (command.type === "next_turn" || command.type === "reshuffle_initiative") lastRechargeEvents.value = recharges;
+    if (command === "next_turn" || command === "reshuffle_initiative") lastRechargeEvents.value = recharges;
     const endings = raised.flatMap((e) =>
       e.type === "condition_ended" ? [{ instanceId: e.instanceId, name: e.name, reason: e.reason }] : [],
     );
-    if (command.type === "next_turn" || command.type === "reshuffle_initiative") lastConditionEvents.value = endings;
+    if (command === "next_turn" || command === "reshuffle_initiative") lastConditionEvents.value = endings;
     else if (endings.length > 0) lastConditionEvents.value = [...lastConditionEvents.value, ...endings];
-    for (const event of raised) {
-      if (event.type === "player_persist") persistHandler?.(event.partyMemberId, event.patch);
-      else if (event.type === "check_events") checkNow = true;
-      else if (event.type === "concentration_check_due") {
+    for (const effect of effects) {
+      if (effect.type === "player_persist") persistHandler?.(effect.partyMemberId, effect.patch);
+      else if (effect.type === "broadcast") pendingBroadcasts.value.push(effect.message);
+      else if (effect.type === "concentration_check_due") {
         concentrationSeq += 1;
         concentrationChecks.value = [
           ...concentrationChecks.value,
-          { key: `conc-${concentrationSeq}`, instanceId: event.instanceId, damage: event.damage },
+          { key: `conc-${concentrationSeq}`, instanceId: effect.instanceId, damage: effect.damage },
         ];
       }
     }
     // A check is owed only while its holder is still in the fight and still holds something.
     const stale = concentrationChecks.value.filter((k) => !holdsConcentration(combatants.value, k.instanceId));
     if (stale.length > 0) concentrationChecks.value = concentrationChecks.value.filter((k) => !stale.includes(k));
-    if (checkNow) checkEvents();
-    return raised;
+  }
+
+  /** Runs a command through the pure fight rules (`rules/fight`: the turn
+   *  reducer, then the event check when it asked for one), adopts the resulting
+   *  state and acts on what it raised. Returns the reducer's events for callers
+   *  that need an outcome (HP changes, legendary spend). */
+  function dispatch(command: EncounterTurnCommand): EncounterTurnEvent[] {
+    const before = snapshot();
+    const { state, effects } = applyFightCommand(before, command, fightDeps());
+    // A move can only be taken back within the turn it was made in.
+    if (TURN_CHANGING.has(command.type)) moveHistory.value = {};
+    adopt(before, state, effects, command.type);
+    return effects.filter(isTurnEvent);
   }
 
   /** Re-roll everyone's initiative silently (auto d20 — never a physical-dice
@@ -340,46 +352,21 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     dispatch({ type: "set_temp_hp", instanceId, value });
   }
 
-  /** Adopt a temp-HP value that came FROM party_members (the player changed it on
-   *  their own sheet). Assigns verbatim — no max(), no persist — because the DB row
-   *  is the authority here and writing back would echo our own realtime event. */
+  /** Adopt a temp-HP value that came FROM party_members; see `adoptTempHp`. */
   function ingestTempHp(instanceId: string, value: number) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return;
-    c.temp_hp = value > 0 ? value : undefined;
+    const before = snapshot();
+    adopt(before, adoptTempHp(before, instanceId, value), [], null);
   }
 
-  /** Adopt a beast form taken or dropped outside the runner (the player's own
-   *  sheet), without writing it back. Same reasoning as ingestTempHp: the row is
-   *  the authority, and a runner that does not know about the form damages the
-   *  druid instead of the beast and then persists the form away. */
-  function ingestWildshape(instanceId: string, form: WildshapeState | null) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return;
-    c.wildshape = form ? { ...form } : undefined;
-  }
-
-  /** Adopt HP from party_members without writing it back. Realtime rows are
-   * authoritative and must not create a second mutation or an echo loop. */
-  function ingestHp(instanceId: string, value: number) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return;
-    if (c.wildshape && c.wildshape.beast_max_hp !== null) {
-      c.wildshape.beast_hp = Math.min(c.wildshape.beast_max_hp, Math.max(0, value));
-      if (c.wildshape.beast_hp === 0) c.wildshape = undefined;
-    } else {
-      // Healing from 0 ends the dying state, wherever it was done.
-      if (c.hp <= 0 && value > 0) c.death_saves = { successes: 0, failures: 0 };
-      c.hp = Math.min(c.max_hp, Math.max(0, value));
-    }
-    checkEvents();
-  }
-
-  /** Adopt death saves rolled outside the runner (the player's own sheet), without writing back. */
-  function ingestDeathSaves(instanceId: string, saves: { successes: number; failures: number }) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return;
-    c.death_saves = { ...saves };
+  /** Apply one party_members row by the rules in `rules/fight/partyIngest`. Returns
+   *  what the row says the member concentrates on (null for none) when the fight
+   *  has that member, for the caller to remember; undefined when it does not. */
+  function ingestParty(row: PartyIngestRow, context: PartyIngestContext): string | null | undefined {
+    const before = snapshot();
+    const result = ingestPartyRow(before, row, context, fightDeps());
+    if (!result.matched) return undefined;
+    adopt(before, result.state, result.effects, null);
+    return result.concentration;
   }
 
   function setHp(instanceId: string, value: number) {
@@ -421,13 +408,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     dispatch({ type: "end_concentration", instanceId, spell });
   }
 
-  /** Adopt conditions from party_members without persisting the same row. */
-  function ingestConditions(instanceId: string, conditions: AppliedCondition[]) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return;
-    c.conditions = [...conditions];
-  }
-
   function addCurse(instanceId: string, curse: string) {
     const c = combatants.value.find((x) => x.instance_id === instanceId);
     if (!c || !curse.trim() || c.curses.includes(curse.trim())) return;
@@ -453,22 +433,12 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     c.reveal_state = order[(idx + 1) % order.length];
   }
 
-  function shouldTrigger(trigger: EventTrigger): boolean {
-    return evaluateTrigger(trigger, combatants.value, round.value);
-  }
-
   function addMonster(monsterId: string, factionId: string, count: number, customName?: string) {
-    const monster = availableMonsters.value.find((m) => m.id === monsterId);
-    if (!monster) return;
-    combatants.value.push(
-      ...buildMonsterCombatants(monster, { factionId, count, customName, started: started.value, includeLegendaryActions: true }),
-    );
+    combatants.value.push(...spawnMonsters(fightDeps(), started.value, monsterId, { factionId, count, customName }, true));
   }
 
   function addNpc(npcId: string, factionId: string, count: number, customName?: string) {
-    const npc = availableNpcs.value.find((n) => n.id === npcId);
-    if (!npc) return;
-    combatants.value.push(...buildNpcCombatants(npc, { factionId, count, customName, started: started.value }));
+    combatants.value.push(...spawnNpcs(fightDeps(), started.value, npcId, { factionId, count, customName }));
   }
 
   /** Gives every combatant that joined on stand-in numbers the real ones, once
@@ -483,27 +453,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
       const adopted = adoptStatBlock(c, source?.stat_block);
       if (adopted) combatants.value[i] = adopted;
     });
-  }
-
-  /** Mid-combat event spawns intentionally don't seed a legendary-action pool
-   *  (unlike `addMonster`) — matches prior behavior, see buildMonsterCombatants. */
-  function spawnFromDef(spawn: SpawnDef) {
-    // Absent `kind` means monster — every event authored before #604 predates
-    // the field. See SpawnDef.
-    if (spawn.kind === "npc") {
-      addNpc(spawn.monster_id, spawn.faction_id, spawn.count, spawn.custom_name);
-      return;
-    }
-    const monster = availableMonsters.value.find((m) => m.id === spawn.monster_id);
-    if (!monster) return;
-    combatants.value.push(
-      ...buildMonsterCombatants(monster, {
-        factionId: spawn.faction_id,
-        count: spawn.count,
-        customName: spawn.custom_name,
-        started: started.value,
-      }),
-    );
   }
 
   /** Settles one owed concentration save; a lost one ends what the holder was concentrating on. */
@@ -525,51 +474,17 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
    *  benched companion is flipped back to "with the party" mid-lobby. No-op if
    *  the companion is already present. */
   function addCompanionCombatant(comp: Companion, factionId: string) {
-    const instanceId = `c-${comp.id}`;
-    if (combatants.value.some((c) => c.instance_id === instanceId)) return;
-    combatants.value.push({
-      instance_id: instanceId,
-      type: "player",
-      name: comp.name,
-      faction_id: factionId,
-      initiative: null,
-      hp: comp.current_hp,
-      max_hp: comp.max_hp,
-      ac: String(comp.ac),
-      conditions: [...comp.conditions],
-      curses: [],
-      death_saves: { successes: 0, failures: 0 },
-      dex_mod: 0,
-      portrait_url: comp.portrait_url ?? null,
-      portrait_focal_point: comp.portrait_focal_point ?? null,
-      companion_id: comp.id,
-      size: comp.size,
-      footprint: sizeToFootprint(comp.size),
-    });
+    if (combatants.value.some((c) => c.instance_id === `c-${comp.id}`)) return;
+    combatants.value.push(companionCombatant(comp, factionId));
   }
 
-  function executeEvent(event: EncounterEvent) {
-    if (!eventsFired.value.includes(event.id)) eventsFired.value.push(event.id);
-    for (const action of event.actions) {
-      if (action.type === "spawn_combatants") {
-        for (const spawn of action.spawns) spawnFromDef(spawn);
-      } else if (action.type === "broadcast_message") {
-        pendingBroadcasts.value.push(action.message);
-      } else if (action.type === "environment_effect") {
-        // Broadcast the same way a message action does — the table hears about
-        // the collapsing floor — and that is the whole of it. The hazard's
-        // continuing presence is DERIVED from `eventsFired`, not stored, so
-        // there is no third piece of state to sync, persist or get out of step
-        // with the fired list (see activeEnvironmentEffects).
-        pendingBroadcasts.value.push(`${action.label}: ${action.description}`);
-      }
-    }
+  function applyEventResult(before: FightState, result: FightResult) {
+    adopt(before, result.state, result.effects, null);
   }
 
   function fireEvent(eventId: string) {
-    const event = events.value.find((e) => e.id === eventId);
-    if (!event) return;
-    executeEvent(event);
+    const before = snapshot();
+    applyEventResult(before, fireFightEvent(before, eventId, fightDeps()));
   }
 
   /**
@@ -587,13 +502,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   }
 
   function checkEvents() {
-    if (!started.value) return;
-    for (const event of events.value) {
-      if (event.fire_once && eventsFired.value.includes(event.id)) continue;
-      if (event.trigger.type !== "manual" && shouldTrigger(event.trigger)) {
-        executeEvent(event);
-      }
-    }
+    const before = snapshot();
+    applyEventResult(before, checkFightEvents(before, fightDeps()));
   }
 
   function clearPendingBroadcast(message: string) {
@@ -728,7 +638,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     combatants.value = state.combatants_live;
     round.value = state.current_round;
     activeIndex.value = state.active_combatant_index;
-    started.value = state.current_round > 0;
+    started.value = startedFromRound(state.current_round);
     if (state.events) events.value = state.events;
     if (state.events_fired) eventsFired.value = state.events_fired;
     if (state.traps) traps.value = state.traps;
@@ -779,8 +689,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     setMaxHp,
     setTempHp,
     ingestTempHp,
-    ingestHp,
-    ingestDeathSaves,
+    ingestParty,
     applyCondition,
     removeCondition,
     setConditions,
@@ -789,8 +698,6 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     endConcentration,
     concentrationChecks,
     resolveConcentrationCheck,
-    ingestConditions,
-    ingestWildshape,
     addCurse,
     removeCurse,
     setRevealState,

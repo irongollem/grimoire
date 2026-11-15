@@ -18,6 +18,12 @@ const ENTRY_POINTS = [
   "src/rules/combat/resolveAction.ts",
   "src/rules/conditionDurations.ts",
   "src/rules/encounterCombatLogic.ts",
+  "src/rules/fight/fightCommands.ts",
+  "src/rules/fight/fightEvents.ts",
+  "src/rules/fight/fightSpawn.ts",
+  "src/rules/fight/fightState.ts",
+  "src/rules/fight/partyIngest.ts",
+  "src/rules/fight/fightEnd.ts",
   "src/lib/dice/diceRules.ts",
   "src/systems/dnd5e/dice/rules.ts",
 ];

@@ -248,7 +248,7 @@ import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
 import { useEncounter } from "@/composables/encounters/useEncounters";
 import { useCombatExploration } from "@/composables/encounters/useCombatExploration";
 import { useSetExploreParty } from "@/composables/campaign/useCampaigns";
-import { partyAfterFight } from "@/lib/encounters/exploreAfterFight";
+import { endOfFightPatches } from "@/rules/fight/fightEnd";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useCompanions, useUpdateCompanion } from "@/composables/encounters/useCompanions";
@@ -271,7 +271,6 @@ import { useRunnerPartySync } from "@/composables/encounters/useRunnerPartySync"
 import { useEvergreenWildShape } from "@/composables/encounters/useEvergreenWildShape";
 import RunnerCombatantList from "./RunnerCombatantList.vue";
 import RunnerDueConditions from "./RunnerDueConditions.vue";
-import { withoutDue } from "@/lib/encounters/conditionSources";
 import RunnerEntityDetail from "./RunnerEntityDetail.vue";
 import RunnerDmTools from "./RunnerDmTools.vue";
 import RunnerGenerateMenu from "./RunnerGenerateMenu.vue";
@@ -636,38 +635,23 @@ async function handleEndCombat() {
 
   // Sync player combatants back to party_members. (Roster-NPC death/reveal is
   // handled live as it happens — see the NPC-sync watcher above — not here.)
-  const playerCombatants = store.combatants.filter((c) => c.type === "player" && c.party_member_id);
-  // Companions persist HP + conditions the same way so they walk into the next
-  // encounter at whatever state combat left them in (#569). Abandon skips this
-  // block entirely, same as it does for party members.
-  const companionCombatants = store.combatants.filter((c) => c.type === "player" && c.companion_id);
+  // Companions persist HP + conditions the same way (#569). Abandon skips this
+  // block entirely, same as it does for party members. What each write carries,
+  // and where the party stands afterwards, is decided in `rules/fight/fightEnd`.
+  const activeCampaign = campaign.activeCampaign;
+  const patches = endOfFightPatches({
+    combatants: store.combatants,
+    tokensAtEnd,
+    exploreParty: activeCampaign?.explore_party ?? null,
+    siteId: fightSite.value?.id ?? null,
+  });
   await Promise.all([
-    ...playerCombatants.map((c) =>
-      writePartyMember(c.party_member_id!, {
-        current_hp: c.hp,
-        conditions: withoutDue(c.conditions),
-        curses: c.curses,
-        // The roll was for this fight; the next lobby starts blank.
-        current_initiative: null,
-        death_save_successes: c.death_saves.successes,
-        death_save_failures: c.death_saves.failures,
-      }),
-    ),
-    ...companionCombatants.map((c) =>
-      updateCompanion({
-        id: c.companion_id!,
-        update: {
-          current_hp: c.hp,
-          conditions: withoutDue(c.conditions),
-        },
-      }),
-    ),
+    ...patches.partyMembers.map(({ id, patch }) => writePartyMember(id, patch)),
+    ...patches.companions.map(({ id, patch }) => updateCompanion({ id, update: patch })),
   ]);
 
   // The party stands where the fight left them (#1133 decision 7). Rooms were marked explored live as they entered.
-  const activeCampaign = campaign.activeCampaign;
-  const standing = partyAfterFight(tokensAtEnd, activeCampaign?.explore_party ?? null, fightSite.value?.id ?? null);
-  if (activeCampaign && standing) await setExploreParty({ id: activeCampaign.id, explore: standing });
+  if (activeCampaign && patches.exploreParty) await setExploreParty({ id: activeCampaign.id, explore: patches.exploreParty });
 
   store.reset();
   // A fight anchored in a site goes back to exploring it; any other back to its encounter (#1125).

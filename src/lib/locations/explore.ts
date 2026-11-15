@@ -13,10 +13,9 @@ import { regionCellToBattleCell, seedTokenPositions } from "@/lib/battlemap/room
 import { footprintCells } from "@/lib/battlemap/partySight";
 import { sizeToFootprint, type SizedToken } from "@/lib/battlemap/tokenFootprint";
 import type { MonsterSize } from "@/types/monster.types";
+import { positionsOnSite, type ExploreCell } from "@/rules/fight/explorePositions";
 import type { SpeciesSize } from "@/types/species.types";
 import { effectiveSize, type SpeciesStatsSource } from "@/rules/speciesStats";
-
-export type ExploreCell = { x: number; y: number };
 
 /** A room's standing in the Rooms list: lit, the one the party is stepping into, or still shaded. */
 export type RoomExploreState = "explored" | "entering" | "hidden";
@@ -66,11 +65,6 @@ export function exploreTokens(
 ): RunCombatant[] {
   const standing = positionsOnSite(explore, siteId);
   return members.map((m) => exploreToken(m, Object.hasOwn(standing, m.id) ? standing[m.id] : null, sizeOf(m.id)));
-}
-
-/** Where the party stands on this site, or an empty record when `explore_party` is for another site (one site at a time). */
-export function positionsOnSite(explore: ExploreParty | null, siteId: string): Record<string, ExploreCell> {
-  return explore !== null && explore.site_id === siteId ? explore.positions : {};
 }
 
 /** battle cell -> the room whose traced region covers it. The first region to claim a cell keeps it. */

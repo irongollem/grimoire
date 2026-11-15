@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { partyAfterFight } from "@/lib/encounters/exploreAfterFight";
+import { partyAfterFight } from "./explorePositions.ts";
 import type { RunCombatant } from "@/types/encounter.types";
 
 function hero(party_member_id: string, position?: { x: number; y: number }): RunCombatant {

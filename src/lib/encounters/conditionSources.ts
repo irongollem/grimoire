@@ -1,5 +1,4 @@
 import type { NameOf } from "@/rules/conditionLabels";
-import type { AppliedCondition } from "@/types/condition.types";
 import type { RunCombatant } from "@/types/encounter.types";
 
 /** A `NameOf` over the combatants a DM can see: every one, by instance id. */
@@ -28,9 +27,4 @@ export function heldConcentrationSpells(combatants: readonly RunCombatant[], sou
     }
   }
   return spells;
-}
-
-/** Conditions as they leave a fight: nothing owes a roll out of combat, so `due` is dropped from every record. */
-export function withoutDue(conditions: readonly AppliedCondition[]): AppliedCondition[] {
-  return conditions.map(({ due: _due, ...rest }) => rest);
 }

@@ -181,10 +181,10 @@ import {
   roomBeingEntered,
   roomCellIndex,
   seedPartyPositions,
-  type ExploreCell,
   type ExploreFrame,
   type RoomExploreState,
 } from "@/lib/locations/explore";
+import type { ExploreCell } from "@/rules/fight/explorePositions";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { buildDmFogPlan } from "@/lib/locations/siteFog";

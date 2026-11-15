@@ -137,15 +137,17 @@ export interface MonsterSpawnOptions {
    *  mid-combat event spawns intentionally don't, matching prior behavior. */
   includeLegendaryActions?: boolean;
   rollD20?: () => number;
+  /** Id source for the instance-id prefix; defaults to the clock. A server passes its own. */
+  now?: () => number;
 }
 
 /** Builds the RunCombatant entries for `count` copies of a monster. Pure
- *  aside from `Date.now()` in the instance-id prefix (uniqueness only, not
- *  behavior); the caller pushes the result onto `combatants`. */
+ *  aside from the clock in the instance-id prefix unless `now` is injected
+ *  (uniqueness only, not behavior); the caller pushes the result onto `combatants`. */
 export function buildMonsterCombatants(monster: Monster, opts: MonsterSpawnOptions): RunCombatant[] {
   const sb = monster.stat_block;
   const stats = combatStats(sb, 1);
-  const spawnKey = `spawn-${monster.id}-${Date.now()}`;
+  const spawnKey = `spawn-${monster.id}-${(opts.now ?? Date.now)()}`;
   const legendaryCap = opts.includeLegendaryActions && sb?.legendary_actions?.length ? 3 : undefined;
 
   const out: RunCombatant[] = [];
@@ -183,6 +185,8 @@ export interface NpcSpawnOptions {
   customName?: string;
   started: boolean;
   rollD20?: () => number;
+  /** Id source for the instance-id prefix; defaults to the clock. */
+  now?: () => number;
 }
 
 /** Builds the RunCombatant entries for `count` copies of an NPC. Same shape
@@ -190,7 +194,7 @@ export interface NpcSpawnOptions {
  *  listed Initiative is what the book rolls, for an NPC as for a monster. */
 export function buildNpcCombatants(npc: NpcListRow, opts: NpcSpawnOptions): RunCombatant[] {
   const stats = combatStats(npc.stat_block, 10);
-  const spawnKey = `spawn-npc-${npc.id}-${Date.now()}`;
+  const spawnKey = `spawn-npc-${npc.id}-${(opts.now ?? Date.now)()}`;
 
   const out: RunCombatant[] = [];
   for (let i = 0; i < opts.count; i++) {
