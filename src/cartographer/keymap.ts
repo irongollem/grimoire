@@ -38,6 +38,8 @@ export type KeyAction =
   | { kind: "clearSelection" }
   /** Round brush: radius change in cells (`[` shrinks, `]` grows). */
   | { kind: "resizeBrush"; delta: number }
+  /** Zoning's round brush: the same keys and step as the Drawing's, on its own radius. */
+  | { kind: "resizeZoneBrush"; delta: number }
   /** B while Brush is already selected: switch its optional perimeter walls on or off. */
   | { kind: "toggleBrushWalls" }
   /** X: the active and second tile sets trade places, as Photoshop's X trades its two colours. */
@@ -76,6 +78,8 @@ export interface KeyContext {
   layer?: EditorLayer;
   /** Zoning's tools and their keys (#1125 frame 19). Answered only while `layer` is "plan". */
   zoningTools?: ReadonlyArray<{ id: string; shortcut: string }>;
+  /** Zoning's Zone tool has its round Brush in hand, so [ and ] size it. */
+  zoneBrushActive?: boolean;
   /** "Find walls in the picture" is open, so Escape closes it before it means anything else. */
   wallFinderOpen?: boolean;
   /** Place has something armed (an object or a prop); Escape then puts it down before it leaves the tool. */
@@ -133,6 +137,9 @@ export function resolveKeyAction(ev: KeyEventLike, ctx: KeyContext): KeyAction |
   if (ctx.layer === "plan" && !ev.shiftKey) {
     const zoning = ctx.zoningTools?.find((t) => t.shortcut === key);
     if (zoning) return { kind: "selectZoningTool", tool: zoning.id };
+    if (ctx.zoneBrushActive && (key === "[" || key === "]")) {
+      return { kind: "resizeZoneBrush", delta: key === "[" ? -BRUSH_RADIUS_STEP : BRUSH_RADIUS_STEP };
+    }
   }
   const onDrawing = ctx.layer === undefined || ctx.layer === "drawing";
 

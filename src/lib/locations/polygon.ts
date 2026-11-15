@@ -85,6 +85,17 @@ export function pointInRing(px: number, py: number, ring: readonly GridPoint[]):
   return inside;
 }
 
+/** Absolute area of a ring, in squares (shoelace); the same whichever way round the ring runs. */
+export function ringArea(ring: readonly (readonly [number, number])[]): number {
+  let twice = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i];
+    const b = ring[(i + 1) % ring.length];
+    twice += a[0] * b[1] - b[0] * a[1];
+  }
+  return Math.abs(twice) / 2;
+}
+
 export function ringBounds(
   ring: readonly GridPoint[],
 ): { minX: number; minY: number; maxX: number; maxY: number } | null {

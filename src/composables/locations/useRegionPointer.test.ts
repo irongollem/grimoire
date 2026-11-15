@@ -173,18 +173,20 @@ describe("round brush (#1197, frame 05)", () => {
     expect(inside(ring, 5.7, 3)).toBe(false); // 0.3 from the disc's centre: carved
   });
 
-  it("a carve that splits the zone keeps the larger part", () => {
+  it("a carve that splits the zone keeps both parts, as squares, and drops neither", () => {
     const { pointer, options, region, radius } = makeHarness();
     radius.current = 1.2;
-    region.current = makeRegion({ vertices: [[0, 0], [10, 0], [10, 2], [0, 2]], cells: ["0,0"] });
+    region.current = makeRegion({ vertices: [[0, 0], [12, 0], [12, 2], [0, 2]], cells: ["0,0"] });
 
-    // A disc of radius 1.2 at (8,1) spans the whole height (0..2): the long left part (about 7 by 2) and a short
-    // right part (about 1 by 2) are left.
+    // A disc of radius 1.2 at (8,1) spans the whole height (0..2): a long left part and a right part about 3 by 2
+    // are left. A region holds one ring, so two parts are written as their squares.
     drag(pointer, [[8, 1]], { altKey: true });
 
-    const ring = lastRing(options);
-    expect(inside(ring, 3, 1)).toBe(true);
-    expect(Math.max(...ring.map((p) => p[0]))).toBeLessThan(7.6);
+    expect(options.commitRing).not.toHaveBeenCalled();
+    const cells = vi.mocked(options.commitCells).mock.calls.at(-1)![1];
+    expect(cells).toContain("3,1");
+    expect(cells).toContain("11,0");
+    expect(cells).not.toContain("8,1");
   });
 
   it("carving everything away leaves an empty region, with no ring committed", () => {

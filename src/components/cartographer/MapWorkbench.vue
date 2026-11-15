@@ -687,13 +687,14 @@ onMounted(() => {
 watch(() => map, (m) => applyMapToState(m ?? null), { immediate: true });
 
 // New walls start Hidden on a map that is a picture and nothing else (frame 02). Only an initial value: it is
-// decided when a map arrives, never again for the same map once the DM has set the control themselves.
+// decided when a map arrives and again when its picture does (a picture uploaded after the map opened is the usual
+// way to get here), and never once the DM has set the control themselves.
 const wallVisibleChosen = ref(false);
 function setWallVisible(visible: boolean): void {
   wallVisibleChosen.value = true;
   wallVisible.value = visible;
 }
-watch(() => map?.id, () => {
+watch([() => map?.id, () => !!referencePicture.value], () => {
   if (!wallVisibleChosen.value) wallVisible.value = initialWallVisible(layers.value, !!referencePicture.value);
 }, { immediate: true });
 

@@ -403,7 +403,8 @@ interface WallRings {
   values: WallEdge[];
   polygons: GridPoint[][];
   owned: CellKey[][];
-  faces: WeakMap<object, FoundFace[]>;
+  /** The faces last handed out, with the solid squares they were worked out against. */
+  faces: { solid: string[]; found: FoundFace[] } | null;
 }
 
 // Keyed on the walls object and checked against its contents, like `cachedWallGeometry`. Welding and walking the
@@ -431,7 +432,7 @@ function wallRingsOf(layers: DungeonMapLayers): WallRings {
     }
     return mine;
   });
-  const rings: WallRings = { keys, values: keys.map((k) => layers.walls[k]), polygons: faces.map((f) => f.polygon), owned, faces: new WeakMap() };
+  const rings: WallRings = { keys, values: keys.map((k) => layers.walls[k]), polygons: faces.map((f) => f.polygon), owned, faces: null };
   wallRingsCache.set(layers.walls, rings);
   return rings;
 }
@@ -444,14 +445,17 @@ function wallRingsOf(layers: DungeonMapLayers): WallRings {
  */
 export function wallFaces(layers: DungeonMapLayers): FoundFace[] {
   const rings = wallRingsOf(layers);
-  const hit = rings.faces.get(layers.solidBlock);
-  if (hit) return hit;
-  const faces = rings.polygons.map((polygon, i): FoundFace => ({
+  // Solid blocks are painted and erased IN PLACE (paintOps), so the object's identity says nothing: the squares it
+  // holds are compared instead, as the walls are above.
+  const solid = Object.keys(layers.solidBlock);
+  const hit = rings.faces;
+  if (hit && hit.solid.length === solid.length && solid.every((k, i) => hit.solid[i] === k)) return hit.found;
+  const found = rings.polygons.map((polygon, i): FoundFace => ({
     cells: rings.owned[i].filter((k) => !layers.solidBlock[k]),
     outline: simplifyLoop(polygon),
   }));
-  rings.faces.set(layers.solidBlock, faces);
-  return faces;
+  rings.faces = { solid, found };
+  return found;
 }
 
 /**

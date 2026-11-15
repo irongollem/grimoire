@@ -60,7 +60,7 @@ import { findAgain, materializeFound, zoningList, type ZoningEntry } from "@/lib
 import { foundRegionOf, foundSpaceKey } from "@/lib/locations/zoningRows";
 import { emptyZoneInsert } from "@/lib/locations/zones";
 import { cellsInsideRing } from "@/lib/locations/polygon";
-import { regionLoops, strokeZoneRing } from "@/lib/locations/zoneBrush";
+import { regionLoops, strokeZoneShape } from "@/lib/locations/zoneBrush";
 import type { TraceTool } from "@/lib/locations/polygon";
 import { wallFaces } from "@/cartographer/roomOutline";
 import { addFreeDoor, cutDoorIntoWall, doorWallTypeOf, removeDoorWall, setDoorWallType } from "@/cartographer/doorCut";
@@ -325,7 +325,8 @@ export function usePlanPalette(
    *
    *  A region with a ring (a lasso, a brush or a pen shape) is carved out of its ring, not just stripped of squares:
    *  taking the squares alone would leave `vertices` describing the old shape, and the canvas would keep drawing it.
-   *  The carved ring is the largest loop left (a region holds one ring), written with its squares derived. */
+   *  What is left in one piece is written as a ring with its squares derived; cut into several pieces, as its
+   *  squares (a region holds one ring). */
   function eraseCells(erased: ReadonlySet<CellKey>): void {
     const current = regions.value.map((region) => {
       const now = regionStateNow(region.id);
@@ -337,10 +338,10 @@ export function usePlanPalette(
         commitCells(regionId, cells);
         continue;
       }
-      const ring = strokeZoneRing(regionLoops(vertices, []), [], true, erased);
-      if (ring === null) continue;
-      if (ring.length === 0) commitCells(regionId, []);
-      else void commitRing(regionId, ring).catch(() => {});
+      const shape = strokeZoneShape(regionLoops(vertices, []), [], true, erased);
+      if (shape === null) continue;
+      if ("cells" in shape) commitCells(regionId, shape.cells);
+      else void commitRing(regionId, shape.ring).catch(() => {});
     }
   }
 
@@ -518,10 +519,6 @@ export function usePlanPalette(
   }
 
   // ── Door mutations ────────────────────────────────────────────────────
-
-  function existingDoorAtEdge(edgeKey: SourceEdgeKey): SiteDoorWithSpaces | null {
-    return ways.value.find((w) => w.edge_key === edgeKey) ?? null;
-  }
 
   /** What putting a door on `site` writes: the key the row carries, its line (null for a grid key, as the database
    *  holds them together), and the Drawing's own undo for the cut that made it (null when nothing was cut). */
@@ -762,11 +759,11 @@ export function usePlanPalette(
     selectRegion,
     findAgainNow,
     commitCells,
+    regionStateNow,
     eraseCells,
     commitRing,
     commitTemplate,
     assignArea,
-    existingDoorAtEdge,
     placingDoorId,
     armDoorPlacement,
     placeArmedDoorOn,

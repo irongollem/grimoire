@@ -43,7 +43,7 @@ import { canonicaliseEdge } from "@/cartographer/edges";
 import { detectHoveredEdge } from "@/cartographer/edgeHover";
 import { floodFill } from "@/cartographer/floodFill";
 import { wallFaceAt, type FoundFace } from "@/cartographer/roomOutline";
-import { distanceToSegment, nearestWallFoot, WALL_PICK_RADIUS, type CellPoint } from "@/cartographer/wallPick";
+import { distanceToSegment, nearestWallFoot, wallStretch, WALL_PICK_RADIUS, type CellPoint } from "@/cartographer/wallPick";
 import { DOOR_EDGE_SNAP_THRESHOLD, doorSegment, gridEdgeSegment, indexSpacesByCell, resolveSegmentEndpoints } from "@/lib/locations/doors";
 import { templateRing as buildTemplateRing } from "@/lib/locations/polygon";
 import { cellKey, type CellKey, type DungeonMapLayers } from "@/types/dungeonMap.types";
@@ -125,7 +125,12 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     cellAt,
     isPaintable: () => true, // the Cartographer's canvas has no image bound to stay on
     gridPointAt,
-    activeRegion: () => (isTraceTool() ? plan.activeRegion.value : null),
+    // The shape as this palette last wrote it, not the query row: a second stroke begun before the first one's
+    // refetch lands must build on the first, or committing it would throw the first away.
+    activeRegion: () => {
+      const region = isTraceTool() ? plan.activeRegion.value : null;
+      return region ? { ...region, ...plan.regionStateNow(region.id) } : null;
+    },
     hasActiveRegionId: () => isTraceTool() && plan.activeRegionId.value !== null,
     tool: () => plan.traceTool.value,
     brushRadius: () => plan.brushRadius.value,
@@ -195,23 +200,14 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     return `${canon.x},${canon.y}:${canon.side}` as SourceEdgeKey;
   }
 
-  /** The door-wide stretch of a wall under the pointer, centred on its foot point and kept inside the piece it lies on
-   *  (a piece shorter than the door gives the whole piece). A wall on a grid line is a single 5 ft edge, so it is
-   *  always that whole edge whatever the width: it cannot hold half a door. */
-  function wallStretch(point: CellPoint): { segment: DoorSegment; wallId: string } | null {
+  /** The door-wide stretch of a wall under the pointer, centred on its foot point and kept inside the wall (a wall
+   *  shorter than the door gives the whole wall). A wall on a grid line is a single 5 ft edge, so it is always that
+   *  whole edge whatever the width: it cannot hold half a door. */
+  function doorStretch(point: CellPoint): { segment: DoorSegment; wallId: string } | null {
     const hit = nearestWallFoot(layers.value.walls, point, WALL_PICK_RADIUS);
     if (!hit || layers.value.walls[hit.wallId]?.type !== "wall") return null;
     if (isGridEdgeKey(hit.wallId)) return { segment: gridEdgeSegment(hit.wallId), wallId: hit.wallId };
-    const length = Math.hypot(hit.b[0] - hit.a[0], hit.b[1] - hit.a[1]);
-    const ux = length === 0 ? 0 : (hit.b[0] - hit.a[0]) / length;
-    const uy = length === 0 ? 0 : (hit.b[1] - hit.a[1]) / length;
-    const width = Math.min(plan.doorWidth.value, length);
-    const start = Math.max(0, Math.min(length - width, hit.t * length - width / 2));
-    const segment: DoorSegment = [
-      [hit.a[0] + ux * start, hit.a[1] + uy * start],
-      [hit.a[0] + ux * (start + width), hit.a[1] + uy * (start + width)],
-    ];
-    return { segment, wallId: hit.wallId };
+    return { segment: wallStretch(layers.value.walls, hit, plan.doorWidth.value), wallId: hit.wallId };
   }
 
   /** What the Door tool would act on at the pointer: a placed door, else a plain wall, else the nearest grid edge. */
@@ -230,7 +226,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
         }
       }
       if (nearest) return { target: "way", segment: nearest.segment, way: nearest.way };
-      const stretch = wallStretch(point);
+      const stretch = doorStretch(point);
       if (stretch) {
         return { target: "wall", segment: stretch.segment, site: { kind: "wall", wallId: stretch.wallId, from: stretch.segment[0], to: stretch.segment[1] } };
       }
@@ -247,7 +243,9 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     return [from, [from[0] + (to[0] - from[0]) * k, from[1] + (to[1] - from[1]) * k]];
   }
 
-  const roomsBeside = (segment: DoorSegment) => resolveSegmentEndpoints(segment, indexSpacesByCell(plan.regions.value));
+  // Indexed once per change of the rooms, not per pointer move: the tip below asks on every move of the Door tool.
+  const spacesByCell = computed(() => indexSpacesByCell(plan.regions.value));
+  const roomsBeside = (segment: DoorSegment) => resolveSegmentEndpoints(segment, spacesByCell.value);
 
   /** The line under the pointer says which rooms it would join, before the click (frame 06): the options slip shows it. */
   const doorTip = computed<string | null>(() => {

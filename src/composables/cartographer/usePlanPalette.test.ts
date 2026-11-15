@@ -707,7 +707,7 @@ describe("usePlanPalette doors cut into the Drawing", () => {
     const { plan, state } = palette({});
     plan.placeDoorAt({ kind: "free", from: [2, 2], to: [3, 2] }, "a", "b");
     const [key, door] = Object.entries(state.layers.walls)[0]!;
-    expect(door).toEqual({ type: "doorClosed", a: [2, 2], b: [3, 2], visible: false, pack_id: "", pack_version: 0, variant: 0 });
+    expect(door).toEqual({ type: "doorClosed", a: [2, 2], b: [3, 2], visible: false, freeStanding: true, pack_id: "", pack_version: 0, variant: 0 });
     expect(createDoorStub.calls[0]!.vars).toMatchObject({ edge_key: key, segment: [[2, 2], [3, 2]] });
   });
 
@@ -824,11 +824,11 @@ describe("usePlanPalette doors cut into the Drawing", () => {
   });
 
   it("removing a way turns a cut door back into a wall and deletes a free-standing one, and undo restores either", async () => {
-    // The door at (4,0)-(5,0) meets the wall before it, so it was cut. The free door at (7,7) meets nothing.
+    // The door at (4,0)-(5,0) was cut from a wall. The one at (7,7) was drawn free across an opening, which it says.
     const { plan, state } = palette({
       before: wall([0, 0], [4, 0]),
       cut: wall([4, 0], [5, 0], { type: "doorClosed" }),
-      free: wall([7, 7], [8, 7], { type: "doorClosed", visible: false }),
+      free: wall([7, 7], [8, 7], { type: "doorClosed", visible: false, freeStanding: true }),
     });
     plan.removeDoor(way({ id: "r-cut", edge_key: "cut", segment: [[4, 0], [5, 0]] }));
     deleteDoorStub.calls[0]!.onSuccess?.({});

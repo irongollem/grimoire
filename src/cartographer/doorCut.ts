@@ -14,15 +14,9 @@ export type DoorWallType = "doorClosed" | "doorOpen";
 /** A stretch of wall shorter than this is not worth a wall of its own: a door at the very end of a wall leaves none. */
 export const MIN_REMAINDER = 0.05;
 
-/** How close two wall ends are to count as the same point. */
-const SAME_POINT = 1e-6;
-
 const isDoorType = (type: EdgeSegType): boolean => type === "doorClosed" || type === "doorOpen";
 
 export const doorWallTypeOf = (kind: "door" | "arch"): DoorWallType => (kind === "arch" ? "doorOpen" : "doorClosed");
-
-const samePoint = (p: readonly [number, number], q: readonly [number, number]): boolean =>
-  Math.abs(p[0] - q[0]) <= SAME_POINT && Math.abs(p[1] - q[1]) <= SAME_POINT;
 
 /**
  * Cuts a door, `from` to `to`, into the plain wall `wallId`.
@@ -96,6 +90,7 @@ export function addFreeDoor(
     a: [from[0], from[1]],
     b: [to[0], to[1]],
     visible: false,
+    freeStanding: true,
     pack_id: "",
     pack_version: 0,
     variant: 0,
@@ -112,17 +107,13 @@ export function setDoorWallType(walls: Readonly<Walls>, key: string, type: DoorW
 
 /**
  * The inverse of cutting: takes the door at `key` out of the Drawing. A door that was cut from a wall becomes a plain
- * wall again (same visibility); a free-standing one is deleted. Told apart by whether one of its ends meets an end of
- * another wall, which is true of every door cut from a wall and false of a free one drawn in an opening. A grid door is
- * always the edge a wall was switched on, so it is always a wall again. Null when `key` is not a door.
+ * wall again (same visibility); one drawn free across an opening (`freeStanding`, set by `addFreeDoor`) is deleted.
+ * Null when `key` is not a door.
  */
 export function removeDoorWall(walls: Readonly<Walls>, key: string): Walls | null {
   const wall = walls[key];
   if (!wall || !isDoorType(wall.type)) return null;
-  const meetsAWall =
-    isLatticeKey(key) ||
-    Object.entries(walls).some(([id, other]) => id !== key && [other.a, other.b].some((end) => samePoint(end, wall.a) || samePoint(end, wall.b)));
-  if (meetsAWall) return { ...walls, [key]: { ...wall, type: "wall" } };
+  if (!wall.freeStanding) return { ...walls, [key]: { ...wall, type: "wall" } };
   const next = { ...walls };
   delete next[key];
   return next;

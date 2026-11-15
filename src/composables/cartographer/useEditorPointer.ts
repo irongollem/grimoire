@@ -95,7 +95,9 @@ export function useEditorPointer(inputs: {
   /** A gesture is under way (a drag, a held stroke), so the motion snapshot rebuilds on an interval, not per edit. */
   const gestureBusy = ref(false);
   const syncBusy = (): void => {
-    gestureBusy.value = isPainting.value || dressingTool.isHolding() || lightTool.isHolding() || wallNodes.dragging.value || selectTool.isHolding();
+    gestureBusy.value =
+      isPainting.value || dressingTool.isHolding() || lightTool.isHolding() || wallNodes.dragging.value || selectTool.isHolding()
+      || freehandTool.stroke.value.length > 0;
   };
 
   /** Right button, or Alt with the left: Place takes away instead of putting down. */
@@ -513,6 +515,8 @@ export function useEditorPointer(inputs: {
     dressingTool.cancelGesture();
     lightTool.cancelGesture();
     selectTool.cancelGesture();
+    // A freehand stroke is a drag like the brush's: the pinch's first finger must not leave a wall behind.
+    freehandTool.abandon();
     if (wallNodes.dragging.value) wallNodes.cancel();
     syncBusy();
     isPanning.value = false;

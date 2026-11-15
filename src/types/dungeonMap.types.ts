@@ -70,6 +70,12 @@ export interface WallEdge extends EdgeSeg {
    */
   smoothA?: true;
   smoothB?: true;
+  /**
+   * A door drawn across an opening where no wall was (#1196), as opposed to one cut into a wall. Taking such a door
+   * away takes its line with it; a cut door becomes wall again. Recorded here because nothing else can tell the two
+   * apart afterwards: a free door may end on a wall's end, and a door may be the whole of the wall it was cut from.
+   */
+  freeStanding?: true;
 }
 
 /** A light the DM placed (epic #1125 story 5), at a point in cell units. */

@@ -516,6 +516,14 @@ describe("MapWorkbench", () => {
         expect(newWallVisibility(wrapper)).toBe("Visible");
       });
 
+      it("switches new walls to Hidden when the picture arrives after the map opened", async () => {
+        const wrapper = await mountPicture(siteWithNoImagery, { startLayer: "drawing" });
+        await wrapper.setProps({ site: calibrated });
+        await flushPromises();
+        await armAngledWall(wrapper);
+        expect(newWallVisibility(wrapper)).toBe("Hidden");
+      });
+
       it("leaves the DM's own choice alone when another map arrives", async () => {
         const wrapper = await mountPicture(calibrated, { startLayer: "drawing" });
         await armAngledWall(wrapper);

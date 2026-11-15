@@ -109,7 +109,7 @@ describe("cutDoorIntoWall", () => {
 describe("addFreeDoor", () => {
   it("adds a hidden door wall with no tile set on its own line", () => {
     const cut = addFreeDoor({}, [2, 2], [3, 2], counter(), "doorOpen");
-    expect(cut.walls[cut.doorId]).toEqual({ type: "doorOpen", a: [2, 2], b: [3, 2], visible: false, pack_id: "", pack_version: 0, variant: 0 });
+    expect(cut.walls[cut.doorId]).toEqual({ type: "doorOpen", a: [2, 2], b: [3, 2], visible: false, freeStanding: true, pack_id: "", pack_version: 0, variant: 0 });
   });
 });
 
@@ -127,10 +127,19 @@ describe("setDoorWallType and removeDoorWall", () => {
     expect(removeDoorWall(walls, "d")!.d).toMatchObject({ type: "wall", visible: false });
   });
 
-  it("deletes a door that stands alone", () => {
-    const walls = { before: wall([0, 0], [4, 0]), d: wall([7, 7], [8, 7], { type: "doorClosed" }) };
-    const next = removeDoorWall(walls, "d")!;
-    expect(Object.keys(next)).toEqual(["before"]);
+  it("turns a door that is the whole of a lone wall back into that wall, rather than deleting it", () => {
+    // A door cut over all of a short wall leaves no stretch either side, so nothing touches it afterwards.
+    const cut = cutDoorIntoWall({ w: wall([7, 7], [8, 7]) }, "w", [7, 7], [8, 7], counter())!;
+    const next = removeDoorWall(cut.walls, cut.doorId)!;
+    expect(Object.values(next).map((w) => [w.type, w.a, w.b])).toEqual([["wall", [7, 7], [8, 7]]]);
+  });
+
+  it("deletes a door drawn free across an opening, even one that ends on a wall's end", () => {
+    // The opening runs from the end of one wall to the end of the next: the free door touches both.
+    const walls = { left: wall([0, 0], [4, 0]), right: wall([5, 0], [9, 0]) };
+    const free = addFreeDoor(walls, [4, 0], [5, 0], counter());
+    const next = removeDoorWall(free.walls, free.doorId)!;
+    expect(Object.keys(next).sort()).toEqual(["left", "right"]);
   });
 
   it("turns a grid door back into the grid wall even when no neighbour touches it", () => {

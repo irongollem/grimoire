@@ -79,6 +79,16 @@ describe("resolveKeyAction", () => {
     expect(resolveKeyAction(ev({ key: "]" }), ctx("floor"))).toBeNull();
   });
 
+  it("[ and ] size Zoning's brush on the Zoning tab, and never the Drawing's brush from there", () => {
+    const zoning: KeyContext = { ...ctx("brush"), layer: "plan", zoneBrushActive: true };
+    expect(resolveKeyAction(ev({ key: "[" }), zoning)).toEqual({ kind: "resizeZoneBrush", delta: -0.25 });
+    expect(resolveKeyAction(ev({ key: "]" }), zoning)).toEqual({ kind: "resizeZoneBrush", delta: 0.25 });
+    // Another Zoning tool in hand (Door, Assign, the pen): the keys do nothing, and the Drawing's brush stays as it is.
+    expect(resolveKeyAction(ev({ key: "]" }), { ...zoning, zoneBrushActive: false })).toBeNull();
+    // On the Drawing the same flag changes nothing: the Drawing's own brush answers.
+    expect(resolveKeyAction(ev({ key: "]" }), { ...zoning, layer: "drawing" })).toEqual({ kind: "resizeBrush", delta: 0.25 });
+  });
+
   it("B selects Brush from another tool, then toggles its walls while Brush is active", () => {
     const tools: KeyContext["tools"] = [{ id: "select" }, { id: "brush", shortcut: "b" }];
     expect(resolveKeyAction(ev({ key: "b" }), { ...ctx("floor"), tools })).toEqual({ kind: "selectTool", tool: "brush" });
