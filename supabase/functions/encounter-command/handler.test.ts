@@ -8,6 +8,7 @@ import type { EncounterEvent } from "../../../src/types/encounter.types";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest";
 import { broadcastEvent, combatant, pc } from "../../../src/rules/fight/fightTestKit";
 import {
+  ALL_FIGHT_COMMANDS_LISTED,
   ALL_REDUCER_COMMANDS_LISTED,
   FightCommandError,
   runBatch,
@@ -262,6 +263,41 @@ describe("runBatch", () => {
     expect(h.broadcasts).toEqual(["The bell rings."]);
   });
 
+  it("fails if a reducer command and a fight command in one batch do not both land", async () => {
+    const h = harness(row());
+    // brug 30 HP takes 4: 26. The goblin takes the curse "hex". One save, so version 7 becomes 8.
+    const result = await runBatch(
+      batch("b1", { type: "adjust_hp", instanceId: "brug", delta: -4 }, { type: "add_curse", instanceId: "goblin", curse: "hex" }),
+      h.deps,
+    );
+    expect(result.version).toBe(8);
+    expect(hpOf(h.store.row, "brug")).toBe(26);
+    expect(h.store.row.combatants_live.find((c) => c.instance_id === "goblin")?.curses).toEqual(["hex"]);
+  });
+
+  it("fails if add_combatants mid-fight hands the turn to a newcomer who sorts in ahead of the acting combatant", async () => {
+    const h = harness(row());
+    // Order is brug 10, goblin 5 and brug (index 0) is acting. A bat at 15 sorts first: bat, brug, goblin.
+    // The turn stays with brug, who is now index 1.
+    const bat = combatant("bat", { hp: 4, max_hp: 4, initiative: 15 });
+    const result = await runBatch(batch("b1", { type: "add_combatants", combatants: [bat] }), h.deps);
+    expect(result.state.combatants_live.map((c) => c.instance_id)).toEqual(["brug", "goblin", "bat"]);
+    expect(result.state.active_combatant_index).toBe(1);
+  });
+
+  it("fails if add_combatants takes a second combatant with an instance id already in the fight", async () => {
+    const h = harness(row());
+    // "goblin" is there already: only "bat" joins, and a batch of nothing but the duplicate changes nothing.
+    const first = await runBatch(
+      batch("b1", { type: "add_combatants", combatants: [combatant("goblin", { hp: 99, max_hp: 99 }), combatant("bat", { initiative: 1 })] }),
+      h.deps,
+    );
+    expect(first.state.combatants_live.map((c) => c.instance_id)).toEqual(["brug", "goblin", "bat"]);
+    expect(hpOf(first.state, "goblin")).toBe(10);
+    const second = await runBatch(batch("b2", { type: "add_combatants", combatants: [combatant("bat")] }), h.deps);
+    expect(second.state.combatants_live).toHaveLength(3);
+  });
+
   it("only ingests the party rows for sync_party", async () => {
     const nessaRow: PartyIngestRow = {
       id: "pm-nessa", current_hp: 18, temp_hp: 0, current_initiative: 15, conditions: [], concentration: null,
@@ -310,10 +346,28 @@ describe("validateRequest", () => {
     expect(() => validateRequest({ ...ok, commands: [{ type: "next_turn", pad: "x".repeat(200_000) }] })).toThrow(FightCommandError);
   });
 
-  it("takes fire_event and sync_party only alone", () => {
-    expect(validateRequest({ ...ok, commands: [{ type: "fire_event", eventId: "a" }] }).commands).toHaveLength(1);
+  it("takes sync_party only alone, and fire_event in a mixed batch", () => {
     expect(validateRequest({ ...ok, commands: [{ type: "sync_party" }] }).commands).toHaveLength(1);
     expect(() => validateRequest({ ...ok, commands: [{ type: "sync_party" }, { type: "next_turn" }] })).toThrow(FightCommandError);
+    expect(validateRequest({ ...ok, commands: [{ type: "next_turn" }, { type: "fire_event", eventId: "a" }] }).commands).toHaveLength(2);
     expect(() => validateRequest({ ...ok, commands: [{ type: "fire_event" }] })).toThrow(FightCommandError);
+    expect(ALL_FIGHT_COMMANDS_LISTED).toBe(true);
+  });
+
+  it("fails if an add_combatants entry that a crash would follow gets through", () => {
+    const good = { instance_id: "a", type: "monster", name: "A", hp: 1, max_hp: 1 };
+    const send = (combatants: unknown) => () => validateRequest({ ...ok, commands: [{ type: "add_combatants", combatants }] });
+    expect(send([good])).not.toThrow();
+    expect(send([])).toThrow(FightCommandError);
+    expect(send(Array.from({ length: 31 }, () => good))).toThrow(FightCommandError);
+    expect(send([{ ...good, instance_id: "" }])).toThrow(FightCommandError);
+    expect(send([{ ...good, type: "npc" }])).toThrow(FightCommandError);
+    expect(send([{ ...good, hp: "1" }])).toThrow(FightCommandError);
+    expect(send("a")).toThrow(FightCommandError);
+  });
+
+  it("fails if a curse that is not a string reaches the engine", () => {
+    expect(() => validateRequest({ ...ok, commands: [{ type: "add_curse", instanceId: "a", curse: 3 }] })).toThrow(FightCommandError);
+    expect(() => validateRequest({ ...ok, commands: [{ type: "set_reveal_state", instanceId: "a", revealState: "gone" }] })).toThrow(FightCommandError);
   });
 });

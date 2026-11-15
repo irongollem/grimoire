@@ -12,12 +12,12 @@ import { DEFAULT_RULESET, type RulesetKey } from "@/types/ruleset.types";
 import type { DyingOutcome } from "@/rules/dying";
 import type { AppliedCondition } from "@/types/condition.types";
 import { holdsConcentration, type ConditionEndReason } from "@/rules/conditionDurations";
-import type { ActionLimit, EncounterTurnCommand, EncounterTurnEvent } from "@/rules/encounterTurn";
-import { rollInitiativeValue, adoptStatBlock } from "@/rules/encounterCombatLogic";
-import { applyFightCommand } from "@/rules/fight/fightCommands";
-import { checkFightEvents, fireFightEvent, type FightDeps, type FightResult } from "@/rules/fight/fightEvents";
+import type { ActionLimit, EncounterTurnEvent } from "@/rules/encounterTurn";
+import { rollInitiativeValue, adoptedStatsFor } from "@/rules/encounterCombatLogic";
+import { applyFightCommand, type FightCommand } from "@/rules/fight/fightCommands";
+import type { FightDeps } from "@/rules/fight/fightEvents";
 import { isTurnEvent, startedFromRound, type FightEffect, type FightState } from "@/rules/fight/fightState";
-import { companionCombatant, joinFight, spawnMonsters, spawnNpcs } from "@/rules/fight/fightSpawn";
+import { companionCombatant, spawnMonsters, spawnNpcs } from "@/rules/fight/fightSpawn";
 import { adoptTempHp, ingestPartyRow, type PartyIngestContext, type PartyIngestRow } from "@/rules/fight/partyIngest";
 
 /** Persists a player-combatant change to party_members and invalidates the
@@ -40,7 +40,7 @@ export interface MoveRecord {
 }
 
 /** The commands that hand the turn to someone else (or restart the order). */
-const TURN_CHANGING = new Set<EncounterTurnCommand["type"]>(["next_turn", "prev_turn", "reshuffle_initiative", "start_combat"]);
+const TURN_CHANGING = new Set<FightCommand["type"]>(["next_turn", "prev_turn", "reshuffle_initiative", "start_combat"]);
 
 export const useEncounterRunStore = defineStore("encounterRun", () => {
   /** Registered by the encounter runner; routes persistence through the
@@ -174,7 +174,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
    *  owed are queued, an event's broadcast lines wait for the runner to post
    *  them. `command` is what raised the effects (a turn change replaces the
    *  last turn's recharge and condition lines; anything else appends). */
-  function adopt(before: FightState, state: FightState, effects: FightEffect[], command: EncounterTurnCommand["type"] | null) {
+  function adopt(before: FightState, state: FightState, effects: FightEffect[], command: FightCommand["type"] | null) {
     if (state.combatants !== before.combatants) combatants.value = state.combatants;
     round.value = state.round;
     activeIndex.value = state.activeIndex;
@@ -214,10 +214,13 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   }
 
   /** Runs a command through the pure fight rules (`rules/fight`: the turn
-   *  reducer, then the event check when it asked for one), adopts the resulting
+   *  reducer and the fight's own commands, then the event check when the
+   *  reducer asked for one). Every change to the roster, the turn and the fired
+   *  events goes through here, so a server applying the same command ends with
+   *  the same fight. Adopts the resulting
    *  state and acts on what it raised. Returns the reducer's events for callers
    *  that need an outcome (HP changes, legendary spend). */
-  function dispatch(command: EncounterTurnCommand): EncounterTurnEvent[] {
+  function dispatch(command: FightCommand): EncounterTurnEvent[] {
     const before = snapshot();
     const { state, effects } = applyFightCommand(before, command, fightDeps());
     // A move can only be taken back within the turn it was made in.
@@ -247,7 +250,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     rollingInitiative.value = true;
     try {
       const rolled = await rollOneInitiative(c);
-      if (rolled !== null) c.initiative = rolled;
+      if (rolled !== null) dispatch({ type: "set_initiative", instanceId, value: rolled });
     } finally {
       rollingInitiative.value = false;
     }
@@ -266,11 +269,12 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     if (rollingInitiative.value) return false;
     rollingInitiative.value = true;
     try {
+      // Each rolled value is a command, which replaces `combatants.value` with a new array; this loop keeps walking the old one.
       for (const c of combatants.value) {
         if (c.initiative !== null) continue;
         const rolled = await rollOneInitiative(c);
         if (rolled === null) return false;
-        c.initiative = rolled;
+        dispatch({ type: "set_initiative", instanceId: c.instance_id, value: rolled });
       }
       return true;
     } finally {
@@ -302,7 +306,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
    *  does not survive into the fight. */
   function clearPlayerInitiatives() {
     for (const c of combatants.value) {
-      if (c.type === "player" && c.party_member_id) c.initiative = null;
+      if (c.type === "player" && c.party_member_id) dispatch({ type: "set_initiative", instanceId: c.instance_id, value: null });
     }
   }
 
@@ -409,20 +413,15 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   }
 
   function addCurse(instanceId: string, curse: string) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c || !curse.trim() || c.curses.includes(curse.trim())) return;
-    c.curses.push(curse.trim());
+    dispatch({ type: "add_curse", instanceId, curse });
   }
 
   function removeCurse(instanceId: string, curse: string) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (!c) return;
-    c.curses = c.curses.filter((cu) => cu !== curse);
+    dispatch({ type: "remove_curse", instanceId, curse });
   }
 
-  function setRevealState(instanceId: string, state: RevealState) {
-    const c = combatants.value.find((x) => x.instance_id === instanceId);
-    if (c) c.reveal_state = state;
+  function setRevealState(instanceId: string, revealState: RevealState) {
+    dispatch({ type: "set_reveal_state", instanceId, revealState });
   }
 
   function cycleRevealState(instanceId: string) {
@@ -430,14 +429,13 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     if (!c) return;
     const order: RevealState[] = ["hidden", "unseen", "revealed"];
     const idx = order.indexOf(c.reveal_state ?? "hidden");
-    c.reveal_state = order[(idx + 1) % order.length];
+    setRevealState(instanceId, order[(idx + 1) % order.length]);
   }
 
-  /** Newcomers join the roster, and the turn stays with whoever is acting (see `joinFight`). */
+  /** Newcomers join the roster, and the turn stays with whoever is acting (see `joinFight`, which the command applies). */
   function join(newcomers: RunCombatant[]) {
-    const joined = joinFight({ combatants: combatants.value, activeIndex: activeIndex.value, started: started.value }, newcomers);
-    combatants.value = joined.combatants;
-    activeIndex.value = joined.activeIndex;
+    if (newcomers.length === 0) return;
+    dispatch({ type: "add_combatants", combatants: newcomers });
   }
 
   function addMonster(monsterId: string, factionId: string, count: number, customName?: string) {
@@ -450,16 +448,18 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
 
   /** Gives every combatant that joined on stand-in numbers the real ones, once
    *  its monster or NPC has a stat block (written mid-fight). The runner calls
-   *  this whenever it re-reads the monsters or NPCs on the field. */
+   *  this whenever it re-reads the monsters or NPCs on the field. The numbers
+   *  are worked out here, where the monsters and NPCs are held; applying them
+   *  is the `adopt_stats` command. */
   function adoptStatBlocks() {
-    combatants.value.forEach((c, i) => {
-      if (!c.placeholder_stats) return;
+    for (const c of combatants.value) {
+      if (!c.placeholder_stats) continue;
       const source = c.monster_id
         ? availableMonsters.value.find((m) => m.id === c.monster_id)
         : availableNpcs.value.find((n) => n.id === c.npc_id);
-      const adopted = adoptStatBlock(c, source?.stat_block);
-      if (adopted) combatants.value[i] = adopted;
-    });
+      const stats = adoptedStatsFor(c, source?.stat_block);
+      if (stats) dispatch({ type: "adopt_stats", instanceId: c.instance_id, stats });
+    }
   }
 
   /** Settles one owed concentration save; a lost one ends what the holder was concentrating on. */
@@ -481,17 +481,13 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
    *  benched companion is flipped back to "with the party" mid-lobby. No-op if
    *  the companion is already present. */
   function addCompanionCombatant(comp: Companion, factionId: string) {
+    // The command refuses a duplicate id too; this keeps the no-op from building the combatant at all.
     if (combatants.value.some((c) => c.instance_id === `c-${comp.id}`)) return;
     join([companionCombatant(comp, factionId)]);
   }
 
-  function applyEventResult(before: FightState, result: FightResult) {
-    adopt(before, result.state, result.effects, null);
-  }
-
   function fireEvent(eventId: string) {
-    const before = snapshot();
-    applyEventResult(before, fireFightEvent(before, eventId, fightDeps()));
+    dispatch({ type: "fire_event", eventId });
   }
 
   /**
@@ -509,8 +505,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   }
 
   function checkEvents() {
-    const before = snapshot();
-    applyEventResult(before, checkFightEvents(before, fightDeps()));
+    dispatch({ type: "check_events" });
   }
 
   function clearPendingBroadcast(message: string) {

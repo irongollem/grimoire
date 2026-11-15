@@ -99,29 +99,69 @@ export function combatStats(sb: MonsterStatBlock | null | undefined, fallbackHp:
 }
 
 /**
- * A combatant that joined on stand-in numbers, given the stat block its monster
- * or NPC has now. Null when there is nothing to adopt: the combatant has its
- * real numbers already, or the stat block still has no hit points.
- *
- * Damage taken so far carries over (a stand-in at 7 of 10 is 3 down on the real
- * maximum too), and a combatant already down stays down. Initiative is never
- * touched: it was rolled, and re-rolling would reorder the fight.
+ * The real numbers a combatant that joined on stand-ins takes from its stat
+ * block. Carried by the `adopt_stats` fight command so the one who computes
+ * them (the runner, which holds the monsters and NPCs) and the one who applies
+ * them (the browser's engine, or a server) agree. `hp` is not in here: it
+ * depends on the damage taken at the moment of applying (`applyAdoptedStats`).
  */
-export function adoptStatBlock(c: RunCombatant, sb: MonsterStatBlock | null | undefined): RunCombatant | null {
+export interface AdoptedStats {
+  max_hp: number;
+  ac: string;
+  dex_mod: number;
+  initiative_bonus: number | null;
+  /** The stat block has legendary actions and the combatant is a monster with no pool yet: it gets the usual 3. */
+  legendary: boolean;
+}
+
+/**
+ * What a combatant that joined on stand-in numbers should take from the stat
+ * block its monster or NPC has now. Null when there is nothing to adopt: the
+ * combatant has its real numbers already, or the stat block still has no hit
+ * points.
+ */
+export function adoptedStatsFor(c: RunCombatant, sb: MonsterStatBlock | null | undefined): AdoptedStats | null {
   if (!c.placeholder_stats) return null;
   const stats = combatStats(sb, c.max_hp);
   if (stats.placeholder_stats) return null;
+  return {
+    max_hp: stats.max_hp,
+    ac: stats.ac,
+    dex_mod: stats.dex_mod,
+    initiative_bonus: stats.initiative_bonus ?? null,
+    legendary: Boolean(c.monster_id && c.legendary_action_cap === undefined && sb?.legendary_actions?.length),
+  };
+}
+
+/**
+ * The combatant with `stats` adopted. Damage taken so far carries over (a
+ * stand-in at 7 of 10 is 3 down on the real maximum too), and a combatant
+ * already down stays down. Initiative is never touched: it was rolled, and
+ * re-rolling would reorder the fight. A combatant that is not on stand-in
+ * numbers is returned unchanged, so a repeated command does nothing.
+ */
+export function applyAdoptedStats(c: RunCombatant, stats: AdoptedStats): RunCombatant {
+  if (!c.placeholder_stats) return c;
   const next: RunCombatant = {
     ...c,
-    ...stats,
+    max_hp: stats.max_hp,
+    ac: stats.ac,
+    dex_mod: stats.dex_mod,
+    initiative_bonus: stats.initiative_bonus,
     hp: c.hp <= 0 ? 0 : Math.max(1, stats.max_hp - (c.max_hp - c.hp)),
   };
   delete next.placeholder_stats;
-  if (c.monster_id && c.legendary_action_cap === undefined && sb?.legendary_actions?.length) {
+  if (stats.legendary && c.legendary_action_cap === undefined) {
     next.legendary_action_cap = 3;
     next.legendary_actions_remaining = 3;
   }
   return next;
+}
+
+/** A combatant that joined on stand-in numbers, given the stat block its monster or NPC has now; null when there is nothing to adopt. */
+export function adoptStatBlock(c: RunCombatant, sb: MonsterStatBlock | null | undefined): RunCombatant | null {
+  const stats = adoptedStatsFor(c, sb);
+  return stats ? applyAdoptedStats(c, stats) : null;
 }
 
 // ── Spawned-combatant construction ──────────────────────────────────────────

@@ -16,8 +16,8 @@ import type { RulesetKey } from "../../../src/types/ruleset.types.ts";
 import type { Monster } from "../../../src/types/monster.types.ts";
 import type { NpcListRow } from "../../../src/types/npc.types.ts";
 import type { EncounterTurnCommand } from "../../../src/rules/encounterTurn.ts";
-import { applyFightCommand } from "../../../src/rules/fight/fightCommands.ts";
-import { fireFightEvent, type FightDeps } from "../../../src/rules/fight/fightEvents.ts";
+import { applyFightCommand, FIGHT_OWN_COMMAND_TYPES, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
+import type { FightDeps } from "../../../src/rules/fight/fightEvents.ts";
 import { ingestPartyRow, type PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
 import { startedFromRound, type FightEffect, type FightState } from "../../../src/rules/fight/fightState.ts";
 
@@ -41,12 +41,20 @@ type MissingCommandTypes = Exclude<EncounterTurnCommand["type"], (typeof REDUCER
 // Compile-time only: a reducer command missing from the list makes this `never` unassignable from `true`.
 export const ALL_REDUCER_COMMANDS_LISTED: [MissingCommandTypes] extends [never] ? true : never = true;
 
-const REDUCER_TYPE_SET: ReadonlySet<string> = new Set(REDUCER_COMMAND_TYPES);
+// The fight's own commands (curses, reveal state, joining, stat adoption, events) come from the engine's list,
+// itself held equal to its union at compile time, so a new fight command is accepted here without a second list.
+const ACCEPTED_TYPE_SET: ReadonlySet<string> = new Set<string>([...REDUCER_COMMAND_TYPES, ...FIGHT_OWN_COMMAND_TYPES]);
 
-/** The DM pressing an event, and a bare party sync: the two things a batch can ask that the reducer has no command for. */
-export type FireEventCommand = { type: "fire_event"; eventId: string };
+type MissingFightTypes = Exclude<FightCommand["type"], (typeof REDUCER_COMMAND_TYPES)[number] | (typeof FIGHT_OWN_COMMAND_TYPES)[number]>;
+// Compile-time only: a fight command accepted by the engine but missing from both lists makes this `never` unassignable from `true`.
+export const ALL_FIGHT_COMMANDS_LISTED: [MissingFightTypes] extends [never] ? true : never = true;
+
+/** A bare party sync: the server loads the players' rows itself, so it is not an engine command and is sent alone. */
 export type SyncPartyCommand = { type: "sync_party" };
-export type BatchCommand = EncounterTurnCommand | FireEventCommand | SyncPartyCommand;
+export type BatchCommand = FightCommand | SyncPartyCommand;
+
+export const MAX_ADDED_COMBATANTS = 30;
+const REVEAL_STATES: ReadonlySet<unknown> = new Set(["hidden", "unseen", "revealed"]);
 
 export interface CommandRequest {
   encounterId: string;
@@ -68,6 +76,44 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** The fight's own commands read strings and arrays the reducer's never do, so the ones a crash would follow are checked here. */
+function validateOwnCommand(command: Record<string, unknown>): void {
+  switch (command.type) {
+    case "fire_event":
+      if (typeof command.eventId !== "string" || command.eventId.length === 0) throw new FightCommandError(400, "fire_event needs an eventId.");
+      break;
+    case "add_curse":
+    case "remove_curse":
+      if (typeof command.instanceId !== "string" || typeof command.curse !== "string") {
+        throw new FightCommandError(400, `${command.type} needs an instanceId and a curse.`);
+      }
+      break;
+    case "set_reveal_state":
+      if (typeof command.instanceId !== "string" || !REVEAL_STATES.has(command.revealState)) {
+        throw new FightCommandError(400, "set_reveal_state needs an instanceId and a revealState.");
+      }
+      break;
+    case "adopt_stats":
+      if (typeof command.instanceId !== "string" || !isRecord(command.stats)) throw new FightCommandError(400, "adopt_stats needs an instanceId and stats.");
+      break;
+    case "add_combatants": {
+      const list = command.combatants;
+      if (!Array.isArray(list) || list.length < 1 || list.length > MAX_ADDED_COMBATANTS) {
+        throw new FightCommandError(400, `add_combatants needs between 1 and ${MAX_ADDED_COMBATANTS} combatants.`);
+      }
+      for (const c of list) {
+        if (
+          !isRecord(c) || typeof c.instance_id !== "string" || c.instance_id.length === 0 || (c.type !== "player" && c.type !== "monster")
+          || typeof c.name !== "string" || typeof c.hp !== "number" || typeof c.max_hp !== "number"
+        ) {
+          throw new FightCommandError(400, "Every added combatant needs an instance_id, a type of player or monster, a name, hp and max_hp.");
+        }
+      }
+      break;
+    }
+  }
+}
+
 /** Shape check only: deep fields are the reducer's business, it ignores what it cannot find. */
 export function validateRequest(body: unknown): CommandRequest {
   if (!isRecord(body)) throw new FightCommandError(400, "The request body must be an object.");
@@ -82,13 +128,12 @@ export function validateRequest(body: unknown): CommandRequest {
   }
   for (const command of commands) {
     if (!isRecord(command) || typeof command.type !== "string") throw new FightCommandError(400, "Every command needs a type.");
-    if (command.type === "fire_event" || command.type === "sync_party") {
-      if (commands.length !== 1) throw new FightCommandError(400, `${command.type} is sent alone.`);
-      if (command.type === "fire_event" && (typeof command.eventId !== "string" || command.eventId.length === 0)) {
-        throw new FightCommandError(400, "fire_event needs an eventId.");
-      }
-    } else if (!REDUCER_TYPE_SET.has(command.type)) {
+    if (command.type === "sync_party") {
+      if (commands.length !== 1) throw new FightCommandError(400, "sync_party is sent alone.");
+    } else if (!ACCEPTED_TYPE_SET.has(command.type)) {
       throw new FightCommandError(400, `Unknown command type: ${command.type}.`);
+    } else {
+      validateOwnCommand(command);
     }
   }
   // The checks above proved the shape the type describes; deep fields are the reducer's to read.
@@ -226,10 +271,7 @@ async function attempt(request: CommandRequest, loaded: LoadedFight, deps: Batch
 
   for (const command of request.commands) {
     if (command.type === "sync_party") continue;
-    const result =
-      command.type === "fire_event"
-        ? fireFightEvent(state, command.eventId, fightDeps)
-        : applyFightCommand(state, command, fightDeps);
+    const result = applyFightCommand(state, command, fightDeps);
     state = result.state;
     effects.push(...result.effects);
   }

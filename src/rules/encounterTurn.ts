@@ -61,7 +61,8 @@ export type EncounterTurnCommand =
   | { type: "next_turn" }
   | { type: "prev_turn" }
   | { type: "reshuffle_initiative" }
-  | { type: "set_initiative"; instanceId: string; value: number }
+  /** null blanks it (the lobby clears a stale value); a rolled or typed value sets it. Nothing else changes: not the turn, not the order's pointer. */
+  | { type: "set_initiative"; instanceId: string; value: number | null }
   | { type: "adjust_hp"; instanceId: string; delta: number; critical?: boolean }
   | { type: "set_hp"; instanceId: string; value: number }
   | { type: "set_max_hp"; instanceId: string; value: number }
