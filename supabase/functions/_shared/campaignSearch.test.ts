@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { rankSearchHits, FAMILY_CAP, type CampaignSearchHit, type CampaignSearchKind } from "./campaignSearch";
+import {
+  rankSearchHits,
+  applyProbabilities,
+  rerankPool,
+  hitKey,
+  FAMILY_CAP,
+  RERANK_POOL,
+  type CampaignSearchHit,
+  type CampaignSearchKind,
+} from "./campaignSearch";
 
 function hit(kind: CampaignSearchKind, name: string, distance: number, id = `${kind}-${name}`): CampaignSearchHit {
   return { kind, id, name, descriptor: null, distance };
@@ -66,5 +75,63 @@ describe("rankSearchHits", () => {
     const out = rankSearchHits([...items, ...lib, ...npcs]);
     expect(out.filter((h) => h.kind === "item" || h.kind === "library_item")).toHaveLength(FAMILY_CAP);
     expect(out.filter((h) => h.kind === "npc")).toHaveLength(FAMILY_CAP);
+  });
+});
+
+describe("applyProbabilities / rerankPool", () => {
+  const probs = (entries: [CampaignSearchHit, number][]) => new Map(entries.map(([h, p]) => [hitKey(h), p]));
+
+  it("pools the nearest 40 BEFORE the distance cut, so an answer past the cut is still judged", () => {
+    const near = hit("npc", "Near", 0.5);
+    const beyondCut = hit("note", "Right answer", 0.7); // best + 0.08 = 0.58: rankSearchHits drops it
+    expect(rankSearchHits([near, beyondCut]).map((h) => h.name)).toEqual(["Near"]);
+    expect(rerankPool([near, beyondCut]).map((h) => h.name)).toEqual(["Near", "Right answer"]);
+  });
+
+  it("keeps only the nearest RERANK_POOL hits across kinds", () => {
+    const many = Array.from({ length: RERANK_POOL + 5 }, (_, i) => hit("note", `n${i}`, 0.5 + i / 1000));
+    const pool = rerankPool(many);
+    expect(pool).toHaveLength(RERANK_POOL);
+    expect(pool[0].name).toBe("n0");
+    expect(pool.at(-1)?.name).toBe(`n${RERANK_POOL - 1}`);
+  });
+
+  it("keeps a hit at exactly 0.5 and drops one at 0.49", () => {
+    const a = hit("npc", "A", 0.5);
+    const b = hit("npc", "B", 0.5);
+    expect(applyProbabilities([a, b], probs([[a, 0.5], [b, 0.49]]))?.map((h) => h.name)).toEqual(["A"]);
+  });
+
+  it("orders by probability, not distance, and breaks ties by distance", () => {
+    const near = hit("npc", "Near", 0.5);
+    const far = hit("npc", "Far", 0.6);
+    const tieNear = hit("quest", "TieNear", 0.52);
+    const tieFar = hit("quest", "TieFar", 0.58);
+    const out = applyProbabilities([near, far, tieFar, tieNear], probs([[near, 0.6], [far, 0.95], [tieNear, 0.8], [tieFar, 0.8]]));
+    expect(out?.map((h) => h.name)).toEqual(["Far", "TieNear", "TieFar", "Near"]);
+  });
+
+  it("lets the DM's own row beat the library copy of the same name, even when the copy is judged higher", () => {
+    const own = hit("item", "Flame Tongue", 0.6);
+    const lib = hit("library_item", "flame tongue", 0.5);
+    const out = applyProbabilities([lib, own], probs([[own, 0.7], [lib, 0.99]]));
+    expect(out?.map((h) => h.kind)).toEqual(["item"]);
+  });
+
+  it("still caps each family at five after reranking", () => {
+    const monsters = Array.from({ length: FAMILY_CAP + 3 }, (_, i) => hit("monster", `M${i}`, 0.5 + i / 100));
+    const out = applyProbabilities(monsters, probs(monsters.map((m): [CampaignSearchHit, number] => [m, 0.9])));
+    expect(out).toHaveLength(FAMILY_CAP);
+  });
+
+  it("answers an empty list, not null, when nothing reaches 0.5", () => {
+    const a = hit("npc", "A", 0.5);
+    expect(applyProbabilities([a], probs([[a, 0.1]]))).toEqual([]);
+  });
+
+  it("returns null when any pooled hit is unjudged, so the caller falls back", () => {
+    const a = hit("npc", "A", 0.5);
+    const b = hit("npc", "B", 0.6);
+    expect(applyProbabilities([a, b], probs([[a, 0.9]]))).toBeNull();
   });
 });
