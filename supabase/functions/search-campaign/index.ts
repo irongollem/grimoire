@@ -9,9 +9,19 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { EmbeddingProviderConfigError, resolveEmbeddingProvider, toVectorLiteral } from "../_shared/embeddings.ts";
+import { judge, JEV_MODEL, noulOf } from "../_shared/typesafe.ts";
+import {
+  buildEntry,
+  rerankHits,
+  rerankKey,
+  rowSourceFor,
+  type EntryFields,
+} from "./rerank.ts";
 import {
   NOTE_CATEGORIES,
+  hitKey,
   rankSearchHits,
+  rerankPool,
   type CampaignSearchHit,
   type CampaignSearchKind,
   type CampaignSearchResponse,
@@ -71,6 +81,7 @@ const admin = createClient(
 );
 
 const MATCH_COUNT = 8;
+const RERANK_TIMEOUT_MS = 6_000;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function json(body: unknown, status = 200): Response {
@@ -140,6 +151,41 @@ const monsterDescriptor = (row: Record<string, unknown>) =>
     row.challenge_rating != null && row.challenge_rating !== "" ? `CR ${row.challenge_rating}` : null,
   );
 
+/**
+ * The text of each pooled hit, keyed by hitKey. One read per table, by id (the
+ * ids came out of the campaign-scoped match RPCs). A table that cannot be read
+ * is logged and its hits are judged by name and descriptor alone.
+ */
+async function loadEntries(pool: CampaignSearchHit[]): Promise<Map<string, EntryFields>> {
+  const groups = new Map<string, { select: string; ids: string[] }>();
+  for (const hit of pool) {
+    const source = rowSourceFor(hit.kind);
+    if (source === null) continue;
+    const group = groups.get(source.table) ?? { select: source.select, ids: [] };
+    group.ids.push(hit.id);
+    groups.set(source.table, group);
+  }
+
+  const rows = new Map<string, Record<string, unknown>>();
+  await Promise.all([...groups.entries()].map(async ([table, group]) => {
+    const { data, error } = await admin.from(table).select(group.select).in("id", group.ids);
+    if (error) {
+      console.error(`search-campaign: ${table} text read failed:`, error.message);
+      return;
+    }
+    for (const row of (data ?? []) as unknown as Record<string, unknown>[]) {
+      if (typeof row.id === "string") rows.set(`${table}:${row.id}`, row);
+    }
+  }));
+
+  const entries = new Map<string, EntryFields>();
+  for (const hit of pool) {
+    const source = rowSourceFor(hit.kind);
+    entries.set(hitKey(hit), buildEntry(hit, source === null ? undefined : rows.get(`${source.table}:${hit.id}`)));
+  }
+  return entries;
+}
+
 serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
@@ -185,7 +231,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign, error: campaignError } = await admin
     .from("campaigns")
-    .select("id, user_id, game_system")
+    .select("id, user_id, game_system, ai_enabled")
     .eq("id", campaignId)
     .maybeSingle();
   if (campaignError) {
@@ -301,6 +347,38 @@ serve(withCors(async (req: Request) => {
     return json({ error: "Search failed" }, 500);
   }
 
-  const response: CampaignSearchResponse = { hits: rankSearchHits(results.flatMap((r) => r.hits)) };
+  const allHits = results.flatMap((r) => r.hits);
+  let hits = rankSearchHits(allHits);
+
+  // The rerank is an enhancement: nothing in it may fail the search.
+  try {
+    const pool = rerankPool(allHits);
+    let apiKey: string | null = null;
+    if (campaign.ai_enabled === true && pool.length > 0) {
+      apiKey = rerankKey(campaign.ai_enabled, (await fetchPlatformKeys(admin, ["typesafe"])).typesafe);
+    }
+    if (apiKey !== null) {
+      const key = apiKey;
+      const entries = await loadEntries(pool);
+      const reranked = await rerankHits(query, pool, entries, async (request) => {
+        const res = await judge(request, { apiKey: key, timeoutMs: RERANK_TIMEOUT_MS });
+        const probabilities: Record<string, number | null> = {};
+        for (const entryKey of Object.keys(request.questions)) probabilities[entryKey] = noulOf(res, entryKey);
+        return { probabilities, inputTokens: res.inputTokens };
+      });
+      if (reranked.succeeded > 0) {
+        await recordFreeGeneration(admin, user.id, "entity_judgment", {
+          model: JEV_MODEL,
+          provider: "typesafe",
+          input_tokens: reranked.inputTokens,
+        });
+      }
+      if (reranked.hits !== null) hits = reranked.hits;
+    }
+  } catch (e) {
+    console.error("search-campaign: rerank failed, keeping distance order:", e instanceof Error ? e.message : "unknown error");
+  }
+
+  const response: CampaignSearchResponse = { hits };
   return json(response);
 }));
