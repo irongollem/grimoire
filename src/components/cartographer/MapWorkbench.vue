@@ -245,7 +245,7 @@
           @remove="emit('picture-remove')"
           @line-up="startLineUp"
           @trace-walls="traceTheWalls"
-          @find-walls="wallFinder.find"
+          @find-walls="findWallsFromPicture"
           @done="finishLineUp"
           @cancel="cancelLineUp"
           @update:battle-map="emit('update:isBattleMap', $event)"
@@ -708,6 +708,13 @@ const canFindWalls = computed(() => !!referencePicture.value?.calibration);
 
 /** "Keep" on the wall finder: the kept rings become hidden walls, and Select is in hand to adjust their nodes. */
 const toast = useToast();
+/** From the Base image tab the proposals are laid over the Drawing, since that tab shows the picture on a fitted
+ *  stage of its own, with no grid to draw rings on. */
+function findWallsFromPicture(): void {
+  activeLayer.value = "drawing";
+  void wallFinder.find();
+}
+
 function keepFoundWalls(): void {
   const rings = wallFinder.apply();
   if (rings === 0) return;

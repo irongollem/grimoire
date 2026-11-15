@@ -75,5 +75,5 @@ const snapToGrid = defineModel<boolean>("snapToGrid", { required: true });
 
 const emit = defineEmits<{ apply: []; "keep-all": []; "drop-all": []; cancel: [] }>();
 
-const keepLabel = computed(() => (kept === proposed ? `Keep all ${proposed}` : `Keep ${kept}`));
+const keepLabel = computed(() => (proposed === 1 && kept === 1 ? "Keep it" : kept === proposed ? `Keep all ${proposed}` : `Keep ${kept}`));
 </script>

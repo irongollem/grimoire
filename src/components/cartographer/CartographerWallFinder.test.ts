@@ -25,6 +25,10 @@ describe("what it says", () => {
     expect(labels(mountSlip(6, 4))).toEqual(["Keep 4", "Drop all", "Cancel"]);
   });
 
+  it("says Keep it for the one ring a map usually has, not Keep all 1", () => {
+    expect(labels(mountSlip(1, 1))[0]).toBe("Keep it");
+  });
+
   it("offers Keep all again, and a disabled Keep, when none is kept", () => {
     const w = mountSlip(6, 0);
     expect(labels(w)).toEqual(["Keep 0", "Keep all", "Cancel"]);
