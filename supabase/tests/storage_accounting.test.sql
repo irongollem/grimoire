@@ -10,7 +10,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(35);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 select ('11820000-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid,
@@ -128,6 +128,15 @@ select is(pg_temp.used('02'), 262144001::bigint,
 select pg_temp.age('02', 'a.webp');
 select pg_temp.reserve('02', 'a.webp', 1);
 select is(pg_temp.used('02'), 1::bigint, 'and does once that URL has expired');
+
+-- A total that has drifted below a row's size must not make removing the row fail.
+select pg_temp.reserve('01', 'h.webp', 500, false);
+update public.storage_usage set bytes = 10 where user_id = '11820000-0000-4000-8000-000000000001';
+select pg_temp.age('01', 'h.webp');
+select lives_ok(
+  $$ select public.release_storage('npc-portraits', array['11820000-0000-4000-8000-000000000001/h.webp']) $$,
+  'a row can be released although the total has drifted below it');
+update public.storage_usage set bytes = 262144001 where user_id = '11820000-0000-4000-8000-000000000001';
 
 -- ── A file is recorded for the account whose folder it is in ─────────────────
 select throws_ok(

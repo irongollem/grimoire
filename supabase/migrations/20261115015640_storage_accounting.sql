@@ -96,8 +96,9 @@ as $$
 begin
   if tg_op in ('UPDATE', 'DELETE') then
     -- A plain update on purpose: when the account itself is being deleted its total may already be
-    -- gone, and there is then nothing to subtract from.
-    update public.storage_usage set bytes = bytes - old.bytes where user_id = old.user_id;
+    -- gone, and there is then nothing to subtract from. Clamped at zero so a total that has drifted
+    -- below a row's size cannot make the delete fail its bytes >= 0 check and strand the row.
+    update public.storage_usage set bytes = greatest(bytes - old.bytes, 0) where user_id = old.user_id;
   end if;
   if tg_op in ('INSERT', 'UPDATE') then
     insert into public.storage_usage (user_id, bytes)
