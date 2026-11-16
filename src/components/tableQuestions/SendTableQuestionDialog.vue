@@ -30,15 +30,26 @@
         <p v-if="options.length === 0" class="text-caption text-muted-foreground italic">
           This table has no entries with a name yet.
         </p>
-        <ul v-else class="flex max-h-48 flex-col gap-1 overflow-y-auto">
-          <li v-for="o in options" :key="o.id" class="flex items-center gap-2 text-body">
+        <!-- The options as the players will meet them, small: a grid of pictures
+             across the dialog's width, or word cards when the table has no pictures. -->
+        <ul
+          v-else
+          class="grid max-h-88 gap-2 overflow-y-auto"
+          :class="anyPicture ? 'grid-cols-3 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3'"
+        >
+          <li v-for="o in options" :key="o.id" class="flex min-w-0 flex-col gap-1">
             <!-- FocalImage fills its parent, so the parent sets the size. -->
-            <div v-if="o.image_url" class="size-7 shrink-0 overflow-hidden rounded">
+            <div v-if="o.image_url" class="aspect-square w-full overflow-hidden rounded-md bg-muted">
               <FocalImage :src="o.image_url" :alt="o.label" format="square" :focal-point="o.focal" />
             </div>
-            <!-- A blank keeps names in line beside pictured options; a list of words needs none. -->
-            <span v-else-if="anyPicture" class="size-7 shrink-0 rounded bg-muted" aria-hidden="true" />
-            <span class="min-w-0 truncate">{{ o.label }}</span>
+            <div v-else-if="anyPicture" class="grid aspect-square w-full place-items-center rounded-md bg-muted p-2 text-center">
+              <span class="text-heading-xs leading-tight text-foreground">{{ o.label }}</span>
+            </div>
+            <div v-else class="flex h-full flex-col gap-0.5 rounded-md border border-border p-2.5">
+              <span class="text-heading-xs leading-tight text-foreground">{{ o.label }}</span>
+              <span v-if="o.blurb" class="line-clamp-2 text-caption text-muted-foreground">{{ o.blurb }}</span>
+            </div>
+            <span v-if="o.image_url" class="truncate text-caption text-foreground">{{ o.label }}</span>
           </li>
         </ul>
       </div>
