@@ -20,6 +20,7 @@ import {
   type ResolvedProvider,
   type SessionRow,
 } from "./handler";
+import type { SceneView } from "../_shared/agent/scene";
 import { AgentProviderError, type AgentBlock, type CallModel, type ModelRequest, type ModelStep } from "../_shared/agent/types";
 import type { StoredTurn, TurnRow } from "../_shared/agent/transcript";
 import type { CreditLogFields } from "../_shared/credits";
@@ -30,6 +31,24 @@ const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
 const OTHER_CAMPAIGN = "00000000-0000-4000-8000-0000000000c2";
 const SESSION = "00000000-0000-4000-8000-0000000000a1";
 const HONEYCOMB = "00000000-0000-4000-8000-0000000000f1";
+const CELLAR = "00000000-0000-4000-8000-0000000000a5";
+const ELSEWHERE = "00000000-0000-4000-8000-0000000000a6";
+/** Every place the handler asked for, with the campaign it asked in. */
+const sceneLoads: Array<{ campaignId: string; locationId: string }> = [];
+const sceneMoves: Array<{ campaignId: string; locationId: string }> = [];
+/** The places of CAMPAIGN, as the database holds them. A place of another campaign is simply not here. */
+function cellarScene(over: Partial<SceneView> = {}): SceneView {
+  return {
+    id: CELLAR,
+    name: "Honey Cellar",
+    kind: "cellar",
+    description: "SCENE-DESCRIPTION damp stone.",
+    within: "Cup Town",
+    places: [],
+    characters: [{ id: HONEYCOMB, name: "Honeycomb", occupation: "apprentice" }],
+    ...over,
+  };
+}
 /** Every character the handler asked for, with the campaign it asked in. */
 const speakerLoads: Array<{ campaignId: string; characterId: string }> = [];
 
@@ -77,6 +96,10 @@ interface Harness {
     saveThrows: boolean;
     summarySaveThrows: boolean;
     account: Refusal | null;
+    /** The places of CAMPAIGN by id. */
+    places: Map<string, SceneView>;
+    sceneThrows: boolean;
+    moveFails: boolean;
   };
   script: Script;
 }
@@ -121,6 +144,9 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       saveThrows: false,
       summarySaveThrows: false,
       account: null,
+      places: new Map<string, SceneView>([[CELLAR, cellarScene()]]),
+      sceneThrows: false,
+      moveFails: false,
     },
     deps: undefined as unknown as AgentTurnDeps,
   };
@@ -146,6 +172,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
         campaign_id: campaignId,
         summary: null,
         summary_through_seq: 0,
+        scene_location_id: null,
       };
       h.sessions.set(row.id, row);
       log.push("create");
@@ -196,6 +223,18 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     },
     tools: [{ name: "roll", description: "roll", inputSchema: {} }],
     callTool: async () => ({ content: "RESULT-SECRET: the duke is the lich", isError: false }),
+    loadScene: async (campaignId, locationId) => {
+      sceneLoads.push({ campaignId, locationId });
+      if (h.state.sceneThrows) throw new Error("db down");
+      return campaignId === CAMPAIGN ? (h.state.places.get(locationId) ?? null) : null;
+    },
+    setScene: async (sessionId, campaignId, locationId) => {
+      sceneMoves.push({ campaignId, locationId });
+      const scene = campaignId === CAMPAIGN ? (h.state.places.get(locationId) ?? null) : null;
+      if (!scene || h.state.moveFails) return null;
+      h.sessions.get(sessionId)!.scene_location_id = locationId;
+      return scene;
+    },
     loadSpeaker: async (campaignId, characterId) => {
       speakerLoads.push({ campaignId, characterId });
       return characterId === HONEYCOMB
@@ -214,6 +253,7 @@ function existingSession(h: Harness, over: Partial<SessionRow> = {}, accrued = 0
     campaign_id: CAMPAIGN,
     summary: null,
     summary_through_seq: 0,
+    scene_location_id: null,
     ...over,
   };
   h.sessions.set(row.id, row);
@@ -950,5 +990,107 @@ describe("a character speaks for itself", () => {
     expect(speech.system).toContain("HONEYCOMB-SECRET");
     expect(speech.tools).toEqual([]);
     expect(JSON.stringify(speech)).not.toContain("NARRATOR-ONLY");
+  });
+});
+
+describe("where the party is", () => {
+  const GO = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I look around.", mode: "say" };
+  const goTo = (input: Record<string, unknown>): ModelStep =>
+    step(10, { blocks: [{ type: "tool_call", id: "g1", name: "go_to", input }], stop: "tool_calls" });
+
+  it("puts the scene in the system text after the campaign section and before the summary", async () => {
+    const h = harness();
+    existingSession(h, { scene_location_id: CELLAR, summary: "SUMMARY-MARK the party fled." });
+    await play(h, { body: GO });
+    const system = h.requests[0].system;
+    const campaignAt = system.indexOf("Cup Town");
+    const sceneAt = system.indexOf("SCENE-DESCRIPTION");
+    const summaryAt = system.indexOf("SUMMARY-MARK");
+    expect(campaignAt).toBeGreaterThan(-1);
+    expect(sceneAt).toBeGreaterThan(campaignAt);
+    expect(summaryAt).toBeGreaterThan(sceneAt);
+    expect(system).toContain(`id ${HONEYCOMB}`);
+  });
+
+  it("tells the narrator the party has no place yet, and still runs the turn", async () => {
+    const h = harness();
+    existingSession(h);
+    sceneLoads.length = 0;
+    await play(h, { body: GO });
+    expect(h.requests[0].system).toContain("The party has no place yet");
+    expect(sceneLoads).toEqual([]);
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
+  it("runs the turn without a scene when the scene fails to load", async () => {
+    const h = harness();
+    existingSession(h, { scene_location_id: CELLAR });
+    h.state.sceneThrows = true;
+    await play(h, { body: GO });
+    expect(h.requests[0].system).toContain("The party has no place yet");
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(h.events.some((e) => e.type === "error")).toBe(false);
+  });
+
+  it("offers go_to to the narrator", async () => {
+    const h = harness();
+    existingSession(h);
+    await play(h, { body: GO });
+    expect(h.requests[0].tools.map((t) => t.name)).toContain("go_to");
+  });
+
+  it("moves the party in the conversation's campaign, whatever campaign the model names", async () => {
+    const h = harness([goTo({ location_id: CELLAR, campaign_id: OTHER_CAMPAIGN }), step(10)]);
+    existingSession(h);
+    sceneMoves.length = 0;
+    await play(h, { body: GO });
+    expect(sceneMoves).toEqual([{ campaignId: CAMPAIGN, locationId: CELLAR }]);
+  });
+
+  it("answers an error, sends no scene event and stores nothing for a place outside the campaign", async () => {
+    const h = harness([goTo({ location_id: ELSEWHERE }), step(10)]);
+    existingSession(h);
+    await play(h, { body: GO });
+    const result = h.turns.flatMap((t) => t.blocks as AgentBlock[]).find((b) => b.type === "tool_result");
+    expect(result).toMatchObject({ isError: true });
+    expect(h.events.some((e) => e.type === "scene")).toBe(false);
+    expect(h.sessions.get(SESSION)!.scene_location_id).toBeNull();
+  });
+
+  it("answers an error for an id that is not a uuid, without touching the store", async () => {
+    const h = harness([goTo({ location_id: "the cellar" }), step(10)]);
+    existingSession(h);
+    await play(h, { body: GO });
+    expect(h.turns.flatMap((t) => t.blocks as AgentBlock[]).find((b) => b.type === "tool_result")).toMatchObject({ isError: true });
+    expect(h.sessions.get(SESSION)!.scene_location_id).toBeNull();
+  });
+
+  it("answers an error when the move could not be stored", async () => {
+    const h = harness([goTo({ location_id: CELLAR }), step(10)]);
+    existingSession(h);
+    h.state.moveFails = true;
+    await play(h, { body: GO });
+    expect(h.events.some((e) => e.type === "scene")).toBe(false);
+  });
+
+  it("moves the party, answers with the new place and sends the scene event with id and name only", async () => {
+    const h = harness([goTo({ location_id: CELLAR }), step(10)]);
+    existingSession(h);
+    h.state.places.set(CELLAR, cellarScene({ description: "TOP-SECRET-NOTE under the stairs." }));
+    await play(h, { body: GO });
+    expect(h.sessions.get(SESSION)!.scene_location_id).toBe(CELLAR);
+    expect(h.events.filter((e) => e.type === "scene")).toEqual([{ type: "scene", scene: { id: CELLAR, name: "Honey Cellar" } }]);
+    expect(JSON.stringify(h.events)).not.toContain("TOP-SECRET-NOTE");
+    expect(JSON.stringify(h.events)).not.toContain("Honeycomb");
+    // The model does get it, in the same turn.
+    expect(JSON.stringify(h.requests[1].messages)).toContain("TOP-SECRET-NOTE");
+  });
+
+  it("keeps a move that was made even when the turn fails to save afterwards", async () => {
+    const h = harness([goTo({ location_id: CELLAR }), step(10)]);
+    existingSession(h);
+    h.state.saveThrows = true;
+    await play(h, { body: GO });
+    expect(h.sessions.get(SESSION)!.scene_location_id).toBe(CELLAR);
   });
 });

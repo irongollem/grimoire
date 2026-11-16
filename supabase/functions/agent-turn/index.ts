@@ -24,8 +24,10 @@ import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { callTool, listTools } from "../_shared/mcp/tools.ts";
 import type { ToolContext } from "../_shared/mcp/tools.ts";
 import { agentToolsFrom, bindTools, SOLO_TABLE_TOOLS } from "../_shared/agent/mcpTools.ts";
-import { buildNpcProfile, NPC_PROFILE_COLUMNS, type NpcProfileRow } from "../_shared/npcProfile.ts";
+import { buildNpcProfile, NPC_PROFILE_COLUMNS, shownNpcName, type NpcProfileRow } from "../_shared/npcProfile.ts";
 import { campaignToday } from "../_shared/npcAge.ts";
+import { toPlainText } from "../_shared/ai-prompt.ts";
+import { PLACES_MAX, CHARACTERS_MAX, type SceneView } from "../_shared/agent/scene.ts";
 import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts";
 import { openaiModel } from "../_shared/agent/openai.ts";
 import { anthropicModel } from "../_shared/agent/anthropic.ts";
@@ -48,7 +50,7 @@ function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq";
+const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id";
 
 function sessionRow(row: Record<string, unknown>): SessionRow {
   return {
@@ -57,6 +59,7 @@ function sessionRow(row: Record<string, unknown>): SessionRow {
     campaign_id: row.campaign_id as string,
     summary: (row.summary as string | null) ?? null,
     summary_through_seq: Number(row.summary_through_seq),
+    scene_location_id: (row.scene_location_id as string | null) ?? null,
   };
 }
 
@@ -312,13 +315,73 @@ serve(withCors(async (req: Request) => {
       if (!data) return null;
       const npc = data as unknown as NpcProfileRow;
       const memories = await loadPromptMemories(admin, npc.id, campaignId);
-      const disguised = !!npc.disguise_name && !npc.is_revealed;
       return {
         id: npc.id,
-        shownName: disguised && npc.disguise_name ? npc.disguise_name : npc.name,
+        shownName: shownNpcName(npc),
         profile: buildNpcProfile(npc, campaignToday(rawCampaign)),
         memories: formatNpcMemories(memories, npc),
       };
+    },
+
+    // A place of this campaign and who is in it. One more than the trim keeps of each list, so the trim can tell the
+    // narrator there are more. The campaign filter is in every query: an id from another campaign is not found.
+    async loadScene(campaignId, locationId): Promise<SceneView | null> {
+      const { data: place, error } = await admin
+        .from("locations")
+        .select("id, parent_id, name, location_type, description")
+        .eq("id", locationId)
+        .eq("campaign_id", campaignId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!place) return null;
+      const [parent, children, people] = await Promise.all([
+        place.parent_id
+          ? admin.from("locations").select("name").eq("id", place.parent_id).eq("campaign_id", campaignId).maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+        admin.from("locations").select("id, name").eq("parent_id", place.id).eq("campaign_id", campaignId)
+          .order("name", { ascending: true }).limit(PLACES_MAX + 1),
+        admin.from("npcs").select("id, name, occupation, disguise_name, is_revealed").eq("location_id", place.id)
+          .eq("campaign_id", campaignId).order("name", { ascending: true }).limit(CHARACTERS_MAX + 1),
+      ]);
+      if (parent.error) throw parent.error;
+      if (children.error) throw children.error;
+      if (people.error) throw people.error;
+      return {
+        id: place.id as string,
+        name: place.name as string,
+        kind: (place.location_type as string | null) ?? null,
+        description: toPlainText(place.description as string | null),
+        within: parent.data ? (parent.data.name as string) : null,
+        places: (children.data ?? []).map((c) => ({ id: c.id as string, name: c.name as string })),
+        characters: (people.data ?? []).map((n) => {
+          return {
+            id: n.id as string,
+            name: shownNpcName({
+              name: n.name as string,
+              disguise_name: n.disguise_name as string | null,
+              is_revealed: n.is_revealed === true,
+            }),
+            occupation: (n.occupation as string | null) ?? null,
+          };
+        }),
+      };
+    },
+
+    async setScene(sessionId, campaignId, locationId): Promise<SceneView | null> {
+      // Checked before anything is written: the model can name any id it has seen, and this client is the service
+      // role, which the shared same-campaign trigger lets through. The column's own trigger refuses it too.
+      const scene = await deps.loadScene(campaignId, locationId);
+      if (!scene) return null;
+      const { error } = await admin
+        .from("agent_sessions")
+        .update({ scene_location_id: locationId })
+        .eq("id", sessionId)
+        .eq("campaign_id", campaignId);
+      if (error) {
+        console.error("agent-turn: moving the party failed:", error);
+        return null;
+      }
+      return scene;
     },
 
     tools: agentToolsFrom(listTools(), SOLO_TABLE_TOOLS),

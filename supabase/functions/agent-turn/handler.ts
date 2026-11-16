@@ -18,6 +18,7 @@ import { planSummary, summarise } from "../_shared/agent/summary.ts";
 import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTablePrompt.ts";
 import { makeSpeechTools, type SpeechToolsDeps } from "../_shared/agent/speak.ts";
 import { SPEECH_TOOL_NAMES } from "../_shared/agent/speakInput.ts";
+import { GO_TO_TOOL, makeSceneTool, sceneSection, trimScene, type SceneView } from "../_shared/agent/scene.ts";
 import {
   AgentProviderError,
   type AgentLine,
@@ -63,6 +64,8 @@ export type AgentEvent =
   | { type: "tool_end"; name: string; isError: boolean }
   /** What a character said or visibly did. It is the one thing a tool shows the browser: it is meant for the page. */
   | { type: "line"; line: AgentLine }
+  /** The party moved. Only the place's id and name: its description and who is there can hold DM-only text. */
+  | { type: "scene"; scene: { id: string; name: string } }
   | { type: "done"; end: TurnEnd; credits: number; tokens: number }
   | { type: "error"; message: string };
 
@@ -80,6 +83,8 @@ export interface SessionRow {
   campaign_id: string;
   summary: string | null;
   summary_through_seq: number;
+  /** Where the party is; null until the narrator first calls go_to. */
+  scene_location_id: string | null;
 }
 
 export interface ResolvedProvider {
@@ -140,6 +145,13 @@ export interface AgentTurnDeps {
    * the id is not a character of THIS campaign, whoever asks.
    */
   loadSpeaker(campaignId: string, characterId: string): ReturnType<SpeechToolsDeps["loadSpeaker"]>;
+  /** A place of THIS campaign with the people in it, as the narrator may know them. Null when it is not in the campaign. */
+  loadScene(campaignId: string, locationId: string): Promise<SceneView | null>;
+  /**
+   * Moves the party: stores the place on the conversation and answers with the new scene. Null when the place is not
+   * in this campaign or the move could not be stored. It writes at once, outside the turn's own save.
+   */
+  setScene(sessionId: string, campaignId: string, locationId: string): Promise<SceneView | null>;
 }
 
 export const MESSAGES = {
@@ -288,10 +300,19 @@ export async function beginTurn(input: {
         stored = await deps.loadTurns(session.id);
         const lastSeqLoaded = stored.reduce((max, row) => Math.max(max, row.seq), 0);
         const history = historyFrom(stored, session.summary_through_seq);
+        // Order is for the provider's prompt cache: the standing text and the campaign section stay a byte-identical
+        // prefix, the scene changes only when the party moves, and the summary (which grows) comes last.
+        const scene = await sceneOf(deps, campaign.id, session.scene_location_id);
         const system = systemWithSummary(
-          soloTableSystem({ id: campaign.id, name: campaign.name, rulesetLabel: rulesetLabelFor(campaign.game_system) }),
+          `${soloTableSystem({ id: campaign.id, name: campaign.name, rulesetLabel: rulesetLabelFor(campaign.game_system) })}\n\n${sceneSection(scene)}`,
           session.summary,
         );
+        const go = makeSceneTool({
+          campaignId: campaign.id,
+          sessionId: session.id,
+          setScene: deps.setScene,
+          onMove: (place) => emit({ type: "scene", scene: place }),
+        });
 
         // A character speaks through its own model call, built from that character alone (`speak.ts`). The same
         // model for now: a cheaper one for speech needs its own price row first.
@@ -307,10 +328,12 @@ export async function beginTurn(input: {
           history,
           user: playerText(body.mode, body.message),
           player: { kind: body.mode, text: body.message },
-          tools: [...deps.tools, ...speech.tools],
+          tools: [...deps.tools, ...speech.tools, go.tool],
           callModel,
-          callTool: (name, toolInput) =>
-            SPEECH_TOOL_NAMES.has(name) ? speech.call(name, toolInput) : deps.callTool(name, toolInput),
+          callTool: (name, toolInput) => {
+            if (name === GO_TO_TOOL.name) return go.call(toolInput);
+            return SPEECH_TOOL_NAMES.has(name) ? speech.call(name, toolInput) : deps.callTool(name, toolInput);
+          },
           limits: { maxSteps: MAX_STEPS, maxOutputTokens: MAX_OUTPUT_TOKENS, tokenBudget: TOKEN_BUDGET },
           signal,
           onEvent: (event) => {
@@ -413,6 +436,18 @@ export async function beginTurn(input: {
   };
 
   return { kind: "ready", run };
+}
+
+/** The party's place for the system text. A place that will not load is no place: the turn still runs. */
+async function sceneOf(deps: AgentTurnDeps, campaignId: string, locationId: string | null) {
+  if (locationId === null) return null;
+  try {
+    const view = await deps.loadScene(campaignId, locationId);
+    return view ? trimScene(view) : null;
+  } catch (error) {
+    console.error("agent-turn: loading the scene failed:", error);
+    return null;
+  }
 }
 
 /**
