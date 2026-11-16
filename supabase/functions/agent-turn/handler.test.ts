@@ -77,6 +77,8 @@ interface Harness {
   sessions: Map<string, SessionRow>;
   turns: StoredTurn[];
   appends: Array<{ afterSeq: number; rows: TurnRow[]; credits: number }>;
+  /** What characters chose to remember, as the handler filed it. */
+  memories: Array<{ characterId: string; kind: string; body: string }>;
   summaries: Array<{ expectedThroughSeq: number; throughSeq: number; summary: string; credits: number }>;
   /** The running total of credits accrued per conversation, as the database keeps it. */
   totals: Map<string, number>;
@@ -99,6 +101,7 @@ interface Harness {
     /** The places of CAMPAIGN by id. */
     places: Map<string, SceneView>;
     sceneThrows: boolean;
+    memoriesThrow: boolean;
     moveFails: boolean;
   };
   script: Script;
@@ -125,6 +128,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     sessions: new Map<string, SessionRow>(),
     turns: [],
     appends: [],
+    memories: [],
     summaries: [],
     totals: new Map<string, number>(),
     ledger: [],
@@ -146,6 +150,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       account: null,
       places: new Map<string, SceneView>([[CELLAR, cellarScene()]]),
       sceneThrows: false,
+      memoriesThrow: false,
       moveFails: false,
     },
     deps: undefined as unknown as AgentTurnDeps,
@@ -234,6 +239,11 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       if (!scene || h.state.moveFails) return null;
       h.sessions.get(sessionId)!.scene_location_id = locationId;
       return scene;
+    },
+    saveMemories: async (input) => {
+      log.push("memories");
+      if (h.state.memoriesThrow) throw new Error("db down");
+      h.memories.push(...input.memories);
     },
     loadSpeaker: async (campaignId, characterId) => {
       speakerLoads.push({ campaignId, characterId });
@@ -1120,5 +1130,48 @@ describe("a conversation that begins at a place", () => {
     const refusal = await play(h, { body: { ...START, sessionId: SESSION } });
     expect(refusal?.status).toBe(400);
     expect(h.sessions.get(SESSION)?.scene_location_id).toBeNull();
+  });
+});
+
+describe("a character remembers in its own words", () => {
+  const speakCall = (): ModelStep =>
+    step(100, {
+      blocks: [{ type: "tool_call", id: "s1", name: "speak", input: { speaker_id: HONEYCOMB, happening: "A stranger swears to come back." } }],
+      stop: "tool_calls",
+    });
+  const answer = "DOES: Nods.\nSAYS: Dusk, then.\nREMEMBERS: promise: The stranger swore to be back by dusk.";
+  const script = (): Script => [speakCall(), step(300, { blocks: [{ type: "text", text: answer }] }), step(200)];
+
+  it("files the memory in that character's ledger, or the next sitting meets someone who has forgotten the promise", async () => {
+    const h = harness(script());
+    await play(h);
+    expect(h.memories).toEqual([{ characterId: HONEYCOMB, kind: "promise", body: "The stranger swore to be back by dusk." }]);
+  });
+
+  it("never shows the player what a character privately chose to remember", async () => {
+    const h = harness(script());
+    await play(h);
+    expect(JSON.stringify(h.events)).not.toContain("swore to be back");
+  });
+
+  it("keeps no memory of a turn that was not saved: the moment never happened", async () => {
+    const h = harness(script());
+    h.state.conflict = true;
+    await play(h);
+    expect(h.memories).toEqual([]);
+    expect(h.log).not.toContain("memories");
+  });
+
+  it("still finishes the turn when the memory cannot be filed", async () => {
+    const h = harness(script());
+    h.state.memoriesThrow = true;
+    await play(h);
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
+  it("files it only after the turn is saved", async () => {
+    const h = harness(script());
+    await play(h);
+    expect(h.log.indexOf("memories")).toBeGreaterThan(h.log.indexOf("save"));
   });
 });

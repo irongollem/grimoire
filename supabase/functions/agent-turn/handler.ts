@@ -16,6 +16,7 @@ import { runTurn, totalTokens, type TurnEnd } from "../_shared/agent/turn.ts";
 import { historyFrom, rowsFor, systemWithSummary, type StoredTurn, type TurnRow } from "../_shared/agent/transcript.ts";
 import { planSummary, summarise } from "../_shared/agent/summary.ts";
 import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTablePrompt.ts";
+import type { Remembered } from "../_shared/agent/speak.ts";
 import { makeSpeechTools, type SpeechToolsDeps } from "../_shared/agent/speak.ts";
 import { SPEECH_TOOL_NAMES } from "../_shared/agent/speakInput.ts";
 import { GO_TO_TOOL, makeSceneTool, sceneSection, trimScene, type SceneView } from "../_shared/agent/scene.ts";
@@ -152,6 +153,17 @@ export interface AgentTurnDeps {
   }): Promise<{ due: number } | "stale">;
   tools: AgentTool[];
   callTool: CallTool;
+  /**
+   * Files what characters chose to remember this turn in their memory ledgers (`npc_memories`), marked as written
+   * by AI. Called only after the turn itself was saved: a moment that was not kept leaves no memory.
+   */
+  saveMemories(input: {
+    campaignId: string;
+    userId: string;
+    provider: string;
+    model: string;
+    memories: Array<{ characterId: string } & Remembered>;
+  }): Promise<void>;
   /**
    * A character of this campaign as its own call may know it: its record and its memories, nothing else. Null when
    * the id is not a character of THIS campaign, whoever asks.
@@ -343,11 +355,13 @@ export async function beginTurn(input: {
 
         // A character speaks through its own model call, built from that character alone (`speak.ts`). The same
         // model for now: a cheaper one for speech needs its own price row first.
+        const remembered: Array<{ characterId: string } & Remembered> = [];
         const speech = makeSpeechTools({
           stored,
           loadSpeaker: (id) => deps.loadSpeaker(campaign.id, id),
           callModel,
           signal,
+          onRemember: (memory) => remembered.push(memory),
         });
 
         result = await runTurn({
@@ -432,6 +446,19 @@ export async function beginTurn(input: {
           await safely(() => deps.recordGeneration(provider.isByok, due, logFields));
         } else {
           await safely(() => deps.recordFreeGeneration(logFields));
+        }
+        // Kept only now that the turn is: what a character carries away from a moment the player never got to keep
+        // would be a memory of something that did not happen. A failure here costs a memory, never the turn.
+        if (remembered.length > 0) {
+          await safely(() =>
+            deps.saveMemories({
+              campaignId: campaign.id,
+              userId,
+              provider: provider.provider,
+              model: provider.model,
+              memories: remembered,
+            })
+          );
         }
         // `credits` is this turn's own. A summary's credit shows on the ledger, not in the turn that happened to
         // trigger it.

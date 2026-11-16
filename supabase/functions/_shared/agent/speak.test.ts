@@ -190,20 +190,20 @@ describe("characterTurn", () => {
 
 describe("parseTurnAnswer", () => {
   it("reads both parts", () => {
-    expect(parseTurnAnswer("DOES: Slides the key across.\nSAYS: Take it.")).toEqual({ did: "Slides the key across.", said: "Take it." });
+    expect(parseTurnAnswer("DOES: Slides the key across.\nSAYS: Take it.")).toMatchObject({ did: "Slides the key across.", said: "Take it." });
   });
   it("reads labels in lower case and in reverse order, or a model that answers words first loses its deed", () => {
-    expect(parseTurnAnswer("says: Take it.\ndoes: Slides the key across.")).toEqual({ did: "Slides the key across.", said: "Take it." });
+    expect(parseTurnAnswer("says: Take it.\ndoes: Slides the key across.")).toMatchObject({ did: "Slides the key across.", said: "Take it." });
   });
   it("keeps an unlabelled answer as words, or a model that ignores the format loses the line", () => {
-    expect(parseTurnAnswer('"Take it."')).toEqual({ did: null, said: "Take it." });
+    expect(parseTurnAnswer('"Take it."')).toMatchObject({ did: null, said: "Take it." });
   });
   it("reads a dash as nothing, so a silent character does not say a hyphen", () => {
-    expect(parseTurnAnswer("DOES: Nods.\nSAYS: -")).toEqual({ did: "Nods.", said: null });
-    expect(parseTurnAnswer("DOES: -\nSAYS: -")).toEqual({ did: null, said: null });
+    expect(parseTurnAnswer("DOES: Nods.\nSAYS: -")).toMatchObject({ did: "Nods.", said: null });
+    expect(parseTurnAnswer("DOES: -\nSAYS: -")).toMatchObject({ did: null, said: null });
   });
   it("keeps words that run over several lines", () => {
-    expect(parseTurnAnswer("DOES: -\nSAYS: First.\nSecond.")).toEqual({ did: null, said: "First.\nSecond." });
+    expect(parseTurnAnswer("DOES: -\nSAYS: First.\nSecond.")).toMatchObject({ did: null, said: "First.\nSecond." });
   });
 });
 
@@ -453,5 +453,60 @@ describe("who hears what, by how loud it was said", () => {
     const stored = spoke(1, { speaker_id: A, happening: "h", volume: "bellow", present: [B], also_heard_by: [C] }, "speak", "Hm.", A);
     expect(texts(stored, cole)).toEqual([]);
     expect(texts(stored, bram)).toEqual(["Hm."]);
+  });
+});
+
+describe("what a character keeps", () => {
+  it("reads the kind the character named", () => {
+    expect(parseTurnAnswer("SAYS: Fine.\nREMEMBERS: promise: I said I would wait.").remembered).toEqual({ kind: "promise", body: "I said I would wait." });
+  });
+
+  it("keeps a memory with no kind as an event rather than losing it", () => {
+    expect(parseTurnAnswer("SAYS: Fine.\nREMEMBERS: The stranger had my mother's ring.").remembered).toEqual({
+      kind: "event",
+      body: "The stranger had my mother's ring.",
+    });
+  });
+
+  it("does not mistake a sentence with a colon for a kind", () => {
+    expect(parseTurnAnswer("SAYS: Fine.\nREMEMBERS: Odd: the stranger knew my name.").remembered).toEqual({
+      kind: "event",
+      body: "Odd: the stranger knew my name.",
+    });
+  });
+
+  it("keeps nothing when the character says there is nothing to keep", () => {
+    expect(parseTurnAnswer("SAYS: Fine.\nREMEMBERS: -").remembered).toBeNull();
+    expect(parseTurnAnswer("SAYS: Fine.").remembered).toBeNull();
+  });
+
+  it("never lets the memory line leak into the words the player hears", () => {
+    expect(parseTurnAnswer("SAYS: Fine.\nREMEMBERS: deceived: I lied about the key.").said).toBe("Fine.");
+  });
+
+  it("cuts a runaway memory to what the ledger takes", () => {
+    const got = parseTurnAnswer(`REMEMBERS: event: ${"x".repeat(900)}`).remembered;
+    expect(got?.body.length).toBe(500);
+  });
+
+  it("files nothing for someone with no record: there is no ledger to keep it in", async () => {
+    const kept: unknown[] = [];
+    const r = recorder(["SAYS: Sweep.\nREMEMBERS: event: A stranger came."]);
+    const tools = makeSpeechTools({ stored: [], loadSpeaker: async () => null, callModel: r.callModel, onRemember: (m) => kept.push(m) });
+    await tools.call("speak", { speaker_name: "The sweeper", happening: "A stranger enters." });
+    expect(kept).toEqual([]);
+  });
+
+  it("files nothing when the character neither spoke nor acted", async () => {
+    const kept: unknown[] = [];
+    const r = recorder(["DOES: -\nSAYS: -\nREMEMBERS: event: Something."]);
+    const tools = makeSpeechTools({
+      stored: [],
+      loadSpeaker: async () => ({ id: A, shownName: "Mira", profile: "p", memories: "" }),
+      callModel: r.callModel,
+      onRemember: (m) => kept.push(m),
+    });
+    await tools.call("speak", { speaker_id: A, happening: "Nothing much." });
+    expect(kept).toEqual([]);
   });
 });

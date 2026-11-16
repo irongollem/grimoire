@@ -29,6 +29,7 @@ import { campaignToday } from "../_shared/npcAge.ts";
 import { toPlainText } from "../_shared/ai-prompt.ts";
 import { PLACES_MAX, CHARACTERS_MAX, type SceneView } from "../_shared/agent/scene.ts";
 import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts";
+import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { openaiModel } from "../_shared/agent/openai.ts";
 import { anthropicModel } from "../_shared/agent/anthropic.ts";
 import type { CallModel } from "../_shared/agent/types.ts";
@@ -389,6 +390,36 @@ serve(withCors(async (req: Request) => {
         return null;
       }
       return scene;
+    },
+
+    // Into the same ledger the DM and the Voice Coach write, so the NPC's page shows them and the character's next
+    // call reads them. `campaign_id` is set from the NPC by the table's own trigger; the filter on the NPC's
+    // campaign is here because the ids came out of a model's tool call.
+    async saveMemories({ campaignId, userId, provider, model, memories }) {
+      const ids = [...new Set(memories.map((m) => m.characterId))];
+      const { data: known, error: readError } = await admin.from("npcs").select("id").in("id", ids).eq("campaign_id", campaignId);
+      if (readError) throw readError;
+      const inCampaign = new Set((known ?? []).map((n) => n.id as string));
+      const provenance: AiProvenance = {
+        generatorType: "agent_turn_memory",
+        provider,
+        model,
+        generatedAt: new Date().toISOString(),
+        edited: false,
+      };
+      const rows = memories
+        .filter((m) => inCampaign.has(m.characterId))
+        .map((m) => ({
+          npc_id: m.characterId,
+          campaign_id: campaignId,
+          user_id: userId,
+          kind: m.kind,
+          body: m.body,
+          ai_provenance: provenance,
+        }));
+      if (rows.length === 0) return;
+      const { error } = await admin.from("npc_memories").insert(rows);
+      if (error) throw error;
     },
 
     tools: agentToolsFrom(listTools(), SOLO_TABLE_TOOLS),
