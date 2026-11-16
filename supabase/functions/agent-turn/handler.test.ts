@@ -165,14 +165,14 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       const row = h.sessions.get(id);
       return row ? { ...row } : null;
     },
-    createSession: async ({ userId, campaignId }) => {
+    createSession: async ({ userId, campaignId, sceneLocationId }) => {
       const row: SessionRow = {
         id: "00000000-0000-4000-8000-0000000000b9",
         user_id: userId,
         campaign_id: campaignId,
         summary: null,
         summary_through_seq: 0,
-        scene_location_id: null,
+        scene_location_id: sceneLocationId,
       };
       h.sessions.set(row.id, row);
       log.push("create");
@@ -1092,5 +1092,33 @@ describe("where the party is", () => {
     h.state.saveThrows = true;
     await play(h, { body: GO });
     expect(h.sessions.get(SESSION)!.scene_location_id).toBe(CELLAR);
+  });
+});
+
+describe("a conversation that begins at a place", () => {
+  const START = { campaignId: CAMPAIGN, message: "I look around.", mode: "do", startLocationId: CELLAR };
+
+  it("hands the narrator the place on the very first turn, or it spends that turn searching for it", async () => {
+    const h = harness();
+    expect(await play(h, { body: START })).toBeNull();
+    expect(h.requests[0].system).toContain("SCENE-DESCRIPTION");
+    expect([...h.sessions.values()][0].scene_location_id).toBe(CELLAR);
+  });
+
+  it("refuses a place that is not in the campaign before anything is reserved or any model is called", async () => {
+    const h = harness();
+    const refusal = await play(h, { body: { ...START, startLocationId: "00000000-0000-4000-8000-0000000000ee" } });
+    expect(refusal).toEqual({ status: 404, error: MESSAGES.noPlace });
+    expect(h.modelCalls()).toBe(0);
+    expect(h.reserved).toEqual([]);
+    expect(h.sessions.size).toBe(0);
+  });
+
+  it("refuses to move a conversation that is already under way: only the narrator moves the party", async () => {
+    const h = harness();
+    existingSession(h);
+    const refusal = await play(h, { body: { ...START, sessionId: SESSION } });
+    expect(refusal?.status).toBe(400);
+    expect(h.sessions.get(SESSION)?.scene_location_id).toBeNull();
   });
 });

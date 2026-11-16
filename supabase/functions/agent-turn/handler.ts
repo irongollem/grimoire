@@ -45,6 +45,12 @@ export const RESERVE_CREDITS = 1;
 export interface AgentTurnBody {
   campaignId: string;
   sessionId?: string;
+  /**
+   * Where a NEW conversation begins. The page knows where the player sat down (the place they opened the table
+   * from), and a narrator left to find it spends a turn searching: 21 s live, against 4 s with the place known.
+   * Refused together with `sessionId`: a conversation already under way is moved by the narrator, never by a request.
+   */
+  startLocationId?: string;
   message: string;
   /** Enter says it aloud, Alt+Enter does it: the player chooses, nothing guesses from the wording. */
   mode: "say" | "do";
@@ -106,7 +112,13 @@ export interface AgentTurnDeps {
   isDm(campaign: CampaignRow, userId: string): Promise<boolean>;
   /** By id alone: the handler decides whether it belongs to the caller. */
   loadSession(sessionId: string): Promise<SessionRow | null>;
-  createSession(input: { userId: string; campaignId: string; provider: string; model: string }): Promise<SessionRow>;
+  createSession(input: {
+    userId: string;
+    campaignId: string;
+    provider: string;
+    model: string;
+    sceneLocationId: string | null;
+  }): Promise<SessionRow>;
   loadTurns(sessionId: string): Promise<StoredTurn[]>;
   rateLimit(userId: string): Promise<boolean>;
   resolveProvider(campaign: CampaignRow): Promise<ResolvedProvider | null>;
@@ -157,6 +169,7 @@ export interface AgentTurnDeps {
 export const MESSAGES = {
   badBody: "The request is not valid.",
   notFound: "That conversation was not found.",
+  noPlace: "That place was not found.",
   noCampaign: "Campaign not found.",
   aiOff: "AI is disabled for this campaign.",
   forbidden: "Only the campaign's DM can use the AI table.",
@@ -182,7 +195,14 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
   const message = r.message.trim();
   if (message.length < 1 || message.length > MAX_MESSAGE_CHARS) return { ok: false };
   if (r.mode !== "say" && r.mode !== "do") return { ok: false };
-  return { ok: true, body: { campaignId: r.campaignId, sessionId: r.sessionId, message, mode: r.mode } };
+  if (r.startLocationId !== undefined) {
+    if (typeof r.startLocationId !== "string" || !UUID_RE.test(r.startLocationId)) return { ok: false };
+    if (r.sessionId !== undefined) return { ok: false };
+  }
+  return {
+    ok: true,
+    body: { campaignId: r.campaignId, sessionId: r.sessionId, startLocationId: r.startLocationId, message, mode: r.mode },
+  };
 }
 
 /**
@@ -232,6 +252,12 @@ export async function beginTurn(input: {
     if (!existing || existing.user_id !== userId || existing.campaign_id !== campaign.id) {
       return refuse(404, MESSAGES.notFound);
     }
+  }
+
+  // Before anything is charged or streamed: a place of another campaign, or one that does not exist, is "not
+  // found" either way. The id comes from the browser, so it is checked against the conversation's campaign here.
+  if (body.startLocationId !== undefined && !(await deps.loadScene(campaign.id, body.startLocationId))) {
+    return refuse(404, MESSAGES.noPlace);
   }
 
   if (!(await deps.rateLimit(userId))) return refuse(429, MESSAGES.rateLimited);
@@ -295,6 +321,7 @@ export async function beginTurn(input: {
           campaignId: campaign.id,
           provider: provider.provider,
           model: provider.model,
+          sceneLocationId: body.startLocationId === undefined ? null : body.startLocationId,
         });
         emit({ type: "session", sessionId: session.id });
         stored = await deps.loadTurns(session.id);

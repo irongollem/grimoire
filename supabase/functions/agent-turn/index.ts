@@ -146,10 +146,17 @@ serve(withCors(async (req: Request) => {
       return data ? sessionRow(data) : null;
     },
 
-    async createSession({ userId, campaignId, provider, model }): Promise<SessionRow> {
+    async createSession({ userId, campaignId, provider, model, sceneLocationId }): Promise<SessionRow> {
       const { data, error } = await admin
         .from("agent_sessions")
-        .insert({ user_id: userId, campaign_id: campaignId, kind: "solo_table", provider, model })
+        .insert({
+          user_id: userId,
+          campaign_id: campaignId,
+          kind: "solo_table",
+          provider,
+          model,
+          scene_location_id: sceneLocationId,
+        })
         .select(SESSION_COLUMNS)
         .single();
       if (error) throw error;
