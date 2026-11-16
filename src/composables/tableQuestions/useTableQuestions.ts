@@ -18,6 +18,8 @@ function requireUserId(): string {
 export function useTableQuestions(opts?: {
   rollTableId?: MaybeRefOrGetter<string | null>;
   openOnly?: MaybeRefOrGetter<boolean>;
+  /** False holds the read back (a dashboard card with no table chosen yet). */
+  enabled?: MaybeRefOrGetter<boolean>;
 }) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
@@ -38,7 +40,7 @@ export function useTableQuestions(opts?: {
       if (error) throw error;
       return data as TableQuestion[];
     },
-    enabled: () => !!campaignId.value,
+    enabled: () => !!campaignId.value && (opts?.enabled === undefined || toValue(opts.enabled)),
   });
 }
 

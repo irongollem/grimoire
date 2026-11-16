@@ -35,8 +35,8 @@
         tooltip="Send this table to the players as a question"
         @click="askOpen = true"
       />
-      <TableQuestionsList :roll-table-id="resolution.table.id" open-only />
-      <SendTableQuestionDialog :table="resolution.table" :open="askOpen" @close="askOpen = false" />
+      <TableQuestionsList v-if="hasOpenQuestions" :roll-table-id="resolution.table.id" open-only />
+      <SendTableQuestionDialog v-if="askOpen" :table="resolution.table" :open="askOpen" @close="askOpen = false" />
       <p class="text-caption-sm text-muted-foreground italic">
         {{ resolution.table.entries.length }}
         {{ resolution.table.entries.length === 1 ? "entry" : "entries" }}
@@ -69,13 +69,12 @@
  * here rather than behind a trip to Dungeon Craft; closed questions stay on
  * the table's own page.
  */
-import { computed, ref, watch } from "vue";
+import { computed, defineAsyncComponent, ref, watch } from "vue";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import RollTableResult from "@/components/dungeon-features/RollTableResult.vue";
 import { useRollTables } from "@/composables/dungeon-features/useRollTables";
-import SendTableQuestionDialog from "@/components/tableQuestions/SendTableQuestionDialog.vue";
-import TableQuestionsList from "@/components/tableQuestions/TableQuestionsList.vue";
+import { useTableQuestions } from "@/composables/tableQuestions/useTableQuestions";
 import { IconDiceRoll, IconSend } from "@/lib/icons";
 import { resolveRollTable, type RollTableResolution } from "@/lib/dashboard/rollTableCard";
 import { rollOnTable, type RollTableRollResult } from "@/lib/dungeon-features/rollTableRoll";
@@ -104,6 +103,20 @@ const title = computed(() =>
 
 const lastRoll = ref<RollTableRollResult | null>(null);
 const askOpen = ref(false);
+
+// The dashboard loads with this card, so the question list and the send dialog
+// stay files of their own until they are needed: the list once this table has
+// an open question (the same read the list makes, so TanStack shares it), the
+// dialog once the DM asks. Static imports put both on every dashboard's first
+// load (perf:code, 16 Nov 2026).
+const TableQuestionsList = defineAsyncComponent(() => import("@/components/tableQuestions/TableQuestionsList.vue"));
+const SendTableQuestionDialog = defineAsyncComponent(() => import("@/components/tableQuestions/SendTableQuestionDialog.vue"));
+const openQuestions = useTableQuestions({
+  rollTableId: () => (resolution.value?.state === "ready" ? resolution.value.table.id : null),
+  openOnly: () => true,
+  enabled: () => resolution.value?.state === "ready",
+});
+const hasOpenQuestions = computed(() => openQuestions.data.value !== undefined && openQuestions.data.value.length > 0);
 
 // A result belongs to the table it came from. Switching this card to another
 // table — or to another campaign — must not leave yesterday's goblins under a

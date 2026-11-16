@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(37);
+select plan(39);
 
 -- Table questions (20261116200111, #1212): a DM sends a roll table to the table, and
 -- each player picks, the table votes, or a player rolls. Each test names the bug it
@@ -220,6 +220,17 @@ select throws_ok($$
   delete from public.table_question_answers
    where question_id = '12120000-0000-4000-8000-000000000104' and user_id = '12120000-0000-4000-8000-000000000002'
 $$, '42501', null, 'a player cannot hand a gift back to pick again');
+
+-- An upsert fires BEFORE INSERT on the proposed row before it finds the conflict:
+-- replaying one that keeps the old option must not grant the proposed one.
+select throws_ok($$
+  insert into public.table_question_answers (question_id, party_member_id, option_id)
+  values ('12120000-0000-4000-8000-000000000104', '12120000-0000-4000-8000-000000000021', 'cat')
+  on conflict (question_id, user_id) do update set option_id = public.table_question_answers.option_id
+$$, '42501', 'A gift is yours to keep', 'a replayed upsert cannot take a second gift');
+select is_empty($$ select id from public.companions where owner_party_member_id = '12120000-0000-4000-8000-000000000021'
+                     and source_monster_id = 'srd_srd_2024_cat' $$,
+  'the refused upsert left no pet behind');
 
 select pg_temp.as_user('12120000-0000-4000-8000-000000000003');
 insert into public.table_question_answers (question_id, party_member_id, option_id)

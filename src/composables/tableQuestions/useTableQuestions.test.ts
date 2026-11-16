@@ -62,6 +62,14 @@ describe("useTableQuestions", () => {
     expect(q.data.value?.map((r) => r.id)).toEqual(["open"]);
   });
 
+  it("reads nothing while held back, so a dashboard card with no table chosen sends no request", async () => {
+    fake.seed("table_questions", [{ id: "q", campaign_id: "camp-1", created_at: "2026-01-01", closed_at: null }]);
+    const q = inApp(() => useTableQuestions({ enabled: false }));
+    await flushPromises();
+    expect(q.data.value).toBeUndefined();
+    expect(q.fetchStatus.value).toBe("idle");
+  });
+
   it("surfaces a database error rather than an empty list", async () => {
     fake.failNext("table_questions", { message: "boom" });
     const q = inApp(() => useTableQuestions());

@@ -306,6 +306,17 @@ begin
     if new.party_member_id is null then
       raise exception 'A gift goes to a character' using errcode = '23514';
     end if;
+    -- One gift per member, judged before granting: an upsert fires this BEFORE
+    -- INSERT on the proposed row and only then finds the conflict and turns into
+    -- an update, so without this a replayed upsert would grant again each time
+    -- (found in the pre-push audit). The lock makes a second, concurrent first
+    -- answer wait and then see the first.
+    perform pg_advisory_xact_lock(hashtextextended('table_gift:' || v_q.id::text || ':' || new.user_id::text, 0));
+    if exists (
+      select 1 from public.table_question_answers a where a.question_id = v_q.id and a.user_id = new.user_id
+    ) then
+      raise exception 'A gift is yours to keep' using errcode = '42501';
+    end if;
     select o into v_option from jsonb_array_elements(v_q.options) o where o ->> 'id' = new.option_id;
     v_ref_kind := v_option -> 'ref' ->> 'kind';
     v_ref_id := v_option -> 'ref' ->> 'id';
