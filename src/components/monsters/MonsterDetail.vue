@@ -220,7 +220,7 @@
           <!-- Divider -->
           <div class="gold-divider" />
 
-          <StatBlockEditor :sb="sb" show-legendary show-lair />
+          <StatBlockEditor :sb="sb" :creature-type="form.monster_type" show-legendary show-lair />
 
           <!-- Description -->
           <section>

@@ -136,6 +136,13 @@ describe("where the map ends (#1202)", () => {
     expect(map?.rowsKnown).toBe(true);
   });
 
+  it("a sliver of picture is not a row to stand on: 10 across and 0.709 tall (7.09 rows) ends at row 6", () => {
+    // Bug it fails on: rounding the rows up, so a fleeing creature stops on a row that is 9% picture, below the map
+    // (seen live on a map 16 across and 0.943 tall: the goblin stood on row 15 of 15.09). App convention: a square
+    // counts when at least half of it is on the picture.
+    expect(shaped(0.709)?.bounds.maxY).toBe(6);
+  });
+
   it("a recorded shape beats what is merely known: a seen cell never shrinks the picture", () => {
     // Bug it fails on: always using the fallback span, which would offer less room than the picture has.
     expect(shaped(1, {}, ["0,2"])?.bounds.maxY).toBe(9);

@@ -53,6 +53,7 @@
         />
       </div>
 
+      <RunnerRunForMe v-if="sections.length > 0 && c.type !== 'player'" :combatant="c" class="mt-2" />
       <RunnerActionList v-if="sections.length > 0" :combatant="c" :sections="sections" class="mt-2" />
       <PlayPcAttacks v-else-if="member" :key="member.id" class="mt-2" :member="member" :sender-name="c.name" />
       <p v-else-if="c.type === 'player'" class="mt-2 text-caption text-muted-foreground">Their attacks and spells are on the full sheet.</p>
@@ -90,6 +91,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { IconChevronRight, IconUndo } from "@/lib/icons";
 import { RUNNER_ROLL_CONTEXT } from "@/components/encounters/runnerResolve";
+import RunnerRunForMe from "@/components/encounters/RunnerRunForMe.vue";
 import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { MONSTER_SIZES } from "@/types/monster.types";

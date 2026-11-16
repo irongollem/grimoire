@@ -32,6 +32,7 @@
       <p v-if="npc.stat_block.defenses.vulnerabilities.length" class="detail-line"><span>Vulnerabilities</span>{{ formatDefenseList(npc.stat_block.defenses.vulnerabilities) }}</p>
       <p v-if="npc.stat_block.defenses.immunities.length" class="detail-line"><span>Immunities</span>{{ formatDefenseList(npc.stat_block.defenses.immunities) }}</p>
       <p v-if="npc.stat_block.defenses.condition_immunities.length" class="detail-line"><span>Cond. Immune</span>{{ formatConditionImmunities(npc.stat_block.defenses.condition_immunities) }}</p>
+      <RunnerRunForMe v-if="canRun" :combatant="combatant" />
       <RunnerActionList :combatant="combatant" :sections="actionSections" />
       <template v-if="npc.stat_block?.spellcasting?.entries?.length">
         <div class="detail-divider" />
@@ -48,6 +49,7 @@ import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
 import { useFormPortraits } from "@/composables/party/useFormPortraits";
 import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import SpellcastingList from "@/components/common/statblock/SpellcastingList.vue";
+import RunnerRunForMe from "@/components/encounters/RunnerRunForMe.vue";
 import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
 import { formatConditionImmunities, formatDefenseList } from "@/rules/statBlock/parseDefenses";
 import type { NpcListRow } from "@/types/npc.types";
@@ -64,6 +66,9 @@ const portrait = computed(() => portraitOf(combatant, combatant.wildshape));
 const emit = defineEmits<{
   "roll-check": [modifier: number, label: string];
 }>();
+
+// Only a creature that is not on the party's side and has Actions can be run for the DM.
+const canRun = computed(() => combatant.type !== "player" && !!npc.stat_block?.actions?.length);
 
 const actionSections = computed(() => {
   const sb = npc.stat_block;

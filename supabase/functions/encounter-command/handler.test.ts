@@ -1347,6 +1347,22 @@ describe("take_turn", () => {
     expect(result.effects[0]).not.toMatchObject({ turn: { leftTheMap: true } });
   });
 
+  // The rules read a picture with nothing drawn on it as an empty floor (the maintainer, 16 Nov 2026, of a room full of
+  // tables: "are you respecting that?"). They cannot, so the reply says the move crossed a bare map; one wall drawn
+  // anywhere and it no longer does, and a turn with no move never does.
+  it("fails if a move across a map with nothing drawn is not flagged, or a drawn map or a turn without a move is", async () => {
+    const flee = () => duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
+    const bare = await runBatch(batch("b1", takeTurn()), harness(flee(), { sources: SOURCES, map: mapOf(), dieFaces: [] }).deps);
+    expect(bare.effects[0]).toMatchObject({ turn: { kind: "flee", bareMap: true } });
+    const drawn = await runBatch(batch("b1", takeTurn()), harness(flee(), { sources: SOURCES, map: mapOf([[30, 30], [31, 30]]), dieFaces: [] }).deps);
+    expect(drawn.effects[0]).toMatchObject({ turn: { kind: "flee" } });
+    expect(drawn.effects[0]).not.toMatchObject({ turn: { bareMap: true } });
+    // Beside its target already: the bite needs no step, so nothing was crossed.
+    const still = duel({ wolf: { position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
+    const stood = await runBatch(batch("b1", takeTurn({ optionId: "attack:actions:Bite:victim" })), harness(still, { sources: SOURCES, map: mapOf(), dieFaces: [9, 5] }).deps);
+    expect(stood.effects[0]).not.toMatchObject({ turn: { bareMap: true } });
+  });
+
   it("fails if a creature that is not fleeing is removed for ending its turn on a way off", async () => {
     // The wolf (healthy) bites the ox: it walks to a square beside it, and the gate (3,-1) is exactly that square.
     const fight = duel();

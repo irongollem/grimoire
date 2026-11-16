@@ -215,4 +215,40 @@ describe("useFightCommands", () => {
     await flushPromises();
     expect(hp(store)).toBe(9);
   });
+
+  describe("takeTurn", () => {
+    const turn = { instanceId: "ogre", optionId: "o1", kind: "attack", summary: "Attack Fresco with Greatclub", reason: "Nearest.", picked: "rules" } as const;
+    const resolved = { kind: "concentration", instanceId: "fresco", dc: 10, natural: 12, total: 12, maintained: true } as const;
+
+    it("fails if the turn and each roll are not read out of the reply's effects, or the command is not sent alone for that creature", async () => {
+      attach();
+      net.invoke.mockResolvedValue({ data: answer(20, 5), error: null });
+      const { api } = mountComposable();
+      await flushPromises();
+      net.invoke.mockClear();
+      net.invoke.mockResolvedValue({ data: answer(20, 6, { effects: [{ type: "turn_taken", turn }, { type: "resolved", resolved }, { type: "resolved", resolved }] }), error: null });
+      const run = await api.takeTurn("ogre");
+      expect(sent().map((b) => b.commands)).toEqual([[{ type: "take_turn", instanceId: "ogre" }]]);
+      expect(run.turn).toEqual(turn);
+      expect(run.outcomes).toHaveLength(2);
+    });
+
+    it("fails if a replayed batch (no turn_taken effect) is answered with an invented turn", async () => {
+      attach();
+      net.invoke.mockResolvedValue({ data: answer(20, 5), error: null });
+      const { api } = mountComposable();
+      await flushPromises();
+      net.invoke.mockResolvedValue({ data: answer(20, 6, { applied: false, effects: [] }), error: null });
+      expect(await api.takeTurn("ogre")).toEqual({ turn: null, outcomes: [] });
+    });
+
+    it("fails if the server's refusal is swallowed instead of thrown with its sentence", async () => {
+      attach();
+      net.invoke.mockResolvedValue({ data: answer(20, 5), error: null });
+      const { api } = mountComposable();
+      await flushPromises();
+      net.invoke.mockResolvedValue(refusal(400, "Ogre is at 0 hit points."));
+      await expect(api.takeTurn("ogre")).rejects.toThrow("Ogre is at 0 hit points.");
+    });
+  });
 });

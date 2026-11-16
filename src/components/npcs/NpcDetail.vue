@@ -505,6 +505,7 @@ function toStatBlockDraft(sb: StatBlock | null | undefined): StatBlock {
     lair_actions: sb?.lair_actions ? [...sb.lair_actions] : [],
     legendary_resistance: sb?.legendary_resistance,
     spellcasting: cloneDraftValue(sb?.spellcasting),
+    ...(sb?.tactics ? { tactics: cloneDraftValue(sb.tactics) } : {}),
   }
 }
 
@@ -632,6 +633,7 @@ function buildStatBlock(d: NpcDraft): StatBlock | null {
     ...(sb.legendary_actions?.length ? { legendary_actions: sb.legendary_actions } : {}),
     ...(sb.lair_actions?.length ? { lair_actions: sb.lair_actions } : {}),
     ...(sb.spellcasting?.entries?.length ? { spellcasting: sb.spellcasting } : {}),
+    ...(sb.tactics ? { tactics: sb.tactics } : {}),
   }
 }
 

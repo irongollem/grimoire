@@ -53,7 +53,7 @@ vi.mock("@/composables/encounters/useEncounterLive", () => ({
 }));
 // The transport is tested on its own (useFightCommands.test.ts); here only what the runner sends through it.
 vi.mock("@/composables/encounters/useFightCommands", () => ({
-  useFightCommands: () => ({ lifecycle: h.lifecycle, requestPartySync: vi.fn() }),
+  useFightCommands: () => ({ lifecycle: h.lifecycle, takeTurn: vi.fn(), requestPartySync: vi.fn() }),
 }));
 vi.mock("@/composables/encounters/useDiscoveredMonsters", () => ({ useAutoDiscoverMonsters: () => ({ mutateAsync: vi.fn() }) }));
 vi.mock("@/composables/dice/usePromptedRoll", () => ({ usePromptedRoll: () => ({ promptRoll: vi.fn() }) }));

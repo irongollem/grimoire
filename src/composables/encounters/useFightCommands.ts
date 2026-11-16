@@ -4,6 +4,7 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { liveRevision, liveState, refreshLiveState } from "@/composables/encounters/useEncounterLive";
+import type { ResolvedAction, TurnTaken } from "@/rules/fight/fightState";
 import {
   FightRequestError,
   confirmedFromAnswer,
@@ -19,6 +20,13 @@ import {
 
 /** How long a lifecycle command waits for the commands made before it to reach the server before it gives up. */
 const DRAIN_TIMEOUT_MS = 15_000;
+
+/** What the server did when asked to play a creature's turn: the turn, and what each of its rolls came to. */
+export interface TurnRun {
+  /** Null when the reply carried no turn: a batch the server had already applied is answered with the fight as it is. */
+  turn: TurnTaken | null;
+  outcomes: ResolvedAction[];
+}
 
 /**
  * The DM's side of a fight the server holds (#1201 stage 2c): moves the store's batches over the wire, one
@@ -158,6 +166,21 @@ export function useFightCommands(encounterId: Ref<string>, options: { onLost: ()
     return answer;
   }
 
+  /**
+   * Asks the server to play one creature's turn and shows the fight it answers with, the token moved. It never ends
+   * the turn. Throws when it cannot be done: a refusal (the server's sentence is the message) or no connection.
+   */
+  async function takeTurn(instanceId: string): Promise<TurnRun> {
+    const answer = await lifecycle({ type: "take_turn", instanceId });
+    let turn: TurnTaken | null = null;
+    const outcomes: ResolvedAction[] = [];
+    for (const effect of answer.effects) {
+      if (effect.type === "turn_taken") turn = effect.turn;
+      else if (effect.type === "resolved") outcomes.push(effect.resolved);
+    }
+    return { turn, outcomes };
+  }
+
   function requestPartySync() {
     if (closed) return;
     wantSync = true;
@@ -197,5 +220,5 @@ export function useFightCommands(encounterId: Ref<string>, options: { onLost: ()
     kick();
   });
 
-  return { lifecycle, requestPartySync };
+  return { lifecycle, takeTurn, requestPartySync };
 }

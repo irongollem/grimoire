@@ -59,6 +59,13 @@ export interface TurnTaken {
    * country) and was removed from the fight after its move. It is not slain: no defeat or loot is recorded, it is simply gone.
    */
   leftTheMap?: true;
+  /**
+   * Only when true: the creature moved and the map has nothing drawn on it that the rules can read (no wall, no door,
+   * no solid rock, no difficult ground), so it crossed it as open ground. A picture of a room full of tables is, to
+   * the rules, an empty floor until the DM traces its walls or paints a difficult-terrain zone; the DM is told, so a
+   * walk through a painted table is not taken for a judgement.
+   */
+  bareMap?: true;
 }
 
 /** The reducer's events, told apart from the effects a fight adds. */

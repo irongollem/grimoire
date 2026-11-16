@@ -53,9 +53,18 @@ export interface FightMap {
   exits: readonly MapExit[];
 }
 
+/** How many squares of a run `cells` long a creature may stand on: every whole one, and a last partial one only when at least half of it is there. */
+function standable(cells: number): number {
+  return Math.floor(cells + 0.5);
+}
+
 /**
- * Where the map ends. Columns are always known: `ceil(cells_per_image_width)`. Rows follow the picture's shape when the
- * calibration records it (`ceil(cells_per_image_width * image_height_over_width)`, the arithmetic of `imageGrid`).
+ * Where the map ends. Columns are always known from `cells_per_image_width`; rows follow the picture's shape when the
+ * calibration records it (`cells_per_image_width * image_height_over_width`).
+ *
+ * A square counts as on the map when at least half of it is on the picture (`standable`). `imageGrid` rounds up,
+ * which is right for indexing every cell the picture touches, but a picture 15.09 squares tall would then give a
+ * sixteenth row that is 9% picture, and a fleeing goblin ran to it and stood below the map (seen live, 16 Nov 2026).
  *
  * When it does not (a map nobody has opened since the shape was recorded), the rows are the ones KNOWN to be on the
  * map and nothing more: the deepest of the cells the party has seen, the walls and doors, the solid cells and the
@@ -67,9 +76,11 @@ function boundsOf(
   calibration: GridCalibration,
   known: { seen: ReadonlySet<string>; solid: ReadonlySet<string>; difficult: ReadonlySet<string>; entrances: ReadonlySet<string>; live: MapLive | null },
 ): { bounds: ReachBounds; rowsKnown: boolean } {
-  const maxX = Math.ceil(calibration.cells_per_image_width) - 1;
-  const grid = gridFromRatio(calibration.cells_per_image_width, calibration.image_height_over_width);
-  if (grid !== null) return { bounds: { minX: 0, minY: 0, maxX, maxY: grid.rows - 1 }, rowsKnown: true };
+  const maxX = standable(calibration.cells_per_image_width) - 1;
+  const ratio = calibration.image_height_over_width;
+  if (gridFromRatio(calibration.cells_per_image_width, ratio) !== null && ratio != null) {
+    return { bounds: { minX: 0, minY: 0, maxX, maxY: standable(calibration.cells_per_image_width * ratio) - 1 }, rowsKnown: true };
+  }
   let maxY = -1;
   const ofKey = (key: string) => Number(key.slice(key.indexOf(",") + 1));
   for (const set of [known.seen, known.solid, known.difficult, known.entrances]) for (const key of set) maxY = Math.max(maxY, ofKey(key));

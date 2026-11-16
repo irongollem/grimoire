@@ -241,7 +241,7 @@ import { useEncounterSite } from "@/composables/locations/useEncounterSite";
 import { afterFightRoute } from "@/lib/locations/explore";
 import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 const { confirm } = useConfirm();
-import { ref, computed, watch, onUnmounted } from "vue";
+import { ref, computed, watch, onUnmounted, provide } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { IconChevronLeft, IconChevronRight, IconDiceRoll, IconDungeon, IconEncounter, IconFlag, IconLive, IconMap } from '@/lib/icons';
 import AppButton from '@/components/common/controls/AppButton.vue';
@@ -255,6 +255,7 @@ import { useUpdateNpc } from "@/composables/npcs/useNpcs";
 import { buildNpcSyncUpdate } from "@/lib/encounters/npcEncounterSync";
 import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { useFightCommands } from "@/composables/encounters/useFightCommands";
+import { RUNNER_TAKE_TURN, createRunnerTakeTurn } from "@/components/encounters/runnerResolve";
 import { ensureCampaignSession } from "@/composables/campaign/useCampaignSession";
 import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
@@ -310,6 +311,9 @@ const fight = useFightCommands(encounterId, {
     void router.push(`/encounters/${encounterId.value}`).then(() => store.reset());
   },
 });
+
+// Every panel that lists a creature's actions offers "Run this turn for me" through this (Runner, Play, phone).
+provide(RUNNER_TAKE_TURN, createRunnerTakeTurn(fight.takeTurn, (error) => toast.fromError(error, "Couldn't run that turn.")));
 
 // The runner resolves combatants' stored monster_id (detail panel, auto-discover
 // on go-live) rather than letting the DM pick, so scoping must stay off here.

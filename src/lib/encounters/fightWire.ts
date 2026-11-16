@@ -15,7 +15,9 @@ export type FightLifecycleCommand =
   | { type: "go_live"; sessionId: string | null }
   | { type: "go_private" }
   | { type: "end_combat"; siteId?: string | null }
-  | { type: "abandon" };
+  | { type: "abandon" }
+  /** Asks the server to play a creature's turn (#1203). Never ends the turn; the creature need not be the active one. */
+  | { type: "take_turn"; instanceId: string; optionId?: string };
 
 /** Everything the function accepts in `commands`: a batch of fight commands, or one of these sent alone. */
 export type WireCommand = FightCommand | FightLifecycleCommand | { type: "sync_party" };
@@ -128,7 +130,7 @@ export function retryDelayMs(failures: number): number {
 export const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
- * Sends one command that goes alone (open, go_live, go_private, end_combat, abandon, sync_party) with its own
+ * Sends one command that goes alone (open, go_live, go_private, end_combat, abandon, take_turn, sync_party) with its own
  * batch id, made once and kept across the tries so a reply lost after the server applied it is answered, not
  * applied again. Gives up after `attempts` tries and throws the last error.
  */

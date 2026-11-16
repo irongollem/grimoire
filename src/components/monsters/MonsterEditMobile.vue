@@ -142,7 +142,7 @@
         <!-- Stat Block card (monsters always have one — no include toggle) -->
         <section class="space-y-3 rounded-xl border border-border bg-card p-4">
           <h3 class="text-heading-sm font-bold text-foreground">Stat Block</h3>
-          <StatBlockEditor :sb="sb" show-legendary show-lair />
+          <StatBlockEditor :sb="sb" :creature-type="form.monster_type" show-legendary show-lair />
         </section>
 
         <!-- Description card -->

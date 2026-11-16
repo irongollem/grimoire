@@ -1,4 +1,5 @@
-import type { ComputedRef, InjectionKey, Ref } from "vue";
+import { reactive, type ComputedRef, type InjectionKey, type Ref } from "vue";
+import type { TurnRun } from "@/composables/encounters/useFightCommands";
 import type { DamageAmount, useActionResolution } from "@/composables/encounters/useActionResolution";
 import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import type { DamageType } from "@/types/damage.types";
@@ -18,6 +19,46 @@ export interface RunnerRollContext {
 }
 
 export const RUNNER_ROLL_CONTEXT: InjectionKey<RunnerRollContext> = Symbol("runnerRollContext");
+
+/**
+ * "Run this turn for me" (#1203), provided by the runner so every panel that lists a creature's actions can offer it.
+ * The last result of each creature is held here, not in the button, so it survives the panel closing and the turn
+ * moving on for as long as the runner is open, and is replaced by that creature's next run.
+ */
+export interface RunnerTakeTurn {
+  /** Asks the server to play this creature's turn. Does nothing while a request for it is out. */
+  run(instanceId: string): Promise<void>;
+  /** The last result per creature (`instance_id`). */
+  results: Record<string, TurnRun>;
+  /** The server's sentence when the last run of a creature was refused or failed; cleared by its next run. */
+  errors: Record<string, string>;
+  /** Creatures with a request out. */
+  pending: Record<string, true>;
+}
+
+export const RUNNER_TAKE_TURN: InjectionKey<RunnerTakeTurn> = Symbol("runnerTakeTurn");
+
+/** Builds the provided object over the runner's `takeTurn`; `messageOf` turns a thrown error into the sentence shown. */
+export function createRunnerTakeTurn(takeTurn: (instanceId: string) => Promise<TurnRun>, messageOf: (error: unknown) => string): RunnerTakeTurn {
+  const state = reactive<Pick<RunnerTakeTurn, "results" | "errors" | "pending">>({ results: {}, errors: {}, pending: {} });
+  return {
+    results: state.results,
+    errors: state.errors,
+    pending: state.pending,
+    async run(instanceId) {
+      if (state.pending[instanceId]) return;
+      state.pending[instanceId] = true;
+      delete state.errors[instanceId];
+      try {
+        state.results[instanceId] = await takeTurn(instanceId);
+      } catch (error) {
+        state.errors[instanceId] = messageOf(error);
+      } finally {
+        delete state.pending[instanceId];
+      }
+    },
+  };
+}
 
 /** A damage amount the DM can correct; null while the field is cleared. */
 export interface EditableAmount {
