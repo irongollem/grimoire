@@ -167,7 +167,7 @@ Deno.serve(withErrorReporting(async (req: Request) => {
 
   // The only service-role client in this server, made when a tool asks for it
   // and used for exactly one write: the `roll` tool's `server_rolled` stamp,
-  // which a caller's RLS client can never write (migration 20261115133158).
+  // which a caller's RLS client can never write (migration 20261116190424).
   // Identity and membership are still derived from the caller's JWT above.
   let service: ReturnType<typeof createClient> | undefined;
   const serviceClient = () => {

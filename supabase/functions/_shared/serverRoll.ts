@@ -3,7 +3,7 @@
 // Dungeon Master must never supply a number, and a fight the server advances
 // needs dice of its own, so this module rolls with a CSPRNG, builds the log row
 // the way the client's `sendRoll` builds it, and stamps it `server_rolled`
-// (a stamp no client can write: the trigger in migration 20261115133158).
+// (a stamp no client can write: the trigger in migration 20261116190424).
 //
 // Pure with effects injected: the MCP tool wires the database in, the tests wire
 // in fakes. The dice rules are the app's own, shared by relative path.
