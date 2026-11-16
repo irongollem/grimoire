@@ -2,7 +2,9 @@
 //
 // House policy (`credit-math.ts`) is that nobody is billed or shown a fraction of a credit. A turn of play costs a
 // small fraction of one, so rounding each turn up would overcharge by about half. A session therefore ACCRUES exact
-// fractional credits, and a turn bills only the whole credits the running total has newly crossed.
+// fractional credits, and only the whole credits the running total has newly crossed are billed. Which whole credits
+// those are is decided in SQL under the session's row lock (`append_agent_turns`, `summarise_agent_session`), not
+// here: a turn and a summary finishing together could otherwise each claim the same credit.
 
 import type { AgentUsage } from "./types.ts";
 
@@ -48,20 +50,4 @@ export function creditsForUsd(usd: number, calibration: CreditCalibration): numb
     throw new Error("Credit calibration is not usable");
   }
   return (usd * margin) / usdPerCredit;
-}
-
-// A total that is a whole number up to float noise (0.3 + 0.7 is 0.9999999999999999) counts as that whole number,
-// the same epsilon `wholeCredits` uses.
-const EPSILON = 1e-9;
-
-function wholeSoFar(accrued: number): number {
-  if (!Number.isFinite(accrued) || accrued <= 0) return 0;
-  const nearest = Math.round(accrued);
-  if (Math.abs(accrued - nearest) < EPSILON) return nearest;
-  return Math.floor(accrued);
-}
-
-/** The whole credits newly crossed going from one accrued total to the next. Never negative. */
-export function creditsDue(accruedBefore: number, accruedAfter: number): number {
-  return Math.max(0, wholeSoFar(accruedAfter) - wholeSoFar(accruedBefore));
 }

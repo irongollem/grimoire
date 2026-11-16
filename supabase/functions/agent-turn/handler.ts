@@ -7,13 +7,16 @@
 //   `beginTurn`  every gate up to and including moderation and the credit reservation. Returns a refusal (a status
 //                and a sentence) or a `run` function. Nothing has been streamed yet.
 //   `run`        creates the conversation if it is new, runs the loop, saves, charges, and reports on `send`.
+//                Then, after `done` has gone out, it may fold the older messages into the rolling summary
+//                (`_shared/agent/summary.ts`): the player never waits for that, and a failure in it is only logged.
 // A caller that gets `run` MUST call it: the reservation is released inside it.
 
-import { creditsDue, creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
+import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { runTurn, totalTokens, type TurnEnd } from "../_shared/agent/turn.ts";
 import { historyFrom, rowsFor, systemWithSummary, type StoredTurn, type TurnRow } from "../_shared/agent/transcript.ts";
+import { planSummary, summarise } from "../_shared/agent/summary.ts";
 import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTablePrompt.ts";
-import { AgentProviderError, type AgentTool, type CallModel, type CallTool } from "../_shared/agent/types.ts";
+import { AgentProviderError, type AgentTool, type AgentUsage, type CallModel, type CallTool } from "../_shared/agent/types.ts";
 import type { CreditLogFields } from "../_shared/credits.ts";
 
 // Limits of one turn. The player waits on a turn, and a model that loops on tools can spend a lot without saying
@@ -64,8 +67,6 @@ export interface SessionRow {
   campaign_id: string;
   summary: string | null;
   summary_through_seq: number;
-  /** The exact running total of credits accrued, not what was billed. */
-  credits_spent: number;
 }
 
 export interface ResolvedProvider {
@@ -101,8 +102,24 @@ export interface AgentTurnDeps {
   recordGeneration(isByok: boolean, cost: number, log: CreditLogFields): Promise<void>;
   /** `recordFreeGeneration`: a zero-credit ledger row that still says the platform paid the provider. */
   recordFreeGeneration(log: CreditLogFields): Promise<void>;
-  /** `append_agent_turns`. "conflict" is SQLSTATE 40001: the conversation moved on. Any other failure throws. */
-  appendTurns(sessionId: string, afterSeq: number, rows: TurnRow[], credits: number): Promise<"saved" | "conflict">;
+  /**
+   * `append_agent_turns`. `due` is the whole credits the conversation's running total newly crossed, decided in SQL
+   * under the row lock. "conflict" is SQLSTATE 40001: the conversation moved on. Any other failure throws.
+   */
+  appendTurns(sessionId: string, afterSeq: number, rows: TurnRow[], credits: number): Promise<{ due: number } | "conflict">;
+  /**
+   * `summarise_agent_session`: stores the summary and the seq it covers, adds the summary call's tokens and accrual,
+   * and answers with the whole credits newly crossed. "stale" is SQLSTATE 40001: another summary got there first.
+   * Any other failure throws.
+   */
+  saveSummary(input: {
+    sessionId: string;
+    expectedThroughSeq: number;
+    throughSeq: number;
+    summary: string;
+    usage: AgentUsage;
+    credits: number;
+  }): Promise<{ due: number } | "stale">;
   tools: AgentTool[];
   callTool: CallTool;
 }
@@ -137,7 +154,7 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
   return { ok: true, body: { campaignId: r.campaignId, sessionId: r.sessionId, message } };
 }
 
-// credits_spent holds six decimals; accruing at the same precision keeps the in-memory total equal to the stored one.
+// The session's credits hold six decimals; accruing at the same precision keeps what is sent equal to what is stored.
 function round6(n: number): number {
   return Math.round(n * 1_000_000) / 1_000_000;
 }
@@ -272,10 +289,8 @@ export async function beginTurn(input: {
         }
 
         let accrued = 0;
-        let due = 0;
         if (!provider.isByok && price && calibration) {
           accrued = round6(creditsForUsd(usdForSteps(steps, price), calibration));
-          due = creditsDue(session.credits_spent, round6(session.credits_spent + accrued));
         }
 
         // ledger input_tokens is ALL input (full rate, cache read and cache write): CreditLogFields has no cached
@@ -301,25 +316,37 @@ export async function beginTurn(input: {
         });
 
         // Save first, then charge: a turn that was not kept is not billed.
-        let saved: "saved" | "conflict" | "failed";
+        let saved: { due: number } | "conflict" | "failed";
         try {
           saved = await deps.appendTurns(session.id, lastSeqLoaded, rows, accrued);
         } catch (error) {
           console.error("agent-turn: saving the turn failed:", error);
           saved = "failed";
         }
-        if (saved !== "saved") {
+        if (saved === "conflict" || saved === "failed") {
           await safely(logWithoutCharge);
           emit({ type: "error", message: saved === "conflict" ? MESSAGES.conflict : MESSAGES.notSaved });
           return;
         }
 
+        const { due } = saved;
         if (due > 0 || provider.isByok) {
           await safely(() => deps.recordGeneration(provider.isByok, due, logFields));
         } else {
           await safely(() => deps.recordFreeGeneration(logFields));
         }
+        // `credits` is this turn's own. A summary's credit shows on the ledger, not in the turn that happened to
+        // trigger it.
         emit({ type: "done", end: result.end, credits: due, tokens });
+
+        // After `done`, never before: the player must not wait for housekeeping. An abort is the player leaving.
+        if (result.end !== "aborted") {
+          const storedNow: StoredTurn[] = [
+            ...stored,
+            ...rows.map((r) => ({ seq: r.seq, role: r.role, blocks: r.blocks })),
+          ];
+          await foldIntoSummary({ deps, session, storedNow, callModel, isByok: provider.isByok, price, calibration });
+        }
         return;
       } catch (error) {
         // Nothing is saved and nothing charged. The provider's own message can name the model, the key's
@@ -338,6 +365,74 @@ export async function beginTurn(input: {
   };
 
   return { kind: "ready", run };
+}
+
+/**
+ * Folds the older messages into the session's summary when the conversation has grown. It runs after the turn has
+ * been saved, charged and reported, so whatever happens in here, the player already has their answer: everything
+ * thrown is logged and nothing is emitted.
+ */
+async function foldIntoSummary(input: {
+  deps: AgentTurnDeps;
+  session: SessionRow;
+  storedNow: StoredTurn[];
+  callModel: CallModel;
+  isByok: boolean;
+  price: ModelPrice | null;
+  calibration: CreditCalibration | null;
+}): Promise<void> {
+  const { deps, session, isByok } = input;
+  try {
+    const plan = planSummary(input.storedNow, session.summary_through_seq);
+    if (!plan) return;
+
+    const { summary, usage } = await summarise({
+      callModel: input.callModel,
+      previousSummary: session.summary,
+      fold: plan.fold,
+    });
+    const logFields: CreditLogFields = {
+      model: usage.model,
+      provider: usage.provider,
+      input_tokens: usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens,
+      output_tokens: usage.outputTokens,
+    };
+    const logWithoutCharge = () => (isByok ? deps.recordGeneration(true, 0, logFields) : deps.recordFreeGeneration(logFields));
+
+    // Nothing to store and nothing to bill, but the provider was paid for the call, so the tokens are logged.
+    if (summary === null) {
+      await safely(logWithoutCharge);
+      return;
+    }
+
+    let credits = 0;
+    if (!isByok && input.price && input.calibration) {
+      credits = round6(creditsForUsd(usdForSteps([usage], input.price), input.calibration));
+    }
+    // Like a turn: a summary that was not kept is not billed, but its tokens were spent and are logged.
+    let saved: { due: number } | "stale" | "failed";
+    try {
+      saved = await deps.saveSummary({
+        sessionId: session.id,
+        expectedThroughSeq: session.summary_through_seq,
+        throughSeq: plan.throughSeq,
+        summary,
+        usage,
+        credits,
+      });
+    } catch (error) {
+      console.error("agent-turn: saving the summary failed:", error);
+      saved = "failed";
+    }
+    if (saved === "stale" || saved === "failed") {
+      await safely(logWithoutCharge);
+      return;
+    }
+    if (saved.due > 0 || isByok) await safely(() => deps.recordGeneration(isByok, saved.due, logFields));
+    else await safely(() => deps.recordFreeGeneration(logFields));
+  } catch (error) {
+    console.error("agent-turn: the summary failed:", error);
+  }
 }
 
 // A bookkeeping call after the model has answered must not turn a finished turn into an exception.

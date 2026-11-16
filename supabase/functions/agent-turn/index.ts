@@ -45,7 +45,7 @@ function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, credits_spent";
+const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq";
 
 function sessionRow(row: Record<string, unknown>): SessionRow {
   return {
@@ -54,9 +54,14 @@ function sessionRow(row: Record<string, unknown>): SessionRow {
     campaign_id: row.campaign_id as string,
     summary: (row.summary as string | null) ?? null,
     summary_through_seq: Number(row.summary_through_seq),
-    // numeric may come back as a string
-    credits_spent: Number(row.credits_spent),
   };
+}
+
+// The database answers with the whole credits to bill. A value that is not a number must never become "bill nothing".
+function wholeCredits(data: unknown): number {
+  const due = Number(data);
+  if (data === null || data === undefined || !Number.isFinite(due)) throw new Error("the database did not say what is due");
+  return due;
 }
 
 serve(withCors(async (req: Request) => {
@@ -257,15 +262,36 @@ serve(withCors(async (req: Request) => {
     recordFreeGeneration: (log: CreditLogFields) => recordFreeGeneration(admin, user.id, "agent_turn", log),
 
     async appendTurns(sessionId, afterSeq, rows: TurnRow[], credits) {
-      const { error } = await admin.rpc("append_agent_turns", {
+      const { data, error } = await admin.rpc("append_agent_turns", {
         p_session_id: sessionId,
         p_after_seq: afterSeq,
         p_rows: rows,
         p_credits: credits,
       });
-      if (!error) return "saved";
-      if (error.code === "40001") return "conflict";
-      throw error;
+      if (error) {
+        if (error.code === "40001") return "conflict";
+        throw error;
+      }
+      return { due: wholeCredits(data) };
+    },
+
+    async saveSummary({ sessionId, expectedThroughSeq, throughSeq, summary, usage, credits }) {
+      const { data, error } = await admin.rpc("summarise_agent_session", {
+        p_session_id: sessionId,
+        p_expected_through_seq: expectedThroughSeq,
+        p_through_seq: throughSeq,
+        p_summary: summary,
+        p_input_tokens: usage.inputTokens,
+        p_output_tokens: usage.outputTokens,
+        p_cache_read_tokens: usage.cacheReadTokens,
+        p_cache_write_tokens: usage.cacheWriteTokens,
+        p_credits: credits,
+      });
+      if (error) {
+        if (error.code === "40001") return "stale";
+        throw error;
+      }
+      return { due: wholeCredits(data) };
     },
 
     tools: agentToolsFrom(listTools(), SOLO_TABLE_TOOLS),

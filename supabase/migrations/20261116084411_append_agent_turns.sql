@@ -8,6 +8,12 @@
 -- (`p_after_seq`); if the conversation has moved on, nothing is written and the function raises, so the second turn
 -- is refused instead of being spliced into a history it did not see. `unique (session_id, seq)` is the backstop.
 --
+-- It answers with what to bill: the whole credits the conversation's running total crossed with this turn. A
+-- conversation accrues exact fractions and only whole credits are ever charged, and "which whole credits are new" can
+-- only be decided where the total lives and under the lock that changes it. Worked out by the caller from a total it
+-- read earlier, a turn and a summary (`summarise_agent_session`) finishing close together could each claim the same
+-- credit, or neither claim it.
+--
 -- For the service role only: the turn function is the one writer of these tables (see 20261116075823).
 
 create or replace function public.append_agent_turns(
@@ -23,7 +29,8 @@ as $$
 declare
   v_user_id uuid;
   v_last integer;
-  v_count integer;
+  v_before numeric;
+  v_after numeric;
 begin
   if p_rows is null or jsonb_typeof(p_rows) <> 'array' or jsonb_array_length(p_rows) = 0 then
     raise exception 'append_agent_turns: no rows' using errcode = '22023';
@@ -33,7 +40,8 @@ begin
   end if;
 
   -- The session row is locked for the length of the write, so two appends to one conversation run one after the other.
-  select s.user_id into v_user_id from public.agent_sessions s where s.id = p_session_id for update;
+  select s.user_id, s.credits_spent into v_user_id, v_before
+  from public.agent_sessions s where s.id = p_session_id for update;
   if not found then
     raise exception 'append_agent_turns: no such conversation' using errcode = 'P0002';
   end if;
@@ -55,7 +63,6 @@ begin
     (r.value ->> 'input_tokens')::integer, (r.value ->> 'output_tokens')::integer,
     (r.value ->> 'cache_read_tokens')::integer, (r.value ->> 'cache_write_tokens')::integer
   from jsonb_array_elements(p_rows) with ordinality as r(value, ordinality);
-  get diagnostics v_count = row_count;
 
   update public.agent_sessions s
   set input_tokens = s.input_tokens + t.input_tokens,
@@ -71,9 +78,10 @@ begin
       coalesce(sum((r.value ->> 'cache_write_tokens')::bigint), 0) as cache_write_tokens
     from jsonb_array_elements(p_rows) as r(value)
   ) t
-  where s.id = p_session_id;
+  where s.id = p_session_id
+  returning s.credits_spent into v_after;
 
-  return p_after_seq + v_count;
+  return (floor(v_after) - floor(v_before))::integer;
 end;
 $$;
 

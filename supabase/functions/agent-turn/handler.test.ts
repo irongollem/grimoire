@@ -1,6 +1,8 @@
 /**
  * The handler against an in-memory store with the database's own rules: `appendTurns` writes only when the caller's
- * last seq still matches, and every reservation must be released. The model is scripted. Expected credits are worked
+ * last seq still matches, answers with the whole credits the conversation's running total newly crossed (floor of the
+ * new total minus floor of the old), `saveSummary` refuses when the summary it expected is no longer the stored one,
+ * and every reservation must be released. The model is scripted. Expected credits are worked
  * out from the price and calibration below: input is free and output costs 10 USD per million tokens, a credit is
  * worth 0.01 USD at margin 1, so 600 output tokens are 0.006 USD, which is 0.6 credits.
  */
@@ -53,6 +55,9 @@ interface Harness {
   sessions: Map<string, SessionRow>;
   turns: StoredTurn[];
   appends: Array<{ afterSeq: number; rows: TurnRow[]; credits: number }>;
+  summaries: Array<{ expectedThroughSeq: number; throughSeq: number; summary: string; credits: number }>;
+  /** The running total of credits accrued per conversation, as the database keeps it. */
+  totals: Map<string, number>;
   ledger: Array<{ kind: "spend" | "free" | "byok"; cost: number; log: CreditLogFields }>;
   open: Set<string>;
   reserved: number[];
@@ -67,6 +72,7 @@ interface Harness {
     reservation: Refusal | null;
     conflict: boolean;
     saveThrows: boolean;
+    summarySaveThrows: boolean;
     account: Refusal | null;
   };
   script: Script;
@@ -93,6 +99,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     sessions: new Map<string, SessionRow>(),
     turns: [],
     appends: [],
+    summaries: [],
+    totals: new Map<string, number>(),
     ledger: [],
     open: new Set<string>(),
     reserved: [],
@@ -108,15 +116,26 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       reservation: null,
       conflict: false,
       saveThrows: false,
+      summarySaveThrows: false,
       account: null,
     },
     deps: undefined as unknown as AgentTurnDeps,
+  };
+  const accrue = (sessionId: string, credits: number): number => {
+    const before = h.totals.get(sessionId) ?? 0;
+    const after = Math.round((before + credits) * 1_000_000) / 1_000_000;
+    h.totals.set(sessionId, after);
+    return Math.floor(after) - Math.floor(before);
   };
   h.deps = {
     accountRefusal: async () => h.state.account,
     loadCampaign: async () => h.state.campaign,
     isDm: async () => h.state.isDm,
-    loadSession: async (id) => h.sessions.get(id) ?? null,
+    // A copy, as a database read is: the handler must not see later writes through its own session object.
+    loadSession: async (id) => {
+      const row = h.sessions.get(id);
+      return row ? { ...row } : null;
+    },
     createSession: async ({ userId, campaignId }) => {
       const row: SessionRow = {
         id: "00000000-0000-4000-8000-0000000000b9",
@@ -124,11 +143,10 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
         campaign_id: campaignId,
         summary: null,
         summary_through_seq: 0,
-        credits_spent: 0,
       };
       h.sessions.set(row.id, row);
       log.push("create");
-      return row;
+      return { ...row };
     },
     loadTurns: async (id) => h.turns.filter(() => id !== ""),
     rateLimit: async () => h.state.rateOk,
@@ -157,13 +175,21 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     appendTurns: async (sessionId, afterSeq, rows, credits) => {
       log.push("save");
       if (h.state.saveThrows) throw new Error("db down");
-      const session = h.sessions.get(sessionId)!;
       const last = h.turns.reduce((max, t) => Math.max(max, t.seq), 0);
       if (h.state.conflict || last !== afterSeq) return "conflict";
       h.appends.push({ afterSeq, rows, credits });
       for (const r of rows) h.turns.push({ seq: r.seq, role: r.role, blocks: r.blocks });
-      session.credits_spent += credits;
-      return "saved";
+      return { due: accrue(sessionId, credits) };
+    },
+    saveSummary: async ({ sessionId, expectedThroughSeq, throughSeq, summary, credits }) => {
+      log.push("save-summary");
+      if (h.state.summarySaveThrows) throw new Error("db down");
+      const session = h.sessions.get(sessionId)!;
+      if (session.summary_through_seq !== expectedThroughSeq) return "stale";
+      h.summaries.push({ expectedThroughSeq, throughSeq, summary, credits });
+      session.summary = summary;
+      session.summary_through_seq = throughSeq;
+      return { due: accrue(sessionId, credits) };
     },
     tools: [{ name: "roll", description: "roll", inputSchema: {} }],
     callTool: async () => ({ content: "RESULT-SECRET: the duke is the lich", isError: false }),
@@ -171,17 +197,18 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
   return h;
 }
 
-function existingSession(h: Harness, over: Partial<SessionRow> = {}): SessionRow {
+/** A stored conversation, with `accrued` credits already on its running total. */
+function existingSession(h: Harness, over: Partial<SessionRow> = {}, accrued = 0): SessionRow {
   const row: SessionRow = {
     id: SESSION,
     user_id: DM,
     campaign_id: CAMPAIGN,
     summary: null,
     summary_through_seq: 0,
-    credits_spent: 0,
     ...over,
   };
   h.sessions.set(row.id, row);
+  h.totals.set(row.id, accrued);
   return row;
 }
 
@@ -190,7 +217,10 @@ async function play(h: Harness, over: { body?: unknown; userId?: string; signal?
     userId: over.userId ?? DM,
     body: over.body ?? { campaignId: CAMPAIGN, message: "I open the door." },
     deps: h.deps,
-    send: (e) => h.events.push(e),
+    send: (e) => {
+      h.events.push(e);
+      if (e.type === "done") h.log.push("done");
+    },
     signal: over.signal,
   });
   return refusal;
@@ -382,7 +412,7 @@ describe("credits", () => {
 
   it("charges exactly 1 when a turn takes the running total from 0.5 to 1.1", async () => {
     const h = harness([step(600)]);
-    existingSession(h, { credits_spent: 0.5 });
+    existingSession(h, {}, 0.5);
     await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go" } });
     expect(h.ledger).toHaveLength(1);
     expect(h.ledger[0]).toMatchObject({ kind: "spend", cost: 1 });
@@ -435,7 +465,7 @@ describe("saving", () => {
 
   it("answers a save conflict with the reload sentence, charges nothing, and logs the tokens at zero", async () => {
     const h = harness([step(600)]);
-    existingSession(h, { credits_spent: 0.5 });
+    existingSession(h, {}, 0.5);
     h.state.conflict = true;
     await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go" } });
     expect(last(h)).toEqual({ type: "error", message: MESSAGES.conflict });
@@ -448,7 +478,7 @@ describe("saving", () => {
 
   it("charges nothing when the save fails for another reason", async () => {
     const h = harness([step(600)]);
-    existingSession(h, { credits_spent: 0.5 });
+    existingSession(h, {}, 0.5);
     h.state.saveThrows = true;
     await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go" } });
     expect(last(h)).toEqual({ type: "error", message: MESSAGES.notSaved });
@@ -457,7 +487,7 @@ describe("saving", () => {
 
   it("saves first and charges after", async () => {
     const h = harness([step(600)]);
-    existingSession(h, { credits_spent: 0.5 });
+    existingSession(h, {}, 0.5);
     await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go" } });
     expect(h.log.indexOf("save")).toBeGreaterThan(-1);
     expect(h.log.indexOf("charge")).toBeGreaterThan(h.log.indexOf("save"));
@@ -585,7 +615,7 @@ describe("limits and abort", () => {
         return toolStep(600);
       },
     ]);
-    existingSession(h, { credits_spent: 0.5 });
+    existingSession(h, {}, 0.5);
     await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go" }, signal: controller.signal });
     expect(last(h)).toMatchObject({ type: "done", end: "aborted", credits: 1 });
     expect(h.appends).toHaveLength(1);
@@ -634,6 +664,189 @@ describe("the system text", () => {
     existingSession(h, { summary: "The party fled the mine." });
     await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go" } });
     expect(h.requests[0].system).toContain("## The story so far\n\nThe party fled the mine.");
+  });
+});
+
+describe("the rolling summary", () => {
+  const GO = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I open the door." };
+  const SUMMARY = "The party is at the mine door.";
+  const summaryStep = (output = 100, over: Partial<ModelStep> = {}) =>
+    step(output, { blocks: [{ type: "text", text: SUMMARY }], ...over });
+
+  /** Six stored turns of two rows, each row 1,000 tokens (12,000 in all). The turn that follows adds 12 more tokens. */
+  function longConversation(h: Harness, over: Partial<SessionRow> = {}, accrued = 0, rowCount = 12) {
+    existingSession(h, over, accrued);
+    for (let seq = 1; seq <= rowCount; seq++) {
+      h.turns.push({
+        seq,
+        role: seq % 2 === 1 ? "user" : "assistant",
+        blocks: [{ type: "text", text: `MARK${seq} `.padEnd(4000, "a") }],
+      });
+    }
+  }
+  // After the new turn (user "I open the door.", 4 tokens; answer 8) the total is 12,012 tokens. Walking back, the new
+  // turn is 12, plus the stored turn at seq 11-12 makes 2,012, plus seq 9-10 makes 4,012 > 4,000. So seq 1-10 fold.
+
+  it("makes no summary call for a short conversation", async () => {
+    const h = harness([step(100)]);
+    existingSession(h);
+    await play(h, { body: GO });
+    expect(h.modelCalls()).toBe(1);
+    expect(h.summaries).toEqual([]);
+  });
+
+  it("tells the player the turn is done before it makes the summary call", async () => {
+    const h = harness([step(100), summaryStep()]);
+    longConversation(h);
+    await play(h, { body: GO });
+    expect(h.modelCalls()).toBe(2);
+    expect(h.log.indexOf("done")).toBeGreaterThan(-1);
+    expect(h.log.indexOf("done")).toBeLessThan(h.log.lastIndexOf("model"));
+  });
+
+  it("folds seq 1 to 10, asks with no tools, and stores the summary with the seq it covers", async () => {
+    const h = harness([step(100), summaryStep()]);
+    longConversation(h);
+    await play(h, { body: GO });
+    expect(h.requests[0].tools.length).toBeGreaterThan(0);
+    expect(h.requests[1].tools).toEqual([]);
+    expect(h.summaries).toEqual([{ expectedThroughSeq: 0, throughSeq: 10, summary: SUMMARY, credits: expect.closeTo(0.1, 9) }]);
+    const material = h.requests[1].messages[0].blocks[0];
+    expect(material).toMatchObject({ type: "text" });
+    expect((material as { text: string }).text).toContain("MARK1 ");
+    expect((material as { text: string }).text).not.toContain("MARK11 ");
+  });
+
+  it("expects the stored summary's seq, and folds only what follows it", async () => {
+    // 14 stored rows with the first 2 already summarised: seq 3-14 is 12,000 tokens, plus the new turn's 12.
+    // Walking back, the new turn is 12, seq 13-14 makes 2,012, seq 11-12 makes 4,012 > 4,000: seq 3-12 fold.
+    const h = harness([step(100), summaryStep()]);
+    longConversation(h, { summary: "OLD-RECORD", summary_through_seq: 2 }, 0, 14);
+    await play(h, { body: GO });
+    expect(h.summaries).toMatchObject([{ expectedThroughSeq: 2, throughSeq: 12 }]);
+    const material = (h.requests[1].messages[0].blocks[0] as { text: string }).text;
+    expect(material).not.toContain("MARK2 ");
+    expect(material).toContain("MARK3 ");
+  });
+
+  it("gives the previous summary to the summariser", async () => {
+    const h = harness([step(100), summaryStep()]);
+    longConversation(h, { summary: "OLD-RECORD", summary_through_seq: 0 });
+    await play(h, { body: GO });
+    expect((h.requests[1].messages[0].blocks[0] as { text: string }).text).toContain("## The record so far\n\nOLD-RECORD");
+  });
+
+  it("sends the next turn the summary and not the folded messages", async () => {
+    const h = harness([step(100), summaryStep(), step(100)]);
+    longConversation(h);
+    await play(h, { body: GO });
+    await play(h, { body: { ...GO, message: "I step inside." } });
+    const request = h.requests[2];
+    expect(request.system).toContain(`## The story so far\n\n${SUMMARY}`);
+    const sent = JSON.stringify(request.messages);
+    expect(sent).not.toContain("MARK1 ");
+    expect(sent).not.toContain("MARK10 ");
+    expect(sent).toContain("MARK11 ");
+    expect(h.turns).toHaveLength(16); // nothing was deleted
+  });
+
+  it("leaves the player with done and no error when the summary call throws, with the turn saved and the reservation released", async () => {
+    const h = harness([step(100), new AgentProviderError("down", 500, true)]);
+    longConversation(h);
+    await play(h, { body: GO });
+    expect(h.events.some((e) => e.type === "error")).toBe(false);
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(h.appends).toHaveLength(1);
+    expect(h.summaries).toEqual([]);
+    expect(h.open.size).toBe(0);
+  });
+
+  it("does not turn a failed summary save into an error for the player, and still logs the tokens the call spent", async () => {
+    // The provider was paid for the summary whether or not the database kept it: a call missing from the ledger is
+    // a cost nobody can see.
+    const h = harness([step(100), summaryStep(70)]);
+    h.state.summarySaveThrows = true;
+    longConversation(h);
+    await play(h, { body: GO });
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(h.open.size).toBe(0);
+    expect(h.ledger.map((l) => l.kind)).toEqual(["free", "free"]);
+    expect(h.ledger[1].log.output_tokens).toBe(70);
+  });
+
+  it("stores nothing and bills nothing for an empty summary, but still logs its tokens", async () => {
+    const h = harness([step(100), step(50, { blocks: [{ type: "text", text: "  " }] })]);
+    longConversation(h);
+    await play(h, { body: GO });
+    expect(h.summaries).toEqual([]);
+    expect(h.log).not.toContain("save-summary");
+    expect(h.ledger.map((l) => l.kind)).toEqual(["free", "free"]);
+    expect(h.ledger[1].log.output_tokens).toBe(50);
+  });
+
+  it("bills nothing when another summary got there first, even one that would cross a credit", async () => {
+    // 2,000 output tokens are 2.0 credits: a stale save that billed them would show as a spend row
+    const h = harness([
+      step(100),
+      () => {
+        h.sessions.get(SESSION)!.summary_through_seq = 3; // another summary lands while this one is being written
+        return summaryStep(2000);
+      },
+    ]);
+    longConversation(h);
+    await play(h, { body: GO });
+    expect(h.summaries).toEqual([]);
+    expect(h.ledger.some((l) => l.kind === "spend")).toBe(false);
+    expect(h.ledger).toHaveLength(2);
+    expect(h.ledger[1].log.output_tokens).toBe(2000);
+  });
+
+  it("spends the whole credit a summary takes the total across, and the turn's done reports only the turn's own", async () => {
+    // total 0.7; the turn adds 0.2 (0.9, nothing due); the summary adds 0.2 (1.1, one credit due)
+    const h = harness([step(200), summaryStep(200)]);
+    longConversation(h, {}, 0.7);
+    await play(h, { body: GO });
+    expect(last(h)).toMatchObject({ type: "done", credits: 0 });
+    expect(h.ledger).toEqual([
+      { kind: "free", cost: 0, log: expect.objectContaining({ output_tokens: 200 }) },
+      { kind: "spend", cost: 1, log: expect.objectContaining({ output_tokens: 200 }) },
+    ]);
+  });
+
+  it("starts no summary after an aborted turn", async () => {
+    const controller = new AbortController();
+    const h = harness([
+      () => {
+        controller.abort();
+        return toolStep(100);
+      },
+      summaryStep(),
+    ]);
+    longConversation(h);
+    await play(h, { body: GO, signal: controller.signal });
+    expect(last(h)).toMatchObject({ type: "done", end: "aborted" });
+    expect(h.modelCalls()).toBe(1);
+  });
+
+  it("starts no summary when the turn's save conflicted", async () => {
+    const h = harness([step(100), summaryStep()]);
+    h.state.conflict = true;
+    longConversation(h);
+    await play(h, { body: GO });
+    expect(h.modelCalls()).toBe(1);
+    expect(h.summaries).toEqual([]);
+  });
+
+  it("summarises own-key play without spending: no credits accrued, zero rows only", async () => {
+    const h = harness([step(100), summaryStep(2000)], true);
+    h.state.price = null;
+    h.state.calibration = null;
+    longConversation(h);
+    await play(h, { body: GO });
+    expect(h.summaries).toHaveLength(1);
+    expect(h.summaries[0].credits).toBe(0);
+    expect(h.ledger.map((l) => l.kind)).toEqual(["byok", "byok"]);
+    expect(h.ledger.every((l) => l.cost === 0)).toBe(true);
   });
 });
 

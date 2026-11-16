@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(13);
 
 -- A finished turn is saved whole, in order, and counted (#1205).
 
@@ -20,7 +20,11 @@ select is(
       {"role": "assistant", "blocks": [{"type": "text", "text": "It creaks."}], "provider": "openai", "model": "gpt-test",
        "input_tokens": 1000, "output_tokens": 50, "cache_read_tokens": 4000, "cache_write_tokens": 0}]'::jsonb,
     0.4),
-  2, 'the turn''s two messages take seq 1 and 2, and the new last seq comes back'
+  0, 'a turn that leaves the running total under one credit bills nothing'
+);
+select is(
+  (select max(seq) from public.agent_turns where session_id = '12050000-0000-4000-8000-0000000000c1'),
+  2, 'and its two messages took seq 1 and 2'
 );
 select is(
   (select array_agg(role order by seq) from public.agent_turns where session_id = '12050000-0000-4000-8000-0000000000c1'),
@@ -60,10 +64,28 @@ select throws_ok(
   'P0002', null, 'a conversation that does not exist is refused'
 );
 
+-- 0.4 so far. A turn that accrues 0.7 takes the total to 1.1: one whole credit is new.
+select is(
+  public.append_agent_turns('12050000-0000-4000-8000-0000000000c1', 2,
+    '[{"role": "user", "blocks": [{"type": "text", "text": "I listen."}]}]'::jsonb, 0.7),
+  1, 'the turn that takes the running total past a whole credit bills that one credit'
+);
+-- 1.1 so far. 0.9 more is exactly 2.0: reaching a whole credit is crossing it. Then 2.5 more is 4.5: two at once.
+select is(
+  public.append_agent_turns('12050000-0000-4000-8000-0000000000c1', 3,
+    '[{"role": "user", "blocks": [{"type": "text", "text": "I wait."}]}]'::jsonb, 0.9),
+  1, 'a total that lands exactly on a whole credit bills it'
+);
+select is(
+  public.append_agent_turns('12050000-0000-4000-8000-0000000000c1', 4,
+    '[{"role": "user", "blocks": [{"type": "text", "text": "I wait longer."}]}]'::jsonb, 2.5),
+  2, 'a long turn that crosses two whole credits bills both, and the half stays accrued'
+);
+
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '12050000-0000-4000-8000-0000000000a1', true);
 select throws_ok(
-  $$ select public.append_agent_turns('12050000-0000-4000-8000-0000000000c1', 2,
+  $$ select public.append_agent_turns('12050000-0000-4000-8000-0000000000c1', 5,
        '[{"role": "assistant", "blocks": [{"type": "text", "text": "You win."}]}]'::jsonb, 0) $$,
   '42501', null, 'the owner cannot call it: only the server appends'
 );

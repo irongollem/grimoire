@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { creditsDue, creditsForUsd, usdForSteps, usdForUsage, type ModelPrice } from "./metering";
+import { creditsForUsd, usdForSteps, usdForUsage, type ModelPrice } from "./metering";
 import type { AgentUsage } from "./types";
 
 const usage = (over: Partial<AgentUsage> = {}): AgentUsage => ({
@@ -66,39 +66,5 @@ describe("creditsForUsd", () => {
     ["NaN margin", { usdPerCredit: 0.02, margin: Number.NaN }],
   ])("throws on %s instead of making play free", (_name, calibration) => {
     expect(() => creditsForUsd(1, calibration)).toThrow("Credit calibration is not usable");
-  });
-});
-
-describe("creditsDue", () => {
-  it("bills nothing while the total stays inside one credit", () => {
-    expect(creditsDue(0.2, 0.9)).toBe(0);
-  });
-
-  it("bills the whole credits newly crossed, and only those", () => {
-    // floor(3.1) - floor(0.4) = 3 - 0.
-    expect(creditsDue(0.4, 3.1)).toBe(3);
-    // Already past 2: crossing to 2.9 bills nothing more.
-    expect(creditsDue(2.2, 2.9)).toBe(0);
-  });
-
-  it("counts a total that is 1 up to float noise as having reached 1", () => {
-    const noisy = 0.6 + 0.3 + 0.1; // 0.9999999999999999 in IEEE doubles, mathematically 1
-    expect(noisy).not.toBe(1);
-    expect(creditsDue(0.3, noisy)).toBe(1);
-  });
-
-  it("does not bill a credit twice when the earlier total was float noise below a whole", () => {
-    // Before is 1 - 1e-12, which is the whole credit 1; after 1.5 crosses nothing new.
-    expect(creditsDue(1 - 1e-12, 1.5)).toBe(0);
-  });
-
-  it("never goes negative when the total moves backwards", () => {
-    expect(creditsDue(3.5, 1.2)).toBe(0);
-  });
-
-  it("treats NaN or negative totals as nothing accrued rather than billing garbage", () => {
-    expect(creditsDue(Number.NaN, 2.5)).toBe(2);
-    expect(creditsDue(0, Number.NaN)).toBe(0);
-    expect(creditsDue(-5, 1.5)).toBe(1);
   });
 });

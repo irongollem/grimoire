@@ -47,6 +47,12 @@ function asBlock(x: unknown): AgentBlock | null {
   }
 }
 
+/** The validated blocks of one stored row: bad blocks dropped, and a row whose blocks are not a list holds none. */
+export function blocksOf(row: StoredTurn): AgentBlock[] {
+  if (!Array.isArray(row.blocks)) return [];
+  return row.blocks.map(asBlock).filter((b): b is AgentBlock => b !== null);
+}
+
 /**
  * The messages to send: rows in `seq` order, the part the summary covers left out, bad blocks dropped.
  * A stored `tool_call` always has its results after it (the loop guarantees it, see turn.ts), so only the cut at
@@ -56,8 +62,7 @@ export function historyFrom(stored: StoredTurn[], summaryThroughSeq: number): Ag
   const messages: AgentMessage[] = [];
   const kept = stored.filter((row) => row.seq > summaryThroughSeq).sort((a, b) => a.seq - b.seq);
   for (const row of kept) {
-    if (!Array.isArray(row.blocks)) continue;
-    const blocks = row.blocks.map(asBlock).filter((b): b is AgentBlock => b !== null);
+    const blocks = blocksOf(row);
     if (blocks.length === 0) continue;
     messages.push({ role: row.role, blocks });
   }
