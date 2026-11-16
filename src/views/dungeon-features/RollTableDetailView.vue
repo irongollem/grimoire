@@ -23,6 +23,16 @@
             label="Copy to campaign…"
             @click="openCopy"
           />
+          <!-- #1212: the same list, sent to the players as a question. -->
+          <AppButton
+            v-if="table && activeCampaignId"
+            variant="subtle"
+            size="sm"
+            :icon="IconSend"
+            label="Send to the table"
+            :disabled="table.entries.length === 0"
+            @click="askOpen = true"
+          />
           <AppButton
             variant="primary"
             size="md"
@@ -96,8 +106,19 @@
                 <span class="shrink-0 text-label-lg font-bold text-primary/80 bg-primary/10 rounded px-2 py-0.5 min-w-12 text-center">
                   {{ entry.min === entry.max ? entry.min : `${entry.min}–${entry.max}` }}
                 </span>
+                <!-- FocalImage fills its parent, so the parent sets the size. -->
+                <div v-if="pictureFor(entry)?.image_url" class="size-10 shrink-0 overflow-hidden rounded-md">
+                  <FocalImage
+                    :src="pictureFor(entry)?.image_url"
+                    :alt="pictureFor(entry)?.name"
+                    format="square"
+                    :focal-point="pictureFor(entry)?.focal"
+                    record
+                  />
+                </div>
                 <div class="flex-1 min-w-0 flex flex-col gap-1">
                   <span class="text-body text-foreground">{{ entry.label || '—' }}</span>
+                  <p v-if="entry.blurb" class="text-caption text-muted-foreground">{{ entry.blurb }}</p>
                   <AppButton
                     v-if="entry.encounter_id"
                     variant="link"
@@ -126,6 +147,9 @@
             <h3 class="text-heading-sm font-bold text-foreground">Placed In</h3>
             <EntityPlacements kind="roll_table" :entity-id="table.id" />
           </div>
+
+          <!-- Questions sent from this table (#1212), open and closed, answers coming in live. -->
+          <TableQuestionsList :roll-table-id="table.id" title="Sent to the table" />
         </template>
 
         <!-- ── EDIT MODE ───────────────────────────────────────────────── -->
@@ -179,73 +203,15 @@
             </div>
 
             <div v-else class="flex flex-col gap-2">
-              <div
+              <RollTableEntryRow
                 v-for="(entry, idx) in form.entries"
                 :key="entry.id"
-                class="grid grid-cols-[5rem_1fr_auto] gap-2 items-start rounded-md border border-border bg-card p-2"
-              >
-                <div class="flex items-center gap-1">
-                  <AppInput
-                    v-model.number="entry.min"
-                    type="number"
-                    tone="filled"
-                    size="caption"
-                    align="center"
-                    :min="1"
-                    :max="dieMax"
-                    class="w-9"
-                  />
-                  <span class="text-caption text-muted-foreground">–</span>
-                  <AppInput
-                    v-model.number="entry.max"
-                    type="number"
-                    tone="filled"
-                    size="caption"
-                    align="center"
-                    :min="entry.min"
-                    :max="dieMax"
-                    class="w-9"
-                  />
-                </div>
-                <div class="flex flex-col gap-1.5 min-w-0">
-                  <AppInput
-                    v-model="entry.label"
-                    size="body-xs"
-                    tone="filled"
-                    placeholder="What happens?"
-                  />
-                  <EntityCombobox
-                    :model-value="entry.encounter_id ?? ''"
-                    :options="encounterOptions"
-                    placeholder="Link encounter…"
-                    @update:model-value="entry.encounter_id = $event || null"
-                  />
-                </div>
-                <AppButton
-                  variant="ghost"
-                  tone="danger"
-                  size="icon-xs"
-                  :icon="IconDelete"
-                  tooltip="Remove entry"
-                  class="mt-0.5"
-                  @click="removeEntry(idx)"
-                />
-                <textarea
-                  v-if="entry.notes !== null && entry.notes !== undefined"
-                  v-model="entry.notes"
-                  rows="1"
-                  placeholder="Notes (optional)"
-                  class="col-span-3 w-full bg-muted border border-border rounded px-2 py-1 text-caption text-muted-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
-                />
-                <AppButton
-                  v-else
-                  variant="ghost"
-                  size="inline-caption"
-                  class="col-span-3 justify-start italic"
-                  label="+ add note"
-                  @click="entry.notes = ''"
-                />
-              </div>
+                v-model="form.entries[idx]"
+                :die-max="dieMax"
+                :encounter-options="encounterOptions"
+                :picture="pictureFor(entry)"
+                @remove="removeEntry(idx)"
+              />
             </div>
           </div>
 
@@ -297,13 +263,14 @@
     @close="copyOpen = false"
     @copied="onCopied"
   />
+  <SendTableQuestionDialog v-if="table" :table="table" :open="askOpen" @close="askOpen = false" />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useRoute, useRouter } from "vue-router";
-import { IconAdd, IconCopy, IconDelete, IconDiceRoll, IconEdit } from '@/lib/icons';
+import { IconAdd, IconCopy, IconDiceRoll, IconEdit, IconSend } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 import { useCampaignStore } from "@/stores/campaign";
@@ -327,7 +294,10 @@ import RollTableResult from "@/components/dungeon-features/RollTableResult.vue";
 import { markEdited } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
-import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
+import FocalImage from "@/components/common/media/FocalImage.vue";
+import RollTableEntryRow from "@/components/dungeon-features/RollTableEntryRow.vue";
+import { useEntryPictures } from "@/composables/tableQuestions/useEntryPictures";
+import { entryRefKey } from "@/lib/tableQuestions/options";
 import TagInput from "@/components/common/controls/TagInput.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
@@ -336,6 +306,8 @@ import DmNoteBox from "@/components/notes/DmNoteBox.vue";
 import EntityPlacements from "@/components/locations/place/EntityPlacements.vue";
 import CampaignScopeField from "@/components/common/entity/CampaignScopeField.vue";
 import CopyToCampaignDialog from "@/components/common/overlays/CopyToCampaignDialog.vue";
+import SendTableQuestionDialog from "@/components/tableQuestions/SendTableQuestionDialog.vue";
+import TableQuestionsList from "@/components/tableQuestions/TableQuestionsList.vue";
 
 const props = defineProps<{
   /** ID of an existing table to edit. Omit for new-table mode. */
@@ -412,6 +384,18 @@ const rangeError = computed(() => validateEntryRanges(form.value.entries, form.v
 const rollableEntries = computed(() =>
   (!isNew.value && !editMode.value && table.value) ? table.value.entries : form.value.entries,
 );
+
+// ── Entry pictures ─────────────────────────────────────────────────────────
+// One lookup for whatever the rows on screen name (saved entries in view mode,
+// the form's in edit mode).
+const shownEntries = computed(() => (editMode.value || isNew.value ? form.value.entries : table.value?.entries ?? []));
+const entryRefs = computed(() =>
+  shownEntries.value.flatMap((e) => (e.ref ? [e.ref] : [])),
+);
+const pictures = useEntryPictures(entryRefs, { npcs: true });
+function pictureFor(entry: RollTableEntry) {
+  return entry.ref ? pictures.value.get(entryRefKey(entry.ref)) ?? null : null;
+}
 
 function addEntry() {
   const lastMax = form.value.entries.reduce((max, e) => Math.max(max, e.max), 0);
@@ -524,6 +508,10 @@ async function onDelete() {
 }
 
 // ── Copy to campaign (#598) ─────────────────────────────────────────────────
+
+// ── Send to the table (#1212) ───────────────────────────────────────────────
+
+const askOpen = ref(false);
 
 const { copyOpen, copyIds, openCopy, onCopied } = useCopyEntityToCampaign({
   entity: () => table.value,
