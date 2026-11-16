@@ -51,7 +51,7 @@ function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id";
+const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id";
 
 function sessionRow(row: Record<string, unknown>): SessionRow {
   return {
@@ -61,6 +61,7 @@ function sessionRow(row: Record<string, unknown>): SessionRow {
     summary: (row.summary as string | null) ?? null,
     summary_through_seq: Number(row.summary_through_seq),
     scene_location_id: (row.scene_location_id as string | null) ?? null,
+    campaign_session_id: (row.campaign_session_id as string | null) ?? null,
   };
 }
 
@@ -147,7 +148,27 @@ serve(withCors(async (req: Request) => {
       return data ? sessionRow(data) : null;
     },
 
-    async createSession({ userId, campaignId, provider, model, sceneLocationId }): Promise<SessionRow> {
+    // Through the caller's own client: `start_campaign_session` is the function the app's Start button calls, it
+    // checks that the caller is this campaign's DM, and it returns the open session untouched when there is one
+    // (a DM already running an evening keeps it, and the table joins it). A new session takes the next number.
+    async openPlaySession(campaignId): Promise<string | null> {
+      const { data: last, error: lastError } = await supabase
+        .from("campaign_sessions")
+        .select("number")
+        .eq("campaign_id", campaignId)
+        .not("number", "is", null)
+        .order("number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lastError) throw lastError;
+      const next = last && typeof last.number === "number" ? last.number + 1 : 1;
+      const { data, error } = await supabase.rpc("start_campaign_session", { p_campaign_id: campaignId, p_number: next });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return row && typeof row.id === "string" ? row.id : null;
+    },
+
+    async createSession({ userId, campaignId, provider, model, sceneLocationId, campaignSessionId }): Promise<SessionRow> {
       const { data, error } = await admin
         .from("agent_sessions")
         .insert({
@@ -157,6 +178,7 @@ serve(withCors(async (req: Request) => {
           provider,
           model,
           scene_location_id: sceneLocationId,
+          campaign_session_id: campaignSessionId,
         })
         .select(SESSION_COLUMNS)
         .single();
@@ -395,7 +417,7 @@ serve(withCors(async (req: Request) => {
     // Into the same ledger the DM and the Voice Coach write, so the NPC's page shows them and the character's next
     // call reads them. `campaign_id` is set from the NPC by the table's own trigger; the filter on the NPC's
     // campaign is here because the ids came out of a model's tool call.
-    async saveMemories({ campaignId, userId, provider, model, memories }) {
+    async saveMemories({ campaignId, userId, provider, model, memories, campaignSessionId }) {
       const ids = [...new Set(memories.map((m) => m.characterId))];
       const { data: known, error: readError } = await admin.from("npcs").select("id").in("id", ids).eq("campaign_id", campaignId);
       if (readError) throw readError;
@@ -415,6 +437,7 @@ serve(withCors(async (req: Request) => {
           user_id: userId,
           kind: m.kind,
           body: m.body,
+          session_id: campaignSessionId,
           ai_provenance: provenance,
         }));
       if (rows.length === 0) return;

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(4);
+select plan(6);
 
 -- Where the party is in a conversation (#1021). The narrator moves it with a tool, and the model can be talked
 -- into naming any id it has seen, so the database itself must refuse a place from another campaign: otherwise a
@@ -35,6 +35,25 @@ select throws_ok(
   '23514',
   null,
   'a place from another campaign is refused, even for the same owner and even from the server'
+);
+
+-- The same for the play session a conversation is a sitting of.
+insert into public.campaign_sessions (id, campaign_id, user_id, number, started_at) values
+  ('12160000-0000-4000-8000-000000000040', '12160000-0000-4000-8000-000000000010', '12160000-0000-4000-8000-000000000001', 1, now()),
+  ('12160000-0000-4000-8000-000000000041', '12160000-0000-4000-8000-000000000011', '12160000-0000-4000-8000-000000000001', 1, now());
+
+select lives_ok(
+  $$ update public.agent_sessions set campaign_session_id = '12160000-0000-4000-8000-000000000040'
+     where id = '12160000-0000-4000-8000-000000000030' $$,
+  'a conversation can be a sitting of a session of its own campaign'
+);
+
+select throws_ok(
+  $$ update public.agent_sessions set campaign_session_id = '12160000-0000-4000-8000-000000000041'
+     where id = '12160000-0000-4000-8000-000000000030' $$,
+  '23514',
+  null,
+  'a session of another campaign is refused, so one campaign''s play is never dated into another''s evening'
 );
 
 -- The owner reads where the party is, and cannot move it: only the server writes the row.

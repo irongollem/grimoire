@@ -30,6 +30,7 @@ const OTHER = "00000000-0000-4000-8000-0000000000e2";
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
 const OTHER_CAMPAIGN = "00000000-0000-4000-8000-0000000000c2";
 const SESSION = "00000000-0000-4000-8000-0000000000a1";
+const PLAY_SESSION = "00000000-0000-4000-8000-0000000000a7";
 const HONEYCOMB = "00000000-0000-4000-8000-0000000000f1";
 const CELLAR = "00000000-0000-4000-8000-0000000000a5";
 const ELSEWHERE = "00000000-0000-4000-8000-0000000000a6";
@@ -79,6 +80,7 @@ interface Harness {
   appends: Array<{ afterSeq: number; rows: TurnRow[]; credits: number }>;
   /** What characters chose to remember, as the handler filed it. */
   memories: Array<{ characterId: string; kind: string; body: string }>;
+  memorySessions: Array<string | null>;
   summaries: Array<{ expectedThroughSeq: number; throughSeq: number; summary: string; credits: number }>;
   /** The running total of credits accrued per conversation, as the database keeps it. */
   totals: Map<string, number>;
@@ -102,6 +104,7 @@ interface Harness {
     places: Map<string, SceneView>;
     sceneThrows: boolean;
     memoriesThrow: boolean;
+    playSessionThrows: boolean;
     moveFails: boolean;
   };
   script: Script;
@@ -129,6 +132,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     turns: [],
     appends: [],
     memories: [],
+    memorySessions: [],
     summaries: [],
     totals: new Map<string, number>(),
     ledger: [],
@@ -151,6 +155,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       places: new Map<string, SceneView>([[CELLAR, cellarScene()]]),
       sceneThrows: false,
       memoriesThrow: false,
+      playSessionThrows: false,
       moveFails: false,
     },
     deps: undefined as unknown as AgentTurnDeps,
@@ -170,7 +175,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       const row = h.sessions.get(id);
       return row ? { ...row } : null;
     },
-    createSession: async ({ userId, campaignId, sceneLocationId }) => {
+    createSession: async ({ userId, campaignId, sceneLocationId, campaignSessionId }) => {
       const row: SessionRow = {
         id: "00000000-0000-4000-8000-0000000000b9",
         user_id: userId,
@@ -178,6 +183,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
         summary: null,
         summary_through_seq: 0,
         scene_location_id: sceneLocationId,
+        campaign_session_id: campaignSessionId,
       };
       h.sessions.set(row.id, row);
       log.push("create");
@@ -244,6 +250,12 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       log.push("memories");
       if (h.state.memoriesThrow) throw new Error("db down");
       h.memories.push(...input.memories);
+      h.memorySessions.push(input.campaignSessionId);
+    },
+    openPlaySession: async () => {
+      log.push("open-session");
+      if (h.state.playSessionThrows) throw new Error("db down");
+      return PLAY_SESSION;
     },
     loadSpeaker: async (campaignId, characterId) => {
       speakerLoads.push({ campaignId, characterId });
@@ -264,6 +276,7 @@ function existingSession(h: Harness, over: Partial<SessionRow> = {}, accrued = 0
     summary: null,
     summary_through_seq: 0,
     scene_location_id: null,
+    campaign_session_id: null,
     ...over,
   };
   h.sessions.set(row.id, row);
@@ -1173,5 +1186,40 @@ describe("a character remembers in its own words", () => {
     const h = harness(script());
     await play(h);
     expect(h.log.indexOf("memories")).toBeGreaterThan(h.log.indexOf("save"));
+  });
+});
+
+describe("a sitting is a play session of the campaign", () => {
+  const speakCall = (): ModelStep =>
+    step(100, {
+      blocks: [{ type: "tool_call", id: "s1", name: "speak", input: { speaker_id: HONEYCOMB, happening: "A stranger swears to come back." } }],
+      stop: "tool_calls",
+    });
+  const remembering = (): Script => [
+    speakCall(),
+    step(300, { blocks: [{ type: "text", text: "SAYS: Dusk, then.\nREMEMBERS: promise: Back by dusk." }] }),
+    step(200),
+  ];
+
+  it("stamps what a character remembers with the sitting, or 'what did she promise last time' has no answer", async () => {
+    const h = harness(remembering());
+    await play(h);
+    expect([...h.sessions.values()][0].campaign_session_id).toBe(PLAY_SESSION);
+    expect(h.memorySessions).toEqual([PLAY_SESSION]);
+  });
+
+  it("opens no second session for a conversation already under way: one conversation is one sitting", async () => {
+    const h = harness();
+    existingSession(h, { campaign_session_id: "00000000-0000-4000-8000-0000000000a8" });
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go", mode: "do" } });
+    expect(h.log).not.toContain("open-session");
+  });
+
+  it("still plays when the session cannot be opened, with what it writes left undated", async () => {
+    const h = harness(remembering());
+    h.state.playSessionThrows = true;
+    await play(h);
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(h.memorySessions).toEqual([null]);
   });
 });

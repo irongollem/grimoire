@@ -112,6 +112,14 @@ Seen live on 16 Nov 2026: one question took seven model calls and 14 seconds, fi
 - **A conversation begins at a place.** A request that starts a conversation may carry `startLocationId`: the page knows where the player sat down, and a narrator left to find it spent a whole turn searching (21 s live, against 4 s with the place known). It is checked against the campaign before anything is reserved or streamed (a place elsewhere is a 404), and it is refused together with `sessionId`: a conversation under way is moved by the narrator, never by a request.
 - **The browser** hears `{ type: "scene", scene: { id, name } }` for a successful move, and nothing else of the tool's result: the description and the character list can hold DM-only text.
 
+## A sitting is a play session (migration `20261116214740`)
+
+Play at the AI table is canon (maintainer, 16 Nov 2026): what happens there is written into the campaign it is played in. So a new conversation opens the campaign's play session, through `start_campaign_session`, the function behind the app's Start button, called as the DM who is playing: it returns the open session untouched when there is one (a DM already running an evening keeps it and the table joins it) and otherwise starts the next numbered one. The conversation keeps that session (`agent_sessions.campaign_session_id`), and what it writes into the campaign is stamped with it; a character's memories are the first such thing. One conversation is one sitting: a conversation already under way never opens another session. When the session cannot be opened the conversation still runs, and what it writes is undated.
+
+The session must be of the conversation's campaign, checked by the row's own trigger (`agent_sessions_refs_in_campaign`, which also holds the scene's check) because the shared trigger lets server code through.
+
+Not built: leaving the table does not end the session (the DM ends it in the app, as after any evening), and in a campaign with players a sitting at the AI table shows them a live session like any other.
+
 ## Not built yet
 
 Characters who travel with the party (the scene lists only who is in the place), checking `present` against who is actually in the place (it is still the narrator's word), a screen, a budget the player sees, the checks on what is shown (#1061), the standing AI disclosure at the table, tools that write (the allow list is read and roll only), a check on what the narrator hands a character, "knows about" links, pacing by clocks, the Responses API for a model that reasons between tool calls, and a rule for a conversation whose provider changes between turns (it uses the provider resolved now, and the other provider's private blocks are dropped).

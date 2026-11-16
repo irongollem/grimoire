@@ -92,6 +92,8 @@ export interface SessionRow {
   summary_through_seq: number;
   /** Where the party is; null until the narrator first calls go_to. */
   scene_location_id: string | null;
+  /** The play session this conversation is a sitting of; what the table writes into the campaign is stamped with it. */
+  campaign_session_id: string | null;
 }
 
 export interface ResolvedProvider {
@@ -119,7 +121,13 @@ export interface AgentTurnDeps {
     provider: string;
     model: string;
     sceneLocationId: string | null;
+    campaignSessionId: string | null;
   }): Promise<SessionRow>;
+  /**
+   * The campaign's open play session, started if there is none: sitting down at the table is the game being played.
+   * Null when it could not be opened; the conversation then runs without one and what it writes carries no session.
+   */
+  openPlaySession(campaignId: string): Promise<string | null>;
   loadTurns(sessionId: string): Promise<StoredTurn[]>;
   rateLimit(userId: string): Promise<boolean>;
   resolveProvider(campaign: CampaignRow): Promise<ResolvedProvider | null>;
@@ -163,6 +171,8 @@ export interface AgentTurnDeps {
     provider: string;
     model: string;
     memories: Array<{ characterId: string } & Remembered>;
+    /** The sitting it happened in, so "what did she promise last time" has an answer. */
+    campaignSessionId: string | null;
   }): Promise<void>;
   /**
    * A character of this campaign as its own call may know it: its record and its memories, nothing else. Null when
@@ -328,12 +338,22 @@ export async function beginTurn(input: {
       let stored: StoredTurn[];
       let result;
       try {
+        // Only a new conversation opens a session: one conversation is one sitting, and it keeps the session it began in.
+        let playSessionId: string | null = null;
+        if (!existing) {
+          try {
+            playSessionId = await deps.openPlaySession(campaign.id);
+          } catch (error) {
+            console.error("agent-turn: opening the play session failed:", error);
+          }
+        }
         session = existing ?? await deps.createSession({
           userId,
           campaignId: campaign.id,
           provider: provider.provider,
           model: provider.model,
           sceneLocationId: body.startLocationId === undefined ? null : body.startLocationId,
+          campaignSessionId: playSessionId,
         });
         emit({ type: "session", sessionId: session.id });
         stored = await deps.loadTurns(session.id);
@@ -457,6 +477,7 @@ export async function beginTurn(input: {
               provider: provider.provider,
               model: provider.model,
               memories: remembered,
+              campaignSessionId: session.campaign_session_id,
             })
           );
         }
