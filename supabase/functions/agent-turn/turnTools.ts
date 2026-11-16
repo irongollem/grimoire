@@ -59,8 +59,10 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     campaignId,
     sessionId: session.id,
     setScene: deps.setScene,
-    onMove: (moved) => {
+    onMove: (moved, companions) => {
       place = moved.id;
+      // Whoever came along is placed with the party when the turn is kept, like anyone who spoke to it.
+      for (const id of companions) spoke.add(id);
       input.onMove(moved);
     },
   });

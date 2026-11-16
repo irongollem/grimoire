@@ -1721,3 +1721,15 @@ describe("a recorded character is played as themselves, where the party is", () 
     expect(lost.placed).toEqual([]);
   });
 });
+
+describe("companions travel with the party", () => {
+  it("puts whoever came along at the new place, or the next scene has lost the friend who walked in with you", async () => {
+    const go: ModelStep = step(100, {
+      blocks: [{ type: "tool_call", id: "g1", name: "go_to", input: { location_id: CELLAR, with: [HONEYCOMB] } }],
+      stop: "tool_calls",
+    });
+    const h = harness([go, step(200)]);
+    await play(h);
+    expect(h.placed).toEqual([{ campaignId: CAMPAIGN, locationId: CELLAR, characterIds: [HONEYCOMB] }]);
+  });
+});

@@ -77,6 +77,12 @@ describe("parseGoToInput", () => {
     for (const bad of [{}, { location_id: 5 }, { location_id: "  " }, { location_id: "cellar" }]) {
       expect(parseGoToInput(bad)).toMatchObject({ ok: false });
     }
-    expect(parseGoToInput({ location_id: ID })).toEqual({ ok: true, locationId: ID });
+    expect(parseGoToInput({ location_id: ID })).toEqual({ ok: true, locationId: ID, companions: [] });
+  });
+
+  it("takes who comes along, once each, and refuses a companion named by name", () => {
+    const friend = "00000000-0000-4000-8000-0000000000f1";
+    expect(parseGoToInput({ location_id: ID, with: [friend, friend] })).toEqual({ ok: true, locationId: ID, companions: [friend] });
+    expect(parseGoToInput({ location_id: ID, with: ["Honeycomb"] })).toMatchObject({ ok: false });
   });
 });

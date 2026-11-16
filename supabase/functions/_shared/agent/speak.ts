@@ -13,6 +13,10 @@ import type { AgentLine, AgentUsage, CallModel } from "./types.ts";
 // A deed sentence and up to three sentences of words, plus the two labels. The old words-only answer fitted in 300;
 // the deed line needs room, or a long answer is cut in the middle of the words. The memory sentence comes last, so
 // a cut costs the memory before it costs the line the player is waiting for.
+/** How many listeners are asked whether they react to one line. A crowd does not all answer at once. */
+export const MAX_REACTIONS = 3;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const SPEAK_MAX_OUTPUT_TOKENS = 500;
 
 // ── What a character has heard ────────────────────────────────────────────────
@@ -401,10 +405,79 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
   const useTheRecord = (r: { id: string; shownName: string }): string =>
     `${r.shownName} has a record in this campaign. Call again with speaker_id "${r.id}" so they speak and remember as themselves.`;
 
+  // Everyone with a record who has had a say this turn, asked or not. Claimed before any model call, so two
+  // characters asked in the same round do not each wake the other as a bystander.
+  const voices = new Set<string>();
+
+  /**
+   * The people listening get a say of their own (maintainer, 17 Nov 2026: conversations should flow naturally,
+   * characters "might seek each other even with the player there", and the player should "feel part of a group").
+   * Until this, nobody spoke unless the narrator asked them, so a room of three was three interviews. Each
+   * recorded character who heard the line is asked, in a call of their own, whether they say or do anything; most
+   * of the time the answer is nothing. What they are told is what they heard, built by the hearing rules, with no
+   * word of the narrator's in it. One round only: a reaction wakes no further reactions, and a character has one
+   * say a turn unless the narrator asks them again.
+   */
+  async function reactions(event: Event): Promise<{ lines: AgentLine[]; usage: AgentUsage[]; said: Array<{ id: string; name: string; did: string | null; said: string | null }> }> {
+    const out = { lines: [] as AgentLine[], usage: [] as AgentUsage[], said: [] as Array<{ id: string; name: string; did: string | null; said: string | null }> };
+    const asked = event.present.filter((p) => UUID_RE.test(p) && !voices.has(p)).slice(0, MAX_REACTIONS);
+    for (const id of asked) voices.add(id);
+    const before = [...stored, ...thisTurn.filter((e) => e !== event)];
+    const answers = await Promise.all(asked.map(async (id) => {
+      try {
+        const record = await deps.loadSpeaker(id);
+        if (!record) return null;
+        const who: Who = { id: record.id, name: record.shownName };
+        const heardNow = heardFrom([event], who);
+        // Someone who only saw that a whisper passed has nothing to answer.
+        if (!heardNow.some((h) => h.kind === "spoken" && h.speaker !== PLAYER_SPEAKER)) return null;
+        const system = speakerSystem({
+          name: record.shownName, profile: record.profile, manner: null, memories: record.memories,
+          heard: trimHeard(heardFrom(before, who)),
+        });
+        const turn = await characterTurn({
+          callModel: deps.callModel,
+          system,
+          happening:
+            `${heardNow.map(heardLine).join("\n")}\n\nNobody spoke to you. People who are listening mostly say nothing: ` +
+            `then answer DOES: - and SAYS: -. Speak or act only if you truly would: to object, to add what only you know, ` +
+            `to tease, to back someone up, to ask the speaker something. Say it to them by name.`,
+          signal: deps.signal,
+        });
+        return { record, turn };
+      } catch {
+        // A bystander who could not be asked stays silent; the line they were listening to still stands.
+        return null;
+      }
+    }));
+    for (const answer of answers) {
+      if (!answer) continue;
+      const { record, turn } = answer;
+      out.usage.push(turn.usage);
+      if (!turn.said && !turn.did) continue;
+      const speaker = { id: record.id, name: record.shownName };
+      const lines: AgentLine[] = [];
+      if (turn.did) lines.push({ kind: "acted", speaker, text: turn.did });
+      if (turn.said) lines.push({ kind: "spoken", speaker, text: turn.said });
+      // Heard by the one they answered and by everyone else who was listening.
+      const others = [event.speakerId, ...event.present].filter((p): p is string => p !== null && p !== record.id);
+      thisTurn.push({
+        speakerId: record.id, speakerName: null, present: others, happening: null, playerSaid: null,
+        playerVolume: "normal", volume: "normal", whisperedTo: [], alsoHeardBy: [], carried: false, lines,
+      });
+      for (const memory of turn.remembered) deps.onRemember?.({ characterId: record.id, ...memory });
+      deps.onSpoke?.(record.id);
+      out.lines.push(...lines);
+      out.said.push({ id: record.id, name: record.shownName, did: turn.did, said: turn.said });
+    }
+    return out;
+  }
+
   async function speak(raw: Record<string, unknown>): Promise<SpeechToolResult> {
     const parsed = parseSpeakInput(raw);
     if (!parsed.ok) return failure(parsed.error);
     const input = parsed.value;
+    if (input.id) voices.add(input.id);
 
     let who: Who;
     let shownName: string;
@@ -444,7 +517,7 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
     const lines: AgentLine[] = [];
     if (did) lines.push({ kind: "acted", speaker, text: did });
     if (said) lines.push({ kind: "spoken", speaker, text: said });
-    thisTurn.push({
+    const event: Event = {
       speakerId: input.id,
       speakerName: input.name ?? (input.id ? null : shownName),
       present: input.present,
@@ -456,12 +529,19 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
       alsoHeardBy: input.alsoHeardBy,
       carried: input.via !== null,
       lines,
-    });
+    };
+    thisTurn.push(event);
     if (who.id) deps.onSpoke?.(who.id);
+    const reacted = await reactions(event);
     // The narrator reads both parts to judge what comes of the deed. The note sits where the narrator is about to
     // write: told only in its standing rules, it twice repeated a character's line in its own words (live, 16 Nov 2026).
     const shown = "The player has already been shown this, word for word. Do not repeat, quote or paraphrase it.";
-    return { content: JSON.stringify({ did, said, shown }), isError: false, usage: [usage], lines };
+    return {
+      content: JSON.stringify(reacted.said.length > 0 ? { did, said, others_reacted: reacted.said, shown } : { did, said, shown }),
+      isError: false,
+      usage: [usage, ...reacted.usage],
+      lines: [...lines, ...reacted.lines],
+    };
   }
 
   async function act(raw: Record<string, unknown>): Promise<SpeechToolResult> {

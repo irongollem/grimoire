@@ -59,17 +59,30 @@ export const GO_TO_TOOL: AgentTool = {
     additionalProperties: false,
     properties: {
       location_id: { type: "string", description: "The id of the place the party arrives at." },
+      with: {
+        type: "array",
+        maxItems: 8,
+        items: { type: "string" },
+        description: "The ids of the characters who come along with the party. Everyone else stays where they were.",
+      },
     },
     required: ["location_id"],
   },
 };
 
-export function parseGoToInput(input: Record<string, unknown>): { ok: true; locationId: string } | { ok: false; error: string } {
+export function parseGoToInput(
+  input: Record<string, unknown>,
+): { ok: true; locationId: string; companions: string[] } | { ok: false; error: string } {
   const id = input.location_id;
   if (typeof id !== "string" || id.trim() === "") return { ok: false, error: "location_id is required: the id of the place the party goes to." };
   const trimmed = id.trim();
   if (!UUID.test(trimmed)) return { ok: false, error: "location_id must be the uuid of a place. Search for the place to find its id." };
-  return { ok: true, locationId: trimmed };
+  const along = input.with;
+  if (along !== undefined && (!Array.isArray(along) || along.length > 8 || along.some((id) => typeof id !== "string" || !UUID.test(id.trim())))) {
+    return { ok: false, error: "with must be a list of at most 8 character ids: the people who come along." };
+  }
+  const companions = along === undefined ? [] : [...new Set((along as string[]).map((id) => id.trim().toLowerCase()))];
+  return { ok: true, locationId: trimmed, companions };
 }
 
 const HEADING = "## Where the party is";
@@ -123,7 +136,8 @@ export interface SceneToolDeps {
   /** Stores the move and answers with the new scene; null when the place is not in this campaign or could not be stored. */
   setScene(sessionId: string, campaignId: string, locationId: string): Promise<SceneView | null>;
   /** Told once per successful move, with only what the browser may see. */
-  onMove(place: { id: string; name: string }): void;
+  /** The party arrived; `companions` are the characters who came along. */
+  onMove(place: { id: string; name: string }, companions: string[]): void;
 }
 
 /**
@@ -140,7 +154,7 @@ export function makeSceneTool(deps: SceneToolDeps): { tool: AgentTool; call: (in
       // later, because the party did arrive and the next turn must not start from the old place.
       const scene = await deps.setScene(deps.sessionId, deps.campaignId, parsed.locationId);
       if (!scene) return { content: "That place is not in this campaign, so the party did not move.", isError: true };
-      deps.onMove({ id: scene.id, name: scene.name });
+      deps.onMove({ id: scene.id, name: scene.name }, parsed.companions);
       return { content: sceneResult(trimScene(scene)), isError: false };
     },
   };

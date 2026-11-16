@@ -298,15 +298,16 @@ describe("makeSpeechTools", () => {
 
   it("hands a deed to the room but not to someone it was shouted to, while the shouted words do arrive", async () => {
     const C = "33333333-3333-4333-8333-333333333333";
-    const rec = recorder(["DOES: Hurls the lantern.\nSAYS: Fire!", "ok", "ok"]);
+    // The second answer is Bren's own, unasked, reaction to the shout: silence.
+    const rec = recorder(["DOES: Hurls the lantern.\nSAYS: Fire!", "DOES: -\nSAYS: -", "ok", "ok"]);
     const t = makeSpeechTools({ stored: [], callModel: rec.callModel, loadSpeaker: async (id) => id === C ? { id: C, shownName: "Cole", profile: "Name: Cole", memories: "" } : loadSpeaker(id) });
     await t.call("speak", { speaker_id: A, happening: "h", volume: "shout", present: [B], also_heard_by: [C] });
     await t.call("speak", { speaker_id: B, happening: "h2" });
     await t.call("speak", { speaker_id: C, happening: "h3" });
-    expect(rec.requests[1].system).toContain("Alda did: Hurls the lantern.");
-    expect(rec.requests[1].system).toContain("Alda said: Fire!");
-    expect(rec.requests[2].system).not.toContain("Hurls the lantern");
+    expect(rec.requests[2].system).toContain("Alda did: Hurls the lantern.");
     expect(rec.requests[2].system).toContain("Alda said: Fire!");
+    expect(rec.requests[3].system).not.toContain("Hurls the lantern");
+    expect(rec.requests[3].system).toContain("Alda said: Fire!");
   });
 
   it("gives a character its own profile and memories, or it could not speak as itself", async () => {
@@ -329,11 +330,11 @@ describe("makeSpeechTools", () => {
   });
 
   it("B hears A's line in the same turn when listed present, and not when left out", async () => {
-    const heardRec = recorder(["A-LINE-ONE", "ok"]);
+    const heardRec = recorder(["A-LINE-ONE", "DOES: -\nSAYS: -", "ok"]);
     const t1 = makeSpeechTools({ stored: [], loadSpeaker, callModel: heardRec.callModel });
     await t1.call("speak", { speaker_id: A, happening: "h", present: [B] });
     await t1.call("speak", { speaker_id: B, happening: "h2" });
-    expect(heardRec.requests[1].system).toContain("A-LINE-ONE");
+    expect(heardRec.requests[2].system).toContain("A-LINE-ONE");
 
     const absentRec = recorder(["A-LINE-TWO", "ok"]);
     const t2 = makeSpeechTools({ stored: [], loadSpeaker, callModel: absentRec.callModel });
@@ -568,5 +569,121 @@ describe("a moment that leaves more than one thing to keep", () => {
     });
     await tools.call("speak", { speaker_id: A, happening: "A pledge is given." });
     expect(kept).toHaveLength(2);
+  });
+});
+
+describe("the people listening get a say of their own", () => {
+  const C = "33333333-3333-4333-8333-333333333333";
+  const people = async (id: string) => {
+    if (id === A) return { id: A, shownName: "Alda", profile: "Name: Alda\nNotes: ALDA-SECRET", memories: "" };
+    if (id === B) return { id: B, shownName: "Bren", profile: "Name: Bren", memories: "" };
+    if (id === C) return { id: C, shownName: "Cole", profile: "Name: Cole", memories: "" };
+    return null;
+  };
+  const silent = "DOES: -\nSAYS: -";
+
+  it("lets a listener answer unasked, after the speaker, or a room of three is three interviews", async () => {
+    const rec = recorder(["SAYS: The door is safe.", "SAYS: Alda, it is not."]);
+    const t = makeSpeechTools({ stored: [], loadSpeaker: people, callModel: rec.callModel });
+    const got = await t.call("speak", { speaker_id: A, happening: "NARRATOR-BRIEF", present: [B] });
+    expect(got.lines?.map((l) => `${l.speaker.name}: ${l.text}`)).toEqual(["Alda: The door is safe.", "Bren: Alda, it is not."]);
+    expect(JSON.parse(got.content).others_reacted).toEqual([{ id: B, name: "Bren", did: null, said: "Alda, it is not." }]);
+  });
+
+  it("tells the listener only what they heard: none of the narrator's briefing, none of the speaker's record", async () => {
+    const rec = recorder(["SAYS: The door is safe.", silent]);
+    const t = makeSpeechTools({ stored: [], loadSpeaker: people, callModel: rec.callModel });
+    await t.call("speak", { speaker_id: A, happening: "NARRATOR-BRIEF", present: [B] });
+    const asked = JSON.stringify(rec.requests[1]);
+    expect(asked).toContain("The door is safe.");
+    expect(asked).not.toContain("NARRATOR-BRIEF");
+    expect(asked).not.toContain("ALDA-SECRET");
+  });
+
+  it("adds no line for a listener who stays silent, and still counts the call that asked them", async () => {
+    const rec = recorder(["SAYS: Hello.", silent]);
+    const t = makeSpeechTools({ stored: [], loadSpeaker: people, callModel: rec.callModel });
+    const got = await t.call("speak", { speaker_id: A, happening: "h", present: [B] });
+    expect(got.lines).toHaveLength(1);
+    expect(got.usage).toHaveLength(2);
+    expect("others_reacted" in JSON.parse(got.content)).toBe(false);
+  });
+
+  it("asks nobody who was not listening, and nobody without a record", async () => {
+    const rec = recorder(["SAYS: Hello."]);
+    const t = makeSpeechTools({ stored: [], loadSpeaker: people, callModel: rec.callModel });
+    await t.call("speak", { speaker_id: A, happening: "h", present: ["The sweeper"] });
+    expect(rec.requests).toHaveLength(1);
+  });
+
+  it("does not let a whisper be answered by someone it was not whispered to", async () => {
+    const rec = recorder(["SAYS: The key is in the well."]);
+    const t = makeSpeechTools({ stored: [], loadSpeaker: people, callModel: rec.callModel });
+    await t.call("speak", { speaker_id: A, happening: "h", volume: "whisper", whispered_to: [C], present: [B, C] });
+    // Alda, and Cole who heard it. Bren only saw a whisper pass and is not asked what he thinks of it.
+    expect(rec.requests).toHaveLength(2);
+    expect(JSON.stringify(rec.requests[1])).toContain("Cole");
+  });
+
+  it("does not wake each other when two characters are asked in the same round", async () => {
+    const rec = recorder(["SAYS: One.", "SAYS: Two."]);
+    const t = makeSpeechTools({ stored: [], loadSpeaker: people, callModel: rec.callModel });
+    await Promise.all([
+      t.call("speak", { speaker_id: A, happening: "h", present: [B] }),
+      t.call("speak", { speaker_id: B, happening: "h", present: [A] }),
+    ]);
+    expect(rec.requests).toHaveLength(2);
+  });
+
+  it("gives everyone one say: a reaction wakes no further reactions", async () => {
+    const rec = recorder(["SAYS: Hello.", "SAYS: Alda, no.", "SAYS: Alda, yes."]);
+    const t = makeSpeechTools({ stored: [], loadSpeaker: people, callModel: rec.callModel });
+    await t.call("speak", { speaker_id: A, happening: "h", present: [B, C] });
+    expect(rec.requests).toHaveLength(3);
+  });
+
+  it("asks a listener once a turn, however many people speak in front of them", async () => {
+    const rec = recorder(["SAYS: Hello.", silent, "SAYS: Good day."]);
+    const t = makeSpeechTools({ stored: [], loadSpeaker: people, callModel: rec.callModel });
+    await t.call("speak", { speaker_id: A, happening: "h", present: [B] });
+    await t.call("speak", { speaker_id: C, happening: "h", present: [B] });
+    // Alda, Bren asked once, Cole. Without the rule Bren is asked again after Cole.
+    expect(rec.requests).toHaveLength(3);
+  });
+
+  it("asks at most three listeners, so a crowd does not all answer at once", async () => {
+    const ids = ["44444444-4444-4444-8444-444444444444", "55555555-5555-4555-8555-555555555555", "66666666-6666-4666-8666-666666666666", "77777777-7777-4777-8777-777777777777"];
+    const rec = recorder(["SAYS: Hello.", silent, silent, silent, silent]);
+    const t = makeSpeechTools({
+      stored: [], callModel: rec.callModel,
+      loadSpeaker: async (id) => (id === A ? people(A) : { id, shownName: `P${id[0]}`, profile: "p", memories: "" }),
+    });
+    await t.call("speak", { speaker_id: A, happening: "h", present: ids });
+    expect(rec.requests).toHaveLength(4);
+  });
+
+  it("keeps what a listener chose to remember, and counts them as having been there", async () => {
+    const kept: unknown[] = [];
+    const there: string[] = [];
+    const rec = recorder(["SAYS: I am the heir.", "SAYS: Are you now.\nREMEMBERS: learned: Alda claims to be the heir."]);
+    const t = makeSpeechTools({ stored: [], loadSpeaker: people, callModel: rec.callModel, onRemember: (m) => kept.push(m), onSpoke: (id) => there.push(id) });
+    await t.call("speak", { speaker_id: A, happening: "h", present: [B] });
+    expect(kept).toEqual([{ characterId: B, kind: "learned", body: "Alda claims to be the heir." }]);
+    expect(there).toEqual([A, B]);
+  });
+
+  it("still gives the speaker's line when a listener cannot be asked", async () => {
+    let calls = 0;
+    const t = makeSpeechTools({
+      stored: [], loadSpeaker: people,
+      callModel: async () => {
+        calls++;
+        if (calls === 2) throw new Error("provider down");
+        return step("SAYS: Hello.");
+      },
+    });
+    const got = await t.call("speak", { speaker_id: A, happening: "h", present: [B] });
+    expect(got.isError).toBe(false);
+    expect(got.lines).toHaveLength(1);
   });
 });
