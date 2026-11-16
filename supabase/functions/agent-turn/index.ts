@@ -30,6 +30,7 @@ import { toPlainText } from "../_shared/ai-prompt.ts";
 import { PLACES_MAX, CHARACTERS_MAX, type SceneView } from "../_shared/agent/scene.ts";
 import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
+import { RECORD_SECTION_MAX, type RecordedFact } from "../_shared/agent/record.ts";
 import { openaiModel } from "../_shared/agent/openai.ts";
 import { anthropicModel } from "../_shared/agent/anthropic.ts";
 import type { CallModel } from "../_shared/agent/types.ts";
@@ -52,6 +53,9 @@ function json(status: number, body: unknown): Response {
 }
 
 const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id";
+
+/** Beside what is tied to this place and these people, the campaign's newest facts always reach the narrator. */
+const NEWEST_FACTS = 15;
 
 function sessionRow(row: Record<string, unknown>): SessionRow {
   return {
@@ -442,6 +446,110 @@ serve(withCors(async (req: Request) => {
         }));
       if (rows.length === 0) return;
       const { error } = await admin.from("npc_memories").insert(rows);
+      if (error) throw error;
+    },
+
+    // The record. Read and written through the caller's own client, never the service role: the database refuses a
+    // tie to a row of another campaign only when the writer is a signed-in user, and a model chose these ids.
+    // Candidates are what is tied to this place or these people, plus the campaign's newest facts, so something
+    // filed just now about somewhere else still reaches the narrator.
+    async loadRecord(campaignId, about): Promise<RecordedFact[]> {
+      const ties: string[] = [];
+      if (about.locationId !== null) ties.push(`location_id.eq.${about.locationId}`);
+      if (about.characterIds.length > 0) ties.push(`npc_id.in.(${about.characterIds.join(",")})`);
+      const [linked, newest] = await Promise.all([
+        ties.length === 0
+          ? Promise.resolve({ data: [] as Array<{ fact_id: string }>, error: null })
+          : supabase.from("story_fact_links").select("fact_id").eq("campaign_id", campaignId).or(ties.join(",")),
+        supabase.from("story_facts").select("id").eq("campaign_id", campaignId)
+          .order("created_at", { ascending: false }).limit(NEWEST_FACTS),
+      ]);
+      if (linked.error) throw linked.error;
+      if (newest.error) throw newest.error;
+      const ids = [...new Set([...(linked.data ?? []).map((l) => l.fact_id as string), ...(newest.data ?? []).map((f) => f.id as string)])];
+      if (ids.length === 0) return [];
+
+      const [facts, closers] = await Promise.all([
+        supabase.from("story_facts").select("id, body, known_to_player, session_id, created_at")
+          .eq("campaign_id", campaignId).in("id", ids),
+        supabase.from("story_facts").select("supersedes_id").eq("campaign_id", campaignId).in("supersedes_id", ids),
+      ]);
+      if (facts.error) throw facts.error;
+      if (closers.error) throw closers.error;
+      const closed = new Set((closers.data ?? []).map((c) => c.supersedes_id as string));
+      const open = (facts.data ?? []).filter((f) => !closed.has(f.id as string));
+
+      const sessionIds = [...new Set(open.map((f) => f.session_id as string | null).filter((id): id is string => id !== null))];
+      const numbers = new Map<string, number>();
+      if (sessionIds.length > 0) {
+        const { data, error } = await supabase.from("campaign_sessions").select("id, number")
+          .eq("campaign_id", campaignId).in("id", sessionIds);
+        if (error) throw error;
+        for (const s of data ?? []) if (typeof s.number === "number") numbers.set(s.id as string, s.number);
+      }
+
+      return open
+        .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))
+        .slice(-RECORD_SECTION_MAX)
+        .map((f) => {
+          const number = f.session_id === null ? undefined : numbers.get(f.session_id as string);
+          return {
+            id: f.id as string,
+            body: f.body as string,
+            hidden: f.known_to_player !== true,
+            when: number === undefined ? null : `Session ${number}`,
+          };
+        });
+    },
+
+    async fileFact({ campaignId, campaignSessionId, agentSessionId, provider, model, fact, about, hidden, closes }) {
+      const provenance: AiProvenance = {
+        generatorType: "agent_turn_fact",
+        provider,
+        model,
+        generatedAt: new Date().toISOString(),
+        edited: false,
+      };
+      const { data, error } = await supabase
+        .from("story_facts")
+        .insert({
+          campaign_id: campaignId,
+          session_id: campaignSessionId,
+          agent_session_id: agentSessionId,
+          body: fact,
+          known_to_player: !hidden,
+          supersedes_id: closes,
+          source: "table",
+          ai_provenance: provenance,
+        })
+        .select("id")
+        .single();
+      if (error || !data) {
+        console.error("agent-turn: filing a fact failed:", error);
+        // A `closes` that is not a fact of this campaign is the one failure the narrator can fix.
+        return { error: closes !== null && (error?.code === "23503" || error?.code === "23514")
+          ? "The fact to close was not found on this campaign's record, so nothing was filed. Use an id listed under \"On record\"."
+          : "The fact could not be put on record. Say what happens without filing it." };
+      }
+      const factId = data.id as string;
+      if (about.length > 0) {
+        const { error: linkError } = await supabase.from("story_fact_links").insert(
+          about.map((a) => ({ fact_id: factId, campaign_id: campaignId, kind: a.type, [`${a.type}_id`]: a.id })),
+        );
+        if (linkError) {
+          console.error("agent-turn: tying a fact failed:", linkError);
+          // Never leave a fact without the ties it was filed with: it would never be found again.
+          const { error: undoError } = await supabase.from("story_facts").delete().eq("id", factId).eq("campaign_id", campaignId);
+          if (undoError) console.error("agent-turn: taking back a fact failed:", undoError);
+          return { error: "One of the things the fact is about was not found in this campaign, so nothing was filed. Check the ids." };
+        }
+      }
+      return { id: factId };
+    },
+
+    async discardFacts(campaignId, ids) {
+      if (ids.length === 0) return;
+      const { error } = await supabase.from("story_facts").delete().eq("campaign_id", campaignId).in("id", ids);
       if (error) throw error;
     },
 

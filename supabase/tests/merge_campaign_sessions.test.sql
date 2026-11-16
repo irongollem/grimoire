@@ -15,7 +15,7 @@ select set_eq(
       where c.contype = 'f' and c.confrelid = 'public.campaign_sessions'::regclass $$,
   array['notes', 'session_proposals', 'encounter_state', 'npc_reveals', 'location_reveals',
         'handout_reveals', 'discovered_monsters', 'quest_beat_transitions', 'npc_memories',
-        'character_caretakers'],
+        'character_caretakers', 'agent_sessions', 'story_facts'],
   'the merge moves every link into the session log'
 );
 

@@ -120,6 +120,24 @@ The session must be of the conversation's campaign, checked by the row's own tri
 
 Not built: leaving the table does not end the session (the DM ends it in the app, as after any evening), and in a campaign with players a sitting at the AI table shows them a live session like any other.
 
+## The record (`record.ts`, migration `20261116215909`)
+
+AI narrators forget. The maintainer, 16 Nov 2026: "long running quests shouldnt be a reason to start forgetting things". A session note is written to be told at the table, not to be right, so the campaign keeps **the record**: plain facts, one sentence each, filed the moment they happen, each tied to what it is about (`story_facts`, `story_fact_links`: a person, a place, a quest, a beat, an item or a monster) and found again by those ties.
+
+Three rules, two of them in the schema:
+
+1. **A fact is overtaken, never rewritten.** A later fact `closes` the one it replaces (`supersedes_id`); a body cannot be updated.
+2. **A fact the party has not learned yet is hidden** (`known_to_player = false`) and stays out of every event the browser hears until it comes out.
+3. **A fact and what it points at are of one campaign.** The tie check holds a signed-in writer only, so every read and write of the record goes through the DM's own client in `index.ts`, never the service role.
+
+- **`record { fact, about, hidden, closes }`** is the narrator's tool. `parseRecordInput` refuses what it cannot file with a sentence the narrator can fix (blank or over-long fact, more than 8 ties, an unknown type, an id that is not a uuid, a `hidden` that is not a boolean); the same thing named twice is collapsed. The campaign, the sittings and the conversation are the turn's own and are never read from the input.
+- **In the system text** the record is `## On record`, after the scene and before the summary. The standing text and campaign section stay a byte-identical prefix, the scene changes when the party moves, the record when something is filed, and the summary, which only grows, comes last. `loadRecord` gathers what is tied to the party's place or the characters in it plus the campaign's 15 newest facts (so a fact just filed about somewhere else still arrives), drops any a later fact has closed, labels each with its sitting ("Session 3"), and the section keeps the newest 30 and says how many older ones are not shown. Each line carries the fact's id, because that is what `closes` takes. A record that fails to load is logged and treated as empty: the turn runs.
+- **Written at once, discarded when the turn is not kept.** The narrator needs a fact's id back in the same turn to close it, so a fact is written the moment it is filed, before the turn is saved. On every path where the turn is not kept (a save conflict, a failed save, a provider error or any throw before the save) `discardFacts` takes them off again, because the player sends the message again and the narrator would file them twice. On a kept turn nothing is discarded. A fact whose ties could not be written is deleted at once, so a fact is never left without the ties it was filed with.
+- **The browser** hears `{ type: "fact", fact: { id, body } }` for each fact that is not hidden, just before `done`, in the order filed, and only once the turn is kept. A hidden fact is in no event.
+- **Composition** moved out of `handler.ts` with this work: `agent-turn/turnTools.ts` builds the turn's tools and router, `agent-turn/turnSupport.ts` holds the scene and record reads and the summary fold.
+
+Not built: the player's page for the record, corrections by the player (a correction is a later fact with `source = 'correction'`, which the schema allows), facts about library monsters (a tie names a monster of the campaign), a human DM's way to file one, and embeddings for recall (a fact is found only by its ties and by being recent).
+
 ## Not built yet
 
 Characters who travel with the party (the scene lists only who is in the place), checking `present` against who is actually in the place (it is still the narrator's word), a screen, a budget the player sees, the checks on what is shown (#1061), the standing AI disclosure at the table, tools that write (the allow list is read and roll only), a check on what the narrator hands a character, "knows about" links, pacing by clocks, the Responses API for a model that reasons between tool calls, and a rule for a conversation whose provider changes between turns (it uses the provider resolved now, and the other provider's private blocks are dropped).

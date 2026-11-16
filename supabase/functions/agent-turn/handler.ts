@@ -14,12 +14,12 @@
 import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { runTurn, totalTokens, type TurnEnd } from "../_shared/agent/turn.ts";
 import { historyFrom, rowsFor, systemWithSummary, type StoredTurn, type TurnRow } from "../_shared/agent/transcript.ts";
-import { planSummary, summarise } from "../_shared/agent/summary.ts";
 import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTablePrompt.ts";
-import type { Remembered } from "../_shared/agent/speak.ts";
-import { makeSpeechTools, type SpeechToolsDeps } from "../_shared/agent/speak.ts";
-import { SPEECH_TOOL_NAMES } from "../_shared/agent/speakInput.ts";
-import { GO_TO_TOOL, makeSceneTool, sceneSection, trimScene, type SceneView } from "../_shared/agent/scene.ts";
+import type { Remembered, SpeechToolsDeps } from "../_shared/agent/speak.ts";
+import { sceneSection, type SceneView } from "../_shared/agent/scene.ts";
+import { recordSection, type RecordedFact, type RecordKind } from "../_shared/agent/record.ts";
+import { makeTurnTools, type FiledFact } from "./turnTools.ts";
+import { foldIntoSummary, recordOf, round6, safely, sceneOf } from "./turnSupport.ts";
 import {
   AgentProviderError,
   type AgentLine,
@@ -73,6 +73,8 @@ export type AgentEvent =
   | { type: "line"; line: AgentLine }
   /** The party moved. Only the place's id and name: its description and who is there can hold DM-only text. */
   | { type: "scene"; scene: { id: string; name: string } }
+  /** A fact the narrator put on record that the player already knows. A hidden one is never sent. */
+  | { type: "fact"; fact: { id: string; body: string } }
   | { type: "done"; end: TurnEnd; credits: number; tokens: number }
   | { type: "error"; message: string };
 
@@ -186,6 +188,28 @@ export interface AgentTurnDeps {
    * in this campaign or the move could not be stored. It writes at once, outside the turn's own save.
    */
   setScene(sessionId: string, campaignId: string, locationId: string): Promise<SceneView | null>;
+  /**
+   * The facts worth putting in front of the narrator this turn: those tied to the place and the people in it, and the
+   * newest of the campaign, oldest first, none of them closed by a later fact.
+   */
+  loadRecord(campaignId: string, about: { locationId: string | null; characterIds: string[] }): Promise<RecordedFact[]>;
+  /**
+   * Puts one fact on record with its ties, at once: the narrator needs its id back in the same turn to close it
+   * later. `{ error }` is a sentence the narrator can act on. Writes as the DM who is playing, never as the server.
+   */
+  fileFact(input: {
+    campaignId: string;
+    campaignSessionId: string | null;
+    agentSessionId: string;
+    provider: string;
+    model: string;
+    fact: string;
+    about: { type: RecordKind; id: string }[];
+    hidden: boolean;
+    closes: string | null;
+  }): Promise<{ id: string } | { error: string }>;
+  /** Takes facts filed in a turn that was not kept off the record again. */
+  discardFacts(campaignId: string, ids: string[]): Promise<void>;
 }
 
 export const MESSAGES = {
@@ -236,11 +260,6 @@ export function playerText(mode: "say" | "do", message: string): string {
   return mode === "say"
     ? `The player sent this as something their character says aloud:\n${message}`
     : `The player sent this as something their character does:\n${message}`;
-}
-
-// The session's credits hold six decimals; accruing at the same precision keeps what is sent equal to what is stored.
-function round6(n: number): number {
-  return Math.round(n * 1_000_000) / 1_000_000;
 }
 
 export type BegunTurn =
@@ -333,6 +352,15 @@ export async function beginTurn(input: {
       }
     };
 
+    // Facts are written the moment the narrator files them, before the turn is saved. A turn that is not kept is
+    // sent again by the player, and the narrator would file the same facts a second time, so they come off again.
+    const filed: FiledFact[] = [];
+    let kept = false;
+    const discardFiled = async (): Promise<void> => {
+      if (filed.length === 0) return;
+      await safely(() => deps.discardFacts(campaign.id, filed.map((f) => f.id)));
+    };
+
     try {
       let session: SessionRow;
       let stored: StoredTurn[];
@@ -360,28 +388,25 @@ export async function beginTurn(input: {
         const lastSeqLoaded = stored.reduce((max, row) => Math.max(max, row.seq), 0);
         const history = historyFrom(stored, session.summary_through_seq);
         // Order is for the provider's prompt cache: the standing text and the campaign section stay a byte-identical
-        // prefix, the scene changes only when the party moves, and the summary (which grows) comes last.
+        // prefix, the scene changes only when the party moves, the record changes when something is filed, and the
+        // summary (which grows) comes last.
         const scene = await sceneOf(deps, campaign.id, session.scene_location_id);
+        const record = await recordOf(deps, campaign.id, scene);
         const system = systemWithSummary(
-          `${soloTableSystem({ id: campaign.id, name: campaign.name, rulesetLabel: rulesetLabelFor(campaign.game_system) })}\n\n${sceneSection(scene)}`,
+          `${soloTableSystem({ id: campaign.id, name: campaign.name, rulesetLabel: rulesetLabelFor(campaign.game_system) })}\n\n${sceneSection(scene)}\n\n${recordSection(record)}`,
           session.summary,
         );
-        const go = makeSceneTool({
+        const turnTools = makeTurnTools({
+          deps,
           campaignId: campaign.id,
-          sessionId: session.id,
-          setScene: deps.setScene,
-          onMove: (place) => emit({ type: "scene", scene: place }),
-        });
-
-        // A character speaks through its own model call, built from that character alone (`speak.ts`). The same
-        // model for now: a cheaper one for speech needs its own price row first.
-        const remembered: Array<{ characterId: string } & Remembered> = [];
-        const speech = makeSpeechTools({
+          session,
           stored,
-          loadSpeaker: (id) => deps.loadSpeaker(campaign.id, id),
+          provider: provider.provider,
+          model: provider.model,
           callModel,
           signal,
-          onRemember: (memory) => remembered.push(memory),
+          onMove: (place) => emit({ type: "scene", scene: place }),
+          filed,
         });
 
         result = await runTurn({
@@ -389,12 +414,9 @@ export async function beginTurn(input: {
           history,
           user: playerText(body.mode, body.message),
           player: { kind: body.mode, text: body.message },
-          tools: [...deps.tools, ...speech.tools, go.tool],
+          tools: turnTools.tools,
           callModel,
-          callTool: (name, toolInput) => {
-            if (name === GO_TO_TOOL.name) return go.call(toolInput);
-            return SPEECH_TOOL_NAMES.has(name) ? speech.call(name, toolInput) : deps.callTool(name, toolInput);
-          },
+          callTool: turnTools.callTool,
           limits: { maxSteps: MAX_STEPS, maxOutputTokens: MAX_OUTPUT_TOKENS, tokenBudget: TOKEN_BUDGET },
           signal,
           onEvent: (event) => {
@@ -456,11 +478,13 @@ export async function beginTurn(input: {
           saved = "failed";
         }
         if (saved === "conflict" || saved === "failed") {
+          await discardFiled();
           await safely(logWithoutCharge);
           emit({ type: "error", message: saved === "conflict" ? MESSAGES.conflict : MESSAGES.notSaved });
           return;
         }
 
+        kept = true;
         const { due } = saved;
         if (due > 0 || provider.isByok) {
           await safely(() => deps.recordGeneration(provider.isByok, due, logFields));
@@ -469,18 +493,20 @@ export async function beginTurn(input: {
         }
         // Kept only now that the turn is: what a character carries away from a moment the player never got to keep
         // would be a memory of something that did not happen. A failure here costs a memory, never the turn.
-        if (remembered.length > 0) {
+        if (turnTools.remembered.length > 0) {
           await safely(() =>
             deps.saveMemories({
               campaignId: campaign.id,
               userId,
               provider: provider.provider,
               model: provider.model,
-              memories: remembered,
+              memories: turnTools.remembered,
               campaignSessionId: session.campaign_session_id,
             })
           );
         }
+        // A fact the player has not learned yet never leaves the server: the page shows only what is known.
+        for (const fact of filed) if (!fact.hidden) emit({ type: "fact", fact: { id: fact.id, body: fact.body } });
         // `credits` is this turn's own. A summary's credit shows on the ledger, not in the turn that happened to
         // trigger it.
         emit({ type: "done", end: result.end, credits: due, tokens });
@@ -498,6 +524,7 @@ export async function beginTurn(input: {
         // Nothing is saved and nothing charged. The provider's own message can name the model, the key's
         // organisation or the quota, so the browser gets a sentence of ours; the real one goes to the log.
         console.error("agent-turn: the turn failed:", error);
+        if (!kept) await discardFiled();
         emit({
           type: "error",
           message: error instanceof AgentProviderError && error.retryable ? MESSAGES.providerBusy : MESSAGES.failed,
@@ -511,95 +538,6 @@ export async function beginTurn(input: {
   };
 
   return { kind: "ready", run };
-}
-
-/** The party's place for the system text. A place that will not load is no place: the turn still runs. */
-async function sceneOf(deps: AgentTurnDeps, campaignId: string, locationId: string | null) {
-  if (locationId === null) return null;
-  try {
-    const view = await deps.loadScene(campaignId, locationId);
-    return view ? trimScene(view) : null;
-  } catch (error) {
-    console.error("agent-turn: loading the scene failed:", error);
-    return null;
-  }
-}
-
-/**
- * Folds the older messages into the session's summary when the conversation has grown. It runs after the turn has
- * been saved, charged and reported, so whatever happens in here, the player already has their answer: everything
- * thrown is logged and nothing is emitted.
- */
-async function foldIntoSummary(input: {
-  deps: AgentTurnDeps;
-  session: SessionRow;
-  storedNow: StoredTurn[];
-  callModel: CallModel;
-  isByok: boolean;
-  price: ModelPrice | null;
-  calibration: CreditCalibration | null;
-}): Promise<void> {
-  const { deps, session, isByok } = input;
-  try {
-    const plan = planSummary(input.storedNow, session.summary_through_seq);
-    if (!plan) return;
-
-    const { summary, usage } = await summarise({
-      callModel: input.callModel,
-      previousSummary: session.summary,
-      fold: plan.fold,
-    });
-    const logFields: CreditLogFields = {
-      model: usage.model,
-      provider: usage.provider,
-      input_tokens: usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens,
-      output_tokens: usage.outputTokens,
-    };
-    const logWithoutCharge = () => (isByok ? deps.recordGeneration(true, 0, logFields) : deps.recordFreeGeneration(logFields));
-
-    // Nothing to store and nothing to bill, but the provider was paid for the call, so the tokens are logged.
-    if (summary === null) {
-      await safely(logWithoutCharge);
-      return;
-    }
-
-    let credits = 0;
-    if (!isByok && input.price && input.calibration) {
-      credits = round6(creditsForUsd(usdForSteps([usage], input.price), input.calibration));
-    }
-    // Like a turn: a summary that was not kept is not billed, but its tokens were spent and are logged.
-    let saved: { due: number } | "stale" | "failed";
-    try {
-      saved = await deps.saveSummary({
-        sessionId: session.id,
-        expectedThroughSeq: session.summary_through_seq,
-        throughSeq: plan.throughSeq,
-        summary,
-        usage,
-        credits,
-      });
-    } catch (error) {
-      console.error("agent-turn: saving the summary failed:", error);
-      saved = "failed";
-    }
-    if (saved === "stale" || saved === "failed") {
-      await safely(logWithoutCharge);
-      return;
-    }
-    if (saved.due > 0 || isByok) await safely(() => deps.recordGeneration(isByok, saved.due, logFields));
-    else await safely(() => deps.recordFreeGeneration(logFields));
-  } catch (error) {
-    console.error("agent-turn: the summary failed:", error);
-  }
-}
-
-// A bookkeeping call after the model has answered must not turn a finished turn into an exception.
-async function safely(fn: () => Promise<void>): Promise<void> {
-  try {
-    await fn();
-  } catch (error) {
-    console.error("agent-turn: bookkeeping failed:", error);
-  }
 }
 
 /** The whole turn in one call, for a caller that does not need to answer a status before streaming (the tests). */

@@ -36,6 +36,12 @@ Rules of play:
   the id given.
 - Characters with a record are named by their id (speaker_id); look them up first unless the scene lists them. Someone with no record gets a
   name and a manner.
+- The section "On record" is what is true in this story. Never contradict it. A fact marked hidden is not yet known
+  to the player: keep it from them until it comes out in play.
+- The moment something becomes true or stops being true (something found, given, taken, promised, owed, decided,
+  destroyed or learned, or someone going somewhere), call record with one plain sentence and what it is about. When
+  it ends or changes a fact on record, pass that fact's id as closes. Never use record for what a character
+  privately thinks or feels: that is the character's own memory.
 - Every round of tool calls makes the player wait. Ask for everything you need in one round: look up several things
   at once, and when two characters should react, call speak for both together.
 - Keep replies short: a few sentences of what the player sees, hears and can do.

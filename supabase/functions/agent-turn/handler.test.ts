@@ -21,6 +21,7 @@ import {
   type SessionRow,
 } from "./handler";
 import type { SceneView } from "../_shared/agent/scene";
+import type { RecordedFact } from "../_shared/agent/record";
 import { AgentProviderError, type AgentBlock, type CallModel, type ModelRequest, type ModelStep } from "../_shared/agent/types";
 import type { StoredTurn, TurnRow } from "../_shared/agent/transcript";
 import type { CreditLogFields } from "../_shared/credits";
@@ -50,6 +51,7 @@ function cellarScene(over: Partial<SceneView> = {}): SceneView {
     ...over,
   };
 }
+const factId = (n: number) => `00000000-0000-4000-8000-00000000f${String(n).padStart(3, "0")}`;
 /** Every character the handler asked for, with the campaign it asked in. */
 const speakerLoads: Array<{ campaignId: string; characterId: string }> = [];
 
@@ -106,7 +108,16 @@ interface Harness {
     memoriesThrow: boolean;
     playSessionThrows: boolean;
     moveFails: boolean;
+    record: RecordedFact[];
+    recordThrows: boolean;
+    /** A sentence the filing answers with instead of a fact id. */
+    fileError: string | null;
+    discardThrows: boolean;
   };
+  /** What the database holds as facts: the ones the narrator filed this run, and what the load answers with. */
+  facts: Array<{ id: string; campaignId: string; campaignSessionId: string | null; agentSessionId: string; body: string; hidden: boolean; closes: string | null; about: Array<{ type: string; id: string }> }>;
+  recordLoads: Array<{ campaignId: string; locationId: string | null; characterIds: string[] }>;
+  discards: Array<{ campaignId: string; ids: string[] }>;
   script: Script;
 }
 
@@ -157,7 +168,14 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       memoriesThrow: false,
       playSessionThrows: false,
       moveFails: false,
+      record: [],
+      recordThrows: false,
+      fileError: null,
+      discardThrows: false,
     },
+    facts: [],
+    recordLoads: [],
+    discards: [],
     deps: undefined as unknown as AgentTurnDeps,
   };
   const accrue = (sessionId: string, credits: number): number => {
@@ -251,6 +269,32 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       if (h.state.memoriesThrow) throw new Error("db down");
       h.memories.push(...input.memories);
       h.memorySessions.push(input.campaignSessionId);
+    },
+    loadRecord: async (campaignId, about) => {
+      h.recordLoads.push({ campaignId, ...about });
+      if (h.state.recordThrows) throw new Error("db down");
+      return h.state.record;
+    },
+    fileFact: async (input) => {
+      if (h.state.fileError) return { error: h.state.fileError };
+      const id = factId(h.facts.length + 1);
+      h.facts.push({
+        id,
+        campaignId: input.campaignId,
+        campaignSessionId: input.campaignSessionId,
+        agentSessionId: input.agentSessionId,
+        body: input.fact,
+        hidden: input.hidden,
+        closes: input.closes,
+        about: input.about,
+      });
+      return { id };
+    },
+    discardFacts: async (campaignId, ids) => {
+      h.discards.push({ campaignId, ids });
+      log.push("discard");
+      if (h.state.discardThrows) throw new Error("db down");
+      h.facts = h.facts.filter((f) => !ids.includes(f.id));
     },
     openPlaySession: async () => {
       log.push("open-session");
@@ -1221,5 +1265,169 @@ describe("a sitting is a play session of the campaign", () => {
     await play(h);
     expect(last(h)).toMatchObject({ type: "done" });
     expect(h.memorySessions).toEqual([null]);
+  });
+});
+
+describe("the record", () => {
+  const BODY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I hand over the key.", mode: "do" };
+  const file = (id: string, input: Record<string, unknown>): ModelStep =>
+    step(10, { blocks: [{ type: "tool_call", id, name: "record", input }], stop: "tool_calls" });
+  const factEvents = (h: Harness) => h.events.filter((e) => e.type === "fact");
+  const resultsSeen = (h: Harness, request: number) =>
+    h.requests[request].messages.flatMap((m) => m.blocks).filter((b) => b.type === "tool_result");
+
+  it("puts the record after the scene and before the summary, or a growing summary busts the prompt cache", async () => {
+    const h = harness();
+    existingSession(h, { scene_location_id: CELLAR, summary: "SUMMARY-MARK the party fled." });
+    h.state.record = [{ id: factId(90), body: "RECORD-MARK the debt is forty gold.", hidden: false, when: null }];
+    await play(h, { body: BODY });
+    const system = h.requests[0].system;
+    const sceneAt = system.indexOf("SCENE-DESCRIPTION");
+    const recordAt = system.indexOf("RECORD-MARK");
+    const summaryAt = system.indexOf("SUMMARY-MARK");
+    expect(recordAt).toBeGreaterThan(sceneAt);
+    expect(summaryAt).toBeGreaterThan(recordAt);
+  });
+
+  it("asks for the record of the party's place and the people in it, in the conversation's campaign", async () => {
+    const h = harness();
+    existingSession(h, { scene_location_id: CELLAR });
+    await play(h, { body: BODY });
+    expect(h.recordLoads).toEqual([{ campaignId: CAMPAIGN, locationId: CELLAR, characterIds: [HONEYCOMB] }]);
+  });
+
+  it("asks for the campaign's newest facts alone when the party has no place yet", async () => {
+    const h = harness();
+    existingSession(h);
+    await play(h, { body: BODY });
+    expect(h.recordLoads).toEqual([{ campaignId: CAMPAIGN, locationId: null, characterIds: [] }]);
+  });
+
+  it("still runs the turn when the record cannot be read, and says nothing is on record", async () => {
+    const h = harness();
+    existingSession(h);
+    h.state.recordThrows = true;
+    await play(h, { body: BODY });
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(h.requests[0].system).toContain("Nothing is on record");
+  });
+
+  it("offers the record tool to the narrator", async () => {
+    const h = harness();
+    existingSession(h);
+    await play(h, { body: BODY });
+    expect(h.requests[0].tools.map((t) => t.name)).toContain("record");
+  });
+
+  it("tells the narrator a hidden fact, marked, and sends the browser no event that holds it", async () => {
+    const h = harness([file("r1", { fact: "HIDDEN-MARK the duke is the lich.", hidden: true }), step(10)]);
+    existingSession(h);
+    h.state.record = [{ id: factId(91), body: "HIDDEN-LOADED the cellar hides a door.", hidden: true, when: null }];
+    await play(h, { body: BODY });
+    expect(h.requests[0].system).toContain("HIDDEN-LOADED");
+    expect(h.facts).toHaveLength(1);
+    const wire = JSON.stringify(h.events);
+    expect(wire).not.toContain("HIDDEN-MARK");
+    expect(wire).not.toContain("HIDDEN-LOADED");
+    expect(factEvents(h)).toEqual([]);
+  });
+
+  it("sends a known fact to the browser just before done, in the order filed", async () => {
+    const h = harness([
+      file("r1", { fact: "Wren gave the key to Honeycomb." }),
+      file("r2", { fact: "The cellar door is locked." }),
+      step(10),
+    ]);
+    existingSession(h);
+    await play(h, { body: BODY });
+    expect(factEvents(h)).toEqual([
+      { type: "fact", fact: { id: factId(1), body: "Wren gave the key to Honeycomb." } },
+      { type: "fact", fact: { id: factId(2), body: "The cellar door is locked." } },
+    ]);
+    expect(h.events.indexOf(factEvents(h)[1])).toBe(h.events.length - 2);
+  });
+
+  it("announces no fact for a turn that was not kept, and takes the filed ones off the record", async () => {
+    const h = harness([file("r1", { fact: "Wren gave the key to Honeycomb." }), step(10)]);
+    existingSession(h);
+    h.state.conflict = true;
+    await play(h, { body: BODY });
+    expect(factEvents(h)).toEqual([]);
+    expect(h.discards).toEqual([{ campaignId: CAMPAIGN, ids: [factId(1)] }]);
+    expect(h.facts).toEqual([]);
+  });
+
+  it("takes the filed facts off the record when the turn fails to save, or the player's retry files them twice", async () => {
+    const h = harness([file("r1", { fact: "Wren gave the key to Honeycomb." }), step(10)]);
+    existingSession(h);
+    h.state.saveThrows = true;
+    await play(h, { body: BODY });
+    expect(h.discards).toEqual([{ campaignId: CAMPAIGN, ids: [factId(1)] }]);
+  });
+
+  it("takes the filed facts off the record when the provider fails after filing", async () => {
+    const h = harness([file("r1", { fact: "Wren gave the key to Honeycomb." }), new AgentProviderError("down", 500, true)]);
+    existingSession(h);
+    await play(h, { body: BODY });
+    expect(last(h)).toEqual({ type: "error", message: MESSAGES.providerBusy });
+    expect(h.discards).toEqual([{ campaignId: CAMPAIGN, ids: [factId(1)] }]);
+  });
+
+  it("takes nothing off the record after a kept turn", async () => {
+    const h = harness([file("r1", { fact: "Wren gave the key to Honeycomb." }), step(10)]);
+    existingSession(h);
+    await play(h, { body: BODY });
+    expect(h.discards).toEqual([]);
+    expect(h.facts).toHaveLength(1);
+  });
+
+  it("still reports the conflict when taking the facts back off fails", async () => {
+    const h = harness([file("r1", { fact: "Wren gave the key to Honeycomb." }), step(10)]);
+    existingSession(h);
+    h.state.conflict = true;
+    h.state.discardThrows = true;
+    await play(h, { body: BODY });
+    expect(last(h)).toEqual({ type: "error", message: MESSAGES.conflict });
+    expect(h.open.size).toBe(0);
+  });
+
+  it("files into the conversation's own campaign and sittings, whatever the model writes", async () => {
+    const h = harness([
+      file("r1", { fact: "Wren holds the key.", campaign_id: OTHER_CAMPAIGN, agent_session_id: ELSEWHERE, session_id: ELSEWHERE }),
+      step(10),
+    ]);
+    existingSession(h, { campaign_session_id: PLAY_SESSION });
+    await play(h, { body: BODY });
+    expect(h.facts[0]).toMatchObject({ campaignId: CAMPAIGN, agentSessionId: SESSION, campaignSessionId: PLAY_SESSION });
+  });
+
+  it("passes what the fact is about and what it closes through to filing", async () => {
+    const h = harness([
+      file("r1", { fact: "The key is gone.", about: [{ type: "item", id: HONEYCOMB }], closes: factId(77), hidden: true }),
+      step(10),
+    ]);
+    existingSession(h);
+    await play(h, { body: BODY });
+    expect(h.facts[0]).toMatchObject({ about: [{ type: "item", id: HONEYCOMB }], closes: factId(77), hidden: true });
+  });
+
+  it("answers the narrator with the sentence from filing and announces nothing when filing fails", async () => {
+    const h = harness([file("r1", { fact: "The key is gone.", closes: factId(77) }), step(10)]);
+    existingSession(h);
+    h.state.fileError = "The fact to close was not found.";
+    await play(h, { body: BODY });
+    expect(resultsSeen(h, 1)).toEqual([
+      expect.objectContaining({ content: "The fact to close was not found.", isError: true }),
+    ]);
+    expect(factEvents(h)).toEqual([]);
+    expect(h.discards).toEqual([]);
+  });
+
+  it("answers the narrator an error for a fact it refuses to parse, and files nothing", async () => {
+    const h = harness([file("r1", { fact: "x", about: [{ type: "weather", id: HONEYCOMB }] }), step(10)]);
+    existingSession(h);
+    await play(h, { body: BODY });
+    expect(resultsSeen(h, 1)[0]).toMatchObject({ isError: true });
+    expect(h.facts).toEqual([]);
   });
 });

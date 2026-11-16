@@ -24,6 +24,8 @@ export const CAMPAIGN_SECRETS_KEY = "campaign-secrets";
 export const KIN_LINKS_KEY = "kin_links";
 /** Every connections read (#1084): a sheet's Connections block, the world web and the players' projection. */
 export const CONNECTIONS_KEY = "connections";
+/** The record of what is true in the story (#1021): facts and what each is about. */
+export const STORY_RECORD_KEY = "storyRecord";
 export const PLAYER_KIN_KEY = "player-kin";
 /** The Open Book (#1085): the owner's settings, its releases and the per-entry choices. */
 export const OPEN_BOOK_KEY = "open-book";
@@ -299,6 +301,9 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["kin_links", [KIN_LINKS_KEY, PLAYER_KIN_KEY, CONNECTIONS_KEY]],
   // World Web (#1084). Players cannot read the table; their projection hangs off the same root.
   ["world_links", [CONNECTIONS_KEY]],
+  // The record (#1021). A member re-reads through RLS, which shows only what the party knows.
+  ["story_facts", [STORY_RECORD_KEY]],
+  ["story_fact_links", [STORY_RECORD_KEY]],
   // Open Book (#1085). Owner-only tables; a release also changes the book row (its live release).
   ["open_books", [OPEN_BOOK_KEY]],
   ["open_book_releases", [OPEN_BOOK_RELEASES_KEY, OPEN_BOOK_KEY]],
