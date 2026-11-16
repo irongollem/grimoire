@@ -299,3 +299,56 @@ describe("the player's own words", () => {
     expect(parseSpeakInput({ speaker_id: A, happening: "h", player_said: "x".repeat(401) }).ok).toBe(false);
   });
 });
+
+describe("who hears what, by how loud it was said", () => {
+  const C = "33333333-3333-4333-8333-333333333333";
+  const bram = { id: B, name: "Bram" };
+  const cole = { id: C, name: "Cole" };
+  const texts = (stored: StoredTurn[], who: { id: string; name: string }) => heardBy(stored, who).map((h) => h.text);
+
+  it("keeps a whisper from the rest of the room, who only see that one passed", () => {
+    const stored = spoke(1, { speaker_id: A, happening: "h", volume: "whisper", whispered_to: [B], present: [B, C] }, "speak", "The key is in the well.", A);
+    expect(texts(stored, bram)).toEqual(["The key is in the well."]);
+    expect(JSON.stringify(heardBy(stored, cole))).not.toContain("well");
+    expect(heardBy(stored, cole)).toHaveLength(1);
+  });
+
+  it("does not carry ordinary speech to someone in another room", () => {
+    const stored = spoke(1, { speaker_id: A, happening: "h", present: [B], also_heard_by: [C] }, "speak", "In the well.", A);
+    expect(texts(stored, cole)).toEqual([]);
+  });
+
+  it("carries a shout to the next room", () => {
+    const stored = spoke(1, { speaker_id: A, happening: "h", volume: "shout", present: [B], also_heard_by: [C] }, "speak", "Guards!", A);
+    expect(texts(stored, cole)).toEqual(["Guards!"]);
+  });
+
+  it("carries quiet words through a device to the one who holds it, and to nobody else outside the room", () => {
+    const stored = spoke(1, { speaker_id: A, happening: "h", via: "a sending stone", also_heard_by: [C] }, "speak", "It is done.", A);
+    expect(texts(stored, cole)).toEqual(["It is done."]);
+    expect(texts(stored, bram)).toEqual([]);
+  });
+
+  it("keeps what the player whispered to one character from the others present", () => {
+    const stored = spoke(1, { speaker_id: A, happening: "h", player_said: "Meet me at dusk.", player_volume: "whisper", present: [B] }, "speak", "Very well.", A);
+    expect(JSON.stringify(heardBy(stored, bram))).not.toContain("dusk");
+    expect(texts(stored, { id: A, name: "Mira" })).toContain("Meet me at dusk.");
+  });
+
+  it("shows a deed to the room only, even when the same call names someone elsewhere", () => {
+    const stored = spoke(1, { speaker_id: A, what: "Hides the letter.", present: [B], also_heard_by: [C] }, "act", "Hides the letter.", A);
+    expect(texts(stored, cole)).toEqual([]);
+    expect(texts(stored, bram)).toEqual(["Hides the letter."]);
+  });
+
+  it("refuses words that leave the room with neither a shout nor a device", () => {
+    expect(parseSpeakInput({ speaker_id: A, happening: "h", also_heard_by: [C] }).ok).toBe(false);
+    expect(parseSpeakInput({ speaker_id: A, happening: "h", volume: "shout", also_heard_by: [C] }).ok).toBe(true);
+  });
+
+  it("reads an unknown stored volume as ordinary speech, never as a shout", () => {
+    const stored = spoke(1, { speaker_id: A, happening: "h", volume: "bellow", present: [B], also_heard_by: [C] }, "speak", "Hm.", A);
+    expect(texts(stored, cole)).toEqual([]);
+    expect(texts(stored, bram)).toEqual(["Hm."]);
+  });
+});

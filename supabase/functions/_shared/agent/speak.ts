@@ -14,6 +14,11 @@ const WHAT_MAX = 300;
 const PLAYER_SAID_MAX = 400;
 const NAME_MAX = 120;
 const PRESENT_MAX = 12;
+const VIA_MAX = 80;
+
+/** How loud something is said decides who hears it, as at a table. */
+export const VOLUMES = ["whisper", "normal", "shout"] as const;
+export type Volume = (typeof VOLUMES)[number];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const SPEAKER_PROPERTIES = {
@@ -30,8 +35,8 @@ const SPEAKER_PROPERTIES = {
     maxItems: PRESENT_MAX,
     items: { type: "string" },
     description:
-      "Everyone else who can hear this: their speaker_id when they have a record, otherwise their name. " +
-      "A character left out never learns it happened.",
+      "Everyone else in the same room or within normal earshot: their speaker_id when they have a record, " +
+      "otherwise their name. Someone in another room is NOT present. A character left out never learns it happened.",
   },
 } as const;
 
@@ -56,6 +61,40 @@ export const SPEAK_TOOL: AgentTool = {
         type: "string",
         maxLength: HAPPENING_MAX,
         description: "What this character sees and hears right now, including what was just said to them.",
+      },
+      volume: {
+        type: "string",
+        enum: [...VOLUMES],
+        description:
+          "How loudly the character answers. normal (the default): everyone present hears. whisper: only those in " +
+          "whispered_to hear the words; the others present only see that something was whispered. shout: those in " +
+          "also_heard_by hear it too.",
+      },
+      whispered_to: {
+        type: "array",
+        maxItems: PRESENT_MAX,
+        items: { type: "string" },
+        description: "With volume whisper: the characters close enough to hear the words (speaker_id or name).",
+      },
+      also_heard_by: {
+        type: "array",
+        maxItems: PRESENT_MAX,
+        items: { type: "string" },
+        description:
+          "Characters who are NOT in the room and hear this anyway: a shout carrying to the next room, or a magical " +
+          "device. Allowed only with volume shout, or with `via` naming the device.",
+      },
+      via: {
+        type: "string",
+        maxLength: VIA_MAX,
+        description: "The device or magic that carries the words to also_heard_by, for example \"a sending stone\".",
+      },
+      player_volume: {
+        type: "string",
+        enum: [...VOLUMES],
+        description:
+          "How loudly the player's character said player_said. whisper: only this character heard the words. " +
+          "shout: also_heard_by heard them too.",
       },
       player_said: {
         type: "string",
@@ -103,8 +142,13 @@ interface SpeakerRef {
 export interface SpeakInput extends SpeakerRef {
   manner: string | null;
   happening: string;
-  /** The player's own words, said aloud in front of the speaker and everyone present. */
+  /** The player's own words, said to the speaker; who else heard them follows from `playerVolume`. */
   playerSaid: string | null;
+  playerVolume: Volume;
+  volume: Volume;
+  whisperedTo: string[];
+  alsoHeardBy: string[];
+  via: string | null;
   present: string[];
 }
 
@@ -141,16 +185,23 @@ function speakerOf(input: Record<string, unknown>): Parsed<SpeakerRef> {
   return { ok: true, value: { id: hasId ? (id.value as string) : null, name: hasName ? (name.value as string) : null } };
 }
 
-function presentOf(input: Record<string, unknown>): Parsed<string[]> {
-  const v = input.present;
+function volumeOf(input: Record<string, unknown>, key: string): Parsed<Volume> {
+  const v = input[key];
+  if (v === undefined) return { ok: true, value: "normal" };
+  const found = VOLUMES.find((x) => x === v);
+  return found ? { ok: true, value: found } : fail(`${key} must be whisper, normal or shout.`);
+}
+
+function presentOf(input: Record<string, unknown>, key = "present"): Parsed<string[]> {
+  const v = input[key];
   if (v === undefined) return { ok: true, value: [] };
-  if (!Array.isArray(v)) return fail("present must be a list of speaker_ids or names.");
-  if (v.length > PRESENT_MAX) return fail(`present lists too many characters: at most ${PRESENT_MAX}.`);
+  if (!Array.isArray(v)) return fail(`${key} must be a list of speaker_ids or names.`);
+  if (v.length > PRESENT_MAX) return fail(`${key} lists too many characters: at most ${PRESENT_MAX}.`);
   const out: string[] = [];
   for (const entry of v) {
-    if (typeof entry !== "string") return fail("present must hold only strings.");
+    if (typeof entry !== "string") return fail(`${key} must hold only strings.`);
     const t = entry.trim();
-    if (t.length > NAME_MAX) return fail(`A present entry is too long: at most ${NAME_MAX} characters.`);
+    if (t.length > NAME_MAX) return fail(`A ${key} entry is too long: at most ${NAME_MAX} characters.`);
     if (t) out.push(t);
   }
   return { ok: true, value: out };
@@ -177,6 +228,23 @@ export function parseSpeakInput(input: Record<string, unknown>): Parsed<SpeakInp
   if (!playerSaid.ok) return playerSaid;
   const present = presentOf(input);
   if (!present.ok) return present;
+  const volume = volumeOf(input, "volume");
+  if (!volume.ok) return volume;
+  const playerVolume = volumeOf(input, "player_volume");
+  if (!playerVolume.ok) return playerVolume;
+  const whisperedTo = presentOf(input, "whispered_to");
+  if (!whisperedTo.ok) return whisperedTo;
+  const alsoHeardBy = presentOf(input, "also_heard_by");
+  if (!alsoHeardBy.ok) return alsoHeardBy;
+  const via = text(input, "via", VIA_MAX);
+  if (!via.ok) return via;
+  if (whisperedTo.value.length > 0 && volume.value !== "whisper") {
+    return fail("whispered_to is only for volume whisper.");
+  }
+  // Words do not carry out of a room by themselves: it takes a raised voice or something that carries them.
+  if (alsoHeardBy.value.length > 0 && volume.value !== "shout" && playerVolume.value !== "shout" && !via.value) {
+    return fail("also_heard_by needs volume shout, or via naming the device that carries the words.");
+  }
   return {
     ok: true,
     value: {
@@ -184,6 +252,11 @@ export function parseSpeakInput(input: Record<string, unknown>): Parsed<SpeakInp
       manner: manner.value || null,
       happening: happening.value,
       playerSaid: playerSaid.value || null,
+      playerVolume: playerVolume.value,
+      volume: volume.value,
+      whisperedTo: whisperedTo.value,
+      alsoHeardBy: alsoHeardBy.value,
+      via: via.value || null,
       present: present.value,
     },
   };
@@ -217,8 +290,14 @@ interface Event {
   speakerName: string | null;
   present: string[];
   happening: string | null;
-  /** The player's words that drew this line, heard by the speaker and by everyone present. */
+  /** The player's words that drew this line. */
   playerSaid: string | null;
+  playerVolume: Volume;
+  volume: Volume;
+  whisperedTo: string[];
+  alsoHeardBy: string[];
+  /** True when a device or magic carries the words to `alsoHeardBy` whatever the volume. */
+  carried: boolean;
   line: AgentLine;
 }
 
@@ -232,9 +311,26 @@ function isSpeaker(who: Who, e: Event): boolean {
   return e.speakerName !== null && norm(e.speakerName) === norm(who.name);
 }
 
-function isPresent(who: Who, e: Event): boolean {
-  if (who.id) return e.present.some((p) => p === who.id);
-  return e.present.some((p) => norm(p) === norm(who.name));
+function listed(who: Who, list: string[]): boolean {
+  if (who.id) return list.some((p) => p === who.id);
+  return list.some((p) => norm(p) === norm(who.name));
+}
+
+/**
+ * Whether a listener who is not the speaker hears words said at `volume`, as at a table (maintainer, 16 Nov 2026):
+ * a whisper reaches only those it was whispered to, ordinary speech fills the room, and only a shout or something
+ * that carries words (a sending stone) reaches someone elsewhere. "seen" is the room noticing a whisper it could
+ * not make out.
+ */
+function hears(who: Who, e: Event, volume: Volume): "words" | "seen" | "nothing" {
+  const inRoom = listed(who, e.present);
+  const elsewhere = listed(who, e.alsoHeardBy);
+  if (elsewhere && (volume === "shout" || e.carried)) return "words";
+  if (volume === "whisper") {
+    if (listed(who, e.whisperedTo)) return "words";
+    return inRoom ? "seen" : "nothing";
+  }
+  return inRoom ? "words" : "nothing";
 }
 
 function heardFrom(events: Event[], who: Who): Heard[] {
@@ -242,15 +338,26 @@ function heardFrom(events: Event[], who: Who): Heard[] {
   let lastSaid: string | null = null;
   for (const e of events) {
     const mine = isSpeaker(who, e);
-    if (!mine && !isPresent(who, e)) continue;
-    // Said aloud, so a bystander hears it as the speaker does. Each character answering the same words carries
-    // them on its own call, and a listener to all of them heard them once: the newest thing the player said is not
-    // repeated. (The player asking the very same thing again later reads as one question, which loses nothing.)
-    if (e.playerSaid && lastSaid !== e.playerSaid) {
+    // The player spoke to the speaker, so the speaker always heard it; a whisper to them is not for the room.
+    const player = e.playerSaid === null ? "nothing" : mine ? "words" : hears(who, e, e.playerVolume);
+    // A deed is seen by the room and by nobody else; a spoken line follows its volume.
+    const line = mine ? "words" : e.line.kind === "acted" ? (listed(who, e.present) ? "words" : "nothing") : hears(who, e, e.volume);
+    if (player === "nothing" && line === "nothing") continue;
+
+    // Each character answering the same words carries them on its own call, and a listener to all of them heard
+    // them once: the newest thing the player said is not repeated. (The player asking the very same thing again
+    // later reads as one question, which loses nothing.)
+    if (player === "words" && e.playerSaid && lastSaid !== e.playerSaid) {
       out.push({ speaker: PLAYER_SPEAKER, kind: "spoken", text: e.playerSaid, happening: null });
       lastSaid = e.playerSaid;
+    } else if (player === "seen") {
+      out.push({ speaker: PLAYER_SPEAKER, kind: "acted", text: `Whispers something to ${e.line.speaker.name} that cannot be made out.`, happening: null });
     }
-    out.push({ speaker: e.line.speaker.name, kind: e.line.kind, text: e.line.text, happening: mine ? e.happening : null });
+    if (line === "words") {
+      out.push({ speaker: e.line.speaker.name, kind: e.line.kind, text: e.line.text, happening: mine ? e.happening : null });
+    } else if (line === "seen") {
+      out.push({ speaker: e.line.speaker.name, kind: "acted", text: "Whispers something that cannot be made out.", happening: null });
+    }
   }
   return out;
 }
@@ -259,14 +366,28 @@ function str(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v.trim() : null;
 }
 
+function names(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((p): p is string => typeof p === "string") : [];
+}
+
+// A stored value that is not one of the three is read as ordinary speech: the narrowest reading that still lets
+// the room hear, and never one that carries words to another room.
+function storedVolume(v: unknown): Volume {
+  return VOLUMES.find((x) => x === v) ?? "normal";
+}
+
 function eventOf(input: Record<string, unknown>, line: AgentLine): Event {
-  const present = Array.isArray(input.present) ? input.present.filter((p): p is string => typeof p === "string") : [];
   return {
     speakerId: str(input.speaker_id),
     speakerName: str(input.speaker_name),
-    present,
+    present: names(input.present),
     happening: str(input.happening),
     playerSaid: str(input.player_said),
+    playerVolume: storedVolume(input.player_volume),
+    volume: storedVolume(input.volume),
+    whisperedTo: names(input.whispered_to),
+    alsoHeardBy: names(input.also_heard_by),
+    carried: str(input.via) !== null,
     line,
   };
 }
@@ -441,6 +562,11 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
       present: input.present,
       happening: input.happening,
       playerSaid: input.playerSaid,
+      playerVolume: input.playerVolume,
+      volume: input.volume,
+      whisperedTo: input.whisperedTo,
+      alsoHeardBy: input.alsoHeardBy,
+      carried: input.via !== null,
       line,
     });
     return { content: JSON.stringify({ said }), isError: false, usage: [usage], line };
@@ -462,7 +588,9 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
       who = { id: null, name: input.name as string };
     }
     const line: AgentLine = { kind: "acted", speaker: { id: who.id, name: who.name }, text: input.what };
-    thisTurn.push({ speakerId: input.id, speakerName: input.name, present: input.present, happening: null, playerSaid: null, line });
+    thisTurn.push({ speakerId: input.id, speakerName: input.name, present: input.present, happening: null, playerSaid: null,
+      playerVolume: "normal", volume: "normal", whisperedTo: [], alsoHeardBy: [], carried: false, line,
+    });
     return { content: "Shown.", isError: false, line };
   }
 
