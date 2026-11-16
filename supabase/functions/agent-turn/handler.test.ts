@@ -29,6 +29,9 @@ const OTHER = "00000000-0000-4000-8000-0000000000e2";
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
 const OTHER_CAMPAIGN = "00000000-0000-4000-8000-0000000000c2";
 const SESSION = "00000000-0000-4000-8000-0000000000a1";
+const HONEYCOMB = "00000000-0000-4000-8000-0000000000f1";
+/** Every character the handler asked for, with the campaign it asked in. */
+const speakerLoads: Array<{ campaignId: string; characterId: string }> = [];
 
 function step(output: number, over: Partial<ModelStep> = {}): ModelStep {
   return {
@@ -193,6 +196,12 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     },
     tools: [{ name: "roll", description: "roll", inputSchema: {} }],
     callTool: async () => ({ content: "RESULT-SECRET: the duke is the lich", isError: false }),
+    loadSpeaker: async (campaignId, characterId) => {
+      speakerLoads.push({ campaignId, characterId });
+      return characterId === HONEYCOMB
+        ? { id: HONEYCOMB, shownName: "Honeycomb", profile: "Name: Honeycomb\nNotes: HONEYCOMB-SECRET", memories: "" }
+        : null;
+    },
   };
   return h;
 }
@@ -857,5 +866,55 @@ describe("beginTurn", () => {
     const begun = await beginTurn({ userId: OTHER, body: { campaignId: CAMPAIGN, message: "hi" }, deps: h.deps });
     expect(begun).toEqual({ kind: "refused", refusal: { status: 403, error: MESSAGES.forbidden } });
     expect(h.events).toEqual([]);
+  });
+});
+
+describe("a character speaks for itself", () => {
+  // The narrator asks Honeycomb to speak (100 output tokens), her own call answers (300), the narrator ends (200).
+  // 600 output tokens are 0.6 credits; without the speech call it would be 0.3.
+  const speakCall = (input: Record<string, unknown>): ModelStep =>
+    step(100, { blocks: [{ type: "tool_call", id: "s1", name: "speak", input }], stop: "tool_calls" });
+  const script = (): Script => [
+    speakCall({ speaker_id: HONEYCOMB, happening: "A stranger asks who you are.", campaign_id: OTHER_CAMPAIGN }),
+    step(300, { blocks: [{ type: "text", text: "Honeycomb. Apprentice, once." }] }),
+    step(200),
+  ];
+
+  it("bills the tokens a character's own call used, not only the narrator's", async () => {
+    const h = harness(script());
+    await play(h);
+    expect(h.appends[0].credits).toBeCloseTo(0.6, 6);
+    const stored = h.appends[0].rows.reduce((n, r) => n + (r.output_tokens === null ? 0 : r.output_tokens), 0);
+    expect(stored).toBe(600);
+    expect(h.ledger[0].log.output_tokens).toBe(600);
+    expect(last(h)).toMatchObject({ type: "done", tokens: 600 });
+  });
+
+  it("sends the browser the line, and still nothing of what the narrator put into the tool", async () => {
+    const h = harness(script());
+    await play(h);
+    expect(h.events).toContainEqual({
+      type: "line",
+      line: { kind: "spoken", speaker: { id: HONEYCOMB, name: "Honeycomb" }, text: "Honeycomb. Apprentice, once." },
+    });
+    const sent = JSON.stringify(h.events);
+    expect(sent).not.toContain("A stranger asks who you are.");
+    expect(sent).not.toContain("HONEYCOMB-SECRET");
+  });
+
+  it("looks a speaker up in the conversation's own campaign, whatever campaign the model names", async () => {
+    speakerLoads.length = 0;
+    const h = harness(script());
+    await play(h);
+    expect(speakerLoads).toEqual([{ campaignId: CAMPAIGN, characterId: HONEYCOMB }]);
+  });
+
+  it("gives the character's call its own record and none of the narrator's conversation", async () => {
+    const h = harness(script());
+    await play(h, { body: { campaignId: CAMPAIGN, message: "NARRATOR-ONLY: I open the door." } });
+    const speech = h.requests[1];
+    expect(speech.system).toContain("HONEYCOMB-SECRET");
+    expect(speech.tools).toEqual([]);
+    expect(JSON.stringify(speech)).not.toContain("NARRATOR-ONLY");
   });
 });

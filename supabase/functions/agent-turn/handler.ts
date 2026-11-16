@@ -16,7 +16,15 @@ import { runTurn, totalTokens, type TurnEnd } from "../_shared/agent/turn.ts";
 import { historyFrom, rowsFor, systemWithSummary, type StoredTurn, type TurnRow } from "../_shared/agent/transcript.ts";
 import { planSummary, summarise } from "../_shared/agent/summary.ts";
 import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTablePrompt.ts";
-import { AgentProviderError, type AgentTool, type AgentUsage, type CallModel, type CallTool } from "../_shared/agent/types.ts";
+import { makeSpeechTools, SPEECH_TOOL_NAMES, type SpeechToolsDeps } from "../_shared/agent/speak.ts";
+import {
+  AgentProviderError,
+  type AgentLine,
+  type AgentTool,
+  type AgentUsage,
+  type CallModel,
+  type CallTool,
+} from "../_shared/agent/types.ts";
 import type { CreditLogFields } from "../_shared/credits.ts";
 
 // Limits of one turn. The player waits on a turn, and a model that loops on tools can spend a lot without saying
@@ -50,6 +58,8 @@ export type AgentEvent =
   | { type: "text"; delta: string }
   | { type: "tool_start"; name: string }
   | { type: "tool_end"; name: string; isError: boolean }
+  /** What a character said or visibly did. It is the one thing a tool shows the browser: it is meant for the page. */
+  | { type: "line"; line: AgentLine }
   | { type: "done"; end: TurnEnd; credits: number; tokens: number }
   | { type: "error"; message: string };
 
@@ -122,6 +132,11 @@ export interface AgentTurnDeps {
   }): Promise<{ due: number } | "stale">;
   tools: AgentTool[];
   callTool: CallTool;
+  /**
+   * A character of this campaign as its own call may know it: its record and its memories, nothing else. Null when
+   * the id is not a character of THIS campaign, whoever asks.
+   */
+  loadSpeaker(campaignId: string, characterId: string): ReturnType<SpeechToolsDeps["loadSpeaker"]>;
 }
 
 export const MESSAGES = {
@@ -263,25 +278,40 @@ export async function beginTurn(input: {
           session.summary,
         );
 
+        // A character speaks through its own model call, built from that character alone (`speak.ts`). The same
+        // model for now: a cheaper one for speech needs its own price row first.
+        const speech = makeSpeechTools({
+          stored,
+          loadSpeaker: (id) => deps.loadSpeaker(campaign.id, id),
+          callModel,
+          signal,
+        });
+
         result = await runTurn({
           system,
           history,
           user: body.message,
-          tools: deps.tools,
+          tools: [...deps.tools, ...speech.tools],
           callModel,
-          callTool: deps.callTool,
+          callTool: (name, toolInput) =>
+            SPEECH_TOOL_NAMES.has(name) ? speech.call(name, toolInput) : deps.callTool(name, toolInput),
           limits: { maxSteps: MAX_STEPS, maxOutputTokens: MAX_OUTPUT_TOKENS, tokenBudget: TOKEN_BUDGET },
           signal,
           onEvent: (event) => {
             // Names and outcomes only: a tool's input and result can hold DM-only notes the model looked up.
             if (event.type === "text") emit({ type: "text", delta: event.delta });
             else if (event.type === "tool_start") emit({ type: "tool_start", name: event.name });
-            else if (event.type === "tool_end") emit({ type: "tool_end", name: event.name, isError: event.isError });
+            else if (event.type === "tool_end") {
+              emit({ type: "tool_end", name: event.name, isError: event.isError });
+              if (event.line) emit({ type: "line", line: event.line });
+            }
           },
         });
 
         const { steps } = result;
-        const tokens = totalTokens(steps);
+        // Every model call that was billed: the narrator's, and the ones a character's speech made.
+        const billed = [...steps, ...result.toolSteps.map((t) => t.usage)];
+        const tokens = totalTokens(billed);
         // Nothing was used (stopped before the first model call): there is nothing to save or to charge.
         if (steps.length === 0) {
           emit({ type: "done", end: result.end, credits: 0, tokens: 0 });
@@ -290,7 +320,7 @@ export async function beginTurn(input: {
 
         let accrued = 0;
         if (!provider.isByok && price && calibration) {
-          accrued = round6(creditsForUsd(usdForSteps(steps, price), calibration));
+          accrued = round6(creditsForUsd(usdForSteps(billed, price), calibration));
         }
 
         // ledger input_tokens is ALL input (full rate, cache read and cache write): CreditLogFields has no cached
@@ -299,8 +329,8 @@ export async function beginTurn(input: {
         const logFields: CreditLogFields = {
           model: last.model,
           provider: last.provider,
-          input_tokens: steps.reduce((n, s) => n + s.inputTokens + s.cacheReadTokens + s.cacheWriteTokens, 0),
-          output_tokens: steps.reduce((n, s) => n + s.outputTokens, 0),
+          input_tokens: billed.reduce((n, s) => n + s.inputTokens + s.cacheReadTokens + s.cacheWriteTokens, 0),
+          output_tokens: billed.reduce((n, s) => n + s.outputTokens, 0),
         };
         // Tokens were spent whether or not they are billed, so they are always logged. A cost of 0 writes no row
         // through recordGeneration, which is why a free turn goes through recordFreeGeneration.
@@ -313,6 +343,7 @@ export async function beginTurn(input: {
           lastSeq: lastSeqLoaded,
           added: result.added,
           steps,
+          toolSteps: result.toolSteps,
         });
 
         // Save first, then charge: a turn that was not kept is not billed.

@@ -5,13 +5,23 @@
 // is the only text provider production offers; others follow the same contract) turns these shapes into its own
 // wire format and back, and the turn loop (`turn.ts`) never sees a provider's JSON. Nothing here does I/O.
 
+/**
+ * Something a character said aloud or visibly did, shown to the player in that character's own box. `speaker.id`
+ * is the campaign record's id, null for someone with no record.
+ */
+export interface AgentLine {
+  kind: "spoken" | "acted";
+  speaker: { id: string | null; name: string };
+  text: string;
+}
+
 /** A piece of a message. */
 export type AgentBlock =
   | { type: "text"; text: string }
   /** The model asks for a tool. `id` pairs it with its result; `input` is already parsed JSON. */
   | { type: "tool_call"; id: string; name: string; input: Record<string, unknown> }
   /** What a tool answered, as text the model reads. `isError` tells the model the call failed. */
-  | { type: "tool_result"; callId: string; content: string; isError: boolean }
+  | { type: "tool_result"; callId: string; content: string; isError: boolean; line?: AgentLine }
   /**
    * Something a provider needs handed back unchanged and nobody else reads (a reasoning item, a thinking block).
    * An adapter writes it and only the same provider's adapter replays it; every other adapter drops it.
@@ -72,7 +82,18 @@ export interface ModelStep {
 export type CallModel = (request: ModelRequest) => Promise<ModelStep>;
 
 /** Runs one tool. Never throws for a tool's own failure: that is `isError: true`, which the model can read and react to. */
-export type CallTool = (name: string, input: Record<string, unknown>) => Promise<{ content: string; isError: boolean }>;
+export type CallTool = (name: string, input: Record<string, unknown>) => Promise<ToolAnswer>;
+
+/**
+ * What a tool answered. `usage` is every model call the tool made itself (a character speaking is one), so the turn
+ * can count, budget and store those tokens. `line` is what the browser may show, kept on the stored result.
+ */
+export interface ToolAnswer {
+  content: string;
+  isError: boolean;
+  usage?: AgentUsage[];
+  line?: AgentLine;
+}
 
 /** A provider request that did not produce an answer. `retryable` is true for a timeout, a 429 and a 5xx. */
 export class AgentProviderError extends Error {

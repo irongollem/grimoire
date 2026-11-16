@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { historyFrom, rowsFor, systemWithSummary } from "./transcript";
+import { blocksOf, historyFrom, rowsFor, systemWithSummary } from "./transcript";
 import type { AgentMessage, AgentUsage } from "./types";
 
 const text = (t: string) => ({ type: "text", text: t });
@@ -106,7 +106,7 @@ describe("rowsFor", () => {
   const base = { sessionId: "s", userId: "u" };
 
   it("continues seq from lastSeq + 1, one row per message", () => {
-    const rows = rowsFor({ ...base, lastSeq: 7, added: [user("a"), asst("b")], steps: [u()] });
+    const rows = rowsFor({ ...base, lastSeq: 7, added: [user("a"), asst("b")], steps: [u()], toolSteps: [] });
     expect(rows.map((r) => [r.seq, r.role, r.session_id, r.user_id])).toEqual([
       [8, "user", "s", "u"],
       [9, "assistant", "s", "u"],
@@ -119,6 +119,7 @@ describe("rowsFor", () => {
       lastSeq: 0,
       added: [user("a"), asst("b"), { role: "user", blocks: [{ type: "tool_result", callId: "x", content: "", isError: false }] }, asst("c")],
       steps: [u({ inputTokens: 10, model: "one" }), u({ inputTokens: 20, model: "two" })],
+      toolSteps: [],
     });
     expect(rows.map((r) => r.input_tokens)).toEqual([null, 10, null, 20]);
     expect(rows[3].model).toBe("two");
@@ -127,20 +128,89 @@ describe("rowsFor", () => {
 
   it("folds a trailing step that wrote no message into the last assistant row so no tokens are lost", () => {
     const steps = [u({ inputTokens: 10 }), u({ inputTokens: 20, outputTokens: 7, cacheReadTokens: 3, cacheWriteTokens: 2 }), u({ inputTokens: 5 })];
-    const rows = rowsFor({ ...base, lastSeq: 0, added: [user("a"), asst("b"), { role: "user", blocks: [{ type: "tool_result", callId: "x", content: "", isError: false }] }, asst("c")], steps });
+    const rows = rowsFor({ ...base, lastSeq: 0, added: [user("a"), asst("b"), { role: "user", blocks: [{ type: "tool_result", callId: "x", content: "", isError: false }] }, asst("c")], steps, toolSteps: [] });
     // outputs 1 + 7 + 1 = 9, inputs 10 + 20 + 5 = 35
     expect(sum(rows)).toEqual({ i: 35, o: 9, r: 3, w: 2 });
     expect(rows[3].input_tokens).toBe(25);
   });
 
   it("puts the tokens of a turn that wrote no assistant message on its last row", () => {
-    const rows = rowsFor({ ...base, lastSeq: 0, added: [user("a")], steps: [u({ inputTokens: 40 })] });
+    const rows = rowsFor({ ...base, lastSeq: 0, added: [user("a")], steps: [u({ inputTokens: 40 })], toolSteps: [] });
     expect(rows[0].input_tokens).toBe(40);
   });
 
   it("leaves usage null on every row when there were no steps", () => {
-    const rows = rowsFor({ ...base, lastSeq: 0, added: [user("a")], steps: [] });
+    const rows = rowsFor({ ...base, lastSeq: 0, added: [user("a")], steps: [], toolSteps: [] });
     expect(rows[0].input_tokens).toBeNull();
+  });
+});
+
+describe("rowsFor with tool usage", () => {
+  const base = { sessionId: "s", userId: "u" };
+  const toolMsg = (id: string): AgentMessage => ({ role: "user", blocks: [{ type: "tool_result", callId: id, content: "", isError: false }] });
+
+  it("puts a tool's own tokens on its tool-result row and keeps the total, or the session total undercounts a character's speech", () => {
+    const rows = rowsFor({
+      ...base,
+      lastSeq: 0,
+      added: [user("a"), asst("b"), toolMsg("x"), asst("c")],
+      steps: [u({ inputTokens: 10 }), u({ inputTokens: 20 })],
+      toolSteps: [{ index: 2, usage: u({ inputTokens: 7, outputTokens: 4 }) }],
+    });
+    expect(rows[2].input_tokens).toBe(7);
+    expect(sum(rows)).toEqual({ i: 37, o: 6, r: 0, w: 0 });
+  });
+
+  it("merges leftover narrator steps with tool usage when a turn wrote no assistant message, or one of them is lost", () => {
+    const rows = rowsFor({
+      ...base,
+      lastSeq: 0,
+      added: [user("a")],
+      steps: [u({ inputTokens: 40 })],
+      toolSteps: [{ index: 0, usage: u({ inputTokens: 3 }) }],
+    });
+    expect(sum(rows).i).toBe(43);
+  });
+
+  it("sums the usage of two tool-result messages separately, or a later round's tokens land on the wrong row", () => {
+    const rows = rowsFor({
+      ...base,
+      lastSeq: 0,
+      added: [user("a"), asst("b"), toolMsg("x"), asst("c"), toolMsg("y")],
+      steps: [u({ inputTokens: 10 }), u({ inputTokens: 20 })],
+      toolSteps: [
+        { index: 2, usage: u({ inputTokens: 1 }) },
+        { index: 2, usage: u({ inputTokens: 2 }) },
+        { index: 4, usage: u({ inputTokens: 100 }) },
+      ],
+    });
+    expect(rows.map((r) => r.input_tokens)).toEqual([null, 10, 3, 20, 100]);
+    expect(sum(rows).i).toBe(133);
+  });
+});
+
+describe("a tool result's line in storage", () => {
+  const line = { kind: "spoken", speaker: { id: null, name: "Brann" }, text: "Mind the step." };
+  const stored = (extra: Record<string, unknown>) => [
+    { blocks: blocksOf({ seq: 1, role: "user", blocks: [{ type: "tool_result", callId: "x", content: "ok", isError: false, ...extra }] }) },
+  ];
+
+  it("keeps a valid line, or the browser loses what a character said after a reload", () => {
+    expect(stored({ line })[0].blocks[0]).toMatchObject({ line });
+  });
+
+  it("drops a line with a blank speaker name but keeps the result, or one bad line breaks the replay", () => {
+    const block = stored({ line: { ...line, speaker: { id: null, name: "" } } })[0].blocks[0];
+    expect(block).toEqual({ type: "tool_result", callId: "x", content: "ok", isError: false });
+  });
+
+  it("drops a line whose speaker id is a number, or a bad id reaches a link in the browser", () => {
+    const block = stored({ line: { ...line, speaker: { id: 5, name: "Brann" } } })[0].blocks[0];
+    expect(block).not.toHaveProperty("line");
+  });
+
+  it("drops a line of an unknown kind", () => {
+    expect(stored({ line: { ...line, kind: "shouted" } })[0].blocks[0]).not.toHaveProperty("line");
   });
 });
 

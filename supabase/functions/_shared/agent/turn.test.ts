@@ -462,3 +462,74 @@ describe("totalTokens", () => {
 function visibleOf(m: AgentMessage): string {
   return m.blocks.map((b) => (b.type === "text" ? b.text : "")).join("");
 }
+
+describe("tools that call a model", () => {
+  const line = { kind: "spoken" as const, speaker: { id: "n1", name: "Brann" }, text: "Hello." };
+  const speaker = (answer: { usage?: AgentUsage[]; line?: typeof line }): TurnInput["callTool"] =>
+    async () => ({ content: "said", isError: false, ...answer });
+
+  it("ends budget when only the tool's tokens push the turn over, or a character's speech is free", async () => {
+    const { input } = setup([asks([call("a")], { inputTokens: 10, outputTokens: 5 }), say("never")], {
+      limits: { maxSteps: 5, maxOutputTokens: 100, tokenBudget: 100 },
+      tool: speaker({ usage: [usage({ inputTokens: 80, outputTokens: 10 })] }),
+    });
+    const first = await runTurn({ ...input, callModel: input.callModel });
+    // The tool ran (the narrator alone was under budget); the next round is where the budget bites.
+    expect(first.end).toBe("done");
+    const { input: again } = setup(
+      [asks([call("a")], { inputTokens: 10, outputTokens: 5 }), asks([call("b")], { inputTokens: 1, outputTokens: 1 }), say("never")],
+      { limits: { maxSteps: 5, maxOutputTokens: 100, tokenBudget: 100 }, tool: speaker({ usage: [usage({ inputTokens: 80, outputTokens: 10 })] }) },
+    );
+    const out = await runTurn(again);
+    expect(out.end).toBe("budget");
+    expect(resultsOf(out.added[out.added.length - 1])).toEqual(["b:err:The turn ended before this tool ran: token budget."]);
+  });
+
+  it("does not count tool usage as a step, or maxSteps ends a turn early", async () => {
+    const { input } = setup([asks([call("a")]), asks([call("b")]), say("fin")], {
+      limits: { maxSteps: 3, maxOutputTokens: 100, tokenBudget: null },
+      tool: speaker({ usage: [usage(), usage(), usage()] }),
+    });
+    const out = await runTurn(input);
+    expect(out.end).toBe("done");
+    expect(out.steps).toHaveLength(3);
+  });
+
+  it("records tool usage against the tool-result message of its own round, or tokens land on the wrong row", async () => {
+    const { input } = setup([asks([call("a")]), asks([call("b")]), say("fin")], {
+      tool: async (_n, i) => ({ content: "x", isError: false, usage: [usage({ inputTokens: i.n === undefined ? 1 : 2 })] }),
+    });
+    const out = await runTurn(input);
+    // added: user, asst, results(a), asst, results(b), asst
+    expect(out.toolSteps.map((t) => t.index)).toEqual([2, 4]);
+  });
+
+  it("puts the line on the result block and the tool_end event, or the browser never hears the character", async () => {
+    const events: TurnEvent[] = [];
+    const { input } = setup([asks([call("a")]), say("fin")], { tool: speaker({ line }), onEvent: (e) => events.push(e) });
+    const out = await runTurn(input);
+    expect(out.added[2].blocks[0]).toMatchObject({ line });
+    expect(events.find((e) => e.type === "tool_end")).toMatchObject({ line });
+  });
+
+  it("emits a step event for a tool's usage, or the live view misses billed calls", async () => {
+    const events: TurnEvent[] = [];
+    const { input } = setup([asks([call("a")]), say("fin")], {
+      tool: speaker({ usage: [usage({ model: "voice" })] }),
+      onEvent: (e) => events.push(e),
+    });
+    await runTurn(input);
+    expect(events.filter((e) => e.type === "step")).toHaveLength(3);
+  });
+
+  it("leaves no usage and no line for a throwing tool, or a failed call is billed and shown", async () => {
+    const { input } = setup([asks([call("a")]), say("fin")], {
+      tool: async () => {
+        throw new Error("boom");
+      },
+    });
+    const out = await runTurn(input);
+    expect(out.toolSteps).toEqual([]);
+    expect(out.added[2].blocks[0]).not.toHaveProperty("line");
+  });
+});

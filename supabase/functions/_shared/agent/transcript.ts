@@ -1,6 +1,6 @@
 // Between the conversation in memory and the rows that store it (#1205). Pure: rows in, messages out, and back.
 
-import type { AgentBlock, AgentMessage, AgentUsage } from "./types.ts";
+import type { AgentBlock, AgentLine, AgentMessage, AgentUsage } from "./types.ts";
 
 export interface StoredTurn {
   seq: number;
@@ -26,6 +26,15 @@ function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === "object" && x !== null && !Array.isArray(x);
 }
 
+// A stored line is checked field by field; a bad one is dropped so the result the model needs still replays.
+function asLine(x: unknown): AgentLine | null {
+  if (!isRecord(x) || (x.kind !== "spoken" && x.kind !== "acted") || typeof x.text !== "string") return null;
+  const s = x.speaker;
+  if (!isRecord(s) || typeof s.name !== "string" || s.name === "") return null;
+  if (s.id !== null && typeof s.id !== "string") return null;
+  return { kind: x.kind, speaker: { id: s.id, name: s.name }, text: x.text };
+}
+
 // The blocks came back from a jsonb column, so every one is checked against the four shapes in types.ts.
 function asBlock(x: unknown): AgentBlock | null {
   if (!isRecord(x)) return null;
@@ -37,9 +46,13 @@ function asBlock(x: unknown): AgentBlock | null {
         ? { type: "tool_call", id: x.id, name: x.name, input: x.input }
         : null;
     case "tool_result":
-      return typeof x.callId === "string" && typeof x.content === "string" && typeof x.isError === "boolean"
-        ? { type: "tool_result", callId: x.callId, content: x.content, isError: x.isError }
-        : null;
+      if (typeof x.callId !== "string" || typeof x.content !== "string" || typeof x.isError !== "boolean") return null;
+      {
+        const line = x.line === undefined ? null : asLine(x.line);
+        const block: AgentBlock = { type: "tool_result", callId: x.callId, content: x.content, isError: x.isError };
+        if (line) block.line = line;
+        return block;
+      }
     case "opaque":
       return typeof x.provider === "string" ? { type: "opaque", provider: x.provider, data: x.data } : null;
     default:
@@ -90,8 +103,10 @@ function usageColumns(u: AgentUsage | null) {
  * One row per added message, `seq` continuing from `lastSeq + 1`. The i-th assistant message carries the i-th step.
  * A step with no message is the turn's last one (an empty answer, or a max_tokens cut that held only a tool call:
  * both end the turn), so the steps beyond the assistant messages are folded into the last assistant row, and into
- * the last row of all when the turn wrote no assistant message. The usage columns therefore always sum to the steps,
- * because those tokens were billed whether or not they produced a message.
+ * the last row of all when the turn wrote no assistant message. A tool's own model calls (`toolSteps`) land on the
+ * tool-result row they belong to, merged with the narrator's leftover steps when that row is also the carrier.
+ * The usage columns therefore always sum to the steps plus the tool steps, because those tokens were billed
+ * whether or not they produced a message.
  */
 export function rowsFor(input: {
   sessionId: string;
@@ -99,6 +114,7 @@ export function rowsFor(input: {
   lastSeq: number;
   added: AgentMessage[];
   steps: AgentUsage[];
+  toolSteps: { index: number; usage: AgentUsage }[];
 }): TurnRow[] {
   const { steps } = input;
   const assistantCount = input.added.filter((m) => m.role === "assistant").length;
@@ -107,15 +123,17 @@ export function rowsFor(input: {
 
   let assistantSeen = 0;
   return input.added.map((message, i): TurnRow => {
-    let usage: AgentUsage | null = null;
+    const parts: AgentUsage[] = [];
     if (message.role === "assistant") {
-      const own = steps[assistantSeen] ?? null;
-      const rest = assistantSeen === carrierIndex ? steps.slice(assistantCount) : [];
-      usage = own && rest.length > 0 ? merge(own, rest) : own;
+      const own = steps[assistantSeen];
+      if (own) parts.push(own);
+      if (assistantSeen === carrierIndex) parts.push(...steps.slice(assistantCount));
       assistantSeen++;
-    } else if (carrierIndex === -1 && i === lastRow && steps.length > 0) {
-      usage = merge(steps[0], steps.slice(1));
+    } else if (carrierIndex === -1 && i === lastRow) {
+      parts.push(...steps);
     }
+    for (const t of input.toolSteps) if (t.index === i) parts.push(t.usage);
+    const usage = parts.length > 0 ? merge(parts[0], parts.slice(1)) : null;
     return {
       session_id: input.sessionId,
       user_id: input.userId,

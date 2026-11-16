@@ -6,12 +6,12 @@
 // `tool_result`. A provider rejects the next request when one is missing, and a stored conversation that cannot be
 // continued is a dead table.
 
-import type { AgentBlock, AgentMessage, AgentTool, AgentUsage, CallModel, CallTool } from "./types.ts";
+import type { AgentBlock, AgentLine, ToolAnswer, AgentMessage, AgentTool, AgentUsage, CallModel, CallTool } from "./types.ts";
 
 export type TurnEvent =
   | { type: "text"; delta: string }
   | { type: "tool_start"; id: string; name: string; input: Record<string, unknown> }
-  | { type: "tool_end"; id: string; name: string; isError: boolean }
+  | { type: "tool_end"; id: string; name: string; isError: boolean; line?: AgentLine }
   | { type: "step"; usage: AgentUsage };
 
 export type TurnEnd = "done" | "step_limit" | "budget" | "max_tokens" | "refusal" | "aborted";
@@ -35,6 +35,8 @@ export interface TurnResult {
   added: AgentMessage[];
   /** One per model call. */
   steps: AgentUsage[];
+  /** Model calls the tools made themselves; `index` is the position in `added` of the tool-result message they belong to. */
+  toolSteps: { index: number; usage: AgentUsage }[];
   end: TurnEnd;
   /** The visible text of the last assistant message ("" when it had none). */
   text: string;
@@ -70,6 +72,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
   const { tools, callModel, callTool, limits, signal } = input;
   const added: AgentMessage[] = [{ role: "user", blocks: [{ type: "text", text: input.user }] }];
   const steps: AgentUsage[] = [];
+  const toolSteps: { index: number; usage: AgentUsage }[] = [];
 
   // A listener that throws is the listener's bug; it must not cost the player their turn.
   const emit = (event: TurnEvent) => {
@@ -83,6 +86,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
   const result = (end: TurnEnd): TurnResult => ({
     added,
     steps,
+    toolSteps,
     end,
     text: visibleText([...added].reverse().find((m) => m.role === "assistant")),
   });
@@ -103,9 +107,12 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     return result(end);
   };
 
-  const runOne = async (call: ToolCall): Promise<ToolResult> => {
+  // A tool's own model calls are billed like the narrator's, so the budget counts both.
+  const spent = () => totalTokens([...steps, ...toolSteps.map((t) => t.usage)]);
+
+  const runOne = async (call: ToolCall): Promise<{ block: ToolResult; usage: AgentUsage[] }> => {
     emit({ type: "tool_start", id: call.id, name: call.name, input: call.input });
-    let answer: { content: string; isError: boolean };
+    let answer: ToolAnswer;
     if (!tools.some((t) => t.name === call.name)) {
       answer = { content: `No such tool: ${call.name}`, isError: true };
     } else {
@@ -115,8 +122,16 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
         answer = { content: error instanceof Error ? error.message : String(error), isError: true };
       }
     }
-    emit({ type: "tool_end", id: call.id, name: call.name, isError: answer.isError });
-    return { type: "tool_result", callId: call.id, content: answer.content, isError: answer.isError };
+    emit({
+      type: "tool_end",
+      id: call.id,
+      name: call.name,
+      isError: answer.isError,
+      ...(answer.line ? { line: answer.line } : {}),
+    });
+    const block: ToolResult = { type: "tool_result", callId: call.id, content: answer.content, isError: answer.isError };
+    if (answer.line) block.line = answer.line;
+    return { block, usage: answer.usage ?? [] };
   };
 
   for (;;) {
@@ -155,12 +170,19 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
 
     if (signal?.aborted) return answerPending(calls, "aborted");
     if (steps.length >= limits.maxSteps) return answerPending(calls, "step_limit");
-    if (limits.tokenBudget !== null && totalTokens(steps) >= limits.tokenBudget) {
+    if (limits.tokenBudget !== null && spent() >= limits.tokenBudget) {
       return answerPending(calls, "budget");
     }
 
     // Together, so a slow tool does not hold the others up; Promise.all keeps the order the calls were made in.
-    const blocks = await Promise.all(calls.map(runOne));
-    added.push({ role: "user", blocks });
+    const ran = await Promise.all(calls.map(runOne));
+    const index = added.length;
+    added.push({ role: "user", blocks: ran.map((r) => r.block) });
+    for (const r of ran) {
+      for (const usage of r.usage) {
+        toolSteps.push({ index, usage });
+        emit({ type: "step", usage });
+      }
+    }
   }
 }

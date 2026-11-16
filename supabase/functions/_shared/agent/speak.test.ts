@@ -1,0 +1,301 @@
+import { describe, expect, it } from "vitest";
+import {
+  heardBy, makeSpeechTools, parseActInput, parseSpeakInput, speakerSystem, speakLine, trimHeard,
+  type Heard,
+} from "./speak";
+import type { StoredTurn } from "./transcript";
+import type { AgentUsage, CallModel, ModelRequest, ModelStep } from "./types";
+
+const A = "11111111-1111-4111-8111-111111111111";
+const B = "22222222-2222-4222-8222-222222222222";
+const USAGE: AgentUsage = { provider: "p", model: "m", inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 };
+
+function step(text: string, stop: ModelStep["stop"] = "end"): ModelStep {
+  return { blocks: [{ type: "text", text }], stop, usage: USAGE };
+}
+
+function recorder(answers: string[]): { callModel: CallModel; requests: ModelRequest[] } {
+  const requests: ModelRequest[] = [];
+  return {
+    requests,
+    callModel: async (r) => {
+      requests.push(r);
+      return step(answers[requests.length - 1] ?? "ok");
+    },
+  };
+}
+
+/** A stored speak call and its result, as the loop writes them. */
+function spoke(seq: number, input: Record<string, unknown>, name: string, text: string, speakerId: string | null = null): StoredTurn[] {
+  const id = `call-${seq}`;
+  return [
+    { seq, role: "assistant", blocks: [{ type: "tool_call", id, name, input }] },
+    {
+      seq: seq + 1, role: "user",
+      blocks: [{
+        type: "tool_result", callId: id, content: "x", isError: false,
+        line: { kind: name === "act" ? "acted" : "spoken", speaker: { id: speakerId, name: String(input.speaker_name ?? "Mira") }, text },
+      }],
+    },
+  ];
+}
+
+describe("parseSpeakInput", () => {
+  const ok = { speaker_id: A, happening: "Someone asks about the keys." };
+  it("accepts a plain recorded speaker", () => {
+    expect(parseSpeakInput(ok).ok).toBe(true);
+  });
+  it.each([
+    ["both speaker fields given", { ...ok, speaker_name: "X" }],
+    ["no speaker field", { happening: "h" }],
+    ["manner with a record", { ...ok, manner: "gruff" }],
+    ["non-uuid speaker_id", { ...ok, speaker_id: "mira" }],
+    ["blank happening after trim", { ...ok, happening: "   " }],
+    ["happening over 600", { ...ok, happening: "x".repeat(601) }],
+    ["manner over 200", { speaker_name: "X", happening: "h", manner: "x".repeat(201) }],
+    ["present not a list", { ...ok, present: "Bob" }],
+    ["more than 12 present", { ...ok, present: Array.from({ length: 13 }, (_, i) => `n${i}`) }],
+    ["happening not a string", { ...ok, happening: 5 }],
+  ])("refuses %s with a sentence", (_t, input) => {
+    const r = parseSpeakInput(input);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.length).toBeGreaterThan(10);
+  });
+  it("accepts manner for a character with no record", () => {
+    expect(parseSpeakInput({ speaker_name: " The sweeper ", happening: "h", manner: "mutters" })).toMatchObject({
+      ok: true, value: { name: "The sweeper", manner: "mutters" },
+    });
+  });
+});
+
+describe("parseActInput", () => {
+  it("refuses an empty what", () => {
+    expect(parseActInput({ speaker_name: "X", what: " " }).ok).toBe(false);
+  });
+  it("refuses a what over 300", () => {
+    expect(parseActInput({ speaker_name: "X", what: "x".repeat(301) }).ok).toBe(false);
+  });
+  it("refuses both speaker fields", () => {
+    expect(parseActInput({ speaker_id: A, speaker_name: "X", what: "w" }).ok).toBe(false);
+  });
+});
+
+describe("heardBy", () => {
+  const rows = [
+    ...spoke(1, { speaker_id: A, happening: "A is asked", present: [B] }, "speak", "A line", A),
+    ...spoke(3, { speaker_name: "Sweeper", what: "sweeps", present: ["Bob"] }, "act", "Sweeps the floor."),
+  ];
+  it("does not hand a bystander the speaker's private happening", () => {
+    const h = heardBy(rows, { id: B, name: "B" });
+    expect(h).toHaveLength(1);
+    expect(h[0].happening).toBeNull();
+  });
+  it("gives the speaker its own happening", () => {
+    expect(heardBy(rows, { id: A, name: "A" })[0].happening).toBe("A is asked");
+  });
+  it("never lets a character hear what was said when it was not present", () => {
+    expect(heardBy(rows, { id: "33333333-3333-4333-8333-333333333333", name: "C" })).toEqual([]);
+  });
+  it("matches a record-less listener by name, ignoring case and spaces", () => {
+    expect(heardBy(rows, { id: null, name: "  bob " }).map((h) => h.text)).toEqual(["Sweeps the floor."]);
+  });
+  it("skips a failed call's result", () => {
+    const bad: StoredTurn[] = [
+      { seq: 1, role: "assistant", blocks: [{ type: "tool_call", id: "c", name: "speak", input: { speaker_id: A, happening: "h" } }] },
+      { seq: 2, role: "user", blocks: [{ type: "tool_result", callId: "c", content: "err", isError: true, line: { kind: "spoken", speaker: { id: A, name: "A" }, text: "no" } }] },
+    ];
+    expect(heardBy(bad, { id: A, name: "A" })).toEqual([]);
+  });
+  it("reads rows in seq order whatever order they arrive in", () => {
+    const h = heardBy([...rows].reverse(), { id: A, name: "A" });
+    expect(h.map((x) => x.text)).toEqual(["A line"]);
+    const both = heardBy([...rows].reverse(), { id: null, name: "Bob" });
+    expect(both).toHaveLength(1);
+  });
+});
+
+describe("trimHeard", () => {
+  const mk = (n: number, len = 1): Heard[] =>
+    Array.from({ length: n }, (_, i) => ({ speaker: "S", kind: "spoken" as const, text: `${i}`.padEnd(len, "x"), happening: null }));
+  it("keeps the newest entries, oldest first", () => {
+    expect(trimHeard(mk(30), 20).map((h) => h.text[0] + h.text.slice(1))).toEqual(mk(30).slice(10).map((h) => h.text));
+  });
+  it("stops at the character budget, dropping the oldest", () => {
+    const out = trimHeard(mk(5, 100), 20, 250);
+    expect(out).toHaveLength(2);
+    expect(out[1].text).toBe(mk(5, 100)[4].text);
+  });
+});
+
+describe("speakerSystem", () => {
+  it("leaves out sections with nothing in them", () => {
+    const s = speakerSystem({ name: "Mira", profile: null, manner: null, memories: "", heard: [] });
+    expect(s).not.toContain("said:");
+    expect(s).not.toContain("How they talk");
+    expect(s).toContain("Mira");
+  });
+  it("includes the manner of a record-less speaker and heard lines", () => {
+    const s = speakerSystem({
+      name: "Sweeper", profile: null, manner: "mutters", memories: "MEM",
+      heard: [{ speaker: "Bob", kind: "spoken", text: "hello", happening: null }, { speaker: "Bob", kind: "acted", text: "waves", happening: null }],
+    });
+    expect(s).toContain("mutters");
+    expect(s).toContain("MEM");
+    expect(s).toContain("Bob said: hello");
+    expect(s).toContain("Bob did: waves");
+  });
+});
+
+describe("speakLine", () => {
+  const run = (s: ModelStep) => speakLine({ callModel: async () => s, system: "s", happening: "h" });
+  it("strips one pair of wrapping quotes, straight or curly", async () => {
+    expect((await run(step('"Hello there."'))).text).toBe("Hello there.");
+    expect((await run(step("“Hello there.”"))).text).toBe("Hello there.");
+  });
+  it("does not strip quotes that only start the line", async () => {
+    expect((await run(step('"Hi," she says, "go."'))).text).toBe('Hi," she says, "go.');
+  });
+  it("returns null for a refusal, keeping the usage", async () => {
+    const r = await run(step("I cannot", "refusal"));
+    expect(r.text).toBeNull();
+    expect(r.usage).toBe(USAGE);
+  });
+  it("returns null for an empty answer", async () => {
+    expect((await run(step("   "))).text).toBeNull();
+  });
+  it("keeps the text of an answer cut at max tokens", async () => {
+    expect((await run(step("Half a sen", "max_tokens"))).text).toBe("Half a sen");
+  });
+  it("sends no tools", async () => {
+    const rec = recorder(["x"]);
+    await speakLine({ callModel: rec.callModel, system: "s", happening: "h" });
+    expect(rec.requests[0].tools).toEqual([]);
+  });
+});
+
+describe("makeSpeechTools", () => {
+  const SECRET_A = "A-SECRET-PROFILE-77";
+  const MEM_A = "A-SECRET-MEMORY-88";
+  const HAPPEN_A = "A-PRIVATE-HAPPENING-99";
+  const loadSpeaker = async (id: string) =>
+    id === A ? { id: A, shownName: "Alda", profile: `Name: Alda\n${SECRET_A}`, memories: MEM_A }
+    : id === B ? { id: B, shownName: "Bren", profile: "Name: Bren", memories: "" }
+    : null;
+
+  it("refuses a name outside the speech tools", async () => {
+    const t = makeSpeechTools({ stored: [], loadSpeaker, callModel: recorder([]).callModel });
+    expect((await t.call("roll", {})).isError).toBe(true);
+  });
+
+  it("makes no model call for a speaker id with no record", async () => {
+    const rec = recorder([]);
+    const t = makeSpeechTools({ stored: [], loadSpeaker, callModel: rec.callModel });
+    const r = await t.call("speak", { speaker_id: "33333333-3333-4333-8333-333333333333", happening: "h" });
+    expect(r.isError).toBe(true);
+    expect(rec.requests).toHaveLength(0);
+  });
+
+  it("returns the parse error and calls no model for bad input", async () => {
+    const rec = recorder([]);
+    const t = makeSpeechTools({ stored: [], loadSpeaker, callModel: rec.callModel });
+    const r = await t.call("speak", { happening: "h" });
+    expect(r.isError).toBe(true);
+    expect(rec.requests).toHaveLength(0);
+  });
+
+  it("returns the said line with the disguise name and usage", async () => {
+    const rec = recorder(['"Welcome."']);
+    const t = makeSpeechTools({ stored: [], loadSpeaker, callModel: rec.callModel });
+    const r = await t.call("speak", { speaker_id: A, happening: "A guest arrives." });
+    expect(r).toMatchObject({
+      isError: false, usage: [USAGE],
+      line: { kind: "spoken", speaker: { id: A, name: "Alda" }, text: "Welcome." },
+    });
+    expect(JSON.parse(r.content)).toEqual({ said: "Welcome." });
+  });
+
+  it("reports silence as an error but still returns the spent usage", async () => {
+    const t = makeSpeechTools({ stored: [], loadSpeaker, callModel: async () => step("  ") });
+    const r = await t.call("speak", { speaker_id: A, happening: "h" });
+    expect(r.isError).toBe(true);
+    expect(r.usage).toEqual([USAGE]);
+    expect(r.line).toBeUndefined();
+  });
+
+  it("act makes no model call and shows the deed", async () => {
+    const rec = recorder([]);
+    const t = makeSpeechTools({ stored: [], loadSpeaker, callModel: rec.callModel });
+    const r = await t.call("act", { speaker_name: " Sweeper ", what: "Sweeps." });
+    expect(rec.requests).toHaveLength(0);
+    expect(r).toEqual({ content: "Shown.", isError: false, line: { kind: "acted", speaker: { id: null, name: "Sweeper" }, text: "Sweeps." } });
+  });
+
+  it("gives a character its own profile and memories, or it could not speak as itself", async () => {
+    const rec = recorder(["ok"]);
+    const t = makeSpeechTools({ stored: [], loadSpeaker, callModel: rec.callModel });
+    await t.call("speak", { speaker_id: A, happening: "h" });
+    expect(rec.requests[0].system).toContain(SECRET_A);
+    expect(rec.requests[0].system).toContain(MEM_A);
+  });
+
+  it("never puts A's profile, memories or happening in B's call, same turn", async () => {
+    const rec = recorder(["A says hello", "B replies"]);
+    const t = makeSpeechTools({ stored: [], loadSpeaker, callModel: rec.callModel });
+    await t.call("speak", { speaker_id: A, happening: HAPPEN_A });
+    await t.call("speak", { speaker_id: B, happening: "B is asked something.", present: [A] });
+    const bSystem = rec.requests[1].system;
+    expect(bSystem).not.toContain(SECRET_A);
+    expect(bSystem).not.toContain(MEM_A);
+    expect(JSON.stringify(rec.requests[1])).not.toContain(HAPPEN_A);
+  });
+
+  it("B hears A's line in the same turn when listed present, and not when left out", async () => {
+    const heardRec = recorder(["A-LINE-ONE", "ok"]);
+    const t1 = makeSpeechTools({ stored: [], loadSpeaker, callModel: heardRec.callModel });
+    await t1.call("speak", { speaker_id: A, happening: "h", present: [B] });
+    await t1.call("speak", { speaker_id: B, happening: "h2" });
+    expect(heardRec.requests[1].system).toContain("A-LINE-ONE");
+
+    const absentRec = recorder(["A-LINE-TWO", "ok"]);
+    const t2 = makeSpeechTools({ stored: [], loadSpeaker, callModel: absentRec.callModel });
+    await t2.call("speak", { speaker_id: A, happening: "h" });
+    await t2.call("speak", { speaker_id: B, happening: "h2" });
+    expect(absentRec.requests[1].system).not.toContain("A-LINE-TWO");
+  });
+
+  it("does not leak a stored line B was absent for", async () => {
+    const stored = spoke(1, { speaker_id: A, happening: HAPPEN_A }, "speak", "STORED-A-LINE", A);
+    const rec = recorder(["ok"]);
+    const t = makeSpeechTools({ stored, loadSpeaker, callModel: rec.callModel });
+    await t.call("speak", { speaker_id: B, happening: "h" });
+    expect(JSON.stringify(rec.requests[0])).not.toContain("STORED-A-LINE");
+    expect(JSON.stringify(rec.requests[0])).not.toContain(HAPPEN_A);
+  });
+});
+
+describe("the player's own words", () => {
+  const asked = "Where is the key?";
+
+  it("reach a bystander who was present, or B would answer A's reply without knowing the question", () => {
+    const stored = spoke(1, { speaker_id: A, happening: "h", player_said: asked, present: [B] }, "speak", "In the well.", A);
+    expect(heardBy(stored, { id: B, name: "Bram" }).map((h) => h.text)).toEqual([asked, "In the well."]);
+  });
+
+  it("never reach a character who was not there", () => {
+    const stored = spoke(1, { speaker_id: A, happening: "h", player_said: asked }, "speak", "In the well.", A);
+    expect(heardBy(stored, { id: B, name: "Bram" })).toEqual([]);
+  });
+
+  it("are heard once by someone who listened to two characters answer them", () => {
+    const stored = [
+      ...spoke(1, { speaker_id: A, happening: "h", player_said: asked, present: [B] }, "speak", "In the well.", A),
+      ...spoke(3, { speaker_id: B, happening: "h", player_said: asked, present: [A] }, "speak", "She lies.", B),
+    ];
+    const texts = heardBy(stored, { id: B, name: "Bram" }).map((h) => h.text);
+    expect(texts.filter((t) => t === asked)).toHaveLength(1);
+  });
+
+  it("are refused when longer than a sentence or two, so the field cannot carry a briefing", () => {
+    expect(parseSpeakInput({ speaker_id: A, happening: "h", player_said: "x".repeat(401) }).ok).toBe(false);
+  });
+});

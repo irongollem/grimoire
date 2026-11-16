@@ -24,6 +24,9 @@ import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { callTool, listTools } from "../_shared/mcp/tools.ts";
 import type { ToolContext } from "../_shared/mcp/tools.ts";
 import { agentToolsFrom, bindTools, SOLO_TABLE_TOOLS } from "../_shared/agent/mcpTools.ts";
+import { buildNpcProfile, NPC_PROFILE_COLUMNS, type NpcProfileRow } from "../_shared/npcProfile.ts";
+import { campaignToday } from "../_shared/npcAge.ts";
+import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts";
 import { openaiModel } from "../_shared/agent/openai.ts";
 import { anthropicModel } from "../_shared/agent/anthropic.ts";
 import type { CallModel } from "../_shared/agent/types.ts";
@@ -116,7 +119,7 @@ serve(withCors(async (req: Request) => {
     async loadCampaign(campaignId): Promise<CampaignRow | null> {
       const { data, error } = await admin
         .from("campaigns")
-        .select("id, user_id, name, ai_enabled, game_system, text_provider, openai_api_key, anthropic_api_key, gemini_api_key")
+        .select("id, user_id, name, ai_enabled, game_system, text_provider, current_year, current_month, current_day, openai_api_key, anthropic_api_key, gemini_api_key")
         .eq("id", campaignId)
         .maybeSingle();
       if (error) throw error;
@@ -292,6 +295,30 @@ serve(withCors(async (req: Request) => {
         throw error;
       }
       return { due: wholeCredits(data) };
+    },
+
+    // One character, for its own call: the same profile and memory block the Voice Coach sends, so a disguised
+    // character's true name is withheld here as it is there. Read with the service role after the handler has
+    // checked the caller is this campaign's DM; the campaign filter is in the query, so an id from another
+    // campaign is simply not found.
+    async loadSpeaker(campaignId, characterId) {
+      const { data, error } = await admin
+        .from("npcs")
+        .select(NPC_PROFILE_COLUMNS)
+        .eq("id", characterId)
+        .eq("campaign_id", campaignId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const npc = data as unknown as NpcProfileRow;
+      const memories = await loadPromptMemories(admin, npc.id, campaignId);
+      const disguised = !!npc.disguise_name && !npc.is_revealed;
+      return {
+        id: npc.id,
+        shownName: disguised && npc.disguise_name ? npc.disguise_name : npc.name,
+        profile: buildNpcProfile(npc, campaignToday(rawCampaign)),
+        memories: formatNpcMemories(memories, npc),
+      };
     },
 
     tools: agentToolsFrom(listTools(), SOLO_TABLE_TOOLS),
