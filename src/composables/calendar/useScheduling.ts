@@ -211,10 +211,19 @@ export function useDeleteCadence() {
   });
 }
 
-/** Every "I can't make it" on a regular evening in the campaign; the whole table reads them. */
+/**
+ * Every "I can't make it" on a regular evening in the campaign; the whole table
+ * reads them. Read only once the
+ * campaign has a cadence: with no regular evening there is nothing to be absent
+ * from, and the dashboard and the Hearth would otherwise pay a request on every
+ * load for a list that is always empty (the performance budget caught it). The
+ * cadence query is the same cached one the cards already read, so this adds no
+ * request of its own.
+ */
 export function useSessionAbsences() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const { data: cadence } = useSessionCadence();
   return useQuery({
     queryKey: computed(() => [ABSENCES_KEY, campaignId.value] as const),
     queryFn: async ({ queryKey: [, cid] }): Promise<SessionAbsence[]> => {
@@ -223,7 +232,7 @@ export function useSessionAbsences() {
       if (error) throw error;
       return data as SessionAbsence[];
     },
-    enabled: () => !!campaignId.value,
+    enabled: () => !!campaignId.value && !!cadence.value,
   });
 }
 

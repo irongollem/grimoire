@@ -11,7 +11,8 @@ const { fake } = await vi.hoisted(async () => {
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "me" }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: "c1" }) }));
 
-import { useSaveCadence, useSetAbsence } from "./useScheduling";
+import { flushPromises } from "@vue/test-utils";
+import { useSaveCadence, useSessionAbsences, useSetAbsence } from "./useScheduling";
 
 function run<T>(hook: () => T): T {
   let out!: T;
@@ -58,5 +59,27 @@ describe("useSaveCadence", () => {
       },
     });
     expect(fake.rows("session_cadences")).toEqual([expect.objectContaining({ id: "k1", user_id: "owner", weekday: 5 })]);
+  });
+});
+
+describe("useSessionAbsences", () => {
+  const ABSENT = { id: "a1", campaign_id: "c1", user_id: "me", absent_on: "2026-11-19" };
+
+  // Bug: every dashboard and Hearth load read session_absences, though a campaign with no regular evening has none to read.
+  it("does not read absences while the campaign has no cadence", async () => {
+    fake.seed("session_absences", [ABSENT]);
+    const absences = run(useSessionAbsences);
+    await flushPromises();
+    expect(fake.calls.filter((c) => c.target === "session_absences")).toEqual([]);
+    expect(absences.data.value).toBeUndefined();
+  });
+
+  it("reads them once the campaign has a cadence", async () => {
+    fake.seed("session_cadences", [{ id: "k1", campaign_id: "c1", user_id: "owner", weekday: 4 }]);
+    fake.seed("session_absences", [ABSENT]);
+    const absences = run(useSessionAbsences);
+    await flushPromises();
+    await flushPromises();
+    expect(absences.data.value).toEqual([ABSENT]);
   });
 });
