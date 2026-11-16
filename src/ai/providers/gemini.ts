@@ -2,8 +2,6 @@ import type { TextProvider, TextUsage, ImageProvider, ImageUsage, TextOutputForm
 import { blobToBase64 } from "@/lib/blobToBase64";
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
-const MODEL = "gemini-3.1-flash";
-const IMAGE_MODEL = "gemini-3.1-flash-image";
 
 function sizeToAspect(size: string): { aspectRatio: string; imageSize: string } {
   const m = /^(\d+)\s*x\s*(\d+)$/i.exec(size.trim());
@@ -12,7 +10,8 @@ function sizeToAspect(size: string): { aspectRatio: string; imageSize: string } 
   return { aspectRatio: r > 1.2 ? "3:2" : r < 0.83 ? "2:3" : "1:1", imageSize: "1K" };
 }
 
-export function createGeminiTextProvider(apiKey: string, model = MODEL): TextProvider {
+/** `model` is the admin's setting (provider_config.text_model), resolved by index.ts. */
+export function createGeminiTextProvider(apiKey: string, model: string): TextProvider {
   return {
     async complete(systemPrompt: string, userPrompt: string, format: TextOutputFormat = "json") {
       const res = await fetch(
@@ -45,7 +44,7 @@ export function createGeminiTextProvider(apiKey: string, model = MODEL): TextPro
 }
 
 /** Gemini "Nano Banana" image generation — supports reference images via inline_data. */
-export function createGeminiImageProvider(apiKey: string, model = IMAGE_MODEL): ImageProvider {
+export function createGeminiImageProvider(apiKey: string, model: string): ImageProvider {
   async function call(prompt: string, size: string, sources?: Blob[]) {
     const parts: unknown[] = [{ text: prompt }];
     for (const source of sources ?? []) {

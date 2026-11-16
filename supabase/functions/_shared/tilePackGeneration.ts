@@ -1,3 +1,5 @@
+import { OPENAI_IMAGE_SUNBURST } from "./platformModels.ts";
+
 export function tilePackSlug(value: string): string {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 64);
 }
@@ -39,5 +41,5 @@ export function webpDimensions(bytes: Uint8Array): { width: number; height: numb
 export function tilePackModel(
   config: { tile_pack_model?: string | null; image_model?: string | null } | undefined,
 ): string {
-  return config?.tile_pack_model || config?.image_model || "gpt-image-2.6-sunburst";
+  return config?.tile_pack_model || config?.image_model || OPENAI_IMAGE_SUNBURST;
 }

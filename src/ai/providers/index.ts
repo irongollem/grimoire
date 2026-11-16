@@ -42,27 +42,41 @@ export function getTextProvider(): TextProvider {
   if (!choice) throw new Error("No API key configured. Add one in Campaign Settings → AI.");
   const provider = choice.provider;
   const key = resolveKey(provider);
-  switch (provider) {
-    case "anthropic": return createAnthropicTextProvider(key);
-    case "gemini":    return createGeminiTextProvider(key);
-    default:          return createOpenAiTextProvider(key);
-  }
+  const make = (model: string): TextProvider => {
+    switch (provider) {
+      case "anthropic": return createAnthropicTextProvider(key, model);
+      case "gemini":    return createGeminiTextProvider(key, model);
+      default:          return createOpenAiTextProvider(key, model);
+    }
+  };
+  // The model is read when a call is made, so callers keep a synchronous getter.
+  return {
+    async complete(...args) {
+      return make(await fetchConfiguredModel(provider, "text_model")).complete(...args);
+    },
+  };
 }
 
+const PROVIDER_NAMES: Record<string, string> = { openai: "OpenAI", anthropic: "Anthropic", gemini: "Gemini" };
+
 /**
- * The OpenAI image model an admin set in Admin → Providers. The local-key path
- * renders in the browser and reads it here, so it follows the same setting as
- * the server path instead of a model baked into the client.
+ * The model an admin set in Admin → Providers. The local-key path calls the
+ * provider from the browser and reads the setting here, so it follows the same
+ * setting as the server path instead of a model baked into the client.
  */
-async function fetchOpenAiImageModel(): Promise<string> {
+async function fetchConfiguredModel(provider: string, column: "text_model" | "image_model"): Promise<string> {
   const { data, error } = await supabase
     .from("provider_config")
-    .select("image_model")
-    .eq("provider", "openai")
+    .select(column)
+    .eq("provider", provider)
     .maybeSingle();
   if (error) throw error;
-  if (!data?.image_model) throw new Error("No OpenAI image model is configured. Ask an admin to set one in Admin → Providers.");
-  return data.image_model;
+  const model = (data as Record<string, string | null> | null)?.[column];
+  if (!model) {
+    const kind = column === "text_model" ? "text" : "image";
+    throw new Error(`No ${PROVIDER_NAMES[provider] ?? provider} ${kind} model is configured. Ask an admin to set one in Admin → Providers.`);
+  }
+  return model;
 }
 
 /**
@@ -95,7 +109,7 @@ export async function getImageProvider(options: {
     throw new Error("No image API key configured. Add one in Campaign Settings → AI.");
   }
   switch (provider) {
-    case "gemini":       return createGeminiImageProvider(key);
-    default:             return createOpenAiImageProvider(key, await fetchOpenAiImageModel());
+    case "gemini":       return createGeminiImageProvider(key, await fetchConfiguredModel("gemini", "image_model"));
+    default:             return createOpenAiImageProvider(key, await fetchConfiguredModel("openai", "image_model"));
   }
 }

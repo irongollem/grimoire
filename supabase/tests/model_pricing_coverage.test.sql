@@ -15,8 +15,9 @@ select plan(2);
 --
 -- Two sources name a model:
 --
---   code      a literal in supabase/functions (a default, a fallback, a fixed
---             model like the map styler's). The list below is held equal to
+--   code      a literal in supabase/functions, which since 16 Nov 2026 means
+--             platformModels.ts (a default, a fallback, a fixed model like the
+--             paper doll's, an admin-panel suggestion). The list below is held equal to
 --             the literals actually there by
 --             supabase/functions/_shared/pricedModels.test.ts, so a new
 --             constant fails the suite until it is listed here, and then this
@@ -30,9 +31,13 @@ insert into edge_function_models (model) values
   ('claude-haiku-4-5'),
   ('gemini-2.5-flash'),
   ('gemini-3.1-flash-image'),
+  ('gemini-embedding-001'),
   ('gpt-6-luna'),
   ('gpt-image-2.6-flare'),
-  ('gpt-image-2.6-sunburst');
+  ('gpt-image-2.6-sunburst'),
+  ('lyria-3.5'),
+  ('text-embedding-3-large'),
+  ('text-embedding-3-small');
 
 select is_empty(
   $$ select m.model from edge_function_models m

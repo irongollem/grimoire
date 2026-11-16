@@ -13,25 +13,13 @@
  */
 
 import { chooseTextProvider, keysPresent, type TextProviderKey } from "./providerChoice.ts";
+import { ANTHROPIC_TEXT_MODEL, GEMINI_TEXT_MODEL, OPENAI_TEXT_MODEL, isOpenAiReasoningModel } from "./platformModels.ts";
 
 // ── Text providers ────────────────────────────────────────────────────────────
 
 export interface TextUsage { input_tokens: number; output_tokens: number; model: string; provider: string }
 export interface TextResult { content: string; usage: TextUsage }
 export type TextOutputFormat = "json" | "text";
-
-/**
- * OpenAI's reasoning families, which take a reasoning effort. A family matches
- * by its exact name or its name plus a variant ("gpt-6-luna"), never by a
- * bare prefix, so "gpt-5.60" or "gpt-60" is not in one. gpt-6 defaults to
- * medium effort when none is sent, which costs more tokens per call than the
- * platform's text needs, so "low" is always sent.
- */
-const OPENAI_REASONING_FAMILIES = ["gpt-5.6", "gpt-6"];
-
-export function isOpenAiReasoningModel(model: string): boolean {
-  return OPENAI_REASONING_FAMILIES.some((family) => model === family || model.startsWith(`${family}-`));
-}
 
 export function openaiReasoningParams(model: string): Record<string, string> {
   return isOpenAiReasoningModel(model) ? { reasoning_effort: "low" } : {};
@@ -145,9 +133,9 @@ export type { TextProviderKey } from "./providerChoice.ts";
 // model_pricing_coverage.test.sql checks, and pricedModels.test.ts holds that
 // test's list equal to the model ids named in this directory.
 export const DEFAULT_TEXT_MODELS = {
-  openai: "gpt-6-luna",
-  anthropic: "claude-haiku-4-5",
-  gemini: "gemini-2.5-flash",
+  openai: OPENAI_TEXT_MODEL,
+  anthropic: ANTHROPIC_TEXT_MODEL,
+  gemini: GEMINI_TEXT_MODEL,
 } as const;
 
 /** The provider_config columns text resolution reads. */

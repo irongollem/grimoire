@@ -101,7 +101,7 @@
             :provider="row.provider"
             capability="text"
             :known-models="providerModelOptions[row.provider]"
-            placeholder="e.g. gpt-6-luna"
+            :placeholder="`e.g. ${OPENAI_TEXT_MODEL}`"
           >
             <template #extra>
               <ProviderModelOverrideField
@@ -124,7 +124,7 @@
             :provider="row.provider"
             capability="image"
             :known-models="providerModelOptions[row.provider]"
-            placeholder="e.g. gpt-image-2.6-flare"
+            :placeholder="`e.g. ${OPENAI_IMAGE_FLARE}`"
           >
             <template v-if="IMAGE_QUALITY_OPTIONS[row.provider]" #extra>
               <div class="space-y-1">
@@ -188,7 +188,7 @@
             :provider="row.provider"
             capability="audio"
             :known-models="KNOWN_AUDIO_MODELS[row.provider] ?? []"
-            placeholder="e.g. lyria-3.5"
+            :placeholder="`e.g. ${KNOWN_AUDIO_MODELS.gemini?.[0]}`"
           />
         </div>
 
@@ -337,6 +337,7 @@
 </template>
 
 <script setup lang="ts">
+import { KNOWN_AUDIO_MODELS, KNOWN_EMBEDDING_MODELS, OPENAI_IMAGE_FLARE, OPENAI_TEXT_MODEL } from "@edge-shared/platformModels.ts";
 import { reactive, computed, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
@@ -490,24 +491,9 @@ const IMAGE_QUALITY_OPTIONS: Record<string, { value: string; label: string }[]> 
   ],
 };
 
-// ── Known audio models per provider ──────────────────────────────────────
-// No backend generates audio with OpenAI, so it is absent here -- listing a
-// model would imply a path that doesn't exist. Lyria 3.5 is one model, priced
-// flat per song regardless of length (see the Lyria 3.5 upgrade migration).
-const KNOWN_AUDIO_MODELS: Record<string, string[]> = {
-  gemini: ["lyria-3.5"],
-};
-
-// ── Known embedding models per provider (issue #595) ─────────────────────
-// Only OpenAI and Gemini can embed at all -- Anthropic has no embeddings
-// endpoint -- so anthropic is absent here.
-// Shared with EmbeddingVendorControl.vue (passed down as a prop) rather than
-// redefined there, so the two never drift: this file still needs it for the
-// Model API Costs section below, independent of the vendor-switch control.
-const KNOWN_EMBEDDING_MODELS: Record<string, string[]> = {
-  openai: ["text-embedding-3-small", "text-embedding-3-large"],
-  gemini: ["gemini-embedding-001"],
-};
+// Known audio and embedding models (the datalist suggestions) live in
+// platformModels.ts with every other model id. KNOWN_EMBEDDING_MODELS is passed
+// down to EmbeddingVendorControl.vue as a prop rather than redefined there.
 
 // ── Multi-vendor embedding guard ──────────────────────────────────────────
 // Vectors from different embedding models are never comparable (different

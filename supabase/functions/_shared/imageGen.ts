@@ -5,6 +5,7 @@
  * switch arm instead of edits in six functions.
  */
 
+import { GEMINI_IMAGE_MODEL, OPENAI_IMAGE_FLARE } from "./platformModels.ts";
 import {
   screenImagePrompt,
   recordScreeningOutcome,
@@ -356,8 +357,8 @@ export async function generateImage(opts: {
 // ── Provider resolution ─────────────────────────────────────────────────────────
 
 const DEFAULT_MODEL: Record<string, string> = {
-  openai: "gpt-image-2.6-flare",
-  gemini: "gemini-3.1-flash-image",
+  openai: OPENAI_IMAGE_FLARE,
+  gemini: GEMINI_IMAGE_MODEL,
 };
 
 /** Image surfaces with their own model setting in provider_config. */

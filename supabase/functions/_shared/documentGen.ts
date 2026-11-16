@@ -76,7 +76,7 @@
  * openaiDocument is the primary path in practice, not anthropicDocument.
  */
 
-import { isOpenAiReasoningModel } from "./textGen.ts";
+import { isOpenAiReasoningModel } from "./platformModels.ts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

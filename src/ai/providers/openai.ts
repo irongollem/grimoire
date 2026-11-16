@@ -1,12 +1,12 @@
+import { isOpenAiReasoningModel } from "@edge-shared/platformModels.ts";
 import type { TextProvider, ImageProvider, TextUsage, ImageUsage, TextOutputFormat } from "./types";
 
 const CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const IMAGE_URL = "https://api.openai.com/v1/images/generations";
 const EDIT_URL = "https://api.openai.com/v1/images/edits";
 
-const MODEL = "gpt-6-luna";
-
-export function createOpenAiTextProvider(apiKey: string): TextProvider {
+/** `model` is the admin's setting (provider_config.text_model), resolved by index.ts. */
+export function createOpenAiTextProvider(apiKey: string, model: string): TextProvider {
   return {
     async complete(systemPrompt: string, userPrompt: string, format: TextOutputFormat = "json") {
       const res = await fetch(CHAT_URL, {
@@ -16,8 +16,8 @@ export function createOpenAiTextProvider(apiKey: string): TextProvider {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: MODEL,
-          reasoning_effort: "low",
+          model,
+          ...(isOpenAiReasoningModel(model) ? { reasoning_effort: "low" } : {}),
           ...(format === "json" ? { response_format: { type: "json_object" } } : {}),
           messages: [
             { role: "system", content: systemPrompt },
@@ -33,7 +33,7 @@ export function createOpenAiTextProvider(apiKey: string): TextProvider {
       const usage: TextUsage = {
         input_tokens:  data.usage?.prompt_tokens     ?? 0,
         output_tokens: data.usage?.completion_tokens  ?? 0,
-        model: MODEL,
+        model,
         provider: "openai",
       };
       return { content: data.choices[0].message.content as string, usage };

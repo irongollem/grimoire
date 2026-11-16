@@ -10,7 +10,7 @@ import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
 import { isValidGeminiAspectRatio } from "../_shared/geminiAspect.ts";
 import { isValidStyleImageSize, readPngDimensions, styleChargeSize } from "../_shared/imageSize.ts";
-import { isFlexibleOpenAiModel } from "../_shared/openaiImageModel.ts";
+import { OPENAI_IMAGE_SUNBURST, isFlexibleOpenAiModel } from "../_shared/platformModels.ts";
 import { isPromptRejected } from "../_shared/moderation.ts";
 import { buildMapStylePrompt } from "../_shared/mapStylePrompt.ts";
 import { withCors } from "../_shared/cors.ts";
@@ -151,7 +151,7 @@ serve(withCors(async (req: Request) => {
     }
   } else if (!isFlexibleOpenAiModel(img.model)) {
     return new Response(
-      `This campaign's image model (${img.model}) does not accept the AI map styler's flexible-sized input; ask an admin to use a gpt-image-2.6 model`,
+      `This campaign's image model (${img.model}) does not accept the AI map styler's flexible-sized input; ask an admin to use one that accepts any size, such as ${OPENAI_IMAGE_SUNBURST}`,
       { status: 400 },
     );
   } else if (!isValidStyleImageSize(dims.width, dims.height)) {

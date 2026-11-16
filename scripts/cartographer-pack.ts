@@ -3,6 +3,7 @@
 import { parseArgs } from "node:util";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { OPENAI_IMAGE_SUNBURST } from "../supabase/functions/_shared/platformModels.ts";
 import { TILE_PACK_SCHEMA, type PackCategory, type TilePackManifest } from "../src/cartographer/packSchema.ts";
 import type { GenerationAttempt, ImageGenerationQuality } from "../src/cartographer/authoringPlan.ts";
 import {
@@ -42,7 +43,7 @@ init options:
 
 import provenance options:
   --provider <name>             Provider used for this accepted candidate
-  --model <name>                Model used (normally gpt-image-2.6-sunburst)
+  --model <name>                Model used (normally ${OPENAI_IMAGE_SUNBURST})
   --quality <tier>              low | medium | high | auto (normally low)
   --request-id <id>             Provider request id for later traceability
   --input-text-tokens <n>       Reported or estimated text-input tokens
@@ -52,7 +53,7 @@ import provenance options:
   --duration-ms <n>             Candidate generation duration in milliseconds
 
 The default workflow only prepares/imports interactive $imagegen jobs. It never reads
-OPENAI_API_KEY and contains no Images API runner. Jobs use gpt-image-2.6-sunburst low as the
+OPENAI_API_KEY and contains no Images API runner. Jobs use ${OPENAI_IMAGE_SUNBURST} low as the
 production hint; a candidate that passes QA is final, with quality escalation manual.`;
 
 function requireString(values: Record<string, unknown>, name: string): string {

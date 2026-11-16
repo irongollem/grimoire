@@ -14,6 +14,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeF
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { parseArgs } from "node:util";
+import { OPENAI_IMAGE_SUNBURST } from "../../../supabase/functions/_shared/platformModels.ts";
 
 interface Brief {
   file: string;
@@ -110,7 +111,7 @@ async function main() {
     options: {
       only: { type: "string" },
       redo: { type: "string", multiple: true, default: [] },
-      model: { type: "string", default: "gpt-image-2.6-sunburst" },
+      model: { type: "string", default: OPENAI_IMAGE_SUNBURST },
       quality: { type: "string", default: "high" },
       dir: { type: "string", default: join(homedir(), "Desktop/art-955/scenes") },
       "yes-spend": { type: "boolean", default: false },

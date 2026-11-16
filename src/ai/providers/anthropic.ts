@@ -1,9 +1,8 @@
 import type { TextProvider, TextUsage, TextOutputFormat } from "./types";
 
 const JSON_INSTRUCTION = "\n\nRespond with a valid JSON object only, no markdown fencing.";
-const MODEL = "claude-sonnet-4-6";
-
-export function createAnthropicTextProvider(apiKey: string, model = MODEL): TextProvider {
+/** `model` is the admin's setting (provider_config.text_model), resolved by index.ts. */
+export function createAnthropicTextProvider(apiKey: string, model: string): TextProvider {
   return {
     async complete(systemPrompt: string, userPrompt: string, format: TextOutputFormat = "json") {
       const res = await fetch("https://api.anthropic.com/v1/messages", {

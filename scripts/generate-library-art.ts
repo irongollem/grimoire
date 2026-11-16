@@ -91,6 +91,7 @@ import { registerImageProvenance } from "../supabase/functions/_shared/provenanc
 import type { AiProvenance } from "../supabase/functions/_shared/provenance/types.ts";
 import { headObject, putObject } from "../supabase/functions/_shared/r2/client.ts";
 import { IMMUTABLE_CACHE_CONTROL, r2ConfigFrom, r2ObjectKey, type R2Config } from "../supabase/functions/_shared/r2/config.ts";
+import { isOpenAiReasoningModel } from "../supabase/functions/_shared/platformModels.ts";
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -1008,9 +1009,7 @@ async function planEntries(client: SupabaseClient, opts: GenerateOptions): Promi
 
 /** Mirrors `openaiReasoningParams` in `_shared/textGen.ts`. */
 function reasoningParams(model: string): Record<string, string> {
-  return ["gpt-5.6", "gpt-6"].some((family) => model === family || model.startsWith(`${family}-`))
-    ? { reasoning_effort: "low" }
-    : {};
+  return isOpenAiReasoningModel(model) ? { reasoning_effort: "low" } : {};
 }
 
 interface OpenAiErrorBody {

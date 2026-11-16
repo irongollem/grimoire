@@ -7,6 +7,7 @@ import {
   type PackCategory,
   type TilePackManifest,
 } from "./packSchema.ts";
+import { OPENAI_IMAGE_SUNBURST } from "@edge-shared/platformModels.ts";
 import { validatePack } from "./validatePack.ts";
 
 export const GENERATION_PLAN_VERSION = 1;
@@ -85,7 +86,7 @@ export interface GenerationJob {
   execution: {
     operation: "generate";
     default_mode: "interactive-imagegen";
-    production_model_hint: "gpt-image-2.6-sunburst";
+    production_model_hint: typeof OPENAI_IMAGE_SUNBURST;
     production_quality_hint: "low";
     requested_size: "1024x1024";
     acceptance_policy: "qa-passed-is-final";
@@ -572,7 +573,7 @@ function createJob(
     execution: {
       operation: "generate",
       default_mode: "interactive-imagegen",
-      production_model_hint: "gpt-image-2.6-sunburst",
+      production_model_hint: OPENAI_IMAGE_SUNBURST,
       production_quality_hint: "low",
       requested_size: "1024x1024",
       acceptance_policy: "qa-passed-is-final",

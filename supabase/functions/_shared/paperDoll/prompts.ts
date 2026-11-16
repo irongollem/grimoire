@@ -4,10 +4,11 @@
  * head" rule and the likeness wording each fixed a specific failure, so change
  * the text only with a render to compare against.
  */
+import { OPENAI_IMAGE_SUNBURST } from "../platformModels.ts";
 import type { DollTemplateSize } from "./types.ts";
 
 /** The spike proved placement on this model; the generator pins it. */
-export const DOLL_IMAGE_MODEL = "gpt-image-2.6-sunburst";
+export const DOLL_IMAGE_MODEL = OPENAI_IMAGE_SUNBURST;
 export const DOLL_SHEET_SIZE = "1536x1024";
 
 // The sheet is cut in the empty gap between figures (sheetCuts in layout.ts), so
