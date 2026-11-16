@@ -88,14 +88,18 @@ export function usePlayerUnread() {
 
   // The Hearth's "Your DM asks…": an open question this player has not answered (#1212).
   const auth = useAuthStore();
-  const { data: openQuestions } = useTableQuestions({ openOnly: true });
-  const openIds = computed(() => (openQuestions.value === undefined ? [] : openQuestions.value.map((q) => q.id)));
-  const { data: questionAnswers } = useTableQuestionAnswers(openIds);
+  // The same two reads the Hearth's own section makes (every question, then their
+  // answers), so TanStack shares them: an open-only read here was one more request
+  // on every player's first load (perf budgets, 16 Nov 2026). isWaitingOn skips
+  // the closed ones.
+  const { data: tableQuestions } = useTableQuestions();
+  const questionIds = computed(() => (tableQuestions.value === undefined ? [] : tableQuestions.value.map((q) => q.id)));
+  const { data: questionAnswers } = useTableQuestionAnswers(questionIds);
   // Until the answers arrive nothing counts as waiting: judged from a missing list,
   // every open question looks unanswered and the dot flashes on at each load.
   const waitingOnAnswer = computed(() => {
     const userId = auth.user?.id;
-    const questions = openQuestions.value;
+    const questions = tableQuestions.value;
     const answers = questionAnswers.value;
     if (!userId || !questions || questions.length === 0 || !answers) return false;
     return questions.some((q) => isWaitingOn(q, answers.filter((a) => a.question_id === q.id), userId));
