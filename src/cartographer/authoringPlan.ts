@@ -7,7 +7,8 @@ import {
   type PackCategory,
   type TilePackManifest,
 } from "./packSchema.ts";
-import { OPENAI_IMAGE_SUNBURST } from "@edge-shared/platformModels.ts";
+// Relative, not @edge-shared: tile-pack-generator imports this file and Deno knows no alias.
+import { OPENAI_IMAGE_SUNBURST } from "../../supabase/functions/_shared/platformModels.ts";
 import { validatePack } from "./validatePack.ts";
 
 export const GENERATION_PLAN_VERSION = 1;
