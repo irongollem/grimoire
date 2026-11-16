@@ -7,6 +7,8 @@ const state = vi.hoisted(() => ({
   notes: [] as unknown[],
   noticeBoards: [] as unknown[],
   newIds: new Set<string>(),
+  openQuestions: [] as { id: string; closed_at: null; mode: string; exclusive: boolean }[],
+  questionAnswers: [] as { question_id: string; user_id: string; option_id: string | null }[],
 }));
 
 vi.mock("@/composables/quests/useQuests", async () => {
@@ -33,6 +35,15 @@ vi.mock("@/composables/player/useReadItems", () => ({
   useReadMarkers: () => ({ isNew: (type: string, id: string) => state.newIds.has(`${type}:${id}`) }),
 }));
 
+vi.mock("@/composables/tableQuestions/useTableQuestions", async () => {
+  const { ref: r } = await import("vue");
+  return {
+    useTableQuestions: () => ({ data: r(state.openQuestions) }),
+    useTableQuestionAnswers: () => ({ data: r(state.questionAnswers) }),
+  };
+});
+vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "me" } }) }));
+
 import { anyUnread, collectUnreadItems, usePlayerUnread } from "./usePlayerUnread";
 
 beforeEach(() => {
@@ -42,6 +53,8 @@ beforeEach(() => {
   state.notes = [];
   state.noticeBoards = [];
   state.newIds = new Set();
+  state.openQuestions = [];
+  state.questionAnswers = [];
 });
 
 describe("anyUnread", () => {
@@ -99,6 +112,22 @@ describe("usePlayerUnread", () => {
     const { sections } = usePlayerUnread();
     expect(sections.value.puzzles).toBe(false);
     expect(sections.value.dmNotes).toBe(true);
+  });
+});
+
+describe("a question waiting on the player (#1212)", () => {
+  it("dots the Hearth for an open question this player has not answered, and keeps the Journal dot", () => {
+    state.openQuestions = [{ id: "q1", closed_at: null, mode: "pick", exclusive: false }];
+    state.questionAnswers = [{ question_id: "q1", user_id: "someone-else", option_id: "o1" }];
+    state.handouts = [{ id: "h1", updated_at: "2026-10-01" }];
+    state.newIds.add("handout:h1");
+    expect(usePlayerUnread().unreadPaths.value).toEqual(["/play", "/play/journal"]);
+  });
+
+  it("does not dot the Hearth once this player has answered", () => {
+    state.openQuestions = [{ id: "q1", closed_at: null, mode: "pick", exclusive: false }];
+    state.questionAnswers = [{ question_id: "q1", user_id: "me", option_id: "o1" }];
+    expect(usePlayerUnread().unreadPaths.value).toEqual([]);
   });
 });
 

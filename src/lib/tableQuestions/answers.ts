@@ -13,11 +13,12 @@ export function isWaitingOn(
   return question.closed_at === null && answerOf(answers, userId) === null;
 }
 
-/** For an exclusive pick, the options someone else already holds. Empty for any other question. */
+/** For an exclusive pick, the options someone else already holds. Empty for any other question.
+ *  A null viewer (the DM's preview) holds nothing, so every held option is someone else's. */
 export function takenByOthers(
   question: TableQuestion,
   answers: readonly TableQuestionAnswer[],
-  userId: string,
+  userId: string | null,
 ): Set<string> {
   const taken = new Set<string>();
   if (question.mode !== "pick" || !question.exclusive) return taken;

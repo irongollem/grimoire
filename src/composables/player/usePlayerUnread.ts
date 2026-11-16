@@ -6,6 +6,9 @@ import { usePlayerHandouts } from "@/scriptorium/composables/usePlayerHandouts";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
 import { usePlayerVisiblePuzzles } from "@/composables/dungeon-features/usePuzzles";
 import { usePlayerVisibleNotes } from "@/composables/notes/useNotes";
+import { useTableQuestionAnswers, useTableQuestions } from "@/composables/tableQuestions/useTableQuestions";
+import { isWaitingOn } from "@/lib/tableQuestions/answers";
+import { useAuthStore } from "@/stores/auth";
 
 /** The quest statuses the Quest Log renders in a group; a shared quest outside them has no card to dot. */
 export const QUEST_LOG_STATUSES: readonly string[] = ["active", "completed", "failed"];
@@ -83,6 +86,21 @@ export function usePlayerUnread() {
   const isNoteNew = (id: string, updatedAt?: string) => isNewOfType("note", id, updatedAt);
   const isNoticeBoardNew = (id: string, updatedAt?: string) => isNewOfType("notice_board", id, updatedAt);
 
+  // The Hearth's "Your DM asks…": an open question this player has not answered (#1212).
+  const auth = useAuthStore();
+  const { data: openQuestions } = useTableQuestions({ openOnly: true });
+  const openIds = computed(() => (openQuestions.value === undefined ? [] : openQuestions.value.map((q) => q.id)));
+  const { data: questionAnswers } = useTableQuestionAnswers(openIds);
+  // Until the answers arrive nothing counts as waiting: judged from a missing list,
+  // every open question looks unanswered and the dot flashes on at each load.
+  const waitingOnAnswer = computed(() => {
+    const userId = auth.user?.id;
+    const questions = openQuestions.value;
+    const answers = questionAnswers.value;
+    if (!userId || !questions || questions.length === 0 || !answers) return false;
+    return questions.some((q) => isWaitingOn(q, answers.filter((a) => a.question_id === q.id), userId));
+  });
+
   const sections = computed(() => ({
     quests: anyUnread((quests.value ?? []).filter((q) => QUEST_LOG_STATUSES.includes(q.status)), isQuestNew),
     puzzles: anyUnread(puzzles.value, isPuzzleNew),
@@ -96,7 +114,10 @@ export function usePlayerUnread() {
   const journal = computed(() => Object.values(sections.value).some(Boolean));
 
   /** Nav paths that carry a dot. Keyed by route so the nav needs no knowledge of sections. */
-  const unreadPaths = computed(() => (journal.value ? ["/play/journal"] : []));
+  const unreadPaths = computed(() => [
+    ...(waitingOnAnswer.value ? ["/play"] : []),
+    ...(journal.value ? ["/play/journal"] : []),
+  ]);
 
   /** The unread things themselves, newest first (the Hearth's "new for you" list). */
   const items = computed(() =>

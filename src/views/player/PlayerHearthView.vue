@@ -35,6 +35,7 @@
       <HearthLiveBanner :started-at="startedAt" :member-id="member.id" :number="session?.number ?? null" :title="session?.title ?? null" />
       <!-- A character handed over (#1059): what the sheet says, with its button. -->
       <CharacterCaretakingNotice :member="member" class="hearth-wide torn hearth-paper" />
+      <HearthTableQuestions :member="member" class="hearth-wide" />
       <div class="hearth-col">
         <HearthWhileAway :member="member" active-only />
         <HearthVitals :member="member" />
@@ -54,6 +55,7 @@
          [quests, notes], which read top to bottom as the phone order. -->
     <div v-else class="hearth-board hearth-stack">
       <CharacterCaretakingNotice :member="member" class="hearth-wide torn hearth-paper" />
+      <HearthTableQuestions :member="member" class="hearth-wide" />
       <div class="hearth-col">
         <HearthWhileAway :member="member" />
         <HearthDateStrip />
@@ -85,6 +87,7 @@ import HearthNotes from "@/components/player/hearth/HearthNotes.vue";
 import HearthQuests from "@/components/player/hearth/HearthQuests.vue";
 import HearthQuickNote from "@/components/player/hearth/HearthQuickNote.vue";
 import HearthRightNow from "@/components/player/hearth/HearthRightNow.vue";
+import HearthTableQuestions from "@/components/player/hearth/HearthTableQuestions.vue";
 import HearthSpellcasting from "@/components/player/hearth/HearthSpellcasting.vue";
 import HearthVitals from "@/components/player/hearth/HearthVitals.vue";
 import HearthWaiting from "@/components/player/hearth/HearthWaiting.vue";
