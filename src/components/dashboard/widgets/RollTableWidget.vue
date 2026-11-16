@@ -26,6 +26,17 @@
         @click="onRoll"
       />
       <RollTableResult v-if="lastRoll !== null" :result="lastRoll" />
+      <AppButton
+        variant="subtle"
+        size="md"
+        :icon="IconSend"
+        label="Ask the table"
+        :disabled="resolution.table.entries.length === 0"
+        tooltip="Send this table to the players as a question"
+        @click="askOpen = true"
+      />
+      <TableQuestionsList :roll-table-id="resolution.table.id" open-only />
+      <SendTableQuestionDialog :table="resolution.table" :open="askOpen" @close="askOpen = false" />
       <p class="text-caption-sm text-muted-foreground italic">
         {{ resolution.table.entries.length }}
         {{ resolution.table.entries.length === 1 ? "entry" : "entries" }}
@@ -51,13 +62,21 @@
  * The result is a local `ref` and is deliberately not layout state: a roll is
  * a thing that just happened, not part of the arrangement, and persisting it
  * would have the dashboard reopen tomorrow claiming the party met six goblins.
+ *
+ * "Ask the table" (#1212) sends the same table to the players as a question,
+ * and the open ones are listed under the roll. This card is what the DM keeps
+ * above the fold during a session, so watching the answers come in belongs
+ * here rather than behind a trip to Dungeon Craft; closed questions stay on
+ * the table's own page.
  */
 import { computed, ref, watch } from "vue";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import RollTableResult from "@/components/dungeon-features/RollTableResult.vue";
 import { useRollTables } from "@/composables/dungeon-features/useRollTables";
-import { IconDiceRoll } from "@/lib/icons";
+import SendTableQuestionDialog from "@/components/tableQuestions/SendTableQuestionDialog.vue";
+import TableQuestionsList from "@/components/tableQuestions/TableQuestionsList.vue";
+import { IconDiceRoll, IconSend } from "@/lib/icons";
 import { resolveRollTable, type RollTableResolution } from "@/lib/dashboard/rollTableCard";
 import { rollOnTable, type RollTableRollResult } from "@/lib/dungeon-features/rollTableRoll";
 
@@ -84,6 +103,7 @@ const title = computed(() =>
 );
 
 const lastRoll = ref<RollTableRollResult | null>(null);
+const askOpen = ref(false);
 
 // A result belongs to the table it came from. Switching this card to another
 // table — or to another campaign — must not leave yesterday's goblins under a

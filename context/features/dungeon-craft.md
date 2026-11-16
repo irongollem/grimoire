@@ -370,6 +370,35 @@ The AI returns a full table (name, CR-tier tags, one-line description, and entri
 
 The system prompt is stored in `ai_system_prompts` (`generator_type = 'roll_table'`); the credit cost is `roll_table_generation` in `ai_generation_credit_costs`. Both seeded in migration `20260623000003_roll_table_ai_generation.sql`.
 
+### Table questions: sending a table to the players (#1212)
+
+A roll table is a list of options, so it has a second use: the DM sends it to the table as a **question**. The maintainer found the need choosing pets with two child players (16 Nov 2026): the only way to let them choose was a hand-made page with every pet's picture, a short read-aloud line and a Pick button. It worked because the children could see the options.
+
+**Three modes** (decision 1):
+
+- **Each picks their own** (`pick`): every player chooses for their own character. The DM sets whether a pick is exclusive ("only one of each at this table").
+- **The table votes** (`vote`): the DM watches the tally and closes it when they choose; the result is the DM's call (`outcome_option_id`, or none), never an engine's.
+- **Each rolls** (`roll`): a player rolls the table from their own screen. The server rolls.
+
+**A vote is hidden while it is open** (decision 2), so nobody copies the first answer; the DM may switch one to open, also while it runs. **Session scheduling stays its own thing** (decision 3): `session_proposals` is a vote too, but it is not folded in.
+
+**Entries can be things.** An entry may carry `ref` (`{kind: "monster" | "item" | "npc", id}`; a monster or item id is a campaign uuid or a library text id, the #597 split) and a `blurb`, one or two sentences the players read under the picture. `notes` stays DM-only. The editor resolves pictures through `useEntryPictures`. Library ids in `ref` are checked by `supabase/checks/content_integrity.sql`.
+
+**Schema** (`20261116074944_table_questions.sql`):
+
+- `table_questions`: campaign, the DM (`user_id`), `roll_table_id` (set null when the table goes), `prompt`, `mode`, `dice` (a roll only), `exclusive` (a pick only), `hidden` (a vote only), `options`, `closed_at`, `outcome_option_id` (a closed vote only). Check constraints hold each pairing. **`options` is a snapshot** of the entries at send time (`buildQuestionOptions`, `src/lib/tableQuestions/options.ts`: label, blurb, picture, a monster or item `ref`, range), because players never read `roll_tables` (DM-only, and entries carry notes). An NPC ref never goes into the snapshot. Mode, dice and options are fixed once sent; a different list is a new question.
+- `table_question_answers`: one per member per question (`unique (question_id, user_id)`), with the character (`party_member_id`), `option_id`, `rolled`, and `companion_id` (the pet made from it). The guard trigger `private.guard_table_question_answer` copies the question's campaign, refuses a closed question, refuses a character the member does not play, rolls a roll question with `random()` whatever the client sent (and keeps it: a player can neither change nor withdraw a roll; a reroll is the DM deleting the answer), and holds an exclusive pick under an advisory lock so two players tapping the same picture cannot both have it. After a question closes, a player may still set `companion_id` and nothing else.
+- **RLS.** Members read questions; only the DM writes them. A player reads their own answer, the DM reads every answer, and the others' answers are readable through `private.can_see_table_answers` only when the question is not a hidden vote still open. The hidden vote is held by the policy, not the screen; `supabase/tests/table_questions.test.sql` proves it as the wrong member. `hidden` is a vote's setting so that every pick answer stays readable, which is what lets the exclusivity guard run as the player. Nothing in the feature is `SECURITY DEFINER`.
+- **Live.** Both tables ring the doorbell; `SIGNAL_KEYS` maps both to `TABLE_QUESTIONS_KEY` (`"table-questions"`), the root of every read in `src/composables/tableQuestions/`. Play state: neither is copied into a demo campaign.
+
+**Where it shows.**
+
+- **The editor.** Each entry row (`RollTableEntryRow`) carries `EntryRefPicker` (Nothing / Creature / Item / NPC, then a searchable picker; an index loads only for the kind chosen) with the thing's thumbnail, and the blurb. Picking a thing fills an empty label with its name and never overwrites a typed one (`labelAfterRefPick`). View mode shows the thumbnail beside the label and the blurb under it.
+- **Sending.** *Send to the table* on the table's page, and *Ask the table* on the dashboard's roll-table card (the surface the DM keeps above the fold during a session), open `SendTableQuestionDialog`: the prompt (prefilled with the table's name), the mode, and one switch per mode (a pick's *Only one of each*, a vote's *Hide votes until I close it*, on by default). `buildSendPayload` drops a switch left on from another mode, which the database would refuse.
+- **Watching.** `TableQuestionPanel` is the DM's dense view of one question: per option, who chose it (the character, else the member), the count, a reset per answer (a roll's asks first, since resetting is how a player rolls again), Close (a vote asks which option the table goes with, or none), Reopen and Delete; a vote still open can be switched between hidden and open. The table's page lists every question sent from it under *Sent to the table*; the dashboard card lists the open ones.
+- **Answering.** On the player's Hearth (see `player-hearth.md`, "Your DM asks…").
+- **The pet.** After a pick whose option is a creature, *Make it {character}'s pet* creates a companion of type pet directly (`petFromOption`: owned by the character, sourced from the monster, with the option's picture, never combat-ready, which the database refuses for a pet) and records it on the answer, so the offer turns into "{pet} is {character}'s pet". The player can rename it in *Your company*, as with any companion they own.
+
 ---
 
 ## Loot Tables
@@ -608,7 +637,7 @@ A board can hang at a place (`<EntityPlacements kind="notice_board" />`, "Hangs 
 | `name`        | string           | Required                                     |
 | `dice`        | RollTableDie     | 1d4 / 1d6 / 1d8 / 1d10 / 1d12 / 1d20 / 1d100 |
 | `description` | string\|null     |                                              |
-| `entries`     | RollTableEntry[] | {id, min, max, label, encounter_id?, notes?} |
+| `entries`     | RollTableEntry[] | {id, min, max, label, encounter_id?, notes?, ref?, blurb?} (#1212) |
 | `campaign_id` | string\|null     | Global if null                               |
 | `tags`        | string[]         |                                              |
 | `notes`       | string\|null     | DM-only                                      |
