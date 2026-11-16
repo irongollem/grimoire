@@ -49,6 +49,8 @@ describe("PlayerTableQuestion", () => {
     const taken = w.findAll("button")[1];
     expect(taken.attributes("disabled")).toBeDefined();
     expect(taken.text()).toContain("Taken by Wren");
+    // The holder is named once: "Taken by" already says who, so the "also chose" line stays off.
+    expect(taken.text().split("Wren")).toHaveLength(2);
   });
 
   it("answers nothing in DM preview or once closed", async () => {

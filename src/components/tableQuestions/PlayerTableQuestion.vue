@@ -1,7 +1,7 @@
 <template>
   <article class="flex flex-col gap-3" :aria-label="question.prompt">
     <header class="flex flex-col gap-0.5">
-      <h3 class="font-cinzel text-heading-sm leading-tight text-foreground">{{ question.prompt }}</h3>
+      <h3 class="text-heading-sm leading-tight text-foreground">{{ question.prompt }}</h3>
       <p v-if="hint" class="text-caption text-muted-foreground">{{ hint }}</p>
     </header>
 
@@ -10,7 +10,7 @@
       <AppButton v-if="!mine && canAnswer" variant="primary" size="lg" block :icon="IconDiceRoll" label="Roll" :loading="rolling" @click="roll" />
       <p v-else-if="!mine" class="text-body italic text-muted-foreground">{{ closedNoAnswer }}</p>
       <div v-else class="flex flex-col gap-3">
-        <p class="font-cinzel text-display leading-none text-primary" aria-live="polite">{{ mine.rolled }}</p>
+        <p class="text-display leading-none text-primary" aria-live="polite">{{ mine.rolled }}</p>
         <div v-if="rolledOption" class="w-full max-w-sm">
           <TableQuestionOptionCard :option="rolledOption" selected disabled your-label="You rolled this" />
         </div>
@@ -120,7 +120,7 @@ function isOutcome(optionId: string): boolean {
 
 /** Who else chose an option. Never for a child, a secret vote, or a pick that cannot be shared anyway. */
 function othersOn(optionId: string): string[] {
-  if (isChild || secret.value) return [];
+  if (isChild || secret.value || taken.value.has(optionId)) return [];
   return answers
     .filter((a) => a.option_id === optionId && a.user_id !== userId)
     .map((a) => (a.party_member_id ? memberNames.get(a.party_member_id) : undefined) ?? "A player");

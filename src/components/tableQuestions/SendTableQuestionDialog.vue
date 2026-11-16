@@ -36,7 +36,8 @@
             <div v-if="o.image_url" class="size-7 shrink-0 overflow-hidden rounded">
               <FocalImage :src="o.image_url" :alt="o.label" format="square" :focal-point="o.focal" />
             </div>
-            <span v-else class="size-7 shrink-0 rounded bg-muted" aria-hidden="true" />
+            <!-- A blank keeps names in line beside pictured options; a list of words needs none. -->
+            <span v-else-if="anyPicture" class="size-7 shrink-0 rounded bg-muted" aria-hidden="true" />
             <span class="min-w-0 truncate">{{ o.label }}</span>
           </li>
         </ul>
@@ -123,6 +124,7 @@ watch(
 
 const pictures = useEntryPictures(() => table.entries.flatMap((e) => (e.ref ? [e.ref] : [])), { npcs: true });
 const options = computed(() => buildQuestionOptions(table.entries, pictures.value));
+const anyPicture = computed(() => options.value.some((o) => o.image_url !== null));
 const sendable = computed(() => canSend(prompt.value, options.value) && campaign.activeCampaignId !== null);
 
 async function onSend() {

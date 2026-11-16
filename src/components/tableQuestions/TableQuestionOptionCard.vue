@@ -10,31 +10,34 @@
     @click="emit('pick')"
   >
     <div
-      class="flex h-full flex-col overflow-hidden rounded-lg border bg-card transition-shadow"
+      class="relative flex h-full flex-col overflow-hidden rounded-lg border bg-card transition-shadow"
       :class="[
         selected || outcome ? 'border-primary ring-2 ring-primary' : 'border-border',
         takenBy ? 'opacity-60' : '',
         selectable && !selected ? 'hover:border-primary/60' : '',
       ]"
     >
-      <div class="relative aspect-square w-full bg-muted">
-        <!-- Vellum draws a card surface as torn paper, which replaces its border
-             and ring, so the choice is marked on the picture and by the button's
-             outline, never by the card's own border alone. -->
-        <span
-          v-if="selected || outcome"
-          class="absolute top-2 right-2 z-10 grid size-9 place-items-center rounded-full bg-primary text-primary-foreground shadow-md"
-          aria-hidden="true"
-        >
-          <IconCheck class="size-5" />
-        </span>
-        <FocalImage v-if="option.image_url" :src="option.image_url" :alt="option.label" format="square" :focal-point="option.focal" />
-        <div v-else class="grid h-full w-full place-items-center p-3 text-center">
-          <span class="font-cinzel text-heading-sm leading-tight text-foreground">{{ option.label }}</span>
-        </div>
+      <!-- Vellum draws a card surface as torn paper, which replaces its border
+           and ring, so the choice is marked by a check badge and by the button's
+           outline, never by the card's own border alone. -->
+      <span
+        v-if="selected || outcome"
+        class="absolute top-2 right-2 z-10 grid size-9 place-items-center rounded-full bg-primary text-primary-foreground shadow-md"
+        aria-hidden="true"
+      >
+        <IconCheck class="size-5" />
+      </span>
+      <!-- Only an option with a picture gets the picture square: a text option
+           (a road, a rumour) is its words, so an empty square would only push
+           the other options off a phone screen. -->
+      <div v-if="option.image_url" class="aspect-square w-full bg-muted">
+        <FocalImage :src="option.image_url" :alt="option.label" format="square" :focal-point="option.focal" />
       </div>
       <div class="flex flex-1 flex-col gap-1 p-3">
-        <p v-if="option.image_url" class="font-cinzel text-body-lg leading-tight text-foreground">{{ option.label }}</p>
+        <p
+          class="leading-tight text-foreground"
+          :class="option.image_url ? 'text-heading-xs' : 'text-heading-sm pr-10'"
+        >{{ option.label }}</p>
         <p v-if="option.blurb" class="text-body text-muted-foreground">{{ option.blurb }}</p>
         <p v-if="takenBy" class="text-label-lg font-semibold text-muted-foreground">Taken by {{ takenBy }}</p>
         <p v-else-if="outcome" class="text-label-lg font-semibold text-primary">The table goes with {{ option.label }}</p>

@@ -28,7 +28,8 @@
         <div v-if="row.option.image_url" class="size-8 shrink-0 overflow-hidden rounded">
           <FocalImage :src="row.option.image_url" :alt="row.option.label" format="square" :focal-point="row.option.focal" />
         </div>
-        <span v-else class="size-8 shrink-0 rounded bg-muted" aria-hidden="true" />
+        <!-- A blank keeps names in line beside pictured options; a list of words needs none. -->
+        <span v-else-if="anyPicture" class="size-8 shrink-0 rounded bg-muted" aria-hidden="true" />
         <div class="min-w-0 flex-1">
           <p class="text-body" :class="row.option.id === question.outcome_option_id ? 'font-bold text-primary' : ''">
             {{ row.option.label }}
@@ -117,6 +118,7 @@ const { question, answers } = defineProps<{
   question: TableQuestion;
   answers: TableQuestionAnswer[];
 }>();
+const anyPicture = computed(() => question.options.some((o) => o.image_url !== null));
 
 const MODE_WORD: Record<TableQuestionMode, string> = { pick: "Each picks", vote: "Vote", roll: "Each rolls" };
 
