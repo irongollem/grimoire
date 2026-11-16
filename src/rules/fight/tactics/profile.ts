@@ -10,6 +10,7 @@ import { walkingSpeed } from "../../../lib/movement.ts";
 import type { MonsterStatBlock, MonsterTactics, MonsterType } from "../../../types/monster.types.ts";
 import type { StatBlockEntry } from "../../../types/statBlock.types.ts";
 import type { TurnOptionKind } from "../terrain/turnOptions.ts";
+import { wayOutsOf, type WayOut } from "./wayOut.ts";
 
 export type CleverTier = "instinct" | "simple" | "trained" | "tactical";
 export type TacticalRole = NonNullable<MonsterTactics["role"]>;
@@ -25,6 +26,8 @@ export interface TacticalProfile {
   cover: CoverRule;
   /** The kinds of turn this creature is offered; the gate drops every other kind. */
   offers: ReadonlySet<TurnOptionKind>;
+  /** Powers that take it out of the fight or out of sight, best first (`wayOutsOf`); a broken creature uses one before it runs or yields. */
+  wayOuts: WayOut[];
   /** The DM's own line, carried through for the prompt; null when there is none. */
   note: string | null;
 }
@@ -147,6 +150,7 @@ export function tacticalProfile(statBlock: MonsterStatBlock, creatureType: Monst
     morale: authored.morale ?? deriveMorale(statBlock, creatureType),
     cover: authored.cover ?? COVER_BY_TIER[tier],
     offers,
+    wayOuts: wayOutsOf(statBlock),
     note: authored.note ?? null,
   };
 }

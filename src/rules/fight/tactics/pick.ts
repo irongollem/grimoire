@@ -9,7 +9,8 @@
 
 import type { RunCombatant } from "../../../types/encounter.types.ts";
 import { compareExposure, wayOffPhrase, type TurnOption } from "../terrain/turnOptions.ts";
-import type { TacticalProfile } from "./profile.ts";
+import type { MoraleRule, TacticalProfile } from "./profile.ts";
+import { usableWayOut, type WayOut } from "./wayOut.ts";
 
 export interface PickContext {
   combatants: readonly RunCombatant[];
@@ -47,22 +48,53 @@ function surrenderOption(): TurnOption {
   };
 }
 
+function escapeOption(way: WayOut): TurnOption {
+  return {
+    id: "escape",
+    kind: "escape",
+    targetId: null,
+    destination: null,
+    path: null,
+    feet: null,
+    attack: null,
+    distanceFeet: null,
+    provokes: [],
+    exposure: [],
+    escape: way,
+    summary: way.effect === "leaves" ? `${way.name}: leaves the fight` : `${way.name}: turns Invisible`,
+  };
+}
+
+const isInvisible = (mover: RunCombatant) => mover.conditions.some((c) => c.name.toLowerCase() === "invisible");
+
+/** RULE surrender-unseen: a creature that yields but is already Invisible got unseen in order to get away, so it flees instead of giving up where it hides. */
+function breaksInto(profile: TacticalProfile, mover: RunCombatant): MoraleRule["then"] {
+  return profile.morale.then === "surrender" && isInvisible(mover) ? "flee" : profile.morale.then;
+}
+
 /**
  * RULE gate: drop every kind of turn the profile is not offered. Then, for a creature whose morale has broken:
  * `flee` keeps only flee, disengage and dodge (and leaves the list alone when none of those is there),
- * `surrender` replaces the list with the one synthetic Surrender, `fight_on` changes nothing. An empty list stays empty:
- * a creature with no turn does not get to surrender in it.
+ * `surrender` replaces the list with the one synthetic Surrender (unless it is already Invisible, then it is gated
+ * like `flee`), `fight_on` changes nothing. A flee or surrender that has a usable way out gets the synthetic Escape
+ * in front. An empty list stays empty: a creature with no turn does not get to surrender or escape in it.
  */
 export function gateOptions(options: readonly TurnOption[], profile: TacticalProfile, mover: RunCombatant): TurnOption[] {
   if (options.length === 0) return [];
   const offered = options.filter((o) => profile.offers.has(o.kind));
   if (!isBroken(profile, mover)) return offered;
-  if (profile.morale.then === "surrender") return [surrenderOption()];
-  if (profile.morale.then === "flee") {
+  const then = breaksInto(profile, mover);
+  let gated = offered;
+  if (then === "surrender") {
+    gated = [surrenderOption()];
+  } else if (then === "flee") {
     const retreat = offered.filter((o) => (RETREAT_KINDS as readonly string[]).includes(o.kind));
-    return retreat.length > 0 ? retreat : offered;
+    gated = retreat.length > 0 ? retreat : offered;
   }
-  return offered;
+  // RULE escape-first: a broken creature that runs or yields, and has a way out it can use now, uses it first. The
+  // retreat (or the Surrender) stays in the list behind it, so a caller or a creature's note can still choose that.
+  const way = then === "fight_on" ? null : usableWayOut(profile.wayOuts, mover);
+  return way === null ? gated : [escapeOption(way), ...gated];
 }
 
 // ── choosing a target ───────────────────────────────────────────────────────────
@@ -189,7 +221,7 @@ function describeAttack(option: TurnOption, target: RunCombatant, why: string): 
 
 /**
  * The creature's choice from the (gated) options, deterministic, with a plain reason. Null only for an empty list.
- * Order: a broken creature retreats (or yields); a lone option is taken; otherwise it attacks the target its `targets`
+ * Order: a broken creature escapes if it can, else retreats (or yields); a lone option is taken; otherwise it attacks the target its `targets`
  * rule picks with that target's best option; with no attack on offer it closes on a target, else it Dodges, else
  * takes the first option.
  */
@@ -201,11 +233,18 @@ export function pickTurn(options: readonly TurnOption[], profile: TacticalProfil
 
   if (mover !== undefined && broken) {
     const standing = `at ${mover.hp} of ${mover.max_hp} hit points it breaks`;
-    if (profile.morale.then === "surrender") {
+    const escape = find("escape");
+    const way = escape?.escape;
+    if (escape !== undefined && way !== undefined) {
+      const how = way.effect === "leaves" ? `uses ${way.name} to leave the fight` : `uses ${way.name} to go unseen`;
+      return { optionId: escape.id, reason: `Gets away: ${standing} and ${how}.` };
+    }
+    const then = breaksInto(profile, mover);
+    if (then === "surrender") {
       const yields = find("surrender");
       if (yields) return { optionId: yields.id, reason: `Yields: ${standing} and surrenders.` };
     }
-    if (profile.morale.then === "flee") {
+    if (then === "flee") {
       const retreat = find("flee") ?? find("disengage") ?? find("dodge");
       if (retreat) {
         const { exitKind, exitLabel } = retreat;

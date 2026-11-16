@@ -234,8 +234,20 @@ export function actionAvailability(
   entry: StatBlockEntry,
   list: StatBlockListKey,
 ): { available: boolean; label: string | null } {
-  const { recharge, uses } = entry.structured;
-  const tally = c.action_uses?.[actionUseKey(list, entry)];
+  return limitAvailability(c, actionUseKey(list, entry), actionLimit(entry));
+}
+
+/**
+ * `actionAvailability` by tally key and limit, for a power that is not a stat-block entry (a spell the creature
+ * casts, #1203). A creature with no limit is always available with no label.
+ */
+export function limitAvailability(
+  c: RunCombatant,
+  useKey: string,
+  limit: ActionLimit,
+): { available: boolean; label: string | null } {
+  const { recharge, per_day } = limit;
+  const tally = c.action_uses?.[useKey];
   const used = tally ? tally.used : 0;
   if (recharge) {
     const range = recharge.min === recharge.max ? `${recharge.min}` : `${recharge.min}\u2013${recharge.max}`;
@@ -243,9 +255,9 @@ export function actionAvailability(
       ? { available: false, label: `Recharge ${range} \u00b7 spent` }
       : { available: true, label: `Recharge ${range}` };
   }
-  if (uses) {
-    const left = Math.max(0, uses.count - used);
-    return { available: left > 0, label: `${left}/${uses.count} left` };
+  if (per_day !== undefined) {
+    const left = Math.max(0, per_day - used);
+    return { available: left > 0, label: `${left}/${per_day} left` };
   }
   return { available: true, label: null };
 }

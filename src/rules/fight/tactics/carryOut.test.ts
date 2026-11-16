@@ -101,3 +101,29 @@ describe("stepsFor", () => {
     expect(used("surrender")).toBe(false);
   });
 });
+
+describe("stepsFor: an escape", () => {
+  const escape = (over: Partial<NonNullable<TurnOption["escape"]>>): TurnOption =>
+    option("escape", { escape: { name: "Etherealness", effect: "leaves", slot: "action", useKey: null, limit: null, ...over } });
+
+  // SRD 5.1 night hag: Etherealness is an Action and takes her out of the fight; no walk comes with it.
+  it("fails if an unlimited way out that leaves is not use then leave, or walks first", () => {
+    expect(stepsFor(escape({}), [])).toEqual([{ type: "use", slot: "action" }, { type: "leave" }]);
+  });
+
+  it("fails if a limited way out does not spend between the use and the leave, in that order", () => {
+    const limit = { per_day: 2 };
+    expect(stepsFor(escape({ name: "Plane Shift", useKey: "spell/Plane Shift", limit }), [])).toEqual([
+      { type: "use", slot: "action" },
+      { type: "spend", useKey: "spell/Plane Shift", limit },
+      { type: "leave" },
+    ]);
+  });
+
+  it("fails if an unseen way out leaves the fight instead of turning the creature Invisible, or costs the wrong slot", () => {
+    expect(stepsFor(escape({ name: "Invisible Passage", effect: "unseen", slot: "bonus" }), [])).toEqual([
+      { type: "use", slot: "bonus" },
+      { type: "condition", name: "Invisible" },
+    ]);
+  });
+});

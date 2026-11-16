@@ -59,6 +59,10 @@ export interface TurnTaken {
    * country) and was removed from the fight after its move. It is not slain: no defeat or loot is recorded, it is simply gone.
    */
   leftTheMap?: true;
+  /** Only for an escape (#1203): the name of the way out the broken creature used (Etherealness, Invisible Passage). */
+  escapedWith?: string;
+  /** With `escapedWith`: "leaves" means the creature was removed from the fight, "unseen" that it is now Invisible and still on the map. */
+  escapeEffect?: "leaves" | "unseen";
   /**
    * Only when true: the creature moved and the map has nothing drawn on it that the rules can read (no wall, no door,
    * no solid rock, no difficult ground), so it crossed it as open ground. A picture of a room full of tables is, to
