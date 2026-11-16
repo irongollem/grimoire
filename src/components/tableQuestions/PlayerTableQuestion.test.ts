@@ -6,15 +6,13 @@ import type { TableQuestion, TableQuestionAnswer, TableQuestionOption } from "@/
 const m = vi.hoisted(() => ({
   answer: vi.fn().mockResolvedValue(undefined),
   roll: vi.fn().mockResolvedValue(undefined),
-  create: vi.fn().mockResolvedValue({ id: "c1" }),
-  link: vi.fn().mockResolvedValue(undefined),
+  confirm: vi.fn().mockResolvedValue(true),
 }));
 vi.mock("@/composables/tableQuestions/useTableQuestions", () => ({
   useAnswerTableQuestion: () => ({ mutateAsync: m.answer }),
   useRollTableQuestion: () => ({ mutateAsync: m.roll, isPending: { value: false } }),
-  useLinkAnswerCompanion: () => ({ mutateAsync: m.link }),
 }));
-vi.mock("@/composables/encounters/useCompanions", () => ({ useCreateCompanion: () => ({ mutateAsync: m.create }) }));
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: m.confirm }) }));
 vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: (e: unknown) => String(e) }) }));
 
 import PlayerTableQuestion from "./PlayerTableQuestion.vue";
@@ -26,7 +24,7 @@ const question = (over: Partial<TableQuestion> = {}): TableQuestion =>
   ({ id: "q1", prompt: "Pick a pet", mode: "pick", exclusive: false, hidden: false, dice: null, closed_at: null,
     outcome_option_id: null, options: [opt("a"), opt("b")], ...over }) as TableQuestion;
 const answer = (over: Partial<TableQuestionAnswer>): TableQuestionAnswer =>
-  ({ id: "a1", question_id: "q1", user_id: "me", party_member_id: "pm1", option_id: "a", rolled: null, companion_id: null, ...over }) as TableQuestionAnswer;
+  ({ id: "a1", question_id: "q1", user_id: "me", party_member_id: "pm1", option_id: "a", rolled: null, companion_id: null, inventory_item_id: null, ...over }) as TableQuestionAnswer;
 const member = { id: "pm1", name: "Brindle" } as PartyMember;
 
 function mountQ(props: { question: TableQuestion; answers?: TableQuestionAnswer[]; isChild?: boolean; readOnly?: boolean }) {
@@ -73,15 +71,27 @@ describe("PlayerTableQuestion", () => {
     expect(mountQ({ question: question(), answers: others, isChild: true }).text()).not.toContain("Wren");
   });
 
-  it("offers a pet only for a picked monster, and makes it a linked, non-combat pet", async () => {
-    const pet = question({ options: [opt("a", { ref: { kind: "monster", id: "srd_cat" } }), opt("b", { ref: { kind: "item", id: "i" } })] });
-    expect(mountQ({ question: pet, answers: [answer({ option_id: "b" })] }).text()).not.toContain("Make it");
-    expect(mountQ({ question: pet, answers: [answer({ option_id: "a" })], readOnly: true }).text()).not.toContain("Make it");
-    const w = mountQ({ question: pet, answers: [answer({ option_id: "a" })] });
-    expect(w.text()).toContain("Make it Brindle's pet");
-    await w.findAll("button").at(-1)!.trigger("click");
-    await vi.waitFor(() => expect(m.link).toHaveBeenCalledWith({ answerId: "a1", companionId: "c1" }));
-    expect(m.create.mock.calls[0][0]).toMatchObject({ combat_ready: false, owner_party_member_id: "pm1" });
+  it("asks before taking a gift, and a declined ask takes nothing", async () => {
+    const gift = question({ gift: true });
+    m.confirm.mockResolvedValueOnce(false);
+    await mountQ({ question: gift }).findAll("button")[0].trigger("click");
+    await vi.waitFor(() => expect(m.confirm).toHaveBeenCalledTimes(1));
+    expect(m.answer).not.toHaveBeenCalled();
+    await mountQ({ question: gift }).findAll("button")[0].trigger("click");
+    await vi.waitFor(() => expect(m.answer).toHaveBeenCalledWith({ questionId: "q1", optionId: "a", partyMemberId: "pm1" }));
+  });
+
+  it("keeps a taken gift: the other cards cannot be pressed", async () => {
+    const w = mountQ({ question: question({ gift: true }), answers: [answer({ option_id: "a" })] });
+    expect(w.findAll("button")[1].attributes("disabled")).toBeDefined();
+    await w.findAll("button")[1].trigger("click");
+    expect(m.answer).not.toHaveBeenCalled();
+  });
+
+  it("says what a gift gave, and nothing for a pick that is not a gift", () => {
+    const given = [answer({ option_id: "a", inventory_item_id: "i1" })];
+    expect(mountQ({ question: question({ gift: true }), answers: given }).text()).toContain("Opt a is in Brindle's pack.");
+    expect(mountQ({ question: question(), answers: given }).text()).not.toContain("pack");
   });
 
   it("says nothing was on the table when a roll lands in a gap", () => {

@@ -12,12 +12,14 @@ export interface SendChoices {
   exclusive: boolean;
   /** The vote switch: hide votes until the DM closes it. */
   hidden: boolean;
+  /** The pick switch: what they pick is theirs to keep. */
+  gift: boolean;
   options: TableQuestionOption[];
 }
 
 /**
- * The row a send inserts. The database refuses `exclusive` outside a pick,
- * `hidden` outside a vote and a die on anything but a roll, so a switch left
+ * The row a send inserts. The database refuses `exclusive` and `gift` outside
+ * a pick, `hidden` outside a vote and a die on anything but a roll, so a switch left
  * on from another mode is dropped here instead of failing the insert.
  */
 export function buildSendPayload(c: SendChoices): TableQuestionInsert {
@@ -29,6 +31,7 @@ export function buildSendPayload(c: SendChoices): TableQuestionInsert {
     dice: c.mode === "roll" ? c.table.dice : null,
     exclusive: c.mode === "pick" && c.exclusive,
     hidden: c.mode === "vote" && c.hidden,
+    gift: c.mode === "pick" && c.gift,
     options: c.options,
   };
 }

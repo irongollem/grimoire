@@ -7,12 +7,12 @@ const opt = (id: string): TableQuestionOption => ({
 });
 const question = (over: Partial<TableQuestion> = {}): TableQuestion => ({
   id: "q", campaign_id: "c", user_id: "dm", roll_table_id: null, prompt: "p", mode: "pick", dice: null,
-  exclusive: false, hidden: false, options: [opt("a"), opt("b")], closed_at: null, outcome_option_id: null,
+  exclusive: false, hidden: false, gift: false, options: [opt("a"), opt("b")], closed_at: null, outcome_option_id: null,
   created_at: "", updated_at: "", ...over,
 });
 const answer = (user: string, option: string | null): TableQuestionAnswer => ({
   id: `ans-${user}`, question_id: "q", campaign_id: "c", user_id: user, party_member_id: null,
-  option_id: option, rolled: null, companion_id: null, created_at: "", updated_at: "",
+  option_id: option, rolled: null, companion_id: null, inventory_item_id: null, created_at: "", updated_at: "",
 });
 
 describe("answerOf", () => {

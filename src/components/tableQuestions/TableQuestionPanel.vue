@@ -7,6 +7,7 @@
           {{ MODE_WORD[question.mode] }}
           <template v-if="question.mode === 'roll' && question.dice"> · {{ question.dice }}</template>
           <template v-if="question.exclusive"> · one of each</template>
+          <template v-if="question.gift"> · gifts</template>
           <template v-if="question.hidden"> · hidden</template>
           · {{ isOpen ? "Open" : "Closed" }}
           · {{ answers.length }} {{ answers.length === 1 ? "answer" : "answers" }}
@@ -175,6 +176,12 @@ function onReopen() {
 async function onReset(a: TableQuestionAnswer) {
   if (question.mode === "roll") {
     const ok = await confirm(`Let ${nameOf(a)} roll again?`, { confirmLabel: "Roll again" });
+    if (!ok) return;
+  }
+  if (question.gift) {
+    // The database takes back what the pick gave, when it is still there.
+    const label = optionById(question, a.option_id)?.label;
+    const ok = await confirm(`Take ${label ?? "it"} back from ${nameOf(a)} and let them choose again?`, { confirmLabel: "Take it back" });
     if (!ok) return;
   }
   await run(deleteAnswer.mutateAsync(a.id), "Could not reset that answer.");

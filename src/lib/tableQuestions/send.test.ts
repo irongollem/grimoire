@@ -8,19 +8,20 @@ const base: SendChoices = {
   mode: "pick",
   exclusive: true,
   hidden: true,
+  gift: true,
   options: [],
 };
 
 describe("buildSendPayload", () => {
   it("a pick keeps exclusive and drops hidden and the die", () => {
     // Fails if a leftover vote switch reaches the insert and the DB check refuses it.
-    expect(buildSendPayload(base)).toMatchObject({ exclusive: true, hidden: false, dice: null, prompt: "Choose a pet" });
+    expect(buildSendPayload(base)).toMatchObject({ exclusive: true, gift: true, hidden: false, dice: null, prompt: "Choose a pet" });
   });
-  it("a vote keeps hidden and drops exclusive", () => {
-    expect(buildSendPayload({ ...base, mode: "vote" })).toMatchObject({ exclusive: false, hidden: true, dice: null });
+  it("a vote keeps hidden and drops exclusive and gift", () => {
+    expect(buildSendPayload({ ...base, mode: "vote" })).toMatchObject({ exclusive: false, gift: false, hidden: true, dice: null });
   });
   it("a roll sends the table's die and neither switch", () => {
-    expect(buildSendPayload({ ...base, mode: "roll" })).toMatchObject({ exclusive: false, hidden: false, dice: "1d8" });
+    expect(buildSendPayload({ ...base, mode: "roll" })).toMatchObject({ exclusive: false, gift: false, hidden: false, dice: "1d8" });
   });
 });
 

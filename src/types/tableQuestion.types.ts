@@ -4,7 +4,7 @@
 // own, the table votes, or a player rolls. The question carries a snapshot of
 // the table's entries (`options`), because players never read `roll_tables`
 // (DM-only, and its entries carry DM notes). Schema and the reasons behind it:
-// migration 20261116074944_table_questions.sql.
+// migration 20261116200111_table_questions.sql.
 
 import type { RollTableDie } from "@/types/rollTable.types";
 
@@ -36,11 +36,12 @@ export interface TableQuestionOption {
   image_url: string | null;
   focal: { x: number; y: number } | null;
   /**
-   * What the option is, when it names a creature or item: a picked creature can
-   * become a pet. Never an NPC: a player has no use for an NPC's id, and a
-   * disguised one's would say more than its picture does.
+   * What the option is, when it names a creature, item or NPC: a gift grants it.
+   * An NPC's ref is copied only into a gift, where the NPC joins the party; in any
+   * other question a player has no use for its id, and a disguised one's would
+   * say more than its picture does.
    */
-  ref: { kind: "monster" | "item"; id: string } | null;
+  ref: EntryRef | null;
   /** The entry's range, read by a roll question. */
   min: number;
   max: number;
@@ -59,6 +60,8 @@ export interface TableQuestion {
   exclusive: boolean;
   /** A vote: the players do not see each other's votes until it closes. */
   hidden: boolean;
+  /** A pick: what each player picks is theirs, granted by the database with the answer. Final. */
+  gift: boolean;
   options: TableQuestionOption[];
   closed_at: string | null;
   /** A closed vote's result: the DM's call. */
@@ -75,6 +78,7 @@ export interface TableQuestionInsert {
   dice: RollTableDie | null;
   exclusive: boolean;
   hidden: boolean;
+  gift: boolean;
   options: TableQuestionOption[];
 }
 
@@ -88,8 +92,10 @@ export interface TableQuestionAnswer {
   option_id: string | null;
   /** The die the server rolled; null for a pick or a vote. */
   rolled: number | null;
-  /** The pet made from this pick. */
+  /** What a gift gave: the companion a creature or NPC became. Written by the database only. */
   companion_id: string | null;
+  /** What a gift gave: the item put in the pack. Written by the database only. */
+  inventory_item_id: string | null;
   created_at: string;
   updated_at: string;
 }

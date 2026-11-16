@@ -14,10 +14,22 @@
         <p class="text-caption text-muted-foreground">{{ MODE_HINT[mode] }}</p>
       </div>
 
-      <div v-if="mode === 'pick'" class="flex items-center justify-between gap-3">
-        <span class="text-body">Only one of each</span>
-        <ToggleSwitch v-model="exclusive" aria-label="Only one of each at this table" />
-      </div>
+      <template v-if="mode === 'pick'">
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-body">Only one of each</span>
+          <ToggleSwitch v-model="exclusive" aria-label="Only one of each at this table" />
+        </div>
+        <!-- Only a table whose entries name things has anything to give. -->
+        <div v-if="anyThing" class="space-y-0.5">
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-body">What they pick is theirs</span>
+            <ToggleSwitch v-model="gift" aria-label="What they pick is theirs to keep" />
+          </div>
+          <p v-if="gift" class="text-caption text-muted-foreground">
+            An item goes into their pack; a creature or NPC joins their companions. A gift can't be swapped, but you can take one back.
+          </p>
+        </div>
+      </template>
       <div v-else-if="mode === 'vote'" class="flex items-center justify-between gap-3">
         <span class="text-body">Hide votes until I close it</span>
         <ToggleSwitch v-model="hidden" aria-label="Hide votes until I close it" />
@@ -120,6 +132,7 @@ const prompt = ref(table.name);
 const mode = ref<TableQuestionMode>("pick");
 const exclusive = ref(false);
 const hidden = ref(true);
+const gift = ref(false);
 
 // A reopened dialog starts from the table again, never from the last send.
 watch(
@@ -130,11 +143,13 @@ watch(
     mode.value = "pick";
     exclusive.value = false;
     hidden.value = true;
+    gift.value = false;
   },
 );
 
 const pictures = useEntryPictures(() => table.entries.flatMap((e) => (e.ref ? [e.ref] : [])), { npcs: true });
-const options = computed(() => buildQuestionOptions(table.entries, pictures.value));
+const options = computed(() => buildQuestionOptions(table.entries, pictures.value, { gift: mode.value === "pick" && gift.value }));
+const anyThing = computed(() => table.entries.some((e) => Boolean(e.ref)));
 const anyPicture = computed(() => options.value.some((o) => o.image_url !== null));
 const sendable = computed(() => canSend(prompt.value, options.value) && campaign.activeCampaignId !== null);
 
@@ -150,6 +165,7 @@ async function onSend() {
         mode: mode.value,
         exclusive: exclusive.value,
         hidden: hidden.value,
+        gift: gift.value,
         options: options.value,
       }),
     );

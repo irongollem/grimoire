@@ -136,18 +136,13 @@ export function useRollTableQuestion() {
   );
 }
 
-/** A player withdrawing a pick or vote, or the DM resetting any answer (which is how a roll is rerolled). */
+/**
+ * A player withdrawing a pick or vote, or the DM resetting any answer: how a roll
+ * is rerolled, and how a gift is taken back (the database removes what it gave).
+ */
 export function useDeleteTableAnswer() {
   return useQuestionMutation(async (answerId: string) => {
     const { error } = await supabase.from("table_question_answers").delete().eq("id", answerId);
-    if (error) throw error;
-  });
-}
-
-/** Records the companion made from a picked creature on the answer. */
-export function useLinkAnswerCompanion() {
-  return useQuestionMutation(async ({ answerId, companionId }: { answerId: string; companionId: string }) => {
-    const { error } = await supabase.from("table_question_answers").update({ companion_id: companionId }).eq("id", answerId);
     if (error) throw error;
   });
 }
