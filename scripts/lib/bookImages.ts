@@ -49,10 +49,28 @@ export function sidecarGenerator(file: string): { provider: string; model: strin
 }
 
 /**
+ * ChatGPT's image model releases, newest first. The GPT pipeline paints in
+ * ChatGPT, which names no model, so the release it was running on the day a
+ * picture was saved is the honest label: ChatGPT Images 2.5 shipped on
+ * 8 Sep 2026 and 2.6 on 4 Nov 2026. ChatGPT does not say whether the flare or
+ * the sunburst variant drew a picture, so the label is the version family.
+ */
+const CHATGPT_IMAGE_RELEASES: readonly { from: string; model: string }[] = [
+  { from: "2026-11-04", model: "gpt-image-2.6" },
+  { from: "2026-09-08", model: "gpt-image-2.5" },
+];
+
+/** The ChatGPT image model on the day `generatedAt` (an ISO time) falls in. */
+export function chatGptImageModel(generatedAt: string): string {
+  const day = generatedAt.slice(0, 10);
+  return CHATGPT_IMAGE_RELEASES.find((release) => day >= release.from)?.model ?? "gpt-image-2";
+}
+
+/**
  * Every picture in the book is AI-generated, so every one is marked. A picture
  * with a sidecar names its model exactly. Otherwise only the GPT pipeline's
- * output has a known generator (ChatGPT, painting on gpt-image-2 when that
- * pipeline ran); the author's own illustrations folder was made with tools this
+ * output has a known generator (ChatGPT, by the release of the day it was
+ * saved); the author's own illustrations folder was made with tools this
  * script cannot name, so those say "unknown" rather than claim a model they
  * were not made with.
  */
@@ -62,7 +80,7 @@ export function provenanceFor(file: string, generatedAt: string, generatorType: 
   return {
     generatorType,
     provider: known?.provider ?? (gpt ? "openai" : "unknown"),
-    model: known?.model ?? (gpt ? "gpt-image-2" : "unknown"),
+    model: known?.model ?? (gpt ? chatGptImageModel(generatedAt) : "unknown"),
     generatedAt,
     edited: false,
   };

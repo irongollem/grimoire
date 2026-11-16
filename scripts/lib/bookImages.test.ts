@@ -24,8 +24,17 @@ describe("provenanceFor", () => {
     expect(provenanceFor(file, AT)).toMatchObject({ provider: "openai", model: "gpt-image-2.6-flare" });
   });
 
-  it("keeps the pipeline folder's generator when there is no sidecar", () => {
-    expect(provenanceFor(pipelinePicture("creature-peelwalker.png"), AT)).toMatchObject({ provider: "openai", model: "gpt-image-2" });
+  // Bug: every ChatGPT pipeline picture was disclosed as gpt-image-2, though the pipeline began after Images 2.5 shipped.
+  it("names the ChatGPT image release of the day a pipeline picture was saved", () => {
+    const file = pipelinePicture("creature-peelwalker.png");
+    expect(provenanceFor(file, "2026-10-27T03:00:00.000Z")).toMatchObject({ provider: "openai", model: "gpt-image-2.5" });
+    expect(provenanceFor(file, "2026-11-03T23:59:59.000Z").model).toBe("gpt-image-2.5");
+    expect(provenanceFor(file, "2026-11-04T00:00:00.000Z").model).toBe("gpt-image-2.6");
+    expect(provenanceFor(file, "2026-09-07T12:00:00.000Z").model).toBe("gpt-image-2");
+  });
+
+  it("names no model for a picture outside the pipeline folder", () => {
+    expect(provenanceFor("/Users/someone/illustrations/map.png", AT)).toMatchObject({ provider: "unknown", model: "unknown" });
   });
 
   it("refuses a sidecar that names no model rather than disclose a wrong one", () => {
