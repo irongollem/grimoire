@@ -44,7 +44,7 @@ Five runs since, all with invented text or the public demo campaign, all passed:
 
 One thing to watch from run 3: the summary called the gatekeeper someone "accompanying" the party, which the conversation did not say. A summary is model prose, and the checks on what is shown (#1061) should read it too.
 
-## Storage (`20261116075823`)
+## Storage (`20261116190601`)
 
 `agent_sessions` (one conversation: owner, campaign, kind, provider and model, a rolling summary with the sequence number it covers, running token and credit totals) and `agent_turns` (one message in order: its blocks, and the tokens of the model call behind it: the narrator's on a message it wrote, a character's own call on the tool result that carries its line).
 
@@ -54,14 +54,14 @@ One thing to watch from run 3: the summary called the gatekeeper someone "accomp
 - Neither table rings the campaign doorbell (exempt in `live_sync_registry.test.sql`): nobody else reads them, and the page that runs a turn will stream it.
 - `supabase/tests/agent_conversations.test.sql` holds the access rules, with the campaign's DM as the reader who must see nothing.
 
-## Metering (`metering.ts`, migration `20261116080904`)
+## Metering (`metering.ts`, migration `20261116190602`)
 
 A fixed price per call cannot work here: one message from the player is several model calls of very different size. So a conversation is charged from measured tokens.
 
 - `usdForUsage` prices a call from `ai_model_pricing`: full-rate input and cache writes at the input rate, cached input at `cached_input_cost_per_million_tokens`, output at the output rate. A cached rate that is not on file means the full input rate: a missing number never makes play cheaper.
 - `creditsForUsd` is cost times the admin's margin, divided by what a credit is worth. Both come from `public.agent_credit_calibration()` (service role only), which reads `private.credit_calibration()`: the net euro cents a credit earns in the pack where it earns least, after VAT and the payment processor's cut. `get_credit_calibration_hints` reads the same function now, so the admin's price calibration and the metering cannot drift. With today's packs a credit is worth about 0.61 euro cents (`credit_calibration.test.sql` holds the figure to a hand calculation). An unusable calibration throws; it never bills nothing.
-- **`gpt-6-luna`'s cached rate is on file** (`20261116185733`: 0.01 USD per million, a tenth of its 0.10 input rate). The platform moved to that model on 16 Nov 2026 (`20261116184759`, which prices its input and output).
-- **The cached rate of `gpt-5.6-luna` is on file** (`20261116184240`: 0.02 USD per million, a tenth of the input rate, OpenAI's published price on 16 Nov 2026). It matters more here than anywhere else in the app: a conversation resends its history every turn, and in the first live turn with a speaking character 18,254 of 23,198 input tokens were cache reads. At the full rate that turn accrued 1.58 credits; with the cached rate the same tokens come to about 0.59.
+- **`gpt-6-luna`'s cached rate is on file** (`20261116190606`: 0.01 USD per million, a tenth of its 0.10 input rate). The platform moved to that model on 16 Nov 2026 (`20261116184759`, which prices its input and output).
+- **The cached rate of `gpt-5.6-luna` is on file** (`20261116190605`: 0.02 USD per million, a tenth of the input rate, OpenAI's published price on 16 Nov 2026). It matters more here than anywhere else in the app: a conversation resends its history every turn, and in the first live turn with a speaking character 18,254 of 23,198 input tokens were cache reads. At the full rate that turn accrued 1.58 credits; with the cached rate the same tokens come to about 0.59.
 - **Not covered: cache writes.** OpenAI's price page now lists cache writes at 1.25 times the input rate. The OpenAI adapter reports no write tokens (`cacheWriteTokens: 0`) and the metering prices a write at the input rate, so if the API bills writes apart, the platform under-recovers by at most a quarter of the uncached input. Whether the usage object reports written tokens has not been checked against the API reference.
 - **A session accrues exactly and bills whole credits.** The house rule is never to bill a fraction of a credit, and rounding each turn up would overcharge by about half. `agent_sessions.credits_spent` holds the exact running total, and the whole credits it newly crossed are decided in SQL, under the session's row lock: `append_agent_turns` (a turn) and `summarise_agent_session` (a summary) each return that number and the function spends it. The rule lives there, not in TypeScript, because a turn and a summary finishing close together would otherwise each read the same old total and each claim the same credit. What is left under a whole credit when a conversation goes quiet is not collected. An idle sweep to bill it was considered and turned down (maintainer, 16 Nov 2026): the most it could collect per conversation is under one credit.
 - A rough size: a turn of three model calls on `gpt-5.6-luna` (about 18,000 input and 1,500 output tokens) costs about half a US cent, which at a margin of 2 is about 1.6 credits.
@@ -83,7 +83,7 @@ The narrator reads the whole campaign, DM notes included. If it also wrote every
 - **Cost.** A character's call is billed, budgeted and stored like the narrator's: `runTurn` returns `toolSteps`, the turn's token budget counts them (the step limit does not), and their tokens land on the tool-result row, so the rows still sum to what was billed. It uses the narrator's model for now; a cheaper one for speech needs its own price row.
 - **What this does not solve.** The narrator writes `happening`, and nothing checks yet that it holds only what the character could perceive; the field is short (600 characters) and the tool says what belongs in it, which is an instruction, not a guarantee. The narrator still decides `volume` and who is `present`, and still chooses the deeds of creatures with no record. A line the player's own character could not hear (a whisper between two others) is still sent to the page. These want a check on each answer (#1061) and labelled examples before they are trusted. "Knows about" links, by which a DM widens what a character knows, are not built: a character knows its own record, its memories and what it witnessed.
 
-## Running a turn (`supabase/functions/agent-turn/`, migration `20261116084411`)
+## Running a turn (`supabase/functions/agent-turn/`, migration `20261116190603`)
 
 `POST { campaignId, sessionId?, message, mode }`. `mode` is `say` or `do` and is required: the player chooses with Enter (say) or Alt+Enter (do), and it is a hint, not a ruling (maintainer, 16 Nov 2026): it styles the box and settles wording that could be either, while a deed sent as said is still read as a deed. The narrator is told which button was pressed and reads the message itself; the stored message keeps what was typed and the choice (`player` on its text block), which is what the page draws from. `handler.ts` holds every rule with its dependencies injected (71 tests against an in-memory store); `index.ts` wires the real ones and streams.
 
