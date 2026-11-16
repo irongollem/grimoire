@@ -6,6 +6,7 @@ import { planSummary, summarise } from "../_shared/agent/summary.ts";
 import type { StoredTurn } from "../_shared/agent/transcript.ts";
 import { trimScene, type TrimmedScene } from "../_shared/agent/scene.ts";
 import type { RecordedFact } from "../_shared/agent/record.ts";
+import { pressureTick, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
 import type { CallModel } from "../_shared/agent/types.ts";
 import type { CreditLogFields } from "../_shared/credits.ts";
 import type { AgentTurnDeps, SessionRow } from "./handler.ts";
@@ -38,6 +39,35 @@ export async function recordOf(deps: AgentTurnDeps, campaignId: string, scene: T
     console.error("agent-turn: loading the record failed:", error);
     return [];
   }
+}
+
+/**
+ * The quests in play for this turn. Null when they could not be read: the turn still runs, but then no quest tool is
+ * offered, because the ids it would be asked to name could not be checked.
+ */
+export async function questsOf(deps: AgentTurnDeps, campaignId: string, pressureClockId: string | null): Promise<QuestsInPlay | null> {
+  try {
+    return await deps.loadQuests(campaignId, pressureClockId);
+  } catch (error) {
+    console.error("agent-turn: loading the quests failed:", error);
+    return null;
+  }
+}
+
+/**
+ * Applies a kept turn's quest moves in the order the narrator made them, then the server's own tick of the pressure
+ * clock. Each move is its own `safely`: one that fails is logged and costs that move, never the turn or the moves after it.
+ */
+export async function applyKeptQuestMoves(input: {
+  deps: AgentTurnDeps;
+  ctx: { campaignId: string; agentSessionId: string };
+  state: QuestsInPlay;
+  queued: readonly QuestMove[];
+}): Promise<void> {
+  const { deps, ctx } = input;
+  for (const move of input.queued) await safely(() => deps.applyQuestMove(ctx, move));
+  const tick = pressureTick(input.state, input.queued);
+  if (tick !== null) await safely(() => deps.applyQuestMove(ctx, tick));
 }
 
 /**

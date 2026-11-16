@@ -18,8 +18,9 @@ import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTableProm
 import type { Remembered, SpeechToolsDeps } from "../_shared/agent/speak.ts";
 import { sceneSection, type SceneView } from "../_shared/agent/scene.ts";
 import { recordSection, type RecordedFact, type RecordKind } from "../_shared/agent/record.ts";
+import { NO_QUESTS, questsSection, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
 import { makeTurnTools, type FiledFact } from "./turnTools.ts";
-import { foldIntoSummary, recordOf, round6, safely, sceneOf } from "./turnSupport.ts";
+import { applyKeptQuestMoves, foldIntoSummary, questsOf, recordOf, round6, safely, sceneOf } from "./turnSupport.ts";
 import {
   AgentProviderError,
   type AgentLine,
@@ -96,6 +97,8 @@ export interface SessionRow {
   scene_location_id: string | null;
   /** The play session this conversation is a sitting of; what the table writes into the campaign is stamped with it. */
   campaign_session_id: string | null;
+  /** The quest clock this conversation ticks by one every kept turn; null when the scene is under no pressure. */
+  pressure_clock_id: string | null;
 }
 
 export interface ResolvedProvider {
@@ -217,6 +220,13 @@ export interface AgentTurnDeps {
   placeCharacters(campaignId: string, locationId: string, characterIds: string[]): Promise<void>;
   /** Takes facts filed in a turn that was not kept off the record again. */
   discardFacts(campaignId: string, ids: string[]): Promise<void>;
+  /** The quests running in the campaign, what the narrator may mark, and where the pressure clock stands. */
+  loadQuests(campaignId: string, pressureClockId: string | null): Promise<QuestsInPlay>;
+  /**
+   * Applies one quest move through the same database functions the quest screen calls. Called only after the turn
+   * was saved, in the order the moves were made; throws on any failure.
+   */
+  applyQuestMove(ctx: { campaignId: string; agentSessionId: string }, move: QuestMove): Promise<void>;
 }
 
 export const MESSAGES = {
@@ -363,6 +373,8 @@ export async function beginTurn(input: {
     // sent again by the player, and the narrator would file the same facts a second time, so they come off again.
     const filed: FiledFact[] = [];
     let kept = false;
+    // Quest moves the narrator made this turn. Objectives and clocks have no undo, so none is written until the turn is kept.
+    const queued: QuestMove[] = [];
     const discardFiled = async (): Promise<void> => {
       if (filed.length === 0) return;
       await safely(() => deps.discardFacts(campaign.id, filed.map((f) => f.id)));
@@ -398,9 +410,12 @@ export async function beginTurn(input: {
         // prefix, the scene changes only when the party moves, the record changes when something is filed, and the
         // summary (which grows) comes last.
         const scene = await sceneOf(deps, campaign.id, session.scene_location_id);
+        // Quests sit between the scene and the record: they change when something is marked, like the scene when the
+        // party moves, and the summary, which only grows, stays last.
+        const questState = await questsOf(deps, campaign.id, session.pressure_clock_id);
         const record = await recordOf(deps, campaign.id, scene);
         const system = systemWithSummary(
-          `${soloTableSystem({ id: campaign.id, name: campaign.name, rulesetLabel: rulesetLabelFor(campaign.game_system) })}\n\n${sceneSection(scene)}\n\n${recordSection(record)}`,
+          `${soloTableSystem({ id: campaign.id, name: campaign.name, rulesetLabel: rulesetLabelFor(campaign.game_system) })}\n\n${sceneSection(scene)}\n\n${questsSection(questState ?? NO_QUESTS)}\n\n${recordSection(record)}`,
           session.summary,
         );
         const turnTools = makeTurnTools({
@@ -414,6 +429,7 @@ export async function beginTurn(input: {
           signal,
           onMove: (place) => emit({ type: "scene", scene: place }),
           filed,
+          quests: questState === null ? null : { state: questState, queued },
         });
 
         result = await runTurn({
@@ -516,6 +532,15 @@ export async function beginTurn(input: {
               campaignSessionId: session.campaign_session_id,
             })
           );
+        }
+        // Only now: a turn that was not kept leaves the quests untouched, and the player's retry makes the moves again.
+        if (questState !== null) {
+          await applyKeptQuestMoves({
+            deps,
+            ctx: { campaignId: campaign.id, agentSessionId: session.id },
+            state: questState,
+            queued,
+          });
         }
         // A fact the player has not learned yet never leaves the server: the page shows only what is known.
         for (const fact of filed) if (!fact.hidden) emit({ type: "fact", fact: { id: fact.id, body: fact.body } });

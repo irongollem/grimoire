@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(6);
+select plan(8);
 
 -- Where the party is in a conversation (#1021). The narrator moves it with a tool, and the model can be talked
 -- into naming any id it has seen, so the database itself must refuse a place from another campaign: otherwise a
@@ -54,6 +54,28 @@ select throws_ok(
   '23514',
   null,
   'a session of another campaign is refused, so one campaign''s play is never dated into another''s evening'
+);
+
+-- And for the clock a scene runs against.
+insert into public.quests (id, user_id, campaign_id, title) values
+  ('12160000-0000-4000-8000-000000000050', '12160000-0000-4000-8000-000000000001', '12160000-0000-4000-8000-000000000010', 'A quest here'),
+  ('12160000-0000-4000-8000-000000000051', '12160000-0000-4000-8000-000000000001', '12160000-0000-4000-8000-000000000011', 'A quest elsewhere');
+insert into public.quest_clocks (id, campaign_id, quest_id, label, segments) values
+  ('12160000-0000-4000-8000-000000000060', '12160000-0000-4000-8000-000000000010', '12160000-0000-4000-8000-000000000050', 'The guard returns', 4),
+  ('12160000-0000-4000-8000-000000000061', '12160000-0000-4000-8000-000000000011', '12160000-0000-4000-8000-000000000051', 'Another table''s clock', 4);
+
+select lives_ok(
+  $$ update public.agent_sessions set pressure_clock_id = '12160000-0000-4000-8000-000000000060'
+     where id = '12160000-0000-4000-8000-000000000030' $$,
+  'a conversation can run against a clock of its own campaign'
+);
+
+select throws_ok(
+  $$ update public.agent_sessions set pressure_clock_id = '12160000-0000-4000-8000-000000000061'
+     where id = '12160000-0000-4000-8000-000000000030' $$,
+  '23514',
+  null,
+  'a clock of another campaign is refused, or one table''s turns would tick another table''s clock'
 );
 
 -- The owner reads where the party is, and cannot move it: only the server writes the row.

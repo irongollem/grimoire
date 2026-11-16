@@ -8,6 +8,7 @@ import { GO_TO_TOOL, makeSceneTool } from "../_shared/agent/scene.ts";
 import { makeSpeechTools, type Remembered } from "../_shared/agent/speak.ts";
 import { SPEECH_TOOL_NAMES } from "../_shared/agent/speakInput.ts";
 import { makeRecordTool, RECORD_TOOL_NAME } from "../_shared/agent/record.ts";
+import { makeQuestTools, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
 import type { StoredTurn } from "../_shared/agent/transcript.ts";
 import type { AgentTool, CallModel, CallTool } from "../_shared/agent/types.ts";
 import type { AgentTurnDeps, SessionRow } from "./handler.ts";
@@ -32,6 +33,11 @@ export interface TurnToolsInput {
   onMove(place: { id: string; name: string }): void;
   /** The turn's own list of filed facts, owned by the caller so it can still reach them when the turn throws. */
   filed: FiledFact[];
+  /**
+   * The quests in play and the turn's own queue of moves, applied only once the turn is kept. Null when the quests
+   * could not be read: no quest tool is offered then, since its ids could not be checked.
+   */
+  quests: { state: QuestsInPlay; queued: QuestMove[] } | null;
 }
 
 export interface TurnTools {
@@ -87,14 +93,17 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     onFiled: (fact) => input.filed.push(fact),
   });
 
+  const quests = input.quests === null ? null : makeQuestTools(input.quests);
+
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : [])],
     remembered,
     spoke,
     place: () => place,
     callTool: (name, toolInput) => {
       if (name === GO_TO_TOOL.name) return go.call(toolInput);
       if (name === RECORD_TOOL_NAME) return record.call(toolInput);
+      if (quests && quests.names.has(name)) return quests.call(name, toolInput);
       return SPEECH_TOOL_NAMES.has(name) ? speech.call(name, toolInput) : deps.callTool(name, toolInput);
     },
   };

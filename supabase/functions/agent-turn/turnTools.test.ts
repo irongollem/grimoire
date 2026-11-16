@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { makeTurnTools, type FiledFact } from "./turnTools";
+import { makeTurnTools, type FiledFact, type TurnToolsInput } from "./turnTools";
+import { NO_QUESTS, type QuestMove } from "../_shared/agent/quests";
 import type { SessionRow } from "./handler";
 import type { CallModel } from "../_shared/agent/types";
 
@@ -13,9 +14,10 @@ const session: SessionRow = {
   summary_through_seq: 0,
   scene_location_id: null,
   campaign_session_id: null,
+  pressure_clock_id: null,
 };
 
-function build() {
+function build(quests: TurnToolsInput["quests"] = null) {
   const calls: string[] = [];
   const filed: FiledFact[] = [];
   const moves: Array<{ id: string; name: string }> = [];
@@ -42,6 +44,7 @@ function build() {
     callModel,
     onMove: (p) => moves.push(p),
     filed,
+    quests,
   });
   return { turn, calls, filed, moves };
 }
@@ -71,5 +74,19 @@ describe("makeTurnTools", () => {
     const { turn, calls } = build();
     await turn.callTool("search", {});
     expect(calls).toEqual(["campaign:search"]);
+  });
+
+  it("runs a quest tool itself and never hands it to the campaign's tools, which would answer 'unknown tool'", async () => {
+    const queued: QuestMove[] = [];
+    const { turn, calls } = build({ state: NO_QUESTS, queued });
+    expect(turn.tools.map((t) => t.name)).toContain("quest_route");
+    const answer = await turn.callTool("pressure", { stop: true });
+    expect(answer.isError).toBe(false);
+    expect(queued).toEqual([{ kind: "pressure", mode: "stop" }]);
+    expect(calls).toEqual([]);
+  });
+
+  it("offers no quest tool when the quests could not be read", () => {
+    expect(build(null).turn.tools.map((t) => t.name)).not.toContain("quest_route");
   });
 });

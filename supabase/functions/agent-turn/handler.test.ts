@@ -22,6 +22,7 @@ import {
 } from "./handler";
 import type { SceneView } from "../_shared/agent/scene";
 import type { RecordedFact } from "../_shared/agent/record";
+import { NO_QUESTS, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests";
 import { AgentProviderError, type AgentBlock, type CallModel, type ModelRequest, type ModelStep } from "../_shared/agent/types";
 import type { StoredTurn, TurnRow } from "../_shared/agent/transcript";
 import type { CreditLogFields } from "../_shared/credits";
@@ -114,7 +115,14 @@ interface Harness {
     /** A sentence the filing answers with instead of a fact id. */
     fileError: string | null;
     discardThrows: boolean;
+    quests: QuestsInPlay;
+    questsThrow: boolean;
+    /** Moves that fail to apply, by their position in the order applied. */
+    failMoveAt: Set<number>;
   };
+  /** Every quest move the handler applied, in order, and the campaign and conversation it applied it for. */
+  applied: Array<{ ctx: { campaignId: string; agentSessionId: string }; move: QuestMove }>;
+  questLoads: Array<{ campaignId: string; pressureClockId: string | null }>;
   /** What the database holds as facts: the ones the narrator filed this run, and what the load answers with. */
   facts: Array<{ id: string; campaignId: string; campaignSessionId: string | null; agentSessionId: string; body: string; hidden: boolean; closes: string | null; about: Array<{ type: string; id: string }> }>;
   recordLoads: Array<{ campaignId: string; locationId: string | null; characterIds: string[] }>;
@@ -174,7 +182,12 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       recordThrows: false,
       fileError: null,
       discardThrows: false,
+      quests: NO_QUESTS,
+      questsThrow: false,
+      failMoveAt: new Set<number>(),
     },
+    applied: [],
+    questLoads: [],
     facts: [],
     recordLoads: [],
     discards: [],
@@ -204,6 +217,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
         summary_through_seq: 0,
         scene_location_id: sceneLocationId,
         campaign_session_id: campaignSessionId,
+        pressure_clock_id: null,
       };
       h.sessions.set(row.id, row);
       log.push("create");
@@ -304,6 +318,17 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       log.push("place");
       h.placed.push({ campaignId, locationId, characterIds });
     },
+    loadQuests: async (campaignId, pressureClockId) => {
+      h.questLoads.push({ campaignId, pressureClockId });
+      if (h.state.questsThrow) throw new Error("db down");
+      return h.state.quests;
+    },
+    applyQuestMove: async (ctx, move) => {
+      const at = h.applied.length;
+      log.push("quest-move");
+      h.applied.push({ ctx, move });
+      if (h.state.failMoveAt.has(at)) throw new Error("rpc failed");
+    },
     openPlaySession: async () => {
       log.push("open-session");
       if (h.state.playSessionThrows) throw new Error("db down");
@@ -329,6 +354,7 @@ function existingSession(h: Harness, over: Partial<SessionRow> = {}, accrued = 0
     summary_through_seq: 0,
     scene_location_id: null,
     campaign_session_id: null,
+    pressure_clock_id: null,
     ...over,
   };
   h.sessions.set(row.id, row);
@@ -1437,6 +1463,213 @@ describe("the record", () => {
     await play(h, { body: BODY });
     expect(resultsSeen(h, 1)[0]).toMatchObject({ isError: true });
     expect(h.facts).toEqual([]);
+  });
+});
+
+describe("quests and time", () => {
+  const BODY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "We swim the channel.", mode: "do" };
+  const QUEST = "00000000-0000-4000-8000-000000000a01";
+  const THREAD = "00000000-0000-4000-8000-000000000a02";
+  const EDGE = "00000000-0000-4000-8000-000000000a03";
+  const OBJECTIVE = "00000000-0000-4000-8000-000000000a04";
+  const OTHER_CLOCK = "00000000-0000-4000-8000-000000000a05";
+  const PRESSURE_CLOCK = "00000000-0000-4000-8000-000000000a06";
+  const quests = (filled = 1, withPressure = true): QuestsInPlay => ({
+    threads: [{
+      questId: QUEST,
+      questTitle: "QUEST-MARK the drowned bell",
+      threadId: THREAD,
+      threadLabel: null,
+      beat: { id: "00000000-0000-4000-8000-000000000a07", title: "The crypt" },
+      routes: [{ edgeId: EDGE, label: null, toBeatId: "00000000-0000-4000-8000-000000000a08", toBeatTitle: "The bell room", kind: "choice", open: true }],
+      objectives: [{ id: OBJECTIVE, description: "Find the bell", status: "pending" }],
+      clocks: [{ id: OTHER_CLOCK, label: "Tide", filled: 0, segments: 6 }],
+    }],
+    pressure: withPressure ? { clockId: PRESSURE_CLOCK, label: "FLOOD-MARK", filled, segments: 4 } : null,
+  });
+  const callTools = (...calls: Array<[string, Record<string, unknown>]>): ModelStep =>
+    step(10, {
+      blocks: calls.map(([name, input], i) => ({ type: "tool_call" as const, id: `q${i}`, name, input })),
+      stop: "tool_calls",
+    });
+  const route = (): [string, Record<string, unknown>] => ["quest_route", { quest_id: QUEST, thread_id: THREAD, edge_id: EDGE }];
+  const objective = (): [string, Record<string, unknown>] => ["quest_objective", { objective_id: OBJECTIVE, status: "complete", reason: "found it" }];
+  const moves = (h: Harness) => h.applied.map((a) => a.move);
+  const tick: QuestMove = { kind: "clock", clockId: PRESSURE_CLOCK, step: 1, reason: "a turn passed" };
+
+  it("puts the quests after the scene and before the record, or a growing record busts the prompt cache", async () => {
+    const h = harness();
+    existingSession(h, { scene_location_id: CELLAR, summary: "SUMMARY-MARK" });
+    h.state.record = [{ id: factId(90), body: "RECORD-MARK the debt.", hidden: false, when: null }];
+    h.state.quests = quests();
+    await play(h, { body: BODY });
+    const system = h.requests[0].system;
+    const sceneAt = system.indexOf("SCENE-DESCRIPTION");
+    const questAt = system.indexOf("QUEST-MARK");
+    const recordAt = system.indexOf("RECORD-MARK");
+    expect(questAt).toBeGreaterThan(sceneAt);
+    expect(recordAt).toBeGreaterThan(questAt);
+    expect(system.indexOf("SUMMARY-MARK")).toBeGreaterThan(recordAt);
+  });
+
+  it("reads the quests of this campaign with the conversation's own pressure clock", async () => {
+    const h = harness();
+    existingSession(h, { pressure_clock_id: PRESSURE_CLOCK });
+    await play(h, { body: BODY });
+    expect(h.questLoads).toEqual([{ campaignId: CAMPAIGN, pressureClockId: PRESSURE_CLOCK }]);
+  });
+
+  it("offers the five quest tools to the narrator", async () => {
+    const h = harness();
+    existingSession(h);
+    await play(h, { body: BODY });
+    expect(h.requests[0].tools.map((t) => t.name)).toEqual(
+      expect.arrayContaining(["quest_route", "quest_beat", "quest_objective", "quest_clock", "pressure"]),
+    );
+  });
+
+  it("answers the narrator with what will happen and applies nothing while the turn is still running", async () => {
+    const h = harness([callTools(route()), step(10)]);
+    existingSession(h);
+    h.state.quests = quests();
+    await play(h, { body: BODY });
+    const results = h.requests[1].messages.flatMap((m) => m.blocks).filter((b) => b.type === "tool_result");
+    expect(results).toEqual([expect.objectContaining({ isError: false, content: expect.stringContaining("The bell room") })]);
+    expect(h.log.indexOf("quest-move")).toBeGreaterThan(h.log.indexOf("save"));
+  });
+
+  it("applies the moves in the order they were made, after the turn is saved, as this conversation's DM", async () => {
+    const h = harness([callTools(objective(), route()), step(10)]);
+    existingSession(h);
+    h.state.quests = quests(1, false);
+    await play(h, { body: BODY });
+    expect(moves(h)).toEqual([
+      { kind: "objective", objectiveId: OBJECTIVE, status: "complete", reason: "found it" },
+      { kind: "route", questId: QUEST, threadId: THREAD, edgeId: EDGE },
+    ]);
+    expect(h.applied[0].ctx).toEqual({ campaignId: CAMPAIGN, agentSessionId: SESSION });
+    expect(h.log.indexOf("quest-move")).toBeGreaterThan(h.log.lastIndexOf("save"));
+    expect(h.log.lastIndexOf("done")).toBeGreaterThan(h.log.lastIndexOf("quest-move"));
+  });
+
+  it("applies nothing when the save conflicts, because objectives and clocks cannot be undone", async () => {
+    const h = harness([callTools(objective(), route()), step(10)]);
+    existingSession(h, { pressure_clock_id: PRESSURE_CLOCK });
+    h.state.quests = quests();
+    h.state.conflict = true;
+    await play(h, { body: BODY });
+    expect(h.applied).toEqual([]);
+  });
+
+  it("applies nothing when the save fails", async () => {
+    const h = harness([callTools(objective()), step(10)]);
+    existingSession(h, { pressure_clock_id: PRESSURE_CLOCK });
+    h.state.quests = quests();
+    h.state.saveThrows = true;
+    await play(h, { body: BODY });
+    expect(h.applied).toEqual([]);
+  });
+
+  it("applies nothing when the provider fails after a quest tool ran", async () => {
+    const h = harness([callTools(objective()), new AgentProviderError("down", 500, true)]);
+    existingSession(h, { pressure_clock_id: PRESSURE_CLOCK });
+    h.state.quests = quests();
+    await play(h, { body: BODY });
+    expect(last(h)).toEqual({ type: "error", message: MESSAGES.providerBusy });
+    expect(h.applied).toEqual([]);
+  });
+
+  it("still finishes the turn, and still applies the later moves, when one move fails to apply", async () => {
+    const h = harness([callTools(objective(), route()), step(10)]);
+    existingSession(h, { pressure_clock_id: PRESSURE_CLOCK });
+    h.state.quests = quests();
+    h.state.failMoveAt = new Set([0]);
+    await play(h, { body: BODY });
+    expect(moves(h).map((m) => m.kind)).toEqual(["objective", "route", "clock"]);
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(h.open.size).toBe(0);
+  });
+
+  it("ticks the pressure clock once on a kept turn, after the narrator's own moves", async () => {
+    const h = harness([callTools(route()), step(10)]);
+    existingSession(h, { pressure_clock_id: PRESSURE_CLOCK });
+    h.state.quests = quests();
+    await play(h, { body: BODY });
+    expect(moves(h)).toEqual([{ kind: "route", questId: QUEST, threadId: THREAD, edgeId: EDGE }, tick]);
+  });
+
+  it("ticks nothing on a turn that is not kept", async () => {
+    const h = harness();
+    existingSession(h, { pressure_clock_id: PRESSURE_CLOCK });
+    h.state.quests = quests();
+    h.state.conflict = true;
+    await play(h, { body: BODY });
+    expect(h.applied).toEqual([]);
+  });
+
+  it("does not tick a second time when the narrator ticked that clock itself this turn", async () => {
+    const h = harness([callTools(["quest_clock", { clock_id: PRESSURE_CLOCK, reason: "the horn sounds" }]), step(10)]);
+    existingSession(h, { pressure_clock_id: PRESSURE_CLOCK });
+    h.state.quests = quests();
+    await play(h, { body: BODY });
+    expect(moves(h)).toEqual([{ kind: "clock", clockId: PRESSURE_CLOCK, step: 1, reason: "the horn sounds" }]);
+  });
+
+  it("does not tick on the turn the narrator stops the pressure", async () => {
+    const h = harness([callTools(["pressure", { stop: true }]), step(10)]);
+    existingSession(h, { pressure_clock_id: PRESSURE_CLOCK });
+    h.state.quests = quests();
+    await play(h, { body: BODY });
+    expect(moves(h)).toEqual([{ kind: "pressure", mode: "stop" }]);
+  });
+
+  it("ticks nothing when the scene is under no pressure", async () => {
+    const h = harness();
+    existingSession(h);
+    h.state.quests = quests(0, false);
+    await play(h, { body: BODY });
+    expect(h.applied).toEqual([]);
+  });
+
+  it("tells the narrator the clock fills this turn when one more tick fills it, and not a turn earlier", async () => {
+    const early = harness();
+    existingSession(early, { pressure_clock_id: PRESSURE_CLOCK });
+    early.state.quests = quests(2);
+    await play(early, { body: BODY });
+    const late = harness();
+    existingSession(late, { pressure_clock_id: PRESSURE_CLOCK });
+    late.state.quests = quests(3);
+    await play(late, { body: BODY });
+    // The standing text mentions filling too, so look only at the quests' own section.
+    const section = (system: string) => system.slice(system.indexOf("## Quests in play"), system.indexOf("## On record"));
+    expect(section(early.requests[0].system)).toContain("FLOOD-MARK");
+    expect(section(early.requests[0].system)).not.toMatch(/fills/);
+    expect(section(late.requests[0].system)).toMatch(/fills/);
+  });
+
+  it("runs the turn without any quest tool when the quests cannot be read, since their ids could not be checked", async () => {
+    const h = harness();
+    existingSession(h, { pressure_clock_id: PRESSURE_CLOCK });
+    h.state.questsThrow = true;
+    await play(h, { body: BODY });
+    expect(last(h)).toMatchObject({ type: "done" });
+    const offered = h.requests[0].tools.map((t) => t.name);
+    for (const name of ["quest_route", "quest_beat", "quest_objective", "quest_clock", "pressure"]) {
+      expect(offered).not.toContain(name);
+    }
+    expect(h.requests[0].system).toContain("No quest is under way");
+    expect(h.applied).toEqual([]);
+  });
+
+  it("refuses an id that was not in the section even when the model writes a plausible one", async () => {
+    const h = harness([callTools(["quest_route", { quest_id: QUEST, thread_id: THREAD, edge_id: "00000000-0000-4000-8000-000000000bad" }]), step(10)]);
+    existingSession(h);
+    h.state.quests = quests(1, false);
+    await play(h, { body: BODY });
+    expect(h.requests[1].messages.flatMap((m) => m.blocks).filter((b) => b.type === "tool_result")).toEqual([
+      expect.objectContaining({ isError: true }),
+    ]);
+    expect(h.applied).toEqual([]);
   });
 });
 

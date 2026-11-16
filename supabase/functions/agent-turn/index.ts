@@ -33,6 +33,7 @@ import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { RECORD_SECTION_MAX, type RecordedFact } from "../_shared/agent/record.ts";
 import { openaiModel } from "../_shared/agent/openai.ts";
 import { anthropicModel } from "../_shared/agent/anthropic.ts";
+import { applyQuestMove, loadQuests } from "./questIo.ts";
 import type { CallModel } from "../_shared/agent/types.ts";
 import type { StoredTurn, TurnRow } from "../_shared/agent/transcript.ts";
 import {
@@ -52,7 +53,7 @@ function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id";
+const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id, pressure_clock_id";
 
 /** Beside what is tied to this place and these people, the campaign's newest facts always reach the narrator. */
 const NEWEST_FACTS = 15;
@@ -66,6 +67,7 @@ function sessionRow(row: Record<string, unknown>): SessionRow {
     summary_through_seq: Number(row.summary_through_seq),
     scene_location_id: (row.scene_location_id as string | null) ?? null,
     campaign_session_id: (row.campaign_session_id as string | null) ?? null,
+    pressure_clock_id: (row.pressure_clock_id as string | null) ?? null,
   };
 }
 
@@ -589,6 +591,10 @@ serve(withCors(async (req: Request) => {
       const { error } = await supabase.from("story_facts").delete().eq("campaign_id", campaignId).in("id", ids);
       if (error) throw error;
     },
+
+    // Quests: read and written as the caller (the quest functions check the DM); the conversation's own row as the server.
+    loadQuests: (campaignId, pressureClockId) => loadQuests(supabase, campaignId, pressureClockId),
+    applyQuestMove: (ctx, move) => applyQuestMove(supabase, admin, ctx, move),
 
     tools: agentToolsFrom(listTools(), SOLO_TABLE_TOOLS),
     // Bound per call, because the campaign is only known once the handler has loaded and checked it. Every tool call
