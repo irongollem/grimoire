@@ -1,0 +1,142 @@
+// Between the conversation in memory and the rows that store it (#1205). Pure: rows in, messages out, and back.
+
+import type { AgentBlock, AgentMessage, AgentUsage } from "./types.ts";
+
+export interface StoredTurn {
+  seq: number;
+  role: "user" | "assistant";
+  blocks: unknown;
+}
+
+export interface TurnRow {
+  session_id: string;
+  user_id: string;
+  seq: number;
+  role: "user" | "assistant";
+  blocks: AgentBlock[];
+  provider: string | null;
+  model: string | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  cache_read_tokens: number | null;
+  cache_write_tokens: number | null;
+}
+
+function isRecord(x: unknown): x is Record<string, unknown> {
+  return typeof x === "object" && x !== null && !Array.isArray(x);
+}
+
+// The blocks came back from a jsonb column, so every one is checked against the four shapes in types.ts.
+function asBlock(x: unknown): AgentBlock | null {
+  if (!isRecord(x)) return null;
+  switch (x.type) {
+    case "text":
+      return typeof x.text === "string" ? { type: "text", text: x.text } : null;
+    case "tool_call":
+      return typeof x.id === "string" && typeof x.name === "string" && isRecord(x.input)
+        ? { type: "tool_call", id: x.id, name: x.name, input: x.input }
+        : null;
+    case "tool_result":
+      return typeof x.callId === "string" && typeof x.content === "string" && typeof x.isError === "boolean"
+        ? { type: "tool_result", callId: x.callId, content: x.content, isError: x.isError }
+        : null;
+    case "opaque":
+      return typeof x.provider === "string" ? { type: "opaque", provider: x.provider, data: x.data } : null;
+    default:
+      return null;
+  }
+}
+
+/**
+ * The messages to send: rows in `seq` order, the part the summary covers left out, bad blocks dropped.
+ * A stored `tool_call` always has its results after it (the loop guarantees it, see turn.ts), so only the cut at
+ * the summary can leave an orphan, and only at the front.
+ */
+export function historyFrom(stored: StoredTurn[], summaryThroughSeq: number): AgentMessage[] {
+  const messages: AgentMessage[] = [];
+  const kept = stored.filter((row) => row.seq > summaryThroughSeq).sort((a, b) => a.seq - b.seq);
+  for (const row of kept) {
+    if (!Array.isArray(row.blocks)) continue;
+    const blocks = row.blocks.map(asBlock).filter((b): b is AgentBlock => b !== null);
+    if (blocks.length === 0) continue;
+    messages.push({ role: row.role, blocks });
+  }
+  // A provider rejects a tool result whose call is not earlier in the conversation.
+  while (messages.length > 0) {
+    const first = messages[0];
+    if (first.role === "user" && first.blocks.every((b) => b.type === "tool_result")) messages.shift();
+    else break;
+  }
+  return messages;
+}
+
+function usageColumns(u: AgentUsage | null) {
+  return {
+    provider: u?.provider ?? null,
+    model: u?.model ?? null,
+    input_tokens: u?.inputTokens ?? null,
+    output_tokens: u?.outputTokens ?? null,
+    cache_read_tokens: u?.cacheReadTokens ?? null,
+    cache_write_tokens: u?.cacheWriteTokens ?? null,
+  };
+}
+
+/**
+ * One row per added message, `seq` continuing from `lastSeq + 1`. The i-th assistant message carries the i-th step.
+ * A step with no message is the turn's last one (an empty answer, or a max_tokens cut that held only a tool call:
+ * both end the turn), so the steps beyond the assistant messages are folded into the last assistant row, and into
+ * the last row of all when the turn wrote no assistant message. The usage columns therefore always sum to the steps,
+ * because those tokens were billed whether or not they produced a message.
+ */
+export function rowsFor(input: {
+  sessionId: string;
+  userId: string;
+  lastSeq: number;
+  added: AgentMessage[];
+  steps: AgentUsage[];
+}): TurnRow[] {
+  const { steps } = input;
+  const assistantCount = input.added.filter((m) => m.role === "assistant").length;
+  const carrierIndex = assistantCount > 0 ? assistantCount - 1 : -1;
+  const lastRow = input.added.length - 1;
+
+  let assistantSeen = 0;
+  return input.added.map((message, i): TurnRow => {
+    let usage: AgentUsage | null = null;
+    if (message.role === "assistant") {
+      const own = steps[assistantSeen] ?? null;
+      const rest = assistantSeen === carrierIndex ? steps.slice(assistantCount) : [];
+      usage = own && rest.length > 0 ? merge(own, rest) : own;
+      assistantSeen++;
+    } else if (carrierIndex === -1 && i === lastRow && steps.length > 0) {
+      usage = merge(steps[0], steps.slice(1));
+    }
+    return {
+      session_id: input.sessionId,
+      user_id: input.userId,
+      seq: input.lastSeq + 1 + i,
+      role: message.role,
+      blocks: message.blocks,
+      ...usageColumns(usage),
+    };
+  });
+}
+
+function merge(first: AgentUsage, rest: AgentUsage[]): AgentUsage {
+  const last = rest.length > 0 ? rest[rest.length - 1] : first;
+  const all = [first, ...rest];
+  return {
+    provider: last.provider,
+    model: last.model,
+    inputTokens: all.reduce((n, u) => n + u.inputTokens, 0),
+    outputTokens: all.reduce((n, u) => n + u.outputTokens, 0),
+    cacheReadTokens: all.reduce((n, u) => n + u.cacheReadTokens, 0),
+    cacheWriteTokens: all.reduce((n, u) => n + u.cacheWriteTokens, 0),
+  };
+}
+
+/** The system text, byte-identical when there is no summary so a provider's prompt cache holds; else the summary after it. */
+export function systemWithSummary(system: string, summary: string | null): string {
+  if (summary === null || summary.trim() === "") return system;
+  return `${system}\n\n## The story so far\n\n${summary}`;
+}

@@ -42,6 +42,20 @@ One real request against OpenAI, the only one made: `gpt-5.6-luna` on Chat Compl
 - Neither table rings the campaign doorbell (exempt in `live_sync_registry.test.sql`): nobody else reads them, and the page that runs a turn will stream it.
 - `supabase/tests/agent_conversations.test.sql` holds the access rules, with the campaign's DM as the reader who must see nothing.
 
+## Metering (`metering.ts`, migration `20261116080904`)
+
+A fixed price per call cannot work here: one message from the player is several model calls of very different size. So a conversation is charged from measured tokens.
+
+- `usdForUsage` prices a call from `ai_model_pricing`: full-rate input and cache writes at the input rate, cached input at `cached_input_cost_per_million_tokens`, output at the output rate. A cached rate that is not on file means the full input rate: a missing number never makes play cheaper.
+- `creditsForUsd` is cost times the admin's margin, divided by what a credit is worth. Both come from `public.agent_credit_calibration()` (service role only), which reads `private.credit_calibration()`: the net euro cents a credit earns in the pack where it earns least, after VAT and the payment processor's cut. `get_credit_calibration_hints` reads the same function now, so the admin's price calibration and the metering cannot drift. With today's packs a credit is worth about 0.61 euro cents (`credit_calibration.test.sql` holds the figure to a hand calculation). An unusable calibration throws; it never bills nothing.
+- **A session accrues exactly and bills whole credits.** The house rule is never to bill a fraction of a credit, and rounding each turn up would overcharge by about half. `agent_sessions.credits_spent` holds the exact running total; `creditsDue(before, after)` is the whole credits newly crossed, and that is what a turn spends. What is left under a whole credit when a conversation ends is not billed.
+- A rough size: a turn of three model calls on `gpt-5.6-luna` (about 18,000 input and 1,500 output tokens) costs about half a US cent, which at a margin of 2 is about 1.6 credits.
+
+## History and tools (`transcript.ts`, `mcpTools.ts`)
+
+- `historyFrom` turns stored rows into the messages to send: in order, without the part the summary covers, each block checked because it is jsonb back from a database, and never starting with a tool result whose call was cut away. `rowsFor` turns a finished turn into rows; every step's tokens land on a row, so the usage columns always sum to what was billed. `systemWithSummary` keeps the standing instructions a byte-identical prefix so a provider's prompt cache holds.
+- `bindTools` puts the MCP tool handlers behind an allow list that is the security boundary, not a hint: a tool outside it is never invoked. `SOLO_TABLE_TOOLS` is read and roll only (`roll`, `search`, `get`, `list`, `campaign_overview`); a test fails if `create` or `update` joins it. A result too long for the context is cut with a note; a tool that returns a file is refused.
+
 ## Not built yet
 
-The edge function that runs a turn (loading the world, the tool handlers from `_shared/mcp/tools.ts` called in process, streaming to the browser, writing the turn), metering by measured tokens against a budget the player sees, the rolling summary, the checks on what is shown (#1061), moderation of free text, the standing AI disclosure at the table, and any screen.
+The edge function that runs a turn (loading the world, the tool handlers from `_shared/mcp/tools.ts` called in process, streaming to the browser, writing the turn), spending the credits a turn is due and showing the player a budget, the rolling summary, the checks on what is shown (#1061), moderation of free text, the standing AI disclosure at the table, and any screen.
