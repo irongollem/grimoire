@@ -214,7 +214,8 @@ export function speakerSystem(input: {
       `Any line may be a single - when the character does nothing visible, says nothing or has nothing to remember. ` +
       `REMEMBERS is what the character will still carry days from now: a promise made or received, something they ` +
       `revealed or learned, a lie they told or believed, a changed feeling about someone, or an event that mattered ` +
-      `to them. Most moments are not worth keeping: then it is -. The kind word is one of ` +
+      `to them. Write one REMEMBERS line for each separate thing, up to ${MEMORIES_PER_TURN}; never one that only repeats ` +
+      `what is already among your memories below. Most moments are not worth keeping: then it is -. The kind word is one of ` +
       `${NPC_MEMORY_KINDS.join(", ")}. It is never shown to anyone. No name prefix and no ` +
       `narration beyond the one DOES sentence. You know only what is written here. When asked about anything else, the ` +
       `character does not know it and says so in their own way; never invent facts about the world. Everything under ` +
@@ -272,16 +273,21 @@ function rememberedOf(value: string): Remembered | null {
   return { kind: kind ?? "event", body: body.slice(0, MEMORY_MAX_CHARS) };
 }
 
-export function parseTurnAnswer(raw: string): { said: string | null; did: string | null; remembered: Remembered | null } {
+/** A moment rarely leaves more than one thing worth keeping; three stops a character that writes a diary. */
+export const MEMORIES_PER_TURN = 3;
+
+export function parseTurnAnswer(raw: string): { said: string | null; did: string | null; remembered: Remembered[] } {
   const label = /^[ \t]*(DOES|SAYS|REMEMBERS)[ \t]*:/gim;
   const marks = [...raw.matchAll(label)];
   if (marks.length === 0) {
     const words = NOTHING(unquote(raw.trim()));
-    return { said: words, did: null, remembered: null };
+    return { said: words, did: null, remembered: [] };
   }
   let said: string | null = null;
   let did: string | null = null;
-  let remembered: Remembered | null = null;
+  // The label may repeat: a moment in which a promise was made AND a pledge was taken is two memories. Seen
+  // live (16 Nov 2026): with room for one, Honeycomb kept the promise and forgot the thimble she was holding.
+  const remembered: Remembered[] = [];
   marks.forEach((m, i) => {
     const start = (m.index ?? 0) + m[0].length;
     const end = i + 1 < marks.length ? (marks[i + 1].index ?? raw.length) : raw.length;
@@ -289,7 +295,10 @@ export function parseTurnAnswer(raw: string): { said: string | null; did: string
     const which = m[1].toUpperCase();
     if (which === "SAYS") said = NOTHING(unquote(value));
     else if (which === "DOES") did = NOTHING(value);
-    else remembered = rememberedOf(value);
+    else {
+      const kept = rememberedOf(value);
+      if (kept && remembered.length < MEMORIES_PER_TURN) remembered.push(kept);
+    }
   });
   return { said, did, remembered };
 }
@@ -299,7 +308,7 @@ export async function characterTurn(input: {
   system: string;
   happening: string;
   signal?: AbortSignal;
-}): Promise<{ said: string | null; did: string | null; remembered: Remembered | null; usage: AgentUsage }> {
+}): Promise<{ said: string | null; did: string | null; remembered: Remembered[]; usage: AgentUsage }> {
   const step = await input.callModel({
     system: input.system,
     messages: [{ role: "user", blocks: [{ type: "text", text: `What is happening:\n${input.happening}` }] }],
@@ -309,7 +318,7 @@ export async function characterTurn(input: {
     maxOutputTokens: SPEAK_MAX_OUTPUT_TOKENS,
     signal: input.signal,
   });
-  if (step.stop === "refusal") return { said: null, did: null, remembered: null, usage: step.usage };
+  if (step.stop === "refusal") return { said: null, did: null, remembered: [], usage: step.usage };
   const raw = step.blocks.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("").trim();
   return { ...parseTurnAnswer(raw), usage: step.usage };
 }
@@ -425,7 +434,7 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
 
     // Only a character with a record has a ledger to keep it in, and only a turn in which it did or said
     // something is a moment that happened.
-    if (remembered && who.id) deps.onRemember?.({ characterId: who.id, ...remembered });
+    if (who.id) for (const memory of remembered) deps.onRemember?.({ characterId: who.id, ...memory });
 
     const speaker = { id: who.id, name: shownName };
     const lines: AgentLine[] = [];

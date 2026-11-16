@@ -458,26 +458,20 @@ describe("who hears what, by how loud it was said", () => {
 
 describe("what a character keeps", () => {
   it("reads the kind the character named", () => {
-    expect(parseTurnAnswer("SAYS: Fine.\nREMEMBERS: promise: I said I would wait.").remembered).toEqual({ kind: "promise", body: "I said I would wait." });
+    expect(parseTurnAnswer("SAYS: Fine.\nREMEMBERS: promise: I said I would wait.").remembered).toEqual([{ kind: "promise", body: "I said I would wait." }]);
   });
 
   it("keeps a memory with no kind as an event rather than losing it", () => {
-    expect(parseTurnAnswer("SAYS: Fine.\nREMEMBERS: The stranger had my mother's ring.").remembered).toEqual({
-      kind: "event",
-      body: "The stranger had my mother's ring.",
-    });
+    expect(parseTurnAnswer("SAYS: Fine.\nREMEMBERS: The stranger had my mother's ring.").remembered).toEqual([{ kind: "event", body: "The stranger had my mother's ring." }]);
   });
 
   it("does not mistake a sentence with a colon for a kind", () => {
-    expect(parseTurnAnswer("SAYS: Fine.\nREMEMBERS: Odd: the stranger knew my name.").remembered).toEqual({
-      kind: "event",
-      body: "Odd: the stranger knew my name.",
-    });
+    expect(parseTurnAnswer("SAYS: Fine.\nREMEMBERS: Odd: the stranger knew my name.").remembered).toEqual([{ kind: "event", body: "Odd: the stranger knew my name." }]);
   });
 
   it("keeps nothing when the character says there is nothing to keep", () => {
-    expect(parseTurnAnswer("SAYS: Fine.\nREMEMBERS: -").remembered).toBeNull();
-    expect(parseTurnAnswer("SAYS: Fine.").remembered).toBeNull();
+    expect(parseTurnAnswer("SAYS: Fine.\nREMEMBERS: -").remembered).toEqual([]);
+    expect(parseTurnAnswer("SAYS: Fine.").remembered).toEqual([]);
   });
 
   it("never lets the memory line leak into the words the player hears", () => {
@@ -486,7 +480,7 @@ describe("what a character keeps", () => {
 
   it("cuts a runaway memory to what the ledger takes", () => {
     const got = parseTurnAnswer(`REMEMBERS: event: ${"x".repeat(900)}`).remembered;
-    expect(got?.body.length).toBe(500);
+    expect(got[0].body.length).toBe(500);
   });
 
   it("files nothing for someone with no record: there is no ledger to keep it in", async () => {
@@ -545,5 +539,34 @@ describe("which recorded character a bare name means", () => {
     });
     const got = await tools.call("speak", { speaker_name: "The sweeper", happening: "A stranger enters." });
     expect(got.isError).toBe(false);
+  });
+});
+
+describe("a moment that leaves more than one thing to keep", () => {
+  const answer = "SAYS: Thank you.\nREMEMBERS: promise: The ledger before dusk.\nREMEMBERS: event: I hold their silver thimble.";
+
+  it("keeps each of them, or the character forgets the pledge it is holding", () => {
+    expect(parseTurnAnswer(answer).remembered).toEqual([
+      { kind: "promise", body: "The ledger before dusk." },
+      { kind: "event", body: "I hold their silver thimble." },
+    ]);
+  });
+
+  it("stops at three, so a character cannot write a diary every turn", () => {
+    const many = Array.from({ length: 6 }, (_, i) => `REMEMBERS: event: Thing ${i}.`).join("\n");
+    expect(parseTurnAnswer(many).remembered).toHaveLength(3);
+  });
+
+  it("files every one of them for a recorded character", async () => {
+    const kept: unknown[] = [];
+    const r = recorder([answer]);
+    const tools = makeSpeechTools({
+      stored: [],
+      loadSpeaker: async () => ({ id: A, shownName: "Mira", profile: "p", memories: "" }),
+      callModel: r.callModel,
+      onRemember: (m) => kept.push(m),
+    });
+    await tools.call("speak", { speaker_id: A, happening: "A pledge is given." });
+    expect(kept).toHaveLength(2);
   });
 });
