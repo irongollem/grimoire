@@ -185,54 +185,26 @@
         </div>
 
         <!-- Key stats grid -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 text-label-lg">
-          <span class="flex items-baseline justify-between gap-1 min-w-0">
-            <span class="text-muted-foreground truncate">AC</span>
-            <span class="font-bold text-foreground shrink-0" :title="acTitle">{{ displayAc }}</span>
-          </span>
-          <span class="flex items-baseline justify-between gap-1 min-w-0">
-            <span class="text-muted-foreground truncate">Speed</span>
-            <span class="font-bold text-foreground shrink-0">{{ displaySpeed }} ft</span>
-          </span>
-          <span class="flex items-baseline justify-between gap-1 min-w-0">
-            <span class="text-muted-foreground truncate">Perception</span>
-            <span class="flex items-baseline gap-1.5 shrink-0">
-              <AwarenessRollButton
-                v-if="awarenessOn"
-                :member="member"
-                :jack="jack"
-                :roll="awarenessRolls?.get(member.id)"
-                :pending="spend.isPending.value"
-                @use="spend.mutate([member.id])"
-              />
-              <span class="font-bold text-foreground">{{ passivePerception }}</span>
-            </span>
-          </span>
-          <span class="flex items-baseline justify-between gap-1 min-w-0">
-            <span class="text-muted-foreground truncate">Insight</span>
-            <span class="font-bold text-foreground shrink-0">{{ passiveInsight }}</span>
-          </span>
-          <span class="flex items-baseline justify-between gap-1 min-w-0">
-            <span class="text-muted-foreground truncate">Investigation</span>
-            <span class="font-bold text-foreground shrink-0">{{ passiveInvestigation }}</span>
-          </span>
-          <span class="flex items-baseline justify-between gap-1 min-w-0">
-            <span class="text-muted-foreground truncate">Arcana</span>
-            <span class="font-bold text-foreground shrink-0">{{ passiveArcana }}</span>
-          </span>
-          <span class="flex items-baseline justify-between gap-1 min-w-0">
-            <span class="text-muted-foreground truncate">History</span>
-            <span class="font-bold text-foreground shrink-0">{{ passiveHistory }}</span>
-          </span>
-          <span class="flex items-baseline justify-between gap-1 min-w-0">
-            <span class="text-muted-foreground truncate">Nature</span>
-            <span class="font-bold text-foreground shrink-0">{{ passiveNature }}</span>
-          </span>
-          <span class="flex items-baseline justify-between gap-1 min-w-0">
-            <span class="text-muted-foreground truncate">Religion</span>
-            <span class="font-bold text-foreground shrink-0">{{ passiveReligion }}</span>
-          </span>
-        </div>
+        <KeyStatGrid>
+          <KeyStat label="AC" :value="displayAc" :title="acTitle" />
+          <KeyStat label="Speed" :value="`${displaySpeed} ft`" />
+          <KeyStat label="Perception" :value="passivePerception">
+            <AwarenessRollButton
+              v-if="awarenessOn"
+              :member="member"
+              :jack="jack"
+              :roll="awarenessRolls?.get(member.id)"
+              :pending="spend.isPending.value"
+              @use="spend.mutate([member.id])"
+            />
+          </KeyStat>
+          <KeyStat label="Insight" :value="passiveInsight" />
+          <KeyStat label="Investigation" :value="passiveInvestigation" />
+          <KeyStat label="Arcana" :value="passiveArcana" />
+          <KeyStat label="History" :value="passiveHistory" />
+          <KeyStat label="Nature" :value="passiveNature" />
+          <KeyStat label="Religion" :value="passiveReligion" />
+        </KeyStatGrid>
 
         <!-- Saving throw proficiencies -->
         <div v-if="member.saving_throw_proficiencies.length" class="flex flex-wrap gap-1">
@@ -324,6 +296,8 @@ import { formPortrait } from "@/lib/wildshapePortrait";
 import { walkingSpeed } from "@/lib/movement";
 import DollAskNotice from "./DollAskNotice.vue";
 import CompanionCard from "./CompanionCard.vue";
+import KeyStat from "./KeyStat.vue";
+import KeyStatGrid from "./KeyStatGrid.vue";
 import PartyConditionsPanel from "./PartyConditionsPanel.vue";
 import PartyDeathSaves from "./PartyDeathSaves.vue";
 import { betterTempHp, formHpPools } from "@/rules/hitPoints";

@@ -28,6 +28,7 @@ describe("parseSenses", () => {
       { label: "PP", value: "13" },
     ]);
     expect(senseRanges("Blindsight 30 ft.; Darkvision 60 ft.").darkvision).toBe(60);
+    expect(devilsSightRange("Darkvision 60 ft.; Devil's Sight 90 ft.")).toBe(90);
   });
 
   it("ignores a parenthetical qualifier on the number", () => {

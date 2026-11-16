@@ -22,183 +22,180 @@
     </div>
 
     <div class="flex min-w-0 flex-1 flex-col gap-2">
-    <!-- Header row -->
-    <div class="flex items-center gap-2">
-      <!-- Type indicator -->
-      <span
-        class="shrink-0 h-2 w-2 rounded-full"
-        :style="{ backgroundColor: COMPANION_TYPE_COLORS[companion.companion_type] }"
-        :title="COMPANION_TYPE_LABELS[companion.companion_type]"
-      />
+      <!-- Header row -->
+      <div class="flex items-center gap-2">
+        <!-- Type indicator -->
+        <span
+          class="shrink-0 h-2 w-2 rounded-full"
+          :style="{ backgroundColor: COMPANION_TYPE_COLORS[companion.companion_type] }"
+          :title="COMPANION_TYPE_LABELS[companion.companion_type]"
+        />
 
-      <!-- Name + type badge -->
-      <div class="min-w-0 flex-1">
-        <p class="text-heading-xs font-semibold text-foreground truncate leading-tight">
-          {{ companion.name || "Unnamed" }}
-        </p>
-        <p class="text-caption-sm text-muted-foreground italic leading-tight">
-          {{ COMPANION_TYPE_LABELS[companion.companion_type] }}
-          <template v-if="sourceName">
-            · <RouterLink :to="sourceLink ?? '#'" class="hover:text-primary transition-colors">{{ sourceName }}</RouterLink>
-          </template>
-          <!-- Subtle benched indicator — the toggle chip below is the primary control -->
-          <span v-if="fights && !companion.combat_ready" class="text-ink-caution">· Elsewhere</span>
-        </p>
+        <!-- Name + type badge -->
+        <div class="min-w-0 flex-1">
+          <p class="text-heading-xs font-semibold text-foreground truncate leading-tight">
+            {{ companion.name || "Unnamed" }}
+          </p>
+          <p class="text-caption-sm text-muted-foreground italic leading-tight">
+            {{ COMPANION_TYPE_LABELS[companion.companion_type] }}
+            <template v-if="sourceName">
+              · <RouterLink :to="sourceLink ?? '#'" class="hover:text-primary transition-colors">{{ sourceName }}</RouterLink>
+            </template>
+            <!-- Subtle benched indicator — the toggle chip below is the primary control -->
+            <span v-if="fights && !companion.combat_ready" class="text-ink-caution">· Elsewhere</span>
+          </p>
+        </div>
+
+        <!-- HP -->
+        <div class="text-right shrink-0">
+          <span class="text-heading-sm font-bold" :class="hpTextColor">{{ companion.current_hp }}</span>
+          <span class="text-caption text-muted-foreground">/{{ companion.max_hp }}</span>
+        </div>
+
+        <!-- Edit / delete -->
+        <div class="flex items-center gap-1 shrink-0">
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            icon-size="xs"
+            :icon="IconEdit"
+            tooltip="Edit companion"
+            @click="$emit('edit', companion)"
+          />
+          <AppButton
+            variant="ghost"
+            tone="danger"
+            size="icon-xs"
+            icon-size="xs"
+            :icon="IconClose"
+            tooltip="Remove companion"
+            @click="$emit('delete', companion)"
+          />
+        </div>
       </div>
 
-      <!-- HP -->
-      <div class="text-right shrink-0">
-        <span class="text-heading-sm font-bold" :class="hpTextColor">{{ companion.current_hp }}</span>
-        <span class="text-caption text-muted-foreground">/{{ companion.max_hp }}</span>
-      </div>
-
-      <!-- Edit / delete -->
-      <div class="flex items-center gap-1 shrink-0">
-        <AppButton
-          variant="ghost"
-          size="icon-xs"
-          icon-size="xs"
-          :icon="IconEdit"
-          tooltip="Edit companion"
-          @click="$emit('edit', companion)"
-        />
-        <AppButton
-          variant="ghost"
-          tone="danger"
-          size="icon-xs"
-          icon-size="xs"
-          :icon="IconClose"
-          tooltip="Remove companion"
-          @click="$emit('delete', companion)"
+      <!-- HP bar -->
+      <div class="h-1 w-full rounded-full bg-muted overflow-hidden">
+        <div
+          class="h-full rounded-full transition-all"
+          :class="hpBarColor"
+          :style="{ width: `${hpPct}%` }"
         />
       </div>
-    </div>
 
-    <!-- HP bar -->
-    <div class="h-1 w-full rounded-full bg-muted overflow-hidden">
-      <div
-        class="h-full rounded-full transition-all"
-        :class="hpBarColor"
-        :style="{ width: `${hpPct}%` }"
-      />
-    </div>
+      <!-- Key stats: the same grid as the hero's row, passives included, since
+           a pet's Perception matters at the table as much as its owner's. -->
+      <KeyStatGrid>
+        <KeyStat v-for="stat in keyStats" :key="stat.label" :label="stat.label" :value="stat.value" />
+      </KeyStatGrid>
 
-    <!-- Key stats: the same grid as the hero's row, passives included, since
-         a pet's Perception matters at the table as much as its owner's. -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 text-label-lg">
-      <span v-for="stat in keyStats" :key="stat.label" class="flex items-baseline justify-between gap-1 min-w-0">
-        <span class="text-muted-foreground truncate">{{ stat.label }}</span>
-        <span class="font-bold text-foreground shrink-0">{{ stat.value }}</span>
-      </span>
-    </div>
-
-    <!-- Combat toggle + HP controls -->
-    <div class="flex items-center gap-2 flex-wrap">
-      <!-- Combat-ready toggle: whether this companion auto-joins new encounters (#569).
-           Off state is `chip` (filled, muted) rather than `subtle`, which is what it
-           looked like before; `chip` draws no border, so the explicit one below keeps
-           the button from shifting a pixel as it flips. -->
-      <AppButton
-        v-if="fights"
-        :variant="companion.combat_ready ? 'tinted' : 'chip'"
-        size="xs"
-        role="switch"
-        :aria-checked="companion.combat_ready"
-        tone="success"
-        emphasis="soft"
-        :label="companion.combat_ready ? 'With Party' : 'Elsewhere'"
-        :tooltip="companion.combat_ready
-          ? 'With the party · joins new encounters. Click to bench.'
-          : 'Elsewhere · sits out new encounters. Click to bring back.'"
-        class="border border-border"
-        @click="toggleCombatReady"
-      />
-
-      <!-- Damage -->
-      <div class="flex items-center gap-1 ml-auto">
-        <AppInput
-          v-model.number="hpAmount"
-          type="number"
-          min="1"
-          placeholder="HP"
-          tone="filled"
-          size="caption"
-          align="center"
-          :block="false"
-          class="w-12"
-        />
+      <!-- Combat toggle + HP controls -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <!-- Combat-ready toggle: whether this companion auto-joins new encounters (#569).
+             Off state is `chip` (filled, muted) rather than `subtle`, which is what it
+             looked like before; `chip` draws no border, so the explicit one below keeps
+             the button from shifting a pixel as it flips. -->
         <AppButton
-          variant="tinted"
+          v-if="fights"
+          :variant="companion.combat_ready ? 'tinted' : 'chip'"
           size="xs"
-          label="DMG"
-          tooltip="Deal damage"
-          tone="danger"
-          emphasis="soft"
-          @click="damage"
-        />
-        <AppButton
-          variant="tinted"
-          size="xs"
-          label="HEAL"
-          tooltip="Heal"
+          role="switch"
+          :aria-checked="companion.combat_ready"
           tone="success"
           emphasis="soft"
-          @click="heal"
+          :label="companion.combat_ready ? 'With Party' : 'Elsewhere'"
+          :tooltip="companion.combat_ready
+            ? 'With the party · joins new encounters. Click to bench.'
+            : 'Elsewhere · sits out new encounters. Click to bring back.'"
+          class="border border-border"
+          @click="toggleCombatReady"
+        />
+
+        <!-- Damage -->
+        <div class="flex items-center gap-1 ml-auto">
+          <AppInput
+            v-model.number="hpAmount"
+            type="number"
+            min="1"
+            placeholder="HP"
+            tone="filled"
+            size="caption"
+            align="center"
+            :block="false"
+            class="w-12"
+          />
+          <AppButton
+            variant="tinted"
+            size="xs"
+            label="DMG"
+            tooltip="Deal damage"
+            tone="danger"
+            emphasis="soft"
+            @click="damage"
+          />
+          <AppButton
+            variant="tinted"
+            size="xs"
+            label="HEAL"
+            tooltip="Heal"
+            tone="success"
+            emphasis="soft"
+            @click="heal"
+          />
+        </div>
+      </div>
+
+      <!-- Conditions -->
+      <div v-if="companion.conditions.length" class="flex flex-wrap gap-1">
+        <ExhaustionChip
+          v-if="getExhaustionLevel(companion.conditions) > 0"
+          :level="getExhaustionLevel(companion.conditions)"
+          @update="setExhaustion"
+        />
+        <span
+          v-for="cond in companion.conditions.filter((c) => !isExhaustion(c))"
+          :key="cond.name"
+          class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 text-label text-destructive"
+          :title="getConditionDescription(cond.name, ruleset)"
+        >
+          {{ cond.name }}
+          <button type="button" class="leading-none hover:opacity-70" @click="removeCondition(cond.name)">×</button>
+        </span>
+        <AppButton
+          v-if="!addingCondition"
+          variant="subtle"
+          size="xs"
+          label="+ Condition"
+          class="border-dashed hover:border-border/80"
+          @click="addingCondition = true"
         />
       </div>
-    </div>
 
-    <!-- Conditions -->
-    <div v-if="companion.conditions.length" class="flex flex-wrap gap-1">
-      <ExhaustionChip
-        v-if="getExhaustionLevel(companion.conditions) > 0"
-        :level="getExhaustionLevel(companion.conditions)"
-        @update="setExhaustion"
-      />
-      <span
-        v-for="cond in companion.conditions.filter((c) => !isExhaustion(c))"
-        :key="cond.name"
-        class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20 text-label text-destructive"
-        :title="getConditionDescription(cond.name, ruleset)"
-      >
-        {{ cond.name }}
-        <button type="button" class="leading-none hover:opacity-70" @click="removeCondition(cond.name)">×</button>
-      </span>
-      <AppButton
-        v-if="!addingCondition"
-        variant="subtle"
-        size="xs"
-        label="+ Condition"
-        class="border-dashed hover:border-border/80"
-        @click="addingCondition = true"
-      />
-    </div>
+      <!-- Add condition inline input -->
+      <div v-if="addingCondition" class="flex items-center gap-1">
+        <AppSelect
+          v-model="newCondition"
+          size="caption"
+          weight="normal"
+          class="flex-1"
+        >
+          <option value="">Pick condition…</option>
+          <option v-for="c in availableConditions" :key="c" :value="c">{{ c }}</option>
+        </AppSelect>
+        <AppButton variant="link" size="sm" label="Add" @click="addCondition" />
+        <AppButton variant="ghost" size="sm" label="✕" @click="addingCondition = false; newCondition = ''" />
+      </div>
 
-    <!-- Add condition inline input -->
-    <div v-if="addingCondition" class="flex items-center gap-1">
-      <AppSelect
-        v-model="newCondition"
-        size="caption"
-        weight="normal"
-        class="flex-1"
-      >
-        <option value="">Pick condition…</option>
-        <option v-for="c in availableConditions" :key="c" :value="c">{{ c }}</option>
-      </AppSelect>
-      <AppButton variant="link" size="sm" label="Add" @click="addCondition" />
-      <AppButton variant="ghost" size="sm" label="✕" @click="addingCondition = false; newCondition = ''" />
-    </div>
-
-    <!-- Add condition button when no conditions yet -->
-    <div v-else-if="!companion.conditions.length">
-      <AppButton
-        variant="subtle"
-        size="xs"
-        label="+ Condition"
-        class="border-dashed hover:border-border/80"
-        @click="addingCondition = true"
-      />
-    </div>
+      <!-- Add condition button when no conditions yet -->
+      <div v-else-if="!companion.conditions.length">
+        <AppButton
+          variant="subtle"
+          size="xs"
+          label="+ Condition"
+          class="border-dashed hover:border-border/80"
+          @click="addingCondition = true"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -229,6 +226,8 @@ import {
 } from "@/types/companion.types";
 import type { Companion } from "@/types/companion.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
+import KeyStat from "./KeyStat.vue";
+import KeyStatGrid from "./KeyStatGrid.vue";
 import { useLowArt } from "@/composables/useLowArt";
 import { takesPartInCombat } from "@/lib/encounters/companionCombat";
 import { statBlockPassive } from "@/rules/skillCheck";
