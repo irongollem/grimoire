@@ -1,21 +1,29 @@
 <template>
   <div
-    class="flex flex-col gap-2 rounded-lg border border-border bg-card/60 px-3 py-2.5 transition-opacity"
+    class="flex gap-3 rounded-lg border border-border bg-card/60 p-2.5 transition-opacity"
     :class="{ 'opacity-70': fights && !companion.combat_ready }"
   >
+    <!-- The portrait runs the card's full height, as a hero's does in the row
+         above it: a token beside the name left the art too small to see
+         (maintainer, 16 Nov 2026). -->
+    <div
+      v-if="!lowArt"
+      data-testid="companion-portrait"
+      class="card-plate shrink-0 self-stretch w-24 sm:w-28 min-h-28 rounded-md overflow-hidden bg-muted"
+    >
+      <FocalImage
+        :src="companion.portrait_url"
+        :alt="companion.name"
+        format="portrait"
+        :focal-point="companion.portrait_focal_point ?? null"
+        :placeholder="placeholderUrl('companion')"
+        record
+      />
+    </div>
+
+    <div class="flex min-w-0 flex-1 flex-col gap-2">
     <!-- Header row -->
     <div class="flex items-center gap-2">
-      <!-- Token avatar -->
-      <div v-if="!lowArt" class="shrink-0 w-8 h-8 rounded-full overflow-hidden border border-border bg-muted">
-        <FocalImage
-          :src="companion.portrait_url"
-          format="token"
-          :focal-point="companion.portrait_focal_point ?? null"
-          :placeholder="placeholderUrl('companion')"
-          record
-        />
-      </div>
-
       <!-- Type indicator -->
       <span
         class="shrink-0 h-2 w-2 rounded-full"
@@ -75,15 +83,17 @@
       />
     </div>
 
-    <!-- Quick stats + HP controls -->
-    <div class="flex items-center gap-2 flex-wrap">
-      <TagChip title="Armour Class">
-        AC {{ companion.ac }}
-      </TagChip>
-      <TagChip title="Speed">
-        {{ companion.speed }} ft
-      </TagChip>
+    <!-- Key stats: the same grid as the hero's row, passives included, since
+         a pet's Perception matters at the table as much as its owner's. -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 text-label-lg">
+      <span v-for="stat in keyStats" :key="stat.label" class="flex items-baseline justify-between gap-1 min-w-0">
+        <span class="text-muted-foreground truncate">{{ stat.label }}</span>
+        <span class="font-bold text-foreground shrink-0">{{ stat.value }}</span>
+      </span>
+    </div>
 
+    <!-- Combat toggle + HP controls -->
+    <div class="flex items-center gap-2 flex-wrap">
       <!-- Combat-ready toggle: whether this companion auto-joins new encounters (#569).
            Off state is `chip` (filled, muted) rather than `subtle`, which is what it
            looked like before; `chip` draws no border, so the explicit one below keeps
@@ -189,11 +199,11 @@
         @click="addingCondition = true"
       />
     </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import TagChip from "@/components/common/TagChip.vue";
 import { ref, computed } from "vue";
 import { IconClose, IconEdit } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -221,6 +231,7 @@ import type { Companion } from "@/types/companion.types";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { useLowArt } from "@/composables/useLowArt";
 import { takesPartInCombat } from "@/lib/encounters/companionCombat";
+import { statBlockPassive } from "@/rules/skillCheck";
 
 const props = defineProps<{
   companion: Companion;
@@ -236,6 +247,24 @@ defineEmits<{
 // A pet has no "with the party / elsewhere" state: it never fights (#1115).
 const { lowArt } = useLowArt();
 const fights = computed(() => takesPartInCombat(props.companion));
+
+// A companion without a stat block has no ability scores to score a passive
+// from, so it shows only what its own columns hold.
+const keyStats = computed(() => {
+  const c = props.companion;
+  const stats = [
+    { label: "AC", value: String(c.ac) },
+    { label: "Speed", value: `${c.speed} ft` },
+  ];
+  const block = c.stat_block;
+  if (!block) return stats;
+  return [
+    ...stats,
+    { label: "Perception", value: String(statBlockPassive(block, "perception")) },
+    { label: "Insight", value: String(statBlockPassive(block, "insight")) },
+    { label: "Investigation", value: String(statBlockPassive(block, "investigation")) },
+  ];
+});
 
 const { mutateAsync: updateCompanion } = useUpdateCompanion();
 const { ruleset } = useTableRuleset();

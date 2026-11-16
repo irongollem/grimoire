@@ -20,6 +20,16 @@ describe("parseSenses", () => {
     ]);
   });
 
+  // Bug: a block that lists senses with semicolons loses every sense after the
+  // first, so the PP chip and a second vision range vanish.
+  it("splits senses listed with semicolons", () => {
+    expect(parseSenses("Darkvision 60 ft.; Passive Perception 13")).toEqual([
+      { sense: "darkvision", value: "60" },
+      { label: "PP", value: "13" },
+    ]);
+    expect(senseRanges("Blindsight 30 ft.; Darkvision 60 ft.").darkvision).toBe(60);
+  });
+
   it("ignores a parenthetical qualifier on the number", () => {
     expect(parseSenses("blindsight 30 ft. (blind beyond this radius)")).toEqual([
       { sense: "blindsight", value: "30" },

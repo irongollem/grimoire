@@ -31,9 +31,22 @@ describe("CompanionCard", () => {
     useLowArt().setLowArt(true);
     const w = mountCard();
     expect(w.find("img").exists()).toBe(false);
-    // The empty avatar circle goes too, so the name leads.
-    expect(w.find(".h-8.w-8").exists()).toBe(false);
+    // The empty portrait column goes too, so the name leads.
+    expect(w.find('[data-testid="companion-portrait"]').exists()).toBe(false);
     expect(w.text()).toContain("Biscuit");
+  });
+
+  // Bug: a pet's passives are missing from the party tracker, though the DM
+  // reads them there for every hero (maintainer, 16 Nov 2026).
+  it("shows passive Perception from the companion's stat block", () => {
+    const withBlock = { ...companion, ac: 12, speed: 30, stat_block: { str: 3, dex: 15, con: 10, int: 3, wis: 12, cha: 7, skills: { perception: "+3" } } } as unknown as Companion;
+    const text = mount(CompanionCard, { props: { companion: withBlock }, global: { stubs: { RouterLink: true } } }).text();
+    expect(text).toMatch(/Perception\s*13/);
+    expect(text).toMatch(/Investigation\s*6/);
+  });
+
+  it("shows no passives for a companion without a stat block", () => {
+    expect(mountCard().text()).not.toContain("Perception");
   });
 
   it("draws the portrait when low art is off", () => {

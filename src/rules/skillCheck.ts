@@ -2,6 +2,7 @@ import { SKILLS } from "@/types/party.types";
 import type { SkillProficiencies } from "@/types/party.types";
 import type { AbilityScores } from "@/types/multiclass.types";
 import type { RulesetKey } from "@/types/ruleset.types";
+import type { MonsterStatBlock } from "@/types/monster.types";
 import { abilityMod } from "@/rules/weaponAttack";
 
 /**
@@ -116,4 +117,24 @@ export function passiveScore(
   overrideScores?: AbilityScores,
 ): number {
   return 10 + skillCheckBonus(source, skillKey, jack, overrideScores);
+}
+
+/**
+ * Passive score for a creature with a stat block instead of a character sheet
+ * (a companion, a monster): 10 plus the bonus the block lists for the skill,
+ * else 10 plus the ability modifier, since a stat block lists only the skills
+ * it adds proficiency to. Blocks spell keys either way ("perception",
+ * "Sleight of Hand"), so the key is matched loosely.
+ */
+export function statBlockPassive(
+  block: Pick<MonsterStatBlock, "skills" | keyof AbilityScores>,
+  skillKey: keyof SkillProficiencies,
+): number {
+  const skill = SKILLS.find((s) => s.key === skillKey);
+  if (!skill) return 10;
+  const listed = Object.entries(block.skills ?? {}).find(
+    ([key]) => key.trim().toLowerCase().replace(/\s+/g, "_") === skillKey,
+  );
+  const bonus = listed ? Number.parseInt(listed[1], 10) : Number.NaN;
+  return 10 + (Number.isNaN(bonus) ? abilityMod(block[skill.ability]) : bonus);
 }

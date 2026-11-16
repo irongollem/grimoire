@@ -7,6 +7,10 @@ export const SENSE_TYPES = [
 ] as const;
 export type SenseType = (typeof SENSE_TYPES)[number];
 
+/** Senses are listed with commas in the books, but with semicolons in many stored stat blocks
+ *  ("Darkvision 60 ft.; Passive Perception 13"); split on either, or every sense after the first is lost. */
+const SENSE_SEPARATOR = /[,;]/;
+
 export interface SenseEntry {
   /** an icon-backed sense, when recognized */
   sense?: SenseType;
@@ -25,7 +29,7 @@ export interface SenseEntry {
 export function parseSenses(input: string | null | undefined): SenseEntry[] {
   if (!input) return [];
   const out: SenseEntry[] = [];
-  for (const part of input.split(",")) {
+  for (const part of input.split(SENSE_SEPARATOR)) {
     const s = part.toLowerCase();
     const value = (s.match(/(\d+)\s*ft/) ?? s.match(/(\d+)/))?.[1] ?? "";
     const sense = SENSE_TYPES.find((t) => s.includes(t));
@@ -67,7 +71,7 @@ const DEVILS_SIGHT_DEFAULT_FEET = 120;
 export function devilsSightRange(input: string | null | undefined): number {
   if (!input) return 0;
   let best = 0;
-  for (const part of input.split(",")) {
+  for (const part of input.split(SENSE_SEPARATOR)) {
     if (!/devil['\u2019]?s\s+sight/i.test(part)) continue;
     const given = Number(part.match(/(\d+)/)?.[1]);
     best = Math.max(best, Number.isFinite(given) && given > 0 ? given : DEVILS_SIGHT_DEFAULT_FEET);

@@ -4,6 +4,7 @@ import {
   jackOfAllTradesBonus,
   passiveScore,
   skillCheckBonus,
+  statBlockPassive,
   type SkillCheckSource,
 } from "@/rules/skillCheck";
 
@@ -139,5 +140,27 @@ describe("Jack of All Trades on a check", () => {
 
   it("adds nothing for a character without the feature", () => {
     expect(jackOfAllTradesBonus("none", 4, "skill")).toBe(0);
+  });
+});
+
+describe("statBlockPassive", () => {
+  const block = { str: 3, dex: 15, con: 10, int: 3, wis: 12, cha: 7 };
+
+  // Bug: a pet with Perception +3 shows passive 11 (its Wisdom alone), so a
+  // DM checks the party's watch against the wrong number.
+  it("uses the bonus the stat block lists for the skill", () => {
+    expect(statBlockPassive({ ...block, skills: { perception: "+3" } }, "perception")).toBe(13);
+  });
+
+  // Bug: an imported block keys its skills as printed ("Perception"), and the
+  // listed bonus is missed.
+  it("matches a skill keyed as printed", () => {
+    expect(statBlockPassive({ ...block, skills: { Perception: "+5" } }, "perception")).toBe(15);
+  });
+
+  // Bug: an unlisted skill scores 10, or NaN, instead of 10 + the ability modifier.
+  it("falls back to the ability modifier for a skill the block does not list", () => {
+    expect(statBlockPassive({ ...block, skills: { perception: "+3" } }, "investigation")).toBe(6);
+    expect(statBlockPassive(block, "insight")).toBe(11);
   });
 });
