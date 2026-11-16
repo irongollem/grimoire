@@ -31,6 +31,14 @@ describe("openaiModel", () => {
     expect(calls[1].body.reasoning_effort).toBe("low");
   });
 
+  // Seen live the same day: gpt-6-luna sent no effort at all, picked its own, and refused the tools with the same 400.
+  it("fails if a gpt-6 request that declares tools goes out without switching reasoning off", async () => {
+    const { fetch, calls } = fakeFetch(() => sseResponse(chunk({}, "stop") + DONE));
+    const model = openaiModel("k", "gpt-6-luna", { fetch });
+    await model({ ...base, tools: [{ name: "roll", description: "d", inputSchema: { type: "object" } }] });
+    expect(calls[0].body.reasoning_effort).toBe("none");
+  });
+
   it("keeps two interleaved tool calls apart by index with their own ids and inputs", async () => {
     const stream =
       chunk({ tool_calls: [{ index: 0, id: "call_a", type: "function", function: { name: "roll", arguments: "" } }] }) +

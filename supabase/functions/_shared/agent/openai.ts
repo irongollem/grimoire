@@ -62,8 +62,8 @@ function toWireMessages(system: string, messages: AgentMessage[]): WireMessage[]
 }
 
 /**
- * Chat Completions refuses function tools together with a reasoning effort on the gpt-5.6 models. Seen live on
- * 16 Nov 2026: "Function tools with reasoning_effort are not supported for gpt-5.6-luna in /v1/chat/completions. To
+ * Chat Completions refuses function tools together with a reasoning effort on the gpt-5.6 and gpt-6 models. Seen
+ * live on both, 16 Nov 2026: "Function tools with reasoning_effort are not supported for gpt-5.6-luna in /v1/chat/completions. To
  * use function tools, use /v1/responses or set reasoning_effort to 'none'." So a request that declares tools sets
  * the effort to "none", which that message names as accepted; one without tools keeps what `textGen.ts` sends. A
  * model that should reason between tool calls needs the Responses API, which this adapter does not speak yet.
