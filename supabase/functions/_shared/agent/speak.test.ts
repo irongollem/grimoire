@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  characterTurn, heardBy, makeSpeechTools, parseTurnAnswer, speakerSystem, trimHeard,
+  characterTurn, heardBy, makeSpeechTools, parseTurnAnswer, pickRecorded, speakerSystem, trimHeard,
   type Heard,
 } from "./speak";
 import { parseActInput, parseSpeakInput } from "./speakInput";
@@ -246,7 +246,7 @@ describe("makeSpeechTools", () => {
       { kind: "acted", speaker: { id: A, name: "Alda" }, text: "Wipes the bar." },
       { kind: "spoken", speaker: { id: A, name: "Alda" }, text: "Welcome." },
     ]);
-    expect(JSON.parse(r.content)).toEqual({ did: "Wipes the bar.", said: "Welcome." });
+    expect(JSON.parse(r.content)).toMatchObject({ did: "Wipes the bar.", said: "Welcome." });
   });
 
   it("reports a turn of nothing as an error but still returns the spent usage", async () => {
@@ -508,5 +508,42 @@ describe("what a character keeps", () => {
     });
     await tools.call("speak", { speaker_id: A, happening: "Nothing much." });
     expect(kept).toEqual([]);
+  });
+});
+
+describe("which recorded character a bare name means", () => {
+  const honeycomb = { id: A, shownName: "Apprentice Honeycomb" };
+  const cantor = { id: B, shownName: "Master Cantor" };
+
+  it("finds the one whose shown name holds the name, or 'Honeycomb' would be played without her memories", () => {
+    expect(pickRecorded("Honeycomb", [honeycomb, cantor])).toEqual(honeycomb);
+    expect(pickRecorded("apprentice honeycomb", [honeycomb])).toEqual(honeycomb);
+  });
+
+  it("names nobody when two characters fit, rather than putting words in the wrong mouth", () => {
+    expect(pickRecorded("Master", [cantor, { id: A, shownName: "Master Nougatine" }])).toBeNull();
+  });
+
+  it("prefers the exact name over one that merely contains it", () => {
+    const comb = { id: B, shownName: "Honeycomb" };
+    expect(pickRecorded("Honeycomb", [honeycomb, comb])).toEqual(comb);
+  });
+
+  it("does not match part of a word: 'Honey' is not Honeycomb", () => {
+    expect(pickRecorded("Honey", [honeycomb])).toBeNull();
+  });
+
+  it("lets a truly nameless creature through", () => {
+    expect(pickRecorded("The sweeper", [honeycomb, cantor])).toBeNull();
+  });
+
+  it("still lets a character speak when the lookup itself fails", async () => {
+    const r = recorder(["SAYS: Sweep."]);
+    const tools = makeSpeechTools({
+      stored: [], loadSpeaker: async () => null, callModel: r.callModel,
+      findRecorded: async () => { throw new Error("db down"); },
+    });
+    const got = await tools.call("speak", { speaker_name: "The sweeper", happening: "A stranger enters." });
+    expect(got.isError).toBe(false);
   });
 });

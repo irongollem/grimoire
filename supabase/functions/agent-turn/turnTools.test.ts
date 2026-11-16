@@ -25,6 +25,7 @@ function build() {
   const turn = makeTurnTools({
     deps: {
       tools: [{ name: "search", description: "", inputSchema: {} }],
+      findCharacters: async () => [],
       callTool: async (name) => {
         calls.push(`campaign:${name}`);
         return { content: "from the campaign", isError: false };

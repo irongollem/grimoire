@@ -20,7 +20,7 @@ export interface FiledFact {
 }
 
 export interface TurnToolsInput {
-  deps: Pick<AgentTurnDeps, "tools" | "callTool" | "loadSpeaker" | "setScene" | "fileFact">;
+  deps: Pick<AgentTurnDeps, "tools" | "callTool" | "loadSpeaker" | "findCharacters" | "setScene" | "fileFact">;
   campaignId: string;
   session: SessionRow;
   stored: StoredTurn[];
@@ -39,27 +39,38 @@ export interface TurnTools {
   callTool: CallTool;
   /** What characters chose to remember this turn; filed only once the turn is saved. */
   remembered: Array<{ characterId: string } & Remembered>;
+  /** The recorded characters who spoke or acted this turn: they are where the party is. */
+  spoke: Set<string>;
+  /** Where the party is now, after any move this turn; null when it has no place. */
+  place(): string | null;
 }
 
 export function makeTurnTools(input: TurnToolsInput): TurnTools {
   const { deps, campaignId, session } = input;
 
+  let place = session.scene_location_id;
   const go = makeSceneTool({
     campaignId,
     sessionId: session.id,
     setScene: deps.setScene,
-    onMove: input.onMove,
+    onMove: (moved) => {
+      place = moved.id;
+      input.onMove(moved);
+    },
   });
 
   // A character speaks through its own model call, built from that character alone (`speak.ts`). The same
   // model for now: a cheaper one for speech needs its own price row first.
   const remembered: TurnTools["remembered"] = [];
+  const spoke = new Set<string>();
   const speech = makeSpeechTools({
     stored: input.stored,
     loadSpeaker: (id) => deps.loadSpeaker(campaignId, id),
     callModel: input.callModel,
     signal: input.signal,
     onRemember: (memory) => remembered.push(memory),
+    findRecorded: (name) => deps.findCharacters(campaignId, name),
+    onSpoke: (id) => spoke.add(id),
   });
 
   // The campaign and the sittings are the conversation's own; the model only chooses the words and what they are about.
@@ -79,6 +90,8 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   return {
     tools: [...deps.tools, ...speech.tools, go.tool, record.tool],
     remembered,
+    spoke,
+    place: () => place,
     callTool: (name, toolInput) => {
       if (name === GO_TO_TOOL.name) return go.call(toolInput);
       if (name === RECORD_TOOL_NAME) return record.call(toolInput);

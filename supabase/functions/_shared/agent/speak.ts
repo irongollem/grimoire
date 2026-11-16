@@ -316,6 +316,29 @@ export async function characterTurn(input: {
 
 // ── The tools ─────────────────────────────────────────────────────────────────
 
+const words = (s: string): string[] => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+
+/**
+ * Which recorded character a bare name means, if any: the one whose shown name it is, or the only one whose shown
+ * name holds every word of it ("Honeycomb" for "Apprentice Honeycomb"). Two candidates that both fit name nobody:
+ * guessing between them would put words in the wrong mouth.
+ */
+export function pickRecorded(
+  given: string,
+  candidates: Array<{ id: string; shownName: string }>,
+): { id: string; shownName: string } | null {
+  const want = words(given);
+  if (want.length === 0) return null;
+  const exact = candidates.filter((c) => words(c.shownName).join(" ") === want.join(" "));
+  // Two characters with the very same name fall through to the rule below, which names nobody.
+  if (exact.length === 1) return exact[0];
+  const holding = candidates.filter((c) => {
+    const have = new Set(words(c.shownName));
+    return want.every((w) => have.has(w));
+  });
+  return holding.length === 1 ? holding[0] : null;
+}
+
 export interface SpeechToolsDeps {
   /** The stored conversation before this turn. */
   stored: StoredTurn[];
@@ -323,6 +346,10 @@ export interface SpeechToolsDeps {
   loadSpeaker(id: string): Promise<{ id: string; shownName: string; profile: string; memories: string } | null>;
   callModel: CallModel;
   signal?: AbortSignal;
+  /** Characters of this campaign whose shown name might be this one. The match itself is `pickRecorded`. */
+  findRecorded?(name: string): Promise<Array<{ id: string; shownName: string }>>;
+  /** A recorded character spoke or acted, so they are where the party is. */
+  onSpoke?(characterId: string): void;
   /**
    * Called with what a recorded character chose to remember (maintainer, 16 Nov 2026: a character writes its own
    * memories, so they grow in its own voice). The caller stores it once the turn itself is kept.
@@ -346,6 +373,21 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
   // What this same turn produced so far: its rows are not stored yet, but a later call in the turn must hear them.
   const thisTurn: Event[] = [];
 
+  // A name that belongs to a character with a record must not be played as someone with none. Seen live
+  // (16 Nov 2026): the narrator guessed an id, was refused, fell back to speaker_name "Honeycomb", and the player
+  // met a stand-in who knew nothing of the promise made to her the sitting before. A lookup that fails is treated
+  // as "no such record": it must not cost the turn.
+  async function recordedBy(name: string): Promise<{ id: string; shownName: string } | null> {
+    if (!deps.findRecorded) return null;
+    try {
+      return pickRecorded(name, await deps.findRecorded(name));
+    } catch {
+      return null;
+    }
+  }
+  const useTheRecord = (r: { id: string; shownName: string }): string =>
+    `${r.shownName} has a record in this campaign. Call again with speaker_id "${r.id}" so they speak and remember as themselves.`;
+
   async function speak(raw: Record<string, unknown>): Promise<SpeechToolResult> {
     const parsed = parseSpeakInput(raw);
     if (!parsed.ok) return failure(parsed.error);
@@ -365,6 +407,8 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
       profile = record.profile;
       memories = record.memories;
     } else {
+      const recorded = await recordedBy(input.name as string);
+      if (recorded) return failure(useTheRecord(recorded));
       shownName = input.name as string;
       who = { id: null, name: shownName };
     }
@@ -400,8 +444,11 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
       carried: input.via !== null,
       lines,
     });
-    // The narrator reads both parts to judge what comes of the deed.
-    return { content: JSON.stringify({ did, said }), isError: false, usage: [usage], lines };
+    if (who.id) deps.onSpoke?.(who.id);
+    // The narrator reads both parts to judge what comes of the deed. The note sits where the narrator is about to
+    // write: told only in its standing rules, it twice repeated a character's line in its own words (live, 16 Nov 2026).
+    const shown = "The player has already been shown this, word for word. Do not repeat, quote or paraphrase it.";
+    return { content: JSON.stringify({ did, said, shown }), isError: false, usage: [usage], lines };
   }
 
   async function act(raw: Record<string, unknown>): Promise<SpeechToolResult> {
@@ -412,6 +459,8 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
     if (input.id) {
       return failure("A character with a record decides its own deeds. Call speak for this character, and describe what comes of what they try. act is only for someone with no record.");
     }
+    const recorded = await recordedBy(input.name as string);
+    if (recorded) return failure(useTheRecord(recorded));
     const line: AgentLine = { kind: "acted", speaker: { id: null, name: input.name as string }, text: input.what };
     thisTurn.push({ speakerId: null, speakerName: input.name, present: input.present, happening: null, playerSaid: null,
       playerVolume: "normal", volume: "normal", whisperedTo: [], alsoHeardBy: [], carried: false, lines: [line],

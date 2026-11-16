@@ -83,6 +83,7 @@ interface Harness {
   /** What characters chose to remember, as the handler filed it. */
   memories: Array<{ characterId: string; kind: string; body: string }>;
   memorySessions: Array<string | null>;
+  placed: Array<{ campaignId: string; locationId: string; characterIds: string[] }>;
   summaries: Array<{ expectedThroughSeq: number; throughSeq: number; summary: string; credits: number }>;
   /** The running total of credits accrued per conversation, as the database keeps it. */
   totals: Map<string, number>;
@@ -144,6 +145,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     appends: [],
     memories: [],
     memorySessions: [],
+    placed: [],
     summaries: [],
     totals: new Map<string, number>(),
     ledger: [],
@@ -295,6 +297,12 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       log.push("discard");
       if (h.state.discardThrows) throw new Error("db down");
       h.facts = h.facts.filter((f) => !ids.includes(f.id));
+    },
+    findCharacters: async (_campaignId, name) =>
+      "apprentice honeycomb".includes(name.toLowerCase()) ? [{ id: HONEYCOMB, shownName: "Apprentice Honeycomb" }] : [],
+    placeCharacters: async (campaignId, locationId, characterIds) => {
+      log.push("place");
+      h.placed.push({ campaignId, locationId, characterIds });
     },
     openPlaySession: async () => {
       log.push("open-session");
@@ -1429,5 +1437,54 @@ describe("the record", () => {
     await play(h, { body: BODY });
     expect(resultsSeen(h, 1)[0]).toMatchObject({ isError: true });
     expect(h.facts).toEqual([]);
+  });
+});
+
+describe("a recorded character is played as themselves, where the party is", () => {
+  const call = (name: string, input: Record<string, unknown>): ModelStep =>
+    step(100, { blocks: [{ type: "tool_call", id: "s1", name, input }], stop: "tool_calls" });
+
+  it("refuses a nameless stand-in for someone with a record, and makes no call for them", async () => {
+    const h = harness([call("speak", { speaker_name: "Honeycomb", manner: "sweet", happening: "A stranger asks about the promise." }), step(200)]);
+    await play(h);
+    // Two narrator calls and no third: the stand-in was never given a voice.
+    expect(h.modelCalls()).toBe(2);
+    const answer = JSON.stringify(h.requests[1].messages);
+    expect(answer).toContain(HONEYCOMB);
+    expect(h.events.some((e) => e.type === "line")).toBe(false);
+  });
+
+  it("refuses a narrator-written deed for someone with a record named only by name", async () => {
+    const h = harness([call("act", { speaker_name: "Apprentice Honeycomb", what: "Forgets everything." }), step(200)]);
+    await play(h);
+    expect(h.events.some((e) => e.type === "line")).toBe(false);
+  });
+
+  it("puts a character who spoke where the party is, or the next sitting finds the place empty", async () => {
+    const h = harness([
+      call("speak", { speaker_id: HONEYCOMB, happening: "A stranger greets you." }),
+      step(300, { blocks: [{ type: "text", text: "SAYS: Hello." }] }),
+      step(200),
+    ]);
+    existingSession(h, { scene_location_id: CELLAR });
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "Hello.", mode: "say" } });
+    expect(h.placed).toEqual([{ campaignId: CAMPAIGN, locationId: CELLAR, characterIds: [HONEYCOMB] }]);
+  });
+
+  it("moves nobody when the party has no place, and nobody when the turn was not kept", async () => {
+    const speaking = (): Script => [
+      call("speak", { speaker_id: HONEYCOMB, happening: "A stranger greets you." }),
+      step(300, { blocks: [{ type: "text", text: "SAYS: Hello." }] }),
+      step(200),
+    ];
+    const nowhere = harness(speaking());
+    await play(nowhere);
+    expect(nowhere.placed).toEqual([]);
+
+    const lost = harness(speaking());
+    existingSession(lost, { scene_location_id: CELLAR });
+    lost.state.conflict = true;
+    await play(lost, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "Hello.", mode: "say" } });
+    expect(lost.placed).toEqual([]);
   });
 });

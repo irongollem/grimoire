@@ -208,6 +208,13 @@ export interface AgentTurnDeps {
     hidden: boolean;
     closes: string | null;
   }): Promise<{ id: string } | { error: string }>;
+  /** The recorded characters of this campaign whose name or disguise holds this text, by the name they are shown under. */
+  findCharacters(campaignId: string, name: string): Promise<Array<{ id: string; shownName: string }>>;
+  /**
+   * Puts characters where the party is. A character who just spoke to the party is evidently there, whatever
+   * their record said, and the next sitting must find them in the place it reads.
+   */
+  placeCharacters(campaignId: string, locationId: string, characterIds: string[]): Promise<void>;
   /** Takes facts filed in a turn that was not kept off the record again. */
   discardFacts(campaignId: string, ids: string[]): Promise<void>;
 }
@@ -490,6 +497,11 @@ export async function beginTurn(input: {
           await safely(() => deps.recordGeneration(provider.isByok, due, logFields));
         } else {
           await safely(() => deps.recordFreeGeneration(logFields));
+        }
+        // Whoever spoke to the party is where the party is. Written with the kept turn, like their memories.
+        const here = turnTools.place();
+        if (here !== null && turnTools.spoke.size > 0) {
+          await safely(() => deps.placeCharacters(campaign.id, here, [...turnTools.spoke]));
         }
         // Kept only now that the turn is: what a character carries away from a moment the player never got to keep
         // would be a memory of something that did not happen. A failure here costs a memory, never the turn.

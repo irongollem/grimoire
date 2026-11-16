@@ -547,6 +547,43 @@ serve(withCors(async (req: Request) => {
       return { id: factId };
     },
 
+    // By name or by disguise, whichever the party knows them under. `%`, `_` and `\` are escaped: the text came
+    // out of a model's tool call and must match as written, not as a pattern.
+    async findCharacters(campaignId, name) {
+      const pattern = `%${name.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      const columns = "id, name, disguise_name, is_revealed";
+      const [byName, byDisguise] = await Promise.all([
+        supabase.from("npcs").select(columns).eq("campaign_id", campaignId).ilike("name", pattern).limit(10),
+        supabase.from("npcs").select(columns).eq("campaign_id", campaignId).ilike("disguise_name", pattern).limit(10),
+      ]);
+      if (byName.error) throw byName.error;
+      if (byDisguise.error) throw byDisguise.error;
+      const seen = new Map<string, { id: string; shownName: string }>();
+      for (const n of [...(byName.data ?? []), ...(byDisguise.data ?? [])]) {
+        seen.set(n.id as string, {
+          id: n.id as string,
+          shownName: shownNpcName({
+            name: n.name as string,
+            disguise_name: n.disguise_name as string | null,
+            is_revealed: n.is_revealed === true,
+          }),
+        });
+      }
+      return [...seen.values()];
+    },
+
+    // Through the caller's own client, so the campaign's rules for an NPC's place apply to this write as to any other.
+    async placeCharacters(campaignId, locationId, characterIds) {
+      if (characterIds.length === 0) return;
+      const { error } = await supabase
+        .from("npcs")
+        .update({ location_id: locationId })
+        .eq("campaign_id", campaignId)
+        .in("id", characterIds)
+        .or(`location_id.is.null,location_id.neq.${locationId}`);
+      if (error) throw error;
+    },
+
     async discardFacts(campaignId, ids) {
       if (ids.length === 0) return;
       const { error } = await supabase.from("story_facts").delete().eq("campaign_id", campaignId).in("id", ids);
