@@ -326,7 +326,7 @@ describe("the request", () => {
     expect(h.modelCalls()).toBe(0);
   });
 
-  it("tells the narrator a deed was not said aloud, so nobody answers words that were never spoken", async () => {
+  it("tells the narrator which button the player pressed, as a hint and not as a ruling on what the words are", async () => {
     const say = harness();
     await play(say, { body: { campaignId: CAMPAIGN, message: "Open up!", mode: "say" } });
     const done = harness();
@@ -335,9 +335,11 @@ describe("the request", () => {
       const b = h.requests[0].messages[0].blocks[0];
       return b.type === "text" ? b.text : "";
     };
-    expect(read(say)).toContain("says aloud");
-    expect(read(done)).toContain("nothing is said aloud");
+    // The two must differ, or the narrator cannot tell them apart; neither may claim nothing was said, or a
+    // "done" message that is plainly speech could never be answered.
     expect(read(say)).not.toBe(read(done));
+    expect(read(say).endsWith("Open up!")).toBe(true);
+    expect(read(done)).not.toContain("nothing is said");
   });
 
   it("stores what the player typed, unchanged, with whether it was said or done, for the page to draw", async () => {
@@ -917,13 +919,18 @@ describe("a character speaks for itself", () => {
     expect(last(h)).toMatchObject({ type: "done", tokens: 600 });
   });
 
-  it("sends the browser the line, and still nothing of what the narrator put into the tool", async () => {
-    const h = harness(script());
+  it("sends the browser the deed line before the spoken line, and still nothing of what the narrator put into the tool", async () => {
+    const h = harness([
+      script()[0],
+      step(300, { blocks: [{ type: "text", text: "DOES: Wipes her hands.\nSAYS: Honeycomb. Apprentice, once." }] }),
+      step(200),
+    ]);
     await play(h);
-    expect(h.events).toContainEqual({
-      type: "line",
-      line: { kind: "spoken", speaker: { id: HONEYCOMB, name: "Honeycomb" }, text: "Honeycomb. Apprentice, once." },
-    });
+    const lines = h.events.flatMap((e) => (e.type === "line" ? [e.line] : []));
+    expect(lines).toEqual([
+      { kind: "acted", speaker: { id: HONEYCOMB, name: "Honeycomb" }, text: "Wipes her hands." },
+      { kind: "spoken", speaker: { id: HONEYCOMB, name: "Honeycomb" }, text: "Honeycomb. Apprentice, once." },
+    ]);
     const sent = JSON.stringify(h.events);
     expect(sent).not.toContain("A stranger asks who you are.");
     expect(sent).not.toContain("HONEYCOMB-SECRET");

@@ -54,9 +54,9 @@ function asBlock(x: unknown): AgentBlock | null {
     case "tool_result":
       if (typeof x.callId !== "string" || typeof x.content !== "string" || typeof x.isError !== "boolean") return null;
       {
-        const line = x.line === undefined ? null : asLine(x.line);
+        const lines = Array.isArray(x.lines) ? x.lines.map(asLine).filter((l): l is AgentLine => l !== null) : [];
         const block: AgentBlock = { type: "tool_result", callId: x.callId, content: x.content, isError: x.isError };
-        if (line) block.line = line;
+        if (lines.length > 0) block.lines = lines;
         return block;
       }
     case "opaque":

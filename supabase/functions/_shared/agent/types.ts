@@ -25,7 +25,7 @@ export type AgentBlock =
   /** The model asks for a tool. `id` pairs it with its result; `input` is already parsed JSON. */
   | { type: "tool_call"; id: string; name: string; input: Record<string, unknown> }
   /** What a tool answered, as text the model reads. `isError` tells the model the call failed. */
-  | { type: "tool_result"; callId: string; content: string; isError: boolean; line?: AgentLine }
+  | { type: "tool_result"; callId: string; content: string; isError: boolean; lines?: AgentLine[] }
   /**
    * Something a provider needs handed back unchanged and nobody else reads (a reasoning item, a thinking block).
    * An adapter writes it and only the same provider's adapter replays it; every other adapter drops it.
@@ -96,13 +96,13 @@ export type CallTool = (name: string, input: Record<string, unknown>) => Promise
 
 /**
  * What a tool answered. `usage` is every model call the tool made itself (a character speaking is one), so the turn
- * can count, budget and store those tokens. `line` is what the browser may show, kept on the stored result.
+ * can count, budget and store those tokens. `lines` is what the browser may show, in order (a character's deed, then its words), kept on the stored result.
  */
 export interface ToolAnswer {
   content: string;
   isError: boolean;
   usage?: AgentUsage[];
-  line?: AgentLine;
+  lines?: AgentLine[];
 }
 
 /** A provider request that did not produce an answer. `retryable` is true for a timeout, a 429 and a 5xx. */

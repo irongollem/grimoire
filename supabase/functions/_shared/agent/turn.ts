@@ -11,7 +11,7 @@ import type { PlayerMove, AgentBlock, AgentLine, ToolAnswer, AgentMessage, Agent
 export type TurnEvent =
   | { type: "text"; delta: string }
   | { type: "tool_start"; id: string; name: string; input: Record<string, unknown> }
-  | { type: "tool_end"; id: string; name: string; isError: boolean; line?: AgentLine }
+  | { type: "tool_end"; id: string; name: string; isError: boolean; lines?: AgentLine[] }
   | { type: "step"; usage: AgentUsage };
 
 export type TurnEnd = "done" | "step_limit" | "budget" | "max_tokens" | "refusal" | "aborted";
@@ -131,10 +131,10 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
       id: call.id,
       name: call.name,
       isError: answer.isError,
-      ...(answer.line ? { line: answer.line } : {}),
+      ...(answer.lines && answer.lines.length > 0 ? { lines: answer.lines } : {}),
     });
     const block: ToolResult = { type: "tool_result", callId: call.id, content: answer.content, isError: answer.isError };
-    if (answer.line) block.line = answer.line;
+    if (answer.lines && answer.lines.length > 0) block.lines = answer.lines;
     return { block, usage: answer.usage ?? [] };
   };
 

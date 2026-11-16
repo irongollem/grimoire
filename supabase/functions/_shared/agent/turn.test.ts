@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runTurn, totalTokens, type TurnEvent, type TurnInput } from "./turn";
-import type { AgentBlock, AgentMessage, AgentUsage, ModelRequest, ModelStep } from "./types";
+import type { AgentBlock, AgentLine, AgentMessage, AgentUsage, ModelRequest, ModelStep } from "./types";
 
 const usage = (over: Partial<AgentUsage> = {}): AgentUsage => ({
   provider: "test",
@@ -465,7 +465,7 @@ function visibleOf(m: AgentMessage): string {
 
 describe("tools that call a model", () => {
   const line = { kind: "spoken" as const, speaker: { id: "n1", name: "Brann" }, text: "Hello." };
-  const speaker = (answer: { usage?: AgentUsage[]; line?: typeof line }): TurnInput["callTool"] =>
+  const speaker = (answer: { usage?: AgentUsage[]; lines?: AgentLine[] }): TurnInput["callTool"] =>
     async () => ({ content: "said", isError: false, ...answer });
 
   it("ends budget when only the tool's tokens push the turn over, or a character's speech is free", async () => {
@@ -504,12 +504,21 @@ describe("tools that call a model", () => {
     expect(out.toolSteps.map((t) => t.index)).toEqual([2, 4]);
   });
 
-  it("puts the line on the result block and the tool_end event, or the browser never hears the character", async () => {
+  it("puts the lines on the result block and the tool_end event, in order, or the browser never hears the character", async () => {
     const events: TurnEvent[] = [];
-    const { input } = setup([asks([call("a")]), say("fin")], { tool: speaker({ line }), onEvent: (e) => events.push(e) });
+    const deed = { ...line, kind: "acted" as const, text: "Nods." };
+    const { input } = setup([asks([call("a")]), say("fin")], { tool: speaker({ lines: [deed, line] }), onEvent: (e) => events.push(e) });
     const out = await runTurn(input);
-    expect(out.added[2].blocks[0]).toMatchObject({ line });
-    expect(events.find((e) => e.type === "tool_end")).toMatchObject({ line });
+    expect(out.added[2].blocks[0]).toMatchObject({ lines: [deed, line] });
+    expect(events.find((e) => e.type === "tool_end")).toMatchObject({ lines: [deed, line] });
+  });
+
+  it("leaves lines off a result that gave an empty list, or an empty array is stored for every tool", async () => {
+    const events: TurnEvent[] = [];
+    const { input } = setup([asks([call("a")]), say("fin")], { tool: speaker({ lines: [] }), onEvent: (e) => events.push(e) });
+    const out = await runTurn(input);
+    expect(out.added[2].blocks[0]).not.toHaveProperty("lines");
+    expect(events.find((e) => e.type === "tool_end")).not.toHaveProperty("lines");
   });
 
   it("emits a step event for a tool's usage, or the live view misses billed calls", async () => {
@@ -530,6 +539,6 @@ describe("tools that call a model", () => {
     });
     const out = await runTurn(input);
     expect(out.toolSteps).toEqual([]);
-    expect(out.added[2].blocks[0]).not.toHaveProperty("line");
+    expect(out.added[2].blocks[0]).not.toHaveProperty("lines");
   });
 });

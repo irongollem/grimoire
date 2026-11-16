@@ -189,28 +189,43 @@ describe("rowsFor with tool usage", () => {
   });
 });
 
-describe("a tool result's line in storage", () => {
+describe("a tool result's lines in storage", () => {
   const line = { kind: "spoken", speaker: { id: null, name: "Brann" }, text: "Mind the step." };
   const stored = (extra: Record<string, unknown>) => [
     { blocks: blocksOf({ seq: 1, role: "user", blocks: [{ type: "tool_result", callId: "x", content: "ok", isError: false, ...extra }] }) },
   ];
 
+  const deed = { kind: "acted", speaker: { id: null, name: "Brann" }, text: "Nods." };
+
   it("keeps a valid line, or the browser loses what a character said after a reload", () => {
-    expect(stored({ line })[0].blocks[0]).toMatchObject({ line });
+    expect(stored({ lines: [line] })[0].blocks[0]).toMatchObject({ lines: [line] });
+  });
+
+  it("keeps the valid line when its neighbour is bad, or one bad entry costs the character both its deed and words", () => {
+    const block = stored({ lines: [{ ...deed, kind: "shouted" }, line] })[0].blocks[0];
+    expect(block).toMatchObject({ lines: [line] });
+  });
+
+  it("keeps a deed and words in the order they were stored", () => {
+    expect(stored({ lines: [deed, line] })[0].blocks[0]).toMatchObject({ lines: [deed, line] });
+  });
+
+  it("ignores the old single-line field, since nothing writes it any more", () => {
+    expect(stored({ line })[0].blocks[0]).not.toHaveProperty("lines");
   });
 
   it("drops a line with a blank speaker name but keeps the result, or one bad line breaks the replay", () => {
-    const block = stored({ line: { ...line, speaker: { id: null, name: "" } } })[0].blocks[0];
+    const block = stored({ lines: [{ ...line, speaker: { id: null, name: "" } }] })[0].blocks[0];
     expect(block).toEqual({ type: "tool_result", callId: "x", content: "ok", isError: false });
   });
 
   it("drops a line whose speaker id is a number, or a bad id reaches a link in the browser", () => {
-    const block = stored({ line: { ...line, speaker: { id: 5, name: "Brann" } } })[0].blocks[0];
-    expect(block).not.toHaveProperty("line");
+    const block = stored({ lines: [{ ...line, speaker: { id: 5, name: "Brann" } }] })[0].blocks[0];
+    expect(block).not.toHaveProperty("lines");
   });
 
   it("drops a line of an unknown kind", () => {
-    expect(stored({ line: { ...line, kind: "shouted" } })[0].blocks[0]).not.toHaveProperty("line");
+    expect(stored({ lines: [{ ...line, kind: "shouted" }] })[0].blocks[0]).not.toHaveProperty("lines");
   });
 });
 

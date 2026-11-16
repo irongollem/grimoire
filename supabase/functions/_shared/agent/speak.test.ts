@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  heardBy, makeSpeechTools, parseActInput, parseSpeakInput, speakerSystem, speakLine, trimHeard,
+  characterTurn, heardBy, makeSpeechTools, parseTurnAnswer, speakerSystem, trimHeard,
   type Heard,
 } from "./speak";
+import { parseActInput, parseSpeakInput } from "./speakInput";
 import type { StoredTurn } from "./transcript";
 import type { AgentUsage, CallModel, ModelRequest, ModelStep } from "./types";
 
@@ -27,6 +28,14 @@ function recorder(answers: string[]): { callModel: CallModel; requests: ModelReq
 
 /** A stored speak call and its result, as the loop writes them. */
 function spoke(seq: number, input: Record<string, unknown>, name: string, text: string, speakerId: string | null = null): StoredTurn[] {
+  const kind = name === "act" ? "acted" : "spoken";
+  return spokeLines(seq, input, name, [{ kind, text }], speakerId);
+}
+
+/** The same, for a result that carries several lines (a deed and words from one call). */
+function spokeLines(
+  seq: number, input: Record<string, unknown>, name: string, lines: { kind: "spoken" | "acted"; text: string }[], speakerId: string | null = null,
+): StoredTurn[] {
   const id = `call-${seq}`;
   return [
     { seq, role: "assistant", blocks: [{ type: "tool_call", id, name, input }] },
@@ -34,7 +43,7 @@ function spoke(seq: number, input: Record<string, unknown>, name: string, text: 
       seq: seq + 1, role: "user",
       blocks: [{
         type: "tool_result", callId: id, content: "x", isError: false,
-        line: { kind: name === "act" ? "acted" : "spoken", speaker: { id: speakerId, name: String(input.speaker_name ?? "Mira") }, text },
+        lines: lines.map((l) => ({ ...l, speaker: { id: speakerId, name: String(input.speaker_name ?? "Mira") } })),
       }],
     },
   ];
@@ -102,7 +111,7 @@ describe("heardBy", () => {
   it("skips a failed call's result", () => {
     const bad: StoredTurn[] = [
       { seq: 1, role: "assistant", blocks: [{ type: "tool_call", id: "c", name: "speak", input: { speaker_id: A, happening: "h" } }] },
-      { seq: 2, role: "user", blocks: [{ type: "tool_result", callId: "c", content: "err", isError: true, line: { kind: "spoken", speaker: { id: A, name: "A" }, text: "no" } }] },
+      { seq: 2, role: "user", blocks: [{ type: "tool_result", callId: "c", content: "err", isError: true, lines: [{ kind: "spoken", speaker: { id: A, name: "A" }, text: "no" }] }] },
     ];
     expect(heardBy(bad, { id: A, name: "A" })).toEqual([]);
   });
@@ -146,30 +155,49 @@ describe("speakerSystem", () => {
   });
 });
 
-describe("speakLine", () => {
-  const run = (s: ModelStep) => speakLine({ callModel: async () => s, system: "s", happening: "h" });
-  it("strips one pair of wrapping quotes, straight or curly", async () => {
-    expect((await run(step('"Hello there."'))).text).toBe("Hello there.");
-    expect((await run(step("“Hello there.”"))).text).toBe("Hello there.");
+describe("characterTurn", () => {
+  const run = (s: ModelStep) => characterTurn({ callModel: async () => s, system: "s", happening: "h" });
+  it("strips one pair of wrapping quotes from the words, straight or curly", async () => {
+    expect((await run(step('SAYS: "Hello there."'))).said).toBe("Hello there.");
+    expect((await run(step("SAYS: “Hello there.”"))).said).toBe("Hello there.");
   });
-  it("does not strip quotes that only start the line", async () => {
-    expect((await run(step('"Hi," she says, "go."'))).text).toBe('Hi," she says, "go.');
+  it("does not strip quotes that only start the words", async () => {
+    expect((await run(step('SAYS: "Hi," she says, "go."'))).said).toBe('Hi," she says, "go.');
   });
-  it("returns null for a refusal, keeping the usage", async () => {
+  it("returns nothing for a refusal, keeping the usage, or a refused call is billed for free", async () => {
     const r = await run(step("I cannot", "refusal"));
-    expect(r.text).toBeNull();
+    expect(r).toMatchObject({ said: null, did: null });
     expect(r.usage).toBe(USAGE);
   });
-  it("returns null for an empty answer", async () => {
-    expect((await run(step("   "))).text).toBeNull();
+  it("returns nothing for an empty answer", async () => {
+    expect(await run(step("   "))).toMatchObject({ said: null, did: null });
   });
-  it("keeps the text of an answer cut at max tokens", async () => {
-    expect((await run(step("Half a sen", "max_tokens"))).text).toBe("Half a sen");
+  it("keeps the words of an answer cut at max tokens", async () => {
+    expect((await run(step("SAYS: Half a sen", "max_tokens"))).said).toBe("Half a sen");
   });
   it("sends no tools", async () => {
     const rec = recorder(["x"]);
-    await speakLine({ callModel: rec.callModel, system: "s", happening: "h" });
+    await characterTurn({ callModel: rec.callModel, system: "s", happening: "h" });
     expect(rec.requests[0].tools).toEqual([]);
+  });
+});
+
+describe("parseTurnAnswer", () => {
+  it("reads both parts", () => {
+    expect(parseTurnAnswer("DOES: Slides the key across.\nSAYS: Take it.")).toEqual({ did: "Slides the key across.", said: "Take it." });
+  });
+  it("reads labels in lower case and in reverse order, or a model that answers words first loses its deed", () => {
+    expect(parseTurnAnswer("says: Take it.\ndoes: Slides the key across.")).toEqual({ did: "Slides the key across.", said: "Take it." });
+  });
+  it("keeps an unlabelled answer as words, or a model that ignores the format loses the line", () => {
+    expect(parseTurnAnswer('"Take it."')).toEqual({ did: null, said: "Take it." });
+  });
+  it("reads a dash as nothing, so a silent character does not say a hyphen", () => {
+    expect(parseTurnAnswer("DOES: Nods.\nSAYS: -")).toEqual({ did: "Nods.", said: null });
+    expect(parseTurnAnswer("DOES: -\nSAYS: -")).toEqual({ did: null, said: null });
+  });
+  it("keeps words that run over several lines", () => {
+    expect(parseTurnAnswer("DOES: -\nSAYS: First.\nSecond.")).toEqual({ did: null, said: "First.\nSecond." });
   });
 });
 
@@ -203,31 +231,76 @@ describe("makeSpeechTools", () => {
     expect(rec.requests).toHaveLength(0);
   });
 
-  it("returns the said line with the disguise name and usage", async () => {
-    const rec = recorder(['"Welcome."']);
+  it("returns the deed then the words under the disguise name, with usage", async () => {
+    const rec = recorder(["DOES: Wipes the bar.\nSAYS: \"Welcome.\""]);
     const t = makeSpeechTools({ stored: [], loadSpeaker, callModel: rec.callModel });
     const r = await t.call("speak", { speaker_id: A, happening: "A guest arrives." });
-    expect(r).toMatchObject({
-      isError: false, usage: [USAGE],
-      line: { kind: "spoken", speaker: { id: A, name: "Alda" }, text: "Welcome." },
-    });
-    expect(JSON.parse(r.content)).toEqual({ said: "Welcome." });
+    expect(r).toMatchObject({ isError: false, usage: [USAGE] });
+    expect(r.lines).toEqual([
+      { kind: "acted", speaker: { id: A, name: "Alda" }, text: "Wipes the bar." },
+      { kind: "spoken", speaker: { id: A, name: "Alda" }, text: "Welcome." },
+    ]);
+    expect(JSON.parse(r.content)).toEqual({ did: "Wipes the bar.", said: "Welcome." });
   });
 
-  it("reports silence as an error but still returns the spent usage", async () => {
-    const t = makeSpeechTools({ stored: [], loadSpeaker, callModel: async () => step("  ") });
+  it("reports a turn of nothing as an error but still returns the spent usage", async () => {
+    const t = makeSpeechTools({ stored: [], loadSpeaker, callModel: async () => step("DOES: -\nSAYS: -") });
     const r = await t.call("speak", { speaker_id: A, happening: "h" });
     expect(r.isError).toBe(true);
+    expect(r.content).toContain("neither says nor does");
     expect(r.usage).toEqual([USAGE]);
-    expect(r.line).toBeUndefined();
+    expect(r.lines).toBeUndefined();
   });
 
-  it("act makes no model call and shows the deed", async () => {
+  it("shows only the deed when the character says nothing, and only the words when it does nothing", async () => {
+    const deed = makeSpeechTools({ stored: [], loadSpeaker, callModel: async () => step("DOES: Nods.\nSAYS: -") });
+    expect((await deed.call("speak", { speaker_id: A, happening: "h" })).lines?.map((l) => l.kind)).toEqual(["acted"]);
+    const words = makeSpeechTools({ stored: [], loadSpeaker, callModel: async () => step("DOES: -\nSAYS: Hm.") });
+    expect((await words.call("speak", { speaker_id: A, happening: "h" })).lines?.map((l) => l.kind)).toEqual(["spoken"]);
+  });
+
+  it("act makes no model call and shows the deed of someone with no record", async () => {
     const rec = recorder([]);
     const t = makeSpeechTools({ stored: [], loadSpeaker, callModel: rec.callModel });
     const r = await t.call("act", { speaker_name: " Sweeper ", what: "Sweeps." });
     expect(rec.requests).toHaveLength(0);
-    expect(r).toEqual({ content: "Shown.", isError: false, line: { kind: "acted", speaker: { id: null, name: "Sweeper" }, text: "Sweeps." } });
+    expect(r).toEqual({ content: "Shown.", isError: false, lines: [{ kind: "acted", speaker: { id: null, name: "Sweeper" }, text: "Sweeps." }] });
+  });
+
+  it("refuses act for a character with a record, with no model call and no lookup, so the narrator cannot choose its deeds", async () => {
+    const rec = recorder([]);
+    let lookups = 0;
+    const t = makeSpeechTools({
+      stored: [], callModel: rec.callModel,
+      loadSpeaker: async (id) => { lookups++; return loadSpeaker(id); },
+    });
+    const r = await t.call("act", { speaker_id: A, what: "Draws a dagger." });
+    expect(r.isError).toBe(true);
+    expect(r.content).toContain("speak");
+    expect(r.lines).toBeUndefined();
+    expect(rec.requests).toHaveLength(0);
+    expect(lookups).toBe(0);
+  });
+
+  it("does not remember a refused act, or the deed the narrator chose would still be heard by the room", async () => {
+    const rec = recorder(["ok"]);
+    const t = makeSpeechTools({ stored: [], loadSpeaker, callModel: rec.callModel });
+    await t.call("act", { speaker_id: A, what: "REFUSED-DEED", present: [B] });
+    await t.call("speak", { speaker_id: B, happening: "h" });
+    expect(rec.requests[0].system).not.toContain("REFUSED-DEED");
+  });
+
+  it("hands a deed to the room but not to someone it was shouted to, while the shouted words do arrive", async () => {
+    const C = "33333333-3333-4333-8333-333333333333";
+    const rec = recorder(["DOES: Hurls the lantern.\nSAYS: Fire!", "ok", "ok"]);
+    const t = makeSpeechTools({ stored: [], callModel: rec.callModel, loadSpeaker: async (id) => id === C ? { id: C, shownName: "Cole", profile: "Name: Cole", memories: "" } : loadSpeaker(id) });
+    await t.call("speak", { speaker_id: A, happening: "h", volume: "shout", present: [B], also_heard_by: [C] });
+    await t.call("speak", { speaker_id: B, happening: "h2" });
+    await t.call("speak", { speaker_id: C, happening: "h3" });
+    expect(rec.requests[1].system).toContain("Alda did: Hurls the lantern.");
+    expect(rec.requests[1].system).toContain("Alda said: Fire!");
+    expect(rec.requests[2].system).not.toContain("Hurls the lantern");
+    expect(rec.requests[2].system).toContain("Alda said: Fire!");
   });
 
   it("gives a character its own profile and memories, or it could not speak as itself", async () => {
@@ -336,9 +409,33 @@ describe("who hears what, by how loud it was said", () => {
   });
 
   it("shows a deed to the room only, even when the same call names someone elsewhere", () => {
-    const stored = spoke(1, { speaker_id: A, what: "Hides the letter.", present: [B], also_heard_by: [C] }, "act", "Hides the letter.", A);
+    const stored = spoke(1, { speaker_name: "Hound", what: "Hides the letter.", present: [B], also_heard_by: [C] }, "act", "Hides the letter.");
     expect(texts(stored, cole)).toEqual([]);
     expect(texts(stored, bram)).toEqual(["Hides the letter."]);
+  });
+
+  const both = [{ kind: "acted" as const, text: "Hurls the lantern." }, { kind: "spoken" as const, text: "Fire!" }];
+
+  it("hands a listener the player's words, then the deed, then the words, in that order", () => {
+    const stored = spokeLines(1, { speaker_id: A, happening: "h", player_said: "Hold still.", present: [B] }, "speak", both, A);
+    expect(texts(stored, bram)).toEqual(["Hold still.", "Hurls the lantern.", "Fire!"]);
+  });
+
+  it("keeps a deed from someone a shout reached, who still hears the words", () => {
+    const stored = spokeLines(1, { speaker_id: A, happening: "h", volume: "shout", present: [B], also_heard_by: [C] }, "speak", both, A);
+    expect(texts(stored, cole)).toEqual(["Fire!"]);
+    expect(texts(stored, bram)).toEqual(["Hurls the lantern.", "Fire!"]);
+  });
+
+  it("lets the room see a deed but not make out whispered words from the same turn", () => {
+    const stored = spokeLines(1, { speaker_id: A, happening: "h", volume: "whisper", whispered_to: [B], present: [B, C] }, "speak", both, A);
+    expect(texts(stored, cole)).toEqual(["Hurls the lantern.", "Whispers something that cannot be made out."]);
+    expect(texts(stored, bram)).toEqual(["Hurls the lantern.", "Fire!"]);
+  });
+
+  it("gives the speaker its own happening once, not on both lines", () => {
+    const stored = spokeLines(1, { speaker_id: A, happening: "A-HAPPENING" }, "speak", both, A);
+    expect(heardBy(stored, { id: A, name: "Mira" }).map((h) => h.happening)).toEqual(["A-HAPPENING", null]);
   });
 
   it("refuses words that leave the room with neither a shout nor a device", () => {

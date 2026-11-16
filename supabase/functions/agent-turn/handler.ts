@@ -16,7 +16,8 @@ import { runTurn, totalTokens, type TurnEnd } from "../_shared/agent/turn.ts";
 import { historyFrom, rowsFor, systemWithSummary, type StoredTurn, type TurnRow } from "../_shared/agent/transcript.ts";
 import { planSummary, summarise } from "../_shared/agent/summary.ts";
 import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTablePrompt.ts";
-import { makeSpeechTools, SPEECH_TOOL_NAMES, type SpeechToolsDeps } from "../_shared/agent/speak.ts";
+import { makeSpeechTools, type SpeechToolsDeps } from "../_shared/agent/speak.ts";
+import { SPEECH_TOOL_NAMES } from "../_shared/agent/speakInput.ts";
 import {
   AgentProviderError,
   type AgentLine,
@@ -172,11 +173,15 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
   return { ok: true, body: { campaignId: r.campaignId, sessionId: r.sessionId, message, mode: r.mode } };
 }
 
-/** The player's message as the narrator reads it. The words themselves are never changed. */
+/**
+ * The player's message as the narrator reads it. The words themselves are never changed. The button is a hint, not
+ * a ruling (maintainer, 16 Nov 2026): it styles the box and settles wording that could be either, but "I crawl
+ * towards the tree" sent as said is still a deed, and "nice weather, ain't it!" sent as done is still speech.
+ */
 export function playerText(mode: "say" | "do", message: string): string {
   return mode === "say"
-    ? `The player's character says aloud:\n${message}`
-    : `The player's character does this (nothing is said aloud):\n${message}`;
+    ? `The player sent this as something their character says aloud:\n${message}`
+    : `The player sent this as something their character does:\n${message}`;
 }
 
 // The session's credits hold six decimals; accruing at the same precision keeps what is sent equal to what is stored.
@@ -314,7 +319,8 @@ export async function beginTurn(input: {
             else if (event.type === "tool_start") emit({ type: "tool_start", name: event.name });
             else if (event.type === "tool_end") {
               emit({ type: "tool_end", name: event.name, isError: event.isError });
-              if (event.line) emit({ type: "line", line: event.line });
+              // A character's deed comes before its words, as the page reads them.
+              for (const line of event.lines ?? []) emit({ type: "line", line });
             }
           },
         });
