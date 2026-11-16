@@ -749,10 +749,12 @@ How a creature chooses its turn when the app plays it. **All of it is app conven
 | --- | --- |
 | Cleverness tier (Intelligence) | 3 or less instinct; 4 to 7 simple; 8 to 11 trained; 12 or more tactical |
 | Cover | instinct and simple `ignores`; trained `when_cheap`; tactical `fights_from` |
-| Targets | instinct and simple `nearest`; trained `most_wounded`; tactical `spellcasters_first` |
-| Role, checked in this order | every attack ranged-only (and at least one) `artillery`; spellcasting, or a save action (a lone save entry or a breath-weapon option that is a save) `controller`; a Stealth skill `lurker`; walking speed 40 ft or more `skirmisher`; else `brute`. `leader` is never derived |
-| Morale | undead, construct, ooze or plant, or Intelligence 2 or less: `{ 0, fight_on }`; everyone else `{ 0.25, flee }` |
+| Targets | instinct and simple `nearest`, or `most_wounded` with the Pack Tactics trait (a pack goes for the weakest); trained `most_wounded`; tactical `spellcasters_first` |
+| Role, checked in this order | every attack ranged-only (and at least one) `artillery`; spellcasting, or a save-based entry it can use at will (no recharge, no uses per day), or nothing but save entries `controller` (a breath weapon on a recharge beside a bite is a weapon, not a role); a Stealth skill `lurker`; walking speed 40 ft or more `skirmisher`; else `brute`. `leader` is never derived |
+| Morale | undead, construct, ooze or plant: `{ 0, fight_on }`; so is Intelligence 2 or less, except for a beast or a monstrosity (an animal bolts when hurt); everyone else `{ 0.25, flee }` |
 | Offered turns | instinct: attack, dash, move, flee; simple adds dodge; trained adds disengage; tactical adds hide. A lurker of tier simple or higher is also offered hide |
+
+Three of these rules were changed on 16 Nov 2026 after a review of 60 library monsters against their derived profile (controller, the beast and monstrosity exception, Pack Tactics): across the 3,865 library monsters 480 stopped fighting to the death, 575 stopped being called controllers and 94 pack hunters go for the most wounded. The principle (the maintainer: "rules where logical, tactics where one is non-typical"): a pattern is fixed in the rule, and a stored `tactics` value is for the creature that is not typical of its kind.
 
 **The gate** (`gateOptions(options, profile, mover)`) drops the kinds the profile is not offered. A creature whose morale has broken (`hp / max_hp <= breaksAt`, `breaksAt > 0`) is narrowed further: `flee` keeps only flee, disengage and dodge (and leaves the list alone when none is there), `surrender` replaces the list with one synthetic `surrender` option (no movement), `fight_on` changes nothing. An empty list stays empty. The gate does not re-search squares for a creature that ignores cover: the options code already chose them.
 

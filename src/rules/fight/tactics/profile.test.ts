@@ -105,12 +105,22 @@ describe("rule role: derived in order, leader never", () => {
     expect(profile({ actions: [attack("Spear", "melee_or_ranged")] }).role).toBe("brute");
     expect(profile({ actions: [] }).role).toBe("brute");
   });
-  it("is a controller with spellcasting or a save-based action", () => {
+  it("is a controller with spellcasting, or a save-based action it can use at will, attacks or not", () => {
     expect(profile({ spellcasting: { entries: [] } }).role).toBe("controller");
     expect(profile({ actions: [saveEntry] }).role).toBe("controller");
+    expect(profile({ actions: [attack("Rap", "melee"), attack("Claw", "melee"), saveEntry] }).role).toBe("controller");
   });
-  it("is a controller for a breath-weapon option that is a save", () => {
-    const breath: StatBlockEntry = { name: "Breath", description: "", structured: { source: "manual", kind: "options", options: [{ name: "Fire", kind: "save" }] } };
+  it("is a controller for an at-will option that is a save", () => {
+    const gaze: StatBlockEntry = { name: "Gaze", description: "", structured: { source: "manual", kind: "options", options: [{ name: "Fear", kind: "save" }] } };
+    expect(profile({ actions: [gaze] }).role).toBe("controller");
+  });
+  it("a breath weapon on a recharge, or a save once a day, beside a bite does not make a controller (a hell hound, a dragon)", () => {
+    // Bug it fails on: any single save entry deciding the role, which called every dragon in the library a controller.
+    const breath: StatBlockEntry = { ...saveEntry, name: "Breath", structured: { ...saveEntry.structured, recharge: { min: 5, max: 6 } } };
+    const daily: StatBlockEntry = { ...saveEntry, name: "Howl", structured: { ...saveEntry.structured, uses: { count: 1, per: "day" } } };
+    expect(profile({ actions: [attack("Bite", "melee"), breath] }).role).toBe("brute");
+    expect(profile({ actions: [attack("Bite", "melee"), daily] }).role).toBe("brute");
+    // With nothing else to do, the limited save is still how it fights.
     expect(profile({ actions: [breath] }).role).toBe("controller");
   });
   it("is a lurker with a Stealth skill, whatever case it is spelled in", () => {
@@ -139,9 +149,15 @@ describe("rule morale", () => {
   it.each(["undead", "construct", "ooze", "plant"] as const)("a %s never breaks", (type) => {
     expect(profile({}, type).morale).toEqual(morale(0, "fight_on"));
   });
-  it("a creature with Intelligence 2 never breaks and one with 3 does (the beast boundary)", () => {
-    expect(profile({ int: 2 }, "beast").morale).toEqual(morale(0, "fight_on"));
-    expect(profile({ int: 3 }, "beast").morale).toEqual(morale(0.25, "flee"));
+  it("a beast breaks at a quarter and flees however dim it is: a rat does not fight to the death", () => {
+    // Bug it fails on: Intelligence 2 or less reading as fearless for an animal (app convention, 16 Nov 2026).
+    expect(profile({ int: 1 }, "beast").morale).toEqual(morale(0.25, "flee"));
+    // A griffon (Intelligence 2) is an animal in all but name.
+    expect(profile({ int: 2 }, "monstrosity").morale).toEqual(morale(0.25, "flee"));
+  });
+  it("a mindless thing that is not a beast never breaks, and Intelligence 3 is the first that does", () => {
+    expect(profile({ int: 2 }, "aberration").morale).toEqual(morale(0, "fight_on"));
+    expect(profile({ int: 3 }, "aberration").morale).toEqual(morale(0.25, "flee"));
   });
   it("everyone else breaks at a quarter and flees, and a creature with no type is judged by Intelligence alone", () => {
     expect(profile({}, "humanoid").morale).toEqual(morale(0.25, "flee"));
@@ -150,6 +166,19 @@ describe("rule morale", () => {
   });
   it("lets an authored morale beat even a fearless type", () => {
     expect(profile({ tactics: { morale: morale(0.5, "surrender") } }, "undead").morale).toEqual(morale(0.5, "surrender"));
+  });
+});
+
+describe("rule pack-targets", () => {
+  const pack = { special_abilities: [{ name: "Pack Tactics", description: "", structured: { source: "manual" as const, kind: "other" as const } }] };
+  it("a dim pack hunter goes for the most wounded, not the nearest", () => {
+    // Bug it fails on: targets read from Intelligence alone, so a wolf pack splits across whoever stands closest.
+    expect(profile({ int: 3, ...pack }).targets).toBe("most_wounded");
+    expect(profile({ int: 3 }).targets).toBe("nearest");
+  });
+  it("leaves a tactical pack hunter on spellcasters and an authored rule alone", () => {
+    expect(profile({ int: 14, ...pack }).targets).toBe("spellcasters_first");
+    expect(profile({ int: 3, ...pack, tactics: { targets: "nearest" } }).targets).toBe("nearest");
   });
 });
 

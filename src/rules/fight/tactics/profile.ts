@@ -57,7 +57,13 @@ const OFFERS_BY_TIER: Record<CleverTier, readonly TurnOptionKind[]> = {
 /** RULE fast: a walking speed of 40 ft or more makes a skirmisher. */
 const SKIRMISHER_SPEED_FEET = 40;
 
-/** RULE morale-fearless: these creature types never break. So does anything with Intelligence 2 or less. */
+/**
+ * RULE morale-fearless: these creature types never break. So does a mindless thing of any other type (Intelligence 2 or
+ * less), except a beast or a monstrosity: an animal bolts when it is hurt like anyone else, and a griffon or a bulette
+ * is an animal in all but name. (Until 16 Nov 2026 the Intelligence line
+ * covered beasts too, so a rat, a snake and an octopus fought to the death; a review of 60 library monsters found it
+ * wrong for every animal in the sample.)
+ */
 const FEARLESS_TYPES: readonly MonsterType[] = ["undead", "construct", "ooze", "plant"];
 const FEARLESS_INTELLIGENCE = 2;
 /** RULE morale-default: everyone else breaks at a quarter of its hit points and flees. */
@@ -76,10 +82,24 @@ function isArtillery(statBlock: MonsterStatBlock): boolean {
   return attacks.length > 0 && attacks.every((e) => e.structured.attack?.delivery === "ranged");
 }
 
-/** RULE controller: it casts spells, or has an action that forces a saving throw (a lone save entry, or a breath-weapon option that is one). */
+/**
+ * RULE controller: it casts spells, or it can force a saving throw whenever it likes: a save-based entry (a lone save
+ * entry, or an option that is one) with no recharge and no uses per day. A save it gets only now and then is a weapon,
+ * not a way of fighting: one breath weapon made every dragon and hell hound a controller until 16 Nov 2026. A creature
+ * with nothing but save entries is one too, limited or not.
+ */
 function isController(statBlock: MonsterStatBlock): boolean {
   if (statBlock.spellcasting) return true;
-  return entriesOf(statBlock).some((e) => e.structured.kind === "save" || (e.structured.options ?? []).some((o) => o.kind === "save"));
+  const entries = entriesOf(statBlock);
+  const saves = entries.filter((e) => e.structured.kind === "save" || (e.structured.options ?? []).some((o) => o.kind === "save"));
+  if (saves.length === 0) return false;
+  if (saves.some((e) => !e.structured.recharge && !e.structured.uses)) return true;
+  return !entries.some((e) => e.structured.kind === "attack" && e.structured.attack);
+}
+
+/** RULE pack: a creature with the Pack Tactics trait hunts with others, and a pack goes for the weakest. */
+function huntsInAPack(statBlock: MonsterStatBlock): boolean {
+  return (statBlock.special_abilities ?? []).some((t) => t.name.trim().toLowerCase() === "pack tactics");
 }
 
 /** RULE lurker: it has a Stealth skill. */
@@ -101,8 +121,9 @@ function deriveRole(statBlock: MonsterStatBlock): TacticalRole {
 }
 
 function deriveMorale(statBlock: MonsterStatBlock, creatureType: MonsterType | null): MoraleRule {
-  const fearless = (creatureType !== null && FEARLESS_TYPES.includes(creatureType)) || statBlock.int <= FEARLESS_INTELLIGENCE;
-  return fearless ? NEVER_BREAKS : DEFAULT_MORALE;
+  if (creatureType !== null && FEARLESS_TYPES.includes(creatureType)) return NEVER_BREAKS;
+  const animal = creatureType === "beast" || creatureType === "monstrosity";
+  return !animal && statBlock.int <= FEARLESS_INTELLIGENCE ? NEVER_BREAKS : DEFAULT_MORALE;
 }
 
 /**
@@ -120,7 +141,9 @@ export function tacticalProfile(statBlock: MonsterStatBlock, creatureType: Monst
   return {
     tier,
     role,
-    targets: authored.targets ?? TARGETS_BY_TIER[tier],
+    // RULE pack-targets: a pack hunter that would only go for the nearest goes for the most wounded instead. A creature
+    // clever enough to pick out spellcasters keeps doing that.
+    targets: authored.targets ?? (TARGETS_BY_TIER[tier] === "nearest" && huntsInAPack(statBlock) ? "most_wounded" : TARGETS_BY_TIER[tier]),
     morale: authored.morale ?? deriveMorale(statBlock, creatureType),
     cover: authored.cover ?? COVER_BY_TIER[tier],
     offers,
