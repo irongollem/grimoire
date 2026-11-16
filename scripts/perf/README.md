@@ -48,6 +48,13 @@ stops; if only the player cannot sign in, `player-cold` is reported skipped.
 
 ## Run it end to end
 
+**Before a push, `npm run perf:budgets` does all of this in one command**
+(`scripts/perf/ship-budgets.sh`): the fixture, a build into `dist-perf/`, a
+preview on 127.0.0.1:4173, three runs of every journey and `check-budgets.ts`,
+the same check CI's performance job runs after the push. `/ship` runs it
+whenever `src/` changed. The steps below are the same thing by hand, for when
+you want other flags or a comparison.
+
 ```bash
 supabase status                      # local stack up (do not reset it)
 npm run perf:fixture                 # once (idempotent): perf-dm / perf-player, password grimoire-local-dev

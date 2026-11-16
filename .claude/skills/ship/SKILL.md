@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Full pre-ship gate — typecheck, lint, tests, migration versions, conventions review, and a security audit when the schema changed. Use when work is finished and about to be committed or pushed. Run it before saying anything is done.
+description: Full pre-ship gate — typecheck, lint, tests, performance budgets, migration versions, conventions review, and a security audit when the schema changed. Use when work is finished and about to be committed or pushed. Run it before saying anything is done.
 user-invocable: true
 allowed-tools:
   - Bash
@@ -78,6 +78,44 @@ the page. A file that is now shared rather than copied (the usual case): raise
 `codeRequests` in `budgets.json` for the steps it names, and add the reason to
 its `$comment`, as the 5 Nov and 6 Nov entries do. Under budget: lower the
 number in the same change.
+
+## Step 2c — Request budgets, if `src/` changed
+
+```bash
+npm run perf:budgets
+```
+
+`perf:code` cannot see API requests or serial depth; only the real journeys
+can. This runs them as CI's performance job does (synthetic fixture, three runs,
+`check-budgets.ts`) on the local stack, in a few minutes. It needs the local
+Supabase stack up and nothing on port 4173. Skip it only when the diff touches
+no file under `src/` (a migration, a script, a doc): say so in one line.
+
+The performance job fails *after* the push, on `main`, and it went red three
+pushes in a row on 16 Nov 2026 because nobody had run this before pushing. A
+red budget is not a reason to push and see; it is a decision to make here:
+
+- **Over on `apiRequests`.** Find the new reads (the journey's network log, or
+  the diff's new `useQuery` calls on the dashboard, the Hearth or the app
+  shell). First ask whether the page needs them at load at all: a read only an
+  open panel uses waits for the panel. Then whether they can share a request
+  with each other or with an existing read (one batched request, as the
+  soundboard deck does in `lib/audio/deck/deckBatch.ts`). What is left is
+  earned: raise the number for the steps it names and write why in
+  `budgets.json`'s `$comment` (which reads, which feature, why at load).
+- **Over on `serialDepth`.** A read now waits on another. Start it in parallel
+  instead; raising depth needs CI's own measurement, as the comment's 4 Nov
+  entry records.
+- **Under budget.** Lower `apiRequests` or `codeRequests` in the same change,
+  so the win cannot be lost unnoticed. A local "below budget" on `serialDepth`
+  is not one: a laptop is faster than CI's runner and shows shallower chains,
+  and that ceiling is the deepest CI has measured on `main`. Leave it.
+- **Which reads?** `perf-results/ship.json` holds every request of the run;
+  `rg -o 'rest/v1/(rpc/)?[a-z_]+' perf-results/ship.json | sort -u` lists the
+  tables and functions the journeys touched.
+
+Raising a budget is allowed; raising it without a written reason is not. The
+`$comment` is the evaluation, and a reviewer reads it.
 
 ## Step 3 — Migration versions, if migrations changed
 

@@ -79,6 +79,7 @@
     "perf:bundle": "tsx --tsconfig tsconfig.node.json scripts/perf/bundle/critical-path.ts dist-bundle",
     "perf:composition": "tsx --tsconfig tsconfig.node.json scripts/perf/bundle/composition.ts",
     "perf:code": "tsx --tsconfig tsconfig.node.json scripts/perf/bundle/journey-code.ts",
+    "perf:budgets": "bash scripts/perf/ship-budgets.sh",
     "arch:graph": "depcruise src --config .dependency-cruiser.cjs",
     "cartographer:pack": "tsx --tsconfig tsconfig.node.json scripts/cartographer-pack.ts",
     "doll:templates": "deno run -A --env-file=.env.local --config supabase/functions/deno.json scripts/generate-dolls.ts templates",
