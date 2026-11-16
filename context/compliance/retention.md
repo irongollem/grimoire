@@ -28,6 +28,7 @@ decided answer, not that every number is small.
 | Accountability log | `admin_audit_log` | **7 years**, same clock | `private.purge_expired_retention()` |
 | Data-subject request log | `dsr_requests` | **7 years** from `received_at` — not `created_at`, which differs for the email channel | `private.purge_expired_retention()` |
 | AI prompt text | `image_generation_jobs.prompt`, `ai_generation_jobs.request_json` | **90 days**, cleared in place | `scrub-stale-ai-prompt-content` (`20260804000005`) |
+| Conversations with the model | `agent_sessions`, `agent_turns` (#1205): what an account typed to an AI-run table, what the model answered, and the tool calls between | **As long as the account is used**, like other authored content; sooner when the owner deletes the conversation or its campaign | Cascade from `auth.users` and from `campaigns`; the owner's own delete (`agent_sessions_delete`). Included in the data export through the `user_id` reference on both tables |
 | AI image jobs that produced nothing | `image_generation_jobs` where `status <> 'ready'` or no image | **90 days** | `private.purge_expired_retention()` |
 | AI generation job receipts | `ai_generation_jobs` | **365 days** | `private.purge_expired_retention()` |
 | Support | `bug_reports` screenshot / row | **90 / 365 days**; the report text only until its issue is filed | `purge-bug-report-data` (`20260809000002`); text cleared by `create-bug-report` (`20261025225737`) |
