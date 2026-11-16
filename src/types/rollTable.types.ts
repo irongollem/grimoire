@@ -10,6 +10,7 @@
 // a single update, and we don't need to query into individual entries.
 
 import type { AiProvenance } from "@/ai/provenance";
+import type { EntryRef } from "@/types/tableQuestion.types";
 
 export const ROLL_TABLE_DICE = ["1d4", "1d6", "1d8", "1d10", "1d12", "1d20", "1d100"] as const;
 export type RollTableDie = (typeof ROLL_TABLE_DICE)[number];
@@ -41,6 +42,11 @@ export interface RollTableEntry {
   encounter_id?: string | null;
   /** Free-form DM note shown alongside the rolled entry. */
   notes?: string | null;
+  /** The creature, item or NPC this entry is (#1212), so it shows that thing's picture. */
+  ref?: EntryRef | null;
+  /** One or two plain sentences a player reads under the picture when the table is
+   *  sent as a question (#1212). Unlike `notes`, players see it. */
+  blurb?: string | null;
 }
 
 export interface RollTable {
