@@ -88,6 +88,12 @@ describe("wayOutsOf", () => {
     expect(names(block({ actions: [other("Dire Warning", "At will: etherealness")] }))).toEqual([]);
   });
 
+  // SRD 5.1 hag, "Shared Spellcasting (Coven Only)": the spells need all three hags within 30 feet, so they are not hers alone to cast.
+  it("fails if a coven's shared spells are read as spells the hag can cast by herself", () => {
+    const shared = other("Shared Spellcasting (Coven Only)", "While all three members of a hag coven are within 30 feet of one another, they can each cast the following spells from the wizard's spell list but must share the spell slots among themselves:\n\n1st level (4 slots): identify, ray of sickness\n6th level (1 slot): plane shift");
+    expect(names(block({ special_abilities: [shared] }))).toEqual([]);
+  });
+
   // App convention: leaving the fight beats hiding, and an unlimited power beats a limited one.
   it("fails if the order is not leaves before unseen, then unlimited before limited", () => {
     const ways = wayOutsOf(block({

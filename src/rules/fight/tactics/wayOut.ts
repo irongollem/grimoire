@@ -11,7 +11,7 @@ import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { StatBlockEntry } from "../../../types/statBlock.types.ts";
 import type { MonsterStatBlock } from "../../../types/monster.types.ts";
 import { actionLimit, actionUseKey, limitAvailability, type ActionLimit } from "../../encounterTurn.ts";
-import { entryPlainText } from "../../statBlock/proseText.ts";
+import { isSpellcastingEntry, parseSpellcasting } from "../../statBlock/spellcastingProse.ts";
 
 export type WayOutEffect = "leaves" | "unseen";
 
@@ -52,40 +52,28 @@ function wayOutNamed(raw: string): { name: string; effect: WayOutEffect; spellOn
   return Object.hasOwn(WAY_OUT_NAMES, key) ? WAY_OUT_NAMES[key] : null;
 }
 
-/** Where a spell line says how often it can be cast: at will, N/day (each), or a spell slot level. */
-const MARKER = /(at will|(\d+)\s*\/\s*day(?:\s+each)?|(\d+)(?:st|nd|rd|th)\s+level\s*\((\d+)\s+slots?\))\s*:/gi;
-
 interface CastableSpell {
   name: string;
   limit: ActionLimit | null;
   useKey: string | null;
 }
 
-/** The spells a spellcasting entry names, with how often each can be cast. Tolerates markdown, any letter case and "each". */
-function spellsIn(description: string): CastableSpell[] {
+/** The spells a spellcasting entry names, with how often each can be cast. */
+function spellsIn(entry: StatBlockEntry): CastableSpell[] {
+  const prose = parseSpellcasting(entry);
+  if (prose === null) return [];
   const spells: CastableSpell[] = [];
-  for (const line of entryPlainText(description).split("\n")) {
-    const text = line.replace(/[*_]/g, "");
-    const marks = [...text.matchAll(MARKER)];
-    marks.forEach((mark, i) => {
-      // `matchAll` always sets the index; the type only allows for a match made some other way.
-      const at = mark.index;
-      if (at === undefined) return;
-      const start = at + mark[0].length;
-      const next = i + 1 < marks.length ? marks[i + 1].index : undefined;
-      const end = next === undefined ? text.length : next;
-      const names = text.slice(start, end).split(",").map((n) => n.trim().replace(/[.;]+$/, "")).filter((n) => n !== "");
-      for (const name of names) {
-        if (mark[2] !== undefined) {
-          spells.push({ name, limit: { per_day: Number(mark[2]) }, useKey: `spell/${normalSpellName(name)}` });
-        } else if (mark[3] !== undefined) {
-          // APP CONVENTION: the server casts none of a creature's other spells yet, so its slots are whole.
-          spells.push({ name, limit: { per_day: Number(mark[4]) }, useKey: `slots/${mark[3]}` });
-        } else {
-          spells.push({ name, limit: null, useKey: null });
-        }
+  for (const { frequency, spells: named } of prose.groups) {
+    for (const spell of named) {
+      if (frequency.kind === "per_day") {
+        spells.push({ name: spell.name, limit: { per_day: frequency.count }, useKey: `spell/${normalSpellName(spell.name)}` });
+      } else if (frequency.kind === "slots") {
+        // APP CONVENTION: the server casts none of a creature's other spells yet, so its slots are whole.
+        spells.push({ name: spell.name, limit: { per_day: frequency.slots }, useKey: `slots/${frequency.level}` });
+      } else {
+        spells.push({ name: spell.name, limit: null, useKey: null });
       }
-    });
+    }
   }
   return spells;
 }
@@ -102,8 +90,6 @@ function entriesOf(statBlock: MonsterStatBlock) {
     ...(statBlock.bonus_actions ?? []).map((entry) => ({ list: "bonus_actions" as const, entry })),
   ];
 }
-
-const isSpellcasting = (entry: StatBlockEntry) => entry.name.toLowerCase().includes("spellcasting");
 
 /**
  * RULE way-out-order: a power that takes the creature out of the fight comes before one that only hides it; within
@@ -130,9 +116,9 @@ export function wayOutsOf(statBlock: MonsterStatBlock): WayOut[] {
     });
   }
 
-  const casters = [...entriesOf(statBlock).map((e) => e.entry), ...(statBlock.special_abilities ?? [])].filter(isSpellcasting);
+  const casters = [...entriesOf(statBlock).map((e) => e.entry), ...(statBlock.special_abilities ?? [])].filter(isSpellcastingEntry);
   for (const caster of casters) {
-    for (const spell of spellsIn(caster.description)) {
+    for (const spell of spellsIn(caster)) {
       const known = wayOutNamed(spell.name);
       // Casting a spell takes the Action.
       if (known !== null) add({ name: known.name, effect: known.effect, slot: "action", useKey: spell.useKey, limit: spell.limit });
