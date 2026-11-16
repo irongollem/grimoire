@@ -224,7 +224,7 @@ function existingSession(h: Harness, over: Partial<SessionRow> = {}, accrued = 0
 async function play(h: Harness, over: { body?: unknown; userId?: string; signal?: AbortSignal } = {}) {
   const refusal = await handleAgentTurn({
     userId: over.userId ?? DM,
-    body: over.body ?? { campaignId: CAMPAIGN, message: "I open the door." },
+    body: over.body ?? { campaignId: CAMPAIGN, message: "I open the door.", mode: "say" },
     deps: h.deps,
     send: (e) => {
       h.events.push(e);
@@ -249,7 +249,7 @@ describe("who may play", () => {
   it("answers 404, not 403, for another account's conversation, and calls no model", async () => {
     const h = harness();
     existingSession(h, { user_id: OTHER });
-    const refusal = await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "hi" } });
+    const refusal = await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "hi", mode: "say" } });
     expect(refusal).toEqual({ status: 404, error: MESSAGES.notFound });
     expect(h.modelCalls()).toBe(0);
     expect(h.reserved).toEqual([]);
@@ -258,14 +258,14 @@ describe("who may play", () => {
   it("answers 404 for the caller's own conversation in another campaign", async () => {
     const h = harness();
     existingSession(h, { campaign_id: OTHER_CAMPAIGN });
-    const refusal = await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "hi" } });
+    const refusal = await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "hi", mode: "say" } });
     expect(refusal?.status).toBe(404);
     expect(h.modelCalls()).toBe(0);
   });
 
   it("answers 404 for a conversation that does not exist", async () => {
     const h = harness();
-    const refusal = await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "hi" } });
+    const refusal = await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "hi", mode: "say" } });
     expect(refusal?.status).toBe(404);
   });
 
@@ -300,12 +300,12 @@ describe("who may play", () => {
 describe("the request", () => {
   it.each([
     ["not an object", "hello"],
-    ["no campaign", { message: "hi" }],
-    ["campaign not a uuid", { campaignId: "x", message: "hi" }],
-    ["session not a uuid", { campaignId: CAMPAIGN, sessionId: "x", message: "hi" }],
-    ["empty after trimming", { campaignId: CAMPAIGN, message: "   " }],
-    ["too long", { campaignId: CAMPAIGN, message: "a".repeat(4001) }],
-    ["message not a string", { campaignId: CAMPAIGN, message: 4 }],
+    ["no campaign", { message: "hi", mode: "say" }],
+    ["campaign not a uuid", { campaignId: "x", message: "hi", mode: "say" }],
+    ["session not a uuid", { campaignId: CAMPAIGN, sessionId: "x", message: "hi", mode: "say" }],
+    ["empty after trimming", { campaignId: CAMPAIGN, message: "   ", mode: "say" }],
+    ["too long", { campaignId: CAMPAIGN, message: "a".repeat(4001), mode: "say" }],
+    ["message not a string", { campaignId: CAMPAIGN, message: 4, mode: "say" }],
   ])("answers 400 for a body that is %s", async (_name, body) => {
     const h = harness();
     expect((await play(h, { body }))?.status).toBe(400);
@@ -314,9 +314,36 @@ describe("the request", () => {
 
   it("trims the message and accepts exactly 4000 characters", async () => {
     const h = harness();
-    expect(await play(h, { body: { campaignId: CAMPAIGN, message: `  ${"a".repeat(4000)}  ` } })).toBeNull();
+    expect(await play(h, { body: { campaignId: CAMPAIGN, message: `  ${"a".repeat(4000)}  `, mode: "do" } })).toBeNull();
     const first = h.requests[0].messages[0].blocks[0];
-    expect(first).toEqual({ type: "text", text: "a".repeat(4000) });
+    expect(first).toMatchObject({ type: "text", player: { kind: "do", text: "a".repeat(4000) } });
+  });
+
+  it("refuses a message that does not say whether it is said or done, rather than guessing", async () => {
+    const h = harness();
+    expect((await play(h, { body: { campaignId: CAMPAIGN, message: "hi" } }))?.status).toBe(400);
+    expect((await play(h, { body: { campaignId: CAMPAIGN, message: "hi", mode: "shout" } }))?.status).toBe(400);
+    expect(h.modelCalls()).toBe(0);
+  });
+
+  it("tells the narrator a deed was not said aloud, so nobody answers words that were never spoken", async () => {
+    const say = harness();
+    await play(say, { body: { campaignId: CAMPAIGN, message: "Open up!", mode: "say" } });
+    const done = harness();
+    await play(done, { body: { campaignId: CAMPAIGN, message: "Open up!", mode: "do" } });
+    const read = (h: Harness) => {
+      const b = h.requests[0].messages[0].blocks[0];
+      return b.type === "text" ? b.text : "";
+    };
+    expect(read(say)).toContain("says aloud");
+    expect(read(done)).toContain("nothing is said aloud");
+    expect(read(say)).not.toBe(read(done));
+  });
+
+  it("stores what the player typed, unchanged, with whether it was said or done, for the page to draw", async () => {
+    const h = harness();
+    await play(h, { body: { campaignId: CAMPAIGN, message: "Open up!", mode: "say" } });
+    expect(h.appends[0].rows[0].blocks[0]).toMatchObject({ player: { kind: "say", text: "Open up!" } });
   });
 
   it("refuses a flagged message with 400 and costs nothing", async () => {
@@ -422,7 +449,7 @@ describe("credits", () => {
   it("charges exactly 1 when a turn takes the running total from 0.5 to 1.1", async () => {
     const h = harness([step(600)]);
     existingSession(h, {}, 0.5);
-    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go" } });
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go", mode: "say" } });
     expect(h.ledger).toHaveLength(1);
     expect(h.ledger[0]).toMatchObject({ kind: "spend", cost: 1 });
     expect(last(h)).toMatchObject({ type: "done", credits: 1 });
@@ -465,7 +492,7 @@ describe("saving", () => {
       { seq: 1, role: "user", blocks: [{ type: "text", text: "before" }] },
       { seq: 2, role: "assistant", blocks: [{ type: "text", text: "earlier answer" }] },
     );
-    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go" } });
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go", mode: "say" } });
     expect(h.appends[0].afterSeq).toBe(2);
     expect(h.appends[0].rows.map((r) => r.seq)).toEqual([3, 4]);
     // the model saw the stored history before the new message
@@ -476,7 +503,7 @@ describe("saving", () => {
     const h = harness([step(600)]);
     existingSession(h, {}, 0.5);
     h.state.conflict = true;
-    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go" } });
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go", mode: "say" } });
     expect(last(h)).toEqual({ type: "error", message: MESSAGES.conflict });
     expect(MESSAGES.conflict).toBe(
       "This conversation was continued somewhere else. Reload it and send your message again.",
@@ -489,7 +516,7 @@ describe("saving", () => {
     const h = harness([step(600)]);
     existingSession(h, {}, 0.5);
     h.state.saveThrows = true;
-    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go" } });
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go", mode: "say" } });
     expect(last(h)).toEqual({ type: "error", message: MESSAGES.notSaved });
     expect(h.ledger.some((l) => l.kind === "spend")).toBe(false);
   });
@@ -497,7 +524,7 @@ describe("saving", () => {
   it("saves first and charges after", async () => {
     const h = harness([step(600)]);
     existingSession(h, {}, 0.5);
-    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go" } });
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go", mode: "say" } });
     expect(h.log.indexOf("save")).toBeGreaterThan(-1);
     expect(h.log.indexOf("charge")).toBeGreaterThan(h.log.indexOf("save"));
   });
@@ -562,7 +589,7 @@ describe("what the browser hears", () => {
   it("reports an existing conversation's own id and does not create another", async () => {
     const h = harness();
     existingSession(h);
-    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go" } });
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go", mode: "say" } });
     expect(h.events[0]).toEqual({ type: "session", sessionId: SESSION });
     expect(h.log).not.toContain("create");
   });
@@ -582,7 +609,7 @@ describe("what the browser hears", () => {
     const h = harness();
     const refusal = await handleAgentTurn({
       userId: DM,
-      body: { campaignId: CAMPAIGN, message: "go" },
+      body: { campaignId: CAMPAIGN, message: "go", mode: "say" },
       deps: h.deps,
       send: () => {
         throw new Error("stream closed");
@@ -625,7 +652,7 @@ describe("limits and abort", () => {
       },
     ]);
     existingSession(h, {}, 0.5);
-    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go" }, signal: controller.signal });
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go", mode: "say" }, signal: controller.signal });
     expect(last(h)).toMatchObject({ type: "done", end: "aborted", credits: 1 });
     expect(h.appends).toHaveLength(1);
     expect(h.ledger[0]).toMatchObject({ kind: "spend", cost: 1 });
@@ -671,13 +698,13 @@ describe("the system text", () => {
   it("adds the conversation's summary after the standing text", async () => {
     const h = harness();
     existingSession(h, { summary: "The party fled the mine." });
-    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go" } });
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go", mode: "say" } });
     expect(h.requests[0].system).toContain("## The story so far\n\nThe party fled the mine.");
   });
 });
 
 describe("the rolling summary", () => {
-  const GO = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I open the door." };
+  const GO = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I open the door.", mode: "say" };
   const SUMMARY = "The party is at the mine door.";
   const summaryStep = (output = 100, over: Partial<ModelStep> = {}) =>
     step(output, { blocks: [{ type: "text", text: SUMMARY }], ...over });
@@ -863,7 +890,7 @@ describe("beginTurn", () => {
   it("returns a refusal as a value and has streamed nothing", async () => {
     const h = harness();
     h.state.isDm = false;
-    const begun = await beginTurn({ userId: OTHER, body: { campaignId: CAMPAIGN, message: "hi" }, deps: h.deps });
+    const begun = await beginTurn({ userId: OTHER, body: { campaignId: CAMPAIGN, message: "hi", mode: "say" }, deps: h.deps });
     expect(begun).toEqual({ kind: "refused", refusal: { status: 403, error: MESSAGES.forbidden } });
     expect(h.events).toEqual([]);
   });
@@ -911,7 +938,7 @@ describe("a character speaks for itself", () => {
 
   it("gives the character's call its own record and none of the narrator's conversation", async () => {
     const h = harness(script());
-    await play(h, { body: { campaignId: CAMPAIGN, message: "NARRATOR-ONLY: I open the door." } });
+    await play(h, { body: { campaignId: CAMPAIGN, message: "NARRATOR-ONLY: I open the door.", mode: "say" } });
     const speech = h.requests[1];
     expect(speech.system).toContain("HONEYCOMB-SECRET");
     expect(speech.tools).toEqual([]);

@@ -44,6 +44,8 @@ export interface AgentTurnBody {
   campaignId: string;
   sessionId?: string;
   message: string;
+  /** Enter says it aloud, Alt+Enter does it: the player chooses, nothing guesses from the wording. */
+  mode: "say" | "do";
 }
 
 /** A refusal before the stream opened: an ordinary JSON response. */
@@ -166,7 +168,15 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
   if (typeof r.message !== "string") return { ok: false };
   const message = r.message.trim();
   if (message.length < 1 || message.length > MAX_MESSAGE_CHARS) return { ok: false };
-  return { ok: true, body: { campaignId: r.campaignId, sessionId: r.sessionId, message } };
+  if (r.mode !== "say" && r.mode !== "do") return { ok: false };
+  return { ok: true, body: { campaignId: r.campaignId, sessionId: r.sessionId, message, mode: r.mode } };
+}
+
+/** The player's message as the narrator reads it. The words themselves are never changed. */
+export function playerText(mode: "say" | "do", message: string): string {
+  return mode === "say"
+    ? `The player's character says aloud:\n${message}`
+    : `The player's character does this (nothing is said aloud):\n${message}`;
 }
 
 // The session's credits hold six decimals; accruing at the same precision keeps what is sent equal to what is stored.
@@ -290,7 +300,8 @@ export async function beginTurn(input: {
         result = await runTurn({
           system,
           history,
-          user: body.message,
+          user: playerText(body.mode, body.message),
+          player: { kind: body.mode, text: body.message },
           tools: [...deps.tools, ...speech.tools],
           callModel,
           callTool: (name, toolInput) =>

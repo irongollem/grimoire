@@ -17,7 +17,11 @@ export interface AgentLine {
 
 /** A piece of a message. */
 export type AgentBlock =
-  | { type: "text"; text: string }
+  /**
+   * `player` is set on the player's own message: what they typed and whether their character says it aloud or
+   * does it. The page draws from it; `text` is what the model reads, which says the same in words.
+   */
+  | { type: "text"; text: string; player?: PlayerMove }
   /** The model asks for a tool. `id` pairs it with its result; `input` is already parsed JSON. */
   | { type: "tool_call"; id: string; name: string; input: Record<string, unknown> }
   /** What a tool answered, as text the model reads. `isError` tells the model the call failed. */
@@ -27,6 +31,12 @@ export type AgentBlock =
    * An adapter writes it and only the same provider's adapter replays it; every other adapter drops it.
    */
   | { type: "opaque"; provider: string; data: unknown };
+
+/** What the player's character does with a message: says it aloud, or does it. */
+export interface PlayerMove {
+  kind: "say" | "do";
+  text: string;
+}
 
 /** One message. Tool results travel in a `user` message, as every provider expects them after the call. */
 export interface AgentMessage {

@@ -6,7 +6,7 @@
 // `tool_result`. A provider rejects the next request when one is missing, and a stored conversation that cannot be
 // continued is a dead table.
 
-import type { AgentBlock, AgentLine, ToolAnswer, AgentMessage, AgentTool, AgentUsage, CallModel, CallTool } from "./types.ts";
+import type { PlayerMove, AgentBlock, AgentLine, ToolAnswer, AgentMessage, AgentTool, AgentUsage, CallModel, CallTool } from "./types.ts";
 
 export type TurnEvent =
   | { type: "text"; delta: string }
@@ -20,8 +20,10 @@ export interface TurnInput {
   system: string;
   /** What came before, already valid. Never changed. */
   history: AgentMessage[];
-  /** The new message. */
+  /** The new message, as the model reads it. */
   user: string;
+  /** What the player typed and whether it was said or done, kept on the stored message for the page. */
+  player?: PlayerMove;
   tools: AgentTool[];
   callModel: CallModel;
   callTool: CallTool;
@@ -70,7 +72,9 @@ const REASONS: Record<"step_limit" | "budget" | "aborted", string> = {
 
 export async function runTurn(input: TurnInput): Promise<TurnResult> {
   const { tools, callModel, callTool, limits, signal } = input;
-  const added: AgentMessage[] = [{ role: "user", blocks: [{ type: "text", text: input.user }] }];
+  const added: AgentMessage[] = [
+    { role: "user", blocks: [input.player ? { type: "text", text: input.user, player: input.player } : { type: "text", text: input.user }] },
+  ];
   const steps: AgentUsage[] = [];
   const toolSteps: { index: number; usage: AgentUsage }[] = [];
 

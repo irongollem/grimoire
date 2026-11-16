@@ -39,8 +39,14 @@ function asLine(x: unknown): AgentLine | null {
 function asBlock(x: unknown): AgentBlock | null {
   if (!isRecord(x)) return null;
   switch (x.type) {
-    case "text":
-      return typeof x.text === "string" ? { type: "text", text: x.text } : null;
+    case "text": {
+      if (typeof x.text !== "string") return null;
+      const p = x.player;
+      // A bad `player` is dropped and the text kept: the model's history must still replay.
+      return isRecord(p) && (p.kind === "say" || p.kind === "do") && typeof p.text === "string"
+        ? { type: "text", text: x.text, player: { kind: p.kind, text: p.text } }
+        : { type: "text", text: x.text };
+    }
     case "tool_call":
       return typeof x.id === "string" && typeof x.name === "string" && isRecord(x.input)
         ? { type: "tool_call", id: x.id, name: x.name, input: x.input }

@@ -229,3 +229,15 @@ describe("systemWithSummary", () => {
     expect(out.endsWith("The party reached the mill.")).toBe(true);
   });
 });
+
+describe("the player's stored move", () => {
+  it("survives a reload, or the page could not tell what was said from what was done", () => {
+    const row = { seq: 1, role: "user" as const, blocks: [{ type: "text", text: "x", player: { kind: "do", text: "I listen." } }] };
+    expect(blocksOf(row)).toEqual([{ type: "text", text: "x", player: { kind: "do", text: "I listen." } }]);
+  });
+
+  it("drops a move of an unknown kind and keeps the text the model needs", () => {
+    const row = { seq: 1, role: "user" as const, blocks: [{ type: "text", text: "x", player: { kind: "sing", text: "la" } }] };
+    expect(blocksOf(row)).toEqual([{ type: "text", text: "x" }]);
+  });
+});
