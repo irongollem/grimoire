@@ -76,6 +76,11 @@ export interface ModelRequest {
   messages: AgentMessage[];
   tools: AgentTool[];
   maxOutputTokens: number;
+  /**
+   * True for a call that should answer at once without thinking it over first: a character's line of a sentence or
+   * two. A reasoning model otherwise spends a second or more before its first word, and the player waits for it.
+   */
+  quick?: boolean;
   /** Called with each piece of visible text as it arrives. An adapter that cannot stream calls it once at the end. */
   onText?: (delta: string) => void;
   signal?: AbortSignal;

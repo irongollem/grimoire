@@ -273,6 +273,8 @@ export async function characterTurn(input: {
     system: input.system,
     messages: [{ role: "user", blocks: [{ type: "text", text: `What is happening:\n${input.happening}` }] }],
     tools: [],
+    // A sentence or two in character needs no thinking over, and the player is waiting on it.
+    quick: true,
     maxOutputTokens: SPEAK_MAX_OUTPUT_TOKENS,
     signal: input.signal,
   });

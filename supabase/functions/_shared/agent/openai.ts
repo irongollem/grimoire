@@ -68,9 +68,10 @@ function toWireMessages(system: string, messages: AgentMessage[]): WireMessage[]
  * the effort to "none", which that message names as accepted; one without tools keeps what `textGen.ts` sends. A
  * model that should reason between tool calls needs the Responses API, which this adapter does not speak yet.
  */
-function reasoningParams(model: string, hasTools: boolean): Record<string, string> {
+function reasoningParams(model: string, hasTools: boolean, quick: boolean): Record<string, string> {
   const params = openaiReasoningParams(model);
-  return hasTools && "reasoning_effort" in params ? { reasoning_effort: "none" } : params;
+  // `quick` is the caller saying the answer needs no thinking over (a character's line): the same "none".
+  return (hasTools || quick) && "reasoning_effort" in params ? { reasoning_effort: "none" } : params;
 }
 
 const STOPS: Record<string, AgentStop> = {
@@ -90,7 +91,7 @@ export function openaiModel(apiKey: string, model: string, deps: AdapterDeps = {
   return async (request: ModelRequest) => {
     const body = {
       model,
-      ...reasoningParams(model, request.tools.length > 0),
+      ...reasoningParams(model, request.tools.length > 0, request.quick === true),
       messages: toWireMessages(request.system, request.messages),
       ...(request.tools.length > 0
         ? {

@@ -175,6 +175,12 @@ describe("characterTurn", () => {
   it("keeps the words of an answer cut at max tokens", async () => {
     expect((await run(step("SAYS: Half a sen", "max_tokens"))).said).toBe("Half a sen");
   });
+  it("asks for a quick answer, or every line a character speaks waits on reasoning", async () => {
+    const r = recorder(["SAYS: hi"]);
+    await characterTurn({ callModel: r.callModel, system: "s", happening: "h" });
+    expect(r.requests[0].quick).toBe(true);
+  });
+
   it("sends no tools", async () => {
     const rec = recorder(["x"]);
     await characterTurn({ callModel: rec.callModel, system: "s", happening: "h" });

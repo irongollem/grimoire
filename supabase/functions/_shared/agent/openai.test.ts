@@ -39,6 +39,16 @@ describe("openaiModel", () => {
     expect(calls[0].body.reasoning_effort).toBe("none");
   });
 
+  it("switches reasoning off for a quick call with no tools, or a character's line waits on thinking it does not need", async () => {
+    const { fetch, calls } = fakeFetch(() => sseResponse(chunk({}, "stop") + DONE));
+    const model = openaiModel("k", "gpt-6-luna", { fetch });
+    await model({ ...base, quick: true });
+    expect(calls[0].body.reasoning_effort).toBe("none");
+    // A model outside the reasoning families is sent no effort at all: it rejects the parameter.
+    await openaiModel("k", "gpt-4o", { fetch })({ ...base, quick: true });
+    expect("reasoning_effort" in calls[1].body).toBe(false);
+  });
+
   it("keeps two interleaved tool calls apart by index with their own ids and inputs", async () => {
     const stream =
       chunk({ tool_calls: [{ index: 0, id: "call_a", type: "function", function: { name: "roll", arguments: "" } }] }) +
