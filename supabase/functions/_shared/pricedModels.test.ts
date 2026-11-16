@@ -18,9 +18,10 @@ const MODEL_LITERAL = /"((?:gpt|gemini|claude|lyria|text-embedding)-[a-z0-9.-]+)
 // Literals with a model's shape that do not name one model: family prefixes
 // tested with startsWith / === to pick request parameters.
 const NOT_A_MODEL = new Map([
-  ["gpt-5.6", "isOpenAi56Model: family match for reasoning_effort"],
-  ["gpt-5.6-", "isOpenAi56Model: family prefix"],
+  ["gpt-5.6", "isOpenAiReasoningModel: family for reasoning_effort"],
+  ["gpt-6", "isOpenAiReasoningModel: family for reasoning_effort"],
   ["gpt-image-2.5", "isFlexibleOpenAiModel: family prefix for output sizes"],
+  ["gpt-image-2.6", "isFlexibleOpenAiModel: family prefix for output sizes"],
 ]);
 
 function sourceFiles(dir: string): string[] {
@@ -65,6 +66,6 @@ describe("edge function model pricing", () => {
   it("still finds the models it is meant to find", () => {
     // Guards the scan itself: a regex that silently matched nothing would make
     // the comparison above pass against an emptied list.
-    expect(namedModels()).toContain("gpt-image-2.5-flare");
+    expect(namedModels()).toContain("gpt-image-2.6-flare");
   });
 });

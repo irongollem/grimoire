@@ -42,7 +42,7 @@ init options:
 
 import provenance options:
   --provider <name>             Provider used for this accepted candidate
-  --model <name>                Model used (normally gpt-image-2)
+  --model <name>                Model used (normally gpt-image-2.6-sunburst)
   --quality <tier>              low | medium | high | auto (normally low)
   --request-id <id>             Provider request id for later traceability
   --input-text-tokens <n>       Reported or estimated text-input tokens
@@ -52,7 +52,7 @@ import provenance options:
   --duration-ms <n>             Candidate generation duration in milliseconds
 
 The default workflow only prepares/imports interactive $imagegen jobs. It never reads
-OPENAI_API_KEY and contains no Images API runner. Jobs use gpt-image-2 low as the
+OPENAI_API_KEY and contains no Images API runner. Jobs use gpt-image-2.6-sunburst low as the
 production hint; a candidate that passes QA is final, with quality escalation manual.`;
 
 function requireString(values: Record<string, unknown>, name: string): string {

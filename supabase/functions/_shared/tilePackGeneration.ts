@@ -26,3 +26,18 @@ export function webpDimensions(bytes: Uint8Array): { width: number; height: numb
   }
   return null;
 }
+
+/**
+ * The model a tile-pack slot renders on: `provider_config.tile_pack_model`, else
+ * its `image_model`, else sunburst. Tiles have their own column because they come
+ * out much better on sunburst than on flare (the maintainer, 16 Nov 2026), while
+ * the rest of the platform paints on flare. The model is a setting, never a code
+ * constant: this function used to hardcode the id and kept rendering on
+ * `gpt-image-2` long after the platform had moved on, and nothing surfaced it
+ * because a stale-but-valid model id renders perfectly well.
+ */
+export function tilePackModel(
+  config: { tile_pack_model?: string | null; image_model?: string | null } | undefined,
+): string {
+  return config?.tile_pack_model || config?.image_model || "gpt-image-2.6-sunburst";
+}

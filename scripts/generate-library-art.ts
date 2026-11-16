@@ -46,7 +46,7 @@
  *   npm run library:art -- generate --monster srd_srd_sprite --out art-947 --yes-spend
  *   npm run library:art -- generate --background srd_2024_scoundrel --also srd_scoundrel --out art-bg --yes-spend
  *   npm run library:art -- generate --item "Quarterstaff" --out art-947 --subject "<what the picture shows>" --yes-spend
- *   npm run library:art -- generate --item "Sack" --image-model gpt-image-2.5-sunburst --out art-955 --yes-spend
+ *   npm run library:art -- generate --item "Sack" --image-model gpt-image-2.6-sunburst --out art-955 --yes-spend
  *   npm run library:art -- generate --item "Longsword (+1)" --also "Longsword (+2)" --also "Longsword (+3)" --out art-955 --yes-spend
  *   npm run library:art -- publish --out art-947 --approve-all
  *   npm run library:art -- publish --out art-947 --approve-all --write --yes-production
@@ -664,7 +664,7 @@ export interface GenerateOptions {
   subject: string | null;
   /** Further item names that share the one `--item`'s picture. */
   also: string[];
-  /** An OpenAI image model to render with instead of `provider_config`'s, e.g. `gpt-image-2.5-sunburst`. */
+  /** An OpenAI image model to render with instead of `provider_config`'s, e.g. `gpt-image-2.6-sunburst`. */
   imageModel: string | null;
 }
 
@@ -1008,7 +1008,9 @@ async function planEntries(client: SupabaseClient, opts: GenerateOptions): Promi
 
 /** Mirrors `openaiReasoningParams` in `_shared/textGen.ts`. */
 function reasoningParams(model: string): Record<string, string> {
-  return model === "gpt-5.6" || model.startsWith("gpt-5.6-") ? { reasoning_effort: "low" } : {};
+  return ["gpt-5.6", "gpt-6"].some((family) => model === family || model.startsWith(`${family}-`))
+    ? { reasoning_effort: "low" }
+    : {};
 }
 
 interface OpenAiErrorBody {

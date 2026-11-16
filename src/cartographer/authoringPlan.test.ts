@@ -49,7 +49,7 @@ describe("createGenerationPlan", () => {
     expect(plan.jobs[0]?.execution).toEqual({
       operation: "generate",
       default_mode: "interactive-imagegen",
-      production_model_hint: "gpt-image-2",
+      production_model_hint: "gpt-image-2.6-sunburst",
       production_quality_hint: "low",
       requested_size: "1024x1024",
       acceptance_policy: "qa-passed-is-final",

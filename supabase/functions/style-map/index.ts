@@ -136,7 +136,7 @@ serve(withCors(async (req: Request) => {
   // rule of its own, only a fixed list of aspect ratios (`geminiAspect.ts`);
   // its own request resolution is the admin's `imageSize` knob regardless of
   // what was sent. The OpenAI check reads `img.model`, not just `img.base`:
-  // only `gpt-image-2.5-*` takes an arbitrary size — an admin can point a
+  // only `gpt-image-2.5-*` / `gpt-image-2.6-*` take an arbitrary size — an admin can point a
   // campaign's plain "openai" provider at an older model via
   // `provider_config`, and the client always sends a flexible-fitted image
   // for "openai" since it can't see which model that actually is.
@@ -151,7 +151,7 @@ serve(withCors(async (req: Request) => {
     }
   } else if (!isFlexibleOpenAiModel(img.model)) {
     return new Response(
-      `This campaign's image model (${img.model}) does not accept the AI map styler's flexible-sized input; ask an admin to use a gpt-image-2.5 model`,
+      `This campaign's image model (${img.model}) does not accept the AI map styler's flexible-sized input; ask an admin to use a gpt-image-2.6 model`,
       { status: 400 },
     );
   } else if (!isValidStyleImageSize(dims.width, dims.height)) {

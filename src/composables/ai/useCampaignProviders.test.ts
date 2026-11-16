@@ -66,7 +66,7 @@ describe("useCampaignProviders", () => {
 
     // The rows are already in hand, but the config has not loaded: still no price.
     rows.value = [
-      row("openai", { text_model: "gpt-5.6-luna", text_enabled: true, text_multiplier: 1.5 }),
+      row("openai", { text_model: "gpt-6-luna", text_enabled: true, text_multiplier: 1.5 }),
       row("gemini", { image_enabled: true, image_multiplier: 3.8 }),
     ];
     expect(textProvider.value).toBeNull();
@@ -87,7 +87,7 @@ describe("useCampaignProviders", () => {
   it("does not let a key stored before a downgrade promise free generations", () => {
     store.decryptedGeminiKey = "g-own";
     isPro.value = false;
-    rows.value = [row("openai", { text_model: "gpt-5.6-luna", text_enabled: true })];
+    rows.value = [row("openai", { text_model: "gpt-6-luna", text_enabled: true })];
     loaded.value = true;
     const { textIsByok, textProvider } = useCampaignProviders();
     expect(textProvider.value).toBe("openai");
@@ -105,7 +105,7 @@ describe("useCampaignProviders", () => {
 
   it("resolves nothing while the campaign's keys are still decrypting", () => {
     store.providerKeysLoading = true;
-    rows.value = [row("openai", { text_model: "gpt-5.6-luna", text_enabled: true })];
+    rows.value = [row("openai", { text_model: "gpt-6-luna", text_enabled: true })];
     loaded.value = true;
     const { textProvider, textCredits } = useCampaignProviders();
     expect(textProvider.value).toBeNull();
@@ -118,7 +118,7 @@ describe("useCampaignProviders", () => {
     store.providerKeysLoading = true;
     planLoading.value = true;
     isPro.value = false;
-    rows.value = [row("openai", { text_model: "gpt-5.6-luna", text_enabled: true })];
+    rows.value = [row("openai", { text_model: "gpt-6-luna", text_enabled: true })];
     loaded.value = true;
     expect(useCampaignProviders().textProvider.value).toBeNull();
   });
@@ -126,7 +126,7 @@ describe("useCampaignProviders", () => {
   it("does not wait on decrypting keys for an account whose plan ignores them", () => {
     store.providerKeysLoading = true;
     isPro.value = false;
-    rows.value = [row("openai", { text_model: "gpt-5.6-luna", text_enabled: true })];
+    rows.value = [row("openai", { text_model: "gpt-6-luna", text_enabled: true })];
     loaded.value = true;
     const { textProvider } = useCampaignProviders();
     expect(textProvider.value).toBe("openai");

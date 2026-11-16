@@ -52,7 +52,7 @@ import {
 const prov: AiProvenance = {
   generatorType: "spell",
   provider: "openai",
-  model: "gpt-image-2.5-flare",
+  model: "gpt-image-2.6-flare",
   generatedAt: "2026-10-02T10:00:00.000Z",
   edited: false,
 };
@@ -322,7 +322,7 @@ describe("arguments and refusals", () => {
   });
 
   it("renders on another image model with --image-model", () => {
-    expect(parseCli(["generate", "--item", "Sack", "--image-model", "gpt-image-2.5-sunburst", "--out", "d"])).toMatchObject({ imageModel: "gpt-image-2.5-sunburst" });
+    expect(parseCli(["generate", "--item", "Sack", "--image-model", "gpt-image-2.6-sunburst", "--out", "d"])).toMatchObject({ imageModel: "gpt-image-2.6-sunburst" });
     expect(() => parseCli(["generate", "--item", "Sack", "--image-model", "dall-e-3", "--out", "d"])).toThrow(/gpt-image/);
     expect(() => parseCli(["publish", "--out", "d", "--image-model", "gpt-image-2"])).toThrow(/belongs to generate/);
   });

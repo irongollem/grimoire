@@ -4,7 +4,7 @@ const CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const IMAGE_URL = "https://api.openai.com/v1/images/generations";
 const EDIT_URL = "https://api.openai.com/v1/images/edits";
 
-const MODEL = "gpt-5.6-luna";
+const MODEL = "gpt-6-luna";
 
 export function createOpenAiTextProvider(apiKey: string): TextProvider {
   return {

@@ -17,6 +17,8 @@ export interface ProviderConfig {
   chronicle_image_model: string | null;
   /** Brush tips described in words in the Illuminator. Null falls back to image_model. */
   brush_tip_model: string | null;
+  /** Cartographer tile-pack slots. Null falls back to image_model (tile-pack-generator). */
+  tile_pack_model: string | null;
   image_quality: string | null;
   audio_model: string | null;
   embedding_model: string | null;

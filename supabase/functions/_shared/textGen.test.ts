@@ -25,7 +25,10 @@ function stubJsonResponse(body: unknown) {
 }
 
 describe("OpenAI text generation", () => {
-  it("asks for low reasoning effort across the 5.6 family and no other", () => {
+  it("asks for low reasoning effort across the 5.6 and 6 families and no other", () => {
+    expect(openaiReasoningParams("gpt-6-luna")).toEqual({ reasoning_effort: "low" });
+    expect(openaiReasoningParams("gpt-6")).toEqual({ reasoning_effort: "low" });
+    expect(openaiReasoningParams("gpt-60")).toEqual({});
     expect(openaiReasoningParams("gpt-5.6-luna")).toEqual({ reasoning_effort: "low" });
     expect(openaiReasoningParams("gpt-5.6-terra")).toEqual({ reasoning_effort: "low" });
     expect(openaiReasoningParams("gpt-5.6")).toEqual({ reasoning_effort: "low" });
@@ -38,10 +41,10 @@ describe("OpenAI text generation", () => {
       usage: { prompt_tokens: 10, completion_tokens: 4 },
     });
 
-    await openaiText("sk-test", "gpt-5.6-luna", "system", "user", 4096);
+    await openaiText("sk-test", "gpt-6-luna", "system", "user", 4096);
 
     expect(requestBody()).toMatchObject({
-      model: "gpt-5.6-luna",
+      model: "gpt-6-luna",
       reasoning_effort: "low",
       response_format: { type: "json_object" },
       max_completion_tokens: 4096,
@@ -65,7 +68,7 @@ describe("OpenAI text generation", () => {
       usage: {},
     });
 
-    await openaiText("sk-test", "gpt-5.6-luna", "system", "user", 8192, "text");
+    await openaiText("sk-test", "gpt-6-luna", "system", "user", 8192, "text");
 
     expect(requestBody()).not.toHaveProperty("response_format");
   });
@@ -143,7 +146,7 @@ describe("plain-text provider mode", () => {
 describe("resolveTextProvider — the platform picks the model, not the DM", () => {
   const platformKeys = { openai: "sk-platform", gemini: "g-platform" };
   const providerConfigs = {
-    openai: { text_model: "gpt-5.6-luna", text_enabled: true, text_multiplier: 1 },
+    openai: { text_model: "gpt-6-luna", text_enabled: true, text_multiplier: 1 },
     gemini: { text_model: "gemini-2.5-flash", text_enabled: false, text_multiplier: 3.8 },
   };
 
@@ -159,7 +162,7 @@ describe("resolveTextProvider — the platform picks the model, not the DM", () 
   });
 
   it("prices at one credit per credit when the provider's multiplier is unset", () => {
-    const unset = { openai: { text_model: "gpt-5.6-luna", text_enabled: true } };
+    const unset = { openai: { text_model: "gpt-6-luna", text_enabled: true } };
     expect(resolveTextProvider({ chosen: null, campaignKeys: {}, platformKeys, providerConfigs: unset })?.textMultiplier).toBe(1);
   });
 

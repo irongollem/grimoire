@@ -356,7 +356,7 @@ export async function generateImage(opts: {
 // ── Provider resolution ─────────────────────────────────────────────────────────
 
 const DEFAULT_MODEL: Record<string, string> = {
-  openai: "gpt-image-2.5-flare",
+  openai: "gpt-image-2.6-flare",
   gemini: "gemini-3.1-flash-image",
 };
 

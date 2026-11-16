@@ -6,7 +6,7 @@ import { chooseImageProvider, chooseTextProvider, imageOffered, keysPresent, tex
 const configs = {
   anthropic: { text_model: "claude-haiku-4-5", text_enabled: false, image_enabled: false },
   gemini: { text_model: "gemini-2.5-flash", text_enabled: false, image_enabled: true },
-  openai: { text_model: "gpt-5.6-luna", text_enabled: true, image_enabled: true },
+  openai: { text_model: "gpt-6-luna", text_enabled: true, image_enabled: true },
 };
 const platformKeys = { openai: true, gemini: true, anthropic: true };
 
@@ -126,7 +126,7 @@ describe("keysPresent", () => {
 describe("what the admin offers", () => {
   it("needs a model for text but only the switch for images", () => {
     expect(textOffered({ text_enabled: true, text_model: null })).toBe(false);
-    expect(textOffered({ text_enabled: false, text_model: "gpt-5.6-luna" })).toBe(false);
+    expect(textOffered({ text_enabled: false, text_model: "gpt-6-luna" })).toBe(false);
     expect(imageOffered({ image_enabled: true })).toBe(true);
     expect(imageOffered(undefined)).toBe(false);
   });

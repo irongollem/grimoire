@@ -101,7 +101,7 @@
             :provider="row.provider"
             capability="text"
             :known-models="providerModelOptions[row.provider]"
-            placeholder="e.g. gpt-5.6-luna"
+            placeholder="e.g. gpt-6-luna"
           >
             <template #extra>
               <ProviderModelOverrideField
@@ -124,7 +124,7 @@
             :provider="row.provider"
             capability="image"
             :known-models="providerModelOptions[row.provider]"
-            placeholder="e.g. gpt-image-2"
+            placeholder="e.g. gpt-image-2.6-flare"
           >
             <template v-if="IMAGE_QUALITY_OPTIONS[row.provider]" #extra>
               <div class="space-y-1">
@@ -166,6 +166,14 @@
                 :options="providerModelOptions[row.provider]"
                 placeholder="Falls back to the image model"
                 hint="A sheet of four brush marks drawn from a described brush."
+              />
+              <ProviderModelOverrideField
+                v-model="providerDrafts.drafts[row.provider]!.tile_pack_model"
+                label="Map tiles model"
+                :list-id="`tile-pack-models-${row.provider}`"
+                :options="providerModelOptions[row.provider]"
+                placeholder="Falls back to the image model"
+                hint="Cartographer tile-pack slots. Tiles come out better on sunburst than on flare."
               />
             </template>
           </ProviderCapabilityCell>
@@ -372,6 +380,7 @@ const providerDrafts = useKeyedRecordDrafts<ProviderConfig, ProviderDraft>((r) =
   map_style_model:   r.map_style_model,
   chronicle_image_model: r.chronicle_image_model,
   brush_tip_model:   r.brush_tip_model,
+  tile_pack_model:   r.tile_pack_model,
   image_quality:     r.image_quality,
   audio_model:       r.audio_model,
   embedding_model:   r.embedding_model,
@@ -403,6 +412,7 @@ const PROVIDER_FIELD_LABELS: Record<keyof ProviderDraft, string> = {
   map_style_model: "Map styler model",
   chronicle_image_model: "Chronicler model",
   brush_tip_model: "Brush tips model",
+  tile_pack_model: "Map tiles model",
   image_quality: "Image quality",
   audio_model: "Audio model",
   embedding_model: "Embedding model",
@@ -420,7 +430,7 @@ function providerConflictLabels(provider: string): string[] {
 }
 
 async function saveProvider(provider: string) {
-  // A cleared fallback box (Fast, Map styler, Chronicler, Brush tips) means "use the
+  // A cleared fallback box (Fast, Map styler, Chronicler, Brush tips, Map tiles) means "use the
   // general model", which the edge functions read as null; an empty string
   // would be sent as a model id and fail the provider call instead of falling
   // back. Built purely from the draft so `changes` can run it over the server
@@ -431,6 +441,7 @@ async function saveProvider(provider: string) {
     map_style_model: d.map_style_model?.trim() || null,
     chronicle_image_model: d.chronicle_image_model?.trim() || null,
     brush_tip_model: d.brush_tip_model?.trim() || null,
+    tile_pack_model: d.tile_pack_model?.trim() || null,
   }));
   if (Object.keys(changed).length === 0) return;
   providerSaving[provider] = true;
@@ -559,6 +570,7 @@ watch(
       initModel(p.map_style_model);
       initModel(p.chronicle_image_model);
       initModel(p.brush_tip_model);
+      initModel(p.tile_pack_model);
       // Audio is free-text like text/image -- KNOWN_AUDIO_MODELS only feeds the
       // datalist, so the pricing row tracks the model actually configured.
       initModel(p.audio_model);
@@ -600,7 +612,7 @@ const modelsByProvider = computed(() => {
     }
     // One pricing row per distinct image model: the surface models usually
     // repeat image_model, and a duplicate would collide on the v-for :key.
-    const imageModels = new Set([draft.image_model, draft.map_style_model, draft.chronicle_image_model, draft.brush_tip_model]);
+    const imageModels = new Set([draft.image_model, draft.map_style_model, draft.chronicle_image_model, draft.brush_tip_model, draft.tile_pack_model]);
     for (const m of imageModels) if (m) items.push({ model: m, model_type: "image" });
     // Same reasoning as the initModel(p.audio_model) call above -- audio is
     // free-text, so only the configured model gets a pricing row.

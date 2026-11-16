@@ -211,7 +211,7 @@ describe("buildDollLayout", () => {
       version: 1,
       sheets: { garb: "g", armour: "a", burden: "b" },
       layout,
-      model: "gpt-image-2.5-sunburst",
+      model: "gpt-image-2.6-sunburst",
       generatedAt: "2026-10-06T00:00:00.000Z",
     };
     expect(parseDollSheets(JSON.parse(JSON.stringify(value)))).toEqual(value);

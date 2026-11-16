@@ -30,9 +30,9 @@ insert into edge_function_models (model) values
   ('claude-haiku-4-5'),
   ('gemini-2.5-flash'),
   ('gemini-3.1-flash-image'),
-  ('gpt-5.6-luna'),
-  ('gpt-image-2.5-flare'),
-  ('gpt-image-2.5-sunburst');
+  ('gpt-6-luna'),
+  ('gpt-image-2.6-flare'),
+  ('gpt-image-2.6-sunburst');
 
 select is_empty(
   $$ select m.model from edge_function_models m
@@ -49,6 +49,7 @@ select is_empty(
        ('map_style_model', c.map_style_model),
        ('chronicle_image_model', c.chronicle_image_model),
        ('brush_tip_model', c.brush_tip_model),
+       ('tile_pack_model', c.tile_pack_model),
        ('document_model', c.document_model),
        ('audio_model', c.audio_model),
        ('embedding_model', c.embedding_model)

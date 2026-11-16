@@ -225,7 +225,7 @@ describe("callDocument — provider dispatch", () => {
       return new Response(JSON.stringify({ error: { message: "stop here" } }), { status: 400 });
     }));
 
-    for (const [provider, model] of [["openai", "gpt-5.6-luna"], ["gemini", "gemini-2.5-flash"], ["anthropic", "claude-opus-5"]]) {
+    for (const [provider, model] of [["openai", "gpt-6-luna"], ["gemini", "gemini-2.5-flash"], ["anthropic", "claude-opus-5"]]) {
       await callDocument({ ...BASE_OPTS, provider, model, parts: [PDF_PART] }).catch(() => {});
     }
 
@@ -236,7 +236,7 @@ describe("callDocument — provider dispatch", () => {
 });
 
 describe("callDocument (openai) — the platform's primary path", () => {
-  const OPENAI_OPTS = { ...BASE_OPTS, provider: "openai", model: "gpt-5.6-luna", apiKey: "sk-test" };
+  const OPENAI_OPTS = { ...BASE_OPTS, provider: "openai", model: "gpt-6-luna", apiKey: "sk-test" };
 
   function stubOpenAi(body: unknown, status = 200) {
     const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify(body), { status }));
@@ -305,7 +305,7 @@ describe("callDocument (openai) — the platform's primary path", () => {
       expect(outcome.usage.input_tokens).toBe(4200);
       expect(outcome.usage.output_tokens).toBe(800);
       expect(outcome.usage.provider).toBe("openai");
-      expect(outcome.usage.model).toBe("gpt-5.6-luna");
+      expect(outcome.usage.model).toBe("gpt-6-luna");
     }
   });
 

@@ -16,12 +16,13 @@ const mocks = vi.hoisted(() => ({
 function providerRow(overrides: Partial<ProviderConfig> = {}): ProviderConfig {
   return {
     provider: "openai",
-    text_model: "gpt-5.6-luna",
-    fast_text_model: "gpt-5.6-luna-mini",
+    text_model: "gpt-6-luna",
+    fast_text_model: "gpt-6-luna-mini",
     image_model: null,
     map_style_model: null,
     chronicle_image_model: null,
     brush_tip_model: null,
+    tile_pack_model: null,
     image_quality: null,
     audio_model: null,
     embedding_model: null,
@@ -99,7 +100,7 @@ describe("AdminProvidersTab — fast model field", () => {
   it("includes the edited fast_text_model in the save payload", async () => {
     const wrapper = mount(AdminProvidersTab);
     const fastInput = wrapper.find('input[placeholder="Falls back to the text model"]');
-    await fastInput.setValue("gpt-5.6-luna-nano");
+    await fastInput.setValue("gpt-6-luna-nano");
     await fastInput.trigger("change");
 
     await wrapper.find('button[aria-label="Save config"]').trigger("click");
@@ -108,7 +109,7 @@ describe("AdminProvidersTab — fast model field", () => {
     expect(mocks.update).toHaveBeenCalledTimes(1);
     const payload = mocks.update.mock.calls[0]![0] as Partial<ProviderConfig>;
     expect(payload.provider).toBe("openai");
-    expect(payload.fast_text_model).toBe("gpt-5.6-luna-nano");
+    expect(payload.fast_text_model).toBe("gpt-6-luna-nano");
     // An untouched field is not sent, so it cannot revert a newer server value.
     expect(payload).not.toHaveProperty("text_model");
     expect(Object.keys(payload).sort()).toEqual(["fast_text_model", "provider"]);
@@ -142,7 +143,7 @@ describe("AdminProvidersTab — fast model field", () => {
   it("does not save the same edit twice: once saved, a second click sends nothing", async () => {
     const wrapper = mount(AdminProvidersTab);
     const fastInput = wrapper.find('input[placeholder="Falls back to the text model"]');
-    await fastInput.setValue("gpt-5.6-luna-nano");
+    await fastInput.setValue("gpt-6-luna-nano");
     await fastInput.trigger("change");
     await wrapper.find('button[aria-label="Save config"]').trigger("click");
     await flushPromises();
@@ -155,7 +156,7 @@ describe("AdminProvidersTab — fast model field", () => {
     mocks.update.mockRejectedValueOnce(new Error("Row is locked"));
     const wrapper = mount(AdminProvidersTab);
     const fastInput = wrapper.find('input[placeholder="Falls back to the text model"]');
-    await fastInput.setValue("gpt-5.6-luna-nano");
+    await fastInput.setValue("gpt-6-luna-nano");
     await fastInput.trigger("change");
     await wrapper.find('button[aria-label="Save config"]').trigger("click");
     await flushPromises();

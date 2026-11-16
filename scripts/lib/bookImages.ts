@@ -10,7 +10,7 @@
  * `image_provenance` row the app's disclosure badge reads. Nothing here prints a key.
  */
 import { createHash } from "node:crypto";
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import sharp from "sharp";
 import { assetCdnUrl } from "../../supabase/functions/_shared/cdn-buckets.ts";
 import { headObject, putObject } from "../../supabase/functions/_shared/r2/client.ts";
@@ -27,18 +27,42 @@ export const GENERATOR_TYPE = "setting-book-art";
 /** The GPT art pipeline's output folder: the only pictures whose generator is known. */
 export const GPT_OUTPUT = "/art-955/kind-country/out/";
 
+/** Written beside a picture rendered through an image API: `<file>.provenance.json`. */
+export const PROVENANCE_SIDECAR = ".provenance.json";
+
 /**
- * Every picture in the book is AI-generated, so every one is marked. Only the
- * GPT pipeline's output has a known generator; the author's own illustrations
- * folder was made with tools this script cannot name, so those say "unknown"
- * rather than claim a model they were not made with.
+ * The provider and model a sidecar names, or null when the picture has none. An
+ * Images API call reports exactly which model drew it, so a render made that way
+ * records it beside the file rather than leaving the folder to guess. A sidecar
+ * that is present but malformed throws: a wrong disclosure is worse than a
+ * stopped import.
+ */
+export function sidecarGenerator(file: string): { provider: string; model: string } | null {
+  const path = `${file}${PROVENANCE_SIDECAR}`;
+  if (!existsSync(path)) return null;
+  const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
+  const { provider, model } = (parsed ?? {}) as { provider?: unknown; model?: unknown };
+  if (typeof provider !== "string" || typeof model !== "string" || !provider || !model) {
+    throw new Error(`${path} must name a provider and a model`);
+  }
+  return { provider, model };
+}
+
+/**
+ * Every picture in the book is AI-generated, so every one is marked. A picture
+ * with a sidecar names its model exactly. Otherwise only the GPT pipeline's
+ * output has a known generator (ChatGPT, painting on gpt-image-2 when that
+ * pipeline ran); the author's own illustrations folder was made with tools this
+ * script cannot name, so those say "unknown" rather than claim a model they
+ * were not made with.
  */
 export function provenanceFor(file: string, generatedAt: string, generatorType: string = GENERATOR_TYPE): AiProvenance {
+  const known = sidecarGenerator(file);
   const gpt = file.includes(GPT_OUTPUT);
   return {
     generatorType,
-    provider: gpt ? "openai" : "unknown",
-    model: gpt ? "gpt-image-2" : "unknown",
+    provider: known?.provider ?? (gpt ? "openai" : "unknown"),
+    model: known?.model ?? (gpt ? "gpt-image-2" : "unknown"),
     generatedAt,
     edited: false,
   };

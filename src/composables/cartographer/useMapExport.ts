@@ -39,7 +39,7 @@
 // doc for the full breakdown. Plain "openai" is always treated as flexible
 // here, since the client can't see which model the admin has actually
 // configured — `style-map/index.ts` re-validates against the resolved
-// *model* (only `gpt-image-2.5-*` accepts a flexible size), so a campaign an
+// *model* (only `gpt-image-2.5-*` and `gpt-image-2.6-*` accept a flexible size), so a campaign an
 // admin pointed at an older OpenAI model gets a clear 400 before any charge,
 // rather than a mismatched request reaching the provider. The same resolved
 // provider also prices `styleCost` and picks which decrypted key counts as

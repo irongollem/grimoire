@@ -7,7 +7,7 @@ image edit that says "like this, but in <material>".
 ## The rule these are drawn to
 
 Measured 21 Sep 2026 by restyling three candidate door-leaf bases (an open-door tile, since retired) into two
-dissimilar materials (weathered oak; wet sewer brick) on `gpt-image-2.5-flare`:
+dissimilar materials (weathered oak; wet sewer brick) on `gpt-image-2.5-flare` (the platform has since moved to `gpt-image-2.6-flare`):
 
 - **Flat vs shaded barely mattered.** Both transferred geometry equally well.
 - **Explicit part articulation decided it.** Under oak, all candidates looked

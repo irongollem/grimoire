@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tilePackSlug, webpDimensions } from "./tilePackGeneration";
+import { tilePackModel, tilePackSlug, webpDimensions } from "./tilePackGeneration";
 
 describe("tilePackSlug", () => {
   it.each([
@@ -73,5 +73,21 @@ describe("webpDimensions", () => {
 
   it("rejects non-WebP bytes", () => {
     expect(webpDimensions(new Uint8Array(30))).toBeNull();
+  });
+});
+
+describe("tilePackModel", () => {
+  // Bug: tiles rendered on the general image model (flare) because the generator ignored its own column.
+  it("renders on the tile-pack model when one is set", () => {
+    expect(tilePackModel({ tile_pack_model: "gpt-image-2.6-sunburst", image_model: "gpt-image-2.6-flare" })).toBe("gpt-image-2.6-sunburst");
+  });
+
+  it("falls back to the image model when the tile-pack column is empty", () => {
+    expect(tilePackModel({ tile_pack_model: null, image_model: "gpt-image-2.6-flare" })).toBe("gpt-image-2.6-flare");
+    expect(tilePackModel({ tile_pack_model: "", image_model: "gpt-image-2.6-flare" })).toBe("gpt-image-2.6-flare");
+  });
+
+  it("falls back to sunburst, never gpt-image-2, when nothing is configured", () => {
+    expect(tilePackModel(undefined)).toBe("gpt-image-2.6-sunburst");
   });
 });

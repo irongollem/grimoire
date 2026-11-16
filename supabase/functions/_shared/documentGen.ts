@@ -76,6 +76,8 @@
  * openaiDocument is the primary path in practice, not anthropicDocument.
  */
 
+import { isOpenAiReasoningModel } from "./textGen.ts";
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface DocumentPart {
@@ -335,7 +337,7 @@ async function anthropicDocument(opts: ProviderCallArgs): Promise<DocumentExtrac
  * — per OpenAI's PDF-files guide, "for GPT-5.6 and later models, `auto` uses
  * `high`; for earlier models, it uses `low`." That matters more here than it
  * would elsewhere: `provider_config.document_model`'s seeded default (see
- * migration 20260825000600) is `gpt-5.6-luna`, but admins can configure an
+ * migration 20260825000600, `gpt-6-luna` since the 2.6 refresh) is a 5.6-or-later model, but admins can configure an
  * earlier model whose `auto` setting silently resolves to `low`. This
  * extractor's whole job is reading dense statblock art — an ability score
  * drawn as a number in a box with the modifier in a circle beneath,
@@ -401,9 +403,7 @@ async function openaiDocument(opts: ProviderCallArgs): Promise<DocumentExtractio
       model,
       instructions: system,
       max_output_tokens: maxTokens,
-      ...(model === "gpt-5.6" || model.startsWith("gpt-5.6-")
-        ? { reasoning: { effort: "low" } }
-        : {}),
+      ...(isOpenAiReasoningModel(model) ? { reasoning: { effort: "low" } } : {}),
       input: [{ role: "user", content: buildOpenAiContentBlocks(parts, instruction) }],
       // Verified against OpenAI's structured-outputs guide (developers.
       // openai.com/api/docs/guides/structured-outputs): the Responses API

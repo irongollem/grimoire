@@ -5,7 +5,7 @@
  * the API route on 15 Nov 2026 (Brilianto! in the circus tent); the hand queue stays for anything else.
  *
  *   tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/promo/scenes/paint.ts --only circus-
- *   ... --only circus- --yes-spend [--model gpt-image-2.5-sunburst] [--quality high] [--redo circus-apple.png]
+ *   ... --only circus- --yes-spend [--model gpt-image-2.6-sunburst] [--quality high] [--redo circus-apple.png]
  *
  * Without --yes-spend it prints what it would paint and spends nothing. A brief already painted (its file in out/) is
  * skipped unless named with --redo. Writes out/<file> and a line per picture to out/log-api.jsonl.
@@ -110,7 +110,7 @@ async function main() {
     options: {
       only: { type: "string" },
       redo: { type: "string", multiple: true, default: [] },
-      model: { type: "string", default: "gpt-image-2.5-sunburst" },
+      model: { type: "string", default: "gpt-image-2.6-sunburst" },
       quality: { type: "string", default: "high" },
       dir: { type: "string", default: join(homedir(), "Desktop/art-955/scenes") },
       "yes-spend": { type: "boolean", default: false },

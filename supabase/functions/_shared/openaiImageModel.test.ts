@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import { isFlexibleOpenAiModel } from "./openaiImageModel.ts";
 
 describe("isFlexibleOpenAiModel", () => {
-  it("treats the gpt-image-2.5 family as flexible", () => {
+  it("treats the gpt-image-2.5 and 2.6 families as flexible", () => {
+    expect(isFlexibleOpenAiModel("gpt-image-2.6-flare")).toBe(true);
+    expect(isFlexibleOpenAiModel("gpt-image-2.6-sunburst")).toBe(true);
     expect(isFlexibleOpenAiModel("gpt-image-2.5-flare")).toBe(true);
     expect(isFlexibleOpenAiModel("gpt-image-2.5")).toBe(true);
   });

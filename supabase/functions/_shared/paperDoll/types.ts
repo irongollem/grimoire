@@ -114,7 +114,7 @@ export interface DollSheets {
   /** Public URL of each sheet. */
   sheets: Record<DollSheetKey, string>;
   layout: DollLayout;
-  /** The image model that drew it, e.g. "gpt-image-2.5-sunburst". */
+  /** The image model that drew it, e.g. "gpt-image-2.6-sunburst". */
   model: string;
   /** ISO timestamp. */
   generatedAt: string;

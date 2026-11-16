@@ -17,23 +17,11 @@ import { fetchCreditCost, recordFreeGeneration, recordGeneration, releaseCredits
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
-import { tilePackSlug, webpDimensions } from "../_shared/tilePackGeneration.ts";
+import { tilePackModel, tilePackSlug, webpDimensions } from "../_shared/tilePackGeneration.ts";
 import { attemptCharge, attemptsRemaining, canAttempt } from "../../../src/cartographer/generationBudget.ts";
 import { isStalled, stalledBefore } from "../../../src/cartographer/generationLiveness.ts";
 import { chunk, listAllFilePaths, type StorageEntry } from "../_shared/storage-purge.ts";
 import { fetchProviderConfigs } from "../_shared/provider-config.ts";
-
-/**
- * Fallback only. The active model comes from `provider_config.image_model`,
- * the same row every other image feature resolves through
- * (`resolveImageProvider` in _shared/imageGen.ts) — this function used to
- * hardcode the id and so kept rendering on `gpt-image-2` long after the
- * platform moved to `gpt-image-2.5-flare`, which is faster, better and
- * cheaper. Nothing surfaced it because a stale-but-valid model id renders
- * perfectly well. The Chronicler had the same fault by another route (a model
- * sent from the browser overrode the config) until 5 Oct 2026.
- */
-const FALLBACK_MODEL = "gpt-image-2.5-flare";
 
 const MAX_NORMALIZED_B64 = 512_000;
 
@@ -846,7 +834,7 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
   try {
     const references = await slotReferences(runId, run.target, job.slot, allowedPhase);
     const providerConfigs = await fetchProviderConfigs(admin, ["openai"]);
-    const model = providerConfigs.openai?.image_model ?? FALLBACK_MODEL;
+    const model = tilePackModel(providerConfigs.openai);
     // A tile's whole economy rests on its quality: "low" is ~196 output tokens
     // against thousands for "high", and the 12-credit price covers four
     // attempts on that basis. The migration that added image_quality_tier
