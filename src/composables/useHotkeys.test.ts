@@ -116,6 +116,52 @@ describe("useHotkeys", () => {
     warn.mockRestore();
   });
 
+  // #1208: a held line, a picked token and the open scratchpad each bind Escape on the page layer while they have
+  // something to put away. That is one stack, and it warned three times on every visit to the explore screen.
+  it("does not warn when two page Escapes each put one thing away", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    register([{ combo: "escape", description: "Close the panel", dismiss: true, handler: vi.fn() }]);
+    register([{ combo: "escape", description: "Let go of the line", dismiss: true, handler: vi.fn() }]);
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("of two live dismiss Escapes, the one that came live last takes the key, whichever registered first", () => {
+    // In the app the scratchpad mounted after the explore screen on a cold load, so it closed before a picked
+    // token was let go even when the token was picked last: the order followed mount order, not the user.
+    const panelOpen = ref(false);
+    const closePanel = vi.fn(() => (panelOpen.value = false));
+    const letGo = vi.fn();
+    const lineHeld = ref(true);
+    register([{ combo: "escape", description: "Let go of the line", dismiss: true, handler: () => { letGo(); lineHeld.value = false; } }], { enabled: lineHeld });
+    register([{ combo: "escape", description: "Close the panel", dismiss: true, handler: closePanel }], { enabled: panelOpen });
+
+    // The panel registered last but opened first; the line was picked up after it.
+    lineHeld.value = false;
+    panelOpen.value = true;
+    lineHeld.value = true;
+
+    dispatch(keyEvent({ key: "Escape" }));
+    expect(letGo).toHaveBeenCalledTimes(1);
+    expect(closePanel).not.toHaveBeenCalled();
+
+    dispatch(keyEvent({ key: "Escape" }));
+    expect(closePanel).toHaveBeenCalledTimes(1);
+  });
+
+  it("still warns when a page Escape that is always bound sits on top of one that puts something away", () => {
+    // The always-bound one takes every press, so the one beneath is never reached: the real collision of #1208.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    register([{ combo: "escape", description: "Close the panel", dismiss: true, handler: vi.fn() }]);
+    register([{ combo: "escape", description: "Move the whole party again", handler: vi.fn() }]);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
   it("still warns when two overlays claim the same non-dismiss combo", () => {
     // The suppression above is narrow on purpose: it must not blind the
     // registry to two different actions fighting over one key.

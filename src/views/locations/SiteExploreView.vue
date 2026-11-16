@@ -284,7 +284,14 @@ function onSelect(id: string | null) {
   if (id === null) selectParty();
   else selectedId.value = id;
 }
-useHotkeys(() => [{ combo: "escape", description: "Move the whole party again", hidden: true, handler: selectParty }]);
+// Escape goes back to the whole party, and is bound only while one of several is picked: bound always, it took every
+// press on this screen and the scratchpad's Escape was never reached (#1208).
+const onePicked = computed(() => tokenIds.value.length > 1 && groupIds.value.length !== tokenIds.value.length);
+useHotkeys(() =>
+  onePicked.value
+    ? [{ combo: "escape", description: "Move the whole party again", hidden: true, dismiss: true, handler: selectParty }]
+    : [],
+);
 
 function onMove(positions: Record<string, ExploreCell>) {
   place(positions);

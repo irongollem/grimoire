@@ -294,8 +294,11 @@ const tableTools = usePlayTableTools({
 watch(tool, () => tableTools.cancel());
 useHotkeys(() => [
   ...EXPLORE_TOOLS.map((id) => ({ combo: PLAY_TOOL_KEYS[id], description: `${id[0].toUpperCase()}${id.slice(1)} tool`, handler: () => (tool.value = id) })),
-  // Lets go of a measure line being held; the page's own Esc still re-selects the party.
-  { combo: "escape", description: "Let go of the line", hidden: true, handler: () => tableTools.cancel() },
+  // Lets go of a line or a stroke, and is bound only while one is held, so with nothing held Escape reaches the
+  // page's own (back to the whole party) and then the scratchpad's (#1208).
+  ...(tableTools.live.value
+    ? [{ combo: "escape", description: "Let go of the line", hidden: true, dismiss: true, handler: () => tableTools.cancel() }]
+    : []),
 ]);
 
 const moves = usePlayTokenMoves({

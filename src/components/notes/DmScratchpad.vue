@@ -192,9 +192,11 @@ useHotkeys(
 // sound palette and every other shortcut while a docked, non-modal panel is
 // open. Not allowed in text entry, so Escape inside the editor still belongs
 // to the editor (closing a link popover, say) and only closes the panel from
-// outside it. A page's own Escape still wins: it registers later.
+// outside it. A page's own Escape still goes first while it has something to
+// put away (a held line, a picked token): it registers later, and it is only
+// listed while it does, so the next press closes the panel (#1208).
 useHotkeys(
-  [{ combo: "escape", description: "Close the DM scratchpad", hidden: true, handler: () => store.toggle() }],
+  [{ combo: "escape", description: "Close the DM scratchpad", hidden: true, dismiss: true, handler: () => store.toggle() }],
   { layer: "page", enabled: visible },
 );
 

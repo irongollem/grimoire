@@ -2,7 +2,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { mount, flushPromises } from "@vue/test-utils";
-import { defineComponent, ref } from "vue";
+import { defineComponent, effectScope, ref } from "vue";
+import { useHotkeys } from "@/composables/useHotkeys";
 import { exploreToken } from "@/lib/locations/explore";
 import type { GridCalibration } from "@/types/location.types";
 import type { CellKey } from "@/types/dungeonMap.types";
@@ -80,7 +81,6 @@ vi.mock("@/composables/locations/useRememberSight", () => ({
 vi.mock("@/composables/bookNook/useTableShows", () => ({
   useTableShows: () => ({ tableShows: h.tableShows, setTableShows: h.setTableShows, isSaving: ref(false) }),
 }));
-vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
 
 import { useCampaignStore } from "@/stores/campaign";
 import SiteExploreView from "./SiteExploreView.vue";
@@ -97,7 +97,7 @@ const MapStub = defineComponent({
   emits: ["move", "select", "update:groupIds", "seat", "frame", "door"],
   template: "<div data-testid='map'><slot /></div>",
 });
-const PartyStub = defineComponent({ name: "ExplorePartyPanel", emits: ["go"], template: "<div />" });
+const PartyStub = defineComponent({ name: "ExplorePartyPanel", emits: ["go", "select-one", "select-party"], template: "<div />" });
 const PlanStub = defineComponent({ name: "LocationMap", emits: ["move-party"], template: "<div data-testid='plan' />" });
 const ShellStub = defineComponent({
   template: "<div><slot name='bar' /><slot name='left' /><slot name='map' /><slot name='right' /></div>",
@@ -242,6 +242,32 @@ describe("SiteExploreView", () => {
     const w = mountView("crypt");
     await flushPromises();
     expect(w.find("[data-testid='explore-reveal-slip']").exists()).toBe(false);
+  });
+
+  // #1208: this Escape was always bound, so with the whole party already moving it swallowed the press that should
+  // have closed the scratchpad.
+  it("Escape goes back to the whole party while one is picked, and is left for whoever is beneath once it has", async () => {
+    const beneath = vi.fn();
+    const scope = effectScope();
+    scope.run(() => useHotkeys([{ combo: "escape", description: "Beneath", dismiss: true, handler: beneath }]));
+    const escape = () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    const w = mountView();
+    await flushPromises();
+    const picked = () => [...(w.findComponent({ name: "ExplorePartyPanel" }).vm.$attrs.selection as Set<string>)].sort();
+
+    w.findComponent({ name: "ExplorePartyPanel" }).vm.$emit("select-one", "p-b");
+    await flushPromises();
+    expect(picked()).toEqual(["p-b"]);
+
+    escape();
+    await flushPromises();
+    expect(picked()).toEqual(["p-a", "p-b"]);
+    expect(beneath).not.toHaveBeenCalled();
+
+    escape();
+    expect(beneath).toHaveBeenCalledTimes(1);
+    w.unmount();
+    scope.stop();
   });
 
   it("hands a move on the map to the party's saved squares", async () => {

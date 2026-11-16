@@ -453,6 +453,10 @@ function onEscape() {
   moves.clearSelection();
 }
 
+const hasDismissable = computed(
+  () => tableTools.live.value || area.shown.value || placingId !== null || selectedId !== null || groupIds.length > 0,
+);
+
 const ARROWS = { arrowup: [0, -1], arrowdown: [0, 1], arrowleft: [-1, 0], arrowright: [1, 0] } as const;
 
 useHotkeys(
@@ -464,7 +468,11 @@ useHotkeys(
     { combo: PLAY_TOOL_KEYS.darkness, description: "Darkness tool", handler: () => (tool.value = "darkness") },
     { combo: PLAY_TOOL_KEYS.ping, description: "Ping tool", handler: () => (tool.value = "ping") },
     { combo: PLAY_TOOL_KEYS.draw, description: "Draw tool", handler: () => (tool.value = "draw") },
-    { combo: "escape", description: "Clear the selection", hidden: true, handler: onEscape },
+    // Bound only while there is something to put away, nearest first inside `onEscape`; with nothing, Escape
+    // reaches the scratchpad's (#1208).
+    ...(hasDismissable.value
+      ? [{ combo: "escape", description: "Clear the selection", hidden: true, dismiss: true, handler: onEscape }]
+      : []),
     { combo: "mod+z", description: "Take back the last move", handler: (e) => { e.preventDefault(); moves.undoMove("last"); } },
     ...Object.entries(ARROWS).map(([combo, [dx, dy]]) => ({
       combo,

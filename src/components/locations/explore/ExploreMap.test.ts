@@ -2,7 +2,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { mount } from "@vue/test-utils";
-import { defineComponent } from "vue";
+import { defineComponent, effectScope } from "vue";
+import { useHotkeys } from "@/composables/useHotkeys";
 import { exploreToken } from "@/lib/locations/explore";
 import type { BattleSurface } from "@/lib/battlemap/roomBridge";
 import type { RunCombatant } from "@/types/encounter.types";
@@ -33,13 +34,13 @@ vi.mock("@/composables/encounters/useMapCanvas", () => ({
   }),
 }));
 
-const table = vi.hoisted(() => ({ sendPing: vi.fn(), startMeasure: vi.fn() }));
+const table = vi.hoisted(() => ({ sendPing: vi.fn(), startMeasure: vi.fn(), endMeasure: vi.fn() }));
 vi.mock("@/composables/table/useTableChannel", async () => {
   const { ref } = await import("vue");
   return {
     useTableChannel: () => ({
       pings: ref([]), measures: ref([]), drawings: ref([]), connected: ref(false), sendPing: table.sendPing, startMeasure: table.startMeasure,
-      updateMeasure: vi.fn(), endMeasure: vi.fn(), draw: vi.fn(), clearDrawing: vi.fn(), clearAll: vi.fn(), clearUnpinned: vi.fn(),
+      updateMeasure: vi.fn(), endMeasure: table.endMeasure, draw: vi.fn(), clearDrawing: vi.fn(), clearAll: vi.fn(), clearUnpinned: vi.fn(),
     }),
   };
 });
@@ -127,6 +128,48 @@ describe("ExploreMap", () => {
     host.element.dispatchEvent(e);
     expect(table.sendPing).toHaveBeenCalledWith(3.5, 2.1);
     expect(w.emitted("move")).toBeUndefined();
+  });
+
+  // #1208: the map's Escape was always bound, so it took every press and the page's and the scratchpad's never ran.
+  describe("Escape", () => {
+    function beneath() {
+      const handler = vi.fn();
+      const scope = effectScope();
+      scope.run(() => useHotkeys([{ combo: "escape", description: "Beneath", dismiss: true, handler }]));
+      return { handler, stop: () => scope.stop() };
+    }
+    const escape = () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+    it("is left for whoever is beneath while no line is held", () => {
+      const under = beneath();
+      const w = mountMap([], "p-a");
+      escape();
+      expect(under.handler).toHaveBeenCalledTimes(1);
+      w.unmount();
+      under.stop();
+    });
+
+    it("lets go of a held line first, and only the next press goes beneath", async () => {
+      const under = beneath();
+      const w = mountMap([], "p-a");
+      await w.find("[aria-label='Measure']").trigger("click");
+      const host = w.find("[data-testid=explore-map-host]");
+      (host.element as HTMLElement).setPointerCapture = vi.fn();
+      const e = new MouseEvent("pointerdown", { clientX: 35, clientY: 21, bubbles: true });
+      Object.defineProperty(e, "pointerId", { value: 1 });
+      host.element.dispatchEvent(e);
+      await w.vm.$nextTick();
+
+      escape();
+      expect(table.endMeasure).toHaveBeenCalledTimes(1);
+      expect(under.handler).not.toHaveBeenCalled();
+
+      await w.vm.$nextTick();
+      escape();
+      expect(under.handler).toHaveBeenCalledTimes(1);
+      w.unmount();
+      under.stop();
+    });
   });
 
   // #1134: "a door can be opened while exploring and stays open into a fight".

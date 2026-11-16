@@ -45,6 +45,15 @@ export interface HotkeyBinding {
   onRelease?: (event: KeyboardEvent) => void;
   /** Auto-repeat keydowns neither call `handler` nor reach another binding. Default false. */
   ignoreRepeat?: boolean;
+  /**
+   * An Escape that puts one thing away (a held line, a picked token, an open panel). The caller lists or enables it
+   * only while that thing is there. Several may then be live at once, and that is a stack: the one that came live
+   * last takes the key (what the user did most recently is undone first, whichever component mounted first), and the
+   * next press reaches the one beneath, because the first has nothing left to put away. Two bindings that both say
+   * so do not warn about each other. An Escape that is always listed must not claim it: it would take every press
+   * and the ones beneath would never be reached (#1208).
+   */
+  dismiss?: boolean;
 }
 
 interface HeldKey {
@@ -57,6 +66,8 @@ interface Registration {
   layer: HotkeyLayer;
   bindings: MaybeRefOrGetter<HotkeyBinding[]>;
   enabled: MaybeRefOrGetter<boolean>;
+  /** When its `dismiss` binding last came live, as a count that only rises; 0 while it has none. */
+  dismissSince: number;
 }
 
 // Layer precedence when nothing suppresses the check entirely: page shadows
@@ -77,6 +88,7 @@ const registrations = shallowRef<Registration[]>([]);
 const heldKeys = new Map<string, HeldKey>();
 
 let listenerAttached = false;
+let dismissClock = 0;
 const isMac = isMacPlatform();
 
 function addRegistration(registration: Registration): void {
@@ -149,6 +161,11 @@ function isExpectedDismissStack(registration: Registration, combo: ParsedCombo):
   return registration.layer === "overlay" && combo.key === "escape";
 }
 
+/** The same stack outside the overlay layer, where it has to be claimed: see `HotkeyBinding.dismiss`. */
+function bothDismiss(combo: ParsedCombo, a: HotkeyBinding, b: HotkeyBinding): boolean {
+  return combo.key === "escape" && a.dismiss === true && b.dismiss === true;
+}
+
 /**
  * Dev-only visibility into the whole point of having a registry: a silent
  * shadow is exactly what ad-hoc listeners couldn't detect. Checked from the
@@ -165,6 +182,7 @@ function warnOnCollisions(registration: Registration, bindings: HotkeyBinding[])
       if (other === registration || other.layer !== registration.layer) continue;
       for (const otherBinding of toValue(other.bindings)) {
         if (!combosEqual(parsed, parseCombo(otherBinding.combo))) continue;
+        if (bothDismiss(parsed, binding, otherBinding)) continue;
         console.warn(
           `useHotkeys: "${formatCombo(binding.combo, isMac)}" in layer "${registration.layer}" is already bound ` +
             `to "${otherBinding.description}" — new binding "${binding.description}" will shadow it.`,
@@ -188,7 +206,10 @@ function findMatch(layer: HotkeyLayer, event: KeyboardEvent, inTextEntry: boolea
     if (!toValue(registration.enabled)) continue;
     for (const binding of toValue(registration.bindings)) {
       if (inTextEntry && !binding.allowInTextEntry) continue;
-      if (matchesCombo(event, parseCombo(binding.combo), isMac)) winner = { binding, registration };
+      if (!matchesCombo(event, parseCombo(binding.combo), isMac)) continue;
+      // Two things to put away: the one the user got into last goes first, not the one that mounted last (#1208).
+      if (winner?.binding.dismiss && binding.dismiss && winner.registration.dismissSince > registration.dismissSince) continue;
+      winner = { binding, registration };
     }
   }
   return winner;
@@ -262,6 +283,7 @@ export function useHotkeys(
     layer: options?.layer ?? "page",
     bindings,
     enabled: options?.enabled ?? true,
+    dismissSince: 0,
   };
 
   // Validate (parseCombo throws on a malformed combo) and check for
@@ -280,6 +302,15 @@ export function useHotkeys(
   // computed source that only introduces a shortcut once some condition
   // becomes true. The initial check above already covers registration time.
   watch(() => toValue(bindings), (list) => validateBindings(registration, list));
+
+  // Stamps the moment a `dismiss` binding comes live. Sync, so a key pressed in the same tick already sees it.
+  watch(
+    () => toValue(registration.enabled) && toValue(bindings).some((b) => b.dismiss === true),
+    (live) => {
+      registration.dismissSince = live ? ++dismissClock : 0;
+    },
+    { immediate: true, flush: "sync" },
+  );
 }
 
 function validateBindings(registration: Registration, list: HotkeyBinding[]): void {

@@ -2,7 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { mount } from "@vue/test-utils";
-import { defineComponent, ref } from "vue";
+import { defineComponent, effectScope, ref } from "vue";
+import { useHotkeys } from "@/composables/useHotkeys";
 import type { RunCombatant } from "@/types/encounter.types";
 
 const s = vi.hoisted(() => ({
@@ -440,6 +441,18 @@ describe("PlayMap", () => {
     keydown("Escape");
     expect(w.emitted("select")?.at(-1)).toEqual([null]);
     expect(w.emitted("update:groupIds")?.at(-1)).toEqual([[]]);
+  });
+
+  // #1208: on the fight screen the map's Escape was always bound, so the scratchpad could never be closed with it.
+  it("Esc is left for whoever is beneath when nothing is selected, armed or held", () => {
+    const beneath = vi.fn();
+    const scope = effectScope();
+    scope.run(() => useHotkeys([{ combo: "escape", description: "Beneath", dismiss: true, handler: beneath }]));
+    const w = mountMap();
+    keydown("Escape");
+    expect(beneath).toHaveBeenCalledTimes(1);
+    expect(w.emitted("select")).toBeUndefined();
+    scope.stop();
   });
 
   it("the legend shows in the map's corner only when the View menu asks for it", async () => {
