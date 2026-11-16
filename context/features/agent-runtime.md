@@ -32,11 +32,13 @@ Raw `fetch`, no provider SDK, as in `textGen.ts`: edge functions carry none.
 
 The first real request failed usefully: `gpt-5.6-luna` on Chat Completions refuses function tools together with a reasoning effort ("use /v1/responses or set reasoning_effort to 'none'"). The adapter now sends `reasoning_effort: "none"` whenever a request declares tools, and keeps `textGen.ts`'s setting otherwise. So on OpenAI the model does not reason between tool calls until the adapter speaks the Responses API.
 
-Three runs since, all with invented text or the public demo campaign, all passed:
+Four runs since, all with invented text or the public demo campaign, all passed:
 
 1. **The adapter and the loop.** Two turns with two tools: both tools called in one step (parallel calls), text streamed, the second turn answered from the replayed history. About 3.8 s and 0.9 s.
 2. **A whole turn through the served function** on the local demo campaign: `campaign_overview`, `list` and `roll` called, first text after 4.5 s, six rows saved with their tokens, 0.59 credits accrued and none billed, two free ledger rows. OpenAI's prompt cache was hit on the second call (1,249 cached tokens) with nothing asked of it.
 3. **The story so far.** A seeded conversation of about 14,000 estimated tokens: the answer was done after 2.7 s and the stream closed at 5.4 s, the summary in between. It covered seq 1 to 8 in 549 characters and kept the one fact that mattered (a password and who gave it). The next turn sent 3,769 tokens where the one before sent 12,572, and answered from the summary. The summary took the running total past one credit and that credit was billed.
+
+4. **A character speaking for itself** (the public demo campaign, one message asking Apprentice Honeycomb who she is). The narrator looked her up, called `act` and then `speak` with her record's id, and wrote only narration itself; her line came from her own call, which was 540 input and 38 output tokens. What it showed about cost is the narrator, not the speaker: it made seven model calls, one tool at a time (two searches, an overview, a get, `act`, `speak`, the closing text), 23,715 tokens and 14 s for the turn, 1.58 credits accrued. Seven of the eight calls a turn may make leaves no room for a second speaker, so the narrator has to be brought to call its tools together, or to reason between them (the Responses API), before a scene with several characters works.
 
 One thing to watch from run 3: the summary called the gatekeeper someone "accompanying" the party, which the conversation did not say. A summary is model prose, and the checks on what is shown (#1061) should read it too.
 
