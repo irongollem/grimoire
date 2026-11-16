@@ -15,7 +15,8 @@ import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } f
 import { runTurn, totalTokens, type TurnEnd } from "../_shared/agent/turn.ts";
 import { historyFrom, rowsFor, systemWithSummary, type StoredTurn, type TurnRow } from "../_shared/agent/transcript.ts";
 import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTablePrompt.ts";
-import type { Remembered, SpeechToolsDeps } from "../_shared/agent/speak.ts";
+import type { Remembered } from "../_shared/agent/characterTurn.ts";
+import type { SpeechToolsDeps } from "../_shared/agent/speak.ts";
 import { sceneSection, type SceneView } from "../_shared/agent/scene.ts";
 import { recordSection, type RecordedFact, type RecordKind } from "../_shared/agent/record.ts";
 import { NO_QUESTS, questsSection, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";

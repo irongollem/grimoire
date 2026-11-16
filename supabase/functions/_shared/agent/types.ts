@@ -13,6 +13,22 @@ export interface AgentLine {
   kind: "spoken" | "acted";
   speaker: { id: string | null; name: string };
   text: string;
+  /**
+   * Who the words were said to: a shown name, or "everyone". Left out when they were said to the player, to nobody
+   * in particular, or to someone who could not be matched, so the page only claims what the code knows.
+   */
+  to?: string;
+}
+
+/**
+ * Something a listener wanted to say and did not get the floor for. Kept on the stored tool result and given back
+ * to that character alone on a later call. It is never a line and no browser event carries it.
+ */
+export interface AgentWithheld {
+  speaker: { id: string; name: string };
+  text: string;
+  /** The shown name it was meant for, or "everyone"; null when it was not meant for anyone. */
+  to: string | null;
 }
 
 /** A piece of a message. */
@@ -25,7 +41,7 @@ export type AgentBlock =
   /** The model asks for a tool. `id` pairs it with its result; `input` is already parsed JSON. */
   | { type: "tool_call"; id: string; name: string; input: Record<string, unknown> }
   /** What a tool answered, as text the model reads. `isError` tells the model the call failed. */
-  | { type: "tool_result"; callId: string; content: string; isError: boolean; lines?: AgentLine[] }
+  | { type: "tool_result"; callId: string; content: string; isError: boolean; lines?: AgentLine[]; withheld?: AgentWithheld[] }
   /**
    * Something a provider needs handed back unchanged and nobody else reads (a reasoning item, a thinking block).
    * An adapter writes it and only the same provider's adapter replays it; every other adapter drops it.
@@ -108,6 +124,8 @@ export interface ToolAnswer {
   isError: boolean;
   usage?: AgentUsage[];
   lines?: AgentLine[];
+  /** Kept on the stored result for later calls; the turn loop never sends it to the browser. */
+  withheld?: AgentWithheld[];
 }
 
 /** A provider request that did not produce an answer. `retryable` is true for a timeout, a 429 and a 5xx. */

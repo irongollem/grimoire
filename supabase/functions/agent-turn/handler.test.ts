@@ -34,6 +34,7 @@ const OTHER_CAMPAIGN = "00000000-0000-4000-8000-0000000000c2";
 const SESSION = "00000000-0000-4000-8000-0000000000a1";
 const PLAY_SESSION = "00000000-0000-4000-8000-0000000000a7";
 const HONEYCOMB = "00000000-0000-4000-8000-0000000000f1";
+const BRAM = "00000000-0000-4000-8000-0000000000f2";
 const CELLAR = "00000000-0000-4000-8000-0000000000a5";
 const ELSEWHERE = "00000000-0000-4000-8000-0000000000a6";
 /** Every place the handler asked for, with the campaign it asked in. */
@@ -336,6 +337,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     },
     loadSpeaker: async (campaignId, characterId) => {
       speakerLoads.push({ campaignId, characterId });
+      if (characterId === BRAM) return { id: BRAM, shownName: "Bram", profile: "Name: Bram", memories: "" };
       return characterId === HONEYCOMB
         ? { id: HONEYCOMB, shownName: "Honeycomb", profile: "Name: Honeycomb\nNotes: HONEYCOMB-SECRET", memories: "" }
         : null;
@@ -1075,6 +1077,21 @@ describe("a character speaks for itself", () => {
     const sent = JSON.stringify(h.events);
     expect(sent).not.toContain("A stranger asks who you are.");
     expect(sent).not.toContain("HONEYCOMB-SECRET");
+  });
+
+  it("sends the browser who a line was said to, and nothing a listener held back, though it is stored for a later turn", async () => {
+    const h = harness([
+      speakCall({ speaker_id: HONEYCOMB, happening: "h", present: [BRAM] }),
+      step(300, { blocks: [{ type: "text", text: "SAYS: Hello, everyone.\nTO: everyone" }] }),
+      step(300, { blocks: [{ type: "text", text: "SAYS: HELD-BACK-SENTENCE\nWANT: 3" }] }),
+      step(200),
+    ]);
+    await play(h);
+    const lines = h.events.flatMap((e) => (e.type === "line" ? [e.line] : []));
+    expect(lines).toEqual([{ kind: "spoken", speaker: { id: HONEYCOMB, name: "Honeycomb" }, text: "Hello, everyone.", to: "everyone" }]);
+    expect(JSON.stringify(h.events)).not.toContain("HELD-BACK-SENTENCE");
+    const result = h.appends[0].rows.flatMap((r) => r.blocks).find((b) => b.type === "tool_result");
+    expect(result).toMatchObject({ withheld: [{ speaker: { id: BRAM, name: "Bram" }, text: "HELD-BACK-SENTENCE", to: null }] });
   });
 
   it("looks a speaker up in the conversation's own campaign, whatever campaign the model names", async () => {

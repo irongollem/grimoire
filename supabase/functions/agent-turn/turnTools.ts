@@ -5,7 +5,8 @@
 // putting a fact on the record. Everything with I/O comes in through `deps`; nothing here touches a database.
 
 import { GO_TO_TOOL, makeSceneTool } from "../_shared/agent/scene.ts";
-import { makeSpeechTools, type Remembered } from "../_shared/agent/speak.ts";
+import type { Remembered } from "../_shared/agent/characterTurn.ts";
+import { makeSpeechTools } from "../_shared/agent/speak.ts";
 import { SPEECH_TOOL_NAMES } from "../_shared/agent/speakInput.ts";
 import { makeRecordTool, RECORD_TOOL_NAME } from "../_shared/agent/record.ts";
 import { makeQuestTools, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";

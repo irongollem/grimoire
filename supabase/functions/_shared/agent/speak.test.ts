@@ -1,53 +1,8 @@
 import { describe, expect, it } from "vitest";
-import {
-  characterTurn, heardBy, makeSpeechTools, parseTurnAnswer, pickRecorded, speakerSystem, trimHeard,
-  type Heard,
-} from "./speak";
+import { parseTurnAnswer } from "./characterTurn";
+import { makeSpeechTools, pickRecorded } from "./speak";
 import { parseActInput, parseSpeakInput } from "./speakInput";
-import type { StoredTurn } from "./transcript";
-import type { AgentUsage, CallModel, ModelRequest, ModelStep } from "./types";
-
-const A = "11111111-1111-4111-8111-111111111111";
-const B = "22222222-2222-4222-8222-222222222222";
-const USAGE: AgentUsage = { provider: "p", model: "m", inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 };
-
-function step(text: string, stop: ModelStep["stop"] = "end"): ModelStep {
-  return { blocks: [{ type: "text", text }], stop, usage: USAGE };
-}
-
-function recorder(answers: string[]): { callModel: CallModel; requests: ModelRequest[] } {
-  const requests: ModelRequest[] = [];
-  return {
-    requests,
-    callModel: async (r) => {
-      requests.push(r);
-      return step(answers[requests.length - 1] ?? "ok");
-    },
-  };
-}
-
-/** A stored speak call and its result, as the loop writes them. */
-function spoke(seq: number, input: Record<string, unknown>, name: string, text: string, speakerId: string | null = null): StoredTurn[] {
-  const kind = name === "act" ? "acted" : "spoken";
-  return spokeLines(seq, input, name, [{ kind, text }], speakerId);
-}
-
-/** The same, for a result that carries several lines (a deed and words from one call). */
-function spokeLines(
-  seq: number, input: Record<string, unknown>, name: string, lines: { kind: "spoken" | "acted"; text: string }[], speakerId: string | null = null,
-): StoredTurn[] {
-  const id = `call-${seq}`;
-  return [
-    { seq, role: "assistant", blocks: [{ type: "tool_call", id, name, input }] },
-    {
-      seq: seq + 1, role: "user",
-      blocks: [{
-        type: "tool_result", callId: id, content: "x", isError: false,
-        lines: lines.map((l) => ({ ...l, speaker: { id: speakerId, name: String(input.speaker_name ?? "Mira") } })),
-      }],
-    },
-  ];
-}
+import { A, B, recorder, spoke, step, USAGE } from "./speechTestKit";
 
 describe("parseSpeakInput", () => {
   const ok = { speaker_id: A, happening: "Someone asks about the keys." };
@@ -86,124 +41,6 @@ describe("parseActInput", () => {
   });
   it("refuses both speaker fields", () => {
     expect(parseActInput({ speaker_id: A, speaker_name: "X", what: "w" }).ok).toBe(false);
-  });
-});
-
-describe("heardBy", () => {
-  const rows = [
-    ...spoke(1, { speaker_id: A, happening: "A is asked", present: [B] }, "speak", "A line", A),
-    ...spoke(3, { speaker_name: "Sweeper", what: "sweeps", present: ["Bob"] }, "act", "Sweeps the floor."),
-  ];
-  it("does not hand a bystander the speaker's private happening", () => {
-    const h = heardBy(rows, { id: B, name: "B" });
-    expect(h).toHaveLength(1);
-    expect(h[0].happening).toBeNull();
-  });
-  it("gives the speaker its own happening", () => {
-    expect(heardBy(rows, { id: A, name: "A" })[0].happening).toBe("A is asked");
-  });
-  it("never lets a character hear what was said when it was not present", () => {
-    expect(heardBy(rows, { id: "33333333-3333-4333-8333-333333333333", name: "C" })).toEqual([]);
-  });
-  it("matches a record-less listener by name, ignoring case and spaces", () => {
-    expect(heardBy(rows, { id: null, name: "  bob " }).map((h) => h.text)).toEqual(["Sweeps the floor."]);
-  });
-  it("skips a failed call's result", () => {
-    const bad: StoredTurn[] = [
-      { seq: 1, role: "assistant", blocks: [{ type: "tool_call", id: "c", name: "speak", input: { speaker_id: A, happening: "h" } }] },
-      { seq: 2, role: "user", blocks: [{ type: "tool_result", callId: "c", content: "err", isError: true, lines: [{ kind: "spoken", speaker: { id: A, name: "A" }, text: "no" }] }] },
-    ];
-    expect(heardBy(bad, { id: A, name: "A" })).toEqual([]);
-  });
-  it("reads rows in seq order whatever order they arrive in", () => {
-    const h = heardBy([...rows].reverse(), { id: A, name: "A" });
-    expect(h.map((x) => x.text)).toEqual(["A line"]);
-    const both = heardBy([...rows].reverse(), { id: null, name: "Bob" });
-    expect(both).toHaveLength(1);
-  });
-});
-
-describe("trimHeard", () => {
-  const mk = (n: number, len = 1): Heard[] =>
-    Array.from({ length: n }, (_, i) => ({ speaker: "S", kind: "spoken" as const, text: `${i}`.padEnd(len, "x"), happening: null }));
-  it("keeps the newest entries, oldest first", () => {
-    expect(trimHeard(mk(30), 20).map((h) => h.text[0] + h.text.slice(1))).toEqual(mk(30).slice(10).map((h) => h.text));
-  });
-  it("stops at the character budget, dropping the oldest", () => {
-    const out = trimHeard(mk(5, 100), 20, 250);
-    expect(out).toHaveLength(2);
-    expect(out[1].text).toBe(mk(5, 100)[4].text);
-  });
-});
-
-describe("speakerSystem", () => {
-  it("leaves out sections with nothing in them", () => {
-    const s = speakerSystem({ name: "Mira", profile: null, manner: null, memories: "", heard: [] });
-    expect(s).not.toContain("said:");
-    expect(s).not.toContain("How they talk");
-    expect(s).toContain("Mira");
-  });
-  it("includes the manner of a record-less speaker and heard lines", () => {
-    const s = speakerSystem({
-      name: "Sweeper", profile: null, manner: "mutters", memories: "MEM",
-      heard: [{ speaker: "Bob", kind: "spoken", text: "hello", happening: null }, { speaker: "Bob", kind: "acted", text: "waves", happening: null }],
-    });
-    expect(s).toContain("mutters");
-    expect(s).toContain("MEM");
-    expect(s).toContain("Bob said: hello");
-    expect(s).toContain("Bob did: waves");
-  });
-});
-
-describe("characterTurn", () => {
-  const run = (s: ModelStep) => characterTurn({ callModel: async () => s, system: "s", happening: "h" });
-  it("strips one pair of wrapping quotes from the words, straight or curly", async () => {
-    expect((await run(step('SAYS: "Hello there."'))).said).toBe("Hello there.");
-    expect((await run(step("SAYS: “Hello there.”"))).said).toBe("Hello there.");
-  });
-  it("does not strip quotes that only start the words", async () => {
-    expect((await run(step('SAYS: "Hi," she says, "go."'))).said).toBe('Hi," she says, "go.');
-  });
-  it("returns nothing for a refusal, keeping the usage, or a refused call is billed for free", async () => {
-    const r = await run(step("I cannot", "refusal"));
-    expect(r).toMatchObject({ said: null, did: null });
-    expect(r.usage).toBe(USAGE);
-  });
-  it("returns nothing for an empty answer", async () => {
-    expect(await run(step("   "))).toMatchObject({ said: null, did: null });
-  });
-  it("keeps the words of an answer cut at max tokens", async () => {
-    expect((await run(step("SAYS: Half a sen", "max_tokens"))).said).toBe("Half a sen");
-  });
-  it("asks for a quick answer, or every line a character speaks waits on reasoning", async () => {
-    const r = recorder(["SAYS: hi"]);
-    await characterTurn({ callModel: r.callModel, system: "s", happening: "h" });
-    expect(r.requests[0].quick).toBe(true);
-  });
-
-  it("sends no tools", async () => {
-    const rec = recorder(["x"]);
-    await characterTurn({ callModel: rec.callModel, system: "s", happening: "h" });
-    expect(rec.requests[0].tools).toEqual([]);
-  });
-});
-
-describe("parseTurnAnswer", () => {
-  it("reads both parts", () => {
-    expect(parseTurnAnswer("DOES: Slides the key across.\nSAYS: Take it.")).toMatchObject({ did: "Slides the key across.", said: "Take it." });
-  });
-  it("reads labels in lower case and in reverse order, or a model that answers words first loses its deed", () => {
-    expect(parseTurnAnswer("says: Take it.\ndoes: Slides the key across.")).toMatchObject({ did: "Slides the key across.", said: "Take it." });
-  });
-  it("keeps an unlabelled answer as words, or a model that ignores the format loses the line", () => {
-    expect(parseTurnAnswer('"Take it."')).toMatchObject({ did: null, said: "Take it." });
-  });
-  it("reads a dash as nothing, so a silent character does not say a hyphen", () => {
-    expect(parseTurnAnswer("DOES: Nods.\nSAYS: -")).toMatchObject({ did: "Nods.", said: null });
-    expect(parseTurnAnswer("DOES: -\nSAYS: -")).toMatchObject({ did: null, said: null });
-  });
-  it("keeps words that run over several lines", () => {
-    expect(parseTurnAnswer("DOES: -\nSAYS: First.\nSecond.")).toMatchObject({ did: null, said: "First.\nSecond." });
   });
 });
 
@@ -246,7 +83,7 @@ describe("makeSpeechTools", () => {
       { kind: "acted", speaker: { id: A, name: "Alda" }, text: "Wipes the bar." },
       { kind: "spoken", speaker: { id: A, name: "Alda" }, text: "Welcome." },
     ]);
-    expect(JSON.parse(r.content)).toMatchObject({ did: "Wipes the bar.", said: "Welcome." });
+    expect(JSON.parse(r.content).exchange).toEqual([{ who: "Alda", to: null, did: "Wipes the bar.", said: "Welcome." }]);
   });
 
   it("reports a turn of nothing as an error but still returns the spent usage", async () => {
@@ -350,110 +187,6 @@ describe("makeSpeechTools", () => {
     await t.call("speak", { speaker_id: B, happening: "h" });
     expect(JSON.stringify(rec.requests[0])).not.toContain("STORED-A-LINE");
     expect(JSON.stringify(rec.requests[0])).not.toContain(HAPPEN_A);
-  });
-});
-
-describe("the player's own words", () => {
-  const asked = "Where is the key?";
-
-  it("reach a bystander who was present, or B would answer A's reply without knowing the question", () => {
-    const stored = spoke(1, { speaker_id: A, happening: "h", player_said: asked, present: [B] }, "speak", "In the well.", A);
-    expect(heardBy(stored, { id: B, name: "Bram" }).map((h) => h.text)).toEqual([asked, "In the well."]);
-  });
-
-  it("never reach a character who was not there", () => {
-    const stored = spoke(1, { speaker_id: A, happening: "h", player_said: asked }, "speak", "In the well.", A);
-    expect(heardBy(stored, { id: B, name: "Bram" })).toEqual([]);
-  });
-
-  it("are heard once by someone who listened to two characters answer them", () => {
-    const stored = [
-      ...spoke(1, { speaker_id: A, happening: "h", player_said: asked, present: [B] }, "speak", "In the well.", A),
-      ...spoke(3, { speaker_id: B, happening: "h", player_said: asked, present: [A] }, "speak", "She lies.", B),
-    ];
-    const texts = heardBy(stored, { id: B, name: "Bram" }).map((h) => h.text);
-    expect(texts.filter((t) => t === asked)).toHaveLength(1);
-  });
-
-  it("are refused when longer than a sentence or two, so the field cannot carry a briefing", () => {
-    expect(parseSpeakInput({ speaker_id: A, happening: "h", player_said: "x".repeat(401) }).ok).toBe(false);
-  });
-});
-
-describe("who hears what, by how loud it was said", () => {
-  const C = "33333333-3333-4333-8333-333333333333";
-  const bram = { id: B, name: "Bram" };
-  const cole = { id: C, name: "Cole" };
-  const texts = (stored: StoredTurn[], who: { id: string; name: string }) => heardBy(stored, who).map((h) => h.text);
-
-  it("keeps a whisper from the rest of the room, who only see that one passed", () => {
-    const stored = spoke(1, { speaker_id: A, happening: "h", volume: "whisper", whispered_to: [B], present: [B, C] }, "speak", "The key is in the well.", A);
-    expect(texts(stored, bram)).toEqual(["The key is in the well."]);
-    expect(JSON.stringify(heardBy(stored, cole))).not.toContain("well");
-    expect(heardBy(stored, cole)).toHaveLength(1);
-  });
-
-  it("does not carry ordinary speech to someone in another room", () => {
-    const stored = spoke(1, { speaker_id: A, happening: "h", present: [B], also_heard_by: [C] }, "speak", "In the well.", A);
-    expect(texts(stored, cole)).toEqual([]);
-  });
-
-  it("carries a shout to the next room", () => {
-    const stored = spoke(1, { speaker_id: A, happening: "h", volume: "shout", present: [B], also_heard_by: [C] }, "speak", "Guards!", A);
-    expect(texts(stored, cole)).toEqual(["Guards!"]);
-  });
-
-  it("carries quiet words through a device to the one who holds it, and to nobody else outside the room", () => {
-    const stored = spoke(1, { speaker_id: A, happening: "h", via: "a sending stone", also_heard_by: [C] }, "speak", "It is done.", A);
-    expect(texts(stored, cole)).toEqual(["It is done."]);
-    expect(texts(stored, bram)).toEqual([]);
-  });
-
-  it("keeps what the player whispered to one character from the others present", () => {
-    const stored = spoke(1, { speaker_id: A, happening: "h", player_said: "Meet me at dusk.", player_volume: "whisper", present: [B] }, "speak", "Very well.", A);
-    expect(JSON.stringify(heardBy(stored, bram))).not.toContain("dusk");
-    expect(texts(stored, { id: A, name: "Mira" })).toContain("Meet me at dusk.");
-  });
-
-  it("shows a deed to the room only, even when the same call names someone elsewhere", () => {
-    const stored = spoke(1, { speaker_name: "Hound", what: "Hides the letter.", present: [B], also_heard_by: [C] }, "act", "Hides the letter.");
-    expect(texts(stored, cole)).toEqual([]);
-    expect(texts(stored, bram)).toEqual(["Hides the letter."]);
-  });
-
-  const both = [{ kind: "acted" as const, text: "Hurls the lantern." }, { kind: "spoken" as const, text: "Fire!" }];
-
-  it("hands a listener the player's words, then the deed, then the words, in that order", () => {
-    const stored = spokeLines(1, { speaker_id: A, happening: "h", player_said: "Hold still.", present: [B] }, "speak", both, A);
-    expect(texts(stored, bram)).toEqual(["Hold still.", "Hurls the lantern.", "Fire!"]);
-  });
-
-  it("keeps a deed from someone a shout reached, who still hears the words", () => {
-    const stored = spokeLines(1, { speaker_id: A, happening: "h", volume: "shout", present: [B], also_heard_by: [C] }, "speak", both, A);
-    expect(texts(stored, cole)).toEqual(["Fire!"]);
-    expect(texts(stored, bram)).toEqual(["Hurls the lantern.", "Fire!"]);
-  });
-
-  it("lets the room see a deed but not make out whispered words from the same turn", () => {
-    const stored = spokeLines(1, { speaker_id: A, happening: "h", volume: "whisper", whispered_to: [B], present: [B, C] }, "speak", both, A);
-    expect(texts(stored, cole)).toEqual(["Hurls the lantern.", "Whispers something that cannot be made out."]);
-    expect(texts(stored, bram)).toEqual(["Hurls the lantern.", "Fire!"]);
-  });
-
-  it("gives the speaker its own happening once, not on both lines", () => {
-    const stored = spokeLines(1, { speaker_id: A, happening: "A-HAPPENING" }, "speak", both, A);
-    expect(heardBy(stored, { id: A, name: "Mira" }).map((h) => h.happening)).toEqual(["A-HAPPENING", null]);
-  });
-
-  it("refuses words that leave the room with neither a shout nor a device", () => {
-    expect(parseSpeakInput({ speaker_id: A, happening: "h", also_heard_by: [C] }).ok).toBe(false);
-    expect(parseSpeakInput({ speaker_id: A, happening: "h", volume: "shout", also_heard_by: [C] }).ok).toBe(true);
-  });
-
-  it("reads an unknown stored volume as ordinary speech, never as a shout", () => {
-    const stored = spoke(1, { speaker_id: A, happening: "h", volume: "bellow", present: [B], also_heard_by: [C] }, "speak", "Hm.", A);
-    expect(texts(stored, cole)).toEqual([]);
-    expect(texts(stored, bram)).toEqual(["Hm."]);
   });
 });
 
@@ -583,11 +316,11 @@ describe("the people listening get a say of their own", () => {
   const silent = "DOES: -\nSAYS: -";
 
   it("lets a listener answer unasked, after the speaker, or a room of three is three interviews", async () => {
-    const rec = recorder(["SAYS: The door is safe.", "SAYS: Alda, it is not."]);
+    const rec = recorder(["SAYS: The door is safe.", "SAYS: Alda, it is not.\nWANT: 4"]);
     const t = makeSpeechTools({ stored: [], loadSpeaker: people, callModel: rec.callModel });
     const got = await t.call("speak", { speaker_id: A, happening: "NARRATOR-BRIEF", present: [B] });
     expect(got.lines?.map((l) => `${l.speaker.name}: ${l.text}`)).toEqual(["Alda: The door is safe.", "Bren: Alda, it is not."]);
-    expect(JSON.parse(got.content).others_reacted).toEqual([{ id: B, name: "Bren", did: null, said: "Alda, it is not." }]);
+    expect(JSON.parse(got.content).exchange.map((x: { who: string }) => x.who)).toEqual(["Alda", "Bren"]);
   });
 
   it("tells the listener only what they heard: none of the narrator's briefing, none of the speaker's record", async () => {
@@ -606,7 +339,7 @@ describe("the people listening get a say of their own", () => {
     const got = await t.call("speak", { speaker_id: A, happening: "h", present: [B] });
     expect(got.lines).toHaveLength(1);
     expect(got.usage).toHaveLength(2);
-    expect("others_reacted" in JSON.parse(got.content)).toBe(false);
+    expect(JSON.parse(got.content).exchange).toHaveLength(1);
   });
 
   it("asks nobody who was not listening, and nobody without a record", async () => {
@@ -636,7 +369,7 @@ describe("the people listening get a say of their own", () => {
   });
 
   it("gives everyone one say: a reaction wakes no further reactions", async () => {
-    const rec = recorder(["SAYS: Hello.", "SAYS: Alda, no.", "SAYS: Alda, yes."]);
+    const rec = recorder(["SAYS: Hello.", "SAYS: Alda, no.\nWANT: 5", "SAYS: Alda, yes.\nWANT: 5"]);
     const t = makeSpeechTools({ stored: [], loadSpeaker: people, callModel: rec.callModel });
     await t.call("speak", { speaker_id: A, happening: "h", present: [B, C] });
     expect(rec.requests).toHaveLength(3);
@@ -665,7 +398,7 @@ describe("the people listening get a say of their own", () => {
   it("keeps what a listener chose to remember, and counts them as having been there", async () => {
     const kept: unknown[] = [];
     const there: string[] = [];
-    const rec = recorder(["SAYS: I am the heir.", "SAYS: Are you now.\nREMEMBERS: learned: Alda claims to be the heir."]);
+    const rec = recorder(["SAYS: I am the heir.", "SAYS: Are you now.\nWANT: 4\nREMEMBERS: learned: Alda claims to be the heir."]);
     const t = makeSpeechTools({ stored: [], loadSpeaker: people, callModel: rec.callModel, onRemember: (m) => kept.push(m), onSpoke: (id) => there.push(id) });
     await t.call("speak", { speaker_id: A, happening: "h", present: [B] });
     expect(kept).toEqual([{ characterId: B, kind: "learned", body: "Alda claims to be the heir." }]);
@@ -687,3 +420,4 @@ describe("the people listening get a say of their own", () => {
     expect(got.lines).toHaveLength(1);
   });
 });
+

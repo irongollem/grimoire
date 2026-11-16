@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runTurn, totalTokens, type TurnEvent, type TurnInput } from "./turn";
-import type { AgentBlock, AgentLine, AgentMessage, AgentUsage, ModelRequest, ModelStep } from "./types";
+import type { AgentBlock, AgentLine, AgentMessage, AgentUsage, AgentWithheld, ModelRequest, ModelStep } from "./types";
 
 const usage = (over: Partial<AgentUsage> = {}): AgentUsage => ({
   provider: "test",
@@ -465,7 +465,7 @@ function visibleOf(m: AgentMessage): string {
 
 describe("tools that call a model", () => {
   const line = { kind: "spoken" as const, speaker: { id: "n1", name: "Brann" }, text: "Hello." };
-  const speaker = (answer: { usage?: AgentUsage[]; lines?: AgentLine[] }): TurnInput["callTool"] =>
+  const speaker = (answer: { usage?: AgentUsage[]; lines?: AgentLine[]; withheld?: AgentWithheld[] }): TurnInput["callTool"] =>
     async () => ({ content: "said", isError: false, ...answer });
 
   it("ends budget when only the tool's tokens push the turn over, or a character's speech is free", async () => {
@@ -511,6 +511,20 @@ describe("tools that call a model", () => {
     const out = await runTurn(input);
     expect(out.added[2].blocks[0]).toMatchObject({ lines: [deed, line] });
     expect(events.find((e) => e.type === "tool_end")).toMatchObject({ lines: [deed, line] });
+  });
+
+  it("stores what listeners kept back on the result block but sends it in no event, or the player reads what was held back", async () => {
+    const events: TurnEvent[] = [];
+    const withheld = [{ speaker: { id: "n2", name: "Bren" }, text: "HELD-BACK-SENTENCE", to: null }];
+    const { input } = setup([asks([call("a")]), say("fin")], { tool: speaker({ lines: [line], withheld }), onEvent: (e) => events.push(e) });
+    const out = await runTurn(input);
+    expect(out.added[2].blocks[0]).toMatchObject({ withheld });
+    expect(JSON.stringify(events)).not.toContain("HELD-BACK-SENTENCE");
+  });
+
+  it("leaves withheld off a result that gave an empty list", async () => {
+    const { input } = setup([asks([call("a")]), say("fin")], { tool: speaker({ lines: [line], withheld: [] }) });
+    expect((await runTurn(input)).added[2].blocks[0]).not.toHaveProperty("withheld");
   });
 
   it("leaves lines off a result that gave an empty list, or an empty array is stored for every tool", async () => {

@@ -135,6 +135,8 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     });
     const block: ToolResult = { type: "tool_result", callId: call.id, content: answer.content, isError: answer.isError };
     if (answer.lines && answer.lines.length > 0) block.lines = answer.lines;
+    // Stored for a later call to hand back to its character; deliberately not in the `tool_end` event above.
+    if (answer.withheld && answer.withheld.length > 0) block.withheld = answer.withheld;
     return { block, usage: answer.usage ?? [] };
   };
 

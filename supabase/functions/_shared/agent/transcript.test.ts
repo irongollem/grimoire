@@ -256,3 +256,39 @@ describe("the player's stored move", () => {
     expect(blocksOf(row)).toEqual([{ type: "text", text: "x" }]);
   });
 });
+
+describe("a tool result's kept-back sentences and addressees in storage", () => {
+  const stored = (extra: Record<string, unknown>) =>
+    blocksOf({ seq: 1, role: "user", blocks: [{ type: "tool_result", callId: "x", content: "ok", isError: false, ...extra }] })[0];
+  const held = { speaker: { id: "n1", name: "Bren" }, text: "I know where it went.", to: "Cole" };
+
+  it("keeps a valid kept-back sentence, or a character forgets what it wanted to say after a reload", () => {
+    expect(stored({ withheld: [held] })).toMatchObject({ withheld: [held] });
+  });
+
+  it("keeps one that was meant for nobody in particular", () => {
+    expect(stored({ withheld: [{ ...held, to: null }] })).toMatchObject({ withheld: [{ ...held, to: null }] });
+  });
+
+  it.each([
+    ["no speaker id", { ...held, speaker: { id: null, name: "Bren" } }],
+    ["a blank speaker name", { ...held, speaker: { id: "n1", name: "" } }],
+    ["words that are not text", { ...held, text: 5 }],
+    ["blank words", { ...held, text: "" }],
+    ["a recipient that is neither a name nor null", { ...held, to: 7 }],
+    ["no recipient field at all", { speaker: held.speaker, text: held.text }],
+  ])("drops an entry with %s but keeps its neighbour, or one bad entry costs a character every sentence", (_why, bad) => {
+    expect(stored({ withheld: [bad, held] })).toMatchObject({ withheld: [held] });
+  });
+
+  it("sets no field when none survives", () => {
+    expect(stored({ withheld: [{ text: "x" }] })).not.toHaveProperty("withheld");
+  });
+
+  it("keeps who a line was said to, or the page loses it on reload, and drops one that is not a name", () => {
+    const line = { kind: "spoken", speaker: { id: null, name: "Brann" }, text: "Hm." };
+    expect(stored({ lines: [{ ...line, to: "Bren" }] })).toMatchObject({ lines: [{ ...line, to: "Bren" }] });
+    expect(stored({ lines: [{ ...line, to: 4 }] })).toMatchObject({ lines: [line] });
+    expect((stored({ lines: [{ ...line, to: 4 }] }) as { lines: object[] }).lines[0]).not.toHaveProperty("to");
+  });
+});

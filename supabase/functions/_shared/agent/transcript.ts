@@ -1,6 +1,6 @@
 // Between the conversation in memory and the rows that store it (#1205). Pure: rows in, messages out, and back.
 
-import type { AgentBlock, AgentLine, AgentMessage, AgentUsage } from "./types.ts";
+import type { AgentBlock, AgentLine, AgentMessage, AgentUsage, AgentWithheld } from "./types.ts";
 
 export interface StoredTurn {
   seq: number;
@@ -32,7 +32,18 @@ function asLine(x: unknown): AgentLine | null {
   const s = x.speaker;
   if (!isRecord(s) || typeof s.name !== "string" || s.name === "") return null;
   if (s.id !== null && typeof s.id !== "string") return null;
-  return { kind: x.kind, speaker: { id: s.id, name: s.name }, text: x.text };
+  const line: AgentLine = { kind: x.kind, speaker: { id: s.id, name: s.name }, text: x.text };
+  if (typeof x.to === "string" && x.to !== "") line.to = x.to;
+  return line;
+}
+
+// A kept-back sentence belongs to a recorded character, so an entry without an id, a name or words is dropped.
+function asWithheld(x: unknown): AgentWithheld | null {
+  if (!isRecord(x) || typeof x.text !== "string" || x.text === "") return null;
+  const s = x.speaker;
+  if (!isRecord(s) || typeof s.id !== "string" || s.id === "" || typeof s.name !== "string" || s.name === "") return null;
+  if (x.to !== null && typeof x.to !== "string") return null;
+  return { speaker: { id: s.id, name: s.name }, text: x.text, to: x.to };
 }
 
 // The blocks came back from a jsonb column, so every one is checked against the four shapes in types.ts.
@@ -57,6 +68,8 @@ function asBlock(x: unknown): AgentBlock | null {
         const lines = Array.isArray(x.lines) ? x.lines.map(asLine).filter((l): l is AgentLine => l !== null) : [];
         const block: AgentBlock = { type: "tool_result", callId: x.callId, content: x.content, isError: x.isError };
         if (lines.length > 0) block.lines = lines;
+        const withheld = Array.isArray(x.withheld) ? x.withheld.map(asWithheld).filter((w): w is AgentWithheld => w !== null) : [];
+        if (withheld.length > 0) block.withheld = withheld;
         return block;
       }
     case "opaque":
