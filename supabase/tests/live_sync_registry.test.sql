@@ -95,7 +95,9 @@ insert into live_sync_doorbell (name) values
   -- The DM's secret Perception rolls, so a second DM window shows the next one.
   ('awareness_rolls'),
   -- Book Nook (#1142): the pictures a place shows.
-  ('book_nooks');
+  ('book_nooks'),
+  -- Table questions (#1212): a question and the answers to it.
+  ('table_questions'), ('table_question_answers');
 
 -- Campaign tables deliberately on no route, each with the reason. Grimoire
 -- runs live games, so a table a member's screen reads is live by default; the

@@ -244,6 +244,24 @@ select check_name, cnt from (
        where en.entity_type = 'spell'
          and en.entity_id !~ '^[0-9a-f]{8}-'
          and not exists (select 1 from library_spells s where s.id = en.entity_id))
+  -- ---- roll tables (#1212) -------------------------------------------------
+  -- An entry may name the creature or item it is ({kind, id}), so a question
+  -- sent from the table shows its picture and a picked creature can become a pet.
+  -- A library id that strands here loses the picture and the pet's source.
+  union all select 'roll_tables.entries[].ref (monster) -> library_monsters',
+    (select count(*) from roll_tables rt
+       cross join lateral jsonb_array_elements(
+         case when jsonb_typeof(rt.entries) = 'array' then rt.entries else '[]'::jsonb end) as e
+       where e->'ref'->>'kind' = 'monster'
+         and e->'ref'->>'id' !~ '^[0-9a-f]{8}-'
+         and not exists (select 1 from library_monsters s where s.id = e->'ref'->>'id'))
+  union all select 'roll_tables.entries[].ref (item) -> library_items',
+    (select count(*) from roll_tables rt
+       cross join lateral jsonb_array_elements(
+         case when jsonb_typeof(rt.entries) = 'array' then rt.entries else '[]'::jsonb end) as e
+       where e->'ref'->>'kind' = 'item'
+         and e->'ref'->>'id' !~ '^[0-9a-f]{8}-'
+         and not exists (select 1 from library_items s where s.id = e->'ref'->>'id'))
 ) checks
 where cnt > 0
 order by cnt desc;

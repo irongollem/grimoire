@@ -45,6 +45,8 @@ export const NOTICE_BOARDS_KEY = "notice-boards";
 /** The players' projection of the revealed boards (get_player_notice_boards). */
 export const PLAYER_NOTICE_BOARDS_KEY = "player-notice-boards";
 export const BACKLINKS_KEY = "backlinks";
+/** Table questions (#1212): every read of a question and its answers, the DM's and the players'. */
+export const TABLE_QUESTIONS_KEY = "table-questions";
 export const RUNTIME_KEY = "quest_runtime_state";
 export const RUNTIME_CONTEXT_KEY = "quest_runtime_context";
 export const TRANSITIONS_KEY = "quest_beat_transitions";
@@ -276,6 +278,9 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["awareness_rolls", ["awareness-rolls"]],
   // Book Nook (#1142): the studio and list read "book-nooks"; a player reads a place's nook as "player-book-nook".
   ["book_nooks", ["book-nooks", "player-book-nook"]],
+  // Table questions (#1212): a question sent, closed or taken back, and every answer to it.
+  ["table_questions", [TABLE_QUESTIONS_KEY]],
+  ["table_question_answers", [TABLE_QUESTIONS_KEY]],
   ["location_map_regions", ["location-map-regions", "player-visible-site-state"]],
   // Quest wiring. get_player_visible_quest_beats reads all three of edges,
   // attachments and refs for the players' story so far.
