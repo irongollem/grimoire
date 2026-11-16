@@ -37,12 +37,16 @@ export function bindTools(
   call: (name: string, args: Record<string, unknown>) => Promise<unknown>,
   allow: ReadonlySet<string>,
   maxResultChars: number = DEFAULT_MAX_RESULT_CHARS,
+  pinned: Readonly<Record<string, unknown>> = {},
 ): CallTool {
   return async (name, input) => {
     if (!allow.has(name)) return { content: `No such tool: ${name}`, isError: true };
     let result: unknown;
     try {
-      result = await call(name, input);
+      // Pinned arguments win over whatever the model wrote. The tools run with the caller's own access, which
+      // covers every campaign they run, so a conversation in one campaign must not be talked into reading another:
+      // the turn function pins `campaign_id` to the conversation's campaign.
+      result = await call(name, { ...input, ...pinned });
     } catch (error) {
       return { content: error instanceof Error ? error.message : String(error), isError: true };
     }

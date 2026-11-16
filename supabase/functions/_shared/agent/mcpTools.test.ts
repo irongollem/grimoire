@@ -82,4 +82,14 @@ describe("SOLO_TABLE_TOOLS", () => {
     for (const name of SOLO_TABLE_TOOLS) expect(real.has(name)).toBe(true);
     expect(agentToolsFrom(listTools(), SOLO_TABLE_TOOLS).map((t) => t.name).sort()).toEqual([...SOLO_TABLE_TOOLS].sort());
   });
+  it("fails if the model can point a tool at another campaign: a pinned argument wins over what the model wrote", async () => {
+    const seen: Record<string, unknown>[] = [];
+    const tool = bindTools(async (_name, args) => { seen.push(args); return { ok: true }; }, new Set(["list"]), undefined, { campaign_id: "this-campaign" });
+    await tool("list", { type: "npc", campaign_id: "another-campaign" });
+    await tool("list", { type: "npc" });
+    expect(seen).toEqual([
+      { type: "npc", campaign_id: "this-campaign" },
+      { type: "npc", campaign_id: "this-campaign" },
+    ]);
+  });
 });
