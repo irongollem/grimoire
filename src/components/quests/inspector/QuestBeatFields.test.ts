@@ -71,9 +71,11 @@ describe("QuestBeatFields", () => {
     const withRumor: QuestBeat = { ...beat(), rumor_text: toTiptapJson("They say the bell rings.") };
     const wrapper = mount(QuestBeatFields, { props: { beat: withRumor }, global: { stubs } });
     const editors = wrapper.findAllComponents({ name: "RichTextEditor" });
-    expect(editors.map((e) => e.props("allowSecrets") === true)).toEqual([false, false, false, true, true]);
+    // Lead, read aloud, how it plays and what happened are the DM's own; only the two player-facing copy editors
+    // take a DM-only block.
+    expect(editors.map((e) => e.props("allowSecrets") === true)).toEqual([false, false, false, false, true, true]);
 
-    editors[3]!.vm.$emit("update:modelValue", '{"type":"doc","content":[{"type":"paragraph"}]}');
+    editors[4]!.vm.$emit("update:modelValue", '{"type":"doc","content":[{"type":"paragraph"}]}');
     await vi.advanceTimersByTimeAsync(2100);
     await flushPromises();
 

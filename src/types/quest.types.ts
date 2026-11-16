@@ -461,6 +461,12 @@ export interface QuestBeat {
    * was actually a mechanism rather than guidance.
    */
   how_it_plays: string | null;
+  /**
+   * What the table actually did at this beat, in the DM's words (#1021, migration `20261116220240`). The other
+   * prose fields are the plan; this is the outcome. Optional on the type because nothing requires it at create
+   * time and most beats never get one. DM-side only: the player projection does not carry it.
+   */
+  what_happened?: string | null;
   rumor_text: string | null;
   reveal_text: string | null;
   visibility: QuestBeatVisibility;

@@ -40,6 +40,11 @@
       How it plays
       <RichTextEditor v-model="draft.how_it_plays" size="md" placeholder="Checks, pacing, social pressure, exploration, or combat guidance…" :entity-mention-items="entityMentionItems" />
     </label>
+    <!-- The plan is above; this is the outcome. Never required: a table that talks writes it afterwards, if at all. -->
+    <label class="block space-y-1 text-caption font-semibold text-foreground">
+      What happened here
+      <RichTextEditor v-model="draft.what_happened" size="md" placeholder="What the table actually did: what was agreed, found, given or lost…" :entity-mention-items="entityMentionItems" />
+    </label>
 
     <!-- One or two sentences each: a sentence-sized box, stacked, with the compact
          toolbar that shows only while typing. A full toolbar over half the

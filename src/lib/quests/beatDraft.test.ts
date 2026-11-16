@@ -59,6 +59,19 @@ describe("quest beat draft", () => {
     });
   });
 
+  // #1021: "What happened here" is rich text, so an emptied editor leaves a blank paragraph behind. Saved as it is,
+  // the read view would show the heading over nothing.
+  it("saves an emptied 'what happened' as null, and keeps written text as written", () => {
+    const blank = JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] });
+    const written = JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "They paid the toll." }] }] });
+    expect(questBeatDraftToUpdate({ ...questBeatToDraft(beat), what_happened: blank }).what_happened).toBeNull();
+    expect(questBeatDraftToUpdate({ ...questBeatToDraft(beat), what_happened: written }).what_happened).toBe(written);
+  });
+
+  it("carries what happened into the draft, or opening the editor would wipe it on the next autosave", () => {
+    expect(questBeatToDraft({ ...beat, what_happened: "kept" } as QuestBeat).what_happened).toBe("kept");
+  });
+
   // #1115: the rumour and reveal columns are Tiptap JSON. An emptied editor
   // leaves a doc holding one blank paragraph, which is not copy.
   const EMPTY_DOC = '{"type":"doc","content":[{"type":"paragraph"}]}';
