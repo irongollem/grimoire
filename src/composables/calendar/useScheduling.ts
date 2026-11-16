@@ -8,10 +8,17 @@ import type {
   SessionProposalUpdate,
   SessionAvailability,
   SessionAvailabilityUpsert,
+  SessionAbsence,
+  SessionCadence,
+  SessionCadenceInput,
 } from "@/types/scheduling.types";
 
+// Each key is also the campaign doorbell's signal for its table
+// (`SYNC_TABLES` in lib/campaignLiveSync/registry.ts).
 const PROPOSALS_KEY = "session_proposals";
 const AVAILABILITY_KEY = "session_availability";
+const CADENCE_KEY = "session_cadences";
+const ABSENCES_KEY = "session_absences";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -144,5 +151,103 @@ export function useUpsertAvailability() {
       queryClient.invalidateQueries({ queryKey: [AVAILABILITY_KEY] });
       queryClient.invalidateQueries({ queryKey: [AVAILABILITY_KEY, variables.session_proposal_id] });
     },
+  });
+}
+
+// ── Cadence (#1213) ───────────────────────────────────────────────────────────
+
+/** The campaign's regular rhythm, or null when it has none. One row per campaign. */
+export function useSessionCadence() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [CADENCE_KEY, campaignId.value] as const),
+    queryFn: async ({ queryKey: [, cid] }): Promise<SessionCadence | null> => {
+      if (cid === null) throw new Error("useSessionCadence fetched without a campaign");
+      const { data, error } = await supabase.from("session_cadences").select("*").eq("campaign_id", cid).maybeSingle();
+      if (error) throw error;
+      return data as SessionCadence | null;
+    },
+    enabled: () => !!campaignId.value,
+  });
+}
+
+/**
+ * Sets the rhythm. An existing row is updated in place and keeps its author:
+ * `guard_content_author` refuses a change of `user_id`, so a co-DM editing the
+ * owner's cadence must not try to stamp themselves on it.
+ */
+export function useSaveCadence() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      campaignId,
+      existingId,
+      input,
+    }: {
+      campaignId: string;
+      existingId: string | null;
+      input: SessionCadenceInput;
+    }): Promise<SessionCadence> => {
+      const query = existingId
+        ? supabase.from("session_cadences").update(input).eq("id", existingId)
+        : supabase.from("session_cadences").insert({ ...input, campaign_id: campaignId, user_id: getCurrentUser()!.id });
+      const { data, error } = await query.select().single();
+      if (error) throw error;
+      return data as SessionCadence;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [CADENCE_KEY] }),
+  });
+}
+
+export function useDeleteCadence() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("session_cadences").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [CADENCE_KEY] }),
+  });
+}
+
+/** Every "I can't make it" on a regular evening in the campaign; the whole table reads them. */
+export function useSessionAbsences() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => [ABSENCES_KEY, campaignId.value] as const),
+    queryFn: async ({ queryKey: [, cid] }): Promise<SessionAbsence[]> => {
+      if (cid === null) throw new Error("useSessionAbsences fetched without a campaign");
+      const { data, error } = await supabase.from("session_absences").select("*").eq("campaign_id", cid);
+      if (error) throw error;
+      return data as SessionAbsence[];
+    },
+    enabled: () => !!campaignId.value,
+  });
+}
+
+/** The caller says they cannot make a regular evening, or takes it back. Only ever their own row. */
+export function useSetAbsence() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ campaignId, date, absent }: { campaignId: string; date: string; absent: boolean }) => {
+      const userId = getCurrentUser()!.id;
+      const { error } = absent
+        ? await supabase
+            .from("session_absences")
+            .upsert(
+              { campaign_id: campaignId, user_id: userId, absent_on: date },
+              { onConflict: "campaign_id,user_id,absent_on", ignoreDuplicates: true },
+            )
+        : await supabase
+            .from("session_absences")
+            .delete()
+            .eq("campaign_id", campaignId)
+            .eq("user_id", userId)
+            .eq("absent_on", date);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [ABSENCES_KEY] }),
   });
 }

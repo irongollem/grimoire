@@ -54,6 +54,8 @@ vi.mock("@/composables/calendar/useCalendarEvents", () => ({ usePlayerCalendarEv
 vi.mock("@/composables/calendar/useScheduling", () => ({
   useSessionProposals: () => ({}),
   useAllSessionAvailability: () => ({}),
+  useSessionCadence: () => ({}),
+  useSessionAbsences: () => ({}),
 }));
 vi.mock("@/composables/notes/useMyRecentNotes", () => ({
   useMyRecentNotes: (_limit: number, enabled: () => boolean) => hoisted.recentNotesEnabled.push(enabled),

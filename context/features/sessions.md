@@ -141,6 +141,32 @@ Code: components in `src/components/sessions/`, views in `src/views/sessions/`, 
 
 Saved layouts keep their slot: `RENAMED_WIDGET_IDS` in `src/lib/dashboard/savedLayout.ts` maps `latest-session-note` to `sessions`, so a DM's arrangement carries the old widget over under the new one.
 
+## Scheduling: the cadence (#1213)
+
+Scheduling (which evening the table plays) is `session_proposals` plus, for a table that plays on a rhythm, one **`session_cadences`** row per campaign (migration `20261116074905`): weekly every N weeks on a weekday, or the Nth (or last) weekday of the month, a start time, a duration, a title, `starts_on` and an optional `ends_on`. Times are wall-clock with no zone, like `proposed_date` + `proposed_time` and the calendar feed's floating events. The DM sets it at the top of Settings → Scheduling (`CadenceEditor`).
+
+**Regular evenings are computed, never stored.** `supabase/functions/_shared/cadence.ts` (pure, imported by the browser through `@edge-shared`) turns the rule into dates and into an RRULE, so the app and the feed share one definition. Materialising rows a few weeks ahead was rejected: every rule change would have to find and rewrite the rows it wrote, and tell them apart from the ones the DM had since edited.
+
+**Only a deviation is a row**, marked by `session_proposals.replaces_date`, the regular evening it stands in for (one per evening, a partial unique index):
+
+| The DM… | Row | Reaches the players as |
+| --- | --- | --- |
+| moves an evening | a proposal on the new date, `replaces_date` = the old one | the ordinary proposal email with its RSVP, and an in-app announcement |
+| cancels an evening | `status = 'cancelled'`, `proposed_date = replaces_date` | an announcement only (nothing to answer), and the evening leaving their calendar |
+| adds an evening | an ordinary proposal, `replaces_date` null | as before |
+
+Deleting a deviation restores the regular evening. A regular evening itself sends nothing and asks nothing: it shows as planned.
+
+**Changing the rule** starts the new rule from today (the editor moves a past `starts_on` to today), so evenings already played are not rewritten. Deviations stay keyed to the date they replaced: a moved evening still stands on its own if the new rule no longer falls on its old date, and a cancellation on a date the rule no longer produces simply does nothing.
+
+**"I can't make it"** on a regular evening is a **`session_absences`** row (`absent_on`), written by the player about themselves, unasked, on the Hearth card or in Settings → Sessions. No row means coming. Nothing is emailed; the DM sees names beside the evening (Scheduling tab, Next session widget) and decides whether to move it. A backup carries the cadence but not absences: a restore re-attributes every row to the restorer, which would turn each player's absence into the DM's.
+
+**Every reader goes through one shape.** `scheduledEvenings()` / `pickNextSession()` / `todaysScheduledSession()` in `src/lib/calendar/nextSession.ts` merge the cadence's evenings (less replaced ones) with the proposal rows into `ScheduledEvening` (`status: regular | proposed | confirmed`, `proposal` null for a regular one). Starting a session on a regular evening links nothing (`start_campaign_session`'s proposal id is only for a row).
+
+**The calendar feed** (`ical-feed`, and the DM's .ics download, both through `buildSessionFeed`) publishes the cadence as **one recurring event** (RRULE, UID `cadence-<id>@grimoire`) with every replaced evening as an EXDATE; a moved evening is its own row's event. RECURRENCE-ID overrides were not used: a moved evening is first only a tentative suggestion, which an override of a confirmed series renders badly in most clients.
+
+**No reminders.** A regular evening sends no reminder email: email is for planning (see [notifications.md](notifications.md)), and the recurring event already sits in each player's own calendar, which does alerts the way that player likes them.
+
 ## People "Met"
 
 Players' People ledger groups **Met** by session (`buildPeopleGroups` in `src/lib/npcs/peopleLedger.ts`): "Session 14" with its title and date, newest first, two sessions sharing a number kept apart, everyone met outside any session under "Before the log". Labels come from `get_player_sessions`; the ledger waits for them rather than flashing the wrong grouping. See `context/features/npcs.md`.

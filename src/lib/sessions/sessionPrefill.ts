@@ -1,5 +1,4 @@
 import type { CampaignSession } from "@/types/session.types";
-import type { SessionProposal } from "@/types/scheduling.types";
 
 /** The highest number in the log plus one; empty when nothing is numbered yet. */
 export function nextSessionNumber(log: readonly Pick<CampaignSession, "number">[]): number | null {
@@ -37,14 +36,6 @@ export function formatSessionDay(row: Pick<CampaignSession, "started_at" | "play
       ? new Date(`${row.played_on}T12:00:00`)
       : new Date(row.created_at);
   return date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }).replace(",", "");
-}
-
-/** The confirmed scheduled session dated today, if any. */
-export function todaysScheduledSession(
-  proposals: readonly SessionProposal[],
-  today: string,
-): SessionProposal | null {
-  return proposals.find((p) => p.status === "confirmed" && p.proposed_date === today) ?? null;
 }
 
 /**

@@ -1,20 +1,40 @@
 <template>
   <div class="space-y-6">
-    <!-- ── Upcoming confirmed sessions ─────────────────────────────────── -->
-    <div v-if="confirmed.length > 0">
+    <!-- ── Regular rhythm ───────────────────────────────────────────────── -->
+    <CadenceEditor
+      :cadence="cadence ?? null"
+      :proposals="proposals ?? []"
+      :today="today"
+      :saving="isSavingCadence"
+      @save="saveCadence"
+      @remove="removeCadence"
+    />
+
+    <!-- ── Upcoming sessions: regular evenings and confirmed dates ──────── -->
+    <div v-if="upcoming.length > 0">
       <h3
         class="text-label-lg font-semibold text-muted-foreground uppercase mb-3"
       >
         Upcoming Sessions
       </h3>
       <div class="space-y-2">
+        <template v-for="row in upcoming" :key="row.key">
+        <RegularEveningRow
+          v-if="row.kind === 'regular'"
+          :evening="row.evening"
+          :when-label="formatDate(row.evening.date, row.evening.time)"
+          :absent-names="absentNames(row.evening.date)"
+          :player-count="playerCount"
+          :busy="isCreating"
+          @move="(to) => moveEvening(row.evening, to)"
+          @cancel="cancelEvening(row.evening)"
+        />
         <div
-          v-for="p in confirmed"
-          :key="p.id"
+          v-else-if="row.kind === 'confirmed'"
           class="rounded-lg border border-border bg-card overflow-hidden"
         >
           <!-- Edit form -->
-          <div v-if="editingId === p.id" class="px-4 py-3 space-y-2">
+          <div v-if="editingId === row.proposal.id" class="px-4 py-3 space-y-2">
             <VueDatePicker v-model="editDatetime" :teleport="true" placeholder="Pick a date & time…" class="grimoire-datepicker" />
             <div class="grid grid-cols-2 gap-2">
               <AppInput v-model="editTitle" placeholder="Title" />
@@ -22,21 +42,22 @@
             </div>
             <div class="flex justify-end gap-2">
               <AppButton variant="subtle" size="sm" label="Cancel" @click="editingId = null" />
-              <AppButton variant="primary" size="sm" label="Save" :disabled="isUpdating" @click="saveEdit(p.id)" />
+              <AppButton variant="primary" size="sm" label="Save" :disabled="isUpdating" @click="saveEdit(row.proposal.id)" />
             </div>
           </div>
           <!-- Normal display -->
           <div v-else class="flex items-center gap-3 px-4 py-3">
             <IconCalendarCheck class="h-4 w-4 text-elven-green shrink-0" />
             <div class="flex-1 min-w-0">
-              <p class="text-heading-sm font-semibold text-foreground">{{ p.title }}</p>
-              <p class="text-caption text-muted-foreground">{{ formatDate(p.proposed_date, p.proposed_time) }}</p>
+              <p class="text-heading-sm font-semibold text-foreground">{{ row.proposal.title }}</p>
+              <p class="text-caption text-muted-foreground">{{ formatDate(row.proposal.proposed_date, row.proposal.proposed_time) }}</p>
             </div>
-            <AppButton as="span" variant="tinted" tone="success" size="xs" :label="`${availabilityCount(p.id)}/${playerCount} available`" />
-            <AppButton variant="ghost" size="icon-xs" class="shrink-0" :icon="IconEdit" tooltip="Edit session" @click="startEdit(p)" />
-            <AppButton variant="ghost" size="icon-xs" class="shrink-0 hover:text-destructive" :icon="IconClose" tooltip="Cancel session" @click="cancelSession(p)" />
+            <AppButton as="span" variant="tinted" tone="success" size="xs" :label="`${availabilityCount(row.proposal.id)}/${playerCount} available`" />
+            <AppButton variant="ghost" size="icon-xs" class="shrink-0" :icon="IconEdit" tooltip="Edit session" @click="startEdit(row.proposal)" />
+            <AppButton variant="ghost" size="icon-xs" class="shrink-0 hover:text-destructive" :icon="IconClose" tooltip="Cancel session" @click="cancelSession(row.proposal)" />
           </div>
         </div>
+        </template>
       </div>
     </div>
 
@@ -84,6 +105,9 @@
               <div class="flex-1 min-w-0">
                 <p class="text-heading-sm font-semibold text-foreground">{{ p.title }}</p>
                 <p class="text-caption text-muted-foreground">{{ formatDate(p.proposed_date, p.proposed_time) }}</p>
+                <p v-if="p.replaces_date" class="text-caption text-muted-foreground">
+                  Moved from {{ formatDate(p.replaces_date, null) }}
+                </p>
               </div>
               <!-- Availability summary -->
               <AppButton
@@ -106,7 +130,9 @@
                   @click="confirmSession(p)"
                 />
                 <AppButton variant="ghost" size="icon-xs" :icon="IconEdit" tooltip="Edit" @click="startEdit(p)" />
-                <AppButton variant="ghost" size="icon-xs" class="hover:text-destructive" :icon="IconDelete" tooltip="Remove" @click="removeProposal(p.id)" />
+                <AppButton variant="ghost" size="icon-xs" class="hover:text-destructive" :icon="IconDelete" 
+                  :tooltip="p.replaces_date ? 'Remove this move and keep the regular evening' : 'Remove'"
+                  @click="removeProposal(p.id)" />
               </div>
             </div>
             <!-- Per-member availability breakdown -->
@@ -205,6 +231,17 @@
             </p>
           </div>
           <AppButton
+            v-if="p.replaces_date"
+            variant="subtle"
+            size="xs"
+            class="shrink-0"
+            :icon="IconUndo"
+            label="Restore"
+            tooltip="Bring the regular evening back"
+            @click="removeProposal(p.id)"
+          />
+          <AppButton
+            v-else
             variant="ghost"
             size="icon-xs"
             class="shrink-0 hover:text-destructive"
@@ -217,81 +254,7 @@
     </div>
 
     <!-- ── Calendar subscription ──────────────────────────────────────── -->
-    <!-- Hidden for a child DM (#919): the feed is only useful paired with an
-         email calendar app, and a young player's account never sends or
-         receives email. -->
-    <div
-      v-if="icalFeedUrl && !isChild"
-      class="rounded-lg border border-border bg-muted/30 p-4 space-y-3"
-    >
-      <h3
-        class="text-label-lg font-semibold text-muted-foreground uppercase"
-      >
-        Calendar Subscription
-      </h3>
-      <p class="text-caption text-muted-foreground">
-        Subscribe once and your calendar app will automatically receive future
-        session updates, confirmed dates as normal events, and dates you have
-        only suggested as tentative ones that leave the evening free.
-      </p>
-
-      <!-- URL field + copy -->
-      <div class="flex items-center gap-2">
-        <input
-          :value="icalFeedUrl"
-          readonly
-          class="flex-1 bg-muted/40 border border-border rounded-md px-3 py-1.5 font-mono text-xs text-muted-foreground select-all focus:outline-none focus:ring-1 focus:ring-ring truncate"
-          @click="($event.target as HTMLInputElement).select()"
-        />
-        <AppButton
-          variant="outline"
-          size="sm"
-          class="shrink-0"
-          :tooltip="copied ? 'Copied!' : 'Copy URL'"
-          @click="copyUrl"
-        >
-          <template #icon>
-            <IconCheck v-if="copied" class="h-3 w-3 text-elven-green" />
-            <IconCopy v-else class="h-3 w-3" />
-          </template>
-          {{ copied ? "Copied" : "Copy" }}
-        </AppButton>
-      </div>
-
-      <!-- Action buttons -->
-      <div class="flex items-center gap-2 flex-wrap">
-        <AppButton
-          variant="tinted"
-          tone="primary"
-          emphasis="soft"
-          size="sm"
-          :href="webcalUrl"
-          :icon="IconAddEvent"
-          label="Subscribe in Calendar App"
-        />
-
-        <AppButton
-          variant="subtle"
-          size="sm"
-          :icon="IconDownload"
-          tooltip="A one-off snapshot of the same events; it will not update"
-          label="Download .ics"
-          @click="exportIcal"
-        />
-
-        <AppButton
-          v-if="campaign.isOwner"
-          variant="subtle"
-          size="sm"
-          class="hover:text-destructive hover:border-destructive"
-          :disabled="isRegenerating"
-          :icon="IconRefresh"
-          tooltip="Generate a new URL; existing subscriptions will stop updating"
-          :label="isRegenerating ? 'Regenerating…' : 'Regenerate URL'"
-          @click="regenerateToken"
-        />
-      </div>
-    </div>
+    <CalendarSubscription :cadence="cadence ?? null" :proposals="proposals ?? []" />
   </div>
 </template>
 
@@ -299,56 +262,48 @@
 import { ref, computed } from "vue";
 import { VueDatePicker } from "@vuepic/vue-datepicker";
 import "@/assets/vendor/datepicker.css";
-import { IconAdd, IconAddEvent, IconCalendar, IconCalendarCheck, IconCheck, IconClose, IconCopy, IconDelete, IconDownload, IconEdit, IconRefresh, IconRemoveEvent } from '@/lib/icons';
+import { IconAdd, IconCalendar, IconCalendarCheck, IconCheck, IconClose, IconDelete, IconEdit, IconRemoveEvent, IconUndo } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import CadenceEditor from "@/components/campaign/scheduling/CadenceEditor.vue";
+import RegularEveningRow from "@/components/campaign/scheduling/RegularEveningRow.vue";
+import CalendarSubscription from "@/components/campaign/scheduling/CalendarSubscription.vue";
 import {
   useSessionProposals,
   useAllSessionAvailability,
   useCreateProposal,
   useUpdateProposal,
   useDeleteProposal,
+  useSessionCadence,
+  useSaveCadence,
+  useDeleteCadence,
+  useSessionAbsences,
 } from "@/composables/calendar/useScheduling";
-import {
-  useCampaignById,
-  useRegenerateIcalToken,
-} from "@/composables/campaign/useCampaigns";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { notifyProposalCreated } from "@/composables/campaign/useEmailNotify";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
-import { useChildAccount } from "@/composables/account/useChildAccount";
-import type { SessionProposal } from "@/types/scheduling.types";
-import { buildSessionFeed, type IcsSessionEvent } from "@edge-shared/ics.ts";
-import { downloadBlob } from "@/lib/downloadBlob";
+import { useConfirm } from "@/composables/useConfirm";
+import { scheduledEvenings, type ScheduledEvening } from "@/lib/calendar/nextSession";
+import type { SessionCadenceInput, SessionProposal } from "@/types/scheduling.types";
 
 const campaign = useCampaignStore();
-const { isChild } = useChildAccount();
 const { data: proposals } = useSessionProposals();
 const { data: allAvailability } = useAllSessionAvailability();
 const { data: members } = useCampaignMembers();
-const { data: campaignData } = useCampaignById(() => campaign.activeCampaignId);
 const { mutateAsync: createProposal, isPending: isCreating } =
   useCreateProposal();
 const { mutateAsync: updateProposal, isPending: isUpdating } =
   useUpdateProposal();
 const { mutateAsync: deleteProposal } = useDeleteProposal();
-const { mutateAsync: doRegenerateToken, isPending: isRegenerating } =
-  useRegenerateIcalToken();
+const { data: cadence } = useSessionCadence();
+const { data: absences } = useSessionAbsences();
+const { mutateAsync: doSaveCadence, isPending: isSavingCadence } = useSaveCadence();
+const { mutateAsync: doDeleteCadence } = useDeleteCadence();
+const { confirm } = useConfirm();
 
 // ── Computed ──────────────────────────────────────────────────────────────────
-
-const icalFeedUrl = computed(() => {
-  const token = campaignData.value?.ical_token;
-  if (!token) return null;
-  const base = import.meta.env.VITE_SUPABASE_URL as string;
-  return `${base}/functions/v1/ical-feed/${token}`;
-});
-
-const webcalUrl = computed(() => {
-  return icalFeedUrl.value?.replace(/^https?:\/\//, "webcal://") ?? undefined;
-});
 
 const players = computed(() =>
   (members.value ?? []).filter((m) => m.role === "player"),
@@ -357,11 +312,25 @@ const playerCount = computed(() => players.value.length);
 
 const today = useLocalToday();
 
-const confirmed = computed(() =>
-  (proposals.value ?? [])
-    .filter((p) => p.status === "confirmed" && p.proposed_date >= today.value)
-    .sort((a, b) => a.proposed_date.localeCompare(b.proposed_date)),
+type UpcomingRow =
+  | { kind: "regular"; key: string; evening: ScheduledEvening }
+  | { kind: "confirmed"; key: string; proposal: SessionProposal };
+
+// Regular evenings and confirmed dates in one list. Proposed dates have their
+// own section below, so they are left out here.
+const upcoming = computed<UpcomingRow[]>(() =>
+  scheduledEvenings(cadence.value, proposals.value ?? [], today.value, null, 8).flatMap((e): UpcomingRow[] => {
+    if (e.status === "regular") return [{ kind: "regular", key: e.key, evening: e }];
+    if (e.status === "confirmed" && e.proposal) return [{ kind: "confirmed", key: e.key, proposal: e.proposal }];
+    return [];
+  }),
 );
+
+function absentNames(date: string): string[] {
+  const out = new Set((absences.value ?? []).filter((a) => a.absent_on === date).map((a) => a.user_id));
+  return players.value.filter((m) => out.has(m.user_id)).map((m) => m.display_name || "(unnamed)");
+}
+
 const proposed = computed(() =>
   (proposals.value ?? [])
     .filter((p) => p.status === "proposed" && p.proposed_date >= today.value)
@@ -473,6 +442,72 @@ async function addProposal() {
   resetForm();
 }
 
+function toDateAndTime(dt: Date): { date: string; time: string } {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    date: `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`,
+    time: `${pad(dt.getHours())}:${pad(dt.getMinutes())}`,
+  };
+}
+
+// A regular evening is moved by proposing the new date, which goes to the
+// players like any proposal; `replaces_date` hides the original evening.
+async function moveEvening(evening: ScheduledEvening, to: Date) {
+  const cid = campaign.activeCampaignId;
+  if (!cid) return;
+  const { date, time } = toDateAndTime(to);
+  const created = await createProposal({
+    campaign_id: cid,
+    proposed_date: date,
+    proposed_time: time,
+    title: evening.title,
+    notes: null,
+    status: "proposed",
+    duration_minutes: evening.durationMinutes,
+    min_attendance: 1,
+    replaces_date: evening.date,
+  });
+  void sendCampaignAnnouncement(
+    cid,
+    `📅 ${created.title} moved from ${formatDate(evening.date, null)} to ${formatDate(created.proposed_date, created.proposed_time)}`,
+  );
+  notifyProposalCreated(created.id);
+}
+
+// Cancelling stays quiet: an in-app announcement, no email.
+async function cancelEvening(evening: ScheduledEvening) {
+  const cid = campaign.activeCampaignId;
+  if (!cid) return;
+  const ok = await confirm(
+    `Nobody is emailed; players see it in the app. You can bring the evening back from the Cancelled list.`,
+    { title: `Cancel ${formatDate(evening.date, null)}?`, confirmLabel: "Cancel evening" },
+  );
+  if (!ok) return;
+  await createProposal({
+    campaign_id: cid,
+    proposed_date: evening.date,
+    proposed_time: evening.time,
+    title: evening.title,
+    notes: null,
+    status: "cancelled",
+    duration_minutes: evening.durationMinutes,
+    min_attendance: 1,
+    replaces_date: evening.date,
+  });
+  void sendCampaignAnnouncement(cid, `📅 No session on ${formatDate(evening.date, null)}`);
+}
+
+async function saveCadence(input: SessionCadenceInput) {
+  const cid = campaign.activeCampaignId;
+  if (!cid) return;
+  await doSaveCadence({ campaignId: cid, existingId: cadence.value?.id ?? null, input });
+}
+
+async function removeCadence() {
+  if (!cadence.value) return;
+  await doDeleteCadence(cadence.value.id);
+}
+
 async function confirmSession(p: SessionProposal) {
   await updateProposal({ id: p.id, update: { status: "confirmed" } });
 }
@@ -483,61 +518,6 @@ async function cancelSession(p: SessionProposal) {
 
 async function removeProposal(id: string) {
   await deleteProposal(id);
-}
-
-// ── Calendar subscription ─────────────────────────────────────────────────────
-
-const copied = ref(false);
-
-async function copyUrl() {
-  if (!icalFeedUrl.value) return;
-  await navigator.clipboard.writeText(icalFeedUrl.value);
-  copied.value = true;
-  setTimeout(() => {
-    copied.value = false;
-  }, 2000);
-}
-
-async function regenerateToken() {
-  if (!campaign.activeCampaignId) return;
-  const confirmed = window.confirm(
-    "Regenerating the URL will break all existing calendar subscriptions. Everyone will need to re-subscribe with the new URL. Continue?",
-  );
-  if (!confirmed) return;
-  await doRegenerateToken(campaign.activeCampaignId);
-}
-
-// ── iCal export ───────────────────────────────────────────────────────────────
-
-// Built by the same module the subscribed feed uses (`@edge-shared/ics.ts`), so
-// the file a DM downloads and the feed a player subscribes to are byte-for-byte
-// the same events. They used to be two hand-rolled builders and had drifted:
-// this one emitted no DTEND, no DTSTAMP and no text escaping, so a session
-// titled "Ambush, at last" exported a file some clients refused outright.
-
-function toIcsEvent(p: SessionProposal): IcsSessionEvent {
-  return {
-    id: p.id,
-    title: p.title,
-    notes: p.notes,
-    date: p.proposed_date,
-    time: p.proposed_time,
-    durationMinutes: p.duration_minutes,
-    status: p.status === "confirmed" ? "confirmed" : "proposed",
-  };
-}
-
-function exportIcal() {
-  const events = [...confirmed.value, ...proposed.value]
-    .sort((a, b) => a.proposed_date.localeCompare(b.proposed_date))
-    .map(toIcsEvent);
-  const body = buildSessionFeed({
-    campaignName: campaignData.value?.name ?? "Grimoire",
-    events,
-    now: new Date(),
-    respondUrl: `${window.location.origin}/play/settings`,
-  });
-  downloadBlob(new Blob([body], { type: "text/calendar;charset=utf-8" }), "sessions.ics");
 }
 
 // ── Formatting ────────────────────────────────────────────────────────────────

@@ -17,6 +17,8 @@
  *   parseIcsReply()       METHOD:REPLY  — what that mail app sends back.
  */
 
+import { cadenceRrule, firstEvening, type CadenceRule } from "./cadence.ts";
+
 /** Max line length per RFC 5545 §3.1 (75 octets, not chars — close enough for ASCII). */
 const LINE_MAX = 75;
 
@@ -163,11 +165,71 @@ function describe(ev: IcsSessionEvent, respondUrl: string | null): string | null
   return parts.length ? parts.join("\n\n") : null;
 }
 
+// ── The cadence as one recurring event (#1213) ───────────────────────────────
+
+/**
+ * A campaign's regular evenings, published as ONE recurring event rather than
+ * an event per evening, so a player's calendar carries the rhythm as far ahead
+ * as they scroll and shows it as the series it is.
+ *
+ * Every deviation is an EXDATE on the evening it replaced: a cancelled evening
+ * is simply gone, and a moved one appears as its own event from its
+ * `session_proposals` row (its own UID). RECURRENCE-ID overrides were the
+ * alternative and were not used: a moved evening is *asked* first, so for a
+ * while it is a tentative suggestion, which an override of a confirmed series
+ * renders badly in most clients, and it would tie the row's UID to the series'.
+ */
+export interface IcsSeries {
+  /** `session_cadences.id`; the UID stays stable when the DM edits the rule. */
+  id: string;
+  title: string;
+  rule: CadenceRule;
+  /** HH:mm[:ss] wall-clock. */
+  time: string;
+  durationMinutes: number;
+  /** "YYYY-MM-DD" of every regular evening a deviation replaced. */
+  exdates: string[];
+}
+
+export function seriesUid(cadenceId: string): string {
+  return `cadence-${cadenceId}@grimoire`;
+}
+
+function seriesLines(campaignName: string, series: IcsSeries, dtstamp: string): string[] {
+  const first = firstEvening(series.rule);
+  if (!first) return [];
+  const bounds = timeBounds({
+    id: series.id,
+    title: series.title,
+    notes: null,
+    date: first,
+    time: series.time,
+    durationMinutes: series.durationMinutes,
+    status: "confirmed",
+  });
+  const exdates = [...new Set(series.exdates)].sort();
+  return [
+    "BEGIN:VEVENT",
+    `UID:${seriesUid(series.id)}`,
+    `DTSTAMP:${dtstamp}`,
+    ...bounds,
+    `RRULE:${cadenceRrule(series.rule)}`,
+    // Same floating form as DTSTART, which RFC 5545 requires of an EXDATE.
+    ...exdates.map((d) => `EXDATE:${compactDate(d)}T${compactTime(series.time)}`),
+    `SUMMARY:${escapeText(`${campaignName} — ${series.title}`)}`,
+    "STATUS:CONFIRMED",
+    "TRANSP:OPAQUE",
+    "END:VEVENT",
+  ];
+}
+
 // ── The feed (METHOD:PUBLISH) ────────────────────────────────────────────────
 
 export interface SessionFeedOptions {
   campaignName: string;
   events: IcsSessionEvent[];
+  /** The campaign's cadence, if it has one. */
+  series?: IcsSeries | null;
   /** Injected so tests are deterministic; the caller passes `new Date()`. */
   now: Date;
   /** Where a player goes to answer a suggestion. Omitted from the export file. */
@@ -192,6 +254,8 @@ export function buildSessionFeed(opts: SessionFeedOptions): string {
     "METHOD:PUBLISH",
     `X-WR-CALNAME:${escapeText(campaignName)} — Sessions`,
   ];
+
+  if (opts.series) lines.push(...seriesLines(campaignName, opts.series, dtstamp));
 
   for (const ev of events) {
     const description = describe(ev, respondUrl);

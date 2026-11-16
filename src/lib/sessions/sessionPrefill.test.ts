@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import type { CampaignSession } from "@/types/session.types";
-import type { SessionProposal } from "@/types/scheduling.types";
 import {
   continuableSession,
   continueLabel,
@@ -10,7 +9,6 @@ import {
   prefersContinue,
   nextSessionNumber,
   sortSessionLog,
-  todaysScheduledSession,
 } from "./sessionPrefill";
 
 function row(patch: Partial<CampaignSession>): CampaignSession {
@@ -66,17 +64,6 @@ describe("sortSessionLog / lastPlayedSession", () => {
 describe("formatSessionDay", () => {
   it("reads a logged date as a local calendar day", () => {
     expect(formatSessionDay(row({ played_on: "2026-10-04" }))).toBe("Sunday 4 October");
-  });
-});
-
-describe("todaysScheduledSession", () => {
-  const p = (patch: Partial<SessionProposal>) =>
-    ({ id: "p", proposed_date: "2026-10-06", status: "confirmed", title: "The Mere", ...patch }) as SessionProposal;
-  it("picks the confirmed proposal dated today", () => {
-    expect(todaysScheduledSession([p({ id: "x", status: "proposed" }), p({ id: "y" })], "2026-10-06")?.id).toBe("y");
-  });
-  it("ignores other days", () => {
-    expect(todaysScheduledSession([p({ proposed_date: "2026-10-07" })], "2026-10-06")).toBeNull();
   });
 });
 

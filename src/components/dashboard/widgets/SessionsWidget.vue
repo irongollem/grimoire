@@ -67,7 +67,7 @@ import { formatSessionElapsed, type StartSessionOptions } from "@/composables/ca
 import { useSessionActions } from "@/composables/sessions/useSessionActions";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
 import { useUnsortedCount } from "@/composables/sessions/useSessionFacts";
-import { useSessionProposals } from "@/composables/calendar/useScheduling";
+import { useSessionCadence, useSessionProposals } from "@/composables/calendar/useScheduling";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import { useSessionNoteLinks, useSessionRecap } from "@/composables/notes/useNotes";
 import { pickNextSession, sessionTimeRange } from "@/lib/calendar/nextSession";
@@ -97,6 +97,7 @@ import { extractTiptapText } from "@/lib/utils";
 const { data: log } = useCampaignSessions();
 const { data: noteLinks } = useSessionNoteLinks();
 const { data: proposals } = useSessionProposals();
+const { data: cadence } = useSessionCadence();
 const { data: unsorted } = useUnsortedCount();
 const { pending, startSession, endSession } = useSessionActions();
 const today = useLocalToday();
@@ -107,7 +108,7 @@ const startOpen = ref(false);
 const running = computed(() => (log.value ?? []).find(isRunningSession) ?? null);
 const last = computed(() => lastPlayedSession(log.value ?? []));
 const target = computed(() => quickNoteTarget(log.value ?? []));
-const next = computed(() => pickNextSession(proposals.value ?? [], today.value));
+const next = computed(() => pickNextSession(cadence.value, proposals.value ?? [], today.value));
 
 const noted = computed(() => new Set((noteLinks.value ?? []).flatMap((n) => (n.session_id ? [n.session_id] : []))));
 const gaps = computed(() => sessionsWithoutNotes(log.value ?? [], noted.value).slice(0, 2));
@@ -125,7 +126,7 @@ const startLabel = computed(() => {
 const nextWhen = computed(() => {
   const p = next.value;
   if (!p) return "";
-  const day = new Date(`${p.proposed_date}T12:00:00`).toLocaleDateString(undefined, {
+  const day = new Date(`${p.date}T12:00:00`).toLocaleDateString(undefined, {
     weekday: "long",
     day: "numeric",
     month: "long",

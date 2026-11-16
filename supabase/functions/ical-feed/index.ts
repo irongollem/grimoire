@@ -22,6 +22,11 @@
 // not emitted, and a subscribed calendar is replaced wholesale on each poll,
 // so dropping one is how it disappears.
 //
+// A CADENCE (#1213) is one recurring event (RRULE) rather than an event per
+// evening, so it reaches as far ahead as a player scrolls. Every deviation
+// (`session_proposals.replaces_date`) is an EXDATE on the evening it replaced:
+// a cancelled evening drops out, a moved one is its own row's event below.
+//
 // Still never published: notes on cancelled or past sessions, per-player
 // availability, or anything else a campaign member has not already been shown.
 // The token is shared by the whole party, so the feed must hold nothing that
@@ -29,7 +34,8 @@
 // emailed invitation instead (see session-rsvp).
 import { withErrorReporting } from "../_shared/observability/report.ts";
 import { createClient } from "@supabase/supabase-js";
-import { buildSessionFeed, type IcsSessionEvent } from "../_shared/ics.ts";
+import { buildSessionFeed, type IcsSeries, type IcsSessionEvent } from "../_shared/ics.ts";
+import type { CadenceRule } from "../_shared/cadence.ts";
 import { isChildAccount } from "../_shared/accountGate.ts";
 
 const RESPOND_URL = "https://app.dungeongrimoire.com/play/settings";
@@ -42,6 +48,14 @@ interface SessionRow {
   proposed_time: string | null;
   duration_minutes: number;
   status: "proposed" | "confirmed";
+  updated_at: string;
+}
+
+interface CadenceRow extends CadenceRule {
+  id: string;
+  title: string;
+  start_time: string;
+  duration_minutes: number;
   updated_at: string;
 }
 
@@ -114,9 +128,39 @@ Deno.serve(withErrorReporting(async (req: Request) => {
 
   const rows = (sessions ?? []) as SessionRow[];
 
-  // Compute Last-Modified from the latest updated_at across all rows
-  const lastModDate = rows.length > 0
-    ? new Date(rows.reduce((max, r) => r.updated_at > max ? r.updated_at : max, rows[0].updated_at))
+  const { data: cadence, error: cadErr } = await supabase
+    .from("session_cadences")
+    .select("id, title, repeat, every_weeks, weekday, week_of_month, start_time, duration_minutes, starts_on, ends_on, updated_at")
+    .eq("campaign_id", campaign.id)
+    .maybeSingle<CadenceRow>();
+  if (cadErr) {
+    console.error("ical-feed cadence error:", cadErr);
+    return new Response("Internal Server Error", { status: 500 });
+  }
+
+  // Every evening a deviation replaced, past ones included and cancelled ones
+  // above all: those rows are filtered out of `sessions`, but their EXDATE is
+  // the only thing that takes the evening off the player's calendar.
+  let exdates: string[] = [];
+  const deviationStamps: string[] = [];
+  if (cadence) {
+    const { data: deviations, error: devErr } = await supabase
+      .from("session_proposals")
+      .select("replaces_date, updated_at")
+      .eq("campaign_id", campaign.id)
+      .not("replaces_date", "is", null);
+    if (devErr) {
+      console.error("ical-feed deviations error:", devErr);
+      return new Response("Internal Server Error", { status: 500 });
+    }
+    exdates = (deviations ?? []).map((d) => d.replaces_date as string);
+    // A cancellation changes the feed too, so it must move the ETag.
+    deviationStamps.push(...(deviations ?? []).map((d) => d.updated_at as string));
+  }
+
+  const stamps = [...rows.map((r) => r.updated_at), ...deviationStamps, ...(cadence ? [cadence.updated_at] : [])];
+  const lastModDate = stamps.length > 0
+    ? new Date(stamps.reduce((max, r) => r > max ? r : max, stamps[0]))
     : new Date();
   const lastModified = lastModDate.toUTCString();
   const etag = `"${lastModDate.getTime().toString(36)}"`;
@@ -136,9 +180,21 @@ Deno.serve(withErrorReporting(async (req: Request) => {
     status: s.status,
   }));
 
+  const series: IcsSeries | null = cadence
+    ? {
+      id: cadence.id,
+      title: cadence.title,
+      rule: cadence,
+      time: cadence.start_time,
+      durationMinutes: cadence.duration_minutes,
+      exdates,
+    }
+    : null;
+
   const body = buildSessionFeed({
     campaignName: campaign.name,
     events,
+    series,
     now: new Date(),
     respondUrl: RESPOND_URL,
   });

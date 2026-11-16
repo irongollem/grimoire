@@ -26,12 +26,12 @@ import { computed } from "vue";
 import { useIntervalFn, useNow } from "@vueuse/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { formatSessionElapsed } from "@/composables/campaign/useCampaignSession";
-import { useSessionProposals } from "@/composables/calendar/useScheduling";
+import { useSessionCadence, useSessionProposals } from "@/composables/calendar/useScheduling";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import { useNeedsInitiativeRoll } from "@/composables/encounters/useNeedsInitiativeRoll";
 import { liveState } from "@/composables/encounters/useEncounterLive";
 import { sessionLabel } from "@/lib/sessions/sessionLabel";
-import { todaysScheduledSession } from "@/lib/sessions/sessionPrefill";
+import { todaysScheduledSession } from "@/lib/calendar/nextSession";
 import { combatTurnLine } from "@/lib/hearth/turnLine";
 
 /**
@@ -61,12 +61,13 @@ const since = computed(() => {
 });
 
 const { data: proposals } = useSessionProposals();
+const { data: cadence } = useSessionCadence();
 const today = useLocalToday();
 // The session's own name wins; an unnamed one falls back to today's confirmed
 // proposal, then to the plain fact.
 const title = computed(() => {
   if (number !== null || sessionTitle) return sessionLabel({ number, title: sessionTitle });
-  return todaysScheduledSession(proposals.value ?? [], today.value)?.title ?? "The session is underway";
+  return todaysScheduledSession(cadence.value, proposals.value ?? [], today.value)?.title ?? "The session is underway";
 });
 
 const needsRoll = useNeedsInitiativeRoll(() => liveState.value?.combatants_live, () => memberId);

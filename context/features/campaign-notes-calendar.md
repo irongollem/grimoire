@@ -258,7 +258,7 @@ Widget notes:
 
 - **`PartyWidget`** — `max-height="none"`; a responsive grid is its own size. Online dot via `useCampaignPresence`.
 - **`PrepGapsWidget`** — `prepGapCount` and `undispatchedLootCount` from `useQuestBoardSummaries`, neither previously visible outside the quest board. A prep gap is `deriveQuestBeatPrepGaps`, which is **broader than a deleted attachment**: missing DM guidance, missing rumor/reveal copy, an unreviewed improvised beat, a disconnected staging beat. The count cannot say which, so the copy says "not ready to run" rather than naming a cause it does not know. Gaps sort above loot — a beat that cannot run blocks the evening; an undelivered reward only disappoints afterwards.
-- **`NextSessionWidget`** — nearest non-cancelled `session_proposals` row, shown as a countdown. The deadline is the point: gaps matter _because_ Thursday is coming.
+- **`NextSessionWidget`** — the next evening, a regular one from the campaign's cadence (#1213) or the nearest non-cancelled `session_proposals` row (`pickNextSession`), shown as a countdown, with who said they cannot make a regular evening. The deadline is the point: gaps matter _because_ Thursday is coming.
 - **`RecentNpcsWidget`** — up to 10 NPCs in visit order (`useRecentNpcs`, localStorage `grimoire_recent_npcs_<campaignId>`, per-campaign). Visit recorded in `NpcDetailView` via `watch(id)`.
 - **`PinnedNotesWidget`** — `is_pinned` notes, max 4, hidden when none.
 

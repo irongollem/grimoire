@@ -6,6 +6,8 @@ Email is for **planning between sessions, never for play.** One event exists:
 | -------------------- | ------------------------------------------------------------------- | --------------------------------------------- |
 | **Session proposed** | A DM adds a date in the Scheduling tab (`session_proposals` insert) | All `campaign_members` with `role = 'player'` |
 
+A campaign's **regular evenings** (its cadence, #1213, see [sessions.md](sessions.md#scheduling-the-cadence-1213)) send nothing: they are not proposals to answer. Only a deviation is asked: a *moved* evening goes out as an ordinary proposal through this email. A *cancelled* regular evening, and a player's "I can't make it", send no email: there is nothing to answer, so the in-app announcement and the calendar feed carry the first, and the DM's screens the second. There is no reminder email before a regular evening; the recurring event in the player's own calendar does that.
+
 Anything shared during play (a note, a handout, a reveal) reaches players in
 the app instead: journal unread dots, live sync, the campaign announcement.
 A shared-note email existed until 4 Oct 2026, and #970 briefly added a handout

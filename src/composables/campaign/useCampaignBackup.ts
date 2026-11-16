@@ -99,6 +99,10 @@ export interface GrimoireBackup {
   pinned_forms: Row[];
   session_proposals: Row[];
   session_availability: Row[];
+  /** The table's rhythm (#1213), at most one row. Absent from a backup taken before cadences existed.
+   *  Players' "I can't make it" rows are not backed up: a restore re-attributes every row to the
+   *  restorer, which would turn each player's absence into the DM's. */
+  session_cadences?: Row[];
   chronicler_images: Row[];
   entity_notes: Row[];
   /** The campaign's own Scriptorium documents (#915). Absent from a backup
@@ -226,6 +230,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     scriptoriumDocuments,
     npcMemories,
     kinLinks,
+    sessionCadences,
   ] = await Promise.all([
     supabase.from("campaigns").select("*").eq("id", campaignId).single().then(({ data, error }) => {
       if (error) throw error;
@@ -259,6 +264,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     qByCampaign("scriptorium_documents", campaignId),
     qByCampaign("npc_memories", campaignId),
     qByCampaign("kin_links", campaignId),
+    qByCampaign("session_cadences", campaignId),
   ]);
 
   // Phase 2: child entities keyed by parent IDs (parallel)
@@ -397,6 +403,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     pinned_forms: pinnedForms,
     session_proposals: sessionProposals,
     session_availability: sessionAvailability,
+    session_cadences: sessionCadences,
     chronicler_images: chroniclerImages,
     entity_notes: entityNotes,
     scriptorium_documents: scriptoriumDocuments,
@@ -464,6 +471,7 @@ function buildIdMap(backup: GrimoireBackup): IdMap {
     backup.pinned_forms,
     backup.session_proposals,
     backup.session_availability,
+    backup.session_cadences ?? [],
     backup.chronicler_images,
     backup.scriptorium_documents ?? [],
     backup.scriptorium_chapters ?? [],
@@ -878,6 +886,15 @@ export async function executeImport(
         campaign_id: newCampaignId,
         user_id: userId,
         session_proposal_id: r(sa.session_proposal_id, idMap),
+      })),
+    );
+    await batchInsert(
+      "session_cadences",
+      (backup.session_cadences ?? []).map((sc) => ({
+        ...sc,
+        id: r(sc.id, idMap),
+        campaign_id: newCampaignId,
+        user_id: userId,
       })),
     );
 

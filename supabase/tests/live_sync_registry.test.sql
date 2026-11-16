@@ -47,7 +47,7 @@ insert into live_sync_subscribed (name) values
   ('notes'), ('quests'), ('locations'), ('factions'), ('npcs'), ('companions'),
   ('discovered_monsters'), ('pantheons'), ('deities'), ('puzzle_rooms'),
   ('calendar_events'), ('player_journal_entries'), ('session_proposals'),
-  ('session_availability'), ('items'), ('loot_placements'), ('party_milestones'),
+  ('session_availability'), ('session_cadences'), ('session_absences'), ('items'), ('loot_placements'), ('party_milestones'),
   ('campaign_messages'), ('npc_inventory'), ('campaign_members'),
   ('campaign_rules'), ('downtime_grants'), ('downtime_draws'),
   ('downtime_outcomes'), ('downtime_deck_backs'), ('minis'), ('class_option_texts'),

@@ -31,10 +31,13 @@ vi.mock("@/composables/campaign/useCampaignMembers", () => ({ useCampaignMembers
 vi.mock("@/composables/calendar/useLocalToday", () => ({ useLocalToday: () => ref("2026-10-06") }));
 vi.mock("@/composables/calendar/useScheduling", () => ({
   useSessionProposals: () => ({
-    data: ref([{ id: "s1", status: "confirmed", proposed_date: "2026-10-10", title: null, min_attendance: 2 }]),
+    data: ref([{ id: "s1", status: "confirmed", proposed_date: "2026-10-10", proposed_time: null, duration_minutes: 180, title: "", notes: null, min_attendance: 2, replaces_date: null }]),
     isLoading: ref(false),
   }),
   useAllSessionAvailability: () => ({ data: ref([]), isLoading: ref(false) }),
+  useSessionCadence: () => ({ data: ref(null), isLoading: ref(false) }),
+  useSessionAbsences: () => ({ data: ref([]) }),
+  useSetAbsence: () => ({ mutate: vi.fn(), isError: ref(false) }),
   useUpsertAvailability: () => ({ mutate: state.rsvp, isError: ref(false) }),
 }));
 

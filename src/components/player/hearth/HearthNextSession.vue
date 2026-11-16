@@ -2,13 +2,13 @@
   <section class="torn hearth-paper hearth-card rounded-lg p-3.5" aria-label="Next session">
     <div v-if="session" class="flex flex-col gap-2">
       <div class="flex items-baseline justify-between gap-2">
-        <span class="text-eyebrow text-muted-foreground">{{ invite ? "Can you make it?" : "Next session" }}</span>
+        <span class="text-eyebrow text-muted-foreground">{{ invite && !isRegular ? "Can you make it?" : "Next session" }}</span>
         <span
           class="inline-flex items-center gap-1.5 text-eyebrow"
-          :class="session.status === 'confirmed' ? 'text-ink-success' : 'text-ink-caution'"
+          :class="session.status === 'proposed' ? 'text-ink-caution' : 'text-ink-success'"
         >
           <i class="inline-block h-1.5 w-1.5 rotate-45 bg-current" aria-hidden="true" />
-          {{ session.status === "confirmed" ? "Confirmed" : "Proposed" }}
+          {{ STATUS_LABEL[session.status] }}
         </span>
       </div>
 
@@ -18,11 +18,11 @@
         <span>{{ [timeRange, countdown].filter(Boolean).join(" · ") }}</span>
       </p>
       <p v-if="session.title" class="text-body italic">{{ session.title }}</p>
-      <p v-if="invite && tally.total > 0" class="text-caption text-muted-foreground">
-        Needs {{ session.min_attendance }} of {{ tally.total }} to go ahead
+      <p v-if="invite && !isRegular && tally.total > 0" class="text-caption text-muted-foreground">
+        Needs {{ session.minAttendance }} of {{ tally.total }} to go ahead
       </p>
       <p v-else-if="tally.total > 0" class="text-caption text-muted-foreground">
-        {{ tally.yes }} of {{ tally.total }} coming<template v-if="mine === true">, you too</template>
+        {{ tally.yes }} of {{ tally.total }} coming<template v-if="mine === true || (isRegular && choice === 'in')">, you too</template>
       </p>
 
       <SegmentedControl
@@ -37,7 +37,7 @@
         @update:model-value="answer"
       />
       <p v-if="appUi.dmPreviewMode" class="text-caption italic text-muted-foreground">The player answers here.</p>
-      <p v-if="rsvp.isError.value" class="text-caption text-destructive" role="alert">
+      <p v-if="answerFailed" class="text-caption text-destructive" role="alert">
         Your answer did not save. Try again.
       </p>
     </div>
@@ -67,10 +67,14 @@ import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import {
   useAllSessionAvailability,
+  useSessionAbsences,
+  useSessionCadence,
   useSessionProposals,
+  useSetAbsence,
   useUpsertAvailability,
 } from "@/composables/calendar/useScheduling";
 import {
+  absenceTally,
   countdownLabel,
   daysUntil,
   myRsvp,
@@ -101,37 +105,62 @@ const today = useLocalToday();
 const { data: proposals, isLoading: proposalsLoading } = useSessionProposals();
 const { data: availability, isLoading: availabilityLoading } = useAllSessionAvailability();
 const { data: members } = useCampaignMembers();
+const { data: cadence, isLoading: cadenceLoading } = useSessionCadence();
+const { data: absences } = useSessionAbsences();
 const rsvp = useUpsertAvailability();
+const setAbsence = useSetAbsence();
 
-const isLoading = computed(() => proposalsLoading.value || availabilityLoading.value);
-const session = computed(() => (proposals.value ? pickNextSession(proposals.value, today.value) : null));
+const STATUS_LABEL = { regular: "Regular", proposed: "Proposed", confirmed: "Confirmed" } as const;
+
+const isLoading = computed(() => proposalsLoading.value || availabilityLoading.value || cadenceLoading.value);
+const session = computed(() =>
+  proposals.value ? pickNextSession(cadence.value, proposals.value, today.value) : null,
+);
+const isRegular = computed(() => session.value?.status === "regular");
 const playerCount = computed(() => (members.value ?? []).filter((m) => m.role === "player").length);
+const answerFailed = computed(() => (isRegular.value ? setAbsence.isError.value : rsvp.isError.value));
 
-const tally = computed(() =>
-  session.value
-    ? rsvpTally(availability.value ?? [], session.value.id, playerCount.value)
-    : { yes: 0, answered: 0, total: 0 },
-);
-const mine = computed(() =>
-  session.value && !appUi.dmPreviewMode ? myRsvp(availability.value ?? [], session.value.id, auth.user?.id) : null,
-);
-const choice = computed<Choice | "">(() => (mine.value === null ? "" : mine.value ? "in" : "out"));
+const tally = computed(() => {
+  const s = session.value;
+  if (!s) return { yes: 0, answered: 0, total: 0 };
+  if (!s.proposal) return absenceTally(absences.value ?? [], s.date, playerCount.value);
+  return rsvpTally(availability.value ?? [], s.proposal.id, playerCount.value);
+});
+// A regular evening has no "yes": the player is coming unless they have an absence row.
+const mine = computed(() => {
+  const s = session.value;
+  if (!s?.proposal || appUi.dmPreviewMode) return null;
+  return myRsvp(availability.value ?? [], s.proposal.id, auth.user?.id);
+});
+const choice = computed<Choice | "">(() => {
+  const s = session.value;
+  if (s && !s.proposal) {
+    if (appUi.dmPreviewMode) return "";
+    const out = (absences.value ?? []).some((a) => a.user_id === auth.user?.id && a.absent_on === s.date);
+    return out ? "out" : "in";
+  }
+  return mine.value === null ? "" : mine.value ? "in" : "out";
+});
 
 const dateLabel = computed(() => {
   if (!session.value) return "";
-  const [y, m, d] = session.value.proposed_date.split("-").map(Number);
+  const [y, m, d] = session.value.date.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 });
 const timeRange = computed(() => (session.value ? sessionTimeRange(session.value) : null));
 const countdown = computed(() =>
-  session.value ? countdownLabel(daysUntil(session.value.proposed_date, today.value)) : "",
+  session.value ? countdownLabel(daysUntil(session.value.date, today.value)) : "",
 );
 
 function answer(value: Choice | "") {
   const target = session.value;
   const campaignId = campaign.activeCampaignId;
   if (appUi.dmPreviewMode || !target || !campaignId || value === "") return;
-  rsvp.mutate({ session_proposal_id: target.id, campaign_id: campaignId, available: value === "in" });
+  if (!target.proposal) {
+    setAbsence.mutate({ campaignId, date: target.date, absent: value === "out" });
+    return;
+  }
+  rsvp.mutate({ session_proposal_id: target.proposal.id, campaign_id: campaignId, available: value === "in" });
 }
 </script>
 

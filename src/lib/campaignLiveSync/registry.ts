@@ -77,6 +77,9 @@ export const SYNC_TABLES = [
   ["player_journal_entries",  "player_journal"],
   ["session_proposals",       "session_proposals"],
   ["session_availability",    "session_availability"],
+  // The table's rhythm and a player's "I can't make it" on a regular evening (#1213).
+  ["session_cadences",        "session_cadences"],
+  ["session_absences",        "session_absences"],
   ["items",                   "items"],
   ["loot_placements",         "loot_placements"],
   // A milestone the DM awards (or an award_milestone rule fires) reaches the

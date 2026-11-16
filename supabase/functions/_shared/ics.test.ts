@@ -12,6 +12,7 @@ import {
   PROPOSED_PREFIX,
   tokenFromAddress,
   unfold,
+  type IcsSeries,
   type IcsSessionEvent,
 } from "./ics.ts";
 
@@ -272,5 +273,42 @@ describe("availabilityFromPartstat", () => {
     expect(availabilityFromPartstat("NEEDS-ACTION")).toBeNull();
     expect(availabilityFromPartstat("DELEGATED")).toBeNull();
     expect(availabilityFromPartstat(null)).toBeNull();
+  });
+});
+
+describe("buildSessionFeed with a cadence (#1213)", () => {
+  const series: IcsSeries = {
+    id: "c1",
+    title: "Session",
+    rule: {
+      repeat: "weekly",
+      every_weeks: 1,
+      weekday: 4,
+      week_of_month: null,
+      starts_on: "2026-11-16",
+      ends_on: null,
+    },
+    time: "19:30:00",
+    durationMinutes: 240,
+    exdates: ["2026-12-03", "2026-11-26", "2026-12-03"],
+  };
+  const feed = (s: IcsSeries | null) =>
+    unfold(buildSessionFeed({ campaignName: "Kind Country", events: [], now: new Date("2026-11-16T10:00:00Z"), series: s }));
+
+  it("starts the series on the first real evening, not on starts_on (a DTSTART off the rule counts as an extra evening)", () => {
+    // 16 Nov 2026 is a Monday; the first Thursday is the 19th.
+    expect(feed(series)).toContain("DTSTART:20261119T193000");
+    expect(feed(series)).toContain("DTEND:20261119T233000");
+    expect(feed(series)).toContain("RRULE:FREQ=WEEKLY;BYDAY=TH");
+  });
+
+  it("drops every replaced evening once, at the series' own floating start time", () => {
+    const out = feed(series);
+    expect(out.match(/^EXDATE:.*$/gm)).toEqual(["EXDATE:20261126T193000", "EXDATE:20261203T193000"]);
+  });
+
+  it("emits no series when the cadence ends before its first evening", () => {
+    const out = feed({ ...series, rule: { ...series.rule, ends_on: "2026-11-18" } });
+    expect(out).not.toContain("RRULE");
   });
 });

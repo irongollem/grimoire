@@ -92,7 +92,12 @@ import HearthWhileAway from "@/components/player/hearth/HearthWhileAway.vue";
 import CharacterCaretakingNotice from "@/components/player/caretaking/CharacterCaretakingNotice.vue";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { usePlayerCalendarEventsRange } from "@/composables/calendar/useCalendarEvents";
-import { useAllSessionAvailability, useSessionProposals } from "@/composables/calendar/useScheduling";
+import {
+  useAllSessionAvailability,
+  useSessionAbsences,
+  useSessionCadence,
+  useSessionProposals,
+} from "@/composables/calendar/useScheduling";
 import { useMyRecentNotes } from "@/composables/notes/useMyRecentNotes";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
@@ -151,6 +156,8 @@ usePlayerVisibleQuests();
 usePlayerQuestBeats();
 useSessionProposals();
 useAllSessionAvailability();
+useSessionCadence();
+useSessionAbsences();
 useCampaignMembers();
 usePlayerCalendarEventsRange(
   computed(() => campaign.todayYear),

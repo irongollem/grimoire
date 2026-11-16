@@ -76,7 +76,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import { useCampaignSessions } from "@/composables/sessions/useCampaignSessions";
-import { useSessionProposals } from "@/composables/calendar/useScheduling";
+import { useSessionCadence, useSessionProposals } from "@/composables/calendar/useScheduling";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import { sessionLabel } from "@/lib/sessions/sessionLabel";
 import {
@@ -87,8 +87,8 @@ import {
   lastPlayedSession,
   nextSessionNumber,
   prefersContinue,
-  todaysScheduledSession,
 } from "@/lib/sessions/sessionPrefill";
+import { todaysScheduledSession } from "@/lib/calendar/nextSession";
 import type { StartSessionOptions } from "@/composables/campaign/useCampaignSession";
 
 const { open, pending = false } = defineProps<{
@@ -103,6 +103,7 @@ const emit = defineEmits<{
 
 const { data: log } = useCampaignSessions();
 const { data: proposals } = useSessionProposals();
+const { data: cadence } = useSessionCadence();
 const today = useLocalToday();
 
 const number = ref<number | null>(null);
@@ -123,7 +124,7 @@ const modeOptions = computed<SegmentedOption<"continue" | "start">[]>(() => [
   { value: "start", label: nextNumber.value !== null ? `Start session ${nextNumber.value}` : "Start a new one" },
 ]);
 
-const scheduled = computed(() => todaysScheduledSession(proposals.value ?? [], today.value));
+const scheduled = computed(() => todaysScheduledSession(cadence.value, proposals.value ?? [], today.value));
 const last = computed(() => lastPlayedSession(log.value ?? []));
 const lastTime = computed(() =>
   last.value ? `${sessionLabel(last.value).replace(": ", ", ")} · ${formatSessionDay(last.value)}` : null,
@@ -159,7 +160,7 @@ function onConfirm() {
     number: number.value,
     title: title.value.trim() || null,
     // Only a title that came from the schedule links back to it.
-    proposalId: scheduled.value && title.value.trim() === scheduled.value.title ? scheduled.value.id : null,
+    proposalId: scheduled.value?.proposal && title.value.trim() === scheduled.value.title ? scheduled.value.proposal.id : null,
   });
 }
 </script>
