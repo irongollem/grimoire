@@ -73,7 +73,9 @@ Same rule forward in time: no "we'll refactor later", no "we'll extract this whe
 **The two exits**, both said out loud in one line when taken:
 
 1. The user explicitly says to work solo on this one.
-2. The overseer judges delegation inefficient — the change is small enough that writing the spec costs more than the work (a config line, a one-file fix, a doc edit). State the judgment; don't silently default to solo.
+2. The overseer judges delegation inefficient: writing the spec and reviewing the diff would cost more than doing the work. That covers a config line, a doc edit, and anything up to about **one module with its tests** (the maintainer's bar, 16 Nov 2026). State the judgment; don't silently default to solo.
+
+   The bar was a one-file fix until the #1021 session measured it: executors earned their keep on parallel, file-disjoint stories and on test-heavy rebuilds (1.5 to 3 minutes each, back with mutation-proven tests), while four one-module changes (hearing rules, the say/do choice, a model-family fix, a speed change) were quicker done directly, because the spec and the review are most of the work either way. So delegate when stories can run side by side or when the typing is long; do it yourself when one module is the whole change. The test discipline and the full gate apply the same either way.
 
 Model choice for the *overseer* follows the judgment load, not habit: a spec-executable story (the ticket already contains the decisions) runs fine with Opus at the helm; judgment-heavy work — UX design, security-sensitive review, architecture — warrants the top model. Session model is the user's call; this paragraph is for recommending one when asked.
 
