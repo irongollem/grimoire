@@ -49,6 +49,7 @@
     "dev:showcase": "tsx --tsconfig tsconfig.node.json scripts/dev-showcase.ts",
     "dev:buckets": "tsx --tsconfig tsconfig.node.json scripts/dev-buckets.ts",
     "dev:table": "tsx --tsconfig tsconfig.node.json scripts/dev-table.ts",
+    "table:conduct-eval": "tsx --tsconfig tsconfig.node.json scripts/table-conduct-eval/run.ts",
     "library:art": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/generate-library-art.ts",
     "library:move-art": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/move-library-art-to-srd.ts",
     "check:images": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/backfill-image-provenance.ts --fail-on-dead",
