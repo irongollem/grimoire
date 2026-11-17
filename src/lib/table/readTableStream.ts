@@ -1,4 +1,7 @@
-import type { TableEvent, TableLine } from "./soloTypes";
+import type { TableEvent, TableLine, TablePressure } from "./soloTypes";
+
+/** A quest clock has at most this many segments; a longer one is not a clock this page knows how to draw. */
+const MAX_PIPS = 24;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -16,6 +19,19 @@ export function parseTableLine(raw: unknown): TableLine | null {
     text: raw.text,
     ...(typeof raw.to === "string" ? { to: raw.to } : {}),
   };
+}
+
+/**
+ * A clock as the stream and the stored sitting both carry it, or null when it is not one. Whole numbers only, and
+ * never fuller than it is long: the pips are drawn from these two numbers and nothing else.
+ */
+export function parseTablePressure(raw: unknown): TablePressure | null {
+  if (!isRecord(raw)) return null;
+  const { filled, segments } = raw;
+  if (typeof filled !== "number" || typeof segments !== "number") return null;
+  if (!Number.isInteger(filled) || !Number.isInteger(segments)) return null;
+  if (segments < 1 || segments > MAX_PIPS || filled < 0 || filled > segments) return null;
+  return { filled, segments };
 }
 
 /**
@@ -51,6 +67,13 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
     case "fact": {
       const f = raw.fact;
       return isRecord(f) && typeof f.id === "string" && typeof f.body === "string" ? { type: "fact", fact: { id: f.id, body: f.body } } : null;
+    }
+    case "pressure": {
+      // An explicit null is the pressure coming off; anything else malformed is skipped, so a bad payload never
+      // takes a running clock off the page.
+      if (raw.pressure === null) return { type: "pressure", pressure: null };
+      const pressure = parseTablePressure(raw.pressure);
+      return pressure ? { type: "pressure", pressure } : null;
     }
     case "done":
       return {

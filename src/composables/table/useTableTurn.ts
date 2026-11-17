@@ -2,7 +2,7 @@ import { computed, ref, shallowRef, type Ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { readTableStream } from "@/lib/table/readTableStream";
 import { applyTableEvent, nextItemId, playerItem } from "@/lib/table/storyReducer";
-import type { PlayMode, StoryItem } from "@/lib/table/soloTypes";
+import type { PlayMode, StoryItem, TablePressure } from "@/lib/table/soloTypes";
 import { NO_ANSWER, refusalFailure, type TurnFailure } from "@/lib/table/turnRefusal";
 
 export interface TurnRequest {
@@ -44,6 +44,8 @@ export interface TableTurnOptions {
   onSession?: (sessionId: string) => void;
   /** The party arrived somewhere. */
   onScene?: (scene: { id: string; name: string }) => void;
+  /** The clock the scene runs against moved, started or (null) came off. */
+  onPressure?: (pressure: TablePressure | null) => void;
   /** A turn was kept. */
   onDone?: () => void;
 }
@@ -128,6 +130,7 @@ export function useTableTurn(options: TableTurnOptions) {
           credits.value += event.credits;
         } else {
           if (event.type === "scene") options.onScene?.(event.scene);
+          if (event.type === "pressure") options.onPressure?.(event.pressure);
           live.value = applyTableEvent(live.value, event);
         }
       }

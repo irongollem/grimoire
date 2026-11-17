@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readTableStream } from "./readTableStream";
+import { parseTableEvent, parseTablePressure, readTableStream } from "./readTableStream";
 import type { TableEvent } from "./soloTypes";
 
 /** A Response whose body arrives in exactly these chunks, as a network might cut it. */
@@ -81,5 +81,33 @@ describe("readTableStream", () => {
   it("reads credits as a number even when the server leaves them out", async () => {
     const events = await collect(responseOf([`data: ${JSON.stringify({ type: "done", end: "end_turn" })}\n\n`]));
     expect(events).toEqual([{ type: "done", end: "end_turn", credits: 0, tokens: 0 }]);
+  });
+});
+
+describe("parseTablePressure", () => {
+  // Bug caught: pips drawn from a clock fuller than it is long, a fraction, or no length at all.
+  it.each([
+    ["fuller than it is long", { filled: 5, segments: 4 }],
+    ["a negative fill", { filled: -1, segments: 4 }],
+    ["no segments", { filled: 0, segments: 0 }],
+    ["a fraction", { filled: 1.5, segments: 4 }],
+    ["text for a number", { filled: "1", segments: 4 }],
+    ["longer than any quest clock", { filled: 1, segments: 25 }],
+  ])("refuses a clock with %s", (_what, raw) => {
+    expect(parseTablePressure(raw)).toBeNull();
+  });
+
+  it("reads a full clock and an empty one, the two ends the page draws differently", () => {
+    expect(parseTablePressure({ filled: 4, segments: 4, label: "never kept" })).toEqual({ filled: 4, segments: 4 });
+    expect(parseTablePressure({ filled: 0, segments: 3 })).toEqual({ filled: 0, segments: 3 });
+  });
+});
+
+describe("parseTableEvent for pressure", () => {
+  // Bug caught: a malformed pressure event read as "the pressure came off", taking a running clock off the page.
+  it("reads an explicit null as the pressure coming off, and skips a malformed one instead", () => {
+    expect(parseTableEvent({ type: "pressure", pressure: null })).toEqual({ type: "pressure", pressure: null });
+    expect(parseTableEvent({ type: "pressure", pressure: { filled: 9, segments: 2 } })).toBeNull();
+    expect(parseTableEvent({ type: "pressure" })).toBeNull();
   });
 });

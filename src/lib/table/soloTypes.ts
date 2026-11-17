@@ -12,6 +12,12 @@ export interface TableLine {
   to?: string;
 }
 
+/** How full the clock the scene runs against is. The page is never told what it counts down to. */
+export interface TablePressure {
+  filled: number;
+  segments: number;
+}
+
 export type TableEvent =
   | { type: "session"; sessionId: string; character?: { id: string; name: string } }
   | { type: "text"; delta: string }
@@ -20,6 +26,7 @@ export type TableEvent =
   | { type: "line"; line: TableLine }
   | { type: "scene"; scene: { id: string; name: string } }
   | { type: "fact"; fact: { id: string; body: string } }
+  | { type: "pressure"; pressure: TablePressure | null }
   | { type: "done"; end: string; credits: number; tokens: number }
   | { type: "error"; message: string };
 

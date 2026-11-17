@@ -6,6 +6,10 @@
       <h2 v-if="placeName" class="text-heading text-foreground">{{ placeName }}</h2>
       <p v-else class="text-body italic text-muted-foreground">Nowhere in particular yet. The Dungeon Master will say.</p>
     </section>
+    <template v-if="pressure">
+      <hr class="border-border" />
+      <SoloPressure :pressure="pressure" />
+    </template>
     <hr class="border-border" />
     <section class="flex flex-col gap-2.5 px-4 py-3.5">
       <span class="text-eyebrow text-muted-foreground">Here with you</span>
@@ -30,8 +34,15 @@ import { computed } from "vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { getNpcDisplayFocalPoint, getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
 import type { SceneNpc } from "@/composables/table/useTableScene";
+import type { TablePressure } from "@/lib/table/soloTypes";
+import SoloPressure from "./SoloPressure.vue";
 
-const { here } = defineProps<{ placeName: string | null; here: readonly SceneNpc[] }>();
+const { here, pressure = null } = defineProps<{
+  placeName: string | null;
+  here: readonly SceneNpc[];
+  /** The clock the scene runs against; null when there is none. */
+  pressure?: TablePressure | null;
+}>();
 
 // A character in disguise is shown as the disguise: the same rule the DM's own screens apply for players. No
 // occupation or description is drawn: the page cannot tell which of a record's facts this character has learned.

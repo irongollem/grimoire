@@ -73,4 +73,22 @@ describe("useTableConversation", () => {
     expect(r.data.value?.items.map((i) => ("text" in i ? i.text : ""))).toEqual(["Hello", "On record: Known."]);
     expect(r.data.value?.sitting.credits_spent).toBe(3);
   });
+
+  // Bug caught: a reloaded sitting losing its countdown; the label (what is coming) reaching the page; or a clock
+  // of another campaign being drawn because the read named only its id.
+  it("reads how full this campaign's pressure clock is, and nothing else of it", async () => {
+    fake.seed("agent_sessions", [session("s1", { pressure_clock_id: "k1" }), session("s2", { pressure_clock_id: "k2" })]);
+    fake.seed("quest_clocks", [
+      { id: "k1", campaign_id: "c1", label: "LABEL-MARK", filled: 2, segments: 5 },
+      { id: "k2", campaign_id: "c2", label: "elsewhere", filled: 1, segments: 3 },
+    ]);
+    const mine = mountWith(() => useTableConversation("s1", "c1"));
+    await vi.waitFor(() => expect(mine.data.value).toBeDefined());
+    expect(mine.data.value?.sitting.pressure).toEqual({ filled: 2, segments: 5 });
+    expect(JSON.stringify(mine.data.value)).not.toContain("LABEL-MARK");
+
+    const other = mountWith(() => useTableConversation("s2", "c1"));
+    await vi.waitFor(() => expect(other.data.value).toBeDefined());
+    expect(other.data.value?.sitting.pressure).toBeNull();
+  });
 });

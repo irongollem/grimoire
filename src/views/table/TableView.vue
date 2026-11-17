@@ -54,7 +54,7 @@
         </main>
 
         <aside v-show="wide || tab === 'scene'" class="min-w-0 overflow-y-auto bg-card max-md:flex-1 md:w-80 md:shrink-0 md:border-l md:border-border" aria-label="The scene">
-          <SoloScene :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" />
+          <SoloScene :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" />
         </aside>
       </div>
 
@@ -86,6 +86,7 @@ import { useToast } from "@/composables/useToast";
 import { useTableConversation } from "@/composables/table/useTableConversation";
 import { useTableDisclosure } from "@/composables/table/useTableDisclosure";
 import { useTableScene } from "@/composables/table/useTableScene";
+import type { TablePressure } from "@/lib/table/soloTypes";
 import { useTableSpeakers } from "@/composables/table/useTableSpeakers";
 import { useTableTurn } from "@/composables/table/useTableTurn";
 import { useAbove } from "@/composables/useBreakpoint";
@@ -128,6 +129,8 @@ const newPlaceId = ref<string | null>(queryText("place"));
 // The stored conversation to draw. Never the id this screen created itself: that story is already on the page.
 const historyId = ref<string | null>(openedId());
 const sceneId = ref<string | null>(newPlaceId.value);
+// The clock the scene runs against: from the stored sitting when one is opened, then from each kept turn.
+const pressure = ref<TablePressure | null>(null);
 
 // A new sitting is about someone: with nobody chosen there is nothing to begin, so it goes back to choosing.
 if (param.value === "new" && newCharacterId.value === null) void router.replace("/table");
@@ -146,6 +149,9 @@ const turn = useTableTurn({
     sceneId.value = arrived.id;
     scene.refresh();
   },
+  onPressure: (now) => {
+    pressure.value = now;
+  },
   onDone: () => {
     // Characters who speak are placed with the party at the end of a turn; the balance and the list of sittings moved.
     scene.refresh();
@@ -163,6 +169,7 @@ watch(param, () => {
   newCharacterId.value = queryText("character");
   newPlaceId.value = queryText("place");
   sceneId.value = newPlaceId.value;
+  pressure.value = null;
   if (param.value === "new" && newCharacterId.value === null) void router.replace("/table");
 });
 
@@ -171,6 +178,7 @@ watch(
   () => conversation.data.value,
   (stored) => {
     if (stored?.sitting.scene_location_id) sceneId.value = stored.sitting.scene_location_id;
+    if (stored) pressure.value = stored.sitting.pressure;
   },
 );
 
