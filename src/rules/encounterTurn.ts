@@ -557,9 +557,11 @@ export function reduceEncounterTurn(
     case "start_combat": {
       // Combat starts even if someone never got an initiative: they sort to the
       // end of the order and can be typed in there.
-      const next: EncounterTurnState = { ...state, started: true, activeIndex: 0, round: 1 };
+      // A bystander sorts last (no initiative) but a fight with only them left must still not start on one.
+      const sortedAtStart = sortCombatantsByInitiative(state.combatants);
+      const next: EncounterTurnState = { ...state, started: true, activeIndex: findFirstActiveIndex(sortedAtStart), round: 1 };
       events.push({ type: "round_started", round: 1 });
-      const first = sortCombatantsByInitiative(next.combatants)[0];
+      const first = sortedAtStart[next.activeIndex];
       if (first) {
         events.push({ type: "turn_started", instanceId: first.instance_id });
         next.combatants = runEdge(next.combatants, "start", first.instance_id, events);

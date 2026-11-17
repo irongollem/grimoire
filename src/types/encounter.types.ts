@@ -245,6 +245,12 @@ export interface RunCombatant {
   token_url?: string | null;
   // reveal state — only meaningful for monsters; players are always "revealed"
   reveal_state?: RevealState;
+  /**
+   * A recorded character who is in the room but not in the fight (the AI table, #1021): a token on the map that
+   * never takes a turn, is never attacked or targeted, does not count towards the fight's end, and is listed
+   * apart from the turn order.
+   */
+  bystander?: true;
   // wildshape — only set for player combatants currently wildshaped
   wildshape?: WildshapeState;
   // temp HP — absorbs damage first, doesn't stack with healing

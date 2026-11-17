@@ -11,7 +11,7 @@
       <span class="text-eyebrow text-muted-foreground">{{ started ? "Turn order" : "Who is in it" }}</span>
       <ol class="flex flex-col gap-1">
         <li
-          v-for="c in seen"
+          v-for="c in turnTakers"
           :key="c.instanceId"
           class="flex items-baseline justify-between gap-2 rounded-md px-2 py-1.5"
           :class="c.instanceId === activeInstanceId ? 'bg-primary/10' : ''"
@@ -22,6 +22,15 @@
           <span v-else class="shrink-0 text-caption text-muted-foreground">{{ c.health.word }}</span>
         </li>
       </ol>
+    </div>
+
+    <div v-if="bystanders.length > 0" class="flex flex-col gap-1.5" data-testid="solo-fight-bystanders">
+      <span class="text-eyebrow text-muted-foreground">Also here</span>
+      <ul class="flex flex-col gap-1">
+        <li v-for="c in bystanders" :key="c.instanceId" class="rounded-md px-2 py-1.5">
+          <span class="min-w-0 truncate text-body text-foreground">{{ c.name }}</span>
+        </li>
+      </ul>
     </div>
   </section>
 </template>
@@ -37,6 +46,10 @@ const { name, started, round, seen, activeInstanceId } = defineProps<{
   seen: readonly SeenCombatant[];
   activeInstanceId: string | null;
 }>();
+
+// Bystanders never take a turn, so they are not in the order the player reads.
+const turnTakers = computed(() => seen.filter((c) => !c.bystander));
+const bystanders = computed(() => seen.filter((c) => c.bystander));
 
 const state = computed(() => (started ? `Round ${round}` : "Not begun · waiting on your initiative"));
 </script>

@@ -180,6 +180,17 @@ describe("turn order", () => {
   });
 });
 
+describe("start_combat with a bystander", () => {
+  // Bug caught: combat starting on a bystander because it sorted first (initiative typed in by hand) or stayed at index 0.
+  it("starts on the first creature that takes turns", () => {
+    const list = [combatant("npc", { bystander: true, initiative: 25 }), combatant("a", { initiative: 12 }), combatant("b", { initiative: 5 })];
+    const { state, events } = reduceEncounterTurn(stateOf(list, { started: false, round: 0 }), { type: "start_combat" });
+    expect(state.activeIndex).toBe(1);
+    expect(events).toContainEqual({ type: "turn_started", instanceId: "a" });
+    expect(events).not.toContainEqual({ type: "turn_started", instanceId: "npc" });
+  });
+});
+
 describe("hit points and dying", () => {
   // PHB 2014 "Instant Death"
   it("instant death writes three failures", () => {

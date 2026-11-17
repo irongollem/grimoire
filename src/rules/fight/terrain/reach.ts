@@ -70,8 +70,9 @@ export interface ReachResult {
   cells: ReadonlyMap<string, ReachCell>;
 }
 
-/** The same "who is an opponent" convention as `targetCandidates`: a different faction. */
-export function isHostileTo(mover: { faction_id: string }, other: { faction_id: string }): boolean {
+/** The same "who is an opponent" convention as `targetCandidates`: a different faction. A bystander is no one's opponent. */
+export function isHostileTo(mover: { faction_id: string; bystander?: true }, other: { faction_id: string; bystander?: true }): boolean {
+  if (mover.bystander === true || other.bystander === true) return false;
   return mover.faction_id !== other.faction_id;
 }
 

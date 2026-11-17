@@ -10,6 +10,8 @@ export interface SeenCombatant {
   name: string;
   isYou: boolean;
   side: "you" | "foe" | "other";
+  /** In the room but not in the fight: listed apart from the turn order. */
+  bystander: boolean;
   health: SeenHealth;
 }
 
@@ -40,11 +42,11 @@ export function asThePlayerSees(
     const isYou = c.instance_id === playedInstanceId;
     const side: SeenCombatant["side"] = isYou
       ? "you"
-      : played !== undefined && areHostile(factions, played.faction_id, c.faction_id)
+      : c.bystander !== true && played !== undefined && areHostile(factions, played.faction_id, c.faction_id)
         ? "foe"
         : "other";
     if (c.reveal_state === "unseen") {
-      seen.push({ instanceId: c.instance_id, name: "???", isYou, side, health: { kind: "word", word: "Unknown" } });
+      seen.push({ instanceId: c.instance_id, name: "???", isYou, side, bystander: c.bystander === true, health: { kind: "word", word: "Unknown" } });
       continue;
     }
     seen.push({
@@ -52,6 +54,7 @@ export function asThePlayerSees(
       name: c.name,
       isYou,
       side,
+      bystander: c.bystander === true,
       health: isYou ? { kind: "numbers", hp: c.hp, maxHp: c.max_hp } : { kind: "word", word: healthWord(c.hp, c.max_hp) },
     });
   }

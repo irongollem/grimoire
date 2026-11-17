@@ -206,7 +206,8 @@ function combatantToEntity(
     ...(figure ? { figure } : {}),
     focalPoint: imageFit === "cover" && imageUrl === c.portrait_url ? (c.portrait_focal_point ?? null) : null,
     bgGradient:
-      c.type === "monster"
+      // A bystander is not a foe, so it does not get the foe's red.
+      c.type === "monster" && c.bystander !== true
         ? ["#3b0a0a", "#0a0202"]
         : ["#1e3a5f", "#060d1a"],
   };

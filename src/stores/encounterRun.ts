@@ -296,7 +296,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     try {
       // Each rolled value is a command, which replaces `combatants.value` with a new array; this loop keeps walking the old one.
       for (const c of combatants.value) {
-        if (c.initiative !== null) continue;
+        if (c.initiative !== null || c.bystander === true) continue;
         const rolled = await rollOneInitiative(c);
         if (rolled === null) return false;
         dispatch({ type: "set_initiative", instanceId: c.instance_id, value: rolled });

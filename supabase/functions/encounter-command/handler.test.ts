@@ -1192,6 +1192,16 @@ function duel(over: { wolf?: Partial<RunCombatant>; victim?: Partial<RunCombatan
 }
 
 describe("take_turn", () => {
+  // Bug caught: a bystander (no turn of its own) being played as a creature, or stalling the loop on "no stat block".
+  it("fails if a bystander is asked to take a turn", async () => {
+    const h = harness(duel({ extra: [combatant("npc", { bystander: true, faction_id: "neutral", initiative: null, position: { x: 0, y: 3 } })] }), { sources: SOURCES, map: mapOf(), dieFaces: [] });
+    await expect(runBatch(batch("b1", takeTurn({ instanceId: "npc" })), h.deps)).rejects.toMatchObject({
+      status: 400,
+      message: "npc is only here, not in the fight, and takes no turn.",
+    });
+    expect(h.saves).toBe(0);
+  });
+
   // The rules-only pick is the Bite (the only attack, the only enemy). It walks to (3,-1), 15 ft, then bites: d20 9 + 4 = 13
   // meets AC 13; 1d6+2 with a 5 deals 7, so the ox has 33. The Action is used. The turn is not advanced.
   it("fails if the picked bite does not move the token, tally the 15 feet, resolve the attack and use the Action, in one saved batch", async () => {

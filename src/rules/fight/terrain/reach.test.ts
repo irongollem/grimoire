@@ -213,6 +213,12 @@ describe("determinism and who is hostile", () => {
     expect(isHostileTo({ faction_id: "party" }, { faction_id: "goblins" })).toBe(true);
     expect(isHostileTo({ faction_id: "party" }, { faction_id: "party" })).toBe(false);
   });
+
+  // Bug caught: an enemy picking a bystander as its target (a different faction reads as hostile).
+  it("is false whichever side is a bystander", () => {
+    expect(isHostileTo({ faction_id: "goblins" }, { faction_id: "neutral", bystander: true })).toBe(false);
+    expect(isHostileTo({ faction_id: "neutral", bystander: true }, { faction_id: "goblins" })).toBe(false);
+  });
 });
 
 describe("the edge of the map (#1202): a step that would cover a cell off the picture is refused", () => {

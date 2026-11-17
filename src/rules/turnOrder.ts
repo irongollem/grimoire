@@ -7,12 +7,14 @@
  */
 import type { RunCombatant } from "../types/encounter.types.ts";
 
-type TurnCombatant = Pick<RunCombatant, "instance_id" | "hp" | "type">;
-type AliveCombatant = Pick<RunCombatant, "hp" | "type">;
+type TurnCombatant = Pick<RunCombatant, "instance_id" | "hp" | "type" | "bystander">;
+type AliveCombatant = Pick<RunCombatant, "hp" | "type" | "bystander">;
 
 /** Whether a combatant gets turns: alive monsters, or any player (down players
- *  still get a turn for death saves). A downed monster's turns are skipped. */
+ *  still get a turn for death saves). A downed monster's turns are skipped, and
+ *  a bystander (a token in the room, not in the fight) never has one. */
 export function takesTurns(c: AliveCombatant): boolean {
+  if (c.bystander === true) return false;
   return c.hp > 0 || c.type === "player";
 }
 

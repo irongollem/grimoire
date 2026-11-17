@@ -14,6 +14,7 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { useToast } from "@/composables/useToast";
 import { buildRunCombatants, legendaryActionCaps } from "@/lib/encounters/buildRunCombatants";
+import { bystandersOf } from "@/lib/encounters/bystandersOf";
 import { confirmedFromAnswer, sendAlone } from "@/lib/encounters/fightWire";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
@@ -172,8 +173,11 @@ export function useOpenRun(encounterId: Readonly<Ref<string>> | ComputedRef<stri
   }
 
   async function openRun(enc: Encounter, mons: Monster[], par: PartyMember[], npcList: NpcListRow[], traps: TrapEntry[]) {
-    const fought = foughtEncounter(enc, options.onlyMemberId?.() ?? null);
-    const combatants = buildRunCombatants({ encounter: fought, party: par, companions: companions.value ?? [], monsters: mons, npcs: npcList, species: [...speciesById.value.values()], acFor, jackFor });
+    const onlyMember = options.onlyMemberId?.() ?? null;
+    const fought = foughtEncounter(enc, onlyMember);
+    const built = buildRunCombatants({ encounter: fought, party: par, companions: companions.value ?? [], monsters: mons, npcs: npcList, species: [...speciesById.value.values()], acFor, jackFor });
+    // Only the AI table seats the characters who are in the room: a DM's own run adds whom they choose.
+    const combatants = onlyMember !== null ? [...built, ...bystandersOf(npcList, enc.location_id, built)] : built;
     const legendaryCaps = legendaryActionCaps(combatants, mons);
     const { answer } = await sendAlone(enc.id, { type: "open", combatants, ...(Object.keys(legendaryCaps).length ? { legendaryCaps } : {}) });
     if (id.value !== enc.id) return;

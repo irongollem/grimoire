@@ -18,6 +18,22 @@ function room(w: number, h: number, x0 = 0, y0 = 0): CellKey[] {
 const key = (p: { x: number; y: number } | undefined) => (p ? `${p.x},${p.y}` : "none");
 const key2 = (p: { x: number; y: number } | undefined) => (p ? cellKey(p.x, p.y) : "none");
 
+describe("soloSeating a bystander", () => {
+  // Bug caught: a bystander scattered to the far side of the room with the foes instead of standing near the party.
+  it("stands next to the player in a traced room, with the foe far away", () => {
+    const out = soloSeating([pc("me"), who("npc", { bystander: true }), who("orc")], { focusCells: room(10, 1), grid: null });
+    expect(key(out.get("me"))).toBe("0,0");
+    expect(key(out.get("npc"))).toBe("1,0");
+    expect(out.get("orc")!.x).toBe(9);
+  });
+
+  // Bug caught: the same on a picture with no room (the foes' half is above the middle row, the party's below).
+  it("stands on the party's half of a bare picture", () => {
+    const out = soloSeating([pc("me"), who("npc", { bystander: true })], { focusCells: [], grid: { cols: 30, rows: 20 } });
+    expect(out.get("npc")!.y).toBeGreaterThan(10);
+  });
+});
+
 describe("soloSeating", () => {
   // Bug caught: a solo player arriving at a fight with everyone still in the tray, as on the DM's own screen.
   it("puts the party and the foes on a bare picture, each side on its own half and on the map", () => {
