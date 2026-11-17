@@ -13,7 +13,15 @@ export interface PlayerCharacter {
   subclass: string | null;
   level: number | null;
   hitPoints: { current: number; max: number } | null;
+  /**
+   * What the player wrote about the character on its sheet (looks, traits, ideals, bonds, flaws, notes), as plain
+   * text. The player's own account, so nothing in it is a secret from them. Left out when the sheet says nothing.
+   */
+  about?: string | null;
 }
+
+/** The player's account is paid for on every turn; a long backstory is cut here. */
+export const ABOUT_MAX = 1500;
 
 /** Every free-text field is somebody's typing, and this section is paid for on every turn, so each has a ceiling. */
 const FIELD_MAX = 60;
@@ -33,6 +41,14 @@ export function playerCharacterSection(c: PlayerCharacter): string {
     c.hitPoints ? `hit points ${c.hitPoints.current} of ${c.hitPoints.max}` : null,
   ].filter((p): p is string => p !== null);
   if (facts.length > 0) lines.push(facts.join("; "));
+  const about = c.about?.trim();
+  if (about) {
+    lines.push(
+      "",
+      "What the player wrote about them (their own account: true, and theirs to know):",
+      about.length > ABOUT_MAX ? `${about.slice(0, ABOUT_MAX - 1).trimEnd()}…` : about,
+    );
+  }
   lines.push(
     "",
     "This is who the player plays. Speak to them by this name and describe what this character perceives. Never " +

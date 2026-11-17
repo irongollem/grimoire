@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPlayerName, playerCharacterSection, type PlayerCharacter } from "./playerCharacter";
+import { ABOUT_MAX, isPlayerName, playerCharacterSection, type PlayerCharacter } from "./playerCharacter";
 
 const wren: PlayerCharacter = {
   id: "w", name: "Wren Ashfield", pronouns: "she/her", species: "Wood Elf", className: "Ranger", subclass: "Gloom Stalker",
@@ -41,3 +41,28 @@ describe("isPlayerName", () => {
     },
   );
 });
+
+describe("what the player wrote about the character", () => {
+  const base = { id: "m1", name: "Rosie", pronouns: null, species: "Sugarspun", className: "Fighter", subclass: null, level: 6, hitPoints: null };
+
+  // Bug caught live (17 Nov 2026): asked "what do I remember from my first days?", the narrator knew the character
+  // only as a name, a level and a class, and had nothing of the player's own account to build a memory on.
+  it("is given to the narrator as the player's own account", () => {
+    const text = playerCharacterSection({ ...base, about: "Bonds: Sold as a child on the Old Buy-Floor." });
+    expect(text).toContain("What the player wrote about them");
+    expect(text).toContain("Sold as a child on the Old Buy-Floor.");
+  });
+
+  it("is left out when the sheet says nothing", () => {
+    expect(playerCharacterSection({ ...base, about: "   " })).not.toContain("What the player wrote");
+    expect(playerCharacterSection(base)).not.toContain("What the player wrote");
+  });
+
+  // Bug caught: a ten-page backstory sent with every turn.
+  it("is cut at its ceiling", () => {
+    const text = playerCharacterSection({ ...base, about: "x".repeat(ABOUT_MAX + 500) });
+    expect(text).not.toContain("x".repeat(ABOUT_MAX + 1));
+    expect(text).toContain("…");
+  });
+});
+
