@@ -132,7 +132,7 @@ export async function uploadShort(access: string, up: ShortUpload, io: YoutubeIo
   const body: unknown = await put.json().catch(() => null);
   const videoId = typeof body === "object" && body !== null && "id" in body ? body.id : null;
   if (!put.ok || typeof videoId !== "string") throw new Error(`YouTube upload failed: ${put.status}`);
-  return { videoId, url: `https://www.youtube.com/shorts/${videoId}` };
+  return { videoId, url: `https://youtu.be/${videoId}` };
 }
 
 /**

@@ -93,9 +93,11 @@ describe("uploads without a network", () => {
     expect(calls).toEqual([]);
   });
 
-  it("returns the Shorts url of the uploaded video", async () => {
+  // A /shorts/ link to a long landscape video opens nothing useful (yt-scriptorium's first record had one); youtu.be
+  // opens either kind.
+  it("returns a link that opens the video whether or not YouTube made it a Short", async () => {
     const out = await uploadShort("t", { title: "T", description: "d", tags: [], videoPath: "x" }, fakeIo([]));
-    expect(out).toEqual({ videoId: "vid123", url: "https://www.youtube.com/shorts/vid123" });
+    expect(out).toEqual({ videoId: "vid123", url: "https://youtu.be/vid123" });
   });
 
   // Fails on: a second upload of an id that already has youtube.json (a double post) and on a missing record after a good one.
