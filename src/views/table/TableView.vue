@@ -48,6 +48,8 @@
               :character="characterName"
               :failure="turn.failure.value"
               :running="turn.running.value"
+              :voice-on="voice.enabled.value"
+              @replay="(item) => voice.replay(spokenLines([item]))"
               @resend="turn.resend()"
               @credits="openOutOfCredits(1)"
             />

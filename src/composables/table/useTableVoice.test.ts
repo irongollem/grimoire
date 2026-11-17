@@ -9,7 +9,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useTableVoice, type VoicePlayer, type VoiceRequest } from "./useTableVoice";
 
 const ok = (audio = "AAAA") => new Response(JSON.stringify({ audio, mime: "audio/mpeg" }), { status: 200, headers: { "content-type": "application/json" } });
-const line = (text: string) => ({ speakerId: "n1", speakerName: "Honeycomb", text, how: null, key: "k" });
+const line = (text: string) => ({ speakerId: "n1", speakerName: "Honeycomb", text, how: null, key: `k:${text}` });
 
 /** A player whose clips end only when the test says so, and which records what was played and what was cut short. */
 function manualPlayer() {
@@ -49,7 +49,7 @@ describe("useTableVoice", () => {
     voice.setEnabled(true);
     voice.say([line("Hello.")]);
     await tick();
-    expect(sent).toEqual([{ campaignId: "c1", sessionId: "s1", speakerId: "n1", speakerName: "Honeycomb", text: "Hello.", how: null, key: "k" }]);
+    expect(sent).toEqual([{ campaignId: "c1", sessionId: "s1", speakerId: "n1", speakerName: "Honeycomb", text: "Hello.", how: null, key: "k:Hello." }]);
   });
 
   // Bug caught: two characters talking over each other, or the second line playing first.
@@ -87,6 +87,36 @@ describe("useTableVoice", () => {
     expect(sent).toEqual(["First.", "Second."]);
     expect(p.played).toEqual([]);
     releaseFirst();
+    await tick();
+    expect(p.played).toEqual(["data:audio/mpeg;base64,ONE"]);
+  });
+
+  // Bug caught: hearing a line again paying for the same voice a second time, or queueing behind what is playing.
+  it("says a line again at once, cutting off what was playing, without asking the server for it twice", async () => {
+    const p = manualPlayer();
+    const sent: string[] = [];
+    const voice = useTableVoice({ campaignId: () => "c1", sessionId: () => "s1", transport: async (r) => { sent.push(r.text); return ok(r.text); }, player: p.player });
+    voice.setEnabled(true);
+    const first = { ...line("First."), key: "k1" };
+    const second = { ...line("Second."), key: "k2" };
+    voice.say([first, second]);
+    await tick();
+    voice.replay([first]);
+    await tick();
+    expect(sent).toEqual(["First.", "Second."]);
+    expect(p.stopped).toEqual(["data:audio/mpeg;base64,First."]);
+    expect(p.played).toEqual(["data:audio/mpeg;base64,First.", "data:audio/mpeg;base64,First."]);
+  });
+
+  // Bug caught: a line whose voice failed once staying silent for good, because the failure was kept like a clip.
+  it("asks again for a line whose voice could not be made the first time", async () => {
+    const p = manualPlayer();
+    let n = 0;
+    const voice = useTableVoice({ campaignId: () => "c1", sessionId: () => "s1", transport: async () => (++n === 1 ? new Response("{}", { status: 502 }) : ok("ONE")), player: p.player });
+    voice.setEnabled(true);
+    voice.say([line("First.")]);
+    await tick();
+    voice.replay([line("First.")]);
     await tick();
     expect(p.played).toEqual(["data:audio/mpeg;base64,ONE"]);
   });

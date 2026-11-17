@@ -4,7 +4,7 @@
     role="img"
     :aria-label="`Portrait of ${name}`"
   >
-    <FocalImage v-if="src" :src="src" :alt="name" format="portrait" :render-width="200" :focal-point="focalPoint" record class="size-full" />
+    <FocalImage v-if="src" :src="src" :alt="name" format="portrait" :render-width="200" :focal-point="focalPoint" record lightbox class="size-full" />
     <span v-else aria-hidden="true">{{ name.charAt(0).toUpperCase() }}</span>
   </span>
 </template>

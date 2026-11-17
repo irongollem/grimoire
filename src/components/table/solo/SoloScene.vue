@@ -16,8 +16,8 @@
       <span class="text-eyebrow text-muted-foreground">Here with you</span>
       <ul v-if="people.length" class="flex flex-col gap-2.5">
         <li v-for="person in people" :key="person.id" class="flex items-center gap-2.5">
-          <span class="flex h-18 w-12 shrink-0 items-center justify-center overflow-hidden border border-input bg-muted text-heading font-bold text-muted-foreground" aria-hidden="true">
-            <FocalImage v-if="person.portrait" :src="person.portrait" :alt="person.name" format="portrait" :render-width="200" :focal-point="person.focalPoint" record class="size-full" />
+          <span class="flex h-18 w-12 shrink-0 items-center justify-center overflow-hidden border border-input bg-muted text-heading font-bold text-muted-foreground">
+            <FocalImage v-if="person.portrait" :src="person.portrait" :alt="person.name" format="portrait" :render-width="200" :focal-point="person.focalPoint" record lightbox class="size-full" />
             <span v-else>{{ person.name.charAt(0).toUpperCase() }}</span>
           </span>
           <span class="flex min-w-0 flex-col">

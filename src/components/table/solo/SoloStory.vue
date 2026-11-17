@@ -11,6 +11,8 @@
           :to="item.to"
           :pigment="pigmentOf(item.speaker)"
           :portrait="portraitOf(item.speaker)"
+          :replayable="voiceOn && item.voice !== undefined"
+          @replay="emit('replay', item)"
         />
         <SoloActed v-else-if="item.kind === 'acted'" :speaker="item.speaker.name" :text="item.text" :pigment="pigmentOf(item.speaker)" />
         <SoloRolled v-else-if="item.kind === 'roll'" :line="rollLine(item.roll, character)" />
@@ -44,7 +46,7 @@ import SoloPlayerLine from "./SoloPlayerLine.vue";
 import SoloRolled from "./SoloRolled.vue";
 import SoloSpoken from "./SoloSpoken.vue";
 
-const { items, colours, portraits, character, failure = null, running = false } = defineProps<{
+const { items, colours, portraits, character, failure = null, running = false, voiceOn = false } = defineProps<{
   items: readonly StoryItem[];
   colours: ReadonlyMap<string, VoicePigment>;
   /** A portrait per character record, already with a disguise applied where the character is concealed. */
@@ -53,8 +55,10 @@ const { items, colours, portraits, character, failure = null, running = false } 
   character: string;
   failure?: TurnFailure | null;
   running?: boolean;
+  /** The characters' voices are switched on: a line that can be voiced offers to be heard again. */
+  voiceOn?: boolean;
 }>();
-const emit = defineEmits<{ resend: []; credits: [] }>();
+const emit = defineEmits<{ resend: []; credits: []; replay: [item: StoryItem] }>();
 
 const scroller = ref<HTMLElement | null>(null);
 // Following: the newest line stays in view while the player is at the foot, and lets go the moment they scroll up.

@@ -86,8 +86,22 @@ export function useTableVoice(options: { campaignId: () => string | null; sessio
   // Raised by `stop`, so a clip that was being fetched when the player muted does not start afterwards.
   let generation = 0;
 
-  /** The line's clip as something a player can play, or null when it cannot be voiced. */
-  async function clipOf(line: VoiceLine, mine: number): Promise<string | null> {
+  // A voice already made is kept for as long as this screen lives, so hearing a line again costs nothing.
+  const made = new Map<string, Promise<string | null>>();
+
+  /** The line's clip, made once: asked for the first time it is wanted and kept unless it could not be voiced. */
+  function clipOf(line: VoiceLine, mine: number): Promise<string | null> {
+    const kept = made.get(line.key);
+    if (kept) return kept;
+    const clip = fetchClip(line, mine);
+    made.set(line.key, clip);
+    void clip.then((src) => {
+      if (src === null && made.get(line.key) === clip) made.delete(line.key);
+    });
+    return clip;
+  }
+
+  async function fetchClip(line: VoiceLine, mine: number): Promise<string | null> {
     const campaignId = options.campaignId();
     const sessionId = options.sessionId();
     if (campaignId === null || sessionId === null) return null;
@@ -140,6 +154,12 @@ export function useTableVoice(options: { campaignId: () => string | null; sessio
     void drain();
   }
 
+  /** Says these lines again, now: whatever is playing or waiting gives way to them. */
+  function replay(lines: readonly VoiceLine[]): void {
+    stop();
+    say(lines);
+  }
+
   /** Silence, now: what is playing stops and what was waiting is dropped. */
   function stop(): void {
     generation += 1;
@@ -158,5 +178,5 @@ export function useTableVoice(options: { campaignId: () => string | null; sessio
     if (on) unavailable.value = false;
   }
 
-  return { enabled, unavailable, speaking, say, stop, setEnabled };
+  return { enabled, unavailable, speaking, say, replay, stop, setEnabled };
 }
