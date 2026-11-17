@@ -11,8 +11,8 @@
 --     character sent on Eleven v4 Turbo (28 for 128, 21 for 97, 23 for 104, 24 for 111) and about twice that on
 --     Eleven v4. A credit of theirs is taken at 0.18 USD per thousand: above the plan's own rate (about 0.165) and
 --     below its overage rate, so a month that runs over does not turn speech into a loss.
---   * Inworld: its published price for the larger model, not checked against an invoice, hence no
---     `last_verified_at`.
+--   * Inworld: its published pay-as-you-go price for TTS-2, 25 USD per million characters (the maintainer,
+--     18 Nov 2026; TTS-2 Flash is 15, and a subscription lowers both).
 --
 -- A line already made is kept (the voice clips' bucket) and is never charged twice.
 
@@ -30,9 +30,9 @@ values
   ('eleven_v4', 'elevenlabs', 'audio', 80,
    'AI table voices when TABLE_VOICE_MODEL names it. About twice Turbo per character (measured 17 Nov 2026).',
    '2026-11-17'),
-  ('inworld-tts-2', 'inworld', 'audio', 10,
-   'AI table voices on Inworld (children''s voices; narrator trial). Published rate, not checked against an invoice.',
-   null)
+  ('inworld-tts-2', 'inworld', 'audio', 25,
+   'AI table voices on Inworld (children''s voices; narrator trial). Published pay-as-you-go rate for TTS-2, 18 Nov 2026; TTS-2 Flash is 15, a subscription lowers both.',
+   '2026-11-18')
 on conflict (model) do nothing;
 
 -- A voiced line accrues on its conversation like a turn does: exactly, with only the whole credits the running
