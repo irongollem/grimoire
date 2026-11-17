@@ -36,7 +36,7 @@ import {
   Aperture, TrendingUp,
   Underline, Undo2, Upload, UploadCloud,
   User, UserPlus, UserRound, UserX, Users, UtensilsCrossed,
-  VolumeX, Wand2, Wind, Wrench, X, XCircle, Zap, ZoomIn, ZoomOut,
+  Volume2, VolumeX, Wand2, Wind, Wrench, X, XCircle, Zap, ZoomIn, ZoomOut,
   Fence, Type, SunMoon,
   StepForward, ToggleRight, FastForward, TrendingDown, ChartNoAxesColumn,
   BowArrow, Pencil, Radius, Signal, Target,
@@ -282,6 +282,7 @@ export { SkipForward as IconSkipForward }
 export { Repeat as IconRepeat }
 export { Shuffle as IconShuffle }
 export { VolumeX as IconMute }
+export { Volume2 as IconVolume }
 export { Music as IconMusic }
 export { Music2 as IconMusicNote }
 export { Cast as IconCast }

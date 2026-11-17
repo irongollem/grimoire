@@ -12,6 +12,8 @@
         :turns="turns"
         :balance="balance"
         :leaving="leaveTable.leaving.value"
+        :voice-on="voice.enabled.value"
+        @voice="voice.setEnabled"
         @leave="leave"
         @disclosure="disclosure.reopen"
         @credits="openOutOfCredits(1)"
@@ -85,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -119,6 +121,8 @@ import type { PlayMode, RollAsk, TableFight, TablePressure } from "@/lib/table/s
 import { useTableSpeakers } from "@/composables/table/useTableSpeakers";
 import { useTableCheck } from "@/composables/table/useTableCheck";
 import { useTableTurn } from "@/composables/table/useTableTurn";
+import { useTableVoice } from "@/composables/table/useTableVoice";
+import { spokenLines } from "@/lib/table/voiceLines";
 import { useAbove } from "@/composables/useBreakpoint";
 import { getNpcDisplayFocalPoint, getNpcDisplayPortrait } from "@/lib/npcDisplay";
 import { assignSpeakerColours } from "@/lib/table/speakerColours";
@@ -198,12 +202,30 @@ const turn = useTableTurn({
     asked.value = ask;
   },
   onDone: () => {
+    // What the characters said this turn is read aloud now, not as it streams: the server voices only a line the
+    // sitting has kept, and a turn is kept when it is done.
+    voice.say(spokenLines(turn.live.value.slice(voicedUpTo)));
+    voicedUpTo = turn.live.value.length;
     // Characters who speak are placed with the party at the end of a turn; the balance and the list of sittings moved.
     scene.refresh();
     void queryClient.invalidateQueries({ queryKey: ["ai-credit-balance"] });
     void queryClient.invalidateQueries({ queryKey: [TABLE_SESSIONS_KEY] });
   },
 });
+
+// The characters' voices. `voicedUpTo` is how much of this screen's own story has been handed to the voice, so a
+// line is spoken once; a stored sitting that is reopened is read, not replayed.
+const voice = useTableVoice({ campaignId: () => campaignId.value, sessionId: () => turn.sessionId.value });
+let voicedUpTo = 0;
+watch(
+  () => voice.unavailable.value,
+  (off) => {
+    if (!off) return;
+    toast.error("Voices are not switched on for this server.");
+    voice.setEnabled(false);
+  },
+);
+onBeforeUnmount(() => voice.stop());
 
 // A new sitting begins with the Dungeon Master setting the scene, not with an empty page waiting for the player.
 // Only once the disclosure has been read: nothing is sent to the model before the player knows who answers.
@@ -240,6 +262,8 @@ watch(param, () => {
   pressure.value = null;
   fight.value = null;
   asked.value = null;
+  voice.stop();
+  voicedUpTo = 0;
   if (param.value === "new" && newCharacterId.value === null) void router.replace("/table");
   openScene();
 });
@@ -337,6 +361,7 @@ async function leave(): Promise<void> {
     if (outcome === null) toast.error("Leaving the table could not be recorded. The session may still be running; end it from the Sessions page.");
     else void queryClient.invalidateQueries({ queryKey: [TABLE_SESSIONS_KEY] });
   }
+  voice.stop();
   // Getting up from the table is going back to being the Dungeon Master.
   appUi.exitTablePlay();
   await router.push("/table");

@@ -9,6 +9,17 @@
     <span class="flex-1" />
     <!-- The composer's foot carries this link from tablet up; on a phone the bar does. -->
     <AppButton to="/play/table/story" variant="ghost" size="md" :icon="IconScrollText" label="The story so far" collapse-label-on-mobile class="md:hidden" />
+    <!-- Off until asked for: a page that starts talking by itself is a surprise, and every voiced line is a paid call. -->
+    <AppButton
+      variant="ghost"
+      size="md"
+      :icon="voiceOn ? IconVolume : IconMute"
+      :active="voiceOn"
+      :aria-pressed="voiceOn"
+      :aria-label="voiceOn ? 'Characters speak aloud. Turn voices off' : 'Turn on the characters\' voices'"
+      data-testid="solo-voice"
+      @click="emit('voice', !voiceOn)"
+    />
     <AppButton variant="ghost" size="inline" aria-label="About the Dungeon Master being an AI" @click="emit('disclosure')">
       <SoloAiMark />
     </AppButton>
@@ -27,11 +38,11 @@
 import { computed, ref } from "vue";
 import { onClickOutside } from "@vueuse/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { IconChevronLeft, IconCoins, IconScrollText } from "@/lib/icons";
+import { IconChevronLeft, IconCoins, IconMute, IconScrollText, IconVolume } from "@/lib/icons";
 import SoloAiMark from "./SoloAiMark.vue";
 import SoloCostPanel from "./SoloCostPanel.vue";
 
-const { credits, balance, character, hitPoints = null, leaving = false } = defineProps<{
+const { credits, balance, character, hitPoints = null, leaving = false, voiceOn = false } = defineProps<{
   campaign: string;
   character: string;
   /** Credits billed in this sitting, whole. */
@@ -44,8 +55,10 @@ const { credits, balance, character, hitPoints = null, leaving = false } = defin
   hitPoints?: { current: number; max: number } | null;
   /** The leave call is running. */
   leaving?: boolean;
+  /** The characters' spoken lines are read aloud. */
+  voiceOn?: boolean;
 }>();
-const emit = defineEmits<{ disclosure: []; credits: []; leave: [] }>();
+const emit = defineEmits<{ disclosure: []; credits: []; leave: []; voice: [on: boolean] }>();
 
 const costOpen = ref(false);
 const meterHost = ref<HTMLElement | null>(null);

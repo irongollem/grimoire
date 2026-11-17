@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { safeSessionStorage } from "@/lib/safeLocalStorage";
+import { safeLocalStorage, safeSessionStorage } from "@/lib/safeLocalStorage";
 import { computed } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
@@ -544,5 +544,62 @@ describe("TableView: the story turns into a fight", () => {
     expect(wrapper.find('[data-testid="solo-fight"]').exists()).toBe(true);
     await say(wrapper, "What now?");
     expect(wrapper.find('[data-testid="solo-fight"]').exists()).toBe(false);
+  });
+});
+
+describe("TableView: the characters' voices", () => {
+  const session = (id: string) => ({
+    id, user_id: "u1", campaign_id: "c1", party_member_id: "m1", scene_location_id: null, credits_spent: 0, left_at: null, pending_roll: null, fight_encounter_id: null,
+  });
+  const spoken = (text: string) => ({ type: "line", line: { kind: "spoken", speaker: { id: "n1", name: "Honeycomb" }, text } });
+  const turnWith = (text: string) => sse({ type: "session", sessionId: "s1" }, spoken(text), { type: "line", line: { kind: "acted", speaker: { id: "n1", name: "Honeycomb" }, text: "Nods." } }, { type: "done", end: "end_turn", credits: 0, tokens: 1 });
+  const audio = () => new Response(JSON.stringify({ audio: "AAAA", mime: "audio/mpeg" }), { status: 200, headers: { "content-type": "application/json" } });
+  const voiceCalls = () => fetchMock.mock.calls.filter((c) => String(c[0]).includes("/functions/v1/table-voice")).map((c) => JSON.parse(String(c[1].body)));
+
+  beforeEach(() => {
+    setUp("u1");
+    useTableDisclosure().accept();
+    fake.reset();
+    fake.seed("party_members", [{ ...MEMBER }]);
+    fake.seed("character_classes", []);
+    fake.seed("agent_sessions", [session("s1")]);
+    safeLocalStorage().removeItem("grimoire:ai-table-voice");
+    // The test DOM has no sound: a clip that is over the moment it starts stands in for the browser's player.
+    vi.stubGlobal(
+      "Audio",
+      class {
+        addEventListener(type: string, done: () => void) {
+          if (type === "ended") queueMicrotask(done);
+        }
+        play() {
+          return Promise.resolve();
+        }
+        pause() {}
+        dispatchEvent() {
+          return true;
+        }
+      },
+    );
+  });
+
+  // Bug caught: the page asking for (and paying for) speech nobody switched on.
+  it("asks for no voice while voices are off", async () => {
+    fetchMock.mockResolvedValueOnce(turnWith("Come on, then."));
+    const { wrapper } = await mountTable("/play/table/s1");
+    await say(wrapper, "Who are you?");
+    expect(voiceCalls()).toEqual([]);
+  });
+
+  // Bug caught: a deed read aloud, a line spoken twice on the next turn, or the voice asked before the turn is kept.
+  it("reads what a character said, once, after the turn is kept, and leaves the deed as text", async () => {
+    fetchMock.mockImplementation(async (url: string) => (String(url).includes("table-voice") ? audio() : turnWith(fetchMock.mock.calls.filter((c) => String(c[0]).includes("agent-turn")).length === 1 ? "Come on, then." : "This way.")));
+    const { wrapper } = await mountTable("/play/table/s1");
+    await wrapper.get('[data-testid="solo-voice"]').trigger("click");
+    await say(wrapper, "Who are you?");
+    await flushPromises();
+    expect(voiceCalls()).toEqual([{ campaignId: "c1", sessionId: "s1", speakerId: "n1", speakerName: "Honeycomb", text: "Come on, then." }]);
+    await say(wrapper, "Lead on.");
+    await flushPromises();
+    expect(voiceCalls().map((c) => c.text)).toEqual(["Come on, then.", "This way."]);
   });
 });
