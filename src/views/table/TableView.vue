@@ -46,6 +46,9 @@
                 @submit="(mode, text) => turn.send(mode, text)"
                 @stop="turn.stop()"
               />
+              <p class="mx-auto mt-1 hidden w-full max-w-160 md:block">
+                <AppButton to="/table/story" variant="link" size="inline" label="The story so far" />
+              </p>
             </div>
           </template>
         </main>

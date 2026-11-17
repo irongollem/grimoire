@@ -956,6 +956,13 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "The table" },
   },
   {
+    // The record the table keeps (#1021). Readable by every member of the campaign, whether or not the AI table is on.
+    path: "/table/story",
+    name: "table-story",
+    component: () => import("@/views/table/TableStoryView.vue"),
+    meta: { requiresAuth: true, title: "The story so far" },
+  },
+  {
     // `new` is a conversation that does not exist yet; its first turn creates it and the address becomes the real id.
     // fullscreenMobile: below md the screen draws its own bar and Story / Scene tabs (Solo Table, frame 09).
     path: "/table/:sessionId",

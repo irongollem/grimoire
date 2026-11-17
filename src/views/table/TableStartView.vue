@@ -28,6 +28,12 @@
           <AppButton variant="live" size="md" label="Sit down" :disabled="!characterId" @click="sitDown" />
         </div>
 
+        <section class="flex flex-col gap-2" aria-labelledby="table-record">
+          <h2 id="table-record" class="text-heading-sm text-foreground">The story so far</h2>
+          <p class="text-caption text-muted-foreground">What the table has settled, kept as plain facts you can read and correct.</p>
+          <div><AppButton to="/table/story" variant="outline" size="md" label="Read the record" /></div>
+        </section>
+
         <section class="flex flex-col gap-2" aria-labelledby="table-earlier">
           <h2 id="table-earlier" class="text-heading-sm text-foreground">Earlier sittings</h2>
           <ListSkeleton v-if="sessions.isLoading.value" variant="stack" :count="3" />

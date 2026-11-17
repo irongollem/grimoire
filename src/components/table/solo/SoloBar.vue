@@ -6,6 +6,8 @@
       <span class="truncate text-caption text-muted-foreground md:rounded-sm md:bg-muted md:px-2 md:py-0.5 md:text-label-lg md:text-foreground">Playing {{ character }}</span>
     </div>
     <span class="flex-1" />
+    <!-- The composer's foot carries this link from tablet up; on a phone the bar does. -->
+    <AppButton to="/table/story" variant="ghost" size="md" :icon="IconScrollText" label="The story so far" collapse-label-on-mobile class="md:hidden" />
     <AppButton variant="ghost" size="inline" aria-label="About the Dungeon Master being an AI" @click="emit('disclosure')">
       <SoloAiMark />
     </AppButton>
@@ -22,7 +24,7 @@
 import { computed, ref } from "vue";
 import { onClickOutside } from "@vueuse/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { IconChevronLeft, IconCoins } from "@/lib/icons";
+import { IconChevronLeft, IconCoins, IconScrollText } from "@/lib/icons";
 import SoloAiMark from "./SoloAiMark.vue";
 import SoloCostPanel from "./SoloCostPanel.vue";
 
