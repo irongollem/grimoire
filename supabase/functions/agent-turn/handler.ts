@@ -230,6 +230,8 @@ export interface AgentTurnDeps {
   ): Promise<{ encounterId: string; name: string }>;
   /** Lets the conversation go of its fight (null), once its aftermath has been told. */
   setFight(sessionId: string, campaignId: string, encounterId: string | null): Promise<void>;
+  /** Marks a prepared fight as fought, so it is not offered at its place again. */
+  finishFight(campaignId: string, encounterId: string): Promise<void>;
   /**
    * The campaign's opening quest at its entry beat, when the story has not begun: no turn has ever been kept at the
    * table in this campaign. Null once it has, and when the campaign names no opening quest (or one that is gone).
@@ -564,7 +566,12 @@ export async function beginTurn(input: {
           askRoll: character ? (pending) => { asked = pending; } : null,
           // A fight needs someone to fight it: offered only with a played character and readable fights.
           fight: character && fights !== null
-            ? { view: fights, onStart: (plan) => { fightPlan = plan; }, statless: (plan) => deps.statlessFighters(campaign.id, plan) }
+            ? {
+              view: fights,
+              viewAt: (locationId) => deps.loadFights(campaign.id, locationId, session.fight_encounter_id),
+              onStart: (plan) => { fightPlan = plan; },
+              statless: (plan) => deps.statlessFighters(campaign.id, plan),
+            }
             : null,
         });
 
@@ -753,12 +760,18 @@ export async function beginTurn(input: {
           // so the conversation lets go of the fight now and no aftermath is asked for.
           if (change.ends !== null) {
             await safely(() => deps.setFight(session.id, campaign.id, null));
-            if (fights !== null && fights.fight !== null) await recordFight(fights.fight, change.ends);
+            if (fights !== null && fights.fight !== null) {
+              await recordFight(fights.fight, change.ends);
+              // Foes who gave in or ran are done with; one the party ran from is still there to be met again.
+              if (change.ends !== "you_get_away") await safely(() => deps.finishFight(campaign.id, fights.fight!.encounterId));
+            }
           }
           emit({ type: "fight_change", change });
         } else if (fights !== null && fights.fight !== null && fightIsTold(fights.fight)) {
           await safely(() => deps.setFight(session.id, campaign.id, null));
           await recordFight(fights.fight, "fought");
+          // Fought to the end with no foe standing: the dead do not wait at their place for a second fight.
+          if (!fights.fight.fighters.some((f) => f.side === "enemy" && f.hp > 0)) await safely(() => deps.finishFight(campaign.id, fights.fight!.encounterId));
           emit({ type: "fight", fight: null });
         }
         // (The fight's own line on the record is filed above, where the conversation lets go of it.)

@@ -62,6 +62,8 @@ export const FIGHT_CHANGE_TOOL: AgentTool = {
     "plea, a trick, running away). It works only on the turn that carries the player's successful roll for the " +
     "attempt: ask for that roll first with ask_roll. Say what it costs the player's turn, and give at least one of: a condition on a " +
     "creature, damage to a creature (roll it with the roll tool first and pass the number), or how the fight ends. " +
+    "Never tell the player something cost their Action, Bonus Action or Reaction unless this tool said so: a cost " +
+    "you only narrate is not charged. " +
     "Never use it for an ordinary attack, and never on the player's own character. Name creatures exactly as the " +
     "section \"Fights\" lists them. One change a turn; it is carried out when the turn is kept.",
   inputSchema: {
@@ -113,7 +115,7 @@ export const FIGHT_CHANGE_TOOL: AgentTool = {
   },
 };
 
-type Parsed = { ok: true; value: FightChange } | { ok: false; error: string };
+type Parsed = { ok: true; value: FightChange; /** What the narrator is told, when it is not the ordinary answer. */ says?: string } | { ok: false; error: string };
 const refuse = (error: string): Parsed => ({ ok: false, error });
 const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
 const isWhole = (x: unknown, min: number, max: number): x is number => typeof x === "number" && Number.isInteger(x) && x >= min && x <= max;
@@ -141,6 +143,20 @@ export function parseFightChange(
   evidence: { player: boolean | null; byNarrator: boolean },
 ): Parsed {
   if (fight === null || fight.phase !== "running") return refuse("No fight is being fought, so there is nothing to change.");
+  // An attempt that can never work is not rolled for: it fails, and still costs the turn what trying costs. Seen
+  // live: a surrender to hounds that never yield was told as costing the Action, and nothing was charged.
+  const hopeless = hopelessEnd(fight, input.ends);
+  if (hopeless !== null) {
+    const { costs } = input;
+    if (costs !== "action" && costs !== "bonus" && costs !== "reaction" && costs !== "nothing") return refuse("costs must be action, bonus, reaction or nothing.");
+    if (costs === "nothing") return refuse(`${hopeless} A few words cost nothing: tell that it fails, do not say it cost anything, and say what the player could try instead.`);
+    if (budget !== null && !budget[costs]) return refuse(`${hopeless} The turn has nothing left to pay with, so nothing is spent: tell that it fails, and do not say it cost anything.`);
+    return {
+      ok: true,
+      value: { costs, condition: null, damage: null, ends: null },
+      says: `${hopeless} The attempt fails however it was made, and when this turn is kept it has cost the player their ${costName(costs)}. Tell that in a sentence, and what they could try instead.`,
+    };
+  }
   let rolled = evidence.player;
   // The creature's own save decides when the narrator names one: SRD 5.1 "Saving Throws", the save succeeds when its
   // total equals or exceeds the DC.
@@ -209,14 +225,16 @@ export function parseFightChange(
   if (ends !== undefined && ends !== "they_give_in" && ends !== "they_flee" && ends !== "you_get_away") {
     return refuse("ends must be they_give_in, they_flee or you_get_away.");
   }
-  // A fight cannot be ended by a foe that never yields: a construct is not talked down, the dead do not run.
-  if (ends === "they_give_in" || ends === "they_flee") {
-    const unyielding = fight.fighters.filter((f) => f.side === "enemy" && f.hp > 0 && f.nature !== undefined && !f.nature.yields).map((f) => f.name);
-    if (unyielding.length > 0) {
-      return refuse(`${unyielding.join(", ")} never ${ends === "they_give_in" ? "gives in" : "flees"} (see "Fights"). The attempt fails however well it was rolled: tell that, and what the player could try instead.`);
-    }
-  }
   return { ok: true, value: { costs, condition: withCondition, damage: withDamage, ends: ends === undefined ? null : ends } };
+}
+
+const costName = (costs: "action" | "bonus" | "reaction"): string => (costs === "action" ? "Action" : costs === "bonus" ? "Bonus Action" : "Reaction");
+
+/** Why the fight cannot end the way asked, or null when it can: a construct is not talked down, the dead do not run. */
+function hopelessEnd(fight: FightState, ends: unknown): string | null {
+  if (ends !== "they_give_in" && ends !== "they_flee") return null;
+  const unyielding = fight.fighters.filter((f) => f.side === "enemy" && f.hp > 0 && f.nature !== undefined && !f.nature.yields).map((f) => f.name);
+  return unyielding.length === 0 ? null : `${unyielding.join(", ")} never ${ends === "they_give_in" ? "gives in" : "flees"} (see "Fights").`;
 }
 
 export function changedText(change: FightChange): string {

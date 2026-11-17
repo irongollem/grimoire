@@ -9,6 +9,7 @@ import type { CallModel } from "../_shared/agent/types";
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
 const PLACE = "00000000-0000-4000-8000-0000000000a5";
 const FIGHT = "00000000-0000-4000-8000-0000000000f7";
+const ATTIC_FIGHT = "00000000-0000-4000-8000-0000000000f8";
 const session: SessionRow = {
   id: "00000000-0000-4000-8000-0000000000a1",
   user_id: "00000000-0000-4000-8000-0000000000d1",
@@ -61,7 +62,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false) {
     filed,
     quests,
     askRoll: played ? (pending) => asked.push(pending) : null,
-    fight: played ? { view: { prepared: [{ id: FIGHT, name: "The cellar rats", creatures: "" }], fight: null }, onStart: (plan) => fights.push(plan), statless: async () => [] } : null,
+    fight: played ? { view: { prepared: [{ id: FIGHT, name: "The cellar rats", creatures: "" }], fight: null }, viewAt: async () => ({ prepared: [{ id: ATTIC_FIGHT, name: "The attic bats", creatures: "" }], fight: null }), onStart: (plan) => { fights.push(plan); }, statless: async () => [] } : null,
   });
   return { turn, calls, filed, moves, asked, fights };
 }
@@ -153,5 +154,16 @@ describe("makeTurnTools", () => {
     expect((await turn.callTool("start_fight", { encounter_id: PLACE })).isError).toBe(true);
     expect((await turn.callTool("start_fight", { encounter_id: FIGHT })).isError).toBe(false);
     expect(fights).toHaveLength(1);
+  });
+
+  // Bug caught live (17 Nov 2026): the party walked to another room and the narrator started the fight of the room
+  // it had left, the only one it had been shown.
+  it("after the party moves, lists and starts the new place's fights and no longer the old place's", async () => {
+    const { turn, fights } = build(null, true);
+    const went = await turn.callTool("go_to", { location_id: PLACE });
+    expect(went.content).toContain("The attic bats");
+    expect((await turn.callTool("start_fight", { encounter_id: FIGHT })).isError).toBe(true);
+    expect((await turn.callTool("start_fight", { encounter_id: ATTIC_FIGHT })).isError).toBe(false);
+    expect(fights).toEqual([{ kind: "prepared", encounterId: ATTIC_FIGHT, name: "The attic bats" }]);
   });
 });

@@ -15,7 +15,7 @@ import { SPEECH_TOOL_NAMES } from "../_shared/agent/speakInput.ts";
 import { shownDmRoll } from "../_shared/agent/dmRoll.ts";
 import { makeRecordTool, RECORD_TOOL_NAME } from "../_shared/agent/record.ts";
 import { makeQuestTools, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
-import { planFight, START_FIGHT_TOOL, statlessText, type FightPlan, type FightsInView } from "../_shared/agent/fight.ts";
+import { fightsSection, planFight, START_FIGHT_TOOL, statlessText, type FightPlan, type FightsInView } from "../_shared/agent/fight.ts";
 import { ASK_ROLL_TOOL, askedText, parseAskRollInput, type PendingRoll } from "../_shared/agent/playerRoll.ts";
 import type { StoredTurn } from "../_shared/agent/transcript.ts";
 import type { AgentTool, CallModel, CallTool } from "../_shared/agent/types.ts";
@@ -63,6 +63,8 @@ export interface TurnToolsInput {
   /** The fights in view and where a started one goes; null when no fight can be started, and then the tool is not offered. */
   fight: {
     view: FightsInView;
+    /** The fights prepared at another place, for when the party moves there in this turn. */
+    viewAt(locationId: string): Promise<FightsInView>;
     onStart(plan: FightPlan): void;
     /** The names of the fight's creatures the rules cannot play: those with no stat block. */
     statless(plan: FightPlan): Promise<string[]>;
@@ -143,12 +145,29 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
 
   const quests = input.quests === null ? null : makeQuestTools(input.quests);
 
+  // The fights in view once the party has moved this turn. Seen live: the party walked from the parlour to the
+  // library and the narrator started the parlour's fight, the only one it had been shown.
+  let fightView: FightsInView | null = null;
+  const moved = async (answering: ReturnType<CallTool>, before: string | null): Promise<Awaited<ReturnType<CallTool>>> => {
+    const answer = await answering;
+    if (answer.isError || input.fight === null || place === null || place === before) return answer;
+    try {
+      fightView = await input.fight.viewAt(place);
+      return { ...answer, content: `${answer.content}\n\n${fightsSection(fightView)}` };
+    } catch (error) {
+      console.error("agent-turn: reading the fights of the new place failed:", error);
+      // Better no listed fight than the last place's: the narrator can still put one together.
+      fightView = { ...input.fight.view, prepared: [] };
+      return answer;
+    }
+  };
+
   // One fight a turn, like one roll: a second would silently replace the first.
   let fightStarted = false;
   const startFight = async (toolInput: Record<string, unknown>) => {
     if (input.fight === null) return { content: "No fight can be started here.", isError: true };
     if (fightStarted) return { content: "A fight was already started this turn. End your reply.", isError: true };
-    const planned = planFight(input.fight.view, toolInput);
+    const planned = planFight(fightView ?? input.fight.view, toolInput);
     if (!planned.ok) return { content: planned.error, isError: true };
     // A fight is played by the rules, and the rules play a creature from its stat block. Someone without one would
     // stand on the map unable to act, with the player asked to move them.
@@ -185,7 +204,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     if (!parsed.ok) return { content: parsed.error, isError: true };
     fightChanged = true;
     input.fightChange.onChange(parsed.value);
-    return { content: changedText(parsed.value), isError: false };
+    return { content: parsed.says ?? changedText(parsed.value), isError: false };
   };
 
   // A person the narrator made up gets a record, once the name is known to be new (`introduce.ts`).
@@ -224,7 +243,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     spoke,
     place: () => place,
     callTool: (name, toolInput) => {
-      if (name === GO_TO_TOOL.name) return go.call(toolInput);
+      if (name === GO_TO_TOOL.name) return moved(go.call(toolInput), place);
       if (name === RECORD_TOOL_NAME) return record.call(toolInput);
       if (input.askRoll && name === ASK_ROLL_TOOL.name) return Promise.resolve(askRoll(toolInput));
       if (input.fight && name === START_FIGHT_TOOL.name) return startFight(toolInput);

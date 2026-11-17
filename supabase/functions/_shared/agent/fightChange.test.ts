@@ -137,9 +137,25 @@ describe("what a creature's nature rules out", () => {
   // Bug caught live (17 Nov 2026): a spun-glass construct calmed into giving in by a Persuasion roll of 16.
   it("does not let a foe that never yields give in or flee, however well the player rolled", () => {
     const out = parseFightChange(pack(), budget(), { costs: "action", ends: "they_give_in" }, won);
-    expect(out.ok).toBe(false);
-    expect(out.ok === false && out.error).toContain("Spun Glass Hound 3 never gives in");
-    expect(parseFightChange(pack(), budget(), { costs: "action", ends: "they_flee" }, won).ok).toBe(false);
+    // The fight goes on: nothing ends, and nothing is done to anyone.
+    expect(out).toMatchObject({ ok: true, value: { costs: "action", condition: null, damage: null, ends: null } });
+    expect(out.ok && out.says).toContain("Spun Glass Hound 3 never gives in");
+    expect(parseFightChange(pack(), budget(), { costs: "action", ends: "they_flee" }, won)).toMatchObject({ ok: true, value: { ends: null } });
+  });
+
+  // Bug caught live (17 Nov 2026): a surrender to hounds that never yield was told as "costs your Action" with
+  // nothing charged, because without a roll no change could be made at all.
+  it("charges a hopeless attempt what trying costs, with no roll asked for", () => {
+    const out = parseFightChange(pack(), budget(), { costs: "action", ends: "they_give_in" }, { player: null, byNarrator: false });
+    expect(out).toMatchObject({ ok: true, value: { costs: "action", ends: null } });
+    expect(out.ok && out.says).toContain("cost the player their Action");
+  });
+
+  // Bug caught: a cost told that the turn could not pay, or "it cost you nothing" charged as something.
+  it("charges nothing for a hopeless attempt the turn cannot pay for, or that was only words", () => {
+    const spent = parseFightChange(pack(), budget({ action: false }), { costs: "action", ends: "they_give_in" }, { player: null, byNarrator: false });
+    expect(spent.ok).toBe(false);
+    expect(parseFightChange(pack(), budget(), { costs: "nothing", ends: "they_give_in" }, { player: null, byNarrator: false }).ok).toBe(false);
   });
 
   // Getting away is the player's own doing: no creature's temper stops that.

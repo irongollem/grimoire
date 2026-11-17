@@ -161,6 +161,12 @@ export async function setFight(admin: SupabaseClient, sessionId: string, campaig
   if (error) throw error;
 }
 
+/** A fight that was fought out is finished: it is not offered at its place again. */
+export async function finishFight(admin: SupabaseClient, campaignId: string, encounterId: string): Promise<void> {
+  const { error } = await admin.from("encounters").update({ is_finished: true }).eq("id", encounterId).eq("campaign_id", campaignId);
+  if (error) throw error;
+}
+
 /** The monsters of a fight go into the played character's bestiary: met, not yet studied (no stats revealed). */
 async function discover(client: SupabaseClient, campaignId: string, memberId: string, playSessionId: string | null, monsterIds: string[]): Promise<void> {
   if (monsterIds.length === 0) return;

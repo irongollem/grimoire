@@ -166,6 +166,8 @@ interface Harness {
   introduced: Array<{ ctx: { campaignId: string; memberId: string | null; locationId: string | null }; intro: { replaces: string | null; name: string; about: string; known: boolean; here: boolean } }>;
   startedFights: Array<{ ctx: { campaignId: string; sessionId: string; userId: string; memberId: string; locationId: string | null; playSessionId: string | null }; plan: FightPlan }>;
   fightSets: Array<{ sessionId: string; campaignId: string; encounterId: string | null }>;
+  /** Prepared fights marked as fought. */
+  finished: string[];
   /** Every time the opening quest was put in play. */
   begun: Array<{ campaignId: string; questId: string; beatId: string }>;
   /** Every reveal the handler asked for, in order. */
@@ -262,6 +264,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     introduced: [],
     startedFights: [],
     fightSets: [],
+    finished: [],
     facts: [],
     recordLoads: [],
     discards: [],
@@ -372,6 +375,9 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     },
     setFight: async (sessionId, campaignId, encounterId) => {
       h.fightSets.push({ sessionId, campaignId, encounterId });
+    },
+    finishFight: async (_campaignId, encounterId) => {
+      h.finished.push(encounterId);
     },
     loadPrologue: async (campaignId) => {
       if (h.state.prologueThrows) throw new Error("db down");
@@ -3022,6 +3028,16 @@ describe("the story turns into a fight", () => {
       // And it goes on record, so the fight is part of the story so far.
       expect(h.facts.map((f) => f.body)).toContain('Wren Ashfield fought "The Watching Pack": Giant Rat 1 gave in.');
       expect(h.events.some((e) => e.type === "fact" && e.fact.body.includes("gave in"))).toBe(true);
+    });
+
+    // Bug caught live (17 Nov 2026): a pack that had been fought was offered at its place again, whole.
+    it("marks a fight whose foes gave in as fought, and leaves one the player ran from to be met again", async () => {
+      const won = inFight([change({ costs: "action", ends: "they_give_in" }), step(10)]);
+      await play(won, { body: rolling(13) });
+      expect(won.finished).toHaveLength(1);
+      const ran = inFight([change({ costs: "action", ends: "you_get_away" }), step(10)]);
+      await play(ran, { body: rolling(13) });
+      expect(ran.finished).toEqual([]);
     });
 
     // Bug caught: a stunt carried out for a player whose Action already went on an attack.

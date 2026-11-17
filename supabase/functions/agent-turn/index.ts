@@ -37,7 +37,7 @@ import { loadPartyMember } from "./characterIo.ts";
 import { RECORD_SECTION_MAX, type RecordedFact } from "../_shared/agent/record.ts";
 import { openaiModel } from "../_shared/agent/openai.ts";
 import { revealToCharacter } from "./revealIo.ts";
-import { loadFights, setFight, startFight, statlessFighters } from "./fightIo.ts";
+import { finishFight, loadFights, setFight, startFight, statlessFighters } from "./fightIo.ts";
 import type { Prologue } from "../_shared/agent/prologue.ts";
 import { parsePendingRoll } from "../_shared/agent/playerRoll.ts";
 import { anthropicModel } from "../_shared/agent/anthropic.ts";
@@ -641,6 +641,7 @@ serve(withCors(async (req: Request) => {
 
     // Fights: the campaign's own encounters, read and written as the caller; the conversation's row as the server.
     loadFights: (campaignId, locationId, fightEncounterId) => loadFights(supabase, campaignId, locationId, fightEncounterId),
+    finishFight: (campaignId, encounterId) => finishFight(admin, campaignId, encounterId),
     startFight: (ctx, plan) => startFight(supabase, admin, ctx, plan),
     setFight: (sessionId, campaignId, encounterId) => setFight(admin, sessionId, campaignId, encounterId),
     statlessFighters: (campaignId, plan) => statlessFighters(supabase, campaignId, plan),
