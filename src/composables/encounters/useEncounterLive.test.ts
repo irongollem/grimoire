@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { defineComponent, nextTick, ref } from "vue";
+import { defineComponent, nextTick, ref, watch } from "vue";
 import { flushPromises, mount } from "@vue/test-utils";
 import type { EncounterState, RunCombatant } from "@/types/encounter.types";
 
@@ -193,6 +193,33 @@ describe("usePlayerEncounterLive", () => {
     const wrapper = mount(defineComponent({ setup() { api = usePlayerEncounterLive(campaignId); return () => null; } }));
     return { api, wrapper };
   }
+
+  // Bug caught live (17 Nov 2026): at the AI table the fight is followed as the Dungeon Master's own row on a page
+  // inside the player layout, which mounts this reader too. The fight is not shared with players, so the projection
+  // said "no fight" on every ring and wiped the followed row: a token just moved shot back to its old square.
+  it("leaves the row alone while a follower of the fight holds it", async () => {
+    fake.seed("encounter_state", [stateRow("encounter-1", { current_round: 2 })]);
+    fake.onRpc("get_player_encounter_state", () => []);
+    const wrapper = mount(defineComponent({
+      setup() {
+        useEncounterLive(() => "encounter-1", { follow: true });
+        usePlayerEncounterLive(() => "campaign-1");
+        return () => null;
+      },
+    }));
+    await flushPromises();
+    expect(liveState.value).toMatchObject({ encounter_id: "encounter-1", current_round: 2 });
+    // The row must never be gone, not even for the moment between the two readers' answers: that moment is when
+    // the board redraws from stale squares.
+    const seen: Array<string | null> = [];
+    const stop = watch(liveState, (row) => seen.push(row ? row.encounter_id : null), { flush: "sync" });
+    rings.ring.forEach((fire) => fire({ campaignId: "campaign-1", table: "encounter_state" }));
+    await flushPromises();
+    stop();
+    expect(seen).not.toContain(null);
+    expect(liveState.value).toMatchObject({ encounter_id: "encounter-1", current_round: 2 });
+    wrapper.unmount();
+  });
 
   it("reads the player-safe projection of the campaign and re-reads on that campaign's ring, not another's", async () => {
     let served = [playerView("e1")];

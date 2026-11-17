@@ -394,6 +394,11 @@ export function usePlayerEncounterLive(campaignId: MaybeRefOrGetter<string | nul
     // A campaign switch can complete before its previous request. Never let
     // that stale response replace the active campaign's live encounter.
     if (id !== subscribedCampaignId) return;
+    // A fight at the AI table is on a page inside the player layout, which mounts this reader too, while the fight
+    // itself is followed as the Dungeon Master's own row. That fight is never shared with players, so this
+    // projection answers "no fight" on every ring, and writing that over the followed row sent the board back to
+    // stale squares: a token just moved shot home. While a follower holds the row, it is the follower's.
+    if (followers.size > 0) return;
     liveState.value = (data as EncounterState[])[0] ?? null;
     liveStateLoaded.value = true;
   }

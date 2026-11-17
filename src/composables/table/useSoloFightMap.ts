@@ -173,10 +173,17 @@ export function useSoloFightMap(options: {
       return;
     }
     refusal.value = null;
-    moveToken(me.instance_id, plan.to).catch(reportMoveFailure);
-    // Before the first round nothing is counted against a turn.
-    if (store.started) store.recordMove(me.instance_id, plan.from, plan.feet);
-    options.onMoved(plan.feet);
+    const id = me.instance_id;
+    // The square first, the feet after it has landed. Sent side by side, the fight's own save (which the feet are a
+    // command to) could load the row before the new square was on it and write the old one back: the token shot
+    // home and the turn was still charged. A move that fails charges nothing.
+    moveToken(id, plan.to)
+      .then(() => {
+        // Before the first round nothing is counted against a turn.
+        if (store.started) store.recordMove(id, plan.from, plan.feet);
+        options.onMoved(plan.feet);
+      })
+      .catch(reportMoveFailure);
   }
 
   function onTokenMoved(instanceId: string, position: Cell): void {
