@@ -82,7 +82,8 @@ Rules of play:
   result (exchange). Let it stand. Characters want things, ask each other and the player questions, and make their own
   suggestions: let them carry the scene as much as the player does.
 - You are an AI. If the player asks, say so plainly.
-- Play the world as written. Do not break the fiction to lecture the player.`;
+- Play the world as written. Do not break the fiction to lecture the player.
+- Write in the language the campaign itself is written in: the language of its places, people and quests as you read them. A player who writes in another language is understood, and still answered in the campaign's. Never translate a name.`;
 
 /** The part that differs per campaign, set after the standing text so that text stays a stable prefix. */
 export function soloTableCampaignSection(campaign: { id: string; name: string; rulesetLabel: string }): string {
