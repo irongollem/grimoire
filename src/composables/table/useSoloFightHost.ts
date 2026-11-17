@@ -12,7 +12,7 @@ import { initiativeRoll } from "@/rules/initiative";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 
 /** How a fight at the table ended: by itself (nobody left to fight), or by the Dungeon Master's ruling. */
-export type SoloFightEnd = "foes_out" | NonNullable<FightChange["ends"]>;
+export type SoloFightEnd = "foes_out" | "you_fell" | NonNullable<FightChange["ends"]>;
 
 /**
  * The fight at the AI table, run from the table screen (#1021, Solo Table canvas, frames 12 to 16).
@@ -130,7 +130,8 @@ export function useSoloFightHost(options: {
 
   function endTurn(): void {
     if (!yourTurn.value) return;
-    options.onLines([{ kind: "margin", text: `${played.value?.name} ends their turn` }]);
+    // A character who is down has nothing to end: their death save was the turn.
+    if (played.value && played.value.hp > 0) options.onLines([{ kind: "margin", text: `${played.value.name} ends their turn` }]);
     store.nextTurn();
   }
 

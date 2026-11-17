@@ -36,8 +36,16 @@
   </Teleport>
 
   <Teleport defer :to="`#${slots.turn}`">
+    <SoloDeathSave
+      v-if="host.yourTurn.value && played && played.hp <= 0"
+      :round="host.round.value"
+      :successes="member.death_save_successes"
+      :failures="member.death_save_failures"
+      :busy="resolving"
+      @rolled="onDeathSave"
+    />
     <SoloTurn
-      v-if="host.yourTurn.value && played && host.budget.value"
+      v-else-if="host.yourTurn.value && played && host.budget.value"
       :member="member"
       :round="host.round.value"
       :hp="{ hp: played.hp, maxHp: played.max_hp }"
@@ -105,6 +113,9 @@ import { attackEntryOf, damageDicePlan } from "@/lib/table/fight/pcAttack";
 import type { RollAnswer } from "@/lib/table/soloTypes";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { PartyMember } from "@/types/party.types";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
+import { deathSaveRollOutcome, dyingStatus } from "@/rules/dying";
+import SoloDeathSave from "./SoloDeathSave.vue";
 import SoloFightMap from "./SoloFightMap.vue";
 import SoloFightRoster from "./SoloFightRoster.vue";
 import SoloRollAsk from "./SoloRollAsk.vue";
@@ -131,6 +142,7 @@ const emit = defineEmits<{
 
 const store = useEncounterRunStore();
 const toast = useToast();
+const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { ruleset } = useTableRuleset();
 
 const host = useSoloFightHost({
@@ -253,6 +265,40 @@ function apply(change: FightChange): void {
 }
 
 defineExpose({ apply, spendWords: () => host.spendWords() });
+
+/**
+ * The death save (SRD 5.1 "Death Saving Throws", through `deathSaveRollOutcome`). The pips are the character's own
+ * and live on their sheet, as at any table: the sheet is written and the fight takes it from there. Then the turn
+ * is over, unless the die put them back on their feet; three failures or three successes end the fight for them.
+ */
+async function onDeathSave(face: number, atTable: boolean): Promise<void> {
+  const me = played.value;
+  if (!me || resolving.value) return;
+  resolving.value = true;
+  try {
+    const out = deathSaveRollOutcome({ successes: member.death_save_successes, failures: member.death_save_failures }, member.conditions, face);
+    await updateMember({
+      id: member.id,
+      update: {
+        death_save_successes: out.saves.successes,
+        death_save_failures: out.saves.failures,
+        conditions: out.conditions,
+        ...(out.current_hp === null ? {} : { current_hp: out.current_hp }),
+      },
+    });
+    emit("lines", [{ kind: "roll", die: face, label: `${me.name}'s death save: ${out.label}`, detail: `d20 (${face})${atTable ? " · rolled at the table" : ""}`, critical: face === 20 }], false);
+    const status = dyingStatus(out.current_hp === null ? 0 : out.current_hp, out.saves);
+    if (status === "dead" || status === "stable") {
+      emit("lines", [{ kind: "margin", text: status === "dead" ? `${me.name} dies` : `${me.name} is stable, and out of the fight`, tone: "end" }], false);
+      void host.finish("you_fell");
+    } else if (status === "dying") host.endTurn();
+    // Back up at 1 hit point: the turn goes on, and the controls return once the fight has read the sheet.
+  } catch (error) {
+    toast.error(toast.fromError(error, "The death save could not be kept. Roll it again."));
+  } finally {
+    resolving.value = false;
+  }
+}
 
 /** The four actions the rules name. They spend the Action; only Dash changes anything the board can show yet. */
 function onAct(kind: "dash" | "dodge" | "disengage" | "hide"): void {

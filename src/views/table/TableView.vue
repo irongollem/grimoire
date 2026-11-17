@@ -276,7 +276,9 @@ const inFight = computed(() => fight.value !== null && !hasLeft.value && !conver
 function onFightOver(how: SoloFightEnd): void {
   fight.value = null;
   fightTurn.value = null;
-  if (how === "foes_out") {
+  // Nobody left to fight, or the played character out of it: the board ended it, and the Dungeon Master is asked
+  // to tell what comes of it.
+  if (how === "foes_out" || how === "you_fell") {
     turn.note([{ kind: "margin", text: "The fight is over", tone: "end" }], true);
     void turn.aftermath();
     return;
