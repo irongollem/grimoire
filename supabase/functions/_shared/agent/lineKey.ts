@@ -12,11 +12,19 @@ import { Buffer } from "node:buffer";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { AgentLine } from "./types.ts";
 
-export type KeyedLine = Pick<AgentLine, "speaker" | "text"> & { how?: string | null };
+/** Who the words belong to: a character of the story, the narrator, or the player's own character. */
+export type VoiceRole = "character" | "narrator" | "player";
+export const VOICE_ROLES: readonly VoiceRole[] = ["character", "narrator", "player"];
+
+/** The name the narrator's words are signed and stored under: the narrator is nobody in the story. */
+export const NARRATOR_SPEAKER = { id: null, name: "The Dungeon Master" } as const;
+
+export type KeyedLine = Pick<AgentLine, "speaker" | "text"> & { how?: string | null; role?: VoiceRole };
 
 function digest(secret: string, sessionId: string, line: KeyedLine): Buffer {
   // A JSON array, so no field can run into the next ("ab" + "c" is not "a" + "bc").
-  const signed = JSON.stringify([sessionId, line.speaker.id, line.speaker.name, line.text, line.how ?? null]);
+  // The role is under the signature too: a character's line cannot be asked for in the narrator's voice.
+  const signed = JSON.stringify([sessionId, line.role ?? "character", line.speaker.id, line.speaker.name, line.text, line.how ?? null]);
   return createHmac("sha256", `table-voice-line:${secret}`).update(signed).digest();
 }
 
@@ -30,4 +38,14 @@ export function lineKeyFits(secret: string, sessionId: string, line: KeyedLine, 
   const given = Buffer.from(key, "base64url");
   const wanted = digest(secret, sessionId, line);
   return given.length === wanted.length && timingSafeEqual(given, wanted);
+}
+
+/**
+ * The name a line's clip is kept under, inside its conversation. Not a secret and not a proof: it only says which
+ * words by whom, so the same line asked for again finds the clip that was made for it. The cue is left out, since a
+ * line read back from a stored conversation is asked for without one.
+ */
+export function clipName(line: KeyedLine): string {
+  const named = JSON.stringify([line.role ?? "character", line.speaker.id, line.speaker.name, line.text.trim()]);
+  return createHmac("sha256", "table-voice-clip").update(named).digest("hex");
 }

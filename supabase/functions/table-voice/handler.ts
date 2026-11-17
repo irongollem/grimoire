@@ -4,6 +4,10 @@
 //
 // What keeps this from being a speech service for anything a caller types:
 //   - the caller must own the conversation, in a campaign they run with AI on;
+//   - a line already voiced is kept (`loadClip` / `keepClip`, the `grimoire-table-voices` store) under its
+//     conversation and a name made of who said what. Asked for again, it is answered from there: nothing is paid
+//     twice, and a reopened sitting can be heard again. A kept clip needs no key, because only a line that came
+//     with one was ever kept;
 //   - the words must be a line that conversation SHOWED, spoken by that speaker, with the cue the character gave.
 //     `agent-turn` signs each spoken line as it sends it (`_shared/agent/lineKey.ts`); the request carries the line
 //     and its key, and a line whose key does not fit is refused. So a line is voiced the moment it is shown, not
@@ -14,7 +18,8 @@
 // maintainer's own stack. Before either is set in production, voice has to be priced and charged like every other
 // generation (`_shared/credits.ts`).
 
-import { pickVoice, speechText, type AgeBand, type Sex } from "./voicePick.ts";
+import { NARRATOR_VOICE_ID, pickVoice, speechText, NARRATION_MAX_CHARS, type AgeBand, type Sex } from "./voicePick.ts";
+import { VOICE_ROLES, type VoiceRole } from "../_shared/agent/lineKey.ts";
 
 export interface VoiceRefusal {
   status: number;
@@ -42,7 +47,15 @@ export interface TableVoiceDeps {
   isDm(campaign: VoiceCampaign, userId: string): Promise<boolean>;
   rateLimit(userId: string): Promise<boolean>;
   /** Whether the key is the one `agent-turn` gave for exactly this line of this conversation. */
-  keyFits(sessionId: string, line: { speaker: { id: string | null; name: string }; text: string; how: string | null }, key: string): boolean;
+  keyFits(sessionId: string, line: VoicedLine, key: string): boolean;
+  /** The clip kept for this line of this conversation (mp3, base64), or null when none is. Throws are the caller's to survive. */
+  loadClip(at: { campaignId: string; sessionId: string }, line: VoicedLine): Promise<string | null>;
+  /** Keeps the clip for the line, so it is never made twice. */
+  keepClip(at: { campaignId: string; sessionId: string }, line: VoicedLine, audio: string): Promise<void>;
+  /** The played character's own pronouns and voice, for the player's said lines. */
+  loadPlayerTraits(campaignId: string, memberId: string): Promise<SpeakerTraits>;
+  /** The narrator's voice where the stack names one; null for the default. */
+  narratorVoice(): string | null;
   /**
    * What the character's record says of its sex and age, for casting, and the voice the DM gave it
    * (`npcs.spoken_voice_id`); nulls when it says nothing or has no record.
@@ -50,6 +63,14 @@ export interface TableVoiceDeps {
   loadTraits(campaignId: string, speakerId: string): Promise<SpeakerTraits>;
   /** Speaks the text in the voice and answers the audio (mp3, base64). Throws when the speech service fails. */
   synthesize(voiceId: string, text: string): Promise<string>;
+}
+
+/** A line as it is signed, kept and spoken. */
+export interface VoicedLine {
+  role: VoiceRole;
+  speaker: { id: string | null; name: string };
+  text: string;
+  how: string | null;
 }
 
 export interface SpeakerTraits {
@@ -88,8 +109,10 @@ export interface VoiceBody {
   text: string;
   /** The character's cue for how it is said, as the line carried it; null when it had none. */
   how: string | null;
-  /** The key the line came with. */
-  key: string;
+  /** The key the line came with; null for a line read back from a stored conversation, which only a kept clip answers. */
+  key: string | null;
+  /** Whose words: a character's (the default), the narrator's, or the player's own character's. */
+  role: VoiceRole;
 }
 
 export function parseVoiceBody(raw: unknown): VoiceBody | null {
@@ -102,8 +125,30 @@ export function parseVoiceBody(raw: unknown): VoiceBody | null {
   if (typeof r.text !== "string" || r.text.trim() === "" || r.text.length > 4000) return null;
   const how = r.how === undefined || r.how === null ? null : r.how;
   if (how !== null && (typeof how !== "string" || how.length > 400)) return null;
-  if (typeof r.key !== "string" || r.key === "" || r.key.length > 200) return null;
-  return { campaignId: r.campaignId, sessionId: r.sessionId, speakerId: r.speakerId, speakerName: r.speakerName, text: r.text, how, key: r.key };
+  const key = r.key === undefined || r.key === null ? null : r.key;
+  if (key !== null && (typeof key !== "string" || key === "" || key.length > 200)) return null;
+  const role = r.role === undefined ? "character" : r.role;
+  if (typeof role !== "string" || !(VOICE_ROLES as readonly string[]).includes(role)) return null;
+  return { campaignId: r.campaignId, sessionId: r.sessionId, speakerId: r.speakerId, speakerName: r.speakerName, text: r.text, how, key, role: role as VoiceRole };
+}
+
+/** Whose voice says the line: the narrator's one voice, or a cast from the speaker's record. */
+async function voiceFor(deps: TableVoiceDeps, campaignId: string, line: VoicedLine): Promise<string> {
+  if (line.role === "narrator") {
+    const named = deps.narratorVoice();
+    return named !== null && VOICE_ID_RE.test(named) ? named : NARRATOR_VOICE_ID;
+  }
+  // Cast from the record when there is one; someone without a record is cast by their shown name alone.
+  let traits: SpeakerTraits = { sex: null, age: null, voiceId: null };
+  if (line.speaker.id !== null) {
+    try {
+      traits = line.role === "player" ? await deps.loadPlayerTraits(campaignId, line.speaker.id) : await deps.loadTraits(campaignId, line.speaker.id);
+    } catch (error) {
+      console.error("table-voice: reading the speaker's record failed:", error);
+    }
+  }
+  // A voice the DM gave the character wins over the casting.
+  return ownVoice(traits) ?? pickVoice(line.speaker.id ?? line.speaker.name, traits).id;
 }
 
 export async function speakLine(input: {
@@ -128,24 +173,25 @@ export async function speakLine(input: {
 
   if (!(await deps.rateLimit(userId))) return refuse(429, VOICE_MESSAGES.rateLimited);
 
-  const line = { speaker: { id: body.speakerId, name: body.speakerName }, text: body.text, how: body.how };
-  if (!deps.keyFits(session.id, line, body.key)) return refuse(404, VOICE_MESSAGES.noLine);
+  const line: VoicedLine = { role: body.role, speaker: { id: body.speakerId, name: body.speakerName }, text: body.text, how: body.how };
+  const at = { campaignId: session.campaign_id, sessionId: session.id };
 
-  // Cast from the record when there is one; someone without a record is cast by their shown name alone.
-  let traits: SpeakerTraits = { sex: null, age: null, voiceId: null };
-  if (line.speaker.id !== null) {
-    try {
-      traits = await deps.loadTraits(session.campaign_id, line.speaker.id);
-    } catch (error) {
-      console.error("table-voice: reading the speaker's record failed:", error);
-    }
+  // A clip made before is answered as it was made. A store that cannot be read costs a new clip, never the line.
+  try {
+    const kept = await deps.loadClip(at, line);
+    if (kept !== null) return { ok: true, audio: kept, mime: "audio/mpeg" };
+  } catch (error) {
+    console.error("table-voice: reading the kept clip failed:", error);
   }
-  // A voice the DM gave the character wins over the casting.
-  const voiceId = ownVoice(traits) ?? pickVoice(line.speaker.id ?? line.speaker.name, traits).id;
+  // Nothing kept: only a line that carries the key this sitting gave it is made.
+  if (body.key === null || !deps.keyFits(session.id, line, body.key)) return refuse(404, VOICE_MESSAGES.noLine);
 
+  const voiceId = await voiceFor(deps, session.campaign_id, line);
   try {
     // The words and the cue are the ones under the key: the page could not have changed either.
-    const audio = await deps.synthesize(voiceId, speechText(line.text, line.how));
+    const audio = await deps.synthesize(voiceId, speechText(line.text, line.how, line.role === "narrator" ? NARRATION_MAX_CHARS : undefined));
+    // Kept before it is answered, but a clip that cannot be kept is still heard.
+    await deps.keepClip(at, line, audio).catch((error) => console.error("table-voice: keeping the clip failed:", error));
     return { ok: true, audio, mime: "audio/mpeg" };
   } catch (error) {
     console.error("table-voice: the speech service failed:", error);

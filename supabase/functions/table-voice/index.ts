@@ -7,7 +7,9 @@ import { withCors } from "../_shared/cors.ts";
 import { toPlainText } from "../_shared/ai-prompt.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { lineKeyFits } from "../_shared/agent/lineKey.ts";
+import { clipName, lineKeyFits } from "../_shared/agent/lineKey.ts";
+import { getObject, putObject } from "../_shared/r2/client.ts";
+import { r2ConfigFrom } from "../_shared/r2/config.ts";
 import { speakLine, type TableVoiceDeps } from "./handler.ts";
 import { ageOf, sexOf } from "./voicePick.ts";
 
@@ -17,6 +19,21 @@ const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY
 // The newest model: the one the maintainer chose by ear for how it acts a line.
 const SPEECH_MODEL = "eleven_v4";
 const SPEECH_TIMEOUT_MS = 30_000;
+
+// The clips have a store of their own (the maintainer's choice, 17 Nov 2026): a private R2 bucket that nothing
+// serves but this function, to the conversation's own owner. Without R2 credentials nothing is kept and every line
+// is made anew, as before.
+const VOICE_BUCKET = Deno.env.get("R2_VOICE_BUCKET")?.trim() || "grimoire-table-voices";
+const r2 = r2ConfigFrom((key) => Deno.env.get(key));
+const voiceStore = r2 === null ? null : { ...r2, bucket: VOICE_BUCKET };
+const clipKey = (at: { campaignId: string; sessionId: string }, name: string) => `${at.campaignId}/${at.sessionId}/${name}.mp3`;
+
+function fromBase64(text: string): Uint8Array {
+  const binary = atob(text);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -78,6 +95,26 @@ serve(withCors(async (req: Request) => {
       const about = [data.appearance, data.personality, data.backstory].map((t) => toPlainText(t as string | null)).join(" ");
       return { sex: sexOf(about), age: ageOf(String(data.age ?? "")), voiceId: (data.spoken_voice_id as string | null) ?? null };
     },
+
+    async loadClip(at, line) {
+      if (voiceStore === null) return null;
+      const bytes = await getObject(voiceStore, clipKey(at, clipName(line)));
+      return bytes === null ? null : base64(bytes);
+    },
+
+    async keepClip(at, line, audio) {
+      if (voiceStore === null) return;
+      await putObject(voiceStore, { key: clipKey(at, clipName(line)), body: fromBase64(audio), contentType: "audio/mpeg" });
+    },
+
+    // The player's character: cast from their pronouns. Read as the caller, in the campaign.
+    async loadPlayerTraits(campaignId, memberId) {
+      const { data, error } = await supabase.from("party_members").select("pronouns").eq("id", memberId).eq("campaign_id", campaignId).maybeSingle();
+      if (error) throw error;
+      return { sex: data ? sexOf(String(data.pronouns ?? "")) : null, age: null, voiceId: null };
+    },
+
+    narratorVoice: () => Deno.env.get("TABLE_NARRATOR_VOICE_ID")?.trim() || null,
 
     async synthesize(voiceId, text) {
       const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {

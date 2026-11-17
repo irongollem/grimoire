@@ -2396,6 +2396,35 @@ describe("who the player plays", () => {
     step(50),
   ];
 
+  const windInTheEaves = (request: ModelRequest): ModelStep => {
+    request.onText?.("Wind in the eaves.");
+    return step(10, { blocks: [{ type: "text", text: "Wind in the eaves." }] });
+  };
+
+  // Bug caught: narration or the player's own line never offered to a voice; or offered under a character's role,
+  // so the voice endpoint would cast the narrator like a passer-by.
+  it("where voices are on, the narrator's words and the player's said line each come with a key under their own role", async () => {
+    const h = withWren([windInTheEaves]);
+    h.deps.voiceKey = (_sessionId, line) => `${line.role}:${line.speaker.name}:${line.text}`;
+    await play(h, { body: { ...START, message: "Is anyone here?", mode: "say" } });
+    const voices = h.events.flatMap((e) => (e.type === "voice" ? [e] : []));
+    expect(voices).toEqual([
+      { type: "voice", role: "player", text: "Is anyone here?", voice: "player:Wren Ashfield:Is anyone here?" },
+      { type: "voice", role: "narrator", text: "Wind in the eaves.", voice: "narrator:The Dungeon Master:Wind in the eaves." },
+    ]);
+  });
+
+  // Bug caught: a deed sent to be spoken in the character's voice ("I open the door" read aloud as speech).
+  it("a deed is not offered to the player's voice, and nothing is where voices are off", async () => {
+    const done = withWren([windInTheEaves]);
+    done.deps.voiceKey = () => "k";
+    await play(done, { body: START });
+    expect(done.events.some((e) => e.type === "voice" && e.role === "player")).toBe(false);
+    const off = withWren([windInTheEaves]);
+    await play(off, { body: { ...START, mode: "say" } });
+    expect(off.events.some((e) => e.type === "voice")).toBe(false);
+  });
+
   const rollsPotion: ModelStep = step(10, { blocks: [{ type: "tool_call", id: "p1", name: "roll", input: { expression: "2d4+2", label: "Potion of Healing" } }], stop: "tool_calls" });
   const heals = (extra: Record<string, unknown> = {}): ModelStep =>
     step(10, { blocks: [{ type: "tool_call", id: "p2", name: "hit_points", input: { change: "heal", why: "Potion of Healing", ...extra } }], stop: "tool_calls" });

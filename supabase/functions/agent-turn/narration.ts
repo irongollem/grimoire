@@ -28,8 +28,16 @@ export interface NarrationGate {
   applyShown(added: AgentMessage[]): void;
 }
 
-export function narrationGate(input: { judge: NarrationJudge | null; emit: (event: AgentEvent) => void }): NarrationGate {
+export function narrationGate(input: {
+  judge: NarrationJudge | null;
+  emit: (event: AgentEvent) => void;
+  /** A step's narration as the player was shown it, once it is whole: in its place among the lines, for a voice. */
+  onNarration?: (text: string) => void;
+}): NarrationGate {
   const { judge, emit } = input;
+  const narrated = (text: string): void => {
+    if (text.trim() !== "") input.onNarration?.(text.trim());
+  };
 
   /** Every narrator step that wrote visible text, in order, and the part of it the player saw. */
   const written: Array<{ text: string; shown: string }> = [];
@@ -64,19 +72,27 @@ export function narrationGate(input: { judge: NarrationJudge | null; emit: (even
     if (text.trim() === "") return;
     const record = { text, shown: text };
     written.push(record);
-    if (!held || judge === null) return;
+    if (!held || judge === null) {
+      // Already on the page as it streamed; said whole now, after everything queued before it.
+      enqueue(() => narrated(text));
+      return;
+    }
     // The lines as they stand now: later steps add to the array while this judgment is waiting its turn.
     const seen = [...lines];
     enqueue(async () => {
       record.shown = await withinLimit(narrationKept({ lines: seen, narration: text, judge }), text);
       if (record.shown !== "") emit({ type: "text", delta: record.shown });
+      narrated(record.shown);
     });
   };
 
   const onEvent = (event: TurnEvent): void => {
     if (judge === null) {
       // No judging key: everything is shown as it arrives, exactly as before the check existed.
-      if (event.type === "text") emit({ type: "text", delta: event.delta });
+      if (event.type === "text") {
+        stepText += event.delta;
+        emit({ type: "text", delta: event.delta });
+      } else if (event.type === "step") endStep();
       else if (event.type === "tool_start") emit({ type: "tool_start", name: event.name });
       else if (event.type === "tool_end") {
         emit({ type: "tool_end", name: event.name, isError: event.isError });

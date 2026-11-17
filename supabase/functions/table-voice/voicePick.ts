@@ -99,6 +99,12 @@ export function pickVoice(key: string, traits: { sex: Sex | null; age: AgeBand |
   return cast[hashOf(key) % cast.length];
 }
 
+/** The narrator's voice until a campaign can choose one: George, an adult man, steady and unhurried. */
+export const NARRATOR_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb";
+
+/** The longest narration sent to be spoken: a narrator's reply is a few sentences, sometimes a full paragraph. */
+export const NARRATION_MAX_CHARS = 1500;
+
 /** The longest line sent to be spoken. A spoken line is one to three sentences; more than this is not one. */
 export const SPEECH_MAX_CHARS = 600;
 
@@ -107,7 +113,7 @@ export const SPEECH_MAX_CHARS = 600;
  * one. The cue is already plain words (`deliveryCue`); brackets inside the words themselves are taken out, so a
  * line cannot carry an instruction of its own.
  */
-export function speechText(text: string, how: string | null): string {
-  const words = text.replace(/[[\]<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, SPEECH_MAX_CHARS);
+export function speechText(text: string, how: string | null, max: number = SPEECH_MAX_CHARS): string {
+  const words = text.replace(/[[\]<>*_]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
   return how === null || how === "" ? words : `[${how}] ${words}`;
 }

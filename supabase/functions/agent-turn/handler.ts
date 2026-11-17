@@ -13,6 +13,7 @@
 
 import type { FightChange } from "../_shared/agent/fightChange.ts";
 import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
+import { NARRATOR_SPEAKER, type KeyedLine } from "../_shared/agent/lineKey.ts";
 import type { Introduction } from "../_shared/agent/introduce.ts";
 import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { runTurn, totalTokens, type TurnEnd } from "../_shared/agent/turn.ts";
@@ -84,6 +85,8 @@ export type AgentEvent =
   | { type: "fight_change"; change: FightChange }
   /** Someone the narrator made up now has a record the player's character knows of. A hidden one is never sent. */
   | { type: "introduced"; person: { id: string; name: string } }
+  /** Words that are not a character's line and can be voiced: the narrator's, whole, or the player's own said line. */
+  | { type: "voice"; role: "narrator" | "player"; text: string; voice: string }
   /** The played character's hit points changed outside a fight: what did it, by how much, and where they stand. */
   | { type: "hit_points"; change: { change: "heal" | "harm"; why: string; by: number; hp: number; maxHp: number } }
   | { type: "done"; end: TurnEnd; credits: number; tokens: number }
@@ -286,7 +289,7 @@ export interface AgentTurnDeps {
    * Signs a spoken line so it can be voiced as soon as it is shown (`lineKey.ts`). Null where voices are not
    * switched on: then no line carries a key and nothing can be voiced.
    */
-  voiceKey: ((sessionId: string, line: AgentLine) => string) | null;
+  voiceKey: ((sessionId: string, line: KeyedLine) => string) | null;
   /** Whether the table itself made this character's record and the DM has not edited it since: only then may the table rewrite it. */
   isTableMadeCharacter(campaignId: string, characterId: string): Promise<boolean>;
   /** Sets the played character's hit points on their sheet (`hitPoints.ts`). */
@@ -566,8 +569,16 @@ export async function beginTurn(input: {
         });
 
         const sessionId = session.id;
+        // The player's own words, when said aloud, can be heard in their character's voice.
+        if (deps.voiceKey !== null && character && body.mode === "say" && body.message.trim() !== "") {
+          const text = body.message.trim();
+          emit({ type: "voice", role: "player", text, voice: deps.voiceKey(sessionId, { role: "player", speaker: { id: character.id, name: character.name }, text }) });
+        }
         gate = narrationGate({
           judge: deps.judgeNarration,
+          onNarration: (text) => {
+            if (deps.voiceKey !== null) emit({ type: "voice", role: "narrator", text, voice: deps.voiceKey(sessionId, { role: "narrator", speaker: NARRATOR_SPEAKER, text }) });
+          },
           // Only what a character SAID is voiced, and only a line that is being shown gets a key.
           emit: (event) =>
             emit(

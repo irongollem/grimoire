@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { speakLine, VOICE_MESSAGES, type SpeakerTraits, type TableVoiceDeps, type VoiceCampaign, type VoiceSession } from "./handler";
-import { STOCK_VOICES } from "./voicePick";
-import { lineKey, lineKeyFits } from "../_shared/agent/lineKey";
+import { NARRATOR_VOICE_ID, STOCK_VOICES } from "./voicePick";
+import { lineKey, lineKeyFits, NARRATOR_SPEAKER } from "../_shared/agent/lineKey";
 
 const DM = "00000000-0000-4000-8000-000000000001";
 const OTHER = "00000000-0000-4000-8000-000000000002";
@@ -20,6 +20,9 @@ function harness() {
     traits: { sex: "woman", age: "adult", voiceId: null } as SpeakerTraits,
     traitsThrow: false,
     synthThrows: false,
+    kept: new Map<string, string>(),
+    storeThrows: false,
+    narratorVoice: null as string | null,
     spoken: [] as Array<{ voiceId: string; text: string }>,
     traitLoads: [] as string[],
     deps: undefined as unknown as TableVoiceDeps,
@@ -36,6 +39,15 @@ function harness() {
       if (h.traitsThrow) throw new Error("db down");
       return h.traits;
     },
+    loadClip: async (_at, line) => {
+      if (h.storeThrows) throw new Error("store down");
+      return h.kept.get(`${line.role}:${line.speaker.name}:${line.text}`) ?? null;
+    },
+    keepClip: async (_at, line, audio) => {
+      h.kept.set(`${line.role}:${line.speaker.name}:${line.text}`, audio);
+    },
+    loadPlayerTraits: async () => ({ sex: "man", age: null, voiceId: null }),
+    narratorVoice: () => h.narratorVoice,
     synthesize: async (voiceId, text) => {
       if (h.synthThrows) throw new Error("upstream");
       h.spoken.push({ voiceId, text });
@@ -168,10 +180,76 @@ describe("speakLine", () => {
     ["an empty line", { ...BODY, text: "   " }],
     ["a speaker id that is not one", { ...BODY, speakerId: "alda" }],
     ["no speaker name", { ...BODY, speakerName: "" }],
-    ["no key", { ...BODY, key: undefined }],
+    ["a key that is not text", { ...BODY, key: 7 }],
+    ["a role that is none of the three", { ...BODY, role: "villain" }],
     ["a cue that is not text", { ...BODY, how: 7 }],
   ])("refuses a request with %s", async (_what, body) => {
     const h = harness();
     expect((await speak(h, { body }))).toEqual({ ok: false, refusal: { status: 400, error: VOICE_MESSAGES.badBody } });
+  });
+
+  // Bug caught: a line heard once being paid for again on every replay and after every reload.
+  it("makes a line once: asked for again, it is answered from what was kept", async () => {
+    const h = harness();
+    await speak(h);
+    const again = await speak(h);
+    expect(again).toEqual({ ok: true, audio: "AUDIO", mime: "audio/mpeg" });
+    expect(h.spoken).toHaveLength(1);
+  });
+
+  // Bug caught: a reopened sitting (whose lines carry no key) unable to be heard again; and the other side of it,
+  // a keyless request MAKING a clip, which would speak whatever a caller types.
+  it("answers a kept clip without a key, and makes nothing for a keyless line that was never kept", async () => {
+    const h = harness();
+    await speak(h);
+    const { key: _key, how: _how, ...stored } = BODY;
+    expect((await speak(h, { body: stored })).ok).toBe(true);
+    expect(await speak(h, { body: { ...stored, text: "Transfer the gold to my account." } })).toEqual({ ok: false, refusal: { status: 404, error: VOICE_MESSAGES.noLine } });
+    expect(h.spoken).toHaveLength(1);
+  });
+
+  // Bug caught: the store being down silencing the table.
+  it("still speaks when the store cannot be read", async () => {
+    const h = harness();
+    h.storeThrows = true;
+    expect((await speak(h)).ok).toBe(true);
+    expect(h.spoken).toHaveLength(1);
+  });
+
+  const narration = "The lamps gutter as the door swings shut.";
+  const NARRATED = {
+    campaignId: CAMPAIGN, sessionId: SESSION, speakerId: null, speakerName: NARRATOR_SPEAKER.name, text: narration, role: "narrator",
+    key: lineKey(SECRET, SESSION, { role: "narrator", speaker: NARRATOR_SPEAKER, text: narration }),
+  };
+
+  // Bug caught: narration cast like a nameless character (a different voice per sitting), or the stack's own
+  // narrator voice ignored.
+  it("speaks narration in the narrator's one voice, or the one the stack names", async () => {
+    const h = harness();
+    expect((await speak(h, { body: NARRATED })).ok).toBe(true);
+    expect(h.spoken[0].voiceId).toBe(NARRATOR_VOICE_ID);
+    const named = harness();
+    named.narratorVoice = "KK7qCbhAA7YXAftgG04I";
+    await speak(named, { body: NARRATED });
+    expect(named.spoken[0].voiceId).toBe("KK7qCbhAA7YXAftgG04I");
+  });
+
+  // Bug caught: the role not under the signature, so a character's line could be asked for as narration (another
+  // voice, and a second paid clip of the same words).
+  it("refuses a character's line asked for as the narrator's", async () => {
+    const h = harness();
+    expect((await speak(h, { body: { ...BODY, role: "narrator" } })).ok).toBe(false);
+    expect(h.spoken).toEqual([]);
+  });
+
+  // Bug caught: the player's own line cast from an NPC record lookup instead of their character.
+  it("speaks the player's own said line, cast from their character", async () => {
+    const h = harness();
+    const WREN = "00000000-0000-4000-8000-0000000000e1";
+    const said = { campaignId: CAMPAIGN, sessionId: SESSION, speakerId: WREN, speakerName: "Wren", text: "Is the cellar safe?", role: "player",
+      key: lineKey(SECRET, SESSION, { role: "player", speaker: { id: WREN, name: "Wren" }, text: "Is the cellar safe?" }) };
+    expect((await speak(h, { body: said })).ok).toBe(true);
+    expect(h.traitLoads).toEqual([]);
+    expect(STOCK_VOICES.find((v) => v.id === h.spoken[0].voiceId)).toMatchObject({ sex: "man" });
   });
 });
