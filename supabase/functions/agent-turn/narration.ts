@@ -80,6 +80,7 @@ export function narrationGate(input: { judge: NarrationJudge | null; emit: (even
       else if (event.type === "tool_start") emit({ type: "tool_start", name: event.name });
       else if (event.type === "tool_end") {
         emit({ type: "tool_end", name: event.name, isError: event.isError });
+        if (event.dmRoll) emit({ type: "dm_roll", roll: event.dmRoll });
         for (const line of event.lines ?? []) emit({ type: "line", line });
       }
       return;
@@ -99,9 +100,12 @@ export function narrationGate(input: { judge: NarrationJudge | null; emit: (even
         break;
       case "tool_end": {
         const shown = event.lines ?? [];
+        const dmRoll = event.dmRoll;
         lines.push(...shown);
         enqueue(() => {
           emit({ type: "tool_end", name: event.name, isError: event.isError });
+          // The Dungeon Master's open roll, in its place in the story: before whatever comes of it.
+          if (dmRoll) emit({ type: "dm_roll", roll: dmRoll });
           // A character's deed comes before its words, as the page reads them.
           for (const line of shown) emit({ type: "line", line });
         });

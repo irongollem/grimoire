@@ -1,5 +1,6 @@
 // Between the conversation in memory and the rows that store it (#1205). Pure: rows in, messages out, and back.
 
+import { asDmRoll } from "./dmRoll.ts";
 import { parseRolled } from "./playerRoll.ts";
 import type { AgentBlock, AgentLine, AgentMessage, AgentUsage, AgentWithheld } from "./types.ts";
 
@@ -77,6 +78,8 @@ function asBlock(x: unknown): AgentBlock | null {
         if (lines.length > 0) block.lines = lines;
         const withheld = Array.isArray(x.withheld) ? x.withheld.map(asWithheld).filter((w): w is AgentWithheld => w !== null) : [];
         if (withheld.length > 0) block.withheld = withheld;
+        const dmRoll = asDmRoll(x.dmRoll);
+        if (dmRoll !== null) block.dmRoll = dmRoll;
         return block;
       }
     case "opaque":

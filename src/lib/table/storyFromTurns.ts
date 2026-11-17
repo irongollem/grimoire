@@ -1,3 +1,4 @@
+import { parseDmRoll } from "./dmRoll";
 import { parseTableLine } from "./readTableStream";
 import { parseRolled } from "./tableRoll";
 import type { StoryItem } from "./soloTypes";
@@ -46,7 +47,11 @@ export function storyFromTurns(turns: readonly StoredTurn[]): StoryItem[] {
         if (block.unshown !== true && typeof block.text === "string" && block.text.trim() !== "") {
           items.push({ id, kind: "narration", text: block.text });
         }
-      } else if (block.type === "tool_result" && Array.isArray(block.lines)) {
+      } else if (block.type === "tool_result") {
+        // The Dungeon Master's open roll comes before whatever the same call showed, as it did live.
+        const dmRoll = parseDmRoll(block.dmRoll);
+        if (dmRoll !== null) items.push({ id: `${id}-dm`, kind: "dmRoll", roll: dmRoll });
+        if (!Array.isArray(block.lines)) return;
         block.lines.forEach((raw: unknown, lineIndex: number) => {
           const line = parseTableLine(raw);
           if (line === null) return;

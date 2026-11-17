@@ -45,12 +45,26 @@ export type AgentBlock =
   /** The model asks for a tool. `id` pairs it with its result; `input` is already parsed JSON. */
   | { type: "tool_call"; id: string; name: string; input: Record<string, unknown> }
   /** What a tool answered, as text the model reads. `isError` tells the model the call failed. */
-  | { type: "tool_result"; callId: string; content: string; isError: boolean; lines?: AgentLine[]; withheld?: AgentWithheld[] }
+  | { type: "tool_result"; callId: string; content: string; isError: boolean; lines?: AgentLine[]; withheld?: AgentWithheld[]; dmRoll?: DmRoll }
   /**
    * Something a provider needs handed back unchanged and nobody else reads (a reasoning item, a thinking block).
    * An adapter writes it and only the same provider's adapter replays it; every other adapter drops it.
    */
   | { type: "opaque"; provider: string; data: unknown };
+
+/** A roll the Dungeon Master made in the open, as the page shows it (dmRoll.ts). Never a hidden one. */
+export interface DmRoll {
+  /** What the roll was for, in the narrator's words; null when it gave none. */
+  label: string | null;
+  /** The dice asked for, as notation ("1d20+2"); null when the call's expression was not plain notation. */
+  dice: string | null;
+  /** The dice that count. */
+  faces: number[];
+  /** Dice rolled and set aside (the lower of two with advantage). */
+  dropped: number[];
+  modifier: number;
+  total: number;
+}
 
 /** A roll the player made for their own character, as it is shown and stored. */
 export interface PlayerRolled {
@@ -143,6 +157,8 @@ export interface ToolAnswer {
   lines?: AgentLine[];
   /** Kept on the stored result for later calls; the turn loop never sends it to the browser. */
   withheld?: AgentWithheld[];
+  /** An open roll the Dungeon Master made with this call: shown on the page and kept on the stored result. */
+  dmRoll?: DmRoll;
 }
 
 /** A provider request that did not produce an answer. `retryable` is true for a timeout, a 429 and a 5xx. */

@@ -6,7 +6,7 @@ const TOOL_NOTE: Record<string, string> = {
   get: "Looked something up",
   list: "Looked something up",
   campaign_overview: "Looked something up",
-  roll: "Rolled",
+  // No line for `roll`: an open roll arrives as its own `dm_roll`, and a hidden one must not show that it happened.
 };
 
 /**
@@ -61,6 +61,8 @@ export function applyTableEvent(items: StoryItem[], event: TableEvent, turnStart
       const id = nextItemId();
       return [...items, kind === "spoken" ? { id, kind, speaker, text, ...(to !== undefined ? { to } : {}) } : { id, kind, speaker, text }];
     }
+    case "dm_roll":
+      return [...items, { id: nextItemId(), kind: "dmRoll", roll: event.roll }];
     case "rolled":
       return [...items.slice(0, turnStart), { id: nextItemId(), kind: "roll", roll: event.roll }, ...items.slice(turnStart)];
     case "scene":

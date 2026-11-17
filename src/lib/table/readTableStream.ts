@@ -1,3 +1,4 @@
+import { parseDmRoll } from "./dmRoll";
 import { parseRollAsk, parseRolled } from "./tableRoll";
 import type { TableEvent, TableLine, TablePressure } from "./soloTypes";
 
@@ -79,6 +80,10 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
     case "ask_roll": {
       const roll = parseRollAsk(raw.roll);
       return roll ? { type: "ask_roll", roll } : null;
+    }
+    case "dm_roll": {
+      const roll = parseDmRoll(raw.roll);
+      return roll ? { type: "dm_roll", roll } : null;
     }
     case "rolled": {
       const roll = parseRolled(raw.roll);

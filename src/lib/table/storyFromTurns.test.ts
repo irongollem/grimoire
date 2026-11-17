@@ -118,4 +118,14 @@ describe("storyFromTurns for a roll", () => {
     const items = storyFromTurns([{ seq: 1, role: "user", blocks: [{ type: "text", text: "x", roll: { ...roll, total: 40 }, player: { kind: "say", text: "Hi" } }] }]);
     expect(items.map((i) => i.kind)).toEqual(["player"]);
   });
+
+  // Bug caught: the Dungeon Master's roll gone after a reload, or drawn after the line that came of it.
+  it("redraws a stored open roll of the Dungeon Master before the lines of the same result, and skips a malformed one", () => {
+    const dm = { label: "Warmth", dice: "1d20", faces: [20], dropped: [], modifier: 0, total: 20 };
+    const items = storyFromTurns([
+      { seq: 1, role: "user", blocks: [{ type: "tool_result", dmRoll: dm, lines: [{ kind: "acted", speaker: { id: null, name: "A" }, text: "Waves." }] }] },
+      { seq: 2, role: "user", blocks: [{ type: "tool_result", dmRoll: { ...dm, faces: [] } }] },
+    ]);
+    expect(items.map((i) => i.kind)).toEqual(["dmRoll", "acted"]);
+  });
 });

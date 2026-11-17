@@ -32,6 +32,7 @@ import {
   type AgentUsage,
   type CallModel,
   type CallTool,
+  type DmRoll,
 } from "../_shared/agent/types.ts";
 import type { CreditLogFields } from "../_shared/credits.ts";
 
@@ -66,6 +67,8 @@ export type AgentEvent =
   | { type: "fact"; fact: { id: string; body: string } }
   /** How full the clock the scene runs against is after this turn, or null when the pressure is off. Never its label. */
   | { type: "pressure"; pressure: { filled: number; segments: number } | null }
+  /** A roll the Dungeon Master made in the open. A hidden roll sends nothing. */
+  | { type: "dm_roll"; roll: DmRoll }
   /** The story stops for a roll that is the player's. What to roll, never the number to beat. */
   | { type: "ask_roll"; roll: RollAsk }
   /** The roll this turn answered, as the server worked it out. No outcome: the narration says how it went. */

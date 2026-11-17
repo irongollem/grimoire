@@ -8,6 +8,7 @@ import { GO_TO_TOOL, makeSceneTool } from "../_shared/agent/scene.ts";
 import type { Remembered } from "../_shared/agent/characterTurn.ts";
 import { makeSpeechTools } from "../_shared/agent/speak.ts";
 import { SPEECH_TOOL_NAMES } from "../_shared/agent/speakInput.ts";
+import { shownDmRoll } from "../_shared/agent/dmRoll.ts";
 import { makeRecordTool, RECORD_TOOL_NAME } from "../_shared/agent/record.ts";
 import { makeQuestTools, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
 import { ASK_ROLL_TOOL, askedText, parseAskRollInput, type PendingRoll } from "../_shared/agent/playerRoll.ts";
@@ -55,6 +56,17 @@ export interface TurnTools {
   spoke: Set<string>;
   /** Where the party is now, after any move this turn; null when it has no place. */
   place(): string | null;
+}
+
+/** The campaign's own roll tool: the Dungeon Master's dice. */
+const ROLL_TOOL_NAME = "roll";
+
+/** A roll's answer with the open roll picked out of it for the page; a hidden or failed roll carries none. */
+async function rolled(answering: ReturnType<CallTool>, expression: unknown): Promise<Awaited<ReturnType<CallTool>>> {
+  const answer = await answering;
+  if (answer.isError) return answer;
+  const dmRoll = shownDmRoll(answer.content, expression);
+  return dmRoll === null ? answer : { ...answer, dmRoll };
 }
 
 export function makeTurnTools(input: TurnToolsInput): TurnTools {
@@ -125,7 +137,9 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (name === RECORD_TOOL_NAME) return record.call(toolInput);
       if (input.askRoll && name === ASK_ROLL_TOOL.name) return Promise.resolve(askRoll(toolInput));
       if (quests && quests.names.has(name)) return quests.call(name, toolInput);
-      return SPEECH_TOOL_NAMES.has(name) ? speech.call(name, toolInput) : deps.callTool(name, toolInput);
+      if (SPEECH_TOOL_NAMES.has(name)) return speech.call(name, toolInput);
+      if (name === ROLL_TOOL_NAME) return rolled(deps.callTool(name, toolInput), toolInput.expression);
+      return deps.callTool(name, toolInput);
     },
   };
 }

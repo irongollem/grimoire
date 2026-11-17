@@ -122,6 +122,8 @@ interface Harness {
     /** The DM already had a session running, so the table joins it instead of starting one. */
     playSessionJoined: boolean;
     moveFails: boolean;
+    /** What the campaign's roll tool answers; null answers like every other campaign tool. */
+    rollAnswer: { content: string; isError: boolean } | null;
     pendingRollFails: boolean;
     record: RecordedFact[];
     recordThrows: boolean;
@@ -196,6 +198,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       playSessionThrows: false,
       playSessionJoined: false,
       moveFails: false,
+      rollAnswer: null,
       pendingRollFails: false,
       record: [],
       recordThrows: false,
@@ -291,7 +294,10 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       return { due: accrue(sessionId, credits) };
     },
     tools: [{ name: "roll", description: "roll", inputSchema: {} }],
-    callTool: async () => ({ content: "RESULT-SECRET: the duke is the lich", isError: false }),
+    callTool: async (name) =>
+      name === "roll" && h.state.rollAnswer !== null
+        ? h.state.rollAnswer
+        : { content: "RESULT-SECRET: the duke is the lich", isError: false },
     loadCharacter: async (campaignId, characterId) => {
       characterLoads.push({ campaignId, characterId });
       if (h.state.characterThrows) throw new Error("db down");
@@ -2427,5 +2433,85 @@ describe("a roll that is the player's", () => {
     const h = played([askStep({ kind: "save", ability: "con", dc: 12 }), step(10)], { pending_roll: asked() });
     await play(h, { body: { ...SAY, message: "", roll: ROLL } });
     expect(h.pendingRolls.map((p) => p.pending?.label ?? null)).toEqual(["Constitution saving throw"]);
+  });
+});
+
+describe("the Dungeon Master's own rolls", () => {
+  const BODY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I greet her.", mode: "say" };
+  const rollStep = (): ModelStep =>
+    step(10, { blocks: [{ type: "tool_call", id: "d1", name: "roll", input: { expression: "1d20+2", label: "Warmth" } }], stop: "tool_calls" });
+  const open = (over: Record<string, unknown> = {}) => ({
+    content: JSON.stringify({ total: 17, label: "Warmth", faces: [15], dropped_faces: [], modifier: 2, hidden: false, message_id: "ROLL-MESSAGE-ID", ...over }),
+    isError: false,
+  });
+  const shown = { label: "Warmth", dice: "1d20+2", faces: [15], dropped: [], modifier: 2, total: 17 };
+  const rolls = (h: Harness) => h.events.filter((e) => e.type === "dm_roll");
+  const savedResults = (h: Harness) =>
+    h.appends.flatMap((a) => a.rows).flatMap((r) => r.blocks).filter((b) => b.type === "tool_result");
+
+  it("shows an open roll on the page and keeps it on the stored result, so a reload draws it again", async () => {
+    const h = harness([rollStep(), step(10, { blocks: [{ type: "text", text: "She smiles." }] })]);
+    existingSession(h);
+    h.state.rollAnswer = open();
+    await play(h, { body: BODY });
+    expect(rolls(h)).toEqual([{ type: "dm_roll", roll: shown }]);
+    expect(savedResults(h)).toEqual([expect.objectContaining({ dmRoll: shown })]);
+    // Nothing else of the tool's answer reaches the browser.
+    expect(JSON.stringify(h.events)).not.toContain("ROLL-MESSAGE-ID");
+  });
+
+  it("puts the roll before the narration that says what came of it", async () => {
+    const h = harness([
+      rollStep(),
+      (request) => {
+        request.onText?.("She smiles.");
+        return step(10, { blocks: [{ type: "text", text: "She smiles." }] });
+      },
+    ]);
+    existingSession(h);
+    h.state.rollAnswer = open();
+    await play(h, { body: BODY });
+    const kinds = h.events.map((e) => e.type);
+    expect(kinds.indexOf("dm_roll")).toBeGreaterThan(-1);
+    expect(kinds.indexOf("dm_roll")).toBeLessThan(kinds.lastIndexOf("text"));
+  });
+
+  it("sends and stores nothing for a hidden roll, not even that the Dungeon Master rolled in secret", async () => {
+    const h = harness([rollStep(), step(10)]);
+    existingSession(h);
+    h.state.rollAnswer = open({ hidden: true });
+    await play(h, { body: BODY });
+    expect(rolls(h)).toEqual([]);
+    expect(savedResults(h).some((b) => b.type === "tool_result" && b.dmRoll !== undefined)).toBe(false);
+  });
+
+  it("shows no roll when the tool failed, even if its error text happens to parse", async () => {
+    const h = harness([rollStep(), step(10)]);
+    existingSession(h);
+    h.state.rollAnswer = { ...open(), isError: true };
+    await play(h, { body: BODY });
+    expect(rolls(h)).toEqual([]);
+  });
+
+  it("reads a roll only from the roll tool, so a looked-up note shaped like one is not drawn as dice", async () => {
+    const h = harness([
+      step(10, { blocks: [{ type: "tool_call", id: "s1", name: "search", input: { query: "x" } }], stop: "tool_calls" }),
+      step(10),
+    ]);
+    existingSession(h);
+    h.deps.tools = [...h.deps.tools, { name: "search", description: "search", inputSchema: {} }];
+    h.deps.callTool = async () => open();
+    await play(h, { body: BODY });
+    expect(rolls(h)).toEqual([]);
+  });
+
+  it("shows the roll when narration is being checked too, the path every real turn takes", async () => {
+    const h = harness([rollStep(), step(10)]);
+    existingSession(h);
+    h.state.rollAnswer = open();
+    // Any judge at all switches the turn onto the queued path; this turn has no lines for it to judge.
+    h.deps.judgeNarration = async () => ({ model: "jev-1", inputTokens: 1, answers: {} });
+    await play(h, { body: BODY });
+    expect(rolls(h)).toEqual([{ type: "dm_roll", roll: shown }]);
   });
 });

@@ -13,7 +13,8 @@
           :portrait="portraitOf(item.speaker)"
         />
         <SoloActed v-else-if="item.kind === 'acted'" :speaker="item.speaker.name" :text="item.text" :pigment="pigmentOf(item.speaker)" />
-        <SoloRolled v-else-if="item.kind === 'roll'" :roll="item.roll" :who="character" />
+        <SoloRolled v-else-if="item.kind === 'roll'" :line="rollLine(item.roll, character)" />
+        <SoloRolled v-else-if="item.kind === 'dmRoll'" :line="dmRollLine(item.roll)" by-server />
         <SoloMargin v-else :text="item.text" :count="item.count" />
       </template>
 
@@ -29,6 +30,8 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from "vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
+import { dmRollLine } from "@/lib/table/dmRoll";
+import { rollLine } from "@/lib/table/tableRoll";
 import { isAtBottom } from "@/lib/table/storyScroll";
 import { speakerKey, type VoicePigment } from "@/lib/table/speakerColours";
 import type { StoryItem, TableLine } from "@/lib/table/soloTypes";

@@ -58,8 +58,22 @@ export type TableEvent =
   | { type: "pressure"; pressure: TablePressure | null }
   | { type: "ask_roll"; roll: RollAsk }
   | { type: "rolled"; roll: Rolled }
+  | { type: "dm_roll"; roll: DmRoll }
   | { type: "done"; end: string; credits: number; tokens: number }
   | { type: "error"; message: string };
+
+/** A roll the Dungeon Master made in the open. A hidden roll never reaches the page. */
+export interface DmRoll {
+  /** What it was for, in the Dungeon Master's words; null when unnamed. */
+  label: string | null;
+  /** The dice asked for, as notation; null when the server could not pass it on. */
+  dice: string | null;
+  faces: number[];
+  /** Dice rolled and set aside (the lower of two with advantage). */
+  dropped: number[];
+  modifier: number;
+  total: number;
+}
 
 export type PlayMode = "say" | "do";
 
@@ -70,6 +84,7 @@ export type StoryItem =
   | { id: string; kind: "spoken"; speaker: TableLine["speaker"]; text: string; to?: string }
   | { id: string; kind: "acted"; speaker: TableLine["speaker"]; text: string }
   | { id: string; kind: "roll"; roll: Rolled }
+  | { id: string; kind: "dmRoll"; roll: DmRoll }
   | { id: string; kind: "margin"; text: string; /** How many times in a row the same quiet line happened. */ count: number };
 
 /** Items other than the player's own never need a speaker; this narrows the two that do. */

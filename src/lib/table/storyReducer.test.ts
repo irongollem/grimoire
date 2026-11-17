@@ -31,7 +31,7 @@ describe("applyTableEvent", () => {
   });
 
   // Bug caught: a tool name reaching the page raw, or the result of a lookup leaking into the margin.
-  it("shows a lookup and a roll as quiet lines naming the kind, and nothing for the tools whose effect is its own event", () => {
+  it("shows a lookup as a quiet line naming the kind, and nothing for the tools whose effect is its own event", () => {
     const items = play([
       { type: "tool_start", name: "search" },
       { type: "tool_end", name: "search", isError: false },
@@ -39,7 +39,16 @@ describe("applyTableEvent", () => {
       { type: "tool_start", name: "speak" },
       { type: "tool_start", name: "quest_route" },
     ]);
-    expect(items.map((i) => (i.kind === "margin" ? i.text : i.kind))).toEqual(["Looked something up", "Rolled"]);
+    expect(items.map((i) => (i.kind === "margin" ? i.text : i.kind))).toEqual(["Looked something up"]);
+  });
+
+  // Bug caught: a hidden roll betrayed by a "Rolled" line, when the server sends nothing for it on purpose.
+  it("draws nothing for the roll tool itself, and the Dungeon Master's open roll where it happened", () => {
+    const dm = { label: "Warmth", dice: "1d20", faces: [20], dropped: [], modifier: 0, total: 20 };
+    const hidden = play([{ type: "tool_start", name: "roll" }, { type: "tool_end", name: "roll", isError: false }]);
+    expect(hidden).toEqual([]);
+    const shown = play([{ type: "tool_start", name: "roll" }, { type: "dm_roll", roll: dm }, { type: "text", delta: "She smiles." }]);
+    expect(shown.map((i) => i.kind)).toEqual(["dmRoll", "narration"]);
   });
 
   // Bug caught: four searches in a row filling the page with four identical lines.
