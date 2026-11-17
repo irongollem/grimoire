@@ -203,3 +203,66 @@ describe("TableView: leaving", () => {
     expect(wrapper.find('[data-testid="solo-left"]').exists()).toBe(false);
   });
 });
+
+describe("TableView: when the roll is yours", () => {
+  const pending = { label: "Wisdom (Perception)", kind: "check", ability: "wis", skill: "perception", dc: 31337 };
+  const session = (id: string, over: Record<string, unknown> = {}) => ({
+    id, user_id: "u1", campaign_id: "c1", party_member_id: "m1", scene_location_id: null, credits_spent: 0, left_at: null, pending_roll: pending, ...over,
+  });
+
+  beforeEach(() => {
+    setUp("u1");
+    useTableDisclosure().accept();
+    fake.reset();
+    fake.seed("party_members", [{ id: "m1", campaign_id: "c1", name: "Inkling", class: "Rogue", level: 3, wis: 14, proficiency_bonus: 2, skill_proficiencies: { perception: "proficient" }, saving_throw_proficiencies: [], conditions: [] }]);
+    fake.seed("character_classes", []);
+  });
+
+  // Bug caught: a reload losing the card, so the sitting waits on a roll nobody can make; or showing the number to beat.
+  it("asks again from the stored sitting, with the sheet's bonus and no number to beat", async () => {
+    fake.seed("agent_sessions", [session("s1")]);
+    const { wrapper } = await mountTable("/table/s1");
+    const card = wrapper.get('[data-testid="solo-roll-ask"]');
+    expect(card.text()).toContain("Wisdom (Perception)");
+    // WIS 14 is +2 and a proficient skill adds +2 (PHB 2014 "Ability Checks").
+    expect(card.text()).toContain("d20 + 4");
+    expect(wrapper.html()).not.toContain("31337");
+  });
+
+  // Bug caught: asking a player who has left to roll for a table the server refuses.
+  it("shows no card once the sitting has ended", async () => {
+    fake.seed("agent_sessions", [session("s2", { left_at: "2026-11-17T00:00:00Z" })]);
+    const { wrapper } = await mountTable("/table/s2");
+    expect(wrapper.find('[data-testid="solo-roll-ask"]').exists()).toBe(false);
+  });
+
+  // Bug caught: the card staying after the player answers in words, or the roll not reaching the server as asked.
+  it("sends the typed roll with no words, draws the echo, and the card goes", async () => {
+    fake.seed("agent_sessions", [session("s1")]);
+    fetchMock.mockResolvedValue(
+      sse(
+        { type: "session", sessionId: "s1" },
+        { type: "rolled", roll: { label: "Wisdom (Perception)", faces: [13], kept: 13, bonus: 4, total: 17, mode: "normal", atTable: true } },
+        { type: "text", delta: "You spot it." },
+        { type: "done", end: "end_turn", credits: 0, tokens: 1 },
+      ),
+    );
+    const { wrapper } = await mountTable("/table/s1");
+    await wrapper.get('[data-testid="solo-roll-ask"] input').setValue(13);
+    await wrapper.findAll("button").find((b) => b.text() === "Use my roll")!.trigger("click");
+    await flushPromises();
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toMatchObject({ message: "", roll: { faces: [13], mode: "normal", bonus: 4, atTable: true } });
+    expect(wrapper.get('[data-testid="solo-story"]').text()).toContain("Inkling rolled Wisdom (Perception)");
+    expect(wrapper.find('[data-testid="solo-roll-ask"]').exists()).toBe(false);
+  });
+
+  // Bug caught: the composer locked while a roll is asked for, so the player cannot just say something instead.
+  it("keeps the composer usable beside the card, and a plain message goes without a roll", async () => {
+    fake.seed("agent_sessions", [session("s1")]);
+    fetchMock.mockResolvedValue(sse({ type: "session", sessionId: "s1" }, { type: "text", delta: "Fine." }, { type: "done", end: "end_turn", credits: 0, tokens: 1 }));
+    const { wrapper } = await mountTable("/table/s1");
+    await say(wrapper, "Actually, I leave.");
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).not.toHaveProperty("roll");
+    expect(wrapper.find('[data-testid="solo-roll-ask"]').exists()).toBe(false);
+  });
+});

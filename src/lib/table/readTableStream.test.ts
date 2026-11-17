@@ -111,3 +111,23 @@ describe("parseTableEvent for pressure", () => {
     expect(parseTableEvent({ type: "pressure" })).toBeNull();
   });
 });
+
+describe("parseTableEvent for rolls", () => {
+  const roll = { label: "Wisdom (Perception)", faces: [13], kept: 13, bonus: 4, total: 17, mode: "normal", atTable: false };
+
+  it("reads a request to roll and the echo of a roll", () => {
+    expect(parseTableEvent({ type: "ask_roll", roll: { label: "Wisdom (Perception)", kind: "check", ability: "wis", skill: "perception", dc: 15 } })).toEqual({
+      type: "ask_roll",
+      roll: { label: "Wisdom (Perception)", kind: "check", ability: "wis", skill: "perception" },
+    });
+    expect(parseTableEvent({ type: "rolled", roll })).toEqual({ type: "rolled", roll });
+  });
+
+  // Bug caught: a malformed roll event taking the page down, or drawing a card or a total from nonsense.
+  it("skips a malformed ask or echo", () => {
+    expect(parseTableEvent({ type: "ask_roll", roll: { label: "x", kind: "check", ability: "luck", skill: null } })).toBeNull();
+    expect(parseTableEvent({ type: "ask_roll" })).toBeNull();
+    expect(parseTableEvent({ type: "rolled", roll: { ...roll, total: 99 } })).toBeNull();
+    expect(parseTableEvent({ type: "rolled", roll: { ...roll, kept: 2 } })).toBeNull();
+  });
+});

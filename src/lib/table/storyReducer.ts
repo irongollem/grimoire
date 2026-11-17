@@ -40,9 +40,10 @@ function withMargin(items: StoryItem[], text: string): StoryItem[] {
 
 /**
  * One event applied to the story so far. Pure: the same items and event always give the same result.
- * `session`, `done` and `error` carry no story of their own; the turn composable reads them.
+ * `session`, `ask_roll`, `done` and `error` carry no story of their own; the turn composable reads them.
+ * The roll the turn was sent with goes in at `turnStart`, before the player's own words, as a stored turn draws it.
  */
-export function applyTableEvent(items: StoryItem[], event: TableEvent): StoryItem[] {
+export function applyTableEvent(items: StoryItem[], event: TableEvent, turnStart: number = items.length): StoryItem[] {
   switch (event.type) {
     case "text": {
       const last = items[items.length - 1];
@@ -60,6 +61,8 @@ export function applyTableEvent(items: StoryItem[], event: TableEvent): StoryIte
       const id = nextItemId();
       return [...items, kind === "spoken" ? { id, kind, speaker, text, ...(to !== undefined ? { to } : {}) } : { id, kind, speaker, text }];
     }
+    case "rolled":
+      return [...items.slice(0, turnStart), { id: nextItemId(), kind: "roll", roll: event.roll }, ...items.slice(turnStart)];
     case "scene":
       return withMargin(items, `The party is at ${event.scene.name}`);
     case "fact":

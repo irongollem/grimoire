@@ -1,4 +1,5 @@
 import { parseTableLine } from "./readTableStream";
+import { parseRolled } from "./tableRoll";
 import type { StoryItem } from "./soloTypes";
 
 /** A stored `agent_turns` row, as far as the page needs it. `blocks` is jsonb, so it is untrusted until read. */
@@ -18,6 +19,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  *
  * - a `user` text block WITH a `player` field is the player's move: its `player.text`, said or done. The block's own
  *   `text` is wording written for the model and is never drawn;
+ * - a `user` text block's `roll` is the player's roll, drawn before their words;
  * - an `assistant` text block that is not `unshown` is narration (an `unshown` one was judged to only repeat what a
  *   character had just said, and the player never saw it);
  * - a `tool_result` block's `lines` are characters' lines, in order.
@@ -33,8 +35,11 @@ export function storyFromTurns(turns: readonly StoredTurn[]): StoryItem[] {
       if (!isRecord(block)) return;
       const id = `turn-${turn.seq}-${index}`;
       if (block.type === "text" && turn.role === "user") {
+        // A roll sent without words has no `player`: the roll line stands alone. With words it comes first, as played.
+        const rolled = parseRolled(block.roll);
+        if (rolled !== null) items.push({ id: `${id}-roll`, kind: "roll", roll: rolled });
         const player = block.player;
-        if (isRecord(player) && (player.kind === "say" || player.kind === "do") && typeof player.text === "string") {
+        if (isRecord(player) && (player.kind === "say" || player.kind === "do") && typeof player.text === "string" && player.text.trim() !== "") {
           items.push({ id, kind: "player", mode: player.kind, text: player.text });
         }
       } else if (block.type === "text" && turn.role === "assistant") {

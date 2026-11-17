@@ -38,12 +38,20 @@
               @credits="openOutOfCredits(1)"
             />
             <div class="shrink-0 px-4 pt-2 pb-4 md:px-6">
+              <SoloRollAsk
+                v-if="asked && !hasLeft"
+                :ask="asked"
+                :bonus="check?.bonus ?? null"
+                :forced-disadvantage="check?.forcedDisadvantage ?? false"
+                :busy="turn.running.value"
+                @roll="(answer) => turn.send(ROLL_MODE, '', answer)"
+              />
               <SoloLeft v-if="hasLeft" />
               <SoloComposer
                 v-else
                 :character="characterName"
                 :running="turn.running.value"
-                @submit="(mode, text) => turn.send(mode, text)"
+                @submit="(said, text) => turn.send(said, text)"
                 @stop="turn.stop()"
               />
               <p class="mx-auto mt-1 hidden w-full max-w-160 md:block">
@@ -75,6 +83,7 @@ import SoloBar from "@/components/table/solo/SoloBar.vue";
 import SoloComposer from "@/components/table/solo/SoloComposer.vue";
 import SoloLeft from "@/components/table/solo/SoloLeft.vue";
 import SoloDisclosure from "@/components/table/solo/SoloDisclosure.vue";
+import SoloRollAsk from "@/components/table/solo/SoloRollAsk.vue";
 import SoloScene from "@/components/table/solo/SoloScene.vue";
 import SoloStory from "@/components/table/solo/SoloStory.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
@@ -86,8 +95,9 @@ import { useToast } from "@/composables/useToast";
 import { useTableConversation } from "@/composables/table/useTableConversation";
 import { useTableDisclosure } from "@/composables/table/useTableDisclosure";
 import { useTableScene } from "@/composables/table/useTableScene";
-import type { TablePressure } from "@/lib/table/soloTypes";
+import type { PlayMode, RollAsk, TablePressure } from "@/lib/table/soloTypes";
 import { useTableSpeakers } from "@/composables/table/useTableSpeakers";
+import { useTableCheck } from "@/composables/table/useTableCheck";
 import { useTableTurn } from "@/composables/table/useTableTurn";
 import { useAbove } from "@/composables/useBreakpoint";
 import { getNpcDisplayFocalPoint, getNpcDisplayPortrait } from "@/lib/npcDisplay";
@@ -131,6 +141,10 @@ const historyId = ref<string | null>(openedId());
 const sceneId = ref<string | null>(newPlaceId.value);
 // The clock the scene runs against: from the stored sitting when one is opened, then from each kept turn.
 const pressure = ref<TablePressure | null>(null);
+// The roll the table is waiting for: from the stored sitting, then from the turn that asks. The card shows it.
+const asked = ref<RollAsk | null>(null);
+// A roll carries no words, so the say/do mode of its turn changes nothing the server reads.
+const ROLL_MODE: PlayMode = "do";
 
 // A new sitting is about someone: with nobody chosen there is nothing to begin, so it goes back to choosing.
 if (param.value === "new" && newCharacterId.value === null) void router.replace("/table");
@@ -152,6 +166,9 @@ const turn = useTableTurn({
   onPressure: (now) => {
     pressure.value = now;
   },
+  onAskRoll: (ask) => {
+    asked.value = ask;
+  },
   onDone: () => {
     // Characters who speak are placed with the party at the end of a turn; the balance and the list of sittings moved.
     scene.refresh();
@@ -170,6 +187,7 @@ watch(param, () => {
   newPlaceId.value = queryText("place");
   sceneId.value = newPlaceId.value;
   pressure.value = null;
+  asked.value = null;
   if (param.value === "new" && newCharacterId.value === null) void router.replace("/table");
 });
 
@@ -179,6 +197,8 @@ watch(
   (stored) => {
     if (stored?.sitting.scene_location_id) sceneId.value = stored.sitting.scene_location_id;
     if (stored) pressure.value = stored.sitting.pressure;
+    // A turn already sent on this screen decided what is asked: the snapshot may be older than it.
+    if (stored && turn.live.value.length === 0) turn.setAsked(stored.sitting.pending_roll);
   },
 );
 
@@ -189,6 +209,8 @@ const meterCredits = computed(() => Math.floor((conversation.data.value?.sitting
 
 const party = useParty();
 const characterId = computed(() => conversation.data.value?.sitting.party_member_id ?? newCharacterId.value);
+const member = computed(() => party.data.value?.find((m) => m.id === characterId.value) ?? null);
+const check = useTableCheck(member, asked);
 const characterName = computed(() => party.data.value?.find((m) => m.id === characterId.value)?.name ?? "your character");
 
 const speakerIds = computed(() => story.value.flatMap((item) => ((item.kind === "spoken" || item.kind === "acted") && item.speaker.id ? [item.speaker.id] : [])));

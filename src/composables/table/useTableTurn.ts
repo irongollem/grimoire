@@ -2,7 +2,7 @@ import { computed, ref, shallowRef, type Ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { readTableStream } from "@/lib/table/readTableStream";
 import { applyTableEvent, nextItemId, playerItem } from "@/lib/table/storyReducer";
-import type { PlayMode, StoryItem, TablePressure } from "@/lib/table/soloTypes";
+import type { PlayMode, RollAnswer, RollAsk, StoryItem, TablePressure } from "@/lib/table/soloTypes";
 import { NO_ANSWER, refusalFailure, type TurnFailure } from "@/lib/table/turnRefusal";
 
 export interface TurnRequest {
@@ -12,6 +12,8 @@ export interface TurnRequest {
   sessionId?: string;
   startLocationId?: string;
   characterId?: string;
+  /** The answer to a roll the table asked for. Sent only while one is asked for: the server refuses it otherwise. */
+  roll?: RollAnswer;
 }
 
 /** Sends one turn and hands back the raw response. The seam a test replaces; the default talks to `agent-turn`. */
@@ -46,6 +48,8 @@ export interface TableTurnOptions {
   onScene?: (scene: { id: string; name: string }) => void;
   /** The clock the scene runs against moved, started or (null) came off. */
   onPressure?: (pressure: TablePressure | null) => void;
+  /** The table asked for a roll (what the card shows), or the request came off (null) because a turn was sent. */
+  onAskRoll?: (ask: RollAsk | null) => void;
   /** A turn was kept. */
   onDone?: () => void;
 }
@@ -76,7 +80,14 @@ export function useTableTurn(options: TableTurnOptions) {
   let controller: AbortController | null = null;
   // Bumped when the screen moves to another conversation, so a turn still winding down from the old one writes nothing.
   let generation = 0;
-  let pending: { id: string; mode: PlayMode; text: string } | null = null;
+  let pending: { id: string | null; start: number; mode: PlayMode; text: string; roll: RollAnswer | null } | null = null;
+  /** The roll the table is waiting for. Cleared by any turn sent; back if that turn is not kept, for the server still waits. */
+  let asked: RollAsk | null = null;
+
+  function setAsked(ask: RollAsk | null): void {
+    asked = ask;
+    options.onAskRoll?.(ask);
+  }
 
   const turnsPlayed = computed(() => live.value.filter((item) => item.kind === "player").length);
 
@@ -84,17 +95,25 @@ export function useTableTurn(options: TableTurnOptions) {
     live.value = live.value.map((item) => (item.id === id && item.kind === "player" ? { ...item, unsent } : item));
   }
 
-  /** The turn was not kept, so nothing it wrote counts: back to the player's own line, which stays and waits. */
-  function discardTurn(playerId: string): void {
-    const at = live.value.findIndex((item) => item.id === playerId);
-    live.value = at < 0 ? live.value : live.value.slice(0, at + 1);
-    setUnsent(playerId, true);
+  /**
+   * The turn was not kept, so nothing it wrote counts (its roll line included): back to the player's own line, which
+   * stays and waits. A roll sent without words has no line, so the page goes back to what it was before the turn.
+   */
+  function discardTurn(start: number, playerId: string | null, before: RollAsk | null): void {
+    const player = playerId === null ? undefined : live.value.find((item) => item.id === playerId);
+    live.value = [...live.value.slice(0, start), ...(player ? [player] : [])];
+    if (playerId !== null) setUnsent(playerId, true);
+    // The server still waits for the roll it asked for, unless this turn's own stream asked for another.
+    if (asked === null) setAsked(before);
   }
 
-  async function play(playerId: string, mode: PlayMode, text: string): Promise<void> {
+  async function play(start: number, playerId: string | null, mode: PlayMode, text: string, roll: RollAnswer | null): Promise<void> {
     const campaignId = options.campaignId();
     if (campaignId === null) return;
     const request: TurnRequest = { campaignId, message: text, mode };
+    if (roll !== null) request.roll = roll;
+    const before = asked;
+    setAsked(null);
     if (sessionId.value !== null) request.sessionId = sessionId.value;
     else {
       const start = options.startLocationId?.() ?? null;
@@ -113,7 +132,7 @@ export function useTableTurn(options: TableTurnOptions) {
       const response = await transport(request, signal);
       if (!response.ok || !(response.headers.get("content-type") ?? "").includes("text/event-stream")) {
         failure.value = await refusalOf(response);
-        discardTurn(playerId);
+        discardTurn(start, playerId, before);
         return;
       }
       for await (const event of readTableStream(response)) {
@@ -123,7 +142,7 @@ export function useTableTurn(options: TableTurnOptions) {
           options.onSession?.(event.sessionId);
         } else if (event.type === "error") {
           failure.value = NO_ANSWER;
-          discardTurn(playerId);
+          discardTurn(start, playerId, before);
           return;
         } else if (event.type === "done") {
           kept = true;
@@ -131,13 +150,14 @@ export function useTableTurn(options: TableTurnOptions) {
         } else {
           if (event.type === "scene") options.onScene?.(event.scene);
           if (event.type === "pressure") options.onPressure?.(event.pressure);
-          live.value = applyTableEvent(live.value, event);
+          if (event.type === "ask_roll") setAsked(event.roll);
+          live.value = applyTableEvent(live.value, event, start);
         }
       }
       if (!kept) {
         // A stream that ends without its last event never finished: the server keeps a turn only after `done`.
         failure.value = NO_ANSWER;
-        discardTurn(playerId);
+        discardTurn(start, playerId, before);
         return;
       }
       options.onDone?.();
@@ -149,7 +169,7 @@ export function useTableTurn(options: TableTurnOptions) {
         return;
       }
       failure.value = NO_ANSWER;
-      discardTurn(playerId);
+      discardTurn(start, playerId, before);
     } finally {
       if (mine === generation) {
         running.value = false;
@@ -158,23 +178,27 @@ export function useTableTurn(options: TableTurnOptions) {
     }
   }
 
-  /** Say it aloud or do it. Returns false when nothing was sent (empty, or a turn is already running). */
-  async function send(mode: PlayMode, text: string): Promise<boolean> {
+  /**
+   * Say it aloud or do it, with the roll that was asked for when there is one (a roll alone is a turn: no words).
+   * Returns false when nothing was sent (empty, or a turn is already running).
+   */
+  async function send(mode: PlayMode, text: string, roll: RollAnswer | null = null): Promise<boolean> {
     const message = text.trim();
-    if (running.value || message === "" || message.length > 4000) return false;
-    const item = playerItem(mode, message);
-    pending = { id: item.id, mode, text: message };
-    live.value = [...live.value, item];
-    await play(item.id, mode, message);
+    if (running.value || (message === "" && roll === null) || message.length > 4000) return false;
+    const start = live.value.length;
+    const item = message === "" ? null : playerItem(mode, message);
+    pending = { id: item?.id ?? null, start, mode, text: message, roll };
+    if (item) live.value = [...live.value, item];
+    await play(start, item?.id ?? null, mode, message, roll);
     return true;
   }
 
   /** Send the failed message again, in the same mode. The player's line is already on the page. */
   async function resend(): Promise<boolean> {
     if (running.value || pending === null || failure.value === null) return false;
-    const { id, mode, text } = pending;
-    setUnsent(id, false);
-    await play(id, mode, text);
+    const { id, start, mode, text, roll } = pending;
+    if (id !== null) setUnsent(id, false);
+    await play(start, id, mode, text, roll);
     return true;
   }
 
@@ -193,7 +217,8 @@ export function useTableTurn(options: TableTurnOptions) {
     failure.value = null;
     credits.value = 0;
     pending = null;
+    setAsked(null);
   }
 
-  return { sessionId, live, running, failure, credits, turnsPlayed, send, resend, stop, reset };
+  return { sessionId, live, running, failure, credits, turnsPlayed, send, resend, stop, reset, setAsked };
 }

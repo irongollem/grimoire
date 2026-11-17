@@ -1,3 +1,4 @@
+import { parseRollAsk, parseRolled } from "./tableRoll";
 import type { TableEvent, TableLine, TablePressure } from "./soloTypes";
 
 /** A quest clock has at most this many segments; a longer one is not a clock this page knows how to draw. */
@@ -74,6 +75,14 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
       if (raw.pressure === null) return { type: "pressure", pressure: null };
       const pressure = parseTablePressure(raw.pressure);
       return pressure ? { type: "pressure", pressure } : null;
+    }
+    case "ask_roll": {
+      const roll = parseRollAsk(raw.roll);
+      return roll ? { type: "ask_roll", roll } : null;
+    }
+    case "rolled": {
+      const roll = parseRolled(raw.roll);
+      return roll ? { type: "rolled", roll } : null;
     }
     case "done":
       return {

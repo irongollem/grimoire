@@ -91,4 +91,23 @@ describe("useTableConversation", () => {
     await vi.waitFor(() => expect(other.data.value).toBeDefined());
     expect(other.data.value?.sitting.pressure).toBeNull();
   });
+  // Bug caught: the number to beat reaching the page's state from the stored request, readable in devtools.
+  it("keeps what is asked for but never the number to beat", async () => {
+    fake.seed("agent_sessions", [session("s1", { pending_roll: { label: "Wisdom (Perception)", kind: "check", ability: "wis", skill: "perception", dc: 31337 } })]);
+    const r = mountWith(() => useTableConversation("s1", "c1"));
+    await vi.waitFor(() => expect(r.data.value).toBeDefined());
+    expect(r.data.value?.sitting.pending_roll).toEqual({ label: "Wisdom (Perception)", kind: "check", ability: "wis", skill: "perception" });
+    expect(JSON.stringify(r.data.value)).not.toContain("31337");
+  });
+
+  // Bug caught: a malformed or absent stored request drawing a card the server would refuse an answer to.
+  it("reads nothing asked from a null or malformed request", async () => {
+    fake.seed("agent_sessions", [session("s1", { pending_roll: null }), session("s2", { pending_roll: { label: "x", kind: "check", ability: "luck", skill: null, dc: 31337 } })]);
+    for (const id of ["s1", "s2"]) {
+      const r = mountWith(() => useTableConversation(id, "c1"));
+      await vi.waitFor(() => expect(r.data.value).toBeDefined());
+      expect(r.data.value?.sitting.pending_roll).toBeNull();
+      expect(JSON.stringify(r.data.value)).not.toContain("31337");
+    }
+  });
 });

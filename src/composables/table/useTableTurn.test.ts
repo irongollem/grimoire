@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase", () => ({ supabase: {} }));
 
+import type { RollAnswer } from "@/lib/table/soloTypes";
 import { useTableTurn, type TurnRequest, type TurnTransport } from "./useTableTurn";
 
 const enc = new TextEncoder();
@@ -203,5 +204,79 @@ describe("useTableTurn", () => {
     expect(onSession).toHaveBeenCalledWith("s9");
     expect(onScene).toHaveBeenCalledWith({ id: "l2", name: "The Cellar" });
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useTableTurn with a roll", () => {
+  const ask = { label: "Wisdom (Perception)", kind: "check", ability: "wis", skill: "perception" } as const;
+  const echo = { label: "Wisdom (Perception)", faces: [13], kept: 13, bonus: 4, total: 17, mode: "normal", atTable: false };
+  const answer: RollAnswer = { faces: [13], mode: "normal", bonus: 4, atTable: false };
+  const asking = () => sse({ type: "session", sessionId: "s1" }, { type: "text", delta: "Roll." }, { type: "ask_roll", roll: { ...ask, dc: 15 } }, { type: "done", end: "end_turn", credits: 0, tokens: 1 });
+  const rolledTurn = () => sse({ type: "session", sessionId: "s1" }, { type: "rolled", roll: echo }, { type: "text", delta: "You spot it." }, { type: "done", end: "end_turn", credits: 0, tokens: 1 });
+
+  // Bug caught: the card never appearing because the stream's ask was dropped, or keeping the number to beat.
+  it("holds the ask a kept turn ends with, without the number to beat", async () => {
+    const asks: unknown[] = [];
+    const t = sitting(async () => streamOf(asking()), { onAskRoll: (a) => asks.push(a) });
+    await t.send("say", "I listen.");
+    expect(asks).toEqual([null, ask]);
+  });
+
+  // Bug caught: the card staying after the player answered some other way, so a second roll is sent the server refuses.
+  it("clears the ask when any turn is sent, with a roll or without one", async () => {
+    for (const roll of [answer, null]) {
+      const asks: unknown[] = [];
+      const t = sitting(async () => streamOf(rolledTurn()), { onAskRoll: (a) => asks.push(a) });
+      t.setAsked(ask);
+      await t.send("say", roll === null ? "Never mind." : "", roll);
+      expect(asks.at(-1)).toBeNull();
+    }
+  });
+
+  // Bug caught: the roll left off the request, or sent with no words refused as an empty message.
+  it("sends the roll with an empty message and draws the server's echo, with no player line", async () => {
+    const seen: TurnRequest[] = [];
+    const t = sitting(async (request) => {
+      seen.push(request);
+      return streamOf(rolledTurn());
+    });
+    expect(await t.send("do", "", answer)).toBe(true);
+    expect(seen[0]).toMatchObject({ message: "", roll: answer });
+    expect(t.live.value.map((i) => i.kind)).toEqual(["roll", "narration"]);
+  });
+
+  // Bug caught: a roll sent in a request that has none asked for (the server answers 400), or an empty turn sent.
+  it("sends no roll key unless one is given, and refuses an empty message with no roll", async () => {
+    const seen: TurnRequest[] = [];
+    const t = sitting(async (request) => {
+      seen.push(request);
+      return streamOf(rolledTurn());
+    });
+    expect(await t.send("do", "")).toBe(false);
+    await t.send("do", "I look.");
+    expect(seen[0]).not.toHaveProperty("roll");
+  });
+
+  // Bug caught: a failed roll turn losing the card (the server still waits) and the roll line staying on the page.
+  it("brings the ask back and drops the roll line when the turn is not kept, and resends the same roll", async () => {
+    const seen: TurnRequest[] = [];
+    const asks: unknown[] = [];
+    let n = 0;
+    const t = sitting(
+      async (request) => {
+        seen.push(request);
+        return ++n === 1 ? streamOf(sse({ type: "session", sessionId: "s1" }, { type: "rolled", roll: echo })) : streamOf(rolledTurn());
+      },
+      { onAskRoll: (a) => asks.push(a) },
+    );
+    t.setAsked(ask);
+    await t.send("do", "I look.", answer);
+    expect(asks.at(-1)).toEqual(ask);
+    expect(t.live.value.map((i) => i.kind)).toEqual(["player"]);
+    expect(t.live.value[0]).toMatchObject({ unsent: true });
+    expect(t.failure.value).not.toBeNull();
+    await t.resend();
+    expect(seen[1]).toMatchObject({ message: "I look.", roll: answer });
+    expect(t.live.value.map((i) => i.kind)).toEqual(["roll", "player", "narration"]);
   });
 });

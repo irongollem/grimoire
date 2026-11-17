@@ -1,3 +1,5 @@
+import type { SaveKey, SkillKey } from "@/types/party.types";
+
 /**
  * The vocabulary of the AI-run table's screen (#1021): what `agent-turn` sends and what the story page draws.
  * The server's contract is in `context/features/agent-runtime.md`; this is its client half.
@@ -18,6 +20,33 @@ export interface TablePressure {
   segments: number;
 }
 
+/** The mode a d20 is rolled in. Structurally the 5e `RollMode`; named here so this vocabulary stays neutral. */
+export type RollMode = "normal" | "advantage" | "disadvantage";
+
+/** What the table asks the player to roll. Never the number to beat: the page is told what to roll, not what it must reach. */
+export interface RollAsk {
+  label: string;
+  kind: "check" | "save";
+  ability: SaveKey;
+  /** The skill a check is made with; null for a plain ability check and for a save. */
+  skill: SkillKey | null;
+}
+
+/** The player's answer, as the next turn's request carries it. */
+export interface RollAnswer {
+  faces: number[];
+  mode: RollMode;
+  bonus: number;
+  atTable: boolean;
+}
+
+/** A roll as the server worked it out. No success or failure: the narration says how it went. */
+export interface Rolled extends RollAnswer {
+  label: string;
+  kept: number;
+  total: number;
+}
+
 export type TableEvent =
   | { type: "session"; sessionId: string; character?: { id: string; name: string } }
   | { type: "text"; delta: string }
@@ -27,6 +56,8 @@ export type TableEvent =
   | { type: "scene"; scene: { id: string; name: string } }
   | { type: "fact"; fact: { id: string; body: string } }
   | { type: "pressure"; pressure: TablePressure | null }
+  | { type: "ask_roll"; roll: RollAsk }
+  | { type: "rolled"; roll: Rolled }
   | { type: "done"; end: string; credits: number; tokens: number }
   | { type: "error"; message: string };
 
@@ -38,6 +69,7 @@ export type StoryItem =
   | { id: string; kind: "narration"; text: string }
   | { id: string; kind: "spoken"; speaker: TableLine["speaker"]; text: string; to?: string }
   | { id: string; kind: "acted"; speaker: TableLine["speaker"]; text: string }
+  | { id: string; kind: "roll"; roll: Rolled }
   | { id: string; kind: "margin"; text: string; /** How many times in a row the same quiet line happened. */ count: number };
 
 /** Items other than the player's own never need a speaker; this narrows the two that do. */

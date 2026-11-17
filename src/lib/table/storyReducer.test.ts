@@ -85,3 +85,24 @@ describe("applyTableEvent", () => {
     expect(play([{ type: "session", sessionId: "s1" }, { type: "done", end: "end_turn", credits: 1, tokens: 9 }], before)).toEqual(before);
   });
 });
+
+describe("applyTableEvent for a roll", () => {
+  const rolled: TableEvent = { type: "rolled", roll: { label: "Wisdom (Perception)", faces: [13], kept: 13, bonus: 4, total: 17, mode: "normal", atTable: false } };
+
+  // Bug caught: the roll drawn after the player's words, so a reload (which draws it first) reorders the story.
+  it("puts the roll before the player's own words of the same turn", () => {
+    const before = [playerItem("do", "I look.", "p0"), playerItem("say", "Hello", "p1")];
+    const items = applyTableEvent(before, rolled, 1);
+    expect(items.map((i) => i.kind)).toEqual(["player", "roll", "player"]);
+  });
+
+  it("appends a roll sent without words", () => {
+    expect(applyTableEvent([{ id: "n", kind: "narration", text: "x" }], rolled).map((i) => i.kind)).toEqual(["narration", "roll"]);
+  });
+
+  // Bug caught: narration streaming after a roll joining the paragraph before it.
+  it("starts a new narration after the roll", () => {
+    const items = play([rolled, { type: "text", delta: "You see it." }]);
+    expect(items.map((i) => i.kind)).toEqual(["roll", "narration"]);
+  });
+});

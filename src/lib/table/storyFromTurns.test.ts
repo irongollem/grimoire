@@ -95,3 +95,27 @@ describe("factItems", () => {
     ]);
   });
 });
+
+describe("storyFromTurns for a roll", () => {
+  const roll = { label: "Wisdom (Perception)", faces: [13], kept: 13, bonus: 4, total: 17, mode: "normal", atTable: true };
+
+  // Bug caught: the roll drawn after the words it was sent with, which is not the order it was played in.
+  it("draws a stored roll before the player's words", () => {
+    const items = storyFromTurns([{ seq: 1, role: "user", blocks: [{ type: "text", text: "for the model", roll, player: { kind: "do", text: "I look." } }] }]);
+    expect(items.map((i) => i.kind)).toEqual(["roll", "player"]);
+  });
+
+  // Bug caught: a roll sent alone drawing an empty player box, or no roll line at all.
+  it("draws only the roll line when the player sent no words, whether `player` is absent or empty", () => {
+    for (const player of [undefined, { kind: "do", text: "" }]) {
+      const items = storyFromTurns([{ seq: 1, role: "user", blocks: [{ type: "text", text: "for the model", roll, ...(player ? { player } : {}) }] }]);
+      expect(items.map((i) => i.kind)).toEqual(["roll"]);
+    }
+  });
+
+  // Bug caught: a stored roll whose arithmetic does not hold drawn as the player's roll.
+  it("ignores a stored roll that does not add up", () => {
+    const items = storyFromTurns([{ seq: 1, role: "user", blocks: [{ type: "text", text: "x", roll: { ...roll, total: 40 }, player: { kind: "say", text: "Hi" } }] }]);
+    expect(items.map((i) => i.kind)).toEqual(["player"]);
+  });
+});

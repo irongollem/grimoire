@@ -13,6 +13,7 @@
           :portrait="portraitOf(item.speaker)"
         />
         <SoloActed v-else-if="item.kind === 'acted'" :speaker="item.speaker.name" :text="item.text" :pigment="pigmentOf(item.speaker)" />
+        <SoloRolled v-else-if="item.kind === 'roll'" :roll="item.roll" :who="character" />
         <SoloMargin v-else :text="item.text" :count="item.count" />
       </template>
 
@@ -37,6 +38,7 @@ import SoloFailure from "./SoloFailure.vue";
 import SoloMargin from "./SoloMargin.vue";
 import SoloNarration from "./SoloNarration.vue";
 import SoloPlayerLine from "./SoloPlayerLine.vue";
+import SoloRolled from "./SoloRolled.vue";
 import SoloSpoken from "./SoloSpoken.vue";
 
 const { items, colours, portraits, character, failure = null, running = false } = defineProps<{
