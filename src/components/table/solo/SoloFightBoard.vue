@@ -237,7 +237,15 @@ function apply(change: FightChange): void {
     const target = named(change.damage.target);
     if (target) {
       store.adjustHp(target.instance_id, -change.damage.amount);
-      lines.push({ kind: "margin", text: `${target.name} takes ${change.damage.amount}${change.damage.type ? ` ${change.damage.type}` : ""} damage` });
+      // Drawn as a roll, like every other number that changes the fight: a quiet line was easy to miss, and the
+      // narration alone ("it staggers but remains upright") did not say the creature was hurt.
+      lines.push({
+        kind: "roll",
+        die: change.damage.amount,
+        label: `${target.name} takes ${change.damage.amount}${change.damage.type ? ` ${change.damage.type}` : ""} damage`,
+        detail: "The Dungeon Master's ruling",
+        critical: false,
+      });
     }
   }
   if (lines.length > 0) emit("lines", lines, true);

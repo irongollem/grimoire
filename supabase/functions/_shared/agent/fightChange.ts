@@ -162,7 +162,10 @@ export function changedText(change: FightChange): string {
   if (change.condition) parts.push(`${change.condition.target} becomes ${change.condition.name} for ${change.condition.rounds} round${change.condition.rounds === 1 ? "" : "s"}`);
   if (change.damage) parts.push(`${change.damage.target} takes ${change.damage.amount}${change.damage.type ? ` ${change.damage.type}` : ""} damage`);
   if (change.ends) parts.push("the fight ends");
-  return `When this turn is kept: ${parts.join("; ")}. Tell what happens in a sentence or two, and do not narrate it twice.`;
+  return (
+    `When this turn is kept: ${parts.join("; ")}. Tell what happens in a sentence or two, and do not narrate it twice. ` +
+    "Say plainly what it did to the creature (hurt, blinded, driven off): the player must be able to tell from your words that it mattered."
+  );
 }
 
 /** What the turn still holds, as a line of the narrator's state. */
