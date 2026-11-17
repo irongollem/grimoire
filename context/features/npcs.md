@@ -161,9 +161,12 @@ Three tabs in edit mode, five tabs in view mode:
 | ----------- | -------------- |
 | Appearance  | RichTextEditor |
 | Personality | RichTextEditor |
+| Voice       | Plain text, 400 characters |
 | Backstory   | RichTextEditor |
 
 All fields are nullable; empty fields are hidden in view mode.
+
+**Voice** (`npcs.voice`) is how this person talks, in the DM's words: pace, turns of phrase and a line or two they might say. It is plain text on purpose, because the models that speak as the NPC read it verbatim and rich text would hand them markup. Personality says who someone is and a model reading only that gives everyone the same measured voice; Voice is the cue that tells them apart, and a human DM can read it before speaking as the character. It reaches the AI table and the Voice Coach through the one profile builder (`supabase/functions/_shared/npcProfile.ts`, cut at 400 characters), is DM-only (the player projection never carries it), and is left out of the list read (`NPC_LIST_HEAVY_COLUMNS`), search and embeddings. External assistants read and write it through the MCP `npc` entity.
 
 **DM notes are not a Lore field.** The NPC's private note (`npcs.notes`) is the always-open, autosaving `DmNoteBox` on the NPC page, in view and edit modes and on phone layouts, and in the docked scratchpad. NPC Quick Create still saves its Concept box as that note. See [dm-notes.md](dm-notes.md).
 

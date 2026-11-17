@@ -120,9 +120,11 @@
             :npc-name="form.name"
             :appearance="form.appearance"
             :personality="form.personality"
+            :voice="form.voice"
             :backstory="form.backstory"
             @update:appearance="form.appearance = $event"
             @update:personality="form.personality = $event"
+            @update:voice="form.voice = $event"
             @update:backstory="form.backstory = $event"
           />
 
@@ -523,6 +525,7 @@ function toNpcDraft(npc: Npc | null): NpcDraft {
     location_id: npc?.location_id ?? null,
     appearance: cloneDraftValue(npc?.appearance ?? null),
     personality: cloneDraftValue(npc?.personality ?? null),
+    voice: npc?.voice ?? null,
     backstory: cloneDraftValue(npc?.backstory ?? null),
     status: npc?.status ?? 'alive',
     relationship: npc?.relationship ?? 'unknown',
@@ -558,7 +561,7 @@ const { draft: form, changes, commit, reset, conflicts } = useRecordDraft({
 
 const CONFLICT_LABELS: Partial<Record<keyof NpcDraft, string>> = {
   name: 'Name', race: 'Race', alignment: 'Alignment', size: 'Size', age: 'Age', born_year: 'Birth date', born_month: 'Birth date', born_day: 'Birth date', died_year: 'Death date', died_month: 'Death date', died_day: 'Death date', occupation: 'Occupation',
-  location_id: 'Location', appearance: 'Appearance', personality: 'Personality',
+  location_id: 'Location', appearance: 'Appearance', personality: 'Personality', voice: 'Voice',
   backstory: 'Backstory', status: 'Status', relationship: 'Relationship',
   portrait_url: 'Portrait', cutout_url: 'Cutout', disguise_name: 'Alter ego name',
   disguise_portrait_url: 'Alter ego portrait', tags: 'Tags', linked_monster_id: 'Linked monster',
@@ -647,6 +650,7 @@ function buildPayload(d: NpcDraft): Omit<NpcInsert, 'notes'> {
     location_id: d.location_id || null,
     appearance: d.appearance || null,
     personality: d.personality || null,
+    voice: d.voice || null,
     backstory: d.backstory || null,
     // A cleared image comes back from the image block as "", which is not a
     // picture; store it as none.
@@ -677,6 +681,7 @@ async function save() {
     form.status !== props.npc.status ||
     form.relationship !== props.npc.relationship ||
     form.disguise_name !== props.npc.disguise_name ||
+    form.voice !== props.npc.voice ||
     !deepEqual(form.appearance, props.npc.appearance) ||
     !deepEqual(form.personality, props.npc.personality) ||
     !deepEqual(form.backstory, props.npc.backstory) ||

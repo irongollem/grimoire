@@ -25,7 +25,13 @@ import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
-import { campaignToday, promptAge, type DatePoint } from "../_shared/npcAge.ts";
+import { campaignToday } from "../_shared/npcAge.ts";
+import {
+  BACKSTORY_CHAR_LIMIT,
+  buildNpcProfile,
+  NPC_PROFILE_COLUMNS,
+  type NpcProfileRow,
+} from "../_shared/npcProfile.ts";
 import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts";
 import { judge, JEV_MODEL, noulOf, scoreOf } from "../_shared/typesafe.ts";
 import { MEMORY_CANDIDATE_LIMIT, pickPromptMemories, RELEVANCE_QUESTION } from "./memoryRelevance.ts";
@@ -61,90 +67,10 @@ const admin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-// Bounds prompt cost — these fields are DM prose and can otherwise run long.
-const PERSONALITY_CHAR_LIMIT = 800;
-const BACKSTORY_CHAR_LIMIT = 600;
-const NOTES_CHAR_LIMIT = 600;
-
 function buildCampaignContext(setting: string | null | undefined): string {
   const s = setting?.trim();
   if (!s) return "";
   return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n## Setting\n${s}`;
-}
-
-// ── NPC profile ───────────────────────────────────────────────────────────────
-
-interface NpcRow {
-  id: string;
-  campaign_id: string | null;
-  name: string;
-  race: string | null;
-  alignment: string | null;
-  age: string | null;
-  born_year: number | null;
-  born_month: number | null;
-  born_day: number | null;
-  occupation: string | null;
-  status: string;
-  relationship: string;
-  personality: string | null;
-  backstory: string | null;
-  notes: string | null;
-  disguise_name: string | null;
-  is_revealed: boolean;
-}
-
-/**
- * Labelled NPC context for the model. Absent fields are omitted entirely
- * (never emitted as an empty "Label: ").
- *
- * Disguise handling: when the NPC has a disguise_name and hasn't been
- * revealed, the party is talking to the disguise, not the true identity.
- *
- * The true name is NOT sent to the model at all in that case. Supplying it
- * under a "do not reveal this" instruction is strictly weaker than withholding
- * it — the name contributes nothing to voice quality (personality, occupation
- * and backstory do all that work), while the failure mode is precisely the one
- * this feature must not have: a DM reading a suggested line aloud at speed and
- * blowing a reveal they have been building for months.
- *
- * The backstory is still supplied, because it is what makes the disguised
- * persona sound like a person, with an explicit instruction not to surface
- * anything from it that would expose the cover.
- */
-function buildNpcProfile(npc: NpcRow, today: DatePoint | null): string {
-  const disguised = !!npc.disguise_name && !npc.is_revealed;
-  const lines: string[] = [];
-
-  if (disguised) {
-    lines.push(
-      `IMPORTANT: This NPC is currently in disguise and has NOT been revealed. The party knows them only as ` +
-      `"${npc.disguise_name}", and that is who is speaking. Stay entirely in that persona, and do not surface any ` +
-      `backstory detail that would expose the disguise.`,
-    );
-    lines.push(`Name: ${npc.disguise_name}`);
-  } else {
-    lines.push(`Name: ${npc.name}`);
-  }
-
-  if (npc.race) lines.push(`Race: ${npc.race}`);
-  if (npc.alignment) lines.push(`Alignment: ${npc.alignment}`);
-  const age = promptAge(npc, today);
-  if (age) lines.push(`Age: ${age}`);
-  if (npc.occupation) lines.push(`Occupation: ${npc.occupation}`);
-  lines.push(`Status: ${npc.status}`);
-  lines.push(`Relationship toward the party: ${npc.relationship}`);
-
-  const personality = toPlainText(npc.personality).slice(0, PERSONALITY_CHAR_LIMIT);
-  if (personality) lines.push(`Personality: ${personality}`);
-
-  const backstory = toPlainText(npc.backstory).slice(0, BACKSTORY_CHAR_LIMIT);
-  if (backstory) lines.push(`Backstory: ${backstory}`);
-
-  const notes = toPlainText(npc.notes).slice(0, NOTES_CHAR_LIMIT);
-  if (notes) lines.push(`Notes: ${notes}`);
-
-  return lines.join("\n");
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -201,11 +127,11 @@ serve(withCors(async (req: Request) => {
   // a member of campaign A pulling an NPC that belongs to campaign B.
   const { data: npcRow } = await admin
     .from("npcs")
-    .select("id, campaign_id, name, race, alignment, age, born_year, born_month, born_day, occupation, status, relationship, personality, backstory, notes, disguise_name, is_revealed")
+    .select(NPC_PROFILE_COLUMNS)
     .eq("id", npc_id)
     .maybeSingle();
   if (!npcRow) return new Response("NPC not found", { status: 404 });
-  const npc = npcRow as NpcRow;
+  const npc = npcRow as NpcProfileRow;
   if (npc.campaign_id !== campaign_id) return new Response("Forbidden", { status: 403 });
 
   // Started now and awaited when the prompt is built, so the memory read runs

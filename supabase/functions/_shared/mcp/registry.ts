@@ -396,6 +396,11 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
         occupation: { type: "text" },
         appearance: { type: "text" },
         personality: { type: "text" },
+        voice: {
+          type: "text",
+          description:
+            "How they talk, plain text, 400 characters: pace, turns of phrase, a line they might say. DM-only.",
+        },
         backstory: { type: "text" },
         notes: { type: "text" },
         status: {

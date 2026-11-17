@@ -399,6 +399,7 @@ export function mapExtractedNpc(
     location_id: null, // resolved from links.npc_location_name in the sweep's linking phase, see file header
     appearance: capProse(payload.appearance),
     personality: capProse(payload.personality),
+    voice: null, // extraction does not read how someone sounds
     backstory: capProse(payload.backstory),
     notes: capProse(payload.notes),
     status: "alive", // schema default; not extracted (ExtractedNpc has no status field)

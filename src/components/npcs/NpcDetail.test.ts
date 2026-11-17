@@ -35,6 +35,7 @@ function npc(overrides: Partial<Npc> = {}): Npc {
     location_id: null,
     appearance: null,
     personality: null,
+    voice: null,
     backstory: null,
     notes: null,
     status: "alive",
@@ -278,6 +279,23 @@ describe("NpcDetail — save sends only what changed (#946)", () => {
     expect(sent.name).toBe("Elowen Vance-Hale");
     expect(sent).not.toHaveProperty("occupation");
     expect(sent).not.toHaveProperty("campaign_id");
+  });
+
+  // Bug caught: Voice left out of the save payload or the draft, so a typed voice vanished on save.
+  it("saves a typed Voice, and saves null when it is emptied again", async () => {
+    const base = npc({ voice: null });
+    const wrapper = mountDetail(base);
+    const vm = wrapper.vm as unknown as { form: { voice: string | null }; save: () => Promise<void> };
+    vm.form.voice = "Slow, as if tasting each word. 'Sit. The tea is hot.'";
+    await vm.save();
+    expect(updateNpc.mock.calls[0][0].update.voice).toBe("Slow, as if tasting each word. 'Sit. The tea is hot.'");
+
+    updateNpc.mockClear();
+    const had = mountDetail(npc({ voice: "Clipped." }));
+    const vm2 = had.vm as unknown as { form: { voice: string | null }; save: () => Promise<void> };
+    vm2.form.voice = "";
+    await vm2.save();
+    expect(updateNpc.mock.calls[0][0].update.voice).toBeNull();
   });
 
   it("never sends the DM note, which DmNoteBox owns", async () => {

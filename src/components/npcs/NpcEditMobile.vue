@@ -164,9 +164,11 @@
           :npc-name="form.name"
           :appearance="form.appearance"
           :personality="form.personality"
+          :voice="form.voice"
           :backstory="form.backstory"
           @update:appearance="form.appearance = $event"
           @update:personality="form.personality = $event"
+          @update:voice="form.voice = $event"
           @update:backstory="form.backstory = $event"
         />
       </AccordionSection>
