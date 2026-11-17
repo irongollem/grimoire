@@ -18,9 +18,16 @@ describe("composerKeyAction", () => {
   // Bug caught: Enter that commits an IME's composition (Japanese, Chinese) sending half a word.
   it("ignores Enter while an input method is composing", () => expect(composerKeyAction(key({ isComposing: true }))).toBeNull());
 
-  it("ignores other keys and the chords of other shortcuts", () => {
+  // Bug caught: a question to the Dungeon Master having no key, or being sent as words the character says aloud.
+  it("asks the Dungeon Master on Ctrl+Enter, and on Cmd+Enter", () => {
+    expect(composerKeyAction(key({ ctrlKey: true }))).toBe("ask");
+    expect(composerKeyAction(key({ metaKey: true }))).toBe("ask");
+  });
+
+  // Bug caught: a chord of two modifiers (another shortcut's) sending the line as a deed or a question.
+  it("ignores other keys and chords of two modifiers", () => {
     expect(composerKeyAction(key({ key: "a" }))).toBeNull();
-    expect(composerKeyAction(key({ ctrlKey: true }))).toBeNull();
-    expect(composerKeyAction(key({ metaKey: true }))).toBeNull();
+    expect(composerKeyAction(key({ ctrlKey: true, altKey: true }))).toBeNull();
+    expect(composerKeyAction(key({ metaKey: true, shiftKey: true }))).toBeNull();
   });
 });

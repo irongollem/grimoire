@@ -1,16 +1,17 @@
 <template>
   <!-- "You do: your hand, set in from the edge, no box. You say: your hand in a box." (Voices, 02b).
-       A box is something said aloud; no box is something done. -->
+       A box is something said aloud; no box is something done. A question to the Dungeon Master is neither: it is
+       the player's, not the character's, so it is set apart by a dotted rule and says who is asked. -->
   <div
     :class="[
       'flex flex-col gap-0.5',
-      mode === 'say' ? 'ml-7 border-l-4 border-primary bg-primary/8 px-3.5 pt-2 pb-2.5' : 'pl-7',
+      mode === 'say' ? 'ml-7 border-l-4 border-primary bg-primary/8 px-3.5 pt-2 pb-2.5' : mode === 'ask' ? 'ml-7 border-l border-dotted border-input pl-3.5' : 'pl-7',
     ]"
     :data-play-mode="mode"
     :data-boxed="mode === 'say'"
   >
     <span :class="['text-eyebrow', mode === 'say' ? 'text-primary' : 'text-muted-foreground']">
-      {{ who }}{{ mode === "say" ? " says" : "" }}
+      {{ mode === "ask" ? "You ask the Dungeon Master" : who }}{{ mode === "say" ? " says" : "" }}
     </span>
     <p data-hand :class="['solo-hand whitespace-pre-line text-[1.1875rem] leading-7', unsent ? 'text-muted-foreground' : 'text-foreground']">
       {{ mode === "say" ? `“${text}”` : text }}

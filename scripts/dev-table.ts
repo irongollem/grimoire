@@ -160,7 +160,7 @@ interface TypedRoll {
   atTable: true;
 }
 
-async function turn(sessionId: string | null, mode: "say" | "do", message: string, roll?: TypedRoll, opening = false): Promise<string | null> {
+async function turn(sessionId: string | null, mode: "say" | "do" | "ask", message: string, roll?: TypedRoll, opening = false): Promise<string | null> {
   const started = Date.now();
   const response = await fetch(endpoint, {
     method: "POST",
@@ -199,7 +199,7 @@ async function turn(sessionId: string | null, mode: "say" | "do", message: strin
   return id;
 }
 
-console.log(`\nAt the table in "${campaignName}". A plain line is said aloud, /do <text> is done, /roll <face> [bonus] answers a roll, /new starts a fresh sitting, /quit leaves.\n`);
+console.log(`\nAt the table in "${campaignName}". A plain line is said aloud, /do <text> is done, /ask <text> asks the Dungeon Master, /roll <face> [bonus] answers a roll, /new starts a fresh sitting, /quit leaves.\n`);
 // Read line by line rather than asking a question each time: input that ends (a pipe, Ctrl-D) then simply ends
 // the sitting, where a question asked of a closed input throws.
 const prompt = createInterface({ input: process.stdin, output: process.stdout, prompt: "\n> " });
@@ -227,7 +227,8 @@ for await (const line of prompt) {
     else sessionId = await turn(sessionId, "do", "", { faces: [Number(face)], mode: "normal", bonus: Number(bonus), atTable: true });
   } else if (typed !== "") {
     const done = typed.startsWith("/do ");
-    sessionId = await turn(sessionId, done ? "do" : "say", done ? typed.slice(4).trim() : typed);
+    const asked = typed.startsWith("/ask ");
+    sessionId = await turn(sessionId, asked ? "ask" : done ? "do" : "say", asked ? typed.slice(5).trim() : done ? typed.slice(4).trim() : typed);
   }
   if (open) prompt.prompt();
 }

@@ -2,7 +2,7 @@
   <div class="mx-auto flex w-full max-w-160 flex-col gap-2">
     <!-- One voice at a time: while an answer is coming the box is locked and Say and Do become one Stop (Turn, 04). -->
     <label data-slip class="flex items-end gap-2.5 py-2.5 pr-2.5 pl-3.5">
-      <span class="sr-only">What {{ character }} says or does</span>
+      <span class="sr-only">What {{ character }} says or does, or your question to the Dungeon Master</span>
       <textarea
         ref="field"
         v-model="draft"
@@ -16,6 +16,9 @@
       />
       <AppButton v-if="running" variant="outline" size="md" :icon="IconStop" label="Stop" @click="emit('stop')" />
       <template v-else>
+        <AppButton variant="ghost" size="md" label="Ask the Dungeon Master" :disabled="!canSend" data-testid="solo-ask" @click="submit('ask')">
+          <span>Ask</span><span class="ml-1.5 hidden text-caption text-muted-foreground sm:inline">Ctrl Enter</span>
+        </AppButton>
         <AppButton variant="outline" size="md" label="Do" :disabled="!canSend" @click="submit('do')">
           <span>Do</span><span class="ml-1.5 hidden text-caption text-muted-foreground sm:inline">Alt Enter</span>
         </AppButton>
@@ -26,7 +29,7 @@
     </label>
     <p class="hidden text-caption text-muted-foreground sm:block">
       <template v-if="running">Stop ends the answer where it is. What was already said stays, and is what you pay for.</template>
-      <template v-else>Enter says it aloud. Alt+Enter does it. Shift+Enter starts a new line. A turn costs a fraction of a credit; you are charged a whole credit at a time.</template>
+      <template v-else>Enter says it aloud. Alt+Enter does it. Ctrl+Enter asks the Dungeon Master a question that is yours, not your character's. Shift+Enter starts a new line. A turn costs a fraction of a credit; you are charged a whole credit at a time.</template>
     </p>
   </div>
 </template>

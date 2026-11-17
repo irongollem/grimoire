@@ -84,7 +84,8 @@ export interface TableFight {
   name: string;
 }
 
-export type PlayMode = "say" | "do";
+/** `ask` is the player asking the Dungeon Master something out of character; say and do are the character's. */
+export type PlayMode = "say" | "do" | "ask";
 
 /** One thing on the story page. The page is a manuscript, so each kind has its own look (Voices frame). */
 export type StoryItem =

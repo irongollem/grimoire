@@ -22,7 +22,7 @@ export interface AgentTurnBody {
   characterId?: string;
   message: string;
   /** Enter says it aloud, Alt+Enter does it: the player chooses, nothing guesses from the wording. */
-  mode: "say" | "do";
+  mode: "say" | "do" | "ask";
   /**
    * The player's answer to a roll the narrator asked for. With it the message may be empty: a roll alone is a turn.
    * Refused by the handler when nothing was asked.
@@ -57,7 +57,7 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
   if (opening && (r.sessionId !== undefined || message.length > 0 || roll !== undefined)) return { ok: false };
   // Only a roll or an opening makes a turn without words.
   if ((message.length < 1 && roll === undefined && !opening) || message.length > MAX_MESSAGE_CHARS) return { ok: false };
-  if (r.mode !== "say" && r.mode !== "do") return { ok: false };
+  if (r.mode !== "say" && r.mode !== "do" && r.mode !== "ask") return { ok: false };
   if (r.startLocationId !== undefined) {
     if (typeof r.startLocationId !== "string" || !UUID_RE.test(r.startLocationId)) return { ok: false };
     if (r.sessionId !== undefined) return { ok: false };
@@ -79,7 +79,19 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
  * a ruling (maintainer, 16 Nov 2026): it styles the box and settles wording that could be either, but "I crawl
  * towards the tree" sent as said is still a deed, and "nice weather, ain't it!" sent as done is still speech.
  */
-export function playerText(mode: "say" | "do", message: string): string {
+export function playerText(mode: "say" | "do" | "ask", message: string): string {
+  // A question to the Dungeon Master is the player speaking, not the character (maintainer, 17 Nov 2026: "ben ik nu
+  // alleen hier?" was answered as words spoken into an empty room). Nothing in the story happens because of it.
+  if (mode === "ask") {
+    return (
+      "The player asks you, the Dungeon Master, this out of character. Their character does not say or do it, nobody " +
+      "in the story hears it, and no time passes:\n" +
+      `${message}\n` +
+      "Answer the player plainly and briefly in your own text: what their character can see, hear or would know " +
+      "here, what they could do, or how a rule works. Give no character a line for it, move nothing, start nothing, " +
+      "and tell nothing their character could not perceive or know."
+    );
+  }
   return mode === "say"
     ? `The player sent this as something their character says aloud:\n${message}`
     : `The player sent this as something their character does:\n${message}`;
