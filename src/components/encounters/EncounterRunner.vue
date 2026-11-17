@@ -274,6 +274,7 @@ import { useAutoDiscoverMonsters } from "@/composables/encounters/useDiscoveredM
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { initiativeRoll } from "@/rules/initiative";
 import { useSoloFight } from "@/composables/table/useSoloFight";
+import { useSoloCreatureTurns } from "@/composables/table/useSoloCreatureTurns";
 import SoloInitiative from "@/components/table/solo/SoloInitiative.vue";
 import SoloFightStrip from "@/components/table/solo/SoloFightStrip.vue";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
@@ -326,7 +327,8 @@ const fight = useFightCommands(encounterId, {
 });
 
 // Every panel that lists a creature's actions offers "Run this turn for me" through this (Runner, Play, phone).
-provide(RUNNER_TAKE_TURN, createRunnerTakeTurn(fight.takeTurn, (error) => toast.fromError(error, "Couldn't run that turn.")));
+const runTurn = createRunnerTakeTurn(fight.takeTurn, (error) => toast.fromError(error, "Couldn't run that turn."));
+provide(RUNNER_TAKE_TURN, runTurn);
 
 // The runner resolves combatants' stored monster_id (detail panel, auto-discover
 // on go-live) rather than letting the DM pick, so scoping must stay off here.
@@ -419,6 +421,19 @@ watch(
   },
   { immediate: true },
 );
+
+// Every turn but the player's own plays itself; what the creature did is on its turn card, as after the button.
+useSoloCreatureTurns({
+  memberId: () => solo.value?.memberId ?? null,
+  started: () => store.started,
+  active: () => store.activeCombatant,
+  turnKey: () => `${store.round}:${store.activeCombatant?.instance_id}`,
+  run: async (instanceId) => {
+    await runTurn.run(instanceId);
+    return runTurn.errors[instanceId] === undefined;
+  },
+  next: () => store.nextTurn(),
+});
 
 if (solo.value === null) store.setInitiativeRoller(async (combatant) => {
   const { modifier, disadvantage } = initiativeRoll(combatant, ruleset.value);
