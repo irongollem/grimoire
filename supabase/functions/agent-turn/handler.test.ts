@@ -128,6 +128,8 @@ interface Harness {
     playSessionJoined: boolean;
     /** Creatures of a planned fight that have no stat block, by name. */
     statless: string[];
+    /** The character the name search finds was made by the table itself. */
+    tableMade: boolean;
     /** Writing an invented person's record fails (a plan's limit). */
     introduceThrows: boolean;
     /** The campaign's own peoples. */
@@ -158,7 +160,7 @@ interface Harness {
   applied: Array<{ ctx: { campaignId: string; agentSessionId: string }; move: QuestMove }>;
   questLoads: Array<{ campaignId: string; pressureClockId: string | null }>;
   fightLoads: Array<{ campaignId: string; locationId: string | null; fightEncounterId: string | null }>;
-  introduced: Array<{ ctx: { campaignId: string; memberId: string | null; locationId: string | null }; intro: { name: string; about: string; known: boolean; here: boolean } }>;
+  introduced: Array<{ ctx: { campaignId: string; memberId: string | null; locationId: string | null }; intro: { replaces: string | null; name: string; about: string; known: boolean; here: boolean } }>;
   startedFights: Array<{ ctx: { campaignId: string; sessionId: string; userId: string; memberId: string; locationId: string | null; playSessionId: string | null }; plan: FightPlan }>;
   fightSets: Array<{ sessionId: string; campaignId: string; encounterId: string | null }>;
   /** Every time the opening quest was put in play. */
@@ -225,6 +227,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       playSessionThrows: false,
       playSessionJoined: false,
       statless: [],
+      tableMade: false,
       introduceThrows: false,
       peoples: [],
       peoplesThrow: false,
@@ -440,6 +443,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     judgeNarration: null,
     voiceKey: null,
     statlessFighters: async () => h.state.statless,
+    isTableMadeCharacter: async () => h.state.tableMade,
     introduceCharacter: async (ctx, intro) => {
       if (h.state.introduceThrows) throw new Error("quota");
       h.introduced.push({ ctx, intro });
@@ -1219,6 +1223,23 @@ describe("a character speaks for itself", () => {
       const h = harness([introduce({ ...floret, known: false }), step(10)]);
       await play(h);
       expect(h.introduced).toHaveLength(1);
+      expect(h.events.some((e) => e.type === "introduced")).toBe(false);
+    });
+
+    // Bug caught: the DM's own character rewritten by the table because the narrator "introduced" them again.
+    it("never rewrites a record the table did not make", async () => {
+      const h = harness([introduce({ name: "Apprentice Honeycomb", about: "Secretly a dragon." }), step(10)]);
+      await play(h);
+      expect(h.introduced).toEqual([]);
+      expect(JSON.stringify(h.requests[1])).toContain("already has a record");
+    });
+
+    // Bug caught: the player's account of their old master accepted in the story and lost from his record.
+    it("brings its own earlier record up to date, without announcing the person again", async () => {
+      const h = harness([introduce({ name: "Apprentice Honeycomb", about: "A bisque warrior who trained Rosie." }), step(10)]);
+      h.state.tableMade = true;
+      await play(h);
+      expect(h.introduced).toEqual([expect.objectContaining({ intro: expect.objectContaining({ replaces: HONEYCOMB, about: "A bisque warrior who trained Rosie." }) })]);
       expect(h.events.some((e) => e.type === "introduced")).toBe(false);
     });
 

@@ -10,6 +10,8 @@
 //   1. Never a second record for someone who has one: the name is checked against the campaign first.
 //   2. The record is made when the turn is kept, like every other write of a turn.
 //   3. Few and small: at most two a turn, a name and a few sentences. The DM fills in the rest, or deletes it.
+//   4. A record the table itself made can be brought up to date the same way (the player says who their old
+//      master really was, and the narrator accepts it). A record the DM wrote, or has edited, is never touched.
 //
 // Pure: no I/O.
 
@@ -29,7 +31,8 @@ export const INTRODUCE_TOOL: AgentTool = {
     "with a part to play). Not for a passer-by with no name, and never for someone who already has a record: search " +
     "first. Give the name, one to three plain sentences of what is true of them so far, their occupation if they " +
     "have one, whether they are in the party's place right now, and whether the player's character knows of them. " +
-    "The record exists from the next turn; record what happens with them as facts as usual.",
+    "The record exists from the next turn; record what happens with them as facts as usual. Calling it again for a " +
+    "person you introduced earlier replaces what their record says: give the whole of what is true of them now.",
   inputSchema: {
     type: "object",
     additionalProperties: false,
@@ -45,6 +48,8 @@ export const INTRODUCE_TOOL: AgentTool = {
 };
 
 export interface Introduction {
+  /** The table-made record this brings up to date; null for a new person. */
+  replaces: string | null;
   name: string;
   about: string;
   occupation: string | null;
@@ -66,7 +71,7 @@ export function parseIntroduction(input: Record<string, unknown>): Parsed {
   if (here !== undefined && typeof here !== "boolean") return { ok: false, error: "here must be true or false." };
   if (known !== undefined && typeof known !== "boolean") return { ok: false, error: "known must be true or false." };
   const job = typeof occupation === "string" && occupation.trim() !== "" ? occupation.trim() : null;
-  return { ok: true, value: { name: name.trim(), about: about.trim(), occupation: job, here: here === true, known: known !== false } };
+  return { ok: true, value: { replaces: null, name: name.trim(), about: about.trim(), occupation: job, here: here === true, known: known !== false } };
 }
 
 const same = (a: string, b: string): boolean => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -81,6 +86,9 @@ export function existsText(existing: { id: string; shownName: string }): string 
 }
 
 export function introducedText(intro: Introduction): string {
+  if (intro.replaces !== null) {
+    return `When this turn is kept, ${intro.name}'s record says this instead of what it said. Go on with the story.`;
+  }
   return (
     `When this turn is kept, ${intro.name} gets a record${intro.known ? " the player's character knows of" : ", hidden from the player"}. ` +
     "Find them with search from the next turn on. Go on with the story."

@@ -637,6 +637,12 @@ serve(withCors(async (req: Request) => {
     startFight: (ctx, plan) => startFight(supabase, admin, ctx, plan),
     setFight: (sessionId, campaignId, encounterId) => setFight(admin, sessionId, campaignId, encounterId),
     statlessFighters: (campaignId, plan) => statlessFighters(supabase, campaignId, plan),
+    async isTableMadeCharacter(campaignId, characterId) {
+      const { data, error } = await supabase.from("npcs").select("ai_provenance").eq("id", characterId).eq("campaign_id", campaignId).maybeSingle();
+      if (error) throw error;
+      const p = data?.ai_provenance as { generatorType?: unknown; edited?: unknown } | null | undefined;
+      return p?.generatorType === "agent_turn_character" && p.edited === false;
+    },
     // A person the narrator made up, written as the caller: the DM's own RLS and their plan's limit on characters
     // decide, exactly as when they add someone by hand. What is true of them goes into the backstory, which a
     // player never reads; the player's character is shown the person only when it knows of them.
@@ -648,6 +654,20 @@ serve(withCors(async (req: Request) => {
         generatedAt: new Date().toISOString(),
         edited: false,
       };
+      if (intro.replaces !== null) {
+        // Only a record the table made and nobody has edited: the filter is in the write itself.
+        const updated = await supabase
+          .from("npcs")
+          .update({ backstory: intro.about, ...(intro.occupation === null ? {} : { occupation: intro.occupation }), ai_provenance: provenance })
+          .eq("id", intro.replaces)
+          .eq("campaign_id", ctx.campaignId)
+          .eq("ai_provenance->>generatorType", "agent_turn_character")
+          .eq("ai_provenance->>edited", "false")
+          .select("id, name")
+          .maybeSingle();
+        if (updated.error || !updated.data) throw updated.error ?? new Error("the record is no longer the table's to rewrite");
+        return { id: updated.data.id as string, name: updated.data.name as string };
+      }
       const { data, error } = await supabase
         .from("npcs")
         .insert({

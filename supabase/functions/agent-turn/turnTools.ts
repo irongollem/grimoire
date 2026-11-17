@@ -26,7 +26,7 @@ export interface FiledFact {
 }
 
 export interface TurnToolsInput {
-  deps: Pick<AgentTurnDeps, "tools" | "callTool" | "loadSpeaker" | "findCharacters" | "setScene" | "fileFact">;
+  deps: Pick<AgentTurnDeps, "tools" | "callTool" | "loadSpeaker" | "findCharacters" | "isTableMadeCharacter" | "setScene" | "fileFact">;
   campaignId: string;
   session: SessionRow;
   stored: StoredTurn[];
@@ -153,10 +153,12 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     if (!parsed.ok) return { content: parsed.error, isError: true };
     if (introductions >= INTRODUCTIONS_PER_TURN) return { content: `At most ${INTRODUCTIONS_PER_TURN} people get a record in one turn.`, isError: true };
     const existing = alreadyRecorded(parsed.value.name, await deps.findCharacters(campaignId, parsed.value.name));
-    if (existing !== null) return { content: existsText(existing), isError: true };
+    // Someone the table made up itself may be rewritten; a record the DM wrote or edited is theirs.
+    if (existing !== null && !(await deps.isTableMadeCharacter(campaignId, existing.id))) return { content: existsText(existing), isError: true };
+    const intro = existing === null ? parsed.value : { ...parsed.value, replaces: existing.id };
     introductions += 1;
-    input.onIntroduce(parsed.value);
-    return { content: introducedText(parsed.value), isError: false };
+    input.onIntroduce(intro);
+    return { content: introducedText(intro), isError: false };
   };
 
   // One request a turn: the story stops for a single roll, and a second would silently replace the first.

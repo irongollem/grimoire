@@ -5,7 +5,7 @@ describe("parseIntroduction", () => {
   it("takes a name and what is true of them, known to the player and not here unless said otherwise", () => {
     expect(parseIntroduction({ name: " Master Floret ", about: "Bought Rosie as a child on the Old Buy-Floor." })).toEqual({
       ok: true,
-      value: { name: "Master Floret", about: "Bought Rosie as a child on the Old Buy-Floor.", occupation: null, here: false, known: true },
+      value: { replaces: null, name: "Master Floret", about: "Bought Rosie as a child on the Old Buy-Floor.", occupation: null, here: false, known: true },
     });
   });
 

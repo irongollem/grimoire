@@ -281,7 +281,9 @@ export interface AgentTurnDeps {
    * switched on: then no line carries a key and nothing can be voiced.
    */
   voiceKey: ((sessionId: string, line: AgentLine) => string) | null;
-  /** Writes the record of a person the narrator made up (`introduce.ts`) and answers who it is. */
+  /** Whether the table itself made this character's record and the DM has not edited it since: only then may the table rewrite it. */
+  isTableMadeCharacter(campaignId: string, characterId: string): Promise<boolean>;
+  /** Writes the record of a person the narrator made up (`introduce.ts`), or brings a table-made one up to date, and answers who it is. */
   introduceCharacter(
     ctx: { campaignId: string; userId: string; memberId: string | null; locationId: string | null; provider: string; model: string },
     intro: Introduction,
@@ -697,7 +699,8 @@ export async function beginTurn(input: {
               { campaignId: campaign.id, userId, memberId: session.party_member_id, locationId: here, provider: provider.provider, model: provider.model },
               intro,
             );
-            if (intro.known) emit({ type: "introduced", person: made });
+            // Announced once, when the person is new to the page; a record brought up to date says nothing.
+            if (intro.known && intro.replaces === null) emit({ type: "introduced", person: made });
           } catch (error) {
             console.error("agent-turn: giving an invented person a record failed:", error);
           }
