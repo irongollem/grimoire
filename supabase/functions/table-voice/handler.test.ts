@@ -29,6 +29,8 @@ function harness() {
     // 40 USD per million characters on ElevenLabs, 10 on Inworld; a credit worth 0.0066 USD at a margin of 2.
     rates: { elevenlabs: 40, inworld: 10 } as Record<string, number | null>,
     canPay: true,
+    forbidden: null as string | null,
+    screenDown: false,
     held: [] as number[],
     released: [] as string[][],
     charged: [] as Array<{ credits: number; service: string; chars: number }>,
@@ -59,6 +61,10 @@ function harness() {
     loadPlayerTraits: async () => ({ sex: "man", age: null, voiceId: null }),
     narratorVoice: () => h.narratorVoice,
     hasService: (service) => service === "elevenlabs" || h.inworld,
+    isFlagged: async (text) => {
+      if (h.screenDown) throw new Error("moderation down");
+      return h.forbidden !== null && text.includes(h.forbidden);
+    },
     loadRate: async (service) => (h.rates[service] === null ? null : { usdPerMillionChars: h.rates[service] as number, calibration: { usdPerCredit: 0.0066, margin: 2 } }),
     reserve: async (_userId, credits) => {
       if (!h.canPay) return { ok: false, status: 402, error: "insufficient_credits" };
@@ -462,5 +468,25 @@ describe("voiceRates", () => {
     expect((await voiceRates(h.deps)).perMinute).toEqual({ elevenlabs: 11, inworld: null });
     h.on = false;
     expect(await voiceRates(h.deps)).toEqual({ on: false, perMinute: { elevenlabs: null, inworld: null } });
+  });
+});
+
+describe("a line the table may not tell", () => {
+  // Bug caught: a line voiced the moment it arrives, before its turn was screened, read aloud although the turn is
+  // then withheld; and paid for.
+  it("is never spoken, kept or charged", async () => {
+    const h = harness();
+    h.forbidden = "Get out";
+    expect(await speak(h)).toEqual({ ok: false, refusal: { status: 422, error: VOICE_MESSAGES.unspeakable } });
+    expect(h.spoken).toEqual([]);
+    expect(h.charged).toEqual([]);
+    expect(h.kept.size).toBe(0);
+  });
+
+  // Bug caught: an outage of the screen silencing every voice at the table.
+  it("is still spoken when the screen cannot run", async () => {
+    const h = harness();
+    h.screenDown = true;
+    expect((await speak(h)).ok).toBe(true);
   });
 });

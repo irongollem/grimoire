@@ -7,6 +7,8 @@
 // The standing part is one constant and says nothing about any campaign, so it stays byte-identical across
 // campaigns and a provider's prompt cache can hold it. What differs per campaign goes in a trailing section.
 
+import { TABLE_CONDUCT } from "./conduct.ts";
+
 export const SOLO_TABLE_SYSTEM = `You are the Dungeon Master of a D&D 5e table with one player.
 You describe the world and judge what happens. The characters the player meets speak for themselves.
 
@@ -137,7 +139,8 @@ Campaign id (pass it as campaign_id to every tool that takes one): ${campaign.id
 
 /** The whole system text for a campaign, before the conversation's summary is added to it. */
 export function soloTableSystem(campaign: { id: string; name: string; rulesetLabel: string }): string {
-  return `${SOLO_TABLE_SYSTEM}\n\n${soloTableCampaignSection(campaign)}`;
+  // The conduct rules are standing text too, so they sit before the campaign's own section and stay in the cached prefix.
+  return `${SOLO_TABLE_SYSTEM}\n\n${TABLE_CONDUCT}\n\n${soloTableCampaignSection(campaign)}`;
 }
 
 /** A ruleset's name for the prompt, from `campaigns.game_system`. */

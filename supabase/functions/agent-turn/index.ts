@@ -2,6 +2,7 @@
 //
 // The rules are `handler.ts`'s; this file wires the database, the provider and the MCP tools to them. The gates
 // run before the stream opens so a refusal is a real status code; the turn itself runs inside the stream.
+import { STRIKE_WINDOW_DAYS } from "../_shared/agent/conduct.ts";
 import { belongingsText, MAX_BELONGINGS, type Belonging } from "../_shared/agent/belongings.ts";
 import { MAX_PEOPLES } from "../_shared/agent/peoples.ts";
 import { lineKey } from "../_shared/agent/lineKey.ts";
@@ -306,6 +307,31 @@ serve(withCors(async (req: Request) => {
           generationType: "agent_turn",
           imageProvider: "none",
         });
+        return false;
+      } catch (error) {
+        if (isPromptRejected(error)) return true;
+        throw error;
+      }
+    },
+
+    // What the screen refused of this account's own messages, lately. Only what they sent counts: a turn of the
+    // Dungeon Master's that was withheld is not the player's strike.
+    async strikes(userId) {
+      const since = new Date(Date.now() - STRIKE_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+      const { count, error } = await admin
+        .from("prompt_screenings")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("generation_type", "agent_turn")
+        .eq("blocked", true)
+        .gte("created_at", since);
+      if (error) throw error;
+      return count ?? 0;
+    },
+
+    async isFlaggedOutput(text) {
+      try {
+        await screenImagePrompt(text, { apiKey: moderationKey, admin, userId: user.id, generationType: "agent_turn_output", imageProvider: "none" });
         return false;
       } catch (error) {
         if (isPromptRejected(error)) return true;

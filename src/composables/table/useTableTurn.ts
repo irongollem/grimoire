@@ -5,7 +5,7 @@ import { applyTableEvent, boardItem, nextItemId, playerItem } from "@/lib/table/
 import type { BoardLine } from "@/lib/table/fight/boardLines";
 import type { FightChange, FightTurn } from "@/lib/table/fight/fightChange";
 import type { PlayMode, RollAnswer, RollAsk, StoryItem, TableFight, TablePressure } from "@/lib/table/soloTypes";
-import { NO_ANSWER, refusalFailure, type TurnFailure } from "@/lib/table/turnRefusal";
+import { NO_ANSWER, refusalFailure, WITHHELD, type TurnFailure } from "@/lib/table/turnRefusal";
 
 export interface TurnRequest {
   campaignId: string;
@@ -167,7 +167,7 @@ export function useTableTurn(options: TableTurnOptions) {
           sessionId.value = event.sessionId;
           options.onSession?.(event.sessionId);
         } else if (event.type === "error") {
-          failure.value = NO_ANSWER;
+          failure.value = event.withheld === true ? WITHHELD : NO_ANSWER;
           discardTurn(start, playerId, before);
           return;
         } else if (event.type === "done") {

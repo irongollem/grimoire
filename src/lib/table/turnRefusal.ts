@@ -12,6 +12,12 @@ export const NO_ANSWER: TurnFailure = {
   action: "resend",
 };
 
+/** The answer was dropped by the check on what the table may tell: sending the same again would only repeat it. */
+export const WITHHELD: TurnFailure = {
+  message: "The Dungeon Master's answer was withheld: it went somewhere this table does not tell. Nothing was charged. Try something else.",
+  action: "none",
+};
+
 /**
  * The server's refusal before the stream opened (`{ error }` with a status) as a sentence for the player.
  * Keyed on the status and the few codes the function names, never on its wording, which is written for logs.
@@ -30,6 +36,12 @@ export function refusalFailure(status: number, code: string | null): TurnFailure
   if (status === 400) {
     return {
       message: "That message cannot be sent to the table. It was stopped by the check on what may be sent to the model. Reword it and send again.",
+      action: "none",
+    };
+  }
+  if (code === "table_closed") {
+    return {
+      message: "The table is closed to this account for now, after several messages that may not be sent to it. If you think that is a mistake, write to support.",
       action: "none",
     };
   }

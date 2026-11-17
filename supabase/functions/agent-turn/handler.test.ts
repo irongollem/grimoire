@@ -6,6 +6,7 @@
  * out from the price and calibration below: input is free and output costs 10 USD per million tokens, a credit is
  * worth 0.01 USD at margin 1, so 600 output tokens are 0.006 USD, which is 0.6 credits.
  */
+import { STRIKES_BEFORE_CLOSED } from "../_shared/agent/conduct.ts";
 import type { HandsChange } from "../_shared/agent/hands.ts";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -111,6 +112,10 @@ interface Harness {
     price: { inputPerMillion: number; outputPerMillion: number; cachedInputPerMillion: number | null } | null;
     calibration: { usdPerCredit: number | null; margin: number } | null;
     flagged: boolean;
+    /** How many of the account's messages the screen refused lately. */
+    strikes: number;
+    /** What the output screen refuses: a turn whose own words hold this text is withheld. */
+    forbidden: string | null;
     rateOk: boolean;
     reservation: Refusal | null;
     conflict: boolean;
@@ -175,6 +180,8 @@ interface Harness {
   finished: string[];
   /** The fights whose loot was laid where they were fought. */
   laidLoot: { encounterId: string; placeId: string | null; held: string }[];
+  /** Every text the output screen was given. */
+  screenedOutput: string[];
   /** Each change to which fight is on the party's heels. */
   pursuits: (string | null)[];
   /** Every time the opening quest was put in play. */
@@ -227,6 +234,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       price: { inputPerMillion: 0, outputPerMillion: 10, cachedInputPerMillion: null },
       calibration: { usdPerCredit: 0.01, margin: 1 },
       flagged: false,
+      strikes: 0,
+      forbidden: null,
       rateOk: true,
       reservation: null,
       conflict: false,
@@ -279,6 +288,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     finished: [],
     laidLoot: [],
     pursuits: [],
+    screenedOutput: [],
     facts: [],
     recordLoads: [],
     discards: [],
@@ -325,6 +335,11 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     loadPrice: async () => h.state.price,
     loadCalibration: async () => h.state.calibration,
     isFlagged: async () => h.state.flagged,
+    strikes: async () => h.state.strikes,
+    isFlaggedOutput: async (text) => {
+      h.screenedOutput.push(text);
+      return h.state.forbidden !== null && text.includes(h.state.forbidden);
+    },
     reserve: async (_user, credits) => {
       h.reserved.push(credits);
       if (h.state.reservation) return { ok: false, refusal: h.state.reservation };
@@ -682,6 +697,62 @@ describe("the request", () => {
     expect(h.modelCalls()).toBe(0);
     expect(h.reserved).toEqual([]);
     expect(h.ledger).toEqual([]);
+  });
+
+  // Bug caught: an account that keeps sending what the screen refuses can go on trying for ever; or the table
+  // closing one refusal early, on someone whose villain's speech tripped the screen a few times.
+  it("closes the table for an account with too many refused messages, before anything is screened or spent", async () => {
+    const closed = harness();
+    closed.state.strikes = STRIKES_BEFORE_CLOSED;
+    expect(await play(closed)).toEqual({ status: 403, error: MESSAGES.closed });
+    expect(closed.modelCalls()).toBe(0);
+    expect(closed.reserved).toEqual([]);
+    const open = harness([step(10)]);
+    open.state.strikes = STRIKES_BEFORE_CLOSED - 1;
+    await play(open);
+    expect(last(open).type).toBe("done");
+  });
+
+  // Bug caught: the count failing (a database hiccup) locking every player out of the table.
+  it("stays open when the strikes cannot be counted", async () => {
+    const h = harness([step(10)]);
+    h.deps.strikes = async () => {
+      throw new Error("db down");
+    };
+    await play(h);
+    expect(last(h).type).toBe("done");
+  });
+
+  // Bug caught: a turn whose own words the screen refuses being stored, replayed on reload, put on record and
+  // billed; the page is told, so it takes back what it had begun to show.
+  it("keeps nothing of a turn whose own words the screen refuses, and charges nothing", async () => {
+    const h = harness([step(10)]);
+    h.state.forbidden = "The door creaks";
+    await play(h);
+    expect(last(h)).toEqual({ type: "error", message: MESSAGES.withheld, withheld: true });
+    expect(h.turns).toEqual([]);
+    expect(h.appends).toEqual([]);
+    expect(h.ledger.every((row) => row.cost === 0)).toBe(true);
+  });
+
+  // Bug caught: the model-facing wording or a tool's private answer sent to the screen (a false refusal on the
+  // DM's own notes), or the narrator's words not sent at all.
+  it("screens what the player would be shown, and only that", async () => {
+    const h = harness([step(10)]);
+    await play(h);
+    expect(h.screenedOutput).toEqual(["The door creaks. What do you do?"]);
+    expect(last(h).type).toBe("done");
+  });
+
+  // Bug caught: an outage of the screen stopping play.
+  it("keeps the turn when the output screen cannot run", async () => {
+    const h = harness([step(10)]);
+    h.deps.isFlaggedOutput = async () => {
+      throw new Error("moderation down");
+    };
+    await play(h);
+    expect(last(h).type).toBe("done");
+    expect(h.turns.length).toBeGreaterThan(0);
   });
 
   it("screens the message before it reserves credits", async () => {

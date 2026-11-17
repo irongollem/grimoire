@@ -134,7 +134,7 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
         tokens: typeof raw.tokens === "number" && Number.isFinite(raw.tokens) ? raw.tokens : 0,
       };
     case "error":
-      return { type: "error", message: typeof raw.message === "string" ? raw.message : "The turn failed." };
+      return { type: "error", message: typeof raw.message === "string" ? raw.message : "The turn failed.", ...(raw.withheld === true ? { withheld: true as const } : {}) };
     default:
       return null;
   }

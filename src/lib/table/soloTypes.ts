@@ -74,7 +74,8 @@ export type TableEvent =
   | { type: "hit_points"; change: { heals: boolean; why: string; by: number; hp: number; maxHp: number } }
   | { type: "fight"; fight: TableFight | null; /** With null: the fight was let go of without being fought. */ calledOff?: true }
   | { type: "done"; end: string; credits: number; tokens: number }
-  | { type: "error"; message: string };
+  /** `withheld`: the Dungeon Master's answer was dropped by the check on what the table may tell. */
+  | { type: "error"; message: string; withheld?: true };
 
 /** A roll the Dungeon Master made in the open. A hidden roll never reaches the page. */
 export interface DmRoll {

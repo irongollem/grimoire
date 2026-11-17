@@ -80,6 +80,8 @@ export interface TableVoiceDeps {
    * numbers (`ai_model_pricing`, the credit calibration). Null when either is not on file: speech is then not made,
    * because it could not be charged.
    */
+  /** True when the line must not be spoken (the same screen a turn's own words go through). Throws when it cannot run. */
+  isFlagged(text: string): Promise<boolean>;
   loadRate(service: VoiceService): Promise<{ usdPerMillionChars: number; calibration: CreditCalibration } | null>;
   /** Holds credits for a line about to be made. Refused when the account cannot pay or may not spend. */
   reserve(userId: string, credits: number): Promise<{ ok: true; ids: string[] } | { ok: false; status: number; error: string }>;
@@ -139,6 +141,7 @@ export const VOICE_MESSAGES = {
   failed: "The line could not be spoken right now.",
   spent: "voices_spent",
   unpriced: "Voices cannot be metered right now.",
+  unspeakable: "That line cannot be read aloud.",
 } as const;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -240,6 +243,14 @@ export async function speakLine(input: {
     const shown = await deps.findShown(session.id, line);
     if (shown === null) return refuse(404, VOICE_MESSAGES.noLine);
     line.how = shown.how;
+  }
+
+  // A line is voiced the moment it arrives, before its turn has been screened and kept, so it is screened here
+  // too: a line the table may not tell is never spoken. An outage of the screen does not silence the table.
+  try {
+    if (await deps.isFlagged(line.text)) return refuse(422, VOICE_MESSAGES.unspeakable);
+  } catch (error) {
+    console.error("table-voice: screening the line failed:", error);
   }
 
   const voice = await voiceFor(deps, session.campaign_id, line);

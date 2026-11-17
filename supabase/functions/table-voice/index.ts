@@ -12,6 +12,8 @@ import { getObject, putObject } from "../_shared/r2/client.ts";
 import { clipKey, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
 import { shownInTurns, speakLine, voiceRates, VoicesSpent, type TableVoiceDeps } from "./handler.ts";
 import { recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
+import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
+import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { deliveryCue } from "../_shared/agent/characterTurn.ts";
 import { ageOf, inworldText, NARRATION_MAX_CHARS, sexFromGender, sexOf, speechText } from "./voicePick.ts";
 
@@ -141,6 +143,19 @@ serve(withCors(async (req: Request) => {
     },
 
     narratorVoice: () => Deno.env.get("TABLE_NARRATOR_VOICE_ID")?.trim() || null,
+
+    // The same screen the turn's own words go through (`_shared/moderation.ts`), logged under this surface.
+    async isFlagged(text) {
+      try {
+        // The moderation endpoint is free, and the platform's own key is the one used for it, as in `agent-turn`.
+        const keys = await fetchPlatformKeys(admin, ["openai"]);
+        await screenImagePrompt(text, { apiKey: keys.openai ?? null, admin, userId: user.id, generationType: "table_voice", imageProvider: "none" });
+        return false;
+      } catch (error) {
+        if (isPromptRejected(error)) return true;
+        throw error;
+      }
+    },
 
     // The admin's numbers: what the service's model costs by the character, and what a credit is worth.
     async loadRate(service) {

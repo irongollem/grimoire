@@ -11,6 +11,7 @@
 //                (`_shared/agent/summary.ts`): the player never waits for that, and a failure in it is only logged.
 // A caller that gets `run` MUST call it: the reservation is released inside it.
 
+import { shownText, tableClosed } from "../_shared/agent/conduct.ts";
 import { followersOf } from "../_shared/agent/pursuit.ts";
 import { lootIsWon, type LootHeld } from "../_shared/agent/encounterLoot.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
@@ -96,7 +97,8 @@ export type AgentEvent =
   /** The played character's hit points changed outside a fight: what did it, by how much, and where they stand. */
   | { type: "hit_points"; change: { change: "heal" | "harm"; why: string; by: number; hp: number; maxHp: number } }
   | { type: "done"; end: TurnEnd; credits: number; tokens: number }
-  | { type: "error"; message: string };
+  /** `withheld` is set when the turn was dropped by the screen on what the table may tell, so the page can say so. */
+  | { type: "error"; message: string; withheld?: true };
 
 export interface CampaignRow {
   id: string;
@@ -176,6 +178,13 @@ export interface AgentTurnDeps {
   loadCalibration(): Promise<{ usdPerCredit: number | null; margin: number } | null>;
   /** True when the message must not be sent. Fails open (false) when the check cannot run. */
   isFlagged(message: string): Promise<boolean>;
+  /**
+   * How many of the account's messages the screen refused within the strike window (`conduct.ts`). An account
+   * that keeps trying finds the table closed.
+   */
+  strikes(userId: string): Promise<number>;
+  /** True when what a turn wrote must not be kept, shown again, put on record or spoken. Fails open like `isFlagged`. */
+  isFlaggedOutput(text: string): Promise<boolean>;
   reserve(userId: string, credits: number): Promise<Reservation>;
   release(ids: string[]): Promise<void>;
   /** `recordGeneration`: BYOK writes a zero row, otherwise spends `cost`. */
@@ -338,6 +347,8 @@ export const MESSAGES = {
   noAdapter: "The AI table is not available on this provider yet.",
   noMetering: "The AI table cannot be metered right now.",
   flagged: "That message cannot be sent to the AI table.",
+  closed: "table_closed",
+  withheld: "The Dungeon Master's answer was withheld by the check on what the table may tell. Nothing was charged. Try something else.",
   conflict: "This conversation was continued somewhere else. Reload it and send your message again.",
   providerBusy: "The AI provider is busy right now. Send your message again in a moment.",
   failed: "The AI table ran into a problem. Send your message again.",
@@ -418,6 +429,14 @@ export async function beginTurn(input: {
       return refuse(503, MESSAGES.noMetering);
     }
     if (!price || !calibration) return refuse(503, MESSAGES.noMetering);
+  }
+
+  // An account that kept sending what the screen refuses finds the table closed, before anything is screened or
+  // spent. Unreadable strikes do not close it: the count is a consequence, not the boundary.
+  try {
+    if (tableClosed(await deps.strikes(userId))) return refuse(403, MESSAGES.closed);
+  } catch (error) {
+    console.error("agent-turn: counting the account's refused messages failed:", error);
   }
 
   let flagged = false;
@@ -705,6 +724,23 @@ export async function beginTurn(input: {
           steps,
           toolSteps: result.toolSteps,
         });
+
+        // What the turn wrote is screened before it is kept. A turn the screen refuses is treated like one that
+        // could not be saved: nothing of it is stored, put on record or billed, and the page takes back what it
+        // had begun to show. An outage of the screen does not stop play (the same stance as for what is sent in).
+        let withheld = false;
+        try {
+          const written = shownText(result.added);
+          withheld = written === "" ? false : await deps.isFlaggedOutput(written);
+        } catch (error) {
+          console.error("agent-turn: screening the turn's own words failed:", error);
+        }
+        if (withheld) {
+          await discardFiled();
+          await safely(logWithoutCharge);
+          emit({ type: "error", message: MESSAGES.withheld, withheld: true });
+          return;
+        }
 
         // Save first, then charge: a turn that was not kept is not billed.
         let saved: { due: number } | "conflict" | "failed";
