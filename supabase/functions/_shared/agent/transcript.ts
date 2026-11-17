@@ -54,9 +54,13 @@ function asBlock(x: unknown): AgentBlock | null {
       if (typeof x.text !== "string") return null;
       const p = x.player;
       // A bad `player` is dropped and the text kept: the model's history must still replay.
-      return isRecord(p) && (p.kind === "say" || p.kind === "do") && typeof p.text === "string"
-        ? { type: "text", text: x.text, player: { kind: p.kind, text: p.text } }
-        : { type: "text", text: x.text };
+      const block: AgentBlock = { type: "text", text: x.text };
+      if (isRecord(p) && (p.kind === "say" || p.kind === "do") && typeof p.text === "string") {
+        block.player = { kind: p.kind, text: p.text };
+      }
+      // Only a literal `true` counts: anything else was never written by this code, and showing text is the safe side.
+      if (x.unshown === true) block.unshown = true;
+      return block;
     }
     case "tool_call":
       return typeof x.id === "string" && typeof x.name === "string" && isRecord(x.input)

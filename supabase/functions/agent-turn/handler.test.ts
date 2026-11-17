@@ -6,7 +6,7 @@
  * out from the price and calibration below: input is free and output costs 10 USD per million tokens, a credit is
  * worth 0.01 USD at margin 1, so 600 output tokens are 0.006 USD, which is 0.6 credits.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   beginTurn,
   handleAgentTurn,
@@ -26,6 +26,8 @@ import { NO_QUESTS, type QuestMove, type QuestsInPlay } from "../_shared/agent/q
 import { AgentProviderError, type AgentBlock, type CallModel, type ModelRequest, type ModelStep } from "../_shared/agent/types";
 import type { StoredTurn, TurnRow } from "../_shared/agent/transcript";
 import type { CreditLogFields } from "../_shared/credits";
+import { NARRATION_ADDS } from "../_shared/agent/narrationCheck";
+import type { JudgeRequest, JudgeResult } from "../_shared/typesafe";
 
 const DM = "00000000-0000-4000-8000-0000000000d1";
 const OTHER = "00000000-0000-4000-8000-0000000000e2";
@@ -330,6 +332,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       h.applied.push({ ctx, move });
       if (h.state.failMoveAt.has(at)) throw new Error("rpc failed");
     },
+    judgeNarration: null,
     openPlaySession: async () => {
       log.push("open-session");
       if (h.state.playSessionThrows) throw new Error("db down");
@@ -1748,5 +1751,219 @@ describe("companions travel with the party", () => {
     const h = harness([go, step(200)]);
     await play(h);
     expect(h.placed).toEqual([{ campaignId: CAMPAIGN, locationId: CELLAR, characterIds: [HONEYCOMB] }]);
+  });
+});
+
+describe("narration that only repeats the characters is held back", () => {
+  const speak = (id = "s1", over: Partial<ModelStep> = {}): ModelStep =>
+    step(10, {
+      blocks: [{ type: "tool_call", id, name: "speak", input: { speaker_id: HONEYCOMB, happening: "A stranger asks who you are." } }],
+      stop: "tool_calls",
+      ...over,
+    });
+  const sheSays = (text: string): ModelStep => step(10, { blocks: [{ type: "text", text: `SAYS: ${text}` }] });
+  /** A narrator step whose text streams to the browser as it is written, as a real adapter does. */
+  const writes = (text: string, over: Partial<ModelStep> = {}): ((request: ModelRequest) => ModelStep) => (request) => {
+    request.onText?.(text);
+    return step(10, { blocks: [{ type: "text", text }], ...over });
+  };
+  /** A judge that scores by what the narration says, and keeps every request it was sent. */
+  const judgeBy = (score: (narration: string) => number) => {
+    const requests: JudgeRequest[] = [];
+    const judge = async (request: JudgeRequest): Promise<JudgeResult> => {
+      requests.push(request);
+      const narration = (request.state as { narration: string }).narration;
+      return { model: "jev-1", inputTokens: 5, answers: { [NARRATION_ADDS]: { type: "noul", noul: score(narration) } } };
+    };
+    return { judge, requests };
+  };
+  const texts = (h: Harness) => h.events.flatMap((e) => (e.type === "text" ? [e.delta] : []));
+  const assistantBlocks = (h: Harness) => h.appends[0].rows.filter((r) => r.role === "assistant").flatMap((r) => r.blocks);
+
+  it("sends the browser no text event for narration the judge says only restates, and stores it marked unshown", async () => {
+    const h = harness([speak(), sheSays("Hello."), writes("Honeycomb still stands waiting.")]);
+    h.deps.judgeNarration = judgeBy(() => 0.1).judge;
+    await play(h);
+    expect(texts(h)).toEqual([]);
+    expect(h.events.some((e) => e.type === "line")).toBe(true);
+    expect(JSON.stringify(h.events)).not.toContain("still stands waiting");
+    const held = assistantBlocks(h).find((b) => b.type === "text");
+    expect(held).toMatchObject({ type: "text", text: "Honeycomb still stands waiting.", unshown: true });
+    expect(last(h)).toMatchObject({ type: "done", end: "done" });
+  });
+
+  it("shows narration the judge says adds something once, whole, after the line it follows", async () => {
+    const h = harness([speak(), sheSays("Hello."), writes("Rain "), ]);
+    h.script[2] = (request) => {
+      request.onText?.("Rain starts ");
+      request.onText?.("to fall.");
+      return step(10, { blocks: [{ type: "text", text: "Rain starts to fall." }] });
+    };
+    h.deps.judgeNarration = judgeBy(() => 0.9).judge;
+    await play(h);
+    expect(texts(h)).toEqual(["Rain starts to fall."]);
+    const kinds = h.events.map((e) => e.type);
+    expect(kinds.indexOf("text")).toBeGreaterThan(kinds.lastIndexOf("line"));
+    expect(assistantBlocks(h).find((b) => b.type === "text")).toEqual({ type: "text", text: "Rain starts to fall." });
+  });
+
+  it("streams narration that comes before any line as it is written and never judges it", async () => {
+    const j = judgeBy(() => 0);
+    const h = harness([
+      writes("The cellar is cold.", { blocks: [{ type: "text", text: "The cellar is cold." }, { type: "tool_call", id: "r1", name: "roll", input: { expression: "1d20" } }], stop: "tool_calls" }),
+      writes("You find nothing."),
+    ]);
+    h.deps.judgeNarration = j.judge;
+    await play(h);
+    expect(texts(h)).toEqual(["The cellar is cold.", "You find nothing."]);
+    expect(j.requests).toHaveLength(0);
+    expect(assistantBlocks(h).some((b) => b.type === "text" && b.unshown)).toBe(false);
+  });
+
+  it("shows everything when there is no judge, or the held-back text would vanish for an account with no key", async () => {
+    const h = harness([speak(), sheSays("Hello."), writes("Honeycomb still stands waiting.")]);
+    await play(h);
+    expect(texts(h)).toEqual(["Honeycomb still stands waiting."]);
+    expect(assistantBlocks(h).some((b) => b.type === "text" && b.unshown)).toBe(false);
+  });
+
+  it("shows the text when the judge throws, because a narrator the player cannot read is worse than a repeat", async () => {
+    const h = harness([speak(), sheSays("Hello."), writes("Honeycomb still stands waiting.")]);
+    h.deps.judgeNarration = async () => {
+      throw new Error("typesafe down");
+    };
+    await play(h);
+    expect(texts(h)).toEqual(["Honeycomb still stands waiting."]);
+    expect(assistantBlocks(h).some((b) => b.type === "text" && b.unshown)).toBe(false);
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
+  it("shows the text when the judge is slower than the limit, and does not wait for it", async () => {
+    vi.useFakeTimers();
+    try {
+      const h = harness([speak(), sheSays("Hello."), writes("Honeycomb still stands waiting.")]);
+      h.deps.judgeNarration = () => new Promise<JudgeResult>(() => {});
+      const turn = play(h);
+      await vi.advanceTimersByTimeAsync(1_499);
+      expect(texts(h)).toEqual([]);
+      await vi.advanceTimersByTimeAsync(2);
+      await turn;
+      expect(texts(h)).toEqual(["Honeycomb still stands waiting."]);
+      expect(assistantBlocks(h).some((b) => b.type === "text" && b.unshown)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("judges against this turn's shown lines only, and never judges a turn that showed none, whatever the history holds", async () => {
+    const j = judgeBy(() => 0.9);
+    const h = harness([writes("Rain falls on the roof.")]);
+    existingSession(h);
+    h.turns.push(
+      { seq: 1, role: "user", blocks: [{ type: "text", text: "hi" }] },
+      { seq: 2, role: "assistant", blocks: [{ type: "tool_call", id: "old", name: "speak", input: {} }] },
+      {
+        seq: 3,
+        role: "user",
+        blocks: [{ type: "tool_result", callId: "old", content: "ok", isError: false, lines: [{ kind: "spoken", speaker: { id: HONEYCOMB, name: "Honeycomb" }, text: "EARLIER-LINE" }] }],
+      },
+    );
+    h.deps.judgeNarration = j.judge;
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "Hello.", mode: "say" } });
+    expect(j.requests).toHaveLength(0);
+    expect(texts(h)).toEqual(["Rain falls on the roof."]);
+
+    const h2 = harness([speak(), sheSays("Fresh words."), writes("Rain falls on the roof.")]);
+    existingSession(h2);
+    h2.turns.push(...h.turns);
+    h2.deps.judgeNarration = j.judge;
+    await play(h2, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "Hello.", mode: "say" } });
+    const sent = JSON.stringify(j.requests);
+    expect(sent).toContain("Fresh words.");
+    expect(sent).not.toContain("EARLIER-LINE");
+  });
+
+  it("sends the judge nothing a listener held back or a tool was given", async () => {
+    const j = judgeBy(() => 0.9);
+    const h = harness([
+      speak("s1", { blocks: [{ type: "tool_call", id: "s1", name: "speak", input: { speaker_id: HONEYCOMB, happening: "SECRET-HAPPENING", present: [BRAM] } }] }),
+      step(10, { blocks: [{ type: "text", text: "SAYS: Hello, everyone.\nTO: everyone" }] }),
+      step(10, { blocks: [{ type: "text", text: "SAYS: HELD-BACK-SENTENCE\nWANT: 3" }] }),
+      writes("The lamp gutters."),
+    ]);
+    h.deps.judgeNarration = j.judge;
+    await play(h);
+    expect(j.requests).toHaveLength(1);
+    const sent = JSON.stringify(j.requests);
+    for (const secret of ["HELD-BACK-SENTENCE", "SECRET-HAPPENING", "HONEYCOMB-SECRET", "RESULT-SECRET"]) expect(sent).not.toContain(secret);
+    expect(sent).toContain("Hello, everyone.");
+    expect((j.requests[0].state as { lines: unknown[] }).lines).toEqual([{ who: "Honeycomb", kind: "said", text: "Hello, everyone." }]);
+  });
+
+  it("judges text that an abort left unclosed, instead of losing it, and shows it when it adds something", async () => {
+    const stop = new AbortController();
+    const h = harness([
+      speak(),
+      sheSays("Hello."),
+      (request) => {
+        request.onText?.("Thunder rolls.");
+        stop.abort();
+        throw new Error("the connection was cut");
+      },
+    ]);
+    h.deps.judgeNarration = judgeBy(() => 0.9).judge;
+    await play(h, { signal: stop.signal });
+    expect(texts(h)).toEqual(["Thunder rolls."]);
+    expect(last(h)).toMatchObject({ type: "done", end: "aborted" });
+  });
+
+  it("does not mark a stored message whose text is not what was held back, so nothing it cannot identify is hidden", async () => {
+    const h = harness([
+      speak(),
+      sheSays("Hello."),
+      (request) => {
+        request.onText?.("What was streamed.");
+        return step(10, { blocks: [{ type: "text", text: "What was stored." }] });
+      },
+    ]);
+    h.deps.judgeNarration = judgeBy(() => 0.1).judge;
+    await play(h);
+    expect(texts(h)).toEqual([]);
+    expect(assistantBlocks(h).find((b) => b.type === "text" && b.text === "What was stored.")).toEqual({ type: "text", text: "What was stored." });
+  });
+
+  it("settles a step's text before the lines a later step produces, and marks only the step that was dropped", async () => {
+    const h = harness([
+      speak("s1"),
+      sheSays("First."),
+      writes("A cold draught.", { blocks: [{ type: "text", text: "A cold draught." }, { type: "tool_call", id: "s2", name: "speak", input: { speaker_id: HONEYCOMB, happening: "She notices." } }], stop: "tool_calls" }),
+      sheSays("Second."),
+      writes("Honeycomb is still talking."),
+    ]);
+    // Slow enough that a later line would overtake the text if the page did not wait for it.
+    const scored = judgeBy((n) => (n.includes("draught") ? 0.9 : 0.1));
+    h.deps.judgeNarration = async (request) => {
+      await new Promise((r) => setTimeout(r, 30));
+      return scored.judge(request);
+    };
+    await play(h);
+    const order = h.events.flatMap((e) => (e.type === "line" ? [e.line.text] : e.type === "text" ? [`T:${e.delta}`] : []));
+    expect(order).toEqual(["First.", "T:A cold draught.", "Second."]);
+    const blocks = assistantBlocks(h).filter((b) => b.type === "text");
+    expect(blocks).toEqual([
+      { type: "text", text: "A cold draught." },
+      { type: "text", text: "Honeycomb is still talking.", unshown: true },
+    ]);
+  });
+
+  it("still sends done after text the judge is slow to clear, never before it", async () => {
+    const h = harness([speak(), sheSays("Hello."), writes("Wind in the eaves.")]);
+    h.deps.judgeNarration = async (request) => {
+      await new Promise((r) => setTimeout(r, 20));
+      return judgeBy(() => 0.9).judge(request);
+    };
+    await play(h);
+    const kinds = h.events.map((e) => e.type);
+    expect(kinds.indexOf("text")).toBeLessThan(kinds.indexOf("done"));
   });
 });

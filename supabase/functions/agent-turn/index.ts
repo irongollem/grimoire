@@ -34,6 +34,7 @@ import { RECORD_SECTION_MAX, type RecordedFact } from "../_shared/agent/record.t
 import { openaiModel } from "../_shared/agent/openai.ts";
 import { anthropicModel } from "../_shared/agent/anthropic.ts";
 import { applyQuestMove, loadQuests } from "./questIo.ts";
+import { narrationJudgeFor } from "./narrationJudge.ts";
 import type { CallModel } from "../_shared/agent/types.ts";
 import type { StoredTurn, TurnRow } from "../_shared/agent/transcript.ts";
 import {
@@ -595,6 +596,13 @@ serve(withCors(async (req: Request) => {
     // Quests: read and written as the caller (the quest functions check the DM); the conversation's own row as the server.
     loadQuests: (campaignId, pressureClockId) => loadQuests(supabase, campaignId, pressureClockId),
     applyQuestMove: (ctx, move) => applyQuestMove(supabase, admin, ctx, move),
+
+    // Holds back narration that only repeats the characters' lines; null (everything shown) without a judging key.
+    judgeNarration: await narrationJudgeFor({
+      getKey: async () => (await fetchPlatformKeys(admin, ["typesafe"])).typesafe,
+      record: (log) => recordFreeGeneration(admin, user.id, "entity_judgment", log),
+      signal: req.signal,
+    }),
 
     tools: agentToolsFrom(listTools(), SOLO_TABLE_TOOLS),
     // Bound per call, because the campaign is only known once the handler has loaded and checked it. Every tool call

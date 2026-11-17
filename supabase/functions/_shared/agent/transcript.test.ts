@@ -257,6 +257,19 @@ describe("the player's stored move", () => {
   });
 });
 
+describe("narration the player was never shown", () => {
+  const read = (unshown: unknown) => blocksOf({ seq: 2, role: "assistant", blocks: [{ type: "text", text: "Honeycomb still waits.", unshown }] });
+
+  it("survives a reload, or a page replaying the turn would show the text the check held back", () => {
+    expect(read(true)).toEqual([{ type: "text", text: "Honeycomb still waits.", unshown: true }]);
+  });
+
+  it("drops a value that is not literally true and keeps the text the model needs", () => {
+    expect(read("yes")).toEqual([{ type: "text", text: "Honeycomb still waits." }]);
+    expect(read(false)).toEqual([{ type: "text", text: "Honeycomb still waits." }]);
+  });
+});
+
 describe("a tool result's kept-back sentences and addressees in storage", () => {
   const stored = (extra: Record<string, unknown>) =>
     blocksOf({ seq: 1, role: "user", blocks: [{ type: "tool_result", callId: "x", content: "ok", isError: false, ...extra }] })[0];

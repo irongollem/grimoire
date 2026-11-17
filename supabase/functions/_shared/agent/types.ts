@@ -36,8 +36,10 @@ export type AgentBlock =
   /**
    * `player` is set on the player's own message: what they typed and whether their character says it aloud or
    * does it. The page draws from it; `text` is what the model reads, which says the same in words.
+   * `unshown` is set on narrator text the player was never shown because it only repeated the lines before it
+   * (narrationCheck.ts). It stays in the history the model reads; a page that replays the turn must not draw it.
    */
-  | { type: "text"; text: string; player?: PlayerMove }
+  | { type: "text"; text: string; player?: PlayerMove; unshown?: true }
   /** The model asks for a tool. `id` pairs it with its result; `input` is already parsed JSON. */
   | { type: "tool_call"; id: string; name: string; input: Record<string, unknown> }
   /** What a tool answered, as text the model reads. `isError` tells the model the call failed. */

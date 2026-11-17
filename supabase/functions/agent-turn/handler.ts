@@ -21,6 +21,7 @@ import { sceneSection, type SceneView } from "../_shared/agent/scene.ts";
 import { recordSection, type RecordedFact, type RecordKind } from "../_shared/agent/record.ts";
 import { NO_QUESTS, questsSection, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
 import { makeTurnTools, type FiledFact } from "./turnTools.ts";
+import { narrationGate, type NarrationGate, type NarrationJudge } from "./narration.ts";
 import { applyKeptQuestMoves, foldIntoSummary, questsOf, recordOf, round6, safely, sceneOf } from "./turnSupport.ts";
 import {
   AgentProviderError,
@@ -228,6 +229,11 @@ export interface AgentTurnDeps {
    * was saved, in the order the moves were made; throws on any failure.
    */
   applyQuestMove(ctx: { campaignId: string; agentSessionId: string }, move: QuestMove): Promise<void>;
+  /**
+   * Judges, with TypeSafe's Jev, whether narration told the player anything the characters' lines did not
+   * (`narration.ts`). Null when no judging key is available: then every word the narrator writes is shown.
+   */
+  judgeNarration: NarrationJudge | null;
 }
 
 export const MESSAGES = {
@@ -385,6 +391,7 @@ export async function beginTurn(input: {
       let session: SessionRow;
       let stored: StoredTurn[];
       let result;
+      let gate: NarrationGate | null = null;
       try {
         // Only a new conversation opens a session: one conversation is one sitting, and it keeps the session it began in.
         let playSessionId: string | null = null;
@@ -433,6 +440,7 @@ export async function beginTurn(input: {
           quests: questState === null ? null : { state: questState, queued },
         });
 
+        gate = narrationGate({ judge: deps.judgeNarration, emit });
         result = await runTurn({
           system,
           history,
@@ -443,17 +451,11 @@ export async function beginTurn(input: {
           callTool: turnTools.callTool,
           limits: { maxSteps: MAX_STEPS, maxOutputTokens: MAX_OUTPUT_TOKENS, tokenBudget: TOKEN_BUDGET },
           signal,
-          onEvent: (event) => {
-            // Names and outcomes only: a tool's input and result can hold DM-only notes the model looked up.
-            if (event.type === "text") emit({ type: "text", delta: event.delta });
-            else if (event.type === "tool_start") emit({ type: "tool_start", name: event.name });
-            else if (event.type === "tool_end") {
-              emit({ type: "tool_end", name: event.name, isError: event.isError });
-              // A character's deed comes before its words, as the page reads them.
-              for (const line of event.lines ?? []) emit({ type: "line", line });
-            }
-          },
+          onEvent: gate.onEvent,
         });
+        // Held narration is judged and everything queued reaches the browser before anything after it is sent.
+        await gate.finish();
+        gate.markUnshown(result.added);
 
         const { steps } = result;
         // Every model call that was billed: the narrator's, and the ones a character's speech made.
@@ -562,6 +564,8 @@ export async function beginTurn(input: {
         // Nothing is saved and nothing charged. The provider's own message can name the model, the key's
         // organisation or the quota, so the browser gets a sentence of ours; the real one goes to the log.
         console.error("agent-turn: the turn failed:", error);
+        // Whatever was already queued for the browser goes out before the error, never after it.
+        await safely(async () => void (await gate?.finish()));
         if (!kept) await discardFiled();
         emit({
           type: "error",
