@@ -93,7 +93,7 @@ export async function loadFights(
           if (block === null || c.type === "player") continue;
           const kind = c.monster_id ? (sources.monsters.find((m) => m.id === c.monster_id)?.monster_type ?? null) : null;
           const temper = temperOf(block, kind);
-          natures.set(c.name, { line: temperLine(temper), yields: temper.yields, immune: [...(block.defenses?.condition_immunities ?? [])] });
+          natures.set(c.name, { line: temperLine(temper), yields: temper.yields, pursuit: temper.pursuit, immune: [...(block.defenses?.condition_immunities ?? [])] });
         }
         fight = { ...fight, fighters: fight.fighters.map((f) => (f.side === "party" || !natures.has(f.name) ? f : { ...f, nature: natures.get(f.name) })) };
       } catch (error) {

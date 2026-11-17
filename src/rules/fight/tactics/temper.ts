@@ -21,6 +21,22 @@ export interface Temper {
   charmed: boolean;
   /** Whether it ever gives in or flees. */
   yields: boolean;
+  /**
+   * What it does when its quarry gets away. `stays`: it does not leave its place. `hunts`: it gives chase and keeps
+   * after its prey. `judges`: it has a will of its own and chases only if that suits it.
+   */
+  pursuit: "stays" | "hunts" | "judges";
+}
+
+/**
+ * RULE pursuit (app convention; the books leave a chase to the DM, and the maintainer asked for a default: "a guard
+ * dog probably has a chase ratio"). A thing made or grown to keep a place (construct, ooze, plant) stays at it. The
+ * mindless dead and anything of animal wits follow what runs. Whoever can think decides for itself.
+ */
+function pursuitOf(creatureType: MonsterType | null, willLess: boolean, reached: Temper["reached"]): Temper["pursuit"] {
+  if (creatureType === "undead" && willLess) return "hunts";
+  if (willLess) return "stays";
+  return reached === "handling" ? "hunts" : "judges";
 }
 
 /** RULE will-less: these do what they were made, grown or raised to do, whatever they understand. */
@@ -49,6 +65,7 @@ export function temperOf(statBlock: MonsterStatBlock, creatureType: MonsterType 
     charmed: !immune.includes("Charmed"),
     // The same morale the creature fights by: a fearless type or a DM's own "fights to the death" never yields.
     yields: tacticalProfile(statBlock, creatureType).morale.then !== "fight_on",
+    pursuit: pursuitOf(creatureType, willLess, reached),
   };
 }
 
@@ -63,5 +80,7 @@ export function temperLine(t: Temper): string {
   const fear = t.frightened ? "can be frightened" : "cannot be frightened";
   const charm = t.charmed ? null : "cannot be charmed";
   const yields = t.yields ? "can be made to give in or flee" : "never gives in or flees";
-  return [t.kind, reached, fear, charm, yields].filter((p): p is string => p !== null).join("; ");
+  const pursuit =
+    t.pursuit === "stays" ? "does not leave its place to give chase" : t.pursuit === "hunts" ? "gives chase to whatever runs from it" : "gives chase only if it judges it can win";
+  return [t.kind, reached, fear, charm, yields, pursuit].filter((p): p is string => p !== null).join("; ");
 }

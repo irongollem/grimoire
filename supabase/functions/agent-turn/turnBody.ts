@@ -105,6 +105,7 @@ export function playerText(mode: "say" | "do" | "ask", message: string): string 
       "The player asks you, the Dungeon Master, this out of character. Their character does not say or do it, nobody " +
       "in the story hears it, and no time passes:\n" +
       `${message}\n` +
+      "A question is always answered in words, even after looking things up: never end this reply with no text. " +
       "Answer the player plainly and briefly in your own text: what their character can see, hear or would know " +
       "here, what they could do, or how a rule works. Give no character a line for it, move nothing, start nothing, " +
       "and tell nothing their character could not perceive or know. When the answer is something you make up (a memory, " +

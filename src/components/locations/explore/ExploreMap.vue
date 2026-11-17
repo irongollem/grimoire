@@ -126,7 +126,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, shallowRef, watch } from "vue";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
@@ -147,6 +147,7 @@ import type { FogCellKey } from "@/lib/battlemap/fogMask";
 import { doorAt, effectiveDoors } from "@/lib/battlemap/doors";
 import { NO_DOOR_STATES, occludersOf } from "@/lib/battlemap/occlusion";
 import type { MapLiveDoorState } from "@/types/mapLive.types";
+import { readPictureFloor, voidAround } from "@/lib/battlemap/pictureFloor";
 import type { BattleSurface } from "@/lib/battlemap/roomBridge";
 import type { ExploreFrame } from "@/lib/locations/explore";
 import type { ExploreCell } from "@/rules/fight/explorePositions";
@@ -318,10 +319,28 @@ useHotkeys(() => [
 
 // A player's own token walks round walls or not at all, by the search a fight uses (`reachable`), run once per
 // place it stands and far enough to cover the map. The Dungeon Master's line stays straight and is never refused.
+// A map with no walls drawn has only its picture to go by: the squares it shows no ground on (the dark a building
+// is drawn on) are not walked. Read once per picture, for a player's own map only.
+const pictureVoid = shallowRef<Set<string> | null>(null);
+watch(
+  () => [asPlayer, surface.imageUrl, imageReady.value, imageNaturalW.value, imageNaturalH.value] as const,
+  async ([player, url, ready, w, h], _old, onCleanup) => {
+    let stale = false;
+    onCleanup(() => (stale = true));
+    pictureVoid.value = null;
+    if (!player || !url || !ready || w === 0) return;
+    const grid = { cols: Math.ceil(surface.calibration.cells_per_image_width), rows: Math.ceil((surface.calibration.cells_per_image_width * h) / w) };
+    const floor = await readPictureFloor(url, grid);
+    if (!stale && floor !== null) pictureVoid.value = voidAround(floor, grid);
+  },
+  { immediate: true },
+);
+
 const playerReach = computed(() => {
   const me = asPlayer ? placed.value[0] : undefined;
   if (!me?.position || !imageReady.value || imageNaturalW.value === 0) return null;
   const occluders = surface.live ? occludersOf(surface.live, doorStates) : null;
+  const unwalled = occluders === null || (occluders.segments.length === 0 && occluders.solid.size === 0);
   const cols = Math.ceil(surface.calibration.cells_per_image_width);
   const rows = Math.ceil((surface.calibration.cells_per_image_width * imageNaturalH.value) / imageNaturalW.value);
   return reachable({
@@ -330,7 +349,7 @@ const playerReach = computed(() => {
     terrain: {
       difficult: new Set<string>(),
       blocking: occluders ? occluders.segments : [],
-      solid: occluders ? occluders.solid : new Set<string>(),
+      solid: unwalled && pictureVoid.value ? pictureVoid.value : occluders ? occluders.solid : new Set<string>(),
       bounds: { minX: 0, minY: 0, maxX: cols - 1, maxY: rows - 1 },
     },
     others: [],

@@ -37,7 +37,7 @@ export interface Fighter {
    * whether it ever gives in or flees, and the conditions it is immune to. Absent for the party and for anyone
    * whose stat block could not be read.
    */
-  nature?: { line: string; yields: boolean; immune: string[] };
+  nature?: { line: string; yields: boolean; immune: string[]; /** What it does when its quarry gets away (the temper rule). */ pursuit: "stays" | "hunts" | "judges" };
 }
 
 /** The fight this conversation started. */

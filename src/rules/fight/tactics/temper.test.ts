@@ -42,10 +42,24 @@ describe("temperOf", () => {
   });
 });
 
+describe("pursuit", () => {
+  // App convention (the books leave a chase to the DM). Bug caught: a guardian construct leaving its post to hunt
+  // the player through the house; a wolf or a zombie standing still while its prey walks away; a thinking foe
+  // given no choice in it.
+  it("keeps what was made to keep a place at it, sends the mindless dead and beasts after what runs, and leaves the rest to judge", () => {
+    expect(temperOf(block({ int: 6 }), "construct").pursuit).toBe("stays");
+    expect(temperOf(block({ int: 1, languages: "—" }), "ooze").pursuit).toBe("stays");
+    expect(temperOf(block({ int: 3 }), "undead").pursuit).toBe("hunts");
+    expect(temperOf(block({ int: 3, languages: "—" }), "beast").pursuit).toBe("hunts");
+    expect(temperOf(block({ int: 10, languages: "Common" }), "humanoid").pursuit).toBe("judges");
+    expect(temperOf(block({ int: 12, languages: "Common" }), "undead").pursuit).toBe("judges");
+  });
+});
+
 describe("temperLine", () => {
   it("says it in a line", () => {
-    expect(temperLine({ kind: "construct", reached: "none", frightened: false, charmed: false, yields: false })).toBe(
-      "construct; words do not move it: it does what it was made to do; cannot be frightened; cannot be charmed; never gives in or flees",
+    expect(temperLine({ kind: "construct", reached: "none", frightened: false, charmed: false, yields: false, pursuit: "stays" })).toBe(
+      "construct; words do not move it: it does what it was made to do; cannot be frightened; cannot be charmed; never gives in or flees; does not leave its place to give chase",
     );
   });
 });

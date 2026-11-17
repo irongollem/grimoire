@@ -161,6 +161,7 @@ export function useSoloPlaceMap(input: {
 
   return {
     hasMap,
+    site,
     surface,
     planShown,
     mapStack,

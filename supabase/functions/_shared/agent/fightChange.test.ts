@@ -129,7 +129,7 @@ describe("cannotAttempt", () => {
 });
 
 describe("what a creature's nature rules out", () => {
-  const construct = { line: "construct; words do not move it", yields: false, immune: ["Frightened", "Charmed"] };
+  const construct = { line: "construct; words do not move it", yields: false, immune: ["Frightened", "Charmed"], pursuit: "stays" as "stays" | "hunts" | "judges" };
   const pack = (nature = construct): FightState =>
     fight({ fighters: [{ name: "Rosie", side: "party", hp: 40, maxHp: 58 }, { name: "Spun Glass Hound 3", side: "enemy", hp: 16, maxHp: 16, nature }] });
   const won = { player: true, byNarrator: false };
@@ -164,7 +164,7 @@ describe("what a creature's nature rules out", () => {
   });
 
   it("lets a foe that can yield give in", () => {
-    expect(parseFightChange(pack({ line: "humanoid", yields: true, immune: [] }), budget(), { costs: "action", ends: "they_give_in" }, won).ok).toBe(true);
+    expect(parseFightChange(pack({ line: "humanoid", yields: true, immune: [], pursuit: "judges" }), budget(), { costs: "action", ends: "they_give_in" }, won).ok).toBe(true);
   });
 
   // Bug caught: a creature immune to being frightened frightened by a stunt.
@@ -181,5 +181,36 @@ describe("budgetLine", () => {
 
   it("says so when it is not the player's turn", () => {
     expect(budgetLine(budget({ yours: false }))).toContain("not the player's turn");
+  });
+});
+
+describe("who gives chase when the player gets away", () => {
+  const nature = (pursuit: "stays" | "hunts" | "judges") => ({ line: "", yields: true, immune: [], pursuit });
+  const field = fight({
+    fighters: [
+      { name: "Rosie", side: "party", hp: 40, maxHp: 58 },
+      { name: "Wolf", side: "enemy", hp: 9, maxHp: 11, nature: nature("hunts") },
+      { name: "Bandit", side: "enemy", hp: 9, maxHp: 11, nature: nature("judges") },
+      { name: "Clockwork Sentry", side: "enemy", hp: 20, maxHp: 20, nature: nature("stays") },
+      { name: "Dead Wolf", side: "enemy", hp: 0, maxHp: 11, nature: nature("hunts") },
+    ],
+  });
+
+  // Bug caught (the maintainer: "dont enemies ever chase you onto the new map?"): an escape that ended the danger
+  // for good, whatever was after the player; and the other side, a guardian leaving its post or the dead giving chase.
+  it("tells the narrator who follows, who decides for itself and who stays, and leaves out the fallen", () => {
+    const out = parseFightChange(field, null, { costs: "action", ends: "you_get_away" }, { player: true, byNarrator: false });
+    expect(out.ok).toBe(true);
+    const says = out.ok ? out.says : undefined;
+    expect(says).toContain("Wolf gives chase");
+    expect(says).toContain("Bandit decides for themselves");
+    expect(says).toContain("Clockwork Sentry does not leave this place");
+    expect(says).not.toContain("Dead Wolf");
+  });
+
+  // Bug caught: the chase told when the fight ended another way.
+  it("says nothing of a chase when the foes gave in", () => {
+    const out = parseFightChange(field, null, { costs: "action", ends: "they_give_in" }, { player: true, byNarrator: false });
+    expect(out.ok && out.says).toBeFalsy();
   });
 });

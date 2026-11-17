@@ -225,7 +225,28 @@ export function parseFightChange(
   if (ends !== undefined && ends !== "they_give_in" && ends !== "they_flee" && ends !== "you_get_away") {
     return refuse("ends must be they_give_in, they_flee or you_get_away.");
   }
-  return { ok: true, value: { costs, condition: withCondition, damage: withDamage, ends: ends === undefined ? null : ends } };
+  const value: FightChange = { costs, condition: withCondition, damage: withDamage, ends: ends === undefined ? null : ends };
+  // Getting away ends the fight on the board, not the danger: whoever gives chase is still coming.
+  if (ends === "you_get_away") return { ok: true, value, says: `${changedText(value)} ${chaseText(fight)}` };
+  return { ok: true, value };
+}
+
+/**
+ * Who comes after a character who got away, by each creature's temper. The board cannot carry a fight to another
+ * map, so the chase is the story's: the narrator is told who follows and who stays, and starts the fight again
+ * where the party is caught.
+ */
+export function chaseText(fight: FightState): string {
+  const standing = fight.fighters.filter((f) => f.side === "enemy" && f.hp > 0);
+  const named = (pursuit: "stays" | "hunts" | "judges") => standing.filter((f) => f.nature !== undefined && f.nature.pursuit === pursuit).map((f) => f.name);
+  const parts: string[] = [];
+  const hunts = named("hunts");
+  const judges = named("judges");
+  const stays = named("stays");
+  if (hunts.length > 0) parts.push(`${hunts.join(", ")} give${hunts.length === 1 ? "s" : ""} chase: wherever the party goes next, they arrive on its heels. Start the pressure clock for it, and when the party stops, hides badly or is cornered, start a fight there with those creatures (name and creatures).`);
+  if (judges.length > 0) parts.push(`${judges.join(", ")} decide${judges.length === 1 ? "s" : ""} for themselves whether to follow: judge it by how the fight stood and what they want.`);
+  if (stays.length > 0) parts.push(`${stays.join(", ")} do${stays.length === 1 ? "es" : ""} not leave this place, and will be here if the party comes back.`);
+  return parts.length === 0 ? "" : `Getting away is not the end of it. ${parts.join(" ")}`;
 }
 
 const costName = (costs: "action" | "bonus" | "reaction"): string => (costs === "action" ? "Action" : costs === "bonus" ? "Bonus Action" : "Reaction");

@@ -17,8 +17,10 @@ import { ageOf, sexFromGender, sexOf } from "./voicePick.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-// The newest model: the one the maintainer chose by ear for how it acts a line.
-const SPEECH_MODEL = "eleven_v4";
+// The newest model: the one the maintainer chose by ear for how it acts a line. `TABLE_VOICE_MODEL` names another to
+// try (a faster, cheaper one, to be judged by ear for what it loses in feeling); a clip already kept was made by
+// whichever model spoke it first.
+const SPEECH_MODEL = Deno.env.get("TABLE_VOICE_MODEL")?.trim() || "eleven_v4";
 const SPEECH_TIMEOUT_MS = 30_000;
 
 // The clips have a store of their own (the maintainer's choice, 17 Nov 2026): a private R2 bucket that nothing

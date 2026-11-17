@@ -17,7 +17,7 @@ import { measureFeet, snapToSquareMiddle, type MeasurePoint } from "@/lib/battle
 import { snapAnchor, type Cell } from "@/lib/battlemap/movement";
 import { occludersOf } from "@/lib/battlemap/occlusion";
 import { partyVisibleCombatants, shownCells } from "@/lib/battlemap/partySight";
-import { readPictureFloor } from "@/lib/battlemap/pictureFloor";
+import { readPictureFloor, voidAround } from "@/lib/battlemap/pictureFloor";
 import { soloSeating } from "@/lib/battlemap/soloSeating";
 import { combatantAt, isFoeOf, reachZones, targetOf, walkVerdict } from "@/lib/table/fight/mapRules";
 import { isHostileTo, reachable, type ReachInput } from "@/rules/fight/terrain/reach";
@@ -34,6 +34,10 @@ function sizeNameOf(footprint: number): MonsterSize {
   if (footprint >= 4) return "gargantuan";
   return footprint >= 3 ? "huge" : footprint >= 2 ? "large" : "medium";
 }
+
+/** Nothing drawn that stops a walk: no wall, no door, no rock. */
+const unwalled = (occluders: { segments: readonly unknown[]; solid: ReadonlySet<string> } | null): boolean =>
+  occluders === null || (occluders.segments.length === 0 && occluders.solid.size === 0);
 
 /** How far a press may travel and still be a tap (not a pan). */
 const TAP_SLOP_PX = 8;
@@ -178,7 +182,8 @@ export function useSoloFightMap(options: {
     const terrain: ReachInput["terrain"] = {
       difficult: new Set(terrainZones.value.flatMap((z) => z.battleCells)),
       blocking: occluders ? occluders.segments : [],
-      solid: occluders ? occluders.solid : new Set<string>(),
+      // A map with no walls drawn has only its picture to go by: what the picture shows no ground on is not walked.
+      solid: unwalled(occluders) && g && pictureFloor.value ? voidAround(pictureFloor.value, g) : occluders ? occluders.solid : new Set<string>(),
       // A picture whose height is not read yet has rows as far as anyone stands.
       bounds: g ? { minX: 0, minY: 0, maxX: g.cols - 1, maxY: g.rows - 1 } : { minX: 0, minY: 0, maxX: 199, maxY: 199 },
     };

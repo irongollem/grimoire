@@ -107,9 +107,12 @@ export function useSoloFightHost(options: {
         );
         return true;
       } catch (error) {
-        // The server's own sentence says why (no stat block, nothing it can do). The turn is left standing.
+        // The server's own sentence says why (nothing it can do: its only foe is down; no stat block). The creature
+        // passes its turn. Seen live: with the played character at 0 hit points a hound had nobody to attack, its
+        // turn was left standing, and the fight never reached the player's death save. Nobody sits in the Dungeon
+        // Master's chair to move a stalled turn on, so a turn that cannot be run is a turn passed.
         options.onLines([{ kind: "margin", text: toast.fromError(error, `${nameOf(instanceId)} could not take its turn.`) }]);
-        return false;
+        return true;
       }
     },
     next: () => store.nextTurn(),

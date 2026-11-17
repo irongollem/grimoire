@@ -108,10 +108,13 @@
       <p v-if="arming" role="status" class="rounded-md bg-black/70 px-2 py-1 text-caption text-white">Pick a target</p>
       <p v-else-if="refusal" role="status" class="rounded-md bg-black/70 px-2 py-1 text-caption text-tone-danger">{{ refusal }}</p>
       <p v-else-if="measureText" role="status" class="rounded-md bg-black/70 px-2 py-1 text-caption text-white">{{ measureText }}</p>
-      <div class="pointer-events-auto">
-        <PlayToolbelt v-model:tool="tool" :tools="TOOLS" />
-      </div>
     </div>
+    <!-- In a corner and small: in the middle of the strip it lay over the fight (the maintainer, twice). -->
+    <div class="absolute bottom-2 left-2 origin-bottom-left scale-75">
+      <PlayToolbelt v-model:tool="tool" :tools="TOOLS" />
+    </div>
+    <!-- Which map this is, so the player can tell the picture is the place the story says (the maintainer). -->
+    <p v-if="surface" class="pointer-events-none absolute top-2 left-2 rounded-md bg-black/60 px-2 py-1 text-caption text-white" data-testid="solo-map-name">{{ surface.mapLocation.name }}</p>
   </div>
 </template>
 

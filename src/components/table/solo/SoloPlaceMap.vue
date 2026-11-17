@@ -1,6 +1,8 @@
 <template>
   <!-- A map and nothing else: the parent gives it a box and it fills it. -->
-  <div v-if="hasMap" class="size-full overflow-hidden" data-testid="solo-place-map">
+  <div v-if="hasMap" class="relative size-full overflow-hidden" data-testid="solo-place-map">
+    <!-- Which map this is, so the player can tell the picture is the place the story says (the maintainer). -->
+    <p v-if="site" class="pointer-events-none absolute top-2 left-2 z-10 rounded-md bg-black/60 px-2 py-1 text-caption text-white" data-testid="solo-map-name">{{ site.name }}</p>
     <ExploreMap
       v-if="surface"
       :surface="surface"
@@ -69,7 +71,7 @@ const emit = defineEmits<{
 // Room names on, as on the exploring screen; the fog is drawn from the mask whatever this says.
 const VIEW: PlayViewState = { ...DEFAULT_PLAY_VIEW, showZones: true };
 
-const { hasMap, surface, planShown, mapStack, regions, spaces, currentRoomId, reachable, fogGlimpsed, tokens, selectedId, roomLabels, fogMask, sight, doorStates, frame, onMove, chooseRoom } =
+const { hasMap, site, surface, planShown, mapStack, regions, spaces, currentRoomId, reachable, fogGlimpsed, tokens, selectedId, roomLabels, fogMask, sight, doorStates, frame, onMove, chooseRoom } =
   useSoloPlaceMap({
     placeId: () => placeId,
     member: () => member,
