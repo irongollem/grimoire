@@ -113,6 +113,14 @@ export function usePcAttackRows(
     return (inventoryItems.value ?? []).filter((i) => i.carried_by === mid);
   });
 
+  // A carried row points at its item by a campaign item's id or by a library item's (`inventoryItemRef`). Looking it
+  // up by the campaign id alone left a rapier from the library out of its bearer's attacks altogether: the
+  // character could only punch.
+  const heldItem = (inv: Parameters<typeof inventoryItemRef>[0]): Item | undefined => {
+    const ref = inventoryItemRef(inv);
+    return ref === null ? undefined : vaultItemMap.value.get(ref);
+  };
+
   const heldInventory = computed(() => memberInventory.value.filter((inv) => ["main_hand", "off_hand"].includes(inv.slot ?? "")));
 
   const melee = computed<PcMeleeAttackRow[]>(() => {
@@ -127,7 +135,7 @@ export function usePcAttackRows(
     const scores = { str: m.str, dex: m.dex, proficiencyBonus: prof };
     // Equipped melee weapons, built like the ranged and thrown rows from the shared weapon math.
     const weapons = heldInventory.value.flatMap((inv): PcMeleeAttackRow[] => {
-      const item = inv.item_id ? vaultItemMap.value.get(inv.item_id) : undefined;
+      const item = heldItem(inv);
       if (!item || item.item_type !== "weapon" || isRangedWeaponItem(item) || weaponUsesChargesAsAmmo(item)) return [];
       const dmgMod = weaponAbilityMod(item, scores);
       const base = item.damage_rolls?.[0]?.dice ?? "1d4";
@@ -193,8 +201,7 @@ export function usePcAttackRows(
     const strMod = abilityMod(m.str);
     const prof = profOf(m);
     return heldInventory.value.flatMap((inv): PcRangedAttackRow[] => {
-      if (!inv.item_id) return [];
-      const item = vaultItemMap.value.get(inv.item_id);
+      const item = heldItem(inv);
       if (!item) return [];
       const isSelfCharged = weaponUsesChargesAsAmmo(item);
       const ammoTag = isSelfCharged ? null : weaponAmmoTag(item);
@@ -238,7 +245,7 @@ export function usePcAttackRows(
     const strMod = abilityMod(m.str);
     const dexMod = abilityMod(m.dex);
     return heldInventory.value.flatMap((inv): PcThrownAttackRow[] => {
-      const item = inv.item_id ? vaultItemMap.value.get(inv.item_id) ?? null : null;
+      const item = heldItem(inv) ?? null;
       if (!isThrownWeapon(inv.name, item)) return [];
       const dmgMod = weaponAbilityMod(item, scores);
       const base = item?.damage_rolls?.[0]?.dice ?? "1d4";

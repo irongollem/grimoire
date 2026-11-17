@@ -43,6 +43,21 @@ describe("usePcAttackRows", () => {
     expect(rapier?.damageDice).toBe("1d8+3");
   });
 
+  // Bug caught live (17 Nov 2026): Rosie held a rapier and a longbow from the shared library and could only punch.
+  // A carried row names a library item by `library_item_id`, with no campaign `item_id`, and those were skipped.
+  it("lists a held weapon that comes from the library, in melee and at range", () => {
+    const rows = setup(
+      member({ str: 10, dex: 16 }),
+      [
+        hold("i1", null, "Rapier", { library_item_id: "srd_srd_rapier" }),
+        hold("i2", null, "Longbow", { library_item_id: "srd_srd_longbow", slot: "off_hand" }),
+      ],
+      [weapon("srd_srd_rapier", "Rapier", ["finesse"], "1d8"), weapon("srd_srd_longbow", "Longbow", ["ammunition", "two-handed"], "1d8", { weapon_range: "150/600" })],
+    );
+    expect(rows.melee.value.map((r) => r.name)).toContain("Rapier");
+    expect(rows.ranged.value.map((r) => r.name)).toContain("Longbow");
+  });
+
   // SRD 5.1 "Weapons": only finesse and ranged weapons use Dexterity; a plain melee weapon uses Strength.
   // Bug caught: any weapon taking the better of the two scores.
   it("keeps Strength for a melee weapon with no finesse even when Dexterity is higher", () => {
