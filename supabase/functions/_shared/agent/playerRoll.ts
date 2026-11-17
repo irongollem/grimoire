@@ -213,9 +213,28 @@ export function rollText(pending: PendingRoll, scored: { rolled: Rolled; success
   const how = r.mode === "normal" ? "" : `, with ${r.mode}`;
   return (
     `The player made the roll you asked for, ${pending.label}${how}: d20 (${r.faces.join(", ")}) ${signed(r.bonus)} = ` +
-    `${r.total} against DC ${pending.dc}. It ${scored.success ? "succeeds" : "fails"}. Narrate what comes of it now. ` +
+    `${r.total} against DC ${pending.dc}. It ${scored.success ? "succeeds" : "fails"}.${naturalText(r.kept, scored.success)} Narrate what comes of it now. ` +
     "Never tell the player the DC, and do not ask for this roll again."
   );
+}
+
+/**
+ * What a natural 20 or 1 on the die asks of the telling. App convention, not a rule: by the book a natural 1 or 20
+ * decides nothing on a check or a save, and it decides nothing here either (the total against the DC did). It only
+ * colours how the outcome is told, as a table cheers a 20 and groans at a 1 (the maintainer, 17 Nov 2026).
+ */
+export function naturalText(kept: number, success: boolean): string {
+  if (kept === 20) {
+    return success
+      ? " The die showed a natural 20: tell it as a moment of brilliance, with one detail that goes better than anyone hoped. It changes no number and grants nothing extra."
+      : " The die showed a natural 20 and it still was not enough: tell a superb effort against something simply beyond them."
+  }
+  if (kept === 1) {
+    return success
+      ? " The die showed a natural 1 and skill alone carried it: tell a clumsy, lucky scrape through."
+      : " The die showed a natural 1: tell the failure with a small mishap or indignity of the character's own making. It does no harm beyond failing.";
+  }
+  return "";
 }
 
 /** The player was asked to roll and sent something else instead: the request is over, and the narrator is told so. */

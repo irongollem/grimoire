@@ -44,11 +44,17 @@
           </div>
           <template v-else>
             <!-- "When a map is on the table it sits above the story ... and nothing else moves." (frames 03 and 12) -->
-            <div v-show="inFight" :id="FIGHT_SLOTS.map" class="h-[40%] min-h-56 shrink-0 border-b border-border" />
+            <!-- The strip is enough most of the time; the button lays the same live map over the whole screen
+                 (the maintainer, 17 Nov 2026) and Escape or the button brings it back. -->
+            <div v-show="inFight" :class="mapBoxClass">
+              <div :id="FIGHT_SLOTS.map" class="size-full" />
+              <AppButton variant="subtle" size="sm" :icon="mapLarge ? IconMinimize : IconMaximize" :tooltip="mapLarge ? 'Back to the story' : 'Larger map'" :aria-label="mapLarge ? 'Make the map small again' : 'Make the map larger'" class="absolute top-2 right-2 z-10" data-testid="solo-map-size" @click="mapLarge = !mapLarge" />
+            </div>
             <!-- Outside a fight the place's own map stays there: "you are always somewhere". It is mounted even
                  while hidden, because it is what finds out whether the place has a map at all. -->
-            <div v-if="member && !inFight && !hasLeft" v-show="placeHasMap" class="h-[40%] min-h-56 shrink-0 border-b border-border" data-testid="solo-place-map">
+            <div v-if="member && !inFight && !hasLeft" v-show="placeHasMap" :class="mapBoxClass" data-testid="solo-place-map">
               <SoloPlaceMap :place-id="sceneId" :member="member" :busy="turn.running.value || asked !== null" @go="onGo" @has-map="(shown) => (placeHasMap = shown)" />
+              <AppButton variant="subtle" size="sm" :icon="mapLarge ? IconMinimize : IconMaximize" :tooltip="mapLarge ? 'Back to the story' : 'Larger map'" :aria-label="mapLarge ? 'Make the map small again' : 'Make the map larger'" class="absolute top-2 right-2 z-10" data-testid="solo-map-size" @click="mapLarge = !mapLarge" />
             </div>
             <SoloStory
               :items="story"
@@ -137,7 +143,9 @@ import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useParty } from "@/composables/party/useParty";
 import { TABLE_SESSIONS_KEY } from "@/composables/table/useTableSessions";
 import { useLeaveTable } from "@/composables/table/useLeaveTable";
+import { useHotkeys } from "@/composables/useHotkeys";
 import { useToast } from "@/composables/useToast";
+import { IconMaximize, IconMinimize } from "@/lib/icons";
 import { useTableConversation } from "@/composables/table/useTableConversation";
 import { useTableDisclosure } from "@/composables/table/useTableDisclosure";
 import { usePlayerQuestBeats } from "@/composables/quests/useQuestFlow";
@@ -245,6 +253,11 @@ const turn = useTableTurn({
     void queryClient.invalidateQueries({ queryKey: [TABLE_SESSIONS_KEY] });
   },
 });
+
+// The map in its strip above the story, or laid over the whole screen.
+const mapLarge = ref(false);
+const mapBoxClass = computed(() => (mapLarge.value ? "fixed inset-0 z-50 bg-background" : "relative h-[40%] min-h-56 shrink-0 border-b border-border"));
+useHotkeys([{ combo: "escape", description: "Make the map small again", hidden: true, dismiss: true, handler: () => (mapLarge.value = false) }], { layer: "overlay", enabled: mapLarge });
 
 // The voices: the narrator's, the characters' and the player's own. A line is handed to the voice the moment it
 // arrives with the server's key for it, so the voice is being made while the player reads. `voiced` keeps each line

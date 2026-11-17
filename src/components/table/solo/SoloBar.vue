@@ -21,7 +21,7 @@
         :active="voices[v.part]"
         :aria-pressed="voices[v.part]"
         :aria-label="voices[v.part] ? `${v.what} read aloud. Turn it off` : `Read ${v.what.toLowerCase()} aloud`"
-        :title="voices[v.part] ? `${v.what}: read aloud` : `${v.what}: silent`"
+        :tooltip="voices[v.part] ? `${v.what}: read aloud. Click to silence` : `${v.what}: silent. Click to have it read aloud`"
         :data-testid="`solo-voice-${v.part}`"
         @click="emit('voice', v.part, !voices[v.part])"
       >

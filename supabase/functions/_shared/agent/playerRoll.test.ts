@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  naturalText,
   askOf,
   BONUS_MAX,
   BONUS_MIN,
@@ -197,5 +198,19 @@ describe("parseRolled", () => {
     ["no label", { ...stored, label: "" }],
   ])("drops a stored roll with %s, so a tampered row is never drawn as a roll", (_what, raw) => {
     expect(parseRolled(raw)).toBeNull();
+  });
+});
+
+describe("naturalText", () => {
+  // Bug caught: a natural 20 told like any 14 (the maintainer: it "should make the action result a little more
+  // dramatic"); or the 20 changing the outcome, which by the book it never does on a check.
+  it("colours the telling of a natural 20 and a natural 1, and of nothing else", () => {
+    expect(naturalText(20, true)).toContain("natural 20");
+    expect(naturalText(20, true)).toContain("grants nothing extra");
+    expect(naturalText(20, false)).toContain("still was not enough");
+    expect(naturalText(1, false)).toContain("natural 1");
+    expect(naturalText(1, true)).toContain("lucky");
+    expect(naturalText(19, true)).toBe("");
+    expect(naturalText(2, false)).toBe("");
   });
 });

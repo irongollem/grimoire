@@ -21,7 +21,7 @@ import {
   Shrink,
   Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
   Lock, LogOut, Pipette, Pointer, ArrowDownToLine,
-  Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minus, Monitor, MoreHorizontal,
+  Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minimize2, Minus, Monitor, MoreHorizontal,
   Moon, MousePointer2, MoveHorizontal, MoveVertical, Music, Music2,
   Navigation, Network,
   Package, PackageOpen, PackagePlus, PaintBucket, Pause, PawPrint, Pen,
@@ -171,6 +171,7 @@ export { ArrowUpFromLine as IconArrowUp }
 export { ZoomIn as IconZoomIn }
 export { ZoomOut as IconZoomOut }
 export { Maximize2 as IconMaximize }
+export { Minimize2 as IconMinimize }
 export { Navigation as IconNavigate }
 export { Ruler as IconRuler }
 /** Line up the grid (a hash is the grid's own mark) and the map image's menu: the Atlas map's icon-only tools. */
