@@ -1,14 +1,14 @@
 // Holding back narration that only repeats the characters (#1021). `handler.ts` hands every loop event to the gate.
 //
 // Before any line has been shown this turn the narrator's text streams as it always did. From the first shown line on,
-// each model step's text is held, and when the step ends it is judged against the lines shown so far and shown whole
-// only when it adds something. Everything the browser hears from then on goes through one queue, so a step's text is
+// each model step's text is held, and when the step ends it is judged sentence by sentence against the lines shown so
+// far, and only the sentences that add something are shown. Everything the browser hears from then on goes through one queue, so a step's text is
 // settled before any line or tool event a later step produces: the page keeps the order the story happened in.
 //
 // Judging fails open. No judge, a judge that throws, an answer that is missing or one slower than the limit all show
-// the text: a narrator the player cannot read is worse than one that sometimes repeats.
+// the original text whole: a narrator the player cannot read is worse than one that sometimes repeats.
 
-import { narrationAdds } from "../_shared/agent/narrationCheck.ts";
+import { narrationKept } from "../_shared/agent/narrationCheck.ts";
 import type { AgentLine, AgentMessage } from "../_shared/agent/types.ts";
 import type { TurnEvent } from "../_shared/agent/turn.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
@@ -24,15 +24,15 @@ export interface NarrationGate {
   onEvent(event: TurnEvent): void;
   /** Judges what is still held and waits until everything queued has reached the browser. Call before `done`. */
   finish(): Promise<void>;
-  /** Marks the stored narrator text the player was not shown, so a page replaying the turn does not draw it. */
-  markUnshown(added: AgentMessage[]): void;
+  /** Makes the stored narrator text what the player was shown: dropped text is marked, part-shown text is cut to it. */
+  applyShown(added: AgentMessage[]): void;
 }
 
 export function narrationGate(input: { judge: NarrationJudge | null; emit: (event: AgentEvent) => void }): NarrationGate {
   const { judge, emit } = input;
 
-  /** Every narrator step that wrote visible text, in order, and whether the player saw it. */
-  const written: Array<{ text: string; shown: boolean }> = [];
+  /** Every narrator step that wrote visible text, in order, and the part of it the player saw. */
+  const written: Array<{ text: string; shown: string }> = [];
   const lines: AgentLine[] = [];
   let tail: Promise<void> = Promise.resolve();
   let stepText = "";
@@ -43,13 +43,14 @@ export function narrationGate(input: { judge: NarrationJudge | null; emit: (even
     tail = tail.then(task).catch((error) => console.error("agent-turn: the narration queue failed:", error));
   };
 
-  const withinLimit = async (work: Promise<boolean>): Promise<boolean> => {
+  // A judge that throws or is slower than the limit shows the original text whole.
+  const withinLimit = async (work: Promise<string>, original: string): Promise<string> => {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const slow = new Promise<boolean>((resolve) => {
-      timer = setTimeout(() => resolve(true), NARRATION_JUDGE_LIMIT_MS);
+    const slow = new Promise<string>((resolve) => {
+      timer = setTimeout(() => resolve(original), NARRATION_JUDGE_LIMIT_MS);
     });
     try {
-      return await Promise.race([work.catch(() => true), slow]);
+      return await Promise.race([work.catch(() => original), slow]);
     } finally {
       clearTimeout(timer);
     }
@@ -61,14 +62,14 @@ export function narrationGate(input: { judge: NarrationJudge | null; emit: (even
     stepText = "";
     stepHeld = false;
     if (text.trim() === "") return;
-    const record = { text, shown: true };
+    const record = { text, shown: text };
     written.push(record);
     if (!held || judge === null) return;
     // The lines as they stand now: later steps add to the array while this judgment is waiting its turn.
     const seen = [...lines];
     enqueue(async () => {
-      record.shown = await withinLimit(narrationAdds({ lines: seen, narration: text, judge }));
-      if (record.shown) emit({ type: "text", delta: text });
+      record.shown = await withinLimit(narrationKept({ lines: seen, narration: text, judge }), text);
+      if (record.shown !== "") emit({ type: "text", delta: record.shown });
     });
   };
 
@@ -116,19 +117,34 @@ export function narrationGate(input: { judge: NarrationJudge | null; emit: (even
       endStep();
       await tail;
     },
-    markUnshown(added) {
-      const dropped = written.filter((w) => !w.shown);
-      if (dropped.length === 0) return;
+    applyShown(added) {
+      if (written.every((w) => w.shown === w.text)) return;
       // The k-th assistant message with text is the k-th step that wrote text. The text is compared as well, so a
-      // message the two disagree about is left alone rather than hidden by mistake.
+      // message the two disagree about is left alone rather than changed by mistake.
       let k = 0;
       for (const message of added) {
         if (message.role !== "assistant") continue;
         const joined = message.blocks.map((b) => (b.type === "text" ? b.text : "")).join("");
         if (joined.trim() === "") continue;
         const step = written[k++];
-        if (step === undefined || step.shown || step.text !== joined) continue;
-        for (const block of message.blocks) if (block.type === "text") block.unshown = true;
+        if (step === undefined || step.shown === step.text || step.text !== joined) continue;
+        if (step.shown === "") {
+          for (const block of message.blocks) if (block.type === "text") block.unshown = true;
+          continue;
+        }
+        // Part was shown: the stored text becomes what the player read, so the next turn's history shows the
+        // narrator its own narration as it appeared, which is also the example it should follow. The kept text goes
+        // in the first text block; later text blocks go, and no empty block is left (a provider rejects one).
+        const blocks: AgentMessage["blocks"] = [];
+        let placed = false;
+        for (const block of message.blocks) {
+          if (block.type !== "text") blocks.push(block);
+          else if (!placed) {
+            placed = true;
+            blocks.push({ ...block, text: step.shown });
+          }
+        }
+        message.blocks = blocks;
       }
     },
   };

@@ -455,7 +455,7 @@ export async function beginTurn(input: {
         });
         // Held narration is judged and everything queued reaches the browser before anything after it is sent.
         await gate.finish();
-        gate.markUnshown(result.added);
+        gate.applyShown(result.added);
 
         const { steps } = result;
         // Every model call that was billed: the narrator's, and the ones a character's speech made.

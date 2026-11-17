@@ -26,7 +26,6 @@ import { NO_QUESTS, type QuestMove, type QuestsInPlay } from "../_shared/agent/q
 import { AgentProviderError, type AgentBlock, type CallModel, type ModelRequest, type ModelStep } from "../_shared/agent/types";
 import type { StoredTurn, TurnRow } from "../_shared/agent/transcript";
 import type { CreditLogFields } from "../_shared/credits";
-import { NARRATION_ADDS } from "../_shared/agent/narrationCheck";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe";
 
 const DM = "00000000-0000-4000-8000-0000000000d1";
@@ -1754,7 +1753,7 @@ describe("companions travel with the party", () => {
   });
 });
 
-describe("narration that only repeats the characters is held back", () => {
+describe("narration sentences that only repeat the characters are held back", () => {
   const speak = (id = "s1", over: Partial<ModelStep> = {}): ModelStep =>
     step(10, {
       blocks: [{ type: "tool_call", id, name: "speak", input: { speaker_id: HONEYCOMB, happening: "A stranger asks who you are." } }],
@@ -1767,13 +1766,18 @@ describe("narration that only repeats the characters is held back", () => {
     request.onText?.(text);
     return step(10, { blocks: [{ type: "text", text }], ...over });
   };
-  /** A judge that scores by what the narration says, and keeps every request it was sent. */
-  const judgeBy = (score: (narration: string) => number) => {
+  /** A judge that scores each sentence by what it says, and keeps every request it was sent. */
+  const judgeBy = (score: (sentence: string) => number | null) => {
     const requests: JudgeRequest[] = [];
     const judge = async (request: JudgeRequest): Promise<JudgeResult> => {
       requests.push(request);
-      const narration = (request.state as { narration: string }).narration;
-      return { model: "jev-1", inputTokens: 5, answers: { [NARRATION_ADDS]: { type: "noul", noul: score(narration) } } };
+      const sentences = (request.state as { sentences: string[] }).sentences;
+      const answers: JudgeResult["answers"] = {};
+      sentences.forEach((sentence, i) => {
+        const noul = score(sentence);
+        if (noul !== null) answers[`s${i}`] = { type: "noul", noul };
+      });
+      return { model: "jev-1", inputTokens: 5, answers };
     };
     return { judge, requests };
   };
@@ -1954,6 +1958,62 @@ describe("narration that only repeats the characters is held back", () => {
       { type: "text", text: "A cold draught." },
       { type: "text", text: "Honeycomb is still talking.", unshown: true },
     ]);
+  });
+
+  const MIX = "The cedar door gives no sound. Honeycomb watches you, waiting.";
+  const addsFirst = (sentence: string) => (sentence.startsWith("The cedar") ? 0.99 : 0.1);
+
+  it("shows exactly the sentence that adds something and stores the message holding exactly that, so the next turn reads what the player read", async () => {
+    const h = harness([speak(), sheSays("Hello."), writes(MIX)]);
+    h.deps.judgeNarration = judgeBy(addsFirst).judge;
+    await play(h);
+    expect(texts(h)).toEqual(["The cedar door gives no sound."]);
+    expect(assistantBlocks(h).filter((b) => b.type === "text" && b.text.includes("cedar"))).toEqual([{ type: "text", text: "The cedar door gives no sound." }]);
+    expect(JSON.stringify(h.appends[0].rows)).not.toContain("watches you");
+  });
+
+  it("leaves the stored text byte-identical when every sentence is kept", async () => {
+    const text = "Rain falls.\n\nThunder   rolls.";
+    const h = harness([speak(), sheSays("Hello."), writes(text)]);
+    h.deps.judgeNarration = judgeBy(() => 0.95).judge;
+    await play(h);
+    expect(texts(h)).toEqual([text]);
+    expect(assistantBlocks(h).find((b) => b.type === "text" && b.text === text)).toEqual({ type: "text", text });
+  });
+
+  it("keeps a sentence whose answer is missing, so one lost answer does not hide an event", async () => {
+    const h = harness([speak(), sheSays("Hello."), writes(MIX)]);
+    h.deps.judgeNarration = judgeBy((s) => (s.startsWith("The cedar") ? null : 0.1)).judge;
+    await play(h);
+    expect(texts(h)).toEqual(["The cedar door gives no sound."]);
+  });
+
+  it("shows sentences beyond the eighth unjudged", async () => {
+    const text = Array.from({ length: 10 }, (_, i) => `Sentence ${i}.`).join(" ");
+    const j = judgeBy(() => 0.05);
+    const h = harness([speak(), sheSays("Hello."), writes(text)]);
+    h.deps.judgeNarration = j.judge;
+    await play(h);
+    expect((j.requests[0].state as { sentences: string[] }).sentences).toHaveLength(8);
+    expect(texts(h)).toEqual(["Sentence 8. Sentence 9."]);
+  });
+
+  it("ends a message that had two text blocks with one block holding the kept text and no empty block", async () => {
+    const h = harness([
+      speak(),
+      sheSays("Hello."),
+      writes("The cedar door gives no sound. Honeycomb waits.", {
+        blocks: [
+          { type: "text", text: "The cedar door gives no sound. " },
+          { type: "text", text: "Honeycomb waits." },
+        ],
+      }),
+    ]);
+    h.deps.judgeNarration = judgeBy(addsFirst).judge;
+    await play(h);
+    const blocks = assistantBlocks(h).filter((b) => b.type === "text" && !b.text.startsWith("SAYS"));
+    expect(blocks).toEqual([{ type: "text", text: "The cedar door gives no sound." }]);
+    expect(assistantBlocks(h).some((b) => b.type === "text" && b.text === "")).toBe(false);
   });
 
   it("still sends done after text the judge is slow to clear, never before it", async () => {

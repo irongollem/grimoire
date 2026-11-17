@@ -1,9 +1,11 @@
 /**
- * The narration check (#1021): does the narrator's text tell the player anything the characters' lines did not?
+ * The narration check (#1021): which sentences of the narrator's text tell the player something the characters' lines
+ * did not?
  *
  * Live, after characters had spoken, the narrator kept closing the turn by restating what they had just said or done
  * in its own words, right after the page showed the very line. Five rounds of instructions did not stop it, so the
- * handler holds that text back and asks this question instead. Only the lines this turn showed and the narrator's own
+ * handler holds that text back and asks this question instead, one sentence at a time: narrator text is usually a
+ * mix (the outcome of the player's action, then a restated deed), and judged whole a mix scores high and all of it shows. Only the lines this turn showed and the narrator's own
  * text go to the judge, both already meant for the player.
  *
  * Pure except for the injected judge. The caller decides what a failed judgment means (the handler shows the text).
@@ -13,39 +15,85 @@ import { noulOf, type JudgeRequest, type JudgeResult, type NoulQuestion } from "
 import type { AgentLine } from "./types.ts";
 
 /**
- * Where "adds something" starts. Measured on 17 Nov 2026 against sixteen invented examples (jev-latest, about
- * 170 ms a call): the seven narrations that added something (a new detail, an event, a roll's outcome) all scored
- * 0.98 or 0.99, and six of the nine that only restated scored 0.45 or lower. The other three restatements scored
- * 0.83, 0.85 and 0.95: each also mentions something the lines did not (who else is listening, that the room is
- * quiet), which the judge fairly counts as new. At 0.9, fifteen of sixteen are right and nothing that added
- * something is hidden; hiding a real event costs the player far more than showing a repetition, so the line sits
- * just under where real narration scores, not at the midpoint. Sixteen examples is a small set: move the number
- * when a labelled set from real play says otherwise.
+ * Where a sentence counts as adding something. Measured on 17 Nov 2026 with invented examples (jev-latest), one
+ * question per sentence: sentences bringing an event, a roll's outcome, what the player's character perceives or a
+ * plain detail of the place scored 0.92 to 0.99; sentences restating a character's line or deed, or saying someone
+ * waits or watches, scored 0.10 to 0.25; borderline restatements that mention a bystander scored 0.52 to 0.77. The
+ * line sits at 0.85, just under real narration. The set was small and invented: move the number when a labelled set
+ * from real play says otherwise.
  */
-export const NARRATION_ADDS_MIN = 0.9;
+export const NARRATION_ADDS_MIN = 0.85;
 
-/** The newest lines, each cut, and the narration cut: a judgment is small and the page never needs more to decide. */
+/** More sentences than this are rare; the first ones are judged and the rest are shown as they are (fail open). */
+export const MAX_SENTENCES_JUDGED = 8;
+
+/** The newest lines, each cut, and each sentence cut: a judgment is small and the page never needs more to decide. */
 export const MAX_LINES_SENT = 12;
 export const MAX_LINE_CHARS = 400;
-export const MAX_NARRATION_CHARS = 1500;
+export const MAX_SENTENCE_CHARS = 400;
 
-export const NARRATION_ADDS = "adds";
+const sentenceKey = (i: number): string => `s${i}`;
 
-export const NARRATION_ADDS_QUESTION: NoulQuestion = {
-  type: "noul",
-  instructions:
-    "`lines` is what the reader has just been shown, in order: what characters said and did. `narration` is text about to be shown right after them. Does `narration` tell the reader something that `lines` do not already tell them?",
-  criteria: {
-    true: "The narration brings something new: a detail of the place, something that happens, the result of an action or a roll, a consequence, a change in the scene, or a question put to the reader that the lines did not ask.",
-    false: "The narration only restates, summarises or rephrases who said or did what, or only asks the reader what they do next.",
-  },
-};
+function sentenceQuestion(i: number): NoulQuestion {
+  return {
+    type: "noul",
+    instructions: `\`lines\` is what the reader has just been shown, in order: what characters said and did. \`sentences[${i}]\` is one sentence of the narration shown right after them. Does that sentence tell the reader something that \`lines\` do not already tell them?`,
+    criteria: {
+      true: "The sentence brings something new: a detail of the place, something that happens, the result of an action or a roll, a consequence, a change in the scene, or what the reader's own character perceives or finds (including that there is nothing to hear or see).",
+      false: "The sentence only restates, summarises or rephrases what a character in `lines` said or did, says only that someone is waiting, watching or listening, or only asks the reader what they do next.",
+    },
+  };
+}
 
 function cut(text: string, max: number): string {
   return text.length > max ? text.slice(0, max) : text;
 }
 
-export function buildNarrationRequest(lines: AgentLine[], narration: string): JudgeRequest {
+const CLOSERS = new Set(['"', "'", "\u201D", "\u2019", ")", "]", "}"]);
+
+/**
+ * Sentences in order, trimmed, none empty. A sentence ends at . ! or ? (with any closing quote or bracket after it)
+ * when whitespace or the end follows, so a decimal like 17.5 stays whole; "..." stays inside its sentence unless it
+ * ends the text. Each line break also ends a sentence.
+ */
+export function splitSentences(text: string): string[] {
+  const out: string[] = [];
+  for (const paragraph of text.split(/\r?\n/)) {
+    let start = 0;
+    let i = 0;
+    while (i < paragraph.length) {
+      const ch = paragraph[i];
+      if (ch !== "." && ch !== "!" && ch !== "?") {
+        i++;
+        continue;
+      }
+      let end = i;
+      let dots = 0;
+      while (end < paragraph.length && (paragraph[end] === "." || paragraph[end] === "!" || paragraph[end] === "?")) {
+        if (paragraph[end] === ".") dots++;
+        end++;
+      }
+      const ellipsis = dots >= 2 && end - i === dots;
+      while (end < paragraph.length && CLOSERS.has(paragraph[end])) end++;
+      const atEnd = end >= paragraph.length;
+      if (atEnd || (!ellipsis && /\s/.test(paragraph[end]))) {
+        // Never empty: the slice holds at least the terminator.
+        out.push(paragraph.slice(start, end).trim());
+        start = end;
+      }
+      i = end;
+    }
+    const rest = paragraph.slice(start).trim();
+    if (rest !== "") out.push(rest);
+  }
+  return out;
+}
+
+export function buildNarrationRequest(lines: AgentLine[], sentences: string[]): JudgeRequest {
+  const questions: Record<string, NoulQuestion> = {};
+  sentences.forEach((_, i) => {
+    questions[sentenceKey(i)] = sentenceQuestion(i);
+  });
   return {
     state: {
       lines: lines.slice(-MAX_LINES_SENT).map((l) => ({
@@ -53,25 +101,35 @@ export function buildNarrationRequest(lines: AgentLine[], narration: string): Ju
         kind: l.kind === "spoken" ? "said" : "did",
         text: cut(l.text, MAX_LINE_CHARS),
       })),
-      narration: cut(narration, MAX_NARRATION_CHARS),
+      sentences: sentences.map((s) => cut(s, MAX_SENTENCE_CHARS)),
     },
-    questions: { [NARRATION_ADDS]: NARRATION_ADDS_QUESTION },
+    questions,
   };
 }
 
 /**
- * True when the narration should be shown. No lines means nothing can be restated, and empty narration means nothing
- * to show, and neither costs a call. An answer that is missing is an error for the caller to treat as "show it".
+ * The part of the narration to show. Blank narration is "" and no lines returns it whole, neither costing a call.
+ * Otherwise sentences below the line are dropped, a sentence with no answer is kept, and sentences past the judged
+ * eighth are kept. When nothing is dropped the original text comes back untouched, so spacing and paragraphs are not
+ * rewritten for nothing. A judge that throws is for the caller to treat as "show it all".
  */
-export async function narrationAdds(input: {
+export async function narrationKept(input: {
   lines: AgentLine[];
   narration: string;
   judge: (request: JudgeRequest) => Promise<JudgeResult>;
-}): Promise<boolean> {
-  if (input.narration.trim() === "") return false;
-  if (input.lines.length === 0) return true;
-  const result = await input.judge(buildNarrationRequest(input.lines, input.narration));
-  const probability = noulOf(result, NARRATION_ADDS);
-  if (probability === null) throw new Error("the narration check came back without an answer");
-  return probability >= NARRATION_ADDS_MIN;
+}): Promise<string> {
+  if (input.narration.trim() === "") return "";
+  if (input.lines.length === 0) return input.narration;
+  const sentences = splitSentences(input.narration);
+  const judged = sentences.slice(0, MAX_SENTENCES_JUDGED);
+  const result = await input.judge(buildNarrationRequest(input.lines, judged));
+  let dropped = false;
+  const kept = sentences.filter((_, i) => {
+    if (i >= judged.length) return true;
+    const probability = noulOf(result, sentenceKey(i));
+    if (probability === null || probability >= NARRATION_ADDS_MIN) return true;
+    dropped = true;
+    return false;
+  });
+  return dropped ? kept.join(" ") : input.narration;
 }
