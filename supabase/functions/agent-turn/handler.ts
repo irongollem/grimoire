@@ -25,7 +25,7 @@ import { fightIsTold, type FightPlan, type FightsInView } from "../_shared/agent
 import { askOf, declinedText, rollText, scoreRoll, type PendingRoll, type RollAsk, type Rolled } from "../_shared/agent/playerRoll.ts";
 import { makeTurnTools, type FiledFact } from "./turnTools.ts";
 import { narrationGate, type NarrationGate, type NarrationJudge } from "./narration.ts";
-import { OPENING_TEXT, parseBody, playerText } from "./turnBody.ts";
+import { AFTERMATH_TEXT, OPENING_TEXT, parseBody, playerText } from "./turnBody.ts";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
 import { applyKeptQuestMoves, characterOf, foldIntoSummary, questsOf, recordOf, round6, fightsOf, safely, sceneOf, stateFor, systemFor } from "./turnSupport.ts";
 import {
@@ -562,6 +562,7 @@ export async function beginTurn(input: {
             scored !== null && pendingRoll !== null ? rollText(pendingRoll, scored) : pendingRoll !== null ? declinedText(pendingRoll) : null,
             // The campaign's own opening stands in for the ordinary one; given both, the narrator kept to the ordinary.
             body.opening === true ? (prologueText(prologue) ?? OPENING_TEXT) : null,
+            body.aftermath === true ? AFTERMATH_TEXT : null,
             body.message === "" ? null : playerText(body.mode, body.message),
           ].filter((part): part is string => part !== null).join("\n\n"),
           ...(body.message === "" ? {} : { player: { kind: body.mode, text: body.message } }),

@@ -31,6 +31,8 @@
           class="min-w-0 overflow-y-auto bg-card max-lg:flex-1 lg:w-72 lg:shrink-0 lg:border-r lg:border-border"
           aria-label="Your character"
         >
+          <!-- On your turn in a fight the turn's own controls take the top of this column (frame 13). -->
+          <div :id="FIGHT_SLOTS.turn" />
           <SoloSheet :member="member" :readonly="hasLeft" @hit-points="(now) => (hitPoints = now)" />
         </aside>
 
@@ -41,6 +43,8 @@
             <AppButton to="/table" variant="outline" size="md" label="Back to the table" />
           </div>
           <template v-else>
+            <!-- "When a map is on the table it sits above the story ... and nothing else moves." (frames 03 and 12) -->
+            <div v-show="inFight" :id="FIGHT_SLOTS.map" class="h-[45%] min-h-64 shrink-0 border-b border-border" />
             <SoloStory
               :items="story"
               :colours="colours"
@@ -54,7 +58,7 @@
               @credits="openOutOfCredits(1)"
             />
             <div class="shrink-0 px-4 pt-2 pb-4 md:px-6">
-              <SoloFight v-if="fight && !hasLeft" :name="fight.name" class="mx-auto mb-2 w-full max-w-160" @go="goToFight" />
+              <div :id="FIGHT_SLOTS.roll" />
               <SoloRollAsk
                 v-if="asked && !hasLeft"
                 :ask="asked"
@@ -79,9 +83,21 @@
         </main>
 
         <aside v-show="showAll || view === 'scene' || (wide && view === 'story')" class="min-w-0 overflow-y-auto bg-card max-md:flex-1 md:w-80 md:shrink-0 md:border-l md:border-border" aria-label="The scene">
-          <SoloScene :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" :after="after" :place-summary="placeSummary" />
+          <!-- In a fight the scene column is the fight's own: who is in it, in turn order (frame 12). -->
+          <div :id="FIGHT_SLOTS.roster" />
+          <SoloScene v-show="!inFight" :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" :after="after" :place-summary="placeSummary" />
         </aside>
       </div>
+
+      <SoloFightStage
+        v-if="inFight && fight && member"
+        :encounter-id="fight.encounterId"
+        :member="member"
+        :slots="FIGHT_SLOTS"
+        @lines="(lines, byServer) => turn.note(lines, byServer)"
+        @over="onFightOver"
+        @lost="onFightLost"
+      />
 
       <SoloDisclosure :open="disclosure.open.value" @accept="disclosure.accept" @decline="declineDisclosure" />
     </template>
@@ -100,7 +116,7 @@ import SoloBar from "@/components/table/solo/SoloBar.vue";
 import SoloComposer from "@/components/table/solo/SoloComposer.vue";
 import SoloLeft from "@/components/table/solo/SoloLeft.vue";
 import SoloDisclosure from "@/components/table/solo/SoloDisclosure.vue";
-import SoloFight from "@/components/table/solo/SoloFight.vue";
+import SoloFightStage from "@/components/table/solo/SoloFightStage.vue";
 import SoloRollAsk from "@/components/table/solo/SoloRollAsk.vue";
 import SoloSheet from "@/components/table/solo/SoloSheet.vue";
 import SoloScene from "@/components/table/solo/SoloScene.vue";
@@ -124,7 +140,6 @@ import { useTableSpeakers } from "@/composables/table/useTableSpeakers";
 import { useTableCheck } from "@/composables/table/useTableCheck";
 import { useTableTurn } from "@/composables/table/useTableTurn";
 import { useTableVoice } from "@/composables/table/useTableVoice";
-import { soloFightPath } from "@/composables/table/useSoloFight";
 import { spokenLines } from "@/lib/table/voiceLines";
 import { useAbove } from "@/composables/useBreakpoint";
 import { getNpcDisplayFocalPoint, getNpcDisplayPortrait } from "@/lib/npcDisplay";
@@ -242,16 +257,22 @@ function openScene(): void {
 // On arrival, and again the moment the first-visit disclosure is accepted or the campaign becomes known.
 watch([() => disclosure.hasBeenTold.value, campaignId], openScene, { immediate: true });
 
-// A fight is fought on the Dungeon Master's side of the app, on the fight screen: the played character's lens comes
-// off for it, and the Table entry picks this sitting up again afterwards (it was never left).
-function goToFight(): void {
-  const now = fight.value;
-  if (now === null) return;
-  const memberId = member.value?.id;
-  const sessionId = turn.sessionId.value;
-  appUi.exitTablePlay();
-  // Told which sitting and character it is for, the fight screen sets the fight up by itself.
-  void router.push(memberId && sessionId ? soloFightPath(now.encounterId, { sessionId, memberId }) : `/encounters/${now.encounterId}/run`);
+// A fight is fought here, on the table screen: the map comes out above the story and the board is worked by the
+// rules (`SoloFightStage`). The places its parts go to are kept on the page whether or not a fight is on.
+const FIGHT_SLOTS = { map: "solo-fight-map", turn: "solo-fight-turn", roster: "solo-fight-roster", roll: "solo-fight-roll" } as const;
+const inFight = computed(() => fight.value !== null && !hasLeft.value && !conversation.isLoading.value && !conversation.isError.value);
+
+// Nobody is left to fight: the fight is closed, and the Dungeon Master is asked to tell what comes of it.
+function onFightOver(): void {
+  fight.value = null;
+  turn.note([{ kind: "margin", text: "The fight is over", tone: "end" }], true);
+  void turn.aftermath();
+}
+
+// The fight is gone from under the page (ended elsewhere, or refused): the story goes on without it.
+function onFightLost(): void {
+  fight.value = null;
+  toast.error("The fight could not be continued here.");
 }
 
 // Every message goes through here: a clock that ran out goes off the page when the story moves on.

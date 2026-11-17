@@ -17,6 +17,7 @@
         <SoloActed v-else-if="item.kind === 'acted'" :speaker="item.speaker.name" :text="item.text" :pigment="pigmentOf(item.speaker)" />
         <SoloRolled v-else-if="item.kind === 'roll'" :line="rollLine(item.roll, character)" />
         <SoloRolled v-else-if="item.kind === 'dmRoll'" :line="dmRollLine(item.roll)" by-server />
+        <SoloRolled v-else-if="item.kind === 'board'" :line="{ total: String(item.total), title: item.title, detail: item.detail }" :by-server="item.byServer" />
         <SoloMargin v-else :text="item.text" :count="item.count" />
       </template>
 

@@ -1,7 +1,8 @@
 import { computed, ref, shallowRef, type Ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { readTableStream } from "@/lib/table/readTableStream";
-import { applyTableEvent, nextItemId, playerItem } from "@/lib/table/storyReducer";
+import { applyTableEvent, boardItem, nextItemId, playerItem } from "@/lib/table/storyReducer";
+import type { BoardLine } from "@/lib/table/fight/boardLines";
 import type { PlayMode, RollAnswer, RollAsk, StoryItem, TableFight, TablePressure } from "@/lib/table/soloTypes";
 import { NO_ANSWER, refusalFailure, type TurnFailure } from "@/lib/table/turnRefusal";
 
@@ -16,6 +17,8 @@ export interface TurnRequest {
   roll?: RollAnswer;
   /** A new sitting asks the Dungeon Master to open the scene: no words, no session yet. */
   opening?: true;
+  /** A fight at the table has ended: the Dungeon Master is asked to tell what comes of it. No words. */
+  aftermath?: true;
 }
 
 /** Sends one turn and hands back the raw response. The seam a test replaces; the default talks to `agent-turn`. */
@@ -84,7 +87,7 @@ export function useTableTurn(options: TableTurnOptions) {
   let controller: AbortController | null = null;
   // Bumped when the screen moves to another conversation, so a turn still winding down from the old one writes nothing.
   let generation = 0;
-  let pending: { id: string | null; start: number; mode: PlayMode; text: string; roll: RollAnswer | null; opening: boolean } | null = null;
+  let pending: { id: string | null; start: number; mode: PlayMode; text: string; roll: RollAnswer | null; wordless: "opening" | "aftermath" | null } | null = null;
   /** The roll the table is waiting for. Cleared by any turn sent; back if that turn is not kept, for the server still waits. */
   let asked: RollAsk | null = null;
 
@@ -111,12 +114,13 @@ export function useTableTurn(options: TableTurnOptions) {
     if (asked === null) setAsked(before);
   }
 
-  async function play(start: number, playerId: string | null, mode: PlayMode, text: string, roll: RollAnswer | null, opening = false): Promise<void> {
+  async function play(start: number, playerId: string | null, mode: PlayMode, text: string, roll: RollAnswer | null, wordless: "opening" | "aftermath" | null = null): Promise<void> {
     const campaignId = options.campaignId();
     if (campaignId === null) return;
     const request: TurnRequest = { campaignId, message: text, mode };
     if (roll !== null) request.roll = roll;
-    if (opening) request.opening = true;
+    if (wordless === "opening") request.opening = true;
+    if (wordless === "aftermath") request.aftermath = true;
     const before = asked;
     setAsked(null);
     if (sessionId.value !== null) request.sessionId = sessionId.value;
@@ -193,7 +197,7 @@ export function useTableTurn(options: TableTurnOptions) {
     if (running.value || (message === "" && roll === null) || message.length > 4000) return false;
     const start = live.value.length;
     const item = message === "" ? null : playerItem(mode, message);
-    pending = { id: item?.id ?? null, start, mode, text: message, roll, opening: false };
+    pending = { id: item?.id ?? null, start, mode, text: message, roll, wordless: null };
     if (item) live.value = [...live.value, item];
     await play(start, item?.id ?? null, mode, message, roll);
     return true;
@@ -202,9 +206,9 @@ export function useTableTurn(options: TableTurnOptions) {
   /** Send the failed message again, in the same mode. The player's line is already on the page. */
   async function resend(): Promise<boolean> {
     if (running.value || pending === null || failure.value === null) return false;
-    const { id, start, mode, text, roll, opening } = pending;
+    const { id, start, mode, text, roll, wordless } = pending;
     if (id !== null) setUnsent(id, false);
-    await play(start, id, mode, text, roll, opening);
+    await play(start, id, mode, text, roll, wordless);
     return true;
   }
 
@@ -214,9 +218,26 @@ export function useTableTurn(options: TableTurnOptions) {
    */
   async function open(): Promise<boolean> {
     if (running.value || sessionId.value !== null || live.value.length > 0) return false;
-    pending = { id: null, start: 0, mode: "do", text: "", roll: null, opening: true };
-    await play(0, null, "do", "", null, true);
+    pending = { id: null, start: 0, mode: "do", text: "", roll: null, wordless: "opening" };
+    await play(0, null, "do", "", null, "opening");
     return true;
+  }
+
+  /**
+   * A fight on the board has ended: the Dungeon Master tells what comes of it. No words of the player's. Returns
+   * false when it cannot be asked now (a turn is running, or there is no conversation).
+   */
+  async function aftermath(): Promise<boolean> {
+    if (running.value || sessionId.value === null) return false;
+    const start = live.value.length;
+    pending = { id: null, start, mode: "do", text: "", roll: null, wordless: "aftermath" };
+    await play(start, null, "do", "", null, "aftermath");
+    return true;
+  }
+
+  /** What happened on the board of a fight, written into the story as it happens. Never sent anywhere. */
+  function note(lines: readonly BoardLine[], byServer: boolean): void {
+    live.value = [...live.value, ...lines.map((line) => boardItem(line, byServer))];
   }
 
   function stop(): void {
@@ -237,5 +258,5 @@ export function useTableTurn(options: TableTurnOptions) {
     setAsked(null);
   }
 
-  return { sessionId, live, running, failure, credits, turnsPlayed, send, resend, open, stop, reset, setAsked };
+  return { sessionId, live, running, failure, credits, turnsPlayed, send, resend, open, aftermath, note, stop, reset, setAsked };
 }

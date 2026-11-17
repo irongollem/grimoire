@@ -34,6 +34,8 @@ export interface AgentTurnBody {
    * empty page is not how a session begins.
    */
   opening?: true;
+  /** A fight at the table has ended and the page asks the narrator to tell what comes of it. */
+  aftermath?: true;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -55,8 +57,11 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
   const opening = r.opening === true;
   // An opening belongs to a conversation that does not exist yet and carries nothing of the player's.
   if (opening && (r.sessionId !== undefined || message.length > 0 || roll !== undefined)) return { ok: false };
-  // Only a roll or an opening makes a turn without words.
-  if ((message.length < 1 && roll === undefined && !opening) || message.length > MAX_MESSAGE_CHARS) return { ok: false };
+  // The fight has ended and the page asks for what comes of it: no words of the player's, in a conversation that exists.
+  const aftermath = r.aftermath === true;
+  if (aftermath && (opening || r.sessionId === undefined || message.length > 0 || roll !== undefined)) return { ok: false };
+  // Only a roll, an opening or a fight's aftermath makes a turn without words.
+  if ((message.length < 1 && roll === undefined && !opening && !aftermath) || message.length > MAX_MESSAGE_CHARS) return { ok: false };
   if (r.mode !== "say" && r.mode !== "do" && r.mode !== "ask") return { ok: false };
   if (r.startLocationId !== undefined) {
     if (typeof r.startLocationId !== "string" || !UUID_RE.test(r.startLocationId)) return { ok: false };
@@ -70,6 +75,7 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
     body: {
       campaignId: r.campaignId, sessionId: r.sessionId, startLocationId: r.startLocationId, characterId: r.characterId,
       message, mode: r.mode, ...(roll === undefined ? {} : { roll }), ...(opening ? { opening: true as const } : {}),
+      ...(aftermath ? { aftermath: true as const } : {}),
     },
   };
 }
@@ -103,6 +109,14 @@ export function playerText(mode: "say" | "do" | "ask", message: string): string 
  * What the narrator reads in place of a player's message when a sitting opens. It asks for the scene and nothing
  * more: the player has not acted, so nothing may be decided for them, and no roll or mark belongs to an opening.
  */
+/**
+ * What the narrator reads in place of a player's message when a fight at the table has just ended. The state at
+ * the head of the turn says how it stands; this only asks for the telling.
+ */
+export const AFTERMATH_TEXT =
+  "The fight has just ended on the board; the section \"Fights\" says how it stands. Tell what comes of it now, in a " +
+  "few sentences, from that and nothing else: who is down stays down. Decide nothing for the player's character.";
+
 export const OPENING_TEXT =
   "The player has just sat down at the table and has not said or done anything yet. Open the scene, speaking to them " +
   "as \"you\": two to four sentences that begin with what the senses take in (a smell, a sound, the light, the cold), " +

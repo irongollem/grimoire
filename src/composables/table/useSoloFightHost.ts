@@ -1,7 +1,6 @@
 import { computed, ref, watch, type Ref } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useFightCommands } from "@/composables/encounters/useFightCommands";
-import { useOpenRun } from "@/composables/encounters/useOpenRun";
 import { useSoloCreatureTurns } from "@/composables/table/useSoloCreatureTurns";
 import { useToast } from "@/composables/useToast";
 import { linesOfCreatureTurn, type BoardLine } from "@/lib/table/fight/boardLines";
@@ -18,7 +17,9 @@ export type SoloFightEnd = Exclude<FightStanding, "ongoing">;
  * The fight at the AI table, run from the table screen (#1021, Solo Table canvas, frames 12 to 16).
  *
  * Nobody sits in the Dungeon Master's chair, so this holds everything a Dungeon Master's hands would do, by the
- * game's own rules and nothing else: it opens the fight with the played character alone, asks for the one roll that
+ * game's own rules and nothing else, for a fight that is already open (`SoloFightStage` opens it, with the played
+ * character alone, and only then mounts what calls this: the fight's commands must not reach the server before the
+ * fight exists there). It asks for the one roll that
  * is the player's (initiative) and starts when it is in, has every creature take its own turn and writes what it
  * did into the story, and ends the fight when nobody is left to fight. What the player may do on their own turn is
  * the page's (the turn controls and the composer); this only says whose turn it is and what the turn still holds.
@@ -42,13 +43,23 @@ export function useSoloFightHost(options: {
   const { ruleset } = useTableRuleset();
   watch(ruleset, (r) => store.setRuleset(r), { immediate: true });
 
-  const { opened, openError, retry } = useOpenRun(options.encounterId, { onlyMemberId: options.memberId });
   const fight = useFightCommands(options.encounterId, { onLost: options.onLost });
 
-  // Only this fight: the store may still hold another until the open has answered.
-  const mine = computed(() => opened.value && store.encounterId === options.encounterId.value);
+  // Only this fight: the store holds one fight at a time, and it must be the one this page is on.
+  const mine = computed(() => store.encounterId === options.encounterId.value);
   const played = computed(() => (mine.value ? (store.combatants.find((c) => c.party_member_id === options.memberId()) ?? null) : null));
   const nameOf = (instanceId: string): string => store.combatants.find((c) => c.instance_id === instanceId)?.name ?? "Someone";
+
+  // A creature stays hidden on a Dungeon Master's screen until they reveal it. Here nobody will: what the played
+  // character can see is decided by their sight on the map, so everyone in the fight is revealed as it opens (and
+  // whoever joins later), and the map still shows only the tokens in view.
+  watch(
+    () => (mine.value ? store.combatants.filter((c) => c.type !== "player" && c.reveal_state !== undefined && c.reveal_state !== "revealed").map((c) => c.instance_id) : []),
+    (unrevealed) => {
+      for (const id of unrevealed) store.setRevealState(id, "revealed");
+    },
+    { immediate: true },
+  );
 
   // ── Initiative: the player's roll, then everyone else's, then the fight ───────────────────────────────────────
   const initiative = computed(() => (played.value ? initiativeRoll(played.value, ruleset.value) : null));
@@ -145,10 +156,8 @@ export function useSoloFightHost(options: {
   });
 
   return {
-    /** The fight is on screen: opened and read. */
+    /** The store holds this fight. */
     opened: mine,
-    openError,
-    retry,
     encounterName: computed(() => store.encounterName),
     round: computed(() => store.round),
     started: computed(() => store.started),

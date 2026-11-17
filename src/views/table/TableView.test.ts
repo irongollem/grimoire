@@ -72,7 +72,12 @@ async function mountTable(path: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const wrapper = mount(TableView, {
     attachTo: document.body,
-    global: { plugins: [router, [VueQueryPlugin, { queryClient }]] },
+    global: {
+      plugins: [router, [VueQueryPlugin, { queryClient }]],
+      // The fight itself (its map, the run store, the server's fight function) is the stage's own business and
+      // has its own tests: here it only matters whether the table puts a fight on, and which.
+      stubs: { SoloFightStage: { props: ["encounterId"], template: '<div data-testid="solo-fight-stage" :data-encounter="encounterId" />' } },
+    },
   });
   await flushPromises();
   return { wrapper, router, queryClient };
@@ -512,38 +517,36 @@ describe("TableView: the story turns into a fight", () => {
     ]);
   });
 
-  // Bug caught: a fight started by the story with no way to reach it, or the way lost on a reload.
-  it("offers the way to the fight a reopened sitting is waiting on, and goes there as the Dungeon Master", async () => {
+  // Bug caught: a fight started by the story that the table does not put on, or loses on a reload; or the player
+  // sent off to the Dungeon Master's fight screen, with its tools and its stat blocks, to fight it.
+  it("puts the fight a reopened sitting is waiting on onto the table itself, as the played character", async () => {
     fake.seed("agent_sessions", [session("s1", { fight_encounter_id: "e1" })]);
     const { wrapper, router } = await mountTable("/play/table/s1");
-    const card = wrapper.get('[data-testid="solo-fight"]');
-    expect(card.text()).toContain("The cellar rats");
-    await card.findAll("button").find((b) => b.text() === "Go to the fight")!.trigger("click");
-    await flushPromises();
-    expect(router.currentRoute.value.path).toBe("/encounters/e1/run");
-    // The fight screen is the DM's: the played character's lens must be off there.
-    expect(useAppUiStore().tablePlay).toBeNull();
+    expect(wrapper.get('[data-testid="solo-fight-stage"]').attributes("data-encounter")).toBe("e1");
+    expect(router.currentRoute.value.path).toBe("/play/table/s1");
+    // Still played as the character: the lens stays on through the fight.
+    expect(useAppUiStore().tablePlay).not.toBeNull();
   });
 
   // Bug caught: a fight of another campaign named on this table because the read went by id alone.
   it("offers no fight for an encounter that is not this campaign's", async () => {
     fake.seed("agent_sessions", [session("s1", { fight_encounter_id: "e2" })]);
     const { wrapper } = await mountTable("/play/table/s1");
-    expect(wrapper.find('[data-testid="solo-fight"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="solo-fight-stage"]').exists()).toBe(false);
     expect(wrapper.html()).not.toContain("ELSEWHERE-FIGHT");
   });
 
-  // Bug caught: the card staying after the aftermath was told, sending the player back into a finished fight.
-  it("shows the fight when the story starts one and takes it away once its aftermath is told", async () => {
+  // Bug caught: the fight staying on the table after its aftermath was told, or never coming out when the story starts one.
+  it("puts the fight on when the story starts one and takes it off once its aftermath is told", async () => {
     fake.seed("agent_sessions", [session("s1")]);
     fetchMock
       .mockResolvedValueOnce(sse({ type: "session", sessionId: "s1" }, { type: "fight", fight: { encounterId: "e1", name: "The cellar rats" } }, { type: "done", end: "end_turn", credits: 0, tokens: 1 }))
       .mockResolvedValueOnce(sse({ type: "session", sessionId: "s1" }, { type: "fight", fight: null }, { type: "done", end: "end_turn", credits: 0, tokens: 1 }));
     const { wrapper } = await mountTable("/play/table/s1");
     await say(wrapper, "I draw my sword.", true);
-    expect(wrapper.find('[data-testid="solo-fight"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="solo-fight-stage"]').exists()).toBe(true);
     await say(wrapper, "What now?");
-    expect(wrapper.find('[data-testid="solo-fight"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="solo-fight-stage"]').exists()).toBe(false);
   });
 });
 

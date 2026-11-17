@@ -1,6 +1,5 @@
 <template>
   <div class="runner-root">
-    <SoloFightStrip v-if="solo" :session-id="solo.sessionId" :member-id="solo.memberId" />
     <RunnerPhoneHeader
       v-if="isMobile"
       :encounter-id="encounterId"
@@ -233,15 +232,6 @@
     </div>
 
     <ComplicationGeneratorDialog v-if="campaign.isAiEnabled" v-model="generatorOpen" :mode="generatorMode" />
-    <SoloInitiative
-      v-if="soloCombatant && soloInitiative"
-      :open="soloAsksInitiative"
-      :name="soloCombatant.name"
-      :modifier="soloInitiative.modifier"
-      :disadvantage="soloInitiative.disadvantage"
-      :busy="store.rollingInitiative"
-      @rolled="handleSoloInitiative"
-    />
   </div>
 </template>
 
@@ -273,10 +263,6 @@ import { useAppUiStore } from "@/stores/ui/app";
 import { useAutoDiscoverMonsters } from "@/composables/encounters/useDiscoveredMonsters";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { initiativeRoll } from "@/rules/initiative";
-import { useSoloFight } from "@/composables/table/useSoloFight";
-import { useSoloCreatureTurns } from "@/composables/table/useSoloCreatureTurns";
-import SoloInitiative from "@/components/table/solo/SoloInitiative.vue";
-import SoloFightStrip from "@/components/table/solo/SoloFightStrip.vue";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { useTurnTimerConfig } from "@/composables/encounters/useTurnTimerConfig";
@@ -327,8 +313,7 @@ const fight = useFightCommands(encounterId, {
 });
 
 // Every panel that lists a creature's actions offers "Run this turn for me" through this (Runner, Play, phone).
-const runTurn = createRunnerTakeTurn(fight.takeTurn, (error) => toast.fromError(error, "Couldn't run that turn."));
-provide(RUNNER_TAKE_TURN, runTurn);
+provide(RUNNER_TAKE_TURN, createRunnerTakeTurn(fight.takeTurn, (error) => toast.fromError(error, "Couldn't run that turn.")));
 
 // The runner resolves combatants' stored monster_id (detail panel, auto-discover
 // on go-live) rather than letting the DM pick, so scoping must stay off here.
@@ -397,45 +382,7 @@ const { promptRoll } = usePromptedRoll();
 const { ruleset } = useTableRuleset();
 watch(ruleset, (r) => store.setRuleset(r), { immediate: true });
 
-// ── A fight from the AI table ────────────────────────────────────────────────
-// Nobody sits at this screen as the Dungeon Master, so the fight asks the player for the one roll that is theirs
-// and starts by itself: everyone else's initiative is rolled without a prompt (the DM's physical-dice preference
-// would otherwise ask the player for every hound's die).
-const solo = useSoloFight();
-const soloCombatant = computed(() => (solo.value ? (store.combatants.find((c) => c.party_member_id === solo.value?.memberId) ?? null) : null));
-const soloInitiative = computed(() => (soloCombatant.value ? initiativeRoll(soloCombatant.value, ruleset.value) : null));
-const soloAsksInitiative = computed(() => !store.started && soloCombatant.value !== null && soloCombatant.value.initiative === null);
-
-function handleSoloInitiative(total: number) {
-  const me = soloCombatant.value;
-  if (!me || store.started) return;
-  store.setInitiative(me.instance_id, total);
-}
-
-// The player's roll is in (just now, or before a reload): the rest roll and the fight begins.
-watch(
-  () => solo.value !== null && !store.started && soloCombatant.value !== null && soloCombatant.value.initiative !== null,
-  (ready) => {
-    if (!ready || store.rollingInitiative) return;
-    void store.startCombat().then(requestEncounterAudio);
-  },
-  { immediate: true },
-);
-
-// Every turn but the player's own plays itself; what the creature did is on its turn card, as after the button.
-useSoloCreatureTurns({
-  memberId: () => solo.value?.memberId ?? null,
-  started: () => store.started,
-  active: () => store.activeCombatant,
-  turnKey: () => `${store.round}:${store.activeCombatant?.instance_id}`,
-  run: async (instanceId) => {
-    await runTurn.run(instanceId);
-    return runTurn.errors[instanceId] === undefined;
-  },
-  next: () => store.nextTurn(),
-});
-
-if (solo.value === null) store.setInitiativeRoller(async (combatant) => {
+store.setInitiativeRoller(async (combatant) => {
   const { modifier, disadvantage } = initiativeRoll(combatant, ruleset.value);
   const result = await promptRoll({
     counts: { 20: 1 },

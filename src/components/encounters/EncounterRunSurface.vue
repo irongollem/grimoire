@@ -12,13 +12,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useOpenRun } from "@/composables/encounters/useOpenRun";
-import { useSoloFight } from "@/composables/table/useSoloFight";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import LoadingSpinner from "@/components/common/feedback/LoadingSpinner.vue";
 import EncounterRunner from "@/components/encounters/EncounterRunner.vue";
 
 const props = defineProps<{ encounterId: string }>();
 const id = computed(() => props.encounterId);
-const solo = useSoloFight();
-const { opened, openError, retry: retryOpen } = useOpenRun(id, { onlyMemberId: () => solo.value?.memberId ?? null });
+const { opened, openError, retry: retryOpen } = useOpenRun(id);
 </script>

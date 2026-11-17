@@ -1,3 +1,4 @@
+import type { BoardLine } from "./fight/boardLines";
 import type { PlayMode, StoryItem, TableEvent } from "./soloTypes";
 
 /** What a tool's name becomes on the page: one quiet line naming the kind of thing, never its result. */
@@ -23,6 +24,12 @@ let counter = 0;
 export function nextItemId(): string {
   counter += 1;
   return `live-${counter}`;
+}
+
+/** A line from the board of a fight as a story item. */
+export function boardItem(line: BoardLine, byServer: boolean, id: string = nextItemId()): StoryItem {
+  if (line.kind === "margin") return { id, kind: "margin", text: line.text, count: 1, ...(line.tone ? { tone: line.tone } : {}) };
+  return { id, kind: "board", total: line.die, title: line.label, detail: line.detail, critical: line.critical, byServer };
 }
 
 export function playerItem(mode: PlayMode, text: string, id: string = nextItemId()): StoryItem {
