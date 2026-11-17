@@ -113,3 +113,21 @@ export function coverOffset(manifest: Pick<EpisodeManifest, "coverAt">, length: 
   }
   return manifest.coverAt;
 }
+
+/**
+ * How long a Reel's hook runs. Instagram decides in the first two seconds whether a viewer swipes on, and a brand
+ * card there loses them (the maintainer, 18 Nov 2026: "start with 2 seconds of baiting").
+ */
+export const HOOK_LENGTH = 2;
+
+/**
+ * Where in its shot a hook is cut from (`length`: the recorded clip). A window running past the clip would hold a frozen
+ * frame under the bait, so it throws instead.
+ */
+export function hookWindow(hook: { shot: string; at: number }, length: number): { from: number; to: number } {
+  const to = hook.at + HOOK_LENGTH;
+  if (!(hook.at >= 0 && to <= length + 1e-6)) {
+    throw new Error(`The hook at ${hook.at} s runs outside shot ${hook.shot} (0 to ${length.toFixed(2)} s); it needs ${HOOK_LENGTH} s of picture.`);
+  }
+  return { from: hook.at, to };
+}

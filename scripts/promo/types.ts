@@ -165,7 +165,21 @@ export interface Episode {
   teardown?(): Promise<void> | void;
   /** Seed for Math.random in the filmed page, so dice land the same on every take. */
   seed?: number;
+  /**
+   * The bait the Reel opens on, in place of the brand card: two seconds (`HOOK_LENGTH`) of `shot`'s payoff from
+   * `at` seconds in, with `text` in the caption band. Every new Reel has one (docs/promo-videos.md, "The hook").
+   */
+  hook?: Hook;
   shots: Shot[];
+}
+
+export interface Hook {
+  /** The line that makes a viewer stay: a question or a promise the Reel then keeps. Eight words at most. */
+  text: string;
+  /** The shot whose moment is shown, usually the payoff near the end. */
+  shot: string;
+  /** Seconds into that shot. */
+  at: number;
 }
 
 /** One recorded shot, as `manifest.json` lists it. */
@@ -214,6 +228,8 @@ export interface EpisodeManifest {
    * is mid-pan there). Absent, the cover is the first shot's middle.
    */
   coverAt?: number;
+  /** The two seconds the Reel opens on (`Episode.hook`). */
+  hook?: Hook;
   recordedAt: string;
   shots: RecordedShot[];
 }

@@ -31,6 +31,14 @@ if (!episode) {
   console.error(`Usage: npm run promo:record -- <episode> [--shot <id>]\nEpisodes: ${EPISODES.map((e) => e.id).join(", ")}`);
   process.exit(1);
 }
+// A Reel opens on its hook (docs/promo-videos.md, "The hook"); a scene opens on its story lines instead.
+if ((episode.format ?? "reel") === "reel" && episode.hook === undefined) {
+  console.warn(`${episode.id} has no hook: it will open on the brand card, where Instagram's first viewers decide to swipe on.`);
+}
+if (episode.hook !== undefined && !episode.shots.some((s) => s.id === episode.hook?.shot)) {
+  console.error(`${episode.id}: the hook names shot ${episode.hook.shot}, which the episode does not have.`);
+  process.exit(1);
+}
 
 const dir = resolve(values.root, episode.id);
 mkdirSync(join(dir, "shots"), { recursive: true });
@@ -142,6 +150,7 @@ const manifest: EpisodeManifest = {
   ...(episode.format === undefined ? {} : { format: episode.format }),
   ...(episode.brand === false ? { brand: false as const } : {}),
   ...(episode.carryCues ? { carryCues: true as const } : {}),
+  ...(episode.hook === undefined ? {} : { hook: episode.hook }),
   recordedAt: new Date().toISOString(),
   shots: recorded,
 };

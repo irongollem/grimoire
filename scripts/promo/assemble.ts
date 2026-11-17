@@ -14,7 +14,7 @@ import { formatCanvas, layoutFor, type Layout } from "./layouts";
 import { chaptersText, srtText } from "./sidecars";
 import { BED_CROSSFADE, bedWindow, planBeds } from "./beds";
 import { BED_DB, FULL_DB, SILENT_DB, THEME_MOTIF_END, gainExpression, planTheme } from "./theme";
-import { coverOffset, planTimeline, VO_LEAD, type PlannedShot, type ShotInput, type Timeline } from "./timeline";
+import { coverOffset, HOOK_LENGTH, hookWindow, planTimeline, VO_LEAD, type PlannedShot, type ShotInput, type Timeline } from "./timeline";
 import type { EpisodeManifest, Format, RecordedShot, Surface } from "./types";
 
 // Every piece in the standard video range, tagged so. The recordings come from the browser in full range, and a
@@ -209,6 +209,37 @@ function renderCarriedWav(shots: PlannedShot[], total: number, out: string): voi
 
 interface BrandSeg { video: string; audio: string; length: number }
 
+/** The hook's source shot with the bait for its caption and none of its own words (story, tagline, narration). */
+function hookAs(source: RecordedShot, text: string): RecordedShot {
+  const { story: _story, tagline: _tagline, captionAt: _captionAt, chapter: _chapter, ...rest } = source;
+  return { ...rest, id: "hook", caption: text, narration: "" };
+}
+
+/** The card art the hook shot needs, under its own id so it never replaces its source shot's. */
+function hookCards(hook: RecordedShot, format: Format | undefined, work: string) {
+  const layout = layoutFor(format, hook.device);
+  return [
+    captionCard(join(work, "caption-hook.png"), hook.caption, layout),
+    ...(layout.subtitles ? [subtitleCard(join(work, "subtitle-hook.png"), "", layout)] : []),
+    ...((hook.camera?.length ?? 0) > 0 || layout.frame === "browser" ? [backdropCard(join(work, "backdrop-hook.png"), layout, canvasOf(hook, format))] : []),
+  ];
+}
+
+/**
+ * The two seconds a Reel opens on: its source shot drawn whole as the "hook" shot (camera and all, so the moment
+ * looks as it does later), then cut to the window, with the sounds that fall inside it.
+ */
+function renderHook(p: PlannedShot, hook: RecordedShot, format: Format | undefined, clip: string, work: string, w: { from: number; to: number }): BrandSeg {
+  const whole = join(work, "hook-whole.mp4");
+  renderShotVideo({ ...p, id: "hook" }, hook, format, clip, work, whole);
+  const video = join(work, "hook.mp4");
+  ffmpeg(["-ss", String(w.from), "-i", whole, "-t", String(HOOK_LENGTH), ...INTERMEDIATE, video]);
+  const audio = join(work, "hook.wav");
+  const cues = p.cues.filter((c) => c.local >= w.from && c.local < w.to).map((c) => ({ ...c, local: c.local - w.from }));
+  renderFxWav({ ...p, id: "hook", length: HOOK_LENGTH, cues }, audio);
+  return { video, audio, length: HOOK_LENGTH };
+}
+
 /** A brand clip or a placeholder card, as a 30 fps video of the format's size plus a wav. */
 function renderBrandSegment(name: string, file: string | null, card: string, cardLength: number, work: string, canvas: Layout["canvas"]): BrandSeg {
   const video = join(work, `${name}.mp4`);
@@ -256,6 +287,11 @@ async function main() {
     console.warn("No brand/bed-1.mp3: the theme's one-minute underscore loops under the whole video. Add bed-1, bed-2, ... for a long video.");
   }
 
+  // The hook is drawn as one more shot ("hook") over its source shot's clip, with the bait for a caption.
+  const hookSource = manifest.hook === undefined ? null : manifest.shots.find((s) => s.id === manifest.hook?.shot);
+  if (manifest.hook !== undefined && !hookSource) throw new Error(`The hook names shot ${manifest.hook.shot}, which the episode does not have.`);
+  const hookShot: RecordedShot | null = hookSource && manifest.hook ? hookAs(hookSource, manifest.hook.text) : null;
+
   // Static art, once per run.
   const devicesUsed = [...new Set(manifest.shots.map((s): Surface => s.device ?? "phone"))];
   await renderCards(work, [
@@ -271,10 +307,13 @@ async function main() {
     }),
     ...manifest.shots.flatMap((s) => (s.tagline ? [taglineCard(join(work, `tagline-${s.id}.png`), s.tagline.text, layoutFor(format, s.device))] : [])),
     ...manifest.shots.flatMap((s) => (s.story ?? []).map((line, i) => storyCard(join(work, `story-${s.id}-${i}.png`), line.text, layoutFor(format, s.device)))),
-    ...(brand ? [introCard(join(work, "intro.png"), manifest.title, frame), outroCard(join(work, "outro.png"), frame)] : []),
+    ...(hookShot ? hookCards(hookShot, format, work) : []),
+    ...(brand && !hookShot ? [introCard(join(work, "intro.png"), manifest.title, frame)] : []),
+    ...(brand ? [outroCard(join(work, "outro.png"), frame)] : []),
   ]);
 
-  const intro = brand ? renderBrandSegment("intro", introFile, join(work, "intro.png"), 1.2, work, frame) : null;
+  // A Reel with a hook opens on it, and the brand waits for the close.
+  const intro = hookShot ? null : brand ? renderBrandSegment("intro", introFile, join(work, "intro.png"), 1.2, work, frame) : null;
   const outro = brand ? renderBrandSegment("outro", outroFile, join(work, "outro.png"), 2, work, frame) : null;
 
   // A shot with no narration plays without a voice, even if a take was recorded for it.
@@ -287,7 +326,8 @@ async function main() {
     voDuration: voFiles[i] ? durationOf(voFiles[i]) : null,
     cues: s.cues,
   }));
-  const tl = planTimeline({ shots: inputs, introLength: intro?.length ?? null, outroLength: outro?.length ?? null });
+  const opening = hookShot ? HOOK_LENGTH : (intro?.length ?? null);
+  const tl = planTimeline({ shots: inputs, introLength: opening, outroLength: outro?.length ?? null });
 
   // Every take to the episode's average loudness first (compose/level.ts), so no shot's voice jumps.
   const voGains = levelGains(voFiles.map((f) => {
@@ -303,6 +343,11 @@ async function main() {
   const voWavs: string[] = [];
   const fxWavs: string[] = [];
   if (intro) { videos.push(intro.video); voWavs.push(silenceWav(work, "intro-vo", intro.length)); fxWavs.push(intro.audio); }
+  if (hookShot && hookSource && manifest.hook) {
+    const i = manifest.shots.indexOf(hookSource);
+    const hook = renderHook(tl.shots[i], hookShot, format, join(dir, hookSource.file), work, hookWindow(manifest.hook, tl.shots[i].clipDuration));
+    videos.push(hook.video); voWavs.push(silenceWav(work, "hook-vo", HOOK_LENGTH)); fxWavs.push(hook.audio);
+  }
   tl.shots.forEach((p, i) => {
     const v = join(work, `shot-${i}.mp4`);
     const vo = join(work, `vo-${i}.wav`);
@@ -336,8 +381,8 @@ async function main() {
   const theme = !themeFile
     ? `[vo1][fx]amix=inputs=2:duration=first:normalize=0[mix]`
     : bedFiles.length > 0
-      ? bedThemeGraph(themeFile, bedFiles, T, intro?.length ?? 0, outro?.length ?? 0, chapterStarts)
-      : themeGraph(themeFile, T, intro?.length ?? 0, outro?.length ?? 0);
+      ? bedThemeGraph(themeFile, bedFiles, T, tl.intro?.length ?? 0, outro?.length ?? 0, chapterStarts)
+      : themeGraph(themeFile, T, tl.intro?.length ?? 0, outro?.length ?? 0);
   // The mix first, then one fixed gain to Instagram's -14 LUFS and a limiter.
   // A dynamic loudnorm would lift the quiet bed and flatten the theme's levels.
   const mixWav = join(work, "mix.wav");

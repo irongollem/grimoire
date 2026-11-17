@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { PostedRecord } from "./publishing";
 import { readCaption } from "./publishing";
-import { descriptionFrom, nextShort, planShort, publishShort, readShortStats, readShortTitles, shortProblems, tagsFrom, uploadShort, type YoutubeIo } from "./youtube";
+import { descriptionFrom, nextShort, planShort, scheduledWithoutTitle, publishShort, readShortStats, readShortTitles, shortProblems, tagsFrom, uploadShort, type YoutubeIo } from "./youtube";
 
 const rec = (id: string, postedAt: string): PostedRecord => ({ id, account: "a", mediaId: id, permalink: "p", postedAt });
 const titles = { a: { title: "A" }, b: { title: "B" }, c: { title: "C" } };
@@ -12,29 +12,49 @@ const titles = { a: { title: "A" }, b: { title: "B" }, c: { title: "C" } };
 describe("nextShort", () => {
   const base = { titles, uploaded: () => false, isCarousel: () => false };
 
-  // Fails on: picking the newest Reel, so the backlog never drains in the order it went out on Instagram.
-  it("takes the oldest Instagram post first, whatever order the records come in", () => {
-    const posted = [rec("b", "2026-11-03T00:00:00Z"), rec("a", "2026-11-01T00:00:00Z"), rec("c", "2026-11-02T00:00:00Z")];
-    expect(nextShort({ ...base, posted })).toBe("a");
+  // Fails on: oldest first, where tonight's Short waits behind an older Reel whose title was approved late, and
+  // YouTube falls out of step with Instagram.
+  it("takes the newest Instagram post first, whatever order the records come in", () => {
+    const posted = [rec("a", "2026-11-01T00:00:00Z"), rec("b", "2026-11-03T00:00:00Z"), rec("c", "2026-11-02T00:00:00Z")];
+    expect(nextShort({ ...base, posted })).toBe("b");
   });
 
   // Fails on: uploading a Reel nobody approved a title for (the youtube-titles.json gate bypassed).
   it("skips a Reel with no approved title", () => {
-    expect(nextShort({ ...base, titles: { b: { title: "B" } }, posted: [rec("a", "2026-11-01T00:00:00Z"), rec("b", "2026-11-02T00:00:00Z")] })).toBe("b");
+    expect(nextShort({ ...base, titles: { a: { title: "A" } }, posted: [rec("a", "2026-11-01T00:00:00Z"), rec("b", "2026-11-02T00:00:00Z")] })).toBe("a");
   });
 
   // Fails on: uploading the same Reel every hour once it has a youtube.json.
   it("skips a Reel already uploaded", () => {
-    expect(nextShort({ ...base, uploaded: (id) => id === "a", posted: [rec("a", "2026-11-01T00:00:00Z"), rec("b", "2026-11-02T00:00:00Z")] })).toBe("b");
+    expect(nextShort({ ...base, uploaded: (id) => id === "b", posted: [rec("a", "2026-11-01T00:00:00Z"), rec("b", "2026-11-02T00:00:00Z")] })).toBe("a");
   });
 
   // Fails on: sending a carousel's folder (no video) to YouTube.
   it("skips a carousel", () => {
-    expect(nextShort({ ...base, isCarousel: (id) => id === "a", posted: [rec("a", "2026-11-01T00:00:00Z"), rec("b", "2026-11-02T00:00:00Z")] })).toBe("b");
+    expect(nextShort({ ...base, isCarousel: (id) => id === "b", posted: [rec("a", "2026-11-01T00:00:00Z"), rec("b", "2026-11-02T00:00:00Z")] })).toBe("a");
   });
 
   it("is null when nothing waits", () => {
     expect(nextShort({ ...base, posted: [] })).toBeNull();
+  });
+});
+
+describe("scheduledWithoutTitle", () => {
+  const input = { titles: { a: { title: "A" } }, posted: () => false, isCarousel: () => false };
+
+  // Fails on: a Reel with no title passing the schedule check, so it posts to Instagram alone.
+  it("names a scheduled Reel with no approved title and passes one that has a title", () => {
+    expect(scheduledWithoutTitle({ ...input, schedule: [{ id: "a" }, { id: "b" }] })).toEqual(["b"]);
+  });
+
+  // Fails on: the schedule check demanding a YouTube title for a carousel, which has no video to upload.
+  it("leaves out carousels", () => {
+    expect(scheduledWithoutTitle({ ...input, isCarousel: (id) => id === "b", schedule: [{ id: "b" }] })).toEqual([]);
+  });
+
+  // Fails on: flagging Reels that went out before Shorts existed, every time the schedule is checked.
+  it("leaves out what is already posted", () => {
+    expect(scheduledWithoutTitle({ ...input, posted: (id) => id === "b", schedule: [{ id: "b" }] })).toEqual([]);
   });
 });
 
