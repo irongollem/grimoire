@@ -14,17 +14,26 @@ import { cellSizeInDisplay, gridLinePositions, gridOriginInDisplay } from "@/lib
 import { imageGrid, type MapGrid } from "@/lib/battlemap/imageGrid";
 import { NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
 import { measureFeet, snapToSquareMiddle, type MeasurePoint } from "@/lib/battlemap/measure";
-import { OPEN_GROUND, planMove, snapAnchor, type Cell, type MoveTerrain } from "@/lib/battlemap/movement";
+import { snapAnchor, type Cell } from "@/lib/battlemap/movement";
 import { occludersOf } from "@/lib/battlemap/occlusion";
 import { partyVisibleCombatants, shownCells } from "@/lib/battlemap/partySight";
 import { readPictureFloor } from "@/lib/battlemap/pictureFloor";
 import { soloSeating } from "@/lib/battlemap/soloSeating";
-import { combatantAt, isFoeOf, moveAllowed, targetOf } from "@/lib/table/fight/mapRules";
+import { combatantAt, isFoeOf, reachZones, targetOf, walkVerdict } from "@/lib/table/fight/mapRules";
+import { isHostileTo, reachable, type ReachInput } from "@/rules/fight/terrain/reach";
+import type { MonsterSize } from "@/types/monster.types";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useCampaignStore } from "@/stores/campaign";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { RunCombatant } from "@/types/encounter.types";
+
+/** The size a footprint in squares stands for, for the rules on moving round other creatures. */
+function sizeNameOf(footprint: number): MonsterSize {
+  if (footprint < 1) return "tiny";
+  if (footprint >= 4) return "gargantuan";
+  return footprint >= 3 ? "huge" : footprint >= 2 ? "large" : "medium";
+}
 
 /** How far a press may travel and still be a tap (not a pan). */
 const TAP_SLOP_PX = 8;
@@ -40,6 +49,8 @@ export function useSoloFightMap(options: {
   canMove: MaybeRefOrGetter<boolean>;
   speedFeet: MaybeRefOrGetter<number>;
   movedFeet: MaybeRefOrGetter<number>;
+  /** The feet a Dash would add to this turn: the character's speed while the Action is unspent, nothing after. */
+  dashFeet: MaybeRefOrGetter<number>;
   arming: MaybeRefOrGetter<boolean>;
   onMoved: (feet: number) => void;
   onTarget: (instanceId: string) => void;
@@ -154,34 +165,59 @@ export function useSoloFightMap(options: {
   const draggable = computed(() => (toValue(options.canMove) ? new Set([playedId.value]) : new Set<string>()));
   const pickedSet = computed<ReadonlySet<string> | null>(() => (picked.value ? new Set([playedId.value]) : null));
 
-  const moveTerrain = computed<MoveTerrain>(() => {
+  // Where the character can get to this turn, by the same search the creatures move by: round walls, closed doors
+  // and other creatures, at the price of each square. It runs as far as a Dash would reach, so the map can show
+  // both what the turn can walk now and what it could with the Action spent on moving.
+  const leftFeet = computed(() => Math.max(0, toValue(options.speedFeet) - toValue(options.movedFeet)));
+  const reach = computed(() => {
+    const me = played.value;
     const live = surface.value?.live;
-    return live
-      ? { difficult: new Set(terrainZones.value.flatMap((z) => z.battleCells)), walls: occludersOf(live, doorStates.value).segments }
-      : OPEN_GROUND;
+    if (!me?.position || !toValue(options.canMove)) return null;
+    const occluders = live ? occludersOf(live, doorStates.value) : null;
+    const g = grid.value;
+    const terrain: ReachInput["terrain"] = {
+      difficult: new Set(terrainZones.value.flatMap((z) => z.battleCells)),
+      blocking: occluders ? occluders.segments : [],
+      solid: occluders ? occluders.solid : new Set<string>(),
+      // A picture whose height is not read yet has rows as far as anyone stands.
+      bounds: g ? { minX: 0, minY: 0, maxX: g.cols - 1, maxY: g.rows - 1 } : { minX: 0, minY: 0, maxX: 199, maxY: 199 },
+    };
+    return reachable({
+      mover: { anchor: me.position, footprint: sizeOf(me), size: sizeNameOf(sizeOf(me)) },
+      budgetFeet: leftFeet.value + toValue(options.dashFeet),
+      terrain,
+      others: combatants.value
+        .filter((c) => c.instance_id !== me.instance_id && c.position && c.hp > 0)
+        .map((c) => ({ anchor: c.position as Cell, footprint: sizeOf(c), size: sizeNameOf(sizeOf(c)), hostile: isHostileTo(me, c), incapacitated: false })),
+      ruleset: store.ruleset,
+    });
   });
+  /** The squares to light up: only while walking is what the pointer does. */
+  const reachCells = computed(() => (reach.value && tool.value === "move" && !toValue(options.arming) ? reachZones(reach.value.cells.values(), leftFeet.value) : []));
 
   /** Walks the played token to `to` if the turn allows it; says why when it does not. */
   function walkTo(to: Cell): void {
     const me = played.value;
     if (!me?.position) return;
-    const plan = planMove({ from: me.position, to, footprint: sizeOf(me), terrain: moveTerrain.value });
-    if (plan.steps.length === 0) return;
-    const verdict = moveAllowed({ canMove: toValue(options.canMove), speedFeet: toValue(options.speedFeet), movedFeet: toValue(options.movedFeet), feet: plan.feet });
-    if (!verdict.ok) {
-      refusal.value = verdict.reason;
+    const from = me.position;
+    if (Math.floor(to.x) === Math.floor(from.x) && Math.floor(to.y) === Math.floor(from.y)) return;
+    const found = reach.value?.cells.get(`${Math.floor(to.x)},${Math.floor(to.y)}`);
+    const verdict = walkVerdict({ canMove: toValue(options.canMove), leftFeet: leftFeet.value, feet: found ? found.feet : null });
+    if (!verdict.ok || !found) {
+      refusal.value = verdict.ok ? null : verdict.reason;
       return;
     }
     refusal.value = null;
     const id = me.instance_id;
+    const { cell, feet } = found;
     // The square first, the feet after it has landed. Sent side by side, the fight's own save (which the feet are a
     // command to) could load the row before the new square was on it and write the old one back: the token shot
     // home and the turn was still charged. A move that fails charges nothing.
-    moveToken(id, plan.to)
+    moveToken(id, cell)
       .then(() => {
         // Before the first round nothing is counted against a turn.
-        if (store.started) store.recordMove(id, plan.from, plan.feet);
-        options.onMoved(plan.feet);
+        if (store.started) store.recordMove(id, from, feet);
+        options.onMoved(feet);
       })
       .catch(reportMoveFailure);
   }
@@ -283,6 +319,7 @@ export function useSoloFightMap(options: {
     gridStrokeOpacity,
     tool,
     refusal,
+    reachCells,
     draggable,
     pickedSet,
     foeIds,

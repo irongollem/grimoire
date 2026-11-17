@@ -38,6 +38,26 @@
         :door-states="doorStates"
       />
 
+      <!-- Where the turn can take you: green on your own feet, orange with a Dash. Under the tokens and the fog. -->
+      <svg
+        v-if="surface && imageReady && cellPx > 0 && reachCells.length > 0"
+        class="pointer-events-none absolute inset-0"
+        :width="hostW"
+        :height="hostH"
+        data-testid="solo-reach"
+        aria-hidden="true"
+      >
+        <rect
+          v-for="c in reachCells"
+          :key="`${c.x},${c.y}`"
+          :x="gridOrigin.x + c.x * cellPx + 1"
+          :y="gridOrigin.y + c.y * cellPx + 1"
+          :width="cellPx - 2"
+          :height="cellPx - 2"
+          :class="c.zone === 'walk' ? 'reach-walk' : 'reach-dash'"
+        />
+      </svg>
+
       <BattleMapTokenLayer
         v-if="surface && imageReady && cellPx > 0"
         :host-w="hostW"
@@ -110,7 +130,7 @@ import { useSoloFightMap } from "@/composables/table/useSoloFightMap";
  * opaque fog by that character's sight, other creatures only where seen, and one token that moves, their own. The
  * tools are Move and Measure; there is nothing of a Dungeon Master's here.
  */
-const { encounterId, playedInstanceId, canMove, speedFeet, movedFeet, arming } = defineProps<{
+const { encounterId, playedInstanceId, canMove, speedFeet, movedFeet, dashFeet, arming } = defineProps<{
   encounterId: string;
   /** The played character's `instance_id` in the fight: its token is the only one that moves and the only source of sight. */
   playedInstanceId: string;
@@ -119,6 +139,8 @@ const { encounterId, playedInstanceId, canMove, speedFeet, movedFeet, arming } =
   speedFeet: number;
   /** Feet already walked this turn. */
   movedFeet: number;
+  /** The feet a Dash would add this turn; nothing once the Action is spent. */
+  dashFeet: number;
   /** True while the player is choosing the target of an attack: foes light up and a click on one picks it. */
   arming: boolean;
 }>();
@@ -134,7 +156,7 @@ const TOOLS: readonly PlayTool[] = ["move", "measure"];
 const {
   canvasHost, hostW, hostH, imageNaturalW, imageNaturalH, imageReady, panX, panY, scale, onImageLoad, onWheel,
   surface, tokens, shown, sight, viewers, zones, doorStates, factions, cellPx, gridOrigin, gridVerticals, gridHorizontals,
-  gridStrokeOpacity, tool, refusal, draggable, pickedSet, foeIds, measures, measureText, loadingState,
+  gridStrokeOpacity, tool, refusal, reachCells, draggable, pickedSet, foeIds, measures, measureText, loadingState,
   onTokenMoved, onTokenSelect, onHostDown, onHostMove, onHostUp, onHostCancel,
 } = useSoloFightMap({
   encounterId: () => encounterId,
@@ -142,6 +164,7 @@ const {
   canMove: () => canMove,
   speedFeet: () => speedFeet,
   movedFeet: () => movedFeet,
+  dashFeet: () => dashFeet,
   arming: () => arming,
   onMoved: (feet) => emit("moved", feet),
   onTarget: (id) => emit("target", id),
@@ -165,6 +188,16 @@ const dollFigures = useCombatantDollFigures(() => tokens.value);
 }
 .host-armed {
   cursor: pointer;
+}
+.reach-walk {
+  fill: rgb(74 222 128 / 0.2);
+  stroke: rgb(74 222 128 / 0.55);
+  stroke-width: 1px;
+}
+.reach-dash {
+  fill: rgb(251 146 60 / 0.16);
+  stroke: rgb(251 146 60 / 0.5);
+  stroke-width: 1px;
 }
 .hidden-loader {
   position: absolute;

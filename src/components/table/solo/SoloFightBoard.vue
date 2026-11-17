@@ -15,6 +15,7 @@
           :can-move="host.yourTurn.value && !busy"
           :speed-feet="speedFeet"
           :moved-feet="movedFeet"
+          :dash-feet="dashFeet"
           :arming="attack.state.value.step === 'aiming'"
           @moved="onMoved"
           @target="onTarget"
@@ -158,6 +159,8 @@ const played = host.played;
 const dashed = ref(false);
 watch(() => `${host.round.value}:${host.activeInstanceId.value}`, () => (dashed.value = false));
 const speedFeet = computed(() => member.speed * (dashed.value ? 2 : 1));
+// What a Dash would still add: the character's speed, while the Action is unspent and no Dash was taken.
+const dashFeet = computed(() => (!dashed.value && played.value && played.value.action_used !== true ? member.speed : 0));
 const movedFeet = computed(() => (played.value?.movement_used === undefined ? 0 : played.value.movement_used));
 
 const attack = useSoloAttack({ attackerId: () => (played.value ? played.value.instance_id : ""), ruleset: () => ruleset.value });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { combatantAt, isFoeOf, moveAllowed, targetOf } from "./mapRules";
+import { combatantAt, isFoeOf, reachZones, targetOf, walkVerdict } from "./mapRules";
 
 const factions = [
   { id: "party", hostile_to: ["foes"] },
@@ -9,24 +9,44 @@ const factions = [
 const me = { instance_id: "p-1", faction_id: "party" };
 const goblin = { instance_id: "g1", faction_id: "foes", hp: 7, reveal_state: "revealed" as const };
 
-describe("moveAllowed", () => {
-  const base = { canMove: true, speedFeet: 30, movedFeet: 10, feet: 20 };
+describe("walkVerdict", () => {
+  const base = { canMove: true, leftFeet: 20, feet: 20 };
 
-  it("allows a move that lands exactly on the speed", () => {
+  it("allows a move that costs exactly what the turn has left", () => {
     // Bug caught: an off-by-one (>=) that refuses the last square of the speed.
-    expect(moveAllowed(base)).toEqual({ ok: true });
+    expect(walkVerdict(base)).toEqual({ ok: true });
   });
 
-  it("refuses a move that takes the turn past the speed, counting what was already walked", () => {
-    // Bug caught: the check ignoring movedFeet, so two 20 ft moves on a 30 ft speed both pass.
-    const v = moveAllowed({ ...base, feet: 25 });
+  it("refuses a square only a Dash would reach, and says what is left", () => {
+    // Bug caught: a square in the orange band walked to on the turn's own feet.
+    const v = walkVerdict({ ...base, feet: 25 });
     expect(v.ok).toBe(false);
-    if (!v.ok) expect(v.reason).toContain("20 ft");
+    if (!v.ok) expect(v.reason).toContain("20 ft left");
+  });
+
+  it("refuses a square the search never reached: behind a wall, or past even a Dash", () => {
+    // Bug caught: a square with no way to it treated as free (the token walked through a wall).
+    expect(walkVerdict({ ...base, feet: null }).ok).toBe(false);
   });
 
   it("refuses everything off the player's turn, however short", () => {
     // Bug caught: canMove not consulted, so the token can be shuffled on a creature's turn.
-    expect(moveAllowed({ ...base, canMove: false, feet: 5 }).ok).toBe(false);
+    expect(walkVerdict({ ...base, canMove: false, feet: 5 }).ok).toBe(false);
+  });
+});
+
+describe("reachZones", () => {
+  const cells = [
+    { cell: { x: 0, y: 0 }, feet: 0 },
+    { cell: { x: 4, y: 0 }, feet: 20 },
+    { cell: { x: 5, y: 0 }, feet: 25 },
+  ];
+  // Bug caught: the last square of the turn's own feet painted orange (< for <=), or the square stood on painted.
+  it("marks what the turn can walk green up to and including its last foot, the rest as a Dash, and not the start", () => {
+    expect(reachZones(cells, 20)).toEqual([
+      { x: 4, y: 0, zone: "walk" },
+      { x: 5, y: 0, zone: "dash" },
+    ]);
   });
 });
 

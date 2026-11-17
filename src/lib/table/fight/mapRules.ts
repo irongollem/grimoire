@@ -8,20 +8,6 @@ import { areHostile } from "@/lib/table/fight/foeView";
 
 export type MoveVerdict = { ok: true } | { ok: false; reason: string };
 
-/**
- * Whether the played character may walk `feet` more now. Nobody is in the Dungeon Master's chair to wave a long
- * move through, so the table refuses one that would take the turn past the character's speed.
- */
-export function moveAllowed(input: { canMove: boolean; speedFeet: number; movedFeet: number; feet: number }): MoveVerdict {
-  const { canMove, speedFeet, movedFeet, feet } = input;
-  if (!canMove) return { ok: false, reason: "It is not your turn." };
-  if (movedFeet + feet > speedFeet) {
-    const left = Math.max(0, speedFeet - movedFeet);
-    return { ok: false, reason: `Too far: you have ${left} ft of movement left.` };
-  }
-  return { ok: true };
-}
-
 type Targetable = Pick<RunCombatant, "instance_id" | "faction_id" | "hp" | "reveal_state">;
 
 /** Whether the played character can point at this creature: seen, standing, and a foe of theirs. */
@@ -63,4 +49,33 @@ export function combatantAt<T extends { position?: { x: number; y: number } | nu
     if (point.x >= at.x && point.x < at.x + size && point.y >= at.y && point.y < at.y + size) found = c;
   }
   return found;
+}
+
+/** Where a square lies for the mover: within what the turn can still walk, or only with the Dash action added. */
+export type ReachZone = "walk" | "dash";
+
+/**
+ * The squares the played character can end in this turn, each marked by what it takes to get there (the maintainer's
+ * ask: green where you can walk, orange where a Dash would take you). `leftFeet` is what the turn can still walk
+ * as it stands; a square that costs more is one the search reached only on the feet a Dash would add. The square
+ * the character stands on is not drawn.
+ */
+export function reachZones(cells: Iterable<{ cell: { x: number; y: number }; feet: number }>, leftFeet: number): Array<{ x: number; y: number; zone: ReachZone }> {
+  const zones: Array<{ x: number; y: number; zone: ReachZone }> = [];
+  for (const { cell, feet } of cells) {
+    if (feet <= 0) continue;
+    zones.push({ x: cell.x, y: cell.y, zone: feet <= leftFeet ? "walk" : "dash" });
+  }
+  return zones;
+}
+
+/**
+ * Whether the played character may walk to a square the search found, and what it says when not. `feet` is the
+ * cheapest way there round walls and creatures, or null when there is none within even a Dash.
+ */
+export function walkVerdict(input: { canMove: boolean; leftFeet: number; feet: number | null }): MoveVerdict {
+  if (!input.canMove) return { ok: false, reason: "It is not your turn." };
+  if (input.feet === null) return { ok: false, reason: "You cannot get there this turn." };
+  if (input.feet > input.leftFeet) return { ok: false, reason: `Too far: that is ${input.feet} ft and you have ${Math.max(0, input.leftFeet)} ft left. Dash first.` };
+  return { ok: true };
 }
