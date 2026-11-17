@@ -11,7 +11,21 @@ const { fake } = await vi.hoisted(async () => {
   const { createSupabaseFake } = await import("@/test/supabaseFake");
   return { fake: createSupabaseFake() };
 });
-vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "u1" }) }));
+const mocks = vi.hoisted(() => ({ confirm: vi.fn(async () => true), invoked: [] as { fn: string; body: unknown }[], invokeError: null as Error | null }));
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    from: (table: string) => fake.client.from(table),
+    functions: {
+      invoke: async (fn: string, options: { body: unknown }) => {
+        mocks.invoked.push({ fn, body: options.body });
+        return { data: null, error: fn === "agent-forget" ? mocks.invokeError : new Error("not in this test") };
+      },
+    },
+  },
+  getCurrentUser: () => ({ id: "u1" }),
+}));
+vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
+vi.mock("@edge-shared/edgeError.ts", () => ({ edgeErrorMessage: async (e: Error) => e.message }));
 
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
@@ -71,6 +85,10 @@ beforeEach(() => {
   // The played character's lens is kept for the tab: one test's seat must not carry into the next.
   safeSessionStorage().clear();
   fake.reset();
+  mocks.confirm.mockReset();
+  mocks.confirm.mockResolvedValue(true);
+  mocks.invoked.length = 0;
+  mocks.invokeError = null;
 });
 
 describe("TableStartView", () => {
@@ -96,6 +114,33 @@ describe("TableStartView", () => {
     expect(router.currentRoute.value.query).toEqual({ character: "m2" });
     // Bug caught: sitting down while still on the Dungeon Master's side of the app.
     expect(useAppUiStore().tablePlay).toEqual({ memberId: "m2", sessionId: null });
+  });
+
+  describe("deleting a sitting", () => {
+    const left = { left_at: "2026-11-10T11:00:00Z" };
+    const forgets = () => mocks.invoked.filter((i) => i.fn === "agent-forget");
+    const remove = (w: Awaited<ReturnType<typeof mountView>>["wrapper"]) => w.find('[data-testid="table-sitting-delete"]');
+
+    it("asks first, then deletes the sitting through the server, which takes its voices too", async () => {
+      fake.seed("agent_sessions", [sitting("old", left)]);
+      const { wrapper } = await mountView();
+      await vi.waitFor(() => expect(remove(wrapper).exists()).toBe(true));
+      await remove(wrapper).trigger("click");
+      await flushPromises();
+      expect(mocks.confirm).toHaveBeenCalledOnce();
+      expect(forgets()).toEqual([{ fn: "agent-forget", body: { campaignId: "c1", sessionId: "old" } }]);
+    });
+
+    // Bug caught: a cancelled confirm that still deleted.
+    it("deletes nothing when the confirm is cancelled", async () => {
+      mocks.confirm.mockResolvedValue(false);
+      fake.seed("agent_sessions", [sitting("old", left)]);
+      const { wrapper } = await mountView();
+      await vi.waitFor(() => expect(remove(wrapper).exists()).toBe(true));
+      await remove(wrapper).trigger("click");
+      await flushPromises();
+      expect(forgets()).toEqual([]);
+    });
   });
 
   // Bug caught: another account's sittings listed under mine (RLS is a ceiling; the read must name the caller).

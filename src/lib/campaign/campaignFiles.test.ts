@@ -31,7 +31,7 @@ vi.mock("@/lib/supabase", () => ({
   },
 }));
 
-import { campaignFileUrls, campaignImportSourcePaths, deleteCampaignMinis, deleteImportSourcePaths, CASCADED_TABLES, DISPOSED_TABLES } from "./campaignFiles";
+import { campaignFileUrls, campaignImportSourcePaths, deleteCampaignMinis, deleteCampaignVoiceClips, deleteImportSourcePaths, CASCADED_TABLES, DISPOSED_TABLES } from "./campaignFiles";
 import { IMAGE_REFERENCES } from "@/lib/storage/deleteUnreferenced";
 
 beforeEach(() => {
@@ -167,5 +167,30 @@ describe("deleteCampaignMinis (#963)", () => {
     fake.seed("minis", [{ id: "m1", campaign_id: "c1" }]);
     invokeError = new Error("storage_cleanup_failed");
     await expect(deleteCampaignMinis("c1")).rejects.toThrow("storage_cleanup_failed");
+  });
+});
+
+describe("deleteCampaignVoiceClips (#1021)", () => {
+  it("asks agent-forget for the campaign's clips when the caller has a sitting in it", async () => {
+    fake.seed("agent_sessions", [{ id: "s1", campaign_id: "c1", user_id: "u1" }]);
+    await deleteCampaignVoiceClips("c1", "u1");
+    expect(invoked).toEqual([{ fn: "agent-forget", body: { campaignId: "c1", allClips: true } }]);
+  });
+
+  // Bug caught: the edge function asked for every campaign ever deleted; or asked on the strength of another
+  // account's sitting, whose clips this caller may not remove.
+  it("asks nothing for a campaign where the caller has no sitting, whoever else has one", async () => {
+    fake.seed("agent_sessions", [{ id: "s1", campaign_id: "c2", user_id: "u1" }, { id: "s2", campaign_id: "c1", user_id: "u2" }]);
+    await deleteCampaignVoiceClips("c1", "u1");
+    expect(invoked).toEqual([]);
+  });
+
+  // Bug caught: a failure swallowed, so the campaign is deleted and its clips are left behind.
+  it("throws the edge function's error, and a failed count", async () => {
+    fake.seed("agent_sessions", [{ id: "s1", campaign_id: "c1", user_id: "u1" }]);
+    invokeError = new Error("clips");
+    await expect(deleteCampaignVoiceClips("c1", "u1")).rejects.toThrow("clips");
+    fake.failNext("agent_sessions", { message: "boom", code: "XX000" });
+    await expect(deleteCampaignVoiceClips("c1", "u1")).rejects.toThrow("boom");
   });
 });

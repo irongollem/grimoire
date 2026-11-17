@@ -238,7 +238,16 @@ Speech was free while only the maintainer used it. A line that is made is now ch
 - **It accrues on the conversation**, exactly, and only the whole credits the running total newly crossed are billed (`accrue_agent_voice`, under the session's row lock, sharing `credits_spent` with turns so a line and a turn never claim the same credit). The ledger reason is `table_voice`.
 - **Never free, never twice.** A service with no usable rate does not speak (503). A credit is held while a line is made and given back after; an account that cannot pay gets 402 `insufficient_credits`, and the page stops the voices and says so. A kept clip is answered before any of this, so hearing a line again costs nothing; a charge that fails after the clip was made is logged and the line is still heard.
 - **Before sitting down** (the maintainer: the voices could only be switched on once the first rounds were past). The door to the table (`TableStartView`, `SoloSittingSettings`) shows the three voice switches, the helper choice and the cost line, which comes from the function itself (`{ rates: true }`, `voiceRates`, `useTableVoiceRates`). A sitting that was never left is still reopened straight away; its switches are in the bar.
-- **Not built:** removing a conversation's clips with it (there is no way to delete a sitting yet), and the narrator's trial on Inworld (set `TABLE_NARRATOR_VOICE_ID` to an `inworld:` voice; nothing else is needed).
+- **Not built:** the narrator's trial on Inworld (set `TABLE_NARRATOR_VOICE_ID` to an `inworld:` voice; nothing else is needed).
+
+### A sitting can be deleted, and its clips go with it (18 Nov 2026; `supabase/functions/agent-forget/`, `_shared/agent/voiceClips.ts`)
+
+The clips live in a bucket of their own, named `<campaign id>/<sitting id>/<clip>.mp3`, and nothing in the database points at them: a deleted row would leave them where no listing by account can find them. So wherever a sitting's row goes, its clips go first.
+
+- **One sitting.** Earlier sittings on the door page have a Delete button (only once the sitting was left; one that goes on still holds a play session open, and leaving ends that). After a confirm, `agent-forget` checks the conversation is the caller's own in that campaign (anything else is "not found"), removes every clip under the sitting's prefix, and only then deletes the row, which takes its messages. If the clips cannot be removed nothing is deleted. What the sitting put on the campaign's record (story facts, the session note) stays: `story_facts.agent_session_id` is set null. The fight lines the browser kept for it are dropped too.
+- **A campaign.** Deleting a campaign asks `agent-forget` for `{ campaignId, allClips: true }` first (`deleteCampaignVoiceClips`, only when the caller has a sitting there): the clips of the caller's own sittings, no rows, since the campaign's delete takes those. A failure refuses the delete, as it does for minis.
+- **An account.** `delete-account` removes the clips of every sitting of the account while the rows still exist; a failure is reported with the purge's other errors.
+- Seen against the local function with the real bucket: a left sitting deleted (200), asked again (404), an open one refused (409).
 
 ## The story turns into a fight (`_shared/agent/fight.ts`, `agent-turn/fightIo.ts`)
 

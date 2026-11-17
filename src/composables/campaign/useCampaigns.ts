@@ -15,7 +15,7 @@ import type {
 } from "@/lib/campaign/campaignHomebrewDisposition";
 import { LOCATION_STATE_QUERY_KEY } from "@/composables/locations/useLocationState";
 import { HOMEBREW_TABLES, EMPTY_HOMEBREW_COUNTS } from "@/lib/campaign/campaignHomebrewDisposition";
-import { campaignFileUrls, campaignImportSourcePaths, deleteCampaignMinis, deleteImportSourcePaths } from "@/lib/campaign/campaignFiles";
+import { campaignFileUrls, campaignImportSourcePaths, deleteCampaignMinis, deleteCampaignVoiceClips, deleteImportSourcePaths } from "@/lib/campaign/campaignFiles";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { reportHandledError } from "@/lib/observability/sentry";
 
@@ -191,6 +191,8 @@ export async function disposeHomebrewAndDeleteCampaign(
   const importPaths = await campaignImportSourcePaths(campaignId, user.id);
   // Minis go first: their rows are the only record of their files (#963).
   await deleteCampaignMinis(campaignId);
+  // So do the voice clips of the AI table's sittings: their rows are the only record of them (#1021).
+  await deleteCampaignVoiceClips(campaignId, user.id);
   const { error } = await supabase.rpc("delete_campaign_with_homebrew", {
     p_campaign_id: campaignId,
     p_disposition: disposition,

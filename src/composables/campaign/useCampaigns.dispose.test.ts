@@ -4,6 +4,7 @@ const order: string[] = [];
 let rpcError: Error | null = null;
 let cleanupError: Error | null = null;
 let minisError: Error | null = null;
+let voicesError: Error | null = null;
 let urlsError: Error | null = null;
 let user: { id: string } | null = { id: "me" };
 
@@ -23,6 +24,10 @@ vi.mock("@/lib/campaign/campaignFiles", () => ({
   deleteCampaignMinis: async () => {
     order.push("minis");
     if (minisError) throw minisError;
+  },
+  deleteCampaignVoiceClips: async () => {
+    order.push("voices");
+    if (voicesError) throw voicesError;
   },
   deleteImportSourcePaths: async (paths: string[]) => {
     order.push(`import:${paths.join(",")}`);
@@ -45,6 +50,7 @@ beforeEach(() => {
   rpcError = null;
   cleanupError = null;
   minisError = null;
+  voicesError = null;
   urlsError = null;
   user = { id: "me" };
   reported.mockClear();
@@ -53,13 +59,21 @@ beforeEach(() => {
 describe("disposeHomebrewAndDeleteCampaign file cleanup (#963)", () => {
   it("removes the import pages only after the delete succeeded", async () => {
     await disposeHomebrewAndDeleteCampaign("c1", "promote");
-    expect(order).toEqual(["minis", "rpc", "urls", "import:me/page1.png"]);
+    expect(order).toEqual(["minis", "voices", "rpc", "urls", "import:me/page1.png"]);
   });
 
   it("removes nothing when the delete fails", async () => {
     rpcError = new Error("nope");
     await expect(disposeHomebrewAndDeleteCampaign("c1", "promote")).rejects.toThrow("nope");
-    expect(order).toEqual(["minis", "rpc"]);
+    expect(order).toEqual(["minis", "voices", "rpc"]);
+  });
+
+  // Bug caught: a campaign deleted while the voice clips of its sittings could not be removed; the rows that name
+  // them go with the campaign, so the clips would be left where nothing can find them.
+  it("refuses the delete when the AI table's voice clips cannot be removed", async () => {
+    voicesError = new Error("clips");
+    await expect(disposeHomebrewAndDeleteCampaign("c1", "delete")).rejects.toThrow("clips");
+    expect(order).toEqual(["minis", "voices"]);
   });
 
   it("refuses the delete when the minis cannot be removed, since nothing would name their files after it", async () => {
@@ -78,7 +92,7 @@ describe("disposeHomebrewAndDeleteCampaign file cleanup (#963)", () => {
     urlsError = new Error("cdn down");
     await expect(disposeHomebrewAndDeleteCampaign("c1", "promote")).resolves.toBeUndefined();
     expect(reported).toHaveBeenCalledWith(urlsError, "campaign:deleteFiles", { campaignId: "c1", files: 1 });
-    expect(order).toEqual(["minis", "rpc", "urls", "import:me/page1.png"]);
+    expect(order).toEqual(["minis", "voices", "rpc", "urls", "import:me/page1.png"]);
   });
 
   it("reports a cleanup failure instead of failing the delete", async () => {

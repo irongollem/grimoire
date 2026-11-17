@@ -71,6 +71,18 @@
                 </span>
               </div>
               <AppButton :to="`/play/table/${sitting.id}`" variant="outline" size="md" :label="sitting.left_at === null ? 'Continue' : 'Read'" @click="sitting.party_member_id && appUi.enterTablePlay(sitting.party_member_id, sitting.id)" />
+              <!-- Only a sitting that was left: one that goes on still holds a session open, and leaving ends that. -->
+              <AppButton
+                v-if="sitting.left_at !== null"
+                variant="ghost"
+                size="md"
+                :icon="IconDelete"
+                aria-label="Delete this sitting"
+                tooltip="Delete this sitting"
+                :loading="forget.isPending.value && forget.variables.value?.sessionId === sitting.id"
+                data-testid="table-sitting-delete"
+                @click="deleteSitting(sitting.id)"
+              />
             </li>
           </ul>
         </section>
@@ -95,6 +107,10 @@ import { useAllLocations } from "@/composables/locations/useLocations";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useQuests } from "@/composables/quests/useQuests";
 import { useTableSessions } from "@/composables/table/useTableSessions";
+import { useForgetSitting } from "@/composables/table/useForgetSitting";
+import { useConfirm } from "@/composables/useConfirm";
+import { useToast } from "@/composables/useToast";
+import { IconDelete } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 
@@ -116,6 +132,25 @@ const { data: locations } = useAllLocations();
 const places = computed(() => (locations.value ?? []).map((l) => ({ id: l.id, name: l.name })));
 
 const sessions = useTableSessions(() => campaign.activeCampaignId);
+
+// Deleting a sitting takes the conversation and its voice clips; the record of what happened stays the campaign's.
+const forget = useForgetSitting();
+const { confirm } = useConfirm();
+const toast = useToast();
+async function deleteSitting(sessionId: string): Promise<void> {
+  const campaignId = campaign.activeCampaignId;
+  if (campaignId === null) return;
+  const ok = await confirm(
+    "The conversation and the voices made for it are deleted for good. What it put on the campaign's record stays.",
+    { title: "Delete this sitting?", confirmLabel: "Delete", danger: true },
+  );
+  if (!ok) return;
+  try {
+    await forget.mutateAsync({ campaignId, sessionId });
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't delete the sitting."));
+  }
+}
 
 // How the story is picked up: null until the party and the sittings are both read (deciding on half would send a
 // player with an open sitting to the chooser for a moment).

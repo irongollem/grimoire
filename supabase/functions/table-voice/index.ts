@@ -9,7 +9,7 @@ import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { clipName, lineKeyFits } from "../_shared/agent/lineKey.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
-import { r2ConfigFrom } from "../_shared/r2/config.ts";
+import { clipKey, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
 import { shownInTurns, speakLine, voiceRates, VoicesSpent, type TableVoiceDeps } from "./handler.ts";
 import { recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
 import { deliveryCue } from "../_shared/agent/characterTurn.ts";
@@ -29,10 +29,7 @@ const INWORLD_MODEL = "inworld-tts-2";
 // The clips have a store of their own (the maintainer's choice, 17 Nov 2026): a private R2 bucket that nothing
 // serves but this function, to the conversation's own owner. Without R2 credentials nothing is kept and every line
 // is made anew, as before.
-const VOICE_BUCKET = Deno.env.get("R2_VOICE_BUCKET")?.trim() || "grimoire-table-voices";
-const r2 = r2ConfigFrom((key) => Deno.env.get(key));
-const voiceStore = r2 === null ? null : { ...r2, bucket: VOICE_BUCKET };
-const clipKey = (at: { campaignId: string; sessionId: string }, name: string) => `${at.campaignId}/${at.sessionId}/${name}.mp3`;
+const voiceStore = voiceStoreFrom((key) => Deno.env.get(key));
 
 function fromBase64(text: string): Uint8Array {
   const binary = atob(text);

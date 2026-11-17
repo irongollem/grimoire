@@ -40,6 +40,7 @@ import { chunk } from "../_shared/storage-purge.ts";
 import { listUserStorage } from "../_shared/storage-inventory.ts";
 import { r2ConfigFrom, r2ObjectKey } from "../_shared/r2/config.ts";
 import { deleteObjects } from "../_shared/r2/client.ts";
+import { removeSittingClips, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
 import { isoDate } from "../_shared/childAccount.ts";
 
 const admin = createClient(
@@ -90,6 +91,22 @@ async function purgeStorage(userId: string): Promise<string[]> {
         }
       } catch (err) {
         errors.push(`r2:${bucket}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
+  // The voice clips of the account's sittings at the AI table (#1021) live in a store of their own, named by
+  // campaign and sitting, which no listing by account can find: they are removed while the rows that name them
+  // still exist. A sitting whose clips could not be removed is an error like any other bucket.
+  const sittings = await admin.from("agent_sessions").select("id, campaign_id").eq("user_id", userId);
+  if (sittings.error) errors.push(`table voices: listing the sittings failed: ${sittings.error.message}`);
+  else {
+    const voiceStore = voiceStoreFrom((key) => Deno.env.get(key));
+    for (const sitting of sittings.data ?? []) {
+      try {
+        await removeSittingClips(voiceStore, { campaignId: sitting.campaign_id as string, sessionId: sitting.id as string });
+      } catch (err) {
+        errors.push(`table voices: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }

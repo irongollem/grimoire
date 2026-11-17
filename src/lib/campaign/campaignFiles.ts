@@ -163,3 +163,21 @@ export async function deleteCampaignMinis(campaignId: string): Promise<void> {
   });
   if (invokeError) throw new Error(await edgeErrorMessage(invokeError));
 }
+
+/**
+ * Removes the voice clips of the caller's sittings at the AI table in a campaign (#1021), before the campaign is
+ * deleted. The clips are in a store of their own, named by campaign and sitting, and the sittings' rows (which the
+ * campaign's delete takes) are the only record of them. Almost no campaign has a sitting: the edge function is only
+ * asked when there is one. Throws on any failure, so the caller can refuse to delete the campaign.
+ */
+export async function deleteCampaignVoiceClips(campaignId: string, userId: string): Promise<void> {
+  const { count, error } = await supabase
+    .from("agent_sessions")
+    .select("id", { count: "exact", head: true })
+    .eq("campaign_id", campaignId)
+    .eq("user_id", userId);
+  if (error) throw error;
+  if (!count) return;
+  const { error: invokeError } = await supabase.functions.invoke("agent-forget", { body: { campaignId, allClips: true } });
+  if (invokeError) throw new Error(await edgeErrorMessage(invokeError));
+}
