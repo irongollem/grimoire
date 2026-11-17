@@ -239,6 +239,39 @@ export function fightStateOf(input: {
   return { encounterId: input.encounterId, name: input.name, phase, round: live === null ? null : live.round, fighters };
 }
 
+const listed = (names: string[]): string => {
+  const shown = names.slice(0, 6);
+  const more = names.length - shown.length;
+  const all = more > 0 ? [...shown, `${more} more`] : shown;
+  return all.length <= 1 ? all.join("") : `${all.slice(0, -1).join(", ")} and ${all[all.length - 1]}`;
+};
+
+/**
+ * The fight as one sentence for the record, written by the rules from how it stands: who fought, who went down and
+ * how it ended. A fight is part of the story, and the record is what "The story so far" shows; without this a
+ * sitting's fights left no trace there. `how` is "fought" when nobody was left to fight, else the Dungeon Master's
+ * ruling that ended it.
+ */
+export function fightRecordText(fight: FightState, how: "fought" | "they_give_in" | "they_flee" | "you_get_away"): string {
+  const party = fight.fighters.filter((f) => f.side === "party").map((f) => f.name);
+  const foes = fight.fighters.filter((f) => f.side === "enemy");
+  const down = foes.filter((f) => f.hp <= 0).map((f) => f.name);
+  const standing = foes.filter((f) => f.hp > 0).map((f) => f.name);
+  const who = party.length > 0 ? listed(party) : "The party";
+  const parts: string[] = [];
+  if (down.length > 0) parts.push(`${listed(down)} went down`);
+  if (standing.length > 0) {
+    if (how === "they_give_in") parts.push(`${listed(standing)} gave in`);
+    else if (how === "they_flee") parts.push(`${listed(standing)} fled`);
+    else if (how === "you_get_away") parts.push(`${who} got away from ${listed(standing)}`);
+    else parts.push(`${listed(standing)} ${standing.length === 1 ? "was" : "were"} left standing`);
+  }
+  const fallen = fight.fighters.filter((f) => f.side === "party" && f.hp <= 0).map((f) => f.name);
+  if (fallen.length > 0) parts.push(`${listed(fallen)} fell`);
+  const outcome = parts.length === 0 ? "it ended with nobody down" : parts.join("; ");
+  return `${who} fought "${fight.name}": ${outcome}.`;
+}
+
 /** Whether the conversation lets go of its fight after this kept turn: the narrator has now been told it is over. */
 export function fightIsTold(fight: FightState | null): boolean {
   return fight !== null && fight.phase === "over";

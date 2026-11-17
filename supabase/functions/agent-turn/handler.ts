@@ -22,7 +22,7 @@ import type { SceneView } from "../_shared/agent/scene.ts";
 import type { RecordedFact, RecordKind } from "../_shared/agent/record.ts";
 import { pressureShown, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
 import { prologueText, startPlace, type Prologue } from "../_shared/agent/prologue.ts";
-import { fightIsTold, type FightPlan, type FightsInView } from "../_shared/agent/fight.ts";
+import { fightIsTold, fightRecordText, type FightPlan, type FightsInView, type FightState } from "../_shared/agent/fight.ts";
 import { askOf, declinedText, rollText, scoreRoll, type PendingRoll, type RollAsk, type Rolled } from "../_shared/agent/playerRoll.ts";
 import { makeTurnTools, type FiledFact } from "./turnTools.ts";
 import { narrationGate, type NarrationGate, type NarrationJudge } from "./narration.ts";
@@ -685,6 +685,28 @@ export async function beginTurn(input: {
           const shown = pressureShown(questState, queued);
           if (shown !== null || questState.pressure !== null) emit({ type: "pressure", pressure: shown });
         }
+        // A fight that is over goes on record in one sentence, written from how it stands and not by the model: the
+        // record is what "The story so far" shows, and a sitting's fights left no trace there. A failure to file it
+        // costs the line, never the turn.
+        const recordFight = async (fight: FightState, how: Parameters<typeof fightRecordText>[1]): Promise<void> => {
+          try {
+            const fact = fightRecordText(fight, how);
+            const out = await deps.fileFact({
+              campaignId: campaign.id,
+              campaignSessionId: session.campaign_session_id,
+              agentSessionId: session.id,
+              provider: provider.provider,
+              model: provider.model,
+              fact,
+              about: [],
+              hidden: false,
+              closes: null,
+            });
+            if ("id" in out) filed.push({ id: out.id, body: fact, hidden: false });
+          } catch (error) {
+            console.error("agent-turn: putting the fight on record failed:", error);
+          }
+        };
         // A fight starts with the kept turn, and the page is told only once it exists. The other way round: once the
         // narrator has been told a fight is over, the conversation lets go of it.
         const planned = fightPlan as FightPlan | null;
@@ -702,12 +724,17 @@ export async function beginTurn(input: {
           const change = fightChange as FightChange;
           // The board carries the change out. When it ends the fight the narrator has told its end in this reply,
           // so the conversation lets go of the fight now and no aftermath is asked for.
-          if (change.ends !== null) await safely(() => deps.setFight(session.id, campaign.id, null));
+          if (change.ends !== null) {
+            await safely(() => deps.setFight(session.id, campaign.id, null));
+            if (fights !== null && fights.fight !== null) await recordFight(fights.fight, change.ends);
+          }
           emit({ type: "fight_change", change });
-        } else if (fights !== null && fightIsTold(fights.fight)) {
+        } else if (fights !== null && fights.fight !== null && fightIsTold(fights.fight)) {
           await safely(() => deps.setFight(session.id, campaign.id, null));
+          await recordFight(fights.fight, "fought");
           emit({ type: "fight", fight: null });
         }
+        // (The fight's own line on the record is filed above, where the conversation lets go of it.)
         // The people the narrator made up get their records. One that cannot be written (a plan's limit on
         // characters, a name taken meanwhile) costs that record, never the turn: the facts about them are kept.
         for (const intro of introduced) {

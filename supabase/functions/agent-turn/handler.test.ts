@@ -2958,6 +2958,9 @@ describe("the story turns into a fight", () => {
       const h = inFight([change({ costs: "action", ends: "they_give_in" }), step(10)]);
       await play(h, { body: rolling(13) });
       expect(h.fightSets).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN, encounterId: null }]);
+      // And it goes on record, so the fight is part of the story so far.
+      expect(h.facts.map((f) => f.body)).toContain('Wren Ashfield fought "The Watching Pack": Giant Rat 1 gave in.');
+      expect(h.events.some((e) => e.type === "fact" && e.fact.body.includes("gave in"))).toBe(true);
     });
 
     // Bug caught: a stunt carried out for a player whose Action already went on an attack.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asFighter, fightIsTold, fightsSection, fightStateOf, MAX_COUNT, planFight, type FightsInView, type FightState } from "./fight";
+import { asFighter, fightIsTold, fightRecordText, fightsSection, fightStateOf, MAX_COUNT, planFight, type FightsInView, type FightState } from "./fight";
 
 const PREPARED = "00000000-0000-4000-8000-0000000000e1";
 const MONSTER = "00000000-0000-4000-8000-0000000000e2";
@@ -153,3 +153,33 @@ describe("fightStateOf: a fight at the table is never shared with players", () =
     expect(fightStateOf({ encounterId: "e", name: "n", finished: false, live: live(0, true) }).phase).toBe("running");
   });
 });
+
+describe("fightRecordText", () => {
+  const pack = (hounds: number[]): FightState => ({
+    encounterId: "e",
+    name: "The Watching Pack",
+    phase: "running",
+    round: 7,
+    fighters: [{ name: "Rosie", side: "party", hp: 15, maxHp: 58 }, ...hounds.map((hp, i) => ({ name: `Spun Glass Hound ${i + 1}`, side: "enemy" as const, hp, maxHp: 16 }))],
+  });
+
+  // Bug caught live (17 Nov 2026): "the fight isnt in the story so far". Nothing put a fight on record.
+  it("says who fought, who went down and how the rest ended it", () => {
+    expect(fightRecordText(pack([0, 0, 16]), "they_give_in")).toBe(
+      'Rosie fought "The Watching Pack": Spun Glass Hound 1 and Spun Glass Hound 2 went down; Spun Glass Hound 3 gave in.',
+    );
+  });
+
+  it("says so when the party got away, and when nobody was left to fight", () => {
+    expect(fightRecordText(pack([16, 4]), "you_get_away")).toContain("Rosie got away from Spun Glass Hound 1 and Spun Glass Hound 2");
+    expect(fightRecordText(pack([0, 0]), "fought")).toBe('Rosie fought "The Watching Pack": Spun Glass Hound 1 and Spun Glass Hound 2 went down.');
+  });
+
+  // Bug caught: a fight the player lost recorded as if it had gone well.
+  it("says when the played character fell", () => {
+    const lost = pack([9]);
+    lost.fighters[0].hp = 0;
+    expect(fightRecordText(lost, "fought")).toContain("Rosie fell");
+  });
+});
+
