@@ -68,7 +68,7 @@ function fighterLine(f: Fighter): string {
 }
 
 /** The part of the table's state about fights. Empty when there is nothing to say, so a quiet scene pays nothing. */
-export function fightsSection(view: FightsInView): string {
+export function fightsSection(view: FightsInView, budget: string | null = null): string {
   const { fight } = view;
   const lines: string[] = [];
   if (fight !== null) {
@@ -80,12 +80,26 @@ export function fightsSection(view: FightsInView): string {
         ...shown.map(fighterLine),
       );
     } else {
-      lines.push(
-        `The fight "${fight.name}" is ${fight.phase === "running" ? `being fought (round ${fight.round ?? 1})` : "about to begin"} ` +
-          "on the fight screen. Do not narrate attacks, damage or who wins: the fight decides those. If the player " +
-          "writes to you now, answer briefly and send them back to the fight.",
-        ...shown.map(fighterLine),
-      );
+      if (fight.phase === "waiting") {
+        lines.push(
+          `The fight "${fight.name}" is about to begin on the board in front of the player: they are rolling initiative. ` +
+            "Narrate no attack and no damage. If they write to you now, answer in a sentence.",
+          ...shown.map(fighterLine),
+        );
+      } else {
+        lines.push(
+          `The fight "${fight.name}" is being fought on the board in front of the player, by the game's rules (round ${fight.round ?? 1}). ` +
+            "The board decides every attack, its damage and who is down: never narrate those, and never use speak for a blow. " +
+            "The player comes to you for what the rules have no button for: a threat, a plea, a bargain, a trick with what " +
+            "is in the room, running away. Rule on it as a Dungeon Master would. A turn is about six seconds: a line said " +
+            "aloud is short and is answered as briefly (speak, one line); trying something costs their Action unless it " +
+            "is small. When chance decides, ask for their roll (ask_roll) and rule on the next turn. When your ruling " +
+            "changes the fight (a creature hindered or hurt, the foes giving in or fleeing, the player getting away), " +
+            "call fight_change, then tell it in a sentence or two. A deed dressed up as speech costs what the deed costs.",
+          ...(budget === null ? [] : [budget]),
+          ...shown.map(fighterLine),
+        );
+      }
     }
   } else if (view.prepared.length > 0) {
     lines.push(
@@ -203,8 +217,8 @@ export function asFighter(raw: unknown): Fighter | null {
 }
 
 /**
- * Where the fight stands, from its encounter and its live row. No live row, or one not yet running and not ended,
- * is a fight that has not begun. An encounter marked finished is over even without a live row.
+ * Where the fight stands, from its encounter and its live row. No live row, or one still in round 0 and not shared
+ * with players and not ended, is a fight that has not begun. An encounter marked finished is over even without a live row.
  */
 export function fightStateOf(input: {
   encounterId: string;
@@ -215,7 +229,9 @@ export function fightStateOf(input: {
   const { live } = input;
   const fighters = live !== null && Array.isArray(live.combatants) ? live.combatants.map(asFighter).filter((f): f is Fighter => f !== null) : [];
   const over = input.finished || (live !== null && live.endedAt !== null);
-  const phase = over ? "over" : live !== null && live.isRunning ? "running" : "waiting";
+  // A fight at the AI table is never shared with players ("live"), so `isRunning` alone would leave it waiting for
+  // good: a fight whose first round has begun is being fought, shared or not.
+  const phase = over ? "over" : live !== null && (live.isRunning || live.round >= 1) ? "running" : "waiting";
   return { encounterId: input.encounterId, name: input.name, phase, round: live === null ? null : live.round, fighters };
 }
 

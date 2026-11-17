@@ -4,6 +4,8 @@
 // about what the narrator may do inside it: the campaign's own tools, a character speaking, moving the party and
 // putting a fact on the record. Everything with I/O comes in through `deps`; nothing here touches a database.
 
+import { changedText, FIGHT_CHANGE_TOOL, parseFightChange, type FightChange, type TurnBudget } from "../_shared/agent/fightChange.ts";
+import type { FightState } from "../_shared/agent/fight.ts";
 import { alreadyRecorded, existsText, INTRODUCE_TOOL, INTRODUCE_TOOL_NAME, INTRODUCTIONS_PER_TURN, introducedText, parseIntroduction, type Introduction } from "../_shared/agent/introduce.ts";
 import { GO_TO_TOOL, makeSceneTool } from "../_shared/agent/scene.ts";
 import type { Remembered } from "../_shared/agent/characterTurn.ts";
@@ -47,6 +49,8 @@ export interface TurnToolsInput {
   playerName?: string;
   /** The names of the world's peoples, for the characters' own calls. */
   peoples: readonly string[];
+  /** The fight on the board and what the player's turn still holds; null when no fight is being fought, and then the tool is not offered. */
+  fightChange: { fight: FightState; budget: TurnBudget | null; onChange(change: FightChange): void } | null;
   /** Takes a person the narrator gives a record; the record is made when the turn is kept. */
   onIntroduce(intro: Introduction): void;
   /** The fights in view and where a started one goes; null when no fight can be started, and then the tool is not offered. */
@@ -146,6 +150,18 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     return { content: planned.says, isError: false };
   };
 
+  // One change to the fight a turn: a second would silently replace the first.
+  let fightChanged = false;
+  const changeFight = (toolInput: Record<string, unknown>) => {
+    if (input.fightChange === null) return { content: "No fight is being fought, so there is nothing to change.", isError: true };
+    if (fightChanged) return { content: "The fight was already changed this turn. Tell what happens and end your reply.", isError: true };
+    const parsed = parseFightChange(input.fightChange.fight, input.fightChange.budget, toolInput);
+    if (!parsed.ok) return { content: parsed.error, isError: true };
+    fightChanged = true;
+    input.fightChange.onChange(parsed.value);
+    return { content: changedText(parsed.value), isError: false };
+  };
+
   // A person the narrator made up gets a record, once the name is known to be new (`introduce.ts`).
   let introductions = 0;
   const introduce = async (toolInput: Record<string, unknown>) => {
@@ -173,7 +189,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
@@ -183,6 +199,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (input.askRoll && name === ASK_ROLL_TOOL.name) return Promise.resolve(askRoll(toolInput));
       if (input.fight && name === START_FIGHT_TOOL.name) return startFight(toolInput);
       if (name === INTRODUCE_TOOL_NAME) return introduce(toolInput);
+      if (input.fightChange && name === FIGHT_CHANGE_TOOL.name) return Promise.resolve(changeFight(toolInput));
       if (quests && quests.names.has(name)) return quests.call(name, toolInput);
       if (SPEECH_TOOL_NAMES.has(name)) return speech.call(name, toolInput);
       if (name === ROLL_TOOL_NAME) return rolled(deps.callTool(name, toolInput), toolInput.expression);

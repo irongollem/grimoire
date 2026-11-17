@@ -1,6 +1,7 @@
 // What a turn request says and how the player's message reaches the narrator (#1205, #1021). Split from `handler.ts`
 // so the handler holds the turn's rules. Pure.
 
+import type { TurnBudget } from "../_shared/agent/fightChange.ts";
 import { parseRollAnswer, type RollAnswer } from "../_shared/agent/playerRoll.ts";
 
 /** The longest message a player may send. */
@@ -36,6 +37,8 @@ export interface AgentTurnBody {
   opening?: true;
   /** A fight at the table has ended and the page asks the narrator to tell what comes of it. */
   aftermath?: true;
+  /** In a fight on the board: whose turn it is and what the player's turn still holds, as the page has it. */
+  fightTurn?: TurnBudget;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -63,6 +66,14 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
   // Only a roll, an opening or a fight's aftermath makes a turn without words.
   if ((message.length < 1 && roll === undefined && !opening && !aftermath) || message.length > MAX_MESSAGE_CHARS) return { ok: false };
   if (r.mode !== "say" && r.mode !== "do" && r.mode !== "ask") return { ok: false };
+  let fightTurn: TurnBudget | undefined;
+  if (r.fightTurn !== undefined) {
+    const t = r.fightTurn;
+    if (typeof t !== "object" || t === null || Array.isArray(t)) return { ok: false };
+    const { yours, action, bonus, reaction, words } = t as Record<string, unknown>;
+    if (![yours, action, bonus, reaction, words].every((v) => typeof v === "boolean")) return { ok: false };
+    fightTurn = { yours: yours as boolean, action: action as boolean, bonus: bonus as boolean, reaction: reaction as boolean, words: words as boolean };
+  }
   if (r.startLocationId !== undefined) {
     if (typeof r.startLocationId !== "string" || !UUID_RE.test(r.startLocationId)) return { ok: false };
     if (r.sessionId !== undefined) return { ok: false };
@@ -76,6 +87,7 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
       campaignId: r.campaignId, sessionId: r.sessionId, startLocationId: r.startLocationId, characterId: r.characterId,
       message, mode: r.mode, ...(roll === undefined ? {} : { roll }), ...(opening ? { opening: true as const } : {}),
       ...(aftermath ? { aftermath: true as const } : {}),
+      ...(fightTurn === undefined ? {} : { fightTurn }),
     },
   };
 }

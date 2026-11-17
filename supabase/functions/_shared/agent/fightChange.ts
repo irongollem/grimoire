@@ -1,0 +1,176 @@
+// What the Dungeon Master may do to a fight at the table (#1021, Solo Table canvas, frame 15).
+//
+// A fight is played on the board by the game's rules, and the narrator never decides a blow. But "trying to flee or
+// talk them down always remains an option ... trying to lure them into traps, throwing a blanket on their face":
+// what the rules have no button for is ruled on by the Dungeon Master, and a ruling has to be able to change the
+// fight. One tool does that, in three ways: a condition on a creature, damage to a creature, the fight's end.
+//
+// Rules:
+//   1. One turn of about six seconds pays for the board and the story alike. The page says what the player's turn
+//      still holds; a change that costs what is already spent is refused here, before anything is told.
+//   2. Never a blow the rules cover: no damage from an ordinary attack, and no change to the player's own hit
+//      points. A stunt's damage is rolled with the roll tool first and passed as a number.
+//   3. One change a turn, made when the turn is kept, and carried out by the board (the page), which holds the
+//      fight: the story never writes the fight's row itself.
+//
+// Pure: no I/O.
+
+import type { AgentTool } from "./types.ts";
+import type { FightState } from "./fight.ts";
+
+/** What the player's turn still holds, as the page tells it. True means still available. */
+export interface TurnBudget {
+  /** It is the played character's turn. */
+  yours: boolean;
+  action: boolean;
+  bonus: boolean;
+  reaction: boolean;
+  /** One short line aloud. */
+  words: boolean;
+}
+
+export type Cost = "action" | "bonus" | "reaction" | "nothing";
+export type FightEnd = "they_give_in" | "they_flee" | "you_get_away";
+
+// Conditions a stunt or a threat can plausibly put on a creature. The ones that take a creature out of the fight
+// outright (Paralyzed, Petrified, Stunned, Unconscious) are left to the rules that grant them.
+export const STUNT_CONDITIONS = ["Blinded", "Deafened", "Frightened", "Grappled", "Poisoned", "Prone", "Restrained"] as const;
+export type StuntCondition = (typeof STUNT_CONDITIONS)[number];
+
+export const MAX_ROUNDS = 3;
+export const MAX_DAMAGE = 60;
+
+export interface FightChange {
+  costs: Cost;
+  condition: { target: string; name: StuntCondition; rounds: number } | null;
+  damage: { target: string; amount: number; type: string | null } | null;
+  ends: FightEnd | null;
+}
+
+export const FIGHT_CHANGE_TOOL: AgentTool = {
+  name: "fight_change",
+  description:
+    "Changes the fight on the board after you have ruled on something the rules have no button for (a threat, a " +
+    "plea, a trick, running away). Say what it costs the player's turn, and give at least one of: a condition on a " +
+    "creature, damage to a creature (roll it with the roll tool first and pass the number), or how the fight ends. " +
+    "Never use it for an ordinary attack, and never on the player's own character. Name creatures exactly as the " +
+    "section \"Fights\" lists them. One change a turn; it is carried out when the turn is kept.",
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      costs: {
+        type: "string",
+        enum: ["action", "bonus", "reaction", "nothing"],
+        description: "What it costs the player's turn. Trying something is an Action; a small thing may be a Bonus Action; a reply to what just happened is a Reaction; words alone cost nothing.",
+      },
+      condition: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          target: { type: "string", description: "The creature's name as listed." },
+          name: { type: "string", enum: [...STUNT_CONDITIONS] },
+          rounds: { type: "integer", minimum: 1, maximum: MAX_ROUNDS, description: "How many rounds it lasts (default 1)." },
+        },
+        required: ["target", "name"],
+      },
+      damage: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          target: { type: "string", description: "The creature's name as listed." },
+          amount: { type: "integer", minimum: 1, maximum: MAX_DAMAGE, description: "The damage, already rolled with the roll tool." },
+          type: { type: "string", description: "The damage type, in one word (bludgeoning, fire...)." },
+        },
+        required: ["target", "amount"],
+      },
+      ends: {
+        type: "string",
+        enum: ["they_give_in", "they_flee", "you_get_away"],
+        description: "The fight is over: the foes give in, the foes flee, or the player's character gets away.",
+      },
+    },
+    required: ["costs"],
+  },
+};
+
+type Parsed = { ok: true; value: FightChange } | { ok: false; error: string };
+const refuse = (error: string): Parsed => ({ ok: false, error });
+const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
+const same = (a: string, b: string): boolean => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/** The fighter the narrator named, when it is one it may change: listed, not the party's, still standing. */
+function foe(fight: FightState, raw: unknown): { name: string } | string {
+  if (typeof raw !== "string" || raw.trim() === "") return "Name the creature as the section \"Fights\" lists it.";
+  const found = fight.fighters.find((f) => same(f.name, raw));
+  if (!found) return `Nobody called "${raw.trim()}" is in this fight. Use a name from the section "Fights".`;
+  if (found.side === "party") return "That is the player's own side. This tool never changes the player's character.";
+  if (found.hp <= 0) return `${found.name} is already down.`;
+  return { name: found.name };
+}
+
+/** What the narrator asked for, checked against the fight as it stands and what the player's turn still holds. */
+export function parseFightChange(fight: FightState | null, budget: TurnBudget | null, input: Record<string, unknown>): Parsed {
+  if (fight === null || fight.phase !== "running") return refuse("No fight is being fought, so there is nothing to change.");
+  const { costs, condition, damage, ends } = input;
+  if (costs !== "action" && costs !== "bonus" && costs !== "reaction" && costs !== "nothing") {
+    return refuse("costs must be action, bonus, reaction or nothing.");
+  }
+  if (condition === undefined && damage === undefined && ends === undefined) return refuse("Give a condition, damage or how the fight ends.");
+  // What the page does not tell cannot be checked; then the cost is taken on the narrator's word.
+  if (budget !== null) {
+    if (costs !== "reaction" && !budget.yours) return refuse("It is not the player's turn. Only a Reaction can be spent now.");
+    if (costs !== "nothing" && !budget[costs]) {
+      const name = costs === "action" ? "Action" : costs === "bonus" ? "Bonus Action" : "Reaction";
+      return refuse(`The player has already used their ${name} this turn. Tell them so in one sentence; nothing changes.`);
+    }
+  }
+
+  let withCondition: FightChange["condition"] = null;
+  if (condition !== undefined) {
+    if (!isRecord(condition)) return refuse("condition is an object with target and name.");
+    const target = foe(fight, condition.target);
+    if (typeof target === "string") return refuse(target);
+    const name = STUNT_CONDITIONS.find((c) => c === condition.name);
+    if (name === undefined) return refuse(`condition.name must be one of: ${STUNT_CONDITIONS.join(", ")}.`);
+    const rounds = condition.rounds === undefined ? 1 : condition.rounds;
+    if (typeof rounds !== "number" || !Number.isInteger(rounds) || rounds < 1 || rounds > MAX_ROUNDS) return refuse(`rounds is a whole number from 1 to ${MAX_ROUNDS}.`);
+    withCondition = { target: target.name, name, rounds };
+  }
+
+  let withDamage: FightChange["damage"] = null;
+  if (damage !== undefined) {
+    if (!isRecord(damage)) return refuse("damage is an object with target and amount.");
+    const target = foe(fight, damage.target);
+    if (typeof target === "string") return refuse(target);
+    const { amount, type } = damage;
+    if (typeof amount !== "number" || !Number.isInteger(amount) || amount < 1 || amount > MAX_DAMAGE) {
+      return refuse(`amount is the damage already rolled: a whole number from 1 to ${MAX_DAMAGE}.`);
+    }
+    if (type !== undefined && (typeof type !== "string" || type.trim().length > 20)) return refuse("type is one word.");
+    withDamage = { target: target.name, amount, type: typeof type === "string" && type.trim() !== "" ? type.trim().toLowerCase() : null };
+  }
+
+  if (ends !== undefined && ends !== "they_give_in" && ends !== "they_flee" && ends !== "you_get_away") {
+    return refuse("ends must be they_give_in, they_flee or you_get_away.");
+  }
+  return { ok: true, value: { costs, condition: withCondition, damage: withDamage, ends: ends === undefined ? null : ends } };
+}
+
+export function changedText(change: FightChange): string {
+  const parts: string[] = [];
+  if (change.condition) parts.push(`${change.condition.target} becomes ${change.condition.name} for ${change.condition.rounds} round${change.condition.rounds === 1 ? "" : "s"}`);
+  if (change.damage) parts.push(`${change.damage.target} takes ${change.damage.amount}${change.damage.type ? ` ${change.damage.type}` : ""} damage`);
+  if (change.ends) parts.push("the fight ends");
+  return `When this turn is kept: ${parts.join("; ")}. Tell what happens in a sentence or two, and do not narrate it twice.`;
+}
+
+/** What the turn still holds, as a line of the narrator's state. */
+export function budgetLine(budget: TurnBudget): string {
+  if (!budget.yours) {
+    return `It is not the player's turn. They can only react${budget.reaction ? "" : ", and their Reaction is already spent"}; anything else waits for their turn.`;
+  }
+  const left = [budget.action ? "Action" : null, budget.bonus ? "Bonus Action" : null, budget.reaction ? "Reaction" : null, budget.words ? "a few words" : null]
+    .filter((p): p is string => p !== null);
+  return left.length === 0 ? "It is the player's turn, and they have nothing left in it but to move or end it." : `It is the player's turn. It still holds: ${left.join(", ")}.`;
+}

@@ -2911,6 +2911,68 @@ describe("the story turns into a fight", () => {
     expect(opening(h.requests[0])).toContain("Rosie confronts Sift");
   });
 
+  // Bug caught live (17 Nov 2026): "i take the chair behind me and throw it at the dogs" was answered "Resolve the
+  // fight on the fight screen". The Dungeon Master had no way to rule on what the rules have no button for.
+  describe("the Dungeon Master's ruling in a fight on the board", () => {
+    const running: FightsInView = {
+      prepared: [],
+      fight: { encounterId: FIGHT, name: "The Watching Pack", phase: "running", round: 2, fighters: [
+        { name: "Wren Ashfield", side: "party", hp: 20, maxHp: 24 },
+        { name: "Giant Rat 1", side: "enemy", hp: 5, maxHp: 7 },
+      ] },
+    };
+    const change = (input: Record<string, unknown>): ModelStep =>
+      step(10, { blocks: [{ type: "tool_call", id: "c1", name: "fight_change", input }], stop: "tool_calls" });
+    const turn = { yours: true, action: true, bonus: true, reaction: true, words: true };
+    const inFight = (script: Script): Harness => {
+      const h = played(script, { fight_encounter_id: FIGHT });
+      h.state.fights = running;
+      return h;
+    };
+
+    it("offers the tool only while a fight is being fought, and tells the narrator what the turn holds", async () => {
+      const h = inFight([step(10)]);
+      await play(h, { body: { ...BODY, fightTurn: { ...turn, action: false } } });
+      expect(h.requests[0].tools.map((t) => t.name)).toContain("fight_change");
+      expect(opening(h.requests[0])).toContain("It still holds: Bonus Action, Reaction, a few words.");
+      const quiet = played([step(10)]);
+      quiet.state.fights = prepared;
+      await play(quiet, { body: BODY });
+      expect(quiet.requests[0].tools.map((t) => t.name)).not.toContain("fight_change");
+    });
+
+    it("hands the change to the page once the turn is kept", async () => {
+      const h = inFight([change({ costs: "action", condition: { target: "Giant Rat 1", name: "Blinded" } }), step(10)]);
+      await play(h, { body: { ...BODY, fightTurn: turn } });
+      expect(h.events.filter((e) => e.type === "fight_change")).toEqual([
+        { type: "fight_change", change: { costs: "action", condition: { target: "Giant Rat 1", name: "Blinded", rounds: 1 }, damage: null, ends: null } },
+      ]);
+    });
+
+    // Bug caught: a fight the narrator ended ("he gives in") told a second time as an aftermath on the next message.
+    it("lets go of the fight when the ruling ends it", async () => {
+      const h = inFight([change({ costs: "action", ends: "they_give_in" }), step(10)]);
+      await play(h, { body: { ...BODY, fightTurn: turn } });
+      expect(h.fightSets).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN, encounterId: null }]);
+    });
+
+    // Bug caught: a stunt carried out for a player whose Action already went on an attack.
+    it("changes nothing when the turn no longer holds what it costs", async () => {
+      const h = inFight([change({ costs: "action", condition: { target: "Giant Rat 1", name: "Blinded" } }), step(10)]);
+      await play(h, { body: { ...BODY, fightTurn: { ...turn, action: false } } });
+      expect(h.events.some((e) => e.type === "fight_change")).toBe(false);
+      expect(JSON.stringify(h.requests[1])).toContain("already used their Action");
+    });
+
+    // Bug caught: the board changed for a turn the player never got to keep.
+    it("changes nothing when the turn is not kept", async () => {
+      const h = inFight([change({ costs: "action", condition: { target: "Giant Rat 1", name: "Blinded" } }), step(10)]);
+      h.state.saveThrows = true;
+      await play(h, { body: { ...BODY, fightTurn: turn } });
+      expect(h.events.some((e) => e.type === "fight_change")).toBe(false);
+    });
+  });
+
   it("starts the fight once the turn is kept, as the played character, and tells the page where it is", async () => {
     const h = played([startStep(), step(10)]);
     h.state.fights = prepared;

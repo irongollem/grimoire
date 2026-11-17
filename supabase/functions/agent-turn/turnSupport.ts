@@ -1,6 +1,7 @@
 // What a turn does around the loop: reading the scene and the record for the system text, folding old messages into
 // the summary, and the two small helpers both use. Split from `handler.ts` so the handler holds the turn's rules.
 
+import { budgetLine, type TurnBudget } from "../_shared/agent/fightChange.ts";
 import { peoplesSection } from "../_shared/agent/peoples.ts";
 import { fightsSection, NO_FIGHTS, type FightsInView } from "../_shared/agent/fight.ts";
 import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
@@ -82,9 +83,11 @@ export function stateFor(input: {
   quests: QuestsInPlay | null;
   record: RecordedFact[];
   fights: FightsInView | null;
+  /** What the player's turn in the fight still holds, as the page told it; null outside a fight or when it did not say. */
+  fightTurn?: TurnBudget | null;
 }): string {
   // The fights sit with the scene: they are about the place the party stands in. Nothing to say, no section.
-  const fights = fightsSection(input.fights ?? NO_FIGHTS);
+  const fights = fightsSection(input.fights ?? NO_FIGHTS, input.fightTurn ? budgetLine(input.fightTurn) : null);
   return [sceneSection(input.scene), ...(fights === "" ? [] : [fights]), questsSection(input.quests ?? NO_QUESTS), recordSection(input.record)].join("\n\n");
 }
 

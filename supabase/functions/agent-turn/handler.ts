@@ -11,6 +11,7 @@
 //                (`_shared/agent/summary.ts`): the player never waits for that, and a failure in it is only logged.
 // A caller that gets `run` MUST call it: the reservation is released inside it.
 
+import type { FightChange } from "../_shared/agent/fightChange.ts";
 import type { Introduction } from "../_shared/agent/introduce.ts";
 import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { runTurn, totalTokens, type TurnEnd } from "../_shared/agent/turn.ts";
@@ -78,6 +79,8 @@ export type AgentEvent =
   | { type: "ask_roll"; roll: RollAsk }
   /** The roll this turn answered, as the server worked it out. No outcome: the narration says how it went. */
   | { type: "rolled"; roll: Rolled }
+  /** The narrator's ruling changes the fight on the board: the page carries it out. */
+  | { type: "fight_change"; change: FightChange }
   /** Someone the narrator made up now has a record the player's character knows of. A hidden one is never sent. */
   | { type: "introduced"; person: { id: string; name: string } }
   | { type: "done"; end: TurnEnd; credits: number; tokens: number }
@@ -514,7 +517,10 @@ export async function beginTurn(input: {
           console.error("agent-turn: reading the world's peoples failed:", error);
         }
         const system = systemWithSummary(systemFor({ campaign, character, peoples }), session.summary);
-        const state = stateFor({ scene, quests: questState, record, fights });
+        const fightTurn = body.fightTurn === undefined ? null : body.fightTurn;
+        const state = stateFor({ scene, quests: questState, record, fights, fightTurn });
+        // What the narrator's ruling does to the fight on the board; carried out by the page once the turn is kept.
+        let fightChange: FightChange | null = null;
         // People the narrator gave a record this turn; made only once the turn is kept.
         const introduced: Introduction[] = [];
         // The fight the narrator starts this turn; started only once the turn is kept.
@@ -534,6 +540,10 @@ export async function beginTurn(input: {
           playerName: character ? character.name : undefined,
           peoples,
           onIntroduce: (intro) => { introduced.push(intro); },
+          // Offered only while a fight is being fought on the board.
+          fightChange: fights !== null && fights.fight !== null && fights.fight.phase === "running"
+            ? { fight: fights.fight, budget: fightTurn, onChange: (change) => { fightChange = change; } }
+            : null,
           // Only a played character has a sheet to roll from; without one the narrator rolls as before.
           askRoll: character ? (pending) => { asked = pending; } : null,
           // A fight needs someone to fight it: offered only with a played character and readable fights.
@@ -688,6 +698,12 @@ export async function beginTurn(input: {
           } catch (error) {
             console.error("agent-turn: starting the fight failed:", error);
           }
+        } else if (fightChange !== null) {
+          const change = fightChange as FightChange;
+          // The board carries the change out. When it ends the fight the narrator has told its end in this reply,
+          // so the conversation lets go of the fight now and no aftermath is asked for.
+          if (change.ends !== null) await safely(() => deps.setFight(session.id, campaign.id, null));
+          emit({ type: "fight_change", change });
         } else if (fights !== null && fightIsTold(fights.fight)) {
           await safely(() => deps.setFight(session.id, campaign.id, null));
           emit({ type: "fight", fight: null });

@@ -33,10 +33,21 @@ describe("fightsSection", () => {
     expect(fightsSection({ prepared: [], fight: null })).toBe("");
   });
 
-  it("tells the narrator to keep out of a fight that is being fought, and offers no other fight meanwhile", () => {
-    const text = fightsSection(view({ fight: fight() }));
-    expect(text).toContain("Do not narrate attacks");
+  // Bug caught: the narrator telling blows the board decides, or (seen live, 17 Nov 2026) turning away a thrown chair
+  // with "resolve the fight on the fight screen" because it was told to keep out of the fight altogether.
+  it("leaves the blows to the board, takes what the rules have no button for, and offers no other fight meanwhile", () => {
+    const text = fightsSection(view({ fight: fight() }), "It is the player's turn. It still holds: Action.");
+    expect(text).toContain("never narrate those");
+    expect(text).toContain("fight_change");
+    expect(text).toContain("It still holds: Action.");
+    expect(text).not.toContain("fight screen");
     expect(text).not.toContain("Fights prepared at this place");
+  });
+
+  it("says a fight that has not begun is waiting on the player's initiative", () => {
+    const text = fightsSection(view({ fight: fight({ phase: "waiting" }) }));
+    expect(text).toContain("rolling initiative");
+    expect(text).not.toContain("fight_change");
   });
 
   it("hands over how the fight stands once it is over: who is down and who is left", () => {
@@ -94,9 +105,9 @@ describe("fightStateOf", () => {
     isRunning: true, endedAt: null, round: 2, combatants: [], ...over,
   });
 
-  it("is waiting before the fight screen has opened it, running while it is fought, over once it ended", () => {
+  it("is waiting before its first round, running while it is fought, over once it ended", () => {
     expect(fightStateOf({ ...base, live: null }).phase).toBe("waiting");
-    expect(fightStateOf({ ...base, live: live({ isRunning: false }) }).phase).toBe("waiting");
+    expect(fightStateOf({ ...base, live: live({ isRunning: false, round: 0 }) }).phase).toBe("waiting");
     expect(fightStateOf({ ...base, live: live() }).phase).toBe("running");
     expect(fightStateOf({ ...base, live: live({ isRunning: false, endedAt: "2026-11-17T08:00:00Z" }) }).phase).toBe("over");
   });
@@ -128,5 +139,17 @@ describe("fightIsTold", () => {
     expect(fightIsTold(fight({ phase: "over" }))).toBe(true);
     expect(fightIsTold(fight({ phase: "running" }))).toBe(false);
     expect(fightIsTold(null)).toBe(false);
+  });
+});
+
+describe("fightStateOf: a fight at the table is never shared with players", () => {
+  const live = (round: number, isRunning = false) => ({ isRunning, endedAt: null, round, combatants: [] });
+
+  // Bug caught: the narrator told for a whole fight that it is "about to begin", and offered no way to rule on it,
+  // because only a fight shared with players counted as being fought.
+  it("is being fought once its first round has begun, shared or not", () => {
+    expect(fightStateOf({ encounterId: "e", name: "n", finished: false, live: live(1) }).phase).toBe("running");
+    expect(fightStateOf({ encounterId: "e", name: "n", finished: false, live: live(0) }).phase).toBe("waiting");
+    expect(fightStateOf({ encounterId: "e", name: "n", finished: false, live: live(0, true) }).phase).toBe("running");
   });
 });
