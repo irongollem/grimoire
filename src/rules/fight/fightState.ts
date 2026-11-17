@@ -37,7 +37,18 @@ export type FightEffect =
   /** What a resolving command (`resolve_attack` ...) rolled and did, for a caller to show or narrate. Only the server raises it. */
   | { type: "resolved"; resolved: ResolvedAction }
   /** What a creature the server played did with its turn and why, raised before the effects of the steps themselves (#1203). Only the server raises it. */
-  | { type: "turn_taken"; turn: TurnTaken };
+  | { type: "turn_taken"; turn: TurnTaken }
+  /**
+   * A creature the server plays struck a mover who left its reach (PHB 2014 ch. 9 "Opportunity Attacks"). Raised right
+   * before that attack's `resolved` effect. `step` is the index in the mover's path of the square it was leaving.
+   * Not persistent: a browser reads it to tell the story. Only the server raises it.
+   */
+  | { type: "opportunity"; attackerId: string; targetId: string; step: number }
+  /**
+   * A player character may strike a mover the server plays as it leaves their reach. The server never rolls a player's
+   * dice and does not spend their Reaction: the browser offers the attack and spends the Reaction if it is taken. Only the server raises it.
+   */
+  | { type: "provoked_player"; moverId: string; playerId: string; step: number };
 
 /** One creature's turn as the server played it: the option, in the words a narrator or the log can quote, and who chose it. */
 export interface TurnTaken {
@@ -70,7 +81,7 @@ export interface TurnTaken {
 
 /** The reducer's events, told apart from the effects a fight adds. */
 export function isTurnEvent(effect: FightEffect): effect is EncounterTurnEvent {
-  return effect.type !== "broadcast" && effect.type !== "spawned" && effect.type !== "resolved" && effect.type !== "turn_taken";
+  return effect.type !== "broadcast" && effect.type !== "spawned" && effect.type !== "resolved" && effect.type !== "turn_taken" && effect.type !== "opportunity" && effect.type !== "provoked_player";
 }
 
 /** One damage part after the target's defenses: what was rolled, what was taken, and which defense changed it. */

@@ -1323,10 +1323,11 @@ describe("take_turn", () => {
     await expect(runBatch(batch("b3", takeTurn({ optionId: "attack:actions:Breath:victim" })), h.deps)).rejects.toMatchObject({ status: 400, message: "That option is not on offer." });
   });
 
+  // The ox has used its Reaction, so leaving its reach costs the wolf nothing (opportunity attacks are tested below).
   // A creature at 2 of 11 hit points is at 18%, under the quarter at which a creature breaks (APP CONVENTION), and flees
   // rather than attacking the ox beside it: no die is thrown.
   it("fails if a broken creature attacks instead of falling back", async () => {
-    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
+    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 }, reactionUsed: true } });
     const h = harness(fight, { sources: SOURCES, map: mapOf(), dieFaces: [] });
     const result = await runBatch(batch("b1", takeTurn()), h.deps);
     expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { kind: "flee", picked: "rules" } });
@@ -1337,7 +1338,7 @@ describe("take_turn", () => {
 
   // The wolf (2 of 11 hit points, so it breaks) at (1,0) beside the ox at (2,0). The West gate is (-2,0): 3 steps, 15 ft.
   it("fails if a broken creature that flees to a way off stays in the fight, or the reply does not say it left and by where", async () => {
-    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
+    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 }, reactionUsed: true } });
     const h = harness(fight, { sources: SOURCES, map: mapWithExits([{ cell: "-2,0", label: "West gate", kind: "entrance" }]), dieFaces: [] });
     const result = await runBatch(batch("b1", takeTurn()), h.deps);
     expect(stored(h).combatants_live.map((c) => c.instance_id)).toEqual(["victim"]);
@@ -1351,7 +1352,7 @@ describe("take_turn", () => {
   });
 
   it("fails if a creature that flees on a map with no way off is taken out of the fight", async () => {
-    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
+    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 }, reactionUsed: true } });
     const h = harness(fight, { sources: SOURCES, map: mapOf(), dieFaces: [] });
     const result = await runBatch(batch("b1", takeTurn()), h.deps);
     expect(stored(h).combatants_live.map((c) => c.instance_id).sort()).toEqual(["victim", "wolf"]);
@@ -1363,7 +1364,7 @@ describe("take_turn", () => {
   // tables: "are you respecting that?"). They cannot, so the reply says the move crossed a bare map; one wall drawn
   // anywhere and it no longer does, and a turn with no move never does.
   it("fails if a move across a map with nothing drawn is not flagged, or a drawn map or a turn without a move is", async () => {
-    const flee = () => duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
+    const flee = () => duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 }, reactionUsed: true } });
     const bare = await runBatch(batch("b1", takeTurn()), harness(flee(), { sources: SOURCES, map: mapOf(), dieFaces: [] }).deps);
     expect(bare.effects[0]).toMatchObject({ turn: { kind: "flee", bareMap: true } });
     const drawn = await runBatch(batch("b1", takeTurn()), harness(flee(), { sources: SOURCES, map: mapOf([[30, 30], [31, 30]]), dieFaces: [] }).deps);
@@ -1524,5 +1525,141 @@ describe("take_turn with a note", () => {
     });
     await expect(runBatch(batch("b2", takeTurn()), refused.deps)).rejects.toMatchObject({ status: 400 });
     expect(refused.noteCosts).toEqual([]);
+  });
+});
+
+// ── opportunity attacks (#1021) ───────────────────────────────────────────────────
+// PHB 2014 ch. 9 "Opportunity Attacks": a hostile creature that moves out of your reach can be struck with your Reaction.
+// Nessa (AC 18: chain mail 16 + shield 2, 20 HP) stands at (0,0); the wolf (faction m) at (1,0) reaches 5 ft, so walking
+// west to (-1,0) leaves its reach from the square she is standing on (step 0). The wolf's Bite is +4 for 1d6+2:
+// d20 14 + 4 = 18 meets AC 18; a 5 on the d6 deals 7, so 20 HP become 13.
+
+const WEST = [{ x: 0, y: 0 }, { x: -1, y: 0 }, { x: -2, y: 0 }];
+const provoke = (over: Record<string, unknown> = {}) => ({ type: "provoke", moverId: "nessa", path: WEST, ...over }) as CommandRequest["commands"][number];
+const nessa = (over: Partial<RunCombatant> = {}) => pc("nessa", { faction_id: "p", hp: 20, max_hp: 20, initiative: 8, position: { x: 0, y: 0 }, ...over });
+const wolfAt = (id: string, x: number, y: number, over: Partial<RunCombatant> = {}) =>
+  combatant(id, { monster_id: "m-wolf", faction_id: "m", hp: 11, max_hp: 11, initiative: 12, position: { x, y }, ...over });
+const walk = (combatants: RunCombatant[], dieFaces: number[]) =>
+  harness(row({ combatants_live: combatants }), { sources: SOURCES, players: NESSA_IN_PLATE, map: mapOf(), dieFaces });
+
+describe("provoke", () => {
+  // Bug caught: a creature never strikes (the whole feature missing), strikes twice, or keeps its Reaction.
+  it("fails if the creature a player walks away from does not strike once, or a second walk the same turn strikes again", async () => {
+    const h = walk([nessa(), wolfAt("wolf", 1, 0)], [14, 5]);
+    const result = await runBatch(batch("b1", provoke()), h.deps);
+    expect(hpOf(stored(h), "nessa")).toBe(13);
+    expect(result.effects.find((e) => e.type === "opportunity")).toEqual({ type: "opportunity", attackerId: "wolf", targetId: "nessa", step: 0 });
+    expect(result.effects.filter((e) => e.type === "resolved")).toHaveLength(1);
+    expect(combatantOf(stored(h), "wolf").reactionUsed).toBe(true);
+    // It moves nothing: the browser moves the token.
+    expect(combatantOf(stored(h), "nessa").position).toEqual({ x: 0, y: 0 });
+    const again = await runBatch(batch("b2", provoke()), h.deps);
+    expect(again.effects).toEqual([]);
+    expect(h.dieCalls).toBe(2);
+  });
+
+  // PHB 2014 ch. 9 "Disengage": no opportunity attacks. Bug caught: `disengaged` not passed to opportunityAttacks.
+  it("fails if a mover with the Disengaged condition provokes", async () => {
+    const h = walk([nessa({ conditions: [{ name: "Disengaged" }] }), wolfAt("wolf", 1, 0)], []);
+    const result = await runBatch(batch("b1", provoke()), h.deps);
+    expect(result.effects).toEqual([]);
+    expect(h.dieCalls).toBe(0);
+  });
+
+  // Bug caught: the Reaction is not read, so a creature strikes twice a round.
+  it("fails if a creature whose Reaction is already used strikes", async () => {
+    const h = walk([nessa(), wolfAt("wolf", 1, 0, { reactionUsed: true })], []);
+    expect((await runBatch(batch("b1", provoke()), h.deps)).effects).toEqual([]);
+    expect(h.dieCalls).toBe(0);
+  });
+
+  // The wolf is at (1,0): (0,1) is diagonal, still 5 ft. Nothing leaves its reach, so nothing is provoked.
+  it("fails if walking around inside a creature's reach provokes it", async () => {
+    const h = walk([nessa(), wolfAt("wolf", 1, 0)], []);
+    const result = await runBatch(batch("b1", provoke({ path: [{ x: 0, y: 0 }, { x: 0, y: 1 }] })), h.deps);
+    expect(result.effects).toEqual([]);
+    expect(combatantOf(stored(h), "wolf").reactionUsed).not.toBe(true);
+  });
+
+  // Bug caught: a helper with the party's enemies' faction, or a creature with no stat block, is played by the server.
+  it("fails if a bystander or a creature with no stat block strikes, or spends its Reaction", async () => {
+    const h = walk([nessa(), wolfAt("helper", 1, 0, { bystander: true }), combatant("ghost", { faction_id: "m", position: { x: 0, y: 1 } })], []);
+    const result = await runBatch(batch("b1", provoke()), h.deps);
+    expect(result.effects).toEqual([]);
+    expect(h.dieCalls).toBe(0);
+    expect(combatantOf(stored(h), "helper").reactionUsed).not.toBe(true);
+  });
+
+  // Nessa has 5 HP: the first blow (7) drops her, and a dead creature is not struck again (the second wolf keeps its Reaction).
+  it("fails if a mover dropped to 0 hit points is struck by the next creature too", async () => {
+    const h = walk([nessa({ hp: 5 }), wolfAt("w1", 1, 0), wolfAt("w2", 0, 1)], [14, 5, 14, 5]);
+    const result = await runBatch(batch("b1", provoke()), h.deps);
+    expect(hpOf(stored(h), "nessa")).toBe(0);
+    expect(result.effects.filter((e) => e.type === "opportunity")).toHaveLength(1);
+    expect(h.dieCalls).toBe(2);
+    expect(combatantOf(stored(h), "w2").reactionUsed).not.toBe(true);
+  });
+
+  // A player at 0 hit points lies where they fell and walks nowhere; nobody strikes them for it.
+  it("fails if a mover already at 0 hit points is struck for leaving", async () => {
+    const h = walk([nessa({ hp: 0 }), wolfAt("wolf", 1, 0)], []);
+    expect((await runBatch(batch("b1", provoke()), h.deps)).effects).toEqual([]);
+    expect(h.dieCalls).toBe(0);
+  });
+
+  it("fails if a mover who provokes nobody is refused, or an unknown mover is not", async () => {
+    const h = walk([nessa(), wolfAt("wolf", 8, 8)], []);
+    await expect(runBatch(batch("b1", provoke()), h.deps)).resolves.toMatchObject({ effects: [] });
+    await expect(runBatch(batch("b2", provoke({ moverId: "ghost" })), h.deps)).rejects.toMatchObject({ status: 400 });
+  });
+
+  // Bug caught: a malformed path reaches the geometry, or a provoke rides in a batch with other commands.
+  it("fails if a malformed path or a batch beside other commands is accepted", () => {
+    expect(() => validateRequest(batch("b", provoke()))).not.toThrow();
+    const bad = (path: unknown) => expect(() => validateRequest(batch("b", provoke({ path })))).toThrow(FightCommandError);
+    bad([{ x: 0, y: 0 }]);
+    bad(Array.from({ length: 61 }, (_, i) => ({ x: i, y: 0 })));
+    bad([{ x: 0, y: 0 }, { x: 0.5, y: 0 }]);
+    bad([{ x: 0, y: 0 }, { x: "1", y: 0 }]);
+    bad("0,0 1,0");
+    expect(() => validateRequest(batch("b", provoke({ moverId: "" })))).toThrow(FightCommandError);
+    expect(() => validateRequest(batch("b", { type: "next_turn" }, provoke()))).toThrow(FightCommandError);
+  });
+});
+
+describe("take_turn and opportunity attacks", () => {
+  // The wolf (2 of 11 HP, so it breaks and flees) stands at (1,0) beside the ox at (2,0); the ox strikes as it leaves:
+  // d20 9 + 4 = 13 meets the wolf's AC 12 and 1d6+2 with a 5 deals 7, more than the 2 it has. It is down, so it does not walk.
+  it("fails if a creature dropped by an opportunity attack still completes its move, or the strike is missing", async () => {
+    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
+    const h = harness(fight, { sources: SOURCES, map: mapOf(), dieFaces: [9, 5] });
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(result.effects.find((e) => e.type === "opportunity")).toMatchObject({ attackerId: "victim", targetId: "wolf" });
+    const wolf = combatantOf(stored(h), "wolf");
+    expect(wolf.hp).toBe(0);
+    expect(wolf.position).toEqual({ x: 1, y: 0 });
+    expect(wolf.movement_used ?? 0).toBe(0);
+    expect(wolf.action_used).not.toBe(true);
+  });
+
+  // A player rolls their own dice: the server reports that she may strike, throws no die, and does not spend her Reaction.
+  it("fails if a player's opportunity attack is rolled by the server, her Reaction spent, or the move stopped", async () => {
+    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 30, y: 30 } }, extra: [nessa({ position: { x: 1, y: 1 } })] });
+    const h = harness(fight, { sources: SOURCES, players: NESSA_IN_PLATE, map: mapOf(), dieFaces: [] });
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(result.effects.find((e) => e.type === "provoked_player")).toMatchObject({ moverId: "wolf", playerId: "nessa", step: 0 });
+    expect(h.dieCalls).toBe(0);
+    expect(combatantOf(stored(h), "nessa").reactionUsed).not.toBe(true);
+    expect(combatantOf(stored(h), "wolf").movement_used).toBeGreaterThan(0);
+  });
+
+  // PHB 2014 "Disengage": the stance step comes first in the turn, so the walk after it provokes nobody.
+  it("fails if a creature that took Disengage this turn still provokes", async () => {
+    const fight = duel({ wolf: { position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
+    const h = harness(fight, { sources: SOURCES, map: mapOf(), dieFaces: [] });
+    const result = await runBatch(batch("b0", takeTurn({ optionId: "disengage" })), h.deps);
+    expect(combatantOf(stored(h), "wolf").position).not.toEqual({ x: 1, y: 0 });
+    expect(result.effects.some((e) => e.type === "opportunity")).toBe(false);
+    expect(h.dieCalls).toBe(0);
   });
 });

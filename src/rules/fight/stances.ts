@@ -50,3 +50,18 @@ const INCAPACITATING = new Set<string>(["Incapacitated", "Paralyzed", "Petrified
 export function isIncapacitated(conditions: readonly AppliedCondition[]): boolean {
   return conditions.some((c) => INCAPACITATING.has(c.name));
 }
+
+/**
+ * Hidden: unseen and unheard after a successful Hide (PHB 2014 ch. 7 "Hiding" and ch. 9 "Unseen Attackers and
+ * Targets"; SRD 5.2 "Hide [Action]", where a success gives the Invisible condition's effects). Unlike a stance it
+ * does not run out with the turn: it ends when the hider attacks or is found.
+ */
+export const HIDDEN = "Hidden";
+
+export function hiddenCondition(): AppliedCondition {
+  return { name: HIDDEN };
+}
+
+export function isHidden(conditions: readonly AppliedCondition[]): boolean {
+  return conditions.some((c) => c.name === HIDDEN);
+}

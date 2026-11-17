@@ -3,7 +3,7 @@ import { reduceEncounterTurn, type EncounterTurnState } from "../encounterTurn.t
 import { attackRollMode } from "../combat/attackRoll.ts";
 import { saveRollMode } from "../combat/savingThrow.ts";
 import type { RunCombatant } from "../../types/encounter.types.ts";
-import { disengagedCondition, dodgingCondition, isDisengaged, isDodging, isIncapacitated } from "./stances.ts";
+import { disengagedCondition, dodgingCondition, hiddenCondition, isDisengaged, isDodging, isHidden, isIncapacitated } from "./stances.ts";
 
 const base = { delivery: "melee" as const, withinFiveFeet: true, ruleset: "2014" as const, attackerConditions: [] };
 const dodging = [dodgingCondition()];
@@ -100,5 +100,28 @@ describe("set_reaction_used", () => {
     expect(twice.combatants[1].reactionUsed).toBe(true);
     const cleared = reduceEncounterTurn(twice, { type: "set_reaction_used", instanceId: "b", used: false }).state;
     expect(cleared.combatants[1].reactionUsed).toBe(false);
+  });
+});
+
+describe("Hidden", () => {
+  const hidden = [hiddenCondition()];
+
+  // PHB 2014 "Unseen Attackers and Targets": attacking a target that cannot see you gives advantage; attacking a
+  // target you cannot see gives disadvantage. Bug caught: hiding that changed nothing about anyone's attack.
+  it("gives a hidden attacker advantage and an attack on a hidden target disadvantage", () => {
+    expect(attackRollMode({ ...base, attackerConditions: hidden, targetConditions: [] }).mode).toBe("advantage");
+    expect(attackRollMode({ ...base, attackerConditions: [], targetConditions: hidden }).mode).toBe("disadvantage");
+  });
+
+  // Bug caught: two hidden fighters each getting both, where the rule has them cancel to a plain roll.
+  it("cancels to a plain roll when attacker and target are both hidden", () => {
+    expect(attackRollMode({ ...base, attackerConditions: hidden, targetConditions: hidden }).mode).toBe("normal");
+  });
+
+  // Bug caught: Hidden given a turn's duration like a stance, so the hider reappears by themselves next turn.
+  it("does not run out with the turn: it has no end of its own", () => {
+    expect(hiddenCondition().ends).toBeUndefined();
+    expect(isHidden(hidden)).toBe(true);
+    expect(isHidden([dodgingCondition()])).toBe(false);
   });
 });

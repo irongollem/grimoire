@@ -239,7 +239,30 @@ describe("useFightCommands", () => {
       const { api } = mountComposable();
       await flushPromises();
       net.invoke.mockResolvedValue({ data: answer(20, 6, { applied: false, effects: [] }), error: null });
-      expect(await api.takeTurn("ogre")).toEqual({ turn: null, outcomes: [] });
+      expect(await api.takeTurn("ogre")).toEqual({ turn: null, outcomes: [], provokedPlayer: [] });
+    });
+
+    it("fails if a provoked player is not read out of the reply's effects", async () => {
+      attach();
+      net.invoke.mockResolvedValue({ data: answer(20, 5), error: null });
+      const { api } = mountComposable();
+      await flushPromises();
+      net.invoke.mockResolvedValue({ data: answer(20, 6, { effects: [{ type: "provoked_player", moverId: "ogre", playerId: "fresco", step: 0 }] }), error: null });
+      expect((await api.takeTurn("ogre")).provokedPlayer).toEqual([{ moverId: "ogre", playerId: "fresco" }]);
+    });
+
+    it("fails if provoke does not send the path alone, or does not read the strikes and their rolls from the reply", async () => {
+      attach();
+      net.invoke.mockResolvedValue({ data: answer(20, 5), error: null });
+      const { api } = mountComposable();
+      await flushPromises();
+      net.invoke.mockClear();
+      const path = [{ x: 0, y: 0 }, { x: -1, y: 0 }];
+      net.invoke.mockResolvedValue({ data: answer(20, 6, { effects: [{ type: "opportunity", attackerId: "ogre", targetId: "fresco", step: 0 }, { type: "resolved", resolved }] }), error: null });
+      const run = await api.provoke("fresco", path);
+      expect(sent().map((b) => b.commands)).toEqual([[{ type: "provoke", moverId: "fresco", path }]]);
+      expect(run.strikes).toEqual([{ attackerId: "ogre", step: 0 }]);
+      expect(run.outcomes).toHaveLength(1);
     });
 
     it("fails if the server's refusal is swallowed instead of thrown with its sentence", async () => {

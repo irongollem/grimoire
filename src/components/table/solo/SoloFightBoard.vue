@@ -75,8 +75,13 @@
 
   <!-- Your attack's dice, asked where every roll of yours is asked: above the composer (frame 13). -->
   <Teleport defer :to="`#${slots.roll}`">
+    <!-- Hide is a Dexterity (Stealth) check: asked like any roll of yours, with a way back out before it is made. -->
+    <div v-if="hideAsk && attack.state.value.step === 'idle'" class="mx-auto flex w-full max-w-176 flex-col gap-1" data-testid="solo-hide-ask">
+      <SoloRollAsk :ask="hideAsk" :bonus="hideCheck ? hideCheck.bonus : null" :forced-disadvantage="hideCheck ? hideCheck.forcedDisadvantage : false" :busy="resolving" @roll="onHide" />
+      <AppButton variant="ghost" size="sm" label="Not now" class="self-end" @click="hideAsk = null" />
+    </div>
     <SoloRollAsk
-      v-if="attack.state.value.step === 'to_hit'"
+      v-else-if="attack.state.value.step === 'to_hit'"
       :ask="{ label: `${attack.state.value.row.name}: to hit`, kind: 'check', ability: 'str', skill: null }"
       :bonus="attack.state.value.row.attackBonus"
       :busy="resolving"
@@ -108,13 +113,16 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useDrawWeapon } from "@/composables/table/useDrawWeapon";
 import { actOutcome, type ActKind } from "@/lib/table/fight/acts";
+import { useTableCheck } from "@/composables/table/useTableCheck";
+import { hideOutcome } from "@/rules/hide";
+import { hiddenCondition } from "@/rules/fight/stances";
 import { useSoloAttack } from "@/composables/table/useSoloAttack";
 import { useSoloFightHost, type SoloFightEnd } from "@/composables/table/useSoloFightHost";
 import { useToast } from "@/composables/useToast";
 import type { BoardLine } from "@/lib/table/fight/boardLines";
 import type { FightChange, FightTurn } from "@/lib/table/fight/fightChange";
 import { attackEntryOf, damageDicePlan } from "@/lib/table/fight/pcAttack";
-import type { RollAnswer } from "@/lib/table/soloTypes";
+import type { RollAnswer, RollAsk } from "@/lib/table/soloTypes";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { PartyMember } from "@/types/party.types";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
@@ -326,10 +334,33 @@ async function onDraw(rowId: string): Promise<void> {
   }
 }
 
+// Hiding: the roll is asked first and the Action is spent when it is made, so backing out costs nothing.
+const hideAsk = ref<RollAsk | null>(null);
+const hideCheck = useTableCheck(() => member, hideAsk);
+watch(() => host.yourTurn.value, (yours) => {
+  if (!yours) hideAsk.value = null;
+});
+
+function onHide(answer: RollAnswer): void {
+  const me = played.value;
+  if (!me || me.action_used === true) return;
+  // Advantage keeps the higher die and disadvantage the lower (SRD 5.1 "Advantage and Disadvantage").
+  const kept = answer.mode === "disadvantage" ? Math.min(...answer.faces) : Math.max(...answer.faces);
+  const outcome = hideOutcome(kept + answer.bonus, ruleset.value);
+  hideAsk.value = null;
+  store.setActionUsed(me.instance_id, true);
+  if (outcome.hidden) store.applyCondition(me.instance_id, hiddenCondition());
+  emit("lines", [{ kind: "margin", text: `${me.name} takes the Hide action. ${outcome.message}` }], false);
+}
+
 /** The four actions the rules name. They spend the Action; what each does besides is `actOutcome`'s. */
 function onAct(kind: ActKind): void {
   const me = played.value;
   if (!me || me.action_used === true) return;
+  if (kind === "hide") {
+    hideAsk.value = { label: "Hide: Dexterity (Stealth)", kind: "check", ability: "dex", skill: "stealth" };
+    return;
+  }
   store.setActionUsed(me.instance_id, true);
   const outcome = actOutcome(kind, me.name);
   if (outcome.dashes) dashed.value = true;

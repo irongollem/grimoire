@@ -27,6 +27,7 @@ import type { PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import { FightCommandError } from "./commandError.ts";
+import { applyProvoke, isProvokeCommand, validateProvokeCommand, type ProvokeCommand } from "./opportunity.ts";
 import { applyTakeTurn, isTakeTurnCommand, validateTakeTurnCommand, type TakeTurnCommand } from "./takeTurn.ts";
 import {
   applyResolvingCommand,
@@ -89,7 +90,7 @@ export type LifecycleCommand =
   /** The DM turns Go Live off: the players' screens leave the fight, which goes on. Nothing else about it changes. */
   | { type: "go_private" };
 export const LIFECYCLE_TYPES: ReadonlySet<string> = new Set(["open", "go_live", "end_combat", "abandon", "go_private"]);
-export type BatchCommand = FightCommand | SyncPartyCommand | LifecycleCommand | ResolvingCommand | TakeTurnCommand;
+export type BatchCommand = FightCommand | SyncPartyCommand | LifecycleCommand | ResolvingCommand | TakeTurnCommand | ProvokeCommand;
 
 export const MAX_ADDED_COMBATANTS = 30;
 export const MAX_OPENED_COMBATANTS = 60;
@@ -190,6 +191,10 @@ export function validateRequest(body: unknown): CommandRequest {
       // The server's own turn is worked out from the fight as it stands, so nothing is sent beside it.
       if (commands.length !== 1) throw new FightCommandError(400, "take_turn is sent alone.");
       validateTakeTurnCommand(command);
+    } else if (isProvokeCommand(command as { type: string })) {
+      // Like take_turn it reads the fight as it stands, so nothing is sent beside it.
+      if (commands.length !== 1) throw new FightCommandError(400, "provoke is sent alone.");
+      validateProvokeCommand(command);
     } else if (isResolvingCommand(command as { type: string })) {
       // Resolving commands mix with ordinary ones in a batch, and are applied in order with them.
       validateResolvingCommand(command);
@@ -453,6 +458,12 @@ async function attempt(
     if (command.type === "sync_party" || LIFECYCLE_TYPES.has(command.type)) continue;
     if (isTakeTurnCommand(command)) {
       const result = await applyTakeTurn(state, command, await resolveEnv());
+      state = result.state;
+      effects.push(...result.effects);
+      continue;
+    }
+    if (isProvokeCommand(command)) {
+      const result = await applyProvoke(state, command, await resolveEnv());
       state = result.state;
       effects.push(...result.effects);
       continue;

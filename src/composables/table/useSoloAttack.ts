@@ -1,3 +1,4 @@
+import { HIDDEN, isHidden } from "@/rules/fight/stances";
 import { ref, readonly } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { PcAttackRow } from "@/composables/encounters/usePcAttackRows";
@@ -123,6 +124,9 @@ export function useSoloAttack(options: SoloAttackOptions) {
       const near = withinFiveFeet(attacker, target) ?? before.row.kind === "melee";
       const outcome = await rollToHit(ctx, { attacker, entry, target, withinFiveFeet: near, dmMode: answer.mode, silent: true });
       if (!outcome) throw new Error("The roll to hit came back empty");
+      // PHB 2014 "Unseen Attackers and Targets": an attack gives the hider's place away, whether it hits or misses.
+      // The roll above was made while still hidden, so it had the advantage.
+      if (isHidden(attacker.conditions)) store.removeCondition(attacker.instance_id, HIDDEN);
       const hit = outcome.hit === true;
       const lines = attackLines({
         attackerName: attacker.name,

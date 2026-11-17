@@ -7,7 +7,8 @@ export type ActKind = "dash" | "dodge" | "disengage" | "hide";
 /**
  * What one of those actions does for the played character, beyond spending the Action: the line for the story,
  * whether the turn's speed doubles, and the condition they carry until their next turn. The board carries it out.
- * Hide has no entry here yet beyond its line: it needs a Stealth roll, which is its own piece.
+ * Hide is not decided here: it is a Stealth roll the board asks for first (`SoloFightBoard.onHide`), so its entry
+ * is only there to keep the four kinds whole.
  */
 export function actOutcome(kind: ActKind, name: string): { line: string; dashes: boolean; stance: AppliedCondition | null } {
   switch (kind) {

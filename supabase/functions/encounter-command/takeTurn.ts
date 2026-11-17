@@ -6,7 +6,8 @@
 // Out of turn. The creature need not be the active one: the runner lets the DM run a creature out of turn, and so does
 // this. Nothing here advances the turn.
 //
-// Not in this command: the opportunity attacks a path provokes (the enemies' reactions), Hide (the Action is
+// Opportunity attacks: before a move, the enemies the server can play strike (`opportunity.ts`) and a player who may strike is reported as `provoked_player`.
+// Not in this command: Hide (the Action is
 // used and nothing more is recorded; Dodge and Disengage do put their condition on the creature), picking by a model, ending the turn, legendary and lair actions,
 // spells. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
 // the fight after its move and the reply says so (`leftTheMap`); that is not a defeat. A Multiattack that drops its target does not redirect the swings it has left.
@@ -25,6 +26,7 @@ import { statBlockOf } from "../_shared/fightStatBlocks.ts";
 import { noteRequest, optionsAllowedByNote } from "../_shared/tacticsJudge.ts";
 import { assembleTurnOptions } from "../_shared/turnOptionsFor.ts";
 import { FightCommandError } from "./commandError.ts";
+import { strikeOnLeaving } from "./opportunity.ts";
 import { applyResolvingCommand, knownArmorClass, type ResolveEnv } from "./resolve.ts";
 
 /** `optionId` left out: the server picks by the rules. Named: it must be one of the options on offer right now. */
@@ -135,11 +137,21 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
       case "stance":
         apply({ type: "apply_condition", instanceId: mover.instance_id, condition: step.name === DODGING ? dodgingCondition() : disengagedCondition() });
         break;
-      case "move":
+      case "move": {
+        // The enemies' opportunity attacks come right before the creature leaves (PHB 2014 ch. 9). Worked out from the
+        // path and the fight as it stands, not from the plan: an earlier Disengage step may have just changed it.
+        // A creature dropped here does not finish its walk or the rest of its turn.
+        if (option.path !== null) {
+          const struck = await strikeOnLeaving(next, mover.instance_id, option.path, env, { reportPlayers: true });
+          next = struck.state;
+          effects.push(...struck.effects);
+          if (struck.moverDown) return { state: next, effects };
+        }
         // A position is not a command (the Play screen writes it straight to the row), so the saved fight takes it here.
         next = { ...next, combatants: next.combatants.map((c) => (c.instance_id === mover.instance_id ? { ...c, position: step.to } : c)) };
         apply({ type: "record_move", instanceId: mover.instance_id, feet: step.feet });
         break;
+      }
       case "swing": {
         // The rest of a Multiattack is not redirected when its target has already dropped.
         const target = next.combatants.find((c) => c.instance_id === step.targetId);

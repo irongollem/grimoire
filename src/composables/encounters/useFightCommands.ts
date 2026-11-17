@@ -26,6 +26,14 @@ export interface TurnRun {
   /** Null when the reply carried no turn: a batch the server had already applied is answered with the fight as it is. */
   turn: TurnTaken | null;
   outcomes: ResolvedAction[];
+  /** Player characters who may strike a creature the server moved as it left their reach; the browser offers each the attack. */
+  provokedPlayer: Array<{ moverId: string; playerId: string }>;
+}
+
+/** What the server did for a player's walk: who struck the mover on its way out, at which step of the path, and what each blow came to. */
+export interface ProvokeRun {
+  strikes: Array<{ attackerId: string; step: number }>;
+  outcomes: ResolvedAction[];
 }
 
 /**
@@ -174,11 +182,28 @@ export function useFightCommands(encounterId: Ref<string>, options: { onLost: ()
     const answer = await lifecycle({ type: "take_turn", instanceId });
     let turn: TurnTaken | null = null;
     const outcomes: ResolvedAction[] = [];
+    const provokedPlayer: TurnRun["provokedPlayer"] = [];
     for (const effect of answer.effects) {
       if (effect.type === "turn_taken") turn = effect.turn;
       else if (effect.type === "resolved") outcomes.push(effect.resolved);
+      else if (effect.type === "provoked_player") provokedPlayer.push({ moverId: effect.moverId, playerId: effect.playerId });
     }
-    return { turn, outcomes };
+    return { turn, outcomes, provokedPlayer };
+  }
+
+  /**
+   * Asks the server which creatures strike a mover that walks `path` (anchor cells, start and destination included) and
+   * resolves their blows. It moves nothing: the caller moves the token afterwards. Throws like `takeTurn`.
+   */
+  async function provoke(moverId: string, path: Array<{ x: number; y: number }>): Promise<ProvokeRun> {
+    const answer = await lifecycle({ type: "provoke", moverId, path });
+    const strikes: ProvokeRun["strikes"] = [];
+    const outcomes: ResolvedAction[] = [];
+    for (const effect of answer.effects) {
+      if (effect.type === "opportunity") strikes.push({ attackerId: effect.attackerId, step: effect.step });
+      else if (effect.type === "resolved") outcomes.push(effect.resolved);
+    }
+    return { strikes, outcomes };
   }
 
   function requestPartySync() {
@@ -220,5 +245,5 @@ export function useFightCommands(encounterId: Ref<string>, options: { onLost: ()
     kick();
   });
 
-  return { lifecycle, takeTurn, requestPartySync };
+  return { lifecycle, takeTurn, provoke, requestPartySync };
 }
