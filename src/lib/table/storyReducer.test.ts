@@ -154,3 +154,25 @@ describe("something changed hands", () => {
     expect(story.at(-1)).toMatchObject({ kind: "margin", text: "Honeycomb gives Rosie: Workshop Keys" });
   });
 });
+
+describe("the end of a fight", () => {
+  // Bug caught (seen in play): "The fight is over" written by the board, the aftermath told, then "The fight is
+  // over" again underneath.
+  it("is not told a second time when the board already wrote how it ended", () => {
+    const fought: StoryItem[] = [
+      { id: "a", kind: "margin", text: "A fight begins: The Watching Pack", count: 1 },
+      { id: "b", kind: "margin", text: "Goldseam is stable, and out of the fight", count: 1, tone: "end" },
+      { id: "c", kind: "narration", text: "The mistcats slink away." },
+    ];
+    expect(play([{ type: "fight", fight: null }], fought)).toHaveLength(3);
+  });
+
+  // Bug caught: the guard reaching back into an earlier fight's end and swallowing this one's.
+  it("is told when this fight has no end line of its own, whatever an earlier fight left", () => {
+    const earlier: StoryItem[] = [
+      { id: "a", kind: "margin", text: "The pack flees", count: 1, tone: "end" },
+      { id: "b", kind: "margin", text: "A fight begins: The Inner Defenders", count: 1 },
+    ];
+    expect(play([{ type: "fight", fight: null }], earlier).at(-1)).toMatchObject({ kind: "margin", text: "The fight is over" });
+  });
+});

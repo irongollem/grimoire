@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RunCombatant } from "@/types/encounter.types";
-import { fightStanding } from "./fightOver";
+import { hasSomeoneToFight, fightStanding } from "./fightOver";
 
 const factions = [
   { id: "players", hostile_to: ["enemy"] },
@@ -48,5 +48,15 @@ describe("fightStanding", () => {
     // Bug caught: an unread (empty) roster ending the fight on arrival.
     expect(fightStanding([], factions, "me")).toBe("ongoing");
     expect(fightStanding([c("orc", "enemy", 3)], factions, "me")).toBe("ongoing");
+  });
+});
+
+describe("hasSomeoneToFight", () => {
+  const cat = { instance_id: "cat", faction_id: "enemy" };
+  // Bug caught (seen in play): with the played character down, each creature's turn was sent to the server, refused,
+  // and written into the story as "has no turn to take", once per creature, every round.
+  it("is false when everyone of another faction is down, and true while one of them stands", () => {
+    expect(hasSomeoneToFight(cat, [{ ...cat, hp: 22 }, { instance_id: "me", faction_id: "players", hp: 0 }, { instance_id: "cat2", faction_id: "enemy", hp: 9 }])).toBe(false);
+    expect(hasSomeoneToFight(cat, [{ ...cat, hp: 22 }, { instance_id: "me", faction_id: "players", hp: 0 }, { instance_id: "folio", faction_id: "players", hp: 4 }])).toBe(true);
   });
 });

@@ -5,7 +5,7 @@ import { useSoloCreatureTurns } from "@/composables/table/useSoloCreatureTurns";
 import { useToast } from "@/composables/useToast";
 import { linesOfAttacks, linesOfCreatureTurn, type BoardLine } from "@/lib/table/fight/boardLines";
 import { canReact } from "@/lib/table/fight/turnBudget";
-import { fightStanding, type FightStanding } from "@/lib/table/fight/fightOver";
+import { fightStanding, hasSomeoneToFight, type FightStanding } from "@/lib/table/fight/fightOver";
 import { asThePlayerSees } from "@/lib/table/fight/foeView";
 import { turnBudgetOf } from "@/lib/table/fight/turnBudget";
 import type { FightChange } from "@/lib/table/fight/fightChange";
@@ -105,6 +105,10 @@ export function useSoloFightHost(options: {
         await options.onHelperTurn(helper.name);
         return true;
       }
+      // A creature with nobody left standing to fight has nothing to do: its turn passes without a word. Seen in
+      // play: with the played character down, every round wrote "has no turn to take" once per creature.
+      const mover = store.combatants.find((c) => c.instance_id === instanceId);
+      if (mover && !hasSomeoneToFight(mover, store.combatants)) return true;
       try {
         const { turn, outcomes, provokedPlayer } = await fight.takeTurn(instanceId);
         if (turn === null) return true;

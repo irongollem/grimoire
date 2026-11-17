@@ -93,8 +93,20 @@ export function applyTableEvent(items: StoryItem[], event: TableEvent, turnStart
     }
     case "introduced":
       return withMargin(items, `${event.name} is now among the people you know`);
-    case "fight":
-      return withMargin(items, event.fight === null ? (event.calledOff ? "The fight is called off" : "The fight is over") : `A fight begins: ${event.fight.name}`);
+    case "fight": {
+      if (event.fight !== null) return withMargin(items, `A fight begins: ${event.fight.name}`);
+      if (event.calledOff) return withMargin(items, "The fight is called off");
+      // The board has already written how the fight ended (a line toned as an end) before the aftermath was
+      // told: saying it is over a second time, under the aftermath, adds nothing.
+      let at = items.length - 1;
+      while (at >= 0) {
+        const item = items[at];
+        if (item.kind === "margin" && item.text.startsWith("A fight begins")) break;
+        if (item.kind === "margin" && item.tone === "end") return items;
+        at -= 1;
+      }
+      return withMargin(items, "The fight is over");
+    }
     case "dm_roll":
       return [...items, { id: nextItemId(), kind: "dmRoll", roll: event.roll }];
     case "rolled":
