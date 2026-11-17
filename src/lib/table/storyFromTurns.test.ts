@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { factItems, storyFromTurns, type StoredTurn } from "./storyFromTurns";
+import { factItems, storyFromTurns, turnsStarted, type StoredTurn } from "./storyFromTurns";
+import type { KeptLine } from "./boardKeep";
 
 const MODEL_WORDING = "[The player says, aloud: Who are you?] (written for the model)";
 const DM_ONLY = "The heir is lying; the real heir died in the fire.";
@@ -127,5 +128,38 @@ describe("storyFromTurns for a roll", () => {
       { seq: 2, role: "user", blocks: [{ type: "tool_result", dmRoll: { ...dm, faces: [] } }] },
     ]);
     expect(items.map((i) => i.kind)).toEqual(["dmRoll", "acted"]);
+  });
+});
+
+describe("the board's lines in a reopened sitting", () => {
+  const margin = (text: string, after: number): KeptLine => ({ after, line: { kind: "margin", text }, byServer: true });
+  const texts = (kept: KeptLine[]) => storyFromTurns(turns, kept).map((i) => ("text" in i ? i.text : i.kind));
+
+  // Bug caught (seen in play): after a reload a fight read as its narration alone, every attack and round gone;
+  // or the lines all gathered at the foot of the page, after turns played long after the fight.
+  it("puts each line back after the turns that had been played when it was written", () => {
+    // `turns` holds two turns: "Who are you?" (rows 1 to 4) and "I follow." (row 5).
+    expect(texts([margin("before anything", 0), margin("after the first turn", 1), margin("after the second", 2), margin("later still", 9)])).toEqual([
+      "before anything",
+      "Who are you?",
+      "A young person waits on the step.",
+      "Honeycomb. Apprentice, once.",
+      "Holds out the keys.",
+      "after the first turn",
+      "I follow.",
+      "after the second",
+      "later still",
+    ]);
+  });
+
+  // Bug caught: a tool's answer counted as a turn of its own, so every line lands one turn early for each tool used.
+  it("counts a turn by what was sent to the Dungeon Master, not by a tool's answer", () => {
+    expect(turnsStarted(turns)).toBe(2);
+  });
+
+  // Bug caught: two lines given the same id, which Vue then draws once.
+  it("gives every line an id of its own", () => {
+    const ids = storyFromTurns(turns, [margin("a", 1), margin("a", 1)]).map((i) => i.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

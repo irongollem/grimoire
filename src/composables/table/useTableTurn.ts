@@ -96,6 +96,8 @@ export function useTableTurn(options: TableTurnOptions) {
   const failure: Ref<TurnFailure | null> = ref(null);
   /** Credits the turns of this screen billed; the stored sitting's earlier spend is the caller's to add. */
   const credits = ref(0);
+  /** How many turns this screen has had kept. */
+  const turnsKept = ref(0);
   let controller: AbortController | null = null;
   // Bumped when the screen moves to another conversation, so a turn still winding down from the old one writes nothing.
   let generation = 0;
@@ -170,6 +172,7 @@ export function useTableTurn(options: TableTurnOptions) {
           return;
         } else if (event.type === "done") {
           kept = true;
+          turnsKept.value += 1;
           credits.value += event.credits;
         } else {
           if (event.type === "scene") options.onScene?.(event.scene);
@@ -283,9 +286,10 @@ export function useTableTurn(options: TableTurnOptions) {
     live.value = [];
     failure.value = null;
     credits.value = 0;
+    turnsKept.value = 0;
     pending = null;
     setAsked(null);
   }
 
-  return { sessionId, live, running, failure, credits, turnsPlayed, send, resend, open, aftermath, helper, note, stop, reset, setAsked };
+  return { sessionId, live, running, failure, credits, turnsKept, turnsPlayed, send, resend, open, aftermath, helper, note, stop, reset, setAsked };
 }

@@ -109,7 +109,7 @@
         :helper-turn="onHelperTurn"
         ref="stage"
         @turn="(state) => (fightTurn = state)"
-        @lines="(lines, byServer) => turn.note(lines, byServer)"
+        @lines="noteBoard"
         @over="onFightOver"
         @lost="onFightLost"
       />
@@ -121,6 +121,10 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount } from "vue";
+import { useStorage } from "@vueuse/core";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
+import { keptLinesOf, withKeptLines, type KeptBoards } from "@/lib/table/boardKeep";
+import type { BoardLine } from "@/lib/table/fight/boardLines";
 import { useRoute, useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -323,12 +327,12 @@ function onFightOver(how: SoloFightEnd): void {
   // Nobody left to fight, or the played character out of it: the board ended it, and the Dungeon Master is asked
   // to tell what comes of it.
   if (how === "foes_out" || how === "you_fell") {
-    turn.note([{ kind: "margin", text: "The fight is over", tone: "end" }], true);
+    noteBoard([{ kind: "margin", text: "The fight is over", tone: "end" }], true);
     void turn.aftermath();
     return;
   }
   // The Dungeon Master ended it with a ruling and has told how in the same reply: nothing more is asked.
-  turn.note([{ kind: "margin", text: endLine(how, characterName.value), tone: "end" }], true);
+  noteBoard([{ kind: "margin", text: endLine(how, characterName.value), tone: "end" }], true);
 }
 
 // The composer in a fight (frame 15): open on your turn, one short line aloud, a deed only while the turn can pay.
@@ -391,7 +395,18 @@ watch(param, () => {
   openScene();
 });
 
-const conversation = useTableConversation(historyId, campaignId);
+// What the board of a fight writes is the page's own and is never sent, so it is kept on this device and put back
+// among the turns when the sitting is reopened (`boardKeep`).
+const boards = useStorage<KeptBoards>("grimoire:ai-table-board", {}, safeLocalStorage());
+const conversation = useTableConversation(historyId, campaignId, (id) => keptLinesOf(boards.value, id));
+function noteBoard(lines: readonly BoardLine[], byServer: boolean): void {
+  turn.note(lines, byServer);
+  const id = turn.sessionId.value;
+  if (id === null) return;
+  const stored = conversation.data.value;
+  const after = (stored ? stored.turns : 0) + turn.turnsKept.value;
+  boards.value = withKeptLines(boards.value, id, lines.map((line) => ({ after, line, byServer })));
+}
 watch(
   () => conversation.data.value,
   (stored) => {

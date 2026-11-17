@@ -1,6 +1,8 @@
 import { parseDmRoll } from "./dmRoll";
 import { parseTableLine } from "./readTableStream";
 import { parseRolled } from "./tableRoll";
+import { boardItem } from "./storyReducer";
+import type { KeptLine } from "./boardKeep";
 import type { StoryItem } from "./soloTypes";
 
 /** A stored `agent_turns` row, as far as the page needs it. `blocks` is jsonb, so it is untrusted until read. */
@@ -26,11 +28,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * - a `tool_result` block's `lines` are characters' lines, in order.
  *
  * Nothing else is drawn: not a tool call's input, not a tool result's other content, not the opaque blocks.
+ *
+ * `kept` is what the board of a fight wrote on this device (`boardKeep`): each line goes back after the turns that
+ * had been kept when it was written, so a fight reads in the order it was fought.
  */
-export function storyFromTurns(turns: readonly StoredTurn[]): StoryItem[] {
+export function storyFromTurns(turns: readonly StoredTurn[], kept: readonly KeptLine[] = []): StoryItem[] {
   const items: StoryItem[] = [];
   const ordered = [...turns].sort((a, b) => a.seq - b.seq);
+  let started = 0;
+  let next = 0;
+  // The board's lines written after `upTo` turns or fewer, in the order they were written.
+  const board = (upTo: number): void => {
+    for (; next < kept.length && kept[next].after <= upTo; next += 1) items.push(boardItem(kept[next].line, kept[next].byServer, `board-${next}`));
+  };
   for (const turn of ordered) {
+    if (startsTurn(turn)) {
+      board(started);
+      started += 1;
+    }
     if (!Array.isArray(turn.blocks)) continue;
     turn.blocks.forEach((block: unknown, index: number) => {
       if (!isRecord(block)) return;
@@ -62,7 +77,18 @@ export function storyFromTurns(turns: readonly StoredTurn[]): StoryItem[] {
       }
     });
   }
+  board(Number.POSITIVE_INFINITY);
   return items;
+}
+
+/** A turn of the sitting begins with what was sent to the Dungeon Master: a `user` row that is not a tool's answer. */
+function startsTurn(turn: StoredTurn): boolean {
+  return turn.role === "user" && Array.isArray(turn.blocks) && turn.blocks.some((block: unknown) => isRecord(block) && block.type === "text");
+}
+
+/** How many turns a stored sitting holds: where the board's next line belongs. */
+export function turnsStarted(turns: readonly StoredTurn[]): number {
+  return turns.filter(startsTurn).length;
 }
 
 /** What went on the record in a stored conversation. Kept among the items, listed in the scene column and not in the story. */

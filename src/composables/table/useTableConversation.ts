@@ -2,7 +2,8 @@ import { computed, type MaybeRefOrGetter, toValue } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
-import { factItems, storyFromTurns, type StoredTurn } from "@/lib/table/storyFromTurns";
+import { factItems, storyFromTurns, turnsStarted, type StoredTurn } from "@/lib/table/storyFromTurns";
+import type { KeptLine } from "@/lib/table/boardKeep";
 import { parseTablePressure } from "@/lib/table/readTableStream";
 import { parseRollAsk } from "@/lib/table/tableRoll";
 import type { RollAsk, StoryItem, TableFight, TablePressure } from "@/lib/table/soloTypes";
@@ -25,6 +26,8 @@ export interface StoredSitting {
 export interface StoredConversation {
   sitting: StoredSitting;
   items: StoryItem[];
+  /** How many turns the sitting held when it was read. */
+  turns: number;
 }
 
 /**
@@ -34,7 +37,12 @@ export interface StoredConversation {
  * returned it again would draw it twice. `staleTime: Infinity` keeps focus and reconnects from refreshing it, and
  * `gcTime: 0` keeps a cached copy from outliving the screen: coming back to the sitting reads what was played since.
  */
-export function useTableConversation(sessionId: MaybeRefOrGetter<string | null>, campaignId: MaybeRefOrGetter<string | null>) {
+export function useTableConversation(
+  sessionId: MaybeRefOrGetter<string | null>,
+  campaignId: MaybeRefOrGetter<string | null>,
+  /** What the board of a fight wrote in this sitting, as this device kept it. */
+  keptBoard: (sessionId: string) => readonly KeptLine[] = () => [],
+) {
   const auth = useAuthStore();
   const userId = computed(() => auth.user?.id ?? null);
   return useQuery({
@@ -86,7 +94,8 @@ export function useTableConversation(sessionId: MaybeRefOrGetter<string | null>,
         sitting: { ...row, pressure, fight, pending_roll: parseRollAsk(storedRoll) },
         // The facts follow the story: a turn carries no time of its own to interleave them by, and a fact is not a
         // line anyone said, so they gather at the foot of what was already played, before anything new.
-        items: [...storyFromTurns(turns.data as StoredTurn[]), ...factItems(facts.data)],
+        items: [...storyFromTurns(turns.data as StoredTurn[], keptBoard(id)), ...factItems(facts.data)],
+        turns: turnsStarted(turns.data as StoredTurn[]),
       };
     },
     enabled: () => !!toValue(sessionId) && !!toValue(campaignId) && !!userId.value,
