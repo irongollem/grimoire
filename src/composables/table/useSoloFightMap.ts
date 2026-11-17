@@ -57,6 +57,11 @@ export function useSoloFightMap(options: {
   dashFeet: MaybeRefOrGetter<number>;
   arming: MaybeRefOrGetter<boolean>;
   onMoved: (feet: number) => void;
+  /**
+   * Called with the path before the token moves: the creatures whose reach it leaves strike first. Resolves to
+   * whether the character is still up to make the walk.
+   */
+  beforeLeaving: (path: ReadonlyArray<{ x: number; y: number }>) => Promise<boolean>;
   onTarget: (instanceId: string) => void;
 }) {
   const store = useEncounterRunStore();
@@ -214,12 +219,23 @@ export function useSoloFightMap(options: {
     }
     refusal.value = null;
     const id = me.instance_id;
-    const { cell, feet } = found;
+    const { cell, feet, path } = found;
     // The square first, the feet after it has landed. Sent side by side, the fight's own save (which the feet are a
     // command to) could load the row before the new square was on it and write the old one back: the token shot
     // home and the turn was still charged. A move that fails charges nothing.
-    moveToken(id, cell)
-      .then(() => {
+    // Opportunity attacks come right before the character leaves a creature's reach (PHB 2014 "Opportunity
+    // Attacks"): the strikes are resolved first, and a character struck down does not make the walk.
+    options
+      .beforeLeaving(path)
+      .then((standing) => {
+        if (!standing) {
+          refusal.value = "You are struck down before you get away.";
+          return false;
+        }
+        return moveToken(id, cell).then(() => true);
+      })
+      .then((moved) => {
+        if (!moved) return;
         // Before the first round nothing is counted against a turn.
         if (store.started) store.recordMove(id, from, feet);
         options.onMoved(feet);

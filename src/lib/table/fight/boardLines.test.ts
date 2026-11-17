@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ResolvedAction, TurnTaken } from "@/rules/fight/fightState";
-import { linesOfCreatureTurn } from "./boardLines";
+import { linesOfAttacks, linesOfCreatureTurn } from "./boardLines";
 
 const names: Record<string, string> = { orc: "Orc", me: "Mira", wolf: "Wolf" };
 const nameOf = (id: string) => names[id];
@@ -93,5 +93,28 @@ describe("linesOfCreatureTurn", () => {
   it("gives one fixed line for a turn with no move and no outcome", () => {
     // Bug caught: an empty turn producing no lines.
     expect(run()).toEqual([{ kind: "margin", text: "Orc holds its ground" }]);
+  });
+});
+
+describe("opportunity attacks in the story", () => {
+  // Bug caught: a blow struck by someone else during a creature's turn told as that creature's own attack ("Bite
+  // against Wolf" during the wolf's turn), so the player cannot tell who struck.
+  it("names whose opportunity attack it was when the striker is not the creature whose turn it is", () => {
+    const lines = run({ turn: turn({ instanceId: "wolf", kind: "move" }), outcomes: [attack({ attackerId: "orc", targetId: "wolf", action: "Greataxe" })] });
+    expect(lines.some((l) => l.kind === "roll" && l.label.startsWith("Orc's opportunity attack (Greataxe) against Wolf"))).toBe(true);
+  });
+
+  // Bug caught: a creature's own attack on its own turn mislabelled as an opportunity attack.
+  it("leaves a creature's own attack on its own turn as it was", () => {
+    const lines = run({ outcomes: [attack()] });
+    expect(lines.some((l) => l.kind === "roll" && l.label.startsWith("Greataxe against Mira"))).toBe(true);
+  });
+
+  // Bug caught: a strike on the player as they walk away written with no word of whose it was, or without what
+  // it left them on.
+  it("tells a strike on the played character as they walk away, and where it leaves them", () => {
+    const lines = linesOfAttacks([attack()], { nameOf, playedInstanceId: "me", playedHp: { hp: 11, maxHp: 30 }, turnOf: null });
+    expect(lines[0]).toMatchObject({ kind: "roll", label: "Orc's opportunity attack (Greataxe) against Mira: a hit, 9 slashing" });
+    expect(lines[1]).toMatchObject({ kind: "margin", tone: "harm", text: "Mira is at 11 of 30 hit points" });
   });
 });

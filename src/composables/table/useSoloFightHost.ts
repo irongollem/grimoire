@@ -3,7 +3,8 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useFightCommands } from "@/composables/encounters/useFightCommands";
 import { useSoloCreatureTurns } from "@/composables/table/useSoloCreatureTurns";
 import { useToast } from "@/composables/useToast";
-import { linesOfCreatureTurn, type BoardLine } from "@/lib/table/fight/boardLines";
+import { linesOfAttacks, linesOfCreatureTurn, type BoardLine } from "@/lib/table/fight/boardLines";
+import { canReact } from "@/lib/table/fight/turnBudget";
 import { fightStanding, type FightStanding } from "@/lib/table/fight/fightOver";
 import { asThePlayerSees } from "@/lib/table/fight/foeView";
 import { turnBudgetOf } from "@/lib/table/fight/turnBudget";
@@ -41,6 +42,11 @@ export function useSoloFightHost(options: {
    * thing they do. Settles when that has been told, or at once when it cannot be asked now.
    */
   onHelperTurn: (name: string) => Promise<void>;
+  /**
+   * A creature walked out of the played character's reach on its turn: they may strike it with their Reaction.
+   * Settles when the player has struck or let it go.
+   */
+  onProvoked: (moverId: string) => Promise<void>;
   /** The fight could not go on (it was ended elsewhere, or the server refused): the page lets go of it. */
   onLost: () => void;
 }) {
@@ -100,7 +106,7 @@ export function useSoloFightHost(options: {
         return true;
       }
       try {
-        const { turn, outcomes } = await fight.takeTurn(instanceId);
+        const { turn, outcomes, provokedPlayer } = await fight.takeTurn(instanceId);
         if (turn === null) return true;
         const mover = store.combatants.find((c) => c.instance_id === instanceId);
         const me = played.value;
@@ -116,6 +122,12 @@ export function useSoloFightHost(options: {
             playedHp: me ? { hp: me.hp, maxHp: me.max_hp } : null,
           }),
         );
+        // It walked out of the played character's reach: the fight waits while they strike or let it go. Only
+        // while they can: a Reaction already used, or a character who is down or cannot act, has no strike to offer.
+        const me2 = played.value;
+        if (me2 && provokedPlayer.some((p) => p.playerId === me2.instance_id && p.moverId === instanceId) && canReact(me2)) {
+          await options.onProvoked(instanceId);
+        }
         return true;
       } catch (error) {
         // The server's own sentence says why (nothing it can do: its only foe is down; no stat block). The creature
@@ -176,6 +188,22 @@ export function useSoloFightHost(options: {
     if (now === "foes_out") void finish("foes_out");
   });
 
+  /**
+   * The played character is about to walk `path` (the squares from where they stand to where they are going): the
+   * creatures whose reach they leave strike first, on the server. Answers whether they are still on their feet to
+   * make the walk. Before the first round nothing strikes.
+   */
+  async function leaveReach(path: ReadonlyArray<{ x: number; y: number }>): Promise<boolean> {
+    const me = played.value;
+    if (!me || !store.started || path.length < 2) return true;
+    const { outcomes } = await fight.provoke(me.instance_id, [...path]);
+    const now = played.value;
+    if (outcomes.length > 0) {
+      options.onLines(linesOfAttacks(outcomes, { nameOf, playedInstanceId: me.instance_id, playedHp: now ? { hp: now.hp, maxHp: now.max_hp } : null, turnOf: null }));
+    }
+    return now !== null && now.hp > 0;
+  }
+
   /** The turn's one short line aloud has been said. */
   function spendWords(): void {
     spent.value = { ...spent.value, words: true };
@@ -204,6 +232,7 @@ export function useSoloFightHost(options: {
     spent,
     endTurn,
     spendWords,
+    leaveReach,
     spendSmallThing,
     finish,
     standing,

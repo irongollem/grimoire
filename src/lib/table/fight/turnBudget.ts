@@ -1,3 +1,4 @@
+import { isIncapacitated } from "@/rules/fight/stances";
 import type { RunCombatant } from "@/types/encounter.types";
 
 /** "A few words": one short line aloud in a turn, about this long. */
@@ -45,4 +46,12 @@ export function whatIsLeft(b: TurnBudget): string {
   if (b.words) left.push("a few words");
   if (left.length === 0) return "You have nothing left this turn.";
   return `You still have ${joinList(left)}.`;
+}
+
+/**
+ * Whether the character has a Reaction to give right now: it is unused, and they are on their feet and able to act
+ * (PHB 2014 Appendix A "Incapacitated": no actions or reactions).
+ */
+export function canReact(c: Pick<RunCombatant, "reactionUsed" | "hp" | "conditions">): boolean {
+  return c.reactionUsed !== true && c.hp > 0 && !isIncapacitated(c.conditions);
 }

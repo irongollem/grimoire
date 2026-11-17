@@ -90,8 +90,24 @@ export function useSoloAttack(options: SoloAttackOptions) {
     };
   }
 
+  // What the attack under way is paid with: the Action on the character's own turn, the Reaction for an
+  // opportunity attack on someone else's (PHB 2014 "Opportunity Attacks").
+  let paying: "action" | "reaction" = "action";
+  function spend(attackerId: string): void {
+    if (paying === "reaction") store.setReactionUsed(attackerId, true);
+    else store.setActionUsed(attackerId, true);
+  }
+
   function aim(row: PcAttackRow) {
+    paying = "action";
     state.value = { step: "aiming", row };
+  }
+
+  /** An opportunity attack: one melee attack at a creature that is leaving, paid with the Reaction. No aiming. */
+  function strike(row: PcAttackRow, targetId: string) {
+    combatant(targetId);
+    paying = "reaction";
+    state.value = { step: "to_hit", row, targetId };
   }
 
   function cancel() {
@@ -142,7 +158,7 @@ export function useSoloAttack(options: SoloAttackOptions) {
       if (hit) {
         state.value = { step: "damage", row: before.row, targetId: before.targetId, critical: outcome.critical, natural: outcome.natural, total: outcome.total };
       } else {
-        store.setActionUsed(attacker.instance_id, true);
+        spend(attacker.instance_id);
         state.value = { step: "idle" };
       }
       return lines;
@@ -189,7 +205,7 @@ export function useSoloAttack(options: SoloAttackOptions) {
       const amounts = await rollDamageParts(ctx, { parts, critical: before.critical, label: `${before.row.name} damage`, senderName: attacker.name, silent: true });
       if (!amounts) throw new Error("The damage roll came back empty");
       const applied = applyDamage(ctx, { target, parts: amounts, defenses: ctx.defensesFor(target), critical: before.critical });
-      store.setActionUsed(attacker.instance_id, true);
+      spend(attacker.instance_id);
       state.value = { step: "idle" };
       return [damageLine(attacker.name, applied.parts, math)];
     } catch (error) {
@@ -198,5 +214,5 @@ export function useSoloAttack(options: SoloAttackOptions) {
     }
   }
 
-  return { state: readonly(state), aim, cancel, pickTarget, rollToHit: rollToHitWith, rollDamage: rollDamageWith };
+  return { state: readonly(state), aim, strike, cancel, pickTarget, rollToHit: rollToHitWith, rollDamage: rollDamageWith };
 }

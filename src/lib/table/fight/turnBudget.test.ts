@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SPOKEN_WORDS_PER_TURN, turnBudgetOf, whatIsLeft, wordCount } from "./turnBudget";
+import { canReact, SPOKEN_WORDS_PER_TURN, turnBudgetOf, whatIsLeft, wordCount } from "./turnBudget";
 
 const fresh = { words: false, smallThing: false };
 
@@ -56,5 +56,17 @@ describe("whatIsLeft", () => {
   it("never claims anything about movement", () => {
     // Bug caught: the sentence promising movement the budget does not track.
     expect(whatIsLeft(turnBudgetOf({}, fresh)).toLowerCase()).not.toContain("move");
+  });
+});
+
+describe("canReact", () => {
+  const ready = { reactionUsed: false, hp: 20, conditions: [] };
+  // PHB 2014 "Opportunity Attacks" (one Reaction a round) and Appendix A "Incapacitated" (no reactions). Bug caught:
+  // a strike offered to a character who is down, stunned, or has already reacted this round.
+  it("needs an unused Reaction, hit points, and a character able to act", () => {
+    expect(canReact(ready)).toBe(true);
+    expect(canReact({ ...ready, reactionUsed: true })).toBe(false);
+    expect(canReact({ ...ready, hp: 0 })).toBe(false);
+    expect(canReact({ ...ready, conditions: [{ name: "Stunned" }] })).toBe(false);
   });
 });

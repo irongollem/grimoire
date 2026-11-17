@@ -16,6 +16,7 @@
           :speed-feet="speedFeet"
           :moved-feet="movedFeet"
           :dash-feet="dashFeet"
+          :before-leaving="host.leaveReach"
           :arming="attack.state.value.step === 'aiming'"
           @moved="onMoved"
           @target="onTarget"
@@ -75,6 +76,19 @@
 
   <!-- Your attack's dice, asked where every roll of yours is asked: above the composer (frame 13). -->
   <Teleport defer :to="`#${slots.roll}`">
+    <!-- A creature is walking out of your reach: the fight waits while you strike it with your Reaction or let it
+         go (the maintainer: "a reaction button which briefly pauses the game ... without the game steamrolling
+         forward", Space to take it). -->
+    <section v-if="provoked && attack.state.value.step === 'idle'" class="mx-auto mb-2 flex w-full max-w-176 flex-col gap-2 rounded-md border border-primary bg-card px-3.5 py-3" aria-label="Your reaction" data-testid="solo-react">
+      <span class="text-eyebrow text-primary">Your reaction</span>
+      <p class="text-body text-foreground">{{ provoked.name }} is leaving your reach. Strike as it goes?</p>
+      <div class="flex flex-wrap items-center gap-2">
+        <AppButton variant="primary" size="md" :aria-label="`Opportunity attack with ${provoked.row.name}`" @click="takeReaction()">
+          <span>Opportunity attack: {{ provoked.row.name }}</span><span class="ml-1.5 hidden sm:inline-flex"><KeyCap>Space</KeyCap></span>
+        </AppButton>
+        <AppButton variant="outline" size="md" label="Let it go" @click="letItGo()" />
+      </div>
+    </section>
     <!-- Hide is a Dexterity (Stealth) check: asked like any roll of yours, with a way back out before it is made. -->
     <div v-if="hideAsk && attack.state.value.step === 'idle'" class="mx-auto flex w-full max-w-176 flex-col gap-1" data-testid="solo-hide-ask">
       <SoloRollAsk :ask="hideAsk" :bonus="hideCheck ? hideCheck.bonus : null" :forced-disadvantage="hideCheck ? hideCheck.forcedDisadvantage : false" :busy="resolving" @roll="onHide" />
@@ -112,6 +126,9 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { useDrawWeapon } from "@/composables/table/useDrawWeapon";
+import { usePcAttackRows, type PcAttackRow } from "@/composables/encounters/usePcAttackRows";
+import { useHotkeys } from "@/composables/useHotkeys";
+import KeyCap from "@/components/common/controls/KeyCap.vue";
 import { actOutcome, type ActKind } from "@/lib/table/fight/acts";
 import { useTableCheck } from "@/composables/table/useTableCheck";
 import { hideOutcome } from "@/rules/hide";
@@ -166,6 +183,7 @@ const host = useSoloFightHost({
   onOver: (how) => emit("over", how),
   onLost: () => emit("lost"),
   onHelperTurn: (name) => helperTurn(name),
+  onProvoked: (moverId) => offerReaction(moverId),
 });
 const played = host.played;
 
@@ -333,6 +351,45 @@ async function onDraw(rowId: string): Promise<void> {
     resolving.value = false;
   }
 }
+
+// ── Your Reaction: an opportunity attack on a creature that walks out of your reach ────────────────────────────────
+const { all: attackRows } = usePcAttackRows(() => member);
+const provoked = ref<{ moverId: string; name: string; row: PcAttackRow; done: () => void } | null>(null);
+
+/** Offers the strike and settles when it has been made or let go. Nothing to strike with, nothing offered. */
+function offerReaction(moverId: string): Promise<void> {
+  // PHB 2014 "Opportunity Attacks": one melee attack. The first melee row is the weapon in hand, else the unarmed strike.
+  const row = attackRows.value.find((r) => r.kind === "melee");
+  const mover = store.combatants.find((c) => c.instance_id === moverId);
+  if (!row || !mover) return Promise.resolve();
+  return new Promise((resolve) => {
+    provoked.value = { moverId, name: mover.name, row, done: resolve };
+  });
+}
+function letItGo(): void {
+  const offered = provoked.value;
+  provoked.value = null;
+  offered?.done();
+}
+function takeReaction(): void {
+  const offered = provoked.value;
+  if (!offered) return;
+  struck = true;
+  if (played.value) emit("lines", [{ kind: "margin", text: `${played.value.name} strikes at ${offered.name} as it leaves` }], false);
+  attack.strike(offered.row, offered.moverId);
+}
+// The strike is the ordinary attack flow; the fight goes on once it has come back to rest.
+let struck = false;
+watch(
+  () => attack.state.value.step,
+  (step) => {
+    if (step === "idle" && struck && provoked.value) {
+      struck = false;
+      letItGo();
+    }
+  },
+);
+useHotkeys(() => (provoked.value && attack.state.value.step === "idle" ? [{ combo: "space", description: "Take your opportunity attack", handler: () => takeReaction() }] : []));
 
 // Hiding: the roll is asked first and the Action is spent when it is made, so backing out costs nothing.
 const hideAsk = ref<RollAsk | null>(null);

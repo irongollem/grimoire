@@ -133,7 +133,7 @@ import { useSoloFightMap } from "@/composables/table/useSoloFightMap";
  * opaque fog by that character's sight, other creatures only where seen, and one token that moves, their own. The
  * tools are Move and Measure; there is nothing of a Dungeon Master's here.
  */
-const { encounterId, playedInstanceId, canMove, speedFeet, movedFeet, dashFeet, arming } = defineProps<{
+const { encounterId, playedInstanceId, canMove, speedFeet, movedFeet, dashFeet, arming, beforeLeaving } = defineProps<{
   encounterId: string;
   /** The played character's `instance_id` in the fight: its token is the only one that moves and the only source of sight. */
   playedInstanceId: string;
@@ -144,6 +144,8 @@ const { encounterId, playedInstanceId, canMove, speedFeet, movedFeet, dashFeet, 
   movedFeet: number;
   /** The feet a Dash would add this turn; nothing once the Action is spent. */
   dashFeet: number;
+  /** Asked with the path before the token moves: the creatures whose reach it leaves strike first. Resolves to whether the character can still make the walk. */
+  beforeLeaving: (path: ReadonlyArray<{ x: number; y: number }>) => Promise<boolean>;
   /** True while the player is choosing the target of an attack: foes light up and a click on one picks it. */
   arming: boolean;
 }>();
@@ -168,6 +170,7 @@ const {
   speedFeet: () => speedFeet,
   movedFeet: () => movedFeet,
   dashFeet: () => dashFeet,
+  beforeLeaving: (path) => beforeLeaving(path),
   arming: () => arming,
   onMoved: (feet) => emit("moved", feet),
   onTarget: (id) => emit("target", id),

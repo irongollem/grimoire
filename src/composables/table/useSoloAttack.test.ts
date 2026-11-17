@@ -160,3 +160,35 @@ describe("useSoloAttack aiming", () => {
     expect(a.attack.state.value.step).toBe("idle");
   });
 });
+
+describe("useSoloAttack: an opportunity attack", () => {
+  beforeEach(() => setActivePinia(createPinia()));
+
+  // PHB 2014 "Opportunity Attacks": the strike is made with the Reaction. Bug caught: the strike spending the
+  // character's Action, so an opportunity attack on a foe's turn costs them their own next attack.
+  it("is paid with the Reaction and leaves the Action alone", async () => {
+    const t = setup();
+    t.attack.strike(sword, "orc");
+    expect(t.attack.state.value.step).toBe("to_hit");
+    await t.attack.rollToHit({ faces: [2], atTable: false, mode: "normal" });
+    expect(t.mira()?.reactionUsed).toBe(true);
+    expect(t.mira()?.action_used).not.toBe(true);
+  });
+
+  // Bug caught: the Reaction's payment sticking, so the next ordinary attack is charged to the Reaction too.
+  it("an ordinary attack afterwards is paid with the Action again", async () => {
+    const t = setup();
+    t.attack.strike(sword, "orc");
+    await t.attack.rollToHit({ faces: [2], atTable: false, mode: "normal" });
+    await t.toHit([2]);
+    expect(t.mira()?.action_used).toBe(true);
+  });
+
+  // PHB 2014 "Unseen Attackers and Targets": attacking gives a hider's place away, hit or miss.
+  it("an attack ends the attacker's Hidden condition even on a miss", async () => {
+    const t = setup();
+    t.store.applyCondition("mira", { name: "Hidden" });
+    await t.toHit([2]);
+    expect(t.mira()?.conditions.some((c) => c.name === "Hidden")).toBe(false);
+  });
+});

@@ -30,22 +30,25 @@ function bonusText(natural: number, total: number): string {
 }
 
 /**
- * One creature's turn as story lines. It never names a target's armour class or anyone's hit points
- * except the played character's own, and only when they were hit.
+ * The attacks among what was resolved, as story lines: the roll, and the played character's hit points when they were
+ * hit. An attack by anyone but `turnOf` (null when it is nobody's turn to attack: a walk that provoked) is an
+ * opportunity attack, and says whose it was.
  */
-export function linesOfCreatureTurn(input: CreatureTurnInput): BoardLine[] {
-  const { turn, outcomes, nameOf, feetMoved, playedInstanceId, playedHp } = input;
-  const name = nameOf(turn.instanceId);
+export function linesOfAttacks(
+  outcomes: readonly ResolvedAction[],
+  input: { nameOf: (instanceId: string) => string; playedInstanceId: string; playedHp: { hp: number; maxHp: number } | null; turnOf: string | null },
+): BoardLine[] {
+  const { nameOf, playedInstanceId, playedHp, turnOf } = input;
   const lines: BoardLine[] = [];
-  if (feetMoved > 0) lines.push({ kind: "margin", text: `${name} moves ${feetMoved} feet` });
   for (const o of outcomes) {
     if (o.kind !== "attack") continue;
     const target = nameOf(o.targetId);
     const result = !o.hit ? "a miss" : o.critical ? `a critical hit, ${damageText(o)}` : `a hit, ${damageText(o)}`;
+    const what = o.attackerId === turnOf ? o.action : `${nameOf(o.attackerId)}'s opportunity attack (${o.action})`;
     lines.push({
       kind: "roll",
       die: o.total,
-      label: `${o.action} against ${target}: ${result}`,
+      label: `${what} against ${target}: ${result}`,
       detail: bonusText(o.natural, o.total),
       critical: o.critical,
     });
@@ -57,6 +60,20 @@ export function linesOfCreatureTurn(input: CreatureTurnInput): BoardLine[] {
       });
     }
   }
+  return lines;
+}
+
+/**
+ * One creature's turn as story lines. It never names a target's armour class or anyone's hit points
+ * except the played character's own, and only when they were hit.
+ */
+export function linesOfCreatureTurn(input: CreatureTurnInput): BoardLine[] {
+  const { turn, outcomes, nameOf, feetMoved, playedInstanceId, playedHp } = input;
+  const name = nameOf(turn.instanceId);
+  const lines: BoardLine[] = [];
+  if (feetMoved > 0) lines.push({ kind: "margin", text: `${name} moves ${feetMoved} feet` });
+  // A blow struck by someone else during this turn is an opportunity attack on the creature as it walks away.
+  lines.push(...linesOfAttacks(outcomes, { nameOf, playedInstanceId, playedHp, turnOf: turn.instanceId }));
   if (turn.leftTheMap === true) lines.push({ kind: "margin", text: `${name} flees the fight` });
   if (lines.length === 0) lines.push({ kind: "margin", text: `${name} holds its ground` });
   return lines;
