@@ -48,13 +48,13 @@
                  (the maintainer, 17 Nov 2026) and Escape or the button brings it back. -->
             <div v-show="inFight" :class="mapBoxClass">
               <div :id="FIGHT_SLOTS.map" class="size-full" />
-              <AppButton variant="subtle" size="sm" :icon="mapLarge ? IconMinimize : IconMaximize" :tooltip="mapLarge ? 'Back to the story' : 'Larger map'" :aria-label="mapLarge ? 'Make the map small again' : 'Make the map larger'" class="absolute top-2 right-2 z-10" data-testid="solo-map-size" @click="mapLarge = !mapLarge" />
+              <AppButton variant="ghost" size="icon-sm" :icon="mapLarge ? IconMinimize : IconMaximize" :tooltip="mapLarge ? 'Back to the story' : 'Larger map'" :aria-label="mapLarge ? 'Make the map small again' : 'Make the map larger'" :class="['absolute top-2 right-2 z-10', CARD_OVERLAY_ACTION, 'text-white hover:text-white']" data-testid="solo-map-size" @click="mapLarge = !mapLarge" />
             </div>
             <!-- Outside a fight the place's own map stays there: "you are always somewhere". It is mounted even
                  while hidden, because it is what finds out whether the place has a map at all. -->
             <div v-if="member && !inFight && !hasLeft" v-show="placeHasMap" :class="mapBoxClass" data-testid="solo-place-map">
               <SoloPlaceMap :place-id="sceneId" :member="member" :busy="turn.running.value || asked !== null" @go="onGo" @has-map="(shown) => (placeHasMap = shown)" />
-              <AppButton variant="subtle" size="sm" :icon="mapLarge ? IconMinimize : IconMaximize" :tooltip="mapLarge ? 'Back to the story' : 'Larger map'" :aria-label="mapLarge ? 'Make the map small again' : 'Make the map larger'" class="absolute top-2 right-2 z-10" data-testid="solo-map-size" @click="mapLarge = !mapLarge" />
+              <AppButton variant="ghost" size="icon-sm" :icon="mapLarge ? IconMinimize : IconMaximize" :tooltip="mapLarge ? 'Back to the story' : 'Larger map'" :aria-label="mapLarge ? 'Make the map small again' : 'Make the map larger'" :class="['absolute top-2 right-2 z-10', CARD_OVERLAY_ACTION, 'text-white hover:text-white']" data-testid="solo-map-size" @click="mapLarge = !mapLarge" />
             </div>
             <SoloStory
               :items="story"
@@ -97,7 +97,7 @@
                under it: whoever is in the room and not in the fight is still there, and vanished from the page when
                the list took the whole column. -->
           <div :id="FIGHT_SLOTS.roster" :class="inFight ? 'border-b border-border' : ''" />
-          <SoloScene :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" :after="after" :place-summary="placeSummary" />
+          <SoloScene :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" :after="after" :place-summary="placeSummary" :recorded="recorded" />
         </aside>
       </div>
 
@@ -123,6 +123,7 @@ import { computed, ref, watch, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import { CARD_OVERLAY_ACTION } from "@/components/common/controls/appButtonVariants";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import SoloAiOff from "@/components/table/solo/SoloAiOff.vue";
@@ -390,6 +391,8 @@ watch(
 );
 
 const story = computed(() => [...(conversation.data.value?.items ?? []), ...turn.live.value]);
+// What went on record is kept among the story's items and listed in the scene column instead of between its lines.
+const recorded = computed(() => story.value.flatMap((item) => (item.kind === "margin" && item.record === true ? [{ id: item.id, text: item.text }] : [])));
 const turns = computed(() => story.value.filter((item) => item.kind === "player").length);
 const colours = computed(() => assignSpeakerColours(story.value));
 const meterCredits = computed(() => Math.floor((conversation.data.value?.sitting.credits_spent ?? 0) + turn.credits.value));

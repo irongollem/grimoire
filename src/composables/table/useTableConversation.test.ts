@@ -70,7 +70,7 @@ describe("useTableConversation", () => {
     ]);
     const r = mountWith(() => useTableConversation("s1", "c1"));
     await vi.waitFor(() => expect(r.data.value).toBeDefined());
-    expect(r.data.value?.items.map((i) => ("text" in i ? i.text : ""))).toEqual(["Hello", "On record: Known."]);
+    expect(r.data.value?.items.map((i) => ("text" in i ? i.text : ""))).toEqual(["Hello", "Known."]);
     expect(r.data.value?.sitting.credits_spent).toBe(3);
   });
 

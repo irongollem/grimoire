@@ -91,7 +91,7 @@ describe("storyFromTurns", () => {
 describe("factItems", () => {
   it("turns what went on record into quiet lines", () => {
     expect(factItems([{ id: "f1", body: "The heir holds the keys." }])).toEqual([
-      { id: "fact-f1", kind: "margin", text: "On record: The heir holds the keys.", count: 1 },
+      { id: "fact-f1", kind: "margin", text: "The heir holds the keys.", count: 1, record: true },
     ]);
   });
 });

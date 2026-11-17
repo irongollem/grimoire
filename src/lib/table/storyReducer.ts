@@ -100,7 +100,8 @@ export function applyTableEvent(items: StoryItem[], event: TableEvent, turnStart
     case "scene":
       return withMargin(items, `The party is at ${event.scene.name}`);
     case "fact":
-      return withMargin(items, `On record: ${event.fact.body}`);
+      // Not a line of the story: it is listed under "On record" in the scene column (`SoloScene`).
+      return [...items, { id: nextItemId(), kind: "margin", text: event.fact.body, count: 1, record: true }];
     default:
       return items;
   }

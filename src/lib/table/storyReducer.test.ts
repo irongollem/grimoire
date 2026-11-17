@@ -76,7 +76,7 @@ describe("applyTableEvent", () => {
     ]);
     expect(items.map((i) => (i.kind === "margin" ? i.text : i.kind))).toEqual([
       "The party is at The Locked Workshop",
-      "On record: The heir holds the keys.",
+      "The heir holds the keys.",
     ]);
   });
 

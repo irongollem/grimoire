@@ -65,7 +65,7 @@ export function storyFromTurns(turns: readonly StoredTurn[]): StoryItem[] {
   return items;
 }
 
-/** What went on the record in a stored conversation, as margin notes. */
+/** What went on the record in a stored conversation. Kept among the items, listed in the scene column and not in the story. */
 export function factItems(facts: readonly { id: string; body: string }[]): StoryItem[] {
-  return facts.map((f) => ({ id: `fact-${f.id}`, kind: "margin", text: `On record: ${f.body}`, count: 1 }));
+  return facts.map((f) => ({ id: `fact-${f.id}`, kind: "margin", text: f.body, count: 1, record: true }));
 }

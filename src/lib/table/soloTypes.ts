@@ -106,7 +106,7 @@ export type StoryItem =
   | { id: string; kind: "dmRoll"; roll: DmRoll }
   /** A roll made on the board of a fight: the total, what it was, the dice behind it. Never the target number. */
   | { id: string; kind: "board"; total: number; title: string; detail: string; critical: boolean; byServer: boolean }
-  | { id: string; kind: "margin"; text: string; /** How many times in a row the same quiet line happened. */ count: number; /** A line about harm done to you, or the fight's end. */ tone?: "harm" | "end" };
+  | { id: string; kind: "margin"; text: string; /** How many times in a row the same quiet line happened. */ count: number; /** Something that went on record. Not drawn in the story: the scene column lists what is on record. */ record?: true; /** A line about harm done to you, or the fight's end. */ tone?: "harm" | "end" };
 
 /** Items other than the player's own never need a speaker; this narrows the two that do. */
 export type SpeakerItem = Extract<StoryItem, { kind: "spoken" | "acted" }>;

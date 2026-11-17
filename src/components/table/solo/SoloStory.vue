@@ -26,7 +26,8 @@
         <SoloRolled v-else-if="item.kind === 'roll'" :line="rollLine(item.roll, character)" />
         <SoloRolled v-else-if="item.kind === 'dmRoll'" :line="dmRollLine(item.roll)" by-server />
         <SoloRolled v-else-if="item.kind === 'board'" :line="{ total: String(item.total), title: item.title, detail: item.detail }" :by-server="item.byServer" />
-        <SoloMargin v-else :text="item.text" :count="item.count" />
+        <!-- What went on record is listed in the scene column, not between the lines of the story. -->
+        <SoloMargin v-else-if="item.kind === 'margin' && item.record !== true" :text="item.text" :count="item.count" />
       </template>
 
       <SoloFailure v-if="failure" v-bind="failure" @resend="emit('resend')" @credits="emit('credits')" />

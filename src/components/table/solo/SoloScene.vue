@@ -43,11 +43,29 @@
         </ul>
       </section>
     </template>
+    <!-- What this sitting put on record, folded shut: it is the formal memory of the story, there to be looked up,
+         not read line by line as it happens (the maintainer, 17 Nov 2026). -->
+    <template v-if="recorded.length">
+      <hr class="border-border" />
+      <section class="flex flex-col px-4 py-2" data-testid="solo-record">
+        <AppButton variant="ghost" size="inline" :icon="recordOpen ? IconChevronDown : IconChevronRight" :aria-expanded="recordOpen" class="justify-start py-1.5" @click="recordOpen = !recordOpen">
+          <span class="text-eyebrow text-muted-foreground">On record · {{ recorded.length }}</span>
+        </AppButton>
+        <Transition v-bind="drawerTransition()">
+          <ul v-show="recordOpen" class="flex flex-col gap-2 pt-1 pb-2">
+            <li v-for="fact in newestFirst" :key="fact.id" class="text-body text-muted-foreground">{{ fact.text }}</li>
+          </ul>
+        </Transition>
+      </section>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { IconChevronDown, IconChevronRight } from "@/lib/icons";
+import { drawerTransition } from "@/lib/motion";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { getNpcDisplayFocalPoint, getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
 import type { SceneNpc } from "@/composables/table/useTableScene";
@@ -55,7 +73,7 @@ import type { HearthQuestNow } from "@/lib/hearth/currentBeats";
 import type { TablePressure } from "@/lib/table/soloTypes";
 import SoloPressure from "./SoloPressure.vue";
 
-const { here, pressure = null, after = [], placeSummary = null } = defineProps<{
+const { here, pressure = null, after = [], placeSummary = null, recorded = [] } = defineProps<{
   placeName: string | null;
   /** What the character knows of the place; null until it has been shown to them. */
   placeSummary?: string | null;
@@ -64,7 +82,13 @@ const { here, pressure = null, after = [], placeSummary = null } = defineProps<{
   pressure?: TablePressure | null;
   /** The quests the played character knows of, each with where it stands now. */
   after?: readonly HearthQuestNow[];
+  /** What this sitting put on record that the character knows, oldest first. */
+  recorded?: ReadonlyArray<{ id: string; text: string }>;
 }>();
+
+const recordOpen = ref(false);
+// The latest thing on record is the one most likely to be looked for.
+const newestFirst = computed(() => [...recorded].reverse());
 
 // A character in disguise is shown as the disguise: the same rule the DM's own screens apply for players. No
 // occupation or description is drawn: the page cannot tell which of a record's facts this character has learned.
