@@ -12,7 +12,7 @@ import { getObject, putObject } from "../_shared/r2/client.ts";
 import { r2ConfigFrom } from "../_shared/r2/config.ts";
 import { shownInTurns, speakLine, VoicesSpent, type TableVoiceDeps } from "./handler.ts";
 import { deliveryCue } from "../_shared/agent/characterTurn.ts";
-import { ageOf, sexFromGender, sexOf } from "./voicePick.ts";
+import { ageOf, inworldText, NARRATION_MAX_CHARS, sexFromGender, sexOf, speechText } from "./voicePick.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -23,6 +23,7 @@ const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY
 // acting); a clip already kept was made by whichever model spoke it first.
 const SPEECH_MODEL = Deno.env.get("TABLE_VOICE_MODEL")?.trim() || "eleven_v4_turbo";
 const SPEECH_TIMEOUT_MS = 30_000;
+const INWORLD_MODEL = "inworld-tts-2";
 
 // The clips have a store of their own (the maintainer's choice, 17 Nov 2026): a private R2 bucket that nothing
 // serves but this function, to the conversation's own owner. Without R2 credentials nothing is kept and every line
@@ -73,6 +74,8 @@ serve(withCors(async (req: Request) => {
   }
 
   const speechKey = Deno.env.get("ELEVENLABS_API_KEY");
+  // A second service for the voices ElevenLabs will not make. Without its key those characters are cast like anyone else.
+  const inworldKey = Deno.env.get("INWORLD_API_KEY");
 
   const deps: TableVoiceDeps = {
     voiceOn: () => !!speechKey && Deno.env.get("TABLE_VOICE_TRIAL") === "on",
@@ -141,14 +144,28 @@ serve(withCors(async (req: Request) => {
 
     narratorVoice: () => Deno.env.get("TABLE_NARRATOR_VOICE_ID")?.trim() || null,
 
-    async synthesize(voiceId, text) {
-      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
+    hasService: (service) => (service === "inworld" ? !!inworldKey : !!speechKey),
+
+    async synthesize(voice, line) {
+      const max = line.narration ? NARRATION_MAX_CHARS : undefined;
+      if (voice.service === "inworld") {
+        const response = await fetch("https://api.inworld.ai/tts/v1/voice", {
+          method: "POST",
+          headers: { Authorization: `Basic ${inworldKey ?? ""}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ modelId: INWORLD_MODEL, text: inworldText(line.text, line.how, max), voiceId: voice.id, audioConfig: { audioEncoding: "MP3" } }),
+          signal: AbortSignal.timeout(SPEECH_TIMEOUT_MS),
+        });
+        if (!response.ok) throw new Error(`inworld answered ${response.status}`);
+        const body = (await response.json().catch(() => null)) as { audioContent?: unknown } | null;
+        if (!body || typeof body.audioContent !== "string" || body.audioContent === "") throw new Error("inworld answered without audio");
+        return body.audioContent;
+      }
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice.id)}?output_format=mp3_44100_128`, {
         method: "POST",
         headers: { "xi-api-key": speechKey ?? "", "Content-Type": "application/json" },
-        body: JSON.stringify({ text, model_id: SPEECH_MODEL }),
+        body: JSON.stringify({ text: speechText(line.text, line.how, max), model_id: SPEECH_MODEL }),
         signal: AbortSignal.timeout(SPEECH_TIMEOUT_MS),
       });
-      // The service's own message can quote the request; only the status is logged.
       if (!response.ok) {
         // Only the service's own status word is read, never its message.
         const detail = (await response.json().catch(() => null)) as { detail?: { status?: unknown } } | null;

@@ -18,7 +18,7 @@
 // maintainer's own stack. Before either is set in production, voice has to be priced and charged like every other
 // generation (`_shared/credits.ts`).
 
-import { NARRATOR_VOICE_ID, pickVoice, speechText, NARRATION_MAX_CHARS, type AgeBand, type Sex } from "./voicePick.ts";
+import { NARRATOR_VOICE_ID, pickVoice, type AgeBand, type Sex } from "./voicePick.ts";
 import { VOICE_ROLES, type VoiceRole } from "../_shared/agent/lineKey.ts";
 
 export interface VoiceRefusal {
@@ -66,8 +66,13 @@ export interface TableVoiceDeps {
    * (`npcs.spoken_voice_id`); nulls when it says nothing or has no record.
    */
   loadTraits(campaignId: string, speakerId: string): Promise<SpeakerTraits>;
-  /** Speaks the text in the voice and answers the audio (mp3, base64). Throws when the speech service fails. */
-  synthesize(voiceId: string, text: string): Promise<string>;
+  /** Whether this stack can speak through the service (its key is set). */
+  hasService(service: VoiceService): boolean;
+  /**
+   * Speaks the line in the voice and answers the audio (mp3, base64). The words and the cue are given apart: each
+   * service takes a cue its own way. Throws when the speech service fails.
+   */
+  synthesize(voice: VoiceRef, line: { text: string; how: string | null; narration: boolean }): Promise<string>;
 }
 
 /** A line as it is signed, kept and spoken. */
@@ -84,12 +89,27 @@ export interface SpeakerTraits {
   voiceId: string | null;
 }
 
-/** A voice id as the speech service writes them. It goes into a URL, so anything else is not used. */
+/** A voice id as a speech service writes them. It goes into a URL or a request, so anything else is not used. */
 export const VOICE_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 
-/** The voice the DM gave the character, or null when there is none or it is not an id. */
-export function ownVoice(traits: Pick<SpeakerTraits, "voiceId">): string | null {
-  return traits.voiceId !== null && VOICE_ID_RE.test(traits.voiceId) ? traits.voiceId : null;
+/** The services a voice may live on. ElevenLabs speaks for everyone by default; Inworld holds the voices ElevenLabs will not make (a child's). */
+export type VoiceService = "elevenlabs" | "inworld";
+export interface VoiceRef {
+  service: VoiceService;
+  id: string;
+}
+
+/** A stored voice reference read: a bare id is ElevenLabs', `inworld:<id>` is Inworld's. Null for anything else. */
+export function voiceRefOf(stored: string | null): VoiceRef | null {
+  if (stored === null) return null;
+  const inworld = stored.startsWith("inworld:");
+  const id = inworld ? stored.slice("inworld:".length) : stored;
+  return VOICE_ID_RE.test(id) ? { service: inworld ? "inworld" : "elevenlabs", id } : null;
+}
+
+/** The voice the DM gave the character, or null when there is none or it is not a voice reference. */
+export function ownVoice(traits: Pick<SpeakerTraits, "voiceId">): VoiceRef | null {
+  return voiceRefOf(traits.voiceId);
 }
 
 /** Thrown by `synthesize` when the speech service says its allowance is used up: asking again cannot help. */
@@ -142,10 +162,10 @@ export function parseVoiceBody(raw: unknown): VoiceBody | null {
 }
 
 /** Whose voice says the line: the narrator's one voice, or a cast from the speaker's record. */
-async function voiceFor(deps: TableVoiceDeps, campaignId: string, line: VoicedLine): Promise<string> {
+async function voiceFor(deps: TableVoiceDeps, campaignId: string, line: VoicedLine): Promise<VoiceRef> {
   if (line.role === "narrator") {
     const named = deps.narratorVoice();
-    return named !== null && VOICE_ID_RE.test(named) ? named : NARRATOR_VOICE_ID;
+    return { service: "elevenlabs", id: named !== null && VOICE_ID_RE.test(named) ? named : NARRATOR_VOICE_ID };
   }
   // Cast from the record when there is one; someone without a record is cast by their shown name alone.
   let traits: SpeakerTraits = { sex: null, age: null, voiceId: null };
@@ -156,8 +176,11 @@ async function voiceFor(deps: TableVoiceDeps, campaignId: string, line: VoicedLi
       console.error("table-voice: reading the speaker's record failed:", error);
     }
   }
-  // A voice the DM gave the character wins over the casting.
-  return ownVoice(traits) ?? pickVoice(line.speaker.id ?? line.speaker.name, traits).id;
+  // A voice the DM gave the character wins over the casting, where this stack can speak through its service; a
+  // character whose own voice cannot be reached is cast like anyone else rather than left silent.
+  const own = ownVoice(traits);
+  if (own !== null && deps.hasService(own.service)) return own;
+  return { service: "elevenlabs", id: pickVoice(line.speaker.id ?? line.speaker.name, traits).id };
 }
 
 export async function speakLine(input: {
@@ -203,10 +226,10 @@ export async function speakLine(input: {
     line.how = shown.how;
   }
 
-  const voiceId = await voiceFor(deps, session.campaign_id, line);
+  const voice = await voiceFor(deps, session.campaign_id, line);
   try {
     // The words and the cue are the ones under the key: the page could not have changed either.
-    const audio = await deps.synthesize(voiceId, speechText(line.text, line.how, line.role === "narrator" ? NARRATION_MAX_CHARS : undefined));
+    const audio = await deps.synthesize(voice, { text: line.text, how: line.how, narration: line.role === "narrator" });
     // Kept before it is answered, but a clip that cannot be kept is still heard.
     await deps.keepClip(at, line, audio).catch((error) => console.error("table-voice: keeping the clip failed:", error));
     return { ok: true, audio, mime: "audio/mpeg" };

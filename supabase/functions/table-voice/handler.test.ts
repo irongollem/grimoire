@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { shownInTurns, speakLine, VoicesSpent, VOICE_MESSAGES, type SpeakerTraits, type TableVoiceDeps, type VoiceCampaign, type VoiceSession } from "./handler";
-import { NARRATOR_VOICE_ID, STOCK_VOICES } from "./voicePick";
+import { inworldText, NARRATOR_VOICE_ID, speechText, STOCK_VOICES } from "./voicePick";
 import { lineKey, lineKeyFits, NARRATOR_SPEAKER } from "../_shared/agent/lineKey";
 
 const DM = "00000000-0000-4000-8000-000000000001";
@@ -25,7 +25,8 @@ function harness() {
     turns: [] as Array<{ role: string; blocks: unknown }>,
     storeThrows: false,
     narratorVoice: null as string | null,
-    spoken: [] as Array<{ voiceId: string; text: string }>,
+    spoken: [] as Array<{ voiceId: string; service: string; text: string }>,
+    inworld: true,
     traitLoads: [] as string[],
     deps: undefined as unknown as TableVoiceDeps,
   };
@@ -51,10 +52,12 @@ function harness() {
     findShown: async (_sessionId, line) => shownInTurns(h.turns, line),
     loadPlayerTraits: async () => ({ sex: "man", age: null, voiceId: null }),
     narratorVoice: () => h.narratorVoice,
-    synthesize: async (voiceId, text) => {
+    hasService: (service) => service === "elevenlabs" || h.inworld,
+    synthesize: async (voice, line) => {
       if (h.spent) throw new VoicesSpent("spent");
       if (h.synthThrows) throw new Error("upstream");
-      h.spoken.push({ voiceId, text });
+      // The text as ElevenLabs would be sent it, so the cue's place in front of the words stays under test.
+      h.spoken.push({ voiceId: voice.id, service: voice.service, text: speechText(line.text, line.how) });
       return "AUDIO";
     },
   };
@@ -305,5 +308,43 @@ describe("speakLine", () => {
     const h = harness();
     h.spent = true;
     expect(await speak(h)).toEqual({ ok: false, refusal: { status: 402, error: VOICE_MESSAGES.spent } });
+  });
+
+  const CRUMB_VOICE = "snappy-magpie-0676__design-voice-7cb37010";
+
+  // Bug caught (Crumb, seven, for whom ElevenLabs will not make a voice): a voice kept on the second service sent
+  // to the first, which has no such voice and answers an error, leaving the character silent.
+  it("speaks a character whose voice lives on Inworld through Inworld", async () => {
+    const h = harness();
+    h.traits = { sex: null, age: "young", voiceId: `inworld:${CRUMB_VOICE}` };
+    expect((await speak(h)).ok).toBe(true);
+    expect(h.spoken[0]).toMatchObject({ service: "inworld", voiceId: CRUMB_VOICE });
+  });
+
+  // Bug caught: a stack with no Inworld key leaving such a character with no voice at all.
+  it("casts a ready-made voice for them where the second service is not set up", async () => {
+    const h = harness();
+    h.inworld = false;
+    h.traits = { sex: "woman", age: "adult", voiceId: `inworld:${CRUMB_VOICE}` };
+    expect((await speak(h)).ok).toBe(true);
+    expect(h.spoken[0].service).toBe("elevenlabs");
+    expect(STOCK_VOICES.some((v) => v.id === h.spoken[0].voiceId)).toBe(true);
+  });
+
+  // Bug caught: a reference to a service nobody speaks through, or with a path in it, taken as a voice.
+  it.each(["azure:abcdefgh1234", "inworld:../v1/voices", "inworld:", "inworld:short"])("casts a voice instead of using the reference %j", async (voiceId) => {
+    const h = harness();
+    h.traits = { sex: "woman", age: "adult", voiceId };
+    await speak(h);
+    expect(h.spoken[0].service).toBe("elevenlabs");
+    expect(STOCK_VOICES.some((v) => v.id === h.spoken[0].voiceId)).toBe(true);
+  });
+});
+
+describe("inworldText", () => {
+  // Bug caught: the cue sent to Inworld as a bare tag (which it reads aloud) or dropped.
+  it("puts the manner in front of the words as an instruction, and nothing when there is none", () => {
+    expect(inworldText("Can I carry that?", "very quietly, carefully")).toBe("[say it very quietly, carefully] Can I carry that?");
+    expect(inworldText("Can I carry that?", null)).toBe("Can I carry that?");
   });
 });

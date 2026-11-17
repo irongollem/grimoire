@@ -125,3 +125,12 @@ export function speechText(text: string, how: string | null, max: number = SPEEC
   const words = text.replace(/[[\]<>*_]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
   return how === null || how === "" ? words : `[${how}] ${words}`;
 }
+
+/**
+ * The same line for Inworld, which takes the manner as an instruction in front of the words ("[say it furious,
+ * shouting]") where ElevenLabs takes a bare tag. The cue and the words are cleaned the same way.
+ */
+export function inworldText(text: string, how: string | null, max: number = SPEECH_MAX_CHARS): string {
+  const words = speechText(text, null, max);
+  return how === null || how === "" ? words : `[say it ${how}] ${words}`;
+}
