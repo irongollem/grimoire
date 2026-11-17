@@ -54,7 +54,7 @@ export const MAX_ATTEMPTS = 4;
 const REDUCER_COMMAND_TYPES = [
   "start_combat", "next_turn", "prev_turn", "reshuffle_initiative", "set_initiative", "adjust_hp", "set_hp", "set_max_hp",
   "set_temp_hp", "apply_condition", "remove_condition", "set_conditions", "resolve_condition_save", "settle_ongoing_damage",
-  "end_concentration", "enter_wildshape", "revert_wildshape", "set_size_override", "toggle_surprised", "toggle_reaction",
+  "end_concentration", "enter_wildshape", "revert_wildshape", "set_size_override", "toggle_surprised", "toggle_reaction", "set_reaction_used",
   "record_move", "undo_move", "set_action_used", "set_bonus_used", "prime_legendary_actions", "spend_legendary_actions",
   "mark_lair_fired", "set_boss_mechanics", "remove_combatant", "use_action", "restore_action",
 ] as const satisfies readonly EncounterTurnCommand["type"][];

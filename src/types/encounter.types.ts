@@ -272,7 +272,7 @@ export interface RunCombatant {
   // combatant's turn; other combatants' turns can spend actions from here.
   legendary_action_cap?: number;
   legendary_actions_remaining?: number;
-  // Reaction — one per round; reset at the start of each new round.
+  // Reaction — one per round; cleared when this combatant's own turn starts.
   reactionUsed?: boolean;
   // The turn's own tallies (#1125 decision 10), all cleared when this combatant's turn starts: the feet moved,
   // and whether the action and the bonus action are spent. The Play turn card reads and marks them.

@@ -1,5 +1,6 @@
 import type { RollMode } from "../../systems/dnd5e/dice/rollMode.ts";
 import { hasCondition, hasSaveDisadvantage } from "../conditions.ts";
+import { isDodging, isIncapacitated } from "../fight/stances.ts";
 import type { AppliedCondition } from "../../types/condition.types.ts";
 import type { RulesetKey } from "../../types/ruleset.types.ts";
 import type { SaveAbility } from "../../types/statBlock.types.ts";
@@ -20,7 +21,7 @@ export function saveRollMode(input: {
 }): { mode: RollMode; reasons: string[] } {
   const { conditions, ability, ruleset, dmMode } = input;
   // Decide once over every source (any advantage with any disadvantage is a straight roll).
-  const hasAdvantage = dmMode === "advantage";
+  let hasAdvantage = dmMode === "advantage";
   let hasDisadvantage = dmMode === "disadvantage";
   const reasons: string[] = [];
   if (hasSaveDisadvantage(conditions, ability, ruleset)) {
@@ -30,6 +31,11 @@ export function saveRollMode(input: {
         ? "Restrained on a Dexterity save"
         : "Exhaustion imposes disadvantage on saves",
     );
+  }
+  // Dodge (PHB 2014 "Dodge", SRD 5.2 "Dodge [Action]"): advantage on Dexterity saves, lost when Incapacitated.
+  if (ability === "dex" && isDodging(conditions) && !isIncapacitated(conditions)) {
+    hasAdvantage = true;
+    reasons.push("Dodging on a Dexterity save");
   }
   if (dmMode && dmMode !== "normal") reasons.push(`DM sets ${dmMode}`);
   const mode: RollMode = hasAdvantage === hasDisadvantage ? "normal" : hasAdvantage ? "advantage" : "disadvantage";

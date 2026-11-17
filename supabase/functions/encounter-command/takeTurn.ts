@@ -6,8 +6,8 @@
 // Out of turn. The creature need not be the active one: the runner lets the DM run a creature out of turn, and so does
 // this. Nothing here advances the turn.
 //
-// Not in this command: the opportunity attacks a path provokes (the enemies' reactions), the effect of Dodge and Hide
-// (the Action is used and nothing more is recorded), picking by a model, ending the turn, legendary and lair actions,
+// Not in this command: the opportunity attacks a path provokes (the enemies' reactions), Hide (the Action is
+// used and nothing more is recorded; Dodge and Disengage do put their condition on the creature), picking by a model, ending the turn, legendary and lair actions,
 // spells. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
 // the fight after its move and the reply says so (`leftTheMap`); that is not a defeat. A Multiattack that drops its target does not redirect the swings it has left.
 
@@ -15,6 +15,7 @@ import { applyFightCommand, type FightCommand } from "../../../src/rules/fight/f
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
 import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
 import { stepsFor } from "../../../src/rules/fight/tactics/carryOut.ts";
+import { DODGING, disengagedCondition, dodgingCondition } from "../../../src/rules/fight/stances.ts";
 import { gateOptions, pickTurn } from "../../../src/rules/fight/tactics/pick.ts";
 import { withNumbers } from "../../../src/rules/fight/tactics/numbers.ts";
 import { tacticalProfile } from "../../../src/rules/fight/tactics/profile.ts";
@@ -131,6 +132,9 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
 
   for (const step of steps) {
     switch (step.type) {
+      case "stance":
+        apply({ type: "apply_condition", instanceId: mover.instance_id, condition: step.name === DODGING ? dodgingCondition() : disengagedCondition() });
+        break;
       case "move":
         // A position is not a command (the Play screen writes it straight to the row), so the saved fight takes it here.
         next = { ...next, combatants: next.combatants.map((c) => (c.instance_id === mover.instance_id ? { ...c, position: step.to } : c)) };

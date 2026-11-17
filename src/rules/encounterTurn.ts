@@ -84,6 +84,8 @@ export type EncounterTurnCommand =
   | { type: "set_size_override"; instanceId: string; size: MonsterSize | null }
   | { type: "toggle_surprised"; instanceId: string }
   | { type: "toggle_reaction"; instanceId: string }
+  /** Idempotent, unlike `toggle_reaction`: a retry or a second caller leaves the Reaction spent (or ready) as asked. */
+  | { type: "set_reaction_used"; instanceId: string; used: boolean }
   /** The active token moved `feet` this turn (#1125 decision 11); adds to what the turn has used. */
   | { type: "record_move"; instanceId: string; feet: number }
   /** Takes `feet` back off the turn's movement (Back to start, Ctrl Z). Never goes below nothing moved. */
@@ -686,6 +688,10 @@ export function reduceEncounterTurn(
     case "toggle_reaction":
       return done(editCombatant(state, command.instanceId, (c) => {
         c.reactionUsed = !c.reactionUsed;
+      }));
+    case "set_reaction_used":
+      return done(editCombatant(state, command.instanceId, (c) => {
+        c.reactionUsed = command.used;
       }));
     case "record_move":
       return done(editCombatant(state, command.instanceId, (c) => {

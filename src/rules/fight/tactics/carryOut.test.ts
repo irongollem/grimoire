@@ -58,8 +58,21 @@ describe("stepsFor", () => {
 
   it("fails if a creature that stays where it is (a path of one cell, or none) is told to move", () => {
     const stay = stepsFor(option("dodge", { destination: { x: 1, y: 1 }, path: [{ x: 1, y: 1 }], feet: 0 }), []);
-    expect(stay).toEqual([{ type: "use", slot: "action" }]);
-    expect(stepsFor(option("dodge"), [])).toEqual([{ type: "use", slot: "action" }]);
+    expect(stay).toEqual([{ type: "stance", name: "Dodging" }, { type: "use", slot: "action" }]);
+    expect(stepsFor(option("hide"), [])).toEqual([{ type: "use", slot: "action" }]);
+  });
+
+  // PHB 2014 "Dodge" / "Disengage": each is an Action that puts its stance on the creature. The bug is an Action spent with no stance.
+  it("fails if Dodge or Disengage yields no stance step, or Hide or an attack yields one", () => {
+    expect(stepsFor(option("dodge"), [])).toEqual([{ type: "stance", name: "Dodging" }, { type: "use", slot: "action" }]);
+    expect(stepsFor(option("disengage"), [])).toEqual([{ type: "stance", name: "Disengaged" }, { type: "use", slot: "action" }]);
+    expect(stepsFor(option("dash"), []).some((s) => s.type === "stance")).toBe(false);
+  });
+
+  // SRD 5.2 "Disengage [Action]": the walk away must not provoke, so the stance has to be on the creature before the move.
+  it("fails if the Disengaged stance comes after the move", () => {
+    const steps = stepsFor(option("disengage", { destination: { x: 2, y: 0 }, feet: 10, path: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }] }), []);
+    expect(steps.map((s) => s.type)).toEqual(["stance", "move", "use"]);
   });
 
   // Multiattack: one Bite then two Claws is three swings, each named from the entry the step points at, in printed order.

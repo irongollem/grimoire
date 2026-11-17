@@ -61,6 +61,18 @@
         </li>
       </ul>
 
+      <!-- Weapons carried but not in hand. Drawing one is the turn's free interaction, once (PHB 2014 ch. 9). -->
+      <div v-if="carriedWeapons.length > 0" class="flex flex-col gap-1.5" data-testid="solo-carried">
+        <span class="text-eyebrow text-muted-foreground">Carried</span>
+        <p v-if="!budget.smallThing" class="text-caption text-muted-foreground">You have already handled one thing this turn.</p>
+        <ul class="flex flex-col gap-1.5">
+          <li v-for="w in carriedWeapons" :key="w.id" class="flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-1.5">
+            <p class="min-w-0 truncate text-label-lg font-semibold text-foreground">{{ w.name }}</p>
+            <AppButton variant="outline" size="sm" label="Draw" :aria-label="`Draw ${w.name}`" :disabled="busy || !budget.smallThing" @click="emit('draw', w.id)" />
+          </li>
+        </ul>
+      </div>
+
       <div class="grid grid-cols-2 gap-1.5">
         <AppButton v-for="a in ACTIONS" :key="a.kind" variant="outline" size="sm" :label="a.label" :disabled="busy || !budget.action" @click="emit('act', a.kind)" />
       </div>
@@ -108,9 +120,11 @@ const emit = defineEmits<{
   act: [kind: ActKind];
   end: [];
   cancelAttack: [];
+  /** Draw the carried weapon whose inventory row has this id. */
+  draw: [rowId: string];
 }>();
 
-const { all: attacks } = usePcAttackRows(() => member);
+const { all: attacks, carriedWeapons } = usePcAttackRows(() => member);
 
 const pct = (n: number, of: number) => (of > 0 ? Math.min(100, Math.max(0, (n / of) * 100)) : 0);
 const hpPct = computed(() => pct(hp.hp, hp.maxHp));

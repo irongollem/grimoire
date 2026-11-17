@@ -1,12 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import type { PcAttackRow } from "@/composables/encounters/usePcAttackRows";
 import type { PartyMember } from "@/types/party.types";
 
-const rows = vi.hoisted(() => ({ list: [] as unknown[] }));
+const rows = vi.hoisted(() => ({ list: [] as unknown[], carried: [] as { id: string; name: string }[] }));
 vi.mock("@/composables/encounters/usePcAttackRows", async () => {
   const { computed } = await import("vue");
-  return { usePcAttackRows: () => ({ all: computed(() => rows.list) }) };
+  return { usePcAttackRows: () => ({ all: computed(() => rows.list), carriedWeapons: computed(() => rows.carried) }) };
 });
 
 import SoloTurn from "./SoloTurn.vue";
@@ -36,6 +36,44 @@ const turn = (over: Record<string, unknown> = {}) =>
 const named = (w: ReturnType<typeof turn>, label: string) => w.findAll("button").find((b) => b.attributes("aria-label") === label || b.text() === label)!;
 
 describe("SoloTurn", () => {
+  beforeEach(() => {
+    rows.carried = [];
+  });
+
+  // Bug caught: a carried bow with no way to draw it (the Carried list is missing for an unheld weapon).
+  it("lists a carried weapon with a Draw button that emits its row id", async () => {
+    rows.list = [];
+    rows.carried = [{ id: "inv-bow", name: "Longbow" }];
+    const w = turn();
+    expect(w.get('[data-testid="solo-carried"]').text()).toContain("Longbow");
+    await named(w, "Draw Longbow").trigger("click");
+    expect(w.emitted("draw")![0]).toEqual(["inv-bow"]);
+  });
+
+  // Bug caught: drawing twice in one turn (Draw stays live once the small thing is spent), with the reason missing.
+  it("disables Draw with a reason once the small thing is spent", async () => {
+    rows.list = [];
+    rows.carried = [{ id: "inv-bow", name: "Longbow" }];
+    const w = turn({ budget: { ...FULL, smallThing: false } });
+    expect(named(w, "Draw Longbow").attributes("disabled")).toBeDefined();
+    expect(w.text()).toContain("You have already handled one thing this turn");
+    await named(w, "Draw Longbow").trigger("click");
+    expect(w.emitted("draw")).toBeUndefined();
+  });
+
+  // Bug caught: a Draw button live in the middle of a roll.
+  it("disables Draw while busy", () => {
+    rows.list = [];
+    rows.carried = [{ id: "inv-bow", name: "Longbow" }];
+    expect(named(turn({ busy: true }), "Draw Longbow").attributes("disabled")).toBeDefined();
+  });
+
+  // Bug caught: an empty Carried heading when nothing is carried.
+  it("shows no Carried section when nothing is carried", () => {
+    rows.list = [];
+    expect(turn().find('[data-testid="solo-carried"]').exists()).toBe(false);
+  });
+
   // Bug caught: Attack offered after the Action is spent, so the server refuses a turn the player was invited to take.
   it("offers no live attack or action button once the Action is spent", () => {
     rows.list = [attack({})];

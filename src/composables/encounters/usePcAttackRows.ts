@@ -82,6 +82,14 @@ export interface PcAttackRows {
   memberInventory: ComputedRef<PartyInventoryItem[]>;
   /** Item definitions for the carried rows, by item id. */
   vaultItemMap: ComputedRef<Map<string, Item>>;
+  /** Weapons the member carries but does not hold (pack, belt, stored): the ones a turn's free interaction can draw. */
+  carriedWeapons: ComputedRef<CarriedWeapon[]>;
+}
+
+export interface CarriedWeapon {
+  /** The party inventory row. */
+  id: string;
+  name: string;
 }
 
 const signed = (n: number) => `${n >= 0 ? "+" : ""}${n}`;
@@ -122,6 +130,14 @@ export function usePcAttackRows(
   };
 
   const heldInventory = computed(() => memberInventory.value.filter((inv) => ["main_hand", "off_hand"].includes(inv.slot ?? "")));
+
+  // The same weapon test the attack rows use (`item_type === "weapon"` on the resolved item); a row the item lookup
+  // cannot resolve is not offered, since nothing says it is a weapon.
+  const carriedWeapons = computed<CarriedWeapon[]>(() =>
+    memberInventory.value
+      .filter((inv) => !["main_hand", "off_hand"].includes(inv.slot ?? "") && heldItem(inv)?.item_type === "weapon")
+      .map((inv) => ({ id: inv.id, name: inv.name })),
+  );
 
   const melee = computed<PcMeleeAttackRow[]>(() => {
     const m = toValue(member);
@@ -293,5 +309,5 @@ export function usePcAttackRows(
 
   const all = computed<PcAttackRow[]>(() => [...melee.value, ...ranged.value, ...thrown.value, ...custom.value]);
 
-  return { melee, ranged, thrown, custom, all, memberInventory, vaultItemMap };
+  return { melee, ranged, thrown, custom, all, memberInventory, vaultItemMap, carriedWeapons };
 }

@@ -1,5 +1,6 @@
 import type { RollMode } from "../../systems/dnd5e/dice/rollMode.ts";
 import { hasAttackDisadvantage, hasCondition } from "../conditions.ts";
+import { isDodging, isIncapacitated } from "../fight/stances.ts";
 import type { AppliedCondition } from "../../types/condition.types.ts";
 import type { RulesetKey } from "../../types/ruleset.types.ts";
 
@@ -51,6 +52,17 @@ export function attackRollMode(input: AttackRollModeInput): { mode: RollMode; re
   const advTarget = targetConditions.filter((c) => ATTACK_ADV_TARGET_CONDITIONS.has(c.name));
   if (advTarget.length > 0) add("advantage", `target ${advTarget.map((c) => c.name).join(", ")}`);
   if (hasCondition(targetConditions, "Invisible")) add("disadvantage", "target Invisible");
+
+  // Dodge (PHB 2014 "Dodge", SRD 5.2 "Dodge [Action]"): disadvantage on attacks against the dodger, but only while it
+  // can see the attacker and is able to act. A Blinded dodger sees nothing and an Invisible attacker is not seen.
+  if (
+    isDodging(targetConditions) &&
+    !isIncapacitated(targetConditions) &&
+    !hasCondition(targetConditions, "Blinded") &&
+    !hasCondition(attackerConditions, "Invisible")
+  ) {
+    add("disadvantage", "target is Dodging");
+  }
 
   // Prone: melee within 5 ft is easy, anything from farther is hard (SRD Prone).
   // The SRD wording is "attacker is within 5 feet"; a ranged attack from there also counts.

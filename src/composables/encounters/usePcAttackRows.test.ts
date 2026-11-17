@@ -142,4 +142,26 @@ describe("usePcAttackRows", () => {
     const rows = usePcAttackRows(() => null);
     expect(rows.all.value).toEqual([]);
   });
+
+  describe("carriedWeapons", () => {
+    const defs = [weapon("rapier", "Rapier", ["finesse"], "1d8"), weapon("bow", "Longbow", ["ammunition"], "1d8"), { id: "rope", name: "Rope", item_type: "gear", properties: [], tags: [] } as unknown as Item];
+
+    // Bug caught live: Rosie carried a longbow and had no way to use it, so the list was empty for a carried, unheld weapon.
+    it("lists a weapon in the pack that is not held", () => {
+      const rows = setup(member({ str: 10, dex: 10 }), [hold("i1", "rapier", "Rapier"), hold("i2", "bow", "Longbow", { slot: null, location: "backpack" })], defs);
+      expect(rows.carriedWeapons.value).toEqual([{ id: "i2", name: "Longbow" }]);
+    });
+
+    // Bug caught: a held weapon offered to be drawn.
+    it("does not offer a weapon already in either hand", () => {
+      const rows = setup(member({ str: 10, dex: 10 }), [hold("i1", "rapier", "Rapier"), hold("i2", "bow", "Longbow", { slot: "off_hand" })], defs);
+      expect(rows.carriedWeapons.value).toEqual([]);
+    });
+
+    // Bug caught: a non-weapon in the pack offered as a weapon.
+    it("does not offer a non-weapon or another character's weapon", () => {
+      const rows = setup(member({ str: 10, dex: 10 }), [hold("i3", "rope", "Rope", { slot: null }), hold("i4", "bow", "Longbow", { slot: null, carried_by: "someone-else" })], defs);
+      expect(rows.carriedWeapons.value).toEqual([]);
+    });
+  });
 });

@@ -6,16 +6,21 @@
 // move first (an attack is made from where the creature ends), then the swings, then what the turn spent, and last,
 // for a creature that fled off the map, its leaving.
 //
-// Not modelled: the effect of Dodge and Hide (no condition is applied), the opportunity attacks a path provokes.
+// Dodge and Disengage are modelled: the creature takes the Dodging or Disengaged condition (`stance` steps, applied
+// before any move) and the shared rules read it. Not modelled: Hide (the Action is used and nothing more), the
+// opportunity attacks a path provokes.
 //
 // Pure and edge-importable (relative `.ts` imports only).
 
 import type { Cell } from "../../../lib/battlemap/movement.ts";
 import { actionLimit, actionUseKey, type ActionLimit } from "../../encounterTurn.ts";
+import { DISENGAGED, DODGING } from "../stances.ts";
 import type { StatBlockListKey } from "../../statBlock/parseAction.ts";
 import type { TurnOption, UsableAttack } from "../terrain/turnOptions.ts";
 
 export type TurnStep =
+  /** The Dodge or Disengage action's condition goes on the mover, until its next turn starts. */
+  | { type: "stance"; name: typeof DODGING | typeof DISENGAGED }
   /** The token goes to `to` and `feet` count against the turn's movement. */
   | { type: "move"; to: Cell; feet: number }
   /** One resolved attack: a Multiattack is several of these, in printed order. */
@@ -47,6 +52,9 @@ function slotOf(option: TurnOption): "action" | "bonus" | null {
 /** The steps of one option. `attacks` are the mover's usable entries: where a Multiattack's steps and a limit are found by name. */
 export function stepsFor(option: TurnOption, attacks: readonly UsableAttack[]): TurnStep[] {
   const steps: TurnStep[] = [];
+  // First, so the stance is already on the creature for anything that follows in the turn (Disengage, then walk away).
+  if (option.kind === "dodge") steps.push({ type: "stance", name: DODGING });
+  if (option.kind === "disengage") steps.push({ type: "stance", name: DISENGAGED });
   // Only a real walk is a move: no map, or a creature that stays where it is, has no path to take.
   if (option.destination !== null && option.path !== null && option.path.length > 1 && option.feet !== null) {
     steps.push({ type: "move", to: option.destination, feet: option.feet });

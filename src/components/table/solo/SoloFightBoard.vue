@@ -58,6 +58,7 @@
       @attack="(row) => attack.aim(row)"
       @cancel-attack="attack.cancel()"
       @act="onAct"
+      @draw="onDraw"
       @end="host.endTurn()"
     />
   </Teleport>
@@ -105,6 +106,8 @@ import BannerLoader from "@/components/brand/BannerLoader.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
+import { useDrawWeapon } from "@/composables/table/useDrawWeapon";
+import { actOutcome, type ActKind } from "@/lib/table/fight/acts";
 import { useSoloAttack } from "@/composables/table/useSoloAttack";
 import { useSoloFightHost, type SoloFightEnd } from "@/composables/table/useSoloFightHost";
 import { useToast } from "@/composables/useToast";
@@ -306,13 +309,32 @@ async function onDeathSave(face: number, atTable: boolean): Promise<void> {
   }
 }
 
-/** The four actions the rules name. They spend the Action; only Dash changes anything the board can show yet. */
-function onAct(kind: "dash" | "dodge" | "disengage" | "hide"): void {
+const { draw: drawWeapon } = useDrawWeapon(() => member);
+
+/** Drawing a carried weapon spends the turn's one small thing, and only once the inventory has really changed. */
+async function onDraw(rowId: string): Promise<void> {
+  if (resolving.value || host.budget.value?.smallThing !== true) return;
+  resolving.value = true;
+  try {
+    const line = await drawWeapon(rowId);
+    host.spendSmallThing();
+    emit("lines", [{ kind: "margin", text: line }], false);
+  } catch (error) {
+    toast.error(toast.fromError(error, "That weapon could not be drawn."));
+  } finally {
+    resolving.value = false;
+  }
+}
+
+/** The four actions the rules name. They spend the Action; what each does besides is `actOutcome`'s. */
+function onAct(kind: ActKind): void {
   const me = played.value;
   if (!me || me.action_used === true) return;
   store.setActionUsed(me.instance_id, true);
-  if (kind === "dash") dashed.value = true;
-  const what = { dash: "takes the Dash action", dodge: "takes the Dodge action", disengage: "takes the Disengage action", hide: "tries to hide" }[kind];
-  emit("lines", [{ kind: "margin", text: `${me.name} ${what}` }], false);
+  const outcome = actOutcome(kind, me.name);
+  if (outcome.dashes) dashed.value = true;
+  // Dodge and Disengage are conditions the shared rules read: the creatures' attacks and their opportunity attacks.
+  if (outcome.stance !== null) store.applyCondition(me.instance_id, outcome.stance);
+  emit("lines", [{ kind: "margin", text: outcome.line }], false);
 }
 </script>

@@ -563,6 +563,11 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     dispatch({ type: "toggle_reaction", instanceId });
   }
 
+  /** Idempotent: a repeat leaves the Reaction as asked, where `toggleReaction` would flip it back. */
+  function setReactionUsed(instanceId: string, used: boolean) {
+    dispatch({ type: "set_reaction_used", instanceId, used });
+  }
+
   /** The token left `from` and the move cost `feet`: counts against the turn's movement and can be taken back. */
   function recordMove(instanceId: string, from: { x: number; y: number }, feet: number) {
     moveHistory.value = { ...moveHistory.value, [instanceId]: [...(moveHistory.value[instanceId] ?? []), { from, feet }] };
@@ -693,6 +698,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     recordMove,
     undoMove,
     setActionUsed,
+    setReactionUsed,
     setBonusUsed,
     useAction,
     restoreAction,

@@ -181,6 +181,11 @@ export function useSoloFightHost(options: {
     spent.value = { ...spent.value, words: true };
   }
 
+  /** The turn's one free interaction with an object (drawing a weapon) has been used. */
+  function spendSmallThing(): void {
+    spent.value = { ...spent.value, smallThing: true };
+  }
+
   return {
     /** The store holds this fight. */
     opened: mine,
@@ -199,6 +204,7 @@ export function useSoloFightHost(options: {
     spent,
     endTurn,
     spendWords,
+    spendSmallThing,
     finish,
     standing,
   };

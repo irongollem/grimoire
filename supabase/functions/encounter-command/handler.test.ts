@@ -1254,6 +1254,8 @@ describe("take_turn", () => {
     expect(wolf.action_used).toBe(true);
     expect(wolf.movement_used ?? 0).toBe(0);
     expect(h.dieCalls).toBe(0);
+    // PHB 2014 "Dodge": the stance is recorded on the creature, until its next turn starts.
+    expect(wolf.conditions).toMatchObject([{ name: "Dodging", ends: { kind: "turn", at: "start", of: "self" } }]);
     expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { optionId: "dodge", kind: "dodge", picked: "caller" } });
   });
 
