@@ -58,6 +58,11 @@ src/views/player/TEMPSHIT.ts
 # vite-ssg build temp directory
 .vite-ssg-temp/
 
+# A second dev server's dependency cache (a Vite started with its own cacheDir, as `.vite-<port or issue>`).
+# One was committed by accident with #1194: 128 pre-bundled dependency files that every later dev run rewrote.
+.vite-*/
+!.vite-ssg-temp/
+
 # Local art working directory. Source PNGs + webp exports for canonical art.
 # The shipped assets live in Supabase storage (downtime-images/srd/), so these
 # are working files, not build inputs — keeping 17MB of raw PNGs out of a public
