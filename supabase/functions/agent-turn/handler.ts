@@ -11,6 +11,7 @@
 //                (`_shared/agent/summary.ts`): the player never waits for that, and a failure in it is only logged.
 // A caller that gets `run` MUST call it: the reservation is released inside it.
 
+import { lootIsWon } from "../_shared/agent/encounterLoot.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
 import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
 import { NARRATOR_SPEAKER, type KeyedLine } from "../_shared/agent/lineKey.ts";
@@ -236,6 +237,8 @@ export interface AgentTurnDeps {
   setFight(sessionId: string, campaignId: string, encounterId: string | null): Promise<void>;
   /** Marks a prepared fight as fought, so it is not offered at its place again. */
   finishFight(campaignId: string, encounterId: string): Promise<void>;
+  /** Lays a won fight's loot notes where it was fought, once, as things the campaign placed there. */
+  layFightLoot(campaignId: string, encounterId: string, placeId: string | null): Promise<void>;
   /**
    * The campaign's opening quest at its entry beat, when the story has not begun: no turn has ever been kept at the
    * table in this campaign. Null once it has, and when the campaign names no opening quest (or one that is gone).
@@ -536,6 +539,12 @@ export async function beginTurn(input: {
         }
         const system = systemWithSummary(systemFor({ campaign, character, peoples }), session.summary);
         const fightTurn = body.fightTurn === undefined ? null : body.fightTurn;
+        // A fight fought out with no foe standing leaves its loot where it was fought, before what is within reach
+        // is read: the narrator telling what comes of the fight can then say what lies there.
+        if (fights !== null && lootIsWon(fights.fight)) {
+          const won = fights.fight!;
+          await safely(() => deps.layFightLoot(campaign.id, won.encounterId, session.scene_location_id));
+        }
         // What the played character carries and the place sells. A failure to read it costs the tools, never the turn.
         let hands: { possessions: Possessions; coinValues: Map<string, number>; coinsText: (coins: Coins) => string } | null = null;
         if (character) {
@@ -795,6 +804,8 @@ export async function beginTurn(input: {
               await recordFight(fights.fight, change.ends);
               // Foes who gave in or ran are done with; one the party ran from is still there to be met again.
               if (change.ends !== "you_get_away") await safely(() => deps.finishFight(campaign.id, fights.fight!.encounterId));
+              // Foes who gave in have given up what they carried; ones who fled took it with them.
+              if (change.ends === "they_give_in") await safely(() => deps.layFightLoot(campaign.id, fights.fight!.encounterId, session.scene_location_id));
             }
           }
           emit({ type: "fight_change", change });

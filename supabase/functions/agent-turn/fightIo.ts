@@ -8,6 +8,7 @@
 //
 // Thin on purpose: no test harness here, the rules are tested where they live.
 
+import { encounterLootRows } from "../_shared/agent/encounterLoot.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fightStateOf, MAX_PREPARED, type Fighter, type FightPlan, type FightsInView, type FightState, type PreparedFight } from "../_shared/agent/fight.ts";
 import { loadStatBlocks, statBlockIdsOf, statBlockOf } from "../_shared/fightStatBlocks.ts";
@@ -164,6 +165,27 @@ export async function setFight(admin: SupabaseClient, sessionId: string, campaig
 /** A fight that was fought out is finished: it is not offered at its place again. */
 export async function finishFight(admin: SupabaseClient, campaignId: string, encounterId: string): Promise<void> {
   const { error } = await admin.from("encounters").update({ is_finished: true }).eq("id", encounterId).eq("campaign_id", campaignId);
+  if (error) throw error;
+}
+
+/**
+ * Lays a won fight's loot notes where it was fought, as ordinary placed loot (`encounterLoot.ts`). Once per
+ * encounter: rows it laid earlier, taken or not, mean there is nothing more to lay. An encounter with no place of
+ * its own lies where the party stands; with no place at all there is nowhere to lay it.
+ */
+export async function layFightLoot(admin: SupabaseClient, campaignId: string, encounterId: string, placeId: string | null): Promise<void> {
+  const enc = await admin.from("encounters").select("item_ids, reward_currency_pools, location_id").eq("id", encounterId).eq("campaign_id", campaignId).maybeSingle();
+  if (enc.error) throw enc.error;
+  if (!enc.data) return;
+  const rows = encounterLootRows(enc.data.item_ids, enc.data.reward_currency_pools);
+  const where = typeof enc.data.location_id === "string" ? enc.data.location_id : placeId;
+  if (rows.length === 0 || where === null) return;
+  const laid = await admin.from("loot_placements").select("id").eq("campaign_id", campaignId).eq("source_type", "encounter_loot").eq("source_id", encounterId).limit(1);
+  if (laid.error) throw laid.error;
+  if ((laid.data ?? []).length > 0) return;
+  const { error } = await admin.from("loot_placements").insert(
+    rows.map((row, index) => ({ ...row, campaign_id: campaignId, location_id: where, beat_id: null, quest_id: null, source_type: "encounter_loot", source_id: encounterId, sort_order: 1000 + index })),
+  );
   if (error) throw error;
 }
 

@@ -173,6 +173,8 @@ interface Harness {
   fightSets: Array<{ sessionId: string; campaignId: string; encounterId: string | null }>;
   /** Prepared fights marked as fought. */
   finished: string[];
+  /** The fights whose loot was laid where they were fought. */
+  laidLoot: { encounterId: string; placeId: string | null }[];
   /** Every time the opening quest was put in play. */
   begun: Array<{ campaignId: string; questId: string; beatId: string }>;
   /** Every reveal the handler asked for, in order. */
@@ -273,6 +275,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     startedFights: [],
     fightSets: [],
     finished: [],
+    laidLoot: [],
     facts: [],
     recordLoads: [],
     discards: [],
@@ -383,6 +386,9 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     },
     setFight: async (sessionId, campaignId, encounterId) => {
       h.fightSets.push({ sessionId, campaignId, encounterId });
+    },
+    layFightLoot: async (_campaignId, encounterId, placeId) => {
+      h.laidLoot.push({ encounterId, placeId });
     },
     finishFight: async (_campaignId, encounterId) => {
       h.finished.push(encounterId);
@@ -3105,9 +3111,15 @@ describe("the story turns into a fight", () => {
       const won = inFight([change({ costs: "action", ends: "they_give_in" }), step(10)]);
       await play(won, { body: rolling(13) });
       expect(won.finished).toHaveLength(1);
+      // Foes who gave in leave what they carried; ones who fled, or whom the player fled, keep it.
+      expect(won.laidLoot).toHaveLength(1);
       const ran = inFight([change({ costs: "action", ends: "you_get_away" }), step(10)]);
       await play(ran, { body: rolling(13) });
       expect(ran.finished).toEqual([]);
+      expect(ran.laidLoot).toEqual([]);
+      const fled = inFight([change({ costs: "action", ends: "they_flee" }), step(10)]);
+      await play(fled, { body: rolling(13) });
+      expect(fled.laidLoot).toEqual([]);
     });
 
     // Bug caught: a stunt carried out for a player whose Action already went on an attack.
@@ -3207,6 +3219,23 @@ describe("the story turns into a fight", () => {
     await play(h, { body: BODY });
     expect(h.fightSets).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN, encounterId: null }]);
     expect(fightEvents(h)).toEqual([{ type: "fight", fight: null }]);
+  });
+
+  // Bug caught: the loot notes on an encounter never reaching anyone at a table with no Dungeon Master to drop
+  // them; or the loot of a fight the party lost (a foe still standing) laid at their feet.
+  it("lays a fight's loot where it was fought when no foe is left standing, and not when one is", async () => {
+    const over = (ratHp: number) => ({
+      prepared: [],
+      fight: { encounterId: FIGHT, name: "The cellar rats", phase: "over" as const, round: 3, fighters: [{ name: "Giant Rat 1", side: "enemy" as const, hp: ratHp, maxHp: 7 }] },
+    });
+    const won = played([step(10)], { fight_encounter_id: FIGHT });
+    won.state.fights = over(0);
+    await play(won, { body: BODY });
+    expect(won.laidLoot.map((l) => l.encounterId)).toEqual([FIGHT]);
+    const lost = played([step(10)], { fight_encounter_id: FIGHT });
+    lost.state.fights = over(3);
+    await play(lost, { body: BODY });
+    expect(lost.laidLoot).toEqual([]);
   });
 
   it("keeps hold of a fight that is still being fought", async () => {
