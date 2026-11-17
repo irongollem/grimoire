@@ -1,7 +1,7 @@
 -- The story so far is written down, so a long conversation stays affordable (#1205).
 --
 -- Every turn sends the whole conversation to the model again. `agent_sessions.summary` and `summary_through_seq` have
--- been there since 20261116190601 with nothing writing them: once the unsummarised part grows past a size the turn
+-- been there since 20261117003101 with nothing writing them: once the unsummarised part grows past a size the turn
 -- function sets, it asks the model for a summary of the older messages and stores it here. From then on those
 -- messages are no longer sent; the summary rides along with the standing instructions instead. The messages
 -- themselves stay in `agent_turns`: the summary changes what the model is sent, never what was said.

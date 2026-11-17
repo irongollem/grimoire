@@ -50,7 +50,7 @@ Eight runs since, all with invented text or the public demo campaign, all passed
 
 One thing to watch from run 3: the summary called the gatekeeper someone "accompanying" the party, which the conversation did not say. A summary is model prose, and the checks on what is shown (#1061) should read it too.
 
-## Storage (`20261116190601`)
+## Storage (`20261117003101`)
 
 `agent_sessions` (one conversation: owner, campaign, kind, provider and model, a rolling summary with the sequence number it covers, running token and credit totals) and `agent_turns` (one message in order: its blocks, and the tokens of the model call behind it: the narrator's on a message it wrote, a character's own call on the tool result that carries its line).
 
@@ -60,14 +60,14 @@ One thing to watch from run 3: the summary called the gatekeeper someone "accomp
 - Neither table rings the campaign doorbell (exempt in `live_sync_registry.test.sql`): nobody else reads them, and the page that runs a turn will stream it.
 - `supabase/tests/agent_conversations.test.sql` holds the access rules, with the campaign's DM as the reader who must see nothing.
 
-## Metering (`metering.ts`, migration `20261116190602`)
+## Metering (`metering.ts`, migration `20261117003102`)
 
 A fixed price per call cannot work here: one message from the player is several model calls of very different size. So a conversation is charged from measured tokens.
 
 - `usdForUsage` prices a call from `ai_model_pricing`: full-rate input and cache writes at the input rate, cached input at `cached_input_cost_per_million_tokens`, output at the output rate. A cached rate that is not on file means the full input rate: a missing number never makes play cheaper.
 - `creditsForUsd` is cost times the admin's margin, divided by what a credit is worth. Both come from `public.agent_credit_calibration()` (service role only), which reads `private.credit_calibration()`: the net euro cents a credit earns in the pack where it earns least, after VAT and the payment processor's cut. `get_credit_calibration_hints` reads the same function now, so the admin's price calibration and the metering cannot drift. With today's packs a credit is worth about 0.61 euro cents (`credit_calibration.test.sql` holds the figure to a hand calculation). An unusable calibration throws; it never bills nothing.
-- **`gpt-6-luna`'s cached rate is on file** (`20261116190606`: 0.01 USD per million, a tenth of its 0.10 input rate). The platform moved to that model on 16 Nov 2026 (`20261116184759`, which prices its input and output).
-- **The cached rate of `gpt-5.6-luna` is on file** (`20261116190605`: 0.02 USD per million, a tenth of the input rate, OpenAI's published price on 16 Nov 2026). It matters more here than anywhere else in the app: a conversation resends its history every turn, and in the first live turn with a speaking character 18,254 of 23,198 input tokens were cache reads. At the full rate that turn accrued 1.58 credits; with the cached rate the same tokens come to about 0.59.
+- **`gpt-6-luna`'s cached rate is on file** (`20261117003106`: 0.01 USD per million, a tenth of its 0.10 input rate). The platform moved to that model on 16 Nov 2026 (`20261116184759`, which prices its input and output).
+- **The cached rate of `gpt-5.6-luna` is on file** (`20261117003105`: 0.02 USD per million, a tenth of the input rate, OpenAI's published price on 16 Nov 2026). It matters more here than anywhere else in the app: a conversation resends its history every turn, and in the first live turn with a speaking character 18,254 of 23,198 input tokens were cache reads. At the full rate that turn accrued 1.58 credits; with the cached rate the same tokens come to about 0.59.
 - **Not covered: cache writes.** OpenAI's price page now lists cache writes at 1.25 times the input rate. The OpenAI adapter reports no write tokens (`cacheWriteTokens: 0`) and the metering prices a write at the input rate, so if the API bills writes apart, the platform under-recovers by at most a quarter of the uncached input. Whether the usage object reports written tokens has not been checked against the API reference.
 - **A session accrues exactly and bills whole credits.** The house rule is never to bill a fraction of a credit, and rounding each turn up would overcharge by about half. `agent_sessions.credits_spent` holds the exact running total, and the whole credits it newly crossed are decided in SQL, under the session's row lock: `append_agent_turns` (a turn) and `summarise_agent_session` (a summary) each return that number and the function spends it. The rule lives there, not in TypeScript, because a turn and a summary finishing close together would otherwise each read the same old total and each claim the same credit. What is left under a whole credit when a conversation goes quiet is not collected. An idle sweep to bill it was considered and turned down (maintainer, 16 Nov 2026): the most it could collect per conversation is under one credit.
 - A rough size: a turn of three model calls on `gpt-5.6-luna` (about 18,000 input and 1,500 output tokens) costs about half a US cent, which at a margin of 2 is about 1.6 credits.
@@ -98,7 +98,7 @@ The narrator reads the whole campaign, DM notes included. If it also wrote every
 - **Cost.** A character's call is billed, budgeted and stored like the narrator's: `runTurn` returns `toolSteps`, the turn's token budget counts them (the step limit does not), and their tokens land on the tool-result row, so the rows still sum to what was billed. It uses the narrator's model for now; a cheaper one for speech needs its own price row.
 - **What this does not solve.** The narrator writes `happening`, and nothing checks yet that it holds only what the character could perceive; the field is short (600 characters) and the tool says what belongs in it, which is an instruction, not a guarantee. The narrator still decides `volume` and who is `present`, and still chooses the deeds of creatures with no record. A line the player's own character could not hear (a whisper between two others) is still sent to the page. These want a check on each answer (#1061) and labelled examples before they are trusted. "Knows about" links, by which a DM widens what a character knows, are not built: a character knows its own record, its memories and what it witnessed.
 
-## Running a turn (`supabase/functions/agent-turn/`, migration `20261116190603`)
+## Running a turn (`supabase/functions/agent-turn/`, migration `20261117003103`)
 
 `POST { campaignId, sessionId?, message, mode }`. `mode` is `say` or `do` and is required: the player chooses with Enter (say) or Alt+Enter (do), and it is a hint, not a ruling (maintainer, 16 Nov 2026): it styles the box and settles wording that could be either, while a deed sent as said is still read as a deed. The narrator is told which button was pressed and reads the message itself; the stored message keeps what was typed and the choice (`player` on its text block), which is what the page draws from. `handler.ts` holds every rule with its dependencies injected (71 tests against an in-memory store); `index.ts` wires the real ones and streams.
 
@@ -115,7 +115,7 @@ The narrator reads the whole campaign, DM notes included. If it also wrote every
 
 Seen against the locally served function (16 Nov 2026), without any model call: no sign-in 401, an empty message and a missing campaign 400, AI off 403, and with AI on a member who is not the DM 403, with no conversation created and nothing in the ledger. **No turn has run end to end against a real model.**
 
-## Where the party is (`scene.ts`, migration `20261116193404`)
+## Where the party is (`scene.ts`, migration `20261117003107`)
 
 Seen live on 16 Nov 2026: one question took seven model calls and 14 seconds, five of them lookups (an overview, two searches, two reads) the narrator made one at a time just to learn where the party was and who was there, before any character spoke. So the conversation keeps the place (`agent_sessions.scene_location_id`, written only by the server), and the place must be in the conversation's campaign. That is checked twice, because the first check written for it did nothing: the shared `zz_same_campaign_refs` trigger lets server code through by design, and the server is this row's only writer, so `agent_session_scene.test.sql` found a place of another campaign accepted. `setScene` now finds the place in the campaign before it writes, and the column has its own trigger (`agent_sessions_scene_in_campaign`) that holds whoever writes, and the server reads it at the start of every turn.
 
@@ -124,7 +124,7 @@ Seen live on 16 Nov 2026: one question took seven model calls and 14 seconds, fi
 - **A conversation begins at a place.** A request that starts a conversation may carry `startLocationId`: the page knows where the player sat down, and a narrator left to find it spent a whole turn searching (21 s live, against 4 s with the place known). It is checked against the campaign before anything is reserved or streamed (a place elsewhere is a 404), and it is refused together with `sessionId`: a conversation under way is moved by the narrator, never by a request.
 - **The browser** hears `{ type: "scene", scene: { id, name } }` for a successful move, and nothing else of the tool's result: the description and the character list can hold DM-only text.
 
-## A sitting is a play session (migration `20261116214740`)
+## A sitting is a play session (migration `20261117003108`)
 
 Play at the AI table is canon (maintainer, 16 Nov 2026): what happens there is written into the campaign it is played in. So a new conversation opens the campaign's play session, through `start_campaign_session`, the function behind the app's Start button, called as the DM who is playing: it returns the open session untouched when there is one (a DM already running an evening keeps it and the table joins it) and otherwise starts the next numbered one. The conversation keeps that session (`agent_sessions.campaign_session_id`), and what it writes into the campaign is stamped with it; a character's memories are the first such thing. One conversation is one sitting: a conversation already under way never opens another session. When the session cannot be opened the conversation still runs, and what it writes is undated.
 
@@ -132,7 +132,7 @@ The session must be of the conversation's campaign, checked by the row's own tri
 
 Not built: leaving the table does not end the session (the DM ends it in the app, as after any evening), and in a campaign with players a sitting at the AI table shows them a live session like any other.
 
-## The record (`record.ts`, migration `20261116215909`)
+## The record (`record.ts`, migration `20261117003109`)
 
 AI narrators forget. The maintainer, 16 Nov 2026: "long running quests shouldnt be a reason to start forgetting things". A session note is written to be told at the table, not to be right, so the campaign keeps **the record**: plain facts, one sentence each, filed the moment they happen, each tied to what it is about (`story_facts`, `story_fact_links`: a person, a place, a quest, a beat, an item or a monster) and found again by those ties.
 
@@ -150,7 +150,7 @@ Three rules, two of them in the schema:
 
 Not built: the player's page for the record, corrections by the player (a correction is a later fact with `source = 'correction'`, which the schema allows), facts about library monsters (a tie names a monster of the campaign), a human DM's way to file one, and embeddings for recall (a fact is found only by its ties and by being recent).
 
-## Quests and time (`quests.ts`, `questIo.ts`, migration `20261116225918`)
+## Quests and time (`quests.ts`, `questIo.ts`, migration `20261117003111`)
 
 The narrator could read the campaign and file facts but could not move a quest forward, and it had no sense of how long a scene had gone on (maintainer, 16 Nov 2026: "If certain urgency is needed a conversation can't simply drag on forever"). So it is shown the quests in play every turn and given tools that mark what happened through the same database functions the quest screen calls, and urgency is a quest clock the server counts turns against.
 

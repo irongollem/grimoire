@@ -14,7 +14,7 @@
 -- read earlier, a turn and a summary (`summarise_agent_session`) finishing close together could each claim the same
 -- credit, or neither claim it.
 --
--- For the service role only: the turn function is the one writer of these tables (see 20261116190601).
+-- For the service role only: the turn function is the one writer of these tables (see 20261117003101).
 
 create or replace function public.append_agent_turns(
   p_session_id uuid,

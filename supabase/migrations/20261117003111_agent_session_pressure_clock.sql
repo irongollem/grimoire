@@ -9,7 +9,7 @@
 --
 -- Written only by the server, like the rest of the row. A clock that is deleted leaves the conversation without
 -- pressure. The clock must be of the conversation's campaign; as with the scene and the session
--- (20261116193404, 20261116214740) the row's own trigger checks it, because the shared one lets server code through.
+-- (20261117003107, 20261117003108) the row's own trigger checks it, because the shared one lets server code through.
 
 alter table public.agent_sessions
   add column pressure_clock_id uuid references public.quest_clocks (id) on delete set null;
