@@ -3,7 +3,7 @@
        It takes the place of the turn's controls: a character who is down can do nothing else. -->
   <section class="flex flex-col gap-3 border-b border-border px-4 py-3.5" aria-label="Your death save" data-testid="solo-death-save">
     <div class="flex items-baseline justify-between gap-2">
-      <h2 class="font-cinzel text-heading-sm font-bold text-destructive">You are dying</h2>
+      <h2 class="text-heading-sm font-bold text-destructive">You are dying</h2>
       <span class="text-caption text-muted-foreground">Round {{ round }}</span>
     </div>
     <div class="flex flex-col gap-1.5">

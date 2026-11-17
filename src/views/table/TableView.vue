@@ -258,7 +258,7 @@ const turn = useTableTurn({
 
 // The map in its strip above the story, or laid over the whole screen.
 const mapLarge = ref(false);
-const mapBoxClass = computed(() => (mapLarge.value ? "fixed inset-0 z-50 bg-background" : "relative h-[40%] min-h-56 shrink-0 border-b border-border"));
+const mapBoxClass = computed(() => (mapLarge.value ? "fixed inset-0 z-50 bg-[#0b0b10]" : "relative h-[40%] min-h-56 shrink-0 border-b border-border"));
 useHotkeys([{ combo: "escape", description: "Make the map small again", hidden: true, dismiss: true, handler: () => (mapLarge.value = false) }], { layer: "overlay", enabled: mapLarge });
 
 // The voices: the narrator's, the characters' and the player's own. A line is handed to the voice the moment it
