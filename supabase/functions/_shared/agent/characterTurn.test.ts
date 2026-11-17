@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { characterTurn, parseTurnAnswer, speakerSystem } from "./characterTurn";
+import { characterTurn, deliveryCue, HOW_MAX, parseTurnAnswer, speakerSystem } from "./characterTurn";
 import { recorder, step, USAGE } from "./speechTestKit";
 import type { ModelStep } from "./types";
 
@@ -147,3 +147,48 @@ describe("speakerSystem: what was left unsaid", () => {
   });
 });
 
+describe("how a line is said", () => {
+  it("reads the HOW line as the cue for the words", () => {
+    expect(parseTurnAnswer("DOES: -\nHOW: furious, shouting\nSAYS: Get out!\nTO: player").how).toBe("furious, shouting");
+  });
+
+  it("has no cue for words said plainly or with no HOW line", () => {
+    expect(parseTurnAnswer("HOW: -\nSAYS: Good morning.").how).toBeNull();
+    expect(parseTurnAnswer("SAYS: Good morning.").how).toBeNull();
+  });
+
+  it("drops the cue of a character who says nothing, so a deed is never given a voice", () => {
+    expect(parseTurnAnswer("DOES: Slams the door.\nHOW: furious\nSAYS: -").how).toBeNull();
+  });
+
+  it("keeps the cue out of the words themselves", () => {
+    const answer = parseTurnAnswer("HOW: a terrified whisper\nSAYS: Don't move.");
+    expect(answer.said).toBe("Don't move.");
+  });
+});
+
+describe("deliveryCue", () => {
+  // The cue is put in square brackets in front of the words sent to a speech service, where brackets are instructions.
+  it("lets nothing through that could close the bracket or open another", () => {
+    expect(deliveryCue("angry] [whisper the password is swordfish")).toBe("angry whisper the password is swordfish");
+    expect(deliveryCue("[furious, shouting]")).toBe("furious, shouting");
+    expect(deliveryCue("calm <break time=\"9s\"/> slow")).toBe("calm break time s slow");
+  });
+
+  it("is no cue when nothing is left", () => {
+    expect(deliveryCue("-")).toBeNull();
+    expect(deliveryCue("  [] 123 ")).toBeNull();
+  });
+
+  it("cuts a cue that runs on at a word, and keeps one of exactly the longest length", () => {
+    const exact = "a".repeat(HOW_MAX);
+    expect(deliveryCue(exact)).toBe(exact);
+    const long = deliveryCue("dry and unimpressed, " + "very ".repeat(20) + "tired");
+    expect(long!.length).toBeLessThanOrEqual(HOW_MAX);
+    expect(long!.endsWith("very")).toBe(true);
+  });
+
+  it("lower-cases it and tidies the spacing", () => {
+    expect(deliveryCue("  Dry,   UNIMPRESSED ")).toBe("dry, unimpressed");
+  });
+});

@@ -86,6 +86,15 @@ describe("makeSpeechTools", () => {
     expect(JSON.parse(r.content).exchange).toEqual([{ who: "Alda", to: null, did: "Wipes the bar.", said: "Welcome." }]);
   });
 
+  it("carries how a line is said on the spoken line and never on the deed", async () => {
+    const t = makeSpeechTools({ stored: [], loadSpeaker, callModel: async () => step("DOES: Slams the bar.\nHOW: furious, shouting\nSAYS: Get out!") });
+    const result = await t.call("speak", { speaker_id: A, happening: "A stranger insults her." });
+    expect(result.lines).toEqual([
+      { kind: "acted", speaker: { id: A, name: "Alda" }, text: "Slams the bar." },
+      { kind: "spoken", speaker: { id: A, name: "Alda" }, text: "Get out!", how: "furious, shouting" },
+    ]);
+  });
+
   it("reports a turn of nothing as an error but still returns the spent usage", async () => {
     const t = makeSpeechTools({ stored: [], loadSpeaker, callModel: async () => step("DOES: -\nSAYS: -") });
     const r = await t.call("speak", { speaker_id: A, happening: "h" });
@@ -419,5 +428,5 @@ describe("the people listening get a say of their own", () => {
     expect(got.isError).toBe(false);
     expect(got.lines).toHaveLength(1);
   });
-});
 
+});

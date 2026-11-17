@@ -1,5 +1,6 @@
 // Between the conversation in memory and the rows that store it (#1205). Pure: rows in, messages out, and back.
 
+import { deliveryCue } from "./characterTurn.ts";
 import { asDmRoll } from "./dmRoll.ts";
 import { parseRolled } from "./playerRoll.ts";
 import type { AgentBlock, AgentLine, AgentMessage, AgentUsage, AgentWithheld } from "./types.ts";
@@ -36,6 +37,11 @@ function asLine(x: unknown): AgentLine | null {
   if (s.id !== null && typeof s.id !== "string") return null;
   const line: AgentLine = { kind: x.kind, speaker: { id: s.id, name: s.name }, text: x.text };
   if (typeof x.to === "string" && x.to !== "") line.to = x.to;
+  if (x.kind === "spoken" && typeof x.how === "string") {
+    // Stored by this code, but read back from jsonb: cleaned again, since it ends up inside a voice's instruction.
+    const how = deliveryCue(x.how);
+    if (how !== null) line.how = how;
+  }
   return line;
 }
 

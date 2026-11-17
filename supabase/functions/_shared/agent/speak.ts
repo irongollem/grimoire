@@ -109,6 +109,8 @@ interface Said {
   speaker: { id: string | null; name: string };
   did: string | null;
   said: string | null;
+  /** How `said` is delivered; null when plainly. */
+  how: string | null;
   target: Target;
 }
 
@@ -123,7 +125,7 @@ function linesOf(s: Said): AgentLine[] {
   if (s.did) lines.push({ kind: "acted", speaker: s.speaker, text: s.did });
   if (s.said) {
     const to = targetName(s.target);
-    lines.push(to ? { kind: "spoken", speaker: s.speaker, text: s.said, to } : { kind: "spoken", speaker: s.speaker, text: s.said });
+    lines.push({ kind: "spoken", speaker: s.speaker, text: s.said, ...(to ? { to } : {}), ...(s.how ? { how: s.how } : {}) });
   }
   return lines;
 }
@@ -220,7 +222,7 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
       ...(quiet ? { volume: "whisper" as const, whisperedTo: [...parent.whisperedTo, ...(first ? [first] : [])].filter((p) => p !== record.id) } : {}),
     });
     const target = await resolveTarget(turn.to, event, record.id);
-    const said: Said = { speaker, did: turn.did, said: turn.said, target };
+    const said: Said = { speaker, did: turn.did, said: turn.said, how: turn.how, target };
     event.lines = linesOf(said);
     thisTurn.push(event);
     voices.add(record.id);
@@ -329,7 +331,7 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
         lines: [],
         withheld: [],
       };
-      const first: Said = { speaker, did: turn.did, said: turn.said, target: await resolveTarget(turn.to, event, who.id) };
+      const first: Said = { speaker, did: turn.did, said: turn.said, how: turn.how, target: await resolveTarget(turn.to, event, who.id) };
       event.lines = linesOf(first);
       thisTurn.push(event);
       if (who.id) deps.onSpoke?.(who.id);

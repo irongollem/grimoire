@@ -45,10 +45,12 @@ export function speakerSystem(input: {
     `You are playing one character, ${input.name}, in a tabletop story. You decide what the character says and what the ` +
       `character does. A deed is what they try, never whether it succeeds: someone else judges that. Answer in exactly this form:\n` +
       `DOES: <what they visibly do now, third person without their name, one sentence>\n` +
+      `HOW: <how the words are said, as a stage direction of two to six words: the feeling and the manner, like "furious, shouting" or "a terrified whisper" or "dry and unimpressed">\n` +
       `SAYS: <the words they say aloud, one to three sentences, no quotation marks>\n` +
       `TO: <the name of the one they speak to, player for the player's character, everyone for the whole room, or ->\n` +
       `REMEMBERS: <one kind word>: <one sentence in the character's own voice, first person>\n` +
-      `Any line may be a single - when the character does nothing visible, says nothing, speaks to nobody in particular or has nothing to remember. ` +
+      `Any line may be a single - when the character does nothing visible, says nothing, says it plainly, speaks to nobody in particular or has nothing to remember. ` +
+      `HOW is for a voice actor reading the SAYS line aloud, and is never shown: it carries the feeling the words alone do not. ` +
       `REMEMBERS is what the character will still carry days from now: a promise made or received, something they ` +
       `revealed or learned, a lie they told or believed, a changed feeling about someone, or an event that mattered ` +
       `to them. Write one REMEMBERS line for each separate thing, up to ${MEMORIES_PER_TURN}; never one that only repeats ` +
@@ -112,6 +114,24 @@ function addressee(value: string): string | null {
 }
 
 // The first digit from one to five. "4/5" is four; "9", "10", "keen" and nothing are unreadable, not a guess.
+/** The longest delivery cue kept. It is a stage direction, not a second line of speech. */
+export const HOW_MAX = 60;
+
+/**
+ * The HOW line as a delivery cue for a voice: lower-case words, commas, hyphens and apostrophes only. It is put in
+ * square brackets in front of the spoken words when they are sent to a speech service, where brackets are
+ * instructions, so nothing that could close or open one survives, and a cue that names nothing is no cue.
+ */
+export function deliveryCue(value: string): string | null {
+  const cue = value
+    .toLowerCase()
+    .replace(/[^a-z,'\- ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^[ ,'\-]+|[ ,'\-]+$/g, "");
+  if (cue === "") return null;
+  return cue.length > HOW_MAX ? cue.slice(0, HOW_MAX).replace(/[ ,'\-]+[a-z']*$/, "") || null : cue;
+}
+
 function wantOf(value: string): number | null {
   const m = /(?<![0-9])([1-5])(?![0-9])/.exec(value);
   return m ? Number(m[1]) : null;
@@ -125,6 +145,8 @@ export interface TurnAnswer {
   to: string | null;
   /** How much the character wants to say it now, 1 to 5; null when it was not given or could not be read. */
   want: number | null;
+  /** How the words are said, as a cue for a voice; null when said plainly or not given. */
+  how: string | null;
 }
 
 /**
@@ -132,16 +154,17 @@ export interface TurnAnswer {
  * answer with no label at all is taken as words, because a model that ignores the format must not lose the line.
  */
 export function parseTurnAnswer(raw: string): TurnAnswer {
-  const label = /^[ \t]*(DOES|SAYS|REMEMBERS|TO|WANT)[ \t]*:/gim;
+  const label = /^[ \t]*(DOES|HOW|SAYS|REMEMBERS|TO|WANT)[ \t]*:/gim;
   const marks = [...raw.matchAll(label)];
   if (marks.length === 0) {
     const words = NOTHING(unquote(raw.trim()));
-    return { said: words, did: null, remembered: [], to: null, want: null };
+    return { said: words, did: null, remembered: [], to: null, want: null, how: null };
   }
   let said: string | null = null;
   let did: string | null = null;
   let to: string | null = null;
   let want: number | null = null;
+  let how: string | null = null;
   // The label may repeat: a moment in which a promise was made AND a pledge was taken is two memories. Seen
   // live (16 Nov 2026): with room for one, Honeycomb kept the promise and forgot the thimble she was holding.
   const remembered: Remembered[] = [];
@@ -154,12 +177,14 @@ export function parseTurnAnswer(raw: string): TurnAnswer {
     else if (which === "DOES") did = NOTHING(value);
     else if (which === "TO") to = addressee(value);
     else if (which === "WANT") want = wantOf(value);
+    else if (which === "HOW") how = deliveryCue(value);
     else {
       const kept = rememberedOf(value);
       if (kept && remembered.length < MEMORIES_PER_TURN) remembered.push(kept);
     }
   });
-  return { said, did, remembered, to, want };
+  // A cue belongs to words: a deed with no speech has nothing to deliver.
+  return { said, did, remembered, to, want, how: said === null ? null : how };
 }
 
 export async function characterTurn(input: {
@@ -177,7 +202,7 @@ export async function characterTurn(input: {
     maxOutputTokens: SPEAK_MAX_OUTPUT_TOKENS,
     signal: input.signal,
   });
-  if (step.stop === "refusal") return { said: null, did: null, remembered: [], to: null, want: null, usage: step.usage };
+  if (step.stop === "refusal") return { said: null, did: null, remembered: [], to: null, want: null, how: null, usage: step.usage };
   const raw = step.blocks.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("").trim();
   return { ...parseTurnAnswer(raw), usage: step.usage };
 }

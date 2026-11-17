@@ -18,6 +18,11 @@ export interface AgentLine {
    * in particular, or to someone who could not be matched, so the page only claims what the code knows.
    */
   to?: string;
+  /**
+   * How a spoken line is said, as the character itself gave it ("furious, shouting"): a cue for a voice, never
+   * drawn as text. Only on spoken lines, and left out when the words were said plainly.
+   */
+  how?: string;
 }
 
 /**
