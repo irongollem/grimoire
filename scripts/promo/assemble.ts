@@ -267,7 +267,9 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const { id, root } = args;
   const dir = join(root, id);
-  const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8")) as EpisodeManifest;
+  const recorded = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8")) as EpisodeManifest;
+  // A hook-only shot (the finished result, filmed last) opens the Reel and is not played again in the body.
+  const manifest: EpisodeManifest = { ...recorded, shots: recorded.shots.filter((s) => !s.hookOnly) };
   // A picture-book scene carries no brand: its title is on the picture, and with no cards at either end
   // Instagram loops it without a seam.
   const brand = args.brand && manifest.brand !== false;
@@ -288,12 +290,12 @@ async function main() {
   }
 
   // The hook is drawn as one more shot ("hook") over its source shot's clip, with the bait for a caption.
-  const hookSource = manifest.hook === undefined ? null : manifest.shots.find((s) => s.id === manifest.hook?.shot);
+  const hookSource = manifest.hook === undefined ? null : recorded.shots.find((s) => s.id === manifest.hook?.shot);
   if (manifest.hook !== undefined && !hookSource) throw new Error(`The hook names shot ${manifest.hook.shot}, which the episode does not have.`);
   const hookShot: RecordedShot | null = hookSource && manifest.hook ? hookAs(hookSource, manifest.hook.text) : null;
 
   // Static art, once per run.
-  const devicesUsed = [...new Set(manifest.shots.map((s): Surface => s.device ?? "phone"))];
+  const devicesUsed = [...new Set([...manifest.shots, ...(hookSource ? [hookSource] : [])].map((s): Surface => s.device ?? "phone"))];
   await renderCards(work, [
     ...devicesUsed.map((d) => baseCard(join(work, `base-${d}.png`), layoutFor(format, d))),
     ...devicesUsed.map((d) => maskCard(join(work, `mask-${d}.png`), layoutFor(format, d))),
@@ -345,7 +347,9 @@ async function main() {
   if (intro) { videos.push(intro.video); voWavs.push(silenceWav(work, "intro-vo", intro.length)); fxWavs.push(intro.audio); }
   if (hookShot && hookSource && manifest.hook) {
     const i = manifest.shots.indexOf(hookSource);
-    const hook = renderHook(tl.shots[i], hookShot, format, join(dir, hookSource.file), work, hookWindow(manifest.hook, tl.shots[i].clipDuration));
+    // A hook-only shot is outside the body's timeline, so it is planned on its own: its clip, no narration.
+    const planned = i >= 0 ? tl.shots[i] : planTimeline({ shots: [{ id: hookSource.id, clipDuration: durationOf(join(dir, hookSource.file)), voDuration: null, cues: hookSource.cues }], introLength: null, outroLength: null }).shots[0];
+    const hook = renderHook(planned, hookShot, format, join(dir, hookSource.file), work, hookWindow(manifest.hook, planned.clipDuration));
     videos.push(hook.video); voWavs.push(silenceWav(work, "hook-vo", HOOK_LENGTH)); fxWavs.push(hook.audio);
   }
   tl.shots.forEach((p, i) => {

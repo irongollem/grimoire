@@ -132,6 +132,12 @@ export interface Shot {
    * (a big book laying itself out on first open) or a step the shot assumes is done. Never filmed.
    */
   ready?(page: Page): Promise<void>;
+  /**
+   * Filmed only for the episode's hook and left out of the body: the finished result, shown clean before anything
+   * is explained. Filmed where it falls in the take (usually last, once the result exists), played first. It has
+   * no narration, and the hook must name it.
+   */
+  hookOnly?: true;
   run(ctx: ShotContext): Promise<void>;
 }
 
@@ -185,6 +191,8 @@ export interface Hook {
 /** One recorded shot, as `manifest.json` lists it. */
 export interface RecordedShot {
   id: string;
+  /** Filmed for the hook only (`Shot.hookOnly`): not played in the body. */
+  hookOnly?: true;
   caption: string;
   narration: string;
   /** Relative to the episode folder: a silent 30 fps H.264 clip at the device's native pixel size. */

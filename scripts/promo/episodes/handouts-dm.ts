@@ -11,6 +11,8 @@ export const handoutsDm: Episode = {
   setup: setupHandouts,
   teardown: teardownHandouts,
   seed: 5,
+  // Opens on the problem, over the finished letter, before anything is explained (docs/promo-videos.md, "The hook").
+  hook: { text: "Still printing handouts for your players?", shot: "letter", at: 3 },
   shots: [
     {
       id: "letter",

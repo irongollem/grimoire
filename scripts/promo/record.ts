@@ -39,6 +39,12 @@ if (episode.hook !== undefined && !episode.shots.some((s) => s.id === episode.ho
   console.error(`${episode.id}: the hook names shot ${episode.hook.shot}, which the episode does not have.`);
   process.exit(1);
 }
+for (const s of episode.shots.filter((x) => x.hookOnly)) {
+  if (episode.hook?.shot !== s.id || s.narration.trim() !== "") {
+    console.error(`${episode.id}: shot ${s.id} is hook-only, so the hook must name it and it has no narration.`);
+    process.exit(1);
+  }
+}
 
 const dir = resolve(values.root, episode.id);
 mkdirSync(join(dir, "shots"), { recursive: true });
@@ -117,6 +123,7 @@ try {
         ? { ...keep, caption: shot.caption, narration: shot.narration, chapter: shot.chapter }
         : {
             id: shot.id,
+            ...(shot.hookOnly ? { hookOnly: true as const } : {}),
             caption: shot.caption,
             narration: shot.narration,
             chapter: shot.chapter,
