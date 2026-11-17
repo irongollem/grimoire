@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shownInTurns, speakLine, VoicesSpent, VOICE_MESSAGES, type SpeakerTraits, type TableVoiceDeps, type VoiceCampaign, type VoiceSession } from "./handler";
+import { shownInTurns, speakLine, voiceRates, VoicesSpent, VOICE_MESSAGES, type SpeakerTraits, type TableVoiceDeps, type VoiceCampaign, type VoiceSession } from "./handler";
 import { inworldText, NARRATOR_VOICE_ID, speechText, STOCK_VOICES } from "./voicePick";
 import { lineKey, lineKeyFits, NARRATOR_SPEAKER } from "../_shared/agent/lineKey";
 
@@ -26,6 +26,12 @@ function harness() {
     storeThrows: false,
     narratorVoice: null as string | null,
     spoken: [] as Array<{ voiceId: string; service: string; text: string }>,
+    // 40 USD per million characters on ElevenLabs, 10 on Inworld; a credit worth 0.0066 USD at a margin of 2.
+    rates: { elevenlabs: 40, inworld: 10 } as Record<string, number | null>,
+    canPay: true,
+    held: [] as number[],
+    released: [] as string[][],
+    charged: [] as Array<{ credits: number; service: string; chars: number }>,
     inworld: true,
     traitLoads: [] as string[],
     deps: undefined as unknown as TableVoiceDeps,
@@ -53,6 +59,18 @@ function harness() {
     loadPlayerTraits: async () => ({ sex: "man", age: null, voiceId: null }),
     narratorVoice: () => h.narratorVoice,
     hasService: (service) => service === "elevenlabs" || h.inworld,
+    loadRate: async (service) => (h.rates[service] === null ? null : { usdPerMillionChars: h.rates[service] as number, calibration: { usdPerCredit: 0.0066, margin: 2 } }),
+    reserve: async (_userId, credits) => {
+      if (!h.canPay) return { ok: false, status: 402, error: "insufficient_credits" };
+      h.held.push(credits);
+      return { ok: true, ids: ["r1"] };
+    },
+    release: async (ids) => {
+      h.released.push(ids);
+    },
+    charge: async (_at, credits, log) => {
+      h.charged.push({ credits, ...log });
+    },
     synthesize: async (voice, line) => {
       if (h.spent) throw new VoicesSpent("spent");
       if (h.synthThrows) throw new Error("upstream");
@@ -368,5 +386,81 @@ describe("inworldText", () => {
   it("puts the manner in front of the words as an instruction, and nothing when there is none", () => {
     expect(inworldText("Can I carry that?", "very quietly, carefully")).toBe("[say it very quietly, carefully] Can I carry that?");
     expect(inworldText("Can I carry that?", null)).toBe("Can I carry that?");
+  });
+});
+
+describe("what a voiced line costs", () => {
+  // "[furious, shouting] Get out!": 8 characters of words and 17 + 3 of cue, 28 in all. At 40 USD per million,
+  // doubled, over 0.0066 USD a credit: 28 * 40 / 1e6 * 2 / 0.0066 = 0.3394 credits.
+  it("charges a line that was made what it cost, and holds a credit while it is made", async () => {
+    const h = harness();
+    await speak(h);
+    expect(h.charged).toHaveLength(1);
+    expect(h.charged[0]).toMatchObject({ service: "elevenlabs", chars: 28 });
+    expect(h.charged[0].credits).toBeCloseTo(0.3394, 3);
+    expect(h.held).toEqual([1]);
+    expect(h.released).toEqual([["r1"]]);
+  });
+
+  // Bug caught: hearing a line again charged a second time, though nothing was made.
+  it("charges nothing for a line answered from the kept clip", async () => {
+    const h = harness();
+    await speak(h);
+    await speak(h);
+    expect(h.spoken).toHaveLength(1);
+    expect(h.charged).toHaveLength(1);
+    expect(h.held).toHaveLength(1);
+  });
+
+  // Bug caught: speech made for an account that cannot pay for it.
+  it("makes nothing for an account that cannot pay, and says why", async () => {
+    const h = harness();
+    h.canPay = false;
+    expect(await speak(h)).toEqual({ ok: false, refusal: { status: 402, error: "insufficient_credits" } });
+    expect(h.spoken).toEqual([]);
+    expect(h.charged).toEqual([]);
+  });
+
+  // Bug caught: a service with no price on file speaking for free.
+  it("makes nothing when the service's price is not on file", async () => {
+    const h = harness();
+    h.rates.elevenlabs = null;
+    expect(await speak(h)).toEqual({ ok: false, refusal: { status: 503, error: VOICE_MESSAGES.unpriced } });
+    expect(h.spoken).toEqual([]);
+  });
+
+  // Bug caught: the held credit never given back when the speech service fails, so each failure costs a credit.
+  it("charges nothing and gives back what it held when the line could not be made", async () => {
+    const h = harness();
+    h.synthThrows = true;
+    expect((await speak(h)).ok).toBe(false);
+    expect(h.charged).toEqual([]);
+    expect(h.released).toEqual([["r1"]]);
+  });
+
+  // Bug caught: a child's voice on the cheaper service charged at the dearer service's rate.
+  it("charges a line on the cheaper service the cheaper rate", async () => {
+    const h = harness();
+    h.traits = { sex: null, age: null, voiceId: "inworld:snappy-magpie-0676__design-voice-7cb37010" };
+    await speak(h);
+    expect(h.charged[0].service).toBe("inworld");
+    expect(h.charged[0].credits).toBeCloseTo(0.3394 / 4, 3);
+  });
+});
+
+describe("voiceRates", () => {
+  // 900 characters a minute: 10.909 credits on ElevenLabs (shown as 11), 2.727 on Inworld (2.8).
+  it("says what a minute costs on each service the stack speaks through", async () => {
+    const h = harness();
+    expect(await voiceRates(h.deps)).toEqual({ on: true, perMinute: { elevenlabs: 11, inworld: 2.8 } });
+  });
+
+  // Bug caught: a rate shown for voices that are switched off, or for a service with no key or no price.
+  it("shows nothing for what cannot speak", async () => {
+    const h = harness();
+    h.inworld = false;
+    expect((await voiceRates(h.deps)).perMinute).toEqual({ elevenlabs: 11, inworld: null });
+    h.on = false;
+    expect(await voiceRates(h.deps)).toEqual({ on: false, perMinute: { elevenlabs: null, inworld: null } });
   });
 });

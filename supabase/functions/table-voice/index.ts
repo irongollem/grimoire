@@ -10,7 +10,8 @@ import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { clipName, lineKeyFits } from "../_shared/agent/lineKey.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { r2ConfigFrom } from "../_shared/r2/config.ts";
-import { shownInTurns, speakLine, VoicesSpent, type TableVoiceDeps } from "./handler.ts";
+import { shownInTurns, speakLine, voiceRates, VoicesSpent, type TableVoiceDeps } from "./handler.ts";
+import { recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
 import { deliveryCue } from "../_shared/agent/characterTurn.ts";
 import { ageOf, inworldText, NARRATION_MAX_CHARS, sexFromGender, sexOf, speechText } from "./voicePick.ts";
 
@@ -144,6 +145,45 @@ serve(withCors(async (req: Request) => {
 
     narratorVoice: () => Deno.env.get("TABLE_NARRATOR_VOICE_ID")?.trim() || null,
 
+    // The admin's numbers: what the service's model costs by the character, and what a credit is worth.
+    async loadRate(service) {
+      const model = service === "inworld" ? INWORLD_MODEL : SPEECH_MODEL;
+      const [price, calibration] = await Promise.all([
+        admin.from("ai_model_pricing").select("cost_per_million_characters_usd").eq("model", model).maybeSingle(),
+        admin.rpc("agent_credit_calibration"),
+      ]);
+      if (price.error) throw price.error;
+      if (calibration.error) throw calibration.error;
+      const row = Array.isArray(calibration.data) ? calibration.data[0] : calibration.data;
+      const rate = price.data?.cost_per_million_characters_usd;
+      if (rate === null || rate === undefined || !row || row.usd_per_credit === null) return null;
+      const usdPerMillionChars = Number(rate);
+      const usdPerCredit = Number(row.usd_per_credit);
+      const margin = Number(row.margin);
+      if (!(usdPerMillionChars > 0) || !(usdPerCredit > 0) || !(margin > 0)) return null;
+      return { usdPerMillionChars, calibration: { usdPerCredit, margin } };
+    },
+
+    async reserve(userId, credits) {
+      const reservation = await reserveCredits(admin, userId, credits, "table_voice");
+      if (reservation.ok) return { ok: true, ids: reservation.ids };
+      if (reservation.suspended) return { ok: false, status: 403, error: "account_suspended" };
+      if (reservation.child_account) return { ok: false, status: 403, error: "child_account" };
+      if (reservation.velocity) return { ok: false, status: 429, error: "rate_limited" };
+      if (reservation.insufficient) return { ok: false, status: 402, error: "insufficient_credits" };
+      return { ok: false, status: 503, error: "Voices cannot be metered right now." };
+    },
+
+    release: (ids) => releaseCredits(admin, ids),
+
+    // The exact cost goes on the conversation; only the whole credits its running total newly crossed are billed.
+    async charge(at, credits, log) {
+      const { data, error } = await admin.rpc("accrue_agent_voice", { p_session_id: at.sessionId, p_credits: credits });
+      if (error) throw error;
+      const due = typeof data === "number" && Number.isInteger(data) && data > 0 ? data : 0;
+      if (due > 0) await recordGeneration(admin, at.userId, "table_voice", false, due, { provider: log.service, model: log.service === "inworld" ? INWORLD_MODEL : SPEECH_MODEL });
+    },
+
     hasService: (service) => (service === "inworld" ? !!inworldKey : !!speechKey),
 
     async synthesize(voice, line) {
@@ -177,6 +217,11 @@ serve(withCors(async (req: Request) => {
   };
 
   try {
+    // Asked before anyone sits down: what a minute of speech costs. Any signed-in account may ask; it names no
+    // campaign and returns only the stack's own rates.
+    if (typeof body === "object" && body !== null && (body as { rates?: unknown }).rates === true) {
+      return json(200, await voiceRates(deps));
+    }
     const outcome = await speakLine({ userId: user.id, body, deps });
     if (!outcome.ok) return json(outcome.refusal.status, { error: outcome.refusal.error });
     return json(200, { audio: outcome.audio, mime: outcome.mime });

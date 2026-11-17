@@ -18,6 +18,8 @@
 // maintainer's own stack. Before either is set in production, voice has to be priced and charged like every other
 // generation (`_shared/credits.ts`).
 
+import { creditsForSpeech, creditsPerMinute, speechChars } from "../_shared/agent/voiceCost.ts";
+import type { CreditCalibration } from "../_shared/agent/metering.ts";
 import { NARRATOR_VOICE_ID, pickVoice, type AgeBand, type Sex } from "./voicePick.ts";
 import { VOICE_ROLES, type VoiceRole } from "../_shared/agent/lineKey.ts";
 
@@ -73,6 +75,17 @@ export interface TableVoiceDeps {
    * service takes a cue its own way. Throws when the speech service fails.
    */
   synthesize(voice: VoiceRef, line: { text: string; how: string | null; narration: boolean }): Promise<string>;
+  /**
+   * What the service's speech costs, in USD per million characters, and what a credit is worth: the admin's
+   * numbers (`ai_model_pricing`, the credit calibration). Null when either is not on file: speech is then not made,
+   * because it could not be charged.
+   */
+  loadRate(service: VoiceService): Promise<{ usdPerMillionChars: number; calibration: CreditCalibration } | null>;
+  /** Holds credits for a line about to be made. Refused when the account cannot pay or may not spend. */
+  reserve(userId: string, credits: number): Promise<{ ok: true; ids: string[] } | { ok: false; status: number; error: string }>;
+  release(ids: string[]): Promise<void>;
+  /** Adds the line's exact cost to the conversation and bills the whole credits it newly crossed. */
+  charge(at: { sessionId: string; userId: string }, credits: number, log: { service: VoiceService; chars: number }): Promise<void>;
 }
 
 /** A line as it is signed, kept and spoken. */
@@ -125,6 +138,7 @@ export const VOICE_MESSAGES = {
   noLine: "That line is not one this sitting has shown.",
   failed: "The line could not be spoken right now.",
   spent: "voices_spent",
+  unpriced: "Voices cannot be metered right now.",
 } as const;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -229,17 +243,30 @@ export async function speakLine(input: {
   }
 
   const voice = await voiceFor(deps, session.campaign_id, line);
+  // A line that is made is paid for: what it costs is worked out before it is made, from the admin's numbers.
+  // Without them nothing is made, because nothing could be charged.
+  const rate = await deps.loadRate(voice.service);
+  if (rate === null) return refuse(503, VOICE_MESSAGES.unpriced);
+  const chars = speechChars(line.text, line.how);
+  const credits = creditsForSpeech(chars, rate.usdPerMillionChars, rate.calibration);
+  const held = await deps.reserve(userId, Math.max(1, Math.ceil(credits)));
+  if (!held.ok) return refuse(held.status, held.error);
   try {
     // The words and the cue are the ones under the key: the page could not have changed either.
     const audio = await deps.synthesize(voice, { text: line.text, how: line.how, narration: line.role === "narrator" });
     // Kept before it is answered, but a clip that cannot be kept is still heard.
     await deps.keepClip(at, line, audio).catch((error) => console.error("table-voice: keeping the clip failed:", error));
+    // Charged once it exists. A charge that fails is logged and the line is still heard: the player is never
+    // made to pay twice by asking again, since the clip is kept.
+    await deps.charge({ sessionId: session.id, userId }, credits, { service: voice.service, chars }).catch((error) => console.error("table-voice: charging the line failed:", error));
     return { ok: true, audio, mime: "audio/mpeg" };
   } catch (error) {
     // Out of allowance is told apart, so the page can say so once and stop asking for every line.
     if (error instanceof VoicesSpent) return refuse(402, VOICE_MESSAGES.spent);
     console.error("table-voice: the speech service failed:", error);
     return refuse(502, VOICE_MESSAGES.failed);
+  } finally {
+    await deps.release(held.ids).catch((error) => console.error("table-voice: releasing the held credits failed:", error));
   }
 }
 
@@ -274,4 +301,19 @@ export function shownInTurns(turns: ReadonlyArray<{ role: string; blocks: unknow
     }
   }
   return null;
+}
+
+/**
+ * What the voices cost, for the page to say before anyone sits down: credits for a minute of speech on each
+ * service this stack speaks through. Null for a service that is not priced or not switched on.
+ */
+export async function voiceRates(deps: Pick<TableVoiceDeps, "voiceOn" | "hasService" | "loadRate">): Promise<{ on: boolean; perMinute: Record<VoiceService, number | null> }> {
+  const perMinute: Record<VoiceService, number | null> = { elevenlabs: null, inworld: null };
+  if (!deps.voiceOn()) return { on: false, perMinute };
+  for (const service of ["elevenlabs", "inworld"] as const) {
+    if (!deps.hasService(service)) continue;
+    const rate = await deps.loadRate(service);
+    if (rate !== null) perMinute[service] = creditsPerMinute(rate.usdPerMillionChars, rate.calibration);
+  }
+  return { on: true, perMinute };
 }
