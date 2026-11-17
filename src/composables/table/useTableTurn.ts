@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { readTableStream } from "@/lib/table/readTableStream";
 import { applyTableEvent, boardItem, nextItemId, playerItem } from "@/lib/table/storyReducer";
 import type { BoardLine } from "@/lib/table/fight/boardLines";
+import type { FightChange, FightTurn } from "@/lib/table/fight/fightChange";
 import type { PlayMode, RollAnswer, RollAsk, StoryItem, TableFight, TablePressure } from "@/lib/table/soloTypes";
 import { NO_ANSWER, refusalFailure, type TurnFailure } from "@/lib/table/turnRefusal";
 
@@ -19,6 +20,8 @@ export interface TurnRequest {
   opening?: true;
   /** A fight at the table has ended: the Dungeon Master is asked to tell what comes of it. No words. */
   aftermath?: true;
+  /** In a fight on the board: what the player's turn still holds. */
+  fightTurn?: FightTurn;
 }
 
 /** Sends one turn and hands back the raw response. The seam a test replaces; the default talks to `agent-turn`. */
@@ -57,6 +60,10 @@ export interface TableTurnOptions {
   onAskRoll?: (ask: RollAsk | null) => void;
   /** The story turned into a fight, or (null) its aftermath has been told. */
   onFight?: (fight: TableFight | null) => void;
+  /** In a fight on the board: what the player's turn still holds, sent with every message; null outside a fight. */
+  fightTurn?: () => FightTurn | null;
+  /** The Dungeon Master's ruling changes the fight on the board: the page carries it out. */
+  onFightChange?: (change: FightChange) => void;
   /** A turn was kept. */
   onDone?: () => void;
 }
@@ -121,6 +128,8 @@ export function useTableTurn(options: TableTurnOptions) {
     if (roll !== null) request.roll = roll;
     if (wordless === "opening") request.opening = true;
     if (wordless === "aftermath") request.aftermath = true;
+    const fightTurn = options.fightTurn?.() ?? null;
+    if (fightTurn !== null && wordless === null) request.fightTurn = fightTurn;
     const before = asked;
     setAsked(null);
     if (sessionId.value !== null) request.sessionId = sessionId.value;
@@ -160,6 +169,7 @@ export function useTableTurn(options: TableTurnOptions) {
           if (event.type === "scene") options.onScene?.(event.scene);
           if (event.type === "pressure") options.onPressure?.(event.pressure);
           if (event.type === "fight") options.onFight?.(event.fight);
+          if (event.type === "fight_change") options.onFightChange?.(event.change);
           if (event.type === "ask_roll") setAsked(event.roll);
           live.value = applyTableEvent(live.value, event, start);
         }

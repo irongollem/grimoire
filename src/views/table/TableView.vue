@@ -72,7 +72,8 @@
                 v-else
                 :character="characterName"
                 :running="turn.running.value"
-                @submit="(said, text) => sendTurn(said, text)"
+                :fight="composerFight"
+                @submit="onSubmit"
                 @stop="turn.stop()"
               />
               <p class="mx-auto mt-1 hidden w-full max-w-160 md:block">
@@ -94,6 +95,8 @@
         :encounter-id="fight.encounterId"
         :member="member"
         :slots="FIGHT_SLOTS"
+        ref="stage"
+        @turn="(state) => (fightTurn = state)"
         @lines="(lines, byServer) => turn.note(lines, byServer)"
         @over="onFightOver"
         @lost="onFightLost"
@@ -117,6 +120,8 @@ import SoloComposer from "@/components/table/solo/SoloComposer.vue";
 import SoloLeft from "@/components/table/solo/SoloLeft.vue";
 import SoloDisclosure from "@/components/table/solo/SoloDisclosure.vue";
 import SoloFightStage from "@/components/table/solo/SoloFightStage.vue";
+import type { SoloFightEnd } from "@/composables/table/useSoloFightHost";
+import { endLine, type FightTurn } from "@/lib/table/fight/fightChange";
 import SoloRollAsk from "@/components/table/solo/SoloRollAsk.vue";
 import SoloSheet from "@/components/table/solo/SoloSheet.vue";
 import SoloScene from "@/components/table/solo/SoloScene.vue";
@@ -197,11 +202,19 @@ if (param.value === "new" && newCharacterId.value === null) void router.replace(
 
 const scene = useTableScene(sceneId, campaignId);
 
+// What the player's turn in a fight still holds, as the board last said; null outside a fight. Declared before the
+// turn that reads them: a sitting's opening is played while this page is still being set up.
+const fightTurn = ref<FightTurn | null>(null);
+const stage = ref<InstanceType<typeof SoloFightStage> | null>(null);
+
 const turn = useTableTurn({
   campaignId: () => campaignId.value,
   sessionId: openedId(),
   characterId: () => newCharacterId.value,
   startLocationId: () => newPlaceId.value,
+  // In a fight every message carries what the player's turn still holds, and a ruling comes back for the board.
+  fightTurn: () => fightTurn.value,
+  onFightChange: (change) => stage.value?.apply(change),
   onSession: (id) => {
     appUi.setTablePlaySession(id);
     if (route.params.sessionId !== id) void router.replace({ name: "table-session", params: { sessionId: id } });
@@ -263,16 +276,34 @@ const FIGHT_SLOTS = { map: "solo-fight-map", turn: "solo-fight-turn", roster: "s
 const inFight = computed(() => fight.value !== null && !hasLeft.value && !conversation.isLoading.value && !conversation.isError.value);
 
 // Nobody is left to fight: the fight is closed, and the Dungeon Master is asked to tell what comes of it.
-function onFightOver(): void {
+function onFightOver(how: SoloFightEnd): void {
   fight.value = null;
-  turn.note([{ kind: "margin", text: "The fight is over", tone: "end" }], true);
-  void turn.aftermath();
+  fightTurn.value = null;
+  if (how === "foes_out") {
+    turn.note([{ kind: "margin", text: "The fight is over", tone: "end" }], true);
+    void turn.aftermath();
+    return;
+  }
+  // The Dungeon Master ended it with a ruling and has told how in the same reply: nothing more is asked.
+  turn.note([{ kind: "margin", text: endLine(how, characterName.value), tone: "end" }], true);
 }
+
+// The composer in a fight (frame 15): open on your turn, one short line aloud, a deed only while the turn can pay.
+const composerFight = computed(() =>
+  inFight.value && fightTurn.value ? { yours: fightTurn.value.yours, words: fightTurn.value.words, canAct: fightTurn.value.action || fightTurn.value.bonus } : null,
+);
 
 // The fight is gone from under the page (ended elsewhere, or refused): the story goes on without it.
 function onFightLost(): void {
   fight.value = null;
+  fightTurn.value = null;
   toast.error("The fight could not be continued here.");
+}
+
+// A line said aloud in a fight is the turn's few words: once said, they are spent.
+function onSubmit(mode: PlayMode, text: string): void {
+  if (mode === "say" && composerFight.value?.yours) stage.value?.spendWords();
+  void sendTurn(mode, text);
 }
 
 // Every message goes through here: a clock that ran out goes off the page when the story moves on.

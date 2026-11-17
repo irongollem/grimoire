@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import SoloComposer from "./SoloComposer.vue";
 
-function mountComposer(props: { running?: boolean } = {}) {
+function mountComposer(props: { running?: boolean; fight?: { yours: boolean; words: boolean; canAct: boolean } | null } = {}) {
   return mount(SoloComposer, { props: { character: "Inkling", running: false, ...props }, attachTo: document.body });
 }
 
@@ -77,3 +77,49 @@ describe("SoloComposer", () => {
     });
   });
 });
+
+describe("SoloComposer in a fight", () => {
+  const enter = (w: ReturnType<typeof mountComposer>, keys: Record<string, boolean> = {}) => w.get("textarea").trigger("keydown", { key: "Enter", ...keys });
+
+  // Bug caught: the player talking and acting through the Dungeon Master while the creatures take their turns.
+  it("takes no word and no deed when it is not your turn, and still takes a question", async () => {
+    const w = mountComposer({ fight: { yours: false, words: true, canAct: true } });
+    await type(w, "Stop!");
+    await enter(w);
+    await enter(w, { altKey: true });
+    expect(submits(w)).toEqual([]);
+    await enter(w, { ctrlKey: true });
+    expect(submits(w)).toEqual([["ask", "Stop!"]]);
+  });
+
+  // Bug caught: a whole strategy discussed in a turn of six seconds.
+  it("says a short line on your turn, and not one longer than a turn allows", async () => {
+    const w = mountComposer({ fight: { yours: true, words: true, canAct: true } });
+    // Twenty-one words: one over what fits in a turn.
+    await type(w, "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone");
+    await enter(w);
+    expect(submits(w)).toEqual([]);
+    await type(w, "Last chance, Sift. Hand it over.");
+    await enter(w);
+    expect(submits(w)).toEqual([["say", "Last chance, Sift. Hand it over."]]);
+  });
+
+  // Bug caught: a second speech in the same turn after the few words were spent.
+  it("says nothing more once the turn's few words are spent, and can still do", async () => {
+    const w = mountComposer({ fight: { yours: true, words: false, canAct: true } });
+    await type(w, "And another thing");
+    await enter(w);
+    expect(submits(w)).toEqual([]);
+    await enter(w, { altKey: true });
+    expect(submits(w)).toEqual([["do", "And another thing"]]);
+  });
+
+  // Bug caught: a deed sent (and paid for in credits) when the turn has nothing left to pay for it.
+  it("does nothing when the turn can no longer pay for a deed", async () => {
+    const w = mountComposer({ fight: { yours: true, words: true, canAct: false } });
+    await type(w, "I throw the chair");
+    await enter(w, { altKey: true });
+    expect(submits(w)).toEqual([]);
+  });
+});
+

@@ -1,3 +1,4 @@
+import { parseFightChange } from "./fight/fightChange";
 import { parseDmRoll } from "./dmRoll";
 import { parseRollAsk, parseRolled } from "./tableRoll";
 import type { TableEvent, TableFight, TableLine, TablePressure } from "./soloTypes";
@@ -87,6 +88,10 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
     case "ask_roll": {
       const roll = parseRollAsk(raw.roll);
       return roll ? { type: "ask_roll", roll } : null;
+    }
+    case "fight_change": {
+      const change = parseFightChange(raw.change);
+      return change ? { type: "fight_change", change } : null;
     }
     case "introduced": {
       const person = raw.person;

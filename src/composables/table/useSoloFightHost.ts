@@ -7,11 +7,12 @@ import { linesOfCreatureTurn, type BoardLine } from "@/lib/table/fight/boardLine
 import { fightStanding, type FightStanding } from "@/lib/table/fight/fightOver";
 import { asThePlayerSees } from "@/lib/table/fight/foeView";
 import { turnBudgetOf } from "@/lib/table/fight/turnBudget";
+import type { FightChange } from "@/lib/table/fight/fightChange";
 import { initiativeRoll } from "@/rules/initiative";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 
-/** How a fight at the table ended by itself. */
-export type SoloFightEnd = Exclude<FightStanding, "ongoing">;
+/** How a fight at the table ended: by itself (nobody left to fight), or by the Dungeon Master's ruling. */
+export type SoloFightEnd = "foes_out" | NonNullable<FightChange["ends"]>;
 
 /**
  * The fight at the AI table, run from the table screen (#1021, Solo Table canvas, frames 12 to 16).
@@ -140,20 +141,30 @@ export function useSoloFightHost(options: {
   );
   const ending = ref(false);
 
-  watch(standing, async (now) => {
-    // Going down is not the end: death saves are the player's turn (frame 16), so only an empty field closes it here.
-    if (now !== "foes_out" || ending.value) return;
+  /** Closes the fight on the server and lets go of it here. */
+  async function finish(how: SoloFightEnd): Promise<void> {
+    if (ending.value) return;
     ending.value = true;
     try {
       await fight.lifecycle({ type: "end_combat" });
       store.reset();
-      options.onOver(now);
+      options.onOver(how);
     } catch (error) {
       toast.error(toast.fromError(error, "Couldn't end the fight."));
     } finally {
       ending.value = false;
     }
+  }
+
+  watch(standing, (now) => {
+    // Going down is not the end: death saves are the player's turn (frame 16), so only an empty field closes it here.
+    if (now === "foes_out") void finish("foes_out");
   });
+
+  /** The turn's one short line aloud has been said. */
+  function spendWords(): void {
+    spent.value = { ...spent.value, words: true };
+  }
 
   return {
     /** The store holds this fight. */
@@ -172,6 +183,8 @@ export function useSoloFightHost(options: {
     budget,
     spent,
     endTurn,
+    spendWords,
+    finish,
     standing,
   };
 }

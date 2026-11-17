@@ -100,6 +100,7 @@ import { useSoloAttack } from "@/composables/table/useSoloAttack";
 import { useSoloFightHost, type SoloFightEnd } from "@/composables/table/useSoloFightHost";
 import { useToast } from "@/composables/useToast";
 import type { BoardLine } from "@/lib/table/fight/boardLines";
+import type { FightChange, FightTurn } from "@/lib/table/fight/fightChange";
 import { attackEntryOf, damageDicePlan } from "@/lib/table/fight/pcAttack";
 import type { RollAnswer } from "@/lib/table/soloTypes";
 import { useEncounterRunStore } from "@/stores/encounterRun";
@@ -124,6 +125,8 @@ const emit = defineEmits<{
   over: [how: SoloFightEnd];
   /** The fight is gone (ended elsewhere, or refused by the server). */
   lost: [];
+  /** Whose turn it is and what the player's turn still holds: the composer and the Dungeon Master go by it. */
+  turn: [state: FightTurn];
 }>();
 
 const store = useEncounterRunStore();
@@ -197,6 +200,51 @@ async function settle(run: () => Promise<BoardLine[]>): Promise<void> {
 
 const onToHit = (answer: RollAnswer) => settle(() => attack.rollToHit({ faces: answer.faces, atTable: answer.atTable, mode: answer.mode }));
 const onDamage = (faces: number[] | null) => settle(() => attack.rollDamage(faces === null ? { roll: true } : { faces: [...faces], atTable: true }));
+
+// What the turn holds, told to the page whenever it changes: sent to the Dungeon Master with every message, and
+// what the composer opens and closes on.
+watch(
+  () => {
+    const b = host.budget.value;
+    return { yours: host.yourTurn.value, action: b?.action === true, bonus: b?.bonus === true, reaction: b?.reaction === true, words: b?.words === true };
+  },
+  (state) => emit("turn", state),
+  { immediate: true, deep: true },
+);
+
+/**
+ * Carries out what the Dungeon Master's ruling does to the fight (frame 15): what it cost the turn, a condition or
+ * damage on a creature, the fight's end. The server checked it against the fight; a name the board no longer has
+ * (the creature left meanwhile) is passed over.
+ */
+function apply(change: FightChange): void {
+  const me = played.value;
+  if (!me) return;
+  const named = (name: string) => store.combatants.find((c) => c.name.trim().toLowerCase() === name.trim().toLowerCase());
+  const lines: BoardLine[] = [];
+  if (change.costs === "action") store.setActionUsed(me.instance_id, true);
+  if (change.costs === "bonus") store.setBonusUsed(me.instance_id, true);
+  if (change.costs === "reaction" && me.reactionUsed !== true) store.toggleReaction(me.instance_id);
+  if (change.costs !== "nothing") lines.push({ kind: "margin", text: `Your ${{ action: "Action", bonus: "Bonus Action", reaction: "Reaction" }[change.costs]} is spent` });
+  if (change.condition) {
+    const target = named(change.condition.target);
+    if (target) {
+      store.applyCondition(target.instance_id, { name: change.condition.name, ends: { kind: "rounds", remaining: change.condition.rounds } });
+      lines.push({ kind: "margin", text: `${target.name} is ${change.condition.name} for ${change.condition.rounds === 1 ? "a round" : `${change.condition.rounds} rounds`}` });
+    }
+  }
+  if (change.damage) {
+    const target = named(change.damage.target);
+    if (target) {
+      store.adjustHp(target.instance_id, -change.damage.amount);
+      lines.push({ kind: "margin", text: `${target.name} takes ${change.damage.amount}${change.damage.type ? ` ${change.damage.type}` : ""} damage` });
+    }
+  }
+  if (lines.length > 0) emit("lines", lines, true);
+  if (change.ends) void host.finish(change.ends);
+}
+
+defineExpose({ apply, spendWords: () => host.spendWords() });
 
 /** The four actions the rules name. They spend the Action; only Dash changes anything the board can show yet. */
 function onAct(kind: "dash" | "dodge" | "disengage" | "hide"): void {
