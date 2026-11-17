@@ -147,6 +147,29 @@ system user in Business settings (System users) and replacing the line in
 `.env.local`; ask for one only when a feature needs it, since the token sits
 on disk and can already post publicly.
 
+### YouTube Shorts
+
+Every Reel the job has posted to Instagram also goes to YouTube as a Short
+(`youtube.ts`), uploaded by the same hourly run after the Instagram step,
+at most one per run, oldest Instagram post first. A Reel goes only when it has
+a title in `scripts/promo/youtube-titles.json` (`{ "<id>": { "title": "..." } }`, 100
+characters at most, no `<` or `>`): that list is the approval gate, as the
+caption files are for Instagram. The description is the Reel's caption, with
+"Link in bio." turned into the site's address, and the tags are its hashtags. Carousels never go. An upload leaves `youtube.json`
+beside the video and is not repeated without `--again`. `promo:post -- --youtube
+<id>` is a dry run that prints what would go up; add `--publish` to upload at
+once. A failed upload is notified and logged and never masks the Instagram
+run. Sign in once with `npm run promo:youtube-auth` (the OAuth client file is
+`~/.config/grimoire/youtube-client.json`, kept outside the repo; the token is
+`YOUTUBE_REFRESH_TOKEN` in `.env.local`); without the token the job skips
+Shorts. `promo:stats` adds a small table of each Short's views and likes.
+
+A long YouTube video (`yt-*`) goes up the same way but by hand, since it never
+posts to Instagram: its description is `captions/<id>.txt` (with the chapter
+list from `chapters.txt`), its title is in `youtube-titles.json`, and
+`promo:post -- --youtube <id> --publish` uploads it. Its subtitles
+(`captions.srt`) go on in YouTube Studio, under Subtitles.
+
 ### Stats
 
 `npm run promo:stats` prints every post's views, reach, likes, saves, shares,
