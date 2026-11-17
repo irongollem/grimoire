@@ -16,7 +16,7 @@ import { lootIsWon, type LootHeld } from "../_shared/agent/encounterLoot.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
 import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
 import { NARRATOR_SPEAKER, type KeyedLine } from "../_shared/agent/lineKey.ts";
-import { handsLine, possessionsSection, type Coins, type HandsChange, type Possessions } from "../_shared/agent/hands.ts";
+import { handsLine, harvestFacts, possessionsSection, type Coins, type HandsChange, type Possessions } from "../_shared/agent/hands.ts";
 import { coinsText, coinValuesOf, type HandsStore } from "./handsIo.ts";
 import type { Introduction } from "../_shared/agent/introduce.ts";
 import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
@@ -828,12 +828,27 @@ export async function beginTurn(input: {
         // What changed hands, in the order it was told. One that cannot be made (the giver's pockets changed, the
         // purse was emptied meanwhile) costs that change and its line, never the turn.
         if (character && hands !== null) {
+          const made: HandsChange[] = [];
           for (const change of handed) {
             try {
               await deps.hands.apply({ campaignId: campaign.id, userId, memberId: character.id, memberName: character.name }, change);
               emit({ type: "hands", text: handsLine(change, character.name, hands.coinsText) });
+              made.push(change);
             } catch (error) {
               console.error("agent-turn: a change of hands failed:", error);
+            }
+          }
+          // A body that parts were cut from is used up, and the record says so: that is what keeps the same wolf
+          // from being skinned twice. One that cannot be filed costs the sentence, never the parts.
+          for (const fact of harvestFacts(made, character.name)) {
+            try {
+              const out = await deps.fileFact({
+                campaignId: campaign.id, campaignSessionId: session.campaign_session_id, agentSessionId: session.id,
+                provider: provider.provider, model: provider.model, fact, about: [], hidden: false, closes: null,
+              });
+              if ("id" in out) filed.push({ id: out.id, body: fact, hidden: false });
+            } catch (error) {
+              console.error("agent-turn: putting the harvest on record failed:", error);
             }
           }
         }

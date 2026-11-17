@@ -259,10 +259,10 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       } else if (parsed.value.itemId !== null) {
         const item = await hands.store.item(campaignId, parsed.value.itemId);
         if (item === null) return refused("No item with that id is in this campaign. Look it up with search, or give name alone for a plain object.");
-        change = { kind: "take", thing: item.name, quantity: parsed.value.quantity, ref: { itemId: parsed.value.itemId, libraryItemId: null } };
+        change = { kind: "take", thing: item.name, quantity: parsed.value.quantity, ref: { itemId: parsed.value.itemId, libraryItemId: null }, ...(parsed.value.fromBody === null ? {} : { from: parsed.value.fromBody }) };
       } else {
         // parseTake gives a name whenever it gives no id.
-        change = { kind: "take", thing: parsed.value.name as string, quantity: parsed.value.quantity, ref: { itemId: null, libraryItemId: null } };
+        change = { kind: "take", thing: parsed.value.name as string, quantity: parsed.value.quantity, ref: { itemId: null, libraryItemId: null }, ...(parsed.value.fromBody === null ? {} : { from: parsed.value.fromBody }) };
       }
     } else if (name === COINS_TOOL_NAME) {
       const parsed = parseCoins(toolInput, { coinValues: hands.coinValues, purse: purseLeft, lastRoll });

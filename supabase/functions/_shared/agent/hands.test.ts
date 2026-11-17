@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  chestOf, chestPick, handsLine, handsText, parseBuy, parseCoins, parseHandOver, parseTake, possessionsSection, purseAfterPaying, type Coins, type Ware,
+  chestOf, chestPick, handsLine, handsText, harvestFacts, parseBuy, parseCoins, parseHandOver, parseTake, possessionsSection, purseAfterPaying, type Coins, type Ware,
 } from "./hands.ts";
 
 const HONEYCOMB = "f5f67a48-5233-473b-84a3-5eb024491c86";
@@ -232,5 +232,44 @@ describe("the loot of a fight that is over", () => {
     ] }, text);
     expect(section).toContain('- Silvered Dagger, on the fallen of "The Watching Pack": found by going through the bodies [placement_id p1]');
     expect(section).toContain('- 12 gp, still carried by those of "The Watching Pack" who gave in: theirs until they hand it over or are searched [placement_id p2]');
+  });
+});
+
+describe("what is cut from a body", () => {
+  const text = (c: Coins): string => Object.entries(c).map(([k, n]) => `${n} ${k}`).join(", ");
+  const none = { itemId: null, libraryItemId: null };
+  const P = "11111111-2222-4333-8444-555555555555";
+
+  // Bug caught: a part "cut" from something the campaign placed (a chest, a purse), which is loot and not a body.
+  it("takes from_body with an item or a plain name, never with a placement", () => {
+    expect(parseTake({ name: "Wolf pelt", from_body: " Grey Wolf 2 " })).toMatchObject({ ok: true, value: { name: "Wolf pelt", fromBody: "Grey Wolf 2" } });
+    expect(parseTake({ item_id: P, quantity: 3, from_body: "Grey Wolf 2" })).toMatchObject({ ok: true, value: { itemId: P, quantity: 3, fromBody: "Grey Wolf 2" } });
+    expect(parseTake({ placement_id: P, from_body: "Grey Wolf 2" }).ok).toBe(false);
+    expect(parseTake({ name: "Wolf pelt", from_body: "" }).ok).toBe(false);
+    expect(parseTake({ name: "Wolf pelt" })).toMatchObject({ ok: true, value: { fromBody: null } });
+  });
+
+  it("says in the margin which body it came from", () => {
+    expect(handsLine({ kind: "take", thing: "Raw meat", quantity: 4, ref: none, from: "Grey Wolf 2" }, "Rosie", text)).toBe("Rosie takes from the body of Grey Wolf 2: 4 × Raw meat");
+  });
+
+  // Bug caught: the same wolf skinned again next turn because nothing says its body was used; or one sentence per
+  // part instead of one per body; or an ordinary find recorded as a harvest.
+  it("puts each used body on record once, with everything taken from it", () => {
+    expect(
+      harvestFacts(
+        [
+          { kind: "take", thing: "Wolf pelt", quantity: 1, ref: none, from: "Grey Wolf 2" },
+          { kind: "take", thing: "A ribbon", quantity: 1, ref: none },
+          { kind: "take", thing: "Raw meat", quantity: 4, ref: none, from: "Grey Wolf 2" },
+          { kind: "take", thing: "Boar tusk", quantity: 2, ref: none, from: "The Boar" },
+        ],
+        "Rosie",
+      ),
+    ).toEqual([
+      "Rosie took Wolf pelt, 4 × Raw meat from the body of Grey Wolf 2. The body is used up: nothing more can be taken from it.",
+      "Rosie took 2 × Boar tusk from the body of The Boar. The body is used up: nothing more can be taken from it.",
+    ]);
+    expect(harvestFacts([{ kind: "take", thing: "A ribbon", quantity: 1, ref: none }], "Rosie")).toEqual([]);
   });
 });

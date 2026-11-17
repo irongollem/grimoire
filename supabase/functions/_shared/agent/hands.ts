@@ -63,8 +63,9 @@ export const TAKE_TOOL: AgentTool = {
     "naming (a shard, a note, a ribbon) give name alone. For something the campaign itself placed here (listed " +
     "under \"Placed within reach\") give its placement_id: that is how a prepared key, book or purse is found, and " +
     "it can be found only once. Never give a name alone for a weapon, armour, a potion or " +
-    "anything magical: those must be the campaign's own items. Not for a thing a character hands over (hand_over) " +
-    "or a ware from a shop (buy).",
+    "anything magical: those must be the campaign's own items. For what is cut from a dead creature (meat, a hide, " +
+    "fangs, venom) give from_body with the creature's name as well: once per part, after the player's check. The " +
+    "body is put on record as used up for you, so do not record that yourself. Not for a thing a character hands over (hand_over) or a ware from a shop (buy).",
   inputSchema: {
     type: "object",
     additionalProperties: false,
@@ -72,6 +73,7 @@ export const TAKE_TOOL: AgentTool = {
       item_id: { type: "string", description: "The id of the campaign's item, as search or get returned it." },
       name: { type: "string", maxLength: THING_MAX, description: "A plain object's name, when it is not one of the campaign's items." },
       placement_id: { type: "string", description: "The id of something the campaign placed within reach, as listed. Its quantity is the campaign's own." },
+      from_body: { type: "string", maxLength: THING_MAX, description: "Only for a part cut from a dead creature: that creature's name, as the story or the fight named it. With item_id or name, never with placement_id." },
       chest_things: {
         type: "array",
         items: { type: "string" },
@@ -133,7 +135,8 @@ export interface ItemRef {
 export type HandsChange =
   | { kind: "to_player"; from: { id: string; name: string }; thing: string; quantity: number }
   | { kind: "from_player"; to: { id: string; name: string }; thing: string; quantity: number }
-  | { kind: "take"; thing: string; quantity: number; ref: ItemRef }
+  /** `from` is the dead creature a part was cut from (skinning, butchering); absent for anything else picked up. */
+  | { kind: "take"; thing: string; quantity: number; ref: ItemRef; from?: string }
   /** Something the campaign placed within reach (a room's or a quest beat's loot) is found: an item, or coins. */
   | { kind: "loot"; placementId: string; thing: string; quantity: number; ref: ItemRef; coins: Coins | null }
   /** A chest the campaign rolled from a loot table is opened, once: what the character takes out of it. */
@@ -176,7 +179,13 @@ export function parseHandOver(input: Record<string, unknown>): Parsed<{ directio
 /** What is picked up, before the item is looked up: one of the campaign's items by id, or a plain named object. */
 export function parseTake(
   input: Record<string, unknown>,
-): Parsed<{ itemId: string | null; name: string | null; placementId: string | null; quantity: number; chestThings: string[] | null }> {
+): Parsed<{ itemId: string | null; name: string | null; placementId: string | null; quantity: number; chestThings: string[] | null; fromBody: string | null }> {
+  let fromBody: string | null = null;
+  if (input.from_body !== undefined) {
+    fromBody = thingOf(input.from_body);
+    if (fromBody === null) return refuse(`from_body is the dead creature's name, at most ${THING_MAX} characters.`);
+    if (input.placement_id !== undefined) return refuse("from_body is for a part cut from a body: give it with item_id or name, not with placement_id.");
+  }
   let chestThings: string[] | null = null;
   if (input.chest_things !== undefined) {
     const raw = input.chest_things;
@@ -196,15 +205,15 @@ export function parseTake(
   }
   if (hasPlacement) {
     if (typeof input.placement_id !== "string" || !UUID.test(input.placement_id)) return refuse("placement_id must be an id listed under \"Placed within reach\".");
-    return { ok: true, value: { itemId: null, name: null, placementId: input.placement_id, quantity, chestThings } };
+    return { ok: true, value: { itemId: null, name: null, placementId: input.placement_id, quantity, chestThings, fromBody: null } };
   }
   if (hasId) {
     if (typeof input.item_id !== "string" || !UUID.test(input.item_id)) return refuse("item_id must be the item's id, as search or get returned it.");
-    return { ok: true, value: { itemId: input.item_id, name: null, placementId: null, quantity, chestThings: null } };
+    return { ok: true, value: { itemId: input.item_id, name: null, placementId: null, quantity, chestThings: null, fromBody } };
   }
   const name = thingOf(input.name);
   if (name === null) return refuse(`name is the plain object's name, at most ${THING_MAX} characters.`);
-  return { ok: true, value: { itemId: null, name, placementId: null, quantity, chestThings: null } };
+  return { ok: true, value: { itemId: null, name, placementId: null, quantity, chestThings: null, fromBody } };
 }
 
 /** One thing in a rolled chest: an item, or coins. */
@@ -368,7 +377,7 @@ export function handsLine(change: HandsChange, who: string, coins: (c: Coins) =>
     case "from_player":
       return `${who} gives ${change.to.name}: ${count(change.quantity)}${change.thing}`;
     case "take":
-      return `${who} takes: ${count(change.quantity)}${change.thing}`;
+      return change.from === undefined ? `${who} takes: ${count(change.quantity)}${change.thing}` : `${who} takes from the body of ${change.from}: ${count(change.quantity)}${change.thing}`;
     case "loot":
       return change.coins !== null ? `${who} finds ${coins(change.coins)}: ${change.thing}` : `${who} finds: ${count(change.quantity)}${change.thing}`;
     case "chest":
@@ -473,4 +482,21 @@ export function possessionsSection(p: Possessions | null, coins: (c: Coins) => s
     if (p.loot.length > MAX_LOOT_SHOWN) lines.push(`- and ${p.loot.length - MAX_LOOT_SHOWN} more`);
   }
   return lines.join("\n");
+}
+
+/**
+ * What was cut from dead creatures in one reply, as sentences for the record, one per body. A body that has been
+ * skinned or butchered is used up: the record is how the narrator knows not to give its parts a second time.
+ * App convention: 5e has no harvesting rule, so what a body yields and the check for it are the Dungeon Master's call.
+ */
+export function harvestFacts(changes: readonly HandsChange[], who: string): string[] {
+  const byBody = new Map<string, string[]>();
+  for (const change of changes) {
+    if (change.kind !== "take" || change.from === undefined) continue;
+    const parts = byBody.get(change.from);
+    const part = `${count(change.quantity)}${change.thing}`;
+    if (parts === undefined) byBody.set(change.from, [part]);
+    else parts.push(part);
+  }
+  return [...byBody].map(([body, parts]) => `${who} took ${parts.join(", ")} from the body of ${body}. The body is used up: nothing more can be taken from it.`);
 }

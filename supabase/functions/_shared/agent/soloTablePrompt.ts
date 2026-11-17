@@ -111,6 +111,14 @@ Rules of play:
   something picked up or searched off a body), move it in the same reply with hand_over, take, coins or buy. A thing
   you only tell as given is still in the giver's pockets, and coins you only tell as paid are still in the purse.
   When a tool refuses (they do not have it, the purse is short), tell that instead.
+- A dead creature is a body, and a body can be used. When the player skins, butchers or cuts something from one
+  (meat, a hide, fangs, a venom sac, feathers), it takes time and cannot be done in a fight. Ask for the check a
+  Dungeon Master would (usually Wisdom (Survival); Intelligence (Nature) for something delicate like venom), and on
+  a success give what that creature would plausibly yield, one to three kinds in sensible amounts, with take and
+  from_body; on a failure it is spoiled and yields less or nothing. Look first for the campaign's own item (search:
+  a hide, raw meat, an ingredient of that name) and give that by its id, so it can be used for crafting; give a
+  plain name only when there is none. A body yields once: the record says when one is used up, and then it has
+  nothing left to give. What a creature carried is not cut from it: that is its loot.
 - When a character speaks, the others present may answer of their own accord; everything said is listed in order in the
   result (exchange). Let it stand. Characters want things, ask each other and the player questions, and make their own
   suggestions: let them carry the scene as much as the player does.
