@@ -93,6 +93,13 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
       const change = parseFightChange(raw.change);
       return change ? { type: "fight_change", change } : null;
     }
+    case "hit_points": {
+      const c = raw.change;
+      if (!isRecord(c) || (c.change !== "heal" && c.change !== "harm") || typeof c.why !== "string") return null;
+      const whole = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n) && n >= 0;
+      if (!whole(c.by) || !whole(c.hp) || !whole(c.maxHp)) return null;
+      return { type: "hit_points", change: { heals: c.change === "heal", why: c.why, by: c.by, hp: c.hp, maxHp: c.maxHp } };
+    }
     case "introduced": {
       const person = raw.person;
       return isRecord(person) && typeof person.name === "string" && person.name.trim() !== "" ? { type: "introduced", name: person.name } : null;

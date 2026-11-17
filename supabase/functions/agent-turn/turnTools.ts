@@ -4,6 +4,7 @@
 // about what the narrator may do inside it: the campaign's own tools, a character speaking, moving the party and
 // putting a fact on the record. Everything with I/O comes in through `deps`; nothing here touches a database.
 
+import { HIT_POINTS_TOOL, HIT_POINTS_TOOL_NAME, hitPointsText, parseHitPointChange, rollTotal, type HitPointChange } from "../_shared/agent/hitPoints.ts";
 import { cannotAttempt, changedText, FIGHT_CHANGE_TOOL, parseFightChange, type FightChange, type TurnBudget } from "../_shared/agent/fightChange.ts";
 import type { FightState } from "../_shared/agent/fight.ts";
 import { alreadyRecorded, existsText, INTRODUCE_TOOL, INTRODUCE_TOOL_NAME, INTRODUCTIONS_PER_TURN, introducedText, parseIntroduction, type Introduction } from "../_shared/agent/introduce.ts";
@@ -66,6 +67,8 @@ export interface TurnToolsInput {
     /** The names of the fight's creatures the rules cannot play: those with no stat block. */
     statless(plan: FightPlan): Promise<string[]>;
   } | null;
+  /** The played character's hit points and where a change to them goes; null in a fight (the board keeps them) or with nobody played, and then the tool is not offered. */
+  hitPoints: { now: { current: number; max: number } | null; onChange(change: HitPointChange): void } | null;
   /** Takes the roll the narrator asks the player for; null when nobody is played, and then the tool is not offered. */
   askRoll: ((pending: PendingRoll) => void) | null;
 }
@@ -156,6 +159,20 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     return { content: planned.says, isError: false };
   };
 
+  // The total of the narrator's last roll this turn: the only amount a change to the hit points may take.
+  let lastRoll: number | null = null;
+  // One change to the hit points a turn: a second would be worked out from the same sheet and replace the first.
+  let hitPointsChanged = false;
+  const changeHitPoints = (toolInput: Record<string, unknown>) => {
+    if (input.hitPoints === null) return { content: "Hit points are not changed here.", isError: true };
+    if (hitPointsChanged) return { content: "The hit points were already changed this turn. Tell what happened and end your reply.", isError: true };
+    const parsed = parseHitPointChange(toolInput, { hitPoints: input.hitPoints.now, lastRoll });
+    if (!parsed.ok) return { content: parsed.error, isError: true };
+    hitPointsChanged = true;
+    input.hitPoints.onChange(parsed.value);
+    return { content: hitPointsText(parsed.value, input.hitPoints.now === null ? 0 : input.hitPoints.now.current), isError: false };
+  };
+
   // Whether the narrator has made a roll of its own this turn: a creature's saving throw has to have been rolled
   // before a change can rest on it.
   let narratorRolled = false;
@@ -202,7 +219,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
@@ -213,11 +230,15 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (input.fight && name === START_FIGHT_TOOL.name) return startFight(toolInput);
       if (name === INTRODUCE_TOOL_NAME) return introduce(toolInput);
       if (input.fightChange && name === FIGHT_CHANGE_TOOL.name) return Promise.resolve(changeFight(toolInput));
+      if (input.hitPoints && name === HIT_POINTS_TOOL_NAME) return Promise.resolve(changeHitPoints(toolInput));
       if (quests && quests.names.has(name)) return quests.call(name, toolInput);
       if (SPEECH_TOOL_NAMES.has(name)) return speech.call(name, toolInput);
       if (name === ROLL_TOOL_NAME) {
         return rolled(deps.callTool(name, toolInput), toolInput.expression).then((answer) => {
-          if (!answer.isError) narratorRolled = true;
+          if (!answer.isError) {
+            narratorRolled = true;
+            lastRoll = rollTotal(answer.content);
+          }
           return answer;
         });
       }

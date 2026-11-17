@@ -66,6 +66,8 @@ export type TableEvent =
   | { type: "fight_change"; change: FightChange }
   /** Someone the Dungeon Master made up now has a record your character knows of. */
   | { type: "introduced"; name: string }
+  /** Your character's hit points changed outside a fight: what did it, by how much, and where they stand now. */
+  | { type: "hit_points"; change: { heals: boolean; why: string; by: number; hp: number; maxHp: number } }
   | { type: "fight"; fight: TableFight | null; /** With null: the fight was let go of without being fought. */ calledOff?: true }
   | { type: "done"; end: string; credits: number; tokens: number }
   | { type: "error"; message: string };

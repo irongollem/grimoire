@@ -57,6 +57,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false) {
     peoples: [],
     onIntroduce: () => {},
     fightChange: null,
+    hitPoints: null,
     filed,
     quests,
     askRoll: played ? (pending) => asked.push(pending) : null,

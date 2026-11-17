@@ -12,6 +12,7 @@
 // A caller that gets `run` MUST call it: the reservation is released inside it.
 
 import type { FightChange } from "../_shared/agent/fightChange.ts";
+import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
 import type { Introduction } from "../_shared/agent/introduce.ts";
 import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { runTurn, totalTokens, type TurnEnd } from "../_shared/agent/turn.ts";
@@ -83,6 +84,8 @@ export type AgentEvent =
   | { type: "fight_change"; change: FightChange }
   /** Someone the narrator made up now has a record the player's character knows of. A hidden one is never sent. */
   | { type: "introduced"; person: { id: string; name: string } }
+  /** The played character's hit points changed outside a fight: what did it, by how much, and where they stand. */
+  | { type: "hit_points"; change: { change: "heal" | "harm"; why: string; by: number; hp: number; maxHp: number } }
   | { type: "done"; end: TurnEnd; credits: number; tokens: number }
   | { type: "error"; message: string };
 
@@ -286,6 +289,10 @@ export interface AgentTurnDeps {
   voiceKey: ((sessionId: string, line: AgentLine) => string) | null;
   /** Whether the table itself made this character's record and the DM has not edited it since: only then may the table rewrite it. */
   isTableMadeCharacter(campaignId: string, characterId: string): Promise<boolean>;
+  /** Sets the played character's hit points on their sheet (`hitPoints.ts`). */
+  setHitPoints(campaignId: string, memberId: string, hitPoints: number): Promise<void>;
+  /** Takes one of a thing out of a character's belongings, by name; answers whether they had it. */
+  useUpBelonging(campaignId: string, characterId: string, thing: string): Promise<boolean>;
   /** Writes the record of a person the narrator made up (`introduce.ts`), or brings a table-made one up to date, and answers who it is. */
   introduceCharacter(
     ctx: { campaignId: string; userId: string; memberId: string | null; locationId: string | null; provider: string; model: string },
@@ -521,6 +528,8 @@ export async function beginTurn(input: {
         const state = stateFor({ scene, quests: questState, record, fights, fightTurn });
         // What the narrator's ruling does to the fight on the board; carried out by the page once the turn is kept.
         let fightChange: FightChange | null = null;
+        // What the narrator's roll does to the played character's hit points; written only once the turn is kept.
+        let hitPointChange: HitPointChange | null = null;
         // People the narrator gave a record this turn; made only once the turn is kept.
         const introduced: Introduction[] = [];
         // The fight the narrator starts this turn; started only once the turn is kept.
@@ -540,6 +549,10 @@ export async function beginTurn(input: {
           playerName: character ? character.name : undefined,
           peoples,
           onIntroduce: (intro) => { introduced.push(intro); },
+          // Outside a fight only: in one the board keeps everyone's hit points.
+          hitPoints: character && !(fights !== null && fights.fight !== null && fights.fight.phase === "running")
+            ? { now: character.hitPoints, onChange: (change) => { hitPointChange = change; } }
+            : null,
           // Offered only while a fight is being fought on the board.
           fightChange: fights !== null && fights.fight !== null && fights.fight.phase === "running"
             ? { fight: fights.fight, budget: fightTurn, rolled: scored === null ? null : scored.success, onChange: (change) => { fightChange = change; } }
@@ -735,6 +748,18 @@ export async function beginTurn(input: {
           emit({ type: "fight", fight: null });
         }
         // (The fight's own line on the record is filed above, where the conversation lets go of it.)
+        // The played character's hit points, and the thing that was used up for it. A thing that cannot be taken
+        // (the narrator named one they do not carry) costs nothing but the tidying: the healing was rolled and stands.
+        const mended = hitPointChange as HitPointChange | null;
+        if (mended !== null && character && character.hitPoints) {
+          try {
+            await deps.setHitPoints(campaign.id, character.id, mended.after);
+            emit({ type: "hit_points", change: { change: mended.change, why: mended.why, by: Math.abs(mended.after - character.hitPoints.current), hp: mended.after, maxHp: mended.max } });
+            if (mended.used !== null) await deps.useUpBelonging(campaign.id, mended.used.characterId, mended.used.thing);
+          } catch (error) {
+            console.error("agent-turn: changing the character's hit points failed:", error);
+          }
+        }
         // The people the narrator made up get their records. One that cannot be written (a plan's limit on
         // characters, a name taken meanwhile) costs that record, never the turn: the facts about them are kept.
         for (const intro of introduced) {

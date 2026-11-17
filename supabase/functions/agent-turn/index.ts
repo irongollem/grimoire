@@ -644,6 +644,34 @@ serve(withCors(async (req: Request) => {
     startFight: (ctx, plan) => startFight(supabase, admin, ctx, plan),
     setFight: (sessionId, campaignId, encounterId) => setFight(admin, sessionId, campaignId, encounterId),
     statlessFighters: (campaignId, plan) => statlessFighters(supabase, campaignId, plan),
+    // The campaign filter is in the query: a member of another campaign is not found, and nothing is written.
+    async setHitPoints(campaignId, memberId, hitPoints) {
+      const { error } = await admin.from("party_members").update({ current_hp: hitPoints }).eq("id", memberId).eq("campaign_id", campaignId);
+      if (error) throw error;
+    },
+
+    // One of the thing leaves the character's belongings: the row goes when it was the last. Found by name without
+    // regard to case, since the narrator writes the name as it read it.
+    async useUpBelonging(campaignId, characterId, thing) {
+      const { data, error } = await admin
+        .from("npc_inventory")
+        .select("id, quantity")
+        .eq("npc_id", characterId)
+        .eq("campaign_id", campaignId)
+        .ilike("name", thing.replace(/[%_\\]/g, "\\$&"))
+        .gt("quantity", 0)
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return false;
+      const left = (data.quantity as number) - 1;
+      const write = left > 0
+        ? await admin.from("npc_inventory").update({ quantity: left }).eq("id", data.id as string)
+        : await admin.from("npc_inventory").delete().eq("id", data.id as string);
+      if (write.error) throw write.error;
+      return true;
+    },
+
     async isTableMadeCharacter(campaignId, characterId) {
       const { data, error } = await supabase.from("npcs").select("ai_provenance").eq("id", characterId).eq("campaign_id", campaignId).maybeSingle();
       if (error) throw error;

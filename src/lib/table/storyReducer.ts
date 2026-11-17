@@ -70,6 +70,11 @@ export function applyTableEvent(items: StoryItem[], event: TableEvent, turnStart
       const voice = event.voice === undefined ? {} : { voice: { how: how === undefined ? null : how, key: event.voice } };
       return [...items, { id, kind, speaker, text, ...(to !== undefined ? { to } : {}), ...voice }];
     }
+    case "hit_points": {
+      const { heals, why, by, hp, maxHp } = event.change;
+      const moved = by === 0 ? "no hit points" : `${heals ? "+" : "−"}${by} hit points`;
+      return withMargin(items, `${why}: ${moved} · ${hp} of ${maxHp}`);
+    }
     case "introduced":
       return withMargin(items, `${event.name} is now among the people you know`);
     case "fight":

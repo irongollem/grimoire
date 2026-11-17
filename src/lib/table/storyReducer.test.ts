@@ -115,3 +115,13 @@ describe("applyTableEvent for a roll", () => {
     expect(items.map((i) => i.kind)).toEqual(["roll", "narration"]);
   });
 });
+
+describe("hit points changed outside a fight", () => {
+  // Bug caught: a loss written with a plus, so a fall read as healing in the story.
+  it("writes what did it, the amount with its sign, and where the character stands", () => {
+    const healed = play([{ type: "hit_points", change: { heals: true, why: "Potion of Healing", by: 7, hp: 22, maxHp: 58 } }]);
+    expect(healed.at(-1)).toMatchObject({ kind: "margin", text: "Potion of Healing: +7 hit points · 22 of 58" });
+    const hurt = play([{ type: "hit_points", change: { heals: false, why: "The fall", by: 6, hp: 16, maxHp: 58 } }]);
+    expect(hurt.at(-1)).toMatchObject({ text: "The fall: −6 hit points · 16 of 58" });
+  });
+});

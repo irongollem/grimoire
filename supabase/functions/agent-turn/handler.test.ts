@@ -130,6 +130,9 @@ interface Harness {
     statless: string[];
     /** The character the name search finds was made by the table itself. */
     tableMade: boolean;
+    /** Hit points written to a sheet, and things taken out of someone's belongings. */
+    hitPointsSet: Array<{ memberId: string; hitPoints: number }>;
+    usedUp: Array<{ characterId: string; thing: string }>;
     /** Writing an invented person's record fails (a plan's limit). */
     introduceThrows: boolean;
     /** The campaign's own peoples. */
@@ -228,6 +231,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       playSessionJoined: false,
       statless: [],
       tableMade: false,
+      hitPointsSet: [],
+      usedUp: [],
       introduceThrows: false,
       peoples: [],
       peoplesThrow: false,
@@ -444,6 +449,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     voiceKey: null,
     statlessFighters: async () => h.state.statless,
     isTableMadeCharacter: async () => h.state.tableMade,
+    setHitPoints: async (_campaignId, memberId, hitPoints) => { h.state.hitPointsSet.push({ memberId, hitPoints }); },
+    useUpBelonging: async (_campaignId, characterId, thing) => { h.state.usedUp.push({ characterId, thing }); return true; },
     introduceCharacter: async (ctx, intro) => {
       if (h.state.introduceThrows) throw new Error("quota");
       h.introduced.push({ ctx, intro });
@@ -2388,6 +2395,29 @@ describe("who the player plays", () => {
     step(100, { blocks: [{ type: "text", text: "DOES: -\nSAYS: -" }] }),
     step(50),
   ];
+
+  const rollsPotion: ModelStep = step(10, { blocks: [{ type: "tool_call", id: "p1", name: "roll", input: { expression: "2d4+2", label: "Potion of Healing" } }], stop: "tool_calls" });
+  const heals = (extra: Record<string, unknown> = {}): ModelStep =>
+    step(10, { blocks: [{ type: "tool_call", id: "p2", name: "hit_points", input: { change: "heal", why: "Potion of Healing", ...extra } }], stop: "tool_calls" });
+
+  // Bug caught (seen live): healing told in words while the sheet stayed where it was, and the potion stayed in
+  // the giver's pocket.
+  it("a rolled healing is written to the sheet, told to the page, and uses up the thing it came from", async () => {
+    const h = withWren([rollsPotion, heals({ used_by: HONEYCOMB, used_thing: "Potion of Healing" }), step(50)]);
+    h.state.rollAnswer = { content: JSON.stringify({ hidden: false, label: "Potion of Healing", faces: [3, 2], dropped_faces: [], modifier: 2, total: 7 }), isError: false };
+    await play(h, { body: START });
+    expect(h.state.hitPointsSet).toEqual([{ memberId: WREN, hitPoints: 19 }]);
+    expect(h.state.usedUp).toEqual([{ characterId: HONEYCOMB, thing: "Potion of Healing" }]);
+    expect(h.events).toContainEqual({ type: "hit_points", change: { change: "heal", why: "Potion of Healing", by: 7, hp: 19, maxHp: 20 } });
+  });
+
+  // Bug caught: the narrator naming healing without dice, and the sheet changing anyway.
+  it("without a roll this turn nothing is written", async () => {
+    const h = withWren([heals(), step(50)]);
+    await play(h, { body: START });
+    expect(h.state.hitPointsSet).toEqual([]);
+    expect(h.events.some((e) => e.type === "hit_points")).toBe(false);
+  });
 
   it("refuses a character of another campaign before anything is reserved or any model is called", async () => {
     const h = harness();

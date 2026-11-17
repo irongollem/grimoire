@@ -141,3 +141,14 @@ describe("parseTableEvent for a fight", () => {
     expect(parseTableEvent({ type: "fight" })).toBeNull();
   });
 });
+
+describe("hit points changed outside a fight", () => {
+  const change = { change: "heal", why: "Potion of Healing", by: 7, hp: 22, maxHp: 58 };
+  // Bug caught: harm read as healing (the sign of the story's line), or a half-formed event drawn as "NaN of 58".
+  it("reads which way it went, and drops an event with a number missing", () => {
+    expect(parseTableEvent({ type: "hit_points", change })).toEqual({ type: "hit_points", change: { heals: true, why: "Potion of Healing", by: 7, hp: 22, maxHp: 58 } });
+    expect(parseTableEvent({ type: "hit_points", change: { ...change, change: "harm" } })).toMatchObject({ change: { heals: false } });
+    expect(parseTableEvent({ type: "hit_points", change: { ...change, hp: undefined } })).toBeNull();
+    expect(parseTableEvent({ type: "hit_points", change: { ...change, change: "bless" } })).toBeNull();
+  });
+});
