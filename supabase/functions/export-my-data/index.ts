@@ -28,6 +28,7 @@ import { withCors } from "../_shared/cors.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { listUserStorage, totalObjectCount } from "../_shared/storage-inventory.ts";
 import { r2ConfigFrom } from "../_shared/r2/config.ts";
+import { listAccountClips, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
 import { isoDate } from "../_shared/childAccount.ts";
 
 const admin = createClient(
@@ -111,6 +112,18 @@ serve(withCors(async (req: Request) => {
     console.error("export-my-data: storage listing incomplete for user", targetUserId, inventory.errors);
   }
 
+  // The voice clips made for the account's sittings at the AI table (#1021) are in a store of their own, named
+  // by campaign and sitting, which the listing above does not walk. They are the account's too, and deletion
+  // removes them, so they are listed here from the sittings the account has.
+  const sittings = await admin.from("agent_sessions").select("id, campaign_id").eq("user_id", targetUserId);
+  const clips = sittings.error
+    ? { keys: [], errors: [`table voices: listing the sittings failed: ${sittings.error.message}`] }
+    : await listAccountClips(
+      voiceStoreFrom((key) => Deno.env.get(key)),
+      (sittings.data ?? []).map((row) => ({ campaignId: row.campaign_id as string, sessionId: row.id as string })),
+    );
+  if (clips.errors.length > 0) console.error("export-my-data: voice clip listing incomplete for user", targetUserId, clips.errors);
+
   return json({
     ...exported,
     storage_objects: {
@@ -121,10 +134,12 @@ serve(withCors(async (req: Request) => {
       note:
         "Paths of files stored under your account, by bucket. These are the same objects account " +
         "deletion removes. Public buckets serve them from the asset CDN; private ones require a signed URL.",
-      total: totalObjectCount(inventory),
+      total: totalObjectCount(inventory) + clips.keys.length,
       supabase_storage: inventory.supabase,
       r2: inventory.r2,
-      incomplete: inventory.errors.length > 0,
+      // Speech made for the account's sittings at the AI table, as `<campaign id>/<sitting id>/<clip>.mp3`.
+      table_voice_clips: clips.keys,
+      incomplete: inventory.errors.length > 0 || clips.errors.length > 0,
     },
   });
 }));

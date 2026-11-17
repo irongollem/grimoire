@@ -248,6 +248,7 @@ The clips live in a bucket of their own, named `<campaign id>/<sitting id>/<clip
 - **A campaign.** Deleting a campaign asks `agent-forget` for `{ campaignId, allClips: true }` first (`deleteCampaignVoiceClips`, only when the caller has a sitting there): the clips of the caller's own sittings, no rows, since the campaign's delete takes those. A failure refuses the delete, as it does for minis.
 - **An account.** `delete-account` removes the clips of every sitting of the account while the rows still exist; a failure is reported with the purge's other errors.
 - Seen against the local function with the real bucket: a left sitting deleted (200), asked again (404), an open one refused (409).
+- **The personal data export** names them too (`export-my-data`, `storage_objects.table_voice_clips`), found the same way, so the export never claims less than deletion removes. The conversations, their turns and the board's lines are in the export already: it walks every table with a foreign key to the account. See `context/compliance/data-subject-rights.md`.
 
 ## The story turns into a fight (`_shared/agent/fight.ts`, `agent-turn/fightIo.ts`)
 

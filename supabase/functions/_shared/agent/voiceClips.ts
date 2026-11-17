@@ -27,3 +27,26 @@ export async function removeSittingClips(store: R2Config | null, at: { campaignI
   const keys = await listObjects(store, clipPrefix(at));
   for (let i = 0; i < keys.length; i += REMOVE_BATCH) await deleteObjects(store, keys.slice(i, i + REMOVE_BATCH));
 }
+
+/**
+ * The clips kept for an account's sittings, as keys in the clips' store, for the personal data export: the same
+ * objects account deletion removes. A sitting whose clips could not be listed is named in `errors`, never
+ * silently left out.
+ */
+export async function listAccountClips(
+  store: R2Config | null,
+  sittings: ReadonlyArray<{ campaignId: string; sessionId: string }>,
+  list: (store: R2Config, prefix: string) => Promise<string[]> = listObjects,
+): Promise<{ keys: string[]; errors: string[] }> {
+  const keys: string[] = [];
+  const errors: string[] = [];
+  if (store === null) return { keys, errors };
+  for (const sitting of sittings) {
+    try {
+      keys.push(...(await list(store, clipPrefix(sitting))));
+    } catch (error) {
+      errors.push(`table voices: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  return { keys, errors };
+}
