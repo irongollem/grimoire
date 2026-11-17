@@ -3,7 +3,23 @@
     <div class="px-4 pb-8 pt-4 md:px-6" data-testid="table-start">
       <SoloAiOff v-if="!campaign.isAiEnabled" class="mx-0" />
 
+      <!-- An open sitting is reopened as it stands; nothing to show while the page goes there. -->
+      <ListSkeleton v-else-if="resume === null || resume.kind === 'open'" variant="stack" :count="3" />
+
       <div v-else class="flex max-w-2xl flex-col gap-6">
+        <!-- The story goes on where it was left: the campaign already knows who is played and where the party is. -->
+        <section v-if="resume.kind === 'again'" class="flex flex-col gap-3 border border-border bg-card p-4" aria-labelledby="table-again" data-testid="table-again">
+          <h2 id="table-again" class="text-heading-sm text-foreground">Pick up the story</h2>
+          <p class="text-body text-foreground">
+            {{ againName }}<template v-if="againPlace">, at {{ againPlace }}</template>. The Dungeon Master opens the scene where you left it.
+          </p>
+          <div class="flex flex-wrap items-center gap-2">
+            <AppButton variant="live" size="md" label="Sit down" @click="sitDownAgain" />
+            <AppButton variant="link" size="inline" :label="choosing ? 'Never mind' : 'Play someone else, or begin somewhere else'" @click="choosing = !choosing" />
+          </div>
+        </section>
+
+        <template v-if="resume.kind === 'first' || choosing">
         <section class="flex flex-col gap-2" aria-labelledby="table-who">
           <h2 id="table-who" class="text-heading-sm text-foreground">Who you play</h2>
           <ListSkeleton v-if="party.isLoading.value" variant="stack" :count="3" />
@@ -25,8 +41,9 @@
         </section>
 
         <div>
-          <AppButton variant="live" size="md" label="Sit down" :disabled="!characterId" @click="sitDown" />
+          <AppButton :variant="resume.kind === 'first' ? 'live' : 'outline'" size="md" label="Sit down" :disabled="!characterId" @click="sitDown" />
         </div>
+        </template>
 
         <section class="flex flex-col gap-2" aria-labelledby="table-record">
           <h2 id="table-record" class="text-heading-sm text-foreground">The story so far</h2>
@@ -57,7 +74,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
+import { resumeOf } from "@/lib/table/resume";
 import { sittingWho } from "@/lib/table/sittingLabel";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -88,6 +106,35 @@ const { data: locations } = useAllLocations();
 const places = computed(() => (locations.value ?? []).map((l) => ({ id: l.id, name: l.name })));
 
 const sessions = useTableSessions(() => campaign.activeCampaignId);
+
+// How the story is picked up: null until the party and the sittings are both read (deciding on half would send a
+// player with an open sitting to the chooser for a moment).
+const resume = computed(() => {
+  if (!party.data.value || !sessions.data.value) return party.isError.value || sessions.isError.value ? ({ kind: "first" } as const) : null;
+  return resumeOf(sessions.sittings.value, new Set(characters.value.map((m) => m.id)));
+});
+// A sitting that was never left is simply reopened. `replace`, so Back does not bounce through this page.
+watch(
+  resume,
+  (now) => {
+    if (now?.kind === "open" && campaign.isAiEnabled) void router.replace(`/table/${now.sessionId}`);
+  },
+  { immediate: true },
+);
+const choosing = ref(false);
+const againName = computed(() => {
+  const now = resume.value;
+  return now?.kind === "again" ? (characters.value.find((m) => m.id === now.characterId)?.name ?? null) : null;
+});
+const againPlace = computed(() => {
+  const now = resume.value;
+  return now?.kind === "again" && now.placeId !== null ? (places.value.find((p) => p.id === now.placeId)?.name ?? null) : null;
+});
+function sitDownAgain(): void {
+  const now = resume.value;
+  if (now?.kind !== "again") return;
+  void router.push({ path: "/table/new", query: { character: now.characterId, ...(now.placeId !== null ? { place: now.placeId } : {}) } });
+}
 
 // Required: a character is who the story is about. "" is the combobox's empty value.
 const characterId = ref<string | null>(null);
