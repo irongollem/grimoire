@@ -341,6 +341,28 @@ describe("speakLine", () => {
   });
 });
 
+describe("the narrator on the second service", () => {
+  const narration = "The lamps gutter as the door swings shut.";
+  const body = {
+    campaignId: CAMPAIGN, sessionId: SESSION, speakerId: null, speakerName: NARRATOR_SPEAKER.name, text: narration, role: "narrator",
+    key: lineKey(SECRET, SESSION, { role: "narrator", speaker: NARRATOR_SPEAKER, text: narration }),
+  };
+
+  // Bug caught: the narrator's voice only ever read as an ElevenLabs id, so a trial on the cheaper service was
+  // silently ignored; and a stack without that service's key left with no narrator.
+  it("speaks through Inworld when the stack names an Inworld voice, and falls back without its key", async () => {
+    const h = harness();
+    h.narratorVoice = "inworld:snappy-magpie-0676__design-voice-88363843";
+    await speak(h, { body });
+    expect(h.spoken[0]).toMatchObject({ service: "inworld", voiceId: "snappy-magpie-0676__design-voice-88363843" });
+    const bare = harness();
+    bare.inworld = false;
+    bare.narratorVoice = "inworld:snappy-magpie-0676__design-voice-88363843";
+    await speak(bare, { body });
+    expect(bare.spoken[0]).toMatchObject({ service: "elevenlabs", voiceId: NARRATOR_VOICE_ID });
+  });
+});
+
 describe("inworldText", () => {
   // Bug caught: the cue sent to Inworld as a bare tag (which it reads aloud) or dropped.
   it("puts the manner in front of the words as an instruction, and nothing when there is none", () => {

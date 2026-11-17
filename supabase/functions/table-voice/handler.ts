@@ -59,7 +59,7 @@ export interface TableVoiceDeps {
   findShown(sessionId: string, line: VoicedLine): Promise<{ how: string | null } | null>;
   /** The played character's own pronouns and voice, for the player's said lines. */
   loadPlayerTraits(campaignId: string, memberId: string): Promise<SpeakerTraits>;
-  /** The narrator's voice where the stack names one; null for the default. */
+  /** The narrator's voice where the stack names one (a bare ElevenLabs id, or `inworld:<id>`); null for the default. */
   narratorVoice(): string | null;
   /**
    * What the character's record says of its sex and age, for casting, and the voice the DM gave it
@@ -164,8 +164,10 @@ export function parseVoiceBody(raw: unknown): VoiceBody | null {
 /** Whose voice says the line: the narrator's one voice, or a cast from the speaker's record. */
 async function voiceFor(deps: TableVoiceDeps, campaignId: string, line: VoicedLine): Promise<VoiceRef> {
   if (line.role === "narrator") {
-    const named = deps.narratorVoice();
-    return { service: "elevenlabs", id: named !== null && VOICE_ID_RE.test(named) ? named : NARRATOR_VOICE_ID };
+    // The stack may name the narrator's voice, on either service (narration asks the least acting, so it is the
+    // voice to try on the cheaper one). A reference that is not one, or a service with no key, falls back.
+    const named = voiceRefOf(deps.narratorVoice());
+    return named !== null && deps.hasService(named.service) ? named : { service: "elevenlabs", id: NARRATOR_VOICE_ID };
   }
   // Cast from the record when there is one; someone without a record is cast by their shown name alone.
   let traits: SpeakerTraits = { sex: null, age: null, voiceId: null };
