@@ -136,6 +136,9 @@ function show(event: TableEvent, narration: { text: string }): void {
     console.log(line.kind === "spoken" ? `\n  ${line.speaker.name}: "${line.text}"` : `\n  ${line.speaker.name} (does): ${line.text}`);
   } else if (event.type === "fact") {
     console.log(`  [on record] ${(event.fact as { body: string }).body}`);
+  } else if (event.type === "fight") {
+    const fight = event.fight as { name: string; encounterId: string } | null;
+    console.log(fight === null ? "  [the fight's aftermath has been told]" : `\n  [a fight begins: ${fight.name}. It is fought in the app at /encounters/${fight.encounterId}/run]`);
   } else if (event.type === "ask_roll") {
     console.log(`\n  [your roll: ${(event.roll as { label: string }).label}. Roll a d20 and type /roll <face> <bonus>]`);
   } else if (event.type === "rolled") {

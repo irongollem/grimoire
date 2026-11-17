@@ -201,6 +201,20 @@ The narrator could read the campaign and file facts but could not move a quest f
 - **Three refusals, each seen live:** stopping the pressure in the turn that started it (the narrator called the danger off before it could arrive), running against a clock that is already full, and running against the clock the scene already has.
 - **Not built:** improvising a new beat, opening a thread by hand, and undoing a move from the table. A clock that is deleted simply leaves the conversation without pressure.
 
+## The story turns into a fight (`_shared/agent/fight.ts`, `agent-turn/fightIo.ts`)
+
+Epic story 13. The fight itself is the campaign's own: an encounter, fought on the fight screen with the server's rules (#1201 to #1203). Until now the story could not reach it; a scene could never become a fight. This is only the bridge.
+
+- **What the narrator is shown** (`## Fights`, in the table's state, after the scene): the unfinished encounters prepared at the party's place, each with its id and who is in it; or, once this conversation has started one, how that fight stands. A quiet place with no fight says nothing.
+- **Starting one.** `start_fight` takes either `encounter_id` (a fight listed for this place) or `name` with `creatures` (monsters or characters the narrator looked up, by id, 1 to 12 of each, at most 6 kinds). It is offered only with a played character. One fight a turn, and none while the conversation is already waiting on one. The narrator is told to end its reply with how it breaks out and to narrate no attack or damage.
+- **With the kept turn.** A prepared fight is the DM's own encounter, with the played character added to its party. An improvised one is a new encounter at the party's place, with the app's four default factions and its creatures on the enemy's side; every creature must be this campaign's, checked before anything is written. The conversation then points at it (`agent_sessions.fight_encounter_id`, migration `20261117081336`, guarded to its own campaign like every reference on that row), and only then is the page told (`fight` event with the encounter's id and name).
+- **The bestiary.** The fight's monsters are entered in `discovered_monsters` for the played character (met, with no stats revealed), or that character is added to who already knows them. A failure there costs an entry, never the fight.
+- **While it is fought** the state says so, with each fighter's side and hit points, and tells the narrator not to narrate blows and to send the player back to the fight. `waiting` is a fight not yet opened on the fight screen, `running` one being fought, `over` one that ended (or an encounter marked finished).
+- **When it is over** the narrator is handed how it stands (who is down, who is left) and tells the aftermath; after that kept turn the conversation lets go of the fight and the page hears `fight: null`.
+- **On the page** a card above the composer names the fight and offers "Go to the fight", which takes the played character's lens off and opens `/encounters/:id/run` (the fight screen is on the DM's side); the Table entry picks the sitting up again afterwards, since it was never left. A reopened sitting reads its fight from the conversation row, named inside the campaign.
+- **Live** (17 Nov 2026): "I walk straight at the marzipan sentries with my blade drawn and strike at the nearest one" started the fight "The Marzipan Sentry" (put together from a looked-up monster, 7.3 s); "How bad is it?" was answered "The fight is underway on the fight screen" (1.7 s); the Marzipan Sentry was in the played character's bestiary.
+- **Not built:** the fight screen on the player's side of the app (the player runs it as the DM today, with "Run this turn for me" for the creatures); returning to the story from the fight screen with one click; the server building a fight's first roster (epic story 16: the browser still builds it when the fight screen opens); and companions joining a fight.
+
 ## Where a campaign begins (`_shared/agent/prologue.ts`)
 
 "We do have to be able to define somehow where a whole campaign starts. I'm assuming with some form of prologue quest" (maintainer, 17 Nov 2026). A campaign names the quest its story opens with, and the table's very first sitting begins there.
@@ -224,7 +238,8 @@ The narrator could read the campaign and file facts but could not move a quest f
 - **Through the caller's client**, so the DM's RLS decides the write and the campaign's own triggers (`locations_record_reveals`, `npcs_record_reveals`) log the reveal as they do for a hand-made share. A failure costs a reveal, never the turn.
 - **On the screen** the scene column shows the place's player summary once the place has been shown to the character (`placeSummaryFor`, the one gate between the DM's own row and the column), so it appears after the opening.
 - **Live** (17 Nov 2026): one turn in the workshop put Rosie in the place's and Honeycomb's lists and wrote one row each to `location_reveals` and `npc_reveals`.
-- **Not built:** monsters into the bestiary (they are met in a fight, and the story cannot start one yet), items, a character seen but not spoken to, and revealing to companions who travel with the party.
+- **Monsters** enter the bestiary when a fight starts (see "The story turns into a fight").
+- **Not built:** items, a character seen but not spoken to, and revealing to companions who travel with the party.
 
 ## What changes goes in the newest message, never in the instructions
 

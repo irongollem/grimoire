@@ -50,6 +50,7 @@
               @credits="openOutOfCredits(1)"
             />
             <div class="shrink-0 px-4 pt-2 pb-4 md:px-6">
+              <SoloFight v-if="fight && !hasLeft" :name="fight.name" class="mx-auto mb-2 w-full max-w-160" @go="goToFight" />
               <SoloRollAsk
                 v-if="asked && !hasLeft"
                 :ask="asked"
@@ -95,6 +96,7 @@ import SoloBar from "@/components/table/solo/SoloBar.vue";
 import SoloComposer from "@/components/table/solo/SoloComposer.vue";
 import SoloLeft from "@/components/table/solo/SoloLeft.vue";
 import SoloDisclosure from "@/components/table/solo/SoloDisclosure.vue";
+import SoloFight from "@/components/table/solo/SoloFight.vue";
 import SoloRollAsk from "@/components/table/solo/SoloRollAsk.vue";
 import SoloSheet from "@/components/table/solo/SoloSheet.vue";
 import SoloScene from "@/components/table/solo/SoloScene.vue";
@@ -113,7 +115,7 @@ import { currentBeatsByQuest } from "@/lib/hearth/currentBeats";
 import { useTableScene } from "@/composables/table/useTableScene";
 import { placeSummaryFor } from "@/lib/table/placeKnown";
 import { pressureAfterSend } from "@/lib/table/pressureLabel";
-import type { PlayMode, RollAsk, TablePressure } from "@/lib/table/soloTypes";
+import type { PlayMode, RollAsk, TableFight, TablePressure } from "@/lib/table/soloTypes";
 import { useTableSpeakers } from "@/composables/table/useTableSpeakers";
 import { useTableCheck } from "@/composables/table/useTableCheck";
 import { useTableTurn } from "@/composables/table/useTableTurn";
@@ -159,6 +161,8 @@ const newPlaceId = ref<string | null>(queryText("place"));
 // The stored conversation to draw. Never the id this screen created itself: that story is already on the page.
 const historyId = ref<string | null>(openedId());
 const sceneId = ref<string | null>(newPlaceId.value);
+// The fight the story has turned into, while the sitting waits on it: from the stored sitting, then from the stream.
+const fight = ref<TableFight | null>(null);
 // The clock the scene runs against: from the stored sitting when one is opened, then from each kept turn.
 const pressure = ref<TablePressure | null>(null);
 // The roll the table is waiting for: from the stored sitting, then from the turn that asks. The card shows it.
@@ -187,6 +191,9 @@ const turn = useTableTurn({
   onPressure: (now) => {
     pressure.value = now;
   },
+  onFight: (now) => {
+    fight.value = now;
+  },
   onAskRoll: (ask) => {
     asked.value = ask;
   },
@@ -206,6 +213,15 @@ function openScene(): void {
 // On arrival, and again the moment the first-visit disclosure is accepted or the campaign becomes known.
 watch([() => disclosure.hasBeenTold.value, campaignId], openScene, { immediate: true });
 
+// A fight is fought on the Dungeon Master's side of the app, on the fight screen: the played character's lens comes
+// off for it, and the Table entry picks this sitting up again afterwards (it was never left).
+function goToFight(): void {
+  const now = fight.value;
+  if (now === null) return;
+  appUi.exitTablePlay();
+  void router.push(`/encounters/${now.encounterId}/run`);
+}
+
 // Every message goes through here: a clock that ran out goes off the page when the story moves on.
 function sendTurn(...args: Parameters<typeof turn.send>): ReturnType<typeof turn.send> {
   pressure.value = pressureAfterSend(pressure.value);
@@ -222,6 +238,7 @@ watch(param, () => {
   newPlaceId.value = queryText("place");
   sceneId.value = newPlaceId.value;
   pressure.value = null;
+  fight.value = null;
   asked.value = null;
   if (param.value === "new" && newCharacterId.value === null) void router.replace("/table");
   openScene();
@@ -233,6 +250,7 @@ watch(
   (stored) => {
     if (stored?.sitting.scene_location_id) sceneId.value = stored.sitting.scene_location_id;
     if (stored) pressure.value = stored.sitting.pressure;
+    if (stored) fight.value = stored.sitting.fight;
     // A turn already sent on this screen decided what is asked: the snapshot may be older than it.
     if (stored && turn.live.value.length === 0) turn.setAsked(stored.sitting.pending_roll);
   },

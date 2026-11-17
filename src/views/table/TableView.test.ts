@@ -63,6 +63,7 @@ async function mountTable(path: string) {
     routes: [
       { path: "/table", component: { template: "<div />" } },
       { path: "/play/character", component: { template: "<div />" } },
+      { path: "/encounters/:id/run", component: { template: "<div />" } },
       { path: "/play/table/story", component: { template: "<div />" } },
       { name: "table-session", path: "/play/table/:sessionId", component: TableView },
     ],
@@ -491,5 +492,57 @@ describe("TableView: what you are after", () => {
     await flushPromises();
     expect(wrapper.html()).not.toContain("UNSEEN-QUEST");
     expect(wrapper.find('[data-testid="solo-after"]').exists()).toBe(false);
+  });
+});
+
+describe("TableView: the story turns into a fight", () => {
+  const session = (id: string, over: Record<string, unknown> = {}) => ({
+    id, user_id: "u1", campaign_id: "c1", party_member_id: "m1", scene_location_id: null, credits_spent: 0, left_at: null, pending_roll: null, fight_encounter_id: null, ...over,
+  });
+
+  beforeEach(() => {
+    setUp("u1");
+    useTableDisclosure().accept();
+    fake.reset();
+    fake.seed("party_members", [{ ...MEMBER }]);
+    fake.seed("character_classes", []);
+    fake.seed("encounters", [
+      { id: "e1", campaign_id: "c1", name: "The cellar rats" },
+      { id: "e2", campaign_id: "c2", name: "ELSEWHERE-FIGHT" },
+    ]);
+  });
+
+  // Bug caught: a fight started by the story with no way to reach it, or the way lost on a reload.
+  it("offers the way to the fight a reopened sitting is waiting on, and goes there as the Dungeon Master", async () => {
+    fake.seed("agent_sessions", [session("s1", { fight_encounter_id: "e1" })]);
+    const { wrapper, router } = await mountTable("/play/table/s1");
+    const card = wrapper.get('[data-testid="solo-fight"]');
+    expect(card.text()).toContain("The cellar rats");
+    await card.findAll("button").find((b) => b.text() === "Go to the fight")!.trigger("click");
+    await flushPromises();
+    expect(router.currentRoute.value.path).toBe("/encounters/e1/run");
+    // The fight screen is the DM's: the played character's lens must be off there.
+    expect(useAppUiStore().tablePlay).toBeNull();
+  });
+
+  // Bug caught: a fight of another campaign named on this table because the read went by id alone.
+  it("offers no fight for an encounter that is not this campaign's", async () => {
+    fake.seed("agent_sessions", [session("s1", { fight_encounter_id: "e2" })]);
+    const { wrapper } = await mountTable("/play/table/s1");
+    expect(wrapper.find('[data-testid="solo-fight"]').exists()).toBe(false);
+    expect(wrapper.html()).not.toContain("ELSEWHERE-FIGHT");
+  });
+
+  // Bug caught: the card staying after the aftermath was told, sending the player back into a finished fight.
+  it("shows the fight when the story starts one and takes it away once its aftermath is told", async () => {
+    fake.seed("agent_sessions", [session("s1")]);
+    fetchMock
+      .mockResolvedValueOnce(sse({ type: "session", sessionId: "s1" }, { type: "fight", fight: { encounterId: "e1", name: "The cellar rats" } }, { type: "done", end: "end_turn", credits: 0, tokens: 1 }))
+      .mockResolvedValueOnce(sse({ type: "session", sessionId: "s1" }, { type: "fight", fight: null }, { type: "done", end: "end_turn", credits: 0, tokens: 1 }));
+    const { wrapper } = await mountTable("/play/table/s1");
+    await say(wrapper, "I draw my sword.", true);
+    expect(wrapper.find('[data-testid="solo-fight"]').exists()).toBe(true);
+    await say(wrapper, "What now?");
+    expect(wrapper.find('[data-testid="solo-fight"]').exists()).toBe(false);
   });
 });

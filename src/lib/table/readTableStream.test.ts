@@ -131,3 +131,13 @@ describe("parseTableEvent for rolls", () => {
     expect(parseTableEvent({ type: "rolled", roll: { ...roll, kept: 2 } })).toBeNull();
   });
 });
+
+describe("parseTableEvent for a fight", () => {
+  // Bug caught: a malformed fight event read as "the fight is over", taking the way to a running fight off the page.
+  it("reads a started fight and an explicit end, and skips a malformed one", () => {
+    expect(parseTableEvent({ type: "fight", fight: { encounterId: "e1", name: "The cellar rats", extra: 1 } })).toEqual({ type: "fight", fight: { encounterId: "e1", name: "The cellar rats" } });
+    expect(parseTableEvent({ type: "fight", fight: null })).toEqual({ type: "fight", fight: null });
+    expect(parseTableEvent({ type: "fight", fight: { name: "no id" } })).toBeNull();
+    expect(parseTableEvent({ type: "fight" })).toBeNull();
+  });
+});

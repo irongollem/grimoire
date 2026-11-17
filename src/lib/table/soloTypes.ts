@@ -59,6 +59,7 @@ export type TableEvent =
   | { type: "ask_roll"; roll: RollAsk }
   | { type: "rolled"; roll: Rolled }
   | { type: "dm_roll"; roll: DmRoll }
+  | { type: "fight"; fight: TableFight | null }
   | { type: "done"; end: string; credits: number; tokens: number }
   | { type: "error"; message: string };
 
@@ -73,6 +74,12 @@ export interface DmRoll {
   dropped: number[];
   modifier: number;
   total: number;
+}
+
+/** The fight the story has turned into: which encounter, and what it is called. */
+export interface TableFight {
+  encounterId: string;
+  name: string;
 }
 
 export type PlayMode = "say" | "do";

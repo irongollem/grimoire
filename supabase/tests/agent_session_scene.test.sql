@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(10);
 
 -- Where the party is in a conversation (#1021). The narrator moves it with a tool, and the model can be talked
 -- into naming any id it has seen, so the database itself must refuse a place from another campaign: otherwise a
@@ -76,6 +76,25 @@ select throws_ok(
   '23514',
   null,
   'a clock of another campaign is refused, or one table''s turns would tick another table''s clock'
+);
+
+-- And for the fight a conversation started.
+insert into public.encounters (id, user_id, campaign_id, name) values
+  ('12160000-0000-4000-8000-000000000070', '12160000-0000-4000-8000-000000000001', '12160000-0000-4000-8000-000000000010', 'The cellar rats'),
+  ('12160000-0000-4000-8000-000000000071', '12160000-0000-4000-8000-000000000001', '12160000-0000-4000-8000-000000000011', 'Another campaign''s fight');
+
+select lives_ok(
+  $$ update public.agent_sessions set fight_encounter_id = '12160000-0000-4000-8000-000000000070'
+     where id = '12160000-0000-4000-8000-000000000030' $$,
+  'a conversation can wait on a fight of its own campaign'
+);
+
+select throws_ok(
+  $$ update public.agent_sessions set fight_encounter_id = '12160000-0000-4000-8000-000000000071'
+     where id = '12160000-0000-4000-8000-000000000030' $$,
+  '23514',
+  null,
+  'a fight of another campaign is refused, or one table''s story would be told another table''s outcome'
 );
 
 -- The owner reads where the party is, and cannot move it: only the server writes the row.

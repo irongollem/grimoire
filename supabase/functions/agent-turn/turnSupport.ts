@@ -1,6 +1,7 @@
 // What a turn does around the loop: reading the scene and the record for the system text, folding old messages into
 // the summary, and the two small helpers both use. Split from `handler.ts` so the handler holds the turn's rules.
 
+import { fightsSection, NO_FIGHTS, type FightsInView } from "../_shared/agent/fight.ts";
 import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { planSummary, summarise } from "../_shared/agent/summary.ts";
 import type { StoredTurn } from "../_shared/agent/transcript.ts";
@@ -72,8 +73,30 @@ export function systemFor(input: { campaign: CampaignRow; character: PlayerChara
  * clock tick) and the record (a fact filed). Sent at the head of the player's newest message, never stored, so a
  * change here costs the cache only what follows it.
  */
-export function stateFor(input: { scene: TrimmedScene | null; quests: QuestsInPlay | null; record: RecordedFact[] }): string {
-  return [sceneSection(input.scene), questsSection(input.quests ?? NO_QUESTS), recordSection(input.record)].join("\n\n");
+export function stateFor(input: {
+  scene: TrimmedScene | null;
+  quests: QuestsInPlay | null;
+  record: RecordedFact[];
+  fights: FightsInView | null;
+}): string {
+  // The fights sit with the scene: they are about the place the party stands in. Nothing to say, no section.
+  const fights = fightsSection(input.fights ?? NO_FIGHTS);
+  return [sceneSection(input.scene), ...(fights === "" ? [] : [fights]), questsSection(input.quests ?? NO_QUESTS), recordSection(input.record)].join("\n\n");
+}
+
+/** The fights for this turn. Null when they could not be read: the turn still runs, with no fight tool. */
+export async function fightsOf(
+  deps: AgentTurnDeps,
+  campaignId: string,
+  locationId: string | null,
+  fightEncounterId: string | null,
+): Promise<FightsInView | null> {
+  try {
+    return await deps.loadFights(campaignId, locationId, fightEncounterId);
+  } catch (error) {
+    console.error("agent-turn: loading the fights failed:", error);
+    return null;
+  }
 }
 
 /**

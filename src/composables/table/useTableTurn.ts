@@ -2,7 +2,7 @@ import { computed, ref, shallowRef, type Ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { readTableStream } from "@/lib/table/readTableStream";
 import { applyTableEvent, nextItemId, playerItem } from "@/lib/table/storyReducer";
-import type { PlayMode, RollAnswer, RollAsk, StoryItem, TablePressure } from "@/lib/table/soloTypes";
+import type { PlayMode, RollAnswer, RollAsk, StoryItem, TableFight, TablePressure } from "@/lib/table/soloTypes";
 import { NO_ANSWER, refusalFailure, type TurnFailure } from "@/lib/table/turnRefusal";
 
 export interface TurnRequest {
@@ -52,6 +52,8 @@ export interface TableTurnOptions {
   onPressure?: (pressure: TablePressure | null) => void;
   /** The table asked for a roll (what the card shows), or the request came off (null) because a turn was sent. */
   onAskRoll?: (ask: RollAsk | null) => void;
+  /** The story turned into a fight, or (null) its aftermath has been told. */
+  onFight?: (fight: TableFight | null) => void;
   /** A turn was kept. */
   onDone?: () => void;
 }
@@ -153,6 +155,7 @@ export function useTableTurn(options: TableTurnOptions) {
         } else {
           if (event.type === "scene") options.onScene?.(event.scene);
           if (event.type === "pressure") options.onPressure?.(event.pressure);
+          if (event.type === "fight") options.onFight?.(event.fight);
           if (event.type === "ask_roll") setAsked(event.roll);
           live.value = applyTableEvent(live.value, event, start);
         }

@@ -34,6 +34,7 @@ import { loadPartyMember } from "./characterIo.ts";
 import { RECORD_SECTION_MAX, type RecordedFact } from "../_shared/agent/record.ts";
 import { openaiModel } from "../_shared/agent/openai.ts";
 import { revealToCharacter } from "./revealIo.ts";
+import { loadFights, setFight, startFight } from "./fightIo.ts";
 import type { Prologue } from "../_shared/agent/prologue.ts";
 import { parsePendingRoll } from "../_shared/agent/playerRoll.ts";
 import { anthropicModel } from "../_shared/agent/anthropic.ts";
@@ -58,7 +59,7 @@ function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id, pressure_clock_id, party_member_id, opened_play_session, left_at, pending_roll";
+const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id, pressure_clock_id, party_member_id, opened_play_session, left_at, pending_roll, fight_encounter_id";
 
 /** Beside what is tied to this place and these people, the campaign's newest facts always reach the narrator. */
 const NEWEST_FACTS = 15;
@@ -78,6 +79,7 @@ function sessionRow(row: Record<string, unknown>): SessionRow {
     left_at: (row.left_at as string | null) ?? null,
     // Anything this code did not write reads as nothing asked: a roll is never scored against a DC it cannot trust.
     pending_roll: parsePendingRoll(row.pending_roll),
+    fight_encounter_id: (row.fight_encounter_id as string | null) ?? null,
   };
 }
 
@@ -619,6 +621,11 @@ serve(withCors(async (req: Request) => {
     },
 
     revealToCharacter: (input) => revealToCharacter(supabase, input),
+
+    // Fights: the campaign's own encounters, read and written as the caller; the conversation's row as the server.
+    loadFights: (campaignId, locationId, fightEncounterId) => loadFights(supabase, campaignId, locationId, fightEncounterId),
+    startFight: (ctx, plan) => startFight(supabase, admin, ctx, plan),
+    setFight: (sessionId, campaignId, encounterId) => setFight(admin, sessionId, campaignId, encounterId),
 
     // Where the campaign's story begins. Read as the caller (the DM's own rows); "has the story begun" is asked of
     // the server's own tables with the admin client, by campaign.

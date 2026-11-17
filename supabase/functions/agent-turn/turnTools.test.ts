@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { makeTurnTools, type FiledFact, type TurnToolsInput } from "./turnTools";
 import { NO_QUESTS, type QuestMove } from "../_shared/agent/quests";
+import type { FightPlan } from "../_shared/agent/fight";
 import type { PendingRoll } from "../_shared/agent/playerRoll";
 import type { SessionRow } from "./handler";
 import type { CallModel } from "../_shared/agent/types";
 
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
 const PLACE = "00000000-0000-4000-8000-0000000000a5";
+const FIGHT = "00000000-0000-4000-8000-0000000000f7";
 const session: SessionRow = {
   id: "00000000-0000-4000-8000-0000000000a1",
   user_id: "00000000-0000-4000-8000-0000000000d1",
@@ -20,10 +22,12 @@ const session: SessionRow = {
   pressure_clock_id: null,
   party_member_id: null,
   pending_roll: null,
+  fight_encounter_id: null,
 };
 
 function build(quests: TurnToolsInput["quests"] = null, played = false) {
   const asked: PendingRoll[] = [];
+  const fights: FightPlan[] = [];
   const calls: string[] = [];
   const filed: FiledFact[] = [];
   const moves: Array<{ id: string; name: string }> = [];
@@ -52,8 +56,9 @@ function build(quests: TurnToolsInput["quests"] = null, played = false) {
     filed,
     quests,
     askRoll: played ? (pending) => asked.push(pending) : null,
+    fight: played ? { view: { prepared: [{ id: FIGHT, name: "The cellar rats", creatures: "" }], fight: null }, onStart: (plan) => fights.push(plan) } : null,
   });
-  return { turn, calls, filed, moves, asked };
+  return { turn, calls, filed, moves, asked, fights };
 }
 
 describe("makeTurnTools", () => {
@@ -129,5 +134,19 @@ describe("makeTurnTools", () => {
     const { turn } = build(null, true);
     const result = await turn.callTool("ask_roll", { kind: "check", skill: "stealth", dc: 23 });
     expect(result.content).not.toContain("23");
+  });
+
+  it("starts one fight a turn and refuses a second, which would silently replace the first", async () => {
+    const { turn, fights } = build(null, true);
+    expect((await turn.callTool("start_fight", { encounter_id: FIGHT })).isError).toBe(false);
+    expect((await turn.callTool("start_fight", { encounter_id: FIGHT })).isError).toBe(true);
+    expect(fights).toHaveLength(1);
+  });
+
+  it("starts nothing for a fight it cannot read, and the turn's one fight is still free", async () => {
+    const { turn, fights } = build(null, true);
+    expect((await turn.callTool("start_fight", { encounter_id: PLACE })).isError).toBe(true);
+    expect((await turn.callTool("start_fight", { encounter_id: FIGHT })).isError).toBe(false);
+    expect(fights).toHaveLength(1);
   });
 });

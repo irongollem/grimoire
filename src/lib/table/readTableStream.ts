@@ -1,6 +1,6 @@
 import { parseDmRoll } from "./dmRoll";
 import { parseRollAsk, parseRolled } from "./tableRoll";
-import type { TableEvent, TableLine, TablePressure } from "./soloTypes";
+import type { TableEvent, TableFight, TableLine, TablePressure } from "./soloTypes";
 
 /** A quest clock has at most this many segments; a longer one is not a clock this page knows how to draw. */
 const MAX_PIPS = 24;
@@ -34,6 +34,12 @@ export function parseTablePressure(raw: unknown): TablePressure | null {
   if (!Number.isInteger(filled) || !Number.isInteger(segments)) return null;
   if (segments < 1 || segments > MAX_PIPS || filled < 0 || filled > segments) return null;
   return { filled, segments };
+}
+
+/** A fight as the stream and the stored sitting carry it, or null when it is not one. */
+export function parseTableFight(raw: unknown): TableFight | null {
+  if (!isRecord(raw) || typeof raw.encounterId !== "string" || raw.encounterId === "" || typeof raw.name !== "string") return null;
+  return { encounterId: raw.encounterId, name: raw.name };
 }
 
 /**
@@ -80,6 +86,13 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
     case "ask_roll": {
       const roll = parseRollAsk(raw.roll);
       return roll ? { type: "ask_roll", roll } : null;
+    }
+    case "fight": {
+      // An explicit null is the fight's aftermath having been told; a malformed one is skipped, so a bad payload
+      // never takes the way to a running fight off the page.
+      if (raw.fight === null) return { type: "fight", fight: null };
+      const fight = parseTableFight(raw.fight);
+      return fight ? { type: "fight", fight } : null;
     }
     case "dm_roll": {
       const roll = parseDmRoll(raw.roll);

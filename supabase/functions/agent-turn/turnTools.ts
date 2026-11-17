@@ -11,6 +11,7 @@ import { SPEECH_TOOL_NAMES } from "../_shared/agent/speakInput.ts";
 import { shownDmRoll } from "../_shared/agent/dmRoll.ts";
 import { makeRecordTool, RECORD_TOOL_NAME } from "../_shared/agent/record.ts";
 import { makeQuestTools, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
+import { planFight, START_FIGHT_TOOL, type FightPlan, type FightsInView } from "../_shared/agent/fight.ts";
 import { ASK_ROLL_TOOL, askedText, parseAskRollInput, type PendingRoll } from "../_shared/agent/playerRoll.ts";
 import type { StoredTurn } from "../_shared/agent/transcript.ts";
 import type { AgentTool, CallModel, CallTool } from "../_shared/agent/types.ts";
@@ -43,6 +44,8 @@ export interface TurnToolsInput {
   quests: { state: QuestsInPlay; queued: QuestMove[] } | null;
   /** The name of the character the player plays, when the conversation has one: characters hear the player under it. */
   playerName?: string;
+  /** The fights in view and where a started one goes; null when no fight can be started, and then the tool is not offered. */
+  fight: { view: FightsInView; onStart(plan: FightPlan): void } | null;
   /** Takes the roll the narrator asks the player for; null when nobody is played, and then the tool is not offered. */
   askRoll: ((pending: PendingRoll) => void) | null;
 }
@@ -116,6 +119,18 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
 
   const quests = input.quests === null ? null : makeQuestTools(input.quests);
 
+  // One fight a turn, like one roll: a second would silently replace the first.
+  let fightStarted = false;
+  const startFight = (toolInput: Record<string, unknown>) => {
+    if (input.fight === null) return { content: "No fight can be started here.", isError: true };
+    if (fightStarted) return { content: "A fight was already started this turn. End your reply.", isError: true };
+    const planned = planFight(input.fight.view, toolInput);
+    if (!planned.ok) return { content: planned.error, isError: true };
+    fightStarted = true;
+    input.fight.onStart(planned.plan);
+    return { content: planned.says, isError: false };
+  };
+
   // One request a turn: the story stops for a single roll, and a second would silently replace the first.
   let rollAsked = false;
   const askRoll = (toolInput: Record<string, unknown>) => {
@@ -128,7 +143,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : [])],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : [])],
     remembered,
     spoke,
     place: () => place,
@@ -136,6 +151,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (name === GO_TO_TOOL.name) return go.call(toolInput);
       if (name === RECORD_TOOL_NAME) return record.call(toolInput);
       if (input.askRoll && name === ASK_ROLL_TOOL.name) return Promise.resolve(askRoll(toolInput));
+      if (input.fight && name === START_FIGHT_TOOL.name) return Promise.resolve(startFight(toolInput));
       if (quests && quests.names.has(name)) return quests.call(name, toolInput);
       if (SPEECH_TOOL_NAMES.has(name)) return speech.call(name, toolInput);
       if (name === ROLL_TOOL_NAME) return rolled(deps.callTool(name, toolInput), toolInput.expression);

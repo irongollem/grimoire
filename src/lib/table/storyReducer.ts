@@ -61,6 +61,8 @@ export function applyTableEvent(items: StoryItem[], event: TableEvent, turnStart
       const id = nextItemId();
       return [...items, kind === "spoken" ? { id, kind, speaker, text, ...(to !== undefined ? { to } : {}) } : { id, kind, speaker, text }];
     }
+    case "fight":
+      return withMargin(items, event.fight === null ? "The fight is over" : `A fight begins: ${event.fight.name}`);
     case "dm_roll":
       return [...items, { id: nextItemId(), kind: "dmRoll", roll: event.roll }];
     case "rolled":

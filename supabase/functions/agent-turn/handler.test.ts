@@ -25,6 +25,7 @@ import type { PlayerCharacter } from "../_shared/agent/playerCharacter";
 import type { RecordedFact } from "../_shared/agent/record";
 import type { PendingRoll } from "../_shared/agent/playerRoll";
 import type { Prologue } from "../_shared/agent/prologue";
+import type { FightPlan, FightsInView } from "../_shared/agent/fight";
 import { NO_QUESTS, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests";
 import { AgentProviderError, type AgentBlock, type CallModel, type ModelRequest, type ModelStep } from "../_shared/agent/types";
 import { blocksOf, type StoredTurn, type TurnRow } from "../_shared/agent/transcript";
@@ -59,6 +60,7 @@ function cellarScene(over: Partial<SceneView> = {}): SceneView {
 }
 const factId = (n: number) => `00000000-0000-4000-8000-00000000f${String(n).padStart(3, "0")}`;
 const WREN = "00000000-0000-4000-8000-0000000000b1";
+const FIGHT = "00000000-0000-4000-8000-0000000000f7";
 /** Every player's character the handler asked for, with the campaign it asked in. */
 const characterLoads: Array<{ campaignId: string; characterId: string }> = [];
 /** Every character the handler asked for, with the campaign it asked in. */
@@ -127,6 +129,9 @@ interface Harness {
     rollAnswer: { content: string; isError: boolean } | null;
     pendingRollFails: boolean;
     revealFails: boolean;
+    fights: FightsInView;
+    fightsThrow: boolean;
+    startFightFails: boolean;
     /** The campaign's opening, while its story has not begun; null otherwise. */
     prologue: Prologue | null;
     prologueThrows: boolean;
@@ -143,6 +148,9 @@ interface Harness {
   /** Every quest move the handler applied, in order, and the campaign and conversation it applied it for. */
   applied: Array<{ ctx: { campaignId: string; agentSessionId: string }; move: QuestMove }>;
   questLoads: Array<{ campaignId: string; pressureClockId: string | null }>;
+  fightLoads: Array<{ campaignId: string; locationId: string | null; fightEncounterId: string | null }>;
+  startedFights: Array<{ ctx: { campaignId: string; sessionId: string; userId: string; memberId: string; locationId: string | null; playSessionId: string | null }; plan: FightPlan }>;
+  fightSets: Array<{ sessionId: string; campaignId: string; encounterId: string | null }>;
   /** Every time the opening quest was put in play. */
   begun: Array<{ campaignId: string; questId: string; beatId: string }>;
   /** Every reveal the handler asked for, in order. */
@@ -212,6 +220,9 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       revealFails: false,
       prologue: null,
       prologueThrows: false,
+      fights: { prepared: [], fight: null },
+      fightsThrow: false,
+      startFightFails: false,
       record: [],
       recordThrows: false,
       fileError: null,
@@ -225,6 +236,9 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     pendingRolls: [],
     reveals: [],
     begun: [],
+    fightLoads: [],
+    startedFights: [],
+    fightSets: [],
     facts: [],
     recordLoads: [],
     discards: [],
@@ -259,6 +273,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
         opened_play_session: openedPlaySession,
         left_at: null,
         pending_roll: null,
+        fight_encounter_id: null,
       };
       h.sessions.set(row.id, row);
       log.push("create");
@@ -321,6 +336,19 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       sceneLoads.push({ campaignId, locationId });
       if (h.state.sceneThrows) throw new Error("db down");
       return campaignId === CAMPAIGN ? (h.state.places.get(locationId) ?? null) : null;
+    },
+    loadFights: async (campaignId, locationId, fightEncounterId) => {
+      h.fightLoads.push({ campaignId, locationId, fightEncounterId });
+      if (h.state.fightsThrow) throw new Error("db down");
+      return h.state.fights;
+    },
+    startFight: async (ctx, plan) => {
+      if (h.state.startFightFails) throw new Error("db down");
+      h.startedFights.push({ ctx, plan });
+      return { encounterId: FIGHT, name: plan.name };
+    },
+    setFight: async (sessionId, campaignId, encounterId) => {
+      h.fightSets.push({ sessionId, campaignId, encounterId });
     },
     loadPrologue: async (campaignId) => {
       if (h.state.prologueThrows) throw new Error("db down");
@@ -426,6 +454,7 @@ function existingSession(h: Harness, over: Partial<SessionRow> = {}, accrued = 0
     opened_play_session: false,
     left_at: null,
     pending_roll: null,
+    fight_encounter_id: null,
     ...over,
   };
   h.sessions.set(row.id, row);
@@ -2688,5 +2717,101 @@ describe("where a campaign begins", () => {
     await play(h, { body: OPEN });
     expect(last(h)).toMatchObject({ type: "done" });
     expect(h.begun).toEqual([]);
+  });
+});
+
+describe("the story turns into a fight", () => {
+  const wren = (): PlayerCharacter => ({
+    id: WREN, name: "Wren Ashfield", pronouns: null, species: null, className: "Ranger", subclass: null, level: 3, hitPoints: null,
+  });
+  const BODY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I draw my sword.", mode: "do" };
+  const prepared: FightsInView = { prepared: [{ id: FIGHT, name: "The cellar rats", creatures: "3 Giant Rats" }], fight: null };
+  const startStep = (): ModelStep =>
+    step(10, { blocks: [{ type: "tool_call", id: "f1", name: "start_fight", input: { encounter_id: FIGHT } }], stop: "tool_calls" });
+  const played = (script: Script, over: Partial<SessionRow> = {}): Harness => {
+    const h = harness(script);
+    h.state.characters.set(WREN, wren());
+    existingSession(h, { party_member_id: WREN, scene_location_id: CELLAR, ...over });
+    return h;
+  };
+  const fightEvents = (h: Harness) => h.events.filter((e) => e.type === "fight");
+
+  it("shows the narrator the fights prepared where the party stands, read for this conversation's place and fight", async () => {
+    const h = played([step(10)]);
+    h.state.fights = prepared;
+    await play(h, { body: BODY });
+    expect(h.fightLoads).toEqual([{ campaignId: CAMPAIGN, locationId: CELLAR, fightEncounterId: null }]);
+    expect(opening(h.requests[0])).toContain("The cellar rats");
+    expect(h.requests[0].system).not.toContain("The cellar rats");
+  });
+
+  it("starts the fight once the turn is kept, as the played character, and tells the page where it is", async () => {
+    const h = played([startStep(), step(10)]);
+    h.state.fights = prepared;
+    await play(h, { body: BODY });
+    expect(h.startedFights).toEqual([
+      { ctx: { campaignId: CAMPAIGN, sessionId: SESSION, userId: DM, memberId: WREN, locationId: CELLAR, playSessionId: null }, plan: { kind: "prepared", encounterId: FIGHT, name: "The cellar rats" } },
+    ]);
+    expect(fightEvents(h)).toEqual([{ type: "fight", fight: { encounterId: FIGHT, name: "The cellar rats" } }]);
+  });
+
+  it("starts no fight on a turn that is not kept", async () => {
+    const h = played([startStep(), step(10)]);
+    h.state.fights = prepared;
+    h.state.conflict = true;
+    await play(h, { body: BODY });
+    expect(h.startedFights).toEqual([]);
+    expect(fightEvents(h)).toEqual([]);
+  });
+
+  it("does not send the player to a fight that could not be started", async () => {
+    const h = played([startStep(), step(10)]);
+    h.state.fights = prepared;
+    h.state.startFightFails = true;
+    await play(h, { body: BODY });
+    expect(fightEvents(h)).toEqual([]);
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
+  it("offers no fight tool when nobody is played or the fights cannot be read", async () => {
+    const nobody = harness();
+    existingSession(nobody, { scene_location_id: CELLAR });
+    nobody.state.fights = prepared;
+    await play(nobody, { body: BODY });
+    expect(nobody.requests[0].tools.map((t) => t.name)).not.toContain("start_fight");
+
+    const unreadable = played([step(10)]);
+    unreadable.state.fightsThrow = true;
+    await play(unreadable, { body: BODY });
+    expect(unreadable.requests[0].tools.map((t) => t.name)).not.toContain("start_fight");
+    expect(last(unreadable)).toMatchObject({ type: "done" });
+
+    const ready = played([step(10)]);
+    await play(ready, { body: BODY });
+    expect(ready.requests[0].tools.map((t) => t.name)).toContain("start_fight");
+  });
+
+  it("lets go of a fight once the narrator has been told it is over, and tells the page", async () => {
+    const h = played([step(10)], { fight_encounter_id: FIGHT });
+    h.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "The cellar rats", phase: "over", round: 3, fighters: [] } };
+    await play(h, { body: BODY });
+    expect(h.fightSets).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN, encounterId: null }]);
+    expect(fightEvents(h)).toEqual([{ type: "fight", fight: null }]);
+  });
+
+  it("keeps hold of a fight that is still being fought", async () => {
+    const h = played([step(10)], { fight_encounter_id: FIGHT });
+    h.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "The cellar rats", phase: "running", round: 2, fighters: [] } };
+    await play(h, { body: BODY });
+    expect(h.fightSets).toEqual([]);
+    expect(fightEvents(h)).toEqual([]);
+  });
+
+  it("does not let go of a fight on a turn that was not kept, so its aftermath is still told", async () => {
+    const h = played([step(10)], { fight_encounter_id: FIGHT });
+    h.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "The cellar rats", phase: "over", round: 3, fighters: [] } };
+    h.state.conflict = true;
+    await play(h, { body: BODY });
+    expect(h.fightSets).toEqual([]);
   });
 });

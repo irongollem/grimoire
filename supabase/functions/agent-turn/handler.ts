@@ -20,12 +20,13 @@ import type { SceneView } from "../_shared/agent/scene.ts";
 import type { RecordedFact, RecordKind } from "../_shared/agent/record.ts";
 import { pressureShown, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
 import { prologueText, startPlace, type Prologue } from "../_shared/agent/prologue.ts";
+import { fightIsTold, type FightPlan, type FightsInView } from "../_shared/agent/fight.ts";
 import { askOf, declinedText, rollText, scoreRoll, type PendingRoll, type RollAsk, type Rolled } from "../_shared/agent/playerRoll.ts";
 import { makeTurnTools, type FiledFact } from "./turnTools.ts";
 import { narrationGate, type NarrationGate, type NarrationJudge } from "./narration.ts";
 import { OPENING_TEXT, parseBody, playerText } from "./turnBody.ts";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
-import { applyKeptQuestMoves, characterOf, foldIntoSummary, questsOf, recordOf, round6, safely, sceneOf, stateFor, systemFor } from "./turnSupport.ts";
+import { applyKeptQuestMoves, characterOf, foldIntoSummary, questsOf, recordOf, round6, fightsOf, safely, sceneOf, stateFor, systemFor } from "./turnSupport.ts";
 import {
   AgentProviderError,
   type AgentLine,
@@ -68,6 +69,8 @@ export type AgentEvent =
   | { type: "fact"; fact: { id: string; body: string } }
   /** How full the clock the scene runs against is after this turn, or null when the pressure is off. Never its label. */
   | { type: "pressure"; pressure: { filled: number; segments: number } | null }
+  /** A fight has started (the page offers the way to the fight screen), or (null) its aftermath has been told. */
+  | { type: "fight"; fight: { encounterId: string; name: string } | null }
   /** A roll the Dungeon Master made in the open. A hidden roll sends nothing. */
   | { type: "dm_roll"; roll: DmRoll }
   /** The story stops for a roll that is the player's. What to roll, never the number to beat. */
@@ -105,6 +108,8 @@ export interface SessionRow {
   left_at: string | null;
   /** The roll the narrator asked the player for at the end of the last kept turn; null when none is asked. */
   pending_roll: PendingRoll | null;
+  /** The encounter this conversation started and is waiting on; null when the story is not in a fight. */
+  fight_encounter_id: string | null;
 }
 
 export interface ResolvedProvider {
@@ -204,6 +209,15 @@ export interface AgentTurnDeps {
    * in this campaign or the move could not be stored. It writes at once, outside the turn's own save.
    */
   setScene(sessionId: string, campaignId: string, locationId: string): Promise<SceneView | null>;
+  /** The fights prepared at the party's place and the one this conversation started, as it stands. */
+  loadFights(campaignId: string, locationId: string | null, fightEncounterId: string | null): Promise<FightsInView>;
+  /** Starts the fight the narrator asked for and points the conversation at it. Throws when it could not. */
+  startFight(
+    ctx: { campaignId: string; sessionId: string; userId: string; memberId: string; locationId: string | null; playSessionId: string | null },
+    plan: FightPlan,
+  ): Promise<{ encounterId: string; name: string }>;
+  /** Lets the conversation go of its fight (null), once its aftermath has been told. */
+  setFight(sessionId: string, campaignId: string, encounterId: string | null): Promise<void>;
   /**
    * The campaign's opening quest at its entry beat, when the story has not begun: no turn has ever been kept at the
    * table in this campaign. Null once it has, and when the campaign names no opening quest (or one that is gone).
@@ -452,8 +466,13 @@ export async function beginTurn(input: {
         // party moves, and the summary, which only grows, stays last.
         const questState = await questsOf(deps, campaign.id, session.pressure_clock_id);
         const record = await recordOf(deps, campaign.id, scene);
+        // Fights: what is prepared here and the one this conversation is waiting on. Unreadable means no fight
+        // tool this turn, since the ids it would be asked to name could not be checked.
+        const fights = await fightsOf(deps, campaign.id, session.scene_location_id, session.fight_encounter_id);
         const system = systemWithSummary(systemFor({ campaign, character }), session.summary);
-        const state = stateFor({ scene, quests: questState, record });
+        const state = stateFor({ scene, quests: questState, record, fights });
+        // The fight the narrator starts this turn; started only once the turn is kept.
+        let fightPlan: FightPlan | null = null;
         const turnTools = makeTurnTools({
           deps,
           campaignId: campaign.id,
@@ -469,6 +488,8 @@ export async function beginTurn(input: {
           playerName: character ? character.name : undefined,
           // Only a played character has a sheet to roll from; without one the narrator rolls as before.
           askRoll: character ? (pending) => { asked = pending; } : null,
+          // A fight needs someone to fight it: offered only with a played character and readable fights.
+          fight: character && fights !== null ? { view: fights, onStart: (plan) => { fightPlan = plan; } } : null,
         });
 
         gate = narrationGate({ judge: deps.judgeNarration, emit });
@@ -592,6 +613,23 @@ export async function beginTurn(input: {
           // Told only when there is or was a clock: a table that never comes under pressure hears nothing of it.
           const shown = pressureShown(questState, queued);
           if (shown !== null || questState.pressure !== null) emit({ type: "pressure", pressure: shown });
+        }
+        // A fight starts with the kept turn, and the page is told only once it exists. The other way round: once the
+        // narrator has been told a fight is over, the conversation lets go of it.
+        const planned = fightPlan as FightPlan | null;
+        if (planned !== null && session.party_member_id !== null) {
+          try {
+            const started = await deps.startFight(
+              { campaignId: campaign.id, sessionId: session.id, userId, memberId: session.party_member_id, locationId: here, playSessionId: session.campaign_session_id },
+              planned,
+            );
+            emit({ type: "fight", fight: started });
+          } catch (error) {
+            console.error("agent-turn: starting the fight failed:", error);
+          }
+        } else if (fights !== null && fightIsTold(fights.fight)) {
+          await safely(() => deps.setFight(session.id, campaign.id, null));
+          emit({ type: "fight", fight: null });
         }
         // A request to roll lasts one turn: this turn answered or dropped the last one, and may have made a new one.
         // The page is told only when the request is stored, or the roll it sends back would be refused.
