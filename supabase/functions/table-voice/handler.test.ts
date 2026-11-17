@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { speakLine, VOICE_MESSAGES, type TableVoiceDeps, type VoiceCampaign, type VoiceSession } from "./handler";
+import { speakLine, VOICE_MESSAGES, type SpeakerTraits, type TableVoiceDeps, type VoiceCampaign, type VoiceSession } from "./handler";
 import { STOCK_VOICES } from "./voicePick";
 import type { AgentLine } from "../_shared/agent/types";
 
@@ -22,7 +22,7 @@ function harness() {
       { kind: "spoken", speaker: { id: ALDA, name: "Alda" }, text: "Get out!", how: "furious, shouting" },
       { kind: "spoken", speaker: { id: null, name: "A sweeper" }, text: "Mind your feet." },
     ] as AgentLine[],
-    traits: { sex: "woman", age: "adult" } as { sex: "woman" | "man" | null; age: "young" | "adult" | "old" | null },
+    traits: { sex: "woman", age: "adult", voiceId: null } as SpeakerTraits,
     traitsThrow: false,
     synthThrows: false,
     spoken: [] as Array<{ voiceId: string; text: string }>,
@@ -64,6 +64,23 @@ describe("speakLine", () => {
     const voice = STOCK_VOICES.find((v) => v.id === h.spoken[0].voiceId);
     expect(voice).toMatchObject({ sex: "woman", age: "adult" });
   });
+
+  it("speaks in the voice the DM gave the character, instead of one cast for it", async () => {
+    const h = harness();
+    h.traits = { sex: "woman", age: "adult", voiceId: "KK7qCbhAA7YXAftgG04I" };
+    await speak(h);
+    expect(h.spoken[0].voiceId).toBe("KK7qCbhAA7YXAftgG04I");
+  });
+
+  it.each(["../v1/user", "abc", "a".repeat(65), "voice id"])(
+    "casts a voice instead of using the stored id %j, which would otherwise go into the speech service's address",
+    async (voiceId) => {
+      const h = harness();
+      h.traits = { sex: "woman", age: "adult", voiceId };
+      await speak(h);
+      expect(STOCK_VOICES.some((v) => v.id === h.spoken[0].voiceId)).toBe(true);
+    },
+  );
 
   it("refuses words the sitting never showed, so it cannot be used to speak whatever a caller types", async () => {
     const h = harness();

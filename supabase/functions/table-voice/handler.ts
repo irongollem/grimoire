@@ -42,10 +42,27 @@ export interface TableVoiceDeps {
   rateLimit(userId: string): Promise<boolean>;
   /** Every spoken line the conversation has shown, in order, as stored. */
   loadSpokenLines(sessionId: string): Promise<AgentLine[]>;
-  /** What the character's record says of its sex and age, for casting; nulls when it says nothing or has no record. */
-  loadTraits(campaignId: string, speakerId: string): Promise<{ sex: Sex | null; age: AgeBand | null }>;
+  /**
+   * What the character's record says of its sex and age, for casting, and the voice the DM gave it
+   * (`npcs.spoken_voice_id`); nulls when it says nothing or has no record.
+   */
+  loadTraits(campaignId: string, speakerId: string): Promise<SpeakerTraits>;
   /** Speaks the text in the voice and answers the audio (mp3, base64). Throws when the speech service fails. */
   synthesize(voiceId: string, text: string): Promise<string>;
+}
+
+export interface SpeakerTraits {
+  sex: Sex | null;
+  age: AgeBand | null;
+  voiceId: string | null;
+}
+
+/** A voice id as the speech service writes them. It goes into a URL, so anything else is not used. */
+export const VOICE_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
+
+/** The voice the DM gave the character, or null when there is none or it is not an id. */
+export function ownVoice(traits: Pick<SpeakerTraits, "voiceId">): string | null {
+  return traits.voiceId !== null && VOICE_ID_RE.test(traits.voiceId) ? traits.voiceId : null;
 }
 
 export const VOICE_MESSAGES = {
@@ -118,7 +135,7 @@ export async function speakLine(input: {
   if (line === null) return refuse(404, VOICE_MESSAGES.noLine);
 
   // Cast from the record when there is one; someone without a record is cast by their shown name alone.
-  let traits: { sex: Sex | null; age: AgeBand | null } = { sex: null, age: null };
+  let traits: SpeakerTraits = { sex: null, age: null, voiceId: null };
   if (line.speaker.id !== null) {
     try {
       traits = await deps.loadTraits(session.campaign_id, line.speaker.id);
@@ -126,11 +143,12 @@ export async function speakLine(input: {
       console.error("table-voice: reading the speaker's record failed:", error);
     }
   }
-  const voice = pickVoice(line.speaker.id ?? line.speaker.name, traits);
+  // A voice the DM gave the character wins over the casting.
+  const voiceId = ownVoice(traits) ?? pickVoice(line.speaker.id ?? line.speaker.name, traits).id;
 
   try {
     // The stored words and the stored cue: nothing the request said reaches the voice.
-    const audio = await deps.synthesize(voice.id, speechText(line.text, line.how ?? null));
+    const audio = await deps.synthesize(voiceId, speechText(line.text, line.how ?? null));
     return { ok: true, audio, mime: "audio/mpeg" };
   } catch (error) {
     console.error("table-voice: the speech service failed:", error);

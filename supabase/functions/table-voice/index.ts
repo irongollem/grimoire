@@ -84,11 +84,11 @@ serve(withCors(async (req: Request) => {
 
     // Read as the caller, in the campaign: the record is only used to cast a voice and nothing of it is returned.
     async loadTraits(campaignId, speakerId) {
-      const { data, error } = await supabase.from("npcs").select("age, appearance, personality, backstory").eq("id", speakerId).eq("campaign_id", campaignId).maybeSingle();
+      const { data, error } = await supabase.from("npcs").select("age, appearance, personality, backstory, spoken_voice_id").eq("id", speakerId).eq("campaign_id", campaignId).maybeSingle();
       if (error) throw error;
-      if (!data) return { sex: null, age: null };
+      if (!data) return { sex: null, age: null, voiceId: null };
       const about = [data.appearance, data.personality, data.backstory].map((t) => toPlainText(t as string | null)).join(" ");
-      return { sex: sexOf(about), age: ageOf(String(data.age ?? "")) };
+      return { sex: sexOf(about), age: ageOf(String(data.age ?? "")), voiceId: (data.spoken_voice_id as string | null) ?? null };
     },
 
     async synthesize(voiceId, text) {
