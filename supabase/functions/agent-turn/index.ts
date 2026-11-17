@@ -29,7 +29,7 @@ import { agentToolsFrom, bindTools, SOLO_TABLE_TOOLS } from "../_shared/agent/mc
 import { buildNpcProfile, NPC_PROFILE_COLUMNS, shownNpcName, type NpcProfileRow } from "../_shared/npcProfile.ts";
 import { campaignToday } from "../_shared/npcAge.ts";
 import { toPlainText } from "../_shared/ai-prompt.ts";
-import { PLACES_MAX, CHARACTERS_MAX, type SceneView } from "../_shared/agent/scene.ts";
+import { BESIDE_MAX, PLACES_MAX, CHARACTERS_MAX, type SceneView } from "../_shared/agent/scene.ts";
 import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { loadPartyMember } from "./characterIo.ts";
@@ -397,7 +397,7 @@ serve(withCors(async (req: Request) => {
         .maybeSingle();
       if (error) throw error;
       if (!place) return null;
-      const [parent, children, people] = await Promise.all([
+      const [parent, children, people, siblings] = await Promise.all([
         place.parent_id
           ? admin.from("locations").select("name").eq("id", place.parent_id).eq("campaign_id", campaignId).maybeSingle()
           : Promise.resolve({ data: null, error: null }),
@@ -405,7 +405,13 @@ serve(withCors(async (req: Request) => {
           .order("name", { ascending: true }).limit(PLACES_MAX + 1),
         admin.from("npcs").select("id, name, occupation, disguise_name, is_revealed").eq("location_id", place.id)
           .eq("campaign_id", campaignId).order("name", { ascending: true }).limit(CHARACTERS_MAX + 1),
+        // The rooms beside this one: the other places inside the same place.
+        place.parent_id
+          ? admin.from("locations").select("id, name").eq("parent_id", place.parent_id).eq("campaign_id", campaignId).neq("id", place.id)
+            .order("name", { ascending: true }).limit(BESIDE_MAX + 1)
+          : Promise.resolve({ data: [], error: null }),
       ]);
+      if (siblings.error) throw siblings.error;
       if (parent.error) throw parent.error;
       if (children.error) throw children.error;
       if (people.error) throw people.error;
@@ -415,6 +421,8 @@ serve(withCors(async (req: Request) => {
         kind: (place.location_type as string | null) ?? null,
         description: toPlainText(place.description as string | null),
         within: parent.data ? (parent.data.name as string) : null,
+        withinId: parent.data ? (place.parent_id as string) : null,
+        beside: (siblings.data ?? []).map((c) => ({ id: c.id as string, name: c.name as string })),
         places: (children.data ?? []).map((c) => ({ id: c.id as string, name: c.name as string })),
         characters: (people.data ?? []).map((n) => {
           return {

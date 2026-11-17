@@ -53,6 +53,8 @@ function cellarScene(over: Partial<SceneView> = {}): SceneView {
     kind: "cellar",
     description: "SCENE-DESCRIPTION damp stone.",
     within: "Cup Town",
+    withinId: null,
+    beside: [],
     places: [],
     characters: [{ id: HONEYCOMB, name: "Honeycomb", occupation: "apprentice" }],
     ...over,

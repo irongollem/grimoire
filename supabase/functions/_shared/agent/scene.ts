@@ -15,6 +15,10 @@ export interface SceneView {
   description: string;
   /** The name of the place this one is inside of. */
   within: string | null;
+  /** That place's id: the way out of here. Null at the top of the world. */
+  withinId: string | null;
+  /** The other places inside the same one: the rooms beside this room. */
+  beside: { id: string; name: string }[];
   /** The places inside this one: where the party can go next. */
   places: { id: string; name: string }[];
   /** The people here, by the name the party would know them by (a disguise, not the true name). */
@@ -25,9 +29,11 @@ export interface SceneView {
 export const DESCRIPTION_MAX = 1200;
 export const PLACES_MAX = 20;
 export const CHARACTERS_MAX = 20;
+export const BESIDE_MAX = 12;
 
 /** A scene as the narrator reads it, plus how many of each list were cut so it knows to look the rest up. */
 export interface TrimmedScene extends SceneView {
+  moreBeside: number;
   morePlaces: number;
   moreCharacters: number;
 }
@@ -39,6 +45,8 @@ export function trimScene(view: SceneView): TrimmedScene {
   return {
     ...view,
     description,
+    beside: view.beside.slice(0, BESIDE_MAX),
+    moreBeside: Math.max(0, view.beside.length - BESIDE_MAX),
     places: view.places.slice(0, PLACES_MAX),
     characters: view.characters.slice(0, CHARACTERS_MAX),
     morePlaces: Math.max(0, view.places.length - PLACES_MAX),
@@ -93,7 +101,7 @@ export function sceneSection(scene: TrimmedScene | null): string {
     return `${HEADING}\n\nThe party has no place yet. Find where the story starts, then call go_to with that place's id.`;
   }
   const lines: string[] = [HEADING, "", `${scene.name}${scene.kind ? ` (${scene.kind})` : ""}, id ${scene.id}`];
-  if (scene.within) lines.push(`Inside: ${scene.within}`);
+  if (scene.within) lines.push(scene.withinId ? `Inside: ${scene.within}, id ${scene.withinId}` : `Inside: ${scene.within}`);
   if (scene.description) lines.push("", scene.description);
 
   lines.push("");
@@ -111,6 +119,23 @@ export function sceneSection(scene: TrimmedScene | null): string {
     if (scene.morePlaces > 0) lines.push(`- and ${scene.morePlaces} more: search for them when they matter.`);
   }
 
+  if (scene.beside.length > 0 || scene.moreBeside > 0) {
+    lines.push("", `Places beside this one${scene.within ? `, also inside ${scene.within}` : ""}:`);
+    for (const p of scene.beside) lines.push(`- ${p.name}, id ${p.id}`);
+    if (scene.moreBeside > 0) lines.push(`- and ${scene.moreBeside} more: search for them when they matter.`);
+  }
+
+  // A place with nothing inside it once read as a room with no door: the narrator told a player who said "I leave
+  // the room" that there was no exit listed, and kept them there.
+  if (scene.withinId) {
+    lines.push(
+      "",
+      `The party can always leave: out of here is ${scene.within}, and the places beside this one are reached through it. ` +
+        `A player who only leaves, without saying where to, goes out to ${scene.within}; a room beside this one is entered only when they name it. ` +
+        "These lists are where things are, not which doors exist. Only something in the story (a locked door, a guard, a collapse) keeps the party in.",
+    );
+  }
+
   lines.push(
     "",
     "Everything about this place and these people that an ordinary turn needs is here. Do not look them up again.",
@@ -121,7 +146,8 @@ export function sceneSection(scene: TrimmedScene | null): string {
 /** What `go_to` answers: the same information as the section, compact, so the narrator has the new place this turn. */
 export function sceneResult(scene: TrimmedScene): string {
   return JSON.stringify({
-    moved_to: { id: scene.id, name: scene.name, kind: scene.kind, within: scene.within, description: scene.description },
+    moved_to: { id: scene.id, name: scene.name, kind: scene.kind, within: scene.within, within_id: scene.withinId ?? undefined, description: scene.description },
+    places_beside: scene.beside.length > 0 ? scene.beside : undefined,
     characters_here: scene.characters,
     more_characters: scene.moreCharacters > 0 ? scene.moreCharacters : undefined,
     nobody_here: scene.characters.length === 0 && scene.moreCharacters === 0 ? true : undefined,

@@ -13,7 +13,7 @@ import {
 const ID = "00000000-0000-4000-8000-0000000000a5";
 
 function view(over: Partial<SceneView> = {}): SceneView {
-  return { id: ID, name: "Honey Cellar", kind: "cellar", description: "Damp stone.", within: "Cup Town", places: [], characters: [], ...over };
+  return { id: ID, name: "Honey Cellar", kind: "cellar", description: "Damp stone.", within: "Cup Town", withinId: null, beside: [], places: [], characters: [], ...over };
 }
 const people = (n: number) =>
   Array.from({ length: n }, (_, i) => ({ id: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`, name: `Person${i}`, occupation: null }));
@@ -50,6 +50,29 @@ describe("sceneSection", () => {
     const text = sceneSection(trimScene(view({ characters: [{ id: ID, name: "Mr Smith", occupation: "baker" }] })));
     expect(text).toContain("Mr Smith, baker");
     expect(text).not.toContain("TRUE-NAME");
+  });
+
+  // Bug caught live (17 Nov 2026): "I leave the room" answered "The Gathering-Room has no other exit listed here",
+  // because a room with nothing inside it was shown no place to go to at all.
+  it("names the way out of a room with nothing inside it, and the rooms beside it, each with its id", () => {
+    const OUT = "22222222-2222-4222-8222-222222222222";
+    const NEXT = "33333333-3333-4333-8333-333333333333";
+    const text = sceneSection(trimScene(view({ within: "The Middle", withinId: OUT, beside: [{ id: NEXT, name: "The Roost" }] })));
+    expect(text).toContain(`Inside: The Middle, id ${OUT}`);
+    expect(text).toContain(`- The Roost, id ${NEXT}`);
+    expect(text).toContain("The party can always leave");
+  });
+
+  // Bug caught: the top of the world told it has a way out to nowhere.
+  it("offers no way out of a place that is inside nothing", () => {
+    const text = sceneSection(trimScene(view({ within: null, withinId: null })));
+    expect(text).not.toContain("can always leave");
+    expect(text).not.toContain("Places beside");
+  });
+
+  it("says how many rooms beside this one were left off a long list", () => {
+    const beside = Array.from({ length: 15 }, (_, i) => ({ id: ID, name: `Room ${i}` }));
+    expect(sceneSection(trimScene(view({ withinId: ID, beside })))).toContain("and 3 more");
   });
 
   it("leaves out empty parts instead of printing blanks", () => {
