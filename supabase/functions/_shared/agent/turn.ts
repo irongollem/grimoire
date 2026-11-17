@@ -24,6 +24,14 @@ export interface TurnInput {
   user: string;
   /** What the player typed and whether it was said or done, kept on the stored message for the page. */
   player?: PlayerMove;
+  /**
+   * Where things stand right now (the scene, the quests, the record), read by the model at the head of the new
+   * message and never stored. It is not part of `system` because the provider's prompt cache holds nothing of a
+   * request whose instructions changed (probed 17 Nov 2026, gpt-6-luna: one changed sentence at the end of a
+   * 6,000-token system message read 0 tokens from the cache; the same change in the newest message read 5,792).
+   * The stored message keeps only `user`, so the history carries no stale copies of it.
+   */
+  state?: string;
   /** The roll this message answered, kept on the stored message for the page. */
   roll?: PlayerRolled;
   tools: AgentTool[];
@@ -72,6 +80,11 @@ const REASONS: Record<"step_limit" | "budget" | "aborted", string> = {
   aborted: "the turn was stopped",
 };
 
+/** The state and the player's message as one text, each under its own heading so neither is read as the other. */
+export function withState(state: string, user: string): string {
+  return `# The table right now\n\nThe server's account of where things stand as of this message. It replaces any earlier one.\n\n${state}\n\n# The player's message\n\n${user}`;
+}
+
 export async function runTurn(input: TurnInput): Promise<TurnResult> {
   const { tools, callModel, callTool, limits, signal } = input;
   const added: AgentMessage[] = [
@@ -80,6 +93,11 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
       blocks: [{ type: "text", text: input.user, ...(input.player ? { player: input.player } : {}), ...(input.roll ? { roll: input.roll } : {}) }],
     },
   ];
+  // What the model is sent for this turn: the stored messages, with the state at the head of the first one.
+  const sent = (): AgentMessage[] =>
+    input.state === undefined
+      ? added
+      : [{ role: "user", blocks: [{ ...added[0].blocks[0], type: "text", text: withState(input.state, input.user) }] }, ...added.slice(1)];
   const steps: AgentUsage[] = [];
   const toolSteps: { index: number; usage: AgentUsage }[] = [];
 
@@ -152,7 +170,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     try {
       step = await callModel({
         system: input.system,
-        messages: [...input.history, ...added],
+        messages: [...input.history, ...sent()],
         tools,
         maxOutputTokens: limits.maxOutputTokens,
         onText: (delta) => emit({ type: "text", delta }),

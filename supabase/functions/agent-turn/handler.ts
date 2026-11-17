@@ -24,7 +24,7 @@ import { makeTurnTools, type FiledFact } from "./turnTools.ts";
 import { narrationGate, type NarrationGate, type NarrationJudge } from "./narration.ts";
 import { parseBody, playerText } from "./turnBody.ts";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
-import { applyKeptQuestMoves, characterOf, foldIntoSummary, questsOf, recordOf, round6, safely, sceneOf, systemFor } from "./turnSupport.ts";
+import { applyKeptQuestMoves, characterOf, foldIntoSummary, questsOf, recordOf, round6, safely, sceneOf, stateFor, systemFor } from "./turnSupport.ts";
 import {
   AgentProviderError,
   type AgentLine,
@@ -413,15 +413,15 @@ export async function beginTurn(input: {
         stored = await deps.loadTurns(session.id);
         const lastSeqLoaded = stored.reduce((max, row) => Math.max(max, row.seq), 0);
         const history = historyFrom(stored, session.summary_through_seq);
-        // Order is for the provider's prompt cache: the standing text and the campaign section stay a byte-identical
-        // prefix, the scene changes only when the party moves, the record changes when something is filed, and the
-        // summary (which grows) comes last.
+        // The instructions hold nothing that changes during play; the scene, the quests and the record go at the head
+        // of the new message instead (`stateFor`), because a changed instruction costs the whole prompt cache.
         const scene = await sceneOf(deps, campaign.id, session.scene_location_id);
         // Quests sit between the scene and the record: they change when something is marked, like the scene when the
         // party moves, and the summary, which only grows, stays last.
         const questState = await questsOf(deps, campaign.id, session.pressure_clock_id);
         const record = await recordOf(deps, campaign.id, scene);
-        const system = systemWithSummary(systemFor({ campaign, character, scene, quests: questState, record }), session.summary);
+        const system = systemWithSummary(systemFor({ campaign, character }), session.summary);
+        const state = stateFor({ scene, quests: questState, record });
         const turnTools = makeTurnTools({
           deps,
           campaignId: campaign.id,
@@ -442,6 +442,7 @@ export async function beginTurn(input: {
         gate = narrationGate({ judge: deps.judgeNarration, emit });
         result = await runTurn({
           system,
+          state,
           history,
           // The roll (or that it was not made) comes first, then the player's own words when there are any.
           user: [

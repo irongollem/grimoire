@@ -14,6 +14,7 @@ import {
   type QuestsInPlay,
   type QuestThread,
 } from "../_shared/agent/quests.ts";
+import { setPressureClock, type NextPressure } from "../_shared/agent/pressureClock.ts";
 
 type Row = Record<string, unknown>;
 
@@ -195,22 +196,18 @@ export async function applyQuestMove(
       return;
     }
     case "pressure": {
-      let clockId: string | null = null;
-      if (move.mode === "run") clockId = move.clockId;
+      let next: NextPressure = null;
+      if (move.mode === "run") next = { clockId: move.clockId, made: false };
       if (move.mode === "start") {
         const made = await client.from("quest_clocks")
           .insert({ campaign_id: ctx.campaignId, quest_id: move.questId, label: move.label, segments: move.segments })
           .select("id")
           .single();
         if (made.error) throw made.error;
-        clockId = text(made.data as Row, "id");
+        next = { clockId: text(made.data as Row, "id"), made: true };
       }
-      // The admin client writes the conversation's own row; the campaign filter keeps it to this conversation's.
-      const { error } = await admin.from("agent_sessions")
-        .update({ pressure_clock_id: clockId })
-        .eq("id", ctx.agentSessionId)
-        .eq("campaign_id", ctx.campaignId);
-      if (error) throw error;
+      // Points the conversation at it, and deletes the clock it ran against before when the table made that one.
+      await setPressureClock(admin, ctx, next);
       return;
     }
   }

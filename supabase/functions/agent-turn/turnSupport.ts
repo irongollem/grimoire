@@ -8,7 +8,7 @@ import { sceneSection, trimScene, type TrimmedScene } from "../_shared/agent/sce
 import { recordSection, type RecordedFact } from "../_shared/agent/record.ts";
 import { playerCharacterSection, type PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
 import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTablePrompt.ts";
-import { NO_QUESTS, pressureTick, questsSection, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
+import { NO_QUESTS, pressureIsSpent, pressureTick, questsSection, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
 import type { CallModel } from "../_shared/agent/types.ts";
 import type { CreditLogFields } from "../_shared/credits.ts";
 import type { AgentTurnDeps, CampaignRow, SessionRow } from "./handler.ts";
@@ -55,23 +55,25 @@ export async function characterOf(deps: AgentTurnDeps, campaignId: string, chara
 }
 
 /**
- * The standing text and everything a turn adds to it, in the order the provider's prompt cache wants: the standing
- * rules and the campaign section are a byte-identical prefix, then the player's character (fixed for the whole
- * conversation), the scene (changes when the party moves), the quests, and the record (changes when something is filed).
- * The summary, which only grows, is added after this by the caller.
+ * The instructions: the standing rules, the campaign and the player's character, and nothing that changes from turn
+ * to turn. The provider's prompt cache keeps nothing of a request whose instructions differ from the last one's by
+ * a single sentence, so everything that moves during play is in `stateFor` instead. The summary is added by the
+ * caller; it changes only when older turns are folded into it, and the history is cut at that moment anyway.
  */
-export function systemFor(input: {
-  campaign: CampaignRow;
-  character: PlayerCharacter | null;
-  scene: TrimmedScene | null;
-  quests: QuestsInPlay | null;
-  record: RecordedFact[];
-}): string {
+export function systemFor(input: { campaign: CampaignRow; character: PlayerCharacter | null }): string {
   const { campaign } = input;
   const parts = [soloTableSystem({ id: campaign.id, name: campaign.name, rulesetLabel: rulesetLabelFor(campaign.game_system) })];
   if (input.character) parts.push(playerCharacterSection(input.character));
-  parts.push(sceneSection(input.scene), questsSection(input.quests ?? NO_QUESTS), recordSection(input.record));
   return parts.join("\n\n");
+}
+
+/**
+ * Where things stand this turn: the scene (changes when the party moves or someone joins it), the quests (a mark, a
+ * clock tick) and the record (a fact filed). Sent at the head of the player's newest message, never stored, so a
+ * change here costs the cache only what follows it.
+ */
+export function stateFor(input: { scene: TrimmedScene | null; quests: QuestsInPlay | null; record: RecordedFact[] }): string {
+  return [sceneSection(input.scene), questsSection(input.quests ?? NO_QUESTS), recordSection(input.record)].join("\n\n");
 }
 
 /**
@@ -101,6 +103,8 @@ export async function applyKeptQuestMoves(input: {
   for (const move of input.queued) await safely(() => deps.applyQuestMove(ctx, move));
   const tick = pressureTick(input.state, input.queued);
   if (tick !== null) await safely(() => deps.applyQuestMove(ctx, tick));
+  // A clock that is now full has done its work: the conversation lets go of it (and a clock the table made goes).
+  if (pressureIsSpent(input.state, input.queued)) await safely(() => deps.applyQuestMove(ctx, { kind: "pressure", mode: "stop" }));
 }
 
 /**

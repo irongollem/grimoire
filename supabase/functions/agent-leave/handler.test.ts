@@ -30,6 +30,8 @@ function harness(over: Partial<LeaveSession> = {}) {
     endThrows: false,
     noteThrows: false,
     ended: [] as string[],
+    pressureEnded: [] as Array<{ sessionId: string; campaignId: string }>,
+    pressureThrows: false,
     notes: [] as Array<Parameters<AgentLeaveDeps["writeNote"]>[0]>,
     deps: undefined as unknown as AgentLeaveDeps,
   };
@@ -39,6 +41,10 @@ function harness(over: Partial<LeaveSession> = {}) {
       if (h.left) return false;
       h.left = true;
       return true;
+    },
+    endPressure: async (sessionId, campaignId) => {
+      if (h.pressureThrows) throw new Error("db down");
+      h.pressureEnded.push({ sessionId, campaignId });
     },
     openPlaySessionId: async () => h.running,
     endPlaySession: async (campaignId) => {
@@ -195,5 +201,25 @@ describe("leaving the table", () => {
     h.facts = [{ body: "A fact.", known_to_player: true }];
     await leave(h);
     expect(h.notes[0].title).toBe("At the AI table");
+  });
+
+  it("ends the pressure of the conversation that is left, once, and not for a second leave", async () => {
+    const h = harness();
+    await leave(h);
+    await leave(h);
+    expect(h.pressureEnded).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN }]);
+  });
+
+  it("ends no pressure for a conversation that is not the caller's", async () => {
+    const h = harness();
+    await leave(h, { userId: OTHER });
+    expect(h.pressureEnded).toEqual([]);
+  });
+
+  it("still ends the play session when ending the pressure fails, so a stray clock never keeps a session live", async () => {
+    const h = harness();
+    h.pressureThrows = true;
+    const out = await leave(h);
+    expect(out.ok && out.result.endedSession).toBe(true);
   });
 });

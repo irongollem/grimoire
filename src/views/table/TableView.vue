@@ -44,14 +44,14 @@
                 :bonus="check?.bonus ?? null"
                 :forced-disadvantage="check?.forcedDisadvantage ?? false"
                 :busy="turn.running.value"
-                @roll="(answer) => turn.send(ROLL_MODE, '', answer)"
+                @roll="(answer) => sendTurn(ROLL_MODE, '', answer)"
               />
               <SoloLeft v-if="hasLeft" />
               <SoloComposer
                 v-else
                 :character="characterName"
                 :running="turn.running.value"
-                @submit="(said, text) => turn.send(said, text)"
+                @submit="(said, text) => sendTurn(said, text)"
                 @stop="turn.stop()"
               />
               <p class="mx-auto mt-1 hidden w-full max-w-160 md:block">
@@ -95,6 +95,7 @@ import { useToast } from "@/composables/useToast";
 import { useTableConversation } from "@/composables/table/useTableConversation";
 import { useTableDisclosure } from "@/composables/table/useTableDisclosure";
 import { useTableScene } from "@/composables/table/useTableScene";
+import { pressureAfterSend } from "@/lib/table/pressureLabel";
 import type { PlayMode, RollAsk, TablePressure } from "@/lib/table/soloTypes";
 import { useTableSpeakers } from "@/composables/table/useTableSpeakers";
 import { useTableCheck } from "@/composables/table/useTableCheck";
@@ -176,6 +177,12 @@ const turn = useTableTurn({
     void queryClient.invalidateQueries({ queryKey: [TABLE_SESSIONS_KEY] });
   },
 });
+
+// Every message goes through here: a clock that ran out goes off the page when the story moves on.
+function sendTurn(...args: Parameters<typeof turn.send>): ReturnType<typeof turn.send> {
+  pressure.value = pressureAfterSend(pressure.value);
+  return turn.send(...args);
+}
 
 // The address changed under a mounted page (another sitting, or a new one): start over. The id this screen created
 // itself is already the turn's own, so that replace changes nothing.

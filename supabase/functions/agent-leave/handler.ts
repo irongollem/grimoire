@@ -33,6 +33,11 @@ export interface AgentLeaveDeps {
    * first: only the one that gets true goes on to end the session and write the note.
    */
   markLeft(sessionId: string): Promise<boolean>;
+  /**
+   * Ends the pressure the scene was under: the conversation lets go of its clock, and a clock the table itself
+   * made is deleted with it. A clock still counting after the player got up would count for nobody.
+   */
+  endPressure(sessionId: string, campaignId: string): Promise<void>;
   /** The campaign's open play session, as the caller sees it. Null when none is running. */
   openPlaySessionId(campaignId: string): Promise<string | null>;
   /** Ends the campaign's open session. Runs as the caller: the database checks they are the campaign's DM. */
@@ -94,6 +99,11 @@ export async function leaveTable(input: {
   if (!(await deps.markLeft(session.id))) return { ok: true, result: { left: true, endedSession: false, noteId: null } };
 
   // From here on nothing undoes leaving: the player is already up from the table.
+  try {
+    await deps.endPressure(session.id, session.campaign_id);
+  } catch (error) {
+    console.error("agent-leave: ending the pressure failed:", error);
+  }
   let endedSession = false;
   if (session.opened_play_session && session.campaign_session_id !== null) {
     try {

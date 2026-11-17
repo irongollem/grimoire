@@ -4,6 +4,7 @@
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
+import { setPressureClock } from "../_shared/agent/pressureClock.ts";
 import { leaveTable, type AgentLeaveDeps, type LeaveSession } from "./handler.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -65,6 +66,8 @@ serve(withCors(async (req: Request) => {
       if (error) throw error;
       return (data ?? []).length > 0;
     },
+
+    endPressure: (sessionId, campaignId) => setPressureClock(admin, { agentSessionId: sessionId, campaignId }, null),
 
     async openPlaySessionId(campaignId): Promise<string | null> {
       const { data, error } = await supabase

@@ -416,6 +416,12 @@ async function play(h: Harness, over: { body?: unknown; userId?: string; signal?
 }
 
 const last = (h: Harness) => h.events[h.events.length - 1];
+/** What the model was sent as this turn's opening message: the state of the table, then the player's message. */
+function opening(request: ModelRequest): string {
+  const first = [...request.messages].reverse().find((m) => m.role === "user" && m.blocks[0]?.type === "text");
+  const block = first?.blocks[0];
+  return block && block.type === "text" ? block.text : "";
+}
 
 describe("who may play", () => {
   it("refuses a player who is a member but not a DM, and calls no model", async () => {
@@ -1153,18 +1159,18 @@ describe("where the party is", () => {
   const goTo = (input: Record<string, unknown>): ModelStep =>
     step(10, { blocks: [{ type: "tool_call", id: "g1", name: "go_to", input }], stop: "tool_calls" });
 
-  it("puts the scene in the system text after the campaign section and before the summary", async () => {
+  it("keeps the scene out of the instructions and puts it ahead of the player's words, or a moved party costs the whole prompt cache", async () => {
     const h = harness();
     existingSession(h, { scene_location_id: CELLAR, summary: "SUMMARY-MARK the party fled." });
     await play(h, { body: GO });
     const system = h.requests[0].system;
-    const campaignAt = system.indexOf("Cup Town");
-    const sceneAt = system.indexOf("SCENE-DESCRIPTION");
-    const summaryAt = system.indexOf("SUMMARY-MARK");
-    expect(campaignAt).toBeGreaterThan(-1);
-    expect(sceneAt).toBeGreaterThan(campaignAt);
-    expect(summaryAt).toBeGreaterThan(sceneAt);
-    expect(system).toContain(`id ${HONEYCOMB}`);
+    expect(system).toContain("Cup Town");
+    expect(system).toContain("SUMMARY-MARK");
+    expect(system).not.toContain("SCENE-DESCRIPTION");
+    const sent = opening(h.requests[0]);
+    expect(sent.indexOf("SCENE-DESCRIPTION")).toBeGreaterThan(-1);
+    expect(sent.indexOf("I look around.")).toBeGreaterThan(sent.indexOf("SCENE-DESCRIPTION"));
+    expect(sent).toContain(`id ${HONEYCOMB}`);
   });
 
   it("tells the narrator the party has no place yet, and still runs the turn", async () => {
@@ -1172,7 +1178,7 @@ describe("where the party is", () => {
     existingSession(h);
     sceneLoads.length = 0;
     await play(h, { body: GO });
-    expect(h.requests[0].system).toContain("The party has no place yet");
+    expect(opening(h.requests[0])).toContain("The party has no place yet");
     expect(sceneLoads).toEqual([]);
     expect(last(h)).toMatchObject({ type: "done" });
   });
@@ -1182,7 +1188,7 @@ describe("where the party is", () => {
     existingSession(h, { scene_location_id: CELLAR });
     h.state.sceneThrows = true;
     await play(h, { body: GO });
-    expect(h.requests[0].system).toContain("The party has no place yet");
+    expect(opening(h.requests[0])).toContain("The party has no place yet");
     expect(last(h)).toMatchObject({ type: "done" });
     expect(h.events.some((e) => e.type === "error")).toBe(false);
   });
@@ -1256,7 +1262,7 @@ describe("a conversation that begins at a place", () => {
   it("hands the narrator the place on the very first turn, or it spends that turn searching for it", async () => {
     const h = harness();
     expect(await play(h, { body: START })).toBeNull();
-    expect(h.requests[0].system).toContain("SCENE-DESCRIPTION");
+    expect(opening(h.requests[0])).toContain("SCENE-DESCRIPTION");
     expect([...h.sessions.values()][0].scene_location_id).toBe(CELLAR);
   });
 
@@ -1391,17 +1397,14 @@ describe("the record", () => {
   const resultsSeen = (h: Harness, request: number) =>
     h.requests[request].messages.flatMap((m) => m.blocks).filter((b) => b.type === "tool_result");
 
-  it("puts the record after the scene and before the summary, or a growing summary busts the prompt cache", async () => {
+  it("keeps the record out of the instructions, or every fact filed costs the whole prompt cache", async () => {
     const h = harness();
     existingSession(h, { scene_location_id: CELLAR, summary: "SUMMARY-MARK the party fled." });
     h.state.record = [{ id: factId(90), body: "RECORD-MARK the debt is forty gold.", hidden: false, when: null }];
     await play(h, { body: BODY });
-    const system = h.requests[0].system;
-    const sceneAt = system.indexOf("SCENE-DESCRIPTION");
-    const recordAt = system.indexOf("RECORD-MARK");
-    const summaryAt = system.indexOf("SUMMARY-MARK");
-    expect(recordAt).toBeGreaterThan(sceneAt);
-    expect(summaryAt).toBeGreaterThan(recordAt);
+    expect(h.requests[0].system).not.toContain("RECORD-MARK");
+    const sent = opening(h.requests[0]);
+    expect(sent.indexOf("RECORD-MARK")).toBeGreaterThan(sent.indexOf("SCENE-DESCRIPTION"));
   });
 
   it("asks for the record of the party's place and the people in it, in the conversation's campaign", async () => {
@@ -1424,7 +1427,7 @@ describe("the record", () => {
     h.state.recordThrows = true;
     await play(h, { body: BODY });
     expect(last(h)).toMatchObject({ type: "done" });
-    expect(h.requests[0].system).toContain("Nothing is on record");
+    expect(opening(h.requests[0])).toContain("Nothing is on record");
   });
 
   it("offers the record tool to the narrator", async () => {
@@ -1439,7 +1442,7 @@ describe("the record", () => {
     existingSession(h);
     h.state.record = [{ id: factId(91), body: "HIDDEN-LOADED the cellar hides a door.", hidden: true, when: null }];
     await play(h, { body: BODY });
-    expect(h.requests[0].system).toContain("HIDDEN-LOADED");
+    expect(opening(h.requests[0])).toContain("HIDDEN-LOADED");
     expect(h.facts).toHaveLength(1);
     const wire = JSON.stringify(h.events);
     expect(wire).not.toContain("HIDDEN-MARK");
@@ -1578,19 +1581,51 @@ describe("quests and time", () => {
   const moves = (h: Harness) => h.applied.map((a) => a.move);
   const tick: QuestMove = { kind: "clock", clockId: PRESSURE_CLOCK, step: 1, reason: "a turn passed" };
 
-  it("puts the quests after the scene and before the record, or a growing record busts the prompt cache", async () => {
+  it("keeps the quests out of the instructions, between the scene and the record, or every clock tick costs the whole prompt cache", async () => {
     const h = harness();
     existingSession(h, { scene_location_id: CELLAR, summary: "SUMMARY-MARK" });
     h.state.record = [{ id: factId(90), body: "RECORD-MARK the debt.", hidden: false, when: null }];
     h.state.quests = quests();
     await play(h, { body: BODY });
-    const system = h.requests[0].system;
-    const sceneAt = system.indexOf("SCENE-DESCRIPTION");
-    const questAt = system.indexOf("QUEST-MARK");
-    const recordAt = system.indexOf("RECORD-MARK");
-    expect(questAt).toBeGreaterThan(sceneAt);
-    expect(recordAt).toBeGreaterThan(questAt);
-    expect(system.indexOf("SUMMARY-MARK")).toBeGreaterThan(recordAt);
+    expect(h.requests[0].system).not.toContain("QUEST-MARK");
+    const sent = opening(h.requests[0]);
+    const questAt = sent.indexOf("QUEST-MARK");
+    expect(questAt).toBeGreaterThan(sent.indexOf("SCENE-DESCRIPTION"));
+    expect(sent.indexOf("RECORD-MARK")).toBeGreaterThan(questAt);
+  });
+
+  it("sends byte-identical instructions on two turns whose scene, quests and record all differ", async () => {
+    // Probed 17 Nov 2026 on gpt-6-luna: one changed sentence in the instructions reads nothing from the prompt cache.
+    const a = harness();
+    existingSession(a, { scene_location_id: CELLAR });
+    a.state.quests = quests(1);
+    a.state.record = [{ id: factId(90), body: "RECORD-MARK the debt.", hidden: false, when: null }];
+    await play(a, { body: BODY });
+    const b = harness();
+    existingSession(b);
+    b.state.quests = quests(3, false);
+    await play(b, { body: BODY });
+    expect(a.requests[0].system).toBe(b.requests[0].system);
+  });
+
+  it("stores the player's message without the state, so the history never carries a stale scene or record", async () => {
+    const h = harness();
+    existingSession(h, { scene_location_id: CELLAR });
+    h.state.quests = quests();
+    h.state.record = [{ id: factId(90), body: "RECORD-MARK the debt.", hidden: false, when: null }];
+    await play(h, { body: BODY });
+    const saved = JSON.stringify(h.appends);
+    expect(saved).toContain("We swim the channel.");
+    for (const mark of ["SCENE-DESCRIPTION", "QUEST-MARK", "RECORD-MARK"]) expect(saved).not.toContain(mark);
+  });
+
+  it("still shows the state on the later rounds of the same turn, so a round after a tool call is not blind", async () => {
+    const h = harness([callTools(route()), step(10)]);
+    existingSession(h, { scene_location_id: CELLAR });
+    h.state.quests = quests();
+    await play(h, { body: BODY });
+    expect(opening(h.requests[1])).toContain("SCENE-DESCRIPTION");
+    expect(opening(h.requests[1])).toBe(opening(h.requests[0]));
   });
 
   it("reads the quests of this campaign with the conversation's own pressure clock", async () => {
@@ -1679,6 +1714,16 @@ describe("quests and time", () => {
     expect(moves(h)).toEqual([{ kind: "route", questId: QUEST, threadId: THREAD, edgeId: EDGE }, tick]);
   });
 
+  it("lets go of the clock on the turn it fills, so later turns are not told again that it fills", async () => {
+    const h = harness();
+    existingSession(h, { pressure_clock_id: PRESSURE_CLOCK });
+    h.state.quests = quests(3);
+    await play(h, { body: BODY });
+    expect(moves(h)).toEqual([tick, { kind: "pressure", mode: "stop" }]);
+    // The page still sees it full this turn.
+    expect(h.events.filter((e) => e.type === "pressure")).toEqual([{ type: "pressure", pressure: { filled: 4, segments: 4 } }]);
+  });
+
   it("ticks nothing on a turn that is not kept", async () => {
     const h = harness();
     existingSession(h, { pressure_clock_id: PRESSURE_CLOCK });
@@ -1756,10 +1801,10 @@ describe("quests and time", () => {
     late.state.quests = quests(3);
     await play(late, { body: BODY });
     // The standing text mentions filling too, so look only at the quests' own section.
-    const section = (system: string) => system.slice(system.indexOf("## Quests in play"), system.indexOf("## On record"));
-    expect(section(early.requests[0].system)).toContain("FLOOD-MARK");
-    expect(section(early.requests[0].system)).not.toMatch(/fills/);
-    expect(section(late.requests[0].system)).toMatch(/fills/);
+    const section = (sent: string) => sent.slice(sent.indexOf("## Quests in play"), sent.indexOf("## On record"));
+    expect(section(opening(early.requests[0]))).toContain("FLOOD-MARK");
+    expect(section(opening(early.requests[0]))).not.toMatch(/fills/);
+    expect(section(opening(late.requests[0]))).toMatch(/fills/);
   });
 
   it("runs the turn without any quest tool when the quests cannot be read, since their ids could not be checked", async () => {
@@ -1772,7 +1817,7 @@ describe("quests and time", () => {
     for (const name of ["quest_route", "quest_beat", "quest_objective", "quest_clock", "pressure"]) {
       expect(offered).not.toContain(name);
     }
-    expect(h.requests[0].system).toContain("No quest is under way");
+    expect(opening(h.requests[0])).toContain("No quest is under way");
     expect(h.applied).toEqual([]);
   });
 
@@ -2192,16 +2237,14 @@ describe("who the player plays", () => {
     ]);
   });
 
-  it("puts the character after the campaign section and before the scene, so the cached prefix stays byte-identical", async () => {
+  it("puts the character in the instructions after the campaign section, where it is cached with them", async () => {
     const h = withWren();
     await play(h, { body: START });
     const system = h.requests[0].system;
     const campaignAt = system.indexOf("Campaign: Cup Town");
     const characterAt = system.indexOf("## The player's character");
-    const sceneAt = system.indexOf("SCENE-DESCRIPTION");
     expect(campaignAt).toBeGreaterThan(-1);
     expect(characterAt).toBeGreaterThan(campaignAt);
-    expect(sceneAt).toBeGreaterThan(characterAt);
     expect(system).toContain("level 3 Wood Elf Ranger; hit points 12 of 20");
   });
 

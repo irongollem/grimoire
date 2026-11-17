@@ -497,11 +497,23 @@ export function planQuestMove(state: QuestsInPlay, queued: readonly QuestMove[],
     case PRESSURE_TOOL: {
       const v = call.value;
       if (v.mode === "stop") {
+        // Live, the narrator started a clock and stopped it again before the reply ended, so nothing ever arrived.
+        if (queued.some((m) => m.kind === "pressure" && m.mode !== "stop")) {
+          return refuse("The scene was put under pressure this turn. It cannot be stopped before a turn has passed: the clock is how the danger arrives.");
+        }
         return { ok: true, move: { kind: "pressure", mode: "stop" }, says: "When the turn is kept, the scene is no longer under time pressure." };
       }
       if (v.mode === "run") {
         const clock = shownClock(state, shown, v.clockId);
         if (!clock) return refuse(NOT_LISTED("clock"));
+        // Already the scene's clock: nothing to change, and saying so keeps the narrator from repeating the call.
+        if (state.pressure !== null && state.pressure.clockId === v.clockId && !queued.some((m) => m.kind === "pressure")) {
+          return refuse(`The scene already runs against "${clock.label}". The server advances it every turn; there is nothing to do.`);
+        }
+        // A full clock has nothing left to count: what it counted down to has happened.
+        if (clockAfterQueued(clock, v.clockId, queued) >= clock.segments) {
+          return refuse(`The clock "${clock.label}" is already full. Start a new one with quest_id, label and segments.`);
+        }
         return {
           ok: true,
           move: { kind: "pressure", mode: "run", clockId: v.clockId },
@@ -596,6 +608,19 @@ export function pressureTick(state: QuestsInPlay, queued: readonly QuestMove[]):
     if (m.kind === "clock" && m.clockId === p.clockId) return null;
   }
   return { kind: "clock", clockId: p.clockId, step: 1, reason: "a turn passed" };
+}
+
+/**
+ * Whether the pressure is over once this turn's ticks are counted: the clock is full, so what it counted down to has
+ * happened in this reply. The server then ends the pressure itself; left to the narrator, a full clock stayed the
+ * conversation's clock and every later turn was told again that it fills. Not when the narrator changed or stopped
+ * the pressure this turn: that move already decided what the conversation runs against.
+ */
+export function pressureIsSpent(state: QuestsInPlay, queued: readonly QuestMove[]): boolean {
+  const p = state.pressure;
+  if (p === null || queued.some((m) => m.kind === "pressure")) return false;
+  const own = queued.reduce((n, m) => (m.kind === "clock" && m.clockId === p.clockId ? n + m.step : n), 0);
+  return p.filled + (own > 0 ? own : 1) >= p.segments;
 }
 
 /**

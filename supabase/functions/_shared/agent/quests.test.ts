@@ -8,6 +8,7 @@ import {
   NO_QUESTS,
   parseClockInput,
   parsePressureInput,
+  pressureIsSpent,
   pressureShown,
   pressureTick,
   questsSection,
@@ -198,11 +199,11 @@ describe("quest tools refuse an id the narrator was not shown", () => {
     const objectives = Array.from({ length: MAX_OBJECTIVES + 1 }, (_, i) => ({ id: id(500 + i), description: `O${i}`, status: "pending" as const }));
     await refused("quest_objective", { objective_id: id(500 + MAX_OBJECTIVES), status: "complete", reason: "x" }, state({ threads: [thread({ objectives })] }));
   });
-  it("the pressure clock is a clock the narrator was shown, so it may run against it", async () => {
+  it("the pressure clock is a clock the narrator was shown, even when its quest is no longer listed, so it may be ticked", async () => {
     const { t, queued } = tools(state({ pressure: pressure(1) }));
-    const answer = await t.call("pressure", { clock_id: PRESSURE });
+    const answer = await t.call("quest_clock", { clock_id: PRESSURE, reason: "the horn sounds" });
     expect(answer.isError).toBe(false);
-    expect(queued).toEqual([{ kind: "pressure", mode: "run", clockId: PRESSURE }]);
+    expect(queued).toEqual([{ kind: "clock", clockId: PRESSURE, step: 1, reason: "the horn sounds" }]);
   });
   it("ignores a campaign_id the model writes: no move carries one", async () => {
     const { t, queued } = tools(state());
@@ -412,5 +413,59 @@ describe("pressureShown", () => {
   it("shows the listed clock a scene is switched to run against, at its own fill", () => {
     // The fixture's "Tide" stands at 2 of 4; a switch has had no turn of its own yet.
     expect(pressureShown(state(), [{ kind: "pressure", mode: "run", clockId: CLOCK }])).toEqual({ filled: 2, segments: 4 });
+  });
+});
+
+describe("pressure that cannot be misused", () => {
+  it("refuses to stop the pressure in the turn that started it, so the danger is not called off before it can arrive", async () => {
+    const { t, queued } = tools(state());
+    await t.call("pressure", { quest_id: QUEST, label: "Guard returns", segments: 3 });
+    const stop = await t.call("pressure", { stop: true });
+    expect(stop.isError).toBe(true);
+    expect(queued).toHaveLength(1);
+  });
+
+  it("still stops a clock that was already running when the turn began", async () => {
+    const { t, queued } = tools(state({ pressure: pressure(1) }));
+    expect((await t.call("pressure", { stop: true })).isError).toBe(false);
+    expect(queued).toEqual([{ kind: "pressure", mode: "stop" }]);
+  });
+
+  it("refuses to run against a clock that is already full, and takes one with a segment left", async () => {
+    // The fixture's quest clock "Tide" is 2 of 4.
+    const full = tools(state({ threads: [{ ...state().threads[0], clocks: [{ id: CLOCK, label: "Tide", filled: 4, segments: 4 }] }] }));
+    expect((await full.t.call("pressure", { clock_id: CLOCK })).isError).toBe(true);
+    const nearly = tools(state({ threads: [{ ...state().threads[0], clocks: [{ id: CLOCK, label: "Tide", filled: 3, segments: 4 }] }] }));
+    expect((await nearly.t.call("pressure", { clock_id: CLOCK })).isError).toBe(false);
+  });
+});
+
+describe("pressureIsSpent", () => {
+  it("is spent when the server's tick fills the clock, and not one turn earlier", () => {
+    expect(pressureIsSpent(state({ pressure: pressure(3) }), [])).toBe(true);
+    expect(pressureIsSpent(state({ pressure: pressure(2) }), [])).toBe(false);
+  });
+
+  it("counts the narrator's own ticks instead of the server's", () => {
+    expect(pressureIsSpent(state({ pressure: pressure(1) }), [{ kind: "clock", clockId: PRESSURE, step: 3, reason: "x" }])).toBe(true);
+    expect(pressureIsSpent(state({ pressure: pressure(1) }), [{ kind: "clock", clockId: PRESSURE, step: 2, reason: "x" }])).toBe(false);
+  });
+
+  it("is not spent on a turn that changed the pressure, or a clock just started would be ended by the old one's fill", () => {
+    const started: QuestMove = { kind: "pressure", mode: "start", questId: QUEST, label: "Guard returns", segments: 3 };
+    expect(pressureIsSpent(state({ pressure: pressure(3) }), [started])).toBe(false);
+  });
+
+  it("is not spent at a table under no pressure, or by another clock filling", () => {
+    expect(pressureIsSpent(state(), [{ kind: "clock", clockId: CLOCK, step: 4, reason: "x" }])).toBe(false);
+    expect(pressureIsSpent(state({ pressure: pressure(1) }), [{ kind: "clock", clockId: CLOCK, step: 4, reason: "x" }])).toBe(false);
+  });
+});
+
+describe("running against the clock the scene already has", () => {
+  it("refuses the repeat and queues nothing, so the narrator is told there is nothing to do", async () => {
+    const { t, queued } = tools(state({ pressure: pressure(1) }));
+    expect((await t.call("pressure", { clock_id: PRESSURE })).isError).toBe(true);
+    expect(queued).toEqual([]);
   });
 });
