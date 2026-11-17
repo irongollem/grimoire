@@ -1,0 +1,87 @@
+import { describe, expect, it } from "vitest";
+import { applyTableEvent, playerItem } from "./storyReducer";
+import type { StoryItem, TableEvent } from "./soloTypes";
+
+function play(events: TableEvent[], from: StoryItem[] = []): StoryItem[] {
+  return events.reduce(applyTableEvent, from);
+}
+
+const line = (kind: "spoken" | "acted", text: string): TableEvent => ({
+  type: "line",
+  line: { kind, speaker: { id: "n1", name: "Honeycomb" }, text },
+});
+
+describe("applyTableEvent", () => {
+  // Bug caught: every delta becoming its own paragraph, so streamed words render one per line.
+  it("joins narration deltas into one narration item", () => {
+    const items = play([
+      { type: "text", delta: "The lane " },
+      { type: "text", delta: "smells of " },
+      { type: "text", delta: "rain." },
+    ]);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ kind: "narration", text: "The lane smells of rain." });
+  });
+
+  // Bug caught: narration after a character's line appended to the narration BEFORE it, reordering the story.
+  it("starts a new narration after a line", () => {
+    const items = play([{ type: "text", delta: "Before." }, line("spoken", "Hello."), { type: "text", delta: "After." }]);
+    expect(items.map((i) => i.kind)).toEqual(["narration", "spoken", "narration"]);
+    expect(items[2]).toMatchObject({ text: "After." });
+  });
+
+  // Bug caught: a tool name reaching the page raw, or the result of a lookup leaking into the margin.
+  it("shows a lookup and a roll as quiet lines naming the kind, and nothing for the tools whose effect is its own event", () => {
+    const items = play([
+      { type: "tool_start", name: "search" },
+      { type: "tool_end", name: "search", isError: false },
+      { type: "tool_start", name: "roll" },
+      { type: "tool_start", name: "speak" },
+      { type: "tool_start", name: "quest_route" },
+    ]);
+    expect(items.map((i) => (i.kind === "margin" ? i.text : i.kind))).toEqual(["Looked something up", "Rolled"]);
+  });
+
+  // Bug caught: four searches in a row filling the page with four identical lines.
+  it("folds a run of the same quiet line into one with a count", () => {
+    const items = play([
+      { type: "tool_start", name: "search" },
+      { type: "tool_start", name: "get" },
+      { type: "tool_start", name: "list" },
+    ]);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ kind: "margin", text: "Looked something up", count: 3 });
+  });
+
+  // Bug caught: a deed drawn as speech (or the reverse), which is the one distinction the page exists to make.
+  it("keeps a spoken line and an acted line as their own kinds, in order", () => {
+    const items = play([line("acted", "Holds out the keys."), line("spoken", "Come on, then.")]);
+    expect(items.map((i) => i.kind)).toEqual(["acted", "spoken"]);
+  });
+
+  // Bug caught: arriving somewhere or filing a fact being silent, so the player never learns the party moved.
+  it("notes where the party is and what went on record", () => {
+    const items = play([
+      { type: "scene", scene: { id: "l1", name: "The Locked Workshop" } },
+      { type: "fact", fact: { id: "f1", body: "The heir holds the keys." } },
+    ]);
+    expect(items.map((i) => (i.kind === "margin" ? i.text : i.kind))).toEqual([
+      "The party is at The Locked Workshop",
+      "On record: The heir holds the keys.",
+    ]);
+  });
+
+  // Bug caught: the reducer mutating the story it was given, so a Vue shallow ref never sees the change.
+  it("returns a new list and leaves the old one alone", () => {
+    const before = [playerItem("say", "Hello")];
+    const after = applyTableEvent(before, { type: "text", delta: "x" });
+    expect(after).not.toBe(before);
+    expect(before).toHaveLength(1);
+  });
+
+  // Bug caught: session, done and error events adding story items of their own.
+  it("draws nothing for the events that carry no story", () => {
+    const before = [playerItem("do", "I wait.")];
+    expect(play([{ type: "session", sessionId: "s1" }, { type: "done", end: "end_turn", credits: 1, tokens: 9 }], before)).toEqual(before);
+  });
+});

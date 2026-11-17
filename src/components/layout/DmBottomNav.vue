@@ -97,6 +97,7 @@ import {
   IconAdd,
 } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";
+import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useGameSystem } from "@/composables/rules/useGameSystem";
 import { sessionTabs, type NavItem } from "@/lib/nav";
@@ -110,6 +111,7 @@ const vPrefetch = usePrefetchOnIntent();
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
+const campaignStore = useCampaignStore();
 const appUi = useAppUiStore();
 
 const { offers } = useGameSystem();
@@ -152,7 +154,7 @@ onBeforeUnmount(() => {
 // The pools live in the nav registry alongside the sidebar's own ordering, so
 // a label or icon cannot say one thing here and another there — see
 // SESSION_TAB_ROUTES for why the bar's order ignores the sidebar's groups.
-const tabs = computed(() => sessionTabs(appUi.dmMode === "play" ? "play" : "prep", offers));
+const tabs = computed(() => sessionTabs(appUi.dmMode === "play" ? "play" : "prep", offers, campaignStore.isAiEnabled));
 
 // Bar-mode viewport width decides how much of the pool actually shows: 8
 // slots (6 tabs + FAB + More) fit at md (768), 10 at lg (1024), 12 at xl

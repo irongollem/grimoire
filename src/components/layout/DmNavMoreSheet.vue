@@ -266,7 +266,7 @@ const groups = computed(() =>
         (item) =>
           (!item.desktopOnly || wideEnough.value) &&
           (!item.ruleKey || isRuleEffectivelyEnabled(campaignRules.value, item.ruleKey)) &&
-          !navItemHiddenByFlag(item, simulacrumMode.value === "hidden", offers),
+          !navItemHiddenByFlag(item, simulacrumMode.value === "hidden", offers, campaignStore.isAiEnabled),
       ),
     }))
     .filter((group) => group.items.length > 0),

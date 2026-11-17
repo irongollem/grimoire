@@ -948,6 +948,22 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "Combat" },
   },
 
+  // The AI-run table (#1021): the DM plays a character, an AI Dungeon Master tells the story.
+  {
+    path: "/table",
+    name: "ai-table",
+    component: () => import("@/views/table/TableStartView.vue"),
+    meta: { requiresAuth: true, title: "The table" },
+  },
+  {
+    // `new` is a conversation that does not exist yet; its first turn creates it and the address becomes the real id.
+    // fullscreenMobile: below md the screen draws its own bar and Story / Scene tabs (Solo Table, frame 09).
+    path: "/table/:sessionId",
+    name: "table-session",
+    component: () => import("@/views/table/TableView.vue"),
+    meta: { requiresAuth: true, title: "The table", fullscreenMobile: true },
+  },
+
   // Quests
   {
     path: "/quests",

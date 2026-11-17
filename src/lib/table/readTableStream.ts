@@ -1,0 +1,111 @@
+import type { TableEvent, TableLine } from "./soloTypes";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** A line as the stream and a stored `tool_result` both carry it, or null when it is not one. */
+export function parseTableLine(raw: unknown): TableLine | null {
+  if (!isRecord(raw) || (raw.kind !== "spoken" && raw.kind !== "acted") || typeof raw.text !== "string") return null;
+  const speaker = raw.speaker;
+  if (!isRecord(speaker) || typeof speaker.name !== "string") return null;
+  const id = typeof speaker.id === "string" ? speaker.id : null;
+  return {
+    kind: raw.kind,
+    speaker: { id, name: speaker.name },
+    text: raw.text,
+    ...(typeof raw.to === "string" ? { to: raw.to } : {}),
+  };
+}
+
+/**
+ * One decoded `data:` payload to a typed event, or null for anything this screen does not know.
+ * The stream is the server's, but a malformed or newer event must not take the page down: it is skipped.
+ */
+export function parseTableEvent(raw: unknown): TableEvent | null {
+  if (!isRecord(raw) || typeof raw.type !== "string") return null;
+  switch (raw.type) {
+    case "session": {
+      if (typeof raw.sessionId !== "string") return null;
+      const c = raw.character;
+      return {
+        type: "session",
+        sessionId: raw.sessionId,
+        ...(isRecord(c) && typeof c.id === "string" && typeof c.name === "string" ? { character: { id: c.id, name: c.name } } : {}),
+      };
+    }
+    case "text":
+      return typeof raw.delta === "string" ? { type: "text", delta: raw.delta } : null;
+    case "tool_start":
+      return typeof raw.name === "string" ? { type: "tool_start", name: raw.name } : null;
+    case "tool_end":
+      return typeof raw.name === "string" ? { type: "tool_end", name: raw.name, isError: raw.isError === true } : null;
+    case "line": {
+      const line = parseTableLine(raw.line);
+      return line ? { type: "line", line } : null;
+    }
+    case "scene": {
+      const s = raw.scene;
+      return isRecord(s) && typeof s.id === "string" && typeof s.name === "string" ? { type: "scene", scene: { id: s.id, name: s.name } } : null;
+    }
+    case "fact": {
+      const f = raw.fact;
+      return isRecord(f) && typeof f.id === "string" && typeof f.body === "string" ? { type: "fact", fact: { id: f.id, body: f.body } } : null;
+    }
+    case "done":
+      return {
+        type: "done",
+        end: typeof raw.end === "string" ? raw.end : "",
+        credits: typeof raw.credits === "number" && Number.isFinite(raw.credits) ? raw.credits : 0,
+        tokens: typeof raw.tokens === "number" && Number.isFinite(raw.tokens) ? raw.tokens : 0,
+      };
+    case "error":
+      return { type: "error", message: typeof raw.message === "string" ? raw.message : "The turn failed." };
+    default:
+      return null;
+  }
+}
+
+function eventFromBlock(block: string): TableEvent | null {
+  // A block is `data: <json>` lines; a comment line (": keep-alive") has none and is skipped.
+  const payload = block
+    .split("\n")
+    .filter((l) => l.startsWith("data:"))
+    .map((l) => l.slice(5).replace(/^ /, ""))
+    .join("\n");
+  if (payload === "") return null;
+  try {
+    return parseTableEvent(JSON.parse(payload));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The server-sent events of an `agent-turn` response, as typed events, in order.
+ * Chunks arrive wherever the network cut them: an event may be split across two, and several may share one,
+ * so text is buffered until a blank line ends an event.
+ */
+export async function* readTableStream(response: Response): AsyncGenerator<TableEvent> {
+  if (!response.body) return;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+      let cut = buffer.indexOf("\n\n");
+      while (cut >= 0) {
+        const event = eventFromBlock(buffer.slice(0, cut));
+        buffer = buffer.slice(cut + 2);
+        if (event) yield event;
+        cut = buffer.indexOf("\n\n");
+      }
+    }
+    // A stream that ends mid-event never finished it: the half block is dropped, not guessed at.
+  } finally {
+    reader.releaseLock();
+  }
+}

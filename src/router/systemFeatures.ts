@@ -18,6 +18,8 @@ import type { GameFeature } from "@/systems/registry";
 const ROUTE_FEATURES: readonly (readonly [prefix: string, feature: GameFeature])[] = [
   // The DM's side.
   ["/party", "party"],
+  // The AI-run table plays one of the party's characters, so it is as 5e as the party is.
+  ["/table", "party"],
   ["/character-sheet", "party"],
   ["/encounters", "encounters"],
   ["/monsters", "bestiary"],

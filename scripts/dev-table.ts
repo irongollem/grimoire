@@ -21,6 +21,7 @@
  * Then:
  *   npm run dev:table                         the Sugarwell demo, no starting place
  *   npm run dev:table -- --place workshop     begin at a place whose name contains "workshop"
+ *   npm run dev:table -- --character inkling  play the party member whose name contains "inkling"
  *   npm run dev:table -- --campaign "kind"    another of the fixture's campaigns
  *
  * At the prompt: a plain line is said aloud; `/do <text>` is done; `/new` starts
@@ -44,7 +45,7 @@ interface TableEvent {
 }
 
 const { values } = parseArgs({
-  options: { campaign: { type: "string" }, place: { type: "string" } },
+  options: { campaign: { type: "string" }, place: { type: "string" }, character: { type: "string" } },
 });
 
 const stack = readLocalStack();
@@ -95,6 +96,22 @@ if (values.place) {
   console.log(`Beginning at ${places[0].name}.`);
 }
 
+// Who the player plays: the narrator and the people in the room then use the name instead of "the player".
+let characterId: string | undefined;
+if (values.character) {
+  const { data: members, error } = await client
+    .from("party_members")
+    .select("id, name")
+    .eq("campaign_id", campaignId)
+    .ilike("name", `%${values.character.replace(/[\\%_]/g, (c) => `\\${c}`)}%`)
+    .order("name", { ascending: true })
+    .limit(5);
+  if (error) throw error;
+  if (!members || members.length === 0) throw new Error(`No party member in "${campaignName}" has "${values.character}" in their name.`);
+  characterId = members[0].id as string;
+  console.log(`Playing ${members[0].name}.`);
+}
+
 const endpoint = `${stack.API_URL}/functions/v1/agent-turn`;
 const probe = await fetch(endpoint, { method: "POST" }).catch(() => null);
 if (!probe || probe.status !== 401) {
@@ -134,7 +151,8 @@ async function turn(sessionId: string | null, mode: "say" | "do", message: strin
       campaignId,
       message,
       mode,
-      ...(sessionId ? { sessionId } : startLocationId ? { startLocationId } : {}),
+      // Both belong to a new conversation only; the server refuses them on one that is under way.
+      ...(sessionId ? { sessionId } : { ...(startLocationId ? { startLocationId } : {}), ...(characterId ? { characterId } : {}) }),
     }),
   });
   if (!response.body || !response.headers.get("content-type")?.includes("event-stream")) {

@@ -11,7 +11,7 @@ import {
   Check, CheckCheck, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   ChevronsUpDown, Circle, CircleCheck, CircleUser, Clipboard, Clock, Coins,
   Columns2, Component, Copy, CreditCard, Crop, Crosshair, Crown,
-  Dna, DoorClosed, DoorOpen, Download, Droplets,
+  Dna, DoorClosed, DoorOpen, Download, Drama, Droplets,
   Eraser, ExternalLink, Eye, EyeOff,
   Feather, FileDown, FileText, Flag, Flame, FlaskConical, FolderOpen,
   Gem, Ghost, Gift, Globe, Globe2, GraduationCap, GripVertical, Grid3x3,
@@ -362,6 +362,9 @@ export const IconNavInterlude = glyph(NAV_GLYPHS.interlude);
 export const IconNavSessions = glyph(NAV_GLYPHS.sessions);
 export const IconNavSimulacrum = glyph(NAV_GLYPHS.simulacrum);
 export const IconNavQuests = glyph(NAV_GLYPHS.quests);
+// The AI-run table (#1021). The two masks of the stage: a lucide mark until the maintainer draws a glyph for it
+// (art-src/ and the glyph skill), so it is the one nav entry that is not hand drawn.
+export { Drama as IconNavTable }
 export const IconNavAtlas = glyph(NAV_GLYPHS.atlas);
 export const IconNavPantheon = glyph(NAV_GLYPHS.pantheon);
 export const IconNavFactions = glyph(NAV_GLYPHS.factions);
