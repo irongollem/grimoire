@@ -570,6 +570,8 @@ export async function executeImport(
     user_id: userId,
     name: newName,
     is_archived: false,
+    // The opening quest is named by id and the restored quests have new ones.
+    opening_quest_id: r(backup.campaign.opening_quest_id as string | null | undefined, idMap),
     ical_token: crypto.randomUUID(),
     // Strip API keys — they don't exist in the backup but just in case
     openai_api_key: null,

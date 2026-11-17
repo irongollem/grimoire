@@ -24,6 +24,7 @@ import type { SceneView } from "../_shared/agent/scene";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter";
 import type { RecordedFact } from "../_shared/agent/record";
 import type { PendingRoll } from "../_shared/agent/playerRoll";
+import type { Prologue } from "../_shared/agent/prologue";
 import { NO_QUESTS, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests";
 import { AgentProviderError, type AgentBlock, type CallModel, type ModelRequest, type ModelStep } from "../_shared/agent/types";
 import { blocksOf, type StoredTurn, type TurnRow } from "../_shared/agent/transcript";
@@ -126,6 +127,9 @@ interface Harness {
     rollAnswer: { content: string; isError: boolean } | null;
     pendingRollFails: boolean;
     revealFails: boolean;
+    /** The campaign's opening, while its story has not begun; null otherwise. */
+    prologue: Prologue | null;
+    prologueThrows: boolean;
     record: RecordedFact[];
     recordThrows: boolean;
     /** A sentence the filing answers with instead of a fact id. */
@@ -139,6 +143,8 @@ interface Harness {
   /** Every quest move the handler applied, in order, and the campaign and conversation it applied it for. */
   applied: Array<{ ctx: { campaignId: string; agentSessionId: string }; move: QuestMove }>;
   questLoads: Array<{ campaignId: string; pressureClockId: string | null }>;
+  /** Every time the opening quest was put in play. */
+  begun: Array<{ campaignId: string; questId: string; beatId: string }>;
   /** Every reveal the handler asked for, in order. */
   reveals: Array<{ campaignId: string; memberId: string; locationId: string | null; characterIds: string[] }>;
   /** Every write of the roll the player is asked for (null clears it), with the conversation and campaign it was for. */
@@ -204,6 +210,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       rollAnswer: null,
       pendingRollFails: false,
       revealFails: false,
+      prologue: null,
+      prologueThrows: false,
       record: [],
       recordThrows: false,
       fileError: null,
@@ -216,6 +224,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     questLoads: [],
     pendingRolls: [],
     reveals: [],
+    begun: [],
     facts: [],
     recordLoads: [],
     discards: [],
@@ -312,6 +321,14 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       sceneLoads.push({ campaignId, locationId });
       if (h.state.sceneThrows) throw new Error("db down");
       return campaignId === CAMPAIGN ? (h.state.places.get(locationId) ?? null) : null;
+    },
+    loadPrologue: async (campaignId) => {
+      if (h.state.prologueThrows) throw new Error("db down");
+      return campaignId === CAMPAIGN ? h.state.prologue : null;
+    },
+    beginPrologue: async (campaignId, prologue) => {
+      log.push("prologue");
+      h.begun.push({ campaignId, questId: prologue.questId, beatId: prologue.beatId });
     },
     revealToCharacter: async (input) => {
       if (h.state.revealFails) throw new Error("db down");
@@ -2606,5 +2623,70 @@ describe("what play reveals", () => {
     h.state.revealFails = true;
     await play(h, { body: BODY });
     expect(last(h)).toMatchObject({ type: "done" });
+  });
+});
+
+describe("where a campaign begins", () => {
+  const QUEST = "00000000-0000-4000-8000-000000000c01";
+  const BEAT = "00000000-0000-4000-8000-000000000c02";
+  const prologue = (over: Partial<Prologue> = {}): Prologue => ({ questId: QUEST, beatId: BEAT, beatTitle: "The offer", locationId: CELLAR, readAloud: "PROLOGUE-MARK There is a workshop on the eastern slope.", ...over });
+  const OPEN = { campaignId: CAMPAIGN, message: "", mode: "do", opening: true };
+  const opened = (h: Harness) => h.requests[0].messages[h.requests[0].messages.length - 1].blocks[0];
+
+  it("begins the first sitting at the opening beat's place, with the quest in play before the narrator reads the quests", async () => {
+    const h = harness();
+    h.state.prologue = prologue();
+    await play(h, { body: OPEN });
+    expect([...h.sessions.values()][0].scene_location_id).toBe(CELLAR);
+    expect(h.begun).toEqual([{ campaignId: CAMPAIGN, questId: QUEST, beatId: BEAT }]);
+    expect(h.log.indexOf("prologue")).toBeLessThan(h.log.indexOf("model"));
+  });
+
+  it("hands the narrator the adventure's own opening words at the very start, and only then", async () => {
+    const h = harness();
+    h.state.prologue = prologue();
+    await play(h, { body: OPEN });
+    const first = opened(h);
+    expect(first.type === "text" && first.text).toContain("PROLOGUE-MARK");
+    // In place of the ordinary opening, not beside it: given both, the narrator left the author's words out.
+    expect(first.type === "text" && first.text).not.toContain("two to four sentences");
+
+    const later = harness();
+    await play(later, { body: OPEN });
+    const second = opened(later);
+    expect(second.type === "text" && second.text).not.toContain("very beginning of the campaign");
+  });
+
+  it("leaves the read-aloud out when the player speaks first instead of asking for an opening", async () => {
+    const h = harness();
+    h.state.prologue = prologue();
+    await play(h, { body: { campaignId: CAMPAIGN, message: "Hello?", mode: "say" } });
+    const first = opened(h);
+    expect(first.type === "text" && first.text).not.toContain("PROLOGUE-MARK");
+    // The story still begins where the campaign says it does.
+    expect([...h.sessions.values()][0].scene_location_id).toBe(CELLAR);
+  });
+
+  it("goes by the place the page named over the prologue's", async () => {
+    const h = harness();
+    h.state.prologue = prologue({ locationId: null });
+    await play(h, { body: { ...OPEN, startLocationId: CELLAR } });
+    expect([...h.sessions.values()][0].scene_location_id).toBe(CELLAR);
+  });
+
+  it("does not look for an opening on a conversation that is under way", async () => {
+    const h = harness();
+    existingSession(h);
+    h.state.prologue = prologue();
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "hi", mode: "say" } });
+    expect(h.begun).toEqual([]);
+  });
+
+  it("still begins the sitting when the campaign's opening cannot be read", async () => {
+    const h = harness();
+    h.state.prologueThrows = true;
+    await play(h, { body: OPEN });
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(h.begun).toEqual([]);
   });
 });

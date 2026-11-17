@@ -201,6 +201,18 @@ The narrator could read the campaign and file facts but could not move a quest f
 - **Three refusals, each seen live:** stopping the pressure in the turn that started it (the narrator called the danger off before it could arrive), running against a clock that is already full, and running against the clock the scene already has.
 - **Not built:** improvising a new beat, opening a thread by hand, and undoing a move from the table. A clock that is deleted simply leaves the conversation without pressure.
 
+## Where a campaign begins (`_shared/agent/prologue.ts`)
+
+"We do have to be able to define somehow where a whole campaign starts. I'm assuming with some form of prologue quest" (maintainer, 17 Nov 2026). A campaign names the quest its story opens with, and the table's very first sitting begins there.
+
+- **The setting** is `campaigns.opening_quest_id`, chosen on the quest itself: "The campaign begins with this quest" under the quest's details in the drawer (`QuestOpensCampaign`), offered to the campaign's owner only (the database refuses anyone else, beside the other owner columns). One per campaign; ticking it on another quest moves it.
+- **Not a foreign key**, on purpose (migration `20261117072518`): the demo copy inserts the campaign before its quests and remaps ids inside the row as text, so the copy's opening comes out right with no change to `copy_demo_template`. An update may only name a quest of the same campaign (trigger), and a quest that was deleted leaves an id every reader treats as none. A restored backup remaps it with the quests' new ids.
+- **The first sitting** is a new conversation in a campaign where no turn has ever been kept at the table (not "no conversation exists": a failed first turn leaves an empty one, and the retry must still begin at the beginning). Then, with no place named by the page, the conversation begins where the opening quest's entry beat is staged; the quest is put in play at that beat through `open_quest_thread` before the turn reads the quests (skipped when it already has a thread, so a retry does not open it twice); and when the page asks for an opening, the narrator reads the beat's read-aloud IN PLACE of the ordinary opening.
+- **The narrator delivers the read-aloud itself**, as narration, with quoted speech kept quoted and attributed. Two things were learned live: given both openings the narrator kept to the ordinary one and left the author's words out, so the prologue replaces it; and a read-aloud that is someone's speech cannot go through `speak`, because a character called that way chooses its own words.
+- **On the page** the first-sitting chooser says "Where the story begins: <quest>" instead of asking for a place. Once a sitting exists, the story is picked up where it was left and this is not read again.
+- **Live** (17 Nov 2026, Sugarwell with "The Locked Workshop" as its opening): no place given, the sitting began at The Pulled Sugar Inn and opened "The Pulled Sugar Inn smells of caramel tea and dinner, its parlour warm around the music-box. Sister Ribbon says, "There is a workshop on the eastern slope. Twelve years closed. ..."" with the offer in the author's words, in 1.9 s.
+- **Not built:** choosing the opening from campaign settings as well as from the quest, and an opening for a campaign with no quest at all (it begins where the player chooses).
+
 ## What play reveals (`_shared/agent/reveals.ts`, `agent-turn/revealIo.ts`)
 
 "As you move through the story things should be revealed to you. Your journal, bestiary and people should slowly fill with details" (maintainer, 17 Nov 2026). The table keeps no reveal store of its own: it flips the switches a DM flips by hand, for the character being played.

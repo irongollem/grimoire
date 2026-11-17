@@ -31,7 +31,12 @@
           <CardRadioGroup v-else v-model="characterId" :options="characterOptions" label="Who you play" />
         </section>
 
-        <section class="flex flex-col gap-2" aria-labelledby="table-where">
+        <!-- A campaign with an opening quest begins there: the very first sitting is not asked where. -->
+        <section v-if="beginsWith" class="flex flex-col gap-1" aria-labelledby="table-begins" data-testid="table-begins">
+          <h2 id="table-begins" class="text-heading-sm text-foreground">Where the story begins</h2>
+          <p class="text-body text-foreground">{{ beginsWith }}</p>
+        </section>
+        <section v-else class="flex flex-col gap-2" aria-labelledby="table-where">
           <h2 id="table-where" class="text-heading-sm text-foreground">Where you begin</h2>
           <div class="flex items-center gap-2">
             <EntityCombobox v-model="placeId" :options="places" placeholder="Anywhere the story starts" class="flex-1" />
@@ -86,6 +91,7 @@ import PageHeader from "@/components/common/list/PageHeader.vue";
 import SoloAiOff from "@/components/table/solo/SoloAiOff.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useActiveParty } from "@/composables/party/useActiveParty";
+import { useQuests } from "@/composables/quests/useQuests";
 import { useTableSessions } from "@/composables/table/useTableSessions";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
@@ -131,6 +137,14 @@ watch(
   { immediate: true },
 );
 const choosing = ref(false);
+// The campaign's prologue, while nothing has been played yet: the server begins the first sitting at its opening
+// beat, so the page says so instead of asking for a place. Once a sitting exists the story is picked up, not begun.
+const { data: quests } = useQuests();
+const beginsWith = computed(() => {
+  if (resume.value?.kind !== "first" || sessions.sittings.value.length > 0) return null;
+  const id = campaign.activeCampaign?.opening_quest_id ?? null;
+  return id === null ? null : (quests.value?.find((q) => q.id === id)?.title ?? null);
+});
 const againName = computed(() => {
   const now = resume.value;
   return now?.kind === "again" ? (characters.value.find((m) => m.id === now.characterId)?.name ?? null) : null;

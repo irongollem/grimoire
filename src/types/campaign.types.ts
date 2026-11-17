@@ -66,6 +66,11 @@ export interface Campaign {
   spotify_client_id: string | null;
   ical_token: string; // UUID; used as the shared secret for the iCal subscription URL
   current_location_id: string | null;
+  /**
+   * The quest the campaign's story opens with (#1021): the AI table's first sitting begins at its entry beat. Not a
+   * foreign key, so it can name a quest that was since deleted; readers treat one they cannot find as none.
+   */
+  opening_quest_id: string | null;
   /** What the Table screen shows while no fight runs: the map, or the picture of a place's nook (#1142). */
   table_shows: TableShows;
   /** Where each character stands on a site's grid while the party explores it (#1125 decision 9). Null until a site is explored. */
@@ -119,6 +124,7 @@ export type CampaignInsert = Omit<
   | "current_month"
   | "current_day"
   | "current_location_id"
+  | "opening_quest_id"
   | "table_shows"
   | "explore_party"
   | "climate"
@@ -162,6 +168,7 @@ export type CampaignInsert = Omit<
   currency?: CurrencyConfig;
 };
 export type CampaignUpdate = Partial<CampaignInsert> & {
+  opening_quest_id?: string | null;
   ical_token?: string;
   spotify_client_id?: string | null;
   is_archived?: boolean;

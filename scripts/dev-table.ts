@@ -24,7 +24,8 @@
  *   npm run dev:table -- --character inkling  play the party member whose name contains "inkling"
  *   npm run dev:table -- --campaign "kind"    another of the fixture's campaigns
  *
- * At the prompt: a plain line is said aloud; `/do <text>` is done; `/roll <face>
+ * At the prompt: `/open` (before anything else) lets the Dungeon Master open the scene, as the app's screen does;
+ * a plain line is said aloud; `/do <text>` is done; `/roll <face>
  * [bonus]` answers a roll the Dungeon Master asked for with a die you rolled
  * yourself (the terminal has no sheet, so the bonus is yours to type); `/new`
  * starts a fresh conversation (a new sitting); `/quit` leaves.
@@ -156,7 +157,7 @@ interface TypedRoll {
   atTable: true;
 }
 
-async function turn(sessionId: string | null, mode: "say" | "do", message: string, roll?: TypedRoll): Promise<string | null> {
+async function turn(sessionId: string | null, mode: "say" | "do", message: string, roll?: TypedRoll, opening = false): Promise<string | null> {
   const started = Date.now();
   const response = await fetch(endpoint, {
     method: "POST",
@@ -166,6 +167,7 @@ async function turn(sessionId: string | null, mode: "say" | "do", message: strin
       message,
       mode,
       ...(roll ? { roll } : {}),
+      ...(opening ? { opening: true } : {}),
       // Both belong to a new conversation only; the server refuses them on one that is under way.
       ...(sessionId ? { sessionId } : { ...(startLocationId ? { startLocationId } : {}), ...(characterId ? { characterId } : {}) }),
     }),
@@ -212,6 +214,9 @@ for await (const line of prompt) {
   if (typed === "/new") {
     sessionId = null;
     console.log("A fresh sitting: the next message starts a new conversation.");
+  } else if (typed === "/open") {
+    if (sessionId !== null) console.log("The scene is already open: /open is for a sitting that has not begun.");
+    else sessionId = await turn(null, "do", "", undefined, true);
   } else if (typed.startsWith("/roll")) {
     // The face you rolled and your bonus. The server checks both and refuses a roll nobody asked for.
     const [face, bonus = "0"] = typed.slice(5).trim().split(/\s+/);

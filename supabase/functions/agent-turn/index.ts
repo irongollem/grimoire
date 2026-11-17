@@ -34,6 +34,7 @@ import { loadPartyMember } from "./characterIo.ts";
 import { RECORD_SECTION_MAX, type RecordedFact } from "../_shared/agent/record.ts";
 import { openaiModel } from "../_shared/agent/openai.ts";
 import { revealToCharacter } from "./revealIo.ts";
+import type { Prologue } from "../_shared/agent/prologue.ts";
 import { parsePendingRoll } from "../_shared/agent/playerRoll.ts";
 import { anthropicModel } from "../_shared/agent/anthropic.ts";
 import { applyQuestMove, loadQuests } from "./questIo.ts";
@@ -618,6 +619,53 @@ serve(withCors(async (req: Request) => {
     },
 
     revealToCharacter: (input) => revealToCharacter(supabase, input),
+
+    // Where the campaign's story begins. Read as the caller (the DM's own rows); "has the story begun" is asked of
+    // the server's own tables with the admin client, by campaign.
+    async loadPrologue(campaignId): Promise<Prologue | null> {
+      const camp = await supabase.from("campaigns").select("opening_quest_id").eq("id", campaignId).maybeSingle();
+      if (camp.error) throw camp.error;
+      const questId = (camp.data?.opening_quest_id as string | null | undefined) ?? null;
+      if (questId === null) return null;
+      // Named in the campaign: the column is not a foreign key, so a quest that is gone, or another campaign's, is none.
+      const quest = await supabase.from("quests").select("id, entry_beat_id").eq("id", questId).eq("campaign_id", campaignId).maybeSingle();
+      if (quest.error) throw quest.error;
+      const beatId = (quest.data?.entry_beat_id as string | null | undefined) ?? null;
+      if (beatId === null) return null;
+      const beat = await supabase.from("quest_beats").select("id, title, staged_at_location_id, read_aloud").eq("id", beatId).eq("campaign_id", campaignId).maybeSingle();
+      if (beat.error) throw beat.error;
+      if (!beat.data) return null;
+      // Begun means a turn was kept at the table in this campaign, by anyone: an empty conversation left by a
+      // failed first turn does not count.
+      const played = await admin
+        .from("agent_turns")
+        .select("id, agent_sessions!inner(campaign_id)", { count: "exact", head: true })
+        .eq("agent_sessions.campaign_id", campaignId);
+      if (played.error) throw played.error;
+      if ((played.count ?? 0) > 0) return null;
+      return {
+        questId,
+        beatId,
+        beatTitle: (beat.data.title as string | null) ?? "",
+        locationId: (beat.data.staged_at_location_id as string | null) ?? null,
+        readAloud: toPlainText(beat.data.read_aloud as string | null),
+      };
+    },
+
+    async beginPrologue(campaignId, prologue): Promise<void> {
+      const threads = await supabase.from("quest_threads").select("id", { count: "exact", head: true }).eq("quest_id", prologue.questId).eq("campaign_id", campaignId);
+      if (threads.error) throw threads.error;
+      if ((threads.count ?? 0) > 0) return;
+      // The same function the quest screen calls, as the caller: it checks they are the campaign's DM.
+      const { error } = await supabase.rpc("open_quest_thread", {
+        p_campaign_id: campaignId,
+        p_quest_id: prologue.questId,
+        p_beat_id: prologue.beatId,
+        p_label: "Main",
+        p_reason: "The campaign begins",
+      });
+      if (error) throw error;
+    },
 
     async discardFacts(campaignId, ids) {
       if (ids.length === 0) return;

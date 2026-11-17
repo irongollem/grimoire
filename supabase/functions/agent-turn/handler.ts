@@ -19,6 +19,7 @@ import type { SpeechToolsDeps } from "../_shared/agent/speak.ts";
 import type { SceneView } from "../_shared/agent/scene.ts";
 import type { RecordedFact, RecordKind } from "../_shared/agent/record.ts";
 import { pressureShown, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
+import { prologueText, startPlace, type Prologue } from "../_shared/agent/prologue.ts";
 import { askOf, declinedText, rollText, scoreRoll, type PendingRoll, type RollAsk, type Rolled } from "../_shared/agent/playerRoll.ts";
 import { makeTurnTools, type FiledFact } from "./turnTools.ts";
 import { narrationGate, type NarrationGate, type NarrationJudge } from "./narration.ts";
@@ -203,6 +204,13 @@ export interface AgentTurnDeps {
    * in this campaign or the move could not be stored. It writes at once, outside the turn's own save.
    */
   setScene(sessionId: string, campaignId: string, locationId: string): Promise<SceneView | null>;
+  /**
+   * The campaign's opening quest at its entry beat, when the story has not begun: no turn has ever been kept at the
+   * table in this campaign. Null once it has, and when the campaign names no opening quest (or one that is gone).
+   */
+  loadPrologue(campaignId: string): Promise<Prologue | null>;
+  /** Puts the opening quest in play at its entry beat, unless it already has a thread. Throws when it could not. */
+  beginPrologue(campaignId: string, prologue: Prologue): Promise<void>;
   /**
    * Shows the played character the place the party stands in and the people who spoke or acted in front of them,
    * through the campaign's own sharing (`reveals.ts`). Throws when it could not be written.
@@ -396,6 +404,16 @@ export async function beginTurn(input: {
       let result;
       let gate: NarrationGate | null = null;
       try {
+        // The campaign's very first sitting begins at its opening quest. Read for a new conversation only; a
+        // failure is logged and the sitting begins as any other does.
+        let prologue: Prologue | null = null;
+        if (!existing) {
+          try {
+            prologue = await deps.loadPrologue(campaign.id);
+          } catch (error) {
+            console.error("agent-turn: reading the campaign's opening failed:", error);
+          }
+        }
         // Only a new conversation opens a session: one conversation is one sitting, and it keeps the session it began in.
         let playSession: { id: string; opened: boolean } | null = null;
         if (!existing) {
@@ -410,11 +428,17 @@ export async function beginTurn(input: {
           campaignId: campaign.id,
           provider: provider.provider,
           model: provider.model,
-          sceneLocationId: body.startLocationId === undefined ? null : body.startLocationId,
+          sceneLocationId: startPlace(body.startLocationId, prologue),
           campaignSessionId: playSession === null ? null : playSession.id,
           openedPlaySession: playSession !== null && playSession.opened,
           partyMemberId: body.characterId === undefined ? null : body.characterId,
         });
+        // Before the quests are read for this turn, so the narrator sees the opening quest in play. Idempotent, so
+        // a first turn that is not kept and is sent again does not open it twice.
+        if (prologue !== null) {
+          const opening = prologue;
+          await safely(() => deps.beginPrologue(campaign.id, opening));
+        }
         const character = await characterOf(deps, campaign.id, session.party_member_id);
         emit({ type: "session", sessionId: session.id, ...(character ? { character: { id: character.id, name: character.name } } : {}) });
         if (scored !== null) emit({ type: "rolled", roll: scored.rolled });
@@ -455,7 +479,8 @@ export async function beginTurn(input: {
           // The roll (or that it was not made) comes first, then the player's own words when there are any.
           user: [
             scored !== null && pendingRoll !== null ? rollText(pendingRoll, scored) : pendingRoll !== null ? declinedText(pendingRoll) : null,
-            body.opening === true ? OPENING_TEXT : null,
+            // The campaign's own opening stands in for the ordinary one; given both, the narrator kept to the ordinary.
+            body.opening === true ? (prologueText(prologue) ?? OPENING_TEXT) : null,
             body.message === "" ? null : playerText(body.mode, body.message),
           ].filter((part): part is string => part !== null).join("\n\n"),
           ...(body.message === "" ? {} : { player: { kind: body.mode, text: body.message } }),

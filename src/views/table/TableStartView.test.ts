@@ -120,6 +120,41 @@ describe("TableStartView", () => {
   });
 });
 
+describe("TableStartView: where a campaign begins", () => {
+  beforeEach(() => {
+    setUp(true);
+    fake.seed("party_members", [member("m1", "Inkling")]);
+    fake.seed("quests", [{ id: "q1", campaign_id: "c1", user_id: "u1", title: "The Locked Workshop" }]);
+  });
+
+  // Bug caught: asking where to begin when the campaign's author already said where its story opens.
+  it("says which quest the story opens with instead of asking for a place, before anything was played", async () => {
+    useCampaignStore().activeCampaign = { ...useCampaignStore().activeCampaign!, opening_quest_id: "q1" };
+    const { wrapper } = await mountView();
+    await vi.waitFor(() => expect(wrapper.find('[data-testid="table-begins"]').exists()).toBe(true));
+    expect(wrapper.get('[data-testid="table-begins"]').text()).toContain("The Locked Workshop");
+    expect(wrapper.text()).not.toContain("Where you begin");
+  });
+
+  // Bug caught: "the story begins with the prologue" still shown when choosing again after the story is under way.
+  it("no longer says where the story begins once a sitting has been played", async () => {
+    useCampaignStore().activeCampaign = { ...useCampaignStore().activeCampaign!, opening_quest_id: "q1" };
+    fake.seed("agent_sessions", [sitting("left", { left_at: "2026-11-10T11:00:00Z" })]);
+    const { wrapper } = await mountView();
+    await wrapper.findAll("button").find((b) => b.text().startsWith("Play someone else"))!.trigger("click");
+    await flushPromises();
+    expect(wrapper.find('[data-testid="table-begins"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain("Where you begin");
+  });
+
+  // Bug caught: a campaign with no prologue losing its place picker.
+  it("still asks where to begin when the campaign names no opening quest", async () => {
+    const { wrapper } = await mountView();
+    expect(wrapper.text()).toContain("Where you begin");
+    expect(wrapper.find('[data-testid="table-begins"]').exists()).toBe(false);
+  });
+});
+
 describe("TableStartView: picking the story up", () => {
   beforeEach(() => {
     setUp(true);
