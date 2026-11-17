@@ -62,7 +62,7 @@ export type AgentEvent =
   | { type: "tool_start"; name: string }
   | { type: "tool_end"; name: string; isError: boolean }
   /** What a character said or visibly did. It is the one thing a tool shows the browser: it is meant for the page. */
-  | { type: "line"; line: AgentLine }
+  | { type: "line"; line: AgentLine; /** For a spoken line where voices are on: the key `table-voice` speaks it for (lineKey.ts). */ voice?: string }
   /** The party moved. Only the place's id and name: its description and who is there can hold DM-only text. */
   | { type: "scene"; scene: { id: string; name: string } }
   /** A fact the narrator put on record that the player already knows. A hidden one is never sent. */
@@ -273,6 +273,11 @@ export interface AgentTurnDeps {
    * (`narration.ts`). Null when no judging key is available: then every word the narrator writes is shown.
    */
   judgeNarration: NarrationJudge | null;
+  /**
+   * Signs a spoken line so it can be voiced as soon as it is shown (`lineKey.ts`). Null where voices are not
+   * switched on: then no line carries a key and nothing can be voiced.
+   */
+  voiceKey: ((sessionId: string, line: AgentLine) => string) | null;
 }
 
 export const MESSAGES = {
@@ -492,7 +497,17 @@ export async function beginTurn(input: {
           fight: character && fights !== null ? { view: fights, onStart: (plan) => { fightPlan = plan; } } : null,
         });
 
-        gate = narrationGate({ judge: deps.judgeNarration, emit });
+        const sessionId = session.id;
+        gate = narrationGate({
+          judge: deps.judgeNarration,
+          // Only what a character SAID is voiced, and only a line that is being shown gets a key.
+          emit: (event) =>
+            emit(
+              event.type === "line" && event.line.kind === "spoken" && deps.voiceKey !== null
+                ? { ...event, voice: deps.voiceKey(sessionId, event.line) }
+                : event,
+            ),
+        });
         result = await runTurn({
           system,
           state,

@@ -202,10 +202,6 @@ const turn = useTableTurn({
     asked.value = ask;
   },
   onDone: () => {
-    // What the characters said this turn is read aloud now, not as it streams: the server voices only a line the
-    // sitting has kept, and a turn is kept when it is done.
-    voice.say(spokenLines(turn.live.value.slice(voicedUpTo)));
-    voicedUpTo = turn.live.value.length;
     // Characters who speak are placed with the party at the end of a turn; the balance and the list of sittings moved.
     scene.refresh();
     void queryClient.invalidateQueries({ queryKey: ["ai-credit-balance"] });
@@ -213,10 +209,18 @@ const turn = useTableTurn({
   },
 });
 
-// The characters' voices. `voicedUpTo` is how much of this screen's own story has been handed to the voice, so a
-// line is spoken once; a stored sitting that is reopened is read, not replayed.
+// The characters' voices. A line is handed to the voice the moment it arrives (it comes with the server's key for
+// it), so the voice is being made while the player reads; `voiced` keeps each line to once.
 const voice = useTableVoice({ campaignId: () => campaignId.value, sessionId: () => turn.sessionId.value });
-let voicedUpTo = 0;
+const voiced = new Set<string>();
+watch(
+  () => turn.live.value,
+  (items) => {
+    const fresh = items.filter((item) => item.kind === "spoken" && !voiced.has(item.id));
+    for (const item of fresh) voiced.add(item.id);
+    voice.say(spokenLines(fresh));
+  },
+);
 watch(
   () => voice.unavailable.value,
   (off) => {
@@ -263,7 +267,7 @@ watch(param, () => {
   fight.value = null;
   asked.value = null;
   voice.stop();
-  voicedUpTo = 0;
+  voiced.clear();
   if (param.value === "new" && newCharacterId.value === null) void router.replace("/table");
   openScene();
 });

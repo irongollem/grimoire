@@ -5,7 +5,7 @@
     :class="[
       PIGMENT_CLASS[pigment],
       'border-l-4 border-(--voice) bg-[color-mix(in_srgb,var(--voice)_7%,transparent)] px-3.5 pt-2.5 pb-3',
-      portrait ? 'grid grid-cols-[2.5rem_minmax(0,1fr)] gap-x-3 gap-y-1' : 'flex flex-col gap-1',
+      portrait ? 'grid grid-cols-[3rem_minmax(0,1fr)] content-start gap-x-3 gap-y-1' : 'flex flex-col gap-1',
     ]"
     data-line="spoken"
     :data-pigment="pigment"

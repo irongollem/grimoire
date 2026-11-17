@@ -20,6 +20,7 @@ export function parseTableLine(raw: unknown): TableLine | null {
     speaker: { id, name: speaker.name },
     text: raw.text,
     ...(typeof raw.to === "string" ? { to: raw.to } : {}),
+    ...(typeof raw.how === "string" ? { how: raw.how } : {}),
   };
 }
 
@@ -66,7 +67,7 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
       return typeof raw.name === "string" ? { type: "tool_end", name: raw.name, isError: raw.isError === true } : null;
     case "line": {
       const line = parseTableLine(raw.line);
-      return line ? { type: "line", line } : null;
+      return line ? { type: "line", line, ...(typeof raw.voice === "string" && raw.voice !== "" ? { voice: raw.voice } : {}) } : null;
     }
     case "scene": {
       const s = raw.scene;

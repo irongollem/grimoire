@@ -423,6 +423,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       if (h.state.failMoveAt.has(at)) throw new Error("rpc failed");
     },
     judgeNarration: null,
+    voiceKey: null,
     openPlaySession: async () => {
       log.push("open-session");
       if (h.state.playSessionThrows) throw new Error("db down");
@@ -1164,6 +1165,30 @@ describe("a character speaks for itself", () => {
     expect(stored).toBe(600);
     expect(h.ledger[0].log.output_tokens).toBe(600);
     expect(last(h)).toMatchObject({ type: "done", tokens: 600 });
+  });
+
+  it("gives a key to what a character said and none to what it did, so only speech can be voiced", async () => {
+    const h = harness([
+      script()[0],
+      step(300, { blocks: [{ type: "text", text: "DOES: Wipes her hands.\nSAYS: Honeycomb. Apprentice, once." }] }),
+      step(200),
+    ]);
+    h.deps.voiceKey = (sessionId, line) => `${sessionId}:${line.text}`;
+    await play(h);
+    // The key is made for the conversation the turn is in, which is what makes it useless in anyone else's.
+    const sitting = h.events.flatMap((e) => (e.type === "session" ? [e.sessionId] : []))[0];
+    const keys = h.events.flatMap((e) => (e.type === "line" ? [[e.line.kind, e.voice]] : []));
+    expect(keys).toEqual([
+      ["acted", undefined],
+      ["spoken", `${sitting}:Honeycomb. Apprentice, once.`],
+    ]);
+  });
+
+  it("gives no line a key where voices are not switched on", async () => {
+    const h = harness(script());
+    await play(h);
+    expect(h.events.some((e) => e.type === "line")).toBe(true);
+    expect(h.events.some((e) => e.type === "line" && e.voice !== undefined)).toBe(false);
   });
 
   it("sends the browser the deed line before the spoken line, and still nothing of what the narrator put into the tool", async () => {

@@ -12,6 +12,8 @@ export interface TableLine {
   text: string;
   /** Who it was said to, when it was said to someone. */
   to?: string;
+  /** The character's cue for how it is said. Never drawn: it goes back to the voice with the line. */
+  how?: string;
 }
 
 /** How full the clock the scene runs against is. The page is never told what it counts down to. */
@@ -52,7 +54,7 @@ export type TableEvent =
   | { type: "text"; delta: string }
   | { type: "tool_start"; name: string }
   | { type: "tool_end"; name: string; isError: boolean }
-  | { type: "line"; line: TableLine }
+  | { type: "line"; line: TableLine; /** The server's key for voicing a spoken line, where voices are on. */ voice?: string }
   | { type: "scene"; scene: { id: string; name: string } }
   | { type: "fact"; fact: { id: string; body: string } }
   | { type: "pressure"; pressure: TablePressure | null }
@@ -88,7 +90,7 @@ export type PlayMode = "say" | "do";
 export type StoryItem =
   | { id: string; kind: "player"; mode: PlayMode; text: string; /** Sent, but the turn was not kept: shown muted until it is sent again. */ unsent?: boolean }
   | { id: string; kind: "narration"; text: string }
-  | { id: string; kind: "spoken"; speaker: TableLine["speaker"]; text: string; to?: string }
+  | { id: string; kind: "spoken"; speaker: TableLine["speaker"]; text: string; to?: string; /** What the voice is asked with: the cue and the server's key for this line. Only a line that arrived live has one. */ voice?: { how: string | null; key: string } }
   | { id: string; kind: "acted"; speaker: TableLine["speaker"]; text: string }
   | { id: string; kind: "roll"; roll: Rolled }
   | { id: string; kind: "dmRoll"; roll: DmRoll }

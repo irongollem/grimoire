@@ -9,7 +9,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useTableVoice, type VoicePlayer, type VoiceRequest } from "./useTableVoice";
 
 const ok = (audio = "AAAA") => new Response(JSON.stringify({ audio, mime: "audio/mpeg" }), { status: 200, headers: { "content-type": "application/json" } });
-const line = (text: string) => ({ speakerId: "n1", speakerName: "Honeycomb", text });
+const line = (text: string) => ({ speakerId: "n1", speakerName: "Honeycomb", text, how: null, key: "k" });
 
 /** A player whose clips end only when the test says so, and which records what was played and what was cut short. */
 function manualPlayer() {
@@ -49,7 +49,7 @@ describe("useTableVoice", () => {
     voice.setEnabled(true);
     voice.say([line("Hello.")]);
     await tick();
-    expect(sent).toEqual([{ campaignId: "c1", sessionId: "s1", speakerId: "n1", speakerName: "Honeycomb", text: "Hello." }]);
+    expect(sent).toEqual([{ campaignId: "c1", sessionId: "s1", speakerId: "n1", speakerName: "Honeycomb", text: "Hello.", how: null, key: "k" }]);
   });
 
   // Bug caught: two characters talking over each other, or the second line playing first.
@@ -63,6 +63,32 @@ describe("useTableVoice", () => {
     p.finish[0]();
     await tick();
     expect(p.played).toEqual(["data:audio/mpeg;base64,ONE", "data:audio/mpeg;base64,TWO"]);
+  });
+
+  // Bug caught: the second voice only asked for once the first has finished playing, so every line after the first is late.
+  it("asks for every line at once, and still plays them in order when the second comes back first", async () => {
+    const p = manualPlayer();
+    const sent: string[] = [];
+    let releaseFirst!: () => void;
+    const firstHeld = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const voice = useTableVoice({
+      campaignId: () => "c1",
+      sessionId: () => "s1",
+      transport: async (r) => {
+        sent.push(r.text);
+        if (r.text === "First.") await firstHeld;
+        return ok(r.text === "First." ? "ONE" : "TWO");
+      },
+      player: p.player,
+    });
+    voice.setEnabled(true);
+    voice.say([line("First."), line("Second.")]);
+    await tick();
+    expect(sent).toEqual(["First.", "Second."]);
+    expect(p.played).toEqual([]);
+    releaseFirst();
+    await tick();
+    expect(p.played).toEqual(["data:audio/mpeg;base64,ONE"]);
   });
 
   // Bug caught: muting that lets the line in progress finish, or lets the queued ones start afterwards.
@@ -86,9 +112,11 @@ describe("useTableVoice", () => {
     voice.say([line("First."), line("Second.")]);
     await tick();
     expect(voice.unavailable.value).toBe(true);
+    // Both lines of the turn were asked for together; nothing is asked after the answer.
+    const asked = calls;
     voice.say([line("Third.")]);
     await tick();
-    expect(calls).toBe(1);
+    expect(calls).toBe(asked);
   });
 
   // Bug caught: one line the server refuses (or a dropped connection) silencing everything after it.

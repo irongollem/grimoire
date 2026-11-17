@@ -2,6 +2,7 @@
 //
 // The rules are `handler.ts`'s; this file wires the database, the provider and the MCP tools to them. The gates
 // run before the stream opens so a refusal is a real status code; the turn itself runs inside the stream.
+import { lineKey } from "../_shared/agent/lineKey.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
@@ -690,6 +691,12 @@ serve(withCors(async (req: Request) => {
       record: (log) => recordFreeGeneration(admin, user.id, "entity_judgment", log),
       signal: req.signal,
     }),
+
+    // The same switch `table-voice` answers to: without it no line is given a key.
+    voiceKey:
+      Deno.env.get("ELEVENLABS_API_KEY") && Deno.env.get("TABLE_VOICE_TRIAL") === "on"
+        ? (sessionId, line) => lineKey(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, sessionId, line)
+        : null,
 
     tools: agentToolsFrom(listTools(), SOLO_TABLE_TOOLS),
     // Bound per call, because the campaign is only known once the handler has loaded and checked it. Every tool call

@@ -551,7 +551,8 @@ describe("TableView: the characters' voices", () => {
   const session = (id: string) => ({
     id, user_id: "u1", campaign_id: "c1", party_member_id: "m1", scene_location_id: null, credits_spent: 0, left_at: null, pending_roll: null, fight_encounter_id: null,
   });
-  const spoken = (text: string) => ({ type: "line", line: { kind: "spoken", speaker: { id: "n1", name: "Honeycomb" }, text } });
+  // As the server sends a spoken line where voices are on: with the character's cue and the key for voicing it.
+  const spoken = (text: string) => ({ type: "line", line: { kind: "spoken", speaker: { id: "n1", name: "Honeycomb" }, text, how: "wary" }, voice: `key:${text}` });
   const turnWith = (text: string) => sse({ type: "session", sessionId: "s1" }, spoken(text), { type: "line", line: { kind: "acted", speaker: { id: "n1", name: "Honeycomb" }, text: "Nods." } }, { type: "done", end: "end_turn", credits: 0, tokens: 1 });
   const audio = () => new Response(JSON.stringify({ audio: "AAAA", mime: "audio/mpeg" }), { status: 200, headers: { "content-type": "application/json" } });
   const voiceCalls = () => fetchMock.mock.calls.filter((c) => String(c[0]).includes("/functions/v1/table-voice")).map((c) => JSON.parse(String(c[1].body)));
@@ -590,14 +591,15 @@ describe("TableView: the characters' voices", () => {
     expect(voiceCalls()).toEqual([]);
   });
 
-  // Bug caught: a deed read aloud, a line spoken twice on the next turn, or the voice asked before the turn is kept.
-  it("reads what a character said, once, after the turn is kept, and leaves the deed as text", async () => {
+  // Bug caught: a deed read aloud, a line spoken twice on the next turn, or a line sent without the cue and key it came with
+  // (the server refuses that one, so the character would stay silent).
+  it("reads what a character said, once, with its cue and key, and leaves the deed as text", async () => {
     fetchMock.mockImplementation(async (url: string) => (String(url).includes("table-voice") ? audio() : turnWith(fetchMock.mock.calls.filter((c) => String(c[0]).includes("agent-turn")).length === 1 ? "Come on, then." : "This way.")));
     const { wrapper } = await mountTable("/play/table/s1");
     await wrapper.get('[data-testid="solo-voice"]').trigger("click");
     await say(wrapper, "Who are you?");
     await flushPromises();
-    expect(voiceCalls()).toEqual([{ campaignId: "c1", sessionId: "s1", speakerId: "n1", speakerName: "Honeycomb", text: "Come on, then." }]);
+    expect(voiceCalls()).toEqual([{ campaignId: "c1", sessionId: "s1", speakerId: "n1", speakerName: "Honeycomb", text: "Come on, then.", how: "wary", key: "key:Come on, then." }]);
     await say(wrapper, "Lead on.");
     await flushPromises();
     expect(voiceCalls().map((c) => c.text)).toEqual(["Come on, then.", "This way."]);

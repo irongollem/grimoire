@@ -9,6 +9,9 @@ export interface VoiceLine {
   speakerId: string | null;
   speakerName: string;
   text: string;
+  /** The character's cue and the server's key for the line, as they arrived with it. */
+  how: string | null;
+  key: string;
 }
 
 export interface VoiceRequest extends VoiceLine {
@@ -77,10 +80,36 @@ export function useTableVoice(options: { campaignId: () => string | null; sessio
   const unavailable = ref(false);
   const speaking = ref(false);
 
-  let queue: VoiceLine[] = [];
+  // Each waiting line with its clip already being made: the next voice is ready when the one before it ends.
+  let queue: Array<Promise<string | null>> = [];
   let current: { stop(): void } | null = null;
   // Raised by `stop`, so a clip that was being fetched when the player muted does not start afterwards.
   let generation = 0;
+
+  /** The line's clip as something a player can play, or null when it cannot be voiced. */
+  async function clipOf(line: VoiceLine, mine: number): Promise<string | null> {
+    const campaignId = options.campaignId();
+    const sessionId = options.sessionId();
+    if (campaignId === null || sessionId === null) return null;
+    let response: Response;
+    try {
+      response = await transport({ campaignId, sessionId, ...line });
+    } catch {
+      return null;
+    }
+    if (response.status === 503) {
+      // Voices are not switched on for this server: stop asking, and say so once through `unavailable`.
+      if (mine === generation) {
+        unavailable.value = true;
+        queue = [];
+      }
+      return null;
+    }
+    if (!response.ok) return null;
+    const body = (await response.json().catch(() => null)) as { audio?: unknown; mime?: unknown } | null;
+    if (!body || typeof body.audio !== "string" || body.audio === "") return null;
+    return `data:${typeof body.mime === "string" ? body.mime : "audio/mpeg"};base64,${body.audio}`;
+  }
 
   async function drain(): Promise<void> {
     if (speaking.value) return;
@@ -88,39 +117,26 @@ export function useTableVoice(options: { campaignId: () => string | null; sessio
     const mine = generation;
     try {
       while (queue.length > 0 && mine === generation) {
-        const line = queue.shift()!;
-        const campaignId = options.campaignId();
-        const sessionId = options.sessionId();
-        if (campaignId === null || sessionId === null) continue;
-        let response: Response;
-        try {
-          response = await transport({ campaignId, sessionId, ...line });
-        } catch {
-          continue;
-        }
-        if (response.status === 503) {
-          // Voices are not switched on for this server: stop asking, and say so once through `unavailable`.
-          unavailable.value = true;
-          queue = [];
-          break;
-        }
-        if (!response.ok) continue;
-        const body = (await response.json().catch(() => null)) as { audio?: unknown; mime?: unknown } | null;
-        if (mine !== generation || !body || typeof body.audio !== "string" || body.audio === "") continue;
-        const clip = player(`data:${typeof body.mime === "string" ? body.mime : "audio/mpeg"};base64,${body.audio}`);
+        const src = await queue.shift()!;
+        if (mine !== generation || src === null) continue;
+        const clip = player(src);
         current = clip;
         await clip.done;
         current = null;
       }
     } finally {
       speaking.value = false;
+      // Lines that arrived for a newer generation while this loop was winding down still get their turn.
+      if (queue.length > 0 && mine !== generation) void drain();
     }
   }
 
   /** Voices these lines after whatever is already waiting. Does nothing while voices are off or unavailable. */
   function say(lines: readonly VoiceLine[]): void {
     if (!enabled.value || unavailable.value || lines.length === 0) return;
-    queue.push(...lines);
+    // Asked for at once, all of them: making a voice takes seconds, and they are played in order whatever comes back first.
+    const mine = generation;
+    queue.push(...lines.map((line) => clipOf(line, mine)));
     void drain();
   }
 

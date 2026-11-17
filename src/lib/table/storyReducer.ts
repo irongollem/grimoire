@@ -57,9 +57,11 @@ export function applyTableEvent(items: StoryItem[], event: TableEvent, turnStart
       return note === null ? items : withMargin(items, note);
     }
     case "line": {
-      const { kind, speaker, text, to } = event.line;
+      const { kind, speaker, text, to, how } = event.line;
       const id = nextItemId();
-      return [...items, kind === "spoken" ? { id, kind, speaker, text, ...(to !== undefined ? { to } : {}) } : { id, kind, speaker, text }];
+      if (kind !== "spoken") return [...items, { id, kind, speaker, text }];
+      const voice = event.voice === undefined ? {} : { voice: { how: how === undefined ? null : how, key: event.voice } };
+      return [...items, { id, kind, speaker, text, ...(to !== undefined ? { to } : {}), ...voice }];
     }
     case "fight":
       return withMargin(items, event.fight === null ? "The fight is over" : `A fight begins: ${event.fight.name}`);

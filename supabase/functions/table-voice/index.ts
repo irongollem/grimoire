@@ -7,8 +7,7 @@ import { withCors } from "../_shared/cors.ts";
 import { toPlainText } from "../_shared/ai-prompt.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { blocksOf, type StoredTurn } from "../_shared/agent/transcript.ts";
-import type { AgentLine } from "../_shared/agent/types.ts";
+import { lineKeyFits } from "../_shared/agent/lineKey.ts";
 import { speakLine, type TableVoiceDeps } from "./handler.ts";
 import { ageOf, sexOf } from "./voicePick.ts";
 
@@ -69,18 +68,7 @@ serve(withCors(async (req: Request) => {
     isDm: (campaign, userId) => isCampaignDm(admin, campaign, userId),
     rateLimit: (userId) => checkRateLimit(admin, userId, "table_voice"),
 
-    // The conversation's own rows, already confirmed to be the caller's. Only the spoken lines leave this function.
-    async loadSpokenLines(sessionId) {
-      const { data, error } = await admin.from("agent_turns").select("seq, role, blocks").eq("session_id", sessionId).order("seq", { ascending: true });
-      if (error) throw error;
-      const lines: AgentLine[] = [];
-      for (const row of (data ?? []) as StoredTurn[]) {
-        for (const block of blocksOf(row)) {
-          if (block.type === "tool_result") for (const line of block.lines ?? []) if (line.kind === "spoken") lines.push(line);
-        }
-      }
-      return lines;
-    },
+    keyFits: (sessionId, line, key) => lineKeyFits(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", sessionId, line, key),
 
     // Read as the caller, in the campaign: the record is only used to cast a voice and nothing of it is returned.
     async loadTraits(campaignId, speakerId) {
