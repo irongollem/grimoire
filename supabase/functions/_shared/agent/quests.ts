@@ -272,7 +272,8 @@ export const QUEST_TOOLS: AgentTool[] = [
         "From then on the server advances the clock by one at the end of every turn, and you are told each turn where " +
         "it stands and when this turn fills it. Give exactly one of: clock_id (run against a clock listed under " +
         "\"Quests in play\"); quest_id with label and segments (start a new clock on that quest and run against it); " +
-        "or stop: true. Stop it when the scene ends, or the clock keeps running through the next one." + NOTE,
+        "or stop: true. Stop only when what it counts down to can no longer happen (the party left, the danger is dealt " +
+        "with), never because a turn passed; left running after that, the clock keeps counting through the next scene." + NOTE,
     inputSchema: {
       type: "object",
       additionalProperties: false,
