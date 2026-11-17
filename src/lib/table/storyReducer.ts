@@ -63,6 +63,8 @@ export function applyTableEvent(items: StoryItem[], event: TableEvent, turnStart
       const voice = event.voice === undefined ? {} : { voice: { how: how === undefined ? null : how, key: event.voice } };
       return [...items, { id, kind, speaker, text, ...(to !== undefined ? { to } : {}), ...voice }];
     }
+    case "introduced":
+      return withMargin(items, `${event.name} is now among the people you know`);
     case "fight":
       return withMargin(items, event.fight === null ? (event.calledOff ? "The fight is called off" : "The fight is over") : `A fight begins: ${event.fight.name}`);
     case "dm_roll":

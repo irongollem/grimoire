@@ -11,6 +11,7 @@
 //                (`_shared/agent/summary.ts`): the player never waits for that, and a failure in it is only logged.
 // A caller that gets `run` MUST call it: the reservation is released inside it.
 
+import type { Introduction } from "../_shared/agent/introduce.ts";
 import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { runTurn, totalTokens, type TurnEnd } from "../_shared/agent/turn.ts";
 import { historyFrom, rowsFor, systemWithSummary, type StoredTurn, type TurnRow } from "../_shared/agent/transcript.ts";
@@ -77,6 +78,8 @@ export type AgentEvent =
   | { type: "ask_roll"; roll: RollAsk }
   /** The roll this turn answered, as the server worked it out. No outcome: the narration says how it went. */
   | { type: "rolled"; roll: Rolled }
+  /** Someone the narrator made up now has a record the player's character knows of. A hidden one is never sent. */
+  | { type: "introduced"; person: { id: string; name: string } }
   | { type: "done"; end: TurnEnd; credits: number; tokens: number }
   | { type: "error"; message: string };
 
@@ -278,6 +281,11 @@ export interface AgentTurnDeps {
    * switched on: then no line carries a key and nothing can be voiced.
    */
   voiceKey: ((sessionId: string, line: AgentLine) => string) | null;
+  /** Writes the record of a person the narrator made up (`introduce.ts`) and answers who it is. */
+  introduceCharacter(
+    ctx: { campaignId: string; userId: string; memberId: string | null; locationId: string | null; provider: string; model: string },
+    intro: Introduction,
+  ): Promise<{ id: string; name: string }>;
   /** The names of the campaign's own peoples (its species), for `peoples.ts`. */
   loadPeoples(campaignId: string): Promise<string[]>;
   /** The names of a planned fight's creatures that have no stat block; a fight with one of them is not started. */
@@ -505,6 +513,8 @@ export async function beginTurn(input: {
         }
         const system = systemWithSummary(systemFor({ campaign, character, peoples }), session.summary);
         const state = stateFor({ scene, quests: questState, record, fights });
+        // People the narrator gave a record this turn; made only once the turn is kept.
+        const introduced: Introduction[] = [];
         // The fight the narrator starts this turn; started only once the turn is kept.
         let fightPlan: FightPlan | null = null;
         const turnTools = makeTurnTools({
@@ -521,6 +531,7 @@ export async function beginTurn(input: {
           quests: questState === null ? null : { state: questState, queued },
           playerName: character ? character.name : undefined,
           peoples,
+          onIntroduce: (intro) => { introduced.push(intro); },
           // Only a played character has a sheet to roll from; without one the narrator rolls as before.
           askRoll: character ? (pending) => { asked = pending; } : null,
           // A fight needs someone to fight it: offered only with a played character and readable fights.
@@ -677,6 +688,19 @@ export async function beginTurn(input: {
         } else if (fights !== null && fightIsTold(fights.fight)) {
           await safely(() => deps.setFight(session.id, campaign.id, null));
           emit({ type: "fight", fight: null });
+        }
+        // The people the narrator made up get their records. One that cannot be written (a plan's limit on
+        // characters, a name taken meanwhile) costs that record, never the turn: the facts about them are kept.
+        for (const intro of introduced) {
+          try {
+            const made = await deps.introduceCharacter(
+              { campaignId: campaign.id, userId, memberId: session.party_member_id, locationId: here, provider: provider.provider, model: provider.model },
+              intro,
+            );
+            if (intro.known) emit({ type: "introduced", person: made });
+          } catch (error) {
+            console.error("agent-turn: giving an invented person a record failed:", error);
+          }
         }
         // A request to roll lasts one turn: this turn answered or dropped the last one, and may have made a new one.
         // The page is told only when the request is stored, or the roll it sends back would be refused.

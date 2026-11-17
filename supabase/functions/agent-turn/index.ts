@@ -637,6 +637,34 @@ serve(withCors(async (req: Request) => {
     startFight: (ctx, plan) => startFight(supabase, admin, ctx, plan),
     setFight: (sessionId, campaignId, encounterId) => setFight(admin, sessionId, campaignId, encounterId),
     statlessFighters: (campaignId, plan) => statlessFighters(supabase, campaignId, plan),
+    // A person the narrator made up, written as the caller: the DM's own RLS and their plan's limit on characters
+    // decide, exactly as when they add someone by hand. What is true of them goes into the backstory, which a
+    // player never reads; the player's character is shown the person only when it knows of them.
+    async introduceCharacter(ctx, intro) {
+      const provenance: AiProvenance = {
+        generatorType: "agent_turn_character",
+        provider: ctx.provider,
+        model: ctx.model,
+        generatedAt: new Date().toISOString(),
+        edited: false,
+      };
+      const { data, error } = await supabase
+        .from("npcs")
+        .insert({
+          user_id: ctx.userId,
+          campaign_id: ctx.campaignId,
+          name: intro.name,
+          occupation: intro.occupation,
+          backstory: intro.about,
+          location_id: intro.here ? ctx.locationId : null,
+          player_visible_to: intro.known && ctx.memberId !== null ? [ctx.memberId] : [],
+          ai_provenance: provenance,
+        })
+        .select("id, name")
+        .single();
+      if (error || !data) throw error ?? new Error("the record was not written");
+      return { id: data.id as string, name: data.name as string };
+    },
     // The campaign's own species, by name, read as the caller.
     async loadPeoples(campaignId) {
       const { data, error } = await supabase.from("species").select("name").eq("campaign_id", campaignId).order("name", { ascending: true }).limit(MAX_PEOPLES);

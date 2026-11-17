@@ -90,7 +90,8 @@ export function playerText(mode: "say" | "do" | "ask", message: string): string 
       "Answer the player plainly and briefly in your own text: what their character can see, hear or would know " +
       "here, what they could do, or how a rule works. Give no character a line for it, move nothing, start nothing, " +
       "and tell nothing their character could not perceive or know. When the answer is something you make up (a memory, " +
-      "a detail the campaign never wrote), it is as true as anything else you invent: put it on record in this reply."
+      "a detail the campaign never wrote), it is as true as anything else you invent: put it on record in this reply, " +
+      "and give a named person who has no record yet their own with introduce."
     );
   }
   return mode === "say"

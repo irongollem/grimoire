@@ -138,7 +138,13 @@ export function recordSection(facts: RecordedFact[]): string {
 
 /** What the tool answers on success: the id, so the narrator can close this fact later. */
 export function recordResult(id: string): string {
-  return JSON.stringify({ filed: true, id });
+  // Said at the moment it matters: the narrator filed fact after fact about a person it had made up and never gave
+  // them a record, whatever its standing rules said.
+  return JSON.stringify({
+    filed: true,
+    id,
+    next: "If this fact names a person you made up who has no record of their own, call introduce for them now.",
+  });
 }
 
 export interface RecordToolDeps {

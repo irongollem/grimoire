@@ -128,6 +128,8 @@ interface Harness {
     playSessionJoined: boolean;
     /** Creatures of a planned fight that have no stat block, by name. */
     statless: string[];
+    /** Writing an invented person's record fails (a plan's limit). */
+    introduceThrows: boolean;
     /** The campaign's own peoples. */
     peoples: string[];
     peoplesThrow: boolean;
@@ -156,6 +158,7 @@ interface Harness {
   applied: Array<{ ctx: { campaignId: string; agentSessionId: string }; move: QuestMove }>;
   questLoads: Array<{ campaignId: string; pressureClockId: string | null }>;
   fightLoads: Array<{ campaignId: string; locationId: string | null; fightEncounterId: string | null }>;
+  introduced: Array<{ ctx: { campaignId: string; memberId: string | null; locationId: string | null }; intro: { name: string; about: string; known: boolean; here: boolean } }>;
   startedFights: Array<{ ctx: { campaignId: string; sessionId: string; userId: string; memberId: string; locationId: string | null; playSessionId: string | null }; plan: FightPlan }>;
   fightSets: Array<{ sessionId: string; campaignId: string; encounterId: string | null }>;
   /** Every time the opening quest was put in play. */
@@ -222,6 +225,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       playSessionThrows: false,
       playSessionJoined: false,
       statless: [],
+      introduceThrows: false,
       peoples: [],
       peoplesThrow: false,
       moveFails: false,
@@ -247,6 +251,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     reveals: [],
     begun: [],
     fightLoads: [],
+    introduced: [],
     startedFights: [],
     fightSets: [],
     facts: [],
@@ -435,6 +440,11 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     judgeNarration: null,
     voiceKey: null,
     statlessFighters: async () => h.state.statless,
+    introduceCharacter: async (ctx, intro) => {
+      if (h.state.introduceThrows) throw new Error("quota");
+      h.introduced.push({ ctx, intro });
+      return { id: `new-${h.introduced.length}`, name: intro.name };
+    },
     loadPeoples: async () => {
       if (h.state.peoplesThrow) throw new Error("db down");
       return h.state.peoples;
@@ -1180,6 +1190,46 @@ describe("a character speaks for itself", () => {
     expect(stored).toBe(600);
     expect(h.ledger[0].log.output_tokens).toBe(600);
     expect(last(h)).toMatchObject({ type: "done", tokens: 600 });
+  });
+
+  // Bug caught live (17 Nov 2026): "Master Floret" was invented in a memory and lived only as three sentences on
+  // record. No person existed for the next sitting to find, for the People page, or to give a voice.
+  describe("a person the narrator made up", () => {
+    const introduce = (input: Record<string, unknown>): ModelStep =>
+      step(10, { blocks: [{ type: "tool_call", id: "i1", name: "introduce", input }], stop: "tool_calls" });
+    const floret = { name: "Master Floret", about: "Bought Rosie as a child on the Old Buy-Floor." };
+
+    it("gets a record once the turn is kept, and the page is told who", async () => {
+      const h = harness([introduce(floret), step(10)]);
+      await play(h);
+      expect(h.introduced.map((i) => i.intro.name)).toEqual(["Master Floret"]);
+      expect(h.events.filter((e) => e.type === "introduced")).toEqual([{ type: "introduced", person: { id: "new-1", name: "Master Floret" } }]);
+    });
+
+    // Bug caught: a record written for a turn the player never got to keep, so a retry makes the person twice.
+    it("gets no record when the turn is not kept", async () => {
+      const h = harness([introduce(floret), step(10)]);
+      h.state.saveThrows = true;
+      await play(h);
+      expect(h.introduced).toEqual([]);
+    });
+
+    // Bug caught: someone the narrator keeps hidden announced to the player as a person they now know.
+    it("is not announced when the player's character does not know of them", async () => {
+      const h = harness([introduce({ ...floret, known: false }), step(10)]);
+      await play(h);
+      expect(h.introduced).toHaveLength(1);
+      expect(h.events.some((e) => e.type === "introduced")).toBe(false);
+    });
+
+    // Bug caught: a plan's limit on characters failing the whole turn the player just paid for.
+    it("costs the record, never the turn, when it cannot be written", async () => {
+      const h = harness([introduce(floret), step(10)]);
+      h.state.introduceThrows = true;
+      await play(h);
+      expect(last(h)).toMatchObject({ type: "done" });
+      expect(h.events.some((e) => e.type === "introduced")).toBe(false);
+    });
   });
 
   // Bug caught live (17 Nov 2026): the player spoke of "this marrow" whose name they did not know, and the character

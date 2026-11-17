@@ -54,6 +54,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false) {
     callModel,
     onMove: (p) => moves.push(p),
     peoples: [],
+    onIntroduce: () => {},
     filed,
     quests,
     askRoll: played ? (pending) => asked.push(pending) : null,

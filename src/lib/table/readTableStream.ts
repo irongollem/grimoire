@@ -88,6 +88,10 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
       const roll = parseRollAsk(raw.roll);
       return roll ? { type: "ask_roll", roll } : null;
     }
+    case "introduced": {
+      const person = raw.person;
+      return isRecord(person) && typeof person.name === "string" && person.name.trim() !== "" ? { type: "introduced", name: person.name } : null;
+    }
     case "fight": {
       // An explicit null is the fight's aftermath having been told; a malformed one is skipped, so a bad payload
       // never takes the way to a running fight off the page.
