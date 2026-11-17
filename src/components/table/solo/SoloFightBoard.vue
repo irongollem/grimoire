@@ -137,6 +137,7 @@ import { useSoloAttack } from "@/composables/table/useSoloAttack";
 import { useSoloFightHost, type SoloFightEnd } from "@/composables/table/useSoloFightHost";
 import { useToast } from "@/composables/useToast";
 import type { BoardLine } from "@/lib/table/fight/boardLines";
+import { useTableHelpers } from "@/composables/table/useTableHelpers";
 import type { FightChange, FightTurn } from "@/lib/table/fight/fightChange";
 import { attackEntryOf, damageDicePlan } from "@/lib/table/fight/pcAttack";
 import type { RollAnswer, RollAsk } from "@/lib/table/soloTypes";
@@ -176,6 +177,7 @@ const toast = useToast();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { ruleset } = useTableRuleset();
 
+const { quiet: helpersQuiet } = useTableHelpers();
 const host = useSoloFightHost({
   encounterId: computed(() => encounterId),
   memberId: () => member.id,
@@ -183,6 +185,7 @@ const host = useSoloFightHost({
   onOver: (how) => emit("over", how),
   onLost: () => emit("lost"),
   onHelperTurn: (name) => helperTurn(name),
+  helpersQuiet: () => helpersQuiet.value,
   onProvoked: (moverId) => offerReaction(moverId),
 });
 const played = host.played;

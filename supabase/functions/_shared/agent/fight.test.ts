@@ -178,7 +178,7 @@ describe("fightRecordText", () => {
   // Bug caught live (17 Nov 2026): "the fight isnt in the story so far". Nothing put a fight on record.
   it("says who fought, who went down and how the rest ended it", () => {
     expect(fightRecordText(pack([0, 0, 16]), "they_give_in")).toBe(
-      'Rosie fought "The Watching Pack": Spun Glass Hound 1 and Spun Glass Hound 2 went down; Spun Glass Hound 3 gave in.',
+      'Rosie fought "The Watching Pack": Spun Glass Hound 1 and Spun Glass Hound 2 went down; Spun Glass Hound 3 gave in and is still there, alive.',
     );
   });
 

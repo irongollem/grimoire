@@ -8,9 +8,9 @@ describe("encounterLootRows", () => {
   // Bug caught: an item listed twice on an encounter laid down as two rows of one (or as one of one), and a shared
   // library item (its id is text, not a uuid) written to the uuid column, which the database refuses for the lot.
   it("counts an item named twice as two of it, and tells a campaign item from a library one", () => {
-    expect(encounterLootRows([ITEM, "srd_potion-of-healing", ITEM], [])).toEqual([
-      { kind: "item", item_id: ITEM, library_item_id: null, quantity: 2, label: "", payload: {} },
-      { kind: "item", item_id: null, library_item_id: "srd_potion-of-healing", quantity: 1, label: "", payload: {} },
+    expect(encounterLootRows([ITEM, "srd_potion-of-healing", ITEM], [], "fallen", "The Pack")).toEqual([
+      { kind: "item", item_id: ITEM, library_item_id: null, quantity: 2, label: "", payload: { held: "fallen", fight: "The Pack" } },
+      { kind: "item", item_id: null, library_item_id: "srd_potion-of-healing", quantity: 1, label: "", payload: { held: "fallen", fight: "The Pack" } },
     ]);
   });
 
@@ -23,13 +23,13 @@ describe("encounterLootRows", () => {
       { id: "c", label: "No coins" },
       "nonsense",
     ];
-    expect(encounterLootRows([], pools)).toEqual([{ kind: "currency", item_id: null, library_item_id: null, quantity: 1, label: "The captain's purse", payload: { coins: { gp: 12 } } }]);
+    expect(encounterLootRows([], pools, "yielded", "The Pack")).toEqual([{ kind: "currency", item_id: null, library_item_id: null, quantity: 1, label: "The captain's purse", payload: { coins: { gp: 12 }, held: "yielded", fight: "The Pack" } }]);
   });
 
   // Bug caught: loot notes that are not lists (null on an old row) throwing, which would cost the turn.
   it("comes to nothing for notes that are not lists, and stops at a sane number of rows", () => {
-    expect(encounterLootRows(null, undefined)).toEqual([]);
-    expect(encounterLootRows(Array.from({ length: 60 }, (_, i) => `lib_${i}`), [])).toHaveLength(MAX_LOOT_ROWS);
+    expect(encounterLootRows(null, undefined, "fallen", "x")).toEqual([]);
+    expect(encounterLootRows(Array.from({ length: 60 }, (_, i) => `lib_${i}`), [], "fallen", "x")).toHaveLength(MAX_LOOT_ROWS);
   });
 });
 

@@ -5,7 +5,7 @@ import { useSoloCreatureTurns } from "@/composables/table/useSoloCreatureTurns";
 import { useToast } from "@/composables/useToast";
 import { linesOfAttacks, linesOfCreatureTurn, type BoardLine } from "@/lib/table/fight/boardLines";
 import { canReact } from "@/lib/table/fight/turnBudget";
-import { helperActs, NEVER_SEEN, type HelperSeen } from "@/lib/table/fight/helperTurn";
+import { helperTakesTurn, NEVER_SEEN, type HelperSeen } from "@/lib/table/fight/helperTurn";
 import { fightStanding, hasSomeoneToFight, type FightStanding } from "@/lib/table/fight/fightOver";
 import { asThePlayerSees } from "@/lib/table/fight/foeView";
 import { turnBudgetOf } from "@/lib/table/fight/turnBudget";
@@ -43,6 +43,8 @@ export function useSoloFightHost(options: {
    * thing they do. Settles when that has been told, or at once when it cannot be asked now.
    */
   onHelperTurn: (name: string) => Promise<void>;
+  /** Whether a helper acts only when something changed for them (`helperActs`); otherwise every round. */
+  helpersQuiet?: () => boolean;
   /**
    * A creature walked out of the played character's reach on its turn: they may strike it with their Reaction.
    * Settles when the player has struck or let it go.
@@ -106,13 +108,15 @@ export function useSoloFightHost(options: {
     run: async (instanceId) => {
       const helper = store.combatants.find((c) => c.instance_id === instanceId && c.bystander === true);
       if (helper) {
-        // Their turn is their own: nothing is sent to the rules. It is asked of the story only when there is
-        // something new for them to act on (`helperActs`); otherwise the moment passes in silence.
+        // Their turn is their own: nothing is sent to the rules, and the story tells the one thing they do. Every
+        // round, unless the player chose the quiet way: then only when there is something new for them to act on
+        // (`helperActs`), and otherwise the moment passes in silence.
         const me = played.value;
         const now = { hp: helper.hp, playedDown: me !== null && me.hp <= 0, said: said.value };
         const last = helpersSeen.get(instanceId);
         helpersSeen.set(instanceId, now);
-        if (helperActs(now, last === undefined ? NEVER_SEEN : last)) await options.onHelperTurn(helper.name);
+        const quiet = options.helpersQuiet !== undefined && options.helpersQuiet();
+        if (helperTakesTurn(quiet, now, last === undefined ? NEVER_SEEN : last)) await options.onHelperTurn(helper.name);
         return true;
       }
       // A creature with nobody left standing to fight has nothing to do: its turn passes without a word. Seen in

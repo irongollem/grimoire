@@ -6,7 +6,7 @@ import type { FightState } from "./fight.ts";
  * A Dungeon Master reads an encounter's loot (`encounters.item_ids`, `reward_currency_pools`) and drops it to the
  * chat by hand when the fight is won. Nobody sits in that chair at the AI table, so a fight fought out there lays
  * its loot in the room as ordinary placed loot (`loot_placements`, source `encounter_loot`): the narrator then sees
- * it under "Placed within reach" and it is found and taken once, like anything else the campaign placed.
+ * it under "Placed within reach", with who has it, and it is found and taken once, like anything else placed.
  */
 export interface LootRow {
   kind: "item" | "currency";
@@ -14,8 +14,15 @@ export interface LootRow {
   library_item_id: string | null;
   quantity: number;
   label: string;
-  payload: { coins?: Record<string, number> };
+  payload: { coins?: Record<string, number>; held: LootHeld; fight: string };
 }
+
+/**
+ * Who has an encounter's loot once the fight is over. It is not lying on the floor: it is on the bodies of the
+ * fallen, to be found by going through them, or still on those who gave in, who are alive and in the room and
+ * hand it over or are searched (the maintainer, 18 Nov 2026: "ransacking a defeated enemy corpse is a thing").
+ */
+export type LootHeld = "fallen" | "yielded";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** More than this on one encounter is a mistake in the data, not treasure. */
@@ -29,7 +36,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * The rows an encounter's loot notes come to. An item named twice is two of it (that is how the encounter editor
  * counts); an id that is not a uuid names a shared library item; a purse with no coins in it is not a purse.
  */
-export function encounterLootRows(itemIds: unknown, pools: unknown): LootRow[] {
+export function encounterLootRows(itemIds: unknown, pools: unknown, held: LootHeld, fight: string): LootRow[] {
   const counts = new Map<string, number>();
   if (Array.isArray(itemIds)) {
     for (const id of itemIds) {
@@ -43,7 +50,7 @@ export function encounterLootRows(itemIds: unknown, pools: unknown): LootRow[] {
     library_item_id: UUID.test(id) ? null : id,
     quantity,
     label: "",
-    payload: {},
+    payload: { held, fight },
   }));
   if (Array.isArray(pools)) {
     for (const pool of pools) {
@@ -53,7 +60,7 @@ export function encounterLootRows(itemIds: unknown, pools: unknown): LootRow[] {
         if (typeof count === "number" && Number.isInteger(count) && count > 0) coins[key] = count;
       }
       if (Object.keys(coins).length === 0) continue;
-      rows.push({ kind: "currency", item_id: null, library_item_id: null, quantity: 1, label: typeof pool.label === "string" ? pool.label.trim() : "", payload: { coins } });
+      rows.push({ kind: "currency", item_id: null, library_item_id: null, quantity: 1, label: typeof pool.label === "string" ? pool.label.trim() : "", payload: { coins, held, fight } });
     }
   }
   return rows.slice(0, MAX_LOOT_ROWS);

@@ -419,6 +419,8 @@ export interface Loot {
   coins: Coins | null;
   /** The quest beat it was placed on, by its title; null when it was placed on the place itself. */
   beat: string | null;
+  /** Set for the loot of a fight that is over: on the bodies of the fallen, or still on those who gave in. */
+  held?: { by: "fallen" | "yielded"; fight: string };
   /** Set for a chest rolled from a loot table (`name` is then the table's name): what is in it. */
   chest?: Chest;
 }
@@ -462,7 +464,11 @@ export function possessionsSection(p: Possessions | null, coins: (c: Coins) => s
         continue;
       }
       const what = l.coins !== null ? `${coins(l.coins)}${l.name === "" ? "" : ` (${l.name})`}` : `${l.quantity > 1 ? `${l.quantity} × ` : ""}${l.name}`;
-      lines.push(`- ${what}${l.beat === null ? "" : `, at "${l.beat}"`} [placement_id ${l.id}]`);
+      const of = l.held === undefined || l.held.fight === "" ? "" : ` of "${l.held.fight}"`;
+      const held = l.held === undefined ? ""
+        : l.held.by === "fallen" ? `, on the fallen${of}: found by going through the bodies`
+        : `, still carried by those${of} who gave in: theirs until they hand it over or are searched`;
+      lines.push(`- ${what}${l.beat === null ? "" : `, at "${l.beat}"`}${held} [placement_id ${l.id}]`);
     }
     if (p.loot.length > MAX_LOOT_SHOWN) lines.push(`- and ${p.loot.length - MAX_LOOT_SHOWN} more`);
   }

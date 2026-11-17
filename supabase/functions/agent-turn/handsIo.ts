@@ -309,7 +309,7 @@ async function lootWithin(admin: SupabaseClient, campaignId: string, placeId: st
   const anchors = [placeId === null ? null : `location_id.eq.${placeId}`, beatIds.length === 0 ? null : `beat_id.in.(${beatIds.join(",")})`].filter((a): a is string => a !== null);
   const found = await admin
     .from("loot_placements")
-    .select("id, kind, item_id, library_item_id, quantity, label, payload, beat_id, sort_order")
+    .select("id, kind, item_id, library_item_id, quantity, label, payload, beat_id, sort_order, source_type")
     .eq("campaign_id", campaignId)
     .is("dispatched_at", null)
     .in("kind", ["item", "currency", "loot_chest"])
@@ -332,6 +332,10 @@ async function lootWithin(admin: SupabaseClient, campaignId: string, placeId: st
   return rows.flatMap((r): Loot[] => {
     const beat = typeof r.beat_id === "string" ? titles.get(r.beat_id) : undefined;
     const where = beat === undefined ? null : beat;
+    // The loot of a fight that is over says who has it (`encounterLoot.ts`).
+    const note = r.source_type === "encounter_loot" ? (r.payload as { held?: unknown; fight?: unknown } | null) : null;
+    const by = note === null ? null : note.held === "fallen" ? ("fallen" as const) : note.held === "yielded" ? ("yielded" as const) : null;
+    const held: Pick<Loot, "held"> = note === null || by === null ? {} : { held: { by, fight: typeof note.fight === "string" ? note.fight : "" } };
     if (r.kind === "loot_chest") {
       const chest = chestOf(r.payload);
       // A chest nothing can be taken from is not a find.
@@ -342,14 +346,14 @@ async function lootWithin(admin: SupabaseClient, campaignId: string, placeId: st
     if (r.kind === "currency") {
       const coins = asCoins((r.payload as { coins?: unknown } | null)?.coins);
       if (Object.keys(coins).length === 0) return [];
-      return [{ id: r.id as string, name: typeof r.label === "string" ? r.label.trim() : "", quantity: 1, ref: { itemId: null, libraryItemId: null }, coins, beat: where }];
+      return [{ id: r.id as string, name: typeof r.label === "string" ? r.label.trim() : "", quantity: 1, ref: { itemId: null, libraryItemId: null }, coins, beat: where, ...held }];
     }
     const ref = refOf(r);
     const key = ref.itemId ?? ref.libraryItemId;
     const name = key === null ? undefined : names.get(key);
     // An item that no longer exists cannot be found.
     if (name === undefined) return [];
-    return [{ id: r.id as string, name, quantity: r.quantity as number, ref, coins: null, beat: where }];
+    return [{ id: r.id as string, name, quantity: r.quantity as number, ref, coins: null, beat: where, ...held }];
   });
 }
 

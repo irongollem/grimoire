@@ -219,3 +219,18 @@ describe("a chest rolled from a loot table", () => {
     expect(handsText(change, coinsText)).toContain("whatever else was in it is gone with the opening");
   });
 });
+
+describe("the loot of a fight that is over", () => {
+  const text = (c: Coins): string => Object.entries(c).map(([k, n]) => `${n} ${k}`).join(", ");
+  const none = { itemId: null, libraryItemId: null };
+  // Bug caught: a slain captain's purse read as lying on the floor, or the purse of one who gave in (alive, in the
+  // room) read as free for the taking.
+  it("says who has it: the fallen, or those who gave in", () => {
+    const section = possessionsSection({ carried: [], more: 0, purse: {}, wares: [], loot: [
+      { id: "p1", name: "Silvered Dagger", quantity: 1, ref: none, coins: null, beat: null, held: { by: "fallen", fight: "The Watching Pack" } },
+      { id: "p2", name: "", quantity: 1, ref: none, coins: { gp: 12 }, beat: null, held: { by: "yielded", fight: "The Watching Pack" } },
+    ] }, text);
+    expect(section).toContain('- Silvered Dagger, on the fallen of "The Watching Pack": found by going through the bodies [placement_id p1]');
+    expect(section).toContain('- 12 gp, still carried by those of "The Watching Pack" who gave in: theirs until they hand it over or are searched [placement_id p2]');
+  });
+});

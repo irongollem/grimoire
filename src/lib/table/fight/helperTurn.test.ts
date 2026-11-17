@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { helperActs, NEVER_SEEN } from "./helperTurn";
+import { helperActs, helperTakesTurn, NEVER_SEEN } from "./helperTurn";
 
 const calm = { hp: 10, playedDown: false, said: 0 };
 
@@ -26,5 +26,15 @@ describe("helperActs", () => {
   it("does not act for being healed, or for a state that has not changed", () => {
     expect(helperActs({ ...calm, hp: 10 }, { ...calm, hp: 4 })).toBe(false);
     expect(helperActs({ ...calm, playedDown: true }, { ...calm, playedDown: true })).toBe(false);
+  });
+});
+
+describe("helperTakesTurn", () => {
+  // Bug caught (the maintainer, 18 Nov 2026): a clever helper standing still in a gauntlet because nothing "new"
+  // happened to them, unless the player calls out every round. By default they act every round.
+  it("has a helper act every round by default, and only on news the quiet way", () => {
+    expect(helperTakesTurn(false, calm, calm)).toBe(true);
+    expect(helperTakesTurn(true, calm, calm)).toBe(false);
+    expect(helperTakesTurn(true, { ...calm, hp: 3 }, calm)).toBe(true);
   });
 });

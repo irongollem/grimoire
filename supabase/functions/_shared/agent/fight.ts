@@ -279,7 +279,8 @@ export function fightRecordText(fight: FightState, how: "fought" | "they_give_in
   const parts: string[] = [];
   if (down.length > 0) parts.push(`${listed(down)} went down`);
   if (standing.length > 0) {
-    if (how === "they_give_in") parts.push(`${listed(standing)} gave in`);
+    // Alive and still there: a prisoner, or someone to come to terms with. Never read as dead or gone.
+    if (how === "they_give_in") parts.push(`${listed(standing)} gave in and ${standing.length === 1 ? "is" : "are"} still there, alive`);
     else if (how === "they_flee") parts.push(`${listed(standing)} fled`);
     else if (how === "you_get_away") parts.push(`${who} got away from ${listed(standing)}`);
     else parts.push(`${listed(standing)} ${standing.length === 1 ? "was" : "were"} left standing`);

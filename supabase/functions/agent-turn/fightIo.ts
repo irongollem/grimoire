@@ -9,7 +9,7 @@
 // Thin on purpose: no test harness here, the rules are tested where they live.
 
 import { carriedRoster, followersOf } from "../_shared/agent/pursuit.ts";
-import { encounterLootRows } from "../_shared/agent/encounterLoot.ts";
+import { encounterLootRows, type LootHeld } from "../_shared/agent/encounterLoot.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fightStateOf, MAX_PREPARED, type Fighter, type FightPlan, type FightsInView, type FightState, type PreparedFight } from "../_shared/agent/fight.ts";
 import { loadStatBlocks, statBlockIdsOf, statBlockOf } from "../_shared/fightStatBlocks.ts";
@@ -215,11 +215,11 @@ export async function finishFight(admin: SupabaseClient, campaignId: string, enc
  * encounter: rows it laid earlier, taken or not, mean there is nothing more to lay. An encounter with no place of
  * its own lies where the party stands; with no place at all there is nowhere to lay it.
  */
-export async function layFightLoot(admin: SupabaseClient, campaignId: string, encounterId: string, placeId: string | null): Promise<void> {
-  const enc = await admin.from("encounters").select("item_ids, reward_currency_pools, location_id").eq("id", encounterId).eq("campaign_id", campaignId).maybeSingle();
+export async function layFightLoot(admin: SupabaseClient, campaignId: string, encounterId: string, placeId: string | null, held: LootHeld): Promise<void> {
+  const enc = await admin.from("encounters").select("name, item_ids, reward_currency_pools, location_id").eq("id", encounterId).eq("campaign_id", campaignId).maybeSingle();
   if (enc.error) throw enc.error;
   if (!enc.data) return;
-  const rows = encounterLootRows(enc.data.item_ids, enc.data.reward_currency_pools);
+  const rows = encounterLootRows(enc.data.item_ids, enc.data.reward_currency_pools, held, typeof enc.data.name === "string" ? enc.data.name : "");
   const where = typeof enc.data.location_id === "string" ? enc.data.location_id : placeId;
   if (rows.length === 0 || where === null) return;
   const laid = await admin.from("loot_placements").select("id").eq("campaign_id", campaignId).eq("source_type", "encounter_loot").eq("source_id", encounterId).limit(1);

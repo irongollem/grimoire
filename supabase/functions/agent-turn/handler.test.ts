@@ -174,7 +174,7 @@ interface Harness {
   /** Prepared fights marked as fought. */
   finished: string[];
   /** The fights whose loot was laid where they were fought. */
-  laidLoot: { encounterId: string; placeId: string | null }[];
+  laidLoot: { encounterId: string; placeId: string | null; held: string }[];
   /** Each change to which fight is on the party's heels. */
   pursuits: (string | null)[];
   /** Every time the opening quest was put in play. */
@@ -393,8 +393,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     setPursuit: async (_sessionId, _campaignId, encounterId) => {
       h.pursuits.push(encounterId);
     },
-    layFightLoot: async (_campaignId, encounterId, placeId) => {
-      h.laidLoot.push({ encounterId, placeId });
+    layFightLoot: async (_campaignId, encounterId, placeId, held) => {
+      h.laidLoot.push({ encounterId, placeId, held });
     },
     finishFight: async (_campaignId, encounterId) => {
       h.finished.push(encounterId);
@@ -3108,7 +3108,7 @@ describe("the story turns into a fight", () => {
       await play(h, { body: rolling(13) });
       expect(h.fightSets).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN, encounterId: null }]);
       // And it goes on record, so the fight is part of the story so far.
-      expect(h.facts.map((f) => f.body)).toContain('Wren Ashfield fought "The Watching Pack": Giant Rat 1 gave in.');
+      expect(h.facts.map((f) => f.body)).toContain('Wren Ashfield fought "The Watching Pack": Giant Rat 1 gave in and is still there, alive.');
       expect(h.events.some((e) => e.type === "fact" && e.fact.body.includes("gave in"))).toBe(true);
     });
 
@@ -3118,7 +3118,7 @@ describe("the story turns into a fight", () => {
       await play(won, { body: rolling(13) });
       expect(won.finished).toHaveLength(1);
       // Foes who gave in leave what they carried; ones who fled, or whom the player fled, keep it.
-      expect(won.laidLoot).toHaveLength(1);
+      expect(won.laidLoot.map((l) => l.held)).toEqual(["yielded"]);
       const ran = inFight([change({ costs: "action", ends: "you_get_away" }), step(10)]);
       await play(ran, { body: rolling(13) });
       expect(ran.finished).toEqual([]);
@@ -3241,7 +3241,7 @@ describe("the story turns into a fight", () => {
     const won = played([step(10)], { fight_encounter_id: FIGHT });
     won.state.fights = over(0);
     await play(won, { body: BODY });
-    expect(won.laidLoot.map((l) => l.encounterId)).toEqual([FIGHT]);
+    expect(won.laidLoot.map((l) => [l.encounterId, l.held])).toEqual([[FIGHT, "fallen"]]);
     const lost = played([step(10)], { fight_encounter_id: FIGHT });
     lost.state.fights = over(3);
     await play(lost, { body: BODY });
