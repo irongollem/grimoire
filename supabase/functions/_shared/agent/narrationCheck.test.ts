@@ -58,6 +58,35 @@ describe("splitSentences", () => {
   });
 });
 
+describe("splitSentences at a semicolon", () => {
+  it("ends a clause at a semicolon, so a restated deed joined to a real detail is judged on its own", () => {
+    expect(splitSentences("Cantor turns to you; the lamp gutters. Dark.")).toEqual(["Cantor turns to you;", "the lamp gutters.", "Dark."]);
+  });
+
+  it("leaves a semicolon with no space after it alone, so a token like a;b is not cut", () => {
+    expect(splitSentences("The tag reads a;b here.")).toEqual(["The tag reads a;b here."]);
+  });
+});
+
+describe("narrationKept across a semicolon", () => {
+  const joined = "Cantor turns to you; the lamp gutters.";
+
+  it("drops the restating clause and capitalises the one kept after it, so the page never starts mid-sentence", async () => {
+    const j = judging([0.1, 0.95]);
+    expect(await narrationKept({ lines: [line("Hi.")], narration: joined, judge: j.judge })).toBe("The lamp gutters.");
+  });
+
+  it("ends a kept clause with a full stop when what followed its semicolon was dropped", async () => {
+    const j = judging([0.95, 0.1, 0.95]);
+    expect(await narrationKept({ lines: [line("Hi.")], narration: "The lamp gutters; Cantor turns to you. Dark.", judge: j.judge })).toBe("The lamp gutters. Dark.");
+  });
+
+  it("leaves a clause after a kept semicolon in lower case, so only a cut is mended", async () => {
+    const j = judging([0.95, 0.95, 0.1]);
+    expect(await narrationKept({ lines: [line("Hi.")], narration: "The lamp gutters; the door creaks. Cantor waits.", judge: j.judge })).toBe("The lamp gutters; the door creaks.");
+  });
+});
+
 describe("narrationKept", () => {
   const two = "The cedar door gives no sound. Honeycomb watches you, waiting.";
 

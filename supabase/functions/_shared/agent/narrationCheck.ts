@@ -54,7 +54,9 @@ const CLOSERS = new Set(['"', "'", "\u201D", "\u2019", ")", "]", "}"]);
 /**
  * Sentences in order, trimmed, none empty. A sentence ends at . ! or ? (with any closing quote or bracket after it)
  * when whitespace or the end follows, so a decimal like 17.5 stays whole; "..." stays inside its sentence unless it
- * ends the text. Each line break also ends a sentence.
+ * ends the text. Each line break also ends a sentence. A semicolon followed by whitespace ends one too, and stays on
+ * the clause it closes: live, the narrator joined a restated deed to a real detail with a semicolon ("Cantor turns to
+ * you; the lamp gutters"), and judged as one sentence the pair scored as new and both showed.
  */
 export function splitSentences(text: string): string[] {
   const out: string[] = [];
@@ -63,6 +65,12 @@ export function splitSentences(text: string): string[] {
     let i = 0;
     while (i < paragraph.length) {
       const ch = paragraph[i];
+      if (ch === ";" && i + 1 < paragraph.length && /\s/.test(paragraph[i + 1])) {
+        out.push(paragraph.slice(start, i + 1).trim());
+        start = i + 1;
+        i++;
+        continue;
+      }
       if (ch !== "." && ch !== "!" && ch !== "?") {
         i++;
         continue;
@@ -123,13 +131,25 @@ export async function narrationKept(input: {
   const sentences = splitSentences(input.narration);
   const judged = sentences.slice(0, MAX_SENTENCES_JUDGED);
   const result = await input.judge(buildNarrationRequest(input.lines, judged));
-  let dropped = false;
-  const kept = sentences.filter((_, i) => {
+  const keep = sentences.map((_, i) => {
     if (i >= judged.length) return true;
     const probability = noulOf(result, sentenceKey(i));
-    if (probability === null || probability >= NARRATION_ADDS_MIN) return true;
-    dropped = true;
-    return false;
+    return probability === null || probability >= NARRATION_ADDS_MIN;
   });
-  return dropped ? kept.join(" ") : input.narration;
+  if (keep.every(Boolean)) return input.narration;
+  return sentences
+    .map((sentence, i) => (keep[i] ? mendClause(sentence, sentences[i - 1], keep[i - 1], keep[i + 1]) : null))
+    .filter((sentence): sentence is string => sentence !== null)
+    .join(" ");
+}
+
+/**
+ * A kept clause whose neighbour across a semicolon was dropped is made a sentence again: it ends in a full stop when
+ * what followed its semicolon is gone, and starts with a capital when what led up to it is gone.
+ */
+function mendClause(clause: string, before: string | undefined, beforeKept: boolean | undefined, afterKept: boolean | undefined): string {
+  let out = clause;
+  if (out.endsWith(";") && afterKept !== true) out = `${out.slice(0, -1)}.`;
+  if (before?.endsWith(";") && beforeKept === false) out = out.charAt(0).toUpperCase() + out.slice(1);
+  return out;
 }
