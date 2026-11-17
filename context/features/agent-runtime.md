@@ -201,6 +201,19 @@ The narrator could read the campaign and file facts but could not move a quest f
 - **Three refusals, each seen live:** stopping the pressure in the turn that started it (the narrator called the danger off before it could arrive), running against a clock that is already full, and running against the clock the scene already has.
 - **Not built:** improvising a new beat, opening a thread by hand, and undoing a move from the table. A clock that is deleted simply leaves the conversation without pressure.
 
+## What play reveals (`_shared/agent/reveals.ts`, `agent-turn/revealIo.ts`)
+
+"As you move through the story things should be revealed to you. Your journal, bestiary and people should slowly fill with details" (maintainer, 17 Nov 2026). The table keeps no reveal store of its own: it flips the switches a DM flips by hand, for the character being played.
+
+- **The place.** After a kept turn the place the party stands in is added to that character's view (`locations.player_visible_to`) and its description is shared (`is_description_shared`; the player view strips the DM's secret blocks from it).
+- **The people.** A recorded character who spoke or acted in front of the party that turn (the same set that is placed with the party) is added to that character's view (`npcs.player_visible_to`). What they are shown as is the player view's business: a disguised character appears under its cover.
+- **The journal.** The session note filed on leaving is shared with the played character (`notes.player_visible_to`); it holds only facts the party knows.
+- **Three rules.** Only the played character (a sitting without one reveals nothing, and no other party member is added: in a campaign with other players, they learn it when their own character is there). Only ever more (nothing is removed from a list). Only with the kept turn.
+- **Through the caller's client**, so the DM's RLS decides the write and the campaign's own triggers (`locations_record_reveals`, `npcs_record_reveals`) log the reveal as they do for a hand-made share. A failure costs a reveal, never the turn.
+- **On the screen** the scene column shows the place's player summary once the place has been shown to the character (`placeSummaryFor`, the one gate between the DM's own row and the column), so it appears after the opening.
+- **Live** (17 Nov 2026): one turn in the workshop put Rosie in the place's and Honeycomb's lists and wrote one row each to `location_reveals` and `npc_reveals`.
+- **Not built:** monsters into the bestiary (they are met in a fight, and the story cannot start one yet), items, a character seen but not spoken to, and revealing to companions who travel with the party.
+
 ## What changes goes in the newest message, never in the instructions
 
 Turns that moved a quest cost 38,000 to 59,000 tokens and 12 to 13 s, and the reason was not the rounds. The stored rows showed it (17 Nov 2026): the first model call of a turn read 0 tokens from the prompt cache whenever anything in the system text had changed since the turn before (a clock tick, a fact filed, a character placed with the party), and the whole text otherwise. A probe on `gpt-6-luna` with invented text confirmed how this provider's cache behaves: one changed sentence at the END of a 6,000-token system message read 0 cached tokens, the same with the change in a second system message, while the same change in the newest user message read 5,792. So the cache does not hold a prefix of the instructions; it holds the instructions whole, and whatever a request repeats of the one before it.

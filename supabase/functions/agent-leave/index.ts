@@ -108,7 +108,7 @@ serve(withCors(async (req: Request) => {
       return data && typeof data.name === "string" && data.name.trim() !== "" ? data.name.trim() : null;
     },
 
-    async writeNote({ campaignId, playSessionId, title, content, provenance }): Promise<string> {
+    async writeNote({ campaignId, playSessionId, title, content, provenance, visibleTo }): Promise<string> {
       const { data, error } = await supabase
         .from("notes")
         .insert({
@@ -119,6 +119,7 @@ serve(withCors(async (req: Request) => {
           category: "session",
           session_id: playSessionId,
           tags: [],
+          player_visible_to: visibleTo,
           ai_provenance: provenance,
         })
         .select("id")

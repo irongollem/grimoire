@@ -33,6 +33,7 @@ import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { loadPartyMember } from "./characterIo.ts";
 import { RECORD_SECTION_MAX, type RecordedFact } from "../_shared/agent/record.ts";
 import { openaiModel } from "../_shared/agent/openai.ts";
+import { revealToCharacter } from "./revealIo.ts";
 import { parsePendingRoll } from "../_shared/agent/playerRoll.ts";
 import { anthropicModel } from "../_shared/agent/anthropic.ts";
 import { applyQuestMove, loadQuests } from "./questIo.ts";
@@ -615,6 +616,8 @@ serve(withCors(async (req: Request) => {
         .or(`location_id.is.null,location_id.neq.${locationId}`);
       if (error) throw error;
     },
+
+    revealToCharacter: (input) => revealToCharacter(supabase, input),
 
     async discardFacts(campaignId, ids) {
       if (ids.length === 0) return;

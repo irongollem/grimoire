@@ -203,6 +203,11 @@ export interface AgentTurnDeps {
    * in this campaign or the move could not be stored. It writes at once, outside the turn's own save.
    */
   setScene(sessionId: string, campaignId: string, locationId: string): Promise<SceneView | null>;
+  /**
+   * Shows the played character the place the party stands in and the people who spoke or acted in front of them,
+   * through the campaign's own sharing (`reveals.ts`). Throws when it could not be written.
+   */
+  revealToCharacter(input: { campaignId: string; memberId: string; locationId: string | null; characterIds: string[] }): Promise<void>;
   /** Writes (or, with null, clears) the roll the player is asked for. Throws when it could not be written. */
   setPendingRoll(sessionId: string, campaignId: string, pending: PendingRoll | null): Promise<void>;
   /**
@@ -530,6 +535,12 @@ export async function beginTurn(input: {
         const here = turnTools.place();
         if (here !== null && turnTools.spoke.size > 0) {
           await safely(() => deps.placeCharacters(campaign.id, here, [...turnTools.spoke]));
+        }
+        // What play reveals: the played character has now seen this place and met whoever spoke in front of them.
+        // Only for a played character, and only with the kept turn. A failure costs a reveal, never the turn.
+        if (session.party_member_id !== null && (here !== null || turnTools.spoke.size > 0)) {
+          const memberId = session.party_member_id;
+          await safely(() => deps.revealToCharacter({ campaignId: campaign.id, memberId, locationId: here, characterIds: [...turnTools.spoke] }));
         }
         // Kept only now that the turn is: what a character carries away from a moment the player never got to keep
         // would be a memory of something that did not happen. A failure here costs a memory, never the turn.

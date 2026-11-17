@@ -73,7 +73,7 @@
         </main>
 
         <aside v-show="showAll || view === 'scene' || (wide && view === 'story')" class="min-w-0 overflow-y-auto bg-card max-md:flex-1 md:w-80 md:shrink-0 md:border-l md:border-border" aria-label="The scene">
-          <SoloScene :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" :after="after" />
+          <SoloScene :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" :after="after" :place-summary="placeSummary" />
         </aside>
       </div>
 
@@ -110,6 +110,7 @@ import { usePlayerQuestBeats } from "@/composables/quests/useQuestFlow";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
 import { currentBeatsByQuest } from "@/lib/hearth/currentBeats";
 import { useTableScene } from "@/composables/table/useTableScene";
+import { placeSummaryFor } from "@/lib/table/placeKnown";
 import { pressureAfterSend } from "@/lib/table/pressureLabel";
 import type { PlayMode, RollAsk, TablePressure } from "@/lib/table/soloTypes";
 import { useTableSpeakers } from "@/composables/table/useTableSpeakers";
@@ -246,6 +247,7 @@ const member = computed(() => party.data.value?.find((m) => m.id === characterId
 // player-visible projections the Hearth reads (never the DM's own quest rows). No character, nothing shown.
 // A quest whose current beat has no player text still shows, by its title: it is known to the character.
 const playedId = computed(() => (member.value ? member.value.id : null));
+const placeSummary = computed(() => placeSummaryFor(scene.place.data.value, playedId.value));
 const knownQuests = usePlayerVisibleQuests(playedId);
 const knownBeats = usePlayerQuestBeats(undefined, playedId);
 const after = computed(() =>

@@ -4,6 +4,7 @@
     <section class="flex flex-col gap-2.5 px-4 py-3.5">
       <span class="text-eyebrow text-muted-foreground">Where you are</span>
       <h2 v-if="placeName" class="text-heading text-foreground">{{ placeName }}</h2>
+      <p v-if="placeName && placeSummary" class="text-body text-muted-foreground" data-testid="solo-place-summary">{{ placeSummary }}</p>
       <p v-else class="text-body italic text-muted-foreground">Nowhere in particular yet. The Dungeon Master will say.</p>
     </section>
     <template v-if="pressure">
@@ -54,8 +55,10 @@ import type { HearthQuestNow } from "@/lib/hearth/currentBeats";
 import type { TablePressure } from "@/lib/table/soloTypes";
 import SoloPressure from "./SoloPressure.vue";
 
-const { here, pressure = null, after = [] } = defineProps<{
+const { here, pressure = null, after = [], placeSummary = null } = defineProps<{
   placeName: string | null;
+  /** What the character knows of the place; null until it has been shown to them. */
+  placeSummary?: string | null;
   here: readonly SceneNpc[];
   /** The clock the scene runs against; null when there is none. */
   pressure?: TablePressure | null;

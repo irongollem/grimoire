@@ -222,4 +222,18 @@ describe("leaving the table", () => {
     const out = await leave(h);
     expect(out.ok && out.result.endedSession).toBe(true);
   });
+
+  it("shares the sitting's note with the character who was played, so it lands in their journal", async () => {
+    const h = harness({ party_member_id: BRAM });
+    h.facts = [{ body: "Bram found the key.", known_to_player: true }];
+    await leave(h);
+    expect(h.notes[0].visibleTo).toEqual([BRAM]);
+  });
+
+  it("shares the note with nobody when no character was played", async () => {
+    const h = harness();
+    h.facts = [{ body: "The key was found.", known_to_player: true }];
+    await leave(h);
+    expect(h.notes[0].visibleTo).toEqual([]);
+  });
 });

@@ -125,6 +125,7 @@ interface Harness {
     /** What the campaign's roll tool answers; null answers like every other campaign tool. */
     rollAnswer: { content: string; isError: boolean } | null;
     pendingRollFails: boolean;
+    revealFails: boolean;
     record: RecordedFact[];
     recordThrows: boolean;
     /** A sentence the filing answers with instead of a fact id. */
@@ -138,6 +139,8 @@ interface Harness {
   /** Every quest move the handler applied, in order, and the campaign and conversation it applied it for. */
   applied: Array<{ ctx: { campaignId: string; agentSessionId: string }; move: QuestMove }>;
   questLoads: Array<{ campaignId: string; pressureClockId: string | null }>;
+  /** Every reveal the handler asked for, in order. */
+  reveals: Array<{ campaignId: string; memberId: string; locationId: string | null; characterIds: string[] }>;
   /** Every write of the roll the player is asked for (null clears it), with the conversation and campaign it was for. */
   pendingRolls: Array<{ sessionId: string; campaignId: string; pending: PendingRoll | null }>;
   /** What the database holds as facts: the ones the narrator filed this run, and what the load answers with. */
@@ -200,6 +203,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       moveFails: false,
       rollAnswer: null,
       pendingRollFails: false,
+      revealFails: false,
       record: [],
       recordThrows: false,
       fileError: null,
@@ -211,6 +215,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     applied: [],
     questLoads: [],
     pendingRolls: [],
+    reveals: [],
     facts: [],
     recordLoads: [],
     discards: [],
@@ -307,6 +312,10 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       sceneLoads.push({ campaignId, locationId });
       if (h.state.sceneThrows) throw new Error("db down");
       return campaignId === CAMPAIGN ? (h.state.places.get(locationId) ?? null) : null;
+    },
+    revealToCharacter: async (input) => {
+      if (h.state.revealFails) throw new Error("db down");
+      h.reveals.push(input);
     },
     setPendingRoll: async (sessionId, campaignId, pending) => {
       if (h.state.pendingRollFails) throw new Error("db down");
@@ -2546,5 +2555,56 @@ describe("opening the scene", () => {
   it("still refuses an empty message that is not an opening", async () => {
     const h = harness();
     expect((await play(h, { body: { campaignId: CAMPAIGN, message: "", mode: "do" } }))?.status).toBe(400);
+  });
+});
+
+describe("what play reveals", () => {
+  const wren = (): PlayerCharacter => ({
+    id: WREN, name: "Wren Ashfield", pronouns: null, species: null, className: "Ranger", subclass: null, level: 3, hitPoints: null,
+  });
+  const BODY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "Is the cellar safe?", mode: "say" };
+  const speak = (): ModelStep =>
+    step(100, {
+      blocks: [{ type: "tool_call", id: "s1", name: "speak", input: { speaker_id: HONEYCOMB, happening: "A stranger asks about the cellar.", player_said: "Is the cellar safe?", present: [] } }],
+      stop: "tool_calls",
+    });
+  const played = (script: Script, over: Partial<SessionRow> = {}): Harness => {
+    const h = harness(script);
+    h.state.characters.set(WREN, wren());
+    existingSession(h, { party_member_id: WREN, scene_location_id: CELLAR, ...over });
+    return h;
+  };
+
+  it("shows the played character the place they stand in and whoever spoke to them, once the turn is kept", async () => {
+    const h = played([speak(), step(100, { blocks: [{ type: "text", text: "Well enough." }] }), step(10)]);
+    await play(h, { body: BODY });
+    expect(h.reveals).toEqual([{ campaignId: CAMPAIGN, memberId: WREN, locationId: CELLAR, characterIds: [HONEYCOMB] }]);
+  });
+
+  it("reveals nothing on a turn that is not kept, or a retried turn would have shown what never happened", async () => {
+    const h = played([speak(), step(100, { blocks: [{ type: "text", text: "Well enough." }] }), step(10)]);
+    h.state.conflict = true;
+    await play(h, { body: BODY });
+    expect(h.reveals).toEqual([]);
+  });
+
+  it("reveals nothing when nobody is played, since there is no character to show it to", async () => {
+    const h = harness([step(10)]);
+    existingSession(h, { scene_location_id: CELLAR });
+    await play(h, { body: BODY });
+    expect(h.reveals).toEqual([]);
+  });
+
+  it("reveals nothing for a party with no place when nobody spoke", async () => {
+    const h = played([step(10)], { scene_location_id: null });
+    await play(h, { body: BODY });
+    expect(h.reveals).toEqual([]);
+  });
+
+  it("keeps the turn when the reveal cannot be written", async () => {
+    const h = played([step(10)]);
+    h.state.revealFails = true;
+    await play(h, { body: BODY });
+    expect(last(h)).toMatchObject({ type: "done" });
   });
 });

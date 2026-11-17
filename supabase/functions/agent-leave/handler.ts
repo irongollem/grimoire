@@ -53,6 +53,11 @@ export interface AgentLeaveDeps {
     title: string;
     content: string;
     provenance: AiProvenance;
+    /**
+     * The party members the note is shared with: the played character, so the sitting lands in their journal. The
+     * note holds only facts the party knows, which is what makes it theirs to read. Empty when nobody was played.
+     */
+    visibleTo: string[];
   }): Promise<string>;
 }
 
@@ -137,6 +142,7 @@ export async function leaveTable(input: {
         playSessionId: session.campaign_session_id,
         title: name === null ? "At the AI table" : `At the AI table: ${name}`,
         content: noteDocument(facts),
+        visibleTo: session.party_member_id === null ? [] : [session.party_member_id],
         // The facts were filed by the AI narrator, so the note carries the mark every AI-made note carries.
         provenance: {
           generatorType: "agent_table_record",
