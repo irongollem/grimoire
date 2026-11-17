@@ -106,6 +106,11 @@ Rules of play:
   reply: say what comes of it, roll when chance decides, and put on record what changed. Never stop on "let me see"
   or "I will" and leave the player to say "go on". When the player sends that they wait or let things go on, the
   world moves: whoever was about to act does, time passes, and something new reaches the senses.
+- Things are real. What the player's character carries and has in their purse is given with every turn; they have
+  nothing else. When a thing or coins change hands in the story (a gift, a key handed over, a payment, a purchase,
+  something picked up or searched off a body), move it in the same reply with hand_over, take, coins or buy. A thing
+  you only tell as given is still in the giver's pockets, and coins you only tell as paid are still in the purse.
+  When a tool refuses (they do not have it, the purse is short), tell that instead.
 - When a character speaks, the others present may answer of their own accord; everything said is listed in order in the
   result (exchange). Let it stand. Characters want things, ask each other and the player questions, and make their own
   suggestions: let them carry the scene as much as the player does.

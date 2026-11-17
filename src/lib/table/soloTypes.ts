@@ -68,6 +68,8 @@ export type TableEvent =
   | { type: "introduced"; name: string }
   /** Words that can be voiced and are not a character's line: the narrator's, whole, or your own said line. */
   | { type: "voice"; role: "narrator" | "player"; text: string; key: string }
+  /** Something changed hands (a gift, a purchase, coins, a thing picked up): a line for the margin. The pack and purse update by themselves. */
+  | { type: "hands"; text: string }
   /** Your character's hit points changed outside a fight: what did it, by how much, and where they stand now. */
   | { type: "hit_points"; change: { heals: boolean; why: string; by: number; hp: number; maxHp: number } }
   | { type: "fight"; fight: TableFight | null; /** With null: the fight was let go of without being fought. */ calledOff?: true }

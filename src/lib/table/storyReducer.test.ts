@@ -146,3 +146,11 @@ describe("words offered to a voice", () => {
     expect(done[0]).not.toHaveProperty("voice");
   });
 });
+
+describe("something changed hands", () => {
+  // Bug caught: a gift or a purchase moving the pack with no word of it in the story.
+  it("writes the server's line in the margin", () => {
+    const story = play([{ type: "hands", text: "Honeycomb gives Rosie: Workshop Keys" }]);
+    expect(story.at(-1)).toMatchObject({ kind: "margin", text: "Honeycomb gives Rosie: Workshop Keys" });
+  });
+});

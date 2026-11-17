@@ -6,6 +6,7 @@
  * out from the price and calibration below: input is free and output costs 10 USD per million tokens, a credit is
  * worth 0.01 USD at margin 1, so 600 output tokens are 0.006 USD, which is 0.6 credits.
  */
+import type { HandsChange } from "../_shared/agent/hands.ts";
 import { describe, expect, it, vi } from "vitest";
 import {
   beginTurn,
@@ -132,6 +133,10 @@ interface Harness {
     tableMade: boolean;
     /** Hit points written to a sheet, and things taken out of someone's belongings. */
     hitPointsSet: Array<{ memberId: string; hitPoints: number }>;
+    /** Changes of hands that were carried out; and switches that make reading or making them fail. */
+    handed: HandsChange[];
+    handsThrow: boolean;
+    handsApplyThrows: boolean;
     usedUp: Array<{ characterId: string; thing: string }>;
     /** Writing an invented person's record fails (a plan's limit). */
     introduceThrows: boolean;
@@ -234,6 +239,9 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       statless: [],
       tableMade: false,
       hitPointsSet: [],
+      handed: [],
+      handsThrow: false,
+      handsApplyThrows: false,
       usedUp: [],
       introduceThrows: false,
       peoples: [],
@@ -455,6 +463,23 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     voiceKey: null,
     statlessFighters: async () => h.state.statless,
     isTableMadeCharacter: async () => h.state.tableMade,
+    hands: {
+      load: async () => {
+        if (h.state.handsThrow) throw new Error("db down");
+        return {
+          possessions: { carried: [{ name: "Rope", quantity: 1 }], more: 0, purse: { gp: 5 }, wares: [] },
+          currency: { default_key: "gp", denominations: [{ key: "gp", name: "gold", abbr: "gp", value: 100, makes_change: true, color: "#d4af37" }, { key: "cp", name: "copper", abbr: "cp", value: 1, makes_change: true, color: "#b87333" }] },
+        };
+      },
+      belonging: async (_c, id, thing) => (thing === "Workshop Keys" ? { rowId: "r1", name: "Workshop Keys", quantity: 1, ref: { itemId: null, libraryItemId: null }, owner: id === HONEYCOMB ? "Honeycomb" : "Someone" } : null),
+      characterName: async () => "Honeycomb",
+      carried: async () => null,
+      item: async () => null,
+      apply: async (_ctx, change) => {
+        if (h.state.handsApplyThrows) throw new Error("gone");
+        h.state.handed.push(change);
+      },
+    },
     setHitPoints: async (_campaignId, memberId, hitPoints) => { h.state.hitPointsSet.push({ memberId, hitPoints }); },
     useUpBelonging: async (_campaignId, characterId, thing) => { h.state.usedUp.push({ characterId, thing }); return true; },
     introduceCharacter: async (ctx, intro) => {
@@ -2431,6 +2456,39 @@ describe("who the player plays", () => {
     const off = withWren([windInTheEaves]);
     await play(off, { body: { ...START, mode: "say" } });
     expect(off.events.some((e) => e.type === "voice")).toBe(false);
+  });
+
+  const givesKeys: ModelStep = step(10, { blocks: [{ type: "tool_call", id: "g1", name: "hand_over", input: { giver: HONEYCOMB, receiver: "player", thing: "Workshop Keys" } }], stop: "tool_calls" });
+
+  // Bug caught (the maintainer's keys): a thing told as handed over that never left the giver's pockets.
+  it("moves a thing a character gave once the turn is kept, and tells the page in a line", async () => {
+    const h = withWren([givesKeys, step(50)]);
+    await play(h, { body: START });
+    expect(h.state.handed).toEqual([{ kind: "to_player", from: { id: HONEYCOMB, name: "Honeycomb" }, thing: "Workshop Keys", quantity: 1 }]);
+    expect(h.events).toContainEqual({ type: "hands", text: "Honeycomb gives Wren Ashfield: Workshop Keys" });
+  });
+
+  // Bug caught: the page told "Honeycomb gives you the keys" when the write failed and nothing moved.
+  it("tells the page nothing of a change that could not be made, and still keeps the turn", async () => {
+    const h = withWren([givesKeys, step(50)]);
+    h.state.handsApplyThrows = true;
+    await play(h, { body: START });
+    expect(h.events.some((e) => e.type === "hands")).toBe(false);
+    expect(h.events.some((e) => e.type === "done")).toBe(true);
+  });
+
+  // Bug caught: the narrator not knowing what the character has (so "I show the key" cannot be checked), or the
+  // whole turn lost because the pack could not be read.
+  it("shows the narrator what the character carries, and runs the turn without the tools when it cannot be read", async () => {
+    const h = withWren([step(50)]);
+    await play(h, { body: START });
+    expect(JSON.stringify(h.requests[0].messages)).toContain("Purse: 5 gp.");
+    expect(h.requests[0].tools.map((t) => t.name)).toContain("hand_over");
+    const blind = withWren([step(50)]);
+    blind.state.handsThrow = true;
+    await play(blind, { body: START });
+    expect(blind.requests[0].tools.map((t) => t.name)).not.toContain("hand_over");
+    expect(blind.events.some((e) => e.type === "done")).toBe(true);
   });
 
   const rollsPotion: ModelStep = step(10, { blocks: [{ type: "tool_call", id: "p1", name: "roll", input: { expression: "2d4+2", label: "Potion of Healing" } }], stop: "tool_calls" });

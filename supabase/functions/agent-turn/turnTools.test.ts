@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Coins, HandsChange } from "../_shared/agent/hands.ts";
 import { makeTurnTools, type FiledFact, type TurnToolsInput } from "./turnTools";
 import { NO_QUESTS, type QuestMove } from "../_shared/agent/quests";
 import type { FightPlan } from "../_shared/agent/fight";
@@ -9,6 +10,8 @@ import type { CallModel } from "../_shared/agent/types";
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
 const PLACE = "00000000-0000-4000-8000-0000000000a5";
 const FIGHT = "00000000-0000-4000-8000-0000000000f7";
+const MEMBER = "00000000-0000-4000-8000-0000000000e1";
+const HONEYCOMB_ID = "00000000-0000-4000-8000-0000000000d7";
 const ATTIC_FIGHT = "00000000-0000-4000-8000-0000000000f8";
 const session: SessionRow = {
   id: "00000000-0000-4000-8000-0000000000a1",
@@ -26,7 +29,10 @@ const session: SessionRow = {
   fight_encounter_id: null,
 };
 
-function build(quests: TurnToolsInput["quests"] = null, played = false) {
+type HandsFixture = Omit<NonNullable<TurnToolsInput["hands"]>, "memberId" | "onChange">;
+
+function build(quests: TurnToolsInput["quests"] = null, played = false, hands: HandsFixture | null = null) {
+  const handed: HandsChange[] = [];
   const asked: PendingRoll[] = [];
   const fights: FightPlan[] = [];
   const calls: string[] = [];
@@ -59,12 +65,13 @@ function build(quests: TurnToolsInput["quests"] = null, played = false) {
     onIntroduce: () => {},
     fightChange: null,
     hitPoints: null,
+    hands: hands === null ? null : { memberId: MEMBER, ...hands, onChange: (change) => { handed.push(change); } },
     filed,
     quests,
     askRoll: played ? (pending) => asked.push(pending) : null,
     fight: played ? { view: { prepared: [{ id: FIGHT, name: "The cellar rats", creatures: "" }], fight: null }, viewAt: async () => ({ prepared: [{ id: ATTIC_FIGHT, name: "The attic bats", creatures: "" }], fight: null }), onStart: (plan) => { fights.push(plan); }, statless: async () => [] } : null,
   });
-  return { turn, calls, filed, moves, asked, fights };
+  return { turn, calls, filed, moves, asked, fights, handed };
 }
 
 describe("makeTurnTools", () => {
@@ -165,5 +172,60 @@ describe("makeTurnTools", () => {
     expect((await turn.callTool("start_fight", { encounter_id: FIGHT })).isError).toBe(true);
     expect((await turn.callTool("start_fight", { encounter_id: ATTIC_FIGHT })).isError).toBe(false);
     expect(fights).toEqual([{ kind: "prepared", encounterId: ATTIC_FIGHT, name: "The attic bats" }]);
+  });
+
+  describe("things changing hands", () => {
+    const COIN_VALUES = new Map([["gp", 100], ["sp", 10], ["cp", 1]]);
+    const coinsText = (coins: Coins) => Object.entries(coins).map(([k, n]) => `${n} ${k}`).join(" ");
+    const hands = (over: Partial<HandsFixture> = {}): HandsFixture => ({
+      possessions: { carried: [{ name: "Rope", quantity: 1 }], more: 0, purse: { gp: 5 }, wares: [{ name: "Lantern", ref: { itemId: "00000000-0000-4000-8000-0000000000a9", libraryItemId: null }, price: { gp: 3 }, priceText: "3 gp" }] },
+      coinValues: COIN_VALUES,
+      coinsText,
+      store: {
+        belonging: async (_c, id, thing) => (id === HONEYCOMB_ID && thing === "Workshop Keys" ? { rowId: "r1", name: "Workshop Keys", quantity: 1, ref: { itemId: null, libraryItemId: null }, owner: "Honeycomb" } : null),
+        characterName: async (_c, id) => (id === HONEYCOMB_ID ? "Honeycomb" : null),
+        carried: async (_c, _m, thing) => (thing === "Rope" ? { rowId: "r2", name: "Rope", quantity: 1, ref: { itemId: null, libraryItemId: null } } : null),
+        item: async () => null,
+      },
+      ...over,
+    });
+
+    // Bug caught: a gift told and nothing moved; or a thing "given" that the giver never had.
+    it("takes a gift the giver really has, and refuses one they have not", async () => {
+      const { turn, handed } = build(null, true, hands());
+      expect((await turn.callTool("hand_over", { giver: HONEYCOMB_ID, receiver: "player", thing: "Workshop Keys" })).isError).toBe(false);
+      expect((await turn.callTool("hand_over", { giver: HONEYCOMB_ID, receiver: "player", thing: "Crown Jewels" })).isError).toBe(true);
+      expect(handed).toEqual([{ kind: "to_player", from: { id: HONEYCOMB_ID, name: "Honeycomb" }, thing: "Workshop Keys", quantity: 1 }]);
+    });
+
+    // Bug caught: the player giving away what they do not carry.
+    it("lets the player give only what they carry", async () => {
+      const { turn, handed } = build(null, true, hands());
+      expect((await turn.callTool("hand_over", { giver: "player", receiver: HONEYCOMB_ID, thing: "Sword" })).isError).toBe(true);
+      expect((await turn.callTool("hand_over", { giver: "player", receiver: HONEYCOMB_ID, thing: "Rope" })).isError).toBe(false);
+      expect(handed.map((h) => h.kind)).toEqual(["from_player"]);
+    });
+
+    // Bug caught: the same 5 gp spent twice in one reply (a lantern at 3 gp, then a 3 gp bribe).
+    it("counts the purse down within the turn, so two payments cannot share the same coins", async () => {
+      const { turn, handed } = build(null, true, hands());
+      expect((await turn.callTool("buy", { thing: "Lantern" })).isError).toBe(false);
+      expect((await turn.callTool("coins", { change: "pay", coin: "gp", amount: 3, why: "A bribe" })).isError).toBe(true);
+      expect((await turn.callTool("coins", { change: "pay", coin: "gp", amount: 2, why: "A bribe" })).isError).toBe(false);
+      expect(handed.map((h) => h.kind)).toEqual(["buy", "pay"]);
+    });
+
+    // Bug caught: the narrator naming how many coins were found.
+    it("gains only what the narrator rolled", async () => {
+      const { turn, handed } = build(null, true, hands());
+      expect((await turn.callTool("coins", { change: "gain", coin: "gp", amount: 500, why: "The hound's hoard" })).isError).toBe(true);
+      expect(handed).toEqual([]);
+    });
+
+    // Bug caught: the tools offered where nothing may change hands (nobody played, a fight on the board).
+    it("is not offered without what the character carries", () => {
+      const { turn } = build(null, true, null);
+      expect(turn.tools.map((t) => t.name)).not.toContain("hand_over");
+    });
   });
 });

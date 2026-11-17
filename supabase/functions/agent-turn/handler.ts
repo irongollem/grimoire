@@ -14,6 +14,8 @@
 import type { FightChange } from "../_shared/agent/fightChange.ts";
 import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
 import { NARRATOR_SPEAKER, type KeyedLine } from "../_shared/agent/lineKey.ts";
+import { handsLine, possessionsSection, type Coins, type HandsChange, type Possessions } from "../_shared/agent/hands.ts";
+import { coinsText, coinValuesOf, type HandsStore } from "./handsIo.ts";
 import type { Introduction } from "../_shared/agent/introduce.ts";
 import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { runTurn, totalTokens, type TurnEnd } from "../_shared/agent/turn.ts";
@@ -87,6 +89,8 @@ export type AgentEvent =
   | { type: "introduced"; person: { id: string; name: string } }
   /** Words that are not a character's line and can be voiced: the narrator's, whole, or the player's own said line. */
   | { type: "voice"; role: "narrator" | "player"; text: string; voice: string }
+  /** Something changed hands: a line for the story's margin. The pack and the purse follow by themselves. */
+  | { type: "hands"; text: string }
   /** The played character's hit points changed outside a fight: what did it, by how much, and where they stand. */
   | { type: "hit_points"; change: { change: "heal" | "harm"; why: string; by: number; hp: number; maxHp: number } }
   | { type: "done"; end: TurnEnd; credits: number; tokens: number }
@@ -294,6 +298,8 @@ export interface AgentTurnDeps {
   voiceKey: ((sessionId: string, line: KeyedLine) => string) | null;
   /** Whether the table itself made this character's record and the DM has not edited it since: only then may the table rewrite it. */
   isTableMadeCharacter(campaignId: string, characterId: string): Promise<boolean>;
+  /** Things changing hands: what is carried and stocked, and the changes carried out (`handsIo.ts`). */
+  hands: HandsStore;
   /** Sets the played character's hit points on their sheet (`hitPoints.ts`). */
   setHitPoints(campaignId: string, memberId: string, hitPoints: number): Promise<void>;
   /** Takes one of a thing out of a character's belongings, by name; answers whether they had it. */
@@ -530,7 +536,19 @@ export async function beginTurn(input: {
         }
         const system = systemWithSummary(systemFor({ campaign, character, peoples }), session.summary);
         const fightTurn = body.fightTurn === undefined ? null : body.fightTurn;
-        const state = stateFor({ scene, quests: questState, record, fights, fightTurn });
+        // What the played character carries and the place sells. A failure to read it costs the tools, never the turn.
+        let hands: { possessions: Possessions; coinValues: Map<string, number>; coinsText: (coins: Coins) => string } | null = null;
+        if (character) {
+          try {
+            const loaded = await deps.hands.load(campaign.id, character.id, session.scene_location_id);
+            hands = { possessions: loaded.possessions, coinValues: coinValuesOf(loaded.currency), coinsText: coinsText(loaded.currency) };
+          } catch (error) {
+            console.error("agent-turn: reading what the character carries failed:", error);
+          }
+        }
+        const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText) });
+        // What changes hands this turn; moved only once the turn is kept.
+        const handed: HandsChange[] = [];
         // What the narrator's ruling does to the fight on the board; carried out by the page once the turn is kept.
         let fightChange: FightChange | null = null;
         // What the narrator's roll does to the played character's hit points; written only once the turn is kept.
@@ -554,6 +572,10 @@ export async function beginTurn(input: {
           playerName: character ? character.name : undefined,
           peoples,
           onIntroduce: (intro) => { introduced.push(intro); },
+          // Not in a fight: a turn there is six seconds, and what it holds is the board's.
+          hands: character && hands !== null && !(fights !== null && fights.fight !== null && fights.fight.phase === "running")
+            ? { memberId: character.id, ...hands, store: deps.hands, onChange: (change) => { handed.push(change); } }
+            : null,
           // Outside a fight only: in one the board keeps everyone's hit points.
           hitPoints: character && !(fights !== null && fights.fight !== null && fights.fight.phase === "running")
             ? { now: character.hitPoints, onChange: (change) => { hitPointChange = change; } }
@@ -775,6 +797,18 @@ export async function beginTurn(input: {
           emit({ type: "fight", fight: null });
         }
         // (The fight's own line on the record is filed above, where the conversation lets go of it.)
+        // What changed hands, in the order it was told. One that cannot be made (the giver's pockets changed, the
+        // purse was emptied meanwhile) costs that change and its line, never the turn.
+        if (character && hands !== null) {
+          for (const change of handed) {
+            try {
+              await deps.hands.apply({ campaignId: campaign.id, userId, memberId: character.id }, change);
+              emit({ type: "hands", text: handsLine(change, character.name, hands.coinsText) });
+            } catch (error) {
+              console.error("agent-turn: a change of hands failed:", error);
+            }
+          }
+        }
         // The played character's hit points, and the thing that was used up for it. A thing that cannot be taken
         // (the narrator named one they do not carry) costs nothing but the tidying: the healing was rolled and stands.
         const mended = hitPointChange as HitPointChange | null;

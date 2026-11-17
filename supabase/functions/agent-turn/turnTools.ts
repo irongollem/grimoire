@@ -4,6 +4,11 @@
 // about what the narrator may do inside it: the campaign's own tools, a character speaking, moving the party and
 // putting a fact on the record. Everything with I/O comes in through `deps`; nothing here touches a database.
 
+import {
+  BUY_TOOL, COINS_TOOL, COINS_TOOL_NAME, HAND_OVER_TOOL, HAND_OVER_TOOL_NAME, HANDS_PER_TURN, HANDS_TOOL_NAMES, handsText, parseBuy, parseCoins,
+  parseHandOver, parseTake, purseAfterGaining, TAKE_TOOL, TAKE_TOOL_NAME, worth, type Coins, type HandsChange, type Possessions,
+} from "../_shared/agent/hands.ts";
+import type { HandsStore } from "./handsIo.ts";
 import { HIT_POINTS_TOOL, HIT_POINTS_TOOL_NAME, hitPointsText, parseHitPointChange, rollTotal, type HitPointChange } from "../_shared/agent/hitPoints.ts";
 import { cannotAttempt, changedText, FIGHT_CHANGE_TOOL, parseFightChange, type FightChange, type TurnBudget } from "../_shared/agent/fightChange.ts";
 import type { FightState } from "../_shared/agent/fight.ts";
@@ -71,6 +76,19 @@ export interface TurnToolsInput {
   } | null;
   /** The played character's hit points and where a change to them goes; null in a fight (the board keeps them) or with nobody played, and then the tool is not offered. */
   hitPoints: { now: { current: number; max: number } | null; onChange(change: HitPointChange): void } | null;
+  /**
+   * Things changing hands (`hands.ts`): what the played character carries and the place sells, the lookups a
+   * change is checked against, and where a taken change goes. Null with nobody played, in a fight, or when it
+   * could not be read; then the tools are not offered.
+   */
+  hands: {
+    memberId: string;
+    possessions: Possessions;
+    coinValues: ReadonlyMap<string, number>;
+    coinsText(coins: Coins): string;
+    store: Pick<HandsStore, "belonging" | "characterName" | "carried" | "item">;
+    onChange(change: HandsChange): void;
+  } | null;
   /** Takes the roll the narrator asks the player for; null when nobody is played, and then the tool is not offered. */
   askRoll: ((pending: PendingRoll) => void) | null;
 }
@@ -192,6 +210,68 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     return { content: hitPointsText(parsed.value, input.hitPoints.now === null ? 0 : input.hitPoints.now.current), isError: false };
   };
 
+  // Things changing hands. Each is checked against what is really carried, stocked or in the purse before it is
+  // taken, and made when the turn is kept. The purse is counted down as the turn's payments are taken, so two
+  // payments cannot both be covered by the same coins.
+  let handsTaken = 0;
+  let purseLeft: Coins | null = input.hands === null ? null : input.hands.possessions.purse;
+  const changeHands = async (name: string, toolInput: Record<string, unknown>): Promise<{ content: string; isError: boolean }> => {
+    const hands = input.hands;
+    if (hands === null || purseLeft === null) return { content: "Nothing changes hands here.", isError: true };
+    if (handsTaken >= HANDS_PER_TURN) return { content: `At most ${HANDS_PER_TURN} things change hands in one turn. Tell what happened and end your reply.`, isError: true };
+    const refused = (error: string) => ({ content: error, isError: true });
+    let change: HandsChange;
+    if (name === HAND_OVER_TOOL_NAME) {
+      const parsed = parseHandOver(toolInput);
+      if (!parsed.ok) return refused(parsed.error);
+      const { direction, characterId, thing, quantity } = parsed.value;
+      if (direction === "to_player") {
+        const held = await hands.store.belonging(campaignId, characterId, thing);
+        // Not listed: what a character carries is theirs to know, not the narrator's.
+        if (held === null) return refused("That character does not have that thing among their belongings, so it cannot be given. Let the character say what they have.");
+        if (held.quantity < quantity) return refused(`They have only ${held.quantity} of that.`);
+        change = { kind: "to_player", from: { id: characterId, name: held.owner }, thing: held.name, quantity };
+      } else {
+        const [held, receiver] = await Promise.all([hands.store.carried(campaignId, hands.memberId, thing), hands.store.characterName(campaignId, characterId)]);
+        if (receiver === null) return refused("No character with that id is in this campaign.");
+        if (held === null) return refused("The player's character does not carry that (see \"What the player's character carries\"). Tell them so; nothing is given.");
+        if (held.quantity < quantity) return refused(`The player's character has only ${held.quantity} of that.`);
+        change = { kind: "from_player", to: { id: characterId, name: receiver }, thing: held.name, quantity };
+      }
+    } else if (name === TAKE_TOOL_NAME) {
+      const parsed = parseTake(toolInput);
+      if (!parsed.ok) return refused(parsed.error);
+      if (parsed.value.itemId !== null) {
+        const item = await hands.store.item(campaignId, parsed.value.itemId);
+        if (item === null) return refused("No item with that id is in this campaign. Look it up with search, or give name alone for a plain object.");
+        change = { kind: "take", thing: item.name, quantity: parsed.value.quantity, ref: { itemId: parsed.value.itemId, libraryItemId: null } };
+      } else {
+        // parseTake gives a name whenever it gives no id.
+        change = { kind: "take", thing: parsed.value.name as string, quantity: parsed.value.quantity, ref: { itemId: null, libraryItemId: null } };
+      }
+    } else if (name === COINS_TOOL_NAME) {
+      const parsed = parseCoins(toolInput, { coinValues: hands.coinValues, purse: purseLeft, lastRoll });
+      if (!parsed.ok) return refused(parsed.error);
+      change = parsed.value;
+    } else {
+      const parsed = parseBuy(toolInput, { wares: hands.possessions.wares, coinValues: hands.coinValues, purse: purseLeft });
+      if (!parsed.ok) return refused(parsed.error);
+      change = parsed.value;
+    }
+    if (change.kind === "pay" || change.kind === "buy") {
+      // What this takes is no longer there for the turn's next payment. The exact coins are worked out when it is made.
+      const cost = change.kind === "buy" ? change.price : change.coins;
+      const left = worth(purseLeft, hands.coinValues) - worth(cost, hands.coinValues);
+      const smallest = [...hands.coinValues.entries()].find(([, value]) => value === 1);
+      purseLeft = smallest ? { [smallest[0]]: left } : purseLeft;
+    } else if (change.kind === "gain") {
+      purseLeft = purseAfterGaining(purseLeft, change.coins);
+    }
+    handsTaken += 1;
+    hands.onChange(change);
+    return { content: handsText(change, hands.coinsText), isError: false };
+  };
+
   // Whether the narrator has made a roll of its own this turn: a creature's saving throw has to have been rolled
   // before a change can rest on it.
   let narratorRolled = false;
@@ -238,7 +318,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
@@ -250,6 +330,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (name === INTRODUCE_TOOL_NAME) return introduce(toolInput);
       if (input.fightChange && name === FIGHT_CHANGE_TOOL.name) return Promise.resolve(changeFight(toolInput));
       if (input.hitPoints && name === HIT_POINTS_TOOL_NAME) return Promise.resolve(changeHitPoints(toolInput));
+      if (input.hands && HANDS_TOOL_NAMES.has(name)) return changeHands(name, toolInput);
       if (quests && quests.names.has(name)) return quests.call(name, toolInput);
       if (SPEECH_TOOL_NAMES.has(name)) return speech.call(name, toolInput);
       if (name === ROLL_TOOL_NAME) {

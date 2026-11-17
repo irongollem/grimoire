@@ -84,6 +84,8 @@ export function applyTableEvent(items: StoryItem[], event: TableEvent, turnStart
       if (target.kind === "player" && target.mode === "say") return [...items.slice(0, at), { ...target, voice: { key: event.key } }, ...items.slice(at + 1)];
       return items;
     }
+    case "hands":
+      return withMargin(items, event.text);
     case "hit_points": {
       const { heals, why, by, hp, maxHp } = event.change;
       const moved = by === 0 ? "no hit points" : `${heals ? "+" : "−"}${by} hit points`;

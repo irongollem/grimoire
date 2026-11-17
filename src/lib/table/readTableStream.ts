@@ -98,6 +98,8 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
       if (typeof raw.voice !== "string" || raw.voice === "") return null;
       return { type: "voice", role: raw.role, text: raw.text, key: raw.voice };
     }
+    case "hands":
+      return typeof raw.text === "string" && raw.text.trim() !== "" ? { type: "hands", text: raw.text.trim() } : null;
     case "hit_points": {
       const c = raw.change;
       if (!isRecord(c) || (c.change !== "heal" && c.change !== "harm") || typeof c.why !== "string") return null;

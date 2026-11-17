@@ -37,6 +37,7 @@ import { loadPartyMember } from "./characterIo.ts";
 import { RECORD_SECTION_MAX, type RecordedFact } from "../_shared/agent/record.ts";
 import { openaiModel } from "../_shared/agent/openai.ts";
 import { revealToCharacter } from "./revealIo.ts";
+import { makeHandsStore } from "./handsIo.ts";
 import { finishFight, loadFights, setFight, startFight, statlessFighters } from "./fightIo.ts";
 import type { Prologue } from "../_shared/agent/prologue.ts";
 import { parsePendingRoll } from "../_shared/agent/playerRoll.ts";
@@ -645,6 +646,8 @@ serve(withCors(async (req: Request) => {
     startFight: (ctx, plan) => startFight(supabase, admin, ctx, plan),
     setFight: (sessionId, campaignId, encounterId) => setFight(admin, sessionId, campaignId, encounterId),
     statlessFighters: (campaignId, plan) => statlessFighters(supabase, campaignId, plan),
+    hands: makeHandsStore(admin),
+
     // The campaign filter is in the query: a member of another campaign is not found, and nothing is written.
     async setHitPoints(campaignId, memberId, hitPoints) {
       const { error } = await admin.from("party_members").update({ current_hp: hitPoints }).eq("id", memberId).eq("campaign_id", campaignId);
