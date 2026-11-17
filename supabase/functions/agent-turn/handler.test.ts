@@ -118,6 +118,8 @@ interface Harness {
     sceneThrows: boolean;
     memoriesThrow: boolean;
     playSessionThrows: boolean;
+    /** The DM already had a session running, so the table joins it instead of starting one. */
+    playSessionJoined: boolean;
     moveFails: boolean;
     record: RecordedFact[];
     recordThrows: boolean;
@@ -188,6 +190,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       sceneThrows: false,
       memoriesThrow: false,
       playSessionThrows: false,
+      playSessionJoined: false,
       moveFails: false,
       record: [],
       recordThrows: false,
@@ -219,7 +222,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       const row = h.sessions.get(id);
       return row ? { ...row } : null;
     },
-    createSession: async ({ userId, campaignId, sceneLocationId, campaignSessionId, partyMemberId }) => {
+    createSession: async ({ userId, campaignId, sceneLocationId, campaignSessionId, openedPlaySession, partyMemberId }) => {
       const row: SessionRow = {
         id: "00000000-0000-4000-8000-0000000000b9",
         user_id: userId,
@@ -230,6 +233,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
         campaign_session_id: campaignSessionId,
         pressure_clock_id: null,
         party_member_id: partyMemberId,
+        opened_play_session: openedPlaySession,
+        left_at: null,
       };
       h.sessions.set(row.id, row);
       log.push("create");
@@ -350,7 +355,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     openPlaySession: async () => {
       log.push("open-session");
       if (h.state.playSessionThrows) throw new Error("db down");
-      return PLAY_SESSION;
+      return { id: PLAY_SESSION, opened: h.state.playSessionJoined ? false : true };
     },
     loadSpeaker: async (campaignId, characterId) => {
       speakerLoads.push({ campaignId, characterId });
@@ -375,6 +380,8 @@ function existingSession(h: Harness, over: Partial<SessionRow> = {}, accrued = 0
     campaign_session_id: null,
     pressure_clock_id: null,
     party_member_id: null,
+    opened_play_session: false,
+    left_at: null,
     ...over,
   };
   h.sessions.set(row.id, row);
@@ -1319,6 +1326,33 @@ describe("a sitting is a play session of the campaign", () => {
     await play(h);
     expect([...h.sessions.values()][0].campaign_session_id).toBe(PLAY_SESSION);
     expect(h.memorySessions).toEqual([PLAY_SESSION]);
+  });
+
+  it("records that the conversation started its session, or leaving could never tell whose evening it is", async () => {
+    const h = harness();
+    await play(h);
+    expect([...h.sessions.values()][0].opened_play_session).toBe(true);
+  });
+
+  it("records that the conversation only joined a session already running, so leaving will not close it", async () => {
+    const h = harness();
+    h.state.playSessionJoined = true;
+    await play(h);
+    expect([...h.sessions.values()][0].opened_play_session).toBe(false);
+  });
+
+  it("refuses a turn in a conversation that was left with 409, before anything is reserved", async () => {
+    const h = harness();
+    existingSession(h, { left_at: "2026-11-17T00:00:00Z" });
+    const refusal = await handleAgentTurn({
+      userId: DM,
+      body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "go", mode: "do" },
+      deps: h.deps,
+      send: () => {},
+    });
+    expect(refusal).toEqual({ status: 409, error: MESSAGES.left });
+    expect(h.reserved).toEqual([]);
+    expect(h.log).not.toContain("open-session");
   });
 
   it("opens no second session for a conversation already under way: one conversation is one sitting", async () => {

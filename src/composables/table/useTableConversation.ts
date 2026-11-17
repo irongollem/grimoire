@@ -10,6 +10,8 @@ export interface StoredSitting {
   party_member_id: string | null;
   scene_location_id: string | null;
   credits_spent: number;
+  /** When the player left the table; null while the sitting goes on. */
+  left_at: string | null;
 }
 
 export interface StoredConversation {
@@ -34,7 +36,7 @@ export function useTableConversation(sessionId: MaybeRefOrGetter<string | null>,
       const [sitting, turns, facts] = await Promise.all([
         supabase
           .from("agent_sessions")
-          .select("id, party_member_id, scene_location_id, credits_spent")
+          .select("id, party_member_id, scene_location_id, credits_spent, left_at")
           .eq("id", id)
           .eq("user_id", user)
           .eq("campaign_id", campaign)

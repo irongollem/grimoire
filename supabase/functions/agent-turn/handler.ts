@@ -88,6 +88,10 @@ export interface SessionRow {
   pressure_clock_id: string | null;
   /** The party member the player plays; null when the conversation was begun without one. */
   party_member_id: string | null;
+  /** True when this conversation started its play session; false when it joined one that was already open. */
+  opened_play_session: boolean;
+  /** When the player left the table; null while the sitting goes on. A conversation that was left takes no turns. */
+  left_at: string | null;
 }
 
 export interface ResolvedProvider {
@@ -116,13 +120,17 @@ export interface AgentTurnDeps {
     model: string;
     sceneLocationId: string | null;
     campaignSessionId: string | null;
+    /** Whether the conversation started that session itself (see `SessionRow.opened_play_session`). */
+    openedPlaySession: boolean;
     partyMemberId: string | null;
   }): Promise<SessionRow>;
   /**
    * The campaign's open play session, started if there is none: sitting down at the table is the game being played.
-   * Null when it could not be opened; the conversation then runs without one and what it writes carries no session.
+   * `opened` says whether this call started it (false: the DM already had one running and the table joined it), which
+   * is what decides at the end whether leaving the table may close it. Null when it could not be opened; the
+   * conversation then runs without one and what it writes carries no session.
    */
-  openPlaySession(campaignId: string): Promise<string | null>;
+  openPlaySession(campaignId: string): Promise<{ id: string; opened: boolean } | null>;
   loadTurns(sessionId: string): Promise<StoredTurn[]>;
   rateLimit(userId: string): Promise<boolean>;
   resolveProvider(campaign: CampaignRow): Promise<ResolvedProvider | null>;
@@ -229,6 +237,7 @@ export interface AgentTurnDeps {
 export const MESSAGES = {
   badBody: "The request is not valid.",
   notFound: "That conversation was not found.",
+  left: "You left this table. Sit down again to play on.",
   noPlace: "That place was not found.",
   noCharacter: "That character was not found.",
   noCampaign: "Campaign not found.",
@@ -276,6 +285,8 @@ export async function beginTurn(input: {
     if (!existing || existing.user_id !== userId || existing.campaign_id !== campaign.id) {
       return refuse(404, MESSAGES.notFound);
     }
+    // Before the rate limit and the reservation: a sitting that was left takes nothing more, and costs nothing to refuse.
+    if (existing.left_at !== null) return refuse(409, MESSAGES.left);
   }
 
   // Before anything is charged or streamed: a place of another campaign, or one that does not exist, is "not
@@ -358,10 +369,10 @@ export async function beginTurn(input: {
       let gate: NarrationGate | null = null;
       try {
         // Only a new conversation opens a session: one conversation is one sitting, and it keeps the session it began in.
-        let playSessionId: string | null = null;
+        let playSession: { id: string; opened: boolean } | null = null;
         if (!existing) {
           try {
-            playSessionId = await deps.openPlaySession(campaign.id);
+            playSession = await deps.openPlaySession(campaign.id);
           } catch (error) {
             console.error("agent-turn: opening the play session failed:", error);
           }
@@ -372,7 +383,8 @@ export async function beginTurn(input: {
           provider: provider.provider,
           model: provider.model,
           sceneLocationId: body.startLocationId === undefined ? null : body.startLocationId,
-          campaignSessionId: playSessionId,
+          campaignSessionId: playSession === null ? null : playSession.id,
+          openedPlaySession: playSession !== null && playSession.opened,
           partyMemberId: body.characterId === undefined ? null : body.characterId,
         });
         const character = await characterOf(deps, campaign.id, session.party_member_id);

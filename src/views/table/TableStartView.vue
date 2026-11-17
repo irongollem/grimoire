@@ -41,7 +41,7 @@
                   <template v-if="sitting.placeName">{{ sitting.placeName }} · </template>{{ dayOf(sitting.updated_at) }}
                 </span>
               </div>
-              <AppButton :to="`/table/${sitting.id}`" variant="outline" size="md" label="Continue" />
+              <AppButton :to="`/table/${sitting.id}`" variant="outline" size="md" :label="sitting.left_at === null ? 'Continue' : 'Read'" />
             </li>
           </ul>
         </section>

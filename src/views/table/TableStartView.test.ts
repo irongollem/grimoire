@@ -24,6 +24,7 @@ const sitting = (id: string, over: Record<string, unknown> = {}) => ({
   party_member_id: "m1",
   scene_location_id: null,
   credits_spent: 0,
+  left_at: null,
   created_at: "2026-11-10T10:00:00Z",
   updated_at: "2026-11-10T10:00:00Z",
   ...over,
@@ -91,6 +92,15 @@ describe("TableStartView", () => {
     const row = wrapper.get('[data-testid="table-sitting"]');
     expect(row.text()).toContain("Inkling");
     expect(row.get("a").attributes("href")).toBe("/table/mine");
+  });
+
+  // Bug caught: offering to continue a sitting that was left, whose next turn the server refuses.
+  it("offers Read for a sitting that was left and Continue for one still going", async () => {
+    fake.seed("agent_sessions", [sitting("going", { updated_at: "2026-11-11T10:00:00Z" }), sitting("left", { left_at: "2026-11-10T11:00:00Z" })]);
+    const { wrapper } = await mountView();
+    await vi.waitFor(() => expect(wrapper.findAll('[data-testid="table-sitting"]')).toHaveLength(2));
+    const labels = Object.fromEntries(wrapper.findAll('[data-testid="table-sitting"]').map((r) => [r.get("a").attributes("href"), r.get("a").text()]));
+    expect(labels).toEqual({ "/table/going": "Continue", "/table/left": "Read" });
   });
 });
 

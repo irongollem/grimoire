@@ -204,3 +204,18 @@ for await (const line of prompt) {
   if (open) prompt.prompt();
 }
 if (open) prompt.close();
+
+// Leaving is a real act: it ends the play session this sitting opened and files the record of it.
+if (sessionId) {
+  const left = await fetch(`${stack.API_URL}/functions/v1/agent-leave`, {
+    method: "POST",
+    headers: { apikey: stack.ANON_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ campaignId, sessionId }),
+  }).catch(() => null);
+  if (!left || !left.ok) {
+    console.log(`\nLeaving the table failed${left ? ` [${left.status}] ${await left.text()}` : " (agent-leave is not being served)"}. The play session may still be running.`);
+  } else {
+    const done = (await left.json()) as { endedSession: boolean; noteId: string | null };
+    console.log(`\nLeft the table. ${done.endedSession ? "The play session was ended." : "The play session was left running (this sitting did not open it, or it was already over)."}${done.noteId ? " A session note was filed." : ""}`);
+  }
+}

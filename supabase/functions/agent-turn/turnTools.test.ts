@@ -14,6 +14,8 @@ const session: SessionRow = {
   summary_through_seq: 0,
   scene_location_id: null,
   campaign_session_id: null,
+  opened_play_session: false,
+  left_at: null,
   pressure_clock_id: null,
   party_member_id: null,
 };

@@ -17,6 +17,7 @@ vi.mock("@/lib/supabase", () => ({
 
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 import { useTableDisclosure } from "@/composables/table/useTableDisclosure";
 import TableView from "./TableView.vue";
 
@@ -144,5 +145,61 @@ describe("TableView: playing", () => {
     const { router } = await mountTable("/table/new");
     await flushPromises();
     expect(router.currentRoute.value.path).toBe("/table");
+  });
+});
+
+describe("TableView: leaving", () => {
+  beforeEach(() => {
+    setUp("u1");
+    useTableDisclosure().accept();
+    fake.seed("agent_sessions", [
+      { id: "s1", user_id: "u1", campaign_id: "c1", party_member_id: "m1", scene_location_id: null, credits_spent: 0, left_at: null },
+      { id: "s2", user_id: "u1", campaign_id: "c1", party_member_id: "m1", scene_location_id: null, credits_spent: 0, left_at: "2026-11-17T00:00:00Z" },
+    ]);
+  });
+
+  const leaveButton = (wrapper: Awaited<ReturnType<typeof mountTable>>["wrapper"]) => wrapper.findAll("button").find((b) => b.text().includes("Leave the table"))!;
+
+  // Bug caught: the bar's "Leave the table" staying a plain link, so the session it opened ran for ever.
+  it("tells the server which sitting is left, then goes to the start page", async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ left: true, endedSession: true, noteId: null }), { status: 200, headers: { "content-type": "application/json" } }));
+    const { wrapper, router } = await mountTable("/table/s1");
+    await leaveButton(wrapper).trigger("click");
+    await flushPromises();
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/functions/v1/agent-leave");
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({ campaignId: "c1", sessionId: "s1" });
+    expect(router.currentRoute.value.path).toBe("/table");
+  });
+
+  // Bug caught: a failed leave call keeping the player stuck at the table.
+  it("still goes to the start page when the call fails, and says so", async () => {
+    fetchMock.mockResolvedValue(new Response("{}", { status: 500 }));
+    const { wrapper, router } = await mountTable("/table/s1");
+    await leaveButton(wrapper).trigger("click");
+    await flushPromises();
+    expect(router.currentRoute.value.path).toBe("/table");
+    expect(useToast().toasts.value.map((t) => t.message).join(" ")).toContain("could not be recorded");
+  });
+
+  // Bug caught: leaving a sitting that never began (no conversation yet) calling the server with no id.
+  it("calls nothing for a sitting that has not begun", async () => {
+    const { wrapper, router } = await mountTable("/table/new?character=m1");
+    await leaveButton(wrapper).trigger("click");
+    await flushPromises();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(router.currentRoute.value.path).toBe("/table");
+  });
+
+  // Bug caught: a left sitting reopened with a composer, so the player types into a table the server refuses.
+  it("shows a left sitting without a composer and says it has ended", async () => {
+    const { wrapper } = await mountTable("/table/s2");
+    expect(wrapper.find("textarea").exists()).toBe(false);
+    expect(wrapper.get('[data-testid="solo-left"]').text()).toContain("has ended");
+  });
+
+  it("keeps the composer for a sitting still going", async () => {
+    const { wrapper } = await mountTable("/table/s1");
+    expect(wrapper.find("textarea").exists()).toBe(true);
+    expect(wrapper.find('[data-testid="solo-left"]').exists()).toBe(false);
   });
 });

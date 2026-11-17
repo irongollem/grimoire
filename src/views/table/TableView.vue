@@ -9,6 +9,8 @@
         :credits="meterCredits"
         :turns="turns"
         :balance="balance"
+        :leaving="leaveTable.leaving.value"
+        @leave="leave"
         @disclosure="disclosure.reopen"
         @credits="openOutOfCredits(1)"
       />
@@ -36,7 +38,9 @@
               @credits="openOutOfCredits(1)"
             />
             <div class="shrink-0 px-4 pt-2 pb-4 md:px-6">
+              <SoloLeft v-if="hasLeft" />
               <SoloComposer
+                v-else
                 :character="characterName"
                 :running="turn.running.value"
                 @submit="(mode, text) => turn.send(mode, text)"
@@ -66,6 +70,7 @@ import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import SoloAiOff from "@/components/table/solo/SoloAiOff.vue";
 import SoloBar from "@/components/table/solo/SoloBar.vue";
 import SoloComposer from "@/components/table/solo/SoloComposer.vue";
+import SoloLeft from "@/components/table/solo/SoloLeft.vue";
 import SoloDisclosure from "@/components/table/solo/SoloDisclosure.vue";
 import SoloScene from "@/components/table/solo/SoloScene.vue";
 import SoloStory from "@/components/table/solo/SoloStory.vue";
@@ -73,6 +78,8 @@ import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useParty } from "@/composables/party/useParty";
 import { TABLE_SESSIONS_KEY } from "@/composables/table/useTableSessions";
+import { useLeaveTable } from "@/composables/table/useLeaveTable";
+import { useToast } from "@/composables/useToast";
 import { useTableConversation } from "@/composables/table/useTableConversation";
 import { useTableDisclosure } from "@/composables/table/useTableDisclosure";
 import { useTableScene } from "@/composables/table/useTableScene";
@@ -183,6 +190,28 @@ const portraits = computed(() => {
   }
   return map;
 });
+
+// A sitting that was left is read only: the server refuses its turns, and the page does not offer to send one.
+const hasLeft = computed(() => {
+  const sitting = conversation.data.value?.sitting;
+  return sitting !== undefined && sitting.left_at !== null;
+});
+
+const toast = useToast();
+const leaveTable = useLeaveTable();
+async function leave(): Promise<void> {
+  // A conversation that does not exist yet has nothing to end. A turn still running is stopped first: it would
+  // otherwise be refused by the server the moment the sitting is marked left.
+  turn.stop();
+  const id = turn.sessionId.value;
+  if (id !== null && campaignId.value !== null) {
+    const outcome = await leaveTable.leave(campaignId.value, id);
+    // Never stuck at a table: a failed call is said and the player goes anyway.
+    if (outcome === null) toast.error("Leaving the table could not be recorded. The session may still be running; end it from the Sessions page.");
+    else void queryClient.invalidateQueries({ queryKey: [TABLE_SESSIONS_KEY] });
+  }
+  await router.push("/table");
+}
 
 function declineDisclosure(): void {
   // Not told yet and not wanting to be: nobody sits at a table they were not told about.

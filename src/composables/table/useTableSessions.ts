@@ -14,9 +14,10 @@ export interface TableSittingRow {
   credits_spent: number;
   created_at: string;
   updated_at: string;
+  left_at: string | null;
 }
 
-const COLUMNS = "id, party_member_id, scene_location_id, credits_spent, created_at, updated_at";
+const COLUMNS = "id, party_member_id, scene_location_id, credits_spent, created_at, updated_at, left_at";
 
 /**
  * This account's earlier sittings at the AI table in one campaign, newest first. Both filters are in the query: RLS

@@ -55,7 +55,7 @@ function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id, pressure_clock_id, party_member_id";
+const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id, pressure_clock_id, party_member_id, opened_play_session, left_at";
 
 /** Beside what is tied to this place and these people, the campaign's newest facts always reach the narrator. */
 const NEWEST_FACTS = 15;
@@ -71,6 +71,8 @@ function sessionRow(row: Record<string, unknown>): SessionRow {
     campaign_session_id: (row.campaign_session_id as string | null) ?? null,
     pressure_clock_id: (row.pressure_clock_id as string | null) ?? null,
     party_member_id: (row.party_member_id as string | null) ?? null,
+    opened_play_session: row.opened_play_session === true,
+    left_at: (row.left_at as string | null) ?? null,
   };
 }
 
@@ -160,7 +162,16 @@ serve(withCors(async (req: Request) => {
     // Through the caller's own client: `start_campaign_session` is the function the app's Start button calls, it
     // checks that the caller is this campaign's DM, and it returns the open session untouched when there is one
     // (a DM already running an evening keeps it, and the table joins it). A new session takes the next number.
-    async openPlaySession(campaignId): Promise<string | null> {
+    async openPlaySession(campaignId): Promise<{ id: string; opened: boolean } | null> {
+      // Read before the call: the function answers the open session untouched, so the answer alone cannot say who started it.
+      const { data: running, error: runningError } = await supabase
+        .from("campaign_sessions")
+        .select("id")
+        .eq("campaign_id", campaignId)
+        .not("started_at", "is", null)
+        .is("ended_at", null)
+        .limit(1);
+      if (runningError) throw runningError;
       const { data: last, error: lastError } = await supabase
         .from("campaign_sessions")
         .select("number")
@@ -174,10 +185,10 @@ serve(withCors(async (req: Request) => {
       const { data, error } = await supabase.rpc("start_campaign_session", { p_campaign_id: campaignId, p_number: next });
       if (error) throw error;
       const row = Array.isArray(data) ? data[0] : data;
-      return row && typeof row.id === "string" ? row.id : null;
+      return row && typeof row.id === "string" ? { id: row.id, opened: (running ?? []).length === 0 } : null;
     },
 
-    async createSession({ userId, campaignId, provider, model, sceneLocationId, campaignSessionId, partyMemberId }): Promise<SessionRow> {
+    async createSession({ userId, campaignId, provider, model, sceneLocationId, campaignSessionId, openedPlaySession, partyMemberId }): Promise<SessionRow> {
       const { data, error } = await admin
         .from("agent_sessions")
         .insert({
@@ -188,6 +199,7 @@ serve(withCors(async (req: Request) => {
           model,
           scene_location_id: sceneLocationId,
           campaign_session_id: campaignSessionId,
+          opened_play_session: openedPlaySession,
           party_member_id: partyMemberId,
         })
         .select(SESSION_COLUMNS)

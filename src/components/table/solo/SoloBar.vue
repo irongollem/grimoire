@@ -1,6 +1,6 @@
 <template>
   <header class="flex min-h-13 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border bg-card px-3 py-1.5 md:px-4">
-    <AppButton to="/table" variant="ghost" size="md" :icon="IconChevronLeft" label="Leave the table" collapse-label-on-mobile />
+    <AppButton variant="ghost" size="md" :icon="IconChevronLeft" label="Leave the table" :loading="leaving" collapse-label-on-mobile @click="emit('leave')" />
     <div class="flex min-w-0 flex-col md:flex-row md:items-center md:gap-3">
       <span class="truncate text-heading-sm font-bold text-foreground">{{ campaign }}</span>
       <span class="truncate text-caption text-muted-foreground md:rounded-sm md:bg-muted md:px-2 md:py-0.5 md:text-label-lg md:text-foreground">Playing {{ character }}</span>
@@ -26,7 +26,7 @@ import { IconChevronLeft, IconCoins } from "@/lib/icons";
 import SoloAiMark from "./SoloAiMark.vue";
 import SoloCostPanel from "./SoloCostPanel.vue";
 
-const { credits, balance } = defineProps<{
+const { credits, balance, leaving = false } = defineProps<{
   campaign: string;
   character: string;
   /** Credits billed in this sitting, whole. */
@@ -35,8 +35,10 @@ const { credits, balance } = defineProps<{
   turns: number;
   /** The account's balance; null while it is not known. */
   balance: number | null;
+  /** The leave call is running. */
+  leaving?: boolean;
 }>();
-const emit = defineEmits<{ disclosure: []; credits: [] }>();
+const emit = defineEmits<{ disclosure: []; credits: []; leave: [] }>();
 
 const costOpen = ref(false);
 const meterHost = ref<HTMLElement | null>(null);
