@@ -43,9 +43,9 @@ whose dice sit in one bottom row of 8 (cleaner octahedron, circular percentile
 die): `magick image.png -crop 1536x140+0+710 +repage _g.png`, then
 `segment _g.png _work2 8 1`, cells 3 and 7.
 
-## The AI table (`table`) — `~/Desktop/voice-role-icons-sheet.png`
+## The AI table (`table`) — `art-src/table-voices/`
 
-The three voice switches in the table's bar (#1021, 17 Nov 2026). A 3×5 sheet, black on transparent, a column per
+The three voice switches in the table's bar (#1021, 17 Nov 2026). `voice-role-icons-sheet.png`, a 3×5 sheet, black on transparent, a column per
 switch (narrator, characters, the player's own character) with five candidates each. `segment` sees one cell on a
 transparent sheet: flatten onto white first (`magick sheet.png -background white -flatten flat.png`) and crop by
 hand, 512 wide and about 205 tall per cell.
