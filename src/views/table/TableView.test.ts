@@ -101,10 +101,14 @@ describe("TableView: the disclosure", () => {
     setUp("first-timer");
     const first = await mountTable("/table/new?character=m1");
     expect(document.body.textContent).toContain("Before you sit down");
+    // Bug caught: the opening scene asked of the model before the player has been told who answers.
+    expect(fetchMock).not.toHaveBeenCalled();
     const accept = [...document.body.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Sit down")!;
     accept.click();
     await flushPromises();
     expect(document.body.textContent).not.toContain("Before you sit down");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toMatchObject({ opening: true, message: "", characterId: "m1" });
     first.wrapper.unmount();
 
     setUp("first-timer");
@@ -122,30 +126,36 @@ describe("TableView: playing", () => {
   // Bug caught: the address staying /table/new after the conversation exists, so a reload starts a different story;
   // or becoming the id by remounting, which drops the story that is streaming in.
   it("draws the turn as it streams, and replaces /table/new with the real id without losing the story", async () => {
-    fetchMock.mockResolvedValue(
-      sse(
-        { type: "session", sessionId: "s1" },
-        { type: "text", delta: "The lane smells of rain." },
-        { type: "line", line: { kind: "spoken", speaker: { id: null, name: "Honeycomb" }, text: "Come on, then." } },
-        { type: "done", end: "end_turn", credits: 1, tokens: 5 },
-      ),
-    );
+    fetchMock
+      // The Dungeon Master opens the scene the moment the sitting is opened: no words of the player's.
+      .mockResolvedValueOnce(sse({ type: "session", sessionId: "s1" }, { type: "text", delta: "The lane smells of rain." }, { type: "done", end: "end_turn", credits: 0, tokens: 5 }))
+      .mockResolvedValueOnce(
+        sse(
+          { type: "session", sessionId: "s1" },
+          { type: "line", line: { kind: "spoken", speaker: { id: null, name: "Honeycomb" }, text: "Come on, then." } },
+          { type: "done", end: "end_turn", credits: 1, tokens: 5 },
+        ),
+      );
     const { wrapper, router } = await mountTable("/table/new?character=m1");
-    await say(wrapper, "Who are you?");
-
-    const story = wrapper.get('[data-testid="solo-story"]').text();
-    expect(story).toContain("Who are you?");
-    expect(story).toContain("The lane smells of rain.");
-    expect(story).toContain("Come on, then.");
+    expect(wrapper.get('[data-testid="solo-story"]').text()).toContain("The lane smells of rain.");
     expect(router.currentRoute.value.path).toBe("/table/s1");
-    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body));
-    expect(body).toMatchObject({ campaignId: "c1", mode: "say", message: "Who are you?", characterId: "m1" });
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toMatchObject({ campaignId: "c1", opening: true, message: "", characterId: "m1" });
+
+    await say(wrapper, "Who are you?");
+    const story = wrapper.get('[data-testid="solo-story"]').text();
+    expect(story).toContain("The lane smells of rain.");
+    expect(story).toContain("Who are you?");
+    expect(story).toContain("Come on, then.");
+    const body = JSON.parse(String(fetchMock.mock.calls[1][1].body));
+    expect(body).toMatchObject({ campaignId: "c1", mode: "say", message: "Who are you?", sessionId: "s1" });
+    expect(body.opening).toBeUndefined();
     expect(wrapper.text()).toContain("1 credit this sitting");
   });
 
   // Bug caught: a failed turn losing the player's words, or Send again resending in the default mode.
   it("after a refusal keeps the player's line and Send again resends the same message in the same mode", async () => {
     fetchMock
+      .mockResolvedValueOnce(sse({ type: "session", sessionId: "s1" }, { type: "text", delta: "The lane." }, { type: "done", end: "end_turn", credits: 0, tokens: 1 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: "x" }), { status: 503, headers: { "content-type": "application/json" } }))
       .mockResolvedValueOnce(sse({ type: "session", sessionId: "s1" }, { type: "text", delta: "Done." }, { type: "done", end: "end_turn", credits: 0, tokens: 1 }));
     const { wrapper } = await mountTable("/table/new?character=m1");
@@ -156,8 +166,8 @@ describe("TableView: playing", () => {
     await wrapper.findAll("button").find((b) => b.text() === "Send again")!.trigger("click");
     await flushPromises();
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(JSON.parse(String(fetchMock.mock.calls[1][1].body))).toMatchObject({ mode: "do", message: "I draw my knife." });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(JSON.parse(String(fetchMock.mock.calls[2][1].body))).toMatchObject({ mode: "do", message: "I draw my knife." });
     expect(wrapper.find('[role="alert"]').exists()).toBe(false);
     expect(wrapper.get('[data-testid="solo-story"]').text()).toContain("Done.");
   });
@@ -204,11 +214,13 @@ describe("TableView: leaving", () => {
   });
 
   // Bug caught: leaving a sitting that never began (no conversation yet) calling the server with no id.
-  it("calls nothing for a sitting that has not begun", async () => {
+  it("calls no leave for a sitting whose opening was refused, since no conversation exists to leave", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: "x" }), { status: 503, headers: { "content-type": "application/json" } }));
     const { wrapper, router } = await mountTable("/table/new?character=m1");
     await leaveButton(wrapper).trigger("click");
     await flushPromises();
-    expect(fetchMock).not.toHaveBeenCalled();
+    // The one call is the refused opening; nothing was sent to agent-leave.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(router.currentRoute.value.path).toBe("/table");
   });
 

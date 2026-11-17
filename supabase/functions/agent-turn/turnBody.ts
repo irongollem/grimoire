@@ -28,6 +28,12 @@ export interface AgentTurnBody {
    * Refused by the handler when nothing was asked.
    */
   roll?: RollAnswer;
+  /**
+   * The player has just sat down and has said nothing yet: the Dungeon Master opens the scene. Only for a NEW
+   * conversation, with an empty message and no roll. A table that waits for the player to speak first into an
+   * empty page is not how a session begins.
+   */
+  opening?: true;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -45,8 +51,12 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
     if (parsed === null) return { ok: false };
     roll = parsed;
   }
-  // Only a roll makes a turn without words.
-  if ((message.length < 1 && roll === undefined) || message.length > MAX_MESSAGE_CHARS) return { ok: false };
+  // Only a literal true opens a scene; anything else is an ordinary request, and an empty one is refused below.
+  const opening = r.opening === true;
+  // An opening belongs to a conversation that does not exist yet and carries nothing of the player's.
+  if (opening && (r.sessionId !== undefined || message.length > 0 || roll !== undefined)) return { ok: false };
+  // Only a roll or an opening makes a turn without words.
+  if ((message.length < 1 && roll === undefined && !opening) || message.length > MAX_MESSAGE_CHARS) return { ok: false };
   if (r.mode !== "say" && r.mode !== "do") return { ok: false };
   if (r.startLocationId !== undefined) {
     if (typeof r.startLocationId !== "string" || !UUID_RE.test(r.startLocationId)) return { ok: false };
@@ -59,7 +69,7 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
     ok: true,
     body: {
       campaignId: r.campaignId, sessionId: r.sessionId, startLocationId: r.startLocationId, characterId: r.characterId,
-      message, mode: r.mode, ...(roll === undefined ? {} : { roll }),
+      message, mode: r.mode, ...(roll === undefined ? {} : { roll }), ...(opening ? { opening: true as const } : {}),
     },
   };
 }
@@ -74,3 +84,15 @@ export function playerText(mode: "say" | "do", message: string): string {
     ? `The player sent this as something their character says aloud:\n${message}`
     : `The player sent this as something their character does:\n${message}`;
 }
+
+/**
+ * What the narrator reads in place of a player's message when a sitting opens. It asks for the scene and nothing
+ * more: the player has not acted, so nothing may be decided for them, and no roll or mark belongs to an opening.
+ */
+export const OPENING_TEXT =
+  "The player has just sat down at the table and has not said or done anything yet. Open the scene, speaking to them " +
+  "as \"you\": two to four sentences that begin with what the senses take in (a smell, a sound, the light, the cold), " +
+  "drawn from the place as it is described, then who is here and what they are doing. Show the place; do not sum " +
+  "up the adventure or list what remains to be done. If the record shows the story is already under way, one " +
+  "sentence may recall the last thing that happened. Someone present may greet them or carry on with what they " +
+  "were doing (call speak for that). Decide nothing for the player's character, ask for no roll, and mark no quest move.";

@@ -280,3 +280,63 @@ describe("useTableTurn with a roll", () => {
     expect(t.live.value.map((i) => i.kind)).toEqual(["roll", "player", "narration"]);
   });
 });
+
+describe("useTableTurn: opening the scene", () => {
+  // Bug caught: the opening sent with a player line on the page, or without saying it is one.
+  it("asks the Dungeon Master to open with no words of the player's, and draws what comes back", async () => {
+    const sent: TurnRequest[] = [];
+    const t = sitting(async (request) => {
+      sent.push(request);
+      return streamOf(good(0));
+    });
+    expect(await t.open()).toBe(true);
+    expect(sent).toEqual([{ campaignId: "c1", message: "", mode: "do", opening: true, startLocationId: "l1", characterId: "m1" }]);
+    expect(t.live.value.map((i) => i.kind)).toEqual(["narration", "spoken"]);
+  });
+
+  // Bug caught: a second opening restarting the scene of a story that is already on the page.
+  it("opens nothing once the sitting has begun or the page holds anything", async () => {
+    const sent: TurnRequest[] = [];
+    const t = sitting(async (request) => {
+      sent.push(request);
+      return streamOf(good(0));
+    });
+    await t.open();
+    expect(await t.open()).toBe(false);
+    const begun = useTableTurn({ campaignId: () => "c1", sessionId: "s9", transport: async () => streamOf(good(0)) });
+    expect(await begun.open()).toBe(false);
+    expect(sent).toHaveLength(1);
+  });
+
+  // Bug caught: Send again after a refused opening sending an empty ordinary message, which the server refuses.
+  it("sends the opening again after it was refused", async () => {
+    const sent: TurnRequest[] = [];
+    let first = true;
+    const t = sitting(async (request) => {
+      sent.push(request);
+      if (first) {
+        first = false;
+        return refusal(503, "x");
+      }
+      return streamOf(good(0));
+    });
+    await t.open();
+    expect(t.failure.value).not.toBeNull();
+    expect(await t.resend()).toBe(true);
+    expect(sent[1]).toMatchObject({ opening: true, message: "" });
+    expect(t.live.value.map((i) => i.kind)).toEqual(["narration", "spoken"]);
+  });
+
+  // Bug caught: an ordinary message after the opening still flagged as one, which the server refuses on a begun sitting.
+  it("sends what the player says next as an ordinary turn", async () => {
+    const sent: TurnRequest[] = [];
+    const t = sitting(async (request) => {
+      sent.push(request);
+      return streamOf(good(0));
+    });
+    await t.open();
+    await t.send("say", "Hello.");
+    expect(sent[1].opening).toBeUndefined();
+    expect(sent[1].sessionId).toBe("s1");
+  });
+});

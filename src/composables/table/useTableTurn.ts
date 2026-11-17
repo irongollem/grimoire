@@ -14,6 +14,8 @@ export interface TurnRequest {
   characterId?: string;
   /** The answer to a roll the table asked for. Sent only while one is asked for: the server refuses it otherwise. */
   roll?: RollAnswer;
+  /** A new sitting asks the Dungeon Master to open the scene: no words, no session yet. */
+  opening?: true;
 }
 
 /** Sends one turn and hands back the raw response. The seam a test replaces; the default talks to `agent-turn`. */
@@ -80,7 +82,7 @@ export function useTableTurn(options: TableTurnOptions) {
   let controller: AbortController | null = null;
   // Bumped when the screen moves to another conversation, so a turn still winding down from the old one writes nothing.
   let generation = 0;
-  let pending: { id: string | null; start: number; mode: PlayMode; text: string; roll: RollAnswer | null } | null = null;
+  let pending: { id: string | null; start: number; mode: PlayMode; text: string; roll: RollAnswer | null; opening: boolean } | null = null;
   /** The roll the table is waiting for. Cleared by any turn sent; back if that turn is not kept, for the server still waits. */
   let asked: RollAsk | null = null;
 
@@ -107,11 +109,12 @@ export function useTableTurn(options: TableTurnOptions) {
     if (asked === null) setAsked(before);
   }
 
-  async function play(start: number, playerId: string | null, mode: PlayMode, text: string, roll: RollAnswer | null): Promise<void> {
+  async function play(start: number, playerId: string | null, mode: PlayMode, text: string, roll: RollAnswer | null, opening = false): Promise<void> {
     const campaignId = options.campaignId();
     if (campaignId === null) return;
     const request: TurnRequest = { campaignId, message: text, mode };
     if (roll !== null) request.roll = roll;
+    if (opening) request.opening = true;
     const before = asked;
     setAsked(null);
     if (sessionId.value !== null) request.sessionId = sessionId.value;
@@ -187,7 +190,7 @@ export function useTableTurn(options: TableTurnOptions) {
     if (running.value || (message === "" && roll === null) || message.length > 4000) return false;
     const start = live.value.length;
     const item = message === "" ? null : playerItem(mode, message);
-    pending = { id: item?.id ?? null, start, mode, text: message, roll };
+    pending = { id: item?.id ?? null, start, mode, text: message, roll, opening: false };
     if (item) live.value = [...live.value, item];
     await play(start, item?.id ?? null, mode, message, roll);
     return true;
@@ -196,9 +199,20 @@ export function useTableTurn(options: TableTurnOptions) {
   /** Send the failed message again, in the same mode. The player's line is already on the page. */
   async function resend(): Promise<boolean> {
     if (running.value || pending === null || failure.value === null) return false;
-    const { id, start, mode, text, roll } = pending;
+    const { id, start, mode, text, roll, opening } = pending;
     if (id !== null) setUnsent(id, false);
-    await play(start, id, mode, text, roll);
+    await play(start, id, mode, text, roll, opening);
+    return true;
+  }
+
+  /**
+   * The Dungeon Master opens the scene of a sitting that has not begun: no words of the player's, and only while
+   * the page is empty and no conversation exists. Returns false when there is nothing to open.
+   */
+  async function open(): Promise<boolean> {
+    if (running.value || sessionId.value !== null || live.value.length > 0) return false;
+    pending = { id: null, start: 0, mode: "do", text: "", roll: null, opening: true };
+    await play(0, null, "do", "", null, true);
     return true;
   }
 
@@ -220,5 +234,5 @@ export function useTableTurn(options: TableTurnOptions) {
     setAsked(null);
   }
 
-  return { sessionId, live, running, failure, credits, turnsPlayed, send, resend, stop, reset, setAsked };
+  return { sessionId, live, running, failure, credits, turnsPlayed, send, resend, open, stop, reset, setAsked };
 }

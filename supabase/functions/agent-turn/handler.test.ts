@@ -2515,3 +2515,36 @@ describe("the Dungeon Master's own rolls", () => {
     expect(rolls(h)).toEqual([{ type: "dm_roll", roll: shown }]);
   });
 });
+
+describe("opening the scene", () => {
+  const OPEN = { campaignId: CAMPAIGN, message: "", mode: "do", opening: true, startLocationId: CELLAR };
+  const openingBlock = (h: Harness) => h.requests[0].messages[h.requests[0].messages.length - 1].blocks[0];
+
+  it("lets a new sitting begin with the Dungeon Master, with no words of the player's on the page", async () => {
+    const h = harness();
+    expect(await play(h, { body: OPEN })).toBeNull();
+    const block = openingBlock(h);
+    expect(block.type === "text" && block.text).toContain("has just sat down");
+    expect(block.type === "text" && block.player).toBeUndefined();
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
+  it("refuses an opening on a conversation that is already under way, or it would restart the scene mid-story", async () => {
+    const h = harness();
+    existingSession(h);
+    expect((await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "", mode: "do", opening: true } }))?.status).toBe(400);
+    expect(h.modelCalls()).toBe(0);
+  });
+
+  it("refuses an opening that carries words, and takes nothing but a literal true for one", async () => {
+    const h = harness();
+    expect((await play(h, { body: { ...OPEN, message: "I look around." } }))?.status).toBe(400);
+    expect((await play(h, { body: { ...OPEN, opening: "yes" } }))?.status).toBe(400);
+    expect((await play(h, { body: { ...OPEN, opening: false } }))?.status).toBe(400);
+  });
+
+  it("still refuses an empty message that is not an opening", async () => {
+    const h = harness();
+    expect((await play(h, { body: { campaignId: CAMPAIGN, message: "", mode: "do" } }))?.status).toBe(400);
+  });
+});

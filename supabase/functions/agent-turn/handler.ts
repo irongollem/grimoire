@@ -22,7 +22,7 @@ import { pressureShown, type QuestMove, type QuestsInPlay } from "../_shared/age
 import { askOf, declinedText, rollText, scoreRoll, type PendingRoll, type RollAsk, type Rolled } from "../_shared/agent/playerRoll.ts";
 import { makeTurnTools, type FiledFact } from "./turnTools.ts";
 import { narrationGate, type NarrationGate, type NarrationJudge } from "./narration.ts";
-import { parseBody, playerText } from "./turnBody.ts";
+import { OPENING_TEXT, parseBody, playerText } from "./turnBody.ts";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
 import { applyKeptQuestMoves, characterOf, foldIntoSummary, questsOf, recordOf, round6, safely, sceneOf, stateFor, systemFor } from "./turnSupport.ts";
 import {
@@ -450,6 +450,7 @@ export async function beginTurn(input: {
           // The roll (or that it was not made) comes first, then the player's own words when there are any.
           user: [
             scored !== null && pendingRoll !== null ? rollText(pendingRoll, scored) : pendingRoll !== null ? declinedText(pendingRoll) : null,
+            body.opening === true ? OPENING_TEXT : null,
             body.message === "" ? null : playerText(body.mode, body.message),
           ].filter((part): part is string => part !== null).join("\n\n"),
           ...(body.message === "" ? {} : { player: { kind: body.mode, text: body.message } }),

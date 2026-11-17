@@ -193,6 +193,14 @@ const turn = useTableTurn({
   },
 });
 
+// A new sitting begins with the Dungeon Master setting the scene, not with an empty page waiting for the player.
+// Only once the disclosure has been read: nothing is sent to the model before the player knows who answers.
+function openScene(): void {
+  if (param.value === "new" && newCharacterId.value !== null && campaignId.value !== null && disclosure.hasBeenTold.value) void turn.open();
+}
+// On arrival, and again the moment the first-visit disclosure is accepted or the campaign becomes known.
+watch([() => disclosure.hasBeenTold.value, campaignId], openScene, { immediate: true });
+
 // Every message goes through here: a clock that ran out goes off the page when the story moves on.
 function sendTurn(...args: Parameters<typeof turn.send>): ReturnType<typeof turn.send> {
   pressure.value = pressureAfterSend(pressure.value);
@@ -211,6 +219,7 @@ watch(param, () => {
   pressure.value = null;
   asked.value = null;
   if (param.value === "new" && newCharacterId.value === null) void router.replace("/table");
+  openScene();
 });
 
 const conversation = useTableConversation(historyId, campaignId);
