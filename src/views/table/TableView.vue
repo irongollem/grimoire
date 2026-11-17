@@ -45,6 +45,11 @@
           <template v-else>
             <!-- "When a map is on the table it sits above the story ... and nothing else moves." (frames 03 and 12) -->
             <div v-show="inFight" :id="FIGHT_SLOTS.map" class="h-[40%] min-h-56 shrink-0 border-b border-border" />
+            <!-- Outside a fight the place's own map stays there: "you are always somewhere". It is mounted even
+                 while hidden, because it is what finds out whether the place has a map at all. -->
+            <div v-if="member && !inFight && !hasLeft" v-show="placeHasMap" class="h-[40%] min-h-56 shrink-0 border-b border-border" data-testid="solo-place-map">
+              <SoloPlaceMap :place-id="sceneId" :member="member" :busy="turn.running.value || asked !== null" @go="onGo" @has-map="(shown) => (placeHasMap = shown)" />
+            </div>
             <SoloStory
               :items="story"
               :colours="colours"
@@ -119,6 +124,7 @@ import SoloComposer from "@/components/table/solo/SoloComposer.vue";
 import SoloLeft from "@/components/table/solo/SoloLeft.vue";
 import SoloDisclosure from "@/components/table/solo/SoloDisclosure.vue";
 import SoloFightStage from "@/components/table/solo/SoloFightStage.vue";
+import SoloPlaceMap from "@/components/table/solo/SoloPlaceMap.vue";
 import type { SoloFightEnd } from "@/composables/table/useSoloFightHost";
 import { endLine, type FightTurn } from "@/lib/table/fight/fightChange";
 import SoloRollAsk from "@/components/table/solo/SoloRollAsk.vue";
@@ -299,6 +305,13 @@ function onFightLost(): void {
   fight.value = null;
   fightTurn.value = null;
   toast.error("The fight could not be continued here.");
+}
+
+// The place's own map, above the story while there is no fight. Walking into another room on it is a deed like any
+// other: the story moves the party, and the map follows the story.
+const placeHasMap = ref(false);
+function onGo(place: { id: string; name: string }): void {
+  void sendTurn("do", `I go to ${place.name}.`);
 }
 
 // A line said aloud in a fight is the turn's few words: once said, they are spent.

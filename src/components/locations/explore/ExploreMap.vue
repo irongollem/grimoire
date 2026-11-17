@@ -51,6 +51,7 @@
         :origin-y="gridOrigin.y"
         :mask="fogMask"
         :seen="fogSeen"
+        :opaque="asPlayer"
         class="pointer-events-none"
       />
 
@@ -101,6 +102,7 @@
     </div>
 
     <p
+      v-if="!asPlayer"
       data-testid="explore-map-hint"
       class="pointer-events-none absolute bottom-3 left-3 max-w-[40%] rounded-md bg-card/85 px-2 py-1 text-caption text-muted-foreground"
     >
@@ -112,7 +114,7 @@
       v-if="imageReady"
       v-model:tool="tool"
       v-model:draw-pinned="drawPinned"
-      :tools="EXPLORE_TOOLS"
+      :tools="asPlayer ? PLAYER_TOOLS : EXPLORE_TOOLS"
       class="absolute bottom-3 left-1/2 -translate-x-1/2"
       @clear-drawings="table.clearAll()"
     />
@@ -169,6 +171,7 @@ const {
   fogMask = null,
   fogSeen = null,
   doorStates = NO_DOOR_STATES,
+  asPlayer = false,
 } = defineProps<{
   surface: BattleSurface;
   tokens: RunCombatant[];
@@ -185,6 +188,11 @@ const {
   fogSeen?: ReadonlySet<FogCellKey> | null;
   /** The doors the DM has opened or shut on this map (`map_memory`), over their drawn state. */
   doorStates?: readonly MapLiveDoorState[];
+  /**
+   * The map as one player sees it at the AI table (#1021): the fog hides what the character has not seen instead
+   * of hinting at it, the belt holds only Move and Measure, and the hint about moving a party is left out.
+   */
+  asPlayer?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -278,6 +286,8 @@ const noTurns: MoveTurnBook = {
 
 const tool = ref<PlayTool>("move");
 const EXPLORE_TOOLS: readonly ExploreTool[] = ["move", "measure", "ping", "draw"];
+/** One player at the AI table has nobody to ping or draw for. */
+const PLAYER_TOOLS: readonly ExploreTool[] = ["move", "measure"];
 
 const auth = useAuthStore();
 const campaignStore = useCampaignStore();
