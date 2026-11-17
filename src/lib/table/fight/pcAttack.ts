@@ -120,9 +120,32 @@ export function damageText(damage: { amount: number; type: string | null }[]): s
   return parts.length === 0 ? "no damage" : parts.join(" and ");
 }
 
-/** The margin line for damage dealt. It names the damage, never what is left of the target. */
-export function damageLine(attackerName: string, damage: { amount: number; type: string | null }[]): BoardLine {
-  return { kind: "margin", text: `${attackerName} deals ${damageText(damage)}` };
+/** The dice behind a damage roll: each die's size and face in the order rolled, and what was added to them. */
+export interface DamageMath {
+  dice: { sides: number; face: number }[];
+  modifier: number;
+  atTable: boolean;
+}
+
+/** "2d8 (3, 8) + 4": dice of one size together, in the order their size first came up, then the modifier. */
+export function damageMathText(math: DamageMath): string {
+  const bySize = new Map<number, number[]>();
+  for (const d of math.dice) bySize.set(d.sides, [...(bySize.get(d.sides) ?? []), d.face]);
+  const dice = [...bySize].map(([sides, faces]) => `${faces.length}d${sides} (${faces.join(", ")})`).join(" + ");
+  const mod = math.modifier === 0 ? "" : math.modifier > 0 ? ` + ${math.modifier}` : ` - ${Math.abs(math.modifier)}`;
+  const body = dice === "" ? String(math.modifier) : `${dice}${mod}`;
+  return `${body}${math.atTable ? " · rolled at the table" : ""}`;
+}
+
+/**
+ * The line for damage dealt. It names the damage, never what is left of the target. With the dice behind it, it is
+ * drawn as a roll with its arithmetic ("dnd nerds like seeing the dice math"); the number set large is what the
+ * target took, which a resistance may have made less than the dice say.
+ */
+export function damageLine(attackerName: string, damage: { amount: number; type: string | null }[], math: DamageMath | null = null): BoardLine {
+  const text = `${attackerName} deals ${damageText(damage)}`;
+  if (math === null) return { kind: "margin", text };
+  return { kind: "roll", die: damage.reduce((sum, d) => sum + d.amount, 0), label: text, detail: damageMathText(math), critical: false };
 }
 
 /**

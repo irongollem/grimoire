@@ -3,7 +3,7 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { PcAttackRow } from "@/composables/encounters/usePcAttackRows";
 import { rollDie, type DieSize } from "@/lib/dice/dice";
 import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "@/lib/encounters/actionTargeting";
-import { attackLines, attackEntryOf, d20FromFaces, damageDicePlan, damageFromFaces, damageLine, facesFit } from "@/lib/table/fight/pcAttack";
+import { attackLines, attackEntryOf, d20FromFaces, damageDicePlan, damageFromFaces, damageLine, facesFit, type DamageMath } from "@/lib/table/fight/pcAttack";
 import type { BoardLine } from "@/lib/table/fight/boardLines";
 import {
   ActionRefused,
@@ -164,9 +164,12 @@ export function useSoloAttack(options: SoloAttackOptions) {
     const supplied = "faces" in answer ? answer.faces : null;
     if (supplied !== null && !facesFit(supplied, plan)) throw new ActionRefused("Those dice do not match the damage to roll");
     let used = 0;
+    // The dice as they fell and what was added, for the line the player reads.
+    const math: DamageMath = { dice: [], modifier: 0, atTable: supplied !== null };
     const faceFor = (sides: DieSize): number => {
       const face = supplied === null ? rollDie(sides) : supplied[used];
       used += 1;
+      math.dice.push({ sides, face });
       return face;
     };
     state.value = { step: "resolving" };
@@ -176,6 +179,7 @@ export function useSoloAttack(options: SoloAttackOptions) {
         for (const [sides, count] of Object.entries(ask.counts)) {
           for (let i = 0; i < (count ?? 0); i++) faces.push(faceFor(Number(sides) as DieSize));
         }
+        math.modifier += ask.modifier;
         return { result: damageFromFaces(faces, ask.modifier, ask.label), byPerson: supplied !== null };
       });
       const amounts = await rollDamageParts(ctx, { parts, critical: before.critical, label: `${before.row.name} damage`, senderName: attacker.name, silent: true });
@@ -183,7 +187,7 @@ export function useSoloAttack(options: SoloAttackOptions) {
       const applied = applyDamage(ctx, { target, parts: amounts, defenses: ctx.defensesFor(target), critical: before.critical });
       store.setActionUsed(attacker.instance_id, true);
       state.value = { step: "idle" };
-      return [damageLine(attacker.name, applied.parts)];
+      return [damageLine(attacker.name, applied.parts, math)];
     } catch (error) {
       state.value = before;
       throw error;

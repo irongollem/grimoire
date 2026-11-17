@@ -108,7 +108,8 @@ describe("useSoloAttack damage", () => {
     const lines = await a.attack.rollDamage({ faces: [4], atTable: true });
     expect(a.orc()?.hp).toBe(36);
     expect(a.mira()?.action_used).toBe(true);
-    expect(lines).toEqual([{ kind: "margin", text: "Mira deals 7 slashing" }]);
+    // The line carries the dice as they fell and what was added, as typed at the table.
+    expect(lines).toEqual([{ kind: "roll", die: 7, label: "Mira deals 7 slashing", detail: "1d8 (4) + 3 · rolled at the table", critical: false }]);
     expect(a.attack.state.value.step).toBe("idle");
   });
 
