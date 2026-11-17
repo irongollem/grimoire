@@ -72,7 +72,7 @@
       :busy="resolving"
       @roll="onToHit"
     />
-    <section v-else-if="attack.state.value.step === 'damage'" class="mx-auto mb-2 flex w-full max-w-160 flex-col gap-2 rounded-md border border-border bg-card px-3.5 py-3" aria-label="Your damage" data-testid="solo-damage-ask">
+    <section v-else-if="attack.state.value.step === 'damage'" class="mx-auto mb-2 flex w-full max-w-176 flex-col gap-2 rounded-md border border-border bg-card px-3.5 py-3" aria-label="Your damage" data-testid="solo-damage-ask">
       <span class="text-eyebrow text-primary">{{ attack.state.value.critical ? "A critical hit: your damage" : "A hit: your damage" }}</span>
       <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
         <AppButton variant="primary" size="md" label="Roll it here" :disabled="resolving" @click="onDamage(null)" />

@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-auto flex w-full max-w-160 flex-col gap-2">
+  <div class="mx-auto flex w-full max-w-176 flex-col">
     <!-- One voice at a time: while an answer is coming the box is locked and Say and Do become one Stop (Turn, 04). -->
     <!-- The words get the whole width; the three ways to send them sit in a row underneath, each with its key. -->
     <div data-slip class="flex flex-col gap-2 px-3.5 pt-2.5 pb-2">
@@ -18,6 +18,9 @@
         />
       </label>
       <div class="flex flex-wrap items-center justify-end gap-1.5">
+        <!-- What a fight's turn still allows, in a few words beside the buttons: a paragraph under the box took the
+             story's room. -->
+        <span v-if="fight && !running" class="mr-auto text-caption text-muted-foreground" data-testid="solo-turn-note">{{ fightNote }}</span>
         <AppButton v-if="running" variant="outline" size="sm" :icon="IconStop" label="Stop" @click="emit('stop')" />
         <template v-else>
           <AppButton variant="ghost" size="sm" aria-label="Ask the Dungeon Master" :disabled="!canSend" data-testid="solo-ask" @click="submit('ask')">
@@ -32,12 +35,6 @@
         </template>
       </div>
     </div>
-    <p class="hidden text-caption text-muted-foreground sm:block">
-      <template v-if="running">Stop ends the answer where it is. What was already said stays, and is what you pay for.</template>
-      <!-- In a fight a turn is about six seconds: the composer says what it still holds (frame 15). -->
-      <template v-else-if="fight">{{ fightNote }}</template>
-      <template v-else>Say is your character speaking, Do is what they do, Ask is your own question to the Dungeon Master. Shift+Enter starts a new line. A turn costs a fraction of a credit; you are charged a whole credit at a time.</template>
-    </p>
   </div>
 </template>
 
@@ -74,12 +71,9 @@ const placeholder = computed(() => {
 });
 const fightNote = computed(() => {
   if (fight === null) return "";
-  if (!fight.yours) return "It is not your turn. Ask is your own question to the Dungeon Master and is always open.";
-  const say = !fight.words
-    ? "You have said your piece this turn."
-    : `Aloud: one short line, about ${SPOKEN_WORDS_PER_TURN} words (${words.value} so far).`;
-  const act = fight.canAct ? "Trying something costs your Action." : "Your turn cannot pay for another deed.";
-  return `A turn is about six seconds. ${say} ${act}`;
+  if (!fight.yours) return "Not your turn: you can still ask";
+  const say = fight.words ? `${words.value} of ${SPOKEN_WORDS_PER_TURN} words aloud` : "You have said your piece";
+  return fight.canAct ? say : `${say} · no deed left this turn`;
 });
 
 function submit(mode: PlayMode): void {

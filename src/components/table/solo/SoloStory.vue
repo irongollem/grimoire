@@ -1,6 +1,6 @@
 <template>
-  <div ref="scroller" class="min-h-0 flex-1 overflow-y-auto px-4 pt-6 md:px-6" data-testid="solo-story" @scroll.passive="onScroll">
-    <div class="mx-auto flex w-full max-w-160 flex-col gap-4.5 pb-6">
+  <div ref="scroller" class="min-h-0 flex-1 overflow-y-auto px-4 pt-4" data-testid="solo-story" @scroll.passive="onScroll">
+    <div class="mx-auto flex w-full max-w-176 flex-col gap-3 pb-4">
       <template v-for="item in items" :key="item.id">
         <SoloNarration v-if="item.kind === 'narration'" :text="item.text" />
         <SoloPlayerLine v-else-if="item.kind === 'player'" :mode="item.mode" :text="item.text" :who="character" :unsent="item.unsent === true" />

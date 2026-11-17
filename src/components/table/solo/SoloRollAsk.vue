@@ -1,6 +1,6 @@
 <template>
   <!-- "The story stops and asks." You are told what to roll and with which bonus, never the number to beat. -->
-  <section class="mx-auto mb-2 flex w-full max-w-160 flex-col gap-2 rounded-md border border-border bg-card px-3.5 py-3" aria-label="Your roll" data-testid="solo-roll-ask">
+  <section class="mx-auto mb-2 flex w-full max-w-176 flex-col gap-2 rounded-md border border-border bg-card px-3.5 py-3" aria-label="Your roll" data-testid="solo-roll-ask">
     <span class="text-eyebrow text-primary">Your roll</span>
     <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
       <h2 class="text-heading-sm font-bold text-foreground">{{ ask.label }}</h2>

@@ -44,7 +44,7 @@
           </div>
           <template v-else>
             <!-- "When a map is on the table it sits above the story ... and nothing else moves." (frames 03 and 12) -->
-            <div v-show="inFight" :id="FIGHT_SLOTS.map" class="h-[45%] min-h-64 shrink-0 border-b border-border" />
+            <div v-show="inFight" :id="FIGHT_SLOTS.map" class="h-[40%] min-h-56 shrink-0 border-b border-border" />
             <SoloStory
               :items="story"
               :colours="colours"
@@ -57,7 +57,7 @@
               @resend="turn.resend()"
               @credits="openOutOfCredits(1)"
             />
-            <div class="shrink-0 px-4 pt-2 pb-4 md:px-6">
+            <div class="shrink-0 px-4 pt-1 pb-3">
               <div :id="FIGHT_SLOTS.roll" />
               <SoloRollAsk
                 v-if="asked && !hasLeft"
@@ -76,9 +76,6 @@
                 @submit="onSubmit"
                 @stop="turn.stop()"
               />
-              <p class="mx-auto mt-1 hidden w-full max-w-160 md:block">
-                <AppButton to="/play/table/story" variant="link" size="inline" label="The story so far" />
-              </p>
             </div>
           </template>
         </main>

@@ -7,8 +7,8 @@
       <span class="hidden truncate md:inline md:rounded-sm md:bg-muted md:px-2 md:py-0.5 md:text-label-lg md:text-foreground">Playing {{ character }}</span>
     </div>
     <span class="flex-1" />
-    <!-- The composer's foot carries this link from tablet up; on a phone the bar does. -->
-    <AppButton to="/play/table/story" variant="ghost" size="md" :icon="IconScrollText" label="The story so far" collapse-label-on-mobile class="md:hidden" />
+    <!-- In the bar at every width: under the composer it took a line from the story for a page that is rarely opened. -->
+    <AppButton to="/play/table/story" variant="ghost" size="md" :icon="IconScrollText" label="The story so far" collapse-label-on-mobile />
     <!-- Off until asked for: a page that starts talking by itself is a surprise, and every voiced line is a paid call. -->
     <AppButton
       variant="ghost"

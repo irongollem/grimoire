@@ -13,7 +13,7 @@
     <span :class="['text-eyebrow', mode === 'say' ? 'text-primary' : 'text-muted-foreground']">
       {{ mode === "ask" ? "You ask the Dungeon Master" : who }}{{ mode === "say" ? " says" : "" }}
     </span>
-    <p data-hand :class="['solo-hand whitespace-pre-line text-[1.1875rem] leading-7', unsent ? 'text-muted-foreground' : 'text-foreground']">
+    <p data-hand :class="['solo-hand whitespace-pre-line text-[1.0625rem] leading-6', unsent ? 'text-muted-foreground' : 'text-foreground']">
       {{ mode === "say" ? `“${text}”` : text }}
     </p>
   </div>

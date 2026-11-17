@@ -1,6 +1,6 @@
 <template>
   <!-- "The narrator: plain print, no name. The world, the weather, and what nobody in particular did." (Voices, 02b) -->
-  <div class="font-fell text-[1.0625rem] leading-[1.7] text-foreground">
+  <div class="font-fell text-base leading-relaxed text-foreground">
     <p v-for="(paragraph, index) in paragraphs" :key="index" class="not-first:mt-3 whitespace-pre-line">
       <template v-for="(run, i) in paragraph" :key="i"><strong v-if="run.strong">{{ run.text }}</strong><em v-else-if="run.em">{{ run.text }}</em><template v-else>{{ run.text }}</template></template>
     </p>

@@ -17,7 +17,7 @@
       <!-- Heard once already: this says it again, for a player who was called away. -->
       <AppButton v-if="replayable" variant="ghost" size="inline" :icon="IconVolume" :aria-label="`Hear ${speaker} say this again`" class="ml-auto" data-testid="solo-replay" @click="emit('replay')" />
     </span>
-    <p class="font-fell whitespace-pre-line text-[1.0625rem] leading-[1.7] text-foreground">{{ `“${text}”` }}</p>
+    <p class="font-fell whitespace-pre-line text-base leading-relaxed text-foreground">{{ `“${text}”` }}</p>
   </div>
 </template>
 

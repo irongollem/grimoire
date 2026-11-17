@@ -6,7 +6,7 @@
       <i class="size-1.5 rotate-45 border border-(--voice-ink)" aria-hidden="true" />
       {{ speaker }}
     </span>
-    <p class="font-fell whitespace-pre-line text-[1.0625rem] italic leading-[1.7] text-foreground">{{ text }}</p>
+    <p class="font-fell whitespace-pre-line text-base italic leading-relaxed text-foreground">{{ text }}</p>
   </div>
 </template>
 
