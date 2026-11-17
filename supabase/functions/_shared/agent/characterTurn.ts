@@ -125,11 +125,11 @@ export const HOW_MAX = 60;
 export function deliveryCue(value: string): string | null {
   const cue = value
     .toLowerCase()
-    .replace(/[^a-z,'\- ]+/g, " ")
+    .replace(/[^a-z,' -]+/g, " ")
     .replace(/\s+/g, " ")
-    .replace(/^[ ,'\-]+|[ ,'\-]+$/g, "");
+    .replace(/^[ ,'-]+|[ ,'-]+$/g, "");
   if (cue === "") return null;
-  return cue.length > HOW_MAX ? cue.slice(0, HOW_MAX).replace(/[ ,'\-]+[a-z']*$/, "") || null : cue;
+  return cue.length > HOW_MAX ? cue.slice(0, HOW_MAX).replace(/[ ,'-]+[a-z']*$/, "") || null : cue;
 }
 
 function wantOf(value: string): number | null {
