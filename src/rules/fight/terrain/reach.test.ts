@@ -214,10 +214,12 @@ describe("determinism and who is hostile", () => {
     expect(isHostileTo({ faction_id: "party" }, { faction_id: "party" })).toBe(false);
   });
 
-  // Bug caught: an enemy picking a bystander as its target (a different faction reads as hostile).
-  it("is false whichever side is a bystander", () => {
-    expect(isHostileTo({ faction_id: "goblins" }, { faction_id: "neutral", bystander: true })).toBe(false);
-    expect(isHostileTo({ faction_id: "neutral", bystander: true }, { faction_id: "goblins" })).toBe(false);
+  // Bug caught: a bystander nobody could attack (the maintainer: "she may be harmless, but she's not safe"), or
+  // one her own party's movement treats as a foe.
+  it("counts a bystander by the faction she stands in: the party's foes are hers, the party is not", () => {
+    const honeycomb = { faction_id: "players", bystander: true as const };
+    expect(isHostileTo({ faction_id: "enemy" }, honeycomb)).toBe(true);
+    expect(isHostileTo({ faction_id: "players" }, honeycomb)).toBe(false);
   });
 });
 

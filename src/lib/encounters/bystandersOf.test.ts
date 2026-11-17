@@ -13,9 +13,9 @@ function npc(id: string, over: Partial<Source> = {}): Source {
 }
 
 describe("bystandersOf", () => {
-  it("seats every NPC of the fight's place, as an unplaced, unrolled, neutral token that never acts", () => {
+  it("seats every NPC of the fight's place, as an unplaced, unrolled token on the party's side that never acts", () => {
     const [b] = bystandersOf([npc("a"), npc("elsewhere", { location_id: "other" })], "room", []);
-    expect(b).toMatchObject({ instance_id: "b-a", npc_id: "a", bystander: true, faction_id: "neutral", initiative: null, position: null, reveal_state: "revealed", type: "monster" });
+    expect(b).toMatchObject({ instance_id: "b-a", npc_id: "a", bystander: true, faction_id: "players", initiative: null, position: null, reveal_state: "revealed", type: "monster" });
     expect(bystandersOf([npc("a"), npc("elsewhere", { location_id: "other" })], "room", [])).toHaveLength(1);
   });
 
@@ -26,7 +26,7 @@ describe("bystandersOf", () => {
 
   // Bug caught: a second token for an NPC who is already a combatant.
   it("skips an NPC who already fights", () => {
-    expect(bystandersOf([npc("a")], "room", [{ npc_id: "a" }])).toEqual([]);
+    expect(bystandersOf([npc("a")], "room", [{ npc_id: "a", faction_id: "enemy" }])).toEqual([]);
   });
 
   // Bug caught: a disguised NPC's true name and portrait on the roster and map.
@@ -42,5 +42,12 @@ describe("bystandersOf", () => {
   it("gives a character with no stat block stand-in numbers", () => {
     const [b] = bystandersOf([npc("a")], "room", []);
     expect(b).toMatchObject({ hp: 10, max_hp: 10, placeholder_stats: true });
+  });
+
+  // Bug caught: a bystander in a faction of her own, where the party's foes are not hers (never attacked) or the
+  // party itself reads as her foe; and a party given another faction by the DM leaving her behind in "players".
+  it("stands in the played character's faction, whatever the DM called it", () => {
+    const [b] = bystandersOf([npc("a")], "room", [{ npc_id: undefined, party_member_id: "m1", faction_id: "the-wardens" }]);
+    expect(b.faction_id).toBe("the-wardens");
   });
 });

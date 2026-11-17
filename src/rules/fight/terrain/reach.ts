@@ -70,9 +70,12 @@ export interface ReachResult {
   cells: ReadonlyMap<string, ReachCell>;
 }
 
-/** The same "who is an opponent" convention as `targetCandidates`: a different faction. A bystander is no one's opponent. */
-export function isHostileTo(mover: { faction_id: string; bystander?: true }, other: { faction_id: string; bystander?: true }): boolean {
-  if (mover.bystander === true || other.bystander === true) return false;
+/**
+ * The same "who is an opponent" convention as `targetCandidates`: a different faction. A bystander stands in the
+ * party's faction, so the party's foes are hers and she can be attacked: "she may be harmless, but she's not safe"
+ * (the maintainer, 17 Nov 2026). She never moves or acts herself.
+ */
+export function isHostileTo(mover: { faction_id: string }, other: { faction_id: string }): boolean {
   return mover.faction_id !== other.faction_id;
 }
 

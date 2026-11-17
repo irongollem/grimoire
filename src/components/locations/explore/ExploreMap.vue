@@ -110,14 +110,14 @@
     </p>
 
     <!-- Fog is the map's memory while exploring, so no Fog, Area or Darkness tools here (#1125 frame 11, epic #1133). -->
-    <!-- A player's own map has no belt: walking is all there is to do on it, and a belt lay over the middle of a map
-         that is only a strip above the story. -->
+    <!-- On a player's own map the belt is only Move and Measure, small and in a corner: in the middle of a map that
+         is a strip above the story it lay over what the player was looking at. -->
     <PlayToolbelt
-      v-if="imageReady && !asPlayer"
+      v-if="imageReady"
       v-model:tool="tool"
       v-model:draw-pinned="drawPinned"
-      :tools="EXPLORE_TOOLS"
-      class="absolute bottom-3 left-1/2 -translate-x-1/2"
+      :tools="asPlayer ? PLAYER_TOOLS : EXPLORE_TOOLS"
+      :class="asPlayer ? 'absolute bottom-2 left-2 origin-bottom-left scale-75' : 'absolute bottom-3 left-1/2 -translate-x-1/2'"
       @clear-drawings="table.clearAll()"
     />
 
@@ -196,7 +196,7 @@ const {
   doorStates?: readonly MapLiveDoorState[];
   /**
    * The map as one player sees it at the AI table (#1021): the fog hides what the character has not seen instead
-   * of hinting at it, there is no tool belt, and the hint about moving a party is left out.
+   * of hinting at it, the belt holds only Move and Measure in a corner, and the hint about moving a party is left out.
    */
   asPlayer?: boolean;
 }>();
@@ -293,6 +293,7 @@ const noTurns: MoveTurnBook = {
 const tool = ref<PlayTool>("move");
 const EXPLORE_TOOLS: readonly ExploreTool[] = ["move", "measure", "ping", "draw"];
 /** One player at the AI table has nobody to ping or draw for. */
+const PLAYER_TOOLS: readonly ExploreTool[] = ["move", "measure"];
 
 const auth = useAuthStore();
 const campaignStore = useCampaignStore();

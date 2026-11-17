@@ -27,8 +27,10 @@
     <div v-if="bystanders.length > 0" class="flex flex-col gap-1.5" data-testid="solo-fight-bystanders">
       <span class="text-eyebrow text-muted-foreground">Also here</span>
       <ul class="flex flex-col gap-1">
-        <li v-for="c in bystanders" :key="c.instanceId" class="rounded-md px-2 py-1.5">
+        <!-- They take no turn but can be hurt, so how they are doing is shown like anyone else's. -->
+        <li v-for="c in bystanders" :key="c.instanceId" class="flex items-baseline justify-between gap-2 rounded-md px-2 py-1.5">
           <span class="min-w-0 truncate text-body text-foreground">{{ c.name }}</span>
+          <span v-if="c.health.kind === 'word'" class="shrink-0 text-caption text-muted-foreground">{{ c.health.word }}</span>
         </li>
       </ul>
     </div>

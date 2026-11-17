@@ -14,7 +14,9 @@ type BystanderSource = Pick<
 /**
  * The recorded characters who are in the fight's room without being in the fight (#1021): "even if she isn't
  * targeted and does nothing she's still a token in the room". Every NPC whose place is the encounter's place and
- * who is not already a combatant (by `npc_id`) becomes a bystander. An encounter with no place has no room to be in.
+ * who is not already a combatant (by `npc_id`) becomes a bystander: a token that takes no turn of its own, in the
+ * party's faction, so the party's foes may attack it ("defending innocents is quite often one of the more
+ * challenging parts"). An encounter with no place has no room to be in.
  *
  * They are added by the AI table's browser, after `buildRunCombatants`, and never stored in `encounters.combatants`:
  * the server refuses a fight holding a creature with no stat block, and a bystander usually has none.
@@ -23,8 +25,11 @@ type BystanderSource = Pick<
 export function bystandersOf(
   npcs: readonly BystanderSource[],
   encounterLocationId: string | null,
-  roster: readonly Pick<RunCombatant, "npc_id">[],
+  roster: readonly Pick<RunCombatant, "npc_id" | "party_member_id" | "faction_id">[],
 ): RunCombatant[] {
+  // They stand with the party: whoever is the party's foe is theirs, so they can be attacked and must be defended.
+  const withParty = roster.find((c) => c.party_member_id !== undefined);
+  const side = withParty ? withParty.faction_id : "players";
   if (encounterLocationId === null) return [];
   const taken = new Set(roster.map((c) => c.npc_id).filter((id): id is string => id !== undefined));
   const out: RunCombatant[] = [];
@@ -35,7 +40,7 @@ export function bystandersOf(
       type: "monster",
       // The name column is NOT NULL on a DM's own row, so the display name is only null for a player projection.
       name: getNpcDisplayName(npc) ?? npc.name,
-      faction_id: "neutral",
+      faction_id: side,
       initiative: null,
       ...combatStats(npc.stat_block, 10),
       conditions: [],

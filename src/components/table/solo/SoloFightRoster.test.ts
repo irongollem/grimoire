@@ -48,7 +48,9 @@ describe("SoloFightRoster", () => {
     const mira: SeenCombatant = { instanceId: "b-1", name: "Wren", isYou: false, side: "other", bystander: true, health: { kind: "word", word: "Unhurt" } };
     const w = roster({ seen: [you, goblin, mira] });
     expect(w.find("ol").text()).not.toContain("Wren");
-    expect(w.get("[data-testid=solo-fight-bystanders]").text()).toBe("Also hereWren");
+    expect(w.get("[data-testid=solo-fight-bystanders]").text()).toContain("Wren");
+    // She can be hurt, so how she is doing is shown.
+    expect(w.get("[data-testid=solo-fight-bystanders]").text()).toContain("Unhurt");
   });
 
   it("shows no Also here group when nobody is only here", () => {
