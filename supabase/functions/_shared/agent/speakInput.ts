@@ -109,6 +109,7 @@ export const ACT_TOOL: AgentTool = {
   description:
     "Records something visibly done by someone with NO record (a beast, a monster, a crowd, a sweeper), so the screen " +
     "can show it apart from narration. A character with a record decides its own deeds: call speak for it, never this. " +
+    "Only for someone who acts: what a thing does (a lock holds, a door opens, a lamp goes out) is your narration. " +
     "Whoever is in `present` will remember it.",
   inputSchema: {
     type: "object",

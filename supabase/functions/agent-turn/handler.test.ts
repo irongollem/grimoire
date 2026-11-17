@@ -1692,6 +1692,40 @@ describe("quests and time", () => {
     expect(moves(h)).toEqual([{ kind: "pressure", mode: "stop" }]);
   });
 
+  const pressureEvents = (h: Harness) => h.events.filter((e) => e.type === "pressure");
+
+  it("tells the page how full the clock is after a kept turn, and never its label", async () => {
+    const h = harness();
+    existingSession(h, { pressure_clock_id: PRESSURE_CLOCK });
+    h.state.quests = quests(1);
+    await play(h, { body: BODY });
+    expect(pressureEvents(h)).toEqual([{ type: "pressure", pressure: { filled: 2, segments: 4 } }]);
+    expect(JSON.stringify(h.events)).not.toContain("FLOOD-MARK");
+  });
+
+  it("tells the page the pressure is off on the turn the narrator stops it, or the clock stays on screen", async () => {
+    const h = harness([callTools(["pressure", { stop: true }]), step(10)]);
+    existingSession(h, { pressure_clock_id: PRESSURE_CLOCK });
+    h.state.quests = quests();
+    await play(h, { body: BODY });
+    expect(pressureEvents(h)).toEqual([{ type: "pressure", pressure: null }]);
+  });
+
+  it("says nothing of pressure at a table that is under none, and nothing on a turn that is not kept", async () => {
+    const calm = harness();
+    existingSession(calm);
+    calm.state.quests = quests(0, false);
+    await play(calm, { body: BODY });
+    expect(pressureEvents(calm)).toEqual([]);
+
+    const lost = harness();
+    existingSession(lost, { pressure_clock_id: PRESSURE_CLOCK });
+    lost.state.quests = quests();
+    lost.state.conflict = true;
+    await play(lost, { body: BODY });
+    expect(pressureEvents(lost)).toEqual([]);
+  });
+
   it("ticks nothing when the scene is under no pressure", async () => {
     const h = harness();
     existingSession(h);

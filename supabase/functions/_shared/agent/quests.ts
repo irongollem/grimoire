@@ -597,3 +597,30 @@ export function pressureTick(state: QuestsInPlay, queued: readonly QuestMove[]):
   }
   return { kind: "clock", clockId: p.clockId, step: 1, reason: "a turn passed" };
 }
+
+/**
+ * What the player's screen shows of the pressure once this turn is kept: how full the clock is, never what it counts
+ * down to (the label is the narrator's own note and may name what is coming). Worked out from the state the turn
+ * started with and the moves it queued, the same way the tools answered, so the page does not wait for a re-read.
+ * Null when the scene is under no pressure after this turn.
+ */
+export function pressureShown(state: QuestsInPlay, queued: readonly QuestMove[]): { filled: number; segments: number } | null {
+  const ticked = new Map<string, number>();
+  let current: { clockId: string | null; filled: number; segments: number } | null =
+    state.pressure === null ? null : { clockId: state.pressure.clockId, filled: state.pressure.filled, segments: state.pressure.segments };
+  for (const m of queued) {
+    if (m.kind === "clock") ticked.set(m.clockId, (ticked.get(m.clockId) ?? 0) + m.step);
+    if (m.kind !== "pressure") continue;
+    if (m.mode === "stop") current = null;
+    else if (m.mode === "start") current = { clockId: null, filled: 0, segments: m.segments };
+    else {
+      const clock = state.pressure?.clockId === m.clockId ? state.pressure : state.threads.flatMap((t) => t.clocks).find((c) => c.id === m.clockId);
+      // A clock the turn was never shown cannot be queued (the tool refuses it), so there is nothing to show for one.
+      current = clock ? { clockId: m.clockId, filled: clock.filled, segments: clock.segments } : null;
+    }
+  }
+  if (current === null) return null;
+  const own = current.clockId === null ? 0 : (ticked.get(current.clockId) ?? 0);
+  const server = pressureTick(state, queued) === null ? 0 : 1;
+  return { filled: Math.min(current.segments, current.filled + own + server), segments: current.segments };
+}

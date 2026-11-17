@@ -18,7 +18,7 @@ import type { Remembered } from "../_shared/agent/characterTurn.ts";
 import type { SpeechToolsDeps } from "../_shared/agent/speak.ts";
 import type { SceneView } from "../_shared/agent/scene.ts";
 import type { RecordedFact, RecordKind } from "../_shared/agent/record.ts";
-import type { QuestMove, QuestsInPlay } from "../_shared/agent/quests.ts";
+import { pressureShown, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
 import { makeTurnTools, type FiledFact } from "./turnTools.ts";
 import { narrationGate, type NarrationGate, type NarrationJudge } from "./narration.ts";
 import { parseBody, playerText } from "./turnBody.ts";
@@ -63,6 +63,8 @@ export type AgentEvent =
   | { type: "scene"; scene: { id: string; name: string } }
   /** A fact the narrator put on record that the player already knows. A hidden one is never sent. */
   | { type: "fact"; fact: { id: string; body: string } }
+  /** How full the clock the scene runs against is after this turn, or null when the pressure is off. Never its label. */
+  | { type: "pressure"; pressure: { filled: number; segments: number } | null }
   | { type: "done"; end: TurnEnd; credits: number; tokens: number }
   | { type: "error"; message: string };
 
@@ -520,6 +522,9 @@ export async function beginTurn(input: {
             state: questState,
             queued,
           });
+          // Told only when there is or was a clock: a table that never comes under pressure hears nothing of it.
+          const shown = pressureShown(questState, queued);
+          if (shown !== null || questState.pressure !== null) emit({ type: "pressure", pressure: shown });
         }
         // A fact the player has not learned yet never leaves the server: the page shows only what is known.
         for (const fact of filed) if (!fact.hidden) emit({ type: "fact", fact: { id: fact.id, body: fact.body } });

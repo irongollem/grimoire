@@ -8,6 +8,7 @@ import {
   NO_QUESTS,
   parseClockInput,
   parsePressureInput,
+  pressureShown,
   pressureTick,
   questsSection,
   type QuestMove,
@@ -372,5 +373,44 @@ describe("pressureTick", () => {
 
   it("still ticks when the narrator re-runs the same clock, which changes nothing", () => {
     expect(pressureTick(withPressure, [{ kind: "pressure", mode: "run", clockId: PRESSURE }])).toEqual(tick);
+  });
+});
+
+describe("pressureShown", () => {
+  // pressure(1) is the fixture's clock at 1; its segments come from the fixture.
+  const withPressure = state({ pressure: pressure(1) });
+  const segments = pressure(1).segments;
+
+  it("shows the server's tick on an ordinary turn, so the page is not one turn behind the clock", () => {
+    expect(pressureShown(withPressure, [])).toEqual({ filled: 2, segments });
+  });
+
+  it("shows the narrator's own ticks and not the server's on top, so a turn is not counted twice on screen", () => {
+    expect(pressureShown(withPressure, [{ kind: "clock", clockId: PRESSURE, step: 2, reason: "x" }])).toEqual({ filled: 3, segments });
+  });
+
+  it("never shows a clock fuller than it is long", () => {
+    expect(pressureShown(state({ pressure: pressure(segments) }), [])).toEqual({ filled: segments, segments });
+  });
+
+  it("shows a clock just started as empty, because it has had no turn yet", () => {
+    expect(pressureShown(state(), [{ kind: "pressure", mode: "start", questId: QUEST, label: "Guard returns", segments: 5 }])).toEqual({ filled: 0, segments: 5 });
+  });
+
+  it("shows nothing once the pressure is stopped, so a finished chase leaves no clock on the page", () => {
+    expect(pressureShown(withPressure, [{ kind: "pressure", mode: "stop" }])).toBeNull();
+  });
+
+  it("shows nothing when the scene was and stays under no pressure, whatever other clock moved", () => {
+    expect(pressureShown(state(), [{ kind: "clock", clockId: CLOCK, step: 1, reason: "x" }])).toBeNull();
+  });
+
+  it("ignores ticks of another clock, so a quest clock moving does not fill the pressure on screen", () => {
+    expect(pressureShown(withPressure, [{ kind: "clock", clockId: CLOCK, step: 3, reason: "x" }])).toEqual({ filled: 2, segments });
+  });
+
+  it("shows the listed clock a scene is switched to run against, at its own fill", () => {
+    // The fixture's "Tide" stands at 2 of 4; a switch has had no turn of its own yet.
+    expect(pressureShown(state(), [{ kind: "pressure", mode: "run", clockId: CLOCK }])).toEqual({ filled: 2, segments: 4 });
   });
 });
