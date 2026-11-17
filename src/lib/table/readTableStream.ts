@@ -91,7 +91,7 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
     case "fight": {
       // An explicit null is the fight's aftermath having been told; a malformed one is skipped, so a bad payload
       // never takes the way to a running fight off the page.
-      if (raw.fight === null) return { type: "fight", fight: null };
+      if (raw.fight === null) return { type: "fight", fight: null, ...(raw.calledOff === true ? { calledOff: true as const } : {}) };
       const fight = parseTableFight(raw.fight);
       return fight ? { type: "fight", fight } : null;
     }

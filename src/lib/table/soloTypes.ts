@@ -61,7 +61,7 @@ export type TableEvent =
   | { type: "ask_roll"; roll: RollAsk }
   | { type: "rolled"; roll: Rolled }
   | { type: "dm_roll"; roll: DmRoll }
-  | { type: "fight"; fight: TableFight | null }
+  | { type: "fight"; fight: TableFight | null; /** With null: the fight was let go of without being fought. */ calledOff?: true }
   | { type: "done"; end: string; credits: number; tokens: number }
   | { type: "error"; message: string };
 

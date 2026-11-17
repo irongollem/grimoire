@@ -2816,6 +2816,28 @@ describe("the story turns into a fight", () => {
     expect(told).toContain("No fight was started");
   });
 
+  // Bug caught live (17 Nov 2026): a sitting left holding a fight against a character with no stat block. Nothing in
+  // it could act, yet every turn the narrator sent the player back to "the fight screen" and the story never went on.
+  it("lets go of a fight that has not begun and cannot be fought, and plays the turn as story", async () => {
+    const h = played([step(10, { blocks: [{ type: "text", text: "Sift waits for your answer." }] })], { fight_encounter_id: FIGHT });
+    h.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "Rosie confronts Sift", phase: "waiting", round: null, fighters: [] } };
+    h.state.statless = ["Sift"];
+    await play(h, { body: BODY });
+    expect(fightEvents(h)).toEqual([{ type: "fight", fight: null, calledOff: true }]);
+    expect(opening(h.requests[0])).not.toContain("Rosie confronts Sift");
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
+  // Bug caught: a fight being fought right now dropped because someone in it has no stat block (a DM may be running them by hand).
+  it("keeps a fight that is under way, whoever is in it", async () => {
+    const h = played([step(10)], { fight_encounter_id: FIGHT });
+    h.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "Rosie confronts Sift", phase: "running", round: 1, fighters: [] } };
+    h.state.statless = ["Sift"];
+    await play(h, { body: BODY });
+    expect(fightEvents(h)).toEqual([]);
+    expect(opening(h.requests[0])).toContain("Rosie confronts Sift");
+  });
+
   it("starts the fight once the turn is kept, as the played character, and tells the page where it is", async () => {
     const h = played([startStep(), step(10)]);
     h.state.fights = prepared;

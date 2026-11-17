@@ -70,7 +70,7 @@ export type AgentEvent =
   /** How full the clock the scene runs against is after this turn, or null when the pressure is off. Never its label. */
   | { type: "pressure"; pressure: { filled: number; segments: number } | null }
   /** A fight has started (the page offers the way to the fight screen), or (null) its aftermath has been told. */
-  | { type: "fight"; fight: { encounterId: string; name: string } | null }
+  | { type: "fight"; fight: { encounterId: string; name: string } | null; /** With null: it was never fought (nobody in it could be), not finished. */ calledOff?: true }
   /** A roll the Dungeon Master made in the open. A hidden roll sends nothing. */
   | { type: "dm_roll"; roll: DmRoll }
   /** The story stops for a roll that is the player's. What to roll, never the number to beat. */
@@ -477,7 +477,24 @@ export async function beginTurn(input: {
         const record = await recordOf(deps, campaign.id, scene);
         // Fights: what is prepared here and the one this conversation is waiting on. Unreadable means no fight
         // tool this turn, since the ids it would be asked to name could not be checked.
-        const fights = await fightsOf(deps, campaign.id, session.scene_location_id, session.fight_encounter_id);
+        let fights = await fightsOf(deps, campaign.id, session.scene_location_id, session.fight_encounter_id);
+        // A fight that has not begun and has someone in it the rules cannot play can never be fought: the story
+        // would wait on it for good, with the narrator sending the player to a fight screen where nothing can act.
+        // The conversation lets go of it and the story goes on. (Fights are no longer started that way; this frees
+        // a sitting that was left holding one.)
+        if (fights !== null && fights.fight !== null && fights.fight.phase === "waiting") {
+          const stuck = fights.fight;
+          try {
+            const statless = await deps.statlessFighters(campaign.id, { kind: "prepared", encounterId: stuck.encounterId, name: stuck.name });
+            if (statless.length > 0) {
+              await deps.setFight(session.id, campaign.id, null);
+              fights = { ...fights, fight: null };
+              emit({ type: "fight", fight: null, calledOff: true });
+            }
+          } catch (error) {
+            console.error("agent-turn: checking the waiting fight failed:", error);
+          }
+        }
         // The world's peoples are common knowledge for the narrator and every character. Unreadable costs that
         // knowledge for a turn, never the turn.
         let peoples: string[] = [];
