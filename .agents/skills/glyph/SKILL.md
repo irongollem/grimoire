@@ -127,5 +127,5 @@ dump), or in your scratchpad.
    rivals lost. That file is the only place this survives, since the sheet itself
    never enters the repo.
 
-10. **Verify.** `npm run build` (it runs `vue-tsc -b` first) and `npm test`,
+10. **Verify.** `npm run build` (it type-checks first) and `npm test`,
     then look at it in the running app at nav size, in light and dark.
