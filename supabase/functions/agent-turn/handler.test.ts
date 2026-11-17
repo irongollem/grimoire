@@ -2986,6 +2986,16 @@ describe("the story turns into a fight", () => {
       ]);
     });
 
+    // Bug caught live (17 Nov 2026): a roll asked for, made, and then refused because the Action was already spent.
+    it("asks for no roll when the turn cannot pay for the attempt", async () => {
+      const ask: ModelStep = step(10, { blocks: [{ type: "tool_call", id: "a1", name: "ask_roll", input: { kind: "check", skill: "persuasion", dc: 13 } }], stop: "tool_calls" });
+      const h = played([ask, step(10)], { fight_encounter_id: FIGHT });
+      h.state.fights = running;
+      await play(h, { body: { ...BODY, fightTurn: { ...turn, action: false, bonus: false } } });
+      expect(h.events.some((e) => e.type === "ask_roll")).toBe(false);
+      expect(JSON.stringify(h.requests[1])).toContain("Ask for no roll");
+    });
+
     // Bug caught: the board changed for a turn the player never got to keep.
     it("changes nothing when the turn is not kept", async () => {
       const h = inFight([change({ costs: "action", condition: { target: "Giant Rat 1", name: "Blinded" } }), step(10)]);

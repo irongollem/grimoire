@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { budgetLine, MAX_DAMAGE, parseFightChange, type TurnBudget } from "./fightChange";
+import { budgetLine, cannotAttempt, MAX_DAMAGE, parseFightChange, type TurnBudget } from "./fightChange";
 import type { FightState } from "./fight";
 
 const fight = (over: Partial<FightState> = {}): FightState => ({
@@ -106,6 +106,25 @@ describe("when the creature is the one who rolls", () => {
 
   it("refuses a save without both numbers", () => {
     expect(parseFightChange(fight(), budget(), { ...sand, their_save: { total: 3 } }, { player: null, byNarrator: true }).ok).toBe(false);
+  });
+});
+
+describe("cannotAttempt", () => {
+  // Bug caught live (17 Nov 2026): asked for Persuasion with the Action already spent, the player rolled a 15 and
+  // was then told the attempt could not be made.
+  it("says no before any roll when the turn has neither an Action nor a Bonus Action left", () => {
+    expect(cannotAttempt(budget({ action: false, bonus: false }))).toContain("Ask for no roll");
+    expect(cannotAttempt(budget({ action: false }))).toBeNull();
+    expect(cannotAttempt(budget())).toBeNull();
+  });
+
+  it("lets a Reaction pay off the player's turn, and nothing else", () => {
+    expect(cannotAttempt(budget({ yours: false }))).toBeNull();
+    expect(cannotAttempt(budget({ yours: false, reaction: false }))).toContain("not the player's turn");
+  });
+
+  it("does not hold back a roll when the page did not say what the turn holds", () => {
+    expect(cannotAttempt(null)).toBeNull();
   });
 });
 

@@ -4,7 +4,7 @@
 // about what the narrator may do inside it: the campaign's own tools, a character speaking, moving the party and
 // putting a fact on the record. Everything with I/O comes in through `deps`; nothing here touches a database.
 
-import { changedText, FIGHT_CHANGE_TOOL, parseFightChange, type FightChange, type TurnBudget } from "../_shared/agent/fightChange.ts";
+import { cannotAttempt, changedText, FIGHT_CHANGE_TOOL, parseFightChange, type FightChange, type TurnBudget } from "../_shared/agent/fightChange.ts";
 import type { FightState } from "../_shared/agent/fight.ts";
 import { alreadyRecorded, existsText, INTRODUCE_TOOL, INTRODUCE_TOOL_NAME, INTRODUCTIONS_PER_TURN, introducedText, parseIntroduction, type Introduction } from "../_shared/agent/introduce.ts";
 import { GO_TO_TOOL, makeSceneTool } from "../_shared/agent/scene.ts";
@@ -192,6 +192,10 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     const parsed = parseAskRollInput(toolInput);
     if (!parsed.ok) return { content: parsed.error, isError: true };
     if (rollAsked) return { content: "A roll was already asked for this turn. End your reply and wait for it.", isError: true };
+    // In a fight a roll is for an attempt, and an attempt is paid from the turn: no roll is asked that the turn
+    // cannot pay for.
+    const unpayable = input.fightChange === null ? null : cannotAttempt(input.fightChange.budget);
+    if (unpayable !== null) return { content: unpayable, isError: true };
     rollAsked = true;
     input.askRoll?.(parsed.value);
     return { content: askedText(parsed.value), isError: false };

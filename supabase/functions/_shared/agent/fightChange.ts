@@ -224,6 +224,22 @@ export function changedText(change: FightChange): string {
   );
 }
 
+/**
+ * Why an attempt cannot be asked a roll for right now, or null when the turn can pay for one. Asked before the roll,
+ * not after: seen live, the player was asked for Persuasion, rolled a 15, and was then told the Action was already
+ * spent. A roll the turn cannot pay for is a roll wasted.
+ */
+export function cannotAttempt(budget: TurnBudget | null): string | null {
+  if (budget === null) return null;
+  if (!budget.yours) {
+    return budget.reaction
+      ? null
+      : "It is not the player's turn and their Reaction is spent, so they cannot attempt anything now. Tell them in one sentence that it waits for their turn. Ask for no roll.";
+  }
+  if (budget.action || budget.bonus) return null;
+  return "The player has used their Action and Bonus Action this turn, so they cannot attempt anything more in it. Tell them so in one sentence: it waits for their next turn. Ask for no roll.";
+}
+
 /** What the turn still holds, as a line of the narrator's state. */
 export function budgetLine(budget: TurnBudget): string {
   if (!budget.yours) {
