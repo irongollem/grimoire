@@ -38,8 +38,10 @@ export type AgentBlock =
    * does it. The page draws from it; `text` is what the model reads, which says the same in words.
    * `unshown` is set on narrator text the player was never shown because it only repeated the lines before it
    * (narrationCheck.ts). It stays in the history the model reads; a page that replays the turn must not draw it.
+   * `roll` is set on the player's message when it answered a roll the narrator asked for (playerRoll.ts): the
+   * arithmetic the page shows, never the DC or how it went.
    */
-  | { type: "text"; text: string; player?: PlayerMove; unshown?: true }
+  | { type: "text"; text: string; player?: PlayerMove; unshown?: true; roll?: PlayerRolled }
   /** The model asks for a tool. `id` pairs it with its result; `input` is already parsed JSON. */
   | { type: "tool_call"; id: string; name: string; input: Record<string, unknown> }
   /** What a tool answered, as text the model reads. `isError` tells the model the call failed. */
@@ -49,6 +51,19 @@ export type AgentBlock =
    * An adapter writes it and only the same provider's adapter replays it; every other adapter drops it.
    */
   | { type: "opaque"; provider: string; data: unknown };
+
+/** A roll the player made for their own character, as it is shown and stored. */
+export interface PlayerRolled {
+  label: string;
+  faces: number[];
+  /** The die that counts: the only one, the higher with advantage, the lower with disadvantage. */
+  kept: number;
+  bonus: number;
+  total: number;
+  mode: "normal" | "advantage" | "disadvantage";
+  /** True when the player rolled real dice and typed the face. */
+  atTable: boolean;
+}
 
 /** What the player's character does with a message: says it aloud, or does it. */
 export interface PlayerMove {

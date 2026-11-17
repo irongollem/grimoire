@@ -24,8 +24,10 @@
  *   npm run dev:table -- --character inkling  play the party member whose name contains "inkling"
  *   npm run dev:table -- --campaign "kind"    another of the fixture's campaigns
  *
- * At the prompt: a plain line is said aloud; `/do <text>` is done; `/new` starts
- * a fresh conversation (a new sitting); `/quit` leaves.
+ * At the prompt: a plain line is said aloud; `/do <text>` is done; `/roll <face>
+ * [bonus]` answers a roll the Dungeon Master asked for with a die you rolled
+ * yourself (the terminal has no sheet, so the bonus is yours to type); `/new`
+ * starts a fresh conversation (a new sitting); `/quit` leaves.
  *
  * Local only, by construction: `readLocalStack` refuses a stack that is not on
  * loopback. It switches `ai_enabled` on for the chosen LOCAL campaign, because a
@@ -133,6 +135,11 @@ function show(event: TableEvent, narration: { text: string }): void {
     console.log(line.kind === "spoken" ? `\n  ${line.speaker.name}: "${line.text}"` : `\n  ${line.speaker.name} (does): ${line.text}`);
   } else if (event.type === "fact") {
     console.log(`  [on record] ${(event.fact as { body: string }).body}`);
+  } else if (event.type === "ask_roll") {
+    console.log(`\n  [your roll: ${(event.roll as { label: string }).label}. Roll a d20 and type /roll <face> <bonus>]`);
+  } else if (event.type === "rolled") {
+    const r = event.roll as { label: string; kept: number; bonus: number; total: number };
+    console.log(`  [you rolled ${r.label}: d20 (${r.kept}) ${r.bonus < 0 ? "-" : "+"} ${Math.abs(r.bonus)} = ${r.total}]`);
   } else if (event.type === "scene") {
     console.log(`  [the party is at ${(event.scene as { name: string }).name}]`);
   } else if (event.type === "error") {
@@ -142,7 +149,14 @@ function show(event: TableEvent, narration: { text: string }): void {
   }
 }
 
-async function turn(sessionId: string | null, mode: "say" | "do", message: string): Promise<string | null> {
+interface TypedRoll {
+  faces: number[];
+  mode: "normal";
+  bonus: number;
+  atTable: true;
+}
+
+async function turn(sessionId: string | null, mode: "say" | "do", message: string, roll?: TypedRoll): Promise<string | null> {
   const started = Date.now();
   const response = await fetch(endpoint, {
     method: "POST",
@@ -151,6 +165,7 @@ async function turn(sessionId: string | null, mode: "say" | "do", message: strin
       campaignId,
       message,
       mode,
+      ...(roll ? { roll } : {}),
       // Both belong to a new conversation only; the server refuses them on one that is under way.
       ...(sessionId ? { sessionId } : { ...(startLocationId ? { startLocationId } : {}), ...(characterId ? { characterId } : {}) }),
     }),
@@ -179,7 +194,7 @@ async function turn(sessionId: string | null, mode: "say" | "do", message: strin
   return id;
 }
 
-console.log(`\nAt the table in "${campaignName}". A plain line is said aloud, /do <text> is done, /new starts a fresh sitting, /quit leaves.\n`);
+console.log(`\nAt the table in "${campaignName}". A plain line is said aloud, /do <text> is done, /roll <face> [bonus] answers a roll, /new starts a fresh sitting, /quit leaves.\n`);
 // Read line by line rather than asking a question each time: input that ends (a pipe, Ctrl-D) then simply ends
 // the sitting, where a question asked of a closed input throws.
 const prompt = createInterface({ input: process.stdin, output: process.stdout, prompt: "\n> " });
@@ -197,6 +212,11 @@ for await (const line of prompt) {
   if (typed === "/new") {
     sessionId = null;
     console.log("A fresh sitting: the next message starts a new conversation.");
+  } else if (typed.startsWith("/roll")) {
+    // The face you rolled and your bonus. The server checks both and refuses a roll nobody asked for.
+    const [face, bonus = "0"] = typed.slice(5).trim().split(/\s+/);
+    if (!/^\d+$/.test(face ?? "") || !/^[+-]?\d+$/.test(bonus)) console.log("Usage: /roll <face 1-20> [bonus], for example /roll 13 4");
+    else sessionId = await turn(sessionId, "do", "", { faces: [Number(face)], mode: "normal", bonus: Number(bonus), atTable: true });
   } else if (typed !== "") {
     const done = typed.startsWith("/do ");
     sessionId = await turn(sessionId, done ? "do" : "say", done ? typed.slice(4).trim() : typed);

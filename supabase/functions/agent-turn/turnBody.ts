@@ -1,6 +1,8 @@
 // What a turn request says and how the player's message reaches the narrator (#1205, #1021). Split from `handler.ts`
 // so the handler holds the turn's rules. Pure.
 
+import { parseRollAnswer, type RollAnswer } from "../_shared/agent/playerRoll.ts";
+
 /** The longest message a player may send. */
 export const MAX_MESSAGE_CHARS = 4000;
 
@@ -21,6 +23,11 @@ export interface AgentTurnBody {
   message: string;
   /** Enter says it aloud, Alt+Enter does it: the player chooses, nothing guesses from the wording. */
   mode: "say" | "do";
+  /**
+   * The player's answer to a roll the narrator asked for. With it the message may be empty: a roll alone is a turn.
+   * Refused by the handler when nothing was asked.
+   */
+  roll?: RollAnswer;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -32,7 +39,14 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
   if (r.sessionId !== undefined && (typeof r.sessionId !== "string" || !UUID_RE.test(r.sessionId))) return { ok: false };
   if (typeof r.message !== "string") return { ok: false };
   const message = r.message.trim();
-  if (message.length < 1 || message.length > MAX_MESSAGE_CHARS) return { ok: false };
+  let roll: RollAnswer | undefined;
+  if (r.roll !== undefined) {
+    const parsed = parseRollAnswer(r.roll);
+    if (parsed === null) return { ok: false };
+    roll = parsed;
+  }
+  // Only a roll makes a turn without words.
+  if ((message.length < 1 && roll === undefined) || message.length > MAX_MESSAGE_CHARS) return { ok: false };
   if (r.mode !== "say" && r.mode !== "do") return { ok: false };
   if (r.startLocationId !== undefined) {
     if (typeof r.startLocationId !== "string" || !UUID_RE.test(r.startLocationId)) return { ok: false };
@@ -45,7 +59,7 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
     ok: true,
     body: {
       campaignId: r.campaignId, sessionId: r.sessionId, startLocationId: r.startLocationId, characterId: r.characterId,
-      message, mode: r.mode,
+      message, mode: r.mode, ...(roll === undefined ? {} : { roll }),
     },
   };
 }

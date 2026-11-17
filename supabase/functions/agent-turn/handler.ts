@@ -19,6 +19,7 @@ import type { SpeechToolsDeps } from "../_shared/agent/speak.ts";
 import type { SceneView } from "../_shared/agent/scene.ts";
 import type { RecordedFact, RecordKind } from "../_shared/agent/record.ts";
 import { pressureShown, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
+import { askOf, declinedText, rollText, scoreRoll, type PendingRoll, type RollAsk, type Rolled } from "../_shared/agent/playerRoll.ts";
 import { makeTurnTools, type FiledFact } from "./turnTools.ts";
 import { narrationGate, type NarrationGate, type NarrationJudge } from "./narration.ts";
 import { parseBody, playerText } from "./turnBody.ts";
@@ -65,6 +66,10 @@ export type AgentEvent =
   | { type: "fact"; fact: { id: string; body: string } }
   /** How full the clock the scene runs against is after this turn, or null when the pressure is off. Never its label. */
   | { type: "pressure"; pressure: { filled: number; segments: number } | null }
+  /** The story stops for a roll that is the player's. What to roll, never the number to beat. */
+  | { type: "ask_roll"; roll: RollAsk }
+  /** The roll this turn answered, as the server worked it out. No outcome: the narration says how it went. */
+  | { type: "rolled"; roll: Rolled }
   | { type: "done"; end: TurnEnd; credits: number; tokens: number }
   | { type: "error"; message: string };
 
@@ -94,6 +99,8 @@ export interface SessionRow {
   opened_play_session: boolean;
   /** When the player left the table; null while the sitting goes on. A conversation that was left takes no turns. */
   left_at: string | null;
+  /** The roll the narrator asked the player for at the end of the last kept turn; null when none is asked. */
+  pending_roll: PendingRoll | null;
 }
 
 export interface ResolvedProvider {
@@ -193,6 +200,8 @@ export interface AgentTurnDeps {
    * in this campaign or the move could not be stored. It writes at once, outside the turn's own save.
    */
   setScene(sessionId: string, campaignId: string, locationId: string): Promise<SceneView | null>;
+  /** Writes (or, with null, clears) the roll the player is asked for. Throws when it could not be written. */
+  setPendingRoll(sessionId: string, campaignId: string, pending: PendingRoll | null): Promise<void>;
   /**
    * The facts worth putting in front of the narrator this turn: those tied to the place and the people in it, and the
    * newest of the campaign, oldest first, none of them closed by a later fact.
@@ -240,6 +249,7 @@ export const MESSAGES = {
   badBody: "The request is not valid.",
   notFound: "That conversation was not found.",
   left: "You left this table. Sit down again to play on.",
+  noRoll: "No roll was asked for.",
   noPlace: "That place was not found.",
   noCharacter: "That character was not found.",
   noCampaign: "Campaign not found.",
@@ -290,6 +300,11 @@ export async function beginTurn(input: {
     // Before the rate limit and the reservation: a sitting that was left takes nothing more, and costs nothing to refuse.
     if (existing.left_at !== null) return refuse(409, MESSAGES.left);
   }
+  // A roll answers a request: without one there is no DC to score it against, and a made-up roll must not reach the
+  // narrator as if it had been asked for.
+  const pendingRoll = existing === null ? null : existing.pending_roll;
+  if (body.roll !== undefined && pendingRoll === null) return refuse(400, MESSAGES.noRoll);
+  const scored = body.roll !== undefined && pendingRoll !== null ? scoreRoll(pendingRoll, body.roll) : null;
 
   // Before anything is charged or streamed: a place of another campaign, or one that does not exist, is "not
   // found" either way. The id comes from the browser, so it is checked against the conversation's campaign here.
@@ -329,7 +344,8 @@ export async function beginTurn(input: {
 
   let flagged = false;
   try {
-    flagged = await deps.isFlagged(body.message);
+    // A roll sent without words has nothing to screen.
+    flagged = body.message === "" ? false : await deps.isFlagged(body.message);
   } catch (error) {
     // Same stance as the image screen: it is not the safety boundary, so an outage of it must not stop play.
     console.error("agent-turn: moderation failed:", error);
@@ -359,6 +375,8 @@ export async function beginTurn(input: {
     let kept = false;
     // Quest moves the narrator made this turn. Objectives and clocks have no undo, so none is written until the turn is kept.
     const queued: QuestMove[] = [];
+    // The roll the narrator asked the player for this turn; written only once the turn is kept.
+    let asked: PendingRoll | null = null;
     const discardFiled = async (): Promise<void> => {
       if (filed.length === 0) return;
       await safely(() => deps.discardFacts(campaign.id, filed.map((f) => f.id)));
@@ -391,6 +409,7 @@ export async function beginTurn(input: {
         });
         const character = await characterOf(deps, campaign.id, session.party_member_id);
         emit({ type: "session", sessionId: session.id, ...(character ? { character: { id: character.id, name: character.name } } : {}) });
+        if (scored !== null) emit({ type: "rolled", roll: scored.rolled });
         stored = await deps.loadTurns(session.id);
         const lastSeqLoaded = stored.reduce((max, row) => Math.max(max, row.seq), 0);
         const history = historyFrom(stored, session.summary_through_seq);
@@ -416,14 +435,21 @@ export async function beginTurn(input: {
           filed,
           quests: questState === null ? null : { state: questState, queued },
           playerName: character ? character.name : undefined,
+          // Only a played character has a sheet to roll from; without one the narrator rolls as before.
+          askRoll: character ? (pending) => { asked = pending; } : null,
         });
 
         gate = narrationGate({ judge: deps.judgeNarration, emit });
         result = await runTurn({
           system,
           history,
-          user: playerText(body.mode, body.message),
-          player: { kind: body.mode, text: body.message },
+          // The roll (or that it was not made) comes first, then the player's own words when there are any.
+          user: [
+            scored !== null && pendingRoll !== null ? rollText(pendingRoll, scored) : pendingRoll !== null ? declinedText(pendingRoll) : null,
+            body.message === "" ? null : playerText(body.mode, body.message),
+          ].filter((part): part is string => part !== null).join("\n\n"),
+          ...(body.message === "" ? {} : { player: { kind: body.mode, text: body.message } }),
+          ...(scored === null ? {} : { roll: scored.rolled }),
           tools: turnTools.tools,
           callModel,
           callTool: turnTools.callTool,
@@ -525,6 +551,17 @@ export async function beginTurn(input: {
           // Told only when there is or was a clock: a table that never comes under pressure hears nothing of it.
           const shown = pressureShown(questState, queued);
           if (shown !== null || questState.pressure !== null) emit({ type: "pressure", pressure: shown });
+        }
+        // A request to roll lasts one turn: this turn answered or dropped the last one, and may have made a new one.
+        // The page is told only when the request is stored, or the roll it sends back would be refused.
+        const nowAsked = asked as PendingRoll | null;
+        if (nowAsked !== null || pendingRoll !== null) {
+          try {
+            await deps.setPendingRoll(session.id, campaign.id, nowAsked);
+            if (nowAsked !== null) emit({ type: "ask_roll", roll: askOf(nowAsked) });
+          } catch (error) {
+            console.error("agent-turn: storing the roll that was asked for failed:", error);
+          }
         }
         // A fact the player has not learned yet never leaves the server: the page shows only what is known.
         for (const fact of filed) if (!fact.hidden) emit({ type: "fact", fact: { id: fact.id, body: fact.body } });

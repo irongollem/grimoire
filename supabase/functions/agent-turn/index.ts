@@ -33,6 +33,7 @@ import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { loadPartyMember } from "./characterIo.ts";
 import { RECORD_SECTION_MAX, type RecordedFact } from "../_shared/agent/record.ts";
 import { openaiModel } from "../_shared/agent/openai.ts";
+import { parsePendingRoll } from "../_shared/agent/playerRoll.ts";
 import { anthropicModel } from "../_shared/agent/anthropic.ts";
 import { applyQuestMove, loadQuests } from "./questIo.ts";
 import { narrationJudgeFor } from "./narrationJudge.ts";
@@ -55,7 +56,7 @@ function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id, pressure_clock_id, party_member_id, opened_play_session, left_at";
+const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id, pressure_clock_id, party_member_id, opened_play_session, left_at, pending_roll";
 
 /** Beside what is tied to this place and these people, the campaign's newest facts always reach the narrator. */
 const NEWEST_FACTS = 15;
@@ -73,6 +74,8 @@ function sessionRow(row: Record<string, unknown>): SessionRow {
     party_member_id: (row.party_member_id as string | null) ?? null,
     opened_play_session: row.opened_play_session === true,
     left_at: (row.left_at as string | null) ?? null,
+    // Anything this code did not write reads as nothing asked: a roll is never scored against a DC it cannot trust.
+    pending_roll: parsePendingRoll(row.pending_roll),
   };
 }
 
@@ -419,6 +422,15 @@ serve(withCors(async (req: Request) => {
           };
         }),
       };
+    },
+
+    async setPendingRoll(sessionId, campaignId, pending): Promise<void> {
+      const { error } = await admin
+        .from("agent_sessions")
+        .update({ pending_roll: pending })
+        .eq("id", sessionId)
+        .eq("campaign_id", campaignId);
+      if (error) throw error;
     },
 
     async setScene(sessionId, campaignId, locationId): Promise<SceneView | null> {

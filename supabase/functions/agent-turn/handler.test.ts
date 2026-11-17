@@ -23,6 +23,7 @@ import {
 import type { SceneView } from "../_shared/agent/scene";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter";
 import type { RecordedFact } from "../_shared/agent/record";
+import type { PendingRoll } from "../_shared/agent/playerRoll";
 import { NO_QUESTS, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests";
 import { AgentProviderError, type AgentBlock, type CallModel, type ModelRequest, type ModelStep } from "../_shared/agent/types";
 import { blocksOf, type StoredTurn, type TurnRow } from "../_shared/agent/transcript";
@@ -121,6 +122,7 @@ interface Harness {
     /** The DM already had a session running, so the table joins it instead of starting one. */
     playSessionJoined: boolean;
     moveFails: boolean;
+    pendingRollFails: boolean;
     record: RecordedFact[];
     recordThrows: boolean;
     /** A sentence the filing answers with instead of a fact id. */
@@ -134,6 +136,8 @@ interface Harness {
   /** Every quest move the handler applied, in order, and the campaign and conversation it applied it for. */
   applied: Array<{ ctx: { campaignId: string; agentSessionId: string }; move: QuestMove }>;
   questLoads: Array<{ campaignId: string; pressureClockId: string | null }>;
+  /** Every write of the roll the player is asked for (null clears it), with the conversation and campaign it was for. */
+  pendingRolls: Array<{ sessionId: string; campaignId: string; pending: PendingRoll | null }>;
   /** What the database holds as facts: the ones the narrator filed this run, and what the load answers with. */
   facts: Array<{ id: string; campaignId: string; campaignSessionId: string | null; agentSessionId: string; body: string; hidden: boolean; closes: string | null; about: Array<{ type: string; id: string }> }>;
   recordLoads: Array<{ campaignId: string; locationId: string | null; characterIds: string[] }>;
@@ -192,6 +196,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       playSessionThrows: false,
       playSessionJoined: false,
       moveFails: false,
+      pendingRollFails: false,
       record: [],
       recordThrows: false,
       fileError: null,
@@ -202,6 +207,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     },
     applied: [],
     questLoads: [],
+    pendingRolls: [],
     facts: [],
     recordLoads: [],
     discards: [],
@@ -235,6 +241,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
         party_member_id: partyMemberId,
         opened_play_session: openedPlaySession,
         left_at: null,
+        pending_roll: null,
       };
       h.sessions.set(row.id, row);
       log.push("create");
@@ -294,6 +301,10 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       sceneLoads.push({ campaignId, locationId });
       if (h.state.sceneThrows) throw new Error("db down");
       return campaignId === CAMPAIGN ? (h.state.places.get(locationId) ?? null) : null;
+    },
+    setPendingRoll: async (sessionId, campaignId, pending) => {
+      if (h.state.pendingRollFails) throw new Error("db down");
+      h.pendingRolls.push({ sessionId, campaignId, pending });
     },
     setScene: async (sessionId, campaignId, locationId) => {
       sceneMoves.push({ campaignId, locationId });
@@ -382,6 +393,7 @@ function existingSession(h: Harness, over: Partial<SessionRow> = {}, accrued = 0
     party_member_id: null,
     opened_play_session: false,
     left_at: null,
+    pending_roll: null,
     ...over,
   };
   h.sessions.set(row.id, row);
@@ -2246,5 +2258,131 @@ describe("who the player plays", () => {
     expect(JSON.stringify(h.events)).not.toContain("PRIVATE-CHARACTER-NOTE");
     expect(h.events[0]).toEqual({ type: "session", sessionId: expect.any(String), character: { id: WREN, name: "Wren Ashfield" } });
     expect(h.requests[0].system).not.toContain("PRIVATE-CHARACTER-NOTE");
+  });
+});
+
+describe("a roll that is the player's", () => {
+  const wren = (): PlayerCharacter => ({
+    id: WREN, name: "Wren Ashfield", pronouns: null, species: null, className: "Ranger", subclass: null, level: 3, hitPoints: null,
+  });
+  // The DC is 17 so it can be told apart from every other number in these tests.
+  const asked = (): PendingRoll => ({ label: "Wisdom (Perception)", kind: "check", ability: "wis", skill: "perception", dc: 17 });
+  const askStep = (input: Record<string, unknown> = { kind: "check", skill: "perception", dc: 17 }): ModelStep =>
+    step(10, { blocks: [{ type: "tool_call", id: "r1", name: "ask_roll", input }], stop: "tool_calls" });
+  const played = (script: Script = [step(100)], over: Partial<SessionRow> = {}): Harness => {
+    const h = harness(script);
+    h.state.characters.set(WREN, wren());
+    existingSession(h, { party_member_id: WREN, ...over });
+    return h;
+  };
+  const SAY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I listen at the door.", mode: "do" };
+  const ROLL = { faces: [13], mode: "normal", bonus: 4, atTable: true };
+  const firstUser = (h: Harness) => h.requests[0].messages[h.requests[0].messages.length - 1].blocks[0];
+
+  it("stores what the narrator asked for once the turn is kept and tells the page what to roll, never the DC", async () => {
+    const h = played([askStep(), step(10)]);
+    await play(h, { body: SAY });
+    expect(h.pendingRolls).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN, pending: asked() }]);
+    const event = h.events.find((e) => e.type === "ask_roll");
+    expect(event).toEqual({ type: "ask_roll", roll: { label: "Wisdom (Perception)", kind: "check", ability: "wis", skill: "perception" } });
+    expect(JSON.stringify(h.events)).not.toContain("17");
+  });
+
+  it("asks for nothing when the turn is not kept, or the page would wait for a roll the story never reached", async () => {
+    const h = played([askStep(), step(10)]);
+    h.state.conflict = true;
+    await play(h, { body: SAY });
+    expect(h.pendingRolls).toEqual([]);
+    expect(h.events.some((e) => e.type === "ask_roll")).toBe(false);
+  });
+
+  it("does not tell the page to roll when the request could not be stored, since the roll it sent back would be refused", async () => {
+    const h = played([askStep(), step(10)]);
+    h.state.pendingRollFails = true;
+    await play(h, { body: SAY });
+    expect(h.events.some((e) => e.type === "ask_roll")).toBe(false);
+    expect(last(h)).toMatchObject({ type: "done" });
+  });
+
+  it("scores the player's roll against the stored DC and tells the narrator the outcome, the page only the arithmetic", async () => {
+    // SRD 5.1 "Ability Checks": 13 + 4 = 17 meets DC 17, a success.
+    const h = played([step(100)], { pending_roll: asked() });
+    await play(h, { body: { ...SAY, message: "", roll: ROLL } });
+    const block = firstUser(h);
+    expect(block.type === "text" && block.text).toContain("d20 (13) + 4 = 17 against DC 17. It succeeds");
+    const rolled = { label: "Wisdom (Perception)", faces: [13], kept: 13, bonus: 4, total: 17, mode: "normal", atTable: true };
+    expect(h.events[1]).toEqual({ type: "rolled", roll: rolled });
+    expect(block).toMatchObject({ roll: rolled });
+    // No words were sent, so there is no player line to draw.
+    expect(block.type === "text" && block.player).toBeUndefined();
+  });
+
+  it("tells the narrator a roll one under the DC fails", async () => {
+    const h = played([step(100)], { pending_roll: asked() });
+    await play(h, { body: { ...SAY, message: "", roll: { ...ROLL, faces: [12] } } });
+    const block = firstUser(h);
+    expect(block.type === "text" && block.text).toContain("It fails");
+  });
+
+  it("keeps the player's own words after the roll, so what they say with it is not lost", async () => {
+    const h = played([step(100)], { pending_roll: asked() });
+    await play(h, { body: { ...SAY, roll: ROLL } });
+    const block = firstUser(h);
+    expect(block.type === "text" && block.text.indexOf("against DC 17")).toBeLessThan(block.type === "text" ? block.text.indexOf("I listen at the door.") : -1);
+    expect(block).toMatchObject({ player: { kind: "do", text: "I listen at the door." } });
+  });
+
+  it("clears the request once a kept turn answered it, so the same roll cannot be sent twice", async () => {
+    const h = played([step(100)], { pending_roll: asked() });
+    await play(h, { body: { ...SAY, message: "", roll: ROLL } });
+    expect(h.pendingRolls).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN, pending: null }]);
+  });
+
+  it("leaves the request standing when the turn that answered it is not kept, so the player's retry still has a DC", async () => {
+    const h = played([step(100)], { pending_roll: asked() });
+    h.state.conflict = true;
+    await play(h, { body: { ...SAY, message: "", roll: ROLL } });
+    expect(h.pendingRolls).toEqual([]);
+  });
+
+  it("drops the request when the player sends something else, and tells the narrator they did not roll", async () => {
+    const h = played([step(100)], { pending_roll: asked() });
+    await play(h, { body: SAY });
+    const block = firstUser(h);
+    expect(block.type === "text" && block.text).toContain("did not make it");
+    expect(block.type === "text" && block.roll).toBeUndefined();
+    expect(h.pendingRolls).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN, pending: null }]);
+    expect(h.events.some((e) => e.type === "rolled")).toBe(false);
+  });
+
+  it("refuses a roll nobody asked for before anything is reserved or sent to the model", async () => {
+    const h = played();
+    expect((await play(h, { body: { ...SAY, roll: ROLL } }))?.status).toBe(400);
+    const fresh = harness();
+    expect((await play(fresh, { body: { campaignId: CAMPAIGN, message: "hi", mode: "say", roll: ROLL } }))?.status).toBe(400);
+    expect(h.modelCalls() + fresh.modelCalls()).toBe(0);
+  });
+
+  it("refuses a turn with neither words nor a roll, and a roll it cannot read", async () => {
+    const h = played([step(100)], { pending_roll: asked() });
+    expect((await play(h, { body: { ...SAY, message: "  " } }))?.status).toBe(400);
+    expect((await play(h, { body: { ...SAY, message: "", roll: { ...ROLL, faces: [21] } } }))?.status).toBe(400);
+    expect(h.modelCalls()).toBe(0);
+  });
+
+  it("does not offer ask_roll when nobody is played, so the narrator rolls as before", async () => {
+    const h = harness();
+    existingSession(h);
+    await play(h, { body: SAY });
+    expect(h.requests[0].tools.map((t) => t.name)).not.toContain("ask_roll");
+    const withWren = played();
+    await play(withWren, { body: SAY });
+    expect(withWren.requests[0].tools.map((t) => t.name)).toContain("ask_roll");
+  });
+
+  it("a new request replaces the answered one in a single write, so the session never holds a stale DC", async () => {
+    const h = played([askStep({ kind: "save", ability: "con", dc: 12 }), step(10)], { pending_roll: asked() });
+    await play(h, { body: { ...SAY, message: "", roll: ROLL } });
+    expect(h.pendingRolls.map((p) => p.pending?.label ?? null)).toEqual(["Constitution saving throw"]);
   });
 });

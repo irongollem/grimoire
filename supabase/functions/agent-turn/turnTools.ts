@@ -10,6 +10,7 @@ import { makeSpeechTools } from "../_shared/agent/speak.ts";
 import { SPEECH_TOOL_NAMES } from "../_shared/agent/speakInput.ts";
 import { makeRecordTool, RECORD_TOOL_NAME } from "../_shared/agent/record.ts";
 import { makeQuestTools, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
+import { ASK_ROLL_TOOL, askedText, parseAskRollInput, type PendingRoll } from "../_shared/agent/playerRoll.ts";
 import type { StoredTurn } from "../_shared/agent/transcript.ts";
 import type { AgentTool, CallModel, CallTool } from "../_shared/agent/types.ts";
 import type { AgentTurnDeps, SessionRow } from "./handler.ts";
@@ -41,6 +42,8 @@ export interface TurnToolsInput {
   quests: { state: QuestsInPlay; queued: QuestMove[] } | null;
   /** The name of the character the player plays, when the conversation has one: characters hear the player under it. */
   playerName?: string;
+  /** Takes the roll the narrator asks the player for; null when nobody is played, and then the tool is not offered. */
+  askRoll: ((pending: PendingRoll) => void) | null;
 }
 
 export interface TurnTools {
@@ -101,14 +104,26 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
 
   const quests = input.quests === null ? null : makeQuestTools(input.quests);
 
+  // One request a turn: the story stops for a single roll, and a second would silently replace the first.
+  let rollAsked = false;
+  const askRoll = (toolInput: Record<string, unknown>) => {
+    const parsed = parseAskRollInput(toolInput);
+    if (!parsed.ok) return { content: parsed.error, isError: true };
+    if (rollAsked) return { content: "A roll was already asked for this turn. End your reply and wait for it.", isError: true };
+    rollAsked = true;
+    input.askRoll?.(parsed.value);
+    return { content: askedText(parsed.value), isError: false };
+  };
+
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : [])],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : [])],
     remembered,
     spoke,
     place: () => place,
     callTool: (name, toolInput) => {
       if (name === GO_TO_TOOL.name) return go.call(toolInput);
       if (name === RECORD_TOOL_NAME) return record.call(toolInput);
+      if (input.askRoll && name === ASK_ROLL_TOOL.name) return Promise.resolve(askRoll(toolInput));
       if (quests && quests.names.has(name)) return quests.call(name, toolInput);
       return SPEECH_TOOL_NAMES.has(name) ? speech.call(name, toolInput) : deps.callTool(name, toolInput);
     },

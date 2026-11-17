@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeTurnTools, type FiledFact, type TurnToolsInput } from "./turnTools";
 import { NO_QUESTS, type QuestMove } from "../_shared/agent/quests";
+import type { PendingRoll } from "../_shared/agent/playerRoll";
 import type { SessionRow } from "./handler";
 import type { CallModel } from "../_shared/agent/types";
 
@@ -18,9 +19,11 @@ const session: SessionRow = {
   left_at: null,
   pressure_clock_id: null,
   party_member_id: null,
+  pending_roll: null,
 };
 
-function build(quests: TurnToolsInput["quests"] = null) {
+function build(quests: TurnToolsInput["quests"] = null, played = false) {
+  const asked: PendingRoll[] = [];
   const calls: string[] = [];
   const filed: FiledFact[] = [];
   const moves: Array<{ id: string; name: string }> = [];
@@ -48,8 +51,9 @@ function build(quests: TurnToolsInput["quests"] = null) {
     onMove: (p) => moves.push(p),
     filed,
     quests,
+    askRoll: played ? (pending) => asked.push(pending) : null,
   });
-  return { turn, calls, filed, moves };
+  return { turn, calls, filed, moves, asked };
 }
 
 describe("makeTurnTools", () => {
@@ -91,5 +95,39 @@ describe("makeTurnTools", () => {
 
   it("offers no quest tool when the quests could not be read", () => {
     expect(build(null).turn.tools.map((t) => t.name)).not.toContain("quest_route");
+  });
+
+  it("offers ask_roll only when someone is played, so a table with no sheet is never asked to roll from one", () => {
+    expect(build(null, true).turn.tools.map((t) => t.name)).toContain("ask_roll");
+    expect(build().turn.tools.map((t) => t.name)).not.toContain("ask_roll");
+  });
+
+  it("hands a call to ask_roll at a table with nobody played to the campaign's tools, which refuse it", async () => {
+    const { turn, calls, asked } = build();
+    await turn.callTool("ask_roll", { kind: "check", skill: "stealth", dc: 12 });
+    expect(asked).toEqual([]);
+    expect(calls).toEqual(["campaign:ask_roll"]);
+  });
+
+  it("takes one roll a turn and refuses a second, which would silently replace the first", async () => {
+    const { turn, asked } = build(null, true);
+    const first = await turn.callTool("ask_roll", { kind: "check", skill: "stealth", dc: 12 });
+    const second = await turn.callTool("ask_roll", { kind: "save", ability: "con", dc: 14 });
+    expect(first.isError).toBe(false);
+    expect(second.isError).toBe(true);
+    expect(asked.map((a) => a.label)).toEqual(["Dexterity (Stealth)"]);
+  });
+
+  it("asks nothing for a call it cannot read, and a later good call still counts as the turn's one", async () => {
+    const { turn, asked } = build(null, true);
+    expect((await turn.callTool("ask_roll", { kind: "check", dc: 12 })).isError).toBe(true);
+    expect((await turn.callTool("ask_roll", { kind: "check", skill: "arcana", dc: 12 })).isError).toBe(false);
+    expect(asked).toHaveLength(1);
+  });
+
+  it("never tells the narrator's tool result the DC back in a form the page could show", async () => {
+    const { turn } = build(null, true);
+    const result = await turn.callTool("ask_roll", { kind: "check", skill: "stealth", dc: 23 });
+    expect(result.content).not.toContain("23");
   });
 });

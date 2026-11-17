@@ -1,5 +1,6 @@
 // Between the conversation in memory and the rows that store it (#1205). Pure: rows in, messages out, and back.
 
+import { parseRolled } from "./playerRoll.ts";
 import type { AgentBlock, AgentLine, AgentMessage, AgentUsage, AgentWithheld } from "./types.ts";
 
 export interface StoredTurn {
@@ -60,6 +61,8 @@ function asBlock(x: unknown): AgentBlock | null {
       }
       // Only a literal `true` counts: anything else was never written by this code, and showing text is the safe side.
       if (x.unshown === true) block.unshown = true;
+      const rolled = parseRolled(x.roll);
+      if (rolled !== null) block.roll = rolled;
       return block;
     }
     case "tool_call":
