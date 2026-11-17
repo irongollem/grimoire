@@ -9,6 +9,7 @@ import {
   useReorderInventoryItems,
 } from "@/composables/items/usePartyInventory";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useDropItem } from "@/composables/campaign/useLootDropChoice";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import type {
   PartyInventoryItem,
@@ -57,7 +58,8 @@ export function useInventoryMutations({
   const { mutateAsync: updateInventoryItem } = useUpdateInventoryItem();
   const { mutateAsync: removeInventoryItem } = useRemoveInventoryItem();
   const { mutate: reorderInventoryItems } = useReorderInventoryItems();
-  const { sendItemDrop, sendPlayerOffer } = useCampaignMessages();
+  const { sendPlayerOffer } = useCampaignMessages();
+  const { dropItem } = useDropItem();
   const { reportChatFailure } = useChatSendFailure();
 
   // ── Container picker ──────────────────────────────────────────────────────────
@@ -200,7 +202,8 @@ export function useInventoryMutations({
       : null;
     // Post first, remove after: a failed post must not cost the player the item.
     try {
-      await sendItemDrop(
+      // False: the DM cancelled the Need or Greed prompt; nothing was posted, so the row stays.
+      const dropped = await dropItem(
         inv.name,
         // `ref`, not `inv.item_id` — it is resolved two lines up and was then
         // ignored here. A library-sourced row keeps its reference in
@@ -212,6 +215,7 @@ export function useInventoryMutations({
         linkedItem?.rarity ?? null,
         { quality: inv.quality },
       );
+      if (!dropped) return;
     } catch (e) {
       reportChatFailure(e, "drop the item to the chat");
       return;

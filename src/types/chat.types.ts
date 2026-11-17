@@ -58,6 +58,15 @@ export interface LootRoll {
   outcome: "won" | "unclaimed" | null; // null while open
 }
 
+/** How the DM chose to hand a drop out while Need or Greed is on. */
+export type LootRollMode = "roll" | "free" | "give";
+
+/** What the DM answered for one drop or loot batch while Need or Greed is on. */
+export type LootDropChoice =
+  | { mode: "roll" }
+  | { mode: "free" }
+  | { mode: "give"; partyMemberId: string };
+
 export interface ItemDropMetadata {
   item_id: string | null;
   /**
@@ -95,6 +104,8 @@ export interface ItemDropMetadata {
   roll?: LootRoll;
   /** Set by the thrown-weapon path; tells the server never to roll it. */
   thrown?: boolean;
+  /** The DM's choice when the drop was made; absent on drops from before 20261117234419. */
+  roll_mode?: LootRollMode;
 }
 
 export interface CurrencyDropMetadata {

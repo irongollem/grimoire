@@ -24,7 +24,11 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
   useDeleteQuestBeatEdge: () => ({ mutateAsync: m.del }),
   useMarkQuestMove: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
   useLootPlacements: () => ({ data: ref([]) }),
+  // The route's own "take" control hands out what the beat holds; nothing here drops loot.
+  useDispatchLoot: () => ({ mutateAsync: vi.fn() }),
 }));
+// How loot goes out when a route is taken is `QuestTakeRoute`'s own, tested there: here no question is asked.
+vi.mock("@/composables/quests/useLootBatchChoice", () => ({ useLootBatchChoice: () => ({ answerFor: async () => ({ cancelled: false }) }) }));
 vi.mock("@/composables/quests/useQuests", () => ({ useQuestObjectives: () => ({ data: ref([{ id: "o1", description: "Find the ledger", status: "pending" }, { id: "o2", description: "Keep trust", status: "pending" }]) }) }));
 vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: m.confirm }) }));

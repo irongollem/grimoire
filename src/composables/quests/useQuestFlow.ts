@@ -1,8 +1,10 @@
 import { computed, isRef, ref, type Ref } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import type { LootDropChoice } from "@/types/chat.types";
 import { LIBRARY_TABLE_FOR_ATTACHMENT, splitAttachmentRefIds, summarizeQuestBeatAttachment } from "@/lib/quests/attachments";
 import { deriveQuestBoardSummaries, type QuestBoardPayload, type QuestBoardSummary } from "@/lib/quests/board";
+import { dispatchLootArgs } from "@/lib/quests/lootChoice";
 import { QUEST_BOARD_KEY } from "@/lib/quests/boardKey";
 import { BEATS_KEY, OBJECTIVES_KEY, RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY } from "@/lib/campaignLiveSync/registry";
 import { queueQuestEmbedding } from "@/composables/quests/queueQuestEmbedding";
@@ -266,10 +268,8 @@ export function useDeleteLootPlacement() {
 export function useDispatchLoot() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { entryIds: string[]; campaignId: string }) => {
-      const { data, error } = await supabase.rpc("dispatch_loot", {
-        p_entry_ids: input.entryIds,
-      });
+    mutationFn: async (input: { entryIds: string[]; campaignId: string; choice?: LootDropChoice }) => {
+      const { data, error } = await supabase.rpc("dispatch_loot", dispatchLootArgs(input.entryIds, input.choice));
       if (error) throw error;
       return data;
     },

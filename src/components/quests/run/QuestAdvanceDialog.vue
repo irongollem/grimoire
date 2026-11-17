@@ -288,7 +288,8 @@ import { routeCondition } from "@/lib/quests/ledger";
 import { spaceNoun } from "@/lib/locations/tiers";
 import { pluralizeCount } from "@/lib/utils";
 import { delayPhrase, describeQuestConsequenceAction, isLedgerConsequenceAction, relationshipShiftIsGain } from "@/lib/quests/consequences";
-import { useQuestRuntimeCommand, useQuestRuntimeImprovise } from "@/composables/quests/useQuestFlow";
+import { useDispatchLoot, useQuestRuntimeCommand, useQuestRuntimeImprovise } from "@/composables/quests/useQuestFlow";
+import { useLootBatchChoice } from "@/composables/quests/useLootBatchChoice";
 import { useBelow } from "@/composables/useBreakpoint";
 import { useToast } from "@/composables/useToast";
 import { drawerTransition } from "@/lib/motion";
@@ -545,6 +546,8 @@ function cancel() {
 const runtimeCommand = useQuestRuntimeCommand();
 const toast = useToast();
 const runtimeImprovise = useQuestRuntimeImprovise();
+const dispatchLoot = useDispatchLoot();
+const { answerFor } = useLootBatchChoice();
 
 async function submit() {
   if (!canSubmit.value || submitting.value) return;
@@ -570,7 +573,22 @@ async function submit() {
       return;
     }
     if (!plan.value) return;
-    const context = await runtimeCommand.mutateAsync(plan.value.rpcArgs);
+    const goingOut = (selectedChoice.value?.loot ?? []).filter((entry) => dispatchLootIds.value.includes(entry.id));
+    const answer = await answerFor(goingOut);
+    // Cancelling the question leaves the dialog as it is.
+    if (answer.cancelled) return;
+    // `transition_quest_runtime` can only roll its loot. Free or Give sends
+    // the move bare, then dispatches the same ids with the DM's choice.
+    const rides = answer.choice === undefined || answer.choice.mode === "roll";
+    const { rpcArgs } = plan.value;
+    const context = await runtimeCommand.mutateAsync(rides ? rpcArgs : { ...rpcArgs, dispatchLootIds: [] });
+    if (!rides) {
+      try {
+        await dispatchLoot.mutateAsync({ entryIds: dispatchLootIds.value, campaignId: rpcArgs.campaignId, choice: answer.choice });
+      } catch (caught) {
+        toast.error(`${toast.fromError(caught)} The loot is still held in the cockpit.`);
+      }
+    }
     emit("advanced", context);
     emit("close");
   } catch (caught) {

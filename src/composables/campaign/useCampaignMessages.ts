@@ -553,6 +553,10 @@ export function useCampaignMessages() {
     quality?: ItemQuality;
     /** A thrown weapon: the server never opens a Need or Greed roll for it. */
     thrown?: boolean;
+    /** The DM's answer to the Need or Greed prompt; `give` goes through `giveTo` instead. */
+    rollMode?: "roll" | "free";
+    /** A party member id: the drop is posted already claimed for them (`give_item_drop`). */
+    giveTo?: string;
   }
 
   /**
@@ -563,7 +567,7 @@ export function useCampaignMessages() {
    * every other write path does.
    */
   async function sendItemDrop(itemName: string, itemId: string | null, quantity: number, rarity: string | null, opts: ItemDropOptions = {}) {
-    const { senderName, imageUrl, description, isContainer, quality, thrown } = opts;
+    const { senderName, imageUrl, description, isContainer, quality, thrown, rollMode, giveTo } = opts;
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
     const speaker = senderName === undefined ? currentSpeaker() : speakerForName(senderName);
@@ -572,6 +576,7 @@ export function useCampaignMessages() {
       is_container: isContainer ?? false,
       ...(quality ? { quality } : {}),
       ...(thrown ? { thrown: true } : {}),
+      ...(rollMode ? { roll_mode: rollMode } : {}),
       quantity_remaining: quantity,
       claims: [],
       image_url: imageUrl ?? null,
@@ -579,12 +584,26 @@ export function useCampaignMessages() {
       claimed_by_user_id: null, claimed_by_name: null, claimed_party_member_id: null,
       ...forTag(speaker),
     };
+    const message = `dropped ${quantity > 1 ? `${quantity}x ` : ""}${itemName}`;
+    if (giveTo) {
+      // Post and claim in one transaction, so a give can never be left half done.
+      const { data, error } = await supabase.rpc("give_item_drop", {
+        p_campaign_id: cid,
+        p_party_member_id: giveTo,
+        p_sender_name: speaker.name,
+        p_message: message,
+        p_metadata: metadata,
+      });
+      if (error) throw error;
+      if (data) _optimisticPush(data as CampaignMessage);
+      return;
+    }
     const insert: CampaignMessageInsert = {
       campaign_id: cid,
       user_id: auth.user.id,
       recipient_user_id: null,
       sender_name: speaker.name,
-      message: `dropped ${quantity > 1 ? `${quantity}x ` : ""}${itemName}`,
+      message,
       type: "item_drop",
       metadata,
     };

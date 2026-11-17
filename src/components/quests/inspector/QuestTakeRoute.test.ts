@@ -1,13 +1,15 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import QuestTakeRoute from "./QuestTakeRoute.vue";
 import type { ThreadStanding } from "@/lib/quests/moves";
 import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
 
-const mocks = vi.hoisted(() => ({ mark: vi.fn() }));
+const mocks = vi.hoisted(() => ({ mark: vi.fn(), dispatch: vi.fn(), answer: vi.fn(), toastError: vi.fn() }));
+vi.mock("@/composables/quests/useLootBatchChoice", () => ({ useLootBatchChoice: () => ({ answerFor: mocks.answer }) }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useMarkQuestMove: () => ({ mutateAsync: mocks.mark, isPending: { value: false } }),
+  useDispatchLoot: () => ({ mutateAsync: mocks.dispatch }),
   useQuestConsequences: () => ({ data: ref([
     { id: "r1", on_beat_id: "b", on_edge_id: null, on_beat_outcome: "arrived", action: "grant_knowledge", target_objective_id: null, action_payload: { text: "Learns the code" } },
   ]) }),
@@ -18,7 +20,7 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
   ]) }),
 }));
 vi.mock("@/composables/quests/useQuests", () => ({ useQuestObjectives: () => ({ data: ref([]) }) }));
-vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: String }) }));
+vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: mocks.toastError, fromError: String }) }));
 
 const edge = (id: string, target: string) => ({ id, quest_id: "q", campaign_id: "camp", source_beat_id: "a", target_beat_id: target, route_kind: "choice" }) as QuestBeatEdge;
 const beats = [{ id: "a", title: "Gate" }, { id: "b", title: "Cellar" }, { id: "c", title: "Roof" }] as QuestBeat[];
@@ -31,7 +33,7 @@ function mountTake(props: Record<string, unknown> = {}) {
 const box = (wrapper: ReturnType<typeof mountTake>, text: string) => wrapper.findAll("label").find((l) => l.text().includes(text))!.find("input");
 const take = (wrapper: ReturnType<typeof mountTake>) => wrapper.findAll("button").find((b) => b.text() === "Take this route" || b.text() === "Mark as taken")!;
 
-beforeEach(() => { vi.clearAllMocks(); mocks.mark.mockResolvedValue({}); });
+beforeEach(() => { vi.clearAllMocks(); mocks.mark.mockResolvedValue({}); mocks.dispatch.mockResolvedValue([]); mocks.answer.mockResolvedValue({ cancelled: false }); });
 
 describe("QuestTakeRoute", () => {
   it("defaults Party here on and every loot tick off, offering only held loot on the target (fails if a default flips or dispatched/other-beat loot is offered)", () => {
@@ -50,6 +52,51 @@ describe("QuestTakeRoute", () => {
       kind: "route", campaignId: "camp", questId: "q", threadId: "t1", sessionId: "s1",
       edgeId: "e1", via: ["a"], placeParty: true, dispatchLootIds: ["l1"], movePartyTo: "loc-9",
     });
+  });
+
+  describe("loot chosen under Need or Greed", () => {
+    async function takeWithKeyTicked() {
+      const wrapper = mountTake();
+      await box(wrapper, "Brass key").setValue(true);
+      await take(wrapper).trigger("click");
+      await flushPromises();
+    }
+
+    it("cancelling the question leaves the route untaken (fails if a cancelled ask still moves the party)", async () => {
+      mocks.answer.mockResolvedValue({ cancelled: true });
+      await takeWithKeyTicked();
+      expect(mocks.mark).not.toHaveBeenCalled();
+      expect(mocks.dispatch).not.toHaveBeenCalled();
+    });
+
+    it("asks about only the ticked loot, and Roll lets it ride the move (fails if roll dispatches separately)", async () => {
+      mocks.answer.mockResolvedValue({ cancelled: false, choice: { mode: "roll" } });
+      await takeWithKeyTicked();
+      expect(mocks.answer).toHaveBeenCalledWith([expect.objectContaining({ id: "l1" })]);
+      expect(mocks.mark).toHaveBeenCalledWith(expect.objectContaining({ dispatchLootIds: ["l1"] }));
+      expect(mocks.dispatch).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["free", { mode: "free" }],
+      ["give", { mode: "give", partyMemberId: "pm-1" }],
+    ])("%s sends the move with no loot ids, then dispatches them with the choice (fails if the move still rolls the loot)", async (_name, choice) => {
+      mocks.answer.mockResolvedValue({ cancelled: false, choice });
+      await takeWithKeyTicked();
+      expect(mocks.mark).toHaveBeenCalledWith(expect.objectContaining({ dispatchLootIds: [] }));
+      expect(mocks.dispatch).toHaveBeenCalledWith({ entryIds: ["l1"], campaignId: "camp", choice });
+    });
+  });
+
+  it("a failed dispatch after the move keeps the route taken and tells the DM the loot is still held (fails if the error escapes or says nothing about the loot)", async () => {
+    mocks.answer.mockResolvedValue({ cancelled: false, choice: { mode: "free" } });
+    mocks.dispatch.mockRejectedValue(new Error("boom"));
+    const wrapper = mountTake();
+    await box(wrapper, "Brass key").setValue(true);
+    await take(wrapper).trigger("click");
+    await flushPromises();
+    expect(mocks.mark).toHaveBeenCalledTimes(1);
+    expect(mocks.toastError).toHaveBeenCalledWith(expect.stringContaining("still held"));
   });
 
   it("unticking Party here sends no place, so the party stays put (fails if the place is sent anyway)", async () => {
