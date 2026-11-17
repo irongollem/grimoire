@@ -128,6 +128,36 @@ describe("cannotAttempt", () => {
   });
 });
 
+describe("what a creature's nature rules out", () => {
+  const construct = { line: "construct; words do not move it", yields: false, immune: ["Frightened", "Charmed"] };
+  const pack = (nature = construct): FightState =>
+    fight({ fighters: [{ name: "Rosie", side: "party", hp: 40, maxHp: 58 }, { name: "Spun Glass Hound 3", side: "enemy", hp: 16, maxHp: 16, nature }] });
+  const won = { player: true, byNarrator: false };
+
+  // Bug caught live (17 Nov 2026): a spun-glass construct calmed into giving in by a Persuasion roll of 16.
+  it("does not let a foe that never yields give in or flee, however well the player rolled", () => {
+    const out = parseFightChange(pack(), budget(), { costs: "action", ends: "they_give_in" }, won);
+    expect(out.ok).toBe(false);
+    expect(out.ok === false && out.error).toContain("Spun Glass Hound 3 never gives in");
+    expect(parseFightChange(pack(), budget(), { costs: "action", ends: "they_flee" }, won).ok).toBe(false);
+  });
+
+  // Getting away is the player's own doing: no creature's temper stops that.
+  it("still lets the player get away from it", () => {
+    expect(parseFightChange(pack(), budget(), { costs: "action", ends: "you_get_away" }, won).ok).toBe(true);
+  });
+
+  it("lets a foe that can yield give in", () => {
+    expect(parseFightChange(pack({ line: "humanoid", yields: true, immune: [] }), budget(), { costs: "action", ends: "they_give_in" }, won).ok).toBe(true);
+  });
+
+  // Bug caught: a creature immune to being frightened frightened by a stunt.
+  it("does not put a condition on a creature that is immune to it", () => {
+    expect(parseFightChange(pack(), budget(), { costs: "action", condition: { target: "Spun Glass Hound 3", name: "Frightened" } }, won).ok).toBe(false);
+    expect(parseFightChange(pack(), budget(), { costs: "action", condition: { target: "Spun Glass Hound 3", name: "Prone" } }, won).ok).toBe(true);
+  });
+});
+
 describe("budgetLine", () => {
   it("tells the narrator what the turn still holds", () => {
     expect(budgetLine(budget({ action: false }))).toBe("It is the player's turn. It still holds: Bonus Action, Reaction, a few words.");

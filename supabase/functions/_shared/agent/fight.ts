@@ -32,6 +32,12 @@ export interface Fighter {
   side: "party" | "enemy" | "other";
   hp: number;
   maxHp: number;
+  /**
+   * What can be done to it without a weapon, read from its stat block (`temper.ts`): the line the narrator reads,
+   * whether it ever gives in or flees, and the conditions it is immune to. Absent for the party and for anyone
+   * whose stat block could not be read.
+   */
+  nature?: { line: string; yields: boolean; immune: string[] };
 }
 
 /** The fight this conversation started. */
@@ -64,7 +70,7 @@ const HEADING = "## Fights";
 function fighterLine(f: Fighter): string {
   const state = f.hp <= 0 ? "down" : `${f.hp} of ${f.maxHp} hit points`;
   const side = f.side === "party" ? "party" : f.side === "enemy" ? "enemy" : "bystander";
-  return `  - ${f.name} (${side}): ${state}`;
+  return `  - ${f.name} (${side}): ${state}${f.nature ? `. ${f.nature.line}` : ""}`;
 }
 
 /** The part of the table's state about fights. Empty when there is nothing to say, so a quiet scene pays nothing. */

@@ -9,7 +9,10 @@
 // Thin on purpose: no test harness here, the rules are tested where they live.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { fightStateOf, MAX_PREPARED, type FightPlan, type FightsInView, type FightState, type PreparedFight } from "../_shared/agent/fight.ts";
+import { fightStateOf, MAX_PREPARED, type Fighter, type FightPlan, type FightsInView, type FightState, type PreparedFight } from "../_shared/agent/fight.ts";
+import { loadStatBlocks, statBlockIdsOf, statBlockOf } from "../_shared/fightStatBlocks.ts";
+import { temperLine, temperOf } from "../../../src/rules/fight/tactics/temper.ts";
+import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 
 type Row = Record<string, unknown>;
 
@@ -79,6 +82,23 @@ export async function loadFights(
           }
           : null,
       });
+      // What can be done to each creature without a weapon, from its own stat block. Unreadable leaves the line
+      // out: the narrator then rules without it, as before.
+      try {
+        const roster = Array.isArray(live.data?.combatants_live) ? (live.data.combatants_live as RunCombatant[]) : [];
+        const sources = await loadStatBlocks(client, campaignId, statBlockIdsOf(roster));
+        const natures = new Map<string, NonNullable<Fighter["nature"]>>();
+        for (const c of roster) {
+          const block = statBlockOf(c, sources);
+          if (block === null || c.type === "player") continue;
+          const kind = c.monster_id ? (sources.monsters.find((m) => m.id === c.monster_id)?.monster_type ?? null) : null;
+          const temper = temperOf(block, kind);
+          natures.set(c.name, { line: temperLine(temper), yields: temper.yields, immune: [...(block.defenses?.condition_immunities ?? [])] });
+        }
+        fight = { ...fight, fighters: fight.fighters.map((f) => (f.side === "party" || !natures.has(f.name) ? f : { ...f, nature: natures.get(f.name) })) };
+      } catch (error) {
+        console.error("agent-turn: reading the fighters' stat blocks failed:", error);
+      }
     }
   }
 

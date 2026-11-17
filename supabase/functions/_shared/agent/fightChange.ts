@@ -120,13 +120,13 @@ const isWhole = (x: unknown, min: number, max: number): x is number => typeof x 
 const same = (a: string, b: string): boolean => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 /** The fighter the narrator named, when it is one it may change: listed, not the party's, still standing. */
-function foe(fight: FightState, raw: unknown): { name: string } | string {
+function foe(fight: FightState, raw: unknown): { name: string; immune: string[] } | string {
   if (typeof raw !== "string" || raw.trim() === "") return "Name the creature as the section \"Fights\" lists it.";
   const found = fight.fighters.find((f) => same(f.name, raw));
   if (!found) return `Nobody called "${raw.trim()}" is in this fight. Use a name from the section "Fights".`;
   if (found.side === "party") return "That is the player's own side. This tool never changes the player's character.";
   if (found.hp <= 0) return `${found.name} is already down.`;
-  return { name: found.name };
+  return { name: found.name, immune: found.nature ? found.nature.immune : [] };
 }
 
 /** What the narrator asked for, checked against the fight as it stands and what the player's turn still holds. */
@@ -188,6 +188,8 @@ export function parseFightChange(
     if (name === undefined) return refuse(`condition.name must be one of: ${STUNT_CONDITIONS.join(", ")}.`);
     const rounds = condition.rounds === undefined ? 1 : condition.rounds;
     if (typeof rounds !== "number" || !Number.isInteger(rounds) || rounds < 1 || rounds > MAX_ROUNDS) return refuse(`rounds is a whole number from 1 to ${MAX_ROUNDS}.`);
+    // What its stat block makes it immune to cannot be put on it by a stunt either.
+    if (target.immune.includes(name)) return refuse(`${target.name} cannot be ${name}: it is immune. Tell how the attempt fails; it still costs what it cost.`);
     withCondition = { target: target.name, name, rounds };
   }
 
@@ -206,6 +208,13 @@ export function parseFightChange(
 
   if (ends !== undefined && ends !== "they_give_in" && ends !== "they_flee" && ends !== "you_get_away") {
     return refuse("ends must be they_give_in, they_flee or you_get_away.");
+  }
+  // A fight cannot be ended by a foe that never yields: a construct is not talked down, the dead do not run.
+  if (ends === "they_give_in" || ends === "they_flee") {
+    const unyielding = fight.fighters.filter((f) => f.side === "enemy" && f.hp > 0 && f.nature !== undefined && !f.nature.yields).map((f) => f.name);
+    if (unyielding.length > 0) {
+      return refuse(`${unyielding.join(", ")} never ${ends === "they_give_in" ? "gives in" : "flees"} (see "Fights"). The attempt fails however well it was rolled: tell that, and what the player could try instead.`);
+    }
   }
   return { ok: true, value: { costs, condition: withCondition, damage: withDamage, ends: ends === undefined ? null : ends } };
 }
