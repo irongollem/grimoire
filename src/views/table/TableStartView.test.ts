@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { safeSessionStorage } from "@/lib/safeLocalStorage";
 import { mount, flushPromises } from "@vue/test-utils";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia, setActivePinia } from "pinia";
@@ -68,7 +69,7 @@ async function mountView() {
 
 beforeEach(() => {
   // The played character's lens is kept for the tab: one test's seat must not carry into the next.
-  sessionStorage.clear();
+  safeSessionStorage().clear();
   fake.reset();
 });
 

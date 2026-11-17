@@ -2,7 +2,7 @@
 import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
 import { useStorage } from "@vueuse/core";
-import { safeLocalStorage } from "@/lib/safeLocalStorage";
+import { safeLocalStorage, safeSessionStorage } from "@/lib/safeLocalStorage";
 
 /** A stored lens, or "" (never chosen) for anything the app does not write. */
 export function readUserMode(raw: string): "dm" | "player" | "" {
@@ -17,10 +17,10 @@ export interface TablePlay {
 
 const TABLE_PLAY_KEY = "grimoire:table-play";
 
-// sessionStorage can throw (a private window, blocked site data): then the lens simply lasts until the next reload.
+// Through the safe storage: where the browser will not hand session storage over, the lens lasts until the next reload.
 function readTablePlay(): TablePlay | null {
   try {
-    const raw = JSON.parse(sessionStorage.getItem(TABLE_PLAY_KEY) ?? "null") as unknown;
+    const raw = JSON.parse(safeSessionStorage().getItem(TABLE_PLAY_KEY) ?? "null") as unknown;
     if (typeof raw !== "object" || raw === null) return null;
     const { memberId, sessionId } = raw as Record<string, unknown>;
     if (typeof memberId !== "string" || memberId === "") return null;
@@ -32,8 +32,8 @@ function readTablePlay(): TablePlay | null {
 
 function writeTablePlay(value: TablePlay | null): void {
   try {
-    if (value === null) sessionStorage.removeItem(TABLE_PLAY_KEY);
-    else sessionStorage.setItem(TABLE_PLAY_KEY, JSON.stringify(value));
+    if (value === null) safeSessionStorage().removeItem(TABLE_PLAY_KEY);
+    else safeSessionStorage().setItem(TABLE_PLAY_KEY, JSON.stringify(value));
   } catch {
     // Not kept for a reload; nothing else depends on it.
   }
@@ -152,7 +152,7 @@ export const useAppUiStore = defineStore("ui:app", () => {
   // the same lens as the DM's preview (every player page then reads through the player-visible rules for that
   // character), with its own name because the reason differs and so does the wording around it.
   //
-  // Kept for the tab (sessionStorage), unlike the preview: a reload in the middle of a sitting must land back in
+  // Kept for the tab, in session storage, unlike the preview: a reload in the middle of a sitting must land back in
   // the story, and the router turns a DM away from /play without the lens. It grants nothing: what a page may read
   // is still decided by the database, and this only chooses which side of the app is on screen.
   const tablePlay = ref<TablePlay | null>(readTablePlay());

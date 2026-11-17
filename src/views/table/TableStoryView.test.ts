@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { safeSessionStorage } from "@/lib/safeLocalStorage";
 import { mount, flushPromises, type VueWrapper } from "@vue/test-utils";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia, setActivePinia } from "pinia";
@@ -62,7 +63,7 @@ const texts = (w: VueWrapper) => w.findAll('[data-testid="record-fact"] p').map(
 
 beforeEach(() => {
   // The played character's lens is kept for the tab: one test's seat must not carry into the next.
-  sessionStorage.clear();
+  safeSessionStorage().clear();
   fake.reset();
   confirm.mockReset();
 });

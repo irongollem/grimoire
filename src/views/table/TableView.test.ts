@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { safeSessionStorage } from "@/lib/safeLocalStorage";
 import { computed } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
@@ -85,7 +86,7 @@ async function say(wrapper: Awaited<ReturnType<typeof mountTable>>["wrapper"], t
 
 beforeEach(() => {
   // The played character's lens is kept for the tab: one test's seat must not carry into the next.
-  sessionStorage.clear();
+  safeSessionStorage().clear();
   screen.width = 30;
   fake.reset();
   fetchMock.mockReset();

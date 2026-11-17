@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from "vitest";
+import { safeSessionStorage } from "@/lib/safeLocalStorage";
 import { createPinia, setActivePinia } from "pinia";
 import { nextTick } from "vue";
 import { readUserMode, useAppUiStore } from "./app";
@@ -90,7 +91,7 @@ describe("DM mode", () => {
 
 describe("playing at the AI table", () => {
   beforeEach(() => {
-    sessionStorage.clear();
+    safeSessionStorage().clear();
     setActivePinia(createPinia());
   });
 
@@ -128,10 +129,10 @@ describe("playing at the AI table", () => {
 
   // Bug caught: hand-edited or stale storage read as a seat at the table for nobody.
   it("reads stored junk as not playing", () => {
-    sessionStorage.setItem("grimoire:table-play", JSON.stringify({ memberId: "" }));
+    safeSessionStorage().setItem("grimoire:table-play", JSON.stringify({ memberId: "" }));
     setActivePinia(createPinia());
     expect(useAppUiStore().tablePlay).toBeNull();
-    sessionStorage.setItem("grimoire:table-play", "{not json");
+    safeSessionStorage().setItem("grimoire:table-play", "{not json");
     setActivePinia(createPinia());
     expect(useAppUiStore().tablePlay).toBeNull();
   });
