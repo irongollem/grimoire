@@ -179,12 +179,15 @@ export function useQuests() {
  * never reaches the client. Players have no direct base-table read path (RLS is
  * owner-only); the projection shows a quest only when one of its beats is rumored or
  * revealed (`private.quest_shown_to_players`).
+ *
+ * `previewPartyMemberId` asks for the quests as that character sees them, as `usePlayerQuestBeats` takes it: the AI
+ * table passes the character being played, so its scene column shows what that character knows and nothing more.
  */
-export function usePlayerVisibleQuests() {
+export function usePlayerVisibleQuests(previewPartyMemberId?: Ref<string | null>) {
   const campaign = useCampaignStore();
   const appUi = useAppUiStore();
   const campaignId = computed(() => campaign.activeCampaignId);
-  const previewId = computed(() => appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null);
+  const previewId = computed(() => previewPartyMemberId?.value ?? (appUi.dmPreviewMode ? appUi.dmPreviewPartyMemberId : null));
   return useQuery({
     queryKey: computed(() => [QUESTS_KEY, campaignId.value, "player-visible", previewId.value] as const),
     queryFn: async ({ queryKey: [, cid, , previewMemberId] }) => {

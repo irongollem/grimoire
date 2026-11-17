@@ -26,6 +26,22 @@
       </ul>
       <p v-else class="text-body italic text-muted-foreground">No one else is here.</p>
     </section>
+    <!-- Only what the character has been shown: the quests and beats the app's own player view would give them. -->
+    <template v-if="after.length">
+      <hr class="border-border" />
+      <section class="flex flex-col gap-2.5 px-4 py-3.5" data-testid="solo-after">
+        <span class="text-eyebrow text-muted-foreground">What you are after</span>
+        <ul class="flex flex-col gap-3">
+          <li v-for="quest in after" :key="quest.questId" class="flex flex-col gap-1">
+            <span class="text-label-lg font-semibold text-foreground">{{ quest.title }}</span>
+            <span v-for="(line, i) in quest.current" :key="i" class="flex items-baseline gap-2 text-body text-muted-foreground">
+              <i class="inline-block size-1.5 shrink-0 rotate-45 bg-primary" aria-hidden="true" />
+              <span class="min-w-0"><span v-if="line.threadLabel" class="text-eyebrow">{{ line.threadLabel }}: </span>{{ line.text }}</span>
+            </span>
+          </li>
+        </ul>
+      </section>
+    </template>
   </div>
 </template>
 
@@ -34,14 +50,17 @@ import { computed } from "vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import { getNpcDisplayFocalPoint, getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
 import type { SceneNpc } from "@/composables/table/useTableScene";
+import type { HearthQuestNow } from "@/lib/hearth/currentBeats";
 import type { TablePressure } from "@/lib/table/soloTypes";
 import SoloPressure from "./SoloPressure.vue";
 
-const { here, pressure = null } = defineProps<{
+const { here, pressure = null, after = [] } = defineProps<{
   placeName: string | null;
   here: readonly SceneNpc[];
   /** The clock the scene runs against; null when there is none. */
   pressure?: TablePressure | null;
+  /** The quests the played character knows of, each with where it stands now. */
+  after?: readonly HearthQuestNow[];
 }>();
 
 // A character in disguise is shown as the disguise: the same rule the DM's own screens apply for players. No

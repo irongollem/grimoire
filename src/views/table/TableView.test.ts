@@ -426,3 +426,42 @@ describe("TableView: the sheet", () => {
     expect(sheetColumn(caster.wrapper).text()).toContain("1 / 2");
   });
 });
+
+describe("TableView: what you are after", () => {
+  const session = (id: string, over: Record<string, unknown> = {}) => ({
+    id, user_id: "u1", campaign_id: "c1", party_member_id: "m1", scene_location_id: null, credits_spent: 0, left_at: null, pending_roll: null, ...over,
+  });
+  const quest = (id: string, title: string) => ({ id, title, status: "active", updated_at: "2026-11-17T00:00:00Z" });
+
+  beforeEach(() => {
+    setUp("u1");
+    useTableDisclosure().accept();
+    fake.reset();
+    fake.seed("party_members", [{ ...MEMBER }]);
+    fake.seed("character_classes", []);
+    // What the character may see, and what only a wider view (the DM's own, or nobody's) would return.
+    fake.onRpc("get_player_visible_quests", (args) =>
+      args?.p_preview_party_member_id === "m1" ? [quest("q1", "KNOWN-QUEST")] : [quest("q2", "UNSEEN-QUEST")],
+    );
+    fake.onRpc("get_player_visible_quest_beats", () => []);
+  });
+
+  // Bug caught: the scene column reading quests with the DM's own eyes, so it lists a quest the character never heard of.
+  it("lists the quests as the played character sees them", async () => {
+    fake.seed("agent_sessions", [session("s1")]);
+    const { wrapper } = await mountTable("/table/s1");
+    await vi.waitFor(() => expect(wrapper.find('[data-testid="solo-after"]').exists()).toBe(true));
+    expect(wrapper.get('[data-testid="solo-after"]').text()).toContain("KNOWN-QUEST");
+    expect(wrapper.html()).not.toContain("UNSEEN-QUEST");
+  });
+
+  // Bug caught: a sitting whose character cannot be read falling back to whatever the unscoped read returns.
+  it("lists nothing when the character cannot be read", async () => {
+    fake.seed("agent_sessions", [session("s1", { party_member_id: "gone" })]);
+    const { wrapper } = await mountTable("/table/s1");
+    await flushPromises();
+    await flushPromises();
+    expect(wrapper.html()).not.toContain("UNSEEN-QUEST");
+    expect(wrapper.find('[data-testid="solo-after"]').exists()).toBe(false);
+  });
+});

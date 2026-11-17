@@ -73,7 +73,7 @@
         </main>
 
         <aside v-show="showAll || view === 'scene' || (wide && view === 'story')" class="min-w-0 overflow-y-auto bg-card max-md:flex-1 md:w-80 md:shrink-0 md:border-l md:border-border" aria-label="The scene">
-          <SoloScene :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" />
+          <SoloScene :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" :after="after" />
         </aside>
       </div>
 
@@ -106,6 +106,9 @@ import { useLeaveTable } from "@/composables/table/useLeaveTable";
 import { useToast } from "@/composables/useToast";
 import { useTableConversation } from "@/composables/table/useTableConversation";
 import { useTableDisclosure } from "@/composables/table/useTableDisclosure";
+import { usePlayerQuestBeats } from "@/composables/quests/useQuestFlow";
+import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
+import { currentBeatsByQuest } from "@/lib/hearth/currentBeats";
 import { useTableScene } from "@/composables/table/useTableScene";
 import { pressureAfterSend } from "@/lib/table/pressureLabel";
 import type { PlayMode, RollAsk, TablePressure } from "@/lib/table/soloTypes";
@@ -229,6 +232,18 @@ const meterCredits = computed(() => Math.floor((conversation.data.value?.sitting
 const party = useParty();
 const characterId = computed(() => conversation.data.value?.sitting.party_member_id ?? newCharacterId.value);
 const member = computed(() => party.data.value?.find((m) => m.id === characterId.value) ?? null);
+
+// "What you are after": the quests and current beats as the played character sees them, through the same
+// player-visible projections the Hearth reads (never the DM's own quest rows). No character, nothing shown.
+// A quest whose current beat has no player text still shows, by its title: it is known to the character.
+const playedId = computed(() => (member.value ? member.value.id : null));
+const knownQuests = usePlayerVisibleQuests(playedId);
+const knownBeats = usePlayerQuestBeats(undefined, playedId);
+const after = computed(() =>
+  playedId.value !== null && knownQuests.data.value && knownBeats.data.value
+    ? currentBeatsByQuest(knownQuests.data.value, knownBeats.data.value)
+    : [],
+);
 const check = useTableCheck(member, asked);
 
 // What is on screen below `lg`. A tablet draws story and scene side by side, so for it "scene" is the story's tab; a
