@@ -35,6 +35,7 @@ export function npcInsertFromSeed(npc: DowntimeSeedNpc): Omit<NpcInsert, "campai
     occupation: npc.occupation,
     appearance: npc.appearance,
     personality: npc.personality,
+    voice: null,
     backstory: npc.backstory,
     notes: null,
     status: "alive",

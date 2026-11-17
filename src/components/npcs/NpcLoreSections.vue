@@ -20,12 +20,16 @@
       <h3 class="text-label-lg font-bold text-primary uppercase">Personality</h3>
       <RichTextViewer :content="full.personality" />
     </div>
+    <div v-if="full.voice" class="flex flex-col gap-1" data-hand>
+      <h3 class="text-label-lg font-bold text-primary uppercase">Voice</h3>
+      <p class="text-body whitespace-pre-line">{{ full.voice }}</p>
+    </div>
     <div v-if="full.backstory" class="flex flex-col gap-1">
       <h3 class="text-label-lg font-bold text-primary uppercase">Backstory</h3>
       <RichTextViewer :content="full.backstory" />
     </div>
     <p
-      v-if="!full.appearance && !full.personality && !full.backstory"
+      v-if="!full.appearance && !full.personality && !full.voice && !full.backstory"
       class="text-body text-muted-foreground italic"
     >
       No lore recorded for this NPC.

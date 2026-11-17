@@ -60,6 +60,8 @@ export interface Npc {
   location_id: string | null;
   appearance: string | null;
   personality: string | null;
+  /** How this character talks (#1021): register, pace, turns of phrase, a sample line. Plain text, DM-only. */
+  voice: string | null;
   backstory: string | null;
   notes: string | null;
   status: NpcStatus;
@@ -90,7 +92,7 @@ export interface Npc {
 }
 
 /**
- * What the campaign NPC list carries (#999). The four prose columns are the bulk
+ * What the campaign NPC list carries (#999). The five prose columns are the bulk
  * of an NPC row (`npcs` holds most of its size in TOAST) and a list only draws
  * names, portraits and badges, so `useNpcs` leaves them out and a screen that
  * needs them reads the one record (`useNpc`). `stat_block` stays: the encounter
@@ -98,7 +100,7 @@ export interface Npc {
  * a stat block for every NPC they list, and doing that with a fetch per row
  * would trade one wide read for many narrow ones.
  */
-export const NPC_LIST_HEAVY_COLUMNS = ["appearance", "personality", "backstory", "notes"] as const;
+export const NPC_LIST_HEAVY_COLUMNS = ["appearance", "personality", "voice", "backstory", "notes"] as const;
 export type NpcListRow = Omit<Npc, (typeof NPC_LIST_HEAVY_COLUMNS)[number]>;
 
 /** Every `npcs` column except the heavy ones; a typed list so a renamed column fails the build. */

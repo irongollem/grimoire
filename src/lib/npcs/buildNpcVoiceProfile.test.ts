@@ -22,6 +22,7 @@ function makeNpc(overrides: Partial<Npc> = {}): Npc {
     location_id: null,
     appearance: null,
     personality: "Gruff but fair; drives a hard bargain but never cheats.",
+    voice: null,
     backstory: "Once a soldier in the border wars, now trades in salvaged arms.",
     notes: null,
     status: "alive",

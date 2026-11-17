@@ -438,6 +438,7 @@ export function usePopulateSettingNpcs() {
           occupation: h.occupation,
           appearance: null,
           personality: h.personality ? plainTextToTiptap(h.personality) : null,
+          voice: null,
           backstory: h.backstory ? plainTextToTiptap(h.backstory) : null,
           notes: null,
           status: h.status,

@@ -224,6 +224,7 @@ async function createNpc(name: string) {
       occupation: null,
       appearance: null,
       personality: null,
+      voice: null,
       backstory: null,
       notes: null,
       status: "alive",

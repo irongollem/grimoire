@@ -266,6 +266,13 @@ describe("executeImport scriptorium chapters", () => {
     expect(npc.id).not.toBe("npc-1");
   });
 
+  // Bug caught: a restore that rebuilds the NPC row from a column list and drops how they talk.
+  it("restores an NPC with its Voice", async () => {
+    const backup = backupWith({ npcs: [{ id: "npc-1", name: "Mira", voice: "Soft, ends sentences like questions." }] });
+    await executeImport(backup, "Restored");
+    expect(inserted.find((i) => i.table === "npcs")!.rows[0].voice).toBe("Soft, ends sentences like questions.");
+  });
+
   it("a page-anchored picture follows its chapter to the new id", async () => {
     const backup = backupWith({
       scriptorium_documents: [

@@ -6,7 +6,7 @@ import type { Npc } from "@/types/npc.types";
 const stubs = { RichTextViewer: { props: ["content"], template: '<div data-testid="prose">{{ content }}</div>' } };
 
 function full(overrides: Partial<Npc> = {}): Npc {
-  return { id: "n1", appearance: null, personality: null, backstory: null, ...overrides } as Npc;
+  return { id: "n1", appearance: null, personality: null, voice: null, backstory: null, ...overrides } as Npc;
 }
 
 describe("NpcLoreSections", () => {
@@ -23,6 +23,19 @@ describe("NpcLoreSections", () => {
     expect(wrapper.find('[data-testid="npc-lore-loading"]').exists()).toBe(false);
     expect(wrapper.findAll('[data-testid="prose"]').map((p) => p.text())).toEqual(["Tall.", "Born in Mirabar."]);
     expect(wrapper.text()).not.toContain("Personality");
+  });
+
+  // Bug caught: Voice missing from the read view, or a lone Voice still reading "No lore recorded".
+  it("shows Voice when written and counts it as lore", () => {
+    const wrapper = mount(NpcLoreSections, { props: { full: full({ voice: "Slow.\nSays 'hm' a lot." }) }, global: { stubs } });
+    expect(wrapper.text()).toContain("Voice");
+    expect(wrapper.text()).toContain("Says 'hm' a lot.");
+    expect(wrapper.text()).not.toContain("No lore recorded");
+  });
+
+  it("hides the Voice heading when none is written", () => {
+    const wrapper = mount(NpcLoreSections, { props: { full: full({ appearance: "Tall." }) }, global: { stubs } });
+    expect(wrapper.text()).not.toContain("Voice");
   });
 
   it("says so only when the full record really has no lore", () => {

@@ -82,6 +82,7 @@ async function importHero(hero: HallOfHero, campaignId: string): Promise<void> {
     occupation: hero.occupation,
     appearance: hero.appearance,
     personality: hero.personality,
+    voice: null, // a hero carries no voice; the DM writes one on the NPC
     backstory: hero.backstory,
     notes: (note as { content: string | null } | null)?.content ?? null,
     status: hero.status,
