@@ -118,3 +118,14 @@ describe("opportunity attacks in the story", () => {
     expect(lines[1]).toMatchObject({ kind: "margin", tone: "harm", text: "Mira is at 11 of 30 hit points" });
   });
 });
+
+describe("advantage and disadvantage in the story", () => {
+  // Bug caught (seen in play): a dodging character was attacked at disadvantage and the line showed one die, so
+  // the Dodge looked as if it had done nothing.
+  it("says when a creature's attack was rolled with disadvantage or advantage, and nothing on a plain roll", () => {
+    const dis = run({ outcomes: [attack({ mode: "disadvantage" })] });
+    expect(dis.find((l) => l.kind === "roll")).toMatchObject({ detail: "d20 (14) + 5, with disadvantage" });
+    const plain = run({ outcomes: [attack()] });
+    expect(plain.find((l) => l.kind === "roll")).toMatchObject({ detail: "d20 (14) + 5" });
+  });
+});

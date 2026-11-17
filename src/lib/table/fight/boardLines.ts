@@ -49,7 +49,8 @@ export function linesOfAttacks(
       kind: "roll",
       die: o.total,
       label: `${what} against ${target}: ${result}`,
-      detail: bonusText(o.natural, o.total),
+      // Rolled twice and one kept: said, so a Dodge or a hiding place is seen to have counted.
+      detail: o.mode === "normal" ? bonusText(o.natural, o.total) : `${bonusText(o.natural, o.total)}, with ${o.mode}`,
       critical: o.critical,
     });
     if (o.hit && o.targetId === playedInstanceId && playedHp !== null) {
