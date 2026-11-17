@@ -66,7 +66,7 @@ export type AgentEvent =
   | { type: "tool_start"; name: string }
   | { type: "tool_end"; name: string; isError: boolean }
   /** What a character said or visibly did. It is the one thing a tool shows the browser: it is meant for the page. */
-  | { type: "line"; line: AgentLine; /** For a spoken line where voices are on: the key `table-voice` speaks it for (lineKey.ts). */ voice?: string }
+  | { type: "line"; line: AgentLine; /** Where voices are on: the key `table-voice` speaks it for (lineKey.ts), a spoken line in the character's voice and a deed in the narrator's. */ voice?: string }
   /** The party moved. Only the place's id and name: its description and who is there can hold DM-only text. */
   | { type: "scene"; scene: { id: string; name: string } }
   /** A fact the narrator put on record that the player already knows. A hidden one is never sent. */
@@ -579,12 +579,15 @@ export async function beginTurn(input: {
           onNarration: (text) => {
             if (deps.voiceKey !== null) emit({ type: "voice", role: "narrator", text, voice: deps.voiceKey(sessionId, { role: "narrator", speaker: NARRATOR_SPEAKER, text }) });
           },
-          // Only what a character SAID is voiced, and only a line that is being shown gets a key.
+          // A line that is being shown gets a key: what a character said in their own voice, what they did in the narrator's.
           emit: (event) =>
             emit(
-              event.type === "line" && event.line.kind === "spoken" && deps.voiceKey !== null
-                ? { ...event, voice: deps.voiceKey(sessionId, event.line) }
-                : event,
+              event.type !== "line" || deps.voiceKey === null
+                ? event
+                : event.line.kind === "spoken"
+                  ? { ...event, voice: deps.voiceKey(sessionId, event.line) }
+                  // What a character does is told, not said: it is the narrator's to read aloud.
+                  : { ...event, voice: deps.voiceKey(sessionId, { role: "narrator", speaker: NARRATOR_SPEAKER, text: event.line.text }) },
             ),
         });
         result = await runTurn({

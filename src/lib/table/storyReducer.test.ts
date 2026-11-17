@@ -125,3 +125,24 @@ describe("hit points changed outside a fight", () => {
     expect(hurt.at(-1)).toMatchObject({ text: "The fall: −6 hit points · 16 of 58" });
   });
 });
+
+describe("words offered to a voice", () => {
+  // Bug caught: the narrator's key lost (never voiced), or put on the wrong paragraph; a second stretch replacing the first.
+  it("puts each narrator key on the narration being written, in order", () => {
+    const story = play([
+      { type: "text", delta: "Rain starts." },
+      { type: "voice", role: "narrator", text: "Rain starts.", key: "k1" },
+      { type: "text", delta: " The lamps gutter." },
+      { type: "voice", role: "narrator", text: "The lamps gutter.", key: "k2" },
+    ]);
+    expect(story.at(-1)).toMatchObject({ kind: "narration", voices: [{ text: "Rain starts.", key: "k1" }, { text: "The lamps gutter.", key: "k2" }] });
+  });
+
+  // Bug caught: the player's key put on a deed, which would then be read aloud as speech.
+  it("puts the player's key on the line they said, and never on a deed", () => {
+    const said = play([{ type: "voice", role: "player", text: "Hello.", key: "k" }], [playerItem("say", "Hello.", "p1")]);
+    expect(said[0]).toMatchObject({ voice: { key: "k" } });
+    const done = play([{ type: "voice", role: "player", text: "I open it.", key: "k" }], [playerItem("do", "I open it.", "p2")]);
+    expect(done[0]).not.toHaveProperty("voice");
+  });
+});

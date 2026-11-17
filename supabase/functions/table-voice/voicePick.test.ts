@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ageOf, pickVoice, sexOf, SPEECH_MAX_CHARS, speechText, STOCK_VOICES, type StockVoice } from "./voicePick";
+import { sexFromGender, ageOf, pickVoice, sexOf, SPEECH_MAX_CHARS, speechText, STOCK_VOICES, type StockVoice } from "./voicePick";
 
 describe("sexOf", () => {
   it("reads a record about a woman as a woman even when it mentions a man once", () => {
@@ -92,5 +92,15 @@ describe("speechText", () => {
 
   it("cuts a line that is far too long to be one", () => {
     expect(speechText("a".repeat(SPEECH_MAX_CHARS + 50), null)).toHaveLength(SPEECH_MAX_CHARS);
+  });
+});
+
+describe("sexFromGender", () => {
+  // Bug caught: "Female" read as a man because it contains "male".
+  it("reads the sheet's word and nothing else", () => {
+    expect(sexFromGender("Female")).toBe("woman");
+    expect(sexFromGender(" male ")).toBe("man");
+    expect(sexFromGender("Nonbinary")).toBeNull();
+    expect(sexFromGender("")).toBeNull();
   });
 });

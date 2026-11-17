@@ -10,8 +10,9 @@ import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { clipName, lineKeyFits } from "../_shared/agent/lineKey.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { r2ConfigFrom } from "../_shared/r2/config.ts";
-import { speakLine, type TableVoiceDeps } from "./handler.ts";
-import { ageOf, sexOf } from "./voicePick.ts";
+import { shownInTurns, speakLine, type TableVoiceDeps } from "./handler.ts";
+import { deliveryCue } from "../_shared/agent/characterTurn.ts";
+import { ageOf, sexFromGender, sexOf } from "./voicePick.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -34,6 +35,9 @@ function fromBase64(text: string): Uint8Array {
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
 }
+
+/** "she/her" as words the pronoun count can read. */
+const pronounWords = (pronouns: string): string => pronouns.replace(/[/,;|]+/g, " ");
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -107,11 +111,29 @@ serve(withCors(async (req: Request) => {
       await putObject(voiceStore, { key: clipKey(at, clipName(line)), body: fromBase64(audio), contentType: "audio/mpeg" });
     },
 
-    // The player's character: cast from their pronouns. Read as the caller, in the campaign.
-    async loadPlayerTraits(campaignId, memberId) {
-      const { data, error } = await supabase.from("party_members").select("pronouns").eq("id", memberId).eq("campaign_id", campaignId).maybeSingle();
+    // The conversation's own turns, read as the caller (their own rows). The cue is cleaned again: it was stored
+    // by this code but comes back from jsonb and ends up inside a voice's instruction.
+    async findShown(sessionId, line) {
+      const { data, error } = await supabase.from("agent_turns").select("role, blocks").eq("session_id", sessionId).eq("user_id", user.id);
       if (error) throw error;
-      return { sex: data ? sexOf(String(data.pronouns ?? "")) : null, age: null, voiceId: null };
+      const found = shownInTurns((data ?? []) as Array<{ role: string; blocks: unknown }>, line);
+      return found === null ? null : { how: found.how === null ? null : deliveryCue(found.how) };
+    },
+
+    // The player's character: cast from the sheet's gender, then their pronouns, or from how their sheet describes them when the pronouns
+    // are left empty (a sheet that says "she" throughout was cast as a man). Read as the caller, in the campaign.
+    async loadPlayerTraits(campaignId, memberId) {
+      const { data, error } = await supabase
+        .from("party_members")
+        .select("gender, pronouns, physical_description, player_description, personality_traits, notes")
+        .eq("id", memberId)
+        .eq("campaign_id", campaignId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return { sex: null, age: null, voiceId: null };
+      const stated = sexFromGender(String(data.gender ?? "")) ?? sexOf(pronounWords(String(data.pronouns ?? "")));
+      const about = [data.physical_description, data.player_description, data.personality_traits, data.notes].map((t) => toPlainText(t as string | null)).join(" ");
+      return { sex: stated ?? sexOf(about), age: null, voiceId: null };
     },
 
     narratorVoice: () => Deno.env.get("TABLE_NARRATOR_VOICE_ID")?.trim() || null,

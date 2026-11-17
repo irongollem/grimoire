@@ -567,7 +567,7 @@ describe("TableView: the characters' voices", () => {
     fake.seed("party_members", [{ ...MEMBER }]);
     fake.seed("character_classes", []);
     fake.seed("agent_sessions", [session("s1")]);
-    safeLocalStorage().removeItem("grimoire:ai-table-voice");
+    safeLocalStorage().removeItem("grimoire:ai-table-voices");
     // The test DOM has no sound: a clip that is over the moment it starts stands in for the browser's player.
     vi.stubGlobal(
       "Audio",
@@ -594,15 +594,33 @@ describe("TableView: the characters' voices", () => {
     expect(voiceCalls()).toEqual([]);
   });
 
+  // Bug caught: the narrator's switch reading the characters too (or nothing at all), or narration asked for under
+  // a character's role, which the server refuses.
+  it("with only the narrator switched on, reads the narration under the narrator's role and not the character's line", async () => {
+    const narrated = () => sse(
+      { type: "session", sessionId: "s1" },
+      spoken("Come on, then."),
+      { type: "text", delta: "Rain starts." },
+      { type: "voice", role: "narrator", text: "Rain starts.", voice: "key:rain" },
+      { type: "done", end: "end_turn", credits: 0, tokens: 0 },
+    );
+    fetchMock.mockImplementation(async (url: string) => (String(url).includes("table-voice") ? audio() : narrated()));
+    const { wrapper } = await mountTable("/play/table/s1");
+    await wrapper.get('[data-testid="solo-voice-narrator"]').trigger("click");
+    await say(wrapper, "Who are you?");
+    await flushPromises();
+    expect(voiceCalls()).toEqual([{ campaignId: "c1", sessionId: "s1", role: "narrator", speakerId: null, speakerName: "The Dungeon Master", text: "Rain starts.", how: null, key: "key:rain" }]);
+  });
+
   // Bug caught: a deed read aloud, a line spoken twice on the next turn, or a line sent without the cue and key it came with
   // (the server refuses that one, so the character would stay silent).
   it("reads what a character said, once, with its cue and key, and leaves the deed as text", async () => {
     fetchMock.mockImplementation(async (url: string) => (String(url).includes("table-voice") ? audio() : turnWith(fetchMock.mock.calls.filter((c) => String(c[0]).includes("agent-turn")).length === 1 ? "Come on, then." : "This way.")));
     const { wrapper } = await mountTable("/play/table/s1");
-    await wrapper.get('[data-testid="solo-voice"]').trigger("click");
+    await wrapper.get('[data-testid="solo-voice-characters"]').trigger("click");
     await say(wrapper, "Who are you?");
     await flushPromises();
-    expect(voiceCalls()).toEqual([{ campaignId: "c1", sessionId: "s1", speakerId: "n1", speakerName: "Honeycomb", text: "Come on, then.", how: "wary", key: "key:Come on, then." }]);
+    expect(voiceCalls()).toEqual([{ campaignId: "c1", sessionId: "s1", role: "character", speakerId: "n1", speakerName: "Honeycomb", text: "Come on, then.", how: "wary", key: "key:Come on, then." }]);
     await say(wrapper, "Lead on.");
     await flushPromises();
     expect(voiceCalls().map((c) => c.text)).toEqual(["Come on, then.", "This way."]);

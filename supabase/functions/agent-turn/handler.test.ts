@@ -1280,19 +1280,21 @@ describe("a character speaks for itself", () => {
     expect(h.events.some((e) => e.type === "line")).toBe(true);
   });
 
-  it("gives a key to what a character said and none to what it did, so only speech can be voiced", async () => {
+  // Bug caught: a deed keyed as the character's own speech (read out in their voice), or not keyed at all, so the
+  // narrator could never read it.
+  it("gives a key to what a character said under the character, and to what it did under the narrator", async () => {
     const h = harness([
       script()[0],
       step(300, { blocks: [{ type: "text", text: "DOES: Wipes her hands.\nSAYS: Honeycomb. Apprentice, once." }] }),
       step(200),
     ]);
-    h.deps.voiceKey = (sessionId, line) => `${sessionId}:${line.text}`;
+    h.deps.voiceKey = (sessionId, line) => `${sessionId}:${line.role === "narrator" ? "narrator:" : ""}${line.text}`;
     await play(h);
     // The key is made for the conversation the turn is in, which is what makes it useless in anyone else's.
     const sitting = h.events.flatMap((e) => (e.type === "session" ? [e.sessionId] : []))[0];
     const keys = h.events.flatMap((e) => (e.type === "line" ? [[e.line.kind, e.voice]] : []));
     expect(keys).toEqual([
-      ["acted", undefined],
+      ["acted", `${sitting}:narrator:Wipes her hands.`],
       ["spoken", `${sitting}:Honeycomb. Apprentice, once.`],
     ]);
   });

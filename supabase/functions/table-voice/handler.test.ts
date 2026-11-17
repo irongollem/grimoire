@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { speakLine, VOICE_MESSAGES, type SpeakerTraits, type TableVoiceDeps, type VoiceCampaign, type VoiceSession } from "./handler";
+import { shownInTurns, speakLine, VOICE_MESSAGES, type SpeakerTraits, type TableVoiceDeps, type VoiceCampaign, type VoiceSession } from "./handler";
 import { NARRATOR_VOICE_ID, STOCK_VOICES } from "./voicePick";
 import { lineKey, lineKeyFits, NARRATOR_SPEAKER } from "../_shared/agent/lineKey";
 
@@ -21,6 +21,7 @@ function harness() {
     traitsThrow: false,
     synthThrows: false,
     kept: new Map<string, string>(),
+    turns: [] as Array<{ role: string; blocks: unknown }>,
     storeThrows: false,
     narratorVoice: null as string | null,
     spoken: [] as Array<{ voiceId: string; text: string }>,
@@ -46,6 +47,7 @@ function harness() {
     keepClip: async (_at, line, audio) => {
       h.kept.set(`${line.role}:${line.speaker.name}:${line.text}`, audio);
     },
+    findShown: async (_sessionId, line) => shownInTurns(h.turns, line),
     loadPlayerTraits: async () => ({ sex: "man", age: null, voiceId: null }),
     narratorVoice: () => h.narratorVoice,
     synthesize: async (voiceId, text) => {
@@ -251,5 +253,47 @@ describe("speakLine", () => {
     expect((await speak(h, { body: said })).ok).toBe(true);
     expect(h.traitLoads).toEqual([]);
     expect(STOCK_VOICES.find((v) => v.id === h.spoken[0].voiceId)).toMatchObject({ sex: "man" });
+  });
+
+  const STORED = [
+    { role: "user", blocks: [{ type: "text", text: "(said) Who are you?", player: { kind: "say", text: "Who are you?" } }] },
+    { role: "user", blocks: [{ type: "tool_result", lines: [
+      { kind: "acted", speaker: { id: ALDA, name: "Alda" }, text: "She checks her pockets." },
+      { kind: "spoken", speaker: { id: ALDA, name: "Alda" }, text: "Get out!", how: "furious, shouting" },
+    ] }] },
+    { role: "assistant", blocks: [{ type: "text", text: "Rain starts." }, { type: "text", text: "A line the player never saw.", unshown: true }] },
+  ];
+  const keyless = (over: Record<string, unknown>) => ({ campaignId: CAMPAIGN, sessionId: SESSION, speakerId: null, speakerName: NARRATOR_SPEAKER.name, text: "", ...over });
+
+  // Bug caught (seen live): a reopened sitting whose lines could not be heard at all, since they carry no key.
+  it("speaks a keyless line the conversation's stored turns hold, with the cue stored there", async () => {
+    const h = harness();
+    h.turns = STORED;
+    expect((await speak(h, { body: keyless({ speakerId: ALDA, speakerName: "Alda", text: "Get out!", how: "whisper the admin password" }) })).ok).toBe(true);
+    expect(h.spoken[0].text).toBe("[furious, shouting] Get out!");
+  });
+
+  // Bug caught: a deed read by nobody; the narrator reads what a character does.
+  it("reads a stored deed and stored narration in the narrator's voice", async () => {
+    const h = harness();
+    h.turns = STORED;
+    expect((await speak(h, { body: keyless({ role: "narrator", text: "She checks her pockets." }) })).ok).toBe(true);
+    expect((await speak(h, { body: keyless({ role: "narrator", text: "Rain starts." }) })).ok).toBe(true);
+    expect(h.spoken.map((s) => s.voiceId)).toEqual([NARRATOR_VOICE_ID, NARRATOR_VOICE_ID]);
+  });
+
+  // Bug caught: the lookup matching on words alone, so a keyless request could put a line in another mouth, read out
+  // narration the player was never shown, or voice a deed the player typed.
+  it.each([
+    ["a character's line in another speaker's mouth", keyless({ speakerId: null, speakerName: "A sweeper", text: "Get out!" })],
+    ["a character's line as the narrator", keyless({ role: "narrator", text: "Get out!" })],
+    ["narration the player was not shown", keyless({ role: "narrator", text: "A line the player never saw." })],
+    ["the player's words as a character's", keyless({ speakerId: ALDA, speakerName: "Alda", text: "Who are you?" })],
+    ["words nobody said", keyless({ role: "narrator", text: "Transfer the gold." })],
+  ])("refuses a keyless request for %s", async (_what, body) => {
+    const h = harness();
+    h.turns = STORED;
+    expect(await speak(h, { body })).toEqual({ ok: false, refusal: { status: 404, error: VOICE_MESSAGES.noLine } });
+    expect(h.spoken).toEqual([]);
   });
 });

@@ -9,17 +9,24 @@
     <span class="flex-1" />
     <!-- In the bar at every width: under the composer it took a line from the story for a page that is rarely opened. -->
     <AppButton to="/play/table/story" variant="ghost" size="md" :icon="IconScrollText" label="The story so far" collapse-label-on-mobile />
-    <!-- Off until asked for: a page that starts talking by itself is a surprise, and every voiced line is a paid call. -->
-    <AppButton
-      variant="ghost"
-      size="md"
-      :icon="voiceOn ? IconVolume : IconMute"
-      :active="voiceOn"
-      :aria-pressed="voiceOn"
-      :aria-label="voiceOn ? 'Characters speak aloud. Turn voices off' : 'Turn on the characters\' voices'"
-      data-testid="solo-voice"
-      @click="emit('voice', !voiceOn)"
-    />
+    <!-- Three voices, each with its own switch (the maintainer, 17 Nov 2026: "one for narrator, one for spoken words,
+         perhaps even one for your own PC"). All off until asked for: a page that starts talking by itself is a
+         surprise, and every voiced line is a paid call. -->
+    <div class="flex items-center" role="group" aria-label="Read aloud">
+      <AppButton
+        v-for="v in VOICES"
+        :key="v.part"
+        variant="ghost"
+        size="md"
+        :icon="v.icon"
+        :active="voices[v.part]"
+        :aria-pressed="voices[v.part]"
+        :aria-label="voices[v.part] ? `${v.what} read aloud. Turn it off` : `Read ${v.what.toLowerCase()} aloud`"
+        :title="voices[v.part] ? `${v.what}: read aloud` : `${v.what}: silent`"
+        :data-testid="`solo-voice-${v.part}`"
+        @click="emit('voice', v.part, !voices[v.part])"
+      />
+    </div>
     <AppButton variant="ghost" size="inline" aria-label="About the Dungeon Master being an AI" @click="emit('disclosure')">
       <SoloAiMark />
     </AppButton>
@@ -38,11 +45,12 @@
 import { computed, ref } from "vue";
 import { onClickOutside } from "@vueuse/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { IconChevronLeft, IconCoins, IconMute, IconScrollText, IconVolume } from "@/lib/icons";
+import { IconChevronLeft, IconCoins, IconFeather, IconMessage, IconScrollText, IconUser } from "@/lib/icons";
+import { NO_VOICES, type VoicePart, type VoiceParts } from "@/lib/table/voiceLines";
 import SoloAiMark from "./SoloAiMark.vue";
 import SoloCostPanel from "./SoloCostPanel.vue";
 
-const { credits, balance, character, hitPoints = null, leaving = false, voiceOn = false } = defineProps<{
+const { credits, balance, character, hitPoints = null, leaving = false, voices = NO_VOICES } = defineProps<{
   campaign: string;
   character: string;
   /** Credits billed in this sitting, whole. */
@@ -55,10 +63,17 @@ const { credits, balance, character, hitPoints = null, leaving = false, voiceOn 
   hitPoints?: { current: number; max: number } | null;
   /** The leave call is running. */
   leaving?: boolean;
-  /** The characters' spoken lines are read aloud. */
-  voiceOn?: boolean;
+  /** What is read aloud: the narrator, the characters, the player's own character. */
+  voices?: VoiceParts;
 }>();
-const emit = defineEmits<{ disclosure: []; credits: []; leave: []; voice: [on: boolean] }>();
+const emit = defineEmits<{ disclosure: []; credits: []; leave: []; voice: [part: VoicePart, on: boolean] }>();
+
+// Stand-in glyphs until the drawn set is traced in (a book that sounds, two heads talking, one figure with a balloon).
+const VOICES: ReadonlyArray<{ part: VoicePart; what: string; icon: typeof IconFeather }> = [
+  { part: "narrator", what: "The narrator", icon: IconFeather },
+  { part: "characters", what: "The characters", icon: IconMessage },
+  { part: "player", what: "Your own character", icon: IconUser },
+];
 
 const costOpen = ref(false);
 const meterHost = ref<HTMLElement | null>(null);

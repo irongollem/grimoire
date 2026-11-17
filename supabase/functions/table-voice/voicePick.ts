@@ -57,6 +57,14 @@ export function sexOf(text: string): Sex | null {
   return null;
 }
 
+/** A sheet's gender field ("Female", "woman", "Male", "m") as a cast; null for anything else, which is cast from everyone. */
+export function sexFromGender(gender: string): Sex | null {
+  const g = gender.trim().toLowerCase();
+  if (/^(f|female|woman|girl|she)$/.test(g)) return "woman";
+  if (/^(m|male|man|boy|he)$/.test(g)) return "man";
+  return null;
+}
+
 /**
  * Roughly how old a character sounds, from the free text of its age ("~55 Pours", "late 70s", "ancient"). The first
  * number in it decides; a word decides when there is none. Null when it says nothing usable.

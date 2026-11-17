@@ -2,17 +2,11 @@ import { computed, ref } from "vue";
 import { useStorage } from "@vueuse/core";
 import { supabase } from "@/lib/supabase";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
+import { NO_VOICES, type SpokenLine, type VoicePart, type VoiceParts } from "@/lib/table/voiceLines";
 import { useAuthStore } from "@/stores/auth";
 
-/** A spoken line of the sitting, as the page knows it. The server finds the stored line from these three. */
-export interface VoiceLine {
-  speakerId: string | null;
-  speakerName: string;
-  text: string;
-  /** The character's cue and the server's key for the line, as they arrived with it. */
-  how: string | null;
-  key: string;
-}
+/** A line of the sitting to be voiced, as the page knows it (`voiceLines.ts`). */
+export type VoiceLine = SpokenLine;
 
 export interface VoiceRequest extends VoiceLine {
   campaignId: string;
@@ -32,7 +26,8 @@ export const sendToTableVoice: VoiceTransport = async (request) => {
       apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
       Authorization: `Bearer ${data.session?.access_token ?? ""}`,
     },
-    body: JSON.stringify(request),
+    // A line without a key is asked for by its words alone: the server answers it only from a clip it kept.
+    body: JSON.stringify(request.key === null ? { ...request, key: undefined } : request),
   });
 };
 
@@ -58,14 +53,16 @@ export const playClip: VoicePlayer = (src) => {
   };
 };
 
-// Which accounts want the characters voiced, on this device. Off until asked for: sound a page starts by itself is
-// not something to surprise anyone with, and every voiced line is a paid call.
-const wanted = useStorage<string[]>("grimoire:ai-table-voice", [], safeLocalStorage());
+// What each account wants read aloud, on this device: the narrator, the characters, their own character. All off
+// until asked for: sound a page starts by itself is not something to surprise anyone with, and every voiced line
+// is a paid call.
+const wanted = useStorage<Record<string, VoiceParts>>("grimoire:ai-table-voices", {}, safeLocalStorage());
 
 /**
- * The characters' voices at the AI table (#1021). Spoken lines are read aloud one after another, in the order they
- * were said, each as the server stored it (the server speaks only a line the sitting showed, with the character's
- * own cue for how it is said). Deeds and narration stay text.
+ * The voices at the AI table (#1021): the narrator's, the characters' and the player's own character's, each with
+ * a switch of its own. Lines are read aloud one after another, in the order they came (the server speaks only a
+ * line the sitting showed, with the character's own cue for how it is said). Deeds stay text. What line is read is
+ * the caller's choice (`voiceLines.ts`); this only refuses to speak while everything is off.
  *
  * It never throws and never blocks the story: a line that cannot be voiced is skipped, and when the server says
  * voices are not switched on, `unavailable` is set and nothing more is asked.
@@ -76,7 +73,11 @@ export function useTableVoice(options: { campaignId: () => string | null; sessio
   const player = options.player ?? playClip;
   const userId = computed(() => auth.user?.id ?? null);
 
-  const enabled = computed(() => userId.value !== null && wanted.value.includes(userId.value));
+  const parts = computed<VoiceParts>(() => {
+    const mine = userId.value === null ? undefined : wanted.value[userId.value];
+    return mine === undefined ? NO_VOICES : { ...NO_VOICES, ...mine };
+  });
+  const enabled = computed(() => parts.value.narrator || parts.value.characters || parts.value.player);
   const unavailable = ref(false);
   const speaking = ref(false);
 
@@ -91,12 +92,14 @@ export function useTableVoice(options: { campaignId: () => string | null; sessio
 
   /** The line's clip, made once: asked for the first time it is wanted and kept unless it could not be voiced. */
   function clipOf(line: VoiceLine, mine: number): Promise<string | null> {
-    const kept = made.get(line.key);
+    // By its key when it has one; a stored line is known by who said what.
+    const name = line.key !== null ? line.key : `${line.role}:${line.speakerName}:${line.text}`;
+    const kept = made.get(name);
     if (kept) return kept;
     const clip = fetchClip(line, mine);
-    made.set(line.key, clip);
+    made.set(name, clip);
     void clip.then((src) => {
-      if (src === null && made.get(line.key) === clip) made.delete(line.key);
+      if (src === null && made.get(name) === clip) made.delete(name);
     });
     return clip;
   }
@@ -168,15 +171,23 @@ export function useTableVoice(options: { campaignId: () => string | null; sessio
     current = null;
   }
 
-  function setEnabled(on: boolean): void {
+  /** Switches one of the three on or off for this account. */
+  function setPart(part: VoicePart, on: boolean): void {
     const id = userId.value;
     if (id === null) return;
-    const others = wanted.value.filter((u) => u !== id);
-    wanted.value = on ? [...others, id] : others;
-    if (!on) stop();
+    wanted.value = { ...wanted.value, [id]: { ...parts.value, [part]: on } };
+    if (!enabled.value) stop();
     // Asking again is how a player finds out voices have since been switched on.
     if (on) unavailable.value = false;
   }
 
-  return { enabled, unavailable, speaking, say, replay, stop, setEnabled };
+  /** Everything off: the server said voices are not switched on. */
+  function setAllOff(): void {
+    const id = userId.value;
+    if (id === null) return;
+    wanted.value = { ...wanted.value, [id]: { ...NO_VOICES } };
+    stop();
+  }
+
+  return { parts, enabled, unavailable, speaking, say, replay, stop, setPart, setAllOff };
 }

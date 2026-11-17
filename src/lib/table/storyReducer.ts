@@ -66,9 +66,23 @@ export function applyTableEvent(items: StoryItem[], event: TableEvent, turnStart
     case "line": {
       const { kind, speaker, text, to, how } = event.line;
       const id = nextItemId();
-      if (kind !== "spoken") return [...items, { id, kind, speaker, text }];
+      if (kind !== "spoken") return [...items, { id, kind, speaker, text, ...(event.voice === undefined ? {} : { voice: { key: event.voice } }) }];
       const voice = event.voice === undefined ? {} : { voice: { how: how === undefined ? null : how, key: event.voice } };
       return [...items, { id, kind, speaker, text, ...(to !== undefined ? { to } : {}), ...voice }];
+    }
+    case "voice": {
+      // The key goes on the thing it voices: the narration being written, or the line the player just said.
+      const kind = event.role === "narrator" ? "narration" : "player";
+      let at = items.length - 1;
+      while (at >= 0 && items[at].kind !== kind) at -= 1;
+      const target = items[at];
+      if (target === undefined) return items;
+      if (target.kind === "narration") {
+        const voices = [...(target.voices === undefined ? [] : target.voices), { text: event.text, key: event.key }];
+        return [...items.slice(0, at), { ...target, voices }, ...items.slice(at + 1)];
+      }
+      if (target.kind === "player" && target.mode === "say") return [...items.slice(0, at), { ...target, voice: { key: event.key } }, ...items.slice(at + 1)];
+      return items;
     }
     case "hit_points": {
       const { heals, why, by, hp, maxHp } = event.change;

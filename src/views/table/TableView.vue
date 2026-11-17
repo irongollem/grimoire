@@ -12,8 +12,8 @@
         :turns="turns"
         :balance="balance"
         :leaving="leaveTable.leaving.value"
-        :voice-on="voice.enabled.value"
-        @voice="voice.setEnabled"
+        :voices="voice.parts.value"
+        @voice="voice.setPart"
         @leave="leave"
         @disclosure="disclosure.reopen"
         @credits="openOutOfCredits(1)"
@@ -57,8 +57,8 @@
               :character="characterName"
               :failure="turn.failure.value"
               :running="turn.running.value"
-              :voice-on="voice.enabled.value"
-              @replay="(item) => voice.replay(spokenLines([item]))"
+              :voices="voice.parts.value"
+              @replay="onReplay"
               @resend="turn.resend()"
               @credits="openOutOfCredits(1)"
             />
@@ -146,12 +146,12 @@ import { currentBeatsByQuest } from "@/lib/hearth/currentBeats";
 import { useTableScene } from "@/composables/table/useTableScene";
 import { placeSummaryFor } from "@/lib/table/placeKnown";
 import { pressureAfterSend } from "@/lib/table/pressureLabel";
-import type { PlayMode, RollAsk, TableFight, TablePressure } from "@/lib/table/soloTypes";
+import type { PlayMode, RollAsk, StoryItem, TableFight, TablePressure } from "@/lib/table/soloTypes";
 import { useTableSpeakers } from "@/composables/table/useTableSpeakers";
 import { useTableCheck } from "@/composables/table/useTableCheck";
 import { useTableTurn } from "@/composables/table/useTableTurn";
 import { useTableVoice } from "@/composables/table/useTableVoice";
-import { spokenLines } from "@/lib/table/voiceLines";
+import { freshLines, linesOfItem, replayLines } from "@/lib/table/voiceLines";
 import { useAbove } from "@/composables/useBreakpoint";
 import { getNpcDisplayFocalPoint, getNpcDisplayPortrait } from "@/lib/npcDisplay";
 import { assignSpeakerColours } from "@/lib/table/speakerColours";
@@ -246,24 +246,38 @@ const turn = useTableTurn({
   },
 });
 
-// The characters' voices. A line is handed to the voice the moment it arrives (it comes with the server's key for
-// it), so the voice is being made while the player reads; `voiced` keeps each line to once.
+// The voices: the narrator's, the characters' and the player's own. A line is handed to the voice the moment it
+// arrives with the server's key for it, so the voice is being made while the player reads. `voiced` keeps each line
+// to once, counted whether or not its switch was on, so switching a voice on later does not read out what is past.
 const voice = useTableVoice({ campaignId: () => campaignId.value, sessionId: () => turn.sessionId.value });
 const voiced = new Set<string>();
+const playedSpeaker = computed(() => (member.value ? { id: member.value.id, name: member.value.name } : null));
 watch(
   () => turn.live.value,
   (items) => {
-    const fresh = items.filter((item) => item.kind === "spoken" && !voiced.has(item.id));
-    for (const item of fresh) voiced.add(item.id);
-    voice.say(spokenLines(fresh));
+    const fresh = items.flatMap((item) => {
+      // Narration gets its keys stretch by stretch, so each stretch is counted on its own.
+      const keyed = linesOfItem(item, playedSpeaker.value).filter((line) => line.key !== null && !voiced.has(`${item.id}:${line.key}`));
+      if (keyed.length === 0) return [];
+      for (const line of keyed) voiced.add(`${item.id}:${line.key}`);
+      const stretches = new Set(keyed.map((line) => line.key));
+      const only = item.kind === "narration" && item.voices ? { ...item, voices: item.voices.filter((v) => stretches.has(v.key)) } : item;
+      return [only];
+    });
+    voice.say(freshLines(fresh, voice.parts.value, playedSpeaker.value));
   },
 );
+// Hearing something again. A line from a reopened sitting has no key: the server finds it in the conversation
+// itself (or answers the clip it kept), so anything on the page can be heard.
+function onReplay(item: StoryItem): void {
+  voice.replay(replayLines(item, playedSpeaker.value));
+}
 watch(
   () => voice.unavailable.value,
   (off) => {
     if (!off) return;
     toast.error("Voices are not switched on for this server.");
-    voice.setEnabled(false);
+    voice.setAllOff();
   },
 );
 onBeforeUnmount(() => voice.stop());

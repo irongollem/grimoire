@@ -10,8 +10,9 @@
     :data-play-mode="mode"
     :data-boxed="mode === 'say'"
   >
-    <span :class="['text-eyebrow', mode === 'say' ? 'text-primary' : 'text-muted-foreground']">
+    <span :class="['text-eyebrow flex items-center gap-1.5', mode === 'say' ? 'text-primary' : 'text-muted-foreground']">
       {{ mode === "ask" ? "You ask the Dungeon Master" : who }}{{ mode === "say" ? " says" : "" }}
+      <AppButton v-if="replayable" variant="ghost" size="inline" :icon="IconVolume" :aria-label="`Hear ${who} say this again`" class="ml-auto" data-testid="solo-replay-player" @click="emit('replay')" />
     </span>
     <p data-hand :class="['solo-hand whitespace-pre-line text-[1.0625rem] leading-6', unsent ? 'text-muted-foreground' : 'text-foreground']">
       {{ mode === "say" ? `“${text}”` : text }}
@@ -20,16 +21,21 @@
 </template>
 
 <script setup lang="ts">
+import AppButton from "@/components/common/controls/AppButton.vue";
+import { IconVolume } from "@/lib/icons";
 import type { PlayMode } from "@/lib/table/soloTypes";
 
-const { mode, text, who, unsent = false } = defineProps<{
+const { mode, text, who, unsent = false, replayable = false } = defineProps<{
   mode: PlayMode;
   text: string;
   /** The name of the character being played. */
   who: string;
   /** Sent but not kept: shown muted until it is sent again. */
   unsent?: boolean;
+  /** The player's own voice is on and this was said aloud: it offers to be heard again. */
+  replayable?: boolean;
 }>();
+const emit = defineEmits<{ replay: [] }>();
 </script>
 
 <style scoped>

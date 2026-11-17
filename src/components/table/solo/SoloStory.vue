@@ -2,8 +2,16 @@
   <div ref="scroller" class="min-h-0 flex-1 overflow-y-auto px-4 pt-4" data-testid="solo-story" @scroll.passive="onScroll">
     <div class="mx-auto flex w-full max-w-176 flex-col gap-3 pb-4">
       <template v-for="item in items" :key="item.id">
-        <SoloNarration v-if="item.kind === 'narration'" :text="item.text" />
-        <SoloPlayerLine v-else-if="item.kind === 'player'" :mode="item.mode" :text="item.text" :who="character" :unsent="item.unsent === true" />
+        <SoloNarration v-if="item.kind === 'narration'" :text="item.text" :replayable="voices.narrator" @replay="emit('replay', item)" />
+        <SoloPlayerLine
+          v-else-if="item.kind === 'player'"
+          :mode="item.mode"
+          :text="item.text"
+          :who="character"
+          :unsent="item.unsent === true"
+          :replayable="voices.player && item.mode === 'say' && item.unsent !== true"
+          @replay="emit('replay', item)"
+        />
         <SoloSpoken
           v-else-if="item.kind === 'spoken'"
           :speaker="item.speaker.name"
@@ -11,10 +19,10 @@
           :to="item.to"
           :pigment="pigmentOf(item.speaker)"
           :portrait="portraitOf(item.speaker)"
-          :replayable="voiceOn && item.voice !== undefined"
+          :replayable="voices.characters"
           @replay="emit('replay', item)"
         />
-        <SoloActed v-else-if="item.kind === 'acted'" :speaker="item.speaker.name" :text="item.text" :pigment="pigmentOf(item.speaker)" />
+        <SoloActed v-else-if="item.kind === 'acted'" :speaker="item.speaker.name" :text="item.text" :pigment="pigmentOf(item.speaker)" :replayable="voices.narrator" @replay="emit('replay', item)" />
         <SoloRolled v-else-if="item.kind === 'roll'" :line="rollLine(item.roll, character)" />
         <SoloRolled v-else-if="item.kind === 'dmRoll'" :line="dmRollLine(item.roll)" by-server />
         <SoloRolled v-else-if="item.kind === 'board'" :line="{ total: String(item.total), title: item.title, detail: item.detail }" :by-server="item.byServer" />
@@ -38,6 +46,7 @@ import { rollLine } from "@/lib/table/tableRoll";
 import { isAtBottom } from "@/lib/table/storyScroll";
 import { speakerKey, type VoicePigment } from "@/lib/table/speakerColours";
 import type { StoryItem, TableLine } from "@/lib/table/soloTypes";
+import { NO_VOICES, type VoiceParts } from "@/lib/table/voiceLines";
 import type { TurnFailure } from "@/lib/table/turnRefusal";
 import SoloActed from "./SoloActed.vue";
 import SoloFailure from "./SoloFailure.vue";
@@ -47,7 +56,7 @@ import SoloPlayerLine from "./SoloPlayerLine.vue";
 import SoloRolled from "./SoloRolled.vue";
 import SoloSpoken from "./SoloSpoken.vue";
 
-const { items, colours, portraits, character, failure = null, running = false, voiceOn = false } = defineProps<{
+const { items, colours, portraits, character, failure = null, running = false, voices = NO_VOICES } = defineProps<{
   items: readonly StoryItem[];
   colours: ReadonlyMap<string, VoicePigment>;
   /** A portrait per character record, already with a disguise applied where the character is concealed. */
@@ -56,8 +65,8 @@ const { items, colours, portraits, character, failure = null, running = false, v
   character: string;
   failure?: TurnFailure | null;
   running?: boolean;
-  /** The characters' voices are switched on: a line that can be voiced offers to be heard again. */
-  voiceOn?: boolean;
+  /** What is read aloud. Whatever is switched on offers to be heard again, a stored line from the clip kept for it. */
+  voices?: VoiceParts;
 }>();
 const emit = defineEmits<{ resend: []; credits: []; replay: [item: StoryItem] }>();
 

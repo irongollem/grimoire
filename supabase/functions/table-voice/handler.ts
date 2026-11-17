@@ -52,6 +52,11 @@ export interface TableVoiceDeps {
   loadClip(at: { campaignId: string; sessionId: string }, line: VoicedLine): Promise<string | null>;
   /** Keeps the clip for the line, so it is never made twice. */
   keepClip(at: { campaignId: string; sessionId: string }, line: VoicedLine, audio: string): Promise<void>;
+  /**
+   * For a line asked for without a key: whether the conversation's own stored turns hold it, and the cue it was
+   * stored with. Null when they do not.
+   */
+  findShown(sessionId: string, line: VoicedLine): Promise<{ how: string | null } | null>;
   /** The played character's own pronouns and voice, for the player's said lines. */
   loadPlayerTraits(campaignId: string, memberId: string): Promise<SpeakerTraits>;
   /** The narrator's voice where the stack names one; null for the default. */
@@ -183,8 +188,16 @@ export async function speakLine(input: {
   } catch (error) {
     console.error("table-voice: reading the kept clip failed:", error);
   }
-  // Nothing kept: only a line that carries the key this sitting gave it is made.
-  if (body.key === null || !deps.keyFits(session.id, line, body.key)) return refuse(404, VOICE_MESSAGES.noLine);
+  // Nothing kept: only a line this sitting showed is made. One that just arrived proves it with the key it came
+  // with; one read back from a reopened sitting has no key, and is looked up in the conversation's own stored turns
+  // (and spoken with the cue stored there, never one the page sends).
+  if (body.key !== null) {
+    if (!deps.keyFits(session.id, line, body.key)) return refuse(404, VOICE_MESSAGES.noLine);
+  } else {
+    const shown = await deps.findShown(session.id, line);
+    if (shown === null) return refuse(404, VOICE_MESSAGES.noLine);
+    line.how = shown.how;
+  }
 
   const voiceId = await voiceFor(deps, session.campaign_id, line);
   try {
@@ -197,4 +210,37 @@ export async function speakLine(input: {
     console.error("table-voice: the speech service failed:", error);
     return refuse(502, VOICE_MESSAGES.failed);
   }
+}
+
+const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
+
+/**
+ * Whether a conversation's stored turns hold this line: a character's spoken line by that speaker, the narrator's
+ * text (a paragraph the player was shown, or a deed, which the narrator reads), or the player's own said line.
+ * Answers the cue the line was stored with. Pure: the turns come in as they are read from `agent_turns`.
+ */
+export function shownInTurns(turns: ReadonlyArray<{ role: string; blocks: unknown }>, line: VoicedLine): { how: string | null } | null {
+  const wanted = line.text.trim();
+  for (const turn of turns) {
+    if (!Array.isArray(turn.blocks)) continue;
+    for (const block of turn.blocks) {
+      if (!isRecord(block)) continue;
+      if (block.type === "text" && turn.role === "user" && line.role === "player") {
+        const player = block.player;
+        if (isRecord(player) && player.kind === "say" && typeof player.text === "string" && player.text.trim() === wanted) return { how: null };
+      } else if (block.type === "text" && turn.role === "assistant" && line.role === "narrator") {
+        if (block.unshown !== true && typeof block.text === "string" && block.text.trim() === wanted) return { how: null };
+      } else if (block.type === "tool_result" && Array.isArray(block.lines)) {
+        for (const stored of block.lines) {
+          if (!isRecord(stored) || typeof stored.text !== "string" || stored.text.trim() !== wanted) continue;
+          if (stored.kind === "acted" && line.role === "narrator") return { how: null };
+          const speaker = stored.speaker;
+          if (stored.kind === "spoken" && line.role === "character" && isRecord(speaker) && speaker.id === line.speaker.id && speaker.name === line.speaker.name) {
+            return { how: typeof stored.how === "string" && stored.how !== "" ? stored.how : null };
+          }
+        }
+      }
+    }
+  }
+  return null;
 }

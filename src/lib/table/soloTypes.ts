@@ -66,6 +66,8 @@ export type TableEvent =
   | { type: "fight_change"; change: FightChange }
   /** Someone the Dungeon Master made up now has a record your character knows of. */
   | { type: "introduced"; name: string }
+  /** Words that can be voiced and are not a character's line: the narrator's, whole, or your own said line. */
+  | { type: "voice"; role: "narrator" | "player"; text: string; key: string }
   /** Your character's hit points changed outside a fight: what did it, by how much, and where they stand now. */
   | { type: "hit_points"; change: { heals: boolean; why: string; by: number; hp: number; maxHp: number } }
   | { type: "fight"; fight: TableFight | null; /** With null: the fight was let go of without being fought. */ calledOff?: true }
@@ -96,10 +98,10 @@ export type PlayMode = "say" | "do" | "ask";
 
 /** One thing on the story page. The page is a manuscript, so each kind has its own look (Voices frame). */
 export type StoryItem =
-  | { id: string; kind: "player"; mode: PlayMode; text: string; /** Sent, but the turn was not kept: shown muted until it is sent again. */ unsent?: boolean }
-  | { id: string; kind: "narration"; text: string }
+  | { id: string; kind: "player"; mode: PlayMode; text: string; /** Sent, but the turn was not kept: shown muted until it is sent again. */ unsent?: boolean; /** The server's key for voicing a line said aloud. */ voice?: { key: string } }
+  | { id: string; kind: "narration"; text: string; /** The stretches of it the server offered to a voice, each with its key, in order. */ voices?: Array<{ text: string; key: string }> }
   | { id: string; kind: "spoken"; speaker: TableLine["speaker"]; text: string; to?: string; /** What the voice is asked with: the cue and the server's key for this line. Only a line that arrived live has one. */ voice?: { how: string | null; key: string } }
-  | { id: string; kind: "acted"; speaker: TableLine["speaker"]; text: string }
+  | { id: string; kind: "acted"; speaker: TableLine["speaker"]; text: string; /** The server's key for the narrator reading the deed aloud. */ voice?: { key: string } }
   | { id: string; kind: "roll"; roll: Rolled }
   | { id: string; kind: "dmRoll"; roll: DmRoll }
   /** A roll made on the board of a fight: the total, what it was, the dice behind it. Never the target number. */
