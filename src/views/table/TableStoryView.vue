@@ -3,10 +3,10 @@
     <div class="px-4 pb-8 pt-4 md:px-6" data-testid="table-story">
       <div class="flex max-w-3xl flex-col gap-4">
         <div class="flex flex-wrap items-center gap-2">
-          <AppButton to="/table" variant="ghost" size="md" :icon="IconChevronLeft" label="Back to the table" />
+          <AppButton :to="backTo" variant="ghost" size="md" :icon="IconChevronLeft" :label="asPlayer ? 'Back to the story' : 'Back to the table'" />
         </div>
 
-        <SoloRecordAdd v-if="canWrite" :saving="writes.add.isPending.value" @add="addFact" />
+        <SoloRecordAdd v-if="canWrite && !asPlayer" :saving="writes.add.isPending.value" @add="addFact" />
 
         <ListSkeleton v-if="isLoading" variant="stack" :count="4" />
         <p v-else-if="isError" role="alert" class="text-body text-destructive">The record could not be read. Reload to try again.</p>
@@ -66,6 +66,7 @@ import { IconChevronLeft } from "@/lib/icons";
 import { searchRoute } from "@/lib/search/searchRoute";
 import { ABOUT_FALLBACK, factAbout, groupRecord, type SittingInfo, type StoryFact } from "@/lib/table/storyRecord";
 import { useAuthStore } from "@/stores/auth";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useTableUiStore } from "@/stores/ui/table";
 
 const auth = useAuthStore();
@@ -77,8 +78,18 @@ const writes = useStoryRecordWrites();
 // Whoever may write the record. The database decides who truly can; this only decides what is offered.
 const canWrite = computed(() => auth.isDM);
 
+// At the table the reader is a player: the account is the DM's, so the database returns every fact, and this is
+// the one place that keeps what the party has not learned off the page. No Reveal and no hand-filed facts there
+// either (those are the Dungeon Master's); a correction stays, since the story is the player's to set right.
+const appUi = useAppUiStore();
+const asPlayer = computed(() => appUi.tablePlay !== null);
+const backTo = computed(() => {
+  const play = appUi.tablePlay;
+  return play === null ? "/table" : `/play/table/${play.sessionId ?? "new"}`;
+});
+
 const record = useStoryRecord();
-const facts = computed(() => record.facts.data.value ?? []);
+const facts = computed(() => (record.facts.data.value ?? []).filter((fact) => !asPlayer.value || fact.known_to_player));
 const isLoading = computed(() => record.facts.isLoading.value);
 const isError = computed(() => record.facts.isError.value);
 

@@ -8,7 +8,7 @@
     </div>
     <span class="flex-1" />
     <!-- The composer's foot carries this link from tablet up; on a phone the bar does. -->
-    <AppButton to="/table/story" variant="ghost" size="md" :icon="IconScrollText" label="The story so far" collapse-label-on-mobile class="md:hidden" />
+    <AppButton to="/play/table/story" variant="ghost" size="md" :icon="IconScrollText" label="The story so far" collapse-label-on-mobile class="md:hidden" />
     <AppButton variant="ghost" size="inline" aria-label="About the Dungeon Master being an AI" @click="emit('disclosure')">
       <SoloAiMark />
     </AppButton>

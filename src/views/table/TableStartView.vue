@@ -64,7 +64,7 @@
                   <template v-if="sitting.placeName">{{ sitting.placeName }} · </template>{{ dayOf(sitting.updated_at) }}
                 </span>
               </div>
-              <AppButton :to="`/table/${sitting.id}`" variant="outline" size="md" :label="sitting.left_at === null ? 'Continue' : 'Read'" />
+              <AppButton :to="`/play/table/${sitting.id}`" variant="outline" size="md" :label="sitting.left_at === null ? 'Continue' : 'Read'" @click="sitting.party_member_id && appUi.enterTablePlay(sitting.party_member_id, sitting.id)" />
             </li>
           </ul>
         </section>
@@ -88,8 +88,10 @@ import { useAllLocations } from "@/composables/locations/useLocations";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useTableSessions } from "@/composables/table/useTableSessions";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAppUiStore } from "@/stores/ui/app";
 
 const campaign = useCampaignStore();
+const appUi = useAppUiStore();
 const router = useRouter();
 
 const party = useActiveParty();
@@ -117,7 +119,14 @@ const resume = computed(() => {
 watch(
   resume,
   (now) => {
-    if (now?.kind === "open" && campaign.isAiEnabled) void router.replace(`/table/${now.sessionId}`);
+    if (now?.kind === "open" && campaign.isAiEnabled) {
+      appUi.enterTablePlay(now.characterId, now.sessionId);
+      void router.replace(`/play/table/${now.sessionId}`);
+    } else if (now !== null) {
+      // This is the Dungeon Master's side of the door. Whoever stands here is not playing, so the played
+      // character's lens comes off (after "Back to the Dungeon Master's side", or a sitting that was left).
+      appUi.exitTablePlay();
+    }
   },
   { immediate: true },
 );
@@ -133,7 +142,8 @@ const againPlace = computed(() => {
 function sitDownAgain(): void {
   const now = resume.value;
   if (now?.kind !== "again") return;
-  void router.push({ path: "/table/new", query: { character: now.characterId, ...(now.placeId !== null ? { place: now.placeId } : {}) } });
+  appUi.enterTablePlay(now.characterId);
+  void router.push({ path: "/play/table/new", query: { character: now.characterId, ...(now.placeId !== null ? { place: now.placeId } : {}) } });
 }
 
 // Required: a character is who the story is about. "" is the combobox's empty value.
@@ -142,7 +152,9 @@ const placeId = ref("");
 
 function sitDown(): void {
   if (!characterId.value) return;
-  void router.push({ path: "/table/new", query: { character: characterId.value, ...(placeId.value ? { place: placeId.value } : {}) } });
+  // Sitting down is becoming a player: the shell goes to the player side as this character.
+  appUi.enterTablePlay(characterId.value);
+  void router.push({ path: "/play/table/new", query: { character: characterId.value, ...(placeId.value ? { place: placeId.value } : {}) } });
 }
 
 function dayOf(iso: string): string {

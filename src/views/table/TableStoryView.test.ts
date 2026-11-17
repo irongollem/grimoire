@@ -14,6 +14,7 @@ vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm }) }))
 
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAppUiStore } from "@/stores/ui/app";
 import { useTableUiStore } from "@/stores/ui/table";
 import TableStoryView from "./TableStoryView.vue";
 
@@ -60,6 +61,8 @@ const button = (w: VueWrapper, label: string) => w.findAll("button, a").find((b)
 const texts = (w: VueWrapper) => w.findAll('[data-testid="record-fact"] p').map((p) => p.text());
 
 beforeEach(() => {
+  // The played character's lens is kept for the tab: one test's seat must not carry into the next.
+  sessionStorage.clear();
   fake.reset();
   confirm.mockReset();
 });
@@ -204,5 +207,21 @@ describe("TableStoryView", () => {
     setUp("player");
     const w = await mountView();
     expect(w.find('[data-testid="record-empty"]').text()).toMatch(/kept here as they happen/);
+  });
+});
+
+describe("TableStoryView at the table", () => {
+  // Bug caught: the DM's own read (every fact, hidden ones included) drawn for someone who is playing a character.
+  it("shows a player at the table only what the party knows, with no Reveal and no field to file facts, but a way to correct", async () => {
+    setUp("dm");
+    useAppUiStore().enterTablePlay("m1", "s9");
+    fake.seed("story_facts", [fact("a", { body: "The key is brass" }), fact("bb", { body: "HIDDEN-MARK the duke is the lich", known_to_player: false })]);
+    const wrapper = await mountView();
+    expect(texts(wrapper)).toEqual(["The key is brass"]);
+    expect(wrapper.html()).not.toContain("HIDDEN-MARK");
+    expect(button(wrapper, "Reveal")).toBeUndefined();
+    expect(wrapper.text()).not.toContain("Put something on the record");
+    expect(button(wrapper, "Correct this")).toBeDefined();
+    expect(button(wrapper, "Back to the story")!.attributes("href")).toBe("/play/table/s9");
   });
 });

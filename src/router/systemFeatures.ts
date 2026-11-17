@@ -20,6 +20,7 @@ const ROUTE_FEATURES: readonly (readonly [prefix: string, feature: GameFeature])
   ["/party", "party"],
   // The AI-run table plays one of the party's characters, so it is as 5e as the party is.
   ["/table", "party"],
+  ["/play/table", "party"],
   ["/character-sheet", "party"],
   ["/encounters", "encounters"],
   ["/monsters", "bestiary"],

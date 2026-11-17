@@ -1,5 +1,6 @@
 <template>
-  <div class="flex min-h-0 flex-1 flex-col" data-testid="table-view">
+  <!-- h-full: the player layout hands this page its whole main area (meta.fillsMain), which is not a flex column. -->
+  <div class="flex h-full min-h-0 flex-col" data-testid="table-view">
     <SoloAiOff v-if="!campaign.isAiEnabled" class="m-4" />
 
     <template v-else>
@@ -66,7 +67,7 @@
                 @stop="turn.stop()"
               />
               <p class="mx-auto mt-1 hidden w-full max-w-160 md:block">
-                <AppButton to="/table/story" variant="link" size="inline" label="The story so far" />
+                <AppButton to="/play/table/story" variant="link" size="inline" label="The story so far" />
               </p>
             </div>
           </template>
@@ -120,6 +121,7 @@ import { useAbove } from "@/composables/useBreakpoint";
 import { getNpcDisplayFocalPoint, getNpcDisplayPortrait } from "@/lib/npcDisplay";
 import { assignSpeakerColours } from "@/lib/table/speakerColours";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAppUiStore } from "@/stores/ui/app";
 
 type Tab = "story" | "sheet" | "scene";
 
@@ -132,6 +134,7 @@ const wide = useAbove("md");
 const showAll = useAbove("lg");
 const tab = ref<Tab>("story");
 const hitPoints = ref<{ current: number; max: number } | null>(null);
+const appUi = useAppUiStore();
 const disclosure = useTableDisclosure();
 const { openOutOfCredits } = useOutOfCredits();
 const { balance: rawBalance } = useAiCredits();
@@ -174,6 +177,7 @@ const turn = useTableTurn({
   characterId: () => newCharacterId.value,
   startLocationId: () => newPlaceId.value,
   onSession: (id) => {
+    appUi.setTablePlaySession(id);
     if (route.params.sessionId !== id) void router.replace({ name: "table-session", params: { sessionId: id } });
   },
   onScene: (arrived) => {
@@ -242,6 +246,15 @@ const meterCredits = computed(() => Math.floor((conversation.data.value?.sitting
 const party = useParty();
 const characterId = computed(() => conversation.data.value?.sitting.party_member_id ?? newCharacterId.value);
 const member = computed(() => party.data.value?.find((m) => m.id === characterId.value) ?? null);
+// Playing is done as a player: the shell stands on the player side as this character (see `tablePlay` in the app
+// store). The door sets it before coming here; this covers a sitting reached any other way.
+watch(
+  () => member.value?.id ?? null,
+  (id) => {
+    if (id !== null && appUi.tablePlay?.memberId !== id) appUi.enterTablePlay(id, turn.sessionId.value);
+  },
+  { immediate: true },
+);
 
 // "What you are after": the quests and current beats as the played character sees them, through the same
 // player-visible projections the Hearth reads (never the DM's own quest rows). No character, nothing shown.
@@ -306,6 +319,8 @@ async function leave(): Promise<void> {
     if (outcome === null) toast.error("Leaving the table could not be recorded. The session may still be running; end it from the Sessions page.");
     else void queryClient.invalidateQueries({ queryKey: [TABLE_SESSIONS_KEY] });
   }
+  // Getting up from the table is going back to being the Dungeon Master.
+  appUi.exitTablePlay();
   await router.push("/table");
 }
 

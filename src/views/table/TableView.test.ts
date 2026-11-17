@@ -30,6 +30,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { useTableDisclosure } from "@/composables/table/useTableDisclosure";
+import { useAppUiStore } from "@/stores/ui/app";
 import TableView from "./TableView.vue";
 
 const enc = new TextEncoder();
@@ -60,8 +61,9 @@ async function mountTable(path: string) {
     history: createMemoryHistory(),
     routes: [
       { path: "/table", component: { template: "<div />" } },
-      { path: "/party/:id", component: { template: "<div />" } },
-      { name: "table-session", path: "/table/:sessionId", component: TableView },
+      { path: "/play/character", component: { template: "<div />" } },
+      { path: "/play/table/story", component: { template: "<div />" } },
+      { name: "table-session", path: "/play/table/:sessionId", component: TableView },
     ],
   });
   await router.push(path);
@@ -82,6 +84,8 @@ async function say(wrapper: Awaited<ReturnType<typeof mountTable>>["wrapper"], t
 }
 
 beforeEach(() => {
+  // The played character's lens is kept for the tab: one test's seat must not carry into the next.
+  sessionStorage.clear();
   screen.width = 30;
   fake.reset();
   fetchMock.mockReset();
@@ -99,7 +103,7 @@ describe("TableView: the disclosure", () => {
   // Bug caught: sitting an account down at an AI with no notice (AI Act Art. 50), or nagging them on every visit.
   it("is shown the first time an account sits down, kept once accepted, and not shown again", async () => {
     setUp("first-timer");
-    const first = await mountTable("/table/new?character=m1");
+    const first = await mountTable("/play/table/new?character=m1");
     expect(document.body.textContent).toContain("Before you sit down");
     // Bug caught: the opening scene asked of the model before the player has been told who answers.
     expect(fetchMock).not.toHaveBeenCalled();
@@ -112,7 +116,7 @@ describe("TableView: the disclosure", () => {
     first.wrapper.unmount();
 
     setUp("first-timer");
-    await mountTable("/table/new?character=m1");
+    await mountTable("/play/table/new?character=m1");
     expect(document.body.textContent).not.toContain("Before you sit down");
   });
 });
@@ -136,9 +140,9 @@ describe("TableView: playing", () => {
           { type: "done", end: "end_turn", credits: 1, tokens: 5 },
         ),
       );
-    const { wrapper, router } = await mountTable("/table/new?character=m1");
+    const { wrapper, router } = await mountTable("/play/table/new?character=m1");
     expect(wrapper.get('[data-testid="solo-story"]').text()).toContain("The lane smells of rain.");
-    expect(router.currentRoute.value.path).toBe("/table/s1");
+    expect(router.currentRoute.value.path).toBe("/play/table/s1");
     expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toMatchObject({ campaignId: "c1", opening: true, message: "", characterId: "m1" });
 
     await say(wrapper, "Who are you?");
@@ -158,7 +162,7 @@ describe("TableView: playing", () => {
       .mockResolvedValueOnce(sse({ type: "session", sessionId: "s1" }, { type: "text", delta: "The lane." }, { type: "done", end: "end_turn", credits: 0, tokens: 1 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: "x" }), { status: 503, headers: { "content-type": "application/json" } }))
       .mockResolvedValueOnce(sse({ type: "session", sessionId: "s1" }, { type: "text", delta: "Done." }, { type: "done", end: "end_turn", credits: 0, tokens: 1 }));
-    const { wrapper } = await mountTable("/table/new?character=m1");
+    const { wrapper } = await mountTable("/play/table/new?character=m1");
     await say(wrapper, "I draw my knife.", true);
 
     expect(wrapper.get('[data-testid="solo-story"]').text()).toContain("I draw my knife.");
@@ -174,7 +178,7 @@ describe("TableView: playing", () => {
 
   // Bug caught: a new sitting with nobody chosen opening a story about no one.
   it("goes back to choosing when a new sitting names no character", async () => {
-    const { router } = await mountTable("/table/new");
+    const { router } = await mountTable("/play/table/new");
     await flushPromises();
     expect(router.currentRoute.value.path).toBe("/table");
   });
@@ -195,7 +199,7 @@ describe("TableView: leaving", () => {
   // Bug caught: the bar's "Leave the table" staying a plain link, so the session it opened ran for ever.
   it("tells the server which sitting is left, then goes to the start page", async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ left: true, endedSession: true, noteId: null }), { status: 200, headers: { "content-type": "application/json" } }));
-    const { wrapper, router } = await mountTable("/table/s1");
+    const { wrapper, router } = await mountTable("/play/table/s1");
     await leaveButton(wrapper).trigger("click");
     await flushPromises();
     expect(String(fetchMock.mock.calls[0][0])).toContain("/functions/v1/agent-leave");
@@ -206,7 +210,7 @@ describe("TableView: leaving", () => {
   // Bug caught: a failed leave call keeping the player stuck at the table.
   it("still goes to the start page when the call fails, and says so", async () => {
     fetchMock.mockResolvedValue(new Response("{}", { status: 500 }));
-    const { wrapper, router } = await mountTable("/table/s1");
+    const { wrapper, router } = await mountTable("/play/table/s1");
     await leaveButton(wrapper).trigger("click");
     await flushPromises();
     expect(router.currentRoute.value.path).toBe("/table");
@@ -214,9 +218,20 @@ describe("TableView: leaving", () => {
   });
 
   // Bug caught: leaving a sitting that never began (no conversation yet) calling the server with no id.
+  // Bug caught: getting up from the table and still seeing the campaign as the character, with no DM tools.
+  it("goes back to being the Dungeon Master when the table is left", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: "x" }), { status: 503, headers: { "content-type": "application/json" } }));
+    const { wrapper } = await mountTable("/play/table/new?character=m1");
+    expect(useAppUiStore().tablePlay?.memberId).toBe("m1");
+    await leaveButton(wrapper).trigger("click");
+    await flushPromises();
+    expect(useAppUiStore().tablePlay).toBeNull();
+    expect(useAppUiStore().dmPreviewMode).toBe(false);
+  });
+
   it("calls no leave for a sitting whose opening was refused, since no conversation exists to leave", async () => {
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: "x" }), { status: 503, headers: { "content-type": "application/json" } }));
-    const { wrapper, router } = await mountTable("/table/new?character=m1");
+    const { wrapper, router } = await mountTable("/play/table/new?character=m1");
     await leaveButton(wrapper).trigger("click");
     await flushPromises();
     // The one call is the refused opening; nothing was sent to agent-leave.
@@ -226,13 +241,13 @@ describe("TableView: leaving", () => {
 
   // Bug caught: a left sitting reopened with a composer, so the player types into a table the server refuses.
   it("shows a left sitting without a composer and says it has ended", async () => {
-    const { wrapper } = await mountTable("/table/s2");
+    const { wrapper } = await mountTable("/play/table/s2");
     expect(wrapper.find("textarea").exists()).toBe(false);
     expect(wrapper.get('[data-testid="solo-left"]').text()).toContain("has ended");
   });
 
   it("keeps the composer for a sitting still going", async () => {
-    const { wrapper } = await mountTable("/table/s1");
+    const { wrapper } = await mountTable("/play/table/s1");
     expect(wrapper.find("textarea").exists()).toBe(true);
     expect(wrapper.find('[data-testid="solo-left"]').exists()).toBe(false);
   });
@@ -255,7 +270,7 @@ describe("TableView: when the roll is yours", () => {
   // Bug caught: a reload losing the card, so the sitting waits on a roll nobody can make; or showing the number to beat.
   it("asks again from the stored sitting, with the sheet's bonus and no number to beat", async () => {
     fake.seed("agent_sessions", [session("s1")]);
-    const { wrapper } = await mountTable("/table/s1");
+    const { wrapper } = await mountTable("/play/table/s1");
     const card = wrapper.get('[data-testid="solo-roll-ask"]');
     expect(card.text()).toContain("Wisdom (Perception)");
     // WIS 14 is +2 and a proficient skill adds +2 (PHB 2014 "Ability Checks").
@@ -266,7 +281,7 @@ describe("TableView: when the roll is yours", () => {
   // Bug caught: asking a player who has left to roll for a table the server refuses.
   it("shows no card once the sitting has ended", async () => {
     fake.seed("agent_sessions", [session("s2", { left_at: "2026-11-17T00:00:00Z" })]);
-    const { wrapper } = await mountTable("/table/s2");
+    const { wrapper } = await mountTable("/play/table/s2");
     expect(wrapper.find('[data-testid="solo-roll-ask"]').exists()).toBe(false);
   });
 
@@ -281,7 +296,7 @@ describe("TableView: when the roll is yours", () => {
         { type: "done", end: "end_turn", credits: 0, tokens: 1 },
       ),
     );
-    const { wrapper } = await mountTable("/table/s1");
+    const { wrapper } = await mountTable("/play/table/s1");
     await wrapper.get('[data-testid="solo-roll-ask"] input').setValue(13);
     await wrapper.findAll("button").find((b) => b.text() === "Use my roll")!.trigger("click");
     await flushPromises();
@@ -294,7 +309,7 @@ describe("TableView: when the roll is yours", () => {
   it("keeps the composer usable beside the card, and a plain message goes without a roll", async () => {
     fake.seed("agent_sessions", [session("s1")]);
     fetchMock.mockResolvedValue(sse({ type: "session", sessionId: "s1" }, { type: "text", delta: "Fine." }, { type: "done", end: "end_turn", credits: 0, tokens: 1 }));
-    const { wrapper } = await mountTable("/table/s1");
+    const { wrapper } = await mountTable("/play/table/s1");
     await say(wrapper, "Actually, I leave.");
     expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).not.toHaveProperty("roll");
     expect(wrapper.find('[data-testid="solo-roll-ask"]').exists()).toBe(false);
@@ -319,7 +334,7 @@ describe("TableView: the sheet", () => {
 
   // Bug caught: the sheet showing a different character than the one sitting at the table, or numbers that are not the row's.
   it("shows the played character's hit points, stats and trained skills on the Sheet tab", async () => {
-    const { wrapper } = await mountTable("/table/s1");
+    const { wrapper } = await mountTable("/play/table/s1");
     await tabButton(wrapper, "Sheet")!.trigger("click");
     const sheet = sheetColumn(wrapper);
     expect(sheet.isVisible()).toBe(true);
@@ -328,14 +343,14 @@ describe("TableView: the sheet", () => {
     expect(sheet.text()).toContain("Perception");
     expect(sheet.text()).toContain("+4");
     expect(sheet.text()).toContain("None");
-    expect(sheet.find("a[href='/party/m1']").exists()).toBe(true);
+    expect(sheet.find("a[href='/play/character']").exists()).toBe(true);
   });
 
   // Bug caught: the asked roll appearing behind the tab the player is reading, so the sitting waits on a card nobody sees.
   it("brings a roll the story asks for back to Story from the Sheet tab", async () => {
     let answer: (response: Response) => void = () => undefined;
     fetchMock.mockReturnValue(new Promise<Response>((resolve) => { answer = resolve; }));
-    const { wrapper } = await mountTable("/table/s1");
+    const { wrapper } = await mountTable("/play/table/s1");
     await say(wrapper, "I look around.");
     await tabButton(wrapper, "Sheet")!.trigger("click");
     expect(wrapper.get("main").isVisible()).toBe(false);
@@ -352,17 +367,17 @@ describe("TableView: the sheet", () => {
 
   // Bug caught: a sitting whose character cannot be read drawing an empty column and a tab that opens onto nothing.
   it("shows no sheet and no Sheet tab when the character cannot be read", async () => {
-    const { wrapper } = await mountTable("/table/s3");
+    const { wrapper } = await mountTable("/play/table/s3");
     expect(wrapper.find('aside[aria-label="Your character"]').exists()).toBe(false);
     expect(tabButton(wrapper, "Sheet")).toBeUndefined();
   });
 
   // Bug caught: an ended sitting still offering to change hit points of a character the table has put down.
   it("shows an ended sitting's sheet without Damage or Heal", async () => {
-    const live = await mountTable("/table/s1");
+    const live = await mountTable("/play/table/s1");
     expect(sheetColumn(live.wrapper).findAll("button").map((b) => b.text())).toEqual(expect.arrayContaining(["Damage", "Heal"]));
     live.wrapper.unmount();
-    const ended = await mountTable("/table/s2");
+    const ended = await mountTable("/play/table/s2");
     expect(sheetColumn(ended.wrapper).text()).toContain("of 27");
     expect(ended.wrapper.findAll("button").map((b) => b.text())).not.toContain("Damage");
   });
@@ -370,7 +385,7 @@ describe("TableView: the sheet", () => {
   // Bug caught: a wide screen hiding the sheet behind a tab, or squeezing a tab bar in beside three columns.
   it("lays the sheet, story and scene side by side from lg up, with no tabs", async () => {
     screen.width = 70;
-    const { wrapper } = await mountTable("/table/s1");
+    const { wrapper } = await mountTable("/play/table/s1");
     expect(sheetColumn(wrapper).isVisible()).toBe(true);
     expect(wrapper.get("main").isVisible()).toBe(true);
     expect(wrapper.get('aside[aria-label="The scene"]').isVisible()).toBe(true);
@@ -380,7 +395,7 @@ describe("TableView: the sheet", () => {
   // Bug caught: a tablet's story squeezed beside both the sheet and the scene, narrower than it can be read.
   it("on a tablet keeps story with scene and puts the sheet behind its own tab", async () => {
     screen.width = 55;
-    const { wrapper } = await mountTable("/table/s1");
+    const { wrapper } = await mountTable("/play/table/s1");
     expect(tabButton(wrapper, "Scene")).toBeUndefined();
     expect(sheetColumn(wrapper).isVisible()).toBe(false);
     expect(wrapper.get('aside[aria-label="The scene"]').isVisible()).toBe(true);
@@ -392,7 +407,7 @@ describe("TableView: the sheet", () => {
 
   // Bug caught: a window widened (or a tablet turned) while on the Sheet or Scene tab, leaving the story hidden behind a tab that no longer exists.
   it("never leaves the page blank when the window outgrows the tab that was open", async () => {
-    const { wrapper } = await mountTable("/table/s1");
+    const { wrapper } = await mountTable("/play/table/s1");
     await tabButton(wrapper, "Sheet")!.trigger("click");
     screen.width = 70;
     await flushPromises();
@@ -408,7 +423,7 @@ describe("TableView: the sheet", () => {
 
   // Bug caught: the character vanishing from the party (removed, or the read failing) while the Sheet tab is open, leaving nothing on screen.
   it("returns to Story when the character can no longer be read while the Sheet tab is open", async () => {
-    const { wrapper, queryClient } = await mountTable("/table/s1");
+    const { wrapper, queryClient } = await mountTable("/play/table/s1");
     await tabButton(wrapper, "Sheet")!.trigger("click");
     fake.seed("party_members", []);
     fake.reset();
@@ -420,20 +435,20 @@ describe("TableView: the sheet", () => {
 
   // Bug caught: the phone bar hiding the character's hit points on the Story tab.
   it("puts the character's hit points in the bar", async () => {
-    const { wrapper } = await mountTable("/table/s1");
+    const { wrapper } = await mountTable("/play/table/s1");
     expect(wrapper.get('[data-testid="solo-bar-who"]').text()).toBe("Inkling · 24 of 27 hit points");
   });
 
   // Bug caught: a non-caster's sheet carrying an empty "Spell slots" heading.
   it("draws spell slots for a caster and none for a character without any", async () => {
-    const plain = await mountTable("/table/s1");
+    const plain = await mountTable("/play/table/s1");
     expect(sheetColumn(plain.wrapper).text()).not.toContain("Spell slots");
     plain.wrapper.unmount();
     fake.reset();
     fake.seed("party_members", [{ ...MEMBER, spell_slots: [{ level: 1, max: 2, used: 1 }] }]);
     fake.seed("character_classes", []);
     fake.seed("agent_sessions", [sitting("s1")]);
-    const caster = await mountTable("/table/s1");
+    const caster = await mountTable("/play/table/s1");
     expect(sheetColumn(caster.wrapper).text()).toContain("Spell slots");
     expect(sheetColumn(caster.wrapper).text()).toContain("1 / 2");
   });
@@ -461,7 +476,7 @@ describe("TableView: what you are after", () => {
   // Bug caught: the scene column reading quests with the DM's own eyes, so it lists a quest the character never heard of.
   it("lists the quests as the played character sees them", async () => {
     fake.seed("agent_sessions", [session("s1")]);
-    const { wrapper } = await mountTable("/table/s1");
+    const { wrapper } = await mountTable("/play/table/s1");
     await vi.waitFor(() => expect(wrapper.find('[data-testid="solo-after"]').exists()).toBe(true));
     expect(wrapper.get('[data-testid="solo-after"]').text()).toContain("KNOWN-QUEST");
     expect(wrapper.html()).not.toContain("UNSEEN-QUEST");
@@ -470,7 +485,7 @@ describe("TableView: what you are after", () => {
   // Bug caught: a sitting whose character cannot be read falling back to whatever the unscoped read returns.
   it("lists nothing when the character cannot be read", async () => {
     fake.seed("agent_sessions", [session("s1", { party_member_id: "gone" })]);
-    const { wrapper } = await mountTable("/table/s1");
+    const { wrapper } = await mountTable("/play/table/s1");
     await flushPromises();
     await flushPromises();
     expect(wrapper.html()).not.toContain("UNSEEN-QUEST");

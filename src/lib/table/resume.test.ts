@@ -16,7 +16,7 @@ describe("resumeOf", () => {
 
   // Bug caught: a sitting that was never left started over as a new conversation, losing the story on the page.
   it("reopens the last sitting itself when it was never left", () => {
-    expect(resumeOf([sitting("open", { left_at: null })], party)).toEqual({ kind: "open", sessionId: "open" });
+    expect(resumeOf([sitting("open", { left_at: null })], party)).toEqual({ kind: "open", sessionId: "open", characterId: "rosie" });
   });
 
   // Bug caught: an older sitting that was never left hijacking the table after a newer one was played and left.

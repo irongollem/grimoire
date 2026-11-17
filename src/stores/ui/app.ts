@@ -9,6 +9,36 @@ export function readUserMode(raw: string): "dm" | "player" | "" {
   return raw === "dm" || raw === "player" ? raw : "";
 }
 
+/** Who is being played at the AI table, and in which sitting once it has an id. */
+export interface TablePlay {
+  memberId: string;
+  sessionId: string | null;
+}
+
+const TABLE_PLAY_KEY = "grimoire:table-play";
+
+// sessionStorage can throw (a private window, blocked site data): then the lens simply lasts until the next reload.
+function readTablePlay(): TablePlay | null {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(TABLE_PLAY_KEY) ?? "null") as unknown;
+    if (typeof raw !== "object" || raw === null) return null;
+    const { memberId, sessionId } = raw as Record<string, unknown>;
+    if (typeof memberId !== "string" || memberId === "") return null;
+    return { memberId, sessionId: typeof sessionId === "string" ? sessionId : null };
+  } catch {
+    return null;
+  }
+}
+
+function writeTablePlay(value: TablePlay | null): void {
+  try {
+    if (value === null) sessionStorage.removeItem(TABLE_PLAY_KEY);
+    else sessionStorage.setItem(TABLE_PLAY_KEY, JSON.stringify(value));
+  } catch {
+    // Not kept for a reload; nothing else depends on it.
+  }
+}
+
 export const useAppUiStore = defineStore("ui:app", () => {
   // Chat panel
   const chatOpen = ref(false);
@@ -116,6 +146,38 @@ export const useAppUiStore = defineStore("ui:app", () => {
     dmPreviewPartyMemberId.value = null;
   }
 
+  // Playing at the AI table (#1021). "When you are playing, you are a player: the DM navigation should no longer be
+  // visible. You see only what your character has discovered, not the full DM toolkit which lets you see the entire
+  // story" (maintainer, 17 Nov 2026). So sitting down puts the shell on the player side AS the played character:
+  // the same lens as the DM's preview (every player page then reads through the player-visible rules for that
+  // character), with its own name because the reason differs and so does the wording around it.
+  //
+  // Kept for the tab (sessionStorage), unlike the preview: a reload in the middle of a sitting must land back in
+  // the story, and the router turns a DM away from /play without the lens. It grants nothing: what a page may read
+  // is still decided by the database, and this only chooses which side of the app is on screen.
+  const tablePlay = ref<TablePlay | null>(readTablePlay());
+  if (tablePlay.value !== null) enterDmPreview(tablePlay.value.memberId);
+
+  function enterTablePlay(memberId: string, sessionId: string | null = null) {
+    tablePlay.value = { memberId, sessionId };
+    writeTablePlay(tablePlay.value);
+    enterDmPreview(memberId);
+  }
+
+  /** The sitting now has an id (its first turn created it), so "back to the story" can find it. */
+  function setTablePlaySession(sessionId: string) {
+    if (tablePlay.value === null || tablePlay.value.sessionId === sessionId) return;
+    tablePlay.value = { ...tablePlay.value, sessionId };
+    writeTablePlay(tablePlay.value);
+  }
+
+  function exitTablePlay() {
+    if (tablePlay.value === null) return;
+    tablePlay.value = null;
+    writeTablePlay(null);
+    exitDmPreview();
+  }
+
   return {
     editorFocus,
     chatOpen,
@@ -130,6 +192,10 @@ export const useAppUiStore = defineStore("ui:app", () => {
     setDmTalkAsNpc,
     dmPreviewMode,
     dmPreviewPartyMemberId,
+    tablePlay,
+    enterTablePlay,
+    setTablePlaySession,
+    exitTablePlay,
     enterDmPreview,
     exitDmPreview,
     userMode,

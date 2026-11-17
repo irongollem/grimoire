@@ -87,3 +87,60 @@ describe("DM mode", () => {
     expect(ui.dmMode).toBe("play");
   });
 });
+
+describe("playing at the AI table", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    setActivePinia(createPinia());
+  });
+
+  // Bug caught: a DM sitting down and still reading the campaign with the DM's own eyes.
+  it("puts the shell under the played character's lens, and takes it off again on leaving", () => {
+    const ui = useAppUiStore();
+    ui.enterTablePlay("rosie");
+    expect(ui.dmPreviewMode).toBe(true);
+    expect(ui.dmPreviewPartyMemberId).toBe("rosie");
+    ui.exitTablePlay();
+    expect(ui.tablePlay).toBeNull();
+    expect(ui.dmPreviewMode).toBe(false);
+    expect(ui.dmPreviewPartyMemberId).toBeNull();
+  });
+
+  // Bug caught: a reload in the middle of a sitting dropping the lens, so the router turns the DM away from the story.
+  it("is still the played character after a reload of the tab", () => {
+    const first = useAppUiStore();
+    first.enterTablePlay("rosie");
+    first.setTablePlaySession("s1");
+    setActivePinia(createPinia());
+    const reloaded = useAppUiStore();
+    expect(reloaded.tablePlay).toEqual({ memberId: "rosie", sessionId: "s1" });
+    expect(reloaded.dmPreviewPartyMemberId).toBe("rosie");
+  });
+
+  // Bug caught: leaving the table and coming back to a new tab state that still claims to be playing.
+  it("is not playing after a reload once the table was left", () => {
+    const first = useAppUiStore();
+    first.enterTablePlay("rosie");
+    first.exitTablePlay();
+    setActivePinia(createPinia());
+    expect(useAppUiStore().tablePlay).toBeNull();
+  });
+
+  // Bug caught: hand-edited or stale storage read as a seat at the table for nobody.
+  it("reads stored junk as not playing", () => {
+    sessionStorage.setItem("grimoire:table-play", JSON.stringify({ memberId: "" }));
+    setActivePinia(createPinia());
+    expect(useAppUiStore().tablePlay).toBeNull();
+    sessionStorage.setItem("grimoire:table-play", "{not json");
+    setActivePinia(createPinia());
+    expect(useAppUiStore().tablePlay).toBeNull();
+  });
+
+  // Bug caught: leaving the table switching off a preview the DM had started for another reason.
+  it("leaves an ordinary preview alone when nobody was playing", () => {
+    const ui = useAppUiStore();
+    ui.enterDmPreview("fresco");
+    ui.exitTablePlay();
+    expect(ui.dmPreviewMode).toBe(true);
+  });
+});

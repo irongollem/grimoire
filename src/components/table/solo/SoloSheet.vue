@@ -56,7 +56,7 @@
     </div>
 
     <!-- The sitting stays open when the player leaves for the sheet: the table's page is not left, only its sitting's view. -->
-    <AppButton :to="`/party/${member.id}`" variant="link" size="inline" label="Open the full sheet" class="self-start" />
+    <AppButton to="/play/character" variant="link" size="inline" label="Open the full sheet" class="self-start" />
   </section>
 </template>
 

@@ -14,6 +14,7 @@ vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => 
 
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAppUiStore } from "@/stores/ui/app";
 import TableStartView from "./TableStartView.vue";
 
 const member = (id: string, name: string) => ({ id, campaign_id: "c1", name, class: "Rogue", level: 3 });
@@ -43,7 +44,7 @@ async function mountView() {
     history: createMemoryHistory(),
     routes: [
       { path: "/table", component: { template: "<div />" } },
-      { path: "/table/:sessionId", component: { template: "<div />" } },
+      { path: "/play/table/:sessionId", component: { template: "<div />" } },
       { path: "/party/new", component: { template: "<div />" } },
       { path: "/campaign/settings", component: { template: "<div />" } },
     ],
@@ -66,6 +67,8 @@ async function mountView() {
 }
 
 beforeEach(() => {
+  // The played character's lens is kept for the tab: one test's seat must not carry into the next.
+  sessionStorage.clear();
   fake.reset();
 });
 
@@ -88,8 +91,10 @@ describe("TableStartView", () => {
     expect(sitDown(wrapper).attributes("disabled")).toBeUndefined();
     await sitDown(wrapper).trigger("click");
     await flushPromises();
-    expect(router.currentRoute.value.path).toBe("/table/new");
+    expect(router.currentRoute.value.path).toBe("/play/table/new");
     expect(router.currentRoute.value.query).toEqual({ character: "m2" });
+    // Bug caught: sitting down while still on the Dungeon Master's side of the app.
+    expect(useAppUiStore().tablePlay).toEqual({ memberId: "m2", sessionId: null });
   });
 
   // Bug caught: another account's sittings listed under mine (RLS is a ceiling; the read must name the caller).
@@ -100,7 +105,7 @@ describe("TableStartView", () => {
     await vi.waitFor(() => expect(wrapper.findAll('[data-testid="table-sitting"]')).toHaveLength(1));
     const row = wrapper.get('[data-testid="table-sitting"]');
     expect(row.text()).toContain("Inkling");
-    expect(row.get("a").attributes("href")).toBe("/table/mine");
+    expect(row.get("a").attributes("href")).toBe("/play/table/mine");
   });
 
   // Bug caught: offering to continue a sitting that was left, whose next turn the server refuses.
@@ -110,7 +115,7 @@ describe("TableStartView", () => {
     const { wrapper } = await mountView();
     await vi.waitFor(() => expect(wrapper.findAll('[data-testid="table-sitting"]')).toHaveLength(2));
     const labels = Object.fromEntries(wrapper.findAll('[data-testid="table-sitting"]').map((r) => [r.get("a").attributes("href"), r.get("a").text()]));
-    expect(labels).toEqual({ "/table/going": "Continue", "/table/left": "Read" });
+    expect(labels).toEqual({ "/play/table/going": "Continue", "/play/table/left": "Read" });
   });
 });
 
@@ -125,7 +130,8 @@ describe("TableStartView: picking the story up", () => {
   it("goes straight back into a sitting that was never left", async () => {
     fake.seed("agent_sessions", [sitting("going")]);
     const { router } = await mountView();
-    expect(router.currentRoute.value.path).toBe("/table/going");
+    expect(router.currentRoute.value.path).toBe("/play/table/going");
+    expect(useAppUiStore().tablePlay).toEqual({ memberId: "m1", sessionId: "going" });
   });
 
   // Bug caught: asking who you play and where again after leaving, as if the story started over.
@@ -138,8 +144,16 @@ describe("TableStartView: picking the story up", () => {
     expect(wrapper.find('[role="radiogroup"]').exists()).toBe(false);
     await again.findAll("button").find((b) => b.text() === "Sit down")!.trigger("click");
     await flushPromises();
-    expect(router.currentRoute.value.path).toBe("/table/new");
+    expect(router.currentRoute.value.path).toBe("/play/table/new");
     expect(router.currentRoute.value.query).toEqual({ character: "m1", place: "l1" });
+  });
+
+  // Bug caught: coming back to the Dungeon Master's side after leaving and still wearing the character's lens.
+  it("takes the played character's lens off on the Dungeon Master's side of the door", async () => {
+    useAppUiStore().enterTablePlay("m1", "left");
+    fake.seed("agent_sessions", [sitting("left", { left_at: "2026-11-10T11:00:00Z" })]);
+    await mountView();
+    expect(useAppUiStore().tablePlay).toBeNull();
   });
 
   // Bug caught: no way to play someone else once a first sitting exists.

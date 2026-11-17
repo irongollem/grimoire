@@ -956,19 +956,31 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "The table" },
   },
   {
-    // The record the table keeps (#1021). Readable by every member of the campaign, whether or not the AI table is on.
+    // The record the table keeps (#1021), as the DM reads it: everything, hidden facts included, with Reveal.
     path: "/table/story",
     name: "table-story",
     component: () => import("@/views/table/TableStoryView.vue"),
     meta: { requiresAuth: true, title: "The story so far" },
   },
+  // A sitting is played on the player side (below): an old address goes to the door, which picks the story up.
+  { path: "/table/:sessionId", redirect: "/table" },
   {
+    // The same record as the played character may read it: what the party knows, and nothing hidden.
+    path: "/play/table/story",
+    name: "play-table-story",
+    component: () => import("@/views/table/TableStoryView.vue"),
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "The story so far" },
+  },
+  {
+    // Playing is done as a player (maintainer, 17 Nov 2026): the sitting lives in the player portal, under the
+    // played character's lens (`useAppUiStore().tablePlay`), so the DM's navigation and toolkit are not on screen.
     // `new` is a conversation that does not exist yet; its first turn creates it and the address becomes the real id.
-    // fullscreenMobile: below md the screen draws its own bar and Story / Scene tabs (Solo Table, frame 09).
-    path: "/table/:sessionId",
+    // fullscreenMobile: below md the screen draws its own bar and Story / Sheet / Scene tabs (Solo Table, frame 09).
+    path: "/play/table/:sessionId",
     name: "table-session",
     component: () => import("@/views/table/TableView.vue"),
-    meta: { requiresAuth: true, title: "The table", fullscreenMobile: true },
+    // fillsMain: the story, the sheet and the scene are three columns that fill the page and scroll on their own.
+    meta: { requiresAuth: true, requiresPlayer: true, layout: "player", title: "The table", fullscreenMobile: true, fillsMain: true },
   },
 
   // Quests
