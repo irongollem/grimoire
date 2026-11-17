@@ -12,6 +12,8 @@ export interface ModelPricing {
   image_input_cost_per_million_tokens: number | null;
   image_output_cost_per_million_tokens: number | null;
   cost_per_image_usd: number | null;
+  /** Speech models: USD per million characters of text sent to be spoken (the AI table's voices). */
+  cost_per_million_characters_usd: number | null;
   notes: string | null;
   last_verified_at: string | null;
 }
@@ -24,7 +26,7 @@ export function useAdminModelPricing() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ai_model_pricing")
-        .select("model, provider, model_type, input_cost_per_million_tokens, output_cost_per_million_tokens, image_input_cost_per_million_tokens, image_output_cost_per_million_tokens, cost_per_image_usd, notes, last_verified_at")
+        .select("model, provider, model_type, input_cost_per_million_tokens, output_cost_per_million_tokens, image_input_cost_per_million_tokens, image_output_cost_per_million_tokens, cost_per_image_usd, cost_per_million_characters_usd, notes, last_verified_at")
         .order("provider")
         .order("model");
       if (error) throw error;
@@ -42,6 +44,7 @@ export function useAdminModelPricing() {
       image_input_cost_per_million_tokens?: number | null;
       image_output_cost_per_million_tokens?: number | null;
       cost_per_image_usd?: number | null;
+      cost_per_million_characters_usd?: number | null;
       last_verified_at?: string | null;
     }) => {
       const { error } = await supabase

@@ -7,6 +7,7 @@
       <ListSkeleton v-else-if="resume === null || resume.kind === 'open'" variant="stack" :count="3" />
 
       <div v-else class="flex max-w-2xl flex-col gap-6">
+        <SoloSittingSettings />
         <!-- The story goes on where it was left: the campaign already knows who is played and where the party is. -->
         <section v-if="resume.kind === 'again'" class="flex flex-col gap-3 border border-border bg-card p-4" aria-labelledby="table-again" data-testid="table-again">
           <h2 id="table-again" class="text-heading-sm text-foreground">Pick up the story</h2>
@@ -89,6 +90,7 @@ import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import PageHeader from "@/components/common/list/PageHeader.vue";
 import SoloAiOff from "@/components/table/solo/SoloAiOff.vue";
+import SoloSittingSettings from "@/components/table/solo/SoloSittingSettings.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useQuests } from "@/composables/quests/useQuests";

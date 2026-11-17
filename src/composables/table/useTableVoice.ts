@@ -1,5 +1,6 @@
 import { computed, ref } from "vue";
 import { useStorage } from "@vueuse/core";
+import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { NO_VOICES, type SpokenLine, type VoicePart, type VoiceParts } from "@/lib/table/voiceLines";
@@ -94,6 +95,8 @@ export function useTableVoice(options: {
   const unavailable = ref(false);
   /** The speech allowance is used up. Cleared when a voice is switched on again, which is how one finds out it is back. */
   const spent = ref(false);
+  /** The player's credits do not cover a line. Cleared like `spent`. */
+  const broke = ref(false);
   const speaking = ref(false);
 
   // Each waiting line with its clip already being made: the next voice is ready when the one before it ends.
@@ -138,9 +141,12 @@ export function useTableVoice(options: {
       return null;
     }
     if (response.status === 402) {
-      // The speech allowance is used up: asking for the next line cannot help, so stop, and say so once.
+      // Asking for the next line cannot help, so stop, and say why once: the player's own credits have run out
+      // (a made line is paid for), or the speech service's allowance is used up.
+      const refusal = (await response.json().catch(() => null)) as { error?: unknown } | null;
       if (mine === generation) {
-        spent.value = true;
+        if (refusal !== null && refusal.error === "insufficient_credits") broke.value = true;
+        else spent.value = true;
         queue = [];
       }
       return null;
@@ -211,6 +217,7 @@ export function useTableVoice(options: {
     if (on) {
       unavailable.value = false;
       spent.value = false;
+      broke.value = false;
     }
   }
 
@@ -222,5 +229,59 @@ export function useTableVoice(options: {
     stop();
   }
 
-  return { parts, enabled, unavailable, spent, speaking, say, replay, stop, setPart, setAllOff };
+  return { parts, enabled, unavailable, spent, broke, speaking, say, replay, stop, setPart, setAllOff };
+}
+
+/**
+ * The three voice switches by themselves, for a page that sets them before a sitting begins (the door to the
+ * table): the same choice `useTableVoice` reads, with nothing to play.
+ */
+export function useTableVoicePrefs() {
+  const auth = useAuthStore();
+  const userId = computed(() => auth.user?.id ?? null);
+  const parts = computed<VoiceParts>(() => {
+    const mine = userId.value === null ? undefined : wanted.value[userId.value];
+    return mine === undefined ? NO_VOICES : { ...NO_VOICES, ...mine };
+  });
+  function setPart(part: VoicePart, on: boolean): void {
+    const id = userId.value;
+    if (id === null) return;
+    wanted.value = { ...wanted.value, [id]: { ...parts.value, [part]: on } };
+  }
+  return { parts, setPart };
+}
+
+/** What a minute of speech costs in credits on each service, or null where it cannot speak; `on` false when voices are off. */
+export interface VoiceRates {
+  on: boolean;
+  perMinute: { elevenlabs: number | null; inworld: number | null };
+}
+
+function isRates(raw: unknown): raw is VoiceRates {
+  if (typeof raw !== "object" || raw === null) return false;
+  const r = raw as { on?: unknown; perMinute?: unknown };
+  if (typeof r.on !== "boolean" || typeof r.perMinute !== "object" || r.perMinute === null) return false;
+  const p = r.perMinute as Record<string, unknown>;
+  return ["elevenlabs", "inworld"].every((k) => p[k] === null || (typeof p[k] === "number" && Number.isFinite(p[k])));
+}
+
+/**
+ * What the voices cost, asked of the server once, so the player reads it before switching one on. Read once and
+ * kept: the admin's prices do not change under a sitting.
+ */
+export function useTableVoiceRates() {
+  const auth = useAuthStore();
+  const userId = computed(() => auth.user?.id ?? null);
+  return useQuery({
+    queryKey: computed(() => ["table-voice-rates", userId.value] as const),
+    queryFn: async (): Promise<VoiceRates> => {
+      const { data, error } = await supabase.functions.invoke("table-voice", { body: { rates: true } });
+      if (error) throw error;
+      if (!isRates(data)) throw new Error("The voices' rates could not be read.");
+      return data;
+    },
+    enabled: () => userId.value !== null,
+    staleTime: Infinity,
+    retry: false,
+  });
 }

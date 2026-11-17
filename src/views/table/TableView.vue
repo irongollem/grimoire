@@ -305,6 +305,12 @@ watch(
     if (spent) toast.error("The voices have used up their allowance for now. The story goes on in text.");
   },
 );
+watch(
+  () => voice.broke.value,
+  (broke) => {
+    if (broke) toast.error("You are out of credits, so the voices have stopped. The story goes on in text.");
+  },
+);
 onBeforeUnmount(() => voice.stop());
 
 // A new sitting begins with the Dungeon Master setting the scene, not with an empty page waiting for the player.

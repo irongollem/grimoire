@@ -199,6 +199,8 @@
     </div>
 
     <!-- Prompt screening calibration -->
+    <AdminVoicePricingPanel />
+
     <AdminPromptScreeningPanel />
   </div>
 </template>
@@ -220,6 +222,7 @@ import { useKeyedRecordDrafts } from "@/composables/admin/useKeyedRecordDrafts";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
 import AdminPromptScreeningPanel from "@/components/admin/AdminPromptScreeningPanel.vue";
+import AdminVoicePricingPanel from "@/components/admin/AdminVoicePricingPanel.vue";
 import { wholeCredits } from "@edge-shared/credit-math.ts";
 
 const pricingQuery = useAdminPricing();
