@@ -124,6 +124,8 @@ interface Harness {
     playSessionThrows: boolean;
     /** The DM already had a session running, so the table joins it instead of starting one. */
     playSessionJoined: boolean;
+    /** Creatures of a planned fight that have no stat block, by name. */
+    statless: string[];
     moveFails: boolean;
     /** What the campaign's roll tool answers; null answers like every other campaign tool. */
     rollAnswer: { content: string; isError: boolean } | null;
@@ -214,6 +216,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       memoriesThrow: false,
       playSessionThrows: false,
       playSessionJoined: false,
+      statless: [],
       moveFails: false,
       rollAnswer: null,
       pendingRollFails: false,
@@ -424,6 +427,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     },
     judgeNarration: null,
     voiceKey: null,
+    statlessFighters: async () => h.state.statless,
     openPlaySession: async () => {
       log.push("open-session");
       if (h.state.playSessionThrows) throw new Error("db down");
@@ -2768,6 +2772,19 @@ describe("the story turns into a fight", () => {
     expect(h.fightLoads).toEqual([{ campaignId: CAMPAIGN, locationId: CELLAR, fightEncounterId: null }]);
     expect(opening(h.requests[0])).toContain("The cellar rats");
     expect(h.requests[0].system).not.toContain("The cellar rats");
+  });
+
+  // Bug caught live (17 Nov 2026): a fight against a character with no stat block, who then stood on the map unable
+  // to act while the player was asked to move them.
+  it("starts no fight with a creature that has no stat block, and tells the narrator to play it out in the story", async () => {
+    const h = played([startStep(), step(10)]);
+    h.state.fights = prepared;
+    h.state.statless = ["Sift"];
+    await play(h, { body: BODY });
+    expect(fightEvents(h)).toEqual([]);
+    const told = JSON.stringify(h.requests[1]);
+    expect(told).toContain("Sift has no stat block");
+    expect(told).toContain("No fight was started");
   });
 
   it("starts the fight once the turn is kept, as the played character, and tells the page where it is", async () => {

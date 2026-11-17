@@ -56,7 +56,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false) {
     filed,
     quests,
     askRoll: played ? (pending) => asked.push(pending) : null,
-    fight: played ? { view: { prepared: [{ id: FIGHT, name: "The cellar rats", creatures: "" }], fight: null }, onStart: (plan) => fights.push(plan) } : null,
+    fight: played ? { view: { prepared: [{ id: FIGHT, name: "The cellar rats", creatures: "" }], fight: null }, onStart: (plan) => fights.push(plan), statless: async () => [] } : null,
   });
   return { turn, calls, filed, moves, asked, fights };
 }

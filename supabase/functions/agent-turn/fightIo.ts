@@ -111,6 +111,30 @@ export async function loadFights(
   return { prepared, fight };
 }
 
+/**
+ * The names of a planned fight's creatures the rules cannot play: those whose record has no stat block. An id that
+ * is not this campaign's is not named here; starting the fight refuses it.
+ */
+export async function statlessFighters(client: SupabaseClient, campaignId: string, plan: FightPlan): Promise<string[]> {
+  let defs: Def[];
+  if (plan.kind === "prepared") {
+    const found = await client.from("encounters").select("combatants").eq("id", plan.encounterId).eq("campaign_id", campaignId).maybeSingle();
+    if (found.error) throw found.error;
+    defs = defsOf(found.data?.combatants);
+  } else {
+    defs = plan.creatures.map((c) => ({ monsterId: c.monsterId, npcId: c.npcId, count: c.count }));
+  }
+  const names: string[] = [];
+  for (const table of ["monsters", "npcs"] as const) {
+    const ids = [...new Set(defs.flatMap((d) => (table === "monsters" ? d.monsterId : d.npcId) ?? []))];
+    if (ids.length === 0) continue;
+    const { data, error } = await client.from(table).select("name").eq("campaign_id", campaignId).in("id", ids).is("stat_block", null);
+    if (error) throw error;
+    names.push(...(data ?? []).map((r) => r.name as string));
+  }
+  return names;
+}
+
 /** Points the conversation at a fight, or (null) lets go of it. The server's own row, so the admin client. */
 export async function setFight(admin: SupabaseClient, sessionId: string, campaignId: string, encounterId: string | null): Promise<void> {
   const { error } = await admin.from("agent_sessions").update({ fight_encounter_id: encounterId }).eq("id", sessionId).eq("campaign_id", campaignId);

@@ -172,6 +172,15 @@ export function planFight(view: FightsInView, input: Record<string, unknown>): P
   return { ok: true, plan: { kind: "improvised", name: called, creatures: parsed }, says: started(called) };
 }
 
+/** What the narrator is told when a creature of the fight it asked for has no stat block. */
+export function statlessText(names: readonly string[]): string {
+  return (
+    `${names.join(", ")} ${names.length === 1 ? "has" : "have"} no stat block, so the rules cannot fight ${names.length === 1 ? "them" : "any of them"}. ` +
+    "No fight was started. Play this out in the story instead: let the player try what they want (to threaten, to grab, " +
+    "to strike once) and ask for a roll when chance decides; or start a fight with a monster you looked up that fits."
+  );
+}
+
 function started(name: string): string {
   return (
     `When the turn is kept, the fight "${name}" starts and the player is sent to the fight screen. End your reply ` +

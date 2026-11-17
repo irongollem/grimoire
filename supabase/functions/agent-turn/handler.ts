@@ -278,6 +278,8 @@ export interface AgentTurnDeps {
    * switched on: then no line carries a key and nothing can be voiced.
    */
   voiceKey: ((sessionId: string, line: AgentLine) => string) | null;
+  /** The names of a planned fight's creatures that have no stat block; a fight with one of them is not started. */
+  statlessFighters(campaignId: string, plan: FightPlan): Promise<string[]>;
 }
 
 export const MESSAGES = {
@@ -494,7 +496,9 @@ export async function beginTurn(input: {
           // Only a played character has a sheet to roll from; without one the narrator rolls as before.
           askRoll: character ? (pending) => { asked = pending; } : null,
           // A fight needs someone to fight it: offered only with a played character and readable fights.
-          fight: character && fights !== null ? { view: fights, onStart: (plan) => { fightPlan = plan; } } : null,
+          fight: character && fights !== null
+            ? { view: fights, onStart: (plan) => { fightPlan = plan; }, statless: (plan) => deps.statlessFighters(campaign.id, plan) }
+            : null,
         });
 
         const sessionId = session.id;

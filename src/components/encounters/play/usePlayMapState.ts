@@ -1,4 +1,4 @@
-import { computed, ref, toValue, watch, type MaybeRefOrGetter, type Ref } from "vue";
+import { computed, ref, shallowRef, toValue, watch, type MaybeRefOrGetter, type Ref } from "vue";
 import { useEncounterRoom } from "@/composables/encounters/useEncounterRoom";
 import { useEncounterLive, liveState } from "@/composables/encounters/useEncounterLive";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
@@ -12,6 +12,7 @@ import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import { seedTokenPositions } from "@/lib/battlemap/roomBridge";
 import { soloSeating } from "@/lib/battlemap/soloSeating";
+import { readPictureFloor } from "@/lib/battlemap/pictureFloor";
 import { useSoloFight } from "@/composables/table/useSoloFight";
 import { scatterInRoom as scatterInCells } from "@/lib/battlemap/scatter";
 import { useLocationNames } from "@/composables/locations/useLocations";
@@ -236,12 +237,28 @@ export function usePlayMapState(
   // A fight from the AI table has nobody to drag tokens out of the tray: everyone is stood on the map as it opens,
   // live or not (`soloSeating`). Idempotent like the seeding above: only whoever has no square is placed.
   const solo = useSoloFight();
+  // What the picture shows as ground, read once per picture and grid; `undefined` while it is being read, null when
+  // it could not be. Only a map with no room to seat in needs it.
+  const pictureFloor = shallowRef<Set<CellKey> | null | undefined>(undefined);
   watch(
-    () => [solo.value !== null, surface.value, grid.value, row.value?.combatants_live.length, following.value] as const,
-    ([isSolo, s, g, , follower]) => {
+    () => [solo.value !== null, surface.value?.imageUrl, surface.value?.focusCells.length, grid.value?.cols, grid.value?.rows] as const,
+    async ([isSolo, url, roomCells], _old, onCleanup) => {
+      let stale = false;
+      onCleanup(() => (stale = true));
+      pictureFloor.value = undefined;
+      const g = grid.value;
+      if (!isSolo || !g || roomCells === undefined) return;
+      const read = roomCells > 0 || !url ? null : await readPictureFloor(url, g);
+      if (!stale) pictureFloor.value = read;
+    },
+    { immediate: true },
+  );
+  watch(
+    () => [solo.value !== null, surface.value, grid.value, pictureFloor.value, row.value?.combatants_live.length, following.value] as const,
+    ([isSolo, s, g, floor, , follower]) => {
       const seated = row.value;
-      if (!isSolo || follower || !s || !seated) return;
-      const spots = soloSeating(seated.combatants_live, { focusCells: s.focusCells, grid: g }, { footprintOf: (c) => footprintOf(c, monsters.value) });
+      if (!isSolo || follower || !s || !seated || floor === undefined) return;
+      const spots = soloSeating(seated.combatants_live, { focusCells: s.focusCells, grid: g, floor }, { footprintOf: (c) => footprintOf(c, monsters.value) });
       for (const [instanceId, position] of spots) moveToken(instanceId, position).catch(reportMoveFailure);
     },
     { immediate: true },

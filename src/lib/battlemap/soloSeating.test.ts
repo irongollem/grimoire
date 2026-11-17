@@ -16,6 +16,7 @@ function room(w: number, h: number, x0 = 0, y0 = 0): CellKey[] {
   return out;
 }
 const key = (p: { x: number; y: number } | undefined) => (p ? `${p.x},${p.y}` : "none");
+const key2 = (p: { x: number; y: number } | undefined) => (p ? cellKey(p.x, p.y) : "none");
 
 describe("soloSeating", () => {
   // Bug caught: a solo player arriving at a fight with everyone still in the tray, as on the DM's own screen.
@@ -57,6 +58,28 @@ describe("soloSeating", () => {
     const out = soloSeating([pc("rosie", { position: { x: 3, y: 3 } }), who("hound")], { focusCells: [], grid: { cols: 30, rows: 20 } });
     expect(out.has("rosie")).toBe(false);
     expect(out.has("hound")).toBe(true);
+  });
+
+  // Bug caught live (17 Nov 2026): Sift stood in the black beside the building, farthest from the player.
+  it("stands everyone on ground the picture shows, the foe a walk away and reachable", () => {
+    // A corridor two squares wide down the left of a 7 by 12 picture; everything else is black.
+    const floor = new Set(room(2, 12));
+    const out = soloSeating([pc("rosie"), who("sift")], { focusCells: [], grid: { cols: 7, rows: 12 }, floor });
+    const rosie = out.get("rosie")!;
+    const sift = out.get("sift")!;
+    expect(floor.has(cellKey(rosie.x, rosie.y))).toBe(true);
+    expect(floor.has(cellKey(sift.x, sift.y))).toBe(true);
+    // Six steps over ground: 30 feet.
+    expect(Math.abs(sift.x - rosie.x) + Math.abs(sift.y - rosie.y)).toBe(6);
+  });
+
+  // Bug caught: a foe put on a lit square the party cannot walk to (another room with no way through the black).
+  it("keeps the foes in the space the party stands in", () => {
+    // Two islands of ground: the party's (nearest the middle) and one across a gap.
+    const here = room(3, 3, 3, 4);
+    const there = room(2, 2, 8, 0);
+    const out = soloSeating([pc("rosie"), who("a"), who("b")], { focusCells: [], grid: { cols: 10, rows: 10 }, floor: new Set([...here, ...there]) });
+    for (const id of ["rosie", "a", "b"]) expect(here).toContain(key2(out.get(id)));
   });
 
   it("places nobody before the picture's grid is known", () => {
