@@ -2,6 +2,7 @@
 //
 // The rules are `handler.ts`'s; this file wires the database, the provider and the MCP tools to them. The gates
 // run before the stream opens so a refusal is a real status code; the turn itself runs inside the stream.
+import { belongingsText, MAX_BELONGINGS, type Belonging } from "../_shared/agent/belongings.ts";
 import { MAX_PEOPLES } from "../_shared/agent/peoples.ts";
 import { lineKey } from "../_shared/agent/lineKey.ts";
 import { serve } from "std/http/server.ts";
@@ -375,11 +376,17 @@ serve(withCors(async (req: Request) => {
       if (error) throw error;
       if (!data) return null;
       const npc = data as unknown as NpcProfileRow;
-      const memories = await loadPromptMemories(admin, npc.id, campaignId);
+      const [memories, carried] = await Promise.all([
+        loadPromptMemories(admin, npc.id, campaignId),
+        admin.from("npc_inventory").select("name, quantity").eq("npc_id", npc.id).eq("campaign_id", campaignId).order("name").limit(MAX_BELONGINGS + 1),
+      ]);
+      if (carried.error) throw carried.error;
+      const belongings = belongingsText((carried.data ?? []) as Belonging[]);
+      const profile = buildNpcProfile(npc, campaignToday(rawCampaign));
       return {
         id: npc.id,
         shownName: shownNpcName(npc),
-        profile: buildNpcProfile(npc, campaignToday(rawCampaign)),
+        profile: belongings === null ? profile : `${profile}\n\n${belongings}`,
         memories: formatNpcMemories(memories, npc),
       };
     },

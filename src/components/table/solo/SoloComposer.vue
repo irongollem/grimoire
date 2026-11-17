@@ -23,6 +23,9 @@
         <span v-if="fight && !running" class="mr-auto text-caption text-muted-foreground" data-testid="solo-turn-note">{{ fightNote }}</span>
         <AppButton v-if="running" variant="outline" size="sm" :icon="IconStop" label="Stop" @click="emit('stop')" />
         <template v-else>
+          <!-- Nothing typed is a choice too: the character waits and the world goes on. Not in a fight, where
+               passing is ending the turn on the board. -->
+          <AppButton v-if="canPass" variant="ghost" size="sm" class="mr-auto" label="Go on" title="Say and do nothing: let things happen" data-testid="solo-pass" @click="pass()" />
           <AppButton variant="ghost" size="sm" aria-label="Ask the Dungeon Master" :disabled="!canSend" data-testid="solo-ask" @click="submit('ask')">
             <span>Ask</span><span class="ml-1.5 hidden items-center gap-0.5 sm:inline-flex"><KeyCap>Ctrl</KeyCap><KeyCap>Enter</KeyCap></span>
           </AppButton>
@@ -53,7 +56,7 @@ const { character, running, fight = null } = defineProps<{
   /** In a fight on the board: whether it is your turn, whether your one short line aloud is still unsaid, and whether the turn can still pay for a deed. Null outside a fight. */
   fight?: { yours: boolean; words: boolean; canAct: boolean } | null;
 }>();
-const emit = defineEmits<{ submit: [mode: PlayMode, text: string]; stop: [] }>();
+const emit = defineEmits<{ submit: [mode: PlayMode, text: string]; pass: []; stop: [] }>();
 
 const draft = ref("");
 const field = ref<HTMLTextAreaElement | null>(null);
@@ -83,6 +86,12 @@ function submit(mode: PlayMode): void {
   const text = draft.value.trim();
   draft.value = "";
   emit("submit", mode, text);
+}
+
+const canPass = computed(() => fight === null && !canSend.value);
+function pass(): void {
+  if (running || !canPass.value) return;
+  emit("pass");
 }
 
 function onKeydown(event: KeyboardEvent): void {

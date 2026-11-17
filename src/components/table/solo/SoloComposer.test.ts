@@ -44,7 +44,24 @@ describe("SoloComposer", () => {
     await type(w, "   ");
     await w.get("textarea").trigger("keydown", { key: "Enter" });
     expect(submits(w)).toEqual([]);
-    expect(w.findAll("button").every((b) => b.attributes("disabled") !== undefined)).toBe(true);
+    // Go on is the one way to send nothing, and it is asked for by name.
+    expect(w.findAll("button").filter((b) => b.attributes("data-testid") !== "solo-pass").every((b) => b.attributes("disabled") !== undefined)).toBe(true);
+  });
+
+  // Bug caught: no way to let the scene go on without inventing something to say; or the offer left up in a fight,
+  // where it would spend the turn's deed on waiting.
+  it("an empty box offers Go on, which passes; typing takes the offer away", async () => {
+    const wrapper = mountComposer();
+    await wrapper.get('[data-testid="solo-pass"]').trigger("click");
+    expect(wrapper.emitted("pass")).toHaveLength(1);
+    expect(wrapper.emitted("submit")).toBeUndefined();
+    await wrapper.get("textarea").setValue("Hello");
+    expect(wrapper.find('[data-testid="solo-pass"]').exists()).toBe(false);
+  });
+
+  it("a fight has no Go on: passing there is ending the turn on the board", () => {
+    const wrapper = mountComposer({ fight: { yours: true, words: true, canAct: true } });
+    expect(wrapper.find('[data-testid="solo-pass"]').exists()).toBe(false);
   });
 
   // Bug caught: the Say and Do buttons not sending the mode they are named for.

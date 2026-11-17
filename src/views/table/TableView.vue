@@ -79,6 +79,7 @@
                 :running="turn.running.value"
                 :fight="composerFight"
                 @submit="onSubmit"
+                @pass="onPass"
                 @stop="turn.stop()"
               />
             </div>
@@ -318,6 +319,11 @@ function onGo(place: { id: string; name: string }): void {
 function onSubmit(mode: PlayMode, text: string): void {
   if (mode === "say" && composerFight.value?.yours) stage.value?.spendWords();
   void sendTurn(mode, text);
+}
+
+// "Go on": the player says and does nothing, and the world moves. It goes as a deed so nobody hears it.
+function onPass(): void {
+  void sendTurn("do", `${characterName.value} waits, and lets things go on.`);
 }
 
 // Every message goes through here: a clock that ran out goes off the page when the story moves on.
