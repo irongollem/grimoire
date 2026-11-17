@@ -227,9 +227,13 @@ export function changedText(change: FightChange): string {
   if (change.condition) parts.push(`${change.condition.target} becomes ${change.condition.name} for ${change.condition.rounds} round${change.condition.rounds === 1 ? "" : "s"}`);
   if (change.damage) parts.push(`${change.damage.target} takes ${change.damage.amount}${change.damage.type ? ` ${change.damage.type}` : ""} damage`);
   if (change.ends) parts.push("the fight ends");
+  // Someone who gave in and stays is now a person of the scene, and the scene lists only those with a record.
+  const stays = change.ends === "they_give_in"
+    ? " A creature that gave in and stays with the party or in this place is now someone in the story: give it a record with introduce (here: true, and a name the player's character would call it) unless it has one."
+    : "";
   return (
     `When this turn is kept: ${parts.join("; ")}. Tell what happens in a sentence or two, and do not narrate it twice. ` +
-    "Say plainly what it did to the creature (hurt, blinded, driven off): the player must be able to tell from your words that it mattered."
+    `Say plainly what it did to the creature (hurt, blinded, driven off): the player must be able to tell from your words that it mattered.${stays}`
   );
 }
 

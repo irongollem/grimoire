@@ -81,9 +81,11 @@
         </main>
 
         <aside v-show="showAll || view === 'scene' || (wide && view === 'story')" class="min-w-0 overflow-y-auto bg-card max-md:flex-1 md:w-80 md:shrink-0 md:border-l md:border-border" aria-label="The scene">
-          <!-- In a fight the scene column is the fight's own: who is in it, in turn order (frame 12). -->
-          <div :id="FIGHT_SLOTS.roster" />
-          <SoloScene v-show="!inFight" :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" :after="after" :place-summary="placeSummary" />
+          <!-- In a fight the fight's own list comes first: who is in it, in turn order (frame 12). The scene stays
+               under it: whoever is in the room and not in the fight is still there, and vanished from the page when
+               the list took the whole column. -->
+          <div :id="FIGHT_SLOTS.roster" :class="inFight ? 'border-b border-border' : ''" />
+          <SoloScene :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" :after="after" :place-summary="placeSummary" />
         </aside>
       </div>
 
