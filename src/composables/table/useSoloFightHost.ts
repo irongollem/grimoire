@@ -36,6 +36,11 @@ export function useSoloFightHost(options: {
   onLines: (lines: BoardLine[]) => void;
   /** The fight ended by itself and has been closed; the story takes over. */
   onOver: (how: SoloFightEnd) => void;
+  /**
+   * It is the turn of someone with the party whom the rules cannot play (no stat block): the story decides the one
+   * thing they do. Settles when that has been told, or at once when it cannot be asked now.
+   */
+  onHelperTurn: (name: string) => Promise<void>;
   /** The fight could not go on (it was ended elsewhere, or the server refused): the page lets go of it. */
   onLost: () => void;
 }) {
@@ -88,6 +93,12 @@ export function useSoloFightHost(options: {
     active: () => store.activeCombatant,
     turnKey: () => `${store.round}:${store.activeCombatant?.instance_id}`,
     run: async (instanceId) => {
+      const helper = store.combatants.find((c) => c.instance_id === instanceId && c.bystander === true);
+      if (helper) {
+        // Their turn is their own: nothing is sent to the rules, and the turn passes when the story has told it.
+        await options.onHelperTurn(helper.name);
+        return true;
+      }
       try {
         const { turn, outcomes } = await fight.takeTurn(instanceId);
         if (turn === null) return true;

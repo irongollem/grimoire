@@ -19,3 +19,23 @@ describe("a question to the Dungeon Master", () => {
     expect(parseBody({ ...body, mode: "shout" }).ok).toBe(false);
   });
 });
+
+describe("someone else's turn in a fight", () => {
+  const base = { campaignId: "00000000-0000-4000-8000-0000000000c1", sessionId: "00000000-0000-4000-8000-0000000000a1", message: "", mode: "do" };
+
+  // Bug caught: the page's request for a helper's turn refused as an empty message.
+  it("is a turn without words, in a conversation that exists", () => {
+    expect(parseBody({ ...base, helperTurn: { name: " Apprentice Honeycomb " } })).toMatchObject({ ok: true, body: { helperTurn: { name: "Apprentice Honeycomb" } } });
+  });
+
+  // Bug caught: a helper's turn used to open a new conversation, or carrying the player's own words or roll.
+  it.each([
+    ["no conversation", { ...base, sessionId: undefined, helperTurn: { name: "Honeycomb" } }],
+    ["words of the player's", { ...base, message: "I attack", helperTurn: { name: "Honeycomb" } }],
+    ["no name", { ...base, helperTurn: { name: "  " } }],
+    ["a name that is not text", { ...base, helperTurn: { name: 7 } }],
+    ["a name far too long", { ...base, helperTurn: { name: "x".repeat(121) } }],
+  ])("is refused with %s", (_what, body) => {
+    expect(parseBody(body).ok).toBe(false);
+  });
+});

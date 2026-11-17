@@ -106,6 +106,7 @@
         :encounter-id="fight.encounterId"
         :member="member"
         :slots="FIGHT_SLOTS"
+        :helper-turn="onHelperTurn"
         ref="stage"
         @turn="(state) => (fightTurn = state)"
         @lines="(lines, byServer) => turn.note(lines, byServer)"
@@ -353,6 +354,12 @@ function onGo(place: { id: string; name: string }): void {
 function onSubmit(mode: PlayMode, text: string): void {
   if (mode === "say" && composerFight.value?.yours) stage.value?.spendWords();
   void sendTurn(mode, text);
+}
+
+// In a fight, the turn of someone with the party whom the rules cannot play: the story tells the one thing they do.
+// While the player's own question is being answered the helper simply lets the moment pass.
+async function onHelperTurn(name: string): Promise<void> {
+  await turn.helper(name);
 }
 
 // "Go on": the player says and does nothing, and the world moves. It goes as a deed so nobody hears it.

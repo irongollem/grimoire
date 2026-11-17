@@ -24,12 +24,6 @@ describe("asThePlayerSees", () => {
     expect(JSON.stringify(out[1])).not.toContain("15");
   });
 
-  it("marks a bystander, and never calls it a foe whatever its faction", () => {
-    // Bug caught: a bystander listed in the turn order, or as an enemy.
-    const out = asThePlayerSees([me, c("npc", "enemy", 9, 9, { bystander: true }), c("orc", "enemy", 9, 9)], "me", factions);
-    expect(out.map((s) => [s.instanceId, s.bystander, s.side])).toEqual([["me", false, "you"], ["npc", true, "other"], ["orc", false, "foe"]]);
-  });
-
   it("leaves a hidden creature out and keeps the order of the rest", () => {
     // Bug caught: a hidden foe appearing in the player's list.
     const out = asThePlayerSees(

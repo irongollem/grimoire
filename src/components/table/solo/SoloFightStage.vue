@@ -8,6 +8,7 @@
     :encounter-id="encounterId"
     :member="member"
     :slots="slots"
+    :helper-turn="helperTurn"
     @lines="(lines, byServer) => emit('lines', lines, byServer)"
     @over="(how) => emit('over', how)"
     @lost="emit('lost')"
@@ -35,7 +36,9 @@ import type { FightChange, FightTurn } from "@/lib/table/fight/fightChange";
 import type { PartyMember } from "@/types/party.types";
 import SoloFightBoard from "./SoloFightBoard.vue";
 
-const { encounterId, member, slots } = defineProps<{
+const { encounterId, member, slots, helperTurn } = defineProps<{
+  /** Asks the story for the turn of someone with the party whom the rules cannot play; settles when it has been told. */
+  helperTurn: (name: string) => Promise<void>;
   encounterId: string;
   /** The character the player plays: the only one who fights for the party, whoever the encounter lists. */
   member: PartyMember;

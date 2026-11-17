@@ -1192,12 +1192,12 @@ function duel(over: { wolf?: Partial<RunCombatant>; victim?: Partial<RunCombatan
 }
 
 describe("take_turn", () => {
-  // Bug caught: a bystander (no turn of its own) being played as a creature, or stalling the loop on "no stat block".
-  it("fails if a bystander is asked to take a turn", async () => {
+  // Bug caught: a helper (someone with the party the rules cannot play) played as a creature by the rules.
+  it("fails if a helper is asked to take a turn by the rules", async () => {
     const h = harness(duel({ extra: [combatant("npc", { bystander: true, faction_id: "neutral", initiative: null, position: { x: 0, y: 3 } })] }), { sources: SOURCES, map: mapOf(), dieFaces: [] });
     await expect(runBatch(batch("b1", takeTurn({ instanceId: "npc" })), h.deps)).rejects.toMatchObject({
       status: 400,
-      message: "npc is only here, not in the fight, and takes no turn.",
+      message: "npc is no fighter the rules can play: their turn is their own.",
     });
     expect(h.saves).toBe(0);
   });

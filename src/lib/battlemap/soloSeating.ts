@@ -27,10 +27,13 @@ export function soloSeating(
   opts: { footprintOf?: (c: RunCombatant) => number } = {},
 ): Map<string, { x: number; y: number }> {
   const out = new Map<string, { x: number; y: number }>();
+  // The party's side: the played characters and whoever shares a faction with one (an ally, a helper).
+  const partyFactions = new Set(combatants.filter((c) => c.type === "player").map((c) => c.faction_id));
+  const onPartySide = (c: RunCombatant): boolean => c.type === "player" || partyFactions.has(c.faction_id);
   if (ground.focusCells.length > 0) {
-    // A bystander stands with the party, not with the foes: the room seating only knows "player" and "everyone else",
-    // so for seating alone a bystander counts as a player (the result is keyed by id, so nothing else changes).
-    const withParty = combatants.map((c) => (c.bystander === true ? { ...c, type: "player" as const } : c));
+    // Whoever is on the party's side stands with the party, not with the foes: the room seating only knows "player"
+    // and "everyone else", so for seating alone they count as players (the result is keyed by id, nothing else changes).
+    const withParty = combatants.map((c) => (onPartySide(c) ? { ...c, type: "player" as const } : c));
     const seated = seedTokenPositions(withParty, [...ground.focusCells], opts);
     seated.forEach((c, i) => {
       if (c.position && !combatants[i].position) out.set(c.instance_id, c.position);
@@ -49,7 +52,7 @@ export function soloSeating(
   for (const c of combatants) {
     if (c.position) continue;
     const size = footprintOf(c);
-    const spot = (c.type === "player" || c.bystander === true ? sides.party : sides.foes)
+    const spot = (onPartySide(c) ? sides.party : sides.foes)
       .flatMap(([x, y]) => startOffsets(size).map(([ox, oy]) => ({ x: x + ox, y: y + oy })))
       .find((p) => fits(p.x, p.y, size));
     if (!spot) continue;

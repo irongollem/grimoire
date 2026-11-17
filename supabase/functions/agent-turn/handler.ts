@@ -30,7 +30,7 @@ import { fightIsTold, fightRecordText, type FightPlan, type FightsInView, type F
 import { askOf, declinedText, rollText, scoreRoll, type PendingRoll, type RollAsk, type Rolled } from "../_shared/agent/playerRoll.ts";
 import { makeTurnTools, type FiledFact } from "./turnTools.ts";
 import { narrationGate, type NarrationGate, type NarrationJudge } from "./narration.ts";
-import { AFTERMATH_TEXT, OPENING_TEXT, parseBody, playerText } from "./turnBody.ts";
+import { AFTERMATH_TEXT, helperTurnText, OPENING_TEXT, parseBody, playerText } from "./turnBody.ts";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
 import { applyKeptQuestMoves, characterOf, foldIntoSummary, questsOf, recordOf, round6, fightsOf, safely, sceneOf, stateFor, systemFor } from "./turnSupport.ts";
 import {
@@ -619,6 +619,10 @@ export async function beginTurn(input: {
                   : { ...event, voice: deps.voiceKey(sessionId, { role: "narrator", speaker: NARRATOR_SPEAKER, text: event.line.text }) },
             ),
         });
+        const helperAsked = body.helperTurn;
+        const helper = helperAsked === undefined || fights === null || fights.fight === null || fights.fight.phase !== "running"
+          ? undefined
+          : fights.fight.fighters.find((f) => f.side === "other" && f.hp > 0 && f.name === helperAsked.name);
         result = await runTurn({
           system,
           state,
@@ -629,6 +633,9 @@ export async function beginTurn(input: {
             // The campaign's own opening stands in for the ordinary one; given both, the narrator kept to the ordinary.
             body.opening === true ? (prologueText(prologue) ?? OPENING_TEXT) : null,
             body.aftermath === true ? AFTERMATH_TEXT : null,
+            // The name is the page's: it is used only when the fight on the board really holds such a helper, as
+            // the fight names them, so nothing but a fighter's own name reaches the narrator's instructions.
+            body.helperTurn === undefined ? null : helper !== undefined ? helperTurnText(helper.name) : "A turn in the fight passes with nothing to tell. Write nothing.",
             body.message === "" ? null : playerText(body.mode, body.message),
           ].filter((part): part is string => part !== null).join("\n\n"),
           ...(body.message === "" ? {} : { player: { kind: body.mode, text: body.message } }),

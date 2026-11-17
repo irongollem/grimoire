@@ -76,12 +76,3 @@ describe("stepTurnIndex", () => {
   });
 });
 
-describe("a bystander", () => {
-  // Bug caught: a bystander (alive, a monster) rolled into the turn order and stalling the fight on a turn nobody takes.
-  it("is skipped when stepping, as the first to act, and when it is the only one alive", () => {
-    const sorted = [c({ instance_id: "npc", bystander: true, initiative: 20 }), c({ instance_id: "me", type: "player" }), c({ instance_id: "orc" })];
-    expect(findFirstActiveIndex(sorted)).toBe(1);
-    expect(stepTurnIndex(sorted, 2, 1)).toEqual({ sortedIndex: 1, wrapped: true });
-    expect(stepTurnIndex([sorted[0]], 0, 1)).toBeNull();
-  });
-});

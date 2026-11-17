@@ -3,8 +3,8 @@ import { mount } from "@vue/test-utils";
 import SoloFightRoster from "./SoloFightRoster.vue";
 import type { SeenCombatant } from "@/lib/table/fight/foeView";
 
-const you: SeenCombatant = { instanceId: "pc", name: "Mira", isYou: true, side: "you", bystander: false, health: { kind: "numbers", hp: 46, maxHp: 58 } };
-const goblin: SeenCombatant = { instanceId: "g1", name: "Goblin", isYou: false, side: "foe", bystander: false, health: { kind: "word", word: "Bloodied" } };
+const you: SeenCombatant = { instanceId: "pc", name: "Mira", isYou: true, side: "you", health: { kind: "numbers", hp: 46, maxHp: 58 } };
+const goblin: SeenCombatant = { instanceId: "g1", name: "Goblin", isYou: false, side: "foe", health: { kind: "word", word: "Bloodied" } };
 const roster = (over: Record<string, unknown> = {}) =>
   mount(SoloFightRoster, { props: { name: "Ambush", started: true, round: 2, seen: [you, goblin], activeInstanceId: "pc", ...over } });
 const rowOf = (w: ReturnType<typeof roster>, name: string) => w.findAll("li").find((li) => li.text().startsWith(name))!;
@@ -41,19 +41,5 @@ describe("SoloFightRoster", () => {
     const during = roster({ started: true, round: 3 });
     expect(during.text()).toContain("Turn order");
     expect(during.text()).toContain("Round 3");
-  });
-
-  // Bug caught: a bystander listed in the turn order, as if it would act.
-  it("lists a bystander under Also here and not in the turn order", () => {
-    const mira: SeenCombatant = { instanceId: "b-1", name: "Wren", isYou: false, side: "other", bystander: true, health: { kind: "word", word: "Unhurt" } };
-    const w = roster({ seen: [you, goblin, mira] });
-    expect(w.find("ol").text()).not.toContain("Wren");
-    expect(w.get("[data-testid=solo-fight-bystanders]").text()).toContain("Wren");
-    // She can be hurt, so how she is doing is shown.
-    expect(w.get("[data-testid=solo-fight-bystanders]").text()).toContain("Unhurt");
-  });
-
-  it("shows no Also here group when nobody is only here", () => {
-    expect(roster().find("[data-testid=solo-fight-bystanders]").exists()).toBe(false);
   });
 });

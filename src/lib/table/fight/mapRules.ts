@@ -8,7 +8,7 @@ import { areHostile } from "@/lib/table/fight/foeView";
 
 export type MoveVerdict = { ok: true } | { ok: false; reason: string };
 
-type Targetable = Pick<RunCombatant, "instance_id" | "faction_id" | "hp" | "reveal_state" | "bystander">;
+type Targetable = Pick<RunCombatant, "instance_id" | "faction_id" | "hp" | "reveal_state">;
 
 /** Whether the played character can point at this creature: seen, standing, and a foe of theirs. */
 export function isFoeOf(
@@ -18,8 +18,6 @@ export function isFoeOf(
 ): boolean {
   if (other.instance_id === played.instance_id) return false;
   if (other.hp <= 0) return false;
-  // A bystander is in the room, not in the fight, whatever faction a custom encounter would put it in.
-  if (other.bystander === true) return false;
   // Hidden and unseen creatures are not on the player's map as themselves, so they cannot be picked.
   if (other.reveal_state !== undefined && other.reveal_state !== "revealed") return false;
   return areHostile(factions, played.faction_id, other.faction_id);

@@ -50,4 +50,13 @@ describe("bystandersOf", () => {
     const [b] = bystandersOf([npc("a")], "room", [{ npc_id: undefined, party_member_id: "m1", faction_id: "the-wardens" }]);
     expect(b.faction_id).toBe("the-wardens");
   });
+
+  // Bug caught (the maintainer: "if they have a profile they can fight on my side"): someone with a stat block
+  // marked as a helper, so the rules never play their turn; or a commoner sent to the rules, which refuse them.
+  it("makes someone with a stat block a fighter the rules play, and someone without one a helper", () => {
+    const [fighter] = bystandersOf([npc("a", { stat_block: { hit_points: "22 (4d8 + 4)", armor_class: "15" } as unknown as Source["stat_block"] })], "room", []);
+    expect(fighter.bystander).toBeUndefined();
+    const [helper] = bystandersOf([npc("b", { stat_block: null })], "room", []);
+    expect(helper.bystander).toBe(true);
+  });
 });

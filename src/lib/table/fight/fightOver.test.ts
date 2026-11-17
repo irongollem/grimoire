@@ -32,12 +32,6 @@ describe("fightStanding", () => {
     expect(fightStanding([c("me", "players", 5), c("friend", "ally", 9)], factions, "me")).toBe("foes_out");
   });
 
-  it("ends when only a bystander is left standing, even one of a hostile faction", () => {
-    // Bug caught: the fight never ending while a bystander lives.
-    const bystander = { ...c("npc", "enemy", 9), bystander: true as const };
-    expect(fightStanding([c("me", "players", 5), c("orc", "enemy", 0), bystander], factions, "me")).toBe("foes_out");
-  });
-
   it("reads hostility declared only on the foe's side", () => {
     // Bug caught: checking only the played faction's hostile_to.
     const oneWay = [{ id: "players", hostile_to: [] }, { id: "enemy", hostile_to: ["players"] }];

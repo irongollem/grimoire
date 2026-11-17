@@ -15,6 +15,6 @@ export function fightStanding(
   // Before the fight has been read the roster can be empty; "no foes left" would then end it on arrival.
   if (played === undefined) return "ongoing";
   if (played.hp <= 0) return "you_are_down";
-  const foeStands = combatants.some((c) => c.bystander !== true && areHostile(factions, played.faction_id, c.faction_id) && c.hp > 0);
+  const foeStands = combatants.some((c) => areHostile(factions, played.faction_id, c.faction_id) && c.hp > 0);
   return foeStands ? "ongoing" : "foes_out";
 }

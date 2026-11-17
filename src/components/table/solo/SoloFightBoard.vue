@@ -123,8 +123,10 @@ import SoloRollAsk from "./SoloRollAsk.vue";
 import SoloTurn from "./SoloTurn.vue";
 
 // Mounted by `SoloFightStage` once the fight is open on the server: everything here may send the fight commands.
-const { encounterId, member, slots } = defineProps<{
+const { encounterId, member, slots, helperTurn } = defineProps<{
   encounterId: string;
+  /** Asks the story for the turn of someone with the party whom the rules cannot play; settles when it has been told. */
+  helperTurn: (name: string) => Promise<void>;
   /** The character the player plays. */
   member: PartyMember;
   /** The ids of the four places on the table screen the fight's parts go to. */
@@ -152,6 +154,7 @@ const host = useSoloFightHost({
   onLines: (lines) => emit("lines", lines, true),
   onOver: (how) => emit("over", how),
   onLost: () => emit("lost"),
+  onHelperTurn: (name) => helperTurn(name),
 });
 const played = host.played;
 

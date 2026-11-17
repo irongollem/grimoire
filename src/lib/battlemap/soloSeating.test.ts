@@ -9,7 +9,7 @@ function who(id: string, over: Partial<RunCombatant> = {}): RunCombatant {
     conditions: [], curses: [], death_saves: { successes: 0, failures: 0 }, dex_mod: 0, ...over,
   };
 }
-const pc = (id: string, over: Partial<RunCombatant> = {}) => who(id, { type: "player", ...over });
+const pc = (id: string, over: Partial<RunCombatant> = {}) => who(id, { type: "player", faction_id: "players", ...over });
 function room(w: number, h: number, x0 = 0, y0 = 0): CellKey[] {
   const out: CellKey[] = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) out.push(cellKey(x0 + x, y0 + y));
@@ -18,10 +18,10 @@ function room(w: number, h: number, x0 = 0, y0 = 0): CellKey[] {
 const key = (p: { x: number; y: number } | undefined) => (p ? `${p.x},${p.y}` : "none");
 const key2 = (p: { x: number; y: number } | undefined) => (p ? cellKey(p.x, p.y) : "none");
 
-describe("soloSeating a bystander", () => {
-  // Bug caught: a bystander scattered to the far side of the room with the foes instead of standing near the party.
+describe("soloSeating someone on the party's side", () => {
+  // Bug caught: an ally or helper scattered to the far side of the room with the foes instead of standing near the party.
   it("stands next to the player in a traced room, with the foe far away", () => {
-    const out = soloSeating([pc("me"), who("npc", { bystander: true }), who("orc")], { focusCells: room(10, 1), grid: null });
+    const out = soloSeating([pc("me"), who("npc", { faction_id: "players" }), who("orc")], { focusCells: room(10, 1), grid: null });
     expect(key(out.get("me"))).toBe("0,0");
     expect(key(out.get("npc"))).toBe("1,0");
     expect(out.get("orc")!.x).toBe(9);
@@ -29,7 +29,7 @@ describe("soloSeating a bystander", () => {
 
   // Bug caught: the same on a picture with no room (the foes' half is above the middle row, the party's below).
   it("stands on the party's half of a bare picture", () => {
-    const out = soloSeating([pc("me"), who("npc", { bystander: true })], { focusCells: [], grid: { cols: 30, rows: 20 } });
+    const out = soloSeating([pc("me"), who("npc", { faction_id: "players" })], { focusCells: [], grid: { cols: 30, rows: 20 } });
     expect(out.get("npc")!.y).toBeGreaterThan(10);
   });
 });

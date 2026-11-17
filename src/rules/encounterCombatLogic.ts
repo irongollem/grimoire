@@ -40,16 +40,12 @@ function spawnInitiative(stats: InitiativeSource, rollD20?: () => number): numbe
  *  results (used for the "Random Initiative Each Round" optional rule). Each
  *  one rolls what `initiativeRoll` gives it, conditions included. */
 export function rollAllInitiativeValues(
-  combatants: readonly (Pick<RunCombatant, "instance_id" | "conditions" | "bystander"> & InitiativeSource)[],
+  combatants: readonly (Pick<RunCombatant, "instance_id" | "conditions"> & InitiativeSource)[],
   ruleset: RulesetKey,
   rollD20: () => number = () => rollDie(20),
 ): Map<string, number> {
   const results = new Map<string, number>();
-  for (const c of combatants) {
-    // A bystander never acts, so it never rolls and stays last in the order.
-    if (c.bystander === true) continue;
-    results.set(c.instance_id, rollInitiativeValue(initiativeRoll(c, ruleset), rollD20));
-  }
+  for (const c of combatants) results.set(c.instance_id, rollInitiativeValue(initiativeRoll(c, ruleset), rollD20));
   return results;
 }
 

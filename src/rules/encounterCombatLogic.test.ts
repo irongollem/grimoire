@@ -62,12 +62,6 @@ describe("rollAllInitiativeValues", () => {
     expect(out.get("b")).toBe(15);
   });
 
-  it("rolls nothing for a bystander, so it keeps no initiative and sorts last", () => {
-    // Bug caught: a bystander rolled into the turn order.
-    const out = rollAllInitiativeValues([{ ...base, instance_id: "a" }, { ...base, instance_id: "npc", bystander: true }], "2014", () => 10);
-    expect([...out.keys()]).toEqual(["a"]);
-  });
-
   it("re-rolls an Alert character with their bonus: DEX +2 and +5 is +7 (PHB 2014 Alert)", () => {
     const out = rollAllInitiativeValues([{ ...base, instance_id: "a", dex_mod: 2, initiative_extra: 5 }], "2014", () => 10);
     expect(out.get("a")).toBe(17);

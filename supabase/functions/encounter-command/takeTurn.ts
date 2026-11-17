@@ -69,7 +69,7 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
   const mover = state.combatants.find((c) => c.instance_id === command.instanceId);
   if (!mover) return refuse(`No creature "${command.instanceId}" is in this fight.`);
   if (mover.hp <= 0) return refuse(`${mover.name} is at 0 hit points and cannot take a turn.`);
-  if (mover.bystander === true) return refuse(`${mover.name} is only here, not in the fight, and takes no turn.`);
+  if (mover.bystander === true) return refuse(`${mover.name} is no fighter the rules can play: their turn is their own.`);
   const block = statBlockOf(mover, env.sources);
   // A player character has no stat block here: a player takes their own turn.
   if (block === null) return refuse(`${mover.name} has no stat block the server can read, so it cannot play ${mover.name}'s turn.`);

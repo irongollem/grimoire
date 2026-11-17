@@ -20,11 +20,16 @@ export interface TurnRequest {
   opening?: true;
   /** A fight at the table has ended: the Dungeon Master is asked to tell what comes of it. No words. */
   aftermath?: true;
+  /** In a fight: the turn of someone with the party whom the rules cannot play. */
+  helperTurn?: { name: string };
   /** In a fight on the board: what the player's turn still holds. */
   fightTurn?: FightTurn;
 }
 
 /** Sends one turn and hands back the raw response. The seam a test replaces; the default talks to `agent-turn`. */
+/** A turn that carries no words of the player's: the scene's opening, a fight's aftermath, or a helper's turn in a fight. */
+type Wordless = "opening" | "aftermath" | { helper: string };
+
 export type TurnTransport = (request: TurnRequest, signal: AbortSignal) => Promise<Response>;
 
 export const sendToAgentTurn: TurnTransport = async (request, signal) => {
@@ -94,7 +99,7 @@ export function useTableTurn(options: TableTurnOptions) {
   let controller: AbortController | null = null;
   // Bumped when the screen moves to another conversation, so a turn still winding down from the old one writes nothing.
   let generation = 0;
-  let pending: { id: string | null; start: number; mode: PlayMode; text: string; roll: RollAnswer | null; wordless: "opening" | "aftermath" | null } | null = null;
+  let pending: { id: string | null; start: number; mode: PlayMode; text: string; roll: RollAnswer | null; wordless: Wordless | null } | null = null;
   /** The roll the table is waiting for. Cleared by any turn sent; back if that turn is not kept, for the server still waits. */
   let asked: RollAsk | null = null;
 
@@ -121,13 +126,14 @@ export function useTableTurn(options: TableTurnOptions) {
     if (asked === null) setAsked(before);
   }
 
-  async function play(start: number, playerId: string | null, mode: PlayMode, text: string, roll: RollAnswer | null, wordless: "opening" | "aftermath" | null = null): Promise<void> {
+  async function play(start: number, playerId: string | null, mode: PlayMode, text: string, roll: RollAnswer | null, wordless: Wordless | null = null): Promise<void> {
     const campaignId = options.campaignId();
     if (campaignId === null) return;
     const request: TurnRequest = { campaignId, message: text, mode };
     if (roll !== null) request.roll = roll;
     if (wordless === "opening") request.opening = true;
     if (wordless === "aftermath") request.aftermath = true;
+    if (wordless !== null && typeof wordless === "object") request.helperTurn = { name: wordless.helper };
     const fightTurn = options.fightTurn?.() ?? null;
     if (fightTurn !== null && wordless === null) request.fightTurn = fightTurn;
     const before = asked;
@@ -245,6 +251,19 @@ export function useTableTurn(options: TableTurnOptions) {
     return true;
   }
 
+  /**
+   * In a fight on the board it is the turn of someone with the party whom the rules cannot play: the Dungeon Master
+   * tells the one thing they do. No words of the player's. Returns false when it cannot be asked now (a turn is
+   * running, or there is no conversation): the helper then lets the moment pass.
+   */
+  async function helper(name: string): Promise<boolean> {
+    if (running.value || sessionId.value === null) return false;
+    const start = live.value.length;
+    pending = { id: null, start, mode: "do", text: "", roll: null, wordless: { helper: name } };
+    await play(start, null, "do", "", null, { helper: name });
+    return true;
+  }
+
   /** What happened on the board of a fight, written into the story as it happens. Never sent anywhere. */
   function note(lines: readonly BoardLine[], byServer: boolean): void {
     live.value = [...live.value, ...lines.map((line) => boardItem(line, byServer))];
@@ -268,5 +287,5 @@ export function useTableTurn(options: TableTurnOptions) {
     setAsked(null);
   }
 
-  return { sessionId, live, running, failure, credits, turnsPlayed, send, resend, open, aftermath, note, stop, reset, setAsked };
+  return { sessionId, live, running, failure, credits, turnsPlayed, send, resend, open, aftermath, helper, note, stop, reset, setAsked };
 }

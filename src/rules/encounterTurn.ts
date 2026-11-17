@@ -557,7 +557,7 @@ export function reduceEncounterTurn(
     case "start_combat": {
       // Combat starts even if someone never got an initiative: they sort to the
       // end of the order and can be typed in there.
-      // A bystander sorts last (no initiative) but a fight with only them left must still not start on one.
+      // The first in the order who takes turns: a creature already down does not open the fight.
       const sortedAtStart = sortCombatantsByInitiative(state.combatants);
       const next: EncounterTurnState = { ...state, started: true, activeIndex: findFirstActiveIndex(sortedAtStart), round: 1 };
       events.push({ type: "round_started", round: 1 });

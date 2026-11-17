@@ -340,3 +340,20 @@ describe("useTableTurn: opening the scene", () => {
     expect(sent[1].sessionId).toBe("s1");
   });
 });
+
+describe("a helper's turn in a fight", () => {
+  // Bug caught: the helper's turn sent as words of the player's (a line of theirs on the page, a turn of theirs
+  // spent), or asked before any conversation exists.
+  it("asks for it by name with no words of the player's, and only once a conversation exists", async () => {
+    const sent: TurnRequest[] = [];
+    const t = sitting(async (request) => {
+      sent.push(request);
+      return streamOf(good());
+    });
+    expect(await t.helper("Apprentice Honeycomb")).toBe(false);
+    await t.send("say", "Hello?");
+    expect(await t.helper("Apprentice Honeycomb")).toBe(true);
+    expect(sent[1]).toMatchObject({ message: "", helperTurn: { name: "Apprentice Honeycomb" } });
+    expect(t.live.value.filter((item) => item.kind === "player")).toHaveLength(1);
+  });
+});

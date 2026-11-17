@@ -12,15 +12,19 @@ type BystanderSource = Pick<
 >;
 
 /**
- * The recorded characters who are in the fight's room without being in the fight (#1021): "even if she isn't
- * targeted and does nothing she's still a token in the room". Every NPC whose place is the encounter's place and
- * who is not already a combatant (by `npc_id`) becomes a bystander: a token that takes no turn of its own, in the
- * party's faction, so the party's foes may attack it ("defending innocents is quite often one of the more
- * challenging parts"). An encounter with no place has no room to be in.
+ * The recorded characters who are in the fight's room without being part of the encounter (#1021). Whoever came into
+ * the room with the party is in the fight, on the party's side (the maintainer, 17 Nov 2026: "if they have a profile
+ * they can fight on my side, if they are commoners they can still help erect barricades, or extinguish fires").
  *
- * They are added by the AI table's browser, after `buildRunCombatants`, and never stored in `encounters.combatants`:
- * the server refuses a fight holding a creature with no stat block, and a bystander usually has none.
- * A disguised character is shown under the disguise, as everywhere else a player sees them.
+ * - One with a stat block is a combatant like any other: the rules play their turn, against the party's foes.
+ * - One without is a helper (`bystander: true`): the rules cannot play them, so on their turn their own call decides
+ *   the one thing they do, as it decides anything they say (`helperTurnText`).
+ *
+ * Both stand in the played character's faction, so the party's foes may attack them. Every NPC whose place is the
+ * encounter's place and who is not already a combatant (by `npc_id`) joins; an encounter with no place has no room
+ * to be in. They are added by the AI table's browser, after `buildRunCombatants`, and never stored in
+ * `encounters.combatants`: the server refuses a fight holding a creature with no stat block. A disguised character
+ * is shown under the disguise, as everywhere else a player sees them.
  */
 export function bystandersOf(
   npcs: readonly BystanderSource[],
@@ -47,7 +51,7 @@ export function bystandersOf(
       curses: [],
       death_saves: { successes: 0, failures: 0 },
       npc_id: npc.id,
-      bystander: true,
+      ...(npc.stat_block === null || npc.stat_block === undefined ? { bystander: true as const } : {}),
       reveal_state: "revealed",
       portrait_url: getNpcDisplayPortrait(npc),
       portrait_focal_point: getNpcDisplayFocalPoint(npc) ?? null,

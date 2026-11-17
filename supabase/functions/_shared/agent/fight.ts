@@ -69,7 +69,7 @@ const HEADING = "## Fights";
 
 function fighterLine(f: Fighter): string {
   const state = f.hp <= 0 ? "down" : `${f.hp} of ${f.maxHp} hit points`;
-  const side = f.side === "party" ? "party" : f.side === "enemy" ? "enemy" : "bystander: takes no turn, but the party's foes may attack them";
+  const side = f.side === "party" ? "party" : f.side === "enemy" ? "enemy" : "with the party, no fighter: takes a turn of their own choosing, and the party's foes may attack them";
   return `  - ${f.name} (${side}): ${state}${f.nature ? `. ${f.nature.line}` : ""}`;
 }
 
@@ -222,7 +222,7 @@ export function asFighter(raw: unknown): Fighter | null {
   const { hp, max_hp: maxHp, faction_id: faction, type } = raw;
   if (typeof hp !== "number" || typeof maxHp !== "number" || !Number.isFinite(hp) || !Number.isFinite(maxHp)) return null;
   // The party is whoever fights for the players: the characters themselves and the players' faction.
-  // Someone who is only in the room is nobody's fighter, though they stand in the party's faction to be attacked.
+  // A helper (no stat block) is nobody's fighter by the rules, though they stand in the party's faction.
   const side = raw.bystander === true ? "other" : type === "player" || faction === "players" ? "party" : faction === "enemy" ? "enemy" : "other";
   return { name: raw.name, side, hp: Math.max(0, Math.round(hp)), maxHp: Math.max(0, Math.round(maxHp)) };
 }

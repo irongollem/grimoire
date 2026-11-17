@@ -50,15 +50,6 @@ describe("reachZones", () => {
   });
 });
 
-describe("a bystander", () => {
-  // Bug caught: the player aiming at a bystander whose faction a prepared encounter made hostile to theirs.
-  const npc = { instance_id: "b-1", faction_id: "foes", hp: 5, reveal_state: "revealed" as const, bystander: true as const };
-  it("is no foe and cannot be picked", () => {
-    expect(isFoeOf(me, npc, factions)).toBe(false);
-    expect(targetOf({ arming: true, clicked: npc, played: me, factions })).toBeNull();
-  });
-});
-
 describe("isFoeOf", () => {
   it("is false for an ally, for the played character and for a fallen foe", () => {
     // Bug caught: an ally or a corpse picked as the target of an attack.

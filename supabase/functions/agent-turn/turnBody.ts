@@ -37,6 +37,11 @@ export interface AgentTurnBody {
   opening?: true;
   /** A fight at the table has ended and the page asks the narrator to tell what comes of it. */
   aftermath?: true;
+  /**
+   * In a fight on the board it is the turn of someone who is there with the party and has no stat block the rules
+   * could play: the page asks what they do with their six seconds. The name is theirs as the fight lists them.
+   */
+  helperTurn?: { name: string };
   /** In a fight on the board: whose turn it is and what the player's turn still holds, as the page has it. */
   fightTurn?: TurnBudget;
 }
@@ -63,8 +68,18 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
   // The fight has ended and the page asks for what comes of it: no words of the player's, in a conversation that exists.
   const aftermath = r.aftermath === true;
   if (aftermath && (opening || r.sessionId === undefined || message.length > 0 || roll !== undefined)) return { ok: false };
-  // Only a roll, an opening or a fight's aftermath makes a turn without words.
-  if ((message.length < 1 && roll === undefined && !opening && !aftermath) || message.length > MAX_MESSAGE_CHARS) return { ok: false };
+  // Someone else's turn in the fight: no words of the player's, in a conversation that exists.
+  let helperTurn: { name: string } | undefined;
+  if (r.helperTurn !== undefined) {
+    const h = r.helperTurn;
+    if (typeof h !== "object" || h === null || Array.isArray(h)) return { ok: false };
+    const { name } = h as Record<string, unknown>;
+    if (typeof name !== "string" || name.trim() === "" || name.length > HELPER_NAME_MAX) return { ok: false };
+    if (opening || aftermath || r.sessionId === undefined || message.length > 0 || roll !== undefined) return { ok: false };
+    helperTurn = { name: name.trim() };
+  }
+  // Only a roll, an opening, a fight's aftermath or someone else's turn makes a turn without words.
+  if ((message.length < 1 && roll === undefined && !opening && !aftermath && helperTurn === undefined) || message.length > MAX_MESSAGE_CHARS) return { ok: false };
   if (r.mode !== "say" && r.mode !== "do" && r.mode !== "ask") return { ok: false };
   let fightTurn: TurnBudget | undefined;
   if (r.fightTurn !== undefined) {
@@ -87,6 +102,7 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
       campaignId: r.campaignId, sessionId: r.sessionId, startLocationId: r.startLocationId, characterId: r.characterId,
       message, mode: r.mode, ...(roll === undefined ? {} : { roll }), ...(opening ? { opening: true as const } : {}),
       ...(aftermath ? { aftermath: true as const } : {}),
+      ...(helperTurn === undefined ? {} : { helperTurn }),
       ...(fightTurn === undefined ? {} : { fightTurn }),
     },
   };
@@ -126,6 +142,26 @@ export function playerText(mode: "say" | "do" | "ask", message: string): string 
  * What the narrator reads in place of a player's message when a fight at the table has just ended. The state at
  * the head of the turn says how it stands; this only asks for the telling.
  */
+export const HELPER_NAME_MAX = 120;
+
+/**
+ * What the narrator is asked when the turn in a fight is a helper's: someone with the party who is no fighter by
+ * the rules (no stat block), so their turn is their own choice, made by their own call like anything they say or do
+ * (the maintainer, 17 Nov 2026: "if they are commoners they can still help erect barricades, or extinguish fires").
+ */
+export function helperTurnText(name: string): string {
+  return (
+    `In the fight on the board it is now ${name}'s turn. ${name} is with the party and is no fighter: they have about ` +
+    "six seconds. Call speak for them once, with what they can see of the fight right now (who is down, who is near " +
+    "them, what is burning, blocked or within reach), and let them decide the one thing they do: drag something into " +
+    "a doorway, pull someone clear, put out a flame, throw something, call a warning, hide. Then say in one sentence " +
+    "what comes of it. When it changes the fight (a foe hindered, a way blocked), roll for it yourself with the roll " +
+    "tool and rule it with fight_change, costing nothing: it is their turn, not the player's. They do not attack as " +
+    "a trained fighter would and deal no damage worth a roll unless what they use would. Keep it short: the fight " +
+    "is waiting. Decide nothing for the player's character."
+  );
+}
+
 export const AFTERMATH_TEXT =
   "The fight has just ended on the board; the section \"Fights\" says how it stands. Tell what comes of it now, in a " +
   "few sentences, from that and nothing else: who is down stays down. Decide nothing for the player's character.";

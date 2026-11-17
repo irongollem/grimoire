@@ -196,6 +196,7 @@ function combatantToEntity(
   imageUrl: string | null,
   imageFit: "cover" | "contain",
   figure: TokenFigure | null,
+  withParty: boolean,
 ): TokenEntity {
   return {
     id: c.instance_id,
@@ -206,8 +207,8 @@ function combatantToEntity(
     ...(figure ? { figure } : {}),
     focalPoint: imageFit === "cover" && imageUrl === c.portrait_url ? (c.portrait_focal_point ?? null) : null,
     bgGradient:
-      // A bystander is not a foe, so it does not get the foe's red.
-      c.type === "monster" && c.bystander !== true
+      // Someone on the party's side (an ally, a helper) is not a foe, so they do not get the foe's red.
+      c.type === "monster" && !withParty
         ? ["#3b0a0a", "#0a0202"]
         : ["#1e3a5f", "#060d1a"],
   };
@@ -218,6 +219,8 @@ function isDraggable(instanceId: string): boolean {
   return draggableInstanceIds.has(instanceId);
 }
 
+// The factions the played characters stand in: whoever shares one is on their side.
+const partyFactions = computed(() => new Set(combatants.filter((c) => c.type === "player").map((c) => c.faction_id)));
 const formPortraitOf = useFormPortraits(() => combatants.map((c) => c.wildshape));
 
 const renderedTokens = computed<RenderedToken[]>(() => {
@@ -295,7 +298,7 @@ async function renderTokenCanvas(tok: RenderedToken) {
   const controller = new AbortController();
   renderControllers.set(tok.combatant.instance_id, controller);
 
-  await drawToken(canvas, combatantToEntity(tok.combatant, tok.imageUrl, tok.imageFit, tok.figure), {
+  await drawToken(canvas, combatantToEntity(tok.combatant, tok.imageUrl, tok.imageFit, tok.figure, partyFactions.value.has(tok.combatant.faction_id)), {
     ringColor: tok.factionColor,
     activeTurn: tok.active,
     revealState: tok.silhouette ? "unseen" : "revealed",
