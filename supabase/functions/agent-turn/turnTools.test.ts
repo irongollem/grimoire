@@ -15,6 +15,7 @@ const session: SessionRow = {
   scene_location_id: null,
   campaign_session_id: null,
   pressure_clock_id: null,
+  party_member_id: null,
 };
 
 function build(quests: TurnToolsInput["quests"] = null) {

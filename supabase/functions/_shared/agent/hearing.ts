@@ -78,7 +78,8 @@ function takeIn(who: Who, e: SpeechEvent, line: AgentLine, mine: boolean): "word
   return hears(who, e, e.volume);
 }
 
-export function heardFrom(events: SpeechEvent[], who: Who): Heard[] {
+/** `playerName` is the player's character's own name when the conversation knows it; otherwise the fixed one. */
+export function heardFrom(events: SpeechEvent[], who: Who, playerName: string = PLAYER_SPEAKER): Heard[] {
   const out: Heard[] = [];
   let lastSaid: string | null = null;
   for (const e of events) {
@@ -92,10 +93,10 @@ export function heardFrom(events: SpeechEvent[], who: Who): Heard[] {
     // them once: the newest thing the player said is not repeated. (The player asking the very same thing again
     // later reads as one question, which loses nothing.)
     if (player === "words" && e.playerSaid && lastSaid !== e.playerSaid) {
-      out.push({ speaker: PLAYER_SPEAKER, kind: "spoken", text: e.playerSaid, happening: null });
+      out.push({ speaker: playerName, kind: "spoken", text: e.playerSaid, happening: null });
       lastSaid = e.playerSaid;
     } else if (player === "seen") {
-      out.push({ speaker: PLAYER_SPEAKER, kind: "acted", text: `Whispers something to ${e.lines[0].speaker.name} that cannot be made out.`, happening: null });
+      out.push({ speaker: playerName, kind: "acted", text: `Whispers something to ${e.lines[0].speaker.name} that cannot be made out.`, happening: null });
     }
     // The speaker's own perception is handed back once per event, on its first line.
     let own = mine;
@@ -176,8 +177,8 @@ export function storedEvents(stored: StoredTurn[]): SpeechEvent[] {
  * not: a summary shortens what the narrator re-reads, but a character's memory of what happened to it is not the
  * narrator's to lose. What one character perceived (`happening`) is handed back only to that character.
  */
-export function heardBy(stored: StoredTurn[], who: Who): Heard[] {
-  return heardFrom(storedEvents(stored), who);
+export function heardBy(stored: StoredTurn[], who: Who, playerName: string = PLAYER_SPEAKER): Heard[] {
+  return heardFrom(storedEvents(stored), who, playerName);
 }
 
 /** The newest entries that fit both limits, still oldest first. */

@@ -21,10 +21,11 @@ import {
   type SessionRow,
 } from "./handler";
 import type { SceneView } from "../_shared/agent/scene";
+import type { PlayerCharacter } from "../_shared/agent/playerCharacter";
 import type { RecordedFact } from "../_shared/agent/record";
 import { NO_QUESTS, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests";
 import { AgentProviderError, type AgentBlock, type CallModel, type ModelRequest, type ModelStep } from "../_shared/agent/types";
-import type { StoredTurn, TurnRow } from "../_shared/agent/transcript";
+import { blocksOf, type StoredTurn, type TurnRow } from "../_shared/agent/transcript";
 import type { CreditLogFields } from "../_shared/credits";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe";
 
@@ -55,6 +56,9 @@ function cellarScene(over: Partial<SceneView> = {}): SceneView {
   };
 }
 const factId = (n: number) => `00000000-0000-4000-8000-00000000f${String(n).padStart(3, "0")}`;
+const WREN = "00000000-0000-4000-8000-0000000000b1";
+/** Every player's character the handler asked for, with the campaign it asked in. */
+const characterLoads: Array<{ campaignId: string; characterId: string }> = [];
 /** Every character the handler asked for, with the campaign it asked in. */
 const speakerLoads: Array<{ campaignId: string; characterId: string }> = [];
 
@@ -108,6 +112,9 @@ interface Harness {
     account: Refusal | null;
     /** The places of CAMPAIGN by id. */
     places: Map<string, SceneView>;
+    /** The party members of CAMPAIGN by id. One of another campaign is simply not here. */
+    characters: Map<string, PlayerCharacter>;
+    characterThrows: boolean;
     sceneThrows: boolean;
     memoriesThrow: boolean;
     playSessionThrows: boolean;
@@ -176,6 +183,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       summarySaveThrows: false,
       account: null,
       places: new Map<string, SceneView>([[CELLAR, cellarScene()]]),
+      characters: new Map<string, PlayerCharacter>(),
+      characterThrows: false,
       sceneThrows: false,
       memoriesThrow: false,
       playSessionThrows: false,
@@ -210,7 +219,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       const row = h.sessions.get(id);
       return row ? { ...row } : null;
     },
-    createSession: async ({ userId, campaignId, sceneLocationId, campaignSessionId }) => {
+    createSession: async ({ userId, campaignId, sceneLocationId, campaignSessionId, partyMemberId }) => {
       const row: SessionRow = {
         id: "00000000-0000-4000-8000-0000000000b9",
         user_id: userId,
@@ -220,6 +229,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
         scene_location_id: sceneLocationId,
         campaign_session_id: campaignSessionId,
         pressure_clock_id: null,
+        party_member_id: partyMemberId,
       };
       h.sessions.set(row.id, row);
       log.push("create");
@@ -270,6 +280,11 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     },
     tools: [{ name: "roll", description: "roll", inputSchema: {} }],
     callTool: async () => ({ content: "RESULT-SECRET: the duke is the lich", isError: false }),
+    loadCharacter: async (campaignId, characterId) => {
+      characterLoads.push({ campaignId, characterId });
+      if (h.state.characterThrows) throw new Error("db down");
+      return campaignId === CAMPAIGN ? (h.state.characters.get(characterId) ?? null) : null;
+    },
     loadScene: async (campaignId, locationId) => {
       sceneLoads.push({ campaignId, locationId });
       if (h.state.sceneThrows) throw new Error("db down");
@@ -359,6 +374,7 @@ function existingSession(h: Harness, over: Partial<SessionRow> = {}, accrued = 0
     scene_location_id: null,
     campaign_session_id: null,
     pressure_clock_id: null,
+    party_member_id: null,
     ...over,
   };
   h.sessions.set(row.id, row);
@@ -2025,5 +2041,142 @@ describe("narration sentences that only repeat the characters are held back", ()
     await play(h);
     const kinds = h.events.map((e) => e.type);
     expect(kinds.indexOf("text")).toBeLessThan(kinds.indexOf("done"));
+  });
+});
+
+describe("who the player plays", () => {
+  const wren = (): PlayerCharacter => ({
+    id: WREN, name: "Wren Ashfield", pronouns: "she/her", species: "Wood Elf", className: "Ranger", subclass: null,
+    level: 3, hitPoints: { current: 12, max: 20 },
+  });
+  const START = { campaignId: CAMPAIGN, message: "I look around.", mode: "do", startLocationId: CELLAR, characterId: WREN };
+  const withWren = (script: Script = [step(100)]): Harness => {
+    const h = harness(script);
+    h.state.characters.set(WREN, wren());
+    return h;
+  };
+  const speakWithPlayerWords = (present: string[] = []): ModelStep =>
+    step(100, {
+      blocks: [{
+        type: "tool_call", id: "s1", name: "speak",
+        input: { speaker_id: HONEYCOMB, happening: "A stranger asks about the cellar.", player_said: "Is the cellar safe?", present },
+      }],
+      stop: "tool_calls",
+    });
+  const answering = (text: string): Script => [speakWithPlayerWords(), step(100, { blocks: [{ type: "text", text }] }), step(50)];
+  // Honeycomb turns to Bram, who was in the room and so is told what the player said; he has nothing to add.
+  const toBram: Script = [
+    speakWithPlayerWords([BRAM]),
+    step(100, { blocks: [{ type: "text", text: "SAYS: Ask Bram.\nTO: Bram" }] }),
+    step(100, { blocks: [{ type: "text", text: "DOES: -\nSAYS: -" }] }),
+    step(50),
+  ];
+
+  it("refuses a character of another campaign before anything is reserved or any model is called", async () => {
+    const h = harness();
+    // The harness, like the database, finds a character only in the campaign that was asked about.
+    const foreign = "00000000-0000-4000-8000-0000000000ee";
+    characterLoads.length = 0;
+    const refusal = await play(h, { body: { ...START, characterId: foreign } });
+    expect(characterLoads).toEqual([{ campaignId: CAMPAIGN, characterId: foreign }]);
+    expect(refusal).toEqual({ status: 404, error: MESSAGES.noCharacter });
+    expect(h.modelCalls()).toBe(0);
+    expect(h.reserved).toEqual([]);
+    expect(h.sessions.size).toBe(0);
+  });
+
+  it("refuses a character sent with a conversation already under way: who is played is chosen once", async () => {
+    const h = withWren();
+    existingSession(h);
+    const refusal = await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, characterId: WREN, message: "hi", mode: "say" } });
+    expect(refusal).toEqual({ status: 400, error: MESSAGES.badBody });
+    expect(h.sessions.get(SESSION)!.party_member_id).toBeNull();
+    expect(h.modelCalls()).toBe(0);
+  });
+
+  it("refuses a character id that is not a uuid", async () => {
+    const h = withWren();
+    expect((await play(h, { body: { ...START, characterId: "wren" } }))?.status).toBe(400);
+  });
+
+  it("keeps the character on the conversation, so a later turn that sends no id is still told who is played", async () => {
+    const h = withWren([step(100), step(100)]);
+    await play(h, { body: START });
+    const id = [...h.sessions.keys()][0];
+    expect(h.sessions.get(id)!.party_member_id).toBe(WREN);
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: id, message: "And now?", mode: "say" } });
+    expect(h.requests[1].system).toContain("Wren Ashfield");
+    expect(h.events.filter((e) => e.type === "session")).toEqual([
+      { type: "session", sessionId: id, character: { id: WREN, name: "Wren Ashfield" } },
+      { type: "session", sessionId: id, character: { id: WREN, name: "Wren Ashfield" } },
+    ]);
+  });
+
+  it("puts the character after the campaign section and before the scene, so the cached prefix stays byte-identical", async () => {
+    const h = withWren();
+    await play(h, { body: START });
+    const system = h.requests[0].system;
+    const campaignAt = system.indexOf("Campaign: Cup Town");
+    const characterAt = system.indexOf("## The player's character");
+    const sceneAt = system.indexOf("SCENE-DESCRIPTION");
+    expect(campaignAt).toBeGreaterThan(-1);
+    expect(characterAt).toBeGreaterThan(campaignAt);
+    expect(sceneAt).toBeGreaterThan(characterAt);
+    expect(system).toContain("level 3 Wood Elf Ranger; hit points 12 of 20");
+  });
+
+  it("adds no section for a conversation without a character", async () => {
+    const h = harness();
+    await play(h, { body: { ...START, characterId: undefined } });
+    expect(h.requests[0].system).not.toContain("The player's character\n");
+    expect(h.events[0]).toEqual({ type: "session", sessionId: expect.any(String) });
+  });
+
+  it("still runs the turn, without the section, when the character cannot be read afterwards", async () => {
+    const h = withWren();
+    existingSession(h, { party_member_id: WREN });
+    h.state.characterThrows = true;
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "hi", mode: "say" } });
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(h.requests[0].system).not.toContain("Wren Ashfield");
+    expect(h.events[0]).toEqual({ type: "session", sessionId: SESSION });
+  });
+
+  it("tells a character the player's words under the character's name, not the fixed one", async () => {
+    const h = withWren([...toBram]);
+    await play(h, { body: START });
+    const asked = JSON.stringify(h.requests[2].messages);
+    expect(asked).toContain("Wren Ashfield said: Is the cellar safe?");
+    expect(asked).not.toContain("The player's character said");
+  });
+
+  it("tells a character the player's words under the fixed name when the conversation has no character", async () => {
+    const h = harness([...toBram]);
+    await play(h, { body: { ...START, characterId: undefined } });
+    expect(JSON.stringify(h.requests[2].messages)).toContain("The player's character said: Is the cellar safe?");
+  });
+
+  const endedOf = (h: Harness): string[] =>
+    h.turns.flatMap((t) => blocksOf(t)).flatMap((b) => (b.type === "tool_result" ? [String(JSON.parse(b.content).ended)] : []));
+
+  it("ends the exchange as to_player when a character answers TO the player's character by name", async () => {
+    const h = withWren(answering("SAYS: Safe enough, Wren.\nTO: Wren"));
+    await play(h, { body: START });
+    expect(endedOf(h)).toEqual(["to_player"]);
+  });
+
+  it("does not end the exchange on a name that is not the player's", async () => {
+    const h = withWren(answering("SAYS: Safe enough.\nTO: Wrenfield"));
+    await play(h, { body: START });
+    expect(endedOf(h)).toEqual(["open"]);
+  });
+
+  it("sends the browser only the character's id and name, never anything else held about them", async () => {
+    const h = harness();
+    h.state.characters.set(WREN, { ...wren(), ...({ notes: "PRIVATE-CHARACTER-NOTE" } as object) });
+    await play(h, { body: START });
+    expect(JSON.stringify(h.events)).not.toContain("PRIVATE-CHARACTER-NOTE");
+    expect(h.events[0]).toEqual({ type: "session", sessionId: expect.any(String), character: { id: WREN, name: "Wren Ashfield" } });
+    expect(h.requests[0].system).not.toContain("PRIVATE-CHARACTER-NOTE");
   });
 });

@@ -11,6 +11,7 @@ import {
 import {
   answerEvent, hears, heardFrom, PLAYER_SPEAKER, storedEvents, trimHeard, unsaidBy, type SpeechEvent, type Who,
 } from "./hearing.ts";
+import { isPlayerName } from "./playerCharacter.ts";
 import { ACT_TOOL, parseActInput, parseSpeakInput, SPEAK_TOOL } from "./speakInput.ts";
 import type { StoredTurn } from "./transcript.ts";
 import type { AgentLine, AgentUsage, AgentWithheld, CallModel } from "./types.ts";
@@ -76,6 +77,11 @@ export interface SpeechToolsDeps {
    * show the per-character limit holds on its own, which the default total never lets anyone reach.
    */
   maxChainedAnswers?: number;
+  /**
+   * The name of the character the player plays, when the conversation has one. Characters are told the player's words
+   * and deeds under it instead of the fixed "The player's character", and a line addressed TO it is said to the player.
+   */
+  playerName?: string;
 }
 
 export interface SpeechToolResult {
@@ -123,6 +129,7 @@ function linesOf(s: Said): AgentLine[] {
 }
 
 export function makeSpeechTools(deps: SpeechToolsDeps) {
+  const playerName = deps.playerName ?? PLAYER_SPEAKER;
   const stored = storedEvents(deps.stored);
   // What this same turn produced so far: its rows are not stored yet, but a later call in the turn must hear them.
   const thisTurn: SpeechEvent[] = [];
@@ -172,7 +179,9 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
     );
     const found = (await Promise.all(ids.map(recordOf))).filter((r): r is Speaker => r !== null);
     const picked = pickRecorded(raw, found);
-    return picked ? { kind: "character", id: picked.id, name: picked.shownName } : { kind: "none" };
+    if (picked) return { kind: "character", id: picked.id, name: picked.shownName };
+    // After the recorded people, so a character who shares the player's first name is still reachable by it.
+    return deps.playerName !== undefined && isPlayerName(raw, deps.playerName) ? { kind: "player" } : { kind: "none" };
   }
 
   /**
@@ -182,13 +191,13 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
   async function ask(record: Speaker, parent: SpeechEvent, nudge: string): Promise<{ record: Speaker; turn: TurnAnswer & { usage: AgentUsage } } | null> {
     try {
       const who: Who = { id: record.id, name: record.shownName };
-      const heardNow = heardFrom([parent], who);
+      const heardNow = heardFrom([parent], who, playerName);
       // Someone who only saw that a whisper passed has nothing to answer.
-      if (!heardNow.some((h) => h.kind === "spoken" && h.speaker !== PLAYER_SPEAKER)) return null;
+      if (!heardNow.some((h) => h.kind === "spoken" && h.speaker !== playerName)) return null;
       const before = allEvents().filter((e) => e !== parent);
       const system = speakerSystem({
         name: record.shownName, profile: record.profile, manner: null, memories: record.memories,
-        heard: trimHeard(heardFrom(before, who)), unsaid: unsaidBy(before, record.id),
+        heard: trimHeard(heardFrom(before, who, playerName)), unsaid: unsaidBy(before, record.id),
       });
       const turn = await characterTurn({
         callModel: deps.callModel, system, happening: `${heardLines(heardNow)}\n\n${nudge}`, signal: deps.signal,
@@ -295,7 +304,7 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
       const everything = allEvents();
       const system = speakerSystem({
         name: shownName, profile, manner: input.manner, memories,
-        heard: trimHeard(heardFrom(everything, who)),
+        heard: trimHeard(heardFrom(everything, who, playerName)),
         unsaid: who.id ? unsaidBy(everything, who.id) : [],
       });
       const turn = await characterTurn({ callModel: deps.callModel, system, happening: input.happening, signal: deps.signal });

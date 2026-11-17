@@ -327,3 +327,40 @@ describe("what a listener wanted to say and did not get to", () => {
     expect(got.content).not.toContain(heldBack);
   });
 });
+
+describe("a line addressed to the player's character by name", () => {
+  it("ends the exchange as to_player, as TO: player does, or the narrator is asked to answer a question already put to the player", async () => {
+    const m = byCharacter({ Alda: ["SAYS: And you, Wren?\nTO: Wren"] });
+    const got = await tools(m, { playerName: "Wren Ashfield" }).call("speak", { speaker_id: A, happening: "h", present: [B] });
+    expect(JSON.parse(got.content).ended).toBe("to_player");
+    expect(JSON.parse(got.content).exchange[0].to).toBe("player");
+  });
+
+  it("does not read the name as the player's when the conversation has no character", async () => {
+    const m = byCharacter({ Alda: ["SAYS: And you, Wren?\nTO: Wren"] });
+    const got = await tools(m).call("speak", { speaker_id: A, happening: "h", present: [B] });
+    expect(JSON.parse(got.content).ended).toBe("open");
+  });
+
+  it("prefers a recorded character who shares the name, so that character can still be answered", async () => {
+    const m = byCharacter({ Alda: ["SAYS: Well?\nTO: Bren"], Bren: ["SAYS: Fine."] });
+    const got = await tools(m, { playerName: "Bren Vale" }).call("speak", { speaker_id: A, happening: "h", present: [B] });
+    expect(said(got.lines)).toEqual(["Alda: Well?", "Bren: Fine."]);
+  });
+
+  it("tells the listener who answers the player's words under the character's name", async () => {
+    const m = byCharacter({ Alda: ["SAYS: Ask Bren.\nTO: Bren"], Bren: ["DOES: -\nSAYS: -"] });
+    await tools(m, { playerName: "Wren Ashfield" }).call("speak", { speaker_id: A, happening: "h", present: [B], player_said: "Who has the keys?" });
+    expect(JSON.stringify(m.requests[1])).toContain("Wren Ashfield said: Who has the keys?");
+  });
+});
+
+describe("a listener who only saw a whisper pass, when the player has a name", () => {
+  it("is not asked to answer just because the player's words, now under their name, were heard", async () => {
+    const m = byCharacter({ Alda: ["SAYS: Closer.\nTO: -"] });
+    await tools(m, { playerName: "Wren Ashfield" }).call("speak", {
+      speaker_id: A, happening: "h", present: [B, C], volume: "whisper", whispered_to: [C], player_said: "Hello",
+    });
+    expect(m.asked).not.toContain("Bren");
+  });
+});

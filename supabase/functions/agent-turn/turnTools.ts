@@ -39,6 +39,8 @@ export interface TurnToolsInput {
    * could not be read: no quest tool is offered then, since its ids could not be checked.
    */
   quests: { state: QuestsInPlay; queued: QuestMove[] } | null;
+  /** The name of the character the player plays, when the conversation has one: characters hear the player under it. */
+  playerName?: string;
 }
 
 export interface TurnTools {
@@ -80,6 +82,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     onRemember: (memory) => remembered.push(memory),
     findRecorded: (name) => deps.findCharacters(campaignId, name),
     onSpoke: (id) => spoke.add(id),
+    playerName: input.playerName,
   });
 
   // The campaign and the sittings are the conversation's own; the model only chooses the words and what they are about.

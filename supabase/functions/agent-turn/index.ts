@@ -30,6 +30,7 @@ import { toPlainText } from "../_shared/ai-prompt.ts";
 import { PLACES_MAX, CHARACTERS_MAX, type SceneView } from "../_shared/agent/scene.ts";
 import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
+import { loadPartyMember } from "./characterIo.ts";
 import { RECORD_SECTION_MAX, type RecordedFact } from "../_shared/agent/record.ts";
 import { openaiModel } from "../_shared/agent/openai.ts";
 import { anthropicModel } from "../_shared/agent/anthropic.ts";
@@ -54,7 +55,7 @@ function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id, pressure_clock_id";
+const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id, pressure_clock_id, party_member_id";
 
 /** Beside what is tied to this place and these people, the campaign's newest facts always reach the narrator. */
 const NEWEST_FACTS = 15;
@@ -69,6 +70,7 @@ function sessionRow(row: Record<string, unknown>): SessionRow {
     scene_location_id: (row.scene_location_id as string | null) ?? null,
     campaign_session_id: (row.campaign_session_id as string | null) ?? null,
     pressure_clock_id: (row.pressure_clock_id as string | null) ?? null,
+    party_member_id: (row.party_member_id as string | null) ?? null,
   };
 }
 
@@ -175,7 +177,7 @@ serve(withCors(async (req: Request) => {
       return row && typeof row.id === "string" ? row.id : null;
     },
 
-    async createSession({ userId, campaignId, provider, model, sceneLocationId, campaignSessionId }): Promise<SessionRow> {
+    async createSession({ userId, campaignId, provider, model, sceneLocationId, campaignSessionId, partyMemberId }): Promise<SessionRow> {
       const { data, error } = await admin
         .from("agent_sessions")
         .insert({
@@ -186,6 +188,7 @@ serve(withCors(async (req: Request) => {
           model,
           scene_location_id: sceneLocationId,
           campaign_session_id: campaignSessionId,
+          party_member_id: partyMemberId,
         })
         .select(SESSION_COLUMNS)
         .single();
@@ -359,6 +362,8 @@ serve(withCors(async (req: Request) => {
         memories: formatNpcMemories(memories, npc),
       };
     },
+
+    loadCharacter: (campaignId, characterId) => loadPartyMember(admin, campaignId, characterId),
 
     // A place of this campaign and who is in it. One more than the trim keeps of each list, so the trim can tell the
     // narrator there are more. The campaign filter is in every query: an id from another campaign is not found.

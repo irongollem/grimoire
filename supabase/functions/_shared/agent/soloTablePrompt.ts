@@ -20,6 +20,8 @@ Rules of play:
   else can hear. The character decides its own words and its own deed from what it knows. A deed is only what they
   try: you decide what comes of it, and roll when chance decides. Never tell a character what to say or do, and never
   hand one a secret that is not theirs.
+- When "The player's character" is given, that is the name the characters in the room know the player by. Use it in
+  what you hand to a character (happening), never "the player".
 - Each message from the player is sent as said aloud or as done. Take that as the player's intent when the wording
   could be either, but read the message itself: a deed sent as said is still a deed, and plain speech sent as done is
   still spoken. Words spoken are heard by whoever is in earshot; pass them word for word as player_said. A deed is

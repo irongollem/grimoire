@@ -4,12 +4,14 @@
 import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { planSummary, summarise } from "../_shared/agent/summary.ts";
 import type { StoredTurn } from "../_shared/agent/transcript.ts";
-import { trimScene, type TrimmedScene } from "../_shared/agent/scene.ts";
-import type { RecordedFact } from "../_shared/agent/record.ts";
-import { pressureTick, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
+import { sceneSection, trimScene, type TrimmedScene } from "../_shared/agent/scene.ts";
+import { recordSection, type RecordedFact } from "../_shared/agent/record.ts";
+import { playerCharacterSection, type PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
+import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTablePrompt.ts";
+import { NO_QUESTS, pressureTick, questsSection, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
 import type { CallModel } from "../_shared/agent/types.ts";
 import type { CreditLogFields } from "../_shared/credits.ts";
-import type { AgentTurnDeps, SessionRow } from "./handler.ts";
+import type { AgentTurnDeps, CampaignRow, SessionRow } from "./handler.ts";
 
 // The session's credits hold six decimals; accruing at the same precision keeps what is sent equal to what is stored.
 export function round6(n: number): number {
@@ -39,6 +41,37 @@ export async function recordOf(deps: AgentTurnDeps, campaignId: string, scene: T
     console.error("agent-turn: loading the record failed:", error);
     return [];
   }
+}
+
+/** The character the conversation is played as. One that will not load is no character: the turn still runs without it. */
+export async function characterOf(deps: AgentTurnDeps, campaignId: string, characterId: string | null): Promise<PlayerCharacter | null> {
+  if (characterId === null) return null;
+  try {
+    return await deps.loadCharacter(campaignId, characterId);
+  } catch (error) {
+    console.error("agent-turn: loading the player's character failed:", error);
+    return null;
+  }
+}
+
+/**
+ * The standing text and everything a turn adds to it, in the order the provider's prompt cache wants: the standing
+ * rules and the campaign section are a byte-identical prefix, then the player's character (fixed for the whole
+ * conversation), the scene (changes when the party moves), the quests, and the record (changes when something is filed).
+ * The summary, which only grows, is added after this by the caller.
+ */
+export function systemFor(input: {
+  campaign: CampaignRow;
+  character: PlayerCharacter | null;
+  scene: TrimmedScene | null;
+  quests: QuestsInPlay | null;
+  record: RecordedFact[];
+}): string {
+  const { campaign } = input;
+  const parts = [soloTableSystem({ id: campaign.id, name: campaign.name, rulesetLabel: rulesetLabelFor(campaign.game_system) })];
+  if (input.character) parts.push(playerCharacterSection(input.character));
+  parts.push(sceneSection(input.scene), questsSection(input.quests ?? NO_QUESTS), recordSection(input.record));
+  return parts.join("\n\n");
 }
 
 /**

@@ -14,15 +14,16 @@
 import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { runTurn, totalTokens, type TurnEnd } from "../_shared/agent/turn.ts";
 import { historyFrom, rowsFor, systemWithSummary, type StoredTurn, type TurnRow } from "../_shared/agent/transcript.ts";
-import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTablePrompt.ts";
 import type { Remembered } from "../_shared/agent/characterTurn.ts";
 import type { SpeechToolsDeps } from "../_shared/agent/speak.ts";
-import { sceneSection, type SceneView } from "../_shared/agent/scene.ts";
-import { recordSection, type RecordedFact, type RecordKind } from "../_shared/agent/record.ts";
-import { NO_QUESTS, questsSection, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
+import type { SceneView } from "../_shared/agent/scene.ts";
+import type { RecordedFact, RecordKind } from "../_shared/agent/record.ts";
+import type { QuestMove, QuestsInPlay } from "../_shared/agent/quests.ts";
 import { makeTurnTools, type FiledFact } from "./turnTools.ts";
 import { narrationGate, type NarrationGate, type NarrationJudge } from "./narration.ts";
-import { applyKeptQuestMoves, foldIntoSummary, questsOf, recordOf, round6, safely, sceneOf } from "./turnSupport.ts";
+import { parseBody, playerText } from "./turnBody.ts";
+import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
+import { applyKeptQuestMoves, characterOf, foldIntoSummary, questsOf, recordOf, round6, safely, sceneOf, systemFor } from "./turnSupport.ts";
 import {
   AgentProviderError,
   type AgentLine,
@@ -41,24 +42,8 @@ export const MAX_STEPS = 8;
 export const MAX_OUTPUT_TOKENS = 2000;
 /** Everything the provider billed this turn, cache included. About a dozen times what a usual turn uses. */
 export const TOKEN_BUDGET = 60_000;
-/** The longest message a player may send. */
-export const MAX_MESSAGE_CHARS = 4000;
 /** Held before the turn so an account with no credits is refused before any model call; the real charge is metered. */
 export const RESERVE_CREDITS = 1;
-
-export interface AgentTurnBody {
-  campaignId: string;
-  sessionId?: string;
-  /**
-   * Where a NEW conversation begins. The page knows where the player sat down (the place they opened the table
-   * from), and a narrator left to find it spends a turn searching: 21 s live, against 4 s with the place known.
-   * Refused together with `sessionId`: a conversation already under way is moved by the narrator, never by a request.
-   */
-  startLocationId?: string;
-  message: string;
-  /** Enter says it aloud, Alt+Enter does it: the player chooses, nothing guesses from the wording. */
-  mode: "say" | "do";
-}
 
 /** A refusal before the stream opened: an ordinary JSON response. */
 export interface Refusal {
@@ -68,7 +53,7 @@ export interface Refusal {
 
 /** What the browser hears. It never carries a tool's input or result: those can hold DM-only material. */
 export type AgentEvent =
-  | { type: "session"; sessionId: string }
+  | { type: "session"; sessionId: string; character?: { id: string; name: string } }
   | { type: "text"; delta: string }
   | { type: "tool_start"; name: string }
   | { type: "tool_end"; name: string; isError: boolean }
@@ -101,6 +86,8 @@ export interface SessionRow {
   campaign_session_id: string | null;
   /** The quest clock this conversation ticks by one every kept turn; null when the scene is under no pressure. */
   pressure_clock_id: string | null;
+  /** The party member the player plays; null when the conversation was begun without one. */
+  party_member_id: string | null;
 }
 
 export interface ResolvedProvider {
@@ -129,6 +116,7 @@ export interface AgentTurnDeps {
     model: string;
     sceneLocationId: string | null;
     campaignSessionId: string | null;
+    partyMemberId: string | null;
   }): Promise<SessionRow>;
   /**
    * The campaign's open play session, started if there is none: sitting down at the table is the game being played.
@@ -186,6 +174,8 @@ export interface AgentTurnDeps {
    * the id is not a character of THIS campaign, whoever asks.
    */
   loadSpeaker(campaignId: string, characterId: string): ReturnType<SpeechToolsDeps["loadSpeaker"]>;
+  /** A character of THIS campaign as the narrator may know them. Null when the id is not a character of this campaign. */
+  loadCharacter(campaignId: string, characterId: string): Promise<PlayerCharacter | null>;
   /** A place of THIS campaign with the people in it, as the narrator may know them. Null when it is not in the campaign. */
   loadScene(campaignId: string, locationId: string): Promise<SceneView | null>;
   /**
@@ -240,6 +230,7 @@ export const MESSAGES = {
   badBody: "The request is not valid.",
   notFound: "That conversation was not found.",
   noPlace: "That place was not found.",
+  noCharacter: "That character was not found.",
   noCampaign: "Campaign not found.",
   aiOff: "AI is disabled for this campaign.",
   forbidden: "Only the campaign's DM can use the AI table.",
@@ -253,38 +244,6 @@ export const MESSAGES = {
   failed: "The AI table ran into a problem. Send your message again.",
   notSaved: "The turn could not be saved. Send your message again.",
 } as const;
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { ok: false } {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return { ok: false };
-  const r = raw as Record<string, unknown>;
-  if (typeof r.campaignId !== "string" || !UUID_RE.test(r.campaignId)) return { ok: false };
-  if (r.sessionId !== undefined && (typeof r.sessionId !== "string" || !UUID_RE.test(r.sessionId))) return { ok: false };
-  if (typeof r.message !== "string") return { ok: false };
-  const message = r.message.trim();
-  if (message.length < 1 || message.length > MAX_MESSAGE_CHARS) return { ok: false };
-  if (r.mode !== "say" && r.mode !== "do") return { ok: false };
-  if (r.startLocationId !== undefined) {
-    if (typeof r.startLocationId !== "string" || !UUID_RE.test(r.startLocationId)) return { ok: false };
-    if (r.sessionId !== undefined) return { ok: false };
-  }
-  return {
-    ok: true,
-    body: { campaignId: r.campaignId, sessionId: r.sessionId, startLocationId: r.startLocationId, message, mode: r.mode },
-  };
-}
-
-/**
- * The player's message as the narrator reads it. The words themselves are never changed. The button is a hint, not
- * a ruling (maintainer, 16 Nov 2026): it styles the box and settles wording that could be either, but "I crawl
- * towards the tree" sent as said is still a deed, and "nice weather, ain't it!" sent as done is still speech.
- */
-export function playerText(mode: "say" | "do", message: string): string {
-  return mode === "say"
-    ? `The player sent this as something their character says aloud:\n${message}`
-    : `The player sent this as something their character does:\n${message}`;
-}
 
 export type BegunTurn =
   | { kind: "refused"; refusal: Refusal }
@@ -323,6 +282,11 @@ export async function beginTurn(input: {
   // found" either way. The id comes from the browser, so it is checked against the conversation's campaign here.
   if (body.startLocationId !== undefined && !(await deps.loadScene(campaign.id, body.startLocationId))) {
     return refuse(404, MESSAGES.noPlace);
+  }
+
+  // Same for the character: the id comes from the browser, so it is checked against the campaign before anything is reserved.
+  if (body.characterId !== undefined && !(await deps.loadCharacter(campaign.id, body.characterId))) {
+    return refuse(404, MESSAGES.noCharacter);
   }
 
   if (!(await deps.rateLimit(userId))) return refuse(429, MESSAGES.rateLimited);
@@ -409,8 +373,10 @@ export async function beginTurn(input: {
           model: provider.model,
           sceneLocationId: body.startLocationId === undefined ? null : body.startLocationId,
           campaignSessionId: playSessionId,
+          partyMemberId: body.characterId === undefined ? null : body.characterId,
         });
-        emit({ type: "session", sessionId: session.id });
+        const character = await characterOf(deps, campaign.id, session.party_member_id);
+        emit({ type: "session", sessionId: session.id, ...(character ? { character: { id: character.id, name: character.name } } : {}) });
         stored = await deps.loadTurns(session.id);
         const lastSeqLoaded = stored.reduce((max, row) => Math.max(max, row.seq), 0);
         const history = historyFrom(stored, session.summary_through_seq);
@@ -422,10 +388,7 @@ export async function beginTurn(input: {
         // party moves, and the summary, which only grows, stays last.
         const questState = await questsOf(deps, campaign.id, session.pressure_clock_id);
         const record = await recordOf(deps, campaign.id, scene);
-        const system = systemWithSummary(
-          `${soloTableSystem({ id: campaign.id, name: campaign.name, rulesetLabel: rulesetLabelFor(campaign.game_system) })}\n\n${sceneSection(scene)}\n\n${questsSection(questState ?? NO_QUESTS)}\n\n${recordSection(record)}`,
-          session.summary,
-        );
+        const system = systemWithSummary(systemFor({ campaign, character, scene, quests: questState, record }), session.summary);
         const turnTools = makeTurnTools({
           deps,
           campaignId: campaign.id,
@@ -438,6 +401,7 @@ export async function beginTurn(input: {
           onMove: (place) => emit({ type: "scene", scene: place }),
           filed,
           quests: questState === null ? null : { state: questState, queued },
+          playerName: character ? character.name : undefined,
         });
 
         gate = narrationGate({ judge: deps.judgeNarration, emit });

@@ -154,3 +154,13 @@ describe("who hears what, by how loud it was said", () => {
   });
 });
 
+
+describe("heardFrom with the player's character's name", () => {
+  const rows = spoke(1, { speaker_id: A, happening: "h", present: [B], player_said: "Is it safe?" }, "speak", "Hm.", A);
+  it("lists the player's words under their name, so a character can address them", () => {
+    expect(heardBy(rows, { id: B, name: "B" }, "Wren")[0]).toMatchObject({ speaker: "Wren", text: "Is it safe?" });
+  });
+  it("keeps the fixed name when there is no character", () => {
+    expect(heardBy(rows, { id: B, name: "B" })[0].speaker).toBe("The player's character");
+  });
+});
