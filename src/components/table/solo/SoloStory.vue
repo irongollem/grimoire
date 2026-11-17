@@ -18,7 +18,7 @@
 
       <SoloFailure v-if="failure" v-bind="failure" @resend="emit('resend')" @credits="emit('credits')" />
 
-      <span v-if="running" class="text-eyebrow flex items-center gap-2 tracking-wider text-foreground" role="status">
+      <span v-if="running" class="text-eyebrow flex items-center gap-2 text-foreground" role="status">
         <BannerLoader class="h-3.5" /> Writing…
       </span>
     </div>

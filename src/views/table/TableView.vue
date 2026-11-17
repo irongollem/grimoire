@@ -1,5 +1,5 @@
 <template>
-  <div class="flex min-h-0 flex-1 flex-col bg-background" data-testid="table-view">
+  <div class="flex min-h-0 flex-1 flex-col" data-testid="table-view">
     <SoloAiOff v-if="!campaign.isAiEnabled" class="m-4" />
 
     <template v-else>

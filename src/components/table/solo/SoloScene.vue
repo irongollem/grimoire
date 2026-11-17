@@ -2,16 +2,16 @@
   <!-- "This column only ever shows what the character knows." Where you are and who is here, nothing else (Table, 02). -->
   <div class="flex flex-col" data-testid="solo-scene">
     <section class="flex flex-col gap-2.5 px-4 py-3.5">
-      <span class="text-eyebrow tracking-widest text-muted-foreground">Where you are</span>
+      <span class="text-eyebrow text-muted-foreground">Where you are</span>
       <h2 v-if="placeName" class="text-heading text-foreground">{{ placeName }}</h2>
       <p v-else class="text-body italic text-muted-foreground">Nowhere in particular yet. The Dungeon Master will say.</p>
     </section>
     <hr class="border-border" />
     <section class="flex flex-col gap-2.5 px-4 py-3.5">
-      <span class="text-eyebrow tracking-widest text-muted-foreground">Here with you</span>
+      <span class="text-eyebrow text-muted-foreground">Here with you</span>
       <ul v-if="people.length" class="flex flex-col gap-2.5">
         <li v-for="person in people" :key="person.id" class="flex items-center gap-2.5">
-          <span class="flex size-11 shrink-0 items-center justify-center overflow-hidden border border-input bg-muted font-cinzel text-lg font-bold text-muted-foreground" aria-hidden="true">
+          <span class="flex size-11 shrink-0 items-center justify-center overflow-hidden border border-input bg-muted text-heading font-bold text-muted-foreground" aria-hidden="true">
             <FocalImage v-if="person.portrait" :src="person.portrait" :alt="person.name" format="token" :render-width="200" :focal-point="person.focalPoint" record class="size-full" />
             <span v-else>{{ person.name.charAt(0).toUpperCase() }}</span>
           </span>

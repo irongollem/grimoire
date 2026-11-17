@@ -11,7 +11,7 @@
     :data-pigment="pigment"
   >
     <SoloPortrait v-if="portrait" :name="speaker" :src="portrait.src" :focal-point="portrait.focalPoint" />
-    <span class="text-eyebrow inline-flex items-center gap-1.5 tracking-widest text-(--voice-ink)">
+    <span class="text-eyebrow inline-flex items-center gap-1.5 text-(--voice-ink)">
       <i class="size-1.5 rotate-45 bg-(--voice-ink)" aria-hidden="true" />
       {{ speaker }}<span v-if="to" class="font-normal normal-case tracking-normal text-muted-foreground"> to {{ to }}</span>
     </span>

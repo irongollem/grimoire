@@ -9,7 +9,7 @@
     :data-play-mode="mode"
     :data-boxed="mode === 'say'"
   >
-    <span :class="['text-eyebrow tracking-widest', mode === 'say' ? 'text-primary' : 'text-muted-foreground']">
+    <span :class="['text-eyebrow', mode === 'say' ? 'text-primary' : 'text-muted-foreground']">
       {{ who }}{{ mode === "say" ? " says" : "" }}
     </span>
     <p data-hand :class="['solo-hand whitespace-pre-line text-[1.1875rem] leading-7', unsent ? 'text-muted-foreground' : 'text-foreground']">
