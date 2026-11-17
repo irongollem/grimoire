@@ -2,6 +2,7 @@
 // answer format (DOES / SAYS / TO / WANT / REMEMBERS) and how an answer is read. The system text holds only the
 // character's record, memories and what it heard, so there is nothing in it to leak. Pure: the model is injected.
 
+import { peoplesSection } from "./peoples.ts";
 import type { Heard } from "./hearing.ts";
 import { NPC_MEMORY_KINDS, type NpcMemoryKind } from "../npcMemories.ts";
 import type { AgentUsage, AgentWithheld, CallModel } from "./types.ts";
@@ -40,6 +41,8 @@ export function speakerSystem(input: {
   heard: Heard[];
   /** Sentences this character wanted to say earlier and did not get to; only its own. */
   unsaid?: AgentWithheld[];
+  /** The names of the world's peoples (`peoples.ts`): common knowledge, so every character has it. */
+  peoples?: readonly string[];
 }): string {
   const parts: string[] = [
     `You are playing one character, ${input.name}, in a tabletop story. You decide what the character says and what the ` +
@@ -70,6 +73,8 @@ export function speakerSystem(input: {
     const manner = input.manner ? `\nHow they talk: ${input.manner}` : "";
     parts.push(`About the character:\nName: ${input.name}${manner}`);
   }
+  const peoples = peoplesSection(input.peoples ?? []);
+  if (peoples !== "") parts.push(peoples);
   if (input.memories.trim()) parts.push(input.memories.trim());
   if (input.heard.length > 0) {
     parts.push(`What has been said and done in their presence:\n${heardLines(input.heard)}`);

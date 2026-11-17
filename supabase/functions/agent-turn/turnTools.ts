@@ -44,6 +44,8 @@ export interface TurnToolsInput {
   quests: { state: QuestsInPlay; queued: QuestMove[] } | null;
   /** The name of the character the player plays, when the conversation has one: characters hear the player under it. */
   playerName?: string;
+  /** The names of the world's peoples, for the characters' own calls. */
+  peoples: readonly string[];
   /** The fights in view and where a started one goes; null when no fight can be started, and then the tool is not offered. */
   fight: {
     view: FightsInView;
@@ -106,6 +108,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     findRecorded: (name) => deps.findCharacters(campaignId, name),
     onSpoke: (id) => spoke.add(id),
     playerName: input.playerName,
+    peoples: input.peoples,
   });
 
   // The campaign and the sittings are the conversation's own; the model only chooses the words and what they are about.

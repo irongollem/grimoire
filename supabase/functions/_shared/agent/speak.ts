@@ -82,6 +82,8 @@ export interface SpeechToolsDeps {
    * and deeds under it instead of the fixed "The player's character", and a line addressed TO it is said to the player.
    */
   playerName?: string;
+  /** The names of the world's peoples, told to every character as common knowledge. */
+  peoples?: readonly string[];
 }
 
 export interface SpeechToolResult {
@@ -200,6 +202,7 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
       const system = speakerSystem({
         name: record.shownName, profile: record.profile, manner: null, memories: record.memories,
         heard: trimHeard(heardFrom(before, who, playerName)), unsaid: unsaidBy(before, record.id),
+        peoples: deps.peoples,
       });
       const turn = await characterTurn({
         callModel: deps.callModel, system, happening: `${heardLines(heardNow)}\n\n${nudge}`, signal: deps.signal,
@@ -308,6 +311,7 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
         name: shownName, profile, manner: input.manner, memories,
         heard: trimHeard(heardFrom(everything, who, playerName)),
         unsaid: who.id ? unsaidBy(everything, who.id) : [],
+        peoples: deps.peoples,
       });
       const turn = await characterTurn({ callModel: deps.callModel, system, happening: input.happening, signal: deps.signal });
       if (!turn.said && !turn.did) return failure(`${shownName} neither says nor does anything.`, [turn.usage]);

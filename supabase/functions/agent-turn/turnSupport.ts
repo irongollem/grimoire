@@ -1,6 +1,7 @@
 // What a turn does around the loop: reading the scene and the record for the system text, folding old messages into
 // the summary, and the two small helpers both use. Split from `handler.ts` so the handler holds the turn's rules.
 
+import { peoplesSection } from "../_shared/agent/peoples.ts";
 import { fightsSection, NO_FIGHTS, type FightsInView } from "../_shared/agent/fight.ts";
 import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { planSummary, summarise } from "../_shared/agent/summary.ts";
@@ -61,9 +62,12 @@ export async function characterOf(deps: AgentTurnDeps, campaignId: string, chara
  * a single sentence, so everything that moves during play is in `stateFor` instead. The summary is added by the
  * caller; it changes only when older turns are folded into it, and the history is cut at that moment anyway.
  */
-export function systemFor(input: { campaign: CampaignRow; character: PlayerCharacter | null }): string {
+export function systemFor(input: { campaign: CampaignRow; character: PlayerCharacter | null; peoples: readonly string[] }): string {
   const { campaign } = input;
   const parts = [soloTableSystem({ id: campaign.id, name: campaign.name, rulesetLabel: rulesetLabelFor(campaign.game_system) })];
+  // The world's own kinds of folk: a campaign's list changes about as often as its name, so it sits with it.
+  const peoples = peoplesSection(input.peoples);
+  if (peoples !== "") parts.push(peoples);
   if (input.character) parts.push(playerCharacterSection(input.character));
   return parts.join("\n\n");
 }

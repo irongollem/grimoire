@@ -278,6 +278,8 @@ export interface AgentTurnDeps {
    * switched on: then no line carries a key and nothing can be voiced.
    */
   voiceKey: ((sessionId: string, line: AgentLine) => string) | null;
+  /** The names of the campaign's own peoples (its species), for `peoples.ts`. */
+  loadPeoples(campaignId: string): Promise<string[]>;
   /** The names of a planned fight's creatures that have no stat block; a fight with one of them is not started. */
   statlessFighters(campaignId: string, plan: FightPlan): Promise<string[]>;
 }
@@ -476,7 +478,15 @@ export async function beginTurn(input: {
         // Fights: what is prepared here and the one this conversation is waiting on. Unreadable means no fight
         // tool this turn, since the ids it would be asked to name could not be checked.
         const fights = await fightsOf(deps, campaign.id, session.scene_location_id, session.fight_encounter_id);
-        const system = systemWithSummary(systemFor({ campaign, character }), session.summary);
+        // The world's peoples are common knowledge for the narrator and every character. Unreadable costs that
+        // knowledge for a turn, never the turn.
+        let peoples: string[] = [];
+        try {
+          peoples = await deps.loadPeoples(campaign.id);
+        } catch (error) {
+          console.error("agent-turn: reading the world's peoples failed:", error);
+        }
+        const system = systemWithSummary(systemFor({ campaign, character, peoples }), session.summary);
         const state = stateFor({ scene, quests: questState, record, fights });
         // The fight the narrator starts this turn; started only once the turn is kept.
         let fightPlan: FightPlan | null = null;
@@ -493,6 +503,7 @@ export async function beginTurn(input: {
           filed,
           quests: questState === null ? null : { state: questState, queued },
           playerName: character ? character.name : undefined,
+          peoples,
           // Only a played character has a sheet to roll from; without one the narrator rolls as before.
           askRoll: character ? (pending) => { asked = pending; } : null,
           // A fight needs someone to fight it: offered only with a played character and readable fights.

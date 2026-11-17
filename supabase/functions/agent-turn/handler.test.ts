@@ -126,6 +126,9 @@ interface Harness {
     playSessionJoined: boolean;
     /** Creatures of a planned fight that have no stat block, by name. */
     statless: string[];
+    /** The campaign's own peoples. */
+    peoples: string[];
+    peoplesThrow: boolean;
     moveFails: boolean;
     /** What the campaign's roll tool answers; null answers like every other campaign tool. */
     rollAnswer: { content: string; isError: boolean } | null;
@@ -217,6 +220,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       playSessionThrows: false,
       playSessionJoined: false,
       statless: [],
+      peoples: [],
+      peoplesThrow: false,
       moveFails: false,
       rollAnswer: null,
       pendingRollFails: false,
@@ -428,6 +433,10 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     judgeNarration: null,
     voiceKey: null,
     statlessFighters: async () => h.state.statless,
+    loadPeoples: async () => {
+      if (h.state.peoplesThrow) throw new Error("db down");
+      return h.state.peoples;
+    },
     openPlaySession: async () => {
       log.push("open-session");
       if (h.state.playSessionThrows) throw new Error("db down");
@@ -1169,6 +1178,26 @@ describe("a character speaks for itself", () => {
     expect(stored).toBe(600);
     expect(h.ledger[0].log.output_tokens).toBe(600);
     expect(last(h)).toMatchObject({ type: "done", tokens: 600 });
+  });
+
+  // Bug caught live (17 Nov 2026): the player spoke of "this marrow" whose name they did not know, and the character
+  // answered about someone called Marrow, because nothing in its call said a marrow is one of the world's peoples.
+  it("tells the narrator and the character who speaks the names of the world's peoples", async () => {
+    const h = harness(script());
+    h.state.peoples = ["Marrow", "Sugarspun"];
+    await play(h);
+    const told = h.requests.filter((r) => r.system.includes("The peoples of this world: Marrow, Sugarspun"));
+    // The narrator's calls and the character's own call (the one made with no tools).
+    expect(told.some((r) => r.tools.length > 0)).toBe(true);
+    expect(told.some((r) => r.tools.length === 0)).toBe(true);
+  });
+
+  it("plays the turn without that knowledge when the peoples cannot be read", async () => {
+    const h = harness(script());
+    h.state.peoplesThrow = true;
+    await play(h);
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(h.events.some((e) => e.type === "line")).toBe(true);
   });
 
   it("gives a key to what a character said and none to what it did, so only speech can be voiced", async () => {

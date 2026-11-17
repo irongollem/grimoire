@@ -2,6 +2,7 @@
 //
 // The rules are `handler.ts`'s; this file wires the database, the provider and the MCP tools to them. The gates
 // run before the stream opens so a refusal is a real status code; the turn itself runs inside the stream.
+import { MAX_PEOPLES } from "../_shared/agent/peoples.ts";
 import { lineKey } from "../_shared/agent/lineKey.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
@@ -628,6 +629,12 @@ serve(withCors(async (req: Request) => {
     startFight: (ctx, plan) => startFight(supabase, admin, ctx, plan),
     setFight: (sessionId, campaignId, encounterId) => setFight(admin, sessionId, campaignId, encounterId),
     statlessFighters: (campaignId, plan) => statlessFighters(supabase, campaignId, plan),
+    // The campaign's own species, by name, read as the caller.
+    async loadPeoples(campaignId) {
+      const { data, error } = await supabase.from("species").select("name").eq("campaign_id", campaignId).order("name", { ascending: true }).limit(MAX_PEOPLES);
+      if (error) throw error;
+      return (data ?? []).map((r) => r.name as string);
+    },
 
     // Where the campaign's story begins. Read as the caller (the DM's own rows); "has the story begun" is asked of
     // the server's own tables with the admin client, by campaign.
