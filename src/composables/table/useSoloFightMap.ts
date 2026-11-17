@@ -8,6 +8,7 @@ import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import { usePartySight } from "@/composables/encounters/usePartySight";
 import { useMapDoors } from "@/composables/locations/useMapDoors";
 import { useMapMemory } from "@/composables/locations/useMapMemory";
+import { saveMapVoid } from "@/composables/locations/useMapVoid";
 import { useRememberSight } from "@/composables/locations/useRememberSight";
 import { useToast } from "@/composables/useToast";
 import { cellSizeInDisplay, gridLinePositions, gridOriginInDisplay } from "@/lib/battlemap/battleMapGeometry";
@@ -129,6 +130,28 @@ export function useSoloFightMap(options: {
     },
     { immediate: true },
   );
+  // What the picture shows no ground on is kept with the map, once per picture, so the creatures the server moves
+  // stay off it as well. Only for a map with nothing drawn: a drawn plan is never overruled by a guess.
+  let savedVoidFor: string | null = null;
+  watch(
+    () => [pictureFloor.value, surface.value?.mapLocation.id, surface.value?.imageUrl, campaign.activeCampaign?.id] as const,
+    ([floor, locationId, url, campaignId]) => {
+      const g = grid.value;
+      const live = surface.value?.live;
+      if (!floor || !locationId || !url || !campaignId || !g) return;
+      if (!unwalled(live ? occludersOf(live, doorStates.value) : null)) return;
+      const key = `${locationId}:${url}:${g.cols}x${g.rows}`;
+      if (savedVoidFor === key) return;
+      savedVoidFor = key;
+      saveMapVoid(campaignId, locationId, voidAround(floor, g)).catch((error) => {
+        // The fight goes on without it: only the server's moves lose the picture's edge.
+        savedVoidFor = null;
+        console.error("Keeping what the map's picture shows as void failed:", error);
+      });
+    },
+    { immediate: true },
+  );
+
   function reportMoveFailure(error: unknown) {
     toast.error(toast.fromError(error, "Couldn't move that token."));
   }

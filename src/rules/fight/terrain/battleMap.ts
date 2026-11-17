@@ -26,6 +26,11 @@ export interface FightMapInput {
   doorStates: readonly MapLiveDoorState[];
   /** `map_memory.seen` of the map place, decoded: the cells (`"x,y"`) the party has seen. Proof that those rows exist. */
   seen: ReadonlySet<string>;
+  /**
+   * `map_memory.void_cells` of the map place, decoded: the squares its picture shows no ground on. Used only where
+   * nothing is drawn on the map (no walls, doors or rock): a guess from a picture never overrules a drawn plan.
+   */
+  voidCells?: ReadonlySet<string>;
 }
 
 export interface FightMap {
@@ -107,7 +112,11 @@ export function fightMapOf(input: FightMapInput): FightMap | null {
   });
   if (surface === null) return null;
   if (surface.live === null && surface.mapLocation.map_live !== null) return null;
-  const occluders = surface.live === null ? NO_OCCLUDERS : occludersOf(surface.live, input.doorStates);
+  const drawn = surface.live === null ? NO_OCCLUDERS : occludersOf(surface.live, input.doorStates);
+  // A map with nothing drawn on it has only its picture to go by: what the picture shows no ground on is solid, so
+  // nothing the rules move walks out onto the dark a building is drawn on.
+  const bare = drawn.segments.length === 0 && drawn.solid.size === 0;
+  const occluders = bare && input.voidCells !== undefined && input.voidCells.size > 0 ? { ...drawn, solid: input.voidCells } : drawn;
   const difficult = new Set(terrainZonesOf(input.regions, surface).flatMap((z) => z.battleCells));
   // An Entrance zone is on the map by definition, so it proves the rows it lies on when the picture's height is unknown.
   const entrances = entranceExits(input.regions, surface.calibration);

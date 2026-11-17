@@ -78,6 +78,23 @@ describe("a fight's battle map", () => {
     expect(map?.solid.size).toBe(0);
   });
 
+  it("on a picture with nothing drawn, what the picture shows no ground on is solid", () => {
+    // Bug it fails on (seen live): the creatures the server moves walked out onto the dark a house is drawn on,
+    // because a picture-only map was all open ground to the rules.
+    const map = fightMapOf({ encounterLocation: { ...site, map_live: null }, parent: null, regions: [], doorStates: noDoors, seen: NOTHING_SEEN, voidCells: new Set(["0,0", "9,9"]) });
+    expect(map?.solid.has("0,0")).toBe(true);
+    expect(map?.occluders.solid.has("9,9")).toBe(true);
+  });
+
+  it("a drawn plan is never overruled by a guess from the picture", () => {
+    // Bug it fails on: the void read from a picture replacing the rock the Cartographer drew, or walling off a
+    // room whose floor happens to be dark.
+    const plain = fightMapOf({ encounterLocation: site, parent: null, regions: [], doorStates: noDoors, seen: NOTHING_SEEN });
+    const guessed = fightMapOf({ encounterLocation: site, parent: null, regions: [], doorStates: noDoors, seen: NOTHING_SEEN, voidCells: new Set(["0,0"]) });
+    expect([...(guessed?.solid ?? [])].sort()).toEqual([...(plain?.solid ?? [])].sort());
+    expect(guessed?.solid.has("0,0")).toBe(plain?.solid.has("0,0"));
+  });
+
   it("a closed door blocks, and the DM's open override stops it blocking", () => {
     // Bug it fails on: ignoring map_memory.door_states, so a door the DM opened still stopped every creature.
     const closed = fightMapOf({ encounterLocation: site, parent: null, regions: [], doorStates: noDoors, seen: NOTHING_SEEN });

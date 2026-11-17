@@ -69,8 +69,8 @@ export async function loadFightMapInput(
 
   const regions = await readRegions(admin, regionSiteOf(encounterLocation, parent));
   const doorPlace = doorPlaceOf(encounterLocation, parent);
-  const memory = doorPlace === null ? { doorStates: [], seen: new Set<string>() } : await readMemory(admin, campaignId, doorPlace);
-  return { encounterLocation, parent, regions, doorStates: memory.doorStates, seen: memory.seen };
+  const memory = doorPlace === null ? { doorStates: [], seen: new Set<string>(), voidCells: new Set<string>() } : await readMemory(admin, campaignId, doorPlace);
+  return { encounterLocation, parent, regions, doorStates: memory.doorStates, seen: memory.seen, voidCells: memory.voidCells };
 }
 
 async function readLocation(admin: SupabaseClient, campaignId: string, id: string): Promise<FightMapLocation | null> {
@@ -97,16 +97,21 @@ async function readMemory(
   admin: SupabaseClient,
   campaignId: string,
   placeId: string,
-): Promise<{ doorStates: MapLiveDoorState[]; seen: Set<string> }> {
+): Promise<{ doorStates: MapLiveDoorState[]; seen: Set<string>; voidCells: Set<string> }> {
   const { data, error } = await admin
     .from("map_memory")
-    .select("door_states, seen")
+    .select("door_states, seen, void_cells")
     .eq("campaign_id", campaignId)
     .eq("location_id", placeId)
     .maybeSingle();
   if (error) throw new Error(`map_memory: ${error.message}`);
   // No row: nobody has opened or shut a door, or seen a square, on this map. The door column's check constraint holds
   // its shape; `seen` is the fog mask's own encoding.
-  if (data === null) return { doorStates: [], seen: new Set() };
-  return { doorStates: data.door_states as MapLiveDoorState[], seen: decodeFogMask(data.seen as string) };
+  if (data === null) return { doorStates: [], seen: new Set(), voidCells: new Set() };
+  return {
+    doorStates: data.door_states as MapLiveDoorState[],
+    seen: decodeFogMask(data.seen as string),
+    // The same "x,y;x,y" encoding as `seen`; null until a browser has read the picture.
+    voidCells: decodeFogMask(data.void_cells as string | null),
+  };
 }
