@@ -17,10 +17,11 @@ import { ageOf, sexFromGender, sexOf } from "./voicePick.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-// The newest model: the one the maintainer chose by ear for how it acts a line. `TABLE_VOICE_MODEL` names another to
-// try (a faster, cheaper one, to be judged by ear for what it loses in feeling); a clip already kept was made by
-// whichever model spoke it first.
-const SPEECH_MODEL = Deno.env.get("TABLE_VOICE_MODEL")?.trim() || "eleven_v4";
+// Eleven v4 Turbo: half the cost of v4 and two to three times sooner back. The maintainer compared the two by ear on
+// three voices (17 Nov 2026): "every turbo is almost identical to the non turbo, unless its for a very specific
+// project i think turbo is fine". `TABLE_VOICE_MODEL` names another for such a project (`eleven_v4` for the fuller
+// acting); a clip already kept was made by whichever model spoke it first.
+const SPEECH_MODEL = Deno.env.get("TABLE_VOICE_MODEL")?.trim() || "eleven_v4_turbo";
 const SPEECH_TIMEOUT_MS = 30_000;
 
 // The clips have a store of their own (the maintainer's choice, 17 Nov 2026): a private R2 bucket that nothing
