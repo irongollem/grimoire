@@ -29,7 +29,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  *
  * Nothing else is drawn: not a tool call's input, not a tool result's other content, not the opaque blocks.
  *
- * `kept` is what the board of a fight wrote on this device (`boardKeep`): each line goes back after the turns that
+ * `kept` is what the board of a fight wrote (`boardKeep`, `agent_board_lines`): each line goes back after the turns that
  * had been kept when it was written, so a fight reads in the order it was fought.
  */
 export function storyFromTurns(turns: readonly StoredTurn[], kept: readonly KeptLine[] = []): StoryItem[] {

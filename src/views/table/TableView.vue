@@ -121,9 +121,9 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount } from "vue";
-import { useStorage } from "@vueuse/core";
-import { safeLocalStorage } from "@/lib/safeLocalStorage";
-import { keptLinesOf, withKeptLines, type KeptBoards } from "@/lib/table/boardKeep";
+import { supabase } from "@/lib/supabase";
+import { reportHandledError } from "@/lib/observability/sentry";
+import { boardRows } from "@/lib/table/boardKeep";
 import type { BoardLine } from "@/lib/table/fight/boardLines";
 import { useRoute, useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
@@ -401,17 +401,22 @@ watch(param, () => {
   openScene();
 });
 
-// What the board of a fight writes is the page's own and is never sent, so it is kept on this device and put back
-// among the turns when the sitting is reopened (`boardKeep`).
-const boards = useStorage<KeptBoards>("grimoire:ai-table-board", {}, safeLocalStorage());
-const conversation = useTableConversation(historyId, campaignId, (id) => keptLinesOf(boards.value, id));
+const conversation = useTableConversation(historyId, campaignId);
+// What the board of a fight writes is the page's own and is never sent to the Dungeon Master, so it is kept beside
+// the turns (`agent_board_lines`) with how many turns had been played, and put back among them when the sitting is
+// reopened. A line that could not be kept is still on the page now; it is reported, and missing after a reload.
 function noteBoard(lines: readonly BoardLine[], byServer: boolean): void {
   turn.note(lines, byServer);
   const id = turn.sessionId.value;
-  if (id === null) return;
+  if (id === null || lines.length === 0) return;
   const stored = conversation.data.value;
   const after = (stored ? stored.turns : 0) + turn.turnsKept.value;
-  boards.value = withKeptLines(boards.value, id, lines.map((line) => ({ after, line, byServer })));
+  void supabase
+    .from("agent_board_lines")
+    .insert(boardRows(id, after, lines, byServer))
+    .then(({ error }) => {
+      if (error) reportHandledError(error, "table:keepBoardLines", { lines: lines.length });
+    });
 }
 watch(
   () => conversation.data.value,

@@ -4,10 +4,9 @@ import type { BoardLine } from "./fight/boardLines";
  * What happened on the board of a fight, kept so a reopened sitting still shows it.
  *
  * The board's lines (a creature's attack, "Round 2 · your turn") are written by the page and never sent to the
- * Dungeon Master, so the stored conversation does not hold them: after a reload a fight read as its narration alone.
- * They are kept in this browser, per sitting, each with how many turns of the sitting had been kept when it was
- * written, which is where `storyFromTurns` puts it back. A per-viewer convenience: on another device, or with
- * storage blocked, the fight reads as before.
+ * Dungeon Master, so the stored turns do not hold them: without these a fight read back as its narration alone.
+ * They are kept with the conversation (`agent_board_lines`), each with how many turns of the sitting had been kept
+ * when it was written, which is where `storyFromTurns` puts it back.
  */
 export interface KeptLine {
   /** How many turns of the sitting had been kept when the line was written: it follows that many, in the story. */
@@ -16,13 +15,6 @@ export interface KeptLine {
   /** Whether the board (the rules) wrote it, not the player's own hand. */
   byServer: boolean;
 }
-
-export type KeptBoards = Record<string, KeptLine[]>;
-
-/** A sitting keeps its latest lines only: a fight is tens of lines, and the browser's storage is small. */
-export const LINES_KEPT = 400;
-/** Lines are kept for the sittings last played; an older sitting reads as its narration. */
-export const SITTINGS_KEPT = 6;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -39,22 +31,19 @@ function parseLine(raw: unknown): BoardLine | null {
   return null;
 }
 
-/** The lines kept for one sitting. What the browser stored is untrusted: anything that is not a line is left out. */
-export function keptLinesOf(boards: unknown, sessionId: string): KeptLine[] {
-  if (!isRecord(boards)) return [];
-  const raw = boards[sessionId];
-  if (!Array.isArray(raw)) return [];
-  return raw.flatMap((entry: unknown) => {
-    if (!isRecord(entry) || typeof entry.after !== "number" || !Number.isInteger(entry.after) || entry.after < 0) return [];
-    const line = parseLine(entry.line);
-    return line === null ? [] : [{ after: entry.after, line, byServer: entry.byServer === true }];
+/**
+ * The stored rows as lines, in the order they came. `line` is jsonb, so it is untrusted until read: a row that is
+ * not a whole line is left out, never drawn half.
+ */
+export function keptLinesOf(rows: readonly unknown[]): KeptLine[] {
+  return rows.flatMap((row: unknown) => {
+    if (!isRecord(row) || typeof row.after_turns !== "number" || !Number.isInteger(row.after_turns) || row.after_turns < 0) return [];
+    const line = parseLine(row.line);
+    return line === null ? [] : [{ after: row.after_turns, line, byServer: row.by_server === true }];
   });
 }
 
-/** The boards with these lines added to a sitting, which becomes the one last played. */
-export function withKeptLines(boards: KeptBoards, sessionId: string, lines: readonly KeptLine[]): KeptBoards {
-  const { [sessionId]: had, ...others } = boards;
-  const mine = [...(had === undefined ? [] : had), ...lines].slice(-LINES_KEPT);
-  const kept = Object.entries(others).slice(-(SITTINGS_KEPT - 1));
-  return { ...Object.fromEntries(kept), [sessionId]: mine };
+/** The rows that keep these lines for a sitting. The owner is the database's to fill in (the caller). */
+export function boardRows(sessionId: string, after: number, lines: readonly BoardLine[], byServer: boolean): Array<{ session_id: string; after_turns: number; line: BoardLine; by_server: boolean }> {
+  return lines.map((line) => ({ session_id: sessionId, after_turns: after, line, by_server: byServer }));
 }

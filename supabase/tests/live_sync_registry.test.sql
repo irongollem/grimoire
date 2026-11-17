@@ -110,6 +110,7 @@ insert into live_sync_exempt (name, reason) values
   ('ai_generation_jobs',        'server job progress, awaited by row id (waitForRow); not campaign content any member reads'),
   ('agent_sessions',            'a private conversation between one account and the model (#1205): only its owner reads it, and the page that runs it streams the turn itself'),
   ('agent_turns',               'the messages of a private conversation with the model (#1205): written once by the server, read only by their owner'),
+  ('agent_board_lines',         'what the board of a fight wrote into a private conversation (#1021): written once by its owner''s own page, which already shows it, and read back only when the sitting is reopened'),
   ('image_generation_jobs',     'server job progress, awaited by row id (waitForRow); not campaign content any member reads'),
   ('document_imports',          'server job progress: the sanctioned poll in useDocumentImport stops when extraction settles'),
   ('tile_pack_generation_runs', 'server job progress: the sanctioned poll in useTilePacks stops when no run is in flight'),

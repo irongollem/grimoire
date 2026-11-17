@@ -110,4 +110,22 @@ describe("useTableConversation", () => {
       expect(JSON.stringify(r.data.value)).not.toContain("31337");
     }
   });
+  // Bug caught (seen in play): a reopened fight read as its narration alone, the board's lines gone; or another
+  // sitting's (or another account's) lines drawn into this one.
+  it("puts the board's lines of this sitting back among its turns, and no one else's", async () => {
+    fake.seed("agent_sessions", [session("mine")]);
+    fake.seed("agent_turns", [
+      { session_id: "mine", user_id: "u1", seq: 1, role: "user", blocks: [{ type: "text", text: "x", player: { kind: "do", text: "I draw my sword." } }] },
+      { session_id: "mine", user_id: "u1", seq: 2, role: "user", blocks: [{ type: "text", text: "y", player: { kind: "do", text: "I catch my breath." } }] },
+    ]);
+    fake.seed("agent_board_lines", [
+      { session_id: "mine", user_id: "u1", seq: 1, after_turns: 1, line: { kind: "margin", text: "Round 1 · your turn" }, by_server: true },
+      { session_id: "other", user_id: "u1", seq: 2, after_turns: 1, line: { kind: "margin", text: "another sitting" }, by_server: true },
+      { session_id: "mine", user_id: "u2", seq: 3, after_turns: 1, line: { kind: "margin", text: "another account" }, by_server: true },
+    ]);
+    const query = mountWith(() => useTableConversation("mine", "c1"));
+    await vi.waitFor(() => expect(query.data.value).toBeDefined());
+    expect(query.data.value!.items.map((i) => ("text" in i ? i.text : i.kind))).toEqual(["I draw my sword.", "Round 1 · your turn", "I catch my breath."]);
+    expect(query.data.value!.turns).toBe(2);
+  });
 });
