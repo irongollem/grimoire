@@ -90,7 +90,14 @@ export function useMapCanvas(opts: MapCanvasOptions = {}) {
     scale.value = fit;
     panX.value = (hostW.value - imageNaturalW.value * fit) / 2;
     panY.value = (hostH.value - imageNaturalH.value * fit) / 2;
+    lastFit = { scale: scale.value, panX: panX.value, panY: panY.value };
   }
+
+  // The view the last fit left. While the view is still exactly that, nobody has panned or zoomed, so a box that
+  // changes size (the table's map laid over the whole screen, a window resized) is fitted again; a view someone
+  // chose is left alone.
+  let lastFit: { scale: number; panX: number; panY: number } | null = null;
+  const untouched = (): boolean => lastFit !== null && scale.value === lastFit.scale && panX.value === lastFit.panX && panY.value === lastFit.panY;
 
   function resetView() {
     fitImageToHost();
@@ -141,8 +148,9 @@ export function useMapCanvas(opts: MapCanvasOptions = {}) {
     measureHost();
     if (canvasHost.value) {
       resizeObserver = new ResizeObserver(() => {
+        const fitted = untouched();
         measureHost();
-        if (imageReady.value && panX.value === 0 && panY.value === 0) {
+        if (imageReady.value && (fitted || (panX.value === 0 && panY.value === 0))) {
           fitImageToHost();
         }
       });
