@@ -5,6 +5,7 @@ import { useSoloCreatureTurns } from "@/composables/table/useSoloCreatureTurns";
 import { useToast } from "@/composables/useToast";
 import { linesOfAttacks, linesOfCreatureTurn, type BoardLine } from "@/lib/table/fight/boardLines";
 import { canReact } from "@/lib/table/fight/turnBudget";
+import { helperActs, NEVER_SEEN, type HelperSeen } from "@/lib/table/fight/helperTurn";
 import { fightStanding, hasSomeoneToFight, type FightStanding } from "@/lib/table/fight/fightOver";
 import { asThePlayerSees } from "@/lib/table/fight/foeView";
 import { turnBudgetOf } from "@/lib/table/fight/turnBudget";
@@ -92,6 +93,10 @@ export function useSoloFightHost(options: {
     { immediate: true },
   );
 
+  // What each helper last saw of the fight, and how many lines the player has said aloud in it.
+  const helpersSeen = new Map<string, HelperSeen>();
+  const said = ref(0);
+
   // ── The creatures' turns, written into the story ───────────────────────────────────────────────────────────────
   useSoloCreatureTurns({
     memberId: () => (mine.value ? options.memberId() : null),
@@ -101,8 +106,13 @@ export function useSoloFightHost(options: {
     run: async (instanceId) => {
       const helper = store.combatants.find((c) => c.instance_id === instanceId && c.bystander === true);
       if (helper) {
-        // Their turn is their own: nothing is sent to the rules, and the turn passes when the story has told it.
-        await options.onHelperTurn(helper.name);
+        // Their turn is their own: nothing is sent to the rules. It is asked of the story only when there is
+        // something new for them to act on (`helperActs`); otherwise the moment passes in silence.
+        const me = played.value;
+        const now = { hp: helper.hp, playedDown: me !== null && me.hp <= 0, said: said.value };
+        const last = helpersSeen.get(instanceId);
+        helpersSeen.set(instanceId, now);
+        if (helperActs(now, last === undefined ? NEVER_SEEN : last)) await options.onHelperTurn(helper.name);
         return true;
       }
       // A creature with nobody left standing to fight has nothing to do: its turn passes without a word. Seen in
@@ -210,6 +220,7 @@ export function useSoloFightHost(options: {
 
   /** The turn's one short line aloud has been said. */
   function spendWords(): void {
+    said.value += 1;
     spent.value = { ...spent.value, words: true };
   }
 
