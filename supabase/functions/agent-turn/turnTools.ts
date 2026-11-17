@@ -6,7 +6,7 @@
 
 import {
   BUY_TOOL, COINS_TOOL, COINS_TOOL_NAME, HAND_OVER_TOOL, HAND_OVER_TOOL_NAME, HANDS_PER_TURN, HANDS_TOOL_NAMES, handsText, parseBuy, parseCoins,
-  parseHandOver, parseTake, purseAfterGaining, TAKE_TOOL, TAKE_TOOL_NAME, worth, type Coins, type HandsChange, type Possessions,
+  chestPick, parseHandOver, parseTake, purseAfterGaining, TAKE_TOOL, TAKE_TOOL_NAME, worth, type Coins, type HandsChange, type Possessions,
 } from "../_shared/agent/hands.ts";
 import type { HandsStore } from "./handsIo.ts";
 import { HIT_POINTS_TOOL, HIT_POINTS_TOOL_NAME, hitPointsText, parseHitPointChange, rollTotal, type HitPointChange } from "../_shared/agent/hitPoints.ts";
@@ -246,8 +246,16 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
         const placed = hands.possessions.loot.find((l) => l.id === parsed.value.placementId);
         if (placed === undefined) return refused("Nothing with that placement_id is within reach. Use an id listed under \"Placed within reach\".");
         if (lootTaken.has(placed.id)) return refused("That was already taken this turn.");
-        lootTaken.add(placed.id);
-        change = { kind: "loot", placementId: placed.id, thing: placed.name, quantity: placed.quantity, ref: placed.ref, coins: placed.coins };
+        if (placed.chest !== undefined) {
+          const picked = chestPick(placed.chest, parsed.value.chestThings);
+          if (!picked.ok) return refused(picked.error);
+          lootTaken.add(placed.id);
+          change = { kind: "chest", placementId: placed.id, chest: placed.name, things: picked.value };
+        } else {
+          if (parsed.value.chestThings !== null) return refused("That is not a chest: give its placement_id alone.");
+          lootTaken.add(placed.id);
+          change = { kind: "loot", placementId: placed.id, thing: placed.name, quantity: placed.quantity, ref: placed.ref, coins: placed.coins };
+        }
       } else if (parsed.value.itemId !== null) {
         const item = await hands.store.item(campaignId, parsed.value.itemId);
         if (item === null) return refused("No item with that id is in this campaign. Look it up with search, or give name alone for a plain object.");
@@ -275,6 +283,8 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       purseLeft = purseAfterGaining(purseLeft, change.coins);
     } else if (change.kind === "loot" && change.coins !== null) {
       purseLeft = purseAfterGaining(purseLeft, change.coins);
+    } else if (change.kind === "chest") {
+      for (const thing of change.things) if (thing.coins !== null) purseLeft = purseAfterGaining(purseLeft, thing.coins);
     }
     handsTaken += 1;
     hands.onChange(change);

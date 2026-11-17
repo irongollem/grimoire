@@ -233,6 +233,23 @@ describe("makeTurnTools", () => {
       expect(handed).toEqual([{ kind: "loot", placementId: PLACED, thing: "Tower-Door Key", quantity: 1, ref: { itemId: "00000000-0000-4000-8000-0000000000aa", libraryItemId: null }, coins: null }]);
     });
 
+    // Bug caught: a chest holding more than it gives up emptied whole by its placement_id alone; chest_things sent
+    // for an ordinary find taken as one; a refused opening counted as the chest's one opening.
+    it("opens a chest once, for the things named, and takes chest_things for nothing but a chest", async () => {
+      const CHEST = "00000000-0000-4000-8000-0000000000c1";
+      const none = { itemId: null, libraryItemId: null };
+      const dagger = { atomId: "a1", name: "Silvered Dagger", ref: none, coins: null };
+      const coin = { atomId: "a2", name: "", ref: none, coins: { gp: 30 } };
+      const base = hands();
+      const withChest = hands({ possessions: { ...base.possessions, loot: [...base.possessions.loot, { id: CHEST, name: "Smuggler's cache", quantity: 1, ref: none, coins: null, beat: null, chest: { picks: 1, things: [dagger, coin] } }] } });
+      const { turn, handed } = build(null, true, withChest);
+      expect((await turn.callTool("take", { placement_id: CHEST })).isError).toBe(true);
+      expect((await turn.callTool("take", { placement_id: PLACED, chest_things: ["a1"] })).isError).toBe(true);
+      expect((await turn.callTool("take", { placement_id: CHEST, chest_things: ["a2"] })).isError).toBe(false);
+      expect((await turn.callTool("take", { placement_id: CHEST, chest_things: ["a1"] })).isError).toBe(true);
+      expect(handed).toEqual([{ kind: "chest", placementId: CHEST, chest: "Smuggler's cache", things: [coin] }]);
+    });
+
     // Bug caught: the tools offered where nothing may change hands (nobody played, a fight on the board).
     it("is not offered without what the character carries", () => {
       const { turn } = build(null, true, null);

@@ -13,6 +13,8 @@ import {
   MAX_LOOT_SHOWN,
   purseAfterGaining,
   purseAfterPaying,
+  chestOf,
+  chestPick,
   type Coins,
   type HandsChange,
   type ItemRef,
@@ -202,6 +204,50 @@ export function makeHandsStore(admin: SupabaseClient): HandsStore {
           }
           return;
         }
+        case "chest": {
+          // Read again, in this campaign and still unopened: a chest is opened once, by whoever got there first.
+          const placed = await admin.from("loot_placements").select("id, kind, quest_id, beat_id, source_type, source_id, payload").eq("id", change.placementId).eq("campaign_id", campaignId).eq("kind", "loot_chest").is("dispatched_at", null).maybeSingle();
+          if (placed.error) throw placed.error;
+          if (!placed.data) throw new Error("the chest is no longer there to be opened");
+          const chest = chestOf(placed.data.payload);
+          const picked = chest === null ? null : chestPick(chest, change.things.map((t) => t.atomId));
+          // What is handed out is what the chest holds now, not what the turn was told it held.
+          if (picked === null || !picked.ok) throw new Error("the chest no longer holds what was taken from it");
+          // The campaign's books, the way a Dungeon Master dropping the chest and the players claiming from it leave
+          // them: a chest line in the campaign's log with the claims on it, which the placement points at. Its cap is
+          // what was taken, so the chest reads as emptied and nobody can claim what was left in it.
+          const payload = placed.data.payload as Record<string, unknown>;
+          const at = new Date().toISOString();
+          const logged = await admin.from("campaign_messages").insert({
+            campaign_id: campaignId, user_id: ctx.userId, sender_name: "The table",
+            message: `${ctx.memberName} opened a chest`,
+            type: "loot_chest",
+            metadata: {
+              loot_table_id: typeof payload.loot_table_id === "string" ? payload.loot_table_id : null,
+              loot_table_name: typeof payload.loot_table_name === "string" ? payload.loot_table_name : "",
+              chest_image_url: typeof payload.chest_image_url === "string" ? payload.chest_image_url : null,
+              rolled_atoms: payload.rolled_atoms,
+              claims_total: picked.value.length,
+              claims: picked.value.map((t) => ({ atom_id: t.atomId, claimed_by_user_id: ctx.userId, claimed_by_name: ctx.memberName, claimed_at: at })),
+              quest_id: placed.data.quest_id, beat_id: placed.data.beat_id, quest_loot_entry_id: placed.data.id, source_type: placed.data.source_type, source_id: placed.data.source_id,
+            },
+          }).select("id").single();
+          if (logged.error) throw logged.error;
+          const marked = await admin.from("loot_placements").update({ dispatch_message_id: logged.data.id as string, dispatched_at: at }).eq("id", change.placementId).eq("campaign_id", campaignId).is("dispatched_at", null).select("id");
+          if (marked.error) throw marked.error;
+          if ((marked.data ?? []).length === 0) throw new Error("the chest was opened meanwhile");
+          let gained: Coins = {};
+          for (const thing of picked.value) {
+            if (thing.coins !== null) gained = purseAfterGaining(gained, thing.coins);
+            else await intoPack(ctx, { name: thing.name, quantity: 1, ref: thing.ref });
+          }
+          if (Object.keys(gained).length > 0) {
+            const purse = await purseOf(campaignId, memberId);
+            const { error } = await admin.from("party_members").update({ coins: purseAfterGaining(purse, gained) }).eq("id", memberId).eq("campaign_id", campaignId);
+            if (error) throw error;
+          }
+          return;
+        }
         case "pay":
         case "gain":
         case "buy": {
@@ -255,7 +301,7 @@ async function waresAt(admin: SupabaseClient, campaignId: string, placeId: strin
 
 /**
  * What the campaign placed within the party's reach and nobody has taken: the loot of the place they stand in and of
- * the quest beats in play. Items and purses of coins; a chest rolled from a loot table is left to a Dungeon Master.
+ * the quest beats in play. Items, purses of coins, and chests rolled from a loot table when they were prepared.
  */
 async function lootWithin(admin: SupabaseClient, campaignId: string, placeId: string | null, beats: readonly { id: string; title: string }[]): Promise<Loot[]> {
   const beatIds = beats.map((b) => b.id);
@@ -266,7 +312,7 @@ async function lootWithin(admin: SupabaseClient, campaignId: string, placeId: st
     .select("id, kind, item_id, library_item_id, quantity, label, payload, beat_id, sort_order")
     .eq("campaign_id", campaignId)
     .is("dispatched_at", null)
-    .in("kind", ["item", "currency"])
+    .in("kind", ["item", "currency", "loot_chest"])
     .or(anchors.join(","))
     .order("sort_order")
     .limit(MAX_LOOT_SHOWN + 1);
@@ -286,6 +332,13 @@ async function lootWithin(admin: SupabaseClient, campaignId: string, placeId: st
   return rows.flatMap((r): Loot[] => {
     const beat = typeof r.beat_id === "string" ? titles.get(r.beat_id) : undefined;
     const where = beat === undefined ? null : beat;
+    if (r.kind === "loot_chest") {
+      const chest = chestOf(r.payload);
+      // A chest nothing can be taken from is not a find.
+      if (chest === null) return [];
+      const table = (r.payload as { loot_table_name?: unknown } | null)?.loot_table_name;
+      return [{ id: r.id as string, name: typeof table === "string" ? table.trim() : "", quantity: 1, ref: { itemId: null, libraryItemId: null }, coins: null, beat: where, chest }];
+    }
     if (r.kind === "currency") {
       const coins = asCoins((r.payload as { coins?: unknown } | null)?.coins);
       if (Object.keys(coins).length === 0) return [];

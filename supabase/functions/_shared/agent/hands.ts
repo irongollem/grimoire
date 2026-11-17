@@ -28,6 +28,8 @@ export const THING_MAX = 80;
 export const QUANTITY_MAX = 99;
 export const WHY_MAX = 80;
 
+/** The most things one opening of a chest hands over. */
+export const CHEST_PICKS_MAX = 12;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PLAYER = "player";
 
@@ -70,6 +72,12 @@ export const TAKE_TOOL: AgentTool = {
       item_id: { type: "string", description: "The id of the campaign's item, as search or get returned it." },
       name: { type: "string", maxLength: THING_MAX, description: "A plain object's name, when it is not one of the campaign's items." },
       placement_id: { type: "string", description: "The id of something the campaign placed within reach, as listed. Its quantity is the campaign's own." },
+      chest_things: {
+        type: "array",
+        items: { type: "string" },
+        maxItems: CHEST_PICKS_MAX,
+        description: "Only with the placement_id of a chest that holds more than it gives up: the atom ids of the things the character takes, as listed, at most as many as the chest gives up. A chest is opened once.",
+      },
       quantity: { type: "integer", minimum: 1, maximum: QUANTITY_MAX, description: "How many; 1 when left out." },
     },
   },
@@ -128,6 +136,8 @@ export type HandsChange =
   | { kind: "take"; thing: string; quantity: number; ref: ItemRef }
   /** Something the campaign placed within reach (a room's or a quest beat's loot) is found: an item, or coins. */
   | { kind: "loot"; placementId: string; thing: string; quantity: number; ref: ItemRef; coins: Coins | null }
+  /** A chest the campaign rolled from a loot table is opened, once: what the character takes out of it. */
+  | { kind: "chest"; placementId: string; chest: string; things: ChestThing[] }
   | { kind: "pay"; coins: Coins; why: string }
   | { kind: "gain"; coins: Coins; why: string }
   | { kind: "buy"; thing: string; quantity: number; ref: ItemRef; price: Coins };
@@ -164,7 +174,18 @@ export function parseHandOver(input: Record<string, unknown>): Parsed<{ directio
 }
 
 /** What is picked up, before the item is looked up: one of the campaign's items by id, or a plain named object. */
-export function parseTake(input: Record<string, unknown>): Parsed<{ itemId: string | null; name: string | null; placementId: string | null; quantity: number }> {
+export function parseTake(
+  input: Record<string, unknown>,
+): Parsed<{ itemId: string | null; name: string | null; placementId: string | null; quantity: number; chestThings: string[] | null }> {
+  let chestThings: string[] | null = null;
+  if (input.chest_things !== undefined) {
+    const raw = input.chest_things;
+    if (input.placement_id === undefined) return refuse("chest_things goes with the placement_id of a chest.");
+    if (!Array.isArray(raw) || raw.length === 0 || raw.length > CHEST_PICKS_MAX || !raw.every((id): id is string => typeof id === "string" && id.trim() !== "")) {
+      return refuse(`chest_things is a list of 1 to ${CHEST_PICKS_MAX} atom ids, as the chest lists them.`);
+    }
+    chestThings = raw;
+  }
   const quantity = quantityOf(input.quantity);
   if (quantity === null) return refuse(`quantity is a whole number from 1 to ${QUANTITY_MAX}.`);
   const hasId = input.item_id !== undefined;
@@ -175,15 +196,78 @@ export function parseTake(input: Record<string, unknown>): Parsed<{ itemId: stri
   }
   if (hasPlacement) {
     if (typeof input.placement_id !== "string" || !UUID.test(input.placement_id)) return refuse("placement_id must be an id listed under \"Placed within reach\".");
-    return { ok: true, value: { itemId: null, name: null, placementId: input.placement_id, quantity } };
+    return { ok: true, value: { itemId: null, name: null, placementId: input.placement_id, quantity, chestThings } };
   }
   if (hasId) {
     if (typeof input.item_id !== "string" || !UUID.test(input.item_id)) return refuse("item_id must be the item's id, as search or get returned it.");
-    return { ok: true, value: { itemId: input.item_id, name: null, placementId: null, quantity } };
+    return { ok: true, value: { itemId: input.item_id, name: null, placementId: null, quantity, chestThings: null } };
   }
   const name = thingOf(input.name);
   if (name === null) return refuse(`name is the plain object's name, at most ${THING_MAX} characters.`);
-  return { ok: true, value: { itemId: null, name, placementId: null, quantity } };
+  return { ok: true, value: { itemId: null, name, placementId: null, quantity, chestThings: null } };
+}
+
+/** One thing in a rolled chest: an item, or coins. */
+export interface ChestThing {
+  atomId: string;
+  name: string;
+  ref: ItemRef;
+  /** Set for coins; null for an item. */
+  coins: Coins | null;
+}
+
+/** A chest as it was rolled when the campaign prepared it: what lies in it and how many things it gives up. */
+export interface Chest {
+  picks: number;
+  things: ChestThing[];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * A prepared chest read from its placement's payload (`rolled_atoms`, `claims_total`): rolled when the Dungeon
+ * Master prepared it, so the table never rolls it again. Null when nothing can be taken from it. An atom with no
+ * type is an item (older chests); an item id that is not a uuid names a shared library item.
+ */
+export function chestOf(payload: unknown): Chest | null {
+  if (!isRecord(payload) || !Array.isArray(payload.rolled_atoms)) return null;
+  const things = payload.rolled_atoms.flatMap((atom: unknown): ChestThing[] => {
+    if (!isRecord(atom) || typeof atom.atom_id !== "string" || atom.atom_id === "") return [];
+    if (atom.type === "currency") {
+      const coins: Coins = {};
+      if (isRecord(atom.coins)) for (const [key, n] of Object.entries(atom.coins)) if (typeof n === "number" && Number.isInteger(n) && n > 0) coins[key] = n;
+      if (Object.keys(coins).length === 0) return [];
+      return [{ atomId: atom.atom_id, name: typeof atom.currency_label === "string" ? atom.currency_label.trim() : "", ref: { itemId: null, libraryItemId: null }, coins }];
+    }
+    if (typeof atom.item_id !== "string" || typeof atom.item_name !== "string" || atom.item_name.trim() === "") return [];
+    const own = UUID.test(atom.item_id);
+    return [{ atomId: atom.atom_id, name: atom.item_name.trim(), ref: { itemId: own ? atom.item_id : null, libraryItemId: own ? null : atom.item_id }, coins: null }];
+  });
+  const total = payload.claims_total;
+  const picks = typeof total === "number" && Number.isInteger(total) ? Math.min(total, things.length, CHEST_PICKS_MAX) : 0;
+  return picks < 1 ? null : { picks, things };
+}
+
+/**
+ * What one opening of a chest hands over. A chest that gives up everything in it needs no choosing; one that holds
+ * more than it gives up needs the things named, each once, and no more of them than it gives up.
+ */
+export function chestPick(chest: Chest, wanted: readonly string[] | null): Parsed<ChestThing[]> {
+  if (wanted === null) {
+    if (chest.things.length <= chest.picks) return { ok: true, value: chest.things };
+    return refuse(`This chest holds ${chest.things.length} things and gives up ${chest.picks}: ask the player which they take, then give those atom ids as chest_things.`);
+  }
+  if (new Set(wanted).size !== wanted.length) return refuse("chest_things names a thing twice.");
+  if (wanted.length > chest.picks) return refuse(`This chest gives up ${chest.picks} ${chest.picks === 1 ? "thing" : "things"}, not ${wanted.length}.`);
+  const things: ChestThing[] = [];
+  for (const id of wanted) {
+    const thing = chest.things.find((t) => t.atomId === id);
+    if (thing === undefined) return refuse(`No thing with the atom id ${id} is in this chest.`);
+    things.push(thing);
+  }
+  return { ok: true, value: things };
 }
 
 /** What a purse is worth in the smallest coin; a coin the campaign does not name is worth nothing. */
@@ -287,6 +371,8 @@ export function handsLine(change: HandsChange, who: string, coins: (c: Coins) =>
       return `${who} takes: ${count(change.quantity)}${change.thing}`;
     case "loot":
       return change.coins !== null ? `${who} finds ${coins(change.coins)}: ${change.thing}` : `${who} finds: ${count(change.quantity)}${change.thing}`;
+    case "chest":
+      return `${who} opens ${chestName(change.chest)} and takes: ${chestWords(change.things, coins)}`;
     case "pay":
       return `${who} pays ${coins(change.coins)}: ${change.why}`;
     case "gain":
@@ -296,12 +382,17 @@ export function handsLine(change: HandsChange, who: string, coins: (c: Coins) =>
   }
 }
 
+const chestName = (name: string): string => (name === "" ? "the chest" : `the chest (${name})`);
+const chestWords = (things: readonly ChestThing[], coins: (c: Coins) => string): string =>
+  things.map((t) => (t.coins !== null ? `${coins(t.coins)}${t.name === "" ? "" : ` (${t.name})`}` : t.name)).join(", ");
+
 /** What the narrator is told once a change is taken. */
 export function handsText(change: HandsChange, coins: (c: Coins) => string): string {
   const what =
     change.kind === "pay" ? `${coins(change.coins)} leave the purse`
     : change.kind === "gain" ? `${coins(change.coins)} enter the purse`
     : change.kind === "buy" ? `${count(change.quantity)}${change.thing} is bought for ${coins(change.price)}`
+    : change.kind === "chest" ? `${chestName(change.chest)} is opened and gives up ${chestWords(change.things, coins)}; whatever else was in it is gone with the opening`
     : change.kind === "loot" && change.coins !== null ? `${coins(change.coins)} (${change.thing}) enter the purse`
     : `${count(change.quantity)}${change.thing} changes hands`;
   return `When this turn is kept: ${what}. Tell it once, in a sentence, as part of the story.`;
@@ -328,6 +419,8 @@ export interface Loot {
   coins: Coins | null;
   /** The quest beat it was placed on, by its title; null when it was placed on the place itself. */
   beat: string | null;
+  /** Set for a chest rolled from a loot table (`name` is then the table's name): what is in it. */
+  chest?: Chest;
 }
 
 export const MAX_LOOT_SHOWN = 20;
@@ -362,6 +455,12 @@ export function possessionsSection(p: Possessions | null, coins: (c: Coins) => s
       "The campaign put these here to be found: in this place, or at the point of the story the party has reached. They are found when the story finds them (a search, a chest opened, a body gone through, a thing handed over at the right moment), not before, and each only once. Give one with take and its placement_id.",
     );
     for (const l of p.loot.slice(0, MAX_LOOT_SHOWN)) {
+      if (l.chest !== undefined) {
+        const inside = l.chest.things.map((t) => `${t.coins !== null ? `${coins(t.coins)}${t.name === "" ? "" : ` (${t.name})`}` : t.name} [atom ${t.atomId}]`).join("; ");
+        const rule = l.chest.things.length <= l.chest.picks ? "gives up all of it" : `gives up ${l.chest.picks} of these, the player's choice (chest_things)`;
+        lines.push(`- A chest${l.name === "" ? "" : ` (${l.name})`}${l.beat === null ? "" : `, at "${l.beat}"`}, opened once, ${rule}: ${inside} [placement_id ${l.id}]`);
+        continue;
+      }
       const what = l.coins !== null ? `${coins(l.coins)}${l.name === "" ? "" : ` (${l.name})`}` : `${l.quantity > 1 ? `${l.quantity} × ` : ""}${l.name}`;
       lines.push(`- ${what}${l.beat === null ? "" : `, at "${l.beat}"`} [placement_id ${l.id}]`);
     }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  handsLine, parseBuy, parseCoins, parseHandOver, parseTake, possessionsSection, purseAfterPaying, type Coins, type Ware,
+  chestOf, chestPick, handsLine, handsText, parseBuy, parseCoins, parseHandOver, parseTake, possessionsSection, purseAfterPaying, type Coins, type Ware,
 } from "./hands.ts";
 
 const HONEYCOMB = "f5f67a48-5233-473b-84a3-5eb024491c86";
@@ -136,5 +136,86 @@ describe("what the page and the narrator are told", () => {
   it("tells a find in the margin: coins as coins, a thing by its name", () => {
     expect(handsLine({ kind: "loot", placementId: "p", thing: "Tower-Door Key", quantity: 1, ref: { itemId: "i1", libraryItemId: null }, coins: null }, "Rosie", text)).toBe("Rosie finds: Tower-Door Key");
     expect(handsLine({ kind: "loot", placementId: "p", thing: "The sentry's purse", quantity: 1, ref: { itemId: null, libraryItemId: null }, coins: { gp: 12 } }, "Rosie", text)).toBe("Rosie finds 12 gp: The sentry's purse");
+  });
+});
+
+describe("a chest rolled from a loot table", () => {
+  const coinsText = (c: Coins): string => Object.entries(c).map(([k, n]) => `${n} ${k}`).join(", ");
+  const ITEM = "11111111-2222-4333-8444-555555555555";
+  const payload = {
+    loot_table_name: "Smuggler's cache",
+    claims_total: 2,
+    rolled_atoms: [
+      { atom_id: "a1", type: "item", item_id: ITEM, item_name: "Silvered Dagger" },
+      { atom_id: "a2", type: "currency", currency_label: "Loose coin", coins: { gp: 30, sp: 0 } },
+      { atom_id: "a3", item_id: "srd_potion-of-healing", item_name: "Potion of Healing" },
+      { atom_id: "a4", type: "currency", coins: { gp: 0 } },
+      { atom_id: "", type: "item", item_id: ITEM, item_name: "No id" },
+      { atom_id: "a6", type: "item", item_id: ITEM },
+    ],
+  };
+
+  // Bug caught: an atom with no type (an older chest) dropped; a library item written to the uuid column; an empty
+  // purse or a nameless thing offered as a find.
+  it("reads what can really be taken, and tells a campaign item from a library one", () => {
+    expect(chestOf(payload)).toEqual({
+      picks: 2,
+      things: [
+        { atomId: "a1", name: "Silvered Dagger", ref: { itemId: ITEM, libraryItemId: null }, coins: null },
+        { atomId: "a2", name: "Loose coin", ref: { itemId: null, libraryItemId: null }, coins: { gp: 30 } },
+        { atomId: "a3", name: "Potion of Healing", ref: { itemId: null, libraryItemId: "srd_potion-of-healing" }, coins: null },
+      ],
+    });
+  });
+
+  // Bug caught: a chest that gives up nothing (cap 0, or nothing left that can be taken) listed as a find; a cap
+  // above what the chest holds letting a thing be asked for that is not there.
+  it("is no find when nothing can be taken, and never gives up more than it holds", () => {
+    expect(chestOf({ ...payload, claims_total: 0 })).toBeNull();
+    expect(chestOf({ claims_total: 3, rolled_atoms: [] })).toBeNull();
+    expect(chestOf({ claims_total: 3 })).toBeNull();
+    expect(chestOf({ ...payload, claims_total: 9 })?.picks).toBe(3);
+  });
+
+  const chest = chestOf(payload)!;
+
+  // Bug caught: a chest that holds more than it gives up emptied whole; a thing taken twice; more taken than the
+  // cap; a thing taken that was never in it.
+  it("hands over only what was named, within what the chest gives up", () => {
+    expect(chestPick(chest, null).ok).toBe(false);
+    expect(chestPick(chest, ["a1", "a1"]).ok).toBe(false);
+    expect(chestPick(chest, ["a1", "a2", "a3"]).ok).toBe(false);
+    expect(chestPick(chest, ["a1", "zz"]).ok).toBe(false);
+    expect(chestPick(chest, ["a3", "a2"])).toMatchObject({ ok: true, value: [{ atomId: "a3" }, { atomId: "a2" }] });
+  });
+
+  // Bug caught: a chest that gives up all it holds refused until the narrator lists every thing in it.
+  it("needs no choosing when the chest gives up everything in it", () => {
+    const whole = chestOf({ ...payload, claims_total: 3 })!;
+    expect(chestPick(whole, null)).toMatchObject({ ok: true, value: [{ atomId: "a1" }, { atomId: "a2" }, { atomId: "a3" }] });
+  });
+
+  // Bug caught: chest_things sent without a chest's placement (an item id, a plain name), or as something that is
+  // not a list of ids, taken as an ordinary find.
+  it("takes chest_things only with a placement, as a list of ids", () => {
+    const P = "11111111-2222-4333-8444-555555555555";
+    expect(parseTake({ placement_id: P, chest_things: ["a1"] })).toMatchObject({ ok: true, value: { placementId: P, chestThings: ["a1"] } });
+    expect(parseTake({ placement_id: P })).toMatchObject({ ok: true, value: { chestThings: null } });
+    expect(parseTake({ name: "A key", chest_things: ["a1"] }).ok).toBe(false);
+    expect(parseTake({ placement_id: P, chest_things: [] }).ok).toBe(false);
+    expect(parseTake({ placement_id: P, chest_things: "a1" }).ok).toBe(false);
+  });
+
+  // Bug caught: a chest listed like a single item, so the narrator cannot say what is in it or name what is taken.
+  it("is listed with what it holds, each thing's atom id, and how much it gives up", () => {
+    const section = possessionsSection({ carried: [], more: 0, purse: {}, wares: [], loot: [{ id: "p-chest", name: "Smuggler's cache", quantity: 1, ref: { itemId: null, libraryItemId: null }, coins: null, beat: null, chest }] }, coinsText);
+    expect(section).toContain("- A chest (Smuggler's cache), opened once, gives up 2 of these, the player's choice (chest_things): Silvered Dagger [atom a1]; 30 gp (Loose coin) [atom a2]; Potion of Healing [atom a3] [placement_id p-chest]");
+  });
+
+  it("is told as one opening, in the margin and to the narrator", () => {
+    const change = { kind: "chest" as const, placementId: "p", chest: "Smuggler's cache", things: [chest.things[0], chest.things[1]] };
+    expect(handsLine(change, "Rosie", coinsText)).toBe("Rosie opens the chest (Smuggler's cache) and takes: Silvered Dagger, 30 gp (Loose coin)");
+    // Bug caught: the narrator left believing the rest of the chest can still be taken later.
+    expect(handsText(change, coinsText)).toContain("whatever else was in it is gone with the opening");
   });
 });
