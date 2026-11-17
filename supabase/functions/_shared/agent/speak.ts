@@ -359,8 +359,12 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
         voices.add(addressee.id);
         const reply = await ask(
           record, cursor.event,
-          `${cursor.said.speaker.name} said this to you. Answer them, or answer DOES: - and SAYS: - if you would rather say ` +
-            `nothing. If you answer, put after TO the name of the one you are answering.`,
+          // Seen live (17 Nov 2026): told simply to answer, characters thanked and agreed with each other in a
+          // loop ("Thank you, Master Cantor. I will listen carefully."). Real people let agreement go unsaid.
+          `${cursor.said.speaker.name} said this to you. Answer only if you have something to add: an objection, a ` +
+            `fact, a question, a decision, a different view. If all you would do is agree, thank them or repeat what ` +
+            `was said, say nothing: answer DOES: - and SAYS: -. A nod needs no words. If you answer, put after TO the ` +
+            `name of the one you are answering.`,
         );
         if (!reply) break;
         usage.push(reply.turn.usage);
