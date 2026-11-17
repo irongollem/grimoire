@@ -59,6 +59,18 @@ describe("fightsSection", () => {
 });
 
 describe("planFight", () => {
+  // Bug caught: the fight on the party's heels refused because it was prepared at another place, so the narrator
+  // puts a new one together (fresh creatures); or started again with nobody left to follow.
+  it("starts the fight that follows wherever the party is, with only those who follow", () => {
+    const CHASE = "00000000-0000-4000-8000-0000000000c5";
+    const hound = (hp: number) => ({ name: "Hound", side: "enemy" as const, hp, maxHp: 9 });
+    const chased = (hp: number) => view({ prepared: [], pursuit: { encounterId: CHASE, name: "The Kennel", phase: "over", round: 3, fighters: [hound(hp)] } });
+    expect(planFight(chased(4), { encounter_id: CHASE })).toMatchObject({ ok: true, plan: { kind: "prepared", encounterId: CHASE, carried: ["Hound"] } });
+    expect(planFight(chased(0), { encounter_id: CHASE }).ok).toBe(false);
+    expect(fightsSection(chased(4))).toContain(`encounter_id ${CHASE}`);
+    expect(fightsSection(chased(0))).toBe("");
+  });
+
   it("starts a fight prepared at this place by its id", () => {
     expect(planFight(view(), { encounter_id: PREPARED })).toMatchObject({ ok: true, plan: { kind: "prepared", encounterId: PREPARED, name: "The Watching Pack" } });
   });

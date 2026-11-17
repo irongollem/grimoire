@@ -100,9 +100,10 @@ export async function fightsOf(
   campaignId: string,
   locationId: string | null,
   fightEncounterId: string | null,
+  pursuitEncounterId: string | null = null,
 ): Promise<FightsInView | null> {
   try {
-    return await deps.loadFights(campaignId, locationId, fightEncounterId);
+    return await deps.loadFights(campaignId, locationId, fightEncounterId, pursuitEncounterId);
   } catch (error) {
     console.error("agent-turn: loading the fights failed:", error);
     return null;

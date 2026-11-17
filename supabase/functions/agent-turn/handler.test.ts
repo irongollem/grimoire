@@ -175,6 +175,8 @@ interface Harness {
   finished: string[];
   /** The fights whose loot was laid where they were fought. */
   laidLoot: { encounterId: string; placeId: string | null }[];
+  /** Each change to which fight is on the party's heels. */
+  pursuits: (string | null)[];
   /** Every time the opening quest was put in play. */
   begun: Array<{ campaignId: string; questId: string; beatId: string }>;
   /** Every reveal the handler asked for, in order. */
@@ -276,6 +278,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     fightSets: [],
     finished: [],
     laidLoot: [],
+    pursuits: [],
     facts: [],
     recordLoads: [],
     discards: [],
@@ -386,6 +389,9 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     },
     setFight: async (sessionId, campaignId, encounterId) => {
       h.fightSets.push({ sessionId, campaignId, encounterId });
+    },
+    setPursuit: async (_sessionId, _campaignId, encounterId) => {
+      h.pursuits.push(encounterId);
     },
     layFightLoot: async (_campaignId, encounterId, placeId) => {
       h.laidLoot.push({ encounterId, placeId });
@@ -3117,6 +3123,10 @@ describe("the story turns into a fight", () => {
       await play(ran, { body: rolling(13) });
       expect(ran.finished).toEqual([]);
       expect(ran.laidLoot).toEqual([]);
+      // Bug caught: the creatures that give chase forgotten, so the fight that catches the party is a new one at
+      // full health; or a fight whose foes gave in still counted as following.
+      expect(ran.pursuits).toEqual([FIGHT]);
+      expect(won.pursuits).toEqual([]);
       const fled = inFight([change({ costs: "action", ends: "they_flee" }), step(10)]);
       await play(fled, { body: rolling(13) });
       expect(fled.laidLoot).toEqual([]);

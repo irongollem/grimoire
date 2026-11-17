@@ -16,6 +16,7 @@
 //
 // Pure: no I/O.
 
+import { followersOf, pursuitLines } from "./pursuit.ts";
 import type { AgentTool } from "./types.ts";
 
 /** A fight the DM prepared at the place the party stands in. */
@@ -53,6 +54,8 @@ export interface FightState {
 export interface FightsInView {
   prepared: PreparedFight[];
   fight: FightState | null;
+  /** The fight the party got away from whose creatures give chase (`pursuit.ts`); absent or null when nobody follows. */
+  pursuit?: FightState | null;
 }
 
 export const NO_FIGHTS: FightsInView = { prepared: [], fight: null };
@@ -111,7 +114,10 @@ export function fightsSection(view: FightsInView, budget: string | null = null):
         );
       }
     }
-  } else if (view.prepared.length > 0) {
+  } else {
+    lines.push(...pursuitLines(view.pursuit === undefined ? null : view.pursuit));
+  }
+  if (fight === null && view.prepared.length > 0) {
     lines.push(
       "Fights prepared at this place. When one of them breaks out, start it with start_fight and its id:",
       ...view.prepared.slice(0, MAX_PREPARED).map((p) => `  - "${p.name}", id ${p.id}${p.creatures ? `: ${p.creatures}` : ""}`),
@@ -156,7 +162,7 @@ export const START_FIGHT_TOOL: AgentTool = {
 };
 
 export type FightPlan =
-  | { kind: "prepared"; encounterId: string; name: string }
+  | { kind: "prepared"; encounterId: string; name: string; /** The fight that followed the party: started again with those creatures as they were left. */ carried?: string[] }
   | { kind: "improvised"; name: string; creatures: Array<{ monsterId: string | null; npcId: string | null; count: number }> };
 
 type Planned = { ok: true; plan: FightPlan; says: string } | { ok: false; error: string };
@@ -171,6 +177,11 @@ export function planFight(view: FightsInView, input: Record<string, unknown>): P
   const { encounter_id: encounterId, name, creatures } = input;
   if (encounterId !== undefined) {
     if (name !== undefined || creatures !== undefined) return refuse("Give encounter_id alone, or name with creatures.");
+    // The fight on the party's heels is started again wherever it catches them, whatever place it was prepared at.
+    const followers = followersOf(view.pursuit === undefined ? null : view.pursuit);
+    if (view.pursuit && followers.length > 0 && encounterId === view.pursuit.encounterId) {
+      return { ok: true, plan: { kind: "prepared", encounterId: view.pursuit.encounterId, name: view.pursuit.name, carried: followers }, says: started(view.pursuit.name) };
+    }
     const prepared = typeof encounterId === "string" ? view.prepared.slice(0, MAX_PREPARED).find((p) => p.id === encounterId) : undefined;
     if (!prepared) return refuse("That fight is not listed for this place. Use an id from \"Fights\", or put one together with name and creatures.");
     return { ok: true, plan: { kind: "prepared", encounterId: prepared.id, name: prepared.name }, says: started(prepared.name) };

@@ -11,6 +11,7 @@
 //                (`_shared/agent/summary.ts`): the player never waits for that, and a failure in it is only logged.
 // A caller that gets `run` MUST call it: the reservation is released inside it.
 
+import { followersOf } from "../_shared/agent/pursuit.ts";
 import { lootIsWon } from "../_shared/agent/encounterLoot.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
 import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
@@ -127,6 +128,8 @@ export interface SessionRow {
   pending_roll: PendingRoll | null;
   /** The encounter this conversation started and is waiting on; null when the story is not in a fight. */
   fight_encounter_id: string | null;
+  /** The fight the party got away from whose creatures give chase; null when nobody follows. */
+  pursuit_encounter_id?: string | null;
 }
 
 export interface ResolvedProvider {
@@ -227,7 +230,9 @@ export interface AgentTurnDeps {
    */
   setScene(sessionId: string, campaignId: string, locationId: string): Promise<SceneView | null>;
   /** The fights prepared at the party's place and the one this conversation started, as it stands. */
-  loadFights(campaignId: string, locationId: string | null, fightEncounterId: string | null): Promise<FightsInView>;
+  loadFights(campaignId: string, locationId: string | null, fightEncounterId: string | null, pursuitEncounterId?: string | null): Promise<FightsInView>;
+  /** Says which fight is on the party's heels, or (null) that nobody follows. */
+  setPursuit(sessionId: string, campaignId: string, encounterId: string | null): Promise<void>;
   /** Starts the fight the narrator asked for and points the conversation at it. Throws when it could not. */
   startFight(
     ctx: { campaignId: string; sessionId: string; userId: string; memberId: string; locationId: string | null; playSessionId: string | null },
@@ -511,7 +516,8 @@ export async function beginTurn(input: {
         const record = await recordOf(deps, campaign.id, scene);
         // Fights: what is prepared here and the one this conversation is waiting on. Unreadable means no fight
         // tool this turn, since the ids it would be asked to name could not be checked.
-        let fights = await fightsOf(deps, campaign.id, session.scene_location_id, session.fight_encounter_id);
+        const pursuitId = session.pursuit_encounter_id === undefined ? null : session.pursuit_encounter_id;
+        let fights = await fightsOf(deps, campaign.id, session.scene_location_id, session.fight_encounter_id, pursuitId);
         // A fight that has not begun and has someone in it the rules cannot play can never be fought: the story
         // would wait on it for good, with the narrator sending the player to a fight screen where nothing can act.
         // The conversation lets go of it and the story goes on. (Fights are no longer started that way; this frees
@@ -601,7 +607,7 @@ export async function beginTurn(input: {
           fight: character && fights !== null
             ? {
               view: fights,
-              viewAt: (locationId) => deps.loadFights(campaign.id, locationId, session.fight_encounter_id),
+              viewAt: (locationId) => deps.loadFights(campaign.id, locationId, session.fight_encounter_id, pursuitId),
               onStart: (plan) => { fightPlan = plan; },
               statless: (plan) => deps.statlessFighters(campaign.id, plan),
             }
@@ -804,6 +810,8 @@ export async function beginTurn(input: {
               await recordFight(fights.fight, change.ends);
               // Foes who gave in or ran are done with; one the party ran from is still there to be met again.
               if (change.ends !== "you_get_away") await safely(() => deps.finishFight(campaign.id, fights.fight!.encounterId));
+              // Got away: whoever gives chase is the same fight, to be started again where it catches the party.
+              else if (followersOf(fights.fight).length > 0) await safely(() => deps.setPursuit(session.id, campaign.id, fights.fight!.encounterId));
               // Foes who gave in have given up what they carried; ones who fled took it with them.
               if (change.ends === "they_give_in") await safely(() => deps.layFightLoot(campaign.id, fights.fight!.encounterId, session.scene_location_id));
             }

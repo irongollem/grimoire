@@ -8,6 +8,7 @@
 //
 // Thin on purpose: no test harness here, the rules are tested where they live.
 
+import { carriedRoster, followersOf } from "../_shared/agent/pursuit.ts";
 import { encounterLootRows } from "../_shared/agent/encounterLoot.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fightStateOf, MAX_PREPARED, type Fighter, type FightPlan, type FightsInView, type FightState, type PreparedFight } from "../_shared/agent/fight.ts";
@@ -51,57 +52,65 @@ async function namesOf(client: SupabaseClient, table: "monsters" | "npcs", campa
   return new Map((data ?? []).map((r) => [r.id as string, r.name as string]));
 }
 
+/** One encounter's fight as it stands, with what each creature's stat block says of its nature. Null when the encounter is gone. */
+async function fightOf(client: SupabaseClient, campaignId: string, fightEncounterId: string): Promise<FightState | null> {
+  let fight: FightState | null = null;
+  const enc = await client.from("encounters").select("id, name, is_finished").eq("id", fightEncounterId).eq("campaign_id", campaignId).maybeSingle();
+  if (enc.error) throw enc.error;
+  if (enc.data) {
+    const live = await client
+      .from("encounter_state")
+      .select("is_running, ended_at, current_round, combatants_live")
+      .eq("encounter_id", fightEncounterId)
+      .eq("campaign_id", campaignId)
+      .maybeSingle();
+    if (live.error) throw live.error;
+    fight = fightStateOf({
+      encounterId: enc.data.id as string,
+      name: enc.data.name as string,
+      finished: enc.data.is_finished === true,
+      live: live.data
+        ? {
+          isRunning: live.data.is_running === true,
+          endedAt: (live.data.ended_at as string | null) ?? null,
+          round: typeof live.data.current_round === "number" ? live.data.current_round : 1,
+          combatants: live.data.combatants_live,
+        }
+        : null,
+    });
+    // What can be done to each creature without a weapon, from its own stat block. Unreadable leaves the line
+    // out: the narrator then rules without it, as before.
+    try {
+      const roster = Array.isArray(live.data?.combatants_live) ? (live.data.combatants_live as RunCombatant[]) : [];
+      const sources = await loadStatBlocks(client, campaignId, statBlockIdsOf(roster));
+      const natures = new Map<string, NonNullable<Fighter["nature"]>>();
+      for (const c of roster) {
+        const block = statBlockOf(c, sources);
+        if (block === null || c.type === "player") continue;
+        const kind = c.monster_id ? (sources.monsters.find((m) => m.id === c.monster_id)?.monster_type ?? null) : null;
+        const temper = temperOf(block, kind);
+        natures.set(c.name, { line: temperLine(temper), yields: temper.yields, pursuit: temper.pursuit, immune: [...(block.defenses?.condition_immunities ?? [])] });
+      }
+      fight = { ...fight, fighters: fight.fighters.map((f) => (f.side === "party" || !natures.has(f.name) ? f : { ...f, nature: natures.get(f.name) })) };
+    } catch (error) {
+      console.error("agent-turn: reading the fighters' stat blocks failed:", error);
+    }
+  }
+  return fight;
+}
+
 /** What the narrator is shown about fights: those prepared at the party's place, and the one this conversation started. */
 export async function loadFights(
   client: SupabaseClient,
   campaignId: string,
   locationId: string | null,
   fightEncounterId: string | null,
+  pursuitEncounterId: string | null = null,
 ): Promise<FightsInView> {
-  let fight: FightState | null = null;
-  if (fightEncounterId !== null) {
-    const enc = await client.from("encounters").select("id, name, is_finished").eq("id", fightEncounterId).eq("campaign_id", campaignId).maybeSingle();
-    if (enc.error) throw enc.error;
-    if (enc.data) {
-      const live = await client
-        .from("encounter_state")
-        .select("is_running, ended_at, current_round, combatants_live")
-        .eq("encounter_id", fightEncounterId)
-        .eq("campaign_id", campaignId)
-        .maybeSingle();
-      if (live.error) throw live.error;
-      fight = fightStateOf({
-        encounterId: enc.data.id as string,
-        name: enc.data.name as string,
-        finished: enc.data.is_finished === true,
-        live: live.data
-          ? {
-            isRunning: live.data.is_running === true,
-            endedAt: (live.data.ended_at as string | null) ?? null,
-            round: typeof live.data.current_round === "number" ? live.data.current_round : 1,
-            combatants: live.data.combatants_live,
-          }
-          : null,
-      });
-      // What can be done to each creature without a weapon, from its own stat block. Unreadable leaves the line
-      // out: the narrator then rules without it, as before.
-      try {
-        const roster = Array.isArray(live.data?.combatants_live) ? (live.data.combatants_live as RunCombatant[]) : [];
-        const sources = await loadStatBlocks(client, campaignId, statBlockIdsOf(roster));
-        const natures = new Map<string, NonNullable<Fighter["nature"]>>();
-        for (const c of roster) {
-          const block = statBlockOf(c, sources);
-          if (block === null || c.type === "player") continue;
-          const kind = c.monster_id ? (sources.monsters.find((m) => m.id === c.monster_id)?.monster_type ?? null) : null;
-          const temper = temperOf(block, kind);
-          natures.set(c.name, { line: temperLine(temper), yields: temper.yields, pursuit: temper.pursuit, immune: [...(block.defenses?.condition_immunities ?? [])] });
-        }
-        fight = { ...fight, fighters: fight.fighters.map((f) => (f.side === "party" || !natures.has(f.name) ? f : { ...f, nature: natures.get(f.name) })) };
-      } catch (error) {
-        console.error("agent-turn: reading the fighters' stat blocks failed:", error);
-      }
-    }
-  }
+  const fight = fightEncounterId === null ? null : await fightOf(client, campaignId, fightEncounterId);
+  // Whoever is on the party's heels is told only while no fight is on: one fight at a time.
+  const chased = fight === null && pursuitEncounterId !== null ? await fightOf(client, campaignId, pursuitEncounterId) : null;
+  const pursuit = chased !== null && followersOf(chased).length > 0 ? chased : null;
 
   let prepared: PreparedFight[] = [];
   if (locationId !== null) {
@@ -114,7 +123,8 @@ export async function loadFights(
       .order("name", { ascending: true })
       .limit(MAX_PREPARED + 1);
     if (found.error) throw found.error;
-    const rows = (found.data ?? []).filter((r) => r.id !== fightEncounterId);
+    // The fight that follows is listed as following, not as prepared here too (a party that went back to it).
+    const rows = (found.data ?? []).filter((r) => r.id !== fightEncounterId && (pursuit === null || r.id !== pursuit.encounterId));
     const defs = rows.map((r) => defsOf(r.combatants));
     const monsterNames = await namesOf(client, "monsters", campaignId, [...new Set(defs.flat().flatMap((d) => (d.monsterId ? [d.monsterId] : [])))]);
     const npcNames = await namesOf(client, "npcs", campaignId, [...new Set(defs.flat().flatMap((d) => (d.npcId ? [d.npcId] : [])))]);
@@ -129,7 +139,7 @@ export async function loadFights(
         .join(", "),
     }));
   }
-  return { prepared, fight };
+  return { prepared, fight, pursuit };
 }
 
 /**
@@ -159,6 +169,38 @@ export async function statlessFighters(client: SupabaseClient, campaignId: strin
 /** Points the conversation at a fight, or (null) lets go of it. The server's own row, so the admin client. */
 export async function setFight(admin: SupabaseClient, sessionId: string, campaignId: string, encounterId: string | null): Promise<void> {
   const { error } = await admin.from("agent_sessions").update({ fight_encounter_id: encounterId }).eq("id", sessionId).eq("campaign_id", campaignId);
+  if (error) throw error;
+}
+
+/** Says which fight is on the party's heels, or (null) that nobody follows. The server's own row, so the admin client. */
+export async function setPursuit(admin: SupabaseClient, sessionId: string, campaignId: string, encounterId: string | null): Promise<void> {
+  const { error } = await admin.from("agent_sessions").update({ pursuit_encounter_id: encounterId }).eq("id", sessionId).eq("campaign_id", campaignId);
+  if (error) throw error;
+}
+
+/**
+ * The fight that followed the party arrives where it caught them: the encounter moves to that place, and its fight
+ * row is opened again with the creatures who followed as they were left (`carriedRoster`), in no order and on no
+ * square yet. A row that has not ended is one the page resumes, so nothing is rebuilt at full health.
+ */
+async function carryFight(admin: SupabaseClient, campaignId: string, encounterId: string, placeId: string | null, followers: readonly string[]): Promise<void> {
+  const row = await admin.from("encounter_state").select("id, version, combatants_live").eq("encounter_id", encounterId).eq("campaign_id", campaignId).maybeSingle();
+  if (row.error) throw row.error;
+  if (!row.data) throw new Error("the fight that followed has no fight to carry on");
+  const roster = carriedRoster(row.data.combatants_live, followers);
+  if (!roster.some((c) => c.type !== "player")) throw new Error("nobody is left of the fight that followed");
+  if (placeId !== null) {
+    const moved = await admin.from("encounters").update({ location_id: placeId }).eq("id", encounterId).eq("campaign_id", campaignId);
+    if (moved.error) throw moved.error;
+  }
+  const { error } = await admin
+    .from("encounter_state")
+    .update({
+      combatants_live: roster, current_round: 0, active_combatant_index: 0, is_running: false, ended_at: null, started_at: null,
+      events_fired: [], lair_fired_rounds: [], applied_command_ids: [], magical_darkness: [], version: (row.data.version as number) + 1,
+    })
+    .eq("id", row.data.id as string)
+    .eq("version", row.data.version as number);
   if (error) throw error;
 }
 
@@ -235,6 +277,7 @@ export async function startFight(
       const { error } = await client.from("encounters").update({ party_member_ids: [...party, memberId] }).eq("id", plan.encounterId).eq("campaign_id", campaignId);
       if (error) throw error;
     }
+    if (plan.carried !== undefined) await carryFight(admin, campaignId, plan.encounterId, ctx.locationId, plan.carried);
     encounterId = plan.encounterId;
     monsterIds = defsOf(found.data.combatants).flatMap((d) => (d.monsterId ? [d.monsterId] : []));
   } else {
@@ -272,6 +315,8 @@ export async function startFight(
   }
 
   await setFight(admin, ctx.sessionId, campaignId, encounterId);
+  // The fight that followed has caught up: nobody is on the party's heels any more.
+  if (plan.kind === "prepared" && plan.carried !== undefined) await setPursuit(admin, ctx.sessionId, campaignId, null);
   // After the fight exists: a bestiary that could not be written costs an entry, never the fight.
   try {
     await discover(client, campaignId, memberId, ctx.playSessionId, [...new Set(monsterIds)]);

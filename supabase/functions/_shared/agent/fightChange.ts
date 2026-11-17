@@ -243,7 +243,7 @@ export function chaseText(fight: FightState): string {
   const hunts = named("hunts");
   const judges = named("judges");
   const stays = named("stays");
-  if (hunts.length > 0) parts.push(`${hunts.join(", ")} give${hunts.length === 1 ? "s" : ""} chase: wherever the party goes next, they arrive on its heels. Start the pressure clock for it, and when the party stops, hides badly or is cornered, start a fight there with those creatures (name and creatures).`);
+  if (hunts.length > 0) parts.push(`${hunts.join(", ")} give${hunts.length === 1 ? "s" : ""} chase: wherever the party goes next, they arrive on its heels. Start the pressure clock for it, and when the party stops, hides badly or is cornered, start this same fight again there (start_fight with encounter_id ${fight.encounterId}): they come as they are now, never fresh.`);
   if (judges.length > 0) parts.push(`${judges.join(", ")} decide${judges.length === 1 ? "s" : ""} for themselves whether to follow: judge it by how the fight stood and what they want.`);
   if (stays.length > 0) parts.push(`${stays.join(", ")} do${stays.length === 1 ? "es" : ""} not leave this place, and will be here if the party comes back.`);
   return parts.length === 0 ? "" : `Getting away is not the end of it. ${parts.join(" ")}`;
