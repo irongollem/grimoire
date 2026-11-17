@@ -124,6 +124,7 @@ import { useTableSpeakers } from "@/composables/table/useTableSpeakers";
 import { useTableCheck } from "@/composables/table/useTableCheck";
 import { useTableTurn } from "@/composables/table/useTableTurn";
 import { useTableVoice } from "@/composables/table/useTableVoice";
+import { soloFightPath } from "@/composables/table/useSoloFight";
 import { spokenLines } from "@/lib/table/voiceLines";
 import { useAbove } from "@/composables/useBreakpoint";
 import { getNpcDisplayFocalPoint, getNpcDisplayPortrait } from "@/lib/npcDisplay";
@@ -246,8 +247,11 @@ watch([() => disclosure.hasBeenTold.value, campaignId], openScene, { immediate: 
 function goToFight(): void {
   const now = fight.value;
   if (now === null) return;
+  const memberId = member.value?.id;
+  const sessionId = turn.sessionId.value;
   appUi.exitTablePlay();
-  void router.push(`/encounters/${now.encounterId}/run`);
+  // Told which sitting and character it is for, the fight screen sets the fight up by itself.
+  void router.push(memberId && sessionId ? soloFightPath(now.encounterId, { sessionId, memberId }) : `/encounters/${now.encounterId}/run`);
 }
 
 // Every message goes through here: a clock that ran out goes off the page when the story moves on.

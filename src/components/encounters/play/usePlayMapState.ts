@@ -11,6 +11,8 @@ import { roomBattleCells, roomCellIndex, roomsUnder, seatFromExploring } from "@
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import { seedTokenPositions } from "@/lib/battlemap/roomBridge";
+import { soloSeating } from "@/lib/battlemap/soloSeating";
+import { useSoloFight } from "@/composables/table/useSoloFight";
 import { scatterInRoom as scatterInCells } from "@/lib/battlemap/scatter";
 import { useLocationNames } from "@/composables/locations/useLocations";
 import type { FogCellKey } from "@/lib/battlemap/fogMask";
@@ -230,6 +232,20 @@ export function usePlayMapState(
 
   // ── What the party sees, and the rooms they enter ────────────────────────
   const grid = computed<MapGrid | null>(() => imageGrid(surface.value?.calibration.cells_per_image_width, toValue(imageSize)));
+
+  // A fight from the AI table has nobody to drag tokens out of the tray: everyone is stood on the map as it opens,
+  // live or not (`soloSeating`). Idempotent like the seeding above: only whoever has no square is placed.
+  const solo = useSoloFight();
+  watch(
+    () => [solo.value !== null, surface.value, grid.value, row.value?.combatants_live.length, following.value] as const,
+    ([isSolo, s, g, , follower]) => {
+      const seated = row.value;
+      if (!isSolo || follower || !s || !seated) return;
+      const spots = soloSeating(seated.combatants_live, { focusCells: s.focusCells, grid: g }, { footprintOf: (c) => footprintOf(c, monsters.value) });
+      for (const [instanceId, position] of spots) moveToken(instanceId, position).catch(reportMoveFailure);
+    },
+    { immediate: true },
+  );
   const { viewers, sight } = usePartySight({
     live: () => surface.value?.live ?? null,
     doorStates,

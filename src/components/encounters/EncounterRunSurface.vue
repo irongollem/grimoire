@@ -24,6 +24,7 @@ import { encounterTrapRefs } from "@/lib/dungeon-features/library";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { useToast } from "@/composables/useToast";
+import { useSoloFight } from "@/composables/table/useSoloFight";
 import { buildRunCombatants, legendaryActionCaps } from "@/lib/encounters/buildRunCombatants";
 import { confirmedFromAnswer, sendAlone } from "@/lib/encounters/fightWire";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
@@ -59,6 +60,7 @@ const { byId: trapsById, isLoading: trapsLoading } = useTrapResolver(
 );
 const store = useEncounterRunStore();
 const toast = useToast();
+const solo = useSoloFight();
 // Follows the fight's row for the map and the monsters a fight in progress holds; the runner's transport takes the same reads.
 const { liveState } = useEncounterLive(id, { follow: true });
 
@@ -172,7 +174,10 @@ function filterEncounterTraps(enc: Encounter, all: ReadonlyMap<string, TrapEntry
 }
 
 async function openRun(enc: Encounter, mons: Monster[], par: PartyMember[], npcList: NpcListRow[], traps: TrapEntry[]) {
-  const combatants = buildRunCombatants({ encounter: enc, party: par, companions: companions.value ?? [], monsters: mons, npcs: npcList, species: [...speciesById.value.values()], acFor, jackFor });
+  // A fight from the AI table is fought by the played character alone: the encounter may list a whole party, and a
+  // solo player would be handed every other sheet to play.
+  const fought = solo.value ? { ...enc, party_member_ids: [solo.value.memberId] } : enc;
+  const combatants = buildRunCombatants({ encounter: fought, party: par, companions: companions.value ?? [], monsters: mons, npcs: npcList, species: [...speciesById.value.values()], acFor, jackFor });
   const legendaryCaps = legendaryActionCaps(combatants, mons);
   const { answer } = await sendAlone(enc.id, { type: "open", combatants, ...(Object.keys(legendaryCaps).length ? { legendaryCaps } : {}) });
   if (id.value !== enc.id) return;
