@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shownInTurns, speakLine, VOICE_MESSAGES, type SpeakerTraits, type TableVoiceDeps, type VoiceCampaign, type VoiceSession } from "./handler";
+import { shownInTurns, speakLine, VoicesSpent, VOICE_MESSAGES, type SpeakerTraits, type TableVoiceDeps, type VoiceCampaign, type VoiceSession } from "./handler";
 import { NARRATOR_VOICE_ID, STOCK_VOICES } from "./voicePick";
 import { lineKey, lineKeyFits, NARRATOR_SPEAKER } from "../_shared/agent/lineKey";
 
@@ -20,6 +20,7 @@ function harness() {
     traits: { sex: "woman", age: "adult", voiceId: null } as SpeakerTraits,
     traitsThrow: false,
     synthThrows: false,
+    spent: false,
     kept: new Map<string, string>(),
     turns: [] as Array<{ role: string; blocks: unknown }>,
     storeThrows: false,
@@ -51,6 +52,7 @@ function harness() {
     loadPlayerTraits: async () => ({ sex: "man", age: null, voiceId: null }),
     narratorVoice: () => h.narratorVoice,
     synthesize: async (voiceId, text) => {
+      if (h.spent) throw new VoicesSpent("spent");
       if (h.synthThrows) throw new Error("upstream");
       h.spoken.push({ voiceId, text });
       return "AUDIO";
@@ -295,5 +297,13 @@ describe("speakLine", () => {
     h.turns = STORED;
     expect(await speak(h, { body })).toEqual({ ok: false, refusal: { status: 404, error: VOICE_MESSAGES.noLine } });
     expect(h.spoken).toEqual([]);
+  });
+
+  // Bug caught (seen live): the allowance ran out and every line failed alike, one error after another, with
+  // nothing telling the player why the table had gone quiet.
+  it("says the allowance is used up, apart from an ordinary failure", async () => {
+    const h = harness();
+    h.spent = true;
+    expect(await speak(h)).toEqual({ ok: false, refusal: { status: 402, error: VOICE_MESSAGES.spent } });
   });
 });

@@ -150,6 +150,9 @@ import type { MapLiveDoorState } from "@/types/mapLive.types";
 import type { BattleSurface } from "@/lib/battlemap/roomBridge";
 import type { ExploreFrame } from "@/lib/locations/explore";
 import type { ExploreCell } from "@/rules/fight/explorePositions";
+import { pathTo, reachable } from "@/rules/fight/terrain/reach";
+import type { Cell } from "@/lib/battlemap/movement";
+import { DEFAULT_RULESET } from "@/types/ruleset.types";
 import { DEFAULT_PLAY_VIEW, PLAY_TOOL_KEYS, type ExploreTool, type PlayTool, type PlayViewState } from "@/components/encounters/play/playTypes";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import { DEFAULT_FACTIONS, type RunCombatant } from "@/types/encounter.types";
@@ -313,7 +316,37 @@ useHotkeys(() => [
     : []),
 ]);
 
+// A player's own token walks round walls or not at all, by the search a fight uses (`reachable`), run once per
+// place it stands and far enough to cover the map. The Dungeon Master's line stays straight and is never refused.
+const playerReach = computed(() => {
+  const me = asPlayer ? placed.value[0] : undefined;
+  if (!me?.position || !imageReady.value || imageNaturalW.value === 0) return null;
+  const occluders = surface.live ? occludersOf(surface.live, doorStates) : null;
+  const cols = Math.ceil(surface.calibration.cells_per_image_width);
+  const rows = Math.ceil((surface.calibration.cells_per_image_width * imageNaturalH.value) / imageNaturalW.value);
+  return reachable({
+    mover: { anchor: me.position, footprint: 1, size: "medium" },
+    budgetFeet: (cols + rows) * 10,
+    terrain: {
+      difficult: new Set<string>(),
+      blocking: occluders ? occluders.segments : [],
+      solid: occluders ? occluders.solid : new Set<string>(),
+      bounds: { minX: 0, minY: 0, maxX: cols - 1, maxY: rows - 1 },
+    },
+    others: [],
+    ruleset: DEFAULT_RULESET,
+  });
+});
+function playerRoute(_mover: RunCombatant, to: Cell): readonly Cell[] | null {
+  const reach = playerReach.value;
+  if (reach === null) return null;
+  const path = pathTo(reach, { x: Math.floor(to.x), y: Math.floor(to.y) });
+  // The squares between where the token stands and where it is going; the planner adds the last step itself.
+  return path === null ? null : path.slice(1, -1);
+}
+
 const moves = usePlayTokenMoves({
+  ...(asPlayer ? { route: playerRoute } : {}),
   state: mapState,
   store: noTurns,
   selectedId: () => selectedId,

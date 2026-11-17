@@ -92,6 +92,8 @@ export function useTableVoice(options: {
   });
   const enabled = computed(() => parts.value.narrator || parts.value.characters || parts.value.player);
   const unavailable = ref(false);
+  /** The speech allowance is used up. Cleared when a voice is switched on again, which is how one finds out it is back. */
+  const spent = ref(false);
   const speaking = ref(false);
 
   // Each waiting line with its clip already being made: the next voice is ready when the one before it ends.
@@ -135,6 +137,14 @@ export function useTableVoice(options: {
       }
       return null;
     }
+    if (response.status === 402) {
+      // The speech allowance is used up: asking for the next line cannot help, so stop, and say so once.
+      if (mine === generation) {
+        spent.value = true;
+        queue = [];
+      }
+      return null;
+    }
     if (!response.ok) return null;
     const body = (await response.json().catch(() => null)) as { audio?: unknown; mime?: unknown } | null;
     if (!body || typeof body.audio !== "string" || body.audio === "") return null;
@@ -170,7 +180,7 @@ export function useTableVoice(options: {
 
   /** Voices these lines after whatever is already waiting. Does nothing while voices are off or unavailable. */
   function say(lines: readonly VoiceLine[]): void {
-    if (!enabled.value || unavailable.value || lines.length === 0) return;
+    if (!enabled.value || unavailable.value || spent.value || lines.length === 0) return;
     // Asked for at once, all of them: making a voice takes seconds, and they are played in order whatever comes back first.
     const mine = generation;
     queue.push(...lines.map((line) => ({ clip: clipOf(line, mine), voice: voiceOf(line) })));
@@ -198,7 +208,10 @@ export function useTableVoice(options: {
     wanted.value = { ...wanted.value, [id]: { ...parts.value, [part]: on } };
     if (!enabled.value) stop();
     // Asking again is how a player finds out voices have since been switched on.
-    if (on) unavailable.value = false;
+    if (on) {
+      unavailable.value = false;
+      spent.value = false;
+    }
   }
 
   /** Everything off: the server said voices are not switched on. */
@@ -209,5 +222,5 @@ export function useTableVoice(options: {
     stop();
   }
 
-  return { parts, enabled, unavailable, speaking, say, replay, stop, setPart, setAllOff };
+  return { parts, enabled, unavailable, spent, speaking, say, replay, stop, setPart, setAllOff };
 }

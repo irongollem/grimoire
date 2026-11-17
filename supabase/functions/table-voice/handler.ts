@@ -92,6 +92,9 @@ export function ownVoice(traits: Pick<SpeakerTraits, "voiceId">): string | null 
   return traits.voiceId !== null && VOICE_ID_RE.test(traits.voiceId) ? traits.voiceId : null;
 }
 
+/** Thrown by `synthesize` when the speech service says its allowance is used up: asking again cannot help. */
+export class VoicesSpent extends Error {}
+
 export const VOICE_MESSAGES = {
   badBody: "The request is not valid.",
   off: "Voices are not switched on.",
@@ -101,6 +104,7 @@ export const VOICE_MESSAGES = {
   rateLimited: "rate_limited",
   noLine: "That line is not one this sitting has shown.",
   failed: "The line could not be spoken right now.",
+  spent: "voices_spent",
 } as const;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -207,6 +211,8 @@ export async function speakLine(input: {
     await deps.keepClip(at, line, audio).catch((error) => console.error("table-voice: keeping the clip failed:", error));
     return { ok: true, audio, mime: "audio/mpeg" };
   } catch (error) {
+    // Out of allowance is told apart, so the page can say so once and stop asking for every line.
+    if (error instanceof VoicesSpent) return refuse(402, VOICE_MESSAGES.spent);
     console.error("table-voice: the speech service failed:", error);
     return refuse(502, VOICE_MESSAGES.failed);
   }

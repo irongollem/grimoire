@@ -10,7 +10,7 @@ import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { clipName, lineKeyFits } from "../_shared/agent/lineKey.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { r2ConfigFrom } from "../_shared/r2/config.ts";
-import { shownInTurns, speakLine, type TableVoiceDeps } from "./handler.ts";
+import { shownInTurns, speakLine, VoicesSpent, type TableVoiceDeps } from "./handler.ts";
 import { deliveryCue } from "../_shared/agent/characterTurn.ts";
 import { ageOf, sexFromGender, sexOf } from "./voicePick.ts";
 
@@ -146,7 +146,12 @@ serve(withCors(async (req: Request) => {
         signal: AbortSignal.timeout(SPEECH_TIMEOUT_MS),
       });
       // The service's own message can quote the request; only the status is logged.
-      if (!response.ok) throw new Error(`speech service answered ${response.status}`);
+      if (!response.ok) {
+        // Only the service's own status word is read, never its message.
+        const detail = (await response.json().catch(() => null)) as { detail?: { status?: unknown } } | null;
+        if (detail?.detail?.status === "quota_exceeded") throw new VoicesSpent("the speech allowance is used up");
+        throw new Error(`speech service answered ${response.status}`);
+      }
       return base64(new Uint8Array(await response.arrayBuffer()));
     },
   };

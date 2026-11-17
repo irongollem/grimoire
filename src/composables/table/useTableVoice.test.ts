@@ -221,4 +221,20 @@ describe("useTableVoice", () => {
     expect(p.played).toHaveLength(3);
     expect(pauses).toEqual([VOICE_CHANGE_PAUSE_MS]);
   });
+
+  // Bug caught (seen live): with the allowance used up, every new line was still asked for and failed in silence.
+  it("stops asking once the allowance is used up, until a voice is switched on again", async () => {
+    let calls = 0;
+    const voice = useTableVoice({ campaignId: () => "c1", sessionId: () => "s1", transport: async () => { calls += 1; return new Response("{}", { status: 402 }); }, player: manualPlayer().player });
+    useAuthStore().user = { id: "u-spent" } as User;
+    voice.setPart("characters", true);
+    voice.say([line("One.")]);
+    await tick();
+    expect(voice.spent.value).toBe(true);
+    voice.say([line("Two.")]);
+    await tick();
+    expect(calls).toBe(1);
+    voice.setPart("characters", true);
+    expect(voice.spent.value).toBe(false);
+  });
 });
