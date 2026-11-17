@@ -95,7 +95,8 @@ export function fightsSection(view: FightsInView, budget: string | null = null):
             "aloud is short and is answered as briefly (speak, one line); trying something costs their Action unless it " +
             "is small. An attempt on a creature always needs their roll: ask for it (ask_roll) and end your reply; " +
             "when what they try is a contest (a grapple, a shove), roll the creature's side first with the roll tool " +
-            "and use that total as the DC. On the turn their result arrives, if it succeeded and it changes the fight " +
+            "and use that total as the DC; when the creature must resist (a saving throw), roll its save with the roll tool " +
+            "and pass it to fight_change as their_save in the same turn. On the turn the player's result arrives, if it succeeded and it changes the fight " +
             "(a creature hindered or hurt, the foes giving in or fleeing, the player getting away), call fight_change, " +
             "then tell it in a sentence or two; if it failed, call fight_change with only what it cost and tell how it fails. A deed dressed up as " +
             "speech costs what the deed costs.",

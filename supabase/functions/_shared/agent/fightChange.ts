@@ -16,6 +16,10 @@
 //      pinning it down" was answered with the hound Grappled and no roll at all. A change is taken only in the turn
 //      that carries the player's roll for it, and only when that roll succeeded: the narrator asks first (ask_roll),
 //      the player rolls, and the next turn may change the fight. The code holds that, not the prompt.
+//   5. Some things are resisted, not attempted: the one on the receiving end rolls (a saving throw), as when sand is
+//      thrown in a creature's eyes or it is hit by a spell. Then the roll is the creature's, made by the narrator
+//      with the roll tool in the same turn and passed here with the number it had to meet. A save that is made
+//      changes nothing; the turn still pays.
 //
 // Pure: no I/O.
 
@@ -89,6 +93,16 @@ export const FIGHT_CHANGE_TOOL: AgentTool = {
         },
         required: ["target", "amount"],
       },
+      their_save: {
+        type: "object",
+        additionalProperties: false,
+        description: "When the creature resists with a saving throw instead of the player rolling: its total (rolled with the roll tool this turn) and the DC it had to meet.",
+        properties: {
+          total: { type: "integer", description: "The creature's saving throw total." },
+          dc: { type: "integer", minimum: 1, maximum: 30, description: "The DC it had to meet or beat." },
+        },
+        required: ["total", "dc"],
+      },
       ends: {
         type: "string",
         enum: ["they_give_in", "they_flee", "you_get_away"],
@@ -102,6 +116,7 @@ export const FIGHT_CHANGE_TOOL: AgentTool = {
 type Parsed = { ok: true; value: FightChange } | { ok: false; error: string };
 const refuse = (error: string): Parsed => ({ ok: false, error });
 const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
+const isWhole = (x: unknown, min: number, max: number): x is number => typeof x === "number" && Number.isInteger(x) && x >= min && x <= max;
 const same = (a: string, b: string): boolean => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 /** The fighter the narrator named, when it is one it may change: listed, not the party's, still standing. */
@@ -119,15 +134,28 @@ export function parseFightChange(
   fight: FightState | null,
   budget: TurnBudget | null,
   input: Record<string, unknown>,
-  /** Whether the roll the player sent with this turn succeeded; null when this turn carried no roll. */
-  rolled: boolean | null,
+  /**
+   * What was rolled for it. `player`: whether the roll the player sent with this turn succeeded, null when the turn
+   * carried none. `byNarrator`: whether the narrator made a roll with the roll tool this turn (a creature's save).
+   */
+  evidence: { player: boolean | null; byNarrator: boolean },
 ): Parsed {
   if (fight === null || fight.phase !== "running") return refuse("No fight is being fought, so there is nothing to change.");
+  let rolled = evidence.player;
+  // The creature's own save decides when the narrator names one: SRD 5.1 "Saving Throws", the save succeeds when its
+  // total equals or exceeds the DC.
+  if (input.their_save !== undefined) {
+    const save = input.their_save;
+    if (!isRecord(save) || !isWhole(save.total, -10, 60) || !isWhole(save.dc, 1, 30)) return refuse("their_save needs the creature's total and the DC it had to meet, as whole numbers.");
+    if (!evidence.byNarrator) return refuse("Roll the creature's saving throw with the roll tool first, in this turn, then pass its total here.");
+    rolled = save.total < save.dc;
+  }
   if (rolled === null) {
     return refuse(
       "Nothing changes without the player's roll. Ask for it now with ask_roll (a contest is the creature's own roll " +
         "first, with the roll tool, and that total as the DC), end your reply saying what to roll, and change the fight " +
-        "on the turn their result arrives.",
+        "on the turn their result arrives. When it is the creature that must resist (a saving throw), roll its save with " +
+        "the roll tool now and pass their_save.",
     );
   }
 
@@ -137,8 +165,8 @@ export function parseFightChange(
   }
   // A failed attempt does nothing to anyone, and still costs the turn what trying cost.
   if (!rolled) {
-    if (costs === "nothing") return refuse("The player's roll failed, so nothing changes. Tell what happens instead.");
-    if (budget !== null && !budget[costs]) return refuse("The player's roll failed and the turn had nothing left to pay with: nothing changes.");
+    if (costs === "nothing") return refuse("The roll went against the attempt, so nothing changes. Tell what happens instead.");
+    if (budget !== null && !budget[costs]) return refuse("The roll went against the attempt and the turn had nothing left to pay with: nothing changes.");
     return { ok: true, value: { costs, condition: null, damage: null, ends: null } };
   }
   if (condition === undefined && damage === undefined && ends === undefined) return refuse("Give a condition, damage or how the fight ends.");
@@ -184,7 +212,7 @@ export function parseFightChange(
 
 export function changedText(change: FightChange): string {
   if (change.condition === null && change.damage === null && change.ends === null) {
-    return "The player's roll failed: the attempt does nothing, and when this turn is kept it has cost them what trying costs. Tell how it fails in a sentence.";
+    return "The roll went against the attempt: it does nothing, and when this turn is kept it has cost the player what trying costs. Tell how it fails in a sentence.";
   }
   const parts: string[] = [];
   if (change.condition) parts.push(`${change.condition.target} becomes ${change.condition.name} for ${change.condition.rounds} round${change.condition.rounds === 1 ? "" : "s"}`);

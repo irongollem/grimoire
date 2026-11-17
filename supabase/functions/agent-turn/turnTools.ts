@@ -156,12 +156,15 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     return { content: planned.says, isError: false };
   };
 
+  // Whether the narrator has made a roll of its own this turn: a creature's saving throw has to have been rolled
+  // before a change can rest on it.
+  let narratorRolled = false;
   // One change to the fight a turn: a second would silently replace the first.
   let fightChanged = false;
   const changeFight = (toolInput: Record<string, unknown>) => {
     if (input.fightChange === null) return { content: "No fight is being fought, so there is nothing to change.", isError: true };
     if (fightChanged) return { content: "The fight was already changed this turn. Tell what happens and end your reply.", isError: true };
-    const parsed = parseFightChange(input.fightChange.fight, input.fightChange.budget, toolInput, input.fightChange.rolled);
+    const parsed = parseFightChange(input.fightChange.fight, input.fightChange.budget, toolInput, { player: input.fightChange.rolled, byNarrator: narratorRolled });
     if (!parsed.ok) return { content: parsed.error, isError: true };
     fightChanged = true;
     input.fightChange.onChange(parsed.value);
@@ -208,7 +211,12 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (input.fightChange && name === FIGHT_CHANGE_TOOL.name) return Promise.resolve(changeFight(toolInput));
       if (quests && quests.names.has(name)) return quests.call(name, toolInput);
       if (SPEECH_TOOL_NAMES.has(name)) return speech.call(name, toolInput);
-      if (name === ROLL_TOOL_NAME) return rolled(deps.callTool(name, toolInput), toolInput.expression);
+      if (name === ROLL_TOOL_NAME) {
+        return rolled(deps.callTool(name, toolInput), toolInput.expression).then((answer) => {
+          if (!answer.isError) narratorRolled = true;
+          return answer;
+        });
+      }
       return deps.callTool(name, toolInput);
     },
   };
