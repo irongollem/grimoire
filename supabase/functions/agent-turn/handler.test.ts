@@ -2924,11 +2924,15 @@ describe("the story turns into a fight", () => {
     const change = (input: Record<string, unknown>): ModelStep =>
       step(10, { blocks: [{ type: "tool_call", id: "c1", name: "fight_change", input }], stop: "tool_calls" });
     const turn = { yours: true, action: true, bonus: true, reaction: true, words: true };
+    // The attempt was asked for a turn ago (Strength (Athletics), DC 15) and this turn carries the player's roll.
+    const pending = { label: "Strength (Athletics)", kind: "check", ability: "str", skill: "athletics", dc: 15 } as const;
     const inFight = (script: Script): Harness => {
-      const h = played(script, { fight_encounter_id: FIGHT });
+      const h = played(script, { fight_encounter_id: FIGHT, pending_roll: pending });
       h.state.fights = running;
       return h;
     };
+    // 13 + 4 = 17 meets DC 15; 5 + 4 = 9 does not.
+    const rolling = (face: number, over: Record<string, unknown> = {}) => ({ ...BODY, message: "", roll: { faces: [face], mode: "normal", bonus: 4, atTable: true }, fightTurn: turn, ...over });
 
     it("offers the tool only while a fight is being fought, and tells the narrator what the turn holds", async () => {
       const h = inFight([step(10)]);
@@ -2943,7 +2947,7 @@ describe("the story turns into a fight", () => {
 
     it("hands the change to the page once the turn is kept", async () => {
       const h = inFight([change({ costs: "action", condition: { target: "Giant Rat 1", name: "Blinded" } }), step(10)]);
-      await play(h, { body: { ...BODY, fightTurn: turn } });
+      await play(h, { body: rolling(13) });
       expect(h.events.filter((e) => e.type === "fight_change")).toEqual([
         { type: "fight_change", change: { costs: "action", condition: { target: "Giant Rat 1", name: "Blinded", rounds: 1 }, damage: null, ends: null } },
       ]);
@@ -2952,23 +2956,41 @@ describe("the story turns into a fight", () => {
     // Bug caught: a fight the narrator ended ("he gives in") told a second time as an aftermath on the next message.
     it("lets go of the fight when the ruling ends it", async () => {
       const h = inFight([change({ costs: "action", ends: "they_give_in" }), step(10)]);
-      await play(h, { body: { ...BODY, fightTurn: turn } });
+      await play(h, { body: rolling(13) });
       expect(h.fightSets).toEqual([{ sessionId: SESSION, campaignId: CAMPAIGN, encounterId: null }]);
     });
 
     // Bug caught: a stunt carried out for a player whose Action already went on an attack.
     it("changes nothing when the turn no longer holds what it costs", async () => {
       const h = inFight([change({ costs: "action", condition: { target: "Giant Rat 1", name: "Blinded" } }), step(10)]);
-      await play(h, { body: { ...BODY, fightTurn: { ...turn, action: false } } });
+      await play(h, { body: rolling(13, { fightTurn: { ...turn, action: false } }) });
       expect(h.events.some((e) => e.type === "fight_change")).toBe(false);
       expect(JSON.stringify(h.requests[1])).toContain("already used their Action");
+    });
+
+    // Bug caught live (17 Nov 2026): a hound pinned with no roll at all. The narrator "applied the condition without
+    // the required roll", in its own words.
+    it("changes nothing on a turn that carries no roll of the player's", async () => {
+      const h = inFight([change({ costs: "action", condition: { target: "Giant Rat 1", name: "Grappled" } }), step(10)]);
+      await play(h, { body: { ...BODY, fightTurn: turn } });
+      expect(h.events.some((e) => e.type === "fight_change")).toBe(false);
+      expect(JSON.stringify(h.requests[1])).toContain("Nothing changes without the player's roll");
+    });
+
+    // Bug caught: a failed grapple that still pins, or a failed attempt that costs the turn nothing.
+    it("does nothing to the creature when the roll failed, and still charges the turn", async () => {
+      const h = inFight([change({ costs: "action", condition: { target: "Giant Rat 1", name: "Grappled" } }), step(10)]);
+      await play(h, { body: rolling(5) });
+      expect(h.events.filter((e) => e.type === "fight_change")).toEqual([
+        { type: "fight_change", change: { costs: "action", condition: null, damage: null, ends: null } },
+      ]);
     });
 
     // Bug caught: the board changed for a turn the player never got to keep.
     it("changes nothing when the turn is not kept", async () => {
       const h = inFight([change({ costs: "action", condition: { target: "Giant Rat 1", name: "Blinded" } }), step(10)]);
       h.state.saveThrows = true;
-      await play(h, { body: { ...BODY, fightTurn: turn } });
+      await play(h, { body: rolling(13) });
       expect(h.events.some((e) => e.type === "fight_change")).toBe(false);
     });
   });

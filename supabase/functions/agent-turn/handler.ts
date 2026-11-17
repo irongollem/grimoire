@@ -542,7 +542,7 @@ export async function beginTurn(input: {
           onIntroduce: (intro) => { introduced.push(intro); },
           // Offered only while a fight is being fought on the board.
           fightChange: fights !== null && fights.fight !== null && fights.fight.phase === "running"
-            ? { fight: fights.fight, budget: fightTurn, onChange: (change) => { fightChange = change; } }
+            ? { fight: fights.fight, budget: fightTurn, rolled: scored === null ? null : scored.success, onChange: (change) => { fightChange = change; } }
             : null,
           // Only a played character has a sheet to roll from; without one the narrator rolls as before.
           askRoll: character ? (pending) => { asked = pending; } : null,

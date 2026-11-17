@@ -15,10 +15,17 @@ describe("parseFightChange", () => {
     ["damage that is not a whole number", { costs: "action", condition: null, damage: { target: "Hound 1", amount: 4.5 }, ends: null }],
     ["a condition with no rounds", { costs: "action", condition: { target: "Hound 1", name: "Blinded" }, damage: null, ends: null }],
     ["an unknown ending", { costs: "action", condition: null, damage: null, ends: "everyone_dies" }],
-    ["a change that changes nothing", { costs: "action", condition: null, damage: null, ends: null }],
+    ["a change that costs nothing and does nothing", { costs: "nothing", condition: null, damage: null, ends: null }],
     ["not a change at all", "blinded"],
   ])("takes %s for no change", (_what, raw) => {
     expect(parseFightChange(raw)).toBeNull();
+  });
+});
+
+describe("a failed attempt", () => {
+  // Bug caught: an attempt whose roll failed costing the turn nothing, so a player can try the same stunt again and again.
+  it("is a change that only spends what trying cost", () => {
+    expect(parseFightChange({ costs: "action", condition: null, damage: null, ends: null })).toEqual({ costs: "action", condition: null, damage: null, ends: null });
   });
 });
 

@@ -12,6 +12,10 @@
 //      points. A stunt's damage is rolled with the roll tool first and passed as a number.
 //   3. One change a turn, made when the turn is kept, and carried out by the board (the page), which holds the
 //      fight: the story never writes the fight's row itself.
+//   4. Nothing is done to a creature on the narrator's say-so. Seen live: "i try to overpower the last spunhound by
+//      pinning it down" was answered with the hound Grappled and no roll at all. A change is taken only in the turn
+//      that carries the player's roll for it, and only when that roll succeeded: the narrator asks first (ask_roll),
+//      the player rolls, and the next turn may change the fight. The code holds that, not the prompt.
 //
 // Pure: no I/O.
 
@@ -51,7 +55,8 @@ export const FIGHT_CHANGE_TOOL: AgentTool = {
   name: "fight_change",
   description:
     "Changes the fight on the board after you have ruled on something the rules have no button for (a threat, a " +
-    "plea, a trick, running away). Say what it costs the player's turn, and give at least one of: a condition on a " +
+    "plea, a trick, running away). It works only on the turn that carries the player's successful roll for the " +
+    "attempt: ask for that roll first with ask_roll. Say what it costs the player's turn, and give at least one of: a condition on a " +
     "creature, damage to a creature (roll it with the roll tool first and pass the number), or how the fight ends. " +
     "Never use it for an ordinary attack, and never on the player's own character. Name creatures exactly as the " +
     "section \"Fights\" lists them. One change a turn; it is carried out when the turn is kept.",
@@ -110,11 +115,31 @@ function foe(fight: FightState, raw: unknown): { name: string } | string {
 }
 
 /** What the narrator asked for, checked against the fight as it stands and what the player's turn still holds. */
-export function parseFightChange(fight: FightState | null, budget: TurnBudget | null, input: Record<string, unknown>): Parsed {
+export function parseFightChange(
+  fight: FightState | null,
+  budget: TurnBudget | null,
+  input: Record<string, unknown>,
+  /** Whether the roll the player sent with this turn succeeded; null when this turn carried no roll. */
+  rolled: boolean | null,
+): Parsed {
   if (fight === null || fight.phase !== "running") return refuse("No fight is being fought, so there is nothing to change.");
+  if (rolled === null) {
+    return refuse(
+      "Nothing changes without the player's roll. Ask for it now with ask_roll (a contest is the creature's own roll " +
+        "first, with the roll tool, and that total as the DC), end your reply saying what to roll, and change the fight " +
+        "on the turn their result arrives.",
+    );
+  }
+
   const { costs, condition, damage, ends } = input;
   if (costs !== "action" && costs !== "bonus" && costs !== "reaction" && costs !== "nothing") {
     return refuse("costs must be action, bonus, reaction or nothing.");
+  }
+  // A failed attempt does nothing to anyone, and still costs the turn what trying cost.
+  if (!rolled) {
+    if (costs === "nothing") return refuse("The player's roll failed, so nothing changes. Tell what happens instead.");
+    if (budget !== null && !budget[costs]) return refuse("The player's roll failed and the turn had nothing left to pay with: nothing changes.");
+    return { ok: true, value: { costs, condition: null, damage: null, ends: null } };
   }
   if (condition === undefined && damage === undefined && ends === undefined) return refuse("Give a condition, damage or how the fight ends.");
   // What the page does not tell cannot be checked; then the cost is taken on the narrator's word.
@@ -158,6 +183,9 @@ export function parseFightChange(fight: FightState | null, budget: TurnBudget | 
 }
 
 export function changedText(change: FightChange): string {
+  if (change.condition === null && change.damage === null && change.ends === null) {
+    return "The player's roll failed: the attempt does nothing, and when this turn is kept it has cost them what trying costs. Tell how it fails in a sentence.";
+  }
   const parts: string[] = [];
   if (change.condition) parts.push(`${change.condition.target} becomes ${change.condition.name} for ${change.condition.rounds} round${change.condition.rounds === 1 ? "" : "s"}`);
   if (change.damage) parts.push(`${change.damage.target} takes ${change.damage.amount}${change.damage.type ? ` ${change.damage.type}` : ""} damage`);

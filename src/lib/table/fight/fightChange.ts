@@ -42,7 +42,8 @@ export function parseFightChange(raw: unknown): FightChange | null {
   }
   const ends = raw.ends === null || raw.ends === undefined ? null : ENDS.find((e) => e === raw.ends);
   if (ends === undefined) return null;
-  if (condition === null && damage === null && ends === null) return null;
+  // A failed attempt changes nothing but what the turn has left; a change that costs nothing and does nothing is none.
+  if (condition === null && damage === null && ends === null && costs === "nothing") return null;
   return { costs, condition, damage, ends };
 }
 

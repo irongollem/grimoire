@@ -50,7 +50,13 @@ export interface TurnToolsInput {
   /** The names of the world's peoples, for the characters' own calls. */
   peoples: readonly string[];
   /** The fight on the board and what the player's turn still holds; null when no fight is being fought, and then the tool is not offered. */
-  fightChange: { fight: FightState; budget: TurnBudget | null; onChange(change: FightChange): void } | null;
+  fightChange: {
+    fight: FightState;
+    budget: TurnBudget | null;
+    /** Whether the roll the player sent with this turn succeeded; null when the turn carried none. */
+    rolled: boolean | null;
+    onChange(change: FightChange): void;
+  } | null;
   /** Takes a person the narrator gives a record; the record is made when the turn is kept. */
   onIntroduce(intro: Introduction): void;
   /** The fights in view and where a started one goes; null when no fight can be started, and then the tool is not offered. */
@@ -155,7 +161,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   const changeFight = (toolInput: Record<string, unknown>) => {
     if (input.fightChange === null) return { content: "No fight is being fought, so there is nothing to change.", isError: true };
     if (fightChanged) return { content: "The fight was already changed this turn. Tell what happens and end your reply.", isError: true };
-    const parsed = parseFightChange(input.fightChange.fight, input.fightChange.budget, toolInput);
+    const parsed = parseFightChange(input.fightChange.fight, input.fightChange.budget, toolInput, input.fightChange.rolled);
     if (!parsed.ok) return { content: parsed.error, isError: true };
     fightChanged = true;
     input.fightChange.onChange(parsed.value);

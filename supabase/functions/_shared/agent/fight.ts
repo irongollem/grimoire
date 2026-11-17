@@ -93,9 +93,12 @@ export function fightsSection(view: FightsInView, budget: string | null = null):
             "The player comes to you for what the rules have no button for: a threat, a plea, a bargain, a trick with what " +
             "is in the room, running away. Rule on it as a Dungeon Master would. A turn is about six seconds: a line said " +
             "aloud is short and is answered as briefly (speak, one line); trying something costs their Action unless it " +
-            "is small. When chance decides, ask for their roll (ask_roll) and rule on the next turn. When your ruling " +
-            "changes the fight (a creature hindered or hurt, the foes giving in or fleeing, the player getting away), " +
-            "call fight_change, then tell it in a sentence or two. A deed dressed up as speech costs what the deed costs.",
+            "is small. An attempt on a creature always needs their roll: ask for it (ask_roll) and end your reply; " +
+            "when what they try is a contest (a grapple, a shove), roll the creature's side first with the roll tool " +
+            "and use that total as the DC. On the turn their result arrives, if it succeeded and it changes the fight " +
+            "(a creature hindered or hurt, the foes giving in or fleeing, the player getting away), call fight_change, " +
+            "then tell it in a sentence or two; if it failed, call fight_change with only what it cost and tell how it fails. A deed dressed up as " +
+            "speech costs what the deed costs.",
           ...(budget === null ? [] : [budget]),
           ...shown.map(fighterLine),
         );
