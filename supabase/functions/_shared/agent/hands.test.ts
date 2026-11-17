@@ -33,7 +33,10 @@ describe("parseHandOver", () => {
 describe("parseTake", () => {
   // Bug caught: a "+3 sword" picked up by name alone; an item id and a name given together (which wins?).
   it("takes one of the campaign's items by id, or a plain object by name, never both and never neither", () => {
-    expect(parseTake({ item_id: HONEYCOMB })).toMatchObject({ ok: true, value: { itemId: HONEYCOMB, name: null } });
+    expect(parseTake({ item_id: HONEYCOMB })).toMatchObject({ ok: true, value: { itemId: HONEYCOMB, name: null, placementId: null } });
+    // Something the campaign placed is found by its placement, and by nothing else in the same call.
+    expect(parseTake({ placement_id: HONEYCOMB })).toMatchObject({ ok: true, value: { placementId: HONEYCOMB, itemId: null, name: null } });
+    expect(parseTake({ placement_id: HONEYCOMB, name: "A key" }).ok).toBe(false);
     expect(parseTake({ name: "A shard of the tea-service" })).toMatchObject({ ok: true, value: { itemId: null, name: "A shard of the tea-service" } });
     expect(parseTake({ item_id: HONEYCOMB, name: "A key" }).ok).toBe(false);
     expect(parseTake({}).ok).toBe(false);
@@ -106,12 +109,32 @@ describe("what the page and the narrator are told", () => {
   // Bug caught: an empty purse shown as nothing at all (the narrator then lets the player pay); wares listed
   // where there are none.
   it("says the purse is empty, lists what is carried, and lists wares only where something is for sale", () => {
-    const bare = possessionsSection({ carried: [], more: 0, purse: {}, wares: [] }, text);
+    const bare = possessionsSection({ carried: [], more: 0, purse: {}, wares: [], loot: [] }, text);
     expect(bare).toContain("Purse: empty.");
     expect(bare).not.toContain("For sale here");
-    const shop = possessionsSection({ carried: [{ name: "Rope", quantity: 2 }], more: 0, purse: { gp: 5 }, wares: [{ name: "Lantern", ref: { itemId: null, libraryItemId: null }, price: { gp: 3 }, priceText: "3 gp" }] }, text);
+    const shop = possessionsSection({ carried: [{ name: "Rope", quantity: 2 }], more: 0, purse: { gp: 5 }, wares: [{ name: "Lantern", ref: { itemId: null, libraryItemId: null }, price: { gp: 3 }, priceText: "3 gp" }], loot: [] }, text);
     expect(shop).toContain("Rope (2)");
     expect(shop).toContain("- Lantern: 3 gp");
     expect(possessionsSection(null, text)).toBe("");
+  });
+
+  // Bug caught: prepared loot the narrator cannot see (a body searched for nothing), or listed with no id to take
+  // it by; a purse listed as an item.
+  it("lists what the campaign placed within reach, each with the id it is taken by", () => {
+    const section = possessionsSection({
+      carried: [], more: 0, purse: {}, wares: [],
+      loot: [
+        { id: "p-key", name: "Tower-Door Key", quantity: 1, ref: { itemId: "i1", libraryItemId: null }, coins: null, beat: "The Landing" },
+        { id: "p-purse", name: "The sentry's purse", quantity: 1, ref: { itemId: null, libraryItemId: null }, coins: { gp: 12 }, beat: null },
+      ],
+    }, text);
+    expect(section).toContain('- Tower-Door Key, at "The Landing" [placement_id p-key]');
+    expect(section).toContain("- 12 gp (The sentry's purse) [placement_id p-purse]");
+  });
+
+  // Bug caught: found coins told as an item, or a found item told without what it was.
+  it("tells a find in the margin: coins as coins, a thing by its name", () => {
+    expect(handsLine({ kind: "loot", placementId: "p", thing: "Tower-Door Key", quantity: 1, ref: { itemId: "i1", libraryItemId: null }, coins: null }, "Rosie", text)).toBe("Rosie finds: Tower-Door Key");
+    expect(handsLine({ kind: "loot", placementId: "p", thing: "The sentry's purse", quantity: 1, ref: { itemId: null, libraryItemId: null }, coins: { gp: 12 } }, "Rosie", text)).toBe("Rosie finds 12 gp: The sentry's purse");
   });
 });

@@ -214,6 +214,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   // taken, and made when the turn is kept. The purse is counted down as the turn's payments are taken, so two
   // payments cannot both be covered by the same coins.
   let handsTaken = 0;
+  const lootTaken = new Set<string>();
   let purseLeft: Coins | null = input.hands === null ? null : input.hands.possessions.purse;
   const changeHands = async (name: string, toolInput: Record<string, unknown>): Promise<{ content: string; isError: boolean }> => {
     const hands = input.hands;
@@ -241,7 +242,13 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     } else if (name === TAKE_TOOL_NAME) {
       const parsed = parseTake(toolInput);
       if (!parsed.ok) return refused(parsed.error);
-      if (parsed.value.itemId !== null) {
+      if (parsed.value.placementId !== null) {
+        const placed = hands.possessions.loot.find((l) => l.id === parsed.value.placementId);
+        if (placed === undefined) return refused("Nothing with that placement_id is within reach. Use an id listed under \"Placed within reach\".");
+        if (lootTaken.has(placed.id)) return refused("That was already taken this turn.");
+        lootTaken.add(placed.id);
+        change = { kind: "loot", placementId: placed.id, thing: placed.name, quantity: placed.quantity, ref: placed.ref, coins: placed.coins };
+      } else if (parsed.value.itemId !== null) {
         const item = await hands.store.item(campaignId, parsed.value.itemId);
         if (item === null) return refused("No item with that id is in this campaign. Look it up with search, or give name alone for a plain object.");
         change = { kind: "take", thing: item.name, quantity: parsed.value.quantity, ref: { itemId: parsed.value.itemId, libraryItemId: null } };
@@ -265,6 +272,8 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       const smallest = [...hands.coinValues.entries()].find(([, value]) => value === 1);
       purseLeft = smallest ? { [smallest[0]]: left } : purseLeft;
     } else if (change.kind === "gain") {
+      purseLeft = purseAfterGaining(purseLeft, change.coins);
+    } else if (change.kind === "loot" && change.coins !== null) {
       purseLeft = purseAfterGaining(purseLeft, change.coins);
     }
     handsTaken += 1;

@@ -467,7 +467,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       load: async () => {
         if (h.state.handsThrow) throw new Error("db down");
         return {
-          possessions: { carried: [{ name: "Rope", quantity: 1 }], more: 0, purse: { gp: 5 }, wares: [] },
+          possessions: { carried: [{ name: "Rope", quantity: 1 }], more: 0, purse: { gp: 5 }, wares: [], loot: [] },
           currency: { default_key: "gp", denominations: [{ key: "gp", name: "gold", abbr: "gp", value: 100, makes_change: true, color: "#d4af37" }, { key: "cp", name: "copper", abbr: "cp", value: 1, makes_change: true, color: "#b87333" }] },
         };
       },

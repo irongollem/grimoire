@@ -540,7 +540,9 @@ export async function beginTurn(input: {
         let hands: { possessions: Possessions; coinValues: Map<string, number>; coinsText: (coins: Coins) => string } | null = null;
         if (character) {
           try {
-            const loaded = await deps.hands.load(campaign.id, character.id, session.scene_location_id);
+            // The quest beats in play: what the campaign placed on them is within reach, like what it placed on the place.
+            const beats = questState === null ? [] : questState.threads.flatMap((t) => (t.beat === null ? [] : [t.beat]));
+            const loaded = await deps.hands.load(campaign.id, character.id, session.scene_location_id, beats);
             hands = { possessions: loaded.possessions, coinValues: coinValuesOf(loaded.currency), coinsText: coinsText(loaded.currency) };
           } catch (error) {
             console.error("agent-turn: reading what the character carries failed:", error);
@@ -809,7 +811,7 @@ export async function beginTurn(input: {
         if (character && hands !== null) {
           for (const change of handed) {
             try {
-              await deps.hands.apply({ campaignId: campaign.id, userId, memberId: character.id }, change);
+              await deps.hands.apply({ campaignId: campaign.id, userId, memberId: character.id, memberName: character.name }, change);
               emit({ type: "hands", text: handsLine(change, character.name, hands.coinsText) });
             } catch (error) {
               console.error("agent-turn: a change of hands failed:", error);

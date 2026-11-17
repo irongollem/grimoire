@@ -12,6 +12,7 @@ const PLACE = "00000000-0000-4000-8000-0000000000a5";
 const FIGHT = "00000000-0000-4000-8000-0000000000f7";
 const MEMBER = "00000000-0000-4000-8000-0000000000e1";
 const HONEYCOMB_ID = "00000000-0000-4000-8000-0000000000d7";
+const PLACED = "00000000-0000-4000-8000-0000000000b9";
 const ATTIC_FIGHT = "00000000-0000-4000-8000-0000000000f8";
 const session: SessionRow = {
   id: "00000000-0000-4000-8000-0000000000a1",
@@ -178,7 +179,7 @@ describe("makeTurnTools", () => {
     const COIN_VALUES = new Map([["gp", 100], ["sp", 10], ["cp", 1]]);
     const coinsText = (coins: Coins) => Object.entries(coins).map(([k, n]) => `${n} ${k}`).join(" ");
     const hands = (over: Partial<HandsFixture> = {}): HandsFixture => ({
-      possessions: { carried: [{ name: "Rope", quantity: 1 }], more: 0, purse: { gp: 5 }, wares: [{ name: "Lantern", ref: { itemId: "00000000-0000-4000-8000-0000000000a9", libraryItemId: null }, price: { gp: 3 }, priceText: "3 gp" }] },
+      possessions: { carried: [{ name: "Rope", quantity: 1 }], more: 0, purse: { gp: 5 }, wares: [{ name: "Lantern", ref: { itemId: "00000000-0000-4000-8000-0000000000a9", libraryItemId: null }, price: { gp: 3 }, priceText: "3 gp" }], loot: [{ id: PLACED, name: "Tower-Door Key", quantity: 1, ref: { itemId: "00000000-0000-4000-8000-0000000000aa", libraryItemId: null }, coins: null, beat: "The Landing" }] },
       coinValues: COIN_VALUES,
       coinsText,
       store: {
@@ -220,6 +221,16 @@ describe("makeTurnTools", () => {
       const { turn, handed } = build(null, true, hands());
       expect((await turn.callTool("coins", { change: "gain", coin: "gp", amount: 500, why: "The hound's hoard" })).isError).toBe(true);
       expect(handed).toEqual([]);
+    });
+
+    // Bug caught: the same prepared key found twice in one reply (two rows in the pack, one placement); a
+    // placement the campaign never put within reach taken by a guessed id.
+    it("finds something the campaign placed once, and nothing it did not place here", async () => {
+      const { turn, handed } = build(null, true, hands());
+      expect((await turn.callTool("take", { placement_id: PLACED })).isError).toBe(false);
+      expect((await turn.callTool("take", { placement_id: PLACED })).isError).toBe(true);
+      expect((await turn.callTool("take", { placement_id: "00000000-0000-4000-8000-0000000000ff" })).isError).toBe(true);
+      expect(handed).toEqual([{ kind: "loot", placementId: PLACED, thing: "Tower-Door Key", quantity: 1, ref: { itemId: "00000000-0000-4000-8000-0000000000aa", libraryItemId: null }, coins: null }]);
     });
 
     // Bug caught: the tools offered where nothing may change hands (nobody played, a fight on the board).

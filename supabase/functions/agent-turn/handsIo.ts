@@ -10,11 +10,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { coinValue, formatCoins, loadCampaignCurrency, makeChange, parsePrice, type CurrencyConfig } from "../_shared/currency.ts";
 import {
   MAX_CARRIED_SHOWN,
+  MAX_LOOT_SHOWN,
   purseAfterGaining,
   purseAfterPaying,
   type Coins,
   type HandsChange,
   type ItemRef,
+  type Loot,
   type Possessions,
   type Ware,
 } from "../_shared/agent/hands.ts";
@@ -30,7 +32,7 @@ export interface Held {
 /** The lookups a turn's tools make before they take a change, and how the changes are made once the turn is kept. */
 export interface HandsStore {
   /** What the played character carries and what the place sells, with the campaign's coins. Throws when it cannot be read. */
-  load(campaignId: string, memberId: string, placeId: string | null): Promise<{ possessions: Possessions; currency: CurrencyConfig }>;
+  load(campaignId: string, memberId: string, placeId: string | null, beats: readonly { id: string; title: string }[]): Promise<{ possessions: Possessions; currency: CurrencyConfig }>;
   /** A thing among a character's belongings, by name; null when they do not have it (or are not of this campaign). */
   belonging(campaignId: string, characterId: string, thing: string): Promise<(Held & { owner: string }) | null>;
   /** The name of a character of this campaign as the party knows them; null when there is none. */
@@ -40,7 +42,7 @@ export interface HandsStore {
   /** One of the campaign's own items, by id. */
   item(campaignId: string, itemId: string): Promise<{ name: string } | null>;
   /** Makes the change. Throws when it cannot be made; the caller keeps the turn either way. */
-  apply(ctx: { campaignId: string; userId: string; memberId: string }, change: HandsChange): Promise<void>;
+  apply(ctx: { campaignId: string; userId: string; memberId: string; memberName: string }, change: HandsChange): Promise<void>;
 }
 
 const refOf = (row: { item_id: unknown; library_item_id: unknown }): ItemRef => ({
@@ -94,17 +96,18 @@ export function makeHandsStore(admin: SupabaseClient): HandsStore {
   }
 
   const store: HandsStore = {
-    async load(campaignId, memberId, placeId) {
+    async load(campaignId, memberId, placeId, beats) {
       // The coins first: a ware's price is read in them.
       const currency = await loadCampaignCurrency(admin, campaignId);
-      const [purse, pack, wares] = await Promise.all([
+      const [purse, pack, wares, loot] = await Promise.all([
         purseOf(campaignId, memberId),
         admin.from("party_inventory").select("name, quantity", { count: "exact" }).eq("campaign_id", campaignId).eq("carried_by", memberId).gt("quantity", 0).order("name").limit(MAX_CARRIED_SHOWN),
         placeId === null ? Promise.resolve([] as Ware[]) : waresAt(admin, campaignId, placeId, currency),
+        lootWithin(admin, campaignId, placeId, beats),
       ]);
       if (pack.error) throw pack.error;
       const carried = (pack.data ?? []).map((r) => ({ name: r.name as string, quantity: r.quantity as number }));
-      return { possessions: { carried, more: Math.max(0, (pack.count ?? carried.length) - carried.length), purse, wares }, currency };
+      return { possessions: { carried, more: Math.max(0, (pack.count ?? carried.length) - carried.length), purse, wares, loot }, currency };
     },
 
     async belonging(campaignId, characterId, thing) {
@@ -168,6 +171,37 @@ export function makeHandsStore(admin: SupabaseClient): HandsStore {
         case "take":
           await intoPack(ctx, { name: change.thing, quantity: change.quantity, ref: change.ref });
           return;
+        case "loot": {
+          // The placement is read again, in this campaign and still untaken: found once, by whoever got there first.
+          const placed = await admin.from("loot_placements").select("id, kind, quest_id, beat_id, source_type, source_id, item_id, library_item_id, quantity, label, payload").eq("id", change.placementId).eq("campaign_id", campaignId).is("dispatched_at", null).maybeSingle();
+          if (placed.error) throw placed.error;
+          if (!placed.data) throw new Error("the placed thing is no longer there to be found");
+          // The campaign keeps its books the way a Dungeon Master handing it out does: a line in the campaign's log
+          // that the placement points at, already claimed by the character (the same shape `dispatch_loot` and
+          // `claim_item_drop` leave behind), so the DM's loot panel shows it as given and it cannot be given twice.
+          const base = { quest_id: placed.data.quest_id, beat_id: placed.data.beat_id, quest_loot_entry_id: placed.data.id, source_type: placed.data.source_type, source_id: placed.data.source_id, claimed_by_user_id: ctx.userId, claimed_by_name: ctx.memberName, claimed_party_member_id: memberId };
+          const metadata = change.coins !== null
+            ? { ...base, label: change.thing === "" ? null : change.thing, coins: change.coins }
+            : { ...base, item_id: change.ref.itemId, library_item_id: change.ref.libraryItemId, item_name: change.thing, quantity: change.quantity, quantity_remaining: 0, claims: [{ user_id: ctx.userId, name: ctx.memberName, party_member_id: memberId, quantity: change.quantity }], is_container: false };
+          const logged = await admin.from("campaign_messages").insert({
+            campaign_id: campaignId, user_id: ctx.userId, sender_name: "The table",
+            message: change.coins !== null ? `${ctx.memberName} found ${formatCoins(change.coins, await loadCampaignCurrency(admin, campaignId))}` : `${ctx.memberName} found ${change.quantity > 1 ? `${change.quantity}x ` : ""}${change.thing}`,
+            type: change.coins !== null ? "currency_drop" : "item_drop", metadata,
+          }).select("id").single();
+          if (logged.error) throw logged.error;
+          const marked = await admin.from("loot_placements").update({ dispatch_message_id: logged.data.id as string, dispatched_at: new Date().toISOString() }).eq("id", change.placementId).eq("campaign_id", campaignId).is("dispatched_at", null).select("id");
+          if (marked.error) throw marked.error;
+          // Someone else took it between the read and the mark: nothing is handed out twice.
+          if ((marked.data ?? []).length === 0) throw new Error("the placed thing was taken meanwhile");
+          if (change.coins !== null) {
+            const purse = await purseOf(campaignId, memberId);
+            const { error } = await admin.from("party_members").update({ coins: purseAfterGaining(purse, change.coins) }).eq("id", memberId).eq("campaign_id", campaignId);
+            if (error) throw error;
+          } else {
+            await intoPack(ctx, { name: change.thing, quantity: change.quantity, ref: change.ref });
+          }
+          return;
+        }
         case "pay":
         case "gain":
         case "buy": {
@@ -216,6 +250,53 @@ async function waresAt(admin: SupabaseClient, campaignId: string, placeId: strin
     const priceText = override ?? item.cost;
     const price = priceText === null ? null : parsePrice(priceText, currency);
     return [{ name: item.name, ref, price: price !== null && coinValue(price, currency) > 0 ? price : null, priceText }];
+  });
+}
+
+/**
+ * What the campaign placed within the party's reach and nobody has taken: the loot of the place they stand in and of
+ * the quest beats in play. Items and purses of coins; a chest rolled from a loot table is left to a Dungeon Master.
+ */
+async function lootWithin(admin: SupabaseClient, campaignId: string, placeId: string | null, beats: readonly { id: string; title: string }[]): Promise<Loot[]> {
+  const beatIds = beats.map((b) => b.id);
+  if (placeId === null && beatIds.length === 0) return [];
+  const anchors = [placeId === null ? null : `location_id.eq.${placeId}`, beatIds.length === 0 ? null : `beat_id.in.(${beatIds.join(",")})`].filter((a): a is string => a !== null);
+  const found = await admin
+    .from("loot_placements")
+    .select("id, kind, item_id, library_item_id, quantity, label, payload, beat_id, sort_order")
+    .eq("campaign_id", campaignId)
+    .is("dispatched_at", null)
+    .in("kind", ["item", "currency"])
+    .or(anchors.join(","))
+    .order("sort_order")
+    .limit(MAX_LOOT_SHOWN + 1);
+  if (found.error) throw found.error;
+  const rows = found.data ?? [];
+  const ids = rows.flatMap((r) => (typeof r.item_id === "string" ? [r.item_id] : []));
+  const libraryIds = rows.flatMap((r) => (typeof r.library_item_id === "string" ? [r.library_item_id] : []));
+  const [own, shared] = await Promise.all([
+    ids.length === 0 ? Promise.resolve({ data: [], error: null }) : admin.from("items").select("id, name").in("id", ids),
+    libraryIds.length === 0 ? Promise.resolve({ data: [], error: null }) : admin.from("library_items").select("id, name").in("id", libraryIds),
+  ]);
+  if (own.error) throw own.error;
+  if (shared.error) throw shared.error;
+  const names = new Map<string, string>();
+  for (const i of [...(own.data ?? []), ...(shared.data ?? [])]) names.set(i.id as string, i.name as string);
+  const titles = new Map(beats.map((b) => [b.id, b.title]));
+  return rows.flatMap((r): Loot[] => {
+    const beat = typeof r.beat_id === "string" ? titles.get(r.beat_id) : undefined;
+    const where = beat === undefined ? null : beat;
+    if (r.kind === "currency") {
+      const coins = asCoins((r.payload as { coins?: unknown } | null)?.coins);
+      if (Object.keys(coins).length === 0) return [];
+      return [{ id: r.id as string, name: typeof r.label === "string" ? r.label.trim() : "", quantity: 1, ref: { itemId: null, libraryItemId: null }, coins, beat: where }];
+    }
+    const ref = refOf(r);
+    const key = ref.itemId ?? ref.libraryItemId;
+    const name = key === null ? undefined : names.get(key);
+    // An item that no longer exists cannot be found.
+    if (name === undefined) return [];
+    return [{ id: r.id as string, name, quantity: r.quantity as number, ref, coins: null, beat: where }];
   });
 }
 

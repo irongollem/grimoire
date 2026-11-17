@@ -58,7 +58,9 @@ export const TAKE_TOOL: AgentTool = {
     "Puts a thing the player's character picks up into their pack: something found in a room, taken from a chest, " +
     "or searched off a defeated creature. Give item_id for an item the campaign holds (look it up with search " +
     "first; what the campaign has written is used as written). For a plain object with no powers and no price worth " +
-    "naming (a shard, a note, a ribbon) give name alone. Never give a name alone for a weapon, armour, a potion or " +
+    "naming (a shard, a note, a ribbon) give name alone. For something the campaign itself placed here (listed " +
+    "under \"Placed within reach\") give its placement_id: that is how a prepared key, book or purse is found, and " +
+    "it can be found only once. Never give a name alone for a weapon, armour, a potion or " +
     "anything magical: those must be the campaign's own items. Not for a thing a character hands over (hand_over) " +
     "or a ware from a shop (buy).",
   inputSchema: {
@@ -67,6 +69,7 @@ export const TAKE_TOOL: AgentTool = {
     properties: {
       item_id: { type: "string", description: "The id of the campaign's item, as search or get returned it." },
       name: { type: "string", maxLength: THING_MAX, description: "A plain object's name, when it is not one of the campaign's items." },
+      placement_id: { type: "string", description: "The id of something the campaign placed within reach, as listed. Its quantity is the campaign's own." },
       quantity: { type: "integer", minimum: 1, maximum: QUANTITY_MAX, description: "How many; 1 when left out." },
     },
   },
@@ -123,6 +126,8 @@ export type HandsChange =
   | { kind: "to_player"; from: { id: string; name: string }; thing: string; quantity: number }
   | { kind: "from_player"; to: { id: string; name: string }; thing: string; quantity: number }
   | { kind: "take"; thing: string; quantity: number; ref: ItemRef }
+  /** Something the campaign placed within reach (a room's or a quest beat's loot) is found: an item, or coins. */
+  | { kind: "loot"; placementId: string; thing: string; quantity: number; ref: ItemRef; coins: Coins | null }
   | { kind: "pay"; coins: Coins; why: string }
   | { kind: "gain"; coins: Coins; why: string }
   | { kind: "buy"; thing: string; quantity: number; ref: ItemRef; price: Coins };
@@ -159,19 +164,26 @@ export function parseHandOver(input: Record<string, unknown>): Parsed<{ directio
 }
 
 /** What is picked up, before the item is looked up: one of the campaign's items by id, or a plain named object. */
-export function parseTake(input: Record<string, unknown>): Parsed<{ itemId: string | null; name: string | null; quantity: number }> {
+export function parseTake(input: Record<string, unknown>): Parsed<{ itemId: string | null; name: string | null; placementId: string | null; quantity: number }> {
   const quantity = quantityOf(input.quantity);
   if (quantity === null) return refuse(`quantity is a whole number from 1 to ${QUANTITY_MAX}.`);
   const hasId = input.item_id !== undefined;
   const hasName = input.name !== undefined;
-  if (hasId === hasName) return refuse("Give item_id for one of the campaign's items, or name alone for a plain object. Exactly one.");
+  const hasPlacement = input.placement_id !== undefined;
+  if ([hasId, hasName, hasPlacement].filter(Boolean).length !== 1) {
+    return refuse("Give exactly one: placement_id for something the campaign placed here, item_id for one of the campaign's items, or name alone for a plain object.");
+  }
+  if (hasPlacement) {
+    if (typeof input.placement_id !== "string" || !UUID.test(input.placement_id)) return refuse("placement_id must be an id listed under \"Placed within reach\".");
+    return { ok: true, value: { itemId: null, name: null, placementId: input.placement_id, quantity } };
+  }
   if (hasId) {
     if (typeof input.item_id !== "string" || !UUID.test(input.item_id)) return refuse("item_id must be the item's id, as search or get returned it.");
-    return { ok: true, value: { itemId: input.item_id, name: null, quantity } };
+    return { ok: true, value: { itemId: input.item_id, name: null, placementId: null, quantity } };
   }
   const name = thingOf(input.name);
   if (name === null) return refuse(`name is the plain object's name, at most ${THING_MAX} characters.`);
-  return { ok: true, value: { itemId: null, name, quantity } };
+  return { ok: true, value: { itemId: null, name, placementId: null, quantity } };
 }
 
 /** What a purse is worth in the smallest coin; a coin the campaign does not name is worth nothing. */
@@ -273,6 +285,8 @@ export function handsLine(change: HandsChange, who: string, coins: (c: Coins) =>
       return `${who} gives ${change.to.name}: ${count(change.quantity)}${change.thing}`;
     case "take":
       return `${who} takes: ${count(change.quantity)}${change.thing}`;
+    case "loot":
+      return change.coins !== null ? `${who} finds ${coins(change.coins)}: ${change.thing}` : `${who} finds: ${count(change.quantity)}${change.thing}`;
     case "pay":
       return `${who} pays ${coins(change.coins)}: ${change.why}`;
     case "gain":
@@ -288,6 +302,7 @@ export function handsText(change: HandsChange, coins: (c: Coins) => string): str
     change.kind === "pay" ? `${coins(change.coins)} leave the purse`
     : change.kind === "gain" ? `${coins(change.coins)} enter the purse`
     : change.kind === "buy" ? `${count(change.quantity)}${change.thing} is bought for ${coins(change.price)}`
+    : change.kind === "loot" && change.coins !== null ? `${coins(change.coins)} (${change.thing}) enter the purse`
     : `${count(change.quantity)}${change.thing} changes hands`;
   return `When this turn is kept: ${what}. Tell it once, in a sentence, as part of the story.`;
 }
@@ -299,7 +314,23 @@ export interface Possessions {
   more: number;
   purse: Coins;
   wares: Ware[];
+  /** What the campaign placed within the party's reach and nobody has taken yet: the loot of this place and of the quest beats in play. */
+  loot: Loot[];
 }
+
+/** One prepared thing to be found: an item with its count, or coins. */
+export interface Loot {
+  id: string;
+  name: string;
+  quantity: number;
+  ref: ItemRef;
+  /** Set for a purse of coins; null for an item. */
+  coins: Coins | null;
+  /** The quest beat it was placed on, by its title; null when it was placed on the place itself. */
+  beat: string | null;
+}
+
+export const MAX_LOOT_SHOWN = 20;
 
 export const MAX_CARRIED_SHOWN = 40;
 export const MAX_WARES_SHOWN = 30;
@@ -323,6 +354,18 @@ export function possessionsSection(p: Possessions | null, coins: (c: Coins) => s
       lines.push(`- ${w.name}: ${w.price !== null ? coins(w.price) : w.priceText !== null ? `${w.priceText} (not a price in coins)` : "no price set"}`);
     }
     if (p.wares.length > MAX_WARES_SHOWN) lines.push(`- and ${p.wares.length - MAX_WARES_SHOWN} more wares`);
+  }
+  if (p.loot.length > 0) {
+    lines.push(
+      "",
+      "## Placed within reach",
+      "The campaign put these here to be found: in this place, or at the point of the story the party has reached. They are found when the story finds them (a search, a chest opened, a body gone through, a thing handed over at the right moment), not before, and each only once. Give one with take and its placement_id.",
+    );
+    for (const l of p.loot.slice(0, MAX_LOOT_SHOWN)) {
+      const what = l.coins !== null ? `${coins(l.coins)}${l.name === "" ? "" : ` (${l.name})`}` : `${l.quantity > 1 ? `${l.quantity} × ` : ""}${l.name}`;
+      lines.push(`- ${what}${l.beat === null ? "" : `, at "${l.beat}"`} [placement_id ${l.id}]`);
+    }
+    if (p.loot.length > MAX_LOOT_SHOWN) lines.push(`- and ${p.loot.length - MAX_LOOT_SHOWN} more`);
   }
   return lines.join("\n");
 }
