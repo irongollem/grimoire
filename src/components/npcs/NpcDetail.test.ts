@@ -297,6 +297,8 @@ describe("NpcDetail — save sends only what changed (#946)", () => {
     vm.form.statBlock.int = 14;
     await vm.save();
     expect(updateNpc.mock.calls[0][0].update.stat_block.tactics).toEqual(tactics);
+  });
+
   // Bug caught: Voice left out of the save payload or the draft, so a typed voice vanished on save.
   it("saves a typed Voice, and saves null when it is emptied again", async () => {
     const base = npc({ voice: null });
