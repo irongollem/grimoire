@@ -103,7 +103,7 @@ import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { useItemIndex } from "@/composables/items/useItemIndex";
 import { useItemsByIds } from "@/composables/items/useItemsByIds";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
-import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useDropItem } from "@/composables/campaign/useLootDropChoice";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
@@ -116,7 +116,7 @@ const emit = defineEmits<{ close: [] }>();
 const router = useRouter();
 const campaign = useCampaignStore();
 const toast = useToast();
-const { sendItemDrop } = useCampaignMessages();
+const { dropItem } = useDropItem();
 const { reportChatFailure } = useChatSendFailure();
 const { mutateAsync: addInventoryItem, isPending: adding } = useAddInventoryItem();
 const { data: catalogItems } = useItemIndex();
@@ -192,7 +192,8 @@ async function dropToChat() {
   if (!name) return;
   const rarity = picked.value?.rarity ?? null;
   try {
-    await sendItemDrop(name, draft.selectedItemId || null, draft.quantity, rarity);
+    // False: the DM cancelled the Need or Greed prompt; keep the form as typed.
+    if (!(await dropItem(name, draft.selectedItemId || null, draft.quantity, rarity))) return;
   } catch (e) {
     // Keep the form as typed so the DM can retry.
     reportChatFailure(e, "drop the item to the chat");

@@ -1,10 +1,10 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(56);
+select plan(62);
 
 select has_table('public', 'loot_placements', 'beat loot has a dedicated orchestration table');
-select has_function('public', 'dispatch_loot', array['uuid[]'], 'loot has an atomic dispatch RPC, home-agnostic');
+select has_function('public', 'dispatch_loot', array['uuid[]', 'text', 'uuid'], 'loot has an atomic dispatch RPC, home-agnostic, taking the DM''s roll choice');
 select has_function('public', 'get_loot_placements', array['uuid', 'uuid', 'uuid'], 'loot has a batched status RPC, filterable by quest or room');
 -- Run mode refreshes on the campaign doorbell (20261009233206): a change to
 -- either table rings its campaign on insert, update and delete.
@@ -152,7 +152,7 @@ select is((select count(*)::integer from public.get_loot_placements('66100000-00
 
 reset role;
 select ok(
-  position('for update' in lower(pg_get_functiondef('public.dispatch_loot(uuid[])'::regprocedure))) > 0,
+  position('for update' in lower(pg_get_functiondef('public.dispatch_loot(uuid[],text,uuid)'::regprocedure))) > 0,
   'dispatch locks rows so concurrent requests serialize'
 );
 select ok(
@@ -255,6 +255,51 @@ select throws_ok(
   'One or more loot entries are not yours to drop',
   'a nonexistent id fails with the same message, revealing nothing'
 );
+
+-- ── The DM's choice (20261117234419) ─────────────────────────────────────────
+-- Need or Greed asks the DM at every drop. Quest and room loot take the answer:
+-- roll (the default), free to grab, or given to one character, claimed for them
+-- inside the dispatch so nobody can grab it first.
+reset role;
+insert into public.quest_beats (id, quest_id, campaign_id, title)
+values ('66100000-0000-4000-8000-000000000051', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'Count the hoard');
+insert into public.loot_placements (id, beat_id, quest_id, campaign_id, kind, item_id, quantity, label, payload, source_type, sort_order) values
+  ('66100000-0000-4000-8000-000000000091', '66100000-0000-4000-8000-000000000051', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'item', '66100000-0000-4000-8000-000000000030', 1, '', '{}', 'prepared', 1),
+  ('66100000-0000-4000-8000-000000000092', '66100000-0000-4000-8000-000000000051', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'currency', null, 1, 'Hoard', '{"coins":{"gp":7}}', 'prepared', 2),
+  ('66100000-0000-4000-8000-000000000093', '66100000-0000-4000-8000-000000000051', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'item', '66100000-0000-4000-8000-000000000030', 1, '', '{}', 'prepared', 3),
+  ('66100000-0000-4000-8000-000000000094', '66100000-0000-4000-8000-000000000051', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'item', '66100000-0000-4000-8000-000000000030', 1, '', '{}', 'prepared', 4);
+insert into public.campaign_rules (campaign_id, rule_key, enabled, config)
+values ('66100000-0000-4000-8000-000000000010', 'need_or_greed', true, '{"seconds": 30}')
+on conflict (campaign_id, rule_key) do update set enabled = true;
+insert into public.campaigns (id, user_id, name, game_system)
+values ('66100000-0000-4000-8000-000000000011', '66100000-0000-4000-8000-000000000003', 'Another table', 'dnd5e-2014');
+insert into public.party_members (id, user_id, owner_user_id, campaign_id, name, ruleset)
+values ('66100000-0000-4000-8000-000000000029', '66100000-0000-4000-8000-000000000003', '66100000-0000-4000-8000-000000000003', '66100000-0000-4000-8000-000000000011', 'Stranger', '2014');
+update public.party_members set coins = '{}'::jsonb where id = '66100000-0000-4000-8000-000000000020';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '66100000-0000-4000-8000-000000000001', true);
+
+select throws_ok(
+  $$select * from public.dispatch_loot(array['66100000-0000-4000-8000-000000000091']::uuid[], 'shuffle', null)$$,
+  'Choose roll, free or give', 'a mode that is not roll, free or give is refused');
+select throws_ok(
+  $$select * from public.dispatch_loot(array['66100000-0000-4000-8000-000000000091']::uuid[], 'give', '66100000-0000-4000-8000-000000000029')$$,
+  'That character is not in this campaign', 'loot cannot be given to a character at another table');
+
+select * from public.dispatch_loot(array['66100000-0000-4000-8000-000000000091', '66100000-0000-4000-8000-000000000092']::uuid[], 'give', '66100000-0000-4000-8000-000000000020');
+select is(
+  (select metadata->'claims'->0->>'party_member_id' from public.campaign_messages where metadata->>'quest_loot_entry_id' = '66100000-0000-4000-8000-000000000091'),
+  '66100000-0000-4000-8000-000000000020', 'a given item is claimed for the character, and the claim names them');
+select is(
+  (select coins from public.party_members where id = '66100000-0000-4000-8000-000000000020'),
+  '{"gp": 7}'::jsonb, 'given coins land in the character''s purse');
+
+select * from public.dispatch_loot(array['66100000-0000-4000-8000-000000000093']::uuid[], 'free', null);
+select ok(not (select metadata ? 'roll' from public.campaign_messages where metadata->>'quest_loot_entry_id' = '66100000-0000-4000-8000-000000000093'),
+  'with the rule on, loot the DM set free does not roll');
+select * from public.dispatch_loot(array['66100000-0000-4000-8000-000000000094']::uuid[]);
+select ok((select metadata ? 'roll' from public.campaign_messages where metadata->>'quest_loot_entry_id' = '66100000-0000-4000-8000-000000000094'),
+  'and loot dispatched without a choice still rolls, as the quest runtime''s dispatch does');
 
 select * from finish();
 rollback;

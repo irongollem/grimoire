@@ -52,6 +52,7 @@
  */
 import { computed, ref } from "vue";
 import { useDeleteLootPlacement, useDispatchLoot } from "@/composables/quests/useQuestFlow";
+import { useLootBatchChoice } from "@/composables/quests/useLootBatchChoice";
 import { useAppUiStore } from "@/stores/ui/app";
 import type { LootPlacement, LootPlacementDeliveryState } from "@/types/quest.types";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -66,6 +67,7 @@ const emit = defineEmits<{ dropped: [] }>();
 const appUi = useAppUiStore();
 const deleteLoot = useDeleteLootPlacement();
 const dispatchLoot = useDispatchLoot();
+const { answerFor } = useLootBatchChoice();
 
 const removingId = ref("");
 const dispatching = ref("");
@@ -97,7 +99,10 @@ async function dispatch(entryId?: string) {
   if (!campaignId) return;
   dispatching.value = entryId ?? "all"; error.value = "";
   try {
-    await dispatchLoot.mutateAsync({ entryIds, campaignId });
+    // Cancelling the question hands nothing out and says nothing.
+    const answer = await answerFor(loot.filter((entry) => entryIds.includes(entry.id)));
+    if (answer.cancelled) return;
+    await dispatchLoot.mutateAsync({ entryIds, campaignId, choice: answer.choice });
     emit("dropped");
   }
   catch (caught) { error.value = caught instanceof Error ? caught.message : "Could not drop loot in chat"; }
