@@ -112,6 +112,7 @@ import { useFormPortraits } from "@/composables/party/useFormPortraits";
 import { placeholderKind } from "@/lib/wildshapePortrait";
 import { describeConditionEnd, type NameOf } from "@/rules/conditionLabels";
 import { combatantKindLabel } from "@/lib/encounters/combatantKind";
+import { healthWord } from "@/lib/encounters/healthWord";
 
 const { lowArt } = useLowArt();
 
@@ -185,12 +186,7 @@ function hpBarColor(c: RunCombatant) {
   return "bg-tone-success";
 }
 function hpLabel(c: RunCombatant): string {
-  const pct = displayHp(c) / displayMaxHp(c);
-  if (pct <= 0) return "Dead";
-  if (pct <= 0.25) return "Bloodied";
-  if (pct <= 0.5) return "Wounded";
-  if (pct <= 0.75) return "Hurt";
-  return "Healthy";
+  return healthWord(displayHp(c), displayMaxHp(c));
 }
 </script>
 
