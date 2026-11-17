@@ -41,11 +41,19 @@
   </div>
 </template>
 
+<script lang="ts">
+import { ref as sharedRef } from "vue";
+// The last lines sent, kept for as long as the page is loaded, so leaving the table and sitting down again still
+// has them.
+const sentLines = sharedRef<string[]>([]);
+</script>
+
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import KeyCap from "@/components/common/controls/KeyCap.vue";
 import { IconStop } from "@/lib/icons";
+import { remembered, stepHistory, type HistoryWalk } from "@/lib/table/composerHistory";
 import { composerKeyAction } from "@/lib/table/composerKeys";
 import { SPOKEN_WORDS_PER_TURN, wordCount } from "@/lib/table/fight/turnBudget";
 import type { PlayMode } from "@/lib/table/soloTypes";
@@ -59,6 +67,7 @@ const { character, running, fight = null } = defineProps<{
 const emit = defineEmits<{ submit: [mode: PlayMode, text: string]; pass: []; stop: [] }>();
 
 const draft = ref("");
+const sent = sentLines;
 const field = ref<HTMLTextAreaElement | null>(null);
 const canSend = computed(() => draft.value.trim() !== "");
 
@@ -85,7 +94,27 @@ function submit(mode: PlayMode): void {
   if ((mode === "say" && !canSay.value) || (mode === "do" && !canDo.value)) return;
   const text = draft.value.trim();
   draft.value = "";
+  sent.value = remembered(sent.value, text);
+  walk.value = { at: null, draft: "" };
   emit("submit", mode, text);
+}
+
+// What was sent before comes back with the up arrow, like a shell's history. Only when the caret is on the first
+// line going up, or the last going down, so the arrows still move through a draft of several lines.
+const walk = ref<HistoryWalk>({ at: null, draft: "" });
+function walkHistory(event: KeyboardEvent): boolean {
+  if (running || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return false;
+  if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return false;
+  const box = field.value;
+  if (!box) return false;
+  const up = event.key === "ArrowUp";
+  const onEdgeLine = up ? !draft.value.slice(0, box.selectionStart).includes("\n") : !draft.value.slice(box.selectionEnd).includes("\n");
+  if (!onEdgeLine) return false;
+  const step = stepHistory(sent.value, walk.value, draft.value, up ? -1 : 1);
+  if (step === null) return false;
+  walk.value = step.walk;
+  draft.value = step.text;
+  return true;
 }
 
 const canPass = computed(() => fight === null && !canSend.value);
@@ -95,6 +124,10 @@ function pass(): void {
 }
 
 function onKeydown(event: KeyboardEvent): void {
+  if (walkHistory(event)) {
+    event.preventDefault();
+    return;
+  }
   const mode = composerKeyAction(event);
   if (mode === null) return;
   event.preventDefault();

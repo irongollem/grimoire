@@ -67,10 +67,23 @@ const wanted = useStorage<Record<string, VoiceParts>>("grimoire:ai-table-voices"
  * It never throws and never blocks the story: a line that cannot be voiced is skipped, and when the server says
  * voices are not switched on, `unavailable` is set and nothing more is asked.
  */
-export function useTableVoice(options: { campaignId: () => string | null; sessionId: () => string | null; transport?: VoiceTransport; player?: VoicePlayer }) {
+/** The breath between two different voices: a narrator who starts on the heels of a character sounds like one speaker. */
+export const VOICE_CHANGE_PAUSE_MS = 500;
+
+export function useTableVoice(options: {
+  campaignId: () => string | null;
+  sessionId: () => string | null;
+  transport?: VoiceTransport;
+  player?: VoicePlayer;
+  /** Waits between two voices; a test replaces it. */
+  pause?: (ms: number) => Promise<void>;
+}) {
   const auth = useAuthStore();
   const transport = options.transport ?? sendToTableVoice;
   const player = options.player ?? playClip;
+  const pause = options.pause ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  // Who spoke last, so a change of voice gets a breath and the same voice going on does not.
+  const voiceOf = (line: VoiceLine): string => `${line.role}:${line.speakerId ?? line.speakerName}`;
   const userId = computed(() => auth.user?.id ?? null);
 
   const parts = computed<VoiceParts>(() => {
@@ -82,7 +95,7 @@ export function useTableVoice(options: { campaignId: () => string | null; sessio
   const speaking = ref(false);
 
   // Each waiting line with its clip already being made: the next voice is ready when the one before it ends.
-  let queue: Array<Promise<string | null>> = [];
+  let queue: Array<{ clip: Promise<string | null>; voice: string }> = [];
   let current: { stop(): void } | null = null;
   // Raised by `stop`, so a clip that was being fetched when the player muted does not start afterwards.
   let generation = 0;
@@ -133,9 +146,16 @@ export function useTableVoice(options: { campaignId: () => string | null; sessio
     speaking.value = true;
     const mine = generation;
     try {
+      let last: string | null = null;
       while (queue.length > 0 && mine === generation) {
-        const src = await queue.shift()!;
+        const next = queue.shift()!;
+        const src = await next.clip;
         if (mine !== generation || src === null) continue;
+        if (last !== null && last !== next.voice) {
+          await pause(VOICE_CHANGE_PAUSE_MS);
+          if (mine !== generation) continue;
+        }
+        last = next.voice;
         const clip = player(src);
         current = clip;
         await clip.done;
@@ -153,7 +173,7 @@ export function useTableVoice(options: { campaignId: () => string | null; sessio
     if (!enabled.value || unavailable.value || lines.length === 0) return;
     // Asked for at once, all of them: making a voice takes seconds, and they are played in order whatever comes back first.
     const mine = generation;
-    queue.push(...lines.map((line) => clipOf(line, mine)));
+    queue.push(...lines.map((line) => ({ clip: clipOf(line, mine), voice: voiceOf(line) })));
     void drain();
   }
 

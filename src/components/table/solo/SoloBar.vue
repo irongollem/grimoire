@@ -18,14 +18,19 @@
         :key="v.part"
         variant="ghost"
         size="md"
-        :icon="v.icon"
         :active="voices[v.part]"
         :aria-pressed="voices[v.part]"
         :aria-label="voices[v.part] ? `${v.what} read aloud. Turn it off` : `Read ${v.what.toLowerCase()} aloud`"
         :title="voices[v.part] ? `${v.what}: read aloud` : `${v.what}: silent`"
         :data-testid="`solo-voice-${v.part}`"
         @click="emit('voice', v.part, !voices[v.part])"
-      />
+      >
+        <!-- Its own slot, not `:icon`: the two masks are a wide glyph and take a wide box. A switch that is off is
+             drawn faint, so the three read as on or off at a glance. -->
+        <template #icon>
+          <component :is="v.icon" v-bind="v.box ? { viewBox: v.box } : {}" :class="[v.box ? 'h-6 w-13' : 'size-6', 'shrink-0', voices[v.part] ? '' : 'opacity-40']" />
+        </template>
+      </AppButton>
     </div>
     <AppButton variant="ghost" size="inline" aria-label="About the Dungeon Master being an AI" @click="emit('disclosure')">
       <SoloAiMark />
@@ -45,7 +50,8 @@
 import { computed, ref } from "vue";
 import { onClickOutside } from "@vueuse/core";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { IconChevronLeft, IconCoins, IconFeather, IconMessage, IconScrollText, IconUser } from "@/lib/icons";
+import { IconChevronLeft, IconCoins, IconScrollText } from "@/lib/icons";
+import { IconVoiceCharacters, IconVoiceNarrator, IconVoicePlayer, VOICE_CHARACTERS_BOX } from "@/lib/table/tableIcons";
 import { NO_VOICES, type VoicePart, type VoiceParts } from "@/lib/table/voiceLines";
 import SoloAiMark from "./SoloAiMark.vue";
 import SoloCostPanel from "./SoloCostPanel.vue";
@@ -68,11 +74,10 @@ const { credits, balance, character, hitPoints = null, leaving = false, voices =
 }>();
 const emit = defineEmits<{ disclosure: []; credits: []; leave: []; voice: [part: VoicePart, on: boolean] }>();
 
-// Stand-in glyphs until the drawn set is traced in (a book that sounds, two heads talking, one figure with a balloon).
-const VOICES: ReadonlyArray<{ part: VoicePart; what: string; icon: typeof IconFeather }> = [
-  { part: "narrator", what: "The narrator", icon: IconFeather },
-  { part: "characters", what: "The characters", icon: IconMessage },
-  { part: "player", what: "Your own character", icon: IconUser },
+const VOICES: ReadonlyArray<{ part: VoicePart; what: string; icon: typeof IconVoiceNarrator; box?: string }> = [
+  { part: "narrator", what: "The narrator", icon: IconVoiceNarrator },
+  { part: "characters", what: "The characters", icon: IconVoiceCharacters, box: VOICE_CHARACTERS_BOX },
+  { part: "player", what: "Your own character", icon: IconVoicePlayer },
 ];
 
 const costOpen = ref(false);

@@ -43,6 +43,22 @@ whose dice sit in one bottom row of 8 (cleaner octahedron, circular percentile
 die): `magick image.png -crop 1536x140+0+710 +repage _g.png`, then
 `segment _g.png _work2 8 1`, cells 3 and 7.
 
+## The AI table (`table`) — `~/Desktop/voice-role-icons-sheet.png`
+
+The three voice switches in the table's bar (#1021, 17 Nov 2026). A 3×5 sheet, black on transparent, a column per
+switch (narrator, characters, the player's own character) with five candidates each. `segment` sees one cell on a
+transparent sheet: flatten onto white first (`magick sheet.png -background white -flatten flat.png`) and crop by
+hand, 512 wide and about 205 tall per cell.
+
+- `voiceNarrator`: column 1, row 1, the open book with sound waves. The quill and scroll (row 2) reads as writing,
+  the mask (row 3) is the characters' own image, the candle and the bell say nothing of telling a story.
+- `voiceCharacters`: column 2, row 3, the crowned mask and the horned mask. Row 1 (two heads talking) was the first
+  pick and was mush at button size, as were the three hooded figures (rows 2 and 4) and the two balloons (row 5):
+  the masks are the only candidate made of two large solid shapes. It is twice as wide as tall, so it is drawn
+  with its own `viewBox` in a wide box (`VOICE_CHARACTERS_BOX` in `src/lib/table/tableIcons.ts`).
+- `voicePlayer`: column 3, row 1, one figure with a speech balloon. Row 2 adds a die and a table that vanish small;
+  the hand holding a pawn (row 4) reads as moving a token, not speaking.
+
 ## Damage types (`svg`) — `art-src/damage-types/`
 
 `source-sheet.png`, 4×4, row-major: acid, bludgeoning, cold, fire / force,

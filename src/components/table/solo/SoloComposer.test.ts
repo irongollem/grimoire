@@ -138,5 +138,17 @@ describe("SoloComposer in a fight", () => {
     await enter(w, { altKey: true });
     expect(submits(w)).toEqual([]);
   });
-});
 
+  // Bug caught: no way back to a line just sent (a typo means typing it all again); or the arrows hijacked inside
+  // a draft of several lines.
+  it("brings back what was sent with the up arrow, and comes forward to the draft with the down arrow", async () => {
+    const w = mountComposer();
+    await type(w, "I search the shelves.");
+    await w.get("textarea").trigger("keydown", { key: "Enter", altKey: true });
+    await type(w, "half");
+    await w.get("textarea").trigger("keydown", { key: "ArrowUp" });
+    expect((w.get("textarea").element as HTMLTextAreaElement).value).toBe("I search the shelves.");
+    await w.get("textarea").trigger("keydown", { key: "ArrowDown" });
+    expect((w.get("textarea").element as HTMLTextAreaElement).value).toBe("half");
+  });
+});

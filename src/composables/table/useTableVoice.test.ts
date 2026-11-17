@@ -6,7 +6,7 @@ vi.mock("@/lib/supabase", () => ({ supabase: {} }));
 
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { useAuthStore } from "@/stores/auth";
-import { useTableVoice, type VoicePlayer, type VoiceRequest } from "./useTableVoice";
+import { useTableVoice, VOICE_CHANGE_PAUSE_MS, type VoicePlayer, type VoiceRequest } from "./useTableVoice";
 
 const ok = (audio = "AAAA") => new Response(JSON.stringify({ audio, mime: "audio/mpeg" }), { status: 200, headers: { "content-type": "application/json" } });
 const line = (text: string) => ({ role: "character" as const, speakerId: "n1", speakerName: "Honeycomb", text, how: null, key: `k:${text}` });
@@ -201,5 +201,24 @@ describe("useTableVoice", () => {
     await tick();
     expect(bodies).toEqual(["One.", "Two."]);
     expect(p.played).toEqual(["data:audio/mpeg;base64,One.", "data:audio/mpeg;base64,Two."]);
+  });
+
+  // Bug caught (heard live): the narrator starting on the heels of a character, as if one speaker; and the other
+  // side, a pause put between two lines of the same voice.
+  it("takes a breath when the voice changes, and none while the same voice goes on", async () => {
+    const pauses: number[] = [];
+    const p = manualPlayer();
+    const voice = useTableVoice({ campaignId: () => "c1", sessionId: () => "s1", transport: async () => ok(), player: p.player, pause: async (ms) => { pauses.push(ms); } });
+    useAuthStore().user = { id: "u-breath" } as User;
+    voice.setPart("characters", true);
+    const narrator = { role: "narrator" as const, speakerId: null, speakerName: "The Dungeon Master", text: "Rain starts.", how: null, key: "k:n" };
+    voice.say([line("One."), line("Two."), narrator]);
+    for (let i = 0; i < 3; i++) {
+      await tick();
+      p.finish[i]?.();
+    }
+    await tick();
+    expect(p.played).toHaveLength(3);
+    expect(pauses).toEqual([VOICE_CHANGE_PAUSE_MS]);
   });
 });
