@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { computed } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia, setActivePinia } from "pinia";
@@ -15,6 +16,16 @@ vi.mock("@/lib/supabase", () => ({
   getCurrentUser: () => ({ id: "u1" }),
 }));
 
+// The layout is a JS branch (`useAbove`), and the test DOM answers one fixed width for every query: say which screen it is.
+const { screen } = await vi.hoisted(async () => {
+  const { reactive } = await import("vue");
+  return { screen: reactive({ width: 30 }) };
+});
+vi.mock("@/composables/useBreakpoint", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useAbove: (bp: "md" | "lg") => computed(() => screen.width >= (bp === "md" ? 48 : 64)),
+}));
+
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
@@ -26,6 +37,13 @@ const sse = (...events: object[]) =>
   new Response(new ReadableStream<Uint8Array>({ start: (c) => { c.enqueue(enc.encode(events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""))); c.close(); } }), {
     headers: { "content-type": "text/event-stream" },
   });
+
+// A party row as the database returns it: the sheet reads every one of these.
+const MEMBER = {
+  id: "m1", campaign_id: "c1", name: "Inkling", class: "Rogue", level: 3, current_hp: 24, max_hp: 27, temp_hp: 0, speed: 30,
+  str: 10, dex: 14, con: 12, int: 10, wis: 14, cha: 10, proficiency_bonus: 2, skill_proficiencies: { perception: "proficient" },
+  saving_throw_proficiencies: [], conditions: [], spell_slots: [], wildshape_state: null, ruleset: "2014", initiative_bonus: 0,
+};
 
 const fetchMock = vi.fn<(url: string, init: RequestInit) => Promise<Response>>();
 
@@ -42,16 +60,18 @@ async function mountTable(path: string) {
     history: createMemoryHistory(),
     routes: [
       { path: "/table", component: { template: "<div />" } },
+      { path: "/party/:id", component: { template: "<div />" } },
       { name: "table-session", path: "/table/:sessionId", component: TableView },
     ],
   });
   await router.push(path);
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const wrapper = mount(TableView, {
     attachTo: document.body,
-    global: { plugins: [router, [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]] },
+    global: { plugins: [router, [VueQueryPlugin, { queryClient }]] },
   });
   await flushPromises();
-  return { wrapper, router };
+  return { wrapper, router, queryClient };
 }
 
 async function say(wrapper: Awaited<ReturnType<typeof mountTable>>["wrapper"], text: string, alt = false) {
@@ -62,10 +82,12 @@ async function say(wrapper: Awaited<ReturnType<typeof mountTable>>["wrapper"], t
 }
 
 beforeEach(() => {
+  screen.width = 30;
   fake.reset();
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
-  fake.seed("party_members", [{ id: "m1", campaign_id: "c1", name: "Inkling", class: "Rogue", level: 3 }]);
+  fake.seed("party_members", [{ ...MEMBER }]);
+  fake.seed("character_classes", []);
 });
 
 afterEach(() => {
@@ -214,7 +236,7 @@ describe("TableView: when the roll is yours", () => {
     setUp("u1");
     useTableDisclosure().accept();
     fake.reset();
-    fake.seed("party_members", [{ id: "m1", campaign_id: "c1", name: "Inkling", class: "Rogue", level: 3, wis: 14, proficiency_bonus: 2, skill_proficiencies: { perception: "proficient" }, saving_throw_proficiencies: [], conditions: [] }]);
+    fake.seed("party_members", [{ ...MEMBER }]);
     fake.seed("character_classes", []);
   });
 
@@ -264,5 +286,143 @@ describe("TableView: when the roll is yours", () => {
     await say(wrapper, "Actually, I leave.");
     expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).not.toHaveProperty("roll");
     expect(wrapper.find('[data-testid="solo-roll-ask"]').exists()).toBe(false);
+  });
+});
+
+describe("TableView: the sheet", () => {
+  const sitting = (id: string, over: Record<string, unknown> = {}) => ({
+    id, user_id: "u1", campaign_id: "c1", party_member_id: "m1", scene_location_id: null, credits_spent: 0, left_at: null, pending_roll: null, ...over,
+  });
+  const tabButton = (wrapper: Awaited<ReturnType<typeof mountTable>>["wrapper"], label: string) => wrapper.findAll("button").find((b) => b.text() === label);
+  const sheetColumn = (wrapper: Awaited<ReturnType<typeof mountTable>>["wrapper"]) => wrapper.get('aside[aria-label="Your character"]');
+
+  beforeEach(() => {
+    setUp("u1");
+    useTableDisclosure().accept();
+    fake.reset();
+    fake.seed("party_members", [{ ...MEMBER }]);
+    fake.seed("character_classes", []);
+    fake.seed("agent_sessions", [sitting("s1"), sitting("s2", { left_at: "2026-11-17T00:00:00Z" }), sitting("s3", { party_member_id: "gone" })]);
+  });
+
+  // Bug caught: the sheet showing a different character than the one sitting at the table, or numbers that are not the row's.
+  it("shows the played character's hit points, stats and trained skills on the Sheet tab", async () => {
+    const { wrapper } = await mountTable("/table/s1");
+    await tabButton(wrapper, "Sheet")!.trigger("click");
+    const sheet = sheetColumn(wrapper);
+    expect(sheet.isVisible()).toBe(true);
+    expect(sheet.text()).toContain("of 27");
+    expect(sheet.text()).toContain("Level 3");
+    expect(sheet.text()).toContain("Perception");
+    expect(sheet.text()).toContain("+4");
+    expect(sheet.text()).toContain("None");
+    expect(sheet.find("a[href='/party/m1']").exists()).toBe(true);
+  });
+
+  // Bug caught: the asked roll appearing behind the tab the player is reading, so the sitting waits on a card nobody sees.
+  it("brings a roll the story asks for back to Story from the Sheet tab", async () => {
+    let answer: (response: Response) => void = () => undefined;
+    fetchMock.mockReturnValue(new Promise<Response>((resolve) => { answer = resolve; }));
+    const { wrapper } = await mountTable("/table/s1");
+    await say(wrapper, "I look around.");
+    await tabButton(wrapper, "Sheet")!.trigger("click");
+    expect(wrapper.get("main").isVisible()).toBe(false);
+
+    answer(sse(
+      { type: "session", sessionId: "s1" },
+      { type: "ask_roll", roll: { label: "Wisdom (Perception)", kind: "check", ability: "wis", skill: "perception", dc: 12 } },
+      { type: "done", end: "end_turn", credits: 0, tokens: 1 },
+    ));
+    await flushPromises();
+    expect(wrapper.get("main").isVisible()).toBe(true);
+    expect(wrapper.get('[data-testid="solo-roll-ask"]').isVisible()).toBe(true);
+  });
+
+  // Bug caught: a sitting whose character cannot be read drawing an empty column and a tab that opens onto nothing.
+  it("shows no sheet and no Sheet tab when the character cannot be read", async () => {
+    const { wrapper } = await mountTable("/table/s3");
+    expect(wrapper.find('aside[aria-label="Your character"]').exists()).toBe(false);
+    expect(tabButton(wrapper, "Sheet")).toBeUndefined();
+  });
+
+  // Bug caught: an ended sitting still offering to change hit points of a character the table has put down.
+  it("shows an ended sitting's sheet without Damage or Heal", async () => {
+    const live = await mountTable("/table/s1");
+    expect(sheetColumn(live.wrapper).findAll("button").map((b) => b.text())).toEqual(expect.arrayContaining(["Damage", "Heal"]));
+    live.wrapper.unmount();
+    const ended = await mountTable("/table/s2");
+    expect(sheetColumn(ended.wrapper).text()).toContain("of 27");
+    expect(ended.wrapper.findAll("button").map((b) => b.text())).not.toContain("Damage");
+  });
+
+  // Bug caught: a wide screen hiding the sheet behind a tab, or squeezing a tab bar in beside three columns.
+  it("lays the sheet, story and scene side by side from lg up, with no tabs", async () => {
+    screen.width = 70;
+    const { wrapper } = await mountTable("/table/s1");
+    expect(sheetColumn(wrapper).isVisible()).toBe(true);
+    expect(wrapper.get("main").isVisible()).toBe(true);
+    expect(wrapper.get('aside[aria-label="The scene"]').isVisible()).toBe(true);
+    expect(tabButton(wrapper, "Sheet")).toBeUndefined();
+  });
+
+  // Bug caught: a tablet's story squeezed beside both the sheet and the scene, narrower than it can be read.
+  it("on a tablet keeps story with scene and puts the sheet behind its own tab", async () => {
+    screen.width = 55;
+    const { wrapper } = await mountTable("/table/s1");
+    expect(tabButton(wrapper, "Scene")).toBeUndefined();
+    expect(sheetColumn(wrapper).isVisible()).toBe(false);
+    expect(wrapper.get('aside[aria-label="The scene"]').isVisible()).toBe(true);
+    await tabButton(wrapper, "Sheet")!.trigger("click");
+    expect(sheetColumn(wrapper).isVisible()).toBe(true);
+    expect(wrapper.get("main").isVisible()).toBe(false);
+    expect(wrapper.get('aside[aria-label="The scene"]').isVisible()).toBe(false);
+  });
+
+  // Bug caught: a window widened (or a tablet turned) while on the Sheet or Scene tab, leaving the story hidden behind a tab that no longer exists.
+  it("never leaves the page blank when the window outgrows the tab that was open", async () => {
+    const { wrapper } = await mountTable("/table/s1");
+    await tabButton(wrapper, "Sheet")!.trigger("click");
+    screen.width = 70;
+    await flushPromises();
+    expect(wrapper.get("main").isVisible()).toBe(true);
+
+    screen.width = 30;
+    await flushPromises();
+    await tabButton(wrapper, "Scene")!.trigger("click");
+    screen.width = 55;
+    await flushPromises();
+    expect(wrapper.get("main").isVisible()).toBe(true);
+  });
+
+  // Bug caught: the character vanishing from the party (removed, or the read failing) while the Sheet tab is open, leaving nothing on screen.
+  it("returns to Story when the character can no longer be read while the Sheet tab is open", async () => {
+    const { wrapper, queryClient } = await mountTable("/table/s1");
+    await tabButton(wrapper, "Sheet")!.trigger("click");
+    fake.seed("party_members", []);
+    fake.reset();
+    fake.seed("agent_sessions", [sitting("s1")]);
+    await queryClient.invalidateQueries();
+    await flushPromises();
+    expect(wrapper.get("main").isVisible()).toBe(true);
+  });
+
+  // Bug caught: the phone bar hiding the character's hit points on the Story tab.
+  it("puts the character's hit points in the bar", async () => {
+    const { wrapper } = await mountTable("/table/s1");
+    expect(wrapper.get('[data-testid="solo-bar-who"]').text()).toBe("Inkling · 24 of 27 hit points");
+  });
+
+  // Bug caught: a non-caster's sheet carrying an empty "Spell slots" heading.
+  it("draws spell slots for a caster and none for a character without any", async () => {
+    const plain = await mountTable("/table/s1");
+    expect(sheetColumn(plain.wrapper).text()).not.toContain("Spell slots");
+    plain.wrapper.unmount();
+    fake.reset();
+    fake.seed("party_members", [{ ...MEMBER, spell_slots: [{ level: 1, max: 2, used: 1 }] }]);
+    fake.seed("character_classes", []);
+    fake.seed("agent_sessions", [sitting("s1")]);
+    const caster = await mountTable("/table/s1");
+    expect(sheetColumn(caster.wrapper).text()).toContain("Spell slots");
+    expect(sheetColumn(caster.wrapper).text()).toContain("1 / 2");
   });
 });

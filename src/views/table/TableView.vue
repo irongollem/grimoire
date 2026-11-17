@@ -6,6 +6,7 @@
       <SoloBar
         :campaign="campaign.activeCampaign?.name ?? ''"
         :character="characterName"
+        :hit-points="member ? hitPoints : null"
         :credits="meterCredits"
         :turns="turns"
         :balance="balance"
@@ -15,12 +16,22 @@
         @credits="openOutOfCredits(1)"
       />
 
-      <div v-if="!wide" class="shrink-0 border-b border-border bg-card px-3 py-2">
-        <SegmentedControl v-model="tab" :options="TABS" size="md" block />
+      <div v-if="!showAll && tabOptions.length > 1" class="shrink-0 border-b border-border bg-card px-3 py-2">
+        <SegmentedControl :model-value="view" :options="tabOptions" @update:model-value="(next) => (tab = next)" size="md" block />
       </div>
 
       <div class="flex min-h-0 flex-1">
-        <main v-show="wide || tab === 'story'" class="flex min-w-0 flex-1 flex-col" aria-label="The story">
+        <!-- Stays mounted behind its tab, so the bar's hit points keep coming from it. -->
+        <aside
+          v-if="member"
+          v-show="showAll || view === 'sheet'"
+          class="min-w-0 overflow-y-auto bg-card max-lg:flex-1 lg:w-72 lg:shrink-0 lg:border-r lg:border-border"
+          aria-label="Your character"
+        >
+          <SoloSheet :member="member" :readonly="hasLeft" @hit-points="(now) => (hitPoints = now)" />
+        </aside>
+
+        <main v-show="view === 'story'" class="flex min-w-0 flex-1 flex-col" aria-label="The story">
           <ListSkeleton v-if="conversation.isLoading.value" variant="text" :count="3" class="m-4" />
           <div v-else-if="conversation.isError.value" class="m-4 flex flex-col items-start gap-2" role="alert">
             <p class="text-body text-destructive">This sitting could not be opened. It may have been removed, or belong to another campaign.</p>
@@ -61,7 +72,7 @@
           </template>
         </main>
 
-        <aside v-show="wide || tab === 'scene'" class="min-w-0 overflow-y-auto bg-card max-md:flex-1 md:w-80 md:shrink-0 md:border-l md:border-border" aria-label="The scene">
+        <aside v-show="showAll || view === 'scene' || (wide && view === 'story')" class="min-w-0 overflow-y-auto bg-card max-md:flex-1 md:w-80 md:shrink-0 md:border-l md:border-border" aria-label="The scene">
           <SoloScene :place-name="scene.place.data.value?.name ?? null" :here="scene.here.data.value ?? []" :pressure="hasLeft ? null : pressure" />
         </aside>
       </div>
@@ -84,6 +95,7 @@ import SoloComposer from "@/components/table/solo/SoloComposer.vue";
 import SoloLeft from "@/components/table/solo/SoloLeft.vue";
 import SoloDisclosure from "@/components/table/solo/SoloDisclosure.vue";
 import SoloRollAsk from "@/components/table/solo/SoloRollAsk.vue";
+import SoloSheet from "@/components/table/solo/SoloSheet.vue";
 import SoloScene from "@/components/table/solo/SoloScene.vue";
 import SoloStory from "@/components/table/solo/SoloStory.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
@@ -105,17 +117,17 @@ import { getNpcDisplayFocalPoint, getNpcDisplayPortrait } from "@/lib/npcDisplay
 import { assignSpeakerColours } from "@/lib/table/speakerColours";
 import { useCampaignStore } from "@/stores/campaign";
 
-const TABS = [
-  { value: "story", label: "Story" },
-  { value: "scene", label: "Scene" },
-] as const;
+type Tab = "story" | "sheet" | "scene";
 
 const route = useRoute();
 const router = useRouter();
 const campaign = useCampaignStore();
 const queryClient = useQueryClient();
 const wide = useAbove("md");
-const tab = ref<"story" | "scene">("story");
+// Three columns need room for a story that is never narrower than about 28rem: below `lg` the sheet is a tab.
+const showAll = useAbove("lg");
+const tab = ref<Tab>("story");
+const hitPoints = ref<{ current: number; max: number } | null>(null);
 const disclosure = useTableDisclosure();
 const { openOutOfCredits } = useOutOfCredits();
 const { balance: rawBalance } = useAiCredits();
@@ -218,6 +230,24 @@ const party = useParty();
 const characterId = computed(() => conversation.data.value?.sitting.party_member_id ?? newCharacterId.value);
 const member = computed(() => party.data.value?.find((m) => m.id === characterId.value) ?? null);
 const check = useTableCheck(member, asked);
+
+// What is on screen below `lg`. A tablet draws story and scene side by side, so for it "scene" is the story's tab; a
+// sitting with nobody readable has no sheet to open.
+const view = computed<Tab>(() => {
+  if (showAll.value) return "story";
+  if (tab.value === "sheet" && !member.value) return "story";
+  if (tab.value === "scene" && wide.value) return "story";
+  return tab.value;
+});
+const tabOptions = computed<Array<{ value: Tab; label: string }>>(() => [
+  { value: "story" as const, label: "Story" },
+  ...(member.value ? [{ value: "sheet" as const, label: "Sheet" }] : []),
+  ...(wide.value ? [] : [{ value: "scene" as const, label: "Scene" }]),
+]);
+// A roll the story asks for brings the player back to it, from whichever tab they were reading.
+watch(asked, (now) => {
+  if (now !== null) tab.value = "story";
+});
 const characterName = computed(() => party.data.value?.find((m) => m.id === characterId.value)?.name ?? "your character");
 
 const speakerIds = computed(() => story.value.flatMap((item) => ((item.kind === "spoken" || item.kind === "acted") && item.speaker.id ? [item.speaker.id] : [])));
