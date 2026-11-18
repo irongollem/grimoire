@@ -1,5 +1,5 @@
-import { toMiles } from "@/rules/travelPace";
-import { otherEnd, type Going, type Road } from "./roads";
+import { toMiles } from "../../rules/travelPace.ts";
+import { otherEnd, type Going, type Road } from "./roads.ts";
 
 /**
  * The way between two places (#1222): the shortest chain of roads, with the places it passes.
@@ -81,4 +81,19 @@ export function shortestWay(fromId: string, toId: string, roads: readonly Road[]
 /** The places a way passes between its two ends, in order: where the story can stop on the road. */
 export function placesPassed(way: Way): string[] {
   return way.legs.slice(0, -1).map((leg) => leg.to);
+}
+
+/**
+ * The place a journey starts or ends at when the party (or the destination) is somewhere inside it: the place
+ * itself when a road touches it, else its nearest ancestor that one does. A party in the common room of an inn is,
+ * for the road, in the town. Null when neither the place nor anything it lies in has a road.
+ */
+export function roadPlaceOf(placeId: string, parentOf: (id: string) => string | null, roads: readonly Road[]): string | null {
+  const onRoad = new Set(roads.flatMap((road) => [road.from_location_id, road.to_location_id]));
+  const seen = new Set<string>();
+  for (let at: string | null = placeId; at !== null && !seen.has(at); at = parentOf(at)) {
+    if (onRoad.has(at)) return at;
+    seen.add(at);
+  }
+  return null;
 }

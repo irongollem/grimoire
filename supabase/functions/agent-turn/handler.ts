@@ -14,6 +14,7 @@
 import { floorOf, LISTENING_TEXT, type Floor } from "../_shared/agent/floor.ts";
 import { handoutsSection, type HandoutOffer, type PictureOf, type Shown } from "../_shared/agent/show.ts";
 import { shownText, speakerIdsOf, tableClosed } from "../_shared/agent/conduct.ts";
+import type { TravelMap } from "../_shared/agent/travel.ts";
 import { followersOf } from "../_shared/agent/pursuit.ts";
 import { lootIsWon, type LootHeld } from "../_shared/agent/encounterLoot.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
@@ -266,6 +267,8 @@ export interface AgentTurnDeps {
   loadPicture(campaignId: string, what: PictureOf, id: string): Promise<{ title: string; url: string } | null>;
   /** Hands a handout to the played character for real, beside whoever already holds it. Throws when it could not. */
   giveHandout(campaignId: string, handoutId: string, memberId: string): Promise<void>;
+  /** The campaign's places and the roads between them, as the caller may read them: what a journey is measured on. */
+  loadTravelMap(campaignId: string): Promise<TravelMap>;
   /** Marks a prepared fight as fought, so it is not offered at its place again. */
   finishFight(campaignId: string, encounterId: string): Promise<void>;
   /** Lays a won fight's loot notes where it was fought, once, as things the campaign placed there. */
@@ -645,6 +648,8 @@ export async function beginTurn(input: {
           show: character
             ? { handouts, picture: (what, id) => deps.loadPicture(campaign.id, what, id), onHandout: (handout) => { handedOut.push(handout); } }
             : null,
+          // How far somewhere is, by the campaign's roads. Not in a fight: nobody sets out on a journey mid-round.
+          travel: fights !== null && fights.fight !== null && fights.fight.phase === "running" ? null : { map: () => deps.loadTravelMap(campaign.id) },
           // Not in a fight: a turn there is six seconds, and what it holds is the board's.
           hands: character && hands !== null && !(fights !== null && fights.fight !== null && fights.fight.phase === "running")
             ? { memberId: character.id, ...hands, store: deps.hands, onChange: (change) => { handed.push(change); } }

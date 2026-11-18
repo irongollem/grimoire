@@ -491,6 +491,17 @@ The maintainer: the AI Dungeon Master "needs to be able to pass out handouts, sh
 - Seen live on local Sugarwell: a note made as a handout was handed to Rosie when she read it (held by her afterwards, card drawn after a reload with its link), and "what does she look like?" showed Honeycomb's portrait in the story. Before the standing rule was added the narrator treated the note as a plain object and handed over nothing.
 - **Not built:** sharing a place itself with the party from a turn (the rest of the epic's reveal row), a place's map or a nook as the thing shown, and anything shown to more than the played character.
 
+## Journeys (travel epic #1222, story 8; `_shared/agent/travel.ts`)
+
+The narrator has a `travel` tool (18 Nov 2026). Before it tells a journey it asks how far the place is, and the campaign's own roads answer: the distance along the shortest chain of roads, the time at a pace by the book, the days on the calendar, the nights on the road and the places the road passes. The rules are the app's own (`src/lib/travel/way.ts`, `src/rules/travelPace.ts`, which is why those files import by relative path with the extension, like every rule the functions share), so the table and a place's entry in the Atlas never disagree. A party in a room of a town starts from the town.
+
+- **It moves nobody.** The tool only says what the road is; `go_to` still does the arriving, and the answer ends by naming the id to arrive with.
+- **What happens on the way is the narrator's call** (the maintainer, 18 Nov 2026), stated in the tool's description so it is in the cached prefix: at each place passed and each night's camp it decides between a chance meeting or a fight (`start_fight`), a scene at the camp fire, a beat of a quest in play that has no fixed place, or nothing. By pacing, not by a quota: a journey meant to feel long and hard has more on it, and one that follows an eventful stretch is told in a sentence or two.
+- **When the roads do not say,** the narrator is told so and told not to make up a distance or a number of days ("some days" is as exact as it may be). A place inside the town the party is in is no journey.
+- **Not in a fight:** the tool is not offered while a fight is being fought. The roads are read once a turn at most, through the caller's own client.
+- Seen live: Rosie set out from Neverwinter for Phandalin (50 miles by the High Road in the local data); the narrator called `travel`, told "two nights of sparse camps" and "after three days", then `go_to`. Fifty miles at 24 a day is two days and an hour, so three days on the calendar and two nights: the numbers were the tool's.
+- **Not built:** the campaign's date does not move with the journey; encounter tables linked to the road or the region (story 7) are not read, so a chance meeting is the narrator's own; food (story 5); the map's straight line when there is no road; and nothing yet stops the narrator from skipping the tool and inventing a distance, beyond being told to call it.
+
 ## Keeping the table a game (story 18; `_shared/agent/conduct.ts`)
 
 Someone will try to steer the AI Dungeon Master into sexual content, and the table has more ways in than a chat box: what the player says and does, the past they author, the people they invent, and the campaign's own text, which the narrator reads as given. What stands against that (18 Nov 2026):

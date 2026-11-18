@@ -3,6 +3,7 @@
 // The rules are `handler.ts`'s; this file wires the database, the provider and the MCP tools to them. The gates
 // run before the stream opens so a refusal is a real status code; the turn itself runs inside the stream.
 import { giveHandout, loadHandouts, loadPicture } from "./showIo.ts";
+import type { Road } from "../../../src/lib/travel/roads.ts";
 import { CHILD_TURN_THRESHOLDS, readsAsChild, STRIKE_WINDOW_DAYS } from "../_shared/agent/conduct.ts";
 import { belongingsText, MAX_BELONGINGS, type Belonging } from "../_shared/agent/belongings.ts";
 import { MAX_PEOPLES } from "../_shared/agent/peoples.ts";
@@ -689,6 +690,20 @@ serve(withCors(async (req: Request) => {
     loadHandouts: (campaignId, memberId) => loadHandouts(supabase, campaignId, memberId),
     loadPicture: (campaignId, what, id) => loadPicture(supabase, campaignId, what, id),
     giveHandout: (campaignId, handoutId, memberId) => giveHandout(supabase, campaignId, handoutId, memberId),
+    // Through the caller's client: the DM's own RLS decides which places and roads there are to travel by.
+    async loadTravelMap(campaignId) {
+      const [places, roads] = await Promise.all([
+        supabase.from("locations").select("id, name, parent_id").eq("campaign_id", campaignId),
+        supabase.from("location_roads").select("id, from_location_id, to_location_id, distance, unit, name, going").eq("campaign_id", campaignId),
+      ]);
+      if (places.error) throw places.error;
+      if (roads.error) throw roads.error;
+      return {
+        places: (places.data ?? []).map((p) => ({ id: p.id as string, name: p.name as string, parentId: p.parent_id as string | null })),
+        // `distance` is numeric; anything that does not read as a number is not a road to travel by.
+        roads: (roads.data ?? []).map((r) => ({ ...r, distance: Number(r.distance) }) as Road).filter((r) => Number.isFinite(r.distance)),
+      };
+    },
     layFightLoot: (campaignId, encounterId, placeId, held) => layFightLoot(admin, campaignId, encounterId, placeId, held),
     startFight: (ctx, plan) => startFight(supabase, admin, ctx, plan),
     setFight: (sessionId, campaignId, encounterId) => setFight(admin, sessionId, campaignId, encounterId),

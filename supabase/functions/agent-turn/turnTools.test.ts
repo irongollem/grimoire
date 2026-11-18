@@ -9,6 +9,7 @@ import type { CallModel } from "../_shared/agent/types";
 
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
 const PLACE = "00000000-0000-4000-8000-0000000000a5";
+const FAR = "00000000-0000-4000-8000-0000000000a6";
 const FIGHT = "00000000-0000-4000-8000-0000000000f7";
 const MEMBER = "00000000-0000-4000-8000-0000000000e1";
 const HONEYCOMB_ID = "00000000-0000-4000-8000-0000000000d7";
@@ -46,6 +47,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
   const callModel: CallModel = async () => {
     throw new Error("no model in this test");
   };
+  const mapReads = { count: 0 };
   const turn = makeTurnTools({
     deps: {
       tools: [{ name: "search", description: "", inputSchema: {} }],
@@ -74,6 +76,15 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
     filed,
     quests,
     askRoll: played ? (pending) => asked.push(pending) : null,
+    travel: {
+      map: async () => {
+        mapReads.count += 1;
+        return {
+          places: [{ id: PLACE, name: "Cellar", parentId: null }, { id: FAR, name: "Farholt", parentId: null }],
+          roads: [{ id: "r1", from_location_id: PLACE, to_location_id: FAR, distance: 48, unit: "mi" as const, name: "", going: "road" as const }],
+        };
+      },
+    },
     show: played
       ? {
         handouts: [{ id: HANDOUT, title: "The Guild's letter" }],
@@ -83,13 +94,33 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
       : null,
     fight: played ? { view: { prepared: [{ id: FIGHT, name: "The cellar rats", creatures: "" }], fight: null }, viewAt: async () => ({ prepared: [{ id: ATTIC_FIGHT, name: "The attic bats", creatures: "" }], fight: null }), onStart: (plan) => { fights.push(plan); }, statless: async () => [] } : null,
   });
-  return { turn, calls, filed, moves, asked, fights, handed, handedOut };
+  return { turn, calls, filed, moves, asked, fights, handed, handedOut, mapReads };
 }
 
 describe("makeTurnTools", () => {
   it("offers the campaign's tools, speech, go_to and record together, or the narrator loses one of them", () => {
     const names = build().turn.tools.map((t) => t.name);
     expect(names).toEqual(expect.arrayContaining(["search", "speak", "act", "go_to", "record"]));
+  });
+
+  // Bug caught: a journey measured from where the turn began, after the story had already moved the party on.
+  it("measures a journey from where the party stands now, after a move in the same turn", async () => {
+    const { turn } = build();
+    expect((await turn.callTool("travel", { to_place_id: FAR })).isError).toBe(true);
+    await turn.callTool("go_to", { location_id: PLACE });
+    const answer = await turn.callTool("travel", { to_place_id: FAR });
+    expect(answer.isError).toBe(false);
+    // PHB 2014 "Travel Pace": 24 miles a day at a normal pace, so 48 miles is two days.
+    expect(answer.content).toContain("By road from Cellar to Farholt: 48 mi, 2 days");
+  });
+
+  // Bug caught: the campaign's places and roads read again for every destination the narrator asks about.
+  it("reads the campaign's roads once a turn, however many journeys are asked about", async () => {
+    const { turn, mapReads } = build();
+    await turn.callTool("go_to", { location_id: PLACE });
+    await turn.callTool("travel", { to_place_id: FAR });
+    await turn.callTool("travel", { to_place_id: FAR, pace: "fast" });
+    expect(mapReads.count).toBe(1);
   });
 
   it("runs record itself and never hands it to the campaign's tools, which would answer 'unknown tool'", async () => {

@@ -1,7 +1,7 @@
 import type { RouteSummary } from "@/lib/locations/mapRoute";
 import { fromMiles, travelTime, type TravelPaceId } from "@/rules/travelPace";
 import type { Road } from "./roads";
-import { placesPassed, shortestWay } from "./way";
+import { placesPassed, roadPlaceOf, shortestWay } from "./way";
 
 /**
  * A journey along the roads from where the party is to a place (#1222).
@@ -10,21 +10,6 @@ import { placesPassed, shortestWay } from "./way";
  * time between two places, which the calendar's travel event records. So a road and a measured route are planned,
  * shown and put on the calendar the same way, and only how the distance was found differs.
  */
-
-/**
- * The place a journey starts or ends at when the party (or the destination) is somewhere inside it: the place
- * itself when a road touches it, else its nearest ancestor that one does. A party in the common room of an inn is,
- * for the road, in the town. Null when neither the place nor anything it lies in has a road.
- */
-export function roadPlaceOf(placeId: string, parentOf: (id: string) => string | null, roads: readonly Road[]): string | null {
-  const onRoad = new Set(roads.flatMap((road) => [road.from_location_id, road.to_location_id]));
-  const seen = new Set<string>();
-  for (let at: string | null = placeId; at !== null && !seen.has(at); at = parentOf(at)) {
-    if (onRoad.has(at)) return at;
-    seen.add(at);
-  }
-  return null;
-}
 
 export interface Journey {
   /** As the map's measuring tool summarises a route, so everything downstream of it is shared. */

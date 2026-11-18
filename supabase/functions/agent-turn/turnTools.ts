@@ -16,6 +16,7 @@ import { cannotAttempt, changedText, FIGHT_CHANGE_TOOL, parseFightChange, type F
 import type { FightState } from "../_shared/agent/fight.ts";
 import { alreadyRecorded, existsText, INTRODUCE_TOOL, INTRODUCE_TOOL_NAME, INTRODUCTIONS_PER_TURN, introducedText, parseIntroduction, type Introduction } from "../_shared/agent/introduce.ts";
 import { GO_TO_TOOL, makeSceneTool } from "../_shared/agent/scene.ts";
+import { parseTravel, TRAVEL_TOOL, TRAVEL_TOOL_NAME, travelAnswer, type TravelMap } from "../_shared/agent/travel.ts";
 import type { Remembered } from "../_shared/agent/characterTurn.ts";
 import { makeSpeechTools } from "../_shared/agent/speak.ts";
 import { SPEECH_TOOL_NAMES } from "../_shared/agent/speakInput.ts";
@@ -109,6 +110,11 @@ export interface TurnToolsInput {
     /** A handout was handed over: given for real once the turn is kept. */
     onHandout(handout: HandoutOffer): void;
   } | null;
+  /**
+   * The campaign's places and roads, read when the narrator asks how far somewhere is (`travel.ts`). Null in a
+   * fight, where nobody sets out on a journey, and then the tool is not offered.
+   */
+  travel: { map(): Promise<TravelMap> } | null;
 }
 
 export interface TurnTools {
@@ -394,6 +400,17 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     return { content: shownText(shown), isError: false, shown };
   };
 
+  // How far it is from where the party stands now (after any move this turn) to somewhere else. The map is read
+  // once a turn at most: asking about two destinations is one read.
+  let travelMap: Promise<TravelMap> | null = null;
+  const travel = async (toolInput: Record<string, unknown>) => {
+    if (!input.travel) return { content: "Nobody sets out on a journey now.", isError: true };
+    const parsed = parseTravel(toolInput);
+    if (!parsed.ok) return { content: parsed.error, isError: true };
+    travelMap ??= input.travel.map();
+    return travelAnswer(place, parsed.value.toPlaceId, parsed.value.paceId, await travelMap);
+  };
+
   // One request a turn: the story stops for a single roll, and a second would silently replace the first.
   let rollAsked = false;
   const askRoll = (toolInput: Record<string, unknown>) => {
@@ -410,7 +427,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
@@ -421,6 +438,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (input.fight && name === START_FIGHT_TOOL.name) return startFight(toolInput);
       if (name === INTRODUCE_TOOL_NAME) return introduce(toolInput);
       if (input.show && name === SHOW_TOOL_NAME) return show(toolInput);
+      if (input.travel && name === TRAVEL_TOOL_NAME) return travel(toolInput);
       if (name === KEEP_TALKING_TOOL_NAME) {
         floorKept = true;
         input.onKeepTalking?.();

@@ -432,6 +432,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       h.fightSets.push({ sessionId, campaignId, encounterId });
     },
     loadHandouts: async () => h.state.handouts,
+    loadTravelMap: async () => ({ places: [], roads: [] }),
     loadPicture: async (_campaignId, what, id) => (id === PICTURED ? { title: `The ${what}`, url: "https://assets.example/p.webp" } : null),
     giveHandout: async (_campaignId, handoutId, memberId) => {
       if (h.state.handoutFails) throw new Error("share failed");
@@ -3219,6 +3220,18 @@ describe("the story turns into a fight", () => {
     await play(h, { body: BODY });
     expect(fightEvents(h)).toEqual([]);
     expect(opening(h.requests[0])).toContain("Rosie confronts Sift");
+  });
+
+  // Bug caught: the narrator offered a journey in the middle of a round, and the party walking out of its own fight.
+  it("offers travel outside a fight and not while one is being fought", async () => {
+    const quietTable = played([step(10)]);
+    await play(quietTable, { body: BODY });
+    expect(quietTable.requests[0].tools.map((t) => t.name)).toContain("travel");
+
+    const fighting = played([step(10)], { fight_encounter_id: FIGHT });
+    fighting.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "Rosie confronts Sift", phase: "running", round: 1, fighters: [] } };
+    await play(fighting, { body: BODY });
+    expect(fighting.requests[0].tools.map((t) => t.name)).not.toContain("travel");
   });
 
   // Bug caught live (17 Nov 2026): "i take the chair behind me and throw it at the dogs" was answered "Resolve the

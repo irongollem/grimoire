@@ -6,8 +6,8 @@
  * keeps its unit for showing. The units, their conversion and how a distance is written are the app's one set
  * (`rules/travelPace`, `lib/locations/mapScale`), shared with the map's measuring tool.
  */
-import { formatDistance } from "@/lib/locations/mapScale";
-import { toMiles, type DistanceUnit } from "@/rules/travelPace";
+import { formatDistance } from "../locations/mapScale.ts";
+import { toMiles, type DistanceUnit } from "../../rules/travelPace.ts";
 
 export type { DistanceUnit };
 export type Going = "road" | "track" | "river" | "sea";
