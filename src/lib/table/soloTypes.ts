@@ -69,6 +69,8 @@ export type TableEvent =
   | { type: "fight_change"; change: FightChange }
   /** Someone the Dungeon Master made up now has a record your character knows of. */
   | { type: "introduced"; name: string }
+  /** Whole days passed in the story: the page moves the campaign's date on by them. */
+  | { type: "days"; days: number }
   /** Words that can be voiced and are not a character's line: the narrator's, whole, or your own said line. */
   | { type: "voice"; role: "narrator" | "player"; text: string; key: string }
   /** Something changed hands (a gift, a purchase, coins, a thing picked up): a line for the margin. The pack and purse update by themselves. */

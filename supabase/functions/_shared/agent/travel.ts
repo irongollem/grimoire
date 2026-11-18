@@ -22,7 +22,8 @@ export const TRAVEL_TOOL: AgentTool = {
     "Says how far it is from where the party is to another place of this campaign, by the campaign's own roads: the " +
     "distance, how long it takes at a pace, and the places the road passes. Call it before you tell any journey " +
     "between two settlements or across country, and never invent a distance or a number of days yourself. It moves " +
-    "nobody: tell the journey, then call go_to when the party arrives. What happens on the way is yours to decide, " +
+    "nobody and passes no time: tell the journey, then call pass_days with the days it took and go_to when the " +
+    "party arrives. What happens on the way is yours to decide, " +
     "as a Dungeon Master does, at each place the road passes and at each night's camp: a chance meeting or a fight " +
     "(start_fight), a scene at the camp fire, a beat of a quest in play that has no fixed place (a glimpse of the " +
     "one they hunt, a messenger who finds them), or nothing at all. Go by pacing, not by a quota: a journey meant to " +
@@ -95,7 +96,7 @@ export function travelAnswer(fromId: string | null, toId: string, paceId: Travel
     `By road from ${nameOf(start)} to ${nameOf(end)}: ${distance} ${unit}, ${formatTravelTime(time)} of travel at a ${pace.label.toLowerCase()} pace (${time.calendarDays} ${time.calendarDays === 1 ? "day" : "days"} on the calendar).`,
     passed.length === 0 ? "The road passes no other place of the campaign." : `The road passes ${passed.join(", then ")}.`,
     nights === 0 ? "They arrive the same day: no night on the road." : `${nights} ${nights === 1 ? "night" : "nights"} on the road.`,
-    `When they arrive, call go_to with ${toId}.`,
+    `When they arrive, call pass_days with ${time.calendarDays} and go_to with ${toId}.`,
   ];
   return { content: lines.join("\n"), isError: false };
 }

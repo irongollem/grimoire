@@ -110,6 +110,12 @@ describe("parseTableEvent for pressure", () => {
     expect(parseTableEvent({ type: "pressure", pressure: { filled: 9, segments: 2 } })).toBeNull();
     expect(parseTableEvent({ type: "pressure" })).toBeNull();
   });
+
+  // Bug caught: the campaign's date moved by a number that is not a count of days: a fraction, a negative, a year's worth.
+  it("takes the days that passed only as a whole number the server could have sent", () => {
+    expect(parseTableEvent({ type: "days", days: 3 })).toEqual({ type: "days", days: 3 });
+    for (const days of [0, -1, 2.5, 61, "3", undefined]) expect(parseTableEvent({ type: "days", days })).toBeNull();
+  });
 });
 
 describe("parseTableEvent for rolls", () => {

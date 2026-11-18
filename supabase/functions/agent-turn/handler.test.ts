@@ -3223,6 +3223,19 @@ describe("the story turns into a fight", () => {
   });
 
   // Bug caught: the narrator offered a journey in the middle of a round, and the party walking out of its own fight.
+  // Bug caught: days told in a turn that was never kept moving the campaign's date all the same; or days the
+  // narrator passed never reaching the page.
+  it("tells the page the days that passed, once the turn is kept", async () => {
+    const h = played([step(10, { blocks: [{ type: "tool_call", id: "d1", name: "pass_days", input: { days: 3 } }], stop: "tool_calls" }), step(10)]);
+    await play(h, { body: BODY });
+    expect(h.events.filter((e) => e.type === "days")).toEqual([{ type: "days", days: 3 }]);
+
+    const lost = played([step(10, { blocks: [{ type: "tool_call", id: "d1", name: "pass_days", input: { days: 3 } }], stop: "tool_calls" }), step(10)]);
+    lost.state.conflict = true;
+    await play(lost, { body: BODY });
+    expect(lost.events.filter((e) => e.type === "days")).toEqual([]);
+  });
+
   it("offers travel outside a fight and not while one is being fought", async () => {
     const quietTable = played([step(10)]);
     await play(quietTable, { body: BODY });
@@ -3232,6 +3245,7 @@ describe("the story turns into a fight", () => {
     fighting.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "Rosie confronts Sift", phase: "running", round: 1, fighters: [] } };
     await play(fighting, { body: BODY });
     expect(fighting.requests[0].tools.map((t) => t.name)).not.toContain("travel");
+    expect(fighting.requests[0].tools.map((t) => t.name)).not.toContain("pass_days");
   });
 
   // Bug caught live (17 Nov 2026): "i take the chair behind me and throw it at the dogs" was answered "Resolve the

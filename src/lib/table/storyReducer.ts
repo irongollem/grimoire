@@ -91,6 +91,8 @@ export function applyTableEvent(items: StoryItem[], event: TableEvent, turnStart
       const moved = by === 0 ? "no hit points" : `${heals ? "+" : "−"}${by} hit points`;
       return withMargin(items, `${why}: ${moved} · ${hp} of ${maxHp}`);
     }
+    case "days":
+      return withMargin(items, event.days === 1 ? "A day passes" : `${event.days} days pass`);
     case "introduced":
       return withMargin(items, `${event.name} is now among the people you know`);
     case "fight": {

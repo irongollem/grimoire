@@ -48,6 +48,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
     throw new Error("no model in this test");
   };
   const mapReads = { count: 0 };
+  const passed: number[] = [];
   const turn = makeTurnTools({
     deps: {
       tools: [{ name: "search", description: "", inputSchema: {} }],
@@ -76,6 +77,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
     filed,
     quests,
     askRoll: played ? (pending) => asked.push(pending) : null,
+    onDaysPassed: (days) => { passed.push(days); },
     travel: {
       map: async () => {
         mapReads.count += 1;
@@ -94,7 +96,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
       : null,
     fight: played ? { view: { prepared: [{ id: FIGHT, name: "The cellar rats", creatures: "" }], fight: null }, viewAt: async () => ({ prepared: [{ id: ATTIC_FIGHT, name: "The attic bats", creatures: "" }], fight: null }), onStart: (plan) => { fights.push(plan); }, statless: async () => [] } : null,
   });
-  return { turn, calls, filed, moves, asked, fights, handed, handedOut, mapReads };
+  return { turn, calls, filed, moves, asked, fights, handed, handedOut, mapReads, passed };
 }
 
 describe("makeTurnTools", () => {
@@ -121,6 +123,14 @@ describe("makeTurnTools", () => {
     await turn.callTool("travel", { to_place_id: FAR });
     await turn.callTool("travel", { to_place_id: FAR, pace: "fast" });
     expect(mapReads.count).toBe(1);
+  });
+
+  // Bug caught: the date moved twice for days the story told once, because the narrator called the tool again.
+  it("passes days once a turn and refuses a second call", async () => {
+    const { turn, passed } = build();
+    expect((await turn.callTool("pass_days", { days: 3 })).isError).toBe(false);
+    expect((await turn.callTool("pass_days", { days: 3 })).isError).toBe(true);
+    expect(passed).toEqual([3]);
   });
 
   it("runs record itself and never hands it to the campaign's tools, which would answer 'unknown tool'", async () => {

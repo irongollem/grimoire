@@ -171,6 +171,7 @@ import { pressureAfterSend } from "@/lib/table/pressureLabel";
 import type { PlayMode, RollAsk, StoryItem, TableFight, TablePressure } from "@/lib/table/soloTypes";
 import { useTableSpeakers } from "@/composables/table/useTableSpeakers";
 import { useTableCheck } from "@/composables/table/useTableCheck";
+import { useTableDays } from "@/composables/table/useTableDays";
 import { useTableTurn } from "@/composables/table/useTableTurn";
 import { useTableVoice } from "@/composables/table/useTableVoice";
 import { freshLines, linesOfItem, replayLines } from "@/lib/table/voiceLines";
@@ -235,6 +236,7 @@ const scene = useTableScene(sceneId, campaignId);
 const fightTurn = ref<FightTurn | null>(null);
 const stage = ref<InstanceType<typeof SoloFightStage> | null>(null);
 
+const passDays = useTableDays();
 const turn = useTableTurn({
   campaignId: () => campaignId.value,
   sessionId: openedId(),
@@ -243,6 +245,7 @@ const turn = useTableTurn({
   // In a fight every message carries what the player's turn still holds, and a ruling comes back for the board.
   fightTurn: () => fightTurn.value,
   onFightChange: (change) => stage.value?.apply(change),
+  onDays: passDays,
   onSession: (id) => {
     appUi.setTablePlaySession(id);
     if (route.params.sessionId !== id) void router.replace({ name: "table-session", params: { sessionId: id } });

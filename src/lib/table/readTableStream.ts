@@ -108,6 +108,9 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
       if (!whole(c.by) || !whole(c.hp) || !whole(c.maxHp)) return null;
       return { type: "hit_points", change: { heals: c.change === "heal", why: c.why, by: c.by, hp: c.hp, maxHp: c.maxHp } };
     }
+    case "days":
+      // Bounded as the server bounds it: a date is never moved by a number the page cannot trust.
+      return typeof raw.days === "number" && Number.isInteger(raw.days) && raw.days >= 1 && raw.days <= 60 ? { type: "days", days: raw.days } : null;
     case "introduced": {
       const person = raw.person;
       return isRecord(person) && typeof person.name === "string" && person.name.trim() !== "" ? { type: "introduced", name: person.name } : null;

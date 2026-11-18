@@ -99,6 +99,8 @@ export type AgentEvent =
   | { type: "fight_change"; change: FightChange }
   /** Someone the narrator made up now has a record the player's character knows of. A hidden one is never sent. */
   | { type: "introduced"; person: { id: string; name: string } }
+  /** Whole days passed in the story this turn: the page moves the campaign's date on by them. */
+  | { type: "days"; days: number }
   /** Words that are not a character's line and can be voiced: the narrator's, whole, or the player's own said line. */
   | { type: "voice"; role: "narrator" | "player"; text: string; voice: string }
   /** Something changed hands: a line for the story's margin. The pack and the purse follow by themselves. */
@@ -623,6 +625,7 @@ export async function beginTurn(input: {
         let hitPointChange: HitPointChange | null = null;
         // People the narrator gave a record this turn; made only once the turn is kept.
         const introduced: Introduction[] = [];
+        let daysPassed = 0;
         // The fight the narrator starts this turn; started only once the turn is kept.
         let fightPlan: FightPlan | null = null;
         const turnTools = makeTurnTools({
@@ -648,6 +651,8 @@ export async function beginTurn(input: {
           show: character
             ? { handouts, picture: (what, id) => deps.loadPicture(campaign.id, what, id), onHandout: (handout) => { handedOut.push(handout); } }
             : null,
+          // Days that pass in the story move the campaign's date, on the page, once the turn is kept. Not in a fight.
+          onDaysPassed: fights !== null && fights.fight !== null && fights.fight.phase === "running" ? null : (days) => { daysPassed = days; },
           // How far somewhere is, by the campaign's roads. Not in a fight: nobody sets out on a journey mid-round.
           travel: fights !== null && fights.fight !== null && fights.fight.phase === "running" ? null : { map: () => deps.loadTravelMap(campaign.id) },
           // Not in a fight: a turn there is six seconds, and what it holds is the board's.
@@ -963,6 +968,8 @@ export async function beginTurn(input: {
             console.error("agent-turn: changing the character's hit points failed:", error);
           }
         }
+        // The days the story told have passed: the page moves the campaign's date (its calendar lives with the app).
+        if (daysPassed > 0) emit({ type: "days", days: daysPassed });
         // The people the narrator made up get their records. One that cannot be written (a plan's limit on
         // characters, a name taken meanwhile) costs that record, never the turn: the facts about them are kept.
         for (const intro of introduced) {

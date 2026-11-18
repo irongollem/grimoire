@@ -26,7 +26,7 @@ describe("travelAnswer", () => {
     expect(content).toContain("3 days on the calendar");
     expect(content).toContain("The road passes Leilon.");
     expect(content).toContain("2 nights on the road.");
-    expect(content).toContain(`call go_to with ${PHANDALIN}`);
+    expect(content).toContain(`call pass_days with 3 and go_to with ${PHANDALIN}`);
   });
 
   // Bug caught: a party in a room of a town told it has no road, because only the town is on one.
