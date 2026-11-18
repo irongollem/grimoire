@@ -49,7 +49,7 @@ import { IconAddEvent, IconDice } from "@/lib/icons";
 import { routeDescription, routeEventPrefill } from "@/lib/locations/mapRoute";
 import { formatDistance } from "@/lib/locations/mapScale";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
-import { journeyByRoad, passingText, roadTableIds, stopsText } from "@/lib/travel/journey";
+import { journeyByRoad, passingText, roadTableIds, stopsText, travellersOf } from "@/lib/travel/journey";
 import { journeyByMap, sharedMapOf } from "@/lib/travel/mapLine";
 import { DEFAULT_TRAVEL_PACE, formatTravelTime, getTravelPace, TRAVEL_PACES, type TravelPaceId } from "@/rules/travelPace";
 import { useCalendarStore } from "@/stores/calendar";
@@ -141,10 +141,12 @@ function rollOn(table: RollTable): void {
 const eventOpen = ref(false);
 /** The party members standing where the journey starts: they are the ones setting out. */
 const travelerIds = computed(() => {
-  const origin = journey.value?.summary.from?.id;
+  const j = journey.value;
+  const origin = j?.summary.from?.id;
   const members = party.value;
-  if (!origin || !members) return [];
-  return members.filter((m) => m.current_location_id === origin).map((m) => m.id);
+  if (!j || !origin || !members) return [];
+  // A journey across a map starts at a pin, with no roads to stop the walk up from where someone stands.
+  return travellersOf({ origin, members, partyAt: partyAt.value, parentOf, roads: byRoad.value === null ? [] : (roads.data.value ?? []) });
 });
 const eventPrefill = computed(() => {
   const j = journey.value;

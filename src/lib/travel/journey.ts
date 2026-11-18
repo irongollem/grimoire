@@ -1,4 +1,5 @@
 import type { RouteSummary } from "@/lib/locations/mapRoute";
+import { effectiveLocationId } from "@/lib/partyPosition";
 import { fromMiles, getTravelPace, travelTime, type TravelPaceId } from "@/rules/travelPace";
 import type { Road } from "./roads";
 import { placesPassed, shortestWay, stopsOf } from "./way";
@@ -24,6 +25,36 @@ export function roadPlaceOf(placeId: string, parentOf: (id: string) => string | 
     seen.add(at);
   }
   return null;
+}
+
+/**
+ * The party members setting out on a journey: those standing where it starts or inside it. A member with no place
+ * of their own is with the party (`effectiveLocationId`), so a party of followers all set out together, and one in
+ * the inn's common room sets out from the town the road leaves. Walking up stops at a place on one of `roads` that
+ * is not the start: someone in a village with roads of its own is at that village. Pass no roads for a journey
+ * measured on a map, whose start is a pin and has no roads to stop at.
+ */
+export function travellersOf(input: {
+  origin: string;
+  members: readonly { id: string; current_location_id: string | null }[];
+  partyAt: string | null;
+  parentOf: (id: string) => string | null;
+  roads: readonly Road[];
+}): string[] {
+  const onRoad = new Set(input.roads.flatMap((road) => [road.from_location_id, road.to_location_id]));
+  const startsHere = (placeId: string): boolean => {
+    const seen = new Set<string>();
+    for (let at: string | null = placeId; at !== null && !seen.has(at); at = input.parentOf(at)) {
+      if (at === input.origin) return true;
+      if (onRoad.has(at)) return false;
+      seen.add(at);
+    }
+    return false;
+  };
+  return input.members.filter((m) => {
+    const at = effectiveLocationId(m, input.partyAt);
+    return at !== null && startsHere(at);
+  }).map((m) => m.id);
 }
 
 export interface Journey {

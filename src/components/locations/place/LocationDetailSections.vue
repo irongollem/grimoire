@@ -78,11 +78,14 @@
          self-contained, always-editable shape as Rooms/Prepared Here below;
          this is the section that makes Related Locations redundant on an
          interior space, per the comment above. -->
-    <!-- Roads to the other places this one is joined to, with how far each is (#1222). A room has doors, not roads. -->
-    <section v-if="!isInteriorSpace && location.campaign_id" class="flex flex-col gap-2">
+    <!-- Roads to the other places this one is joined to, with how far each is (#1222). A room has doors, not roads.
+         Only for a place of the campaign that is open: the roads, the places and the party's position are all read
+         from it, so a place of another campaign would be shown the open one's roads and party. Keyed by the place so
+         a half-written road (and an add still in flight) never carries over to the next place opened. -->
+    <section v-if="!isInteriorSpace && inOpenCampaign" class="flex flex-col gap-2">
       <h2 class="text-heading-sm font-bold text-foreground">Roads from here</h2>
       <LocationJourney :location-id="location.id" />
-      <LocationRoadsPanel :location-id="location.id" />
+      <LocationRoadsPanel :key="location.id" :location-id="location.id" />
     </section>
 
     <section v-if="isInteriorSpace" class="flex flex-col gap-2">
@@ -290,6 +293,7 @@ const visibleNpcs = computed(() =>
 
 const { data: allPartyMembers } = useParty();
 const campaign = useCampaignStore();
+const inOpenCampaign = computed(() => location.campaign_id !== null && location.campaign_id === campaign.activeCampaignId);
 // #786: current_location_id on a member is an override; a member with none
 // is wherever the party is, so this reads the derived position, not the
 // raw column — otherwise a follower never shows up as "currently here".
