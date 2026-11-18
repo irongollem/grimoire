@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'claude-code/testing'
 
+import { PUSH_ASK_HOLDS_MS, pushStillAsked } from './register'
+
 // The hooks a test registers sit beneath the plugin and stand for the tool
 // itself: a call that reaches one "ran".
 const RAN = { result: 'ran' }
@@ -95,5 +97,26 @@ describe('push', () => {
     await $.prompt.submit({ text: 'looks good, push it', wait: false, origin: { kind: 'composer' } })
     const r = await $.tool.call({ tool: 'Bash', command: 'git push origin main' })
     expect(r.deny).toBeUndefined()
+  })
+
+  // Bug caught (18 Nov 2026): a follow-up thought sent while the checks ran cancelled the push just asked for.
+  test('a later message that does not say push leaves the ask standing', async ($, on) => {
+    on('tool.call', () => RAN)
+    on('prompt.submit', ($, e) => ({ text: e.text }))
+    await $.prompt.submit({ text: 'push', wait: false, origin: { kind: 'composer' } })
+    await $.prompt.submit({ text: 'another idea: a prep step for the campaign', wait: false, origin: { kind: 'composer' } })
+    const r = await $.tool.call({ tool: 'Bash', command: 'git push origin main' })
+    expect(r.deny).toBeUndefined()
+  })
+
+  // Bug caught: an ask that never lapses, so a "push" from this morning unlocks one tonight.
+  test('an ask holds for three hours and no longer', () => {
+    const asked = 1_000_000
+    expect(pushStillAsked(asked, asked)).toBe(true)
+    expect(pushStillAsked(asked, asked + PUSH_ASK_HOLDS_MS)).toBe(true)
+    expect(pushStillAsked(asked, asked + PUSH_ASK_HOLDS_MS + 1)).toBe(false)
+    expect(pushStillAsked(null, asked)).toBe(false)
+    // A clock set back is not an ask from the future.
+    expect(pushStillAsked(asked, asked - 1)).toBe(false)
   })
 })

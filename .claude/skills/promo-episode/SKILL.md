@@ -18,6 +18,14 @@ to re-film.
 
 - Read the feature's doc in `context/features/` and find what a DM and a
   player each *do* with it that looks good on a phone. Open on the payoff.
+- Give it a hook (`hook: { text, shot, at }`): the first two seconds show the
+  payoff with a bait line in the caption band, before anything is explained.
+  Pick the most striking two seconds of the take after filming (the contact
+  sheet shows them), and write a line the Reel then keeps. See "The hook" in
+  `docs/promo-videos.md`.
+- Draft the YouTube title with the caption (`youtube-titles.json`): the Short
+  goes up in the same run as the Instagram post, and only with an approved
+  title.
 - Look at the feature on a phone first. Use `scripts/promo/stage.ts`
   (`launch` + `openStage`) or a quick screenshot script at 390x693, as the DM
   fixture and the player fixture. A layout that falls apart at phone width is

@@ -20,7 +20,7 @@ import { findAccount, postsLeft } from "./instagram";
 import { runDue } from "./dueRun";
 import { checkReel, postReel, readCaption, readPosted, readSchedule, writeSchedule } from "./publishing";
 import { dayMarkDue, postedRecords, takeSnapshot } from "./stats";
-import { nextShort, planShort, publishShort, readShortRecord, readShortTitles } from "./youtube";
+import { nextShort, planShort, publishShort, readShortRecord, readShortTitles, scheduledWithoutTitle } from "./youtube";
 
 function parseArgs(argv: string[]) {
   let root = "promo-out";
@@ -177,6 +177,12 @@ async function main() {
       console.log(`\n=== ${when}  ${e.id}${posted ? "  (posted)" : ""}`);
       if (!posted && !(await dryRun(token, root, e.id))) process.exitCode = 1;
     }
+    // YouTube rides on the same run, so a Reel without an approved title would go to Instagram alone.
+    const untitled = scheduledWithoutTitle({ schedule, titles: readShortTitles(), posted: (x) => readPosted(root, x) !== null, isCarousel: (x) => isCarousel(root, x) });
+    if (untitled.length > 0) {
+      console.log(`\nNOT READY no YouTube title in scripts/promo/youtube-titles.json for ${untitled.join(", ")}: each would post to Instagram only.`);
+      process.exitCode = 1;
+    }
     return;
   }
 
@@ -191,7 +197,14 @@ async function main() {
       notify,
       writeSchedule,
       networkUp: () => networkUp(log),
-      post: (postId) => post(token, root, postId, log),
+      post: async (postId) => {
+        const record = await post(token, root, postId, log);
+        if (!isCarousel(root, postId) && !(postId in readShortTitles())) {
+          log(`youtube: ${postId} has no approved title, so it went to Instagram only`);
+          notify("Instagram only", `${postId} has no YouTube title in youtube-titles.json yet.`);
+        }
+        return record;
+      },
       snapshot: () => snapshot(token, root, log),
     });
   } finally {

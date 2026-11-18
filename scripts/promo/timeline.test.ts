@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coverOffset, planTimeline, snapToFrame, VO_LEAD, type ShotInput } from "./timeline";
+import { coverOffset, HOOK_LENGTH, hookWindow, planTimeline, snapToFrame, VO_LEAD, type ShotInput } from "./timeline";
 
 const shot = (over: Partial<ShotInput> = {}): ShotInput => ({
   id: "a",
@@ -113,5 +113,18 @@ describe("coverOffset", () => {
   // Bug it fails on: a moment past the shot's end extracts no frame, and the Reel posts without a cover.
   it.each([25, 30, -1])("refuses a moment outside the shot (%s s of 25)", (at) => {
     expect(() => coverOffset({ coverAt: at }, 25)).toThrow(/outside the first shot/);
+  });
+});
+
+describe("hookWindow", () => {
+  // Fails on: a hook cut past the end of its clip, which opens the Reel on a frozen frame instead of the payoff.
+  it("refuses a window that runs past the clip and takes one that ends exactly on it", () => {
+    expect(hookWindow({ shot: "s", at: 3 }, 5)).toEqual({ from: 3, to: 3 + HOOK_LENGTH });
+    expect(() => hookWindow({ shot: "s", at: 3.1 }, 5)).toThrow(/outside shot s/);
+  });
+
+  // Fails on: a negative offset reaching ffmpeg, which seeks to 0 silently and shows the wrong moment.
+  it("refuses a window that starts before the clip", () => {
+    expect(() => hookWindow({ shot: "s", at: -0.5 }, 5)).toThrow(/outside/);
   });
 });
