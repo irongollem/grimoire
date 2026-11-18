@@ -700,14 +700,18 @@ serve(withCors(async (req: Request) => {
       do crypto.getRandomValues(box); while (box[0] >= limit);
       return (box[0] % span) + 1;
     },
-    async loadTravelMap(campaignId) {
-      const [places, roads, placed] = await Promise.all([
+    async loadTravelMap(campaignId, gameSystem) {
+      const [places, roads, placed, rations] = await Promise.all([
         supabase.from("locations").select("id, name, parent_id").eq("campaign_id", campaignId),
         supabase.from("location_roads").select("id, from_location_id, to_location_id, distance, unit, name, going, roll_table_id, roll_table:roll_tables(id, name, dice, entries)").eq("campaign_id", campaignId),
         // The roll tables placed on this campaign's places. A placement has no campaign of its own: its place has.
         supabase.from("location_placements").select("location_id, roll_table:roll_tables!inner(id, name, dice, entries), place:locations!inner(campaign_id)")
           .not("roll_table_id", "is", null).eq("place.campaign_id", campaignId),
+        // Whether this campaign counts food (the optional rule "Rations on the Road"; off unless switched on).
+        supabase.from("campaign_rules").select("enabled").eq("campaign_id", campaignId).eq("rule_key", "rations").maybeSingle(),
       ]);
+      if (rations.error) throw rations.error;
+      const edition = gameSystem === "dnd5e-2014" ? "2014" : gameSystem === "dnd5e-2024" ? "2024" : null;
       if (placed.error) throw placed.error;
       if (places.error) throw places.error;
       if (roads.error) throw roads.error;
@@ -719,6 +723,7 @@ serve(withCors(async (req: Request) => {
           const table = (Array.isArray(row.roll_table) ? row.roll_table[0] : row.roll_table) as { id: string; name: string; dice: string; entries: unknown } | null | undefined;
           return table ? [{ roadId: row.id as string, table: { id: table.id, name: table.name, dice: table.dice, entries: entriesOf(table.entries) } }] : [];
         }),
+        food: rations.data !== null && rations.data.enabled === true ? edition : null,
         tables: (placed.data ?? []).flatMap((row) => {
           const table = (Array.isArray(row.roll_table) ? row.roll_table[0] : row.roll_table) as { id: string; name: string; dice: string; entries: unknown } | null | undefined;
           return table ? [{ id: table.id, name: table.name, dice: table.dice, entries: entriesOf(table.entries), placeId: row.location_id as string }] : [];

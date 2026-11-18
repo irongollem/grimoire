@@ -11,6 +11,7 @@
 
 import { placesPassed, roadPlaceOf, shortestWay, type Way } from "../../../../src/lib/travel/way.ts";
 import type { Road } from "../../../../src/lib/travel/roads.ts";
+import { rationsNeeded } from "../../../../src/rules/rations.ts";
 import { DEFAULT_TRAVEL_PACE, formatTravelTime, fromMiles, getTravelPace, TRAVEL_PACES, travelTime, type TravelPaceId } from "../../../../src/rules/travelPace.ts";
 import { tablesAlong, tablesLine, type PlacedTable, type TableOnTheWay } from "./roadTables.ts";
 import type { AgentTool } from "./types.ts";
@@ -61,6 +62,15 @@ function tablesOfTheWay(way: Way, map: TravelMap, parentOf: (id: string) => stri
   });
 }
 
+/** What a campaign that counts food is told about a journey: the need, and the book's price for going without. */
+function foodLine(days: number, ruleset: "2014" | "2024"): string {
+  const need = rationsNeeded(days, 1);
+  const without = ruleset === "2014"
+    ? "by the 2014 rules a character can go 3 + their Constitution modifier days without food (at least 1) and then takes one level of exhaustion at the end of each further day"
+    : "by the 2024 rules eating nothing for five days gives one Exhaustion level at the end of the fifth day and one more each day after";
+  return `This campaign counts food: the journey takes ${need} ${need === 1 ? "ration" : "rations"} for each traveller. Look at what the character carries, take what they eat from their pack as the days pass, and if the food runs short say so and let them decide; ${without}.`;
+}
+
 export type ParsedTravel = { ok: true; value: { toPlaceId: string; paceId: TravelPaceId } } | { ok: false; error: string };
 
 export function parseTravel(input: Record<string, unknown>): ParsedTravel {
@@ -83,6 +93,11 @@ export interface TravelMap {
   roads: readonly Road[];
   /** The roll tables the DM placed on places of the campaign (`roadTables.ts`). */
   tables: readonly PlacedTable[];
+  /**
+   * The edition whose food rules this campaign plays by, when it has the optional rule "Rations on the Road" on;
+   * null when it does not count food (most tables), or plays no edition the rule is written for.
+   */
+  food: "2014" | "2024" | null;
   /** The tables roads name as their own (`location_roads.roll_table_id`), by road. */
   roadTables: readonly { roadId: string; table: Omit<PlacedTable, "placeId"> }[];
 }
@@ -127,6 +142,7 @@ export function travelAnswer(fromId: string | null, toId: string, paceId: Travel
     // The tables for this journey: each road's own first (the road is where the party is between two places),
     // then those that hold for where it starts, what it passes and where it ends. A table is listed once.
     ...[tablesLine(tablesOfTheWay(way, map, parentOf, nameOf))].filter((line): line is string => line !== null),
+    ...(map.food === null ? [] : [foodLine(time.calendarDays, map.food)]),
     `When they arrive, call pass_days with ${time.calendarDays} and go_to with ${toId}.`,
   ];
   return { content: lines.join("\n"), isError: false };

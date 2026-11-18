@@ -16,6 +16,7 @@ const map: TravelMap = {
   roads: [road(1, NEVERWINTER, LEILON, 24), road(2, LEILON, PHANDALIN, 36)],
   tables: [],
   roadTables: [],
+  food: null,
 };
 
 describe("travelAnswer", () => {
@@ -45,6 +46,18 @@ describe("travelAnswer", () => {
     const whole = travelAnswer(NEVERWINTER, PHANDALIN, "normal", own).content;
     expect(whole).toContain("\"The Triboar Trail\" (1d8, table_id t2) for the road from Leilon to Phandalin; \"Mere of Dead Men\"");
     expect(travelAnswer(NEVERWINTER, LEILON, "normal", own).content).not.toContain("Triboar");
+  });
+
+  // PHB 2014 "Food and Water"; PHB 2024 "Malnutrition". Three days on the calendar is three rations each.
+  // Bug caught: food counted at a table that never switched the rule on; or one edition's hunger told at the other's table.
+  it("says the food a journey takes only where the campaign counts food, with that edition's price for going without", () => {
+    expect(travelAnswer(NEVERWINTER, PHANDALIN, "normal", map).content).not.toContain("counts food");
+    const old = travelAnswer(NEVERWINTER, PHANDALIN, "normal", { ...map, food: "2014" }).content;
+    expect(old).toContain("the journey takes 3 rations for each traveller");
+    expect(old).toContain("3 + their Constitution modifier");
+    const now = travelAnswer(NEVERWINTER, PHANDALIN, "normal", { ...map, food: "2024" }).content;
+    expect(now).toContain("end of the fifth day");
+    expect(now).not.toContain("Constitution modifier");
   });
 
   // Bug caught: a party in a room of a town told it has no road, because only the town is on one.

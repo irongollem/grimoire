@@ -85,6 +85,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
         return {
           places: [{ id: PLACE, name: "Cellar", parentId: null }, { id: FAR, name: "Farholt", parentId: null }],
           roads: [{ id: "r1", from_location_id: PLACE, to_location_id: FAR, distance: 48, unit: "mi" as const, name: "", going: "road" as const, roll_table_id: "t2" }],
+          food: null,
           roadTables: [{ roadId: "r1", table: { id: "t2", name: "The long road", dice: "1d4", entries: [{ min: 1, max: 4, label: "Pilgrims", notes: null, encounterId: null }] } }],
           tables: [{ id: "t1", name: "Farholt road", dice: "1d4", placeId: FAR, entries: [{ min: 1, max: 2, label: "A lame horse", notes: null, encounterId: null }, { min: 3, max: 4, label: "Wolves", notes: null, encounterId: null }] }],
         };

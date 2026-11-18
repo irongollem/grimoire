@@ -432,7 +432,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       h.fightSets.push({ sessionId, campaignId, encounterId });
     },
     loadHandouts: async () => h.state.handouts,
-    loadTravelMap: async () => ({ places: [], roads: [], tables: [], roadTables: [] }),
+    loadTravelMap: async () => ({ places: [], roads: [], tables: [], roadTables: [], food: null }),
     rollDie: () => 1,
     loadPicture: async (_campaignId, what, id) => (id === PICTURED ? { title: `The ${what}`, url: "https://assets.example/p.webp" } : null),
     giveHandout: async (_campaignId, handoutId, memberId) => {
