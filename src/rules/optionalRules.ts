@@ -197,6 +197,20 @@ registerOptionalRule({
   defaultEnabled: true,
 });
 
+// ── Rations ───────────────────────────────────────────────────────────────────
+registerOptionalRule({
+  key: "rations",
+  name: "Rations on the Road",
+  summary:
+    "Count food on a journey: a day's ration for each traveller, and hunger by the book when it runs out.",
+  description:
+    "Most tables do not count meals. With this rule on, a journey says how much food it takes: **one ration for each traveller for each day on the road**.\n\n" +
+    "Going without follows your edition. **2014** (PHB, Food and Water): a character can go 3 + their Constitution modifier days without food (at least 1), then takes one level of exhaustion at the end of each further day; a normal day of eating resets the count. **2024** (PHB, Malnutrition): eating nothing for five days gives one Exhaustion level at the end of the fifth day and one more each day after; eating less than half a day's food calls for a DC 10 Constitution save at the day's end.\n\n" +
+    "Nothing is taken from anyone's pack by itself: the number is there for the table to act on.",
+  dmOnly: false,
+  defaultEnabled: false,
+});
+
 // ── Encumbrance ───────────────────────────────────────────────────────────────
 registerOptionalRule({
   key: "encumbrance",

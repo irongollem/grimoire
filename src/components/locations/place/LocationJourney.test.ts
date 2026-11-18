@@ -12,6 +12,8 @@ const given = vi.hoisted(() => ({
   places: [] as { id: string; name: string; parent_id: string | null }[],
   /** The place whose map both ends are pinned on, as the one-place read answers it. */
   map: null as Record<string, unknown> | null,
+  party: [] as { id: string; current_location_id: string }[],
+  countsFood: false,
 }));
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "dm" }) }));
 // The places, the party and the picture's size are their own composables' to read; here they are simply given.
@@ -20,7 +22,8 @@ vi.mock("@/composables/locations/useLocations", () => ({
   useLocation: (id: () => string | null) => ({ data: computed(() => (id() === null ? undefined : given.map)) }),
 }));
 vi.mock("@/composables/locations/useMapPictureSize", () => ({ useMapPictureSize: () => ref({ width: 1000, height: 500 }) }));
-vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: computed(() => given.party) }) }));
+vi.mock("@/composables/rules/useOptionalRules", () => ({ useIsRuleEnabled: () => computed(() => given.countsFood) }));
 
 import { useCampaignStore } from "@/stores/campaign";
 import type { Campaign } from "@/types/campaign.types";
@@ -46,6 +49,8 @@ beforeEach(() => {
   const campaign = useCampaignStore();
   campaign.activeCampaignId = "c1";
   campaign.activeCampaign = { id: "c1", current_location_id: "brightwater" } as Campaign;
+  given.party = [];
+  given.countsFood = false;
   given.places = [
     { id: "region", name: "The Coast", parent_id: null },
     { id: "brightwater", name: "Brightwater", parent_id: "region" },
@@ -84,6 +89,18 @@ describe("LocationJourney", () => {
     expect(roll).toBeDefined();
     await roll!.trigger("click");
     expect(wrapper.get("[data-testid=location-journey-tables]").text()).toContain("Smugglers on the shingle");
+  });
+
+  // PHB 2014 "Travel Pace": 24 miles a day, so 55 miles occupies three days; PHB "Food and Water": a ration a day each.
+  // Bug caught: food counted for a table that never switched the rule on; or counted for the wrong number of days.
+  it("says the food a journey takes only where the campaign counts food", async () => {
+    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", roll_table_id: null }]);
+    given.party = [{ id: "p1", current_location_id: "brightwater" }, { id: "p2", current_location_id: "brightwater" }, { id: "p3", current_location_id: "saltmarsh" }];
+    const off = await mountAt("saltmarsh");
+    expect(off.find("[data-testid=location-journey-food]").exists()).toBe(false);
+    given.countsFood = true;
+    const on = await mountAt("saltmarsh");
+    expect(on.get("[data-testid=location-journey-food]").text()).toBe("Food for the road: 6 rations for 2 travellers (3 rations each).");
   });
 
   // Bug caught: a place with neither a road nor a shared scaled map shown a distance of nothing.
