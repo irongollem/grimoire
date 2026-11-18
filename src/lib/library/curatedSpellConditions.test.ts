@@ -4,6 +4,7 @@ import { agree, findingsFor, type CuratedSpellCondition } from "./curatedSpellCo
 // SRD 5.1 "Hold Person", shortened to the sentences the entry rests on.
 const HOLD_PERSON = {
   concentration: true,
+  higher_levels: "When you cast this spell using a spell slot of 3rd level or higher, you can target one additional humanoid for each slot level above 2nd.",
   description:
     "Choose a humanoid that you can see within range. The target must succeed on a Wisdom saving throw or be paralyzed for the duration. " +
     "At the end of each of its turns, the target can make another Wisdom saving throw. On a success, the spell ends on the target.",
@@ -11,7 +12,7 @@ const HOLD_PERSON = {
 
 const holdPerson = (over: Partial<CuratedSpellCondition> = {}): CuratedSpellCondition => ({
   verdict: "condition",
-  conditions: ["Paralyzed"], stops_casting: null,
+  conditions: ["Paralyzed"], stops_casting: null, speed_zero: false,
   applies: "failed_save",
   save_ability: "WIS",
   targets: { kind: "one", count: 1, more_per_slot_above: 1 },
@@ -51,9 +52,22 @@ describe("findingsFor", () => {
 
   // Bug caught: "no condition" used to skip a spell, with conditions still listed and read by the fight.
   it("lets a spell with no condition through with only its evidence checked", () => {
-    const none: CuratedSpellCondition = { verdict: "no_condition", conditions: [], stops_casting: null, applies: null, save_ability: null, targets: null, only_kinds: [], duration: null, repeat_save: null, evidence: "Choose a humanoid that you can see within range." };
+    const none: CuratedSpellCondition = { verdict: "no_condition", conditions: [], stops_casting: null, speed_zero: false, applies: null, save_ability: null, targets: null, only_kinds: [], duration: null, repeat_save: null, evidence: "Choose a humanoid that you can see within range." };
     expect(findingsFor(none, HOLD_PERSON)).toEqual([]);
     expect(findingsFor({ ...none, conditions: ["Prone"] }, HOLD_PERSON).join(" ")).toContain("names no conditions");
+  });
+});
+
+describe("what a higher slot adds", () => {
+  // Bug caught: a reader's memory of a spell ("one more target per slot") written down for a record whose own text gives no such thing.
+  it("is refused when the record's text says nothing of a higher slot, and allowed when its higher-levels text does", () => {
+    expect(findingsFor(holdPerson(), { ...HOLD_PERSON, higher_levels: null }).join(" ")).toContain("says nothing of a higher slot");
+    expect(findingsFor(holdPerson(), HOLD_PERSON)).toEqual([]);
+  });
+
+  // Bug caught: the evidence refused because it was copied from the higher-levels text, which is as much the spell's own.
+  it("takes evidence from the higher-levels text too", () => {
+    expect(findingsFor(holdPerson({ evidence: "When you cast this spell using a spell slot of 3rd level or higher, you can target one additional humanoid for each slot level above 2nd." }), HOLD_PERSON)).toEqual([]);
   });
 });
 
@@ -61,7 +75,7 @@ describe("a spell that stops casting", () => {
   // SRD 5.1 "Silence", the sentence the entry rests on.
   const SILENCE = { concentration: true, description: "For the duration, no sound can be created within or pass through a 20-foot-radius sphere centered on a point you choose within range. Casting a spell that includes a verbal component is impossible there." };
   const silence = (over: Partial<CuratedSpellCondition> = {}): CuratedSpellCondition => ({
-    verdict: "condition", conditions: [], stops_casting: "verbal", applies: "automatic", save_ability: null,
+    verdict: "condition", conditions: [], stops_casting: "verbal", speed_zero: false, applies: "automatic", save_ability: null,
     targets: { kind: "area", count: null, more_per_slot_above: 0 }, only_kinds: [],
     duration: { unit: "minute", amount: 10, concentration: true }, repeat_save: null,
     evidence: "Casting a spell that includes a verbal component is impossible there.", ...over,

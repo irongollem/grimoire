@@ -39,6 +39,12 @@ export interface CuratedSpellCondition {
    * It is what makes a spell worth more against a wizard than a fighter, so a caster can be told whom to aim it at.
    */
   stops_casting: "verbal" | "all" | null;
+  /**
+   * Whether the text also sets the speed of those it affects to 0 for as long as the condition lasts, where the
+   * condition itself does not (Hypnotic Pattern: Charmed, Incapacitated, "and has a speed of 0"). False when the
+   * text does not say so, and for conditions that already stop movement by the rules.
+   */
+  speed_zero: boolean;
   /** What must happen for the condition to land. */
   applies: "failed_save" | "hit" | "automatic" | null;
   /** The saving throw that avoids it; null when `applies` is not `failed_save`. */
@@ -66,15 +72,17 @@ function plain(text: string): string {
  * Everything wrong with one entry, as sentences a reader can act on; empty when the entry may be used. `spell` is
  * the record the entry is about: its description is the only authority.
  */
-export function findingsFor(entry: CuratedSpellCondition, spell: { description: string; concentration: boolean }): string[] {
+export function findingsFor(entry: CuratedSpellCondition, spell: { description: string; higher_levels?: string | null; concentration: boolean }): string[] {
   const found: string[] = [];
-  const text = plain(spell.description);
+  // The two columns a spell's rules are written in: what it does, and what a higher slot adds.
+  const text = plain(`${spell.description} ${typeof spell.higher_levels === "string" ? spell.higher_levels : ""}`);
   if (entry.evidence.trim() === "") found.push("evidence is empty: copy the sentence that imposes the condition, or the one that shows there is none.");
   else if (!text.includes(plain(entry.evidence))) found.push("evidence is not a sentence of this spell's description, word for word.");
 
   if (entry.verdict !== "condition") {
     if (entry.conditions.length > 0) found.push(`a ${entry.verdict} entry names no conditions.`);
     if (entry.stops_casting !== null) found.push(`a ${entry.verdict} entry does not stop casting: that is a condition entry.`);
+    if (entry.speed_zero) found.push(`a ${entry.verdict} entry does not set a speed to 0: that is a condition entry.`);
     return found;
   }
 
@@ -93,6 +101,9 @@ export function findingsFor(entry: CuratedSpellCondition, spell: { description: 
     if (entry.targets.kind === "several" && (entry.targets.count === null || entry.targets.count < 2)) found.push("several targets is a count of 2 or more.");
     if (entry.targets.kind === "area" && entry.targets.count !== null) found.push("an area has no count.");
     if (entry.targets.more_per_slot_above < 0) found.push("more_per_slot_above is never negative.");
+    if (entry.targets.more_per_slot_above > 0 && (typeof spell.higher_levels !== "string" || spell.higher_levels.trim() === "") && !/higher|slot/i.test(spell.description)) {
+      found.push("more_per_slot_above is above 0 but the spell's text says nothing of a higher slot.");
+    }
   }
   if (entry.duration === null) found.push("duration is missing.");
   else {
@@ -111,6 +122,7 @@ export function agree(a: CuratedSpellCondition, b: CuratedSpellCondition): boole
       verdict: e.verdict,
       conditions: [...e.conditions].sort(),
       stops_casting: e.stops_casting,
+      speed_zero: e.speed_zero,
       applies: e.applies,
       save_ability: e.save_ability,
       targets: e.targets,

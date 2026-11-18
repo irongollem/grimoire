@@ -39,6 +39,8 @@ export interface SpellText {
   concentration: boolean;
   duration: string | null;
   description: string;
+  /** What a higher slot adds, where the record keeps it apart from the description. */
+  higher_levels: string | null;
 }
 
 export interface WorklistEntry extends SpellText {
@@ -104,7 +106,7 @@ async function main(): Promise<void> {
   });
   const [command] = positionals;
   const target = resolveServiceTarget(false);
-  const spells = await readAll<SpellText>(target, "library_spells", "id,name,ruleset,level,concentration,duration,description");
+  const spells = await readAll<SpellText>(target, "library_spells", "id,name,ruleset,level,concentration,duration,description,higher_levels");
 
   if (command === "worklist") {
     if (!values.out) throw new Error("worklist needs --out <file.json>.");

@@ -18,7 +18,7 @@ a `not_simple` costs a table one ruling by hand. The second is always the cheape
 
 ## The one rule
 
-**The spell's own `description` is the only authority.** Not what you remember of the spell, not another
+**The spell's own text (`description`, and `higher_levels` where it has one) is the only authority.** Not what you remember of the spell, not another
 edition, not a wiki. The same name exists in several source books with different text (the 2014 and 2024 Sleep
 are different spells): read each record on its own, and expect their entries to differ. If the text on the page
 does not say it, it is not so.
@@ -30,7 +30,8 @@ npm run db:start                     # the local stack, if it is not up
 npm run spells:conditions -- worklist --out /tmp/spell-conditions-worklist.json
 ```
 
-Each item has `id`, `name`, `ruleset`, `level`, `concentration`, `duration`, `description`, and `monsters` (how
+Each item has `id`, `name`, `ruleset`, `level`, `concentration`, `duration`, `description`, `higher_levels`
+(what a higher slot adds, where the record keeps it apart; often null) and `monsters` (how
 many library monsters list it; the file is sorted most used first). Work from the top. If you were given a range
 ("items 0 to 149"), do exactly that range.
 
@@ -47,6 +48,7 @@ Your reading goes in `src/data/curatedSpellConditions/<reader>.json`, where `<re
     "verdict": "condition",
     "conditions": ["Paralyzed"],
     "stops_casting": null,
+    "speed_zero": false,
     "applies": "failed_save",
     "save_ability": "WIS",
     "targets": { "kind": "one", "count": 1, "more_per_slot_above": 1 },
@@ -63,9 +65,16 @@ The fields, as `src/lib/library/curatedSpellConditions.ts` defines them:
 - **`verdict`**
   - `condition`: the spell imposes one or more of the named conditions, and the other fields say how, completely.
   - `no_condition`: it imposes none of them. Fireball, Detect Magic, Mage Hand.
-  - `not_simple`: it imposes one, but these fields cannot say it truthfully. Use it whenever the outcome depends
-    on a choice the caster makes, on hit points (2014 Sleep, Power Word Stun), on a roll on a table, on what the
-    target does later, or when different targets get different conditions. Also when you are not sure.
+  - `not_simple`: it imposes one of the named conditions, but these fields cannot say it truthfully. Use it
+    whenever the outcome depends on a choice the caster makes (Command), on hit points (2014 Sleep, Power Word
+    Stun), on a roll on a table (Confusion), when the condition changes over the turns (2024 Sleep), when a later
+    save is allowed only in some circumstance (Fear: only out of the caster's sight), when the spell also forces
+    movement or makes the target drop what it holds, or when different targets get different conditions. Also
+    when you are not sure.
+  - **The dividing rule, so two readers land on the same verdict:** the verdict is about the fourteen named
+    conditions and about stopping casting, and nothing else. A spell that does something else to a creature,
+    however severe (banishes it, curses it, slows it, makes it follow a suggestion without the text saying
+    Charmed), is `no_condition`. `not_simple` is only for a spell whose text does name one of the fourteen.
 - **`conditions`**: every named condition imposed together by the one cast. The names are exactly: Blinded,
   Charmed, Deafened, Frightened, Grappled, Incapacitated, Invisible, Paralyzed, Petrified, Poisoned, Prone,
   Restrained, Stunned, Unconscious. Nothing else is a condition here: "slowed", "banished", "asleep" and
@@ -75,12 +84,16 @@ The fields, as `src/lib/library/curatedSpellConditions.ts` defines them:
   "Casting a spell that includes a verbal component is impossible there"), `"all"` when they cannot cast at
   all, otherwise null. No named condition says this, and it is what makes a spell worth more against a wizard
   than a fighter. A spell that only does this is still a `condition` entry, with `conditions: []`.
+- **`speed_zero`**: true when the text also sets the speed of those it affects to 0 while the condition lasts
+  and the condition does not already do that by the rules (Hypnotic Pattern: "has a speed of 0"); otherwise
+  false.
 - **`applies`**: `failed_save` (the target fails a saving throw), `hit` (a spell attack hits), or `automatic`
   (no roll: a willing target, or no save offered).
 - **`save_ability`**: STR, DEX, CON, INT, WIS or CHA when `applies` is `failed_save`; otherwise null.
 - **`targets`**: at the spell's own level. `kind` is `one`, `several` (a stated number of creatures; give the
   `count`), `area` (everyone in a shape; `count` is null) or `self`. `more_per_slot_above` is how many more
-  creatures a slot one level higher adds, 0 when the text gives none.
+  creatures a slot one level higher adds, read from this record's `higher_levels` (or its description when the
+  two are one text). 0 when this record's text gives none, whatever the spell does in another book.
 - **`only_kinds`**: the creature kinds the text limits it to, lower case ("humanoid", "beast"); empty for any.
 - **`duration`**: the longest it lasts. `unit` is `instant`, `round`, `minute`, `hour`, `until_dispelled` or
   `special`; `amount` only for round, minute and hour. `concentration` must equal the record's own
@@ -88,10 +101,10 @@ The fields, as `src/lib/library/curatedSpellConditions.ts` defines them:
 - **`repeat_save`**: a later saving throw that ends it early: `when` is `end_of_its_turn`, `start_of_its_turn`,
   `when_damaged` or `as_an_action`, with its `ability`. Null when only the duration ends it.
 - **`evidence`**: one sentence copied word for word from this record's `description`: the one that imposes the
-  condition, or, for `no_condition`, a sentence that shows what the spell does instead. It is checked against
-  the text, so copy it; do not tidy it.
+  condition, or, for `no_condition`, a sentence that shows what the spell does instead (its first sentence is
+  fine when nothing says it better). It is checked against the text, so copy it; do not tidy it.
 
-For `no_condition` and `not_simple`, give `conditions: []`, `only_kinds: []`, `stops_casting: null`, the other fields null, and the
+For `no_condition` and `not_simple`, give `conditions: []`, `only_kinds: []`, `stops_casting: null`, `speed_zero: false`, the other fields null, and the
 evidence sentence.
 
 ## Step 3: check your own reading
