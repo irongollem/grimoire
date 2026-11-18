@@ -62,6 +62,23 @@ describe("useTableTurn", () => {
     expect(seen[1]).not.toHaveProperty("startLocationId");
   });
 
+  // Bug caught: the host's choice of the Narrator's voice never sent, so every table began on the default; or sent
+  // on a continued table, which the server refuses (400, and the turn is lost).
+  it("sends the Narrator's voice with a new conversation only", async () => {
+    const seen: TurnRequest[] = [];
+    const t = sitting(
+      async (request) => {
+        seen.push(request);
+        return streamOf(good());
+      },
+      { narratorVoice: () => "female" },
+    );
+    await t.send("say", "One");
+    await t.send("do", "Two");
+    expect(seen[0].narratorVoice).toBe("female");
+    expect(seen[1]).not.toHaveProperty("narratorVoice");
+  });
+
   // Bug caught: the cost meter forgetting turns, or counting a refused one.
   it("adds the credits of each kept turn and none for a refused one", async () => {
     let n = 0;

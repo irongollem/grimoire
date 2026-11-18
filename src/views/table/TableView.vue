@@ -13,7 +13,9 @@
         :balance="balance"
         :leaving="leaveTable.leaving.value"
         :voices="voice.parts.value"
+        :narrator-voice="narrator.voice.value"
         @voice="voice.setPart"
+        @narrator-voice="chooseNarratorVoice"
         @leave="leave"
         @disclosure="disclosure.reopen"
         @credits="openOutOfCredits(1)"
@@ -173,6 +175,7 @@ import { useTableSpeakers } from "@/composables/table/useTableSpeakers";
 import { useTableCheck } from "@/composables/table/useTableCheck";
 import { useTableTurn } from "@/composables/table/useTableTurn";
 import { useTableVoice } from "@/composables/table/useTableVoice";
+import { useTableNarratorVoice, type NarratorVoice } from "@/composables/table/useTableNarratorVoice";
 import { freshLines, linesOfItem, replayLines } from "@/lib/table/voiceLines";
 import { useAbove } from "@/composables/useBreakpoint";
 import { getNpcDisplayFocalPoint, getNpcDisplayPortrait } from "@/lib/npcDisplay";
@@ -235,11 +238,23 @@ const scene = useTableScene(sceneId, campaignId);
 const fightTurn = ref<FightTurn | null>(null);
 const stage = ref<InstanceType<typeof SoloFightStage> | null>(null);
 
+// The Narrator's voice is the table's: what the host chose on the door page for a new one, the row's own after.
+const tableId = ref<string | null>(openedId());
+const narrator = useTableNarratorVoice(tableId);
+async function chooseNarratorVoice(next: NarratorVoice): Promise<void> {
+  try {
+    await narrator.choose(next);
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "The Narrator's voice could not be changed.");
+  }
+}
+
 const turn = useTableTurn({
   campaignId: () => campaignId.value,
   sessionId: openedId(),
   characterId: () => newCharacterId.value,
   startLocationId: () => newPlaceId.value,
+  narratorVoice: () => narrator.voice.value,
   // In a fight every message carries what the player's turn still holds, and a ruling comes back for the board.
   fightTurn: () => fightTurn.value,
   onFightChange: (change) => stage.value?.apply(change),
@@ -268,6 +283,13 @@ const turn = useTableTurn({
     void queryClient.invalidateQueries({ queryKey: [TABLE_SESSIONS_KEY] });
   },
 });
+// A new table gets its id from its first turn, and the page may be moved to another table while mounted.
+watch(
+  () => turn.sessionId.value,
+  (id) => {
+    tableId.value = id;
+  },
+);
 
 // The map in its strip above the story, or laid over the whole screen.
 const mapLarge = ref(false);

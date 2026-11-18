@@ -15,7 +15,7 @@ import { recordGeneration, releaseCredits, reserveCredits } from "../_shared/cre
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { deliveryCue } from "../_shared/agent/characterTurn.ts";
-import { ageOf, inworldText, NARRATION_MAX_CHARS, sexFromGender, sexOf, speechText } from "./voicePick.ts";
+import { ageOf, inworldText, isNarratorVoice, NARRATION_MAX_CHARS, sexFromGender, sexOf, speechText } from "./voicePick.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -81,9 +81,12 @@ serve(withCors(async (req: Request) => {
     voiceOn: () => !!speechKey && Deno.env.get("TABLE_VOICE_TRIAL") === "on",
 
     async loadSession(sessionId) {
-      const { data, error } = await admin.from("agent_sessions").select("id, user_id, campaign_id").eq("id", sessionId).maybeSingle();
+      const { data, error } = await admin.from("agent_sessions").select("id, user_id, campaign_id, narrator_voice").eq("id", sessionId).maybeSingle();
       if (error) throw error;
-      return data ? { id: data.id as string, user_id: data.user_id as string, campaign_id: data.campaign_id as string } : null;
+      if (!data) return null;
+      // The column's check allows the two voices only, so anything else is a row this code cannot read: say so.
+      if (!isNarratorVoice(data.narrator_voice)) throw new Error("table-voice: a table's narrator_voice is neither of the two voices");
+      return { id: data.id as string, user_id: data.user_id as string, campaign_id: data.campaign_id as string, narrator_voice: data.narrator_voice };
     },
 
     async loadCampaign(campaignId) {
@@ -141,8 +144,6 @@ serve(withCors(async (req: Request) => {
       const about = [data.physical_description, data.player_description, data.personality_traits, data.notes].map((t) => toPlainText(t as string | null)).join(" ");
       return { sex: stated ?? sexOf(about), age: null, voiceId: null };
     },
-
-    narratorVoice: () => Deno.env.get("TABLE_NARRATOR_VOICE_ID")?.trim() || null,
 
     // The same screen the turn's own words go through (`_shared/moderation.ts`), logged under this surface.
     async isFlagged(text) {

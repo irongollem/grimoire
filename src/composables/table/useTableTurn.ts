@@ -14,6 +14,7 @@ export interface TurnRequest {
   sessionId?: string;
   startLocationId?: string;
   characterId?: string;
+  narratorVoice?: "male" | "female";
   /** The answer to a roll the table asked for. Sent only while one is asked for: the server refuses it otherwise. */
   roll?: RollAnswer;
   /** A new sitting asks the Dungeon Master to open the scene: no words, no session yet. */
@@ -56,6 +57,8 @@ export interface TableTurnOptions {
   /** Only used for a new conversation: the server refuses them on a continued one. */
   characterId?: () => string | null;
   startLocationId?: () => string | null;
+  /** The Narrator's voice the host chose for the new table. */
+  narratorVoice?: () => "male" | "female";
   transport?: TurnTransport;
   /** The conversation now has an id (a new one is created by its first turn). */
   onSession?: (sessionId: string) => void;
@@ -149,6 +152,7 @@ export function useTableTurn(options: TableTurnOptions) {
       const character = options.characterId?.() ?? null;
       if (start !== null) request.startLocationId = start;
       if (character !== null) request.characterId = character;
+      if (options.narratorVoice !== undefined) request.narratorVoice = options.narratorVoice();
     }
 
     const mine = generation;

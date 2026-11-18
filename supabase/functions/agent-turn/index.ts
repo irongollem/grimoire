@@ -202,7 +202,7 @@ serve(withCors(async (req: Request) => {
       return row && typeof row.id === "string" ? { id: row.id, opened: (running ?? []).length === 0 } : null;
     },
 
-    async createSession({ userId, campaignId, provider, model, sceneLocationId, campaignSessionId, openedPlaySession, partyMemberId }): Promise<SessionRow> {
+    async createSession({ userId, campaignId, provider, model, sceneLocationId, campaignSessionId, openedPlaySession, partyMemberId, narratorVoice }): Promise<SessionRow> {
       const { data, error } = await admin
         .from("agent_sessions")
         .insert({
@@ -215,6 +215,8 @@ serve(withCors(async (req: Request) => {
           campaign_session_id: campaignSessionId,
           opened_play_session: openedPlaySession,
           party_member_id: partyMemberId,
+          // Left out when the page named none, so the column's own default decides and is said in one place.
+          ...(narratorVoice === null ? {} : { narrator_voice: narratorVoice }),
         })
         .select(SESSION_COLUMNS)
         .single();

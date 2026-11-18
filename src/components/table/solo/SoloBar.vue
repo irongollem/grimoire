@@ -35,12 +35,21 @@
       <SoloAiMark />
     </AppButton>
     <div ref="meterHost" class="relative">
-      <AppButton variant="subtle" size="md" :icon="IconCoins" aria-label="What this sitting has cost" :aria-expanded="costOpen" @click="costOpen = !costOpen">
+      <AppButton variant="subtle" size="md" :icon="IconCoins" aria-label="What this sitting has cost" :aria-expanded="costOpen" @click="toggleCost">
         <!-- A phone has no room for the sentence: the design's bar reads "2 · 43 left" there. -->
         <span class="font-stat text-label-lg font-semibold max-md:hidden">{{ meter }}</span>
         <span class="font-stat text-label-lg font-semibold md:hidden">{{ meterShort }}</span>
       </AppButton>
-      <SoloCostPanel v-if="costOpen" :turns="turns" :credits="credits" :balance="balance" @credits="emit('credits')" />
+      <SoloCostPanel
+        v-if="costOpen"
+        :turns="turns"
+        :credits="credits"
+        :balance="balance"
+        :narrator-voice="narratorVoice"
+        :side="costSide"
+        @credits="emit('credits')"
+        @narrator-voice="(voice) => emit('narratorVoice', voice)"
+      />
     </div>
   </header>
 </template>
@@ -52,10 +61,11 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconChevronLeft, IconCoins, IconScrollText } from "@/lib/icons";
 import { IconVoiceCharacters, IconVoiceNarrator, IconVoicePlayer } from "@/lib/table/tableIcons";
 import { NO_VOICES, type VoicePart, type VoiceParts } from "@/lib/table/voiceLines";
+import type { NarratorVoice } from "@/composables/table/useTableNarratorVoice";
 import SoloAiMark from "./SoloAiMark.vue";
 import SoloCostPanel from "./SoloCostPanel.vue";
 
-const { credits, balance, character, hitPoints = null, leaving = false, voices = NO_VOICES } = defineProps<{
+const { credits, balance, character, hitPoints = null, leaving = false, voices = NO_VOICES, narratorVoice } = defineProps<{
   campaign: string;
   character: string;
   /** Credits billed in this sitting, whole. */
@@ -70,8 +80,10 @@ const { credits, balance, character, hitPoints = null, leaving = false, voices =
   leaving?: boolean;
   /** What is read aloud: the narrator, the characters, the player's own character. */
   voices?: VoiceParts;
+  /** The voice this table's Narrator speaks in. */
+  narratorVoice: NarratorVoice;
 }>();
-const emit = defineEmits<{ disclosure: []; credits: []; leave: []; voice: [part: VoicePart, on: boolean] }>();
+const emit = defineEmits<{ disclosure: []; credits: []; leave: []; voice: [part: VoicePart, on: boolean]; narratorVoice: [voice: NarratorVoice] }>();
 
 const VOICES: ReadonlyArray<{ part: VoicePart; what: string; icon: typeof IconVoiceNarrator }> = [
   { part: "narrator", what: "The narrator", icon: IconVoiceNarrator },
@@ -80,6 +92,17 @@ const VOICES: ReadonlyArray<{ part: VoicePart; what: string; icon: typeof IconVo
 ];
 
 const costOpen = ref(false);
+// The bar wraps when it runs out of room, and the meter can land at the left of a second row: a panel hung from the
+// meter's right edge then runs off the left of the screen (seen at 1200px, 18 Nov 2026). It hangs from whichever
+// edge leaves it on the page; 21rem is the panel's own width and a gutter.
+const costSide = ref<"left" | "right">("right");
+function toggleCost(): void {
+  if (!costOpen.value && meterHost.value) {
+    const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+    costSide.value = meterHost.value.getBoundingClientRect().right < 21 * rem ? "left" : "right";
+  }
+  costOpen.value = !costOpen.value;
+}
 const meterHost = ref<HTMLElement | null>(null);
 onClickOutside(meterHost, () => {
   costOpen.value = false;

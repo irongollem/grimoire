@@ -172,6 +172,8 @@ export interface AgentTurnDeps {
     /** Whether the conversation started that session itself (see `SessionRow.opened_play_session`). */
     openedPlaySession: boolean;
     partyMemberId: string | null;
+    /** The Narrator's voice the host chose before sitting down; null leaves the table on its default. */
+    narratorVoice: "male" | "female" | null;
   }): Promise<SessionRow>;
   /**
    * The campaign's open play session, started if there is none: sitting down at the table is the game being played.
@@ -530,6 +532,7 @@ export async function beginTurn(input: {
           campaignSessionId: playSession === null ? null : playSession.id,
           openedPlaySession: playSession !== null && playSession.opened,
           partyMemberId: body.characterId === undefined ? null : body.characterId,
+          narratorVoice: body.narratorVoice === undefined ? null : body.narratorVoice,
         });
         // Before the quests are read for this turn, so the narrator sees the opening quest in play. Idempotent, so
         // a first turn that is not kept and is sent again does not open it twice.

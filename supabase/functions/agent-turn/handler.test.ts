@@ -1634,6 +1634,40 @@ describe("where the party is", () => {
   });
 });
 
+describe("the Narrator's voice, chosen by the host as the table is sat down at", () => {
+  const START = { campaignId: CAMPAIGN, message: "I look around.", mode: "do" };
+
+  // Bug caught: the choice made on the door page dropped on the way, so every table began on the default voice.
+  it("gives the new table the voice the host chose, and none when the page named none", async () => {
+    const h = harness();
+    const chosen: Array<string | null> = [];
+    const create = h.deps.createSession;
+    h.deps.createSession = async (input) => {
+      chosen.push(input.narratorVoice);
+      return create(input);
+    };
+    expect(await play(h, { body: { ...START, narratorVoice: "female" } })).toBeNull();
+    const plain = harness();
+    const createPlain = plain.deps.createSession;
+    plain.deps.createSession = async (input) => {
+      chosen.push(input.narratorVoice);
+      return createPlain(input);
+    };
+    expect(await play(plain, { body: START })).toBeNull();
+    expect(chosen).toEqual(["female", null]);
+  });
+
+  // Bug caught: a voice id of the caller's own taken as the choice (any voice on the account, at the table's
+  // cost), or a table already under way changed through a turn instead of by its host on its own row.
+  it("refuses anything but the two voices, and refuses the choice for a table already under way", async () => {
+    const h = harness();
+    expect((await play(h, { body: { ...START, narratorVoice: "inworld:some-other-voice" } }))?.status).toBe(400);
+    existingSession(h);
+    expect((await play(h, { body: { ...START, sessionId: SESSION, narratorVoice: "female" } }))?.status).toBe(400);
+    expect(h.modelCalls()).toBe(0);
+  });
+});
+
 describe("a conversation that begins at a place", () => {
   const START = { campaignId: CAMPAIGN, message: "I look around.", mode: "do", startLocationId: CELLAR };
 
