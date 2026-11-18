@@ -69,6 +69,13 @@ export interface SpeechToolsDeps {
   /** A recorded character spoke or acted, so they are where the party is. */
   onSpoke?(characterId: string): void;
   /**
+   * A character has just said or done something: its lines, the moment they exist. An exchange is several
+   * characters answering each other, each by a call of its own that takes seconds, so the page can show each line
+   * as it is said and the player can cut in between two of them. The same line objects come back in the call's
+   * result, which is how a listener tells what it has already shown.
+   */
+  onSaid?(lines: AgentLine[]): void;
+  /**
    * How an exchange left the floor: `cutShort` is true when the characters were still answering each other and
    * only the limits of one call stopped them, so the conversation has more in it (`floor.ts`).
    */
@@ -355,6 +362,14 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
       if (who.id) deps.onSpoke?.(who.id);
 
       const exchange: Said[] = [first];
+      // Every line of this call, in order, each told the moment it exists.
+      const told: AgentLine[] = [];
+      const tell = (said: Said): void => {
+        const lines = linesOf(said);
+        told.push(...lines);
+        deps.onSaid?.(lines);
+      };
+      tell(first);
       const usage: AgentUsage[] = [turn.usage];
       const counts = new Map<string, number>();
       if (who.id) counts.set(who.id, 1);
@@ -369,6 +384,7 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
         if (r.winner) {
           const said = await commit(r.winner.record, r.winner.turn, event);
           exchange.push(said);
+          tell(said);
           counts.set(r.winner.record.id, (counts.get(r.winner.record.id) ?? 0) + 1);
           chained++;
           cursor = { said, event: thisTurn[thisTurn.length - 1] };
@@ -409,6 +425,7 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
         if (!answered(reply)) break;
         const said = await commit(record, reply.turn, cursor.event);
         exchange.push(said);
+        tell(said);
         cursor = { said, event: thisTurn[thisTurn.length - 1] };
       }
 
@@ -427,7 +444,7 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
         content,
         isError: false,
         usage,
-        lines: exchange.flatMap(linesOf),
+        lines: told,
         ...(withheld.length > 0 ? { withheld } : {}),
       };
     } finally {

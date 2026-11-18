@@ -637,6 +637,8 @@ export async function beginTurn(input: {
           onIntroduce: (intro) => { introduced.push(intro); },
           onExchange: (ended, cutShort) => { lastExchange = { ended, cutShort }; },
           onKeepTalking: () => { narratorKeeps = true; },
+          // Each line reaches the page as it is said, so the player can cut in between two of them.
+          onSaid: (lines) => { gate?.said(lines); },
           // Something to put in front of the player: only someone played has hands to take a handout.
           show: character
             ? { handouts, picture: (what, id) => deps.loadPicture(campaign.id, what, id), onHandout: (handout) => { handedOut.push(handout); } }

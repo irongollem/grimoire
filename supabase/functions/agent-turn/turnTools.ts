@@ -25,7 +25,7 @@ import { makeQuestTools, type QuestMove, type QuestsInPlay } from "../_shared/ag
 import { fightsSection, planFight, START_FIGHT_TOOL, statlessText, type FightPlan, type FightsInView } from "../_shared/agent/fight.ts";
 import { ASK_ROLL_TOOL, askedText, parseAskRollInput, type PendingRoll } from "../_shared/agent/playerRoll.ts";
 import type { StoredTurn } from "../_shared/agent/transcript.ts";
-import type { AgentTool, CallModel, CallTool } from "../_shared/agent/types.ts";
+import type { AgentLine, AgentTool, CallModel, CallTool } from "../_shared/agent/types.ts";
 import type { AgentTurnDeps, SessionRow } from "./handler.ts";
 
 /** A fact filed during this turn. It is on record already, and is taken off again when the turn is not kept. */
@@ -91,6 +91,8 @@ export interface TurnToolsInput {
     store: Pick<HandsStore, "belonging" | "characterName" | "carried" | "item">;
     onChange(change: HandsChange): void;
   } | null;
+  /** A character has just said or done something, while its exchange may still be going. */
+  onSaid?(lines: AgentLine[]): void;
   /** The narrator said the characters go on among themselves (`keep_talking`). */
   onKeepTalking?(): void;
   /** How each exchange between characters left the floor (`floor.ts`); the last one of the turn decides. */
@@ -160,6 +162,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     findRecorded: (name) => deps.findCharacters(campaignId, name),
     onSpoke: (id) => spoke.add(id),
     onExchange: (ended, cutShort) => input.onExchange?.(ended, cutShort),
+    onSaid: (lines) => input.onSaid?.(lines),
     playerName: input.playerName,
     peoples: input.peoples,
   });

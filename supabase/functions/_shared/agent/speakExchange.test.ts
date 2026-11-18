@@ -157,6 +157,26 @@ describe("who a line is said to answers it, without the narrator", () => {
   });
 });
 
+describe("each line the moment it is said", () => {
+  // Bug caught: an exchange of four lines arriving all at once when it is over, some ten seconds later, so the
+  // player can neither read along nor cut in between two of them.
+  it("tells each character's lines as that character answers, in order, and returns the very same lines", async () => {
+    const m = byCharacter({ Alda: ["DOES: She stands.\nSAYS: Where were you last night?\nTO: Bren"], Bren: ["SAYS: Asleep.\nTO: -"] });
+    const told: string[][] = [];
+    const seen: unknown[] = [];
+    const got = await tools(m, {
+      onSaid: (lines) => {
+        told.push(lines.map((l) => `${l.speaker.name}: ${l.text}`));
+        seen.push(...lines);
+      },
+    }).call("speak", { speaker_id: A, happening: "h", present: [B] });
+    expect(told).toEqual([["Alda: She stands.", "Alda: Where were you last night?"], ["Bren: Asleep."]]);
+    // The same objects, so whoever showed them early can tell they were shown.
+    expect(got.lines).toHaveLength(3);
+    expect(got.lines?.every((line, i) => line === seen[i])).toBe(true);
+  });
+});
+
 describe("a posture a character already holds", () => {
   // Bug caught (seen live): told to keep his hands close, a child answered every turn with the same posture as a
   // new deed. The second telling is dropped and his words stay.

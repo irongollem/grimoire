@@ -22,6 +22,11 @@ export type NarrationJudge = (request: JudgeRequest) => Promise<JudgeResult>;
 export interface NarrationGate {
   /** Every loop event, in the order the loop made them. */
   onEvent(event: TurnEvent): void;
+  /**
+   * Lines a character said or did while its tool is still running (an exchange in progress): shown now, in their
+   * place, and not again when the tool ends.
+   */
+  said(lines: AgentLine[]): void;
   /** Judges what is still held and waits until everything queued has reached the browser. Call before `done`. */
   finish(): Promise<void>;
   /** Makes the stored narrator text what the player was shown: dropped text is marked, part-shown text is cut to it. */
@@ -42,6 +47,8 @@ export function narrationGate(input: {
   /** Every narrator step that wrote visible text, in order, and the part of it the player saw. */
   const written: Array<{ text: string; shown: string }> = [];
   const lines: AgentLine[] = [];
+  // Lines already shown while their tool was still running: the tool's end must not show them twice.
+  const early = new WeakSet<AgentLine>();
   let tail: Promise<void> = Promise.resolve();
   let stepText = "";
   let stepHeld = false;
@@ -98,7 +105,7 @@ export function narrationGate(input: {
         emit({ type: "tool_end", name: event.name, isError: event.isError });
         if (event.dmRoll) emit({ type: "dm_roll", roll: event.dmRoll });
         if (event.shown) emit({ type: "shown", shown: event.shown });
-        for (const line of event.lines ?? []) emit({ type: "line", line });
+        for (const line of event.lines ?? []) if (!early.has(line)) emit({ type: "line", line });
       }
       return;
     }
@@ -116,7 +123,7 @@ export function narrationGate(input: {
         enqueue(() => emit({ type: "tool_start", name: event.name }));
         break;
       case "tool_end": {
-        const shown = event.lines ?? [];
+        const shown = (event.lines ?? []).filter((line) => !early.has(line));
         const dmRoll = event.dmRoll;
         const put = event.shown;
         lines.push(...shown);
@@ -134,8 +141,22 @@ export function narrationGate(input: {
     }
   };
 
+  const said = (told: AgentLine[]): void => {
+    for (const line of told) early.add(line);
+    if (judge === null) {
+      for (const line of told) emit({ type: "line", line });
+      return;
+    }
+    // Counted among the lines the narrator's text is judged against, and shown after whatever was queued before.
+    lines.push(...told);
+    enqueue(() => {
+      for (const line of told) emit({ type: "line", line });
+    });
+  };
+
   return {
     onEvent,
+    said,
     async finish() {
       // A turn that stopped mid-step (an abort) leaves text no `step` event closed.
       endStep();
