@@ -73,6 +73,19 @@ describe("LocationJourney", () => {
     expect(said).not.toContain("straight line");
   });
 
+  // Bug caught: the road's own encounter table not offered on the journey that takes that road; or a roll that
+  // shows nothing.
+  it("offers a roll on the table of the road the journey takes, and shows what came up", async () => {
+    useCampaignStore().activeCampaign = { id: "c1", user_id: "dm", current_location_id: "brightwater" } as Campaign;
+    fake.seed("roll_tables", [{ id: "t1", user_id: "dm", campaign_id: "c1", name: "The coast road", dice: "1d4", tags: [], entries: [{ id: "e1", min: 1, max: 4, label: "Smugglers on the shingle" }] }]);
+    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", roll_table_id: "t1" }]);
+    const wrapper = await mountAt("saltmarsh");
+    const roll = wrapper.findAll("button").find((b) => b.text().includes("Roll on The coast road"));
+    expect(roll).toBeDefined();
+    await roll!.trigger("click");
+    expect(wrapper.get("[data-testid=location-journey-tables]").text()).toContain("Smugglers on the shingle");
+  });
+
   // Bug caught: a place with neither a road nor a shared scaled map shown a distance of nothing.
   it("says nothing when neither a road nor a map can say how far", async () => {
     given.map = { ...given.map, map_scale: null };

@@ -76,5 +76,5 @@ export function journeyByMap(input: {
     input.size,
     input.paceId,
   );
-  return summary === null ? null : { summary, passing: [] };
+  return summary === null ? null : { summary, passing: [], roadIds: [] };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { journeyByRoad, passingText, roadPlaceOf } from "./journey";
+import { journeyByRoad, passingText, roadPlaceOf, roadTableIds } from "./journey";
 import type { Road } from "./roads";
 
 const road = (id: string, a: string, b: string, distance: number, over: Partial<Road> = {}): Road => ({ id, from_location_id: a, to_location_id: b, distance, unit: "mi", name: "", going: "road", roll_table_id: null, ...over });
@@ -54,5 +54,20 @@ describe("passingText", () => {
     expect(passingText([])).toBe("");
     expect(passingText(["Brightwater"])).toBe("by way of Brightwater");
     expect(passingText(["Brightwater", "the Ford", "Millbrook"])).toBe("by way of Brightwater, the Ford and Millbrook");
+  });
+});
+
+describe("roadTableIds", () => {
+  // Bug caught: a table offered for a road the journey does not take, or the same table offered once per stretch.
+  it("is the tables of the roads the journey takes, in order, each once", () => {
+    const roads = [
+      road("r1", "a", "b", 10, { roll_table_id: "coast" }),
+      road("r2", "b", "c", 10),
+      road("r3", "c", "d", 10, { roll_table_id: "coast" }),
+      road("r4", "d", "e", 10, { roll_table_id: "hills" }),
+      road("r9", "x", "y", 10, { roll_table_id: "elsewhere" }),
+    ];
+    expect(roadTableIds({ roadIds: ["r1", "r2", "r3", "r4"] }, roads)).toEqual(["coast", "hills"]);
+    expect(roadTableIds({ roadIds: [] }, roads)).toEqual([]);
   });
 });

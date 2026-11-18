@@ -12,6 +12,15 @@
       <SegmentedControl v-model="paceId" :options="PACE_OPTIONS" size="sm" aria-label="Travel pace" />
       <AppButton class="ml-auto" variant="outline" size="sm" :icon="IconAddEvent" label="Add to calendar" data-testid="location-journey-plan" @click="eventOpen = true" />
     </div>
+    <!-- What the road may bring: the encounter tables of the roads this journey takes, for a stop on the way.
+         Whether anything happens is the DM's call; the table only says what. -->
+    <div v-if="wayTables.length" class="flex flex-col gap-2 border-t border-border pt-2" data-testid="location-journey-tables">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-caption text-muted-foreground">On the road:</span>
+        <AppButton v-for="table in wayTables" :key="table.id" variant="outline" size="sm" :icon="IconDice" :label="`Roll on ${table.name}`" @click="rollOn(table)" />
+      </div>
+      <RollTableResult v-if="rolled" :result="rolled" />
+    </div>
     <!-- The travel event is the record of a trip, as it is for a route measured on a map (#932). -->
     <EventModal v-model="eventOpen" :prefill="eventPrefill" />
   </div>
@@ -22,15 +31,19 @@ import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import EventModal from "@/components/calendar/EventModal.vue";
+import RollTableResult from "@/components/dungeon-features/RollTableResult.vue";
+import { useRollTables } from "@/composables/dungeon-features/useRollTables";
+import { rollOnTable, type RollTableRollResult } from "@/lib/dungeon-features/rollTableRoll";
+import type { RollTable } from "@/types/rollTable.types";
 import { useAllLocations, useLocation } from "@/composables/locations/useLocations";
 import { useMapPictureSize } from "@/composables/locations/useMapPictureSize";
 import { useLocationRoads } from "@/composables/locations/useLocationRoads";
 import { useParty } from "@/composables/party/useParty";
-import { IconAddEvent } from "@/lib/icons";
+import { IconAddEvent, IconDice } from "@/lib/icons";
 import { routeDescription, routeEventPrefill } from "@/lib/locations/mapRoute";
 import { formatDistance } from "@/lib/locations/mapScale";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
-import { journeyByRoad, passingText } from "@/lib/travel/journey";
+import { journeyByRoad, passingText, roadTableIds } from "@/lib/travel/journey";
 import { journeyByMap, sharedMapOf } from "@/lib/travel/mapLine";
 import { DEFAULT_TRAVEL_PACE, formatTravelTime, getTravelPace, TRAVEL_PACES, type TravelPaceId } from "@/rules/travelPace";
 import { useCalendarStore } from "@/stores/calendar";
@@ -89,6 +102,19 @@ const journey = computed(() => byRoad.value ?? byMap.value);
 /** The place whose map the distance was measured on, when it was not found by road. */
 const straightOn = computed(() => (byRoad.value === null && byMap.value !== null && mapPlace.value ? mapPlace.value.name : null));
 const passing = computed(() => (journey.value ? passingText(journey.value.passing) : ""));
+
+// ── What the road may bring ──────────────────────────────────────────────────
+const { data: rollTables } = useRollTables();
+const wayTables = computed<RollTable[]>(() => {
+  const j = journey.value;
+  const all = rollTables.value;
+  if (!j || !all || !roads.data.value) return [];
+  return roadTableIds(j, roads.data.value).flatMap((id) => all.filter((t) => t.id === id));
+});
+const rolled = ref<RollTableRollResult | null>(null);
+function rollOn(table: RollTable): void {
+  rolled.value = rollOnTable(table);
+}
 
 // ── Add to calendar ───────────────────────────────────────────────────────────
 const eventOpen = ref(false);
