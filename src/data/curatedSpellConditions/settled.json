@@ -1,0 +1,961 @@
+{
+  "srd_awaken": {
+    "verdict": "condition",
+    "conditions": [
+      "Charmed"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "automatic",
+    "save_ability": null,
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [
+      "beast",
+      "plant"
+    ],
+    "duration": {
+      "unit": "special",
+      "amount": null,
+      "concentration": false
+    },
+    "repeat_save": null,
+    "evidence": "The awakened beast or plant is charmed by you for 30 days or until you or your companions do anything harmful to it."
+  },
+  "srd_black_tentacles": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "When a creature enters the affected area for the first time on a turn or starts its turn there, the creature must succeed on a Dexterity saving throw or take 3d6 bludgeoning damage and be restrained by the tentacles until the spell ends."
+  },
+  "srd_dominate_person": {
+    "verdict": "condition",
+    "conditions": [
+      "Charmed"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [
+      "humanoid"
+    ],
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": true
+    },
+    "repeat_save": {
+      "when": "when_damaged",
+      "ability": "WIS"
+    },
+    "evidence": "It must succeed on a wisdom saving throw or be charmed by you for the duration."
+  },
+  "srd_entangle": {
+    "verdict": "condition",
+    "conditions": [
+      "Restrained"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "STR",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": true
+    },
+    "repeat_save": null,
+    "evidence": "A creature in the area when you cast the spell must succeed on a strength saving throw or be restrained by the entangling plants until the spell ends."
+  },
+  "srd_feeblemind": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "The creature can't cast spells, activate magic items, understand language, or communicate in any intelligible way."
+  },
+  "srd_gaseous_form": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "You transform a willing creature you touch, along with everything it's wearing and carrying, into a misty cloud for the duration."
+  },
+  "srd_glyph_of_warding": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "When you inscribe the glyph, choose explosive runes or a spell glyph."
+  },
+  "srd_grease": {
+    "verdict": "condition",
+    "conditions": [
+      "Prone"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "DEX",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": false
+    },
+    "repeat_save": null,
+    "evidence": "When the grease appears, each creature standing in its area must succeed on a dexterity saving throw or fall prone."
+  },
+  "srd_meld_into_stone": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "If expelled, you fall prone in an unoccupied space closest to where you first entered."
+  },
+  "srd_meld_into_stone_a5e": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "When expelled you fall prone into the closest unoccupied space near your entrance point."
+  },
+  "srd_polymorph": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "An unwilling creature must make a wisdom saving throw to avoid the effect."
+  },
+  "srd_project_image": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "While you are using its senses, you are blinded and deafened in regard to your own surroundings."
+  },
+  "srd_rolling_thunder": {
+    "verdict": "condition",
+    "conditions": [
+      "Deafened"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "CON",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": false
+    },
+    "repeat_save": {
+      "when": "end_of_its_turn",
+      "ability": "CON"
+    },
+    "evidence": "Each creature in the line must make a successful Constitution saving throw or be deafened for 1 minute."
+  },
+  "srd_sleet_storm": {
+    "verdict": "condition",
+    "conditions": [
+      "Prone"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "DEX",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "special",
+      "amount": null,
+      "concentration": true
+    },
+    "repeat_save": null,
+    "evidence": "On a failed save, it falls prone."
+  },
+  "srd_spire_of_stone": {
+    "verdict": "condition",
+    "conditions": [
+      "Prone"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "DEX",
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "instant",
+      "amount": null,
+      "concentration": false
+    },
+    "repeat_save": null,
+    "evidence": "When the spire appears, a creature within 5 feet of you must succeed on a Dexterity saving throw or fall prone."
+  },
+  "srd_srd_2024_animal_friendship": {
+    "verdict": "condition",
+    "conditions": [
+      "Charmed"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 1
+    },
+    "only_kinds": [
+      "beast"
+    ],
+    "duration": {
+      "unit": "hour",
+      "amount": 24,
+      "concentration": false
+    },
+    "repeat_save": null,
+    "evidence": "The target must succeed on a Wisdom saving throw or have the Charmed condition for the duration."
+  },
+  "srd_srd_2024_awaken": {
+    "verdict": "condition",
+    "conditions": [
+      "Charmed"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "automatic",
+    "save_ability": null,
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [
+      "beast",
+      "plant"
+    ],
+    "duration": {
+      "unit": "special",
+      "amount": null,
+      "concentration": false
+    },
+    "repeat_save": null,
+    "evidence": "The awakened target has the Charmed condition for 30 days or until you or your allies deal damage to it."
+  },
+  "srd_srd_2024_banishment": {
+    "verdict": "condition",
+    "conditions": [
+      "Incapacitated"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "CHA",
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 1
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": true
+    },
+    "repeat_save": null,
+    "evidence": "While there, the target has the Incapacitated condition.",
+    "leaves_play": true
+  },
+  "srd_srd_2024_black_tentacles": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "On a failed save, it takes 3d6 Bludgeoning damage, and it has the Restrained condition until the spell ends."
+  },
+  "srd_srd_2024_charm_monster": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "On a failed save, the target has the Charmed condition until the spell ends or until you or your allies damage it."
+  },
+  "srd_srd_2024_compulsion": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "Each creature of your choice that you can see within range must succeed on a Wisdom saving throw or have the Charmed condition until the spell ends."
+  },
+  "srd_srd_2024_dominate_person": {
+    "verdict": "condition",
+    "conditions": [
+      "Charmed"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [
+      "humanoid"
+    ],
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": true
+    },
+    "repeat_save": {
+      "when": "when_damaged",
+      "ability": "WIS"
+    },
+    "evidence": "One Humanoid you can see within range must succeed on a Wisdom saving throw or have the Charmed condition for the duration."
+  },
+  "srd_srd_2024_dream": {
+    "verdict": "condition",
+    "conditions": [
+      "Incapacitated"
+    ],
+    "stops_casting": null,
+    "speed_zero": true,
+    "applies": "automatic",
+    "save_ability": null,
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "hour",
+      "amount": 8,
+      "concentration": false
+    },
+    "repeat_save": null,
+    "evidence": "While in the trance, the messenger is Incapacitated and has a Speed of 0."
+  },
+  "srd_srd_2024_entangle": {
+    "verdict": "condition",
+    "conditions": [
+      "Restrained"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "STR",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": true
+    },
+    "repeat_save": null,
+    "evidence": "Each creature (other than you) in the area when you cast the spell must succeed on a Strength saving throw or have the Restrained condition until the spell ends."
+  },
+  "srd_srd_2024_gaseous_form": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "A willing creature you touch shape-shifts, along with everything it's wearing and carrying, into a misty cloud for the duration."
+  },
+  "srd_srd_2024_glyph_of_warding": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "You inscribe a glyph that later unleashes a magical effect."
+  },
+  "srd_srd_2024_grease": {
+    "verdict": "condition",
+    "conditions": [
+      "Prone"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "DEX",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": false
+    },
+    "repeat_save": null,
+    "evidence": "When the grease appears, each creature standing in its area must succeed on a Dexterity saving throw or have the Prone condition."
+  },
+  "srd_srd_2024_mass_suggestion": {
+    "verdict": "condition",
+    "conditions": [
+      "Charmed"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "several",
+      "count": 12,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "hour",
+      "amount": 24,
+      "concentration": false
+    },
+    "repeat_save": {
+      "when": "when_damaged",
+      "ability": "WIS"
+    },
+    "evidence": "Each target must succeed on a Wisdom saving throw or have the Charmed condition for the duration or until you or your allies deal damage to the target."
+  },
+  "srd_srd_2024_meld_into_stone": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "If expelled, you move into an unoccupied space closest to where you first entered and have the Prone condition."
+  },
+  "srd_srd_2024_polymorph": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "The target is limited in the actions it can perform by the anatomy of its new form, and it can't speak or cast spells."
+  },
+  "srd_srd_2024_resurrection": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "Until you finish a Long Rest, you can't cast spells again, and you have Disadvantage on D20 Tests."
+  },
+  "srd_srd_2024_sleet_storm": {
+    "verdict": "condition",
+    "conditions": [
+      "Prone"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "DEX",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "special",
+      "amount": null,
+      "concentration": true
+    },
+    "repeat_save": null,
+    "evidence": "Until the spell ends, sleet falls in a 40-foot-tall, 20-foot-radius Cylinder centered on a point you choose within range."
+  },
+  "srd_srd_2024_suggestion": {
+    "verdict": "condition",
+    "conditions": [
+      "Charmed"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "hour",
+      "amount": 8,
+      "concentration": true
+    },
+    "repeat_save": null,
+    "evidence": "The target must succeed on a Wisdom saving throw or have the Charmed condition for the duration or until you or your allies deal damage to the target."
+  },
+  "srd_srd_2024_true_polymorph": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "Choose one creature or nonmagical object that you can see within range."
+  },
+  "srd_srd_2024_unseen_servant": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "This spell creates an Invisible, mindless, shapeless, Medium force that performs simple tasks at your command until the spell ends."
+  },
+  "srd_srd_2024_web": {
+    "verdict": "condition",
+    "conditions": [
+      "Restrained"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "DEX",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "hour",
+      "amount": 1,
+      "concentration": true
+    },
+    "repeat_save": null,
+    "evidence": "The first time a creature enters the webs on a turn or starts its turn there, it must succeed on a Dexterity saving throw or have the Restrained condition while in the webs or until it breaks free."
+  },
+  "srd_srd_awaken": {
+    "verdict": "condition",
+    "conditions": [
+      "Charmed"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "automatic",
+    "save_ability": null,
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [
+      "beast",
+      "plant"
+    ],
+    "duration": {
+      "unit": "special",
+      "amount": null,
+      "concentration": false
+    },
+    "repeat_save": null,
+    "evidence": "The awakened beast or plant is charmed by you for 30 days or until you or your companions do anything harmful to it."
+  },
+  "srd_srd_black_tentacles": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "When a creature enters the affected area for the first time on a turn or starts its turn there, the creature must succeed on a Dexterity saving throw or take 3d6 bludgeoning damage and be restrained by the tentacles until the spell ends."
+  },
+  "srd_srd_dominate_person": {
+    "verdict": "condition",
+    "conditions": [
+      "Charmed"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [
+      "humanoid"
+    ],
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": true
+    },
+    "repeat_save": {
+      "when": "when_damaged",
+      "ability": "WIS"
+    },
+    "evidence": "It must succeed on a wisdom saving throw or be charmed by you for the duration."
+  },
+  "srd_srd_entangle": {
+    "verdict": "condition",
+    "conditions": [
+      "Restrained"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "STR",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": true
+    },
+    "repeat_save": null,
+    "evidence": "A creature in the area when you cast the spell must succeed on a strength saving throw or be restrained by the entangling plants until the spell ends."
+  },
+  "srd_srd_feeblemind": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "The creature can't cast spells, activate magic items, understand language, or communicate in any intelligible way."
+  },
+  "srd_srd_gaseous_form": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "You transform a willing creature you touch, along with everything it's wearing and carrying, into a misty cloud for the duration."
+  },
+  "srd_srd_glyph_of_warding": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "When you inscribe the glyph, choose explosive runes or a spell glyph."
+  },
+  "srd_srd_grease": {
+    "verdict": "condition",
+    "conditions": [
+      "Prone"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "DEX",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": false
+    },
+    "repeat_save": null,
+    "evidence": "When the grease appears, each creature standing in its area must succeed on a dexterity saving throw or fall prone."
+  },
+  "srd_srd_meld_into_stone": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "If expelled, you fall prone in an unoccupied space closest to where you first entered."
+  },
+  "srd_srd_polymorph": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "An unwilling creature must make a wisdom saving throw to avoid the effect."
+  },
+  "srd_srd_project_image": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "While you are using its senses, you are blinded and deafened in regard to your own surroundings."
+  },
+  "srd_srd_sleet_storm": {
+    "verdict": "condition",
+    "conditions": [
+      "Prone"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "DEX",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "special",
+      "amount": null,
+      "concentration": true
+    },
+    "repeat_save": null,
+    "evidence": "On a failed save, it falls prone."
+  },
+  "srd_srd_true_polymorph": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "Choose one creature or nonmagical object that you can see within range."
+  },
+  "srd_srd_web": {
+    "verdict": "condition",
+    "conditions": [
+      "Restrained"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "DEX",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "hour",
+      "amount": 1,
+      "concentration": true
+    },
+    "repeat_save": null,
+    "evidence": "On a failed save, the creature is restrained as long as it remains in the webs or until it breaks free."
+  },
+  "srd_true_polymorph": {
+    "verdict": "not_simple",
+    "conditions": [],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": null,
+    "save_ability": null,
+    "targets": null,
+    "only_kinds": [],
+    "duration": null,
+    "repeat_save": null,
+    "evidence": "Choose one creature or nonmagical object that you can see within range."
+  },
+  "srd_web": {
+    "verdict": "condition",
+    "conditions": [
+      "Restrained"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "DEX",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "hour",
+      "amount": 1,
+      "concentration": true
+    },
+    "repeat_save": null,
+    "evidence": "On a failed save, the creature is restrained as long as it remains in the webs or until it breaks free."
+  }
+}

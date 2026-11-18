@@ -55,6 +55,11 @@ export interface CuratedSpellCondition {
   only_kinds: string[];
   /** How long it lasts at most. `concentration` is the spell's own. Rounds and minutes are the common cases. */
   duration: { unit: "instant" | "round" | "minute" | "hour" | "until_dispelled" | "special"; amount: number | null; concentration: boolean } | null;
+  /**
+   * The creature is taken out of the fight while it lasts and comes back where it was (Banishment). Only ever set
+   * by a ruling, never by a reading: no named condition says it. Absent means it stays where it is.
+   */
+  leaves_play?: boolean;
   /** A later save that can end it, and when it is made; null when nothing but the duration ends it. */
   repeat_save: { when: "end_of_its_turn" | "start_of_its_turn" | "when_damaged" | "as_an_action"; ability: Ability } | null;
   /** One sentence copied word for word from the spell's description: the one that says the condition is imposed. */
@@ -83,6 +88,7 @@ export function findingsFor(entry: CuratedSpellCondition, spell: { description: 
     if (entry.conditions.length > 0) found.push(`a ${entry.verdict} entry names no conditions.`);
     if (entry.stops_casting !== null) found.push(`a ${entry.verdict} entry does not stop casting: that is a condition entry.`);
     if (entry.speed_zero) found.push(`a ${entry.verdict} entry does not set a speed to 0: that is a condition entry.`);
+    if (entry.leaves_play === true) found.push(`a ${entry.verdict} entry takes nothing out of the fight: that is a condition entry.`);
     return found;
   }
 
@@ -123,6 +129,7 @@ export function agree(a: CuratedSpellCondition, b: CuratedSpellCondition): boole
       conditions: [...e.conditions].sort(),
       stops_casting: e.stops_casting,
       speed_zero: e.speed_zero,
+      leaves_play: e.leaves_play === true,
       applies: e.applies,
       save_ability: e.save_ability,
       targets: e.targets,

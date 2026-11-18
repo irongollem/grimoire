@@ -132,6 +132,12 @@ It prints how many entries are usable, how many the two disagree on, how many ha
 one reading holds. A disagreement is settled by a person reading the spell, not by picking a side or asking a
 third model to vote.
 
+The person's rulings go in `src/data/curatedSpellConditions/settled.json` (spell `id` to entry, the same shape),
+and both commands take it with `--settled`. A ruling settles its record whatever the readings say, and is held to
+the spell's own text like any reading. The two readings themselves are never edited to agree: they stay as they
+were read, so the record shows who read what and who decided. A ruling may set one field no reading may:
+`leaves_play: true`, for a spell that takes the creature out of the fight while it lasts (Banishment).
+
 ## What this pass does not do
 
 - It writes nothing to a database. Applying the agreed entries to `library_spells.condition_effect` is its own

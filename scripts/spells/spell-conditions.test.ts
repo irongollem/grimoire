@@ -63,7 +63,25 @@ describe("planConditionWrites", () => {
     const b = { hold: reading(), fog: none };
     const report = checkReadings(a, b, withSpells);
     expect(describePlan(planConditionWrites(report, a), report)).toBe(
-      "2 to write (condition 1, no_condition 1, not_simple 0); skipped: disagree 0, with findings 0, in one reading only 1, no such spell 0.",
+      "2 to write (condition 1, no_condition 1, not_simple 0); of them settled by a ruling 0; skipped: disagree 0, with findings 0, in one reading only 1, no such spell 0.",
     );
   });
 });
+
+describe("a ruling", () => {
+  // Bug caught: a record a person ruled on still skipped as a disagreement; or the ruling written without being
+  // held to the spell's own text.
+  it("settles a record the readings differ on, is what gets written, and is still checked against the text", () => {
+    const a = { hold: reading() };
+    const b = { hold: reading({ repeat_save: null }) };
+    expect(checkReadings(a, b, spells)).toMatchObject({ usable: [], disagree: ["hold"] });
+    const ruled = { hold: reading({ only_kinds: [], evidence: HOLD }) };
+    const report = checkReadings(a, b, spells, ruled);
+    expect(report).toMatchObject({ usable: [], settled: ["hold"], disagree: [] });
+    expect(planConditionWrites(report, a, ruled)).toEqual([expect.objectContaining({ id: "hold", condition_effect: expect.objectContaining({ only_kinds: [] }) })]);
+    const bad = checkReadings(a, b, spells, { hold: reading({ evidence: "It is held fast." }) });
+    expect(bad.settled).toEqual([]);
+    expect(bad.findings.hold.a.join(" ")).toContain("word for word");
+  });
+});
+

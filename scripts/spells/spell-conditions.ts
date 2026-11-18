@@ -76,6 +76,8 @@ export function worklistOf(statBlocks: readonly unknown[], spells: readonly Spel
 
 export interface CheckReport {
   usable: string[];
+  /** Records a person ruled on (`settled.json`), where the two readings differed. Used like `usable`. */
+  settled: string[];
   disagree: string[];
   onlyInOne: string[];
   unknownSpell: string[];
@@ -83,12 +85,25 @@ export interface CheckReport {
 }
 
 /** Two readings held against the spells' text and against each other. */
-export function checkReadings(a: CuratedSpellConditionsFile, b: CuratedSpellConditionsFile, spells: ReadonlyMap<string, SpellText>): CheckReport {
-  const report: CheckReport = { usable: [], disagree: [], onlyInOne: [], unknownSpell: [], findings: {} };
-  for (const id of [...new Set([...Object.keys(a), ...Object.keys(b)])].sort()) {
+export function checkReadings(
+  a: CuratedSpellConditionsFile,
+  b: CuratedSpellConditionsFile,
+  spells: ReadonlyMap<string, SpellText>,
+  settled: CuratedSpellConditionsFile = {},
+): CheckReport {
+  const report: CheckReport = { usable: [], settled: [], disagree: [], onlyInOne: [], unknownSpell: [], findings: {} };
+  for (const id of [...new Set([...Object.keys(a), ...Object.keys(b), ...Object.keys(settled)])].sort()) {
     const spell = spells.get(id);
     if (spell === undefined) {
       report.unknownSpell.push(id);
+      continue;
+    }
+    // A ruling settles a record whatever the readings say, and is held to the spell's own text like any reading.
+    const ruled = settled[id];
+    if (ruled !== undefined) {
+      const found = findingsFor(ruled, spell);
+      if (found.length > 0) report.findings[id] = { a: found, b: [] };
+      else report.settled.push(id);
       continue;
     }
     const [inA, inB] = [a[id], b[id]];
@@ -112,11 +127,12 @@ export interface ConditionWrite {
 }
 
 /** What `apply` writes: only the ids both readings agreed on, from reading `a`, without evidence. Everything else is left exactly as it is. */
-export function planConditionWrites(report: CheckReport, a: CuratedSpellConditionsFile): ConditionWrite[] {
-  return report.usable.map((id) => {
-    const { evidence: _evidence, ...condition_effect } = a[id];
+export function planConditionWrites(report: CheckReport, a: CuratedSpellConditionsFile, settled: CuratedSpellConditionsFile = {}): ConditionWrite[] {
+  const from = (id: string, source: CuratedSpellConditionsFile): ConditionWrite => {
+    const { evidence: _evidence, ...condition_effect } = source[id];
     return { id, verdict: condition_effect.verdict, condition_effect };
-  });
+  };
+  return [...report.usable.map((id) => from(id, a)), ...report.settled.map((id) => from(id, settled))].sort((x, y) => x.id.localeCompare(y.id));
 }
 
 /** The count line a dry run prints and a write repeats. */
@@ -125,7 +141,7 @@ export function describePlan(writes: readonly ConditionWrite[], report: CheckRep
   for (const w of writes) by[w.verdict]++;
   return (
     `${writes.length} to write (condition ${by.condition}, no_condition ${by.no_condition}, not_simple ${by.not_simple}); ` +
-    `skipped: disagree ${report.disagree.length}, with findings ${Object.keys(report.findings).length}, in one reading only ${report.onlyInOne.length}, no such spell ${report.unknownSpell.length}.`
+    `of them settled by a ruling ${report.settled.length}; skipped: disagree ${report.disagree.length}, with findings ${Object.keys(report.findings).length}, in one reading only ${report.onlyInOne.length}, no such spell ${report.unknownSpell.length}.`
   );
 }
 
@@ -151,6 +167,8 @@ async function main(): Promise<void> {
     allowPositionals: true,
     options: {
       out: { type: "string" }, a: { type: "string" }, b: { type: "string" }, report: { type: "string" },
+      // A person's rulings on records the two readings differ on (`src/data/curatedSpellConditions/settled.json`).
+      settled: { type: "string" },
       write: { type: "boolean", default: false },
       production: { type: "boolean", default: false },
       "yes-production": { type: "boolean", default: false },
@@ -176,8 +194,8 @@ async function main(): Promise<void> {
   if (command === "check") {
     if (!values.a || !values.b) throw new Error("check needs --a <reading.json> and --b <reading.json>.");
     const read = (path: string) => JSON.parse(readFileSync(path, "utf8")) as CuratedSpellConditionsFile;
-    const report = checkReadings(read(values.a), read(values.b), new Map(spells.map((s) => [s.id, s])));
-    console.log(`usable ${report.usable.length} · disagree ${report.disagree.length} · with findings ${Object.keys(report.findings).length} · in one reading only ${report.onlyInOne.length} · no such spell ${report.unknownSpell.length}`);
+    const report = checkReadings(read(values.a), read(values.b), new Map(spells.map((s) => [s.id, s])), values.settled ? read(values.settled) : {});
+    console.log(`usable ${report.usable.length} · settled by a ruling ${report.settled.length} · disagree ${report.disagree.length} · with findings ${Object.keys(report.findings).length} · in one reading only ${report.onlyInOne.length} · no such spell ${report.unknownSpell.length}`);
     if (values.report) {
       writeFileSync(values.report, `${JSON.stringify(report, null, 2)}\n`);
       console.log(`Report written to ${values.report}.`);
@@ -189,8 +207,9 @@ async function main(): Promise<void> {
     if (!values.a || !values.b) throw new Error("apply needs --a <reading.json> and --b <reading.json>.");
     const read = (path: string) => JSON.parse(readFileSync(path, "utf8")) as CuratedSpellConditionsFile;
     const a = read(values.a);
-    const report = checkReadings(a, read(values.b), new Map(spells.map((s) => [s.id, s])));
-    const writes = planConditionWrites(report, a);
+    const settled = values.settled ? read(values.settled) : {};
+    const report = checkReadings(a, read(values.b), new Map(spells.map((s) => [s.id, s])), settled);
+    const writes = planConditionWrites(report, a, settled);
     console.log(`${target.label}: ${describePlan(writes, report)}`);
     if (!values.write) {
       console.log("Dry run. Pass --write to apply.");
