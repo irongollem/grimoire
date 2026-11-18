@@ -1,11 +1,15 @@
 /**
  * Roads between places (#1222): the rows of `location_roads` as the app reads them.
  *
- * A road joins two places and says how far it is, the way a book says it in a town's entry ("Brightwater, 40 miles
+ * A road joins two places and says how far it is, the way a book says it in a town's entry ("Brightwater, 40 mi
  * by the coast road"). It reads from both ends. Distances are worked with in miles; a road entered in kilometres
- * keeps its unit for showing.
+ * keeps its unit for showing. The units, their conversion and how a distance is written are the app's one set
+ * (`rules/travelPace`, `lib/locations/mapScale`), shared with the map's measuring tool.
  */
-export type DistanceUnit = "mi" | "km";
+import { formatDistance } from "@/lib/locations/mapScale";
+import { toMiles, type DistanceUnit } from "@/rules/travelPace";
+
+export type { DistanceUnit };
 export type Going = "road" | "track" | "river" | "sea";
 
 export interface Road {
@@ -18,16 +22,6 @@ export interface Road {
   /** "the coast road"; empty when it has no name. */
   name: string;
   going: Going;
-}
-
-const KM_PER_MILE = 1.609344;
-
-export function toMiles(distance: number, unit: DistanceUnit): number {
-  return unit === "km" ? distance / KM_PER_MILE : distance;
-}
-
-export function fromMiles(miles: number, unit: DistanceUnit): number {
-  return unit === "km" ? miles * KM_PER_MILE : miles;
 }
 
 /** The place at the other end of a road, seen from one of its ends; null when the road does not touch that place. */
@@ -58,16 +52,8 @@ export function roadsFrom(placeId: string, roads: readonly Road[]): RoadFromHere
 
 const GOING_WORDS: Record<Going, string> = { road: "by road", track: "by track", river: "by river", sea: "by sea" };
 
-/** A whole number where it is one, otherwise one decimal: "40 miles", "12.5 km". */
-export function distanceText(distance: number, unit: DistanceUnit): string {
-  const rounded = Math.round(distance * 10) / 10;
-  const number = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-  if (unit === "km") return `${number} km`;
-  return `${number} ${rounded === 1 ? "mile" : "miles"}`;
-}
-
-/** How a road reads in a place's entry: "40 miles by the coast road", "12 miles by track". */
+/** How a road reads in a place's entry: "40 mi by the coast road", "12 mi by track". */
 export function roadText(road: Pick<Road, "distance" | "unit" | "name" | "going">): string {
   const how = road.name.trim() !== "" ? `by ${road.name.trim()}` : GOING_WORDS[road.going];
-  return `${distanceText(road.distance, road.unit)} ${how}`;
+  return `${formatDistance(road.distance, road.unit)} ${how}`;
 }
