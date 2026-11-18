@@ -203,27 +203,22 @@ describe("SpellDetail level advisor pre-fill", () => {
     return vm.adv;
   };
 
-  it("reads the save mechanics back into the advisor's wording", async () => {
-    expect((await open((vm) => { vm.attackType = "save"; vm.saveEffect = "negates"; })).saveType).toBe("save_negates");
-    expect((await open((vm) => { vm.attackType = "save"; vm.saveEffect = "half"; })).saveType).toBe("save_for_half");
+  // The reading itself is `advisorFieldsFromSpell`'s, tested beside it; here only that the open panel gets it.
+  // Bug caught: the advisor opening on its defaults, asking again what the form already says.
+  it("starts from the spell's own fields when it opens", async () => {
+    const adv = await open((vm) => {
+      vm.damageRolls = [{ dice: "8d6", type: "fire" }];
+      vm.attackType = "save";
+      vm.saveEffect = "half";
+      vm.aoeShape = "sphere";
+      vm.aoeSize = "20 feet";
+    });
+    expect(adv).toMatchObject({ effectType: "damage", damageDice: "8d6", saveType: "save_for_half", targetingMode: "aoe_medium" });
+  });
+
+  // Bug caught: a spell with no damage yet losing what its form does say (the save), because the effect is unknown.
+  it("fills in how it lands even before the form says what kind of effect it is", async () => {
     expect((await open((vm) => { vm.attackType = "ranged_spell"; })).saveType).toBe("attack_roll");
-    expect((await open((vm) => { vm.attackType = "melee_spell"; })).saveType).toBe("attack_roll");
-    expect((await open((vm) => { vm.attackType = "automatic"; })).saveType).toBe("automatic");
-  });
-
-  it("sizes the targeting from the area: under 15 ft small, 15 to 29 medium, 30 and over large", async () => {
-    const mode = async (size: string) => (await open((vm) => { vm.aoeShape = "sphere"; vm.aoeSize = size; })).targetingMode;
-    expect(await mode("10-foot radius")).toBe("aoe_small");
-    expect(await mode("15-foot radius")).toBe("aoe_medium");
-    expect(await mode("29-foot cone")).toBe("aoe_medium");
-    expect(await mode("30-foot radius")).toBe("aoe_large");
-  });
-
-  it("reads healing and damage dice back, healing taking precedence over a leftover damage roll", async () => {
-    const heal = await open((vm) => { vm.healingDice = "2d8"; });
-    expect(heal).toMatchObject({ effectType: "healing", damageDice: "2d8" });
-    const dmg = await open((vm) => { vm.damageRolls = [{ dice: "8d6", type: "fire" }]; });
-    expect(dmg).toMatchObject({ effectType: "damage", damageDice: "8d6 fire" });
   });
 });
 

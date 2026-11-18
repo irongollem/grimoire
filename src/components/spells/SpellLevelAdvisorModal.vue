@@ -174,7 +174,7 @@
             <!-- 10. Result -->
             <div class="rounded-md bg-primary/10 border border-primary/30 p-4 flex flex-col gap-3">
               <p class="text-heading-sm font-bold text-primary">
-                Suggested: Level {{ advResult.suggestedMin }}–{{ advResult.suggestedMax }}
+                {{ advResult.estimated ? `Suggested: Level ${advResult.suggestedMin}–${advResult.suggestedMax}` : "No estimate yet" }}
               </p>
               <ul class="space-y-0.5">
                 <li
@@ -225,7 +225,7 @@
         label="Skip, I'll fill it in manually"
         @click="emit('skip')"
       />
-      <AppButton variant="primary" size="md" @click="emit('apply')">
+      <AppButton variant="primary" size="md" :disabled="!advResult.estimated" @click="emit('apply')">
         Apply to Spell (Level
         {{
           advResult.suggestedMin +

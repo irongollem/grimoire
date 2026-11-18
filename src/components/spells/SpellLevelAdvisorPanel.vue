@@ -36,7 +36,7 @@
       {{
         isNew
           ? "Answer a few questions to pre-fill mechanics and suggest a level."
-          : "Estimate a balanced level based on 2024 DMG guidelines."
+          : "Estimates a balanced level from the Dungeon Master's Guide's spell damage table and the published spells. It starts from what this spell's fields already say."
       }}
     </p>
 
@@ -153,6 +153,14 @@
         <AppCheckbox v-model="adv.requiresConcentration" label="Requires Concentration" />
         <AppCheckbox v-model="adv.hasSecondaryEffect" label="Secondary condition / rider effect" />
         <AppCheckbox v-model="adv.isRitual" label="Can be cast as Ritual" />
+        <!-- What makes a control effect weaker than its condition alone: read off the spell's "Besides damage" entry
+             when it has one, and the DM's to tick when it has not yet. -->
+        <template v-if="adv.effectType === 'control' || adv.hasSecondaryEffect">
+          <AppCheckbox v-model="adv.repeatSave" label="The target saves again each turn" />
+          <AppCheckbox v-model="adv.endsWhenHarmed" label="It ends when the target is harmed" />
+          <AppCheckbox v-model="adv.canBreakFree" label="The target can break free with a check" />
+          <AppCheckbox v-model="adv.limitedKinds" label="Only some kinds of creature (humanoids only)" />
+        </template>
       </div>
 
       <!-- Result -->
@@ -161,7 +169,7 @@
         class="rounded-md bg-primary/10 border border-primary/30 p-3 flex flex-col gap-2"
       >
         <p class="text-heading-sm font-bold text-primary">
-          Suggested: Level {{ advResult.suggestedMin }}–{{ advResult.suggestedMax }}
+          {{ advResult.estimated ? `Suggested: Level ${advResult.suggestedMin}–${advResult.suggestedMax}` : "No estimate yet" }}
         </p>
         <ul class="space-y-0.5">
           <li
@@ -201,7 +209,7 @@
             </p>
           </div>
         </template>
-        <AppButton variant="primary" size="sm" class="mt-1" @click="emit('apply')">
+        <AppButton variant="primary" size="sm" class="mt-1" :disabled="!advResult.estimated" @click="emit('apply')">
           Apply to Spell (Level
           {{
             advResult.suggestedMin +
@@ -236,33 +244,28 @@
 
       <!-- Reference table toggle -->
       <AppButton variant="ghost" size="inline-xs" @click="emit('toggle-table')">
-        {{ showTable ? "▲ Hide" : "▼ Show" }} damage benchmark table
+        {{ showTable ? "▲ Hide" : "▼ Show" }} the spell damage table
       </AppButton>
       <div v-if="showTable" class="overflow-x-auto">
         <table class="w-full text-caption-sm">
           <thead>
             <tr class="border-b border-border text-muted-foreground">
-              <th class="text-left py-1 pr-2">Lvl</th>
-              <th class="text-left py-1 pr-2">Single</th>
-              <th class="text-left py-1 pr-2">Small AoE</th>
-              <th class="text-left py-1">Large AoE</th>
+              <th class="text-left py-1 pr-2">Level</th>
+              <th class="text-left py-1 pr-2">One target</th>
+              <th class="text-left py-1">Several targets</th>
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="row in DAMAGE_BENCHMARKS"
-              :key="row.level"
-              class="border-b border-border/30"
-            >
-              <td class="py-0.5 pr-2 font-cinzel font-bold text-foreground">
-                {{ row.label }}
-              </td>
-              <td class="py-0.5 pr-2 text-muted-foreground">{{ row.singleTarget }}</td>
-              <td class="py-0.5 pr-2 text-muted-foreground">{{ row.aoeSmall }}</td>
-              <td class="py-0.5 text-muted-foreground">{{ row.aoeLarge }}</td>
+            <tr v-for="row in SPELL_DAMAGE_TABLE" :key="row.level" class="border-b border-border/30">
+              <td class="py-0.5 pr-2 font-cinzel font-bold text-foreground">{{ row.label }}</td>
+              <td class="py-0.5 pr-2 text-muted-foreground">{{ row.oneTarget }}</td>
+              <td class="py-0.5 text-muted-foreground">{{ row.manyTargets }}</td>
             </tr>
           </tbody>
         </table>
+        <p class="mt-1 text-caption-sm text-muted-foreground">
+          Half damage on a successful save or a miss is assumed. A spell that does nothing then may deal a quarter more.
+        </p>
       </div>
     </div>
   </div>
@@ -274,7 +277,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import DiceInput from "@/components/common/dice/DiceInput.vue";
-import { parseDiceAvg, DAMAGE_BENCHMARKS } from "@/lib/spells/spellAdvisor";
+import { parseDiceAvg, SPELL_DAMAGE_TABLE } from "@/lib/spells/spellAdvisor";
 import type { AdvisorState, AdvisorResult, SchoolTip, RefSpells } from "./spellAdvisorTypes";
 
 const { open, highlighted, isNew, adv, advResult, schoolTip, refSpells, showTable } =

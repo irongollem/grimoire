@@ -284,6 +284,7 @@ import {
   REFERENCE_SPELLS,
   SCHOOL_DESIGN_TIPS,
 } from "@/lib/spells/spellAdvisor";
+import { advisorFieldsFromSpell } from "@/lib/spells/advisorInputsFromSpell";
 import type {
   EffectType,
   EffectIntensity,
@@ -451,6 +452,10 @@ const adv = reactive({
   requiresConcentration: false,
   hasSecondaryEffect: false,
   isRitual: false,
+  repeatSave: false,
+  endsWhenHarmed: false,
+  limitedKinds: false,
+  canBreakFree: false,
 });
 
 const schoolTip = computed(() => SCHOOL_DESIGN_TIPS[school.value] ?? null);
@@ -464,7 +469,8 @@ const refSpells = computed(() => {
 const advResult = computed(() => adviseLevelRange(adv));
 
 function applyAdvisor() {
-  if (!advResult.value) return;
+  // Nothing weighed yet (no dice): applying would set a level on the strength of nothing.
+  if (!advResult.value.estimated) return;
 
   // Level
   const mid =
@@ -545,33 +551,24 @@ watch(ritual, (val) => {
   adv.isRitual = val;
 });
 
-// Pre-fill advisor from mechanics fields when it opens
+// Pre-fill the advisor from the spell's own fields when it opens, so it asks only what the form does not say
+// (`advisorInputsFromSpell`): the dice, the save, the area, the duration, and what the spell does besides damage.
+// What kind of effect a buff or utility spell is, and how strong, stays the DM's answer.
 watch(advisorOpen, (open) => {
   if (!open) return;
-  if (damageRolls.value.length) {
-    adv.effectType = "damage";
-    adv.damageDice = damageRolls.value
-      .map((r) => (r.type ? `${r.dice} ${r.type}` : r.dice))
-      .join(" + ");
-  }
-  if (healingDice.value) {
-    adv.effectType = "healing";
-    adv.damageDice = healingDice.value;
-  }
-  if (aoeShape.value) {
-    adv.targetingMode =
-      aoeSize.value && parseInt(aoeSize.value) >= 30
-        ? "aoe_large"
-        : aoeSize.value && parseInt(aoeSize.value) >= 15
-          ? "aoe_medium"
-          : "aoe_small";
-  }
-  if (attackType.value === "automatic") adv.saveType = "automatic";
-  else if (attackType.value === "ranged_spell" || attackType.value === "melee_spell")
-    adv.saveType = "attack_roll";
-  else if (attackType.value === "save") {
-    adv.saveType = saveEffect.value === "negates" ? "save_negates" : "save_for_half";
-  }
+  const read = advisorFieldsFromSpell({
+    damage_rolls: damageRolls.value,
+    healing_dice: healingDice.value || null,
+    attack_type: attackType.value || null,
+    save_effect: saveEffect.value || null,
+    aoe_shape: aoeShape.value || null,
+    aoe_size: aoeSize.value || null,
+    duration: duration.value,
+    concentration: concentration.value,
+    ritual: ritual.value,
+    condition_effect: conditionEffect.value,
+  });
+  Object.assign(adv, read);
 });
 
 // ── Save / Delete ─────────────────────────────────────────────────────────────

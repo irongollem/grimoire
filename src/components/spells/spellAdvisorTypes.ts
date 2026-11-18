@@ -23,6 +23,10 @@ export interface AdvisorState {
   requiresConcentration: boolean;
   hasSecondaryEffect: boolean;
   isRitual: boolean;
+  repeatSave: boolean;
+  endsWhenHarmed: boolean;
+  limitedKinds: boolean;
+  canBreakFree: boolean;
 }
 
 export interface SchoolTip {
