@@ -16,6 +16,7 @@ vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks
 vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: placesRef }) }));
 
 import { useCampaignStore } from "@/stores/campaign";
+import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import LocationRoadsPanel from "./LocationRoadsPanel.vue";
 
 const place = (id: string, name: string, type = "city") => ({ id, campaign_id: "c1", user_id: "dm", name, location_type: type, parent_id: null });
@@ -29,6 +30,21 @@ async function mountPanel(locationId = "harbour") {
   });
   await flushPromises();
   return wrapper;
+}
+
+type Panel = Awaited<ReturnType<typeof mountPanel>>;
+const form = (wrapper: Panel) => wrapper.get('[data-testid="location-road-form"]');
+const addButton = (wrapper: Panel) => wrapper.findAll("button").find((b) => b.text() === "Add road")!;
+
+/** Fill the road form as a DM does: the destination picker, the length and the name, then "Add road". */
+async function enterRoad(wrapper: Panel, road: { to: string; distance: string; name?: string; table?: string }): Promise<void> {
+  await wrapper.get('[data-testid="location-road-add"]').trigger("click");
+  const pickers = form(wrapper).findAllComponents(EntityCombobox);
+  pickers[0].vm.$emit("update:modelValue", road.to);
+  await form(wrapper).get('input[type="number"]').setValue(road.distance);
+  if (road.name !== undefined) await form(wrapper).get('input[placeholder="the coast road (optional)"]').setValue(road.name);
+  if (road.table !== undefined) pickers[1].vm.$emit("update:modelValue", road.table);
+  await flushPromises();
 }
 
 beforeEach(() => {
@@ -56,19 +72,20 @@ describe("LocationRoadsPanel", () => {
     expect(rows[0].text()).toContain("40 mi by the coast road");
   });
 
-  // Bug caught: a road that could be added with no length or no destination; or added from the wrong place.
+  // Bug caught: a road that could be added with no length or no destination; added from the wrong place; or a
+  // form whose fields were not bound to what is sent.
   it("adds a road from this place once it has somewhere to lead and a length", async () => {
     const wrapper = await mountPanel();
     await wrapper.get('[data-testid="location-road-add"]').trigger("click");
-    const addButton = () => wrapper.findAll("button").find((b) => b.text() === "Add road")!;
-    expect(addButton().attributes("disabled")).toBeDefined();
-    const vm = wrapper.vm as unknown as { otherId: string; distance: number | null; name: string };
-    vm.otherId = "brightwater";
-    vm.distance = 40;
-    vm.name = " the coast road ";
+    expect(addButton(wrapper).attributes("disabled")).toBeDefined();
+    await form(wrapper).findAllComponents(EntityCombobox)[0].vm.$emit("update:modelValue", "brightwater");
     await flushPromises();
-    expect(addButton().attributes("disabled")).toBeUndefined();
-    await addButton().trigger("click");
+    expect(addButton(wrapper).attributes("disabled")).toBeDefined();
+    await form(wrapper).get('input[type="number"]').setValue("40");
+    await form(wrapper).get('input[placeholder="the coast road (optional)"]').setValue(" the coast road ");
+    await flushPromises();
+    expect(addButton(wrapper).attributes("disabled")).toBeUndefined();
+    await addButton(wrapper).trigger("click");
     await flushPromises();
     expect(fake.rows("location_roads")).toEqual([
       expect.objectContaining({ campaign_id: "c1", user_id: "dm", from_location_id: "harbour", to_location_id: "brightwater", distance: 40, unit: "mi", name: "the coast road", going: "road" }),
@@ -85,21 +102,13 @@ describe("LocationRoadsPanel", () => {
     const wrapper = await mountPanel();
     expect(wrapper.get('[data-testid="location-road-table"]').text()).toContain("The coast road");
 
-    await wrapper.get('[data-testid="location-road-add"]').trigger("click");
-    const vm = wrapper.vm as unknown as { otherId: string; distance: number | null; rollTableId: string };
-    vm.otherId = "brightwater";
-    vm.distance = 40;
-    await flushPromises();
-    await wrapper.findAll("button").find((b) => b.text() === "Add road")!.trigger("click");
+    await enterRoad(wrapper, { to: "brightwater", distance: "40" });
+    await addButton(wrapper).trigger("click");
     await flushPromises();
     expect(fake.rows("location_roads").find((r) => r.to_location_id === "brightwater" || r.from_location_id === "brightwater")).toMatchObject({ roll_table_id: null });
 
-    await wrapper.get('[data-testid="location-road-add"]').trigger("click");
-    vm.otherId = "brightwater";
-    vm.distance = 12;
-    vm.rollTableId = "t1";
-    await flushPromises();
-    await wrapper.findAll("button").find((b) => b.text() === "Add road")!.trigger("click");
+    await enterRoad(wrapper, { to: "brightwater", distance: "12", name: "the pass", table: "t1" });
+    await addButton(wrapper).trigger("click");
     await flushPromises();
     expect(fake.rows("location_roads").filter((r) => r.roll_table_id === "t1")).toHaveLength(2);
   });

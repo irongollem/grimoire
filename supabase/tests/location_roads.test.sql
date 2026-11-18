@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(18);
 
 -- Roads between places (#1222): a row joining two places of one campaign, with a distance. The campaign's DMs
 -- write them; players and other campaigns do not read them.
@@ -53,6 +53,12 @@ select lives_ok(
   'the same two places may be joined by a second road'
 );
 
+-- The "second road" above is the positive control: a different name between the same pair is let in.
+select throws_ok(
+  $$ insert into public.location_roads (campaign_id, from_location_id, to_location_id, distance, name)
+     values ('12220000-0000-4000-8000-0000000000b1', '12220000-0000-4000-8000-0000000000c1', '12220000-0000-4000-8000-0000000000c2', 41, 'the coast road ') $$,
+  '23505', null, 'a road cannot be entered twice by swapping its ends'
+);
 select throws_ok(
   $$ insert into public.location_roads (campaign_id, from_location_id, to_location_id, distance)
      values ('12220000-0000-4000-8000-0000000000b1', '12220000-0000-4000-8000-0000000000c1', '12220000-0000-4000-8000-0000000000c1', 5) $$,
