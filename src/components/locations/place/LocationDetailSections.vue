@@ -81,6 +81,7 @@
     <!-- Roads to the other places this one is joined to, with how far each is (#1222). A room has doors, not roads. -->
     <section v-if="!isInteriorSpace && location.campaign_id" class="flex flex-col gap-2">
       <h2 class="text-heading-sm font-bold text-foreground">Roads from here</h2>
+      <LocationJourney :location-id="location.id" />
       <LocationRoadsPanel :location-id="location.id" />
     </section>
 
@@ -229,6 +230,7 @@ import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import LocationDoors from "@/components/locations/place/LocationDoors.vue";
+import LocationJourney from "@/components/locations/place/LocationJourney.vue";
 import LocationRoadsPanel from "@/components/locations/place/LocationRoadsPanel.vue";
 import LocationLootPanel from "@/components/locations/place/LocationLootPanel.vue";
 import LocationPlacements from "@/components/locations/place/LocationPlacements.vue";
