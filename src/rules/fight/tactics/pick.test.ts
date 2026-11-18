@@ -436,3 +436,82 @@ describe("rule break-free-first", () => {
     for (const int of [2, 6, 10, 14]) expect(gateOptions([tryFree(), other("dodge")], prof({ int }), who("ogre")).map((o) => o.kind)).toContain("break_free");
   });
 });
+
+// SRD 5.1 Fear: "While frightened by this spell, a creature must take the Dash action and move away from you by the safest
+// available route on each of its turns, unless there is nowhere to move." RULE flee-by-spell (app convention).
+describe("rule flee-by-spell", () => {
+  const scared = (by: string, over: Partial<RunCombatant> = {}) =>
+    who("ogre", { conditions: [{ name: "Frightened", source: { id: by, spell: "Fear", mustFlee: true } }], ...over });
+  const fleeOpt = (): TurnOption => ({ ...other("flee"), summary: "flee" });
+  const tryFree = (): TurnOption => ({ ...other("break_free"), id: "break_free:Restrained", breakFree: { name: "Restrained", ability: "str" } });
+  const nearAttacks = [atk({ target: "chicory", expected: 20 }), atk({ target: "fresco", expected: 3 })];
+  const run = (mover: RunCombatant, options: TurnOption[], combatants: RunCombatant[]) => {
+    const gated = gateOptions(options, prof(), mover, combatants);
+    return { gated, pick: pickTurn(gated, prof(), ctxOf(combatants)) };
+  };
+
+  // Bug caught: a creature frightened by a spell goes on attacking the best target it has, as if the spell did nothing.
+  it("flees instead of attacking, though it could attack, and names the caster it flees", () => {
+    const mover = scared("fresco");
+    const { gated, pick } = run(mover, [...nearAttacks, other("dodge"), fleeOpt()], [mover, FRESCO, CHICORY]);
+    expect(gated.map((o) => o.kind)).toEqual(["dodge", "flee"]);
+    expect(pick?.optionId).toBe("flee");
+    expect(pick?.reason).toContain("get away from Fresco");
+  });
+
+  // Bug caught: the compulsion outlives its caster: a creature keeps running from a mage who has left the fight or died.
+  it("is not gated once the caster is no longer in the fight", () => {
+    const mover = scared("fresco");
+    const { gated, pick } = run(mover, [...nearAttacks, other("dodge"), fleeOpt()], [mover, CHICORY]);
+    expect(gated.map((o) => o.kind)).toEqual(["attack", "attack", "dodge", "flee"]);
+    expect(pick?.optionId).toBe("attack:actions:Greatclub:chicory");
+    const down = run(mover, nearAttacks, [mover, who("fresco", { hp: 0 }), CHICORY]);
+    expect(down.gated.map((o) => o.kind)).toEqual(["attack", "attack"]);
+  });
+
+  // "may still ... try to escape from an effect that prevents it from moving" (Turn Undead). Bug caught: a held, frightened creature Dodges or runs (it cannot) instead of breaking free first.
+  it("breaks free of a hold before it runs, by the same rule as a broken creature", () => {
+    const mover = scared("fresco", { conditions: [{ name: "Restrained", breakFree: { abilities: ["str", "dex"], dc: 14 } }, { name: "Frightened", source: { id: "fresco", mustFlee: true } }] });
+    const { pick } = run(mover, [...nearAttacks, tryFree(), other("dodge"), fleeOpt()], [mover, FRESCO, CHICORY]);
+    expect(pick?.optionId).toBe("break_free:Restrained");
+  });
+
+  // "unless there is nowhere to move": nothing is forced then. This follows the text; the creature neither runs nor attacks the one it fears, it
+  // keeps what is left (Dodge), the same fall-through a broken creature with no flee option takes.
+  // Bug caught: with no flee option the gate gives the creature its attacks back, and it turns on the caster it is afraid of.
+  it("with nowhere to move does not attack, and takes Dodge", () => {
+    const mover = scared("fresco");
+    const { gated, pick } = run(mover, [...nearAttacks, other("dodge")], [mover, FRESCO, CHICORY]);
+    expect(gated.map((o) => o.kind)).toEqual(["dodge"]);
+    expect(pick?.optionId).toBe("dodge");
+  });
+
+  // Bug caught: the Action is spent and the gate empties the list, so the creature takes no turn at all.
+  it("keeps what it is offered when no retreat is on offer at all", () => {
+    const mover = scared("fresco");
+    expect(gateOptions(nearAttacks, prof(), mover, [mover, FRESCO, CHICORY])).toHaveLength(2);
+  });
+
+  // Bug caught: the way out meant for broken morale is used by a turned creature (a Plane Shift home).
+  it("does not use a way out", () => {
+    const mover = scared("fresco");
+    const p = { ...prof(), wayOuts: [{ name: "Plane Shift", effect: "leaves" as const, limit: null, cost: "action" as const }] } as unknown as ReturnType<typeof prof>;
+    expect(gateOptions([other("dodge"), fleeOpt()], p, mover, [mover, FRESCO]).map((o) => o.kind)).toEqual(["dodge", "flee"]);
+  });
+
+  // Bug caught: a creature that is not under such a condition is gated by the new rule (it must offer exactly its old options).
+  it("changes nothing for a creature with no such condition", () => {
+    const all = [...nearAttacks, other("dodge"), other("flee")];
+    expect(gateOptions(all, prof(), OGRE, [OGRE, FRESCO, CHICORY])).toEqual(gateOptions(all, prof(), OGRE));
+    expect(gateOptions(all, prof(), OGRE, [OGRE, FRESCO, CHICORY]).map((o) => o.kind)).toEqual(["attack", "attack", "dodge", "flee"]);
+    const plainFear = who("ogre", { conditions: [{ name: "Frightened", source: { id: "fresco", spell: "Fear" } }] });
+    expect(gateOptions(all, prof(), plainFear, [plainFear, FRESCO]).map((o) => o.kind)).toEqual(["attack", "attack", "dodge", "flee"]);
+  });
+
+  // Bug caught: the shared steps change what a morale flee does or says.
+  it("leaves a morale flee exactly as it was", () => {
+    const mover = who("ogre", { hp: 5 });
+    const { pick } = run(mover, [...nearAttacks, other("dodge"), fleeOpt()], [mover, FRESCO, CHICORY]);
+    expect(pick).toEqual({ optionId: "flee", reason: "Falls back: at 5 of 20 hit points it breaks and flees." });
+  });
+});

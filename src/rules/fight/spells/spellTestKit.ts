@@ -132,3 +132,26 @@ export function mageWithTentacles(): MonsterStatBlock {
     )],
   });
 }
+
+/**
+ * SRD 5.1 "Fear" as its reading would store it, shortened to its condition: Frightened on a failed WIS save for a minute of
+ * concentration, and "While frightened by this spell, a creature must take the Dash action and move away from you by the
+ * safest available route on each of its turns, unless there is nowhere to move."
+ */
+export function fear(over: Partial<SpellRecord> = {}): SpellRecord {
+  return holdPerson({
+    id: "srd_srd_fear", name: "Fear", level: 3, save_attribute: "WIS",
+    condition_effect: holdPersonEffect({ conditions: ["Frightened"], repeat_save: null, must_flee: true }),
+    ...over,
+  });
+}
+
+/** A mage that lists Fear (3rd level, 3 slots): spell save DC 14. */
+export function mageWithFear(): MonsterStatBlock {
+  return mageBlock({
+    special_abilities: [other(
+      "Spellcasting",
+      "The mage is a 9th-level spellcaster. Its spellcasting ability is Intelligence (spell save DC 14, +6 to hit with spell attacks). The mage has the following wizard spells prepared:\n\n* 3rd level (3 slots): fear",
+    )],
+  });
+}

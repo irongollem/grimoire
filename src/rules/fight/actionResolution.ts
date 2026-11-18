@@ -556,7 +556,7 @@ function impose(ctx: ResolutionContext, target: RunCombatant, save: SaveStructur
     return;
   }
   if (!hasCondition(current, condition.name)) {
-    const imposed = imposedCondition(save, condition, { id: actor.instance_id, spell, ...(concentration === true ? { concentration: true } : {}), ...(condition.endsWhenHarmed ? { endsWhenHarmed: condition.endsWhenHarmed } : {}) });
+    const imposed = imposedCondition(save, condition, { id: actor.instance_id, spell, ...(concentration === true ? { concentration: true } : {}), ...(condition.endsWhenHarmed ? { endsWhenHarmed: condition.endsWhenHarmed } : {}), ...(condition.mustFlee === true ? { mustFlee: true } : {}) });
     // The check to get free is made against the save's own DC (the caster's spell save DC): "against your spell save DC".
     const breakFree = condition.breakFree ? { breakFree: { ...condition.breakFree, dc: save.dc } } : {};
     ctx.apply({ type: "apply_condition", instanceId: target.instance_id, condition: { ...imposed, ...breakFree } });

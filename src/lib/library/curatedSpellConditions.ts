@@ -77,6 +77,13 @@ export interface CuratedSpellCondition {
    * same: it cannot be ended that way.
    */
   break_free?: { abilities: Ability[]; skill: "athletics" | "acrobatics" | null } | null;
+  /**
+   * While the condition lasts the creature must spend its turns getting away from the caster (SRD 5.1 Fear: "While
+   * frightened by this spell, a creature must take the Dash action and move away from you by the safest available route on
+   * each of its turns, unless there is nowhere to move."; Turn Undead: "must spend its turns trying to move as far away from
+   * you as it can"). It may still break free of something that holds it. Absent and false mean the same: nothing forces it.
+   */
+  must_flee?: boolean;
   /** One sentence copied word for word from the spell's description: the one that says the condition is imposed. */
   evidence: string;
 }
@@ -106,6 +113,7 @@ export function findingsFor(entry: CuratedSpellCondition, spell: { description: 
     if (entry.leaves_play === true) found.push(`a ${entry.verdict} entry takes nothing out of the fight: that is a condition entry.`);
     if (entry.ends_when_harmed !== undefined && entry.ends_when_harmed !== null) found.push(`a ${entry.verdict} entry has no condition to end when harmed: that is a condition entry.`);
     if (entry.break_free !== undefined && entry.break_free !== null) found.push(`a ${entry.verdict} entry has no condition to break free of: that is a condition entry.`);
+    if (entry.must_flee === true) found.push(`a ${entry.verdict} entry has no condition to flee under: that is a condition entry.`);
     return found;
   }
 
@@ -123,6 +131,10 @@ export function findingsFor(entry: CuratedSpellCondition, spell: { description: 
     if (entry.break_free.abilities.length === 0) found.push("break_free names no ability to check with.");
     // A way out by a check says "check" in the text; a spell with no such word cannot end that way.
     if (!/\bchecks?\b/.test(text)) found.push("break_free is set but the description never says check.");
+  }
+  // A creature made to run says so in the text: moving away, fleeing, as far away as it can, away from the caster.
+  if (entry.must_flee === true && !/move away|moving away|flee|as far away|away from you/.test(text)) {
+    found.push("must_flee is set but the description never says the creature moves away from the caster.");
   }
   if (entry.applies === null) found.push("applies is missing: failed_save, hit or automatic.");
   if (entry.applies === "failed_save" && entry.save_ability === null) found.push("a condition on a failed save names the save's ability.");
@@ -163,6 +175,7 @@ export function agree(a: CuratedSpellCondition, b: CuratedSpellCondition): boole
       duration: e.duration,
       repeat_save: e.repeat_save,
       ends_when_harmed: e.ends_when_harmed ?? null,
+      must_flee: e.must_flee === true,
       break_free: e.break_free ? { abilities: [...e.break_free.abilities].sort(), skill: e.break_free.skill } : null,
     });
   return facts(a) === facts(b);

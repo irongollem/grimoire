@@ -610,6 +610,33 @@ describe("a condition that ends when it is harmed", () => {
   });
 });
 
+// SRD 5.1 Fear: "While frightened by this spell, a creature must take the Dash action and move away from you by the safest
+// available route on each of its turns, unless there is nowhere to move."
+describe("a condition that makes the bearer flee its source", () => {
+  const frightening = (mustFlee: boolean): StatBlockEntry => ({
+    name: "Fear", description: "",
+    structured: { kind: "save", source: "manual", save: { ability: "wis", dc: 14, fail: [], success: "none", conditions: [{ name: "Frightened", ...(mustFlee ? { mustFlee: true } : {}) }] } },
+  });
+
+  // Bug caught: the flag stays on the stat block's save condition and never reaches the applied condition, so the tactics
+  // (which read the bearer's own conditions) never see that it must flee, and it is written beside the source because what it
+  // flees from is the source creature.
+  it("is written on the applied condition's source, which names who it flees", async () => {
+    const s = scripted([[2]]);
+    const t = table([wolf(), victim()], { dice: s.dice, bonus: { victim: 0 } });
+    await resolveSaveOn(t.ctx, { attacker: t.get("wolf"), entry: frightening(true), targets: [t.get("victim")] });
+    expect(t.get("victim").conditions).toEqual([{ name: "Frightened", source: { id: "wolf", spell: "Fear", mustFlee: true } }]);
+  });
+
+  // Bug caught: every frightening effect starts making its bearer run.
+  it("is not written when the condition does not say it", async () => {
+    const s = scripted([[2]]);
+    const t = table([wolf(), victim()], { dice: s.dice, bonus: { victim: 0 } });
+    await resolveSaveOn(t.ctx, { attacker: t.get("wolf"), entry: frightening(false), targets: [t.get("victim")] });
+    expect(t.get("victim").conditions[0].source).not.toHaveProperty("mustFlee");
+  });
+});
+
 // SRD 5.1 Black Tentacles: "A creature restrained by the tentacles can use its action to make a Strength or Dexterity
 // check (its choice) against your spell save DC. On a success, it frees itself."
 describe("a condition the bearer can break free of with a check", () => {

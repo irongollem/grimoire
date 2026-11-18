@@ -508,13 +508,16 @@ function disengageOption(scene: Scene): TurnOption | null {
  *   opportunity attacks provoked, then fewest feet, then top-left first. Only when some square is farther from it than
  *   where the creature stands.
  */
-function fleeOption(scene: Scene, names: Map<string, string>, dashReach: ReachResult, walkAnywhere: () => ReachResult): TurnOption | null {
-  if (dashReach.start === null || scene.hostiles.length === 0) return null;
-  if (scene.map.exits.length > 0) {
+function fleeOption(scene: Scene, names: Map<string, string>, dashReach: ReachResult, walkAnywhere: () => ReachResult, from: RunCombatant | null): TurnOption | null {
+  // RULE flee-by-spell: a creature made to flee one creature runs from that one alone (not from "its enemies"), and never by a
+  // way off the map: it gets as far from the caster as it can, which a door at the caster's back would not do.
+  const foes = from === null ? scene.hostiles : scene.others.filter((c) => c.instance_id === from.instance_id);
+  if (dashReach.start === null || foes.length === 0) return null;
+  if (from === null && scene.map.exits.length > 0) {
     const way = fleeByWayOff(scene, names, dashReach, walkAnywhere);
     if (way !== null) return way;
   }
-  const nearest = (box: Box) => Math.min(...scene.hostiles.map((h) => distanceFeet(box, boxOf(h))));
+  const nearest = (box: Box) => Math.min(...foes.map((h) => distanceFeet(box, boxOf(h))));
   const hereAway = nearest({ anchor: dashReach.start, footprint: scene.moverFootprint });
   let best: { rc: ReachCell; away: number; provokes: ProvokedAttack[] } | null = null;
   for (const rc of cellsOf(dashReach)) {
@@ -543,8 +546,24 @@ function fleeOption(scene: Scene, names: Map<string, string>, dashReach: ReachRe
     leavesMap: false,
     exitLabel: null,
     exitKind: null,
-    summary: `Flee: dash ${best.rc.feet} ft away, ending ${best.away} ft from the nearest enemy${exposurePhrase(names, exposure)}${provokesPhrase(names, best.provokes)}`,
+    summary: `Flee: dash ${best.rc.feet} ft away, ending ${best.away} ft from ${from === null ? "the nearest enemy" : from.name}${exposurePhrase(names, exposure)}${provokesPhrase(names, best.provokes)}`,
   };
+}
+
+/**
+ * RULE flee-by-spell (app convention implementing SRD 5.1 Fear: "must take the Dash action and move away from you by the
+ * safest available route on each of its turns, unless there is nowhere to move"; Turn Undead: "must spend its turns trying to
+ * move as far away from you as it can"): the creature a condition on the mover makes it flee, or null. It is the source of the
+ * first condition whose source says `mustFlee`, and only while that creature is still in the fight and standing; once it is
+ * gone or down the creature is no longer forced. Not built: dropping what it holds, and no reactions.
+ */
+export function fleeSourceOf(mover: RunCombatant, combatants: readonly RunCombatant[]): RunCombatant | null {
+  for (const c of mover.conditions) {
+    if (c.source?.mustFlee !== true) continue;
+    const source = combatants.find((x) => x.instance_id === c.source?.id);
+    if (source !== undefined && source.instance_id !== mover.instance_id && isLiving(source)) return source;
+  }
+  return null;
 }
 
 /** The exit a creature standing with its anchor here covers, the named one when it covers several; null when it covers none. */
@@ -826,7 +845,7 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
     if (disengage) fixed.push(disengage);
     const hide = hideOption(scene, names);
     if (hide) fixed.push(hide);
-    const flee = fleeOption(scene, names, dashReach, () => (farWalk ??= search(Number.POSITIVE_INFINITY)));
+    const flee = fleeOption(scene, names, dashReach, () => (farWalk ??= search(Number.POSITIVE_INFINITY)), fleeSourceOf(mover, input.combatants));
     if (flee) fixed.push(flee);
     fixed.push(dodgeOption(scene));
   } else {

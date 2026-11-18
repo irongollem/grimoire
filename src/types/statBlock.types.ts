@@ -101,6 +101,12 @@ export interface SaveCondition {
    * one the text names for the check, if any.
    */
   breakFree?: { abilities: SaveAbility[]; skill?: BreakFreeSkill };
+  /**
+   * The bearer must spend its turns getting away from the one who imposed it (Fear: "must take the Dash action and move away
+   * from you by the safest available route on each of its turns"). Written on the applied condition's `source`, because what it
+   * flees from is the source creature.
+   */
+  mustFlee?: boolean;
 }
 
 /** The skills a spell's text names for breaking free (2024 Black Tentacles: Strength (Athletics)). */

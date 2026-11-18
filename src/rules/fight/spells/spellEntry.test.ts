@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { spellEntryFor } from "./spellEntry.ts";
-import { blackTentacles, charmMonster, fireBolt, fireball, holdPerson, holdPersonEffect } from "./spellTestKit.ts";
+import { blackTentacles, charmMonster, fear, fireBolt, fireball, holdPerson, holdPersonEffect } from "./spellTestKit.ts";
 
 const MAGE = { saveDc: 14, attackBonus: 6, casterLevel: 9 };
 
@@ -229,5 +229,21 @@ describe("spellEntryFor: a condition the bearer can break free of with a check",
   // Bug caught: a null way out becomes a key, so every old spell grows a check to break free.
   it("adds nothing when the entry has no such way out", () => {
     expect(conditions(spellEntryFor(holdPerson(), 2, MAGE))?.[0]).not.toHaveProperty("breakFree");
+  });
+});
+
+describe("spellEntryFor: a condition that makes the creature flee", () => {
+  const conditions = (r: ReturnType<typeof spellEntryFor>) => (r.automatable ? r.entry.structured.save?.conditions : undefined);
+
+  // SRD 5.1 Fear: "must take the Dash action and move away from you ... on each of its turns". Bug caught: the flag is dropped on the way to the stat block entry, so the frightened creature stands and fights.
+  it("carries mustFlee onto the save condition", () => {
+    expect(conditions(spellEntryFor(fear(), 3, MAGE))).toEqual([{ name: "Frightened", ends: { kind: "rounds", remaining: 10 }, mustFlee: true }]);
+  });
+
+  // Bug caught: a false or absent flag becomes a key, so every old spell makes its target run.
+  it("adds nothing when the entry does not say it, or says false", () => {
+    expect(conditions(spellEntryFor(holdPerson(), 2, MAGE))?.[0]).not.toHaveProperty("mustFlee");
+    const no = fear({ condition_effect: holdPersonEffect({ conditions: ["Frightened"], repeat_save: null, must_flee: false }) });
+    expect(conditions(spellEntryFor(no, 3, MAGE))?.[0]).not.toHaveProperty("mustFlee");
   });
 });

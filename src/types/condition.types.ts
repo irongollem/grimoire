@@ -73,6 +73,8 @@ export interface ConditionSource {
   concentration?: boolean;
   /** Damage ends it (`SaveCondition.endsWhenHarmed`): from the source's side only, or from anyone. */
   endsWhenHarmed?: "source_side" | "anyone";
+  /** The bearer must spend its turns getting away from this source (`SaveCondition.mustFlee`; *RULE flee-by-spell*). */
+  mustFlee?: boolean;
 }
 
 export type ConditionEnds =

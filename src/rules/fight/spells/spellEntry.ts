@@ -67,7 +67,7 @@ function conditionsOf(record: SpellRecord, kindsChecked: boolean): SaveCondition
   const free = effect.break_free;
   const breakFree: SaveCondition["breakFree"] | null = free ? { abilities: free.abilities.map((a) => a.toLowerCase() as SaveAbility), ...(free.skill ? { skill: free.skill } : {}) } : null;
   return effect.conditions.map((name): SaveCondition => ({
-    name, ...(ends === null ? {} : { ends }), ...(harmed === null ? {} : { endsWhenHarmed: harmed }), ...(breakFree === null ? {} : { breakFree }),
+    name, ...(ends === null ? {} : { ends }), ...(harmed === null ? {} : { endsWhenHarmed: harmed }), ...(breakFree === null ? {} : { breakFree }), ...(effect.must_flee === true ? { mustFlee: true } : {}),
   }));
 }
 

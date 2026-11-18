@@ -69,9 +69,11 @@ The fields, as `src/lib/library/curatedSpellConditions.ts` defines them:
     whenever the outcome depends on a choice the caster makes (Command), on hit points (2014 Sleep, Power Word
     Stun), on a roll on a table that determines which named condition applies, when the condition changes over the
     turns (2024 Sleep), when a later
-    save is allowed only in some circumstance (Fear: only out of the caster's sight), when the spell also forces
-    movement or makes the target drop what it holds, or when different targets get different conditions. Also
-    when you are not sure.
+    save is allowed only in some circumstance (Fear: only out of the caster's sight; that stays a reason for
+    `not_simple` even when the rest is stated), when the spell also makes the target move where the caster
+    directs (Compulsion) or drop what it holds, or when different targets get different conditions. Also
+    when you are not sure. Being made to move AWAY from the caster is stated with `must_flee` and is no longer a
+    reason for `not_simple` by itself.
     A condition that ends "when you or your allies damage it" or "when it takes damage" is stated with
     `ends_when_harmed` and is no longer a reason for `not_simple` by itself.
     Getting free by an ability check made as an action ("can use its action to make a Strength or Dexterity check
@@ -117,6 +119,10 @@ The fields, as `src/lib/library/curatedSpellConditions.ts` defines them:
   `["STR", "DEX"]`), `skill` is `"athletics"` or `"acrobatics"` when the text names one for the check (2024 "Strength
   (Athletics)": `["STR"]` with `"athletics"`) and null otherwise. The DC is always the caster's spell save DC and is not
   written down. Leave it out (or null) when the text says no such check. It is checked against the text, which must say check.
+- **`must_flee`**: optional, true or false. True when the text makes the creature spend its turns getting away from
+  the caster while the condition lasts (Fear: "must take the Dash action and move away from you"; Turn Undead: "as far
+  away from you as it can"). Leave it out when nothing forces it to run. It is checked against the text, which must say
+  move away, moving away, flee, as far away or away from you.
 - **`evidence`**: one sentence copied word for word from this record's `description`: the one that imposes the
   condition, or, for `no_condition`, a sentence that shows what the spell does instead (its first sentence is
   fine when nothing says it better). It is checked against the text, so copy it; do not tidy it.

@@ -31,7 +31,7 @@ import {
   type PostedRoll,
   type StatBlockSources,
 } from "./handler";
-import { blackTentacles, charmMonster, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithHold, mageWithTentacles } from "../../../src/rules/fight/spells/spellTestKit";
+import { blackTentacles, charmMonster, fear, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithFear, mageWithHold, mageWithTentacles } from "../../../src/rules/fight/spells/spellTestKit";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice";
 import type { AppliedCondition } from "../../../src/types/condition.types";
 import type { ExploreParty } from "../../../src/types/exploreParty.types";
@@ -2034,6 +2034,66 @@ describe("take_turn casts a spell", () => {
     // `cast_spell` asks for the one name it casts (cached per attempt), and the turn asked for the whole list once.
     expect(mage.spellListedReads).toHaveLength(1);
     expect(mage.spellListedReads[0]).toEqual(expect.arrayContaining(["fireball", "fire bolt"]));
+  });
+});
+
+// SRD 5.1 Fear: "While frightened by this spell, a creature must take the Dash action and move away from you by the safest
+// available route on each of its turns, unless there is nowhere to move." RULE flee-by-spell (app convention).
+describe("a spell that makes a creature run", () => {
+  const sources: StatBlockSources = { monsters: [{ id: "m-mage", name: "Mage", stat_block: mageWithFear() } as unknown as Monster, monster("m-ox")], npcs: [], companions: [] };
+  const fight = () =>
+    row({
+      combatants_live: [
+        combatant("mage", { monster_id: "m-mage", faction_id: "m", hp: 40, max_hp: 40, initiative: 12, position: { x: 1, y: 1 } }),
+        combatant("t1", { monster_id: "m-ox", faction_id: "p", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 4, y: 1 } }),
+      ],
+    });
+  const cast = { type: "cast_spell", casterId: "mage", spell: "fear", targetIds: ["t1"] } as CommandRequest["commands"][number];
+
+  // The ox fails its WIS save (5 against DC 14), is Frightened by the mage's Fear, and on its own turn goes away from the mage
+  // (to the east, since the mage stands to its west) instead of closing in to attack. Bug caught: the flag is lost between the cast
+  // and the creature's turn, so the frightened ox walks up to the mage as if nothing had happened.
+  it("moves a creature that failed its save away from the caster on its next take_turn", async () => {
+    const h = harness(fight(), { sources, map: mapOf(), spells: [fear()], dieFaces: [5] });
+    await runBatch(batch("b1", cast), h.deps);
+    expect(combatantOf(stored(h), "t1").conditions).toEqual([
+      { name: "Frightened", source: { id: "mage", spell: "Fear", concentration: true, mustFlee: true }, ends: { kind: "rounds", remaining: 10 } },
+    ]);
+    const result = await runBatch(batch("b2", takeTurn({ instanceId: "t1" })), h.deps);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { instanceId: "t1", kind: "flee", reason: expect.stringMatching(/get away from mage/) } });
+    expect(combatantOf(stored(h), "t1").position!.x).toBeGreaterThan(4);
+  });
+
+  // "unless there is nowhere to move": the ox stands in the far corner of a small map, so no square is farther from the mage. Nothing
+  // forces it to run, and it does not turn on the mage it fears either: it Dodges. Bug caught: the server's gate is given no
+  // combatants, so the creature that cannot flee gets its attacks back.
+  it("does not attack the caster when there is nowhere to run", async () => {
+    const corner: FightMap = { ...mapOf(), bounds: { minX: 0, minY: 0, maxX: 5, maxY: 5 } };
+    const cornered = row({
+      combatants_live: [
+        combatant("mage", { monster_id: "m-mage", faction_id: "m", hp: 40, max_hp: 40, initiative: 12, position: { x: 1, y: 1 } }),
+        combatant("t1", { monster_id: "m-ox", faction_id: "p", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 5, y: 5 } }),
+      ],
+    });
+    const h = harness(cornered, { sources, map: corner, spells: [fear()], dieFaces: [5] });
+    await runBatch(batch("b1", cast), h.deps);
+    const result = await runBatch(batch("b2", takeTurn({ instanceId: "t1" })), h.deps);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { instanceId: "t1", kind: "dodge" } });
+  });
+
+  // Bug caught: the gate is given no combatants, so a caller (or a note) can still send the frightened creature at the mage.
+  it("refuses an attack on offer by name from a frightened creature, which the gate has dropped", async () => {
+    const h = harness(fight(), { sources, map: mapOf(), spells: [fear()], dieFaces: [5] });
+    await runBatch(batch("b1", cast), h.deps);
+    await expect(runBatch(batch("b2", takeTurn({ instanceId: "t1", optionId: "attack:actions:Bite:mage" })), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/not on offer/) });
+  });
+
+  // Bug caught: the same ox, with no Fear on it, flees too (the rule forces every creature) instead of closing in on the mage.
+  it("does not move a creature that is not afraid away", async () => {
+    const h = harness(fight(), { sources, map: mapOf(), spells: [fear()], dieFaces: [9, 5] });
+    const result = await runBatch(batch("b1", takeTurn({ instanceId: "t1" })), h.deps);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { instanceId: "t1" } });
+    expect(result.effects[0]).not.toMatchObject({ turn: { kind: "flee" } });
   });
 });
 

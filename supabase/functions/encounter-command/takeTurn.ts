@@ -98,7 +98,7 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
     target.type === "player"
       ? (target.party_member_id ? playerSaveBonus(env.players, target.party_member_id, ability) : null)
       : saveBonusFromBlock(statBlockOf(target, env.sources), ability);
-  const gated = withNumbers(gateOptions(options, profile, mover), {
+  const gated = withNumbers(gateOptions(options, profile, mover, state.combatants), {
     attacks, combatants: state.combatants, moverId: mover.instance_id, armorClassOf, ruleset: state.ruleset, spells, saveBonusOf,
   });
 

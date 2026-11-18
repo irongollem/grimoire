@@ -8,6 +8,7 @@ import type { MapExit } from "../../../lib/battlemap/mapExits.ts";
 import type { FightMap } from "./battleMap.ts";
 import {
   compareExposure,
+  fleeSourceOf,
   MAX_TURN_OPTIONS,
   turnOptions,
   type TurnOption,
@@ -494,6 +495,47 @@ describe("rule 10: flee", () => {
 
   it("is not offered when nothing can be measured", () => {
     expect(find(run({ combatants: [ogre(), chicory(1, 0)], map: null }), "flee")).toBeUndefined();
+  });
+});
+
+// SRD 5.1 Fear: "a creature must take the Dash action and move away from you by the safest available route on each of its
+// turns, unless there is nowhere to move." RULE flee-by-spell (app convention).
+describe("rule 10: flee from the caster of a spell (flee-by-spell)", () => {
+  const frightened = (by: string) => ({ name: "Frightened", source: { id: by, spell: "Fear", mustFlee: true } });
+
+  // Ogre (0,0), Chicory (1,0) beside it and Fresco (-3,0) on its other side, nearer to where it would run. With a Dash of 60 ft
+  // it flees from Chicory alone to the far west... which Fresco is near: from Fresco alone it runs east. Bug caught: the flight
+  // measures from the nearest enemy (as a morale flee does), so a creature afraid of Chicory runs from whoever is closest.
+  it("runs from the one creature that frightens it, not from its nearest enemy", () => {
+    const afraid = run({ combatants: [ogre(0, 0, { conditions: [frightened("fresco")] }), chicory(1, 0), fresco(-3, 0)] });
+    const from = find(afraid, "flee");
+    // Away from Fresco (west of it): east, past Chicory. Measuring from the nearest enemy would have kept it between them.
+    expect(from?.destination?.x).toBeGreaterThan(0);
+    expect(from?.summary).toContain("from Fresco");
+    const plain = find(run({ combatants: [ogre(), chicory(1, 0), fresco(-3, 0)] }), "flee");
+    expect(plain?.summary).toContain("from the nearest enemy");
+  });
+
+  // Bug caught: a creature afraid of a caster takes the way off the map nearest it, which can be behind the caster, instead of getting away from the caster.
+  it("never leaves by a way off the map", () => {
+    // The gate at (15,2) is in reach of the Dash (a morale flee would end on it and leave); the caster stands on the gate's far side.
+    const map: FightMap = { ...mapOf(), bounds: { minX: 0, minY: 0, maxX: 19, maxY: 4 }, exits: [{ cell: "15,2", label: "East gate", kind: "entrance" }] };
+    const combatants = (conditions: RunCombatant["conditions"]) => [ogre(10, 2, { conditions }), chicory(9, 2)];
+    expect(find(run({ combatants: combatants([]), map }), "flee")?.leavesMap).toBe(true);
+    const o = find(run({ combatants: combatants([frightened("chicory")]), map }), "flee");
+    expect(o?.leavesMap).toBe(false);
+  });
+
+  // Bug caught: a creature keeps running from a caster who is down or gone, so a dead mage's fear never ends.
+  it("is a plain morale-style flee once the caster is gone or at 0 hit points", () => {
+    expect(fleeSourceOf(ogre(0, 0, { conditions: [frightened("fresco")] }), [ogre(), chicory(1, 0)])).toBeNull();
+    expect(fleeSourceOf(ogre(0, 0, { conditions: [frightened("chicory")] }), [ogre(), chicory(1, 0, { hp: 0 })])).toBeNull();
+    expect(fleeSourceOf(ogre(0, 0, { conditions: [frightened("chicory")] }), [ogre(), chicory(1, 0)])?.instance_id).toBe("chicory");
+  });
+
+  // Bug caught: every Frightened creature is made to run (the flag is read off the condition's name instead of its source).
+  it("is not forced by a Frightened condition whose source does not say it", () => {
+    expect(fleeSourceOf(ogre(0, 0, { conditions: [{ name: "Frightened", source: { id: "chicory", spell: "Fear" } }] }), [ogre(), chicory(1, 0)])).toBeNull();
   });
 });
 

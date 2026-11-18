@@ -8,7 +8,7 @@
 // Pure and edge-importable (relative `.ts` imports only).
 
 import type { RunCombatant } from "../../../types/encounter.types.ts";
-import { compareExposure, wayOffPhrase, type TurnOption, type TurnOptionSpell } from "../terrain/turnOptions.ts";
+import { compareExposure, fleeSourceOf, wayOffPhrase, type TurnOption, type TurnOptionSpell } from "../terrain/turnOptions.ts";
 import type { MoraleRule, TacticalProfile } from "./profile.ts";
 import { usableWayOut, type WayOut } from "./wayOut.ts";
 
@@ -83,11 +83,22 @@ function breaksInto(profile: TacticalProfile, mover: RunCombatant): MoraleRule["
  * `surrender` replaces the list with the one synthetic Surrender (unless it is already Invisible, then it is gated
  * like `flee`), `fight_on` changes nothing. A flee or surrender that has a usable way out gets the synthetic Escape
  * in front. An empty list stays empty: a creature with no turn does not get to surrender or escape in it.
+ *
+ * RULE flee-by-spell (app convention implementing SRD 5.1 Fear: "must take the Dash action and move away from you by the
+ * safest available route on each of its turns, unless there is nowhere to move"): a creature bearing a condition whose source
+ * says `mustFlee`, with that source still in the fight (`combatants`, which a caller that has no such creature may leave out),
+ * is gated like a broken creature that flees: it keeps its retreats and a try at breaking free of a hold. Where it has no
+ * flee option (nowhere to move) this leaves it Disengage or Dodge, never an attack or a cast: the text forces nothing then,
+ * and a frightened creature does not turn on the one it flees. The way out (`escape-first`) stays tied to broken morale
+ * alone: a turned creature runs, it does not Plane Shift home.
  */
-export function gateOptions(options: readonly TurnOption[], profile: TacticalProfile, mover: RunCombatant): TurnOption[] {
+export function gateOptions(options: readonly TurnOption[], profile: TacticalProfile, mover: RunCombatant, combatants: readonly RunCombatant[] = []): TurnOption[] {
   if (options.length === 0) return [];
   // A try at breaking free of a hold is offered at every tier that offers an attack: even an animal struggles (#1021).
-  const offered = options.filter((o) => profile.offers.has(o.kind) || (o.kind === "break_free" && profile.offers.has("attack")));
+  const offeredAll = options.filter((o) => profile.offers.has(o.kind) || (o.kind === "break_free" && profile.offers.has("attack")));
+  const mustRun = fleeSourceOf(mover, combatants) !== null;
+  const kept = mustRun ? offeredAll.filter((o) => FLEE_KEPT_KINDS.includes(o.kind)) : offeredAll;
+  const offered = kept.length > 0 ? kept : offeredAll;
   if (!isBroken(profile, mover)) return offered;
   const then = breaksInto(profile, mover);
   let gated = offered;
@@ -301,6 +312,23 @@ function describeAttack(option: TurnOption, target: RunCombatant, why: string): 
 }
 
 /**
+ * The shared steps of running: RULE break-free-first (below), a held creature cannot run, so one that can try to break free
+ * does that first; then Flee, else Disengage, else Dodge. Null when none of those is on offer. `cause` finishes the reason.
+ */
+function runAway(options: readonly TurnOption[], mover: RunCombatant, cause: string): TurnPick | null {
+  const find = (kind: string) => options.find((o) => o.kind === kind);
+  const freeing = isHeld(mover) ? find("break_free") : undefined;
+  if (freeing !== undefined) return { optionId: freeing.id, reason: `Struggles free: ${cause} but is held, so it tries to break free before it runs.` };
+  const retreat = find("flee") ?? find("disengage") ?? find("dodge");
+  if (retreat === undefined) return null;
+  const { exitKind, exitLabel } = retreat;
+  const leaving = retreat.leavesMap === true && exitKind !== undefined && exitKind !== null
+    ? `, leaving the map ${wayOffPhrase(exitKind, exitLabel === undefined ? null : exitLabel, true)}`
+    : "";
+  return { optionId: retreat.id, reason: `Falls back: ${cause} and ${RETREAT_VERB[retreat.kind]}${leaving}.` };
+}
+
+/**
  * The creature's choice from the (gated) options, deterministic, with a plain reason. Null only for an empty list.
  * Order: a broken creature escapes if it can, else retreats (or yields); a lone option is taken; otherwise it attacks the target its `targets`
  * rule picks with that target's best option; with no attack on offer it closes on a target, else it Dodges, else
@@ -326,18 +354,16 @@ export function pickTurn(options: readonly TurnOption[], profile: TacticalProfil
       if (yields) return { optionId: yields.id, reason: `Yields: ${standing} and surrenders.` };
     }
     if (then === "flee") {
-      // RULE break-free-first (below): a held creature cannot run, so a broken one that can try to break free does that first.
-      const freeing = isHeld(mover) ? find("break_free") : undefined;
-      if (freeing !== undefined) return { optionId: freeing.id, reason: `Struggles free: ${standing} but is held, so it tries to break free before it runs.` };
-      const retreat = find("flee") ?? find("disengage") ?? find("dodge");
-      if (retreat) {
-        const { exitKind, exitLabel } = retreat;
-        const leaving = retreat.leavesMap === true && exitKind !== undefined && exitKind !== null
-          ? `, leaving the map ${wayOffPhrase(exitKind, exitLabel === undefined ? null : exitLabel, true)}`
-          : "";
-        return { optionId: retreat.id, reason: `Falls back: ${standing} and ${RETREAT_VERB[retreat.kind]}${leaving}.` };
-      }
+      const ran = runAway(options, mover, standing);
+      if (ran !== null) return ran;
     }
+  }
+
+  // RULE flee-by-spell: a creature made to flee a caster runs, by the same steps as a broken one (held: break free first).
+  const feared = mover === undefined ? null : fleeSourceOf(mover, ctx.combatants);
+  if (mover !== undefined && feared !== null) {
+    const ran = runAway(options, mover, `it must get away from ${feared.name}`);
+    if (ran !== null) return ran;
   }
 
   // RULE break-free-first (app convention; the books do not say how a monster spends its Action when held). A held creature

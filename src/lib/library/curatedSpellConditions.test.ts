@@ -198,3 +198,45 @@ describe("break_free", () => {
     expect(findingsFor(tentacles({ break_free: { abilities: [], skill: null } }), TENTACLES).join(" ")).toContain("names no ability");
   });
 });
+
+// SRD 5.1 Fear: "While frightened by this spell, a creature must take the Dash action and move away from you by the safest
+// available route on each of its turns, unless there is nowhere to move."
+const FEAR = {
+  concentration: true,
+  higher_levels: "",
+  description:
+    "You project a phantasmal image of a creature's worst fears. Each creature in a 30-foot cone must succeed on a Wisdom saving throw or drop whatever it is holding and become frightened for the duration. " +
+    "While frightened by this spell, a creature must take the Dash action and move away from you by the safest available route on each of its turns, unless there is nowhere to move.",
+};
+const fear = (over: Partial<CuratedSpellCondition> = {}): CuratedSpellCondition =>
+  holdPerson({
+    conditions: ["Frightened"], only_kinds: [], targets: { kind: "area", count: null, more_per_slot_above: 0 }, repeat_save: null,
+    evidence: "Each creature in a 30-foot cone must succeed on a Wisdom saving throw or drop whatever it is holding and become frightened for the duration.",
+    must_flee: true, ...over,
+  });
+
+describe("must_flee", () => {
+  // Bug caught: a reading that leaves the field out is called different from one that says false, so every entry written before it stops agreeing.
+  it("treats absent and false as the same, and true against absent as a disagreement", () => {
+    expect(agree(holdPerson(), holdPerson({ must_flee: false }))).toBe(true);
+    expect(agree(fear(), fear({ must_flee: false }))).toBe(false);
+    expect(agree(fear(), fear({ must_flee: undefined }))).toBe(false);
+    expect(agree(fear(), fear())).toBe(true);
+  });
+
+  it("accepts a faithful reading of the text", () => {
+    expect(findingsFor(fear(), FEAR)).toEqual([]);
+  });
+
+  // Bug caught: a spell that imposes nothing claims the creature runs.
+  it("is a finding on an entry with no condition", () => {
+    const none = { verdict: "no_condition", conditions: [], stops_casting: null, speed_zero: false, applies: null, save_ability: null, targets: null, only_kinds: [], duration: null, repeat_save: null, must_flee: true, evidence: FEAR.description } satisfies CuratedSpellCondition;
+    expect(findingsFor(none, FEAR).join(" ")).toContain("no condition to flee under");
+    expect(findingsFor({ ...none, verdict: "not_simple" }, FEAR).join(" ")).toContain("no condition to flee under");
+  });
+
+  // Bug caught: Hold Person's text never says the target moves away, yet a reading claims it runs, which would send a paralysed creature away from its caster.
+  it("is a finding when the text never says the creature moves away", () => {
+    expect(findingsFor(holdPerson({ must_flee: true }), HOLD_PERSON).join(" ")).toContain("never says the creature moves away");
+  });
+});
