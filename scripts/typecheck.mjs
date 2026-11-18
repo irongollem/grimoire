@@ -14,11 +14,23 @@
 //
 // The list comes from tsconfig.json's own `references`, so a project added there
 // is checked here without anyone remembering this file.
+// Vercel's pull-request previews skip it. Vercel builds a preview on a 7 GB
+// machine, and a 10 GB heap for a ~6.5 GB program there gets the build killed
+// for running out of memory (PR #1221, 18 Nov 2026). The check is not lost: the
+// Application job type-checks every pull request on GitHub's runner, and the
+// production release builds there too (`vercel build` in the release job, where
+// VERCEL_ENV is production), so only the preview, which nothing ships from,
+// goes without.
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 
 const HEAP_MB = 10240;
+
+if (process.env.VERCEL_ENV === "preview") {
+  console.log("Vercel preview build: type-checking is left to the Application job (scripts/typecheck.mjs explains why).");
+  process.exit(0);
+}
 
 const { config, error } = ts.parseConfigFileTextToJson("tsconfig.json", readFileSync("tsconfig.json", "utf8"));
 if (error) {
