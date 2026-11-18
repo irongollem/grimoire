@@ -20,7 +20,8 @@ vi.mock("@/composables/items/usePartyInventory", () => ({
   useRemoveInventoryItem: () => ({ mutateAsync: mocks.remove }),
   useReorderInventoryItems: () => ({ mutate: mocks.reorder }),
 }));
-vi.mock("@/composables/campaign/useCampaignMessages", () => ({ useCampaignMessages: () => ({ sendItemDrop: mocks.sendItemDrop }) }));
+vi.mock("@/composables/campaign/useCampaignMessages", () => ({ useCampaignMessages: () => ({ sendPlayerOffer: vi.fn() }) }));
+vi.mock("@/composables/campaign/useLootDropChoice", () => ({ useDropItem: () => ({ dropItem: mocks.sendItemDrop }) }));
 vi.mock("@/composables/campaign/chatSendErrors", () => ({ useChatSendFailure: () => ({ reportChatFailure: mocks.reportChatFailure }) }));
 
 import { useInventoryMutations } from "./useInventoryMutations";
@@ -170,7 +171,12 @@ describe("the everyday inventory writes", () => {
     expect(mocks.reportChatFailure).toHaveBeenCalledTimes(1);
     expect(mocks.remove).not.toHaveBeenCalled();
 
-    mocks.sendItemDrop.mockResolvedValueOnce(undefined);
+    // The DM cancelled the Need or Greed prompt: nothing was posted, so nothing is removed.
+    mocks.sendItemDrop.mockResolvedValueOnce(false);
+    await dropItemToChat(gem);
+    expect(mocks.remove).not.toHaveBeenCalled();
+
+    mocks.sendItemDrop.mockResolvedValueOnce(true);
     await dropItemToChat(gem);
     expect(mocks.remove).toHaveBeenCalledWith("gem");
   });

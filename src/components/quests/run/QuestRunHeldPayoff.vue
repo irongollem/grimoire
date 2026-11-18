@@ -54,6 +54,7 @@ import { computed, ref } from "vue";
 import { useWorldVerbTargets } from "@/composables/quests/useWorldVerbTargets";
 import { delayPhrase, describeQuestConsequenceAction, isLedgerConsequenceAction, isTargetedWorldVerb } from "@/lib/quests/consequences";
 import { useDispatchLoot } from "@/composables/quests/useQuestFlow";
+import { useLootBatchChoice } from "@/composables/quests/useLootBatchChoice";
 import { useFireHeldConsequence } from "@/composables/quests/useQuestThreads";
 import { describeHeldLoot, describeHeldPayoff } from "@/lib/quests/run";
 import { IconClock, IconCoins, IconPackage, IconPackageOpen } from "@/lib/icons";
@@ -101,6 +102,7 @@ const expanded = ref(false);
 const shownLoot = computed(() => (expanded.value ? loot : loot.slice(0, FOLDED_ROWS)));
 const shownHeld = computed(() => (expanded.value ? held : held.slice(0, Math.max(0, FOLDED_ROWS - shownLoot.value.length))));
 const dispatchLoot = useDispatchLoot();
+const { answerFor } = useLootBatchChoice();
 const fireConsequence = useFireHeldConsequence();
 const dispatchingId = ref("");
 const firingId = ref("");
@@ -113,7 +115,13 @@ function lootIcon(kind: LootPlacementKind) {
 async function dispatchOne(entryId: string) {
   dispatchingId.value = entryId;
   error.value = "";
-  try { await dispatchLoot.mutateAsync({ entryIds: [entryId], campaignId }); }
+  try {
+    const entry = loot.find((candidate) => candidate.id === entryId);
+    // Cancelling the question hands nothing out and says nothing.
+    const answer = await answerFor(entry ? [entry] : []);
+    if (answer.cancelled) return;
+    await dispatchLoot.mutateAsync({ entryIds: [entryId], campaignId, choice: answer.choice });
+  }
   catch (caught) { error.value = caught instanceof Error ? caught.message : "Could not drop loot in chat"; }
   finally { dispatchingId.value = ""; }
 }

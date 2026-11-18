@@ -8,8 +8,8 @@ const mocks = vi.hoisted(() => ({ add: vi.fn(), drop: vi.fn(), openChat: vi.fn()
 vi.mock("@/composables/items/usePartyInventory", () => ({
   useAddInventoryItem: () => ({ mutateAsync: mocks.add }),
 }));
-vi.mock("@/composables/campaign/useCampaignMessages", () => ({
-  useCampaignMessages: () => ({ sendItemDrop: mocks.drop }),
+vi.mock("@/composables/campaign/useLootDropChoice", () => ({
+  useDropItem: () => ({ dropItem: mocks.drop }),
 }));
 vi.mock("@/composables/campaign/chatSendErrors", () => ({
   useChatSendFailure: () => ({ reportChatFailure: mocks.reportFailure }),
@@ -49,7 +49,7 @@ function button(wrapper: Awaited<ReturnType<typeof openMenu>>, label: string) {
 
 beforeEach(() => {
   mocks.add.mockReset().mockResolvedValue(undefined);
-  mocks.drop.mockReset().mockResolvedValue(undefined);
+  mocks.drop.mockReset().mockResolvedValue(true);
   mocks.openChat.mockReset();
   mocks.reportFailure.mockReset();
 });
@@ -135,6 +135,15 @@ describe("ItemSendMenu hands out what the table may see", () => {
     await flushPromises();
     expect(mocks.reportFailure).toHaveBeenCalledTimes(1);
     expect(mocks.openChat).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancelling the drop prompt leaves the menu open and the chat closed", async () => {
+    mocks.drop.mockResolvedValueOnce(false);
+    const wrapper = await openMenu();
+    await button(wrapper, "Drop in Chat").trigger("click");
+    await flushPromises();
+    expect(mocks.openChat).not.toHaveBeenCalled();
+    expect(wrapper.findAllComponents({ name: "AppButton" }).some((c) => c.props("label") === "Drop in Chat")).toBe(true);
   });
 
   it("puts a magic item in the stash unidentified and a mundane one identified", async () => {

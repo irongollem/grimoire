@@ -19,6 +19,7 @@ import { pathToFileURL } from "node:url";
 import { isCarousel } from "./carousels";
 import { accountSummary, findAccount, mediaInsights, type MediaInsights } from "./instagram";
 import { readPosted, type PostedRecord } from "./publishing";
+import { accessToken, readShortRecord, readShortStats, type ShortStats } from "./youtube";
 
 export const STATS_FILE = "stats.jsonl";
 /** How far a snapshot may sit from the 24-hour mark and still stand for it: the job runs hourly, so one always lands within this when the Mac is awake. */
@@ -156,6 +157,36 @@ export function statsTable(rows: Snapshot[], posted: PostedRecord[], snapshots: 
   return [line(head), ...body.map(line)].join("\n");
 }
 
+/**
+ * A second small table for the Shorts on YouTube. A failed read returns the reason instead of throwing:
+ * YouTube being down or unsigned must not take the Instagram numbers with it.
+ */
+export function shortsTable(rows: { id: string; stats: ShortStats | null }[]): string {
+  const head = ["short", "views", "likes"];
+  const body = rows.map((r) => [r.id, num(r.stats === null ? null : r.stats.views), num(r.stats === null ? null : r.stats.likes)]);
+  const widths = head.map((h, i) => Math.max(h.length, ...body.map((r) => r[i].length)));
+  const line = (r: string[]) => r.map((c, i) => (i === 0 ? c.padEnd(widths[i]) : c.padStart(widths[i]))).join("  ");
+  return [line(head), ...body.map(line)].join("\n");
+}
+
+async function youtubeStats(root: string, posted: PostedRecord[]): Promise<string | null> {
+  const refresh = process.env.YOUTUBE_REFRESH_TOKEN;
+  const shorts = posted.flatMap((p) => {
+    const r = readShortRecord(root, p.id);
+    return r ? [r] : [];
+  });
+  if (!refresh || shorts.length === 0) return null;
+  try {
+    const stats = await readShortStats(
+      await accessToken(refresh),
+      shorts.map((r) => r.videoId),
+    );
+    return shortsTable(shorts.map((r) => ({ id: r.id, stats: stats.get(r.videoId) ?? null })));
+  } catch (e) {
+    return `could not read YouTube: ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
 async function main() {
   const token = process.env.INSTAGRAM_SYSTEM_USER_TOKEN;
   if (!token) throw new Error("INSTAGRAM_SYSTEM_USER_TOKEN is not set. Run through `npm run promo:stats`, which loads .env.local.");
@@ -169,6 +200,8 @@ async function main() {
   // The records the snapshot read, so a post landing between two reads never shows without its row.
   console.log(statsTable(rows, records, readSnapshots(root), new Date()));
   for (const f of failed) console.log(`\ncould not read ${f.id}: ${f.error}`);
+  const yt = await youtubeStats(root, records);
+  if (yt) console.log(`\nYouTube Shorts\n${yt}`);
   console.log("\n24h = views at one day old, from the posting job's snapshots; - where none was taken then. watch = average play time.");
 }
 

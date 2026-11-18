@@ -61,7 +61,7 @@ import { IconAdd, IconInventory } from "@/lib/icons";
 import { useBelow } from "@/composables/useBreakpoint";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
-import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useDropItem } from "@/composables/campaign/useLootDropChoice";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { usePartyInventory, useRemoveInventoryItem, useUpdateInventoryItem } from "@/composables/items/usePartyInventory";
 import { useGiveInventoryItem } from "@/composables/items/useGiveInventory";
@@ -92,7 +92,7 @@ const { party } = defineProps<{ party: PartyMember[] }>();
 const ui = usePartyUiStore();
 const { confirm } = useConfirm();
 const toast = useToast();
-const { sendItemDrop } = useCampaignMessages();
+const { dropItem } = useDropItem();
 const { reportChatFailure } = useChatSendFailure();
 const { data: inventory, isLoading, isError } = usePartyInventory();
 const { mutate: giveItem } = useGiveInventoryItem();
@@ -247,7 +247,8 @@ function attune(row: PartyInventoryItem) {
 async function dropToChat(row: PartyInventoryItem) {
   // Post first, remove after: a failed post must not cost the party the item.
   try {
-    await sendItemDrop(row.name, inventoryItemRef(row), row.quantity, rarityOf(row), { quality: row.quality });
+    // False: the DM cancelled the Need or Greed prompt; nothing was posted, so the row stays.
+    if (!(await dropItem(row.name, inventoryItemRef(row), row.quantity, rarityOf(row), { quality: row.quality }))) return;
   } catch (e) {
     reportChatFailure(e, "drop the item to the chat");
     return;

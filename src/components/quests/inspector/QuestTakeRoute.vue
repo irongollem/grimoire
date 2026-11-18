@@ -28,7 +28,8 @@ import { computed, ref } from "vue";
 import QuestWayPicker from "./QuestWayPicker.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
-import { useLootPlacements, useMarkQuestMove, useQuestConsequences } from "@/composables/quests/useQuestFlow";
+import { useDispatchLoot, useLootPlacements, useMarkQuestMove, useQuestConsequences } from "@/composables/quests/useQuestFlow";
+import { useLootBatchChoice } from "@/composables/quests/useLootBatchChoice";
 import { useQuestObjectives } from "@/composables/quests/useQuests";
 import { useToast } from "@/composables/useToast";
 import { describeWay, previewRoute, routeTakeState, type ThreadStanding } from "@/lib/quests/moves";
@@ -52,6 +53,8 @@ const { edge, edges, beats, standing, targetStaging = null, threadId = null, ses
 
 const toast = useToast();
 const mark = useMarkQuestMove();
+const dispatchLoot = useDispatchLoot();
+const { answerFor } = useLootBatchChoice();
 const { data: consequences } = useQuestConsequences(computed(() => edge.quest_id));
 const { data: objectives } = useQuestObjectives(computed(() => edge.quest_id));
 const { data: loot } = useLootPlacements({ questId: computed(() => edge.quest_id) });
@@ -90,6 +93,13 @@ async function take() {
   const via = chosenWay.value;
   if (threadId === null || via === null) return;
   try {
+    const goingOut = heldLoot.value.filter((item) => lootIds.value.includes(item.id));
+    const answer = await answerFor(goingOut);
+    // Cancelling the question leaves the route untaken.
+    if (answer.cancelled) return;
+    // `mark_quest_move` can only roll its loot. Free or Give moves the party
+    // first, then dispatches the same ids with the DM's choice.
+    const rides = answer.choice === undefined || answer.choice.mode === "roll";
     await mark.mutateAsync({
       kind: "route",
       campaignId: edge.campaign_id,
@@ -99,10 +109,20 @@ async function take() {
       edgeId: edge.id,
       via,
       placeParty: placeParty.value,
-      dispatchLootIds: lootIds.value,
+      dispatchLootIds: rides ? lootIds.value : [],
       // Unticked, the party stays where it is: the server moves them whenever a place is named.
       movePartyTo: placeParty.value ? targetStaging?.locationId ?? null : null,
     });
+    if (!rides) {
+      const sent = lootIds.value;
+      lootIds.value = [];
+      try {
+        await dispatchLoot.mutateAsync({ entryIds: sent, campaignId: edge.campaign_id, choice: answer.choice });
+      } catch (e) {
+        toast.error(`${toast.fromError(e)} The loot is still held in the cockpit.`);
+      }
+      return;
+    }
     lootIds.value = [];
   } catch (e) {
     toast.error(toast.fromError(e));

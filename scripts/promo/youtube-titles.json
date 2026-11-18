@@ -1,0 +1,15 @@
+{
+  "combat-player": { "title": "D&D combat from the player's phone: roll initiative, see your turn" },
+  "combat-dm": { "title": "Run D&D combat on one screen: turn order, damage, monster attacks" },
+  "sheets-player": { "title": "Your whole D&D character sheet on your phone" },
+  "sheets-dm": { "title": "Every hero on one screen: the DM's Party Tracker" },
+  "steal-toffee-maw-reel": { "title": "Steal this D&D monster: the candy bowl that bites back" },
+  "steal-memory-magpie-reel": { "title": "Steal this D&D monster: thieves who give everything back" },
+  "session-player": { "title": "D&D game night on your phone: when the DM starts, your screen knows" },
+  "session-dm": { "title": "Run D&D game night from one screen, music on cue" },
+  "inn-dawn": { "title": "Dawn at the Pulled Sugar Inn: a D&D scene to read aloud" },
+  "quests-player": { "title": "Your D&D quest log fills in as you play" },
+  "quests-dm": { "title": "Run a D&D quest from one screen: read-aloud, routes, payoffs" },
+  "cup-town-told": { "title": "You wake on checkered grass: a D&D opening to steal" },
+  "yt-scriptorium": { "title": "Scriptorium: write the book your table holds | Dungeon Grimoire" }
+}

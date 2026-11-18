@@ -75,7 +75,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import { useNpcInventory, useAddNpcInventoryItem, useRemoveNpcInventoryItem } from "@/composables/items/useNpcInventory";
 import { useItemIndex } from "@/composables/items/useItemIndex";
-import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useDropItem } from "@/composables/campaign/useLootDropChoice";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
 import type { NpcInventoryItem } from "@/types/npc-inventory.types";
@@ -91,7 +91,7 @@ const { data: rawItems } = useNpcInventory(props.npcId);
 const items = computed(() => rawItems.value ?? []);
 const { mutateAsync: addItem } = useAddNpcInventoryItem();
 const { mutateAsync: removeItem } = useRemoveNpcInventoryItem();
-const { sendItemDrop } = useCampaignMessages();
+const { dropItem } = useDropItem();
 const { reportChatFailure } = useChatSendFailure();
 const { data: vaultItems } = useItemIndex();
 
@@ -123,7 +123,8 @@ async function dropToChat(item: NpcInventoryItem) {
   // reference in the other column, and reading the raw one dropped it.
   // Post first, remove after: a failed post must not cost the NPC the item.
   try {
-    await sendItemDrop(item.name, inventoryItemRef(item), item.quantity, null, { senderName: props.npcName ?? undefined });
+    // False: the DM cancelled the Need or Greed prompt; nothing was posted, so the item stays.
+    if (!(await dropItem(item.name, inventoryItemRef(item), item.quantity, null, { senderName: props.npcName ?? undefined }))) return;
   } catch (e) {
     reportChatFailure(e, "drop the item to the chat");
     return;

@@ -3,6 +3,7 @@
  *   npm run promo:post -- <episode id>            # a dry run: checks everything, posts nothing
  *   npm run promo:post -- <episode id> --publish  # posts it, at once
  *   npm run promo:post -- --schedule              # the schedule, and a dry run of everything on it
+ *   npm run promo:post -- --youtube <episode id> # a dry run of its YouTube upload (youtube.ts); add --publish to upload it
  *   npm run promo:post -- --due                   # posts the next post whose time has come (the launchd job)
  *
  * What "ready" means, the caption and schedule files and the post itself live
@@ -17,25 +18,29 @@ import { durationOf } from "./compose/ffmpeg";
 import { checkCarousel, isCarousel, postCarousel } from "./carousels";
 import { findAccount, postsLeft } from "./instagram";
 import { runDue } from "./dueRun";
-import { checkReel, postReel, readPosted, readSchedule, writeSchedule } from "./publishing";
+import { checkReel, postReel, readCaption, readPosted, readSchedule, writeSchedule } from "./publishing";
 import { dayMarkDue, postedRecords, takeSnapshot } from "./stats";
+import { nextShort, planShort, publishShort, readShortRecord, readShortTitles } from "./youtube";
 
 function parseArgs(argv: string[]) {
   let root = "promo-out";
   let id: string | undefined;
   let publishNow = false;
   let again = false;
+  let shortId: string | undefined;
   let mode: "one" | "schedule" | "due" = "one";
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--publish") publishNow = true;
     else if (argv[i] === "--again") again = true;
     else if (argv[i] === "--schedule") mode = "schedule";
     else if (argv[i] === "--due") mode = "due";
+    else if (argv[i] === "--youtube") shortId = argv[++i];
     else if (argv[i] === "--root") root = argv[++i] ?? root;
     else if (!argv[i].startsWith("--")) id = argv[i];
   }
-  if (mode === "one" && !id) throw new Error("Usage: promo:post -- <episode id> [--publish] [--again] | --schedule | --due");
-  return { id, root: resolve(root), publishNow, again, mode };
+  if (mode === "one" && !id && !shortId)
+    throw new Error("Usage: promo:post -- <episode id> [--publish] [--again] | --youtube <episode id> [--publish] [--again] | --schedule | --due");
+  return { id, shortId, root: resolve(root), publishNow, again, mode };
 }
 
 /** A macOS notification, so a post (or a failure) made by the hourly job while nobody is watching is still seen. */
@@ -94,11 +99,68 @@ async function networkUp(log: (line: string) => void): Promise<void> {
   }
 }
 
+/** The Short for one Reel: a dry run printing what would go up, or (with --publish) the upload itself. */
+async function shortCommand(root: string, id: string, publishNow: boolean, again: boolean, log: (l: string) => void) {
+  const plan = planShort(root, id, readShortTitles(), readCaption(id));
+  if (!plan) throw new Error(`${id} has no title in scripts/promo/youtube-titles.json, so it is not approved for YouTube.`);
+  if (!publishNow) {
+    log(`title     ${plan.title}`);
+    log(`video     ${plan.video}`);
+    log(`tags      ${plan.tags.join(", ") || "(none)"}`);
+    log(`description\n\n${plan.description === null ? "(no caption)" : plan.description}\n`);
+    for (const p of plan.problems) log(`NOT READY ${p}`);
+    if (plan.problems.length === 0) log("Dry run: nothing was uploaded. Add --publish to upload it now.");
+    else process.exitCode = 1;
+    return;
+  }
+  const refresh = process.env.YOUTUBE_REFRESH_TOKEN;
+  if (!refresh) throw new Error("YOUTUBE_REFRESH_TOKEN is not set. Run `npm run promo:youtube-auth` once.");
+  const r = await publishShort(refresh, root, id, plan, { again });
+  log(`uploaded ${id} to YouTube: ${r.url}`);
+}
+
+/**
+ * After the Instagram run: at most one waiting Short. It never throws, so it cannot mask the Instagram run's own
+ * error or exit code; a failure is notified and logged. No refresh token means the sign-in was never done: skip.
+ */
+async function uploadWaitingShort(root: string, log: (l: string) => void) {
+  const refresh = process.env.YOUTUBE_REFRESH_TOKEN;
+  if (!refresh) {
+    log("youtube: YOUTUBE_REFRESH_TOKEN is not set; skipping Shorts");
+    return;
+  }
+  let id: string | null = null;
+  try {
+    id = nextShort({
+      posted: postedRecords(root),
+      titles: readShortTitles(),
+      uploaded: (x) => readShortRecord(root, x) !== null,
+      isCarousel: (x) => isCarousel(root, x),
+    });
+    if (!id) return;
+    await networkUp(log);
+    const plan = planShort(root, id, readShortTitles(), readCaption(id));
+    if (!plan) return;
+    const r = await publishShort(refresh, root, id, plan);
+    log(`youtube: uploaded ${id}: ${r.url}`);
+    notify("Short uploaded", `${id}: ${r.url}`);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    log(`youtube: ${id ?? "Shorts"} failed: ${message}`);
+    notify("Short upload failed", `${id ?? "Shorts"}: ${message}`);
+  }
+}
+
 async function main() {
-  const { id, root, publishNow, again, mode } = parseArgs(process.argv.slice(2));
+  const { id, shortId, root, publishNow, again, mode } = parseArgs(process.argv.slice(2));
   const token = process.env.INSTAGRAM_SYSTEM_USER_TOKEN;
   if (!token) throw new Error("INSTAGRAM_SYSTEM_USER_TOKEN is not set. Run through `npm run promo:post`, which loads .env.local.");
   const log = (l: string) => console.log(l);
+
+  if (mode === "one" && shortId) {
+    await shortCommand(root, shortId, publishNow, again, log);
+    return;
+  }
 
   if (mode === "one" && id) {
     if (publishNow) await post(token, root, id, log, { again });
@@ -119,18 +181,22 @@ async function main() {
   }
 
   const now = new Date();
-  await runDue({
-    now,
-    schedule,
-    posted: new Set(schedule.filter((e) => readPosted(root, e.id) !== null).map((e) => e.id)),
-    dayMark: dayMarkDue(postedRecords(root), now),
-    log,
-    notify,
-    writeSchedule,
-    networkUp: () => networkUp(log),
-    post: (postId) => post(token, root, postId, log),
-    snapshot: () => snapshot(token, root, log),
-  });
+  try {
+    await runDue({
+      now,
+      schedule,
+      posted: new Set(schedule.filter((e) => readPosted(root, e.id) !== null).map((e) => e.id)),
+      dayMark: dayMarkDue(postedRecords(root), now),
+      log,
+      notify,
+      writeSchedule,
+      networkUp: () => networkUp(log),
+      post: (postId) => post(token, root, postId, log),
+      snapshot: () => snapshot(token, root, log),
+    });
+  } finally {
+    await uploadWaitingShort(root, log);
+  }
 }
 
 /**

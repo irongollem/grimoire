@@ -116,6 +116,7 @@ insert into definer_registry (name, kind, reason) values
   ('get_user_ledger', 'refuses', null),
   ('give_coins', 'refuses', null),
   ('give_inventory_item', 'refuses', null),
+  ('give_item_drop', 'refuses', null),
   ('grab_item_drop', 'refuses', null),
   ('join_campaign_via_invite', 'refuses', null),
   ('load_demo_campaign', 'self', 'copies the demo into a campaign the caller owns'),

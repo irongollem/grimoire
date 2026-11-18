@@ -129,7 +129,7 @@ import type { ItemQuality } from "@/types/inventory.types";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
-import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useDropItem } from "@/composables/campaign/useLootDropChoice";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { itemRefColumns } from "@/lib/itemRef";
 import type { Item } from "@/types/item.types";
@@ -140,7 +140,7 @@ const props = defineProps<{ item: Item }>();
 const appUi = useAppUiStore();
 const { data: party } = useActiveParty();
 const { mutateAsync: addInventoryItem } = useAddInventoryItem();
-const { sendItemDrop } = useCampaignMessages();
+const { dropItem } = useDropItem();
 const { reportChatFailure } = useChatSendFailure();
 
 const open = ref(false);
@@ -235,7 +235,8 @@ async function dropInChat() {
     const description = descSource
       ? tiptapToPlainText(descSource).slice(0, 200) || null
       : null;
-    await sendItemDrop(
+    // False: the DM cancelled the Need or Greed prompt. Nothing was posted, so the menu stays.
+    const dropped = await dropItem(
       props.item.name,
       props.item.id,
       1,
@@ -247,6 +248,7 @@ async function dropInChat() {
         quality: quality.value,
       },
     );
+    if (!dropped) return;
     open.value = false;
     appUi.openChat();
   } catch (e) {

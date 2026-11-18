@@ -50,7 +50,7 @@ Note whether the diff touches `supabase/migrations/`, `supabase/functions/`, or
 npm run verify
 ```
 
-That is `lint && test && build`, and `build` is `vue-tsc -b && vite build`, so
+That is `lint && test && build`, and `build` is `npm run typecheck && vite build`, so
 this is the typecheck too. It is exactly the `application` job in CI.
 
 Run it as one command — do not run the three separately and reason about which

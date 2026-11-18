@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestRunHeldPayoff from "./QuestRunHeldPayoff.vue";
 import type { LootPlacement, QuestHeldPayoff } from "@/types/quest.types";
 
-const mocks = vi.hoisted(() => ({ dispatch: vi.fn(), fire: vi.fn() }));
+const mocks = vi.hoisted(() => ({ dispatch: vi.fn(), fire: vi.fn(), answer: vi.fn() }));
+vi.mock("@/composables/quests/useLootBatchChoice", () => ({ useLootBatchChoice: () => ({ answerFor: mocks.answer }) }));
 
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useDispatchLoot: () => ({ mutateAsync: mocks.dispatch }),
@@ -42,6 +43,8 @@ describe("QuestRunHeldPayoff", () => {
   beforeEach(() => {
     mocks.dispatch.mockReset();
     mocks.fire.mockReset();
+    mocks.answer.mockReset();
+    mocks.answer.mockResolvedValue({ cancelled: false });
   });
 
   it("says nothing is held back rather than hiding the panel", () => {
@@ -58,7 +61,27 @@ describe("QuestRunHeldPayoff", () => {
   it("dispatches one loot entry through the sole writer", async () => {
     const wrapper = mount(QuestRunHeldPayoff, { props: { campaignId: "c1", loot: [currencyLoot], held: [] } });
     await wrapper.find("button").trigger("click");
-    expect(mocks.dispatch).toHaveBeenCalledWith({ entryIds: ["loot-1"], campaignId: "c1" });
+    await flushPromises();
+    expect(mocks.dispatch).toHaveBeenCalledWith({ entryIds: ["loot-1"], campaignId: "c1", choice: undefined });
+  });
+
+  it("sends the DM's Give choice with the dispatch, asked about that entry only (fails if the choice is dropped)", async () => {
+    const choice = { mode: "give", partyMemberId: "pm-1" };
+    mocks.answer.mockResolvedValue({ cancelled: false, choice });
+    const wrapper = mount(QuestRunHeldPayoff, { props: { campaignId: "c1", loot: [currencyLoot], held: [] } });
+    await wrapper.find("button").trigger("click");
+    await flushPromises();
+    expect(mocks.answer).toHaveBeenCalledWith([currencyLoot]);
+    expect(mocks.dispatch).toHaveBeenCalledWith({ entryIds: ["loot-1"], campaignId: "c1", choice });
+  });
+
+  it("cancelling the question dispatches nothing and shows no error (fails if a cancelled ask still posts)", async () => {
+    mocks.answer.mockResolvedValue({ cancelled: true });
+    const wrapper = mount(QuestRunHeldPayoff, { props: { campaignId: "c1", loot: [currencyLoot], held: [] } });
+    await wrapper.find("button").trigger("click");
+    await flushPromises();
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+    expect(wrapper.text()).not.toContain("Could not");
   });
 
   it("fires a held consequence from the log", async () => {

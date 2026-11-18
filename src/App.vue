@@ -19,6 +19,7 @@
       </div>
     </component>
     <ConfirmDialog />
+    <LootDropChoiceDialog />
     <OutOfCreditsModal v-if="auth.isAuthenticated" />
     <ToastHost />
     <ManualRollPrompt />
@@ -55,6 +56,7 @@ import { layoutLoaders } from "@/layouts/layoutLoader";
 import RouteSkeleton from "@/components/common/feedback/RouteSkeleton.vue";
 import { navigationPending } from "@/router/navigationPending";
 import ConfirmDialog from "@/components/common/overlays/ConfirmDialog.vue";
+import LootDropChoiceDialog from "@/components/chat/LootDropChoiceDialog.vue";
 import OutOfCreditsModal from "@/components/billing/OutOfCreditsModal.vue";
 import ToastHost from "@/components/common/feedback/ToastHost.vue";
 import ManualRollPrompt from "@/components/common/dice/ManualRollPrompt.vue";

@@ -260,6 +260,7 @@ import { useQuestsForEncounter } from "@/composables/quests/useQuests";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useDropItem } from "@/composables/campaign/useLootDropChoice";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
 import { abandonFight } from "@/composables/encounters/abandonFight";
 import { useToast } from "@/composables/useToast";
@@ -342,7 +343,8 @@ const fieldableCompanions = computed(() => companions.value?.filter(takesPartInC
 const { data: npcs } = useNpcs();
 const { data: allItems } = useItemIndex();
 const { data: pickableTraps } = useTrapIndex();
-const { sendCurrencyDrop, sendItemDrop } = useCampaignMessages();
+const { sendCurrencyDrop } = useCampaignMessages();
+const { dropItem } = useDropItem();
 const { reportChatFailure } = useChatSendFailure();
 const { data: allLocations } = useAllLocations();
 const { data: linkedQuests } = useQuestsForEncounter(
@@ -664,7 +666,8 @@ async function handleDropLootItem(
 ) {
   // Post first, remove after: a failed post must not drop the item from the encounter's loot.
   try {
-    await sendItemDrop(item.name, item.id, qty, item.rarity ?? null);
+    // False: the DM cancelled the Need or Greed prompt; the item stays in the loot.
+    if (!(await dropItem(item.name, item.id, qty, item.rarity ?? null))) return;
   } catch (e) {
     reportChatFailure(e, "drop the item to the chat");
     return;

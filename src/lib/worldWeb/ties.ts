@@ -7,8 +7,14 @@ import { connectionFamily } from "@/lib/worldLinks/connections";
 import type { Connection, ConnectionSource } from "@/types/connections.types";
 import { isLinkKind, nodeKey, type WebKind } from "./kinds";
 
+/** Where a tie of the web comes from: a connection's home, or a road between two places (`roadTies`). */
+export type TieSource = ConnectionSource | "road";
+
+/** What a road reads as from either of its ends. */
+export const ROAD_WORD = "road to";
+
 export interface WorldTie {
-  source: ConnectionSource;
+  source: TieSource;
   row_id: string;
   type: string;
   from_kind: WebKind;
@@ -62,7 +68,7 @@ export function otherKey(tie: WorldTie, key: string): string {
 
 /** Links and kin are lines at rest; every other record groups instead. */
 export function isLine(tie: WorldTie): boolean {
-  return tie.source === "link" || tie.source === "kin";
+  return tie.source === "link" || tie.source === "kin" || tie.source === "road";
 }
 
 /**
@@ -71,6 +77,8 @@ export function isLine(tie: WorldTie): boolean {
  * records rather than a pair of the catalogue.
  */
 export function tieWord(tie: WorldTie, end: "from" | "to"): string {
+  // A road has no direction and is not in the catalogue of links.
+  if (tie.source === "road") return ROAD_WORD;
   const outward = end === "from";
   return wordFor(outward ? tie.from_kind : tie.to_kind, outward ? tie.to_kind : tie.from_kind, tie.type, outward);
 }
@@ -80,8 +88,18 @@ export function tieWordFrom(tie: WorldTie, key: string): string {
   return tieWord(tie, fromKey(tie) === key ? "from" : "to");
 }
 
+/**
+ * What a line or a neighbour says about a tie, read from the end whose node key is `key`: the tie's word, and for
+ * a road how far it is and by what ("50 mi by the High Road"), which is what a road's line is there to say.
+ */
+export function tieSaysFrom(tie: WorldTie, key: string): string {
+  if (tie.source === "road" && tie.told !== null) return tie.told;
+  return tieWordFrom(tie, key);
+}
+
 export function tieFamily(tie: WorldTie): TieFamily {
   if (tie.source === "kin") return "kin";
+  if (tie.source === "road") return "place";
   if (tie.from_kind === "quest" || tie.to_kind === "quest") return "record";
   if (!isLinkKind(tie.from_kind) || !isLinkKind(tie.to_kind)) return "record";
   return connectionFamily({ source: tie.source, type: tie.type, outward: true, other_kind: tie.to_kind }, tie.from_kind);
@@ -89,6 +107,8 @@ export function tieFamily(tie: WorldTie): TieFamily {
 
 /** The tie as the thing on screen (`subject`) would read it from its own sheet, for the connection writes. */
 export function asConnection(tie: WorldTie, subject: string): Connection {
+  // A road is not a connection: it is changed on its places' entries, and `isEditableTie` keeps it from here.
+  if (tie.source === "road") throw new Error("a road is not a connection");
   const outward = fromKey(tie) === subject;
   return {
     source: tie.source,
@@ -108,9 +128,9 @@ export function asConnection(tie: WorldTie, subject: string): Connection {
   };
 }
 
-/** Whether the DM can retype or remove the tie from the web; a quest's ties are edited on the quest. */
+/** Whether the DM can retype or remove the tie from the web; a quest's ties are edited on the quest, a road on its places' entries. */
 export function isEditableTie(tie: WorldTie): boolean {
-  return tie.source !== "quest";
+  return tie.source !== "quest" && tie.source !== "road";
 }
 
 /** One thing tied to the subject, with the tie that says how. */

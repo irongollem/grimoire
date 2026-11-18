@@ -78,6 +78,13 @@
          self-contained, always-editable shape as Rooms/Prepared Here below;
          this is the section that makes Related Locations redundant on an
          interior space, per the comment above. -->
+    <!-- Roads to the other places this one is joined to, with how far each is (#1222). A room has doors, not roads. -->
+    <section v-if="!isInteriorSpace && location.campaign_id" class="flex flex-col gap-2">
+      <h2 class="text-heading-sm font-bold text-foreground">Roads from here</h2>
+      <LocationJourney :location-id="location.id" />
+      <LocationRoadsPanel :location-id="location.id" />
+    </section>
+
     <section v-if="isInteriorSpace" class="flex flex-col gap-2">
       <h2 class="text-heading-sm font-bold text-foreground">Ways out</h2>
       <LocationDoors :room-id="location.id" :parent-id="location.parent_id" />
@@ -223,6 +230,8 @@ import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
 import ConnectionsSection from "@/components/connections/ConnectionsSection.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import LocationDoors from "@/components/locations/place/LocationDoors.vue";
+import LocationJourney from "@/components/locations/place/LocationJourney.vue";
+import LocationRoadsPanel from "@/components/locations/place/LocationRoadsPanel.vue";
 import LocationLootPanel from "@/components/locations/place/LocationLootPanel.vue";
 import LocationPlacements from "@/components/locations/place/LocationPlacements.vue";
 import LocationSortPanel from "@/components/locations/atlas/LocationSortPanel.vue";

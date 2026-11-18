@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/vue-query", () => ({ useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }) }));
+vi.mock("@/composables/quests/useLootBatchChoice", () => ({ useLootBatchChoice: () => ({ answerFor: async () => ({ cancelled: false }) }) }));
 vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => ({ openChatAt: vi.fn() }) }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "dm" } }) }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({

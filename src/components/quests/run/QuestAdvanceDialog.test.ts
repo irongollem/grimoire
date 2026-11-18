@@ -6,6 +6,8 @@ import type { QuestRuntimeContext } from "@/types/quest.types";
 const mocks = vi.hoisted(() => ({
   command: vi.fn(),
   improvise: vi.fn(),
+  dispatch: vi.fn(),
+  answer: vi.fn(),
   // Filled in by the `useBreakpoint` mock factory below, with a genuine Vue
   // `ref` (not a plain box): the component reads it straight in the template
   // (`v-if="isMobile"`), which only auto-unwraps a real ref — a plain
@@ -18,7 +20,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useQuestRuntimeCommand: () => ({ mutateAsync: mocks.command }),
   useQuestRuntimeImprovise: () => ({ mutateAsync: mocks.improvise }),
+  useDispatchLoot: () => ({ mutateAsync: mocks.dispatch }),
 }));
+vi.mock("@/composables/quests/useLootBatchChoice", () => ({ useLootBatchChoice: () => ({ answerFor: mocks.answer }) }));
 vi.mock("@/composables/useBreakpoint", async (importOriginal) => {
   const { ref } = await import("vue");
   mocks.isMobile = ref(false);
@@ -89,6 +93,9 @@ describe("QuestAdvanceDialog", () => {
   beforeEach(() => {
     mocks.command.mockReset();
     mocks.improvise.mockReset();
+    mocks.dispatch.mockReset();
+    mocks.answer.mockReset();
+    mocks.answer.mockResolvedValue({ cancelled: false });
     mocks.command.mockImplementation(async () => buildContext());
     mocks.improvise.mockImplementation(async () => ({ context: buildContext(), beat: {} }));
     mocks.isMobile.value = false;
@@ -183,6 +190,59 @@ describe("QuestAdvanceDialog", () => {
     }));
     expect(wrapper.emitted("advanced")).toHaveLength(1);
     expect(wrapper.emitted("close")).toHaveLength(1);
+  });
+
+  describe("loot chosen under Need or Greed", () => {
+    async function submitWithLootTicked() {
+      const wrapper = await mountDialog();
+      await radios(wrapper)[0]!.trigger("change");
+      await wrapper.findAll("label").find((l) => l.text().includes("80 gp, skimmed"))!.find("input").setValue(true);
+      await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Advance")!.trigger("click");
+      await flush();
+      return wrapper;
+    }
+
+    it("cancelling the question records no move and leaves the dialog open (fails if a cancelled ask still advances)", async () => {
+      mocks.answer.mockResolvedValue({ cancelled: true });
+      const wrapper = await submitWithLootTicked();
+      expect(mocks.command).not.toHaveBeenCalled();
+      expect(mocks.dispatch).not.toHaveBeenCalled();
+      expect(wrapper.emitted("close")).toBeUndefined();
+    });
+
+    it("asks about only the ticked loot, and Roll lets it ride the move (fails if roll dispatches separately)", async () => {
+      mocks.answer.mockResolvedValue({ cancelled: false, choice: { mode: "roll" } });
+      await submitWithLootTicked();
+      expect(mocks.answer).toHaveBeenCalledWith([expect.objectContaining({ id: "l1" })]);
+      expect(mocks.command).toHaveBeenCalledWith(expect.objectContaining({ dispatchLootIds: ["l1"] }));
+      expect(mocks.dispatch).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["free", { mode: "free" }],
+      ["give", { mode: "give", partyMemberId: "pm-1" }],
+    ])("%s sends the move with no loot ids, then dispatches them with the choice (fails if the move still rolls the loot)", async (_name, choice) => {
+      mocks.answer.mockResolvedValue({ cancelled: false, choice });
+      const wrapper = await submitWithLootTicked();
+      expect(mocks.command).toHaveBeenCalledWith(expect.objectContaining({ dispatchLootIds: [] }));
+      expect(mocks.dispatch).toHaveBeenCalledWith({ entryIds: ["l1"], campaignId: "campaign-1", choice });
+      expect(wrapper.emitted("advanced")).toHaveLength(1);
+    });
+
+    it("a failed dispatch after the move still closes the dialog and says the loot is held (fails if the move is reported as failed)", async () => {
+      mocks.answer.mockResolvedValue({ cancelled: false, choice: { mode: "free" } });
+      mocks.dispatch.mockRejectedValue(new Error("boom"));
+      const wrapper = await submitWithLootTicked();
+      expect(wrapper.emitted("advanced")).toHaveLength(1);
+    });
+
+    it("an unticked batch asks about nothing (fails if the question covers loot that stays held)", async () => {
+      const wrapper = await mountDialog();
+      await radios(wrapper)[0]!.trigger("change");
+      await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Advance")!.trigger("click");
+      await flush();
+      expect(mocks.answer).toHaveBeenCalledWith([]);
+    });
   });
 
   it("reveals the improvise fields and submits through useQuestRuntimeImprovise, without touching the runtime command", async () => {

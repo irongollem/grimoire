@@ -68,6 +68,7 @@ vi.mock("@/composables/campaign/useCampaignMembers", () => ({
 }));
 
 import { useCampaignMessages } from "./useCampaignMessages";
+import { supabase } from "@/lib/supabase";
 
 const msg = (id: string, created_at: string, over: Record<string, unknown> = {}) => ({
   id, campaign_id: "c-ring", user_id: "u2", recipient_user_id: null, type: "chat",
@@ -284,5 +285,39 @@ describe("useCampaignMessages rings (#999 4.2)", () => {
     release();
     await flush();
     expect(messages.value.map((m) => m.id)).toEqual(["a"]);
+  });
+});
+
+describe("sendItemDrop hands the DM's Need or Greed choice to the server", () => {
+  beforeEach(() => {
+    mocks.campaignStore.activeCampaignId = "c1";
+    vi.mocked(supabase.rpc).mockReset();
+  });
+
+  // Fails if rollMode is dropped from the metadata: the server would roll a drop the DM called free.
+  it("a free drop is inserted with roll_mode free in its metadata", async () => {
+    const { sendItemDrop } = useCampaignMessages();
+    await sendItemDrop("Rope", null, 1, null, { rollMode: "free" });
+    expect(fake.rows("campaign_messages")).toMatchObject([{ type: "item_drop", metadata: { roll_mode: "free" } }]);
+  });
+
+  // Fails if giveTo falls through to the plain insert: the item would sit in chat unclaimed.
+  it("a give goes through give_item_drop with the member id and is not inserted", async () => {
+    const posted = { id: "m9", campaign_id: "c1", user_id: "u1", recipient_user_id: null, type: "item_drop", sender_name: "DM", message: "dropped Rope", metadata: null, created_at: "2026-01-01T00:00:00Z" };
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: posted, error: null } as never);
+    const { sendItemDrop, messages } = useCampaignMessages();
+    await sendItemDrop("Rope", null, 2, null, { giveTo: "pm7" });
+    expect(supabase.rpc).toHaveBeenCalledWith("give_item_drop", expect.objectContaining({
+      p_campaign_id: "c1", p_party_member_id: "pm7", p_message: "dropped 2x Rope",
+      p_metadata: expect.objectContaining({ item_name: "Rope", quantity: 2 }),
+    }));
+    expect(fake.rows("campaign_messages")).toEqual([]);
+    expect(messages.value.map((m) => m.id)).toContain("m9");
+  });
+
+  it("a refused give throws instead of vanishing", async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: { message: "Not authorized" } } as never);
+    const { sendItemDrop } = useCampaignMessages();
+    await expect(sendItemDrop("Rope", null, 1, null, { giveTo: "pm7" })).rejects.toMatchObject({ message: "Not authorized" });
   });
 });

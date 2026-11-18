@@ -11,7 +11,7 @@
 import type { NpcRelationship } from "@/types/npc.types";
 import { factionBadgesByNode, type NodeFactionBadges } from "./badges";
 import { isPersonKind, nodeKey, type WebKind } from "./kinds";
-import { fromKey, isLine, tieFamily, tieWord, toKey, type TieFamily, type WorldTie } from "./ties";
+import { fromKey, isLine, tieFamily, tieSaysFrom, toKey, type TieFamily, type WorldTie } from "./ties";
 
 /** Anything the web can name: a row of `get_world_ties`, or a person the DM has with no ties. */
 export interface WebEntity {
@@ -93,7 +93,7 @@ function edgesFor(lines: readonly WorldTie[], nodes: ReadonlyMap<string, WebEnti
   const edges: RestEdge[] = [];
   for (const [key, ties] of byPair) {
     const primary = ties.find((t) => t.source === "kin") ?? ties[0];
-    const word = tieWord(primary, "from");
+    const word = tieSaysFrom(primary, fromKey(primary));
     edges.push({
       key,
       source: fromKey(primary),

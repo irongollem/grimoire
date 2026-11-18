@@ -5,11 +5,13 @@ import type { LootPlacement } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({
   dispatch: vi.fn(),
+  answer: vi.fn(),
   remove: vi.fn(),
   openChatAt: vi.fn(),
 }));
 
 vi.mock("@/stores/ui/app", () => ({ useAppUiStore: () => ({ openChatAt: mocks.openChatAt }) }));
+vi.mock("@/composables/quests/useLootBatchChoice", () => ({ useLootBatchChoice: () => ({ answerFor: mocks.answer }) }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useDeleteLootPlacement: () => ({ mutateAsync: mocks.remove }),
   useDispatchLoot: () => ({ mutateAsync: mocks.dispatch }),
@@ -27,6 +29,8 @@ const loot = (overrides: Partial<LootPlacement> = {}): LootPlacement => ({
 describe("LootPlacementList", () => {
   beforeEach(() => {
     mocks.dispatch.mockReset();
+    mocks.answer.mockReset();
+    mocks.answer.mockResolvedValue({ cancelled: false });
     mocks.remove.mockReset();
     mocks.openChatAt.mockReset();
   });
@@ -43,7 +47,29 @@ describe("LootPlacementList", () => {
       props: { title: "Room loot", emptyLabel: "Nothing here.", loot: [loot({ campaign_id: "campaign-77" })] },
     });
     await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Drop")!.trigger("click");
-    expect(mocks.dispatch).toHaveBeenCalledWith({ entryIds: ["loot-1"], campaignId: "campaign-77" });
+    expect(mocks.dispatch).toHaveBeenCalledWith({ entryIds: ["loot-1"], campaignId: "campaign-77", choice: undefined });
+  });
+
+  it("Drop all asks about every held entry once and sends the Give choice (fails if it asks per entry or drops the choice)", async () => {
+    const choice = { mode: "give", partyMemberId: "pm-1" };
+    mocks.answer.mockResolvedValue({ cancelled: false, choice });
+    mocks.dispatch.mockResolvedValue([]);
+    const held = [loot({ id: "a", label: "Key" }), loot({ id: "b", label: "Purse", kind: "currency" })];
+    const wrapper = mount(LootPlacementList, { props: { title: "Room loot", emptyLabel: "Nothing here.", loot: held } });
+    await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Drop all")!.trigger("click");
+    await flushPromises();
+    expect(mocks.answer).toHaveBeenCalledTimes(1);
+    expect(mocks.answer).toHaveBeenCalledWith(held);
+    expect(mocks.dispatch).toHaveBeenCalledWith({ entryIds: ["a", "b"], campaignId: "campaign-1", choice });
+  });
+
+  it("cancelling the question drops nothing and shows no error (fails if a cancelled ask still posts)", async () => {
+    mocks.answer.mockResolvedValue({ cancelled: true });
+    const wrapper = mount(LootPlacementList, { props: { title: "Room loot", emptyLabel: "Nothing here.", loot: [loot()] } });
+    await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Drop")!.trigger("click");
+    await flushPromises();
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+    expect(wrapper.emitted("dropped")).toBeUndefined();
   });
 
   it("emits dropped after a successful dispatch, for a caller to react to", async () => {
