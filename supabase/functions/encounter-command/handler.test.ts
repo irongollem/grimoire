@@ -31,7 +31,7 @@ import {
   type PostedRoll,
   type StatBlockSources,
 } from "./handler";
-import { fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithHold } from "../../../src/rules/fight/spells/spellTestKit";
+import { charmMonster, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithHold } from "../../../src/rules/fight/spells/spellTestKit";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice";
 import type { ExploreParty } from "../../../src/types/exploreParty.types";
 
@@ -1829,6 +1829,42 @@ describe("cast_spell", () => {
     const h = harness(fight, { sources: MAGE_SOURCES, spells: [holdy], dieFaces: [20, 20, 20, 1, 1, 1, 1, 1, 1, 1, 1] });
     await runBatch(batch("b", cast()), h.deps);
     expect(by(stored(h), "t1").conditions).toEqual([]);
+  });
+
+  describe("a charm that ends when the caster's side harms it (Charm Monster)", () => {
+    const CHARM_SOURCES: StatBlockSources = {
+      monsters: [{ id: "m-mage", name: "Mage", stat_block: mageWithCharm() } as unknown as Monster, monster("m-ox")],
+      npcs: [],
+      companions: [],
+    };
+    // The mage and t2 stand together; t1 (the goblin-like target) and t3 are the other side.
+    const sides = () => {
+      const f = field();
+      for (const c of f.combatants_live) c.faction_id = c.instance_id === "mage" || c.instance_id === "t2" ? "m" : "p";
+      return f;
+    };
+    const charmAt = () => cast({ spell: "charm monster", targetIds: ["t1"] });
+    const strike = (attackerId: string) => attack({ attackerId, targetId: "t1" });
+    // SRD 5.2.1 "Charm Monster": "...until the spell ends or until you or your allies damage it." t1 rolls 5 against DC 14 and is
+    // Charmed; then the ally t2 hits it (d20 9 + 4 = 13 meets AC 13, 1d6+2 with a 5 is 7). Bug caught: the ending never reaches the
+    // saved fight, or an ally of the caster is not counted on the caster's side on the server.
+    it("fails if the caster's ally damaging the charmed target leaves it Charmed in the saved fight", async () => {
+      const h = harness(sides(), { sources: CHARM_SOURCES, spells: [charmMonster()], dieFaces: [5, 9, 5] });
+      await runBatch(batch("b1", charmAt()), h.deps);
+      expect(by(stored(h), "t1").conditions).toEqual([{ name: "Charmed", source: { id: "mage", spell: "Charm Monster", endsWhenHarmed: "source_side" } }]);
+      await runBatch(batch("b2", strike("t2")), h.deps);
+      expect(hpOf(stored(h), "t1")).toBe(33);
+      expect(by(stored(h), "t1").conditions).toEqual([]);
+    });
+
+    // Bug caught: any damage breaks a source-side charm, including its own side's strike, which the rules do not ask for.
+    it("fails if a creature of the target's own side breaks the charm by hitting it", async () => {
+      const h = harness(sides(), { sources: CHARM_SOURCES, spells: [charmMonster()], dieFaces: [5, 9, 5] });
+      await runBatch(batch("b1", charmAt()), h.deps);
+      await runBatch(batch("b2", strike("t3")), h.deps);
+      expect(hpOf(stored(h), "t1")).toBe(33);
+      expect(by(stored(h), "t1").conditions.map((c) => c.name)).toEqual(["Charmed"]);
+    });
   });
 
   describe("a cast that imposes a condition (Hold Person)", () => {

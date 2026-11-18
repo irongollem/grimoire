@@ -72,6 +72,8 @@ The fields, as `src/lib/library/curatedSpellConditions.ts` defines them:
     save is allowed only in some circumstance (Fear: only out of the caster's sight), when the spell also forces
     movement or makes the target drop what it holds, or when different targets get different conditions. Also
     when you are not sure.
+    A condition that ends "when you or your allies damage it" or "when it takes damage" is stated with
+    `ends_when_harmed` and is no longer a reason for `not_simple` by itself.
   - **The dividing rule, so two readers land on the same verdict:** the verdict is about the fourteen named
     conditions and about stopping casting, and nothing else. A spell that does something else to a creature,
     however severe (banishes it, curses it, slows it, makes it follow a suggestion without the text saying
@@ -103,6 +105,10 @@ The fields, as `src/lib/library/curatedSpellConditions.ts` defines them:
   `concentration` value. "Until the end of your next turn" is 1 round.
 - **`repeat_save`**: a later saving throw that ends it early: `when` is `end_of_its_turn`, `start_of_its_turn`,
   `when_damaged` or `as_an_action`, with its `ability`. Null when only the duration ends it.
+- **`ends_when_harmed`**: optional. `"by_casters_side"` when the text ends the condition once "you or your
+  allies" (or "your companions") damage or harm the target (2024 Charm Monster: "until the spell ends or until
+  you or your allies damage it"); `"by_anyone"` when it ends as soon as the target takes any damage. Leave it out
+  (or null) when the text says neither. It is checked against the text, which must say damage or harm.
 - **`evidence`**: one sentence copied word for word from this record's `description`: the one that imposes the
   condition, or, for `no_condition`, a sentence that shows what the spell does instead (its first sentence is
   fine when nothing says it better). It is checked against the text, so copy it; do not tidy it.

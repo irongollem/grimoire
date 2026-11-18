@@ -79,7 +79,7 @@ export type DiceSource = (ask: DiceAsk) => Promise<RolledDice | null>;
 /** The commands a resolution puts into a fight: exactly these, so a port has a handful of things to do. */
 export type ResolutionCommand = Extract<
   FightCommand,
-  { type: "adjust_hp" | "apply_condition" | "set_conditions" | "resolve_condition_save" | "settle_ongoing_damage" | "end_concentration" | "show_defense" }
+  { type: "adjust_hp" | "apply_condition" | "remove_condition" | "set_conditions" | "resolve_condition_save" | "settle_ongoing_damage" | "end_concentration" | "show_defense" }
 >;
 
 export interface ResolutionContext {
@@ -100,6 +100,12 @@ export interface ResolutionContext {
    * supplies it from the fight's map. Null or absent means no bonus, never a guess.
    */
   coverFor?(attacker: RunCombatant, target: RunCombatant): Cover | null;
+  /**
+   * The faction of the creature with this instance id, as the fight holds it now, or null when it is not in the fight.
+   * It is how "you or your allies" is told (a condition that ends when the source's side damages the bearer). Absent
+   * where the context cannot tell sides: then only the source creature itself counts as its side.
+   */
+  factionOf?(instanceId: string): string | null;
 }
 
 /** The action cannot be resolved as asked: nothing to roll, a creature the server has no data for. The server answers it with a 400. */
@@ -377,6 +383,8 @@ export function applyDamage(
     magical?: boolean;
     properties?: DefenseBypass[];
     critical?: boolean;
+    /** Who dealt it. Absent for damage with no attacker (a condition's ongoing damage): it then ends only what any damage ends. */
+    attacker?: RunCombatant;
   },
 ): DamageApplied {
   const { target } = input;
@@ -395,6 +403,7 @@ export function applyDamage(
   }
   const raised =
     result.total > 0 ? ctx.apply({ type: "adjust_hp", instanceId: target.instance_id, delta: -result.total, critical: input.critical }) : [];
+  if (result.total > 0) endHarmedConditions(ctx, target, input.attacker);
   const dyingEffect = raised.find((e) => e.type === "dying_outcome");
   return {
     target,
@@ -404,6 +413,31 @@ export function applyDamage(
     dying: dyingEffect && dyingEffect.type === "dying_outcome" ? dyingEffect.outcome : null,
     concentrationDc: ctx.live(target).concentration && result.total > 0 ? concentrationDc(result.total, ctx.ruleset) : null,
   };
+}
+
+/**
+ * A condition that ends when it is harmed ends now (2024 SRD "Charm Monster": "the target has the Charmed condition until
+ * the spell ends or until you or your allies damage it"; 2014 "Charm Person": "ends if you or your companions do
+ * anything harmful to it"). Only damage that took hit points counts: the caller asks after the hit points changed.
+ * `anyone` ends on any damage; `source_side` when the attacker is the condition's source or on its side. Removing it
+ * does not end the source's concentration on other creatures (that is `end_concentration`, a different command).
+ * A hand adjustment of hit points (`adjust_hp` sent directly) never reaches here: it has no attacker, so it ends nothing.
+ */
+function endHarmedConditions(ctx: ResolutionContext, target: RunCombatant, attacker: RunCombatant | undefined): void {
+  for (const condition of ctx.live(target).conditions) {
+    const harmed = condition.source?.endsWhenHarmed;
+    if (harmed === undefined) continue;
+    if (harmed === "source_side" && !(attacker && onSideOf(ctx, condition.source?.id, attacker))) continue;
+    ctx.apply({ type: "remove_condition", instanceId: target.instance_id, name: condition.name });
+  }
+}
+
+/** Whether `creature` is the source or in the source's faction, the same notion of sides `isHostileTo` uses (a different faction is a foe). */
+function onSideOf(ctx: ResolutionContext, sourceId: string | undefined, creature: RunCombatant): boolean {
+  if (sourceId === undefined) return false;
+  if (creature.instance_id === sourceId) return true;
+  const faction = ctx.factionOf?.(sourceId) ?? null;
+  return faction !== null && faction === creature.faction_id;
 }
 
 // ── concentration and condition saves ───────────────────────────────────────────
@@ -523,7 +557,7 @@ function impose(ctx: ResolutionContext, target: RunCombatant, save: SaveStructur
     ctx.apply({
       type: "apply_condition",
       instanceId: target.instance_id,
-      condition: imposedCondition(save, condition, { id: actor.instance_id, spell, ...(concentration === true ? { concentration: true } : {}) }),
+      condition: imposedCondition(save, condition, { id: actor.instance_id, spell, ...(concentration === true ? { concentration: true } : {}), ...(condition.endsWhenHarmed ? { endsWhenHarmed: condition.endsWhenHarmed } : {}) }),
     });
   }
 }
@@ -558,7 +592,7 @@ export function applySaveOutcome(
     const defenses = ctx.defensesFor(target);
     const share: SaveDamageShare = !result.success ? "full" : save.success === "half" ? "half" : "none";
     const parts = share === "full" ? input.damageParts : share === "half" ? halveParts(input.damageParts) : [];
-    const damage = parts.length > 0 ? applyDamage(ctx, { target, parts, defenses, magical: input.magical }) : null;
+    const damage = parts.length > 0 ? applyDamage(ctx, { target, parts, defenses, magical: input.magical, attacker: input.attacker }) : null;
     const { apply, immune } = result.success
       ? { apply: [], immune: [] }
       : filterImmuneConditions(save.conditions.map((c) => c.name), defenses);
@@ -701,7 +735,7 @@ export async function resolveAttackOn(
       silent: input.silent,
     });
     if (!amounts) throw new ActionRefused(`The damage of "${entry.name}" was not rolled.`);
-    damage = applyDamage(ctx, { target, parts: amounts, defenses: ctx.defensesFor(target), magical: input.magical, critical: outcome.critical });
+    damage = applyDamage(ctx, { target, parts: amounts, defenses: ctx.defensesFor(target), magical: input.magical, critical: outcome.critical, attacker });
   }
 
   const rider =

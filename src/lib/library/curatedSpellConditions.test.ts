@@ -105,3 +105,42 @@ describe("agree", () => {
     expect(agree(holdPerson(), holdPerson({ verdict: "not_simple" }))).toBe(false);
   });
 });
+
+// SRD 5.2.1 "Charm Monster": "On a failed save, the target has the Charmed condition until the spell ends or until you or
+// your allies damage it."
+const CHARM = {
+  concentration: false,
+  higher_levels: "",
+  description: "One creature you can see within range must succeed on a Wisdom saving throw or have the Charmed condition for 1 hour, until you or your allies damage it, or until you cast this spell again.",
+};
+const charm = (over: Partial<CuratedSpellCondition> = {}): CuratedSpellCondition =>
+  holdPerson({
+    conditions: ["Charmed"], only_kinds: [], targets: { kind: "one", count: 1, more_per_slot_above: 0 }, repeat_save: null, duration: { unit: "hour", amount: 1, concentration: false },
+    evidence: "One creature you can see within range must succeed on a Wisdom saving throw or have the Charmed condition for 1 hour, until you or your allies damage it, or until you cast this spell again.",
+    ends_when_harmed: "by_casters_side", ...over,
+  });
+
+describe("ends_when_harmed", () => {
+  // Bug caught: a reading that leaves the field out is called different from one that says null, so 886 old entries never agree again.
+  it("treats absent and null as the same, and a set value as a disagreement", () => {
+    expect(agree(holdPerson(), holdPerson({ ends_when_harmed: null }))).toBe(true);
+    expect(agree(charm(), charm({ evidence: "x" }))).toBe(true);
+    expect(agree(charm(), charm({ ends_when_harmed: null }))).toBe(false);
+    expect(agree(charm(), charm({ ends_when_harmed: "by_anyone" }))).toBe(false);
+  });
+
+  it("accepts a charm whose text says damage", () => {
+    expect(findingsFor(charm(), CHARM)).toEqual([]);
+  });
+
+  // Bug caught: a spell with no condition claims an ending for it.
+  it("is a finding on an entry with no condition to end", () => {
+    const none = { verdict: "no_condition", conditions: [], stops_casting: null, speed_zero: false, applies: null, save_ability: null, targets: null, only_kinds: [], duration: null, repeat_save: null, ends_when_harmed: "by_anyone", evidence: CHARM.description } satisfies CuratedSpellCondition;
+    expect(findingsFor(none, CHARM).join(" ")).toContain("no condition to end when harmed");
+  });
+
+  // Bug caught: an ending read off a spell whose text never speaks of damage or harm (Hold Person), which would free the target by an invented rule.
+  it("is a finding when the text never says damage or harm", () => {
+    expect(findingsFor(holdPerson({ ends_when_harmed: "by_anyone" }), HOLD_PERSON).join(" ")).toContain("never says damage or harm");
+  });
+});

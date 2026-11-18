@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { spellEntryFor } from "./spellEntry.ts";
-import { fireBolt, fireball, holdPerson, holdPersonEffect } from "./spellTestKit.ts";
+import { charmMonster, fireBolt, fireball, holdPerson, holdPersonEffect } from "./spellTestKit.ts";
 
 const MAGE = { saveDc: 14, attackBonus: 6, casterLevel: 9 };
 
@@ -190,5 +190,23 @@ describe("spellEntryFor: conditions from condition_effect", () => {
 
   it("fails if a condition-only spell is rolled for a caster with no save DC", () => {
     expect(why(spellEntryFor(holdPerson(), 2, { saveDc: null, attackBonus: 6 }))).toMatch(/no spell save DC/);
+  });
+});
+
+describe("spellEntryFor: a condition that ends when it is harmed", () => {
+  const conditions = (r: ReturnType<typeof spellEntryFor>) => (r.automatable ? r.entry.structured.save?.conditions : undefined);
+
+  // SRD 5.2.1 "Charm Monster": "...until the spell ends or until you or your allies damage it." Bug caught: the ending is dropped on the way to the stat block.
+  it("turns by_casters_side into source_side and by_anyone into anyone on the save condition, keeping its duration", () => {
+    expect(conditions(spellEntryFor(charmMonster(), 4, MAGE))).toEqual([{ name: "Charmed", endsWhenHarmed: "source_side" }]);
+    const minute = charmMonster({ condition_effect: holdPersonEffect({ conditions: ["Charmed"], repeat_save: null, duration: { unit: "minute", amount: 1, concentration: false }, ends_when_harmed: "by_casters_side" }) });
+    expect(conditions(spellEntryFor(minute, 4, MAGE))).toEqual([{ name: "Charmed", ends: { kind: "rounds", remaining: 10 }, endsWhenHarmed: "source_side" }]);
+    const anyone = charmMonster({ condition_effect: holdPersonEffect({ conditions: ["Charmed"], repeat_save: null, duration: { unit: "hour", amount: 1, concentration: false }, ends_when_harmed: "by_anyone" }) });
+    expect(conditions(spellEntryFor(anyone, 4, MAGE))).toEqual([{ name: "Charmed", endsWhenHarmed: "anyone" }]);
+  });
+
+  // Bug caught: a null ending becomes a key with a value, so every old entry grows an ending.
+  it("adds nothing when the entry has no such ending", () => {
+    expect(conditions(spellEntryFor(holdPerson(), 2, MAGE))?.[0]).not.toHaveProperty("endsWhenHarmed");
   });
 });

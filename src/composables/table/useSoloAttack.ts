@@ -82,7 +82,12 @@ export function useSoloAttack(options: SoloAttackOptions) {
         combatantDefenses(c, { monsters: store.availableMonsters, npcs: store.availableNpcs, companions: [] }),
       saveBonusFor: () => null,
       live: (c) => store.combatants.find((x) => x.instance_id === c.instance_id) ?? c,
+      factionOf: (id) => store.combatants.find((x) => x.instance_id === id)?.faction_id ?? null,
       apply(command) {
+        if (command.type === "remove_condition") {
+          store.removeCondition(command.instanceId, command.name);
+          return [];
+        }
         if (command.type === "show_defense") {
           store.showDefense(command.instanceId, command.damageType, command.defense);
           return [];
@@ -208,7 +213,7 @@ export function useSoloAttack(options: SoloAttackOptions) {
       });
       const amounts = await rollDamageParts(ctx, { parts, critical: before.critical, label: `${before.row.name} damage`, senderName: attacker.name, silent: true });
       if (!amounts) throw new Error("The damage roll came back empty");
-      const applied = applyDamage(ctx, { target, parts: amounts, defenses: ctx.defensesFor(target), critical: before.critical });
+      const applied = applyDamage(ctx, { target, parts: amounts, defenses: ctx.defensesFor(target), critical: before.critical, attacker });
       spend(attacker.instance_id);
       state.value = { step: "idle" };
       return [damageLine(attacker.name, applied.parts, math)];

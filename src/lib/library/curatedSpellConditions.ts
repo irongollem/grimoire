@@ -62,6 +62,12 @@ export interface CuratedSpellCondition {
   leaves_play?: boolean;
   /** A later save that can end it, and when it is made; null when nothing but the duration ends it. */
   repeat_save: { when: "end_of_its_turn" | "start_of_its_turn" | "when_damaged" | "as_an_action"; ability: Ability } | null;
+  /**
+   * Harm that ends the condition early. `by_casters_side`: "until you or your allies/companions damage or harm it"
+   * (2024 Charm Monster, 2014 Charm Person). `by_anyone`: "until it takes any damage". Absent and null mean the same:
+   * it does not end that way, so entries written before this field stay valid.
+   */
+  ends_when_harmed?: "by_casters_side" | "by_anyone" | null;
   /** One sentence copied word for word from the spell's description: the one that says the condition is imposed. */
   evidence: string;
 }
@@ -89,6 +95,7 @@ export function findingsFor(entry: CuratedSpellCondition, spell: { description: 
     if (entry.stops_casting !== null) found.push(`a ${entry.verdict} entry does not stop casting: that is a condition entry.`);
     if (entry.speed_zero) found.push(`a ${entry.verdict} entry does not set a speed to 0: that is a condition entry.`);
     if (entry.leaves_play === true) found.push(`a ${entry.verdict} entry takes nothing out of the fight: that is a condition entry.`);
+    if (entry.ends_when_harmed !== undefined && entry.ends_when_harmed !== null) found.push(`a ${entry.verdict} entry has no condition to end when harmed: that is a condition entry.`);
     return found;
   }
 
@@ -97,6 +104,10 @@ export function findingsFor(entry: CuratedSpellCondition, spell: { description: 
     if (!(CONDITION_NAMES as readonly string[]).includes(name)) found.push(`"${name}" is not a condition of the rules.`);
     // The name, or its root ("paralyz" for paralyzed/paralysed), must be in the text: a condition the spell never names is invented.
     else if (!text.includes(name.toLowerCase().slice(0, Math.max(5, name.length - 2)))) found.push(`the description never says ${name}.`);
+  }
+  // A condition that ends on harm says so in the text; a spell with no word of harm or damage in it cannot end that way.
+  if (entry.ends_when_harmed !== undefined && entry.ends_when_harmed !== null && !/damage|harm/.test(text)) {
+    found.push("ends_when_harmed is set but the description never says damage or harm.");
   }
   if (entry.applies === null) found.push("applies is missing: failed_save, hit or automatic.");
   if (entry.applies === "failed_save" && entry.save_ability === null) found.push("a condition on a failed save names the save's ability.");
@@ -136,6 +147,7 @@ export function agree(a: CuratedSpellCondition, b: CuratedSpellCondition): boole
       only_kinds: [...e.only_kinds].map((k) => k.toLowerCase()).sort(),
       duration: e.duration,
       repeat_save: e.repeat_save,
+      ends_when_harmed: e.ends_when_harmed ?? null,
     });
   return facts(a) === facts(b);
 }

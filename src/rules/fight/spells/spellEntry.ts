@@ -63,7 +63,8 @@ function conditionsOf(record: SpellRecord, kindsChecked: boolean): SaveCondition
   if (effect.only_kinds.length > 0 && !kindsChecked) return [];
   const ends = endsOf(effect);
   if (ends === "unsaid") return [];
-  return effect.conditions.map((name): SaveCondition => (ends === null ? { name } : { name, ends }));
+  const harmed = effect.ends_when_harmed === "by_casters_side" ? "source_side" : effect.ends_when_harmed === "by_anyone" ? "anyone" : null;
+  return effect.conditions.map((name): SaveCondition => ({ name, ...(ends === null ? {} : { ends }), ...(harmed === null ? {} : { endsWhenHarmed: harmed }) }));
 }
 
 /**

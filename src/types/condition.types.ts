@@ -66,6 +66,8 @@ export interface ConditionSource {
   spell?: string;
   /** True when the source is concentrating on it: it ends when that concentration ends or the source drops to 0 HP. */
   concentration?: boolean;
+  /** Damage ends it (`SaveCondition.endsWhenHarmed`): from the source's side only, or from anyone. */
+  endsWhenHarmed?: "source_side" | "anyone";
 }
 
 export type ConditionEnds =

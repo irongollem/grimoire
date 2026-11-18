@@ -90,6 +90,11 @@ export interface SaveCondition {
   name: SrdConditionName;
   /** Absent: it lasts until removed. */
   ends?: SaveEnds;
+  /**
+   * Damage ends it, besides whatever `ends` says (2024 Charm Monster: "until the spell ends or until you or your allies
+   * damage it"). `source_side`: damage from the one who imposed it or its side; `anyone`: any damage.
+   */
+  endsWhenHarmed?: "source_side" | "anyone";
 }
 
 /**

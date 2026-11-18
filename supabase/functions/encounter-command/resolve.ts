@@ -462,6 +462,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     defensesFor: (c) => combatantDefenses(c, env.sources),
     saveBonusFor: (c, ability) => saveBonusOf(c, ability, env),
     live: (c) => holder.state.combatants.find((x) => x.instance_id === c.instance_id) ?? c,
+    factionOf: (id) => holder.state.combatants.find((x) => x.instance_id === id)?.faction_id ?? null,
     // Positions are read from the fight as it stands now: an earlier command in the batch may have moved a creature.
     coverFor: (attacker, target) => coverOf(env.map, holder.state, ctx.live(attacker), ctx.live(target)),
     apply(cmd) {

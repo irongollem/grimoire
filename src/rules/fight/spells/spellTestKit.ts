@@ -83,3 +83,27 @@ export function mageWithHold(): MonsterStatBlock {
     )],
   });
 }
+
+/**
+ * SRD 5.2.1 "Charm Monster" as its reading would store it: Charmed on a failed WIS save for an hour, ended when the caster
+ * or its allies damage the target. No concentration in this fixture, so the caster's own concentration stays out of the way.
+ */
+export function charmMonster(over: Partial<SpellRecord> = {}): SpellRecord {
+  return holdPerson({
+    id: "srd_srd_2024_charm_monster", name: "Charm Monster", level: 4, concentration: false,
+    condition_effect: holdPersonEffect({
+      conditions: ["Charmed"], duration: { unit: "hour", amount: 1, concentration: false }, repeat_save: null, ends_when_harmed: "by_casters_side",
+    }),
+    ...over,
+  });
+}
+
+/** A mage that lists Charm Monster (4th level, 3 slots): spell save DC 14. */
+export function mageWithCharm(): MonsterStatBlock {
+  return mageBlock({
+    special_abilities: [other(
+      "Spellcasting",
+      "The mage is a 9th-level spellcaster. Its spellcasting ability is Intelligence (spell save DC 14, +6 to hit with spell attacks). The mage has the following wizard spells prepared:\n\n* 4th level (3 slots): charm monster",
+    )],
+  });
+}

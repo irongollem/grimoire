@@ -116,6 +116,7 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
       defensesFor,
       saveBonusFor,
       live,
+      factionOf: (id) => store.combatants.find((x) => x.instance_id === id)?.faction_id ?? null,
       apply(command) {
         switch (command.type) {
           case "adjust_hp": {
@@ -124,6 +125,9 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
           }
           case "apply_condition":
             store.applyCondition(command.instanceId, command.condition);
+            return [];
+          case "remove_condition":
+            store.removeCondition(command.instanceId, command.name);
             return [];
           case "set_conditions":
             store.setConditions(command.instanceId, command.conditions);
@@ -186,6 +190,7 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
     magical?: boolean;
     properties?: DefenseBypass[];
     critical?: boolean;
+    attacker?: RunCombatant;
   }): DamageApplied {
     return applyDamageTo(context(), input);
   }
