@@ -512,6 +512,29 @@
     "repeat_save": null,
     "evidence": "When the grease appears, each creature standing in its area must succeed on a Dexterity saving throw or have the Prone condition."
   },
+  "srd_srd_2024_greater_invisibility": {
+    "verdict": "condition",
+    "conditions": [
+      "Invisible"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "automatic",
+    "save_ability": null,
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": true
+    },
+    "repeat_save": null,
+    "evidence": "A creature you touch has the Invisible condition until the spell ends."
+  },
   "srd_srd_2024_mass_suggestion": {
     "verdict": "condition",
     "conditions": [
