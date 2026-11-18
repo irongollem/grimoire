@@ -260,6 +260,86 @@ describe("TableView: leaving", () => {
   });
 });
 
+describe("TableView: a sitting has an end", () => {
+  const HOUR = 60 * 60 * 1000;
+  const ago = (hours: number) => new Date(Date.now() - hours * HOUR).toISOString();
+  const sitting = (over: object) => ({ id: "s1", user_id: "u1", campaign_id: "c1", party_member_id: "m1", scene_location_id: null, credits_spent: 0, left_at: null, ...over });
+  const left = () => new Response(JSON.stringify({ left: true, endedSession: true, noteId: "n1" }), { status: 200, headers: { "content-type": "application/json" } });
+
+  beforeEach(() => {
+    setUp("u1");
+    useTableDisclosure().accept();
+  });
+
+  // Bug caught: a sitting reopened the next morning still offering its composer, so it runs on for days (the
+  // laptop that sleeps and wakes) and its session note is never written.
+  it("leaves a sitting that stood idle for six hours, the way the Leave button does, and says why", async () => {
+    fake.seed("agent_sessions", [sitting({ created_at: ago(9), updated_at: ago(7) })]);
+    fetchMock.mockResolvedValue(left());
+    const { router } = await mountTable("/play/table/s1");
+    await flushPromises();
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/functions/v1/agent-leave");
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({ campaignId: "c1", sessionId: "s1" });
+    expect(router.currentRoute.value.path).toBe("/table");
+    expect(useToast().toasts.value.map((t) => t.message).join(" ")).toContain("ended while you were away");
+  });
+
+  // Bug caught: a sitting closed over dinner; and a sitting already left being left a second time on reopening.
+  it("leaves alone a sitting that moved an hour ago, and one that was already left", async () => {
+    fake.seed("agent_sessions", [sitting({ created_at: ago(2), updated_at: ago(1) }), sitting({ id: "s2", created_at: ago(30), updated_at: ago(20), left_at: ago(20) })]);
+    const going = await mountTable("/play/table/s1");
+    expect(going.router.currentRoute.value.path).toBe("/play/table/s1");
+    going.wrapper.unmount();
+    const over = await mountTable("/play/table/s2");
+    expect(over.router.currentRoute.value.path).toBe("/play/table/s2");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: the server's "this sitting is over" shown as a failed turn with nothing to do, so the player
+  // stays at a table that will never answer.
+  it("leaves the table when the server says a long pause ended the sitting", async () => {
+    fake.seed("agent_sessions", [sitting({ created_at: ago(2), updated_at: ago(1) })]);
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "sitting_ended" }), { status: 409, headers: { "content-type": "application/json" } }))
+      .mockResolvedValue(left());
+    const { wrapper, router } = await mountTable("/play/table/s1");
+    await say(wrapper, "I look around.");
+    await flushPromises();
+    expect(String(fetchMock.mock.calls[1][0])).toContain("/functions/v1/agent-leave");
+    expect(router.currentRoute.value.path).toBe("/table");
+  });
+
+  // Bug caught: the offer of a new sitting never made on one that has run for hours, made on a fresh one, or
+  // nagging straight after "Not now".
+  it("offers a new sitting once this one has gone on for four hours, and takes not now for an answer", async () => {
+    fake.seed("agent_sessions", [sitting({ created_at: ago(5), updated_at: ago(0.1) })]);
+    const { wrapper } = await mountTable("/play/table/s1");
+    const offer = wrapper.get('[data-testid="solo-long-sitting"]');
+    expect(offer.text()).toContain("going for a long time");
+    await offer.findAll("button").find((b) => b.text() === "Not now")!.trigger("click");
+    expect(wrapper.find('[data-testid="solo-long-sitting"]').exists()).toBe(false);
+    expect(wrapper.find("textarea").exists()).toBe(true);
+    wrapper.unmount();
+    fake.reset();
+    fake.seed("party_members", [{ ...MEMBER }]);
+    fake.seed("character_classes", []);
+    fake.seed("agent_sessions", [sitting({ created_at: ago(1), updated_at: ago(0.1) })]);
+    const fresh = await mountTable("/play/table/s1");
+    expect(fresh.wrapper.find('[data-testid="solo-long-sitting"]').exists()).toBe(false);
+  });
+
+  // Bug caught: "Begin a new sitting" only hiding the offer, so no note is written and nothing new begins.
+  it("begins a new sitting by leaving this one, which lands on the door with the story to pick up", async () => {
+    fake.seed("agent_sessions", [sitting({ created_at: ago(5), updated_at: ago(0.1) })]);
+    fetchMock.mockResolvedValue(left());
+    const { wrapper, router } = await mountTable("/play/table/s1");
+    await wrapper.get('[data-testid="solo-long-sitting"]').findAll("button").find((b) => b.text() === "Begin a new sitting")!.trigger("click");
+    await flushPromises();
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/functions/v1/agent-leave");
+    expect(router.currentRoute.value.path).toBe("/table");
+  });
+});
+
 describe("TableView: when the roll is yours", () => {
   const pending = { label: "Wisdom (Perception)", kind: "check", ability: "wis", skill: "perception", dc: 31337 };
   const session = (id: string, over: Record<string, unknown> = {}) => ({
