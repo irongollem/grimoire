@@ -17,6 +17,9 @@
         Its note ruled out: {{ result.turn.ruledOutByNote.map((o) => o.summary).join("; ") }}
       </p>
       <p v-if="result.turn.leftTheMap" class="text-caption text-muted-foreground">It left the map and is out of the fight.</p>
+      <p v-if="result.turn.escapedWith" class="text-caption text-muted-foreground">
+        It used {{ result.turn.escapedWith }} and is {{ result.turn.escapeEffect === "leaves" ? "out of the fight" : "Invisible" }}.
+      </p>
       <p v-if="result.turn.bareMap" class="text-caption text-muted-foreground">
         Nothing is drawn on this map, so it crossed it as open ground. Trace the walls and paint difficult-terrain zones, and creatures will keep to them.
       </p>

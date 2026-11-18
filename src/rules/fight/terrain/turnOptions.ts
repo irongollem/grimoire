@@ -21,6 +21,7 @@ import type { AttackStructure, MultiattackStep, StatBlockEntry } from "../../../
 import type { StatBlockListKey } from "../../statBlock/parseAction.ts";
 import { concentrationBreaksOn } from "../../combat/concentration.ts";
 import type { MapExit } from "../../../lib/battlemap/mapExits.ts";
+import type { WayOut } from "../tactics/wayOut.ts";
 import { reachTerrainOf, type FightMap } from "./battleMap.ts";
 import { coverCells, isHostileTo, reachable, type ReachCell, type ReachResult } from "./reach.ts";
 import {
@@ -39,10 +40,11 @@ import {
 export const MAX_TURN_OPTIONS = 12;
 
 /**
- * `flee` (rule 10) is a Dash away. `surrender` is never produced here: the tactics gate (`gateOptions`, #1203) puts it
- * in place of the whole list when a creature that yields has broken.
+ * `flee` (rule 10) is a Dash away. `surrender` and `escape` are never produced here: the tactics gate (`gateOptions`,
+ * #1203) puts surrender in place of the whole list when a creature that yields has broken, and puts escape (a way out
+ * such as Etherealness) first when a broken creature has one.
  */
-export type TurnOptionKind = "attack" | "dash" | "move" | "disengage" | "dodge" | "hide" | "flee" | "surrender";
+export type TurnOptionKind = "attack" | "dash" | "move" | "disengage" | "dodge" | "hide" | "flee" | "surrender" | "escape";
 
 /** What an attack option does, with the facts of the square it is made from. Null facts mean there is no map to measure on. */
 export interface TurnOptionAttack {
@@ -97,6 +99,8 @@ export interface TurnOption {
   leavesMap?: boolean;
   exitLabel?: string | null;
   exitKind?: MapExit["kind"] | null;
+  /** Only the synthetic `escape` option sets this (#1203): the way out the creature uses, so the server can spend it and apply its effect. */
+  escape?: WayOut;
 }
 
 /** How a way off reads in a sentence, "leave the map ..." / "toward ...". */

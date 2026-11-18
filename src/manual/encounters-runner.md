@@ -68,6 +68,8 @@ A player's row exposes their actual weapons and features as roll buttons: melee,
 
 On a monster or NPC with actions, **Run this turn for me** (above its action list, in the side panel and on the Play screen's turn card) asks the server to play that creature's turn. It picks one thing to do, moves the token on your map if the turn includes a move, makes the attack rolls itself, and posts them to the chat like any other roll. It never ends the turn: you read what happened and press **Next turn** yourself, and you can run a creature out of turn, because nothing is tied to whose turn it is.
 
+A creature that has a way out uses it when it breaks, before it runs or gives up. A night hag with Etherealness steps into the Ethereal Plane and is out of the fight; a green hag with Invisible Passage turns Invisible. A creature that has already used up its way out falls back to running or yielding as usual.
+
 Under the button you see what it did, one line on why it chose that, and a line for each roll (hit or miss, damage, a save made or failed). The result stays for that creature until you run it again, even if you close the panel and open it later.
 
 - A creature that is badly hurt flees. If a way off the map is within reach (a **Way in or out** zone, or the edge of open country) it leaves by it and is gone from the fight: it is not counted as slain and drops no loot.

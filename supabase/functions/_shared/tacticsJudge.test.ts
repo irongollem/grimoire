@@ -31,7 +31,7 @@ function who(id: string, name: string, faction: string, over: Partial<RunCombata
 const morale = (breaksAt: number, then: TacticalProfile["morale"]["then"]): TacticalProfile["morale"] => ({ breaksAt, then });
 
 const profile = (over: Partial<TacticalProfile> = {}): TacticalProfile => ({
-  tier: "trained", role: "brute", targets: "most_wounded", morale: morale(0.25, "flee"), cover: "when_cheap", offers: new Set(["attack", "dodge"]), note: null, ...over,
+  tier: "trained", role: "brute", targets: "most_wounded", morale: morale(0.25, "flee"), cover: "when_cheap", offers: new Set(["attack", "dodge"]), wayOuts: [], note: null, ...over,
 });
 
 function option(id: string, over: Partial<TurnOption> = {}): TurnOption {

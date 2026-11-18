@@ -70,7 +70,7 @@ The **How it fights** section tells the app how this creature plays its turn whe
 - **Role**: Brute, Skirmisher, Artillery, Controller, Leader or Lurker. Automatic picks from the stat block (ranged attacks only, spellcasting or saving-throw actions, a Stealth skill, a speed of 40 ft. or more). Leader is never picked automatically.
 - **Goes for**: who it attacks first (the nearest, the most wounded, spellcasters, or the lowest armor).
 - **Cover**: whether it ignores cover, takes it when it is cheap, or fights from it.
-- **When it is losing**: when it breaks and what it does then (fights to the death, flees, or surrenders at a quarter or half of its hit points). Undead, constructs, oozes, plants and anything with Intelligence 2 or less never break on Automatic.
+- **When it is losing**: when it breaks and what it does then (fights to the death, flees, or surrenders at a quarter or half of its hit points). On Automatic, undead, constructs, oozes and plants never break, and neither does a mindless creature (Intelligence 2 or less) unless it is a beast or a monstrosity: an animal runs when it is badly hurt.
 - **Its note**: one line in your own words, such as "Guards the door and never leaves it". When AI is on for the campaign, the app will not pick a turn that goes against it.
 
 How clever a creature is comes from its Intelligence: 3 or less acts on instinct, 4 to 7 is simple, 8 to 11 is trained (it can also Dodge and Disengage), and 12 or more is tactical (it can also Hide). The section names the tier under the fields and follows the stat block as you edit it. NPCs with a stat block have the same section.

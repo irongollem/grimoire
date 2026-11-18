@@ -8,7 +8,8 @@
 //
 // Dodge and Disengage are modelled: the creature takes the Dodging or Disengaged condition (`stance` steps, applied
 // before any move) and the shared rules read it. Not modelled: Hide (the Action is used and nothing more), the
-// opportunity attacks a path provokes.
+// opportunity attacks a path provokes. A creature that uses a way out (Etherealness, Invisible Passage) does not
+// also move on that turn.
 //
 // Pure and edge-importable (relative `.ts` imports only).
 
@@ -30,7 +31,9 @@ export type TurnStep =
   /** The Action or the Bonus Action of the turn is used up. */
   | { type: "use"; slot: "action" | "bonus" }
   /** A flee that ends on a way off the map (#1203): the creature is taken out of the fight, after everything else it did. */
-  | { type: "leave" };
+  | { type: "leave" }
+  /** An escape that only hides: the creature turns Invisible (the app applies the SRD condition; what it does for the creature is the DM's to rule). */
+  | { type: "condition"; name: "Invisible" };
 
 /** What each kind of turn costs: the Action, the Bonus Action (an attack from that list), or nothing. */
 function slotOf(option: TurnOption): "action" | "bonus" | null {
@@ -43,6 +46,8 @@ function slotOf(option: TurnOption): "action" | "bonus" | null {
     case "dodge":
     case "hide":
       return "action";
+    case "escape":
+      return option.escape === undefined ? "action" : option.escape.slot;
     case "move":
     case "surrender":
       return null;
@@ -52,6 +57,14 @@ function slotOf(option: TurnOption): "action" | "bonus" | null {
 /** The steps of one option. `attacks` are the mover's usable entries: where a Multiattack's steps and a limit are found by name. */
 export function stepsFor(option: TurnOption, attacks: readonly UsableAttack[]): TurnStep[] {
   const steps: TurnStep[] = [];
+  // An escape is a power, not a walk: use its slot, spend its limit, then it either leaves the fight or turns Invisible.
+  if (option.kind === "escape" && option.escape !== undefined) {
+    const way = option.escape;
+    steps.push({ type: "use", slot: way.slot });
+    if (way.useKey !== null && way.limit !== null) steps.push({ type: "spend", useKey: way.useKey, limit: way.limit });
+    steps.push(way.effect === "leaves" ? { type: "leave" } : { type: "condition", name: "Invisible" });
+    return steps;
+  }
   // First, so the stance is already on the creature for anything that follows in the turn (Disengage, then walk away).
   if (option.kind === "dodge") steps.push({ type: "stance", name: DODGING });
   if (option.kind === "disengage") steps.push({ type: "stance", name: DISENGAGED });

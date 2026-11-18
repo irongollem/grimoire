@@ -71,6 +71,22 @@ describe("RunnerRunForMe", () => {
     expect(w.text()).toContain("It left the map");
   });
 
+  // A creature that left the fight and one that only went unseen are told apart: Invisible stays on the map.
+  it("fails if an escape is not named, or an unseen creature is said to be out of the fight", async () => {
+    const left = vi.fn().mockResolvedValue(run({ kind: "escape", escapedWith: "Etherealness", escapeEffect: "leaves" }));
+    const a = setup(left);
+    await button(a.w).trigger("click");
+    await flushPromises();
+    expect(a.w.text()).toContain("It used Etherealness and is out of the fight.");
+
+    const unseen = vi.fn().mockResolvedValue(run({ kind: "escape", escapedWith: "Invisible Passage", escapeEffect: "unseen" }));
+    const b = setup(unseen);
+    await button(b.w).trigger("click");
+    await flushPromises();
+    expect(b.w.text()).toContain("It used Invisible Passage and is Invisible.");
+    expect(b.w.text()).not.toContain("out of the fight");
+  });
+
   it("fails if a walk across a map with nothing drawn on it is shown as if the creature chose to cross the furniture", async () => {
     const takeTurn = vi.fn().mockResolvedValue(run({ bareMap: true }));
     const { w } = setup(takeTurn);

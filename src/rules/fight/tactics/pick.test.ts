@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { MonsterStatBlock } from "../../../types/monster.types.ts";
-import { emptyDefenses } from "../../../types/statBlock.types.ts";
+import { emptyDefenses, type StatBlockEntry } from "../../../types/statBlock.types.ts";
 import type { TurnOption, TurnOptionExposure, TurnOptionKind } from "../terrain/turnOptions.ts";
 import { gateOptions, isBroken, pickTurn, type PickContext } from "./pick.ts";
 import { type MoraleRule, tacticalProfile } from "./profile.ts";
@@ -306,5 +306,71 @@ describe("pickTurn: with no attack to make", () => {
 
   it("takes the first option when it is neither attacking, closing in nor dodging", () => {
     expect(pickTurn([other("hide"), other("flee")], prof(), BASIC)?.optionId).toBe("hide");
+  });
+});
+
+describe("escape-first: a broken creature with a way out uses it before it runs or yields", () => {
+  const entry = (name: string, description = ""): StatBlockEntry => ({ name, description, structured: { kind: "other", source: "manual", review: "unreadable" } });
+  // SRD 5.1 night hag, "Etherealness". She yields (hags bargain), and at 20 of 112 she is under a quarter.
+  const nightHag = (then: MoraleRule["then"] = "surrender") => prof({ actions: [entry("Etherealness")], tactics: { morale: morale(0.25, then) } });
+  const dying = who("ogre", { hp: 20, max_hp: 112 });
+  const menu = [atk({ target: "fresco", expected: 5 }), other("flee"), other("dodge")];
+  const kinds = (o: TurnOption[]) => o.map((x) => x.kind);
+
+  it("fails if a broken hag that yields is not given Etherealness first, with Surrender behind it", () => {
+    const gated = gateOptions(menu, nightHag(), dying);
+    expect(kinds(gated)).toEqual(["escape", "surrender"]);
+    expect(gated[0]).toMatchObject({ id: "escape", summary: "Etherealness: leaves the fight", escape: { name: "Etherealness", effect: "leaves" } });
+  });
+
+  it("fails if a broken creature that flees loses its retreats behind the escape", () => {
+    expect(kinds(gateOptions(menu, nightHag("flee"), dying))).toEqual(["escape", "flee", "dodge"]);
+  });
+
+  it("fails if the creature takes the surrender or the flee instead of the escape, or the reason is not in the house style", () => {
+    const gated = gateOptions(menu, nightHag(), dying);
+    expect(pickTurn(gated, nightHag(), ctxOf([dying, FRESCO]))).toEqual({
+      optionId: "escape", reason: "Gets away: at 20 of 112 hit points it breaks and uses Etherealness to leave the fight.",
+    });
+    const passage = prof({ actions: [entry("Invisible Passage")], tactics: { morale: morale(0.25, "flee") } });
+    expect(pickTurn(gateOptions(menu, passage, dying), passage, ctxOf([dying, FRESCO]))?.reason)
+      .toBe("Gets away: at 20 of 112 hit points it breaks and uses Invisible Passage to go unseen.");
+  });
+
+  it("fails if fight_on is offered an escape", () => {
+    expect(kinds(gateOptions(menu, nightHag("fight_on"), dying))).not.toContain("escape");
+  });
+
+  it("fails if a creature that has not broken is offered an escape (21 of 112 is 0.1875, 29 of 112 is over a quarter)", () => {
+    expect(kinds(gateOptions(menu, nightHag(), who("ogre", { hp: 29, max_hp: 112 })))).not.toContain("escape");
+  });
+
+  it("fails if a creature with no way out gets one", () => {
+    expect(kinds(gateOptions(menu, prof({ tactics: { morale: morale(0.25, "surrender") } }), dying))).toEqual(["surrender"]);
+  });
+
+  // The cornered hag: Plane Shift is 2/Day Each and both are spent, so she yields.
+  it("fails if a hag whose only way out is spent does not fall back to Surrender", () => {
+    const cornered = prof({
+      actions: [entry("Spellcasting", "- **2/Day Each:** Plane Shift")], tactics: { morale: morale(0.25, "surrender") },
+    });
+    const spent = who("ogre", { hp: 20, max_hp: 112, action_uses: { "spell/Plane Shift": { used: 2 } } });
+    const gated = gateOptions(menu, cornered, spent);
+    expect(kinds(gated)).toEqual(["surrender"]);
+    expect(pickTurn(gated, cornered, ctxOf([spent, FRESCO]))?.optionId).toBe("surrender");
+  });
+
+  it("fails if a spent Action does not stop the escape", () => {
+    expect(kinds(gateOptions(menu, nightHag(), who("ogre", { hp: 20, max_hp: 112, action_used: true })))).toEqual(["surrender"]);
+  });
+
+  // The hag already slipped out of sight: a second Invisible Passage is not on offer, and she does not give up
+  // where she hides, she runs like one that flees.
+  it("fails if an already Invisible creature is offered a second unseen escape, or a surrender creature then yields", () => {
+    const green = prof({ actions: [entry("Invisible Passage")], tactics: { morale: morale(0.25, "surrender") } });
+    const hidden = who("ogre", { hp: 20, max_hp: 112, conditions: [{ name: "Invisible" }] });
+    const gated = gateOptions(menu, green, hidden);
+    expect(kinds(gated)).toEqual(["flee", "dodge"]);
+    expect(pickTurn(gated, green, ctxOf([hidden, FRESCO]))?.optionId).toBe("flee");
   });
 });

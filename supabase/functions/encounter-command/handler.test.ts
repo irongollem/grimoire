@@ -1351,6 +1351,36 @@ describe("take_turn", () => {
     expect(hpOf(stored(h), "victim")).toBe(40);
   });
 
+  // SRD 5.1 night hag "Etherealness": the hag enters the Ethereal Plane, so she is out of the fight. She is not slain
+  // and she did not leave by a way off the map, so only `escapedWith` says what happened.
+  it("fails if a broken creature with Etherealness runs instead, or is not removed, or is told as a flee off the map", async () => {
+    const ether: StatBlockEntry = { name: "Etherealness", description: "The hag magically enters the Ethereal Plane.", structured: { kind: "other", source: "manual", review: "unreadable" } };
+    const sources: StatBlockSources = { monsters: [monster("m-wolf", { actions: [bite, ether] }), monster("m-ox")], npcs: [], companions: [] };
+    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
+    const h = harness(fight, { sources, map: mapOf(), dieFaces: [] });
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(stored(h).combatants_live.map((c) => c.instance_id)).toEqual(["victim"]);
+    expect(result.effects[0]).toMatchObject({
+      type: "turn_taken",
+      turn: { kind: "escape", escapedWith: "Etherealness", escapeEffect: "leaves", reason: "Gets away: at 2 of 11 hit points it breaks and uses Etherealness to leave the fight." },
+    });
+    expect(result.effects[0]).not.toMatchObject({ turn: { leftTheMap: true } });
+    expect(h.dieCalls).toBe(0);
+  });
+
+  // SRD 5.1 green hag "Invisible Passage": she turns Invisible and stays on the map; the Action is used.
+  it("fails if Invisible Passage removes the creature, or does not make it Invisible and use the Action", async () => {
+    const passage: StatBlockEntry = { name: "Invisible Passage", description: "The hag magically turns Invisible until she attacks.", structured: { kind: "other", source: "manual", review: "unreadable" } };
+    const sources: StatBlockSources = { monsters: [monster("m-wolf", { actions: [bite, passage] }), monster("m-ox")], npcs: [], companions: [] };
+    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
+    const h = harness(fight, { sources, map: mapOf(), dieFaces: [] });
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    const wolf = combatantOf(stored(h), "wolf");
+    expect(wolf.conditions.map((c) => c.name)).toEqual(["Invisible"]);
+    expect(wolf.action_used).toBe(true);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { kind: "escape", escapedWith: "Invisible Passage", escapeEffect: "unseen" } });
+  });
+
   it("fails if a creature that flees on a map with no way off is taken out of the fight", async () => {
     const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 }, reactionUsed: true } });
     const h = harness(fight, { sources: SOURCES, map: mapOf(), dieFaces: [] });

@@ -10,7 +10,8 @@
 // Not in this command: Hide (the Action is
 // used and nothing more is recorded; Dodge and Disengage do put their condition on the creature), picking by a model, ending the turn, legendary and lair actions,
 // spells. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
-// the fight after its move and the reply says so (`leftTheMap`); that is not a defeat. A Multiattack that drops its target does not redirect the swings it has left.
+// the fight after its move and the reply says so (`leftTheMap`); that is not a defeat. A broken creature with a way out (Etherealness, Invisible
+// Passage) uses it first (`escapedWith`). A Multiattack that drops its target does not redirect the swings it has left.
 
 import { applyFightCommand, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
@@ -120,10 +121,11 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
 
   const steps = stepsFor(option, attacks);
   const leaves = steps.some((s) => s.type === "leave");
+  const escape = option.kind === "escape" ? option.escape : undefined;
   // A move over a map the rules can read nothing on (a picture with no walls, rock or difficult ground drawn): say so.
   const bare = env.map !== null && option.feet !== null && option.feet > 0 && env.map.occluders.segments.length === 0 && env.map.solid.size === 0 && env.map.difficult.size === 0;
   const effects: FightEffect[] = [
-    { type: "turn_taken", turn: { instanceId: mover.instance_id, optionId: option.id, kind: option.kind, summary: option.summary, reason: chosen.reason, picked, ...(ruledOutByNote === undefined ? {} : { ruledOutByNote }), ...(leaves ? { leftTheMap: true as const } : {}), ...(bare ? { bareMap: true as const } : {}) } },
+    { type: "turn_taken", turn: { instanceId: mover.instance_id, optionId: option.id, kind: option.kind, summary: option.summary, reason: chosen.reason, picked, ...(ruledOutByNote === undefined ? {} : { ruledOutByNote }), ...(leaves && escape === undefined ? { leftTheMap: true as const } : {}), ...(escape === undefined ? {} : { escapedWith: escape.name, escapeEffect: escape.effect }), ...(bare ? { bareMap: true as const } : {}) } },
   ];
   let next = state;
   const apply = (cmd: FightCommand) => {
@@ -170,6 +172,9 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
         apply(step.slot === "action"
           ? { type: "set_action_used", instanceId: mover.instance_id, used: true }
           : { type: "set_bonus_used", instanceId: mover.instance_id, used: true });
+        break;
+      case "condition":
+        apply({ type: "apply_condition", instanceId: mover.instance_id, condition: { name: step.name } });
         break;
       case "leave":
         // Gone from this fight: not slain, so no defeat and no loot (the creature just is not there any more).
