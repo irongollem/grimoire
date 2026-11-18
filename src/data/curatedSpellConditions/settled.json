@@ -26,17 +26,60 @@
     "evidence": "The awakened beast or plant is charmed by you for 30 days or until you or your companions do anything harmful to it."
   },
   "srd_black_tentacles": {
-    "verdict": "not_simple",
-    "conditions": [],
+    "verdict": "condition",
+    "conditions": [
+      "Restrained"
+    ],
     "stops_casting": null,
     "speed_zero": false,
-    "applies": null,
-    "save_ability": null,
-    "targets": null,
+    "applies": "failed_save",
+    "save_ability": "DEX",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
     "only_kinds": [],
-    "duration": null,
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": true
+    },
     "repeat_save": null,
-    "evidence": "When a creature enters the affected area for the first time on a turn or starts its turn there, the creature must succeed on a Dexterity saving throw or take 3d6 bludgeoning damage and be restrained by the tentacles until the spell ends."
+    "evidence": "When a creature enters the affected area for the first time on a turn or starts its turn there, the creature must succeed on a Dexterity saving throw or take 3d6 bludgeoning damage and be restrained by the tentacles until the spell ends.",
+    "break_free": {
+      "abilities": [
+        "STR",
+        "DEX"
+      ],
+      "skill": null
+    }
+  },
+  "srd_charm_person": {
+    "verdict": "condition",
+    "conditions": [
+      "Charmed"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 1
+    },
+    "only_kinds": [
+      "humanoid"
+    ],
+    "duration": {
+      "unit": "hour",
+      "amount": 1,
+      "concentration": false
+    },
+    "repeat_save": null,
+    "evidence": "If it fails the saving throw, it is charmed by you until the spell ends or until you or your companions do anything harmful to it.",
+    "ends_when_harmed": "by_casters_side"
   },
   "srd_dominate_person": {
     "verdict": "condition",
@@ -87,7 +130,13 @@
       "concentration": true
     },
     "repeat_save": null,
-    "evidence": "A creature in the area when you cast the spell must succeed on a strength saving throw or be restrained by the entangling plants until the spell ends."
+    "evidence": "A creature in the area when you cast the spell must succeed on a strength saving throw or be restrained by the entangling plants until the spell ends.",
+    "break_free": {
+      "abilities": [
+        "STR"
+      ],
+      "skill": null
+    }
   },
   "srd_feeblemind": {
     "verdict": "not_simple",
@@ -158,6 +207,31 @@
     },
     "repeat_save": null,
     "evidence": "When the grease appears, each creature standing in its area must succeed on a dexterity saving throw or fall prone."
+  },
+  "srd_hypnotic_pattern": {
+    "verdict": "condition",
+    "conditions": [
+      "Charmed",
+      "Incapacitated"
+    ],
+    "stops_casting": null,
+    "speed_zero": true,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": true
+    },
+    "repeat_save": null,
+    "evidence": "While charmed by this spell, the creature is incapacitated and has a speed of 0.",
+    "ends_when_harmed": "by_anyone"
   },
   "srd_meld_into_stone": {
     "verdict": "not_simple",
@@ -314,7 +388,8 @@
       "concentration": false
     },
     "repeat_save": null,
-    "evidence": "The target must succeed on a Wisdom saving throw or have the Charmed condition for the duration."
+    "evidence": "The target must succeed on a Wisdom saving throw or have the Charmed condition for the duration.",
+    "ends_when_harmed": "by_casters_side"
   },
   "srd_srd_2024_awaken": {
     "verdict": "condition",
@@ -367,30 +442,83 @@
     "leaves_play": true
   },
   "srd_srd_2024_black_tentacles": {
-    "verdict": "not_simple",
-    "conditions": [],
+    "verdict": "condition",
+    "conditions": [
+      "Restrained"
+    ],
     "stops_casting": null,
     "speed_zero": false,
-    "applies": null,
-    "save_ability": null,
-    "targets": null,
+    "applies": "failed_save",
+    "save_ability": "STR",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
     "only_kinds": [],
-    "duration": null,
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": true
+    },
     "repeat_save": null,
-    "evidence": "On a failed save, it takes 3d6 Bludgeoning damage, and it has the Restrained condition until the spell ends."
+    "evidence": "On a failed save, it takes 3d6 Bludgeoning damage, and it has the Restrained condition until the spell ends.",
+    "break_free": {
+      "abilities": [
+        "STR"
+      ],
+      "skill": "athletics"
+    }
   },
   "srd_srd_2024_charm_monster": {
-    "verdict": "not_simple",
-    "conditions": [],
+    "verdict": "condition",
+    "conditions": [
+      "Charmed"
+    ],
     "stops_casting": null,
     "speed_zero": false,
-    "applies": null,
-    "save_ability": null,
-    "targets": null,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 1
+    },
     "only_kinds": [],
-    "duration": null,
+    "duration": {
+      "unit": "hour",
+      "amount": 1,
+      "concentration": false
+    },
     "repeat_save": null,
-    "evidence": "On a failed save, the target has the Charmed condition until the spell ends or until you or your allies damage it."
+    "evidence": "On a failed save, the target has the Charmed condition until the spell ends or until you or your allies damage it.",
+    "ends_when_harmed": "by_casters_side"
+  },
+  "srd_srd_2024_charm_person": {
+    "verdict": "condition",
+    "conditions": [
+      "Charmed"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 1
+    },
+    "only_kinds": [
+      "humanoid"
+    ],
+    "duration": {
+      "unit": "hour",
+      "amount": 1,
+      "concentration": false
+    },
+    "repeat_save": null,
+    "evidence": "On a failed save, the target has the Charmed condition until the spell ends or until you or your allies damage it.",
+    "ends_when_harmed": "by_casters_side"
   },
   "srd_srd_2024_compulsion": {
     "verdict": "not_simple",
@@ -477,7 +605,13 @@
       "concentration": true
     },
     "repeat_save": null,
-    "evidence": "Each creature (other than you) in the area when you cast the spell must succeed on a Strength saving throw or have the Restrained condition until the spell ends."
+    "evidence": "Each creature (other than you) in the area when you cast the spell must succeed on a Strength saving throw or have the Restrained condition until the spell ends.",
+    "break_free": {
+      "abilities": [
+        "STR"
+      ],
+      "skill": "athletics"
+    }
   },
   "srd_srd_2024_gaseous_form": {
     "verdict": "condition",
@@ -558,6 +692,31 @@
     },
     "repeat_save": null,
     "evidence": "A creature you touch has the Invisible condition until the spell ends."
+  },
+  "srd_srd_2024_hypnotic_pattern": {
+    "verdict": "condition",
+    "conditions": [
+      "Charmed",
+      "Incapacitated"
+    ],
+    "stops_casting": null,
+    "speed_zero": true,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": true
+    },
+    "repeat_save": null,
+    "evidence": "While Charmed, the creature has the Incapacitated condition and a Speed of 0.",
+    "ends_when_harmed": "by_anyone"
   },
   "srd_srd_2024_mass_suggestion": {
     "verdict": "condition",
@@ -725,7 +884,13 @@
       "concentration": true
     },
     "repeat_save": null,
-    "evidence": "The first time a creature enters the webs on a turn or starts its turn there, it must succeed on a Dexterity saving throw or have the Restrained condition while in the webs or until it breaks free."
+    "evidence": "The first time a creature enters the webs on a turn or starts its turn there, it must succeed on a Dexterity saving throw or have the Restrained condition while in the webs or until it breaks free.",
+    "break_free": {
+      "abilities": [
+        "STR"
+      ],
+      "skill": "athletics"
+    }
   },
   "srd_srd_awaken": {
     "verdict": "condition",
@@ -754,17 +919,60 @@
     "evidence": "The awakened beast or plant is charmed by you for 30 days or until you or your companions do anything harmful to it."
   },
   "srd_srd_black_tentacles": {
-    "verdict": "not_simple",
-    "conditions": [],
+    "verdict": "condition",
+    "conditions": [
+      "Restrained"
+    ],
     "stops_casting": null,
     "speed_zero": false,
-    "applies": null,
-    "save_ability": null,
-    "targets": null,
+    "applies": "failed_save",
+    "save_ability": "DEX",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
     "only_kinds": [],
-    "duration": null,
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": true
+    },
     "repeat_save": null,
-    "evidence": "When a creature enters the affected area for the first time on a turn or starts its turn there, the creature must succeed on a Dexterity saving throw or take 3d6 bludgeoning damage and be restrained by the tentacles until the spell ends."
+    "evidence": "When a creature enters the affected area for the first time on a turn or starts its turn there, the creature must succeed on a Dexterity saving throw or take 3d6 bludgeoning damage and be restrained by the tentacles until the spell ends.",
+    "break_free": {
+      "abilities": [
+        "STR",
+        "DEX"
+      ],
+      "skill": null
+    }
+  },
+  "srd_srd_charm_person": {
+    "verdict": "condition",
+    "conditions": [
+      "Charmed"
+    ],
+    "stops_casting": null,
+    "speed_zero": false,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 1
+    },
+    "only_kinds": [
+      "humanoid"
+    ],
+    "duration": {
+      "unit": "hour",
+      "amount": 1,
+      "concentration": false
+    },
+    "repeat_save": null,
+    "evidence": "If it fails the saving throw, it is charmed by you until the spell ends or until you or your companions do anything harmful to it.",
+    "ends_when_harmed": "by_casters_side"
   },
   "srd_srd_dominate_person": {
     "verdict": "condition",
@@ -815,7 +1023,13 @@
       "concentration": true
     },
     "repeat_save": null,
-    "evidence": "A creature in the area when you cast the spell must succeed on a strength saving throw or be restrained by the entangling plants until the spell ends."
+    "evidence": "A creature in the area when you cast the spell must succeed on a strength saving throw or be restrained by the entangling plants until the spell ends.",
+    "break_free": {
+      "abilities": [
+        "STR"
+      ],
+      "skill": null
+    }
   },
   "srd_srd_feeblemind": {
     "verdict": "not_simple",
@@ -886,6 +1100,31 @@
     },
     "repeat_save": null,
     "evidence": "When the grease appears, each creature standing in its area must succeed on a dexterity saving throw or fall prone."
+  },
+  "srd_srd_hypnotic_pattern": {
+    "verdict": "condition",
+    "conditions": [
+      "Charmed",
+      "Incapacitated"
+    ],
+    "stops_casting": null,
+    "speed_zero": true,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "area",
+      "count": null,
+      "more_per_slot_above": 0
+    },
+    "only_kinds": [],
+    "duration": {
+      "unit": "minute",
+      "amount": 1,
+      "concentration": true
+    },
+    "repeat_save": null,
+    "evidence": "While charmed by this spell, the creature is incapacitated and has a speed of 0.",
+    "ends_when_harmed": "by_anyone"
   },
   "srd_srd_meld_into_stone": {
     "verdict": "not_simple",
@@ -991,7 +1230,13 @@
       "concentration": true
     },
     "repeat_save": null,
-    "evidence": "On a failed save, the creature is restrained as long as it remains in the webs or until it breaks free."
+    "evidence": "On a failed save, the creature is restrained as long as it remains in the webs or until it breaks free.",
+    "break_free": {
+      "abilities": [
+        "STR"
+      ],
+      "skill": null
+    }
   },
   "srd_true_polymorph": {
     "verdict": "not_simple",
@@ -1027,6 +1272,12 @@
       "concentration": true
     },
     "repeat_save": null,
-    "evidence": "On a failed save, the creature is restrained as long as it remains in the webs or until it breaks free."
+    "evidence": "On a failed save, the creature is restrained as long as it remains in the webs or until it breaks free.",
+    "break_free": {
+      "abilities": [
+        "STR"
+      ],
+      "skill": null
+    }
   }
 }
