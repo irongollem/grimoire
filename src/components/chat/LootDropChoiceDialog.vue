@@ -5,7 +5,7 @@
     <div class="flex flex-col gap-1 px-3 pb-2">
       <AppButton v-for="row in rows" :key="row.mode" variant="menu" size="md" @click="row.pick()">
         <span class="flex flex-col items-start">
-          <span class="text-body-md">{{ row.title }}</span>
+          <span class="text-body">{{ row.title }}</span>
           <span class="text-caption text-muted-foreground">{{ row.hint }}</span>
         </span>
       </AppButton>
