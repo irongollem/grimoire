@@ -16,6 +16,22 @@ export interface Journey {
   summary: RouteSummary;
   /** The places the road passes between its two ends, by name, in order. */
   passing: string[];
+  /** The roads the journey takes, in order; none for a journey measured across a map. */
+  roadIds: string[];
+}
+
+/**
+ * The encounter tables of the roads a journey takes (`location_roads.roll_table_id`), in the journey's order, each
+ * once: what a DM may roll on for a stop on the way. A road with no table of its own adds nothing.
+ */
+export function roadTableIds(journey: Pick<Journey, "roadIds">, roads: readonly Road[]): string[] {
+  const byId = new Map(roads.map((road) => [road.id, road]));
+  const ids: string[] = [];
+  for (const roadId of journey.roadIds) {
+    const tableId = byId.get(roadId)?.roll_table_id;
+    if (typeof tableId === "string" && !ids.includes(tableId)) ids.push(tableId);
+  }
+  return ids;
 }
 
 /**
@@ -48,6 +64,7 @@ export function journeyByRoad(input: {
       to: { id: to, name: input.nameOf(to) },
     },
     passing: placesPassed(way).map(input.nameOf),
+    roadIds: way.legs.map((leg) => leg.roadId),
   };
 }
 
