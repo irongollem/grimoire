@@ -1,4 +1,5 @@
-import { otherEnd, toMiles, type Going, type Road } from "./roads";
+import { toMiles } from "@/rules/travelPace";
+import { otherEnd, type Going, type Road } from "./roads";
 
 /**
  * The way between two places (#1222): the shortest chain of roads, with the places it passes.

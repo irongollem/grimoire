@@ -53,7 +53,7 @@ describe("LocationRoadsPanel", () => {
     const rows = wrapper.findAll('[data-testid="location-road"]');
     expect(rows).toHaveLength(1);
     expect(rows[0].text()).toContain("Brightwater");
-    expect(rows[0].text()).toContain("40 miles by the coast road");
+    expect(rows[0].text()).toContain("40 mi by the coast road");
   });
 
   // Bug caught: a road that could be added with no length or no destination; or added from the wrong place.
