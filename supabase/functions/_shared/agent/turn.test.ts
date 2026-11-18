@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runTurn, totalTokens, type TurnEvent, type TurnInput } from "./turn";
+import { budgetTokens, runTurn, totalTokens, type TurnEvent, type TurnInput } from "./turn";
 import type { AgentBlock, AgentLine, AgentMessage, AgentUsage, AgentWithheld, ModelRequest, ModelStep } from "./types";
 
 const usage = (over: Partial<AgentUsage> = {}): AgentUsage => ({
@@ -220,17 +220,29 @@ describe("tools", () => {
 
 describe("limits", () => {
   it("does not run the tools the last allowed call asked for, answers them, and ends step_limit, or the stored conversation is invalid", async () => {
-    const { input, toolCalls, requests } = setup([asks([call("a"), call("b")])], {
+    const { input, toolCalls, requests } = setup([asks([call("a"), call("b")]), say("So far: the door is open.")], {
       limits: { maxSteps: 1, maxOutputTokens: 100, tokenBudget: null },
     });
     const out = await runTurn(input);
     expect(out.end).toBe("step_limit");
     expect(toolCalls).toEqual([]);
-    expect(requests).toHaveLength(1);
-    expect(resultsOf(out.added[2])).toEqual([
-      "a:err:The turn ended before this tool ran: step limit.",
-      "b:err:The turn ended before this tool ran: step limit.",
-    ]);
+    const answers = resultsOf(out.added[2]);
+    expect(answers).toHaveLength(2);
+    expect(answers[0]).toMatch(/^a:err:The turn ended before this tool ran: step limit\./);
+    expect(answers[1]).toMatch(/^b:err:The turn ended before this tool ran: step limit\./);
+    expectNoOrphanCalls(out.added);
+    // Bug caught (seen live, 18 Nov 2026): a turn that hit a limit ended having told the player nothing, the page
+    // showing only "Looked something up". One closing call, with no tools to reach for, says where things stand.
+    expect(requests).toHaveLength(2);
+    expect(requests[1].tools).toEqual([]);
+    expect(out.text).toBe("So far: the door is open.");
+  });
+
+  // Bug caught: the closing call failing (the provider is down) costing the whole turn that was already told.
+  it("keeps the turn as it stood when the closing call fails", async () => {
+    const { input } = setup([asks([call("a")])], { limits: { maxSteps: 1, maxOutputTokens: 100, tokenBudget: null } });
+    const out = await runTurn(input);
+    expect(out.end).toBe("step_limit");
     expectNoOrphanCalls(out.added);
   });
 
@@ -239,7 +251,9 @@ describe("limits", () => {
       limits: { maxSteps: 2, maxOutputTokens: 100, tokenBudget: null },
     });
     const out = await runTurn(input);
-    expect(requests).toHaveLength(2);
+    // Two steps, and the one closing call that has no tools to ask for: it cannot start another round.
+    expect(requests).toHaveLength(3);
+    expect(requests[2].tools).toEqual([]);
     expect(out.end).toBe("step_limit");
     expectNoOrphanCalls(out.added);
   });
@@ -261,8 +275,9 @@ describe("limits", () => {
     const out = await runTurn(input);
     expect(out.end).toBe("budget");
     expect(toolCalls).toEqual([]);
-    expect(requests).toHaveLength(1);
-    expect(resultsOf(out.added[2])).toEqual(["a:err:The turn ended before this tool ran: token budget."]);
+    expect(requests).toHaveLength(2);
+    expect(requests[1].tools).toEqual([]);
+    expect(resultsOf(out.added[2])[0]).toMatch(/^a:err:The turn ended before this tool ran: token budget\./);
     expectNoOrphanCalls(out.added);
   });
 
@@ -482,7 +497,8 @@ describe("tools that call a model", () => {
     );
     const out = await runTurn(again);
     expect(out.end).toBe("budget");
-    expect(resultsOf(out.added[out.added.length - 1])).toEqual(["b:err:The turn ended before this tool ran: token budget."]);
+    const pending = out.added.filter((m) => m.role === "user").at(-1)!;
+    expect(resultsOf(pending)[0]).toMatch(/^b:err:The turn ended before this tool ran: token budget\./);
   });
 
   it("does not count tool usage as a step, or maxSteps ends a turn early", async () => {
@@ -554,5 +570,25 @@ describe("tools that call a model", () => {
     const out = await runTurn(input);
     expect(out.toolSteps).toEqual([]);
     expect(out.added[2].blocks[0]).not.toHaveProperty("lines");
+  });
+});
+
+describe("what the budget counts", () => {
+  // Bug caught (seen live): cache reads counted whole, so a long sitting (every step resends the conversation,
+  // nearly all of it cached) ran out of budget after a lookup or two and the turn told the player nothing.
+  it("counts a cached token at a tenth, as it costs", () => {
+    expect(budgetTokens(usage({ inputTokens: 100, outputTokens: 50, cacheReadTokens: 20_000, cacheWriteTokens: 10 }))).toBe(100 + 50 + 10 + 2000);
+  });
+
+  it("lets a turn of several cached steps run, and still stops one that spends at the full rate", async () => {
+    const cached = { inputTokens: 100, outputTokens: 50, cacheReadTokens: 20_000 };
+    const { input } = setup([asks([call("a")], cached), asks([call("b")], cached), say("done", cached)], {
+      limits: { maxSteps: 8, maxOutputTokens: 100, tokenBudget: 10_000 },
+    });
+    expect((await runTurn(input)).end).toBe("done");
+    const { input: dear } = setup([asks([call("a")], { inputTokens: 9_000, outputTokens: 1_000 }), say("never")], {
+      limits: { maxSteps: 8, maxOutputTokens: 100, tokenBudget: 10_000 },
+    });
+    expect((await runTurn(dear)).end).toBe("budget");
   });
 });

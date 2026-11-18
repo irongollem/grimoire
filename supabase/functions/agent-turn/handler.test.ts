@@ -148,6 +148,11 @@ interface Harness {
     handsThrow: boolean;
     handsApplyThrows: boolean;
     usedUp: Array<{ characterId: string; thing: string }>;
+    /** What a character has among their belongings, and what the played character carries, by name. */
+    npcThings: string[];
+    packThings: string[];
+    /** The pack as the narrator is shown it. */
+    carriedList: { name: string; quantity: number }[];
     /** Writing an invented person's record fails (a plan's limit). */
     introduceThrows: boolean;
     /** The campaign's own peoples. */
@@ -265,6 +270,9 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       handsThrow: false,
       handsApplyThrows: false,
       usedUp: [],
+      npcThings: ["Workshop Keys", "Potion of Healing"],
+      packThings: [],
+      carriedList: [{ name: "Rope", quantity: 1 }],
       introduceThrows: false,
       peoples: [],
       peoplesThrow: false,
@@ -510,13 +518,14 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       load: async () => {
         if (h.state.handsThrow) throw new Error("db down");
         return {
-          possessions: { carried: [{ name: "Rope", quantity: 1 }], more: 0, purse: { gp: 5 }, wares: [], loot: [] },
+          possessions: { carried: h.state.carriedList, more: 0, purse: { gp: 5 }, wares: [], loot: [] },
           currency: { default_key: "gp", denominations: [{ key: "gp", name: "gold", abbr: "gp", value: 100, makes_change: true, color: "#d4af37" }, { key: "cp", name: "copper", abbr: "cp", value: 1, makes_change: true, color: "#b87333" }] },
         };
       },
-      belonging: async (_c, id, thing) => (thing === "Workshop Keys" ? { rowId: "r1", name: "Workshop Keys", quantity: 1, ref: { itemId: null, libraryItemId: null }, owner: id === HONEYCOMB ? "Honeycomb" : "Someone" } : null),
+      belonging: async (_c, id, thing) => (h.state.npcThings.includes(thing) ? { rowId: "r1", name: thing, quantity: 1, ref: { itemId: null, libraryItemId: null }, owner: id === HONEYCOMB ? "Honeycomb" : "Someone" } : null),
       characterName: async () => "Honeycomb",
-      carried: async () => null,
+      carried: async (_c, _m, thing) => (h.state.packThings.includes(thing) ? { rowId: "r2", name: thing, quantity: 1, ref: { itemId: null, libraryItemId: null } } : null),
+      useUpCarried: async (_c, memberId, thing) => { h.state.usedUp.push({ characterId: `pack of ${memberId}`, thing }); return true; },
       item: async () => null,
       apply: async (_ctx, change) => {
         if (h.state.handsApplyThrows) throw new Error("gone");
@@ -1047,16 +1056,30 @@ describe("limits and abort", () => {
   it("stops a model that keeps asking for tools at the step limit, saves and charges", async () => {
     const h = harness(Array.from({ length: 20 }, () => toolStep(10)));
     await play(h);
-    expect(h.modelCalls()).toBe(MAX_STEPS);
+    // The steps a turn may take, and the one closing call that says where things stand: it has no tools to ask
+    // for, so it cannot start another round.
+    expect(h.modelCalls()).toBe(MAX_STEPS + 1);
+    expect(h.requests[MAX_STEPS].tools).toEqual([]);
     expect(last(h)).toMatchObject({ type: "done", end: "step_limit" });
     expect(h.appends).toHaveLength(1);
   });
 
   it("stops at the token budget", async () => {
-    const h = harness([toolStep(30_000), toolStep(30_000), toolStep(30_000)]);
+    const h = harness([toolStep(30_000), toolStep(30_000), step(10), toolStep(30_000)]);
     await play(h);
-    expect(h.modelCalls()).toBe(2);
-    expect(last(h)).toMatchObject({ type: "done", end: "budget", tokens: 60_000 });
+    // Two steps reach the budget; the third call is the closing one (no tools), and nothing runs after it.
+    expect(h.modelCalls()).toBe(3);
+    expect(h.requests[2].tools).toEqual([]);
+    expect(last(h)).toMatchObject({ type: "done", end: "budget", tokens: 60_010 });
+  });
+
+  // Bug caught (seen live, 18 Nov 2026): a turn that ran into its budget after a lookup or two ended with nothing
+  // on the page but "Looked something up". The closing call's words are told and kept.
+  it("tells the player where things stand when a limit ends the turn", async () => {
+    const h = harness([toolStep(30_000), toolStep(30_000), step(10)]);
+    await play(h);
+    const stored = h.turns.flatMap((t) => t.blocks as AgentBlock[]).filter((b) => b.type === "text" && "text" in b).map((b) => (b.type === "text" ? b.text : ""));
+    expect(stored.join(" ")).toContain("The door creaks");
   });
 
   it("saves and charges what an aborted turn used", async () => {
@@ -2603,6 +2626,45 @@ describe("who the player plays", () => {
     expect(h.state.hitPointsSet).toEqual([{ memberId: WREN, hitPoints: 19 }]);
     expect(h.state.usedUp).toEqual([{ characterId: HONEYCOMB, thing: "Potion of Healing" }]);
     expect(h.events).toContainEqual({ type: "hit_points", change: { change: "heal", why: "Potion of Healing", by: 7, hp: 19, maxHp: 20 } });
+  });
+
+  // Bug caught (seen live, 18 Nov 2026): Rosie lay at 0 hit points with a potion in her own pack; a character took
+  // it out and gave it to her, the tool refused "player" as its owner, and she was healed with the potion still in
+  // her pack.
+  it("uses up a thing from the player's own pack, whoever administered it", async () => {
+    const h = withWren([rollsPotion, heals({ used_by: "player", used_thing: "Potion of Healing" }), step(50)]);
+    h.state.packThings = ["Potion of Healing"];
+    h.state.rollAnswer = { content: JSON.stringify({ hidden: false, label: "Potion of Healing", faces: [3, 2], dropped_faces: [], modifier: 2, total: 7 }), isError: false };
+    await play(h, { body: START });
+    expect(h.state.hitPointsSet).toEqual([{ memberId: WREN, hitPoints: 19 }]);
+    expect(h.state.usedUp).toEqual([{ characterId: `pack of ${WREN}`, thing: "Potion of Healing" }]);
+  });
+
+  // Bug caught (seen live): "Potion of Healing" healed the player with nobody's potion used up, because the
+  // narrator left out whose it was. The tool sends it back to say so, and the second call uses the potion.
+  it("will not heal from a thing the player carries without saying whose was used", async () => {
+    const h = withWren([rollsPotion, heals(), heals({ used_by: "player", used_thing: "Potion of Healing" }), step(50)]);
+    h.state.packThings = ["Potion of Healing"];
+    h.state.carriedList = [{ name: "Potion of Healing", quantity: 1 }];
+    h.state.rollAnswer = { content: JSON.stringify({ hidden: false, label: "Potion of Healing", faces: [3, 2], dropped_faces: [], modifier: 2, total: 7 }), isError: false };
+    await play(h, { body: START });
+    expect(JSON.stringify(h.requests[2].messages)).toContain("call this again with used_by");
+    expect(h.state.usedUp).toEqual([{ characterId: `pack of ${WREN}`, thing: "Potion of Healing" }]);
+    expect(h.state.hitPointsSet).toEqual([{ memberId: WREN, hitPoints: 19 }]);
+  });
+
+  // Bug caught: a potion nobody carries healing someone (the maintainer: "or if it's not there, conclusively see I
+  // DON'T have it on me"). Nothing is healed, nothing is used, and the narrator is told it is not there.
+  it.each([
+    ["the player's own pack", "player"],
+    ["a character's belongings", HONEYCOMB],
+  ])("heals nobody with a thing that is not in %s", async (_where, usedBy) => {
+    const h = withWren([rollsPotion, heals({ used_by: usedBy, used_thing: "Elixir of Life" }), step(50)]);
+    h.state.rollAnswer = { content: JSON.stringify({ hidden: false, label: "Elixir", faces: [3, 2], dropped_faces: [], modifier: 2, total: 7 }), isError: false };
+    await play(h, { body: START });
+    expect(h.state.hitPointsSet).toEqual([]);
+    expect(h.state.usedUp).toEqual([]);
+    expect(JSON.stringify(h.requests[2].messages)).toContain("Nothing is used and nothing changes");
   });
 
   // Bug caught: the narrator naming healing without dice, and the sheet changing anyway.

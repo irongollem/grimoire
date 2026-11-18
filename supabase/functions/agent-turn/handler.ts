@@ -55,7 +55,11 @@ import type { CreditLogFields } from "../_shared/credits.ts";
 export const MAX_STEPS = 8;
 /** A reply of a few sentences is far below this; it stops one runaway answer from costing a whole turn's budget. */
 export const MAX_OUTPUT_TOKENS = 2000;
-/** Everything the provider billed this turn, cache included. About a dozen times what a usual turn uses. */
+/**
+ * What a turn may spend, in full-rate tokens: cache reads count at a tenth (`budgetTokens`), as they cost. A usual
+ * turn in a long sitting is three or four steps of some 20,000 tokens, nearly all of it cache reads, so about
+ * 10,000 of these; the budget is several times that and still stops a turn that loops.
+ */
 export const TOKEN_BUDGET = 60_000;
 /** Held before the turn so an account with no credits is refused before any model call; the real charge is metered. */
 export const RESERVE_CREDITS = 1;
@@ -936,7 +940,11 @@ export async function beginTurn(input: {
           try {
             await deps.setHitPoints(campaign.id, character.id, mended.after);
             emit({ type: "hit_points", change: { change: mended.change, why: mended.why, by: Math.abs(mended.after - character.hitPoints.current), hp: mended.after, maxHp: mended.max } });
-            if (mended.used !== null) await deps.useUpBelonging(campaign.id, mended.used.characterId, mended.used.thing);
+            // The thing that was used leaves whoever carried it: a character's belongings, or the player's own pack.
+            if (mended.used !== null) {
+              if (mended.used.characterId === null) await deps.hands.useUpCarried(campaign.id, character.id, mended.used.thing);
+              else await deps.useUpBelonging(campaign.id, mended.used.characterId, mended.used.thing);
+            }
           } catch (error) {
             console.error("agent-turn: changing the character's hit points failed:", error);
           }

@@ -11,7 +11,7 @@ import {
   chestPick, parseHandOver, parseTake, purseAfterGaining, TAKE_TOOL, TAKE_TOOL_NAME, worth, type Coins, type HandsChange, type Possessions,
 } from "../_shared/agent/hands.ts";
 import type { HandsStore } from "./handsIo.ts";
-import { HIT_POINTS_TOOL, HIT_POINTS_TOOL_NAME, hitPointsText, parseHitPointChange, rollTotal, type HitPointChange } from "../_shared/agent/hitPoints.ts";
+import { HIT_POINTS_TOOL, HIT_POINTS_TOOL_NAME, hitPointsText, parseHitPointChange, rollTotal, unaccountedThing, type HitPointChange } from "../_shared/agent/hitPoints.ts";
 import { cannotAttempt, changedText, FIGHT_CHANGE_TOOL, parseFightChange, type FightChange, type TurnBudget } from "../_shared/agent/fightChange.ts";
 import type { FightState } from "../_shared/agent/fight.ts";
 import { alreadyRecorded, existsText, INTRODUCE_TOOL, INTRODUCE_TOOL_NAME, INTRODUCTIONS_PER_TURN, introducedText, parseIntroduction, type Introduction } from "../_shared/agent/introduce.ts";
@@ -217,11 +217,36 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   let lastRoll: number | null = null;
   // One change to the hit points a turn: a second would be worked out from the same sheet and replace the first.
   let hitPointsChanged = false;
-  const changeHitPoints = (toolInput: Record<string, unknown>) => {
+  const changeHitPoints = async (toolInput: Record<string, unknown>) => {
     if (input.hitPoints === null) return { content: "Hit points are not changed here.", isError: true };
     if (hitPointsChanged) return { content: "The hit points were already changed this turn. Tell what happened and end your reply.", isError: true };
     const parsed = parseHitPointChange(toolInput, { hitPoints: input.hitPoints.now, lastRoll });
     if (!parsed.ok) return { content: parsed.error, isError: true };
+    // A thing that is used up must be there to use: a potion nobody carries heals nobody. Checked against what
+    // is really carried, so "you have none on you" is something the table knows and not something it guesses.
+    const used = parsed.value.used;
+    if (used === null && input.hands !== null) {
+      const named = unaccountedThing(parsed.value.why, input.hands.possessions.carried);
+      if (named !== null) {
+        return {
+          content: `The player's character carries "${named}". If that is what was used, call this again with used_by "player" and used_thing "${named}", so it leaves their pack; if it was someone else's, give that character's id as used_by. Nothing has changed yet.`,
+          isError: true,
+        };
+      }
+    }
+    if (used !== null && input.hands !== null) {
+      const held = used.characterId === null
+        ? await input.hands.store.carried(campaignId, input.hands.memberId, used.thing)
+        : await input.hands.store.belonging(campaignId, used.characterId, used.thing);
+      if (held === null) {
+        return {
+          content: used.characterId === null
+            ? `The player's character carries no "${used.thing}" (see "What the player's character carries"). Nothing is used and nothing changes: tell them it is not among their things.`
+            : `That character carries no "${used.thing}". Nothing is used and nothing changes: tell that.`,
+          isError: true,
+        };
+      }
+    }
     hitPointsChanged = true;
     input.hitPoints.onChange(parsed.value);
     return { content: hitPointsText(parsed.value, input.hitPoints.now === null ? 0 : input.hitPoints.now.current), isError: false };
@@ -404,7 +429,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
         return Promise.resolve({ content: "You already said they go on: the next of them speaks in the next reply, not this one. End your reply now.", isError: true });
       }
       if (input.fightChange && name === FIGHT_CHANGE_TOOL.name) return Promise.resolve(changeFight(toolInput));
-      if (input.hitPoints && name === HIT_POINTS_TOOL_NAME) return Promise.resolve(changeHitPoints(toolInput));
+      if (input.hitPoints && name === HIT_POINTS_TOOL_NAME) return changeHitPoints(toolInput);
       if (input.hands && HANDS_TOOL_NAMES.has(name)) return changeHands(name, toolInput);
       if (quests && quests.names.has(name)) return quests.call(name, toolInput);
       if (SPEECH_TOOL_NAMES.has(name)) return speech.call(name, toolInput);

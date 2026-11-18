@@ -27,9 +27,12 @@ export const HIT_POINTS_TOOL: AgentTool = {
     "Heals or harms the player's character outside a fight, on their sheet. First roll the dice with the roll tool " +
     "(a Potion of Healing is 2d4+2, a fall is 1d6 per 10 feet); this takes the total of the roll you made last in " +
     "this reply, so never state an amount yourself and never tell the player a number you did not roll. Say whether " +
-    "it heals or harms and, in a few words, what did it. When it came out of a thing a character carried and it is " +
-    "now used up (a potion drunk, a salve spent), give that character's id as used_by and the thing's name as " +
-    "used_thing: one of it leaves their belongings. One change a turn; it is made when the turn is kept. In a fight " +
+    "it heals or harms and, in a few words, what did it. When it came out of a thing someone carried and it is " +
+    "now used up (a potion drunk, a salve spent), give used_by and the thing's name as used_thing: one of it " +
+    "leaves their belongings. used_by is the id of the character who carried it, or \"player\" when it came " +
+    "out of the player's own pack, whoever took it out and gave it to them (someone may go through an unconscious " +
+    "friend's things for their potion). It is refused when they do not carry such a thing: then nothing is used " +
+    "and nothing is healed, and you tell the player it is not there. One change a turn; it is made when the turn is kept. In a fight " +
     "the board keeps the hit points and this tool is not offered.",
   inputSchema: {
     type: "object",
@@ -37,7 +40,7 @@ export const HIT_POINTS_TOOL: AgentTool = {
     properties: {
       change: { type: "string", enum: ["heal", "harm"], description: "Whether the character gains or loses hit points." },
       why: { type: "string", maxLength: WHY_MAX, description: "What did it, in a few words the player may read: \"Potion of Healing\", \"The fall from the gallery\"." },
-      used_by: { type: "string", description: "The id of the character whose thing was used up. Leave out when nothing was." },
+      used_by: { type: "string", description: "The id of the character whose thing was used up, or \"player\" for the player's own pack. Leave out when nothing was." },
       used_thing: { type: "string", maxLength: THING_MAX, description: "The name of the thing used up, as it is among their belongings." },
     },
     required: ["change", "why"],
@@ -53,7 +56,8 @@ export interface HitPointChange {
   after: number;
   max: number;
   /** The thing that was used up for it, and whose it was; null when nothing was. */
-  used: { characterId: string; thing: string } | null;
+  /** Whose thing was used up: a character's (`characterId`), or the played character's own when it is null. */
+  used: { characterId: string | null; thing: string } | null;
 }
 
 type Parsed = { ok: true; value: HitPointChange } | { ok: false; error: string };
@@ -71,9 +75,9 @@ export function parseHitPointChange(
   if (ctx.lastRoll < 1) return { ok: false, error: "The roll came to nothing, so nothing changes. Tell that." };
   let used: HitPointChange["used"] = null;
   if (usedBy !== undefined || usedThing !== undefined) {
-    if (typeof usedBy !== "string" || !UUID.test(usedBy)) return { ok: false, error: "used_by must be the id of the character whose thing was used up." };
+    if (typeof usedBy !== "string" || (usedBy !== "player" && !UUID.test(usedBy))) return { ok: false, error: "used_by must be the id of the character whose thing was used up, or \"player\" for the player's own pack." };
     if (typeof usedThing !== "string" || usedThing.trim() === "" || usedThing.trim().length > THING_MAX) return { ok: false, error: "used_thing must be the name of the thing that was used up." };
-    used = { characterId: usedBy, thing: usedThing.trim() };
+    used = { characterId: usedBy === "player" ? null : usedBy, thing: usedThing.trim() };
   }
   const { current, max } = ctx.hitPoints;
   const after = change === "heal" ? Math.min(max, current + ctx.lastRoll) : Math.max(0, current - ctx.lastRoll);
@@ -101,4 +105,20 @@ export function rollTotal(content: string): number | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * The thing the player carries that a change to their hit points names as its cause, when the narrator did not
+ * say whose thing was used up. Seen live (18 Nov 2026): "Potion of Healing" healed the player twice with the
+ * potion still in their pack, because the narrator left `used_by` out; it then had them pick up "the empty bottle".
+ * A cause that names something in the pack is not accepted without saying whose was used. Short names are left
+ * alone: "Rope" inside "a rope bridge gives way" is not a rope being used.
+ */
+export function unaccountedThing(why: string, carried: readonly { name: string }[]): string | null {
+  const cause = why.toLowerCase();
+  for (const thing of carried) {
+    const name = thing.name.trim().toLowerCase();
+    if (name.length >= 6 && cause.includes(name)) return thing.name;
+  }
+  return null;
 }

@@ -447,6 +447,23 @@ The Solo Table canvas, built for version one: the story, the composer, the scene
 
 `scripts/dev-table.ts` is a terminal chat against the LOCAL stack: it signs in as the DM fixture, picks one of its campaigns (the Sugarwell demo by default; `-- --campaign <part of a name>`, `-- --place <part of a place's name>` to begin somewhere), and talks to the locally served `agent-turn` exactly as the screen will. A plain line is said aloud, `/do <text>` is done, `/new` starts a fresh sitting, `/quit` leaves. It needs the functions served (`supabase functions serve --env-file supabase/functions/.env`) and a provider key the local stack can decrypt (`scripts/local-provider-key.ts`). It refuses a stack that is not on loopback, switches AI on for the chosen local campaign and says so, and every turn is a real model call.
 
+## A turn never ends having told nothing (18 Nov 2026; `_shared/agent/turn.ts`)
+
+The maintainer's screenshot: "im still dead lol, can someone heal me?", then "Looked something up ×2" and nothing more. The stored turn showed why: a refused call, a search and a lookup, and then "The turn ended before this tool ran: token budget". Two things were wrong, and both are fixed.
+
+- **The budget counted cache reads whole.** Every step of a turn resends the conversation, and in a long sitting nearly all of it is a cache read, so three or four ordinary steps of 20,000 tokens each used up the 60,000. A cached token now weighs a tenth (`CACHED_TOKEN_WEIGHT`, `budgetTokens`), as it costs: the budget is about spend. The total a turn reports and is billed for (`totalTokens`) is unchanged.
+- **A limit ended the turn in silence.** When the step limit or the budget stops a turn with tools still asked for, those calls are answered as not run and the narrator gets **one closing call with no tools** to say, in a sentence or three, what has happened and what is still open. It cannot start another round. A turn the player stopped gets none: they asked for silence. If the closing call fails the turn stands as it was. Seen live: a turn that ran to the step limit ended "I can't resolve Comfit's response this turn; Rosie still has her Potion of Healing."
+
+## Whose thing was used (18 Nov 2026; `hitPoints.ts`)
+
+The maintainer: "when I'm dying but my inventory is full of stuff... they could grab the potion from my things and administer it to me... or if it's not there, conclusively see I DON'T have it on me."
+
+- `hit_points` takes `used_by: "player"` for a thing out of the player's own pack, whoever took it out (`useUpCarried`); a character's id still means that character's belongings.
+- **A thing that is used must be there.** Named with `used_by`, it is looked up in the pack or the belongings before anything changes; when it is not there, nothing is healed and the narrator is told to say it is not among their things.
+- **A cause that names something in the pack must say whose was used** (`unaccountedThing`). Seen live twice: "Potion of Healing" healed Rosie with the potion still in her pack, because the narrator left `used_by` out. The tool now sends that back.
+- Seen live: Comfit gave Rosie the potion from her own pack (it left the pack, 7 hit points); asked for another that was not there, nobody was healed.
+- Characters reaching into each other's things otherwise goes through `hand_over`, in either direction, and is checked the same way against what is really carried.
+
 ## Whose floor it is (`_shared/agent/floor.ts`, `src/lib/table/watching.ts`; 18 Nov 2026)
 
 The maintainer: "in some games you want to see how NPCs talk to each other sometimes rather than making you the hero all the time". So the question at the end of a turn is not "has the conversation paused" but "is there a reason to hand the turn back right now". When there is none, the characters go on and the player watches.

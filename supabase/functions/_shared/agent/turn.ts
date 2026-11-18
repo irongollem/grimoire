@@ -58,7 +58,21 @@ export interface TurnResult {
 type ToolCall = Extract<AgentBlock, { type: "tool_call" }>;
 type ToolResult = Extract<AgentBlock, { type: "tool_result" }>;
 
-/** Everything the provider billed, summed. Cached tokens count: the budget is about spend, not about the prompt. */
+/**
+ * What a cached input token weighs against a turn's budget: about what it costs beside a full one (a tenth, the
+ * providers' cached rate). The budget is about spend. Counted at full weight, a long sitting ran out of budget in
+ * three or four ordinary steps, because every step resends the whole conversation and nearly all of it is a cache
+ * read: seen live (18 Nov 2026), a turn ended on "token budget" after a refused call, a search and a lookup,
+ * having told the player nothing.
+ */
+export const CACHED_TOKEN_WEIGHT = 0.1;
+
+/** What the budget counts for one call: full-rate tokens whole, cache reads at their weight. */
+export function budgetTokens(usage: AgentUsage): number {
+  return usage.inputTokens + usage.outputTokens + usage.cacheWriteTokens + usage.cacheReadTokens * CACHED_TOKEN_WEIGHT;
+}
+
+/** Everything the provider billed, summed, for the record of the turn. Cached tokens count whole here. */
 export function totalTokens(steps: AgentUsage[]): number {
   let total = 0;
   for (const s of steps) total += s.inputTokens + s.outputTokens + s.cacheReadTokens + s.cacheWriteTokens;
@@ -74,6 +88,11 @@ function visibleText(message: AgentMessage | undefined): string {
   if (!message) return "";
   return message.blocks.map((b) => (b.type === "text" ? b.text : "")).join("");
 }
+
+/** What the narrator is told when a limit ends the turn with tools still asked for. */
+const CLOSING =
+  "Nothing that tool would have done has happened. You can call no more tools in this reply: tell the player now, in " +
+  "one to three sentences, what has happened so far, and leave what is still open for their next message.";
 
 const REASONS: Record<"step_limit" | "budget" | "aborted", string> = {
   step_limit: "step limit",
@@ -120,23 +139,43 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
   });
 
   // Rule 3: answer every call that will not run, so the stored conversation stays valid.
-  const answerPending = (calls: ToolCall[], end: "step_limit" | "budget" | "aborted"): TurnResult => {
+  const answerPending = async (calls: ToolCall[], end: "step_limit" | "budget" | "aborted"): Promise<TurnResult> => {
     added.push({
       role: "user",
       blocks: calls.map(
         (c): ToolResult => ({
           type: "tool_result",
           callId: c.id,
-          content: `The turn ended before this tool ran: ${REASONS[end]}.`,
+          content: end === "aborted" ? `The turn ended before this tool ran: ${REASONS[end]}.` : `The turn ended before this tool ran: ${REASONS[end]}. ${CLOSING}`,
           isError: true,
         }),
       ),
     });
+    // A turn that ran into a limit must not end having told the player nothing: one last call, with no tools to
+    // reach for, says where things stand. Stopped by the player is different: they asked for silence.
+    if (end === "aborted" || signal?.aborted) return result(end);
+    try {
+      const closing = await callModel({
+        system: input.system,
+        messages: [...input.history, ...sent()],
+        tools: [],
+        maxOutputTokens: limits.maxOutputTokens,
+        onText: (delta) => emit({ type: "text", delta }),
+        signal,
+      });
+      steps.push(closing.usage);
+      emit({ type: "step", usage: closing.usage });
+      const kept = closing.blocks.filter((b) => b.type !== "tool_call");
+      if (kept.length > 0) added.push({ role: "assistant", blocks: kept });
+    } catch (error) {
+      // The closing words are a courtesy: a failure here leaves the turn as it stood.
+      if (!isAbort(error, signal)) console.error("agent turn: the closing call failed:", error);
+    }
     return result(end);
   };
 
   // A tool's own model calls are billed like the narrator's, so the budget counts both.
-  const spent = () => totalTokens([...steps, ...toolSteps.map((t) => t.usage)]);
+  const spent = () => [...steps, ...toolSteps.map((t) => t.usage)].reduce((sum, usage) => sum + budgetTokens(usage), 0);
 
   const runOne = async (call: ToolCall): Promise<{ block: ToolResult; usage: AgentUsage[] }> => {
     emit({ type: "tool_start", id: call.id, name: call.name, input: call.input });

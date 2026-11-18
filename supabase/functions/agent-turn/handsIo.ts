@@ -43,6 +43,8 @@ export interface HandsStore {
   carried(campaignId: string, memberId: string, thing: string): Promise<Held | null>;
   /** One of the campaign's own items, by id. */
   item(campaignId: string, itemId: string): Promise<{ name: string } | null>;
+  /** One of a thing leaves the played character's pack (a potion drunk): the row goes when it was the last. False when they carry none. */
+  useUpCarried(campaignId: string, memberId: string, thing: string): Promise<boolean>;
   /** Makes the change. Throws when it cannot be made; the caller keeps the turn either way. */
   apply(ctx: { campaignId: string; userId: string; memberId: string; memberName: string }, change: HandsChange): Promise<void>;
 }
@@ -134,6 +136,16 @@ export function makeHandsStore(admin: SupabaseClient): HandsStore {
       const { data, error } = await admin.from("party_inventory").select("id, name, quantity, item_id, library_item_id").eq("carried_by", memberId).eq("campaign_id", campaignId).ilike("name", exactly(thing)).gt("quantity", 0).limit(1).maybeSingle();
       if (error) throw error;
       return data ? { rowId: data.id as string, name: data.name as string, quantity: data.quantity as number, ref: refOf(data) } : null;
+    },
+
+    async useUpCarried(campaignId, memberId, thing) {
+      const held = await this.carried(campaignId, memberId, thing);
+      if (held === null) return false;
+      const write = held.quantity > 1
+        ? await admin.from("party_inventory").update({ quantity: held.quantity - 1 }).eq("id", held.rowId).eq("campaign_id", campaignId)
+        : await admin.from("party_inventory").delete().eq("id", held.rowId).eq("campaign_id", campaignId);
+      if (write.error) throw write.error;
+      return true;
     },
 
     async item(campaignId, itemId) {

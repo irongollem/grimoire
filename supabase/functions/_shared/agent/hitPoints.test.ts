@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hitPointsText, parseHitPointChange, rollTotal } from "./hitPoints.ts";
+import { hitPointsText, parseHitPointChange, unaccountedThing, rollTotal } from "./hitPoints.ts";
 
 const HONEYCOMB = "f5f67a48-5233-473b-84a3-5eb024491c86";
 const hurt = { current: 15, max: 58 };
@@ -34,6 +34,8 @@ describe("parseHitPointChange", () => {
     expect(whole).toMatchObject({ value: { used: { characterId: HONEYCOMB, thing: "Potion of Healing" } } });
     expect(parseHitPointChange({ change: "heal", why: "Potion", used_by: HONEYCOMB }, { hitPoints: hurt, lastRoll: 7 }).ok).toBe(false);
     expect(parseHitPointChange({ change: "heal", why: "Potion", used_by: "Honeycomb", used_thing: "Potion" }, { hitPoints: hurt, lastRoll: 7 }).ok).toBe(false);
+    // The player's own pack is named by the word, never by an id the narrator would have to guess.
+    expect(parseHitPointChange({ change: "heal", why: "Potion", used_by: "player", used_thing: "Potion of Healing" }, { hitPoints: hurt, lastRoll: 7 })).toMatchObject({ value: { used: { characterId: null, thing: "Potion of Healing" } } });
   });
 
   // Bug caught: a character with no hit points on the sheet written to 0.
@@ -61,5 +63,21 @@ describe("rollTotal", () => {
     expect(rollTotal(JSON.stringify({ hidden: true, total: 5 }))).toBe(5);
     expect(rollTotal("The dice could not be rolled.")).toBeNull();
     expect(rollTotal(JSON.stringify({ total: "7" }))).toBeNull();
+  });
+});
+
+describe("unaccountedThing", () => {
+  const pack = [{ name: "Potion of Healing" }, { name: "Rope" }, { name: "Workshop Keys" }];
+  // Bug caught (seen live): a potion named as what healed the player, with nobody's potion used up.
+  it("finds the carried thing a cause names", () => {
+    expect(unaccountedThing("Potion of Healing", pack)).toBe("Potion of Healing");
+    expect(unaccountedThing("Comfit pours the potion of healing down her throat", pack)).toBe("Potion of Healing");
+  });
+
+  // Bug caught: every fall near a rope refused because the pack holds a Rope.
+  it("leaves alone a cause that names nothing carried, or only a short common word", () => {
+    expect(unaccountedThing("A night's rest", pack)).toBeNull();
+    expect(unaccountedThing("The rope bridge gives way", pack)).toBeNull();
+    expect(unaccountedThing("Cure Wounds", [])).toBeNull();
   });
 });
