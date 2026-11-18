@@ -68,7 +68,7 @@ function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id, pressure_clock_id, party_member_id, opened_play_session, left_at, pending_roll, fight_encounter_id, pursuit_encounter_id";
+const SESSION_COLUMNS = "id, user_id, campaign_id, summary, summary_through_seq, scene_location_id, campaign_session_id, pressure_clock_id, party_member_id, opened_play_session, left_at, pending_roll, fight_encounter_id, pursuit_encounter_id, updated_at";
 
 /** Beside what is tied to this place and these people, the campaign's newest facts always reach the narrator. */
 const NEWEST_FACTS = 15;
@@ -86,6 +86,7 @@ function sessionRow(row: Record<string, unknown>): SessionRow {
     party_member_id: (row.party_member_id as string | null) ?? null,
     opened_play_session: row.opened_play_session === true,
     left_at: (row.left_at as string | null) ?? null,
+    updated_at: String(row.updated_at),
     // Anything this code did not write reads as nothing asked: a roll is never scored against a DC it cannot trust.
     pending_roll: parsePendingRoll(row.pending_roll),
     fight_encounter_id: (row.fight_encounter_id as string | null) ?? null,
@@ -169,6 +170,7 @@ serve(withCors(async (req: Request) => {
     },
 
     isDm: (campaign, userId) => isCampaignDm(admin, campaign, userId),
+    now: () => Date.now(),
 
     async loadSession(sessionId): Promise<SessionRow | null> {
       const { data, error } = await admin.from("agent_sessions").select(SESSION_COLUMNS).eq("id", sessionId).maybeSingle();

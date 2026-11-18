@@ -24,7 +24,7 @@ const session: SessionRow = {
   scene_location_id: null,
   campaign_session_id: null,
   opened_play_session: false,
-  left_at: null,
+  left_at: null, updated_at: "2026-11-18T20:00:00Z",
   pressure_clock_id: null,
   party_member_id: null,
   pending_roll: null,

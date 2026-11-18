@@ -2,8 +2,8 @@
 export interface TurnFailure {
   /** One plain sentence under the player's line. */
   message: string;
-  /** What the page offers: send the same message again, buy credits, or only the sentence. */
-  action: "resend" | "credits" | "none";
+  /** What the page offers: send the same message again, buy credits, or only the sentence. `ended`: the page leaves the table. */
+  action: "resend" | "credits" | "none" | "ended";
 }
 
 /** The Narrator did not answer: a broken stream, a dropped connection, the model's maker being busy. */
@@ -29,6 +29,10 @@ export function refusalFailure(status: number, code: string | null): TurnFailure
       message: "You are out of credits. The story is saved and waits for you. Nothing was charged for the message you just tried to send.",
       action: "credits",
     };
+  }
+  // A long pause ended the sitting (`sittingLength.ts`). Before the statuses: it is a 409 like any other otherwise.
+  if (code === "sitting_ended") {
+    return { message: "This sitting ended while you were away. Sit down again to pick the story up.", action: "ended" };
   }
   if (status === 429 || code === "rate_limited") {
     return { message: "The table is catching its breath. Wait a moment and send again.", action: "resend" };
