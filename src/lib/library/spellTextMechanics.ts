@@ -5,7 +5,7 @@
  * Every matcher returns null unless the text names exactly one reading.
  */
 
-import type { SpellEffectInstances } from "@/types/spell.types";
+import type { SpellEffectInstances } from "../../types/spell.types.ts";
 
 export const DAMAGE_TYPES = [
   "acid", "bludgeoning", "cold", "fire", "force", "lightning", "necrotic",

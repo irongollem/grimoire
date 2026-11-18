@@ -31,6 +31,8 @@ import {
   type PostedRoll,
   type StatBlockSources,
 } from "./handler";
+import { fireBolt, fireball, mageBlock } from "../../../src/rules/fight/spells/spellTestKit";
+import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice";
 import type { ExploreParty } from "../../../src/types/exploreParty.types";
 
 function row(over: Partial<FightRow> = {}): FightRow {
@@ -74,6 +76,8 @@ interface Harness {
   playerLoads: string[][];
   /** How many times the fight's map was read. */
   mapLoads: number;
+  /** The spell names the server asked the library for. */
+  spellReads: string[];
   /** Runs once, between a load and its save: another writer got in. */
   rival: { run: (() => void) | null; always: boolean };
   /** Every note judgment the server asked for: the request, and the count it said it had already made this batch. */
@@ -98,6 +102,8 @@ function harness(
     map?: FightMap | null;
     /** What a note judgment answers; absent is "not allowed" (AI off, no key, over the cap, or a failed call). */
     judge?: (request: JudgeRequest) => JudgeResult | null;
+    /** The spell records the library and the campaign hold. */
+    spells?: SpellRecord[];
   } = {},
 ): Harness {
   const h: Harness = {
@@ -116,6 +122,7 @@ function harness(
     dieCalls: 0,
     playerLoads: [],
     mapLoads: 0,
+    spellReads: [],
     rival: { run: null, always: false },
     noteAsks: [],
     noteCosts: [],
@@ -194,6 +201,10 @@ function harness(
     async loadFightMap() {
       h.mapLoads += 1;
       return options.map === undefined ? null : options.map;
+    },
+    async loadSpells(name) {
+      h.spellReads.push(name);
+      return structuredClone(options.spells ?? []);
     },
     async postRoll(roll) {
       h.log.push("roll");
@@ -1691,5 +1702,137 @@ describe("take_turn and opportunity attacks", () => {
     expect(combatantOf(stored(h), "wolf").position).not.toEqual({ x: 1, y: 0 });
     expect(result.effects.some((e) => e.type === "opportunity")).toBe(false);
     expect(h.dieCalls).toBe(0);
+  });
+});
+
+describe("cast_spell", () => {
+  const MAGE_SOURCES: StatBlockSources = {
+    monsters: [{ id: "m-mage", name: "Mage", stat_block: mageBlock() } as unknown as Monster, monster("m-ox")],
+    npcs: [],
+    companions: [],
+  };
+  /** A mage and three oxen (40 HP, Dex +0, AC 13) side by side. */
+  const field = (mage: Partial<RunCombatant> = {}) =>
+    row({
+      combatants_live: [
+        combatant("mage", { monster_id: "m-mage", hp: 40, max_hp: 40, initiative: 12, position: { x: 1, y: 1 }, ...mage }),
+        ...["t1", "t2", "t3"].map((id, i) => combatant(id, { monster_id: "m-ox", hp: 40, max_hp: 40, ac: "13", initiative: 5 - i, position: { x: 4 + i, y: 1 } })),
+      ],
+    });
+  const cast = (over: Record<string, unknown> = {}): CommandRequest["commands"][number] =>
+    ({ type: "cast_spell", casterId: "mage", spell: "fireball", targetIds: ["t1", "t2", "t3"], ...over }) as CommandRequest["commands"][number];
+  const by = (r: FightRow, id: string) => r.combatants_live.find((c) => c.instance_id === id)!;
+
+  // SRD 5.1 "Fireball": 8d6 fire, a Dexterity save for half. The saves come first: t1 rolls 5 and t3 rolls 3 (both fail DC 14 with
+  // Dex +0), t2 rolls 20 and saves. 8d6 faces 1+2+3+4+5+6+1+2 = 24, rolled once: failures take 24 (40 -> 16), t2 takes half, 12 (40 -> 28).
+  // One 3rd-level slot is spent (4 of the mage's three-slot level remain as 2) and the Action is used.
+  it("fails if a fireball is rolled per target, or does not spend exactly one 3rd-level slot and the Action", async () => {
+    const h = harness(field(), { sources: MAGE_SOURCES, spells: [fireball()], dieFaces: [5, 20, 3, 1, 2, 3, 4, 5, 6, 1, 2] });
+    const result = await runBatch(batch("b", cast()), h.deps);
+    const after = stored(h);
+    expect(["t1", "t2", "t3"].map((id) => hpOf(after, id))).toEqual([16, 28, 16]);
+    expect(by(after, "mage").action_uses).toEqual({ "slots/3": { used: 1, per_day: 3 } });
+    expect(by(after, "mage").action_used).toBe(true);
+    expect(h.posted.filter((p) => p.result.isDamage)).toHaveLength(1);
+    expect(h.dieCalls).toBe(11);
+    expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "save", action: "Fireball", ability: "dex", dc: 14 } });
+  });
+
+  // SRD 5.1 "Fireball" cast with a 4th-level slot is 9d6: the mage's "4th level (3 slots)" are spent, not its 3rd-level ones.
+  it("fails if an upcast spends the spell's own level of slot, or rolls the base dice", async () => {
+    const h = harness(field(), { sources: MAGE_SOURCES, spells: [fireball()], dieFaces: [20, 20, 20, 1, 1, 1, 1, 1, 1, 1, 1, 1] });
+    await runBatch(batch("b", cast({ castLevel: 4 })), h.deps);
+    // 9d6 with all ones = 9; every target saved, half rounded down is 4 (40 -> 36).
+    expect(["t1", "t2", "t3"].map((id) => hpOf(stored(h), id))).toEqual([36, 36, 36]);
+    expect(by(stored(h), "mage").action_uses).toEqual({ "slots/4": { used: 1, per_day: 3 } });
+    expect(h.dieCalls).toBe(12);
+  });
+
+  // The mage has three 3rd-level slots and has spent them. A fourth cast is refused and nothing is saved, rolled or posted.
+  it("fails if a fourth cast of a three-slot level goes through, or changes anything", async () => {
+    const spent = field({ action_uses: { "slots/3": { used: 3, per_day: 3 } } });
+    const h = harness(spent, { sources: MAGE_SOURCES, spells: [fireball()], dieFaces: [] });
+    await expect(runBatch(batch("b", cast()), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/no level 3 spell slots left/) });
+    expect(h.saves).toBe(0);
+    expect(h.dieCalls).toBe(0);
+    expect(h.posted).toEqual([]);
+  });
+
+  it("fails if a creature casts a spell its stat block does not list", async () => {
+    const h = harness(field(), { sources: MAGE_SOURCES, spells: [fireball({ name: "Disintegrate" })] });
+    await expect(runBatch(batch("b", cast({ spell: "disintegrate" })), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/does not list disintegrate/) });
+    expect(h.saves).toBe(0);
+    expect(h.spellReads).toEqual([]);
+  });
+
+  it("fails if a caster with no stat block the server can read casts", async () => {
+    const h = harness(field({ monster_id: undefined }), { sources: MAGE_SOURCES, spells: [fireball()] });
+    await expect(runBatch(batch("b", cast()), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/no stat block/) });
+  });
+
+  // The record is not reviewed (like the library's wotc-srd rows): nothing proves its numbers, so the slot and the Action are
+  // spent and the outcome is the table's. No die is thrown and nobody is hurt.
+  it("fails if an unreviewed record is rolled, or casts for free", async () => {
+    // Complete numbers, but nobody has proved them: a record that would roll if it were reviewed must still not roll.
+    const bare = fireball({ mechanics_reviewed: false });
+    const h = harness(field(), { sources: MAGE_SOURCES, spells: [bare], dieFaces: [] });
+    const result = await runBatch(batch("b", cast()), h.deps);
+    expect(["t1", "t2", "t3"].map((id) => hpOf(stored(h), id))).toEqual([40, 40, 40]);
+    expect(h.dieCalls).toBe(0);
+    expect(by(stored(h), "mage").action_uses).toEqual({ "slots/3": { used: 1, per_day: 3 } });
+    expect(by(stored(h), "mage").action_used).toBe(true);
+    expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "cast", spell: "Fireball", castLevel: 3, targetIds: ["t1", "t2", "t3"] } });
+  });
+
+  it("fails if a spell the library does not hold is refused with no message, or spends the slot", async () => {
+    const h = harness(field(), { sources: MAGE_SOURCES, spells: [] });
+    await expect(runBatch(batch("b", cast()), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/No spell named "fireball"/) });
+    expect(h.saves).toBe(0);
+  });
+
+  // SRD 5.1 "Fire Bolt": a ranged spell attack at +6 from the mage's own header, 1d10 fire, 2d10 for a 9th-level caster. d20 9 + 6 = 15
+  // meets AC 13; 4 + 5 = 9 damage (40 -> 31). A cantrip is at will: no slot, no tally.
+  it("fails if an attack spell does not use the caster's bonus, or a cantrip is tallied", async () => {
+    const h = harness(field(), { sources: MAGE_SOURCES, spells: [fireBolt()], dieFaces: [9, 4, 5] });
+    const result = await runBatch(batch("b", cast({ spell: "fire bolt", targetIds: ["t1"], withinFiveFeet: false })), h.deps);
+    expect(hpOf(stored(h), "t1")).toBe(31);
+    expect(by(stored(h), "mage").action_uses).toBeUndefined();
+    expect(by(stored(h), "mage").action_used).toBe(true);
+    expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "attack", action: "Fire Bolt", natural: 9, total: 15, hit: true, damageTotal: 9 } });
+  });
+
+  it("fails if a spell is looked up once per target or again for a second cast in the batch", async () => {
+    const h = harness(field(), { sources: MAGE_SOURCES, spells: [fireBolt()], dieFaces: [9, 4, 5, 9, 4, 5] });
+    await runBatch(batch("b", cast({ spell: "fire bolt", targetIds: ["t1"], withinFiveFeet: false }), cast({ spell: "Fire  Bolt", targetIds: ["t2"], withinFiveFeet: false })), h.deps);
+    expect(h.spellReads).toHaveLength(1);
+  });
+
+  // A batch with no cast never reads a spell.
+  it("fails if a batch that casts nothing reads the spell library", async () => {
+    const h = harness(field(), { sources: MAGE_SOURCES, spells: [fireball()] });
+    await runBatch(batch("b", { type: "adjust_hp", instanceId: "t1", delta: -1 }), h.deps);
+    expect(h.spellReads).toEqual([]);
+  });
+
+  // A concentration spell ends the caster's earlier one (PHB 2014 ch. 10): the condition sourced from the mage's concentration goes.
+  it("fails if casting a concentration spell leaves the caster's earlier concentration in place", async () => {
+    const fight = field();
+    fight.combatants_live[1] = { ...by(fight, "t1"), conditions: [{ name: "Paralyzed", source: { id: "mage", spell: "Hold Person", concentration: true } }] };
+    const holdy = fireball({ concentration: true });
+    const h = harness(fight, { sources: MAGE_SOURCES, spells: [holdy], dieFaces: [20, 20, 20, 1, 1, 1, 1, 1, 1, 1, 1] });
+    await runBatch(batch("b", cast()), h.deps);
+    expect(by(stored(h), "t1").conditions).toEqual([]);
+  });
+
+  it("refuses a malformed cast before the fight is read: a repeated target, too many targets, a bad slot level, bad faces", () => {
+    const bad = (over: Record<string, unknown>) => () => validateRequest(batch("b", cast(over)));
+    expect(bad({ targetIds: ["t1", "t1"] })).toThrow(FightCommandError);
+    expect(bad({ targetIds: Array.from({ length: 31 }, (_, i) => `t${i}`) })).toThrow(FightCommandError);
+    expect(bad({ castLevel: 10 })).toThrow(FightCommandError);
+    expect(bad({ spell: "" })).toThrow(FightCommandError);
+    expect(bad({ faces: { attacks: [{ damage: [[3]] }] } })).toThrow(FightCommandError);
+    expect(bad({ faces: { save: { saves: [[5], [5], [5], [5]] } } })).toThrow(FightCommandError);
+    expect(bad({ targetIds: [], faces: { attacks: [null] } })).toThrow(FightCommandError);
+    expect(bad({})).not.toThrow();
   });
 });

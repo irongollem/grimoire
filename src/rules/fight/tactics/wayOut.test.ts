@@ -48,14 +48,14 @@ describe("wayOutsOf", () => {
     const ways = wayOutsOf(block({ actions: [NIGHT_HAG_2024] }));
     expect(ways).toEqual([
       { name: "Etherealness", effect: "leaves", slot: "action", useKey: null, limit: null },
-      { name: "Plane Shift", effect: "leaves", slot: "action", useKey: "spell/Plane Shift", limit: { per_day: 2 } },
+      { name: "Plane Shift", effect: "leaves", slot: "action", useKey: "spell/plane shift", limit: { per_day: 2 } },
     ]);
   });
 
   // SRD 5.1 innate spellcasting: "2/day each: plane shift (self only), ray of enfeeblement".
   it("fails if a 2014 lower-case 2/day each line with a parenthetical is not read", () => {
     const ways = wayOutsOf(block({ special_abilities: [other("Innate Spellcasting", "The hag's innate spellcasting ability is Charisma (spell save DC 14). She can cast:\nAt will: detect magic, magic missile\n2/day each: plane shift (self only), ray of enfeeblement")] }));
-    expect(ways).toEqual([{ name: "Plane Shift", effect: "leaves", slot: "action", useKey: "spell/Plane Shift", limit: { per_day: 2 } }]);
+    expect(ways).toEqual([{ name: "Plane Shift", effect: "leaves", slot: "action", useKey: "spell/plane shift", limit: { per_day: 2 } }]);
   });
 
   // The slot line `4th level (3 slots)` is per-day by app convention: the server casts no other spell, so slots are whole.
@@ -115,7 +115,7 @@ describe("wayOutsOf", () => {
 });
 
 describe("usableWayOut", () => {
-  const plane: WayOut = { name: "Plane Shift", effect: "leaves", slot: "action", useKey: "spell/Plane Shift", limit: { per_day: 2 } };
+  const plane: WayOut = { name: "Plane Shift", effect: "leaves", slot: "action", useKey: "spell/plane shift", limit: { per_day: 2 } };
   const ether: WayOut = { name: "Etherealness", effect: "leaves", slot: "action", useKey: null, limit: null };
   const passage: WayOut = { name: "Invisible Passage", effect: "unseen", slot: "action", useKey: null, limit: null };
 
@@ -125,8 +125,8 @@ describe("usableWayOut", () => {
 
   // The 2/Day Each line: two casts and the power is gone.
   it("fails if a way out whose per-day uses are spent is still offered, or a half-spent one is refused", () => {
-    expect(usableWayOut([plane], { ...hag(), action_uses: { "spell/Plane Shift": { used: 2 } } })).toBeNull();
-    expect(usableWayOut([plane], { ...hag(), action_uses: { "spell/Plane Shift": { used: 1 } } })).toBe(plane);
+    expect(usableWayOut([plane], { ...hag(), action_uses: { "spell/plane shift": { used: 2 } } })).toBeNull();
+    expect(usableWayOut([plane], { ...hag(), action_uses: { "spell/plane shift": { used: 1 } } })).toBe(plane);
   });
 
   it("fails if a spent recharge way out is offered", () => {
@@ -135,7 +135,7 @@ describe("usableWayOut", () => {
   });
 
   it("fails if the next way out is not tried when the first is spent", () => {
-    expect(usableWayOut([plane, passage], { ...hag(), action_uses: { "spell/Plane Shift": { used: 2 } } })).toBe(passage);
+    expect(usableWayOut([plane, passage], { ...hag(), action_uses: { "spell/plane shift": { used: 2 } } })).toBe(passage);
   });
 
   it("fails if a spent Action does not block an Action way out, or a spent Bonus Action blocks one that costs the Action", () => {

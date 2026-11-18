@@ -1,7 +1,7 @@
-import { scaleExpression } from "@/lib/dice/dice";
-import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
-import { cantripDiceMultiplier } from "@/types/spell.types";
-import type { HigherLevelDamage, Spell } from "@/types/spell.types";
+import { scaleExpression } from "../lib/dice/dice.ts";
+import type { DamageRoll } from "../systems/dnd5e/dice/damageExpression.ts";
+import { cantripDiceMultiplier } from "../types/spell.types.ts";
+import type { HigherLevelDamage, Spell } from "../types/spell.types.ts";
 
 /**
  * A damage roll's dice at a higher slot. A spell with two damage parts (Ice Storm)

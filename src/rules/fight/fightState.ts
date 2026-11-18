@@ -139,6 +139,12 @@ export type ResolvedAction =
       save: ResolvedSave | null;
     }
   | { kind: "save"; attackerId: string; action: string; ability: SaveAbility; dc: number; targets: ResolvedSave[] }
+  /**
+   * A spell the rules cast but did not resolve (#1021): the slot and the Action are spent, and `why` says what the data
+   * could not do, so what the cast came to is the table's to rule. Not raised for a spell that was rolled: that one is
+   * a `save` or an `attack` named for the spell.
+   */
+  | { kind: "cast"; casterId: string; spell: string; castLevel: number; targetIds: string[]; why: string }
   | { kind: "concentration"; instanceId: string; dc: number; natural: number; total: number; maintained: boolean }
   | { kind: "condition_save"; instanceId: string; name: string; dc: number; total: number | null; success: boolean }
   | { kind: "ongoing_damage"; instanceId: string; name: string; damage: ResolvedDamage[]; damageTotal: number; dying: DyingOutcome };

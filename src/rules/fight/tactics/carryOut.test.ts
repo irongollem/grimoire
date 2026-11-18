@@ -126,9 +126,9 @@ describe("stepsFor: an escape", () => {
 
   it("fails if a limited way out does not spend between the use and the leave, in that order", () => {
     const limit = { per_day: 2 };
-    expect(stepsFor(escape({ name: "Plane Shift", useKey: "spell/Plane Shift", limit }), [])).toEqual([
+    expect(stepsFor(escape({ name: "Plane Shift", useKey: "spell/plane shift", limit }), [])).toEqual([
       { type: "use", slot: "action" },
-      { type: "spend", useKey: "spell/Plane Shift", limit },
+      { type: "spend", useKey: "spell/plane shift", limit },
       { type: "leave" },
     ]);
   });

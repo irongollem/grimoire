@@ -35,6 +35,10 @@ import {
   type ResolutionContext,
 } from "../../../src/rules/fight/actionResolution.ts";
 import { playerArmorClass, playerSaveBonus, type PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
+import { castableBy, slotLimitAt } from "../../../src/rules/fight/spells/castLimit.ts";
+import { pickSpellRecord, type SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
+import { spellEntryFor } from "../../../src/rules/fight/spells/spellEntry.ts";
+import { limitAvailability } from "../../../src/rules/encounterTurn.ts";
 import { combatantFootprint } from "../../../src/lib/battlemap/tokenFootprint.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
@@ -53,6 +57,12 @@ export interface AttackFaces {
 export interface SaveFaces {
   saves?: Array<number[] | null>;
   damage?: number[][];
+}
+
+/** Faces a person rolled for a cast: an attack spell's own per target (in `targetIds` order, null where the server rolls), or a save spell's as for `resolve_save`. */
+export interface CastFaces {
+  attacks?: Array<AttackFaces | null>;
+  save?: SaveFaces;
 }
 
 /**
@@ -75,6 +85,23 @@ export type ResolvingCommand =
       faces?: AttackFaces;
     }
   | { type: "resolve_save"; attackerId: string; list: StatBlockListKey; action: string; targetIds: string[]; magical?: boolean; faces?: SaveFaces }
+  /**
+   * A creature casts one of the spells its stat block lists (#1021, row 5b). `castLevel` is the slot used (left out: the
+   * level the stat block lists it at, or the spell's own for at will and N/day casting). One attack is rolled per target
+   * for an attack spell; a save spell rolls its damage once for all of them. A spell whose data is not enough to roll
+   * (or whose record is not reviewed) still spends its slot and the Action, and says why the outcome is the table's.
+   */
+  | {
+      type: "cast_spell";
+      casterId: string;
+      spell: string;
+      castLevel?: number;
+      /** None to many; a spell that is rolled needs at least one. */
+      targetIds: string[];
+      /** For an attack spell: whether the caster is within five feet of each target (left out: read from the map, as `resolve_attack` does). */
+      withinFiveFeet?: boolean;
+      faces?: CastFaces;
+    }
   /** `damage` is what the creature just took; the Constitution save is against max(10, half of it). A lost save ends what it held. */
   | { type: "resolve_concentration"; instanceId: string; damage: number; faces?: number[] }
   /** Rolls the repeat save of a "save ends" condition that is due, then settles it. */
@@ -84,7 +111,7 @@ export type ResolvingCommand =
 
 /** Every resolving command type. The check below fails the build when the union grows and this list does not. */
 export const RESOLVING_COMMAND_TYPES = [
-  "resolve_attack", "resolve_save", "resolve_concentration", "roll_condition_save", "roll_ongoing_damage",
+  "resolve_attack", "resolve_save", "cast_spell", "resolve_concentration", "roll_condition_save", "roll_ongoing_damage",
 ] as const satisfies readonly ResolvingCommand["type"][];
 
 type MissingResolvingTypes = Exclude<ResolvingCommand["type"], (typeof RESOLVING_COMMAND_TYPES)[number]>;
@@ -102,6 +129,7 @@ const STAT_BLOCK_LISTS: ReadonlySet<unknown> = new Set(["special_abilities", "ac
 
 export const MAX_TARGETS = 30;
 const MAX_FACES = 60;
+const MAX_SPELL_NAME = 100;
 export const MAX_PENALTY = 20;
 export const MAX_CONCENTRATION_DAMAGE = 10_000;
 
@@ -128,6 +156,31 @@ function validDamageFaces(value: unknown, what: string): void {
   for (const faces of value as unknown[]) validFaceList(faces, what);
 }
 
+/** The faces a person rolled for an attack; undefined is allowed (the server rolls). */
+function validateAttackFaces(faces: unknown, type: string): void {
+  if (faces === undefined) return;
+  if (!isRecord(faces)) refuse(`${type}: faces must be an object.`);
+  const f = faces as Record<string, unknown>;
+  if (f.attack !== undefined) validFaceList(f.attack, `${type}: faces.attack`);
+  if (f.damage !== undefined) {
+    validDamageFaces(f.damage, `${type}: faces.damage`);
+    // The dice of a hit depend on whether the d20 was a critical, so a person's damage goes with the d20 they rolled.
+    if (f.attack === undefined) refuse(`${type}: faces.damage needs faces.attack, because a critical doubles the damage dice.`);
+  }
+}
+
+/** The faces a person rolled for a save-based action: one save entry per target, then the damage. */
+function validateSaveFaces(faces: unknown, ids: string[], type: string): void {
+  if (faces === undefined) return;
+  if (!isRecord(faces)) refuse(`${type}: faces must be an object.`);
+  const f = faces as Record<string, unknown>;
+  if (f.saves !== undefined) {
+    if (!Array.isArray(f.saves) || f.saves.length > ids.length) refuse(`${type}: faces.saves is one entry per target, in targetIds order.`);
+    for (const entry of f.saves as unknown[]) if (entry !== null) validFaceList(entry, `${type}: faces.saves`);
+  }
+  if (f.damage !== undefined) validDamageFaces(f.damage, `${type}: faces.damage`);
+}
+
 /** Shape only: that the entry exists, that the creature may act and what the faces mean for the die rolled are checked as the command is applied. */
 export function validateResolvingCommand(command: Record<string, unknown>): void {
   const type = String(command.type);
@@ -145,33 +198,37 @@ export function validateResolvingCommand(command: Record<string, unknown>): void
         if (penalty !== undefined && (!Number.isInteger(penalty) || (penalty as number) > 0 || (penalty as number) < -MAX_PENALTY)) {
           refuse(`resolve_attack: penalty is a whole number from -${MAX_PENALTY} to 0.`);
         }
-        const faces = command.faces;
-        if (faces !== undefined) {
-          if (!isRecord(faces)) refuse("resolve_attack: faces must be an object.");
-          const f = faces as Record<string, unknown>;
-          if (f.attack !== undefined) validFaceList(f.attack, "resolve_attack: faces.attack");
-          if (f.damage !== undefined) {
-            validDamageFaces(f.damage, "resolve_attack: faces.damage");
-            // The dice of a hit depend on whether the d20 was a critical, so a person's damage goes with the d20 they rolled.
-            if (f.attack === undefined) refuse("resolve_attack: faces.damage needs faces.attack, because a critical doubles the damage dice.");
-          }
-        }
+        validateAttackFaces(command.faces, "resolve_attack");
       } else {
         const ids = command.targetIds;
         if (!Array.isArray(ids) || ids.length < 1 || ids.length > MAX_TARGETS || ids.some((id) => typeof id !== "string" || id.length === 0)) {
           refuse(`resolve_save needs between 1 and ${MAX_TARGETS} targetIds.`);
         }
         if (new Set(ids as string[]).size !== (ids as string[]).length) refuse("resolve_save: a target is listed twice.");
-        const faces = command.faces;
-        if (faces !== undefined) {
-          if (!isRecord(faces)) refuse("resolve_save: faces must be an object.");
-          const f = faces as Record<string, unknown>;
-          if (f.saves !== undefined) {
-            if (!Array.isArray(f.saves) || f.saves.length > (ids as string[]).length) refuse("resolve_save: faces.saves is one entry per target, in targetIds order.");
-            for (const entry of f.saves as unknown[]) if (entry !== null) validFaceList(entry, "resolve_save: faces.saves");
-          }
-          if (f.damage !== undefined) validDamageFaces(f.damage, "resolve_save: faces.damage");
+        validateSaveFaces(command.faces, ids as string[], "resolve_save");
+      }
+      break;
+    }
+    case "cast_spell": {
+      validId(command.casterId, "a casterId", type);
+      if (typeof command.spell !== "string" || command.spell.trim().length === 0 || command.spell.length > MAX_SPELL_NAME) refuse(`cast_spell needs the name of the spell.`);
+      const { castLevel } = command;
+      if (castLevel !== undefined && (!Number.isInteger(castLevel) || (castLevel as number) < 0 || (castLevel as number) > 9)) refuse("cast_spell: castLevel is a whole number from 0 to 9.");
+      const ids = command.targetIds;
+      if (!Array.isArray(ids) || ids.length > MAX_TARGETS || ids.some((id) => typeof id !== "string" || id.length === 0)) {
+        refuse(`cast_spell needs a list of at most ${MAX_TARGETS} targetIds (empty for a spell that has none).`);
+      }
+      if (new Set(ids as string[]).size !== (ids as string[]).length) refuse("cast_spell: a target is listed twice.");
+      if (command.withinFiveFeet !== undefined && typeof command.withinFiveFeet !== "boolean") refuse("cast_spell: withinFiveFeet must be true or false.");
+      const faces = command.faces;
+      if (faces !== undefined) {
+        if (!isRecord(faces)) refuse("cast_spell: faces must be an object.");
+        const f = faces as Record<string, unknown>;
+        if (f.attacks !== undefined) {
+          if (!Array.isArray(f.attacks) || f.attacks.length > (ids as string[]).length) refuse("cast_spell: faces.attacks is one entry per target, in targetIds order.");
+          for (const entry of f.attacks as unknown[]) if (entry !== null) validateAttackFaces(entry, "cast_spell");
         }
+        validateSaveFaces(f.save, ids as string[], "cast_spell");
       }
       break;
     }
@@ -245,28 +302,37 @@ function makeDice(rollDie: (sides: number) => number, supply: Supply, posted: Po
   };
 }
 
+/** An attack's rolls come in a fixed order: the d20, then the damage parts. */
+function attackSupply(faces: AttackFaces | undefined): Supply {
+  let d20s = 0;
+  let damages = 0;
+  return (ask) => {
+    if (ask.isDamage) return faces?.damage?.[damages++] ?? null;
+    // The first d20 is the attack; any later one is a save the hit forces, which no faces were given for.
+    return d20s++ === 0 ? (faces?.attack ?? null) : null;
+  };
+}
+
+/** A save-based action's: the damage once, then one save per target, found by the roller. */
+function saveSupply(faces: SaveFaces | undefined, targetIds: readonly string[]): Supply {
+  let damages = 0;
+  return (ask) => {
+    if (ask.isDamage) return faces?.damage?.[damages++] ?? null;
+    const at = ask.rollerId === undefined ? -1 : targetIds.indexOf(ask.rollerId);
+    return at < 0 ? null : (faces?.saves?.[at] ?? null);
+  };
+}
+
 /** Which of a command's supplied faces answers which roll. Rolls come in a fixed order: the d20, then the damage parts. */
 function supplyFor(command: ResolvingCommand): Supply {
   switch (command.type) {
-    case "resolve_attack": {
-      const faces = command.faces;
-      let d20s = 0;
-      let damages = 0;
-      return (ask) => {
-        if (ask.isDamage) return faces?.damage?.[damages++] ?? null;
-        // The first d20 is the attack; any later one is a save the hit forces, which no faces were given for.
-        return d20s++ === 0 ? (faces?.attack ?? null) : null;
-      };
-    }
-    case "resolve_save": {
-      const faces = command.faces;
-      let damages = 0;
-      return (ask) => {
-        if (ask.isDamage) return faces?.damage?.[damages++] ?? null;
-        const at = ask.rollerId === undefined ? -1 : command.targetIds.indexOf(ask.rollerId);
-        return at < 0 ? null : (faces?.saves?.[at] ?? null);
-      };
-    }
+    case "resolve_attack":
+      return attackSupply(command.faces);
+    case "resolve_save":
+      return saveSupply(command.faces, command.targetIds);
+    // A cast's own save rolls are served here; each attack of an attack spell gets its own supply (see `cast_spell` below).
+    case "cast_spell":
+      return saveSupply(command.faces?.save, command.targetIds);
     case "resolve_concentration":
     case "roll_condition_save":
     case "roll_ongoing_damage":
@@ -320,6 +386,8 @@ export interface ResolveEnv {
   /** What the server read of the fight's player characters: their armour class and saves are worked out from it. */
   players: PlayerSheets;
   rollDie: (sides: number) => number;
+  /** The spell records named `name` (a campaign's own and the library's), read when a cast first asks. */
+  spells: (name: string) => Promise<SpellRecord[]>;
   /** The fight's map, or null when it has none the rules can use (no place, no calibrated map, an old snapshot): then no cover is applied. */
   map: FightMap | null;
   /** Receives every roll the command makes, in order, for the caller to post once the fight is saved. */
@@ -401,6 +469,78 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     },
   };
 
+  /** Spends the cast, then rolls it as an attack per target or a save for all, or says why it cannot. */
+  const castSpell = async (cast: Extract<ResolvingCommand, { type: "cast_spell" }>): Promise<void> => {
+    const caster = combatantIn(state, cast.casterId, "caster");
+    ableToAct(caster);
+    const block = statBlockOf(caster, env.sources);
+    if (!block) refuse(`${caster.name} has no stat block the server can read, so it has no spells to cast.`);
+    const castable = castableBy(block as MonsterStatBlock, cast.spell);
+    if (castable === null) refuse(`${caster.name} does not list ${cast.spell} among the spells it casts.`);
+    const listed = castable as NonNullable<typeof castable>;
+
+    // Where this cast is tallied. An upcast of a slot spell spends the slots of the level it is cast at.
+    let { useKey, limit } = listed;
+    const slotted = listed.limit !== null && listed.level !== null && listed.level > 0 && listed.group.frequency.kind === "slots";
+    if (slotted && cast.castLevel !== undefined && cast.castLevel !== listed.level) {
+      const higher = slotLimitAt(block as MonsterStatBlock, cast.castLevel);
+      if (higher === null) refuse(`${caster.name} has no level ${cast.castLevel} spell slots to cast ${cast.spell} with.`);
+      ({ useKey, limit } = higher as NonNullable<typeof higher>);
+    }
+    if (useKey !== null && limit !== null && !limitAvailability(caster, useKey, limit).available) {
+      refuse(slotted ? `${caster.name} has no level ${cast.castLevel ?? listed.level} spell slots left.` : `${caster.name} cannot cast ${cast.spell} again.`);
+    }
+
+    const chosen = pickSpellRecord(cast.spell, await env.spells(cast.spell), state.ruleset);
+    if (chosen === null) refuse(`No spell named "${cast.spell}" is in the library or this campaign's spells, so there is nothing to cast.`);
+    const { record, automatable } = chosen as NonNullable<typeof chosen>;
+    // Innate casting (at will, N/day) is at the spell's own level; a cantrip at 0; a slot spell at the slot it is cast with.
+    const castLevel = slotted ? (cast.castLevel ?? (listed.level as number)) : listed.level === 0 ? 0 : record.level;
+    if (!slotted && cast.castLevel !== undefined && cast.castLevel !== castLevel) refuse(`${caster.name} casts ${record.name} at level ${castLevel} only.`);
+    const targets = cast.targetIds.map((id) => combatantIn(state, id, "target"));
+    const entry = spellEntryFor(record, castLevel, {
+      saveDc: listed.saveDc, attackBonus: listed.attackBonus, casterLevel: listed.casterLevel,
+    });
+    const rolled = automatable && entry.automatable;
+    if (rolled && targets.length === 0) refuse(`Name at least one target for ${record.name}.`);
+
+    // Everything that can be refused for the cast itself is behind us: from here the cast is spent.
+    const step = (command: Parameters<typeof applyFightCommand>[1]) => {
+      const result = applyFightCommand(holder.state, command, env.fightDeps);
+      holder.state = result.state;
+      collected.push(...result.effects);
+    };
+    // A concentration spell ends the caster's earlier one first (PHB 2014 ch. 10 "Concentration").
+    // NOT BUILT: a creature that casts a concentration spell does not start concentrating on it. A damage-only spell has
+    // nothing to hang it on (no condition carries its source), and nothing here would end it when the creature is hurt.
+    if (record.concentration && (caster.concentration || holdsConcentration(holder.state.combatants, caster.instance_id))) {
+      step({ type: "end_concentration", instanceId: caster.instance_id });
+    }
+    if (useKey !== null && limit !== null) step({ type: "use_action", instanceId: caster.instance_id, action: useKey, limit });
+    step({ type: "set_action_used", instanceId: caster.instance_id, used: true });
+
+    if (!automatable || !entry.automatable) {
+      const why = !automatable
+        ? `${record.name}'s rules are not checked in the library, so its outcome is the table's to rule.`
+        : `${(entry as { why: string }).why} Its outcome is the table's to rule.`;
+      collected.push({ type: "resolved", resolved: { kind: "cast", casterId: caster.instance_id, spell: record.name, castLevel, targetIds: cast.targetIds, why } });
+      return;
+    }
+    const live = () => holder.state.combatants.find((x) => x.instance_id === caster.instance_id) ?? caster;
+    if (entry.kind === "attack") {
+      for (const [index, target] of targets.entries()) {
+        const near = cast.withinFiveFeet ?? withinFiveFeet(live(), target);
+        if (near === null) refuse(`Say whether ${caster.name} is within five feet of ${target.name}: one of them has no place on the map.`);
+        const perTarget: ResolutionContext = { ...ctx, dice: makeDice(env.rollDie, attackSupply(cast.faces?.attacks?.[index] ?? undefined), env.posted) };
+        const done = await resolveAttackOn(perTarget, { attacker: live(), entry: entry.entry, target, withinFiveFeet: near as boolean, magical: true });
+        collected.push({ type: "resolved", resolved: done.summary });
+      }
+      return;
+    }
+    const done = await resolveSaveOn(ctx, { attacker: live(), entry: entry.entry, targets, magical: true });
+    collected.push({ type: "resolved", resolved: done.summary });
+  };
+
   try {
     switch (command.type) {
       case "resolve_attack": {
@@ -425,6 +565,9 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
         collected.push({ type: "resolved", resolved: done.summary });
         break;
       }
+      case "cast_spell":
+        await castSpell(command);
+        break;
       case "resolve_concentration": {
         const target = combatantIn(state, command.instanceId, "creature");
         if (!target.concentration && !holdsConcentration(state.combatants, target.instance_id)) refuse(`${target.name} is not concentrating on anything.`);

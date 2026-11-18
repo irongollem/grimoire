@@ -19,6 +19,8 @@ export function describeResolvedAction(resolved: ResolvedAction, nameOf: (instan
       const who = resolved.targets.map((t) => saveWords(t, nameOf)).join(" ");
       return `${nameOf(resolved.attackerId)} uses ${resolved.action} (DC ${resolved.dc} ${resolved.ability.toUpperCase()} save). ${who}`.trim();
     }
+    case "cast":
+      return `${nameOf(resolved.casterId)} casts ${resolved.spell}. ${resolved.why}`;
     case "concentration":
       return `${nameOf(resolved.instanceId)} ${resolved.maintained ? "keeps" : "loses"} concentration (${resolved.total} against DC ${resolved.dc}).`;
     case "condition_save":

@@ -14,6 +14,8 @@ import type { EncounterEvent, RunCombatant } from "../../../src/types/encounter.
 import type { PartyMemberUpdate } from "../../../src/types/party.types.ts";
 import type { ExploreParty } from "../../../src/types/exploreParty.types.ts";
 import type { AppliedCondition } from "../../../src/types/condition.types.ts";
+import { spellKey } from "../../../src/rules/fight/spells/castLimit.ts";
+import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
 import type { RulesetKey } from "../../../src/types/ruleset.types.ts";
 import type { Monster } from "../../../src/types/monster.types.ts";
 import type { NpcListRow } from "../../../src/types/npc.types.ts";
@@ -280,6 +282,8 @@ export interface BatchDeps {
   postBroadcast(message: string): Promise<void>;
   /** The stat blocks a fight's creatures came from; asked for only by a batch that resolves an action. */
   loadStatBlocks(ids: { monsterIds: string[]; npcIds: string[]; companionIds: string[] }): Promise<StatBlockSources>;
+  /** The spell records named `name` (the campaign's own and the library's); asked for only by a batch that casts one (#1021). */
+  loadSpells(name: string): Promise<SpellRecord[]>;
   /**
    * The player characters of a fight (by party member id), read for what their armour class and saves are worked out
    * from: their sheet rows, the campaign's inventory and the items it names. Asked for only by a batch that resolves
@@ -434,6 +438,16 @@ async function attempt(
   let sources: StatBlockSources | null = null;
   let players: PlayerSheets | null = null;
   let map: FightMap | null | undefined;
+  // A spell is read the first time a cast names it, and once per attempt.
+  const spellRecords = new Map<string, Promise<SpellRecord[]>>();
+  const spells = (name: string): Promise<SpellRecord[]> => {
+    const key = spellKey(name);
+    const known = spellRecords.get(key);
+    if (known !== undefined) return known;
+    const read = deps.loadSpells(name);
+    spellRecords.set(key, read);
+    return read;
+  };
   /** Reads what resolving an action needs, the first time something asks. */
   const resolveEnv = async (): Promise<ResolveEnv> => {
     if (sources === null) {
@@ -452,7 +466,7 @@ async function attempt(
     }
     // `undefined` is "not asked yet" (a null map is an answer: this fight has none).
     if (map === undefined) map = await deps.loadFightMap(request.encounterId);
-    return { fightDeps, sources, players, map, rollDie: deps.rollDie, posted: rolls, judgeNote: notes.ask };
+    return { fightDeps, sources, players, map, rollDie: deps.rollDie, spells, posted: rolls, judgeNote: notes.ask };
   };
   for (const command of request.commands) {
     if (command.type === "sync_party" || LIFECYCLE_TYPES.has(command.type)) continue;

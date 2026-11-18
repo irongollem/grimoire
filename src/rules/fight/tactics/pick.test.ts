@@ -354,7 +354,7 @@ describe("escape-first: a broken creature with a way out uses it before it runs 
     const cornered = prof({
       actions: [entry("Spellcasting", "- **2/Day Each:** Plane Shift")], tactics: { morale: morale(0.25, "surrender") },
     });
-    const spent = who("ogre", { hp: 20, max_hp: 112, action_uses: { "spell/Plane Shift": { used: 2 } } });
+    const spent = who("ogre", { hp: 20, max_hp: 112, action_uses: { "spell/plane shift": { used: 2 } } });
     const gated = gateOptions(menu, cornered, spent);
     expect(kinds(gated)).toEqual(["surrender"]);
     expect(pickTurn(gated, cornered, ctxOf([spent, FRESCO]))?.optionId).toBe("surrender");

@@ -3,7 +3,7 @@
 //
 // RULE way-out-names is 5e by the book: these are the named powers that take a creature out of a fight or out of
 // sight. Misty Step and the like are left out on purpose, because 30 feet away is still in the fight.
-// APP CONVENTION: that a broken creature uses one first, and that a slot caster's slots are whole (below).
+// APP CONVENTION: that a broken creature uses one first. A spell's tally key comes from `spells/castLimit.ts`.
 //
 // Pure and edge-importable (relative `.ts` imports only).
 
@@ -12,6 +12,7 @@ import type { StatBlockEntry } from "../../../types/statBlock.types.ts";
 import type { MonsterStatBlock } from "../../../types/monster.types.ts";
 import { actionLimit, actionUseKey, limitAvailability, type ActionLimit } from "../../encounterTurn.ts";
 import { isSpellcastingEntry, parseSpellcasting } from "../../statBlock/spellcastingProse.ts";
+import { castLimitOf } from "../spells/castLimit.ts";
 
 export type WayOutEffect = "leaves" | "unseen";
 
@@ -63,25 +64,13 @@ function spellsIn(entry: StatBlockEntry): CastableSpell[] {
   const prose = parseSpellcasting(entry);
   if (prose === null) return [];
   const spells: CastableSpell[] = [];
-  for (const { frequency, spells: named } of prose.groups) {
-    for (const spell of named) {
-      if (frequency.kind === "per_day") {
-        spells.push({ name: spell.name, limit: { per_day: frequency.count }, useKey: `spell/${normalSpellName(spell.name)}` });
-      } else if (frequency.kind === "slots") {
-        // APP CONVENTION: the server casts none of a creature's other spells yet, so its slots are whole.
-        spells.push({ name: spell.name, limit: { per_day: frequency.slots }, useKey: `slots/${frequency.level}` });
-      } else {
-        spells.push({ name: spell.name, limit: null, useKey: null });
-      }
+  for (const group of prose.groups) {
+    for (const spell of group.spells) {
+      const { useKey, limit } = castLimitOf(group, spell.name);
+      spells.push({ name: spell.name, limit, useKey });
     }
   }
   return spells;
-}
-
-/** The spell's name as the tally keys it: the way-out's own printed name when it is one, so a tally never forks on letter case. */
-function normalSpellName(raw: string): string {
-  const known = wayOutNamed(raw);
-  return known === null ? normalName(raw) : known.name;
 }
 
 function entriesOf(statBlock: MonsterStatBlock) {
