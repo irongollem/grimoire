@@ -88,6 +88,8 @@ insert into live_sync_doorbell (name) values
   ('kin_links'),
   -- World Web (#1084).
   ('world_links'),
+  -- Roads between places (#1222).
+  ('location_roads'),
   -- Open Book (#1085): the owner's settings, releases and choices, read by the owner only.
   ('open_books'), ('open_book_releases'), ('open_book_entries'),
   -- What the party has seen of a map (#1133).
