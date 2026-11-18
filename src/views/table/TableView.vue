@@ -85,6 +85,7 @@
                 They go on talking.
                 <AppButton variant="link" size="inline" label="Step in" @click="stepIn" />
               </p>
+              <SoloLongSitting v-if="offersNew" :leaving="leaveTable.leaving.value" @begin="leave" @not-now="notNow = { atMs: Date.now(), turns }" />
               <SoloLeft v-if="hasLeft" />
               <SoloComposer
                 v-else
@@ -129,6 +130,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount } from "vue";
+import { useDocumentVisibility, useIntervalFn } from "@vueuse/core";
 import { supabase } from "@/lib/supabase";
 import { reportHandledError } from "@/lib/observability/sentry";
 import { boardRows } from "@/lib/table/boardKeep";
@@ -145,6 +147,8 @@ import SoloAiOff from "@/components/table/solo/SoloAiOff.vue";
 import SoloBar from "@/components/table/solo/SoloBar.vue";
 import SoloComposer from "@/components/table/solo/SoloComposer.vue";
 import SoloLeft from "@/components/table/solo/SoloLeft.vue";
+import SoloLongSitting from "@/components/table/solo/SoloLongSitting.vue";
+import { endedByPause, offersNewSitting, type NotNow } from "@/lib/table/sittingLength";
 import SoloDisclosure from "@/components/table/solo/SoloDisclosure.vue";
 import SoloFightStage from "@/components/table/solo/SoloFightStage.vue";
 import SoloPlaceMap from "@/components/table/solo/SoloPlaceMap.vue";
@@ -591,6 +595,74 @@ const hasLeft = computed(() => {
 
 const toast = useToast();
 const leaveTable = useLeaveTable();
+
+// How long this sitting is and how long it has stood idle (`sittingLength.ts`). A reopened sitting brings both
+// from its row; a new one starts when this page did. `lastActive` moves with every turn that finishes here.
+const mountedMs = Date.now();
+// The time, by the minute, and at once when the page is looked at again: a laptop that slept runs no timers, so
+// waking is the moment that matters.
+const nowMs = ref(Date.now());
+useIntervalFn(() => (nowMs.value = Date.now()), 60_000);
+const visibility = useDocumentVisibility();
+watch(visibility, (state) => {
+  if (state === "visible") nowMs.value = Date.now();
+});
+const startedMs = computed(() => {
+  const stored = conversation.data.value?.sitting;
+  return stored === undefined ? mountedMs : Date.parse(stored.created_at);
+});
+const lastActiveMs = ref<number | null>(null);
+watch(
+  () => conversation.data.value?.sitting,
+  (stored) => {
+    if (stored !== undefined && lastActiveMs.value === null) lastActiveMs.value = Date.parse(stored.updated_at);
+  },
+  { immediate: true },
+);
+watch(
+  () => turn.running.value,
+  (running) => {
+    if (!running) lastActiveMs.value = Date.now();
+  },
+);
+
+// A sitting that has gone on for a long time is offered a new one; never in a fight, which a new sitting would drop.
+const notNow = ref<NotNow | null>(null);
+const offersNew = computed(
+  () =>
+    turn.sessionId.value !== null &&
+    !hasLeft.value &&
+    !inFight.value &&
+    !turn.running.value &&
+    asked.value === null &&
+    offersNewSitting({ startedMs: Number.isNaN(startedMs.value) ? null : startedMs.value, turns: turns.value, nowMs: nowMs.value, notNow: notNow.value }),
+);
+
+// A long pause ended the sitting: the laptop slept, or the tab was left open overnight. The page gets up the way
+// the Leave button does, so the notes are written, and says why. Checked as time passes and the moment the page is
+// looked at again, so the player is told before typing a turn the server would refuse.
+let endingAway = false;
+async function endAway(): Promise<void> {
+  if (endingAway) return;
+  endingAway = true;
+  toast.info("This sitting ended while you were away, and its notes are written. Sit down again to pick the story up.", 12_000);
+  await leave();
+}
+watch(
+  [() => nowMs.value, lastActiveMs, () => turn.sessionId.value],
+  ([nowMs, last, id]) => {
+    if (id !== null && !hasLeft.value && !turn.running.value && endedByPause(last, nowMs)) void endAway();
+  },
+  { immediate: true },
+);
+// The server said so first (a turn sent from a page that had not noticed yet).
+watch(
+  () => turn.failure.value,
+  (failure) => {
+    if (failure?.action === "ended") void endAway();
+  },
+);
+
 async function leave(): Promise<void> {
   // A conversation that does not exist yet has nothing to end. A turn still running is stopped first: it would
   // otherwise be refused by the server the moment the sitting is marked left.

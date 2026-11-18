@@ -15,6 +15,9 @@ export interface StoredSitting {
   credits_spent: number;
   /** When the player left the table; null while the sitting goes on. */
   left_at: string | null;
+  /** When the sitting began and when it last moved (every kept turn moves it): how long it is, and how long idle. */
+  created_at: string;
+  updated_at: string;
   /** The fight this sitting started and is waiting on; null when the story is not in one. */
   fight: TableFight | null;
   /** The clock this sitting runs against; null when the scene is under no pressure. */
@@ -47,7 +50,7 @@ export function useTableConversation(sessionId: MaybeRefOrGetter<string | null>,
       const [sitting, turns, facts, board] = await Promise.all([
         supabase
           .from("agent_sessions")
-          .select("id, party_member_id, scene_location_id, credits_spent, left_at, pressure_clock_id, pending_roll, fight_encounter_id")
+          .select("id, party_member_id, scene_location_id, credits_spent, left_at, created_at, updated_at, pressure_clock_id, pending_roll, fight_encounter_id")
           .eq("id", id)
           .eq("user_id", user)
           .eq("campaign_id", campaign)

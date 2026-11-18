@@ -52,4 +52,11 @@ describe("refusalFailure", () => {
     expect(NO_ANSWER.action).toBe("resend");
     expect(NO_ANSWER.message).toMatch(/nothing was charged/i);
   });
+
+  // Bug caught: the server's "this sitting is over" read as "the table is resting, try again", so the player
+  // resends into a table that will never answer and its notes are never written.
+  it("tells the page to leave the table when a long pause ended the sitting", () => {
+    expect(refusalFailure(409, "sitting_ended").action).toBe("ended");
+    expect(refusalFailure(409, "You left this table. Sit down again to play on.").action).not.toBe("ended");
+  });
 });

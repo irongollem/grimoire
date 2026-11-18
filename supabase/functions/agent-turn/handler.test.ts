@@ -328,6 +328,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     accountRefusal: async () => h.state.account,
     loadCampaign: async () => h.state.campaign,
     isDm: async () => h.state.isDm,
+    now: () => NOW,
     // A copy, as a database read is: the handler must not see later writes through its own session object.
     loadSession: async (id) => {
       const row = h.sessions.get(id);
@@ -346,6 +347,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
         party_member_id: partyMemberId,
         opened_play_session: openedPlaySession,
         left_at: null,
+        updated_at: new Date(NOW).toISOString(),
         pending_roll: null,
         fight_encounter_id: null,
       };
@@ -570,6 +572,9 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
 }
 
 /** A stored conversation, with `accrued` credits already on its running total. */
+/** The moment every test plays at; a table's last activity is set against it. */
+const NOW = Date.parse("2026-11-18T20:00:00Z");
+
 function existingSession(h: Harness, over: Partial<SessionRow> = {}, accrued = 0): SessionRow {
   const row: SessionRow = {
     id: SESSION,
@@ -583,6 +588,7 @@ function existingSession(h: Harness, over: Partial<SessionRow> = {}, accrued = 0
     party_member_id: null,
     opened_play_session: false,
     left_at: null,
+    updated_at: new Date(NOW - 60_000).toISOString(),
     pending_roll: null,
     fight_encounter_id: null,
     ...over,
@@ -1633,6 +1639,28 @@ describe("where the party is", () => {
     h.state.saveThrows = true;
     await play(h, { body: GO });
     expect(h.sessions.get(SESSION)!.scene_location_id).toBe(CELLAR);
+  });
+});
+
+describe("a sitting that a long pause has ended", () => {
+  const GO_ON = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I look around.", mode: "do" };
+  const HOUR = 60 * 60 * 1000;
+
+  // Bug caught: a table that never ends (a laptop that sleeps and wakes kept one sitting going for a year), so its
+  // notes are never written; and the refusal coming after the reservation, so ending costs the player a hold.
+  it("refuses a turn six hours after the table last moved, before anything is reserved or any model is called", async () => {
+    const h = harness();
+    existingSession(h, { updated_at: new Date(NOW - 6 * HOUR).toISOString() });
+    expect(await play(h, { body: GO_ON })).toEqual({ status: 409, error: "sitting_ended" });
+    expect(h.modelCalls()).toBe(0);
+    expect(h.reserved).toEqual([]);
+  });
+
+  // Bug caught: the pause counted too short, so a table is closed over dinner.
+  it("plays on after a pause just short of that", async () => {
+    const h = harness();
+    existingSession(h, { updated_at: new Date(NOW - 6 * HOUR + 1000).toISOString() });
+    expect(await play(h, { body: GO_ON })).toBeNull();
   });
 });
 

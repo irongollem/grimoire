@@ -19,6 +19,7 @@ import { followersOf } from "../_shared/agent/pursuit.ts";
 import { lootIsWon, type LootHeld } from "../_shared/agent/encounterLoot.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
 import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
+import { endedByPause } from "../_shared/agent/sittingEnd.ts";
 import { NARRATOR_SPEAKER, type KeyedLine } from "../_shared/agent/lineKey.ts";
 import { handsLine, harvestFacts, possessionsSection, type Coins, type HandsChange, type Possessions } from "../_shared/agent/hands.ts";
 import { coinsText, coinValuesOf, type HandsStore } from "./handsIo.ts";
@@ -138,6 +139,8 @@ export interface SessionRow {
   opened_play_session: boolean;
   /** When the player left the table; null while the sitting goes on. A conversation that was left takes no turns. */
   left_at: string | null;
+  /** When the row last changed, which every kept turn does: how long the table has stood idle. */
+  updated_at: string;
   /** The roll the narrator asked the player for at the end of the last kept turn; null when none is asked. */
   pending_roll: PendingRoll | null;
   /** The encounter this conversation started and is waiting on; null when the story is not in a fight. */
@@ -165,6 +168,8 @@ export interface AgentTurnDeps {
   isDm(campaign: CampaignRow, userId: string): Promise<boolean>;
   /** By id alone: the handler decides whether it belongs to the caller. */
   loadSession(sessionId: string): Promise<SessionRow | null>;
+  /** The time now, in milliseconds: a dependency so a test can let six hours pass. */
+  now(): number;
   createSession(input: {
     userId: string;
     campaignId: string;
@@ -363,6 +368,8 @@ export const MESSAGES = {
   badBody: "The request is not valid.",
   notFound: "That conversation was not found.",
   left: "You left this table. Sit down again to play on.",
+  // A code, not a sentence: the page leaves the table on it and says so in its own words (`turnRefusal.ts`).
+  sittingEnded: "sitting_ended",
   noRoll: "No roll was asked for.",
   noPlace: "That place was not found.",
   noCharacter: "That character was not found.",
@@ -415,6 +422,8 @@ export async function beginTurn(input: {
     }
     // Before the rate limit and the reservation: a sitting that was left takes nothing more, and costs nothing to refuse.
     if (existing.left_at !== null) return refuse(409, MESSAGES.left);
+    // A long pause ended it (`sittingEnd.ts`). Also before anything is reserved: the refusal costs nothing.
+    if (endedByPause(existing.updated_at, deps.now())) return refuse(409, MESSAGES.sittingEnded);
   }
   // A roll answers a request: without one there is no DC to score it against, and a made-up roll must not reach the
   // narrator as if it had been asked for.
