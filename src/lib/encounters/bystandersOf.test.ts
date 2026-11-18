@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bystandersOf } from "./bystandersOf";
+import { bystandersOf, lateBystanders } from "./bystandersOf";
 import type { Npc } from "@/types/npc.types";
 
 type Source = Parameters<typeof bystandersOf>[0][number];
@@ -58,5 +58,24 @@ describe("bystandersOf", () => {
     expect(fighter.bystander).toBeUndefined();
     const [helper] = bystandersOf([npc("b", { stat_block: null })], "room", []);
     expect(helper.bystander).toBe(true);
+  });
+});
+
+describe("lateBystanders", () => {
+  const seated = bystandersOf([npc("a"), npc("b")], "room", []);
+
+  // Bug caught: a fight that chased the party and caught it is fought without the companion who walked in with them.
+  it("is whoever of the room the fight on record does not hold, before its first round", () => {
+    expect(lateBystanders(seated, [{ npc_id: "a" }, { npc_id: undefined }], 0).map((c) => c.npc_id)).toEqual(["b"]);
+  });
+
+  // Bug caught: everyone in the room seated a second time when the answer is the roster just sent.
+  it("is nobody when the fight holds them all", () => {
+    expect(lateBystanders(seated, [{ npc_id: "a" }, { npc_id: "b" }], 0)).toEqual([]);
+  });
+
+  // Bug caught: someone the story sent out of a fight under way is seated again by a reload.
+  it("is nobody once the first round has begun", () => {
+    expect(lateBystanders(seated, [{ npc_id: "a" }], 1)).toEqual([]);
   });
 });

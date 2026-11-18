@@ -64,3 +64,18 @@ export function bystandersOf(
   }
   return out;
 }
+
+/**
+ * Who of the room's characters is not in the fight the server answered with, and should be: the fight was already
+ * on record when the page asked to open it, so the roster the page had just built was set aside. That is the fight
+ * that chased the party and caught it (`carriedRoster` brings the party and the foes who followed, and nobody who
+ * only stood by), in a room the party's own companions walked into with them. They join before the first round.
+ *
+ * Only before the first round: once a fight is under way its roster is what the fight made of it, and someone
+ * the story sent out of it (but not out of the room) must not be seated again by a reload.
+ */
+export function lateBystanders(seated: readonly RunCombatant[], held: readonly Pick<RunCombatant, "npc_id">[], round: number): RunCombatant[] {
+  if (round > 0) return [];
+  const there = new Set(held.map((c) => c.npc_id).filter((id): id is string => id !== undefined));
+  return seated.filter((c) => c.npc_id !== undefined && !there.has(c.npc_id));
+}

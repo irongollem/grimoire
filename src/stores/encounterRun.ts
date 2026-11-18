@@ -677,6 +677,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     addMonster,
     addNpc,
     adoptStatBlocks,
+    join,
     removeCombatant,
     addCompanionCombatant,
     fireEvent,
