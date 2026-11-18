@@ -8,6 +8,8 @@
       <span class="font-semibold">{{ formatTravelTime(journey.summary.time) }}</span>
       at a {{ paceLabel }} pace.
     </p>
+    <!-- Only where the campaign counts food (the optional rule "Rations on the Road"). -->
+    <p v-if="food" class="text-caption text-muted-foreground" data-testid="location-journey-food">{{ food }}</p>
     <div class="flex flex-wrap items-center gap-2">
       <SegmentedControl v-model="paceId" :options="PACE_OPTIONS" size="sm" aria-label="Travel pace" />
       <AppButton class="ml-auto" variant="outline" size="sm" :icon="IconAddEvent" label="Add to calendar" data-testid="location-journey-plan" @click="eventOpen = true" />
@@ -39,6 +41,8 @@ import { useAllLocations, useLocation } from "@/composables/locations/useLocatio
 import { useMapPictureSize } from "@/composables/locations/useMapPictureSize";
 import { useLocationRoads } from "@/composables/locations/useLocationRoads";
 import { useParty } from "@/composables/party/useParty";
+import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
+import { rationsNeeded } from "@/rules/rations";
 import { IconAddEvent, IconDice } from "@/lib/icons";
 import { routeDescription, routeEventPrefill } from "@/lib/locations/mapRoute";
 import { formatDistance } from "@/lib/locations/mapScale";
@@ -102,6 +106,19 @@ const journey = computed(() => byRoad.value ?? byMap.value);
 /** The place whose map the distance was measured on, when it was not found by road. */
 const straightOn = computed(() => (byRoad.value === null && byMap.value !== null && mapPlace.value ? mapPlace.value.name : null));
 const passing = computed(() => (journey.value ? passingText(journey.value.passing) : ""));
+
+// ── Food for the road (optional rule) ───────────────────────────────────────
+const countsFood = useIsRuleEnabled("rations");
+const food = computed(() => {
+  const j = journey.value;
+  if (!j || !countsFood.value) return null;
+  const days = j.summary.time.calendarDays;
+  if (days < 1) return null;
+  const travellers = travelerIds.value.length;
+  const each = `${days} ${days === 1 ? "ration" : "rations"} each`;
+  // Who sets out is who stands where the journey starts; with nobody placed there, only the share is known.
+  return travellers > 1 ? `Food for the road: ${rationsNeeded(days, travellers)} rations for ${travellers} travellers (${each}).` : `Food for the road: ${each}.`;
+});
 
 // ── What the road may bring ──────────────────────────────────────────────────
 const { data: rollTables } = useRollTables();
