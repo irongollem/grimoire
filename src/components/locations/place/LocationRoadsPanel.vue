@@ -9,6 +9,9 @@
           <div class="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
             <AppButton :to="placeRoute(entry.otherId)" variant="link" size="inline" :label="nameOf(entry.otherId)" />
             <span class="text-body text-muted-foreground">{{ roadText(entry.road) }}</span>
+            <span v-if="tableName(entry.road.roll_table_id)" class="text-caption text-muted-foreground" data-testid="location-road-table">
+              Encounters: {{ tableName(entry.road.roll_table_id) }}
+            </span>
           </div>
           <AppButton
             variant="ghost"
@@ -42,6 +45,11 @@
             <option v-for="g in GOINGS" :key="g.value" :value="g.value">{{ g.label }}</option>
           </AppSelect>
         </label>
+        <!-- Only when the campaign keeps roll tables: an empty picker would be a dead control. -->
+        <label v-if="tables.length" class="text-caption text-muted-foreground">
+          Its encounter table
+          <EntityCombobox v-model="rollTableId" :options="tables" placeholder="None (optional)" />
+        </label>
         <p v-if="error" role="alert" class="text-caption text-destructive">{{ error }}</p>
         <div class="flex justify-end gap-2">
           <AppButton variant="subtle" size="sm" label="Cancel" @click="cancel" />
@@ -63,6 +71,7 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
+import { useRollTables } from "@/composables/dungeon-features/useRollTables";
 import { useAddLocationRoad, useDeleteLocationRoad, useLocationRoads } from "@/composables/locations/useLocationRoads";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
@@ -91,6 +100,11 @@ const nameOf = (id: string): string => names.value.get(id) ?? "A place that is g
 // A road leads to a place on the map of the world, not to a room: rooms are joined by doors.
 const places = computed(() => (locations.value ?? []).filter((l) => l.id !== locationId && !isInteriorType(l.location_type)).map((l) => ({ id: l.id, name: l.name })));
 
+// A road's own encounter table (Dungeon Craft): what may be met on it, wherever between its two ends.
+const { data: rollTables } = useRollTables();
+const tables = computed(() => (rollTables.value ?? []).map((t) => ({ id: t.id, name: t.name })));
+const tableName = (id: string | null): string | null => (id === null ? null : (tables.value.find((t) => t.id === id)?.name ?? null));
+
 const GOINGS: { value: Going; label: string }[] = [
   { value: "road", label: "A road" },
   { value: "track", label: "A track" },
@@ -104,6 +118,7 @@ const distance = ref<number | null>(null);
 const unit = ref<DistanceUnit>("mi");
 const name = ref("");
 const going = ref<Going>("road");
+const rollTableId = ref("");
 const error = ref<string | null>(null);
 const canAdd = computed(() => otherId.value !== "" && typeof distance.value === "number" && distance.value > 0);
 
@@ -113,6 +128,7 @@ function cancel(): void {
   distance.value = null;
   name.value = "";
   going.value = "road";
+  rollTableId.value = "";
   error.value = null;
 }
 
@@ -120,7 +136,7 @@ async function addRoad(): Promise<void> {
   if (!canAdd.value || typeof distance.value !== "number") return;
   error.value = null;
   try {
-    await add.mutateAsync({ fromLocationId: locationId, toLocationId: otherId.value, distance: distance.value, unit: unit.value, name: name.value, going: going.value });
+    await add.mutateAsync({ fromLocationId: locationId, toLocationId: otherId.value, distance: distance.value, unit: unit.value, name: name.value, going: going.value, rollTableId: rollTableId.value === "" ? null : rollTableId.value });
     cancel();
   } catch (e) {
     error.value = toast.fromError(e, "Couldn't add the road.");

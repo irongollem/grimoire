@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { otherEnd, roadsFrom, roadText, type Road } from "./roads";
 
-const road = (id: string, a: string, b: string, distance: number, over: Partial<Road> = {}): Road => ({ id, from_location_id: a, to_location_id: b, distance, unit: "mi", name: "", going: "road", ...over });
+const road = (id: string, a: string, b: string, distance: number, over: Partial<Road> = {}): Road => ({ id, from_location_id: a, to_location_id: b, distance, unit: "mi", name: "", going: "road", roll_table_id: null, ...over });
 
 describe("roadsFrom", () => {
   // Bug caught: a road entered from the other town's end missing from this town's entry (a road reads from both

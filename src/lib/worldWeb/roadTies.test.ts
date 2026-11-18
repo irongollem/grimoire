@@ -4,7 +4,7 @@ import { roadTies } from "./roadTies";
 import { asConnection, groupTies, isEditableTie, isLine, tieFamily, tieSaysFrom } from "./ties";
 import { nodeKey } from "./kinds";
 
-const road: Road = { id: "r1", from_location_id: "a", to_location_id: "b", distance: 40, unit: "mi", name: "the coast road", going: "road" };
+const road: Road = { id: "r1", from_location_id: "a", to_location_id: "b", distance: 40, unit: "mi", name: "the coast road", going: "road", roll_table_id: null };
 const places = new Map([
   ["a", { name: "Brightwater", image: null }],
   ["b", { name: "Saltmarsh", image: "b.png" }],
