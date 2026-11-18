@@ -151,7 +151,7 @@ describe("SpellDetail saved content", () => {
     concentration: false, ritual: false, components: ["V"], material: null, description: "", higher_levels: null,
     classes: [], tags: [], source: null, image_url: null, image_focal_point: null, attack_type: null, save_attribute: null,
     save_effect: null, damage_rolls: null, healing_dice: null, target_description: null, aoe_shape: null, aoe_size: null,
-    condition_inflicted: null, ai_provenance: { model: "gpt", edited: false },
+    ai_provenance: { model: "gpt", edited: false },
   } as unknown as Spell;
   const edit = async (spell: Spell | null, change: (vm: Vm) => void) => {
     mocks.create.mockClear();
@@ -379,5 +379,78 @@ describe("SpellDetailHeader send actions", () => {
 
     expect(wrapper.emitted("sendToScriptorium")).toHaveLength(1);
     expect(wrapper.emitted("copyToCampaign")).toBeUndefined();
+  });
+});
+
+/** #1021 row 5b: a campaign's own spell states what it does in a fight, through the editor's ordinary save. */
+describe("SpellDetail condition effect", () => {
+  type Vm = Record<string, unknown> & { save: () => Promise<void>; cancel: () => void };
+  const hold = {
+    verdict: "condition", conditions: ["Paralyzed"], stops_casting: null, speed_zero: false, applies: "failed_save",
+    save_ability: "WIS", targets: { kind: "one", count: 1, more_per_slot_above: 0 }, only_kinds: ["humanoid"],
+    duration: { unit: "minute", amount: 1, concentration: true }, repeat_save: { when: "end_of_its_turn", ability: "WIS" },
+    leaves_play: false, ends_when_harmed: null, break_free: null, must_flee: false,
+  };
+  const existing = (over: Record<string, unknown> = {}) => ({
+    id: "sp1", campaign_id: "campaign-1", name: "Hold Person", level: 2, classes: [], components: [], tags: [],
+    condition_effect: hold, ...over,
+  }) as unknown as Spell;
+
+  beforeEach(() => {
+    mocks.create.mockClear();
+    mocks.update.mockClear();
+    mockRouterReplace.mockClear();
+  });
+
+  // Bug caught: the editor opening a spell without its stored entry, so the next save erases it.
+  it("shows the stored entry and sends nothing when it is untouched", async () => {
+    const wrapper = mountDetail(existing());
+    const vm = wrapper.vm as unknown as Vm;
+    expect(vm.conditionEffect).toEqual(hold);
+    await vm.save();
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: a change deep inside the entry not counting as an edit, so it is never saved.
+  it("saves a change made deep inside the entry, and only that column", async () => {
+    const wrapper = mountDetail(existing());
+    const vm = wrapper.vm as unknown as Vm;
+    vm.conditionEffect = { ...hold, duration: { ...hold.duration, amount: 10 } };
+    await vm.save();
+    expect(mocks.update).toHaveBeenCalledWith({
+      id: "sp1",
+      update: { condition_effect: { ...hold, duration: { ...hold.duration, amount: 10 } } },
+    });
+  });
+
+  // Bug caught: an AI-made spell whose condition was changed staying marked as untouched AI output.
+  it("marks an AI-made spell edited when its condition changes", async () => {
+    const wrapper = mountDetail(existing({ ai_provenance: { model: "gpt", edited: false } }));
+    const vm = wrapper.vm as unknown as Vm;
+    vm.conditionEffect = null;
+    await vm.save();
+    expect(mocks.update.mock.calls[0][0].update).toMatchObject({ condition_effect: null, ai_provenance: { model: "gpt", edited: true } });
+  });
+
+  // Bug caught: cancel writing the draft, or the entry being lost without a save.
+  it("cancelling leaves the stored entry alone and goes back to the sheet", async () => {
+    const wrapper = mountDetail(existing());
+    const vm = wrapper.vm as unknown as Vm;
+    vm.conditionEffect = null;
+    vm.cancel();
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mockRouterReplace).toHaveBeenCalledWith("/spells/sp1");
+  });
+
+  // Bug caught: the retired free-text field still travelling in the save payload.
+  it("sends condition_effect and no condition_inflicted key when creating", async () => {
+    const wrapper = mountDetail(null);
+    const vm = wrapper.vm as unknown as Vm;
+    vm.name = "Hold Person";
+    vm.conditionEffect = hold;
+    await vm.save();
+    const created = mocks.create.mock.calls[0][0];
+    expect(created.condition_effect).toEqual(hold);
+    expect("condition_inflicted" in created).toBe(false);
   });
 });

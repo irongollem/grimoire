@@ -145,8 +145,11 @@
           :target-description="targetDescription"
           :aoe-shape="aoeShape"
           :aoe-size="aoeSize"
-          :condition-inflicted="conditionInflicted"
+          :condition-effect="conditionEffect"
           :school="school"
+          :concentration="concentration"
+          :description="toPlainText(description)"
+          :higher-levels="higherLevels"
           @update:attack-type="attackType = $event"
           @update:save-attribute="saveAttribute = $event"
           @update:save-effect="saveEffect = $event"
@@ -155,7 +158,7 @@
           @update:target-description="targetDescription = $event"
           @update:aoe-shape="aoeShape = $event"
           @update:aoe-size="aoeSize = $event"
-          @update:condition-inflicted="conditionInflicted = $event"
+          @update:condition-effect="conditionEffect = $event"
         />
 
         <!-- Description -->
@@ -270,7 +273,7 @@ import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { sourceLinkHost } from "@/lib/library/sourceLabel";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 import { SPELL_SCHOOLS, spellLevelLabel } from "@/types/spell.types";
-import type { Spell, SpellSchool } from "@/types/spell.types";
+import type { Spell, SpellConditionEffect, SpellSchool } from "@/types/spell.types";
 import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/spells/useSpells";
 import { useUpsertLibrarySpellArt } from "@/composables/library/useLibrarySpellArt";
 import { useCreateScriptoriumBook } from "@/scriptorium/composables/useScriptorium";
@@ -357,7 +360,7 @@ function toDraft(spell: Spell | null) {
     targetDescription: spell?.target_description ?? "",
     aoeShape: spell?.aoe_shape ?? "",
     aoeSize: spell?.aoe_size ?? "",
-    conditionInflicted: spell?.condition_inflicted ?? "",
+    conditionEffect: cloneDraftValue(spell?.condition_effect ?? null) as SpellConditionEffect | null,
   };
 }
 type SpellDraft = ReturnType<typeof toDraft>;
@@ -376,7 +379,7 @@ const {
   description, higherLevels, classes, source, imageUrl, imageFocalPoint,
   aiProvenance, tags, campaignId, attackType, saveAttribute, saveEffect,
   damageRolls, healingDice, targetDescription, aoeShape, aoeSize,
-  conditionInflicted,
+  conditionEffect,
 } = toRefs(draft);
 
 const CONFLICT_LABELS: Record<keyof SpellDraft, string> = {
@@ -410,7 +413,7 @@ const CONFLICT_LABELS: Record<keyof SpellDraft, string> = {
   targetDescription: "Target",
   aoeShape: "Area",
   aoeSize: "Area",
-  conditionInflicted: "Condition",
+  conditionEffect: "Condition",
 };
 const conflictLabels = computed(() => [...new Set(conflicts.value.map((k) => CONFLICT_LABELS[k]))]);
 
@@ -613,7 +616,7 @@ function buildPayload(d: SpellDraft) {
     target_description: d.targetDescription || null,
     aoe_shape: d.aoeShape || null,
     aoe_size: d.aoeSize || null,
-    condition_inflicted: d.conditionInflicted || null,
+    condition_effect: d.conditionEffect,
     ai_provenance: d.aiProvenance,
   };
 }
@@ -653,7 +656,7 @@ async function save() {
         targetDescription.value !== (props.spell.target_description ?? "") ||
         aoeShape.value !== (props.spell.aoe_shape ?? "") ||
         aoeSize.value !== (props.spell.aoe_size ?? "") ||
-        conditionInflicted.value !== (props.spell.condition_inflicted ?? "");
+        !deepEqual(conditionEffect.value, props.spell.condition_effect ?? null);
       if (contentChanged) aiProvenance.value = markEdited(aiProvenance.value);
       // Only the columns this edit changed, so a stale cached copy cannot write
       // untouched fields back at old values (#946).
@@ -738,7 +741,7 @@ function onAiGenerated(result: SpellAiGenerated) {
   targetDescription.value = ins.target_description ?? "";
   aoeShape.value = ins.aoe_shape ?? "";
   aoeSize.value = ins.aoe_size ?? "";
-  conditionInflicted.value = ins.condition_inflicted ?? "";
+  conditionEffect.value = ins.condition_effect ?? null;
   if (ins.image_url) {
     imageUrl.value = ins.image_url;
     imageFocalPoint.value = null;

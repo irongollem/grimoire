@@ -354,7 +354,6 @@ export function mapOpen5eV2Spell(
     target_description: [spell.target_count, spell.target_type].filter((value) => value !== null && value !== "").join(" ") || null,
     aoe_shape: spell.shape_type?.toLowerCase() || null,
     aoe_size: spell.shape_size === null ? null : `${spell.shape_size} ${spell.shape_size_unit ?? "feet"}`,
-    condition_inflicted: null,
     description: spell.desc ?? "",
     higher_levels: spell.higher_level?.trim() || null,
     higher_level_damage: higherLevelDamage,

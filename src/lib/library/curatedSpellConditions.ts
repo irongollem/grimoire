@@ -180,3 +180,143 @@ export function agree(a: CuratedSpellCondition, b: CuratedSpellCondition): boole
     });
   return facts(a) === facts(b);
 }
+
+/** A condition reading as a spell record stores it: the entry without the sentence that proved it. */
+export type ParsedConditionEffect = Omit<CuratedSpellCondition, "evidence">;
+
+const VERDICTS = ["condition", "no_condition", "not_simple"] as const;
+const STOPS = ["verbal", "all"] as const;
+const APPLIES = ["failed_save", "hit", "automatic"] as const;
+const TARGET_KINDS = ["one", "several", "area", "self"] as const;
+const DURATION_UNITS = ["instant", "round", "minute", "hour", "until_dispelled", "special"] as const;
+const REPEAT_WHEN = ["end_of_its_turn", "start_of_its_turn", "when_damaged", "as_an_action"] as const;
+const HARMED = ["by_casters_side", "by_anyone"] as const;
+const SKILLS = ["athletics", "acrobatics"] as const;
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+function oneOf<T extends string>(list: readonly T[], v: unknown): v is T {
+  return typeof v === "string" && (list as readonly string[]).includes(v);
+}
+function isNum(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v);
+}
+function abilityOrNull(v: unknown): Ability | null | undefined {
+  if (v === null) return null;
+  return oneOf(ABILITIES, v) ? v : undefined;
+}
+
+/**
+ * A condition reading from an outside source (a model's answer, a stored column) as the entry it claims to be, or
+ * null when it is not exactly that shape: an unknown verdict, an unknown condition name, a value outside an enum or
+ * a field of the wrong type. It checks the shape only; whether the text of a spell supports the entry is
+ * `findingsFor`'s question. The four optional fields are copied only when present, so a valid entry round-trips.
+ */
+export function parseConditionEffect(raw: unknown): ParsedConditionEffect | null {
+  if (!isRecord(raw)) return null;
+  if (!oneOf(VERDICTS, raw.verdict)) return null;
+  if (!Array.isArray(raw.conditions) || !raw.conditions.every((c): c is ConditionName => oneOf(CONDITION_NAMES, c))) return null;
+  if (raw.stops_casting !== null && !oneOf(STOPS, raw.stops_casting)) return null;
+  if (typeof raw.speed_zero !== "boolean") return null;
+  if (raw.applies !== null && !oneOf(APPLIES, raw.applies)) return null;
+  const saveAbility = abilityOrNull(raw.save_ability);
+  if (saveAbility === undefined) return null;
+
+  let targets: ParsedConditionEffect["targets"] = null;
+  if (raw.targets !== null) {
+    const t = raw.targets;
+    if (!isRecord(t) || !oneOf(TARGET_KINDS, t.kind)) return null;
+    if (t.count !== null && !isNum(t.count)) return null;
+    if (!isNum(t.more_per_slot_above)) return null;
+    targets = { kind: t.kind, count: t.count, more_per_slot_above: t.more_per_slot_above };
+  }
+  if (!Array.isArray(raw.only_kinds) || !raw.only_kinds.every((k): k is string => typeof k === "string")) return null;
+
+  let duration: ParsedConditionEffect["duration"] = null;
+  if (raw.duration !== null) {
+    const d = raw.duration;
+    if (!isRecord(d) || !oneOf(DURATION_UNITS, d.unit)) return null;
+    if (d.amount !== null && !isNum(d.amount)) return null;
+    if (typeof d.concentration !== "boolean") return null;
+    duration = { unit: d.unit, amount: d.amount, concentration: d.concentration };
+  }
+
+  let repeat: ParsedConditionEffect["repeat_save"] = null;
+  if (raw.repeat_save !== null) {
+    const r = raw.repeat_save;
+    if (!isRecord(r) || !oneOf(REPEAT_WHEN, r.when)) return null;
+    const ability = abilityOrNull(r.ability);
+    if (ability === undefined || ability === null) return null;
+    repeat = { when: r.when, ability };
+  }
+
+  const out: ParsedConditionEffect = {
+    verdict: raw.verdict,
+    conditions: [...raw.conditions],
+    stops_casting: raw.stops_casting,
+    speed_zero: raw.speed_zero,
+    applies: raw.applies,
+    save_ability: saveAbility,
+    targets,
+    only_kinds: [...raw.only_kinds],
+    duration,
+    repeat_save: repeat,
+  };
+
+  if (raw.leaves_play !== undefined) {
+    if (typeof raw.leaves_play !== "boolean") return null;
+    out.leaves_play = raw.leaves_play;
+  }
+  if (raw.must_flee !== undefined) {
+    if (typeof raw.must_flee !== "boolean") return null;
+    out.must_flee = raw.must_flee;
+  }
+  if (raw.ends_when_harmed !== undefined) {
+    if (raw.ends_when_harmed !== null && !oneOf(HARMED, raw.ends_when_harmed)) return null;
+    out.ends_when_harmed = raw.ends_when_harmed;
+  }
+  if (raw.break_free !== undefined) {
+    if (raw.break_free === null) out.break_free = null;
+    else {
+      const b = raw.break_free;
+      if (!isRecord(b) || !Array.isArray(b.abilities) || !b.abilities.every((a): a is Ability => oneOf(ABILITIES, a))) return null;
+      if (b.skill !== null && !oneOf(SKILLS, b.skill)) return null;
+      out.break_free = { abilities: [...b.abilities], skill: b.skill };
+    }
+  }
+  return out;
+}
+
+/** The first sentence of a text, cut from the text itself so it is a literal part of it. */
+function firstSentence(text: string): string {
+  const trimmed = text.trim();
+  const end = trimmed.search(/[.!?](\s|$)/);
+  return end === -1 ? trimmed : trimmed.slice(0, end + 1);
+}
+
+/**
+ * What is wrong with a condition reading against the spell it belongs to, leaving out the one thing a hand-made spell
+ * has no field for: the evidence sentence. The first sentence of the description stands in for it, so only the
+ * entry's own claims are checked. Advice for an editor, a verdict for the generator.
+ */
+export function conditionEffectFindings(
+  effect: ParsedConditionEffect,
+  spell: { description: string; higher_levels?: string | null; concentration: boolean },
+): string[] {
+  const entry: CuratedSpellCondition = { ...effect, evidence: firstSentence(spell.description) };
+  return findingsFor(entry, spell).filter((f) => !f.startsWith("evidence"));
+}
+
+/**
+ * A model's `condition_effect` as an entry to keep, or null: it must have the right shape and say nothing the
+ * spell's own text does not. A wrong entry would paralyse the wrong creature in a game; null only costs a ruling.
+ */
+export function vetConditionEffect(
+  raw: unknown,
+  spell: { description: string; higher_levels?: string | null; concentration: boolean },
+): ParsedConditionEffect | null {
+  const parsed = parseConditionEffect(raw);
+  if (parsed === null) return null;
+  return conditionEffectFindings(parsed, spell).length === 0 ? parsed : null;
+}

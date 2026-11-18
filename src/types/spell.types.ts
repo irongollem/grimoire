@@ -212,7 +212,6 @@ export interface Spell {
   target_description: string | null; // e.g. "one creature you can see within range", "up to three creatures"
   aoe_shape: string | null; // sphere | cone | line | cylinder | cube | emanation
   aoe_size: string | null; // e.g. "20 ft. radius"
-  condition_inflicted: string | null; // e.g. "blinded", "stunned"
   description: string;
   higher_levels: string | null;
   /** Machine-readable damage scaling: dice added per slot level above base. */

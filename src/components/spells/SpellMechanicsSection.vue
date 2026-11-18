@@ -129,26 +129,22 @@
       </label>
     </div>
 
-    <!-- Condition inflicted -->
-    <label class="flex flex-col gap-1">
-      <span class="text-eyebrow text-muted-foreground"
-        >Condition Inflicted
-        <span class="normal-case font-fell font-normal">(optional)</span></span
-      >
-      <AppInput
-        v-model="conditionInflictedModel"
-        placeholder="e.g. blinded, stunned, frightened…"
-        tone="filled"
-        size="body"
-      />
-    </label>
+    <!-- What the spell does besides damage: the entry a fight reads (#1021) -->
+    <SpellConditionEffectFields
+      v-model="conditionEffectModel"
+      :save-ability="attackType === 'save' ? saveAttribute : ''"
+      :concentration="concentration"
+      :description="description"
+      :higher-levels="higherLevels"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import { ATTACK_TYPES, SAVE_ATTRIBUTES, SAVE_EFFECTS, AOE_SHAPES } from "@/types/spell.types";
-import type { SpellSchool } from "@/types/spell.types";
+import type { SpellConditionEffect, SpellSchool } from "@/types/spell.types";
+import SpellConditionEffectFields from "./SpellConditionEffectFields.vue";
 import DamageRollsInput from "@/components/common/controls/DamageRollsInput.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
@@ -163,8 +159,11 @@ const {
   targetDescription,
   aoeShape,
   aoeSize,
-  conditionInflicted,
+  conditionEffect,
   school,
+  concentration,
+  description,
+  higherLevels,
 } = defineProps<{
   attackType: string;
   saveAttribute: string;
@@ -174,8 +173,12 @@ const {
   targetDescription: string;
   aoeShape: string;
   aoeSize: string;
-  conditionInflicted: string;
+  conditionEffect: SpellConditionEffect | null;
   school: SpellSchool;
+  /** The spell's own concentration flag and its text: the condition form copies the first and is checked against the rest. */
+  concentration: boolean;
+  description: string;
+  higherLevels: string;
 }>();
 
 const emit = defineEmits<{
@@ -187,7 +190,7 @@ const emit = defineEmits<{
   "update:targetDescription": [value: string];
   "update:aoeShape": [value: string];
   "update:aoeSize": [value: string];
-  "update:conditionInflicted": [value: string];
+  "update:conditionEffect": [value: SpellConditionEffect | null];
 }>();
 
 // AppInput/AppSelect require a real v-model; this component is a pure
@@ -200,5 +203,5 @@ const healingDiceModel = computed({ get: () => healingDice, set: (v: string) => 
 const targetDescriptionModel = computed({ get: () => targetDescription, set: (v: string) => emit("update:targetDescription", v) });
 const aoeShapeModel = computed({ get: () => aoeShape, set: (v: string) => emit("update:aoeShape", v) });
 const aoeSizeModel = computed({ get: () => aoeSize, set: (v: string) => emit("update:aoeSize", v) });
-const conditionInflictedModel = computed({ get: () => conditionInflicted, set: (v: string) => emit("update:conditionInflicted", v) });
+const conditionEffectModel = computed({ get: () => conditionEffect, set: (v: SpellConditionEffect | null) => emit("update:conditionEffect", v) });
 </script>

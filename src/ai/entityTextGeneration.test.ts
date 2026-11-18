@@ -124,3 +124,18 @@ describe("generateEntityText", () => {
     expect(complete).not.toHaveBeenCalled();
   });
 });
+
+describe("the spell generator is taught condition_effect (#1021)", () => {
+  // Bug caught: the browser-key path building a different prompt from the server's, so a local-key spell never states a condition.
+  it("appends the condition_effect instruction to the stored spell prompt in local mode, and to no other generator", async () => {
+    setLocalMode(true);
+    complete.mockResolvedValue({ content: "{}", usage });
+    await generateEntityText({ ...base, generator: "spell" });
+    expect(complete.mock.calls[0][0]).toContain("PROMPT:spell");
+    expect(complete.mock.calls[0][0]).toContain("condition_effect");
+    expect(complete.mock.calls[0][0]).toContain("only when the description you wrote says it in words");
+    await generateEntityText({ ...base, generator: "monster" });
+    expect(complete.mock.calls[1][0]).not.toContain("condition_effect");
+  });
+});
+

@@ -7,6 +7,7 @@ import { getTextProvider } from "./providers";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
 import type { RulesetKey } from "@/types/ruleset.types";
+import { SPELL_CONDITION_EFFECT_PROMPT } from "@/lib/library/spellConditionPrompt";
 
 /**
  * The generators served by the `generate-entity-text` edge function. Each is
@@ -95,7 +96,9 @@ async function completeLocally(
   ]);
   if (!basePrompt) throw new Error(`The ${request.generator} prompt is not configured.`);
 
-  const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
+  // Mirrors `extraInstructions` in generate-entity-text: the stored spell prompt predates `condition_effect` (#1021).
+  const extra = request.generator === "spell" ? SPELL_CONDITION_EFFECT_PROMPT : "";
+  const systemContent = `${basePrompt}${extra}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
     setting: request.settingPrompt,
   })}`;
   const wrappedPrompt = wrapUserInput(request.prompt);

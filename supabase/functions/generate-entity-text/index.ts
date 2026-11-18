@@ -36,6 +36,8 @@ import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
+import { vetGeneratedSpell } from "../_shared/spellGeneration.ts";
+import { SPELL_CONDITION_EFFECT_PROMPT } from "../../../src/lib/library/spellConditionPrompt.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextOutputFormat, type TextResult } from "../_shared/textGen.ts";
 
 const admin = createClient(
@@ -56,10 +58,13 @@ interface GeneratorSpec {
   promptLimit?: number;
   /** The output is shaped by D&D 5e rules (stat blocks, class tables, the item library): a Generic campaign gets none (#934). */
   fiveE?: true;
+  /** Appended to the stored prompt, for what a generator must be told that its row does not yet say. */
+  extraInstructions?: string;
 }
 
 const GENERATORS = {
-  spell:           { promptKey: "spell",           reason: "spell_generation", fiveE: true },
+  // The stored prompt predates `condition_effect` (#1021): its instruction rides along from code.
+  spell:           { promptKey: "spell",           reason: "spell_generation", fiveE: true, extraInstructions: SPELL_CONDITION_EFFECT_PROMPT },
   monster:         { promptKey: "monster",         reason: "monster_generation", fiveE: true },
   item:            { promptKey: "item",            reason: "item_generation", fiveE: true },
   faction:         { promptKey: "faction",         reason: "faction_generation" },
@@ -203,6 +208,7 @@ serve(withCors(async (req: Request) => {
   ]);
 
   const systemContent = promptRow.content
+    + (spec.extraInstructions ?? "")
     + (rulesetContext ? `\n\n${rulesetContext}` : "")
     + buildCampaignContext(campaign.ai_setting_prompt)
     + INJECTION_GUARD_SUFFIX;
@@ -284,8 +290,11 @@ serve(withCors(async (req: Request) => {
     edited: false,
   };
 
+  // A generated spell's condition is vetted against its own text before it reaches the client (#1021).
+  const answer = generator === "spell" ? vetGeneratedSpell(data as Record<string, unknown>) : data;
+
   return new Response(
-    JSON.stringify({ ...data, ai_provenance }),
+    JSON.stringify({ ...answer, ai_provenance }),
     { headers: { "Content-Type": "application/json" } },
   );
 }));

@@ -56,7 +56,7 @@ function conditionsOf(record: SpellRecord, kindsChecked: boolean): SaveCondition
   if (effect.verdict !== "condition" || effect.applies !== "failed_save" || effect.conditions.length === 0) return [];
   if (effect.targets === null || effect.targets.kind === "self") return [];
   // Two sources of the save's ability that differ: do not guess which one is right.
-  if (effect.save_ability === null || effect.save_ability !== (record.save_attribute ?? "").toUpperCase()) return [];
+  if (effect.save_ability === null || record.save_attribute === null || effect.save_ability !== record.save_attribute.toUpperCase()) return [];
   // A condition limited to a kind ("humanoid") is imposed only when the caller vouches that every target is of an
   // allowed kind (`kindsChecked`, from `creatureKind.ts`); otherwise it stays the table's to rule rather than being
   // imposed on everyone.

@@ -544,7 +544,6 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
         healing_dice: { type: "text", description: 'e.g. "2d4+2".' },
         aoe_shape: { type: "enum", values: AOE_SHAPE },
         aoe_size: { type: "text", description: 'e.g. "20 ft.".' },
-        condition_inflicted: { type: "text" },
         target_description: { type: "text" },
         source: { type: "text", description: "Free text when hand-entered." },
         tags: { type: "text[]" },

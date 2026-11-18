@@ -9,6 +9,7 @@ import {
   type SpellSchool,
   type SpellComponent,
 } from "@/types/spell.types";
+import { vetConditionEffect } from "@/lib/library/curatedSpellConditions";
 import type { SpellAiGenerated } from "./types";
 
 const SCHOOL_SET = new Set<string>(SPELL_SCHOOLS);
@@ -113,7 +114,12 @@ export function spellInsertFromAi(ai: SpellAiGenerated): SpellInsert {
     target_description: ai.target_description ?? null,
     aoe_shape,
     aoe_size: aoe_shape ? ai.aoe_size ?? null : null,
-    condition_inflicted: ai.condition_inflicted?.toLowerCase() ?? null,
+    // The server vets this already; the same rule runs here so a local-key answer is held to it too (#1021).
+    condition_effect: vetConditionEffect(ai.condition_effect, {
+      description: ai.description ?? "",
+      higher_levels: ai.level === 0 ? null : ai.higher_levels ?? null,
+      concentration: !!ai.concentration,
+    }),
     description: ai.description ?? "",
     higher_levels: ai.level === 0 ? null : ai.higher_levels ?? null,
     higher_level_damage: null,

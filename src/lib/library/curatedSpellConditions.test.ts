@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agree, findingsFor, type CuratedSpellCondition } from "./curatedSpellConditions";
+import { agree, conditionEffectFindings, findingsFor, parseConditionEffect, vetConditionEffect, type CuratedSpellCondition } from "./curatedSpellConditions";
 
 // SRD 5.1 "Hold Person", shortened to the sentences the entry rests on.
 const HOLD_PERSON = {
@@ -238,5 +238,70 @@ describe("must_flee", () => {
   // Bug caught: Hold Person's text never says the target moves away, yet a reading claims it runs, which would send a paralysed creature away from its caster.
   it("is a finding when the text never says the creature moves away", () => {
     expect(findingsFor(holdPerson({ must_flee: true }), HOLD_PERSON).join(" ")).toContain("never says the creature moves away");
+  });
+});
+
+describe("parseConditionEffect", () => {
+  const { evidence: _evidence, ...valid } = holdPerson();
+
+  // Bug caught: a valid entry mangled on its way through the parser (a field dropped or defaulted), so a stored reading changed.
+  it("round-trips a valid entry, optional fields included only when present", () => {
+    expect(parseConditionEffect(valid)).toEqual(valid);
+    const full = { ...valid, leaves_play: false, must_flee: true, ends_when_harmed: "by_anyone", break_free: { abilities: ["STR", "DEX"], skill: "athletics" } };
+    expect(parseConditionEffect(full)).toEqual(full);
+    expect(Object.keys(parseConditionEffect(valid) ?? {})).not.toContain("break_free");
+  });
+
+  // Bug caught: a model's invented verdict or condition name accepted, so a fight imposes a condition the rules do not have.
+  it.each([
+    ["an unknown verdict", { ...valid, verdict: "maybe" }],
+    ["an unknown condition name", { ...valid, conditions: ["Frozen"] }],
+    ["a wrong stops_casting", { ...valid, stops_casting: "some" }],
+    ["a wrong applies", { ...valid, applies: "always" }],
+    ["a lower-case ability", { ...valid, save_ability: "wis" }],
+    ["a wrong target kind", { ...valid, targets: { kind: "many", count: 2, more_per_slot_above: 0 } }],
+    ["a string count", { ...valid, targets: { kind: "several", count: "3", more_per_slot_above: 0 } }],
+    ["a wrong duration unit", { ...valid, duration: { unit: "day", amount: 1, concentration: true } }],
+    ["a non-boolean concentration", { ...valid, duration: { unit: "minute", amount: 1, concentration: "yes" } }],
+    ["a repeat save with no ability", { ...valid, repeat_save: { when: "end_of_its_turn", ability: null } }],
+    ["a wrong repeat when", { ...valid, repeat_save: { when: "never", ability: "WIS" } }],
+    ["a string speed_zero", { ...valid, speed_zero: "false" }],
+    ["a missing field", (({ only_kinds: _o, ...rest }) => rest)(valid)],
+    ["a wrong ends_when_harmed", { ...valid, ends_when_harmed: "sometimes" }],
+    ["a break_free with a wrong skill", { ...valid, break_free: { abilities: ["STR"], skill: "stealth" } }],
+    ["not an object", "paralyzed"],
+    ["an array", [valid]],
+    ["null", null],
+  ])("answers null for %s", (_what, raw) => {
+    expect(parseConditionEffect(raw)).toBeNull();
+  });
+});
+
+describe("conditionEffectFindings and vetConditionEffect", () => {
+  const { evidence: _evidence, ...valid } = holdPerson();
+
+  // Bug caught: the evidence finding shown to a DM who has no evidence field, blocking a faithful entry.
+  it("never reports the evidence, which a hand-made spell has no field for", () => {
+    expect(conditionEffectFindings(valid, HOLD_PERSON)).toEqual([]);
+    // A spell with no text yet has no sentence to stand in as evidence; that is not a finding either.
+    const none = { ...valid, verdict: "no_condition" as const, conditions: [], applies: null, save_ability: null, targets: null, only_kinds: [], duration: null, repeat_save: null };
+    expect(conditionEffectFindings(none, { description: "", concentration: false })).toEqual([]);
+  });
+
+  // Bug caught: a generator keeping a condition the description never names (the wrong creature paralysed in a game).
+  it("keeps a reading the text supports and drops one it does not", () => {
+    expect(vetConditionEffect(valid, HOLD_PERSON)).toEqual(valid);
+    expect(vetConditionEffect({ ...valid, conditions: ["Stunned"] }, HOLD_PERSON)).toBeNull();
+  });
+
+  // Bug caught: a malformed answer reaching the text check and throwing, or being kept.
+  it("drops a malformed reading", () => {
+    expect(vetConditionEffect({ verdict: "condition" }, HOLD_PERSON)).toBeNull();
+    expect(vetConditionEffect(undefined, HOLD_PERSON)).toBeNull();
+  });
+
+  // Bug caught: a concentration flag that disagrees with the spell's own record being kept.
+  it("drops a reading whose concentration disagrees with the spell", () => {
+    expect(vetConditionEffect(valid, { ...HOLD_PERSON, concentration: false })).toBeNull();
   });
 });
