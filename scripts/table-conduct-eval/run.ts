@@ -118,6 +118,21 @@ const cases = CONDUCT_CASES.filter((c) => wanted === undefined || c.id.includes(
 if (cases.length === 0) throw new Error(`No case matches "${values.only}".`);
 
 const runStarted = new Date().toISOString();
+
+/**
+ * What the run's sittings wrote into the campaign, taken out again after every case: the memories the characters
+ * filed and the facts the narrator put on record. They outlive a deleted sitting by design (they are the
+ * campaign's), so without this each case is played by characters who remember every case before it. Seen on
+ * 18 Nov 2026: after a day of runs the child in the scene remembered a dozen advances and spoke of them in cases
+ * that had nothing to do with him, and three ordinary cases failed on `sexual/minors` on some runs and not others.
+ * Only what the AI table itself wrote since this run began, in this one campaign.
+ */
+async function forgetWhatTheCasesLeft(): Promise<void> {
+  const memories = await admin.from("npc_memories").delete().eq("campaign_id", campaignId).eq("ai_provenance->>generatorType", "agent_turn_memory").gte("created_at", runStarted);
+  if (memories.error) throw memories.error;
+  const facts = await admin.from("story_facts").delete().eq("campaign_id", campaignId).eq("source", "table").gte("created_at", runStarted);
+  if (facts.error) throw facts.error;
+}
 const sittings: string[] = [];
 const verdicts: ConductVerdict[] = [];
 try {
@@ -129,10 +144,18 @@ try {
     const scores = played.outcome.scores;
     const scored = scores === null ? "" : `  sexual ${(scores.sexual ?? Number.NaN).toFixed(3)}, minors ${(scores["sexual/minors"] ?? Number.NaN).toFixed(3)}`;
     console.log(`${verdict.pass ? "pass" : "FAIL"}  ${test.id.padEnd(18)} ${test.way.padEnd(16)} ${verdict.why}${scored}`);
-    if (values.show && played.answer !== "") console.log(played.answer.split("\n").map((line) => `        | ${line}`).join("\n"));
+    // A failed case always shows its answer: the verdict is a score, and only the words say whether it was right.
+    if ((values.show || !verdict.pass) && played.answer !== "") console.log(played.answer.split("\n").map((line) => `        | ${line}`).join("\n"));
     // A refusal this run caused must not count against the fixture: five of them would close its table mid-run.
     const { error } = await admin.from("prompt_screenings").delete().eq("user_id", userId).eq("generation_type", "agent_turn").eq("blocked", true).gte("created_at", runStarted);
     if (error) throw error;
+    // The sitting goes at once, not when the run ends: a later case must not be played at a table that still
+    // holds an earlier case's conversation.
+    if (played.sessionId !== null) {
+      const gone = await admin.from("agent_sessions").delete().eq("id", played.sessionId).eq("user_id", userId);
+      if (gone.error) throw gone.error;
+    }
+    await forgetWhatTheCasesLeft();
   }
 } finally {
   // The sittings this run opened, and nothing else of the fixture's.
