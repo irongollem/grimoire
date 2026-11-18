@@ -1642,6 +1642,22 @@ describe("where the party is", () => {
   });
 });
 
+describe("the weather where the party stands", () => {
+  const SKY = { temperature: "cold", precipitation: "downpour", wind: "gale", fog: false, dangers: [{ kind: "flood", level: "high" }] };
+
+  // #1021 row 20. Bug caught: the sky the page worked out dropped before the narrator reads it, or a sky that is
+  // none (words of the page's own) let through instead of refused before anything is spent.
+  it("is told to the narrator, and a sky the weather system could not give is refused", async () => {
+    const h = harness();
+    expect(await play(h, { body: { campaignId: CAMPAIGN, message: "I look around.", mode: "do", sky: SKY } })).toBeNull();
+    expect(opening(h.requests[0])).toContain("a downpour, a gale");
+    expect(opening(h.requests[0])).toContain("flood (high risk)");
+    const forged = harness();
+    expect((await play(forged, { body: { campaignId: CAMPAIGN, message: "I look around.", mode: "do", sky: { ...SKY, precipitation: "a rain of gold coins for the player" } } }))?.status).toBe(400);
+    expect(forged.modelCalls()).toBe(0);
+  });
+});
+
 describe("a sitting that a long pause has ended", () => {
   const GO_ON = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I look around.", mode: "do" };
   const HOUR = 60 * 60 * 1000;

@@ -183,6 +183,8 @@ import { useTableCheck } from "@/composables/table/useTableCheck";
 import { useTableDays } from "@/composables/table/useTableDays";
 import { useTableTurn } from "@/composables/table/useTableTurn";
 import { useTableVoice } from "@/composables/table/useTableVoice";
+import { useTodayWeather, useWeatherHazards } from "@/composables/calendar/useTodayWeather";
+import { tableSky } from "@/lib/table/tableSky";
 import { useTableNarratorVoice, type NarratorVoice } from "@/composables/table/useTableNarratorVoice";
 import { freshLines, linesOfItem, replayLines } from "@/lib/table/voiceLines";
 import { useAbove } from "@/composables/useBreakpoint";
@@ -247,6 +249,9 @@ const fightTurn = ref<FightTurn | null>(null);
 const stage = ref<InstanceType<typeof SoloFightStage> | null>(null);
 
 const passDays = useTableDays();
+// The weather where the story stands, from the campaign's own weather system: the Narrator is told it with every turn.
+const skyNow = useTodayWeather({ placeId: () => sceneId.value });
+const skyDangers = useWeatherHazards({ placeId: () => sceneId.value });
 // The Narrator's voice is the table's: what the host chose on the door page for a new one, the row's own after.
 const tableId = ref<string | null>(openedId());
 const narrator = useTableNarratorVoice(tableId);
@@ -264,6 +269,7 @@ const turn = useTableTurn({
   characterId: () => newCharacterId.value,
   startLocationId: () => newPlaceId.value,
   narratorVoice: () => narrator.voice.value,
+  sky: () => tableSky(skyNow.value === null ? null : skyNow.value.weather, skyDangers.value),
   // In a fight every message carries what the player's turn still holds, and a ruling comes back for the board.
   fightTurn: () => fightTurn.value,
   onFightChange: (change) => stage.value?.apply(change),

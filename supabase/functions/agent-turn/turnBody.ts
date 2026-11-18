@@ -1,6 +1,7 @@
 // What a turn request says and how the player's message reaches the narrator (#1205, #1021). Split from `handler.ts`
 // so the handler holds the turn's rules. Pure.
 
+import { parseSky, type Sky } from "../_shared/agent/sky.ts";
 import type { TurnBudget } from "../_shared/agent/fightChange.ts";
 import { parseRollAnswer, type RollAnswer } from "../_shared/agent/playerRoll.ts";
 
@@ -54,6 +55,8 @@ export interface AgentTurnBody {
    * is one of a fixed few; the words of the instruction are this function's, never the page's.
    */
   foeLine?: { name: string; moment: FoeMoment };
+  /** The weather where the party stands, as the page worked it out from the campaign's calendar (`sky.ts`). */
+  sky?: Sky;
   /**
    * The characters still had the floor when the last turn ended, and the player says nothing: they go on
    * (`floor.ts`). No words of the player's, in a conversation that exists.
@@ -114,6 +117,13 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
   if (r.mode !== "say" && r.mode !== "do" && r.mode !== "ask" && r.mode !== "correct") return { ok: false };
   // A correction is the player's own sentence about the story: never a roll's answer, an opening or anyone else's turn.
   if (r.mode === "correct" && (message.length < 1 || roll !== undefined || opening || aftermath || helperTurn !== undefined || foeLine !== undefined || listening || r.sessionId === undefined)) return { ok: false };
+  // Refused when it is not a sky the weather system could give: nothing of the page's own wording goes on.
+  let sky: Sky | undefined;
+  if (r.sky !== undefined) {
+    const parsed = parseSky(r.sky);
+    if (parsed === null) return { ok: false };
+    sky = parsed;
+  }
   let fightTurn: TurnBudget | undefined;
   if (r.fightTurn !== undefined) {
     const t = r.fightTurn;
@@ -139,6 +149,7 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
       ...(aftermath ? { aftermath: true as const } : {}),
       ...(helperTurn === undefined ? {} : { helperTurn }),
       ...(foeLine === undefined ? {} : { foeLine }),
+      ...(sky === undefined ? {} : { sky }),
       ...(listening ? { listening: true as const } : {}),
       ...(fightTurn === undefined ? {} : { fightTurn }),
     },

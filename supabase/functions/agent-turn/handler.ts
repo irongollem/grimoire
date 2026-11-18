@@ -19,6 +19,7 @@ import { followersOf } from "../_shared/agent/pursuit.ts";
 import { lootIsWon, type LootHeld } from "../_shared/agent/encounterLoot.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
 import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
+import { skySection } from "../_shared/agent/sky.ts";
 import { endedByPause } from "../_shared/agent/sittingEnd.ts";
 import { NARRATOR_SPEAKER, type KeyedLine } from "../_shared/agent/lineKey.ts";
 import { handsLine, harvestFacts, possessionsSection, type Coins, type HandsChange, type Possessions } from "../_shared/agent/hands.ts";
@@ -631,7 +632,7 @@ export async function beginTurn(input: {
         const handedOut: HandoutOffer[] = [];
         let lastExchange: { ended: "to_player" | "open"; cutShort: boolean } | null = null;
         let narratorKeeps = false;
-        const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts) });
+        const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts), sky: body.sky === undefined ? "" : skySection(body.sky) });
         // What changes hands this turn; moved only once the turn is kept.
         const handed: HandsChange[] = [];
         // What the narrator's ruling does to the fight on the board; carried out by the page once the turn is kept.

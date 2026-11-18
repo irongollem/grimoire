@@ -2,6 +2,7 @@ import { computed, ref, shallowRef, type Ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { readTableStream } from "@/lib/table/readTableStream";
 import { applyTableEvent, boardItem, nextItemId, playerItem } from "@/lib/table/storyReducer";
+import type { TableSky } from "@/lib/table/tableSky";
 import type { FoeMoment } from "@/lib/table/fight/foeLine";
 import type { BoardLine } from "@/lib/table/fight/boardLines";
 import type { FightChange, FightTurn } from "@/lib/table/fight/fightChange";
@@ -26,6 +27,8 @@ export interface TurnRequest {
   helperTurn?: { name: string };
   /** A foe in the fight says a line: its turn earned one (`foeLine.ts`). */
   foeLine?: { name: string; moment: FoeMoment };
+  /** The weather where the story stands (`tableSky`). */
+  sky?: TableSky;
   /** The player says nothing and the characters go on with what they were saying. No words. */
   listening?: true;
   /** In a fight on the board: what the player's turn still holds. */
@@ -60,6 +63,8 @@ export interface TableTurnOptions {
   /** Only used for a new conversation: the server refuses them on a continued one. */
   characterId?: () => string | null;
   startLocationId?: () => string | null;
+  /** The weather where the story stands; null when there is none to tell (underground, an unplaced date). */
+  sky?: () => TableSky | null;
   /** The Narrator's voice the host chose for the new table. */
   narratorVoice?: () => "male" | "female";
   transport?: TurnTransport;
@@ -150,6 +155,8 @@ export function useTableTurn(options: TableTurnOptions) {
       if ("helper" in wordless) request.helperTurn = { name: wordless.helper };
       else request.foeLine = { name: wordless.foe, moment: wordless.moment };
     }
+    const sky = options.sky ? options.sky() : null;
+    if (sky !== null) request.sky = sky;
     const fightTurn = options.fightTurn?.() ?? null;
     if (fightTurn !== null && wordless === null) request.fightTurn = fightTurn;
     const before = asked;

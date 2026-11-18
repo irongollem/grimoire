@@ -14,6 +14,13 @@ export interface TodayWeather {
   sourceId: string | null;
 }
 
+/** Whose list of places is read, and for which place; by default the DM's, where the campaign says the party is. */
+export interface WeatherAt {
+  player?: boolean;
+  /** The place to read the sky for instead of the campaign's party place (the AI table's scene). */
+  placeId?: () => string | null;
+}
+
 export interface WeatherSource {
   climate: Climate;
   /** The place that named the climate; null when it is the campaign's. */
@@ -37,11 +44,13 @@ export interface WeatherSource {
  * instead, and a place they cannot see simply does not resolve, which falls
  * back to the campaign climate and fetches nothing extra. With no current place the list is not read at all.
  */
-export function useWeatherSource(options: { player?: boolean } = {}): ComputedRef<WeatherSource | null> {
+export function useWeatherSource(options: WeatherAt = {}): ComputedRef<WeatherSource | null> {
   const campaign = useCampaignStore();
   // Static per call site: a screen is either the DM's or the player's.
   // With no current place there is nothing to resolve: the campaign's climate answers without the list.
-  const hasPlace = () => !!campaign.activeCampaign?.current_location_id;
+  // Where: the place the caller names (the AI table's scene), else where the campaign says the party is.
+  const placeId = (): string | null => (options.placeId ? options.placeId() : (campaign.activeCampaign?.current_location_id ?? null));
+  const hasPlace = () => !!placeId();
   const places = options.player ? useSharedLocations(hasPlace) : useAllLocations(hasPlace);
 
   const index = computed(() => {
@@ -55,13 +64,13 @@ export function useWeatherSource(options: { player?: boolean } = {}): ComputedRe
   return computed(() => {
     const active = campaign.activeCampaign;
     if (!active) return null;
-    const { climate, sourceId } = climateAt(index.value, active.current_location_id ?? null, active.climate);
+    const { climate, sourceId } = climateAt(index.value, placeId(), active.climate);
     return {
       climate,
       sourceId,
       placeName: sourceId === null ? null : (index.value.get(sourceId)?.name ?? null),
       seed: `${active.id}:${sourceId ?? "campaign"}`,
-      terrain: terrainAt(index.value, active.current_location_id ?? null),
+      terrain: terrainAt(index.value, placeId()),
       pins: (active.weather_pins ?? []).filter((pin) => pin.source === sourceId),
     };
   });
@@ -72,7 +81,7 @@ export function useWeatherSource(options: { player?: boolean } = {}): ComputedRe
  * computed locally from the calendar, so there is nothing to poll. Null for an
  * underground climate or a date the calendar cannot place.
  */
-export function useTodayWeather(options: { player?: boolean } = {}): ComputedRef<TodayWeather | null> {
+export function useTodayWeather(options: WeatherAt = {}): ComputedRef<TodayWeather | null> {
   const campaign = useCampaignStore();
   const calendar = useCalendarStore();
   const source = useWeatherSource(options);
@@ -104,7 +113,7 @@ export function useWeatherForecast(days = 5, options: { player?: boolean } = {})
  * is (an avalanche on a mountain, a flood on low ground). Empty with no
  * terrain, underground, or nothing to warn of. Computed locally like the rest.
  */
-export function useWeatherHazards(options: { player?: boolean } = {}): ComputedRef<Hazard[]> {
+export function useWeatherHazards(options: WeatherAt = {}): ComputedRef<Hazard[]> {
   const campaign = useCampaignStore();
   const calendar = useCalendarStore();
   const source = useWeatherSource(options);

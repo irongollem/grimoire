@@ -374,6 +374,27 @@ describe("a helper's turn in a fight", () => {
     expect(t.live.value.filter((item) => item.kind === "player")).toHaveLength(1);
   });
 
+  // #1021 row 20. Bug caught: the weather sent once at the opening and never again (the sky changes as days
+  // pass and the party travels), or a null sky sent as a field the server refuses.
+  it("sends the weather where the story stands with every turn, and nothing when there is none", async () => {
+    const sent: TurnRequest[] = [];
+    let sky: TurnRequest["sky"] | null = { temperature: "cold", precipitation: "rain", wind: "strong", fog: false, dangers: [] };
+    const t = sitting(
+      async (request) => {
+        sent.push(request);
+        return streamOf(good());
+      },
+      { sky: () => sky ?? null },
+    );
+    await t.send("say", "One");
+    await t.send("do", "Two");
+    sky = null;
+    await t.send("do", "Three");
+    expect(sent[0].sky).toMatchObject({ precipitation: "rain" });
+    expect(sent[1].sky).toMatchObject({ precipitation: "rain" });
+    expect(sent[2]).not.toHaveProperty("sky");
+  });
+
   // Bug caught: a foe's line sent as a helper's turn (the narrator then has the foe barricade a door), or as
   // words of the player's.
   it("asks for a foe's line by name and moment, with no words of the player's", async () => {
