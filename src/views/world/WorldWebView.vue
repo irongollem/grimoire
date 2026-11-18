@@ -29,13 +29,26 @@ import SortFamilyLinksNotice from "@/components/kinship/SortFamilyLinksNotice.vu
 import WorldWebScreen from "@/components/world/WorldWebScreen.vue";
 import { useParty } from "@/composables/party/useParty";
 import { useWorldPeople, useWorldTies } from "@/composables/world/useWorldTies";
+import { useAllLocations } from "@/composables/locations/useLocations";
+import { useLocationRoads } from "@/composables/locations/useLocationRoads";
+import { roadTies } from "@/lib/worldWeb/roadTies";
 import { isWebKind, nodeKey, parseNodeKey } from "@/lib/worldWeb/kinds";
 import type { WorldTie } from "@/lib/worldWeb/ties";
 
 const NO_TIES: readonly WorldTie[] = [];
 
 const route = useRoute();
-const { data: ties, isLoading: tiesLoading, error: tiesError } = useWorldTies();
+const { data: linkTies, isLoading: tiesLoading, error: tiesError } = useWorldTies();
+// Roads are read from their own table and drawn as lines between their places (#1222); the web keeps no copy.
+// The web does not wait for them: a road that arrives a moment later is one more line.
+const { data: roads } = useLocationRoads();
+const { data: places } = useAllLocations();
+const ties = computed<readonly WorldTie[] | undefined>(() => {
+  if (linkTies.value === undefined) return undefined;
+  if (!roads.value || !places.value || roads.value.length === 0) return linkTies.value;
+  const ends = new Map(places.value.map((p) => [p.id, { name: p.name, image: p.image_url }]));
+  return [...linkTies.value, ...roadTies(roads.value, ends)];
+});
 const { people, isLoading: peopleLoading } = useWorldPeople();
 const { data: party } = useParty();
 

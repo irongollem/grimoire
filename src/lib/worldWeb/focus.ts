@@ -11,7 +11,7 @@
  * twenty-three is the subject only when the DM asks for it.
  */
 import { parseNodeKey, type WebKind } from "./kinds";
-import { fromKey, isLine, otherKey, tieFamily, tieWordFrom, toKey, type TieFamily, type WorldTie } from "./ties";
+import { fromKey, isLine, otherKey, tieFamily, tieSaysFrom, toKey, type TieFamily, type WorldTie } from "./ties";
 
 export type FocusSteps = 1 | 2;
 
@@ -103,7 +103,7 @@ export function buildFocus(
 
   for (const key of shownFirst) {
     const ties = first.get(key) ?? [];
-    nodes.push({ key, ring: 1, reasons: [...new Set(ties.map((t) => tieWordFrom(t, key)))] });
+    nodes.push({ key, ring: 1, reasons: [...new Set(ties.map((t) => tieSaysFrom(t, key)))] });
     for (const tie of ties) edges.push(edgeFor(tie, false));
   }
 

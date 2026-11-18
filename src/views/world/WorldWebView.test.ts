@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   viewer: null as string | null,
   tiesLoading: false,
   peopleLoading: false,
+  roads: [] as { id: string; from_location_id: string; to_location_id: string; distance: number; unit: string; name: string; going: string }[],
 }));
 
 vi.mock("vue-router", () => ({ useRoute: () => ({ query: state.query }) }));
@@ -17,6 +18,10 @@ vi.mock("@/composables/world/useWorldTies", () => ({
   useWorldTies: () => ({ data: ref([]), isLoading: computed(() => state.tiesLoading), error: computed(() => state.error) }),
   usePlayerWorldTies: () => ({ data: ref([]), isLoading: ref(false), error: computed(() => state.error) }),
   useWorldPeople: () => ({ people: ref([]), isLoading: computed(() => state.peopleLoading) }),
+}));
+vi.mock("@/composables/locations/useLocationRoads", () => ({ useLocationRoads: () => ({ data: computed(() => state.roads) }) }));
+vi.mock("@/composables/locations/useLocations", () => ({
+  useAllLocations: () => ({ data: ref([{ id: "a", name: "Brightwater", image_url: null }, { id: "b", name: "Saltmarsh", image_url: null }]) }),
 }));
 vi.mock("@/composables/party/useParty", () => ({
   useParty: () => ({ data: ref([{ id: "pc1", portrait_focal_point: { x: 1, y: 2 } }, { id: "pc2", portrait_focal_point: null }]) }),
@@ -39,6 +44,14 @@ describe("WorldWebView", () => {
     state.viewer = null;
     state.tiesLoading = false;
     state.peopleLoading = false;
+    state.roads = [];
+  });
+
+  // Bug caught: the roads read and never handed to the web, so two towns a road joins stand apart on it.
+  it("hands the screen a campaign's roads as ties between their places", () => {
+    state.roads = [{ id: "r1", from_location_id: "a", to_location_id: "b", distance: 40, unit: "mi", name: "", going: "road" }];
+    const w = mount(WorldWebView, { global });
+    expect(w.getComponent(Screen).props("ties")).toEqual([expect.objectContaining({ source: "road", from_id: "a", to_id: "b", told: "40 mi by road" })]);
   });
 
   it("hands the screen the ties and PC portrait crops, and opens on ?focus=", () => {
