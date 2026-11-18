@@ -78,6 +78,8 @@ interface Harness {
   mapLoads: number;
   /** The spell names the server asked the library for. */
   spellReads: string[];
+  /** The name lists of each `loadSpellsListed` call (a creature's whole turn reads its spells together). */
+  spellListedReads: string[][];
   /** Runs once, between a load and its save: another writer got in. */
   rival: { run: (() => void) | null; always: boolean };
   /** Every note judgment the server asked for: the request, and the count it said it had already made this batch. */
@@ -123,6 +125,7 @@ function harness(
     playerLoads: [],
     mapLoads: 0,
     spellReads: [],
+    spellListedReads: [],
     rival: { run: null, always: false },
     noteAsks: [],
     noteCosts: [],
@@ -204,6 +207,10 @@ function harness(
     },
     async loadSpells(name) {
       h.spellReads.push(name);
+      return structuredClone(options.spells ?? []);
+    },
+    async loadSpellsListed(names) {
+      h.spellListedReads.push(names);
       return structuredClone(options.spells ?? []);
     },
     async postRoll(roll) {
@@ -1834,5 +1841,53 @@ describe("cast_spell", () => {
     expect(bad({ faces: { save: { saves: [[5], [5], [5], [5]] } } })).toThrow(FightCommandError);
     expect(bad({ targetIds: [], faces: { attacks: [null] } })).toThrow(FightCommandError);
     expect(bad({})).not.toThrow();
+  });
+});
+
+describe("take_turn casts a spell", () => {
+  const MAGE_SOURCES: StatBlockSources = {
+    monsters: [{ id: "m-mage", name: "Mage", stat_block: mageBlock({ actions: [] }) } as unknown as Monster, monster("m-ox")],
+    npcs: [],
+    companions: [],
+  };
+  const by = (r: FightRow, id: string) => r.combatants_live.find((c) => c.instance_id === id)!;
+  /** A mage (hostile to the party) at (1,1) and three party oxen (40 HP, Dex +0, AC 13) in a row within 20 feet of each other. */
+  const bunched = (mage: Partial<RunCombatant> = {}) =>
+    row({
+      combatants_live: [
+        combatant("mage", { monster_id: "m-mage", faction_id: "m", hp: 40, max_hp: 40, initiative: 12, position: { x: 1, y: 1 }, ...mage }),
+        ...["t1", "t2", "t3"].map((id, i) => combatant(id, { monster_id: "m-ox", faction_id: "p", hp: 40, max_hp: 40, ac: "13", initiative: 5 - i, position: { x: 4 + i, y: 1 } })),
+      ],
+    });
+
+  // SRD 5.1 "Fireball": 8d6 fire, DEX save for half, DC 14. Three oxen at DEX +0 fail 65% each, so the cast is worth
+  // 3 * (0.65*28 + 0.35*14) = 69.3, against a Fire Bolt at +6 versus AC 13 (0.70 to hit, 2d10 at 9th level averages 11: 0.7*11 + 0.05*11 = 8.25):
+  // the rules pick Fireball and all three are its targets.
+  // Dice in order: three saves (5 fails, 20 saves, 3 fails), then 8d6 once (1+2+3+4+5+6+1+2 = 24): failures take 24, the saver 12.
+  // Bug caught: a creature that lists spells never casts, or casts at one target, or rolls the damage once per target, or spends no slot.
+  it("fails if a mage with three bunched enemies does not cast Fireball at all three with one damage roll, one slot and one save each", async () => {
+    const h = harness(bunched(), { sources: MAGE_SOURCES, map: mapOf(), spells: [fireball(), fireBolt()], dieFaces: [5, 20, 3, 1, 2, 3, 4, 5, 6, 1, 2] });
+    const result = await runBatch(batch("b", takeTurn({ instanceId: "mage" })), h.deps);
+    const after = stored(h);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { kind: "spell", picked: "rules", reason: expect.stringMatching(/^Casts Fireball \(level 3\) at t1, t2 and t3/) } });
+    expect(["t1", "t2", "t3"].map((id) => hpOf(after, id))).toEqual([16, 28, 16]);
+    expect(by(after, "mage").action_uses).toEqual({ "slots/3": { used: 1, per_day: 3 } });
+    expect(by(after, "mage").action_used).toBe(true);
+    expect(h.posted.filter((p) => p.result.isDamage)).toHaveLength(1);
+    expect(h.dieCalls).toBe(11);
+    expect(h.spellListedReads).toHaveLength(1);
+  });
+
+  // Bug caught: the server reads a creature's spells once per name (or per option), or reads for a creature with none.
+  it("fails if a creature with no Spellcasting entry reads any spell, or a mage reads them name by name", async () => {
+    const wolf = harness(duel(), { sources: SOURCES, map: mapOf(), dieFaces: [9, 5] });
+    await runBatch(batch("b1", takeTurn()), wolf.deps);
+    expect(wolf.spellListedReads).toEqual([]);
+    expect(wolf.spellReads).toEqual([]);
+    const mage = harness(bunched(), { sources: MAGE_SOURCES, map: mapOf(), spells: [fireball(), fireBolt()], dieFaces: [5, 20, 3, 1, 2, 3, 4, 5, 6, 1, 2] });
+    await runBatch(batch("b", takeTurn({ instanceId: "mage" })), mage.deps);
+    // `cast_spell` asks for the one name it casts (cached per attempt), and the turn asked for the whole list once.
+    expect(mage.spellListedReads).toHaveLength(1);
+    expect(mage.spellListedReads[0]).toEqual(expect.arrayContaining(["fireball", "fire bolt"]));
   });
 });

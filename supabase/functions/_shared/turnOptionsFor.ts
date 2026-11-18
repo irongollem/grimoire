@@ -7,6 +7,8 @@ import { actionAvailability } from "../../../src/rules/encounterTurn.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { movementBudgetFeet } from "../../../src/rules/fight/terrain/movementBudget.ts";
 import { DEFAULT_REACH_FEET } from "../../../src/rules/fight/terrain/sight.ts";
+import { castableNow, type CastNow } from "../../../src/rules/fight/spells/castNow.ts";
+import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
 import { turnOptions, type TurnOption, type UsableAttack } from "../../../src/rules/fight/terrain/turnOptions.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { MonsterStatBlock } from "../../../src/types/monster.types.ts";
@@ -48,10 +50,15 @@ export interface TurnOptionsFacts {
   members: { id: string; speed: number }[];
   /** The fight's map, or null when it has none the rules can use. */
   map: FightMap | null;
+  /**
+   * The records of every spell the mover lists (`listedSpellNames`), read by the caller and only for a creature that
+   * casts: left out, the creature is offered no spell. A caller that never offers spells (a read of the options) may leave it.
+   */
+  spellRecords?: readonly SpellRecord[];
 }
 
 /** The options as `turnOptions` composes them, before any gate or numbers. */
-export function assembleTurnOptions(facts: TurnOptionsFacts): { options: TurnOption[]; attacks: UsableAttack[] } {
+export function assembleTurnOptions(facts: TurnOptionsFacts): { options: TurnOption[]; attacks: UsableAttack[]; spells: CastNow[] } {
   const { mover, sources } = facts;
   const budgetFeet = movementBudgetFeet({
     speed: combatantSpeed(mover, { monsters: sources.monsters, npcs: sources.npcs, members: facts.members }),
@@ -59,7 +66,9 @@ export function assembleTurnOptions(facts: TurnOptionsFacts): { options: TurnOpt
     conditions: mover.conditions,
     ruleset: facts.ruleset,
   });
-  const attacks = usableAttacks(mover, statBlockOf(mover, sources));
+  const block = statBlockOf(mover, sources);
+  const attacks = usableAttacks(mover, block);
+  const spells = block === null || facts.spellRecords === undefined ? [] : castableNow(block, mover, facts.spellRecords, facts.ruleset);
   const options = turnOptions({
     combatants: facts.combatants,
     moverId: mover.instance_id,
@@ -68,6 +77,7 @@ export function assembleTurnOptions(facts: TurnOptionsFacts): { options: TurnOpt
     attacks,
     reachOf: (c) => meleeReachFeet(statBlockOf(c, sources)),
     ruleset: facts.ruleset,
+    spells,
   });
-  return { options, attacks };
+  return { options, attacks, spells };
 }

@@ -8,14 +8,18 @@
 //
 // Opportunity attacks: before a move, the enemies the server can play strike (`opportunity.ts`) and a player who may strike is reported as `provoked_player`.
 // Not in this command: Hide (the Action is
-// used and nothing more is recorded; Dodge and Disengage do put their condition on the creature), picking by a model, ending the turn, legendary and lair actions,
-// spells. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
+// used and nothing more is recorded; Dodge and Disengage do put their condition on the creature), picking by a model, ending the turn, legendary and lair actions.
+// A creature that lists spells is offered its damage spells (#1021): a cone or a line is not offered, a cast is carried out by
+// `cast_spell` (which spends the slot or use and the Action), and nothing but damage is cast. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
 // the fight after its move and the reply says so (`leftTheMap`); that is not a defeat. A broken creature with a way out (Etherealness, Invisible
 // Passage) uses it first (`escapedWith`). A Multiattack that drops its target does not redirect the swings it has left.
 
 import { applyFightCommand, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
 import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
+import { saveBonusFromBlock } from "../../../src/rules/fight/actionResolution.ts";
+import { playerSaveBonus } from "../../../src/rules/fight/playerSheet.ts";
+import { listedSpellNames } from "../../../src/rules/fight/spells/castNow.ts";
 import { stepsFor } from "../../../src/rules/fight/tactics/carryOut.ts";
 import { DODGING, disengagedCondition, dodgingCondition } from "../../../src/rules/fight/stances.ts";
 import { gateOptions, pickTurn } from "../../../src/rules/fight/tactics/pick.ts";
@@ -23,6 +27,7 @@ import { withNumbers } from "../../../src/rules/fight/tactics/numbers.ts";
 import { tacticalProfile } from "../../../src/rules/fight/tactics/profile.ts";
 import type { TurnOption } from "../../../src/rules/fight/terrain/turnOptions.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
+import type { SaveAbility } from "../../../src/types/statBlock.types.ts";
 import { statBlockOf } from "../_shared/fightStatBlocks.ts";
 import { noteRequest, optionsAllowedByNote } from "../_shared/tacticsJudge.ts";
 import { assembleTurnOptions } from "../_shared/turnOptionsFor.ts";
@@ -78,15 +83,23 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
   // A player character has no stat block here: a player takes their own turn.
   if (block === null) return refuse(`${mover.name} has no stat block the server can read, so it cannot play ${mover.name}'s turn.`);
 
-  const { options, attacks } = assembleTurnOptions({
-    combatants: state.combatants, mover, ruleset: state.ruleset, sources: env.sources, members: [], map: env.map,
+  // A creature with no Spellcasting entry names no spell, so nothing is read for it.
+  const listed = listedSpellNames(block);
+  const spellRecords = listed.length === 0 ? [] : await env.spellsListed(listed);
+  const { options, attacks, spells } = assembleTurnOptions({
+    combatants: state.combatants, mover, ruleset: state.ruleset, sources: env.sources, members: [], map: env.map, spellRecords,
   });
   if (options.length === 0) return refuse(`${mover.name} has no turn to take (it is Incapacitated).`);
 
   const profile = tacticalProfile(block, creatureTypeOf(mover, env));
   const armorClassOf = (target: RunCombatant) => knownArmorClass(target, env.players);
+  // A creature's save bonus: a character's from their sheet, anyone else's from its stat block; null when it cannot be read.
+  const saveBonusOf = (target: RunCombatant, ability: SaveAbility): number | null =>
+    target.type === "player"
+      ? (target.party_member_id ? playerSaveBonus(env.players, target.party_member_id, ability) : null)
+      : saveBonusFromBlock(statBlockOf(target, env.sources), ability);
   const gated = withNumbers(gateOptions(options, profile, mover), {
-    attacks, combatants: state.combatants, moverId: mover.instance_id, armorClassOf, ruleset: state.ruleset,
+    attacks, combatants: state.combatants, moverId: mover.instance_id, armorClassOf, ruleset: state.ruleset, spells, saveBonusOf,
   });
 
   let chosen: { optionId: string; reason: string };
@@ -160,6 +173,17 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
         if (target === undefined || target.hp <= 0) break;
         const done = await applyResolvingCommand(
           next, { type: "resolve_attack", attackerId: mover.instance_id, list: step.list, action: step.action, targetId: step.targetId }, env,
+        );
+        next = done.state;
+        effects.push(...done.effects);
+        break;
+      }
+      case "cast": {
+        // Like a Multiattack, a cast is not redirected: a target that has already dropped is left out, and with none left there is no cast.
+        const targetIds = step.targetIds.filter((id) => next.combatants.some((c) => c.instance_id === id && c.hp > 0));
+        if (targetIds.length === 0) break;
+        const done = await applyResolvingCommand(
+          next, { type: "cast_spell", casterId: mover.instance_id, spell: step.spell, castLevel: step.castLevel, targetIds }, env,
         );
         next = done.state;
         effects.push(...done.effects);

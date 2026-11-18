@@ -4,7 +4,9 @@ import type { AppliedCondition } from "../../../types/condition.types.ts";
 import type { RulesetKey } from "../../../types/ruleset.types.ts";
 import type { AttackStructure, StatBlockEntry } from "../../../types/statBlock.types.ts";
 import type { TurnOption, TurnOptionAttack, UsableAttack } from "../terrain/turnOptions.ts";
-import { chanceOfNatural20, chanceToHit, withNumbers, type NumbersContext } from "./numbers.ts";
+import { castableNow } from "../spells/castNow.ts";
+import { fireball, fireBolt, mageBlock } from "../spells/spellTestKit.ts";
+import { chanceOfNatural20, chanceToFail, chanceToHit, UNKNOWN_SAVE_FAIL_CHANCE, withNumbers, type NumbersContext } from "./numbers.ts";
 
 function creature(id: string, over: Partial<RunCombatant> = {}): RunCombatant {
   return {
@@ -226,5 +228,79 @@ describe("what it leaves alone", () => {
     expect(a).toBe(dodge);
     expect(b.attack?.hitChance).toBeCloseTo(0.6, 10);
     expect(given.attack?.hitChance).toBeNull();
+  });
+});
+
+
+describe("spell options (#1021)", () => {
+  const mage = creature("ogre", { name: "Mage" });
+  const SPELLS = castableNow(mageBlock(), mage, [fireball(), fireBolt()], "2014");
+  const spellOption = (name: string, castLevel: number, kind: "attack" | "save", targetIds: string[]): TurnOption => ({
+    id: `spell:${name}:${castLevel}:${targetIds[0]}`, kind: "spell", targetId: targetIds[0], destination: null, path: null, feet: null, attack: null, distanceFeet: null,
+    provokes: [], exposure: [], summary: "",
+    spell: { name, castLevel, kind, targetIds, friendsCaught: [], spends: castLevel > 0, distanceFeet: 20, hitChance: null, expectedDamage: null },
+  });
+  const run = (opt: TurnOption, over: { targets?: Record<string, Partial<RunCombatant>>; bonus?: number | null; ac?: number | null } = {}) => {
+    const ids = Object.keys(over.targets === undefined ? { fresco: {} } : over.targets);
+    const ctx: NumbersContext = {
+      attacks: [],
+      combatants: [mage, ...ids.map((id) => creature(id, over.targets === undefined ? {} : over.targets[id]))],
+      moverId: "ogre",
+      armorClassOf: () => (over.ac === undefined ? 15 : over.ac),
+      ruleset: "2014",
+      spells: SPELLS,
+      saveBonusOf: () => (over.bonus === undefined ? 0 : over.bonus),
+    };
+    return withNumbers([opt], ctx)[0].spell;
+  };
+
+  // SRD 5.1 "Fireball": 8d6 averages 28; DC 14 against a +0 save fails on 13 of 20 faces: 0.65*28 + 0.35*14 = 23.1 per target.
+  // Bug caught: the failure chance is the attack-roll one (a 20 always saving or a 1 always failing), or half damage is dropped.
+  it("weighs a save spell by the chance each target fails: 3 targets of 0.65*28 + 0.35*14 = 23.1 make 69.3", () => {
+    const spell = run(spellOption("Fireball", 3, "save", ["a", "b", "c"]), { targets: { a: {}, b: {}, c: {} } });
+    expect(spell?.hitChance).toBeCloseTo(0.65, 10);
+    expect(spell?.expectedDamage).toBeCloseTo(69.3, 10);
+  });
+
+  it("counts the failing chance of a save as faces that miss the DC: +0 against 14 fails 13 of 20, a +10 fails 3 of 20", () => {
+    expect(chanceToFail(0, 14, "normal")).toBeCloseTo(0.65, 10);
+    expect(chanceToFail(10, 14, "normal")).toBeCloseTo(0.15, 10);
+    // A bonus that clears the DC on every face never fails, one that cannot reach it always does.
+    expect(chanceToFail(20, 14, "normal")).toBe(0);
+    expect(chanceToFail(-10, 14, "normal")).toBe(1);
+  });
+
+  // A target that has advantage on the save passes with 1 - 0.65^2 = 0.5775, so it fails 0.4225:
+  // 0.4225*28 + 0.5775*14 = 19.915. A Dodging creature has advantage on DEX saves.
+  // Bug caught: a target's advantage, or an automatic failure, is ignored when weighing the cast.
+  it("applies the target's advantage on the save, and an automatic failure when it cannot save", () => {
+    const dodging = run(spellOption("Fireball", 3, "save", ["a"]), { targets: { a: { conditions: [{ name: "Dodging" }] } } });
+    expect(dodging?.expectedDamage).toBeCloseTo(19.915, 10);
+    // Paralyzed fails STR and DEX saves automatically: the full 28.
+    const paralyzed = run(spellOption("Fireball", 3, "save", ["a"]), { targets: { a: { conditions: [{ name: "Paralyzed" }] } } });
+    expect(paralyzed?.hitChance).toBe(1);
+    expect(paralyzed?.expectedDamage).toBeCloseTo(28, 10);
+  });
+
+  // APP CONVENTION: a save bonus that cannot be read (a character the server did not load) is a coin flip: 0.5*28 + 0.5*14 = 21.
+  it("fails an unknown save half the time rather than guessing a bonus", () => {
+    const spell = run(spellOption("Fireball", 3, "save", ["a"]), { targets: { a: {} }, bonus: null });
+    expect(UNKNOWN_SAVE_FAIL_CHANCE).toBe(0.5);
+    expect(spell?.expectedDamage).toBeCloseTo(21, 10);
+  });
+
+  // SRD 5.1 "Fire Bolt": 2d10 at 9th level averages 11, +6 against AC 15 needs a 9: 12 of 20 hit (0.6), the natural 20 rolls the
+  // dice again (0.05*11): 0.6*11 + 0.05*11 = 7.15, with the attack code the attack options use.
+  // Bug caught: an attack spell is weighed with the save arithmetic or its own copy of the to-hit maths.
+  it("weighs an attack spell as an attack: 0.6 to hit, 7.15 expected", () => {
+    const spell = run(spellOption("Fire Bolt", 0, "attack", ["a"]), { targets: { a: {} } });
+    expect(spell?.hitChance).toBeCloseTo(0.6, 10);
+    expect(spell?.expectedDamage).toBeCloseTo(7.15, 10);
+  });
+
+  // Bug caught: a target whose armor class is unknown still gets a made-up number, or a cast with no entry on hand is numbered.
+  it("leaves the numbers null when an attack spell's target has no known armor class, or the cast is not castable", () => {
+    expect(run(spellOption("Fire Bolt", 0, "attack", ["a"]), { targets: { a: {} }, ac: null })?.expectedDamage).toBeNull();
+    expect(run(spellOption("Fireball", 9, "save", ["a"]), { targets: { a: {} } })?.expectedDamage).toBeNull();
   });
 });

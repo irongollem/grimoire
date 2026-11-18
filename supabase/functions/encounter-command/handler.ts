@@ -284,6 +284,8 @@ export interface BatchDeps {
   loadStatBlocks(ids: { monsterIds: string[]; npcIds: string[]; companionIds: string[] }): Promise<StatBlockSources>;
   /** The spell records named `name` (the campaign's own and the library's); asked for only by a batch that casts one (#1021). */
   loadSpells(name: string): Promise<SpellRecord[]>;
+  /** The records of every spell in `names`, in two reads at most; asked for only by a `take_turn` of a creature that lists spells (#1021). */
+  loadSpellsListed(names: string[]): Promise<SpellRecord[]>;
   /**
    * The player characters of a fight (by party member id), read for what their armour class and saves are worked out
    * from: their sheet rows, the campaign's inventory and the items it names. Asked for only by a batch that resolves
@@ -448,6 +450,16 @@ async function attempt(
     spellRecords.set(key, read);
     return read;
   };
+  // The spells a creature lists, read together the first time its turn asks, and once per attempt per set of names.
+  const listedRecords = new Map<string, Promise<SpellRecord[]>>();
+  const spellsListed = (names: string[]): Promise<SpellRecord[]> => {
+    const key = names.map(spellKey).sort().join("|");
+    const known = listedRecords.get(key);
+    if (known !== undefined) return known;
+    const read = deps.loadSpellsListed(names);
+    listedRecords.set(key, read);
+    return read;
+  };
   /** Reads what resolving an action needs, the first time something asks. */
   const resolveEnv = async (): Promise<ResolveEnv> => {
     if (sources === null) {
@@ -466,7 +478,7 @@ async function attempt(
     }
     // `undefined` is "not asked yet" (a null map is an answer: this fight has none).
     if (map === undefined) map = await deps.loadFightMap(request.encounterId);
-    return { fightDeps, sources, players, map, rollDie: deps.rollDie, spells, posted: rolls, judgeNote: notes.ask };
+    return { fightDeps, sources, players, map, rollDie: deps.rollDie, spells, spellsListed, posted: rolls, judgeNote: notes.ask };
   };
   for (const command of request.commands) {
     if (command.type === "sync_party" || LIFECYCLE_TYPES.has(command.type)) continue;

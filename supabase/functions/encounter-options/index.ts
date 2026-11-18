@@ -8,6 +8,7 @@ import { withCors } from "../_shared/cors.ts";
 import { adminClient, callerUserId, loadEncounterAsDm } from "../_shared/fightAccess.ts";
 import { loadFightMapInput } from "../_shared/fightMap.ts";
 import { loadStatBlocks } from "../_shared/fightStatBlocks.ts";
+import { loadSpellsListed } from "../_shared/fightSpells.ts";
 import { gameSystemEdition } from "../_shared/gameSystem.ts";
 import { DEFAULT_RULESET } from "../../../src/types/ruleset.types.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
@@ -62,6 +63,7 @@ serve(withCors(async (req: Request) => {
         return data as { id: string; speed: number }[];
       },
       loadMapInput: () => loadFightMapInput(admin, campaignId, request.encounterId),
+      loadSpellsListed: (names) => loadSpellsListed(admin, campaignId, access.campaign.user_id, names),
     };
 
     return json(await computeOptions(request, deps));

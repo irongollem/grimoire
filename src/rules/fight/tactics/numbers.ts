@@ -12,17 +12,25 @@
 // automatic critical against a Paralyzed or Unconscious target, riders that need a saving throw, a creature that
 // attacks with a weapon it has not got. Nothing is rounded here; only a summary line rounds, for display.
 //
+// A spell option (#1021) is weighed with the same arithmetic: an attack spell is `oneAttack` on its entry, a save spell
+// is the chance each target fails its save (a natural 20 does not save on a saving throw; PHB 2014 ch. 7 "Saving
+// Throws") times the damage, plus the chance it succeeds times half of it when the spell halves. A spell attack is
+// weighed with no cover and no enemy-within-5-feet penalty, and a save with no cover bonus: none of the three is known
+// to the option.
+//
 // Pure and edge-importable (relative `.ts` imports only).
 
 import { parseExpression } from "../../../lib/dice/dice.ts";
 import type { RollMode } from "../../../systems/dnd5e/dice/rollMode.ts";
 import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { RulesetKey } from "../../../types/ruleset.types.ts";
-import type { AttackStructure, DamagePart } from "../../../types/statBlock.types.ts";
+import type { AttackStructure, DamagePart, SaveAbility } from "../../../types/statBlock.types.ts";
 import { attackRollMode } from "../../combat/attackRoll.ts";
+import { autoFailsSave, saveRollMode } from "../../combat/savingThrow.ts";
 import { getExhaustionD20Penalty } from "../../conditions.ts";
 import { coverBonus, DEFAULT_REACH_FEET } from "../terrain/sight.ts";
-import type { TurnOption, TurnOptionAttack, UsableAttack } from "../terrain/turnOptions.ts";
+import type { CastNow } from "../spells/castNow.ts";
+import type { TurnOption, TurnOptionAttack, TurnOptionSpell, UsableAttack } from "../terrain/turnOptions.ts";
 
 export interface NumbersContext {
   /** The mover's usable attacks: where an option's entry, and a Multiattack's steps, are found by name. */
@@ -32,6 +40,23 @@ export interface NumbersContext {
   /** A target's armor class, or null when it is not known: both numbers of its options stay null. */
   armorClassOf: (target: RunCombatant) => number | null;
   ruleset: RulesetKey;
+  /** The mover's castable spells: where a spell option's entry is found. Left out for a creature that casts none. */
+  spells?: readonly CastNow[];
+  /** A target's bonus on a save of this ability, or null when it is not known (the chance to fail is then `UNKNOWN_SAVE_FAIL_CHANCE`). */
+  saveBonusOf?: (target: RunCombatant, ability: SaveAbility) => number | null;
+}
+
+/** APP CONVENTION: a target whose save bonus is not known (a character the server could not read) fails half the time. */
+export const UNKNOWN_SAVE_FAIL_CHANCE = 0.5;
+
+/**
+ * The chance one saving throw fails against `dc`: the faces that reach it with `bonus` save, and unlike an attack roll a
+ * natural 20 is no automatic success and a 1 no automatic failure (PHB 2014 ch. 7 "Saving Throws"). Need 14 with +0:
+ * faces 14 to 20 are 7 of 20 saving, so it fails 65% of the time.
+ */
+export function chanceToFail(bonus: number, dc: number, mode: RollMode): number {
+  const saving = Math.min(20, Math.max(0, 21 - (dc - bonus))) / 20;
+  return 1 - withMode(saving, mode);
 }
 
 /**
@@ -121,10 +146,50 @@ function numbersFor(attack: TurnOptionAttack, mover: RunCombatant, target: RunCo
   return swings === 0 ? null : { hitChance: hits / swings, expectedDamage: damage };
 }
 
-/** The options with the numbers filled in on each attack. Other options pass through untouched. */
+/** A spell option's numbers, or null when a target's armor class or the damage cannot be read (the option stays unnumbered). */
+function spellNumbers(spell: TurnOptionSpell, mover: RunCombatant, ctx: NumbersContext): { hitChance: number; expectedDamage: number | null } | null {
+  const cast = ctx.spells?.find((s) => s.spell === spell.name && s.castLevel === spell.castLevel);
+  if (cast === undefined) return null;
+  const targets = spell.targetIds.flatMap((id) => ctx.combatants.find((c) => c.instance_id === id) ?? []);
+  if (targets.length === 0 || targets.length !== spell.targetIds.length) return null;
+  let chance = 0;
+  let damage: number | null = 0;
+  const attack = cast.entry.structured.attack;
+  const save = cast.entry.structured.save;
+  if (cast.kind === "attack" && attack !== undefined) {
+    const facts: TurnOptionAttack = { list: "actions", action: spell.name, steps: null, distanceFeet: spell.distanceFeet, cover: null, longRange: null, closeCombat: null, hitChance: null, expectedDamage: null };
+    for (const target of targets) {
+      const ac = ctx.armorClassOf(target);
+      if (ac === null) return null;
+      const one = oneAttack(attack, facts, mover, target, ac, ctx.ruleset);
+      chance += one.hit;
+      damage = damage === null || one.damage === null ? null : damage + one.damage;
+    }
+  } else if (cast.kind === "save" && save !== undefined) {
+    const avg = averageOf(save.fail);
+    for (const target of targets) {
+      const bonus = ctx.saveBonusOf === undefined ? null : ctx.saveBonusOf(target, save.ability);
+      let fails: number;
+      if (autoFailsSave(target.conditions, save.ability)) fails = 1;
+      else if (bonus === null) fails = UNKNOWN_SAVE_FAIL_CHANCE;
+      else fails = chanceToFail(bonus, save.dc, saveRollMode({ conditions: target.conditions, ability: save.ability, ruleset: ctx.ruleset }).mode);
+      chance += fails;
+      damage = damage === null || avg === null ? null : damage + fails * avg.all + (1 - fails) * (save.success === "half" ? avg.all / 2 : 0);
+    }
+  } else {
+    return null;
+  }
+  return { hitChance: chance / targets.length, expectedDamage: damage };
+}
+
+/** The options with the numbers filled in on each attack and each spell. Other options pass through untouched. */
 export function withNumbers(options: readonly TurnOption[], ctx: NumbersContext): TurnOption[] {
   const mover = ctx.combatants.find((c) => c.instance_id === ctx.moverId);
   return options.map((option) => {
+    if (option.kind === "spell" && option.spell !== undefined && option.spell !== null && mover !== undefined) {
+      const found = spellNumbers(option.spell, mover, ctx);
+      return found === null ? option : { ...option, spell: { ...option.spell, hitChance: found.hitChance, expectedDamage: found.expectedDamage } };
+    }
     if (option.kind !== "attack" || option.attack === null || mover === undefined) return option;
     const target = ctx.combatants.find((c) => c.instance_id === option.targetId);
     if (target === undefined) return option;

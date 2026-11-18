@@ -49,12 +49,15 @@ const COVER_BY_TIER: Record<CleverTier, CoverRule> = { instinct: "ignores", simp
 /** RULE targets: the dim go for what is closest, the trained for the weak, the tactical for whoever holds a spell up. */
 const TARGETS_BY_TIER: Record<CleverTier, TargetRule> = { instinct: "nearest", simple: "nearest", trained: "most_wounded", tactical: "spellcasters_first" };
 
-/** RULE offers: each tier adds one kind of turn to the one below. Flee is there from the start: even an animal bolts. */
+/**
+ * RULE offers: each tier adds one kind of turn to the one below. Flee is there from the start: even an animal bolts.
+ * A spell is offered wherever an attack is: a creature that has spells knows how to cast them (#1021).
+ */
 const OFFERS_BY_TIER: Record<CleverTier, readonly TurnOptionKind[]> = {
-  instinct: ["attack", "dash", "move", "flee"],
-  simple: ["attack", "dash", "move", "flee", "dodge"],
-  trained: ["attack", "dash", "move", "flee", "dodge", "disengage"],
-  tactical: ["attack", "dash", "move", "flee", "dodge", "disengage", "hide"],
+  instinct: ["attack", "spell", "dash", "move", "flee"],
+  simple: ["attack", "spell", "dash", "move", "flee", "dodge"],
+  trained: ["attack", "spell", "dash", "move", "flee", "dodge", "disengage"],
+  tactical: ["attack", "spell", "dash", "move", "flee", "dodge", "disengage", "hide"],
 };
 
 /** RULE fast: a walking speed of 40 ft or more makes a skirmisher. */

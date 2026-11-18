@@ -3,7 +3,7 @@
 // which and in what order, so it can be read and tested without a fight.
 //
 // APP CONVENTION throughout: the books do not say how a turn is bookkept, only what each action does. The order is
-// move first (an attack is made from where the creature ends), then the swings, then what the turn spent, and last,
+// move first (an attack is made from where the creature ends), then the swings or the cast, then what the turn spent, and last,
 // for a creature that fled off the map, its leaving.
 //
 // Dodge and Disengage are modelled: the creature takes the Dodging or Disengaged condition (`stance` steps, applied
@@ -26,6 +26,8 @@ export type TurnStep =
   | { type: "move"; to: Cell; feet: number }
   /** One resolved attack: a Multiattack is several of these, in printed order. */
   | { type: "swing"; list: StatBlockListKey; action: string; targetId: string }
+  /** One spell cast (#1021): `cast_spell` spends the slot or use and marks the Action itself, so no `spend` or `use` step goes with it. */
+  | { type: "cast"; spell: string; castLevel: number; targetIds: string[] }
   /** One use of a limited or recharge ability, as the runner records it. */
   | { type: "spend"; useKey: string; limit: ActionLimit }
   /** The Action or the Bonus Action of the turn is used up. */
@@ -48,6 +50,8 @@ function slotOf(option: TurnOption): "action" | "bonus" | null {
       return "action";
     case "escape":
       return option.escape === undefined ? "action" : option.escape.slot;
+    // `cast_spell` marks the Action itself (and spends the slot), so a cast needs no `use` step here.
+    case "spell":
     case "move":
     case "surrender":
       return null;
@@ -89,6 +93,10 @@ export function stepsFor(option: TurnOption, attacks: readonly UsableAttack[]): 
         steps.push({ type: "spend", useKey: actionUseKey(entry.list, entry.entry), limit });
       }
     }
+  }
+  // A cast is one command: it spends the slot or use and takes the Action itself.
+  if (option.kind === "spell" && option.spell !== undefined && option.spell !== null) {
+    steps.push({ type: "cast", spell: option.spell.name, castLevel: option.spell.castLevel, targetIds: option.spell.targetIds });
   }
   const slot = slotOf(option);
   if (slot !== null) steps.push({ type: "use", slot });

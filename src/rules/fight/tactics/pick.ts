@@ -8,7 +8,7 @@
 // Pure and edge-importable (relative `.ts` imports only).
 
 import type { RunCombatant } from "../../../types/encounter.types.ts";
-import { compareExposure, wayOffPhrase, type TurnOption } from "../terrain/turnOptions.ts";
+import { compareExposure, wayOffPhrase, type TurnOption, type TurnOptionSpell } from "../terrain/turnOptions.ts";
 import type { MoraleRule, TacticalProfile } from "./profile.ts";
 import { usableWayOut, type WayOut } from "./wayOut.ts";
 
@@ -200,6 +200,81 @@ function bestAttack(options: readonly TurnOption[], profile: TacticalProfile): T
   return near.reduce((chosen, o) => (compareExposure(o.exposure, chosen.exposure) < 0 ? o : chosen), near[0]);
 }
 
+// ── choosing to cast ────────────────────────────────────────────────────────────
+
+type SpellOption = TurnOption & { spell: TurnOptionSpell };
+const isSpellOption = (o: TurnOption): o is SpellOption => o.kind === "spell" && o.spell !== undefined && o.spell !== null;
+/** Unknown damage ranks below every known number. */
+const rankOf = (e: number | null): number => (e === null ? Number.NEGATIVE_INFINITY : e);
+
+/** Hit points left across a cast's targets: what a spent slot would be spent on. */
+function hitPointsLeft(option: SpellOption, ctx: PickContext): number {
+  return ctx.combatants.filter((c) => option.spell.targetIds.includes(c.instance_id)).reduce((sum, c) => sum + Math.max(0, c.hp), 0);
+}
+
+/**
+ * The spell options a creature may choose among, and the target they are weighed for (#1021).
+ *
+ * RULE friends-in-the-fire (app convention, the maintainer's decision): a cast that catches any of its own side is never
+ * chosen. A creature that does not care would be one whose stored tactics say so; `MonsterTactics` has no such field, so
+ * none does, and no creature casts into its friends.
+ *
+ * RULE no-wasted-slot (app convention, the maintainer's decision: "it does not waste its top slot on something nearly
+ * dead"): a cast that spends a slot or a use is not chosen when a free option the creature has this turn (any attack, or a
+ * cantrip or at-will spell that catches no friend) is expected to deal at least the hit points the cast's targets have left.
+ * Every attack counts as free: whether an attack is itself limited (a recharge, N per day) is not on the option.
+ */
+function castCandidates(spells: readonly SpellOption[], attacks: readonly TurnOption[], ctx: PickContext): SpellOption[] {
+  const safe = spells.filter((o) => o.spell.friendsCaught.length === 0);
+  const free = [...attacks.map(expectedOf), ...safe.filter((o) => !o.spell.spends).map((o) => o.spell.expectedDamage)].reduce<number>((best, e) => Math.max(best, rankOf(e)), Number.NEGATIVE_INFINITY);
+  return safe.filter((o) => !(o.spell.spends && free >= hitPointsLeft(o, ctx)));
+}
+
+/**
+ * RULE cast: the best cast on the chosen target, compared with the best attack by expected damage. A single-target spell
+ * is compared only for the target the `targets` rule chose; an area spell whenever that target is among those it hits.
+ * The higher number wins; a tie goes to the option that spends nothing, then to the attack (every attack counts as spending
+ * nothing, as above), so a tie or two unknowns is the attack. With no attack to compare, the `targets` rule picks the
+ * target among the casts.
+ */
+function bestCast(candidates: readonly SpellOption[], chosenAttack: { option: TurnOption; target: RunCombatant } | null, profile: TacticalProfile, ctx: PickContext): { option: SpellOption; why: string | null } | null {
+  if (candidates.length === 0) return null;
+  let target: RunCombatant;
+  let why: string | null = null;
+  if (chosenAttack !== null) {
+    target = chosenAttack.target;
+  } else {
+    // One entry per creature each cast hits, so the `targets` rule can choose among them as it does among attacks.
+    const entries = candidates.flatMap((o) => o.spell.targetIds.map((id): TurnOption => ({ ...o, targetId: id })));
+    const picked = chooseTarget(groupByTarget(entries, ctx, (o) => (isSpellOption(o) ? o.spell.distanceFeet : null)), profile, ctx);
+    target = picked.group.target;
+    why = picked.why;
+  }
+  const onTarget = candidates.filter((o) => o.spell.targetIds.includes(target.instance_id));
+  const ranked = onTarget
+    .map((option, index) => ({ option, index }))
+    .sort((a, b) => rankOf(b.option.spell.expectedDamage) - rankOf(a.option.spell.expectedDamage) || Number(a.option.spell.spends) - Number(b.option.spell.spends) || a.index - b.index);
+  const best = ranked[0];
+  if (best === undefined) return null;
+  const spellE = best.option.spell.expectedDamage;
+  if (chosenAttack !== null && rankOf(spellE) <= rankOf(expectedOf(chosenAttack.option))) return null;
+  return { option: best.option, why };
+}
+
+function describeCast(option: SpellOption, why: string | null, ctx: PickContext, against: TurnOption | null): string {
+  const { spell } = option;
+  const nameOf = (id: string) => ctx.combatants.find((c) => c.instance_id === id)?.name ?? id;
+  const names = spell.targetIds.map(nameOf);
+  const who = names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  const level = spell.castLevel > 0 ? ` (level ${spell.castLevel})` : "";
+  const reason = why !== null && names.length === 1 ? `, ${why}` : "";
+  const base = `Casts ${spell.name}${level} at ${who}${reason}`;
+  if (spell.expectedDamage === null) return `${base}.`;
+  const hit = against === null || against.attack === null || against.attack.expectedDamage === null ? "" : `, against about ${Math.round(against.attack.expectedDamage)} from ${against.attack.action}`;
+  const spent = spell.spends ? ` and spends a ${spell.castLevel > 0 ? `level ${spell.castLevel} slot` : "use"}` : "";
+  return `${base}: about ${Math.round(spell.expectedDamage)} damage${hit}${spent}.`;
+}
+
 // ── the picker ──────────────────────────────────────────────────────────────────
 
 export interface TurnPick {
@@ -257,14 +332,20 @@ export function pickTurn(options: readonly TurnOption[], profile: TacticalProfil
   }
 
   const attacks = options.filter((o) => o.kind === "attack");
-  if (attacks.length > 0) {
-    const { group, why } = chooseTarget(groupByTarget(attacks, ctx, (o) => (o.attack === null ? null : o.attack.distanceFeet)), profile, ctx);
-    const chosen = bestAttack(group.options, profile);
-    return { optionId: chosen.id, reason: describeAttack(chosen, group.target, why) };
+  const attackChoice = attacks.length === 0 ? null : chooseTarget(groupByTarget(attacks, ctx, (o) => (o.attack === null ? null : o.attack.distanceFeet)), profile, ctx);
+  const best = attackChoice === null ? null : { option: bestAttack(attackChoice.group.options, profile), target: attackChoice.group.target };
+  const casts = options.filter(isSpellOption);
+  if (casts.length > 0) {
+    const cast = bestCast(castCandidates(casts, attacks, ctx), best, profile, ctx);
+    if (cast !== null) return { optionId: cast.option.id, reason: describeCast(cast.option, cast.why !== null ? cast.why : attackChoice === null ? null : attackChoice.why, ctx, best === null ? null : best.option) };
   }
-  if (options.length === 1) return { optionId: options[0].id, reason: `Takes the only turn on offer: ${options[0].summary}.` };
+  if (attackChoice !== null && best !== null) return { optionId: best.option.id, reason: describeAttack(best.option, best.target, attackChoice.why) };
+  // A cast that was ruled out is no turn to fall back on: what is left is judged without it, unless nothing else is on offer.
+  const left = options.filter((o) => o.kind !== "spell");
+  const turns = left.length > 0 ? left : options;
+  if (turns.length === 1) return { optionId: turns[0].id, reason: `Takes the only turn on offer: ${turns[0].summary}.` };
 
-  const approaches = options.filter((o) => o.kind === "dash" || o.kind === "move");
+  const approaches = turns.filter((o) => o.kind === "dash" || o.kind === "move");
   const closeIn = (): TurnPick | null => {
     if (approaches.length === 0) return null;
     const { group, why } = chooseTarget(groupByTarget(approaches, ctx, (o) => o.distanceFeet), profile, ctx);
@@ -272,7 +353,7 @@ export function pickTurn(options: readonly TurnOption[], profile: TacticalProfil
     const verb = chosen.kind === "dash" ? "Dashes" : "Moves";
     return { optionId: chosen.id, reason: `${verb} toward ${group.target.name}, ${why}: nothing it can attack is in reach this turn.` };
   };
-  const dodge = find("dodge");
+  const dodge = turns.find((o) => o.kind === "dodge");
   const dodges = (): TurnPick | null => (dodge ? { optionId: dodge.id, reason: "Dodges: nothing it can attack is in reach this turn." } : null);
   // RULE close-before-dodge, for every role. An attack option already covers every square it could shoot or strike
   // from, so "no attack" means no such square is in reach this turn. A ranged creature that Dodged then would
@@ -281,5 +362,5 @@ export function pickTurn(options: readonly TurnOption[], profile: TacticalProfil
     const pick = attempt();
     if (pick) return pick;
   }
-  return { optionId: options[0].id, reason: `Takes the first turn on offer: ${options[0].summary}.` };
+  return { optionId: turns[0].id, reason: `Takes the first turn on offer: ${turns[0].summary}.` };
 }

@@ -129,13 +129,15 @@ export interface TurnFacts {
 function turnFacts(option: TurnOption, names: ReadonlyMap<string, string>): TurnFacts {
   const target = option.targetId === null ? undefined : names.get(option.targetId);
   const attack = option.attack;
+  // A spell is weighed like an attack: its chance and its expected damage (over all its targets) are the numbers it has.
+  const numbers = attack !== null ? attack : option.spell === undefined ? null : option.spell;
   const cover = attack === null || attack.cover === null || attack.cover === "none" ? undefined : attack.cover.replace("_", "-");
   return {
     what: option.summary,
     ...(target === undefined ? {} : { target }),
     ...(option.feet === null || option.feet === 0 ? {} : { moves_feet: option.feet }),
-    ...(attack === null || attack.hitChance === null ? {} : { hit_chance_percent: percent(attack.hitChance) }),
-    ...(attack === null || attack.expectedDamage === null ? {} : { expected_damage: oneDecimal(attack.expectedDamage) }),
+    ...(numbers === null || numbers.hitChance === null ? {} : { hit_chance_percent: percent(numbers.hitChance) }),
+    ...(numbers === null || numbers.expectedDamage === null ? {} : { expected_damage: oneDecimal(numbers.expectedDamage) }),
     ...(option.provokes.length === 0 ? {} : { provokes_opportunity_attacks_from: option.provokes.map((p) => names.get(p.enemyId) ?? p.enemyId) }),
     ...(cover === undefined ? {} : { target_has_cover: cover }),
   };

@@ -9,10 +9,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
 
 const LIBRARY_COLUMNS =
-  "id, name, level, ruleset, source, concentration, attack_type, save_attribute, save_effect, damage_rolls, healing_dice, aoe_shape, aoe_size, higher_level_damage, mechanics_reviewed, effects";
+  "id, name, level, range, ruleset, source, concentration, attack_type, save_attribute, save_effect, damage_rolls, healing_dice, aoe_shape, aoe_size, higher_level_damage, mechanics_reviewed, effects";
 /** A campaign's own spell has no reviewed flag and no structured effects: its flat columns are all there is, and they are the DM's word. */
 const CUSTOM_COLUMNS =
-  "id, name, level, ruleset, source, concentration, attack_type, save_attribute, save_effect, damage_rolls, healing_dice, aoe_shape, aoe_size, higher_level_damage";
+  "id, name, level, range, ruleset, source, concentration, attack_type, save_attribute, save_effect, damage_rolls, healing_dice, aoe_shape, aoe_size, higher_level_damage";
 
 /** `ilike` reads % and _ as wildcards and \ as its escape: a name is matched literally, in any letter case. */
 export function literalPattern(name: string): string {
@@ -32,6 +32,37 @@ export async function loadSpellsNamed(admin: SupabaseClient, campaignId: string,
     .or(`campaign_id.eq.${campaignId},and(campaign_id.is.null,user_id.eq.${ownerId})`);
   if (custom.error) throw new Error(`spells: ${custom.error.message}`);
   const library = await admin.from("library_spells").select(LIBRARY_COLUMNS).ilike("name", pattern);
+  if (library.error) throw new Error(`library_spells: ${library.error.message}`);
+  return [...(custom.data as unknown as SpellRecord[]).map((row): SpellRecord => ({ ...row, own: true })), ...(library.data as unknown as SpellRecord[])];
+}
+
+/**
+ * `.or()` filter text for one name: `name.ilike."<pattern>"`. The value is quoted so a comma, a parenthesis or a dot in a
+ * spell name ("Tasha's Hideous Laughter", "Melf's Acid Arrow (Level 2)") cannot end the filter early, and the quote and the
+ * backslash, the only characters special inside quotes, are escaped (PostgREST "reserved characters"). `literalPattern`
+ * has already put its own backslashes in front of `%` and `_`, so those are doubled here and come out the other side as
+ * the single backslash `ilike` reads.
+ */
+export function nameFilter(name: string): string {
+  const quoted = literalPattern(name).replace(/[\\"]/g, (c) => `\\${c}`);
+  return `name.ilike."${quoted}"`;
+}
+
+/**
+ * Every record named any of `names`, in at most two reads (one per table) however many names there are, and none at all
+ * for no names. The same rows `loadSpellsNamed` would give for each name, the campaign's own first.
+ */
+export async function loadSpellsListed(admin: SupabaseClient, campaignId: string, ownerId: string, names: readonly string[]): Promise<SpellRecord[]> {
+  const wanted = names.filter((n) => n.trim() !== "");
+  if (wanted.length === 0) return [];
+  const named = wanted.map(nameFilter).join(",");
+  const custom = await admin
+    .from("spells")
+    .select(CUSTOM_COLUMNS)
+    .or(named)
+    .or(`campaign_id.eq.${campaignId},and(campaign_id.is.null,user_id.eq.${ownerId})`);
+  if (custom.error) throw new Error(`spells: ${custom.error.message}`);
+  const library = await admin.from("library_spells").select(LIBRARY_COLUMNS).or(named);
   if (library.error) throw new Error(`library_spells: ${library.error.message}`);
   return [...(custom.data as unknown as SpellRecord[]).map((row): SpellRecord => ({ ...row, own: true })), ...(library.data as unknown as SpellRecord[])];
 }

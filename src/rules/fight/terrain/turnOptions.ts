@@ -22,6 +22,7 @@ import type { StatBlockListKey } from "../../statBlock/parseAction.ts";
 import { concentrationBreaksOn } from "../../combat/concentration.ts";
 import type { MapExit } from "../../../lib/battlemap/mapExits.ts";
 import type { WayOut } from "../tactics/wayOut.ts";
+import type { CastNow } from "../spells/castNow.ts";
 import { reachTerrainOf, type FightMap } from "./battleMap.ts";
 import { coverCells, isHostileTo, reachable, type ReachCell, type ReachResult } from "./reach.ts";
 import {
@@ -35,16 +36,25 @@ import {
   type OpportunityEnemy,
   type ProvokedAttack,
 } from "./sight.ts";
+import { spellTargetings, type SpellTargeting } from "./spellTargeting.ts";
 
 /** The most options a creature is offered. Dodge, Disengage, Hide and Flee always keep their place; the rest is attacks and approaches against the nearest targets first (rule 9). */
 export const MAX_TURN_OPTIONS = 12;
+
+/**
+ * Rule 11, the cap on spell options (#1021): they are kept out of `MAX_TURN_OPTIONS` so a caster's attacks, approaches and
+ * its Dodge, Disengage, Hide and Flee are never pushed out by its spells, and have a ceiling of their own instead, so the
+ * whole list stays bounded (at most `MAX_TURN_OPTIONS + MAX_SPELL_OPTIONS`). The best are kept by what can be told before
+ * any numbers exist: a cast that catches no friend before one that does, then the most enemies, then the nearest centre.
+ */
+export const MAX_SPELL_OPTIONS = 12;
 
 /**
  * `flee` (rule 10) is a Dash away. `surrender` and `escape` are never produced here: the tactics gate (`gateOptions`,
  * #1203) puts surrender in place of the whole list when a creature that yields has broken, and puts escape (a way out
  * such as Etherealness) first when a broken creature has one.
  */
-export type TurnOptionKind = "attack" | "dash" | "move" | "disengage" | "dodge" | "hide" | "flee" | "surrender" | "escape";
+export type TurnOptionKind = "attack" | "spell" | "dash" | "move" | "disengage" | "dodge" | "hide" | "flee" | "surrender" | "escape";
 
 /** What an attack option does, with the facts of the square it is made from. Null facts mean there is no map to measure on. */
 export interface TurnOptionAttack {
@@ -62,6 +72,26 @@ export interface TurnOptionAttack {
   /** Chance one attack hits, 0 to 1 (a Multiattack: the mean over its attacks). Null until `withNumbers` fills it. */
   hitChance: number | null;
   /** Expected damage of the whole option against the target's armor. Null until `withNumbers` fills it. */
+  expectedDamage: number | null;
+}
+
+/** What a spell option casts, at whom, and what it costs (#1021). Null numbers until `withNumbers` fills them. */
+export interface TurnOptionSpell {
+  /** As the stat block prints it: what `cast_spell` names the spell by. */
+  name: string;
+  castLevel: number;
+  kind: "attack" | "save";
+  /** Every living enemy the cast hits: the one target of a single-target spell, everyone an area catches. */
+  targetIds: string[];
+  /** The mover's own side caught in the area, the mover itself included when it stands inside. Empty for a single-target spell. */
+  friendsCaught: string[];
+  /** A cast that spends a slot or a use (a cantrip and an at-will spell do not). */
+  spends: boolean;
+  /** Feet from the mover to the target or the centre; null for an area on the mover and when nothing was measured. */
+  distanceFeet: number | null;
+  /** An attack spell: the chance it hits. A save spell: the mean chance of failing the save over the targets. */
+  hitChance: number | null;
+  /** The sum over `targetIds` of what the cast is expected to deal. */
   expectedDamage: number | null;
 }
 
@@ -83,6 +113,8 @@ export interface TurnOption {
   /** Feet spent moving; null like `destination`. */
   feet: number | null;
   attack: TurnOptionAttack | null;
+  /** Only a `spell` option sets this (#1021); absent on every other kind. */
+  spell?: TurnOptionSpell | null;
   /** Dash and move: feet left to the target from the destination. */
   distanceFeet: number | null;
   /** The opportunity attacks the path provokes (empty for Disengage, and when there is no movement). */
@@ -128,6 +160,8 @@ export interface TurnOptionsInput {
   /** A creature's melee reach in feet, for the opportunity attacks it could take. */
   reachOf: (c: RunCombatant) => number;
   ruleset: RulesetKey;
+  /** The damage spells the mover can cast now (`castableNow`); left out for a creature that casts none. */
+  spells?: readonly CastNow[];
 }
 
 // ── who is on the board ─────────────────────────────────────────────────────────
@@ -215,6 +249,8 @@ function plannedAttacks(attacks: readonly UsableAttack[]): Planned[] {
 }
 
 // ── the composer ────────────────────────────────────────────────────────────────
+
+type SpellTargetingScene = { map: FightMap };
 
 interface Scene {
   mover: RunCombatant;
@@ -629,6 +665,46 @@ function unmeasuredAttack(planned: Planned, target: RunCombatant): TurnOption {
   };
 }
 
+const andList = (names: readonly string[]): string => (names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
+
+/** Rule 11: a cast as an option. It carries no movement: it is cast from where the creature stands. */
+function spellOption(mover: RunCombatant, names: ReadonlyMap<string, string>, t: SpellTargeting): TurnOption {
+  const { cast } = t;
+  const nameOf = (id: string) => names.get(id) ?? id;
+  const level = cast.castLevel > 0 ? ` (level ${cast.castLevel})` : "";
+  const who = andList(t.targetIds.map(nameOf));
+  const where = t.centerId === null ? `from where ${mover.name} stands, catching ${who}` : t.targetIds.length > 1 ? `at ${nameOf(t.centerId)}, catching ${who}` : `at ${who}`;
+  const friends = t.friendsCaught.length === 0 ? "" : `; also catches ${andList(t.friendsCaught.map(nameOf))}`;
+  return {
+    id: `spell:${cast.spell}:${cast.castLevel}:${t.centerId === null ? "self" : t.centerId}`,
+    kind: "spell",
+    targetId: t.centerId,
+    ...emptyMovement(),
+    attack: null,
+    spell: { name: cast.spell, castLevel: cast.castLevel, kind: cast.kind, targetIds: t.targetIds, friendsCaught: t.friendsCaught, spends: cast.useKey !== null, distanceFeet: t.distanceFeet, hitChance: null, expectedDamage: null },
+    summary: `Cast ${cast.spell}${level} ${where}${friends}`,
+  };
+}
+
+/** Rule 11: the spell options, best first, cut to `MAX_SPELL_OPTIONS`. Only a creature with its Action free casts. */
+function spellOptionsOf(input: TurnOptionsInput, mover: RunCombatant, names: ReadonlyMap<string, string>, scene: SpellTargetingScene | null): TurnOption[] {
+  if (input.spells === undefined || input.spells.length === 0 || mover.action_used === true) return [];
+  const living = input.combatants.filter((c) => c.instance_id !== mover.instance_id && isLiving(c) && (scene === null || isOnBoard(c)));
+  const targetings = spellTargetings({
+    mover,
+    hostiles: living.filter((c) => isHostileTo(mover, c)),
+    allies: living.filter((c) => !isHostileTo(mover, c)),
+    scene: scene === null ? null : { occluders: scene.map.occluders, onBoard: input.combatants.filter(isOnBoard) },
+    spells: input.spells,
+  });
+  const nearest = (t: SpellTargeting) => (t.distanceFeet === null ? 0 : t.distanceFeet);
+  return targetings
+    .map((t, order) => ({ t, order }))
+    .sort((a, b) => a.t.friendsCaught.length - b.t.friendsCaught.length || b.t.targetIds.length - a.t.targetIds.length || nearest(a.t) - nearest(b.t) || a.order - b.order)
+    .slice(0, MAX_SPELL_OPTIONS)
+    .map(({ t }) => spellOption(mover, names, t));
+}
+
 /** Whether an attack of this list can still be made: the Action is spent by `action_used`, the Bonus Action by `bonus_used`. */
 function listIsOpen(mover: RunCombatant, list: StatBlockListKey): boolean {
   if (list === "actions") return mover.action_used !== true;
@@ -638,7 +714,8 @@ function listIsOpen(mover: RunCombatant, list: StatBlockListKey): boolean {
 
 /**
  * The options of the creature whose id is `moverId`. Rules, in the order they are listed in the docs:
- * 1 Attack, 2 Dash, 3 Disengage, 4 Dodge, 5 Hide, 6 nothing measurable, 7 who gets nothing, 8 Multiattack, 9 the cap, 10 Flee.
+ * 1 Attack, 2 Dash, 3 Disengage, 4 Dodge, 5 Hide, 6 nothing measurable, 7 who gets nothing, 8 Multiattack, 9 the cap, 10 Flee,
+ * 11 Spell (a damage spell cast from where the creature stands; see `spellTargeting.ts` for what it may be cast at).
  *
  * Rule 7: a creature at 0 hit points, or Incapacitated, gets an empty list. A creature whose Action is spent
  * (`action_used`) gets only what needs no Action: Bonus Action attacks (unless `bonus_used`) and a plain `move`
@@ -662,7 +739,7 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
     // Rule 6: no map, no position or no known speed. One attack per (attack, hostile), nothing measured, plus Dodge.
     hostileTargets.forEach((t, i) => planned.forEach((p) => options.push({ option: unmeasuredAttack(p, t), nearness: i })));
     if (actionFree) fixed.push(dodgeOption(null));
-    return capped(options, fixed);
+    return capped(options, fixed, spellOptionsOf(input, mover, names, null));
   }
 
   const map = input.map as FightMap;
@@ -728,12 +805,15 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
       if (move) options.push({ option: move, nearness: nearness(t) });
     }
   }
-  return capped(options, fixed);
+  return capped(options, fixed, spellOptionsOf(input, mover, names, { map }));
 }
 
-/** Rule 9: Dodge, Disengage, Hide and Flee stay; attacks, dashes and moves against the nearest targets are kept first, up to `MAX_TURN_OPTIONS`. */
-function capped(options: { option: TurnOption; nearness: number }[], fixed: TurnOption[]): TurnOption[] {
+/**
+ * Rule 9: Dodge, Disengage, Hide and Flee stay; attacks, dashes and moves against the nearest targets are kept first, up to
+ * `MAX_TURN_OPTIONS`. The spell options (rule 11) sit between the two and are not counted against that cap.
+ */
+function capped(options: { option: TurnOption; nearness: number }[], fixed: TurnOption[], spells: readonly TurnOption[]): TurnOption[] {
   const room = Math.max(0, MAX_TURN_OPTIONS - fixed.length);
   const kept = [...options].sort((a, b) => a.nearness - b.nearness).slice(0, room).map((o) => o.option);
-  return [...kept, ...fixed];
+  return [...kept, ...spells, ...fixed];
 }

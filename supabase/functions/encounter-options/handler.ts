@@ -10,8 +10,10 @@ import { fightMapOf, type FightMapInput } from "../../../src/rules/fight/terrain
 import type { TurnOption } from "../../../src/rules/fight/terrain/turnOptions.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { RulesetKey } from "../../../src/types/ruleset.types.ts";
-import { statBlockIdsOf, type StatBlockSources } from "../_shared/fightStatBlocks.ts";
+import { statBlockIdsOf, statBlockOf, type StatBlockSources } from "../_shared/fightStatBlocks.ts";
 import { assembleTurnOptions } from "../_shared/turnOptionsFor.ts";
+import { listedSpellNames } from "../../../src/rules/fight/spells/castNow.ts";
+import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
 
 export const MAX_BODY_CHARACTERS = 2_000;
 
@@ -55,6 +57,8 @@ export interface OptionsDeps {
   loadMemberSpeeds(memberIds: string[]): Promise<{ id: string; speed: number }[]>;
   /** The inputs of the fight's map, or null when the encounter is anchored to no place. */
   loadMapInput(): Promise<FightMapInput | null>;
+  /** The records of the spells a creature's stat block lists, by name. Called only for a creature that lists any. */
+  loadSpellsListed(names: string[]): Promise<SpellRecord[]>;
 }
 
 export interface OptionsResponse {
@@ -74,6 +78,11 @@ export async function computeOptions(request: OptionsRequest, deps: OptionsDeps)
   const members = memberIds.length === 0 ? [] : await deps.loadMemberSpeeds(memberIds);
   const mapInput = await deps.loadMapInput();
 
+  // The same casts `take_turn` weighs (#1021): a list that left them out would show a DM a turn the creature does not take.
+  const block = statBlockOf(mover, sources);
+  const listed = block ? listedSpellNames(block) : [];
+  const spellRecords = listed.length === 0 ? [] : await deps.loadSpellsListed(listed);
+
   const { options } = assembleTurnOptions({
     combatants: fight.combatants,
     mover,
@@ -81,6 +90,7 @@ export async function computeOptions(request: OptionsRequest, deps: OptionsDeps)
     sources,
     members,
     map: mapInput === null ? null : fightMapOf(mapInput),
+    spellRecords,
   });
   return { version: fight.version, options };
 }

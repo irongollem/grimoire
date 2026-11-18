@@ -11,6 +11,8 @@ import type { RunCombatant } from "../../../src/types/encounter.types";
 import { emptyDefenses, type StatBlockEntry } from "../../../src/types/statBlock.types";
 import { meleeReachFeet } from "../_shared/turnOptionsFor";
 import { computeOptions, OptionsError, validateOptionsRequest, type OptionsDeps, type OptionsFight } from "./handler";
+import { fireBolt, fireball, mageBlock } from "../../../src/rules/fight/spells/spellTestKit";
+import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice";
 
 // A square picture, 10 across: cells 0 to 9 both ways. Its shape is recorded (`image_height_over_width`), so the map's edge is known.
 const CALIBRATION = { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0, origin_cell_x: 0, origin_cell_y: 0, image_height_over_width: 1 } as GridCalibration;
@@ -43,6 +45,9 @@ interface Setup {
   speeds?: { id: string; speed: number }[];
   map?: FightMapInput | null;
   version?: number;
+  spells?: SpellRecord[];
+  /** Every list of names the spell loader was asked for. */
+  spellReads?: string[][];
 }
 function deps(s: Setup): OptionsDeps {
   const fight: OptionsFight = { version: s.version ?? 7, combatants: s.combatants, ruleset: "2014" };
@@ -51,6 +56,10 @@ function deps(s: Setup): OptionsDeps {
     loadStatBlocks: async () => ({ monsters: s.monsters ?? [monster("m-wolf", [attack("Bite")])], npcs: [], companions: [] }),
     loadMemberSpeeds: async () => s.speeds ?? [],
     loadMapInput: async () => (s.map === undefined ? OPEN_GROUND : s.map),
+    loadSpellsListed: async (names) => {
+      s.spellReads?.push(names);
+      return s.spells ?? [];
+    },
   };
 }
 const ask = (s: Setup, instanceId = "wolf") => computeOptions({ encounterId: "enc", instanceId }, deps(s));
@@ -107,6 +116,24 @@ describe("computeOptions", () => {
     const r = await ask({ combatants: [wolf(), hero(4, 0)], map: null });
     expect(ids(r)).toEqual(["attack:actions:Bite:pc", "dodge"]);
     expect(r.options[0].destination).toBeNull();
+  });
+
+  // Bug caught: the list a DM is shown ("what could it do") leaving out the casts the creature's own turn takes.
+  it("offers a caster's spells, read once by the names its stat block lists, and reads none for a creature with no spells", async () => {
+    const mage = combatant("mage", { monster_id: "m-mage", faction_id: "m", position: { x: 0, y: 0 }, size: "medium" });
+    const reads: string[][] = [];
+    const r = await computeOptions({ encounterId: "enc", instanceId: "mage" }, deps({
+      combatants: [mage, hero(4, 0)],
+      monsters: [{ id: "m-mage", name: "Mage", stat_block: mageBlock() } as unknown as Monster],
+      spells: [fireball(), fireBolt()],
+      spellReads: reads,
+    }));
+    expect(r.options.some((o) => o.kind === "spell" && o.spell?.name === "Fireball")).toBe(true);
+    expect(reads).toHaveLength(1);
+
+    const none: string[][] = [];
+    await ask({ combatants: [wolf(), hero(4, 0)], spellReads: none });
+    expect(none).toEqual([]);
   });
 
   it("refuses an encounter with no fight yet and a creature that is not in it", async () => {

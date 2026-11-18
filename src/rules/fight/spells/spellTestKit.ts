@@ -13,7 +13,7 @@ const damageEffect = (over: Partial<StructuredSpellEffect>): StructuredSpellEffe
 export function fireball(over: Partial<SpellRecord> = {}): SpellRecord {
   const scaling = { mode: "slot" as const, dice: "1d6" };
   return {
-    id: "srd_srd_fireball", name: "Fireball", level: 3, ruleset: "2014", source: "srd-2014", concentration: false,
+    id: "srd_srd_fireball", name: "Fireball", level: 3, range: "150 feet", ruleset: "2014", source: "srd-2014", concentration: false,
     attack_type: "save", save_attribute: "DEX", save_effect: "half", damage_rolls: [{ dice: "8d6", type: "fire" }],
     healing_dice: null, aoe_shape: "sphere", aoe_size: "20 feet", higher_level_damage: { type: null, dice_per_level: "1d6" },
     mechanics_reviewed: true,
@@ -28,7 +28,7 @@ export function fireball(over: Partial<SpellRecord> = {}): SpellRecord {
 /** SRD 5.1 Fire Bolt: a ranged spell attack, 1d10 fire, 2d10 from 5th level. Flat columns only, as a record with no effects. */
 export function fireBolt(over: Partial<SpellRecord> = {}): SpellRecord {
   return {
-    id: "srd_srd_fire_bolt", name: "Fire Bolt", level: 0, ruleset: "2014", source: "srd-2014", concentration: false,
+    id: "srd_srd_fire_bolt", name: "Fire Bolt", level: 0, range: "120 feet", ruleset: "2014", source: "srd-2014", concentration: false,
     attack_type: "ranged_spell", save_attribute: null, save_effect: null, damage_rolls: [{ dice: "1d10", type: "fire" }],
     healing_dice: null, aoe_shape: null, aoe_size: null, higher_level_damage: null, mechanics_reviewed: true, effects: [],
     ...over,

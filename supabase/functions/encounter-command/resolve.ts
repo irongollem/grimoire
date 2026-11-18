@@ -388,6 +388,8 @@ export interface ResolveEnv {
   rollDie: (sides: number) => number;
   /** The spell records named `name` (a campaign's own and the library's), read when a cast first asks. */
   spells: (name: string) => Promise<SpellRecord[]>;
+  /** The records of every one of `names` at once (two reads whatever the count), for a creature's turn that weighs all the spells it lists (#1021). */
+  spellsListed: (names: string[]) => Promise<SpellRecord[]>;
   /** The fight's map, or null when it has none the rules can use (no place, no calibrated map, an old snapshot): then no cover is applied. */
   map: FightMap | null;
   /** Receives every roll the command makes, in order, for the caller to post once the fight is saved. */

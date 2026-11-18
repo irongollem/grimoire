@@ -7,7 +7,7 @@ import { serve } from "std/http/server.ts";
 import { withCors } from "../_shared/cors.ts";
 import { adminClient, callerUserId, loadEncounterAsDm } from "../_shared/fightAccess.ts";
 import { loadMonsters, loadNpcs, loadStatBlocks } from "../_shared/fightStatBlocks.ts";
-import { loadSpellsNamed } from "../_shared/fightSpells.ts";
+import { loadSpellsListed, loadSpellsNamed } from "../_shared/fightSpells.ts";
 import { loadFightMapInput } from "../_shared/fightMap.ts";
 import { gameSystemEdition } from "../_shared/gameSystem.ts";
 import { fightMapOf } from "../../../src/rules/fight/terrain/battleMap.ts";
@@ -206,6 +206,7 @@ serve(withCors(async (req: Request) => {
       },
       loadStatBlocks: (ids) => loadStatBlocks(admin, campaignId, ids),
       loadSpells: (name) => loadSpellsNamed(admin, campaignId, campaign.user_id, name),
+      loadSpellsListed: (names) => loadSpellsListed(admin, campaignId, campaign.user_id, names),
       async loadPlayerSheets(memberIds) {
         // Every read is scoped to this campaign. The inventory ids come from this campaign's own rows (a database
         // trigger keeps an inventory row's item in the same campaign or a global row its owner may use), and an
