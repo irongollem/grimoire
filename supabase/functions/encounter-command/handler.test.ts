@@ -31,7 +31,7 @@ import {
   type PostedRoll,
   type StatBlockSources,
 } from "./handler";
-import { fireBolt, fireball, mageBlock } from "../../../src/rules/fight/spells/spellTestKit";
+import { fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithHold } from "../../../src/rules/fight/spells/spellTestKit";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice";
 import type { ExploreParty } from "../../../src/types/exploreParty.types";
 
@@ -1829,6 +1829,66 @@ describe("cast_spell", () => {
     const h = harness(fight, { sources: MAGE_SOURCES, spells: [holdy], dieFaces: [20, 20, 20, 1, 1, 1, 1, 1, 1, 1, 1] });
     await runBatch(batch("b", cast()), h.deps);
     expect(by(stored(h), "t1").conditions).toEqual([]);
+  });
+
+  describe("a cast that imposes a condition (Hold Person)", () => {
+    const HOLD_SOURCES: StatBlockSources = {
+      monsters: [{ id: "m-mage", name: "Mage", stat_block: mageWithHold() } as unknown as Monster, monster("m-ox")],
+      npcs: [],
+      companions: [],
+    };
+    const hold = (over: Record<string, unknown> = {}) => cast({ spell: "hold person", targetIds: ["t1"], ...over });
+    // SRD 5.1 "Hold Person": WIS save or paralyzed for up to 1 minute. t1 (an ox, WIS +0) rolls 5 against the mage's DC 14 and fails.
+    const heldFight = async () => {
+      const h = harness(field(), { sources: HOLD_SOURCES, spells: [holdPerson()], dieFaces: [5] });
+      await runBatch(batch("b", hold()), h.deps);
+      return h;
+    };
+
+    // Bug caught: a no-damage spell refused as "no damage in its data" or resolved without spending the 2nd-level slot and the Action.
+    it("fails if a failed save does not leave the target Paralyzed by the mage's concentration, or the cast is free", async () => {
+      const h = await heldFight();
+      const t1 = by(stored(h), "t1");
+      expect(t1.conditions).toEqual([
+        { name: "Paralyzed", source: { id: "mage", spell: "Hold Person", concentration: true }, ends: { kind: "save", ability: "wis", dc: 14, at: "end", remaining: 10 } },
+      ]);
+      expect(hpOf(stored(h), "t1")).toBe(40);
+      expect(by(stored(h), "mage").action_uses).toEqual({ "slots/2": { used: 1, per_day: 3 } });
+      expect(by(stored(h), "mage").action_used).toBe(true);
+    });
+
+    // A save that succeeds imposes nothing (SRD 5.1 "Saving Throws"): d20 15 + 0 meets DC 14. The slot is still spent.
+    it("fails if a successful save still paralyzes the target", async () => {
+      const h = harness(field(), { sources: HOLD_SOURCES, spells: [holdPerson()], dieFaces: [15] });
+      await runBatch(batch("b", hold()), h.deps);
+      expect(by(stored(h), "t1").conditions).toEqual([]);
+      expect(by(stored(h), "mage").action_uses).toEqual({ "slots/2": { used: 1, per_day: 3 } });
+    });
+
+    // SRD 5.1 "Hold Person": the target repeats the save at the end of each of its turns; success ends it. The turn hooks mark it due.
+    it("fails if the repeat save at the end of the bearer's turn does not end the condition on a success at the caster's DC", async () => {
+      const first = await heldFight();
+      const fight = stored(first);
+      fight.combatants_live = fight.combatants_live.map((c) => (c.instance_id === "t1" ? { ...c, conditions: c.conditions.map((x) => ({ ...x, due: { save: true } })) } : c));
+      const again = harness(fight, { sources: HOLD_SOURCES, spells: [holdPerson()], dieFaces: [14] });
+      await runBatch(batch("b2", { type: "roll_condition_save", instanceId: "t1", name: "Paralyzed" }), again.deps);
+      expect(by(stored(again), "t1").conditions).toEqual([]);
+    });
+
+    // PHB 2014 ch. 10 "Concentration": a creature that loses its concentration ends the spell. The mage takes 24 damage (DC 12) and rolls 3.
+    it("fails if the mage losing concentration leaves the target Paralyzed", async () => {
+      const fight = stored(await heldFight());
+      const again = harness(fight, { sources: HOLD_SOURCES, spells: [holdPerson()], dieFaces: [3] });
+      await runBatch(batch("b2", { type: "resolve_concentration", instanceId: "mage", damage: 24 }), again.deps);
+      expect(by(stored(again), "t1").conditions).toEqual([]);
+    });
+
+    // Bug caught: the concentration flag leaking onto a spell that is not concentration (the condition would then end with a concentration it never had).
+    it("fails if a spell that is not concentration marks its conditions as held by concentration", async () => {
+      const h = harness(field(), { sources: HOLD_SOURCES, spells: [holdPerson({ concentration: false, condition_effect: holdPersonEffect({ duration: { unit: "minute", amount: 1, concentration: false } }) })], dieFaces: [5] });
+      await runBatch(batch("b", hold()), h.deps);
+      expect(by(stored(h), "t1").conditions[0].source).toEqual({ id: "mage", spell: "Hold Person" });
+    });
   });
 
   it("refuses a malformed cast before the fight is read: a repeated target, too many targets, a bad slot level, bad faces", () => {

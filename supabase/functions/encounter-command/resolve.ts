@@ -513,8 +513,9 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
       collected.push(...result.effects);
     };
     // A concentration spell ends the caster's earlier one first (PHB 2014 ch. 10 "Concentration").
-    // NOT BUILT: a creature that casts a concentration spell does not start concentrating on it. A damage-only spell has
-    // nothing to hang it on (no condition carries its source), and nothing here would end it when the creature is hurt.
+    // BUILT: the conditions a concentration spell imposes carry the caster as a concentrating source (`concentration` on
+    // the save below), so `end_concentration` and a failed concentration check end them. NOT BUILT: a concentration spell
+    // that imposes nothing (a damage-only one, or one whose targets all saved) does not start concentrating at all.
     if (record.concentration && (caster.concentration || holdsConcentration(holder.state.combatants, caster.instance_id))) {
       step({ type: "end_concentration", instanceId: caster.instance_id });
     }
@@ -539,7 +540,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
       }
       return;
     }
-    const done = await resolveSaveOn(ctx, { attacker: live(), entry: entry.entry, targets, magical: true });
+    const done = await resolveSaveOn(ctx, { attacker: live(), entry: entry.entry, targets, magical: true, concentration: record.concentration });
     collected.push({ type: "resolved", resolved: done.summary });
   };
 

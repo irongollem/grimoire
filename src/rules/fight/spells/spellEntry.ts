@@ -10,8 +10,8 @@
 // damage later in its duration) is never half-resolved. It is not automatable, and the caller says why.
 
 import { DAMAGE_TYPES, type DamageType } from "../../../types/damage.types.ts";
-import { SAVE_ABILITIES, type DamagePart, type SaveAbility, type StatBlockEntry } from "../../../types/statBlock.types.ts";
-import type { StructuredSpellEffect } from "../../../types/spell.types.ts";
+import { SAVE_ABILITIES, type DamagePart, type SaveAbility, type SaveCondition, type SaveEnds, type StatBlockEntry } from "../../../types/statBlock.types.ts";
+import type { SpellConditionEffect, StructuredSpellEffect } from "../../../types/spell.types.ts";
 import { castDamageRolls } from "../../spellDamageScaling.ts";
 import { effectsForCast } from "../../spellEffects.ts";
 import type { SpellRecord } from "./spellChoice.ts";
@@ -35,6 +35,49 @@ function isDamageType(value: string): value is DamageType {
 
 function isSaveAbility(value: string): value is SaveAbility {
   return (SAVE_ABILITIES as readonly string[]).includes(value);
+}
+
+/** SRD 5.1 "Duration": a round is 6 seconds, so a minute is ten rounds. */
+const ROUNDS_PER_MINUTE = 10;
+
+/**
+ * The conditions a failed save imposes, from the record's `condition_effect` (#1021 step C), or none when the entry
+ * cannot say it completely. Only a `condition` verdict that lands on a failed save, whose save is the record's own
+ * column, aimed at someone other than the caster. Whatever is not said is left to the table, never guessed.
+ */
+function conditionsOf(record: SpellRecord): SaveCondition[] {
+  const effect = record.condition_effect;
+  if (effect === null || effect === undefined) return [];
+  if (effect.verdict !== "condition" || effect.applies !== "failed_save" || effect.conditions.length === 0) return [];
+  if (effect.targets === null || effect.targets.kind === "self") return [];
+  // Two sources of the save's ability that differ: do not guess which one is right.
+  if (effect.save_ability === null || effect.save_ability !== (record.save_attribute ?? "").toUpperCase()) return [];
+  // The fight does not know a target's creature kind (`monster_type` lives on the monsters table, not on the stat block
+  // or the combatant), so a condition limited to a kind ("humanoid") cannot be kept from the wrong creature. It stays
+  // the table's to rule rather than being imposed on everyone.
+  if (effect.only_kinds.length > 0) return [];
+  const ends = endsOf(effect);
+  if (ends === "unsaid") return [];
+  return effect.conditions.map((name): SaveCondition => (ends === null ? { name } : { name, ends }));
+}
+
+/**
+ * What ends the condition. `null`: nothing but someone removing it (an hour or more, until dispelled, special, instant:
+ * the table or the concentration ends those). `unsaid`: a repeat save the type cannot state.
+ * APP CONVENTION: `stops_casting` and `speed_zero` of the entry are not used by this story.
+ */
+function endsOf(effect: SpellConditionEffect): SaveEnds | null | "unsaid" {
+  const rounds =
+    effect.duration?.unit === "round" ? effect.duration.amount : effect.duration?.unit === "minute" && effect.duration.amount !== null ? effect.duration.amount * ROUNDS_PER_MINUTE : null;
+  const repeat = effect.repeat_save;
+  if (repeat !== null) {
+    // `SaveEnds` has a repeat save at the start or the end of the bearer's turn and nothing for "when it takes damage"
+    // or "as an action", so such a spell gets no conditions at all rather than a different rule.
+    if (repeat.when !== "end_of_its_turn" && repeat.when !== "start_of_its_turn") return "unsaid";
+    // The DC is left out on purpose: it is filled in with the save's own when the condition is applied.
+    return { kind: "save", at: repeat.when === "end_of_its_turn" ? "end" : "start", ability: repeat.ability.toLowerCase() as SaveAbility, ...(rounds !== null ? { remaining: rounds } : {}) };
+  }
+  return rounds === null ? null : { kind: "rounds", remaining: rounds };
 }
 
 type Parts = { parts: DamagePart[]; half: boolean | null } | { why: string };
@@ -91,7 +134,10 @@ export function spellEntryFor(record: SpellRecord, castLevel: number, caster: Sp
   const casterLevel = caster.casterLevel === undefined || caster.casterLevel === null ? 1 : caster.casterLevel;
   const dealt = damageOf(record, castLevel, casterLevel, !isAttack);
   if ("why" in dealt) return no(dealt.why);
-  if (dealt.parts.length === 0) {
+  const conditions = isAttack ? [] : conditionsOf(record);
+  // A save that only imposes a condition (Hold Person) has no damage and is still resolvable.
+  const conditionOnly = dealt.parts.length === 0 && conditions.length > 0;
+  if (dealt.parts.length === 0 && !conditionOnly) {
     const heals = (record.healing_dice ?? "").trim() !== "" || (record.effects ?? []).some((e) => e.kind === "healing");
     return no(heals ? `${record.name} heals rather than harms, and the rules do not roll healing yet.` : `${record.name} has no damage in its data.`);
   }
@@ -116,10 +162,13 @@ export function spellEntryFor(record: SpellRecord, castLevel: number, caster: Sp
   if (caster.saveDc === null) return no(`The caster's stat block gives no spell save DC, so ${record.name} has no save to set.`);
   const ability = (record.save_attribute ?? "").toLowerCase();
   if (!isSaveAbility(ability)) return no(`${record.name} names no saving throw ability in its data.`);
-  if (record.save_effect === "special") return no(`${record.name} does something special on a save that the rules do not roll yet.`);
-  if (record.save_effect !== "half" && record.save_effect !== "negates") return no(`${record.name} does not say what a successful save does.`);
+  // A condition-only spell's save effect is "special" in the data, and the conditions say all there is to say.
+  if (!conditionOnly) {
+    if (record.save_effect === "special") return no(`${record.name} does something special on a save that the rules do not roll yet.`);
+    if (record.save_effect !== "half" && record.save_effect !== "negates") return no(`${record.name} does not say what a successful save does.`);
+  }
   // The record's own flat column and its effects must agree: a "half" spell whose effects take none is not provable.
-  if (dealt.half !== null && dealt.half !== (record.save_effect === "half")) return no(`${record.name}'s save effect and its damage effects disagree about a successful save.`);
+  if (!conditionOnly && dealt.half !== null && dealt.half !== (record.save_effect === "half")) return no(`${record.name}'s save effect and its damage effects disagree about a successful save.`);
   return {
     automatable: true,
     kind: "save",
@@ -128,7 +177,7 @@ export function spellEntryFor(record: SpellRecord, castLevel: number, caster: Sp
       description: "",
       structured: {
         kind: "save",
-        save: { ability, dc: caster.saveDc, fail: dealt.parts, success: record.save_effect === "half" ? "half" : "none", conditions: [] },
+        save: { ability, dc: caster.saveDc, fail: dealt.parts, success: record.save_effect === "half" && !conditionOnly ? "half" : "none", conditions },
         source: "manual",
       },
     },

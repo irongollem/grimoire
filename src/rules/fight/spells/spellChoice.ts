@@ -16,7 +16,7 @@ import { spellKey } from "./castLimit.ts";
 export type SpellRecord = Pick<
   Spell,
   | "id" | "name" | "level" | "range" | "ruleset" | "source" | "concentration" | "attack_type" | "save_attribute" | "save_effect"
-  | "damage_rolls" | "healing_dice" | "aoe_shape" | "aoe_size" | "higher_level_damage" | "mechanics_reviewed" | "effects"
+  | "damage_rolls" | "healing_dice" | "aoe_shape" | "aoe_size" | "higher_level_damage" | "mechanics_reviewed" | "effects" | "condition_effect"
 > & {
   /** A campaign's own spell (`spells`), as against a shared library record. Set by whoever loads the records. */
   own?: true;

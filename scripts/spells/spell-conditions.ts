@@ -9,13 +9,18 @@
  *       Holds two independent readings against each spell's own text and against each other. An entry is fit to
  *       use only when both readings pass and agree; everything else is listed with what is wrong.
  *
- * It never writes to a database. Library spells are public shared content, so names may be printed.
+ *   npm run spells:conditions -- apply --a <reading.json> --b <reading.json> [--write] [--production --yes-production]
+ *       Writes the usable entries (both readings pass and agree) into `library_spells.condition_effect`, without their
+ *       evidence, and stamps `provenance.condition_effect`. A dry run unless --write is given; local unless --production
+ *       (which also needs --yes-production to write). Rows the readings did not agree on are never touched.
+ *
+ * `worklist` and `check` never write. Library spells are public shared content, so names may be printed.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 import { resolveServiceTarget, serviceHeaders, type ServiceTarget } from "../lib/dev-stack.ts";
-import { agree, findingsFor, type CuratedSpellConditionsFile } from "../../src/lib/library/curatedSpellConditions.ts";
+import { agree, findingsFor, type CuratedSpellCondition, type CuratedSpellConditionsFile } from "../../src/lib/library/curatedSpellConditions.ts";
 import { spellcastingOf } from "../../src/rules/statBlock/spellcastingProse.ts";
 
 const PAGE = 1000;
@@ -99,13 +104,64 @@ export function checkReadings(a: CuratedSpellConditionsFile, b: CuratedSpellCond
   return report;
 }
 
+export interface ConditionWrite {
+  id: string;
+  verdict: CuratedSpellCondition["verdict"];
+  /** The reading without its evidence: the shape `library_spells.condition_effect` holds. */
+  condition_effect: Omit<CuratedSpellCondition, "evidence">;
+}
+
+/** What `apply` writes: only the ids both readings agreed on, from reading `a`, without evidence. Everything else is left exactly as it is. */
+export function planConditionWrites(report: CheckReport, a: CuratedSpellConditionsFile): ConditionWrite[] {
+  return report.usable.map((id) => {
+    const { evidence: _evidence, ...condition_effect } = a[id];
+    return { id, verdict: condition_effect.verdict, condition_effect };
+  });
+}
+
+/** The count line a dry run prints and a write repeats. */
+export function describePlan(writes: readonly ConditionWrite[], report: CheckReport): string {
+  const by = { condition: 0, no_condition: 0, not_simple: 0 };
+  for (const w of writes) by[w.verdict]++;
+  return (
+    `${writes.length} to write (condition ${by.condition}, no_condition ${by.no_condition}, not_simple ${by.not_simple}); ` +
+    `skipped: disagree ${report.disagree.length}, with findings ${Object.keys(report.findings).length}, in one reading only ${report.onlyInOne.length}, no such spell ${report.unknownSpell.length}.`
+  );
+}
+
+async function readProvenance(target: ServiceTarget, id: string): Promise<Record<string, unknown> | null> {
+  const response = await fetch(`${target.origin}/rest/v1/library_spells?select=provenance&id=eq.${encodeURIComponent(id)}`, { headers: serviceHeaders(target) });
+  if (!response.ok) throw new Error(`Could not read library_spells from ${target.label} (${response.status}).`);
+  const rows = (await response.json()) as Array<{ provenance: Record<string, unknown> | null }>;
+  return rows[0]?.provenance ?? null;
+}
+
+async function writeOne(target: ServiceTarget, write: ConditionWrite, at: string): Promise<boolean> {
+  const provenance = { ...(await readProvenance(target, write.id)), condition_effect: { by: "spells:conditions", version: 1, at } };
+  const response = await fetch(`${target.origin}/rest/v1/library_spells?id=eq.${encodeURIComponent(write.id)}`, {
+    method: "PATCH",
+    headers: serviceHeaders(target, { "Content-Type": "application/json", Prefer: "return=minimal" }),
+    body: JSON.stringify({ condition_effect: write.condition_effect, provenance }),
+  });
+  return response.ok;
+}
+
 async function main(): Promise<void> {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
-    options: { out: { type: "string" }, a: { type: "string" }, b: { type: "string" }, report: { type: "string" } },
+    options: {
+      out: { type: "string" }, a: { type: "string" }, b: { type: "string" }, report: { type: "string" },
+      write: { type: "boolean", default: false },
+      production: { type: "boolean", default: false },
+      "yes-production": { type: "boolean", default: false },
+    },
   });
   const [command] = positionals;
-  const target = resolveServiceTarget(false);
+  if (values.write && values.production && !values["yes-production"]) {
+    throw new Error("Refusing to write to production without --yes-production (use --write --production --yes-production).");
+  }
+  // Only `apply` may leave the local stack, and only on request: reading the shared library is the same everywhere.
+  const target = resolveServiceTarget(command === "apply" && values.production);
   const spells = await readAll<SpellText>(target, "library_spells", "id,name,ruleset,level,concentration,duration,description,higher_levels");
 
   if (command === "worklist") {
@@ -129,7 +185,30 @@ async function main(): Promise<void> {
     return;
   }
 
-  throw new Error('Say "worklist" or "check".');
+  if (command === "apply") {
+    if (!values.a || !values.b) throw new Error("apply needs --a <reading.json> and --b <reading.json>.");
+    const read = (path: string) => JSON.parse(readFileSync(path, "utf8")) as CuratedSpellConditionsFile;
+    const a = read(values.a);
+    const report = checkReadings(a, read(values.b), new Map(spells.map((s) => [s.id, s])));
+    const writes = planConditionWrites(report, a);
+    console.log(`${target.label}: ${describePlan(writes, report)}`);
+    if (!values.write) {
+      console.log("Dry run. Pass --write to apply.");
+      return;
+    }
+    const at = new Date().toISOString();
+    let written = 0;
+    let failed = 0;
+    for (const write of writes) {
+      if (await writeOne(target, write, at)) written++;
+      else failed++;
+    }
+    console.log(`Wrote ${written} spell(s) on ${target.label}${failed ? `; ${failed} write(s) failed (re-run to resume)` : ""}.`);
+    if (failed > 0) process.exitCode = 1;
+    return;
+  }
+
+  throw new Error('Say "worklist", "check" or "apply".');
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {

@@ -513,7 +513,7 @@ export function settleSave(result: SaveTargetResult, total: number): SaveTargetR
  * (#1018) and what ends it (#1050). Exhaustion goes up a level instead of
  * stacking a second entry.
  */
-function impose(ctx: ResolutionContext, target: RunCombatant, save: SaveStructure, condition: SaveCondition, actor: RunCombatant, spell: string) {
+function impose(ctx: ResolutionContext, target: RunCombatant, save: SaveStructure, condition: SaveCondition, actor: RunCombatant, spell: string, concentration?: boolean) {
   const current = ctx.live(target).conditions;
   if (condition.name === "Exhaustion") {
     ctx.apply({ type: "set_conditions", instanceId: target.instance_id, conditions: setExhaustionLevel(current, getExhaustionLevel(current) + 1) });
@@ -523,7 +523,7 @@ function impose(ctx: ResolutionContext, target: RunCombatant, save: SaveStructur
     ctx.apply({
       type: "apply_condition",
       instanceId: target.instance_id,
-      condition: imposedCondition(save, condition, { id: actor.instance_id, spell }),
+      condition: imposedCondition(save, condition, { id: actor.instance_id, spell, ...(concentration === true ? { concentration: true } : {}) }),
     });
   }
 }
@@ -544,6 +544,8 @@ export function applySaveOutcome(
     results: SaveTargetResult[];
     damageParts: DamageAmount[];
     magical?: boolean;
+    /** The conditions are held by the attacker's concentration (a concentration spell): they end when it does. */
+    concentration?: boolean;
   },
 ): SaveApplied[] {
   const save = input.entry.structured.save;
@@ -561,7 +563,7 @@ export function applySaveOutcome(
       ? { apply: [], immune: [] }
       : filterImmuneConditions(save.conditions.map((c) => c.name), defenses);
     for (const condition of save.conditions) {
-      if (apply.includes(condition.name)) impose(ctx, target, save, condition, input.attacker, input.entry.name);
+      if (apply.includes(condition.name)) impose(ctx, target, save, condition, input.attacker, input.entry.name, input.concentration);
     }
     return { target, share, damage, conditionsApplied: apply, conditionsImmune: immune };
   });
@@ -622,7 +624,7 @@ export interface SaveResolved {
  */
 export async function resolveSaveOn(
   base: ResolutionContext,
-  input: { attacker: RunCombatant; entry: StatBlockEntry; targets: RunCombatant[]; magical?: boolean } & RollOptions,
+  input: { attacker: RunCombatant; entry: StatBlockEntry; targets: RunCombatant[]; magical?: boolean; concentration?: boolean } & RollOptions,
 ): Promise<SaveResolved> {
   const { ctx, issued } = tracked(base);
   const { attacker, entry } = input;
@@ -645,7 +647,7 @@ export async function resolveSaveOn(
     if (!rolled) throw new ActionRefused(`The damage of "${entry.name}" was not rolled.`);
     amounts = rolled;
   }
-  const applied = applySaveOutcome(ctx, { attacker, entry, results, damageParts: amounts, magical: input.magical });
+  const applied = applySaveOutcome(ctx, { attacker, entry, results, damageParts: amounts, magical: input.magical, concentration: input.concentration });
   return {
     results,
     amounts,

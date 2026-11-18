@@ -1,6 +1,7 @@
 import type { RulesetKey } from "./ruleset.types.ts";
 import type { AiProvenance } from "../ai/provenance.ts";
 import { ordinal } from "../lib/ordinal.ts";
+import type { CuratedSpellCondition } from "../lib/library/curatedSpellConditions.ts";
 
 export const SPELL_SCHOOLS = [
   "abjuration",
@@ -237,12 +238,17 @@ export interface Spell {
   effects?: StructuredSpellEffect[] | null;
   /** Structured mechanics stay advisory until this flag is explicitly reviewed. */
   mechanics_reviewed?: boolean;
+  /** What the spell does to a creature besides damage (#1021 step C); null or absent: nobody has read it for this. */
+  condition_effect?: SpellConditionEffect | null;
   image_url: string | null; // optional art for card printing
   image_focal_point?: { x: number; y: number } | null;
   ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }
+
+/** A condition reading as stored: the entry without the sentence that proved it. */
+export type SpellConditionEffect = Omit<CuratedSpellCondition, "evidence">;
 
 export type SpellInsert = Omit<Spell, "id" | "user_id" | "created_at" | "updated_at" | "campaign_id"> & { campaign_id?: string | null };
 export type SpellUpdate = Partial<SpellInsert>;

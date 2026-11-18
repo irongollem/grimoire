@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CuratedSpellCondition } from "../../src/lib/library/curatedSpellConditions.ts";
-import { checkReadings, worklistOf, type SpellText } from "./spell-conditions.ts";
+import { checkReadings, describePlan, planConditionWrites, worklistOf, type SpellText } from "./spell-conditions.ts";
 
 const spell = (id: string, name: string, description: string): SpellText => ({ id, name, ruleset: "2014", level: 2, concentration: true, duration: "Concentration, up to 1 minute", description, higher_levels: "When you cast this spell using a spell slot of 3rd level or higher, you can target one additional humanoid for each slot level above 2nd." });
 const HOLD = "The target must succeed on a Wisdom saving throw or be paralyzed for the duration.";
@@ -34,5 +34,36 @@ describe("worklistOf", () => {
   it("lists every record of a spell a monster names, most used first, and nothing no monster casts", () => {
     const list = worklistOf([mage, mage], [spell("a", "Hold Person", HOLD), spell("b", "Hold Person", HOLD), spell("c", "Wish", "…")]);
     expect(list.map((s) => [s.id, s.monsters])).toEqual([["a", 2], ["b", 2]]);
+  });
+});
+
+describe("planConditionWrites", () => {
+  const withSpells = new Map([...spells, ["fog", spell("fog", "Fog", "Mist.")], ["lone", spell("lone", "Lone", HOLD)], ["x", spell("x", "Hold Monster", HOLD)]]);
+
+  // Bug caught: a row a reading is unsure of, or two readings disagree on, written to the shared library.
+  it("writes only the usable ids, never one with a finding, a disagreement or one reading", () => {
+    const a = { hold: reading(), x: reading(), fog: reading({ evidence: "It is paralyzed." }), lone: reading() };
+    const b = { hold: reading(), x: reading({ repeat_save: null }), fog: reading({ evidence: "It is paralyzed." }) };
+    const report = checkReadings(a, b, withSpells);
+    expect(planConditionWrites(report, a).map((w) => w.id)).toEqual(["hold"]);
+  });
+
+  // Bug caught: the sentence of evidence stored in a column that holds facts only.
+  it("strips the evidence and writes reading a's facts as they are", () => {
+    const a = { hold: reading() };
+    const [write] = planConditionWrites(checkReadings(a, { hold: reading({ evidence: "The target must succeed on a Wisdom saving throw or be paralyzed for the duration." }) }, spells), a);
+    expect(write.condition_effect).not.toHaveProperty("evidence");
+    const { evidence: _evidence, ...facts } = reading();
+    expect(write.condition_effect).toEqual(facts);
+  });
+
+  it("counts what it would write by verdict and what it skips and why", () => {
+    const none = reading({ verdict: "no_condition", conditions: [], evidence: "Mist.", applies: null, save_ability: null, targets: null, only_kinds: [], duration: null, repeat_save: null });
+    const a = { hold: reading(), fog: none, lone: reading() };
+    const b = { hold: reading(), fog: none };
+    const report = checkReadings(a, b, withSpells);
+    expect(describePlan(planConditionWrites(report, a), report)).toBe(
+      "2 to write (condition 1, no_condition 1, not_simple 0); skipped: disagree 0, with findings 0, in one reading only 1, no such spell 0.",
+    );
   });
 });

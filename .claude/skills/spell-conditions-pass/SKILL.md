@@ -67,14 +67,17 @@ The fields, as `src/lib/library/curatedSpellConditions.ts` defines them:
   - `no_condition`: it imposes none of them. Fireball, Detect Magic, Mage Hand.
   - `not_simple`: it imposes one of the named conditions, but these fields cannot say it truthfully. Use it
     whenever the outcome depends on a choice the caster makes (Command), on hit points (2014 Sleep, Power Word
-    Stun), on a roll on a table (Confusion), when the condition changes over the turns (2024 Sleep), when a later
+    Stun), on a roll on a table that determines which named condition applies, when the condition changes over the
+    turns (2024 Sleep), when a later
     save is allowed only in some circumstance (Fear: only out of the caster's sight), when the spell also forces
     movement or makes the target drop what it holds, or when different targets get different conditions. Also
     when you are not sure.
   - **The dividing rule, so two readers land on the same verdict:** the verdict is about the fourteen named
     conditions and about stopping casting, and nothing else. A spell that does something else to a creature,
     however severe (banishes it, curses it, slows it, makes it follow a suggestion without the text saying
-    Charmed), is `no_condition`. `not_simple` is only for a spell whose text does name one of the fourteen.
+    Charmed), is `no_condition`. `not_simple` is only for a spell whose text does name one of the fourteen. So
+    Confusion, which changes a creature's behavior by rolling on a table but names none of these conditions, is
+    `no_condition`.
 - **`conditions`**: every named condition imposed together by the one cast. The names are exactly: Blinded,
   Charmed, Deafened, Frightened, Grappled, Incapacitated, Invisible, Paralyzed, Petrified, Poisoned, Prone,
   Restrained, Stunned, Unconscious. Nothing else is a condition here: "slowed", "banished", "asleep" and
@@ -131,8 +134,10 @@ third model to vote.
 
 ## What this pass does not do
 
-- It writes nothing to a database. Applying the agreed entries to `library_spells` is a separate, reviewed step
-  the maintainer approves, like every write to the shared library.
+- It writes nothing to a database. Applying the agreed entries to `library_spells.condition_effect` is its own
+  command, `apply --a <file> --b <file>`: a dry run unless `--write` is given, it writes only the entries both readings
+  agree on and leaves every other row as it is. Writing production (`--production --yes-production`) is the
+  maintainer's decision, like every write to the shared library.
 - It does not judge damage, healing or dice. Those have their own pass (`npm run spells:check-mechanics`).
 - It does not cover spells no library monster casts. Extend the worklist command when players' spells are due.
 
