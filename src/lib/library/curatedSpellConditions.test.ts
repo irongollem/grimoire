@@ -11,7 +11,7 @@ const HOLD_PERSON = {
 
 const holdPerson = (over: Partial<CuratedSpellCondition> = {}): CuratedSpellCondition => ({
   verdict: "condition",
-  conditions: ["Paralyzed"],
+  conditions: ["Paralyzed"], stops_casting: null,
   applies: "failed_save",
   save_ability: "WIS",
   targets: { kind: "one", count: 1, more_per_slot_above: 1 },
@@ -51,9 +51,31 @@ describe("findingsFor", () => {
 
   // Bug caught: "no condition" used to skip a spell, with conditions still listed and read by the fight.
   it("lets a spell with no condition through with only its evidence checked", () => {
-    const none: CuratedSpellCondition = { verdict: "no_condition", conditions: [], applies: null, save_ability: null, targets: null, only_kinds: [], duration: null, repeat_save: null, evidence: "Choose a humanoid that you can see within range." };
+    const none: CuratedSpellCondition = { verdict: "no_condition", conditions: [], stops_casting: null, applies: null, save_ability: null, targets: null, only_kinds: [], duration: null, repeat_save: null, evidence: "Choose a humanoid that you can see within range." };
     expect(findingsFor(none, HOLD_PERSON)).toEqual([]);
     expect(findingsFor({ ...none, conditions: ["Prone"] }, HOLD_PERSON).join(" ")).toContain("names no conditions");
+  });
+});
+
+describe("a spell that stops casting", () => {
+  // SRD 5.1 "Silence", the sentence the entry rests on.
+  const SILENCE = { concentration: true, description: "For the duration, no sound can be created within or pass through a 20-foot-radius sphere centered on a point you choose within range. Casting a spell that includes a verbal component is impossible there." };
+  const silence = (over: Partial<CuratedSpellCondition> = {}): CuratedSpellCondition => ({
+    verdict: "condition", conditions: [], stops_casting: "verbal", applies: "automatic", save_ability: null,
+    targets: { kind: "area", count: null, more_per_slot_above: 0 }, only_kinds: [],
+    duration: { unit: "minute", amount: 10, concentration: true }, repeat_save: null,
+    evidence: "Casting a spell that includes a verbal component is impossible there.", ...over,
+  });
+
+  // Bug caught: Silence refused as "names no condition", so nothing ever tells a caster it is the spell to aim at a wizard.
+  it("is a condition entry with no named condition", () => {
+    expect(findingsFor(silence(), SILENCE)).toEqual([]);
+  });
+
+  // Bug caught: two readers who disagree on whether a spell stops casting, both taken as agreeing.
+  it("is a fact two readings must agree on, and is not left on a spell said to impose nothing", () => {
+    expect(agree(silence(), silence({ stops_casting: null }))).toBe(false);
+    expect(findingsFor(silence({ verdict: "no_condition" }), SILENCE).join(" ")).toContain("does not stop casting");
   });
 });
 

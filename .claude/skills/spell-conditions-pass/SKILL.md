@@ -46,6 +46,7 @@ Your reading goes in `src/data/curatedSpellConditions/<reader>.json`, where `<re
   "srd_srd_hold_person": {
     "verdict": "condition",
     "conditions": ["Paralyzed"],
+    "stops_casting": null,
     "applies": "failed_save",
     "save_ability": "WIS",
     "targets": { "kind": "one", "count": 1, "more_per_slot_above": 1 },
@@ -70,6 +71,10 @@ The fields, as `src/lib/library/curatedSpellConditions.ts` defines them:
   Restrained, Stunned, Unconscious. Nothing else is a condition here: "slowed", "banished", "asleep" and
   "cursed" are not on the list, and a spell whose effect is one of those is `no_condition` or `not_simple`.
   A condition the caster puts on themselves or a willing ally (Invisibility makes a creature Invisible) counts.
+- **`stops_casting`**: `"verbal"` when those it affects cannot cast a spell with a verbal component (Silence:
+  "Casting a spell that includes a verbal component is impossible there"), `"all"` when they cannot cast at
+  all, otherwise null. No named condition says this, and it is what makes a spell worth more against a wizard
+  than a fighter. A spell that only does this is still a `condition` entry, with `conditions: []`.
 - **`applies`**: `failed_save` (the target fails a saving throw), `hit` (a spell attack hits), or `automatic`
   (no roll: a willing target, or no save offered).
 - **`save_ability`**: STR, DEX, CON, INT, WIS or CHA when `applies` is `failed_save`; otherwise null.
@@ -86,7 +91,7 @@ The fields, as `src/lib/library/curatedSpellConditions.ts` defines them:
   condition, or, for `no_condition`, a sentence that shows what the spell does instead. It is checked against
   the text, so copy it; do not tidy it.
 
-For `no_condition` and `not_simple`, give `conditions: []`, `only_kinds: []`, the other fields null, and the
+For `no_condition` and `not_simple`, give `conditions: []`, `only_kinds: []`, `stops_casting: null`, the other fields null, and the
 evidence sentence.
 
 ## Step 3: check your own reading

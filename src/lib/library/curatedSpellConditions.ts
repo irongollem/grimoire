@@ -33,6 +33,12 @@ export interface CuratedSpellCondition {
   verdict: "condition" | "no_condition" | "not_simple";
   /** Every condition imposed together by the one cast. Empty unless the verdict is `condition`. */
   conditions: ConditionName[];
+  /**
+   * Whether it stops those it affects from casting, which no named condition says: `verbal` for a spell that
+   * allows no sound or no speech (Silence), `all` for one that allows no spellcasting at all. Null for neither.
+   * It is what makes a spell worth more against a wizard than a fighter, so a caster can be told whom to aim it at.
+   */
+  stops_casting: "verbal" | "all" | null;
   /** What must happen for the condition to land. */
   applies: "failed_save" | "hit" | "automatic" | null;
   /** The saving throw that avoids it; null when `applies` is not `failed_save`. */
@@ -68,10 +74,11 @@ export function findingsFor(entry: CuratedSpellCondition, spell: { description: 
 
   if (entry.verdict !== "condition") {
     if (entry.conditions.length > 0) found.push(`a ${entry.verdict} entry names no conditions.`);
+    if (entry.stops_casting !== null) found.push(`a ${entry.verdict} entry does not stop casting: that is a condition entry.`);
     return found;
   }
 
-  if (entry.conditions.length === 0) found.push("a condition entry names at least one condition.");
+  if (entry.conditions.length === 0 && entry.stops_casting === null) found.push("a condition entry names at least one condition, or says it stops casting.");
   for (const name of entry.conditions) {
     if (!(CONDITION_NAMES as readonly string[]).includes(name)) found.push(`"${name}" is not a condition of the rules.`);
     // The name, or its root ("paralyz" for paralyzed/paralysed), must be in the text: a condition the spell never names is invented.
@@ -103,6 +110,7 @@ export function agree(a: CuratedSpellCondition, b: CuratedSpellCondition): boole
     JSON.stringify({
       verdict: e.verdict,
       conditions: [...e.conditions].sort(),
+      stops_casting: e.stops_casting,
       applies: e.applies,
       save_ability: e.save_ability,
       targets: e.targets,
