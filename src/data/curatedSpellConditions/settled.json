@@ -103,17 +103,25 @@
     "evidence": "The creature can't cast spells, activate magic items, understand language, or communicate in any intelligible way."
   },
   "srd_gaseous_form": {
-    "verdict": "not_simple",
+    "verdict": "condition",
     "conditions": [],
-    "stops_casting": null,
+    "stops_casting": "all",
     "speed_zero": false,
-    "applies": null,
+    "applies": "automatic",
     "save_ability": null,
-    "targets": null,
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 0
+    },
     "only_kinds": [],
-    "duration": null,
+    "duration": {
+      "unit": "hour",
+      "amount": 1,
+      "concentration": true
+    },
     "repeat_save": null,
-    "evidence": "You transform a willing creature you touch, along with everything it's wearing and carrying, into a misty cloud for the duration."
+    "evidence": "The target can't attack or cast spells."
   },
   "srd_glyph_of_warding": {
     "verdict": "not_simple",
@@ -178,17 +186,25 @@
     "evidence": "When expelled you fall prone into the closest unoccupied space near your entrance point."
   },
   "srd_polymorph": {
-    "verdict": "not_simple",
+    "verdict": "condition",
     "conditions": [],
-    "stops_casting": null,
+    "stops_casting": "all",
     "speed_zero": false,
-    "applies": null,
-    "save_ability": null,
-    "targets": null,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 0
+    },
     "only_kinds": [],
-    "duration": null,
+    "duration": {
+      "unit": "hour",
+      "amount": 1,
+      "concentration": true
+    },
     "repeat_save": null,
-    "evidence": "An unwilling creature must make a wisdom saving throw to avoid the effect."
+    "evidence": "The creature is limited in the actions it can perform by the nature of its new form, and it can't speak, cast spells, or take any other action that requires hands or speech."
   },
   "srd_project_image": {
     "verdict": "not_simple",
@@ -464,17 +480,25 @@
     "evidence": "Each creature (other than you) in the area when you cast the spell must succeed on a Strength saving throw or have the Restrained condition until the spell ends."
   },
   "srd_srd_2024_gaseous_form": {
-    "verdict": "not_simple",
+    "verdict": "condition",
     "conditions": [],
-    "stops_casting": null,
+    "stops_casting": "all",
     "speed_zero": false,
-    "applies": null,
+    "applies": "automatic",
     "save_ability": null,
-    "targets": null,
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 1
+    },
     "only_kinds": [],
-    "duration": null,
+    "duration": {
+      "unit": "hour",
+      "amount": 1,
+      "concentration": true
+    },
     "repeat_save": null,
-    "evidence": "A willing creature you touch shape-shifts, along with everything it's wearing and carrying, into a misty cloud for the duration."
+    "evidence": "Finally, the target can't attack or cast spells."
   },
   "srd_srd_2024_glyph_of_warding": {
     "verdict": "not_simple",
@@ -575,15 +599,23 @@
     "evidence": "If expelled, you move into an unoccupied space closest to where you first entered and have the Prone condition."
   },
   "srd_srd_2024_polymorph": {
-    "verdict": "not_simple",
+    "verdict": "condition",
     "conditions": [],
-    "stops_casting": null,
+    "stops_casting": "all",
     "speed_zero": false,
-    "applies": null,
-    "save_ability": null,
-    "targets": null,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 0
+    },
     "only_kinds": [],
-    "duration": null,
+    "duration": {
+      "unit": "hour",
+      "amount": 1,
+      "concentration": true
+    },
     "repeat_save": null,
     "evidence": "The target is limited in the actions it can perform by the anatomy of its new form, and it can't speak or cast spells."
   },
@@ -799,17 +831,25 @@
     "evidence": "The creature can't cast spells, activate magic items, understand language, or communicate in any intelligible way."
   },
   "srd_srd_gaseous_form": {
-    "verdict": "not_simple",
+    "verdict": "condition",
     "conditions": [],
-    "stops_casting": null,
+    "stops_casting": "all",
     "speed_zero": false,
-    "applies": null,
+    "applies": "automatic",
     "save_ability": null,
-    "targets": null,
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 0
+    },
     "only_kinds": [],
-    "duration": null,
+    "duration": {
+      "unit": "hour",
+      "amount": 1,
+      "concentration": true
+    },
     "repeat_save": null,
-    "evidence": "You transform a willing creature you touch, along with everything it's wearing and carrying, into a misty cloud for the duration."
+    "evidence": "The target can't attack or cast spells."
   },
   "srd_srd_glyph_of_warding": {
     "verdict": "not_simple",
@@ -861,17 +901,25 @@
     "evidence": "If expelled, you fall prone in an unoccupied space closest to where you first entered."
   },
   "srd_srd_polymorph": {
-    "verdict": "not_simple",
+    "verdict": "condition",
     "conditions": [],
-    "stops_casting": null,
+    "stops_casting": "all",
     "speed_zero": false,
-    "applies": null,
-    "save_ability": null,
-    "targets": null,
+    "applies": "failed_save",
+    "save_ability": "WIS",
+    "targets": {
+      "kind": "one",
+      "count": 1,
+      "more_per_slot_above": 0
+    },
     "only_kinds": [],
-    "duration": null,
+    "duration": {
+      "unit": "hour",
+      "amount": 1,
+      "concentration": true
+    },
     "repeat_save": null,
-    "evidence": "An unwilling creature must make a wisdom saving throw to avoid the effect."
+    "evidence": "The creature is limited in the actions it can perform by the nature of its new form, and it can't speak, cast spells, or take any other action that requires hands or speech."
   },
   "srd_srd_project_image": {
     "verdict": "not_simple",
