@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(14);
 
 -- Roads between places (#1222): a row joining two places of one campaign, with a distance. The campaign's DMs
 -- write them; players and other campaigns do not read them.
@@ -88,10 +88,18 @@ select throws_ok(
   '42501', null, 'nor adds one to a campaign that is not theirs'
 );
 
--- ── A place that goes takes its roads ──────────────────────────────────────
+-- ── The campaign changes hands ─────────────────────────────────────────────
+-- Bug caught (20261118080453): roads left with the outgoing owner, whose account deletion would cascade them away.
 reset role;
+select private.move_campaign_content('12220000-0000-4000-8000-0000000000b1', '12220000-0000-4000-8000-0000000000a1', '12220000-0000-4000-8000-0000000000a2', false, false);
+select is(
+  (select count(*)::integer from public.location_roads where campaign_id = '12220000-0000-4000-8000-0000000000b1' and user_id <> '12220000-0000-4000-8000-0000000000a2'),
+  0, 'a campaign that changes hands takes its roads to the new owner'
+);
+
+-- ── A place that goes takes its roads ──────────────────────────────────────
 delete from public.locations where id = '12220000-0000-4000-8000-0000000000c2';
-select is((select count(*)::integer from public.location_roads), 0, 'deleting a place removes the roads that led to it');
+select is((select count(*)::integer from public.location_roads where campaign_id = '12220000-0000-4000-8000-0000000000b1'), 0, 'deleting a place removes the roads that led to it');
 
 select * from finish();
 rollback;
