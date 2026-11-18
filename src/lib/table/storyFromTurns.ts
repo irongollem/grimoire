@@ -1,3 +1,4 @@
+import { asShown } from "@edge-shared/agent/show.ts";
 import { parseDmRoll } from "./dmRoll";
 import { parseTableLine } from "./readTableStream";
 import { parseRolled } from "./tableRoll";
@@ -25,7 +26,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * - a `user` text block's `roll` is the player's roll, drawn before their words;
  * - an `assistant` text block that is not `unshown` is narration (an `unshown` one was judged to only repeat what a
  *   character had just said, and the player never saw it);
- * - a `tool_result` block's `lines` are characters' lines, in order.
+ * - a `tool_result` block's `lines` are characters' lines, in order, and its `shown` is a handout or a picture the
+ *   Dungeon Master put in front of the player;
  *
  * Nothing else is drawn: not a tool call's input, not a tool result's other content, not the opaque blocks.
  *
@@ -66,6 +68,9 @@ export function storyFromTurns(turns: readonly StoredTurn[], kept: readonly Kept
         // The Dungeon Master's open roll comes before whatever the same call showed, as it did live.
         const dmRoll = parseDmRoll(block.dmRoll);
         if (dmRoll !== null) items.push({ id: `${id}-dm`, kind: "dmRoll", roll: dmRoll });
+        // A handout handed over or a picture shown is drawn where it happened, like the roll before it.
+        const shown = asShown(block.shown);
+        if (shown !== null) items.push({ id: `${id}-shown`, kind: "shown", shown });
         if (!Array.isArray(block.lines)) return;
         block.lines.forEach((raw: unknown, lineIndex: number) => {
           const line = parseTableLine(raw);

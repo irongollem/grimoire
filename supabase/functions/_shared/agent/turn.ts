@@ -6,12 +6,13 @@
 // `tool_result`. A provider rejects the next request when one is missing, and a stored conversation that cannot be
 // continued is a dead table.
 
+import type { Shown } from "./show.ts";
 import type { DmRoll, PlayerMove, PlayerRolled, AgentBlock, AgentLine, ToolAnswer, AgentMessage, AgentTool, AgentUsage, CallModel, CallTool } from "./types.ts";
 
 export type TurnEvent =
   | { type: "text"; delta: string }
   | { type: "tool_start"; id: string; name: string; input: Record<string, unknown> }
-  | { type: "tool_end"; id: string; name: string; isError: boolean; lines?: AgentLine[]; dmRoll?: DmRoll }
+  | { type: "tool_end"; id: string; name: string; isError: boolean; lines?: AgentLine[]; dmRoll?: DmRoll; shown?: Shown }
   | { type: "step"; usage: AgentUsage };
 
 export type TurnEnd = "done" | "step_limit" | "budget" | "max_tokens" | "refusal" | "aborted";
@@ -156,10 +157,12 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
       isError: answer.isError,
       ...(answer.lines && answer.lines.length > 0 ? { lines: answer.lines } : {}),
       ...(answer.dmRoll ? { dmRoll: answer.dmRoll } : {}),
+      ...(answer.shown ? { shown: answer.shown } : {}),
     });
     const block: ToolResult = { type: "tool_result", callId: call.id, content: answer.content, isError: answer.isError };
     if (answer.lines && answer.lines.length > 0) block.lines = answer.lines;
     if (answer.dmRoll) block.dmRoll = answer.dmRoll;
+    if (answer.shown) block.shown = answer.shown;
     // Stored for a later call to hand back to its character; deliberately not in the `tool_end` event above.
     if (answer.withheld && answer.withheld.length > 0) block.withheld = answer.withheld;
     return { block, usage: answer.usage ?? [] };

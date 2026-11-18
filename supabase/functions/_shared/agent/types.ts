@@ -9,6 +9,8 @@
  * Something a character said aloud or visibly did, shown to the player in that character's own box. `speaker.id`
  * is the campaign record's id, null for someone with no record.
  */
+import type { Shown } from "./show.ts";
+
 export interface AgentLine {
   kind: "spoken" | "acted";
   speaker: { id: string | null; name: string };
@@ -50,7 +52,7 @@ export type AgentBlock =
   /** The model asks for a tool. `id` pairs it with its result; `input` is already parsed JSON. */
   | { type: "tool_call"; id: string; name: string; input: Record<string, unknown> }
   /** What a tool answered, as text the model reads. `isError` tells the model the call failed. */
-  | { type: "tool_result"; callId: string; content: string; isError: boolean; lines?: AgentLine[]; withheld?: AgentWithheld[]; dmRoll?: DmRoll }
+  | { type: "tool_result"; callId: string; content: string; isError: boolean; lines?: AgentLine[]; withheld?: AgentWithheld[]; dmRoll?: DmRoll; shown?: Shown }
   /**
    * Something a provider needs handed back unchanged and nobody else reads (a reasoning item, a thinking block).
    * An adapter writes it and only the same provider's adapter replays it; every other adapter drops it.
@@ -165,6 +167,8 @@ export interface ToolAnswer {
   withheld?: AgentWithheld[];
   /** An open roll the Dungeon Master made with this call: shown on the page and kept on the stored result. */
   dmRoll?: DmRoll;
+  /** A handout or a picture this call put in front of the player (show.ts): drawn on the page and kept on the stored result. */
+  shown?: Shown;
 }
 
 /** A provider request that did not produce an answer. `retryable` is true for a timeout, a 429 and a 5xx. */

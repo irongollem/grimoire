@@ -34,6 +34,8 @@ import { blocksOf, type StoredTurn, type TurnRow } from "../_shared/agent/transc
 import type { CreditLogFields } from "../_shared/credits";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe";
 
+const PICTURED = "00000000-0000-4000-8000-0000000000f1";
+const HANDOUT = "00000000-0000-4000-8000-0000000000f2";
 const DM = "00000000-0000-4000-8000-0000000000d1";
 const OTHER = "00000000-0000-4000-8000-0000000000e2";
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
@@ -112,6 +114,9 @@ interface Harness {
     price: { inputPerMillion: number; outputPerMillion: number; cachedInputPerMillion: number | null } | null;
     calibration: { usdPerCredit: number | null; margin: number } | null;
     flagged: boolean;
+    /** The campaign's handouts the played character does not hold yet. */
+    handouts: { id: string; title: string }[];
+    handoutFails: boolean;
     /** How many of the account's messages the screen refused lately. */
     strikes: number;
     /** What the output screen refuses: a turn whose own words hold this text is withheld. */
@@ -180,6 +185,8 @@ interface Harness {
   finished: string[];
   /** The fights whose loot was laid where they were fought. */
   laidLoot: { encounterId: string; placeId: string | null; held: string }[];
+  /** Handouts given for real, once their turn was kept. */
+  handoutsGiven: { handoutId: string; memberId: string }[];
   /** Every text the output screen was given. */
   screenedOutput: string[];
   /** Each change to which fight is on the party's heels. */
@@ -235,6 +242,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       calibration: { usdPerCredit: 0.01, margin: 1 },
       flagged: false,
       strikes: 0,
+      handouts: [],
+      handoutFails: false,
       forbidden: null,
       rateOk: true,
       reservation: null,
@@ -289,6 +298,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     laidLoot: [],
     pursuits: [],
     screenedOutput: [],
+    handoutsGiven: [],
     facts: [],
     recordLoads: [],
     discards: [],
@@ -404,6 +414,12 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     },
     setFight: async (sessionId, campaignId, encounterId) => {
       h.fightSets.push({ sessionId, campaignId, encounterId });
+    },
+    loadHandouts: async () => h.state.handouts,
+    loadPicture: async (_campaignId, what, id) => (id === PICTURED ? { title: `The ${what}`, url: "https://assets.example/p.webp" } : null),
+    giveHandout: async (_campaignId, handoutId, memberId) => {
+      if (h.state.handoutFails) throw new Error("share failed");
+      h.handoutsGiven.push({ handoutId, memberId });
     },
     setPursuit: async (_sessionId, _campaignId, encounterId) => {
       h.pursuits.push(encounterId);
@@ -3333,5 +3349,55 @@ describe("the story turns into a fight", () => {
     h.state.conflict = true;
     await play(h, { body: BODY });
     expect(h.fightSets).toEqual([]);
+  });
+});
+
+describe("putting something in front of the player", () => {
+  const played = (script: Script): Harness => {
+    const h = harness(script);
+    h.state.characters.set(WREN, { id: WREN, name: "Wren Ashfield", pronouns: null, species: null, className: "Ranger", subclass: null, level: 3, hitPoints: null });
+    existingSession(h, { party_member_id: WREN });
+    h.state.handouts = [{ id: HANDOUT, title: "The Guild's letter" }];
+    return h;
+  };
+  const SAY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I open the letter.", mode: "do" };
+  const showStep = (input: Record<string, unknown>): ModelStep => step(10, { blocks: [{ type: "tool_call", id: "s1", name: "show", input }], stop: "tool_calls" });
+  const shownEvents = (h: Harness) => h.events.filter((e) => e.type === "shown");
+
+  // Bug caught: the narrator not knowing a handout exists, so a letter the campaign prepared is never handed over.
+  it("tells the narrator which handouts are still to be handed over", async () => {
+    const h = played([step(10)]);
+    await play(h, { body: SAY });
+    expect(JSON.stringify(h.requests[0].messages)).toContain(`handout_id ${HANDOUT}`);
+  });
+
+  // Bug caught: a handout told as handed over and never given (the player cannot open it); or given before the
+  // turn was kept, so a turn that is dropped still hands it over.
+  it("gives a handout for real once the turn is kept, and draws it in the story", async () => {
+    const h = played([showStep({ handout_id: HANDOUT }), step(10)]);
+    await play(h, { body: SAY });
+    expect(shownEvents(h)).toEqual([{ type: "shown", shown: { kind: "handout", id: HANDOUT, title: "The Guild's letter" } }]);
+    expect(h.handoutsGiven).toEqual([{ handoutId: HANDOUT, memberId: WREN }]);
+    const dropped = played([showStep({ handout_id: HANDOUT }), step(10)]);
+    dropped.state.conflict = true;
+    await play(dropped, { body: SAY });
+    expect(dropped.handoutsGiven).toEqual([]);
+  });
+
+  // Bug caught: a failed share costing the whole turn, so the story the player just read is thrown away.
+  it("keeps the turn when the handout could not be given", async () => {
+    const h = played([showStep({ handout_id: HANDOUT }), step(10)]);
+    h.state.handoutFails = true;
+    await play(h, { body: SAY });
+    expect(last(h).type).toBe("done");
+  });
+
+  // Bug caught: a shown picture lost on reload because it was never kept with the turn.
+  it("keeps a shown picture on the stored turn", async () => {
+    const h = played([showStep({ person_id: PICTURED }), step(10)]);
+    await play(h, { body: SAY });
+    expect(shownEvents(h)).toHaveLength(1);
+    const stored = h.turns.flatMap((t) => t.blocks as AgentBlock[]).find((b) => b.type === "tool_result");
+    expect(stored).toMatchObject({ shown: { kind: "picture", of: "person", url: "https://assets.example/p.webp" } });
   });
 });

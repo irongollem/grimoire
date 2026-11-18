@@ -1,5 +1,6 @@
 // Between the conversation in memory and the rows that store it (#1205). Pure: rows in, messages out, and back.
 
+import { asShown } from "./show.ts";
 import { deliveryCue } from "./characterTurn.ts";
 import { asDmRoll } from "./dmRoll.ts";
 import { parseRolled } from "./playerRoll.ts";
@@ -86,6 +87,8 @@ function asBlock(x: unknown): AgentBlock | null {
         if (withheld.length > 0) block.withheld = withheld;
         const dmRoll = asDmRoll(x.dmRoll);
         if (dmRoll !== null) block.dmRoll = dmRoll;
+        const shown = asShown(x.shown);
+        if (shown !== null) block.shown = shown;
         return block;
       }
     case "opaque":

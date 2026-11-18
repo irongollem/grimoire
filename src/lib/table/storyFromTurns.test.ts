@@ -163,3 +163,21 @@ describe("the board's lines in a reopened sitting", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+describe("what the Dungeon Master put in front of the player", () => {
+  const HANDOUT = "11111111-2222-4333-8444-555555555555";
+  const withShown = (shown: unknown): StoredTurn[] => [{ seq: 1, role: "user", blocks: [{ type: "tool_result", id: "t1", content: "private", shown }] }];
+
+  // Bug caught: a handout or a picture gone from the page after a reload, though the turn kept it.
+  it("is drawn again where it happened", () => {
+    expect(storyFromTurns(withShown({ kind: "handout", id: HANDOUT, title: "The Guild's letter" }))).toEqual([
+      { id: "turn-1-0-shown", kind: "shown", shown: { kind: "handout", id: HANDOUT, title: "The Guild's letter" } },
+    ]);
+  });
+
+  // Bug caught: a stored address drawn into an image without being read (jsonb is untrusted).
+  it("is not drawn when it is not a whole handout or picture", () => {
+    expect(storyFromTurns(withShown({ kind: "picture", of: "person", title: "Honeycomb", url: "javascript:alert(1)" }))).toEqual([]);
+    expect(storyFromTurns(withShown("nonsense"))).toEqual([]);
+  });
+});

@@ -11,6 +11,7 @@
 //                (`_shared/agent/summary.ts`): the player never waits for that, and a failure in it is only logged.
 // A caller that gets `run` MUST call it: the reservation is released inside it.
 
+import { handoutsSection, type HandoutOffer, type PictureOf, type Shown } from "../_shared/agent/show.ts";
 import { shownText, tableClosed } from "../_shared/agent/conduct.ts";
 import { followersOf } from "../_shared/agent/pursuit.ts";
 import { lootIsWon, type LootHeld } from "../_shared/agent/encounterLoot.ts";
@@ -82,6 +83,8 @@ export type AgentEvent =
   | { type: "fight"; fight: { encounterId: string; name: string } | null; /** With null: it was never fought (nobody in it could be), not finished. */ calledOff?: true }
   /** A roll the Dungeon Master made in the open. A hidden roll sends nothing. */
   | { type: "dm_roll"; roll: DmRoll }
+  /** A handout handed over or a picture shown, in its place in the story. */
+  | { type: "shown"; shown: Shown }
   /** The story stops for a roll that is the player's. What to roll, never the number to beat. */
   | { type: "ask_roll"; roll: RollAsk }
   /** The roll this turn answered, as the server worked it out. No outcome: the narration says how it went. */
@@ -249,6 +252,12 @@ export interface AgentTurnDeps {
   ): Promise<{ encounterId: string; name: string }>;
   /** Lets the conversation go of its fight (null), once its aftermath has been told. */
   setFight(sessionId: string, campaignId: string, encounterId: string | null): Promise<void>;
+  /** The campaign's handouts the played character does not hold yet. */
+  loadHandouts(campaignId: string, memberId: string): Promise<HandoutOffer[]>;
+  /** The campaign's own picture of a record, with the name it is shown under; null when there is none. */
+  loadPicture(campaignId: string, what: PictureOf, id: string): Promise<{ title: string; url: string } | null>;
+  /** Hands a handout to the played character for real, beside whoever already holds it. Throws when it could not. */
+  giveHandout(campaignId: string, handoutId: string, memberId: string): Promise<void>;
   /** Marks a prepared fight as fought, so it is not offered at its place again. */
   finishFight(campaignId: string, encounterId: string): Promise<void>;
   /** Lays a won fight's loot notes where it was fought, once, as things the campaign placed there. */
@@ -582,7 +591,17 @@ export async function beginTurn(input: {
             console.error("agent-turn: reading what the character carries failed:", error);
           }
         }
-        const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText) });
+        // The handouts still to be handed over. Unreadable costs the handouts for a turn, never the turn.
+        let handouts: HandoutOffer[] = [];
+        if (character) {
+          try {
+            handouts = await deps.loadHandouts(campaign.id, character.id);
+          } catch (error) {
+            console.error("agent-turn: reading the campaign's handouts failed:", error);
+          }
+        }
+        const handedOut: HandoutOffer[] = [];
+        const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts) });
         // What changes hands this turn; moved only once the turn is kept.
         const handed: HandsChange[] = [];
         // What the narrator's ruling does to the fight on the board; carried out by the page once the turn is kept.
@@ -608,6 +627,10 @@ export async function beginTurn(input: {
           playerName: character ? character.name : undefined,
           peoples,
           onIntroduce: (intro) => { introduced.push(intro); },
+          // Something to put in front of the player: only someone played has hands to take a handout.
+          show: character
+            ? { handouts, picture: (what, id) => deps.loadPicture(campaign.id, what, id), onHandout: (handout) => { handedOut.push(handout); } }
+            : null,
           // Not in a fight: a turn there is six seconds, and what it holds is the board's.
           hands: character && hands !== null && !(fights !== null && fights.fight !== null && fights.fight.phase === "running")
             ? { memberId: character.id, ...hands, store: deps.hands, onChange: (change) => { handed.push(change); } }
@@ -885,6 +908,17 @@ export async function beginTurn(input: {
               if ("id" in out) filed.push({ id: out.id, body: fact, hidden: false });
             } catch (error) {
               console.error("agent-turn: putting the harvest on record failed:", error);
+            }
+          }
+        }
+        // Handouts handed over in the story are given for real, now that the turn is kept. One that cannot be given
+        // costs that handout (it stays waiting), never the turn.
+        if (character) {
+          for (const handout of handedOut) {
+            try {
+              await deps.giveHandout(campaign.id, handout.id, character.id);
+            } catch (error) {
+              console.error("agent-turn: handing over a handout failed:", error);
             }
           }
         }

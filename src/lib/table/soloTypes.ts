@@ -1,3 +1,4 @@
+import type { Shown } from "@edge-shared/agent/show.ts";
 import type { FightChange } from "./fight/fightChange";
 import type { SaveKey, SkillKey } from "@/types/party.types";
 
@@ -62,6 +63,8 @@ export type TableEvent =
   | { type: "ask_roll"; roll: RollAsk }
   | { type: "rolled"; roll: Rolled }
   | { type: "dm_roll"; roll: DmRoll }
+  /** A handout handed over or a picture shown, in its place in the story. */
+  | { type: "shown"; shown: Shown }
   /** The Dungeon Master's ruling changes the fight on the board. */
   | { type: "fight_change"; change: FightChange }
   /** Someone the Dungeon Master made up now has a record your character knows of. */
@@ -107,6 +110,8 @@ export type StoryItem =
   | { id: string; kind: "acted"; speaker: TableLine["speaker"]; text: string; /** The server's key for the narrator reading the deed aloud. */ voice?: { key: string } }
   | { id: string; kind: "roll"; roll: Rolled }
   | { id: string; kind: "dmRoll"; roll: DmRoll }
+  /** Something the Dungeon Master put in front of the player: a handout, or a picture. */
+  | { id: string; kind: "shown"; shown: Shown }
   /** A roll made on the board of a fight: the total, what it was, the dice behind it. Never the target number. */
   | { id: string; kind: "board"; total: number; title: string; detail: string; critical: boolean; byServer: boolean }
   | { id: string; kind: "margin"; text: string; /** How many times in a row the same quiet line happened. */ count: number; /** Something that went on record. Not drawn in the story: the scene column lists what is on record. */ record?: true; /** A line about harm done to you, or the fight's end. */ tone?: "harm" | "end" };

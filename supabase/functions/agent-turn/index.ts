@@ -2,6 +2,7 @@
 //
 // The rules are `handler.ts`'s; this file wires the database, the provider and the MCP tools to them. The gates
 // run before the stream opens so a refusal is a real status code; the turn itself runs inside the stream.
+import { giveHandout, loadHandouts, loadPicture } from "./showIo.ts";
 import { STRIKE_WINDOW_DAYS } from "../_shared/agent/conduct.ts";
 import { belongingsText, MAX_BELONGINGS, type Belonging } from "../_shared/agent/belongings.ts";
 import { MAX_PEOPLES } from "../_shared/agent/peoples.ts";
@@ -671,6 +672,10 @@ serve(withCors(async (req: Request) => {
     loadFights: (campaignId, locationId, fightEncounterId, pursuitEncounterId) => loadFights(supabase, campaignId, locationId, fightEncounterId, pursuitEncounterId),
     finishFight: (campaignId, encounterId) => finishFight(admin, campaignId, encounterId),
     setPursuit: (sessionId, campaignId, encounterId) => setPursuit(admin, sessionId, campaignId, encounterId),
+    // As the caller: what they may read and share is the database's to decide.
+    loadHandouts: (campaignId, memberId) => loadHandouts(supabase, campaignId, memberId),
+    loadPicture: (campaignId, what, id) => loadPicture(supabase, campaignId, what, id),
+    giveHandout: (campaignId, handoutId, memberId) => giveHandout(supabase, campaignId, handoutId, memberId),
     layFightLoot: (campaignId, encounterId, placeId, held) => layFightLoot(admin, campaignId, encounterId, placeId, held),
     startFight: (ctx, plan) => startFight(supabase, admin, ctx, plan),
     setFight: (sessionId, campaignId, encounterId) => setFight(admin, sessionId, campaignId, encounterId),

@@ -87,11 +87,14 @@ export function stateFor(input: {
   fightTurn?: TurnBudget | null;
   /** What the played character carries and the place sells, already worded; empty when nobody is played or it could not be read. */
   possessions?: string;
+  /** The handouts still to be handed over, already worded; empty when there are none or nobody is played. */
+  handouts?: string;
 }): string {
   // The fights sit with the scene: they are about the place the party stands in. Nothing to say, no section.
   const fights = fightsSection(input.fights ?? NO_FIGHTS, input.fightTurn ? budgetLine(input.fightTurn) : null);
   const carried = input.possessions === undefined || input.possessions === "" ? [] : [input.possessions];
-  return [sceneSection(input.scene), ...(fights === "" ? [] : [fights]), ...carried, questsSection(input.quests ?? NO_QUESTS), recordSection(input.record)].join("\n\n");
+  const handouts = input.handouts === undefined || input.handouts === "" ? [] : [input.handouts];
+  return [sceneSection(input.scene), ...(fights === "" ? [] : [fights]), ...carried, ...handouts, questsSection(input.quests ?? NO_QUESTS), recordSection(input.record)].join("\n\n");
 }
 
 /** The fights for this turn. Null when they could not be read: the turn still runs, with no fight tool. */

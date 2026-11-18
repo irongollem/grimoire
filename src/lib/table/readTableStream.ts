@@ -1,3 +1,4 @@
+import { asShown } from "@edge-shared/agent/show.ts";
 import { parseFightChange } from "./fight/fightChange";
 import { parseDmRoll } from "./dmRoll";
 import { parseRollAsk, parseRolled } from "./tableRoll";
@@ -133,6 +134,11 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
         credits: typeof raw.credits === "number" && Number.isFinite(raw.credits) ? raw.credits : 0,
         tokens: typeof raw.tokens === "number" && Number.isFinite(raw.tokens) ? raw.tokens : 0,
       };
+    case "shown": {
+      // Untrusted like the rest of the stream: a picture's address goes into an image.
+      const shown = asShown(raw.shown);
+      return shown ? { type: "shown", shown } : null;
+    }
     case "error":
       return { type: "error", message: typeof raw.message === "string" ? raw.message : "The turn failed.", ...(raw.withheld === true ? { withheld: true as const } : {}) };
     default:

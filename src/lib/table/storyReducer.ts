@@ -107,6 +107,8 @@ export function applyTableEvent(items: StoryItem[], event: TableEvent, turnStart
       }
       return withMargin(items, "The fight is over");
     }
+    case "shown":
+      return [...items, { id: nextItemId(), kind: "shown", shown: event.shown }];
     case "dm_roll":
       return [...items, { id: nextItemId(), kind: "dmRoll", roll: event.roll }];
     case "rolled":

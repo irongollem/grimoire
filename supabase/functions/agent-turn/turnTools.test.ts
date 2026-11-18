@@ -30,10 +30,14 @@ const session: SessionRow = {
   fight_encounter_id: null,
 };
 
+const HANDOUT = "00000000-0000-4000-8000-0000000000f2";
+const PICTURED = "00000000-0000-4000-8000-0000000000f1";
+
 type HandsFixture = Omit<NonNullable<TurnToolsInput["hands"]>, "memberId" | "onChange">;
 
 function build(quests: TurnToolsInput["quests"] = null, played = false, hands: HandsFixture | null = null) {
   const handed: HandsChange[] = [];
+  const handedOut: string[] = [];
   const asked: PendingRoll[] = [];
   const fights: FightPlan[] = [];
   const calls: string[] = [];
@@ -70,9 +74,16 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
     filed,
     quests,
     askRoll: played ? (pending) => asked.push(pending) : null,
+    show: played
+      ? {
+        handouts: [{ id: HANDOUT, title: "The Guild's letter" }],
+        picture: async (_what, id) => (id === PICTURED ? { title: "Honeycomb", url: "https://assets.example/h.webp" } : null),
+        onHandout: (handout) => { handedOut.push(handout.id); },
+      }
+      : null,
     fight: played ? { view: { prepared: [{ id: FIGHT, name: "The cellar rats", creatures: "" }], fight: null }, viewAt: async () => ({ prepared: [{ id: ATTIC_FIGHT, name: "The attic bats", creatures: "" }], fight: null }), onStart: (plan) => { fights.push(plan); }, statless: async () => [] } : null,
   });
-  return { turn, calls, filed, moves, asked, fights, handed };
+  return { turn, calls, filed, moves, asked, fights, handed, handedOut };
 }
 
 describe("makeTurnTools", () => {
@@ -173,6 +184,42 @@ describe("makeTurnTools", () => {
     expect((await turn.callTool("start_fight", { encounter_id: FIGHT })).isError).toBe(true);
     expect((await turn.callTool("start_fight", { encounter_id: ATTIC_FIGHT })).isError).toBe(false);
     expect(fights).toEqual([{ kind: "prepared", encounterId: ATTIC_FIGHT, name: "The attic bats" }]);
+  });
+
+  describe("putting something in front of the player", () => {
+    // Bug caught: the same letter handed over twice in one reply; or a handout the narrator was never shown (a
+    // guessed id) handed over.
+    it("hands over a prepared handout once, and nothing that was not prepared", async () => {
+      const { turn, handedOut } = build(null, true);
+      const given = await turn.callTool("show", { handout_id: HANDOUT });
+      expect(given).toMatchObject({ isError: false, shown: { kind: "handout", id: HANDOUT, title: "The Guild's letter" } });
+      expect((await turn.callTool("show", { handout_id: HANDOUT })).isError).toBe(true);
+      expect((await turn.callTool("show", { handout_id: PICTURED })).isError).toBe(true);
+      expect(handedOut).toEqual([HANDOUT]);
+    });
+
+    // Bug caught: a picture "shown" for a record that has none (an empty frame on the page), or one the narrator
+    // described rather than the campaign's own.
+    it("shows the campaign's own picture of a record, and says so when there is none", async () => {
+      const { turn } = build(null, true);
+      expect(await turn.callTool("show", { person_id: PICTURED })).toMatchObject({ isError: false, shown: { kind: "picture", of: "person", title: "Honeycomb", url: "https://assets.example/h.webp" } });
+      const none = await turn.callTool("show", { place_id: HANDOUT });
+      expect(none.isError).toBe(true);
+      expect(none.content).toContain("Describe it in words");
+    });
+
+    // Bug caught: a reply that is a page of pictures.
+    it("stops at a few things in one reply", async () => {
+      const { turn } = build(null, true);
+      for (let i = 0; i < 3; i += 1) expect((await turn.callTool("show", { person_id: PICTURED })).isError).toBe(false);
+      expect((await turn.callTool("show", { person_id: PICTURED })).isError).toBe(true);
+    });
+
+    // Bug caught: the tool offered with nobody played, when there are no hands to take a handout.
+    it("is offered only when someone is played", () => {
+      expect(build(null, true).turn.tools.map((t) => t.name)).toContain("show");
+      expect(build(null, false).turn.tools.map((t) => t.name)).not.toContain("show");
+    });
   });
 
   describe("things changing hands", () => {

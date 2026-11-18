@@ -25,6 +25,7 @@
         <SoloActed v-else-if="item.kind === 'acted'" :speaker="item.speaker.name" :text="item.text" :pigment="pigmentOf(item.speaker)" :replayable="voices.narrator" @replay="emit('replay', item)" />
         <SoloRolled v-else-if="item.kind === 'roll'" :line="rollLine(item.roll, character)" />
         <SoloRolled v-else-if="item.kind === 'dmRoll'" :line="dmRollLine(item.roll)" by-server />
+        <SoloShown v-else-if="item.kind === 'shown'" :shown="item.shown" />
         <SoloRolled v-else-if="item.kind === 'board'" :line="{ total: String(item.total), title: item.title, detail: item.detail }" :by-server="item.byServer" />
         <!-- What went on record is listed in the scene column, not between the lines of the story. -->
         <SoloMargin v-else-if="item.kind === 'margin' && item.record !== true" :text="item.text" :count="item.count" />
@@ -43,6 +44,7 @@
 import { nextTick, ref, watch } from "vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import { dmRollLine } from "@/lib/table/dmRoll";
+import SoloShown from "./SoloShown.vue";
 import { rollLine } from "@/lib/table/tableRoll";
 import { isAtBottom } from "@/lib/table/storyScroll";
 import { speakerKey, type VoicePigment } from "@/lib/table/speakerColours";

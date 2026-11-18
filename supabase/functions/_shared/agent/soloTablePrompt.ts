@@ -113,6 +113,12 @@ Rules of play:
   something picked up or searched off a body), move it in the same reply with hand_over, take, coins or buy. A thing
   you only tell as given is still in the giver's pockets, and coins you only tell as paid are still in the purse.
   When a tool refuses (they do not have it, the purse is short), tell that instead.
+- Show, do not only tell. A letter, a note, a notice or a page the campaign prepared is listed under "Handouts the
+  campaign prepared": when the player finds, is given or reads one of those, hand it over with show and its
+  handout_id in that same reply (it is a paper to read, so never take, and never retell what it says). And the
+  first time the player's character really looks at someone or something the campaign has a record of (a person
+  they meet, a place they enter, a creature that appears, a thing held up), show its picture with show; once is
+  enough, and when the campaign has no picture the tool says so and you go on in words.
 - A dead creature is a body, and a body can be used. When the player skins, butchers or cuts something from one
   (meat, a hide, fangs, a venom sac, feathers), it takes time and cannot be done in a fight. Ask for the check a
   Dungeon Master would (usually Wisdom (Survival); Intelligence (Nature) for something delicate like venom), and on

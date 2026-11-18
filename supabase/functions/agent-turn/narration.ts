@@ -97,6 +97,7 @@ export function narrationGate(input: {
       else if (event.type === "tool_end") {
         emit({ type: "tool_end", name: event.name, isError: event.isError });
         if (event.dmRoll) emit({ type: "dm_roll", roll: event.dmRoll });
+        if (event.shown) emit({ type: "shown", shown: event.shown });
         for (const line of event.lines ?? []) emit({ type: "line", line });
       }
       return;
@@ -117,11 +118,14 @@ export function narrationGate(input: {
       case "tool_end": {
         const shown = event.lines ?? [];
         const dmRoll = event.dmRoll;
+        const put = event.shown;
         lines.push(...shown);
         enqueue(() => {
           emit({ type: "tool_end", name: event.name, isError: event.isError });
           // The Dungeon Master's open roll, in its place in the story: before whatever comes of it.
           if (dmRoll) emit({ type: "dm_roll", roll: dmRoll });
+          // A handout or a picture, in its place in the story.
+          if (put) emit({ type: "shown", shown: put });
           // A character's deed comes before its words, as the page reads them.
           for (const line of shown) emit({ type: "line", line });
         });

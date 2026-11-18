@@ -4,6 +4,7 @@
 // about what the narrator may do inside it: the campaign's own tools, a character speaking, moving the party and
 // putting a fact on the record. Everything with I/O comes in through `deps`; nothing here touches a database.
 
+import { offeredHandout, parseShow, SHOW_TOOL, SHOW_TOOL_NAME, SHOWN_PER_TURN, shownText, type HandoutOffer, type PictureOf, type Shown } from "../_shared/agent/show.ts";
 import {
   BUY_TOOL, COINS_TOOL, COINS_TOOL_NAME, HAND_OVER_TOOL, HAND_OVER_TOOL_NAME, HANDS_PER_TURN, HANDS_TOOL_NAMES, handsText, parseBuy, parseCoins,
   chestPick, parseHandOver, parseTake, purseAfterGaining, TAKE_TOOL, TAKE_TOOL_NAME, worth, type Coins, type HandsChange, type Possessions,
@@ -91,6 +92,16 @@ export interface TurnToolsInput {
   } | null;
   /** Takes the roll the narrator asks the player for; null when nobody is played, and then the tool is not offered. */
   askRoll: ((pending: PendingRoll) => void) | null;
+  /**
+   * What can be put in front of the player: the handouts still to hand over, and the campaign's picture of a
+   * record. Null when nobody is played, and then the tool is not offered.
+   */
+  show: {
+    handouts: readonly HandoutOffer[];
+    picture(what: PictureOf, id: string): Promise<{ title: string; url: string } | null>;
+    /** A handout was handed over: given for real once the turn is kept. */
+    onHandout(handout: HandoutOffer): void;
+  } | null;
 }
 
 export interface TurnTools {
@@ -321,6 +332,32 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     return { content: introducedText(intro), isError: false };
   };
 
+  // A handout or a picture put in front of the player (`show.ts`). A handout is handed over once.
+  let shownCount = 0;
+  const handedOut = new Set<string>();
+  const show = async (toolInput: Record<string, unknown>): Promise<{ content: string; isError: boolean; shown?: Shown }> => {
+    const refused = (content: string) => ({ content, isError: true });
+    if (input.show === null) return refused("Nothing can be shown this turn.");
+    const parsed = parseShow(toolInput);
+    if (!parsed.ok) return refused(parsed.error);
+    if (shownCount >= SHOWN_PER_TURN) return refused(`At most ${SHOWN_PER_TURN} things are shown in one reply.`);
+    let shown: Shown;
+    if (parsed.value.what === "handout") {
+      const handout = offeredHandout(input.show.handouts, parsed.value.id);
+      if (handout === null) return refused("No handout with that id is waiting to be handed over. Use an id listed under \"Handouts the campaign prepared\".");
+      if (handedOut.has(handout.id)) return refused("That handout was already handed over this turn.");
+      handedOut.add(handout.id);
+      input.show.onHandout(handout);
+      shown = { kind: "handout", id: handout.id, title: handout.title };
+    } else {
+      const picture = await input.show.picture(parsed.value.what, parsed.value.id);
+      if (picture === null) return refused("The campaign has no picture of that. Describe it in words instead.");
+      shown = { kind: "picture", of: parsed.value.what, title: picture.title, url: picture.url };
+    }
+    shownCount += 1;
+    return { content: shownText(shown), isError: false, shown };
+  };
+
   // One request a turn: the story stops for a single roll, and a second would silently replace the first.
   let rollAsked = false;
   const askRoll = (toolInput: Record<string, unknown>) => {
@@ -337,7 +374,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
@@ -347,6 +384,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (input.askRoll && name === ASK_ROLL_TOOL.name) return Promise.resolve(askRoll(toolInput));
       if (input.fight && name === START_FIGHT_TOOL.name) return startFight(toolInput);
       if (name === INTRODUCE_TOOL_NAME) return introduce(toolInput);
+      if (input.show && name === SHOW_TOOL_NAME) return show(toolInput);
       if (input.fightChange && name === FIGHT_CHANGE_TOOL.name) return Promise.resolve(changeFight(toolInput));
       if (input.hitPoints && name === HIT_POINTS_TOOL_NAME) return Promise.resolve(changeHitPoints(toolInput));
       if (input.hands && HANDS_TOOL_NAMES.has(name)) return changeHands(name, toolInput);
