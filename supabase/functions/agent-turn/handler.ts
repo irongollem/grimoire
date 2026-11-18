@@ -13,7 +13,7 @@
 
 import { floorOf, LISTENING_TEXT, type Floor } from "../_shared/agent/floor.ts";
 import { handoutsSection, type HandoutOffer, type PictureOf, type Shown } from "../_shared/agent/show.ts";
-import { shownText, tableClosed } from "../_shared/agent/conduct.ts";
+import { shownText, speakerIdsOf, tableClosed } from "../_shared/agent/conduct.ts";
 import { followersOf } from "../_shared/agent/pursuit.ts";
 import { lootIsWon, type LootHeld } from "../_shared/agent/encounterLoot.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
@@ -193,7 +193,9 @@ export interface AgentTurnDeps {
    */
   strikes(userId: string): Promise<number>;
   /** True when what a turn wrote must not be kept, shown again, put on record or spoken. Fails open like `isFlagged`. */
-  isFlaggedOutput(text: string): Promise<boolean>;
+  isFlaggedOutput(text: string, childTookPart: boolean): Promise<boolean>;
+  /** Whether any of these characters of the campaign is a child by their record (`readsAsChild`). */
+  anyChild(campaignId: string, characterIds: string[]): Promise<boolean>;
   reserve(userId: string, credits: number): Promise<Reservation>;
   release(ids: string[]): Promise<void>;
   /** `recordGeneration`: BYOK writes a zero row, otherwise spends `cost`. */
@@ -767,7 +769,12 @@ export async function beginTurn(input: {
         let withheld = false;
         try {
           const written = shownText(result.added);
-          withheld = written === "" ? false : await deps.isFlaggedOutput(written);
+          if (written !== "") {
+            // A turn a child said or did something in is held to the tighter bar (`CHILD_TURN_THRESHOLDS`).
+            const speakers = speakerIdsOf(result.added);
+            const child = speakers.length === 0 ? false : await deps.anyChild(body.campaignId, speakers);
+            withheld = await deps.isFlaggedOutput(written, child);
+          }
         } catch (error) {
           console.error("agent-turn: screening the turn's own words failed:", error);
         }

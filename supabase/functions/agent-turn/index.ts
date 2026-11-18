@@ -3,7 +3,7 @@
 // The rules are `handler.ts`'s; this file wires the database, the provider and the MCP tools to them. The gates
 // run before the stream opens so a refusal is a real status code; the turn itself runs inside the stream.
 import { giveHandout, loadHandouts, loadPicture } from "./showIo.ts";
-import { STRIKE_WINDOW_DAYS } from "../_shared/agent/conduct.ts";
+import { CHILD_TURN_THRESHOLDS, readsAsChild, STRIKE_WINDOW_DAYS } from "../_shared/agent/conduct.ts";
 import { belongingsText, MAX_BELONGINGS, type Belonging } from "../_shared/agent/belongings.ts";
 import { MAX_PEOPLES } from "../_shared/agent/peoples.ts";
 import { lineKey } from "../_shared/agent/lineKey.ts";
@@ -330,14 +330,27 @@ serve(withCors(async (req: Request) => {
       return count ?? 0;
     },
 
-    async isFlaggedOutput(text) {
+    async isFlaggedOutput(text, childTookPart) {
       try {
-        await screenImagePrompt(text, { apiKey: moderationKey, admin, userId: user.id, generationType: "agent_turn_output", imageProvider: "none" });
+        await screenImagePrompt(text, {
+          apiKey: moderationKey,
+          admin,
+          userId: user.id,
+          generationType: "agent_turn_output",
+          imageProvider: "none",
+          tighter: childTookPart ? CHILD_TURN_THRESHOLDS : undefined,
+        });
         return false;
       } catch (error) {
         if (isPromptRejected(error)) return true;
         throw error;
       }
+    },
+
+    async anyChild(campaignId, characterIds) {
+      const { data, error } = await admin.from("npcs").select("age").eq("campaign_id", campaignId).in("id", characterIds);
+      if (error) throw error;
+      return (data ?? []).some((row) => readsAsChild(typeof row.age === "string" ? row.age : null));
     },
 
     async reserve(userId, credits) {

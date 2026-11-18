@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHARACTER_CONDUCT, shownText, STRIKES_BEFORE_CLOSED, TABLE_CONDUCT, tableClosed } from "./conduct.ts";
+import { CHARACTER_CONDUCT, readsAsChild, shownText, speakerIdsOf, STRIKES_BEFORE_CLOSED, TABLE_CONDUCT, tableClosed } from "./conduct.ts";
 import { soloTableSystem } from "./soloTablePrompt.ts";
 import { speakerSystem } from "./characterTurn.ts";
 import type { AgentMessage } from "./types.ts";
@@ -39,6 +39,54 @@ describe("shownText", () => {
 
   it("is empty for a turn that showed nothing", () => {
     expect(shownText([{ role: "assistant", blocks: [{ type: "tool_call", id: "t", name: "roll", input: {} }] }])).toBe("");
+  });
+});
+
+describe("readsAsChild", () => {
+  // App convention: under 18 years is a child to the screen, whatever kind of creature the record names.
+  it.each([
+    ["~7 half-named Pours", true],
+    ["17", true],
+    ["18", false],
+    ["~20 Pours by Sugarspun reckoning", false],
+    ["a boy of the docks", true],
+    ["teenager", true],
+    // Bug caught: "young" read as a child, so every young adult's scene is held to the child's bar.
+    ["young", false],
+    // Bug caught: a word inside another word ("boyish", "kidnapped") read as a child.
+    ["a boyish man, once kidnapped", false],
+    ["ancient", false],
+  ])("%s -> %s", (age, child) => {
+    expect(readsAsChild(age)).toBe(child);
+  });
+
+  it("says nothing of a record with no age", () => {
+    expect(readsAsChild(null)).toBe(false);
+  });
+});
+
+describe("speakerIdsOf", () => {
+  // Bug caught: a child who only did something (no spoken line), or someone with no record, deciding the bar wrongly.
+  it("is everyone with a record who said or did something, once each", () => {
+    const added: AgentMessage[] = [
+      {
+        role: "user",
+        blocks: [
+          {
+            type: "tool_result",
+            callId: "a",
+            content: "ok",
+            isError: false,
+            lines: [
+              { kind: "acted", speaker: { id: "crumb", name: "Crumb" }, text: "Hides." },
+              { kind: "spoken", speaker: { id: "crumb", name: "Crumb" }, text: "No." },
+              { kind: "spoken", speaker: { id: null, name: "A passer-by" }, text: "Oi." },
+            ],
+          },
+        ],
+      },
+    ];
+    expect(speakerIdsOf(added)).toEqual(["crumb"]);
   });
 });
 

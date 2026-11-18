@@ -121,6 +121,8 @@ interface Harness {
     strikes: number;
     /** What the output screen refuses: a turn whose own words hold this text is withheld. */
     forbidden: string | null;
+    /** The characters whose record reads as a child's. */
+    children: string[];
     rateOk: boolean;
     reservation: Refusal | null;
     conflict: boolean;
@@ -194,6 +196,8 @@ interface Harness {
   handoutsGiven: { handoutId: string; memberId: string }[];
   /** Every text the output screen was given. */
   screenedOutput: string[];
+  /** For each screened text, whether it was held to a child's bar. */
+  screenedAsChild: boolean[];
   /** Each change to which fight is on the party's heels. */
   pursuits: (string | null)[];
   /** Every time the opening quest was put in play. */
@@ -250,6 +254,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       handouts: [],
       handoutFails: false,
       forbidden: null,
+      children: [],
       rateOk: true,
       reservation: null,
       conflict: false,
@@ -306,6 +311,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     laidLoot: [],
     pursuits: [],
     screenedOutput: [],
+    screenedAsChild: [],
     handoutsGiven: [],
     facts: [],
     recordLoads: [],
@@ -354,10 +360,12 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     loadCalibration: async () => h.state.calibration,
     isFlagged: async () => h.state.flagged,
     strikes: async () => h.state.strikes,
-    isFlaggedOutput: async (text) => {
+    isFlaggedOutput: async (text, childTookPart) => {
       h.screenedOutput.push(text);
+      h.screenedAsChild.push(childTookPart);
       return h.state.forbidden !== null && text.includes(h.state.forbidden);
     },
+    anyChild: async (_campaign, ids) => ids.some((id) => h.state.children.includes(id)),
     reserve: async (_user, credits) => {
       h.reserved.push(credits);
       if (h.state.reservation) return { ok: false, refusal: h.state.reservation };
@@ -1354,6 +1362,22 @@ describe("a character speaks for itself", () => {
     expect(stored).toBe(600);
     expect(h.ledger[0].log.output_tokens).toBe(600);
     expect(last(h)).toMatchObject({ type: "done", tokens: 600 });
+  });
+
+  // Bug caught: a child's own turn screened by the ordinary bar, which lets through what no child's scene may hold.
+  it("holds a turn a child spoke in to the child's bar", async () => {
+    const h = harness(script());
+    h.state.children = [HONEYCOMB];
+    await play(h);
+    expect(h.screenedAsChild).toEqual([true]);
+  });
+
+  // Bug caught: every turn with a speaker held to the child's bar, so two adults' kiss is withheld.
+  it("holds a turn only adults spoke in to the ordinary bar", async () => {
+    const h = harness(script());
+    h.state.children = [BRAM];
+    await play(h);
+    expect(h.screenedAsChild).toEqual([false]);
   });
 
   // Bug caught live (17 Nov 2026): "Master Floret" was invented in a memory and lived only as three sentences on

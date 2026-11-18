@@ -101,6 +101,22 @@ export interface ScreeningContext {
   generationType: string;
   /** The renderer this prompt was bound for — openai | gemini. */
   imageProvider: string;
+  /**
+   * Tighter limits for some categories, over `IMAGE_PROMPT_THRESHOLDS` (the AI table's bar for a turn a child takes
+   * part in). A limit can only be lowered here: one above the standing threshold is ignored (`thresholdsFor`).
+   */
+  tighter?: Readonly<Record<string, number>>;
+}
+
+/** The thresholds a screening is held to: the standing ones, each lowered to the caller's tighter limit if it gave one. */
+export function thresholdsFor(tighter: Readonly<Record<string, number>> | undefined): Readonly<Record<string, number>> {
+  if (tighter === undefined) return IMAGE_PROMPT_THRESHOLDS;
+  const out: Record<string, number> = { ...IMAGE_PROMPT_THRESHOLDS };
+  for (const [category, limit] of Object.entries(tighter)) {
+    const standing = out[category];
+    if (standing !== undefined && limit < standing) out[category] = limit;
+  }
+  return out;
 }
 
 /** What the renderer did with a prompt we allowed. Written back by recordScreeningOutcome. */
@@ -175,8 +191,9 @@ async function logScreening(
   over: string[],
   prompt: string,
 ): Promise<string | null> {
+  const thresholds = thresholdsFor(ctx.tighter);
   // Text only where it will actually be read — see PROMPT_TEXT_BAND.
-  const keepText = over.length > 0 || isNearThreshold(scores);
+  const keepText = over.length > 0 || isNearThreshold(scores, thresholds);
   try {
     const { data, error } = await ctx.admin
       .from("prompt_screenings")
@@ -187,7 +204,7 @@ async function logScreening(
         blocked: over.length > 0,
         categories_over: over,
         scores,
-        thresholds: IMAGE_PROMPT_THRESHOLDS,
+        thresholds,
         prompt: keepText ? prompt : null,
       })
       .select("id")
@@ -274,7 +291,7 @@ export async function screenImagePrompt(
     return { id: null };
   }
 
-  const over = categoriesOverThreshold(scores);
+  const over = categoriesOverThreshold(scores, thresholdsFor(ctx.tighter));
   const id = await logScreening(ctx, scores, over, prompt);
 
   if (over.length > 0) {

@@ -54,6 +54,42 @@ export function shownText(added: readonly AgentMessage[]): string {
   return parts.join("\n");
 }
 
+/**
+ * The screen's bar for a turn in which a child takes part, over the ordinary one (`IMAGE_PROMPT_THRESHOLDS`): much
+ * tighter on `sexual`, a little on `sexual/minors`. It cannot go lower: measured on 18 Nov 2026, a correct refusal
+ * that names what it refuses ("No. I'm a child, and I don't want that") scored up to 0.18 and 0.06, and a turn
+ * withheld for refusing well would teach the table nothing. The conduct eval judges a child's cases by this same bar.
+ */
+export const CHILD_TURN_THRESHOLDS = { sexual: 0.25, "sexual/minors": 0.15 } as const;
+
+/** Below this many years a character is a child to the screen, whatever kind of creature the record says they are. */
+export const CHILD_UNDER_YEARS = 18;
+
+/**
+ * Whether a character's age, as free text on their record ("~7 half-named Pours", "a boy of the docks"), reads as a
+ * child's. The first number decides; a word decides when there is none. "Young" alone is not a child (a young
+ * smith is grown), and no age says nothing: the standing rules still hold for them, only the bar is the ordinary one.
+ */
+export function readsAsChild(age: string | null): boolean {
+  if (age === null) return false;
+  const text = age.toLowerCase();
+  const number = /(\d{1,4})/.exec(text);
+  if (number) return Number(number[1]) < CHILD_UNDER_YEARS;
+  return /\b(child|children|kid|girl|boy|toddler|infant|baby|youngster|adolescent|teen|teenager|teenage)\b/.test(text);
+}
+
+/** The records of everyone who said or did something in a turn, once each: whose ages decide the screen's bar. */
+export function speakerIdsOf(added: readonly AgentMessage[]): string[] {
+  const ids = new Set<string>();
+  for (const message of added) {
+    for (const block of message.blocks) {
+      if (block.type !== "tool_result" || block.lines === undefined) continue;
+      for (const line of block.lines) if (line.speaker.id !== null) ids.add(line.speaker.id);
+    }
+  }
+  return [...ids];
+}
+
 /** How many refused messages close the table for an account, and over how long they are counted. */
 export const STRIKES_BEFORE_CLOSED = 5;
 export const STRIKE_WINDOW_DAYS = 30;
