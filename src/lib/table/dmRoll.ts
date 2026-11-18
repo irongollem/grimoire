@@ -6,7 +6,7 @@ const isWhole = (x: unknown): x is number => typeof x === "number" && Number.isI
 const isDice = (x: unknown): x is number[] => Array.isArray(x) && x.length <= 100 && x.every((f) => isWhole(f) && f >= 1);
 
 /**
- * An open roll of the Dungeon Master's, as the stream and a stored `tool_result` both carry it, or null when it is
+ * An open roll of the Narrator's, as the stream and a stored `tool_result` both carry it, or null when it is
  * not one. The server sends none for a hidden roll, so there is nothing here to hide; this only refuses a shape the
  * line could not be drawn from.
  */
@@ -20,7 +20,7 @@ export function parseDmRoll(raw: unknown): DmRoll | null {
 }
 
 /**
- * The three texts of the Dungeon Master's roll line. The dice notation leads when the server passed it on ("1d20+2");
+ * The three texts of the Narrator's roll line. The dice notation leads when the server passed it on ("1d20+2");
  * without it the modifier is spelled out, so the total can still be checked against the dice.
  */
 export function dmRollLine(roll: DmRoll): RollLine {
@@ -29,7 +29,7 @@ export function dmRollLine(roll: DmRoll): RollLine {
   const modifier = roll.modifier > 0 ? ` + ${roll.modifier}` : roll.modifier < 0 ? ` - ${-roll.modifier}` : "";
   return {
     total: String(roll.total),
-    title: roll.label === null ? "The Dungeon Master rolled" : `The Dungeon Master rolled: ${roll.label}`,
+    title: roll.label === null ? "The Narrator rolled" : `The Narrator rolled: ${roll.label}`,
     detail: roll.dice === null ? `${rolled}${aside}${modifier}` : `${roll.dice} · ${rolled}${aside}`,
   };
 }

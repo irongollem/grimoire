@@ -168,7 +168,7 @@ const emit = defineEmits<{
   over: [how: SoloFightEnd];
   /** The fight is gone (ended elsewhere, or refused by the server). */
   lost: [];
-  /** Whose turn it is and what the player's turn still holds: the composer and the Dungeon Master go by it. */
+  /** Whose turn it is and what the player's turn still holds: the composer and the Narrator go by it. */
   turn: [state: FightTurn];
 }>();
 
@@ -251,7 +251,7 @@ async function settle(run: () => Promise<BoardLine[]>): Promise<void> {
 const onToHit = (answer: RollAnswer) => settle(() => attack.rollToHit({ faces: answer.faces, atTable: answer.atTable, mode: answer.mode }));
 const onDamage = (faces: number[] | null) => settle(() => attack.rollDamage(faces === null ? { roll: true } : { faces: [...faces], atTable: true }));
 
-// What the turn holds, told to the page whenever it changes: sent to the Dungeon Master with every message, and
+// What the turn holds, told to the page whenever it changes: sent to the Narrator with every message, and
 // what the composer opens and closes on.
 watch(
   () => {
@@ -263,7 +263,7 @@ watch(
 );
 
 /**
- * Carries out what the Dungeon Master's ruling does to the fight (frame 15): what it cost the turn, a condition or
+ * Carries out what the Narrator's ruling does to the fight (frame 15): what it cost the turn, a condition or
  * damage on a creature, the fight's end. The server checked it against the fight; a name the board no longer has
  * (the creature left meanwhile) is passed over.
  */
@@ -293,7 +293,7 @@ function apply(change: FightChange): void {
         kind: "roll",
         die: change.damage.amount,
         label: `${target.name} takes ${change.damage.amount}${change.damage.type ? ` ${change.damage.type}` : ""} damage`,
-        detail: "The Dungeon Master's ruling",
+        detail: "The Narrator's ruling",
         critical: false,
       });
     }

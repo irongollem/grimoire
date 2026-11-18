@@ -1,7 +1,7 @@
 // agent-leave (#1021): the player leaves the AI table. The rules are `handler.ts`'s; this file wires the database.
 // The session is ended and the note written through the caller's own client, so the database checks they are the
 // campaign's DM; the service role only reads and marks the conversation, which no client may write.
-import type { StoredTurn } from "../_shared/agent/transcript.ts";
+import { loadTurnsInReach } from "../_shared/agent/turnsInReach.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
@@ -89,9 +89,10 @@ serve(withCors(async (req: Request) => {
 
     // The caller's own conversation (the handler has checked): its messages, read as stored.
     async loadTurns(sessionId) {
-      const { data, error } = await admin.from("agent_turns").select("seq, role, blocks").eq("session_id", sessionId).order("seq", { ascending: true });
+      // In reach only (`turnsInReach.ts`): what is unfinished is the newest business, and a table may be months long.
+      const { data, error } = await admin.from("agent_sessions").select("summary_through_seq").eq("id", sessionId).maybeSingle();
       if (error) throw error;
-      return (data ?? []) as StoredTurn[];
+      return loadTurnsInReach(admin, sessionId, data ? Number(data.summary_through_seq) : 0);
     },
 
     // Into the same ledger a character's memories live in. The ids came out of stored tool results, so each is

@@ -1636,6 +1636,40 @@ describe("where the party is", () => {
   });
 });
 
+describe("the Narrator's voice, chosen by the host as the table is sat down at", () => {
+  const START = { campaignId: CAMPAIGN, message: "I look around.", mode: "do" };
+
+  // Bug caught: the choice made on the door page dropped on the way, so every table began on the default voice.
+  it("gives the new table the voice the host chose, and none when the page named none", async () => {
+    const h = harness();
+    const chosen: Array<string | null> = [];
+    const create = h.deps.createSession;
+    h.deps.createSession = async (input) => {
+      chosen.push(input.narratorVoice);
+      return create(input);
+    };
+    expect(await play(h, { body: { ...START, narratorVoice: "female" } })).toBeNull();
+    const plain = harness();
+    const createPlain = plain.deps.createSession;
+    plain.deps.createSession = async (input) => {
+      chosen.push(input.narratorVoice);
+      return createPlain(input);
+    };
+    expect(await play(plain, { body: START })).toBeNull();
+    expect(chosen).toEqual(["female", null]);
+  });
+
+  // Bug caught: a voice id of the caller's own taken as the choice (any voice on the account, at the table's
+  // cost), or a table already under way changed through a turn instead of by its host on its own row.
+  it("refuses anything but the two voices, and refuses the choice for a table already under way", async () => {
+    const h = harness();
+    expect((await play(h, { body: { ...START, narratorVoice: "inworld:some-other-voice" } }))?.status).toBe(400);
+    existingSession(h);
+    expect((await play(h, { body: { ...START, sessionId: SESSION, narratorVoice: "female" } }))?.status).toBe(400);
+    expect(h.modelCalls()).toBe(0);
+  });
+});
+
 describe("a conversation that begins at a place", () => {
   const START = { campaignId: CAMPAIGN, message: "I look around.", mode: "do", startLocationId: CELLAR };
 
@@ -2591,7 +2625,7 @@ describe("who the player plays", () => {
     const voices = h.events.flatMap((e) => (e.type === "voice" ? [e] : []));
     expect(voices).toEqual([
       { type: "voice", role: "player", text: "Is anyone here?", voice: "player:Wren Ashfield:Is anyone here?" },
-      { type: "voice", role: "narrator", text: "Wind in the eaves.", voice: "narrator:The Dungeon Master:Wind in the eaves." },
+      { type: "voice", role: "narrator", text: "Wind in the eaves.", voice: "narrator:The Narrator:Wind in the eaves." },
     ]);
   });
 
@@ -2934,7 +2968,7 @@ describe("a roll that is the player's", () => {
   });
 });
 
-describe("the Dungeon Master's own rolls", () => {
+describe("the Narrator's own rolls", () => {
   const BODY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I greet her.", mode: "say" };
   const rollStep = (): ModelStep =>
     step(10, { blocks: [{ type: "tool_call", id: "d1", name: "roll", input: { expression: "1d20+2", label: "Warmth" } }], stop: "tool_calls" });
@@ -2974,7 +3008,7 @@ describe("the Dungeon Master's own rolls", () => {
     expect(kinds.indexOf("dm_roll")).toBeLessThan(kinds.lastIndexOf("text"));
   });
 
-  it("sends and stores nothing for a hidden roll, not even that the Dungeon Master rolled in secret", async () => {
+  it("sends and stores nothing for a hidden roll, not even that the Narrator rolled in secret", async () => {
     const h = harness([rollStep(), step(10)]);
     existingSession(h);
     h.state.rollAnswer = open({ hidden: true });
@@ -3018,7 +3052,7 @@ describe("opening the scene", () => {
   const OPEN = { campaignId: CAMPAIGN, message: "", mode: "do", opening: true, startLocationId: CELLAR };
   const openingBlock = (h: Harness) => h.requests[0].messages[h.requests[0].messages.length - 1].blocks[0];
 
-  it("lets a new sitting begin with the Dungeon Master, with no words of the player's on the page", async () => {
+  it("lets a new sitting begin with the Narrator, with no words of the player's on the page", async () => {
     const h = harness();
     expect(await play(h, { body: OPEN })).toBeNull();
     const block = openingBlock(h);
@@ -3250,8 +3284,8 @@ describe("the story turns into a fight", () => {
   });
 
   // Bug caught live (17 Nov 2026): "i take the chair behind me and throw it at the dogs" was answered "Resolve the
-  // fight on the fight screen". The Dungeon Master had no way to rule on what the rules have no button for.
-  describe("the Dungeon Master's ruling in a fight on the board", () => {
+  // fight on the fight screen". The Narrator had no way to rule on what the rules have no button for.
+  describe("the Narrator's ruling in a fight on the board", () => {
     const running: FightsInView = {
       prepared: [],
       fight: { encounterId: FIGHT, name: "The Watching Pack", phase: "running", round: 2, fighters: [
