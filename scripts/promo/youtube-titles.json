@@ -11,5 +11,14 @@
   "quests-player": { "title": "Your D&D quest log fills in as you play" },
   "quests-dm": { "title": "Run a D&D quest from one screen: read-aloud, routes, payoffs" },
   "cup-town-told": { "title": "You wake on checkered grass: a D&D opening to steal" },
-  "yt-scriptorium": { "title": "Scriptorium: write the book your table holds | Dungeon Grimoire" }
+  "yt-scriptorium": { "title": "Scriptorium: write the book your table holds | Dungeon Grimoire" },
+  "handouts-player": { "title": "Your D&D handouts land on your phone, live" },
+  "handouts-dm": { "title": "Write a D&D handout and hand it to your players' phones" },
+  "circus": { "title": "Step right up: a living D&D carnival painting for your table" },
+  "songs-short": { "title": "Our five-year-old D&D player can't read, so we made him a songs page" },
+  "steal-snuffer-reel": { "title": "Steal this D&D monster: it puts out every lamp left burning" },
+  "illuminator": { "title": "Torn edges and paper washes: pictures in your D&D book" },
+  "prison-cell": { "title": "The jailer's dog has the keys: a D&D jailbreak to steal" },
+  "workshop-player": { "title": "Craft at a D&D workbench on your phone" },
+  "workshop-dm": { "title": "Your D&D players invent it, you approve it: crafting recipes" }
 }
