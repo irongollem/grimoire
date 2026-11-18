@@ -8,7 +8,10 @@
 // critical hit rolling the damage dice twice (ch. 9 "Critical Hits"). What is app convention: reading a stat block's
 // structure to average it, the mean over a Multiattack, and what is left out.
 //
-// Not modelled: damage resistance, immunity and vulnerability (the numbers are the damage as printed), a hit that is an
+// Damage resistance, immunity and vulnerability are weighed only as far as the fight has shown them (#1021): a part of
+// a hit is multiplied by what `shown_defenses` on the target says for its type (0, 0.5 or 2) and by 1 otherwise. A
+// creature cannot read its target's sheet, so a defense nothing has shown is never counted, whatever the stat block
+// says. Not modelled: damage from a magical source (it looks up the plain type), a hit that is an
 // automatic critical against a Paralyzed or Unconscious target, riders that need a saving throw, a creature that
 // attacks with a weapon it has not got. Nothing is rounded here; only a summary line rounds, for display.
 //
@@ -29,6 +32,7 @@ import { attackRollMode } from "../../combat/attackRoll.ts";
 import { autoFailsSave, saveRollMode } from "../../combat/savingThrow.ts";
 import { getExhaustionD20Penalty } from "../../conditions.ts";
 import { coverBonus, DEFAULT_REACH_FEET } from "../terrain/sight.ts";
+import { shownDefenseMultiplier } from "./shownDefenses.ts";
 import type { CastNow } from "../spells/castNow.ts";
 import type { TurnOption, TurnOptionAttack, TurnOptionSpell, UsableAttack } from "../terrain/turnOptions.ts";
 
@@ -81,16 +85,21 @@ function withMode(p: number, mode: RollMode): number {
   return p;
 }
 
+/** A spell's damage is magical, as `cast_spell` resolves it: it is weighed against what the fight has shown of magical blows. */
+const SPELL_DAMAGE: readonly string[] = ["magical"];
+
 /** The average of what a hit rolls, and of its dice alone (a critical rolls those twice). Null when a part cannot be read. */
-function averageOf(parts: readonly DamagePart[]): { all: number; diceOnly: number } | null {
+function averageOf(parts: readonly DamagePart[], target: RunCombatant, properties: readonly string[] = []): { all: number; diceOnly: number } | null {
   let all = 0;
   let diceOnly = 0;
   for (const part of parts) {
     const parsed = parseExpression(part.dice);
     if (parsed === null) return null;
     const dice = parsed.terms.reduce((sum, t) => sum + (t.count * (t.sides + 1)) / 2, 0);
-    all += dice + parsed.modifier;
-    diceOnly += dice;
+    // Per target, per part: only a defense the fight has shown to this target counts.
+    const weight = shownDefenseMultiplier(target, part.type, properties);
+    all += (dice + parsed.modifier) * weight;
+    diceOnly += dice * weight;
   }
   return { all, diceOnly };
 }
@@ -115,14 +124,14 @@ function modeOf(attack: AttackStructure, facts: TurnOptionAttack, mover: RunComb
 }
 
 /** One attack's hit chance and the damage it adds (null when a damage part cannot be read). */
-function oneAttack(attack: AttackStructure, facts: TurnOptionAttack, mover: RunCombatant, target: RunCombatant, ac: number, ruleset: RulesetKey): { hit: number; damage: number | null } {
+function oneAttack(attack: AttackStructure, facts: TurnOptionAttack, mover: RunCombatant, target: RunCombatant, ac: number, ruleset: RulesetKey, properties: readonly string[] = []): { hit: number; damage: number | null } {
   // Total cover cannot be targeted at all; no attack option is ever made from such a square, so this is only a guard.
   if (facts.cover === "total") return { hit: 0, damage: 0 };
   const mode = modeOf(attack, facts, mover, target, ruleset);
   // Cover adds to the target's AC (PHB 2014 ch. 9 "Cover"); the 2024 exhaustion penalty lowers the roll.
   const bonus = attack.bonus + getExhaustionD20Penalty(mover.conditions, ruleset);
   const hit = chanceToHit(bonus, ac + coverBonus(facts.cover === null ? "none" : facts.cover).ac, mode);
-  const avg = averageOf(attack.hit);
+  const avg = averageOf(attack.hit, target, properties);
   // A critical hit rolls the dice twice: the extra roll is the dice alone, on a natural 20 (ch. 9 "Critical Hits").
   const damage = avg === null ? null : hit * avg.all + chanceOfNatural20(mode) * avg.diceOnly;
   return { hit, damage };
@@ -161,13 +170,13 @@ function spellNumbers(spell: TurnOptionSpell, mover: RunCombatant, ctx: NumbersC
     for (const target of targets) {
       const ac = ctx.armorClassOf(target);
       if (ac === null) return null;
-      const one = oneAttack(attack, facts, mover, target, ac, ctx.ruleset);
+      const one = oneAttack(attack, facts, mover, target, ac, ctx.ruleset, SPELL_DAMAGE);
       chance += one.hit;
       damage = damage === null || one.damage === null ? null : damage + one.damage;
     }
   } else if (cast.kind === "save" && save !== undefined) {
-    const avg = averageOf(save.fail);
     for (const target of targets) {
+      const avg = averageOf(save.fail, target, SPELL_DAMAGE);
       const bonus = ctx.saveBonusOf === undefined ? null : ctx.saveBonusOf(target, save.ability);
       let fails: number;
       if (autoFailsSave(target.conditions, save.ability)) fails = 1;

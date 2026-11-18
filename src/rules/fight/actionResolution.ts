@@ -41,6 +41,7 @@ import { attackRollMode, autoCritOnHit, resolveAttack as resolveAttackRoll } fro
 import { concentrationDc, resolveConcentration } from "../combat/concentration.ts";
 import { halveParts, imposedCondition, resolveSaveAction } from "../combat/resolveAction.ts";
 import { autoFailsSave, resolveSave, saveBonusFromStatBlock, saveRollMode } from "../combat/savingThrow.ts";
+import { shownDefenseKey } from "./tactics/shownDefenses.ts";
 import { applyDefenses, damageRollsFor, type AppliedPart } from "../combat/typedDamage.ts";
 import { getExhaustionD20Penalty, getExhaustionLevel, hasCondition, setExhaustionLevel } from "../conditions.ts";
 import type { DyingOutcome } from "../dying.ts";
@@ -78,7 +79,7 @@ export type DiceSource = (ask: DiceAsk) => Promise<RolledDice | null>;
 /** The commands a resolution puts into a fight: exactly these, so a port has a handful of things to do. */
 export type ResolutionCommand = Extract<
   FightCommand,
-  { type: "adjust_hp" | "apply_condition" | "set_conditions" | "resolve_condition_save" | "settle_ongoing_damage" | "end_concentration" }
+  { type: "adjust_hp" | "apply_condition" | "set_conditions" | "resolve_condition_save" | "settle_ongoing_damage" | "end_concentration" | "show_defense" }
 >;
 
 export interface ResolutionContext {
@@ -379,11 +380,19 @@ export function applyDamage(
   },
 ): DamageApplied {
   const { target } = input;
+  const properties = bypasses(input.magical, input.properties);
   const result = applyDefenses({
     parts: input.parts,
     defenses: input.defenses,
-    properties: bypasses(input.magical, input.properties),
+    properties,
   });
+  // A defense that changed a part is now seen by the whole fight (#1021). A part that came out the same (a defense on a
+  // roll of 0, resistance and vulnerability cancelling) teaches nothing, and a hand adjustment has no type to teach.
+  for (const part of result.parts) {
+    if (part.type === null || part.amount === part.rolled) continue;
+    if (part.applied !== "immune" && part.applied !== "resistant" && part.applied !== "vulnerable") continue;
+    ctx.apply({ type: "show_defense", instanceId: target.instance_id, damageType: shownDefenseKey(part.type, properties), defense: part.applied });
+  }
   const raised =
     result.total > 0 ? ctx.apply({ type: "adjust_hp", instanceId: target.instance_id, delta: -result.total, critical: input.critical }) : [];
   const dyingEffect = raised.find((e) => e.type === "dying_outcome");

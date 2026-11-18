@@ -1891,3 +1891,39 @@ describe("take_turn casts a spell", () => {
     expect(mage.spellListedReads[0]).toEqual(expect.arrayContaining(["fireball", "fire bolt"]));
   });
 });
+
+describe("what a resisted blow teaches the next creature (#1021)", () => {
+  const SCORCH: StatBlockEntry = { name: "Scorch", description: "", structured: { kind: "attack", source: "manual", attack: { delivery: "melee", bonus: 4, hit: [{ dice: "1d8+2", type: "fire" }] } } };
+  const BITE: StatBlockEntry = { name: "Bite", description: "", structured: { kind: "attack", source: "manual", attack: { delivery: "melee", bonus: 4, hit: [{ dice: "1d6+2", type: "piercing" }] } } };
+  // The ox really resists fire on its sheet; nothing has shown it yet.
+  const FIRE_SOURCES: StatBlockSources = {
+    monsters: [
+      monster("m-wolf", { actions: [BITE, SCORCH] }),
+      monster("m-ox", { defenses: { ...emptyDefenses(), resistances: [{ types: ["fire"] }] } }),
+    ],
+    npcs: [],
+    companions: [],
+  };
+  const pair = () =>
+    duel({ extra: [combatant("wolf2", { monster_id: "m-wolf", faction_id: "m", hp: 11, max_hp: 11, initiative: 8, position: { x: 0, y: 2 } })] });
+
+  // Scorch averages 6.5 against Bite's 5.5 at the same chance to hit, so a creature that has seen nothing picks Scorch.
+  // Bug caught: the choosing reads the ox's sheet (fire resisted, Scorch worth 3.25) before any blow has shown it.
+  it("fails if a creature that has been shown nothing weighs the target's real resistance", async () => {
+    const h = harness(pair(), { sources: FIRE_SOURCES, map: mapOf(), dieFaces: [9, 5] });
+    const result = await runBatch(batch("b1", takeTurn({ instanceId: "wolf2" })), h.deps);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { instanceId: "wolf2", optionId: expect.stringContaining("Scorch") } });
+  });
+
+  // d20 9 + 4 = 13 meets AC 13; 1d8+2 with a 4 is 6, resisted floor(6/2) = 3, the ox keeps 37 and the fight now shows fire resisted.
+  // Then wolf2's turn: Scorch 3.25 against Bite 5.5, so it bites. Dice for wolf2: d20 9, damage 5.
+  // Bug caught: the resisted blow is applied but not remembered, or remembered and not weighed by the next creature.
+  it("fails if a resisted blow is not saved as shown and weighed by the next creature of that side", async () => {
+    const h = harness(pair(), { sources: FIRE_SOURCES, map: mapOf(), dieFaces: [9, 4, 9, 5] });
+    await runBatch(batch("b1", attack({ action: "Scorch" })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(37);
+    expect(combatantOf(stored(h), "victim").shown_defenses).toEqual({ fire: "resistant" });
+    const result = await runBatch(batch("b2", takeTurn({ instanceId: "wolf2" })), h.deps);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { instanceId: "wolf2", optionId: expect.stringContaining("Bite") } });
+  });
+});

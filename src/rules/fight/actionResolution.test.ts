@@ -151,6 +151,64 @@ describe("resolveAttackOn: to hit and damage", () => {
     expect(done.commands.some((c) => c.type === "adjust_hp")).toBe(taken > 0);
   });
 
+  // PHB 2014 "Damage Resistance and Vulnerability": a 7 piercing halved is 3, doubled 14, negated 0. Each changed the amount,
+  // so the fight now shows the victim's defense; a creature with no defense shows nothing.
+  // Bug caught: a defense that changed damage is not remembered, or a plain hit records "takes it normally".
+  it.each([
+    ["resistance", { resistances: [{ types: ["piercing" as const] }] }, "resistant"],
+    ["vulnerability", { vulnerabilities: [{ types: ["piercing" as const] }] }, "vulnerable"],
+    ["immunity", { immunities: [{ types: ["piercing" as const] }] }, "immune"],
+  ])("a blow a %s changed shows the victim's defense to the fight", async (_name, defense, shown) => {
+    const s = scripted([[15], [5]]);
+    const t = table([wolf(), victim()], { dice: s.dice, defenses: { victim: { ...emptyDefenses(), ...defense } } });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("victim").shown_defenses).toEqual({ piercing: shown });
+    expect(t.get("wolf").shown_defenses).toBeUndefined();
+  });
+
+  // Bug caught: damage nothing changed teaches the fight something.
+  it("shows nothing when no defense changed the damage", async () => {
+    const s = scripted([[15], [5]]);
+    const t = table([wolf(), victim()], { dice: s.dice, defenses: { victim: { ...emptyDefenses(), resistances: [{ types: ["fire" as const] }] } } });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("victim").shown_defenses).toBeUndefined();
+  });
+
+  // 1d4-5 with a 2 is negative and deals nothing (app convention), so a piercing resistance changes nothing: 0 halved is 0.
+  // Bug caught: a defense that had no effect on a zero is recorded as a lesson.
+  it("shows nothing when the damage was already nothing", async () => {
+    const t = table([wolf(), victim()], { dice: scripted([[15], [2]]).dice, defenses: { victim: { ...emptyDefenses(), resistances: [{ types: ["piercing" as const] }] } } });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d4-5"), target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("victim").shown_defenses).toBeUndefined();
+  });
+
+  // A hit of slashing 5 plus fire 3 against fire resistance: the fire is halved, the slashing is not.
+  // Bug caught: every part of a mixed hit is recorded as resisted because one of them was.
+  it("records only the part a defense changed in a mixed hit", async () => {
+    const s = scripted([[15], [5], [3]]);
+    const t = table([wolf(), victim()], { dice: s.dice, defenses: { victim: { ...emptyDefenses(), resistances: [{ types: ["fire" as const] }] } } });
+    const mixed: StatBlockEntry = {
+      name: "Flaming Sword", description: "",
+      structured: { kind: "attack", source: "manual", attack: { delivery: "melee", bonus: 4, hit: [{ dice: "1d6", type: "slashing" }, { dice: "1d6", type: "fire" }] } },
+    };
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: mixed, target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("victim").shown_defenses).toEqual({ fire: "resistant" });
+  });
+
+  // Bug caught: a mundane blow's lesson is stored under the plain type for a magical one too, or the other way round.
+  // A mundane 7 piercing against "resistant unless magical" is halved and shows "piercing"; a magical one against plain
+  // resistance shows "piercing:magical", a different key a mundane lookup never reads.
+  it("keeps a mundane blow's lesson apart from a magical one's", async () => {
+    const nonmagical = { ...emptyDefenses(), resistances: [{ types: ["piercing" as const], unless: ["magical" as const] }] };
+    const mundane = table([wolf(), victim()], { dice: scripted([[15], [5]]).dice, defenses: { victim: nonmagical } });
+    await resolveAttackOn(mundane.ctx, { attacker: mundane.get("wolf"), entry: bite("1d6+2"), target: mundane.get("victim"), withinFiveFeet: true });
+    expect(mundane.get("victim").shown_defenses).toEqual({ piercing: "resistant" });
+
+    const magic = table([wolf(), victim()], { dice: scripted([[15], [5]]).dice, defenses: { victim: { ...emptyDefenses(), resistances: [{ types: ["piercing" as const] }] } } });
+    await resolveAttackOn(magic.ctx, { attacker: magic.get("wolf"), entry: bite("1d6+2"), target: magic.get("victim"), withinFiveFeet: true, magical: true });
+    expect(magic.get("victim").shown_defenses).toEqual({ "piercing:magical": "resistant" });
+  });
+
   // PHB 2014 "Advantage and Disadvantage": advantage keeps the higher of two d20s. A Blinded target gives attackers
   // advantage (appendix A "Blinded"): faces 4 and 15 keep 15, +4 = 19 beats AC 18 (the 4 alone would miss).
   it("advantage from the target's condition keeps the higher of two d20s", async () => {

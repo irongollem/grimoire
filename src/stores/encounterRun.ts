@@ -18,6 +18,7 @@ import type { FightDeps } from "@/rules/fight/fightEvents";
 import { isTurnEvent, type FightEffect, type FightState } from "@/rules/fight/fightState";
 import { companionCombatant, idClock, spawnMonsters, spawnNpcs } from "@/rules/fight/fightSpawn";
 import type { ConfirmedFight, FightFrame } from "@/lib/encounters/fightSync";
+import type { ShownDefense } from "@/rules/fight/tactics/shownDefenses";
 import { createFightLink } from "./encounterRunLink";
 
 /** Rolls one combatant's initiative. Registered by the encounter runner so the
@@ -410,6 +411,11 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     dispatch({ type: "end_concentration", instanceId, spell });
   }
 
+  /** Remembers a defense a blow just showed on a combatant (#1021). */
+  function showDefense(instanceId: string, damageType: string, defense: ShownDefense) {
+    dispatch({ type: "show_defense", instanceId, damageType, defense });
+  }
+
   function addCurse(instanceId: string, curse: string) {
     dispatch({ type: "add_curse", instanceId, curse });
   }
@@ -668,6 +674,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     concentrationChecks,
     resolveConcentrationCheck,
     addCurse,
+    showDefense,
     removeCurse,
     setRevealState,
     cycleRevealState,

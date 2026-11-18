@@ -212,6 +212,16 @@ export interface RunCombatant {
   ac: string;
   conditions: AppliedCondition[];
   curses: string[];
+  /**
+   * What the fight has shown this creature to resist, be immune to or be vulnerable to, keyed by damage type in the
+   * lower-case form damage parts use ("fire"), with the damage's bypass properties after a colon when it had any
+   * ("slashing:magical"), so a mundane blow glancing off teaches nothing about a magic one. Learned only when a
+   * defense changed damage that landed on it, never read from a stat block, and never cleared during a fight.
+   * APP CONVENTION: knowledge of the whole fight, not of one side. A blow shrugged off in the open is seen by
+   * everyone there, and a creature's own side knows it anyway. A creature run by the game weighs a target's defense
+   * in its choosing only through this. DM-only: left out of the players' projection.
+   */
+  shown_defenses?: Partial<Record<string, "resistant" | "immune" | "vulnerable">>;
   death_saves: { successes: number; failures: number };
   // back-references
   monster_id?: string;

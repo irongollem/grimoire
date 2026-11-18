@@ -20,6 +20,7 @@ import type { RulesetKey } from "../../../src/types/ruleset.types.ts";
 import type { Monster } from "../../../src/types/monster.types.ts";
 import type { NpcListRow } from "../../../src/types/npc.types.ts";
 import type { EncounterTurnCommand } from "../../../src/rules/encounterTurn.ts";
+import { isShownDefense } from "../../../src/rules/fight/tactics/shownDefenses.ts";
 import { applyFightCommand, FIGHT_OWN_COMMAND_TYPES, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightDeps } from "../../../src/rules/fight/fightEvents.ts";
 import { ingestPartyRow, type PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
@@ -159,6 +160,11 @@ function validateOwnCommand(command: Record<string, unknown>): void {
     case "set_reveal_state":
       if (typeof command.instanceId !== "string" || !REVEAL_STATES.has(command.revealState)) {
         throw new FightCommandError(400, "set_reveal_state needs an instanceId and a revealState.");
+      }
+      break;
+    case "show_defense":
+      if (typeof command.instanceId !== "string" || typeof command.damageType !== "string" || !isShownDefense(command.defense)) {
+        throw new FightCommandError(400, "show_defense needs an instanceId, a damageType and a defense.");
       }
       break;
     case "adopt_stats":

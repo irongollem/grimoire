@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { shownDefenseKey, shownDefenseMultiplier } from "./shownDefenses.ts";
 import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { AppliedCondition } from "../../../types/condition.types.ts";
 import type { RulesetKey } from "../../../types/ruleset.types.ts";
@@ -302,5 +303,91 @@ describe("spell options (#1021)", () => {
   it("leaves the numbers null when an attack spell's target has no known armor class, or the cast is not castable", () => {
     expect(run(spellOption("Fire Bolt", 0, "attack", ["a"]), { targets: { a: {} }, ac: null })?.expectedDamage).toBeNull();
     expect(run(spellOption("Fireball", 9, "save", ["a"]), { targets: { a: {} } })?.expectedDamage).toBeNull();
+  });
+});
+
+describe("what the fight has shown of a target's defenses (#1021)", () => {
+  const FIRE = attackEntry("Scorch", { hit: [{ dice: "2d6", type: "fire" }] });
+  const SLASH = attackEntry("Slash", { hit: [{ dice: "1d6", type: "slashing" }] });
+  const ctxOf = (target: Partial<RunCombatant>, spells?: NumbersContext["spells"]): NumbersContext => ({
+    attacks: [FIRE, SLASH],
+    combatants: [creature("ogre"), creature("fresco", target)],
+    moverId: "ogre",
+    armorClassOf: () => 15,
+    ruleset: "2014",
+    ...(spells === undefined ? {} : { spells }),
+  });
+  const fireOption = () => option({}, "Scorch");
+  const slashOption = () => option({}, "Slash");
+  const damageOf = (opt: TurnOption, target: Partial<RunCombatant>) => withNumbers([opt], ctxOf(target))[0].attack?.expectedDamage ?? null;
+
+  // +6 against AC 15 hits 0.6, crits 0.05. 2d6 averages 7: 0.6*7 + 0.05*7 = 4.55. 1d6 averages 3.5: 0.65*3.5 = 2.275.
+  // Bug caught: the choosing reads the stat block's real resistance, so a creature "knows" what it was never shown.
+  it("counts nothing the fight has not shown, even when the target's stat block resists it", () => {
+    // The sheet resistance rides on the combatant only as a stat-block id: nothing in the numbers may reach for it.
+    const target = { monster_id: "m-fire-resistant" };
+    expect(damageOf(fireOption(), target)).toBeCloseTo(4.55, 10);
+    expect(damageOf(slashOption(), target)).toBeCloseTo(2.275, 10);
+  });
+
+  // PHB 2014 "Damage Resistance and Vulnerability": resistance halves, so 4.55 becomes 2.275; immunity 0; vulnerability doubles, 9.1.
+  // Bug caught: a shown defense is ignored, or its multiplier is wrong (resistance read as 0, vulnerability as 1.5).
+  it.each([
+    ["resistant", 2.275],
+    ["immune", 0],
+    ["vulnerable", 9.1],
+  ] as const)("weighs a shown %s as the multiplier of the real rule", (shown, expected) => {
+    expect(damageOf(fireOption(), { shown_defenses: { fire: shown } })).toBeCloseTo(expected, 10);
+  });
+
+  // Bug caught: a defense shown for one type weighs every part of every attack.
+  it("weighs a shown fire resistance against fire only, and shown to another target not at all", () => {
+    expect(damageOf(slashOption(), { shown_defenses: { fire: "resistant" } })).toBeCloseTo(2.275, 10);
+    const both = ctxOf({});
+    both.combatants = [creature("ogre"), creature("fresco"), creature("other", { shown_defenses: { fire: "immune" } })];
+    expect(withNumbers([fireOption()], both)[0].attack?.expectedDamage).toBeCloseTo(4.55, 10);
+  });
+
+  // SRD "Damage Resistance and Vulnerability"; a defense can be "from nonmagical attacks", never only from magical ones.
+  // Bug caught: what glanced off a plain sword taken as proof against a magic one; or a creature that shrugged off
+  // a MAGIC sword still thought open to a plain one.
+  it("carries a weapon's lesson from a magic blow down to a plain one, and never up", () => {
+    expect(damageOf(slashOption(), { shown_defenses: { "slashing:magical": "immune" } })).toBe(0);
+    expect(damageOf(slashOption(), { shown_defenses: { slashing: "immune" } })).toBe(0);
+    const target = (shown: Record<string, "immune">) => creature("hero", { shown_defenses: shown });
+    expect(shownDefenseMultiplier(target({ slashing: "immune" }), "slashing", ["magical"])).toBe(1);
+    expect(shownDefenseMultiplier(target({ "slashing:magical": "immune" }), "slashing", ["magical"])).toBe(0);
+  });
+
+  // Bug caught: a spell's fire remembered apart from a torch's, so a caster never learns its fire is being shrugged off.
+  it("keeps one lesson for fire, however it was thrown", () => {
+    expect(shownDefenseKey("fire", ["magical"])).toBe("fire");
+    expect(shownDefenseMultiplier(creature("hero", { shown_defenses: { fire: "resistant" } }), "fire", ["magical"])).toBe(0.5);
+  });
+
+  // A part with no type cannot be matched to a shown defense: it counts in full. A flat 7 hits 0.6 and has no dice to double: 4.2.
+  it("counts a part whose type is unreadable as not shown", () => {
+    const untyped = attackEntry("Hit", { hit: [{ dice: "7", type: null }] });
+    const ctx = { ...ctxOf({ shown_defenses: { fire: "immune" } }), attacks: [untyped] };
+    expect(withNumbers([option({}, "Hit")], ctx)[0].attack?.expectedDamage).toBeCloseTo(4.2, 10);
+  });
+
+  // Bug caught: a spell option's damage uses a shown defense of the wrong target, or of none (it is per target).
+  it("weighs a spell per target: Fireball on two targets, one shown immune to fire, counts only the other: 23.1", () => {
+    const mage = creature("ogre", { name: "Mage" });
+    const spells = castableNow(mageBlock(), mage, [fireball()], "2014");
+    const opt: TurnOption = {
+      id: "spell:Fireball:3:a", kind: "spell", targetId: "a", destination: null, path: null, feet: null, attack: null, distanceFeet: null, provokes: [], exposure: [], summary: "",
+      spell: { name: "Fireball", castLevel: 3, kind: "save", targetIds: ["a", "b"], friendsCaught: [], spends: true, distanceFeet: 20, hitChance: null, expectedDamage: null },
+    };
+    const ctx: NumbersContext = {
+      attacks: [], combatants: [mage, creature("a", { shown_defenses: { fire: "immune" } }), creature("b")], moverId: "ogre",
+      armorClassOf: () => 15, ruleset: "2014", spells, saveBonusOf: () => 0,
+    };
+    // SRD 5.1 Fireball: 8d6 averages 28, DC 14 against +0 fails 0.65: 0.65*28 + 0.35*14 = 23.1 for b, and 0 for a.
+    expect(withNumbers([opt], ctx)[0].spell?.expectedDamage).toBeCloseTo(23.1, 10);
+    // Resistant (halved): 11.55 for a, so 34.65 together.
+    ctx.combatants = [mage, creature("a", { shown_defenses: { fire: "resistant" } }), creature("b")];
+    expect(withNumbers([opt], ctx)[0].spell?.expectedDamage).toBeCloseTo(23.1 * 1.5, 10);
   });
 });

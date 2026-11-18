@@ -108,3 +108,35 @@ describe("the fight's own commands", () => {
     expect(checked.effects).toEqual([{ type: "broadcast", message: "Round one" }]);
   });
 });
+
+describe("show_defense (#1021)", () => {
+  const show = (state: ReturnType<typeof fight>, instanceId: string, damageType: string, defense: "resistant" | "immune" | "vulnerable") =>
+    applyFightCommand(deepFreeze(state), { type: "show_defense", instanceId, damageType, defense }, deps());
+
+  // Bug caught: the command is accepted but nothing is written, or it is written on the wrong creature.
+  it("remembers a defense on the creature that showed it and no other", () => {
+    const state = fight([combatant("a"), combatant("b")]);
+    const next = show(state, "a", "fire", "resistant").state;
+    expect(next.combatants[0].shown_defenses).toEqual({ fire: "resistant" });
+    expect(next.combatants[1].shown_defenses).toBeUndefined();
+  });
+
+  // Bug caught: showing the same thing again makes a new version of the fight (a save and a broadcast for nothing).
+  it("returns the very same state when the defense is already shown", () => {
+    const once = show(fight([combatant("a")]), "a", "fire", "resistant").state;
+    expect(show(once, "a", "fire", "resistant").state).toBe(once);
+  });
+
+  // Bug caught: a second type replaces the first instead of adding to it, or a changed defense is not updated.
+  it("keeps what it already knew and takes a changed defense for the same type", () => {
+    const first = show(fight([combatant("a")]), "a", "fire", "resistant").state;
+    const second = show(first, "a", "slashing", "vulnerable").state;
+    expect(second.combatants[0].shown_defenses).toEqual({ fire: "resistant", slashing: "vulnerable" });
+    expect(show(second, "a", "fire", "immune").state.combatants[0].shown_defenses).toEqual({ fire: "immune", slashing: "vulnerable" });
+  });
+
+  it("leaves the fight alone for a creature that is not in it", () => {
+    const state = fight([combatant("a")]);
+    expect(show(state, "ghost", "fire", "immune").state).toBe(state);
+  });
+});

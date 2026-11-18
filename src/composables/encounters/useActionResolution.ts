@@ -137,6 +137,9 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
           case "end_concentration":
             store.endConcentration(command.instanceId, command.spell);
             return [];
+          case "show_defense":
+            store.showDefense(command.instanceId, command.damageType, command.defense);
+            return [];
         }
       },
     };
