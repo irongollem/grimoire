@@ -18,7 +18,7 @@ import { alreadyRecorded, existsText, INTRODUCE_TOOL, INTRODUCE_TOOL_NAME, INTRO
 import { GO_TO_TOOL, makeSceneTool } from "../_shared/agent/scene.ts";
 import { parsePassDays, PASS_DAYS_TOOL, PASS_DAYS_TOOL_NAME, passedText } from "../_shared/agent/days.ts";
 import { ROLL_TABLE_TOOL, ROLL_TABLE_TOOL_NAME, rollAnswer } from "../_shared/agent/roadTables.ts";
-import { parseTravel, TRAVEL_TOOL, TRAVEL_TOOL_NAME, travelAnswer, type TravelMap } from "../_shared/agent/travel.ts";
+import { parseTravel, rollableTables, TRAVEL_TOOL, TRAVEL_TOOL_NAME, travelAnswer, type TravelMap } from "../_shared/agent/travel.ts";
 import type { Remembered } from "../_shared/agent/characterTurn.ts";
 import { makeSpeechTools } from "../_shared/agent/speak.ts";
 import { SPEECH_TOOL_NAMES } from "../_shared/agent/speakInput.ts";
@@ -421,7 +421,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     const id = toolInput.table_id;
     if (typeof id !== "string") return { content: "table_id must be the id of a table, as travel listed it.", isError: true };
     travelMap ??= input.travel.map();
-    const table = (await travelMap).tables.find((t) => t.id === id);
+    const table = rollableTables(await travelMap).find((t) => t.id === id);
     return rollAnswer(table, input.travel.roll);
   };
 

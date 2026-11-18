@@ -703,7 +703,7 @@ serve(withCors(async (req: Request) => {
     async loadTravelMap(campaignId) {
       const [places, roads, placed] = await Promise.all([
         supabase.from("locations").select("id, name, parent_id").eq("campaign_id", campaignId),
-        supabase.from("location_roads").select("id, from_location_id, to_location_id, distance, unit, name, going").eq("campaign_id", campaignId),
+        supabase.from("location_roads").select("id, from_location_id, to_location_id, distance, unit, name, going, roll_table_id, roll_table:roll_tables(id, name, dice, entries)").eq("campaign_id", campaignId),
         // The roll tables placed on this campaign's places. A placement has no campaign of its own: its place has.
         supabase.from("location_placements").select("location_id, roll_table:roll_tables!inner(id, name, dice, entries), place:locations!inner(campaign_id)")
           .not("roll_table_id", "is", null).eq("place.campaign_id", campaignId),
@@ -714,7 +714,11 @@ serve(withCors(async (req: Request) => {
       return {
         places: (places.data ?? []).map((p) => ({ id: p.id as string, name: p.name as string, parentId: p.parent_id as string | null })),
         // `distance` is numeric; anything that does not read as a number is not a road to travel by.
-        roads: (roads.data ?? []).map((r) => ({ ...r, distance: Number(r.distance) }) as Road).filter((r) => Number.isFinite(r.distance)),
+        roads: (roads.data ?? []).map(({ roll_table: _table, ...r }) => ({ ...r, distance: Number(r.distance) }) as Road).filter((r) => Number.isFinite(r.distance)),
+        roadTables: (roads.data ?? []).flatMap((row) => {
+          const table = (Array.isArray(row.roll_table) ? row.roll_table[0] : row.roll_table) as { id: string; name: string; dice: string; entries: unknown } | null | undefined;
+          return table ? [{ roadId: row.id as string, table: { id: table.id, name: table.name, dice: table.dice, entries: entriesOf(table.entries) } }] : [];
+        }),
         tables: (placed.data ?? []).flatMap((row) => {
           const table = (Array.isArray(row.roll_table) ? row.roll_table[0] : row.roll_table) as { id: string; name: string; dice: string; entries: unknown } | null | undefined;
           return table ? [{ id: table.id, name: table.name, dice: table.dice, entries: entriesOf(table.entries), placeId: row.location_id as string }] : [];

@@ -4,7 +4,7 @@ import { parseTravel, travelAnswer, type TravelMap } from "./travel.ts";
 
 const id = (n: number): string => `00000000-0000-4000-8000-00000000000${n}`;
 const [NEVERWINTER, PHANDALIN, LEILON, INN, ISLAND] = [1, 2, 3, 4, 5].map(id);
-const road = (n: number, a: string, b: string, distance: number, unit: Road["unit"] = "mi"): Road => ({ id: `r${n}`, from_location_id: a, to_location_id: b, distance, unit, name: "", going: "road" });
+const road = (n: number, a: string, b: string, distance: number, unit: Road["unit"] = "mi"): Road => ({ id: `r${n}`, from_location_id: a, to_location_id: b, distance, unit, name: "", going: "road", roll_table_id: null });
 const map: TravelMap = {
   places: [
     { id: NEVERWINTER, name: "Neverwinter", parentId: null },
@@ -15,6 +15,7 @@ const map: TravelMap = {
   ],
   roads: [road(1, NEVERWINTER, LEILON, 24), road(2, LEILON, PHANDALIN, 36)],
   tables: [],
+  roadTables: [],
 };
 
 describe("travelAnswer", () => {
@@ -35,6 +36,15 @@ describe("travelAnswer", () => {
     const withTable = { ...map, tables: [{ id: "t1", name: "Mere of Dead Men", dice: "1d12", entries: [], placeId: LEILON }] };
     expect(travelAnswer(NEVERWINTER, PHANDALIN, "normal", withTable).content).toContain("\"Mere of Dead Men\" (1d12, table_id t1) for Leilon");
     expect(travelAnswer(NEVERWINTER, PHANDALIN, "normal", map).content).not.toContain("Tables the campaign keeps");
+  });
+
+  // Bug caught: the table a road names as its own never offered on that road; or offered on a journey that does
+  // not take it.
+  it("lists a road's own table for a journey along that road, before the places' tables, and on no other road", () => {
+    const own = { ...map, roadTables: [{ roadId: "r2", table: { id: "t2", name: "The Triboar Trail", dice: "1d8", entries: [] } }], tables: [{ id: "t1", name: "Mere of Dead Men", dice: "1d12", entries: [], placeId: LEILON }] };
+    const whole = travelAnswer(NEVERWINTER, PHANDALIN, "normal", own).content;
+    expect(whole).toContain("\"The Triboar Trail\" (1d8, table_id t2) for the road from Leilon to Phandalin; \"Mere of Dead Men\"");
+    expect(travelAnswer(NEVERWINTER, LEILON, "normal", own).content).not.toContain("Triboar");
   });
 
   // Bug caught: a party in a room of a town told it has no road, because only the town is on one.

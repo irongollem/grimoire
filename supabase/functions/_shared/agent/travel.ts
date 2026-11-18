@@ -9,10 +9,10 @@
 // Pure: the rules are the app's own (`src/lib/travel/way.ts`, `src/rules/travelPace.ts`), shared with the place's
 // entry, so the table and the Atlas can never disagree about how far two towns are apart.
 
-import { placesPassed, roadPlaceOf, shortestWay } from "../../../../src/lib/travel/way.ts";
+import { placesPassed, roadPlaceOf, shortestWay, type Way } from "../../../../src/lib/travel/way.ts";
 import type { Road } from "../../../../src/lib/travel/roads.ts";
 import { DEFAULT_TRAVEL_PACE, formatTravelTime, fromMiles, getTravelPace, TRAVEL_PACES, travelTime, type TravelPaceId } from "../../../../src/rules/travelPace.ts";
-import { tablesAlong, tablesLine, type PlacedTable } from "./roadTables.ts";
+import { tablesAlong, tablesLine, type PlacedTable, type TableOnTheWay } from "./roadTables.ts";
 import type { AgentTool } from "./types.ts";
 
 export const TRAVEL_TOOL_NAME = "travel";
@@ -46,6 +46,21 @@ export const TRAVEL_TOOL: AgentTool = {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+function tablesOfTheWay(way: Way, map: TravelMap, parentOf: (id: string) => string | null, nameOf: (id: string) => string): TableOnTheWay[] {
+  const onRoads = way.legs.flatMap((leg): TableOnTheWay[] => {
+    const own = map.roadTables.find((r) => r.roadId === leg.roadId);
+    return own === undefined ? [] : [{ table: { ...own.table, placeId: "" }, forPlace: `the road from ${nameOf(leg.from)} to ${nameOf(leg.to)}` }];
+  });
+  const [first] = way.legs;
+  const places = first === undefined ? [] : [first.from, ...way.legs.map((leg) => leg.to)];
+  const seen = new Set<string>();
+  return [...onRoads, ...tablesAlong(places, parentOf, nameOf, map.tables)].filter((found) => {
+    if (seen.has(found.table.id)) return false;
+    seen.add(found.table.id);
+    return true;
+  });
+}
+
 export type ParsedTravel = { ok: true; value: { toPlaceId: string; paceId: TravelPaceId } } | { ok: false; error: string };
 
 export function parseTravel(input: Record<string, unknown>): ParsedTravel {
@@ -68,6 +83,13 @@ export interface TravelMap {
   roads: readonly Road[];
   /** The roll tables the DM placed on places of the campaign (`roadTables.ts`). */
   tables: readonly PlacedTable[];
+  /** The tables roads name as their own (`location_roads.roll_table_id`), by road. */
+  roadTables: readonly { roadId: string; table: Omit<PlacedTable, "placeId"> }[];
+}
+
+/** Every table of the campaign the narrator may roll on: those on places and those roads name. */
+export function rollableTables(map: TravelMap): PlacedTable[] {
+  return [...map.tables, ...map.roadTables.map((r) => ({ ...r.table, placeId: "" }))];
 }
 
 /**
@@ -102,8 +124,9 @@ export function travelAnswer(fromId: string | null, toId: string, paceId: Travel
     `By road from ${nameOf(start)} to ${nameOf(end)}: ${distance} ${unit}, ${formatTravelTime(time)} of travel at a ${pace.label.toLowerCase()} pace (${time.calendarDays} ${time.calendarDays === 1 ? "day" : "days"} on the calendar).`,
     passed.length === 0 ? "The road passes no other place of the campaign." : `The road passes ${passed.join(", then ")}.`,
     nights === 0 ? "They arrive the same day: no night on the road." : `${nights} ${nights === 1 ? "night" : "nights"} on the road.`,
-    // The tables that hold for where the road starts, what it passes and where it ends, in that order.
-    ...[tablesLine(tablesAlong([start, ...placesPassed(way), end], parentOf, nameOf, map.tables))].filter((line): line is string => line !== null),
+    // The tables for this journey: each road's own first (the road is where the party is between two places),
+    // then those that hold for where it starts, what it passes and where it ends. A table is listed once.
+    ...[tablesLine(tablesOfTheWay(way, map, parentOf, nameOf))].filter((line): line is string => line !== null),
     `When they arrive, call pass_days with ${time.calendarDays} and go_to with ${toId}.`,
   ];
   return { content: lines.join("\n"), isError: false };

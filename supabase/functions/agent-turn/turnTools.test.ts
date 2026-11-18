@@ -84,7 +84,8 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
         mapReads.count += 1;
         return {
           places: [{ id: PLACE, name: "Cellar", parentId: null }, { id: FAR, name: "Farholt", parentId: null }],
-          roads: [{ id: "r1", from_location_id: PLACE, to_location_id: FAR, distance: 48, unit: "mi" as const, name: "", going: "road" as const }],
+          roads: [{ id: "r1", from_location_id: PLACE, to_location_id: FAR, distance: 48, unit: "mi" as const, name: "", going: "road" as const, roll_table_id: "t2" }],
+          roadTables: [{ roadId: "r1", table: { id: "t2", name: "The long road", dice: "1d4", entries: [{ min: 1, max: 4, label: "Pilgrims", notes: null, encounterId: null }] } }],
           tables: [{ id: "t1", name: "Farholt road", dice: "1d4", placeId: FAR, entries: [{ min: 1, max: 2, label: "A lame horse", notes: null, encounterId: null }, { min: 3, max: 4, label: "Wolves", notes: null, encounterId: null }] }],
         };
       },
@@ -131,6 +132,7 @@ describe("makeTurnTools", () => {
   it("rolls on a table the campaign placed, with the die it is handed, and on no other", async () => {
     const { turn } = build();
     expect((await turn.callTool("roll_table", { table_id: "t1" })).content).toContain("Rolled 3 on \"Farholt road\" (1d4): Wolves");
+    expect((await turn.callTool("roll_table", { table_id: "t2" })).content).toContain("Pilgrims");
     expect((await turn.callTool("roll_table", { table_id: "t9" })).isError).toBe(true);
   });
 
