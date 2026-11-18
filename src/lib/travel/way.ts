@@ -97,3 +97,26 @@ export function roadPlaceOf(placeId: string, parentOf: (id: string) => string | 
   }
   return null;
 }
+
+/** Somewhere a journey can pause and something can happen: a night's camp, or a place the road passes. */
+export type Stop = { kind: "night"; night: number } | { kind: "place"; placeId: string };
+
+/**
+ * The stops of a way in the order they are reached, at a day's march of `milesPerDay`: the places the road passes
+ * and a night after every full day that is not the last stretch in. A place reached at the end of a day's march
+ * comes before that night: the party sleeps there, not short of it.
+ */
+export function stopsOf(way: Way, milesPerDay: number): Stop[] {
+  if (!(milesPerDay > 0) || way.legs.length === 0) return [];
+  const marks: { at: number; order: number; stop: Stop }[] = [];
+  let walked = 0;
+  way.legs.forEach((leg, index) => {
+    walked += leg.miles;
+    if (index < way.legs.length - 1) marks.push({ at: walked, order: 0, stop: { kind: "place", placeId: leg.to } });
+  });
+  // A thousandth of a mile of slack, so a journey of exactly two days' march has one night, not two.
+  for (let night = 1; night * milesPerDay < way.miles - 0.001; night += 1) {
+    marks.push({ at: night * milesPerDay, order: 1, stop: { kind: "night", night } });
+  }
+  return marks.sort((a, b) => a.at - b.at || a.order - b.order).map((mark) => mark.stop);
+}

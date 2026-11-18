@@ -76,6 +76,8 @@ describe("LocationJourney", () => {
     const said = wrapper.get("[data-testid=location-journey]").text();
     expect(said).toContain("55 mi");
     expect(said).not.toContain("straight line");
+    // 55 miles at 24 a day: nights after 24 and 48 miles, and no place between the two towns.
+    expect(wrapper.get("[data-testid=location-journey-stops]").text()).toBe("On the way: Night 1, then night 2.");
   });
 
   // Bug caught: the road's own encounter table not offered on the journey that takes that road; or a roll that
