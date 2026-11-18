@@ -22,6 +22,8 @@ export interface Road {
   /** "the coast road"; empty when it has no name. */
   name: string;
   going: Going;
+  /** The road's own encounter table (Dungeon Craft), when the DM gave it one. */
+  roll_table_id: string | null;
 }
 
 /** The place at the other end of a road, seen from one of its ends; null when the road does not touch that place. */

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(17);
 
 -- Roads between places (#1222): a row joining two places of one campaign, with a distance. The campaign's DMs
 -- write them; players and other campaigns do not read them.
@@ -86,6 +86,30 @@ select throws_ok(
   $$ insert into public.location_roads (campaign_id, from_location_id, to_location_id, distance)
      values ('12220000-0000-4000-8000-0000000000b1', '12220000-0000-4000-8000-0000000000c1', '12220000-0000-4000-8000-0000000000c2', 3) $$,
   '42501', null, 'nor adds one to a campaign that is not theirs'
+);
+
+-- ── A road's own table (20261118 location_roads_roll_table) ────────────────
+reset role;
+insert into public.roll_tables (id, user_id, campaign_id, name, dice) values
+  ('12220000-0000-4000-8000-0000000000e1', '12220000-0000-4000-8000-0000000000a1', '12220000-0000-4000-8000-0000000000b1', 'The coast road', '1d6'),
+  ('12220000-0000-4000-8000-0000000000e9', '12220000-0000-4000-8000-0000000000a3', '12220000-0000-4000-8000-0000000000b2', 'Elsewhere''s table', '1d6');
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '12220000-0000-4000-8000-0000000000a1', true);
+select lives_ok(
+  $$ update public.location_roads set roll_table_id = '12220000-0000-4000-8000-0000000000e1' where campaign_id = '12220000-0000-4000-8000-0000000000b1' $$,
+  'a road takes a table of its own campaign'
+);
+-- Bug caught: a road pointed at another campaign's table, whose entries the narrator would then read out.
+select throws_ok(
+  $$ update public.location_roads set roll_table_id = '12220000-0000-4000-8000-0000000000e9' where campaign_id = '12220000-0000-4000-8000-0000000000b1' $$,
+  '23514', null, 'and never a table of another campaign'
+);
+reset role;
+delete from public.roll_tables where id = '12220000-0000-4000-8000-0000000000e1';
+select is(
+  (select count(*)::integer from public.location_roads where campaign_id = '12220000-0000-4000-8000-0000000000b1' and roll_table_id is null),
+  (select count(*)::integer from public.location_roads where campaign_id = '12220000-0000-4000-8000-0000000000b1'),
+  'a table that goes leaves its roads standing, with no table'
 );
 
 -- ── The campaign changes hands ─────────────────────────────────────────────
