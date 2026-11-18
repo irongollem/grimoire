@@ -7,6 +7,7 @@ import { actionAvailability } from "../../../src/rules/encounterTurn.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { movementBudgetFeet } from "../../../src/rules/fight/terrain/movementBudget.ts";
 import { DEFAULT_REACH_FEET } from "../../../src/rules/fight/terrain/sight.ts";
+import { creatureKindOf } from "../../../src/rules/fight/spells/creatureKind.ts";
 import { castableNow, type CastNow } from "../../../src/rules/fight/spells/castNow.ts";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
 import { turnOptions, type TurnOption, type UsableAttack } from "../../../src/rules/fight/terrain/turnOptions.ts";
@@ -68,7 +69,7 @@ export function assembleTurnOptions(facts: TurnOptionsFacts): { options: TurnOpt
   });
   const block = statBlockOf(mover, sources);
   const attacks = usableAttacks(mover, block);
-  const spells = block === null || facts.spellRecords === undefined ? [] : castableNow(block, mover, facts.spellRecords, facts.ruleset);
+  const spells = block === null || facts.spellRecords === undefined ? [] : castableNow(block, mover, facts.spellRecords, facts.ruleset, { kindsChecked: true });
   const options = turnOptions({
     combatants: facts.combatants,
     moverId: mover.instance_id,
@@ -78,6 +79,7 @@ export function assembleTurnOptions(facts: TurnOptionsFacts): { options: TurnOpt
     reachOf: (c) => meleeReachFeet(statBlockOf(c, sources)),
     ruleset: facts.ruleset,
     spells,
+    kindOf: (c) => creatureKindOf(c, sources),
   });
   return { options, attacks, spells };
 }

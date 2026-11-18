@@ -167,9 +167,17 @@ describe("spellEntryFor: conditions from condition_effect", () => {
     }
   });
 
-  // Bug caught: a humanoid-only condition imposed on a creature of another kind. The fight cannot read a creature's kind, so it imposes nothing.
+  // Bug caught: a humanoid-only condition imposed on a creature of another kind. Without the caller's word that every target was checked, it imposes nothing.
   it("fails if a spell limited to a creature kind is imposed on everyone", () => {
     expect(why(spellEntryFor(holdPerson({ condition_effect: holdPersonEffect({ only_kinds: ["humanoid"] }) }), 2, MAGE))).not.toBe("automatable");
+  });
+
+  // Bug caught: `kindsChecked` ignored, so Hold Person never paralyses anyone; or honoured for a spell that is not limited (harmless) but not for one that is.
+  it("fails if a kind-limited spell does not build its condition once the kinds are checked", () => {
+    const limited = holdPerson({ condition_effect: holdPersonEffect({ only_kinds: ["humanoid"] }) });
+    const made = spellEntryFor(limited, 2, MAGE, { kindsChecked: true });
+    expect(made.automatable && saveOf(made)?.conditions).toEqual([{ name: "Paralyzed", ends: { kind: "save", at: "end", ability: "wis", remaining: 10 } }]);
+    expect(why(spellEntryFor(limited, 2, MAGE, { kindsChecked: false }))).not.toBe("automatable");
   });
 
   // Bug caught: a self-targeted or non-save condition spell being cast at others.

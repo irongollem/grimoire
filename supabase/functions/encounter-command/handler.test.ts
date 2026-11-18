@@ -1889,6 +1889,54 @@ describe("cast_spell", () => {
       await runBatch(batch("b", hold()), h.deps);
       expect(by(stored(h), "t1").conditions[0].source).toEqual({ id: "mage", spell: "Hold Person" });
     });
+
+    // The real Hold Person: humanoids only (SRD 5.1 "Hold Person": "Choose a humanoid that you can see within range").
+    describe("limited to a kind of creature", () => {
+      const humanoidHold = holdPerson({ condition_effect: holdPersonEffect({ only_kinds: ["humanoid"] }) });
+      const typed = (id: string, monster_type: string) => ({ id, name: id, monster_type, stat_block: monster(id).stat_block }) as unknown as Monster;
+      const KIND_SOURCES: StatBlockSources = {
+        monsters: [{ id: "m-mage", name: "Mage", stat_block: mageWithHold() } as unknown as Monster, typed("m-bandit", "humanoid"), typed("m-wolf", "beast")],
+        npcs: [{ id: "n-elf", name: "Elf", race: "elf", stat_block: monster("n-elf").stat_block } as never],
+        companions: [],
+      };
+      const fightWith = (target: Partial<RunCombatant>) =>
+        row({ combatants_live: [combatant("mage", { monster_id: "m-mage", hp: 40, max_hp: 40, initiative: 12, position: { x: 1, y: 1 } }), combatant("t1", { hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 4, y: 1 }, ...target })] });
+      const holdAt = () => cast({ spell: "hold person", targetIds: ["t1"] });
+
+      // Bug caught: `kindsChecked` not passed on the server, so Hold Person on a humanoid still imposes nothing.
+      it("fails if a humanoid that fails its save is not left Paralyzed, or the slot is not spent", async () => {
+        const h = harness(fightWith({ monster_id: "m-bandit" }), { sources: KIND_SOURCES, spells: [humanoidHold], dieFaces: [5] });
+        await runBatch(batch("b", holdAt()), h.deps);
+        expect(by(stored(h), "t1").conditions.map((c) => c.name)).toEqual(["Paralyzed"]);
+        expect(by(stored(h), "mage").action_uses).toEqual({ "slots/2": { used: 1, per_day: 3 } });
+      });
+
+      // Bug caught: Hold Person paralysing a wolf, or the refusal still spending the slot, the Action or a die.
+      it("fails if a beast is paralysed, or a refused cast spends anything", async () => {
+        const h = harness(fightWith({ monster_id: "m-wolf", name: "Wolf" }), { sources: KIND_SOURCES, spells: [humanoidHold], dieFaces: [5] });
+        await expect(runBatch(batch("b", holdAt()), h.deps)).rejects.toMatchObject({ status: 400, message: "Hold Person works only on a humanoid, and Wolf is a beast." });
+        expect(h.saves).toBe(0);
+        expect(h.dieCalls).toBe(0);
+        expect(h.posted).toEqual([]);
+      });
+
+      // Bug caught: a creature whose kind nobody knows is paralysed (or refused) as if it were known; it must cost the slot and go to the table with a reason.
+      it("fails if an unknown kind is rolled or refused instead of spent and left to the table", async () => {
+        const h = harness(fightWith({ monster_id: undefined, npc_id: "n-elf" }), { sources: KIND_SOURCES, spells: [humanoidHold], dieFaces: [] });
+        const result = await runBatch(batch("b", holdAt()), h.deps);
+        expect(by(stored(h), "t1").conditions).toEqual([]);
+        expect(h.dieCalls).toBe(0);
+        expect(by(stored(h), "mage").action_uses).toEqual({ "slots/2": { used: 1, per_day: 3 } });
+        expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "cast", spell: "Hold Person", why: expect.stringMatching(/cannot tell what kind of creature t1 is/) } });
+      });
+
+      // Bug caught: a player character left to the table (or refused) instead of treated as the humanoid every playable species is.
+      it("fails if a player character is not held like a humanoid", async () => {
+        const h = harness(fightWith({ type: "player", monster_id: undefined, party_member_id: "pm-nessa" }), { sources: KIND_SOURCES, players: NESSA_IN_PLATE, spells: [humanoidHold], dieFaces: [5] });
+        await runBatch(batch("b", holdAt()), h.deps);
+        expect(by(stored(h), "t1").conditions.map((c) => c.name)).toEqual(["Paralyzed"]);
+      });
+    });
   });
 
   it("refuses a malformed cast before the fight is read: a repeated target, too many targets, a bad slot level, bad faces", () => {

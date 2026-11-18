@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { NO_OCCLUDERS } from "../../../lib/battlemap/occlusion.ts";
 import type { RunCombatant } from "../../../types/encounter.types.ts";
 import { castableNow } from "../spells/castNow.ts";
-import { fireball, mageBlock } from "../spells/spellTestKit.ts";
+import { fireball, holdPerson, holdPersonEffect, mageBlock, mageWithHold } from "../spells/spellTestKit.ts";
 import type { SpellRecord } from "../spells/spellChoice.ts";
 import { rangeFeetOf, spellTargetings } from "./spellTargeting.ts";
 
@@ -65,5 +65,41 @@ describe("spellTargetings", () => {
     const found = targetings(fireball(), [who("g1", "p", 6), who("g2", "p", 7)]);
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ centerId: "g1", targetIds: ["g1", "g2"] });
+  });
+});
+
+describe("spellTargetings: a spell limited to a kind of creature", () => {
+  const hold = (over: Parameters<typeof holdPersonEffect>[0] = {}) => holdPerson({ condition_effect: holdPersonEffect({ only_kinds: ["humanoid"], ...over }) });
+  const kinds: Record<string, string | null> = { wolf: "beast", bandit: "humanoid", Bandit: "humanoid", mystery: null };
+  const kindOf = (c: RunCombatant) => kinds[c.instance_id] ?? null;
+  const offered = (record: SpellRecord, hostiles: RunCombatant[], withKinds: boolean) => {
+    const spells = castableNow(mageWithHold(), MAGE, [record], "2014", { kindsChecked: true });
+    return spellTargetings({ mover: MAGE, hostiles, allies: [], scene: { occluders: NO_OCCLUDERS, onBoard: [MAGE, ...hostiles] }, spells, ...(withKinds ? { kindOf } : {}) });
+  };
+
+  // Bug caught: Hold Person offered at a wolf (a beast) or at a creature whose kind nobody knows.
+  it("offers a single-target cast only at hostiles of a known, allowed kind", () => {
+    const found = offered(hold(), [who("wolf", "p", 2), who("bandit", "p", 3), who("mystery", "p", 4)], true);
+    expect(found.map((t) => t.targetIds)).toEqual([["bandit"]]);
+  });
+
+  // Bug caught: an area whose centre is a creature the spell cannot affect is offered, or the area lists a creature of the wrong kind among its targets.
+  it("catches only allowed hostiles in an area, and offers no area centred on one that is not affected", () => {
+    const found = offered(fireball({ condition_effect: holdPersonEffect({ only_kinds: ["humanoid"], save_ability: "DEX", conditions: ["Prone"] }) }), [who("wolf", "p", 2), who("bandit", "p", 3)], true);
+    expect(found.every((t) => t.centerId === "bandit" && t.targetIds.every((id) => id === "bandit"))).toBe(true);
+    expect(found.length).toBeGreaterThan(0);
+  });
+
+  // Bug caught: with no way to tell kinds, a limited spell is offered at everyone.
+  it("offers a kind-limited spell nowhere when no kind lookup is given", () => {
+    expect(offered(hold(), [who("bandit", "p", 3)], false)).toEqual([]);
+  });
+
+  // Bug caught: the kind filter leaking onto a spell with no kind limit.
+  it("offers a spell with no kind limit exactly as before when a kind lookup is given", () => {
+    const hostiles = [who("wolf", "p", 2), who("mystery", "p", 3)];
+    const spells = castableNow(mageBlock(), MAGE, [fireball()], "2014");
+    const input = { mover: MAGE, hostiles, allies: [], scene: { occluders: NO_OCCLUDERS, onBoard: [MAGE, ...hostiles] }, spells };
+    expect(spellTargetings({ ...input, kindOf })).toEqual(spellTargetings(input));
   });
 });

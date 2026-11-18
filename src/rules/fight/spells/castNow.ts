@@ -15,6 +15,7 @@ import { limitAvailability, type ActionLimit } from "../../encounterTurn.ts";
 import { spellcastingOf } from "../../statBlock/spellcastingProse.ts";
 import { castableBy, slotLimitAt } from "./castLimit.ts";
 import { pickSpellRecord, type SpellRecord } from "./spellChoice.ts";
+import { kindLimitOf } from "./creatureKind.ts";
 import { spellEntryFor } from "./spellEntry.ts";
 
 /** The area a spell covers, from the record's `aoe_shape` and the first number of its `aoe_size`. */
@@ -36,6 +37,8 @@ export interface CastNow {
   entry: StatBlockEntry;
   /** Null for a single-target spell, and for a record whose shape has a size that cannot be read (treated as single target, never guessed). */
   area: SpellArea | null;
+  /** The creature kinds the spell's condition is limited to, or null for a spell with no such limit: targeting offers it only at those. */
+  kindLimit: readonly string[] | null;
 }
 
 /** The names of every spell the stat block lists, once each: what a turn needs the records of. Empty for a creature that does not cast. */
@@ -84,7 +87,14 @@ function slotFor(statBlock: MonsterStatBlock, combatant: RunCombatant, level: nu
  * library one) and an entry the fight can roll. A spell with no record, an unreviewed one, one that heals or has no
  * damage, and one with no use left is simply absent.
  */
-export function castableNow(statBlock: MonsterStatBlock, combatant: RunCombatant, records: readonly SpellRecord[], ruleset: RulesetKey): CastNow[] {
+export function castableNow(
+  statBlock: MonsterStatBlock,
+  combatant: RunCombatant,
+  records: readonly SpellRecord[],
+  ruleset: RulesetKey,
+  /** True when the caller's targeting keeps a kind-limited spell off the wrong creatures (`spellTargetings` with `kindOf`): such a spell is then castable. */
+  options: { kindsChecked?: boolean } = {},
+): CastNow[] {
   const out: CastNow[] = [];
   for (const name of listedSpellNames(statBlock)) {
     const listed = castableBy(statBlock, name);
@@ -109,9 +119,9 @@ export function castableNow(statBlock: MonsterStatBlock, combatant: RunCombatant
       if (useKey !== null && limit !== null && !limitAvailability(combatant, useKey, limit).available) continue;
     }
 
-    const entry = spellEntryFor(record, castLevel, { saveDc: listed.saveDc, attackBonus: listed.attackBonus, casterLevel: listed.casterLevel });
+    const entry = spellEntryFor(record, castLevel, { saveDc: listed.saveDc, attackBonus: listed.attackBonus, casterLevel: listed.casterLevel }, { kindsChecked: options.kindsChecked === true });
     if (!entry.automatable) continue;
-    out.push({ spell: record.name, record, castLevel, useKey, limit, kind: entry.kind, entry: entry.entry, area: areaOf(record) });
+    out.push({ spell: record.name, record, castLevel, useKey, limit, kind: entry.kind, entry: entry.entry, area: areaOf(record), kindLimit: kindLimitOf(record) });
   }
   return out;
 }

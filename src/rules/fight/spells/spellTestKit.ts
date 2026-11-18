@@ -63,8 +63,8 @@ export function holdPersonEffect(over: Partial<SpellConditionEffect> = {}): Spel
 
 /**
  * SRD 5.1 "Hold Person" as the library stores it: a 2nd-level concentration save spell with no damage and a "special" save
- * effect. `only_kinds` is empty here because the fight cannot read a creature's kind (see `conditionsOf`); the real agreed
- * reading says "humanoid".
+ * effect. `only_kinds` is empty here so the spell is not limited to a kind; the real agreed reading says "humanoid", and
+ * `holdPersonEffect({ only_kinds: ["humanoid"] })` is that one.
  */
 export function holdPerson(over: Partial<SpellRecord> = {}): SpellRecord {
   return {

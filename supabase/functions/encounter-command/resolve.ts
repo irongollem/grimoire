@@ -37,6 +37,7 @@ import {
 import { playerArmorClass, playerSaveBonus, type PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
 import { castableBy, slotLimitAt } from "../../../src/rules/fight/spells/castLimit.ts";
 import { pickSpellRecord, type SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
+import { creatureKindOf, kindAllowed, kindLimitOf, kindPhrase } from "../../../src/rules/fight/spells/creatureKind.ts";
 import { spellEntryFor } from "../../../src/rules/fight/spells/spellEntry.ts";
 import { limitAvailability } from "../../../src/rules/encounterTurn.ts";
 import { combatantFootprint } from "../../../src/lib/battlemap/tokenFootprint.ts";
@@ -500,10 +501,24 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     const castLevel = slotted ? (cast.castLevel ?? (listed.level as number)) : listed.level === 0 ? 0 : record.level;
     if (!slotted && cast.castLevel !== undefined && cast.castLevel !== castLevel) refuse(`${caster.name} casts ${record.name} at level ${castLevel} only.`);
     const targets = cast.targetIds.map((id) => combatantIn(state, id, "target"));
+    // A spell limited to a kind of creature (Hold Person: humanoids) is checked against each target before anything is spent.
+    // A wrong kind is refused; a kind the fight cannot tell (an NPC with only a race) leaves the outcome to the table.
+    const kindLimit = kindLimitOf(record);
+    let kindWhy: string | null = null;
+    if (kindLimit !== null) {
+      for (const target of targets) {
+        const kind = creatureKindOf(target, env.sources);
+        if (kind !== null && !kindAllowed(kind, kindLimit)) {
+          refuse(`${record.name} works only on ${kindPhrase(kindLimit)}, and ${target.name} is ${kindPhrase([kind])}.`);
+        }
+      }
+      const unknown = targets.find((t) => creatureKindOf(t, env.sources) === null);
+      if (unknown !== undefined) kindWhy = `${record.name} works only on ${kindPhrase(kindLimit)}, and the game cannot tell what kind of creature ${unknown.name} is. Its outcome is the table's to rule.`;
+    }
     const entry = spellEntryFor(record, castLevel, {
       saveDc: listed.saveDc, attackBonus: listed.attackBonus, casterLevel: listed.casterLevel,
-    });
-    const rolled = automatable && entry.automatable;
+    }, { kindsChecked: kindLimit !== null && kindWhy === null });
+    const rolled = automatable && entry.automatable && kindWhy === null;
     if (rolled && targets.length === 0) refuse(`Name at least one target for ${record.name}.`);
 
     // Everything that can be refused for the cast itself is behind us: from here the cast is spent.
@@ -522,10 +537,12 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     if (useKey !== null && limit !== null) step({ type: "use_action", instanceId: caster.instance_id, action: useKey, limit });
     step({ type: "set_action_used", instanceId: caster.instance_id, used: true });
 
-    if (!automatable || !entry.automatable) {
+    if (!rolled || !entry.automatable) {
       const why = !automatable
         ? `${record.name}'s rules are not checked in the library, so its outcome is the table's to rule.`
-        : `${(entry as { why: string }).why} Its outcome is the table's to rule.`;
+        : kindWhy !== null
+          ? kindWhy
+          : `${(entry as { why: string }).why} Its outcome is the table's to rule.`;
       collected.push({ type: "resolved", resolved: { kind: "cast", casterId: caster.instance_id, spell: record.name, castLevel, targetIds: cast.targetIds, why } });
       return;
     }

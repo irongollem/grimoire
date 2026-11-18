@@ -23,6 +23,7 @@ import type { Occluders } from "../../../lib/battlemap/occlusion.ts";
 import { combatantFootprint } from "../../../lib/battlemap/tokenFootprint.ts";
 import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { CastNow } from "../spells/castNow.ts";
+import { kindAllowed } from "../spells/creatureKind.ts";
 import { coverBetween, distanceFeet, DEFAULT_REACH_FEET, type Box } from "./sight.ts";
 
 /** One way to cast one spell: who is the centre (null when centred on the caster), who is hit, and which friends are caught. */
@@ -64,6 +65,12 @@ export interface SpellTargetingInput {
   /** Null when nothing can be measured. */
   scene: SpellScene | null;
   spells: readonly CastNow[];
+  /**
+   * The creature kind of a combatant, or null when it is not known (`creatureKindOf`). With it a spell limited to a kind
+   * is offered only at hostiles of a known, allowed kind; without it such a spell is not offered at all, because nothing
+   * could keep it from the wrong creature. A spell with no kind limit is never affected.
+   */
+  kindOf?: (c: RunCombatant) => string | null;
 }
 
 function boxOf(c: RunCombatant): Box | null {
@@ -73,8 +80,12 @@ function boxOf(c: RunCombatant): Box | null {
 
 export function spellTargetings(input: SpellTargetingInput): SpellTargeting[] {
   const out: SpellTargeting[] = [];
-  const { mover, hostiles, scene } = input;
+  const { mover, scene } = input;
   for (const cast of input.spells) {
+    const limit = cast.kindLimit;
+    if (limit !== null && input.kindOf === undefined) continue;
+    const { kindOf } = input;
+    const hostiles = limit === null || kindOf === undefined ? input.hostiles : input.hostiles.filter((h) => kindAllowed(kindOf(h), limit));
     if (cast.area !== null && !OFFERED_SHAPES.has(cast.area.shape)) continue;
     const range = rangeFeetOf(cast.record.range);
     // A spell cast on the caster that covers no area has no one else to hit.

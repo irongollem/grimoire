@@ -11,7 +11,7 @@ import type { RunCombatant } from "../../../src/types/encounter.types";
 import { emptyDefenses, type StatBlockEntry } from "../../../src/types/statBlock.types";
 import { meleeReachFeet } from "../_shared/turnOptionsFor";
 import { computeOptions, OptionsError, validateOptionsRequest, type OptionsDeps, type OptionsFight } from "./handler";
-import { fireBolt, fireball, mageBlock } from "../../../src/rules/fight/spells/spellTestKit";
+import { fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithHold } from "../../../src/rules/fight/spells/spellTestKit";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice";
 
 // A square picture, 10 across: cells 0 to 9 both ways. Its shape is recorded (`image_height_over_width`), so the map's edge is known.
@@ -134,6 +134,21 @@ describe("computeOptions", () => {
     const none: string[][] = [];
     await ask({ combatants: [wolf(), hero(4, 0)], spellReads: none });
     expect(none).toEqual([]);
+  });
+
+  // Bug caught: Hold Person offered at a wolf, or at no one because the kinds are not read: the list must show it at the humanoid only.
+  it("offers a kind-limited spell only at a hostile of a known, allowed kind, and a spell with no limit as before", async () => {
+    const mage = combatant("mage", { monster_id: "m-mage", faction_id: "m", position: { x: 0, y: 0 }, size: "medium" });
+    const typed = (id: string, monster_type: string) => ({ ...monster(id, [attack("Bite")]), monster_type }) as Monster;
+    const hostile = (id: string, at: number) => combatant(id, { monster_id: `m-${id}`, faction_id: "p", position: { x: at, y: 0 }, size: "medium" });
+    const r = await computeOptions({ encounterId: "enc", instanceId: "mage" }, deps({
+      combatants: [mage, hostile("wolf", 2), hostile("bandit", 3)],
+      monsters: [{ id: "m-mage", name: "Mage", stat_block: mageWithHold() } as unknown as Monster, typed("m-wolf", "beast"), typed("m-bandit", "humanoid")],
+      spells: [holdPerson({ condition_effect: holdPersonEffect({ only_kinds: ["humanoid"] }) }), fireball()],
+    }));
+    const casts = r.options.flatMap((o) => (o.kind === "spell" && o.spell ? [[o.spell.name, o.spell.targetIds] as const] : []));
+    expect(casts.filter(([name]) => name === "Hold Person")).toEqual([["Hold Person", ["bandit"]]]);
+    expect(casts.some(([name]) => name === "Fireball")).toBe(true);
   });
 
   it("refuses an encounter with no fight yet and a creature that is not in it", async () => {

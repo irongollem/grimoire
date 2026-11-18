@@ -23,6 +23,11 @@ export interface SpellCaster {
   casterLevel?: number | null;
 }
 
+export interface SpellEntryOptions {
+  /** The caller vouches that every target is of a kind the spell's `condition_effect.only_kinds` allows, so its conditions are imposed. */
+  kindsChecked?: boolean;
+}
+
 export type SpellEntry =
   | { automatable: true; kind: "attack" | "save"; entry: StatBlockEntry }
   | { automatable: false; why: string };
@@ -45,17 +50,17 @@ const ROUNDS_PER_MINUTE = 10;
  * cannot say it completely. Only a `condition` verdict that lands on a failed save, whose save is the record's own
  * column, aimed at someone other than the caster. Whatever is not said is left to the table, never guessed.
  */
-function conditionsOf(record: SpellRecord): SaveCondition[] {
+function conditionsOf(record: SpellRecord, kindsChecked: boolean): SaveCondition[] {
   const effect = record.condition_effect;
   if (effect === null || effect === undefined) return [];
   if (effect.verdict !== "condition" || effect.applies !== "failed_save" || effect.conditions.length === 0) return [];
   if (effect.targets === null || effect.targets.kind === "self") return [];
   // Two sources of the save's ability that differ: do not guess which one is right.
   if (effect.save_ability === null || effect.save_ability !== (record.save_attribute ?? "").toUpperCase()) return [];
-  // The fight does not know a target's creature kind (`monster_type` lives on the monsters table, not on the stat block
-  // or the combatant), so a condition limited to a kind ("humanoid") cannot be kept from the wrong creature. It stays
-  // the table's to rule rather than being imposed on everyone.
-  if (effect.only_kinds.length > 0) return [];
+  // A condition limited to a kind ("humanoid") is imposed only when the caller vouches that every target is of an
+  // allowed kind (`kindsChecked`, from `creatureKind.ts`); otherwise it stays the table's to rule rather than being
+  // imposed on everyone.
+  if (effect.only_kinds.length > 0 && !kindsChecked) return [];
   const ends = endsOf(effect);
   if (ends === "unsaid") return [];
   return effect.conditions.map((name): SaveCondition => (ends === null ? { name } : { name, ends }));
@@ -122,7 +127,7 @@ function damageOf(record: SpellRecord, castLevel: number, casterLevel: number, s
  * The cast as a stat-block entry, or the plain reason it is not one. `castLevel` is the slot the spell is cast with
  * (the spell's own level for innate casting, 0 for a cantrip). The caster brings its own spell attack bonus and save DC.
  */
-export function spellEntryFor(record: SpellRecord, castLevel: number, caster: SpellCaster): SpellEntry {
+export function spellEntryFor(record: SpellRecord, castLevel: number, caster: SpellCaster, options: SpellEntryOptions = {}): SpellEntry {
   if (castLevel < record.level) return no(`${record.name} is a level ${record.level} spell and cannot be cast with a level ${castLevel} slot.`);
 
   const kind = record.attack_type;
@@ -134,7 +139,7 @@ export function spellEntryFor(record: SpellRecord, castLevel: number, caster: Sp
   const casterLevel = caster.casterLevel === undefined || caster.casterLevel === null ? 1 : caster.casterLevel;
   const dealt = damageOf(record, castLevel, casterLevel, !isAttack);
   if ("why" in dealt) return no(dealt.why);
-  const conditions = isAttack ? [] : conditionsOf(record);
+  const conditions = isAttack ? [] : conditionsOf(record, options.kindsChecked === true);
   // A save that only imposes a condition (Hold Person) has no damage and is still resolvable.
   const conditionOnly = dealt.parts.length === 0 && conditions.length > 0;
   if (dealt.parts.length === 0 && !conditionOnly) {

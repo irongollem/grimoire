@@ -162,6 +162,8 @@ export interface TurnOptionsInput {
   ruleset: RulesetKey;
   /** The damage spells the mover can cast now (`castableNow`); left out for a creature that casts none. */
   spells?: readonly CastNow[];
+  /** The creature kind of a combatant (`creatureKindOf`); a spell limited to a kind is offered only when it is given. */
+  kindOf?: (c: RunCombatant) => string | null;
 }
 
 // ── who is on the board ─────────────────────────────────────────────────────────
@@ -696,6 +698,7 @@ function spellOptionsOf(input: TurnOptionsInput, mover: RunCombatant, names: Rea
     allies: living.filter((c) => !isHostileTo(mover, c)),
     scene: scene === null ? null : { occluders: scene.map.occluders, onBoard: input.combatants.filter(isOnBoard) },
     spells: input.spells,
+    kindOf: input.kindOf,
   });
   const nearest = (t: SpellTargeting) => (t.distanceFeet === null ? 0 : t.distanceFeet);
   return targetings
