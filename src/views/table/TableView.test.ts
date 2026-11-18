@@ -138,7 +138,7 @@ describe("TableView: playing", () => {
   // or becoming the id by remounting, which drops the story that is streaming in.
   it("draws the turn as it streams, and replaces /table/new with the real id without losing the story", async () => {
     fetchMock
-      // The Dungeon Master opens the scene the moment the sitting is opened: no words of the player's.
+      // The Narrator opens the scene the moment the sitting is opened: no words of the player's.
       .mockResolvedValueOnce(sse({ type: "session", sessionId: "s1" }, { type: "text", delta: "The lane smells of rain." }, { type: "done", end: "end_turn", credits: 0, tokens: 5 }))
       .mockResolvedValueOnce(
         sse(
@@ -609,7 +609,7 @@ describe("TableView: the characters' voices", () => {
     await wrapper.get('[data-testid="solo-voice-narrator"]').trigger("click");
     await say(wrapper, "Who are you?");
     await flushPromises();
-    expect(voiceCalls()).toEqual([{ campaignId: "c1", sessionId: "s1", role: "narrator", speakerId: null, speakerName: "The Dungeon Master", text: "Rain starts.", how: null, key: "key:rain" }]);
+    expect(voiceCalls()).toEqual([{ campaignId: "c1", sessionId: "s1", role: "narrator", speakerId: null, speakerName: "The Narrator", text: "Rain starts.", how: null, key: "key:rain" }]);
   });
 
   // Bug caught: a deed read aloud, a line spoken twice on the next turn, or a line sent without the cue and key it came with

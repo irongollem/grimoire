@@ -211,7 +211,7 @@ describe("useTableVoice", () => {
     const voice = useTableVoice({ campaignId: () => "c1", sessionId: () => "s1", transport: async () => ok(), player: p.player, pause: async (ms) => { pauses.push(ms); } });
     useAuthStore().user = { id: "u-breath" } as User;
     voice.setPart("characters", true);
-    const narrator = { role: "narrator" as const, speakerId: null, speakerName: "The Dungeon Master", text: "Rain starts.", how: null, key: "k:n" };
+    const narrator = { role: "narrator" as const, speakerId: null, speakerName: "The Narrator", text: "Rain starts.", how: null, key: "k:n" };
     voice.say([line("One."), line("Two."), narrator]);
     for (let i = 0; i < 3; i++) {
       await tick();

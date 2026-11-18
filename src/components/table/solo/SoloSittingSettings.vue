@@ -20,6 +20,17 @@
           @update:model-value="(on: boolean) => voices.setPart(v.part, on)"
         />
       </div>
+      <div class="flex flex-col items-start gap-1" data-testid="table-narrator-voice">
+        <span id="table-narrator-voice-label" class="text-label text-foreground">The Narrator speaks in</span>
+        <SegmentedControl
+          :model-value="narrator.voice.value"
+          :options="NARRATOR_VOICE_OPTIONS"
+          size="sm"
+          aria-labelledby="table-narrator-voice-label"
+          @update:model-value="narrator.choose"
+        />
+        <p class="text-caption text-muted-foreground">One voice for the whole table, so a line is only ever made, and paid for, once.</p>
+      </div>
     </div>
 
     <div class="flex flex-col gap-2">
@@ -48,6 +59,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
+import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
+import { NARRATOR_VOICE_OPTIONS, useTableNarratorVoice } from "@/composables/table/useTableNarratorVoice";
 import { useTableHelpers } from "@/composables/table/useTableHelpers";
 import { useTableWatching } from "@/composables/table/useTableWatching";
 import { useTableVoicePrefs, useTableVoiceRates } from "@/composables/table/useTableVoice";
@@ -55,12 +68,14 @@ import { voiceCostLine } from "@/lib/table/voiceCost";
 import type { VoicePart } from "@/lib/table/voiceLines";
 
 const voices = useTableVoicePrefs();
+// No table yet: this is the voice the next one begins on.
+const narrator = useTableNarratorVoice(null);
 const rates = useTableVoiceRates();
 const { quiet: helpersQuiet } = useTableHelpers();
 const { watches } = useTableWatching();
 
 const VOICES: { part: VoicePart; label: string; hint: string }[] = [
-  { part: "narrator", label: "The Dungeon Master", hint: "The narration, and what characters do." },
+  { part: "narrator", label: "The Narrator", hint: "The narration, and what characters do." },
   { part: "characters", label: "The characters", hint: "Each in a voice of their own." },
   { part: "player", label: "Your own character", hint: "What you say aloud, read back in their voice." },
 ];

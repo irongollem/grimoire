@@ -9,7 +9,7 @@ export type VoiceParts = Record<VoicePart, boolean>;
 export const NO_VOICES: VoiceParts = { narrator: false, characters: false, player: false };
 
 /** The name the narrator's words are signed and kept under on the server. */
-export const NARRATOR_NAME = "The Dungeon Master";
+export const NARRATOR_NAME = "The Narrator";
 
 /** A line as the voice endpoint is asked for it. */
 export interface SpokenLine {
@@ -28,7 +28,7 @@ export type PlayedSpeaker = { id: string; name: string } | null;
 /**
  * What one thing on the page has to say aloud, in order: a character's spoken line, the narrator's text (each
  * stretch the server offered, or the whole of a stored one), a character's deed (the narrator reads it), or the
- * player's own line said aloud. The player's own deeds, questions to the Dungeon Master, rolls and margin notes are
+ * player's own line said aloud. The player's own deeds, questions to the Narrator, rolls and margin notes are
  * never read.
  */
 export function linesOfItem(item: StoryItem, who: PlayedSpeaker): Array<SpokenLine & { part: VoicePart }> {

@@ -175,6 +175,8 @@ export interface AgentTurnDeps {
     /** Whether the conversation started that session itself (see `SessionRow.opened_play_session`). */
     openedPlaySession: boolean;
     partyMemberId: string | null;
+    /** The Narrator's voice the host chose before sitting down; null leaves the table on its default. */
+    narratorVoice: "male" | "female" | null;
   }): Promise<SessionRow>;
   /**
    * The campaign's open play session, started if there is none: sitting down at the table is the game being played.
@@ -183,7 +185,8 @@ export interface AgentTurnDeps {
    * conversation then runs without one and what it writes carries no session.
    */
   openPlaySession(campaignId: string): Promise<{ id: string; opened: boolean } | null>;
-  loadTurns(sessionId: string): Promise<StoredTurn[]>;
+  /** The stored rows in reach of a turn (`turnsInReach.ts`): never the whole of a table that has run for months. */
+  loadTurns(sessionId: string, summaryThroughSeq: number): Promise<StoredTurn[]>;
   rateLimit(userId: string): Promise<boolean>;
   resolveProvider(campaign: CampaignRow): Promise<ResolvedProvider | null>;
   loadPrice(model: string): Promise<ModelPrice | null>;
@@ -372,7 +375,7 @@ export const MESSAGES = {
   noMetering: "The AI table cannot be metered right now.",
   flagged: "That message cannot be sent to the AI table.",
   closed: "table_closed",
-  withheld: "The Dungeon Master's answer was withheld by the check on what the table may tell. Nothing was charged. Try something else.",
+  withheld: "The Narrator's answer was withheld by the check on what the table may tell. Nothing was charged. Try something else.",
   conflict: "This conversation was continued somewhere else. Reload it and send your message again.",
   providerBusy: "The AI provider is busy right now. Send your message again in a moment.",
   failed: "The AI table ran into a problem. Send your message again.",
@@ -537,6 +540,7 @@ export async function beginTurn(input: {
           campaignSessionId: playSession === null ? null : playSession.id,
           openedPlaySession: playSession !== null && playSession.opened,
           partyMemberId: body.characterId === undefined ? null : body.characterId,
+          narratorVoice: body.narratorVoice === undefined ? null : body.narratorVoice,
         });
         // Before the quests are read for this turn, so the narrator sees the opening quest in play. Idempotent, so
         // a first turn that is not kept and is sent again does not open it twice.
@@ -547,7 +551,7 @@ export async function beginTurn(input: {
         const character = await characterOf(deps, campaign.id, session.party_member_id);
         emit({ type: "session", sessionId: session.id, ...(character ? { character: { id: character.id, name: character.name } } : {}) });
         if (scored !== null) emit({ type: "rolled", roll: scored.rolled });
-        stored = await deps.loadTurns(session.id);
+        stored = await deps.loadTurns(session.id, session.summary_through_seq);
         const lastSeqLoaded = stored.reduce((max, row) => Math.max(max, row.seq), 0);
         const history = historyFrom(stored, session.summary_through_seq);
         // The instructions hold nothing that changes during play; the scene, the quests and the record go at the head

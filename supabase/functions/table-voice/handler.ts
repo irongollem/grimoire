@@ -20,7 +20,7 @@
 
 import { creditsForSpeech, creditsPerMinute, speechChars } from "../_shared/agent/voiceCost.ts";
 import type { CreditCalibration } from "../_shared/agent/metering.ts";
-import { NARRATOR_VOICE_ID, pickVoice, type AgeBand, type Sex } from "./voicePick.ts";
+import { NARRATOR_VOICES, pickVoice, type AgeBand, type NarratorVoice, type Sex } from "./voicePick.ts";
 import { VOICE_ROLES, type VoiceRole } from "../_shared/agent/lineKey.ts";
 
 export interface VoiceRefusal {
@@ -32,6 +32,8 @@ export interface VoiceSession {
   id: string;
   user_id: string;
   campaign_id: string;
+  /** The voice the table's host chose for the Narrator. The table's, never a player's: a line's clip is made once. */
+  narrator_voice: NarratorVoice;
 }
 
 export interface VoiceCampaign {
@@ -61,8 +63,6 @@ export interface TableVoiceDeps {
   findShown(sessionId: string, line: VoicedLine): Promise<{ how: string | null } | null>;
   /** The played character's own pronouns and voice, for the player's said lines. */
   loadPlayerTraits(campaignId: string, memberId: string): Promise<SpeakerTraits>;
-  /** The narrator's voice where the stack names one (a bare ElevenLabs id, or `inworld:<id>`); null for the default. */
-  narratorVoice(): string | null;
   /**
    * What the character's record says of its sex and age, for casting, and the voice the DM gave it
    * (`npcs.spoken_voice_id`); nulls when it says nothing or has no record.
@@ -179,12 +179,12 @@ export function parseVoiceBody(raw: unknown): VoiceBody | null {
 }
 
 /** Whose voice says the line: the narrator's one voice, or a cast from the speaker's record. */
-async function voiceFor(deps: TableVoiceDeps, campaignId: string, line: VoicedLine): Promise<VoiceRef> {
+async function voiceFor(deps: TableVoiceDeps, session: VoiceSession, line: VoicedLine): Promise<VoiceRef> {
+  const campaignId = session.campaign_id;
   if (line.role === "narrator") {
-    // The stack may name the narrator's voice, on either service (narration asks the least acting, so it is the
-    // voice to try on the cheaper one). A reference that is not one, or a service with no key, falls back.
-    const named = voiceRefOf(deps.narratorVoice());
-    return named !== null && deps.hasService(named.service) ? named : { service: "elevenlabs", id: NARRATOR_VOICE_ID };
+    // The table's choice, on Inworld; the ready-made voice of the same choice where this stack has no key for it.
+    const voice = NARRATOR_VOICES[session.narrator_voice];
+    return deps.hasService("inworld") ? { service: "inworld", id: voice.inworld } : { service: "elevenlabs", id: voice.fallback };
   }
   // Cast from the record when there is one; someone without a record is cast by their shown name alone.
   let traits: SpeakerTraits = { sex: null, age: null, voiceId: null };
@@ -253,7 +253,7 @@ export async function speakLine(input: {
     console.error("table-voice: screening the line failed:", error);
   }
 
-  const voice = await voiceFor(deps, session.campaign_id, line);
+  const voice = await voiceFor(deps, session, line);
   // A line that is made is paid for: what it costs is worked out before it is made, from the admin's numbers.
   // Without them nothing is made, because nothing could be charged.
   const rate = await deps.loadRate(voice.service);

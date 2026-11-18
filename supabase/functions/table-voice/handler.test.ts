@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { shownInTurns, speakLine, voiceRates, VoicesSpent, VOICE_MESSAGES, type SpeakerTraits, type TableVoiceDeps, type VoiceCampaign, type VoiceSession } from "./handler";
-import { inworldText, NARRATOR_VOICE_ID, speechText, STOCK_VOICES } from "./voicePick";
+import { inworldText, NARRATOR_VOICES, speechText, STOCK_VOICES } from "./voicePick";
 import { lineKey, lineKeyFits, NARRATOR_SPEAKER } from "../_shared/agent/lineKey";
 
 const DM = "00000000-0000-4000-8000-000000000001";
@@ -13,7 +13,7 @@ const ALDA = "00000000-0000-4000-8000-0000000000d1";
 function harness() {
   const h = {
     on: true,
-    session: { id: SESSION, user_id: DM, campaign_id: CAMPAIGN } as VoiceSession | null,
+    session: { id: SESSION, user_id: DM, campaign_id: CAMPAIGN, narrator_voice: "male" } as VoiceSession | null,
     campaign: { id: CAMPAIGN, user_id: DM, ai_enabled: true } as VoiceCampaign | null,
     dm: true,
     allowed: true,
@@ -24,7 +24,6 @@ function harness() {
     kept: new Map<string, string>(),
     turns: [] as Array<{ role: string; blocks: unknown }>,
     storeThrows: false,
-    narratorVoice: null as string | null,
     spoken: [] as Array<{ voiceId: string; service: string; text: string }>,
     // 40 USD per million characters on ElevenLabs, 10 on Inworld; a credit worth 0.0066 USD at a margin of 2.
     rates: { elevenlabs: 40, inworld: 10 } as Record<string, number | null>,
@@ -59,7 +58,6 @@ function harness() {
     },
     findShown: async (_sessionId, line) => shownInTurns(h.turns, line),
     loadPlayerTraits: async () => ({ sex: "man", age: null, voiceId: null }),
-    narratorVoice: () => h.narratorVoice,
     hasService: (service) => service === "elevenlabs" || h.inworld,
     isFlagged: async (text) => {
       if (h.screenDown) throw new Error("moderation down");
@@ -253,16 +251,16 @@ describe("speakLine", () => {
     key: lineKey(SECRET, SESSION, { role: "narrator", speaker: NARRATOR_SPEAKER, text: narration }),
   };
 
-  // Bug caught: narration cast like a nameless character (a different voice per sitting), or the stack's own
-  // narrator voice ignored.
-  it("speaks narration in the narrator's one voice, or the one the stack names", async () => {
+  // Bug caught: narration cast like a nameless character (a different voice per sitting), or the table's choice
+  // of voice ignored (every table narrated by the man, whatever its host chose).
+  it("speaks narration in the voice the table chose", async () => {
     const h = harness();
     expect((await speak(h, { body: NARRATED })).ok).toBe(true);
-    expect(h.spoken[0].voiceId).toBe(NARRATOR_VOICE_ID);
-    const named = harness();
-    named.narratorVoice = "KK7qCbhAA7YXAftgG04I";
-    await speak(named, { body: NARRATED });
-    expect(named.spoken[0].voiceId).toBe("KK7qCbhAA7YXAftgG04I");
+    expect(h.spoken[0]).toMatchObject({ service: "inworld", voiceId: NARRATOR_VOICES.male.inworld });
+    const hers = harness();
+    if (hers.session) hers.session.narrator_voice = "female";
+    await speak(hers, { body: NARRATED });
+    expect(hers.spoken[0]).toMatchObject({ service: "inworld", voiceId: NARRATOR_VOICES.female.inworld });
   });
 
   // Bug caught: the role not under the signature, so a character's line could be asked for as narration (another
@@ -308,7 +306,7 @@ describe("speakLine", () => {
     h.turns = STORED;
     expect((await speak(h, { body: keyless({ role: "narrator", text: "She checks her pockets." }) })).ok).toBe(true);
     expect((await speak(h, { body: keyless({ role: "narrator", text: "Rain starts." }) })).ok).toBe(true);
-    expect(h.spoken.map((s) => s.voiceId)).toEqual([NARRATOR_VOICE_ID, NARRATOR_VOICE_ID]);
+    expect(h.spoken.map((s) => s.voiceId)).toEqual([NARRATOR_VOICES.male.inworld, NARRATOR_VOICES.male.inworld]);
   });
 
   // Bug caught: the lookup matching on words alone, so a keyless request could put a line in another mouth, read out
@@ -372,18 +370,19 @@ describe("the narrator on the second service", () => {
     key: lineKey(SECRET, SESSION, { role: "narrator", speaker: NARRATOR_SPEAKER, text: narration }),
   };
 
-  // Bug caught: the narrator's voice only ever read as an ElevenLabs id, so a trial on the cheaper service was
-  // silently ignored; and a stack without that service's key left with no narrator.
-  it("speaks through Inworld when the stack names an Inworld voice, and falls back without its key", async () => {
-    const h = harness();
-    h.narratorVoice = "inworld:snappy-magpie-0676__design-voice-88363843";
-    await speak(h, { body });
-    expect(h.spoken[0]).toMatchObject({ service: "inworld", voiceId: "snappy-magpie-0676__design-voice-88363843" });
+  // Bug caught: a stack without Inworld's key left with no narrator, or a table that chose the woman's voice
+  // answered by the man's when it falls back.
+  it("falls back to the ready-made voice of the same choice when the stack cannot reach Inworld", async () => {
     const bare = harness();
     bare.inworld = false;
-    bare.narratorVoice = "inworld:snappy-magpie-0676__design-voice-88363843";
     await speak(bare, { body });
-    expect(bare.spoken[0]).toMatchObject({ service: "elevenlabs", voiceId: NARRATOR_VOICE_ID });
+    expect(bare.spoken[0]).toMatchObject({ service: "elevenlabs", voiceId: NARRATOR_VOICES.male.fallback });
+    const hers = harness();
+    hers.inworld = false;
+    if (hers.session) hers.session.narrator_voice = "female";
+    await speak(hers, { body });
+    expect(hers.spoken[0]).toMatchObject({ service: "elevenlabs", voiceId: NARRATOR_VOICES.female.fallback });
+    expect(NARRATOR_VOICES.female.fallback).not.toBe(NARRATOR_VOICES.male.fallback);
   });
 });
 

@@ -2,6 +2,7 @@
 //
 // The rules are `handler.ts`'s; this file wires the database, the provider and the MCP tools to them. The gates
 // run before the stream opens so a refusal is a real status code; the turn itself runs inside the stream.
+import { loadTurnsInReach } from "../_shared/agent/turnsInReach.ts";
 import { giveHandout, loadHandouts, loadPicture } from "./showIo.ts";
 import type { Road } from "../../../src/lib/travel/roads.ts";
 import { entriesOf } from "../_shared/agent/roadTables.ts";
@@ -49,7 +50,7 @@ import { anthropicModel } from "../_shared/agent/anthropic.ts";
 import { applyQuestMove, loadQuests } from "./questIo.ts";
 import { narrationJudgeFor } from "./narrationJudge.ts";
 import type { CallModel } from "../_shared/agent/types.ts";
-import type { StoredTurn, TurnRow } from "../_shared/agent/transcript.ts";
+import type { TurnRow } from "../_shared/agent/transcript.ts";
 import {
   beginTurn,
   type AgentEvent,
@@ -204,7 +205,7 @@ serve(withCors(async (req: Request) => {
       return row && typeof row.id === "string" ? { id: row.id, opened: (running ?? []).length === 0 } : null;
     },
 
-    async createSession({ userId, campaignId, provider, model, sceneLocationId, campaignSessionId, openedPlaySession, partyMemberId }): Promise<SessionRow> {
+    async createSession({ userId, campaignId, provider, model, sceneLocationId, campaignSessionId, openedPlaySession, partyMemberId, narratorVoice }): Promise<SessionRow> {
       const { data, error } = await admin
         .from("agent_sessions")
         .insert({
@@ -217,6 +218,8 @@ serve(withCors(async (req: Request) => {
           campaign_session_id: campaignSessionId,
           opened_play_session: openedPlaySession,
           party_member_id: partyMemberId,
+          // Left out when the page named none, so the column's own default decides and is said in one place.
+          ...(narratorVoice === null ? {} : { narrator_voice: narratorVoice }),
         })
         .select(SESSION_COLUMNS)
         .single();
@@ -224,15 +227,7 @@ serve(withCors(async (req: Request) => {
       return sessionRow(data);
     },
 
-    async loadTurns(sessionId): Promise<StoredTurn[]> {
-      const { data, error } = await admin
-        .from("agent_turns")
-        .select("seq, role, blocks")
-        .eq("session_id", sessionId)
-        .order("seq", { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as StoredTurn[];
-    },
+    loadTurns: (sessionId, summaryThroughSeq) => loadTurnsInReach(admin, sessionId, summaryThroughSeq),
 
     rateLimit: (userId) => checkRateLimit(admin, userId, "agent_turn"),
 

@@ -21,6 +21,11 @@ export interface AgentTurnBody {
    * with `sessionId`, like `startLocationId`: who is played is chosen once, when the table is sat down at.
    */
   characterId?: string;
+  /**
+   * The voice the host gives the Narrator, for a NEW conversation only (the table keeps it; the host changes it on
+   * the table's own row afterwards). Refused together with `sessionId`, like the two above.
+   */
+  narratorVoice?: "male" | "female";
   message: string;
   /** Enter says it aloud, Alt+Enter does it: the player chooses, nothing guesses from the wording. */
   mode: "say" | "do" | "ask";
@@ -104,10 +109,12 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
   if (r.characterId !== undefined) {
     if (typeof r.characterId !== "string" || !UUID_RE.test(r.characterId) || r.sessionId !== undefined) return { ok: false };
   }
+  if (r.narratorVoice !== undefined && ((r.narratorVoice !== "male" && r.narratorVoice !== "female") || r.sessionId !== undefined)) return { ok: false };
   return {
     ok: true,
     body: {
       campaignId: r.campaignId, sessionId: r.sessionId, startLocationId: r.startLocationId, characterId: r.characterId,
+      ...(r.narratorVoice === undefined ? {} : { narratorVoice: r.narratorVoice }),
       message, mode: r.mode, ...(roll === undefined ? {} : { roll }), ...(opening ? { opening: true as const } : {}),
       ...(aftermath ? { aftermath: true as const } : {}),
       ...(helperTurn === undefined ? {} : { helperTurn }),

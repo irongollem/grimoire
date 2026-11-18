@@ -120,8 +120,8 @@ describe("storyFromTurns for a roll", () => {
     expect(items.map((i) => i.kind)).toEqual(["player"]);
   });
 
-  // Bug caught: the Dungeon Master's roll gone after a reload, or drawn after the line that came of it.
-  it("redraws a stored open roll of the Dungeon Master before the lines of the same result, and skips a malformed one", () => {
+  // Bug caught: the Narrator's roll gone after a reload, or drawn after the line that came of it.
+  it("redraws a stored open roll of the Narrator before the lines of the same result, and skips a malformed one", () => {
     const dm = { label: "Warmth", dice: "1d20", faces: [20], dropped: [], modifier: 0, total: 20 };
     const items = storyFromTurns([
       { seq: 1, role: "user", blocks: [{ type: "tool_result", dmRoll: dm, lines: [{ kind: "acted", speaker: { id: null, name: "A" }, text: "Waves." }] }] },
@@ -153,7 +153,7 @@ describe("the board's lines in a reopened sitting", () => {
   });
 
   // Bug caught: a tool's answer counted as a turn of its own, so every line lands one turn early for each tool used.
-  it("counts a turn by what was sent to the Dungeon Master, not by a tool's answer", () => {
+  it("counts a turn by what was sent to the Narrator, not by a tool's answer", () => {
     expect(turnsStarted(turns)).toBe(2);
   });
 
@@ -164,7 +164,7 @@ describe("the board's lines in a reopened sitting", () => {
   });
 });
 
-describe("what the Dungeon Master put in front of the player", () => {
+describe("what the Narrator put in front of the player", () => {
   const HANDOUT = "11111111-2222-4333-8444-555555555555";
   const withShown = (shown: unknown): StoredTurn[] => [{ seq: 1, role: "user", blocks: [{ type: "tool_result", id: "t1", content: "private", shown }] }];
 

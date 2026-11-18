@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(13);
 
 -- A conversation with the model is its owner's, and only the server writes it (#1205).
 --
@@ -53,11 +53,30 @@ select throws_ok(
   '42501', null, 'nor rewrite its summary or what it has cost'
 );
 
+-- The one thing the owner does change: the Narrator's voice (row 21). The grant names that column alone, which is
+-- what the refusal above still proves with a policy for update now present.
+update public.agent_sessions set narrator_voice = 'female' where id = '12050000-0000-4000-8000-000000000020';
+select is((select narrator_voice from public.agent_sessions where id = '12050000-0000-4000-8000-000000000020'), 'female', 'the owner chooses the Narrator''s voice');
+select throws_ok(
+  $$ update public.agent_sessions set narrator_voice = 'a-voice-id-of-my-own' where id = '12050000-0000-4000-8000-000000000020' $$,
+  '23514', null, 'and only one of the two voices the table offers'
+);
+select throws_ok(
+  $$ update public.agent_sessions set narrator_voice = 'male', user_id = '12050000-0000-4000-8000-000000000002' where id = '12050000-0000-4000-8000-000000000020' $$,
+  '42501', null, 'and cannot hand the conversation to another account on the way'
+);
+
 -- ── The campaign's DM ──────────────────────────────────────────────────────
 select set_config('request.jwt.claim.sub', '12050000-0000-4000-8000-000000000002', true);
 
 select is((select count(*)::integer from public.agent_sessions), 0, 'the campaign''s DM does not see another account''s conversation');
 select is((select count(*)::integer from public.agent_turns), 0, 'nor its messages');
+update public.agent_sessions set narrator_voice = 'male' where id = '12050000-0000-4000-8000-000000000020';
+reset role;
+select is((select narrator_voice from public.agent_sessions where id = '12050000-0000-4000-8000-000000000020'), 'female', 'nor changes the voice at a table that is not theirs');
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '12050000-0000-4000-8000-000000000002', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
 delete from public.agent_sessions where id = '12050000-0000-4000-8000-000000000020';
 
 -- ── The owner deletes it ───────────────────────────────────────────────────

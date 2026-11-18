@@ -5,7 +5,7 @@
     class="text-eyebrow inline-flex items-center gap-1.5 border border-(--live-ink,var(--primary)) bg-card px-2.5 py-1 font-bold text-(--live-ink,var(--primary))"
   >
     <i class="size-1.5 rotate-45 bg-(--live-ink,var(--primary))" aria-hidden="true" />
-    <span class="max-sm:hidden">The Dungeon Master is an AI</span>
-    <span class="sm:hidden">AI Dungeon Master</span>
+    <span class="max-sm:hidden">The Narrator is an AI</span>
+    <span class="sm:hidden">AI Narrator</span>
   </span>
 </template>

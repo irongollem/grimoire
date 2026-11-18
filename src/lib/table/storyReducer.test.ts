@@ -43,7 +43,7 @@ describe("applyTableEvent", () => {
   });
 
   // Bug caught: a hidden roll betrayed by a "Rolled" line, when the server sends nothing for it on purpose.
-  it("draws nothing for the roll tool itself, and the Dungeon Master's open roll where it happened", () => {
+  it("draws nothing for the roll tool itself, and the Narrator's open roll where it happened", () => {
     const dm = { label: "Warmth", dice: "1d20", faces: [20], dropped: [], modifier: 0, total: 20 };
     const hidden = play([{ type: "tool_start", name: "roll" }, { type: "tool_end", name: "roll", isError: false }]);
     expect(hidden).toEqual([]);
