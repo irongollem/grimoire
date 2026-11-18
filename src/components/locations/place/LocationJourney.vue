@@ -8,6 +8,8 @@
       <span class="font-semibold">{{ formatTravelTime(journey.summary.time) }}</span>
       at a {{ paceLabel }} pace.
     </p>
+    <!-- Where the journey can pause: each night's camp and each place the road passes, in order. -->
+    <p v-if="stops" class="text-caption text-muted-foreground" data-testid="location-journey-stops">On the way: {{ stops }}.</p>
     <!-- Only where the campaign counts food (the optional rule "Rations on the Road"). -->
     <p v-if="food" class="text-caption text-muted-foreground" data-testid="location-journey-food">{{ food }}</p>
     <div class="flex flex-wrap items-center gap-2">
@@ -47,7 +49,7 @@ import { IconAddEvent, IconDice } from "@/lib/icons";
 import { routeDescription, routeEventPrefill } from "@/lib/locations/mapRoute";
 import { formatDistance } from "@/lib/locations/mapScale";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
-import { journeyByRoad, passingText, roadTableIds } from "@/lib/travel/journey";
+import { journeyByRoad, passingText, roadTableIds, stopsText } from "@/lib/travel/journey";
 import { journeyByMap, sharedMapOf } from "@/lib/travel/mapLine";
 import { DEFAULT_TRAVEL_PACE, formatTravelTime, getTravelPace, TRAVEL_PACES, type TravelPaceId } from "@/rules/travelPace";
 import { useCalendarStore } from "@/stores/calendar";
@@ -106,6 +108,8 @@ const journey = computed(() => byRoad.value ?? byMap.value);
 /** The place whose map the distance was measured on, when it was not found by road. */
 const straightOn = computed(() => (byRoad.value === null && byMap.value !== null && mapPlace.value ? mapPlace.value.name : null));
 const passing = computed(() => (journey.value ? passingText(journey.value.passing) : ""));
+
+const stops = computed(() => (journey.value ? stopsText(journey.value.stops) : ""));
 
 // ── Food for the road (optional rule) ───────────────────────────────────────
 const countsFood = useIsRuleEnabled("rations");
