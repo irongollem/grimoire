@@ -20,6 +20,7 @@ import {
 import type { RulesetKey } from "../types/ruleset.types.ts";
 import { rollAllInitiativeValues } from "./encounterCombatLogic.ts";
 import { findFirstActiveIndex, stepTurnIndex } from "./turnOrder.ts";
+import { addDeeds } from "./fight/tactics/shownThreat.ts";
 
 /**
  * The encounter turn state machine, as a pure reducer.
@@ -195,10 +196,16 @@ function usesDeathSaves(c: RunCombatant): boolean {
   return c.type === "player" && !!c.party_member_id;
 }
 
+/** The deeds with one more of its own turns started, which the fight counts (#1021). */
+function turnCounted(c: RunCombatant): Pick<RunCombatant, "shown_deeds"> {
+  return { shown_deeds: addDeeds(c.shown_deeds, { turns: 1 }) };
+}
+
 /** Refill the per-turn pools a combatant regains at the start of its turn
  *  (5e RAW: reaction resets, legendary actions refill; a new turn has its full speed, action and bonus action). */
 function refreshTurnStart(c: RunCombatant): RunCombatant {
-  const next: RunCombatant = { ...c, reactionUsed: false, movement_used: 0, action_used: false, bonus_used: false };
+  // Its own turn started: the fight counts it, so damage per turn can be worked out (#1021).
+  const next: RunCombatant = { ...c, reactionUsed: false, movement_used: 0, action_used: false, bonus_used: false, ...turnCounted(c) };
   if (typeof c.legendary_action_cap === "number") next.legendary_actions_remaining = c.legendary_action_cap;
   return next;
 }
@@ -578,6 +585,7 @@ export function reduceEncounterTurn(
       const first = sortedAtStart[next.activeIndex];
       if (first) {
         events.push({ type: "turn_started", instanceId: first.instance_id });
+        next.combatants = replaceCombatant(next.combatants, { ...first, ...turnCounted(first) });
         next.combatants = runEdge(next.combatants, "start", first.instance_id, events);
       }
       return done(next);

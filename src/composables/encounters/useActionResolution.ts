@@ -144,6 +144,9 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
           case "show_defense":
             store.showDefense(command.instanceId, command.damageType, command.defense);
             return [];
+          case "show_deed":
+            store.showDeed(command.instanceId, command.deed);
+            return [];
         }
       },
     };

@@ -92,6 +92,10 @@ export function useSoloAttack(options: SoloAttackOptions) {
           store.showDefense(command.instanceId, command.damageType, command.defense);
           return [];
         }
+        if (command.type === "show_deed") {
+          store.showDeed(command.instanceId, command.deed);
+          return [];
+        }
         if (command.type !== "adjust_hp") throw new Error(`An attack never issues "${command.type}"`);
         const outcome = store.adjustHp(command.instanceId, command.delta, { critical: command.critical });
         return outcome ? [{ type: "dying_outcome", instanceId: command.instanceId, outcome }] : [];

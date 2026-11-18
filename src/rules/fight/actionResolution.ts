@@ -81,7 +81,7 @@ export type DiceSource = (ask: DiceAsk) => Promise<RolledDice | null>;
 /** The commands a resolution puts into a fight: exactly these, so a port has a handful of things to do. */
 export type ResolutionCommand = Extract<
   FightCommand,
-  { type: "adjust_hp" | "apply_condition" | "remove_condition" | "set_conditions" | "resolve_condition_save" | "settle_ongoing_damage" | "end_concentration" | "show_defense" }
+  { type: "adjust_hp" | "apply_condition" | "remove_condition" | "set_conditions" | "resolve_condition_save" | "settle_ongoing_damage" | "end_concentration" | "show_defense" | "show_deed" }
 >;
 
 export interface ResolutionContext {
@@ -295,6 +295,8 @@ export async function rollToHit(ctx: ResolutionContext, input: AttackInput): Pro
   const targetAc = printedAc === null ? null : printedAc + coverAc;
   const roll = await rollD20(ctx, `${entry.name} attack vs ${target.name}`, attack.bonus + penalty, mode, attacker, input);
   if (!roll) return null;
+  // An attack made is an attack seen, hit or miss, and of the delivery it was made with (#1021).
+  ctx.apply({ type: "show_deed", instanceId: attacker.instance_id, deed: delivery === "ranged" ? { ranged: 1 } : { melee: 1 } });
 
   const natural = keptD20(roll);
   const autoCrit = autoCritOnHit(target.conditions, input.withinFiveFeet);
@@ -403,6 +405,8 @@ export function applyDamage(
     if (part.applied !== "immune" && part.applied !== "resistant" && part.applied !== "vulnerable") continue;
     ctx.apply({ type: "show_defense", instanceId: target.instance_id, damageType: shownDefenseKey(part.type, properties), defense: part.applied });
   }
+  // What it did is seen by the whole fight too (#1021): the damage that actually landed, to whoever dealt it.
+  if (result.total > 0 && input.attacker !== undefined) ctx.apply({ type: "show_deed", instanceId: input.attacker.instance_id, deed: { dealt: result.total } });
   const raised =
     result.total > 0 ? ctx.apply({ type: "adjust_hp", instanceId: target.instance_id, delta: -result.total, critical: input.critical }) : [];
   if (result.total > 0) endHarmedConditions(ctx, target, input.attacker);

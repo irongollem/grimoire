@@ -700,3 +700,28 @@ describe("concentration_check_due", () => {
     expect(events).toContainEqual({ type: "condition_ended", instanceId: "t", name: "Paralyzed", reason: "source_down" });
   });
 });
+
+describe("the fight counts each creature's own turns (#1021)", () => {
+  const two = () => [combatant("a", { initiative: 20 }), combatant("b", { initiative: 5 })];
+
+  // a starts at the top (turn 1 for a), next_turn hands the turn to b (turn 1 for b), next_turn wraps to a again (turn 2 for a).
+  // Bug caught: turns counted for the creature whose turn ENDED, or never for the opening turn, so damage per turn divides by the wrong count.
+  it("counts the opening turn and each turn that starts, for the creature whose turn it is", () => {
+    const opened = run(stateOf(two(), { started: false, round: 0 }), { type: "start_combat" }).state;
+    expect(find(opened, "a").shown_deeds?.turns).toBe(1);
+    expect(find(opened, "b").shown_deeds).toBeUndefined();
+    const second = run(opened, { type: "next_turn" }).state;
+    expect(find(second, "b").shown_deeds?.turns).toBe(1);
+    expect(find(second, "a").shown_deeds?.turns).toBe(1);
+    const third = run(second, { type: "next_turn" }).state;
+    expect(find(third, "a").shown_deeds?.turns).toBe(2);
+    expect(find(third, "b").shown_deeds?.turns).toBe(1);
+  });
+
+  // Bug caught: counting a turn wipes what the fight had seen of the creature (dealt, cast) because the deeds are rebuilt from nothing.
+  it("keeps the other deeds when a turn is counted", () => {
+    const deeds = { dealt: 9, turns: 1, cast: 1, ranged: 0, melee: 2 };
+    const state = run(stateOf([combatant("a", { initiative: 20 }), combatant("b", { initiative: 5, shown_deeds: deeds })]), { type: "next_turn" }).state;
+    expect(find(state, "b").shown_deeds).toEqual({ ...deeds, turns: 2 });
+  });
+});

@@ -738,6 +738,15 @@ describe("validateRequest", () => {
     expect(() => validateRequest({ ...ok, commands: [{ type: "add_curse", instanceId: "a", curse: 3 }] })).toThrow(FightCommandError);
     expect(() => validateRequest({ ...ok, commands: [{ type: "set_reveal_state", instanceId: "a", revealState: "gone" }] })).toThrow(FightCommandError);
   });
+
+  // Bug caught: a client sends a negative deed and wipes what the fight has seen, or one with a key nothing reads.
+  it("fails if a deed that is negative, unknown or not an object reaches the engine", () => {
+    const send = (deed: unknown) => () => validateRequest({ ...ok, commands: [{ type: "show_deed", instanceId: "a", deed }] });
+    expect(send({ dealt: 4, cast: 1 })).not.toThrow();
+    expect(send({ dealt: -4 })).toThrow(FightCommandError);
+    expect(send({ lore: 1 })).toThrow(FightCommandError);
+    expect(send("4")).toThrow(FightCommandError);
+  });
 });
 
 
@@ -2268,5 +2277,52 @@ describe("break_free", () => {
     expect(combatantOf(stored(h), "t1").conditions).toEqual([
       { name: "Restrained", source: { id: "mage", spell: "Black Tentacles", concentration: true }, ends: { kind: "rounds", remaining: 10 }, breakFree: { abilities: ["str", "dex"], dc: 14 } },
     ]);
+  });
+});
+
+describe("what the fight has seen a creature do (#1021)", () => {
+  // d20 9 + 4 = 13 meets AC 13 and hits; 1d6+2 with a 5 deals 7.
+  // Bug caught: the deed is applied in the resolution but never reaches the saved fight (a command lost between the server context
+  // and the store), so the next creature to choose knows nothing.
+  it("fails if a resolved attack does not leave the attacker's deeds in the saved fight", async () => {
+    const h = harness(arena(), { sources: SOURCES, dieFaces: [9, 5] });
+    await runBatch(batch("b1", attack()), h.deps);
+    expect(combatantOf(stored(h), "wolf").shown_deeds).toEqual({ dealt: 7, turns: 0, cast: 0, ranged: 0, melee: 1 });
+    expect(combatantOf(stored(h), "victim").shown_deeds).toBeUndefined();
+  });
+
+  // The mage lists Hold Person and carries a dagger (+5, 1d4+2). Its foe, an ox of WIS +0 against DC 14 (fails 0.65), has been
+  // seen to deal 12 a turn (24 over 2): Hold Person is worth 12 * 2.8187 * 0.65 = 21.99, the dagger about 2.8. Dice: the save, 5, fails.
+  const STAB: StatBlockEntry = { name: "Dagger", description: "", structured: { kind: "attack", source: "manual", attack: { delivery: "melee", bonus: 5, hit: [{ dice: "1d4+2", type: "piercing" }] } } };
+  const SOURCES_WITH_HOLD: StatBlockSources = {
+    monsters: [{ id: "m-mage", name: "Mage", stat_block: { ...mageWithHold(), actions: [STAB] } } as unknown as Monster, monster("m-ox")],
+    npcs: [],
+    companions: [],
+  };
+  const standoff = (seen: RunCombatant["shown_deeds"]) =>
+    row({
+      combatants_live: [
+        combatant("mage", { monster_id: "m-mage", faction_id: "m", hp: 40, max_hp: 40, initiative: 12, position: { x: 1, y: 1 } }),
+        combatant("t1", { monster_id: "m-ox", faction_id: "p", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 2, y: 1 }, shown_deeds: seen }),
+      ],
+    });
+
+  // Bug caught: the server's turn ignores what a condition is worth, so the mage stabs a fighter it has seen hit hard.
+  it("fails if a tactical caster that has seen a foe hit hard does not end its turn casting Hold Person at it", async () => {
+    const h = harness(standoff({ dealt: 24, turns: 2, cast: 0, ranged: 0, melee: 2 }), { sources: SOURCES_WITH_HOLD, map: mapOf(), spells: [holdPerson()], dieFaces: [5] });
+    const result = await runBatch(batch("b", takeTurn({ instanceId: "mage" })), h.deps);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { kind: "spell", picked: "rules", reason: expect.stringMatching(/^Casts Hold Person \(level 2\) at t1, who has been dealing about 12 damage a turn/) } });
+    expect(combatantOf(stored(h), "t1").conditions.map((c) => c.name)).toEqual(["Paralyzed"]);
+    // Casting is itself seen: one spell on the mage's record.
+    expect(combatantOf(stored(h), "mage").shown_deeds).toMatchObject({ cast: 1 });
+  });
+
+  // Bug caught: a foe seen to do nothing is held like one seen to hurt (the worth falls back on the mover's own damage
+  // instead of what was seen), so this is the control that the worth follows the shown deeds.
+  it("fails if a foe that has been seen to deal nothing is held", async () => {
+    const h = harness(standoff({ dealt: 0, turns: 2, cast: 0, ranged: 0, melee: 0 }), { sources: SOURCES_WITH_HOLD, map: mapOf(), spells: [holdPerson()], dieFaces: [9, 3] });
+    const result = await runBatch(batch("b", takeTurn({ instanceId: "mage" })), h.deps);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { kind: "attack" } });
+    expect(combatantOf(stored(h), "t1").conditions).toEqual([]);
   });
 });

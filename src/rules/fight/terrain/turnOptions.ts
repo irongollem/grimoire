@@ -94,6 +94,13 @@ export interface TurnOptionSpell {
   hitChance: number | null;
   /** The sum over `targetIds` of what the cast is expected to deal. */
   expectedDamage: number | null;
+  /**
+   * What the conditions this cast imposes are worth, in hit points, summed over `targetIds` (`withNumbers`, from what the
+   * fight has shown of each target): 0 when it imposes none. Absent until `withNumbers` fills it in, and read as 0.
+   */
+  expectedWorth?: number | null;
+  /** The conditions a failed save of this cast imposes, by name; absent when there are none. */
+  imposes?: readonly string[];
 }
 
 export interface TurnOptionExposure {

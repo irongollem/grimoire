@@ -10,6 +10,7 @@
 import type { RunCombatant } from "../../../types/encounter.types.ts";
 import { compareExposure, fleeSourceOf, wayOffPhrase, type TurnOption, type TurnOptionSpell } from "../terrain/turnOptions.ts";
 import type { MoraleRule, TacticalProfile } from "./profile.ts";
+import { seenAs, seenDamagePerTurn } from "./shownThreat.ts";
 import { usableWayOut, type WayOut } from "./wayOut.ts";
 
 export interface PickContext {
@@ -142,6 +143,12 @@ function groupByTarget(options: readonly TurnOption[], ctx: PickContext, distanc
   return groups;
 }
 
+/** 0 for a creature seen to be a caster, 1 for an archer, 2 for anything else: the order `spellcasters_first` hunts in. */
+function huntRank(c: RunCombatant): number {
+  const seen = seenAs(c);
+  return seen.caster ? 0 : seen.archer ? 1 : 2;
+}
+
 const woundedShare = (c: RunCombatant) => (c.max_hp > 0 ? c.hp / c.max_hp : 1);
 /** Compares numbers that may be unknown: unknown is last. */
 const lastIfNull = (a: number | null, b: number | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a - b);
@@ -150,6 +157,10 @@ const lastIfNull = (a: number | null, b: number | null) => (a === b ? 0 : a === 
  * RULE target: the `targets` setting chooses among the targets that have an option. `nearest` is the smallest distance;
  * `most_wounded` the lowest share of hit points; `spellcasters_first` a target holding a concentration spell, else
  * the most wounded; `lowest_armor` the lowest armor class, unknown last. Ties go to the earlier combatant in the fight.
+ *
+ * RULE hunt-casters-and-archers (app convention, the maintainer: "intelligent monsters might actively hunt mages,
+ * archers"): `spellcasters_first` prefers a target the fight has seen to be a caster (it has cast, or holds a concentration
+ * spell), then one seen to be an archer, then the most wounded. Only what the fight has shown counts (`shownThreat.ts`).
  */
 function chooseTarget(groups: readonly Group[], profile: TacticalProfile, ctx: PickContext): { group: Group; why: string } {
   const byRule = (a: Group, b: Group): number => {
@@ -159,8 +170,7 @@ function chooseTarget(groups: readonly Group[], profile: TacticalProfile, ctx: P
       case "most_wounded":
         return woundedShare(a.target) - woundedShare(b.target);
       case "spellcasters_first": {
-        const casting = Number(b.target.concentration !== undefined && b.target.concentration !== null) - Number(a.target.concentration !== undefined && a.target.concentration !== null);
-        return casting !== 0 ? casting : woundedShare(a.target) - woundedShare(b.target);
+        return huntRank(a.target) - huntRank(b.target) || woundedShare(a.target) - woundedShare(b.target);
       }
       case "lowest_armor":
         return lastIfNull(ctx.armorClassOf(a.target), ctx.armorClassOf(b.target));
@@ -174,7 +184,7 @@ function chooseTarget(groups: readonly Group[], profile: TacticalProfile, ctx: P
     case "most_wounded":
       return { group, why: "the most wounded enemy" };
     case "spellcasters_first":
-      return { group, why: group.target.concentration ? "an enemy holding a spell" : "the most wounded enemy" };
+      return { group, why: group.target.concentration ? "an enemy holding a spell" : huntRank(group.target) === 0 ? "an enemy that has been seen casting" : huntRank(group.target) === 1 ? "an enemy that has been shooting" : "the most wounded enemy" };
     case "lowest_armor":
       return { group, why: "the enemy with the weakest armor" };
   }
@@ -224,6 +234,26 @@ const isSpellOption = (o: TurnOption): o is SpellOption => o.kind === "spell" &&
 /** Unknown damage ranks below every known number. */
 const rankOf = (e: number | null): number => (e === null ? Number.NEGATIVE_INFINITY : e);
 
+const worthOf = (o: SpellOption): number => (o.spell.expectedWorth === undefined || o.spell.expectedWorth === null ? 0 : o.spell.expectedWorth);
+
+/**
+ * RULE condition-worth (app convention): only a trained or tactical creature counts what a condition is worth
+ * (`expectedWorth`, built from what the fight has shown of the target); a lower tier values a cast at its damage alone.
+ * The exception: a creature with nothing of positive value this turn (no attack it can make, no damage spell) counts it
+ * too, so it casts its best condition spell rather than doing nothing.
+ */
+function countsWorth(profile: TacticalProfile, attacks: readonly TurnOption[], spells: readonly SpellOption[]): boolean {
+  if (profile.tier === "trained" || profile.tier === "tactical") return true;
+  return attacks.length === 0 && !spells.some((o) => rankOf(o.spell.expectedDamage) > 0);
+}
+
+/** What a cast is worth to compare: its expected damage plus, when worth counts, what its conditions take from the targets. Unknown damage stays unknown. */
+function valueOf(option: SpellOption, counted: boolean): number | null {
+  const damage = option.spell.expectedDamage;
+  if (damage === null) return null;
+  return counted ? damage + worthOf(option) : damage;
+}
+
 /** Hit points left across a cast's targets: what a spent slot would be spent on. */
 function hitPointsLeft(option: SpellOption, ctx: PickContext): number {
   return ctx.combatants.filter((c) => option.spell.targetIds.includes(c.instance_id)).reduce((sum, c) => sum + Math.max(0, c.hp), 0);
@@ -239,23 +269,39 @@ function hitPointsLeft(option: SpellOption, ctx: PickContext): number {
  * RULE no-wasted-slot (app convention, the maintainer's decision: "it does not waste its top slot on something nearly
  * dead"): a cast that spends a slot or a use is not chosen when a free option the creature has this turn (any attack, or a
  * cantrip or at-will spell that catches no friend) is expected to deal at least the hit points the cast's targets have left.
- * Every attack counts as free: whether an attack is itself limited (a recharge, N per day) is not on the option.
+ * Every attack counts as free: whether an attack is itself limited (a recharge, N per day) is not on the option. A free
+ * spell counts at its value (`valueOf`), so a clever creature does not Hold a foe at 2 hit points either.
  */
-function castCandidates(spells: readonly SpellOption[], attacks: readonly TurnOption[], ctx: PickContext): SpellOption[] {
+function castCandidates(spells: readonly SpellOption[], attacks: readonly TurnOption[], profile: TacticalProfile, ctx: PickContext): SpellOption[] {
   const safe = spells.filter((o) => o.spell.friendsCaught.length === 0);
-  const free = [...attacks.map(expectedOf), ...safe.filter((o) => !o.spell.spends).map((o) => o.spell.expectedDamage)].reduce<number>((best, e) => Math.max(best, rankOf(e)), Number.NEGATIVE_INFINITY);
+  const counted = countsWorth(profile, attacks, safe);
+  const free = [...attacks.map(expectedOf), ...safe.filter((o) => !o.spell.spends).map((o) => valueOf(o, counted))].reduce<number>((best, e) => Math.max(best, rankOf(e)), Number.NEGATIVE_INFINITY);
   return safe.filter((o) => !(o.spell.spends && free >= hitPointsLeft(o, ctx)));
 }
 
+/** Why a target is worth a cast, from what the fight has shown of it; null when it has shown nothing to say. */
+function becauseOf(target: RunCombatant): string | null {
+  const perTurn = seenDamagePerTurn(target);
+  if (perTurn !== null && perTurn > 0) return `who has been dealing about ${Math.round(perTurn)} damage a turn`;
+  if (seenAs(target).caster) return "who has been seen casting";
+  return null;
+}
+
 /**
- * RULE cast: the best cast on the chosen target, compared with the best attack by expected damage. A single-target spell
- * is compared only for the target the `targets` rule chose; an area spell whenever that target is among those it hits.
- * The higher number wins; a tie goes to the option that spends nothing, then to the attack (every attack counts as spending
- * nothing, as above), so a tie or two unknowns is the attack. With no attack to compare, the `targets` rule picks the
- * target among the casts.
+ * RULE cast: the best cast on the chosen target, compared with the best attack by expected damage plus (RULE condition-worth,
+ * above) what its conditions are worth. A single-target spell is compared only for the target the `targets` rule chose; an
+ * area spell whenever that target is among those it hits. The higher number wins; a tie goes to the option that spends
+ * nothing, then to the attack (every attack counts as spending nothing, as above), so a tie or two unknowns is the attack.
+ * With no attack to compare, the `targets` rule picks the target among the casts.
+ *
+ * RULE spell-for-its-target (app convention, the maintainer: "the spell itself usually helps pick a target"): a trained or
+ * tactical creature is not limited to that target for a single-target condition spell. It weighs the spell on every target
+ * in range and takes the highest value, which is what sends Hold Person to the brawler and a spell that stops casting to the
+ * caster. Damage spells, and lower tiers, keep the chosen target only.
  */
-function bestCast(candidates: readonly SpellOption[], chosenAttack: { option: TurnOption; target: RunCombatant } | null, profile: TacticalProfile, ctx: PickContext): { option: SpellOption; why: string | null } | null {
+function bestCast(candidates: readonly SpellOption[], chosenAttack: { option: TurnOption; target: RunCombatant } | null, attacks: readonly TurnOption[], profile: TacticalProfile, ctx: PickContext): { option: SpellOption; why: string | null; counted: boolean; retargeted: boolean } | null {
   if (candidates.length === 0) return null;
+  const counted = countsWorth(profile, attacks, candidates);
   let target: RunCombatant;
   let why: string | null = null;
   if (chosenAttack !== null) {
@@ -267,28 +313,38 @@ function bestCast(candidates: readonly SpellOption[], chosenAttack: { option: Tu
     target = picked.group.target;
     why = picked.why;
   }
-  const onTarget = candidates.filter((o) => o.spell.targetIds.includes(target.instance_id));
+  const clever = profile.tier === "trained" || profile.tier === "tactical";
+  const onTarget = candidates.filter((o) => o.spell.targetIds.includes(target.instance_id) || (clever && o.spell.targetIds.length === 1 && worthOf(o) > 0));
   const ranked = onTarget
     .map((option, index) => ({ option, index }))
-    .sort((a, b) => rankOf(b.option.spell.expectedDamage) - rankOf(a.option.spell.expectedDamage) || Number(a.option.spell.spends) - Number(b.option.spell.spends) || a.index - b.index);
+    .sort((a, b) => rankOf(valueOf(b.option, counted)) - rankOf(valueOf(a.option, counted)) || Number(a.option.spell.spends) - Number(b.option.spell.spends) || a.index - b.index);
   const best = ranked[0];
   if (best === undefined) return null;
-  const spellE = best.option.spell.expectedDamage;
-  if (chosenAttack !== null && rankOf(spellE) <= rankOf(expectedOf(chosenAttack.option))) return null;
-  return { option: best.option, why };
+  if (chosenAttack !== null && rankOf(valueOf(best.option, counted)) <= rankOf(expectedOf(chosenAttack.option))) return null;
+  const retargeted = !best.option.spell.targetIds.includes(target.instance_id);
+  return { option: best.option, why: retargeted ? null : why, counted, retargeted };
 }
 
-function describeCast(option: SpellOption, why: string | null, ctx: PickContext, against: TurnOption | null): string {
+function describeCast(option: SpellOption, why: string | null, ctx: PickContext, against: TurnOption | null, counted: boolean): string {
   const { spell } = option;
   const nameOf = (id: string) => ctx.combatants.find((c) => c.instance_id === id)?.name ?? id;
   const names = spell.targetIds.map(nameOf);
   const who = names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
   const level = spell.castLevel > 0 ? ` (level ${spell.castLevel})` : "";
-  const reason = why !== null && names.length === 1 ? `, ${why}` : "";
+  const worth = counted ? worthOf(option) : 0;
+  const single = names.length === 1 ? ctx.combatants.find((c) => c.instance_id === spell.targetIds[0]) : undefined;
+  // A cast chosen for what it does to its target says why that target, from what the fight has shown of it.
+  const because = worth > 0 && single !== undefined ? becauseOf(single) : null;
+  const reason = because !== null ? `, ${because}` : why !== null && names.length === 1 ? `, ${why}` : "";
   const base = `Casts ${spell.name}${level} at ${who}${reason}`;
   if (spell.expectedDamage === null) return `${base}.`;
   const hit = against === null || against.attack === null || against.attack.expectedDamage === null ? "" : `, against about ${Math.round(against.attack.expectedDamage)} from ${against.attack.action}`;
   const spent = spell.spends ? ` and spends a ${spell.castLevel > 0 ? `level ${spell.castLevel} slot` : "use"}` : "";
+  if (worth > 0) {
+    const what = spell.imposes === undefined || spell.imposes.length === 0 ? "what it imposes" : spell.imposes.join(" and ");
+    const damage = spell.expectedDamage > 0 ? `about ${Math.round(spell.expectedDamage)} damage, and ` : "";
+    return `${base}: ${damage}${what} takes away about ${Math.round(worth)} damage of what it deals${hit}${spent}.`;
+  }
   return `${base}: about ${Math.round(spell.expectedDamage)} damage${hit}${spent}.`;
 }
 
@@ -389,8 +445,11 @@ export function pickTurn(options: readonly TurnOption[], profile: TacticalProfil
   const best = attackChoice === null ? null : { option: bestAttack(attackChoice.group.options, profile), target: attackChoice.group.target };
   const casts = options.filter(isSpellOption);
   if (casts.length > 0) {
-    const cast = bestCast(castCandidates(casts, attacks, ctx), best, profile, ctx);
-    if (cast !== null) return { optionId: cast.option.id, reason: describeCast(cast.option, cast.why !== null ? cast.why : attackChoice === null ? null : attackChoice.why, ctx, best === null ? null : best.option) };
+    const cast = bestCast(castCandidates(casts, attacks, profile, ctx), best, attacks, profile, ctx);
+    if (cast !== null) {
+      const why = cast.why !== null ? cast.why : attackChoice === null || cast.retargeted ? null : attackChoice.why;
+      return { optionId: cast.option.id, reason: describeCast(cast.option, why, ctx, best === null ? null : best.option, cast.counted) };
+    }
   }
   if (attackChoice !== null && best !== null) return { optionId: best.option.id, reason: describeAttack(best.option, best.target, attackChoice.why) };
   // A cast that was ruled out is no turn to fall back on: what is left is judged without it, unless nothing else is on offer.

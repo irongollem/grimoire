@@ -11,6 +11,7 @@ import { applyAdoptedStats, type AdoptedStats } from "../encounterCombatLogic.ts
 import { reduceEncounterTurn, type EncounterTurnCommand } from "../encounterTurn.ts";
 import { checkFightEvents, fireFightEvent, type FightDeps, type FightResult } from "./fightEvents.ts";
 import type { ShownDefense } from "./tactics/shownDefenses.ts";
+import { addDeeds, type ShownDeedDelta } from "./tactics/shownThreat.ts";
 import { joinFight } from "./fightSpawn.ts";
 import type { FightEffect, FightState } from "./fightState.ts";
 
@@ -32,13 +33,15 @@ export type FightOwnCommand =
   | { type: "fire_event"; eventId: string }
   | { type: "check_events" }
   /** A defense a blow just showed (#1021): what the fight remembers a creature to resist, be immune to or be vulnerable to. */
-  | { type: "show_defense"; instanceId: string; damageType: string; defense: ShownDefense };
+  | { type: "show_defense"; instanceId: string; damageType: string; defense: ShownDefense }
+  /** A deed the fight just saw (#1021): damage dealt, a spell cast, an attack of one delivery. Adds to `shown_deeds`; adding nothing changes nothing. */
+  | { type: "show_deed"; instanceId: string; deed: ShownDeedDelta };
 
 export type FightCommand = EncounterTurnCommand | FightOwnCommand;
 
 /** Every type of the fight's own commands; the edge handler holds its accepted list equal to this at compile time. */
 export const FIGHT_OWN_COMMAND_TYPES = [
-  "add_curse", "remove_curse", "set_reveal_state", "add_combatants", "adopt_stats", "fire_event", "check_events", "show_defense",
+  "add_curse", "remove_curse", "set_reveal_state", "add_combatants", "adopt_stats", "fire_event", "check_events", "show_defense", "show_deed",
 ] as const satisfies readonly FightOwnCommand["type"][];
 
 function isOwnCommand(command: FightCommand): command is FightOwnCommand {
@@ -94,6 +97,14 @@ function applyOwn(state: FightState, command: FightOwnCommand, deps: FightDeps):
             ? c
             : { ...c, shown_defenses: { ...c.shown_defenses, [command.damageType]: command.defense } },
         ),
+        effects: [],
+      };
+    case "show_deed":
+      return {
+        state: editOne(state, command.instanceId, (c) => {
+          const deeds = addDeeds(c.shown_deeds, command.deed);
+          return deeds === c.shown_deeds ? c : { ...c, shown_deeds: deeds };
+        }),
         effects: [],
       };
     case "fire_event":

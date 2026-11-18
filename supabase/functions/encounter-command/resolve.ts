@@ -571,6 +571,8 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     }
     if (useKey !== null && limit !== null) step({ type: "use_action", instanceId: caster.instance_id, action: useKey, limit });
     step({ type: "set_action_used", instanceId: caster.instance_id, used: true });
+    // A spell cast is a spell seen (#1021), whether or not its outcome is rolled here.
+    step({ type: "show_deed", instanceId: caster.instance_id, deed: { cast: 1 } });
 
     if (!rolled || !entry.automatable) {
       const why = !automatable

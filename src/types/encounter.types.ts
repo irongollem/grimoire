@@ -201,6 +201,20 @@ export interface ActionUse {
 }
 
 // Live combatant during a run (ephemeral — not stored in DB)
+/** What a fight has seen a creature do (`RunCombatant.shown_deeds`). */
+export interface ShownDeeds {
+  /** Damage it has dealt to others, after their defenses, summed. */
+  dealt: number;
+  /** Its own turns that have started. */
+  turns: number;
+  /** Spells it has been seen to cast. */
+  cast: number;
+  /** Attacks it has been seen to make at range. */
+  ranged: number;
+  /** Attacks it has been seen to make in melee. */
+  melee: number;
+}
+
 export interface RunCombatant {
   instance_id: string;      // unique: "m-{defId}-{index}" or "p-{memberId}"
   type: "player" | "monster";
@@ -222,6 +236,14 @@ export interface RunCombatant {
    * in its choosing only through this. DM-only: left out of the players' projection.
    */
   shown_defenses?: Partial<Record<string, "resistant" | "immune" | "vulnerable">>;
+  /**
+   * What the fight has shown of what this creature DOES (#1021): the damage it has dealt (after defenses), how many of
+   * its own turns have started, how many spells it has been seen to cast and how many attacks of each delivery.
+   * Written only by the `show_deed` command as each fact happens, never read from a stat block. APP CONVENTION:
+   * knowledge of the whole fight, like `shown_defenses`. A creature run by the game weighs what a condition on this
+   * creature is worth only through this. DM-only: left out of the players' projection.
+   */
+  shown_deeds?: ShownDeeds;
   death_saves: { successes: number; failures: number };
   // back-references
   monster_id?: string;

@@ -21,6 +21,7 @@ import type { Monster } from "../../../src/types/monster.types.ts";
 import type { NpcListRow } from "../../../src/types/npc.types.ts";
 import type { EncounterTurnCommand } from "../../../src/rules/encounterTurn.ts";
 import { isShownDefense } from "../../../src/rules/fight/tactics/shownDefenses.ts";
+import { isShownDeedDelta } from "../../../src/rules/fight/tactics/shownThreat.ts";
 import { applyFightCommand, FIGHT_OWN_COMMAND_TYPES, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightDeps } from "../../../src/rules/fight/fightEvents.ts";
 import { ingestPartyRow, type PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
@@ -165,6 +166,11 @@ function validateOwnCommand(command: Record<string, unknown>): void {
     case "show_defense":
       if (typeof command.instanceId !== "string" || typeof command.damageType !== "string" || !isShownDefense(command.defense)) {
         throw new FightCommandError(400, "show_defense needs an instanceId, a damageType and a defense.");
+      }
+      break;
+    case "show_deed":
+      if (typeof command.instanceId !== "string" || !isShownDeedDelta(command.deed)) {
+        throw new FightCommandError(400, "show_deed needs an instanceId and a deed of non-negative numbers.");
       }
       break;
     case "adopt_stats":

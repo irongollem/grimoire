@@ -19,6 +19,7 @@ import { isTurnEvent, type FightEffect, type FightState } from "@/rules/fight/fi
 import { companionCombatant, idClock, spawnMonsters, spawnNpcs } from "@/rules/fight/fightSpawn";
 import type { ConfirmedFight, FightFrame } from "@/lib/encounters/fightSync";
 import type { ShownDefense } from "@/rules/fight/tactics/shownDefenses";
+import type { ShownDeedDelta } from "@/rules/fight/tactics/shownThreat";
 import { createFightLink } from "./encounterRunLink";
 
 /** Rolls one combatant's initiative. Registered by the encounter runner so the
@@ -416,6 +417,11 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     dispatch({ type: "show_defense", instanceId, damageType, defense });
   }
 
+  /** Remembers a deed the fight just saw on a combatant (#1021). */
+  function showDeed(instanceId: string, deed: ShownDeedDelta) {
+    dispatch({ type: "show_deed", instanceId, deed });
+  }
+
   function addCurse(instanceId: string, curse: string) {
     dispatch({ type: "add_curse", instanceId, curse });
   }
@@ -675,6 +681,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     resolveConcentrationCheck,
     addCurse,
     showDefense,
+    showDeed,
     removeCurse,
     setRevealState,
     cycleRevealState,

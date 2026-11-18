@@ -21,17 +21,23 @@
 // weighed with no cover and no enemy-within-5-feet penalty, and a save with no cover bonus: none of the three is known
 // to the option.
 //
+// A spell that imposes a condition is worth something too (#1021, the clever layer): `expectedWorth` is, summed over the
+// targets, the chance each fails its save times what the condition is worth on it (`conditionWorth.ts`, in hit points,
+// built only from what the fight has shown of that target). A condition the target already bears is worth 0 on it, and a
+// spell that imposes nothing has a worth of 0. Several conditions on one spell are not added: the worth is the largest.
+//
 // Pure and edge-importable (relative `.ts` imports only).
 
 import { parseExpression } from "../../../lib/dice/dice.ts";
 import type { RollMode } from "../../../systems/dnd5e/dice/rollMode.ts";
 import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { RulesetKey } from "../../../types/ruleset.types.ts";
-import type { AttackStructure, DamagePart, SaveAbility } from "../../../types/statBlock.types.ts";
+import type { AttackStructure, DamagePart, SaveAbility, SaveCondition, SaveStructure } from "../../../types/statBlock.types.ts";
 import { attackRollMode } from "../../combat/attackRoll.ts";
 import { autoFailsSave, saveRollMode } from "../../combat/savingThrow.ts";
 import { getExhaustionD20Penalty } from "../../conditions.ts";
 import { coverBonus, DEFAULT_REACH_FEET } from "../terrain/sight.ts";
+import { ASSUMED_ROUNDS, conditionWorth, expectedRounds, type StopsCasting } from "./conditionWorth.ts";
 import { shownDefenseMultiplier } from "./shownDefenses.ts";
 import type { CastNow } from "../spells/castNow.ts";
 import type { TurnOption, TurnOptionAttack, TurnOptionSpell, UsableAttack } from "../terrain/turnOptions.ts";
@@ -155,16 +161,39 @@ function numbersFor(attack: TurnOptionAttack, mover: RunCombatant, target: RunCo
   return swings === 0 ? null : { hitChance: hits / swings, expectedDamage: damage };
 }
 
+/** What a spell option's pass over the targets found: the numbers, and what each target's failed save would impose. */
+interface SpellFound {
+  hitChance: number;
+  expectedDamage: number | null;
+  /** Per target, in `targetIds` order: the chance it fails the spell's save (0 for an attack spell, which imposes nothing). */
+  fails: number[];
+  targets: RunCombatant[];
+  conditions: readonly SaveCondition[];
+  save: SaveStructure | undefined;
+  stopsCasting: StopsCasting;
+}
+
+/** The chance `target` fails a save of `ability` against `dc`: auto-fail, else the roll, else `UNKNOWN_SAVE_FAIL_CHANCE` when its bonus is not known. */
+function failChanceOf(target: RunCombatant, ability: SaveAbility, dc: number, ctx: NumbersContext): number {
+  if (autoFailsSave(target.conditions, ability)) return 1;
+  const bonus = ctx.saveBonusOf === undefined ? null : ctx.saveBonusOf(target, ability);
+  if (bonus === null) return UNKNOWN_SAVE_FAIL_CHANCE;
+  return chanceToFail(bonus, dc, saveRollMode({ conditions: target.conditions, ability, ruleset: ctx.ruleset }).mode);
+}
+
 /** A spell option's numbers, or null when a target's armor class or the damage cannot be read (the option stays unnumbered). */
-function spellNumbers(spell: TurnOptionSpell, mover: RunCombatant, ctx: NumbersContext): { hitChance: number; expectedDamage: number | null } | null {
+function spellNumbers(spell: TurnOptionSpell, mover: RunCombatant, ctx: NumbersContext): SpellFound | null {
   const cast = ctx.spells?.find((s) => s.spell === spell.name && s.castLevel === spell.castLevel);
   if (cast === undefined) return null;
   const targets = spell.targetIds.flatMap((id) => ctx.combatants.find((c) => c.instance_id === id) ?? []);
   if (targets.length === 0 || targets.length !== spell.targetIds.length) return null;
   let chance = 0;
   let damage: number | null = 0;
+  const fails: number[] = [];
   const attack = cast.entry.structured.attack;
   const save = cast.entry.structured.save;
+  const effect = cast.record.condition_effect;
+  const stopsCasting: StopsCasting = effect === null || effect === undefined ? null : effect.stops_casting;
   if (cast.kind === "attack" && attack !== undefined) {
     const facts: TurnOptionAttack = { list: "actions", action: spell.name, steps: null, distanceFeet: spell.distanceFeet, cover: null, longRange: null, closeCombat: null, hitChance: null, expectedDamage: null };
     for (const target of targets) {
@@ -172,32 +201,69 @@ function spellNumbers(spell: TurnOptionSpell, mover: RunCombatant, ctx: NumbersC
       if (ac === null) return null;
       const one = oneAttack(attack, facts, mover, target, ac, ctx.ruleset, SPELL_DAMAGE);
       chance += one.hit;
+      fails.push(0);
       damage = damage === null || one.damage === null ? null : damage + one.damage;
     }
   } else if (cast.kind === "save" && save !== undefined) {
     for (const target of targets) {
       const avg = averageOf(save.fail, target, SPELL_DAMAGE);
-      const bonus = ctx.saveBonusOf === undefined ? null : ctx.saveBonusOf(target, save.ability);
-      let fails: number;
-      if (autoFailsSave(target.conditions, save.ability)) fails = 1;
-      else if (bonus === null) fails = UNKNOWN_SAVE_FAIL_CHANCE;
-      else fails = chanceToFail(bonus, save.dc, saveRollMode({ conditions: target.conditions, ability: save.ability, ruleset: ctx.ruleset }).mode);
-      chance += fails;
-      damage = damage === null || avg === null ? null : damage + fails * avg.all + (1 - fails) * (save.success === "half" ? avg.all / 2 : 0);
+      const fail = failChanceOf(target, save.ability, save.dc, ctx);
+      chance += fail;
+      fails.push(fail);
+      damage = damage === null || avg === null ? null : damage + fail * avg.all + (1 - fail) * (save.success === "half" ? avg.all / 2 : 0);
     }
   } else {
     return null;
   }
-  return { hitChance: chance / targets.length, expectedDamage: damage };
+  return { hitChance: chance / targets.length, expectedDamage: damage, fails, targets, conditions: save === undefined ? [] : save.conditions, save, stopsCasting };
+}
+
+/**
+ * What the failed save of a spell is worth in hit points, summed over its targets (see the header). Each condition is
+ * priced on its own, over how long it is expected to last on that target, and the largest counts; a spell that stops
+ * casting adds that as one more candidate. A condition already on the target is worth nothing on it.
+ */
+function spellWorth(found: SpellFound, fallbackPerTurn: number, ctx: NumbersContext): number {
+  const { save } = found;
+  if (save === undefined || (found.conditions.length === 0 && found.stopsCasting === null)) return 0;
+  let total = 0;
+  found.targets.forEach((target, i) => {
+    let best = 0;
+    let longest = 0;
+    for (const condition of found.conditions) {
+      if (target.conditions.some((c) => c.name === condition.name)) continue;
+      const ends = condition.ends;
+      // A repeat save is made against the save's own DC, by the ability the prose names or else the spell's own.
+      const repeatFails = ends !== undefined && ends.kind === "save" ? failChanceOf(target, ends.ability === undefined ? save.ability : ends.ability, ends.dc === undefined ? save.dc : ends.dc, ctx) : 0;
+      const rounds = expectedRounds(ends, repeatFails);
+      longest = Math.max(longest, rounds);
+      best = Math.max(best, conditionWorth({ conditions: [condition.name], stopsCasting: null, rounds, target, fallbackPerTurn }));
+    }
+    if (found.stopsCasting !== null) {
+      // It lasts as long as the longest condition it comes with, else for the assumed rest of the fight.
+      best = Math.max(best, conditionWorth({ conditions: [], stopsCasting: found.stopsCasting, rounds: longest > 0 ? longest : ASSUMED_ROUNDS, target, fallbackPerTurn }));
+    }
+    total += found.fails[i] * best;
+  });
+  return total;
+}
+
+/** The mover's own best expected damage this turn over the options numbered so far: what it takes a foe to deal until it has seen otherwise. */
+function ownBestDamage(damages: readonly (number | null)[]): number {
+  return damages.reduce<number>((best, d) => (d === null ? best : Math.max(best, d)), 0);
 }
 
 /** The options with the numbers filled in on each attack and each spell. Other options pass through untouched. */
 export function withNumbers(options: readonly TurnOption[], ctx: NumbersContext): TurnOption[] {
   const mover = ctx.combatants.find((c) => c.instance_id === ctx.moverId);
-  return options.map((option) => {
+  const founds = new Map<TurnOption, SpellFound>();
+  const numbered = options.map((option): TurnOption => {
     if (option.kind === "spell" && option.spell !== undefined && option.spell !== null && mover !== undefined) {
       const found = spellNumbers(option.spell, mover, ctx);
-      return found === null ? option : { ...option, spell: { ...option.spell, hitChance: found.hitChance, expectedDamage: found.expectedDamage } };
+      if (found === null) return option;
+      const out = { ...option, spell: { ...option.spell, hitChance: found.hitChance, expectedDamage: found.expectedDamage } };
+      founds.set(out, found);
+      return out;
     }
     if (option.kind !== "attack" || option.attack === null || mover === undefined) return option;
     const target = ctx.combatants.find((c) => c.instance_id === option.targetId);
@@ -206,5 +272,14 @@ export function withNumbers(options: readonly TurnOption[], ctx: NumbersContext)
     if (ac === null) return option;
     const found = numbersFor(option.attack, mover, target, ac, ctx);
     return found === null ? option : { ...option, attack: { ...option.attack, hitChance: found.hitChance, expectedDamage: found.expectedDamage } };
+  });
+  if (founds.size === 0) return numbered;
+  // The worth of a condition needs what the mover would deal itself, so it comes once every damage is known.
+  const fallbackPerTurn = ownBestDamage(numbered.map((o) => (o.kind === "spell" && o.spell ? o.spell.expectedDamage : o.attack === null ? null : o.attack.expectedDamage)));
+  return numbered.map((option) => {
+    const found = founds.get(option);
+    if (found === undefined || option.spell === undefined || option.spell === null) return option;
+    const imposes = [...new Set(found.conditions.map((c) => c.name))];
+    return { ...option, spell: { ...option.spell, expectedWorth: spellWorth(found, fallbackPerTurn, ctx), ...(imposes.length > 0 ? { imposes } : {}) } };
   });
 }

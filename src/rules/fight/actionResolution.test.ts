@@ -719,3 +719,44 @@ describe("a condition the bearer can break free of with a check", () => {
     expect(breakFreeModifier(trained, "dex", "athletics")).toBe(0);
   });
 });
+
+describe("what an attack shows of its maker (#1021)", () => {
+  // d20 9 + 4 = 13 hits AC 13; 1d6+2 with a 5 on the die deals 7.
+  // Bug caught: the delivery is not recorded, or recorded for hits only so a miss teaches nothing.
+  it("records a melee attack, and the damage dealt, on the attacker", async () => {
+    const t = table([wolf(), victim()], { dice: scripted([[9], [5]]).dice });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("wolf").shown_deeds).toEqual({ dealt: 7, turns: 0, cast: 0, ranged: 0, melee: 1 });
+    expect(t.get("victim").shown_deeds).toBeUndefined();
+  });
+
+  // d20 8 + 4 = 12 misses AC 13: the swing was seen, nothing was dealt.
+  it("records a missed attack's delivery and no damage", async () => {
+    const t = table([wolf(), victim()], { dice: scripted([[8]]).dice });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("wolf").shown_deeds).toEqual({ dealt: 0, turns: 0, cast: 0, ranged: 0, melee: 1 });
+  });
+
+  // A ranged entry counts as ranged. Bug caught: every attack is counted as melee, so no creature is ever seen as an archer.
+  it("records a ranged attack as ranged", async () => {
+    const bow: StatBlockEntry = { name: "Shortbow", description: "", structured: { kind: "attack", source: "manual", attack: { delivery: "ranged", bonus: 4, hit: [{ dice: "1d6+2", type: "piercing" }] } } };
+    const t = table([wolf(), victim()], { dice: scripted([[9], [5]]).dice });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bow, target: t.get("victim"), withinFiveFeet: false });
+    expect(t.get("wolf").shown_deeds).toMatchObject({ ranged: 1, melee: 0, dealt: 7 });
+  });
+
+  // 7 piercing against resistance is 3 (halved, rounded down): the fight saw 3 dealt, not the 7 rolled.
+  // Bug caught: the damage rolled is recorded instead of what landed, so a resisted creature looks as dangerous as it would be unresisted.
+  it("records the damage that landed after a resistance, not the damage rolled", async () => {
+    const t = table([wolf(), victim()], { dice: scripted([[9], [5]]).dice, defenses: { victim: { ...emptyDefenses(), resistances: [{ types: ["piercing" as const] }] } } });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("wolf").shown_deeds?.dealt).toBe(3);
+  });
+
+  // Bug caught: an immune target teaches the fight a creature dealt damage, so it is feared for blows that did nothing.
+  it("records no damage when an immunity took all of it", async () => {
+    const t = table([wolf(), victim()], { dice: scripted([[9], [5]]).dice, defenses: { victim: { ...emptyDefenses(), immunities: [{ types: ["piercing" as const] }] } } });
+    await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bite("1d6+2"), target: t.get("victim"), withinFiveFeet: true });
+    expect(t.get("wolf").shown_deeds).toMatchObject({ dealt: 0, melee: 1 });
+  });
+});

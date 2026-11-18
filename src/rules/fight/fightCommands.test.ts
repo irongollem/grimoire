@@ -140,3 +140,28 @@ describe("show_defense (#1021)", () => {
     expect(show(state, "ghost", "fire", "immune").state).toBe(state);
   });
 });
+
+describe("show_deed (#1021)", () => {
+  const deed = (state: ReturnType<typeof fight>, instanceId: string, d: Extract<Parameters<typeof applyFightCommand>[1], { type: "show_deed" }>["deed"]) =>
+    applyFightCommand(deepFreeze(state), { type: "show_deed", instanceId, deed: d }, deps());
+
+  // Bug caught: the second deed replaces the first instead of adding to it, so damage per turn is only the last blow.
+  it("adds each deed to what the fight has seen of that creature and no other", () => {
+    const first = deed(fight([combatant("a"), combatant("b")]), "a", { dealt: 6, melee: 1 }).state;
+    const second = deed(first, "a", { dealt: 4, ranged: 1, cast: 1 }).state;
+    expect(second.combatants[0].shown_deeds).toEqual({ dealt: 10, turns: 0, cast: 1, ranged: 1, melee: 1 });
+    expect(second.combatants[1].shown_deeds).toBeUndefined();
+  });
+
+  // Bug caught: a deed of nothing makes a new version of the fight (a save and a broadcast for nothing).
+  it("returns the very same state for a deed of zero everything", () => {
+    const state = fight([combatant("a")]);
+    expect(deed(state, "a", {}).state).toBe(state);
+    expect(deed(state, "a", { dealt: 0, cast: 0, ranged: 0, melee: 0 }).state).toBe(state);
+  });
+
+  it("leaves the fight alone for a creature that is not in it", () => {
+    const state = fight([combatant("a")]);
+    expect(deed(state, "ghost", { dealt: 3 }).state).toBe(state);
+  });
+});
