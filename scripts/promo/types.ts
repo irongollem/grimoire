@@ -132,6 +132,12 @@ export interface Shot {
    * (a big book laying itself out on first open) or a step the shot assumes is done. Never filmed.
    */
   ready?(page: Page): Promise<void>;
+  /**
+   * Filmed only for the episode's hook and left out of the body: the finished result, shown clean before anything
+   * is explained. Filmed where it falls in the take (usually last, once the result exists), played first. It has
+   * no narration, and the hook must name it.
+   */
+  hookOnly?: true;
   run(ctx: ShotContext): Promise<void>;
 }
 
@@ -165,12 +171,28 @@ export interface Episode {
   teardown?(): Promise<void> | void;
   /** Seed for Math.random in the filmed page, so dice land the same on every take. */
   seed?: number;
+  /**
+   * The bait the Reel opens on, in place of the brand card: two seconds (`HOOK_LENGTH`) of `shot`'s payoff from
+   * `at` seconds in, with `text` in the caption band. Every new Reel has one (docs/promo-videos.md, "The hook").
+   */
+  hook?: Hook;
   shots: Shot[];
+}
+
+export interface Hook {
+  /** The line that makes a viewer stay: a question or a promise the Reel then keeps. Eight words at most. */
+  text: string;
+  /** The shot whose moment is shown, usually the payoff near the end. */
+  shot: string;
+  /** Seconds into that shot. */
+  at: number;
 }
 
 /** One recorded shot, as `manifest.json` lists it. */
 export interface RecordedShot {
   id: string;
+  /** Filmed for the hook only (`Shot.hookOnly`): not played in the body. */
+  hookOnly?: true;
   caption: string;
   narration: string;
   /** Relative to the episode folder: a silent 30 fps H.264 clip at the device's native pixel size. */
@@ -214,6 +236,8 @@ export interface EpisodeManifest {
    * is mid-pan there). Absent, the cover is the first shot's middle.
    */
   coverAt?: number;
+  /** The two seconds the Reel opens on (`Episode.hook`). */
+  hook?: Hook;
   recordedAt: string;
   shots: RecordedShot[];
 }

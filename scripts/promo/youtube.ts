@@ -61,8 +61,10 @@ export function tagsFrom(caption: string): string[] {
 }
 
 /**
- * The Reel to upload next: the oldest posted on Instagram that has an approved title, no youtube.json yet and is
- * not a carousel (not a video). Pure, so the order and every exclusion can be tested.
+ * The Reel to upload next: the newest posted on Instagram that has an approved title, no youtube.json yet and is
+ * not a carousel (not a video). Newest first keeps YouTube in step with Instagram: the hourly run that posts the
+ * 23:00 Reel uploads its Short too, ahead of an older one whose title was approved late (the maintainer, 18 Nov
+ * 2026). Pure, so the order and every exclusion can be tested.
  */
 export function nextShort(input: {
   posted: PostedRecord[];
@@ -70,13 +72,21 @@ export function nextShort(input: {
   uploaded: (id: string) => boolean;
   isCarousel: (id: string) => boolean;
 }): string | null {
-  const oldestFirst = [...input.posted].sort((a, b) => a.postedAt.localeCompare(b.postedAt));
-  for (const p of oldestFirst) {
+  const newestFirst = [...input.posted].sort((a, b) => b.postedAt.localeCompare(a.postedAt));
+  for (const p of newestFirst) {
     if (!(p.id in input.titles)) continue;
     if (input.uploaded(p.id) || input.isCarousel(p.id)) continue;
     return p.id;
   }
   return null;
+}
+
+/**
+ * The scheduled Reels still to post that have no approved YouTube title: each would go to Instagram alone, and its
+ * Short would fall out of step. Carousels are not videos and are left out.
+ */
+export function scheduledWithoutTitle(input: { schedule: { id: string }[]; titles: ShortTitles; posted: (id: string) => boolean; isCarousel: (id: string) => boolean }): string[] {
+  return input.schedule.filter((e) => !input.posted(e.id) && !input.isCarousel(e.id) && !(e.id in input.titles)).map((e) => e.id);
 }
 
 export interface YoutubeIo {

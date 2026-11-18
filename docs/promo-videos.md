@@ -151,10 +151,14 @@ on disk and can already post publicly.
 
 Every Reel the job has posted to Instagram also goes to YouTube as a Short
 (`youtube.ts`), uploaded by the same hourly run after the Instagram step,
-at most one per run, oldest Instagram post first. A Reel goes only when it has
+at most one per run, newest Instagram post first, so the 23:00 Reel's Short
+goes up in the same run as its post. A Reel goes only when it has
 a title in `scripts/promo/youtube-titles.json` (`{ "<id>": { "title": "..." } }`, 100
 characters at most, no `<` or `>`): that list is the approval gate, as the
-caption files are for Instagram. The description is the Reel's caption, with
+caption files are for Instagram, so a title is approved with the caption,
+before the Reel is scheduled. `promo:post -- --schedule` reports a scheduled
+Reel with no title as not ready, and a post that goes out without one is
+notified as "Instagram only". The description is the Reel's caption, with
 "Link in bio." turned into the site's address, and the tags are its hashtags. Carousels never go. An upload leaves `youtube.json`
 beside the video and is not repeated without `--again`. `promo:post -- --youtube
 <id>` is a dry run that prints what would go up; add `--publish` to upload at
@@ -230,6 +234,26 @@ An episode is a TypeScript file in `scripts/promo/episodes/`, listed in
 play muted), a narration line, and a `run` that drives the page with the
 helpers in `ShotContext` (`tap`, `type`, `scroll`, `scrollTo`, `hold`). Keep
 an episode under about 45 seconds and open on the payoff.
+
+### The hook
+
+Every new Reel opens on two seconds of bait (`Episode.hook`), in place of the
+brand card, which then shows only at the close. Instagram shows a new Reel to
+a small test audience and stops there when they swipe on, and that decision
+falls in the first two seconds (see `strategy.md`). The hook is a moment of
+the Reel's own payoff, `at` seconds into `shot`, with a line in the caption
+band that the Reel then keeps: a question, or a promise ("Your letter, on
+every player's phone. Instantly."). Eight words at most, true of what follows,
+never a claim the video does not show. Lead with the finished piece: that is
+what a viewer is after, and the tools only matter for what they make (the
+maintainer, 18 Nov 2026). When no shot shows the result clean (a selection
+box, an open panel), add a `hookOnly` shot at the end of the take, once the
+result exists: it has no narration, the hook names it, and it opens the Reel
+without being played again in the body (the Illuminator's `finished` shows the
+painted page in Read as spreads and moves in on it). The theme's opening motif
+plays under it. The assembler throws if the two seconds run past the end of the shot's
+clip, and `promo:record` warns when a Reel has no hook. A painted scene opens
+on its `story` lines instead (see "Picture-book scenes").
 
 The narration names what is on screen by the app's own label ("Under
 Equipped", "the Spawn panel"), the first time the shot reaches it. A viewer

@@ -71,6 +71,9 @@ export const illuminator: Episode = {
   setup: setupIlluminator,
   teardown: teardownIlluminator,
   seed: 7,
+  // Opens on the problem over the finished page, clean, before any of the editing that made it (docs/promo-videos.md,
+  // "The hook"). The maintainer, 18 Nov 2026: first the page itself, then move towards it, and only then the UI.
+  hook: { text: "Pictures that look pasted onto the page?", shot: "finished", at: 0.4 },
   shots: [
     {
       id: "pick",
@@ -181,6 +184,50 @@ export const illuminator: Episode = {
         await tap(bench.getByTestId("workbench-done"), 600);
         await bench.waitFor({ state: "detached" });
         await hold(1600);
+      },
+    },
+    {
+      // Filmed last, once the painting is finished; played first, as the hook. Read as spreads shows the book with
+      // no selection box and no panel, and the camera moves in on the painting.
+      id: "finished",
+      caption: "Pictures that look pasted onto the page?",
+      narration: "",
+      hookOnly: true,
+      async ready(page) {
+        await page.keyboard.press("Escape");
+        await page.getByRole("button", { name: "Read as spreads" }).filter({ visible: true }).first().click();
+        await page.getByTestId("preview-pane").filter({ visible: true }).first().waitFor({ timeout: 20_000 });
+        // The reader opens on the cover: jump to the painting's chapter, and put the notes away so only the page shows.
+        const jump = page.getByLabel("Jump to chapter").filter({ visible: true }).first();
+        const options = await jump.locator("option").allTextContents();
+        const welcome = options.find((o) => o.trim().startsWith("Welcome to Sothery"));
+        if (!welcome) throw new Error(`No "Welcome to Sothery" chapter to jump to (${options.join(", ")}).`);
+        await jump.selectOption({ label: welcome });
+        // The painting sits a few pages into the chapter.
+        const pane = page.getByTestId("preview-pane").filter({ visible: true }).first();
+        // Every page is laid out at once, off-screen ones included, so "on screen" is the caption's box inside the window.
+        const onScreen = async () => {
+          // The edited picture carries data-baked-for, and only this one was edited in the take.
+          const box = await pane.locator("img[data-baked-for]").first().boundingBox();
+          const view = page.viewportSize();
+          return box !== null && view !== null && box.x >= 0 && box.x + box.width <= view.width && box.y >= 0 && box.y + box.height <= view.height;
+        };
+        for (let i = 0; !(await onScreen()); i++) {
+          if (i >= 12) throw new Error("The edited painting is not within twelve spreads of its chapter's start.");
+          await page.getByRole("button", { name: "Next spread" }).filter({ visible: true }).first().click();
+          await page.waitForTimeout(400);
+        }
+        const notes = page.getByRole("button", { name: /^Notes/ }).filter({ visible: true }).first();
+        if ((await notes.getAttribute("aria-pressed")) === "true") await notes.click();
+        await page.waitForTimeout(1500);
+      },
+      async run({ page, hold, focus }) {
+        await focus(null);
+        await hold(900);
+        const pane = page.getByTestId("preview-pane").filter({ visible: true }).first();
+        const target = pane.locator("img[data-baked-for]").first();
+        await focus(target, { padding: 40 });
+        await hold(1800);
       },
     },
   ],

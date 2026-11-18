@@ -1,14 +1,25 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import type { Prompt } from '../types'
+import type { PushAskedAt } from '../types'
 
 // Each guard enforces a rule from CLAUDE.md that was written down because an
 // agent kept breaking it. A refusal reaches the model as the tool's error, so
 // every reason says what to do instead, not only what was wrong.
 
-// The person's own last prompt: a push goes through only when it says "push".
-const lastPrompt = atom({ plugin: 'grimoire-guards', key: 'lastPrompt' } as const, null as Prompt)
+// When the person last said "push". A push goes through for a while after that, whatever they write next: the
+// first form of this guard read only their very latest message, so a follow-up thought sent while the checks
+// were still running cancelled the push they had just asked for (the maintainer, 18 Nov 2026: "I'm getting sick
+// of my push guard").
+const pushAskedAt = atom({ plugin: 'grimoire-guards', key: 'pushAskedAt' } as const, null as PushAskedAt)
+
+/** How long "push" holds. Long enough for a full gate and a few pushes, short enough that yesterday's does not count. */
+export const PUSH_ASK_HOLDS_MS = 3 * 60 * 60 * 1000
+
+/** Whether a push asked for at `askedAt` still stands at `now`. */
+export function pushStillAsked(askedAt: PushAskedAt, now: number): boolean {
+  return askedAt !== null && now >= askedAt && now - askedAt <= PUSH_ASK_HOLDS_MS
+}
 
 // A command only where one starts: a line's head, or after `;`, `&&`, `||`,
 // `|` or `(`, behind env assignments and a runner. Anywhere else it is text,
@@ -33,8 +44,8 @@ const why = (reason: string) => `grimoire-guards: ${reason}`
 
 /**
  * Register prompt tracking and tool guards for agents, migrations, commit
- * trailers, and pushes. Push checks use the last composer/bridge prompt's
- * text, matched by ASKS_TO_PUSH; other prompt origins leave it unchanged.
+ * trailers, and pushes. A push needs a composer/bridge prompt matching
+ * ASKS_TO_PUSH within PUSH_ASK_HOLDS_MS; other prompt origins never count.
  * Denied calls return a reason instead of invoking the next handler.
  */
 export const register: Register = on => {
@@ -42,8 +53,8 @@ export const register: Register = on => {
     // Only the person's own words count: typed here, or sent from their phone.
     // A notification, a peer session or another plugin cannot unlock a push.
     const kind = e.origin?.kind
-    if (kind === 'composer' || kind === 'bridge') {
-      await update($, lastPrompt, () => e.text)
+    if ((kind === 'composer' || kind === 'bridge') && ASKS_TO_PUSH.test(e.text)) {
+      await update($, pushAskedAt, () => Date.now())
     }
 
     return next(e)
@@ -93,11 +104,10 @@ export const register: Register = on => {
     }
 
     if (GIT_PUSH.test(command)) {
-      const prompt = await read($, lastPrompt)
-      if (prompt === null || !ASKS_TO_PUSH.test(prompt)) {
+      if (!pushStillAsked(await read($, pushAskedAt), Date.now())) {
         return {
           deny: why(
-            'never push unasked. Ask the user first; once their reply says "push", the push goes through.',
+            'never push unasked. Ask the user first; once they say "push", pushes go through for the next three hours.',
           ),
         }
       }

@@ -2,6 +2,15 @@
 
 Newest first. Edited by hand; `npm run promo:strategy` and the Socials tab show the latest entries. Numbers are read at the 24 hour mark (`promo:stats`).
 
+## 18 Nov 2026: every new Reel opens on two seconds of bait
+
+Decisions:
+
+- The maintainer: "for future reel type content lets start with 2 seconds of baiting (hate it but thats how these things go live)". Every feature Reel opened on a 1.2 s brand card, the moment Instagram's test audience decides to stay or swipe. A Reel now opens on a hook (`Episode.hook`): two seconds of its own payoff with a bait line, and the brand moves to the close. Posted Reels keep their cut.
+- YouTube Shorts go up in the same hourly run as the Instagram post, newest first. `handouts-player` (17 Nov) went to Instagram alone because its title had not been approved; a title is now approved with the caption, before scheduling.
+
+To read: a hooked Reel's watch time and reach against the unhooked feature Reels (the band of 76 to 165 reach).
+
 ## 15 Nov 2026: cup-town lost its viewers before the town came up
 
 Findings:
