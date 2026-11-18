@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { placesPassed, shortestWay } from "./way";
 import type { Road } from "./roads";
 
-const road = (id: string, a: string, b: string, distance: number, over: Partial<Road> = {}): Road => ({ id, from_location_id: a, to_location_id: b, distance, unit: "mi", name: "", going: "road", ...over });
+const road = (id: string, a: string, b: string, distance: number, over: Partial<Road> = {}): Road => ({ id, from_location_id: a, to_location_id: b, distance, unit: "mi", name: "", going: "road", roll_table_id: null, ...over });
 
 // Harbour to Farholt: 60 miles direct by the pass, or 40 + 15 by way of Brightwater.
 const coast = [road("pass", "harbour", "farholt", 60), road("coast", "harbour", "brightwater", 40), road("ford", "farholt", "brightwater", 15)];

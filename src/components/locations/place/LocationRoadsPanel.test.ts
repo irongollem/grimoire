@@ -19,7 +19,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import LocationRoadsPanel from "./LocationRoadsPanel.vue";
 
 const place = (id: string, name: string, type = "city") => ({ id, campaign_id: "c1", user_id: "dm", name, location_type: type, parent_id: null });
-const road = (id: string, a: string, b: string, distance: number, over: Record<string, unknown> = {}) => ({ id, campaign_id: "c1", user_id: "dm", from_location_id: a, to_location_id: b, distance, unit: "mi", name: "", going: "road", ...over });
+const road = (id: string, a: string, b: string, distance: number, over: Record<string, unknown> = {}) => ({ id, campaign_id: "c1", user_id: "dm", from_location_id: a, to_location_id: b, distance, unit: "mi", name: "", going: "road", roll_table_id: null, ...over });
 
 async function mountPanel(locationId = "harbour") {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: "/locations", component: { template: "<div />" } }] });
@@ -73,6 +73,35 @@ describe("LocationRoadsPanel", () => {
     expect(fake.rows("location_roads")).toEqual([
       expect.objectContaining({ campaign_id: "c1", user_id: "dm", from_location_id: "harbour", to_location_id: "brightwater", distance: 40, unit: "mi", name: "the coast road", going: "road" }),
     ]);
+  });
+
+  // Bug caught: a road's own encounter table chosen in the form and never written, or a road with none written
+  // as an empty string, which the database refuses as not a table.
+  it("gives a road the encounter table chosen for it, and none when none is chosen", async () => {
+    // The roll tables are read once the campaign's own row is known (its owner scopes the read).
+    useCampaignStore().activeCampaign = { id: "c1", user_id: "dm" } as never;
+    fake.seed("roll_tables", [{ id: "t1", user_id: "dm", campaign_id: "c1", name: "The coast road", dice: "1d6", entries: [], tags: [] }]);
+    fake.seed("location_roads", [road("r1", "harbour", "farholt", 60, { roll_table_id: "t1" })]);
+    const wrapper = await mountPanel();
+    expect(wrapper.get('[data-testid="location-road-table"]').text()).toContain("The coast road");
+
+    await wrapper.get('[data-testid="location-road-add"]').trigger("click");
+    const vm = wrapper.vm as unknown as { otherId: string; distance: number | null; rollTableId: string };
+    vm.otherId = "brightwater";
+    vm.distance = 40;
+    await flushPromises();
+    await wrapper.findAll("button").find((b) => b.text() === "Add road")!.trigger("click");
+    await flushPromises();
+    expect(fake.rows("location_roads").find((r) => r.to_location_id === "brightwater" || r.from_location_id === "brightwater")).toMatchObject({ roll_table_id: null });
+
+    await wrapper.get('[data-testid="location-road-add"]').trigger("click");
+    vm.otherId = "brightwater";
+    vm.distance = 12;
+    vm.rollTableId = "t1";
+    await flushPromises();
+    await wrapper.findAll("button").find((b) => b.text() === "Add road")!.trigger("click");
+    await flushPromises();
+    expect(fake.rows("location_roads").filter((r) => r.roll_table_id === "t1")).toHaveLength(2);
   });
 
   // Bug caught: a cancelled confirm that still removed the road.
