@@ -14,6 +14,14 @@ Route: `/locations` (list, and every place, see `placeRoute()` in `lib/locations
 
 **A place's picture can be a Book Nook** (#1142). `locations.book_nook_id` binds a living picture to the place; the Atlas Overview (`AtlasPlacePicture.vue`) plays it where the still picture sat, with **Edit picture** into the studio and, for a place that has only a still, **Bring it to life**. Players see it in the place view and full screen. The still is kept in `image_url`, so cards, search and exports are unchanged. See `publishing-tools.md`, "Book Nook".
 
+**Roads between places** (#1222; `location_roads`, `src/lib/travel/`, `LocationRoadsPanel.vue`). A place's entry has **Roads from here**: the places it is joined to and how far each is, the way a book writes it in a town's entry ("Neverwinter, 50 miles by the High Road"). A road is its own row joining two places (maintainer, 18 Nov 2026: "perhaps a road is a joining table between two locations"), with a distance, a unit (miles or kilometres), an optional name and a kind of going (road, track, river, sea). It needs no map.
+
+- **It reads from both ends.** The two ids are stored smaller first (`location_roads_normalize`), so a road added on one place shows on the other, and a pair cannot be entered twice by swapping the ends. One pair of places may have several roads, told apart by name.
+- **One read for the campaign** (`useLocationRoads`, key `location-roads`), not one per place: the way between two places needs all of them. Scoped to the campaign in the query; rung by the campaign's live sync.
+- **A room has no roads.** The section is not shown for an interior space (rooms are joined by doors), and a road cannot be led to one.
+- **The pure rules** are in `src/lib/travel/`: `roadsFrom` (a place's roads, nearest first), `shortestWay` (the shortest chain of roads between two places, with the places it passes; null when no chain joins them) and `roadText`. How long a journey takes is the game system's: `src/systems/dnd5e/travel/pace.ts` (PHB "Travel Pace": slow 18, normal 24, fast 30 miles in a day of eight hours; difficult going halves it).
+- **Access:** the campaign's DMs read and write roads; players do not read the table. What a player sees of a road, the World Web drawing a road as a line, travelling along one, and a map offering its measured distance are later stories of epic #1222.
+
 **List page** (`LocationsView.vue`)
 
 - Title: "Atlas", subtitle: "Continents, cities, dungeons, and every place in between"
