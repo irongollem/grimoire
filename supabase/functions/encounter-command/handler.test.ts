@@ -31,8 +31,9 @@ import {
   type PostedRoll,
   type StatBlockSources,
 } from "./handler";
-import { charmMonster, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithHold } from "../../../src/rules/fight/spells/spellTestKit";
+import { blackTentacles, charmMonster, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithHold, mageWithTentacles } from "../../../src/rules/fight/spells/spellTestKit";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice";
+import type { AppliedCondition } from "../../../src/types/condition.types";
 import type { ExploreParty } from "../../../src/types/exploreParty.types";
 
 function row(over: Partial<FightRow> = {}): FightRow {
@@ -2069,5 +2070,143 @@ describe("what a resisted blow teaches the next creature (#1021)", () => {
     expect(combatantOf(stored(h), "victim").shown_defenses).toEqual({ fire: "resistant" });
     const result = await runBatch(batch("b2", takeTurn({ instanceId: "wolf2" })), h.deps);
     expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { instanceId: "wolf2", optionId: expect.stringContaining("Bite") } });
+  });
+});
+
+// ── a creature spends its Action on a check to get free of a spell's hold (#1021 row 5b) ──────────────────────
+// SRD 5.1 Black Tentacles: "A creature restrained by the tentacles can use its action to make a Strength or Dexterity check
+// (its choice) against your spell save DC. On a success, it frees itself."
+describe("break_free", () => {
+  const HELD: AppliedCondition = { name: "Restrained", source: { id: "mage", spell: "Black Tentacles" }, breakFree: { abilities: ["str", "dex"], dc: 14 } };
+  const free = (over: Record<string, unknown> = {}) => ({ type: "break_free", instanceId: "wolf", name: "Restrained", ...over }) as CommandRequest["commands"][number];
+  // Strength 16 (+3) and Dexterity 10 (+0): a creature with the better Strength.
+  const STRONG: StatBlockSources = { monsters: [monster("m-wolf", { str: 16, dex: 10 }), monster("m-ox")], npcs: [], companions: [] };
+  const heldWolf = (over: Partial<RunCombatant> = {}, extra: RunCombatant[] = []) =>
+    row({ combatants_live: [combatant("wolf", { monster_id: "m-wolf", faction_id: "m", hp: 11, max_hp: 11, initiative: 12, conditions: [HELD], ...over }), ...extra] });
+  const heldOf = (h: Harness) => combatantOf(stored(h), "wolf");
+
+  // d20 11 + 3 (Strength 16, the better ability, none named) = 14 meets DC 14: the condition goes. The Action is spent.
+  // Bug caught: the higher modifier is not the one used (Dex +0 would total 11), or a total that meets the DC does not free it.
+  it("fails if a creature with Strength 16 and Dexterity 10 does not check with Strength, or a total that meets the DC does not free it", async () => {
+    const h = harness(heldWolf(), { sources: STRONG, dieFaces: [11] });
+    const result = await runBatch(batch("b", free()), h.deps);
+    expect(heldOf(h).conditions).toEqual([]);
+    expect(heldOf(h).action_used).toBe(true);
+    expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "break_free", instanceId: "wolf", name: "Restrained", ability: "str", natural: 11, total: 14, dc: 14, success: true } });
+    expect(h.posted).toHaveLength(1);
+  });
+
+  // d20 10 + 3 = 13 is one short of DC 14: still held, and the Action is gone all the same (trying costs the Action).
+  // Bug caught: a total one short frees the creature, or a failed try is free.
+  it("fails if a total one short of the DC frees the creature, or a failed try leaves the Action unspent", async () => {
+    const h = harness(heldWolf(), { sources: STRONG, dieFaces: [10] });
+    await runBatch(batch("b", free()), h.deps);
+    expect(heldOf(h).conditions.map((c) => c.name)).toEqual(["Restrained"]);
+    expect(heldOf(h).action_used).toBe(true);
+  });
+
+  // Bug caught: a second try in the same turn is free, so a creature rolls again and again until it frees itself.
+  it("fails if a creature whose Action is spent may try again in the same turn", async () => {
+    const h = harness(heldWolf({ action_used: true }), { sources: STRONG, dieFaces: [] });
+    await expect(runBatch(batch("b", free()), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/already used its Action/) });
+    expect(h.saves).toBe(0);
+    expect(h.dieCalls).toBe(0);
+  });
+
+  // "a Strength or Dexterity check (its choice)": naming Dexterity uses Dexterity (+0): d20 13 + 0 = 13 fails, where Strength would have freed it.
+  // Naming Constitution is not the spell's choice at all. Bug caught: the named ability is ignored, or any ability is accepted.
+  it("fails if a named ability is ignored, or one the spell does not allow is accepted", async () => {
+    const dex = harness(heldWolf(), { sources: STRONG, dieFaces: [13] });
+    await runBatch(batch("b", free({ ability: "DEX" })), dex.deps);
+    expect(heldOf(dex).conditions).toHaveLength(1);
+    expect(dex.posted[0].result.total).toBe(13);
+
+    const con = harness(heldWolf(), { sources: STRONG, dieFaces: [] });
+    await expect(runBatch(batch("b", free({ ability: "con" })), con.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/STR or DEX, not con/) });
+    expect(con.saves).toBe(0);
+  });
+
+  // Bug caught: a creature with no such hold is rolled for, or a hold the spell gives no way out of is broken by a check.
+  it("fails if a creature that bears no such condition, or one with no way out, is allowed to try", async () => {
+    const none = harness(heldWolf({ conditions: [] }), { sources: STRONG, dieFaces: [] });
+    await expect(runBatch(batch("b", free()), none.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/not held by Restrained/) });
+    const plain = harness(heldWolf({ conditions: [{ name: "Restrained" }] }), { sources: STRONG, dieFaces: [] });
+    await expect(runBatch(batch("b", free()), plain.deps)).rejects.toMatchObject({ status: 400 });
+    expect(none.saves + plain.saves).toBe(0);
+  });
+
+  // Bug caught: a creature at 0 hit points acts.
+  it("fails if a creature at 0 hit points tries", async () => {
+    const h = harness(heldWolf({ hp: 0 }), { sources: STRONG, dieFaces: [] });
+    await expect(runBatch(batch("b", free()), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/cannot act/) });
+  });
+
+  // 2024 Black Tentacles: "a Strength (Athletics) check". The block lists Athletics +7 (proficiency already in it): d20 7 + 7 = 14
+  // frees. Modifier plus proficiency would be +3 +2 = 12 and fail; a listed bonus added to the modifier would be 17.
+  // Bug caught: the listed skill bonus is ignored, or added on top of the ability modifier.
+  it("fails if a listed skill bonus is not used instead of the modifier and proficiency", async () => {
+    const sources: StatBlockSources = { monsters: [monster("m-wolf", { str: 16, dex: 10, skills: { athletics: "+7" } })], npcs: [], companions: [] };
+    const named: AppliedCondition = { ...HELD, breakFree: { abilities: ["str"], skill: "athletics", dc: 14 } };
+    const h = harness(heldWolf({ conditions: [named] }), { sources, dieFaces: [7] });
+    const result = await runBatch(batch("b", free()), h.deps);
+    expect(heldOf(h).conditions).toEqual([]);
+    expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { total: 14 } });
+  });
+
+  describe("a player character", () => {
+    const nessa = (conditions: unknown[]) => row({ combatants_live: [pc("nessa", { hp: 20, max_hp: 20, conditions: conditions as RunCombatant["conditions"] })] });
+    const nessaFree = () => ({ type: "break_free", instanceId: "nessa", name: "Restrained" }) as CommandRequest["commands"][number];
+
+    // Bug caught: a modifier the server can read is refused, or one it cannot is guessed. Nessa's Strength is 10 (+0) and her
+    // Dexterity 14 (+2): with none named she uses Dexterity, d20 12 + 2 = 14 frees her.
+    it("uses the modifier of the sheet the server reads, and the better ability", async () => {
+      const h = harness(nessa([HELD]), { sources: STRONG, players: NESSA_IN_PLATE, dieFaces: [12] });
+      const result = await runBatch(batch("b", nessaFree()), h.deps);
+      expect(combatantOf(stored(h), "nessa").conditions).toEqual([]);
+      expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { ability: "dex", total: 14 } });
+    });
+
+    // Bug caught: a player whose sheet the server could not read is rolled for with a guessed modifier.
+    it("is refused with a message that the check is the player's own when the sheet cannot be read", async () => {
+      const h = harness(nessa([HELD]), { sources: STRONG, dieFaces: [] });
+      await expect(runBatch(batch("b", nessaFree()), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/player's own to roll; the Dungeon Master can remove the condition on a success/) });
+      expect(h.dieCalls).toBe(0);
+    });
+
+    // Bug caught: a named skill is rolled for a player without their proficiency, which the sheet the server reads does not hold.
+    it("is refused when the spell names a skill, whose proficiency the server cannot read", async () => {
+      const named: AppliedCondition = { ...HELD, breakFree: { abilities: ["str"], skill: "athletics", dc: 14 } };
+      const h = harness(nessa([named]), { sources: STRONG, players: NESSA_IN_PLATE, dieFaces: [] });
+      await expect(runBatch(batch("b", nessaFree()), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/player's own to roll/) });
+    });
+  });
+
+  // The server plays a held creature whose enemy is out of reach: the only turn worth taking is the check. Its Strength is 16, d20 11 + 3
+  // = 14 frees it. Bug caught: take_turn never offers the check, so a held creature stands there (or is walked into a wall) all fight.
+  it("fails if take_turn for a held creature with no target in reach does not roll the check and use the Action", async () => {
+    const fight = heldWolf({ position: { x: 0, y: 0 } }, [combatant("victim", { monster_id: "m-ox", faction_id: "p", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 8, y: 0 } })]);
+    const h = harness(fight, { sources: STRONG, map: mapOf(), dieFaces: [11] });
+    const result = await runBatch(batch("b", takeTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { instanceId: "wolf", kind: "break_free", reason: expect.stringMatching(/break free of Restrained/) } });
+    expect(heldOf(h).conditions).toEqual([]);
+    expect(heldOf(h).action_used).toBe(true);
+    expect(h.posted.map((p) => p.result.total)).toEqual([14]);
+  });
+
+  // Black Tentacles end to end: the mage casts, the ox fails its DEX save (5 against DC 14) and is Restrained with the way out and the DC.
+  // Bug caught: the DC or the way out is lost between the spell and the saved fight, so nothing can ever be checked against it.
+  it("is carried onto the target by a cast, with the caster's save DC", async () => {
+    const sources: StatBlockSources = { monsters: [{ id: "m-mage", name: "Mage", stat_block: mageWithTentacles() } as unknown as Monster, monster("m-ox")], npcs: [], companions: [] };
+    const fight = row({
+      combatants_live: [
+        combatant("mage", { monster_id: "m-mage", faction_id: "m", hp: 40, max_hp: 40, initiative: 12 }),
+        combatant("t1", { monster_id: "m-ox", faction_id: "p", hp: 40, max_hp: 40, initiative: 5 }),
+      ],
+    });
+    const h = harness(fight, { sources, spells: [blackTentacles()], dieFaces: [5] });
+    await runBatch(batch("b", { type: "cast_spell", casterId: "mage", spell: "black tentacles", targetIds: ["t1"] } as CommandRequest["commands"][number]), h.deps);
+    expect(combatantOf(stored(h), "t1").conditions).toEqual([
+      { name: "Restrained", source: { id: "mage", spell: "Black Tentacles", concentration: true }, ends: { kind: "rounds", remaining: 10 }, breakFree: { abilities: ["str", "dex"], dc: 14 } },
+    ]);
   });
 });

@@ -374,3 +374,65 @@ describe("escape-first: a broken creature with a way out uses it before it runs 
     expect(pickTurn(gated, green, ctxOf([hidden, FRESCO]))?.optionId).toBe("flee");
   });
 });
+
+// SRD 5.1 Black Tentacles: "A creature restrained by the tentacles can use its action to make a Strength or Dexterity check
+// (its choice) against your spell save DC. On a success, it frees itself." What a creature run by the game does about it is
+// RULE break-free-first (app convention).
+describe("rule break-free-first", () => {
+  const restrained = { name: "Restrained", breakFree: { abilities: ["str" as const, "dex" as const], dc: 14 } };
+  const heldOgre = (over: Partial<RunCombatant> = {}) => who("ogre", { conditions: [restrained], ...over });
+  const tryFree = (name = "Restrained"): TurnOption => ({ ...other("break_free"), id: `break_free:${name}`, breakFree: { name, ability: "str" } });
+  const pick = (options: TurnOption[], int: number, mover: RunCombatant) =>
+    pickTurn(gateOptions(options, prof({ int }), mover), prof({ int }), ctxOf([mover, FRESCO, CHICORY]));
+
+  // Bug caught: a held creature with nothing in reach dodges or stands (the option is offered and never chosen).
+  it("breaks free when it is held and has no attack it can make from where it stands", () => {
+    const mover = heldOgre();
+    expect(pick([tryFree(), other("dodge")], 10, mover)?.optionId).toBe("break_free:Restrained");
+    expect(pick([tryFree(), other("dodge")], 2, mover)?.optionId).toBe("break_free:Restrained");
+  });
+
+  // Bug caught: every held creature breaks free first, so a held brute with a target in reach never swings.
+  it("attacks instead when it can and is of a low tier", () => {
+    const mover = heldOgre();
+    for (const int of [2, 6]) expect(pick([atk({ target: "fresco", expected: 8 }), tryFree()], int, mover)?.optionId).toBe("attack:actions:Greatclub:fresco");
+  });
+
+  // Attacks against a Restrained creature have advantage and its own have disadvantage (PHB 2014 appendix A "Restrained").
+  // Bug caught: a creature that weighs its turn keeps swinging at disadvantage while held.
+  it("breaks free first when it is trained or tactical and Restrained, even with a target in reach", () => {
+    const mover = heldOgre();
+    for (const int of [10, 14]) expect(pick([atk({ target: "fresco", expected: 8 }), tryFree()], int, mover)?.optionId).toBe("break_free:Restrained");
+  });
+
+  // Bug caught: a creature that is not held (the condition is some other one with a way out) is pushed through the rule.
+  it("leaves a creature that is not Restrained or Grappled to its ordinary choice", () => {
+    const mover = who("ogre", { conditions: [{ name: "Charmed", breakFree: restrained.breakFree }] });
+    expect(pick([atk({ target: "fresco", expected: 8 }), tryFree("Charmed")], 14, mover)?.optionId).toBe("attack:actions:Greatclub:fresco");
+  });
+
+  // Bug caught: the rule fires for a creature the condition does not hold in place, and it spends its Action on a check instead of its ordinary turn.
+  it("does not break free for a condition that holds nothing in place when there is nothing to attack", () => {
+    const mover = who("ogre", { conditions: [{ name: "Charmed", breakFree: restrained.breakFree }] });
+    expect(pick([tryFree("Charmed"), other("dodge")], 14, mover)?.optionId).toBe("dodge");
+  });
+
+  // A broken creature that would flee, and is held, cannot run. Bug caught: the gate drops the check with the other non-retreats and it Dodges while held.
+  it("breaks free before it runs when it is broken, would flee and is held", () => {
+    const mover = heldOgre({ hp: 5 });
+    const gated = gateOptions([tryFree(), atk({ target: "fresco" }), other("dodge"), other("flee")], prof(), mover);
+    expect(gated.map((o) => o.kind)).toEqual(["break_free", "dodge", "flee"]);
+    expect(pickTurn(gated, prof(), ctxOf([mover, FRESCO]))?.optionId).toBe("break_free:Restrained");
+  });
+
+  // Bug caught: the rule changes the pick of a creature with no such condition (it has no such option, so nothing may differ).
+  it("changes nothing for a creature that has no way to break free", () => {
+    expect(pick([atk({ target: "fresco", expected: 8 }), other("dodge")], 14, OGRE)?.optionId).toBe("attack:actions:Greatclub:fresco");
+    expect(pick([other("dodge")], 14, OGRE)?.optionId).toBe("dodge");
+  });
+
+  // Every tier that offers an attack offers the check. Bug caught: the gate drops it for a tier, and that creature stays held.
+  it("is kept by the gate at every tier that offers an attack", () => {
+    for (const int of [2, 6, 10, 14]) expect(gateOptions([tryFree(), other("dodge")], prof({ int }), who("ogre")).map((o) => o.kind)).toContain("break_free");
+  });
+});

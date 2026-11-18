@@ -140,3 +140,12 @@ describe("stepsFor: an escape", () => {
     ]);
   });
 });
+
+describe("stepsFor: break free (#1021)", () => {
+  // The check is one command that takes the Action itself, like a cast: a `use` step beside it would spend the Action twice.
+  // Bug caught: the step is missing, so the turn does nothing, or a `use` step goes with it.
+  it("is one break_free step naming the condition and the ability, with no use step", () => {
+    const steps = stepsFor(option("break_free", { id: "break_free:Restrained", breakFree: { name: "Restrained", ability: "dex" } }), []);
+    expect(steps).toEqual([{ type: "break_free", name: "Restrained", ability: "dex" }]);
+  });
+});

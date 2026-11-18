@@ -14,10 +14,11 @@
 
 import { combatantFootprint, combatantSize } from "../../../lib/battlemap/tokenFootprint.ts";
 import type { Cell } from "../../../lib/battlemap/movement.ts";
+import type { AppliedCondition } from "../../../types/condition.types.ts";
 import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { MonsterSize } from "../../../types/monster.types.ts";
 import type { RulesetKey } from "../../../types/ruleset.types.ts";
-import type { AttackStructure, MultiattackStep, StatBlockEntry } from "../../../types/statBlock.types.ts";
+import type { AttackStructure, MultiattackStep, SaveAbility, StatBlockEntry } from "../../../types/statBlock.types.ts";
 import type { StatBlockListKey } from "../../statBlock/parseAction.ts";
 import { concentrationBreaksOn } from "../../combat/concentration.ts";
 import type { MapExit } from "../../../lib/battlemap/mapExits.ts";
@@ -54,7 +55,7 @@ export const MAX_SPELL_OPTIONS = 12;
  * #1203) puts surrender in place of the whole list when a creature that yields has broken, and puts escape (a way out
  * such as Etherealness) first when a broken creature has one.
  */
-export type TurnOptionKind = "attack" | "spell" | "dash" | "move" | "disengage" | "dodge" | "hide" | "flee" | "surrender" | "escape";
+export type TurnOptionKind = "attack" | "spell" | "break_free" | "dash" | "move" | "disengage" | "dodge" | "hide" | "flee" | "surrender" | "escape";
 
 /** What an attack option does, with the facts of the square it is made from. Null facts mean there is no map to measure on. */
 export interface TurnOptionAttack {
@@ -131,6 +132,8 @@ export interface TurnOption {
   leavesMap?: boolean;
   exitLabel?: string | null;
   exitKind?: MapExit["kind"] | null;
+  /** Only a `break_free` option sets this (#1021): the condition it tries to end, and the ability it would check with. */
+  breakFree?: { name: string; ability: SaveAbility };
   /** Only the synthetic `escape` option sets this (#1203): the way out the creature uses, so the server can spend it and apply its effect. */
   escape?: WayOut;
 }
@@ -164,6 +167,8 @@ export interface TurnOptionsInput {
   spells?: readonly CastNow[];
   /** The creature kind of a combatant (`creatureKindOf`); a spell limited to a kind is offered only when it is given. */
   kindOf?: (c: RunCombatant) => string | null;
+  /** The ability the mover would check with to break free of a condition (`strongestBreakFreeAbility`); left out, the first the condition allows. */
+  breakFreeAbility?: (way: NonNullable<AppliedCondition["breakFree"]>) => SaveAbility;
 }
 
 // ── who is on the board ─────────────────────────────────────────────────────────
@@ -708,6 +713,29 @@ function spellOptionsOf(input: TurnOptionsInput, mover: RunCombatant, names: Rea
     .map(({ t }) => spellOption(mover, names, t));
 }
 
+/**
+ * Rule 12, break free (#1021): a creature held by a spell that lets it end the hold with an ability check (Black Tentacles,
+ * Entangle, Web) is offered that check, one option per such condition, while its Action is free. The check costs the Action
+ * (the only form the spells use). It carries no movement.
+ */
+function breakFreeOptions(input: TurnOptionsInput, mover: RunCombatant): TurnOption[] {
+  if (mover.action_used === true) return [];
+  return mover.conditions.flatMap((c): TurnOption[] => {
+    const way = c.breakFree;
+    if (way === undefined || way.abilities.length === 0) return [];
+    const ability = input.breakFreeAbility === undefined ? way.abilities[0] : input.breakFreeAbility(way);
+    return [{
+      id: `break_free:${c.name}`,
+      kind: "break_free",
+      targetId: null,
+      ...emptyMovement(),
+      attack: null,
+      breakFree: { name: c.name, ability },
+      summary: `Break free of ${c.name}: a ${ability.toUpperCase()} check against DC ${way.dc}, using its Action`,
+    }];
+  });
+}
+
 /** Whether an attack of this list can still be made: the Action is spent by `action_used`, the Bonus Action by `bonus_used`. */
 function listIsOpen(mover: RunCombatant, list: StatBlockListKey): boolean {
   if (list === "actions") return mover.action_used !== true;
@@ -718,7 +746,8 @@ function listIsOpen(mover: RunCombatant, list: StatBlockListKey): boolean {
 /**
  * The options of the creature whose id is `moverId`. Rules, in the order they are listed in the docs:
  * 1 Attack, 2 Dash, 3 Disengage, 4 Dodge, 5 Hide, 6 nothing measurable, 7 who gets nothing, 8 Multiattack, 9 the cap, 10 Flee,
- * 11 Spell (a damage spell cast from where the creature stands; see `spellTargeting.ts` for what it may be cast at).
+ * 11 Spell (a damage spell cast from where the creature stands; see `spellTargeting.ts` for what it may be cast at),
+ * 12 Break free (an ability check to end a condition a spell holds it in; see `breakFreeOptions`).
  *
  * Rule 7: a creature at 0 hit points, or Incapacitated, gets an empty list. A creature whose Action is spent
  * (`action_used`) gets only what needs no Action: Bonus Action attacks (unless `bonus_used`) and a plain `move`
@@ -742,7 +771,7 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
     // Rule 6: no map, no position or no known speed. One attack per (attack, hostile), nothing measured, plus Dodge.
     hostileTargets.forEach((t, i) => planned.forEach((p) => options.push({ option: unmeasuredAttack(p, t), nearness: i })));
     if (actionFree) fixed.push(dodgeOption(null));
-    return capped(options, fixed, spellOptionsOf(input, mover, names, null));
+    return capped(options, fixed, [...spellOptionsOf(input, mover, names, null), ...breakFreeOptions(input, mover)]);
   }
 
   const map = input.map as FightMap;
@@ -808,12 +837,12 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
       if (move) options.push({ option: move, nearness: nearness(t) });
     }
   }
-  return capped(options, fixed, spellOptionsOf(input, mover, names, { map }));
+  return capped(options, fixed, [...spellOptionsOf(input, mover, names, { map }), ...breakFreeOptions(input, mover)]);
 }
 
 /**
  * Rule 9: Dodge, Disengage, Hide and Flee stay; attacks, dashes and moves against the nearest targets are kept first, up to
- * `MAX_TURN_OPTIONS`. The spell options (rule 11) sit between the two and are not counted against that cap.
+ * `MAX_TURN_OPTIONS`. The spell options (rule 11) and the break-free options (rule 12) sit between the two and are not counted against that cap.
  */
 function capped(options: { option: TurnOption; nearness: number }[], fixed: TurnOption[], spells: readonly TurnOption[]): TurnOption[] {
   const room = Math.max(0, MAX_TURN_OPTIONS - fixed.length);

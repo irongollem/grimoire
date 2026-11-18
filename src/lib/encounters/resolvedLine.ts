@@ -25,6 +25,8 @@ export function describeResolvedAction(resolved: ResolvedAction, nameOf: (instan
       return `${nameOf(resolved.instanceId)} ${resolved.maintained ? "keeps" : "loses"} concentration (${resolved.total} against DC ${resolved.dc}).`;
     case "condition_save":
       return `${nameOf(resolved.instanceId)} ${resolved.success ? "shakes off" : "stays under"} ${resolved.name} (DC ${resolved.dc}).`;
+    case "break_free":
+      return `${nameOf(resolved.instanceId)} tries to break free of ${resolved.name} with a ${resolved.ability.toUpperCase()} check: ${resolved.total} (a ${resolved.natural} on the die) against DC ${resolved.dc}, ${resolved.success ? "and is free" : "and stays held"}.`;
     case "ongoing_damage":
       return `${nameOf(resolved.instanceId)} takes ${resolved.damageTotal} damage from ${resolved.name}${dyingWords(resolved.dying)}.`;
   }

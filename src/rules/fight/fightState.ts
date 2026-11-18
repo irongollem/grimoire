@@ -147,6 +147,8 @@ export type ResolvedAction =
   | { kind: "cast"; casterId: string; spell: string; castLevel: number; targetIds: string[]; why: string }
   | { kind: "concentration"; instanceId: string; dc: number; natural: number; total: number; maintained: boolean }
   | { kind: "condition_save"; instanceId: string; name: string; dc: number; total: number | null; success: boolean }
+  /** A creature spent its Action on an ability check to get free of a condition a spell holds it in (Black Tentacles). */
+  | { kind: "break_free"; instanceId: string; name: string; ability: SaveAbility; natural: number; total: number; dc: number; success: boolean }
   | { kind: "ongoing_damage"; instanceId: string; name: string; damage: ResolvedDamage[]; damageTotal: number; dying: DyingOutcome };
 
 /** A fight is under way once its round counter has left the lobby's 0 (the live row stores no separate flag). */

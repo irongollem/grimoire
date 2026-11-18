@@ -68,6 +68,15 @@ export interface CuratedSpellCondition {
    * it does not end that way, so entries written before this field stay valid.
    */
   ends_when_harmed?: "by_casters_side" | "by_anyone" | null;
+  /**
+   * The creature may spend its action on an ability check to get free (SRD 5.1 Black Tentacles: "A creature restrained by
+   * the tentacles can use its action to make a Strength or Dexterity check (its choice) against your spell save DC. On a
+   * success, it frees itself."; 2024: "a Strength (Athletics) check"). `abilities` are the ones the creature chooses
+   * between; `skill` is set when the text names one for the check. The DC is always the caster's spell save DC, so it is
+   * not stored, and the check always costs the bearer's action (the only form the texts use). Absent and null mean the
+   * same: it cannot be ended that way.
+   */
+  break_free?: { abilities: Ability[]; skill: "athletics" | "acrobatics" | null } | null;
   /** One sentence copied word for word from the spell's description: the one that says the condition is imposed. */
   evidence: string;
 }
@@ -96,6 +105,7 @@ export function findingsFor(entry: CuratedSpellCondition, spell: { description: 
     if (entry.speed_zero) found.push(`a ${entry.verdict} entry does not set a speed to 0: that is a condition entry.`);
     if (entry.leaves_play === true) found.push(`a ${entry.verdict} entry takes nothing out of the fight: that is a condition entry.`);
     if (entry.ends_when_harmed !== undefined && entry.ends_when_harmed !== null) found.push(`a ${entry.verdict} entry has no condition to end when harmed: that is a condition entry.`);
+    if (entry.break_free !== undefined && entry.break_free !== null) found.push(`a ${entry.verdict} entry has no condition to break free of: that is a condition entry.`);
     return found;
   }
 
@@ -108,6 +118,11 @@ export function findingsFor(entry: CuratedSpellCondition, spell: { description: 
   // A condition that ends on harm says so in the text; a spell with no word of harm or damage in it cannot end that way.
   if (entry.ends_when_harmed !== undefined && entry.ends_when_harmed !== null && !/damage|harm/.test(text)) {
     found.push("ends_when_harmed is set but the description never says damage or harm.");
+  }
+  if (entry.break_free !== undefined && entry.break_free !== null) {
+    if (entry.break_free.abilities.length === 0) found.push("break_free names no ability to check with.");
+    // A way out by a check says "check" in the text; a spell with no such word cannot end that way.
+    if (!/\bchecks?\b/.test(text)) found.push("break_free is set but the description never says check.");
   }
   if (entry.applies === null) found.push("applies is missing: failed_save, hit or automatic.");
   if (entry.applies === "failed_save" && entry.save_ability === null) found.push("a condition on a failed save names the save's ability.");
@@ -148,6 +163,7 @@ export function agree(a: CuratedSpellCondition, b: CuratedSpellCondition): boole
       duration: e.duration,
       repeat_save: e.repeat_save,
       ends_when_harmed: e.ends_when_harmed ?? null,
+      break_free: e.break_free ? { abilities: [...e.break_free.abilities].sort(), skill: e.break_free.skill } : null,
     });
   return facts(a) === facts(b);
 }

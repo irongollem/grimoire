@@ -28,6 +28,8 @@ export type TurnStep =
   | { type: "swing"; list: StatBlockListKey; action: string; targetId: string }
   /** One spell cast (#1021): `cast_spell` spends the slot or use and marks the Action itself, so no `spend` or `use` step goes with it. */
   | { type: "cast"; spell: string; castLevel: number; targetIds: string[] }
+  /** An ability check to end a condition a spell holds the mover in (#1021): `break_free` takes the Action itself, so no `use` step goes with it. */
+  | { type: "break_free"; name: string; ability: string }
   /** One use of a limited or recharge ability, as the runner records it. */
   | { type: "spend"; useKey: string; limit: ActionLimit }
   /** The Action or the Bonus Action of the turn is used up. */
@@ -52,6 +54,7 @@ function slotOf(option: TurnOption): "action" | "bonus" | null {
       return option.escape === undefined ? "action" : option.escape.slot;
     // `cast_spell` marks the Action itself (and spends the slot), so a cast needs no `use` step here.
     case "spell":
+    case "break_free":
     case "move":
     case "surrender":
       return null;
@@ -98,6 +101,7 @@ export function stepsFor(option: TurnOption, attacks: readonly UsableAttack[]): 
   if (option.kind === "spell" && option.spell !== undefined && option.spell !== null) {
     steps.push({ type: "cast", spell: option.spell.name, castLevel: option.spell.castLevel, targetIds: option.spell.targetIds });
   }
+  if (option.kind === "break_free" && option.breakFree !== undefined) steps.push({ type: "break_free", name: option.breakFree.name, ability: option.breakFree.ability });
   const slot = slotOf(option);
   if (slot !== null) steps.push({ type: "use", slot });
   // Only a flee leaves, and only when its destination is a way off: nothing else ever offers one (decision 4, #1203).

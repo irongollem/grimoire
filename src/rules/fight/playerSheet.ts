@@ -12,6 +12,7 @@ import type { SaveAbility } from "../../types/statBlock.types.ts";
 import { parseArmorClass } from "../../lib/encounters/actionTargeting.ts";
 import { calculateAc, wornGearByMember } from "../armorClass.ts";
 import { effectiveAbilityScores, savingThrowEntries } from "../characterChecks.ts";
+import { abilityMod } from "../weaponAttack.ts";
 
 /** The `party_members` columns this module reads, and no others. */
 export type PlayerSheetRow = Pick<
@@ -68,4 +69,17 @@ export function playerSaveBonus(sheets: PlayerSheets, memberId: string, ability:
   const scores = effectiveAbilityScores(member, { active: form !== null, statBlock: beast });
   const entry = savingThrowEntries(member, scores)?.[ability];
   return entry ? entry.bonus : null;
+}
+
+/**
+ * The modifier of this player's ability score, for an ability check: from the scores in effect (a Wild Shape form's STR,
+ * DEX and CON replace theirs). No proficiency is added: the sheet this reads holds no skill proficiencies, so a check
+ * that names a skill is not one the server can work out for a player. Null when the character's row was not read.
+ */
+export function playerAbilityModifier(sheets: PlayerSheets, memberId: string, ability: SaveAbility): number | null {
+  const member = memberRow(sheets, memberId);
+  if (!member) return null;
+  const form = member.wildshape_state;
+  const beast = form ? (sheets.beasts.find((b) => b.id === form.monster_id)?.stat_block ?? null) : null;
+  return abilityMod(effectiveAbilityScores(member, { active: form !== null, statBlock: beast })[ability]);
 }

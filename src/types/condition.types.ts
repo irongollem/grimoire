@@ -54,6 +54,11 @@ export interface AppliedCondition {
    * set again at the next edge it fires on.
    */
   due?: { save?: boolean; damage?: boolean };
+  /**
+   * The bearer may spend its Action on an ability check to end it, against `dc` (the caster's spell save DC when it was
+   * imposed). It is about how the bearer gets free, so it sits here and not on `source`.
+   */
+  breakFree?: { abilities: SaveAbility[]; skill?: "athletics" | "acrobatics"; dc: number };
 }
 
 /** The start or the end of a turn. */

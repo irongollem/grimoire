@@ -144,3 +144,57 @@ describe("ends_when_harmed", () => {
     expect(findingsFor(holdPerson({ ends_when_harmed: "by_anyone" }), HOLD_PERSON).join(" ")).toContain("never says damage or harm");
   });
 });
+
+// SRD 5.1 "Black Tentacles": "A creature restrained by the tentacles can use its action to make a Strength or Dexterity
+// check (its choice) against your spell save DC. On a success, it frees itself."
+const TENTACLES = {
+  concentration: true,
+  higher_levels: "",
+  description:
+    "Squirming, ebony tentacles fill a 20-foot square on ground that you can see within range. When a creature enters the affected area for the first time on a turn or starts its turn there, " +
+    "the creature must succeed on a Dexterity saving throw or take 3d6 bludgeoning damage and be restrained by the tentacles until the spell ends. " +
+    "A creature restrained by the tentacles can use its action to make a Strength or Dexterity check (its choice) against your spell save DC. On a success, it frees itself.",
+};
+const tentacles = (over: Partial<CuratedSpellCondition> = {}): CuratedSpellCondition =>
+  holdPerson({
+    conditions: ["Restrained"], save_ability: "DEX", only_kinds: [], targets: { kind: "area", count: null, more_per_slot_above: 0 }, repeat_save: null,
+    evidence: "the creature must succeed on a Dexterity saving throw or take 3d6 bludgeoning damage and be restrained by the tentacles until the spell ends.",
+    break_free: { abilities: ["STR", "DEX"], skill: null }, ...over,
+  });
+
+describe("break_free", () => {
+  // Bug caught: a reading that leaves the field out is called different from one that says null, so every entry written before it stops agreeing.
+  it("treats absent and null as the same, and a set value as a disagreement", () => {
+    expect(agree(holdPerson(), holdPerson({ break_free: null }))).toBe(true);
+    expect(agree(tentacles(), tentacles({ break_free: null }))).toBe(false);
+    expect(agree(tentacles(), tentacles({ break_free: { abilities: ["STR", "DEX"], skill: "athletics" } }))).toBe(false);
+    expect(agree(tentacles(), tentacles({ break_free: { abilities: ["STR"], skill: null } }))).toBe(false);
+  });
+
+  // "a Strength or Dexterity check (its choice)": the order a reader lists the two in is not a fact of the spell.
+  // Bug caught: two readers who list the same choices in another order are told they disagree and the spell stays the table's.
+  it("ignores the order of the abilities", () => {
+    expect(agree(tentacles(), tentacles({ break_free: { abilities: ["DEX", "STR"], skill: null } }))).toBe(true);
+  });
+
+  it("accepts a faithful reading of the text", () => {
+    expect(findingsFor(tentacles(), TENTACLES)).toEqual([]);
+  });
+
+  // Bug caught: a spell that imposes nothing claims a way out of it.
+  it("is a finding on an entry with no condition", () => {
+    const none = { verdict: "no_condition", conditions: [], stops_casting: null, speed_zero: false, applies: null, save_ability: null, targets: null, only_kinds: [], duration: null, repeat_save: null, break_free: { abilities: ["STR"], skill: null }, evidence: TENTACLES.description } satisfies CuratedSpellCondition;
+    expect(findingsFor(none, TENTACLES).join(" ")).toContain("no condition to break free of");
+    expect(findingsFor({ ...none, verdict: "not_simple" }, TENTACLES).join(" ")).toContain("no condition to break free of");
+  });
+
+  // Bug caught: a way out invented for a spell whose text never speaks of a check (Hold Person), which would free a paralysed creature by an invented rule.
+  it("is a finding when the text never says check", () => {
+    expect(findingsFor(holdPerson({ break_free: { abilities: ["STR"], skill: null } }), HOLD_PERSON).join(" ")).toContain("never says check");
+  });
+
+  // Bug caught: a way out that names no ability to check with, which the fight would have to guess.
+  it("is a finding when no ability is named", () => {
+    expect(findingsFor(tentacles({ break_free: { abilities: [], skill: null } }), TENTACLES).join(" ")).toContain("names no ability");
+  });
+});

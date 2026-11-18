@@ -25,6 +25,8 @@ import type { FightEffect, FightState } from "../../../src/rules/fight/fightStat
 import {
   ActionRefused,
   resolveAttackOn,
+  breakFreeModifier,
+  resolveBreakFreeOn,
   resolveConcentrationOn,
   resolveConditionSaveOn,
   resolveOngoingDamageOn,
@@ -34,7 +36,7 @@ import {
   type DiceSource,
   type ResolutionContext,
 } from "../../../src/rules/fight/actionResolution.ts";
-import { playerArmorClass, playerSaveBonus, type PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
+import { playerAbilityModifier, playerArmorClass, playerSaveBonus, type PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
 import { castableBy, slotLimitAt } from "../../../src/rules/fight/spells/castLimit.ts";
 import { pickSpellRecord, type SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
 import { creatureKindOf, kindAllowed, kindLimitOf, kindPhrase } from "../../../src/rules/fight/spells/creatureKind.ts";
@@ -46,6 +48,7 @@ import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { coverBetween, type Box, type Cover } from "../../../src/rules/fight/terrain/sight.ts";
 import { isOnBoard } from "../../../src/rules/fight/terrain/turnOptions.ts";
 import { FightCommandError } from "./commandError.ts";
+import type { BreakFreeSkill } from "../../../src/types/statBlock.types.ts";
 
 /** Faces a person rolled for an attack: the d20 (two with advantage or disadvantage), then each rolled damage part's dice. */
 export interface AttackFaces {
@@ -108,11 +111,17 @@ export type ResolvingCommand =
   /** Rolls the repeat save of a "save ends" condition that is due, then settles it. */
   | { type: "roll_condition_save"; instanceId: string; name: string; faces?: number[] }
   /** Rolls the ongoing damage of a condition that is due, takes it off, and clears the debt. */
-  | { type: "roll_ongoing_damage"; instanceId: string; name: string; faces?: number[] };
+  | { type: "roll_ongoing_damage"; instanceId: string; name: string; faces?: number[] }
+  /**
+   * A creature spends its Action on an ability check to get free of a condition a spell holds it in (`breakFree` on the
+   * condition: Black Tentacles). `ability` is one of those the condition allows; left out, the one the creature has the
+   * higher modifier in. Refused when the Action is already spent, so trying again and again in one turn is not free.
+   */
+  | { type: "break_free"; instanceId: string; name: string; ability?: string; faces?: number[] };
 
 /** Every resolving command type. The check below fails the build when the union grows and this list does not. */
 export const RESOLVING_COMMAND_TYPES = [
-  "resolve_attack", "resolve_save", "cast_spell", "resolve_concentration", "roll_condition_save", "roll_ongoing_damage",
+  "resolve_attack", "resolve_save", "cast_spell", "resolve_concentration", "roll_condition_save", "roll_ongoing_damage", "break_free",
 ] as const satisfies readonly ResolvingCommand["type"][];
 
 type MissingResolvingTypes = Exclude<ResolvingCommand["type"], (typeof RESOLVING_COMMAND_TYPES)[number]>;
@@ -242,6 +251,12 @@ export function validateResolvingCommand(command: Record<string, unknown>): void
       if (command.faces !== undefined) validFaceList(command.faces, "resolve_concentration: faces");
       break;
     }
+    case "break_free":
+      validId(command.instanceId, "an instanceId", type);
+      if (typeof command.name !== "string" || command.name.length === 0) refuse("break_free needs the name of the condition.");
+      if (command.ability !== undefined && (typeof command.ability !== "string" || command.ability.length === 0 || command.ability.length > 20)) refuse("break_free: ability is the name of an ability, such as str or dex.");
+      if (command.faces !== undefined) validFaceList(command.faces, "break_free: faces");
+      break;
     case "roll_condition_save":
     case "roll_ongoing_damage":
       validId(command.instanceId, "an instanceId", type);
@@ -337,6 +352,7 @@ function supplyFor(command: ResolvingCommand): Supply {
     case "resolve_concentration":
     case "roll_condition_save":
     case "roll_ongoing_damage":
+    case "break_free":
       return () => command.faces ?? null;
   }
 }
@@ -438,6 +454,24 @@ function entryOf(attacker: RunCombatant, list: StatBlockListKey, action: string,
   const entry = (block as MonsterStatBlock)[list]?.find((e) => e.name === action);
   if (!entry) refuse(`${attacker.name} has no "${action}" under ${list}.`);
   return entry as StatBlockEntry;
+}
+
+/**
+ * The whole modifier of the check to break free with this ability, or the refusal that says why the server cannot work it
+ * out. A creature with a stat block: `breakFreeModifier`. A player: the modifier of the scores in effect; the sheet
+ * the server reads has no skill proficiencies, so a named skill is refused rather than guessed at.
+ */
+function breakFreeBonus(c: RunCombatant, ability: SaveAbility, skill: BreakFreeSkill | undefined, env: ResolveEnv): number {
+  const playersOwn = `${c.name}'s check is the player's own to roll; the Dungeon Master can remove the condition on a success.`;
+  if (c.type === "player") {
+    if (skill !== undefined) refuse(`${playersOwn} The server does not read a character's skill proficiencies.`);
+    const mod = playerAbilityModifier(env.players, playerMemberId(c), ability);
+    if (mod === null) refuse(`${playersOwn} Their character could not be read in this campaign.`);
+    return mod as number;
+  }
+  const block = statBlockOf(c, env.sources);
+  if (!block) refuse(`${c.name} has no stat block the server can read, so it has no ability scores to check with.`);
+  return breakFreeModifier(block as MonsterStatBlock, ability, skill);
 }
 
 function dueCondition(c: RunCombatant, name: string, what: "save" | "damage") {
@@ -600,6 +634,31 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
         const target = combatantIn(state, command.instanceId, "creature");
         const condition = dueCondition(target, command.name, "save");
         const done = await resolveConditionSaveOn(ctx, { target, condition });
+        collected.push({ type: "resolved", resolved: done.summary });
+        break;
+      }
+      case "break_free": {
+        const target = combatantIn(state, command.instanceId, "creature");
+        ableToAct(target);
+        const condition = target.conditions.find((x) => x.name === command.name);
+        const free = condition?.breakFree;
+        if (!condition || !free) refuse(`${target.name} is not held by ${command.name} in a way a check can end.`);
+        const way = free as NonNullable<typeof free>;
+        // Trying again and again in one turn would be free, so the Action is spent once.
+        if (target.action_used === true) refuse(`${target.name} has already used its Action this turn.`);
+        const asked = command.ability?.trim().toLowerCase();
+        if (asked !== undefined && !(way.abilities as string[]).includes(asked)) {
+          refuse(`${command.name} can be broken free of with ${way.abilities.map((a) => a.toUpperCase()).join(" or ")}, not ${command.ability}.`);
+        }
+        const bonuses = way.abilities.map((a) => ({ ability: a, bonus: breakFreeBonus(target, a, way.skill, env) }));
+        // With no ability named, the one with the higher modifier; a tie keeps the first the spell lists.
+        const chosen = asked === undefined
+          ? bonuses.reduce((best, next) => (next.bonus > best.bonus ? next : best))
+          : (bonuses.find((b) => b.ability === asked) as (typeof bonuses)[number]);
+        const spent = applyFightCommand(holder.state, { type: "set_action_used", instanceId: target.instance_id, used: true }, env.fightDeps);
+        holder.state = spent.state;
+        collected.push(...spent.effects);
+        const done = await resolveBreakFreeOn(ctx, { target, condition, ability: chosen.ability, bonus: chosen.bonus });
         collected.push({ type: "resolved", resolved: done.summary });
         break;
       }

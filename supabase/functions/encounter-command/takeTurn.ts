@@ -189,6 +189,13 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
         effects.push(...done.effects);
         break;
       }
+      case "break_free": {
+        // The check takes the Action and, on a success, frees the creature; it is one command, like a cast.
+        const done = await applyResolvingCommand(next, { type: "break_free", instanceId: mover.instance_id, name: step.name, ability: step.ability }, env);
+        next = done.state;
+        effects.push(...done.effects);
+        break;
+      }
       case "spend":
         apply({ type: "use_action", instanceId: mover.instance_id, action: step.useKey, limit: step.limit });
         break;

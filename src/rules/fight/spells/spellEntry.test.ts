@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { spellEntryFor } from "./spellEntry.ts";
-import { charmMonster, fireBolt, fireball, holdPerson, holdPersonEffect } from "./spellTestKit.ts";
+import { blackTentacles, charmMonster, fireBolt, fireball, holdPerson, holdPersonEffect } from "./spellTestKit.ts";
 
 const MAGE = { saveDc: 14, attackBonus: 6, casterLevel: 9 };
 
@@ -208,5 +208,26 @@ describe("spellEntryFor: a condition that ends when it is harmed", () => {
   // Bug caught: a null ending becomes a key with a value, so every old entry grows an ending.
   it("adds nothing when the entry has no such ending", () => {
     expect(conditions(spellEntryFor(holdPerson(), 2, MAGE))?.[0]).not.toHaveProperty("endsWhenHarmed");
+  });
+});
+
+describe("spellEntryFor: a condition the bearer can break free of with a check", () => {
+  const conditions = (r: ReturnType<typeof spellEntryFor>) => (r.automatable ? r.entry.structured.save?.conditions : undefined);
+
+  // SRD 5.1 Black Tentacles: "can use its action to make a Strength or Dexterity check (its choice) against your spell save DC."
+  // Bug caught: the way out is dropped on the way from the spell's data to the stat block entry, so the creature stays held for the whole spell.
+  it("lowercases the abilities onto the save condition and leaves the skill out when the text names none", () => {
+    expect(conditions(spellEntryFor(blackTentacles(), 4, MAGE))).toEqual([{ name: "Restrained", ends: { kind: "rounds", remaining: 10 }, breakFree: { abilities: ["str", "dex"] } }]);
+  });
+
+  // 2024 Black Tentacles: "a Strength (Athletics) check". Bug caught: the named skill is lost, so the creature checks with the bare modifier.
+  it("carries the skill the text names", () => {
+    const named = blackTentacles({ condition_effect: holdPersonEffect({ conditions: ["Restrained"], save_ability: "DEX", repeat_save: null, break_free: { abilities: ["STR"], skill: "athletics" } }) });
+    expect(conditions(spellEntryFor(named, 4, MAGE))).toEqual([{ name: "Restrained", ends: { kind: "rounds", remaining: 10 }, breakFree: { abilities: ["str"], skill: "athletics" } }]);
+  });
+
+  // Bug caught: a null way out becomes a key, so every old spell grows a check to break free.
+  it("adds nothing when the entry has no such way out", () => {
+    expect(conditions(spellEntryFor(holdPerson(), 2, MAGE))?.[0]).not.toHaveProperty("breakFree");
   });
 });

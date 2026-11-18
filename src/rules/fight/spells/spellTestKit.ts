@@ -107,3 +107,28 @@ export function mageWithCharm(): MonsterStatBlock {
     )],
   });
 }
+
+/**
+ * SRD 5.1 "Black Tentacles" as its reading would store it, shortened to its condition: Restrained on a failed DEX save for a
+ * minute of concentration, and "A creature restrained by the tentacles can use its action to make a Strength or Dexterity
+ * check (its choice) against your spell save DC. On a success, it frees itself."
+ */
+export function blackTentacles(over: Partial<SpellRecord> = {}): SpellRecord {
+  return holdPerson({
+    id: "srd_srd_black_tentacles", name: "Black Tentacles", level: 4, save_attribute: "DEX",
+    condition_effect: holdPersonEffect({
+      conditions: ["Restrained"], save_ability: "DEX", repeat_save: null, break_free: { abilities: ["STR", "DEX"], skill: null },
+    }),
+    ...over,
+  });
+}
+
+/** A mage that lists Black Tentacles (4th level, 3 slots): spell save DC 14. */
+export function mageWithTentacles(): MonsterStatBlock {
+  return mageBlock({
+    special_abilities: [other(
+      "Spellcasting",
+      "The mage is a 9th-level spellcaster. Its spellcasting ability is Intelligence (spell save DC 14, +6 to hit with spell attacks). The mage has the following wizard spells prepared:\n\n* 4th level (3 slots): black tentacles",
+    )],
+  });
+}

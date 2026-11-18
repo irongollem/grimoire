@@ -74,6 +74,9 @@ The fields, as `src/lib/library/curatedSpellConditions.ts` defines them:
     when you are not sure.
     A condition that ends "when you or your allies damage it" or "when it takes damage" is stated with
     `ends_when_harmed` and is no longer a reason for `not_simple` by itself.
+    Getting free by an ability check made as an action ("can use its action to make a Strength or Dexterity check
+    against your spell save DC. On a success, it frees itself") is stated with `break_free` and is no longer a reason
+    for `not_simple` by itself.
   - **The dividing rule, so two readers land on the same verdict:** the verdict is about the fourteen named
     conditions and about stopping casting, and nothing else. A spell that does something else to a creature,
     however severe (banishes it, curses it, slows it, makes it follow a suggestion without the text saying
@@ -109,6 +112,11 @@ The fields, as `src/lib/library/curatedSpellConditions.ts` defines them:
   allies" (or "your companions") damage or harm the target (2024 Charm Monster: "until the spell ends or until
   you or your allies damage it"); `"by_anyone"` when it ends as soon as the target takes any damage. Leave it out
   (or null) when the text says neither. It is checked against the text, which must say damage or harm.
+- **`break_free`**: optional. `{ "abilities": [...], "skill": ... }` when the text lets the held creature use its action
+  to make an ability check to end the condition: `abilities` are the ones it may choose between (Black Tentacles, 2014:
+  `["STR", "DEX"]`), `skill` is `"athletics"` or `"acrobatics"` when the text names one for the check (2024 "Strength
+  (Athletics)": `["STR"]` with `"athletics"`) and null otherwise. The DC is always the caster's spell save DC and is not
+  written down. Leave it out (or null) when the text says no such check. It is checked against the text, which must say check.
 - **`evidence`**: one sentence copied word for word from this record's `description`: the one that imposes the
   condition, or, for `no_condition`, a sentence that shows what the spell does instead (its first sentence is
   fine when nothing says it better). It is checked against the text, so copy it; do not tidy it.

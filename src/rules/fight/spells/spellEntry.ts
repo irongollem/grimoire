@@ -64,7 +64,11 @@ function conditionsOf(record: SpellRecord, kindsChecked: boolean): SaveCondition
   const ends = endsOf(effect);
   if (ends === "unsaid") return [];
   const harmed = effect.ends_when_harmed === "by_casters_side" ? "source_side" : effect.ends_when_harmed === "by_anyone" ? "anyone" : null;
-  return effect.conditions.map((name): SaveCondition => ({ name, ...(ends === null ? {} : { ends }), ...(harmed === null ? {} : { endsWhenHarmed: harmed }) }));
+  const free = effect.break_free;
+  const breakFree: SaveCondition["breakFree"] | null = free ? { abilities: free.abilities.map((a) => a.toLowerCase() as SaveAbility), ...(free.skill ? { skill: free.skill } : {}) } : null;
+  return effect.conditions.map((name): SaveCondition => ({
+    name, ...(ends === null ? {} : { ends }), ...(harmed === null ? {} : { endsWhenHarmed: harmed }), ...(breakFree === null ? {} : { breakFree }),
+  }));
 }
 
 /**

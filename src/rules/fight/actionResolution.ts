@@ -35,15 +35,17 @@ import type {
   SaveStructure,
   SrdConditionName,
   StatBlockEntry,
+  BreakFreeSkill,
 } from "../../types/statBlock.types.ts";
 import { filterImmuneConditions } from "../../lib/encounters/actionTargeting.ts";
 import { attackRollMode, autoCritOnHit, resolveAttack as resolveAttackRoll } from "../combat/attackRoll.ts";
 import { concentrationDc, resolveConcentration } from "../combat/concentration.ts";
 import { halveParts, imposedCondition, resolveSaveAction } from "../combat/resolveAction.ts";
 import { autoFailsSave, resolveSave, saveBonusFromStatBlock, saveRollMode } from "../combat/savingThrow.ts";
+import { listedSkillBonus } from "../skillCheck.ts";
 import { shownDefenseKey } from "./tactics/shownDefenses.ts";
 import { applyDefenses, damageRollsFor, type AppliedPart } from "../combat/typedDamage.ts";
-import { getExhaustionD20Penalty, getExhaustionLevel, hasCondition, setExhaustionLevel } from "../conditions.ts";
+import { getExhaustionD20Penalty, getExhaustionLevel, hasCheckDisadvantage, hasCondition, setExhaustionLevel } from "../conditions.ts";
 import type { DyingOutcome } from "../dying.ts";
 import type { FightCommand } from "./fightCommands.ts";
 import { coverBonus, type Cover } from "./terrain/sight.ts";
@@ -554,11 +556,10 @@ function impose(ctx: ResolutionContext, target: RunCombatant, save: SaveStructur
     return;
   }
   if (!hasCondition(current, condition.name)) {
-    ctx.apply({
-      type: "apply_condition",
-      instanceId: target.instance_id,
-      condition: imposedCondition(save, condition, { id: actor.instance_id, spell, ...(concentration === true ? { concentration: true } : {}), ...(condition.endsWhenHarmed ? { endsWhenHarmed: condition.endsWhenHarmed } : {}) }),
-    });
+    const imposed = imposedCondition(save, condition, { id: actor.instance_id, spell, ...(concentration === true ? { concentration: true } : {}), ...(condition.endsWhenHarmed ? { endsWhenHarmed: condition.endsWhenHarmed } : {}) });
+    // The check to get free is made against the save's own DC (the caster's spell save DC): "against your spell save DC".
+    const breakFree = condition.breakFree ? { breakFree: { ...condition.breakFree, dc: save.dc } } : {};
+    ctx.apply({ type: "apply_condition", instanceId: target.instance_id, condition: { ...imposed, ...breakFree } });
   }
 }
 
@@ -821,6 +822,66 @@ export async function resolveConditionSaveOn(
     roll,
     commands: issued,
     summary: { kind: "condition_save", instanceId: target.instance_id, name: condition.name, dc: ends.dc, total: roll.total, success: roll.success },
+  };
+}
+
+/** The ability a skill the spell names is rolled with: the book's own pairing (Athletics is Strength, Acrobatics Dexterity). */
+const BREAK_FREE_SKILL_ABILITY: Record<BreakFreeSkill, SaveAbility> = { athletics: "str", acrobatics: "dex" };
+
+/**
+ * The whole modifier of a stat-block creature's check to break free with `ability`: its ability modifier, or, when the
+ * condition names a skill that goes with that ability and the block lists a bonus for it, that listed bonus INSTEAD (a
+ * block lists the skills it is proficient in, and its listed bonus already holds the proficiency bonus, as the book does).
+ */
+export function breakFreeModifier(block: MonsterStatBlock, ability: SaveAbility, skill?: BreakFreeSkill): number {
+  const listed = skill !== undefined && BREAK_FREE_SKILL_ABILITY[skill] === ability ? listedSkillBonus(block, skill) : null;
+  return listed ?? Math.floor((block[ability] - 10) / 2);
+}
+
+/** Of the abilities a condition lets the creature check with, the one with the higher modifier; a tie, or no stat block, keeps the first listed. */
+export function strongestBreakFreeAbility(block: MonsterStatBlock | null, way: NonNullable<AppliedCondition["breakFree"]>): SaveAbility {
+  if (block === null) return way.abilities[0];
+  return way.abilities.reduce((best, next) => (breakFreeModifier(block, next, way.skill) > breakFreeModifier(block, best, way.skill) ? next : best));
+}
+
+export interface BreakFreeResolved {
+  roll: RollResult;
+  success: boolean;
+  commands: ResolutionCommand[];
+  summary: Extract<ResolvedAction, { kind: "break_free" }>;
+}
+
+/**
+ * A creature spends its Action on an ability check to end a condition a spell holds it in (SRD 5.1 Black Tentacles: "can
+ * use its action to make a Strength or Dexterity check (its choice) against your spell save DC. On a success, it frees
+ * itself."). `bonus` is the whole modifier of the check, worked out by the caller from what it can read of the creature;
+ * the DC is the one the condition carries. Spending the Action is the caller's: this rolls, compares and frees.
+ *
+ * Roll mode: the rules' own disadvantage on ability checks (`hasCheckDisadvantage`: Poisoned, Frightened, and 2014
+ * Exhaustion) and the 2024 Exhaustion penalty, as any other ability check. Restrained gives none on a Strength check.
+ * A meets-or-beats comparison, and no natural 20 or 1 rule: ability checks have none.
+ */
+export async function resolveBreakFreeOn(
+  base: ResolutionContext,
+  input: { target: RunCombatant; condition: AppliedCondition; ability: SaveAbility; bonus: number } & RollOptions,
+): Promise<BreakFreeResolved> {
+  const { ctx, issued } = tracked(base);
+  const target = ctx.live(input.target);
+  const free = input.condition.breakFree;
+  if (!free) throw new ActionRefused(`${input.condition.name} on ${target.name} cannot be broken free of with a check.`);
+  const mode: RollMode = hasCheckDisadvantage(target.conditions, ctx.ruleset) ? "disadvantage" : "normal";
+  const penalty = getExhaustionD20Penalty(target.conditions, ctx.ruleset);
+  const roll = await rollD20(ctx, `${input.condition.name}: break free, ${input.ability.toUpperCase()} check (DC ${free.dc})`, input.bonus + penalty, mode, target, input);
+  if (!roll) throw new ActionRefused(`${target.name}'s check to break free of ${input.condition.name} was not rolled.`);
+  const natural = keptD20(roll);
+  const total = natural + input.bonus + penalty;
+  const success = total >= free.dc;
+  if (success) ctx.apply({ type: "remove_condition", instanceId: target.instance_id, name: input.condition.name });
+  return {
+    roll,
+    success,
+    commands: issued,
+    summary: { kind: "break_free", instanceId: target.instance_id, name: input.condition.name, ability: input.ability, natural, total, dc: free.dc, success },
   };
 }
 

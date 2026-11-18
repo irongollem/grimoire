@@ -23,6 +23,11 @@ export interface PickContext {
 const NEAR_BEST_SHARE = 0.8;
 
 const RETREAT_KINDS = ["flee", "disengage", "dodge"] as const;
+/** What a broken creature that would flee keeps: its retreats, and a try at breaking free of a hold, which has to come before any running (`break-free-first`). */
+const FLEE_KEPT_KINDS: readonly string[] = [...RETREAT_KINDS, "break_free"];
+
+/** Held in place by a condition: Restrained or Grappled (both set the speed to 0). The applied condition does not carry the speed a spell sets by other words, so those are not counted. */
+const isHeld = (mover: RunCombatant): boolean => mover.conditions.some((c) => c.name === "Restrained" || c.name === "Grappled");
 
 // ── morale ──────────────────────────────────────────────────────────────────────
 
@@ -73,7 +78,7 @@ function breaksInto(profile: TacticalProfile, mover: RunCombatant): MoraleRule["
 }
 
 /**
- * RULE gate: drop every kind of turn the profile is not offered. Then, for a creature whose morale has broken:
+ * RULE gate: drop every kind of turn the profile is not offered (a break-free try counts as offered wherever an attack is). Then, for a creature whose morale has broken:
  * `flee` keeps only flee, disengage and dodge (and leaves the list alone when none of those is there),
  * `surrender` replaces the list with the one synthetic Surrender (unless it is already Invisible, then it is gated
  * like `flee`), `fight_on` changes nothing. A flee or surrender that has a usable way out gets the synthetic Escape
@@ -81,14 +86,15 @@ function breaksInto(profile: TacticalProfile, mover: RunCombatant): MoraleRule["
  */
 export function gateOptions(options: readonly TurnOption[], profile: TacticalProfile, mover: RunCombatant): TurnOption[] {
   if (options.length === 0) return [];
-  const offered = options.filter((o) => profile.offers.has(o.kind));
+  // A try at breaking free of a hold is offered at every tier that offers an attack: even an animal struggles (#1021).
+  const offered = options.filter((o) => profile.offers.has(o.kind) || (o.kind === "break_free" && profile.offers.has("attack")));
   if (!isBroken(profile, mover)) return offered;
   const then = breaksInto(profile, mover);
   let gated = offered;
   if (then === "surrender") {
     gated = [surrenderOption()];
   } else if (then === "flee") {
-    const retreat = offered.filter((o) => (RETREAT_KINDS as readonly string[]).includes(o.kind));
+    const retreat = offered.filter((o) => FLEE_KEPT_KINDS.includes(o.kind));
     gated = retreat.length > 0 ? retreat : offered;
   }
   // RULE escape-first: a broken creature that runs or yields, and has a way out it can use now, uses it first. The
@@ -320,6 +326,9 @@ export function pickTurn(options: readonly TurnOption[], profile: TacticalProfil
       if (yields) return { optionId: yields.id, reason: `Yields: ${standing} and surrenders.` };
     }
     if (then === "flee") {
+      // RULE break-free-first (below): a held creature cannot run, so a broken one that can try to break free does that first.
+      const freeing = isHeld(mover) ? find("break_free") : undefined;
+      if (freeing !== undefined) return { optionId: freeing.id, reason: `Struggles free: ${standing} but is held, so it tries to break free before it runs.` };
       const retreat = find("flee") ?? find("disengage") ?? find("dodge");
       if (retreat) {
         const { exitKind, exitLabel } = retreat;
@@ -328,6 +337,24 @@ export function pickTurn(options: readonly TurnOption[], profile: TacticalProfil
           : "";
         return { optionId: retreat.id, reason: `Falls back: ${standing} and ${RETREAT_VERB[retreat.kind]}${leaving}.` };
       }
+    }
+  }
+
+  // RULE break-free-first (app convention; the books do not say how a monster spends its Action when held). A held creature
+  // (Restrained or Grappled) that can try to break free of the hold, and has nothing it can attack or cast at from where it
+  // stands, tries to break free: standing still helps no one. One that can still attack does, because an attack is what its
+  // Action is for, EXCEPT a trained or tactical creature held by Restrained, which breaks free first: attacks against a
+  // Restrained creature have advantage and its own attacks have disadvantage, and a creature that weighs its turn sees that
+  // staying held is the worse trade. A dimmer creature (instinct, simple) just keeps swinging. A creature that bears no such
+  // hold has no break_free option, so this changes nothing for it.
+  const freeing = mover !== undefined && isHeld(mover) ? (options.find((o) => o.kind === "break_free" && o.breakFree?.name === "Restrained") ?? find("break_free")) : undefined;
+  if (mover !== undefined && freeing !== undefined) {
+    const canStrike = options.some((o) => o.kind === "attack" || o.kind === "spell");
+    const weighsItsTurn = profile.tier === "trained" || profile.tier === "tactical";
+    const restrained = freeing.breakFree?.name === "Restrained";
+    if (!canStrike || (weighsItsTurn && restrained)) {
+      const why = !canStrike ? "it is held and has nothing it can attack from where it stands" : "attacks against it have advantage and its own have disadvantage while it is Restrained";
+      return { optionId: freeing.id, reason: `Struggles free: ${why}, so it tries to break free of ${freeing.breakFree?.name}.` };
     }
   }
 

@@ -95,7 +95,16 @@ export interface SaveCondition {
    * damage it"). `source_side`: damage from the one who imposed it or its side; `anyone`: any damage.
    */
   endsWhenHarmed?: "source_side" | "anyone";
+  /**
+   * The bearer can end it by spending its Action on an ability check against the caster's spell save DC (Black Tentacles:
+   * "can use its action to make a Strength or Dexterity check (its choice)"). `abilities` are the choices; `skill` is the
+   * one the text names for the check, if any.
+   */
+  breakFree?: { abilities: SaveAbility[]; skill?: BreakFreeSkill };
 }
+
+/** The skills a spell's text names for breaking free (2024 Black Tentacles: Strength (Athletics)). */
+export type BreakFreeSkill = "athletics" | "acrobatics";
 
 /**
  * What ends one condition of a failed save, as the prose states it (#1050): an

@@ -27,3 +27,12 @@ describe("describeResolvedAction", () => {
     expect(failed).toContain("Fresco fails the save (12), takes 10 damage.");
   });
 });
+
+describe("describeResolvedAction: break free", () => {
+  const tried = (success: boolean) => ({ kind: "break_free" as const, instanceId: "fresco", name: "Restrained", ability: "str" as const, natural: 11, total: 14, dc: 14, success });
+  // Bug caught: a freed creature and a held one read the same, so the DM cannot tell from the line whether the hold is gone.
+  it("says who tried, with what, against which DC, and whether it worked", () => {
+    expect(describeResolvedAction(tried(true), nameOf)).toBe("Fresco tries to break free of Restrained with a STR check: 14 (a 11 on the die) against DC 14, and is free.");
+    expect(describeResolvedAction(tried(false), nameOf)).toContain("and stays held.");
+  });
+});

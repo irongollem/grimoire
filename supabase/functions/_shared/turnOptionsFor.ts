@@ -3,6 +3,7 @@
 // the two can never disagree about what a creature may do. Pure: the database is the caller's business.
 
 import { combatantSpeed } from "../../../src/lib/encounters/combatantSpeed.ts";
+import { strongestBreakFreeAbility } from "../../../src/rules/fight/actionResolution.ts";
 import { actionAvailability } from "../../../src/rules/encounterTurn.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { movementBudgetFeet } from "../../../src/rules/fight/terrain/movementBudget.ts";
@@ -80,6 +81,7 @@ export function assembleTurnOptions(facts: TurnOptionsFacts): { options: TurnOpt
     ruleset: facts.ruleset,
     spells,
     kindOf: (c) => creatureKindOf(c, sources),
+    breakFreeAbility: (way) => strongestBreakFreeAbility(block, way),
   });
   return { options, attacks, spells };
 }
