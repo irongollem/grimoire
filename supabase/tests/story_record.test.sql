@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(15);
 
 -- The record of what is true in a story (#1021). What goes wrong silently here: a player reading a fact the party
 -- has not learned (or learning who it is about from its ties), a fact quietly rewritten so the story no longer
@@ -112,5 +112,23 @@ select is((select count(*)::integer from public.story_facts), 0, 'someone outsid
 select is((select count(*)::integer from public.story_fact_links), 0, 'nor what its facts are about');
 
 reset role;
+
+-- ── The campaign changes hands (20261118080542) ────────────────────────────
+-- Bug caught: the record left with the outgoing owner, whose account deletion would erase it; and, once the move
+-- named this table, the whole transfer failing on the trigger that keeps a fact from being rewritten.
+select lives_ok(
+  $$ select private.move_campaign_content('12170000-0000-4000-8000-000000000010', '12170000-0000-4000-8000-000000000001', '12170000-0000-4000-8000-000000000002', false, false) $$,
+  'a campaign''s record can be handed to a new owner'
+);
+select is(
+  (select count(*)::integer from public.story_facts where campaign_id = '12170000-0000-4000-8000-000000000010' and user_id is distinct from '12170000-0000-4000-8000-000000000002'),
+  0, 'and every fact of it then belongs to them'
+);
+-- Bug caught: the exception for the hand-over opening the keeper of a fact to any update.
+select throws_ok(
+  $$ update public.story_facts set user_id = '12170000-0000-4000-8000-000000000001' where campaign_id = '12170000-0000-4000-8000-000000000010' $$,
+  '23514', null, 'outside a hand-over a fact''s keeper is still not rewritten'
+);
+
 select * from finish();
 rollback;
