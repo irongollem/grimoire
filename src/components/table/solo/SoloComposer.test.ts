@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import SoloComposer from "./SoloComposer.vue";
 
-function mountComposer(props: { running?: boolean; fight?: { yours: boolean; words: boolean; canAct: boolean } | null } = {}) {
+function mountComposer(props: { running?: boolean; canCorrect?: boolean; fight?: { yours: boolean; words: boolean; canAct: boolean } | null } = {}) {
   return mount(SoloComposer, { props: { character: "Inkling", running: false, ...props }, attachTo: document.body });
 }
 
@@ -150,5 +150,37 @@ describe("SoloComposer in a fight", () => {
     expect((w.get("textarea").element as HTMLTextAreaElement).value).toBe("I search the shelves.");
     await w.get("textarea").trigger("keydown", { key: "ArrowDown" });
     expect((w.get("textarea").element as HTMLTextAreaElement).value).toBe("half");
+  });
+
+  // #1021 row 23. Bug caught: a correction sent as something the character says aloud (the Enter that says a
+  // line), so "she was only knocked out" is spoken into the room instead of becoming true.
+  it("sends a correction, and only a correction, once the player says that is not what happened", async () => {
+    const w = mountComposer({ canCorrect: true });
+    await w.get('[data-testid="solo-correct"]').trigger("click");
+    await type(w, "She was only knocked out.");
+    await w.get("textarea").trigger("keydown", { key: "Enter" });
+    expect(submits(w)).toEqual([["correct", "She was only knocked out."]]);
+    // And the composer is back to the story: the next Enter says a line.
+    await type(w, "Are you all right?");
+    await w.get("textarea").trigger("keydown", { key: "Enter" });
+    expect(submits(w)[1]).toEqual(["say", "Are you all right?"]);
+  });
+
+  // Bug caught: no way back out of a correction but sending one (a paid turn that rewrites the story by mistake).
+  it("leaves the correction on Never mind or Escape without sending anything", async () => {
+    const w = mountComposer({ canCorrect: true });
+    await w.get('[data-testid="solo-correct"]').trigger("click");
+    await type(w, "It never happened.");
+    await w.get('[data-testid="solo-correct-cancel"]').trigger("click");
+    expect(w.find('[data-testid="solo-correct-send"]').exists()).toBe(false);
+    await w.get('[data-testid="solo-correct"]').trigger("click");
+    await w.get("textarea").trigger("keydown", { key: "Escape" });
+    expect(w.find('[data-testid="solo-correct-send"]').exists()).toBe(false);
+    expect(submits(w)).toEqual([]);
+  });
+
+  // Bug caught: the way to a correction offered on an empty page, with nothing told yet to overrule.
+  it("offers no correction before anything has been told", () => {
+    expect(mountComposer().find('[data-testid="solo-correct"]').exists()).toBe(false);
   });
 });

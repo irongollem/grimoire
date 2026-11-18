@@ -22,10 +22,20 @@
              story's room. -->
         <span v-if="fight && !running" class="mr-auto text-caption text-muted-foreground" data-testid="solo-turn-note">{{ fightNote }}</span>
         <AppButton v-if="running" variant="outline" size="sm" :icon="IconStop" label="Stop" @click="emit('stop')" />
+        <!-- "That's not what happened" (#1021 row 23): the player overrules what was told. Its own two buttons, so a
+             correction is never sent by the Enter that says a line aloud. -->
+        <template v-else-if="correcting">
+          <span class="mr-auto text-caption text-muted-foreground" data-testid="solo-correct-note">What you write becomes what happened. It costs a turn.</span>
+          <AppButton variant="ghost" size="sm" label="Never mind" data-testid="solo-correct-cancel" @click="stopCorrecting" />
+          <AppButton variant="primary" size="sm" aria-label="Set it right" :disabled="!canSend" data-testid="solo-correct-send" @click="submit('correct')">
+            <span>Set it right</span><span class="ml-1.5 hidden sm:inline-flex"><KeyCap>Enter</KeyCap></span>
+          </AppButton>
+        </template>
         <template v-else>
           <!-- Nothing typed is a choice too: the character waits and the world goes on. Not in a fight, where
                passing is ending the turn on the board. -->
           <AppButton v-if="canPass" variant="ghost" size="sm" class="mr-auto" label="Go on" title="Say and do nothing: let things happen" data-testid="solo-pass" @click="pass()" />
+          <AppButton v-if="canCorrect" variant="link" size="sm" :class="canPass ? '' : 'mr-auto'" label="That's not what happened" data-testid="solo-correct" @click="startCorrecting" />
           <AppButton variant="ghost" size="sm" aria-label="Ask the Narrator" :disabled="!canSend" data-testid="solo-ask" @click="submit('ask')">
             <span>Ask</span><span class="ml-1.5 hidden items-center gap-0.5 sm:inline-flex"><KeyCap>Ctrl</KeyCap><KeyCap>Enter</KeyCap></span>
           </AppButton>
@@ -58,9 +68,11 @@ import { composerKeyAction } from "@/lib/table/composerKeys";
 import { SPOKEN_WORDS_PER_TURN, wordCount } from "@/lib/table/fight/turnBudget";
 import type { PlayMode } from "@/lib/table/soloTypes";
 
-const { character, running, fight = null } = defineProps<{
+const { character, running, fight = null, canCorrect = false } = defineProps<{
   character: string;
   running: boolean;
+  /** Something has been told that could be overruled: the way to "That's not what happened" is shown. */
+  canCorrect?: boolean;
   /** In a fight on the board: whether it is your turn, whether your one short line aloud is still unsaid, and whether the turn can still pay for a deed. Null outside a fight. */
   fight?: { yours: boolean; words: boolean; canAct: boolean } | null;
 }>();
@@ -78,8 +90,20 @@ watch(canSend, (has) => emit("writing", has));
 const words = computed(() => wordCount(draft.value));
 const canSay = computed(() => fight === null || (fight.yours && fight.words && words.value <= SPOKEN_WORDS_PER_TURN));
 const canDo = computed(() => fight === null || (fight.yours && fight.canAct));
+// Overruling what was told: the box then takes one sentence of what happened instead, and Enter sends that.
+const correcting = ref(false);
+function startCorrecting(): void {
+  correcting.value = true;
+  field.value?.focus();
+}
+function stopCorrecting(): void {
+  correcting.value = false;
+  field.value?.focus();
+}
+
 const placeholder = computed(() => {
   if (running) return "The Narrator is answering…";
+  if (correcting.value) return "What happened instead…";
   if (fight && !fight.yours) return "The others are acting. You can still ask the Narrator…";
   return `What does ${character} say or do…`;
 });
@@ -94,6 +118,7 @@ function submit(mode: PlayMode): void {
   // Locked while a turn runs; nothing to send when nothing is typed. The text stays in the box until it is sent.
   if (running || !canSend.value) return;
   if ((mode === "say" && !canSay.value) || (mode === "do" && !canDo.value)) return;
+  correcting.value = false;
   const text = draft.value.trim();
   draft.value = "";
   sent.value = remembered(sent.value, text);
@@ -130,10 +155,16 @@ function onKeydown(event: KeyboardEvent): void {
     event.preventDefault();
     return;
   }
+  if (correcting.value && event.key === "Escape") {
+    event.preventDefault();
+    stopCorrecting();
+    return;
+  }
   const mode = composerKeyAction(event);
   if (mode === null) return;
   event.preventDefault();
-  submit(mode);
+  // While correcting, every sending key sends the correction: none of them says or does anything in the story.
+  submit(correcting.value ? "correct" : mode);
 }
 
 defineExpose({ focus: () => field.value?.focus() });

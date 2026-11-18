@@ -11,7 +11,7 @@ import {
   chestPick, parseHandOver, parseTake, purseAfterGaining, TAKE_TOOL, TAKE_TOOL_NAME, worth, type Coins, type HandsChange, type Possessions,
 } from "../_shared/agent/hands.ts";
 import type { HandsStore } from "./handsIo.ts";
-import { HIT_POINTS_TOOL, HIT_POINTS_TOOL_NAME, hitPointsText, parseHitPointChange, rollTotal, unaccountedThing, type HitPointChange } from "../_shared/agent/hitPoints.ts";
+import { HIT_POINTS_TOOL, HIT_POINTS_TOOL_NAME, hitPointsText, parseHitPointChange, parseSetRight, rollTotal, SET_RIGHT_TOOL, SET_RIGHT_TOOL_NAME, setRightText, unaccountedThing, type HitPointChange } from "../_shared/agent/hitPoints.ts";
 import { cannotAttempt, changedText, FIGHT_CHANGE_TOOL, parseFightChange, type FightChange, type TurnBudget } from "../_shared/agent/fightChange.ts";
 import type { FightState } from "../_shared/agent/fight.ts";
 import { alreadyRecorded, existsText, INTRODUCE_TOOL, INTRODUCE_TOOL_NAME, INTRODUCTIONS_PER_TURN, introducedText, parseIntroduction, type Introduction } from "../_shared/agent/introduce.ts";
@@ -81,6 +81,8 @@ export interface TurnToolsInput {
   } | null;
   /** The played character's hit points and where a change to them goes; null in a fight (the board keeps them) or with nobody played, and then the tool is not offered. */
   hitPoints: { now: { current: number; max: number } | null; onChange(change: HitPointChange): void } | null;
+  /** The turn is a correction ("That's not what happened"): `set_right` is offered beside the hit points tool. */
+  correcting?: boolean;
   /**
    * Things changing hands (`hands.ts`): what the played character carries and the place sells, the lookups a
    * change is checked against, and where a taken change goes. Null with nobody played, in a fight, or when it
@@ -230,6 +232,16 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   let lastRoll: number | null = null;
   // One change to the hit points a turn: a second would be worked out from the same sheet and replace the first.
   let hitPointsChanged = false;
+  // A correction puts the hit points where the corrected story has them (`set_right`): the same one change a turn.
+  const setRight = (toolInput: Record<string, unknown>) => {
+    if (input.hitPoints === null || input.correcting !== true) return { content: "Hit points are set right only in a correction, outside a fight.", isError: true };
+    if (hitPointsChanged) return { content: "The hit points were already changed this turn. Tell what happened and end your reply.", isError: true };
+    const parsed = parseSetRight(toolInput, { hitPoints: input.hitPoints.now });
+    if (!parsed.ok) return { content: parsed.error, isError: true };
+    hitPointsChanged = true;
+    input.hitPoints.onChange(parsed.value);
+    return { content: setRightText(parsed.value), isError: false };
+  };
   const changeHitPoints = async (toolInput: Record<string, unknown>) => {
     if (input.hitPoints === null) return { content: "Hit points are not changed here.", isError: true };
     if (hitPointsChanged) return { content: "The hit points were already changed this turn. Tell what happened and end your reply.", isError: true };
@@ -453,7 +465,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
@@ -479,6 +491,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       }
       if (input.fightChange && name === FIGHT_CHANGE_TOOL.name) return Promise.resolve(changeFight(toolInput));
       if (input.hitPoints && name === HIT_POINTS_TOOL_NAME) return changeHitPoints(toolInput);
+      if (name === SET_RIGHT_TOOL_NAME) return Promise.resolve(setRight(toolInput));
       if (input.hands && HANDS_TOOL_NAMES.has(name)) return changeHands(name, toolInput);
       if (quests && quests.names.has(name)) return quests.call(name, toolInput);
       if (SPEECH_TOOL_NAMES.has(name)) return speech.call(name, toolInput);

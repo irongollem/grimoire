@@ -28,7 +28,8 @@ export interface AgentTurnBody {
   narratorVoice?: "male" | "female";
   message: string;
   /** Enter says it aloud, Alt+Enter does it: the player chooses, nothing guesses from the wording. */
-  mode: "say" | "do" | "ask";
+  /** `correct`: the player overrules what was told ("That's not what happened"); what they write is true from now on. */
+  mode: "say" | "do" | "ask" | "correct";
   /**
    * The player's answer to a roll the narrator asked for. With it the message may be empty: a roll alone is a turn.
    * Refused by the handler when nothing was asked.
@@ -110,7 +111,9 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
   if (listening && (opening || aftermath || helperTurn !== undefined || foeLine !== undefined || r.sessionId === undefined || message.length > 0 || roll !== undefined)) return { ok: false };
   // Only a roll, an opening, a fight's aftermath, someone else's turn or listening makes a turn without words.
   if ((message.length < 1 && roll === undefined && !opening && !aftermath && helperTurn === undefined && foeLine === undefined && !listening) || message.length > MAX_MESSAGE_CHARS) return { ok: false };
-  if (r.mode !== "say" && r.mode !== "do" && r.mode !== "ask") return { ok: false };
+  if (r.mode !== "say" && r.mode !== "do" && r.mode !== "ask" && r.mode !== "correct") return { ok: false };
+  // A correction is the player's own sentence about the story: never a roll's answer, an opening or anyone else's turn.
+  if (r.mode === "correct" && (message.length < 1 || roll !== undefined || opening || aftermath || helperTurn !== undefined || foeLine !== undefined || listening || r.sessionId === undefined)) return { ok: false };
   let fightTurn: TurnBudget | undefined;
   if (r.fightTurn !== undefined) {
     const t = r.fightTurn;
@@ -147,7 +150,26 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
  * a ruling (maintainer, 16 Nov 2026): it styles the box and settles wording that could be either, but "I crawl
  * towards the tree" sent as said is still a deed, and "nice weather, ain't it!" sent as done is still speech.
  */
-export function playerText(mode: "say" | "do" | "ask", message: string): string {
+export function playerText(mode: "say" | "do" | "ask" | "correct", message: string): string {
+  // "That's not what happened" (the maintainer, 18 Nov 2026): the player overrules the story, a death most of all,
+  // and "not every player especially kids, like to accept that". A correction forward, not a rewind: nothing is
+  // replayed, the sentence becomes true and the game is repaired to fit it. Nothing is out of its reach ("we're
+  // not gatekeeping").
+  if (mode === "correct") {
+    return (
+      "The player overrules what was told. This is what happened instead, and it is true from now on:\n" +
+      `${message}\n` +
+      "Do not argue, bargain, ask whether they are sure or make it cost them something: the table is theirs. Nobody " +
+      "in the story notices that anything was changed; for them it always went this way. First repair the game so " +
+      "it fits, with the tools you have: put a fact on record with what is true now, passing as closes the id of " +
+      "the fact it overtakes when one is listed under \"On record\"; set the character's hit points right with " +
+      "set_right when the correction changes how hurt they are; give back or take away what changed hands; put a " +
+      "quest, an objective or a clock back where the corrected story has it; in a fight on the board, rule the " +
+      "change with fight_change, costing nothing. Change only what the correction touches. Then tell on from the " +
+      "corrected moment in two to four sentences, as if it had always gone so, and decide nothing more for the " +
+      "player's character than their sentence says."
+    );
+  }
   // A question to the Dungeon Master is the player speaking, not the character (maintainer, 17 Nov 2026: "ben ik nu
   // alleen hier?" was answered as words spoken into an empty room). Nothing in the story happens because of it.
   if (mode === "ask") {

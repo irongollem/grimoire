@@ -1,17 +1,18 @@
 <template>
   <!-- "You do: your hand, set in from the edge, no box. You say: your hand in a box." (Voices, 02b).
        A box is something said aloud; no box is something done. A question to the Narrator is neither: it is
-       the player's, not the character's, so it is set apart by a dotted rule and says who is asked. -->
+       the player's, not the character's, so it is set apart by a dotted rule and says who is asked. A correction
+       ("That's not what happened") is the player's too, and is drawn the same way under its own words. -->
   <div
     :class="[
       'flex flex-col gap-0.5',
-      mode === 'say' ? 'ml-7 border-l-4 border-primary bg-primary/8 px-3.5 pt-2 pb-2.5' : mode === 'ask' ? 'ml-7 border-l border-dotted border-input pl-3.5' : 'pl-7',
+      mode === 'say' ? 'ml-7 border-l-4 border-primary bg-primary/8 px-3.5 pt-2 pb-2.5' : mode === 'ask' || mode === 'correct' ? 'ml-7 border-l border-dotted border-input pl-3.5' : 'pl-7',
     ]"
     :data-play-mode="mode"
     :data-boxed="mode === 'say'"
   >
     <span :class="['text-eyebrow flex items-center gap-1.5', mode === 'say' ? 'text-primary' : 'text-muted-foreground']">
-      {{ mode === "ask" ? "You ask the Narrator" : who }}{{ mode === "say" ? " says" : "" }}
+      {{ mode === "ask" ? "You ask the Narrator" : mode === "correct" ? "You set it right" : who }}{{ mode === "say" ? " says" : "" }}
       <AppButton v-if="replayable" variant="ghost" size="inline" :icon="IconVolume" :aria-label="`Hear ${who} say this again`" class="ml-auto" data-testid="solo-replay-player" @click="emit('replay')" />
     </span>
     <p data-hand :class="['solo-hand whitespace-pre-line text-[1.0625rem] leading-6', unsent ? 'text-muted-foreground' : 'text-foreground']">

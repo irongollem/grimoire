@@ -57,7 +57,7 @@ export function storyFromTurns(turns: readonly StoredTurn[], kept: readonly Kept
         const rolled = parseRolled(block.roll);
         if (rolled !== null) items.push({ id: `${id}-roll`, kind: "roll", roll: rolled });
         const player = block.player;
-        if (isRecord(player) && (player.kind === "say" || player.kind === "do" || player.kind === "ask") && typeof player.text === "string" && player.text.trim() !== "") {
+        if (isRecord(player) && (player.kind === "say" || player.kind === "do" || player.kind === "ask" || player.kind === "correct") && typeof player.text === "string" && player.text.trim() !== "") {
           items.push({ id, kind: "player", mode: player.kind, text: player.text });
         }
       } else if (block.type === "text" && turn.role === "assistant") {

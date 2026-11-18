@@ -2716,6 +2716,24 @@ describe("who the player plays", () => {
     expect(h.events).toContainEqual({ type: "hit_points", change: { change: "heal", why: "Potion of Healing", by: 7, hp: 19, maxHp: 20 } });
   });
 
+  // #1021 row 23 ("That's not what happened"). Bug caught: a correction told in words while the sheet keeps the
+  // death it overruled; and the no-roll tool reachable on an ordinary turn, where any reply could set hit points.
+  it("a correction sets the hit points right on the sheet with no roll, and only a correction can", async () => {
+    const setsRight: ModelStep = step(10, { blocks: [{ type: "tool_call", id: "c1", name: "set_right", input: { hit_points: 4, why: "Only knocked out" } }], stop: "tool_calls" });
+    const correcting = withWren([setsRight, step(50)]);
+    existingSession(correcting, { party_member_id: WREN });
+    await play(correcting, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "Wren was only knocked out.", mode: "correct" } });
+    expect(correcting.requests[0].tools.map((t) => t.name)).toContain("set_right");
+    expect(correcting.state.hitPointsSet).toEqual([{ memberId: WREN, hitPoints: 4 }]);
+    expect(correcting.events).toContainEqual({ type: "hit_points", change: { change: "harm", why: "Only knocked out", by: 8, hp: 4, maxHp: 20 } });
+
+    const ordinary = withWren([setsRight, step(50)]);
+    existingSession(ordinary, { party_member_id: WREN });
+    await play(ordinary, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "I get up.", mode: "do" } });
+    expect(ordinary.requests[0].tools.map((t) => t.name)).not.toContain("set_right");
+    expect(ordinary.state.hitPointsSet).toEqual([]);
+  });
+
   // Bug caught (seen live, 18 Nov 2026): Rosie lay at 0 hit points with a potion in her own pack; a character took
   // it out and gave it to her, the tool refused "player" as its owner, and she was healed with the potion still in
   // her pack.

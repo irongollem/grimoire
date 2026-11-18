@@ -21,6 +21,34 @@ describe("a question to the Dungeon Master", () => {
   });
 });
 
+describe("a correction: that's not what happened", () => {
+  const base = { campaignId: "00000000-0000-4000-8000-0000000000c1", sessionId: "00000000-0000-4000-8000-0000000000a1", message: "She was only knocked out.", mode: "correct" };
+
+  it("is the player's own sentence, in a conversation that exists", () => {
+    expect(parseBody(base)).toMatchObject({ ok: true, body: { mode: "correct", message: "She was only knocked out." } });
+  });
+
+  // Bug caught: a correction with nothing in it (the Narrator told to make something true and given nothing), or
+  // one riding on a roll's answer or a new sitting, where there is nothing told yet to overrule.
+  it.each([
+    ["no sentence", { ...base, message: "" }],
+    ["no conversation", { ...base, sessionId: undefined }],
+    ["a roll's answer", { ...base, roll: { faces: [12], mode: "normal", bonus: 2, atTable: true } }],
+  ])("is refused with %s", (_what, body) => {
+    expect(parseBody(body).ok).toBe(false);
+  });
+
+  // The maintainer, 18 Nov 2026: a correction is not argued with ("we're not gatekeeping") and is forward, not a
+  // rewind. Bug caught: the correction handed to the Narrator as something the character says or does.
+  it("tells the Narrator the sentence is true from now on, to repair the game, and not to argue", () => {
+    const text = playerText("correct", "She was only knocked out.");
+    expect(text).toContain("She was only knocked out.");
+    expect(text).toContain("true from now on");
+    expect(text).toContain("Do not argue");
+    expect(text).not.toContain("says aloud");
+  });
+});
+
 describe("a foe's line in a fight", () => {
   const base = { campaignId: "00000000-0000-4000-8000-0000000000c1", sessionId: "00000000-0000-4000-8000-0000000000a1", message: "", mode: "do" };
 

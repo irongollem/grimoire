@@ -89,7 +89,7 @@ export interface PlayerRolled {
 /** What the player's character does with a message: says it aloud, or does it. */
 export interface PlayerMove {
   /** `ask` is a question put to the Dungeon Master out of character: not something the character said or did. */
-  kind: "say" | "do" | "ask";
+  kind: "say" | "do" | "ask" | "correct";
   text: string;
 }
 

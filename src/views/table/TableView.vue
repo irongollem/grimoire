@@ -92,6 +92,7 @@
                 :character="characterName"
                 :running="turn.running.value"
                 :fight="composerFight"
+                :can-correct="turns > 0"
                 @submit="onSubmit"
                 @pass="onPass"
                 @stop="onStop"

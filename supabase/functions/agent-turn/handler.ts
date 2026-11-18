@@ -678,6 +678,7 @@ export async function beginTurn(input: {
           hitPoints: character && !(fights !== null && fights.fight !== null && fights.fight.phase === "running")
             ? { now: character.hitPoints, onChange: (change) => { hitPointChange = change; } }
             : null,
+          correcting: body.mode === "correct",
           // Offered only while a fight is being fought on the board.
           fightChange: fights !== null && fights.fight !== null && fights.fight.phase === "running"
             ? { fight: fights.fight, budget: fightTurn, rolled: scored === null ? null : scored.success, onChange: (change) => { fightChange = change; } }
