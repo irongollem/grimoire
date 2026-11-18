@@ -17,6 +17,7 @@ import type { FightState } from "../_shared/agent/fight.ts";
 import { alreadyRecorded, existsText, INTRODUCE_TOOL, INTRODUCE_TOOL_NAME, INTRODUCTIONS_PER_TURN, introducedText, parseIntroduction, type Introduction } from "../_shared/agent/introduce.ts";
 import { GO_TO_TOOL, makeSceneTool } from "../_shared/agent/scene.ts";
 import { parsePassDays, PASS_DAYS_TOOL, PASS_DAYS_TOOL_NAME, passedText } from "../_shared/agent/days.ts";
+import { ROLL_TABLE_TOOL, ROLL_TABLE_TOOL_NAME, rollAnswer } from "../_shared/agent/roadTables.ts";
 import { parseTravel, TRAVEL_TOOL, TRAVEL_TOOL_NAME, travelAnswer, type TravelMap } from "../_shared/agent/travel.ts";
 import type { Remembered } from "../_shared/agent/characterTurn.ts";
 import { makeSpeechTools } from "../_shared/agent/speak.ts";
@@ -115,7 +116,7 @@ export interface TurnToolsInput {
    * The campaign's places and roads, read when the narrator asks how far somewhere is (`travel.ts`). Null in a
    * fight, where nobody sets out on a journey, and then the tool is not offered.
    */
-  travel: { map(): Promise<TravelMap> } | null;
+  travel: { map(): Promise<TravelMap>; /** A whole number from 1 to `max`: the die behind the screen. */ roll(max: number): number } | null;
   /** Whole days passed in the story (`days.ts`): the page moves the campaign's date once the turn is kept. Null in a fight. */
   onDaysPassed: ((days: number) => void) | null;
 }
@@ -414,6 +415,16 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     return travelAnswer(place, parsed.value.toPlaceId, parsed.value.paceId, await travelMap);
   };
 
+  // A roll on one of the campaign's placed tables, behind the screen: nothing of it goes to the page.
+  const rollTable = async (toolInput: Record<string, unknown>) => {
+    if (!input.travel) return { content: "No table is rolled on now.", isError: true };
+    const id = toolInput.table_id;
+    if (typeof id !== "string") return { content: "table_id must be the id of a table, as travel listed it.", isError: true };
+    travelMap ??= input.travel.map();
+    const table = (await travelMap).tables.find((t) => t.id === id);
+    return rollAnswer(table, input.travel.roll);
+  };
+
   // Once a turn, with the total: two calls would move the date twice for what the story told once.
   let daysPassed = false;
   const passDays = (toolInput: Record<string, unknown>) => {
@@ -442,7 +453,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
@@ -454,6 +465,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (name === INTRODUCE_TOOL_NAME) return introduce(toolInput);
       if (input.show && name === SHOW_TOOL_NAME) return show(toolInput);
       if (input.travel && name === TRAVEL_TOOL_NAME) return travel(toolInput);
+      if (input.travel && name === ROLL_TABLE_TOOL_NAME) return rollTable(toolInput);
       if (input.onDaysPassed && name === PASS_DAYS_TOOL_NAME) return Promise.resolve(passDays(toolInput));
       if (name === KEEP_TALKING_TOOL_NAME) {
         floorKept = true;

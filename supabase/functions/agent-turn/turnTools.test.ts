@@ -79,11 +79,13 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
     askRoll: played ? (pending) => asked.push(pending) : null,
     onDaysPassed: (days) => { passed.push(days); },
     travel: {
+      roll: () => 3,
       map: async () => {
         mapReads.count += 1;
         return {
           places: [{ id: PLACE, name: "Cellar", parentId: null }, { id: FAR, name: "Farholt", parentId: null }],
           roads: [{ id: "r1", from_location_id: PLACE, to_location_id: FAR, distance: 48, unit: "mi" as const, name: "", going: "road" as const }],
+          tables: [{ id: "t1", name: "Farholt road", dice: "1d4", placeId: FAR, entries: [{ min: 1, max: 2, label: "A lame horse", notes: null, encounterId: null }, { min: 3, max: 4, label: "Wolves", notes: null, encounterId: null }] }],
         };
       },
     },
@@ -123,6 +125,13 @@ describe("makeTurnTools", () => {
     await turn.callTool("travel", { to_place_id: FAR });
     await turn.callTool("travel", { to_place_id: FAR, pace: "fast" });
     expect(mapReads.count).toBe(1);
+  });
+
+  // Bug caught: the narrator rolling on a table from another campaign, or one it made up, and being answered.
+  it("rolls on a table the campaign placed, with the die it is handed, and on no other", async () => {
+    const { turn } = build();
+    expect((await turn.callTool("roll_table", { table_id: "t1" })).content).toContain("Rolled 3 on \"Farholt road\" (1d4): Wolves");
+    expect((await turn.callTool("roll_table", { table_id: "t9" })).isError).toBe(true);
   });
 
   // Bug caught: the date moved twice for days the story told once, because the narrator called the tool again.

@@ -271,6 +271,8 @@ export interface AgentTurnDeps {
   giveHandout(campaignId: string, handoutId: string, memberId: string): Promise<void>;
   /** The campaign's places and the roads between them, as the caller may read them: what a journey is measured on. */
   loadTravelMap(campaignId: string): Promise<TravelMap>;
+  /** A fair whole number from 1 to `max`, for a roll behind the screen on one of the campaign's tables. */
+  rollDie(max: number): number;
   /** Marks a prepared fight as fought, so it is not offered at its place again. */
   finishFight(campaignId: string, encounterId: string): Promise<void>;
   /** Lays a won fight's loot notes where it was fought, once, as things the campaign placed there. */
@@ -654,7 +656,7 @@ export async function beginTurn(input: {
           // Days that pass in the story move the campaign's date, on the page, once the turn is kept. Not in a fight.
           onDaysPassed: fights !== null && fights.fight !== null && fights.fight.phase === "running" ? null : (days) => { daysPassed = days; },
           // How far somewhere is, by the campaign's roads. Not in a fight: nobody sets out on a journey mid-round.
-          travel: fights !== null && fights.fight !== null && fights.fight.phase === "running" ? null : { map: () => deps.loadTravelMap(campaign.id) },
+          travel: fights !== null && fights.fight !== null && fights.fight.phase === "running" ? null : { map: () => deps.loadTravelMap(campaign.id), roll: deps.rollDie },
           // Not in a fight: a turn there is six seconds, and what it holds is the board's.
           hands: character && hands !== null && !(fights !== null && fights.fight !== null && fights.fight.phase === "running")
             ? { memberId: character.id, ...hands, store: deps.hands, onChange: (change) => { handed.push(change); } }

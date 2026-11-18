@@ -4,6 +4,7 @@
 // run before the stream opens so a refusal is a real status code; the turn itself runs inside the stream.
 import { giveHandout, loadHandouts, loadPicture } from "./showIo.ts";
 import type { Road } from "../../../src/lib/travel/roads.ts";
+import { entriesOf } from "../_shared/agent/roadTables.ts";
 import { CHILD_TURN_THRESHOLDS, readsAsChild, STRIKE_WINDOW_DAYS } from "../_shared/agent/conduct.ts";
 import { belongingsText, MAX_BELONGINGS, type Belonging } from "../_shared/agent/belongings.ts";
 import { MAX_PEOPLES } from "../_shared/agent/peoples.ts";
@@ -691,17 +692,33 @@ serve(withCors(async (req: Request) => {
     loadPicture: (campaignId, what, id) => loadPicture(supabase, campaignId, what, id),
     giveHandout: (campaignId, handoutId, memberId) => giveHandout(supabase, campaignId, handoutId, memberId),
     // Through the caller's client: the DM's own RLS decides which places and roads there are to travel by.
+    // Behind the screen, so its fairness is the server's: a uniform whole number from 1 to max.
+    rollDie: (max) => {
+      const span = Math.max(1, Math.trunc(max));
+      const limit = Math.floor(0x100000000 / span) * span;
+      const box = new Uint32Array(1);
+      do crypto.getRandomValues(box); while (box[0] >= limit);
+      return (box[0] % span) + 1;
+    },
     async loadTravelMap(campaignId) {
-      const [places, roads] = await Promise.all([
+      const [places, roads, placed] = await Promise.all([
         supabase.from("locations").select("id, name, parent_id").eq("campaign_id", campaignId),
         supabase.from("location_roads").select("id, from_location_id, to_location_id, distance, unit, name, going").eq("campaign_id", campaignId),
+        // The roll tables placed on this campaign's places. A placement has no campaign of its own: its place has.
+        supabase.from("location_placements").select("location_id, roll_table:roll_tables!inner(id, name, dice, entries), place:locations!inner(campaign_id)")
+          .not("roll_table_id", "is", null).eq("place.campaign_id", campaignId),
       ]);
+      if (placed.error) throw placed.error;
       if (places.error) throw places.error;
       if (roads.error) throw roads.error;
       return {
         places: (places.data ?? []).map((p) => ({ id: p.id as string, name: p.name as string, parentId: p.parent_id as string | null })),
         // `distance` is numeric; anything that does not read as a number is not a road to travel by.
         roads: (roads.data ?? []).map((r) => ({ ...r, distance: Number(r.distance) }) as Road).filter((r) => Number.isFinite(r.distance)),
+        tables: (placed.data ?? []).flatMap((row) => {
+          const table = (Array.isArray(row.roll_table) ? row.roll_table[0] : row.roll_table) as { id: string; name: string; dice: string; entries: unknown } | null | undefined;
+          return table ? [{ id: table.id, name: table.name, dice: table.dice, entries: entriesOf(table.entries), placeId: row.location_id as string }] : [];
+        }),
       };
     },
     layFightLoot: (campaignId, encounterId, placeId, held) => layFightLoot(admin, campaignId, encounterId, placeId, held),

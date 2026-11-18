@@ -14,6 +14,7 @@ const map: TravelMap = {
     { id: ISLAND, name: "The Isle", parentId: null },
   ],
   roads: [road(1, NEVERWINTER, LEILON, 24), road(2, LEILON, PHANDALIN, 36)],
+  tables: [],
 };
 
 describe("travelAnswer", () => {
@@ -27,6 +28,13 @@ describe("travelAnswer", () => {
     expect(content).toContain("The road passes Leilon.");
     expect(content).toContain("2 nights on the road.");
     expect(content).toContain(`call pass_days with 3 and go_to with ${PHANDALIN}`);
+  });
+
+  // Bug caught: the DM's own encounter table for a town on the road never offered, so every chance meeting is invented.
+  it("lists the campaign's tables for the places the road touches, and none when it keeps none", () => {
+    const withTable = { ...map, tables: [{ id: "t1", name: "Mere of Dead Men", dice: "1d12", entries: [], placeId: LEILON }] };
+    expect(travelAnswer(NEVERWINTER, PHANDALIN, "normal", withTable).content).toContain("\"Mere of Dead Men\" (1d12, table_id t1) for Leilon");
+    expect(travelAnswer(NEVERWINTER, PHANDALIN, "normal", map).content).not.toContain("Tables the campaign keeps");
   });
 
   // Bug caught: a party in a room of a town told it has no road, because only the town is on one.

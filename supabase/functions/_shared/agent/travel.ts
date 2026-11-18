@@ -12,6 +12,7 @@
 import { placesPassed, roadPlaceOf, shortestWay } from "../../../../src/lib/travel/way.ts";
 import type { Road } from "../../../../src/lib/travel/roads.ts";
 import { DEFAULT_TRAVEL_PACE, formatTravelTime, fromMiles, getTravelPace, TRAVEL_PACES, travelTime, type TravelPaceId } from "../../../../src/rules/travelPace.ts";
+import { tablesAlong, tablesLine, type PlacedTable } from "./roadTables.ts";
 import type { AgentTool } from "./types.ts";
 
 export const TRAVEL_TOOL_NAME = "travel";
@@ -28,7 +29,10 @@ export const TRAVEL_TOOL: AgentTool = {
     "(start_fight), a scene at the camp fire, a beat of a quest in play that has no fixed place (a glimpse of the " +
     "one they hunt, a messenger who finds them), or nothing at all. Go by pacing, not by a quota: a journey meant to " +
     "feel long and hard has more on it, and one that follows an eventful stretch is quiet and told in a sentence or " +
-    "two. Whatever follows the party catches up with it on the road. Days pass on a journey: say how many.",
+    "two. Whatever follows the party catches up with it on the road. When something at a stop needs the player's " +
+    "answer (someone bars the way, a stranger asks something, a fight), the journey halts there: call pass_days " +
+    "with only the days so far, do not call go_to, end your reply at that stop, and let the party arrive in a " +
+    "later reply once it is settled.",
   inputSchema: {
     type: "object",
     additionalProperties: false,
@@ -62,6 +66,8 @@ export interface TravelPlace {
 export interface TravelMap {
   places: readonly TravelPlace[];
   roads: readonly Road[];
+  /** The roll tables the DM placed on places of the campaign (`roadTables.ts`). */
+  tables: readonly PlacedTable[];
 }
 
 /**
@@ -96,6 +102,8 @@ export function travelAnswer(fromId: string | null, toId: string, paceId: Travel
     `By road from ${nameOf(start)} to ${nameOf(end)}: ${distance} ${unit}, ${formatTravelTime(time)} of travel at a ${pace.label.toLowerCase()} pace (${time.calendarDays} ${time.calendarDays === 1 ? "day" : "days"} on the calendar).`,
     passed.length === 0 ? "The road passes no other place of the campaign." : `The road passes ${passed.join(", then ")}.`,
     nights === 0 ? "They arrive the same day: no night on the road." : `${nights} ${nights === 1 ? "night" : "nights"} on the road.`,
+    // The tables that hold for where the road starts, what it passes and where it ends, in that order.
+    ...[tablesLine(tablesAlong([start, ...placesPassed(way), end], parentOf, nameOf, map.tables))].filter((line): line is string => line !== null),
     `When they arrive, call pass_days with ${time.calendarDays} and go_to with ${toId}.`,
   ];
   return { content: lines.join("\n"), isError: false };
