@@ -4,6 +4,7 @@
 // about what the narrator may do inside it: the campaign's own tools, a character speaking, moving the party and
 // putting a fact on the record. Everything with I/O comes in through `deps`; nothing here touches a database.
 
+import { KEEP_TALKING_TOOL, KEEP_TALKING_TOOL_NAME } from "../_shared/agent/floor.ts";
 import { offeredHandout, parseShow, SHOW_TOOL, SHOW_TOOL_NAME, SHOWN_PER_TURN, shownText, type HandoutOffer, type PictureOf, type Shown } from "../_shared/agent/show.ts";
 import {
   BUY_TOOL, COINS_TOOL, COINS_TOOL_NAME, HAND_OVER_TOOL, HAND_OVER_TOOL_NAME, HANDS_PER_TURN, HANDS_TOOL_NAMES, handsText, parseBuy, parseCoins,
@@ -90,6 +91,10 @@ export interface TurnToolsInput {
     store: Pick<HandsStore, "belonging" | "characterName" | "carried" | "item">;
     onChange(change: HandsChange): void;
   } | null;
+  /** The narrator said the characters go on among themselves (`keep_talking`). */
+  onKeepTalking?(): void;
+  /** How each exchange between characters left the floor (`floor.ts`); the last one of the turn decides. */
+  onExchange?(ended: "to_player" | "open", cutShort: boolean): void;
   /** Takes the roll the narrator asks the player for; null when nobody is played, and then the tool is not offered. */
   askRoll: ((pending: PendingRoll) => void) | null;
   /**
@@ -154,6 +159,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     onRemember: (memory) => remembered.push(memory),
     findRecorded: (name) => deps.findCharacters(campaignId, name),
     onSpoke: (id) => spoke.add(id),
+    onExchange: (ended, cutShort) => input.onExchange?.(ended, cutShort),
     playerName: input.playerName,
     peoples: input.peoples,
   });
@@ -332,6 +338,8 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     return { content: introducedText(intro), isError: false };
   };
 
+  // Set once the narrator says the characters go on among themselves: nobody speaks again in this reply.
+  let floorKept = false;
   // A handout or a picture put in front of the player (`show.ts`). A handout is handed over once.
   let shownCount = 0;
   const handedOut = new Set<string>();
@@ -374,7 +382,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
@@ -385,6 +393,16 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (input.fight && name === START_FIGHT_TOOL.name) return startFight(toolInput);
       if (name === INTRODUCE_TOOL_NAME) return introduce(toolInput);
       if (input.show && name === SHOW_TOOL_NAME) return show(toolInput);
+      if (name === KEEP_TALKING_TOOL_NAME) {
+        floorKept = true;
+        input.onKeepTalking?.();
+        return Promise.resolve({ content: "They go on when this reply ends, unless the player steps in. End your reply now: call no more tools.", isError: false });
+      }
+      // One reply is one beat of the conversation. Seen live: after keep_talking the narrator went on asking
+      // characters to speak, round after round in the same reply, until the turn ran out of its token budget.
+      if (floorKept && SPEECH_TOOL_NAMES.has(name)) {
+        return Promise.resolve({ content: "You already said they go on: the next of them speaks in the next reply, not this one. End your reply now.", isError: true });
+      }
       if (input.fightChange && name === FIGHT_CHANGE_TOOL.name) return Promise.resolve(changeFight(toolInput));
       if (input.hitPoints && name === HIT_POINTS_TOOL_NAME) return Promise.resolve(changeHitPoints(toolInput));
       if (input.hands && HANDS_TOOL_NAMES.has(name)) return changeHands(name, toolInput);

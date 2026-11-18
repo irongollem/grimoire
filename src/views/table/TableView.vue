@@ -78,6 +78,11 @@
                 :busy="turn.running.value"
                 @roll="(answer) => sendTurn(ROLL_MODE, '', answer)"
               />
+              <!-- The characters are about to go on talking among themselves: said once, with the way to take the floor. -->
+              <p v-if="goingOn && !hasLeft" class="flex items-center gap-2 pb-1 text-caption text-muted-foreground" role="status" data-testid="solo-going-on">
+                They go on talking.
+                <AppButton variant="link" size="inline" label="Step in" @click="stepIn" />
+              </p>
               <SoloLeft v-if="hasLeft" />
               <SoloComposer
                 v-else
@@ -86,7 +91,8 @@
                 :fight="composerFight"
                 @submit="onSubmit"
                 @pass="onPass"
-                @stop="turn.stop()"
+                @stop="onStop"
+                @writing="(has) => (writing = has)"
               />
             </div>
           </template>
@@ -124,6 +130,8 @@ import { computed, ref, watch, onBeforeUnmount } from "vue";
 import { supabase } from "@/lib/supabase";
 import { reportHandledError } from "@/lib/observability/sentry";
 import { boardRows } from "@/lib/table/boardKeep";
+import { goesOnByItself } from "@/lib/table/watching";
+import { useTableWatching } from "@/composables/table/useTableWatching";
 import type { BoardLine } from "@/lib/table/fight/boardLines";
 import { useRoute, useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
@@ -252,7 +260,8 @@ const turn = useTableTurn({
   onAskRoll: (ask) => {
     asked.value = ask;
   },
-  onDone: () => {
+  onDone: (floor) => {
+    watchOn(floor);
     // Characters who speak are placed with the party at the end of a turn; the balance and the list of sittings moved.
     scene.refresh();
     void queryClient.invalidateQueries({ queryKey: ["ai-credit-balance"] });
@@ -363,8 +372,57 @@ function onGo(place: { id: string; name: string }): void {
 // A line said aloud in a fight is the turn's few words: once said, they are spent.
 function onSubmit(mode: PlayMode, text: string): void {
   if (mode === "say" && composerFight.value?.yours) stage.value?.spendWords();
+  stepIn();
   void sendTurn(mode, text);
 }
+
+// ── Watching the characters talk ─────────────────────────────────────────────────────────────────────────────────
+// When a turn ends with the characters still in the middle of a conversation among themselves, they go on without
+// the player having to say "go on" (`lib/table/watching.ts`): a few times in a row at most, after the voices have
+// finished, and never once the player has begun to write or has stepped in.
+/** The breath before the characters go on: long enough to read the last line and to step in. */
+const WATCH_PAUSE_MS = 2500;
+const { watches } = useTableWatching();
+const watched = ref(0);
+const writing = ref(false);
+const goingOn = ref(false);
+let goOnTimer: ReturnType<typeof setTimeout> | null = null;
+function clearGoOn(): void {
+  if (goOnTimer !== null) clearTimeout(goOnTimer);
+  goOnTimer = null;
+  goingOn.value = false;
+}
+/** The player takes the floor: whatever was about to go on by itself does not, and the count starts again. */
+function stepIn(): void {
+  clearGoOn();
+  watched.value = 0;
+}
+function watchOn(floor: "characters" | "player"): void {
+  clearGoOn();
+  const busy = inFight.value || asked.value !== null || hasLeft.value;
+  if (!goesOnByItself({ floor, wanted: watches.value, watched: watched.value, busy, writing: writing.value })) {
+    if (floor === "player") watched.value = 0;
+    return;
+  }
+  goingOn.value = true;
+  const go = (): void => {
+    // Not while a voice is still reading the last lines: the next ones would start before these have been heard.
+    if (voice.speaking.value) {
+      goOnTimer = setTimeout(go, 400);
+      return;
+    }
+    goOnTimer = null;
+    goingOn.value = false;
+    if (writing.value || turn.running.value) return;
+    watched.value += 1;
+    void turn.listen();
+  };
+  goOnTimer = setTimeout(go, WATCH_PAUSE_MS);
+}
+watch(writing, (has) => {
+  if (has) clearGoOn();
+});
+onBeforeUnmount(clearGoOn);
 
 // In a fight, the turn of someone with the party whom the rules cannot play: the story tells the one thing they do.
 // While the player's own question is being answered the helper simply lets the moment pass.
@@ -372,8 +430,15 @@ async function onHelperTurn(name: string): Promise<void> {
   await turn.helper(name);
 }
 
+// Stopping an answer is stepping in: nothing goes on by itself after it.
+function onStop(): void {
+  stepIn();
+  turn.stop();
+}
+
 // "Go on": the player says and does nothing, and the world moves. It goes as a deed so nobody hears it.
 function onPass(): void {
+  stepIn();
   void sendTurn("do", `${characterName.value} waits, and lets things go on.`);
 }
 

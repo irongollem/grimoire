@@ -626,3 +626,79 @@ describe("TableView: the characters' voices", () => {
     expect(voiceCalls().map((c) => c.text)).toEqual(["Come on, then.", "This way."]);
   });
 });
+
+describe("TableView: watching the characters talk", () => {
+  const opened = () => sse({ type: "session", sessionId: "s1" }, { type: "text", delta: "The fire is low." }, { type: "done", end: "done", credits: 0, tokens: 5 });
+  const talking = (text: string, floor = true) =>
+    sse(
+      { type: "session", sessionId: "s1" },
+      { type: "line", line: { kind: "spoken", speaker: { id: null, name: "Comfit" }, text } },
+      { type: "done", end: "done", credits: 0, tokens: 5, ...(floor ? { floor: "characters" } : {}) },
+    );
+  const turnBodies = () => fetchMock.mock.calls.filter((c) => String(c[0]).includes("agent-turn")).map((c) => JSON.parse(String(c[1].body)));
+
+  beforeEach(() => {
+    setUp("u1");
+    useTableDisclosure().accept();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // Bug caught: the characters stopping after one beat and waiting on a player who only wanted to watch; or the
+  // listening turn drawn as a line the player said.
+  it("lets them go on by themselves when the turn ends with the floor still theirs", async () => {
+    fetchMock.mockResolvedValueOnce(opened()).mockResolvedValueOnce(talking("Who lost the key, then?")).mockResolvedValueOnce(talking("Not me.", false));
+    const { wrapper } = await mountTable("/play/table/new?character=m1");
+    await say(wrapper, "I sit and listen.", true);
+    expect(wrapper.find('[data-testid="solo-going-on"]').exists()).toBe(true);
+    await vi.advanceTimersByTimeAsync(3000);
+    await flushPromises();
+    expect(turnBodies()).toHaveLength(3);
+    expect(turnBodies()[2]).toMatchObject({ message: "", listening: true });
+    expect(wrapper.get('[data-testid="solo-story"]').text()).toContain("Not me.");
+    // The floor came back to the player: nothing more goes on by itself.
+    expect(wrapper.find('[data-testid="solo-going-on"]').exists()).toBe(false);
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(turnBodies()).toHaveLength(3);
+  });
+
+  // Bug caught: the characters talking over a player who stepped in, spending a turn they did not want.
+  it("does not go on once the player steps in", async () => {
+    fetchMock.mockResolvedValueOnce(opened()).mockResolvedValueOnce(talking("Who lost the key, then?"));
+    const { wrapper } = await mountTable("/play/table/new?character=m1");
+    await say(wrapper, "I sit and listen.", true);
+    const stepIn = wrapper.findAll("button").find((b) => b.text() === "Step in")!;
+    await stepIn.trigger("click");
+    await vi.advanceTimersByTimeAsync(6000);
+    await flushPromises();
+    expect(turnBodies()).toHaveLength(2);
+  });
+
+  // Bug caught: the characters talking over what the player has begun to write.
+  it("does not go on while the player is writing", async () => {
+    fetchMock.mockResolvedValueOnce(opened()).mockResolvedValueOnce(talking("Who lost the key, then?"));
+    const { wrapper } = await mountTable("/play/table/new?character=m1");
+    await say(wrapper, "I sit and listen.", true);
+    await wrapper.get("textarea").setValue("Wait, I");
+    await vi.advanceTimersByTimeAsync(6000);
+    await flushPromises();
+    expect(turnBodies()).toHaveLength(2);
+  });
+
+  // Bug caught: a conversation that runs on for ever on the player's credits.
+  it("stops after three turns in a row and waits for the player", async () => {
+    fetchMock.mockResolvedValueOnce(opened());
+    for (let i = 0; i < 6; i += 1) fetchMock.mockResolvedValueOnce(talking(`Line ${i}.`));
+    const { wrapper } = await mountTable("/play/table/new?character=m1");
+    await say(wrapper, "I sit and listen.", true);
+    for (let i = 0; i < 6; i += 1) {
+      await vi.advanceTimersByTimeAsync(3000);
+      await flushPromises();
+    }
+    // The opening, the player's own turn, and three listening turns.
+    expect(turnBodies()).toHaveLength(5);
+    expect(turnBodies().filter((b) => b.listening === true)).toHaveLength(3);
+  });
+});

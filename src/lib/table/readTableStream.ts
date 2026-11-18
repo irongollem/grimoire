@@ -133,6 +133,7 @@ export function parseTableEvent(raw: unknown): TableEvent | null {
         end: typeof raw.end === "string" ? raw.end : "",
         credits: typeof raw.credits === "number" && Number.isFinite(raw.credits) ? raw.credits : 0,
         tokens: typeof raw.tokens === "number" && Number.isFinite(raw.tokens) ? raw.tokens : 0,
+        ...(raw.floor === "characters" ? { floor: "characters" as const } : {}),
       };
     case "shown": {
       // Untrusted like the rest of the stream: a picture's address goes into an image.

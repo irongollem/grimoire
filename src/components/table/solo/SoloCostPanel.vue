@@ -12,6 +12,12 @@
       A turn costs what the Dungeon Master used to answer it: more when it looks things up, less for a short reply. You are charged one whole credit each time the total passes one.
     </p>
     <AppCheckbox
+      v-model="watches"
+      label="Let the characters talk among themselves"
+      hint="They go on without waiting for you, a few lines at a time; you can always step in. Each time costs what a turn costs."
+      data-testid="solo-watching"
+    />
+    <AppCheckbox
       v-model="helpersQuiet"
       label="Helpers act only when something changes"
       hint="In a fight, someone with you who is no fighter takes a turn of the story every round. Tick this and they act only when they are hurt, you go down or get up, or you speak; it saves about a turn's cost each round."
@@ -26,10 +32,12 @@ import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { useTableHelpers } from "@/composables/table/useTableHelpers";
+import { useTableWatching } from "@/composables/table/useTableWatching";
 
 const { turns, credits, balance } = defineProps<{ turns: number; credits: number; balance: number | null }>();
 const emit = defineEmits<{ credits: [] }>();
 const { quiet: helpersQuiet } = useTableHelpers();
+const { watches } = useTableWatching();
 
 const rows = computed(() => [
   { label: "Turns played", value: String(turns) },

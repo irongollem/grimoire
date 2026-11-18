@@ -11,6 +11,7 @@
 //                (`_shared/agent/summary.ts`): the player never waits for that, and a failure in it is only logged.
 // A caller that gets `run` MUST call it: the reservation is released inside it.
 
+import { floorOf, LISTENING_TEXT, type Floor } from "../_shared/agent/floor.ts";
 import { handoutsSection, type HandoutOffer, type PictureOf, type Shown } from "../_shared/agent/show.ts";
 import { shownText, tableClosed } from "../_shared/agent/conduct.ts";
 import { followersOf } from "../_shared/agent/pursuit.ts";
@@ -99,7 +100,8 @@ export type AgentEvent =
   | { type: "hands"; text: string }
   /** The played character's hit points changed outside a fight: what did it, by how much, and where they stand. */
   | { type: "hit_points"; change: { change: "heal" | "harm"; why: string; by: number; hp: number; maxHp: number } }
-  | { type: "done"; end: TurnEnd; credits: number; tokens: number }
+  /** `floor` is "characters" when they were still talking among themselves and nothing waits on the player (`floor.ts`). */
+  | { type: "done"; end: TurnEnd; credits: number; tokens: number; floor?: Floor }
   /** `withheld` is set when the turn was dropped by the screen on what the table may tell, so the page can say so. */
   | { type: "error"; message: string; withheld?: true };
 
@@ -601,6 +603,8 @@ export async function beginTurn(input: {
           }
         }
         const handedOut: HandoutOffer[] = [];
+        let lastExchange: { ended: "to_player" | "open"; cutShort: boolean } | null = null;
+        let narratorKeeps = false;
         const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts) });
         // What changes hands this turn; moved only once the turn is kept.
         const handed: HandsChange[] = [];
@@ -627,6 +631,8 @@ export async function beginTurn(input: {
           playerName: character ? character.name : undefined,
           peoples,
           onIntroduce: (intro) => { introduced.push(intro); },
+          onExchange: (ended, cutShort) => { lastExchange = { ended, cutShort }; },
+          onKeepTalking: () => { narratorKeeps = true; },
           // Something to put in front of the player: only someone played has hands to take a handout.
           show: character
             ? { handouts, picture: (what, id) => deps.loadPicture(campaign.id, what, id), onHandout: (handout) => { handedOut.push(handout); } }
@@ -692,6 +698,7 @@ export async function beginTurn(input: {
             // The campaign's own opening stands in for the ordinary one; given both, the narrator kept to the ordinary.
             body.opening === true ? (prologueText(prologue) ?? OPENING_TEXT) : null,
             body.aftermath === true ? AFTERMATH_TEXT : null,
+            body.listening === true ? LISTENING_TEXT : null,
             // The name is the page's: it is used only when the fight on the board really holds such a helper, as
             // the fight names them, so nothing but a fighter's own name reaches the narrator's instructions.
             body.helperTurn === undefined ? null : helper !== undefined ? helperTurnText(helper.name) : "A turn in the fight passes with nothing to tell. Write nothing.",
@@ -963,7 +970,16 @@ export async function beginTurn(input: {
         for (const fact of filed) if (!fact.hidden) emit({ type: "fact", fact: { id: fact.id, body: fact.body } });
         // `credits` is this turn's own. A summary's credit shows on the ledger, not in the turn that happened to
         // trigger it.
-        emit({ type: "done", end: result.end, credits: due, tokens });
+        // Whose floor it is now: the characters keep it when they were stopped mid-conversation and nothing waits
+        // on the player, so the page may let them go on while the player watches.
+        const floor = floorOf({
+          lastExchange,
+          narratorKeeps,
+          rollAsked: asked !== null,
+          inFight: fightPlan !== null || (fights !== null && fights.fight !== null && fights.fight.phase !== "over"),
+          finished: result.end === "done",
+        });
+        emit({ type: "done", end: result.end, credits: due, tokens, ...(floor === "characters" ? { floor } : {}) });
 
         // After `done`, never before: the player must not wait for housekeeping. An abort is the player leaving.
         if (result.end !== "aborted") {

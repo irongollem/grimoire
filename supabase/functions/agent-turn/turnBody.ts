@@ -42,6 +42,11 @@ export interface AgentTurnBody {
    * could play: the page asks what they do with their six seconds. The name is theirs as the fight lists them.
    */
   helperTurn?: { name: string };
+  /**
+   * The characters still had the floor when the last turn ended, and the player says nothing: they go on
+   * (`floor.ts`). No words of the player's, in a conversation that exists.
+   */
+  listening?: true;
   /** In a fight on the board: whose turn it is and what the player's turn still holds, as the page has it. */
   fightTurn?: TurnBudget;
 }
@@ -78,8 +83,11 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
     if (opening || aftermath || r.sessionId === undefined || message.length > 0 || roll !== undefined) return { ok: false };
     helperTurn = { name: name.trim() };
   }
-  // Only a roll, an opening, a fight's aftermath or someone else's turn makes a turn without words.
-  if ((message.length < 1 && roll === undefined && !opening && !aftermath && helperTurn === undefined) || message.length > MAX_MESSAGE_CHARS) return { ok: false };
+  // The player listens while the characters go on: no words of the player's, in a conversation that exists.
+  const listening = r.listening === true;
+  if (listening && (opening || aftermath || helperTurn !== undefined || r.sessionId === undefined || message.length > 0 || roll !== undefined)) return { ok: false };
+  // Only a roll, an opening, a fight's aftermath, someone else's turn or listening makes a turn without words.
+  if ((message.length < 1 && roll === undefined && !opening && !aftermath && helperTurn === undefined && !listening) || message.length > MAX_MESSAGE_CHARS) return { ok: false };
   if (r.mode !== "say" && r.mode !== "do" && r.mode !== "ask") return { ok: false };
   let fightTurn: TurnBudget | undefined;
   if (r.fightTurn !== undefined) {
@@ -103,6 +111,7 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
       message, mode: r.mode, ...(roll === undefined ? {} : { roll }), ...(opening ? { opening: true as const } : {}),
       ...(aftermath ? { aftermath: true as const } : {}),
       ...(helperTurn === undefined ? {} : { helperTurn }),
+      ...(listening ? { listening: true as const } : {}),
       ...(fightTurn === undefined ? {} : { fightTurn }),
     },
   };

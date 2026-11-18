@@ -23,6 +23,16 @@
     </div>
 
     <div class="flex flex-col gap-2">
+      <h3 class="text-label-lg font-semibold text-foreground">In a conversation</h3>
+      <AppCheckbox
+        v-model="watches"
+        label="Let the characters talk among themselves"
+        hint="When the people around you are in the middle of a conversation, they go on without waiting for you, a few lines at a time, and you can step in whenever you like. Each time they go on costs what a turn costs."
+        data-testid="table-watching"
+      />
+    </div>
+
+    <div class="flex flex-col gap-2">
       <h3 class="text-label-lg font-semibold text-foreground">In a fight</h3>
       <AppCheckbox
         v-model="helpersQuiet"
@@ -31,7 +41,7 @@
         data-testid="table-helpers-quiet"
       />
     </div>
-    <p class="text-caption text-muted-foreground">You can change all of this at the table: the voices in the bar, the helpers under the credits.</p>
+    <p class="text-caption text-muted-foreground">You can change all of this at the table: the voices in the bar, the rest under the credits.</p>
   </section>
 </template>
 
@@ -39,6 +49,7 @@
 import { computed } from "vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { useTableHelpers } from "@/composables/table/useTableHelpers";
+import { useTableWatching } from "@/composables/table/useTableWatching";
 import { useTableVoicePrefs, useTableVoiceRates } from "@/composables/table/useTableVoice";
 import { voiceCostLine } from "@/lib/table/voiceCost";
 import type { VoicePart } from "@/lib/table/voiceLines";
@@ -46,6 +57,7 @@ import type { VoicePart } from "@/lib/table/voiceLines";
 const voices = useTableVoicePrefs();
 const rates = useTableVoiceRates();
 const { quiet: helpersQuiet } = useTableHelpers();
+const { watches } = useTableWatching();
 
 const VOICES: { part: VoicePart; label: string; hint: string }[] = [
   { part: "narrator", label: "The Dungeon Master", hint: "The narration, and what characters do." },

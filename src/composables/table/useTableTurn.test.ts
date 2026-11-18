@@ -357,3 +357,39 @@ describe("a helper's turn in a fight", () => {
     expect(t.live.value.filter((item) => item.kind === "player")).toHaveLength(1);
   });
 });
+
+describe("the characters going on while the player listens", () => {
+  const done = (floor?: "characters") => sse({ type: "session", sessionId: "s1" }, { type: "text", delta: "They talk on." }, { type: "done", end: "done", credits: 0, tokens: 1, ...(floor ? { floor } : {}) });
+
+  // Bug caught: the page told the floor is the player's when the server said the characters still had it (or the
+  // other way round), so a conversation either stops dead or runs on over the player.
+  it("passes on whose floor it is when a turn is kept", async () => {
+    const floors: string[] = [];
+    let n = 0;
+    const t = sitting(async () => streamOf(++n === 1 ? done("characters") : done()), { onDone: (floor) => floors.push(floor) });
+    await t.send("do", "I sit by the fire.");
+    await t.send("do", "I keep listening.");
+    expect(floors).toEqual(["characters", "player"]);
+  });
+
+  // Bug caught: the listening turn sent as an ordinary message with invented words of the player's, or drawn on
+  // the page as something the player said.
+  it("sends a listening turn with no words, and draws no line of the player's for it", async () => {
+    const requests: TurnRequest[] = [];
+    const t = sitting(async (request) => {
+      requests.push(request);
+      return streamOf(done());
+    });
+    await t.send("do", "I sit by the fire.");
+    const before = t.live.value.filter((i) => i.kind === "player").length;
+    expect(await t.listen()).toBe(true);
+    expect(requests[1]).toMatchObject({ message: "", listening: true });
+    expect(t.live.value.filter((i) => i.kind === "player").length).toBe(before);
+  });
+
+  // Bug caught: a listening turn sent before any conversation exists.
+  it("cannot listen in a sitting that has not begun", async () => {
+    const t = sitting(async () => streamOf(done()));
+    expect(await t.listen()).toBe(false);
+  });
+});

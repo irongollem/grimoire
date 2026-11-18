@@ -3401,3 +3401,25 @@ describe("putting something in front of the player", () => {
     expect(stored).toMatchObject({ shown: { kind: "picture", of: "person", url: "https://assets.example/p.webp" } });
   });
 });
+
+describe("whose floor it is when a turn ends", () => {
+  const BODY_SAY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I sit by the fire and listen.", mode: "do" };
+
+  // Bug caught: the listening turn sent to the narrator as an empty message, or with the player's line invented.
+  it("asks the characters to go on when the player only listens", async () => {
+    const h = harness([step(10)]);
+    existingSession(h);
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "", mode: "do", listening: true } });
+    const sent = JSON.stringify(h.requests[0].messages[h.requests[0].messages.length - 1]);
+    expect(sent).toContain("goes on listening");
+    expect(last(h).type).toBe("done");
+  });
+
+  // Bug caught: every turn claiming the characters still have the floor, so the page keeps asking for turns.
+  it("hands the floor to the player after a turn in which nobody was cut short", async () => {
+    const h = harness([step(10)]);
+    existingSession(h);
+    await play(h, { body: BODY_SAY });
+    expect(last(h)).not.toHaveProperty("floor");
+  });
+});

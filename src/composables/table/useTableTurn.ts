@@ -22,13 +22,15 @@ export interface TurnRequest {
   aftermath?: true;
   /** In a fight: the turn of someone with the party whom the rules cannot play. */
   helperTurn?: { name: string };
+  /** The player says nothing and the characters go on with what they were saying. No words. */
+  listening?: true;
   /** In a fight on the board: what the player's turn still holds. */
   fightTurn?: FightTurn;
 }
 
 /** Sends one turn and hands back the raw response. The seam a test replaces; the default talks to `agent-turn`. */
-/** A turn that carries no words of the player's: the scene's opening, a fight's aftermath, or a helper's turn in a fight. */
-type Wordless = "opening" | "aftermath" | { helper: string };
+/** A turn that carries no words of the player's: the scene's opening, a fight's aftermath, the characters going on while the player listens, or a helper's turn in a fight. */
+type Wordless = "opening" | "aftermath" | "listening" | { helper: string };
 
 export type TurnTransport = (request: TurnRequest, signal: AbortSignal) => Promise<Response>;
 
@@ -69,8 +71,8 @@ export interface TableTurnOptions {
   fightTurn?: () => FightTurn | null;
   /** The Dungeon Master's ruling changes the fight on the board: the page carries it out. */
   onFightChange?: (change: FightChange) => void;
-  /** A turn was kept. */
-  onDone?: () => void;
+  /** A turn was kept. `floor` is "characters" when they were still talking among themselves and nothing waits on the player. */
+  onDone?: (floor: "characters" | "player") => void;
 }
 
 async function refusalOf(response: Response): Promise<TurnFailure> {
@@ -135,6 +137,7 @@ export function useTableTurn(options: TableTurnOptions) {
     if (roll !== null) request.roll = roll;
     if (wordless === "opening") request.opening = true;
     if (wordless === "aftermath") request.aftermath = true;
+    if (wordless === "listening") request.listening = true;
     if (wordless !== null && typeof wordless === "object") request.helperTurn = { name: wordless.helper };
     const fightTurn = options.fightTurn?.() ?? null;
     if (fightTurn !== null && wordless === null) request.fightTurn = fightTurn;
@@ -154,6 +157,7 @@ export function useTableTurn(options: TableTurnOptions) {
     running.value = true;
     failure.value = null;
     let kept = false;
+    let floor: "characters" | "player" = "player";
     try {
       const response = await transport(request, signal);
       if (!response.ok || !(response.headers.get("content-type") ?? "").includes("text/event-stream")) {
@@ -172,6 +176,7 @@ export function useTableTurn(options: TableTurnOptions) {
           return;
         } else if (event.type === "done") {
           kept = true;
+          floor = event.floor === "characters" ? "characters" : "player";
           turnsKept.value += 1;
           credits.value += event.credits;
         } else {
@@ -189,7 +194,7 @@ export function useTableTurn(options: TableTurnOptions) {
         discardTurn(start, playerId, before);
         return;
       }
-      options.onDone?.();
+      options.onDone?.(floor);
     } catch {
       if (mine !== generation) return;
       if (signal.aborted) {
@@ -267,6 +272,18 @@ export function useTableTurn(options: TableTurnOptions) {
     return true;
   }
 
+  /**
+   * The characters still had the floor and the player says nothing: they go on. No words of the player's. Returns
+   * false when it cannot be asked now (a turn is running, or there is no conversation).
+   */
+  async function listen(): Promise<boolean> {
+    if (running.value || sessionId.value === null) return false;
+    const start = live.value.length;
+    pending = { id: null, start, mode: "do", text: "", roll: null, wordless: "listening" };
+    await play(start, null, "do", "", null, "listening");
+    return true;
+  }
+
   /** What happened on the board of a fight, written into the story as it happens. Never sent anywhere. */
   function note(lines: readonly BoardLine[], byServer: boolean): void {
     live.value = [...live.value, ...lines.map((line) => boardItem(line, byServer))];
@@ -291,5 +308,5 @@ export function useTableTurn(options: TableTurnOptions) {
     setAsked(null);
   }
 
-  return { sessionId, live, running, failure, credits, turnsKept, turnsPlayed, send, resend, open, aftermath, helper, note, stop, reset, setAsked };
+  return { sessionId, live, running, failure, credits, turnsKept, turnsPlayed, send, resend, open, aftermath, helper, listen, note, stop, reset, setAsked };
 }

@@ -76,7 +76,8 @@ export type TableEvent =
   /** Your character's hit points changed outside a fight: what did it, by how much, and where they stand now. */
   | { type: "hit_points"; change: { heals: boolean; why: string; by: number; hp: number; maxHp: number } }
   | { type: "fight"; fight: TableFight | null; /** With null: the fight was let go of without being fought. */ calledOff?: true }
-  | { type: "done"; end: string; credits: number; tokens: number }
+  /** `floor` is "characters" when they were still talking among themselves and nothing waits on the player. */
+  | { type: "done"; end: string; credits: number; tokens: number; floor?: "characters" }
   /** `withheld`: the Dungeon Master's answer was dropped by the check on what the table may tell. */
   | { type: "error"; message: string; withheld?: true };
 

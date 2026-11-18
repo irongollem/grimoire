@@ -39,3 +39,22 @@ describe("someone else's turn in a fight", () => {
     expect(parseBody(body).ok).toBe(false);
   });
 });
+
+describe("listening while the characters go on", () => {
+  const base = { campaignId: "00000000-0000-4000-8000-0000000000c1", sessionId: "00000000-0000-4000-8000-0000000000a1", message: "", mode: "do" };
+
+  // Bug caught: the page's request to let the characters go on refused as an empty message.
+  it("is a turn without words, in a conversation that exists", () => {
+    expect(parseBody({ ...base, listening: true })).toMatchObject({ ok: true, body: { listening: true } });
+  });
+
+  // Bug caught: words, a roll or another kind of wordless turn riding along with it, so one request means two things.
+  it.each([
+    ["no conversation", { ...base, sessionId: undefined, listening: true }],
+    ["words of the player's", { ...base, message: "I cut in", listening: true }],
+    ["an opening as well", { campaignId: base.campaignId, message: "", mode: "do", opening: true, listening: true }],
+    ["anything but a literal true", { ...base, listening: "yes" }],
+  ])("is refused with %s", (_what, body) => {
+    expect(parseBody(body)).toEqual({ ok: false });
+  });
+});

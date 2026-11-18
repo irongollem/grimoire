@@ -49,7 +49,7 @@ const sentLines = sharedRef<string[]>([]);
 </script>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import KeyCap from "@/components/common/controls/KeyCap.vue";
 import { IconStop } from "@/lib/icons";
@@ -64,12 +64,14 @@ const { character, running, fight = null } = defineProps<{
   /** In a fight on the board: whether it is your turn, whether your one short line aloud is still unsaid, and whether the turn can still pay for a deed. Null outside a fight. */
   fight?: { yours: boolean; words: boolean; canAct: boolean } | null;
 }>();
-const emit = defineEmits<{ submit: [mode: PlayMode, text: string]; pass: []; stop: [] }>();
+const emit = defineEmits<{ submit: [mode: PlayMode, text: string]; pass: []; stop: []; /** Whether the player has something written. */ writing: [has: boolean] }>();
 
 const draft = ref("");
 const sent = sentLines;
 const field = ref<HTMLTextAreaElement | null>(null);
 const canSend = computed(() => draft.value.trim() !== "");
+// The page lets the characters talk on only while the player has nothing begun.
+watch(canSend, (has) => emit("writing", has));
 
 // One turn pays for the board and the story alike. Asking the Dungeon Master is the player's own question and is
 // always open; saying and doing are the character's, and only on their turn.

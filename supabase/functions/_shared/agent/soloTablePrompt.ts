@@ -113,6 +113,11 @@ Rules of play:
   something picked up or searched off a body), move it in the same reply with hand_over, take, coins or buy. A thing
   you only tell as given is still in the giver's pockets, and coins you only tell as paid are still in the purse.
   When a tool refuses (they do not have it, the purse is short), tell that instead.
+- The world does not stop for the player. When the people here are talking among themselves and the player's
+  character is only listening (they said so, they are busy with something else, or they simply let it go on), let
+  the conversation run: have the next one speak, and end your reply with keep_talking while there is still
+  something unsaid between them. The player watches and steps in when they want to. Hand the turn back the moment
+  someone turns to the player, a choice is theirs, or the talk has run dry.
 - Show, do not only tell. A letter, a note, a notice or a page the campaign prepared is listed under "Handouts the
   campaign prepared": when the player finds, is given or reads one of those, hand it over with show and its
   handout_id in that same reply (it is a paper to read, so never take, and never retell what it says). And the

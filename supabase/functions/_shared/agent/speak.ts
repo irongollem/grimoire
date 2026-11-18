@@ -68,6 +68,11 @@ export interface SpeechToolsDeps {
   /** A recorded character spoke or acted, so they are where the party is. */
   onSpoke?(characterId: string): void;
   /**
+   * How an exchange left the floor: `cutShort` is true when the characters were still answering each other and
+   * only the limits of one call stopped them, so the conversation has more in it (`floor.ts`).
+   */
+  onExchange?(ended: "to_player" | "open", cutShort: boolean): void;
+  /**
    * Called with what a recorded character chose to remember (maintainer, 16 Nov 2026: a character writes its own
    * memories, so they grow in its own voice). The caller stores it once the turn itself is kept.
    */
@@ -363,9 +368,18 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
 
       // Said to someone who heard it: they answer now, by code, with no round trip to the narrator. The chain ends
       // when a line is said to anyone else, at the limits, or when the one addressed would rather say nothing.
-      while (cursor.said.target.kind === "character" && chained < (deps.maxChainedAnswers ?? MAX_CHAINED_ANSWERS)) {
+      // Whether the chain stopped only because of its limits, with someone still addressed and unanswered.
+      let cutShort = false;
+      while (cursor.said.target.kind === "character") {
+        if (chained >= (deps.maxChainedAnswers ?? MAX_CHAINED_ANSWERS)) {
+          cutShort = true;
+          break;
+        }
         const addressee = cursor.said.target;
-        if ((counts.get(addressee.id) ?? 0) >= MAX_ANSWERS_PER_CHARACTER) break;
+        if ((counts.get(addressee.id) ?? 0) >= MAX_ANSWERS_PER_CHARACTER) {
+          cutShort = true;
+          break;
+        }
         if ((inFlight.get(addressee.id) ?? 0) > (addressee.id === who.id ? 1 : 0)) break;
         const record = await recordOf(addressee.id);
         if (!record) break;
@@ -393,8 +407,10 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
       // The narrator reads both parts to judge what comes of the deed. The note sits where the narrator is about to
       // write: told only in its standing rules, it twice repeated a character's line in its own words (live, 16 Nov 2026).
       const shown = "The player has already been shown all of this, word for word. Do not repeat, quote or paraphrase it.";
+      const ended = cursor.said.target.kind === "player" ? "to_player" : "open";
+      deps.onExchange?.(ended, cutShort);
       const content = JSON.stringify({
-        ended: cursor.said.target.kind === "player" ? "to_player" : "open",
+        ended,
         exchange: exchange.map((s) => ({ who: s.speaker.name, to: s.target.kind === "player" ? "player" : targetName(s.target), did: s.did, said: s.said })),
         shown,
       });

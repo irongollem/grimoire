@@ -157,6 +157,35 @@ describe("who a line is said to answers it, without the narrator", () => {
   });
 });
 
+describe("how an exchange leaves the floor", () => {
+  const floor = async (script: Record<string, string[]>, input: Record<string, unknown> = { speaker_id: A, happening: "h", present: [B] }) => {
+    const seen: Array<[string, boolean]> = [];
+    await tools(byCharacter(script), { onExchange: (ended, cutShort) => seen.push([ended, cutShort]) }).call("speak", input);
+    return seen;
+  };
+
+  // Bug caught: an argument stopped by the four-line limit reported like one that came to rest, so the page hands
+  // the turn back to a player who only wanted to watch it.
+  it("says the characters were cut short when only the limit stopped them", async () => {
+    expect(
+      await floor({
+        Alda: ["SAYS: One.\nTO: Bren", "SAYS: Three.\nTO: Bren", "SAYS: Five.\nTO: Bren"],
+        Bren: ["SAYS: Two.\nTO: Alda", "SAYS: Four.\nTO: Alda", "SAYS: Six.\nTO: Alda"],
+      }),
+    ).toEqual([["open", true]]);
+  });
+
+  // Bug caught: a conversation that ran out (the one addressed had nothing to add), ended on the whole room, or
+  // turned to the player, reported as still going, so the page asks for a turn nobody has anything to say in.
+  it.each([
+    ["the one addressed had nothing to add", { Alda: ["SAYS: Well?\nTO: Bren"], Bren: [silent] }, "open"],
+    ["it was said to the whole room", { Alda: ["SAYS: Listen, all of you.\nTO: everyone"] }, "open"],
+    ["someone turned to the player", { Alda: ["SAYS: Bren, tell them.\nTO: Bren"], Bren: ["SAYS: It was the cook, friend.\nTO: player"] }, "to_player"],
+  ])("says it came to rest when %s", async (_why, script, ended) => {
+    expect(await floor(script)).toEqual([[ended, false]]);
+  });
+});
+
 describe("who among the listeners speaks", () => {
   const room = { speaker_id: A, happening: "h", present: [B, C] };
 

@@ -186,6 +186,18 @@ describe("makeTurnTools", () => {
     expect(fights).toEqual([{ kind: "prepared", encounterId: ATTIC_FIGHT, name: "The attic bats" }]);
   });
 
+  describe("the characters keeping the floor", () => {
+    // Bug caught (seen live): after saying "they go on", the narrator kept asking characters to speak in the same
+    // reply until the turn's token budget ran out, so one beat cost what many turns cost.
+    it("lets nobody speak again in a reply once the narrator said they go on", async () => {
+      const { turn } = build(null, true);
+      expect((await turn.callTool("keep_talking", { why: "who lost the key" })).isError).toBe(false);
+      const again = await turn.callTool("speak", { speaker_id: HONEYCOMB_ID, happening: "h" });
+      expect(again.isError).toBe(true);
+      expect(again.content).toContain("next reply");
+    });
+  });
+
   describe("putting something in front of the player", () => {
     // Bug caught: the same letter handed over twice in one reply; or a handout the narrator was never shown (a
     // guessed id) handed over.
