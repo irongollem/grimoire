@@ -1,7 +1,7 @@
 import type { RouteSummary } from "@/lib/locations/mapRoute";
-import { fromMiles, travelTime, type TravelPaceId } from "@/rules/travelPace";
+import { fromMiles, getTravelPace, travelTime, type TravelPaceId } from "@/rules/travelPace";
 import type { Road } from "./roads";
-import { placesPassed, shortestWay } from "./way";
+import { placesPassed, shortestWay, stopsOf } from "./way";
 
 /**
  * A journey along the roads from where the party is to a place (#1222).
@@ -33,6 +33,18 @@ export interface Journey {
   passing: string[];
   /** The roads the journey takes, in order; none for a journey measured across a map. */
   roadIds: string[];
+  /** Where the journey can pause, in order: each night's camp and each place passed. None across a map. */
+  stops: JourneyStop[];
+}
+
+export type JourneyStop = { kind: "night"; night: number } | { kind: "place"; name: string };
+
+/** "Night 1, then Leilon, then night 2", or nothing for a journey with no stop on it. */
+export function stopsText(stops: readonly JourneyStop[]): string {
+  const words = stops.map((stop) => (stop.kind === "night" ? `night ${stop.night}` : stop.name));
+  if (words.length === 0) return "";
+  const text = words.join(", then ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /**
@@ -80,6 +92,7 @@ export function journeyByRoad(input: {
     },
     passing: placesPassed(way).map(input.nameOf),
     roadIds: way.legs.map((leg) => leg.roadId),
+    stops: stopsOf(way, getTravelPace(input.paceId).milesPerDay).map((stop): JourneyStop => (stop.kind === "night" ? stop : { kind: "place", name: input.nameOf(stop.placeId) })),
   };
 }
 

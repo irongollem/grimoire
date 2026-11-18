@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { placesPassed, shortestWay } from "./way";
+import { placesPassed, shortestWay, stopsOf } from "./way";
 import type { Road } from "./roads";
 
 const road = (id: string, a: string, b: string, distance: number, over: Partial<Road> = {}): Road => ({ id, from_location_id: a, to_location_id: b, distance, unit: "mi", name: "", going: "road", roll_table_id: null, ...over });
@@ -46,5 +46,24 @@ describe("shortestWay", () => {
     const tie = [road("a-m", "a", "m", 10), road("m-b", "m", "b", 10), road("direct", "a", "b", 20)];
     expect(shortestWay("a", "b", tie)?.legs.map((leg) => leg.roadId)).toEqual(["direct"]);
     expect(shortestWay("a", "b", [...tie].reverse())?.legs.map((leg) => leg.roadId)).toEqual(["direct"]);
+  });
+});
+
+describe("stopsOf", () => {
+  const way = { miles: 60, legs: [
+    { roadId: "r1", from: "a", to: "b", miles: 24, name: "", going: "road" as const },
+    { roadId: "r2", from: "b", to: "c", miles: 36, name: "", going: "road" as const },
+  ] };
+
+  // PHB 2014 "Travel Pace": 24 miles a day at a normal pace. 60 miles: nights after 24 and 48; the town at 24.
+  // Bug caught: the party camping a stone's throw short of the town it reached that evening.
+  it("orders the places passed and the nights, a place reached at day's end before that night", () => {
+    expect(stopsOf(way, 24)).toEqual([{ kind: "place", placeId: "b" }, { kind: "night", night: 1 }, { kind: "night", night: 2 }]);
+  });
+
+  // Bug caught: a night counted after the last day's march, on arrival.
+  it("has no night for the day the journey ends on", () => {
+    expect(stopsOf({ miles: 48, legs: [{ roadId: "r", from: "a", to: "b", miles: 48, name: "", going: "road" as const }] }, 24)).toEqual([{ kind: "night", night: 1 }]);
+    expect(stopsOf({ miles: 20, legs: [{ roadId: "r", from: "a", to: "b", miles: 20, name: "", going: "road" as const }] }, 24)).toEqual([]);
   });
 });
