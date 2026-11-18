@@ -51,6 +51,12 @@
         hint="Someone with you who is no fighter takes a turn of the story every round, which costs about what a turn costs. Tick this and they act only when they are hurt, you go down or get up, or you speak."
         data-testid="table-helpers-quiet"
       />
+      <AppCheckbox
+        v-model="foesTalk"
+        label="Foes speak in a fight"
+        hint="An enemy with a mind and a tongue says a line when the moment earns one: it lands a hard blow, loses one of its own, is badly hurt. At most one line a round; each costs about what a turn costs."
+        data-testid="table-foes-talk"
+      />
     </div>
     <p class="text-caption text-muted-foreground">You can change all of this at the table: the voices in the bar, the rest under the credits.</p>
   </section>
@@ -62,6 +68,7 @@ import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import { NARRATOR_VOICE_OPTIONS, useTableNarratorVoice } from "@/composables/table/useTableNarratorVoice";
 import { useTableHelpers } from "@/composables/table/useTableHelpers";
+import { useTableFoes } from "@/composables/table/useTableFoes";
 import { useTableWatching } from "@/composables/table/useTableWatching";
 import { useTableVoicePrefs, useTableVoiceRates } from "@/composables/table/useTableVoice";
 import { voiceCostLine } from "@/lib/table/voiceCost";
@@ -72,6 +79,7 @@ const voices = useTableVoicePrefs();
 const narrator = useTableNarratorVoice(null);
 const rates = useTableVoiceRates();
 const { quiet: helpersQuiet } = useTableHelpers();
+const { talk: foesTalk } = useTableFoes();
 const { watches } = useTableWatching();
 
 const VOICES: { part: VoicePart; label: string; hint: string }[] = [

@@ -48,6 +48,12 @@ export interface AgentTurnBody {
    */
   helperTurn?: { name: string };
   /**
+   * In a fight on the board a foe with a mind and a tongue has just had a turn that earns a line (`foeLine.ts` on
+   * the page decides when): the page asks what it says. The name is the foe's as the fight lists it, and the moment
+   * is one of a fixed few; the words of the instruction are this function's, never the page's.
+   */
+  foeLine?: { name: string; moment: FoeMoment };
+  /**
    * The characters still had the floor when the last turn ended, and the player says nothing: they go on
    * (`floor.ts`). No words of the player's, in a conversation that exists.
    */
@@ -88,11 +94,22 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
     if (opening || aftermath || r.sessionId === undefined || message.length > 0 || roll !== undefined) return { ok: false };
     helperTurn = { name: name.trim() };
   }
+  // A foe's line in the fight: no words of the player's, in a conversation that exists, and nothing else at once.
+  let foeLine: { name: string; moment: FoeMoment } | undefined;
+  if (r.foeLine !== undefined) {
+    const f = r.foeLine;
+    if (typeof f !== "object" || f === null || Array.isArray(f)) return { ok: false };
+    const { name, moment } = f as Record<string, unknown>;
+    if (typeof name !== "string" || name.trim() === "" || name.length > HELPER_NAME_MAX) return { ok: false };
+    if (typeof moment !== "string" || !(FOE_MOMENTS as readonly string[]).includes(moment)) return { ok: false };
+    if (opening || aftermath || helperTurn !== undefined || r.sessionId === undefined || message.length > 0 || roll !== undefined) return { ok: false };
+    foeLine = { name: name.trim(), moment: moment as FoeMoment };
+  }
   // The player listens while the characters go on: no words of the player's, in a conversation that exists.
   const listening = r.listening === true;
-  if (listening && (opening || aftermath || helperTurn !== undefined || r.sessionId === undefined || message.length > 0 || roll !== undefined)) return { ok: false };
+  if (listening && (opening || aftermath || helperTurn !== undefined || foeLine !== undefined || r.sessionId === undefined || message.length > 0 || roll !== undefined)) return { ok: false };
   // Only a roll, an opening, a fight's aftermath, someone else's turn or listening makes a turn without words.
-  if ((message.length < 1 && roll === undefined && !opening && !aftermath && helperTurn === undefined && !listening) || message.length > MAX_MESSAGE_CHARS) return { ok: false };
+  if ((message.length < 1 && roll === undefined && !opening && !aftermath && helperTurn === undefined && foeLine === undefined && !listening) || message.length > MAX_MESSAGE_CHARS) return { ok: false };
   if (r.mode !== "say" && r.mode !== "do" && r.mode !== "ask") return { ok: false };
   let fightTurn: TurnBudget | undefined;
   if (r.fightTurn !== undefined) {
@@ -118,6 +135,7 @@ export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { o
       message, mode: r.mode, ...(roll === undefined ? {} : { roll }), ...(opening ? { opening: true as const } : {}),
       ...(aftermath ? { aftermath: true as const } : {}),
       ...(helperTurn === undefined ? {} : { helperTurn }),
+      ...(foeLine === undefined ? {} : { foeLine }),
       ...(listening ? { listening: true as const } : {}),
       ...(fightTurn === undefined ? {} : { fightTurn }),
     },
@@ -175,6 +193,35 @@ export function helperTurnText(name: string): string {
     "tool and rule it with fight_change, costing nothing: it is their turn, not the player's. They do not attack as " +
     "a trained fighter would and deal no damage worth a roll unless what they use would. Keep it short: the fight " +
     "is waiting. Decide nothing for the player's character."
+  );
+}
+
+/** The moments a foe speaks at, as the page names them (`src/lib/table/fight/foeLine.ts`, held equal by a test). */
+export const FOE_MOMENTS = ["dropped_you", "hit_hard", "ally_fell", "badly_hurt", "learned"] as const;
+export type FoeMoment = (typeof FOE_MOMENTS)[number];
+
+const FOE_MOMENT_TEXT: Record<FoeMoment, string> = {
+  dropped_you: "has just put the player's character down",
+  hit_hard: "has just hit the player's character hard",
+  ally_fell: "has just seen one of its own side fall",
+  badly_hurt: "is badly hurt now, more than half its strength gone",
+  learned: "has just found out that what it did barely hurts its target; it may call that out to its own side, in its own words, without naming a game term",
+};
+
+/**
+ * What the narrator is asked when a foe's turn has earned a line (the maintainer, 18 Nov 2026: "smart enemies may
+ * speak and or mock players during a fight"). One line, in character, and nothing on the board changes: the rules
+ * have already played the turn.
+ */
+export function foeLineText(name: string, moment: FoeMoment): string {
+  return (
+    `In the fight on the board, ${name} ${FOE_MOMENT_TEXT[moment]}. ${name} has a mind and a tongue and says one ` +
+    "short line now, as that creature would: a taunt, a threat, a curse, a shout to its own side. If it has a record " +
+    "in the campaign, call speak for it once, telling it only what it can see of the fight; if it has none, write " +
+    "its line yourself, with a few words of how it says it. One line, at most two sentences, and nothing else: its " +
+    "turn is already played, so it does nothing more, nothing on the board changes, no roll and no fight_change. " +
+    "Cruel is fine where the creature is cruel; it stays a villain of a story told at a table. Decide nothing for " +
+    "the player's character."
   );
 }
 

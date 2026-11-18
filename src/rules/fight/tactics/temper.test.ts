@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MonsterStatBlock } from "@/types/monster.types";
-import { temperLine, temperOf } from "./temper";
+import { speaksInAFight, temperLine, temperOf } from "./temper";
 
 const block = (over: Partial<MonsterStatBlock> = {}): MonsterStatBlock =>
   ({ int: 10, languages: "Common", defenses: { resistances: [], immunities: [], vulnerabilities: [], condition_immunities: [] }, actions: [], ...over }) as unknown as MonsterStatBlock;
@@ -61,5 +61,18 @@ describe("temperLine", () => {
     expect(temperLine({ kind: "construct", reached: "none", frightened: false, charmed: false, yields: false, pursuit: "stays" })).toBe(
       "construct; words do not move it: it does what it was made to do; cannot be frightened; cannot be charmed; never gives in or flees; does not leave its place to give chase",
     );
+  });
+});
+
+describe("speaksInAFight", () => {
+  // SRD 5.1: a wolf has Intelligence 3 and no languages; a zombie Intelligence 3 and "understands the languages it
+  // knew in life but can't speak"; a goblin speaks Common and Goblin.
+  // Bug caught: a wolf taunting the party, or a creature that understands Common but has no tongue given a line.
+  it("gives a line only to a creature with a mind and a tongue", () => {
+    expect(speaksInAFight(block({ int: 10, languages: "Common, Goblin" }), "humanoid")).toBe(true);
+    expect(speaksInAFight(block({ int: 3, languages: "—" }), "beast")).toBe(false);
+    expect(speaksInAFight(block({ int: 3, languages: "understands the languages it knew in life but can't speak" }), "undead")).toBe(false);
+    expect(speaksInAFight(block({ int: 8, languages: "understands Common but can't speak" }), "monstrosity")).toBe(false);
+    expect(speaksInAFight(block({ int: 10, languages: "Common" }), "ooze")).toBe(false);
   });
 });

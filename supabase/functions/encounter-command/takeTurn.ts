@@ -25,6 +25,7 @@ import { DODGING, disengagedCondition, dodgingCondition } from "../../../src/rul
 import { gateOptions, pickTurn } from "../../../src/rules/fight/tactics/pick.ts";
 import { withNumbers } from "../../../src/rules/fight/tactics/numbers.ts";
 import { tacticalProfile } from "../../../src/rules/fight/tactics/profile.ts";
+import { speaksInAFight } from "../../../src/rules/fight/tactics/temper.ts";
 import type { TurnOption } from "../../../src/rules/fight/terrain/turnOptions.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { SaveAbility } from "../../../src/types/statBlock.types.ts";
@@ -138,7 +139,7 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
   // A move over a map the rules can read nothing on (a picture with no walls, rock or difficult ground drawn): say so.
   const bare = env.map !== null && option.feet !== null && option.feet > 0 && env.map.occluders.segments.length === 0 && env.map.solid.size === 0 && env.map.difficult.size === 0;
   const effects: FightEffect[] = [
-    { type: "turn_taken", turn: { instanceId: mover.instance_id, optionId: option.id, kind: option.kind, summary: option.summary, reason: chosen.reason, picked, ...(ruledOutByNote === undefined ? {} : { ruledOutByNote }), ...(leaves && escape === undefined ? { leftTheMap: true as const } : {}), ...(escape === undefined ? {} : { escapedWith: escape.name, escapeEffect: escape.effect }), ...(bare ? { bareMap: true as const } : {}) } },
+    { type: "turn_taken", turn: { instanceId: mover.instance_id, optionId: option.id, kind: option.kind, summary: option.summary, reason: chosen.reason, picked, ...(speaksInAFight(block, creatureTypeOf(mover, env)) ? { speaks: true as const } : {}), ...(ruledOutByNote === undefined ? {} : { ruledOutByNote }), ...(leaves && escape === undefined ? { leftTheMap: true as const } : {}), ...(escape === undefined ? {} : { escapedWith: escape.name, escapeEffect: escape.effect }), ...(bare ? { bareMap: true as const } : {}) } },
   ];
   let next = state;
   const apply = (cmd: FightCommand) => {

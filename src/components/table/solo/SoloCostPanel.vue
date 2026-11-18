@@ -28,6 +28,12 @@
       hint="In a fight, someone with you who is no fighter takes a turn of the story every round. Tick this and they act only when they are hurt, you go down or get up, or you speak; it saves about a turn's cost each round."
       data-testid="solo-helpers-quiet"
     />
+    <AppCheckbox
+      v-model="foesTalk"
+      label="Foes speak in a fight"
+      hint="An enemy with a mind and a tongue says a line when the moment earns one: it lands a hard blow, loses one of its own, is badly hurt. At most one line a round; each costs about what a turn costs."
+      data-testid="solo-foes-talk"
+    />
     <div class="flex flex-col items-start gap-1" data-testid="solo-narrator-voice">
       <span id="solo-narrator-voice-label" class="text-label text-foreground">The Narrator speaks in</span>
       <SegmentedControl
@@ -50,6 +56,7 @@ import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import { NARRATOR_VOICE_OPTIONS, type NarratorVoice } from "@/composables/table/useTableNarratorVoice";
 import { useTableHelpers } from "@/composables/table/useTableHelpers";
+import { useTableFoes } from "@/composables/table/useTableFoes";
 import { useTableWatching } from "@/composables/table/useTableWatching";
 
 const { turns, credits, balance, side = "right" } = defineProps<{
@@ -63,6 +70,7 @@ const { turns, credits, balance, side = "right" } = defineProps<{
 }>();
 const emit = defineEmits<{ credits: []; narratorVoice: [voice: NarratorVoice] }>();
 const { quiet: helpersQuiet } = useTableHelpers();
+const { talk: foesTalk } = useTableFoes();
 const { watches } = useTableWatching();
 
 const rows = computed(() => [

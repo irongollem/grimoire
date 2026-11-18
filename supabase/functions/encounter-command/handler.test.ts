@@ -1287,6 +1287,18 @@ describe("take_turn", () => {
     expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { optionId: "dodge", kind: "dodge", picked: "caller" } });
   });
 
+  // #1021 row 24. Bug caught: the reply never saying a creature can speak (so no foe at the AI table ever says a
+  // line), or saying it of a beast (so the table pays for a wolf's taunt).
+  it("fails if the reply does not say a creature with a mind and a tongue can speak, or says it of a beast", async () => {
+    const talker: StatBlockSources = { monsters: [monster("m-wolf", { int: 10, languages: "Common, Goblin" }), monster("m-ox")], npcs: [], companions: [] };
+    const spoken = await runBatch(batch("b", takeTurn()), harness(duel(), { sources: talker, map: mapOf(), dieFaces: [9, 5] }).deps);
+    expect(spoken.effects[0]).toMatchObject({ type: "turn_taken", turn: { speaks: true } });
+    const beast: StatBlockSources = { monsters: [monster("m-wolf", { int: 3, languages: "—" }), monster("m-ox")], npcs: [], companions: [] };
+    const silent = await runBatch(batch("b", takeTurn()), harness(duel(), { sources: beast, map: mapOf(), dieFaces: [9, 5] }).deps);
+    expect(silent.effects[0]).toMatchObject({ type: "turn_taken" });
+    expect((silent.effects[0] as { turn: { speaks?: true } }).turn.speaks).toBeUndefined();
+  });
+
   // An Int 3 wolf is "instinct" (APP CONVENTION): it is offered attack, dash, move and flee, and Dodge is not on its menu.
   it("fails if an option the profile's gate dropped is accepted from the caller", async () => {
     const dim: StatBlockSources = { monsters: [monster("m-wolf", { int: 3 }), monster("m-ox")], npcs: [], companions: [] };

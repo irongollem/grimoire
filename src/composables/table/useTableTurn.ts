@@ -2,6 +2,7 @@ import { computed, ref, shallowRef, type Ref } from "vue";
 import { supabase } from "@/lib/supabase";
 import { readTableStream } from "@/lib/table/readTableStream";
 import { applyTableEvent, boardItem, nextItemId, playerItem } from "@/lib/table/storyReducer";
+import type { FoeMoment } from "@/lib/table/fight/foeLine";
 import type { BoardLine } from "@/lib/table/fight/boardLines";
 import type { FightChange, FightTurn } from "@/lib/table/fight/fightChange";
 import type { PlayMode, RollAnswer, RollAsk, StoryItem, TableFight, TablePressure } from "@/lib/table/soloTypes";
@@ -23,6 +24,8 @@ export interface TurnRequest {
   aftermath?: true;
   /** In a fight: the turn of someone with the party whom the rules cannot play. */
   helperTurn?: { name: string };
+  /** A foe in the fight says a line: its turn earned one (`foeLine.ts`). */
+  foeLine?: { name: string; moment: FoeMoment };
   /** The player says nothing and the characters go on with what they were saying. No words. */
   listening?: true;
   /** In a fight on the board: what the player's turn still holds. */
@@ -31,7 +34,7 @@ export interface TurnRequest {
 
 /** Sends one turn and hands back the raw response. The seam a test replaces; the default talks to `agent-turn`. */
 /** A turn that carries no words of the player's: the scene's opening, a fight's aftermath, the characters going on while the player listens, or a helper's turn in a fight. */
-type Wordless = "opening" | "aftermath" | "listening" | { helper: string };
+type Wordless = "opening" | "aftermath" | "listening" | { helper: string } | { foe: string; moment: FoeMoment };
 
 export type TurnTransport = (request: TurnRequest, signal: AbortSignal) => Promise<Response>;
 
@@ -143,7 +146,10 @@ export function useTableTurn(options: TableTurnOptions) {
     if (wordless === "opening") request.opening = true;
     if (wordless === "aftermath") request.aftermath = true;
     if (wordless === "listening") request.listening = true;
-    if (wordless !== null && typeof wordless === "object") request.helperTurn = { name: wordless.helper };
+    if (wordless !== null && typeof wordless === "object") {
+      if ("helper" in wordless) request.helperTurn = { name: wordless.helper };
+      else request.foeLine = { name: wordless.foe, moment: wordless.moment };
+    }
     const fightTurn = options.fightTurn?.() ?? null;
     if (fightTurn !== null && wordless === null) request.fightTurn = fightTurn;
     const before = asked;
@@ -280,6 +286,18 @@ export function useTableTurn(options: TableTurnOptions) {
   }
 
   /**
+   * A foe with a mind and a tongue says one line in the fight, for the moment its turn earned (`foeMoment`). No
+   * words of the player's. Returns false when it cannot be asked now; the foe then says nothing.
+   */
+  async function foe(name: string, moment: FoeMoment): Promise<boolean> {
+    if (running.value || sessionId.value === null) return false;
+    const start = live.value.length;
+    pending = { id: null, start, mode: "do", text: "", roll: null, wordless: { foe: name, moment } };
+    await play(start, null, "do", "", null, { foe: name, moment });
+    return true;
+  }
+
+  /**
    * The characters still had the floor and the player says nothing: they go on. No words of the player's. Returns
    * false when it cannot be asked now (a turn is running, or there is no conversation).
    */
@@ -315,5 +333,5 @@ export function useTableTurn(options: TableTurnOptions) {
     setAsked(null);
   }
 
-  return { sessionId, live, running, failure, credits, turnsKept, turnsPlayed, send, resend, open, aftermath, helper, listen, note, stop, reset, setAsked };
+  return { sessionId, live, running, failure, credits, turnsKept, turnsPlayed, send, resend, open, aftermath, helper, foe, listen, note, stop, reset, setAsked };
 }

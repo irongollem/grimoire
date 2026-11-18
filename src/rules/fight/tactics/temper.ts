@@ -69,6 +69,17 @@ export function temperOf(statBlock: MonsterStatBlock, creatureType: MonsterType 
   };
 }
 
+/**
+ * Whether a creature can say something in a fight (#1021 row 24): it has a will and wits enough to be reached by
+ * words, and a tongue. A Languages line of "understands Common but can't speak" is a mind without a tongue. Beasts,
+ * the will-less and the mindless dead never speak.
+ */
+export function speaksInAFight(statBlock: MonsterStatBlock, creatureType: MonsterType | null): boolean {
+  if (temperOf(statBlock, creatureType).reached !== "words") return false;
+  const languages = (statBlock.languages ?? "").toLowerCase();
+  return !/can(?:'|’)?t speak|cannot speak|(?:doesn(?:'|’)?t|does not) speak/.test(languages);
+}
+
 /** The temper in a line, for whoever rules on what is tried against the creature. */
 export function temperLine(t: Temper): string {
   const reached =

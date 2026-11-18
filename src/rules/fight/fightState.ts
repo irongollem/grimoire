@@ -63,6 +63,8 @@ export interface TurnTaken {
    * the rules-only picker chose among the rest. "caller": a DM (or a model) named the option.
    */
   picked: "rules" | "rules_with_note" | "caller";
+  /** Only when true: the creature has a mind and a tongue (`speaksInAFight`), so the table may let it say a line. */
+  speaks?: true;
   /** Only with "rules_with_note": the turns the note ruled out, so a DM can see why a creature held still. */
   ruledOutByNote?: { optionId: string; summary: string }[];
   /**

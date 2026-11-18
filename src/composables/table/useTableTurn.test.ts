@@ -373,6 +373,22 @@ describe("a helper's turn in a fight", () => {
     expect(sent[1]).toMatchObject({ message: "", helperTurn: { name: "Apprentice Honeycomb" } });
     expect(t.live.value.filter((item) => item.kind === "player")).toHaveLength(1);
   });
+
+  // Bug caught: a foe's line sent as a helper's turn (the narrator then has the foe barricade a door), or as
+  // words of the player's.
+  it("asks for a foe's line by name and moment, with no words of the player's", async () => {
+    const sent: TurnRequest[] = [];
+    const t = sitting(async (request) => {
+      sent.push(request);
+      return streamOf(good());
+    });
+    expect(await t.foe("Grusk", "hit_hard")).toBe(false);
+    await t.send("say", "Hello?");
+    expect(await t.foe("Grusk", "hit_hard")).toBe(true);
+    expect(sent[1]).toMatchObject({ message: "", foeLine: { name: "Grusk", moment: "hit_hard" } });
+    expect(sent[1]).not.toHaveProperty("helperTurn");
+    expect(t.live.value.filter((item) => item.kind === "player")).toHaveLength(1);
+  });
 });
 
 describe("the characters going on while the player listens", () => {

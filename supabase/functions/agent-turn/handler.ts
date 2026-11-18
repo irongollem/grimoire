@@ -37,7 +37,7 @@ import { fightIsTold, fightRecordText, type FightPlan, type FightsInView, type F
 import { askOf, declinedText, rollText, scoreRoll, type PendingRoll, type RollAsk, type Rolled } from "../_shared/agent/playerRoll.ts";
 import { makeTurnTools, type FiledFact } from "./turnTools.ts";
 import { narrationGate, type NarrationGate, type NarrationJudge } from "./narration.ts";
-import { AFTERMATH_TEXT, helperTurnText, OPENING_TEXT, parseBody, playerText } from "./turnBody.ts";
+import { AFTERMATH_TEXT, foeLineText, helperTurnText, OPENING_TEXT, parseBody, playerText } from "./turnBody.ts";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
 import { applyKeptQuestMoves, characterOf, foldIntoSummary, questsOf, recordOf, round6, fightsOf, safely, sceneOf, stateFor, systemFor } from "./turnSupport.ts";
 import {
@@ -721,6 +721,11 @@ export async function beginTurn(input: {
         const helper = helperAsked === undefined || fights === null || fights.fight === null || fights.fight.phase !== "running"
           ? undefined
           : fights.fight.fighters.find((f) => f.side === "other" && f.hp > 0 && f.name === helperAsked.name);
+        // A foe's line: only for a living enemy the running fight really holds, named as the fight names it.
+        const foeAsked = body.foeLine;
+        const foe = foeAsked === undefined || fights === null || fights.fight === null || fights.fight.phase !== "running"
+          ? undefined
+          : fights.fight.fighters.find((f) => f.side === "enemy" && f.hp > 0 && f.name === foeAsked.name);
         result = await runTurn({
           system,
           state,
@@ -735,6 +740,7 @@ export async function beginTurn(input: {
             // The name is the page's: it is used only when the fight on the board really holds such a helper, as
             // the fight names them, so nothing but a fighter's own name reaches the narrator's instructions.
             body.helperTurn === undefined ? null : helper !== undefined ? helperTurnText(helper.name) : "A turn in the fight passes with nothing to tell. Write nothing.",
+            body.foeLine === undefined ? null : foe !== undefined ? foeLineText(foe.name, body.foeLine.moment) : "A turn in the fight passes with nothing to tell. Write nothing.",
             body.message === "" ? null : playerText(body.mode, body.message),
           ].filter((part): part is string => part !== null).join("\n\n"),
           ...(body.message === "" ? {} : { player: { kind: body.mode, text: body.message } }),

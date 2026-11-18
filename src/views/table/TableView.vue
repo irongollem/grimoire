@@ -116,6 +116,7 @@
         :member="member"
         :slots="FIGHT_SLOTS"
         :helper-turn="onHelperTurn"
+        :foe-line="onFoeLine"
         ref="stage"
         @turn="(state) => (fightTurn = state)"
         @lines="noteBoard"
@@ -154,6 +155,7 @@ import SoloFightStage from "@/components/table/solo/SoloFightStage.vue";
 import SoloPlaceMap from "@/components/table/solo/SoloPlaceMap.vue";
 import type { SoloFightEnd } from "@/composables/table/useSoloFightHost";
 import { endLine, type FightTurn } from "@/lib/table/fight/fightChange";
+import type { FoeMoment } from "@/lib/table/fight/foeLine";
 import SoloRollAsk from "@/components/table/solo/SoloRollAsk.vue";
 import SoloSheet from "@/components/table/solo/SoloSheet.vue";
 import SoloScene from "@/components/table/solo/SoloScene.vue";
@@ -457,6 +459,12 @@ onBeforeUnmount(clearGoOn);
 // While the player's own question is being answered the helper simply lets the moment pass.
 async function onHelperTurn(name: string): Promise<void> {
   await turn.helper(name);
+}
+
+// In a fight, a foe with a mind and a tongue whose turn earned a line: the story lets it say one. While the
+// player's own question is being answered it says nothing.
+async function onFoeLine(name: string, moment: FoeMoment): Promise<void> {
+  await turn.foe(name, moment);
 }
 
 // Stopping an answer is stepping in: nothing goes on by itself after it.

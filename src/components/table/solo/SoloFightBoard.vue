@@ -120,6 +120,7 @@
 </template>
 
 <script setup lang="ts">
+import type { FoeMoment } from "@/lib/table/fight/foeLine";
 import { computed, ref, watch } from "vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -138,6 +139,7 @@ import { useSoloFightHost, type SoloFightEnd } from "@/composables/table/useSolo
 import { useToast } from "@/composables/useToast";
 import type { BoardLine } from "@/lib/table/fight/boardLines";
 import { useTableHelpers } from "@/composables/table/useTableHelpers";
+import { useTableFoes } from "@/composables/table/useTableFoes";
 import type { FightChange, FightTurn } from "@/lib/table/fight/fightChange";
 import { attackEntryOf, damageDicePlan } from "@/lib/table/fight/pcAttack";
 import type { RollAnswer, RollAsk } from "@/lib/table/soloTypes";
@@ -152,10 +154,12 @@ import SoloRollAsk from "./SoloRollAsk.vue";
 import SoloTurn from "./SoloTurn.vue";
 
 // Mounted by `SoloFightStage` once the fight is open on the server: everything here may send the fight commands.
-const { encounterId, member, slots, helperTurn } = defineProps<{
+const { encounterId, member, slots, helperTurn, foeLine } = defineProps<{
   encounterId: string;
   /** Asks the story for the turn of someone with the party whom the rules cannot play; settles when it has been told. */
   helperTurn: (name: string) => Promise<void>;
+  /** A foe that can speak says a line: the story's to tell, like a helper's turn. */
+  foeLine: (name: string, moment: FoeMoment) => Promise<void>;
   /** The character the player plays. */
   member: PartyMember;
   /** The ids of the four places on the table screen the fight's parts go to. */
@@ -178,6 +182,7 @@ const { mutateAsync: updateMember } = useUpdatePartyMember();
 const { ruleset } = useTableRuleset();
 
 const { quiet: helpersQuiet } = useTableHelpers();
+const { talk: foesTalk } = useTableFoes();
 const host = useSoloFightHost({
   encounterId: computed(() => encounterId),
   memberId: () => member.id,
@@ -186,6 +191,8 @@ const host = useSoloFightHost({
   onLost: () => emit("lost"),
   onHelperTurn: (name) => helperTurn(name),
   helpersQuiet: () => helpersQuiet.value,
+  onFoeLine: (name, moment) => foeLine(name, moment),
+  foesTalk: () => foesTalk.value,
   onProvoked: (moverId) => offerReaction(moverId),
 });
 const played = host.played;

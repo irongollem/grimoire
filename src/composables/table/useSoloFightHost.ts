@@ -1,3 +1,5 @@
+import type { RunCombatant } from "@/types/encounter.types";
+import { afterFoeSpoke, foeMoment, FOE_NEVER_SEEN, NO_FOE_TALK, type FoeMoment, type FoeSeen, type FoeTalk } from "@/lib/table/fight/foeLine";
 import { computed, ref, watch, type Ref } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useFightCommands } from "@/composables/encounters/useFightCommands";
@@ -45,6 +47,13 @@ export function useSoloFightHost(options: {
   onHelperTurn: (name: string) => Promise<void>;
   /** Whether a helper acts only when something changed for them (`helperActs`); otherwise every round. */
   helpersQuiet?: () => boolean;
+  /**
+   * A foe that can speak has just had a turn that earns a line (`foeMoment`): the story lets it say one. Settles
+   * when it has been said, or at once when it cannot be asked now.
+   */
+  onFoeLine?: (name: string, moment: FoeMoment) => Promise<void>;
+  /** Whether foes speak at all (`useTableFoes`). */
+  foesTalk?: () => boolean;
   /**
    * A creature walked out of the played character's reach on its turn: they may strike it with their Reaction.
    * Settles when the player has struck or let it go.
@@ -95,6 +104,14 @@ export function useSoloFightHost(options: {
     { immediate: true },
   );
 
+  // What each foe last saw of the fight, and who has spoken when: a foe's line is a turn of the story, so it is
+  // kept to the moments that earn one (`foeLine.ts`).
+  const foesSeen = new Map<string, FoeSeen>();
+  let foeTalk: FoeTalk = NO_FOE_TALK;
+  const standingWith = (c: RunCombatant): number => store.combatants.filter((o) => o.faction_id === c.faction_id && o.instance_id !== c.instance_id && o.hp > 0).length;
+  // Every defence anyone in the fight has shown so far: one more after a foe's turn is a lesson it just learned.
+  const defencesShown = (): number => store.combatants.reduce((n, c) => n + Object.keys(c.shown_defenses ?? {}).length, 0);
+
   // What each helper last saw of the fight, and how many lines the player has said aloud in it.
   const helpersSeen = new Map<string, HelperSeen>();
   const said = ref(0);
@@ -124,6 +141,7 @@ export function useSoloFightHost(options: {
       const mover = store.combatants.find((c) => c.instance_id === instanceId);
       if (mover && !hasSomeoneToFight(mover, store.combatants)) return true;
       try {
+        const before = { playedHp: played.value === null ? null : played.value.hp, defences: defencesShown() };
         const { turn, outcomes, provokedPlayer } = await fight.takeTurn(instanceId);
         if (turn === null) return true;
         const mover = store.combatants.find((c) => c.instance_id === instanceId);
@@ -145,6 +163,37 @@ export function useSoloFightHost(options: {
         const me2 = played.value;
         if (me2 && provokedPlayer.some((p) => p.playerId === me2.instance_id && p.moverId === instanceId) && canReact(me2)) {
           await options.onProvoked(instanceId);
+        }
+        // A foe with a mind and a tongue says a line when its turn earned one. What it saw is noted every turn,
+        // spoken or not, so "since its last turn" means that.
+        const after = store.combatants.find((c) => c.instance_id === instanceId);
+        if (after !== undefined && after.hp > 0 && turn.leftTheMap !== true) {
+          const last = foesSeen.get(instanceId);
+          const allies = standingWith(after);
+          foesSeen.set(instanceId, { hp: after.hp, alliesStanding: allies });
+          const me3 = played.value;
+          const moment =
+            options.onFoeLine === undefined
+              ? null
+              : foeMoment(
+                  {
+                    instanceId,
+                    speaks: turn.speaks === true,
+                    round: store.round,
+                    hp: after.hp,
+                    maxHp: after.max_hp,
+                    alliesStanding: allies,
+                    played: me3 === null || before.playedHp === null ? null : { hpBefore: before.playedHp, hpAfter: me3.hp, maxHp: me3.max_hp },
+                    defencesShown: { before: before.defences, after: defencesShown() },
+                  },
+                  last === undefined ? FOE_NEVER_SEEN : last,
+                  foeTalk,
+                  options.foesTalk === undefined || options.foesTalk(),
+                );
+          if (moment !== null) {
+            foeTalk = afterFoeSpoke(foeTalk, instanceId, store.round);
+            await options.onFoeLine?.(after.name, moment);
+          }
         }
         return true;
       } catch (error) {

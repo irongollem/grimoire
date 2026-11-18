@@ -9,6 +9,7 @@
     :member="member"
     :slots="slots"
     :helper-turn="helperTurn"
+    :foe-line="foeLine"
     @lines="(lines, byServer) => emit('lines', lines, byServer)"
     @over="(how) => emit('over', how)"
     @lost="emit('lost')"
@@ -26,6 +27,7 @@
 </template>
 
 <script setup lang="ts">
+import type { FoeMoment } from "@/lib/table/fight/foeLine";
 import { computed, ref } from "vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -36,9 +38,11 @@ import type { FightChange, FightTurn } from "@/lib/table/fight/fightChange";
 import type { PartyMember } from "@/types/party.types";
 import SoloFightBoard from "./SoloFightBoard.vue";
 
-const { encounterId, member, slots, helperTurn } = defineProps<{
+const { encounterId, member, slots, helperTurn, foeLine } = defineProps<{
   /** Asks the story for the turn of someone with the party whom the rules cannot play; settles when it has been told. */
   helperTurn: (name: string) => Promise<void>;
+  /** A foe that can speak says a line: the story's to tell, like a helper's turn. */
+  foeLine: (name: string, moment: FoeMoment) => Promise<void>;
   encounterId: string;
   /** The character the player plays: the only one who fights for the party, whoever the encounter lists. */
   member: PartyMember;
