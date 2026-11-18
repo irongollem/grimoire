@@ -182,7 +182,8 @@ export interface AgentTurnDeps {
    * conversation then runs without one and what it writes carries no session.
    */
   openPlaySession(campaignId: string): Promise<{ id: string; opened: boolean } | null>;
-  loadTurns(sessionId: string): Promise<StoredTurn[]>;
+  /** The stored rows in reach of a turn (`turnsInReach.ts`): never the whole of a table that has run for months. */
+  loadTurns(sessionId: string, summaryThroughSeq: number): Promise<StoredTurn[]>;
   rateLimit(userId: string): Promise<boolean>;
   resolveProvider(campaign: CampaignRow): Promise<ResolvedProvider | null>;
   loadPrice(model: string): Promise<ModelPrice | null>;
@@ -543,7 +544,7 @@ export async function beginTurn(input: {
         const character = await characterOf(deps, campaign.id, session.party_member_id);
         emit({ type: "session", sessionId: session.id, ...(character ? { character: { id: character.id, name: character.name } } : {}) });
         if (scored !== null) emit({ type: "rolled", roll: scored.rolled });
-        stored = await deps.loadTurns(session.id);
+        stored = await deps.loadTurns(session.id, session.summary_through_seq);
         const lastSeqLoaded = stored.reduce((max, row) => Math.max(max, row.seq), 0);
         const history = historyFrom(stored, session.summary_through_seq);
         // The instructions hold nothing that changes during play; the scene, the quests and the record go at the head
