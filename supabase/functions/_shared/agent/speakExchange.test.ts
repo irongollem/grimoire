@@ -157,6 +157,33 @@ describe("who a line is said to answers it, without the narrator", () => {
   });
 });
 
+describe("a posture a character already holds", () => {
+  // Bug caught (seen live): told to keep his hands close, a child answered every turn with the same posture as a
+  // new deed. The second telling is dropped and his words stay.
+  it("is not told again as a deed, while what they say is kept", async () => {
+    const m = byCharacter({
+      Alda: ["DOES: She keeps her hands close to her chest and watches the key.\nSAYS: I am watching it.\nTO: -", "DOES: She watches the key without moving her hands from her chest.\nSAYS: Still watching.\nTO: -"],
+    });
+    const t = tools(m);
+    const first = await t.call("speak", { speaker_id: A, happening: "h" });
+    const second = await t.call("speak", { speaker_id: A, happening: "h again" });
+    expect(first.lines?.map((l) => l.kind)).toEqual(["acted", "spoken"]);
+    expect(second.lines?.map((l) => `${l.kind}: ${l.text}`)).toEqual(["spoken: Still watching."]);
+  });
+
+  // Bug caught: a character with nothing new to do and nothing to say still given a line.
+  it("leaves a character who only repeats a posture with nothing to show", async () => {
+    const m = byCharacter({
+      Alda: ["DOES: She keeps her hands close to her chest and watches the key.\nSAYS: -", "DOES: She keeps her hands close to her chest, watching the key.\nSAYS: -"],
+    });
+    const t = tools(m);
+    await t.call("speak", { speaker_id: A, happening: "h" });
+    const again = await t.call("speak", { speaker_id: A, happening: "h again" });
+    expect(again.isError).toBe(true);
+    expect(again.lines ?? []).toEqual([]);
+  });
+});
+
 describe("how an exchange leaves the floor", () => {
   const floor = async (script: Record<string, string[]>, input: Record<string, unknown> = { speaker_id: A, happening: "h", present: [B] }) => {
     const seen: Array<[string, boolean]> = [];

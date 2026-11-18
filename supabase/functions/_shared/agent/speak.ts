@@ -5,6 +5,7 @@
 // whom, who is keen enough to interject, what was kept back). The answer format is in `characterTurn.ts`, the
 // hearing rules in `hearing.ts`. Pure: every read and the model call are injected.
 
+import { freshDeed } from "./deeds.ts";
 import {
   characterTurn, heardLines, speakerSystem, type Remembered, type TurnAnswer,
 } from "./characterTurn.ts";
@@ -144,6 +145,10 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
   const thisTurn: SpeechEvent[] = [];
   const allEvents = (): SpeechEvent[] => [...stored, ...thisTurn];
 
+  /** What this speaker has visibly done so far, oldest first: a posture they already hold is not told again (`deeds.ts`). */
+  const deedsOf = (speaker: { id: string | null; name: string }): string[] =>
+    allEvents().flatMap((e) => e.lines.filter((l) => l.kind === "acted" && (speaker.id !== null ? l.speaker.id === speaker.id : l.speaker.id === null && l.speaker.name === speaker.name)).map((l) => l.text));
+
   // A name that belongs to a character with a record must not be played as someone with none. Seen live
   // (16 Nov 2026): the narrator guessed an id, was refused, fell back to speaker_name "Honeycomb", and the player
   // met a stand-in who knew nothing of the promise made to her the sitting before. A lookup that fails is treated
@@ -209,9 +214,11 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
         heard: trimHeard(heardFrom(before, who, playerName)), unsaid: unsaidBy(before, record.id),
         peoples: deps.peoples,
       });
-      const turn = await characterTurn({
+      const answer = await characterTurn({
         callModel: deps.callModel, system, happening: `${heardLines(heardNow)}\n\n${nudge}`, signal: deps.signal,
       });
+      // A posture they already hold is not a deed: with nothing new done and nothing said, they have not answered.
+      const turn = { ...answer, did: freshDeed(answer.did, deedsOf({ id: record.id, name: record.shownName })) };
       return { record, turn };
     } catch {
       return null;
@@ -318,8 +325,10 @@ export function makeSpeechTools(deps: SpeechToolsDeps) {
         unsaid: who.id ? unsaidBy(everything, who.id) : [],
         peoples: deps.peoples,
       });
-      const turn = await characterTurn({ callModel: deps.callModel, system, happening: input.happening, signal: deps.signal });
-      if (!turn.said && !turn.did) return failure(`${shownName} neither says nor does anything.`, [turn.usage]);
+      const answer = await characterTurn({ callModel: deps.callModel, system, happening: input.happening, signal: deps.signal });
+      // A posture they already hold is not a deed (`deeds.ts`).
+      const turn = { ...answer, did: freshDeed(answer.did, deedsOf({ id: who.id, name: shownName })) };
+      if (!turn.said && !turn.did) return failure(`${shownName} neither says nor does anything new.`, [turn.usage]);
 
       // Only a character with a record has a ledger to keep it in, and only a turn in which it did or said
       // something is a moment that happened.

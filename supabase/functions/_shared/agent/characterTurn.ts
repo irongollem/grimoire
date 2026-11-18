@@ -53,6 +53,8 @@ export function speakerSystem(input: {
       `SAYS: <the words they say aloud, one to three sentences, no quotation marks>\n` +
       `TO: <the name of the one they speak to, player for the player's character, everyone for the whole room, or ->\n` +
       `REMEMBERS: <one kind word>: <one sentence in the character's own voice, first person>\n` +
+      `DOES is only for something new the character does now. Never tell again a posture, a look or a gesture they are ` +
+      `already holding (it is among what has been said and done): then DOES is -. ` +
       `Any line may be a single - when the character does nothing visible, says nothing, says it plainly, speaks to nobody in particular or has nothing to remember. ` +
       `HOW is for a voice actor reading the SAYS line aloud, and is never shown: it carries the feeling the words alone do not. ` +
       `REMEMBERS is what the character will still carry days from now: a promise made or received, something they ` +
