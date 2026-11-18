@@ -21,9 +21,9 @@ describe("parseDmRoll", () => {
 });
 
 describe("dmRollLine", () => {
-  // Bug caught: the Dungeon Master's roll shown with no way to check the total against the dice.
+  // Bug caught: the Narrator's roll shown with no way to check the total against the dice.
   it("leads with the dice asked for and the faces rolled", () => {
-    expect(dmRollLine(roll)).toEqual({ total: "17", title: "The Dungeon Master rolled: How the guard takes the story", detail: "1d20+2 · rolled 15" });
+    expect(dmRollLine(roll)).toEqual({ total: "17", title: "The Narrator rolled: How the guard takes the story", detail: "1d20+2 · rolled 15" });
   });
 
   // Bug caught: the modifier vanishing when the notation was not passed on, leaving a total the dice do not add up to.
@@ -39,6 +39,6 @@ describe("dmRollLine", () => {
   });
 
   it("gives an unnamed roll a title without a dangling colon", () => {
-    expect(dmRollLine({ ...roll, label: null }).title).toBe("The Dungeon Master rolled");
+    expect(dmRollLine({ ...roll, label: null }).title).toBe("The Narrator rolled");
   });
 });

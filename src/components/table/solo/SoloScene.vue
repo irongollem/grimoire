@@ -5,7 +5,7 @@
       <span class="text-eyebrow text-muted-foreground">Where you are</span>
       <h2 v-if="placeName" class="text-heading text-foreground">{{ placeName }}</h2>
       <p v-if="placeName && placeSummary" class="text-body text-muted-foreground" data-testid="solo-place-summary">{{ placeSummary }}</p>
-      <p v-else class="text-body italic text-muted-foreground">Nowhere in particular yet. The Dungeon Master will say.</p>
+      <p v-else class="text-body italic text-muted-foreground">Nowhere in particular yet. The Narrator will say.</p>
     </section>
     <template v-if="pressure">
       <hr class="border-border" />

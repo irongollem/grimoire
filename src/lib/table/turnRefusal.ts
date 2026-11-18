@@ -6,15 +6,15 @@ export interface TurnFailure {
   action: "resend" | "credits" | "none";
 }
 
-/** The Dungeon Master did not answer: a broken stream, a dropped connection, the model's maker being busy. */
+/** The Narrator did not answer: a broken stream, a dropped connection, the model's maker being busy. */
 export const NO_ANSWER: TurnFailure = {
-  message: "The Dungeon Master did not answer. Nothing was charged.",
+  message: "The Narrator did not answer. Nothing was charged.",
   action: "resend",
 };
 
 /** The answer was dropped by the check on what the table may tell: sending the same again would only repeat it. */
 export const WITHHELD: TurnFailure = {
-  message: "The Dungeon Master's answer was withheld: it went somewhere this table does not tell. Nothing was charged. Try something else.",
+  message: "The Narrator's answer was withheld: it went somewhere this table does not tell. Nothing was charged. Try something else.",
   action: "none",
 };
 

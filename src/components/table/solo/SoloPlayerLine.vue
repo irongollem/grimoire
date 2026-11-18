@@ -1,6 +1,6 @@
 <template>
   <!-- "You do: your hand, set in from the edge, no box. You say: your hand in a box." (Voices, 02b).
-       A box is something said aloud; no box is something done. A question to the Dungeon Master is neither: it is
+       A box is something said aloud; no box is something done. A question to the Narrator is neither: it is
        the player's, not the character's, so it is set apart by a dotted rule and says who is asked. -->
   <div
     :class="[
@@ -11,7 +11,7 @@
     :data-boxed="mode === 'say'"
   >
     <span :class="['text-eyebrow flex items-center gap-1.5', mode === 'say' ? 'text-primary' : 'text-muted-foreground']">
-      {{ mode === "ask" ? "You ask the Dungeon Master" : who }}{{ mode === "say" ? " says" : "" }}
+      {{ mode === "ask" ? "You ask the Narrator" : who }}{{ mode === "say" ? " says" : "" }}
       <AppButton v-if="replayable" variant="ghost" size="inline" :icon="IconVolume" :aria-label="`Hear ${who} say this again`" class="ml-auto" data-testid="solo-replay-player" @click="emit('replay')" />
     </span>
     <p data-hand :class="['solo-hand whitespace-pre-line text-[1.0625rem] leading-6', unsent ? 'text-muted-foreground' : 'text-foreground']">

@@ -17,7 +17,7 @@ export type VoiceRole = "character" | "narrator" | "player";
 export const VOICE_ROLES: readonly VoiceRole[] = ["character", "narrator", "player"];
 
 /** The name the narrator's words are signed and stored under: the narrator is nobody in the story. */
-export const NARRATOR_SPEAKER = { id: null, name: "The Dungeon Master" } as const;
+export const NARRATOR_SPEAKER = { id: null, name: "The Narrator" } as const;
 
 export type KeyedLine = Pick<AgentLine, "speaker" | "text"> & { how?: string | null; role?: VoiceRole };
 

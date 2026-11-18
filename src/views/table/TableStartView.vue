@@ -1,5 +1,5 @@
 <template>
-  <PageHeader title="The table" description="Play a character while an AI Dungeon Master tells the story. Every character in it speaks in their own box.">
+  <PageHeader title="The table" description="Play a character while an AI Narrator tells the story. Every character in it speaks in their own box.">
     <div class="px-4 pb-8 pt-4 md:px-6" data-testid="table-start">
       <SoloAiOff v-if="!campaign.isAiEnabled" class="mx-0" />
 
@@ -12,7 +12,7 @@
         <section v-if="resume.kind === 'again'" class="flex flex-col gap-3 border border-border bg-card p-4" aria-labelledby="table-again" data-testid="table-again">
           <h2 id="table-again" class="text-heading-sm text-foreground">Pick up the story</h2>
           <p class="text-body text-foreground">
-            {{ againName }}<template v-if="againPlace">, at {{ againPlace }}</template>. The Dungeon Master opens the scene where you left it.
+            {{ againName }}<template v-if="againPlace">, at {{ againPlace }}</template>. The Narrator opens the scene where you left it.
           </p>
           <div class="flex flex-wrap items-center gap-2">
             <AppButton variant="live" size="md" label="Sit down" @click="sitDownAgain" />
@@ -43,7 +43,7 @@
             <EntityCombobox v-model="placeId" :options="places" placeholder="Anywhere the story starts" class="flex-1" />
             <AppButton v-if="placeId" variant="ghost" size="md" label="Clear" @click="placeId = ''" />
           </div>
-          <p class="text-caption text-muted-foreground">Optional. Leave it empty and the Dungeon Master starts where the campaign says the party is.</p>
+          <p class="text-caption text-muted-foreground">Optional. Leave it empty and the Narrator starts where the campaign says the party is.</p>
         </section>
 
         <div>

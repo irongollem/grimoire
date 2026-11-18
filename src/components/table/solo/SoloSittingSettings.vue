@@ -75,7 +75,7 @@ const { quiet: helpersQuiet } = useTableHelpers();
 const { watches } = useTableWatching();
 
 const VOICES: { part: VoicePart; label: string; hint: string }[] = [
-  { part: "narrator", label: "The Dungeon Master", hint: "The narration, and what characters do." },
+  { part: "narrator", label: "The Narrator", hint: "The narration, and what characters do." },
   { part: "characters", label: "The characters", hint: "Each in a voice of their own." },
   { part: "player", label: "Your own character", hint: "What you say aloud, read back in their voice." },
 ];

@@ -14,7 +14,7 @@
       </div>
     </dl>
     <p class="text-caption text-muted-foreground">
-      A turn costs what the Dungeon Master used to answer it: more when it looks things up, less for a short reply. You are charged one whole credit each time the total passes one.
+      A turn costs what the Narrator used to answer it: more when it looks things up, less for a short reply. You are charged one whole credit each time the total passes one.
     </p>
     <AppCheckbox
       v-model="watches"

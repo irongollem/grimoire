@@ -367,7 +367,7 @@ export const MESSAGES = {
   noMetering: "The AI table cannot be metered right now.",
   flagged: "That message cannot be sent to the AI table.",
   closed: "table_closed",
-  withheld: "The Dungeon Master's answer was withheld by the check on what the table may tell. Nothing was charged. Try something else.",
+  withheld: "The Narrator's answer was withheld by the check on what the table may tell. Nothing was charged. Try something else.",
   conflict: "This conversation was continued somewhere else. Reload it and send your message again.",
   providerBusy: "The AI provider is busy right now. Send your message again in a moment.",
   failed: "The AI table ran into a problem. Send your message again.",

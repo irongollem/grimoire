@@ -48,7 +48,7 @@ describe("refusalFailure", () => {
     expect(WITHHELD.message).toMatch(/nothing was charged/i);
   });
 
-  it("offers a retry when the Dungeon Master did not answer", () => {
+  it("offers a retry when the Narrator did not answer", () => {
     expect(NO_ANSWER.action).toBe("resend");
     expect(NO_ANSWER.message).toMatch(/nothing was charged/i);
   });

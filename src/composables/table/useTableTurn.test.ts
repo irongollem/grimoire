@@ -300,7 +300,7 @@ describe("useTableTurn with a roll", () => {
 
 describe("useTableTurn: opening the scene", () => {
   // Bug caught: the opening sent with a player line on the page, or without saying it is one.
-  it("asks the Dungeon Master to open with no words of the player's, and draws what comes back", async () => {
+  it("asks the Narrator to open with no words of the player's, and draws what comes back", async () => {
     const sent: TurnRequest[] = [];
     const t = sitting(async (request) => {
       sent.push(request);

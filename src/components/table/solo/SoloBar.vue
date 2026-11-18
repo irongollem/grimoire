@@ -31,7 +31,7 @@
         </template>
       </AppButton>
     </div>
-    <AppButton variant="ghost" size="inline" aria-label="About the Dungeon Master being an AI" @click="emit('disclosure')">
+    <AppButton variant="ghost" size="inline" aria-label="About the Narrator being an AI" @click="emit('disclosure')">
       <SoloAiMark />
     </AppButton>
     <div ref="meterHost" class="relative">

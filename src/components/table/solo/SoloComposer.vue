@@ -4,7 +4,7 @@
     <!-- The words get the whole width; the three ways to send them sit in a row underneath, each with its key. -->
     <div data-slip class="flex flex-col gap-2 px-3.5 pt-2.5 pb-2">
       <label class="flex">
-        <span class="sr-only">What {{ character }} says or does, or your question to the Dungeon Master</span>
+        <span class="sr-only">What {{ character }} says or does, or your question to the Narrator</span>
         <textarea
           ref="field"
           v-model="draft"
@@ -26,7 +26,7 @@
           <!-- Nothing typed is a choice too: the character waits and the world goes on. Not in a fight, where
                passing is ending the turn on the board. -->
           <AppButton v-if="canPass" variant="ghost" size="sm" class="mr-auto" label="Go on" title="Say and do nothing: let things happen" data-testid="solo-pass" @click="pass()" />
-          <AppButton variant="ghost" size="sm" aria-label="Ask the Dungeon Master" :disabled="!canSend" data-testid="solo-ask" @click="submit('ask')">
+          <AppButton variant="ghost" size="sm" aria-label="Ask the Narrator" :disabled="!canSend" data-testid="solo-ask" @click="submit('ask')">
             <span>Ask</span><span class="ml-1.5 hidden items-center gap-0.5 sm:inline-flex"><KeyCap>Ctrl</KeyCap><KeyCap>Enter</KeyCap></span>
           </AppButton>
           <AppButton variant="outline" size="sm" aria-label="Do" :disabled="!canSend || !canDo" @click="submit('do')">
@@ -73,14 +73,14 @@ const canSend = computed(() => draft.value.trim() !== "");
 // The page lets the characters talk on only while the player has nothing begun.
 watch(canSend, (has) => emit("writing", has));
 
-// One turn pays for the board and the story alike. Asking the Dungeon Master is the player's own question and is
+// One turn pays for the board and the story alike. Asking the Narrator is the player's own question and is
 // always open; saying and doing are the character's, and only on their turn.
 const words = computed(() => wordCount(draft.value));
 const canSay = computed(() => fight === null || (fight.yours && fight.words && words.value <= SPOKEN_WORDS_PER_TURN));
 const canDo = computed(() => fight === null || (fight.yours && fight.canAct));
 const placeholder = computed(() => {
-  if (running) return "The Dungeon Master is answering…";
-  if (fight && !fight.yours) return "The others are acting. You can still ask the Dungeon Master…";
+  if (running) return "The Narrator is answering…";
+  if (fight && !fight.yours) return "The others are acting. You can still ask the Narrator…";
   return `What does ${character} say or do…`;
 });
 const fightNote = computed(() => {

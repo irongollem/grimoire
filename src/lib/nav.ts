@@ -169,7 +169,7 @@ export const NAV_GROUPS: NavGroup[] = [
         feature: "party",
         requiresAi: true,
         icon: IconNavTable,
-        description: "Play with an AI Dungeon Master",
+        description: "Play with an AI Narrator",
         requiresCampaign: true,
       },
       {
