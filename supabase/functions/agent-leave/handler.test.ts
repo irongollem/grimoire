@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { leaveTable, LEAVE_MESSAGES, type AgentLeaveDeps, type LeaveSession } from "./handler";
+import { A, B, spoke } from "../_shared/agent/speechTestKit";
+import type { StoredTurn } from "../_shared/agent/transcript";
+import type { Unfinished } from "../_shared/agent/unfinished";
 
 const DM = "00000000-0000-4000-8000-000000000001";
 const OTHER = "00000000-0000-4000-8000-000000000002";
@@ -33,6 +36,9 @@ function harness(over: Partial<LeaveSession> = {}) {
     pressureEnded: [] as Array<{ sessionId: string; campaignId: string }>,
     pressureThrows: false,
     notes: [] as Array<Parameters<AgentLeaveDeps["writeNote"]>[0]>,
+    turns: [] as StoredTurn[],
+    turnsThrow: false,
+    unfinished: [] as Unfinished[],
     deps: undefined as unknown as AgentLeaveDeps,
   };
   h.deps = {
@@ -50,6 +56,13 @@ function harness(over: Partial<LeaveSession> = {}) {
     endPlaySession: async (campaignId) => {
       if (h.endThrows) throw new Error("not the DM");
       h.ended.push(campaignId);
+    },
+    loadTurns: async () => {
+      if (h.turnsThrow) throw new Error("db down");
+      return h.turns;
+    },
+    keepUnfinished: async (_session, unfinished) => {
+      h.unfinished.push(...unfinished);
     },
     loadFacts: async () => h.facts,
     characterName: async (_c, id) => (id === BRAM ? "Bram" : null),
@@ -235,5 +248,36 @@ describe("leaving the table", () => {
     h.facts = [{ body: "The key was found.", known_to_player: true }];
     await leave(h);
     expect(h.notes[0].visibleTo).toEqual([]);
+  });
+});
+
+describe("what was left unsaid", () => {
+  // Alda spoke; Bren wanted to answer and did not get the floor.
+  const withUnsaid = (): StoredTurn[] =>
+    spoke(1, { speaker_id: A, happening: "h", present: [B] }, "speak", "Hello.", A).map((row, i) =>
+      i === 1 ? { ...row, blocks: [{ ...(row.blocks as Record<string, unknown>[])[0], withheld: [{ speaker: { id: B, name: "Bren" }, text: "I know where the ring went.", to: "Alda" }] }] } : row);
+
+  // Bug caught: what a character was about to say lost when the player gets up.
+  it("goes into that character's memory when the player leaves", async () => {
+    const h = harness();
+    h.turns = withUnsaid();
+    await leave(h);
+    expect(h.unfinished).toEqual([{ characterId: B, body: 'I meant to say this to Alda and did not get to: "I know where the ring went."' }]);
+  });
+
+  // Bug caught: a second leave (a double click, two tabs) writing the same memory twice.
+  it("is kept once, however often the table is left", async () => {
+    const h = harness();
+    h.turns = withUnsaid();
+    await leave(h);
+    await leave(h);
+    expect(h.unfinished).toHaveLength(1);
+  });
+
+  // Bug caught: a failure to read the conversation keeping the player at the table.
+  it("never stops the player from leaving", async () => {
+    const h = harness();
+    h.turnsThrow = true;
+    expect(await leave(h)).toMatchObject({ ok: true, result: { left: true } });
   });
 });

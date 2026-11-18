@@ -5,6 +5,8 @@
 // Gate order, like `agent-turn`: the caller from the token (in index.ts), then the conversation is the caller's own,
 // then work. A model is never called: the record of the sitting is the plain facts the narrator already filed.
 
+import { unfinishedBusiness, type Unfinished } from "../_shared/agent/unfinished.ts";
+import type { StoredTurn } from "../_shared/agent/transcript.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { noteDocument } from "./note.ts";
 
@@ -42,6 +44,10 @@ export interface AgentLeaveDeps {
   openPlaySessionId(campaignId: string): Promise<string | null>;
   /** Ends the campaign's open session. Runs as the caller: the database checks they are the campaign's DM. */
   endPlaySession(campaignId: string): Promise<void>;
+  /** The conversation's stored messages, for what its characters still had to say. */
+  loadTurns(sessionId: string): Promise<StoredTurn[]>;
+  /** Writes what characters were left wanting to say into their own memories. Only characters of the campaign. */
+  keepUnfinished(session: LeaveSession, unfinished: Unfinished[]): Promise<void>;
   /** Every fact this conversation filed, in the order they were filed. The handler keeps only what the party knows. */
   loadFacts(sessionId: string): Promise<Array<{ body: string; known_to_player: boolean }>>;
   /** The played character's name, or null when there is none or it is not of this campaign. */
@@ -122,6 +128,15 @@ export async function leaveTable(input: {
     } catch (error) {
       console.error("agent-leave: ending the play session failed:", error);
     }
+  }
+
+  // What a character was about to say and never got to goes into their own memory, so it is still on their mind
+  // the next time the party meets them (`unfinished.ts`). A failure costs that, never the leaving.
+  try {
+    const unfinished = unfinishedBusiness(await deps.loadTurns(session.id));
+    if (unfinished.length > 0) await deps.keepUnfinished(session, unfinished);
+  } catch (error) {
+    console.error("agent-leave: keeping what was left unsaid failed:", error);
   }
 
   let noteId: string | null = null;

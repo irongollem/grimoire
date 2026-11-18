@@ -1,6 +1,7 @@
 // agent-leave (#1021): the player leaves the AI table. The rules are `handler.ts`'s; this file wires the database.
 // The session is ended and the note written through the caller's own client, so the database checks they are the
 // campaign's DM; the service role only reads and marks the conversation, which no client may write.
+import type { StoredTurn } from "../_shared/agent/transcript.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
@@ -83,6 +84,36 @@ serve(withCors(async (req: Request) => {
 
     async endPlaySession(campaignId): Promise<void> {
       const { error } = await supabase.rpc("end_campaign_session", { p_campaign_id: campaignId });
+      if (error) throw error;
+    },
+
+    // The caller's own conversation (the handler has checked): its messages, read as stored.
+    async loadTurns(sessionId) {
+      const { data, error } = await admin.from("agent_turns").select("seq, role, blocks").eq("session_id", sessionId).order("seq", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as StoredTurn[];
+    },
+
+    // Into the same ledger a character's memories live in. The ids came out of stored tool results, so each is
+    // checked to be a character of this campaign before anything is written.
+    async keepUnfinished(session, unfinished) {
+      const ids = [...new Set(unfinished.map((u) => u.characterId))];
+      const known = await admin.from("npcs").select("id").in("id", ids).eq("campaign_id", session.campaign_id);
+      if (known.error) throw known.error;
+      const inCampaign = new Set((known.data ?? []).map((n) => n.id as string));
+      const rows = unfinished
+        .filter((u) => inCampaign.has(u.characterId))
+        .map((u) => ({
+          npc_id: u.characterId,
+          campaign_id: session.campaign_id,
+          user_id: session.user_id,
+          kind: "event",
+          body: u.body,
+          session_id: session.campaign_session_id,
+          ai_provenance: { generatorType: "agent_turn_memory", provider: session.provider, model: session.model, generatedAt: new Date().toISOString(), edited: false },
+        }));
+      if (rows.length === 0) return;
+      const { error } = await admin.from("npc_memories").insert(rows);
       if (error) throw error;
     },
 
