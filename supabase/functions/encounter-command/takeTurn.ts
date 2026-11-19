@@ -18,7 +18,7 @@ import { losesFirstTurnToSurprise } from "../../../src/rules/initiative.ts";
 import { applyFightCommand, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
 import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
-import { saveBonusFromBlock } from "../../../src/rules/fight/actionResolution.ts";
+import { saveBonusFromBlock } from "../../../src/rules/fight/resolution/saves.ts";
 import { playerSaveBonus } from "../../../src/rules/fight/playerSheet.ts";
 import { listedSpellNames } from "../../../src/rules/fight/spells/castNow.ts";
 import { stepsFor } from "../../../src/rules/fight/tactics/carryOut.ts";
@@ -27,7 +27,7 @@ import { gateOptions, pickTurn } from "../../../src/rules/fight/tactics/pick.ts"
 import { withNumbers } from "../../../src/rules/fight/tactics/numbers.ts";
 import { tacticalProfile } from "../../../src/rules/fight/tactics/profile.ts";
 import { speaksInAFight } from "../../../src/rules/fight/tactics/temper.ts";
-import type { TurnOption } from "../../../src/rules/fight/terrain/turnOptions.ts";
+import type { TurnOption } from "../../../src/rules/fight/terrain/options/types.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { SaveAbility } from "../../../src/types/statBlock.types.ts";
 import { statBlockOf } from "../_shared/fightStatBlocks.ts";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StatBlockEntry } from "@/types/statBlock.types";
-import type { TurnOption, TurnOptionKind, UsableAttack } from "../terrain/turnOptions";
+import type { TurnOption, TurnOptionKind, UsableAttack } from "../terrain/options/types";
 import { stepsFor } from "./carryOut";
 
 const entry = (name: string, extra: Record<string, unknown> = {}): StatBlockEntry => ({

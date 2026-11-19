@@ -4,7 +4,7 @@ import type { SaveAbility, SrdConditionName } from "../../types/statBlock.types.
 import type { DefenseApplied } from "../combat/typedDamage.ts";
 import type { DyingOutcome } from "../dying.ts";
 import type { EncounterTurnEvent, EncounterTurnState } from "../encounterTurn.ts";
-import type { TurnOptionKind } from "./terrain/turnOptions.ts";
+import type { TurnOptionKind } from "./terrain/options/types.ts";
 
 /**
  * Everything a fight holds that a server must also hold to advance it: the

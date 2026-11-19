@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { MonsterStatBlock } from "../../../types/monster.types.ts";
 import { emptyDefenses, type StatBlockEntry } from "../../../types/statBlock.types.ts";
-import type { TurnOption, TurnOptionExposure, TurnOptionKind } from "../terrain/turnOptions.ts";
+import type { TurnOption, TurnOptionExposure, TurnOptionKind } from "../terrain/options/types.ts";
 import { gateOptions, isBroken, pickTurn, type PickContext } from "./pick.ts";
 import { type MoraleRule, tacticalProfile } from "./profile.ts";
 // oxlint-disable-next-line unicorn/no-thenable -- `then` is the stat block's own morale field (#1203), not a promise

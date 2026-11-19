@@ -8,7 +8,7 @@
 
 import type { FactionSides } from "../../../src/rules/fight/sides.ts";
 import { fightMapOf, type FightMapInput } from "../../../src/rules/fight/terrain/battleMap.ts";
-import type { TurnOption } from "../../../src/rules/fight/terrain/turnOptions.ts";
+import type { TurnOption } from "../../../src/rules/fight/terrain/options/types.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { RulesetKey } from "../../../src/types/ruleset.types.ts";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";

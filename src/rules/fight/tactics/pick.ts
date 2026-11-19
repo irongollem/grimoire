@@ -8,7 +8,10 @@
 // Pure and edge-importable (relative `.ts` imports only).
 
 import type { RunCombatant } from "../../../types/encounter.types.ts";
-import { compareExposure, fleeSourceOf, wayOffPhrase, type TurnOption, type TurnOptionSpell } from "../terrain/turnOptions.ts";
+import { compareExposure } from "../terrain/options/scene.ts";
+import { fleeSourceOf } from "../terrain/options/flee.ts";
+import { wayOffPhrase } from "../terrain/options/phrases.ts";
+import { type TurnOption, type TurnOptionSpell } from "../terrain/options/types.ts";
 import type { MoraleRule, TacticalProfile } from "./profile.ts";
 import { seenAs, seenDamagePerTurn } from "./shownThreat.ts";
 import { usableWayOut, type WayOut } from "./wayOut.ts";

@@ -4,7 +4,7 @@ import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { AppliedCondition } from "../../../types/condition.types.ts";
 import type { RulesetKey } from "../../../types/ruleset.types.ts";
 import type { AttackStructure, StatBlockEntry } from "../../../types/statBlock.types.ts";
-import type { TurnOption, TurnOptionAttack, UsableAttack } from "../terrain/turnOptions.ts";
+import type { TurnOption, TurnOptionAttack, UsableAttack } from "../terrain/options/types.ts";
 import { castableNow } from "../spells/castNow.ts";
 import { fireball, fireBolt, mageBlock } from "../spells/spellTestKit.ts";
 import { chanceOfNatural20, chanceToFail, chanceToHit, UNKNOWN_SAVE_FAIL_CHANCE, withNumbers, type NumbersContext } from "./numbers.ts";

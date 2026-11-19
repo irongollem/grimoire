@@ -19,7 +19,7 @@ import type { Cell } from "../../../lib/battlemap/movement.ts";
 import { actionLimit, actionUseKey, type ActionLimit } from "../../encounterTurn.ts";
 import { DISENGAGED, DODGING } from "../stances.ts";
 import type { StatBlockListKey } from "../../statBlock/parseAction.ts";
-import type { TurnOption, UsableAttack } from "../terrain/turnOptions.ts";
+import type { TurnOption, UsableAttack } from "../terrain/options/types.ts";
 
 export type TurnStep =
   /** The Dodge or Disengage action's condition goes on the mover, until its next turn starts. */

@@ -7,14 +7,9 @@ import { rollDie, type DieSize } from "@/lib/dice/dice";
 import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "@/rules/fight/targeting";
 import { attackLines, attackEntryOf, d20FromFaces, damageDicePlan, damageFromFaces, damageLine, facesFit, type DamageMath } from "@/lib/table/solo/fight/pcAttack";
 import type { BoardLine } from "@/lib/table/solo/fight/boardLines";
-import {
-  ActionRefused,
-  applyDamage,
-  rollDamageParts,
-  rollToHit,
-  type DiceAsk,
-  type ResolutionContext,
-} from "@/rules/fight/actionResolution";
+import { ActionRefused, type DiceAsk, type ResolutionContext } from "@/rules/fight/resolution/context";
+import { applyDamage, rollDamageParts } from "@/rules/fight/resolution/damage";
+import { rollToHit } from "@/rules/fight/resolution/attack";
 import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { StatBlockEntry } from "@/types/statBlock.types";
@@ -23,7 +18,7 @@ import type { RulesetKey } from "@/types/ruleset.types";
 /**
  * One attack by the played character, step by step, with no UI of its own (the page draws each step).
  *
- * The rules are `rules/fight/actionResolution` (`rollToHit`, `rollDamageParts`, `applyDamage`), the same ones the
+ * The rules are `rules/fight/resolution/` (`rollToHit` in attack.ts, `rollDamageParts` and `applyDamage` in damage.ts), the same ones the
  * server and the DM's runner use. What differs is where the dice come from: here they are the faces the player's
  * screen rolled or the player typed from real dice, never a prompt. The target's armour class and hit points are
  * read to decide the outcome and are never put in the state or in the lines that come back.

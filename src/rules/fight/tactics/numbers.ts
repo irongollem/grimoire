@@ -40,7 +40,7 @@ import { coverBonus, DEFAULT_REACH_FEET } from "../terrain/sight.ts";
 import { ASSUMED_ROUNDS, conditionWorth, expectedRounds, type StopsCasting } from "./conditionWorth.ts";
 import { shownDefenseMultiplier } from "./shownDefenses.ts";
 import type { CastNow } from "../spells/castNow.ts";
-import type { TurnOption, TurnOptionAttack, TurnOptionSpell, UsableAttack } from "../terrain/turnOptions.ts";
+import type { TurnOption, TurnOptionAttack, TurnOptionSpell, UsableAttack } from "../terrain/options/types.ts";
 
 export interface NumbersContext {
   /** The mover's usable attacks: where an option's entry, and a Multiattack's steps, are found by name. */

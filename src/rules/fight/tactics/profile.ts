@@ -9,7 +9,7 @@
 import { walkingSpeed } from "../../../lib/movement.ts";
 import type { MonsterStatBlock, MonsterTactics, MonsterType } from "../../../types/monster.types.ts";
 import type { StatBlockEntry } from "../../../types/statBlock.types.ts";
-import type { TurnOptionKind } from "../terrain/turnOptions.ts";
+import type { TurnOptionKind } from "../terrain/options/types.ts";
 import { wayOutsOf, type WayOut } from "./wayOut.ts";
 
 export type CleverTier = "instinct" | "simple" | "trained" | "tactical";

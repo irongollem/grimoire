@@ -28,7 +28,8 @@ import {
   type Box,
   type ProvokedAttack,
 } from "../../../src/rules/fight/terrain/sight.ts";
-import { isOnBoard, type TurnOption, type UsableAttack } from "../../../src/rules/fight/terrain/turnOptions.ts";
+import { isOnBoard } from "../../../src/rules/fight/terrain/options/scene.ts";
+import { type TurnOption, type UsableAttack } from "../../../src/rules/fight/terrain/options/types.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { StatBlockListKey } from "../../../src/rules/statBlock/parseAction.ts";
 import { statBlockOf } from "../_shared/fightStatBlocks.ts";

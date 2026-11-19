@@ -1,5 +1,5 @@
 // Resolving commands (#1201, stage 3): "this creature uses this action on that target", rolled and adjudicated by
-// code. The steps are the browser's own (`src/rules/fight/actionResolution`); this file supplies what the server
+// code. The steps are the browser's own (`src/rules/fight/resolution/`); this file supplies what the server
 // brings to them: the stat blocks it loaded, the dice (its own secure die, or the faces a person rolled, which are
 // then only scored), and the fight state the batch is working on. Pure with the die and the sources injected.
 //
@@ -25,20 +25,12 @@ import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet
 import { applyFightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightDeps, FightResult } from "../../../src/rules/fight/fightEvents.ts";
 import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
-import {
-  ActionRefused,
-  resolveAttackOn,
-  breakFreeModifier,
-  resolveBreakFreeOn,
-  resolveConcentrationOn,
-  resolveConditionSaveOn,
-  resolveOngoingDamageOn,
-  resolveSaveOn,
-  saveBonusFromBlock,
-  type DiceAsk,
-  type DiceSource,
-  type ResolutionContext,
-} from "../../../src/rules/fight/actionResolution.ts";
+import { ActionRefused, type DiceAsk, type DiceSource, type ResolutionContext } from "../../../src/rules/fight/resolution/context.ts";
+import { resolveAttackOn } from "../../../src/rules/fight/resolution/attack.ts";
+import { breakFreeModifier, resolveBreakFreeOn } from "../../../src/rules/fight/resolution/breakFree.ts";
+import { resolveConcentrationOn, resolveConditionSaveOn } from "../../../src/rules/fight/resolution/conditionSaves.ts";
+import { resolveOngoingDamageOn } from "../../../src/rules/fight/resolution/ongoingDamage.ts";
+import { resolveSaveOn, saveBonusFromBlock } from "../../../src/rules/fight/resolution/saves.ts";
 import { playerAbilityModifier, playerArmorClass, playerSaveBonus, type PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
 import { castableBy, slotLimitAt } from "../../../src/rules/fight/spells/castLimit.ts";
 import { pickSpellRecord, type SpellRecord } from "../../../src/rules/fight/spells/spellChoice.ts";
@@ -49,7 +41,7 @@ import { combatantFootprint } from "../../../src/lib/battlemap/tokenFootprint.ts
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { coverBetween, type Box, type Cover } from "../../../src/rules/fight/terrain/sight.ts";
-import { isOnBoard } from "../../../src/rules/fight/terrain/turnOptions.ts";
+import { isOnBoard } from "../../../src/rules/fight/terrain/options/scene.ts";
 import { FightCommandError } from "./commandError.ts";
 import type { BreakFreeSkill } from "../../../src/types/statBlock.types.ts";
 
