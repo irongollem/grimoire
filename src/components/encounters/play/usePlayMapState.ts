@@ -1,10 +1,12 @@
-import { computed, ref, toValue, watch, type MaybeRefOrGetter, type Ref } from "vue";
+import { computed, onScopeDispose, ref, toValue, watch, type MaybeRefOrGetter, type Ref } from "vue";
 import { useEncounterRoom } from "@/composables/encounters/useEncounterRoom";
 import { useEncounterLive, liveState } from "@/composables/encounters/useEncounterLive";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
 import { useToast } from "@/composables/useToast";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
+import { useHealPictureShape } from "@/composables/locations/useHealPictureShape";
 import { roomBattleCells, roomCellIndex, roomsUnder, seatFromExploring } from "@/lib/locations/explore";
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
@@ -13,7 +15,7 @@ import { scatterInRoom as scatterInCells } from "@/lib/battlemap/scatter";
 import { useLocationNames } from "@/composables/locations/useLocations";
 import type { FogCellKey } from "@/lib/battlemap/fogMask";
 import type { CellKey } from "@/types/dungeonMap.types";
-import { imageGrid, type MapGrid } from "@/lib/battlemap/partySight";
+import { gridFromRatio, imageGrid, type MapGrid } from "@/lib/battlemap/imageGrid";
 import { useMapMemory } from "@/composables/locations/useMapMemory";
 import { useMapDoors } from "@/composables/locations/useMapDoors";
 import { usePartySight } from "@/composables/encounters/usePartySight";
@@ -49,23 +51,26 @@ export function usePlayMapState(
   const { encounter, location: encounterLocation, mapLocation: location, surface, focusRoom, terrainZones, regions } = room;
   const store = useEncounterRunStore();
   const campaign = useCampaignStore();
+  const auth = useAuthStore();
   const toast = useToast();
   const { isLive, liveStateLoaded, scheduleMapPush, moveToken } = useEncounterLive(encounterId, { follow: true });
 
   const following = computed(() => toValue(mode) === "follower");
 
-  // While live, both windows draw the live row, which the doorbell keeps current: the runner pushes
-  // HP, turns and conditions into it, and every battle map, the players' included, writes token
-  // positions into it. Before going live there is no row, and only the DM's own tab has a fight.
+  // Every run is a saved row (#1201), live or not, and both windows draw it: the server saves the runner's
+  // commands into it, and every battle map, the players' included, writes token positions into it. The row
+  // is read for the map's own sake, so a click in the runner reaches the tokens once the server has answered
+  // (the runner's list shows it at once). Only the moment before the row is first read falls back to the store.
+  const row = computed(() => (liveState.value?.encounter_id === encounterId.value ? liveState.value : null));
   const combatants = computed<RunCombatant[]>(() => {
-    if (isLive.value && liveState.value) return liveState.value.combatants_live;
+    if (row.value) return row.value.combatants_live;
     return following.value ? [] : store.combatants;
   });
-  const round = computed(() => (isLive.value && liveState.value ? liveState.value.current_round : store.round));
-  // The live row's turn indexes the initiative-sorted order, as on the player map.
+  const round = computed(() => (row.value ? row.value.current_round : store.round));
+  // The row's turn indexes the initiative-sorted order, as on the player map.
   const activeInstanceId = computed(() => {
-    if (!isLive.value || !liveState.value) return following.value ? null : (store.activeCombatant?.instance_id ?? null);
-    return sortCombatantsByInitiative(liveState.value.combatants_live)[liveState.value.active_combatant_index]?.instance_id ?? null;
+    if (!row.value) return following.value ? null : (store.activeCombatant?.instance_id ?? null);
+    return sortCombatantsByInitiative(row.value.combatants_live)[row.value.active_combatant_index]?.instance_id ?? null;
   });
   const factions = computed(() => {
     if (!following.value) return store.factions;
@@ -86,22 +91,19 @@ export function usePlayMapState(
     toast.error(toast.fromError(error, "Couldn't move that token."));
   }
 
-  // Live, a move goes straight to the row through the position function, which lets the DM move any
-  // token; the runner's own pushes keep the row's position. Before going live the move stays in the
-  // runner's store, which Go live sends.
+  // A move goes straight to the row through the position function, which lets the DM move any token, live
+  // or not. A position is not a command: the server's own saves keep the row's, and the runner's store takes
+  // it from the row's next read.
   function moveCombatant(instanceId: string, position: { x: number; y: number }) {
-    if (isLive.value) {
-      moveToken(instanceId, position).catch(reportMoveFailure);
-      return;
-    }
-    const target = store.combatants.find((c) => c.instance_id === instanceId);
-    if (target) target.position = position;
+    moveToken(instanceId, position).catch(reportMoveFailure);
   }
 
   // ── Fog of war ──────────────────────────────────────────────────────────
   // The fog is the map's memory (epic #1133): shared by exploring and every fight on this map, so a fight owns no
   // fog of its own. Only the DM's window writes; a follower reads.
   const canWrite = computed(() => !following.value);
+  // The picture's shape is how the fight server knows where the map ends (#1202); only the DM's own window records it.
+  useHealPictureShape({ place: () => surface.value?.mapLocation, enabled: () => canWrite.value && auth.isDM });
   const memory = useMapMemory(
     () => campaign.activeCampaign?.id ?? null,
     () => surface.value?.mapLocation.id ?? null,
@@ -142,10 +144,11 @@ export function usePlayMapState(
     if (!s || !canWrite.value) return;
     const cellsAcross = s.calibration.cells_per_image_width;
     if (!cellsAcross || imageH <= 0) return;
-    const cellsDown = Math.ceil(cellsAcross * (imageH / imageW));
+    const covered = gridFromRatio(cellsAcross, imageH / imageW);
+    if (!covered) return;
     const next = new Set<FogCellKey>();
-    for (let y = 0; y < cellsDown; y++) {
-      for (let x = 0; x < cellsAcross; x++) next.add(`${x},${y}`);
+    for (let y = 0; y < covered.rows; y++) {
+      for (let x = 0; x < covered.cols; x++) next.add(`${x},${y}`);
     }
     memory.replaceWith(next).catch(reportMemoryFailure);
   }
@@ -172,7 +175,7 @@ export function usePlayMapState(
       hit === null
         ? [...darknessZones.value, { id: crypto.randomUUID(), x, y, radius }]
         : darknessZones.value.filter((z) => z.id !== hit);
-    if (isLive.value) scheduleMapPush({ magicalDarkness: darknessZones.value });
+    if (row.value) scheduleMapPush({ magicalDarkness: darknessZones.value });
   }
 
   // ── Doors ───────────────────────────────────────────────────────────────
@@ -205,21 +208,21 @@ export function usePlayMapState(
   // runner's store, which does not hear players' moves.
   function seedRoomIfNeeded() {
     const s = surface.value;
-    const row = liveState.value;
-    if (!s || !row) return;
+    const seated = row.value;
+    if (!s || !seated) return;
 
     // A fight started while exploring this site stands everyone where they were (#1125 decision 9); whoever has no
     // explored square, or the room has to seat, falls through to the room's cells below.
-    const walked = seatFromExploring(row.combatants_live, campaign.activeCampaign?.explore_party ?? null, s.mapLocation.id, s.calibration.cells_per_image_width);
+    const walked = seatFromExploring(seated.combatants_live, campaign.activeCampaign?.explore_party ?? null, s.mapLocation.id, s.calibration.cells_per_image_width);
     const seeded = seedTokenPositions(walked, s.focusCells);
     seeded.forEach((c, i) => {
-      if (c.position && !row.combatants_live[i]?.position) moveToken(c.instance_id, c.position).catch(reportMoveFailure);
+      if (c.position && !seated.combatants_live[i]?.position) moveToken(c.instance_id, c.position).catch(reportMoveFailure);
     });
   }
 
   // A combatant spawned mid-fight joins the roster without a place; the count changing seats it like the rest.
   watch(
-    () => [isLive.value, surface.value, liveState.value?.combatants_live.length, following.value] as const,
+    () => [isLive.value, surface.value, row.value?.combatants_live.length, following.value] as const,
     ([live, , , follower]) => {
       if (live && !follower) seedRoomIfNeeded();
     },
@@ -228,6 +231,7 @@ export function usePlayMapState(
 
   // ── What the party sees, and the rooms they enter ────────────────────────
   const grid = computed<MapGrid | null>(() => imageGrid(surface.value?.calibration.cells_per_image_width, toValue(imageSize)));
+
   const { viewers, sight } = usePartySight({
     live: () => surface.value?.live ?? null,
     doorStates,
@@ -259,6 +263,13 @@ export function usePlayMapState(
     },
     { immediate: true },
   );
+
+  // The attack flows beside the map read the walls from the store (a foe behind a wall is not beside an archer).
+  store.setOccluders(() => {
+    const live = surface.value?.live;
+    return live ? occludersOf(live, doorStates.value) : null;
+  });
+  onScopeDispose(() => store.setOccluders(null));
 
   /** What a move crosses: the difficult zones the map draws, and the walls and closed doors a big token can wedge in. */
   const moveTerrain = computed<MoveTerrain>(() => {

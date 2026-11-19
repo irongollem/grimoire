@@ -1,0 +1,176 @@
+// @vitest-environment jsdom
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mount } from "@vue/test-utils";
+import { toast } from "./toast";
+import ToastHost from "@/components/common/feedback/ToastHost.vue";
+
+describe("useToast", () => {
+  // `toasts` is a module-level singleton (see useToast.ts) shared by every
+  // caller, so each test clears it rather than inheriting toasts a previous
+  // test in this file pushed.
+  const { toasts, error, success, info, dismiss } = toast;
+
+  describe("fromError", () => {
+    const { fromError } = toast;
+
+    it("reads an Error's message and a bare string", () => {
+      expect(fromError(new Error("boom"))).toBe("boom");
+      expect(fromError("plain")).toBe("plain");
+    });
+
+    it("reads the sentence a database function raised, without details or hint", () => {
+      const postgrest = { message: "Cleric spell limit of 10 reached", code: "P0001", details: "row 42", hint: null };
+      expect(fromError(postgrest, "fallback")).toBe("Cleric spell limit of 10 reached");
+    });
+
+    it("keeps the fallback for a constraint or permission failure, which is not written for a player", () => {
+      expect(fromError({ message: "duplicate key value violates unique constraint \"x\"", code: "23505" }, "fallback")).toBe("fallback");
+      expect(fromError({ message: "new row violates row-level security policy", code: "42501" }, "fallback")).toBe("fallback");
+    });
+
+    it("falls back for an empty string, which says nothing", () => {
+      expect(fromError("", "fallback")).toBe("fallback");
+    });
+
+    it("falls back for unknowns and objects without a usable message", () => {
+      expect(fromError(null, "fallback")).toBe("fallback");
+      expect(fromError(undefined)).toBe("Something went wrong.");
+      expect(fromError({ code: "x" }, "fallback")).toBe("fallback");
+      expect(fromError({ message: "", code: "P0001" }, "fallback")).toBe("fallback");
+      expect(fromError({ message: 42, code: "P0001" }, "fallback")).toBe("fallback");
+    });
+  });
+
+  beforeEach(() => {
+    toasts.value = [];
+  });
+
+  it("gives each toast its own id, so dismissing one leaves the others", () => {
+    const first = info("one");
+    const second = info("two");
+    expect(second).not.toBe(first);
+    dismiss(first);
+    expect(toasts.value.map((t) => t.message)).toEqual(["two"]);
+  });
+
+  it("keeps an error on screen longer than a success or an info note", () => {
+    const e = error("bad");
+    const s = success("good");
+    const i = info("fyi");
+    const duration = (id: number) => toasts.value.find((t) => t.id === id)!.duration;
+    expect(duration(e)).toBeGreaterThan(duration(s));
+    expect(duration(e)).toBeGreaterThan(duration(i));
+  });
+
+  it("pushes a plain toast unchanged in shape, with the type's default duration", () => {
+    const id = success("Saved.");
+    expect(toasts.value).toEqual([{ id, type: "success", message: "Saved.", duration: 3500, action: undefined }]);
+  });
+
+  it("still honours the positional duration argument every existing call site uses", () => {
+    // usePlayerRemovalGuard.ts's real call shape: an error toast pinned open.
+    const id = error("You have been removed from the campaign by the DM.", 0);
+    expect(toasts.value[0]).toMatchObject({ id, duration: 0 });
+
+    info("Session started — reveals now announce to your players.");
+    expect(toasts.value[1]).toMatchObject({ duration: 4500 });
+  });
+
+  it("attaches an action, and running it removes the toast from the stack", () => {
+    const run = vi.fn();
+    const id = success("Reset to default.", undefined, { action: { label: "Undo", run } });
+
+    expect(toasts.value[0]?.action?.label).toBe("Undo");
+
+    toasts.value[0]?.action?.run();
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(toasts.value.find((t) => t.id === id)).toBeUndefined();
+  });
+
+  it("never runs the action a second time, even if it is invoked twice before the toast unmounts", () => {
+    const run = vi.fn();
+    success("Reset to default.", undefined, { action: { label: "Undo", run } });
+    const action = toasts.value[0]?.action;
+
+    action?.run();
+    action?.run();
+
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives an action toast a longer default duration than a plain toast of the same type", () => {
+    const id = success("Reset to default.", undefined, { action: { label: "Undo", run: vi.fn() } });
+    const toast = toasts.value.find((t) => t.id === id);
+    // The plain `success` default is 3500ms — this only holds if the presence
+    // of an action, not the type, is what widened the window.
+    expect(toast?.duration).toBeGreaterThan(3500);
+  });
+
+  it("still lets an action toast take an explicit duration, including 0 to require manual dismissal", () => {
+    const id = success("Reset to default.", 0, { action: { label: "Undo", run: vi.fn() } });
+    expect(toasts.value.find((t) => t.id === id)?.duration).toBe(0);
+  });
+
+  it("dismiss() removes a toast by id whether or not it carries an action", () => {
+    const id = info("Just letting you know.");
+    dismiss(id);
+    expect(toasts.value).toEqual([]);
+  });
+});
+
+describe("ToastHost action button", () => {
+  const { toasts, success } = toast;
+  const global = { stubs: { Teleport: true } };
+
+  beforeEach(() => {
+    toasts.value = [];
+  });
+
+  it("renders no action button on a plain toast", () => {
+    success("Saved.");
+    const wrapper = mount(ToastHost, { global });
+
+    expect(wrapper.findAll("button")).toHaveLength(1); // dismiss control only
+    wrapper.unmount();
+  });
+
+  it("renders the action beside the message, and clicking it runs the action and removes the toast", async () => {
+    const run = vi.fn();
+    success("Reset to default.", undefined, { action: { label: "Undo", run } });
+    const wrapper = mount(ToastHost, { global });
+
+    const buttons = wrapper.findAll("button");
+    expect(buttons).toHaveLength(2); // action + dismiss
+    const actionButton = buttons.find((b) => b.text() === "Undo");
+    expect(actionButton).toBeDefined();
+    // The visible label alone repeats across every "Undo" toast the app can
+    // show, so the accessible name folds in which toast it belongs to.
+    expect(actionButton?.attributes("aria-label")).toBe("Undo: Reset to default.");
+
+    await actionButton?.trigger("click");
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(toasts.value).toEqual([]);
+    wrapper.unmount();
+  });
+
+  // `hasRun` is spent before the callback can throw, so without a `finally` a
+  // failed undo would strand the toast on screen wearing a dead button.
+  it("dismisses the toast even when the action throws", () => {
+    const { toasts, error } = toast;
+    const before = toasts.value.length;
+    error("Reset failed to stick", undefined, {
+      action: {
+        label: "Undo",
+        run: () => {
+          throw new Error("network");
+        },
+      },
+    });
+    const pushed = toasts.value[toasts.value.length - 1];
+    expect(pushed?.action).toBeDefined();
+    expect(() => pushed?.action?.run()).toThrow("network");
+    expect(toasts.value).toHaveLength(before);
+  });
+});

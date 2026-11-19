@@ -12,8 +12,8 @@
  * width and a fraction of height are different lengths on a map that is not
  * square.
  */
-import type { MapScale } from "@/types/location.types";
-import type { DistanceUnit } from "@/rules/travelPace";
+import type { MapScale } from "../../types/location.types.ts";
+import type { DistanceUnit } from "../../rules/travelPace.ts";
 
 export interface ImagePoint {
   x: number;

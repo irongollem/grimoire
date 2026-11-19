@@ -204,6 +204,7 @@ import TagChip from "@/components/common/TagChip.vue";
 import TagChips from "@/components/common/TagChips.vue";
 import SourceBadge from "@/components/common/entity/SourceBadge.vue";
 import { ref, computed, defineAsyncComponent } from "vue";
+import { healthWord } from "@/lib/encounters/healthWord";
 import { useFormPortraits } from "@/composables/party/useFormPortraits";
 import { IconClose, IconShield } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -300,14 +301,8 @@ const hpBarColor = computed(() => {
   if (p < 66) return "bg-tone-caution";
   return "bg-elven-green";
 });
-const hpLabel = computed(() => {
-  const p = hpPct.value;
-  if (p <= 0) return "Dead";
-  if (p <= 25) return "Bloodied";
-  if (p <= 50) return "Wounded";
-  if (p <= 75) return "Hurt";
-  return "Healthy";
-});
+// hpPct is a percentage (zero for a zero maximum), so it is read against a maximum of 100.
+const hpLabel = computed(() => healthWord(hpPct.value, 100));
 
 // ── Species modal helpers ────────────────────────────────────────────────────
 

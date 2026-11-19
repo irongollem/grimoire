@@ -12,6 +12,8 @@ describe("featureForPath", () => {
     ["/vault/abc", "item-vault"],
     ["/rules", "reliquary"],
     ["/party/abc", "party"],
+    ["/table", "party"],
+    ["/table/abc", "party"],
     ["/character-sheet/abc", "party"],
     ["/encounters/abc/run", "encounters"],
     ["/codex/feats", "character-codex"],

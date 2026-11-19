@@ -9,11 +9,10 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { EmbeddingProviderConfigError, resolveEmbeddingProvider, toVectorLiteral } from "../_shared/embeddings.ts";
-import { judge, JEV_MODEL, noulOf } from "../_shared/typesafe.ts";
+import { judge, JEV_MODEL, judgingKey, noulOf } from "../_shared/typesafe.ts";
 import {
   buildEntry,
   rerankHits,
-  rerankKey,
   rowSourceFor,
   type EntryFields,
 } from "./rerank.ts";
@@ -27,6 +26,7 @@ import {
   type CampaignSearchResponse,
   type CampaignSearchUnavailable,
 } from "../_shared/campaignSearch.ts";
+import { UUID_RE } from "../_shared/uuid.ts";
 
 /**
  * Campaign-wide semantic search (#599): "find my thing" across the DM's own
@@ -82,7 +82,6 @@ const admin = createClient(
 
 const MATCH_COUNT = 8;
 const RERANK_TIMEOUT_MS = 6_000;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -355,7 +354,7 @@ serve(withCors(async (req: Request) => {
     const pool = rerankPool(allHits);
     let apiKey: string | null = null;
     if (campaign.ai_enabled === true && pool.length > 0) {
-      apiKey = rerankKey(campaign.ai_enabled, (await fetchPlatformKeys(admin, ["typesafe"])).typesafe);
+      apiKey = judgingKey(campaign.ai_enabled, (await fetchPlatformKeys(admin, ["typesafe"])).typesafe);
     }
     if (apiKey !== null) {
       const key = apiKey;

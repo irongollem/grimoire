@@ -158,7 +158,7 @@ flowchart LR
     chan --> sync["useCampaignLiveSync<br/>SIGNAL_KEYS → invalidate;<br/>RECONCILE_KEYS after gaps"]
     sync --> uiL["queries refetch through RLS → UI"]
     sync --> bus["campaignLiveSync/rings.ts<br/>onCampaignRing / onCampaignReconcile"]
-    bus -.-> enc["useEncounterLive · useRunnerPartySync"]
+    bus -.-> enc["useEncounterLive · useFightCommands"]
     bus -.-> msg["useCampaignMessages"]
     bus -.-> snd["usePlayerAudioStream · usePlayerRemovalGuard"]
     rt -.-> pres["useCampaignPresence (Presence, public)"]

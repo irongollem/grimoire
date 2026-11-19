@@ -178,6 +178,8 @@ describe("useMapExport", () => {
           origin_y_pct: 0,
           origin_cell_x: 0,
           origin_cell_y: 0,
+          // The faked padded frame is 1024 by 1024.
+          image_height_over_width: 1,
           grid_opacity: expect.any(Number),
         },
       });
@@ -262,6 +264,8 @@ describe("useMapExport", () => {
           origin_y_pct: 0,
           origin_cell_x: 0,
           origin_cell_y: 0,
+          // The faked padded frame is 1024 by 1024.
+          image_height_over_width: 1,
           grid_opacity: expect.any(Number),
         },
         // The walls drawing is named for the site and carries the source's pack and darkness.

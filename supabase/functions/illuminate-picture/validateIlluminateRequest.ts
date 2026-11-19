@@ -9,6 +9,7 @@
 import { checkPng, pngSize } from "../_shared/pngRequest.ts";
 import { buildSimpleImagePrompt } from "../_shared/image-prompt.ts";
 import { SCRIPTORIUM_HOUSE_STYLE, SCRIPTORIUM_LOOK_STYLES, isArtLook, type ScriptoriumArtLook } from "../_shared/scriptoriumLookStyles.ts";
+import { UUID_RE as UUID } from "../_shared/uuid.ts";
 
 export type IlluminateAction = "cutout" | "ink" | "watercolour" | "extend" | "match";
 
@@ -27,7 +28,6 @@ export function needsLikenessAck(action: IlluminateAction): boolean {
   return action === "ink" || action === "watercolour" || action === "match";
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface IlluminateRequest {
   campaign_id: string;

@@ -6,6 +6,7 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Monster } from "@/types/monster.types";
+import { RUNNER_TAKE_TURN, createRunnerTakeTurn } from "@/components/encounters/runnerResolve";
 import PlayTurnCard from "./PlayTurnCard.vue";
 
 function c(id: string, over: Partial<RunCombatant> = {}): RunCombatant {
@@ -35,7 +36,8 @@ function setup(extra: Partial<RunCombatant> = {}, partyMembers: PartyMember[] = 
   store.started = true;
   store.round = 1;
   store.activeIndex = 0;
-  const w = mount(PlayTurnCard, { props: { partyMembers }, global: { stubs: { PlayPcAttacks: { props: ["member", "senderName"], template: "<div data-testid='pc-attacks'>{{ member.id }} {{ senderName }}</div>" }, RunnerActionList: { props: ["sections"], template: "<div data-testid='actions'>{{ sections.map(s => s.label).join() }}</div>" } } } });
+  const provide = { [RUNNER_TAKE_TURN as symbol]: createRunnerTakeTurn(async () => ({ turn: null, outcomes: [], provokedPlayer: [] }), String) };
+  const w = mount(PlayTurnCard, { props: { partyMembers }, global: { provide, stubs: { PlayPcAttacks: { props: ["member", "senderName"], template: "<div data-testid='pc-attacks'>{{ member.id }} {{ senderName }}</div>" }, RunnerActionList: { props: ["sections"], template: "<div data-testid='actions'>{{ sections.map(s => s.label).join() }}</div>" } } } });
   return { store, w };
 }
 
@@ -137,5 +139,15 @@ describe("PlayTurnCard", () => {
     const { w } = setup();
     await w.findAll("button").find((b) => b.text() === "Open the full sheet")!.trigger("click");
     expect(w.emitted("open-sheet")).toHaveLength(1);
+  });
+
+  it("fails if the active monster's card has no Run this turn for me above its actions", () => {
+    const { w } = setup();
+    expect(w.text()).toContain("Run this turn for me");
+  });
+
+  it("fails if a party-side creature with a stat block is offered Run this turn for me", () => {
+    const { w } = setup({ type: "player" });
+    expect(w.text()).not.toContain("Run this turn for me");
   });
 });

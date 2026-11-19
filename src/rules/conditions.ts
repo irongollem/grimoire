@@ -1,8 +1,8 @@
-import { SRD_CONDITIONS_2014 } from "@/data/srdConditions2014";
-import { SRD_CONDITIONS_2024 } from "@/data/srdConditions2024";
-import { CONDITION_PATCHES } from "@/data/conditionPatches";
-import type { AppliedCondition, Condition } from "@/types/condition.types";
-import type { RulesetKey } from "@/types/ruleset.types";
+import { SRD_CONDITIONS_2014 } from "../data/srdConditions2014.ts";
+import { SRD_CONDITIONS_2024 } from "../data/srdConditions2024.ts";
+import { CONDITION_PATCHES } from "../data/conditionPatches.ts";
+import type { AppliedCondition, Condition } from "../types/condition.types.ts";
+import type { RulesetKey } from "../types/ruleset.types.ts";
 
 export type { Condition };
 
@@ -46,6 +46,17 @@ export const EXHAUSTION = "Exhaustion";
 
 export function isExhaustion(c: AppliedCondition): boolean {
   return c.name === EXHAUSTION;
+}
+
+/**
+ * Conditions that include Incapacitated (SRD 5.1 "Conditions": Paralyzed, Petrified, Stunned and Unconscious each say
+ * "incapacitated"). An incapacitated creature cannot take actions or reactions and cannot concentrate.
+ */
+export const INCAPACITATING_CONDITIONS: ReadonlySet<string> = new Set(["Incapacitated", "Paralyzed", "Petrified", "Stunned", "Unconscious"]);
+
+/** The creature is Incapacitated, by that name or by a condition that includes it. */
+export function isIncapacitated(conditions: readonly AppliedCondition[]): boolean {
+  return conditions.some((c) => INCAPACITATING_CONDITIONS.has(c.name));
 }
 
 export function hasCondition(list: readonly AppliedCondition[], name: string): boolean {
@@ -100,6 +111,11 @@ function sameJson(a: unknown, b: unknown): boolean {
   const keysB = Object.keys(b).filter((k) => (b as Record<string, unknown>)[k] !== undefined);
   if (keysA.length !== keysB.length) return false;
   return keysA.every((k) => sameJson((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
+}
+
+/** Conditions as they leave a fight: nothing owes a roll out of combat, so `due` is dropped from every record. */
+export function withoutDue(conditions: readonly AppliedCondition[]): AppliedCondition[] {
+  return conditions.map(({ due: _due, ...rest }) => rest);
 }
 
 /** Current exhaustion level on a creature, or 0 if none. */

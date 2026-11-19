@@ -51,6 +51,12 @@ export const GLYPH_SETS = {
     exportName: "DICE_D20_GLYPHS",
     description: "the d20 glyph",
   },
+  // The AI table's own glyphs (the three voice switches). Only the table screen draws them.
+  table: {
+    file: "src/lib/table/solo/tableGlyphs.generated.ts",
+    exportName: "TABLE_GLYPHS",
+    description: "custom glyphs of the AI table",
+  },
   nav: {
     file: "src/lib/navGlyphs.generated.ts",
     exportName: "NAV_GLYPHS",

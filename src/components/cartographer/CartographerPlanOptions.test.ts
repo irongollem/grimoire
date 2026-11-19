@@ -44,16 +44,16 @@ describe("CartographerPlanOptions", () => {
     expect(traceWith!.element.parentElement!.className).not.toMatch(/\bhidden\b/);
   });
 
-  it("offers every kind of zone in one place, Room first and Entrance among them", () => {
+  it("offers every kind of zone in one place, Room first and the way in or out among them", () => {
     const wrapper = mount(CartographerPlanOptions, { props: makeProps("zone") });
     const kinds = wrapper.findAll("button").map((b) => b.text());
-    for (const kind of ["Room", "Terrain", "Hazard", "Light", "Trigger", "Entrance", "Marker"]) expect(kinds).toContain(kind);
+    for (const kind of ["Room", "Terrain", "Hazard", "Light", "Trigger", "Way in or out", "Marker"]) expect(kinds).toContain(kind);
     expect(kinds.indexOf("Room")).toBeLessThan(kinds.indexOf("Terrain"));
   });
 
   it("picking a kind chip changes the kind the Zone tool makes", async () => {
     const wrapper = mount(CartographerPlanOptions, { props: makeProps("zone") });
-    await wrapper.findAll("button").find((b) => b.text() === "Entrance")?.trigger("click");
+    await wrapper.findAll("button").find((b) => b.text() === "Way in or out")?.trigger("click");
     expect(wrapper.emitted("update:zoneKind")?.[0]).toEqual(["entrance"]);
   });
 

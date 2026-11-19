@@ -198,6 +198,7 @@ import ModeToggle from "./ModeToggle.vue";
 import { usePwaInstall } from "@/composables/usePwaInstall";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { IconAdd, IconBilling, IconBug, IconDownload, IconLogOut, IconNote, IconRefresh, IconShieldCheck, IconUserCircle } from "@/lib/icons";
+import { useTableAccess } from "@/composables/campaign/useTableAccess";
 import { NAV_GROUPS, navItemHiddenByFlag, type NavItem } from "@/lib/nav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
 import { useAppUiStore } from "@/stores/ui/app";
@@ -236,6 +237,7 @@ const route = useRoute();
 const router = useRouter();
 const appUi = useAppUiStore();
 const campaignStore = useCampaignStore();
+const { open: tableOpen } = useTableAccess();
 const auth = useAuthStore();
 const scratchpad = useScratchpadStore();
 const { isPro } = useSubscription();
@@ -266,7 +268,7 @@ const groups = computed(() =>
         (item) =>
           (!item.desktopOnly || wideEnough.value) &&
           (!item.ruleKey || isRuleEffectivelyEnabled(campaignRules.value, item.ruleKey)) &&
-          !navItemHiddenByFlag(item, simulacrumMode.value === "hidden", offers),
+          !navItemHiddenByFlag(item, simulacrumMode.value === "hidden", offers, tableOpen.value),
       ),
     }))
     .filter((group) => group.items.length > 0),

@@ -31,6 +31,7 @@
         <AiGeneratedBadge variant="line" :provenance="note.ai_provenance" />
       </template>
       <div class="px-4 py-4">
+        <NoteReading :note="note" class="mb-3" />
         <RichTextViewer :content="note.content ?? ''" />
         <TagChips :tags="note.tags ?? []" class="mt-3" />
       </div>
@@ -47,6 +48,7 @@ import { IconPin, IconPopulate } from '@/lib/icons';
 import JournalCard from '@/components/player/JournalCard.vue';
 import EntityNewDot from '@/components/common/entity/EntityNewDot.vue';
 import RichTextViewer from '@/components/common/richtext/RichTextViewer.vue';
+import NoteReading from '@/components/notes/NoteReading.vue';
 import AiGeneratedBadge from '@/components/common/ai/AiGeneratedBadge.vue';
 import type { NoteCategory } from '@/types/notes.types';
 import type { Note } from '@/types/notes.types';

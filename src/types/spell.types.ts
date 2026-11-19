@@ -1,6 +1,81 @@
-import type { RulesetKey } from "@/types/ruleset.types";
-import type { AiProvenance } from "@/ai/provenance";
-import { ordinal } from "@/lib/ordinal";
+import type { RulesetKey } from "./ruleset.types.ts";
+import type { AiProvenance } from "../ai/provenance.ts";
+import { ordinal } from "../lib/ordinal.ts";
+
+/** The conditions of the rules, by their book names. Both editions use these names. */
+export const CONDITION_NAMES = [
+  "Blinded", "Charmed", "Deafened", "Frightened", "Grappled", "Incapacitated", "Invisible", "Paralyzed", "Petrified",
+  "Poisoned", "Prone", "Restrained", "Stunned", "Unconscious",
+] as const;
+export type ConditionName = (typeof CONDITION_NAMES)[number];
+
+export const ABILITIES = ["STR", "DEX", "CON", "INT", "WIS", "CHA"] as const;
+export type Ability = (typeof ABILITIES)[number];
+
+export interface CuratedSpellCondition {
+  /**
+   * `condition`: the spell imposes one or more named conditions in a way the fields below say completely.
+   * `no_condition`: it imposes none of the named conditions.
+   * `not_simple`: it imposes one, but not in a way these fields can say (it depends on a choice, on hit points, on
+   * a table, on the creature's kind beyond what `only_kinds` holds, or it changes over the turns). Left to the table.
+   */
+  verdict: "condition" | "no_condition" | "not_simple";
+  /** Every condition imposed together by the one cast. Empty unless the verdict is `condition`. */
+  conditions: ConditionName[];
+  /**
+   * Whether it stops those it affects from casting, which no named condition says: `verbal` for a spell that
+   * allows no sound or no speech (Silence), `all` for one that allows no spellcasting at all. Null for neither.
+   * It is what makes a spell worth more against a wizard than a fighter, so a caster can be told whom to aim it at.
+   */
+  stops_casting: "verbal" | "all" | null;
+  /**
+   * Whether the text also sets the speed of those it affects to 0 for as long as the condition lasts, where the
+   * condition itself does not (Hypnotic Pattern: Charmed, Incapacitated, "and has a speed of 0"). False when the
+   * text does not say so, and for conditions that already stop movement by the rules.
+   */
+  speed_zero: boolean;
+  /** What must happen for the condition to land. */
+  applies: "failed_save" | "hit" | "automatic" | null;
+  /** The saving throw that avoids it; null when `applies` is not `failed_save`. */
+  save_ability: Ability | null;
+  /** Whom one cast can affect at the spell's own level. `count` is null for an area. */
+  targets: { kind: "one" | "several" | "area" | "self"; count: number | null; more_per_slot_above: number } | null;
+  /** The creature kinds it is limited to, lower case, as the text names them ("humanoid"); empty for any creature. */
+  only_kinds: string[];
+  /** How long it lasts at most. `concentration` is the spell's own. Rounds and minutes are the common cases. */
+  duration: { unit: "instant" | "round" | "minute" | "hour" | "until_dispelled" | "special"; amount: number | null; concentration: boolean } | null;
+  /**
+   * The creature is taken out of the fight while it lasts and comes back where it was (Banishment). Only ever set
+   * by a ruling, never by a reading: no named condition says it. Absent means it stays where it is.
+   */
+  leaves_play?: boolean;
+  /** A later save that can end it, and when it is made; null when nothing but the duration ends it. */
+  repeat_save: { when: "end_of_its_turn" | "start_of_its_turn" | "when_damaged" | "as_an_action"; ability: Ability } | null;
+  /**
+   * Harm that ends the condition early. `by_casters_side`: "until you or your allies/companions damage or harm it"
+   * (2024 Charm Monster, 2014 Charm Person). `by_anyone`: "until it takes any damage". Absent and null mean the same:
+   * it does not end that way, so entries written before this field stay valid.
+   */
+  ends_when_harmed?: "by_casters_side" | "by_anyone" | null;
+  /**
+   * The creature may spend its action on an ability check to get free (SRD 5.1 Black Tentacles: "A creature restrained by
+   * the tentacles can use its action to make a Strength or Dexterity check (its choice) against your spell save DC. On a
+   * success, it frees itself."; 2024: "a Strength (Athletics) check"). `abilities` are the ones the creature chooses
+   * between; `skill` is set when the text names one for the check. The DC is always the caster's spell save DC, so it is
+   * not stored, and the check always costs the bearer's action (the only form the texts use). Absent and null mean the
+   * same: it cannot be ended that way.
+   */
+  break_free?: { abilities: Ability[]; skill: "athletics" | "acrobatics" | null } | null;
+  /**
+   * While the condition lasts the creature must spend its turns getting away from the caster (SRD 5.1 Fear: "While
+   * frightened by this spell, a creature must take the Dash action and move away from you by the safest available route on
+   * each of its turns, unless there is nowhere to move."; Turn Undead: "must spend its turns trying to move as far away from
+   * you as it can"). It may still break free of something that holds it. Absent and false mean the same: nothing forces it.
+   */
+  must_flee?: boolean;
+  /** One sentence copied word for word from the spell's description: the one that says the condition is imposed. */
+  evidence: string;
+}
 
 export const SPELL_SCHOOLS = [
   "abjuration",
@@ -206,12 +281,11 @@ export interface Spell {
   attack_type: string | null; // ranged_spell | melee_spell | save | automatic | none
   save_attribute: string | null; // STR | DEX | CON | INT | WIS | CHA
   save_effect: string | null; // half | negates | special
-  damage_rolls: import("@/systems/dnd5e/dice/damageExpression").DamageRoll[] | null; // e.g. [{dice:"8d6",type:"fire"}]
+  damage_rolls: import("../systems/dnd5e/dice/damageExpression.ts").DamageRoll[] | null; // e.g. [{dice:"8d6",type:"fire"}]
   healing_dice: string | null; // e.g. "1d8"
   target_description: string | null; // e.g. "one creature you can see within range", "up to three creatures"
   aoe_shape: string | null; // sphere | cone | line | cylinder | cube | emanation
   aoe_size: string | null; // e.g. "20 ft. radius"
-  condition_inflicted: string | null; // e.g. "blinded", "stunned"
   description: string;
   higher_levels: string | null;
   /** Machine-readable damage scaling: dice added per slot level above base. */
@@ -237,12 +311,17 @@ export interface Spell {
   effects?: StructuredSpellEffect[] | null;
   /** Structured mechanics stay advisory until this flag is explicitly reviewed. */
   mechanics_reviewed?: boolean;
+  /** What the spell does to a creature besides damage (#1021 step C); null or absent: nobody has read it for this. */
+  condition_effect?: SpellConditionEffect | null;
   image_url: string | null; // optional art for card printing
   image_focal_point?: { x: number; y: number } | null;
   ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
 }
+
+/** A condition reading as stored: the entry without the sentence that proved it. */
+export type SpellConditionEffect = Omit<CuratedSpellCondition, "evidence">;
 
 export type SpellInsert = Omit<Spell, "id" | "user_id" | "created_at" | "updated_at" | "campaign_id"> & { campaign_id?: string | null };
 export type SpellUpdate = Partial<SpellInsert>;
@@ -463,7 +542,7 @@ const WARLOCK_PACT_SLOTS: [number, number][] = [
   [5,3],[5,3],[5,3],[5,3],[5,3],[5,3],[5,4],[5,4],[5,4],[5,4],
 ];
 
-function slotsFromRow(row: number[]): import("@/types/party.types").SpellSlotEntry[] {
+function slotsFromRow(row: number[]): import("./party.types.ts").SpellSlotEntry[] {
   return row
     .map((max, i) => ({ level: i + 1, max, used: 0, pool: "spellcasting" as const, recovery: "long" as const }))
     .filter((s) => s.max > 0);
@@ -474,7 +553,7 @@ export function getDefaultSpellSlots(
   cls: string | null | undefined,
   level: number,
   ruleset: RulesetKey,
-): import("@/types/party.types").SpellSlotEntry[] {
+): import("./party.types.ts").SpellSlotEntry[] {
   const l = Math.max(1, Math.min(20, Math.round(level)));
   const idx = l - 1;
   switch (cls) {
@@ -576,7 +655,7 @@ export function multiclassCasterLevel(
 export function getMulticlassSpellSlots(
   classes: CasterClassEntry[],
   ruleset: RulesetKey,
-): import("@/types/party.types").SpellSlotEntry[] {
+): import("./party.types.ts").SpellSlotEntry[] {
   if (classes.length === 0) return [];
   if (classes.length === 1) {
     const only = classes[0];
@@ -584,7 +663,7 @@ export function getMulticlassSpellSlots(
     return getDefaultSpellSlots(only.class_name, only.levels, ruleset);
   }
 
-  const out: import("@/types/party.types").SpellSlotEntry[] = [];
+  const out: import("./party.types.ts").SpellSlotEntry[] = [];
 
   const casterLevel = multiclassCasterLevel(classes, ruleset);
   if (casterLevel > 0) {

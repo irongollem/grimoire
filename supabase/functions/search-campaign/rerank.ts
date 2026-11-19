@@ -19,16 +19,6 @@ import { buildStoredText, JUDGE_ROW_SELECT, judgeTable } from "../import-match/j
 import type { SemanticKind } from "../import-match/matching.ts";
 import type { JudgeRequest, NoulQuestion } from "../_shared/typesafe.ts";
 
-/**
- * The search judges only with AI switched on for the campaign AND a platform
- * key: the query and row text go to a third party. Anything but a literal
- * `true` (null, undefined, a missing column) is off.
- */
-export function rerankKey(aiEnabled: unknown, platformKey: string | undefined): string | null {
-  if (aiEnabled !== true) return null;
-  return platformKey && platformKey.length > 0 ? platformKey : null;
-}
-
 /** Each text field of an entry is cut to about this many characters, as in the measurement. */
 export const FIELD_CHARS = 220;
 /** A stored row's text (the embed text) holds several fields, so it gets room for about three. */

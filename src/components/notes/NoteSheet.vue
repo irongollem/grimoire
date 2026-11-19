@@ -53,6 +53,12 @@
       </span>
     </div>
 
+    <!-- A note a sitting at the AI table left can be told as a story first, then read aloud. -->
+    <NoteTellSitting v-if="note.campaign_id && tableOpen":note="note" />
+
+    <!-- Read aloud: only where there is something to read. -->
+    <NoteReading v-if="hasContent(note.content) && note.campaign_id" :note="note" :can-make="tableOpen" />
+
     <!-- Content -->
     <div v-if="hasContent(note.content)" class="longform rounded-lg border border-border bg-card p-4">
       <RichTextViewer :content="note.content!" />
@@ -62,6 +68,9 @@
 </template>
 
 <script setup lang="ts">
+import { useTableAccess } from "@/composables/campaign/useTableAccess";
+import NoteReading from "./NoteReading.vue";
+import NoteTellSitting from "./NoteTellSitting.vue";
 import { IconDelete, IconEdit, IconPin } from '@/lib/icons';
 import { useRoute, useRouter } from "vue-router";
 import { useConfirm } from "@/composables/useConfirm";
@@ -72,6 +81,9 @@ import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import type { Note } from "@/types/notes.types";
 import { useNoteSession } from "@/composables/notes/useNoteSession";
 import { sessionLabel } from "@/lib/sessions/sessionLabel";
+
+// The AI table and what hangs off it is released to chosen accounts only (`useTableAccess`).
+const { open: tableOpen } = useTableAccess();
 
 const props = defineProps<{ note: Note }>();
 

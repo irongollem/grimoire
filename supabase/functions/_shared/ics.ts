@@ -18,6 +18,7 @@
  */
 
 import { cadenceRrule, firstEvening, type CadenceRule } from "./cadence.ts";
+import { UUID_RE } from "./uuid.ts";
 
 /** Max line length per RFC 5545 §3.1 (75 octets, not chars — close enough for ASCII). */
 const LINE_MAX = 75;
@@ -359,7 +360,7 @@ export function tokenFromAddress(address: string | null | undefined): string | n
   const plus = local.indexOf("+");
   if (plus < 0) return null;
   const candidate = local.slice(plus + 1);
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(candidate)
+  return UUID_RE.test(candidate)
     ? candidate.toLowerCase()
     : null;
 }

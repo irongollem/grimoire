@@ -1,5 +1,5 @@
-import type { AbilityKey } from "@/rules/characterCreation";
-import type { FeatAbilityIncrease, FeatPrerequisites } from "./mechanics.types";
+import type { AbilityKey } from "../characterCreation.ts";
+import type { FeatAbilityIncrease, FeatPrerequisites } from "./mechanics.types.ts";
 
 const ABILITY_NAMES: Record<AbilityKey, string> = {
   str: "Strength",

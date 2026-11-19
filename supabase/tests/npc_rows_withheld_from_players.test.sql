@@ -6,7 +6,7 @@ begin;
 set constraints all immediate;
 
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(13);
 
 -- A player reads an NPC only through get_player_visible_npcs (20260928233302).
 --
@@ -46,6 +46,10 @@ insert into public.npcs (id, user_id, campaign_id, name, disguise_name, is_revea
   ('93300000-0000-4000-8000-000000000023', '93300000-0000-4000-8000-000000000001', '93300000-0000-4000-8000-000000000010',
    'Unmet stranger', null, true, '{}'::uuid[], array['name'], null, null);
 
+-- How the disguised one talks, and which voice reads them aloud (#1021): both the DM's.
+update public.npcs set voice = 'Dry, clipped, never laughs.', spoken_voice_id = 'VoiceOfTheLich01'
+ where id = '93300000-0000-4000-8000-000000000020';
+
 -- ── As the player ──────────────────────────────────────────────────────────
 
 set local role authenticated;
@@ -74,6 +78,11 @@ select is(
   (select count(*)::integer from public.get_player_visible_npcs('93300000-0000-4000-8000-000000000010')
     where name = 'Vesper the Lich' or backstory is not null or notes is not null),
   0, 'and the true name, backstory and DM notes never come back at all');
+
+select is(
+  (select count(*)::integer from public.get_player_visible_npcs('93300000-0000-4000-8000-000000000010')
+    where voice is not null or spoken_voice_id is not null),
+  0, 'how a character talks and the voice that reads them aloud never come back: a true voice would unmask a disguise');
 
 select is(
   private.npc_is_visible_to_caller('93300000-0000-4000-8000-000000000023', '93300000-0000-4000-8000-000000000010'),

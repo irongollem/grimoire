@@ -2,6 +2,7 @@ import { reportHandledError } from "@/lib/observability/sentry";
 import { computed, type Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { sweepNoteReadings } from "@/lib/campaign/campaignFiles";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 import { PLAYER_NOTES_KEY } from "@/lib/campaignLiveSync/registry";
@@ -136,8 +137,14 @@ async function updateNote(id: string, update: NoteUpdate): Promise<Note> {
 }
 
 async function deleteNote(id: string): Promise<void> {
-  const { error } = await supabase.from("notes").delete().eq("id", id);
+  // The deleted row is read back for one thing: whether it had been read aloud, and in which campaign.
+  const { data, error } = await supabase.from("notes").delete().eq("id", id).select("campaign_id, reading_hash");
   if (error) throw error;
+  // Its recording is nobody's now (#1021 row 19): the server removes what nothing refers to. Not awaited: the
+  // note is gone either way.
+  for (const gone of data ?? []) {
+    if (gone.reading_hash && gone.campaign_id) void sweepNoteReadings(gone.campaign_id as string);
+  }
 }
 
 /** The list read the notes page performs; shared with the navigation prefetch. */

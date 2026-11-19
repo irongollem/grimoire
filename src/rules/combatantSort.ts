@@ -1,5 +1,5 @@
-import type { RunCombatant } from "@/types/encounter.types";
-import { initiativeModifier } from "@/rules/initiative";
+import type { RunCombatant } from "../types/encounter.types.ts";
+import { initiativeModifier } from "./initiative.ts";
 
 // Canonical initiative order for a live encounter: initiative desc (unrolled = last),
 // players before monsters/NPCs on a tie, then higher initiative modifier first:

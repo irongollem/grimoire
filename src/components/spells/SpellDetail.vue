@@ -145,8 +145,11 @@
           :target-description="targetDescription"
           :aoe-shape="aoeShape"
           :aoe-size="aoeSize"
-          :condition-inflicted="conditionInflicted"
+          :condition-effect="conditionEffect"
           :school="school"
+          :concentration="concentration"
+          :description="toPlainText(description)"
+          :higher-levels="higherLevels"
           @update:attack-type="attackType = $event"
           @update:save-attribute="saveAttribute = $event"
           @update:save-effect="saveEffect = $event"
@@ -155,7 +158,7 @@
           @update:target-description="targetDescription = $event"
           @update:aoe-shape="aoeShape = $event"
           @update:aoe-size="aoeSize = $event"
-          @update:condition-inflicted="conditionInflicted = $event"
+          @update:condition-effect="conditionEffect = $event"
         />
 
         <!-- Description -->
@@ -270,7 +273,7 @@ import { useSourceTitles } from "@/composables/library/useSourceTitles";
 import { sourceLinkHost } from "@/lib/library/sourceLabel";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 import { SPELL_SCHOOLS, spellLevelLabel } from "@/types/spell.types";
-import type { Spell, SpellSchool } from "@/types/spell.types";
+import type { Spell, SpellConditionEffect, SpellSchool } from "@/types/spell.types";
 import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/spells/useSpells";
 import { useUpsertLibrarySpellArt } from "@/composables/library/useLibrarySpellArt";
 import { useCreateScriptoriumBook } from "@/scriptorium/composables/useScriptorium";
@@ -281,6 +284,7 @@ import {
   REFERENCE_SPELLS,
   SCHOOL_DESIGN_TIPS,
 } from "@/lib/spells/spellAdvisor";
+import { advisorFieldsFromSpell } from "@/lib/spells/advisorInputsFromSpell";
 import type {
   EffectType,
   EffectIntensity,
@@ -357,7 +361,7 @@ function toDraft(spell: Spell | null) {
     targetDescription: spell?.target_description ?? "",
     aoeShape: spell?.aoe_shape ?? "",
     aoeSize: spell?.aoe_size ?? "",
-    conditionInflicted: spell?.condition_inflicted ?? "",
+    conditionEffect: cloneDraftValue(spell?.condition_effect ?? null) as SpellConditionEffect | null,
   };
 }
 type SpellDraft = ReturnType<typeof toDraft>;
@@ -376,7 +380,7 @@ const {
   description, higherLevels, classes, source, imageUrl, imageFocalPoint,
   aiProvenance, tags, campaignId, attackType, saveAttribute, saveEffect,
   damageRolls, healingDice, targetDescription, aoeShape, aoeSize,
-  conditionInflicted,
+  conditionEffect,
 } = toRefs(draft);
 
 const CONFLICT_LABELS: Record<keyof SpellDraft, string> = {
@@ -410,7 +414,7 @@ const CONFLICT_LABELS: Record<keyof SpellDraft, string> = {
   targetDescription: "Target",
   aoeShape: "Area",
   aoeSize: "Area",
-  conditionInflicted: "Condition",
+  conditionEffect: "Condition",
 };
 const conflictLabels = computed(() => [...new Set(conflicts.value.map((k) => CONFLICT_LABELS[k]))]);
 
@@ -448,6 +452,10 @@ const adv = reactive({
   requiresConcentration: false,
   hasSecondaryEffect: false,
   isRitual: false,
+  repeatSave: false,
+  endsWhenHarmed: false,
+  limitedKinds: false,
+  canBreakFree: false,
 });
 
 const schoolTip = computed(() => SCHOOL_DESIGN_TIPS[school.value] ?? null);
@@ -461,7 +469,8 @@ const refSpells = computed(() => {
 const advResult = computed(() => adviseLevelRange(adv));
 
 function applyAdvisor() {
-  if (!advResult.value) return;
+  // Nothing weighed yet (no dice): applying would set a level on the strength of nothing.
+  if (!advResult.value.estimated) return;
 
   // Level
   const mid =
@@ -542,33 +551,24 @@ watch(ritual, (val) => {
   adv.isRitual = val;
 });
 
-// Pre-fill advisor from mechanics fields when it opens
+// Pre-fill the advisor from the spell's own fields when it opens, so it asks only what the form does not say
+// (`advisorInputsFromSpell`): the dice, the save, the area, the duration, and what the spell does besides damage.
+// What kind of effect a buff or utility spell is, and how strong, stays the DM's answer.
 watch(advisorOpen, (open) => {
   if (!open) return;
-  if (damageRolls.value.length) {
-    adv.effectType = "damage";
-    adv.damageDice = damageRolls.value
-      .map((r) => (r.type ? `${r.dice} ${r.type}` : r.dice))
-      .join(" + ");
-  }
-  if (healingDice.value) {
-    adv.effectType = "healing";
-    adv.damageDice = healingDice.value;
-  }
-  if (aoeShape.value) {
-    adv.targetingMode =
-      aoeSize.value && parseInt(aoeSize.value) >= 30
-        ? "aoe_large"
-        : aoeSize.value && parseInt(aoeSize.value) >= 15
-          ? "aoe_medium"
-          : "aoe_small";
-  }
-  if (attackType.value === "automatic") adv.saveType = "automatic";
-  else if (attackType.value === "ranged_spell" || attackType.value === "melee_spell")
-    adv.saveType = "attack_roll";
-  else if (attackType.value === "save") {
-    adv.saveType = saveEffect.value === "negates" ? "save_negates" : "save_for_half";
-  }
+  const read = advisorFieldsFromSpell({
+    damage_rolls: damageRolls.value,
+    healing_dice: healingDice.value || null,
+    attack_type: attackType.value || null,
+    save_effect: saveEffect.value || null,
+    aoe_shape: aoeShape.value || null,
+    aoe_size: aoeSize.value || null,
+    duration: duration.value,
+    concentration: concentration.value,
+    ritual: ritual.value,
+    condition_effect: conditionEffect.value,
+  });
+  Object.assign(adv, read);
 });
 
 // ── Save / Delete ─────────────────────────────────────────────────────────────
@@ -613,7 +613,7 @@ function buildPayload(d: SpellDraft) {
     target_description: d.targetDescription || null,
     aoe_shape: d.aoeShape || null,
     aoe_size: d.aoeSize || null,
-    condition_inflicted: d.conditionInflicted || null,
+    condition_effect: d.conditionEffect,
     ai_provenance: d.aiProvenance,
   };
 }
@@ -653,7 +653,7 @@ async function save() {
         targetDescription.value !== (props.spell.target_description ?? "") ||
         aoeShape.value !== (props.spell.aoe_shape ?? "") ||
         aoeSize.value !== (props.spell.aoe_size ?? "") ||
-        conditionInflicted.value !== (props.spell.condition_inflicted ?? "");
+        !deepEqual(conditionEffect.value, props.spell.condition_effect ?? null);
       if (contentChanged) aiProvenance.value = markEdited(aiProvenance.value);
       // Only the columns this edit changed, so a stale cached copy cannot write
       // untouched fields back at old values (#946).
@@ -738,7 +738,7 @@ function onAiGenerated(result: SpellAiGenerated) {
   targetDescription.value = ins.target_description ?? "";
   aoeShape.value = ins.aoe_shape ?? "";
   aoeSize.value = ins.aoe_size ?? "";
-  conditionInflicted.value = ins.condition_inflicted ?? "";
+  conditionEffect.value = ins.condition_effect ?? null;
   if (ins.image_url) {
     imageUrl.value = ins.image_url;
     imageFocalPoint.value = null;

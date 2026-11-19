@@ -140,9 +140,22 @@
       </div>
     </header>
 
+    <!-- At the AI table (#1021): the account is a DM's, the seat is a player's. Not on the sitting itself, which
+         has its own bar; on every other player page it is the way back to the story and to the DM's side. -->
+    <div
+      v-if="appUi.tablePlay && route.name !== 'table-session'"
+      class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border bg-card px-4 py-2"
+      data-testid="table-play-banner"
+    >
+      <span class="text-label-lg font-semibold text-foreground">Playing {{ tablePlayName }}</span>
+      <span class="flex-1" />
+      <AppButton :to="`/play/table/${appUi.tablePlay.sessionId ?? 'new'}`" variant="outline" size="md" label="Back to the story" />
+      <AppButton variant="ghost" size="md" label="The Dungeon Master's side" @click="exitTablePlay" />
+    </div>
+
     <!-- DM preview banner -->
     <div
-      v-if="appUi.dmPreviewMode"
+      v-else-if="appUi.dmPreviewMode && !appUi.tablePlay"
       class="bg-tone-caution px-4 py-2 flex items-center gap-3 shrink-0"
     >
       <IconReveal class="h-3.5 w-3.5 text-on-caution/70 shrink-0" />
@@ -581,6 +594,13 @@ watch(
     if (record !== previous && mainEl.value) mainEl.value.scrollTop = 0;
   },
 );
+
+// Stepping out of the seat without getting up: the sitting stays open and is picked up again from the Table entry.
+const tablePlayName = computed(() => partyMembers.value?.find((m) => m.id === appUi.tablePlay?.memberId)?.name ?? "your character");
+function exitTablePlay() {
+  appUi.exitTablePlay();
+  router.push({ name: "dashboard" });
+}
 
 function exitPreview() {
   appUi.exitDmPreview();

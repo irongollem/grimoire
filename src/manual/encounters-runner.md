@@ -64,6 +64,20 @@ Each row is one combatant; the active combatant gets a highlighted row and gold 
 
 A player's row exposes their actual weapons and features as roll buttons: melee, ranged, and thrown attacks, plus any custom attacks they've defined. Ranged attacks consume ammunition from the character's own inventory; thrown weapons (javelin, dagger, handaxe, and the rest) leave the character's hand and drop to the ground as a recoverable item once thrown. Both only consume anything once the attack roll actually resolves: cancelling a manual dice entry spends nothing.
 
+## Let the app run a monster's turn
+
+On a monster or NPC with actions, **Run this turn for me** (above its action list, in the side panel and on the Play screen's turn card) asks the server to play that creature's turn. It picks one thing to do, moves the token on your map if the turn includes a move, makes the attack rolls itself, and posts them to the chat like any other roll. It never ends the turn: you read what happened and press **Next turn** yourself, and you can run a creature out of turn, because nothing is tied to whose turn it is.
+
+A creature that has a way out uses it when it breaks, before it runs or gives up. A night hag with Etherealness steps into the Ethereal Plane and is out of the fight; a green hag with Invisible Passage turns Invisible. A creature that has already used up its way out falls back to running or yielding as usual.
+
+Under the button you see what it did, one line on why it chose that, and a line for each roll (hit or miss, damage, a save made or failed). The result stays for that creature until you run it again, even if you close the panel and open it later.
+
+- A creature that is badly hurt flees. If a way off the map is within reach (a **Way in or out** zone, or the edge of open country) it leaves by it and is gone from the fight: it is not counted as slain and drops no loot.
+- A monster's note, set on the monster form under **How it fights**, can rule turns out when AI is on for the campaign. The result then says "Its note ruled out" and names the turns it skipped. Without a note, or with AI off, the app uses its rules alone.
+- The button is greyed out, with the reason beside it, for a creature at 0 hit points or one that has already used its Action this turn.
+- The app moves a creature by what is drawn on the map, not by what the picture shows. Walls, doors and solid rock block it, and a **Difficult terrain** zone costs double. A picture of a room full of tables with nothing drawn over it is an empty floor to the app, and the result says so: "Nothing is drawn on this map". Trace the walls and paint the zones once and every creature keeps to them.
+- Without a map it still attacks, but nothing is measured, so it does not move.
+
 ## Spawning mid-combat
 
 The spawn panel at the bottom of the combatant list adds monsters or NPCs during the fight. Pick the **Monster** or **NPC** tab, search for the creature, set a faction and count, and click **+ Add**. If combat has already started, Grimoire rolls initiative for the new arrival automatically, and primes a legendary action pool if it has one.

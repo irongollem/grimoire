@@ -1,7 +1,7 @@
-import type { AppliedCondition } from "@/types/condition.types";
-import type { RewardCurrencyPool } from "@/types/quest.types";
-import type { AiProvenance } from "@/ai/provenance";
-import type { MonsterSize } from "@/types/monster.types";
+import type { AppliedCondition } from "./condition.types.ts";
+import type { RewardCurrencyPool } from "./quest.types.ts";
+import type { AiProvenance } from "../ai/provenance.ts";
+import type { MonsterSize } from "./monster.types.ts";
 export type { RewardCurrencyPool };
 
 // Faction definition — who fights whom
@@ -201,6 +201,20 @@ export interface ActionUse {
 }
 
 // Live combatant during a run (ephemeral — not stored in DB)
+/** What a fight has seen a creature do (`RunCombatant.shown_deeds`). */
+export interface ShownDeeds {
+  /** Damage it has dealt to others, after their defenses, summed. */
+  dealt: number;
+  /** Its own turns that have started. */
+  turns: number;
+  /** Spells it has been seen to cast. */
+  cast: number;
+  /** Attacks it has been seen to make at range. */
+  ranged: number;
+  /** Attacks it has been seen to make in melee. */
+  melee: number;
+}
+
 export interface RunCombatant {
   instance_id: string;      // unique: "m-{defId}-{index}" or "p-{memberId}"
   type: "player" | "monster";
@@ -212,6 +226,24 @@ export interface RunCombatant {
   ac: string;
   conditions: AppliedCondition[];
   curses: string[];
+  /**
+   * What the fight has shown this creature to resist, be immune to or be vulnerable to, keyed by damage type in the
+   * lower-case form damage parts use ("fire"), with the damage's bypass properties after a colon when it had any
+   * ("slashing:magical"), so a mundane blow glancing off teaches nothing about a magic one. Learned only when a
+   * defense changed damage that landed on it, never read from a stat block, and never cleared during a fight.
+   * APP CONVENTION: knowledge of the whole fight, not of one side. A blow shrugged off in the open is seen by
+   * everyone there, and a creature's own side knows it anyway. A creature run by the game weighs a target's defense
+   * in its choosing only through this. DM-only: left out of the players' projection.
+   */
+  shown_defenses?: Partial<Record<string, "resistant" | "immune" | "vulnerable">>;
+  /**
+   * What the fight has shown of what this creature DOES (#1021): the damage it has dealt (after defenses), how many of
+   * its own turns have started, how many spells it has been seen to cast and how many attacks of each delivery.
+   * Written only by the `show_deed` command as each fact happens, never read from a stat block. APP CONVENTION:
+   * knowledge of the whole fight, like `shown_defenses`. A creature run by the game weighs what a condition on this
+   * creature is worth only through this. DM-only: left out of the players' projection.
+   */
+  shown_deeds?: ShownDeeds;
   death_saves: { successes: number; failures: number };
   // back-references
   monster_id?: string;
@@ -245,10 +277,34 @@ export interface RunCombatant {
   token_url?: string | null;
   // reveal state — only meaningful for monsters; players are always "revealed"
   reveal_state?: RevealState;
+  /**
+   * A recorded character who is in the room but not in the fight (the AI table, #1021): a token on the map that
+   * never takes a turn, is never attacked or targeted, does not count towards the fight's end, and is listed
+   * apart from the turn order.
+   */
+  bystander?: true;
   // wildshape — only set for player combatants currently wildshaped
   wildshape?: WildshapeState;
   // temp HP — absorbs damage first, doesn't stack with healing
   temp_hp?: number;
+  /**
+   * Players only: the hit points this fight last read from the character's own row. A row that still says this has not
+   * been changed by its player since, so the fight's own `hp` stands (a hit dealt here has not reached the row yet);
+   * a different value is the player's change and is adopted. DM-only: left out of the players' projection, which is an allow-list.
+   */
+  sheet_hp?: number;
+  /** Players only: the same memory for `temp_hp` (a hit that spent temporary hit points reaches the row after the fight saves it). */
+  sheet_temp_hp?: number;
+  /**
+   * Players only, with the same reasoning as `sheet_hp`, for each other value the fight both reads from the character's
+   * row and writes back to it: the death save tally, the conditions, the beast form and the initiative. A row that still
+   * says what the fight last read is not news, so the fight's own value stands until the row really changes. DM-only.
+   * `sheet_initiative` is null when the row held none; undefined on every field means never read.
+   */
+  sheet_death_saves?: { successes: number; failures: number };
+  sheet_conditions?: AppliedCondition[];
+  sheet_wildshape?: WildshapeState | null;
+  sheet_initiative?: number | null;
   // concentration — set when this combatant is concentrating on a spell.
   // Mirrors ConcentrationState on party_members; cleared on short rest / encounter end for monsters.
   concentration?: {
@@ -266,7 +322,7 @@ export interface RunCombatant {
   // combatant's turn; other combatants' turns can spend actions from here.
   legendary_action_cap?: number;
   legendary_actions_remaining?: number;
-  // Reaction — one per round; reset at the start of each new round.
+  // Reaction — one per round; cleared when this combatant's own turn starts.
   reactionUsed?: boolean;
   // The turn's own tallies (#1125 decision 10), all cleared when this combatant's turn starts: the feet moved,
   // and whether the action and the bonus action are spent. The Play turn card reads and marks them.
@@ -466,4 +522,11 @@ export interface EncounterState {
   magical_darkness: MagicalDarknessZone[];
   started_at: string | null;
   updated_at: string;
+  /** The DM's own read of the row only (the players' projection has none of these four): it rises on every update, and a batch is saved only against the one it loaded (#1201). */
+  version?: number;
+  /** When End combat or Abandon closed the fight; null while it is being set up or played. */
+  ended_at?: string | null;
+  /** The newest batch ids the server has applied to this row, so a read can tell which pending batch it already holds. */
+  applied_command_ids?: string[];
+  lair_fired_rounds?: number[];
 }

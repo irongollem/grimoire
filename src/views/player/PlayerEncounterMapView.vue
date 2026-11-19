@@ -150,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, toRaw } from "vue";
 import { usePlayerVisibleLocation } from "@/composables/locations/useLocations";
 import { liveState } from "@/composables/encounters/useEncounterLive";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
@@ -163,7 +163,8 @@ import { usePartySight } from "@/composables/encounters/usePartySight";
 import { useMapMemory } from "@/composables/locations/useMapMemory";
 import { useMapDoors } from "@/composables/locations/useMapDoors";
 import { NO_ZONES, type DarknessZone } from "@/lib/battlemap/illumination";
-import { imageGrid, partyVisibleCombatants, shownCells, type MapGrid } from "@/lib/battlemap/partySight";
+import { imageGrid, type MapGrid } from "@/lib/battlemap/imageGrid";
+import { partyVisibleCombatants, shownCells } from "@/lib/battlemap/partySight";
 import { resolveBattleSurface } from "@/lib/battlemap/roomBridge";
 import { isInteriorType } from "@/lib/locations/tiers";
 import { usePlayerMapFollow } from "@/composables/player/usePlayerMapFollow";
@@ -206,7 +207,7 @@ const parentIdRef = computed(() =>
 const { data: parentLocation } = usePlayerVisibleLocation(parentIdRef);
 // The room's traced cells only focus the DM's camera; the phone draws the whole plan, so it needs no regions.
 const surface = computed(() =>
-  resolveBattleSurface({ encounterLocation: encounterLocation.value, parent: parentLocation.value, regions: [] }),
+  resolveBattleSurface({ encounterLocation: encounterLocation.value, parent: parentLocation.value, regions: [], plain: toRaw }),
 );
 // The place whose map is on screen: the memory is read, and the snapshot taken, for this place and not the encounter's.
 const location = computed(() => surface.value?.mapLocation ?? null);

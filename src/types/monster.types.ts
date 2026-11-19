@@ -1,7 +1,7 @@
-import type { SpellcastingBlock } from "@/types/npc.types";
-import type { VersionedContentMetadata } from "@/types/content.types";
-import type { AiProvenance } from "@/ai/provenance";
-import type { Defenses, StatBlockEntry } from "@/types/statBlock.types";
+import type { SpellcastingBlock } from "./npc.types.ts";
+import type { VersionedContentMetadata } from "./content.types.ts";
+import type { AiProvenance } from "../ai/provenance.ts";
+import type { Defenses, StatBlockEntry } from "./statBlock.types.ts";
 
 export const MONSTER_TYPES = [
   "aberration",
@@ -33,6 +33,21 @@ export const MONSTER_SIZES = [
 
 export type MonsterSize = (typeof MONSTER_SIZES)[number];
 
+/**
+ * How a creature plays its turn when the app's AI runs it (#1203). APP CONVENTION: the books do not say how a monster
+ * thinks. Every field is optional, and a filled field wins over the one `tacticalProfile` derives from the stat block.
+ * Carried inside the stat block (the database's stat-block guard passes unknown keys through), so it needs no column.
+ */
+export interface MonsterTactics {
+  role?: "brute" | "skirmisher" | "artillery" | "controller" | "leader" | "lurker";
+  targets?: "nearest" | "most_wounded" | "spellcasters_first" | "lowest_armor";
+  /** `breaksAt` is a share of maximum hit points, 0 to 1; 0 means it never breaks. */
+  morale?: { breaksAt: number; then: "flee" | "surrender" | "fight_on" };
+  cover?: "ignores" | "when_cheap" | "fights_from";
+  /** The DM's own line about how it fights. Carried through, never interpreted. */
+  note?: string;
+}
+
 export interface MonsterStatBlock {
   armor_class: number;
   hit_points: string; // pure dice expr, e.g. "8d8+16"
@@ -62,6 +77,8 @@ export interface MonsterStatBlock {
   legendary_actions?: StatBlockEntry[];
   lair_actions?: StatBlockEntry[];
   spellcasting?: SpellcastingBlock;
+  /** How the AI plays this creature (#1203); absent means everything is derived from the numbers above. */
+  tactics?: MonsterTactics;
 }
 
 /**

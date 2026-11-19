@@ -6,15 +6,16 @@
  * keeps state mutation, persistence, and realtime orchestration and delegates
  * the actual computation here.
  */
-import { rollDie } from "@/lib/dice/dice";
-import { initiativeModifier, initiativeRoll, type InitiativeSource } from "@/rules/initiative";
-import type { RulesetKey } from "@/types/ruleset.types";
-import { hitPointsToMax } from "@/lib/dice/dice";
-import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
-import { resolveTokenArt } from "@/lib/battlemap/tokenArt";
-import type { RunCombatant, EventTrigger } from "@/types/encounter.types";
-import type { Monster, MonsterStatBlock } from "@/types/monster.types";
-import type { NpcListRow } from "@/types/npc.types";
+import { rollDie } from "../lib/dice/dice.ts";
+import { abilityMod } from "./abilityScore.ts";
+import { initiativeModifier, initiativeRoll, type InitiativeSource } from "./initiative.ts";
+import type { RulesetKey } from "../types/ruleset.types.ts";
+import { hitPointsToMax } from "../lib/dice/dice.ts";
+import { sizeToFootprint } from "../lib/battlemap/tokenFootprint.ts";
+import { resolveTokenArt } from "../lib/battlemap/tokenArt.ts";
+import type { RunCombatant, EventTrigger } from "../types/encounter.types.ts";
+import type { Monster, MonsterStatBlock } from "../types/monster.types.ts";
+import type { NpcListRow } from "../types/npc.types.ts";
 
 // ── Initiative rolling ──────────────────────────────────────────────────────
 
@@ -92,36 +93,76 @@ export function combatStats(sb: MonsterStatBlock | null | undefined, fallbackHp:
     hp: maxHp,
     max_hp: maxHp,
     ac: String(sb?.armor_class ?? 10),
-    dex_mod: Math.floor((Number(sb?.dex ?? 10) - 10) / 2),
+    dex_mod: abilityMod(Number(sb?.dex ?? 10)),
     initiative_bonus: sb?.initiative_bonus ?? null,
     ...(readHp > 0 ? {} : { placeholder_stats: true }),
   };
 }
 
 /**
- * A combatant that joined on stand-in numbers, given the stat block its monster
- * or NPC has now. Null when there is nothing to adopt: the combatant has its
- * real numbers already, or the stat block still has no hit points.
- *
- * Damage taken so far carries over (a stand-in at 7 of 10 is 3 down on the real
- * maximum too), and a combatant already down stays down. Initiative is never
- * touched: it was rolled, and re-rolling would reorder the fight.
+ * The real numbers a combatant that joined on stand-ins takes from its stat
+ * block. Carried by the `adopt_stats` fight command so the one who computes
+ * them (the runner, which holds the monsters and NPCs) and the one who applies
+ * them (the browser's engine, or a server) agree. `hp` is not in here: it
+ * depends on the damage taken at the moment of applying (`applyAdoptedStats`).
  */
-export function adoptStatBlock(c: RunCombatant, sb: MonsterStatBlock | null | undefined): RunCombatant | null {
+export interface AdoptedStats {
+  max_hp: number;
+  ac: string;
+  dex_mod: number;
+  initiative_bonus: number | null;
+  /** The stat block has legendary actions and the combatant is a monster with no pool yet: it gets the usual 3. */
+  legendary: boolean;
+}
+
+/**
+ * What a combatant that joined on stand-in numbers should take from the stat
+ * block its monster or NPC has now. Null when there is nothing to adopt: the
+ * combatant has its real numbers already, or the stat block still has no hit
+ * points.
+ */
+export function adoptedStatsFor(c: RunCombatant, sb: MonsterStatBlock | null | undefined): AdoptedStats | null {
   if (!c.placeholder_stats) return null;
   const stats = combatStats(sb, c.max_hp);
   if (stats.placeholder_stats) return null;
+  return {
+    max_hp: stats.max_hp,
+    ac: stats.ac,
+    dex_mod: stats.dex_mod,
+    initiative_bonus: stats.initiative_bonus ?? null,
+    legendary: Boolean(c.monster_id && c.legendary_action_cap === undefined && sb?.legendary_actions?.length),
+  };
+}
+
+/**
+ * The combatant with `stats` adopted. Damage taken so far carries over (a
+ * stand-in at 7 of 10 is 3 down on the real maximum too), and a combatant
+ * already down stays down. Initiative is never touched: it was rolled, and
+ * re-rolling would reorder the fight. A combatant that is not on stand-in
+ * numbers is returned unchanged, so a repeated command does nothing.
+ */
+export function applyAdoptedStats(c: RunCombatant, stats: AdoptedStats): RunCombatant {
+  if (!c.placeholder_stats) return c;
   const next: RunCombatant = {
     ...c,
-    ...stats,
+    max_hp: stats.max_hp,
+    ac: stats.ac,
+    dex_mod: stats.dex_mod,
+    initiative_bonus: stats.initiative_bonus,
     hp: c.hp <= 0 ? 0 : Math.max(1, stats.max_hp - (c.max_hp - c.hp)),
   };
   delete next.placeholder_stats;
-  if (c.monster_id && c.legendary_action_cap === undefined && sb?.legendary_actions?.length) {
+  if (stats.legendary && c.legendary_action_cap === undefined) {
     next.legendary_action_cap = 3;
     next.legendary_actions_remaining = 3;
   }
   return next;
+}
+
+/** A combatant that joined on stand-in numbers, given the stat block its monster or NPC has now; null when there is nothing to adopt. */
+export function adoptStatBlock(c: RunCombatant, sb: MonsterStatBlock | null | undefined): RunCombatant | null {
+  const stats = adoptedStatsFor(c, sb);
+  return stats ? applyAdoptedStats(c, stats) : null;
 }
 
 // ── Spawned-combatant construction ──────────────────────────────────────────
@@ -137,15 +178,17 @@ export interface MonsterSpawnOptions {
    *  mid-combat event spawns intentionally don't, matching prior behavior. */
   includeLegendaryActions?: boolean;
   rollD20?: () => number;
+  /** Id source for the instance-id prefix; defaults to the clock. A server passes its own. */
+  now?: () => number;
 }
 
 /** Builds the RunCombatant entries for `count` copies of a monster. Pure
- *  aside from `Date.now()` in the instance-id prefix (uniqueness only, not
- *  behavior); the caller pushes the result onto `combatants`. */
+ *  aside from the clock in the instance-id prefix unless `now` is injected
+ *  (uniqueness only, not behavior); the caller pushes the result onto `combatants`. */
 export function buildMonsterCombatants(monster: Monster, opts: MonsterSpawnOptions): RunCombatant[] {
   const sb = monster.stat_block;
   const stats = combatStats(sb, 1);
-  const spawnKey = `spawn-${monster.id}-${Date.now()}`;
+  const spawnKey = `spawn-${monster.id}-${(opts.now ?? Date.now)()}`;
   const legendaryCap = opts.includeLegendaryActions && sb?.legendary_actions?.length ? 3 : undefined;
 
   const out: RunCombatant[] = [];
@@ -183,6 +226,8 @@ export interface NpcSpawnOptions {
   customName?: string;
   started: boolean;
   rollD20?: () => number;
+  /** Id source for the instance-id prefix; defaults to the clock. */
+  now?: () => number;
 }
 
 /** Builds the RunCombatant entries for `count` copies of an NPC. Same shape
@@ -190,7 +235,7 @@ export interface NpcSpawnOptions {
  *  listed Initiative is what the book rolls, for an NPC as for a monster. */
 export function buildNpcCombatants(npc: NpcListRow, opts: NpcSpawnOptions): RunCombatant[] {
   const stats = combatStats(npc.stat_block, 10);
-  const spawnKey = `spawn-npc-${npc.id}-${Date.now()}`;
+  const spawnKey = `spawn-npc-${npc.id}-${(opts.now ?? Date.now)()}`;
 
   const out: RunCombatant[] = [];
   for (let i = 0; i < opts.count; i++) {

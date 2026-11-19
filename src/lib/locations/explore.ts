@@ -13,10 +13,9 @@ import { regionCellToBattleCell, seedTokenPositions } from "@/lib/battlemap/room
 import { footprintCells } from "@/lib/battlemap/partySight";
 import { sizeToFootprint, type SizedToken } from "@/lib/battlemap/tokenFootprint";
 import type { MonsterSize } from "@/types/monster.types";
+import { positionsOnSite, type ExploreCell } from "@/rules/explore/explorePositions";
 import type { SpeciesSize } from "@/types/species.types";
 import { effectiveSize, type SpeciesStatsSource } from "@/rules/speciesStats";
-
-export type ExploreCell = { x: number; y: number };
 
 /** A room's standing in the Rooms list: lit, the one the party is stepping into, or still shaded. */
 export type RoomExploreState = "explored" | "entering" | "hidden";
@@ -68,11 +67,6 @@ export function exploreTokens(
   return members.map((m) => exploreToken(m, Object.hasOwn(standing, m.id) ? standing[m.id] : null, sizeOf(m.id)));
 }
 
-/** Where the party stands on this site, or an empty record when `explore_party` is for another site (one site at a time). */
-export function positionsOnSite(explore: ExploreParty | null, siteId: string): Record<string, ExploreCell> {
-  return explore !== null && explore.site_id === siteId ? explore.positions : {};
-}
-
 /** battle cell -> the room whose traced region covers it. The first region to claim a cell keeps it. */
 export function roomCellIndex(regions: readonly LocationMapRegion[], calibration: GridCalibration): Map<CellKey, string> {
   const index = new Map<CellKey, string>();
@@ -113,11 +107,14 @@ export function roomBattleCells(regions: readonly LocationMapRegion[], calibrati
   return byRoom;
 }
 
-/** The squares of the site's Entrance zones in battle cells, de-duplicated: where the party walks in (#1125). Empty when the site has none. */
+/** The squares of the site's Entrance zones in battle cells, de-duplicated: where the party walks in (#1125). A zone
+ *  marked as a way out only (`party_arrives: false`) is left out: creatures leave by it, nobody arrives. Empty when
+ *  the site has none. */
 export function entranceBattleCells(regions: readonly LocationMapRegion[], calibration: GridCalibration): CellKey[] {
   const cells = new Set<CellKey>();
   for (const region of regions) {
     if (region.region_role !== "zone" || region.zone_kind !== "entrance") continue;
+    if (region.zone_payload.party_arrives === false) continue;
     for (const cell of region.cells) cells.add(regionCellToBattleCell(cell, calibration));
   }
   return [...cells];

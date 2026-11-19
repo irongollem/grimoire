@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { judgingKey, runJudgingTier, type PairJudgment, type TierEntity } from "./judgeTier";
+import { runJudgingTier, type PairJudgment, type TierEntity } from "./judgeTier";
 import { verdictKey } from "./judging";
 import type { Candidate } from "./matching";
 
@@ -17,22 +17,6 @@ function entity(key: string, ids: string[]): TierEntity {
 
 const loadAll = vi.fn(async (_k: string, _s: string, ids: string[]) => new Map(ids.map((id) => [id, npcRow(id)] as const)));
 const ok = (score: number | null): PairJudgment => ({ score, model: "jev-1.14.0", inputTokens: 100 });
-
-describe("judgingKey", () => {
-  it("is null when AI is off, however the flag is spelled (no Jev call without ai_enabled === true)", () => {
-    expect(judgingKey(false, "key")).toBeNull();
-    expect(judgingKey(null, "key")).toBeNull();
-    expect(judgingKey(undefined, "key")).toBeNull();
-    expect(judgingKey("true", "key")).toBeNull();
-  });
-  it("is null with no platform key (no Jev call without a key)", () => {
-    expect(judgingKey(true, undefined)).toBeNull();
-    expect(judgingKey(true, "")).toBeNull();
-  });
-  it("returns the key when AI is on and a key exists", () => {
-    expect(judgingKey(true, "key")).toBe("key");
-  });
-});
 
 describe("runJudgingTier", () => {
   it("judges every planned pair once and records the verdict under its entity and candidate", async () => {

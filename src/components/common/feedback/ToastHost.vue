@@ -39,7 +39,8 @@
 import { watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconClose, IconCloseCircle, IconCheckCircle, IconInfo } from "@/lib/icons";
-import { useToast, type ToastType } from "@/composables/useToast";
+import { useToast } from "@/composables/useToast";
+import type { ToastType } from "@/lib/toast";
 
 const { toasts, dismiss } = useToast();
 

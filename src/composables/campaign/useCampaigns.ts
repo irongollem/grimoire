@@ -15,7 +15,7 @@ import type {
 } from "@/lib/campaign/campaignHomebrewDisposition";
 import { LOCATION_STATE_QUERY_KEY } from "@/composables/locations/useLocationState";
 import { HOMEBREW_TABLES, EMPTY_HOMEBREW_COUNTS } from "@/lib/campaign/campaignHomebrewDisposition";
-import { campaignFileUrls, campaignImportSourcePaths, deleteCampaignMinis, deleteImportSourcePaths } from "@/lib/campaign/campaignFiles";
+import { campaignFileUrls, campaignImportSourcePaths, deleteCampaignMinis, deleteCampaignVoiceClips, sweepNoteReadings, deleteImportSourcePaths } from "@/lib/campaign/campaignFiles";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { reportHandledError } from "@/lib/observability/sentry";
 
@@ -191,11 +191,15 @@ export async function disposeHomebrewAndDeleteCampaign(
   const importPaths = await campaignImportSourcePaths(campaignId, user.id);
   // Minis go first: their rows are the only record of their files (#963).
   await deleteCampaignMinis(campaignId);
+  // So do the voice clips of the AI table's sittings: their rows are the only record of them (#1021).
+  await deleteCampaignVoiceClips(campaignId, user.id);
   const { error } = await supabase.rpc("delete_campaign_with_homebrew", {
     p_campaign_id: campaignId,
     p_disposition: disposition,
   });
   if (error) throw error;
+  // Its notes went with it: their recordings are nobody's now (the sweep only takes what nothing refers to).
+  void sweepNoteReadings(campaignId);
   // The campaign is gone either way; a storage failure leaves files behind,
   // which is today's outcome, not a reason to report the delete as failed.
   try {

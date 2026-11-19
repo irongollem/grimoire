@@ -9,6 +9,7 @@ import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useToast } from "@/composables/useToast";
 import { isUuid } from "@/lib/library/contentIdentity";
+import { normalizeLibraryItem } from "@/lib/items/normalizeLibraryItem";
 
 const QUERY_KEY = "items";
 const UNIQUE_VIOLATION = "23505";
@@ -79,29 +80,6 @@ async function deleteItem(item: Item): Promise<void> {
   // cloneItem() duplicate can point at this same image_url/mundane_image_url —
   // only remove the files nothing else still references.
   await deleteUnreferencedByPublicUrl({ urls: [item.image_url, item.mundane_image_url] });
-}
-
-/**
- * Reshapes a raw `library_items` row into the `Item` shape every consumer
- * (Vault, stores, crafting, factions, NPC inventory, …) already expects.
- * `library_items` carries no `user_id`/`campaign_id`/`dm_notes`/`spell_ids`/
- * document-item columns — leaving those `undefined` reads as "has content" to
- * a `content !== null` check (feather badge on every SRD item), so every
- * reader of a library row must go through this rather than casting the raw
- * row directly. Exported for the other tables that now embed `library_items`
- * (#819) — `useStoreItems.ts` in particular.
- */
-export function normalizeLibraryItem(row: Record<string, unknown>): Item {
-  return {
-    ...row,
-    user_id: "",
-    campaign_id: null,
-    dm_notes: null,
-    spell_ids: [],
-    content: null,
-    content_player_writable: false,
-    content_updated_at: null,
-  } as unknown as Item;
 }
 
 /** The player-visible custom items (their vault + shared store items) via the

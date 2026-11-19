@@ -40,6 +40,7 @@ different fates, and the distinction is deliberate:
 | `ai_credit_ledger`, `purchase_consents` | **Retained, anonymized** — `user_id` → null, `anonymized_at` stamped | Art. 17(3)(b): retention required for a legal obligation. Dutch bookkeeping law (art. 52 AWR) requires 7 years, and these rows are the dispute evidence for real money |
 | `rate_limit_events`, `storage.objects.owner`/`owner_id` | **Deleted / nulled** explicitly by `prepare_user_erasure` | No FK to `auth.users`, so no cascade reaches them |
 | Storage objects under `{userId}/` in every Supabase bucket and every R2 bucket | **Deleted** before anything else | See ordering below |
+| Voice clips of the account's sittings at the AI table (#1021), in their own bucket under `{campaignId}/{sittingId}/` | **Deleted** with the storage purge, found through the account's `agent_sessions` rows | Not under `{userId}/`, so no listing by account finds them: they are removed while the rows that name them still exist (`_shared/agent/voiceClips.ts`). The conversations themselves (`agent_sessions`, `agent_turns`, `agent_board_lines`) cascade with the account |
 
 **Anonymized ≠ deleted, and that is the point.** A retained ledger row keeps its
 amounts, reasons and timestamps — its evidentiary value — and loses only the link
@@ -355,7 +356,22 @@ plausible document and an unlawful answer. So `export_user_data` walks the
 Storage objects are the third source and live outside Postgres, so the edge
 function enumerates them from `_shared/storage-inventory.ts` — extracted from
 `delete-account` for this, so the listing that reports and the listing that
-purges cannot disagree.
+purges cannot disagree. The voice clips of the AI table (#1021) are a fourth
+listing, because they are named by campaign and sitting, not by account: both
+functions find them from the account's `agent_sessions` rows
+(`_shared/agent/voiceClips.ts`), and the export gives their keys as
+`storage_objects.table_voice_clips`. The conversations themselves need no
+entry: `export_user_data` walks every table with a foreign key to the account,
+which the three `agent_*` tables have.
+
+**A character played for an absent player (#1021 row 26, 19 Nov 2026).** Two kinds of rows come of it, and they
+belong to different accounts on purpose. The lines the character said in chat are `campaign_messages` rows posted in
+the name of the character's own player (`user_id`), so they are in that player's export and go with that player's
+account. What the character remembers (`party_member_memories`) is keyed to the Dungeon Master at whose table it was
+written (`user_id`), so the walk puts it in the DM's export and erases it with the DM's account; the player reads it
+on their sheet while it exists, and it also goes when the character or the campaign is deleted. It is the model's
+account of a fictional character, not a record about the player, which is why it is not duplicated into the
+player's export.
 
 Four positions worth not re-deriving:
 

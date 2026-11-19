@@ -86,7 +86,8 @@ export function zoneSummary(region: Pick<LocationMapRegion, "zone_kind" | "zone_
     case "marker":
       return ZONE_KIND_LABELS.marker;
     case "entrance":
-      return "where the party walks in";
+      // A way out only (`party_arrives: false`) seats nobody: saying "walks in" there would be untrue.
+      return payload.party_arrives === false ? "a way out only" : "where the party walks in";
   }
 }
 

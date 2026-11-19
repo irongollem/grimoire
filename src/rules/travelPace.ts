@@ -9,7 +9,7 @@
  * disagree about how far a party walks in a day.
  */
 
-import type { RulesetKey } from "@/types/ruleset.types";
+import type { RulesetKey } from "../types/ruleset.types.ts";
 
 export type TravelPaceId = "slow" | "normal" | "fast";
 

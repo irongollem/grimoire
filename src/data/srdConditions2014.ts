@@ -8,7 +8,7 @@
 // `srdConditions2024.ts` for the 2024 (SRD 5.2) edition, and
 // `conditionPatches.ts` for the per-edition override/fill-gap layer applied
 // on top of both by `src/rules/conditions.ts`'s resolver.
-import type { Condition } from "@/types/condition.types";
+import type { Condition } from "../types/condition.types.ts";
 
 export const SRD_CONDITIONS_2014: Condition[] = [
   {

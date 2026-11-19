@@ -81,7 +81,10 @@ vi.mock("@/composables/locations/useRememberSight", () => ({
 vi.mock("@/composables/bookNook/useTableShows", () => ({
   useTableShows: () => ({ tableShows: h.tableShows, setTableShows: h.setTableShows, isSaving: ref(false) }),
 }));
+const healShape = vi.hoisted(() => vi.fn());
+vi.mock("@/composables/locations/useHealPictureShape", () => ({ useHealPictureShape: healShape }));
 
+import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import SiteExploreView from "./SiteExploreView.vue";
 
@@ -153,6 +156,21 @@ describe("SiteExploreView", () => {
     h.memory.value = new Set();
     h.mapDoors.value = [];
     h.rememberArgs = [];
+  });
+
+  // The picture's shape is how the fight server knows where the map ends; only the DM opening the map records it.
+  it("records the map's shape for the DM and never for a player", () => {
+    const auth = useAuthStore();
+    const enabled = () => {
+      const options = healShape.mock.calls.at(-1)?.[0] as { enabled: () => boolean } | undefined;
+      if (options === undefined) throw new Error("useHealPictureShape was not called");
+      return options.enabled();
+    };
+    auth.$patch({ membership: { role: "dm" } as never });
+    mountView();
+    expect(enabled()).toBe(true);
+    auth.$patch({ membership: { role: "player" } as never });
+    expect(enabled()).toBe(false);
   });
 
   // #1134: a door opened while exploring is the map's, so it is written to the map and shown from it.

@@ -1,5 +1,5 @@
-import { ALL_DICE, rollDie } from "./dice";
-import type { DieSize, RollResult } from "./dice";
+import { ALL_DICE, rollDie } from "./dice.ts";
+import type { DieSize, RollResult } from "./dice.ts";
 
 /**
  * The contract a game system's dice rules fill (#934). The neutral dice
@@ -51,11 +51,13 @@ export function rollWithRules(
   counts: Partial<Record<DieSize, number>>,
   modifier: number,
   mode: RollModeKey,
+  /** The die source. Defaults to the browser's `Math.random`; the server passes a CSPRNG die (#1204). */
+  roll: (sides: number) => number = rollDie,
 ): RollResult {
   const faces: RolledFaces = {};
   for (const sides of ALL_DICE) {
     const n = counts[sides] ?? 0;
-    if (n > 0) faces[sides] = Array.from({ length: rules.facesNeeded(sides, n, mode) }, () => rollDie(sides));
+    if (n > 0) faces[sides] = Array.from({ length: rules.facesNeeded(sides, n, mode) }, () => roll(sides));
   }
   return rules.score(counts, modifier, mode, faces);
 }

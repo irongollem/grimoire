@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { combatantNameOf, heldConcentrationSpells, withoutDue } from "./conditionSources";
+import { combatantNameOf, heldConcentrationSpells } from "./conditionSources";
+import { withoutDue } from "@/rules/conditions";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { AppliedCondition } from "@/types/condition.types";
 

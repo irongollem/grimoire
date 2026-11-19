@@ -6,6 +6,7 @@ import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
 import { systemOffers } from "@/systems/registry";
 import { featureForPath } from "./systemFeatures";
+import { campaignOwnerKey, fetchCampaignOwner, fetchTableAccess, tableAccessKey, TABLE_ACCESS_STALE_MS } from "@/composables/campaign/useTableAccess";
 import { preloadLayout } from "@/layouts/layoutLoader";
 import {
   isPlayerArea,
@@ -152,6 +153,16 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
     const closed = systemFence(to.path, campaignStore);
     if (closed) return closed;
 
+    // The AI table is released to chosen accounts only (#1021, `feature_access`): its routes are closed in a
+    // campaign whose owner has not been granted it, so a typed address cannot reach what the nav hides. Closed
+    // when the answer cannot be had: a limited release fails closed.
+    if (isTableRoute(to) && !(await tableIsOpen(queryClient, campaignStore, auth))) {
+      // A sitting remembered for this tab must not keep a DM in the player lens, with a banner pointing at a screen
+      // the account can no longer open.
+      useAppUiStore().exitTablePlay();
+      return { name: isPlayerArea(to.path) ? "play" : "dashboard" };
+    }
+
     // The child-account fence (#919). Independent of the lens fence above: a
     // child may be a DM or a player, and either lens can reach billing or the
     // family pages by path even though nothing in that lens links to them.
@@ -202,6 +213,44 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
 }
 
 /** Where the game-system fence sends a path the active campaign's system does not offer, or null when it may stay. */
+/** The AI table's own screens, on the DM's side and the player's. A prefix on a segment boundary: `/tables` is not one. */
+// Decided by the matched route, never by the typed address: the router matches `/TABLE` to the table route, so a
+// comparison of the typed path could be walked around by changing its case.
+const TABLE_ROUTE_NAMES = new Set(["ai-table", "table-story", "play-table-story", "table-session"]);
+
+function isTableRoute(to: RouteLocationNormalized): boolean {
+  return to.matched.some((record) => typeof record.name === "string" && TABLE_ROUTE_NAMES.has(record.name));
+}
+
+/**
+ * The same line `useTableAccess().open` draws: AI on for the campaign (never for a child account), then the owner
+ * granted the table. Closed whenever an answer cannot be had. On a reload the campaign row has not arrived yet, so
+ * its owner and AI switch are read by the remembered id rather than guessed.
+ */
+async function tableIsOpen(
+  queryClient: QueryClient,
+  campaignStore: ReturnType<typeof useCampaignStore>,
+  auth: ReturnType<typeof useAuthStore>,
+): Promise<boolean> {
+  const campaignId = campaignStore.activeCampaignId;
+  if (!campaignId) return false;
+  const row = campaignStore.activeCampaign;
+  const known = row && row.id === campaignId ? { ownerId: row.user_id, aiEnabled: row.ai_enabled === true } : null;
+  const campaign =
+    known ??
+    (await queryClient
+      .fetchQuery({ queryKey: campaignOwnerKey(campaignId), queryFn: () => fetchCampaignOwner(campaignId), staleTime: TABLE_ACCESS_STALE_MS })
+      .catch(() => null));
+  if (!campaign || !campaign.aiEnabled) return false;
+  // `campaignStore.isAiEnabled` is false for a child account; the fact may not be loaded on a deep link.
+  if (auth.user && !auth.childLinkLoaded) await auth.loadChildLink(auth.user.id);
+  if (!auth.childLinkLoaded || auth.isChildAccount) return false;
+  const granted = await queryClient
+    .fetchQuery({ queryKey: tableAccessKey(campaign.ownerId), queryFn: () => fetchTableAccess(campaign.ownerId), staleTime: TABLE_ACCESS_STALE_MS })
+    .catch(() => false);
+  return granted === true;
+}
+
 function systemFence(
   path: string,
   campaign: Pick<ReturnType<typeof useCampaignStore>, "activeCampaignId" | "activeGameSystem">,

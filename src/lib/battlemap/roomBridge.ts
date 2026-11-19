@@ -13,16 +13,16 @@
 // `fogMask.ts` — the Vue views own reactivity and persistence, this module
 // only computes.
 
-import { cellKey, parseCellKey, type CellKey } from "@/types/dungeonMap.types";
-import type { GridCalibration, Location, MapMotion } from "@/types/location.types";
-import type { LocationMapRegion } from "@/types/locationMapRegion.types";
-import { combatantFootprint } from "@/lib/battlemap/tokenFootprint";
-import { createOccupancy, startOffsets } from "@/lib/battlemap/occupancy";
-import { currentMapLive } from "@/lib/battlemap/liveLayer";
-import type { MapLive } from "@/types/mapLive.types";
-import type { RunCombatant } from "@/types/encounter.types";
-import { buildMapStack, type MapStackSource } from "@/lib/locations/mapStack";
-import { isInteriorType } from "@/lib/locations/tiers";
+import { cellKey, parseCellKey, type CellKey } from "../../types/dungeonMap.types.ts";
+import type { GridCalibration, Location, MapMotion } from "../../types/location.types.ts";
+import type { LocationMapRegion } from "../../types/locationMapRegion.types.ts";
+import { combatantFootprint } from "./tokenFootprint.ts";
+import { createOccupancy, startOffsets } from "./occupancy.ts";
+import { currentVersionOf } from "./mapLiveVersion.ts";
+import type { MapLive } from "../../types/mapLive.types.ts";
+import type { RunCombatant } from "../../types/encounter.types.ts";
+import { buildMapStack, type MapStackSource } from "../locations/mapStack.ts";
+import { isInteriorType } from "../locations/tiers.ts";
 
 function originOf(calibration: GridCalibration): { x: number; y: number } {
   return { x: calibration.origin_cell_x ?? 0, y: calibration.origin_cell_y ?? 0 };
@@ -45,17 +45,23 @@ export function battleCellToRegionCell(cell: CellKey, calibration: GridCalibrati
 
 // ── Which map an encounter opens on ─────────────────────────────────────────
 
+/** What `resolveBattleSurface` reads of a place: the full `Location` in the browser, only these columns on the server. */
+export type SurfaceLocation = MapStackSource & Pick<Location, "id" | "location_type" | "map_live" | "map_layer_stand_live_url">;
+
+/** What `resolveBattleSurface` and `terrainZonesOf` read of a traced region: the full row in the browser, these columns on the server. */
+export type PlanRegion = Pick<LocationMapRegion, "region_role" | "space_location_id" | "cells" | "zone_payload">;
+
 /** What a battle map draws, as `BattleMapStack` takes it: the DM's `BattleSurface` is one, and the player's view
  *  builds one from its own projection. */
 export type BattleMapLayers = Pick<BattleSurface, "imageUrl" | "standUrl" | "standLiveUrl" | "live" | "picture" | "motion">;
 
-export interface BattleSurface {
+export interface BattleSurface<L extends SurfaceLocation = Location> {
   /** The location whose map stack (`lib/locations/mapStack.ts`) the battle
    *  map draws — `imageUrl` + `calibration` below are already resolved from
    *  it, so a caller never needs to re-read `mapLocation.map_url` /
    *  `grid_calibration` directly (#884: that would only ever see the
    *  Picture, never a Drawing). */
-  mapLocation: Location;
+  mapLocation: L;
   /** The room this encounter is anchored to, when `mapLocation` is that
    *  room's *parent* site rather than a map of the room's own. Null when the
    *  encounter's own location is what's on screen — there is nothing to
@@ -91,9 +97,13 @@ export interface BattleSurface {
   standLiveUrl: string | null;
 }
 
+/** Unwraps a snapshot from Vue's reactivity (`toRaw`); the browser passes it, the server has nothing to unwrap. */
+type Unwrap = (live: MapLive) => MapLive;
+
 // The surface is the Drawing, or (no Drawing) the Picture; either way the snapshot is in its cells.
-function liveFor(loc: Location): MapLive | null {
-  return currentMapLive(loc.map_live);
+function liveFor(loc: SurfaceLocation, plain: Unwrap | undefined): MapLive | null {
+  const current = currentVersionOf(loc.map_live);
+  return current !== null && plain !== undefined ? plain(current) : current;
 }
 
 /** The Picture under the Drawing, for a surface that builds its own layers (the player's map). */
@@ -104,18 +114,18 @@ export function pictureUnderDrawing(loc: MapStackSource | null | undefined): Bat
     : null;
 }
 
-function motionFor(loc: Location): BattleSurface["motion"] {
+function motionFor(loc: SurfaceLocation): BattleSurface["motion"] {
   const { picture, motion } = buildMapStack(loc);
   return picture && motion
     ? { key: motion.key, kind: motion.motion.kind, still: picture.url, fileName: motion.motion.file_name, bytes: motion.motion.bytes }
     : null;
 }
 
-function standFor(loc: Location, imageUrl: string): string | null {
+function standFor(loc: SurfaceLocation, imageUrl: string): string | null {
   return loc.map_layer_url !== null && loc.map_layer_url === imageUrl ? loc.map_layer_stand_url : null;
 }
 
-function standLiveFor(loc: Location, imageUrl: string): string | null {
+function standLiveFor(loc: SurfaceLocation, imageUrl: string): string | null {
   return loc.map_layer_url !== null && loc.map_layer_url === imageUrl ? loc.map_layer_stand_live_url : null;
 }
 
@@ -126,12 +136,15 @@ function standLiveFor(loc: Location, imageUrl: string): string | null {
  * own is not a second surface: it is the site's plan, already grid-
  * calibrated by the publish, read at its own cells.
  */
-export function resolveBattleSurface(params: {
-  encounterLocation: Location | null | undefined;
-  parent: Location | null | undefined;
-  regions: LocationMapRegion[];
-}): BattleSurface | null {
-  const { encounterLocation, parent, regions } = params;
+export function resolveBattleSurface<L extends SurfaceLocation = Location>(params: {
+  encounterLocation: L | null | undefined;
+  parent: L | null | undefined;
+  regions: readonly PlanRegion[];
+  /** Hands the snapshot out unwrapped from Vue's reactivity, as `currentMapLive` does (the sight grids read it
+   *  millions of times). Browser callers pass `toRaw`; this module cannot import Vue, so it can run on the server. */
+  plain?: Unwrap;
+}): BattleSurface<L> | null {
+  const { encounterLocation, parent, regions, plain } = params;
   if (!encounterLocation) return null;
 
   // A location with its own calibrated map (Drawing or Picture) behaves
@@ -146,7 +159,7 @@ export function resolveBattleSurface(params: {
       focusCells: [],
       calibration: ownImage.calibration,
       imageUrl: ownImage.url,
-      live: liveFor(encounterLocation),
+      live: liveFor(encounterLocation, plain),
       picture: pictureUnderDrawing(encounterLocation),
       motion: motionFor(encounterLocation),
       standUrl: standFor(encounterLocation, ownImage.url),
@@ -172,7 +185,7 @@ export function resolveBattleSurface(params: {
         focusCells,
         calibration,
         imageUrl: parentImage.url,
-        live: liveFor(parent),
+        live: liveFor(parent, plain),
         picture: pictureUnderDrawing(parent),
         motion: motionFor(parent),
         standUrl: standFor(parent, parentImage.url),

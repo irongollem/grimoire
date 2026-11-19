@@ -1,5 +1,5 @@
-import { LOCATION_TYPE_COLORS } from "@/types/location.types";
-import type { LocationSummary, LocationType } from "@/types/location.types";
+import { LOCATION_TYPE_COLORS } from "../../types/location.types.ts";
+import type { LocationSummary, LocationType } from "../../types/location.types.ts";
 
 /**
  * The Atlas ladder — rungs of *map kind*, not of size.

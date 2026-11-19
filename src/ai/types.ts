@@ -162,8 +162,8 @@ export interface SpellAiResult {
   /** sphere | cone | line | cylinder | cube | emanation */
   aoe_shape: string | null;
   aoe_size: string | null;
-  /** Lowercase 5e condition name (e.g. "blinded") */
-  condition_inflicted: string | null;
+  /** What the spell does to a creature besides damage; unchecked until `spellInsertFromAi` vets it against the description. */
+  condition_effect?: unknown;
   /** Plain text — populated directly into the description field */
   description: string;
   /** Plain text "At Higher Levels" paragraph; null for cantrips/non-scaling */

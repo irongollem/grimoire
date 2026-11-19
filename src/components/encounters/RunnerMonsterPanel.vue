@@ -51,6 +51,7 @@
       <p v-if="monster.stat_block.defenses.immunities.length" class="detail-line"><span>Immunities</span>{{ formatDefenseList(monster.stat_block.defenses.immunities) }}</p>
       <p v-if="monster.stat_block.defenses.condition_immunities.length" class="detail-line"><span>Cond. Immune</span>{{ formatConditionImmunities(monster.stat_block.defenses.condition_immunities) }}</p>
     </template>
+    <RunnerRunForMe v-if="canRun" :combatant="combatant" />
     <RunnerActionList :combatant="combatant" :sections="actionSections" />
     <template v-if="monster.stat_block?.spellcasting?.entries?.length">
       <div class="detail-divider" />
@@ -74,6 +75,7 @@ import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
 import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import type { SaveEntry } from "@/rules/characterChecks";
 import SpellcastingList from "@/components/common/statblock/SpellcastingList.vue";
+import RunnerRunForMe from "@/components/encounters/RunnerRunForMe.vue";
 import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
 import { listedSaveBonus, saveBonusFromStatBlock } from "@/rules/combat/savingThrow";
 import { formatConditionImmunities, formatDefenseList } from "@/rules/statBlock/parseDefenses";
@@ -136,6 +138,9 @@ const skillEntries = computed(() => {
     bonus: Number(val),
   }));
 });
+
+// Only a creature that is not on the party's side and has Actions can be run for the DM.
+const canRun = computed(() => combatant.type !== "player" && !!monster.stat_block?.actions?.length);
 
 const actionSections = computed(() => {
   const sb = monster.stat_block;

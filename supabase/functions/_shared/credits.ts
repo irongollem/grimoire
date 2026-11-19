@@ -120,6 +120,23 @@ export interface SpendResult {
 }
 
 /**
+ * The status and error code for a refused reservation, as values. The order is the one `assert_spend_allowed`
+ * evaluates them in (supabase/migrations/20260928053257_child_accounts.sql): suspended, child account, velocity,
+ * then too few credits. A refusal that names none of those means the metering itself failed, which is a 503
+ * with the caller's own sentence, since each feature says what could not be metered in its own words.
+ */
+export function reservationRefusal(
+  r: { suspended?: boolean; child_account?: boolean; velocity?: boolean; insufficient?: boolean },
+  unmetered = "The AI table cannot be metered right now.",
+): { status: number; error: string } {
+  if (r.suspended) return { status: 403, error: "account_suspended" };
+  if (r.child_account) return { status: 403, error: "child_account" };
+  if (r.velocity) return { status: 429, error: "rate_limited" };
+  if (r.insufficient) return { status: 402, error: "insufficient_credits" };
+  return { status: 503, error: unmetered };
+}
+
+/**
  * Build the HTTP error response for a refused paid spend, mapping the distinct
  * reasons (frozen / child account / rate-limited / insufficient) to the right
  * status + message. Shared by every generator + deduct-ai-credit so the
@@ -130,27 +147,21 @@ export function reservationFailureResponse(
   r: { suspended?: boolean; child_account?: boolean; velocity?: boolean; balance?: number },
 ): Response {
   const headers = { "Content-Type": "application/json" };
-  if (r.suspended) {
-    return new Response(JSON.stringify({ error: "account_suspended" }), { status: 403, headers });
-  }
-  // Checked right after suspended, same order assert_spend_allowed evaluates
-  // them in (supabase/migrations/20260928053257_child_accounts.sql).
-  if (r.child_account) {
-    return new Response(JSON.stringify({ error: "child_account" }), { status: 403, headers });
-  }
-  if (r.velocity) {
+  // A refusal that names no other reason is a shortfall here, so insufficient is the default.
+  const { status, error } = reservationRefusal({ ...r, insufficient: true });
+  if (status === 429) {
     return new Response(
       JSON.stringify({
-        error: "rate_limited",
+        error,
         message: "New accounts have a temporary limit on how fast credits can be spent. Please try again shortly.",
       }),
-      { status: 429, headers },
+      { status, headers },
     );
   }
-  return new Response(
-    JSON.stringify({ error: "insufficient_credits", balance: r.balance ?? 0 }),
-    { status: 402, headers },
-  );
+  if (status === 402) {
+    return new Response(JSON.stringify({ error, balance: r.balance ?? 0 }), { status, headers });
+  }
+  return new Response(JSON.stringify({ error }), { status, headers });
 }
 
 export interface Reservation {

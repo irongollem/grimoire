@@ -1,8 +1,8 @@
-import type { AppliedCondition, TurnEdge } from "@/types/condition.types";
-import type { DamageType } from "@/types/damage.types";
-import type { RunCombatant } from "@/types/encounter.types";
-import type { SaveAbility } from "@/types/statBlock.types";
-import { takesTurns } from "@/rules/turnOrder";
+import type { AppliedCondition, TurnEdge } from "../types/condition.types.ts";
+import type { DamageType } from "../types/damage.types.ts";
+import type { RunCombatant } from "../types/encounter.types.ts";
+import type { SaveAbility } from "../types/statBlock.types.ts";
+import { takesTurns } from "./turnOrder.ts";
 
 /**
  * Condition durations at the turn edges (#1018), as pure functions over a list

@@ -1,8 +1,8 @@
-import type { AppliedCondition } from "@/types/condition.types";
-import type { LevelChoiceRecord } from "@/rules/features/levelUpChoices";
-import type { RulesetKey } from "@/types/ruleset.types";
-import type { WildshapeState } from "@/types/encounter.types";
-import type { Coins } from "@/lib/currency/currency";
+import type { AppliedCondition } from "./condition.types.ts";
+import type { LevelChoiceRecord } from "../rules/features/levelUpChoices.ts";
+import type { RulesetKey } from "./ruleset.types.ts";
+import type { WildshapeState } from "./encounter.types.ts";
+import type { Coins } from "../lib/currency/currency.ts";
 
 export type SkillProfLevel = "none" | "proficient" | "expertise";
 export type SaveKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
@@ -191,6 +191,10 @@ export interface PartyMember {
   ideals?: string | null;
   bonds?: string | null;
   flaws?: string | null;
+  /** The player's own word that the AI may speak for this character when someone else plays them (#1021 row 26). */
+  ai_speaks?: boolean;
+  /** The Dungeon Master's word that the AI plays this character in chat while its player is away, at the DM's cost (#1021 row 26). Only the DM may change it. */
+  ai_stands_in?: boolean;
   deity?: string | null;
   deity_id?: string | null;
   // Identity extras (optional — wizard collects these on the Identity step)

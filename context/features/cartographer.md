@@ -536,22 +536,9 @@ Animated water carries the same vector outline in `MapLiveGroup.clip`, offset in
 
 ### Movement / sight blocking — derived, not stored
 
-Whether a token can move from cell A to cell B is **derived** at query time, never stored:
+Whether a token can step from cell A to cell B is **derived** at query time, never stored. Walls and doors are one vector graph (`MapLive` v3: a segment per wall or door, a grid wall's id being its edge key), plus the snapshot's `solid` cells. A step is refused when its line meets a blocking segment (a wall, or a door that is not open) or enters a solid cell; the rule lives in `src/rules/fight/terrain/reach.ts` (`reachableCells`, with `stepCost` in `lib/battlemap/movement.ts` pricing each step), and the segments come from `occludersOf` in `lib/battlemap/occlusion.ts` with the DM's door overrides laid over the drawn doors.
 
-```ts
-function blocksMovement(map: DungeonMap, from: CellKey, to: CellKey): boolean {
-  // Adjacent cells. Check if a wall/closed-door sits on the edge between them.
-  const edge = edgeBetween(from, to); // returns the canonical owner + which side
-  const seg = map.layers.walls[latticeKey(edge)]; // plus any angled wall crossing the step
-  if (seg && seg.type !== "doorOpen") return true;
-
-  // Solid blocks block movement into the cell at all.
-  if (map.layers.solidBlock[to]) return true;
-  return false;
-}
-```
-
-`blocks_sight` follows the same shape; only `doorClosed` blocks sight (open doors don't). Auto-tiler does **not** write these into the data — the renderer / future VTT compute them on demand.
+Sight follows the same graph (`lib/battlemap/occlusion.ts` `clearLine`, `src/rules/fight/terrain/sight.ts`): a closed door blocks sight, an open one does not. The auto-tiler does **not** write any of this into the data; the renderer and the rules compute it on demand.
 
 ### Edge ownership rule (canonical)
 
@@ -882,7 +869,7 @@ Each light is one radial gradient over its bounding square, laid with `globalCom
 
 ### Live snapshot (#1073)
 
-Publish writes `locations.map_live` (`MapLive`, `src/types/mapLive.types.ts`) in the same update as `map_layer_url`, `map_layer_calibration` and `source_map_id`, built by `buildMapLive` (`src/cartographer/mapLive.ts`). It is written at publish, beside the Drawing, because players cannot read `dungeon_maps` (owner and campaign DMs only), while `get_player_visible_locations` already hands them the location under the `is_map_shared` gate. The battle map's live layer reads it; later stories (darkness, vision) reuse the same snapshot and canvas. It carries `version: MAP_LIVE_VERSION`, 2 since doors carry their leaf; the battle map reads only the current version, so a site whose snapshot is older is published again to come alive. Every publish counts its picture as a write ("Publish 1 change" when only the picture and the snapshot change, as for a new light level or an older snapshot), so such a re-publish is never stuck on a disabled "Publish 0 changes".
+Publish writes `locations.map_live` (`MapLive`, `src/types/mapLive.types.ts`) in the same update as `map_layer_url`, `map_layer_calibration` and `source_map_id`, built by `buildMapLive` (`src/cartographer/mapLive.ts`). It is written at publish, beside the Drawing, because players cannot read `dungeon_maps` (owner and campaign DMs only), while `get_player_visible_locations` already hands them the location under the `is_map_shared` gate. The battle map's live layer reads it; later stories (darkness, vision) reuse the same snapshot and canvas. It carries `version: MAP_LIVE_VERSION`, 3 since walls and doors are segments between two points (2 added the door leaf); the battle map reads only the current version, so a site whose snapshot is older is published again to come alive. Every publish counts its picture as a write ("Publish 1 change" when only the picture and the snapshot change, as for a new light level or an older snapshot), so such a re-publish is never stuck on a disabled "Publish 0 changes".
 
 It holds `groups` (cell sets with the motion overlays that animate them) and `lights` (every source `gatherLightSources` finds over the whole map, in cells with the Drawing's lighting fields). Every cell key is an **image cell**: the Drawing's own cell space, where cell (0,0) is the image's top-left, the space the fog mask and tokens use. A map cell `(mx, my)` is image cell `(mx - originCellX, my - originCellY)`, with the origin from `computeBakedDimensions`, the same numbers stored as `origin_cell_x/y`. A `water` group is a pack's painted `terrain` cells and is kept even with no overlays; an `outer` group is a pack's `solidBlock` cells and exists only when the pack has overlays for it.
 

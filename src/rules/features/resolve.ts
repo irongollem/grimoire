@@ -1,4 +1,5 @@
-import type { AbilityKey } from "@/rules/characterCreation";
+import type { AbilityKey } from "../characterCreation.ts";
+import { abilityMod } from "../abilityScore.ts";
 import type {
   ByLevel,
   DamageRider,
@@ -10,7 +11,7 @@ import type {
   Recharge,
   UsesAmount,
   UsesCost,
-} from "./mechanics.types";
+} from "./mechanics.types.ts";
 
 /**
  * Resolving feature mechanics at a level (#976). Pure: the sheet, the roller
@@ -45,7 +46,7 @@ function baseAmountAt(amount: Exclude<UsesAmount, { kind: "unlimited_from" }>, c
     case "proficiency":
       return ctx.proficiencyBonus;
     case "ability_mod":
-      return Math.max(amount.min, Math.floor((ctx.abilityScores[amount.ability] - 10) / 2) + (amount.bonus ?? 0));
+      return Math.max(amount.min, abilityMod(ctx.abilityScores[amount.ability]) + (amount.bonus ?? 0));
     case "class_level":
       return ctx.classLevel * amount.multiplier;
   }

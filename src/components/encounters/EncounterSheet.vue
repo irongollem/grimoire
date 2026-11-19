@@ -240,15 +240,13 @@ import { computed } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import { IconCheckDouble, IconChevronLeft, IconClose, IconEdit, IconLocation, IconMonster, IconPackage, IconPlay, IconReset, IconScrollText, IconStop, IconTrap, IconUserRound } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
-import { supabase } from "@/lib/supabase";
+import { abandonFight } from "@/composables/encounters/abandonFight";
+import { useToast } from "@/composables/useToast";
 import {
   useUpdateEncounter,
   useDeleteEncounter,
 } from "@/composables/encounters/useEncounters";
-import {
-  useRunningEncounters,
-  useEncounterLive,
-} from "@/composables/encounters/useEncounterLive";
+import { useRunningEncounters } from "@/composables/encounters/useEncounterLive";
 import { useQuestsForEncounter } from "@/composables/quests/useQuests";
 import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useParty } from "@/composables/party/useParty";
@@ -279,11 +277,10 @@ const { confirm } = useConfirm();
 // ── Live state ─────────────────────────────────────────────────────────────
 const updateEncounter = useUpdateEncounter();
 const deleteEncounter = useDeleteEncounter();
-const { firstRunning, isEncounterRunning } = useRunningEncounters();
-const { endLive } = useEncounterLive(props.encounter.id);
+const { isEncounterRunning } = useRunningEncounters();
+const toast = useToast();
 
 const thisIsLive   = computed(() => isEncounterRunning(props.encounter.id));
-const otherIsLive  = computed(() => firstRunning.value !== null && !thisIsLive.value);
 
 // ── Linked data ────────────────────────────────────────────────────────────
 const { data: linkedQuests } = useQuestsForEncounter(props.encounter.id);
@@ -454,23 +451,29 @@ async function handleDelete() {
   }
 }
 
-async function handleRunEncounter() {
-  if (otherIsLive.value && firstRunning.value) {
-    const other = firstRunning.value.encounter_id;
-    if (!(await confirm(`Another encounter is active. Stop it and run this one?`))) return;
-    await supabase.from("encounter_state").update({ is_running: false }).eq("encounter_id", other);
-  }
+// Running another encounter needs nothing of its own: the campaign shows one fight to its players, and Go Live in
+// the new one stops the other (the server does it), so the old one is not touched from here.
+function handleRunEncounter() {
   router.push(`/encounters/${props.encounter.id}/run`);
 }
 
 async function handleStop() {
   if (!(await confirm("Stop this encounter? Party stats will NOT be updated."))) return;
-  await endLive();
+  try {
+    await abandonFight(props.encounter.id);
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't stop the encounter."));
+  }
 }
 
 async function handleRestart() {
   if (!(await confirm("Restart this encounter from scratch?"))) return;
-  await endLive();
+  try {
+    await abandonFight(props.encounter.id);
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't restart the encounter."));
+    return;
+  }
   router.push(`/encounters/${props.encounter.id}/run`);
 }
 </script>

@@ -1,5 +1,5 @@
-import type { AbilityKey } from "@/rules/characterCreation";
-import type { SkillKey } from "@/types/party.types";
+import type { AbilityKey } from "../characterCreation.ts";
+import type { SkillKey } from "../../types/party.types.ts";
 
 /**
  * What a feature does, as data (#976). One shape serves an official feature,

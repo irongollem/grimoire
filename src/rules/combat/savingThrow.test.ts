@@ -30,6 +30,36 @@ describe("saveRollMode", () => {
   });
 });
 
+describe("Dodge on a Dexterity save (PHB 2014 ch. 9 \"Dodge\")", () => {
+  const dodging = { name: "Dodging" };
+  it("gives advantage to a dodger that can move", () => {
+    expect(saveRollMode({ conditions: [dodging], ability: "dex", ruleset: "2014" }).mode).toBe("advantage");
+  });
+  // Bug: only Incapacitated ended the benefit, so a Grappled dodger (Speed 0) kept its advantage.
+  it("is lost when the dodger is Grappled, which sets its Speed to 0", () => {
+    // Hand-worked: Grappled adds nothing to a save, so with Dodge lost the roll is straight.
+    expect(saveRollMode({ conditions: [dodging, { name: "Grappled" }], ability: "dex", ruleset: "2014" }).mode).toBe("normal");
+    expect(saveRollMode({ conditions: [dodging, { name: "Grappled" }], ability: "dex", ruleset: "2024" }).mode).toBe("normal");
+  });
+});
+
+describe("Dodge and Exhaustion on a Dexterity save", () => {
+  const dodging = { name: "Dodging" };
+  // PHB 2014 ch. 9 "Dodge": lost when speed drops to 0; appendix A "Exhaustion" level 5 is speed 0. Hand-worked: Dodge is lost,
+  // and level 3+ gives disadvantage on saves, so the roll is at disadvantage. Kept, Dodge's advantage would cancel it to straight.
+  it("fails if a 2014 dodger at Exhaustion level 5 keeps Dodge's advantage", () => {
+    expect(saveRollMode({ conditions: [dodging, { name: "Exhaustion", level: 5 }], ability: "dex", ruleset: "2014" }).mode).toBe("disadvantage");
+  });
+  // Level 4 still moves, so Dodge stands and cancels the level 3+ disadvantage: straight.
+  it("keeps Dodge at Exhaustion level 4 under 2014", () => {
+    expect(saveRollMode({ conditions: [dodging, { name: "Exhaustion", level: 4 }], ability: "dex", ruleset: "2014" }).mode).toBe("normal");
+  });
+  // SRD 5.2 "Exhaustion": -5 ft per level is not speed 0 at level 5 (30 ft), and 2024 has no save disadvantage: advantage.
+  it("keeps Dodge at Exhaustion level 5 under 2024, which only takes 5 ft per level off", () => {
+    expect(saveRollMode({ conditions: [dodging, { name: "Exhaustion", level: 5 }], ability: "dex", ruleset: "2024" }).mode).toBe("advantage");
+  });
+});
+
 describe("saveRollMode stacking", () => {
   // PHB 2014 "Advantage and Disadvantage": any of each cancels to a straight roll
   it("any advantage with any disadvantage is straight, whatever the order", () => {

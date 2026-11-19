@@ -95,7 +95,7 @@
         size="sm"
         :icon="IconChevronLeft"
         aria-label="Previous turn"
-        :disabled="store.round === 0"
+        :disabled="store.round === 0 || store.busy"
         @click="store.prevTurn()"
       />
       <TurnTimer
@@ -109,6 +109,7 @@
         label="Next turn"
         :icon-right="IconChevronRight"
         :disabled="store.round === 0"
+        :loading="store.busy"
         @click="store.nextTurn()"
       />
     </div>

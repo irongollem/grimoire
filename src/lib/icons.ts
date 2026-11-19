@@ -11,7 +11,7 @@ import {
   Check, CheckCheck, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   ChevronsUpDown, Circle, CircleCheck, CircleUser, Clipboard, Clock, Coins,
   Columns2, Component, Copy, CreditCard, Crop, Crosshair, Crown,
-  Dna, DoorClosed, DoorOpen, Download, Droplets,
+  Dna, DoorClosed, DoorOpen, Download, Drama, Droplets,
   Eraser, ExternalLink, Eye, EyeOff,
   Feather, FileDown, FileText, Flag, Flame, FlaskConical, FolderOpen,
   Gem, Ghost, Gift, Globe, Globe2, GraduationCap, GripVertical, Grid3x3,
@@ -21,7 +21,7 @@ import {
   Shrink,
   Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
   Lock, LogOut, Pipette, Pointer, ArrowDownToLine,
-  Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minus, Monitor, MoreHorizontal,
+  Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minimize2, Minus, Monitor, MoreHorizontal,
   Moon, MousePointer2, MoveHorizontal, MoveVertical, Music, Music2,
   Navigation, Network,
   Package, PackageOpen, PackagePlus, PaintBucket, Pause, PawPrint, Pen,
@@ -36,7 +36,7 @@ import {
   Aperture, TrendingUp,
   Underline, Undo2, Upload, UploadCloud,
   User, UserPlus, UserRound, UserX, Users, UtensilsCrossed,
-  VolumeX, Wand2, Wind, Wrench, X, XCircle, Zap, ZoomIn, ZoomOut,
+  Volume2, VolumeX, Wand2, Wind, Wrench, X, XCircle, Zap, ZoomIn, ZoomOut,
   Fence, Type, SunMoon,
   StepForward, ToggleRight, FastForward, TrendingDown, ChartNoAxesColumn,
   BowArrow, Pencil, Radius, Signal, Target,
@@ -61,7 +61,6 @@ export { Share2 as IconShare }
 export { Send as IconSend }
 export { ExternalLink as IconExternalLink }
 export { Link as IconLink }
-export { Link2 as IconLinkAlt }
 export { Settings2 as IconSettings }
 export { SlidersHorizontal as IconMixer }   // fader bank — the soundboard mixer drawer
 export { Settings as IconSettingsAlt }
@@ -171,6 +170,7 @@ export { ArrowUpFromLine as IconArrowUp }
 export { ZoomIn as IconZoomIn }
 export { ZoomOut as IconZoomOut }
 export { Maximize2 as IconMaximize }
+export { Minimize2 as IconMinimize }
 export { Navigation as IconNavigate }
 export { Ruler as IconRuler }
 /** Line up the grid (a hash is the grid's own mark) and the map image's menu: the Atlas map's icon-only tools. */
@@ -282,6 +282,7 @@ export { SkipForward as IconSkipForward }
 export { Repeat as IconRepeat }
 export { Shuffle as IconShuffle }
 export { VolumeX as IconMute }
+export { Volume2 as IconVolume }
 export { Music as IconMusic }
 export { Music2 as IconMusicNote }
 export { Cast as IconCast }
@@ -362,6 +363,9 @@ export const IconNavInterlude = glyph(NAV_GLYPHS.interlude);
 export const IconNavSessions = glyph(NAV_GLYPHS.sessions);
 export const IconNavSimulacrum = glyph(NAV_GLYPHS.simulacrum);
 export const IconNavQuests = glyph(NAV_GLYPHS.quests);
+// The AI-run table (#1021). The two masks of the stage: a lucide mark until the maintainer draws a glyph for it
+// (art-src/ and the glyph skill), so it is the one nav entry that is not hand drawn.
+export { Drama as IconNavTable }
 export const IconNavAtlas = glyph(NAV_GLYPHS.atlas);
 export const IconNavPantheon = glyph(NAV_GLYPHS.pantheon);
 export const IconNavFactions = glyph(NAV_GLYPHS.factions);

@@ -4,7 +4,7 @@ import type { QueryClient } from "@tanstack/vue-query";
 import { normaliseIds, useRowsByIds } from "@/composables/useRowsByIds";
 import { supabase } from "@/lib/supabase";
 import { isUuid } from "@/lib/library/contentIdentity";
-import { normalizeLibraryItem } from "@/composables/items/useItems";
+import { normalizeLibraryItem } from "@/lib/items/normalizeLibraryItem";
 import type { Item } from "@/types/item.types";
 
 const ITEMS_BY_IDS_KEY = ["items", "by-ids"] as const;

@@ -151,7 +151,7 @@ describe("SpellDetail saved content", () => {
     concentration: false, ritual: false, components: ["V"], material: null, description: "", higher_levels: null,
     classes: [], tags: [], source: null, image_url: null, image_focal_point: null, attack_type: null, save_attribute: null,
     save_effect: null, damage_rolls: null, healing_dice: null, target_description: null, aoe_shape: null, aoe_size: null,
-    condition_inflicted: null, ai_provenance: { model: "gpt", edited: false },
+    ai_provenance: { model: "gpt", edited: false },
   } as unknown as Spell;
   const edit = async (spell: Spell | null, change: (vm: Vm) => void) => {
     mocks.create.mockClear();
@@ -203,27 +203,22 @@ describe("SpellDetail level advisor pre-fill", () => {
     return vm.adv;
   };
 
-  it("reads the save mechanics back into the advisor's wording", async () => {
-    expect((await open((vm) => { vm.attackType = "save"; vm.saveEffect = "negates"; })).saveType).toBe("save_negates");
-    expect((await open((vm) => { vm.attackType = "save"; vm.saveEffect = "half"; })).saveType).toBe("save_for_half");
+  // The reading itself is `advisorFieldsFromSpell`'s, tested beside it; here only that the open panel gets it.
+  // Bug caught: the advisor opening on its defaults, asking again what the form already says.
+  it("starts from the spell's own fields when it opens", async () => {
+    const adv = await open((vm) => {
+      vm.damageRolls = [{ dice: "8d6", type: "fire" }];
+      vm.attackType = "save";
+      vm.saveEffect = "half";
+      vm.aoeShape = "sphere";
+      vm.aoeSize = "20 feet";
+    });
+    expect(adv).toMatchObject({ effectType: "damage", damageDice: "8d6", saveType: "save_for_half", targetingMode: "aoe_medium" });
+  });
+
+  // Bug caught: a spell with no damage yet losing what its form does say (the save), because the effect is unknown.
+  it("fills in how it lands even before the form says what kind of effect it is", async () => {
     expect((await open((vm) => { vm.attackType = "ranged_spell"; })).saveType).toBe("attack_roll");
-    expect((await open((vm) => { vm.attackType = "melee_spell"; })).saveType).toBe("attack_roll");
-    expect((await open((vm) => { vm.attackType = "automatic"; })).saveType).toBe("automatic");
-  });
-
-  it("sizes the targeting from the area: under 15 ft small, 15 to 29 medium, 30 and over large", async () => {
-    const mode = async (size: string) => (await open((vm) => { vm.aoeShape = "sphere"; vm.aoeSize = size; })).targetingMode;
-    expect(await mode("10-foot radius")).toBe("aoe_small");
-    expect(await mode("15-foot radius")).toBe("aoe_medium");
-    expect(await mode("29-foot cone")).toBe("aoe_medium");
-    expect(await mode("30-foot radius")).toBe("aoe_large");
-  });
-
-  it("reads healing and damage dice back, healing taking precedence over a leftover damage roll", async () => {
-    const heal = await open((vm) => { vm.healingDice = "2d8"; });
-    expect(heal).toMatchObject({ effectType: "healing", damageDice: "2d8" });
-    const dmg = await open((vm) => { vm.damageRolls = [{ dice: "8d6", type: "fire" }]; });
-    expect(dmg).toMatchObject({ effectType: "damage", damageDice: "8d6 fire" });
   });
 });
 
@@ -379,5 +374,78 @@ describe("SpellDetailHeader send actions", () => {
 
     expect(wrapper.emitted("sendToScriptorium")).toHaveLength(1);
     expect(wrapper.emitted("copyToCampaign")).toBeUndefined();
+  });
+});
+
+/** #1021 row 5b: a campaign's own spell states what it does in a fight, through the editor's ordinary save. */
+describe("SpellDetail condition effect", () => {
+  type Vm = Record<string, unknown> & { save: () => Promise<void>; cancel: () => void };
+  const hold = {
+    verdict: "condition", conditions: ["Paralyzed"], stops_casting: null, speed_zero: false, applies: "failed_save",
+    save_ability: "WIS", targets: { kind: "one", count: 1, more_per_slot_above: 0 }, only_kinds: ["humanoid"],
+    duration: { unit: "minute", amount: 1, concentration: true }, repeat_save: { when: "end_of_its_turn", ability: "WIS" },
+    leaves_play: false, ends_when_harmed: null, break_free: null, must_flee: false,
+  };
+  const existing = (over: Record<string, unknown> = {}) => ({
+    id: "sp1", campaign_id: "campaign-1", name: "Hold Person", level: 2, classes: [], components: [], tags: [],
+    condition_effect: hold, ...over,
+  }) as unknown as Spell;
+
+  beforeEach(() => {
+    mocks.create.mockClear();
+    mocks.update.mockClear();
+    mockRouterReplace.mockClear();
+  });
+
+  // Bug caught: the editor opening a spell without its stored entry, so the next save erases it.
+  it("shows the stored entry and sends nothing when it is untouched", async () => {
+    const wrapper = mountDetail(existing());
+    const vm = wrapper.vm as unknown as Vm;
+    expect(vm.conditionEffect).toEqual(hold);
+    await vm.save();
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  // Bug caught: a change deep inside the entry not counting as an edit, so it is never saved.
+  it("saves a change made deep inside the entry, and only that column", async () => {
+    const wrapper = mountDetail(existing());
+    const vm = wrapper.vm as unknown as Vm;
+    vm.conditionEffect = { ...hold, duration: { ...hold.duration, amount: 10 } };
+    await vm.save();
+    expect(mocks.update).toHaveBeenCalledWith({
+      id: "sp1",
+      update: { condition_effect: { ...hold, duration: { ...hold.duration, amount: 10 } } },
+    });
+  });
+
+  // Bug caught: an AI-made spell whose condition was changed staying marked as untouched AI output.
+  it("marks an AI-made spell edited when its condition changes", async () => {
+    const wrapper = mountDetail(existing({ ai_provenance: { model: "gpt", edited: false } }));
+    const vm = wrapper.vm as unknown as Vm;
+    vm.conditionEffect = null;
+    await vm.save();
+    expect(mocks.update.mock.calls[0][0].update).toMatchObject({ condition_effect: null, ai_provenance: { model: "gpt", edited: true } });
+  });
+
+  // Bug caught: cancel writing the draft, or the entry being lost without a save.
+  it("cancelling leaves the stored entry alone and goes back to the sheet", async () => {
+    const wrapper = mountDetail(existing());
+    const vm = wrapper.vm as unknown as Vm;
+    vm.conditionEffect = null;
+    vm.cancel();
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mockRouterReplace).toHaveBeenCalledWith("/spells/sp1");
+  });
+
+  // Bug caught: the retired free-text field still travelling in the save payload.
+  it("sends condition_effect and no condition_inflicted key when creating", async () => {
+    const wrapper = mountDetail(null);
+    const vm = wrapper.vm as unknown as Vm;
+    vm.name = "Hold Person";
+    vm.conditionEffect = hold;
+    await vm.save();
+    const created = mocks.create.mock.calls[0][0];
+    expect(created.condition_effect).toEqual(hold);
+    expect("condition_inflicted" in created).toBe(false);
   });
 });

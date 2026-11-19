@@ -3,6 +3,7 @@ import { mount } from "@vue/test-utils";
 import { ref, defineComponent, h } from "vue";
 import NpcDetail from "./NpcDetail.vue";
 import type { Npc } from "@/types/npc.types";
+import { emptyDefenses } from "@/types/statBlock.types";
 
 /**
  * Covers the Copy to campaign wiring (#885) only. NpcDetail's own save/
@@ -279,6 +280,40 @@ describe("NpcDetail — save sends only what changed (#946)", () => {
     expect(sent.name).toBe("Elowen Vance-Hale");
     expect(sent).not.toHaveProperty("occupation");
     expect(sent).not.toHaveProperty("campaign_id");
+  });
+
+  it("keeps the stat block's tactics through an edit and into the saved stat block", async () => {
+    const tactics = { role: "leader" as const, note: "Never leaves the door" };
+    const base = npc({
+      stat_block: {
+        armor_class: 12, hit_points: "2d8", speed: "30 ft.",
+        str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10,
+        challenge_rating: "1", defenses: emptyDefenses(), tactics,
+      },
+    });
+    const wrapper = mountDetail(base);
+    const vm = wrapper.vm as unknown as { form: { statBlock: { int: number; tactics?: unknown } }; save: () => Promise<void> };
+    expect(vm.form.statBlock.tactics).toEqual(tactics);
+    vm.form.statBlock.int = 14;
+    await vm.save();
+    expect(updateNpc.mock.calls[0][0].update.stat_block.tactics).toEqual(tactics);
+  });
+
+  // Bug caught: Voice left out of the save payload or the draft, so a typed voice vanished on save.
+  it("saves a typed Voice, and saves null when it is emptied again", async () => {
+    const base = npc({ voice: null });
+    const wrapper = mountDetail(base);
+    const vm = wrapper.vm as unknown as { form: { voice: string | null }; save: () => Promise<void> };
+    vm.form.voice = "Slow, as if tasting each word. 'Sit. The tea is hot.'";
+    await vm.save();
+    expect(updateNpc.mock.calls[0][0].update.voice).toBe("Slow, as if tasting each word. 'Sit. The tea is hot.'");
+
+    updateNpc.mockClear();
+    const had = mountDetail(npc({ voice: "Clipped." }));
+    const vm2 = had.vm as unknown as { form: { voice: string | null }; save: () => Promise<void> };
+    vm2.form.voice = "";
+    await vm2.save();
+    expect(updateNpc.mock.calls[0][0].update.voice).toBeNull();
   });
 
   // Bug caught: Voice left out of the save payload or the draft, so a typed voice vanished on save.

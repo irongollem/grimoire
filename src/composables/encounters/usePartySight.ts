@@ -2,7 +2,8 @@ import { computed, toValue, type ComputedRef, type MaybeRefOrGetter } from "vue"
 import { usePartySenses } from "@/composables/party/usePartySenses";
 import type { FogCellKey } from "@/lib/battlemap/fogMask";
 import type { DarknessZone } from "@/lib/battlemap/illumination";
-import { sightCells, sightScene, type MapGrid } from "@/lib/battlemap/partySight";
+import type { MapGrid } from "@/lib/battlemap/imageGrid";
+import { sightCells, sightScene } from "@/lib/battlemap/partySight";
 import type { SizedToken } from "@/lib/battlemap/tokenFootprint";
 import { partyViewers, type Viewer } from "@/lib/battlemap/vision";
 import type { MapLive, MapLiveDoorState } from "@/types/mapLive.types";

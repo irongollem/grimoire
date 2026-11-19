@@ -132,4 +132,25 @@ describe("SpellSheet in low art (#1179)", () => {
     const w = mount(SpellSheet, { props: { spell: spell({ image_url: art }) }, global: { stubs: { RouterLink: true, AiImageBadge: true } } });
     expect(w.find("img").exists()).toBe(true);
   });
+
+  describe("what the spell does besides damage (#1021)", () => {
+    const hold = {
+      verdict: "condition", conditions: ["Paralyzed"], stops_casting: null, speed_zero: false, applies: "failed_save",
+      save_ability: "WIS", targets: { kind: "one", count: 1, more_per_slot_above: 0 }, only_kinds: ["humanoid"],
+      duration: { unit: "minute", amount: 1, concentration: true }, repeat_save: { when: "end_of_its_turn", ability: "WIS" },
+    } as unknown as Spell["condition_effect"];
+    const text = (over: Partial<Spell>) => mount(SpellSheet, { props: { spell: spell(over) }, global: { stubs } }).text();
+
+    // Bug caught: the sheet still printing the retired free-text condition, or never showing the entry a fight uses.
+    it("shows the summary sentence for a condition", () => {
+      expect(text({ condition_effect: hold })).toContain("Paralyzed on a failed Wisdom save, one humanoid, up to 1 minute (concentration); they save again at the end of each of their turns.");
+    });
+
+    // Bug caught: a table ruling hidden from the DM, or "does nothing" printed on every spell.
+    it("says to rule a not-simple spell at the table and shows nothing for no condition or not said", () => {
+      expect(text({ condition_effect: { ...hold!, verdict: "not_simple" } })).toContain("Rule this one at the table");
+      expect(text({ condition_effect: { ...hold!, verdict: "no_condition" } })).not.toContain("Condition:");
+      expect(text({ condition_effect: null })).not.toContain("Condition:");
+    });
+  });
 });

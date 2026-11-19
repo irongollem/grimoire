@@ -1,8 +1,11 @@
-import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
-import { hasCondition, hasSaveDisadvantage } from "@/rules/conditions";
-import type { AppliedCondition } from "@/types/condition.types";
-import type { RulesetKey } from "@/types/ruleset.types";
-import type { SaveAbility } from "@/types/statBlock.types";
+import type { RollMode } from "../../systems/dnd5e/dice/rollMode.ts";
+import { abilityMod } from "../abilityScore.ts";
+import { hasCondition, hasSaveDisadvantage, isIncapacitated } from "../conditions.ts";
+import { isDodging } from "../fight/stances.ts";
+import { speedIsZero } from "../fight/terrain/movementBudget.ts";
+import type { AppliedCondition } from "../../types/condition.types.ts";
+import type { RulesetKey } from "../../types/ruleset.types.ts";
+import type { SaveAbility } from "../../types/statBlock.types.ts";
 
 /** These conditions make the creature automatically fail Strength and Dexterity saves (SRD). */
 export const AUTO_FAIL_STR_DEX_CONDITIONS = new Set<string>(["Paralyzed", "Stunned", "Petrified", "Unconscious"]);
@@ -20,7 +23,7 @@ export function saveRollMode(input: {
 }): { mode: RollMode; reasons: string[] } {
   const { conditions, ability, ruleset, dmMode } = input;
   // Decide once over every source (any advantage with any disadvantage is a straight roll).
-  const hasAdvantage = dmMode === "advantage";
+  let hasAdvantage = dmMode === "advantage";
   let hasDisadvantage = dmMode === "disadvantage";
   const reasons: string[] = [];
   if (hasSaveDisadvantage(conditions, ability, ruleset)) {
@@ -30,6 +33,12 @@ export function saveRollMode(input: {
         ? "Restrained on a Dexterity save"
         : "Exhaustion imposes disadvantage on saves",
     );
+  }
+  // Dodge (PHB 2014 "Dodge", SRD 5.2 "Dodge [Action]"): advantage on Dexterity saves, lost when Incapacitated or when
+  // the Speed drops to 0.
+  if (ability === "dex" && isDodging(conditions) && !isIncapacitated(conditions) && !speedIsZero(conditions, ruleset)) {
+    hasAdvantage = true;
+    reasons.push("Dodging on a Dexterity save");
   }
   if (dmMode && dmMode !== "normal") reasons.push(`DM sets ${dmMode}`);
   const mode: RollMode = hasAdvantage === hasDisadvantage ? "normal" : hasAdvantage ? "advantage" : "disadvantage";
@@ -88,5 +97,5 @@ export function saveBonusFromStatBlock(
   ability: SaveAbility,
 ): number {
   const listed = listedSaveBonus(block, ability);
-  return listed ?? Math.floor((block[ability] - 10) / 2);
+  return listed ?? abilityMod(block[ability]);
 }

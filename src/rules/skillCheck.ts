@@ -1,9 +1,9 @@
-import { SKILLS } from "@/types/party.types";
-import type { SkillProficiencies } from "@/types/party.types";
-import type { AbilityScores } from "@/types/multiclass.types";
-import type { RulesetKey } from "@/types/ruleset.types";
-import type { MonsterStatBlock } from "@/types/monster.types";
-import { abilityMod } from "@/rules/weaponAttack";
+import { SKILLS } from "../types/party.types.ts";
+import type { SkillProficiencies } from "../types/party.types.ts";
+import type { AbilityScores } from "../types/multiclass.types.ts";
+import type { RulesetKey } from "../types/ruleset.types.ts";
+import type { MonsterStatBlock } from "../types/monster.types.ts";
+import { abilityMod } from "./abilityScore.ts";
 
 /**
  * Minimal shape needed to score a skill check — a `PartyMember` satisfies it,
@@ -119,6 +119,15 @@ export function passiveScore(
   return 10 + skillCheckBonus(source, skillKey, jack, overrideScores);
 }
 
+/** The bonus a stat block lists for a skill ("skills": { "athletics": "+5" }), or null when it lists none. Keys are matched loosely. */
+export function listedSkillBonus(block: Pick<MonsterStatBlock, "skills">, skillKey: keyof SkillProficiencies): number | null {
+  const listed = Object.entries(block.skills ?? {}).find(
+    ([key]) => key.trim().toLowerCase().replace(/\s+/g, "_") === skillKey,
+  );
+  const bonus = listed ? Number.parseInt(listed[1], 10) : Number.NaN;
+  return Number.isNaN(bonus) ? null : bonus;
+}
+
 /**
  * Passive score for a creature with a stat block instead of a character sheet
  * (a companion, a monster): 10 plus the bonus the block lists for the skill,
@@ -132,9 +141,5 @@ export function statBlockPassive(
 ): number {
   const skill = SKILLS.find((s) => s.key === skillKey);
   if (!skill) return 10;
-  const listed = Object.entries(block.skills ?? {}).find(
-    ([key]) => key.trim().toLowerCase().replace(/\s+/g, "_") === skillKey,
-  );
-  const bonus = listed ? Number.parseInt(listed[1], 10) : Number.NaN;
-  return 10 + (Number.isNaN(bonus) ? abilityMod(block[skill.ability]) : bonus);
+  return 10 + (listedSkillBonus(block, skillKey) ?? abilityMod(block[skill.ability]));
 }

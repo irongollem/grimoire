@@ -5,14 +5,13 @@ import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import {
   exploreTokens,
   memberSize,
-  positionsOnSite,
   seatInFormation,
   seedPartyAtEntrance,
   seedPartyAtCentre,
   seedPartyPositions,
-  type ExploreCell,
   type ExploreFrame,
 } from "@/lib/locations/explore";
+import { positionsOnSite, type ExploreCell } from "@/rules/explore/explorePositions";
 import { useCampaignStore } from "@/stores/campaign";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { MonsterSize } from "@/types/monster.types";

@@ -106,6 +106,7 @@ export function uvttToDrawing(map: UniversalVttMap, natural: { width: number; he
       origin_y_pct: 0,
       origin_cell_x: 0,
       origin_cell_y: 0,
+      image_height_over_width: natural.height / natural.width,
     },
     layers,
     darkness: live.darkness,

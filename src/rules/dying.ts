@@ -13,9 +13,9 @@
 // There is no dead/stable column: dead is 0 HP with 3 failures, stable is 0 HP with 3
 // successes. `dyingStatus` is the ONE place that says so; every screen asks it.
 
-import { withCondition, withoutCondition } from "@/rules/conditions";
-import type { AppliedCondition } from "@/types/condition.types";
-import { applyDamage, applyHealing, type HpPools } from "@/rules/hitPoints";
+import { withCondition, withoutCondition } from "./conditions.ts";
+import type { AppliedCondition } from "../types/condition.types.ts";
+import { applyDamage, applyHealing, type HpPools } from "./hitPoints.ts";
 
 export const UNCONSCIOUS = "Unconscious";
 

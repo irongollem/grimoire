@@ -15,7 +15,7 @@ import type { PartyMember } from "@/types/party.types";
 import type { PathLine } from "./PlayMovePath.vue";
 import type { usePlayMapState } from "./usePlayMapState";
 import { footprintOf, movementUsedOf } from "./playRoster";
-import { combatantSpeed } from "./playSpeed";
+import { combatantSpeed } from "@/lib/encounters/combatantSpeed";
 import type { PlayTool } from "./playTypes";
 
 /** What token moves read of the map's state: a fight's (`usePlayMapState`) or an exploring party's. */
@@ -54,6 +54,12 @@ export function usePlayTokenMoves(input: {
   placing: MaybeRefOrGetter<boolean>;
   select: (instanceId: string | null) => void;
   selectGroup: (instanceIds: string[]) => void;
+  /**
+   * For a mover who is not the Dungeon Master: the way round walls to a square (the squares between, in order), or
+   * null when there is no way. The DM's own line stays straight and is never refused; a player's own token must
+   * not walk through a wall, and a line drawn through one reads as if it could.
+   */
+  route?: (mover: RunCombatant, to: Cell) => readonly Cell[] | null;
 }) {
   const { state, store, canEdit, tool } = input;
 
@@ -142,7 +148,10 @@ export function usePlayTokenMoves(input: {
   }
 
   function planFor(c: RunCombatant, to: Cell, via: readonly Cell[]): MovePlan | null {
-    return c.position ? planMove({ from: c.position, to, via, footprint: footprintFor(c), terrain: state.moveTerrain.value }) : null;
+    if (!c.position) return null;
+    // A routed mover goes the way the route gives, or not at all; waypoints are the DM's own bends.
+    const routed = input.route ? input.route(c, to) : via;
+    return routed === null ? null : planMove({ from: c.position, to, via: routed, footprint: footprintFor(c), terrain: state.moveTerrain.value });
   }
 
   function lineOf(c: RunCombatant, plan: MovePlan): PathLine {

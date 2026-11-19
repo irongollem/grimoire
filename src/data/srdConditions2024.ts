@@ -17,6 +17,6 @@
 // `conditionPatches.ts` (hand-maintained, each entry flagged
 // `// TODO verify against SRD 5.2 PDF`). Once this script starts finding real
 // entries, trim that patch map back down to genuine overrides/gaps.
-import type { Condition } from "@/types/condition.types";
+import type { Condition } from "../types/condition.types.ts";
 
 export const SRD_CONDITIONS_2024: Condition[] = [];

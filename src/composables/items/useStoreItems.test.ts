@@ -38,18 +38,6 @@ vi.mock("@/composables/items/useItems", () => {
         mocks.refetches += 1;
       },
     }),
-    // Mirrors the real normalizeLibraryItem's patch-in-the-missing-columns
-    // shape closely enough for resolveStoreItemRow's own tests below.
-    normalizeLibraryItem: (row: Record<string, unknown>) => ({
-      ...row,
-      user_id: "",
-      campaign_id: null,
-      dm_notes: null,
-      spell_ids: [],
-      content: null,
-      content_player_writable: false,
-      content_updated_at: null,
-    }),
   };
 });
 

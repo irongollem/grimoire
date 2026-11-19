@@ -1,0 +1,1098 @@
+// One turn of a conversation with the AI table (#1205): who may run it, what it may cost, the loop, and the save.
+//
+// No Deno and no Supabase in here. Everything with I/O comes in through `AgentTurnDeps`, so the rules below are
+// tested against an in-memory store (`handler.test.ts`) and `index.ts` only wires real dependencies to them.
+//
+// Two phases, because the HTTP layer must answer a plain JSON status before it opens a stream:
+//   `beginTurn`  every gate up to and including moderation and the credit reservation. Returns a refusal (a status
+//                and a sentence) or a `run` function. Nothing has been streamed yet.
+//   `run`        creates the conversation if it is new, runs the loop, saves, charges, and reports on `send`.
+//                Then, after `done` has gone out, it may fold the older messages into the rolling summary
+//                (`_shared/agent/summary.ts`): the player never waits for that, and a failure in it is only logged.
+// A caller that gets `run` MUST call it: the reservation is released inside it.
+
+import type { AgentProvider } from "../_shared/agent/providerIo.ts";
+import { floorOf, LISTENING_TEXT, type Floor } from "../_shared/agent/floor.ts";
+import { handoutsSection, type HandoutOffer, type PictureOf, type Shown } from "../_shared/agent/show.ts";
+import { shownText, speakerIdsOf, tableClosed } from "../_shared/agent/conduct.ts";
+import type { TravelMap } from "../_shared/agent/travel.ts";
+import { followersOf } from "../_shared/agent/pursuit.ts";
+import { lootIsWon, type LootHeld } from "../_shared/agent/encounterLoot.ts";
+import type { FightChange } from "../_shared/agent/fightChange.ts";
+import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
+import type { HazardRules, KeptHazard } from "../_shared/agent/hazard.ts";
+import { companionsSection, type Companion } from "../_shared/agent/companions.ts";
+import { skySection } from "../_shared/agent/sky.ts";
+import { endedByPause } from "../_shared/agent/sittingEnd.ts";
+import { NARRATOR_SPEAKER, type KeyedLine } from "../_shared/agent/lineKey.ts";
+import { handsLine, harvestFacts, possessionsSection, type Coins, type HandsChange, type Possessions } from "../_shared/agent/hands.ts";
+import { coinsText, coinValuesOf, type HandsStore } from "./handsIo.ts";
+import type { Introduction } from "../_shared/agent/introduce.ts";
+import { creditsForUsd, usableCalibration, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
+import { runTurn, totalTokens, type TurnEnd } from "../_shared/agent/turn.ts";
+import { historyFrom, rowsFor, systemWithSummary, type StoredTurn, type TurnRow } from "../_shared/agent/transcript.ts";
+import type { Remembered } from "../_shared/agent/characterTurn.ts";
+import type { SpeechToolsDeps } from "../_shared/agent/speak.ts";
+import type { SceneView } from "../_shared/agent/scene.ts";
+import type { RecordedFact, RecordKind } from "../_shared/agent/record.ts";
+import { pressureShown, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
+import { prologueText, startPlace, type Prologue } from "../_shared/agent/prologue.ts";
+import { fightIsTold, fightRecordText, type FightPlan, type FightsInView, type FightState } from "../_shared/agent/fight.ts";
+import { askOf, declinedText, rollText, scoreRoll, type PendingRoll, type RollAsk, type Rolled } from "../_shared/agent/playerRoll.ts";
+import { makeTurnTools, type FiledFact } from "./turnTools.ts";
+import { narrationGate, type NarrationGate, type NarrationJudge } from "./narration.ts";
+import { AFTERMATH_TEXT, foeLineText, helperTurnText, OPENING_TEXT, parseBody, playerText } from "./turnBody.ts";
+import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
+import { applyKeptQuestMoves, characterOf, foldIntoSummary, questsOf, recordOf, round6, fightsOf, safely, sceneOf, stateFor, systemFor } from "./turnSupport.ts";
+import {
+  AgentProviderError,
+  type AgentLine,
+  type AgentTool,
+  type AgentUsage,
+  type CallTool,
+  type DmRoll,
+} from "../_shared/agent/types.ts";
+import type { CreditLogFields } from "../_shared/credits.ts";
+
+// Limits of one turn. The player waits on a turn, and a model that loops on tools can spend a lot without saying
+// anything, so each limit has its own reason.
+/** A turn is a few model calls (look something up, roll, answer); eight stops a model that keeps calling tools. */
+export const MAX_STEPS = 8;
+/** A reply of a few sentences is far below this; it stops one runaway answer from costing a whole turn's budget. */
+export const MAX_OUTPUT_TOKENS = 2000;
+/**
+ * What a turn may spend, in full-rate tokens: cache reads count at a tenth (`budgetTokens`), as they cost. A usual
+ * turn in a long sitting is three or four steps of some 20,000 tokens, nearly all of it cache reads, so about
+ * 10,000 of these; the budget is several times that and still stops a turn that loops.
+ */
+export const TOKEN_BUDGET = 60_000;
+/** Held before the turn so an account with no credits is refused before any model call; the real charge is metered. */
+export const RESERVE_CREDITS = 1;
+
+/** A refusal before the stream opened: an ordinary JSON response. */
+export interface Refusal {
+  status: number;
+  error: string;
+}
+
+/** What the browser hears. It never carries a tool's input or result: those can hold DM-only material. */
+export type AgentEvent =
+  | { type: "session"; sessionId: string; character?: { id: string; name: string } }
+  | { type: "text"; delta: string }
+  | { type: "tool_start"; name: string }
+  | { type: "tool_end"; name: string; isError: boolean }
+  /** What a character said or visibly did. It is the one thing a tool shows the browser: it is meant for the page. */
+  | { type: "line"; line: AgentLine; /** Where voices are on: the key `table-voice` speaks it for (lineKey.ts), a spoken line in the character's voice and a deed in the narrator's. */ voice?: string }
+  /** The party moved. Only the place's id and name: its description and who is there can hold DM-only text. */
+  | { type: "scene"; scene: { id: string; name: string } }
+  /** A fact the narrator put on record that the player already knows. A hidden one is never sent. */
+  | { type: "fact"; fact: { id: string; body: string } }
+  /** How full the clock the scene runs against is after this turn, or null when the pressure is off. Never its label. */
+  | { type: "pressure"; pressure: { filled: number; segments: number } | null }
+  /** A fight has started (the page offers the way to the fight screen), or (null) its aftermath has been told. */
+  | { type: "fight"; fight: { encounterId: string; name: string } | null; /** With null: it was never fought (nobody in it could be), not finished. */ calledOff?: true }
+  /** A roll the Dungeon Master made in the open. A hidden roll sends nothing. */
+  | { type: "dm_roll"; roll: DmRoll }
+  /** A handout handed over or a picture shown, in its place in the story. */
+  | { type: "shown"; shown: Shown }
+  /** The story stops for a roll that is the player's. What to roll, never the number to beat. */
+  | { type: "ask_roll"; roll: RollAsk }
+  /** The roll this turn answered, as the server worked it out. No outcome: the narration says how it went. */
+  | { type: "rolled"; roll: Rolled }
+  /** The narrator's ruling changes the fight on the board: the page carries it out. */
+  | { type: "fight_change"; change: FightChange }
+  /** Someone the narrator made up now has a record the player's character knows of. A hidden one is never sent. */
+  | { type: "introduced"; person: { id: string; name: string } }
+  /** Whole days passed in the story this turn: the page moves the campaign's date on by them. */
+  | { type: "days"; days: number }
+  /** Words that are not a character's line and can be voiced: the narrator's, whole, or the player's own said line. */
+  | { type: "voice"; role: "narrator" | "player"; text: string; voice: string }
+  /** Something changed hands: a line for the story's margin. The pack and the purse follow by themselves. */
+  | { type: "hands"; text: string }
+  /** The played character's hit points changed outside a fight: what did it, by how much, and where they stand. */
+  | { type: "hit_points"; change: { change: "heal" | "harm"; why: string; by: number; hp: number; maxHp: number } }
+  /** `floor` is "characters" when they were still talking among themselves and nothing waits on the player (`floor.ts`). */
+  | { type: "done"; end: TurnEnd; credits: number; tokens: number; floor?: Floor }
+  /** `withheld` is set when the turn was dropped by the screen on what the table may tell, so the page can say so. */
+  | { type: "error"; message: string; withheld?: true };
+
+export interface CampaignRow {
+  id: string;
+  user_id: string;
+  name: string;
+  game_system: string | null;
+  ai_enabled: boolean | null;
+}
+
+export interface SessionRow {
+  id: string;
+  user_id: string;
+  campaign_id: string;
+  summary: string | null;
+  summary_through_seq: number;
+  /** Where the party is; null until the narrator first calls go_to. */
+  scene_location_id: string | null;
+  /** The play session this conversation is a sitting of; what the table writes into the campaign is stamped with it. */
+  campaign_session_id: string | null;
+  /** The quest clock this conversation ticks by one every kept turn; null when the scene is under no pressure. */
+  pressure_clock_id: string | null;
+  /** The party member the player plays; null when the conversation was begun without one. */
+  party_member_id: string | null;
+  /** True when this conversation started its play session; false when it joined one that was already open. */
+  opened_play_session: boolean;
+  /** When the player left the table; null while the sitting goes on. A conversation that was left takes no turns. */
+  left_at: string | null;
+  /** When the row last changed, which every kept turn does: how long the table has stood idle. */
+  updated_at: string;
+  /** The roll the narrator asked the player for at the end of the last kept turn; null when none is asked. */
+  pending_roll: PendingRoll | null;
+  /** The encounter this conversation started and is waiting on; null when the story is not in a fight. */
+  fight_encounter_id: string | null;
+  /** The fight the party got away from whose creatures give chase; null when nobody follows. */
+  pursuit_encounter_id?: string | null;
+}
+
+export type Reservation = { ok: true; ids: string[] } | { ok: false; refusal: Refusal };
+
+export interface AgentTurnDeps {
+  /** Suspended or child accounts. */
+  accountRefusal(userId: string): Promise<Refusal | null>;
+  loadCampaign(campaignId: string): Promise<CampaignRow | null>;
+  /** The owner or a co-DM. */
+  isDm(campaign: CampaignRow, userId: string): Promise<boolean>;
+  /** By id alone: the handler decides whether it belongs to the caller. */
+  loadSession(sessionId: string): Promise<SessionRow | null>;
+  /** The time now, in milliseconds: a dependency so a test can let six hours pass. */
+  now(): number;
+  createSession(input: {
+    userId: string;
+    campaignId: string;
+    provider: string;
+    model: string;
+    sceneLocationId: string | null;
+    campaignSessionId: string | null;
+    /** Whether the conversation started that session itself (see `SessionRow.opened_play_session`). */
+    openedPlaySession: boolean;
+    partyMemberId: string | null;
+    /** The Narrator's voice the host chose before sitting down; null leaves the table on its default. */
+    narratorVoice: "male" | "female" | null;
+  }): Promise<SessionRow>;
+  /**
+   * The campaign's open play session, started if there is none: sitting down at the table is the game being played.
+   * `opened` says whether this call started it (false: the DM already had one running and the table joined it), which
+   * is what decides at the end whether leaving the table may close it. Null when it could not be opened; the
+   * conversation then runs without one and what it writes carries no session.
+   */
+  openPlaySession(campaignId: string): Promise<{ id: string; opened: boolean } | null>;
+  /** The stored rows in reach of a turn (`turnsInReach.ts`): never the whole of a table that has run for months. */
+  loadTurns(sessionId: string, summaryThroughSeq: number): Promise<StoredTurn[]>;
+  rateLimit(userId: string): Promise<boolean>;
+  resolveProvider(campaign: CampaignRow): Promise<AgentProvider | null>;
+  loadPrice(model: string): Promise<ModelPrice | null>;
+  loadCalibration(): Promise<{ usdPerCredit: number | null; margin: number } | null>;
+  /** True when the message must not be sent. Fails open (false) when the check cannot run. */
+  isFlagged(message: string): Promise<boolean>;
+  /**
+   * How many of the account's messages the screen refused within the strike window (`conduct.ts`). An account
+   * that keeps trying finds the table closed.
+   */
+  strikes(userId: string): Promise<number>;
+  /** True when what a turn wrote must not be kept, shown again, put on record or spoken. Fails open like `isFlagged`. */
+  isFlaggedOutput(text: string, childTookPart: boolean): Promise<boolean>;
+  /** Whether any of these characters of the campaign is a child by their record (`readsAsChild`). */
+  anyChild(campaignId: string, characterIds: string[]): Promise<boolean>;
+  reserve(userId: string, credits: number): Promise<Reservation>;
+  release(ids: string[]): Promise<void>;
+  /** `recordGeneration`: BYOK writes a zero row, otherwise spends `cost`. */
+  recordGeneration(isByok: boolean, cost: number, log: CreditLogFields): Promise<void>;
+  /** `recordFreeGeneration`: a zero-credit ledger row that still says the platform paid the provider. */
+  recordFreeGeneration(log: CreditLogFields): Promise<void>;
+  /**
+   * `append_agent_turns`. `due` is the whole credits the conversation's running total newly crossed, decided in SQL
+   * under the row lock. "conflict" is SQLSTATE 40001: the conversation moved on. Any other failure throws.
+   */
+  appendTurns(sessionId: string, afterSeq: number, rows: TurnRow[], credits: number): Promise<{ due: number } | "conflict">;
+  /**
+   * `summarise_agent_session`: stores the summary and the seq it covers, adds the summary call's tokens and accrual,
+   * and answers with the whole credits newly crossed. "stale" is SQLSTATE 40001: another summary got there first.
+   * Any other failure throws.
+   */
+  saveSummary(input: {
+    sessionId: string;
+    expectedThroughSeq: number;
+    throughSeq: number;
+    summary: string;
+    usage: AgentUsage;
+    credits: number;
+  }): Promise<{ due: number } | "stale">;
+  tools: AgentTool[];
+  callTool: CallTool;
+  /**
+   * Files what characters chose to remember this turn in their memory ledgers (`npc_memories`), marked as written
+   * by AI. Called only after the turn itself was saved: a moment that was not kept leaves no memory.
+   */
+  saveMemories(input: {
+    campaignId: string;
+    userId: string;
+    provider: string;
+    model: string;
+    memories: Array<{ characterId: string } & Remembered>;
+    /** The sitting it happened in, so "what did she promise last time" has an answer. */
+    campaignSessionId: string | null;
+  }): Promise<void>;
+  /**
+   * A character of this campaign as its own call may know it: its record and its memories, nothing else. Null when
+   * the id is not a character of THIS campaign, whoever asks.
+   */
+  loadSpeaker(campaignId: string, characterId: string): ReturnType<SpeechToolsDeps["loadSpeaker"]>;
+  /** A character of THIS campaign as the narrator may know them. Null when the id is not a character of this campaign. */
+  loadCharacter(campaignId: string, characterId: string): Promise<PlayerCharacter | null>;
+  /** A place of THIS campaign with the people in it, as the narrator may know them. Null when it is not in the campaign. */
+  loadScene(campaignId: string, locationId: string): Promise<SceneView | null>;
+  /**
+   * Moves the party: stores the place on the conversation and answers with the new scene. Null when the place is not
+   * in this campaign or the move could not be stored. It writes at once, outside the turn's own save.
+   */
+  setScene(sessionId: string, campaignId: string, locationId: string): Promise<SceneView | null>;
+  /** The fights prepared at the party's place and the one this conversation started, as it stands. */
+  loadFights(campaignId: string, locationId: string | null, fightEncounterId: string | null, pursuitEncounterId?: string | null): Promise<FightsInView>;
+  /** Says which fight is on the party's heels, or (null) that nobody follows. */
+  setPursuit(sessionId: string, campaignId: string, encounterId: string | null): Promise<void>;
+  /** Starts the fight the narrator asked for and points the conversation at it. Throws when it could not. */
+  startFight(
+    ctx: { campaignId: string; sessionId: string; userId: string; memberId: string; locationId: string | null; playSessionId: string | null },
+    plan: FightPlan,
+  ): Promise<{ encounterId: string; name: string }>;
+  /** Lets the conversation go of its fight (null), once its aftermath has been told. */
+  setFight(sessionId: string, campaignId: string, encounterId: string | null): Promise<void>;
+  /** The campaign's handouts the played character does not hold yet. */
+  loadHandouts(campaignId: string, memberId: string): Promise<HandoutOffer[]>;
+  /** The campaign's own picture of a record, with the name it is shown under; null when there is none. */
+  loadPicture(campaignId: string, what: PictureOf, id: string): Promise<{ title: string; url: string } | null>;
+  /** Hands a handout to the played character for real, beside whoever already holds it. Throws when it could not. */
+  giveHandout(campaignId: string, handoutId: string, memberId: string): Promise<void>;
+  /** The campaign's places and the roads between them, as the caller may read them: what a journey is measured on. */
+  loadTravelMap(campaignId: string, gameSystem: string | null): Promise<TravelMap>;
+  /** A fair whole number from 1 to `max`, for a roll behind the screen on one of the campaign's tables. */
+  rollDie(max: number): number;
+  /** Marks a prepared fight as fought, so it is not offered at its place again. */
+  finishFight(campaignId: string, encounterId: string): Promise<void>;
+  /** Lays a won fight's loot notes where it was fought, once, as things the campaign placed there. */
+  layFightLoot(campaignId: string, encounterId: string, placeId: string | null, held: LootHeld): Promise<void>;
+  /**
+   * The campaign's opening quest at its entry beat, when the story has not begun: no turn has ever been kept at the
+   * table in this campaign. Null once it has, and when the campaign names no opening quest (or one that is gone).
+   */
+  loadPrologue(campaignId: string): Promise<Prologue | null>;
+  /** Puts the opening quest in play at its entry beat, unless it already has a thread. Throws when it could not. */
+  beginPrologue(campaignId: string, prologue: Prologue): Promise<void>;
+  /**
+   * Shows the played character the place the party stands in and the people who spoke or acted in front of them,
+   * through the campaign's own sharing (`reveals.ts`). Throws when it could not be written.
+   */
+  revealToCharacter(input: { campaignId: string; memberId: string; locationId: string | null; characterIds: string[] }): Promise<void>;
+  /** Writes (or, with null, clears) the roll the player is asked for. Throws when it could not be written. */
+  setPendingRoll(sessionId: string, campaignId: string, pending: PendingRoll | null): Promise<void>;
+  /**
+   * The facts worth putting in front of the narrator this turn: those tied to the place and the people in it, and the
+   * newest of the campaign, oldest first, none of them closed by a later fact.
+   */
+  loadRecord(campaignId: string, about: { locationId: string | null; characterIds: string[] }): Promise<RecordedFact[]>;
+  /**
+   * Puts one fact on record with its ties, at once: the narrator needs its id back in the same turn to close it
+   * later. `{ error }` is a sentence the narrator can act on. Writes as the DM who is playing, never as the server.
+   */
+  fileFact(input: {
+    campaignId: string;
+    campaignSessionId: string | null;
+    agentSessionId: string;
+    provider: string;
+    model: string;
+    fact: string;
+    about: { type: RecordKind; id: string }[];
+    hidden: boolean;
+    closes: string | null;
+  }): Promise<{ id: string } | { error: string }>;
+  /** The recorded characters of this campaign whose name or disguise holds this text, by the name they are shown under. */
+  findCharacters(campaignId: string, name: string): Promise<Array<{ id: string; shownName: string }>>;
+  /**
+   * Puts characters where the party is. A character who just spoke to the party is evidently there, whatever
+   * their record said, and the next sitting must find them in the place it reads.
+   */
+  placeCharacters(campaignId: string, locationId: string, characterIds: string[]): Promise<void>;
+  /** Takes facts filed in a turn that was not kept off the record again. */
+  discardFacts(campaignId: string, ids: string[]): Promise<void>;
+  /** The quests running in the campaign, what the narrator may mark, and where the pressure clock stands. */
+  loadQuests(campaignId: string, pressureClockId: string | null): Promise<QuestsInPlay>;
+  /**
+   * Applies one quest move through the same database functions the quest screen calls. Called only after the turn
+   * was saved, in the order the moves were made; throws on any failure.
+   */
+  applyQuestMove(ctx: { campaignId: string; agentSessionId: string }, move: QuestMove): Promise<void>;
+  /**
+   * Judges, with TypeSafe's Jev, whether narration told the player anything the characters' lines did not
+   * (`narration.ts`). Null when no judging key is available: then every word the narrator writes is shown.
+   */
+  judgeNarration: NarrationJudge | null;
+  /**
+   * Signs a spoken line so it can be voiced as soon as it is shown (`lineKey.ts`). Null where voices are not
+   * switched on: then no line carries a key and nothing can be voiced.
+   */
+  voiceKey: ((sessionId: string, line: KeyedLine) => string) | null;
+  /** Whether the table itself made this character's record and the DM has not edited it since: only then may the table rewrite it. */
+  isTableMadeCharacter(campaignId: string, characterId: string): Promise<boolean>;
+  /** A hazard of that name the campaign keeps, else one the library keeps; null when neither does. */
+  /** The rest of the party: every party member of the campaign but the played one (`companions.ts`). */
+  loadCompanions(campaignId: string, playedId: string | null): Promise<Companion[]>;
+  findHazard(campaignId: string, name: string): Promise<KeptHazard | null>;
+  /** Writes a hazard the narrator made as a record of the campaign, marked as made by the AI table. */
+  makeHazard(ctx: { campaignId: string; userId: string; provider: string; model: string }, hazard: HazardRules): Promise<void>;
+  /** Things changing hands: what is carried and stocked, and the changes carried out (`handsIo.ts`). */
+  hands: HandsStore;
+  /** Sets the played character's hit points on their sheet (`hitPoints.ts`). */
+  setHitPoints(campaignId: string, memberId: string, hitPoints: number): Promise<void>;
+  /** Takes one of a thing out of a character's belongings, by name; answers whether they had it. */
+  useUpBelonging(campaignId: string, characterId: string, thing: string): Promise<boolean>;
+  /** Writes the record of a person the narrator made up (`introduce.ts`), or brings a table-made one up to date, and answers who it is. */
+  introduceCharacter(
+    ctx: { campaignId: string; userId: string; memberId: string | null; locationId: string | null; provider: string; model: string },
+    intro: Introduction,
+  ): Promise<{ id: string; name: string }>;
+  /** The names of the campaign's own peoples (its species), for `peoples.ts`. */
+  loadPeoples(campaignId: string): Promise<string[]>;
+  /** The names of a planned fight's creatures that have no stat block; a fight with one of them is not started. */
+  statlessFighters(campaignId: string, plan: FightPlan): Promise<string[]>;
+}
+
+export const MESSAGES = {
+  badBody: "The request is not valid.",
+  notFound: "That conversation was not found.",
+  left: "You left this table. Sit down again to play on.",
+  // A code, not a sentence: the page leaves the table on it and says so in its own words (`turnRefusal.ts`).
+  sittingEnded: "sitting_ended",
+  noRoll: "No roll was asked for.",
+  noPlace: "That place was not found.",
+  noCharacter: "That character was not found.",
+  noCampaign: "Campaign not found.",
+  aiOff: "AI is disabled for this campaign.",
+  forbidden: "Only the campaign's DM can use the AI table.",
+  rateLimited: "rate_limited",
+  noProvider: "The AI table is not available right now.",
+  noAdapter: "The AI table is not available on this provider yet.",
+  noMetering: "The AI table cannot be metered right now.",
+  flagged: "That message cannot be sent to the AI table.",
+  closed: "table_closed",
+  withheld: "The Narrator's answer was withheld by the check on what the table may tell. Nothing was charged. Try something else.",
+  conflict: "This conversation was continued somewhere else. Reload it and send your message again.",
+  providerBusy: "The AI provider is busy right now. Send your message again in a moment.",
+  failed: "The AI table ran into a problem. Send your message again.",
+  notSaved: "The turn could not be saved. Send your message again.",
+} as const;
+
+export type BegunTurn =
+  | { kind: "refused"; refusal: Refusal }
+  | { kind: "ready"; run: (send: (event: AgentEvent) => void, signal?: AbortSignal) => Promise<void> };
+
+export async function beginTurn(input: {
+  userId: string;
+  body: unknown;
+  deps: AgentTurnDeps;
+}): Promise<BegunTurn> {
+  const { userId, deps } = input;
+  const refuse = (status: number, error: string): BegunTurn => ({ kind: "refused", refusal: { status, error } });
+
+  const parsed = parseBody(input.body);
+  if (!parsed.ok) return refuse(400, MESSAGES.badBody);
+  const body = parsed.body;
+
+  const account = await deps.accountRefusal(userId);
+  if (account) return { kind: "refused", refusal: account };
+
+  const campaign = await deps.loadCampaign(body.campaignId);
+  if (!campaign) return refuse(404, MESSAGES.noCampaign);
+  if (campaign.ai_enabled !== true) return refuse(403, MESSAGES.aiOff);
+  if (!(await deps.isDm(campaign, userId))) return refuse(403, MESSAGES.forbidden);
+
+  // Someone else's conversation, or one in another campaign, is "not found": a 403 would say it exists.
+  let existing: SessionRow | null = null;
+  if (body.sessionId !== undefined) {
+    existing = await deps.loadSession(body.sessionId);
+    if (!existing || existing.user_id !== userId || existing.campaign_id !== campaign.id) {
+      return refuse(404, MESSAGES.notFound);
+    }
+    // Before the rate limit and the reservation: a sitting that was left takes nothing more, and costs nothing to refuse.
+    if (existing.left_at !== null) return refuse(409, MESSAGES.left);
+    // A long pause ended it (`sittingEnd.ts`). Also before anything is reserved: the refusal costs nothing.
+    if (endedByPause(existing.updated_at, deps.now())) return refuse(409, MESSAGES.sittingEnded);
+  }
+  // A roll answers a request: without one there is no DC to score it against, and a made-up roll must not reach the
+  // narrator as if it had been asked for.
+  const pendingRoll = existing === null ? null : existing.pending_roll;
+  if (body.roll !== undefined && pendingRoll === null) return refuse(400, MESSAGES.noRoll);
+  const scored = body.roll !== undefined && pendingRoll !== null ? scoreRoll(pendingRoll, body.roll) : null;
+
+  // Before anything is charged or streamed: a place of another campaign, or one that does not exist, is "not
+  // found" either way. The id comes from the browser, so it is checked against the conversation's campaign here.
+  if (body.startLocationId !== undefined && !(await deps.loadScene(campaign.id, body.startLocationId))) {
+    return refuse(404, MESSAGES.noPlace);
+  }
+
+  // Same for the character: the id comes from the browser, so it is checked against the campaign before anything is reserved.
+  if (body.characterId !== undefined && !(await deps.loadCharacter(campaign.id, body.characterId))) {
+    return refuse(404, MESSAGES.noCharacter);
+  }
+
+  if (!(await deps.rateLimit(userId))) return refuse(429, MESSAGES.rateLimited);
+
+  const provider = await deps.resolveProvider(campaign);
+  if (!provider) return refuse(503, MESSAGES.noProvider);
+  if (!provider.callModel) return refuse(503, MESSAGES.noAdapter);
+  const callModel = provider.callModel;
+
+  // Play must never run unmetered. Own-key play is not charged, so it needs neither number.
+  let price: ModelPrice | null = null;
+  let calibration: CreditCalibration | null = null;
+  if (!provider.isByok) {
+    try {
+      price = await deps.loadPrice(provider.model);
+      const found = await deps.loadCalibration();
+      calibration = usableCalibration(found);
+    } catch (error) {
+      console.error("agent-turn: metering lookup failed:", error);
+      return refuse(503, MESSAGES.noMetering);
+    }
+    if (!price || !calibration) return refuse(503, MESSAGES.noMetering);
+  }
+
+  // An account that kept sending what the screen refuses finds the table closed, before anything is screened or
+  // spent. Unreadable strikes do not close it: the count is a consequence, not the boundary.
+  try {
+    if (tableClosed(await deps.strikes(userId))) return refuse(403, MESSAGES.closed);
+  } catch (error) {
+    console.error("agent-turn: counting the account's refused messages failed:", error);
+  }
+
+  let flagged = false;
+  try {
+    // A roll sent without words has nothing to screen.
+    flagged = body.message === "" ? false : await deps.isFlagged(body.message);
+  } catch (error) {
+    // Same stance as the image screen: it is not the safety boundary, so an outage of it must not stop play.
+    console.error("agent-turn: moderation failed:", error);
+  }
+  if (flagged) return refuse(400, MESSAGES.flagged);
+
+  let reservationIds: string[] = [];
+  if (!provider.isByok) {
+    const reservation = await deps.reserve(userId, RESERVE_CREDITS);
+    if (!reservation.ok) return { kind: "refused", refusal: reservation.refusal };
+    reservationIds = reservation.ids;
+  }
+
+  const run = async (send: (event: AgentEvent) => void, signal?: AbortSignal): Promise<void> => {
+    // A listener that throws (a closed stream) must not cost the player the turn that is already paid for.
+    const emit = (event: AgentEvent) => {
+      try {
+        send(event);
+      } catch {
+        // ignored on purpose
+      }
+    };
+
+    // Facts are written the moment the narrator files them, before the turn is saved. A turn that is not kept is
+    // sent again by the player, and the narrator would file the same facts a second time, so they come off again.
+    const filed: FiledFact[] = [];
+    let kept = false;
+    // Quest moves the narrator made this turn. Objectives and clocks have no undo, so none is written until the turn is kept.
+    const queued: QuestMove[] = [];
+    // The roll the narrator asked the player for this turn; written only once the turn is kept.
+    let asked: PendingRoll | null = null;
+    const discardFiled = async (): Promise<void> => {
+      if (filed.length === 0) return;
+      await safely(() => deps.discardFacts(campaign.id, filed.map((f) => f.id)));
+    };
+
+    try {
+      let session: SessionRow;
+      let stored: StoredTurn[];
+      let result;
+      let gate: NarrationGate | null = null;
+      try {
+        // The campaign's very first sitting begins at its opening quest. Read for a new conversation only; a
+        // failure is logged and the sitting begins as any other does.
+        let prologue: Prologue | null = null;
+        if (!existing) {
+          try {
+            prologue = await deps.loadPrologue(campaign.id);
+          } catch (error) {
+            console.error("agent-turn: reading the campaign's opening failed:", error);
+          }
+        }
+        // Only a new conversation opens a session: one conversation is one sitting, and it keeps the session it began in.
+        let playSession: { id: string; opened: boolean } | null = null;
+        if (!existing) {
+          try {
+            playSession = await deps.openPlaySession(campaign.id);
+          } catch (error) {
+            console.error("agent-turn: opening the play session failed:", error);
+          }
+        }
+        session = existing ?? await deps.createSession({
+          userId,
+          campaignId: campaign.id,
+          provider: provider.provider,
+          model: provider.model,
+          sceneLocationId: startPlace(body.startLocationId, prologue),
+          campaignSessionId: playSession === null ? null : playSession.id,
+          openedPlaySession: playSession !== null && playSession.opened,
+          partyMemberId: body.characterId === undefined ? null : body.characterId,
+          narratorVoice: body.narratorVoice === undefined ? null : body.narratorVoice,
+        });
+        // Before the quests are read for this turn, so the narrator sees the opening quest in play. Idempotent, so
+        // a first turn that is not kept and is sent again does not open it twice.
+        if (prologue !== null) {
+          const opening = prologue;
+          await safely(() => deps.beginPrologue(campaign.id, opening));
+        }
+        const character = await characterOf(deps, campaign.id, session.party_member_id);
+        emit({ type: "session", sessionId: session.id, ...(character ? { character: { id: character.id, name: character.name } } : {}) });
+        if (scored !== null) emit({ type: "rolled", roll: scored.rolled });
+        stored = await deps.loadTurns(session.id, session.summary_through_seq);
+        const lastSeqLoaded = stored.reduce((max, row) => Math.max(max, row.seq), 0);
+        const history = historyFrom(stored, session.summary_through_seq);
+        // The instructions hold nothing that changes during play; the scene, the quests and the record go at the head
+        // of the new message instead (`stateFor`), because a changed instruction costs the whole prompt cache.
+        const scene = await sceneOf(deps, campaign.id, session.scene_location_id);
+        // Quests sit between the scene and the record: they change when something is marked, like the scene when the
+        // party moves, and the summary, which only grows, stays last.
+        const questState = await questsOf(deps, campaign.id, session.pressure_clock_id);
+        const record = await recordOf(deps, campaign.id, scene);
+        // Fights: what is prepared here and the one this conversation is waiting on. Unreadable means no fight
+        // tool this turn, since the ids it would be asked to name could not be checked.
+        const pursuitId = session.pursuit_encounter_id === undefined ? null : session.pursuit_encounter_id;
+        let fights = await fightsOf(deps, campaign.id, session.scene_location_id, session.fight_encounter_id, pursuitId);
+        // A fight that has not begun and has someone in it the rules cannot play can never be fought: the story
+        // would wait on it for good, with the narrator sending the player to a fight screen where nothing can act.
+        // The conversation lets go of it and the story goes on. Starting a fight refuses such a fighter, so this is
+        // the fight that changed after it was started: a Dungeon Master took a stat block away before it began.
+        // Asked only while a fight is waiting, which is a turn or two.
+        if (fights !== null && fights.fight !== null && fights.fight.phase === "waiting") {
+          const stuck = fights.fight;
+          try {
+            const statless = await deps.statlessFighters(campaign.id, { kind: "prepared", encounterId: stuck.encounterId, name: stuck.name });
+            if (statless.length > 0) {
+              await deps.setFight(session.id, campaign.id, null);
+              fights = { ...fights, fight: null };
+              emit({ type: "fight", fight: null, calledOff: true });
+            }
+          } catch (error) {
+            console.error("agent-turn: checking the waiting fight failed:", error);
+          }
+        }
+        // The world's peoples are common knowledge for the narrator and every character. Unreadable costs that
+        // knowledge for a turn, never the turn.
+        let peoples: string[] = [];
+        try {
+          peoples = await deps.loadPeoples(campaign.id);
+        } catch (error) {
+          console.error("agent-turn: reading the world's peoples failed:", error);
+        }
+        const system = systemWithSummary(systemFor({ campaign, character, peoples }), session.summary);
+        const fightTurn = body.fightTurn === undefined ? null : body.fightTurn;
+        // A fight fought out with no foe standing leaves its loot where it was fought, before what is within reach
+        // is read: the narrator telling what comes of the fight can then say what lies there.
+        if (fights !== null && lootIsWon(fights.fight)) {
+          const won = fights.fight!;
+          await safely(() => deps.layFightLoot(campaign.id, won.encounterId, session.scene_location_id, "fallen"));
+        }
+        // What the played character carries and the place sells. A failure to read it costs the tools, never the turn.
+        let hands: { possessions: Possessions; coinValues: Map<string, number>; coinsText: (coins: Coins) => string } | null = null;
+        if (character) {
+          try {
+            // The quest beats in play: what the campaign placed on them is within reach, like what it placed on the place.
+            const beats = questState === null ? [] : questState.threads.flatMap((t) => (t.beat === null ? [] : [t.beat]));
+            const loaded = await deps.hands.load(campaign.id, character.id, session.scene_location_id, beats);
+            hands = { possessions: loaded.possessions, coinValues: coinValuesOf(loaded.currency), coinsText: coinsText(loaded.currency) };
+          } catch (error) {
+            console.error("agent-turn: reading what the character carries failed:", error);
+          }
+        }
+        // The handouts still to be handed over. Unreadable costs the handouts for a turn, never the turn.
+        let handouts: HandoutOffer[] = [];
+        if (character) {
+          try {
+            handouts = await deps.loadHandouts(campaign.id, character.id);
+          } catch (error) {
+            console.error("agent-turn: reading the campaign's handouts failed:", error);
+          }
+        }
+        const handedOut: HandoutOffer[] = [];
+        let lastExchange: { ended: "to_player" | "open"; cutShort: boolean } | null = null;
+        let narratorKeeps = false;
+        // The rest of the party, played by the AI (row 26). Unreadable costs their part in the turn, never the turn.
+        let companions: Companion[] = [];
+        try {
+          companions = await deps.loadCompanions(campaign.id, character ? character.id : null);
+        } catch (error) {
+          console.error("agent-turn: reading the rest of the party failed:", error);
+        }
+        const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts), companions: companionsSection(companions), sky: body.sky === undefined ? "" : skySection(body.sky) });
+        // What changes hands this turn; moved only once the turn is kept.
+        const handed: HandsChange[] = [];
+        // What the narrator's ruling does to the fight on the board; carried out by the page once the turn is kept.
+        let fightChange: FightChange | null = null;
+        // What the narrator's roll does to the played character's hit points; written only once the turn is kept.
+        let hitPointChange: HitPointChange | null = null;
+        // People the narrator gave a record this turn; made only once the turn is kept.
+        const introduced: Introduction[] = [];
+        // Hazards the narrator made this turn; written only once the turn is kept.
+        const madeHazards: HazardRules[] = [];
+        let daysPassed = 0;
+        // The fight the narrator starts this turn; started only once the turn is kept.
+        let fightPlan: FightPlan | null = null;
+        const turnTools = makeTurnTools({
+          deps,
+          campaignId: campaign.id,
+          session,
+          stored,
+          provider: provider.provider,
+          model: provider.model,
+          callModel,
+          signal,
+          onMove: (place) => emit({ type: "scene", scene: place }),
+          filed,
+          quests: questState === null ? null : { state: questState, queued },
+          playerName: character ? character.name : undefined,
+          playedId: character ? character.id : undefined,
+          partyIds: companions.map((c) => c.id),
+          peoples,
+          onIntroduce: (intro) => { introduced.push(intro); },
+          // Not in a fight on the board: that is fought with what is on it.
+          ...(fights !== null && fights.fight !== null && fights.fight.phase === "running" ? {} : { onHazard: (hazard: HazardRules) => { madeHazards.push(hazard); } }),
+          onExchange: (ended, cutShort) => { lastExchange = { ended, cutShort }; },
+          onKeepTalking: () => { narratorKeeps = true; },
+          // Each line reaches the page as it is said, so the player can cut in between two of them.
+          onSaid: (lines) => { gate?.said(lines); },
+          // Something to put in front of the player: only someone played has hands to take a handout.
+          show: character
+            ? { handouts, picture: (what, id) => deps.loadPicture(campaign.id, what, id), onHandout: (handout) => { handedOut.push(handout); } }
+            : null,
+          // Days that pass in the story move the campaign's date, on the page, once the turn is kept. Not in a fight.
+          onDaysPassed: fights !== null && fights.fight !== null && fights.fight.phase === "running" ? null : (days) => { daysPassed = days; },
+          // How far somewhere is, by the campaign's roads. Not in a fight: nobody sets out on a journey mid-round.
+          travel: fights !== null && fights.fight !== null && fights.fight.phase === "running" ? null : { map: () => deps.loadTravelMap(campaign.id, campaign.game_system), roll: deps.rollDie },
+          // Not in a fight: a turn there is six seconds, and what it holds is the board's.
+          hands: character && hands !== null && !(fights !== null && fights.fight !== null && fights.fight.phase === "running")
+            ? { memberId: character.id, ...hands, store: deps.hands, onChange: (change) => { handed.push(change); } }
+            : null,
+          // Outside a fight only: in one the board keeps everyone's hit points.
+          hitPoints: character && !(fights !== null && fights.fight !== null && fights.fight.phase === "running")
+            ? { now: character.hitPoints, onChange: (change) => { hitPointChange = change; } }
+            : null,
+          correcting: body.mode === "correct",
+          // Offered only while a fight is being fought on the board.
+          fightChange: fights !== null && fights.fight !== null && fights.fight.phase === "running"
+            ? { fight: fights.fight, budget: fightTurn, rolled: scored === null ? null : scored.success, onChange: (change) => { fightChange = change; } }
+            : null,
+          // Only a played character has a sheet to roll from; without one the narrator rolls as before.
+          askRoll: character ? (pending) => { asked = pending; } : null,
+          // A fight needs someone to fight it: offered only with a played character and readable fights.
+          fight: character && fights !== null
+            ? {
+              view: fights,
+              viewAt: (locationId) => deps.loadFights(campaign.id, locationId, session.fight_encounter_id, pursuitId),
+              onStart: (plan) => { fightPlan = plan; },
+              statless: (plan) => deps.statlessFighters(campaign.id, plan),
+            }
+            : null,
+        });
+
+        const sessionId = session.id;
+        // The player's own words, when said aloud, can be heard in their character's voice.
+        if (deps.voiceKey !== null && character && body.mode === "say" && body.message.trim() !== "") {
+          const text = body.message.trim();
+          emit({ type: "voice", role: "player", text, voice: deps.voiceKey(sessionId, { role: "player", speaker: { id: character.id, name: character.name }, text }) });
+        }
+        gate = narrationGate({
+          judge: deps.judgeNarration,
+          onNarration: (text) => {
+            if (deps.voiceKey !== null) emit({ type: "voice", role: "narrator", text, voice: deps.voiceKey(sessionId, { role: "narrator", speaker: NARRATOR_SPEAKER, text }) });
+          },
+          // A line that is being shown gets a key: what a character said in their own voice, what they did in the narrator's.
+          emit: (event) =>
+            emit(
+              event.type !== "line" || deps.voiceKey === null
+                ? event
+                : event.line.kind === "spoken"
+                  ? { ...event, voice: deps.voiceKey(sessionId, event.line) }
+                  // What a character does is told, not said: it is the narrator's to read aloud.
+                  : { ...event, voice: deps.voiceKey(sessionId, { role: "narrator", speaker: NARRATOR_SPEAKER, text: event.line.text }) },
+            ),
+        });
+        const helperAsked = body.helperTurn;
+        const helper = helperAsked === undefined || fights === null || fights.fight === null || fights.fight.phase !== "running"
+          ? undefined
+          : fights.fight.fighters.find((f) => f.side === "other" && f.hp > 0 && f.name === helperAsked.name);
+        // A foe's line: only for a living enemy the running fight really holds, named as the fight names it.
+        const foeAsked = body.foeLine;
+        const foe = foeAsked === undefined || fights === null || fights.fight === null || fights.fight.phase !== "running"
+          ? undefined
+          : fights.fight.fighters.find((f) => f.side === "enemy" && f.hp > 0 && f.name === foeAsked.name);
+        result = await runTurn({
+          system,
+          state,
+          history,
+          // The roll (or that it was not made) comes first, then the player's own words when there are any.
+          user: [
+            scored !== null && pendingRoll !== null ? rollText(pendingRoll, scored) : pendingRoll !== null ? declinedText(pendingRoll) : null,
+            // The campaign's own opening stands in for the ordinary one; given both, the narrator kept to the ordinary.
+            body.opening === true ? (prologueText(prologue) ?? OPENING_TEXT) : null,
+            body.aftermath === true ? AFTERMATH_TEXT : null,
+            body.listening === true ? LISTENING_TEXT : null,
+            // The name is the page's: it is used only when the fight on the board really holds such a helper, as
+            // the fight names them, so nothing but a fighter's own name reaches the narrator's instructions.
+            body.helperTurn === undefined ? null : helper !== undefined ? helperTurnText(helper.name) : "A turn in the fight passes with nothing to tell. Write nothing.",
+            body.foeLine === undefined ? null : foe !== undefined ? foeLineText(foe.name, body.foeLine.moment) : "A turn in the fight passes with nothing to tell. Write nothing.",
+            body.message === "" ? null : playerText(body.mode, body.message),
+          ].filter((part): part is string => part !== null).join("\n\n"),
+          ...(body.message === "" ? {} : { player: { kind: body.mode, text: body.message } }),
+          ...(scored === null ? {} : { roll: scored.rolled }),
+          tools: turnTools.tools,
+          callModel,
+          callTool: turnTools.callTool,
+          limits: { maxSteps: MAX_STEPS, maxOutputTokens: MAX_OUTPUT_TOKENS, tokenBudget: TOKEN_BUDGET },
+          signal,
+          onEvent: gate.onEvent,
+        });
+        // Held narration is judged and everything queued reaches the browser before anything after it is sent.
+        await gate.finish();
+        gate.applyShown(result.added);
+
+        const { steps } = result;
+        // Every model call that was billed: the narrator's, and the ones a character's speech made.
+        const billed = [...steps, ...result.toolSteps.map((t) => t.usage)];
+        const tokens = totalTokens(billed);
+        // Nothing was used (stopped before the first model call): there is nothing to save or to charge.
+        if (steps.length === 0) {
+          emit({ type: "done", end: result.end, credits: 0, tokens: 0 });
+          return;
+        }
+
+        let accrued = 0;
+        if (!provider.isByok && price && calibration) {
+          accrued = round6(creditsForUsd(usdForSteps(billed, price), calibration));
+        }
+
+        // ledger input_tokens is ALL input (full rate, cache read and cache write): CreditLogFields has no cached
+        // field. The exact split is on the agent_turns rows.
+        const last = steps[steps.length - 1];
+        const logFields: CreditLogFields = {
+          model: last.model,
+          provider: last.provider,
+          input_tokens: billed.reduce((n, s) => n + s.inputTokens + s.cacheReadTokens + s.cacheWriteTokens, 0),
+          output_tokens: billed.reduce((n, s) => n + s.outputTokens, 0),
+        };
+        // Tokens were spent whether or not they are billed, so they are always logged. A cost of 0 writes no row
+        // through recordGeneration, which is why a free turn goes through recordFreeGeneration.
+        const logWithoutCharge = () =>
+          provider.isByok ? deps.recordGeneration(true, 0, logFields) : deps.recordFreeGeneration(logFields);
+
+        const rows = rowsFor({
+          sessionId: session.id,
+          userId,
+          lastSeq: lastSeqLoaded,
+          added: result.added,
+          steps,
+          toolSteps: result.toolSteps,
+        });
+
+        // What the turn wrote is screened before it is kept. A turn the screen refuses is treated like one that
+        // could not be saved: nothing of it is stored, put on record or billed, and the page takes back what it
+        // had begun to show. An outage of the screen does not stop play (the same stance as for what is sent in).
+        let withheld = false;
+        try {
+          const written = shownText(result.added);
+          if (written !== "") {
+            // A turn a child said or did something in is held to the tighter bar (`CHILD_TURN_THRESHOLDS`).
+            const speakers = speakerIdsOf(result.added);
+            const child = speakers.length === 0 ? false : await deps.anyChild(body.campaignId, speakers);
+            withheld = await deps.isFlaggedOutput(written, child);
+          }
+        } catch (error) {
+          console.error("agent-turn: screening the turn's own words failed:", error);
+        }
+        if (withheld) {
+          await discardFiled();
+          await safely(logWithoutCharge);
+          emit({ type: "error", message: MESSAGES.withheld, withheld: true });
+          return;
+        }
+
+        // Save first, then charge: a turn that was not kept is not billed.
+        let saved: { due: number } | "conflict" | "failed";
+        try {
+          saved = await deps.appendTurns(session.id, lastSeqLoaded, rows, accrued);
+        } catch (error) {
+          console.error("agent-turn: saving the turn failed:", error);
+          saved = "failed";
+        }
+        if (saved === "conflict" || saved === "failed") {
+          await discardFiled();
+          await safely(logWithoutCharge);
+          emit({ type: "error", message: saved === "conflict" ? MESSAGES.conflict : MESSAGES.notSaved });
+          return;
+        }
+
+        kept = true;
+        const { due } = saved;
+        if (due > 0 || provider.isByok) {
+          await safely(() => deps.recordGeneration(provider.isByok, due, logFields));
+        } else {
+          await safely(() => deps.recordFreeGeneration(logFields));
+        }
+        // Whoever spoke to the party is where the party is. Written with the kept turn, like their memories.
+        const here = turnTools.place();
+        if (here !== null && turnTools.spoke.size > 0) {
+          await safely(() => deps.placeCharacters(campaign.id, here, [...turnTools.spoke]));
+        }
+        // What play reveals: the played character has now seen this place and met whoever spoke in front of them.
+        // Only for a played character, and only with the kept turn. A failure costs a reveal, never the turn.
+        if (session.party_member_id !== null && (here !== null || turnTools.spoke.size > 0)) {
+          const memberId = session.party_member_id;
+          await safely(() => deps.revealToCharacter({ campaignId: campaign.id, memberId, locationId: here, characterIds: [...turnTools.spoke] }));
+        }
+        // Kept only now that the turn is: what a character carries away from a moment the player never got to keep
+        // would be a memory of something that did not happen. A failure here costs a memory, never the turn.
+        if (turnTools.remembered.length > 0) {
+          await safely(() =>
+            deps.saveMemories({
+              campaignId: campaign.id,
+              userId,
+              provider: provider.provider,
+              model: provider.model,
+              memories: turnTools.remembered,
+              campaignSessionId: session.campaign_session_id,
+            })
+          );
+        }
+        // Only now: a turn that was not kept leaves the quests untouched, and the player's retry makes the moves again.
+        if (questState !== null) {
+          await applyKeptQuestMoves({
+            deps,
+            ctx: { campaignId: campaign.id, agentSessionId: session.id },
+            state: questState,
+            queued,
+          });
+          // Told only when there is or was a clock: a table that never comes under pressure hears nothing of it.
+          const shown = pressureShown(questState, queued);
+          if (shown !== null || questState.pressure !== null) emit({ type: "pressure", pressure: shown });
+        }
+        // A fight that is over goes on record in one sentence, written from how it stands and not by the model: the
+        // record is what "The story so far" shows, and a sitting's fights left no trace there. A failure to file it
+        // costs the line, never the turn.
+        const recordFight = async (fight: FightState, how: Parameters<typeof fightRecordText>[1]): Promise<void> => {
+          try {
+            const fact = fightRecordText(fight, how);
+            const out = await deps.fileFact({
+              campaignId: campaign.id,
+              campaignSessionId: session.campaign_session_id,
+              agentSessionId: session.id,
+              provider: provider.provider,
+              model: provider.model,
+              fact,
+              about: [],
+              hidden: false,
+              closes: null,
+            });
+            if ("id" in out) filed.push({ id: out.id, body: fact, hidden: false });
+          } catch (error) {
+            console.error("agent-turn: putting the fight on record failed:", error);
+          }
+        };
+        // A fight starts with the kept turn, and the page is told only once it exists. The other way round: once the
+        // narrator has been told a fight is over, the conversation lets go of it.
+        const planned = fightPlan as FightPlan | null;
+        if (planned !== null && session.party_member_id !== null) {
+          try {
+            const started = await deps.startFight(
+              { campaignId: campaign.id, sessionId: session.id, userId, memberId: session.party_member_id, locationId: here, playSessionId: session.campaign_session_id },
+              planned,
+            );
+            emit({ type: "fight", fight: started });
+          } catch (error) {
+            console.error("agent-turn: starting the fight failed:", error);
+          }
+        } else if (fightChange !== null) {
+          const change = fightChange as FightChange;
+          // The board carries the change out. When it ends the fight the narrator has told its end in this reply,
+          // so the conversation lets go of the fight now and no aftermath is asked for.
+          if (change.ends !== null) {
+            await safely(() => deps.setFight(session.id, campaign.id, null));
+            if (fights !== null && fights.fight !== null) {
+              await recordFight(fights.fight, change.ends);
+              // Foes who gave in or ran are done with; one the party ran from is still there to be met again.
+              if (change.ends !== "you_get_away") await safely(() => deps.finishFight(campaign.id, fights.fight!.encounterId));
+              // Got away: whoever gives chase is the same fight, to be started again where it catches the party.
+              else if (followersOf(fights.fight).length > 0) await safely(() => deps.setPursuit(session.id, campaign.id, fights.fight!.encounterId));
+              // Foes who gave in are alive and still there, with what they carry; ones who fled took it with them.
+              if (change.ends === "they_give_in") await safely(() => deps.layFightLoot(campaign.id, fights.fight!.encounterId, session.scene_location_id, "yielded"));
+            }
+          }
+          emit({ type: "fight_change", change });
+        } else if (fights !== null && fights.fight !== null && fightIsTold(fights.fight)) {
+          await safely(() => deps.setFight(session.id, campaign.id, null));
+          await recordFight(fights.fight, "fought");
+          // Fought to the end with no foe standing: the dead do not wait at their place for a second fight.
+          if (!fights.fight.fighters.some((f) => f.side === "enemy" && f.hp > 0)) await safely(() => deps.finishFight(campaign.id, fights.fight!.encounterId));
+          emit({ type: "fight", fight: null });
+        }
+        // (The fight's own line on the record is filed above, where the conversation lets go of it.)
+        // What changed hands, in the order it was told. One that cannot be made (the giver's pockets changed, the
+        // purse was emptied meanwhile) costs that change and its line, never the turn.
+        if (character && hands !== null) {
+          const made: HandsChange[] = [];
+          for (const change of handed) {
+            try {
+              await deps.hands.apply({ campaignId: campaign.id, userId, memberId: character.id, memberName: character.name }, change);
+              emit({ type: "hands", text: handsLine(change, character.name, hands.coinsText) });
+              made.push(change);
+            } catch (error) {
+              console.error("agent-turn: a change of hands failed:", error);
+            }
+          }
+          // A body that parts were cut from is used up, and the record says so: that is what keeps the same wolf
+          // from being skinned twice. One that cannot be filed costs the sentence, never the parts.
+          for (const fact of harvestFacts(made, character.name)) {
+            try {
+              const out = await deps.fileFact({
+                campaignId: campaign.id, campaignSessionId: session.campaign_session_id, agentSessionId: session.id,
+                provider: provider.provider, model: provider.model, fact, about: [], hidden: false, closes: null,
+              });
+              if ("id" in out) filed.push({ id: out.id, body: fact, hidden: false });
+            } catch (error) {
+              console.error("agent-turn: putting the harvest on record failed:", error);
+            }
+          }
+        }
+        // Handouts handed over in the story are given for real, now that the turn is kept. One that cannot be given
+        // costs that handout (it stays waiting), never the turn.
+        if (character) {
+          for (const handout of handedOut) {
+            try {
+              await deps.giveHandout(campaign.id, handout.id, character.id);
+            } catch (error) {
+              console.error("agent-turn: handing over a handout failed:", error);
+            }
+          }
+        }
+        // The played character's hit points, and the thing that was used up for it. A thing that cannot be taken
+        // (the narrator named one they do not carry) costs nothing but the tidying: the healing was rolled and stands.
+        const mended = hitPointChange as HitPointChange | null;
+        if (mended !== null && character && character.hitPoints) {
+          try {
+            await deps.setHitPoints(campaign.id, character.id, mended.after);
+            emit({ type: "hit_points", change: { change: mended.change, why: mended.why, by: Math.abs(mended.after - character.hitPoints.current), hp: mended.after, maxHp: mended.max } });
+            // The thing that was used leaves whoever carried it: a character's belongings, or the player's own pack.
+            if (mended.used !== null) {
+              if (mended.used.characterId === null) await deps.hands.useUpCarried(campaign.id, character.id, mended.used.thing);
+              else await deps.useUpBelonging(campaign.id, mended.used.characterId, mended.used.thing);
+            }
+          } catch (error) {
+            console.error("agent-turn: changing the character's hit points failed:", error);
+          }
+        }
+        // The days the story told have passed: the page moves the campaign's date (its calendar lives with the app).
+        if (daysPassed > 0) emit({ type: "days", days: daysPassed });
+        // The people the narrator made up get their records. One that cannot be written (a plan's limit on
+        // characters, a name taken meanwhile) costs that record, never the turn: the facts about them are kept.
+        for (const intro of introduced) {
+          try {
+            const made = await deps.introduceCharacter(
+              { campaignId: campaign.id, userId, memberId: session.party_member_id, locationId: here, provider: provider.provider, model: provider.model },
+              intro,
+            );
+            // Announced once, when the person is new to the page; a record brought up to date says nothing.
+            if (intro.known && intro.replaces === null) emit({ type: "introduced", person: made });
+          } catch (error) {
+            console.error("agent-turn: giving an invented person a record failed:", error);
+          }
+        }
+        // A hazard the narrator made becomes the campaign's. One that cannot be written costs the record, never the
+        // turn: the story already told it.
+        for (const hazard of madeHazards) {
+          try {
+            await deps.makeHazard({ campaignId: campaign.id, userId, provider: provider.provider, model: provider.model }, hazard);
+          } catch (error) {
+            console.error("agent-turn: keeping a hazard the narrator made failed:", error);
+          }
+        }
+        // A request to roll lasts one turn: this turn answered or dropped the last one, and may have made a new one.
+        // The page is told only when the request is stored, or the roll it sends back would be refused.
+        const nowAsked = asked as PendingRoll | null;
+        if (nowAsked !== null || pendingRoll !== null) {
+          try {
+            await deps.setPendingRoll(session.id, campaign.id, nowAsked);
+            if (nowAsked !== null) emit({ type: "ask_roll", roll: askOf(nowAsked) });
+          } catch (error) {
+            console.error("agent-turn: storing the roll that was asked for failed:", error);
+          }
+        }
+        // A fact the player has not learned yet never leaves the server: the page shows only what is known.
+        for (const fact of filed) if (!fact.hidden) emit({ type: "fact", fact: { id: fact.id, body: fact.body } });
+        // `credits` is this turn's own. A summary's credit shows on the ledger, not in the turn that happened to
+        // trigger it.
+        // Whose floor it is now: the characters keep it when they were stopped mid-conversation and nothing waits
+        // on the player, so the page may let them go on while the player watches.
+        const floor = floorOf({
+          lastExchange,
+          narratorKeeps,
+          rollAsked: asked !== null,
+          inFight: fightPlan !== null || (fights !== null && fights.fight !== null && fights.fight.phase !== "over"),
+          finished: result.end === "done",
+        });
+        emit({ type: "done", end: result.end, credits: due, tokens, ...(floor === "characters" ? { floor } : {}) });
+
+        // After `done`, never before: the player must not wait for housekeeping. An abort is the player leaving.
+        if (result.end !== "aborted") {
+          const storedNow: StoredTurn[] = [
+            ...stored,
+            ...rows.map((r) => ({ seq: r.seq, role: r.role, blocks: r.blocks })),
+          ];
+          await foldIntoSummary({ deps, session, storedNow, callModel, isByok: provider.isByok, price, calibration });
+        }
+        return;
+      } catch (error) {
+        // Nothing is saved and nothing charged. The provider's own message can name the model, the key's
+        // organisation or the quota, so the browser gets a sentence of ours; the real one goes to the log.
+        console.error("agent-turn: the turn failed:", error);
+        // Whatever was already queued for the browser goes out before the error, never after it.
+        await safely(async () => void (await gate?.finish()));
+        if (!kept) await discardFiled();
+        emit({
+          type: "error",
+          message: error instanceof AgentProviderError && error.retryable ? MESSAGES.providerBusy : MESSAGES.failed,
+        });
+        return;
+      }
+    } finally {
+      // Every outcome: success, failure, conflict, abort.
+      await safely(() => deps.release(reservationIds));
+    }
+  };
+
+  return { kind: "ready", run };
+}
+
+/** The whole turn in one call, for a caller that does not need to answer a status before streaming (the tests). */
+export async function handleAgentTurn(input: {
+  userId: string;
+  body: unknown;
+  deps: AgentTurnDeps;
+  send: (event: AgentEvent) => void;
+  signal?: AbortSignal;
+}): Promise<Refusal | null> {
+  const begun = await beginTurn({ userId: input.userId, body: input.body, deps: input.deps });
+  if (begun.kind === "refused") return begun.refusal;
+  await begun.run(input.send, input.signal);
+  return null;
+}

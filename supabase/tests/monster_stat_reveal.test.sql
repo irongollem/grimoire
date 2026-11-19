@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(7);
+select plan(9);
 
 -- A creature's challenge rating is withheld from players until the DM reveals
 -- its stats. Decided by the maintainer, 7 Sep 2026, when #842 surfaced that the
@@ -44,7 +44,7 @@ insert into public.monsters (id, user_id, campaign_id, name, monster_type, image
 values (
   '84200000-0000-4000-8000-000000000030', '84200000-0000-4000-8000-000000000001',
   '84200000-0000-4000-8000-000000000010', 'The Withheld Thing', 'aberration', 'https://example.invalid/art.webp',
-  '{"challenge_rating": "13", "armor_class": 17, "hit_points": "180"}'::jsonb
+  '{"challenge_rating": "13", "armor_class": 17, "hit_points": "180", "tactics": {"role": "lurker", "note": "Turns on the party at the altar"}}'::jsonb
 );
 
 -- `visible_to` null = discovered by the whole party.
@@ -106,6 +106,20 @@ select is(
 select is(
   (select stat_block ->> 'armor_class' from public.get_player_visible_monsters('84200000-0000-4000-8000-000000000010')),
   '17', 'along with the rest of the block'
+);
+
+-- How it fights is the DM's (#1203): `stat_block.tactics` holds their choices for a creature the app may run and a
+-- line in their own words, which can be a plot secret. Revealing the statistics does not reveal it.
+select ok(
+  (select not (stat_block ? 'tactics') from public.get_player_visible_monsters('84200000-0000-4000-8000-000000000010')),
+  'a revealed stat block reaches the player without the DM''s tactics'
+);
+
+-- Positive control: the key is on the row, so the assertion above is the projection's doing.
+reset role;
+select is(
+  (select stat_block -> 'tactics' ->> 'note' from public.monsters where id = '84200000-0000-4000-8000-000000000030'),
+  'Turns on the party at the altar', 'the DM''s own row still holds the note'
 );
 
 select * from finish();

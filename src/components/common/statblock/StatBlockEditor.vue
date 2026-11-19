@@ -129,6 +129,9 @@
         <StatBlockEntrySection v-model="sb.reactions" label="Reactions" list="reactions" :siblings="siblings" />
       </section>
 
+      <!-- How it fights (#1203) -->
+      <StatBlockTacticsFields :tactics="sb.tactics" :sb="sb" :creature-type="creatureType" @update:tactics="setTactics" />
+
       <!-- Legendary -->
       <section v-if="showLegendary">
         <p class="section-heading">Legendary</p>
@@ -175,16 +178,19 @@ import DiceExprInput from "@/components/common/dice/DiceExprInput.vue";
 import SpeedGrid from "@/components/common/statblock/SpeedGrid.vue";
 import SpellcastingSection from "@/components/common/statblock/SpellcastingSection.vue";
 import StatBlockDefenseFields from "@/components/common/statblock/StatBlockDefenseFields.vue";
+import StatBlockTacticsFields from "@/components/common/statblock/StatBlockTacticsFields.vue";
 import StatBlockEntrySection from "@/components/common/statblock/StatBlockEntrySection.vue";
-import type { MonsterStatBlock } from "@/types/monster.types";
+import type { MonsterStatBlock, MonsterTactics, MonsterType } from "@/types/monster.types";
 import type { StatBlock } from "@/types/npc.types";
 
-const { sb } = defineProps<{
+const { sb, creatureType = null } = defineProps<{
   sb: MonsterStatBlock | StatBlock;
   showLegendary?: boolean;
   showLair?: boolean;
   hideHeading?: boolean;
   disabled?: boolean;
+  /** The monster row's type, which decides whether it is fearless by default; null for an NPC. */
+  creatureType?: MonsterType | null;
 }>();
 
 defineOptions({ inheritAttrs: false });
@@ -195,6 +201,12 @@ const siblings = computed(() =>
     (list) => (list ?? []).map((e) => e.name),
   ),
 );
+
+/** Nothing authored leaves no `tactics` key at all, so an untouched stat block saves as it was. */
+function setTactics(next: MonsterTactics | undefined) {
+  if (next === undefined) delete sb.tactics;
+  else sb.tactics = next;
+}
 
 const skillsText = computed({
   get: () => skillsToString(sb.skills),

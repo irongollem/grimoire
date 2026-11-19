@@ -5,7 +5,7 @@ import { useActiveParty } from "@/composables/party/useActiveParty";
 import { useAutoDiscoverMonsters } from "@/composables/encounters/useDiscoveredMonsters";
 import { useConcentration } from "@/composables/party/useConcentration";
 import { useArmorClass } from "@/composables/party/useArmorClass";
-import { effectiveArmorClass } from "@/lib/encounters/actionTargeting";
+import { effectiveArmorClass } from "@/rules/fight/targeting";
 import { applyDamage, displayTempHp as calcDisplayTempHp, formHpPools } from "@/rules/hitPoints";
 import { describeDamageOutcome } from "@/rules/dying";
 import { useToast } from "@/composables/useToast";

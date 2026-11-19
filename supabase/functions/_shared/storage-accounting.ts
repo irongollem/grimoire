@@ -1,3 +1,4 @@
+import { UUID_RE as UUID } from "./uuid.ts";
 /**
  * Storage accounting (#1182): every upload's size is recorded against the account
  * that owns it, and a per-account ceiling is enforced quietly at sign time.
@@ -29,7 +30,6 @@ export interface StoredObject {
 
 export type Reservation = { allowed: true } | { allowed: false; used: number; limit: number };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** The account a key belongs to: its first segment when that is a user id and a file follows. */
 export function ownerOfPath(path: string): string | null {

@@ -6,6 +6,7 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { validateScreenshot } from "./screenshot.ts";
 import { labelsFor, parseReportText, renderIssue, type ReportKind, type ReportText } from "./issue.ts";
 import { fileIssue, type FilingResult } from "./github.ts";
+import { UUID_RE as UUID } from "../_shared/uuid.ts";
 
 // Authenticated endpoint. `verify_jwt = false` in config.toml so we can return
 // CORS-friendly errors, but auth is enforced in code below: a valid Supabase
@@ -27,7 +28,6 @@ import { fileIssue, type FilingResult } from "./github.ts";
 /** No edge function runs this long, so an older claim is a filing that died. */
 const STALE_CLAIM_MS = 10 * 60_000;
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface StoredReport {
   id: string;

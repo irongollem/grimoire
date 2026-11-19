@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { journeyByRoad, passingText, roadPlaceOf, roadTableIds, travellersOf } from "./journey";
+import { journeyByRoad, passingText, roadTableIds, travellersOf } from "./journey";
+import { roadPlaceOf } from "./way";
 import type { Road } from "./roads";
 
 const road = (id: string, a: string, b: string, distance: number, over: Partial<Road> = {}): Road => ({ id, from_location_id: a, to_location_id: b, distance, unit: "mi", name: "", going: "road", roll_table_id: null, ...over });

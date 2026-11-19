@@ -185,3 +185,51 @@ describe("useMapCanvas fitting", () => {
     expect(canvas.panY.value).toBeCloseTo(150);
   });
 });
+
+describe("useMapCanvas: a box that changes size", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** A host whose size the test sets, with the observer's callback in hand. */
+  function mountSized() {
+    let resized: () => void = () => {};
+    vi.stubGlobal("ResizeObserver", class { constructor(cb: () => void) { resized = cb; } observe() {} disconnect() {} });
+    const size = { width: 400, height: 200 };
+    let canvas!: ReturnType<typeof useMapCanvas>;
+    const wrapper = mount(defineComponent({
+      setup() {
+        canvas = useMapCanvas();
+        return () => h("div", { ref: canvas.canvasHost });
+      },
+    }));
+    const host = wrapper.element as HTMLElement;
+    host.getBoundingClientRect = () => ({ ...size, x: 0, y: 0, top: 0, left: 0, right: size.width, bottom: size.height, toJSON: () => ({}) });
+    host.setPointerCapture = () => {};
+    resized();
+    canvas.onImageLoad({ target: { naturalWidth: 1000, naturalHeight: 500 } } as unknown as Event);
+    const grow = () => {
+      size.width = 1600;
+      size.height = 800;
+      resized();
+    };
+    return { canvas, host, grow };
+  }
+
+  // Bug caught (seen in the browser): the table's map laid over the whole screen stayed a thumbnail in the corner,
+  // because a fitted view was never fitted again.
+  it("fits the picture again when nobody has panned or zoomed", () => {
+    const { canvas, grow } = mountSized();
+    expect(canvas.scale.value).toBeCloseTo(0.4);
+    grow();
+    expect(canvas.scale.value).toBeCloseTo(1.6);
+  });
+
+  // Bug caught: a resize throwing away the corner of the map someone had zoomed in on.
+  it("leaves a view someone chose alone", () => {
+    const { canvas, host, grow } = mountSized();
+    canvas.onWheel({ deltaY: -100, clientX: 200, clientY: 100, currentTarget: host, preventDefault() {} } as unknown as WheelEvent);
+    const chosen = canvas.scale.value;
+    expect(chosen).not.toBeCloseTo(0.4);
+    grow();
+    expect(canvas.scale.value).toBe(chosen);
+  });
+});

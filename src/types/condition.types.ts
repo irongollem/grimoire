@@ -54,6 +54,11 @@ export interface AppliedCondition {
    * set again at the next edge it fires on.
    */
   due?: { save?: boolean; damage?: boolean };
+  /**
+   * The bearer may spend its Action on an ability check to end it, against `dc` (the caster's spell save DC when it was
+   * imposed). It is about how the bearer gets free, so it sits here and not on `source`.
+   */
+  breakFree?: { abilities: SaveAbility[]; skill?: "athletics" | "acrobatics"; dc: number };
 }
 
 /** The start or the end of a turn. */
@@ -66,6 +71,10 @@ export interface ConditionSource {
   spell?: string;
   /** True when the source is concentrating on it: it ends when that concentration ends or the source drops to 0 HP. */
   concentration?: boolean;
+  /** Damage ends it (`SaveCondition.endsWhenHarmed`): from the source's side only, or from anyone. */
+  endsWhenHarmed?: "source_side" | "anyone";
+  /** The bearer must spend its turns getting away from this source (`SaveCondition.mustFlee`; *RULE flee-by-spell*). */
+  mustFlee?: boolean;
 }
 
 export type ConditionEnds =

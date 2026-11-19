@@ -72,6 +72,16 @@ describe("taking back a move", () => {
     expect(used(store, "a")).toBe(0);
   });
 
+  // A second call must leave the Reaction spent: the bug is a toggle that flips it back.
+  it("setReactionUsed twice leaves the Reaction spent, and clears when the bearer's own turn starts", () => {
+    const store = fight();
+    store.setReactionUsed("b", true);
+    store.setReactionUsed("b", true);
+    expect(store.combatants.find((c) => c.instance_id === "b")?.reactionUsed).toBe(true);
+    store.nextTurn(); // b's turn begins
+    expect(store.combatants.find((c) => c.instance_id === "b")?.reactionUsed).toBe(false);
+  });
+
   it("the turn's action and bonus action are marked and reset when the turn comes round again", () => {
     const store = fight();
     store.setActionUsed("a", true);

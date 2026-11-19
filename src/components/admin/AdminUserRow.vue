@@ -53,6 +53,8 @@
         :href="mailto"
       />
 
+      <AdminTableGrant :user-id="user.user_id" :is-child="user.is_child" />
+
       <!-- Soft freeze (paid actions) -->
       <AppButton
         size="xs"
@@ -90,6 +92,7 @@
 </template>
 
 <script setup lang="ts">
+import AdminTableGrant from "@/components/admin/AdminTableGrant.vue";
 /**
  * One account in Admin → Users. Shows how the account is used (segment, last
  * activity, campaigns), where it stands in the inactivity retention flow, and

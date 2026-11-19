@@ -1,6 +1,7 @@
 import type { PlayerVisibleMonster } from "@/types/monster.types";
 import type { WildshapeState } from "@/types/encounter.types";
 import { parseCr } from "@/lib/utils";
+import { abilityMod } from "./abilityScore";
 import { hitPointsToMax } from "@/lib/dice/dice";
 import type { RulesetKey } from "@/types/ruleset.types";
 
@@ -98,7 +99,7 @@ export function wildShapeRulesFor(
     edition,
     druidLevel: profile.druidLevel,
     isCircleOfMoon: profile.isCircleOfMoon,
-    wisMod: wis === null || wis === undefined ? 0 : Math.floor((wis - 10) / 2),
+    wisMod: wis === null || wis === undefined ? 0 : abilityMod(wis),
   });
 }
 

@@ -1,21 +1,21 @@
-import type { AbilityKey } from "@/rules/characterCreation";
-import type { ClassFeature } from "@/types/feature.types";
-import type { SkillProfLevel } from "@/types/party.types";
-import type { RulesetKey } from "@/types/ruleset.types";
-import { SKILLS } from "@/types/party.types";
-import type { SkillKey } from "@/types/party.types";
-import { ARTIFICER_INFUSIONS } from "@/data/artificerInfusions";
-import { BATTLE_MASTER_MANEUVER_NAMES } from "@/data/battleMasterManeuvers";
-import { ELDRITCH_INVOCATIONS } from "@/data/eldritchInvocations";
-import { FAVORED_ENEMIES_2014, FAVORED_TERRAINS_2014 } from "@/data/favoredEnemies";
-import { FIGHTING_STYLES_2014 } from "@/data/fightingStyles";
-import { PACT_BOONS_2014 } from "@/data/pactBoons";
-import type { GrantedFeature } from "./characterFeatures";
-import { swapsOf } from "./characterFeatures";
-import { parseFeatAbilityIncrease, parseFeatPrerequisites } from "./mechanics";
-import type { ChoicePick, FeatureChoice, OptionSet } from "./mechanics.types";
-import { applyAbilityIncrease, featPrerequisitesMet, type PrerequisiteCharacter } from "./prerequisites";
-import { valueAtLevel, choicePicksDue } from "./resolve";
+import type { AbilityKey } from "../characterCreation.ts";
+import type { ClassFeature } from "../../types/feature.types.ts";
+import type { SkillProfLevel } from "../../types/party.types.ts";
+import type { RulesetKey } from "../../types/ruleset.types.ts";
+import { SKILLS } from "../../types/party.types.ts";
+import type { SkillKey } from "../../types/party.types.ts";
+import { ARTIFICER_INFUSIONS } from "../../data/artificerInfusions.ts";
+import { BATTLE_MASTER_MANEUVER_NAMES } from "../../data/battleMasterManeuvers.ts";
+import { ELDRITCH_INVOCATIONS } from "../../data/eldritchInvocations.ts";
+import { FAVORED_ENEMIES_2014, FAVORED_TERRAINS_2014 } from "../../data/favoredEnemies.ts";
+import { FIGHTING_STYLES_2014 } from "../../data/fightingStyles.ts";
+import { PACT_BOONS_2014 } from "../../data/pactBoons.ts";
+import type { GrantedFeature } from "./characterFeatures.ts";
+import { swapsOf } from "./characterFeatures.ts";
+import { parseFeatAbilityIncrease, parseFeatPrerequisites } from "./mechanics.ts";
+import type { ChoicePick, FeatureChoice, OptionSet } from "./mechanics.types.ts";
+import { applyAbilityIncrease, featPrerequisitesMet, type PrerequisiteCharacter } from "./prerequisites.ts";
+import { valueAtLevel, choicePicksDue } from "./resolve.ts";
 
 /**
  * What level-up owes a character and how a level's picks are recorded and

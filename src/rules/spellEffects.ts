@@ -1,6 +1,6 @@
-import type { SpellEffectInstances, SpellOutcome, StructuredSpellEffect } from "@/types/spell.types";
-import { scaleExpression } from "@/lib/dice/dice";
-import type { DamagePart } from "@/lib/library/spellTextMechanics";
+import type { SpellEffectInstances, SpellOutcome, StructuredSpellEffect } from "../types/spell.types.ts";
+import { scaleExpression } from "../lib/dice/dice.ts";
+import type { DamagePart } from "../lib/library/spellTextMechanics.ts";
 
 export interface SpellEffectSource {
   attack_roll: boolean;

@@ -182,6 +182,24 @@ describe("screenImagePrompt", () => {
     });
   });
 
+  // Bug caught: the AI table's bar for a child's turn given and not applied, so the turn passes at the ordinary 0.9.
+  it("refuses at a caller's tighter limit, and records the limits it held the text to", async () => {
+    stubModeration({ results: [{ category_scores: { sexual: 0.3, "sexual/minors": 0.01 } }] });
+    const { admin, inserts } = fakeAdmin();
+
+    await expect(screenImagePrompt("…", { ...context(admin), tighter: { sexual: 0.25 } })).rejects.toThrow();
+    expect(inserts[0]).toMatchObject({ blocked: true, categories_over: ["sexual"] });
+    expect(inserts[0].thresholds).toEqual({ ...IMAGE_PROMPT_THRESHOLDS, sexual: 0.25 });
+  });
+
+  // Bug caught: a caller loosening the absolute line by passing a higher number.
+  it("never lets a caller raise a limit", async () => {
+    stubModeration({ results: [{ category_scores: { "sexual/minors": 0.5 } }] });
+    const { admin } = fakeAdmin();
+
+    await expect(screenImagePrompt("…", { ...context(admin), tighter: { "sexual/minors": 0.99 } })).rejects.toThrow();
+  });
+
   it("does NOT store the prompt text for an ordinary pass", async () => {
     stubModeration({ results: [{ category_scores: MEASURED[2].scores }] });
     const { admin, inserts } = fakeAdmin();

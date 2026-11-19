@@ -1,0 +1,128 @@
+import { describe, expect, it } from "vitest";
+import {
+  combatantDefenses,
+  effectiveArmorClass,
+  filterImmuneConditions,
+  parseArmorClass,
+  withinFiveFeet,
+} from "./targeting.ts";
+import type { RunCombatant } from "../../types/encounter.types.ts";
+import type { Companion } from "../../types/companion.types.ts";
+import type { Monster } from "../../types/monster.types.ts";
+import type { NpcListRow } from "../../types/npc.types.ts";
+import { emptyDefenses, type Defenses } from "../../types/statBlock.types.ts";
+
+function c(id: string, over: Partial<RunCombatant> = {}): RunCombatant {
+  return {
+    instance_id: id,
+    type: "monster",
+    name: id,
+    faction_id: "foes",
+    initiative: 10,
+    hp: 10,
+    max_hp: 10,
+    ac: "12",
+    conditions: [],
+    curses: [],
+    death_saves: { successes: 0, failures: 0 },
+    dex_mod: 0,
+    ...over,
+  };
+}
+
+describe("parseArmorClass", () => {
+  it("reads the leading number and tolerates prose", () => {
+    expect(parseArmorClass("15")).toBe(15);
+    expect(parseArmorClass("15 (natural armor)")).toBe(15);
+    expect(parseArmorClass("9")).toBe(9);
+    expect(parseArmorClass("13 (hide armor), 15 with shield")).toBe(13);
+    expect(parseArmorClass("")).toBeNull();
+    expect(parseArmorClass("none")).toBeNull();
+  });
+});
+
+describe("withinFiveFeet", () => {
+  it("is null when either side is unplaced", () => {
+    expect(withinFiveFeet(c("a"), c("b", { position: { x: 0, y: 0 } }))).toBeNull();
+  });
+
+  it("is true for adjacent and diagonal cells, false with a gap", () => {
+    const a = c("a", { position: { x: 3, y: 3 } });
+    expect(withinFiveFeet(a, c("b", { position: { x: 4, y: 4 } }))).toBe(true);
+    expect(withinFiveFeet(a, c("b", { position: { x: 2, y: 3 } }))).toBe(true);
+    expect(withinFiveFeet(a, c("b", { position: { x: 5, y: 3 } }))).toBe(false);
+  });
+
+  // PHB 2024 "Creature Size": Large is a 10 ft space, two squares on a side.
+  it("a Large creature is adjacent to a Medium one two squares from its anchor", () => {
+    const large = c("large", { position: { x: 0, y: 0 }, size: "large" });
+    expect(withinFiveFeet(large, c("b", { position: { x: 2, y: 0 } }))).toBe(true);
+    expect(withinFiveFeet(large, c("b", { position: { x: 3, y: 0 } }))).toBe(false);
+  });
+
+  it("reads a beast form's size, so a wild-shaped druid reaches as far as the beast does", () => {
+    const bear = c("druid", { position: { x: 0, y: 0 }, size: "medium", wildshape: { monster_id: "bear", beast_name: "Brown Bear", beast_image_url: null, beast_hp: 34, beast_max_hp: 34, beast_ac: "11", beast_dex: 10, beast_size: "large" } });
+    expect(withinFiveFeet(bear, c("b", { position: { x: 2, y: 0 } }))).toBe(true);
+  });
+
+  it("an Enlarge override widens the reach of a Medium creature", () => {
+    const grown = c("grown", { position: { x: 0, y: 0 }, size: "medium", size_override: "large" });
+    expect(withinFiveFeet(grown, c("b", { position: { x: 2, y: 0 } }))).toBe(true);
+  });
+
+  it("a Tiny creature in the near half of a square is next to the Medium one beside it, but not one square further", () => {
+    const tiny = c("tiny", { position: { x: 0, y: 0 }, size: "tiny" });
+    expect(withinFiveFeet(tiny, c("b", { position: { x: 1, y: 0 } }))).toBe(true);
+    expect(withinFiveFeet(tiny, c("b", { position: { x: 2, y: 0 } }))).toBe(false);
+  });
+
+  it("measures between footprints, not anchors", () => {
+    const big = c("big", { position: { x: 0, y: 0 }, footprint: 3 });
+    expect(withinFiveFeet(big, c("b", { position: { x: 3, y: 1 } }))).toBe(true);
+    expect(withinFiveFeet(big, c("b", { position: { x: 4, y: 1 } }))).toBe(false);
+    expect(withinFiveFeet(big, c("b", { position: { x: 1, y: 1 } }))).toBe(true);
+  });
+});
+
+describe("combatantDefenses", () => {
+  const fire: Defenses = { ...emptyDefenses(), immunities: [{ types: ["fire"] }] };
+  const lookup = {
+    monsters: [{ id: "m1", stat_block: { defenses: fire } }] as unknown as Monster[],
+    npcs: [{ id: "n1", stat_block: { defenses: fire } }, { id: "n2", stat_block: null }] as unknown as NpcListRow[],
+    companions: [{ id: "k1", stat_block: { defenses: fire } }] as unknown as Companion[],
+  };
+
+  it("reads the block each combatant came from", () => {
+    expect(combatantDefenses(c("a", { monster_id: "m1" }), lookup)).toBe(fire);
+    expect(combatantDefenses(c("a", { npc_id: "n1" }), lookup)).toBe(fire);
+    expect(combatantDefenses(c("a", { companion_id: "k1" }), lookup)).toBe(fire);
+  });
+
+  it("is empty for party members, missing sources and blockless NPCs", () => {
+    expect(combatantDefenses(c("a", { party_member_id: "pm" }), lookup)).toEqual(emptyDefenses());
+    expect(combatantDefenses(c("a", { monster_id: "gone" }), lookup)).toEqual(emptyDefenses());
+    expect(combatantDefenses(c("a", { npc_id: "n2" }), lookup)).toEqual(emptyDefenses());
+  });
+});
+
+describe("filterImmuneConditions", () => {
+  it("splits what lands from what the target shrugs off", () => {
+    const defenses = { ...emptyDefenses(), condition_immunities: ["Poisoned" as const] };
+    expect(filterImmuneConditions(["Poisoned", "Prone"], defenses)).toEqual({ apply: ["Prone"], immune: ["Poisoned"] });
+  });
+});
+
+describe("effectiveArmorClass", () => {
+  it("prefers a party member's sheet, then their beast form", () => {
+    const pc = { type: "player", ac: "12" } as RunCombatant;
+    expect(effectiveArmorClass(pc, { ac: 17, beastAc: null })).toBe("17");
+    expect(effectiveArmorClass(pc, { ac: 17, beastAc: "13" })).toBe("13");
+  });
+  it("never reads the sheet for a combatant that is not a party member", () => {
+    expect(effectiveArmorClass({ type: "monster", ac: "15" } as RunCombatant, { ac: 9, beastAc: "8" })).toBe("15");
+  });
+  it("falls back to the combatant's own AC, or its Wild Shape overlay", () => {
+    expect(effectiveArmorClass({ type: "monster", ac: "15" } as RunCombatant)).toBe("15");
+    expect(effectiveArmorClass({ type: "player", ac: "12", wildshape: { beast_ac: "11", beast_dex: 10 } } as RunCombatant)).toBe("11");
+  });
+});

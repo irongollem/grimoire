@@ -9,7 +9,7 @@
 //   a squeeze through rubble is 15 ft a square.
 // - Dashing: the action gives extra movement equal to speed, so a move up to twice the speed is a Dash.
 
-import { segmentsIntersect, type Point, type WallSegment } from "@/lib/battlemap/walls";
+import { segmentsIntersect, type Point, type WallSegment } from "./walls.ts";
 
 export interface Cell {
   x: number;
@@ -135,6 +135,23 @@ export interface MovePlan {
 }
 
 /**
+ * What entering the square at `to` costs a token of this footprint: 5 ft, plus 5 for difficult terrain, plus 5 for a
+ * squeeze. `alsoDifficult` is for ground the terrain sets do not know (another creature's space): difficult terrain
+ * does not stack with itself, so it adds nothing when the square is already difficult. The one place a step is priced,
+ * for the DM's counter (`planMove`) and the reach search alike.
+ */
+export function stepCost(
+  to: Cell,
+  footprint: number,
+  terrain: MoveTerrain,
+  alsoDifficult = false,
+): Pick<MoveStep, "feet" | "difficult" | "squeezing"> {
+  const difficult = alsoDifficult || footprintCells(to, footprint).some((k) => terrain.difficult.has(k));
+  const squeezing = isSqueezing(to, footprint, terrain.walls);
+  return { feet: FEET_PER_SQUARE * (1 + (difficult ? 1 : 0) + (squeezing ? 1 : 0)), difficult, squeezing };
+}
+
+/**
  * The path from `from` to `to`, bent through any `via` waypoints, and what it costs. Every step is 5 ft; a step
  * into difficult terrain costs 5 more and a squeeze 5 more (so 10 or 15).
  */
@@ -151,14 +168,8 @@ export function planMove(input: {
   let at = from;
   for (const stop of stops) {
     for (const cell of stepsBetween(at, stop)) {
-      const difficult = footprintCells(cell, footprint).some((k) => terrain.difficult.has(k));
-      const squeezing = isSqueezing(cell, footprint, terrain.walls);
-      steps.push({
-        to: cell,
-        feet: FEET_PER_SQUARE * (1 + (difficult ? 1 : 0) + (squeezing ? 1 : 0)),
-        difficult,
-        squeezing,
-      });
+      const cost = stepCost(cell, footprint, terrain);
+      steps.push({ to: cell, ...cost });
     }
     at = stop;
   }

@@ -55,7 +55,7 @@ The Drawing row shows a **Review N changes** link once your Cartographer drawing
 
 Edit map opens the Cartographer editor over the whole screen, with three tabs: **Base image** (1), **Drawing** (2) and **Zoning** (3). Zoning is where the map learns which areas are rooms, and its tools are on the left, each with its key:
 
-- **Zone** (Z): outline an area and say what kind it is. A **Room** is a place in the Atlas; **Terrain**, **Hazard**, **Light**, **Trigger**, **Entrance** (where the party walks in when you explore the site) and **Marker** only mark the floor.
+- **Zone** (Z): outline an area and say what kind it is. A **Room** is a place in the Atlas; **Terrain**, **Hazard**, **Light**, **Trigger**, **Way in or out** (where the party walks in when you explore the site and where a creature that flees leaves the map; untick **The party arrives here** for a way out only, such as a back gate) and **Marker** only mark the floor.
 - **Door** (D): snap to a cell edge to place a door; its endpoints are worked out automatically from the rooms on either side.
 - **Fill** (F): pour a zone of the chosen kind over a painted floor region of the Drawing, up to its walls, so you don't re-trace by hand what you just painted.
 - **Erase** (E): drag across cells to take them out of any zone.

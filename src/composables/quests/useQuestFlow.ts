@@ -32,7 +32,6 @@ import type {
   QuestRuntimeContext,
   QuestConsequence,
   QuestConsequenceInsert,
-  QuestRuntimeState,
 } from "@/types/quest.types";
 
 export const EDGES_KEY = "quest_beat_edges";
@@ -653,32 +652,6 @@ export function useSetQuestRouteGate() {
   });
 }
 
-/** A thread's own cursor (#853) — keyed `(campaign, quest, thread)`, matching
- *  the row's own primary key. Disabled while `threadId` is empty: there is no
- *  thread-less cursor left to fall back to. */
-export function useQuestRuntimeState(questId: string | Ref<string>, threadId: string | Ref<string>) {
-  const campaign = useCampaignStore();
-  const campaignId = computed(() => campaign.activeCampaignId);
-  const id = asRef(questId);
-  const thread = asRef(threadId);
-  return useQuery({
-    queryKey: computed(() => [RUNTIME_KEY, campaignId.value, id.value, thread.value] as const),
-    queryFn: async ({ queryKey: [, cid, questId, threadId] }): Promise<QuestRuntimeState | null> => {
-      if (cid === null) throw new Error("useQuestRuntimeState fetched without a campaign");
-      const { data, error } = await supabase
-        .from("quest_runtime_state")
-        .select("*")
-        .eq("campaign_id", cid)
-        .eq("quest_id", questId)
-        .eq("thread_id", threadId)
-        .maybeSingle();
-      if (error) throw error;
-      return data as QuestRuntimeState | null;
-    },
-    enabled: () => !!campaignId.value && !!id.value && !!thread.value,
-  });
-}
-
 /** A thread's own runtime context (#853) — the current beat, its outgoing
  *  routes, and every other thread this quest holds (`context.threads`), all
  *  scoped to one thread.
@@ -878,7 +851,7 @@ export function useQuestRuntimeImprovise() {
     },
     onSuccess: ({ context }, input) => {
       queryClient.setQueryData([RUNTIME_CONTEXT_KEY, input.campaignId, input.questId, input.threadId], context);
-      // Four parts, matching `useQuestRuntimeState`'s key and the line above.
+      // Four parts, matching the runtime state's key and the line above.
       // It once wrote a two-part key, which no query reads, so the optimistic
       // update landed nowhere and the cursor moved only once the refetch came
       // back — threads add a fourth part for the same reason they added a third.
@@ -1057,53 +1030,5 @@ export function useQuestConsequencesByLocations(locationIds: Ref<string[]>) {
       return (data ?? []) as QuestConsequence[];
     },
     enabled: () => locationIds.value.length > 0,
-  });
-}
-
-export interface QuestUnlockEntry {
-  /** The bridge rule's own `entry_beat_id` — null means "the target's own
-   *  entry", same as the column's meaning on `quest_consequences`. */
-  entryBeatId: string | null;
-  /** The beat (of the *source* quest) whose arrival raised the unlock — the
-   *  bridge's own on-ramp, named in the start card's caption ("Entered
-   *  through …"). */
-  fromBeatId: string | null;
-}
-
-async function fetchQuestUnlockEntry(questId: string): Promise<QuestUnlockEntry | null> {
-  const { data, error } = await supabase
-    .from("quest_consequence_events")
-    .select("consequence:quest_consequences(entry_beat_id, on_beat_id)")
-    .eq("target_quest_id", questId)
-    .eq("action", "unlock_quest")
-    .not("performed_at", "is", null)
-    .is("undone_at", null)
-    .order("seq", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  const consequence = data?.consequence as unknown as { entry_beat_id: string | null; on_beat_id: string | null } | null;
-  if (!consequence) return null;
-  return { entryBeatId: consequence.entry_beat_id, fromBeatId: consequence.on_beat_id };
-}
-
-/**
- * The most recent performed, not-undone `unlock_quest` event that promoted
- * this quest, read off the event log rather than stored on the quest (#871,
- * "sideways entry is read from the event log"). Null while no unlock has
- * fired yet, and once one has but its rule no longer resolves (deleted after
- * firing) — the start card falls back to the quest's own entry either way
- * (`resolveStartBeatId`, `src/lib/quests/entry.ts`).
- *
- * Query key starts with `CONSEQUENCE_EVENTS_KEY` so the existing
- * invalidations at useQuestFlow.ts:817 (`useMarkQuestMove`) and
- * useQuestThreads.ts:161 — both fire or undo a consequence — refresh this too.
- */
-export function useQuestUnlockEntry(questId: string | Ref<string>, enabled?: () => boolean) {
-  const id = asRef(questId);
-  return useQuery({
-    queryKey: computed(() => [CONSEQUENCE_EVENTS_KEY, "unlock-entry", id.value] as const),
-    queryFn: ({ queryKey: [, , questId] }) => fetchQuestUnlockEntry(questId),
-    enabled: () => !!id.value && (enabled?.() ?? true),
   });
 }

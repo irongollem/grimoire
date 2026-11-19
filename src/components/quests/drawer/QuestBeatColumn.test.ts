@@ -67,6 +67,16 @@ describe("QuestBeatColumn", () => {
     expect(wrapper.text()).not.toContain("Nothing written");
   });
 
+  // #1021: a beat whose only text is what happened there must show it, not the invitation to write the beat.
+  it("shows what happened at the beat under its own heading, and only when something was written", () => {
+    mocks.b1 = { what_happened: "They paid the toll." };
+    const wrapper = mountColumn();
+    expect(wrapper.find('section[aria-label="What happened here"]').text()).toContain("They paid the toll.");
+    expect(wrapper.text()).not.toContain("Nothing written");
+    mocks.b1 = { read_aloud: "RA" };
+    expect(mountColumn().find('section[aria-label="What happened here"]').exists()).toBe(false);
+  });
+
   it("with no text, invites to write it, and Write it opens the form", async () => {
     const wrapper = mountColumn();
     expect(wrapper.text()).toContain("Nothing written");

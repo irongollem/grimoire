@@ -119,8 +119,8 @@
             ><strong>AoE:</strong> {{ spell.aoe_size }}
             {{ spell.aoe_shape }}</span
           >
-          <span v-if="spell.condition_inflicted"
-            ><strong>Condition:</strong> {{ spell.condition_inflicted }}</span
+          <span v-if="conditionLine"
+            ><strong>Condition:</strong> {{ conditionLine }}</span
           >
         </div>
 
@@ -219,6 +219,7 @@ import { useSpellKnowers } from "@/composables/party/useCharacterSpells";
 import { useNpcSpellCasters } from "@/composables/npcs/useNpcs";
 import { SCHOOL_TEXT, ATTACK_TYPES, spellLevelLabel, spellLevelOrdinal, spellTabFor } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
+import { conditionEffectSheetLine } from "@/lib/spells/conditionEffectText";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useSourceTitles } from "@/composables/library/useSourceTitles";
 
@@ -255,11 +256,13 @@ const castingFacts = computed(() => [
   { label: "Duration", value: spellDuration(props.spell) },
 ]);
 
+const conditionLine = computed(() => conditionEffectSheetLine(props.spell.condition_effect));
+
 const hasMechanics = computed(
   () =>
     props.spell.attack_type ||
     props.spell.damage_rolls?.length ||
     props.spell.aoe_shape ||
-    props.spell.condition_inflicted,
+    conditionLine.value,
 );
 </script>

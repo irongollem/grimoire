@@ -387,6 +387,8 @@ export function useMapPublish(opts: {
             origin_y_pct: 0,
             origin_cell_x: dims.originCellX,
             origin_cell_y: dims.originCellY,
+            // The bake is `cols` by `rows` cells of one size, so its shape is exactly that.
+            image_height_over_width: dims.rows / dims.cols,
           },
           mapLive,
           sourceMapId: map.id,

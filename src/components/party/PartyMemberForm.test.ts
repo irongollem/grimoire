@@ -12,6 +12,11 @@ const systemDefs = ref<unknown[] | undefined>([]);
 const subclassDefs = ref<unknown[] | undefined>([]);
 const update = vi.fn();
 
+// The AI table is released to chosen accounts only; these tests are not about it, so it is closed here.
+vi.mock("@/composables/campaign/useTableAccess", async () => {
+  const { ref } = await import("vue");
+  return { useTableAccess: () => ({ open: ref(false), granted: ref(false) }) };
+});
 vi.mock("@/composables/memorials/useMemorials", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/composables/memorials/useMemorials")>()),
   useCampaignMemorials: () => ({ data: { value: [] } }),

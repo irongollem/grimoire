@@ -14,6 +14,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // paid-call burst is bounded; the bug reporter has its own daily cap.
 export const RATE_LIMITS = {
   ai_generation: { action: "ai_generation", limit: 30, windowSeconds: 60 },
+  // One message to the AI table (#1205). A turn is several model calls, so a DM gets fewer of these than of a single
+  // generation; 20 a minute is far above anyone typing replies to a story.
+  agent_turn:    { action: "agent_turn",    limit: 20, windowSeconds: 60 },
+  // One spoken line voiced at the AI table (#1021). A turn shows up to a handful of lines and each is a paid call to
+  // a speech service, so this is its own bucket: far above a story being played, well below a loop.
+  table_voice:   { action: "table_voice",   limit: 60, windowSeconds: 60 },
   bug_report:    { action: "bug_report",    limit: 15, windowSeconds: 86_400 },
   // One event per notify invocation (which may email a whole party). Bounds a
   // compromised or misbehaving DM account to 30 email bursts an hour.

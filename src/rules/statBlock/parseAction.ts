@@ -119,6 +119,8 @@ export function parseActionProse(entry: { name: string; description: string }, c
   if (/^multiattack\b/i.test(entry.name.trim())) {
     return { kind: "multiattack", ...markers, multiattack: parseMultiattack(text, ctx.siblings), source: "parsed" };
   }
+  // Wider than `isSpellcastingEntry` on purpose: anything named for spellcasting ("Shared Spellcasting", "Detect
+  // Spellcasting") is prose about casting, never an attack or a save to read out of it, so it is left as written.
   if (/\bspellcasting\b/i.test(entry.name)) return plain(markers);
 
   // A menu of effects ("one of the following") is several entries in one; only a person can split it.

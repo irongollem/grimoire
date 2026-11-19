@@ -53,6 +53,7 @@
         />
       </div>
 
+      <RunnerRunForMe v-if="sections.length > 0 && c.type !== 'player'" :combatant="c" class="mt-2" />
       <RunnerActionList v-if="sections.length > 0" :combatant="c" :sections="sections" class="mt-2" />
       <PlayPcAttacks v-else-if="member" :key="member.id" class="mt-2" :member="member" :sender-name="c.name" />
       <p v-else-if="c.type === 'player'" class="mt-2 text-caption text-muted-foreground">Their attacks and spells are on the full sheet.</p>
@@ -77,7 +78,7 @@
         Damage and healing land on whoever is selected on the map or in the list, not only on {{ c.name }}.
         <template v-if="next">Next turn moves the card to {{ next.name }}.</template>
       </p>
-      <AppButton class="mt-2" variant="primary" size="md" :icon="IconChevronRight" label="Next turn" @click="store.nextTurn()" />
+      <AppButton class="mt-2" variant="primary" size="md" :icon="IconChevronRight" label="Next turn" :loading="store.busy" @click="store.nextTurn()" />
     </section>
 
     <AppButton class="self-start" variant="link" size="inline" label="Open the full sheet" @click="emit('open-sheet')" />
@@ -90,6 +91,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import { IconChevronRight, IconUndo } from "@/lib/icons";
 import { RUNNER_ROLL_CONTEXT } from "@/components/encounters/runnerResolve";
+import RunnerRunForMe from "@/components/encounters/RunnerRunForMe.vue";
 import RunnerActionList from "@/components/encounters/RunnerActionList.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { MONSTER_SIZES } from "@/types/monster.types";
@@ -98,7 +100,8 @@ import type { PartyMember } from "@/types/party.types";
 import PlayPcAttacks from "./PlayPcAttacks.vue";
 import PlayPortrait from "./PlayPortrait.vue";
 import { adjacentFoes, movementUsedOf } from "./playRoster";
-import { combatantSpeed, moveBarShares } from "./playSpeed";
+import { combatantSpeed } from "@/lib/encounters/combatantSpeed";
+import { moveBarShares } from "./playSpeed";
 
 /**
  * The right column while it is a combatant's turn (#1125 decision 10, frame 10): read top to bottom, move, act,

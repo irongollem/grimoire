@@ -13,6 +13,7 @@ function msg(o: Partial<CampaignMessage> & Pick<CampaignMessage, "id" | "type">)
     message: "",
     metadata: null,
     created_at: "2026-10-05T12:00:00Z",
+    server_rolled: false,
     ...o,
   };
 }

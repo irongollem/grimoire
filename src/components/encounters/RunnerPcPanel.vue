@@ -80,7 +80,8 @@
 
     <template v-if="member.notes">
       <div class="detail-divider" />
-      <p class="detail-notes">{{ member.notes }}</p>
+      <!-- Notes are rich text; printed as plain text they showed the stored document itself. -->
+      <RichTextViewer :content="member.notes" class="detail-notes" />
     </template>
 
     <!-- Prepared / Known Spells -->
@@ -103,6 +104,7 @@
 import { computed } from "vue";
 import { useRunnerPcAttacks } from "@/composables/encounters/useRunnerPcAttacks";
 import RunnerPortrait from "@/components/encounters/RunnerPortrait.vue";
+import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import AbilityScoreTable from "@/components/common/statblock/AbilityScoreTable.vue";
 import FeatureActionsCard from "@/components/features/FeatureActionsCard.vue";
 import type { RollResult } from "@/lib/dice/dice";

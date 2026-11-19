@@ -65,7 +65,7 @@ The prefill is recomputed on each open, so a number set last week never outlives
 
 **Continue** (#1058). When the most recent run has ended (`continuableSession`), the dialog opens with a `SegmentedControl`: **Continue session 14** or **Start session 15**. Continue hides the number and title (they are the session's own), says how long ago it ended (`formatEndedAgo`), and confirms with `{ continueId }`, which `useCampaignSession().start` sends to `resume_campaign_session`; the table hears "The session continues." Continue is the default only when it is obviously the same evening (`prefersContinue`: ended within `CONTINUE_BREAK_HOURS`, 4, and started within `CONTINUE_RUN_HOURS`, 24, which keeps a forgotten Thursday session closed on Sunday by **Still playing?** from defaulting to Continue). The Sessions widget's button names the same default. Every End toast (`useSessionActions.endSession`, which the stale prompt now uses too) carries **Undo**, which continues the session it just ended. Ending stops nothing, so a fight in progress and every quest thread are exactly as they were; the End toast is a plain "Session ended." with Undo.
 
-**Implicit start** — `goLive()` on an encounter calls `ensureCampaignSession`, which starts one if none is running, with no dialog and no number. It says so. A DM hitting **Run** is at the table; asking them to say so twice is bookkeeping. The log flags such a session as unnumbered so the DM can number or delete it.
+**Implicit start** — Going live on an encounter (the runner's `handleGoLive`) calls `ensureCampaignSession`, which starts one if none is running, with no dialog and no number. It says so. A DM hitting **Run** is at the table; asking them to say so twice is bookkeeping. The log flags such a session as unnumbered so the DM can number or delete it.
 
 **Run** — `encounter_state.session_id` records which session a combat ran in, and every learned moment is stamped with the open session (below).
 
@@ -89,7 +89,7 @@ The docked DM scratchpad lists every entity the DM wrote a note on since the run
 
 Two signals, no controls.
 
-- **"⚔️ The session begins."** — posted by `announceSessionStart` on start, from the chrome control or from `goLive()`. Not repeated when an already-running session is re-started, and never allowed to fail the start.
+- **"⚔️ The session begins."** — posted by `announceSessionStart` on start, from the chrome control or from the runner's Go Live. Not repeated when an already-running session is re-started, and never allowed to fail the start.
 - **`get_player_session_state(uuid)`** — the open session's `is_running`, `started_at`, `session_id`, `number` and `title`. Never `user_id` (which DM started it is not a player's business, and it is a join key into `auth.users`) and never `ended_at` (a closed session projects nothing at all — a player asks one question). The DM-only policy on the table is unchanged; this sits beside it, as `get_player_encounter_state` does for combat.
 
 Read by `usePlayerSessionState`, refreshed by the campaign doorbell. Every write to the table rings it (`20260928225909`, re-created for `campaign_sessions` in `20261006072708`), which names the table and nothing else, so a start or end reaches players as it happens. This replaced a 60s poll.
@@ -107,7 +107,7 @@ Every moment the table learned something carries the session it belongs to (migr
 | Handouts | `handout_reveals` (new) | a Scriptorium document is first shared with a party member |
 | Creatures discovered | `discovered_monsters` (`session_id`) | the party discovers a monster |
 | Quests | `quest_beat_transitions` (`session_id`) | a quest step happens |
-| Combat | `encounter_state.session_id` | `goLive()`, read-only on the page |
+| Combat | `encounter_state.session_id` | the `go_live` command (the runner passes the session it ensured), read-only on the page |
 
 - **Stamping.** `public.stamp_open_session()` is a `before insert` trigger on each table: if the row has no `session_id` it takes the campaign's open session. It is a trigger function, so it has no `EXECUTE` grant.
 - **Prep moments join the next session.** What is shared while no session is open has no session yet; `start_campaign_session` attaches every unstamped, non-approximate moment recorded since the last session ended. "Since" never reaches before `private.session_log_began()`, so older moments are never swept into the first session.

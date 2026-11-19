@@ -51,6 +51,7 @@
         :origin-y="gridOrigin.y"
         :mask="fogMask"
         :seen="fogSeen"
+        :opaque="asPlayer"
         class="pointer-events-none"
       />
 
@@ -101,6 +102,7 @@
     </div>
 
     <p
+      v-if="!asPlayer"
       data-testid="explore-map-hint"
       class="pointer-events-none absolute bottom-3 left-3 max-w-[40%] rounded-md bg-card/85 px-2 py-1 text-caption text-muted-foreground"
     >
@@ -108,12 +110,14 @@
     </p>
 
     <!-- Fog is the map's memory while exploring, so no Fog, Area or Darkness tools here (#1125 frame 11, epic #1133). -->
+    <!-- On a player's own map the belt is only Move and Measure, small and in a corner: in the middle of a map that
+         is a strip above the story it lay over what the player was looking at. -->
     <PlayToolbelt
       v-if="imageReady"
       v-model:tool="tool"
       v-model:draw-pinned="drawPinned"
-      :tools="EXPLORE_TOOLS"
-      class="absolute bottom-3 left-1/2 -translate-x-1/2"
+      :tools="asPlayer ? PLAYER_TOOLS : EXPLORE_TOOLS"
+      :class="asPlayer ? 'absolute bottom-2 left-2 origin-bottom-left scale-75' : 'absolute bottom-3 left-1/2 -translate-x-1/2'"
       @clear-drawings="table.clearAll()"
     />
 
@@ -122,7 +126,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, shallowRef, watch } from "vue";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
@@ -143,8 +147,13 @@ import type { FogCellKey } from "@/lib/battlemap/fogMask";
 import { doorAt, effectiveDoors } from "@/lib/battlemap/doors";
 import { NO_DOOR_STATES, occludersOf } from "@/lib/battlemap/occlusion";
 import type { MapLiveDoorState } from "@/types/mapLive.types";
+import { readPictureFloor, voidAround } from "@/lib/battlemap/pictureFloor";
 import type { BattleSurface } from "@/lib/battlemap/roomBridge";
-import type { ExploreCell, ExploreFrame } from "@/lib/locations/explore";
+import type { ExploreFrame } from "@/lib/locations/explore";
+import type { ExploreCell } from "@/rules/explore/explorePositions";
+import { pathTo, reachable } from "@/rules/fight/terrain/reach";
+import type { Cell } from "@/lib/battlemap/movement";
+import { DEFAULT_RULESET } from "@/types/ruleset.types";
 import { DEFAULT_PLAY_VIEW, PLAY_TOOL_KEYS, type ExploreTool, type PlayTool, type PlayViewState } from "@/components/encounters/play/playTypes";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import { DEFAULT_FACTIONS, type RunCombatant } from "@/types/encounter.types";
@@ -168,6 +177,7 @@ const {
   fogMask = null,
   fogSeen = null,
   doorStates = NO_DOOR_STATES,
+  asPlayer = false,
 } = defineProps<{
   surface: BattleSurface;
   tokens: RunCombatant[];
@@ -184,6 +194,11 @@ const {
   fogSeen?: ReadonlySet<FogCellKey> | null;
   /** The doors the DM has opened or shut on this map (`map_memory`), over their drawn state. */
   doorStates?: readonly MapLiveDoorState[];
+  /**
+   * The map as one player sees it at the AI table (#1021): the fog hides what the character has not seen instead
+   * of hinting at it, the belt holds only Move and Measure in a corner, and the hint about moving a party is left out.
+   */
+  asPlayer?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -277,6 +292,8 @@ const noTurns: MoveTurnBook = {
 
 const tool = ref<PlayTool>("move");
 const EXPLORE_TOOLS: readonly ExploreTool[] = ["move", "measure", "ping", "draw"];
+/** One player at the AI table has nobody to ping or draw for. */
+const PLAYER_TOOLS: readonly ExploreTool[] = ["move", "measure"];
 
 const auth = useAuthStore();
 const campaignStore = useCampaignStore();
@@ -301,7 +318,55 @@ useHotkeys(() => [
     : []),
 ]);
 
+// A player's own token walks round walls or not at all, by the search a fight uses (`reachable`), run once per
+// place it stands and far enough to cover the map. The Dungeon Master's line stays straight and is never refused.
+// A map with no walls drawn has only its picture to go by: the squares it shows no ground on (the dark a building
+// is drawn on) are not walked. Read once per picture, for a player's own map only.
+const pictureVoid = shallowRef<Set<string> | null>(null);
+watch(
+  () => [asPlayer, surface.imageUrl, imageReady.value, imageNaturalW.value, imageNaturalH.value] as const,
+  async ([player, url, ready, w, h], _old, onCleanup) => {
+    let stale = false;
+    onCleanup(() => (stale = true));
+    pictureVoid.value = null;
+    if (!player || !url || !ready || w === 0) return;
+    const grid = { cols: Math.ceil(surface.calibration.cells_per_image_width), rows: Math.ceil((surface.calibration.cells_per_image_width * h) / w) };
+    const floor = await readPictureFloor(url, grid);
+    if (!stale && floor !== null) pictureVoid.value = voidAround(floor, grid);
+  },
+  { immediate: true },
+);
+
+const playerReach = computed(() => {
+  const me = asPlayer ? placed.value[0] : undefined;
+  if (!me?.position || !imageReady.value || imageNaturalW.value === 0) return null;
+  const occluders = surface.live ? occludersOf(surface.live, doorStates) : null;
+  const unwalled = occluders === null || (occluders.segments.length === 0 && occluders.solid.size === 0);
+  const cols = Math.ceil(surface.calibration.cells_per_image_width);
+  const rows = Math.ceil((surface.calibration.cells_per_image_width * imageNaturalH.value) / imageNaturalW.value);
+  return reachable({
+    mover: { anchor: me.position, footprint: 1, size: "medium" },
+    budgetFeet: (cols + rows) * 10,
+    terrain: {
+      difficult: new Set<string>(),
+      blocking: occluders ? occluders.segments : [],
+      solid: unwalled && pictureVoid.value ? pictureVoid.value : occluders ? occluders.solid : new Set<string>(),
+      bounds: { minX: 0, minY: 0, maxX: cols - 1, maxY: rows - 1 },
+    },
+    others: [],
+    ruleset: DEFAULT_RULESET,
+  });
+});
+function playerRoute(_mover: RunCombatant, to: Cell): readonly Cell[] | null {
+  const reach = playerReach.value;
+  if (reach === null) return null;
+  const path = pathTo(reach, { x: Math.floor(to.x), y: Math.floor(to.y) });
+  // The squares between where the token stands and where it is going; the planner adds the last step itself.
+  return path === null ? null : path.slice(1, -1);
+}
+
 const moves = usePlayTokenMoves({
+  ...(asPlayer ? { route: playerRoute } : {}),
   state: mapState,
   store: noTurns,
   selectedId: () => selectedId,

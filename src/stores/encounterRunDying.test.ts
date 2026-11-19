@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { conditionNames } from "@/rules/conditions";
 import { createPinia, setActivePinia } from "pinia";
 import { useEncounterRunStore } from "@/stores/encounterRun";
@@ -23,23 +23,19 @@ function player(hp: number, max = 10): RunCombatant {
 }
 
 describe("runner adjustHp for a player combatant", () => {
-  const persist = vi.fn();
-  beforeEach(() => {
-    setActivePinia(createPinia());
-    persist.mockReset();
-  });
+  beforeEach(() => setActivePinia(createPinia()));
 
   function setup(c: RunCombatant) {
     const store = useEncounterRunStore();
-    store.setPersistHandler(persist);
     store.combatants = [c];
     return store;
   }
 
-  it("instant death writes three failures", () => {
+  it("instant death leaves the player at 0 with three failures", () => {
     const store = setup(player(10));
     expect(store.adjustHp("p-1", -25)).toBe("died");
-    expect(persist).toHaveBeenCalledWith("pm-1", expect.objectContaining({ current_hp: 0, death_save_failures: 3 }));
+    expect(store.combatants[0]!.hp).toBe(0);
+    expect(store.combatants[0]!.death_saves.failures).toBe(3);
   });
 
   it("dropping adds Unconscious, and healing removes it with the saves", () => {
@@ -51,15 +47,6 @@ describe("runner adjustHp for a player combatant", () => {
     expect(store.adjustHp("p-1", 2)).toBe("revived-by-healing");
     expect(store.combatants[0]!.death_saves).toEqual({ successes: 0, failures: 0 });
     expect(conditionNames(store.combatants[0]!.conditions)).not.toContain("Unconscious");
-  });
-
-  it("an ordinary hit on a conscious player writes HP only, not the runner's copy of their conditions", () => {
-    const store = setup({ ...player(10), conditions: [{ name: "Prone" }] });
-    store.adjustHp("p-1", -3);
-    const patch = persist.mock.calls[0]![1] as Record<string, unknown>;
-    expect(patch).toMatchObject({ current_hp: 7 });
-    expect(patch).not.toHaveProperty("conditions");
-    expect(patch).not.toHaveProperty("death_save_failures");
   });
 
   it("monsters just floor at 0", () => {

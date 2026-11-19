@@ -6,9 +6,9 @@
 // NW-owned edge key (`"x,y:N"`, `"x,y:W"`, see walls.ts). Pure and DOM-free; the same test serves the editor's preview
 // and the live battle map.
 
-import { effectiveDoors } from "@/lib/battlemap/doors";
-import { buildSegmentIndex, cellNum, segmentsIntersect, type Point, type SegmentIndex, type WallSegment } from "@/lib/battlemap/walls";
-import type { MapLive, MapLiveDoorState } from "@/types/mapLive.types";
+import { effectiveDoors } from "./doors.ts";
+import { buildSegmentIndex, cellNum, segmentsIntersect, type Point, type SegmentIndex, type WallSegment } from "./walls.ts";
+import type { MapLive, MapLiveDoorState } from "../../types/mapLive.types.ts";
 
 export interface Occluders {
   /** Blocking segments: walls and the doors that are not open. */

@@ -12,7 +12,8 @@ describe("attackRollMode", () => {
     ["target Invisible", { targetConditions: [{ name: "Invisible" }] }, "disadvantage"],
     ["target Prone within 5ft", { targetConditions: [{ name: "Prone" }] }, "advantage"],
     ["target Prone far", { targetConditions: [{ name: "Prone" }], withinFiveFeet: false }, "disadvantage"],
-    ["ranged with enemy adjacent", { delivery: "ranged" as const }, "disadvantage"],
+    ["ranged with a hostile next to the attacker", { delivery: "ranged" as const, hostileWithinFiveFeetOfAttacker: true }, "disadvantage"],
+    ["ranged at long range", { delivery: "ranged" as const, withinFiveFeet: false, longRange: true }, "disadvantage"],
     ["ranged far, nothing else", { delivery: "ranged" as const, withinFiveFeet: false }, "normal"],
     ["2014 exhaustion 3", { attackerConditions: [{ name: "Exhaustion", level: 3 }] }, "disadvantage"],
     ["2024 exhaustion 3 gives no disadvantage", { attackerConditions: [{ name: "Exhaustion", level: 3 }], ruleset: "2024" as const }, "normal"],
@@ -38,16 +39,56 @@ describe("attackRollMode", () => {
     const r = attackRollMode({
       ...base,
       delivery: "ranged",
+      hostileWithinFiveFeetOfAttacker: true,
       attackerConditions: [{ name: "Poisoned" }],
       targetConditions: [{ name: "Restrained" }],
     });
     expect(r.mode).toBe("normal");
+  });
+  // Bug: one input ("within 5 ft") meant both "attacker next to the target" and "hostile next to the attacker", so a
+  // ranged shot at an adjacent target was priced right only by accident and a hostile beside the attacker was invisible.
+  it("the target being 5 ft away is not itself read as close combat: the caller states the hostile beside the attacker", () => {
+    const r = attackRollMode({ ...base, delivery: "ranged", withinFiveFeet: true });
+    expect(r.mode).toBe("normal");
+  });
+  it("a melee attack ignores both ranged facts", () => {
+    const r = attackRollMode({ ...base, delivery: "melee", hostileWithinFiveFeetOfAttacker: true, longRange: true });
+    expect(r.mode).toBe("normal");
+  });
+  it("a hostile next to the attacker, not the target, gives a ranged attack on a far target disadvantage (PHB 2014 ch. 9 \"Ranged Attacks in Close Combat\")", () => {
+    const r = attackRollMode({ ...base, delivery: "ranged", withinFiveFeet: false, hostileWithinFiveFeetOfAttacker: true });
+    expect(r.mode).toBe("disadvantage");
+    expect(r.reasons).toEqual(["ranged attack with an enemy within 5 ft of the attacker"]);
+  });
+  it("close combat and long range together are still one disadvantage, not two that cancel anything", () => {
+    const r = attackRollMode({ ...base, delivery: "ranged", withinFiveFeet: false, hostileWithinFiveFeetOfAttacker: true, longRange: true });
+    expect(r.mode).toBe("disadvantage");
   });
   it("DM override cancels a condition", () => {
     expect(attackRollMode({ ...base, attackerConditions: [{ name: "Poisoned" }], dmMode: "advantage" }).mode).toBe("normal");
   });
   it("names the prone cause", () => {
     expect(attackRollMode({ ...base, targetConditions: [{ name: "Prone" }] }).reasons).toContain("target Prone within 5 ft");
+  });
+});
+
+describe("Dodge against an attack (PHB 2014 ch. 9 \"Dodge\")", () => {
+  const dodging = { name: "Dodging" };
+  // Bug: only Incapacitated ended the benefit; a Grappled or Restrained dodger (Speed 0) kept it.
+  it.each(["Grappled", "Restrained"])("is lost when the dodger is %s, which sets its Speed to 0", (name) => {
+    const r = attackRollMode({ ...base, targetConditions: [dodging, { name }] });
+    // Hand-worked: Restrained gives attackers advantage and Dodge is lost, so advantage; Grappled leaves a straight roll.
+    expect(r.reasons).not.toContain("target is Dodging");
+    expect(r.mode).toBe(name === "Restrained" ? "advantage" : "normal");
+  });
+  // PHB 2014 appendix A "Exhaustion" level 5: speed reduced to 0, so Dodge is lost and the attack is a straight roll.
+  it("fails if a 2014 dodger at Exhaustion level 5 keeps disadvantage on attacks against it, or a 2024 one loses it", () => {
+    const tired = { name: "Exhaustion", level: 5 };
+    expect(attackRollMode({ ...base, targetConditions: [dodging, tired] }).mode).toBe("normal");
+    expect(attackRollMode({ ...base, ruleset: "2024", targetConditions: [dodging, tired] }).mode).toBe("disadvantage");
+  });
+  it("still applies to a dodger that can move", () => {
+    expect(attackRollMode({ ...base, targetConditions: [dodging] }).mode).toBe("disadvantage");
   });
 });
 

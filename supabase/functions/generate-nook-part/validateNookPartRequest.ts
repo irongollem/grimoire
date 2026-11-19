@@ -8,6 +8,7 @@
  */
 
 import { checkPng, pngSize } from "../_shared/pngRequest.ts";
+import { UUID_RE as UUID } from "../_shared/uuid.ts";
 
 export type NookPartMode = "paint" | "lift" | "fill";
 
@@ -18,7 +19,6 @@ export const SUBJECT_MAX = 300;
 /** A lift hint is optional but bounded the same way as a subject. */
 export const HINT_MAX = SUBJECT_MAX;
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface NookPartRequest {
   campaign_id: string;

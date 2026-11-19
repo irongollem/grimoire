@@ -3,7 +3,7 @@ import type { MaybeRefOrGetter, Ref } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { isUuid } from "@/lib/library/contentIdentity";
-import { normalizeLibraryItem } from "@/composables/items/useItems";
+import { normalizeLibraryItem } from "@/lib/items/normalizeLibraryItem";
 import { useItemsByIds } from "@/composables/items/useItemsByIds";
 import type { Item } from "@/types/item.types";
 

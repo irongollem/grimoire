@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { characterInitiativeSource, initiativeModifier, initiativeRoll, ownInitiativeModifier } from "@/rules/initiative";
+import { characterInitiativeSource, initiativeModifier, initiativeRoll, cannotReactWhileSurprised, losesFirstTurnToSurprise, ownInitiativeModifier } from "@/rules/initiative";
 
 const form = (beast_dex: number) => ({ beast_dex });
 
@@ -65,5 +65,38 @@ describe("ownInitiativeModifier", () => {
   it("prints the character's own DEX and extras, ignoring a Wild Shape form they happen to wear", () => {
     // A printed sheet is the character, not the beast: DEX 16 (+3), Alert +5, a 2014 Bard 2 at PB 2 adds 1.
     expect(ownInitiativeModifier({ dex: 16, initiative_bonus: 5, proficiency_bonus: 2 }, "any_check")).toBe(9);
+  });
+});
+
+describe("surprise (SRD 5.2 \"Surprise\"; PHB 2014 ch. 9 \"Surprise\")", () => {
+  // Bug: the surprised flag was shown and cleared but never changed a roll or a turn.
+  it("rolls initiative with disadvantage under 2024 when surprised, and not otherwise", () => {
+    expect(initiativeRoll({ dex_mod: 2, conditions: [], surprised: true }, "2024").disadvantage).toBe(true);
+    expect(initiativeRoll({ dex_mod: 2, conditions: [], surprised: false }, "2024").disadvantage).toBe(false);
+    expect(initiativeRoll({ dex_mod: 2, conditions: [] }, "2024").disadvantage).toBe(false);
+  });
+  it("does not touch the 2014 initiative roll: there surprise costs the first turn instead", () => {
+    expect(initiativeRoll({ dex_mod: 2, conditions: [], surprised: true }, "2014").disadvantage).toBe(false);
+  });
+  it("a surprised 2024 creature that is also Poisoned has one disadvantage, not two", () => {
+    expect(initiativeRoll({ dex_mod: 2, conditions: [{ name: "Poisoned" }], surprised: true }, "2024")).toEqual({ modifier: 2, disadvantage: true });
+  });
+
+  it("loses the first turn under 2014 only: round 1, flagged", () => {
+    // PHB 2014: cannot move or take an action on its first turn. Round 1 is the combat's first turn for everyone.
+    expect(losesFirstTurnToSurprise({ surprised: true }, "2014", 1)).toBe(true);
+    expect(losesFirstTurnToSurprise({ surprised: true }, "2014", 2)).toBe(false);
+    expect(losesFirstTurnToSurprise({ surprised: false }, "2014", 1)).toBe(false);
+    expect(losesFirstTurnToSurprise({}, "2014", 1)).toBe(false);
+  });
+  // PHB 2014 ch. 9 "Surprise": no reaction until the first turn ends; the flag is cleared at that moment, so set means withheld.
+  it("fails if a surprised 2014 creature may react, or a 2024 one may not", () => {
+    expect(cannotReactWhileSurprised({ surprised: true }, "2014")).toBe(true);
+    expect(cannotReactWhileSurprised({ surprised: false }, "2014")).toBe(false);
+    expect(cannotReactWhileSurprised({}, "2014")).toBe(false);
+    expect(cannotReactWhileSurprised({ surprised: true }, "2024")).toBe(false);
+  });
+  it("loses no turn under 2024, which only costs the Initiative roll", () => {
+    expect(losesFirstTurnToSurprise({ surprised: true }, "2024", 1)).toBe(false);
   });
 });

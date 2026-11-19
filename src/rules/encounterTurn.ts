@@ -1,25 +1,26 @@
-import type { ActionUse, RunCombatant, WildshapeState } from "@/types/encounter.types";
-import type { MonsterSize } from "@/types/monster.types";
-import type { AppliedCondition, TurnEdge } from "@/types/condition.types";
-import type { StatBlockEntry } from "@/types/statBlock.types";
-import type { StatBlockListKey } from "@/rules/statBlock/parseAction";
-import { rechargeSucceeds } from "@/rules/combat/recharge";
-import { rollDie } from "@/lib/dice/dice";
-import type { PartyMemberUpdate } from "@/types/party.types";
-import { sortCombatantsByInitiative } from "@/rules/combatantSort";
-import { applyDamage, applyHealing, betterTempHp, formHpPools } from "@/rules/hitPoints";
-import { damageOutcome, healingOutcome, UNCONSCIOUS, type DyingOutcome } from "@/rules/dying";
-import { hasCondition, sameConditions, withCondition, withoutCondition } from "@/rules/conditions";
+import type { ActionUse, RunCombatant, WildshapeState } from "../types/encounter.types.ts";
+import type { MonsterSize } from "../types/monster.types.ts";
+import type { AppliedCondition, TurnEdge } from "../types/condition.types.ts";
+import type { StatBlockEntry } from "../types/statBlock.types.ts";
+import type { StatBlockListKey } from "./statBlock/parseAction.ts";
+import { rechargeSucceeds } from "./combat/recharge.ts";
+import { rollDie } from "../lib/dice/dice.ts";
+import type { PartyMemberUpdate } from "../types/party.types.ts";
+import { sortCombatantsByInitiative } from "./combatantSort.ts";
+import { applyDamage, applyHealing, betterTempHp, formHpPools } from "./hitPoints.ts";
+import { damageOutcome, healingOutcome, UNCONSCIOUS, type DyingOutcome } from "./dying.ts";
+import { hasCondition, isIncapacitated, sameConditions, withCondition, withoutCondition } from "./conditions.ts";
 import {
   conditionsAtTurnEdge,
   endSourcedConditions,
   holdsConcentration,
   type ConditionEvent,
   type ConditionPassResult,
-} from "@/rules/conditionDurations";
-import type { RulesetKey } from "@/types/ruleset.types";
-import { rollAllInitiativeValues } from "@/rules/encounterCombatLogic";
-import { findFirstActiveIndex, stepTurnIndex } from "@/rules/turnOrder";
+} from "./conditionDurations.ts";
+import type { RulesetKey } from "../types/ruleset.types.ts";
+import { rollAllInitiativeValues } from "./encounterCombatLogic.ts";
+import { findFirstActiveIndex, stepTurnIndex } from "./turnOrder.ts";
+import { addDeeds } from "./fight/tactics/shownThreat.ts";
 
 /**
  * The encounter turn state machine, as a pure reducer.
@@ -61,7 +62,8 @@ export type EncounterTurnCommand =
   | { type: "next_turn" }
   | { type: "prev_turn" }
   | { type: "reshuffle_initiative" }
-  | { type: "set_initiative"; instanceId: string; value: number }
+  /** null blanks it (the lobby clears a stale value); a rolled or typed value sets it. In a running fight the pointer follows the creature that was acting, so the turn stays with it however the order re-sorts. */
+  | { type: "set_initiative"; instanceId: string; value: number | null }
   | { type: "adjust_hp"; instanceId: string; delta: number; critical?: boolean }
   | { type: "set_hp"; instanceId: string; value: number }
   | { type: "set_max_hp"; instanceId: string; value: number }
@@ -77,12 +79,20 @@ export type EncounterTurnCommand =
   | { type: "settle_ongoing_damage"; instanceId: string; name: string }
   /** Concentration broke: ends what this combatant's concentration was holding on others. */
   | { type: "end_concentration"; instanceId: string; spell?: string }
+  /**
+   * A stat-block creature began concentrating on a spell it cast (#1021). Written by the cast itself, whether or not the
+   * spell put a condition on anyone: a damage-only one (Moonbeam) or one every target saved against is still held.
+   * A party member's concentration lives on `party_members`, so this leaves one alone.
+   */
+  | { type: "start_concentration"; instanceId: string; spell: string; castLevel: number }
   | { type: "enter_wildshape"; instanceId: string; form: WildshapeState; wildshapesUsed: number; tempHp?: number }
   | { type: "revert_wildshape"; instanceId: string }
   /** The DM's Enlarge/Reduce (or any resize) for this fight; null puts the creature back to its own size. */
   | { type: "set_size_override"; instanceId: string; size: MonsterSize | null }
   | { type: "toggle_surprised"; instanceId: string }
   | { type: "toggle_reaction"; instanceId: string }
+  /** Idempotent, unlike `toggle_reaction`: a retry or a second caller leaves the Reaction spent (or ready) as asked. */
+  | { type: "set_reaction_used"; instanceId: string; used: boolean }
   /** The active token moved `feet` this turn (#1125 decision 11); adds to what the turn has used. */
   | { type: "record_move"; instanceId: string; feet: number }
   /** Takes `feet` back off the turn's movement (Back to start, Ctrl Z). Never goes below nothing moved. */
@@ -192,10 +202,16 @@ function usesDeathSaves(c: RunCombatant): boolean {
   return c.type === "player" && !!c.party_member_id;
 }
 
+/** The deeds with one more of its own turns started, which the fight counts (#1021). */
+function turnCounted(c: RunCombatant): Pick<RunCombatant, "shown_deeds"> {
+  return { shown_deeds: addDeeds(c.shown_deeds, { turns: 1 }) };
+}
+
 /** Refill the per-turn pools a combatant regains at the start of its turn
  *  (5e RAW: reaction resets, legendary actions refill; a new turn has its full speed, action and bonus action). */
 function refreshTurnStart(c: RunCombatant): RunCombatant {
-  const next: RunCombatant = { ...c, reactionUsed: false, movement_used: 0, action_used: false, bonus_used: false };
+  // Its own turn started: the fight counts it, so damage per turn can be worked out (#1021).
+  const next: RunCombatant = { ...c, reactionUsed: false, movement_used: 0, action_used: false, bonus_used: false, ...turnCounted(c) };
   if (typeof c.legendary_action_cap === "number") next.legendary_actions_remaining = c.legendary_action_cap;
   return next;
 }
@@ -233,8 +249,20 @@ export function actionAvailability(
   entry: StatBlockEntry,
   list: StatBlockListKey,
 ): { available: boolean; label: string | null } {
-  const { recharge, uses } = entry.structured;
-  const tally = c.action_uses?.[actionUseKey(list, entry)];
+  return limitAvailability(c, actionUseKey(list, entry), actionLimit(entry));
+}
+
+/**
+ * `actionAvailability` by tally key and limit, for a power that is not a stat-block entry (a spell the creature
+ * casts, #1203). A creature with no limit is always available with no label.
+ */
+export function limitAvailability(
+  c: RunCombatant,
+  useKey: string,
+  limit: ActionLimit,
+): { available: boolean; label: string | null } {
+  const { recharge, per_day } = limit;
+  const tally = c.action_uses?.[useKey];
   const used = tally ? tally.used : 0;
   if (recharge) {
     const range = recharge.min === recharge.max ? `${recharge.min}` : `${recharge.min}\u2013${recharge.max}`;
@@ -242,9 +270,9 @@ export function actionAvailability(
       ? { available: false, label: `Recharge ${range} \u00b7 spent` }
       : { available: true, label: `Recharge ${range}` };
   }
-  if (uses) {
-    const left = Math.max(0, uses.count - used);
-    return { available: left > 0, label: `${left}/${uses.count} left` };
+  if (per_day !== undefined) {
+    const left = Math.max(0, per_day - used);
+    return { available: left > 0, label: `${left}/${per_day} left` };
   }
   return { available: true, label: null };
 }
@@ -336,7 +364,22 @@ function nextTurn(state: EncounterTurnState, deps: EncounterTurnDeps, events: En
   }
   if (!step) return { ...state, combatants };
 
-  let next: EncounterTurnState = { ...state, combatants };
+  return startTurn({ ...state, combatants }, step, deps, events);
+}
+
+/**
+ * Hands the turn to the creature `step` names and starts it: a wrap past the end of the order opens the next round
+ * (and, with random initiative on, re-rolls it), then the creature's per-turn pools refresh and its start-of-turn
+ * effects run. The one path both `next_turn` and the active creature leaving the fight (`remove_combatant`) take, so a
+ * turn never starts any other way.
+ */
+function startTurn(
+  state: EncounterTurnState,
+  step: { sortedIndex: number; wrapped: boolean },
+  deps: EncounterTurnDeps,
+  events: EncounterTurnEvent[],
+): EncounterTurnState {
+  let next = state;
   if (step.wrapped) {
     next = { ...next, round: state.round + 1 };
     events.push({ type: "round_started", round: next.round });
@@ -497,10 +540,14 @@ function afterHpEdit(
   const was = before.combatants.find((c) => c.instance_id === instanceId);
   const now = after.combatants.find((c) => c.instance_id === instanceId);
   if (!was || !now || was.hp <= 0 || now.hp > 0) return after;
-  const combatants = report(
+  const ended = report(
     endSourcedConditions(after.combatants, instanceId, "source_down", { concentrationOnly: true }),
     events,
   );
+  // A stat-block creature's own record of the spell goes with it; a party member's is on `party_members`.
+  const combatants = !now.party_member_id && now.concentration
+    ? replaceCombatant(ended, { ...(ended.find((c) => c.instance_id === instanceId) ?? now), concentration: null })
+    : ended;
   return { ...after, combatants };
 }
 
@@ -520,10 +567,56 @@ function concentrationCheckAfterDamage(
   if (delta >= 0) return after;
   const now = after.combatants.find((c) => c.instance_id === instanceId);
   if (!now || now.party_member_id || now.hp <= 0) return after;
-  if (holdsConcentration(after.combatants, instanceId)) {
+  // Holding a spell that sits on nobody (a damage-only one, or one every target saved against) is concentrating too.
+  if (now.concentration || holdsConcentration(after.combatants, instanceId)) {
     events.push({ type: "concentration_check_due", instanceId, damage: -delta });
   }
   return after;
+}
+
+/**
+ * Where the creature that was acting stands in the order once `combatants` replaces the roster. `activeIndex` is a
+ * place in the initiative order, not a creature, so a changed initiative that re-sorts the order would otherwise leave
+ * the pointer on whoever now sits there: the acting creature's turn lost and the next one started with no turn start.
+ * The pointer follows the creature (the same rule `joinFight` applies to a newcomer, `fight/fightSpawn.ts`).
+ */
+function indexOfActing(before: EncounterTurnState, combatants: readonly RunCombatant[]): number {
+  const acting = sortCombatantsByInitiative(before.combatants)[before.activeIndex];
+  if (!acting) return before.activeIndex;
+  const at = sortCombatantsByInitiative(combatants).findIndex((c) => c.instance_id === acting.instance_id);
+  return at < 0 ? before.activeIndex : at;
+}
+
+/**
+ * Ends what a creature's concentration holds: the conditions on others that ride on it (all of them, or one spell's),
+ * and a stat-block creature's own record of the spell. A party member's own record lives on `party_members`, so a
+ * combatant that has none here is left as it is. The one path `end_concentration` and an incapacitating condition share.
+ */
+function endHeldConcentration(
+  state: EncounterTurnState,
+  instanceId: string,
+  spell: string | undefined,
+  events: EncounterTurnEvent[],
+): EncounterTurnState {
+  const found = state.combatants.find((x) => x.instance_id === instanceId);
+  if (!found) return state;
+  const pass = endSourcedConditions(state.combatants, instanceId, "concentration", { spell, concentrationOnly: true });
+  let combatants = report(pass, events);
+  if (found.concentration) {
+    combatants = replaceCombatant(combatants, { ...(combatants.find((x) => x.instance_id === instanceId) ?? found), concentration: null });
+  }
+  return { ...state, combatants };
+}
+
+/**
+ * SRD 5.1 "Concentration": a creature loses concentration when it is Incapacitated (Paralyzed, Petrified, Stunned and
+ * Unconscious each include it) or dies; SRD 5.2 says the same. Run after a command that changed a creature's conditions.
+ */
+function afterConditionEdit(after: EncounterTurnState, instanceId: string, events: EncounterTurnEvent[]): EncounterTurnState {
+  const now = after.combatants.find((c) => c.instance_id === instanceId);
+  if (!now || !isIncapacitated(now.conditions)) return after;
+  if (!now.concentration && !holdsConcentration(after.combatants, instanceId)) return after;
+  return endHeldConcentration(after, instanceId, undefined, events);
 }
 
 /** Commands that edit one combatant through a working copy. */
@@ -556,11 +649,14 @@ export function reduceEncounterTurn(
     case "start_combat": {
       // Combat starts even if someone never got an initiative: they sort to the
       // end of the order and can be typed in there.
-      const next: EncounterTurnState = { ...state, started: true, activeIndex: 0, round: 1 };
+      // The first in the order who takes turns: a creature already down does not open the fight.
+      const sortedAtStart = sortCombatantsByInitiative(state.combatants);
+      const next: EncounterTurnState = { ...state, started: true, activeIndex: findFirstActiveIndex(sortedAtStart), round: 1 };
       events.push({ type: "round_started", round: 1 });
-      const first = sortCombatantsByInitiative(next.combatants)[0];
+      const first = sortedAtStart[next.activeIndex];
       if (first) {
         events.push({ type: "turn_started", instanceId: first.instance_id });
+        next.combatants = replaceCombatant(next.combatants, { ...first, ...turnCounted(first) });
         next.combatants = runEdge(next.combatants, "start", first.instance_id, events);
       }
       return done(next);
@@ -578,10 +674,12 @@ export function reduceEncounterTurn(
     }
     case "reshuffle_initiative":
       return done(reshuffle(state, deps, events));
-    case "set_initiative":
-      return done(editCombatant(state, command.instanceId, (c) => {
+    case "set_initiative": {
+      const edited = editCombatant(state, command.instanceId, (c) => {
         c.initiative = command.value;
-      }));
+      });
+      return done(state.started ? { ...edited, activeIndex: indexOfActing(state, edited.combatants) } : edited);
+    }
     case "adjust_hp":
       return done(
         concentrationCheckAfterDamage(
@@ -602,21 +700,21 @@ export function reduceEncounterTurn(
         persist(events, c, { temp_hp: c.temp_hp ?? 0 });
       }));
     case "apply_condition":
-      return done(editCombatant(state, command.instanceId, (c) => {
+      return done(afterConditionEdit(editCombatant(state, command.instanceId, (c) => {
         const previous = c.conditions.find((x) => x.name === command.condition.name);
         c.conditions = withCondition(c.conditions, settledRecord(command.condition, previous));
         persist(events, c, { conditions: [...c.conditions] });
-      }));
+      }), command.instanceId, events));
     case "remove_condition":
       return done(editCombatant(state, command.instanceId, (c) => {
         c.conditions = withoutCondition(c.conditions, command.name);
         persist(events, c, { conditions: [...c.conditions] });
       }));
     case "set_conditions":
-      return done(editCombatant(state, command.instanceId, (c) => {
+      return done(afterConditionEdit(editCombatant(state, command.instanceId, (c) => {
         c.conditions = [...command.conditions];
         persist(events, c, { conditions: [...c.conditions] });
-      }));
+      }), command.instanceId, events));
     case "resolve_condition_save":
       return done(editCombatant(state, command.instanceId, (c) => {
         const found = c.conditions.find((x) => x.name === command.name);
@@ -636,22 +734,13 @@ export function reduceEncounterTurn(
         c.conditions = withCondition(c.conditions, clearDue(found, "damage"));
         persist(events, c, { conditions: [...c.conditions] });
       }));
-    case "end_concentration": {
-      const found = state.combatants.find((x) => x.instance_id === command.instanceId);
-      if (!found) return done(state);
-      const pass = endSourcedConditions(state.combatants, command.instanceId, "concentration", {
-        spell: command.spell,
-        concentrationOnly: true,
-      });
-      let combatants = report(pass, events);
-      if (found.concentration) {
-        combatants = replaceCombatant(
-          combatants,
-          { ...combatants.find((x) => x.instance_id === command.instanceId) ?? found, concentration: null },
-        );
-      }
-      return done({ ...state, combatants });
-    }
+    case "end_concentration":
+      return done(endHeldConcentration(state, command.instanceId, command.spell, events));
+    case "start_concentration":
+      return done(editCombatant(state, command.instanceId, (c) => {
+        if (c.party_member_id) return;
+        c.concentration = { spellId: null, spellName: command.spell, castAtLevel: command.castLevel, startedRound: state.round, appliedEffectIds: [] };
+      }));
     case "enter_wildshape":
       return done(editCombatant(state, command.instanceId, (c) => {
         // Player's real hp/max_hp/ac are NEVER modified — beast form is a self-contained overlay.
@@ -683,6 +772,10 @@ export function reduceEncounterTurn(
     case "toggle_reaction":
       return done(editCombatant(state, command.instanceId, (c) => {
         c.reactionUsed = !c.reactionUsed;
+      }));
+    case "set_reaction_used":
+      return done(editCombatant(state, command.instanceId, (c) => {
+        c.reactionUsed = command.used;
       }));
     case "record_move":
       return done(editCombatant(state, command.instanceId, (c) => {
@@ -760,7 +853,13 @@ export function reduceEncounterTurn(
         events,
       );
       const shifted = removedSortedIndex < state.activeIndex ? state.activeIndex - 1 : state.activeIndex;
-      return done({ ...state, combatants, activeIndex: Math.min(shifted, Math.max(0, combatants.length - 1)) });
+      const after: EncounterTurnState = { ...state, combatants, activeIndex: Math.min(shifted, Math.max(0, combatants.length - 1)) };
+      if (!state.started || removedSortedIndex !== state.activeIndex) return done(after);
+      // The acting creature left (it fled the map, was banished): its turn is over and the next one begins as any
+      // turn does, wrapping into a new round when it was the last. The leaver's own end-of-turn conditions do not run:
+      // it is gone and nothing of its turn is left to end (app convention).
+      const step = stepTurnIndex(sortCombatantsByInitiative(combatants), removedSortedIndex - 1, 1);
+      return done(step === null ? after : startTurn(after, step, deps, events));
     }
   }
 }

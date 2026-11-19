@@ -1,5 +1,5 @@
-import type { Coins } from "@/lib/currency/currency";
-import type { ItemQuality } from "@/types/inventory.types";
+import type { Coins } from "../lib/currency/currency.ts";
+import type { ItemQuality } from "./inventory.types.ts";
 
 export type MessageType = "chat" | "roll" | "system" | "item_drop" | "currency_drop" | "vendor_offer" | "player_offer" | "loot_chest" | "dm_roll";
 
@@ -24,6 +24,11 @@ export interface RollMetadata {
  */
 export interface SpeakerMetadata {
   for_party_member_id: string;
+}
+
+/** Whom a chat line addresses with an "@" (#1021 row 26; `lib/chat/chatMentions.ts`). Rides beside any other metadata of the line. */
+export interface MentionsMetadata {
+  mentions: StoredMention[];
 }
 
 export interface ItemDropClaim {
@@ -217,11 +222,23 @@ export interface CampaignMessage {
   sender_name: string | null;
   message: string;
   type: MessageType;
-  metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | VendorOfferMetadata | PlayerOfferMetadata | FlavorMetadata | SpeakerMetadata | LootChestMetadata | EntityLinkMetadata | null;
+  metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | VendorOfferMetadata | PlayerOfferMetadata | FlavorMetadata | SpeakerMetadata | MentionsMetadata | LootChestMetadata | EntityLinkMetadata | null;
   created_at: string;
+  /**
+   * True for a roll the server made (#1204): only a service-role insert can set it,
+   * so it tells a roll Grimoire threw from one a member typed or rolled on a device.
+   */
+  server_rolled: boolean;
 }
 
 export type CampaignMessageInsert = Pick<
   CampaignMessage,
   "campaign_id" | "user_id" | "recipient_user_id" | "sender_name" | "message" | "type" | "metadata"
 >;
+
+/** A mention as it is stored on the message. */
+export interface StoredMention {
+  kind: "member" | "dm" | "party";
+  party_member_id: string | null;
+  name: string;
+}

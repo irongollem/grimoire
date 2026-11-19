@@ -90,7 +90,27 @@ export interface SaveCondition {
   name: SrdConditionName;
   /** Absent: it lasts until removed. */
   ends?: SaveEnds;
+  /**
+   * Damage ends it, besides whatever `ends` says (2024 Charm Monster: "until the spell ends or until you or your allies
+   * damage it"). `source_side`: damage from the one who imposed it or its side; `anyone`: any damage.
+   */
+  endsWhenHarmed?: "source_side" | "anyone";
+  /**
+   * The bearer can end it by spending its Action on an ability check against the caster's spell save DC (Black Tentacles:
+   * "can use its action to make a Strength or Dexterity check (its choice)"). `abilities` are the choices; `skill` is the
+   * one the text names for the check, if any.
+   */
+  breakFree?: { abilities: SaveAbility[]; skill?: BreakFreeSkill };
+  /**
+   * The bearer must spend its turns getting away from the one who imposed it (Fear: "must take the Dash action and move away
+   * from you by the safest available route on each of its turns"). Written on the applied condition's `source`, because what it
+   * flees from is the source creature.
+   */
+  mustFlee?: boolean;
 }
+
+/** The skills a spell's text names for breaking free (2024 Black Tentacles: Strength (Athletics)). */
+export type BreakFreeSkill = "athletics" | "acrobatics";
 
 /**
  * What ends one condition of a failed save, as the prose states it (#1050): an

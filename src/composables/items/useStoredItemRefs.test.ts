@@ -10,10 +10,6 @@ const { fake } = await vi.hoisted(async () => {
 });
 
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "user-1" }) }));
-// The real module pulls in stores and the catalogue hooks; only the row mapper is needed here.
-vi.mock("@/composables/items/useItems", () => ({
-  normalizeLibraryItem: (row: Record<string, unknown>) => ({ ...row, user_id: "" }),
-}));
 
 import { missingLibraryIds, useStoredItemRefs } from "./useStoredItemRefs";
 

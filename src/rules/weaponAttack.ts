@@ -6,9 +6,13 @@
 // Behavior is preserved EXACTLY from the original inline implementation;
 // this is a pure extraction, not a redesign.
 
-import { parseExpression } from "@/lib/dice/dice";
-import type { ParsedExpression } from "@/lib/dice/dice";
-import type { DamageRoll } from "@/systems/dnd5e/dice/damageExpression";
+import { parseExpression } from "../lib/dice/dice.ts";
+import type { ParsedExpression } from "../lib/dice/dice.ts";
+import type { DamageRoll } from "../systems/dnd5e/dice/damageExpression.ts";
+import { abilityMod } from "./abilityScore.ts";
+
+// Other folders still import `abilityMod` from here.
+export { abilityMod };
 
 /** Minimal shape of an `Item` this module needs — avoids coupling to the full Item type. */
 export interface WeaponLike {
@@ -22,9 +26,6 @@ export interface WeaponAttackScores {
   proficiencyBonus: number;
 }
 
-export function abilityMod(score: number): number {
-  return Math.floor((score - 10) / 2);
-}
 
 export function signedNum(n: number): string {
   return n >= 0 ? `+${n}` : `${n}`;

@@ -254,19 +254,16 @@ import {
   useCreateEncounter,
   useUpdateEncounter,
   useDeleteEncounter,
-  useEncounter,
 } from "@/composables/encounters/useEncounters";
-import {
-  useRunningEncounters,
-  useEncounterLive,
-} from "@/composables/encounters/useEncounterLive";
+import { useRunningEncounters } from "@/composables/encounters/useEncounterLive";
 import { useQuestsForEncounter } from "@/composables/quests/useQuests";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useDropItem } from "@/composables/campaign/useLootDropChoice";
 import { useChatSendFailure } from "@/composables/campaign/chatSendErrors";
-import { supabase } from "@/lib/supabase";
+import { abandonFight } from "@/composables/encounters/abandonFight";
+import { useToast } from "@/composables/useToast";
 import {
   DEFAULT_FACTIONS,
 } from "@/types/encounter.types";
@@ -377,36 +374,12 @@ const createEncounter = useCreateEncounter();
 const updateEncounterMutation = useUpdateEncounter();
 const deleteEncounter = useDeleteEncounter();
 
-const { isEncounterRunning, firstRunning } = useRunningEncounters();
-// A getter, not a plain string. This previously passed `props.encounter?.id ?? ""`
-// — evaluated once at setup — so the composable's id watcher could never fire,
-// and the "reload state when the id changes" behaviour its own comment promises
-// was dead at the only call site (#833).
-const { endLive } = useEncounterLive(() => props.encounter?.id ?? null);
+const { isEncounterRunning } = useRunningEncounters();
+const toast = useToast();
 
 const thisIsLive = computed(
   () => !!props.encounter && isEncounterRunning(props.encounter.id),
 );
-const otherIsLive = computed(
-  () => firstRunning.value !== null && !thisIsLive.value,
-);
-// Reuses `useEncounter` (the same single-row query `EncounterDetailView`
-// fetches this component's own encounter through) rather than adding a new
-// fetch — only enabled while another encounter is actually live, and its own
-// `enabled: () => !!id.value` guard skips the query the rest of the time.
-const otherRunningEncounterId = computed(() =>
-  otherIsLive.value && firstRunning.value ? firstRunning.value.encounter_id : "",
-);
-const { data: otherRunningEncounter } = useEncounter(otherRunningEncounterId);
-// The name may not have loaded yet (or the row may since have been deleted),
-// in which case "another encounter" stands in — unquoted, since it isn't a
-// name being cited.
-const otherName = computed(() =>
-  otherRunningEncounter.value
-    ? `"${otherRunningEncounter.value.name}"`
-    : "another encounter",
-);
-
 // Form state. The draft merges fresh server data into every field the DM has
 // not touched and lets the save send only what changed (#946).
 function toDraft(enc: Encounter | null) {
@@ -641,19 +614,9 @@ async function handleSaveAndReturn() {
   if (props.encounter && id) onCancel();
 }
 
+// Running another encounter needs nothing of its own: the campaign shows one fight to its players, and Go Live
+// in the new one stops the other (the server does it), so the old one is not touched from here.
 async function handleRunEncounter() {
-  if (otherIsLive.value && firstRunning.value) {
-    if (
-      !(await confirm(
-        `${otherName.value} is currently active. Stop it and run this one?`,
-      ))
-    )
-      return;
-    await supabase
-      .from("encounter_state")
-      .update({ is_running: false })
-      .eq("encounter_id", firstRunning.value.encounter_id);
-  }
   const id = await handleSave();
   if (id) router.push(`/encounters/${id}/run`);
 }
@@ -661,13 +624,24 @@ async function handleRunEncounter() {
 async function handleStop() {
   if (!(await confirm("Stop this encounter? Party stats will NOT be updated.")))
     return;
-  await endLive();
+  if (!props.encounter) return;
+  try {
+    await abandonFight(props.encounter.id);
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't stop the encounter."));
+  }
 }
 
 async function handleRestart() {
+  if (!props.encounter) return;
   if (!(await confirm("Restart this encounter from scratch?"))) return;
-  await endLive();
-  router.push(`/encounters/${props.encounter!.id}/run`);
+  try {
+    await abandonFight(props.encounter.id);
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't restart the encounter."));
+    return;
+  }
+  router.push(`/encounters/${props.encounter.id}/run`);
 }
 
 async function toggleFinished() {

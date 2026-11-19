@@ -218,6 +218,14 @@
         <StatBlockEntrySection v-model="sb.special_abilities" label="Special Abilities" list="special_abilities" :siblings="siblings" />
         <StatBlockEntrySection v-model="sb.actions" label="Actions" list="actions" :siblings="siblings" />
         <StatBlockEntrySection v-model="sb.reactions" label="Reactions" list="reactions" :siblings="siblings" />
+
+        <!-- How it fights (#1203): a companion's turn can be played for the table like any creature's -->
+        <StatBlockTacticsFields
+          v-if="builtStatBlock && takesPartInCombat({ companion_type: companionType })"
+          v-model:tactics="sb.tactics"
+          :sb="builtStatBlock"
+          :creature-type="null"
+        />
       </template>
 
       <!-- The DM's note saves on its own, so it needs a saved companion to hang
@@ -268,7 +276,7 @@ import {
 import { cloneDraftValue, useRecordDraft } from "@/composables/useRecordDraft";
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import type { Companion, CompanionInsert, CompanionType, CompanionSourceType } from "@/types/companion.types";
-import { MONSTER_SIZES, type Monster, type MonsterSize, type MonsterStatBlock } from "@/types/monster.types";
+import { MONSTER_SIZES, type Monster, type MonsterSize, type MonsterStatBlock, type MonsterTactics } from "@/types/monster.types";
 import type { StatBlock } from "@/types/npc.types";
 import type { PartyMember } from "@/types/party.types";
 import type { AppliedCondition } from "@/types/condition.types";
@@ -276,6 +284,7 @@ import FocalImage from "@/components/common/media/FocalImage.vue";
 import FocalPointPicker from "@/components/common/media/FocalPointPicker.vue";
 import StatBlockDefenseFields from "@/components/common/statblock/StatBlockDefenseFields.vue";
 import StatBlockEntrySection from "@/components/common/statblock/StatBlockEntrySection.vue";
+import StatBlockTacticsFields from "@/components/common/statblock/StatBlockTacticsFields.vue";
 import { type Defenses, type StatBlockEntry, emptyDefenses } from "@/types/statBlock.types";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import DmNoteBox from "@/components/notes/DmNoteBox.vue";
@@ -398,6 +407,8 @@ interface CompanionDraft {
     special_abilities: StatBlockEntry[];
     actions: StatBlockEntry[];
     reactions: StatBlockEntry[];
+    /** How it fights when the app plays its turn; undefined when nothing is authored. */
+    tactics: MonsterTactics | undefined;
   };
 }
 
@@ -438,6 +449,7 @@ function toCompanionDraft(c: Companion | null): CompanionDraft {
       special_abilities:  stat?.special_abilities ? stat.special_abilities.map((t) => ({ ...t })) : [],
       actions:            stat?.actions ? stat.actions.map((t) => ({ ...t })) : [],
       reactions:          stat?.reactions ? stat.reactions.map((t) => ({ ...t })) : [],
+      tactics:            stat?.tactics ? cloneDraftValue(stat.tactics) : undefined,
     },
   };
 }
@@ -531,6 +543,8 @@ function applyStatBlockFromMonster(statBlock: MonsterStatBlock) {
     special_abilities:  statBlock.special_abilities ? [...statBlock.special_abilities] : [],
     actions:            statBlock.actions ? [...statBlock.actions] : [],
     reactions:          statBlock.reactions ? [...statBlock.reactions] : [],
+    // The creature it was made from fights the way it always did, until the form says otherwise.
+    tactics:            statBlock.tactics ? cloneDraftValue(statBlock.tactics) : undefined,
   });
 }
 
@@ -552,8 +566,12 @@ function buildStatBlock(d: CompanionDraft): MonsterStatBlock | null {
     ...(sb.special_abilities?.length ? { special_abilities: sb.special_abilities } : {}),
     ...(sb.actions?.length    ? { actions: sb.actions } : {}),
     ...(sb.reactions?.length  ? { reactions: sb.reactions } : {}),
+    ...(sb.tactics            ? { tactics: sb.tactics } : {}),
   };
 }
+
+/** The stat block as it would be saved now, which is what "Automatic" in the tactics fields is derived from. */
+const builtStatBlock = computed(() => buildStatBlock(draft as CompanionDraft));
 
 // The companion row for a draft. Pure: useRecordDraft runs it over the draft and
 // over the server copy to find the columns the user changed.

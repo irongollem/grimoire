@@ -41,6 +41,7 @@
         <TraitList title="Reactions" :traits="npc.stat_block.reactions" />
         <TraitList title="Legendary Actions" :traits="npc.stat_block.legendary_actions" />
         <TraitList title="Lair Actions" :traits="npc.stat_block.lair_actions" />
+        <TraitList title="How it fights"><StatBlockTacticsSummary :sb="npc.stat_block" :creature-type="null" /></TraitList>
       </template>
       <p v-else class="text-body text-muted-foreground italic">No stat block defined for this NPC.</p>
     </div>
@@ -55,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, defineAsyncComponent, ref } from "vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import NpcLoreSections from "@/components/npcs/NpcLoreSections.vue";
 import TabBar from "@/components/common/controls/TabBar.vue";
@@ -70,6 +71,9 @@ import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
 import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import type { Npc, NpcListRow } from "@/types/npc.types";
+
+// Fetched when the Combat tab is first shown: it brings the tactics rules with it, which the rest of the NPC page never reads.
+const StatBlockTacticsSummary = defineAsyncComponent(() => import("@/components/common/statblock/StatBlockTacticsSummary.vue"));
 
 const { npc } = defineProps<{
   /** What the list already knew: everything but the prose. */

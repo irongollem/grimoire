@@ -52,6 +52,8 @@ describe("liveDrawingCalibration", () => {
       origin_y_pct: 0,
       origin_cell_x: 2,
       origin_cell_y: 0,
+      // 8 rows over 9 columns of one cell size: the bake is 8/9 as tall as it is wide.
+      image_height_over_width: 8 / 9,
     });
   });
 
@@ -64,6 +66,7 @@ describe("liveDrawingCalibration", () => {
       origin_y_pct: 0,
       origin_cell_x: 0,
       origin_cell_y: 0,
+      image_height_over_width: 1,
     });
   });
 });
@@ -84,6 +87,8 @@ describe("styledPictureCalibration", () => {
       origin_cell_x: 5,
       origin_cell_y: 3,
       grid_opacity: expect.any(Number),
+      // The padded frame is 2000 by 1000 px: half as tall as it is wide.
+      image_height_over_width: 0.5,
     });
   });
 });

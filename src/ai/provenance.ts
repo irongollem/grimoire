@@ -1,4 +1,4 @@
-import type { AiProvenance } from "@edge-shared/provenance/types.ts";
+import type { AiProvenance } from "../../supabase/functions/_shared/provenance/types.ts";
 
 export type { AiProvenance };
 

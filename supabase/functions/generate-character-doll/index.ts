@@ -79,6 +79,7 @@ import {
   type DollTemplateSize,
 } from "../_shared/paperDoll/types.ts";
 import { validateDollRequest } from "./validateDollRequest.ts";
+import { UUID_RE } from "../_shared/uuid.ts";
 
 const BUCKET = "npc-portraits";
 /** A pending job older than this is treated as dead (the isolate was killed), so it no longer blocks a retry. */
@@ -105,7 +106,6 @@ interface MemberRow {
   doll: unknown;
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * `party_members.species_id` is text holding either a shared `library_species`

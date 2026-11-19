@@ -1,0 +1,594 @@
+import { describe, expect, it } from "vitest";
+import { budgetTokens, runTurn, totalTokens, type TurnEvent, type TurnInput } from "./turn";
+import type { AgentBlock, AgentLine, AgentMessage, AgentUsage, AgentWithheld, ModelRequest, ModelStep } from "./types";
+
+const usage = (over: Partial<AgentUsage> = {}): AgentUsage => ({
+  provider: "test",
+  model: "m",
+  inputTokens: 10,
+  outputTokens: 5,
+  cacheReadTokens: 0,
+  cacheWriteTokens: 0,
+  ...over,
+});
+
+const say = (text: string, u: Partial<AgentUsage> = {}): ModelStep => ({
+  blocks: [{ type: "text", text }],
+  stop: "end",
+  usage: usage(u),
+});
+
+const call = (id: string, name = "roll", input: Record<string, unknown> = {}): AgentBlock => ({
+  type: "tool_call",
+  id,
+  name,
+  input,
+});
+
+const asks = (blocks: AgentBlock[], u: Partial<AgentUsage> = {}): ModelStep => ({
+  blocks,
+  stop: "tool_calls",
+  usage: usage(u),
+});
+
+const tool = (name: string) => ({ name, description: name, inputSchema: { type: "object" } });
+
+function setup(
+  steps: Array<ModelStep | Error | ((r: ModelRequest) => ModelStep)>,
+  over: Partial<TurnInput> & { tool?: TurnInput["callTool"] } = {},
+) {
+  const requests: ModelRequest[] = [];
+  const toolCalls: string[] = [];
+  const queue = [...steps];
+  const callModel: TurnInput["callModel"] = async (request) => {
+    // Snapshot: the loop keeps appending to its own array after the call returns.
+    requests.push({ ...request, messages: structuredClone(request.messages) });
+    const next = queue.shift();
+    if (!next) throw new Error("script ran out of steps");
+    if (next instanceof Error) throw next;
+    return typeof next === "function" ? next(request) : next;
+  };
+  const callTool: TurnInput["callTool"] =
+    over.tool ??
+    (async (name) => {
+      toolCalls.push(name);
+      return { content: `${name} done`, isError: false };
+    });
+  const input: TurnInput = {
+    system: "sys",
+    history: [],
+    user: "hello",
+    tools: [tool("roll"), tool("look")],
+    callModel,
+    callTool,
+    limits: { maxSteps: 10, maxOutputTokens: 100, tokenBudget: null },
+    ...over,
+  };
+  return { input, requests, toolCalls };
+}
+
+const resultsOf = (m: AgentMessage) =>
+  m.blocks.map((b) => (b.type === "tool_result" ? `${b.callId}:${b.isError ? "err" : "ok"}:${b.content}` : "?"));
+
+/** The invariant the module exists for: no tool_call without its tool_result. */
+function expectNoOrphanCalls(added: AgentMessage[]) {
+  const called = added.flatMap((m) => m.blocks.flatMap((b) => (b.type === "tool_call" ? [b.id] : [])));
+  const answered = added.flatMap((m) => m.blocks.flatMap((b) => (b.type === "tool_result" ? [b.callId] : [])));
+  expect(answered.sort()).toEqual(called.sort());
+}
+
+describe("runTurn loop", () => {
+  it("sends the model the assistant message and one tool-result message on the second call, or the adapter sees an invalid history", async () => {
+    const { input, requests } = setup([asks([call("a"), call("b", "look")]), say("all done")]);
+    const out = await runTurn(input);
+
+    expect(out.end).toBe("done");
+    expect(out.text).toBe("all done");
+    expect(requests).toHaveLength(2);
+    const second = requests[1].messages;
+    expect(second.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
+    expect(resultsOf(second[2])).toEqual(["a:ok:roll done", "b:ok:look done"]);
+    expect(out.added.map((m) => m.role)).toEqual(["user", "assistant", "user", "assistant"]);
+    expect(out.steps).toHaveLength(2);
+    expectNoOrphanCalls(out.added);
+  });
+
+  it("puts history before the new message, or the model answers without the conversation so far", async () => {
+    const history: AgentMessage[] = [
+      { role: "user", blocks: [{ type: "text", text: "earlier" }] },
+      { role: "assistant", blocks: [{ type: "text", text: "reply" }] },
+    ];
+    const { input, requests } = setup([say("ok")], { history });
+    const out = await runTurn(input);
+    expect(requests[0].messages.map((m) => visibleOf(m))).toEqual(["earlier", "reply", "hello"]);
+    expect(out.added[0]).toEqual({ role: "user", blocks: [{ type: "text", text: "hello" }] });
+  });
+
+  it("never changes history and returns a new added array, or a stored conversation grows behind the caller's back", async () => {
+    const history: AgentMessage[] = [{ role: "user", blocks: [{ type: "text", text: "earlier" }] }];
+    const before = structuredClone(history);
+    const { input } = setup([asks([call("a")]), say("x")], { history });
+    const out = await runTurn(input);
+    expect(history).toEqual(before);
+    expect(out.added).not.toBe(history);
+    expect(out.added.length).toBe(4);
+  });
+
+  it("keeps opaque blocks in the assistant message as they came, or a provider cannot replay its reasoning", async () => {
+    const opaque: AgentBlock = { type: "opaque", provider: "openai", data: { id: "rs_1" } };
+    const { input } = setup([{ blocks: [opaque, { type: "text", text: "hi" }], stop: "end", usage: usage() }]);
+    const out = await runTurn(input);
+    expect(out.added[1].blocks[0]).toEqual(opaque);
+  });
+
+  it("ends a turn the model stops with `other` as done, or the loop spins on an unknown stop reason", async () => {
+    const { input } = setup([{ blocks: [{ type: "text", text: "hm" }], stop: "other", usage: usage() }]);
+    expect((await runTurn(input)).end).toBe("done");
+  });
+
+  it("does not loop on `tool_calls` that holds no call, or an empty user message is sent", async () => {
+    const { input, requests } = setup([{ blocks: [{ type: "text", text: "hm" }], stop: "tool_calls", usage: usage() }]);
+    const out = await runTurn(input);
+    expect(out.end).toBe("done");
+    expect(requests).toHaveLength(1);
+  });
+
+  it("reports the text of the last assistant message, not an earlier one", async () => {
+    const { input } = setup([
+      asks([{ type: "text", text: "let me look" }, call("a")]),
+      say("the answer"),
+    ]);
+    expect((await runTurn(input)).text).toBe("the answer");
+  });
+
+  it("answers with empty text when the last assistant message had none", async () => {
+    const { input } = setup([asks([call("a")]), { blocks: [], stop: "end", usage: usage() }]);
+    expect((await runTurn(input)).text).toBe("");
+  });
+});
+
+describe("tools", () => {
+  it("returns results in call order when the second tool finishes first, or the model reads answers against the wrong calls", async () => {
+    const started: string[] = [];
+    const { input } = setup([asks([call("a", "roll"), call("b", "look")]), say("ok")], {
+      tool: async (name) => {
+        started.push(name);
+        // The first call is the slow one: it answers after the second has long finished.
+        if (name === "roll") await new Promise((resolve) => setTimeout(resolve, 15));
+        return { content: `${name}!`, isError: false };
+      },
+    });
+    const out = await runTurn(input);
+    expect(started).toEqual(["roll", "look"]);
+    expect(resultsOf(out.added[2])).toEqual(["a:ok:roll!", "b:ok:look!"]);
+  });
+
+  it("starts every tool before waiting on any, or a slow tool serialises the turn", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const { input } = setup([asks([call("a"), call("b"), call("c")]), say("ok")], {
+      tool: async () => {
+        inFlight++;
+        peak = Math.max(peak, inFlight);
+        await Promise.resolve();
+        await Promise.resolve();
+        inFlight--;
+        return { content: "x", isError: false };
+      },
+    });
+    await runTurn(input);
+    expect(peak).toBe(3);
+  });
+
+  it("puts all results of one assistant message in ONE user message, or the model learns to stop calling tools in parallel", async () => {
+    const { input } = setup([asks([call("a"), call("b")]), say("ok")]);
+    const out = await runTurn(input);
+    expect(out.added.filter((m) => m.role === "user")).toHaveLength(2);
+  });
+
+  it("answers an unknown tool with an error and never calls callTool for it, or the executor runs something that was never offered", async () => {
+    const { input, toolCalls } = setup([asks([call("a", "delete_everything"), call("b", "look")]), say("ok")]);
+    const out = await runTurn(input);
+    expect(toolCalls).toEqual(["look"]);
+    expect(resultsOf(out.added[2])).toEqual(["a:err:No such tool: delete_everything", "b:ok:look done"]);
+  });
+
+  it("turns a throwing tool into an error result and keeps its sibling's result, or one failure loses the whole turn", async () => {
+    const { input } = setup([asks([call("a", "roll"), call("b", "look")]), say("ok")], {
+      tool: async (name) => {
+        if (name === "roll") throw new Error("dice broke");
+        return { content: "fine", isError: false };
+      },
+    });
+    const out = await runTurn(input);
+    expect(out.end).toBe("done");
+    expect(resultsOf(out.added[2])).toEqual(["a:err:dice broke", "b:ok:fine"]);
+  });
+
+  it("passes the call's input to the tool", async () => {
+    const seen: Array<[string, Record<string, unknown>]> = [];
+    const { input } = setup([asks([call("a", "roll", { sides: 20 })]), say("ok")], {
+      tool: async (name, args) => {
+        seen.push([name, args]);
+        return { content: "17", isError: false };
+      },
+    });
+    await runTurn(input);
+    expect(seen).toEqual([["roll", { sides: 20 }]]);
+  });
+});
+
+describe("limits", () => {
+  it("does not run the tools the last allowed call asked for, answers them, and ends step_limit, or the stored conversation is invalid", async () => {
+    const { input, toolCalls, requests } = setup([asks([call("a"), call("b")]), say("So far: the door is open.")], {
+      limits: { maxSteps: 1, maxOutputTokens: 100, tokenBudget: null },
+    });
+    const out = await runTurn(input);
+    expect(out.end).toBe("step_limit");
+    expect(toolCalls).toEqual([]);
+    const answers = resultsOf(out.added[2]);
+    expect(answers).toHaveLength(2);
+    expect(answers[0]).toMatch(/^a:err:The turn ended before this tool ran: step limit\./);
+    expect(answers[1]).toMatch(/^b:err:The turn ended before this tool ran: step limit\./);
+    expectNoOrphanCalls(out.added);
+    // Bug caught (seen live, 18 Nov 2026): a turn that hit a limit ended having told the player nothing, the page
+    // showing only "Looked something up". One closing call, with no tools to reach for, says where things stand.
+    expect(requests).toHaveLength(2);
+    expect(requests[1].tools).toEqual([]);
+    expect(out.text).toBe("So far: the door is open.");
+  });
+
+  // Bug caught: the closing call failing (the provider is down) costing the whole turn that was already told.
+  it("keeps the turn as it stood when the closing call fails", async () => {
+    const { input } = setup([asks([call("a")])], { limits: { maxSteps: 1, maxOutputTokens: 100, tokenBudget: null } });
+    const out = await runTurn(input);
+    expect(out.end).toBe("step_limit");
+    expectNoOrphanCalls(out.added);
+  });
+
+  it("makes at most maxSteps model calls, or a looping model runs up the bill", async () => {
+    const { input, requests } = setup([asks([call("a")]), asks([call("b")]), asks([call("c")]), say("never")], {
+      limits: { maxSteps: 2, maxOutputTokens: 100, tokenBudget: null },
+    });
+    const out = await runTurn(input);
+    // Two steps, and the one closing call that has no tools to ask for: it cannot start another round.
+    expect(requests).toHaveLength(3);
+    expect(requests[2].tools).toEqual([]);
+    expect(out.end).toBe("step_limit");
+    expectNoOrphanCalls(out.added);
+  });
+
+  it("makes the first model call even with a budget of 0, or a turn with a spent budget returns nothing at all", async () => {
+    const { input, requests } = setup([say("hello back")], {
+      limits: { maxSteps: 5, maxOutputTokens: 100, tokenBudget: 0 },
+    });
+    const out = await runTurn(input);
+    expect(requests).toHaveLength(1);
+    expect(out.text).toBe("hello back");
+    expect(out.end).toBe("done");
+  });
+
+  it("stops at the budget before running the tools, answers them, and ends budget", async () => {
+    const { input, toolCalls, requests } = setup([asks([call("a")], { inputTokens: 80, outputTokens: 30 }), say("never")], {
+      limits: { maxSteps: 5, maxOutputTokens: 100, tokenBudget: 100 },
+    });
+    const out = await runTurn(input);
+    expect(out.end).toBe("budget");
+    expect(toolCalls).toEqual([]);
+    expect(requests).toHaveLength(2);
+    expect(requests[1].tools).toEqual([]);
+    expect(resultsOf(out.added[2])[0]).toMatch(/^a:err:The turn ended before this tool ran: token budget\./);
+    expectNoOrphanCalls(out.added);
+  });
+
+  it("stops when the total EQUALS the budget, or a spent budget buys one more call", async () => {
+    const { input } = setup([asks([call("a")], { inputTokens: 60, outputTokens: 40 }), say("never")], {
+      limits: { maxSteps: 5, maxOutputTokens: 100, tokenBudget: 100 },
+    });
+    expect((await runTurn(input)).end).toBe("budget");
+  });
+
+  it("carries on under the budget", async () => {
+    const { input } = setup([asks([call("a")], { inputTokens: 10, outputTokens: 5 }), say("ok")], {
+      limits: { maxSteps: 5, maxOutputTokens: 100, tokenBudget: 100 },
+    });
+    expect((await runTurn(input)).end).toBe("done");
+  });
+
+  it("passes maxOutputTokens, system and tools to the model", async () => {
+    const { input, requests } = setup([say("ok")], { limits: { maxSteps: 3, maxOutputTokens: 321, tokenBudget: null } });
+    await runTurn(input);
+    expect(requests[0].maxOutputTokens).toBe(321);
+    expect(requests[0].system).toBe("sys");
+    expect(requests[0].tools.map((t) => t.name)).toEqual(["roll", "look"]);
+  });
+});
+
+describe("cut off and refusal", () => {
+  it("keeps the text and drops the tool calls of a cut-off message, or a half-written call is stored without its result", async () => {
+    const { input, toolCalls } = setup([
+      { blocks: [{ type: "text", text: "I will" }, call("a")], stop: "max_tokens", usage: usage() },
+    ]);
+    const out = await runTurn(input);
+    expect(out.end).toBe("max_tokens");
+    expect(out.added[1]).toEqual({ role: "assistant", blocks: [{ type: "text", text: "I will" }] });
+    expect(out.text).toBe("I will");
+    expect(toolCalls).toEqual([]);
+    expectNoOrphanCalls(out.added);
+  });
+
+  it("appends no assistant message when a cut-off one holds only a tool call, or an empty message poisons the history", async () => {
+    const { input } = setup([{ blocks: [call("a")], stop: "max_tokens", usage: usage() }]);
+    const out = await runTurn(input);
+    expect(out.added.map((m) => m.role)).toEqual(["user"]);
+    expect(out.text).toBe("");
+  });
+
+  it("appends what a refusal carried and ends refusal", async () => {
+    const { input } = setup([{ blocks: [{ type: "text", text: "I can't" }], stop: "refusal", usage: usage() }]);
+    const out = await runTurn(input);
+    expect(out.end).toBe("refusal");
+    expect(out.added[1].blocks).toEqual([{ type: "text", text: "I can't" }]);
+    expect(out.text).toBe("I can't");
+  });
+
+  it("appends no message for a refusal with no blocks", async () => {
+    const { input } = setup([{ blocks: [], stop: "refusal", usage: usage() }]);
+    const out = await runTurn(input);
+    expect(out.end).toBe("refusal");
+    expect(out.added.map((m) => m.role)).toEqual(["user"]);
+  });
+});
+
+describe("abort and errors", () => {
+  it("makes no model call when the signal is already aborted, or a cancelled turn still bills", async () => {
+    const ac = new AbortController();
+    ac.abort();
+    const { input, requests } = setup([say("never")], { signal: ac.signal });
+    const out = await runTurn(input);
+    expect(out.end).toBe("aborted");
+    expect(requests).toHaveLength(0);
+    expect(out.added.map((m) => m.role)).toEqual(["user"]);
+  });
+
+  it("answers the pending calls and runs no tool when aborted during the model call, or the conversation is left invalid", async () => {
+    const ac = new AbortController();
+    const { input, toolCalls } = setup(
+      [
+        () => {
+          ac.abort();
+          return asks([call("a"), call("b")]);
+        },
+      ],
+      { signal: ac.signal },
+    );
+    const out = await runTurn(input);
+    expect(out.end).toBe("aborted");
+    expect(toolCalls).toEqual([]);
+    expect(resultsOf(out.added[2])).toEqual([
+      "a:err:The turn ended before this tool ran: the turn was stopped.",
+      "b:err:The turn ended before this tool ran: the turn was stopped.",
+    ]);
+    expectNoOrphanCalls(out.added);
+  });
+
+  it("stops before the next model call when aborted while tools ran, keeping their results", async () => {
+    const ac = new AbortController();
+    const { input, requests } = setup([asks([call("a")]), say("never")], {
+      signal: ac.signal,
+      tool: async () => {
+        ac.abort();
+        return { content: "rolled", isError: false };
+      },
+    });
+    const out = await runTurn(input);
+    expect(out.end).toBe("aborted");
+    expect(requests).toHaveLength(1);
+    expect(resultsOf(out.added[2])).toEqual(["a:ok:rolled"]);
+  });
+
+  it("ends aborted with what was added when callModel rejects with an AbortError, instead of throwing", async () => {
+    const abortError = Object.assign(new Error("aborted"), { name: "AbortError" });
+    const { input } = setup([asks([call("a")]), abortError]);
+    const out = await runTurn(input);
+    expect(out.end).toBe("aborted");
+    expect(out.added.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
+    expect(out.steps).toHaveLength(1);
+  });
+
+  it("ends aborted when callModel rejects with any error while the signal is aborted", async () => {
+    const ac = new AbortController();
+    const { input } = setup([() => {
+      ac.abort();
+      throw new Error("socket closed");
+    }], { signal: ac.signal });
+    expect((await runTurn(input)).end).toBe("aborted");
+  });
+
+  it("lets a provider error propagate, or a retryable failure is swallowed and the caller never retries", async () => {
+    const boom = new Error("provider 503");
+    const { input } = setup([boom]);
+    await expect(runTurn(input)).rejects.toBe(boom);
+  });
+});
+
+describe("events", () => {
+  it("reports text deltas, tool start and end, and one step per model call, in order", async () => {
+    const events: TurnEvent[] = [];
+    const { input } = setup(
+      [
+        (r) => {
+          r.onText?.("Let me ");
+          r.onText?.("look.");
+          return asks([call("a", "look", { where: "door" })]);
+        },
+        say("done"),
+      ],
+      { onEvent: (e) => events.push(e) },
+    );
+    await runTurn(input);
+    expect(events.map((e) => e.type)).toEqual(["text", "text", "step", "tool_start", "tool_end", "step"]);
+    expect(events[0]).toEqual({ type: "text", delta: "Let me " });
+    expect(events[3]).toEqual({ type: "tool_start", id: "a", name: "look", input: { where: "door" } });
+    expect(events[4]).toEqual({ type: "tool_end", id: "a", name: "look", isError: false });
+  });
+
+  it("reports an unknown tool as started and ended with an error", async () => {
+    const events: TurnEvent[] = [];
+    const { input } = setup([asks([call("a", "nope")]), say("ok")], { onEvent: (e) => events.push(e) });
+    await runTurn(input);
+    expect(events.filter((e) => e.type === "tool_end")).toEqual([{ type: "tool_end", id: "a", name: "nope", isError: true }]);
+  });
+
+  it("sends no tool_end for calls answered because the turn ended", async () => {
+    const events: TurnEvent[] = [];
+    const { input } = setup([asks([call("a")])], {
+      onEvent: (e) => events.push(e),
+      limits: { maxSteps: 1, maxOutputTokens: 100, tokenBudget: null },
+    });
+    await runTurn(input);
+    expect(events.map((e) => e.type)).toEqual(["step"]);
+  });
+
+  it("finishes the turn when onEvent throws, or a broken listener costs the player their answer", async () => {
+    const { input } = setup([asks([call("a")]), say("fine")], {
+      onEvent: () => {
+        throw new Error("listener bug");
+      },
+    });
+    const out = await runTurn(input);
+    expect(out.end).toBe("done");
+    expect(out.text).toBe("fine");
+  });
+});
+
+describe("totalTokens", () => {
+  it("sums input, output and both cache counts, or cached prompts escape the budget", () => {
+    expect(
+      totalTokens([
+        usage({ inputTokens: 1, outputTokens: 2, cacheReadTokens: 4, cacheWriteTokens: 8 }),
+        usage({ inputTokens: 16, outputTokens: 32, cacheReadTokens: 64, cacheWriteTokens: 128 }),
+      ]),
+    ).toBe(255);
+    expect(totalTokens([])).toBe(0);
+  });
+});
+
+function visibleOf(m: AgentMessage): string {
+  return m.blocks.map((b) => (b.type === "text" ? b.text : "")).join("");
+}
+
+describe("tools that call a model", () => {
+  const line = { kind: "spoken" as const, speaker: { id: "n1", name: "Brann" }, text: "Hello." };
+  const speaker = (answer: { usage?: AgentUsage[]; lines?: AgentLine[]; withheld?: AgentWithheld[] }): TurnInput["callTool"] =>
+    async () => ({ content: "said", isError: false, ...answer });
+
+  it("ends budget when only the tool's tokens push the turn over, or a character's speech is free", async () => {
+    const { input } = setup([asks([call("a")], { inputTokens: 10, outputTokens: 5 }), say("never")], {
+      limits: { maxSteps: 5, maxOutputTokens: 100, tokenBudget: 100 },
+      tool: speaker({ usage: [usage({ inputTokens: 80, outputTokens: 10 })] }),
+    });
+    const first = await runTurn({ ...input, callModel: input.callModel });
+    // The tool ran (the narrator alone was under budget); the next round is where the budget bites.
+    expect(first.end).toBe("done");
+    const { input: again } = setup(
+      [asks([call("a")], { inputTokens: 10, outputTokens: 5 }), asks([call("b")], { inputTokens: 1, outputTokens: 1 }), say("never")],
+      { limits: { maxSteps: 5, maxOutputTokens: 100, tokenBudget: 100 }, tool: speaker({ usage: [usage({ inputTokens: 80, outputTokens: 10 })] }) },
+    );
+    const out = await runTurn(again);
+    expect(out.end).toBe("budget");
+    const pending = out.added.filter((m) => m.role === "user").at(-1)!;
+    expect(resultsOf(pending)[0]).toMatch(/^b:err:The turn ended before this tool ran: token budget\./);
+  });
+
+  it("does not count tool usage as a step, or maxSteps ends a turn early", async () => {
+    const { input } = setup([asks([call("a")]), asks([call("b")]), say("fin")], {
+      limits: { maxSteps: 3, maxOutputTokens: 100, tokenBudget: null },
+      tool: speaker({ usage: [usage(), usage(), usage()] }),
+    });
+    const out = await runTurn(input);
+    expect(out.end).toBe("done");
+    expect(out.steps).toHaveLength(3);
+  });
+
+  it("records tool usage against the tool-result message of its own round, or tokens land on the wrong row", async () => {
+    const { input } = setup([asks([call("a")]), asks([call("b")]), say("fin")], {
+      tool: async (_n, i) => ({ content: "x", isError: false, usage: [usage({ inputTokens: i.n === undefined ? 1 : 2 })] }),
+    });
+    const out = await runTurn(input);
+    // added: user, asst, results(a), asst, results(b), asst
+    expect(out.toolSteps.map((t) => t.index)).toEqual([2, 4]);
+  });
+
+  it("puts the lines on the result block and the tool_end event, in order, or the browser never hears the character", async () => {
+    const events: TurnEvent[] = [];
+    const deed = { ...line, kind: "acted" as const, text: "Nods." };
+    const { input } = setup([asks([call("a")]), say("fin")], { tool: speaker({ lines: [deed, line] }), onEvent: (e) => events.push(e) });
+    const out = await runTurn(input);
+    expect(out.added[2].blocks[0]).toMatchObject({ lines: [deed, line] });
+    expect(events.find((e) => e.type === "tool_end")).toMatchObject({ lines: [deed, line] });
+  });
+
+  it("stores what listeners kept back on the result block but sends it in no event, or the player reads what was held back", async () => {
+    const events: TurnEvent[] = [];
+    const withheld = [{ speaker: { id: "n2", name: "Bren" }, text: "HELD-BACK-SENTENCE", to: null }];
+    const { input } = setup([asks([call("a")]), say("fin")], { tool: speaker({ lines: [line], withheld }), onEvent: (e) => events.push(e) });
+    const out = await runTurn(input);
+    expect(out.added[2].blocks[0]).toMatchObject({ withheld });
+    expect(JSON.stringify(events)).not.toContain("HELD-BACK-SENTENCE");
+  });
+
+  it("leaves withheld off a result that gave an empty list", async () => {
+    const { input } = setup([asks([call("a")]), say("fin")], { tool: speaker({ lines: [line], withheld: [] }) });
+    expect((await runTurn(input)).added[2].blocks[0]).not.toHaveProperty("withheld");
+  });
+
+  it("leaves lines off a result that gave an empty list, or an empty array is stored for every tool", async () => {
+    const events: TurnEvent[] = [];
+    const { input } = setup([asks([call("a")]), say("fin")], { tool: speaker({ lines: [] }), onEvent: (e) => events.push(e) });
+    const out = await runTurn(input);
+    expect(out.added[2].blocks[0]).not.toHaveProperty("lines");
+    expect(events.find((e) => e.type === "tool_end")).not.toHaveProperty("lines");
+  });
+
+  it("emits a step event for a tool's usage, or the live view misses billed calls", async () => {
+    const events: TurnEvent[] = [];
+    const { input } = setup([asks([call("a")]), say("fin")], {
+      tool: speaker({ usage: [usage({ model: "voice" })] }),
+      onEvent: (e) => events.push(e),
+    });
+    await runTurn(input);
+    expect(events.filter((e) => e.type === "step")).toHaveLength(3);
+  });
+
+  it("leaves no usage and no line for a throwing tool, or a failed call is billed and shown", async () => {
+    const { input } = setup([asks([call("a")]), say("fin")], {
+      tool: async () => {
+        throw new Error("boom");
+      },
+    });
+    const out = await runTurn(input);
+    expect(out.toolSteps).toEqual([]);
+    expect(out.added[2].blocks[0]).not.toHaveProperty("lines");
+  });
+});
+
+describe("what the budget counts", () => {
+  // Bug caught (seen live): cache reads counted whole, so a long sitting (every step resends the conversation,
+  // nearly all of it cached) ran out of budget after a lookup or two and the turn told the player nothing.
+  it("counts a cached token at a tenth, as it costs", () => {
+    expect(budgetTokens(usage({ inputTokens: 100, outputTokens: 50, cacheReadTokens: 20_000, cacheWriteTokens: 10 }))).toBe(100 + 50 + 10 + 2000);
+  });
+
+  it("lets a turn of several cached steps run, and still stops one that spends at the full rate", async () => {
+    const cached = { inputTokens: 100, outputTokens: 50, cacheReadTokens: 20_000 };
+    const { input } = setup([asks([call("a")], cached), asks([call("b")], cached), say("done", cached)], {
+      limits: { maxSteps: 8, maxOutputTokens: 100, tokenBudget: 10_000 },
+    });
+    expect((await runTurn(input)).end).toBe("done");
+    const { input: dear } = setup([asks([call("a")], { inputTokens: 9_000, outputTokens: 1_000 }), say("never")], {
+      limits: { maxSteps: 8, maxOutputTokens: 100, tokenBudget: 10_000 },
+    });
+    expect((await runTurn(dear)).end).toBe("budget");
+  });
+});

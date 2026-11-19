@@ -22,17 +22,6 @@ import {
 import type { JudgeRequest } from "../_shared/typesafe.ts";
 import type { MatchSource, SemanticKind } from "./matching.ts";
 
-/**
- * The judging tier runs only with AI switched on for the campaign AND a
- * platform key. A verdict is a model judgment, so it respects `ai_enabled`
- * even though the two tiers beneath it do not. Anything but a literal `true`
- * (null, undefined, a missing column) is off.
- */
-export function judgingKey(aiEnabled: unknown, platformKey: string | undefined): string | null {
-  if (aiEnabled !== true) return null;
-  return platformKey && platformKey.length > 0 ? platformKey : null;
-}
-
 export interface TierEntity extends PoolEntity {
   kind: SemanticKind;
   importedText: string;

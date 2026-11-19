@@ -4,8 +4,8 @@
  * Every cell key is an image cell: the published Drawing's own cell space, where cell (0,0) is the image's top-left.
  */
 
-import type { SwayMotion } from "@/cartographer/packSchema";
-import type { DarknessLevel } from "@/types/dungeonMap.types";
+import type { SwayMotion } from "../cartographer/packSchema.ts";
+import type { DarknessLevel } from "./dungeonMap.types.ts";
 
 /** One animated overlay: a seamless transparent image tiled over a cell group, drifting and breathing. */
 export interface MotionOverlay {

@@ -43,7 +43,11 @@
           <h3 class="mb-1 text-body font-bold text-foreground">How it plays</h3>
           <RichTextViewer :content="beat.how_it_plays!" />
         </section>
-        <div v-if="!hasReadAloud && !hasDescription && !hasHowItPlays" class="flex items-center justify-between gap-2">
+        <section v-if="hasWhatHappened" aria-label="What happened here">
+          <h3 class="mb-1 text-body font-bold text-foreground">What happened here</h3>
+          <RichTextViewer :content="beat.what_happened!" />
+        </section>
+        <div v-if="!hasReadAloud && !hasDescription && !hasHowItPlays && !hasWhatHappened" class="flex items-center justify-between gap-2">
           <p class="text-caption text-muted-foreground">Nothing written for this beat yet.</p>
           <AppButton size="xs" variant="subtle" label="Write it" @click="editing = true" />
         </div>
@@ -176,6 +180,7 @@ const fillContext = computed<BeatFillContext | undefined>(() => {
 const hasReadAloud = computed(() => hasBeatText(beat.value?.read_aloud));
 const hasDescription = computed(() => hasBeatText(beat.value?.dm_content));
 const hasHowItPlays = computed(() => hasBeatText(beat.value?.how_it_plays));
+const hasWhatHappened = computed(() => hasBeatText(beat.value?.what_happened));
 
 const floor = computed(() => visibilityFloor({
   beatId,

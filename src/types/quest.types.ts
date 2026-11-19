@@ -1,7 +1,7 @@
-import type { Coins } from "@/lib/currency/currency";
-import type { LocationType } from "@/types/location.types";
-import type { AiProvenance } from "@/ai/provenance";
-import { LOCATION_STATE_FACT_LABELS, type LocationStateFact } from "@/types/locationState.types";
+import type { Coins } from "../lib/currency/currency.ts";
+import type { LocationType } from "./location.types.ts";
+import type { AiProvenance } from "../ai/provenance.ts";
+import { LOCATION_STATE_FACT_LABELS, type LocationStateFact } from "./locationState.types.ts";
 
 export type QuestStatus =
   | "undiscovered"
@@ -461,6 +461,12 @@ export interface QuestBeat {
    * was actually a mechanism rather than guidance.
    */
   how_it_plays: string | null;
+  /**
+   * What the table actually did at this beat, in the DM's words (#1021, migration `20261119121059`). The other
+   * prose fields are the plan; this is the outcome. Optional on the type because nothing requires it at create
+   * time and most beats never get one. DM-side only: the player projection does not carry it.
+   */
+  what_happened?: string | null;
   rumor_text: string | null;
   reveal_text: string | null;
   visibility: QuestBeatVisibility;

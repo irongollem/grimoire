@@ -583,7 +583,6 @@ export function mapExtractedSpell(
     target_description: null,
     aoe_shape: null,
     aoe_size: null,
-    condition_inflicted: null,
     description: payload.description ?? "", // schema default ''; MECHANICAL — never capped, a spell's description IS its rules text
     higher_levels: payload.higher_levels ?? null, // MECHANICAL — never capped
     higher_level_damage: null,

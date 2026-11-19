@@ -104,7 +104,7 @@ export function totalLevel(classes: CharacterClass[]): number {
   return classes.reduce((s, c) => s + c.levels, 0);
 }
 
-import type { CasterType } from "@/types/spell.types";
+import type { CasterType } from "./spell.types.ts";
 
 /**
  * Per-class spellcasting stats (DC and attack bonus). A multiclass character

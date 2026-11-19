@@ -2,7 +2,7 @@
 // PHB 2024 "Creature Size": Tiny 2½ ft, Small/Medium 5 ft, Large 10 ft, Huge 15 ft, Gargantuan 20 ft
 // of space; a grid square is 5 ft, so Tiny is half a square on a side (#1125 decision 13).
 
-import type { MonsterSize } from "@/types/monster.types";
+import type { MonsterSize } from "../../types/monster.types.ts";
 
 export type TokenFootprint = 0.5 | 1 | 2 | 3 | 4;
 

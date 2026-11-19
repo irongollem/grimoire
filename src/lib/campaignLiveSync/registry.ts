@@ -14,6 +14,8 @@ import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
 
 /** Root of every NPC memory query (#1019); the table rings the `npc_memories` signal. */
 export const NPC_MEMORIES_KEY = "npc-memories";
+/** Root of every party-member memory query (#1021 row 26); the table rings the `party_member_memories` signal. */
+export const PARTY_MEMBER_MEMORIES_KEY = "party-member-memories";
 /** Root of every hand-over query (#1059); the table rings the `character_caretakers` signal. */
 export const CHARACTER_CARETAKERS_KEY = "character-caretakers";
 /** Root of the owner's "while you were away" lines (#1059): the hand-over and chat rings refresh it. */
@@ -24,6 +26,8 @@ export const CAMPAIGN_SECRETS_KEY = "campaign-secrets";
 export const KIN_LINKS_KEY = "kin_links";
 /** Every connections read (#1084): a sheet's Connections block, the world web and the players' projection. */
 export const CONNECTIONS_KEY = "connections";
+/** The record of what is true in the story (#1021): facts and what each is about. */
+export const STORY_RECORD_KEY = "storyRecord";
 /** The roads between a campaign's places (`useLocationRoads`). */
 export const LOCATION_ROADS_KEY = "location-roads";
 export const PLAYER_KIN_KEY = "player-kin";
@@ -222,6 +226,8 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["location_reveals", ["session-learned", "npc-reveals"]],
   ["npc_reveals", ["npc-reveals", PLAYER_NPCS_KEY, "session-learned"]],
   ["npc_memories", [NPC_MEMORIES_KEY]],
+  // What a party member lived through while someone else played them (#1021 row 26): their player reads it.
+  ["party_member_memories", [PARTY_MEMBER_MEMORIES_KEY]],
   // Who is minding whose character (#1059). Ending one also moves the
   // caretaker's seat, which rings `campaign_members` on its own.
   ["character_caretakers", [CHARACTER_CARETAKERS_KEY, WHILE_AWAY_KEY]],
@@ -301,6 +307,9 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["kin_links", [KIN_LINKS_KEY, PLAYER_KIN_KEY, CONNECTIONS_KEY]],
   // World Web (#1084). Players cannot read the table; their projection hangs off the same root.
   ["world_links", [CONNECTIONS_KEY]],
+  // The record (#1021). A member re-reads through RLS, which shows only what the party knows.
+  ["story_facts", [STORY_RECORD_KEY]],
+  ["story_fact_links", [STORY_RECORD_KEY]],
   // Roads between places (#1222). The World Web draws a road as a line, read from the same rows.
   ["location_roads", [LOCATION_ROADS_KEY, CONNECTIONS_KEY]],
   // Open Book (#1085). Owner-only tables; a release also changes the book row (its live release).

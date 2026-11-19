@@ -1,7 +1,9 @@
-import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
-import { hasAttackDisadvantage, hasCondition } from "@/rules/conditions";
-import type { AppliedCondition } from "@/types/condition.types";
-import type { RulesetKey } from "@/types/ruleset.types";
+import type { RollMode } from "../../systems/dnd5e/dice/rollMode.ts";
+import { hasAttackDisadvantage, hasCondition, isIncapacitated } from "../conditions.ts";
+import { isDodging, isHidden } from "../fight/stances.ts";
+import { speedIsZero } from "../fight/terrain/movementBudget.ts";
+import type { AppliedCondition } from "../../types/condition.types.ts";
+import type { RulesetKey } from "../../types/ruleset.types.ts";
 
 /** Target conditions that give attackers advantage (SRD: Blinded, Paralyzed, Petrified, Restrained, Stunned, Unconscious). */
 export const ATTACK_ADV_TARGET_CONDITIONS = new Set<string>([
@@ -20,8 +22,18 @@ export interface AttackRollModeInput {
   attackerConditions: readonly AppliedCondition[];
   targetConditions: readonly AppliedCondition[];
   delivery: "melee" | "ranged";
-  /** An enemy of the attacker (ranged) or the attacker itself (vs. Prone) is within 5 feet; the caller decides. */
+  /**
+   * The attacker is within 5 feet of the TARGET (vs. Prone: advantage there, disadvantage beyond; the caller decides).
+   * It is not the ranged close-combat fact, which is about a hostile next to the ATTACKER (`hostileWithinFiveFeetOfAttacker`).
+   */
   withinFiveFeet: boolean;
+  /**
+   * A hostile creature that is not incapacitated stands within 5 feet of the ATTACKER, whoever it is, not only the
+   * target. Ranged attacks only. Omitted means not known to be so. Worked out by `closeCombatThreat` in terrain/sight.ts.
+   */
+  hostileWithinFiveFeetOfAttacker?: boolean;
+  /** The target is beyond the weapon's or spell's normal range (the "long range" band). Ranged attacks only. */
+  longRange?: boolean;
   ruleset: RulesetKey;
   /** The DM's own override, combined like any other source. */
   dmMode?: RollMode;
@@ -34,6 +46,8 @@ export interface AttackRollModeInput {
  */
 export function attackRollMode(input: AttackRollModeInput): { mode: RollMode; reasons: string[] } {
   const { attackerConditions, targetConditions, delivery, withinFiveFeet, ruleset, dmMode } = input;
+  const hostileWithinFiveFeetOfAttacker = input.hostileWithinFiveFeetOfAttacker === true;
+  const longRange = input.longRange === true;
   // Collect every source first and decide once: folding pairwise lets a later
   // source flip a roll that an earlier advantage and disadvantage had cancelled.
   let hasAdvantage = false;
@@ -51,6 +65,23 @@ export function attackRollMode(input: AttackRollModeInput): { mode: RollMode; re
   const advTarget = targetConditions.filter((c) => ATTACK_ADV_TARGET_CONDITIONS.has(c.name));
   if (advTarget.length > 0) add("advantage", `target ${advTarget.map((c) => c.name).join(", ")}`);
   if (hasCondition(targetConditions, "Invisible")) add("disadvantage", "target Invisible");
+  // Hidden (PHB 2014 "Unseen Attackers and Targets"): an attacker its target cannot see has advantage, and an attack
+  // on a target the attacker cannot see has disadvantage. Invisible already says the same; both together count once.
+  if (isHidden(attackerConditions) && !hasCondition(attackerConditions, "Invisible")) add("advantage", "attacker is hidden");
+  if (isHidden(targetConditions) && !hasCondition(targetConditions, "Invisible")) add("disadvantage", "target is hidden");
+
+  // Dodge (PHB 2014 "Dodge", SRD 5.2 "Dodge [Action]"): disadvantage on attacks against the dodger, but only while it
+  // can see the attacker and is able to act, and is lost when its Speed drops to 0 (PHB 2014 "Dodge"; SRD 5.2 "Dodge
+  // [Action]"). A Blinded dodger sees nothing and an Invisible attacker is not seen.
+  if (
+    isDodging(targetConditions) &&
+    !isIncapacitated(targetConditions) &&
+    !speedIsZero(targetConditions, ruleset) &&
+    !hasCondition(targetConditions, "Blinded") &&
+    !hasCondition(attackerConditions, "Invisible")
+  ) {
+    add("disadvantage", "target is Dodging");
+  }
 
   // Prone: melee within 5 ft is easy, anything from farther is hard (SRD Prone).
   // The SRD wording is "attacker is within 5 feet"; a ranged attack from there also counts.
@@ -59,8 +90,11 @@ export function attackRollMode(input: AttackRollModeInput): { mode: RollMode; re
     else add("disadvantage", "target Prone beyond 5 ft");
   }
 
-  // Ranged attacks have disadvantage when a hostile creature is within 5 ft (SRD "Ranged Attacks in Close Combat").
-  if (delivery === "ranged" && withinFiveFeet) add("disadvantage", "ranged attack with an enemy within 5 ft");
+  // PHB 2014 ch. 9 "Ranged Attacks in Close Combat"; SRD 5.2 "Ranged Attacks": disadvantage when a hostile creature
+  // that can see you and is not Incapacitated is within 5 feet of the ATTACKER. Not the target-distance fact above.
+  if (delivery === "ranged" && hostileWithinFiveFeetOfAttacker) add("disadvantage", "ranged attack with an enemy within 5 ft of the attacker");
+  // PHB 2014 ch. 9 "Long Range"; SRD 5.2 "Long Range": disadvantage beyond the normal range.
+  if (delivery === "ranged" && longRange) add("disadvantage", "ranged attack at long range");
 
   if (dmMode && dmMode !== "normal") add(dmMode, `DM sets ${dmMode}`);
   const mode: RollMode = hasAdvantage === hasDisadvantage ? "normal" : hasAdvantage ? "advantage" : "disadvantage";

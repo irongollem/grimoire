@@ -14,6 +14,7 @@ import type { CampaignMessage, CampaignMessageInsert, ItemDropMetadata, LootRoll
 import { useCurrency } from "@/composables/currency/useCurrency";
 import type { Coins } from "@/lib/currency/currency";
 import type { RollResult } from "@/lib/dice/dice";
+import type { StoredMention } from "@/lib/chat/chatMentions";
 
 const LIMIT = 100;
 
@@ -453,7 +454,7 @@ export function useCampaignMessages() {
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
-  async function sendMessage(text: string, recipientUserId: string | null = null) {
+  async function sendMessage(text: string, recipientUserId: string | null = null, mentions: readonly StoredMention[] = []) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id || !text.trim()) return;
     const speaker = currentSpeaker();
@@ -464,11 +465,23 @@ export function useCampaignMessages() {
       sender_name: speaker.name,
       message: text.trim(),
       type: "chat",
-      metadata: speakerMetadata(speaker),
+      // Whom the line addresses rides beside who it speaks for; a line with neither carries nothing.
+      metadata: mentions.length > 0 ? { ...forTag(speaker), mentions: [...mentions] } : speakerMetadata(speaker),
     };
     const { data, error } = await supabase.from("campaign_messages").insert(insert).select().single();
     if (error) throw error;
     if (data) _optimisticPush(data as CampaignMessage);
+    return data ? (data as CampaignMessage).id : null;
+  }
+
+  /**
+   * Asks the characters played for absent players to answer a line the caller just posted (#1021 row 26). The server
+   * decides who answers, if anyone, and the answer arrives like any other chat line. Never throws: the line itself
+   * was posted, and a character staying silent is not a failure of the send.
+   */
+  async function askCharacterReply(messageId: string): Promise<void> {
+    const { error } = await supabase.functions.invoke("character-reply", { body: { messageId } });
+    if (error) console.warn("character-reply:", error.message);
   }
 
   /**
@@ -880,5 +893,5 @@ export function useCampaignMessages() {
     if (idx >= 0 && data) messages.value[idx] = { ...messages.value[idx], metadata: data as PlayerOfferMetadata };
   }
 
-  return { messages: visibleMessages, unreadMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendFlavorMessage, sendNarrativeEvent, sendSystemMessage, sendSystemMessages, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, chooseLootRoll, resolveLootRoll, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
+  return { messages: visibleMessages, unreadMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, askCharacterReply, sendFlavorMessage, sendNarrativeEvent, sendSystemMessage, sendSystemMessages, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, chooseLootRoll, resolveLootRoll, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
 }

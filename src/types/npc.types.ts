@@ -1,5 +1,5 @@
-import type { AiProvenance } from "@/ai/provenance";
-import type { MonsterSize, MonsterStatBlock } from "@/types/monster.types";
+import type { AiProvenance } from "../ai/provenance.ts";
+import type { MonsterSize, MonsterStatBlock } from "./monster.types.ts";
 
 export type NpcStatus = "alive" | "dead" | "missing" | "unknown";
 export type NpcRelationship =

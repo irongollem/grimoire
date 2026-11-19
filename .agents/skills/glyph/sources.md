@@ -43,6 +43,20 @@ whose dice sit in one bottom row of 8 (cleaner octahedron, circular percentile
 die): `magick image.png -crop 1536x140+0+710 +repage _g.png`, then
 `segment _g.png _work2 8 1`, cells 3 and 7.
 
+## The AI table (`table`) — `art-src/table-voices/`
+
+The three voice switches in the table's bar (#1021, 17 Nov 2026), from `voice-role-icons-sheet-3a.png`: one row of
+three solid silhouettes, each with the same two sound waves to its right (1 row × 3, 724 px square cells, cut on the
+even grid from the sheet flattened onto white).
+
+- `voiceNarrator`: the open book. `voiceCharacters`: a figure in a brimmed hat. `voicePlayer`: the hero's figure
+  with swept hair. The shared waves make them one set; the silhouette says whose voice.
+- `-3b.png` (quill on a scroll, a hatted figure in an apron, the hero with a collar) lost on detail: the hat band,
+  apron straps and collar are thin white lines that close up at button size, and the quill has no waves.
+- Two earlier sheets are in the same folder and were each traced and replaced the same day. On the first every
+  characters candidate was two or three figures side by side, twice as wide as tall, mush at button size. The
+  second (outlined faces in speech balloons) read, but its thin outlines were lighter than the nav glyphs.
+
 ## Damage types (`svg`) — `art-src/damage-types/`
 
 `source-sheet.png`, 4×4, row-major: acid, bludgeoning, cold, fire / force,

@@ -24,7 +24,7 @@
 // (from `location_state_events` or a live encounter), never something this
 // module fetches.
 
-import type { GridCalibration, Location, MapMotion } from "@/types/location.types";
+import type { GridCalibration, Location, MapMotion } from "../../types/location.types.ts";
 
 /** Pixel size of one cell in a blank grid's plan — there is no image to
  *  derive a size from, so this is simply the constant every blank-grid

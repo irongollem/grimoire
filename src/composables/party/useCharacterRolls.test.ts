@@ -13,7 +13,13 @@ const h = vi.hoisted(() => ({
   /** What the sheet shows while the class rows load, and what they settle to. */
   jack: "none" as "none" | "any_check" | "skill_check",
   settledJack: "none" as "none" | "any_check" | "skill_check",
+  /** What the character wears, by member id (`useArmorClass().wornGearFor`). */
+  gear: [] as unknown[],
+  /** Whether a Wild Shape form is worn. */
+  shaped: false,
 }));
+
+vi.mock("@/composables/party/useArmorClass", () => ({ useArmorClass: () => ({ wornGearFor: () => h.gear }) }));
 
 vi.mock("@/composables/dice/usePromptedRoll", () => ({ usePromptedRoll: () => ({ promptRoll: h.promptRoll }) }));
 vi.mock("@/composables/party/useParty", () => ({ useUpdatePartyMember: () => ({ mutateAsync: h.updateMember }) }));
@@ -25,7 +31,7 @@ vi.mock("@/composables/party/useJackOfAllTrades", () => ({
   useJackOfAllTrades: () => ({ jack: { get value() { return h.jack; } }, settledJack: () => Promise.resolve(h.settledJack) }),
 }));
 vi.mock("@/composables/party/useWildshapeForm", () => ({
-  useWildshapeForm: () => ({ activeWildshape: ref(null), beastMonster: ref(null) }),
+  useWildshapeForm: () => ({ activeWildshape: { get value() { return h.shaped ? { beast_name: "Wolf" } : null; } }, beastMonster: ref(null) }),
 }));
 vi.mock("@/composables/encounters/useEncounterLive", async () => {
   const { ref: vueRef } = await import("vue");
@@ -169,5 +175,33 @@ describe("rollInitiative", () => {
     h.updateMember.mockRejectedValue(new Error("denied"));
     await useCharacterRolls(() => member).rollInitiative();
     expect(h.toastError).toHaveBeenCalled();
+  });
+});
+
+// DMG 2014 ch. 7 "Ring of Protection": +1 to AC and saving throws while worn and attuned. The sheet must show the
+// number a fight rolls a save with (`playerSaveBonus` on the server uses the same `savingThrowItemBonus`).
+describe("useCharacterRolls saving throws and worn items", () => {
+  const wis12 = { id: "pm-2", str: 10, dex: 10, con: 10, int: 10, wis: 12, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: ["wis"], conditions: [] } as unknown as PartyMember;
+  const ring = (attuned: boolean) => ({ slot: "ring", attuned, item: { name: "Ring of Protection", conceptual_key: "ring_of_protection" } });
+
+  beforeEach(() => {
+    h.gear = [];
+    h.shaped = false;
+  });
+
+  it("adds a worn, attuned Ring of Protection to every save, and nothing for one that is not attuned", () => {
+    // Wisdom 12 is +1, proficient +2: 3. With the ring: 4. Strength 10, not proficient: 0, with the ring 1.
+    h.gear = [ring(true)];
+    const withRing = useCharacterRolls(() => wis12).saves.value;
+    expect(withRing?.wis.bonus).toBe(4);
+    expect(withRing?.str.bonus).toBe(1);
+    h.gear = [ring(false)];
+    expect(useCharacterRolls(() => wis12).saves.value?.wis.bonus).toBe(3);
+  });
+
+  it("adds nothing while a Wild Shape form is worn: the form wears no ring", () => {
+    h.gear = [ring(true)];
+    h.shaped = true;
+    expect(useCharacterRolls(() => wis12).saves.value?.wis.bonus).toBe(3);
   });
 });

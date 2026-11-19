@@ -1,4 +1,4 @@
-import type { AiProvenance } from "@/ai/provenance";
+import type { AiProvenance } from "../ai/provenance.ts";
 
 export type CalendarEventType =
   | "campaign"

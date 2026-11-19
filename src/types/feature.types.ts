@@ -1,5 +1,5 @@
-import type { VersionedContentMetadata } from "@/types/content.types";
-import type { AiProvenance } from "@/ai/provenance";
+import type { VersionedContentMetadata } from "./content.types.ts";
+import type { AiProvenance } from "../ai/provenance.ts";
 import type {
   Activation,
   FeatAbilityIncrease,
@@ -7,7 +7,7 @@ import type {
   FeatPrerequisites,
   FeatureKind,
   FeatureMechanics,
-} from "@/rules/features/mechanics.types";
+} from "../rules/features/mechanics.types.ts";
 
 /** Labels for `mechanics.activation`; a feature with none is passive. */
 export const ACTIVATION_LABELS: Record<Activation, string> = {

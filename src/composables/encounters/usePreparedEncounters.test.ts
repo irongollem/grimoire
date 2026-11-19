@@ -30,18 +30,22 @@ function setup(roomId: string | null) {
 beforeEach(() => fake.reset());
 
 describe("usePreparedEncounters", () => {
-  it("offers only this room's unfinished encounters that have never been run", async () => {
+  it("fails if a started fight is offered again, or an opened one that never started is hidden (every run is a row now)", async () => {
     fake.seed("encounters", [
       { id: "e1", name: "Ghouls", campaign_id: "c1", location_id: "crypt", is_finished: false },
       { id: "e2", name: "Done", campaign_id: "c1", location_id: "crypt", is_finished: true },
       { id: "e3", name: "Already run", campaign_id: "c1", location_id: "crypt", is_finished: false },
       { id: "e4", name: "Elsewhere", campaign_id: "c1", location_id: "hall", is_finished: false },
       { id: "e5", name: "Other campaign", campaign_id: "c2", location_id: "crypt", is_finished: false },
+      { id: "e6", name: "Opened, not started", campaign_id: "c1", location_id: "crypt", is_finished: false },
     ]);
-    fake.seed("encounter_state", [{ encounter_id: "e3", campaign_id: "c1" }]);
+    fake.seed("encounter_state", [
+      { encounter_id: "e3", campaign_id: "c1", current_round: 2 },
+      { encounter_id: "e6", campaign_id: "c1", current_round: 0 },
+    ]);
     const api = setup("crypt");
     await flushPromises();
-    expect(api.prepared.value).toEqual([{ id: "e1", name: "Ghouls" }]);
+    expect(api.prepared.value).toEqual([{ id: "e1", name: "Ghouls" }, { id: "e6", name: "Opened, not started" }]);
   });
 
   it("reads nothing while the party is in no room", async () => {

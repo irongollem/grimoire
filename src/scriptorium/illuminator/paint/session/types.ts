@@ -74,11 +74,6 @@ export interface PaintDocument {
   layers: Layer[];
 }
 
-/** What the stage hands the session for a stroke, in document pixels. */
-export interface StrokeInput {
-  samples: PenSample[];
-}
-
 export interface SessionState {
   doc: PaintDocument;
   activeLayerId: string;
