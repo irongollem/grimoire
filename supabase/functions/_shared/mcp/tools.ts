@@ -24,7 +24,7 @@ import { edgeErrorMessage } from "../edgeError.ts";
 import { isCampaignDm } from "../campaignAccess.ts";
 import { performServerRoll } from "../serverRoll.ts";
 import { UUID_RE } from "../uuid.ts";
-
+import { loadWorldBlock } from "../worldBlockLoad.ts";
 export interface ToolContext {
   supabase: SupabaseClient;
   /** The authenticated DM's user id (from the validated JWT). */
@@ -364,7 +364,7 @@ export function listTools(): ToolDef[] {
     {
       name: "list_campaigns",
       description:
-        "List the DM's campaigns (id, name, setting). Use this first to find a campaign_id to scope other calls to.",
+        "List the DM's campaigns (id, name, and the world's name). Use this first to find a campaign_id to scope other calls to.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
     },
     {
@@ -478,7 +478,7 @@ export function listTools(): ToolDef[] {
     {
       name: "campaign_overview",
       description:
-        "A quick digest of one campaign: its setting, party members, active quests, and most recent notes. Good for a mid-session 'where are we' recap.",
+        "A quick digest of one campaign: its world block (name, pitch, themes, voice, look, lines and veils, truths known to all), party members, active quests, and most recent notes. Good for a mid-session 'where are we' recap.",
       inputSchema: {
         type: "object",
         properties: {
@@ -1138,7 +1138,7 @@ async function campaignOverview(ctx: ToolContext, args: Record<string, unknown>)
   if (!campaignId) throw new Error("`campaign_id` is required.");
 
   const [campaign, party, quests, notes] = await Promise.all([
-    ctx.supabase.from("campaigns").select("id, name, setting, description").eq("id", campaignId).maybeSingle(),
+    ctx.supabase.from("campaigns").select("id, name, setting").eq("id", campaignId).maybeSingle(),
     // No `ac`: Armour Class is calculated from worn gear in the app (src/rules/armorClass.ts)
     // and the stored column is only a retired number. Reporting a gear-blind figure here
     // would contradict the sheet, so the tool leaves it out rather than guess.
@@ -1150,8 +1150,12 @@ async function campaignOverview(ctx: ToolContext, args: Record<string, unknown>)
   if (campaign.error) throw new Error(campaign.error.message);
   if (!campaign.data) throw new Error(`No campaign found with id ${campaignId} (it may not exist or you may not have access).`);
 
+  // The world block the AI generators read (#1226): premise, tone, lines and veils, and the truths known to all.
+  const world = await loadWorldBlock(ctx.supabase, campaignId);
+
   return {
     campaign: campaign.data,
+    world,
     party: party.data ?? [],
     active_quests: quests.data ?? [],
     recent_notes: notes.data ?? [],

@@ -366,6 +366,8 @@ export const IconNavQuests = glyph(NAV_GLYPHS.quests);
 // The AI-run table (#1021). The two masks of the stage: a lucide mark until the maintainer draws a glyph for it
 // (art-src/ and the glyph skill), so it is the one nav entry that is not hand drawn.
 export { Drama as IconNavTable }
+// The campaign's canon (#1226): a scroll of what is true, as the design draws it.
+export { ScrollText as IconNavCanon }
 export const IconNavAtlas = glyph(NAV_GLYPHS.atlas);
 export const IconNavPantheon = glyph(NAV_GLYPHS.pantheon);
 export const IconNavFactions = glyph(NAV_GLYPHS.factions);

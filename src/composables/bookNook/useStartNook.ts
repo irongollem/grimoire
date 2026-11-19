@@ -142,7 +142,7 @@ export function useStartNook() {
     return guarded(async () => {
       if (!requireCredits(paintCost.value, imageIsByok.value)) return null;
       const url = await generateImage({
-        ...captureImageGenerationContext(),
+        ...(await captureImageGenerationContext()),
         purpose: "location",
         subject: `${subject.trim()}. ${EMPTY_ROOM}`,
         size: PAINTED_ROOM_SIZE,

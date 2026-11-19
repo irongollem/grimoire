@@ -4,7 +4,8 @@ import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
-import { wrapUserInput, AI_PROMPT_LIMIT_CHRONICLE } from "./utils";
+import { wrapUserInput, AI_PROMPT_LIMIT_CHRONICLE, buildCampaignContext } from "./utils";
+import { fetchWorldBlock } from "./worldBlock";
 import { mentionedLocationIds, mentionedMonsterIds, mentionedNpcIds, parseSceneEntities, type ResolvedSceneEntity } from "./sceneEntities";
 import { fetchNpcAppearances } from "@/composables/npcs/useNpcFields";
 import type { NpcListRow } from "@/types/npc.types";
@@ -104,7 +105,6 @@ export function useChroniclerTextGeneration() {
       return row ? [row] : [];
     });
     const entities = parseSceneEntities(rawText, { npcs, monsters, partyMembers, factions, locations, locationDescriptions, npcAppearances });
-    const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "No setting configured.";
     const campaignId = campaign.activeCampaign?.id;
 
     isGenerating.value = true;
@@ -123,6 +123,10 @@ export function useChroniclerTextGeneration() {
       if (!isLocalMode && campaignId) {
         return await generateServerSide({ rawText, tone, entities, campaignId, existingTags, excludeNoteId });
       }
+      // The `{settingPrompt}` placeholder now carries the world block (#1226).
+      const settingPrompt = campaignId
+        ? buildCampaignContext(await fetchWorldBlock(campaignId)).trim() || "No setting configured."
+        : "No setting configured.";
       return await generateClientSide({ rawText, tone, entities, settingPrompt, existingTags });
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Generation failed.";

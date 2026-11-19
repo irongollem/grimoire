@@ -5,8 +5,8 @@
     :disabled="disabled"
     :orientation="orientation"
     :class="cn(
-      wrap ? 'flex flex-wrap' : 'inline-flex',
-      'items-center',
+      orientation === 'vertical' ? 'flex flex-col items-stretch' : wrap ? 'flex flex-wrap' : 'inline-flex',
+      orientation === 'vertical' ? '' : 'items-center',
       block ? 'w-full' : '',
       gapClass,
       className,
@@ -28,7 +28,7 @@
         :icon="option.icon"
         :tooltip="iconOnly ? (option.tooltip ?? option.label) : option.tooltip"
         :active="modelValue === option.value"
-        :class="block ? 'flex-1 min-w-0' : ''"
+        :class="orientation === 'vertical' ? 'w-full justify-start' : block ? 'flex-1 min-w-0' : ''"
       />
     </ToggleGroupItem>
   </ToggleGroupRoot>
@@ -93,6 +93,10 @@ const {
    */
   iconOnly?: boolean;
   disabled?: boolean;
+  /**
+   * Turns the arrow keys and the layout together: "vertical" stacks the options in a column. It used to change
+   * only the keyboard, so a vertical control still laid out as a row and wrapped its labels in a narrow column.
+   */
   orientation?: "horizontal" | "vertical";
   /** `tight` butts the options together; `loose` spaces them like a toolbar. */
   gap?: "tight" | "loose";

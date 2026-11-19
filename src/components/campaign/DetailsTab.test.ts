@@ -70,6 +70,26 @@ describe("DetailsTab map settings", () => {
   });
 });
 
+describe("DetailsTab and the world's name", () => {
+  it("never writes `setting` when a calendar is chosen and Details saved: the world is the Canon page's", async () => {
+    mocks.update.mockReset();
+    mocks.update.mockResolvedValue({ id: "c1" });
+    mocks.row = {
+      id: "c1", name: "Test", setting: "My Homebrew World", calendar_id: "faerun", current_year: 1495,
+      climate: "temperate", theme: "vellum", health_visibility: "strategic", immersive_rolls: false,
+      battle_map_show_tokens: true, custom_calendar: null, map_memory: "remembered", player_sight: "shared",
+    };
+    const w = mountTab();
+    await w.find("select").setValue("eberron");
+    await w.find("form").trigger("submit");
+    await flushPromises();
+    expect(mocks.update).toHaveBeenCalledTimes(1);
+    const { update } = mocks.update.mock.calls[0]![0];
+    expect(update).toMatchObject({ calendar_id: "eberron" });
+    expect(update).not.toHaveProperty("setting");
+  });
+});
+
 describe("DetailsTab populate from setting", () => {
   beforeEach(() => {
     mocks.row = {

@@ -480,9 +480,12 @@ export async function buildBundle(opts: BuildBundleOptions): Promise<GrimoireBun
     location: new Set((bundle.locations ?? []).map((row) => row.id as string)),
     deity: new Set((bundle.deities ?? []).map((row) => row.id as string)),
     item: new Set((bundle.items ?? []).map((row) => row.id as string)),
+    // A world bundle does not carry canon entries yet, so no canon link has both ends in it.
+    canon: new Set<string>(),
   };
   const found: Row[] = [];
   for (const kind of Object.keys(bundled) as LinkKind[]) {
+    if (kind === "canon") continue;
     const ids = [...bundled[kind]];
     found.push(...(await qByIds("world_links", `from_${kind}_id`, ids)), ...(await qByIds("world_links", `to_${kind}_id`, ids)));
   }

@@ -46,6 +46,8 @@ import {
   type FactionMember,
   type FactionRelationRow,
 } from "../_shared/scriptoriumDraft.ts";
+import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
+import { worldBlockText } from "../_shared/worldBlock.ts";
 
 /**
  * Scriptorium document drafting (epic #910, story S12).
@@ -83,12 +85,6 @@ class DraftError extends Error {
   constructor(public status: number, message: string) {
     super(message);
   }
-}
-
-function buildCampaignContext(setting: string | null | undefined): string {
-  const s = setting?.trim();
-  if (!s) return "";
-  return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n## Setting\n${s}`;
 }
 
 /**
@@ -300,7 +296,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign, error: campaignErr } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, game_system")
+    .select("id, user_id, ai_enabled, text_provider, game_system")
     .eq("id", request.campaignId)
     .maybeSingle();
   if (campaignErr) {
@@ -338,9 +334,10 @@ serve(withCors(async (req: Request) => {
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
 
+  const world = await loadWorldBlock(admin, campaign.id);
   const systemContent = promptRow.content +
     (rulesetContext ? `\n\n${rulesetContext}` : "") +
-    buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
+    worldBlockText(world) + INJECTION_GUARD_SUFFIX;
 
   // Read the grounding BEFORE spending anything: a missing or unshared subject
   // is a refusal, not a charge.

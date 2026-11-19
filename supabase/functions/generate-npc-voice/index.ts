@@ -36,6 +36,8 @@ import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts
 import { judge, JEV_MODEL, noulOf, scoreOf } from "../_shared/typesafe.ts";
 import { MEMORY_CANDIDATE_LIMIT, pickPromptMemories, RELEVANCE_QUESTION } from "./memoryRelevance.ts";
 import { buildHiddenIdentity, checkLinesForReveal, REVEAL_QUESTION } from "./disguiseCheck.ts";
+import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
+import { worldBlockText } from "../_shared/worldBlock.ts";
 
 /**
  * At-the-table NPC dialogue suggester (#336).
@@ -66,12 +68,6 @@ const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
-
-function buildCampaignContext(setting: string | null | undefined): string {
-  const s = setting?.trim();
-  if (!s) return "";
-  return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n## Setting\n${s}`;
-}
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
@@ -111,7 +107,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, current_year, current_month, current_day")
+    .select("id, user_id, ai_enabled, text_provider, current_year, current_month, current_day")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -151,7 +147,8 @@ serve(withCors(async (req: Request) => {
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
 
-  const systemContent = promptRow.content + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
+  const world = await loadWorldBlock(admin, campaign.id);
+  const systemContent = promptRow.content + worldBlockText(world) + INJECTION_GUARD_SUFFIX;
   // Judging is an enhancement: a missing key, or any failure, leaves the newest twelve.
   const jevKey = platformKeys.typesafe && platformKeys.typesafe.length > 0 ? platformKeys.typesafe : null;
   let jevTokens = 0;

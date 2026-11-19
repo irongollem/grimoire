@@ -9,7 +9,7 @@
   <form v-else class="max-w-md flex flex-col gap-6" @submit.prevent="save">
 
     <!-- AI enabled toggle — free users can turn this on/off; everything else
-         in this tab (BYOK keys, provider pickers, setting prompt) is Pro. -->
+         in this tab (BYOK keys, provider pickers) is Pro. -->
     <div class="rounded-lg border border-border bg-card p-4">
       <div class="flex items-center justify-between gap-4">
         <div>
@@ -35,7 +35,7 @@
     <ProFeatureGate
       v-if="!isPro"
       class="max-w-md"
-      message="Bring your own API keys, choose specific providers, and customize this campaign's AI setting prompt; available on the Pro plan. Free campaigns still get AI generation billed to Grimoire-managed credits once the toggle above is on."
+      message="Bring your own API keys and choose specific providers; available on the Pro plan. Free campaigns still get AI generation billed to Grimoire-managed credits once the toggle above is on."
     />
 
     <template v-else-if="form.ai_enabled">
@@ -169,30 +169,11 @@
       </div>
     </div>
 
-    <!-- Setting prompt -->
-    <div class="rounded-lg border border-border bg-card overflow-hidden">
-      <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between">
-        <span class="text-label-lg font-semibold text-muted-foreground">Campaign Setting Prompt</span>
-        <AppButton
-          v-if="settingDefaultPrompt"
-          variant="subtle"
-          size="xs"
-          :label="`Load ${settingLabel} Defaults`"
-          @click="form.ai_setting_prompt = settingDefaultPrompt"
-        />
-      </div>
-      <div class="p-4 flex flex-col gap-3">
-        <p class="text-caption text-muted-foreground italic">
-          Describe your world's tone, aesthetic, and feel. This is included in every AI generation request to keep all content consistent with your campaign.
-        </p>
-        <textarea
-          v-model="form.ai_setting_prompt"
-          rows="6"
-          placeholder="Describe the visual tone of your world: palette, materials, lighting, atmosphere, and character style. e.g. Frozen northern survival fantasy. Favour cold blues, greys, bone tones, weathered leather and fur. Use blizzard haze, moonlit ice, and dim firelight to support the subject. Characters wear practical cold-weather gear with cultural details through scars, markings, and trophies. Keep the mood solemn, hardy, and world-consistent."
-          class="field-input resize-none"
-        />
-      </div>
-    </div>
+    <!-- The campaign's world block (#1226) replaced the setting prompt. -->
+    <p class="text-caption text-muted-foreground italic">
+      What the AI writes and paints follows your campaign's Premise and tone, in
+      <RouterLink to="/canon" class="underline">Canon</RouterLink>.
+    </p>
 
     <!-- Your AI usage — platform-credit users only (BYOK pays their own provider) -->
     <AiUsageStatsPanel
@@ -245,8 +226,6 @@ import { encryptApiKey, decryptApiKey, primeDecryptCache } from "@/lib/apiKeyVau
 import { saveCampaignApiKeys, type CampaignApiKeyField, type CampaignApiKeys } from "@/ai/campaignApiKeys";
 import { encryptLocalKey, decryptLocalKey, isLocalCiphertext, LOCAL_MODE_KEY, localKeyModeChosen } from "@/lib/localKeyVault";
 import { safeLocalStorage, localStorageAvailable } from "@/lib/safeLocalStorage";
-import { getSetting } from "@/settings/index";
-import { useSettingContent } from "@/composables/campaign/useSettingContent";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useChildAccount } from "@/composables/account/useChildAccount";
 import { useProviderConfig, PROVIDER_DISPLAY } from "@/composables/ai/useProviderConfig";
@@ -306,7 +285,6 @@ const form = ref({
   ai_enabled:        campaign.activeCampaign?.ai_enabled === true,
   text_provider:    campaign.activeCampaign?.text_provider  ?? "openai",
   image_provider:   campaign.activeCampaign?.image_provider ?? "openai",
-  ai_setting_prompt: campaign.activeCampaign?.ai_setting_prompt ?? "",
   allow_chronicle_promotion: campaign.activeCampaign?.allow_chronicle_promotion ?? false,
   keys: initialKeys(),
 });
@@ -348,12 +326,6 @@ function undoClearKey(id: string) {
 // "on this device" would vanish; the option is offered only when it can work.
 const canKeepKeysLocally = localStorageAvailable();
 const localModeEnabled = ref(canKeepKeysLocally && localKeyModeChosen());
-
-const activeSetting        = computed(() => getSetting(campaign.activeCampaign?.calendar_id ?? ""));
-const { data: settingContent } = useSettingContent(() => campaign.activeCampaign?.calendar_id);
-// Empty until the setting's chunk arrives, which hides the "Load defaults" button meanwhile.
-const settingDefaultPrompt = computed(() => (settingContent.value ? settingContent.value.defaultAiPrompt : ""));
-const settingLabel         = computed(() => activeSetting.value?.label ?? "Setting");
 
 const { query: providerConfigQuery, rowFor, imageMultiplierFor } = useProviderConfig();
 // Until provider_config arrives nothing is known about what the admin offers:
@@ -451,7 +423,6 @@ watch(
       form.value.ai_enabled       = c.ai_enabled === true;
       form.value.text_provider    = c.text_provider  ?? "openai";
       form.value.image_provider   = c.image_provider ?? "openai";
-      form.value.ai_setting_prompt = c.ai_setting_prompt ?? "";
       form.value.allow_chronicle_promotion = c.allow_chronicle_promotion ?? false;
       // Inputs deliberately stay empty — see initialKeys() for the reasoning.
       for (const p of providerDefs) {
@@ -540,7 +511,6 @@ async function save() {
         ai_enabled:        form.value.ai_enabled,
         text_provider:     form.value.text_provider  || null,
         image_provider:    form.value.image_provider || null,
-        ai_setting_prompt: form.value.ai_setting_prompt.trim() || null,
         allow_chronicle_promotion: form.value.allow_chronicle_promotion,
       },
     });
@@ -550,13 +520,3 @@ async function save() {
   }
 }
 </script>
-
-<style scoped>
-@reference "@/assets/main.css";
-/* Static provider-status placeholders (not real <select>s, so AppSelect
-   doesn't apply) and the setting-prompt textarea (sanctioned native exception)
-   still need this recipe — see fieldVariants' tone="filled" + size="body". */
-.field-input {
-  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
-}
-</style>

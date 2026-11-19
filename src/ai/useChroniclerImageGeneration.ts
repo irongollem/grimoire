@@ -35,7 +35,7 @@ export async function startChroniclerImage(params: {
   noteId?: string | null;
 }): Promise<{ jobId: string }> {
   const { sceneText, entities, size, kind = "chronicler", noteId = null } = params;
-  const imageContext = captureImageGenerationContext();
+  const imageContext = await captureImageGenerationContext();
   return startCentralImageGeneration({
     ...imageContext,
     purpose: kind === "group_portrait" ? "group_portrait" : "chronicler",

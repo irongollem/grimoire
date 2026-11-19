@@ -12,6 +12,7 @@ export interface WorldLink {
   from_location_id: string | null;
   from_deity_id: string | null;
   from_item_id: string | null;
+  from_canon_entry_id: string | null;
   to_kind: LinkKind;
   to_npc_id: string | null;
   to_party_member_id: string | null;
@@ -19,6 +20,7 @@ export interface WorldLink {
   to_location_id: string | null;
   to_deity_id: string | null;
   to_item_id: string | null;
+  to_canon_entry_id: string | null;
   type: string;
   /** The DM's own note; never shown to a player. */
   note: string;

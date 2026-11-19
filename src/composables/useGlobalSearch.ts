@@ -46,7 +46,7 @@ export interface GlobalSearchOptions {
   kinds?: MaybeRefOrGetter<readonly SearchKind[] | null | undefined>;
 }
 
-/** Kinds whose rows can be the subject of a tie query: the ones that hold links. */
+/** Kinds whose rows can be the subject of a tie query: the ones that hold links. Canon is left out: a tie question names a thing, not a lore entry. */
 const TIE_SUBJECT_KINDS = ["npc", "party_member", "faction", "location", "deity", "item"] as const satisfies readonly LinkKind[];
 const TIE_SUBJECT_LIMIT = 3;
 const TIE_ROW_LIMIT = 8;
@@ -212,6 +212,7 @@ async function searchAll(query: string, campaignId: string | null, ownerId: stri
     questsRes,
     factionsRes,
     deitiesRes,
+    canonRes,
   ] = await Promise.all([
     skip("note", () => campaignId
       ? supabase.from("notes").select("id, title").eq("campaign_id", campaignId).ilike("title", q).limit(LIMIT)
@@ -254,6 +255,9 @@ async function searchAll(query: string, campaignId: string | null, ownerId: stri
     skip("deity", () => campaignId
       ? supabase.from("deities").select("id, name, titles, domains").eq("campaign_id", campaignId).ilike("name", q).limit(LIMIT)
       : Promise.resolve({ data: [] as DeitySearchRow[], error: null })),
+    skip("canon", () => campaignId
+      ? supabase.from("canon_entries").select("id, title").eq("campaign_id", campaignId).ilike("title", q).limit(LIMIT)
+      : Promise.resolve({ data: [] as { id: string; title: string }[], error: null })),
   ]);
 
   // One failing table must not blank the others. Each failure goes to Sentry
@@ -272,6 +276,7 @@ async function searchAll(query: string, campaignId: string | null, ownerId: stri
     { kind: "quest", label: "Quests", res: questsRes },
     { kind: "faction", label: "Factions", res: factionsRes },
     { kind: "deity", label: "Deities", res: deitiesRes },
+    { kind: "canon", label: "Canon", res: canonRes },
   ].filter((r) => wants(r.kind as SearchKind));
   const failedReads = reads.filter((r) => r.res.error);
   for (const { label, res } of failedReads) reportHandledError(res.error, "global-search", { group: label });
@@ -367,6 +372,16 @@ async function searchAll(query: string, campaignId: string | null, ownerId: stri
         id: r.id,
         name: r.title,
         route: `/quests/${r.id}`,
+        matchedBy: "name" as const,
+      })),
+    },
+    {
+      type: "canon",
+      label: "Canon",
+      items: ((canonRes.data ?? []) as { id: string; title: string }[]).map((r) => ({
+        id: r.id,
+        name: r.title,
+        route: searchRoute("canon", r.id),
         matchedBy: "name" as const,
       })),
     },

@@ -34,6 +34,8 @@ import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { repairGeneratedNames } from "../_shared/nameRepairWire.ts";
 import { repaired } from "../_shared/nameRepair.ts";
+import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
+import { worldBlockText } from "../_shared/worldBlock.ts";
 
 /**
  * Party-aware AI encounter suggester (#337).
@@ -57,12 +59,6 @@ const VALID_DIFFICULTIES: readonly string[] = ["easy", "medium", "hard", "deadly
 
 // Custom-monster index is capped to bound prompt cost on large bestiaries.
 const MAX_CUSTOM_MONSTERS = 200;
-
-function buildCampaignContext(setting: string | null | undefined): string {
-  const s = setting?.trim();
-  if (!s) return "";
-  return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n## Setting\n${s}`;
-}
 
 // ── Server-side context building ─────────────────────────────────────────────
 
@@ -185,7 +181,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, game_system")
+    .select("id, user_id, ai_enabled, text_provider, game_system")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -275,7 +271,8 @@ serve(withCors(async (req: Request) => {
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
 
-  const systemContent = promptRow.content + (rulesetContext ? `\n\n${rulesetContext}` : "") + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
+  const world = await loadWorldBlock(admin, campaign.id);
+  const systemContent = promptRow.content + (rulesetContext ? `\n\n${rulesetContext}` : "") + worldBlockText(world) + INJECTION_GUARD_SUFFIX;
 
   // The platform picks the model: a campaign on credits runs on the provider the
   // admin enabled, and campaigns.text_provider only counts with the campaign's own key.

@@ -37,6 +37,20 @@ function mountWith(
 }
 
 describe("SegmentedControl", () => {
+  // A "vertical" control used to turn only the arrow keys, so it still laid out as a row and wrapped its labels in a
+  // narrow column (the Canon page's who-knows control, the players' place filter).
+  it("stacks its options in a column when vertical", () => {
+    const w = mountControl("url", { orientation: "vertical" });
+    expect(w.classes()).toContain("flex-col");
+    expect(w.classes()).not.toContain("inline-flex");
+    expect(w.findAll("button").every(b => b.classes().includes("w-full"))).toBe(true);
+  });
+
+  it("stays a row when horizontal", () => {
+    const w = mountControl();
+    expect(w.classes()).not.toContain("flex-col");
+  });
+
   it("renders one button per option", () => {
     const w = mountControl();
     const buttons = w.findAll("button");

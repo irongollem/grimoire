@@ -88,6 +88,8 @@ insert into live_sync_doorbell (name) values
   ('kin_links'),
   -- World Web (#1084).
   ('world_links'),
+  -- The campaign's canon (#1226): players read it through get_player_canon.
+  ('canon_entries'),
   -- The record (#1021).
   ('story_facts'), ('story_fact_links'),
   -- A party member played by the AI (#1021 row 26).

@@ -7,7 +7,7 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
-import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
+import { captureFailureMessage, captureImageGenerationContext, generateImage } from "./useImageGeneration";
 import { normalizeDungeonFeature } from "@/lib/dungeon-features/featureAi";
 import type { DungeonFeatureAiResult } from "@/lib/dungeon-features/featureAi";
 import type { AiProvenance } from "./provenance";
@@ -48,11 +48,11 @@ export function useDungeonFeatureGeneration() {
     _state.error.value = null;
     startAiQuotes();
 
-    let imageContext: ReturnType<typeof captureImageGenerationContext>;
+    let imageContext: Awaited<ReturnType<typeof captureImageGenerationContext>>;
     try {
-      imageContext = captureImageGenerationContext();
-    } catch {
-      _state.error.value = "No active campaign selected.";
+      imageContext = await captureImageGenerationContext();
+    } catch (e) {
+      _state.error.value = captureFailureMessage(e);
       _state.isGenerating.value = false;
       stopAiQuotes();
       return null;
@@ -66,7 +66,7 @@ export function useDungeonFeatureGeneration() {
       const raw = await generateEntityText<Record<string, unknown> & { ai_provenance?: AiProvenance }>({
         generator: "feature",
         campaignId: imageContext.campaignId,
-        settingPrompt: imageContext.settingPrompt,
+        world: imageContext.world,
         ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,

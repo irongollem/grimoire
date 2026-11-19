@@ -27,6 +27,8 @@ export const FAMILY_TOKEN: Record<TieFamily, string> = {
   holding: "--link-holding",
   stance: "--link-stance",
   record: "--link-record",
+  // Lore reuses the gilt of holding: no token of its own until the Canon page is drawn against the web.
+  lore: "--link-lore",
   kin: "--relation-family",
 };
 
@@ -43,6 +45,7 @@ const NODE_SIZE: Record<WebKind, number> = {
   deity: 19,
   item: 15,
   quest: 16,
+  canon: 17,
 };
 
 export function nodeSizeFor(kind: WebKind): number {

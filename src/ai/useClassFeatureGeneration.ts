@@ -43,7 +43,7 @@ export function useClassFeatureGeneration() {
     startAiQuotes();
 
     try {
-      const context = captureImageGenerationContext();
+      const context = await captureImageGenerationContext();
       const constraints: string[] = [];
       if (options?.activation) constraints.push(`Activation: ${options.activation}`);
       const forWhom = options?.forWhom?.trim();
@@ -52,7 +52,7 @@ export function useClassFeatureGeneration() {
       const raw = await generateEntityText<FeatureAiResult>({
         generator: "class_feature",
         campaignId: context.campaignId,
-        settingPrompt: context.settingPrompt,
+        world: context.world,
         ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,

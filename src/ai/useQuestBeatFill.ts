@@ -52,11 +52,11 @@ export function useQuestBeatFill() {
     startAiQuotes();
 
     try {
-      const imageContext = captureImageGenerationContext();
+      const imageContext = await captureImageGenerationContext();
       const raw = await generateEntityText<QuestBeatFillResult>({
         generator: "quest_beat",
         campaignId: imageContext.campaignId,
-        settingPrompt: imageContext.settingPrompt,
+        world: imageContext.world,
         ruleset: ruleset.value,
         prompt: steer?.trim().slice(0, AI_PROMPT_LIMIT) || DEFAULT_STEER,
         constraints: buildBeatFillConstraints(context),

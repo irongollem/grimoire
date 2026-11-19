@@ -34,6 +34,8 @@ import { retrieveCampaignEntities, formatEntityBlock } from "../_shared/campaign
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
+import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
+import { worldBlockText } from "../_shared/worldBlock.ts";
 
 /**
  * Retrieval-grounded Chronicler recap generator (#600, third grounded
@@ -165,7 +167,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, game_system")
+    .select("id, user_id, ai_enabled, text_provider, game_system")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -199,7 +201,7 @@ serve(withCors(async (req: Request) => {
     ? entity_descriptions.map((d) => `- ${d}`).join("\n")
     : "No specific entities mentioned.";
 
-  const settingBlock = campaign.ai_setting_prompt?.trim() ?? "No setting configured.";
+  const settingBlock = worldBlockText(await loadWorldBlock(admin, campaign.id)).trim() || "No setting configured.";
 
   // The DM's own tag vocabulary going into their own generation — fine to
   // pass through the system prompt like {entities}/{settingPrompt}, unlike

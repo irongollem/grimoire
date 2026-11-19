@@ -37,6 +37,8 @@ import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
+import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
+import { worldBlockText, worldImageSetting } from "../_shared/worldBlock.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -48,12 +50,6 @@ const PORTRAIT_SIZE_BY_PROVIDER: Record<string, string> = {
   openai: "1024x1536",
   gemini: "1024x1536",
 };
-
-function buildCampaignContext(setting: string | null | undefined): string {
-  const s = setting?.trim();
-  if (!s) return "";
-  return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n## Setting\n${s}`;
-}
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
@@ -106,7 +102,7 @@ serve(withCors(async (req: Request) => {
   const { data: campaign } = await admin
     .from("campaigns")
     .select(
-      "id, user_id, ai_enabled, text_provider, image_provider, ai_setting_prompt, game_system",
+      "id, user_id, ai_enabled, text_provider, image_provider, game_system",
     )
     .eq("id", campaign_id)
     .maybeSingle();
@@ -198,6 +194,8 @@ serve(withCors(async (req: Request) => {
     : 0;
   const maxImages = shouldGenerateImage ? (generateAlterEgo ? 2 : 1) : 0;
   const totalNeeded = npcTextCost + portraitCostEach * maxImages;
+  const world = await loadWorldBlock(admin, campaign.id);
+
   // Atomic affordability gate: hold the balance across the paid text+portrait calls.
   // Throttle abusive burst volume before any paid provider work (issue #466).
   if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
@@ -217,7 +215,7 @@ serve(withCors(async (req: Request) => {
   const systemContent =
     promptRow.content +
     (rulesetContext ? `\n\n${rulesetContext}` : "") +
-    buildCampaignContext(campaign.ai_setting_prompt) +
+    worldBlockText(world) +
     INJECTION_GUARD_SUFFIX;
 
   const userContent = generateAlterEgo
@@ -285,7 +283,7 @@ serve(withCors(async (req: Request) => {
   if (img && shouldGenerateImage && npcData.true_portrait_prompt) {
     const imagePrompt = buildLabelledImagePrompt({
       base: imageBasePrompt,
-      setting: campaign.ai_setting_prompt ?? "",
+      setting: worldImageSetting(world),
       subject: String(npcData.true_portrait_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS),
     });
 
@@ -325,7 +323,7 @@ serve(withCors(async (req: Request) => {
     if (generateAlterEgo && portrait_b64 && npcData.disguise_image_prompt) {
       const disguisePrompt = buildSimpleImagePrompt({
         base: imageBasePrompt,
-        setting: campaign.ai_setting_prompt ?? "",
+        setting: worldImageSetting(world),
         subject: String(npcData.disguise_image_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS),
       });
       try {

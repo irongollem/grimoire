@@ -98,9 +98,9 @@ function mount<T>(setup: () => T): T {
   return out;
 }
 
-/** Twelve tables per search: notes, npcs, party_members, monsters, library_monsters,
- *  spells, library_spells, items, locations, quests, factions, deities. */
-const TABLES_PER_SEARCH = 12;
+/** Thirteen tables per search: notes, npcs, party_members, monsters, library_monsters,
+ *  spells, library_spells, items, locations, quests, factions, deities, canon_entries. */
+const TABLES_PER_SEARCH = 13;
 
 describe("useGlobalSearch", () => {
   beforeEach(() => {

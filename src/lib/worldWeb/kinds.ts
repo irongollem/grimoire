@@ -58,6 +58,7 @@ export const KIND_CHIPS: readonly KindChip[] = [
   { kind: "deity", label: "Deities", noun: "Deity" },
   { kind: "item", label: "Items", noun: "Item" },
   { kind: "quest", label: "Quests", noun: "Quest" },
+  { kind: "canon", label: "Canon", noun: "Canon entry" },
 ];
 
 const CHIP_BY_KIND = new Map(KIND_CHIPS.map((c) => [c.kind, c]));
@@ -91,6 +92,8 @@ export function dmSheetPath(ref: NodeRef): string {
       return `/vault/${ref.id}`;
     case "quest":
       return `/quests/${ref.id}`;
+    case "canon":
+      return `/canon?entry=${ref.id}`;
   }
 }
 
@@ -108,5 +111,7 @@ export function playerListPath(kind: WebKind): string | null {
     case "item":
     case "quest":
       return null;
+    case "canon":
+      return "/play/journal?tab=world";
   }
 }

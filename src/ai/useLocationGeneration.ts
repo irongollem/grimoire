@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
+import { requireWorld } from "./worldBlock";
 import {
   buildCampaignContext,
 } from "./utils";
@@ -18,6 +19,7 @@ import { getTextProvider } from "./providers";
 import { wrapUserInput } from "./utils";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import {
+  captureFailureMessage,
   captureImageGenerationContext,
   generateImage,
   type ImageGenerationContext,
@@ -64,9 +66,9 @@ export function useLocationGeneration() {
 
     let imageContext: ImageGenerationContext;
     try {
-      imageContext = captureImageGenerationContext();
-    } catch {
-      _state.error.value = "No active campaign selected.";
+      imageContext = await captureImageGenerationContext();
+    } catch (e) {
+      _state.error.value = captureFailureMessage(e);
       _state.isGenerating.value = false;
       stopAiQuotes();
       return null;
@@ -121,7 +123,7 @@ export function useLocationGeneration() {
     options: LocationGenerationOptions | undefined,
     imageContext: ImageGenerationContext,
   ): Promise<LocationAiGenerated | null> {
-    const settingPrompt = imageContext.settingPrompt;
+    const world = requireWorld(imageContext.world);
     const textProvider = getTextProvider();
 
     const [basePrompt, rulesetContext] = await Promise.all([
@@ -129,9 +131,7 @@ export function useLocationGeneration() {
       fetchRulesetContext(ruleset.value),
     ]);
     if (!basePrompt) throw new Error("Location system prompt not configured.");
-    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
-      setting: settingPrompt,
-    })}`;
+    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext(world)}`;
 
     const constraints: string[] = [];
     if (options?.location_type) constraints.push(`Location Type: ${options.location_type}`);

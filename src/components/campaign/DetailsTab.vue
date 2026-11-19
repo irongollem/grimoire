@@ -14,30 +14,6 @@
       />
     </div>
 
-    <!-- World -->
-    <div>
-      <label class="block text-label-lg font-semibold text-muted-foreground mb-1">WORLD</label>
-      <AppInput
-        v-model="form.setting"
-        list="campaign-settings-list"
-        tone="filled"
-        size="body"
-        placeholder="Forgotten Realms, Eberron, Homebrew…"
-      />
-      <datalist id="campaign-settings-list">
-        <option value="Forgotten Realms" />
-        <option value="Eberron" />
-        <option value="Ravenloft" />
-        <option value="Dragonlance" />
-        <option value="Greyhawk" />
-        <option value="Planescape" />
-        <option value="Spelljammer" />
-        <option value="Dark Sun" />
-        <option value="Mystara" />
-        <option value="Homebrew" />
-      </datalist>
-    </div>
-
     <!-- Calendar + Year -->
     <div class="grid grid-cols-2 gap-3">
       <div>
@@ -194,7 +170,7 @@ import { useRecordDraft } from "@/composables/useRecordDraft";
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import type { Campaign } from "@/types/campaign.types";
 import { listCalendarAdapters, createDefaultCustomCalendarDef } from "@/settings/index";
-import { getSetting, listSettings } from "@/settings/index";
+import { getSetting } from "@/settings/index";
 import type { SettingCalendarDef } from "@/settings/types";
 import SettingChoiceList from "@/components/campaign/SettingChoiceList.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -240,7 +216,6 @@ const PLAYER_SIGHT_OPTIONS = [
 function buildForm(c: Campaign | null) {
   return {
     name: c?.name ?? "",
-    setting: c?.setting ?? "",
     calendar_id: c?.calendar_id ?? null,
     current_year: c?.current_year ?? 1,
     climate: c?.climate ?? "temperate",
@@ -264,7 +239,6 @@ const { draft: form, changes, commit, reset, conflicts } = useRecordDraft({
 
 const CONFLICT_LABELS: Record<keyof CampaignForm, string> = {
   name: "Name",
-  setting: "World",
   calendar_id: "Calendar",
   current_year: "Current year",
   climate: "Climate",
@@ -282,7 +256,6 @@ const conflictLabels = computed(() => conflicts.value.map((key) => CONFLICT_LABE
 function campaignRow(f: CampaignForm) {
   return {
     name: f.name,
-    setting: f.setting.trim() || null,
     calendar_id: f.calendar_id,
     current_year: f.current_year,
     climate: f.climate,
@@ -309,12 +282,6 @@ function onCalendarChange() {
     return;
   }
   form.custom_calendar = null;
-  if (form.calendar_id === null) return;
-  const newLabel = getSetting(form.calendar_id)?.label ?? "";
-  const knownLabels = new Set(listSettings().map((s) => s.label));
-  if (newLabel && (!form.setting || knownLabels.has(form.setting))) {
-    form.setting = newLabel;
-  }
 }
 
 // The editor shows the problem; this keeps a calendar it flags from being saved.

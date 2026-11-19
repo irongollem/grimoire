@@ -301,6 +301,11 @@ const AOE_SHAPE = [
   "emanation",
 ] as const;
 
+// src/types/canon.types.ts
+const CANON_PART = ["premise", "truth", "force", "secret", "question", "lore", "chronicle"] as const;
+const PREMISE_KIND = ["pitch", "theme", "table", "voice", "look", "line", "veil"] as const;
+const KNOWLEDGE_MARK = ["all", "some", "secret"] as const;
+
 // src/types/trap.types.ts
 const TRAP_TYPE = ["Mechanical", "Magical", "Hybrid", "Environmental"] as const;
 const TRAP_TRIGGER = [
@@ -764,6 +769,48 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
         pantheon_id: { type: "uuid" },
         domains: { type: "text[]", description: "Cleric domains." },
         tags: { type: "text[]" },
+      },
+    },
+  },
+  canon: {
+    type: "canon",
+    label: "Canon entry",
+    table: "canon_entries",
+    nameField: "title",
+    searchFields: ["title"],
+    extraListColumns: ["part", "knowledge", "premise_kind", "sort_order"],
+    campaignScope: "owned",
+    imageFields: { picture: "image_url" },
+    create: {
+      fields: {
+        campaign_id: { type: "uuid", required: true },
+        part: {
+          type: "enum",
+          values: CANON_PART,
+          required: true,
+          description:
+            "Where the entry belongs. Premise entries also need premise_kind; truths also need knowledge.",
+        },
+        title: {
+          type: "text",
+          required: true,
+          description: "A one-line entry is its title (a truth, a theme, a line).",
+        },
+        body: { type: "text", description: "The pitch or a longer entry; plain text is accepted." },
+        premise_kind: {
+          type: "enum",
+          values: PREMISE_KIND,
+          description:
+            "Only when part is premise. Lines are never suggested anywhere; veils happen off the page.",
+        },
+        knowledge: {
+          type: "enum",
+          values: KNOWLEDGE_MARK,
+          description:
+            "Only when part is truth: who knows it. Only truths marked all reach the AI generators.",
+        },
+        sort_order: { type: "number" },
+        player_visible_to: { type: "uuid[]", description: "Party members who may see it." },
       },
     },
   },

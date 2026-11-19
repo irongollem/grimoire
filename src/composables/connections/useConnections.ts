@@ -202,7 +202,7 @@ function ends(subject: WorldRef, other: WorldRef, choice: Pick<TypeChoice, "subj
 }
 
 /** Every end column of `world_links`, so a re-aimed link can null the old ones in the same statement. */
-const LINK_END_COLUMNS = ["npc_id", "party_member_id", "faction_id", "location_id", "deity_id", "item_id"] as const;
+const LINK_END_COLUMNS = ["npc_id", "party_member_id", "faction_id", "location_id", "deity_id", "item_id", "canon_entry_id"] as const;
 
 async function itemName(item: WorldRef, other: NamedRef): Promise<string> {
   if (other.kind === "item" && other.id === item.id) return other.name;

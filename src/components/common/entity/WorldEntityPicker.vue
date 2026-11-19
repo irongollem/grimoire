@@ -83,6 +83,7 @@ const KIND_LABEL: Record<LinkKind, string> = {
   location: "Places",
   deity: "Deities",
   item: "Items",
+  canon: "Canon",
 };
 
 const query = ref("");

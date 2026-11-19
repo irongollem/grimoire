@@ -151,6 +151,7 @@
   --color-link-place: var(--link-place);
   --color-link-holding: var(--link-holding);
   --color-link-stance: var(--link-stance);
+  --color-link-lore: var(--link-lore);
   --color-link-record: var(--link-record);
   --color-trap-mechanical: var(--trap-mechanical);
   --color-trap-magical: var(--trap-magical);
@@ -370,14 +371,15 @@
   /* World web: kin line colour */
   --relation-family: #7c3aed;
 
-  /* World web: one colour per family of tie (#1084). Lightness differs across the
-     seven, not hue alone: enmity is the darkest, holding the lightest. */
+  /* World web: one colour per family of tie (#1084; lore, a canon entry's ties, #1226). Lightness differs across the
+     eight, not hue alone: enmity is the darkest, holding the lightest. */
   --link-bond: #3a7bbf;
   --link-enmity: #c0432c;
   --link-faith: #9468c4;
   --link-place: #2e8b57;
   --link-holding: #d49a1a;
   --link-stance: #5b6670;
+  --link-lore: #8b5a3a;
   --link-record: #9a9183;
 
   /* TRAP_TYPE_BG */

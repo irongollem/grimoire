@@ -15,6 +15,7 @@ import {
   IconNavSessions,
   IconNavHeroes,
   IconNavBookNook,
+  IconNavCanon,
   IconNavInterlude,
   IconNavItemVault,
   IconNavMint,
@@ -117,7 +118,14 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Notes",
         to: "/notes",
         icon: IconNavNotes,
-        description: "Session notes & lore",
+        description: "Your notes",
+        requiresCampaign: true,
+      },
+      {
+        label: "Canon",
+        to: "/canon",
+        icon: IconNavCanon,
+        description: "Truths, lore and secrets",
         requiresCampaign: true,
       },
       {

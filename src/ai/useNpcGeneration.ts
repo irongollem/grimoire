@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import type { NpcAiResult, NpcAiGenerated } from "./types";
+import { requireWorld } from "./worldBlock";
 import {
   buildCampaignContext,
 } from "./utils";
@@ -18,6 +19,7 @@ import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useNpcsUiStore } from "@/stores/ui/npcs";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import {
+  captureFailureMessage,
   captureImageGenerationContext,
   generateImage,
   type ImageGenerationContext,
@@ -60,9 +62,9 @@ export function useNpcGeneration() {
 
     let imageContext: ImageGenerationContext;
     try {
-      imageContext = captureImageGenerationContext();
-    } catch {
-      _state.error.value = "No active campaign selected.";
+      imageContext = await captureImageGenerationContext();
+    } catch (e) {
+      _state.error.value = captureFailureMessage(e);
       _state.isGenerating.value = false;
       stopAiQuotes();
       return null;
@@ -122,7 +124,7 @@ export function useNpcGeneration() {
     options: { generateAlterEgo?: boolean; generateImage?: boolean } | undefined,
     imageContext: ImageGenerationContext,
   ): Promise<NpcAiGenerated | null> {
-    const settingPrompt = imageContext.settingPrompt;
+    const world = requireWorld(imageContext.world);
 
     // ── 1. Text generation ─────────────────────────────────────────────────
     const textProvider = getTextProvider();
@@ -134,7 +136,7 @@ export function useNpcGeneration() {
     const systemContent =
       basePrompt +
       (rulesetContext ? `\n\n${rulesetContext}` : "") +
-      buildCampaignContext({ setting: settingPrompt });
+      buildCampaignContext(world);
 
     const userContent = options?.generateAlterEgo
       ? `${wrapUserInput(userPrompt)}\n\nThis NPC has a disguise identity — populate disguise_name and disguise_image_prompt.`

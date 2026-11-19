@@ -577,6 +577,7 @@ export function buildCopyPlan(
 export type CopyJoinTable = "world_links" | "kin_links" | "npc_inventory" | "faction_npcs";
 
 /** A world link's end kinds (`LinkKind`), each with the column that holds that kind's id on a given side. */
+// Canon entries are not here on purpose: this path copies none, so a link with a canon end is left out like a PC's.
 const WORLD_LINK_KINDS = ["npc", "party_member", "faction", "location", "deity", "item"] as const;
 type WorldLinkKindName = (typeof WORLD_LINK_KINDS)[number];
 

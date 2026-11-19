@@ -9,6 +9,8 @@ import { getTextProvider, getImageProvider } from "./providers";
 import { fetchImageBasePrompt } from "./systemPrompts";
 import { buildEntityImagePrompt, buildImagePromptAuthorSystem } from "./imagePrompt";
 import { buildCampaignContext, b64ToBlob, wrapUserInput } from "./utils";
+import { fetchWorldBlock } from "./worldBlock";
+import { worldImageSetting } from "@edge-shared/worldBlock.ts";
 import { startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { useImageGenerationLog, type ImageGenKind } from "@/composables/ai/useImageGenerationLog";
@@ -164,13 +166,15 @@ export function useEntityImageGeneration(bucketId: BucketId) {
 
   // ── Client-side path (BYOK local mode — key never leaves the browser) ──────────
   async function generateClientSide(options: GenerateEntityImageOptions): Promise<string | null> {
-    const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "";
+    const campaignId = campaign.activeCampaign?.id;
+    if (!campaignId) throw new Error("No active campaign selected.");
+    const world = await fetchWorldBlock(campaignId);
 
     // 1. Author a visual prompt from the entity's facts (the "AI weighs in" step).
     const textProvider = getTextProvider();
     const authorSystem =
       buildImagePromptAuthorSystem(options.kind) +
-      buildCampaignContext({ setting: settingPrompt });
+      buildCampaignContext(world);
     const { content: subject, usage: textUsage } = await textProvider.complete(
       authorSystem,
       wrapUserInput(options.context),
@@ -185,7 +189,7 @@ export function useEntityImageGeneration(bucketId: BucketId) {
     const imageProvider = await getImageProvider();
     const imagePrompt = buildEntityImagePrompt(options.kind, {
       base: imageBasePrompt,
-      setting: settingPrompt,
+      setting: worldImageSetting(world),
       subject,
     });
     const { b64, usage: imageUsage } = await imageProvider.generate(imagePrompt, IMAGE_SIZE);

@@ -19,6 +19,8 @@ import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { registerImageProvenance } from "../_shared/provenance/register.ts";
 import { hasLikenessAcknowledgement } from "../_shared/provenance/likeness-gate.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
+import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
+import { worldImageSetting } from "../_shared/worldBlock.ts";
 
 // Keep browser-supplied composition inputs bounded before req.json()/atob hold
 // both the encoded and decoded copies in the Edge isolate.
@@ -59,9 +61,9 @@ const PURPOSE_CONFIG: Record<ImagePurpose, {
   deity:          { kind: "deity",          bucket: "pantheon-emblems", prefix: "deity",   creditType: "entity_image",       boostStyle: true },
 };
 
-function buildScenePrompt(sceneText: string, textDescriptions: string[], settingPrompt: string, imageBasePrompt: string): string {
+function buildScenePrompt(sceneText: string, textDescriptions: string[], setting: string, imageBasePrompt: string): string {
   const parts = [imageBasePrompt];
-  if (settingPrompt.trim()) parts.push(settingPrompt.trim());
+  if (setting.trim()) parts.push(setting.trim());
   parts.push("\n\nCompose a scene illustration.");
   if (textDescriptions.length > 0) {
     parts.push(
@@ -83,14 +85,14 @@ function buildPurposePrompt(
   purpose: ImagePurpose,
   subject: string,
   textDescriptions: string[],
-  settingPrompt: string,
+  setting: string,
   imageBasePrompt: string,
 ): string {
   if (purpose === "chronicler" || purpose === "group_portrait") {
-    return buildScenePrompt(subject, textDescriptions, settingPrompt, imageBasePrompt);
+    return buildScenePrompt(subject, textDescriptions, setting, imageBasePrompt);
   }
   if (purpose === "location_map") return subject;
-  return buildEntityImagePrompt(purpose, { base: imageBasePrompt, setting: settingPrompt, subject });
+  return buildEntityImagePrompt(purpose, { base: imageBasePrompt, setting, subject });
 }
 
 async function uploadResult(
@@ -266,7 +268,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, ai_setting_prompt, image_provider")
+    .select("id, user_id, ai_enabled, image_provider")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return text("Campaign not found", 404);
@@ -312,17 +314,18 @@ serve(withCors(async (req: Request) => {
     );
   }
 
+  const setting = worldImageSetting(await loadWorldBlock(admin, campaign.id));
+
   const reservation = await reserveCredits(admin, user.id, imageCost, config.creditType);
   if (!reservation.ok) {
     return reservationFailureResponse(reservation);
   }
 
-  const settingPrompt = campaign.ai_setting_prompt ?? "";
   const { data: imageBaseRow } = await admin
     .from("ai_system_prompts").select("content")
     .eq("generator_type", "image_base").maybeSingle();
   const imageBasePrompt = imageBaseRow?.content ?? "";
-  const prompt = buildPurposePrompt(purpose, subject, text_descriptions, settingPrompt, imageBasePrompt);
+  const prompt = buildPurposePrompt(purpose, subject, text_descriptions, setting, imageBasePrompt);
 
   // A chronicler job started from a saved note records the note as its
   // completion target: completeImageJob then swaps the note's pendingImage

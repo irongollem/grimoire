@@ -42,7 +42,7 @@ export function useCustomRuleGeneration() {
     startAiQuotes();
 
     try {
-      const context = captureImageGenerationContext();
+      const context = await captureImageGenerationContext();
       const constraints: string[] = [];
       if (options?.category) constraints.push(`Category: ${options.category}`);
       constraints.push(
@@ -54,7 +54,7 @@ export function useCustomRuleGeneration() {
       const raw = await generateEntityText<{ ai_provenance?: AiProvenance } & Record<string, unknown>>({
         generator: "custom_rule",
         campaignId: context.campaignId,
-        settingPrompt: context.settingPrompt,
+        world: context.world,
         ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,

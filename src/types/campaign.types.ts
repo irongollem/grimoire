@@ -24,7 +24,6 @@ export interface Campaign {
   game_system: GameSystemKey;
   /** When true, characters built for a compatible system may be seated in this campaign (5e systems only). */
   allows_mixed_rulesets: boolean;
-  description: string | null;
   /** The world the DM named; null = none named. */
   setting: string | null;
   current_year: number;
@@ -52,7 +51,6 @@ export interface Campaign {
   // Active provider selection
   text_provider: string | null;
   image_provider: string | null;
-  ai_setting_prompt: string | null;
   allow_chronicle_promotion: boolean;
   /** Tri-state EU AI Act consent (context/compliance/ai-act.md §4): true =
    *  owner opted in, false = owner explicitly declined, null = not chosen
@@ -113,7 +111,6 @@ export type CampaignInsert = Omit<
   | "game_system"
   | "allows_mixed_rulesets"
   | ProviderFields
-  | "ai_setting_prompt"
   | "allow_chronicle_promotion"
   | "ical_token"
   | PortraitFields
@@ -146,7 +143,6 @@ export type CampaignInsert = Omit<
   allows_mixed_rulesets?: boolean;
   text_provider?: string | null;
   image_provider?: string | null;
-  ai_setting_prompt?: string | null;
   allow_chronicle_promotion?: boolean;
   /** Omitted on create so new campaigns start unchosen (null) — see the
    *  column comment on `campaigns.ai_enabled`. */

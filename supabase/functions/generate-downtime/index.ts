@@ -32,6 +32,8 @@ import { withCors } from "../_shared/cors.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
+import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
+import { worldBlockText } from "../_shared/worldBlock.ts";
 
 /**
  * Drafts the outcome of one downtime draw (#486, Phase 3).
@@ -49,12 +51,6 @@ const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
-
-function buildCampaignContext(setting: string | null | undefined): string {
-  const s = setting?.trim();
-  if (!s) return "";
-  return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n## Setting\n${s}`;
-}
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
@@ -105,7 +101,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, game_system")
+    .select("id, user_id, ai_enabled, text_provider, game_system")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -134,10 +130,11 @@ serve(withCors(async (req: Request) => {
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
 
+  const world = await loadWorldBlock(admin, campaign.id);
   const systemContent =
     promptRow.content +
     (rulesetContext ? `\n\n${rulesetContext}` : "") +
-    buildCampaignContext(campaign.ai_setting_prompt) +
+    worldBlockText(world) +
     INJECTION_GUARD_SUFFIX;
 
   // The archetype and reward kind are OUR values, not the caller's prose — they go
