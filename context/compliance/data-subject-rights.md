@@ -364,6 +364,15 @@ functions find them from the account's `agent_sessions` rows
 entry: `export_user_data` walks every table with a foreign key to the account,
 which the three `agent_*` tables have.
 
+**A character played for an absent player (#1021 row 26, 19 Nov 2026).** Two kinds of rows come of it, and they
+belong to different accounts on purpose. The lines the character said in chat are `campaign_messages` rows posted in
+the name of the character's own player (`user_id`), so they are in that player's export and go with that player's
+account. What the character remembers (`party_member_memories`) is keyed to the Dungeon Master at whose table it was
+written (`user_id`), so the walk puts it in the DM's export and erases it with the DM's account; the player reads it
+on their sheet while it exists, and it also goes when the character or the campaign is deleted. It is the model's
+account of a fictional character, not a record about the player, which is why it is not duplicated into the
+player's export.
+
 Four positions worth not re-deriving:
 
 1. **Two FK columns on one table are two different people, but one row.**
