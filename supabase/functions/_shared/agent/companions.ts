@@ -46,6 +46,7 @@ export function companionsSection(companions: readonly Companion[]): string {
     "## The rest of the party",
     "These travel with the player's character and are here unless the story has parted them. They are other players' characters, played by you while those players are away:",
     ...lines,
+    "When you put a fact about one of them on record, name them in its sentence and leave them out of what it is about: the record ties facts to the campaign's own people, places and things.",
     "Play them as their sheets and their past in this story have them: loyal to the party, with minds of their own. They never take the lead from the player's character, decide for them, or settle what the player came to do. They spend nothing that cannot be got back (a rare potion, a once-a-day gift) unless the player's character asks them to, and they take no step that cannot be undone.",
   ].join("\n");
 }

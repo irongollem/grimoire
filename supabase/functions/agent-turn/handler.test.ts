@@ -1675,6 +1675,16 @@ describe("the rest of the party at the table", () => {
     expect(told).not.toContain("00000000-0000-4000-8000-0000000000d2");
   });
 
+  // Seen live (19 Nov 2026): a companion's promise filed about her own id was refused by the record, and the
+  // narrator told the player "the record tool won't accept Chicory's character entry". Bug caught: a fact about a
+  // party member lost, and a tool's trouble told as story.
+  it("files a fact that names one of the party, without tying it to them as a character of the campaign's", async () => {
+    const h = harness([step(10, { blocks: [{ type: "tool_call", id: "f1", name: "record", input: { fact: "Folio promised to carry the lute home.", about: [{ type: "npc", id: folio.id }, { type: "npc", id: HONEYCOMB }] } }], stop: "tool_calls" }), step(50)]);
+    h.state.companions = [folio];
+    await play(h, { body: { campaignId: CAMPAIGN, message: "I look around.", mode: "do" } });
+    expect(h.facts.map((f) => [f.body, f.about.map((a) => a.id)])).toEqual([["Folio promised to carry the lute home.", [HONEYCOMB]]]);
+  });
+
   // The player's words are the player's alone. Bug caught: a reply naming the played character's own id as the
   // speaker, and the table putting words in the player's mouth.
   it("never has anyone speak for the played character, whatever id a reply names", async () => {

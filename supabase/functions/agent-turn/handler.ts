@@ -675,6 +675,7 @@ export async function beginTurn(input: {
           quests: questState === null ? null : { state: questState, queued },
           playerName: character ? character.name : undefined,
           playedId: character ? character.id : undefined,
+          partyIds: companions.map((c) => c.id),
           peoples,
           onIntroduce: (intro) => { introduced.push(intro); },
           // Not in a fight on the board: that is fought with what is on it.

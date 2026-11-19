@@ -61,6 +61,8 @@ export interface TurnToolsInput {
   playerName?: string;
   /** The party member the player plays; nobody speaks for them. */
   playedId?: string;
+  /** The rest of the party, by id: a fact is never tied to one of them as if they were a character of the campaign's. */
+  partyIds?: readonly string[];
   /** The names of the world's peoples, for the characters' own calls. */
   peoples: readonly string[];
   /** The fight on the board and what the player's turn still holds; null when no fight is being fought, and then the tool is not offered. */
@@ -185,6 +187,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     peoples: input.peoples,
   });
 
+  const partyIds = new Set([...(input.partyIds ?? []), ...(input.playedId === undefined ? [] : [input.playedId])]);
   // The campaign and the sittings are the conversation's own; the model only chooses the words and what they are about.
   const record = makeRecordTool({
     fileFact: (fact) =>
@@ -195,6 +198,10 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
         provider: input.provider,
         model: input.model,
         ...fact,
+        // The record ties a fact to people of the campaign, and a party member is not one of those: an id of the
+        // party named there would have the whole fact refused. Seen live (19 Nov 2026): a companion's promise
+        // could not be filed, and the narrator told the player about the tool. Their name in the sentence is the tie.
+        about: fact.about.filter((a) => !partyIds.has(a.id)),
       }),
     onFiled: (fact) => input.filed.push(fact),
   });
