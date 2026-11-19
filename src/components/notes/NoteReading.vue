@@ -28,6 +28,10 @@
         <span id="note-reading-voice" class="text-label text-foreground">The Narrator speaks in</span>
         <SegmentedControl :model-value="voice" :options="NARRATOR_VOICE_OPTIONS" size="sm" aria-labelledby="note-reading-voice" @update:model-value="chooseVoice" />
       </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <span id="note-reading-telling" class="text-label text-foreground">Told</span>
+        <SegmentedControl :model-value="telling" :options="READING_TELLING_OPTIONS" size="sm" aria-labelledby="note-reading-telling" data-testid="note-reading-telling" @update:model-value="chooseTelling" />
+      </div>
       <p class="text-body text-foreground">
         <template v-if="quote.has">This text has already been read in this voice. Reading it again makes nothing new and costs nothing.</template>
         <template v-else>
@@ -49,7 +53,7 @@
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
-import { useNoteReading, type ReadingEstimate, type ReadingTransport, type ReadingVoice } from "@/composables/notes/useNoteReading";
+import { READING_TELLING_OPTIONS, useNoteReading, type ReadingEstimate, type ReadingTelling, type ReadingTransport, type ReadingVoice } from "@/composables/notes/useNoteReading";
 import { NARRATOR_VOICE_OPTIONS } from "@/composables/table/useTableNarratorVoice";
 import { IconVolume } from "@/lib/icons";
 import { readingState, type ReadableNote } from "@/lib/notes/noteReading";
@@ -68,6 +72,9 @@ const state = computed(() => readingState(note));
 const asking = ref(false);
 const quote = ref<ReadingEstimate | null>(null);
 const voice = ref<ReadingVoice>(note.reading_voice ?? "male");
+// With feeling unless the Dungeon Master asks for the cheaper telling.
+const telling = ref<ReadingTelling>("storyteller");
+const how = () => ({ voice: voice.value, telling: telling.value });
 
 // About 1,000 characters a minute, which is what the two demo readings came to.
 const minutes = computed(() => {
@@ -76,20 +83,28 @@ const minutes = computed(() => {
 });
 const makeLabel = computed(() => (quote.value && !quote.value.has ? `Read aloud · ${quote.value.credits} ${quote.value.credits === 1 ? "credit" : "credits"}` : "Use that reading"));
 
-async function ask(): Promise<void> {
-  const estimate = await reading.estimate(note.id, voice.value);
-  if (estimate === null) return;
+async function quoteNow(): Promise<boolean> {
+  const estimate = await reading.estimate(note.id, how());
+  if (estimate === null) return false;
   quote.value = estimate;
-  asking.value = true;
+  return true;
 }
 
+async function ask(): Promise<void> {
+  if (await quoteNow()) asking.value = true;
+}
+
+// A different voice or telling is a different recording at a different price: the cost is asked again.
 async function chooseVoice(next: ReadingVoice): Promise<void> {
   voice.value = next;
-  const estimate = await reading.estimate(note.id, next);
-  if (estimate !== null) quote.value = estimate;
+  await quoteNow();
+}
+async function chooseTelling(next: ReadingTelling): Promise<void> {
+  telling.value = next;
+  await quoteNow();
 }
 
 async function make(): Promise<void> {
-  if (await reading.make(note.id, voice.value)) asking.value = false;
+  if (await reading.make(note.id, how())) asking.value = false;
 }
 </script>

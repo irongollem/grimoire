@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { joinAudio, noteSpeechText, READING_PIECE_CHARS, readingHash, readingKey, speechPieces } from "./noteReading";
+import { CLOSING_CUE, joinAudio, noteSpeechText, READING_PIECE_CHARS, readingHash, readingKey, speechPieces, STORYTELLER_CUE, storytellerPieces } from "./noteReading";
 
 const doc = (content: unknown[]) => JSON.stringify({ type: "doc", content });
 const p = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
@@ -63,5 +63,16 @@ describe("where a reading is kept", () => {
 
   it("joins pieces end to end", () => {
     expect([...joinAudio([new Uint8Array([1, 2]), new Uint8Array([3])])]).toEqual([1, 2, 3]);
+  });
+});
+
+describe("storytellerPieces", () => {
+  // Bug caught: only the first piece cued, so a long note changes voice after its first minute; or the Dungeon
+  // Master's own "[the door is locked]" taken for a cue and never spoken.
+  it("cues every piece the same way, closes on the last paragraph, and keeps the note's own brackets as words", () => {
+    const pieces = storytellerPieces(["They went at dusk.\nThe lock was whole.", "A note said [keep out].\nWho took the key?"]);
+    expect(pieces[0]).toBe(`[${STORYTELLER_CUE}] They went at dusk.\nThe lock was whole.`);
+    expect(pieces[1]).toBe(`[${STORYTELLER_CUE}] A note said (keep out).\n[${CLOSING_CUE}] Who took the key?`);
+    expect(storytellerPieces(["One line."])).toEqual([`[${STORYTELLER_CUE}] [${CLOSING_CUE}] One line.`]);
   });
 });

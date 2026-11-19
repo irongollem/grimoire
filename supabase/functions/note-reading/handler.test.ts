@@ -72,7 +72,7 @@ describe("making a reading", () => {
   // hear), or one that is never charged.
   it("speaks the note in the Narrator's voice, keeps it, says so on the note and charges once", async () => {
     const h = harness();
-    const made = await ask(h, "make", DM, { voice: "female" });
+    const made = await ask(h, "make", DM, { voice: "female", telling: "plain" });
     expect(made).toMatchObject({ ok: true, kind: "made" });
     expect(h.spoken).toHaveLength(1);
     expect(h.spoken[0].service).toBe("inworld");
@@ -87,7 +87,7 @@ describe("making a reading", () => {
   // from the note as the DM stores it instead of as a player may read it.
   it("speaks only what a player may read of the note", async () => {
     const h = harness({ text: doc("The mayor smiled.") });
-    await ask(h, "make");
+    await ask(h, "make", DM, { telling: "plain" });
     expect(h.spoken.map((s) => s.text).join(" ")).toBe("The mayor smiled.");
     const unchecked = harness({ text: null });
     expect(await ask(unchecked, "make")).toEqual({ ok: false, status: 422, error: READING_MESSAGES.unchecked });
@@ -155,6 +155,52 @@ describe("making a reading", () => {
   });
 });
 
+describe("how it is told", () => {
+  // The maintainer's ear, 19 Nov 2026: ElevenLabs turbo with cues "significantly better". Bug caught: the default
+  // telling sent to the plain service, or sent with no cue (the flat reading he found "not really deep").
+  it("tells a note with feeling by default: on ElevenLabs, with a cue on every piece", async () => {
+    const h = harness();
+    await ask(h, "make");
+    expect(h.spoken[0].service).toBe("elevenlabs");
+    expect(h.spoken[0].text.startsWith("[an old storyteller")).toBe(true);
+    expect(h.spoken[0].text).toContain("They went at dusk.");
+  });
+
+  // Bug caught: the cues spoken for free (the service bills them), or the cheaper telling priced like the dearer.
+  it("charges for the cues that are sent, and less for the plain telling", async () => {
+    const felt = harness();
+    const plain = harness();
+    const a = await ask(felt, "estimate");
+    const b = await ask(plain, "estimate", DM, { telling: "plain" });
+    if (!a.ok || a.kind !== "estimate" || !b.ok || b.kind !== "estimate") throw new Error("no estimate");
+    expect(a.chars).toBe(47);
+    expect(b.chars).toBe(47);
+    // The harness prices both services alike, so the difference is the cues alone; a long note shows it.
+    const long = (telling: string) => ask(harness({ text: doc(...Array.from({ length: 30 }, () => "word ".repeat(100))) }), "estimate", DM, { telling });
+    const [x, y] = await Promise.all([long("storyteller"), long("plain")]);
+    if (!x.ok || x.kind !== "estimate" || !y.ok || y.kind !== "estimate") throw new Error("no estimate");
+    expect(x.credits).toBeGreaterThan(y.credits);
+  });
+
+  // Bug caught: the two tellings of one note sharing one recording, so asking for the other plays the first.
+  it("keeps the two tellings of one note as two recordings", async () => {
+    const h = harness();
+    await ask(h, "make");
+    await ask(h, "make", DM, { telling: "plain" });
+    expect(h.store.size).toBe(2);
+    expect(h.charged).toHaveLength(2);
+  });
+
+  // Bug caught: a stack with only one speech service unable to read anything, or sending cues to the service that
+  // reads them out loud.
+  it("falls back to the service the stack has, and sends no cues to Inworld", async () => {
+    const h = harness();
+    h.deps.hasService = (service) => service === "inworld";
+    await ask(h, "make");
+    expect(h.spoken[0]).toMatchObject({ service: "inworld", text: "The party reached Sugarwell.\nThey went at dusk." });
+  });
+});
+
 describe("the cost, asked first", () => {
   // 28 + 1 + 18 = 47 characters at 10 USD a million, doubled, over 0.0066 USD a credit, is far under one credit.
   // Bug caught: a short note quoted as free (and then charged nothing), or the estimate making and charging.
@@ -192,7 +238,7 @@ describe("listening", () => {
   it("finds the recording by a key it derives itself, so a forged hash on the note finds nothing", async () => {
     const h = harness();
     await ask(h, "make");
-    const real = await readingHash("The party reached Sugarwell.\nThey went at dusk.", "male");
+    const real = await readingHash("The party reached Sugarwell.\nThey went at dusk.", "male:elevenlabs:cued");
     expect([...h.store.keys()]).toEqual([readingKey({ campaignId: CAMPAIGN, noteId: NOTE, hash: real })]);
     h.store.set("some/other/campaign/secret.mp3", new Uint8Array([9]));
     if (h.note) h.note = { ...h.note, reading_hash: "../../some/other/campaign/secret" };

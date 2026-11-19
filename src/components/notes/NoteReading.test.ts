@@ -41,8 +41,28 @@ describe("NoteReading", () => {
     expect(w.get('[data-testid="note-reading-quote"]').text()).toContain("39 credits");
     await w.get('[data-testid="note-reading-make"]').trigger("click");
     await flushPromises();
-    expect(transport.mock.calls.map((c) => c[0])).toEqual([{ action: "estimate", noteId: "n1", voice: "male" }, { action: "make", noteId: "n1", voice: "male" }]);
+    expect(transport.mock.calls.map((c) => c[0])).toEqual([
+      { action: "estimate", noteId: "n1", voice: "male", telling: "storyteller" },
+      { action: "make", noteId: "n1", voice: "male", telling: "storyteller" },
+    ]);
     expect(w.find('[data-testid="note-reading-quote"]').exists()).toBe(false);
+  });
+
+  // Bug caught: the cheaper telling chosen but the dearer one's price left on screen, or the dearer one made.
+  it("asks the cost again when the telling changes, and makes the one chosen", async () => {
+    const transport = vi.fn<ReadingTransport>(async (request) =>
+      request.action === "estimate" ? json(200, { chars: 5200, credits: request.telling === "plain" ? 39 : 66, has: false }) : json(200, { made: true, chars: 5200, credits: 39 }),
+    );
+    const w = mountReading(plain, true, transport);
+    await w.get('[data-testid="note-reading-ask"]').trigger("click");
+    await flushPromises();
+    expect(w.get('[data-testid="note-reading-quote"]').text()).toContain("66 credits");
+    await w.get('[data-testid="note-reading-telling"]').findAll("button").find((b) => b.text().startsWith("Plainly"))!.trigger("click");
+    await flushPromises();
+    expect(w.get('[data-testid="note-reading-quote"]').text()).toContain("39 credits");
+    await w.get('[data-testid="note-reading-make"]').trigger("click");
+    await flushPromises();
+    expect(transport.mock.calls.at(-1)?.[0]).toEqual({ action: "make", noteId: "n1", voice: "male", telling: "plain" });
   });
 
   // Bug caught: a refusal (out of credits) swallowed, so the button spins back to rest and nothing says why.

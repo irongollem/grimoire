@@ -90,6 +90,38 @@ export function speechPieces(text: string, max: number = READING_PIECE_CHARS): s
   return pieces;
 }
 
+/**
+ * How a note is told. The maintainer listened to both services on one recap (19 Nov 2026): plain, both were
+ * "ok-ish but not really deep"; with delivery cues ElevenLabs' turbo model was "significantly better", and its full
+ * model "not worth twice turbo". So a reading is told with feeling by default, on ElevenLabs with cues, and plainly
+ * on the cheaper service for whoever wants the cost down.
+ */
+export type Telling = "storyteller" | "plain";
+
+export const isTelling = (raw: unknown): raw is Telling => raw === "storyteller" || raw === "plain";
+
+/** The manner every piece is told in, so pieces spoken apart sound like one telling. */
+export const STORYTELLER_CUE = "an old storyteller by the fire, warm and unhurried";
+/** The manner of the very last paragraph: a telling that ends, instead of one that stops. */
+export const CLOSING_CUE = "slower, letting the last words land";
+
+/**
+ * The pieces as they are sent for a telling with feeling: a cue in square brackets in front of each piece, and one
+ * more in front of the last paragraph of all. Square brackets in the note's own text become round ones first, so
+ * nothing the Dungeon Master wrote is taken for a cue and swallowed. The cues are sent, so they are counted and
+ * charged like the words.
+ */
+export function storytellerPieces(pieces: readonly string[]): string[] {
+  return pieces.map((piece, i) => {
+    const own = piece.replace(/\[/g, "(").replace(/\]/g, ")");
+    if (i < pieces.length - 1) return `[${STORYTELLER_CUE}] ${own}`;
+    const paragraphs = own.split("\n");
+    if (paragraphs.length === 1) return `[${STORYTELLER_CUE}] [${CLOSING_CUE}] ${own}`;
+    const last = paragraphs.pop();
+    return `[${STORYTELLER_CUE}] ${paragraphs.join("\n")}\n[${CLOSING_CUE}] ${last}`;
+  });
+}
+
 /** Where a note's recording is kept in the voices' store. Derived, never stored: a row cannot point it elsewhere. */
 export const readingKey = (at: { campaignId: string; noteId: string; hash: string }): string => `${noteReadingPrefix(at)}${at.hash}.mp3`;
 

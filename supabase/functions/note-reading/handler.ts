@@ -13,7 +13,7 @@
 import { creditsForSpeech } from "../_shared/agent/voiceCost.ts";
 import type { CreditCalibration } from "../_shared/agent/metering.ts";
 import { isNarratorVoice, NARRATOR_VOICES, type NarratorVoice } from "../_shared/narratorVoice.ts";
-import { joinAudio, noteSpeechText, READING_MAX_CHARS, READING_PARALLEL, readingHash, readingKey, speechPieces } from "../_shared/noteReading.ts";
+import { isTelling, joinAudio, noteSpeechText, READING_MAX_CHARS, READING_PARALLEL, readingHash, readingKey, speechPieces, storytellerPieces, type Telling } from "../_shared/noteReading.ts";
 import type { SpeechService } from "../_shared/speech.ts";
 
 export interface ReadingNote {
@@ -75,6 +75,8 @@ export interface ReadingBody {
   action: "estimate" | "make" | "listen";
   noteId: string;
   voice: NarratorVoice;
+  /** With feeling (the default) or plainly, which is cheaper. */
+  telling: Telling;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -86,7 +88,9 @@ export function parseReadingBody(raw: unknown): ReadingBody | null {
   if (typeof r.noteId !== "string" || !UUID_RE.test(r.noteId)) return null;
   const voice = r.voice === undefined ? "male" : r.voice;
   if (!isNarratorVoice(voice)) return null;
-  return { action: r.action, noteId: r.noteId, voice };
+  const telling = r.telling === undefined ? "storyteller" : r.telling;
+  if (!isTelling(telling)) return null;
+  return { action: r.action, noteId: r.noteId, voice, telling };
 }
 
 export type ReadingOutcome =
@@ -97,10 +101,18 @@ export type ReadingOutcome =
 
 const refuse = (status: number, error: string): ReadingOutcome => ({ ok: false, status, error });
 
-/** The voice a reading is spoken in: the Narrator's on Inworld, or its ready-made stand-in where the stack has no key for that. */
-function voiceOf(deps: NoteReadingDeps, voice: NarratorVoice): { service: SpeechService; id: string } {
+/**
+ * Who speaks a reading. With feeling: ElevenLabs, which acts on cues, in the ready-made voice of the Narrator's
+ * choice. Plainly: the Narrator's own voice on Inworld, the cheaper service. Either stands in for the other where
+ * this stack has only one of them; a telling with feeling on Inworld is told plainly, since it was not found to
+ * act on cues.
+ */
+function speakerOf(deps: NoteReadingDeps, voice: NarratorVoice, telling: Telling): { service: SpeechService; id: string; cued: boolean } {
   const v = NARRATOR_VOICES[voice];
-  return deps.hasService("inworld") ? { service: "inworld", id: v.inworld } : { service: "elevenlabs", id: v.fallback };
+  const eleven = { service: "elevenlabs" as const, id: v.fallback };
+  const inworld = { service: "inworld" as const, id: v.inworld };
+  if (telling === "storyteller") return deps.hasService("elevenlabs") ? { ...eleven, cued: true } : { ...inworld, cued: false };
+  return deps.hasService("inworld") ? { ...inworld, cued: false } : { ...eleven, cued: false };
 }
 
 export async function readNote(input: { userId: string; body: unknown; deps: NoteReadingDeps }): Promise<ReadingOutcome> {
@@ -133,12 +145,17 @@ export async function readNote(input: { userId: string; body: unknown; deps: Not
   if (text === "") return refuse(422, READING_MESSAGES.empty);
   if (text.length > READING_MAX_CHARS) return refuse(422, READING_MESSAGES.tooLong);
 
-  const voice = voiceOf(deps, body.voice);
+  const voice = speakerOf(deps, body.voice, body.telling);
   const rate = await deps.loadRate(voice.service);
   if (rate === null) return refuse(503, READING_MESSAGES.noPrice);
+  // What is sent is what is paid for: the words, and the cues of a telling with feeling.
+  const plain = speechPieces(text);
+  const pieces = voice.cued ? storytellerPieces(plain) : plain;
+  const sent = pieces.reduce((n, piece) => n + piece.length, 0);
   // Whole credits, rounded up: a reading is one charge, not a running total like a sitting's lines.
-  const credits = Math.max(1, Math.ceil(creditsForSpeech(text.length, rate.usdPerMillionChars, rate.calibration)));
-  const hash = await readingHash(text, body.voice);
+  const credits = Math.max(1, Math.ceil(creditsForSpeech(sent, rate.usdPerMillionChars, rate.calibration)));
+  // Named by the words, the voice and who really speaks it, so the two tellings of one note never share a recording.
+  const hash = await readingHash(text, `${body.voice}:${voice.service}:${voice.cued ? "cued" : "plain"}`);
   const key = readingKey({ campaignId: note.campaign_id, noteId: note.id, hash });
 
   if (body.action === "estimate") {
@@ -156,7 +173,6 @@ export async function readNote(input: { userId: string; body: unknown; deps: Not
   const reservation = await deps.reserve(userId, credits);
   if (!reservation.ok) return refuse(reservation.status, reservation.error);
   try {
-    const pieces = speechPieces(text);
     const spoken: Uint8Array[] = [];
     for (let i = 0; i < pieces.length; i += READING_PARALLEL) {
       const batch = pieces.slice(i, i + READING_PARALLEL);

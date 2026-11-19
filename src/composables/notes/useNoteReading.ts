@@ -3,6 +3,13 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 
 export type ReadingVoice = "male" | "female";
+/** With feeling (ElevenLabs, with delivery cues: the maintainer's pick by ear) or plainly, on the cheaper service. */
+export type ReadingTelling = "storyteller" | "plain";
+
+export const READING_TELLING_OPTIONS: ReadonlyArray<{ value: ReadingTelling; label: string }> = [
+  { value: "storyteller", label: "With feeling" },
+  { value: "plain", label: "Plainly (cheaper)" },
+];
 
 /** What a reading would cost, asked before it is made. */
 export interface ReadingEstimate {
@@ -13,7 +20,7 @@ export interface ReadingEstimate {
 }
 
 /** Calls `note-reading` and hands back the raw response. The seam a test replaces. */
-export type ReadingTransport = (request: { action: "estimate" | "make" | "listen"; noteId: string; voice?: ReadingVoice }) => Promise<Response>;
+export type ReadingTransport = (request: { action: "estimate" | "make" | "listen"; noteId: string; voice?: ReadingVoice; telling?: ReadingTelling }) => Promise<Response>;
 
 export const sendToNoteReading: ReadingTransport = async (request) => {
   const { data, error } = await supabase.auth.getSession();
@@ -69,12 +76,12 @@ export function useNoteReading(transport: ReadingTransport = sendToNoteReading) 
   }
   onBeforeUnmount(forget);
 
-  async function ask<T>(action: "estimate" | "make" | "listen", noteId: string, voice: ReadingVoice | undefined, read: (response: Response) => Promise<T>): Promise<T | null> {
+  async function ask<T>(action: "estimate" | "make" | "listen", noteId: string, how: { voice: ReadingVoice; telling: ReadingTelling } | undefined, read: (response: Response) => Promise<T>): Promise<T | null> {
     if (busy.value !== null) return null;
     busy.value = action;
     problem.value = null;
     try {
-      const response = await transport({ action, noteId, ...(voice === undefined ? {} : { voice }) });
+      const response = await transport({ action, noteId, ...(how === undefined ? {} : how) });
       if (!response.ok) {
         problem.value = await refusalOf(response);
         return null;
@@ -88,16 +95,16 @@ export function useNoteReading(transport: ReadingTransport = sendToNoteReading) 
     }
   }
 
-  const estimate = (noteId: string, voice: ReadingVoice): Promise<ReadingEstimate | null> =>
-    ask("estimate", noteId, voice, async (response) => {
+  const estimate = (noteId: string, how: { voice: ReadingVoice; telling: ReadingTelling }): Promise<ReadingEstimate | null> =>
+    ask("estimate", noteId, how, async (response) => {
       const body = (await response.json()) as Partial<ReadingEstimate>;
       if (typeof body.chars !== "number" || typeof body.credits !== "number") throw new Error("not an estimate");
       return { chars: body.chars, credits: body.credits, has: body.has === true };
     });
 
   /** Has the note read aloud. True when it was made; the note's own row then says so, and the lists are read again. */
-  async function make(noteId: string, voice: ReadingVoice): Promise<boolean> {
-    const made = await ask("make", noteId, voice, async () => true);
+  async function make(noteId: string, how: { voice: ReadingVoice; telling: ReadingTelling }): Promise<boolean> {
+    const made = await ask("make", noteId, how, async () => true);
     if (made !== true) return false;
     forget();
     await client.invalidateQueries({ queryKey: ["notes"] });
