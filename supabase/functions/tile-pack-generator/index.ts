@@ -6,6 +6,7 @@ import { coverageCounts, hasCompleteArt, undrawnSlotIds } from "../../../src/car
 import { TILE_PACK_SCHEMA, type TilePackManifest } from "../../../src/cartographer/packSchema.ts";
 import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
+import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { generateImage } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
@@ -119,7 +120,7 @@ async function requireGenerationRun(runId: string, user: User) {
 
 async function campaignForGeneration(campaignId: string, userId: string) {
   const { data: campaign } = await admin.from("campaigns")
-    .select("id, user_id, ai_enabled, openai_api_key")
+    .select("id, user_id, ai_enabled")
     .eq("id", campaignId).maybeSingle();
   if (!campaign || campaign.ai_enabled !== true) return null;
   if (campaign.user_id === userId) return campaign;
@@ -805,9 +806,7 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
   // Library lane: platform key only. There is no campaign, so there is no
   // BYOK — `campaign` stays null for this lane (set above) and this block
   // is skipped entirely.
-  if (campaign?.openai_api_key && await isUserPro(admin, campaign.user_id)) {
-    try { campaignKey = await decryptValue(campaign.openai_api_key); } catch { campaignKey = null; }
-  }
+  if (campaign) campaignKey = (await loadCampaignKeys(admin, campaign, decryptValue)).openai;
   const apiKey = campaignKey ?? platformKeys.openai;
   if (!apiKey) {
     await admin.from("tile_pack_generation_jobs").update({ status: "failed", error: "No OpenAI API key configured" }).eq("id", jobId);

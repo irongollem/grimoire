@@ -43,7 +43,7 @@ serve(withCors(async (req: Request) => {
     return json(400, { error: "Invalid JSON body." });
   }
 
-  // The campaign row with its key columns, kept from `loadCampaign` for the provider lookup.
+  // The campaign row, kept from `loadCampaign` for the provider lookup.
   let rawCampaign: Record<string, unknown> | null = null;
 
   const deps: RecapDeps = {
@@ -63,7 +63,7 @@ serve(withCors(async (req: Request) => {
     async loadCampaign(campaignId) {
       const { data, error } = await admin
         .from("campaigns")
-        .select("id, user_id, ai_enabled, text_provider, openai_api_key, anthropic_api_key, gemini_api_key")
+        .select("id, user_id, ai_enabled, text_provider")
         .eq("id", campaignId)
         .maybeSingle();
       if (error) throw error;
@@ -105,7 +105,7 @@ serve(withCors(async (req: Request) => {
 
     async resolveProvider(campaign) {
       if (!rawCampaign) return null;
-      const resolved = await resolveAgentProvider(admin, { ownerId: campaign.user_id, raw: rawCampaign });
+      const resolved = await resolveAgentProvider(admin, { id: campaign.id, ownerId: campaign.user_id, textProvider: rawCampaign.text_provider as string | null });
       return resolved === null ? null : resolved.provider;
     },
 

@@ -81,7 +81,13 @@ flowchart LR
   run through edge functions. **BYOK** (Pro-only, enforced server-side) calls
   providers straight from the browser with per-campaign keys decrypted via the
   `api-key-vault` edge function (`VAULT_KEY`). A BYOK bug can therefore be
-  CORS/key-shaped and never appear in edge-function logs.
+  CORS/key-shaped and never appear in edge-function logs. The keys are stored
+  in `campaign_api_keys`, never on the campaign row (#1228): every member,
+  players included, reads `campaigns`, while the keys table admits the owner
+  alone. The client loads it only for the owner (`src/ai/campaignApiKeys.ts`);
+  the generators read it with the service role through
+  `_shared/campaignKeys.ts`, which pins the read to the current owner and checks
+  Pro at use time. An owner change empties the row.
 - **Embeddings** (`embed-content`, `embed-monsters` → 8 pgvector
   `*_embeddings` tables) are platform-wide single-provider, pinned to 1536
   dims, never BYOK. Retrieval feeds the generators (RAG).

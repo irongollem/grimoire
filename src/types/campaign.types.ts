@@ -49,10 +49,6 @@ export interface Campaign {
   excluded_monster_ids: string[];
   disabled_class_names: string[];
   disabled_species_ids: string[];
-  // AI keys — one slot per provider
-  openai_api_key: string | null;
-  anthropic_api_key: string | null;
-  gemini_api_key: string | null;
   // Active provider selection
   text_provider: string | null;
   image_provider: string | null;
@@ -97,10 +93,6 @@ export interface Campaign {
   updated_at: string;
 }
 
-type ApiKeyFields =
-  | "openai_api_key"
-  | "anthropic_api_key"
-  | "gemini_api_key";
 type PortraitFields = "group_portrait_url";
 type ProviderFields = "text_provider" | "image_provider";
 
@@ -120,7 +112,6 @@ export type CampaignInsert = Omit<
   | "optional_rules"
   | "game_system"
   | "allows_mixed_rulesets"
-  | ApiKeyFields
   | ProviderFields
   | "ai_setting_prompt"
   | "allow_chronicle_promotion"
@@ -153,9 +144,6 @@ export type CampaignInsert = Omit<
   optional_rules?: CampaignOptionalRules;
   game_system?: GameSystemKey;
   allows_mixed_rulesets?: boolean;
-  openai_api_key?: string | null;
-  anthropic_api_key?: string | null;
-  gemini_api_key?: string | null;
   text_provider?: string | null;
   image_provider?: string | null;
   ai_setting_prompt?: string | null;

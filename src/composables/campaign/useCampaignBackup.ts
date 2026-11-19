@@ -191,9 +191,6 @@ async function qQuestConsequences(questIds: string[]): Promise<Row[]> {
 /** Sensitive campaign fields that must be stripped before export. */
 const CAMPAIGN_STRIP_FIELDS = [
   "user_id",
-  "openai_api_key",
-  "anthropic_api_key",
-  "gemini_api_key",
   "spotify_client_id",
   "ical_token",
 ];
@@ -573,10 +570,6 @@ export async function executeImport(
     // The opening quest is named by id and the restored quests have new ones.
     opening_quest_id: r(backup.campaign.opening_quest_id as string | null | undefined, idMap),
     ical_token: crypto.randomUUID(),
-    // Strip API keys — they don't exist in the backup but just in case
-    openai_api_key: null,
-    anthropic_api_key: null,
-    gemini_api_key: null,
     spotify_client_id: null,
   };
   const { data: createdCampaign, error: campErr } = await supabase

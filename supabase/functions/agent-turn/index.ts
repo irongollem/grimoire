@@ -177,7 +177,7 @@ serve(withCors(async (req: Request) => {
     async loadCampaign(campaignId): Promise<CampaignRow | null> {
       const { data, error } = await admin
         .from("campaigns")
-        .select("id, user_id, name, ai_enabled, game_system, text_provider, current_year, current_month, current_day, openai_api_key, anthropic_api_key, gemini_api_key")
+        .select("id, user_id, name, ai_enabled, game_system, text_provider, current_year, current_month, current_day")
         .eq("id", campaignId)
         .maybeSingle();
       if (error) throw error;
@@ -290,7 +290,7 @@ serve(withCors(async (req: Request) => {
     // uses (`_shared/agent/providerIo.ts`).
     async resolveProvider(campaign): Promise<AgentProvider | null> {
       if (!rawCampaign) return null;
-      const resolved = await resolveAgentProvider(admin, { ownerId: campaign.user_id, raw: rawCampaign });
+      const resolved = await resolveAgentProvider(admin, { id: campaign.id, ownerId: campaign.user_id, textProvider: rawCampaign.text_provider as string | null });
       if (resolved === null) return null;
       moderationKey = resolved.moderationKey;
       return resolved.provider;

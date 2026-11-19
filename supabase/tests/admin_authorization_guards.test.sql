@@ -116,25 +116,32 @@ select lives_ok(
 select set_config('request.jwt.claims',
   '{"sub":"69000000-0000-4000-8000-000000000001","role":"authenticated","app_metadata":{"provider":"email","providers":["email"]}}', true);
 
+-- The keys live in campaign_api_keys since #1228; the gate moved with them.
 select throws_ok(
-  $$ update public.campaigns set openai_api_key = 'enc:v1:aa:bb'
-      where id = '69000000-0000-4000-8000-000000000010' $$,
+  $$ insert into public.campaign_api_keys (campaign_id, user_id, gemini_api_key)
+     values ('69000000-0000-4000-8000-000000000010', '69000000-0000-4000-8000-000000000001', 'enc:v1:cc:dd') $$,
   '23514',
   null,
-  'a non-Pro owner cannot set a BYOK key by updating their campaign');
+  'a non-Pro owner cannot store a BYOK key');
+
+-- A row with no key in it is not a key, so it may exist; setting one on it may not.
+insert into public.campaign_api_keys (campaign_id, user_id)
+values ('69000000-0000-4000-8000-000000000010', '69000000-0000-4000-8000-000000000001');
 
 select throws_ok(
-  $$ insert into public.campaigns (user_id, name, gemini_api_key)
-     values ('69000000-0000-4000-8000-000000000001', 'BYOK on insert', 'enc:v1:cc:dd') $$,
+  $$ update public.campaign_api_keys set openai_api_key = 'enc:v1:aa:bb'
+      where campaign_id = '69000000-0000-4000-8000-000000000010' $$,
   '23514',
   null,
-  'a non-Pro owner cannot smuggle a BYOK key in on insert');
+  'a non-Pro owner cannot set a BYOK key by updating their keys row');
 
 select set_config('request.jwt.claims',
   '{"sub":"69000000-0000-4000-8000-000000000002","role":"authenticated","app_metadata":{"provider":"email","role":"admin"}}', true);
+insert into public.campaigns (id, user_id, name)
+values ('69000000-0000-4000-8000-000000000011', '69000000-0000-4000-8000-000000000002', 'admin BYOK');
 select lives_ok(
-  $$ insert into public.campaigns (user_id, name, openai_api_key)
-     values ('69000000-0000-4000-8000-000000000002', 'admin BYOK', 'enc:v1:ee:ff') $$,
+  $$ insert into public.campaign_api_keys (campaign_id, user_id, openai_api_key)
+     values ('69000000-0000-4000-8000-000000000011', '69000000-0000-4000-8000-000000000002', 'enc:v1:ee:ff') $$,
   'a Pro-equivalent account (app admin) may still set a BYOK key');
 
 reset role;

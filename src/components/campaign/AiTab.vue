@@ -242,6 +242,7 @@ import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { encryptApiKey, decryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";
+import { saveCampaignApiKeys, type CampaignApiKeyField, type CampaignApiKeys } from "@/ai/campaignApiKeys";
 import { encryptLocalKey, decryptLocalKey, isLocalCiphertext, LOCAL_MODE_KEY, localKeyModeChosen } from "@/lib/localKeyVault";
 import { safeLocalStorage, localStorageAvailable } from "@/lib/safeLocalStorage";
 import { getSetting } from "@/settings/index";
@@ -273,7 +274,7 @@ interface ProviderDef {
   label:       string;
   placeholder: string;
   link:        string;
-  dbField:     string;
+  dbField:     CampaignApiKeyField;
   localKey:    string;
 }
 
@@ -405,7 +406,7 @@ const keepsAnthropic = computed(
     form.value.text_provider === "anthropic" &&
     (localModeEnabled.value
       ? !!safeLocalStorage().getItem("grimoire_anthropic_key")
-      : !!campaign.activeCampaign?.anthropic_api_key),
+      : !!campaign.storedKeys?.anthropic_api_key),
 );
 const availableTextProviders = computed(() =>
   [...BYOK_TEXT_ORDER.filter((p) => providerHasKey(p)), ...(keepsAnthropic.value ? ["anthropic" as const] : [])]
@@ -465,8 +466,8 @@ async function save() {
   if (!campaign.activeCampaignId || !campaign.activeCampaign) return;
   isSaving.value = true;
   try {
-    const encryptedKeys: Record<string, string | null> = {};
-    const c = campaign.activeCampaign;
+    const encryptedKeys: CampaignApiKeys = { openai_api_key: null, anthropic_api_key: null, gemini_api_key: null };
+    const stored = campaign.storedKeys;
 
     // Per-provider save rules:
     //   - Non-empty input: store in the active location (local or DB), clear the other.
@@ -476,7 +477,7 @@ async function save() {
     if (localModeEnabled.value) {
       for (const p of providerDefs) {
         const trimmed   = form.value.keys[p.id].trim();
-        const existingDb = (c[p.dbField as keyof typeof c] as string | null) ?? null;
+        const existingDb = stored ? stored[p.dbField] : null;
         const existingLocal = safeLocalStorage().getItem(p.localKey);
 
         if (clearedKeys[p.id]) {
@@ -496,7 +497,7 @@ async function save() {
     } else {
       for (const p of providerDefs) {
         const trimmed   = form.value.keys[p.id].trim();
-        const existingDb = (c[p.dbField as keyof typeof c] as string | null) ?? null;
+        const existingDb = stored ? stored[p.dbField] : null;
         const existingLocal = safeLocalStorage().getItem(p.localKey);
 
         if (clearedKeys[p.id]) {
@@ -521,13 +522,19 @@ async function save() {
       safeLocalStorage().removeItem(LOCAL_MODE_KEY);
     }
 
+    // Anthropic is not offered above, so a stored Anthropic key is kept as it is.
+    if (stored) encryptedKeys.anthropic_api_key = stored.anthropic_api_key;
+    // The keys are the owner's own (#1228), in a table nobody else can read or
+    // write; this tab is only open to the owner (useCampaignStore().isOwner).
+    const ownerId = campaign.activeCampaign.user_id;
+    // No row is written for a campaign that never held a key and gains none.
+    if (stored || Object.values(encryptedKeys).some((key) => key !== null)) {
+      await saveCampaignApiKeys(campaign.activeCampaignId, ownerId, encryptedKeys);
+    }
     const updated = await updateCampaign({
       id: campaign.activeCampaignId,
       update: {
         ai_enabled:        form.value.ai_enabled,
-        openai_api_key:    encryptedKeys["openai_api_key"],
-        anthropic_api_key: encryptedKeys["anthropic_api_key"],
-        gemini_api_key:    encryptedKeys["gemini_api_key"],
         text_provider:     form.value.text_provider  || null,
         image_provider:    form.value.image_provider || null,
         ai_setting_prompt: form.value.ai_setting_prompt.trim() || null,

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 
 // The store reaches for the vault and the theme on hydration; neither is under
@@ -7,6 +7,9 @@ import { createPinia, setActivePinia } from "pinia";
 vi.mock("@/lib/supabase", () => ({ supabase: {}, getCurrentUser: () => null }));
 const decryptApiKey = vi.hoisted(() => vi.fn(async (_blob: string) => ""));
 vi.mock("@/lib/apiKeyVault", () => ({ decryptApiKey }));
+const fetchCampaignApiKeys = vi.hoisted(() => vi.fn());
+vi.mock("@/ai/campaignApiKeys", () => ({ fetchCampaignApiKeys }));
+vi.mock("@/lib/observability/sentry", () => ({ reportHandledError: () => {} }));
 const setTheme = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/themeRuntime", () => ({ setTheme, setPlayerSeat: () => {} }));
 
@@ -20,6 +23,7 @@ interface MockAuthStore {
   refreshMembership?: () => void;
   initialized?: boolean;
   isAuthenticated?: boolean;
+  user?: { id: string };
 }
 const mockUseAuthStore = vi.fn((): MockAuthStore => ({ isChildAccount: false }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => mockUseAuthStore() }));
@@ -374,21 +378,56 @@ describe("provider keys — a decryption lands only in the load that started it"
     localStorage.clear();
     setActivePinia(createPinia());
     decryptApiKey.mockReset();
+    fetchCampaignApiKeys.mockReset();
+    mockUseAuthStore.mockReturnValue({ isChildAccount: false, user: { id: "owner" }, refreshMembership: () => {} });
+  });
+  afterEach(() => {
+    mockUseAuthStore.mockReset();
+    mockUseAuthStore.mockImplementation(() => ({ isChildAccount: false }));
   });
 
-  function campaignWith(id: string, openai: string | null): Campaign {
-    return { id, theme: null, openai_api_key: openai, anthropic_api_key: null, gemini_api_key: null } as unknown as Campaign;
+  const keysOf: Record<string, string | null> = {};
+  function campaignWith(id: string, openai: string | null, ownerId = "owner"): Campaign {
+    keysOf[id] = openai;
+    return { id, user_id: ownerId, theme: null } as unknown as Campaign;
+  }
+  function serveKeys() {
+    fetchCampaignApiKeys.mockImplementation(async (id: string) =>
+      keysOf[id] ? { openai_api_key: keysOf[id], anthropic_api_key: null, gemini_api_key: null } : null);
   }
 
+  it("decrypts the owner's stored key into the provider ref", async () => {
+    serveKeys();
+    decryptApiKey.mockResolvedValueOnce("sk-a");
+    const store = useCampaignStore();
+    store.switchToCampaign(campaignWith("a", "enc:v1:a"));
+    await vi.waitFor(() => expect(store.decryptedOpenAiKey).toBe("sk-a"));
+    expect(store.storedKeys?.openai_api_key).toBe("enc:v1:a");
+    expect(fetchCampaignApiKeys).toHaveBeenCalledWith("a", "owner");
+  });
+
+  // The keys are the owner's alone (#1228): a co-DM must not even ask for them.
+  it("loads no keys for anyone but the campaign's owner", async () => {
+    serveKeys();
+    const store = useCampaignStore();
+    store.switchToCampaign(campaignWith("a", "enc:v1:a", "someone-else"));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fetchCampaignApiKeys).not.toHaveBeenCalled();
+    expect(store.storedKeys).toBeNull();
+    expect(store.providerKeysLoading).toBe(false);
+  });
+
   it("does not write campaign A's key into B when A's decryption answers late", async () => {
+    serveKeys();
     let answerA: (key: string) => void = () => {};
     decryptApiKey.mockImplementationOnce(() => new Promise<string>((resolve) => { answerA = resolve; }));
     const store = useCampaignStore();
 
     store.switchToCampaign(campaignWith("a", "enc:v1:a"));
     expect(store.providerKeysLoading).toBe(true);
+    await vi.waitFor(() => expect(decryptApiKey).toHaveBeenCalled());
     store.switchToCampaign(campaignWith("b", null));
-    expect(store.providerKeysLoading).toBe(false);
+    await vi.waitFor(() => expect(store.providerKeysLoading).toBe(false));
 
     answerA("sk-a");
     await new Promise((r) => setTimeout(r, 0));
@@ -398,6 +437,7 @@ describe("provider keys — a decryption lands only in the load that started it"
   it("gives up on a decryption that never answers, rather than blocking prices for the session", async () => {
     vi.useFakeTimers();
     try {
+      serveKeys();
       decryptApiKey.mockImplementationOnce(() => new Promise<string>(() => {}));
       const store = useCampaignStore();
       store.switchToCampaign(campaignWith("a", "enc:v1:a"));

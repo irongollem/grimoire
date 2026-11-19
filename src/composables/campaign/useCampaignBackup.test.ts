@@ -131,9 +131,6 @@ describe("executeImport restored campaign", () => {
         user_id: "original-dm",
         is_archived: true,
         ical_token: "old-token",
-        openai_api_key: "sk-old",
-        anthropic_api_key: "sk-ant-old",
-        gemini_api_key: "g-old",
         spotify_client_id: "sp-old",
         game_system: "dnd5e-2024",
       },
@@ -144,9 +141,6 @@ describe("executeImport restored campaign", () => {
       user_id: "restorer",
       name: "Restored",
       is_archived: false,
-      openai_api_key: null,
-      anthropic_api_key: null,
-      gemini_api_key: null,
       spotify_client_id: null,
       game_system: "dnd5e-2024",
     });
@@ -632,14 +626,11 @@ describe("exporting a campaign", () => {
     id,
     name,
     user_id: "the-dm",
-    openai_api_key: "sk-secret",
-    anthropic_api_key: "sk-ant-secret",
-    gemini_api_key: "g-secret",
     spotify_client_id: "sp-secret",
     ical_token: "feed-secret",
   });
 
-  it("never carries the campaign's API keys, feed token or owner, which the file is shared with other people", async () => {
+  it("never carries the campaign's Spotify client, feed token or owner, which the file is shared with other people", async () => {
     fake.seed("campaigns", [campaignRow("c1", "The Mere"), campaignRow("c2", "Other")]);
     const backup = await exportBackup("c1");
     expect(backup.campaign).toEqual({ id: "c1", name: "The Mere" });

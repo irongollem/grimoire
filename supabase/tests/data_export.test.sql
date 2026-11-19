@@ -162,10 +162,10 @@ values
    'authenticated', 'authenticated', 'export-b@example.invalid', '', now(), now());
 
 -- `ical_token` defaults to a generated uuid and is NOT NULL, so one ordinary
--- campaign row carries a real credential to redact. Deliberately not
--- `gemini_api_key`: setting one trips enforce_byok_pro_only(), and making the
--- fixture account Pro to satisfy an unrelated trigger would be fighting the
--- schema to test a rule that applies to every credential column equally.
+-- campaign row carries a real credential to redact. Deliberately not a BYOK
+-- key: setting one trips enforce_byok_pro_only(), and making the fixture
+-- account Pro to satisfy an unrelated trigger would be fighting the schema to
+-- test a rule that applies to every credential column equally.
 insert into public.campaigns (id, user_id, name, game_system)
 values
   ('32000000-0000-4000-8000-0000000000a2', '32000000-0000-4000-8000-0000000000a1', 'A''s campaign', 'dnd5e-2014'),
@@ -185,10 +185,16 @@ select is(
 -- A null credential stays null rather than becoming "[redacted]": "no key was
 -- ever set" and "a key is withheld" are different facts about the account, and
 -- the subject is entitled to the first one.
+-- The BYOK keys live in campaign_api_keys (#1228). A row with no key set is
+-- the case here: the key must come out null, and the row must be there at all
+-- (a missing key would also read as null, which is not the same assertion).
+insert into public.campaign_api_keys (campaign_id, user_id)
+values ('32000000-0000-4000-8000-0000000000a2', '32000000-0000-4000-8000-0000000000a1');
+
 select is(
   (select public.export_user_data('32000000-0000-4000-8000-0000000000a1')
-            -> 'tables' -> 'campaigns' -> 0 ->> 'gemini_api_key'),
-  null,
+            -> 'tables' -> 'campaign_api_keys' -> 0 -> 'gemini_api_key'),
+  'null'::jsonb,
   'an unset credential stays null rather than being reported as redacted');
 
 -- ── 5. A row keyed to the subject twice appears once ────────────────────────

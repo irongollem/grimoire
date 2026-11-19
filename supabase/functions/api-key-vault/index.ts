@@ -8,7 +8,7 @@ const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const MAX_VALUE_LENGTH = 16_384;
 
-// Campaign columns that hold an encrypted BYOK key.
+// `campaign_api_keys` columns that hold an encrypted BYOK key.
 const CAMPAIGN_KEY_COLUMNS = [
   "openai_api_key",
   "anthropic_api_key",
@@ -17,7 +17,7 @@ const CAMPAIGN_KEY_COLUMNS = [
 
 /**
  * Is `blob` a ciphertext the caller is actually allowed to decrypt?
- * - Any of the caller's own campaigns' BYOK key columns, OR
+ * - Any of the BYOK key columns in the caller's own `campaign_api_keys` rows (#1228), OR
  * - (admins only) a stored platform_api_keys ciphertext.
  * Prevents this endpoint from being a decryption oracle for keys the caller
  * could never read through RLS.
@@ -29,12 +29,14 @@ async function callerOwnsBlob(
   blob: string,
 ): Promise<boolean> {
   // Columns are joined at runtime, so PostgREST cannot infer the row shape.
-  const { data: campaigns } = await admin
-    .from("campaigns")
+  const { data: keyRows, error } = await admin
+    .from("campaign_api_keys")
     .select(CAMPAIGN_KEY_COLUMNS.join(", "))
     .eq("user_id", userId)
     .overrideTypes<Record<string, string | null>[], { merge: false }>();
-  for (const row of campaigns ?? []) {
+  // Fail closed: a read that errored is not "owns nothing", and must never fall through to approving a decrypt.
+  if (error) return false;
+  for (const row of keyRows ?? []) {
     if (CAMPAIGN_KEY_COLUMNS.some((col) => row[col] === blob)) return true;
   }
   if (isAdmin) {

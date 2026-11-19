@@ -50,6 +50,7 @@ import { createClient } from "@supabase/supabase-js";
 import { PDFDocument } from "pdf-lib";
 import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
+import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { resolveTextProvider, NO_TEXT_PROVIDER_MESSAGE } from "../_shared/textGen.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
@@ -63,6 +64,7 @@ import {
 } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { withCors } from "../_shared/cors.ts";
+import { buildInstruction } from "./buildInstruction.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import {
@@ -523,7 +525,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, openai_api_key, anthropic_api_key, gemini_api_key")
+    .select("id, user_id, ai_enabled, text_provider")
     .eq("id", importRow.campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -553,19 +555,10 @@ serve(withCors(async (req: Request) => {
     .eq("generator_type", "document_import").maybeSingle();
   if (!promptRow) return new Response("Prompt not configured", { status: 500 });
 
-  async function decryptKey(enc: string | null): Promise<string | null> {
-    if (!enc || !ownerIsPro) return null;
-    try { return await decryptValue(enc); } catch { return null; }
-  }
-
   // Provider rows go through the shared module, not a direct query:
   // `_shared/provider-config.ts` is the one place they are read and cached.
   const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
-    Promise.all([
-      decryptKey(campaign.openai_api_key),
-      decryptKey(campaign.anthropic_api_key),
-      decryptKey(campaign.gemini_api_key),
-    ]),
+    loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.anthropic, k.gemini] as const),
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);

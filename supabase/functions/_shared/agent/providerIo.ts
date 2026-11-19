@@ -5,7 +5,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptValue } from "../vault.ts";
-import { isUserPro } from "../plan.ts";
+import { loadCampaignKeys } from "../campaignKeys.ts";
 import { fetchPlatformKeys } from "../platform-keys.ts";
 import { fetchProviderConfigs } from "../provider-config.ts";
 import { DEFAULT_TEXT_MODELS, resolveTextProvider } from "../textGen.ts";
@@ -24,31 +24,24 @@ export interface AgentProvider {
 }
 
 /**
- * The campaign's text provider, from its own keys (a Pro owner's only) and the platform's, with the key the
- * moderation screen should use. Null when no provider can answer. `raw` is the campaign row with its key columns.
+ * The campaign's text provider, from its own keys (a Pro owner's only, read through `loadCampaignKeys`) and the
+ * platform's, with the key the moderation screen should use. Null when no provider can answer.
  */
 export async function resolveAgentProvider(
   admin: SupabaseClient,
-  campaign: { ownerId: string; raw: Record<string, unknown> },
+  campaign: { id: string; ownerId: string; textProvider: string | null },
 ): Promise<{ provider: AgentProvider; moderationKey: string | null } | null> {
-  const raw = campaign.raw;
-  // BYOK is Pro-only: ignore stored campaign keys unless the owner is currently Pro.
-  const ownerIsPro = await isUserPro(admin, campaign.ownerId);
-  const decryptKey = async (enc: unknown): Promise<string | null> => {
-    if (typeof enc !== "string" || !enc || !ownerIsPro) return null;
-    try { return await decryptValue(enc); } catch { return null; }
-  };
-  const [campaignOpenai, campaignAnthropic, campaignGemini] = await Promise.all([
-    decryptKey(raw.openai_api_key),
-    decryptKey(raw.anthropic_api_key),
-    decryptKey(raw.gemini_api_key),
-  ]);
+  const { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini } = await loadCampaignKeys(
+    admin,
+    { id: campaign.id, user_id: campaign.ownerId },
+    decryptValue,
+  );
   const [platformKeys, providerConfigs] = await Promise.all([
     fetchPlatformKeys(admin, ["openai", "anthropic", "gemini"]),
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
   const text = resolveTextProvider({
-    chosen: raw.text_provider as string | null,
+    chosen: campaign.textProvider,
     campaignKeys: { openai: campaignOpenai, anthropic: campaignAnthropic, gemini: campaignGemini },
     platformKeys,
     providerConfigs,

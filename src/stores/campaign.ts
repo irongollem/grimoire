@@ -4,6 +4,8 @@ import type { Campaign } from "@/types/campaign.types";
 import { setPlayerSeat, setTheme } from "@/lib/themeRuntime";
 import { useAuthStore } from "@/stores/auth";
 import { decryptApiKey } from "@/lib/apiKeyVault";
+import { fetchCampaignApiKeys, type CampaignApiKeyField, type CampaignApiKeys } from "@/ai/campaignApiKeys";
+import { reportHandledError } from "@/lib/observability/sentry";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
 import { isLocalCiphertext, localKeyModeChosen, encryptLocalKey, decryptLocalKey } from "@/lib/localKeyVault";
 import { DEFAULT_THEME_ID } from "@/lib/themes";
@@ -21,8 +23,8 @@ const LOCAL_KEYS: Record<string, string> = {
   gemini:    "grimoire_gemini_key",
 };
 
-// DB field name → provider slug
-const DB_KEY_FIELDS: Record<string, keyof Campaign> = {
+// Provider slug → its column in campaign_api_keys
+const DB_KEY_FIELDS: Record<string, CampaignApiKeyField> = {
   openai:    "openai_api_key",
   anthropic: "anthropic_api_key",
   gemini:    "gemini_api_key",
@@ -44,6 +46,9 @@ export const useCampaignStore = defineStore("campaign", () => {
   const decryptedOpenAiKey    = ref<string>("");
   const decryptedAnthropicKey = ref<string>("");
   const decryptedGeminiKey    = ref<string>("");
+  // The owner's stored keys as ciphertext (#1228), for the AI tab to tell a
+  // stored key from none. Null for anyone but the owner, and until it loads.
+  const storedKeys = ref<CampaignApiKeys | null>(null);
 
   // Decryptions in flight for the current load. Until they settle the refs
   // above are empty, so whether the campaign pays with its own key is not known
@@ -63,7 +68,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     keysGeneration++;
     keysPending.value = 0;
   }
-  function trackKey<T>(decryption: Promise<T>, land: (value: T) => void, fail: () => void) {
+  function trackKey<T>(decryption: Promise<T>, land: (value: T) => void, fail: (error: unknown) => void) {
     const generation = keysGeneration;
     const current = () => generation === keysGeneration;
     keysPending.value++;
@@ -73,7 +78,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     });
     Promise.race([decryption, timeout])
       .then((value) => { if (current()) land(value); })
-      .catch(() => { if (current()) fail(); })
+      .catch((error: unknown) => { if (current()) fail(error); })
       .finally(() => {
         clearTimeout(timer);
         if (current()) keysPending.value--;
@@ -200,26 +205,37 @@ export const useCampaignStore = defineStore("campaign", () => {
     }
   }
 
+  // The keys are the owner's alone (campaign_api_keys admits nobody else), so
+  // a co-DM or a player has none to load and generates on platform credits;
+  // their generations still run server-side on the owner's key.
   function loadProviderKeys(campaign: Campaign) {
     newKeysGeneration();
+    storedKeys.value = null;
     const localMode = localKeyModeChosen();
     for (const [provider, localKey] of Object.entries(LOCAL_KEYS)) {
       const ref_ = providerKeyRefs[provider];
       if (!ref_) continue;
-      if (localMode) {
-        loadLocalKey(localKey, ref_);
-      } else {
-        const dbField = DB_KEY_FIELDS[provider];
-        const encrypted = campaign[dbField] as string | null | undefined;
-        if (encrypted) {
-          // Not the previous campaign's key while this one decrypts.
-          ref_.value = "";
-          trackKey(decryptApiKey(encrypted), (key) => { ref_.value = key; }, () => { ref_.value = ""; });
-        } else {
-          ref_.value = "";
-        }
-      }
+      // Not the previous campaign's key while this one loads.
+      ref_.value = "";
+      if (localMode) loadLocalKey(localKey, ref_);
     }
+
+    const ownerId = useAuthStore().user?.id;
+    if (ownerId === undefined || campaign.user_id !== ownerId) return;
+    trackKey(
+      fetchCampaignApiKeys(campaign.id, ownerId),
+      (stored) => {
+        storedKeys.value = stored;
+        if (localMode || !stored) return;
+        for (const [provider, field] of Object.entries(DB_KEY_FIELDS)) {
+          const ref_ = providerKeyRefs[provider];
+          const encrypted = stored[field];
+          if (!ref_ || !encrypted) continue;
+          trackKey(decryptApiKey(encrypted), (key) => { ref_.value = key; }, () => { ref_.value = ""; });
+        }
+      },
+      (error) => reportHandledError(error, "campaign.loadProviderKeys"),
+    );
   }
 
   function switchToCampaign(campaign: Campaign) {
@@ -278,6 +294,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     activeCampaignId.value      = null;
     activeCampaign.value        = null;
     newKeysGeneration();
+    storedKeys.value            = null;
     decryptedOpenAiKey.value    = "";
     decryptedAnthropicKey.value = "";
     decryptedGeminiKey.value    = "";
@@ -382,6 +399,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     decryptedOpenAiKey,
     decryptedAnthropicKey,
     decryptedGeminiKey,
+    storedKeys,
     providerKeysLoading,
     switchToCampaign,
     clearActiveCampaign,

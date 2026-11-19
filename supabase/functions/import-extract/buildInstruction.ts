@@ -9,7 +9,7 @@ export const OWN_WRITING_GUIDANCE =
 
 export interface InstructionInput {
   sourceKind: string;
-  sourceText: string | null;
+  sourceText?: string | null;
   pageCount: number;
   ownWriting: boolean;
   textGuidance: string;
