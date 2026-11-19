@@ -1,0 +1,108 @@
+import { ref } from "vue";
+
+export type ToastType = "error" | "success" | "info";
+
+export interface ToastAction {
+  /** Visible label on the toast's action button, e.g. "Undo". */
+  label: string;
+  /**
+   * Invoked at most once — `push()` wraps this so a second click (or two fast
+   * clicks before the toast unmounts) is a no-op. The toast dismisses itself
+   * right after the wrapped callback runs, so a caller's `run` only needs to
+   * perform the undo itself.
+   */
+  run: () => void;
+}
+
+export interface Toast {
+  id: number;
+  type: ToastType;
+  message: string;
+  /** Auto-dismiss delay in ms; 0 keeps it until manually dismissed. */
+  duration: number;
+  action?: ToastAction;
+}
+
+interface ToastOptions {
+  action?: ToastAction;
+}
+
+// The app's one stack of toasts. Module-level, so every caller shares it: a component through `useToast()`, and a
+// store, which sits below composables and so reads it here (the encounter run store tells the DM about changes it
+// could not save even when no runner is on screen). The <ToastHost> mounted once in App.vue renders `toasts`.
+const toasts = ref<Toast[]>([]);
+let nextId = 0;
+
+// An action toast asks the user to make a decision (undo or don't), which takes
+// longer than reading a plain notification — so it gets a longer floor than any
+// of the three plain-toast defaults below, regardless of type. Callers can still
+// pass an explicit duration (including 0, to require manual dismissal) to override it.
+const ACTION_DEFAULT_DURATION = 8000;
+
+function resolveDuration(defaultDuration: number, duration: number | undefined, hasAction: boolean): number {
+  if (duration !== undefined) return duration;
+  return hasAction ? ACTION_DEFAULT_DURATION : defaultDuration;
+}
+
+function push(type: ToastType, message: string, duration: number, action?: ToastAction): number {
+  const id = ++nextId;
+  // Wrap here, not at the call site or in ToastHost: this is the one place every
+  // push funnels through, so it is the one place that can guarantee the callback
+  // fires at most once no matter how many times the rendered button is clicked.
+  let hasRun = false;
+  const wrappedAction: ToastAction | undefined = action
+    ? {
+        label: action.label,
+        run: () => {
+          if (hasRun) return;
+          hasRun = true;
+          // `finally`, because `hasRun` is already spent by the time the
+          // callback can throw: without it a failed undo would leave the toast
+          // on screen wearing a button that can never do anything again.
+          // Reporting the failure is the caller's job — its own toast.
+          try {
+            action.run();
+          } finally {
+            dismiss(id);
+          }
+        },
+      }
+    : undefined;
+  toasts.value = [...toasts.value, { id, type, message, duration, action: wrappedAction }];
+  return id;
+}
+
+function dismiss(id: number) {
+  toasts.value = toasts.value.filter((t) => t.id !== id);
+}
+
+
+/** Error toast — sticks around longer since the user needs to read/act on it. */
+function error(message: string, duration?: number, options?: ToastOptions) {
+  return push("error", message, resolveDuration(7000, duration, Boolean(options?.action)), options?.action);
+}
+function success(message: string, duration?: number, options?: ToastOptions) {
+  return push("success", message, resolveDuration(3500, duration, Boolean(options?.action)), options?.action);
+}
+function info(message: string, duration?: number, options?: ToastOptions) {
+  return push("info", message, resolveDuration(4500, duration, Boolean(options?.action)), options?.action);
+}
+/** Normalise an unknown thrown value into a human-readable message. */
+function fromError(e: unknown, fallback = "Something went wrong."): string {
+  if (e instanceof Error && e.message) return e.message;
+  if (typeof e === "string" && e) return e;
+  // PostgREST errors are plain objects ({ message, code, details, hint }), not
+  // Error instances, so they all used to collapse to the fallback, including
+  // the sentences our own functions RAISE for a person to read ("Cleric spell
+  // limit of 10 reached"). Those carry a P0 code; a constraint or RLS failure
+  // ("duplicate key value violates…") is not written for a player, and keeps
+  // the fallback.
+  if (typeof e === "object" && e !== null && "message" in e && "code" in e) {
+    const { message, code } = e;
+    if (typeof message === "string" && message && typeof code === "string" && code.startsWith("P0")) return message;
+  }
+  return fallback;
+}
+
+/** The toast functions every caller uses. */
+export const toast = { toasts, error, success, info, fromError, dismiss };

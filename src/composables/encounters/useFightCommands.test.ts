@@ -17,6 +17,8 @@ vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignI
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ error: toasts.error, info: toasts.info, fromError: (_e: unknown, fallback: string) => fallback }),
 }));
+// The store raises its own toasts from the toast stack itself (`@/lib/toast`), with or without a runner.
+vi.mock("@/lib/toast", () => ({ toast: { error: toasts.error, info: toasts.info, fromError: (_e: unknown, fallback: string) => fallback } }));
 vi.mock("@/lib/campaignLiveSync/rings", () => ({
   onCampaignRing: (_tables: string[], listener: (r: { campaignId: string; table: string }) => void) => {
     rings.ring.push(listener);

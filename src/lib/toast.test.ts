@@ -1,16 +1,17 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
-import { useToast } from "./useToast";
+import { toast } from "./toast";
 import ToastHost from "@/components/common/feedback/ToastHost.vue";
 
 describe("useToast", () => {
   // `toasts` is a module-level singleton (see useToast.ts) shared by every
   // caller, so each test clears it rather than inheriting toasts a previous
   // test in this file pushed.
-  const { toasts, error, success, info, dismiss } = useToast();
+  const { toasts, error, success, info, dismiss } = toast;
 
   describe("fromError", () => {
-    const { fromError } = useToast();
+    const { fromError } = toast;
 
     it("reads an Error's message and a bare string", () => {
       expect(fromError(new Error("boom"))).toBe("boom");
@@ -119,7 +120,7 @@ describe("useToast", () => {
 });
 
 describe("ToastHost action button", () => {
-  const { toasts, success } = useToast();
+  const { toasts, success } = toast;
   const global = { stubs: { Teleport: true } };
 
   beforeEach(() => {
@@ -157,7 +158,7 @@ describe("ToastHost action button", () => {
   // `hasRun` is spent before the callback can throw, so without a `finally` a
   // failed undo would strand the toast on screen wearing a dead button.
   it("dismisses the toast even when the action throws", () => {
-    const { toasts, error } = useToast();
+    const { toasts, error } = toast;
     const before = toasts.value.length;
     error("Reset failed to stick", undefined, {
       action: {

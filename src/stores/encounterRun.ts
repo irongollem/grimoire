@@ -21,7 +21,7 @@ import { companionCombatant, idClock, spawnMonsters, spawnNpcs } from "@/rules/f
 import type { ConfirmedFight, FightFrame } from "@/lib/encounters/fightSync";
 import type { ShownDefense } from "@/rules/fight/tactics/shownDefenses";
 import type { ShownDeedDelta } from "@/rules/fight/tactics/shownThreat";
-import { useToast } from "@/composables/useToast";
+import { toast } from "@/lib/toast";
 import { createFightLink } from "./encounterRunLink";
 import { createBatchPump } from "./encounterRunPump";
 
@@ -255,7 +255,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
       dropPending: link.dropPending,
       unsent: unsentBatches,
     },
-    useToast(),
+    toast,
   );
   link.setWaker(pump.kick);
   onScopeDispose(() => pump.dispose());

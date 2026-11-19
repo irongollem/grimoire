@@ -11,6 +11,8 @@ vi.mock("@/lib/supabase", () => ({ supabase: { functions: { invoke: net.invoke }
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ error: toasts.error, info: vi.fn(), fromError: (_e: unknown, fallback: string) => fallback }),
 }));
+// The store raises its own toasts from the toast stack itself (`@/lib/toast`), with or without a runner.
+vi.mock("@/lib/toast", () => ({ toast: { error: toasts.error, info: vi.fn(), fromError: (_e: unknown, fallback: string) => fallback } }));
 
 import { useEncounterRunStore } from "@/stores/encounterRun";
 
