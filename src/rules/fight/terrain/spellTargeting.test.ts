@@ -4,7 +4,7 @@ import type { RunCombatant } from "../../../types/encounter.types.ts";
 import { castableNow } from "../spells/castNow.ts";
 import { fireball, holdPerson, holdPersonEffect, mageBlock, mageWithHold } from "../spells/spellTestKit.ts";
 import type { SpellRecord } from "../spells/spellChoice.ts";
-import { rangeFeetOf, spellTargetings } from "./spellTargeting.ts";
+import { inAimedArea, rangeFeetOf, spellTargetings } from "./spellTargeting.ts";
 
 const who = (id: string, faction: string, x: number, y = 0): RunCombatant => ({
   instance_id: id, type: "monster", name: id, faction_id: faction, initiative: null, hp: 20, max_hp: 20, ac: "12", conditions: [], curses: [],
@@ -101,5 +101,58 @@ describe("spellTargetings: a spell limited to a kind of creature", () => {
     const spells = castableNow(mageBlock(), MAGE, [fireball()], "2014");
     const input = { mover: MAGE, hostiles, allies: [], scene: { occluders: NO_OCCLUDERS, onBoard: [MAGE, ...hostiles] }, spells };
     expect(spellTargetings({ ...input, kindOf })).toEqual(spellTargetings(input));
+  });
+});
+
+describe("a cone and a line, aimed from the caster", () => {
+  const cone = () => fireball({ range: "Self (15-foot cone)", aoe_shape: "cone", aoe_size: "15 feet" });
+  const line = () => fireball({ range: "Self (30-foot line)", aoe_shape: "line", aoe_size: "30 feet" });
+
+  // SRD 5.1 "Areas of Effect", Cone: "A cone's width at a given point along its length is equal to that point's
+  // distance from the point of origin." Aimed along the row from x=0: the square at (3, 1) is 15 feet along and
+  // 5 feet off, inside the 7.5 feet the cone is half-wide there; (1, 1) is 5 feet along and 5 off, outside 2.5.
+  // Bug caught: a cone as wide at its mouth as at its end (a square), or as a line with no width at all.
+  it("widens a cone with distance: wide at its end, narrow at its mouth", () => {
+    const found = targetings(cone(), [who("ahead", "p", 3), who("wide", "p", 3, 1), who("beside", "p", 1, 1)]);
+    const along = found.find((t) => t.centerId === "ahead");
+    expect(along?.targetIds.sort()).toEqual(["ahead", "wide"]);
+  });
+
+  // Bug caught: a cone or line reaching past its length, or cast at someone it cannot reach.
+  it("reaches only its length, and is not aimed at a creature beyond it", () => {
+    const found = targetings(cone(), [who("near", "p", 2), who("far", "p", 4)]);
+    expect(found.map((t) => [t.centerId, t.targetIds])).toEqual([["near", ["near"]]]);
+  });
+
+  // SRD 5.1 "Areas of Effect", Line: straight from the origin up to its length. Bug caught: a line catching the
+  // squares beside its path, or stopping at the creature it is aimed at instead of running on.
+  it("runs a line on past the creature it is aimed at, and misses the squares beside its path", () => {
+    const found = targetings(line(), [who("first", "p", 2), who("behind", "p", 5), who("beside", "p", 3, 1)]);
+    expect(found.find((t) => t.centerId === "first")?.targetIds.sort()).toEqual(["behind", "first"]);
+    expect(found.every((t) => !t.targetIds.includes("beside") || t.centerId === "beside")).toBe(true);
+  });
+
+  // The rule a creature weighs before it casts (friends in the fire). Bug caught: an ally standing in the cone
+  // not counted, so the caster burns its own side without knowing; or the caster counted in its own cone.
+  it("counts a friend standing in the area, and never the caster", () => {
+    const [t] = targetings(cone(), [who("foe", "p", 3)], [who("ally", "m", 2)]);
+    expect(t.friendsCaught).toEqual(["ally"]);
+    expect(t.targetIds).toEqual(["foe"]);
+  });
+
+  // Bug caught: two aims that catch exactly the same creatures offered as two casts.
+  it("offers one cast for aims that catch the same creatures", () => {
+    const found = targetings(line(), [who("a", "p", 2), who("b", "p", 4)]);
+    expect(found).toHaveLength(1);
+    expect(found[0].targetIds.sort()).toEqual(["a", "b"]);
+  });
+
+  // A Large caster fills squares (0,0) to (1,1); its space ends 5 feet beyond a Medium one's from its centre.
+  // Bug caught: a Large creature's cone measured from its centre, a square shorter than a Medium creature's.
+  it("measures from the edge of the caster's space, so a Large caster's cone is no shorter", () => {
+    const origin = { x: 5, y: 5 };
+    const target = { anchor: { x: 4, y: 0 }, footprint: 1 };
+    expect(inAimedArea("cone", 15, origin, 2.5, { x: 22.5, y: 5 }, target)).toBe(true);
+    expect(inAimedArea("cone", 15, origin, 0, { x: 22.5, y: 5 }, target)).toBe(false);
   });
 });

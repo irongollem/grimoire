@@ -13,8 +13,13 @@
 //   An emanation, and any area spell whose range is Self, is centred on the caster, and the caster is not in it
 //   (SRD 5.1 "Thunderwave", "Spirit Guardians": the caster is excluded). A creature in the area is caught only when it is
 //   not wholly walled off from the centre (`coverBetween` is not "total"); a wall stops an area, it does not bend round it.
-// - Cone and line are NOT offered. They need a template with a direction, and fitting one to a position would be an
-//   approximation of a rule this does not model. A spell whose shape is anything else is left out the same way.
+// - A cone or a line starts at the caster and is aimed at a living enemy, one aim per enemy it could reach: the
+//   template's direction is the line from the caster's centre to that enemy's. SRD 5.1 "Areas of Effect": a cone is as
+//   wide at any point as that point is far from the origin, so a square is in it when its centre lies no further off the
+//   aim than half its distance along it; a line is as long as its size and 5 feet wide (the record keeps no width, and
+//   every line in the SRD that harms is 5 feet wide), and a square is in it when the line passes through it, which here
+//   is its centre lying within `LINE_REACH_FEET` of the aim. The caster is never in its own cone or line. A creature of
+//   several squares is caught when any of its squares is. A spell whose shape is anything else is left out.
 // - With nothing to measure on (no map, or a caster with no place on it) every spell, area or not, is offered as one
 //   single-target cast per living enemy, catching no friend: nobody knows where anyone stands.
 
@@ -36,8 +41,46 @@ export interface SpellTargeting {
   distanceFeet: number | null;
 }
 
-/** The area shapes that are cast at a point or from the caster. `cone` and `line` are left out on purpose (see above). */
-const OFFERED_SHAPES: ReadonlySet<string> = new Set(["sphere", "cylinder", "cube", "emanation"]);
+/** The area shapes that are cast at a point, from the caster, or from the caster in a direction (see above). */
+const OFFERED_SHAPES: ReadonlySet<string> = new Set(["sphere", "cylinder", "cube", "emanation", "cone", "line"]);
+
+const SQUARE = 5;
+/** How far a square's centre may lie off a 5-foot line's aim and still be crossed by it: half the width, and the corner a slanted line clips. app convention. */
+export const LINE_REACH_FEET = 3.75;
+
+type Point = { x: number; y: number };
+
+/** The centres of the squares a creature fills, in feet. A Tiny creature fills part of one square: its own centre. */
+function squareCentres(box: Box): Point[] {
+  if (box.footprint < 1) return [{ x: (box.anchor.x + box.footprint / 2) * SQUARE, y: (box.anchor.y + box.footprint / 2) * SQUARE }];
+  const out: Point[] = [];
+  for (let i = 0; i < box.footprint; i++) for (let j = 0; j < box.footprint; j++) out.push({ x: (box.anchor.x + i + 0.5) * SQUARE, y: (box.anchor.y + j + 0.5) * SQUARE });
+  return out;
+}
+
+const centreOf = (box: Box): Point => ({ x: (box.anchor.x + box.footprint / 2) * SQUARE, y: (box.anchor.y + box.footprint / 2) * SQUARE });
+
+/**
+ * Whether a cone or a line from `origin`, aimed at `aim`, catches a creature. Distances along the aim are counted
+ * from the edge of the caster's space (`originHalf` is how far its centre is from that edge beyond a Medium
+ * creature's), so a Large caster's cone is not shorter than a Medium one's.
+ */
+export function inAimedArea(shape: "cone" | "line", feet: number, origin: Point, originHalf: number, aim: Point, target: Box): boolean {
+  const ax = aim.x - origin.x;
+  const ay = aim.y - origin.y;
+  const length = Math.hypot(ax, ay);
+  if (length === 0) return false;
+  const ux = ax / length;
+  const uy = ay / length;
+  return squareCentres(target).some((p) => {
+    const vx = p.x - origin.x;
+    const vy = p.y - origin.y;
+    const along = vx * ux + vy * uy - originHalf;
+    if (along <= 0 || along > feet + 1e-6) return false;
+    const off = Math.abs(vx * uy - vy * ux);
+    return shape === "cone" ? off <= along / 2 + 1e-6 : off <= LINE_REACH_FEET;
+  });
+}
 
 /** A spell's range in feet; "self" for a spell cast on the caster; null when the text says nothing this can read. */
 export function rangeFeetOf(text: string): number | "self" | null {
@@ -124,6 +167,29 @@ export function spellTargetings(input: SpellTargetingInput): SpellTargeting[] {
       if (!caster && distanceFeet(centerBox, moverBox) <= area.feet && see(center, centerBox, mover, moverBox)) friendsCaught.push(mover.instance_id);
       return { targetIds, friendsCaught };
     };
+
+    if (area.shape === "cone" || area.shape === "line") {
+      const shape = area.shape;
+      const origin = centreOf(moverBox);
+      const originHalf = Math.max(0, moverBox.footprint * (SQUARE / 2) - SQUARE / 2);
+      const caughtBy = (aim: Point) => {
+        const hit = (c: RunCombatant, box: Box) => inAimedArea(shape, area.feet, origin, originHalf, aim, box) && see(mover, moverBox, c, box);
+        return { targetIds: enemies.filter(({ c, box }) => hit(c, box)).map(({ c }) => c.instance_id), friendsCaught: friends.filter(({ c, box }) => hit(c, box)).map(({ c }) => c.instance_id) };
+      };
+      // Nearest aim first, so two aims that catch the same creatures keep the nearer one.
+      const aims = [...enemies].sort((a, b) => distanceFeet(moverBox, a.box) - distanceFeet(moverBox, b.box));
+      const seenAims = new Set<string>();
+      for (const { c, box } of aims) {
+        const caught = caughtBy(centreOf(box));
+        // An aim that does not reach the creature it is aimed at is no cast at it.
+        if (!caught.targetIds.includes(c.instance_id)) continue;
+        const key = `${[...caught.targetIds].sort().join(",")}|${[...caught.friendsCaught].sort().join(",")}`;
+        if (seenAims.has(key)) continue;
+        seenAims.add(key);
+        out.push({ cast, centerId: c.instance_id, ...caught, distanceFeet: distanceFeet(moverBox, box) });
+      }
+      continue;
+    }
 
     if (area.shape === "emanation" || range === "self") {
       const caught = catching(mover, moverBox, true);
