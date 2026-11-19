@@ -13,7 +13,7 @@ describe("toItem", () => {
       quest_id: null,
       objective_id: "o",
       quest: null,
-      objective: { description: "Find the tower", status, quest: { title: "The Old Map" } },
+      objective: { description: "Find the tower", status, quest_id: "q9", quest: { title: "The Old Map" } },
     });
 
   it.each([
@@ -33,6 +33,6 @@ describe("toItem", () => {
   });
 
   it("an objective names its quest, so two alike in different quests can be told apart", () => {
-    expect(objective("pending")).toMatchObject({ label: "Find the tower", questTitle: "The Old Map", questId: null });
+    expect(objective("pending")).toMatchObject({ label: "Find the tower", questTitle: "The Old Map", questId: null, inQuestId: "q9" });
   });
 });

@@ -50,9 +50,9 @@ const existing: LevelMilestone = {
   note: null,
   reachedAt: null,
   items: [
-    { id: "s1", questId: "q1", objectiveId: null, label: "The Sunken Library", questTitle: null, done: false },
-    { id: "s2", questId: "q2", objectiveId: null, label: "The Three Houses", questTitle: null, done: true },
-    { id: "s3", questId: null, objectiveId: "o1", label: "Find the tower", questTitle: "The Old Map", done: false },
+    { id: "s1", questId: "q1", objectiveId: null, label: "The Sunken Library", questTitle: null, inQuestId: "q1", done: false },
+    { id: "s2", questId: "q2", objectiveId: null, label: "The Three Houses", questTitle: null, inQuestId: "q2", done: true },
+    { id: "s3", questId: null, objectiveId: "o1", label: "Find the tower", questTitle: "The Old Map", inQuestId: "q9", done: false },
   ],
 };
 

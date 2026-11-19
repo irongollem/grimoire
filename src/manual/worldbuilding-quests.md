@@ -24,6 +24,12 @@ The next two pages in this section go deeper: [Quest Story Flow](#quest-story-fl
 | Drawer | The column on the right of the flow. It shows the quest, a beat or a route, and opens wide from its tab. |
 | Quest drawer | What the quest page shows when nothing on the flow is selected: the quest as a whole. |
 
+## The level plan
+
+Above the board, **Levels** shows where the party stands. In a campaign that levels by milestone you see the level last reached, the next milestone with what it waits on and how many are done, the one after, and the first level that has no milestone yet (**Set one** takes you to the Levels card on the Party page, where milestones are made and edited). In a campaign with the Experience Points rule you see each character's way to the next level, and what each open quest is worth to them when shared.
+
+Under the next milestone, a warning names any prepared fight of its quests that will be Trivial, or Deadly or worse, for the party at the level that milestone brings, so you can adjust it before the table gets there. Fold the strip to one line with the arrow; it stays folded for this campaign. Your players never see it.
+
 ## Finding a quest
 
 The quest list has two views, toggled from the filter bar: **Kanban** (drag cards between three columns: **Active**, **Undiscovered: waiting to be unlocked**, and **Settled**, the last covering both Completed and Failed) and **List** (a compact grid, better with many quests). Your choice persists for the session.

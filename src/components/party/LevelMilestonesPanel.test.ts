@@ -36,9 +36,9 @@ const level4: LevelMilestone = {
   note: null,
   reachedAt: null,
   items: [
-    { id: "s1", questId: "q1", objectiveId: null, label: "The Sunken Library", questTitle: null, done: true },
-    { id: "s2", questId: "q2", objectiveId: null, label: "The Three Houses", questTitle: null, done: false },
-    { id: "s3", questId: "q3", objectiveId: null, label: "The Salt Road", questTitle: null, done: false },
+    { id: "s1", questId: "q1", objectiveId: null, label: "The Sunken Library", questTitle: null, inQuestId: "q1", done: true },
+    { id: "s2", questId: "q2", objectiveId: null, label: "The Three Houses", questTitle: null, inQuestId: "q2", done: false },
+    { id: "s3", questId: "q3", objectiveId: null, label: "The Salt Road", questTitle: null, inQuestId: "q3", done: false },
   ],
 };
 

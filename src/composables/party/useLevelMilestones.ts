@@ -21,6 +21,8 @@ export interface LevelMilestoneItem {
   label: string;
   /** For an objective, the title of its quest. */
   questTitle: string | null;
+  /** The quest the item belongs to: the quest itself, or the objective's quest. Null for a deleted one. */
+  inQuestId: string | null;
   done: boolean;
 }
 
@@ -38,7 +40,7 @@ interface StepRow {
   quest_id: string | null;
   objective_id: string | null;
   quest: { title: string; status: string } | null;
-  objective: { description: string; status: string; quest: { title: string } | null } | null;
+  objective: { description: string; status: string; quest_id: string; quest: { title: string } | null } | null;
 }
 
 interface MilestoneRow {
@@ -57,7 +59,7 @@ const SELECT = `id, level, needs, note, reached_at,
     id, quest_id, objective_id,
     quest:quests!level_milestone_steps_quest_id_fkey(title, status),
     objective:quest_objectives!level_milestone_steps_objective_id_fkey(
-      description, status, quest:quests!quest_objectives_quest_id_fkey(title)
+      description, status, quest_id, quest:quests!quest_objectives_quest_id_fkey(title)
     )
   )`;
 
@@ -70,6 +72,7 @@ export function toItem(step: StepRow): LevelMilestoneItem {
       objectiveId: step.objective_id,
       label: step.objective?.description ?? "A deleted objective",
       questTitle: step.objective?.quest?.title ?? null,
+      inQuestId: step.objective?.quest_id ?? null,
       done: step.objective?.status === "complete",
     };
   }
@@ -79,6 +82,7 @@ export function toItem(step: StepRow): LevelMilestoneItem {
     objectiveId: null,
     label: step.quest?.title ?? "A deleted quest",
     questTitle: null,
+    inQuestId: step.quest_id,
     done: step.quest?.status === "completed",
   };
 }

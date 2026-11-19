@@ -87,6 +87,8 @@
       </ListFilterBar>
     </template>
 
+    <!-- Where the party's levels come from, and which prepared fight will be wrong for the party by then (#1021 row 27). -->
+    <QuestLevelPlan v-if="auth.isDM" class="mb-4" />
     <QuestList />
   </ListPageLayout>
 
@@ -105,15 +107,18 @@ import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
 import QuestList from "@/components/quests/board/QuestList.vue";
+import QuestLevelPlan from "@/components/quests/levels/QuestLevelPlan.vue";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useQuestsUiStore } from "@/stores/ui/quests";
 import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
 import { useQuests, useCampaignQuestRefs, useQuestFilterEntities } from "@/composables/quests/useQuests";
 import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
 import { countQuestBoardFilters, isQuestInSession } from "@/lib/quests/board";
 
 const questsUi = useQuestsUiStore();
+const auth = useAuthStore();
 const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 const { data: entityOptions } = useQuestFilterEntities();
