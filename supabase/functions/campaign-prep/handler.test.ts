@@ -27,7 +27,8 @@ function harness() {
   };
   const callModel: CallModel = async () => {
     h.calls += 1;
-    return { blocks: h.answer === null ? [{ type: "text", text: "I would rather not." }] : [{ type: "tool_call", id: "p1", name: "propose", input: { proposals: h.answer } }], stop: h.answer === null ? "end" : "tool_calls", usage };
+    // As the model writes it: some thinking aloud, then the one JSON object.
+    return { blocks: [{ type: "text", text: h.answer === null ? "I would rather not." : `The marsh needs a hazard.\n${JSON.stringify({ proposals: h.answer })}` }], stop: "end", usage };
   };
   h.deps = {
     loadCampaign: async () => ({ id: CAMPAIGN, user_id: DM, name: "Sugarwell", ai_enabled: h.aiEnabled }),

@@ -8,7 +8,7 @@
 
 import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import type { CallModel } from "../_shared/agent/types.ts";
-import { keptProposals, prepPrompt, PREP_SYSTEM, PROPOSE_TOOL, PROPOSE_TOOL_NAME, proposalInput, type PrepDigest, type PrepExisting, type Proposal } from "../_shared/campaignPrep.ts";
+import { keptProposals, prepPrompt, PREP_SYSTEM, proposalInput, proposalsFromReply, type PrepDigest, type PrepExisting, type Proposal } from "../_shared/campaignPrep.ts";
 
 export interface PrepCampaign {
   id: string;
@@ -38,7 +38,8 @@ export interface PrepDeps {
 }
 
 export const PREP_RESERVE_CREDITS = 4;
-export const PREP_MAX_OUTPUT_TOKENS = 3_000;
+/** Room for the model to think the quests through and then write a dozen proposals. */
+export const PREP_MAX_OUTPUT_TOKENS = 8_000;
 
 export const PREP_MESSAGES = {
   badBody: "The request is not valid.",
@@ -111,13 +112,15 @@ export async function prepCampaign(input: { userId: string; body: unknown; deps:
     const step = await provider.callModel({
       system: PREP_SYSTEM,
       messages: [{ role: "user", blocks: [{ type: "text", text: prepPrompt(digest) }] }],
-      tools: [PROPOSE_TOOL],
+      // No tool: see `proposalsFromReply` for why the list is asked for as plain JSON.
+      tools: [],
       maxOutputTokens: PREP_MAX_OUTPUT_TOKENS,
     });
-    const call = step.blocks.find((b) => b.type === "tool_call" && b.name === PROPOSE_TOOL_NAME);
+    const reply = step.blocks.map((b) => (b.type === "text" ? b.text : "")).join("");
+    const listed = step.stop === "refusal" ? null : proposalsFromReply(reply);
     // A reply with no list (a refusal, plain talk) is no answer: nothing came of it, nothing is charged.
-    if (step.stop === "refusal" || !call || call.type !== "tool_call") return refuse(502, PREP_MESSAGES.noAnswer);
-    const proposals = keptProposals(call.input.proposals, existing);
+    if (listed === null) return refuse(502, PREP_MESSAGES.noAnswer);
+    const proposals = keptProposals(listed, existing);
     const usage = step.usage;
     // Whole credits, at least one: the list was written, whatever of it the DM keeps. Own-key play is logged, not charged.
     const credits = provider.isByok || !price || !calibration ? 0 : Math.max(1, Math.ceil(creditsForUsd(usdForSteps([usage], price), calibration)));
