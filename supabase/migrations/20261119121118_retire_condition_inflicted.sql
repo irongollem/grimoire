@@ -1,6 +1,6 @@
 -- The old free-text "condition inflicted" is retired (#1021, row 5b).
 --
--- A spell's condition now lives in `condition_effect` (20261118185124), which a fight reads and the spell editor
+-- A spell's condition now lives in `condition_effect` (20261119121116), which a fight reads and the spell editor
 -- fills. The old column was one word of free text that nothing but a sheet ever showed. Three things happen here,
 -- in this order, so no spell loses what its author wrote:
 --

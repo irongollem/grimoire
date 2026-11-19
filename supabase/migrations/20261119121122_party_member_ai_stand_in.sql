@@ -3,7 +3,7 @@
 -- The maintainer, 19 Nov 2026: "any real table is billed to the dm ('players always play for free') its also a dm
 -- call to have an absent player be represented anyway", and the character "works in normal chat and responds on @
 -- and whispers". So two words are needed before a character answers in chat, each from the one whose word it is:
---   `ai_speaks`     the player's, on their own sheet (20261119004434): the AI may speak as my character;
+--   `ai_speaks`     the player's, on their own sheet (20261119121121): the AI may speak as my character;
 --   `ai_stands_in`  the Dungeon Master's, per character: tonight this absent character is played, on my credits.
 -- Neither may be given by the other. `ai_speaks` had no guard: a Dungeon Master could switch on a consent that is
 -- the player's to give. This closes that too.

@@ -72,7 +72,7 @@ select lives_ok(
 );
 reset role;
 
--- ── Whose word each switch is (20261119115241) ─────────────────────────────
+-- ── Whose word each switch is (20261119121122) ─────────────────────────────
 -- The player's consent is not the DM's to give; whether an absent character is played is not the player's to decide,
 -- since it is charged to the DM.
 insert into public.party_members (id, user_id, campaign_id, name, ruleset)
