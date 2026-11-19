@@ -8,7 +8,7 @@ import type { FactionSides } from "../../../src/rules/fight/sides.ts";
 import { DEFAULT_FACTIONS } from "../../../src/types/encounter.types.ts";
 import { withCors } from "../_shared/cors.ts";
 import { adminClient, callerUserId, loadEncounterAsDm } from "../_shared/fightAccess.ts";
-import { loadMonsters, loadNpcs, loadStatBlocks } from "../_shared/fightStatBlocks.ts";
+import { customMonsterScope, loadMonsters, loadNpcs, loadStatBlocks } from "../_shared/fightStatBlocks.ts";
 import { loadSpellsListed, loadSpellsNamed } from "../_shared/fightSpells.ts";
 import { loadFightMapInput } from "../_shared/fightMap.ts";
 import { gameSystemEdition } from "../_shared/gameSystem.ts";
@@ -96,7 +96,7 @@ serve(withCors(async (req: Request) => {
     // Settings that do not change between the attempts of one batch are read once.
     const events = (encounter.events ?? []) as EncounterEvent[];
     const { monsterIds, npcIds } = spawnIds(events);
-    const monsters = await loadMonsters(admin, monsterIds);
+    const monsters = await loadMonsters(admin, campaignId, monsterIds);
     const npcs = await loadNpcs(admin, campaignId, npcIds);
     // The runner reads the same rule: no row means the rule's own default, which is off.
     const { data: rule, error: ruleError } = await admin
@@ -108,7 +108,7 @@ serve(withCors(async (req: Request) => {
       async loadFight(encounterId) {
         const { data, error } = await admin
           .from("encounter_state")
-          .select("id, version, combatants_live, current_round, active_combatant_index, events_fired, lair_fired_rounds, applied_command_ids, is_running, ended_at")
+          .select("id, version, combatants_live, current_round, active_combatant_index, events_fired, lair_fired_rounds, applied_command_ids, is_running, ended_at, started_at")
           .eq("encounter_id", encounterId)
           .eq("campaign_id", campaignId)
           .maybeSingle();
@@ -147,6 +147,13 @@ serve(withCors(async (req: Request) => {
           .in("id", ids);
         if (error) throw new Error(`party_members: ${error.message}`);
         return data as PartyIngestRow[];
+      },
+      async isCampaignSession(sessionId) {
+        // A value that is no uuid names no session; asking the database would fail on the cast rather than answer no.
+        if (!isUuid(sessionId)) return false;
+        const { data, error } = await admin.from("campaign_sessions").select("id").eq("id", sessionId).eq("campaign_id", campaignId).maybeSingle();
+        if (error) throw new Error(`campaign_sessions: ${error.message}`);
+        return data !== null;
       },
       async saveFight(rowId, expectedVersion, next) {
         // The version guard is the whole point: zero rows back means another writer got there first.
@@ -251,7 +258,7 @@ serve(withCors(async (req: Request) => {
         }
         if (customForms.length > 0) {
           const { data, error } = await admin
-            .from("monsters").select("id, stat_block").in("id", customForms).or(`campaign_id.eq.${campaignId},campaign_id.is.null`);
+            .from("monsters").select("id, stat_block").in("id", customForms).or(await customMonsterScope(admin, campaignId));
           if (error) throw new Error(`monsters: ${error.message}`);
           beasts.push(...(data as BeastScores[]));
         }

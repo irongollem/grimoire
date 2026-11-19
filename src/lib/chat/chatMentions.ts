@@ -85,20 +85,29 @@ export function mightBeAnswered(recipientUserId: string | null, mentions: readon
   return party.length > 0 && !party.every((p) => p.ai_stands_in === false);
 }
 
-/** Every place the text names a target after an "@", longest name first so "Rosie Vermeil" is not read as "Rosie". */
+/**
+ * Every place the text names a target after an "@", longest name first so "Rosie Vermeil" is not read as "Rosie".
+ * Every index here is into the ORIGINAL text: lowercasing can change a string's length ("İ" becomes two code units),
+ * so each candidate is compared as a slice of the original, never found in a re-cased copy.
+ */
 function mentionSpans(text: string, targets: readonly MentionTarget[]): { start: number; end: number; target: MentionTarget }[] {
-  const byLength = [...targets].filter((t) => t.name.trim() !== "").sort((a, b) => b.name.length - a.name.length);
-  const hay = lower(text);
+  // App convention: on equal length the whole party wins, so "@party" always addresses the table even when a
+  // character is literally named "party".
+  const byLength = [...targets]
+    .filter((t) => t.name.trim() !== "")
+    .sort((a, b) => b.name.length - a.name.length || Number(b.kind === "party") - Number(a.kind === "party"));
   const spans: { start: number; end: number; target: MentionTarget }[] = [];
-  let at = hay.indexOf("@");
+  let at = text.indexOf("@");
   while (at >= 0) {
     const opens = at === 0 || !isWordChar(text[at - 1]);
-    const found = opens ? byLength.find((t) => hay.startsWith(lower(t.name), at + 1) && !isWordChar(text[at + 1 + t.name.length])) : undefined;
+    const found = opens
+      ? byLength.find((t) => lower(text.slice(at + 1, at + 1 + t.name.length)) === lower(t.name) && !isWordChar(text[at + 1 + t.name.length]))
+      : undefined;
     if (found) {
       spans.push({ start: at, end: at + 1 + found.name.length, target: found });
-      at = hay.indexOf("@", at + 1 + found.name.length);
+      at = text.indexOf("@", at + 1 + found.name.length);
     } else {
-      at = hay.indexOf("@", at + 1);
+      at = text.indexOf("@", at + 1);
     }
   }
   return spans;
@@ -117,12 +126,17 @@ export function mentionsIn(text: string, targets: readonly MentionTarget[]): Sto
   return out;
 }
 
+/** Backslash-escapes what the chat's markdown would take for markup, so a name such as "Star*Lord" shows as typed. */
+function escapeMarkdown(s: string): string {
+  return s.replace(/[\\`*_[\]~<>&|#]/g, "\\$&");
+}
+
 /** The text with each mention set in bold, for the chat's markdown: no markup of our own enters the message. */
 export function emphasiseMentions(text: string, targets: readonly MentionTarget[]): string {
   let out = "";
   let from = 0;
   for (const span of mentionSpans(text, targets)) {
-    out += `${text.slice(from, span.start)}**${text.slice(span.start, span.end)}**`;
+    out += `${text.slice(from, span.start)}**${escapeMarkdown(text.slice(span.start, span.end))}**`;
     from = span.end;
   }
   return out + text.slice(from);

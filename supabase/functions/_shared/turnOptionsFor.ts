@@ -47,6 +47,8 @@ export function usableAttacks(mover: RunCombatant, block: MonsterStatBlock | nul
 export interface TurnOptionsFacts {
   /** The encounter's factions: who fights whom (`src/rules/fight/sides.ts`). */
   factions: FactionSides;
+  /** The fight's round, for what only the first round changes (a surprised creature under the 2014 rules has no turn in it). */
+  round: number;
   combatants: readonly RunCombatant[];
   mover: RunCombatant;
   ruleset: RulesetKey;
@@ -86,6 +88,7 @@ export function assembleTurnOptions(facts: TurnOptionsFacts): { options: TurnOpt
     kindOf: (c) => creatureKindOf(c, sources),
     breakFreeAbility: (way) => strongestBreakFreeAbility(block, way),
     factions: facts.factions,
+    round: facts.round,
   });
   return { options, attacks, spells };
 }

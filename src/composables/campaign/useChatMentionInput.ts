@@ -39,6 +39,8 @@ export function useChatMentionInput(options: {
 
   /** True when the key was the picker's, so the composer must not also act on it (Enter would send the line). */
   function onKeydown(event: KeyboardEvent): boolean {
+    // An input method's Enter confirms its composition; it is not a choice from the picker.
+    if (event.isComposing || event.keyCode === 229) return false;
     const list = suggestions.value;
     if (list.length === 0) return false;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -46,7 +48,8 @@ export function useChatMentionInput(options: {
       active.value = (active.value + (event.key === "ArrowDown" ? 1 : list.length - 1)) % list.length;
       return true;
     }
-    if (event.key === "Enter" || event.key === "Tab") {
+    // Shift+Enter is a new line and Shift+Tab walks backwards: only the bare key picks.
+    if ((event.key === "Enter" || event.key === "Tab") && !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey) {
       event.preventDefault();
       pick(list[active.value]);
       return true;

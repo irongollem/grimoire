@@ -41,11 +41,12 @@ describe("applyFightCommand", () => {
     expect(result.state.eventsFired).toEqual(["old"]);
   });
 
-  it("fails if blanking an initiative with set_initiative null changes anything but that one field", () => {
+  it("fails if blanking an initiative with set_initiative null changes anything but that one field and where the pointer follows the acting creature", () => {
     const state = fight([combatant("a", { initiative: 12 }), combatant("b", { initiative: 8 })], [], { activeIndex: 1 });
     const result = applyFightCommand(deepFreeze(state), { type: "set_initiative", instanceId: "a", value: null }, deps());
     expect(result.state.combatants.map((c) => c.initiative)).toEqual([null, 8]);
-    expect(result.state.activeIndex).toBe(1);
+    // Hand-worked: b (8) was acting at index 1. With a blank, the order is [b 8, a blank], so the pointer follows b to 0.
+    expect(result.state.activeIndex).toBe(0);
     expect(result.effects).toEqual([]);
   });
 });

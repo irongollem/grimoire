@@ -96,6 +96,23 @@ describe("the request: what the judge is shown", () => {
     expect(s.allies.map((e) => e.name)).toEqual(["Ogre Friend"]);
   });
 
+  // Bug: "a different faction" made an Ally creature an enemy of the Players and a Neutral an enemy of everyone.
+  it("reads friend and foe from the fight's factions: an Ally is not an enemy, a Neutral is neither", () => {
+    const factions = [
+      { id: "m", hostile_to: ["p"] },
+      { id: "p", hostile_to: ["m", "z"] },
+      { id: "z", hostile_to: ["p"] },
+      { id: "n", hostile_to: [] },
+    ];
+    const bystander = who("bystander", "Bystander", "n");
+    const zealot = who("zealot", "Zealot", "z");
+    const s = stateOf(choiceRequest(input({ combatants: [OGRE, FRESCO, bystander, zealot, FRIEND], factions })));
+    // Hand-worked: Fresco (p) is hostile to m; Bystander (n) is hostile to nobody; Zealot (z) and Ogre Friend (m) share
+    // the enemy p with the Ogre.
+    expect(s.enemies.map((e) => e.name)).toEqual(["Fresco"]);
+    expect(s.allies.map((e) => e.name)).toEqual(["Zealot", "Ogre Friend"]);
+  });
+
   it("states the numbers code worked out (rounded for reading) and leaves arithmetic out of the question", () => {
     const turn = stateOf(choiceRequest(input())).turns.turn_1;
     expect(turn).toMatchObject({ hit_chance_percent: 65, expected_damage: 9, target: "Fresco" });

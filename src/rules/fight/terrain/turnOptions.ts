@@ -28,6 +28,8 @@ import type { CastNow } from "../spells/castNow.ts";
 import { reachTerrainOf, type FightMap } from "./battleMap.ts";
 import { coverCells, reachable, type ReachCell, type ReachResult } from "./reach.ts";
 import { isHostileTo, type FactionSides } from "../sides.ts";
+import { isAllyOf } from "../allies.ts";
+import { losesFirstTurnToSurprise } from "../../initiative.ts";
 import {
   attackFrom,
   coverBetween,
@@ -183,6 +185,11 @@ export interface TurnOptionsInput {
    * fight declares no faction and a different faction is an opponent.
    */
   factions?: FactionSides;
+  /**
+   * The fight's current round. Left out, a creature is never held back by surprise, which only the first round can
+   * cost it (`losesFirstTurnToSurprise`).
+   */
+  round?: number;
 }
 
 // ── who is on the board ─────────────────────────────────────────────────────────
@@ -725,7 +732,8 @@ function spellOptionsOf(input: TurnOptionsInput, mover: RunCombatant, names: Rea
   const targetings = spellTargetings({
     mover,
     hostiles: living.filter((c) => isHostileTo(mover, c, input.factions ?? [])),
-    allies: living.filter((c) => !isHostileTo(mover, c, input.factions ?? [])),
+    // An ally fights on the mover's side; a Neutral is neither foe nor ally, so no heal or buff is aimed at it (`isAllyOf`).
+    allies: living.filter((c) => isAllyOf(mover, c, input.factions ?? [])),
     scene: scene === null ? null : { occluders: scene.map.occluders, onBoard: input.combatants.filter(isOnBoard) },
     spells: input.spells,
     kindOf: input.kindOf,
@@ -774,7 +782,7 @@ function listIsOpen(mover: RunCombatant, list: StatBlockListKey): boolean {
  * 11 Spell (a damage spell cast from where the creature stands; see `spellTargeting.ts` for what it may be cast at),
  * 12 Break free (an ability check to end a condition a spell holds it in; see `breakFreeOptions`).
  *
- * Rule 7: a creature at 0 hit points, or Incapacitated, gets an empty list. A creature whose Action is spent
+ * Rule 7: a creature at 0 hit points, Incapacitated, or surprised on the first round of a 2014 fight (`round` given), gets an empty list. A creature whose Action is spent
  * (`action_used`) gets only what needs no Action: Bonus Action attacks (unless `bonus_used`) and a plain `move`
  * toward each hostile, since Dash, Disengage, Dodge and Hide are Actions and a spent Action's attacks are gone.
  */
@@ -782,6 +790,8 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
   const mover = input.combatants.find((c) => c.instance_id === input.moverId);
   if (!mover) throw new Error(`No combatant "${input.moverId}" in this fight`);
   if (!isLiving(mover) || isIncapacitated(mover.conditions)) return [];
+  // PHB 2014 ch. 9 "Surprise": a surprised creature cannot move or take an action on its first turn.
+  if (input.round !== undefined && losesFirstTurnToSurprise(mover, input.ruleset, input.round)) return [];
 
   const actionFree = mover.action_used !== true;
   const names = new Map(input.combatants.map((c) => [c.instance_id, c.name]));

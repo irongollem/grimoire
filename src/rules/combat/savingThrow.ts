@@ -2,6 +2,7 @@ import type { RollMode } from "../../systems/dnd5e/dice/rollMode.ts";
 import { abilityMod } from "../abilityScore.ts";
 import { hasCondition, hasSaveDisadvantage, isIncapacitated } from "../conditions.ts";
 import { isDodging } from "../fight/stances.ts";
+import { speedIsZero } from "../fight/terrain/movementBudget.ts";
 import type { AppliedCondition } from "../../types/condition.types.ts";
 import type { RulesetKey } from "../../types/ruleset.types.ts";
 import type { SaveAbility } from "../../types/statBlock.types.ts";
@@ -33,8 +34,9 @@ export function saveRollMode(input: {
         : "Exhaustion imposes disadvantage on saves",
     );
   }
-  // Dodge (PHB 2014 "Dodge", SRD 5.2 "Dodge [Action]"): advantage on Dexterity saves, lost when Incapacitated.
-  if (ability === "dex" && isDodging(conditions) && !isIncapacitated(conditions)) {
+  // Dodge (PHB 2014 "Dodge", SRD 5.2 "Dodge [Action]"): advantage on Dexterity saves, lost when Incapacitated or when
+  // the Speed drops to 0.
+  if (ability === "dex" && isDodging(conditions) && !isIncapacitated(conditions) && !speedIsZero(conditions, ruleset)) {
     hasAdvantage = true;
     reasons.push("Dodging on a Dexterity save");
   }

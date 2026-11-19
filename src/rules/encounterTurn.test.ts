@@ -427,13 +427,105 @@ describe("remove_combatant", () => {
     expect(state.combatants[state.activeIndex].instance_id).toBe("c");
   });
 
-  it("clamps when the last entry leaves", () => {
-    expect(run(stateOf(list(), { activeIndex: 2 }), { type: "remove_combatant", instanceId: "c" }).state.activeIndex).toBe(1);
+  // Bug: the successor got the turn without starting it, so its action, bonus action, reaction and movement stayed
+  // spent from the round before and its start-of-turn effects never fired.
+  it("starts the next creature's turn when the active one leaves from the middle of the order", () => {
+    const spent = { action_used: true, bonus_used: true, reactionUsed: true, movement_used: 30 };
+    const stun: AppliedCondition = { name: "Stunned", ends: { kind: "turn", at: "start", of: "self" } };
+    const start = stateOf(
+      [combatant("a", { initiative: 20 }), combatant("b", { initiative: 10 }), combatant("c", { initiative: 5, conditions: [stun], ...spent })],
+      { activeIndex: 1 },
+    );
+    const { state, events } = run(start, { type: "remove_combatant", instanceId: "b" });
+    // Hand-worked: order is now [a, c]; b was at index 1, so c (index 1) is next and the round does not change.
+    expect(state.activeIndex).toBe(1);
+    expect(state.round).toBe(1);
+    expect(events.filter((e) => e.type === "turn_started")).toEqual([{ type: "turn_started", instanceId: "c" }]);
+    expect(find(state, "c")).toMatchObject({ action_used: false, bonus_used: false, reactionUsed: false, movement_used: 0 });
+    expect(find(state, "c").conditions).toEqual([]);
+    expect(events.some((e) => e.type === "turn_ended")).toBe(false);
+  });
+
+  // Bug: when the last creature in the order left, the pointer fell back to the one before it, who then acted twice.
+  it("wraps to the top of the order and opens a new round when the active creature was the last", () => {
+    const { state, events } = run(stateOf(list(), { activeIndex: 2 }), { type: "remove_combatant", instanceId: "c" });
+    // Hand-worked: c was last, so the turn passes to a (index 0) and round 1 becomes round 2.
+    expect(state.activeIndex).toBe(0);
+    expect(state.round).toBe(2);
+    expect(events.filter((e) => e.type === "round_started")).toEqual([{ type: "round_started", round: 2 }]);
+    expect(events.filter((e) => e.type === "turn_started")).toEqual([{ type: "turn_started", instanceId: "a" }]);
+  });
+
+  it("changes no turn when a creature other than the active one leaves", () => {
+    const { events } = run(stateOf(list(), { activeIndex: 0 }), { type: "remove_combatant", instanceId: "c" });
+    expect(events.some((e) => e.type === "turn_started")).toBe(false);
   });
 
   it("ignores unknown ids", () => {
     const start = stateOf(list());
     expect(run(start, { type: "remove_combatant", instanceId: "zz" }).state).toEqual(start);
+  });
+});
+
+describe("set_initiative on a running fight", () => {
+  const trio = () => [combatant("a", { initiative: 15 }), combatant("b", { initiative: 12 }), combatant("c", { initiative: 8 })];
+
+  // Bug: the order re-sorted but the pointer stayed on index 1, which named a different creature.
+  it("keeps the acting creature acting when another creature's initiative moves it in the order", () => {
+    const { state } = run(stateOf(trio(), { activeIndex: 1 }), { type: "set_initiative", instanceId: "a", value: 5 });
+    // Hand-worked: order is now [b 12, c 8, a 5]; b, who was acting, is at index 0.
+    expect(state.activeIndex).toBe(0);
+  });
+
+  it("keeps the acting creature acting when its own initiative changes", () => {
+    const { state } = run(stateOf(trio(), { activeIndex: 1 }), { type: "set_initiative", instanceId: "b", value: 20 });
+    // Hand-worked: order is now [b 20, a 15, c 8]; b is still the acting creature, at index 0.
+    expect(state.activeIndex).toBe(0);
+  });
+
+  it("starts no turn and moves no pointer before the fight has started", () => {
+    const { state, events } = run(stateOf(trio(), { activeIndex: 1, started: false }), { type: "set_initiative", instanceId: "a", value: 5 });
+    expect(state.activeIndex).toBe(1);
+    expect(events).toEqual([]);
+  });
+});
+
+describe("an incapacitating condition ends concentration (SRD 5.1 \"Concentration\")", () => {
+  const hold: AppliedCondition = { name: "Paralyzed", source: { id: "mage", spell: "Hold Person", concentration: true } };
+  const spell = { spellId: null, spellName: "Hold Person", castAtLevel: 2, startedRound: 1, appliedEffectIds: [] };
+  const roster = () => [combatant("mage", { concentration: spell, initiative: 20 }), combatant("t", { conditions: [hold], initiative: 10 })];
+
+  // Bug: only dropping to 0 hp or a deliberate end_concentration ended it, so a stunned caster still held the spell.
+  it("apply_condition of Paralyzed on the caster ends what it holds on others and clears its own record", () => {
+    const { state, events } = run(stateOf(roster()), { type: "apply_condition", instanceId: "mage", condition: { name: "Paralyzed" } });
+    expect(find(state, "t").conditions).toEqual([]);
+    expect(find(state, "mage").concentration).toBeNull();
+    expect(events).toContainEqual({ type: "condition_ended", instanceId: "t", name: "Paralyzed", reason: "concentration" });
+  });
+
+  it("set_conditions that includes Stunned ends it too", () => {
+    const { state } = run(stateOf(roster()), { type: "set_conditions", instanceId: "mage", conditions: [{ name: "Stunned" }] });
+    expect(find(state, "t").conditions).toEqual([]);
+    expect(find(state, "mage").concentration).toBeNull();
+  });
+
+  it("ends a held spell that sits on nobody (the caster's own record only)", () => {
+    const { state } = run(stateOf([combatant("mage", { concentration: spell })]), { type: "apply_condition", instanceId: "mage", condition: { name: "Unconscious" } });
+    expect(find(state, "mage").concentration).toBeNull();
+  });
+
+  it("a condition that does not incapacitate leaves concentration alone", () => {
+    const { state } = run(stateOf(roster()), { type: "apply_condition", instanceId: "mage", condition: { name: "Poisoned" } });
+    expect(find(state, "t").conditions).toEqual([hold]);
+    expect(find(state, "mage").concentration).toEqual(spell);
+  });
+
+  // A party member's own record lives on the sheet: only what it holds on others ends here.
+  it("ends what a party member holds on others without writing a concentration field", () => {
+    const state0 = stateOf([pc("mage", { initiative: 20 }), combatant("t", { conditions: [hold], initiative: 10 })]);
+    const { state } = run(state0, { type: "apply_condition", instanceId: "mage", condition: { name: "Paralyzed" } });
+    expect(find(state, "t").conditions).toEqual([]);
+    expect(find(state, "mage").concentration).toBeUndefined();
   });
 });
 

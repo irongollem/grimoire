@@ -33,7 +33,13 @@ describe("Dodge against attacks", () => {
 
   // PHB 2014 "Advantage and Disadvantage": any advantage with any disadvantage is a straight roll.
   it("fails if Dodge's disadvantage beats another source's advantage", () => {
-    expect(attackRollMode({ ...base, targetConditions: [...dodging, { name: "Restrained" }] }).mode).toBe("normal");
+    // Prone within 5 ft gives the attacker advantage, and the dodger can still move, so Dodge's disadvantage stands.
+    expect(attackRollMode({ ...base, targetConditions: [...dodging, { name: "Prone" }] }).mode).toBe("normal");
+  });
+
+  // PHB 2014 "Dodge": no benefit if the speed drops to 0. Restrained does that, so only its own advantage for attackers is left.
+  it("fails if a Restrained dodger keeps Dodge's disadvantage against attackers", () => {
+    expect(attackRollMode({ ...base, targetConditions: [...dodging, { name: "Restrained" }] }).mode).toBe("advantage");
   });
 });
 
@@ -49,9 +55,14 @@ describe("Dodge on saving throws", () => {
     expect(saveRollMode({ conditions: [...dodging, { name: "Stunned" }], ability: "dex", ruleset: "2014" }).mode).toBe("normal");
   });
 
-  // PHB 2014 "Restrained": disadvantage on Dex saves; it cancels the Dodge advantage.
-  it("fails if Dodge advantage and Restrained disadvantage do not cancel", () => {
-    expect(saveRollMode({ conditions: [...dodging, { name: "Restrained" }], ability: "dex", ruleset: "2014" }).mode).toBe("normal");
+  // PHB 2014 "Advantage and Disadvantage": Dodge's advantage cancels another source's disadvantage (2014 Exhaustion 3).
+  it("fails if Dodge advantage and a disadvantage on the same save do not cancel", () => {
+    expect(saveRollMode({ conditions: [...dodging, { name: "Exhaustion", level: 3 }], ability: "dex", ruleset: "2014" }).mode).toBe("normal");
+  });
+
+  // PHB 2014 "Dodge": lost at Speed 0. Restrained does that, so its own Dex-save disadvantage stands alone.
+  it("fails if a Restrained dodger keeps the Dex advantage", () => {
+    expect(saveRollMode({ conditions: [...dodging, { name: "Restrained" }], ability: "dex", ruleset: "2014" }).mode).toBe("disadvantage");
   });
 });
 

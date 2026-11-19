@@ -6,6 +6,10 @@
  * the encounterRun store's `ingest*` functions so a server applies a row by the
  * same rules. The browser-only guards around it (writes in flight, read ticks)
  * stay in the composable: they are about when to apply a row, never what to do.
+ *
+ * Hit points and temp HP are adopted only when the row changed since the fight last read it (`sheet_hp`,
+ * `sheet_temp_hp` on the combatant): the fight is saved before a hit reaches the row, and a read in between must not
+ * undo it.
  */
 import type { AppliedCondition } from "../../types/condition.types.ts";
 import type { RunCombatant, WildshapeState } from "../../types/encounter.types.ts";
@@ -47,6 +51,11 @@ export interface PartyIngestResult {
 
 function replaceCombatant(state: FightState, instanceId: string, edit: (c: RunCombatant) => RunCombatant): FightState {
   return { ...state, combatants: state.combatants.map((c) => (c.instance_id === instanceId ? edit(c) : c)) };
+}
+
+/** Notes what the fight last read from a character's row, so the next read can tell a change the player made from one that has not landed yet. */
+function remember(state: FightState, instanceId: string, read: { sheet_hp?: number; sheet_temp_hp?: number }): FightState {
+  return replaceCombatant(state, instanceId, (c) => ({ ...c, ...read }));
 }
 
 /** Adopt a temp-HP value that came FROM party_members (the player changed it on
@@ -118,8 +127,14 @@ export function ingestPartyRow(
   let current = state;
   const effects: FightEffect[] = [];
 
-  // Temp HP the player granted themselves (or spent) on their own sheet.
-  if ((live().temp_hp ?? 0) !== (row.temp_hp ?? 0)) current = adoptTempHp(current, id, row.temp_hp ?? 0);
+  // Temp HP the player granted themselves (or spent) on their own sheet. A row that still says what this fight last read
+  // has not been changed by its player, so the fight's own value stands: a hit that spent temp HP here reaches the row only
+  // after the fight is saved, and adopting the row in between would hand the temp HP back.
+  const rowTemp = row.temp_hp ?? 0;
+  if (live().sheet_temp_hp !== rowTemp) {
+    if ((live().temp_hp ?? 0) !== rowTemp) current = adoptTempHp(current, id, rowTemp);
+    current = remember(current, id, { sheet_temp_hp: rowTemp });
+  }
 
   // A re-read selects its columns, so none is ever omitted the way an UPDATE
   // payload omitted an unchanged TOAST column: an empty array is a real empty.
@@ -161,11 +176,17 @@ export function ingestPartyRow(
     effects.push(...set.effects);
   }
 
-  if (live().hp !== row.current_hp) {
-    current = adoptHp(current, id, row.current_hp);
-    const checked = checkFightEvents(current, deps);
-    current = checked.state;
-    effects.push(...checked.effects);
+  // Hit points. Order matters across writers: a batch saves the fight first and writes the player's row after, so for a
+  // moment the row is older than the fight. A row that still says what this fight last read from it is not news, so the
+  // fight's own hp stands; any other value is the player's own change (or the first read) and is adopted and remembered.
+  if (live().sheet_hp !== row.current_hp) {
+    if (live().hp !== row.current_hp) {
+      current = adoptHp(current, id, row.current_hp);
+      const checked = checkFightEvents(current, deps);
+      current = checked.state;
+      effects.push(...checked.effects);
+    }
+    current = remember(current, id, { sheet_hp: row.current_hp });
   }
   return { state: current, effects, matched: true, concentration: spell };
 }

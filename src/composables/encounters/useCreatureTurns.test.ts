@@ -139,4 +139,81 @@ describe("useCreatureTurns", () => {
     expect(order[state.index].instance_id).toBe("p-wren");
     scope.stop();
   });
+
+  /** An autopilot over three hounds whose run and pause only finish when the test says so. */
+  function held() {
+    const order: TurnHolder[] = [hound(1), hound(2), hound(3)];
+    const state = reactive({ index: 0, on: true });
+    const nexts: number[] = [];
+    let finishRun: () => void = () => {};
+    let finishWait: () => void = () => {};
+    const scope = effectScope();
+    scope.run(() =>
+      useCreatureTurns({
+        enabled: () => state.on,
+        stopsAt: () => false,
+        started: () => true,
+        active: () => order[state.index] ?? null,
+        turnKey: () => state.index,
+        run: () => new Promise<boolean>((resolve) => { finishRun = () => resolve(true); }),
+        next: () => {
+          nexts.push(state.index);
+          state.index += 1;
+        },
+        wait: () => new Promise<void>((resolve) => { finishWait = resolve; }),
+      }),
+    );
+    const settle = async () => { for (let i = 0; i < 10; i++) await nextTick(); };
+    return { state, nexts, scope, settle, finishRun: () => finishRun(), finishWait: () => finishWait() };
+  }
+
+  // Bug caught: the DM leaves the runner while a creature's turn is being played and the loop goes on passing turns on a route that changed.
+  it("stops passing turns once the runner is left while a turn is being played", async () => {
+    const f = held();
+    await f.settle();
+    f.scope.stop();
+    f.finishRun();
+    await f.settle();
+    f.finishWait();
+    await f.settle();
+    expect(f.nexts).toEqual([]);
+  });
+
+  // Bug caught: the DM leaves during the pause that follows a turn and the loop still passes it on afterwards.
+  it("stops passing turns once the runner is left during the pause after a turn", async () => {
+    const f = held();
+    await f.settle();
+    f.finishRun();
+    await f.settle();
+    f.scope.stop();
+    f.finishWait();
+    await f.settle();
+    expect(f.nexts).toEqual([]);
+  });
+
+  // Bug caught: switching Autopilot off during a creature's turn still advanced the turn once.
+  it("does not pass the turn when autopilot is switched off while it is being played", async () => {
+    const f = held();
+    await f.settle();
+    f.state.on = false;
+    f.finishRun();
+    await f.settle();
+    f.finishWait();
+    await f.settle();
+    expect(f.nexts).toEqual([]);
+    f.scope.stop();
+  });
+
+  // Bug caught: switching Autopilot off during the pause after a turn still advanced the turn once.
+  it("does not pass the turn when autopilot is switched off during the pause", async () => {
+    const f = held();
+    await f.settle();
+    f.finishRun();
+    await f.settle();
+    f.state.on = false;
+    f.finishWait();
+    await f.settle();
+    expect(f.nexts).toEqual([]);
+    f.scope.stop();
+  });
 });

@@ -110,7 +110,7 @@ function averageOf(parts: readonly DamagePart[], target: RunCombatant, propertie
   return { all, diceOnly };
 }
 
-/** The mode of one attack from one square: the existing rule, plus disadvantage at long range. */
+/** The mode of one attack from one square, by the one attack rule (`attackRollMode`). */
 function modeOf(attack: AttackStructure, facts: TurnOptionAttack, mover: RunCombatant, target: RunCombatant, ruleset: RulesetKey): RollMode {
   const distance = facts.distanceFeet;
   const near = distance !== null && distance <= DEFAULT_REACH_FEET;
@@ -122,10 +122,12 @@ function modeOf(attack: AttackStructure, facts: TurnOptionAttack, mover: RunComb
     attackerConditions: mover.conditions,
     targetConditions: target.conditions,
     delivery,
-    // Prone asks whether the attacker is within 5 ft of the target; a ranged attack's close combat asks whether any enemy is.
-    withinFiveFeet: near || (delivery === "ranged" && facts.closeCombat === true),
+    // Prone asks whether the attacker is within 5 ft of the target; a ranged attack's close combat and long range are
+    // their own facts (`attackFrom` worked them out for this square).
+    withinFiveFeet: near,
+    hostileWithinFiveFeetOfAttacker: facts.closeCombat === true,
+    longRange: facts.longRange === true,
     ruleset,
-    ...(facts.longRange === true && delivery === "ranged" ? { dmMode: "disadvantage" as const } : {}),
   }).mode;
 }
 

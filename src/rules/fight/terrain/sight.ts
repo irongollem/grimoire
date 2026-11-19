@@ -11,7 +11,11 @@
 
 import type { Cell } from "../../../lib/battlemap/movement.ts";
 import { clearLine, type Occluders } from "../../../lib/battlemap/occlusion.ts";
+import { combatantFootprint } from "../../../lib/battlemap/tokenFootprint.ts";
+import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { AttackStructure } from "../../../types/statBlock.types.ts";
+import { isIncapacitated } from "../../conditions.ts";
+import { isHostileTo, type FactionSides } from "../sides.ts";
 import { coverCells } from "./reach.ts";
 
 const EPS = 1e-9;
@@ -223,10 +227,54 @@ export function attackFrom(input: AttackFromInput): AttackFromResult {
   const furthest = range.long === undefined ? range.normal : range.long;
   if (feet > furthest) return refuse("out_of_range");
   if (cover === "total") return refuse("total_cover");
-  const closeCombat = input.hostiles.some(
-    (h) => !h.incapacitated && distanceFeet(attacker, h.box) <= SQUARE_FEET && hasClearLine(occ, attacker, h.box),
-  );
-  return { ...base, possible: true, longRange: feet > range.normal, closeCombat };
+  return { ...base, possible: true, longRange: feet > range.normal, closeCombat: hostileBeside(attacker, input.hostiles, occ) };
+}
+
+/**
+ * PHB 2014 ch. 9 "Ranged Attacks in Close Combat"; SRD 5.2 "Ranged Attacks": a hostile creature within 5 feet of the
+ * attacker that is not Incapacitated, with a clear line to it. Any hostile counts, not only the target.
+ *
+ * Known limit: the book says the hostile must also be able to SEE the attacker. This app does not model sight (see the
+ * header), so a hostile that is blinded or cannot see the attacker is still counted here.
+ */
+function hostileBeside(attacker: Box, hostiles: readonly HostileNearby[], occ: Occluders): boolean {
+  return hostiles.some((h) => !h.incapacitated && distanceFeet(attacker, h.box) <= SQUARE_FEET && hasClearLine(occ, attacker, h.box));
+}
+
+export interface RangedAttackFactsInput {
+  attacker: RunCombatant;
+  /** Whoever the attack is aimed at. It counts as a hostile beside the attacker when it stands within 5 feet and is hostile. */
+  target: RunCombatant;
+  /** Everyone in the fight; positionless and downed creatures are ignored. */
+  combatants: readonly RunCombatant[];
+  factions: FactionSides;
+  /** The weapon's or spell's range; null when it names none (then no long range is claimed). */
+  range: { normal: number; long?: number } | null;
+  occluders: Occluders;
+}
+
+/**
+ * The two facts a ranged attack roll needs and that are NOT "the attacker is within 5 feet of the target"
+ * (`attackRollMode`'s `hostileWithinFiveFeetOfAttacker` and `longRange`).
+ * - `hostileWithinFiveFeetOfAttacker`: `hostileBeside` over every living hostile on the map.
+ * - `longRange`: the target is beyond the normal range (PHB 2014 ch. 9 "Long Range"; SRD 5.2 "Long Range").
+ * Both are false when the attacker or the target has no place on the map: nothing is measured, so nothing is claimed.
+ */
+export function rangedAttackFacts(input: RangedAttackFactsInput): { hostileWithinFiveFeetOfAttacker: boolean; longRange: boolean } {
+  const { attacker, target } = input;
+  if (!attacker.position || !target.position) return { hostileWithinFiveFeetOfAttacker: false, longRange: false };
+  const boxAt = (c: RunCombatant, anchor: Cell): Box => ({ anchor, footprint: combatantFootprint(c) });
+  const from = boxAt(attacker, attacker.position);
+  const hostiles: HostileNearby[] = [];
+  for (const c of input.combatants) {
+    if (!c.position || c.hp <= 0 || !isHostileTo(attacker, c, input.factions)) continue;
+    hostiles.push({ box: boxAt(c, c.position), incapacitated: isIncapacitated(c.conditions) });
+  }
+  const feet = distanceFeet(from, boxAt(target, target.position));
+  return {
+    hostileWithinFiveFeetOfAttacker: hostileBeside(from, hostiles, input.occluders),
+    longRange: input.range !== null && feet > input.range.normal,
+  };
 }
 
 export interface OpportunityEnemy {

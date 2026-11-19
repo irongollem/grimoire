@@ -5,6 +5,8 @@ import type { RunCombatant } from "../../../types/encounter.types.ts";
 import type { GridCalibration } from "../../../types/location.types.ts";
 import type { ActionStructure, AttackStructure, StatBlockEntry } from "../../../types/statBlock.types.ts";
 import type { MapExit } from "../../../lib/battlemap/mapExits.ts";
+import { castableNow } from "../spells/castNow.ts";
+import { fireball, mageBlock } from "../spells/spellTestKit.ts";
 import type { FightMap } from "./battleMap.ts";
 import {
   compareExposure,
@@ -329,6 +331,18 @@ describe("rule 7: who gets nothing, and a spent Action", () => {
   it("gets nothing while Incapacitated or Stunned", () => {
     expect(run({ combatants: [ogre(0, 0, { conditions: [{ name: "Incapacitated" }] as RunCombatant["conditions"] }), fresco(1, 0)] })).toEqual([]);
     expect(run({ combatants: [ogre(0, 0, { conditions: [{ name: "Stunned" }] as RunCombatant["conditions"] }), fresco(1, 0)] })).toEqual([]);
+  });
+
+  // PHB 2014 ch. 9 "Surprise": cannot move or take an action on its first turn of the combat.
+  // Bug: surprise was only shown and cleared; the app still played the surprised creature's first turn.
+  it("gets nothing on round 1 of a 2014 fight while surprised", () => {
+    expect(run({ round: 1, combatants: [ogre(0, 0, { surprised: true }), fresco(1, 0)] })).toEqual([]);
+  });
+
+  it("gets its options once the first round is over, or when surprised under 2024 (which only costs Initiative)", () => {
+    expect(run({ round: 2, combatants: [ogre(0, 0, { surprised: true }), fresco(1, 0)] }).length).toBeGreaterThan(0);
+    expect(run({ round: 1, ruleset: "2024", combatants: [ogre(0, 0, { surprised: true }), fresco(1, 0)] }).length).toBeGreaterThan(0);
+    expect(run({ round: 1, combatants: [ogre(0, 0), fresco(1, 0)] }).length).toBeGreaterThan(0);
   });
 
   it("keeps only Bonus Action attacks and a plain move when the Action is spent", () => {
@@ -676,5 +690,30 @@ describe("rule 12: break free (#1021)", () => {
   // Not on the map at all (rule 6): the check needs no square, so it is still offered.
   it("is offered where nothing can be measured", () => {
     expect(find(run({ combatants: [held(), fresco(5, 0)], map: null }), "break_free:Restrained")).toBeDefined();
+  });
+});
+
+describe("allies in a spell's area", () => {
+  const factions = [
+    { id: "m", hostile_to: ["p"] },
+    { id: "p", hostile_to: ["m"] },
+    { id: "n", hostile_to: [] },
+  ];
+  const caster = ogre(0, 0);
+  const spells = castableNow(mageBlock(), caster, [fireball()], "2014");
+  const friends = (extra: RunCombatant[]) => {
+    const options = run({ combatants: [caster, fresco(4, 0), ...extra], attacks: [], spells, factions });
+    const cast = options.find((o) => o.kind === "spell");
+    return cast?.spell === undefined || cast.spell === null ? undefined : [...cast.spell.friendsCaught].sort();
+  };
+
+  // Bug: "everyone not hostile" made a Neutral bystander an ally, so the cast counted it as a friend caught in the blast
+  // (and a heal or a buff would have been aimed at it).
+  it("does not count a Neutral bystander in the area as a friend", () => {
+    // Fireball centred on Fresco (4,0) has a 20 ft radius; the Neutral at (4,1) is inside it, the caster is 20 ft away.
+    expect(friends([creature("bystander", "Bystander", "n", 4, 1)])).toEqual(["ogre"]);
+  });
+  it("counts a creature of the caster's own faction in the area as a friend", () => {
+    expect(friends([creature("brother", "Brother", "m", 4, 1)])).toEqual(["brother", "ogre"]);
   });
 });

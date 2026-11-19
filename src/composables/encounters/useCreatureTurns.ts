@@ -1,4 +1,4 @@
-import { watch } from "vue";
+import { getCurrentScope, onScopeDispose, watch } from "vue";
 
 /** Whoever's turn it is, as much of it as deciding who plays it needs. */
 export interface TurnHolder {
@@ -43,6 +43,16 @@ export function useCreatureTurns(options: {
 }): void {
   const wait = options.wait ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   let playing = false;
+  // A loop already inside an await when its owner goes away must stop by itself: the watch below is stopped with
+  // the scope, but a running pass is not, and it would go on calling next() against a screen that has changed.
+  let disposed = false;
+  if (getCurrentScope()) onScopeDispose(() => { disposed = true; });
+  /** Whether the loop may still act: its owner is alive, the switch is on and the fight is under way. */
+  const stillOn = () => {
+    if (disposed) return false;
+    const on = options.enabled ? options.enabled() : (options.memberId ? options.memberId() : null) !== null;
+    return on && options.started();
+  };
 
   async function play(): Promise<void> {
     if (playing) return;
@@ -57,8 +67,11 @@ export function useCreatureTurns(options: {
         if (options.stopsAt ? options.stopsAt(now) : now.party_member_id === memberId) return;
         // A creature that is down has no turn to take: it is passed without a pause.
         if (now.hp > 0) {
-          if (!(await options.run(now.instance_id))) return;
+          const ran = await options.run(now.instance_id);
+          // Switched off (or left) while the turn was being played: it is not passed on.
+          if (!ran || !stillOn()) return;
           await wait(SOLO_TURN_PAUSE_MS);
+          if (!stillOn()) return;
         }
         // The fight moved on meanwhile (the player pressed Next turn, or it ended): nothing to pass.
         if (options.active()?.instance_id !== now.instance_id || !options.started()) continue;

@@ -137,6 +137,28 @@ describe("ChatPanelContent mentions", () => {
     expect((box.element as HTMLTextAreaElement).value).toBe("hold on @Rosie ");
   });
 
+  it("Shift+Enter does not pick a mention", async () => {
+    whisper.target.value = "";
+    const wrapper = mountPanel(vi.fn().mockResolvedValue(true), [], party);
+    const box = wrapper.get("textarea");
+    await type(box, "hold on @ro");
+    await box.trigger("keydown", { key: "Enter", shiftKey: true });
+    expect((box.element as HTMLTextAreaElement).value).toBe("hold on @ro");
+  });
+
+  it("an input method's confirming Enter neither picks a mention nor sends", async () => {
+    whisper.target.value = "";
+    const sendText = vi.fn().mockResolvedValue(true);
+    const wrapper = mountPanel(sendText, [], party);
+    const box = wrapper.get("textarea");
+    await type(box, "hold on @ro");
+    await box.trigger("keydown", { key: "Enter", isComposing: true });
+    expect((box.element as HTMLTextAreaElement).value).toBe("hold on @ro");
+    await type(box, "plain words");
+    await box.trigger("keydown", { key: "Enter", keyCode: 229 });
+    expect(sendText).not.toHaveBeenCalled();
+  });
+
   it("sends whom the line addresses with it, the whole party included", async () => {
     whisper.target.value = "";
     const sendText = vi.fn().mockResolvedValue(true);

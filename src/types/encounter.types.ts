@@ -287,6 +287,14 @@ export interface RunCombatant {
   wildshape?: WildshapeState;
   // temp HP — absorbs damage first, doesn't stack with healing
   temp_hp?: number;
+  /**
+   * Players only: the hit points this fight last read from the character's own row. A row that still says this has not
+   * been changed by its player since, so the fight's own `hp` stands (a hit dealt here has not reached the row yet);
+   * a different value is the player's change and is adopted. DM-only: left out of the players' projection, which is an allow-list.
+   */
+  sheet_hp?: number;
+  /** Players only: the same memory for `temp_hp` (a hit that spent temporary hit points reaches the row after the fight saves it). */
+  sheet_temp_hp?: number;
   // concentration — set when this combatant is concentrating on a spell.
   // Mirrors ConcentrationState on party_members; cleared on short rest / encounter end for monsters.
   concentration?: {

@@ -694,15 +694,21 @@ describe("the game-system fence (#934)", () => {
 
 // #1021: the AI table is released to chosen accounts only (`feature_access`). The nav hides it; this is the typed address.
 describe("the AI table's routes", () => {
-  async function openTable(granted: boolean | Error) {
+  type Owner = { ownerId: string; aiEnabled: boolean };
+  /** `row` false is a reload: the campaign id is remembered but the row has not arrived. */
+  async function openTable(
+    granted: boolean | Error,
+    { path = "/table", row = true, owner = { ownerId: "u1", aiEnabled: true } }: { path?: string; row?: boolean; owner?: Owner | Error } = {},
+  ) {
     const { router, fetchQuery } = makeRouter([{ campaign_id: "c1", role: "dm" }]);
-    fetchQuery.mockImplementation(((options: { queryKey: readonly unknown[] }) =>
-      options.queryKey[0] === "feature-access"
-        ? granted instanceof Error ? Promise.reject(granted) : Promise.resolve(granted)
-        : Promise.resolve([{ campaign_id: "c1", role: "dm" }])) as never);
+    fetchQuery.mockImplementation(((options: { queryKey: readonly unknown[] }) => {
+      if (options.queryKey[0] === "feature-access") return granted instanceof Error ? Promise.reject(granted) : Promise.resolve(granted);
+      if (options.queryKey[0] === "campaign-owner") return owner instanceof Error ? Promise.reject(owner) : Promise.resolve(owner);
+      return Promise.resolve([{ campaign_id: "c1", role: "dm" }]);
+    }) as never);
     await signedInDm("c1");
-    useCampaignStore().activeCampaign = { id: "c1", user_id: "u1", game_system: "dnd5e-2014" } as never;
-    await router.push("/table");
+    if (row) useCampaignStore().activeCampaign = { id: "c1", user_id: "u1", ai_enabled: true, game_system: "dnd5e-2014" } as never;
+    await router.push(path);
     return router.currentRoute.value.name;
   }
 
@@ -713,5 +719,45 @@ describe("the AI table's routes", () => {
   it("are closed without the grant, and when the grant cannot be read", async () => {
     expect(await openTable(false)).toBe("dashboard");
     expect(await openTable(new Error("offline"))).toBe("dashboard");
+  });
+
+  it("stay open for a granted owner reloading before the campaign row has arrived", async () => {
+    expect(await openTable(true, { row: false })).toBe("ai-table");
+  });
+
+  it("are closed on a reload when the owner has no grant, or the owner cannot be read", async () => {
+    expect(await openTable(false, { row: false })).toBe("dashboard");
+    expect(await openTable(true, { row: false, owner: new Error("offline") })).toBe("dashboard");
+  });
+
+  it("are not reached by changing the case of the address", async () => {
+    expect(await openTable(false, { path: "/TABLE" })).toBe("dashboard");
+  });
+
+  it("are closed in a campaign with AI off even for a granted owner, without asking for the grant", async () => {
+    const { router, fetchQuery } = makeRouter([{ campaign_id: "c1", role: "dm" }]);
+    fetchQuery.mockImplementation(((options: { queryKey: readonly unknown[] }) =>
+      options.queryKey[0] === "feature-access" ? Promise.resolve(true) : Promise.resolve([{ campaign_id: "c1", role: "dm" }])) as never);
+    await signedInDm("c1");
+    useCampaignStore().activeCampaign = { id: "c1", user_id: "u1", ai_enabled: false, game_system: "dnd5e-2014" } as never;
+    await router.push("/table");
+    expect(router.currentRoute.value.name).toBe("dashboard");
+    // The mock is declared with no parameters, so its recorded calls are read as plain lists.
+    const asked = (fetchQuery.mock.calls as unknown as [{ queryKey: readonly unknown[] }][]).map(([options]) => options.queryKey[0]);
+    expect(asked).not.toContain("feature-access");
+  });
+
+  it("are closed for a child account whose owner has the grant and AI on", async () => {
+    seedChild("2999-01-01");
+    expect(await openTable(true)).toBe("dashboard");
+  });
+
+  it("clear a remembered sitting when refusing, so the player lens and banner do not outlive it", async () => {
+    const { router } = makeRouter([{ campaign_id: "c1", role: "dm" }]);
+    await signedInDm("c1");
+    useCampaignStore().activeCampaign = { id: "c1", user_id: "u1", ai_enabled: true, game_system: "dnd5e-2014" } as never;
+    useAppUiStore().enterTablePlay("m1", "s1");
+    await router.push("/table");
+    expect(useAppUiStore().tablePlay).toBeNull();
   });
 });

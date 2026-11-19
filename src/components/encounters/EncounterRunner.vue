@@ -1,5 +1,6 @@
 <template>
   <div class="runner-root">
+    <RunnerUnsavedNotice :unsent="store.unsentBatches" :failures="store.sendFailures" />
     <RunnerPhoneHeader
       v-if="isMobile"
       :encounter-id="encounterId"
@@ -278,6 +279,7 @@ import { useTurnTimerConfig } from "@/composables/encounters/useTurnTimerConfig"
 import { requestAudioTheme, releaseAudioTheme } from "@/lib/audio/audioTriggers";
 import { useEvergreenWildShape } from "@/composables/encounters/useEvergreenWildShape";
 import RunnerCombatantList from "./RunnerCombatantList.vue";
+import RunnerUnsavedNotice from "./RunnerUnsavedNotice.vue";
 import RunnerDueConditions from "./RunnerDueConditions.vue";
 import RunnerEntityDetail from "./RunnerEntityDetail.vue";
 import RunnerDmTools from "./RunnerDmTools.vue";
@@ -302,7 +304,10 @@ import TurnTimer from "./TurnTimer.vue";
 const store = useEncounterRunStore();
 const router = useRouter();
 const route = useRoute();
-const encounterId = computed(() => route.params.id as string);
+// The fight this runner was mounted for. The surface unmounts the runner when the route's id changes, and by then
+// `route.params.id` already names the next fight, so anything sent while leaving must not read it.
+const mountedFor = route.params.id as string;
+const encounterId = computed(() => mountedFor);
 const fightSite = useEncounterSite(encounterId);
 const campaign = useCampaignStore();
 const appUi = useAppUiStore();

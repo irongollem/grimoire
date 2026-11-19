@@ -30,6 +30,19 @@ describe("saveRollMode", () => {
   });
 });
 
+describe("Dodge on a Dexterity save (PHB 2014 ch. 9 \"Dodge\")", () => {
+  const dodging = { name: "Dodging" };
+  it("gives advantage to a dodger that can move", () => {
+    expect(saveRollMode({ conditions: [dodging], ability: "dex", ruleset: "2014" }).mode).toBe("advantage");
+  });
+  // Bug: only Incapacitated ended the benefit, so a Grappled dodger (Speed 0) kept its advantage.
+  it("is lost when the dodger is Grappled, which sets its Speed to 0", () => {
+    // Hand-worked: Grappled adds nothing to a save, so with Dodge lost the roll is straight.
+    expect(saveRollMode({ conditions: [dodging, { name: "Grappled" }], ability: "dex", ruleset: "2014" }).mode).toBe("normal");
+    expect(saveRollMode({ conditions: [dodging, { name: "Grappled" }], ability: "dex", ruleset: "2024" }).mode).toBe("normal");
+  });
+});
+
 describe("saveRollMode stacking", () => {
   // PHB 2014 "Advantage and Disadvantage": any of each cancels to a straight roll
   it("any advantage with any disadvantage is straight, whatever the order", () => {

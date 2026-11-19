@@ -15,13 +15,33 @@ import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { useToast } from "@/composables/useToast";
 import { buildRunCombatants, legendaryActionCaps } from "@/lib/encounters/buildRunCombatants";
 import { bystandersOf, lateBystanders } from "@/lib/encounters/bystandersOf";
-import { confirmedFromAnswer, sendAlone } from "@/lib/encounters/fightWire";
+import { confirmedFromAnswer, postFightBatch, sendAlone } from "@/lib/encounters/fightWire";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import type { NpcListRow } from "@/types/npc.types";
 import type { TrapEntry } from "@/types/trap.types";
+
+/**
+ * The store still holds the last fight's unsent batches when another fight is opened in the same tab, and
+ * resetting it would drop them without a word. They are sent to the fight they belong to, once each and in
+ * order; if that cannot be done at once `onFailed` tells the DM, since nothing will try again.
+ */
+export async function sendLeftBehind(
+  store: Pick<ReturnType<typeof useEncounterRunStore>, "linkedEncounterId" | "pendingBatches">,
+  opening: string,
+  onFailed: () => void,
+): Promise<void> {
+  const owner = store.linkedEncounterId();
+  if (owner === null || owner === opening) return;
+  const batches = store.pendingBatches();
+  try {
+    for (const batch of batches) await postFightBatch(owner, batch.id, batch.commands);
+  } catch {
+    onFailed();
+  }
+}
 
 /**
  * The encounter as it is fought. A fight from the AI table is fought by the played character alone: the encounter
@@ -183,6 +203,9 @@ export function useOpenRun(encounterId: Readonly<Ref<string>> | ComputedRef<stri
     const { answer } = await sendAlone(enc.id, { type: "open", combatants, ...(Object.keys(legendaryCaps).length ? { legendaryCaps } : {}) });
     if (id.value !== enc.id) return;
     const held = answer.state.combatants_live;
+    await sendLeftBehind(store, id.value, () => toast.error("Some changes to the last fight could not be saved."));
+    // The send above waited: the route may have moved on again, and then this open is no longer wanted.
+    if (id.value !== enc.id) return;
     store.reset();
     store.availableMonsters = mons;
     store.availableNpcs = npcList;

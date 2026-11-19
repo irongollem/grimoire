@@ -41,4 +41,40 @@ describe("endOfFightPatches", () => {
     expect(result.exploreParty).toEqual({ site_id: "site-1", positions: { "pm-p": { x: 4, y: 7 } } });
     expect(endOfFightPatches({ combatants: [rosterHero], tokensAtEnd: [token], exploreParty: null, siteId: null }).exploreParty).toBeNull();
   });
+
+  // Bug: the whole condition list was written back, so a Dodge stance and a "3 rounds" Frightened that only meant
+  // something inside the fight stayed on the character sheet forever, with no turn left to expire them.
+  it("fails if fight-only stances, turn-counted conditions or a fight caster's concentration condition outlive the fight", () => {
+    const hero = pc("p", {
+      conditions: [
+        { name: "Dodging", ends: { kind: "turn", at: "start", of: "self" } },
+        { name: "Disengaged" },
+        { name: "Frightened", ends: { kind: "rounds", remaining: 3 } },
+        { name: "Stunned", ends: { kind: "save", ability: "con", dc: 13, at: "end" } },
+        { name: "Hasted", source: { id: "caster", spell: "Haste", concentration: true } },
+        { name: "Poisoned" },
+      ],
+    });
+    const result = endOfFightPatches({ combatants: [hero, combatant("caster")], tokensAtEnd: [], exploreParty: null, siteId: null });
+    // Hand-worked: only the plain Poisoned has no turn edge, round count or fight source tied to it.
+    expect(result.partyMembers[0].patch.conditions).toEqual([{ name: "Poisoned" }]);
+  });
+
+  it("keeps Exhaustion and a concentration condition whose caster is not in the fight", () => {
+    const hero = pc("p", {
+      conditions: [
+        { name: "Exhaustion", level: 2 },
+        { name: "Charmed", source: { id: "elsewhere", concentration: true } },
+        { name: "Cursed", source: { id: "caster" } },
+      ],
+    });
+    const result = endOfFightPatches({ combatants: [hero, combatant("caster")], tokensAtEnd: [], exploreParty: null, siteId: null });
+    expect(result.partyMembers[0].patch.conditions).toEqual(hero.conditions);
+  });
+
+  it("applies the same to a companion", () => {
+    const comp = combatant("c-1", { type: "player", companion_id: "comp-1", conditions: [{ name: "Dodging" }, { name: "Prone" }] });
+    const result = endOfFightPatches({ combatants: [comp], tokensAtEnd: [], exploreParty: null, siteId: null });
+    expect(result.companions[0].patch.conditions).toEqual([{ name: "Prone" }]);
+  });
 });

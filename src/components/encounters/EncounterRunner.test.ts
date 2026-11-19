@@ -122,6 +122,18 @@ describe("EncounterRunner", () => {
     expect(w.findAll("button").some((b) => b.text().includes("Start Combat"))).toBe(true);
   });
 
+  it("fails if the notice about unsaved changes is missing on the desktop or the phone runner, or shows with no failed send", () => {
+    const store = useEncounterRunStore();
+    for (const mobile of [false, true]) {
+      isMobile.value = mobile;
+      store.unsentBatches = 2;
+      store.sendFailures = 0;
+      expect(mountRunner().find("[data-testid=runner-unsaved]").exists()).toBe(false);
+      store.sendFailures = 1;
+      expect(mountRunner().find("[data-testid=runner-unsaved]").text()).toContain("2 changes are not saved yet");
+    }
+  });
+
   it("desktop: Start combat is gone once combat has begun", () => {
     isMobile.value = false;
     useEncounterRunStore().round = 1;

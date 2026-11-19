@@ -29,6 +29,8 @@
 import type { TacticalProfile } from "../../../src/rules/fight/tactics/profile.ts";
 import type { TurnOption } from "../../../src/rules/fight/terrain/turnOptions.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
+import { isAllyOf } from "../../../src/rules/fight/allies.ts";
+import { isHostileTo, type FactionSides } from "../../../src/rules/fight/sides.ts";
 import { choiceOf, noulOf, scoreOf, type JudgeRequest, type JudgeResult } from "./typesafe.ts";
 
 /** Which wording of the questions this is. The wording decides the result (#1061), so a measurement names it. */
@@ -45,6 +47,12 @@ export interface TurnJudgeInput {
   combatants: readonly RunCombatant[];
   /** The gated, numbered options: the only turns the judge is shown. */
   options: readonly TurnOption[];
+  /**
+   * The fight's factions, which say who is an enemy (`isHostileTo`) and who an ally (`isAllyOf`). Left out, the fight
+   * has no faction table: a different faction is an opponent and only the mover's own faction is an ally, which is how
+   * `sides.ts` reads an empty table.
+   */
+  factions?: FactionSides;
 }
 
 /** The key an option goes by in a request: its place in the list, so a reply maps back without parsing an id. */
@@ -162,14 +170,16 @@ function stateOf(input: TurnJudgeInput): TurnState {
   const { mover, profile, combatants, options } = input;
   const names = new Map(combatants.map((c) => [c.instance_id, c.name]));
   const standing = (c: RunCombatant) => c.instance_id !== mover.instance_id && c.hp > 0;
+  const factions = input.factions ?? [];
   const turns: Record<string, TurnFacts> = {};
   options.forEach((option, i) => {
     turns[turnKey(i)] = turnFacts(option, names);
   });
   return {
     creature: { name: mover.name, health: health(mover), how_it_thinks: howItThinks(profile), note: profile.note },
-    enemies: combatants.filter((c) => standing(c) && c.faction_id !== mover.faction_id).map(personFacts),
-    allies: combatants.filter((c) => standing(c) && c.faction_id === mover.faction_id).map(personFacts),
+    // A Neutral is neither list: it is nobody's foe and fights beside nobody (`sides.ts`, `allies.ts`).
+    enemies: combatants.filter((c) => standing(c) && isHostileTo(mover, c, factions)).map(personFacts),
+    allies: combatants.filter((c) => standing(c) && isAllyOf(mover, c, factions)).map(personFacts),
     turns,
   };
 }

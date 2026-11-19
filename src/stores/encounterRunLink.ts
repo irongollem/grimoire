@@ -38,6 +38,12 @@ export function createFightLink(host: FightLinkHost) {
   let wake: (() => void) | null = null;
   /** True while a command waits for the server's answer because the browser could not know its result (dice, ids). */
   const busy = ref(false);
+  /** The encounter the attached fight belongs to: every batch waiting here is for it, whatever the screen shows by the time it is sent. */
+  let fightId: string | null = null;
+  /** How many batches wait for the server, sent-but-unanswered included. Reactive, so the runner can say so. */
+  const unsentBatches = ref(0);
+  /** How many sends in a row have failed (offline, a 5xx). Zero while sending works. */
+  const sendFailures = ref(0);
 
   /** Shows what the server has confirmed with the commands still pending laid over it. */
   function reconcile() {
@@ -46,22 +52,43 @@ export function createFightLink(host: FightLinkHost) {
     // A copy, so nothing that edits the roster in place through the screen reaches what the server confirmed.
     host.show(host.snapshot(), { ...view, combatants: plain(view.combatants) });
     busy.value = waitsForServer(sync);
+    unsentBatches.value = sync.pending.length;
   }
 
   return {
     busy,
+    unsentBatches,
+    sendFailures,
+    /** The encounter the attached fight belongs to, null when none is attached. */
+    encounterId: () => fightId,
+    /** The transport reports each try so the screen can say changes are not saved without flickering on an ordinary request. */
+    sendFailed() {
+      sendFailures.value += 1;
+    },
+    sendSucceeded() {
+      sendFailures.value = 0;
+    },
+    /** Every batch still waiting, oldest first, for a last try at sending them before the fight is put away. */
+    pendingBatches(): PendingBatch[] {
+      return sync ? sync.pending.map((b) => ({ ...b, commands: [...b.commands] })) : [];
+    },
     setWaker(waker: (() => void) | null) {
       wake = waker;
     },
     /** Keeps what the server holds beside what is pending from now on, and shows it. */
-    attach(confirmed: ConfirmedFight) {
+    attach(confirmed: ConfirmedFight, encounterId: string) {
+      fightId = encounterId;
+      sendFailures.value = 0;
       sync = startSync({ ...confirmed, combatants: plain(confirmed.combatants) });
       busy.value = false;
       reconcile();
     },
     detach() {
       sync = null;
+      fightId = null;
       busy.value = false;
+      unsentBatches.value = 0;
+      sendFailures.value = 0;
     },
     /**
      * Queues a command for the server and answers what to show now: the state and the effects the browser's own
@@ -72,6 +99,7 @@ export function createFightLink(host: FightLinkHost) {
       const queued = queueCommand(sync, before, command, host.deps(), () => crypto.randomUUID());
       sync = queued.sync;
       busy.value = queued.waitsForServer;
+      unsentBatches.value = sync.pending.length;
       wake?.();
       return { state: queued.shown, effects: queued.effects };
     },

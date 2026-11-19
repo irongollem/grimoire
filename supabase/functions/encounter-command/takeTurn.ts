@@ -14,6 +14,7 @@
 // the fight after its move and the reply says so (`leftTheMap`); that is not a defeat. A broken creature with a way out (Etherealness, Invisible
 // Passage) uses it first (`escapedWith`). A Multiattack that drops its target does not redirect the swings it has left.
 
+import { losesFirstTurnToSurprise } from "../../../src/rules/initiative.ts";
 import { applyFightCommand, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
 import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
@@ -88,9 +89,14 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
   const listed = listedSpellNames(block);
   const spellRecords = listed.length === 0 ? [] : await env.spellsListed(listed);
   const { options, attacks, spells } = assembleTurnOptions({
-    combatants: state.combatants, mover, ruleset: state.ruleset, sources: env.sources, members: [], map: env.map, spellRecords, factions: env.factions,
+    combatants: state.combatants, mover, ruleset: state.ruleset, sources: env.sources, members: [], map: env.map, spellRecords, factions: env.factions, round: state.round,
   });
-  if (options.length === 0) return refuse(`${mover.name} has no turn to take (it is Incapacitated).`);
+  if (options.length === 0) {
+    // PHB 2014 ch. 9 "Surprise": a surprised creature cannot move or act on its first turn. Said for what it is.
+    return refuse(losesFirstTurnToSurprise(mover, state.ruleset, state.round)
+      ? `${mover.name} is surprised and has no turn in the first round.`
+      : `${mover.name} has no turn to take (it is Incapacitated).`);
+  }
 
   const profile = tacticalProfile(block, creatureTypeOf(mover, env));
   const armorClassOf = (target: RunCombatant) => knownArmorClass(target, env.players);
@@ -114,7 +120,7 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
     // that is missing, or that would rule out every turn, leaves the list as it is (`optionsAllowedByNote`).
     let pool = gated;
     if (env.judgeNote !== undefined) {
-      const request = noteRequest({ mover, profile, combatants: state.combatants, options: gated });
+      const request = noteRequest({ mover, profile, combatants: state.combatants, options: gated, factions: env.factions });
       const answer = request === null ? null : await env.judgeNote(`${mover.instance_id}|${gated.map((o) => o.id).join(",")}`, request);
       if (answer !== null) {
         pool = optionsAllowedByNote(answer, gated, NOTE_THRESHOLD);

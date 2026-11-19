@@ -260,7 +260,12 @@ export interface AttackInput extends RollOptions {
   entry: StatBlockEntry;
   target: RunCombatant;
   dmMode?: RollMode;
+  /** The attacker is within 5 feet of the target: Prone's advantage and the critical on a Paralyzed or Unconscious target. */
   withinFiveFeet: boolean;
+  /** A hostile that is not incapacitated stands within 5 feet of the ATTACKER (`rangedAttackFacts`): a ranged attack then has disadvantage. */
+  hostileWithinFiveFeetOfAttacker?: boolean;
+  /** The target is beyond the normal range (`rangedAttackFacts`): a ranged attack then has disadvantage. */
+  longRange?: boolean;
   delivery?: "melee" | "ranged";
   /** A further penalty on the roll to hit, 0 or less, added to the exhaustion penalty (app convention: the caller's own, e.g. a called shot). */
   extraPenalty?: number;
@@ -283,6 +288,8 @@ export async function rollToHit(ctx: ResolutionContext, input: AttackInput): Pro
     targetConditions: target.conditions,
     delivery,
     withinFiveFeet: input.withinFiveFeet,
+    hostileWithinFiveFeetOfAttacker: input.hostileWithinFiveFeetOfAttacker,
+    longRange: input.longRange,
     ruleset: ctx.ruleset,
     dmMode: input.dmMode,
   });

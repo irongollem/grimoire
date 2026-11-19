@@ -21,6 +21,18 @@ export async function fetchTableAccess(ownerId: string): Promise<boolean> {
   return data !== null;
 }
 
+export const campaignOwnerKey = (campaignId: string) => ["campaign-owner", campaignId] as const;
+
+/**
+ * Who owns a campaign and whether it has AI on, read by id. The route fence needs this on a cold load, a reload or a
+ * deep link, when the remembered campaign id is known at once but the campaign row has not arrived yet.
+ */
+export async function fetchCampaignOwner(campaignId: string): Promise<{ ownerId: string; aiEnabled: boolean }> {
+  const { data, error } = await supabase.from("campaigns").select("user_id, ai_enabled").eq("id", campaignId).single();
+  if (error) throw error;
+  return { ownerId: data.user_id, aiEnabled: data.ai_enabled === true };
+}
+
 export const TABLE_ACCESS_STALE_MS = 5 * 60 * 1000;
 
 export function useTableAccess() {

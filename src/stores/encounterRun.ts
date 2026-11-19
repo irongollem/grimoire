@@ -227,7 +227,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   }
 
   const link = createFightLink({ snapshot, frame, deps: fightDeps, show: adoptState, raise, turnChanged });
-  const { busy } = link;
+  const { busy, unsentBatches, sendFailures } = link;
 
   /** Runs a command through the pure fight rules (`rules/fight`: the turn
    *  reducer and the fight's own commands, then the event check when the
@@ -253,7 +253,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     factions.value = meta.factions;
     events.value = meta.events;
     traps.value = meta.traps;
-    link.attach(confirmed);
+    link.attach(confirmed, meta.encounterId);
   }
 
   /** Re-roll everyone's initiative silently (auto d20 — never a physical-dice
@@ -702,6 +702,12 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     setWaker: link.setWaker,
     nextBatch: link.nextBatch,
     hasQueued: link.hasQueued,
+    unsentBatches,
+    sendFailures,
+    linkedEncounterId: link.encounterId,
+    sendFailed: link.sendFailed,
+    sendSucceeded: link.sendSucceeded,
+    pendingBatches: link.pendingBatches,
     answered: link.answered,
     observed: link.observed,
     dropPendingCommands: link.dropPending,

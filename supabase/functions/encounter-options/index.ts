@@ -46,7 +46,7 @@ serve(withCors(async (req: Request) => {
       async loadFight() {
         const { data, error } = await admin
           .from("encounter_state")
-          .select("version, combatants_live")
+          .select("version, combatants_live, current_round")
           .eq("encounter_id", request.encounterId)
           .eq("campaign_id", campaignId)
           .maybeSingle();
@@ -55,6 +55,7 @@ serve(withCors(async (req: Request) => {
         return {
           version: data.version as number,
           combatants: data.combatants_live as RunCombatant[],
+          round: Number(data.current_round),
           ruleset: gameSystemEdition(access.campaign.game_system) ?? DEFAULT_RULESET,
           factions: access.encounter.factions && access.encounter.factions.length > 0 ? access.encounter.factions : DEFAULT_FACTIONS,
         };

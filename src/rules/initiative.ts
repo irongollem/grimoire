@@ -47,17 +47,31 @@ export function initiativeModifier(c: InitiativeSource): number {
 /**
  * An initiative roll: the modifier plus the 2024 Exhaustion penalty, and
  * disadvantage where a condition imposes it on ability checks (Poisoned,
- * Frightened, 2014 Exhaustion). `ruleset` is the edition whose condition
- * rules apply (the table's).
+ * Frightened, 2014 Exhaustion) or where a 2024 creature is surprised
+ * (SRD 5.2 "Surprise": "Disadvantage on the Initiative roll"; the 2014 rules
+ * cost a surprised creature its first turn instead, `losesFirstTurnToSurprise`).
+ * `ruleset` is the edition whose rules apply (the table's). Initiative has no
+ * advantage source in this app, so disadvantage here is a plain yes or no: two
+ * sources of it are still one disadvantage, and nothing is left to cancel.
  */
 export function initiativeRoll(
-  c: InitiativeSource & { conditions: readonly AppliedCondition[] },
+  c: InitiativeSource & { conditions: readonly AppliedCondition[]; surprised?: boolean },
   ruleset: RulesetKey,
 ): { modifier: number; disadvantage: boolean } {
   return {
     modifier: initiativeModifier(c) + getExhaustionD20Penalty(c.conditions, ruleset),
-    disadvantage: hasCheckDisadvantage(c.conditions, ruleset),
+    disadvantage: hasCheckDisadvantage(c.conditions, ruleset) || (ruleset === "2024" && c.surprised === true),
   };
+}
+
+/**
+ * Whether a creature cannot act in this round because it was surprised. PHB 2014 ch. 9 "Surprise": a surprised
+ * creature cannot move or take an action on its first turn of the combat, and cannot take a reaction until that turn
+ * ends. SRD 5.2 "Surprise" has no such loss (only Disadvantage on the Initiative roll), so under 2024 this is never
+ * true. The first turn of the combat is round 1; the flag lifts when that turn ends (`next_turn`).
+ */
+export function losesFirstTurnToSurprise(c: { surprised?: boolean }, ruleset: RulesetKey, round: number): boolean {
+  return ruleset === "2014" && round === 1 && c.surprised === true;
 }
 
 /** What a character adds to DEX for initiative: `initiative_bonus` (Alert and similar) and Jack of All Trades. */

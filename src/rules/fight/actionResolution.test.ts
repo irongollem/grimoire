@@ -268,6 +268,26 @@ describe("resolveAttackOn: to hit and damage", () => {
     expect(done.summary).toMatchObject({ total: 16, hit: false });
   });
 
+  // PHB 2014 ch. 9 "Ranged Attacks in Close Combat" and "Long Range": each is one disadvantage on a ranged roll. The two
+  // facts reach the roll through the attack input; two disadvantages are still one, so the roll takes the lower of two d20s.
+  // Bug: a ranged attack never got either disadvantage in resolution; one flag stood for "5 ft from the target" only.
+  it("a ranged attack with a hostile beside the attacker, or at long range, rolls with disadvantage; with neither it is straight", async () => {
+    const bow: StatBlockEntry = {
+      name: "Shortbow", description: "",
+      structured: { kind: "attack", source: "manual", attack: { delivery: "ranged", bonus: 4, range: { normal: 80, long: 320 }, hit: [{ dice: "1d6", type: "piercing" }] } },
+    };
+    // A straight roll takes one face, a roll with disadvantage two: the script gives the faces each case needs.
+    const modeOf = async (facts: { hostileWithinFiveFeetOfAttacker?: boolean; longRange?: boolean }, faces: number[]) => {
+      const s = scripted([faces, [3]]);
+      const t = table([wolf(), victim()], { dice: s.dice });
+      await resolveAttackOn(t.ctx, { attacker: t.get("wolf"), entry: bow, target: t.get("victim"), withinFiveFeet: false, ...facts });
+      return s.asks[0].mode ?? "normal";
+    };
+    expect(await modeOf({}, [9])).toBe("normal");
+    expect(await modeOf({ hostileWithinFiveFeetOfAttacker: true }, [9, 15])).toBe("disadvantage");
+    expect(await modeOf({ longRange: true }, [9, 15])).toBe("disadvantage");
+  });
+
   it("refuses a target whose armour class has no number, instead of guessing a hit", async () => {
     const t = table([wolf(), victim({ ac: "see sheet" })], { dice: scripted([[15]]).dice });
     await expect(

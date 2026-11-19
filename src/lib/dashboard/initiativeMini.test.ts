@@ -123,7 +123,7 @@ describe("deriveInitiativeMiniState", () => {
       active_combatant_index: 0, // "c" is active
       combatants_live: [
         c({ instance_id: "c", type: "monster", initiative: 20 }),
-        c({ instance_id: "b", type: "player", initiative: 15, hp: 0 }), // downed player
+        c({ instance_id: "b", type: "player", party_member_id: "pm-b", initiative: 15, hp: 0 }), // downed party member (a dying one, not a companion)
         c({ instance_id: "a", type: "player", initiative: 10 }),
       ],
     });

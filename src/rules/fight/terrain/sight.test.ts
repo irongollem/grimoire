@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { NO_OCCLUDERS, occluders, type Occluders } from "../../../lib/battlemap/occlusion.ts";
 import type { WallSegment } from "../../../lib/battlemap/walls.ts";
+import type { FactionDef, RunCombatant } from "../../../types/encounter.types.ts";
 import type { AttackStructure } from "../../../types/statBlock.types.ts";
 import {
   attackFrom,
@@ -9,6 +10,7 @@ import {
   boxesWithinFiveFeet,
   distanceFeet,
   opportunityAttacks,
+  rangedAttackFacts,
   type Box,
   type HostileNearby,
   type OpportunityEnemy,
@@ -360,5 +362,59 @@ describe("opportunityAttacks", () => {
       { enemyId: "a", step: 1 },
       { enemyId: "b", step: 4 },
     ]);
+  });
+});
+
+describe("rangedAttackFacts", () => {
+  const person = (id: string, faction: string, x: number, y: number, over: Partial<RunCombatant> = {}): RunCombatant => ({
+    instance_id: id, type: "monster", name: id, faction_id: faction, initiative: 10, hp: 10, max_hp: 10, ac: "12", conditions: [], curses: [],
+    death_saves: { successes: 0, failures: 0 }, dex_mod: 0, position: { x, y }, size: "medium", ...over,
+  });
+  const factions: Pick<FactionDef, "id" | "hostile_to">[] = [
+    { id: "players", hostile_to: ["enemy"] },
+    { id: "enemy", hostile_to: ["players"] },
+    { id: "neutral", hostile_to: [] },
+  ];
+  const range = { normal: 30, long: 120 };
+  const facts = (attacker: RunCombatant, target: RunCombatant, all: RunCombatant[], occ: Occluders = NO_OCCLUDERS, r: typeof range | null = range) =>
+    rangedAttackFacts({ attacker, target, combatants: all, factions, range: r, occluders: occ });
+  // Archer at (0,0), target 7 squares away at (7,0): 35 ft by `distanceFeet`.
+  const archer = person("archer", "players", 0, 0);
+  const far = person("far", "enemy", 7, 0);
+
+  // PHB 2014 ch. 9 "Ranged Attacks in Close Combat": any hostile beside the ATTACKER counts, not only the target.
+  it("counts a hostile beside the attacker that is not the target", () => {
+    const brute = person("brute", "enemy", 0, 1);
+    expect(facts(archer, far, [archer, far, brute]).hostileWithinFiveFeetOfAttacker).toBe(true);
+  });
+  it("counts the target itself when it stands beside the attacker", () => {
+    const near = person("near", "enemy", 1, 0);
+    expect(facts(archer, near, [archer, near]).hostileWithinFiveFeetOfAttacker).toBe(true);
+  });
+  it("does not count a friend, a neutral, or an incapacitated or downed hostile beside the attacker", () => {
+    const friend = person("friend", "players", 0, 1);
+    const neutral = person("neutral", "neutral", 1, 1);
+    const stunned = person("stunned", "enemy", 1, 0, { conditions: [{ name: "Stunned" }] });
+    const dead = person("dead", "enemy", 0, 1, { hp: 0 });
+    expect(facts(archer, far, [archer, far, friend, neutral, stunned, dead]).hostileWithinFiveFeetOfAttacker).toBe(false);
+  });
+  it("does not count a hostile beside the TARGET only", () => {
+    const guard = person("guard", "enemy", 7, 1);
+    expect(facts(archer, far, [archer, far, guard]).hostileWithinFiveFeetOfAttacker).toBe(false);
+  });
+  it("does not count a hostile a wall cuts off from the attacker", () => {
+    const brute = person("brute", "enemy", 0, 1);
+    expect(facts(archer, far, [archer, far, brute], walls([[0, 1], [1, 1]])).hostileWithinFiveFeetOfAttacker).toBe(false);
+  });
+  // PHB 2014 ch. 9 "Long Range": beyond the normal range. 7 squares is 35 ft, 6 squares is 30 ft.
+  it("is long range just past the normal range and not at it", () => {
+    expect(facts(archer, far, [archer, far]).longRange).toBe(true);
+    const at30 = person("at30", "enemy", 6, 0);
+    expect(facts(archer, at30, [archer, at30]).longRange).toBe(false);
+  });
+  it("claims no long range when the attack names no range, and nothing at all off the map", () => {
+    expect(facts(archer, far, [archer, far], NO_OCCLUDERS, null).longRange).toBe(false);
+    const unplaced = person("unplaced", "enemy", 0, 0, { position: null });
+    expect(facts(archer, unplaced, [archer, unplaced])).toEqual({ hostileWithinFiveFeetOfAttacker: false, longRange: false });
   });
 });

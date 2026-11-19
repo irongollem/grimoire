@@ -1,4 +1,7 @@
+// @vitest-environment jsdom
+// DOMPurify needs a spec-complete DOM (see chatMarkdown.test.ts).
 import { describe, expect, it } from "vitest";
+import { renderChatMessage } from "./chatMarkdown";
 import { DM_MENTION, PARTY_MENTION, addresses, mightBeAnswered, emphasiseMentions, insertMention, matchingTargets, mentionQueryAt, mentionsIn, type MentionTarget } from "./chatMentions";
 
 const rosie: MentionTarget = { kind: "member", partyMemberId: "pm-rosie", name: "Rosie" };
@@ -53,6 +56,16 @@ describe("mentionsIn", () => {
     ]);
   });
 
+  it("finds a mention after a character whose lowercase is longer, rather than reading it shifted", () => {
+    // "İ".toLowerCase() is two code units, so indexes taken from a lowered copy slip by one after it.
+    expect(mentionsIn("İİİ @Rosie, hi", [rosie])).toEqual([{ kind: "member", party_member_id: "pm-rosie", name: "Rosie" }]);
+  });
+
+  it("lets @party mean the whole party even when a character is literally named party", () => {
+    const partyChar: MentionTarget = { kind: "member", partyMemberId: "pm-p", name: "party" };
+    expect(mentionsIn("@party, listen", [partyChar, PARTY_MENTION])).toEqual([{ kind: "party", party_member_id: null, name: "party" }]);
+  });
+
   it("does not read a mention into a longer word or an email address", () => {
     expect(mentionsIn("@Rosiest of them, write to x@Rosie", [rosie])).toEqual([]);
   });
@@ -61,6 +74,21 @@ describe("mentionsIn", () => {
 describe("emphasiseMentions", () => {
   it("sets only the mention in bold and leaves the rest of the line as typed", () => {
     expect(emphasiseMentions("so, @Rosie: go. Not you, Rosie.", [rosie])).toBe("so, **@Rosie**: go. Not you, Rosie.");
+  });
+});
+
+describe("emphasiseMentions in the rendered chat", () => {
+  it.each(["Star*Lord", "Mr_X_", "Tick`y", "Lord*", "*Lord", "A**B", "[a](b)"])("shows the name %s as typed, inside bold", (name) => {
+    const target: MentionTarget = { kind: "member", partyMemberId: "pm-x", name };
+    const html = renderChatMessage(emphasiseMentions(`go @${name} now`, [target]));
+    const box = document.createElement("div");
+    box.innerHTML = html;
+    expect(box.querySelector("strong")?.textContent).toBe(`@${name}`);
+    expect(box.textContent).toBe(`go @${name} now`);
+  });
+
+  it("bolds the right words after a character whose lowercase is longer", () => {
+    expect(emphasiseMentions("İİİ @Rosie, hi", [rosie])).toBe("İİİ **@Rosie**, hi");
   });
 });
 

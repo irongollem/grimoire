@@ -32,6 +32,7 @@ import type { PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import { FightCommandError } from "./commandError.ts";
+import { isRecord, validateCombatants, validateReducerCommand } from "./commandShape.ts";
 import { applyProvoke, isProvokeCommand, validateProvokeCommand, type ProvokeCommand } from "./opportunity.ts";
 import { applyTakeTurn, isTakeTurnCommand, validateTakeTurnCommand, type TakeTurnCommand } from "./takeTurn.ts";
 import {
@@ -105,25 +106,6 @@ export interface CommandRequest {
   encounterId: string;
   batchId: string;
   commands: BatchCommand[];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** A list of combatants a caller built: the fields a crash would follow are checked, the rest is the reducer's business. */
-function validateCombatants(commandType: string, list: unknown, limit: number): void {
-  if (!Array.isArray(list) || list.length < 1 || list.length > limit) {
-    throw new FightCommandError(400, `${commandType} needs between 1 and ${limit} combatants.`);
-  }
-  for (const c of list) {
-    if (
-      !isRecord(c) || typeof c.instance_id !== "string" || c.instance_id.length === 0 || (c.type !== "player" && c.type !== "monster")
-      || typeof c.name !== "string" || typeof c.hp !== "number" || typeof c.max_hp !== "number"
-    ) {
-      throw new FightCommandError(400, "Every combatant needs an instance_id, a type of player or monster, a name, hp and max_hp.");
-    }
-  }
 }
 
 function validateLifecycleCommand(command: Record<string, unknown>): void {
@@ -223,6 +205,7 @@ export function validateRequest(body: unknown): CommandRequest {
     } else if (!ACCEPTED_TYPE_SET.has(command.type)) {
       throw new FightCommandError(400, `Unknown command type: ${command.type}.`);
     } else {
+      validateReducerCommand(command);
       validateOwnCommand(command);
     }
   }
@@ -244,6 +227,8 @@ export interface FightRow {
   is_running: boolean;
   /** When End combat or Abandon closed the fight; null while it is being set up or played. */
   ended_at: string | null;
+  /** When combat first went live; null before. The note-judgment cap counts from it, so going live again must not move it. */
+  started_at: string | null;
 }
 
 /** Everything a batch needs besides the row: the encounter's own settings and what its spawns are built from. */
@@ -291,6 +276,8 @@ export interface BatchDeps {
   /** Inserts the first row of an encounter's fight; null when another writer inserted it first (the caller loads again). */
   createFight(encounterId: string, first: FightWrite & Pick<FightLifecycleWrite, "is_running" | "ended_at">): Promise<{ id: string; version: number } | null>;
   loadPartyRows(partyMemberIds: string[]): Promise<PartyIngestRow[]>;
+  /** Whether `sessionId` is a session of this campaign (never another campaign's, never one that does not exist). */
+  isCampaignSession(sessionId: string): Promise<boolean>;
   /** Writes where `version = expectedVersion`; the new version when a row was written, null when another writer got there first. */
   saveFight(rowId: string, expectedVersion: number, next: FightWrite & Partial<FightLifecycleWrite>): Promise<{ version: number } | null>;
   persistPartyMember(partyMemberId: string, patch: PartyMemberUpdate): Promise<void>;
@@ -482,15 +469,27 @@ async function attempt(
     listedRecords.set(key, read);
     return read;
   };
+  // The ids already asked for, so an id that names nothing is not asked again by every command of the batch.
+  const askedFor = { monsterIds: new Set<string>(), npcIds: new Set<string>(), companionIds: new Set<string>() };
   /** Reads what resolving an action needs, the first time something asks. */
   const resolveEnv = async (): Promise<ResolveEnv> => {
-    if (sources === null) {
-      const fetched = await deps.loadStatBlocks(statBlockIdsOf(state.combatants));
+    // A creature added earlier in this batch has no stat block loaded yet: read the ones the roster names that were not asked for.
+    const wanted = statBlockIdsOf(state.combatants);
+    const missing = {
+      monsterIds: wanted.monsterIds.filter((id) => !askedFor.monsterIds.has(id)),
+      npcIds: wanted.npcIds.filter((id) => !askedFor.npcIds.has(id)),
+      companionIds: wanted.companionIds.filter((id) => !askedFor.companionIds.has(id)),
+    };
+    if (sources === null || missing.monsterIds.length + missing.npcIds.length + missing.companionIds.length > 0) {
+      for (const id of missing.monsterIds) askedFor.monsterIds.add(id);
+      for (const id of missing.npcIds) askedFor.npcIds.add(id);
+      for (const id of missing.companionIds) askedFor.companionIds.add(id);
+      const fetched = await deps.loadStatBlocks(missing);
       // What a fight's own events spawn is already loaded; a spawn earlier in the batch can be acted with.
       sources = {
-        monsters: [...fetched.monsters, ...loaded.monsters],
-        npcs: [...fetched.npcs, ...loaded.npcs],
-        companions: fetched.companions,
+        monsters: [...fetched.monsters, ...(sources === null ? loaded.monsters : sources.monsters)],
+        npcs: [...fetched.npcs, ...(sources === null ? loaded.npcs : sources.npcs)],
+        companions: [...fetched.companions, ...(sources === null ? [] : sources.companions)],
       };
     }
     if (players === null) {
@@ -521,6 +520,12 @@ async function attempt(
       state = result.state;
       effects.push(...result.effects);
       continue;
+    }
+    if (command.type === "add_combatants") {
+      // Every other command finds a creature by its instance id, so a newcomer that reuses one could never be reached.
+      const present = new Set(state.combatants.map((c) => c.instance_id));
+      const taken = command.combatants.find((c) => present.has(c.instance_id));
+      if (taken) throw new FightCommandError(400, `${taken.instance_id} is already in this fight.`);
     }
     const result = applyFightCommand(state, command as FightCommand, fightDeps);
     state = result.state;
@@ -665,6 +670,9 @@ async function runLifecycle(
     let state = buildState(loaded, row);
     const members = playerMemberIds(row.combatants_live);
     const notStarted = !state.started;
+    if (command.sessionId !== null && !(await deps.isCampaignSession(command.sessionId))) {
+      throw new FightCommandError(400, "That session is not one of this campaign's.");
+    }
     if (notStarted) {
       // Opening the lobby wipes last session's rolls, so the only initiative a fight ever ingests was made for it.
       // Going live again once combat has started is resuming it, and those rolls are the turn order.
@@ -678,7 +686,8 @@ async function runLifecycle(
     }
     const next = {
       ...writeOf(state, row.applied_command_ids, request.batchId),
-      is_running: true, ended_at: null, started_at: deps.nowIso(), session_id: command.sessionId,
+      // Going live again keeps the first start: the note-judgment cap counts from when combat began.
+      is_running: true, ended_at: null, started_at: row.started_at ?? deps.nowIso(), session_id: command.sessionId,
     } satisfies FightWrite & Partial<FightLifecycleWrite>;
     const saved = await deps.saveFight(row.id, row.version, next);
     if (!saved) return null;
@@ -712,16 +721,39 @@ async function runLifecycle(
   const { state } = await attempt({ ...request, commands: [] }, loaded, row, deps, noteJudgmentsOf(deps));
   const context = await deps.loadEndContext(command.siteId === undefined ? null : command.siteId);
   // The saved roster is the authority for where the tokens stand: the browser's store does not hear a player moving their own token.
-  const patches = endOfFightPatches({ combatants: state.combatants, tokensAtEnd: state.combatants, exploreParty: context.exploreParty, siteId: context.siteId });
+  const writeBack = endWriteBack(state.combatants, context, deps);
   const next = { ...writeOf(state, row.applied_command_ids, request.batchId), is_running: false, ended_at: deps.nowIso() } satisfies FightWrite & Partial<FightLifecycleWrite>;
   const saved = await deps.saveFight(row.id, row.version, next);
   if (!saved) return null;
-  const failures = await performAll([
+  const failures = await performAll(writeBack);
+  return resultOf(true, saved.version, next, next, [], failures);
+}
+
+/** What the end of a fight writes to the players, the companions and the party's standing: values, so writing them twice changes nothing. */
+function endWriteBack(
+  combatants: RunCombatant[],
+  context: { exploreParty: ExploreParty | null; siteId: string | null },
+  deps: BatchDeps,
+): Array<{ name: string; run: () => Promise<void> }> {
+  const patches = endOfFightPatches({ combatants, tokensAtEnd: combatants, exploreParty: context.exploreParty, siteId: context.siteId });
+  return [
     ...patches.partyMembers.map(({ id, patch }) => ({ name: "player_persist", run: () => deps.persistPartyMember(id, patch) })),
     ...patches.companions.map(({ id, patch }) => ({ name: "companion", run: () => deps.persistCompanion(id, patch) })),
     ...(patches.exploreParty ? [{ name: "explore_party", run: () => deps.setExploreParty(patches.exploreParty!) }] : []),
-  ]);
-  return resultOf(true, saved.version, next, next, [], failures);
+  ];
+}
+
+/**
+ * A retry of an End combat or Abandon the fight already took: the save is done, but the writes to the characters ran after
+ * it and may not have (a failed write is only reported, and the function can die between the two). Every one sets a value,
+ * so running them again is safe, and it is the only way they ever happen: a new End combat is refused for a fight that has ended.
+ */
+async function replayClosing(command: LifecycleCommand, row: FightRow, deps: BatchDeps): Promise<string[]> {
+  if (row.ended_at === null) return [];
+  if (command.type === "abandon") return performAll(clearInitiativeWrites(playerMemberIds(row.combatants_live), deps));
+  if (command.type !== "end_combat") return [];
+  const context = await deps.loadEndContext(command.siteId === undefined ? null : command.siteId);
+  return performAll(endWriteBack(row.combatants_live, context, deps));
 }
 
 export async function runBatch(request: CommandRequest, deps: BatchDeps): Promise<BatchResult> {
@@ -735,7 +767,8 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
     // The reply of an earlier send may have been lost after it was applied: answer with the state as it is.
     // Before the ended check, so a retried End combat is answered rather than refused for a fight it just ended.
     if (row && row.applied_command_ids.includes(request.batchId)) {
-      return resultOf(false, row.version, row, row, [], []);
+      const failures = lifecycle ? await replayClosing(lifecycle, row, deps) : [];
+      return resultOf(false, row.version, row, row, [], failures);
     }
 
     if (lifecycle) {

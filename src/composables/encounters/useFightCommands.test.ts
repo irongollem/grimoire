@@ -3,7 +3,7 @@ import { defineComponent, ref } from "vue";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import type { EncounterState, RunCombatant } from "@/types/encounter.types";
-import type { FightAnswer } from "@/lib/encounters/fightWire";
+import { retryDelayMs, type FightAnswer } from "@/lib/encounters/fightWire";
 
 const net = vi.hoisted(() => ({ invoke: vi.fn() }));
 const toasts = vi.hoisted(() => ({ error: vi.fn(), info: vi.fn() }));
@@ -30,7 +30,7 @@ vi.mock("@/lib/campaignLiveSync/rings", () => ({
 
 import { liveState, liveRevision } from "@/composables/encounters/useEncounterLive";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useFightCommands } from "./useFightCommands";
+import { STUCK_AFTER_FAILURES, useFightCommands } from "./useFightCommands";
 
 function creature(id: string, over: Partial<RunCombatant> = {}): RunCombatant {
   return {
@@ -54,14 +54,17 @@ const offline = () => ({ data: null, error: { message: "Failed to send a request
 
 const sent = () => net.invoke.mock.calls.map(([, init]) => init.body as { batchId: string; commands: Array<{ type: string }> });
 
-function mountComposable(onLost = vi.fn()) {
+const mounted: Array<{ unmount: () => void }> = [];
+
+function mountComposable(onLost = vi.fn(), idRef = ref("enc-1")) {
   let api!: ReturnType<typeof useFightCommands>;
   const wrapper = mount(defineComponent({
     setup() {
-      api = useFightCommands(ref("enc-1"), { onLost });
+      api = useFightCommands(idRef, { onLost });
       return () => null;
     },
   }));
+  mounted.push(wrapper);
   return { api, wrapper, onLost };
 }
 
@@ -85,7 +88,22 @@ beforeEach(() => {
   rings.reconcile.length = 0;
   liveState.value = null;
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  // A runner left mounted keeps its page-leave guard on the window for the next test.
+  for (const wrapper of mounted.splice(0)) wrapper.unmount();
+  vi.useRealTimers();
+});
+
+/** Another fight takes over the store, with a change of its own waiting to be sent. */
+function store2() {
+  const store = useEncounterRunStore();
+  store.reset();
+  store.startFight(
+    { encounterId: "enc-2", encounterName: "Other", factions: [], events: [], traps: [] },
+    { combatants: [creature("ogre")], round: 1, activeIndex: 0, eventsFired: [], lairFiredRounds: [], version: 1 },
+  );
+  store.adjustHp("ogre", -2);
+}
 
 describe("useFightCommands", () => {
   it("fails if commands made in one burst are not sent as one batch, or the screen waits for the reply to show them", async () => {
@@ -272,6 +290,91 @@ describe("useFightCommands", () => {
       await flushPromises();
       net.invoke.mockResolvedValue(refusal(400, "Ogre is at 0 hit points."));
       await expect(api.takeTurn("ogre")).rejects.toThrow("Ogre is at 0 hit points.");
+    });
+  });
+
+  describe("changes that have not reached the server", () => {
+    async function offlineWith(tries: number) {
+      const store = attach();
+      net.invoke.mockResolvedValue({ data: answer(20, 5), error: null });
+      const mounted = mountComposable();
+      await flushPromises();
+      net.invoke.mockClear();
+      net.invoke.mockResolvedValue(offline());
+      store.adjustHp("ogre", -4);
+      await flushPromises();
+      for (let i = 1; i < tries; i++) await vi.advanceTimersByTimeAsync(retryDelayMs(i)); // one more try each
+      return { store, ...mounted };
+    }
+
+    it("fails if the store does not count the waiting batches and the failed sends in a row, or keeps the failures after a send gets through", async () => {
+      const { store } = await offlineWith(2);
+      expect(store.unsentBatches).toBe(1);
+      expect(store.sendFailures).toBe(2);
+      net.invoke.mockResolvedValue({ data: answer(16, 6), error: null });
+      await vi.advanceTimersByTimeAsync(retryDelayMs(3));
+      expect(store.unsentBatches).toBe(0);
+      expect(store.sendFailures).toBe(0);
+    });
+
+    it("fails if a batch that keeps failing is never announced, is announced too early, or is announced again on every try", async () => {
+      await offlineWith(STUCK_AFTER_FAILURES - 1);
+      expect(toasts.error).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(retryDelayMs(STUCK_AFTER_FAILURES - 1));
+      expect(toasts.error).toHaveBeenCalledTimes(1);
+      expect(toasts.error).toHaveBeenCalledWith(expect.stringContaining("could not be saved"));
+      await vi.advanceTimersByTimeAsync(40_000);
+      expect(toasts.error).toHaveBeenCalledTimes(1);
+      // Announced, not dropped: it is still being sent.
+      expect(sent().length).toBeGreaterThan(STUCK_AFTER_FAILURES);
+    });
+
+    it("fails if leaving the page is not interrupted while changes are unsent, or still is once they are saved or the runner is gone", async () => {
+      const { store, wrapper } = await offlineWith(1);
+      const leave = () => {
+        const event = new Event("beforeunload", { cancelable: true });
+        window.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
+      expect(leave()).toBe(true);
+      net.invoke.mockResolvedValue({ data: answer(16, 6), error: null });
+      await vi.advanceTimersByTimeAsync(retryDelayMs(1));
+      expect(store.hasQueued()).toBe(false);
+      expect(leave()).toBe(false);
+      net.invoke.mockResolvedValue(offline());
+      store.adjustHp("ogre", -1);
+      await flushPromises();
+      expect(leave()).toBe(true);
+      wrapper.unmount();
+      expect(leave()).toBe(false);
+    });
+
+    it("fails if a batch is posted to the fight the route names when it is sent instead of the fight it was made in", async () => {
+      const store = attach();
+      net.invoke.mockResolvedValue({ data: answer(20, 5), error: null });
+      const route = ref("enc-1");
+      mountComposable(vi.fn(), route);
+      await flushPromises();
+      net.invoke.mockClear();
+      net.invoke.mockResolvedValueOnce(offline()).mockResolvedValue({ data: answer(16, 6), error: null });
+      store.adjustHp("ogre", -4);
+      await flushPromises();
+      route.value = "enc-2"; // the route moves on while the batch waits to be retried
+      await vi.advanceTimersByTimeAsync(600);
+      await flushPromises();
+      const targets = net.invoke.mock.calls.map(([, init]) => (init.body as { encounterId: string }).encounterId);
+      expect(targets).toEqual(["enc-1", "enc-1"]);
+    });
+
+    it("fails if a runner sends the batches of another fight that has taken over the store", async () => {
+      attach();
+      net.invoke.mockResolvedValue({ data: answer(20, 5), error: null });
+      mountComposable();
+      await flushPromises();
+      net.invoke.mockClear();
+      store2();
+      await flushPromises();
+      expect(net.invoke).not.toHaveBeenCalled();
     });
   });
 });

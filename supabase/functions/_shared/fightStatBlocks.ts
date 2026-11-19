@@ -2,8 +2,8 @@
 // `encounter-options`). Two parts: what a roster names (pure, below) and where the rows are read (the loaders).
 //
 // Every read of a campaign's own rows (NPCs, companions) is scoped to the campaign in the query itself: the
-// service-role client bypasses RLS, so nothing here leans on it. Monsters are the shared library's or custom ones
-// by id, exactly as `encounter-command` always read them.
+// service-role client bypasses RLS, so nothing here leans on it. Monsters are the shared library's (by text id, readable
+// by anyone) or custom ones (by uuid), and a custom one is read only when this campaign's Dungeon Masters may use it.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isUuid } from "../../../src/lib/library/contentIdentity.ts";
@@ -34,8 +34,26 @@ export function statBlockOf(c: RunCombatant, sources: StatBlockSources): Monster
   return null;
 }
 
-/** Monsters by id: library ids (text) from `library_monsters`, custom ids (uuid) from `monsters`. */
-export async function loadMonsters(admin: SupabaseClient, ids: string[]): Promise<Monster[]> {
+/**
+ * The PostgREST `or` filter that keeps a custom monster to what this campaign's Dungeon Masters may use: a monster of this
+ * campaign, or one authored by the campaign's owner or a member with the dm role (a DM's own monsters from their other
+ * campaigns are usable here, which is why the browser reads them unscoped under RLS). Another account's private monster is
+ * out. App convention.
+ */
+export async function customMonsterScope(admin: SupabaseClient, campaignId: string): Promise<string> {
+  const { data: campaign, error: campaignError } = await admin.from("campaigns").select("user_id").eq("id", campaignId).maybeSingle();
+  if (campaignError) throw new Error(`campaigns: ${campaignError.message}`);
+  const { data: members, error: memberError } = await admin.from("campaign_members").select("user_id").eq("campaign_id", campaignId).eq("role", "dm");
+  if (memberError) throw new Error(`campaign_members: ${memberError.message}`);
+  const dmIds = new Set<string>((members as { user_id: string }[]).map((m) => m.user_id));
+  if (campaign) dmIds.add((campaign as { user_id: string }).user_id);
+  const clauses = [`campaign_id.eq.${campaignId}`];
+  if (dmIds.size > 0) clauses.push(`user_id.in.(${[...dmIds].join(",")})`);
+  return clauses.join(",");
+}
+
+/** Monsters by id: library ids (text) from `library_monsters`, custom ids (uuid) from `monsters`, kept to this campaign's DMs. */
+export async function loadMonsters(admin: SupabaseClient, campaignId: string, ids: string[]): Promise<Monster[]> {
   const libraryIds = ids.filter((id) => !isUuid(id));
   const customIds = ids.filter(isUuid);
   const found: Monster[] = [];
@@ -45,7 +63,7 @@ export async function loadMonsters(admin: SupabaseClient, ids: string[]): Promis
     found.push(...data.map(libraryMonsterRow));
   }
   if (customIds.length > 0) {
-    const { data, error } = await admin.from("monsters").select("*").in("id", customIds);
+    const { data, error } = await admin.from("monsters").select("*").in("id", customIds).or(await customMonsterScope(admin, campaignId));
     if (error) throw new Error(`monsters: ${error.message}`);
     found.push(...(data as Monster[]));
   }
@@ -66,7 +84,7 @@ export async function loadStatBlocks(
   campaignId: string,
   ids: { monsterIds: string[]; npcIds: string[]; companionIds: string[] },
 ): Promise<StatBlockSources> {
-  const monsters = await loadMonsters(admin, ids.monsterIds);
+  const monsters = await loadMonsters(admin, campaignId, ids.monsterIds);
   const npcs = await loadNpcs(admin, campaignId, ids.npcIds);
   let companions: Companion[] = [];
   if (ids.companionIds.length > 0) {

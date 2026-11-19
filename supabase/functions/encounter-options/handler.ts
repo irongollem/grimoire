@@ -49,6 +49,8 @@ export interface OptionsFight {
   ruleset: RulesetKey;
   /** The encounter's factions: who fights whom (`src/rules/fight/sides.ts`). */
   factions: FactionSides;
+  /** The fight's round, so the options shown match the turn the server would take (surprise, round 1). */
+  round: number;
 }
 
 /** Reads only. Each is already bound to the encounter's campaign by the caller, and every query is scoped to it. */
@@ -94,6 +96,7 @@ export async function computeOptions(request: OptionsRequest, deps: OptionsDeps)
     members,
     map: mapInput === null ? null : fightMapOf(mapInput),
     factions: fight.factions,
+    round: fight.round,
     spellRecords,
   });
   return { version: fight.version, options };

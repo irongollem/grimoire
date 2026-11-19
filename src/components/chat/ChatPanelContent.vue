@@ -636,6 +636,8 @@ function onComposerInput(e: Event) {
 }
 
 function onComposerKey(e: KeyboardEvent) {
+  // An input method's Enter confirms its composition; it must not send the line.
+  if (e.isComposing || e.keyCode === 229) return;
   if (mention.onKeydown(e)) return;
   if (e.key === "Enter" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
     e.preventDefault();

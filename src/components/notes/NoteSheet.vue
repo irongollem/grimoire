@@ -54,7 +54,7 @@
     </div>
 
     <!-- A note a sitting at the AI table left can be told as a story first, then read aloud. -->
-    <NoteTellSitting v-if="note.campaign_id" :note="note" />
+    <NoteTellSitting v-if="note.campaign_id && tableOpen":note="note" />
 
     <!-- Read aloud: only where there is something to read. -->
     <NoteReading v-if="hasContent(note.content) && note.campaign_id" :note="note" :can-make="tableOpen" />

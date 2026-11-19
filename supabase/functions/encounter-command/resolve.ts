@@ -8,6 +8,8 @@
 // server only scores them (the same `DiceRules.score` the prompt uses) and posts the roll as a person's (`manual`),
 // with no stamp.
 
+import { rangedAttackFacts } from "../../../src/rules/fight/terrain/sight.ts";
+import { NO_OCCLUDERS } from "../../../src/lib/battlemap/occlusion.ts";
 import type { FactionSides } from "../../../src/rules/fight/sides.ts";
 import { ALL_DICE, type RollResult } from "../../../src/lib/dice/dice.ts";
 import { NORMAL_ROLL, rollWithRules, type RolledFaces } from "../../../src/lib/dice/diceRules.ts";
@@ -511,6 +513,26 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
   };
 
   /** Spends the cast, then rolls it as an attack per target or a save for all, or says why it cannot. */
+  /**
+   * What a ranged attack roll needs beyond "is the attacker within 5 feet of the target": a hostile beside the
+   * attacker, and long range (PHB 2014 ch. 9 "Ranged Attacks in Close Combat" and "Long Range"; the 2024 rules say
+   * the same). Read from the fight as it stands. An attack that can be made either way is ranged when its target is
+   * not within reach of a melee blow, which is how it is rolled. Nothing for a melee attack.
+   */
+  const rangedFacts = (attacker: RunCombatant, target: RunCombatant, entry: StatBlockEntry, near: boolean): { hostileWithinFiveFeetOfAttacker?: boolean; longRange?: boolean } => {
+    const attack = entry.structured?.attack;
+    if (!attack) return {};
+    const ranged = attack.delivery === "ranged" || (attack.delivery === "melee_or_ranged" && !near);
+    if (!ranged) return {};
+    return rangedAttackFacts({
+      attacker, target,
+      combatants: holder.state.combatants,
+      factions: env.factions,
+      range: attack.range === undefined ? null : attack.range,
+      occluders: env.map === null ? NO_OCCLUDERS : env.map.occluders,
+    });
+  };
+
   const castSpell = async (cast: Extract<ResolvingCommand, { type: "cast_spell" }>): Promise<void> => {
     const caster = combatantIn(state, cast.casterId, "caster");
     ableToAct(caster);
@@ -524,6 +546,10 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     let { useKey, limit } = listed;
     const slotted = listed.limit !== null && listed.level !== null && listed.level > 0 && listed.group.frequency.kind === "slots";
     if (slotted && cast.castLevel !== undefined && cast.castLevel !== listed.level) {
+      // PHB 2014 ch. 10 "Spell Slots": a spell is cast with a slot of its level or higher, never a lower one.
+      if (cast.castLevel < (listed.level as number)) {
+        refuse(`${cast.spell} is a level ${listed.level} spell and cannot be cast with a level ${cast.castLevel} slot.`);
+      }
       const higher = slotLimitAt(block as MonsterStatBlock, cast.castLevel);
       if (higher === null) refuse(`${caster.name} has no level ${cast.castLevel} spell slots to cast ${cast.spell} with.`);
       ({ useKey, limit } = higher as NonNullable<typeof higher>);
@@ -594,7 +620,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
         const near = cast.withinFiveFeet ?? withinFiveFeet(live(), target);
         if (near === null) refuse(`Say whether ${caster.name} is within five feet of ${target.name}: one of them has no place on the map.`);
         const perTarget: ResolutionContext = { ...ctx, dice: makeDice(env.rollDie, attackSupply(cast.faces?.attacks?.[index] ?? undefined), env.posted) };
-        const done = await resolveAttackOn(perTarget, { attacker: live(), entry: entry.entry, target, withinFiveFeet: near as boolean, magical: true });
+        const done = await resolveAttackOn(perTarget, { attacker: live(), entry: entry.entry, target, withinFiveFeet: near as boolean, magical: true, ...rangedFacts(live(), target, entry.entry, near as boolean) });
         collected.push({ type: "resolved", resolved: done.summary });
       }
       return;
@@ -614,6 +640,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
         if (near === null) refuse(`Say whether ${attacker.name} is within five feet of ${target.name}: one of them has no place on the map.`);
         const done = await resolveAttackOn(ctx, {
           attacker, entry, target, withinFiveFeet: near as boolean, extraPenalty: command.penalty, magical: command.magical,
+          ...rangedFacts(attacker, target, entry, near as boolean),
         });
         collected.push({ type: "resolved", resolved: done.summary });
         break;

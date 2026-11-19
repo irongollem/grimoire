@@ -23,7 +23,8 @@ const hero = (over = {}) => pc("p", { hp: 20, max_hp: 20, ...over });
 
 describe("ingestPartyRow", () => {
   it("fails if a row identical to what the fight holds changes anything", () => {
-    const state = deepFreeze(fight([hero({ conditions: [{ name: "Poisoned", ends: { kind: "save", ability: "con", dc: 12, at: "end" } }] })]));
+    // The fight has already read this row once, so it remembers what it said and has nothing new to note.
+    const state = deepFreeze(fight([hero({ sheet_hp: 20, sheet_temp_hp: 0, conditions: [{ name: "Poisoned", ends: { kind: "save", ability: "con", dc: 12, at: "end" } }] })]));
     const result = ingestPartyRow(
       state,
       // The same record with its keys the other way round: jsonb does not keep the order.
@@ -46,6 +47,38 @@ describe("ingestPartyRow", () => {
     const state = fight([hero({ hp: 5 })]);
     expect(ingestPartyRow(state, row({ current_hp: 9 }), context(), deps()).state.combatants[0].hp).toBe(9);
     expect(ingestPartyRow(state, row({ current_hp: 99 }), context(), deps()).state.combatants[0].hp).toBe(20);
+  });
+
+  // The fight is saved before a hit reaches the character's row. Fight 10, row still 20, and the fight last read 20 from it:
+  // the row has not changed since, so the 10 stands. Adopting 20 would undo the hit.
+  it("fails if a row that still says what the fight last read puts back the hit points a hit took", () => {
+    const state = fight([hero({ hp: 10, sheet_hp: 20 })]);
+    const result = ingestPartyRow(state, row({ current_hp: 20 }), context(), deps());
+    expect(result.state.combatants[0].hp).toBe(10);
+    expect(result.state.combatants[0].sheet_hp).toBe(20);
+  });
+
+  // The hit has now reached the row (10, which is not what the fight last read, 20), so it is adopted (the fight already has 10) and
+  // remembered. The player then heals on their own sheet to 15: not the 10 last read, so it is their change and is adopted.
+  it("fails if a player's own change to their hit points after a hit is not adopted", () => {
+    const state = fight([hero({ hp: 10, sheet_hp: 20 })]);
+    const landed = ingestPartyRow(state, row({ current_hp: 10 }), context(), deps());
+    expect(landed.state.combatants[0]).toMatchObject({ hp: 10, sheet_hp: 10 });
+    const healed = ingestPartyRow(landed.state, row({ current_hp: 15 }), context(), deps());
+    expect(healed.state.combatants[0]).toMatchObject({ hp: 15, sheet_hp: 15 });
+  });
+
+  it("fails if the first read of a row, with nothing remembered yet, does not adopt it and remember it", () => {
+    const state = fight([hero({ hp: 5 })]);
+    const result = ingestPartyRow(state, row({ current_hp: 9 }), context(), deps());
+    expect(result.state.combatants[0]).toMatchObject({ hp: 9, sheet_hp: 9 });
+  });
+
+  // Same ordering for temp HP: a hit that spent the 5 temp HP leaves the fight at 0 while the row still says 5.
+  it("fails if a row that still says what the fight last read hands back temp HP a hit spent", () => {
+    const state = fight([hero({ temp_hp: undefined, sheet_temp_hp: 5 })]);
+    const result = ingestPartyRow(state, row({ temp_hp: 5 }), context(), deps());
+    expect(result.state.combatants[0].temp_hp).toBeUndefined();
   });
 
   it("fails if healing from 0 on the player's own sheet leaves the death saves standing", () => {

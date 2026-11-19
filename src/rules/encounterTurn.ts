@@ -9,7 +9,7 @@ import type { PartyMemberUpdate } from "../types/party.types.ts";
 import { sortCombatantsByInitiative } from "./combatantSort.ts";
 import { applyDamage, applyHealing, betterTempHp, formHpPools } from "./hitPoints.ts";
 import { damageOutcome, healingOutcome, UNCONSCIOUS, type DyingOutcome } from "./dying.ts";
-import { hasCondition, sameConditions, withCondition, withoutCondition } from "./conditions.ts";
+import { hasCondition, isIncapacitated, sameConditions, withCondition, withoutCondition } from "./conditions.ts";
 import {
   conditionsAtTurnEdge,
   endSourcedConditions,
@@ -62,7 +62,7 @@ export type EncounterTurnCommand =
   | { type: "next_turn" }
   | { type: "prev_turn" }
   | { type: "reshuffle_initiative" }
-  /** null blanks it (the lobby clears a stale value); a rolled or typed value sets it. Nothing else changes: not the turn, not the order's pointer. */
+  /** null blanks it (the lobby clears a stale value); a rolled or typed value sets it. In a running fight the pointer follows the creature that was acting, so the turn stays with it however the order re-sorts. */
   | { type: "set_initiative"; instanceId: string; value: number | null }
   | { type: "adjust_hp"; instanceId: string; delta: number; critical?: boolean }
   | { type: "set_hp"; instanceId: string; value: number }
@@ -364,7 +364,22 @@ function nextTurn(state: EncounterTurnState, deps: EncounterTurnDeps, events: En
   }
   if (!step) return { ...state, combatants };
 
-  let next: EncounterTurnState = { ...state, combatants };
+  return startTurn({ ...state, combatants }, step, deps, events);
+}
+
+/**
+ * Hands the turn to the creature `step` names and starts it: a wrap past the end of the order opens the next round
+ * (and, with random initiative on, re-rolls it), then the creature's per-turn pools refresh and its start-of-turn
+ * effects run. The one path both `next_turn` and the active creature leaving the fight (`remove_combatant`) take, so a
+ * turn never starts any other way.
+ */
+function startTurn(
+  state: EncounterTurnState,
+  step: { sortedIndex: number; wrapped: boolean },
+  deps: EncounterTurnDeps,
+  events: EncounterTurnEvent[],
+): EncounterTurnState {
+  let next = state;
   if (step.wrapped) {
     next = { ...next, round: state.round + 1 };
     events.push({ type: "round_started", round: next.round });
@@ -559,6 +574,51 @@ function concentrationCheckAfterDamage(
   return after;
 }
 
+/**
+ * Where the creature that was acting stands in the order once `combatants` replaces the roster. `activeIndex` is a
+ * place in the initiative order, not a creature, so a changed initiative that re-sorts the order would otherwise leave
+ * the pointer on whoever now sits there: the acting creature's turn lost and the next one started with no turn start.
+ * The pointer follows the creature (the same rule `joinFight` applies to a newcomer, `fight/fightSpawn.ts`).
+ */
+function indexOfActing(before: EncounterTurnState, combatants: readonly RunCombatant[]): number {
+  const acting = sortCombatantsByInitiative(before.combatants)[before.activeIndex];
+  if (!acting) return before.activeIndex;
+  const at = sortCombatantsByInitiative(combatants).findIndex((c) => c.instance_id === acting.instance_id);
+  return at < 0 ? before.activeIndex : at;
+}
+
+/**
+ * Ends what a creature's concentration holds: the conditions on others that ride on it (all of them, or one spell's),
+ * and a stat-block creature's own record of the spell. A party member's own record lives on `party_members`, so a
+ * combatant that has none here is left as it is. The one path `end_concentration` and an incapacitating condition share.
+ */
+function endHeldConcentration(
+  state: EncounterTurnState,
+  instanceId: string,
+  spell: string | undefined,
+  events: EncounterTurnEvent[],
+): EncounterTurnState {
+  const found = state.combatants.find((x) => x.instance_id === instanceId);
+  if (!found) return state;
+  const pass = endSourcedConditions(state.combatants, instanceId, "concentration", { spell, concentrationOnly: true });
+  let combatants = report(pass, events);
+  if (found.concentration) {
+    combatants = replaceCombatant(combatants, { ...(combatants.find((x) => x.instance_id === instanceId) ?? found), concentration: null });
+  }
+  return { ...state, combatants };
+}
+
+/**
+ * SRD 5.1 "Concentration": a creature loses concentration when it is Incapacitated (Paralyzed, Petrified, Stunned and
+ * Unconscious each include it) or dies; SRD 5.2 says the same. Run after a command that changed a creature's conditions.
+ */
+function afterConditionEdit(after: EncounterTurnState, instanceId: string, events: EncounterTurnEvent[]): EncounterTurnState {
+  const now = after.combatants.find((c) => c.instance_id === instanceId);
+  if (!now || !isIncapacitated(now.conditions)) return after;
+  if (!now.concentration && !holdsConcentration(after.combatants, instanceId)) return after;
+  return endHeldConcentration(after, instanceId, undefined, events);
+}
+
 /** Commands that edit one combatant through a working copy. */
 function editCombatant(
   state: EncounterTurnState,
@@ -614,10 +674,12 @@ export function reduceEncounterTurn(
     }
     case "reshuffle_initiative":
       return done(reshuffle(state, deps, events));
-    case "set_initiative":
-      return done(editCombatant(state, command.instanceId, (c) => {
+    case "set_initiative": {
+      const edited = editCombatant(state, command.instanceId, (c) => {
         c.initiative = command.value;
-      }));
+      });
+      return done(state.started ? { ...edited, activeIndex: indexOfActing(state, edited.combatants) } : edited);
+    }
     case "adjust_hp":
       return done(
         concentrationCheckAfterDamage(
@@ -638,21 +700,21 @@ export function reduceEncounterTurn(
         persist(events, c, { temp_hp: c.temp_hp ?? 0 });
       }));
     case "apply_condition":
-      return done(editCombatant(state, command.instanceId, (c) => {
+      return done(afterConditionEdit(editCombatant(state, command.instanceId, (c) => {
         const previous = c.conditions.find((x) => x.name === command.condition.name);
         c.conditions = withCondition(c.conditions, settledRecord(command.condition, previous));
         persist(events, c, { conditions: [...c.conditions] });
-      }));
+      }), command.instanceId, events));
     case "remove_condition":
       return done(editCombatant(state, command.instanceId, (c) => {
         c.conditions = withoutCondition(c.conditions, command.name);
         persist(events, c, { conditions: [...c.conditions] });
       }));
     case "set_conditions":
-      return done(editCombatant(state, command.instanceId, (c) => {
+      return done(afterConditionEdit(editCombatant(state, command.instanceId, (c) => {
         c.conditions = [...command.conditions];
         persist(events, c, { conditions: [...c.conditions] });
-      }));
+      }), command.instanceId, events));
     case "resolve_condition_save":
       return done(editCombatant(state, command.instanceId, (c) => {
         const found = c.conditions.find((x) => x.name === command.name);
@@ -672,22 +734,8 @@ export function reduceEncounterTurn(
         c.conditions = withCondition(c.conditions, clearDue(found, "damage"));
         persist(events, c, { conditions: [...c.conditions] });
       }));
-    case "end_concentration": {
-      const found = state.combatants.find((x) => x.instance_id === command.instanceId);
-      if (!found) return done(state);
-      const pass = endSourcedConditions(state.combatants, command.instanceId, "concentration", {
-        spell: command.spell,
-        concentrationOnly: true,
-      });
-      let combatants = report(pass, events);
-      if (found.concentration) {
-        combatants = replaceCombatant(
-          combatants,
-          { ...combatants.find((x) => x.instance_id === command.instanceId) ?? found, concentration: null },
-        );
-      }
-      return done({ ...state, combatants });
-    }
+    case "end_concentration":
+      return done(endHeldConcentration(state, command.instanceId, command.spell, events));
     case "start_concentration":
       return done(editCombatant(state, command.instanceId, (c) => {
         if (c.party_member_id) return;
@@ -805,7 +853,13 @@ export function reduceEncounterTurn(
         events,
       );
       const shifted = removedSortedIndex < state.activeIndex ? state.activeIndex - 1 : state.activeIndex;
-      return done({ ...state, combatants, activeIndex: Math.min(shifted, Math.max(0, combatants.length - 1)) });
+      const after: EncounterTurnState = { ...state, combatants, activeIndex: Math.min(shifted, Math.max(0, combatants.length - 1)) };
+      if (!state.started || removedSortedIndex !== state.activeIndex) return done(after);
+      // The acting creature left (it fled the map, was banished): its turn is over and the next one begins as any
+      // turn does, wrapping into a new round when it was the last. The leaver's own end-of-turn conditions do not run:
+      // it is gone and nothing of its turn is left to end (app convention).
+      const step = stepTurnIndex(sortCombatantsByInitiative(combatants), removedSortedIndex - 1, 1);
+      return done(step === null ? after : startTurn(after, step, deps, events));
     }
   }
 }
