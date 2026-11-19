@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(12);
 
 -- XP for a completed quest (#1021 row 27, `20261119192723`). What would go wrong silently: a quest completed twice
 -- (reopened, then completed again) paying twice, a milestone campaign paying XP at all, or the share going to another
@@ -76,6 +76,22 @@ select is(
   (select xp_awarded_at from public.quests where id = '10300000-0000-4000-8000-000000000021'), null,
   'and does not mark it given'
 );
+-- The mark is the database's (CodeRabbit on #1227): a DM who cleared it could be paid again by reopening the quest.
+select throws_ok(
+  $$ update public.quests set xp_awarded_at = null where id = '10300000-0000-4000-8000-000000000020' $$,
+  '42501', null, 'a DM cannot clear the mark that says a quest has paid'
+);
+select throws_ok(
+  $$ update public.quests set xp_awarded_at = now() where id = '10300000-0000-4000-8000-000000000022' $$,
+  '42501', null, 'nor set it, which would cancel the first award'
+);
+insert into public.quests (id, user_id, campaign_id, title, status, xp_reward, xp_awarded_at) values
+  ('10300000-0000-4000-8000-000000000023', '10300000-0000-4000-8000-000000000001', '10300000-0000-4000-8000-000000000010', 'Copied in', 'active', 300, now());
+select is(
+  (select xp_awarded_at from public.quests where id = '10300000-0000-4000-8000-000000000023'), null,
+  'a quest made with the mark set (a copy of a paid one) starts unpaid'
+);
+
 -- Worth less than a point each: nothing given, and not used up.
 update public.quests set status = 'completed' where id = '10300000-0000-4000-8000-000000000022';
 select is(

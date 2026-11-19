@@ -4,7 +4,7 @@
       <IconWarning class="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       <span>
         <RouterLink :to="`/encounters/${flag.encounterId}`" class="underline-offset-2 hover:underline">{{ flag.name }}</RouterLink>
-        is {{ flagText(flag, level, partyIds.length) }}
+        is {{ flagText(flag, level) }}
       </span>
     </li>
   </ul>
@@ -47,7 +47,12 @@ const { data: monsters } = useMonstersByIds(() =>
     (companions.value ?? []).filter((c) => wanted.value.some((e) => e.companion_ids.includes(c.id))),
   ),
 );
-const { data: npcs } = useNpcs(() => wanted.value.some((e) => e.combatants.some((c) => c.npc_id)));
+// An NPC fights as a combatant, or stands behind a companion (its source): either needs the NPC's stat block.
+const { data: npcs } = useNpcs(
+  () =>
+    wanted.value.some((e) => e.combatants.some((c) => c.npc_id)) ||
+    (companions.value ?? []).some((c) => c.source_npc_id !== null && wanted.value.some((e) => e.companion_ids.includes(c.id))),
+);
 const { byId: trapsById } = useTrapResolver(
   () => ({ includeAllScopes: true }),
   () => wanted.value.flatMap((e) => e.library_trap_ids),

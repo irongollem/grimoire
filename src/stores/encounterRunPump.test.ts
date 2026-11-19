@@ -15,6 +15,7 @@ vi.mock("@/composables/useToast", () => ({
 vi.mock("@/lib/toast", () => ({ toast: { error: toasts.error, info: vi.fn(), fromError: (_e: unknown, fallback: string) => fallback } }));
 
 import { useEncounterRunStore } from "@/stores/encounterRun";
+import { failedWritesNotice } from "@/stores/encounterRunPump";
 
 function creature(id: string, over: Partial<RunCombatant> = {}): RunCombatant {
   return {
@@ -107,5 +108,22 @@ describe("the store's batch pump", () => {
     expect(toasts.error).toHaveBeenCalledTimes(1);
     expect(toasts.error).toHaveBeenCalledWith(expect.stringContaining("gone"));
     expect(store.hasQueued()).toBe(false);
+  });
+});
+
+describe("failedWritesNotice", () => {
+  const answer = (effectFailures: string[]) => ({ effectFailures }) as unknown as FightAnswer;
+
+  it("says nothing when every write landed", () => {
+    expect(failedWritesNotice(answer([]))).toBeNull();
+  });
+
+  // A missing XP award shows on no sheet at a glance, so the DM must be told it by name (CodeRabbit on #1227).
+  it("names the fight's XP when its award failed", () => {
+    expect(failedWritesNotice(answer(["player_persist: down", "fight_xp: down"]))).toContain("XP");
+  });
+
+  it("speaks of the sheets for any other failed write", () => {
+    expect(failedWritesNotice(answer(["player_persist: down"]))).not.toContain("XP");
   });
 });

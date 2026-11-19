@@ -109,4 +109,13 @@ describe("LevelMilestoneEditor", () => {
     expect(wrapper.emitted("done")).toBeUndefined();
     expect(wrapper.text()).toContain("cannot need more items");
   });
+
+  // CodeRabbit on #1227: a quest deleted since the milestone was saved left it needing 3 of 2, and saving only its note
+  // was refused by the database.
+  it("opening a milestone that needs more than it now lists asks only for what it lists", async () => {
+    const wrapper = mountEditor({ ...existing, needs: 3, items: existing.items.slice(0, 2) });
+    await wrapper.find("form").trigger("submit");
+    await flushPromises();
+    expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ needs: 2 }));
+  });
 });

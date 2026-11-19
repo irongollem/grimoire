@@ -25,7 +25,8 @@ export interface LevelStations<M extends PlanMilestone = PlanMilestone> {
 export function levelStations<M extends PlanMilestone>(milestones: readonly M[], partyLevel: number | null): LevelStations<M> {
   const sorted = [...milestones].sort((a, b) => a.level - b.level);
   const reachedAll = sorted.filter((m) => m.reachedAt !== null);
-  const upcoming = sorted.filter((m) => m.reachedAt === null).slice(0, 2);
+  // A milestone at or below a level the DM set by hand is behind the party, reached or not: it is no "next".
+  const upcoming = sorted.filter((m) => m.reachedAt === null && m.level > (partyLevel ?? 1)).slice(0, 2);
   const highest = Math.max(partyLevel ?? 1, ...sorted.map((m) => m.level));
   return {
     reached: reachedAll.at(-1) ?? null,
@@ -41,6 +42,8 @@ export interface FightFlag {
   encounterId: string;
   name: string;
   label: DifficultyLabel;
+  /** How many characters it was rated for: the encounter's own party when it names one, else the whole party. */
+  partySize: number;
 }
 
 /**
@@ -63,12 +66,13 @@ export function fightFlags(input: {
     .flatMap((e) => {
       const source = e.party_member_ids.length > 0 ? e : { ...e, party_member_ids: [...input.partyIds] };
       const label = encounterDifficulty(source, atLevel).label;
-      return FLAGGED.has(label) ? [{ encounterId: e.id, name: e.name, label }] : [];
+      return FLAGGED.has(label) ? [{ encounterId: e.id, name: e.name, label, partySize: source.party_member_ids.length }] : [];
     });
 }
 
-/** How a flagged fight is said: "Deadly for a level-4 party of four". */
-export function flagText(flag: FightFlag, level: number, partySize: number): string {
+/** How a flagged fight is said: "Deadly for a level-4 party of four", with the party it was rated for. */
+export function flagText(flag: FightFlag, level: number): string {
+  const partySize = flag.partySize;
   const verdict = flag.label === "Trivial" ? "Trivial" : flag.label === "Legendary" ? "Far beyond Deadly" : "Deadly";
   return `${verdict} for a level-${level} party of ${partySize === 1 ? "one" : NUMBER_WORDS[partySize] ?? partySize}`;
 }

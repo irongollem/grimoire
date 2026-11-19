@@ -50,7 +50,7 @@ Unless the campaign uses the **Experience Points** rule, the party levels by mil
 
 When the count is reached the milestone shows **reached**, the **party level** rises to it, and the table hears it in chat. Every character below the party level gets **Ready to level up** on their sheet, and the player levels up their own character through the usual Level Up. You do it yourself only for a character nobody plays. The party level never drops by itself; set it by hand at the top of the card, for example to start the campaign at level 3. Your players never see the milestones or the quests they wait on, only the level they bring.
 
-With the **Experience Points** rule on instead, there is no Levels card: when you end a fight the party won, the XP of the foes brought down is shared equally among the characters who were in it, and the table hears it in chat. You award any other XP (a quest, a clever escape) with **Award** at the top of the roster.
+With the **Experience Points** rule on instead, there is no Levels card: when you end a fight the party won, the XP of the foes brought down is shared equally among the characters who were in it, and the table hears it in chat. A quest with a **Worth** set pays it by itself the first time it is completed, shared the same way. Use **Award** at the top of the roster only for XP nothing else gives: a quest with no Worth, a clever escape, good roleplay.
 
 **Deeds** are separate: what the party has earned along the way, such as renown, a title or a promise. A quest's **Deed** payoff adds one, or you add one by hand.
 

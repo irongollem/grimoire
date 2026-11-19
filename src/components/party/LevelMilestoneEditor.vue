@@ -113,11 +113,13 @@ const errorText = ref<string | null>(null);
 const needsChoices = computed(() => Array.from({ length: Math.max(items.value.length, 1) }, (_, i) => i + 1));
 
 // "Any K of these": K can never be more than the list, so removing an item pulls it down with it.
+// Also when the editor opens: a quest deleted since the milestone was saved leaves it needing more than it lists.
 watch(
   () => items.value.length,
   (count) => {
     if (count > 0 && needs.value > count) needs.value = count;
   },
+  { immediate: true },
 );
 
 const pickable = computed(() => {

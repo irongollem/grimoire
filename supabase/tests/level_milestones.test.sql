@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(18);
 
 -- Level milestones (#1021 row 27, `20261119184525`). The maintainer: a level often comes "when 3 large quests are
 -- completed", in whatever order the players choose. What would go wrong silently: a milestone that fires on the
@@ -125,6 +125,19 @@ select public.save_level_milestone(
 select is((select party_level from public.campaigns where id = '10280000-0000-4000-8000-000000000010'), 7::smallint, 'an edited milestone already met is reached at its new level');
 select isnt((select reached_at from public.level_milestones where id = '10280000-0000-4000-8000-000000000040'), null, 'and is marked reached again');
 reset role;
+
+-- ── A campaign that levels by experience ────────────────────────────────────
+-- Its milestones mean nothing while the rule is on (CodeRabbit on #1227): a met one is not reached, the level stays.
+insert into public.campaign_rules (campaign_id, rule_key, enabled) values ('10280000-0000-4000-8000-000000000010', 'xp_levelling', true);
+insert into public.level_milestones (id, campaign_id, user_id, level, needs)
+values ('10280000-0000-4000-8000-000000000041', '10280000-0000-4000-8000-000000000010', '10280000-0000-4000-8000-000000000001', 9, 1);
+insert into public.level_milestone_steps (milestone_id, campaign_id, user_id, quest_id)
+values ('10280000-0000-4000-8000-000000000041', '10280000-0000-4000-8000-000000000010', '10280000-0000-4000-8000-000000000001', '10280000-0000-4000-8000-000000000020');
+select is(
+  (select reached_at from public.level_milestones where id = '10280000-0000-4000-8000-000000000041'), null,
+  'a milestone met in a campaign that levels by experience is not reached'
+);
+delete from public.campaign_rules where campaign_id = '10280000-0000-4000-8000-000000000010';
 
 -- ── Who sees what ───────────────────────────────────────────────────────────
 set local role authenticated;

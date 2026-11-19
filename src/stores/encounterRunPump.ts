@@ -58,7 +58,12 @@ export interface IdleWork {
 
 /** What the DM is told when a save went through but a write after it (a character's sheet, the chat) did not; null when all landed. */
 export function failedWritesNotice(answer: FightAnswer): string | null {
-  return answer.effectFailures.length > 0 ? "A character's sheet or the chat did not take the latest change. Check it before you carry on." : null;
+  if (answer.effectFailures.length === 0) return null;
+  // The fight's XP is the one write a DM cannot see is missing on a sheet at a glance, so it is named.
+  if (answer.effectFailures.some((f) => f.startsWith("fight_xp"))) {
+    return "The fight's XP could not be given. Award it from the Party page, and check the characters' sheets before you carry on.";
+  }
+  return "A character's sheet or the chat did not take the latest change. Check it before you carry on.";
 }
 
 /** Reported from a timer: a throw inside a listener does not reliably reach Sentry. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closedLevels, keptProposals, prepPrompt, proposalInput, type PrepDigest, type PrepExisting } from "./campaignPrep";
+import { closedLevels, keptProposals, questIdsForTitles, prepPrompt, proposalInput, type PrepDigest, type PrepExisting } from "./campaignPrep";
 
 // Prep proposing where the party's levels come (#1021 row 27). What would go wrong silently: a milestone proposed in
 // a campaign that levels by XP (where it means nothing), a level proposed twice or over one the DM already set, or a
@@ -52,5 +52,29 @@ describe("milestone proposals", () => {
     const set = prepPrompt(digest(levelling({ partyLevel: 2, milestones: [{ level: 2, needs: 1, quests: ["Before the Count"] }] })));
     expect(set).toContain("Its level now: 2");
     expect(set).toContain("Level 2: any 1 of Before the Count");
+  });
+});
+
+describe("questIdsForTitles", () => {
+  const quests = [
+    { id: "q1", title: "The  Salt Road" },
+    { id: "q2", title: "Before the Count" },
+    { id: "q3", title: "The Old Map" },
+    { id: "q4", title: "the old map" },
+  ];
+
+  // CodeRabbit on #1227: the parser collapses "The  Salt Road" to one space, and the lookup kept both, so a title the
+  // model copied exactly found nothing.
+  it("matches a title the way the parser keeps it: spaces collapsed, case ignored", () => {
+    expect(questIdsForTitles(quests, ["The Salt Road", "BEFORE THE COUNT"])).toEqual({ ok: true, ids: ["q1", "q2"] });
+  });
+
+  // CodeRabbit on #1227: titles are not unique, and the last quest of a shared title was silently taken.
+  it("refuses a title two quests share rather than guess which", () => {
+    expect(questIdsForTitles(quests, ["The Old Map"])).toMatchObject({ ok: false, reason: expect.stringContaining("Two quests") });
+  });
+
+  it("refuses a title the campaign does not have", () => {
+    expect(questIdsForTitles(quests, ["The Salt Road", "A made-up quest"])).toMatchObject({ ok: false });
   });
 });

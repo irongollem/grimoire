@@ -69,7 +69,8 @@ const rows = computed(() =>
   }),
 );
 
-const openQuests = computed(() => quests.filter((q) => q.status === "active" || q.status === "undiscovered"));
+// A quest already paid (reopened since) pays nothing again (`award_quest_xp`), so it is no promise here.
+const openQuests = computed(() => quests.filter((q) => (q.status === "active" || q.status === "undiscovered") && q.xp_awarded_at === null));
 const worths = computed(() =>
   questWorths(openQuests.value, party.map((m) => ({ level: m.level, experience_points: m.experience_points ?? 0 })))
     // The quests worth the most first; the ones with no worth last, where Set it asks for it.

@@ -8,7 +8,9 @@ import { FightRequestError, isRetryable, observedFromRow, postFightBatch, retryD
 
 const refusal = (status: number, error: string) => ({ data: null, error: { message: "non-2xx", context: new Response(JSON.stringify({ error }), { status }) } });
 const offline = () => ({ data: null, error: { message: "Failed to send a request", context: new TypeError("fetch failed") } });
-const ok = { data: { applied: true, version: 2 }, error: null };
+// The server's answer always lists the writes after its save that failed; none here.
+const ok = { data: { applied: true, version: 2, effectFailures: [] as string[] }, error: null };
+const okBut = (...failures: string[]) => ({ data: { applied: true, version: 2, effectFailures: failures }, error: null });
 
 beforeEach(() => {
   net.invoke.mockReset();
@@ -53,6 +55,31 @@ describe("sendAlone", () => {
     const ids = net.invoke.mock.calls.map(([, init]) => (init.body as { batchId: string }).batchId);
     expect(ids).toHaveLength(2);
     expect(ids[1]).toBe(ids[0]);
+  });
+
+  // CodeRabbit on #1227: the ended fight's XP failed to be given, the runner was reset, and a new End combat is refused
+  // for an ended fight, so the XP was never given. The same batch again makes the server do its writes again.
+  it("fails if an End combat whose writes after the save failed is not sent again with the same batch", async () => {
+    net.invoke.mockResolvedValueOnce(okBut("fight_xp: down")).mockResolvedValue(ok);
+    const sent = sendAlone("e", { type: "end_combat" });
+    await vi.advanceTimersByTimeAsync(600);
+    expect((await sent).answer.effectFailures).toEqual([]);
+    const ids = net.invoke.mock.calls.map(([, init]) => (init.body as { batchId: string }).batchId);
+    expect(ids).toEqual([ids[0], ids[0]]);
+  });
+
+  it("stops sending again after its tries, and hands back what still failed", async () => {
+    net.invoke.mockResolvedValue(okBut("fight_xp: down"));
+    const sent = sendAlone("e", { type: "end_combat" });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect((await sent).answer.effectFailures).toEqual(["fight_xp: down"]);
+    expect(net.invoke).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not send a fight command again for a failed write: only closing a fight is done again by its replay", async () => {
+    net.invoke.mockResolvedValue(okBut("roll: down"));
+    await sendAlone("e", { type: "go_private" });
+    expect(net.invoke).toHaveBeenCalledTimes(1);
   });
 
   it("gives up after its tries and throws the last error, and never retries a refusal", async () => {

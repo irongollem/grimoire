@@ -123,6 +123,18 @@ begin
   if v_owner is null then
     return;
   end if;
+  -- A campaign that levels by experience keeps its milestones as they are: they mean nothing while the rule is on,
+  -- and are counted again from the first change after it is turned off.
+  if exists (
+    select 1 from public.campaign_rules r
+     where r.campaign_id = p_campaign_id and r.rule_key = 'xp_levelling' and r.enabled
+  ) then
+    return;
+  end if;
+  -- One count at a time per campaign. Two quests completed at once each count under their own snapshot, and without
+  -- this each could miss the other's completion and leave a milestone met by both unreached. Held to the end of the
+  -- transaction, so the second count, which waits here, starts after the first commits and sees its completion.
+  perform pg_advisory_xact_lock(hashtextextended(p_campaign_id::text || ':level_milestones', 0));
 
   for v_milestone in
     select m.id, m.level, m.needs from public.level_milestones m

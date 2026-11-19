@@ -10,7 +10,7 @@ import { toPlainText } from "../_shared/ai-prompt.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { recordGeneration, releaseCredits, reserveCredits, reservationRefusal } from "../_shared/credits.ts";
 import { loadAgentCalibration, loadModelPrice, resolveAgentProvider } from "../_shared/agent/providerIo.ts";
-import { closedLevels, rollTableEntries, type PrepDigest } from "../_shared/campaignPrep.ts";
+import { closedLevels, questIdsForTitles, rollTableEntries, type PrepDigest } from "../_shared/campaignPrep.ts";
 import { prepCampaign, type PrepDeps } from "./handler.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -214,9 +214,9 @@ serve(withCors(async (req: Request) => {
         // The quests by their titles, as the model read them; a title the campaign does not have makes nothing.
         const { data: rows, error } = await supabase.from("quests").select("id, title").eq("campaign_id", campaign.id);
         fail(error);
-        const byTitle = new Map((rows ?? []).map((q) => [String(q.title).trim().toLowerCase(), q.id as string]));
-        const ids = proposal.quests.map((t) => byTitle.get(t.trim().toLowerCase()));
-        if (ids.some((id) => id === undefined)) throw new Error("It names a quest this campaign does not have.");
+        const matched = questIdsForTitles((rows ?? []) as Array<{ id: string; title: string }>, proposal.quests);
+        if (!matched.ok) throw new Error(matched.reason);
+        const ids = matched.ids;
         // The editor's own call: written as the DM, under the same rules.
         fail((await supabase.rpc("save_level_milestone", {
           p_campaign_id: campaign.id, p_milestone_id: null, p_level: proposal.level, p_needs: proposal.needs,

@@ -223,6 +223,29 @@ export function keptProposals(raw: unknown, existing: PrepExisting): Proposal[] 
   return kept;
 }
 
+/** A title as the proposal and the campaign are matched on: spaces collapsed, as the parser keeps it, and case ignored. */
+const titleKey = (t: string): string => t.trim().replace(/\s+/g, " ").toLowerCase();
+
+/**
+ * The quests a proposed milestone names, by title, as ids; or why it cannot be made. Quest titles are not unique in a
+ * campaign, so a title two quests share names neither: guessing would tie the level to a quest the DM did not mean.
+ */
+export function questIdsForTitles(
+  quests: ReadonlyArray<{ id: string; title: string }>,
+  titles: readonly string[],
+): { ok: true; ids: string[] } | { ok: false; reason: string } {
+  const byTitle = new Map<string, string[]>();
+  for (const q of quests) byTitle.set(titleKey(q.title), [...(byTitle.get(titleKey(q.title)) ?? []), q.id]);
+  const ids: string[] = [];
+  for (const title of titles) {
+    const found = byTitle.get(titleKey(title)) ?? [];
+    if (found.length === 0) return { ok: false, reason: `It names a quest this campaign does not have: ${title}.` };
+    if (found.length > 1) return { ok: false, reason: `Two quests are called ${title}; set this level on the Party page instead.` };
+    ids.push(found[0]!);
+  }
+  return { ok: true, ids };
+}
+
 /** The levels a milestone may not be proposed for: every one in an experience campaign, else those already set. */
 export function closedLevels(l: PrepDigest["levelling"]): Set<string> {
   if (l.mode === "experience") return new Set(Array.from({ length: 19 }, (_, i) => `level ${i + 2}`));

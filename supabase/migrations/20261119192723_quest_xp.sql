@@ -43,6 +43,7 @@ security definer
 set search_path = ''
 as $$
 declare
+  v_ids uuid[];
   v_members integer;
   v_each integer;
 begin
@@ -57,9 +58,12 @@ begin
     return new;
   end if;
 
-  select count(*) into v_members from public.party_members pm
+  -- Who is paid, read once: the share is divided by these and only these are paid, so a character added meanwhile
+  -- cannot be paid out of a share worked out without them.
+  select array_agg(pm.id) into v_ids from public.party_members pm
    where pm.campaign_id = new.campaign_id
      and not exists (select 1 from public.character_memorials cm where cm.party_member_id = pm.id and cm.restored_at is null);
+  v_members := coalesce(cardinality(v_ids), 0);
   if v_members = 0 then
     return new;
   end if;
@@ -71,8 +75,7 @@ begin
 
   update public.party_members pm
      set experience_points = pm.experience_points + v_each
-   where pm.campaign_id = new.campaign_id
-     and not exists (select 1 from public.character_memorials cm where cm.party_member_id = pm.id and cm.restored_at is null);
+   where pm.id = any (v_ids);
   new.xp_awarded_at := now();
 
   insert into public.campaign_messages (campaign_id, user_id, sender_name, message, type)
@@ -85,6 +88,32 @@ $$;
 
 revoke execute on function private.award_quest_xp() from public, anon, authenticated;
 
-create trigger quests_award_xp
+-- Named to run after every other BEFORE trigger on quests (they fire in name order), so the guard below sees only
+-- what the writer sent, and this is the one thing that ever sets the mark.
+create trigger quests_zz_award_xp
   before update of status on public.quests
   for each row execute procedure private.award_quest_xp();
+
+-- The mark is the database's alone. A writer who could clear it would be paid again by reopening the quest; one who
+-- could set it would cancel the first award. An inserted quest starts unpaid, whatever it was copied from (a demo
+-- copy, a copy to another campaign): it pays when it is completed there.
+create or replace function private.guard_quest_xp_awarded()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if tg_op = 'INSERT' then
+    new.xp_awarded_at := null;
+  elsif new.xp_awarded_at is distinct from old.xp_awarded_at then
+    raise exception 'When a quest''s XP was given is set by the database only' using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function private.guard_quest_xp_awarded() from public, anon, authenticated;
+
+create trigger quests_guard_xp_awarded
+  before insert or update on public.quests
+  for each row execute procedure private.guard_quest_xp_awarded();

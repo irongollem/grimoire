@@ -130,6 +130,9 @@ export function retryDelayMs(failures: number): number {
 
 export const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** The commands whose writes after the save the server does again when the same batch is sent again. */
+const CLOSING: ReadonlySet<string> = new Set(["end_combat", "abandon"]);
+
 /**
  * Sends one command that goes alone (open, go_live, go_private, end_combat, abandon, take_turn, sync_party) with its own
  * batch id, made once and kept across the tries so a reply lost after the server applied it is answered, not
@@ -139,7 +142,17 @@ export async function sendAlone(encounterId: string, command: WireCommand, attem
   const batchId = crypto.randomUUID();
   for (let failures = 0; ; ) {
     try {
-      return { answer: await postFightBatch(encounterId, batchId, [command]), batchId };
+      const answer = await postFightBatch(encounterId, batchId, [command]);
+      // Ending a fight saves it first and then writes the sheets, the party's standing and the XP; a write that failed
+      // comes back listed. The same batch sent again is answered by doing those writes again (the server's replay),
+      // each a value or given once, so it is the one way they still happen: a new End combat is refused for an ended
+      // fight (#1021 row 27, CodeRabbit on #1227).
+      if (answer.effectFailures.length > 0 && CLOSING.has(command.type) && failures + 1 < attempts) {
+        failures += 1;
+        await wait(retryDelayMs(failures));
+        continue;
+      }
+      return { answer, batchId };
     } catch (error) {
       failures += 1;
       if (failures >= attempts || !isRetryable(error)) throw error;

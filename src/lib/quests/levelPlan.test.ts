@@ -18,6 +18,11 @@ describe("levelStations", () => {
     expect(levelStations([], null).open).toBe(2);
   });
 
+  // CodeRabbit on #1227: the DM set the party to 6 by hand; an unreached level-4 milestone is behind them, not next.
+  it("does not call a milestone at or below the party level 'next'", () => {
+    expect(levelStations([m(4), m(5), m(7)], 6).upcoming.map((x) => x.level)).toEqual([7]);
+  });
+
   it("has no level to ask for past 20", () => {
     expect(levelStations([m(20)], 19).open).toBeNull();
   });
@@ -42,8 +47,8 @@ describe("fightFlags", () => {
     });
 
   it("rates the fight at the milestone's level, not the party's level today", () => {
-    expect(flags(1)).toEqual([{ encounterId: "e1", name: "The Drowned Shrine", label: "Deadly" }]);
-    expect(flags(4)).toEqual([{ encounterId: "e1", name: "The Drowned Shrine", label: "Trivial" }]);
+    expect(flags(1)).toEqual([{ encounterId: "e1", name: "The Drowned Shrine", label: "Deadly", partySize: 4 }]);
+    expect(flags(4)).toEqual([{ encounterId: "e1", name: "The Drowned Shrine", label: "Trivial", partySize: 4 }]);
   });
 
   it("stays quiet about a fight that is merely Medium or Hard", () => {
@@ -58,13 +63,14 @@ describe("fightFlags", () => {
   it("judges a fight with no party of its own against the whole party", () => {
     // One character at level 1: Deadly threshold 100; with the whole party of four it is 400. 450 is Deadly either
     // way, so use level 2 where four characters make it Medium (quiet) but one alone makes it Legendary.
-    expect(flags(2, { party_member_ids: ["a"] }).map((f) => f.label)).toEqual(["Legendary"]);
+    // And says so: rated for the one character the encounter names, not the four of the campaign (CodeRabbit on #1227).
+    expect(flags(2, { party_member_ids: ["a"] }).map((f) => [f.label, f.partySize])).toEqual([["Legendary", 1]]);
     expect(flags(2)).toEqual([]);
   });
 
   it("says it in words", () => {
-    expect(flagText({ encounterId: "e1", name: "x", label: "Deadly" }, 4, 4)).toBe("Deadly for a level-4 party of four");
-    expect(flagText({ encounterId: "e1", name: "x", label: "Legendary" }, 4, 1)).toBe("Far beyond Deadly for a level-4 party of one");
+    expect(flagText({ encounterId: "e1", name: "x", label: "Deadly", partySize: 4 }, 4)).toBe("Deadly for a level-4 party of four");
+    expect(flagText({ encounterId: "e1", name: "x", label: "Legendary", partySize: 1 }, 4)).toBe("Far beyond Deadly for a level-4 party of one");
   });
 });
 
