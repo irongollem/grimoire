@@ -139,7 +139,7 @@ export function useSoloFightHost(options: {
       // A creature with nobody left standing to fight has nothing to do: its turn passes without a word. Seen in
       // play: with the played character down, every round wrote "has no turn to take" once per creature.
       const mover = store.combatants.find((c) => c.instance_id === instanceId);
-      if (mover && !hasSomeoneToFight(mover, store.combatants)) return true;
+      if (mover && !hasSomeoneToFight(mover, store.combatants, store.factions)) return true;
       try {
         const before = { playedHp: played.value === null ? null : played.value.hp, defences: defencesShown() };
         const { turn, outcomes, provokedPlayer } = await fight.takeTurn(instanceId);

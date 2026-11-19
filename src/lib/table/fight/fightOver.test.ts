@@ -55,8 +55,10 @@ describe("hasSomeoneToFight", () => {
   const cat = { instance_id: "cat", faction_id: "enemy" };
   // Bug caught (seen in play): with the played character down, each creature's turn was sent to the server, refused,
   // and written into the story as "has no turn to take", once per creature, every round.
-  it("is false when everyone of another faction is down, and true while one of them stands", () => {
-    expect(hasSomeoneToFight(cat, [{ ...cat, hp: 22 }, { instance_id: "me", faction_id: "players", hp: 0 }, { instance_id: "cat2", faction_id: "enemy", hp: 9 }])).toBe(false);
-    expect(hasSomeoneToFight(cat, [{ ...cat, hp: 22 }, { instance_id: "me", faction_id: "players", hp: 0 }, { instance_id: "folio", faction_id: "players", hp: 4 }])).toBe(true);
+  it("is false when every opponent is down, and true while one of them stands", () => {
+    expect(hasSomeoneToFight(cat, [{ ...cat, hp: 22 }, { instance_id: "me", faction_id: "players", hp: 0 }, { instance_id: "cat2", faction_id: "enemy", hp: 9 }], factions)).toBe(false);
+    expect(hasSomeoneToFight(cat, [{ ...cat, hp: 22 }, { instance_id: "me", faction_id: "players", hp: 0 }, { instance_id: "folio", faction_id: "players", hp: 4 }], factions)).toBe(true);
+    // Someone on the Ally side is standing, and is no foe of the Players' foe unless the factions say so.
+    expect(hasSomeoneToFight({ instance_id: "me", faction_id: "players" }, [{ instance_id: "friend", faction_id: "ally", hp: 9 }], factions)).toBe(false);
   });
 });

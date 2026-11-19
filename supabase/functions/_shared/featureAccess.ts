@@ -20,6 +20,9 @@ export async function hasFeature(admin: SupabaseClient, userId: string, feature:
 }
 
 /**
+ * AI is on for a campaign only when its owner said so (`ai_enabled === true`): an undecided campaign (null) is off,
+ * as the page has it (`campaign.isAiEnabled`). Every handler of the table refuses on `!== true`.
+ *
  * The campaign's own AI switch, as the table's functions should read it: off when the owner has not been granted
  * the table, whatever the campaign says. A campaign with AI already off is not looked up.
  */

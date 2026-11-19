@@ -130,6 +130,8 @@ describe("telling a sitting as a story", () => {
     const off = harness();
     off.aiEnabled = false;
     expect(await tell(off)).toEqual({ ok: false, status: 403, error: RECAP_MESSAGES.aiOff });
+    off.aiEnabled = null; // undecided is off too, as the page has it
+    expect(await tell(off)).toEqual({ ok: false, status: 403, error: RECAP_MESSAGES.aiOff });
     expect([...broke.prompts, ...off.prompts]).toEqual([]);
   });
 });

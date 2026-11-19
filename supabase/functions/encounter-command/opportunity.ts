@@ -19,7 +19,7 @@ import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
 import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
 import { isDisengaged, isIncapacitated } from "../../../src/rules/fight/stances.ts";
 import { withNumbers } from "../../../src/rules/fight/tactics/numbers.ts";
-import { isHostileTo } from "../../../src/rules/fight/terrain/reach.ts";
+import { isHostileTo } from "../../../src/rules/fight/sides.ts";
 import {
   DEFAULT_REACH_FEET,
   distanceFeet,
@@ -62,7 +62,7 @@ export function validateProvokeCommand(command: Record<string, unknown>): void {
 /** The opportunity attacks a path provokes, worked out from the fight as it stands now (never from a plan made earlier). */
 export function provokedBy(state: FightState, mover: RunCombatant, path: readonly { x: number; y: number }[], env: ResolveEnv): ProvokedAttack[] {
   const enemies = state.combatants
-    .filter((c) => c.instance_id !== mover.instance_id && isOnBoard(c) && c.hp > 0 && isHostileTo(mover, c))
+    .filter((c) => c.instance_id !== mover.instance_id && isOnBoard(c) && c.hp > 0 && isHostileTo(mover, c, env.factions))
     .map((c) => ({
       id: c.instance_id,
       box: { anchor: c.position as { x: number; y: number }, footprint: combatantFootprint(c) },

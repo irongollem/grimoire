@@ -25,7 +25,8 @@ import type { MapExit } from "../../../lib/battlemap/mapExits.ts";
 import type { WayOut } from "../tactics/wayOut.ts";
 import type { CastNow } from "../spells/castNow.ts";
 import { reachTerrainOf, type FightMap } from "./battleMap.ts";
-import { coverCells, isHostileTo, reachable, type ReachCell, type ReachResult } from "./reach.ts";
+import { coverCells, reachable, type ReachCell, type ReachResult } from "./reach.ts";
+import { isHostileTo, type FactionSides } from "../sides.ts";
 import {
   attackFrom,
   coverBetween,
@@ -176,6 +177,11 @@ export interface TurnOptionsInput {
   kindOf?: (c: RunCombatant) => string | null;
   /** The ability the mover would check with to break free of a condition (`strongestBreakFreeAbility`); left out, the first the condition allows. */
   breakFreeAbility?: (way: NonNullable<AppliedCondition["breakFree"]>) => SaveAbility;
+  /**
+   * The fight's factions, which say who fights whom (`sides.ts`): an Ally is no foe of the Players. Left out, a
+   * fight declares no faction and a different faction is an opponent.
+   */
+  factions?: FactionSides;
 }
 
 // ── who is on the board ─────────────────────────────────────────────────────────
@@ -725,8 +731,8 @@ function spellOptionsOf(input: TurnOptionsInput, mover: RunCombatant, names: Rea
   const living = input.combatants.filter((c) => c.instance_id !== mover.instance_id && isLiving(c) && (scene === null || isOnBoard(c)));
   const targetings = spellTargetings({
     mover,
-    hostiles: living.filter((c) => isHostileTo(mover, c)),
-    allies: living.filter((c) => !isHostileTo(mover, c)),
+    hostiles: living.filter((c) => isHostileTo(mover, c, input.factions ?? [])),
+    allies: living.filter((c) => !isHostileTo(mover, c, input.factions ?? [])),
     scene: scene === null ? null : { occluders: scene.map.occluders, onBoard: input.combatants.filter(isOnBoard) },
     spells: input.spells,
     kindOf: input.kindOf,
@@ -787,7 +793,7 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
   const actionFree = mover.action_used !== true;
   const names = new Map(input.combatants.map((c) => [c.instance_id, c.name]));
   const planned = plannedAttacks(input.attacks.filter((a) => listIsOpen(mover, a.list)));
-  const hostileTargets = input.combatants.filter((c) => c.instance_id !== mover.instance_id && isLiving(c) && isHostileTo(mover, c));
+  const hostileTargets = input.combatants.filter((c) => c.instance_id !== mover.instance_id && isLiving(c) && isHostileTo(mover, c, input.factions ?? []));
 
   const measurable = input.map !== null && input.budgetFeet !== null && isOnBoard(mover);
   const options: { option: TurnOption; nearness: number }[] = [];
@@ -803,13 +809,13 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
   const map = input.map as FightMap;
   const budget = input.budgetFeet as number;
   const onBoard = input.combatants.filter((c) => c.instance_id !== mover.instance_id && isOnBoard(c));
-  const hostiles = onBoard.filter((c) => isLiving(c) && isHostileTo(mover, c));
+  const hostiles = onBoard.filter((c) => isLiving(c) && isHostileTo(mover, c, input.factions ?? []));
   const search = (budgetFeet: number) =>
     reachable({
       mover: { anchor: mover.position ?? null, footprint: combatantFootprint(mover), size: sizeOf(mover) },
       budgetFeet,
       terrain: reachTerrainOf(map, [mover, ...onBoard].map((c) => ({ anchor: boxOf(c).anchor, footprint: combatantFootprint(c) }))),
-      others: onBoard.map((o) => ({ anchor: boxOf(o).anchor, footprint: combatantFootprint(o), size: sizeOf(o), hostile: isHostileTo(mover, o), incapacitated: isIncapacitated(o) })),
+      others: onBoard.map((o) => ({ anchor: boxOf(o).anchor, footprint: combatantFootprint(o), size: sizeOf(o), hostile: isHostileTo(mover, o, input.factions ?? []), incapacitated: isIncapacitated(o) })),
       ruleset: input.ruleset,
     });
   const scene: Scene = {

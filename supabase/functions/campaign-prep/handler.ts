@@ -68,7 +68,7 @@ export async function prepCampaign(input: { userId: string; body: unknown; deps:
   const campaign = await deps.loadCampaign(body.campaignId);
   // Anyone but the campaign's DM is told it does not exist: a 403 would say it does.
   if (!campaign || !(await deps.isDm(campaign, userId))) return refuse(404, PREP_MESSAGES.notFound);
-  if (campaign.ai_enabled === false) return refuse(403, PREP_MESSAGES.aiOff);
+  if (campaign.ai_enabled !== true) return refuse(403, PREP_MESSAGES.aiOff);
 
   if (body.action === "create") {
     // Checked again from nothing: the list comes from the page, and what exists may have changed since it was proposed.

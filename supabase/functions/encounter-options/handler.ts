@@ -6,6 +6,7 @@
 // A creature with no stat block (a player character, a lost source) has no attacks to offer: it gets Dodge and the
 // movement options only, because a player picks their own turn. Its speed is the character sheet's.
 
+import type { FactionSides } from "../../../src/rules/fight/sides.ts";
 import { fightMapOf, type FightMapInput } from "../../../src/rules/fight/terrain/battleMap.ts";
 import type { TurnOption } from "../../../src/rules/fight/terrain/turnOptions.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
@@ -46,6 +47,8 @@ export interface OptionsFight {
   version: number;
   combatants: RunCombatant[];
   ruleset: RulesetKey;
+  /** The encounter's factions: who fights whom (`src/rules/fight/sides.ts`). */
+  factions: FactionSides;
 }
 
 /** Reads only. Each is already bound to the encounter's campaign by the caller, and every query is scoped to it. */
@@ -90,6 +93,7 @@ export async function computeOptions(request: OptionsRequest, deps: OptionsDeps)
     sources,
     members,
     map: mapInput === null ? null : fightMapOf(mapInput),
+    factions: fight.factions,
     spellRecords,
   });
   return { version: fight.version, options };

@@ -1,5 +1,5 @@
 import type { FactionDef, RunCombatant } from "@/types/encounter.types";
-import { areHostile } from "@/lib/table/fight/foeView";
+import { areHostile } from "@/rules/fight/sides";
 
 /**
  * The rules of the played character's map at the AI table (#1021, Solo Table canvas, frames 12 and 13). They are

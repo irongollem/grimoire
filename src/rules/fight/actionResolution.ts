@@ -438,7 +438,7 @@ function endHarmedConditions(ctx: ResolutionContext, target: RunCombatant, attac
   }
 }
 
-/** Whether `creature` is the source or in the source's faction, the same notion of sides `isHostileTo` uses (a different faction is a foe). */
+/** Whether `creature` is the source or in the source's faction, which is a narrower thing than who fights whom (`sides.ts`): a spell that ends when the caster's side harms its target means the caster's own faction. */
 function onSideOf(ctx: ResolutionContext, sourceId: string | undefined, creature: RunCombatant): boolean {
   if (sourceId === undefined) return false;
   if (creature.instance_id === sourceId) return true;

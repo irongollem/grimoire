@@ -1,5 +1,6 @@
 import type { FactionDef, RunCombatant } from "@/types/encounter.types";
 import { healthWord } from "@/lib/encounters/healthWord";
+import { areHostile } from "@/rules/fight/sides";
 
 export type SeenHealth =
   | { kind: "numbers"; hp: number; maxHp: number }
@@ -11,17 +12,6 @@ export interface SeenCombatant {
   isYou: boolean;
   side: "you" | "foe" | "other";
   health: SeenHealth;
-}
-
-/** Whether two factions fight each other, read in either direction (hostility is not always declared on both). */
-export function areHostile(
-  factions: readonly Pick<FactionDef, "id" | "hostile_to">[],
-  a: string,
-  b: string,
-): boolean {
-  if (a === b) return false;
-  const hostileTo = (from: string, to: string) => factions.find((f) => f.id === from)?.hostile_to.includes(to) === true;
-  return hostileTo(a, b) || hostileTo(b, a);
 }
 
 /**

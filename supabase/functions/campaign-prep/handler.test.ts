@@ -101,6 +101,8 @@ describe("proposing", () => {
     const off = harness();
     off.aiEnabled = false;
     expect(await ask(off, { action: "propose" })).toEqual({ ok: false, status: 403, error: PREP_MESSAGES.aiOff });
+    off.aiEnabled = null; // undecided is off too, as the page has it
+    expect(await ask(off, { action: "propose" })).toEqual({ ok: false, status: 403, error: PREP_MESSAGES.aiOff });
     expect(stranger.calls + off.calls).toBe(0);
   });
 });

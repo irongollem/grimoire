@@ -22,11 +22,19 @@ export interface SpeechEnv {
   elevenKey: string | undefined;
   inworldKey: string | undefined;
   elevenModel: string;
+  /** The stack's own switch for spoken lines (`TABLE_VOICE_TRIAL=on`): a key alone does not turn voices on. */
+  trialOn: boolean;
 }
+
+/**
+ * Whether this stack speaks at all: the first service's key and the switch, both. The one reading of it, for the
+ * function that speaks a line, the one that reads a note aloud, and a turn of the table deciding whether to key its lines.
+ */
+export const voicesOn = (env: SpeechEnv): boolean => !!env.elevenKey && env.trialOn;
 
 export function speechEnvFrom(env: (key: string) => string | undefined): SpeechEnv {
   const named = env("TABLE_VOICE_MODEL");
-  return { elevenKey: env("ELEVENLABS_API_KEY"), inworldKey: env("INWORLD_API_KEY"), elevenModel: named !== undefined && named.trim() !== "" ? named.trim() : DEFAULT_ELEVEN_MODEL };
+  return { elevenKey: env("ELEVENLABS_API_KEY"), inworldKey: env("INWORLD_API_KEY"), elevenModel: named !== undefined && named.trim() !== "" ? named.trim() : DEFAULT_ELEVEN_MODEL, trialOn: env("TABLE_VOICE_TRIAL") === "on" };
 }
 
 export const hasSpeechService = (env: SpeechEnv, service: SpeechService): boolean => (service === "inworld" ? !!env.inworldKey : !!env.elevenKey);

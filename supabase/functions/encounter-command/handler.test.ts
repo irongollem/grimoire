@@ -92,6 +92,8 @@ interface Harness {
 function harness(
   initial: FightRow | null,
   options: {
+    /** The encounter's factions; none means a fight that declares none, where a different faction is a foe. */
+    factions?: { id: string; hostile_to: string[] }[];
     events?: EncounterEvent[];
     party?: PartyIngestRow[];
     d6?: number;
@@ -140,6 +142,7 @@ function harness(
         events: options.events ?? [],
         lairEnabled: false,
         lairOwnerDefId: null,
+        factions: options.factions ?? [],
         ruleset: "2014",
         randomizeInitiativeEachRound: false,
         monsters: [],
@@ -1254,6 +1257,25 @@ describe("take_turn", () => {
     expect(h.posted.map((p) => p.result.total)).toEqual([13, 7]);
     expect(result.state.active_combatant_index).toBe(before.active_combatant_index);
     expect(result.state.current_round).toBe(before.current_round);
+  });
+
+  // App convention (`src/rules/fight/sides.ts`): the encounter's factions say who fights whom. Bug caught: the server
+  // taking "a different faction" for a foe, so a wolf fighting on the Ally side bit the party it stands with.
+  it("fails if a creature on the Ally side attacks the Players instead of the Enemy", async () => {
+    const SIDES = [
+      { id: "players", hostile_to: ["enemy"] },
+      { id: "enemy", hostile_to: ["players", "ally"] },
+      { id: "ally", hostile_to: ["enemy"] },
+    ];
+    const fight = duel({
+      wolf: { faction_id: "ally" },
+      victim: { faction_id: "players" },
+      extra: [combatant("raider", { monster_id: "m-ox", faction_id: "enemy", hp: 40, max_hp: 40, ac: "13", initiative: 3, position: { x: 0, y: 4 } })],
+    });
+    const h = harness(fight, { sources: SOURCES, map: mapOf(), dieFaces: [9, 5], factions: SIDES });
+    await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(40);
+    expect(hpOf(stored(h), "raider")).toBe(33);
   });
 
   it("fails if the reply does not lead with turn_taken saying what was done, why, and that the rules picked", async () => {

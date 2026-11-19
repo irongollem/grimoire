@@ -1,6 +1,6 @@
 // table-voice (#1021): speaks one line of a sitting at the AI table. The rules are `handler.ts`'s; this file wires
-// the database and the speech service. NOT METERED: see the note at the top of `handler.ts`. It answers only where
-// ELEVENLABS_API_KEY and TABLE_VOICE_TRIAL=on are both set.
+// the database and the speech service. It answers only where the stack has
+// voices on (`voicesOn`, `_shared/speech.ts`).
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { tableAiEnabled } from "../_shared/featureAccess.ts";
@@ -12,7 +12,7 @@ import { clipName, lineKeyFits } from "../_shared/agent/lineKey.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { clipKey, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
 import { shownInTurns, speakLine, voiceRates, type TableVoiceDeps } from "./handler.ts";
-import { base64FromBytes, bytesFromBase64, hasSpeechService, loadSpeechRate, speechEnvFrom, speechModelOf, synthesizeSpeech } from "../_shared/speech.ts";
+import { base64FromBytes, bytesFromBase64, hasSpeechService, loadSpeechRate, speechEnvFrom, speechModelOf, synthesizeSpeech, voicesOn } from "../_shared/speech.ts";
 import { recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
@@ -56,7 +56,7 @@ serve(withCors(async (req: Request) => {
   }
 
   const deps: TableVoiceDeps = {
-    voiceOn: () => !!speech.elevenKey && Deno.env.get("TABLE_VOICE_TRIAL") === "on",
+    voiceOn: () => voicesOn(speech),
 
     async loadSession(sessionId) {
       const { data, error } = await admin.from("agent_sessions").select("id, user_id, campaign_id, narrator_voice").eq("id", sessionId).maybeSingle();

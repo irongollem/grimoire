@@ -84,7 +84,7 @@ export async function answerChatLine(input: { userId: string; body: unknown; dep
   const campaign = await deps.loadCampaign(line.campaign_id);
   if (!campaign) return refuse(404, REPLY_MESSAGES.notFound);
   // From here every "no" is quiet: the line was posted, and whether a character answers is not the sender's business.
-  if (campaign.ai_enabled === false) return NOBODY;
+  if (campaign.ai_enabled !== true) return NOBODY;
 
   const answered = new Set(await deps.answeredBy(line.id));
   const answering = standInsAnswering(

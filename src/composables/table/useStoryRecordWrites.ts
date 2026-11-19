@@ -1,3 +1,4 @@
+import { reportHandledError } from "@/lib/observability/sentry";
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { STORY_RECORD_KEY } from "@/lib/campaignLiveSync/registry";
@@ -56,7 +57,9 @@ export function useStoryRecordWrites() {
           .insert(ties.map((tie) => ({ ...tie, fact_id: id, campaign_id: campaignId })));
         if (linkError) {
           // A correction without the original's ties would be found by nothing: take it back rather than leave it.
-          await supabase.from("story_facts").delete().eq("id", id).eq("campaign_id", campaignId);
+          const { error: undoError } = await supabase.from("story_facts").delete().eq("id", id).eq("campaign_id", campaignId);
+          // If taking it back fails too, a fact with no ties is left behind: say so, then report why the write failed.
+          if (undoError) reportHandledError(undoError, "storyRecord.undoCorrection", { factId: id });
           throw linkError;
         }
       }

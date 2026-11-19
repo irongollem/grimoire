@@ -88,7 +88,7 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
   const listed = listedSpellNames(block);
   const spellRecords = listed.length === 0 ? [] : await env.spellsListed(listed);
   const { options, attacks, spells } = assembleTurnOptions({
-    combatants: state.combatants, mover, ruleset: state.ruleset, sources: env.sources, members: [], map: env.map, spellRecords,
+    combatants: state.combatants, mover, ruleset: state.ruleset, sources: env.sources, members: [], map: env.map, spellRecords, factions: env.factions,
   });
   if (options.length === 0) return refuse(`${mover.name} has no turn to take (it is Incapacitated).`);
 

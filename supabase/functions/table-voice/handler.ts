@@ -13,10 +13,9 @@
 //     and its key, and a line whose key does not fit is refused. So a line is voiced the moment it is shown, not
 //     once its turn is kept, and nothing about it can be changed by the page.
 //
-// NOT METERED YET. Every call is a paid request to a speech service on the platform's key, and nothing here charges
-// credits for it. So it answers only where both the key and `TABLE_VOICE_TRIAL=on` are set, which today is the
-// maintainer's own stack. Before either is set in production, voice has to be priced and charged like every other
-// generation (`_shared/credits.ts`).
+// METERED: every call is a paid request to a speech service on the platform's key. Credits are reserved before the
+// line is spoken and the cost is accrued on the sitting, billed in whole credits as they are crossed (`reserve` and
+// `charge` below; `accrue_agent_voice`). It answers only where the stack has voices on (`voicesOn`, `_shared/speech.ts`).
 
 import { VoicesSpent, type SpeechService } from "../_shared/speech.ts";
 import { creditsForSpeech, creditsPerMinute, speechChars } from "../_shared/agent/voiceCost.ts";

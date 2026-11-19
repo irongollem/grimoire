@@ -156,6 +156,8 @@ describe("making a reading", () => {
     const off = harness();
     off.aiEnabled = false;
     expect(await ask(off, "make")).toEqual({ ok: false, status: 403, error: READING_MESSAGES.aiOff });
+    off.aiEnabled = null; // undecided is off too, as the page has it
+    expect(await ask(off, "make")).toEqual({ ok: false, status: 403, error: READING_MESSAGES.aiOff });
   });
 
   // Bug caught: a long note sent as one piece past the service's limit; the pieces joined out of order.

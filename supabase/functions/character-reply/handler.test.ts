@@ -122,6 +122,8 @@ describe("answerChatLine", () => {
     const off = harness();
     off.aiEnabled = false;
     expect(await ask(off)).toEqual({ ok: true, replies: 0 });
+    off.aiEnabled = null; // undecided is off too, as the page has it
+    expect(await ask(off)).toEqual({ ok: true, replies: 0 });
     const held = harness();
     held.ownerRefused = true;
     expect(await ask(held)).toEqual({ ok: true, replies: 0 });

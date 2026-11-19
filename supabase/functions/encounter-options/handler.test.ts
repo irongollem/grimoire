@@ -50,7 +50,7 @@ interface Setup {
   spellReads?: string[][];
 }
 function deps(s: Setup): OptionsDeps {
-  const fight: OptionsFight = { version: s.version ?? 7, combatants: s.combatants, ruleset: "2014" };
+  const fight: OptionsFight = { version: s.version ?? 7, combatants: s.combatants, ruleset: "2014", factions: [] };
   return {
     loadFight: async () => fight,
     loadStatBlocks: async () => ({ monsters: s.monsters ?? [monster("m-wolf", [attack("Bite")])], npcs: [], companions: [] }),

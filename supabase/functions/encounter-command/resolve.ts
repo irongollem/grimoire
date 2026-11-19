@@ -8,6 +8,7 @@
 // server only scores them (the same `DiceRules.score` the prompt uses) and posts the roll as a person's (`manual`),
 // with no stamp.
 
+import type { FactionSides } from "../../../src/rules/fight/sides.ts";
 import { ALL_DICE, type RollResult } from "../../../src/lib/dice/dice.ts";
 import { NORMAL_ROLL, rollWithRules, type RolledFaces } from "../../../src/lib/dice/diceRules.ts";
 import { dnd5eDiceRules } from "../../../src/systems/dnd5e/dice/rules.ts";
@@ -400,6 +401,8 @@ export interface ResolveEnv {
   /** The sources a fight's own rules use (spawns); the resolving rules read their dice from `rollDie`. */
   fightDeps: FightDeps;
   sources: StatBlockSources;
+  /** The encounter's factions: who fights whom (`src/rules/fight/sides.ts`). */
+  factions: FactionSides;
   /** What the server read of the fight's player characters: their armour class and saves are worked out from it. */
   players: PlayerSheets;
   rollDie: (sides: number) => number;

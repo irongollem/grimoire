@@ -21,7 +21,8 @@ import { partyVisibleCombatants, shownCells } from "@/lib/battlemap/partySight";
 import { readPictureFloor, voidAround } from "@/lib/battlemap/pictureFloor";
 import { soloSeating } from "@/lib/battlemap/soloSeating";
 import { combatantAt, isFoeOf, reachZones, targetOf, walkVerdict } from "@/lib/table/fight/mapRules";
-import { isHostileTo, reachable, type ReachInput } from "@/rules/fight/terrain/reach";
+import { reachable, type ReachInput } from "@/rules/fight/terrain/reach";
+import { isHostileTo } from "@/rules/fight/sides";
 import type { MonsterSize } from "@/types/monster.types";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useCampaignStore } from "@/stores/campaign";
@@ -221,7 +222,7 @@ export function useSoloFightMap(options: {
       terrain,
       others: combatants.value
         .filter((c) => c.instance_id !== me.instance_id && c.position && c.hp > 0)
-        .map((c) => ({ anchor: c.position as Cell, footprint: sizeOf(c), size: sizeNameOf(sizeOf(c)), hostile: isHostileTo(me, c), incapacitated: false })),
+        .map((c) => ({ anchor: c.position as Cell, footprint: sizeOf(c), size: sizeNameOf(sizeOf(c)), hostile: isHostileTo(me, c, store.factions), incapacitated: false })),
       ruleset: store.ruleset,
     });
   });

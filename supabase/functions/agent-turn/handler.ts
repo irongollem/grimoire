@@ -585,8 +585,9 @@ export async function beginTurn(input: {
         let fights = await fightsOf(deps, campaign.id, session.scene_location_id, session.fight_encounter_id, pursuitId);
         // A fight that has not begun and has someone in it the rules cannot play can never be fought: the story
         // would wait on it for good, with the narrator sending the player to a fight screen where nothing can act.
-        // The conversation lets go of it and the story goes on. (Fights are no longer started that way; this frees
-        // a sitting that was left holding one.)
+        // The conversation lets go of it and the story goes on. Starting a fight refuses such a fighter, so this is
+        // the fight that changed after it was started: a Dungeon Master took a stat block away before it began.
+        // Asked only while a fight is waiting, which is a turn or two.
         if (fights !== null && fights.fight !== null && fights.fight.phase === "waiting") {
           const stuck = fights.fight;
           try {

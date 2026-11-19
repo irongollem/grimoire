@@ -4,6 +4,8 @@
 // `_shared/fightAccess.ts`, shared with `encounter-options`. The rules are the browser's own (`src/rules/fight`), run
 // by `runBatch`; this file only wires the database to it.
 import { serve } from "std/http/server.ts";
+import type { FactionSides } from "../../../src/rules/fight/sides.ts";
+import { DEFAULT_FACTIONS } from "../../../src/types/encounter.types.ts";
 import { withCors } from "../_shared/cors.ts";
 import { adminClient, callerUserId, loadEncounterAsDm } from "../_shared/fightAccess.ts";
 import { loadMonsters, loadNpcs, loadStatBlocks } from "../_shared/fightStatBlocks.ts";
@@ -86,8 +88,8 @@ serve(withCors(async (req: Request) => {
     const request = validateRequest(body);
 
     const access = await loadEncounterAsDm<{
-      id: string; campaign_id: string | null; events: EncounterEvent[] | null; lair_enabled: boolean; lair_owner_def_id: string | null;
-    }>(admin, userId, request.encounterId, "id, campaign_id, events, lair_enabled, lair_owner_def_id");
+      id: string; campaign_id: string | null; events: EncounterEvent[] | null; lair_enabled: boolean; lair_owner_def_id: string | null; factions: FactionSides | null;
+    }>(admin, userId, request.encounterId, "id, campaign_id, events, lair_enabled, lair_owner_def_id, factions");
     if (!access.ok) return access.response;
     const { encounter, campaign } = access;
     const campaignId = campaign.id;
@@ -117,6 +119,8 @@ serve(withCors(async (req: Request) => {
           events,
           lairEnabled: encounter.lair_enabled,
           lairOwnerDefId: encounter.lair_owner_def_id,
+          // An encounter saved with no factions of its own runs on the defaults, as the runner opens it.
+          factions: encounter.factions && encounter.factions.length > 0 ? encounter.factions : DEFAULT_FACTIONS,
           ruleset: gameSystemEdition(campaign.game_system) ?? DEFAULT_RULESET,
           randomizeInitiativeEachRound: rule ? rule.enabled : false,
           monsters,

@@ -89,7 +89,7 @@ export async function tellSitting(input: { userId: string; body: unknown; deps: 
   const campaign = await deps.loadCampaign(note.campaign_id);
   // Someone who is not this campaign's DM is told the note does not exist: a 403 would say it does.
   if (!campaign || !(await deps.isDm(campaign, userId))) return refuse(404, RECAP_MESSAGES.notFound);
-  if (campaign.ai_enabled === false) return refuse(403, RECAP_MESSAGES.aiOff);
+  if (campaign.ai_enabled !== true) return refuse(403, RECAP_MESSAGES.aiOff);
   if (note.generatorType !== TABLE_NOTE_GENERATOR) return refuse(422, RECAP_MESSAGES.notATableNote);
   if (note.edited) return refuse(409, RECAP_MESSAGES.edited);
   const sitting = await deps.loadSitting(note.id, userId);

@@ -10,6 +10,7 @@
 // player's own row, a chat line) are performed only after the save that decided
 // them, so a lost race never leaves a half-announced fight behind.
 
+import type { FactionSides } from "../../../src/rules/fight/sides.ts";
 import type { EncounterEvent, RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { PartyMemberUpdate } from "../../../src/types/party.types.ts";
 import type { ExploreParty } from "../../../src/types/exploreParty.types.ts";
@@ -252,6 +253,8 @@ export interface LoadedFight {
   events: EncounterEvent[];
   lairEnabled: boolean;
   lairOwnerDefId: string | null;
+  /** The encounter's factions: who fights whom when the server plays a turn (`src/rules/fight/sides.ts`). */
+  factions: FactionSides;
   ruleset: RulesetKey;
   randomizeInitiativeEachRound: boolean;
   monsters: Monster[];
@@ -497,7 +500,7 @@ async function attempt(
     }
     // `undefined` is "not asked yet" (a null map is an answer: this fight has none).
     if (map === undefined) map = await deps.loadFightMap(request.encounterId);
-    return { fightDeps, sources, players, map, rollDie: deps.rollDie, spells, spellsListed, posted: rolls, judgeNote: notes.ask };
+    return { fightDeps, sources, players, map, factions: loaded.factions, rollDie: deps.rollDie, spells, spellsListed, posted: rolls, judgeNote: notes.ask };
   };
   for (const command of request.commands) {
     if (command.type === "sync_party" || LIFECYCLE_TYPES.has(command.type)) continue;

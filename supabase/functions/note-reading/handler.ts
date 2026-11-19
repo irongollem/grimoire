@@ -166,7 +166,7 @@ export async function readNote(input: { userId: string; body: unknown; deps: Not
   const campaign = await deps.loadCampaign(note.campaign_id);
   if (!campaign) return refuse(404, READING_MESSAGES.notFound);
   if (!(await deps.isDm(campaign, userId))) return refuse(403, READING_MESSAGES.notDm);
-  if (campaign.ai_enabled === false) return refuse(403, READING_MESSAGES.aiOff);
+  if (campaign.ai_enabled !== true) return refuse(403, READING_MESSAGES.aiOff);
 
   const stored = await deps.playerText(note.id);
   if (stored === null) return refuse(422, READING_MESSAGES.unchecked);

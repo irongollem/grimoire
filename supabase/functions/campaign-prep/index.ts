@@ -39,7 +39,8 @@ serve(withCors(async (req: Request) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
 
-  const gate = await generationRefusal(admin, user.id);
+  // Fail closed, as a turn of the table does: a model is not called on an account a lookup could not clear.
+  const gate = await generationRefusal(admin, user.id, { failClosed: true });
   if (gate) return gate;
 
   let body: unknown;

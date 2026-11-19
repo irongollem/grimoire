@@ -27,7 +27,7 @@ export interface ReachCreature {
   anchor: Cell;
   footprint: number;
   size: MonsterSize;
-  /** Hostile to the mover. Use `isHostileTo`. */
+  /** Hostile to the mover. Use `isHostileTo` (`../sides.ts`). */
   hostile: boolean;
   incapacitated: boolean;
 }
@@ -68,15 +68,6 @@ export interface ReachResult {
   start: Cell | null;
   /** Every anchor the mover can END in, by `"x,y"`. */
   cells: ReadonlyMap<string, ReachCell>;
-}
-
-/**
- * The same "who is an opponent" convention as `targetCandidates`: a different faction. A bystander stands in the
- * party's faction, so the party's foes are hers and she can be attacked: "she may be harmless, but she's not safe"
- * (the maintainer, 17 Nov 2026). She never moves or acts herself.
- */
-export function isHostileTo(mover: { faction_id: string }, other: { faction_id: string }): boolean {
-  return mover.faction_id !== other.faction_id;
 }
 
 const keyOf = (x: number, y: number) => `${x},${y}`;

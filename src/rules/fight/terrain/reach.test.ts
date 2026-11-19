@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { WallSegment } from "../../../lib/battlemap/walls.ts";
 import type { MonsterSize } from "../../../types/monster.types.ts";
 import type { RulesetKey } from "../../../types/ruleset.types.ts";
-import { isHostileTo, pathTo, reachable, type ReachCreature, type ReachInput } from "./reach.ts";
+import { pathTo, reachable, type ReachCreature, type ReachInput } from "./reach.ts";
 
 const wall = (id: string, a: [number, number], b: [number, number]): WallSegment => ({ id, a, b });
 const creature = (x: number, y: number, size: MonsterSize, o: Partial<ReachCreature> = {}): ReachCreature => {
@@ -207,19 +207,6 @@ describe("determinism and who is hostile", () => {
     const b = run({ budget: 10 });
     expect(route(a, 2, 1)).toBe("0,0 1,0 2,1");
     expect(route(b, 2, 1)).toBe(route(a, 2, 1));
-  });
-
-  it("hostile means a different faction, as targetCandidates reads it", () => {
-    expect(isHostileTo({ faction_id: "party" }, { faction_id: "goblins" })).toBe(true);
-    expect(isHostileTo({ faction_id: "party" }, { faction_id: "party" })).toBe(false);
-  });
-
-  // Bug caught: a bystander nobody could attack (the maintainer: "she may be harmless, but she's not safe"), or
-  // one her own party's movement treats as a foe.
-  it("counts a bystander by the faction she stands in: the party's foes are hers, the party is not", () => {
-    const honeycomb = { faction_id: "players", bystander: true as const };
-    expect(isHostileTo({ faction_id: "enemy" }, honeycomb)).toBe(true);
-    expect(isHostileTo({ faction_id: "players" }, honeycomb)).toBe(false);
   });
 });
 

@@ -12,7 +12,7 @@ import { isNarratorVoice } from "../_shared/narratorVoice.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { sweepNoteReadings, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
-import { hasSpeechService, loadSpeechRate, speechEnvFrom, speechModelOf, synthesizeSpeech, VoicesSpent } from "../_shared/speech.ts";
+import { hasSpeechService, loadSpeechRate, speechEnvFrom, speechModelOf, synthesizeSpeech, voicesOn, VoicesSpent } from "../_shared/speech.ts";
 import { readNote, type NoteReadingDeps } from "./handler.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -45,7 +45,7 @@ serve(withCors(async (req: Request) => {
   }
 
   const deps: NoteReadingDeps = {
-    voiceOn: () => !!speech.elevenKey && Deno.env.get("TABLE_VOICE_TRIAL") === "on" && voiceStore !== null,
+    voiceOn: () => voicesOn(speech) && voiceStore !== null,
 
     async loadNote(noteId) {
       const { data, error } = await admin.from("notes").select("id, campaign_id, reading_hash, reading_voice").eq("id", noteId).maybeSingle();

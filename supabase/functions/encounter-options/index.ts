@@ -4,6 +4,8 @@
 // options reveal what monsters can do and where they can stand. Every read below is scoped to the campaign derived
 // from the encounter; nothing here writes.
 import { serve } from "std/http/server.ts";
+import type { FactionSides } from "../../../src/rules/fight/sides.ts";
+import { DEFAULT_FACTIONS } from "../../../src/types/encounter.types.ts";
 import { withCors } from "../_shared/cors.ts";
 import { adminClient, callerUserId, loadEncounterAsDm } from "../_shared/fightAccess.ts";
 import { loadFightMapInput } from "../_shared/fightMap.ts";
@@ -36,7 +38,7 @@ serve(withCors(async (req: Request) => {
     }
     const request = validateOptionsRequest(body);
 
-    const access = await loadEncounterAsDm<{ id: string; campaign_id: string | null }>(admin, userId, request.encounterId, "id, campaign_id");
+    const access = await loadEncounterAsDm<{ id: string; campaign_id: string | null; factions: FactionSides | null }>(admin, userId, request.encounterId, "id, campaign_id, factions");
     if (!access.ok) return access.response;
     const campaignId = access.campaign.id;
 
@@ -54,6 +56,7 @@ serve(withCors(async (req: Request) => {
           version: data.version as number,
           combatants: data.combatants_live as RunCombatant[],
           ruleset: gameSystemEdition(access.campaign.game_system) ?? DEFAULT_RULESET,
+          factions: access.encounter.factions && access.encounter.factions.length > 0 ? access.encounter.factions : DEFAULT_FACTIONS,
         };
       },
       loadStatBlocks: (ids) => loadStatBlocks(admin, campaignId, ids),

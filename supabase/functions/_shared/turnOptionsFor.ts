@@ -2,6 +2,7 @@
 // Shared by `encounter-options` (which serves them as a read) and `encounter-command` (whose `take_turn` plays one), so
 // the two can never disagree about what a creature may do. Pure: the database is the caller's business.
 
+import type { FactionSides } from "../../../src/rules/fight/sides.ts";
 import { combatantSpeed } from "../../../src/lib/encounters/combatantSpeed.ts";
 import { strongestBreakFreeAbility } from "../../../src/rules/fight/actionResolution.ts";
 import { actionAvailability } from "../../../src/rules/encounterTurn.ts";
@@ -44,6 +45,8 @@ export function usableAttacks(mover: RunCombatant, block: MonsterStatBlock | nul
 }
 
 export interface TurnOptionsFacts {
+  /** The encounter's factions: who fights whom (`src/rules/fight/sides.ts`). */
+  factions: FactionSides;
   combatants: readonly RunCombatant[];
   mover: RunCombatant;
   ruleset: RulesetKey;
@@ -82,6 +85,7 @@ export function assembleTurnOptions(facts: TurnOptionsFacts): { options: TurnOpt
     spells,
     kindOf: (c) => creatureKindOf(c, sources),
     breakFreeAbility: (way) => strongestBreakFreeAbility(block, way),
+    factions: facts.factions,
   });
   return { options, attacks, spells };
 }

@@ -1,6 +1,5 @@
 import type { FactionDef, RunCombatant } from "@/types/encounter.types";
-import { areHostile } from "./foeView";
-import { isHostileTo } from "@/rules/fight/terrain/reach";
+import { areHostile, isHostileTo, type FactionSides } from "@/rules/fight/sides";
 
 export type FightStanding = "ongoing" | "foes_out" | "you_are_down";
 
@@ -21,9 +20,9 @@ export function fightStanding(
 }
 
 /**
- * Whether anyone the creature would fight is still on their feet: someone of another faction with hit points left
- * (the rule the server's own turns go by, `isHostileTo`). With nobody, the creature's turn is passed in silence.
+ * Whether anyone the creature would fight is still on their feet: an opponent by the fight's factions with hit points
+ * left (the rule the server's own turns go by, `isHostileTo`). With nobody, the creature's turn is passed in silence.
  */
-export function hasSomeoneToFight(mover: Pick<RunCombatant, "instance_id" | "faction_id">, combatants: readonly Pick<RunCombatant, "instance_id" | "faction_id" | "hp">[]): boolean {
-  return combatants.some((c) => c.instance_id !== mover.instance_id && c.hp > 0 && isHostileTo(mover, c));
+export function hasSomeoneToFight(mover: Pick<RunCombatant, "instance_id" | "faction_id">, combatants: readonly Pick<RunCombatant, "instance_id" | "faction_id" | "hp">[], factions: FactionSides): boolean {
+  return combatants.some((c) => c.instance_id !== mover.instance_id && c.hp > 0 && isHostileTo(mover, c, factions));
 }
