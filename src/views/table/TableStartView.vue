@@ -166,7 +166,7 @@ async function deleteSitting(sessionId: string): Promise<void> {
 // player with an open sitting to the chooser for a moment).
 const resume = computed(() => {
   if (!party.data.value || !sessions.data.value) return party.isError.value || sessions.isError.value ? ({ kind: "first" } as const) : null;
-  return resumeOf(sessions.sittings.value, new Set(characters.value.map((m) => m.id)));
+  return resumeOf(sessions.sittings.value, new Set(characters.value.map((m) => m.id)), Date.now());
 });
 // A sitting that was never left is simply reopened. `replace`, so Back does not bounce through this page.
 watch(
