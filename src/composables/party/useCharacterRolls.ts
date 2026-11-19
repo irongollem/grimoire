@@ -10,6 +10,8 @@ import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RollToastResult } from "@/components/common/feedback/RollToast.vue";
 import { combineModes, type RollMode } from "@/systems/dnd5e/dice/rollMode";
 import { effectiveAbilityScores, savingThrowEntries } from "@/rules/characterChecks";
+import { savingThrowItemBonus } from "@/rules/armorClass";
+import { useArmorClass } from "@/composables/party/useArmorClass";
 import { characterInitiativeSource, initiativeRoll } from "@/rules/initiative";
 import { jackOfAllTradesBonus } from "@/rules/skillCheck";
 import {
@@ -44,7 +46,15 @@ export function useCharacterRolls(member: MaybeRefOrGetter<PartyMember | null | 
   );
   /** What a skill list takes as `override-scores`: only a Wild Shape form overrides. */
   const overrideScores = computed(() => (activeWildshape.value ? effectiveScores.value : undefined));
-  const saves = computed(() => savingThrowEntries(toValue(member), effectiveScores.value));
+  // What worn, attuned items add to every save (a Ring or Cloak of Protection, DMG 2014 ch. 7), by the one rule the
+  // server rolls a save with (`playerSaveBonus`), so the sheet shows the number a fight uses. Not while Wild Shaped:
+  // the form wears nothing, as for armour class.
+  const { wornGearFor } = useArmorClass();
+  const itemSaveBonus = computed(() => {
+    const m = toValue(member);
+    return !m || activeWildshape.value !== null ? 0 : savingThrowItemBonus(wornGearFor(m.id));
+  });
+  const saves = computed(() => savingThrowEntries(toValue(member), effectiveScores.value, itemSaveBonus.value));
 
   const conditions = computed(() => toValue(member)?.conditions ?? []);
   const attackDisadvantage = computed(() => hasAttackDisadvantage(conditions.value, ruleset.value));

@@ -1,3 +1,4 @@
+import { UUID_RE as UUID } from "../_shared/uuid.ts";
 /**
  * Pure request validation and prompt for paint-brush-tips (#1181), colocated so they can be unit-tested
  * without Deno's `serve`/`createClient`, like illuminate-picture/validateIlluminateRequest.ts.
@@ -5,7 +6,6 @@
  * A brush belongs to the painter, not to a book, so the request has no document id. The words are the
  * painter's; everything else in the prompt is ours.
  */
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const BRUSH_DESCRIPTION_MIN = 3;
 export const BRUSH_DESCRIPTION_MAX = 200;

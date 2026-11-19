@@ -15,7 +15,8 @@ import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { useToast } from "@/composables/useToast";
 import { buildRunCombatants, legendaryActionCaps } from "@/lib/encounters/buildRunCombatants";
 import { bystandersOf, lateBystanders } from "@/lib/encounters/bystandersOf";
-import { confirmedFromAnswer, postFightBatch, sendAlone } from "@/lib/encounters/fightWire";
+import { confirmedFromAnswer, sendAlone } from "@/lib/encounters/fightWire";
+import { DRAIN_TIMEOUT_MS } from "@/stores/encounterRunPump";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
@@ -25,22 +26,20 @@ import type { TrapEntry } from "@/types/trap.types";
 
 /**
  * The store still holds the last fight's unsent batches when another fight is opened in the same tab, and
- * resetting it would drop them without a word. They are sent to the fight they belong to, once each and in
- * order; if that cannot be done at once `onFailed` tells the DM, since nothing will try again.
+ * resetting it would drop them without a word. The store's own pump sends them (to the fight they belong to,
+ * once each and in order); this waits for it, and if that cannot be done in time `onFailed` tells the DM, since
+ * nothing will try again once the store is reset. It sends nothing itself: a second sender would double the
+ * traffic and muddle the pump's failure counts.
  */
 export async function sendLeftBehind(
-  store: Pick<ReturnType<typeof useEncounterRunStore>, "linkedEncounterId" | "pendingBatches">,
+  store: Pick<ReturnType<typeof useEncounterRunStore>, "linkedEncounterId" | "drainSends">,
   opening: string,
   onFailed: () => void,
+  timeoutMs: number = DRAIN_TIMEOUT_MS,
 ): Promise<void> {
   const owner = store.linkedEncounterId();
   if (owner === null || owner === opening) return;
-  const batches = store.pendingBatches();
-  try {
-    for (const batch of batches) await postFightBatch(owner, batch.id, batch.commands);
-  } catch {
-    onFailed();
-  }
+  if (!(await store.drainSends(timeoutMs))) onFailed();
 }
 
 /**

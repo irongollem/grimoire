@@ -9,7 +9,7 @@ export type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 /** A refusal in the shape every parser returns, so a tool answers with a sentence instead of throwing. */
 export const refuse = (error: string): { ok: false; error: string } => ({ ok: false, error });
 
-export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export { UUID_RE } from "../uuid.ts";
 
 /** A plain object: not null, not an array. */
 export function isRecord(value: unknown): value is Record<string, unknown> {

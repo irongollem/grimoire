@@ -1,4 +1,4 @@
-import { computed, ref, toValue, watch, type MaybeRefOrGetter, type Ref } from "vue";
+import { computed, onScopeDispose, ref, toValue, watch, type MaybeRefOrGetter, type Ref } from "vue";
 import { useEncounterRoom } from "@/composables/encounters/useEncounterRoom";
 import { useEncounterLive, liveState } from "@/composables/encounters/useEncounterLive";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
@@ -263,6 +263,13 @@ export function usePlayMapState(
     },
     { immediate: true },
   );
+
+  // The attack flows beside the map read the walls from the store (a foe behind a wall is not beside an archer).
+  store.setOccluders(() => {
+    const live = surface.value?.live;
+    return live ? occludersOf(live, doorStates.value) : null;
+  });
+  onScopeDispose(() => store.setOccluders(null));
 
   /** What a move crosses: the difficult zones the map draws, and the walls and closed doors a big token can wedge in. */
   const moveTerrain = computed<MoveTerrain>(() => {

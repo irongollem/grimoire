@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { characterInitiativeSource, initiativeModifier, initiativeRoll, losesFirstTurnToSurprise, ownInitiativeModifier } from "@/rules/initiative";
+import { characterInitiativeSource, initiativeModifier, initiativeRoll, cannotReactWhileSurprised, losesFirstTurnToSurprise, ownInitiativeModifier } from "@/rules/initiative";
 
 const form = (beast_dex: number) => ({ beast_dex });
 
@@ -88,6 +88,13 @@ describe("surprise (SRD 5.2 \"Surprise\"; PHB 2014 ch. 9 \"Surprise\")", () => {
     expect(losesFirstTurnToSurprise({ surprised: true }, "2014", 2)).toBe(false);
     expect(losesFirstTurnToSurprise({ surprised: false }, "2014", 1)).toBe(false);
     expect(losesFirstTurnToSurprise({}, "2014", 1)).toBe(false);
+  });
+  // PHB 2014 ch. 9 "Surprise": no reaction until the first turn ends; the flag is cleared at that moment, so set means withheld.
+  it("fails if a surprised 2014 creature may react, or a 2024 one may not", () => {
+    expect(cannotReactWhileSurprised({ surprised: true }, "2014")).toBe(true);
+    expect(cannotReactWhileSurprised({ surprised: false }, "2014")).toBe(false);
+    expect(cannotReactWhileSurprised({}, "2014")).toBe(false);
+    expect(cannotReactWhileSurprised({ surprised: true }, "2024")).toBe(false);
   });
   it("loses no turn under 2024, which only costs the Initiative roll", () => {
     expect(losesFirstTurnToSurprise({ surprised: true }, "2024", 1)).toBe(false);

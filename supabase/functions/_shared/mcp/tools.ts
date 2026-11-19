@@ -23,6 +23,7 @@ import { isSafeStorageUrl } from "../storage-url.ts";
 import { edgeErrorMessage } from "../edgeError.ts";
 import { isCampaignDm } from "../campaignAccess.ts";
 import { performServerRoll } from "../serverRoll.ts";
+import { UUID_RE } from "../uuid.ts";
 
 export interface ToolContext {
   supabase: SupabaseClient;
@@ -97,7 +98,6 @@ function sanitizeQuery(q: unknown): string {
     .trim();
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Coerce + validate a single field value against its declared type. */
 function coerceField(name: string, f: FieldDef, raw: unknown): unknown {

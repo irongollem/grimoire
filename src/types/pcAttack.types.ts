@@ -25,6 +25,8 @@ export interface PcAttackRow extends PcAttackPickerFields {
   description: string;
   /** Ranged weapons: the ammunition kind it fires, null for a self-charged weapon. Always null elsewhere. */
   ammoTag: WeaponAmmoTag | null;
+  /** Ranged and thrown weapons: the weapon's normal and long range in feet, null when its item names none. Unset for melee and custom rows. */
+  range?: { normal: number; long?: number } | null;
   /** The party inventory row the weapon comes from; null for unarmed, improvised and custom attacks. */
   weaponInvId: string | null;
 }

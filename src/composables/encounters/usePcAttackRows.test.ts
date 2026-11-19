@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import { describe, expect, it, vi } from "vitest";
-import { usePcAttackRows } from "./usePcAttackRows";
+import { parseWeaponRange, usePcAttackRows } from "./usePcAttackRows";
 import type { Item } from "@/types/item.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";
@@ -56,6 +56,26 @@ describe("usePcAttackRows", () => {
     );
     expect(rows.melee.value.map((r) => r.name)).toContain("Rapier");
     expect(rows.ranged.value.map((r) => r.name)).toContain("Longbow");
+  });
+
+  // PHB 2014 ch. 9 "Long Range". Bug caught: a bow's row carrying no range, so the browser could never tell a shot is
+  // beyond its normal range.
+  it("carries a held bow's normal and long range on its row", () => {
+    const rows = setup(
+      member({ str: 10, dex: 16 }),
+      [hold("i2", null, "Longbow", { library_item_id: "srd_srd_longbow", slot: "off_hand" })],
+      [weapon("srd_srd_longbow", "Longbow", ["ammunition", "two-handed"], "1d8", { weapon_range: "150/600" })],
+    );
+    expect(rows.ranged.value[0]?.range).toEqual({ normal: 150, long: 600 });
+  });
+
+  it("reads a weapon's range from the text and claims none from text that names no distance", () => {
+    // Bug caught: "30 ft." read as a pair or as nothing, and "" read as 0 feet (everything long range).
+    expect(parseWeaponRange("80/320 ft.")).toEqual({ normal: 80, long: 320 });
+    expect(parseWeaponRange("30 ft.")).toEqual({ normal: 30 });
+    expect(parseWeaponRange("")).toBeNull();
+    expect(parseWeaponRange(null)).toBeNull();
+    expect(parseWeaponRange("thrown")).toBeNull();
   });
 
   // SRD 5.1 "Weapons": only finesse and ranged weapons use Dexterity; a plain melee weapon uses Strength.

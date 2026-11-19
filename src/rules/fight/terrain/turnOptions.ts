@@ -29,7 +29,7 @@ import { reachTerrainOf, type FightMap } from "./battleMap.ts";
 import { coverCells, reachable, type ReachCell, type ReachResult } from "./reach.ts";
 import { isHostileTo, type FactionSides } from "../sides.ts";
 import { isAllyOf } from "../allies.ts";
-import { losesFirstTurnToSurprise } from "../../initiative.ts";
+import { cannotReactWhileSurprised, losesFirstTurnToSurprise } from "../../initiative.ts";
 import {
   attackFrom,
   coverBetween,
@@ -478,7 +478,7 @@ function approachOption(kind: "dash" | "move", scene: Scene, names: Map<string, 
 function disengageOption(scene: Scene): TurnOption | null {
   const here: Box = { anchor: scene.reach.start as Cell, footprint: scene.moverFootprint };
   const nearest = (box: Box) => Math.min(...scene.hostiles.map((h) => distanceFeet(box, boxOf(h))));
-  const threatened = scene.enemies.some((e) => !e.reactionUsed && !e.incapacitated && distanceFeet(here, e.box) <= e.reachFeet);
+  const threatened = scene.enemies.some((e) => !e.reactionUsed && !e.cannotReact && !e.incapacitated && distanceFeet(here, e.box) <= e.reachFeet);
   if (!threatened) return null;
   let best: { rc: ReachCell; away: number } | null = null;
   for (const rc of cellsOf(scene.reach)) {
@@ -828,7 +828,7 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
     reach: search(budget),
     others: onBoard,
     hostiles,
-    enemies: hostiles.map((h) => ({ id: h.instance_id, box: boxOf(h), reachFeet: input.reachOf(h), reactionUsed: h.reactionUsed === true, incapacitated: isIncapacitated(h.conditions) })),
+    enemies: hostiles.map((h) => ({ id: h.instance_id, box: boxOf(h), reachFeet: input.reachOf(h), reactionUsed: h.reactionUsed === true, cannotReact: cannotReactWhileSurprised(h, input.ruleset), incapacitated: isIncapacitated(h.conditions) })),
     ruleset: input.ruleset,
     exposureMemo: new Map(),
     exitsByCell: exitsByCellOf(map.exits),

@@ -24,7 +24,7 @@ const hero = (over = {}) => pc("p", { hp: 20, max_hp: 20, ...over });
 describe("ingestPartyRow", () => {
   it("fails if a row identical to what the fight holds changes anything", () => {
     // The fight has already read this row once, so it remembers what it said and has nothing new to note.
-    const state = deepFreeze(fight([hero({ sheet_hp: 20, sheet_temp_hp: 0, conditions: [{ name: "Poisoned", ends: { kind: "save", ability: "con", dc: 12, at: "end" } }] })]));
+    const state = deepFreeze(fight([hero({ sheet_hp: 20, sheet_temp_hp: 0, sheet_death_saves: { successes: 0, failures: 0 }, sheet_wildshape: null, sheet_initiative: null, sheet_conditions: [{ name: "Poisoned", ends: { kind: "save", ability: "con", dc: 12, at: "end" } }], conditions: [{ name: "Poisoned", ends: { kind: "save", ability: "con", dc: 12, at: "end" } }] })]));
     const result = ingestPartyRow(
       state,
       // The same record with its keys the other way round: jsonb does not keep the order.
@@ -79,6 +79,44 @@ describe("ingestPartyRow", () => {
     const state = fight([hero({ temp_hp: undefined, sheet_temp_hp: 5 })]);
     const result = ingestPartyRow(state, row({ temp_hp: 5 }), context(), deps());
     expect(result.state.combatants[0].temp_hp).toBeUndefined();
+  });
+
+  // Fight tally 0/1 (a failure the DM recorded), row still 0/0, and the fight last read 0/0: the row is not news, 1 failure stands.
+  // A row the player changed to 1/0 is theirs and is adopted, and what was read is remembered.
+  it("fails if a row that still says what the fight last read puts back a death save the fight recorded", () => {
+    const state = fight([hero({ hp: 0, death_saves: { successes: 0, failures: 1 }, sheet_hp: 0, sheet_death_saves: { successes: 0, failures: 0 } })]);
+    const kept = ingestPartyRow(state, row({ current_hp: 0 }), context(), deps());
+    expect(kept.state.combatants[0].death_saves).toEqual({ successes: 0, failures: 1 });
+    const own = ingestPartyRow(state, row({ current_hp: 0, death_save_successes: 1 }), context(), deps());
+    expect(own.state.combatants[0].death_saves).toEqual({ successes: 1, failures: 0 });
+    expect(own.state.combatants[0].sheet_death_saves).toEqual({ successes: 1, failures: 0 });
+  });
+
+  // The fight carries Prone (applied here), the row has no condition yet and the fight last read none: Prone stands.
+  // A row the player changed to Poisoned is theirs.
+  it("fails if a row that still says what the fight last read removes a condition the fight applied", () => {
+    const state = fight([hero({ conditions: [{ name: "Prone" }], sheet_conditions: [] })]);
+    expect(ingestPartyRow(state, row({ conditions: [] }), context(), deps()).state.combatants[0].conditions).toEqual([{ name: "Prone" }]);
+    expect(ingestPartyRow(state, row({ conditions: [{ name: "Poisoned" }] }), context(), deps()).state.combatants[0].conditions).toEqual([{ name: "Poisoned" }]);
+  });
+
+  // The fight dropped the beast form (reverted here), the row still holds the form it last read: the form stays dropped.
+  it("fails if a row that still says what the fight last read puts back a beast form the fight dropped", () => {
+    const form: WildshapeState = {
+      monster_id: "bear", beast_name: "Bear", beast_image_url: null, beast_hp: 8, beast_max_hp: 12, beast_ac: "11", beast_dex: 10,
+    };
+    const state = fight([hero({ sheet_wildshape: form })]);
+    expect(ingestPartyRow(state, row({ wildshape_state: form }), context(), deps()).state.combatants[0].wildshape).toBeUndefined();
+    const changed = { ...form, beast_hp: 3 };
+    expect(ingestPartyRow(state, row({ wildshape_state: changed }), context(), deps()).state.combatants[0].wildshape).toEqual(changed);
+  });
+
+  // The DM set this player's initiative to 12 for the fight; the row still holds the 15 the fight last read: 12 stands.
+  // A new roll of 18 on the sheet is the player's and is adopted.
+  it("fails if a row that still says what the fight last read puts back an initiative the DM set", () => {
+    const state = fight([hero({ initiative: 12, sheet_initiative: 15 })]);
+    expect(ingestPartyRow(state, row({ current_initiative: 15 }), context(), deps()).state.combatants[0].initiative).toBe(12);
+    expect(ingestPartyRow(state, row({ current_initiative: 18 }), context(), deps()).state.combatants[0].initiative).toBe(18);
   });
 
   it("fails if healing from 0 on the player's own sheet leaves the death saves standing", () => {

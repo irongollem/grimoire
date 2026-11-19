@@ -7,6 +7,7 @@ import { combatant, pc } from "../../../src/rules/fight/fightTestKit";
 import type { FightMapInput } from "../../../src/rules/fight/terrain/battleMap";
 import type { GridCalibration } from "../../../src/types/location.types";
 import type { Monster } from "../../../src/types/monster.types";
+import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest";
 import type { RunCombatant } from "../../../src/types/encounter.types";
 import { emptyDefenses, type StatBlockEntry } from "../../../src/types/statBlock.types";
 import { meleeReachFeet } from "../_shared/turnOptionsFor";
@@ -43,6 +44,8 @@ interface Setup {
   combatants: RunCombatant[];
   monsters?: Monster[];
   speeds?: { id: string; speed: number }[];
+  /** The players' own rows; none by default. */
+  party?: PartyIngestRow[];
   map?: FightMapInput | null;
   version?: number;
   spells?: SpellRecord[];
@@ -50,9 +53,10 @@ interface Setup {
   spellReads?: string[][];
 }
 function deps(s: Setup): OptionsDeps {
-  const fight: OptionsFight = { version: s.version ?? 7, combatants: s.combatants, ruleset: "2014", factions: [], round: 1 };
+  const fight: OptionsFight = { version: s.version ?? 7, combatants: s.combatants, ruleset: "2014", factions: [], round: 1, live: true };
   return {
     loadFight: async () => fight,
+    loadPartyRows: async () => structuredClone(s.party ?? []),
     loadStatBlocks: async () => ({ monsters: s.monsters ?? [monster("m-wolf", [attack("Bite")])], npcs: [], companions: [] }),
     loadMemberSpeeds: async () => s.speeds ?? [],
     loadMapInput: async () => (s.map === undefined ? OPEN_GROUND : s.map),
@@ -149,6 +153,21 @@ describe("computeOptions", () => {
     const casts = r.options.flatMap((o) => (o.kind === "spell" && o.spell ? [[o.spell.name, o.spell.targetIds] as const] : []));
     expect(casts.filter(([name]) => name === "Hold Person")).toEqual([["Hold Person", ["bandit"]]]);
     expect(casts.some(([name]) => name === "Fireball")).toBe(true);
+  });
+
+  // The saved fight says the hero is at 20 hit points, but their own row (a hit that has not reached the fight yet) says 0: the
+  // server ingests the row before it plays a turn, so the options must too. A creature at 0 is no living target, so the
+  // wolf is offered no attack on the hero; with the row at 20 it is (the control). The fight as loaded is not changed.
+  it("fails if the options are worked out on stale player hit points, offering an attack on a character the row says is down", async () => {
+    const row = (hp: number): PartyIngestRow => ({
+      id: "pm-pc", current_hp: hp, temp_hp: 0, current_initiative: null, conditions: [], concentration: null,
+      wildshape_state: null, death_save_successes: 0, death_save_failures: 0,
+    });
+    const roster = () => [wolf(), hero(4, 0, { hp: 20, max_hp: 20 })];
+    expect(ids(await ask({ combatants: roster(), party: [row(20)] }))).toContain("attack:actions:Bite:pc");
+    const down = roster();
+    expect(ids(await ask({ combatants: down, party: [row(0)] }))).not.toContain("attack:actions:Bite:pc");
+    expect(down[1].hp).toBe(20);
   });
 
   it("refuses an encounter with no fight yet and a creature that is not in it", async () => {

@@ -98,6 +98,8 @@
       v-else-if="attack.state.value.step === 'to_hit'"
       :ask="{ label: `${attack.state.value.row.name}: to hit`, kind: 'check', ability: 'str', skill: null }"
       :bonus="attack.state.value.row.attackBonus"
+      :forced-disadvantage="attack.toHitDisadvantage.value !== null"
+      :forced-reason="attack.toHitDisadvantage.value ?? undefined"
       :busy="resolving"
       @roll="onToHit"
     />

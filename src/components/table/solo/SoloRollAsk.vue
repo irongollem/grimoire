@@ -6,7 +6,7 @@
       <h2 class="text-heading-sm font-bold text-foreground">{{ ask.label }}</h2>
       <span class="font-stat text-label-lg text-muted-foreground">{{ formula }}</span>
     </div>
-    <p v-if="forcedDisadvantage" class="text-caption text-muted-foreground">Disadvantage from a condition</p>
+    <p v-if="forcedDisadvantage" class="text-caption text-muted-foreground">{{ forcedReason }}</p>
 
     <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
       <AppButton variant="primary" size="md" label="Roll it here" :disabled="blocked" @click="rollHere" />
@@ -37,12 +37,14 @@ const MODES = [
   { value: "disadvantage", label: "Disadvantage" },
 ] as const;
 
-const { ask, bonus, forcedDisadvantage = false, busy = false } = defineProps<{
+const { ask, bonus, forcedDisadvantage = false, forcedReason = "Disadvantage from a condition", busy = false } = defineProps<{
   ask: RollAsk;
   /** What the character adds; null while it is not known yet, when nothing can be rolled. */
   bonus: number | null;
   /** A condition imposes disadvantage on this roll. */
   forcedDisadvantage?: boolean;
+  /** What the card says when disadvantage is forced; a condition unless the caller names another cause. */
+  forcedReason?: string;
   busy?: boolean;
 }>();
 const emit = defineEmits<{ roll: [roll: RollAnswer] }>();

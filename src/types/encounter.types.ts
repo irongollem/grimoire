@@ -295,6 +295,16 @@ export interface RunCombatant {
   sheet_hp?: number;
   /** Players only: the same memory for `temp_hp` (a hit that spent temporary hit points reaches the row after the fight saves it). */
   sheet_temp_hp?: number;
+  /**
+   * Players only, with the same reasoning as `sheet_hp`, for each other value the fight both reads from the character's
+   * row and writes back to it: the death save tally, the conditions, the beast form and the initiative. A row that still
+   * says what the fight last read is not news, so the fight's own value stands until the row really changes. DM-only.
+   * `sheet_initiative` is null when the row held none; undefined on every field means never read.
+   */
+  sheet_death_saves?: { successes: number; failures: number };
+  sheet_conditions?: AppliedCondition[];
+  sheet_wildshape?: WildshapeState | null;
+  sheet_initiative?: number | null;
   // concentration — set when this combatant is concentrating on a spell.
   // Mirrors ConcentrationState on party_members; cleared on short rest / encounter end for monsters.
   concentration?: {

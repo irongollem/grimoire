@@ -81,6 +81,12 @@ describe("Dodge against an attack (PHB 2014 ch. 9 \"Dodge\")", () => {
     expect(r.reasons).not.toContain("target is Dodging");
     expect(r.mode).toBe(name === "Restrained" ? "advantage" : "normal");
   });
+  // PHB 2014 appendix A "Exhaustion" level 5: speed reduced to 0, so Dodge is lost and the attack is a straight roll.
+  it("fails if a 2014 dodger at Exhaustion level 5 keeps disadvantage on attacks against it, or a 2024 one loses it", () => {
+    const tired = { name: "Exhaustion", level: 5 };
+    expect(attackRollMode({ ...base, targetConditions: [dodging, tired] }).mode).toBe("normal");
+    expect(attackRollMode({ ...base, ruleset: "2024", targetConditions: [dodging, tired] }).mode).toBe("disadvantage");
+  });
   it("still applies to a dodger that can move", () => {
     expect(attackRollMode({ ...base, targetConditions: [dodging] }).mode).toBe("disadvantage");
   });

@@ -26,6 +26,7 @@ import {
   type CampaignSearchResponse,
   type CampaignSearchUnavailable,
 } from "../_shared/campaignSearch.ts";
+import { UUID_RE } from "../_shared/uuid.ts";
 
 /**
  * Campaign-wide semantic search (#599): "find my thing" across the DM's own
@@ -81,7 +82,6 @@ const admin = createClient(
 
 const MATCH_COUNT = 8;
 const RERANK_TIMEOUT_MS = 6_000;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });

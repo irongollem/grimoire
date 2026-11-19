@@ -1,5 +1,6 @@
 import { HIDDEN, isHidden } from "@/rules/fight/stances";
-import { ref, readonly } from "vue";
+import { computed, ref, readonly } from "vue";
+import { rangedFactsFor } from "@/composables/encounters/rangedFacts";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { PcAttackRow } from "@/composables/encounters/usePcAttackRows";
 import { rollDie, type DieSize } from "@/lib/dice/dice";
@@ -16,6 +17,7 @@ import {
 } from "@/rules/fight/actionResolution";
 import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import type { RunCombatant } from "@/types/encounter.types";
+import type { StatBlockEntry } from "@/types/statBlock.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 
 /**
@@ -135,6 +137,35 @@ export function useSoloAttack(options: SoloAttackOptions) {
     state.value = { step: "to_hit", row: state.value.row, targetId: instanceId };
   }
 
+  /** What a ranged attack adds to the roll, from where everyone stands now (PHB 2014 ch. 9 "Ranged Attacks"). */
+  function rangedFor(attacker: RunCombatant, target: RunCombatant, entry: StatBlockEntry) {
+    const attack = entry.structured.attack;
+    if (!attack) throw new ActionRefused(`${entry.name} has no attack to roll`);
+    return rangedFactsFor({
+      attacker,
+      target,
+      combatants: store.combatants,
+      factions: store.factions,
+      attack,
+      delivery: attack.delivery === "melee" ? "melee" : "ranged",
+      occluders: store.occluders,
+    });
+  }
+
+  /** Why the coming roll to hit has disadvantage from the map, or null. Shown before the dice are thrown. */
+  const toHitDisadvantage = computed<string | null>(() => {
+    const current = state.value;
+    if (current.step !== "to_hit") return null;
+    const entry = attackEntryOf(current.row);
+    const attacker = store.combatants.find((c) => c.instance_id === options.attackerId());
+    const target = store.combatants.find((c) => c.instance_id === current.targetId);
+    if (!entry || !attacker || !target) return null;
+    const facts = rangedFor(attacker, target, entry);
+    if (facts.hostileWithinFiveFeetOfAttacker) return "Disadvantage: a foe is within 5 feet of you";
+    if (facts.longRange) return "Disadvantage: long range";
+    return null;
+  });
+
   /** Roll to hit with the player's faces. A hit moves on to damage; a miss spends the Action and ends the attack. */
   async function rollToHitWith(answer: ToHitAnswer): Promise<BoardLine[]> {
     const before = state.value;
@@ -151,7 +182,7 @@ export function useSoloAttack(options: SoloAttackOptions) {
       }));
       // Without a map the distance is unknown: a melee attack is taken as made from next to the foe, a ranged one as not.
       const near = withinFiveFeet(attacker, target) ?? before.row.kind === "melee";
-      const outcome = await rollToHit(ctx, { attacker, entry, target, withinFiveFeet: near, dmMode: answer.mode, silent: true });
+      const outcome = await rollToHit(ctx, { attacker, entry, target, withinFiveFeet: near, ...rangedFor(attacker, target, entry), dmMode: answer.mode, silent: true });
       if (!outcome) throw new Error("The roll to hit came back empty");
       // PHB 2014 "Unseen Attackers and Targets": an attack gives the hider's place away, whether it hits or misses.
       // The roll above was made while still hidden, so it had the advantage.
@@ -227,5 +258,5 @@ export function useSoloAttack(options: SoloAttackOptions) {
     }
   }
 
-  return { state: readonly(state), aim, strike, cancel, pickTarget, rollToHit: rollToHitWith, rollDamage: rollDamageWith };
+  return { state: readonly(state), toHitDisadvantage, aim, strike, cancel, pickTarget, rollToHit: rollToHitWith, rollDamage: rollDamageWith };
 }

@@ -109,3 +109,13 @@ export function characterInitiativeSource(
     conditions: member.conditions,
   };
 }
+
+/**
+ * Whether a creature cannot take a reaction because it is surprised. PHB 2014 ch. 9 "Surprise": "you can't take a
+ * reaction until that turn ends". The flag is cleared when the creature's first turn ends, which is exactly when the
+ * book lets it react again, so while it is set the reaction is withheld. SRD 5.2 "Surprise" only gives Disadvantage on
+ * the Initiative roll, so under 2024 this is never true.
+ */
+export function cannotReactWhileSurprised(c: { surprised?: boolean }, ruleset: RulesetKey): boolean {
+  return ruleset === "2014" && c.surprised === true;
+}

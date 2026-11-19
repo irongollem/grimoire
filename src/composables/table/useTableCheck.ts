@@ -1,3 +1,5 @@
+import { savingThrowItemBonus } from "@/rules/armorClass";
+import { useArmorClass } from "@/composables/party/useArmorClass";
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
@@ -17,6 +19,7 @@ export function useTableCheck(member: MaybeRefOrGetter<PartyMember | null | unde
   const { ruleset } = useTableRuleset();
   const { activeWildshape, beastMonster } = useWildshapeForm(member);
   const { jack } = useJackOfAllTrades(member);
+  const { wornGearFor } = useArmorClass();
   const classes = useCharacterClasses(computed(() => toValue(member)?.id ?? null));
 
   return computed<CheckBonus | null>(() => {
@@ -24,6 +27,6 @@ export function useTableCheck(member: MaybeRefOrGetter<PartyMember | null | unde
     const asked = toValue(ask);
     if (!m || !asked || classes.data.value === undefined) return null;
     const scores = effectiveAbilityScores(m, { active: activeWildshape.value !== null, statBlock: beastMonster.value?.stat_block });
-    return checkBonus(asked, { member: m, scores, overrideScores: activeWildshape.value ? scores : undefined, jack: jack.value, ruleset: ruleset.value });
+    return checkBonus(asked, { member: m, scores, overrideScores: activeWildshape.value ? scores : undefined, jack: jack.value, ruleset: ruleset.value, itemSaveBonus: activeWildshape.value ? 0 : savingThrowItemBonus(wornGearFor(m.id)) });
   });
 }

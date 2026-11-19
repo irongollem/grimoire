@@ -16,6 +16,8 @@ export interface CheckBonusInput {
   jack: JackOfAllTrades;
   /** The table's edition: conditions and exhaustion follow the table, not the character. */
   ruleset: RulesetKey;
+  /** What worn, attuned items add to every save (`savingThrowItemBonus`); 0 while a Wild Shape form is worn. */
+  itemSaveBonus: number;
 }
 
 export interface CheckBonus {
@@ -35,7 +37,7 @@ export function checkBonus(ask: RollAsk, input: CheckBonusInput): CheckBonus {
   const { member, scores, overrideScores, jack, ruleset } = input;
   const penalty = getExhaustionD20Penalty(member.conditions, ruleset);
   if (ask.kind === "save") {
-    const entry = savingThrowEntries(member, scores)?.[ask.ability];
+    const entry = savingThrowEntries(member, scores, input.itemSaveBonus)?.[ask.ability];
     return {
       bonus: (entry?.bonus ?? abilityMod(scores[ask.ability])) + penalty,
       forcedDisadvantage: hasSaveDisadvantage(member.conditions, ask.ability, ruleset),

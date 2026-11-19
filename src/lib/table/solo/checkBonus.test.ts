@@ -12,6 +12,7 @@ function input(over: Partial<CheckBonusInput["member"]> = {}, rest: Partial<Chec
     scores,
     jack: "none",
     ruleset: "2014",
+    itemSaveBonus: 0,
     ...rest,
   };
 }
@@ -34,6 +35,10 @@ describe("checkBonus", () => {
   it("adds proficiency to a proficient save and not to an unproficient one", () => {
     expect(checkBonus(save("dex"), input({ saving_throw_proficiencies: ["dex"] })).bonus).toBe(5);
     expect(checkBonus(save("dex"), input()).bonus).toBe(2);
+    // DMG 2014 ch. 7 "Ring of Protection": +1 to saves while worn and attuned. Bug caught: the card showing a save
+    // one short of what the server rolls for the same character.
+    expect(checkBonus(save("dex"), input({}, { itemSaveBonus: 1 })).bonus).toBe(3);
+    expect(checkBonus(skill("perception"), input({}, { itemSaveBonus: 1 })).bonus).toBe(checkBonus(skill("perception"), input()).bonus);
     expect(checkBonus(save("dex"), input({ saving_throw_proficiencies: ["wis"] })).bonus).toBe(2);
   });
 

@@ -2,6 +2,7 @@
 //
 // The rules are `handler.ts`'s; this file wires the database, the provider and the MCP tools to them. The gates
 // run before the stream opens so a refusal is a real status code; the turn itself runs inside the stream.
+import type { AgentProvider } from "../_shared/agent/providerIo.ts";
 import { loadTurnsInReach } from "../_shared/agent/turnsInReach.ts";
 import { giveHandout, loadHandouts, loadPicture } from "./showIo.ts";
 import type { Road } from "../../../src/lib/travel/roads.ts";
@@ -57,7 +58,6 @@ import {
   type AgentTurnDeps,
   type CampaignRow,
   type Refusal,
-  type ResolvedProvider,
   type SessionRow,
 } from "./handler.ts";
 
@@ -288,7 +288,7 @@ serve(withCors(async (req: Request) => {
 
     // The campaign's text provider, the model's price and what a credit is worth: the same lookups a told recap
     // uses (`_shared/agent/providerIo.ts`).
-    async resolveProvider(campaign): Promise<ResolvedProvider | null> {
+    async resolveProvider(campaign): Promise<AgentProvider | null> {
       if (!rawCampaign) return null;
       const resolved = await resolveAgentProvider(admin, { ownerId: campaign.user_id, raw: rawCampaign });
       if (resolved === null) return null;

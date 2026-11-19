@@ -144,6 +144,7 @@ import type {
 import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import { targetCandidates } from "@/lib/encounters/actionTargeting";
 import { withinFiveFeet } from "@/rules/fight/targeting";
+import { rangedFactsFor } from "@/composables/encounters/rangedFacts";
 import { describeStructure } from "@/lib/statBlock/describeStructure";
 import { attackRollMode } from "@/rules/combat/attackRoll";
 import { applyDefenses } from "@/rules/combat/typedDamage";
@@ -186,6 +187,21 @@ const within = computed(() => placed.value ?? manualWithin.value ?? effectiveDel
 
 const magical = ref(false);
 
+// PHB 2014 ch. 9 "Ranged Attacks in Close Combat" and "Long Range": worked out from the map, so the DM does not have to remember them.
+const rangedFacts = computed(() =>
+  target.value
+    ? rangedFactsFor({
+        attacker: store.combatants.find((c) => c.instance_id === attacker.instance_id) ?? attacker,
+        target: target.value,
+        combatants: store.combatants,
+        factions: store.factions,
+        attack,
+        delivery: effectiveDelivery.value,
+        occluders: store.occluders,
+      })
+    : null,
+);
+
 const preRoll = computed(() =>
   target.value
     ? attackRollMode({
@@ -193,6 +209,7 @@ const preRoll = computed(() =>
         targetConditions: target.value.conditions,
         delivery: effectiveDelivery.value,
         withinFiveFeet: within.value,
+        ...rangedFacts.value,
         ruleset: ruleset.value,
         dmMode,
       })
@@ -228,6 +245,7 @@ async function roll() {
       target: t,
       dmMode,
       withinFiveFeet: within.value,
+      ...rangedFacts.value,
       ...(attack.delivery === "melee_or_ranged" ? { delivery: delivery.value } : {}),
       silent,
     });

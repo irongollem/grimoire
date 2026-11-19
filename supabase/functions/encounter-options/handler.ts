@@ -11,6 +11,9 @@ import { fightMapOf, type FightMapInput } from "../../../src/rules/fight/terrain
 import type { TurnOption } from "../../../src/rules/fight/terrain/turnOptions.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
 import type { RulesetKey } from "../../../src/types/ruleset.types.ts";
+import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
+import { startedFromRound, type FightState } from "../../../src/rules/fight/fightState.ts";
+import { ingestPartyRows, partyMemberIdsOf } from "../_shared/fightPartyIngest.ts";
 import { statBlockIdsOf, statBlockOf, type StatBlockSources } from "../_shared/fightStatBlocks.ts";
 import { assembleTurnOptions } from "../_shared/turnOptionsFor.ts";
 import { listedSpellNames } from "../../../src/rules/fight/spells/castNow.ts";
@@ -51,12 +54,16 @@ export interface OptionsFight {
   factions: FactionSides;
   /** The fight's round, so the options shown match the turn the server would take (surprise, round 1). */
   round: number;
+  /** Whether the players' screens are in this fight (the lobby included): the row's `is_running`. */
+  live: boolean;
 }
 
 /** Reads only. Each is already bound to the encounter's campaign by the caller, and every query is scoped to it. */
 export interface OptionsDeps {
   /** Null when the encounter has no saved fight yet. */
   loadFight(): Promise<OptionsFight | null>;
+  /** The players' own rows (hit points, conditions ...), applied to the in-memory fight the way a command applies them. Read only. */
+  loadPartyRows(memberIds: string[]): Promise<PartyIngestRow[]>;
   loadStatBlocks(ids: { monsterIds: string[]; npcIds: string[]; companionIds: string[] }): Promise<StatBlockSources>;
   /** The party members' sheet speeds, by id. */
   loadMemberSpeeds(memberIds: string[]): Promise<{ id: string; speed: number }[]>;
@@ -72,14 +79,39 @@ export interface OptionsResponse {
   options: TurnOption[];
 }
 
+/** The fight's roster with its players' own rows applied. A copy: the fight as loaded is never changed. */
+async function withPartyRows(fight: OptionsFight, deps: OptionsDeps): Promise<RunCombatant[]> {
+  // Only what the ingest needs of a fight: no event or lair is in play, so none can fire from an adopted hit point.
+  const state: FightState = {
+    combatants: fight.combatants,
+    round: fight.round,
+    activeIndex: 0,
+    started: startedFromRound(fight.round),
+    randomizeInitiativeEachRound: false,
+    ruleset: fight.ruleset,
+    lairEnabled: false,
+    lairOwnerInstanceId: null,
+    lairFiredRounds: [],
+    events: [],
+    eventsFired: [],
+  };
+  const memberIds = partyMemberIdsOf(state);
+  if (memberIds.length === 0) return fight.combatants;
+  return ingestPartyRows(state, await deps.loadPartyRows(memberIds), fight.live, { monsters: [], npcs: [] }).state.combatants;
+}
+
 export async function computeOptions(request: OptionsRequest, deps: OptionsDeps): Promise<OptionsResponse> {
   const fight = await deps.loadFight();
   if (fight === null) throw new OptionsError(404, "This encounter has no saved fight yet.");
-  const mover = fight.combatants.find((c) => c.instance_id === request.instanceId);
+
+  // What the players changed on their own sheets comes first, as it does before a command, so the options are worked out
+  // on the hit points the turn would be played on. Applied to this in-memory copy only: nothing is saved or written.
+  const combatants = await withPartyRows(fight, deps);
+  const mover = combatants.find((c) => c.instance_id === request.instanceId);
   if (!mover) throw new OptionsError(404, `No creature "${request.instanceId}" is in this fight.`);
 
-  const sources = await deps.loadStatBlocks(statBlockIdsOf(fight.combatants));
-  const memberIds = fight.combatants.flatMap((c) => (c.party_member_id ? [c.party_member_id] : []));
+  const sources = await deps.loadStatBlocks(statBlockIdsOf(combatants));
+  const memberIds = combatants.flatMap((c) => (c.party_member_id ? [c.party_member_id] : []));
   const members = memberIds.length === 0 ? [] : await deps.loadMemberSpeeds(memberIds);
   const mapInput = await deps.loadMapInput();
 
@@ -89,7 +121,7 @@ export async function computeOptions(request: OptionsRequest, deps: OptionsDeps)
   const spellRecords = listed.length === 0 ? [] : await deps.loadSpellsListed(listed);
 
   const { options } = assembleTurnOptions({
-    combatants: fight.combatants,
+    combatants,
     mover,
     ruleset: fight.ruleset,
     sources,

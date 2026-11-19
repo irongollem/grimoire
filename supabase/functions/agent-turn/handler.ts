@@ -11,6 +11,7 @@
 //                (`_shared/agent/summary.ts`): the player never waits for that, and a failure in it is only logged.
 // A caller that gets `run` MUST call it: the reservation is released inside it.
 
+import type { AgentProvider } from "../_shared/agent/providerIo.ts";
 import { floorOf, LISTENING_TEXT, type Floor } from "../_shared/agent/floor.ts";
 import { handoutsSection, type HandoutOffer, type PictureOf, type Shown } from "../_shared/agent/show.ts";
 import { shownText, speakerIdsOf, tableClosed } from "../_shared/agent/conduct.ts";
@@ -48,7 +49,6 @@ import {
   type AgentLine,
   type AgentTool,
   type AgentUsage,
-  type CallModel,
   type CallTool,
   type DmRoll,
 } from "../_shared/agent/types.ts";
@@ -152,15 +152,6 @@ export interface SessionRow {
   pursuit_encounter_id?: string | null;
 }
 
-export interface ResolvedProvider {
-  provider: string;
-  model: string;
-  /** The campaign's own key pays. */
-  isByok: boolean;
-  /** Null when the provider has no adapter yet. */
-  callModel: CallModel | null;
-}
-
 export type Reservation = { ok: true; ids: string[] } | { ok: false; refusal: Refusal };
 
 export interface AgentTurnDeps {
@@ -196,7 +187,7 @@ export interface AgentTurnDeps {
   /** The stored rows in reach of a turn (`turnsInReach.ts`): never the whole of a table that has run for months. */
   loadTurns(sessionId: string, summaryThroughSeq: number): Promise<StoredTurn[]>;
   rateLimit(userId: string): Promise<boolean>;
-  resolveProvider(campaign: CampaignRow): Promise<ResolvedProvider | null>;
+  resolveProvider(campaign: CampaignRow): Promise<AgentProvider | null>;
   loadPrice(model: string): Promise<ModelPrice | null>;
   loadCalibration(): Promise<{ usdPerCredit: number | null; margin: number } | null>;
   /** True when the message must not be sent. Fails open (false) when the check cannot run. */

@@ -9,6 +9,7 @@ import { DEFAULT_FACTIONS } from "../../../src/types/encounter.types.ts";
 import { withCors } from "../_shared/cors.ts";
 import { adminClient, callerUserId, loadEncounterAsDm } from "../_shared/fightAccess.ts";
 import { loadFightMapInput } from "../_shared/fightMap.ts";
+import { loadPartyIngestRows } from "../_shared/fightPartyIngest.ts";
 import { loadStatBlocks } from "../_shared/fightStatBlocks.ts";
 import { loadSpellsListed } from "../_shared/fightSpells.ts";
 import { gameSystemEdition } from "../_shared/gameSystem.ts";
@@ -46,7 +47,7 @@ serve(withCors(async (req: Request) => {
       async loadFight() {
         const { data, error } = await admin
           .from("encounter_state")
-          .select("version, combatants_live, current_round")
+          .select("version, combatants_live, current_round, is_running")
           .eq("encounter_id", request.encounterId)
           .eq("campaign_id", campaignId)
           .maybeSingle();
@@ -56,10 +57,12 @@ serve(withCors(async (req: Request) => {
           version: data.version as number,
           combatants: data.combatants_live as RunCombatant[],
           round: Number(data.current_round),
+          live: data.is_running === true,
           ruleset: gameSystemEdition(access.campaign.game_system) ?? DEFAULT_RULESET,
           factions: access.encounter.factions && access.encounter.factions.length > 0 ? access.encounter.factions : DEFAULT_FACTIONS,
         };
       },
+      loadPartyRows: (ids) => loadPartyIngestRows(admin, campaignId, ids),
       loadStatBlocks: (ids) => loadStatBlocks(admin, campaignId, ids),
       async loadMemberSpeeds(memberIds) {
         const { data, error } = await admin.from("party_members").select("id, speed").eq("campaign_id", campaignId).in("id", memberIds);

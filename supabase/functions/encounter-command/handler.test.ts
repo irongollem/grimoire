@@ -19,6 +19,7 @@ import {
   ALL_FIGHT_COMMANDS_LISTED,
   ALL_REDUCER_COMMANDS_LISTED,
   ALL_RESOLVING_COMMANDS_LISTED,
+  APPLIED_IDS_KEPT,
   FightCommandError,
   runBatch,
   validateRequest,
@@ -96,6 +97,8 @@ function harness(
     /** The encounter's factions; none means a fight that declares none, where a different faction is a foe. */
     factions?: { id: string; hostile_to: string[] }[];
     events?: EncounterEvent[];
+    /** The campaign's edition; 2014 when left out. */
+    ruleset?: "2014" | "2024";
     party?: PartyIngestRow[];
     d6?: number;
     d20?: number;
@@ -146,7 +149,7 @@ function harness(
         lairEnabled: false,
         lairOwnerDefId: null,
         factions: options.factions ?? [],
-        ruleset: "2014",
+        ruleset: options.ruleset ?? "2014",
         randomizeInitiativeEachRound: false,
         monsters: [],
         npcs: [],
@@ -308,14 +311,26 @@ describe("runBatch", () => {
     expect(h.persisted).toEqual([]);
   });
 
-  it("keeps only the newest 64 applied ids", async () => {
-    const old = Array.from({ length: 64 }, (_, i) => `old-${i}`);
+  it("keeps only the newest applied ids, enough that a retry across a long outage is still recognised", async () => {
+    const old = Array.from({ length: APPLIED_IDS_KEPT }, (_, i) => `old-${i}`);
     const h = harness(row({ applied_command_ids: old }));
     await runBatch(batch("fresh", { type: "next_turn" }), h.deps);
-    // 64 kept + 1 new = 65, so the oldest ("old-0") goes and the new one is last.
-    expect(stored(h).applied_command_ids).toHaveLength(64);
+    // The kept count + 1 new, so the oldest ("old-0") goes and the new one is last.
+    expect(stored(h).applied_command_ids).toHaveLength(APPLIED_IDS_KEPT);
     expect(stored(h).applied_command_ids[0]).toBe("old-1");
     expect(stored(h).applied_command_ids.at(-1)).toBe("fresh");
+  });
+
+  // A second device applies 200 batches while the first device's reply was lost: its retry (more than the old 64 back) is
+  // answered as already applied, not applied a second time (Nessa 12 -> 9 once, not 6).
+  it("fails if a retry of a batch with 200 newer applied batches after it is applied a second time", async () => {
+    const h = harness(row({ combatants_live: [pc("nessa", { hp: 12, max_hp: 20, initiative: 15 })] }));
+    const hit = batch("retry-me", { type: "adjust_hp", instanceId: "nessa", delta: -3 });
+    await runBatch(hit, h.deps);
+    for (let i = 0; i < 200; i++) await runBatch(batch(`other-${i}`, { type: "set_reaction_used", instanceId: "nessa", used: i % 2 === 0 }), h.deps);
+    const again = await runBatch(hit, h.deps);
+    expect(again.applied).toBe(false);
+    expect(hpOf(stored(h), "nessa")).toBe(9);
   });
 
   it("performs effects only after the save, and once even when a race was lost first", async () => {
@@ -475,7 +490,7 @@ describe("runBatch", () => {
       wildshape_state: null, death_save_successes: 0, death_save_failures: 0,
     };
     // The fight has read this row before (it remembers 12 and 0), so a sync that finds the same has nothing to note.
-    const h = harness(row({ combatants_live: [pc("nessa", { hp: 12, max_hp: 20, initiative: 15, sheet_hp: 12, sheet_temp_hp: 0 })] }), { party: [nessaRow] });
+    const h = harness(row({ combatants_live: [pc("nessa", { hp: 12, max_hp: 20, initiative: 15, sheet_hp: 12, sheet_temp_hp: 0, sheet_death_saves: { successes: 0, failures: 0 }, sheet_conditions: [], sheet_wildshape: null, sheet_initiative: 15 })] }), { party: [nessaRow] });
     const before = h.store.row?.version;
     const result = await runBatch(batch("b1", { type: "sync_party" }), h.deps);
     expect(result.applied).toBe(false);
@@ -1717,6 +1732,17 @@ describe("provoke", () => {
     expect(h.dieCalls).toBe(0);
   });
 
+  // PHB 2014 ch. 9 "Surprise": a surprised creature cannot take a reaction until its first turn ends. SRD 5.2 only costs it
+  // the Initiative roll, so under 2024 the surprised wolf strikes: d20 14 + 4 = 18 meets AC 18, d6 5 + 2 = 7, 20 - 7 = 13.
+  it("fails if a surprised creature takes an opportunity attack under 2014, or is stopped from it under 2024", async () => {
+    const two014 = harness(row({ combatants_live: [nessa(), wolfAt("wolf", 1, 0, { surprised: true })] }), { sources: SOURCES, players: NESSA_IN_PLATE, map: mapOf(), dieFaces: [] });
+    expect((await runBatch(batch("b1", provoke()), two014.deps)).effects).toEqual([]);
+    expect(two014.dieCalls).toBe(0);
+    const two024 = harness(row({ combatants_live: [nessa(), wolfAt("wolf", 1, 0, { surprised: true })] }), { sources: SOURCES, players: NESSA_IN_PLATE, map: mapOf(), dieFaces: [14, 5], ruleset: "2024" });
+    await runBatch(batch("b2", provoke()), two024.deps);
+    expect(hpOf(stored(two024), "nessa")).toBe(13);
+  });
+
   // The wolf is at (1,0): (0,1) is diagonal, still 5 ft. Nothing leaves its reach, so nothing is provoked.
   it("fails if walking around inside a creature's reach provokes it", async () => {
     const h = walk([nessa(), wolfAt("wolf", 1, 0)], []);
@@ -2539,6 +2565,27 @@ describe("the fight's own memory across writers and retries", () => {
     expect(h.persisted).toMatchObject([{ id: "pm-nessa", patch: { current_hp: 10 } }]);
     await runBatch(batch("b", { type: "set_reaction_used", instanceId: "nessa", used: true }), h.deps);
     expect(hpOf(stored(h), "nessa")).toBe(10);
+  });
+
+  // Batch A records a failed death save for Nessa (0 hit points, row 0/0) and saves; the write to her row is held back (the
+  // harness's row still says 0 failures). Batch B reads that row, which is what the fight last read (0 failures), so the
+  // fight's 1 failure stands. Without the memory B would put the tally back to 0.
+  it("fails if a second batch reads a row that has not caught up and puts back a death save the fight recorded", async () => {
+    const h = harness(row({ combatants_live: [pc("nessa", { hp: 0, max_hp: 20, initiative: 15 })] }), { party: [{ ...nessaRow, current_hp: 0 }] });
+    await runBatch(batch("a", { type: "adjust_hp", instanceId: "nessa", delta: -1 }), h.deps);
+    expect(stored(h).combatants_live[0].death_saves).toEqual({ successes: 0, failures: 1 });
+    expect(h.persisted).toMatchObject([{ id: "pm-nessa", patch: { death_save_failures: 1 } }]);
+    await runBatch(batch("b", { type: "set_reaction_used", instanceId: "nessa", used: true }), h.deps);
+    expect(stored(h).combatants_live[0].death_saves).toEqual({ successes: 0, failures: 1 });
+  });
+
+  // The same for a condition the DM applied (Prone) while the row write is held back.
+  it("fails if a second batch reads a row that has not caught up and puts back a condition the fight applied", async () => {
+    const h = harness(row({ combatants_live: [pc("nessa", { hp: 20, max_hp: 20, initiative: 15 })] }), { party: [nessaRow] });
+    await runBatch(batch("a", { type: "apply_condition", instanceId: "nessa", condition: { name: "Prone" } }), h.deps);
+    expect(stored(h).combatants_live[0].conditions.map((c) => c.name)).toEqual(["Prone"]);
+    await runBatch(batch("b", { type: "set_reaction_used", instanceId: "nessa", used: true }), h.deps);
+    expect(stored(h).combatants_live[0].conditions.map((c) => c.name)).toEqual(["Prone"]);
   });
 
   // The same, then A's write lands (row 10) and Nessa heals herself to 15 on her sheet: 15 is not what the fight last read, so it is hers.

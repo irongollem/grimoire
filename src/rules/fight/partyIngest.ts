@@ -7,9 +7,10 @@
  * same rules. The browser-only guards around it (writes in flight, read ticks)
  * stay in the composable: they are about when to apply a row, never what to do.
  *
- * Hit points and temp HP are adopted only when the row changed since the fight last read it (`sheet_hp`,
- * `sheet_temp_hp` on the combatant): the fight is saved before a hit reaches the row, and a read in between must not
- * undo it.
+ * Hit points, temp HP, conditions, beast form, death saves and initiative are adopted only when the row changed since the
+ * fight last read it (the `sheet_*` fields on the combatant): the fight is saved before a change reaches the row, and a
+ * read in between must not undo it. Concentration is read-only here (the fight never writes it to the row), so it needs
+ * no memory.
  */
 import type { AppliedCondition } from "../../types/condition.types.ts";
 import type { RunCombatant, WildshapeState } from "../../types/encounter.types.ts";
@@ -54,7 +55,11 @@ function replaceCombatant(state: FightState, instanceId: string, edit: (c: RunCo
 }
 
 /** Notes what the fight last read from a character's row, so the next read can tell a change the player made from one that has not landed yet. */
-function remember(state: FightState, instanceId: string, read: { sheet_hp?: number; sheet_temp_hp?: number }): FightState {
+function remember(
+  state: FightState,
+  instanceId: string,
+  read: Pick<RunCombatant, "sheet_hp" | "sheet_temp_hp" | "sheet_death_saves" | "sheet_conditions" | "sheet_wildshape" | "sheet_initiative">,
+): FightState {
   return replaceCombatant(state, instanceId, (c) => ({ ...c, ...read }));
 }
 
@@ -138,7 +143,12 @@ export function ingestPartyRow(
 
   // A re-read selects its columns, so none is ever omitted the way an UPDATE
   // payload omitted an unchanged TOAST column: an empty array is a real empty.
-  if (!sameConditions(live().conditions, row.conditions)) current = adoptConditions(current, id, row.conditions);
+  // Same memory as hit points: a condition applied here reaches the row only after the fight is saved.
+  const knownConditions = live().sheet_conditions;
+  if (knownConditions === undefined || !sameConditions(knownConditions, row.conditions)) {
+    if (!sameConditions(live().conditions, row.conditions)) current = adoptConditions(current, id, row.conditions);
+    current = remember(current, id, { sheet_conditions: [...row.conditions] });
+  }
 
   // A spell the player stopped concentrating on, or swapped for another, on
   // their own sheet (or through any runner path that ends it via the sheet):
@@ -154,15 +164,24 @@ export function ingestPartyRow(
   // A form the player took or dropped on their own sheet. Compared
   // structurally: the row is jsonb, whose key order is Postgres's own, never
   // the order the client built.
-  if (!deepEqual(live().wildshape ?? null, row.wildshape_state ?? null)) {
-    current = adoptWildshape(current, id, row.wildshape_state ?? null);
+  const rowForm = row.wildshape_state ?? null;
+  const knownForm = live().sheet_wildshape;
+  if (knownForm === undefined || !deepEqual(knownForm, rowForm)) {
+    if (!deepEqual(live().wildshape ?? null, rowForm)) current = adoptWildshape(current, id, rowForm);
+    current = remember(current, id, { sheet_wildshape: rowForm === null ? null : { ...rowForm } });
   }
 
   // Death saves a player rolled on their own sheet. Without this the runner
   // keeps the tally from when the fight began, and end of combat writes it
   // straight back over the character's real one.
-  if (live().death_saves.successes !== row.death_save_successes || live().death_saves.failures !== row.death_save_failures) {
-    current = adoptDeathSaves(current, id, { successes: row.death_save_successes, failures: row.death_save_failures });
+  // A failed save the DM recorded here reaches the row only after the fight is saved, so a row that still says what was
+  // last read must not put the tally back.
+  const knownSaves = live().sheet_death_saves;
+  if (!knownSaves || knownSaves.successes !== row.death_save_successes || knownSaves.failures !== row.death_save_failures) {
+    if (live().death_saves.successes !== row.death_save_successes || live().death_saves.failures !== row.death_save_failures) {
+      current = adoptDeathSaves(current, id, { successes: row.death_save_successes, failures: row.death_save_failures });
+    }
+    current = remember(current, id, { sheet_death_saves: { successes: row.death_save_successes, failures: row.death_save_failures } });
   }
 
   // Ingest player-rolled initiative (#504). Only apply a fresh non-null value
@@ -170,10 +189,16 @@ export function ingestPartyRow(
   // skip anyone who already rolled. Only while live: a row read before the
   // lobby opens still carries last session's roll, and the runner blanks it as
   // the lobby opens.
-  if (context.live && row.current_initiative !== null && live().initiative !== row.current_initiative) {
-    const set = applyFightCommand(current, { type: "set_initiative", instanceId: id, value: row.current_initiative }, deps);
-    current = set.state;
-    effects.push(...set.effects);
+  // Remembered whether live or not, so a roll read before the lobby opened is not mistaken for news when the lobby's own
+  // clearing has reached the fight but not yet the row, and a number the DM set for the fight is not overwritten by the
+  // roll the row still holds.
+  if (live().sheet_initiative !== row.current_initiative) {
+    if (context.live && row.current_initiative !== null && live().initiative !== row.current_initiative) {
+      const set = applyFightCommand(current, { type: "set_initiative", instanceId: id, value: row.current_initiative }, deps);
+      current = set.state;
+      effects.push(...set.effects);
+    }
+    current = remember(current, id, { sheet_initiative: row.current_initiative });
   }
 
   // Hit points. Order matters across writers: a batch saves the fight first and writes the player's row after, so for a

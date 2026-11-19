@@ -1,10 +1,10 @@
 import { CRAFTING_DISCIPLINES, type CraftingDiscipline, type InventionBenchEntry } from "./types.ts";
+import { UUID_RE as UUID } from "../uuid.ts";
 
 export const WISH_MAX = 1000;
 export const NOTE_MAX = 500;
 export const MAX_BENCH_ROWS = 8;
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type InventRequest =
   | { action: "materials"; party_member_id: string; discipline: CraftingDiscipline; row_ids: string[] }

@@ -18,6 +18,12 @@ describe("attackEntryOf", () => {
     expect(attackEntryOf(row({ kind: "thrown" }))?.structured.attack?.delivery).toBe("ranged");
   });
 
+  it("hands the weapon's range to the attack, and none when the row has none", () => {
+    // Bug caught: the range dropped here, so a shot at 500 ft was never long range.
+    expect(attackEntryOf(row({ kind: "ranged", range: { normal: 80, long: 320 } }))?.structured.attack?.range).toEqual({ normal: 80, long: 320 });
+    expect(attackEntryOf(row({ kind: "ranged", range: null }))?.structured.attack?.range).toBeUndefined();
+  });
+
   it("keeps the row's bonus and its damage with the modifier already in the dice", () => {
     // Bug caught: the modifier added a second time on top of "1d8+3" (damage 3 too high).
     const attack = attackEntryOf(row())?.structured.attack;

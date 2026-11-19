@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 const net = vi.hoisted(() => ({ invoke: vi.fn() }));
@@ -30,6 +30,12 @@ describe("foughtEncounter", () => {
 });
 
 describe("sendLeftBehind", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    useEncounterRunStore().$dispose();
+    vi.useRealTimers();
+  });
+
   function fightWithUnsent() {
     setActivePinia(createPinia());
     const store = useEncounterRunStore();
@@ -41,9 +47,9 @@ describe("sendLeftBehind", () => {
     return store;
   }
 
-  it("fails if the unsent changes of the last fight are not sent to that fight before another opens", async () => {
+  it("fails if the unsent changes of the last fight are not sent to that fight before another opens, or are sent twice", async () => {
     net.invoke.mockReset();
-    net.invoke.mockResolvedValue({ data: {}, error: null });
+    net.invoke.mockResolvedValue({ data: { version: 2, state: { combatants_live: [], current_round: 1, active_combatant_index: 0, events_fired: [], lair_fired_rounds: [] }, effects: [], effectFailures: [] }, error: null });
     const store = fightWithUnsent();
     const failed = vi.fn();
     await sendLeftBehind(store, "enc-new", failed);
@@ -52,19 +58,24 @@ describe("sendLeftBehind", () => {
     expect(failed).not.toHaveBeenCalled();
   });
 
-  it("fails if changes that could not be sent are dropped without telling the DM", async () => {
+  it("fails if changes that could not be sent in time are dropped without telling the DM", async () => {
     net.invoke.mockReset();
     net.invoke.mockResolvedValue({ data: null, error: { message: "Failed to send a request", context: new TypeError("fetch failed") } });
     const store = fightWithUnsent();
     const failed = vi.fn();
-    await sendLeftBehind(store, "enc-new", failed);
+    const waiting = sendLeftBehind(store, "enc-new", failed, 3000);
+    await vi.advanceTimersByTimeAsync(3000);
+    await waiting;
     expect(failed).toHaveBeenCalledTimes(1);
   });
 
-  it("fails if opening the same fight again sends its own changes to itself", async () => {
+  it("fails if opening the same fight again waits for its own unsent changes, or calls them lost", async () => {
     net.invoke.mockReset();
+    net.invoke.mockResolvedValue({ data: null, error: { message: "Failed to send a request", context: new TypeError("fetch failed") } });
     const store = fightWithUnsent();
-    await sendLeftBehind(store, "enc-old", vi.fn());
-    expect(net.invoke).not.toHaveBeenCalled();
+    const failed = vi.fn();
+    // No timers advance: a wait would never end here.
+    await sendLeftBehind(store, "enc-old", failed);
+    expect(failed).not.toHaveBeenCalled();
   });
 });

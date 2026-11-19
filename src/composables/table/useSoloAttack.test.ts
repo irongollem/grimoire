@@ -192,3 +192,84 @@ describe("useSoloAttack: an opportunity attack", () => {
     expect(t.mira()?.conditions.some((c) => c.name === "Hidden")).toBe(false);
   });
 });
+
+describe("useSoloAttack: ranged attacks", () => {
+  const bow = {
+    key: "bow", name: "Longbow", kind: "ranged", attackBonus: 5, damageDice: "1d8+3", damageFixed: null, modifier: 3,
+    damageType: "piercing", baseDice: "1d8", shape: null, description: "", ammoTag: null, weaponInvId: "inv", range: { normal: 150, long: 600 },
+  } as PcAttackRow;
+
+  /** The archer stands at the origin, the orc 50 feet off; a second foe may stand next to the archer. */
+  function archers(extra: { guard?: boolean; farFeet?: number } = {}) {
+    const t = setup();
+    t.mira()!.position = { x: 0, y: 0 };
+    t.orc()!.position = { x: (extra.farFeet ?? 50) / 5, y: 0 };
+    if (extra.guard) t.store.combatants.push(combatant("guard", { name: "Guard", position: { x: 1, y: 0 } }));
+    return t;
+  }
+
+  it("rolls with disadvantage when a foe stands within 5 feet of the archer", async () => {
+    // PHB 2014 ch. 9 "Ranged Attacks in Close Combat". Bug caught: the browser's own roll ignoring the foe beside the
+    // archer, so the first face (18, a hit) counted instead of the lower one (3, a miss).
+    const t = archers({ guard: true });
+    await t.toHit([18, 3], false, bow);
+    expect(t.attack.state.value.step).toBe("idle");
+  });
+
+  it("does not take disadvantage when the foe beside the archer cannot act", async () => {
+    // PHB 2014 ch. 9: only a creature that is not incapacitated counts. Bug caught: any adjacent foe counting.
+    const t = archers({ guard: true });
+    t.store.combatants.find((c) => c.instance_id === "guard")!.conditions = [{ name: "Unconscious" }];
+    await t.toHit([18, 3], false, bow);
+    expect(t.attack.state.value.step).toBe("damage");
+  });
+
+  it("rolls with disadvantage beyond the weapon's normal range", async () => {
+    // PHB 2014 ch. 9 "Long Range": 150 ft normal, 600 ft long; the orc is 200 ft off. Bug caught: long range never applied.
+    const t = archers({ farFeet: 200 });
+    await t.toHit([18, 3], false, bow);
+    expect(t.attack.state.value.step).toBe("idle");
+  });
+
+  it("keeps a straight roll inside the normal range with nobody beside the archer", async () => {
+    // Bug caught: disadvantage applied to every ranged attack.
+    const t = archers();
+    await t.toHit([18, 3], false, bow);
+    expect(t.attack.state.value.step).toBe("damage");
+  });
+
+  it("claims no long range for a weapon that names no range", async () => {
+    // A row with no range data cannot be judged. Bug caught: a missing range read as 0 feet, so everything was long range.
+    const t = archers({ farFeet: 200 });
+    await t.toHit([18, 3], false, { ...bow, range: null } as PcAttackRow);
+    expect(t.attack.state.value.step).toBe("damage");
+  });
+
+  it("applies nothing when either creature has no place on the map", async () => {
+    // Nothing is measured, so nothing is claimed. Bug caught: an unplaced creature counted as standing at the origin.
+    const t = archers({ guard: true });
+    t.orc()!.position = undefined;
+    await t.toHit([18, 3], false, bow);
+    expect(t.attack.state.value.step).toBe("damage");
+  });
+
+  it("says why before the dice are thrown", () => {
+    // Bug caught: the player is rolled a disadvantage they were never shown.
+    const t = archers({ guard: true });
+    t.attack.aim(bow);
+    t.attack.pickTarget("orc");
+    expect(t.attack.toHitDisadvantage.value).toBe("Disadvantage: a foe is within 5 feet of you");
+    const far = archers({ farFeet: 200 });
+    far.attack.aim(bow);
+    far.attack.pickTarget("orc");
+    expect(far.attack.toHitDisadvantage.value).toBe("Disadvantage: long range");
+  });
+
+  it("never adds ranged disadvantage to a melee weapon", async () => {
+    // Bug caught: the facts passed for a sword, so a swordsman with a foe beside them rolled twice for nothing.
+    const t = archers({ guard: true });
+    t.orc()!.position = { x: 1, y: 1 };
+    await t.toHit([18, 3], false, sword);
+    expect(t.attack.state.value.step).toBe("damage");
+  });
+});

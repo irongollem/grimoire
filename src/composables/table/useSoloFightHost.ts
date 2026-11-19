@@ -241,7 +241,7 @@ export function useSoloFightHost(options: {
     ending.value = true;
     try {
       await fight.lifecycle({ type: "end_combat" });
-      store.reset();
+      fight.releaseFight();
       options.onOver(how);
     } catch (error) {
       toast.error(toast.fromError(error, "Couldn't end the fight."));

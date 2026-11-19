@@ -322,7 +322,7 @@ const goingLive = ref(false);
 const fight = useFightCommands(encounterId, {
   onLost: () => {
     releaseEncounterAudio();
-    void router.push(`/encounters/${encounterId.value}`).then(() => store.reset());
+    void router.push(`/encounters/${encounterId.value}`).then(() => fight.releaseFight());
   },
 });
 
@@ -497,6 +497,8 @@ async function handleStartCombat() {
       { title: "Not everyone has rolled", confirmLabel: "Roll for them", danger: false },
     );
     if (!go) return;
+    // The answer can come after the fight was ended or another one opened: start only the fight that was asked about.
+    if (store.encounterId !== mountedFor) return;
   }
   await store.startCombat();
   requestEncounterAudio();
@@ -643,7 +645,7 @@ async function handleAbandon() {
     return;
   }
   releaseEncounterAudio();
-  store.reset();
+  fight.releaseFight();
   router.push(`/encounters/${encounterId.value}`);
 }
 
@@ -660,7 +662,7 @@ async function handleEndCombat() {
   // Hands the music slot back to whatever was playing before the fight, or
   // stops it if the DM had nothing running.
   releaseEncounterAudio();
-  store.reset();
+  fight.releaseFight();
   // A fight anchored in a site goes back to exploring it; any other back to its encounter (#1125).
   router.push(afterFightRoute(encounterId.value, fightSite.value));
 }

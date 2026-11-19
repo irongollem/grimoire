@@ -31,16 +31,20 @@ export function effectiveAbilityScores(
   return { ...scoresOf(member), str, dex, con };
 }
 
-/** Saving throw bonus and proficiency for each ability, from the scores in effect. */
+/**
+ * Saving throw bonus and proficiency for each ability, from the scores in effect. `itemBonus` is what the character's
+ * worn gear adds to every save (`savingThrowItemBonus`); the sheet and the server both pass it, so they show one number.
+ */
 export function savingThrowEntries(
   member: Pick<PartyMember, "saving_throw_proficiencies" | "proficiency_bonus"> | null | undefined,
   scores: AbilityScores,
+  itemBonus = 0,
 ): Record<string, SaveEntry> | undefined {
   if (!member) return undefined;
   return Object.fromEntries(
     ABILITY_KEYS.map((key) => {
       const proficient = member.saving_throw_proficiencies?.includes(key) ?? false;
-      return [key, { bonus: abilityMod(scores[key]) + (proficient ? member.proficiency_bonus : 0), proficient }];
+      return [key, { bonus: abilityMod(scores[key]) + (proficient ? member.proficiency_bonus : 0) + itemBonus, proficient }];
     }),
   );
 }

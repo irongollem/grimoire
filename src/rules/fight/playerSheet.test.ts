@@ -91,6 +91,30 @@ describe("playerSaveBonus", () => {
     expect(playerSaveBonus(s, "pm-nessa", "str")).toBe(-1);
   });
 
+  // DMG 2014 ch. 7 "Ring of Protection": +1 to AC and saving throws while worn and attuned. Con 14 is +2, so +3; every save gets it.
+  // Unattuned it adds nothing (the rule says attunement is required), and a Bracers of Defense never touches saves.
+  it("fails if a worn, attuned Ring of Protection adds nothing to saves, or one that is not attuned does", () => {
+    const ring = item({ id: "ring", name: "Ring of Protection", item_type: "ring", conceptual_key: "ring_of_protection" });
+    const bracers = item({ id: "bracers", name: "Bracers of Defense", item_type: "wondrous_item", conceptual_key: "bracers_of_defense" });
+    const attuned = (p: PartyInventoryItem): PartyInventoryItem => ({ ...p, is_attuned: true });
+    const withRing = sheets({ items: [ring, bracers], inventory: [attuned(worn("ring", "ring")), attuned(worn("bracers", "hands"))] });
+    expect(playerSaveBonus(withRing, "pm-nessa", "con")).toBe(3);
+    expect(playerSaveBonus(withRing, "pm-nessa", "int")).toBe(1); // Int 10 is +0, ring +1; the bracers add nothing
+    expect(playerSaveBonus(sheets({ items: [ring], inventory: [worn("ring", "ring")] }), "pm-nessa", "con")).toBe(2);
+  });
+
+  // A Wild Shaped character saves on the beast's statistics and their gear does not work: the ring adds nothing (Con 16 is +3).
+  it("fails if a Wild Shaped character still adds a worn ring to a save", () => {
+    const ring = item({ id: "ring", name: "Ring of Protection", item_type: "ring", conceptual_key: "ring_of_protection" });
+    const s = sheets({
+      members: [row({ wildshape_state: form() })],
+      items: [ring],
+      inventory: [{ ...worn("ring", "ring"), is_attuned: true }],
+      beasts: [{ id: "bear", stat_block: { str: 19, dex: 10, con: 16 } }],
+    });
+    expect(playerSaveBonus(s, "pm-nessa", "con")).toBe(3);
+  });
+
   it("fails if a character whose row was not read is given a bonus anyway", () => {
     expect(playerSaveBonus(sheets(), "pm-nobody", "dex")).toBeNull();
   });

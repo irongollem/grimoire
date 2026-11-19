@@ -46,9 +46,31 @@ describe("the feet of movement left this turn", () => {
   });
 
   it("2024 Exhaustion takes 5 ft per level off the speed, then the moved feet", () => {
-    // Level 2: 30 - 10 = 20; 5 moved: 15. Bug: ignoring Exhaustion, or applying it under 2014 (which tiers it).
+    // Level 2: 30 - 10 = 20; 5 moved: 15. Bug: ignoring Exhaustion, or taking feet off under 2014, which halves
+    // instead (PHB 2014 appendix A, level 2): 30 / 2 = 15; 5 moved: 10.
     expect(budget({ conditions: [cond("Exhaustion", 2)], ruleset: "2024", movementUsed: 5 })).toBe(15);
-    expect(budget({ conditions: [cond("Exhaustion", 2)], ruleset: "2014", movementUsed: 5 })).toBe(25);
+    expect(budget({ conditions: [cond("Exhaustion", 2)], ruleset: "2014", movementUsed: 5 })).toBe(10);
+  });
+
+  // PHB 2014 appendix A "Exhaustion": level 5 speed reduced to 0, level 6 death. Level 4 is still only halved (level 2's
+  // effect): 30 / 2 = 15, less 5 moved = 10.
+  // Under 2024 level 5 takes 25 ft off 30: 5 left, so it is not "speed 0" (SRD 5.2 "Exhaustion").
+  // PHB 2014 appendix A "Exhaustion", level 2: "Speed halved". Level 1 does not touch speed. 5e rounds down: 25 / 2 = 12.
+  // Under 2024 level 2 takes 10 ft off instead (SRD 5.2 "Exhaustion": 5 ft per level): 30 - 10 = 20.
+  it("fails if 2014 Exhaustion level 2 leaves the speed whole, or halves it at level 1 or under 2024", () => {
+    expect(budget({ conditions: [cond("Exhaustion", 2)], ruleset: "2014" })).toBe(15);
+    expect(budget({ conditions: [cond("Exhaustion", 1)], ruleset: "2014" })).toBe(30);
+    expect(budget({ conditions: [cond("Exhaustion", 2)], ruleset: "2014", speed: 25 })).toBe(12);
+    expect(budget({ conditions: [cond("Exhaustion", 2)], ruleset: "2024" })).toBe(20);
+  });
+
+  it("fails if 2014 Exhaustion level 5 or 6 leaves a creature able to walk, or 2024 level 5 stops it", () => {
+    expect(speedIsZero([cond("Exhaustion", 5)], "2014")).toBe(true);
+    expect(budget({ conditions: [cond("Exhaustion", 6)], ruleset: "2014" })).toBe(0);
+    expect(speedIsZero([cond("Exhaustion", 4)], "2014")).toBe(false);
+    expect(budget({ conditions: [cond("Exhaustion", 4)], ruleset: "2014", movementUsed: 5 })).toBe(10);
+    expect(speedIsZero([cond("Exhaustion", 5)], "2024")).toBe(false);
+    expect(budget({ conditions: [cond("Exhaustion", 5)], ruleset: "2024" })).toBe(5);
   });
 
   it("Exhaustion cannot push the budget below 0", () => {

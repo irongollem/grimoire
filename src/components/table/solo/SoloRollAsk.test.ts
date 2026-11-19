@@ -65,6 +65,14 @@ describe("SoloRollAsk", () => {
     expect(w.emitted("roll")![0]).toEqual([{ faces: [9], mode: "normal", bonus: 4, atTable: false }]);
   });
 
+  // Bug caught: a ranged attack's disadvantage shown as "from a condition", which tells the player to look for a
+  // condition they do not have instead of the foe beside them.
+  it("names the cause the caller gives for a forced disadvantage", () => {
+    const w = card({ forcedDisadvantage: true, forcedReason: "Disadvantage: long range" });
+    expect(w.text()).toContain("Disadvantage: long range");
+    expect(w.text()).not.toContain("from a condition");
+  });
+
   // Bug caught: rolling on a bonus that is not known yet (class rows still loading), which the sheet would score otherwise.
   it("cannot roll until the bonus is known, or while a turn runs", () => {
     for (const over of [{ bonus: null }, { busy: true }]) {

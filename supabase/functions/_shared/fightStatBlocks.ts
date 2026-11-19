@@ -35,12 +35,12 @@ export function statBlockOf(c: RunCombatant, sources: StatBlockSources): Monster
 }
 
 /**
- * The PostgREST `or` filter that keeps a custom monster to what this campaign's Dungeon Masters may use: a monster of this
- * campaign, or one authored by the campaign's owner or a member with the dm role (a DM's own monsters from their other
- * campaigns are usable here, which is why the browser reads them unscoped under RLS). Another account's private monster is
- * out. App convention.
+ * The PostgREST `or` filter that keeps a custom row (a monster, an item: anything with `campaign_id` and `user_id`) to what
+ * this campaign's Dungeon Masters may use: a row of this campaign, or one authored by the campaign's owner or a member
+ * with the dm role (a DM's own rows from their other campaigns are usable here, which is why the browser reads them
+ * unscoped under RLS). Another account's private row is out. App convention.
  */
-export async function customMonsterScope(admin: SupabaseClient, campaignId: string): Promise<string> {
+export async function customContentScope(admin: SupabaseClient, campaignId: string): Promise<string> {
   const { data: campaign, error: campaignError } = await admin.from("campaigns").select("user_id").eq("id", campaignId).maybeSingle();
   if (campaignError) throw new Error(`campaigns: ${campaignError.message}`);
   const { data: members, error: memberError } = await admin.from("campaign_members").select("user_id").eq("campaign_id", campaignId).eq("role", "dm");
@@ -63,7 +63,7 @@ export async function loadMonsters(admin: SupabaseClient, campaignId: string, id
     found.push(...data.map(libraryMonsterRow));
   }
   if (customIds.length > 0) {
-    const { data, error } = await admin.from("monsters").select("*").in("id", customIds).or(await customMonsterScope(admin, campaignId));
+    const { data, error } = await admin.from("monsters").select("*").in("id", customIds).or(await customContentScope(admin, campaignId));
     if (error) throw new Error(`monsters: ${error.message}`);
     found.push(...(data as Monster[]));
   }

@@ -1,9 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { ConfirmedFight, ObservedRow } from "@/lib/encounters/fightSync";
 import type { AppliedCondition } from "@/types/condition.types";
 import type { RunCombatant } from "@/types/encounter.types";
+
+// The store sends its own batches; these tests drive the link by hand, so a send never gets an answer here.
+const wire = vi.hoisted(() => ({ post: vi.fn() }));
+vi.mock("@/lib/encounters/fightWire", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/encounters/fightWire")>()),
+  postFightBatch: wire.post,
+}));
 
 const hold: AppliedCondition = { name: "Paralyzed", source: { id: "mage", spell: "Hold Person", concentration: true } };
 
@@ -33,21 +40,25 @@ const meta = { encounterId: "enc-1", encounterName: "Ambush", factions: [], even
 const hpOf = (store: ReturnType<typeof useEncounterRunStore>, id: string) => store.combatants.find((c) => c.instance_id === id)?.hp;
 
 describe("the store with a fight attached (#1201 stage 2c)", () => {
-  beforeEach(() => setActivePinia(createPinia()));
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    wire.post.mockReset();
+    wire.post.mockReturnValue(new Promise(() => {}));
+  });
+  afterEach(() => useEncounterRunStore().$dispose());
 
   function attached(...combatants: RunCombatant[]) {
     const store = useEncounterRunStore();
-    const wake = vi.fn();
-    store.setWaker(wake);
     store.startFight(meta, confirmed(5, combatants));
-    return { store, wake };
+    return { store };
   }
 
-  it("fails if a command is not shown before the server has answered, or does not ring the sender", () => {
-    const { store, wake } = attached(creature("ogre"));
+  it("fails if a command is not shown before the server has answered, or is not handed to the sender for its own fight", async () => {
+    const { store } = attached(creature("ogre"));
     store.adjustHp("ogre", -4);
     expect(hpOf(store, "ogre")).toBe(16);
-    expect(wake).toHaveBeenCalled();
+    await Promise.resolve();
+    expect(wire.post).toHaveBeenCalledWith("enc-1", expect.any(String), [expect.objectContaining({ type: "adjust_hp" })]);
     expect(store.nextBatch()?.commands).toEqual([{ type: "adjust_hp", instanceId: "ogre", delta: -4, critical: undefined }]);
   });
 

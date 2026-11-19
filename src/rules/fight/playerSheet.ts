@@ -10,7 +10,7 @@ import type { WildshapeState } from "../../types/encounter.types.ts";
 import type { PartyMember } from "../../types/party.types.ts";
 import type { SaveAbility } from "../../types/statBlock.types.ts";
 import { parseArmorClass } from "./targeting.ts";
-import { calculateAc, wornGearByMember } from "../armorClass.ts";
+import { calculateAc, savingThrowItemBonus, wornGearByMember } from "../armorClass.ts";
 import { effectiveAbilityScores, savingThrowEntries } from "../characterChecks.ts";
 import { abilityMod } from "../abilityScore.ts";
 
@@ -58,8 +58,10 @@ export function playerArmorClass(sheets: PlayerSheets, memberId: string): number
 
 /**
  * The bonus on this player's saving throw: the ability modifier from the scores in effect (a Wild Shape form's
- * STR, DEX and CON replace theirs) plus the proficiency bonus when they are proficient. Nothing they wear adds to
- * a save in this app. Null when the character's row was not read.
+ * STR, DEX and CON replace theirs) plus the proficiency bonus when they are proficient, plus what their worn, attuned
+ * gear adds to saves (`savingThrowItemBonus`; none while Wild Shaped, where the beast's own statistics are used and the
+ * gear does not work, as `playerArmorClass` has it). Class features such as Aura of Protection are not added: neither is
+ * the sheet's. Null when the character's row was not read.
  */
 export function playerSaveBonus(sheets: PlayerSheets, memberId: string, ability: SaveAbility): number | null {
   const member = memberRow(sheets, memberId);
@@ -67,7 +69,8 @@ export function playerSaveBonus(sheets: PlayerSheets, memberId: string, ability:
   const form = member.wildshape_state;
   const beast = form ? (sheets.beasts.find((b) => b.id === form.monster_id)?.stat_block ?? null) : null;
   const scores = effectiveAbilityScores(member, { active: form !== null, statBlock: beast });
-  const entry = savingThrowEntries(member, scores)?.[ability];
+  const gear = form ? [] : (wornGearByMember(sheets.inventory, sheets.items)[member.id] ?? []);
+  const entry = savingThrowEntries(member, scores, savingThrowItemBonus(gear))?.[ability];
   return entry ? entry.bonus : null;
 }
 

@@ -1,4 +1,5 @@
-import { ref, computed } from "vue";
+import { ref, shallowRef, computed, onScopeDispose } from "vue";
+import type { Occluders } from "@/lib/battlemap/occlusion";
 import { defineStore } from "pinia";
 import type { RunCombatant, FactionDef, RevealState, EncounterEvent, WildshapeState } from "@/types/encounter.types";
 import type { Monster, MonsterSize } from "@/types/monster.types";
@@ -20,7 +21,9 @@ import { companionCombatant, idClock, spawnMonsters, spawnNpcs } from "@/rules/f
 import type { ConfirmedFight, FightFrame } from "@/lib/encounters/fightSync";
 import type { ShownDefense } from "@/rules/fight/tactics/shownDefenses";
 import type { ShownDeedDelta } from "@/rules/fight/tactics/shownThreat";
+import { useToast } from "@/composables/useToast";
 import { createFightLink } from "./encounterRunLink";
+import { createBatchPump } from "./encounterRunPump";
 
 /** Rolls one combatant's initiative. Registered by the encounter runner so the
  *  DM's dice-mode preference is honoured — in "physical" mode this resolves via
@@ -58,6 +61,18 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
   const activeIndex = ref(0); // index into sortedCombatants
   const combatants = ref<RunCombatant[]>([]);
   const factions = ref<FactionDef[]>([]);
+  /**
+   * The walls and closed doors of the fight's map, as the map screen on show has read them; null when no map screen
+   * is up (a fight with no map, or the phone's list). The attack flows read it for what a wall changes (a foe on
+   * the other side of one is not "beside" an archer). Shallow: the value is replaced whole, never edited.
+   */
+  const occludersSource = shallowRef<(() => Occluders | null) | null>(null);
+  /** Read only when an attack asks, so a map screen pays nothing for it until then. */
+  const occluders = computed<Occluders | null>(() => (occludersSource.value === null ? null : occludersSource.value()));
+  /** The map screen on show says how its walls are read; null when it goes away. */
+  function setOccluders(read: (() => Occluders | null) | null) {
+    occludersSource.value = read;
+  }
   const started = ref(false); // true = initiative locked + sorted
   /** This turn's moves per token, for Back to start and Ctrl Z (#1125 decision 11). Not persisted: it lives as long as the turn. */
   const moveHistory = ref<Record<string, MoveRecord[]>>({});
@@ -228,6 +243,22 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
 
   const link = createFightLink({ snapshot, frame, deps: fightDeps, show: adoptState, raise, turnChanged });
   const { busy, unsentBatches, sendFailures } = link;
+  // The one sender of this fight's batches. It belongs to the store, which holds them, so it outlives any runner.
+  const pump = createBatchPump(
+    {
+      encounterId: link.encounterId,
+      nextBatch: link.nextBatch,
+      hasQueued: link.hasQueued,
+      sendFailed: link.sendFailed,
+      sendSucceeded: link.sendSucceeded,
+      answered: link.answered,
+      dropPending: link.dropPending,
+      unsent: unsentBatches,
+    },
+    useToast(),
+  );
+  link.setWaker(pump.kick);
+  onScopeDispose(() => pump.dispose());
 
   /** Runs a command through the pure fight rules (`rules/fight`: the turn
    *  reducer and the fight's own commands, then the event check when the
@@ -525,6 +556,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     activeIndex.value = 0;
     combatants.value = [];
     factions.value = [];
+    occludersSource.value = null;
     started.value = false;
     events.value = [];
     eventsFired.value = [];
@@ -544,6 +576,7 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     lairFiredRounds.value = [];
     moveHistory.value = {};
     link.detach();
+    pump.fightChanged();
   }
 
   // ── Boss mechanics ───────────────────────────────────────────────────────────
@@ -635,6 +668,8 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     activeIndex,
     combatants,
     factions,
+    occluders,
+    setOccluders,
     started,
     events,
     eventsFired,
@@ -699,15 +734,20 @@ export const useEncounterRunStore = defineStore("encounterRun", () => {
     checkEvents,
     reset,
     startFight,
-    setWaker: link.setWaker,
     nextBatch: link.nextBatch,
     hasQueued: link.hasQueued,
     unsentBatches,
     sendFailures,
     linkedEncounterId: link.encounterId,
-    sendFailed: link.sendFailed,
-    sendSucceeded: link.sendSucceeded,
-    pendingBatches: link.pendingBatches,
+    /** Sends what waits now (the pump also does it by itself whenever a batch is queued). */
+    kickSends: pump.kick,
+    /** Resolves true once every batch made so far has reached the server, false when it did not in time. */
+    drainSends: pump.drain,
+    /** The party sync the runner wants made between batches. */
+    setIdleWork: pump.setIdleWork,
+    /** The server will not take a fight's commands: tells the DM, and drops what is pending only if the store still holds that fight. */
+    fightRefused: pump.refused,
+    onFightLost: pump.onLost,
     answered: link.answered,
     observed: link.observed,
     dropPendingCommands: link.dropPending,

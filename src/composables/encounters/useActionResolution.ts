@@ -164,6 +164,9 @@ export function useActionResolution(options: { companions?: MaybeRefOrGetter<Com
       target: RunCombatant;
       dmMode?: RollMode;
       withinFiveFeet: boolean;
+      /** From `rangedFactsFor`: a hostile beside the attacker, and long range. */
+      hostileWithinFiveFeetOfAttacker?: boolean;
+      longRange?: boolean;
       delivery?: "melee" | "ranged";
     } & RollOptions,
   ): Promise<AttackOutcome | null> {

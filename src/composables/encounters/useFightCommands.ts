@@ -1,6 +1,7 @@
-import { onBeforeUnmount, onUnmounted, watch, type Ref } from "vue";
+import { onUnmounted, watch, type Ref } from "vue";
 import { onCampaignReconcile, onCampaignRing } from "@/lib/campaignLiveSync/rings";
 import { useEncounterRunStore } from "@/stores/encounterRun";
+import { failedWritesNotice } from "@/stores/encounterRunPump";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { liveRevision, liveState, refreshLiveState } from "@/composables/encounters/useEncounterLive";
@@ -10,23 +11,10 @@ import {
   confirmedFromAnswer,
   isRetryable,
   observedFromRow,
-  postFightBatch,
-  retryDelayMs,
   sendAlone,
-  wait,
   type FightAnswer,
   type FightLifecycleCommand,
 } from "@/lib/encounters/fightWire";
-
-/** How long a lifecycle command waits for the commands made before it to reach the server before it gives up. */
-const DRAIN_TIMEOUT_MS = 15_000;
-
-/**
- * How many failed tries of one batch in a row before the DM is told, once, that the changes are not saved. Five
- * tries is about half a minute of backing off: past a dropped signal in a lift, so what is left is a server that
- * keeps refusing, which the quiet retry would otherwise hide for as long as the DM kept playing.
- */
-export const STUCK_AFTER_FAILURES = 5;
 
 /** What the server did when asked to play a creature's turn: the turn, and what each of its rolls came to. */
 export interface TurnRun {
@@ -44,20 +32,19 @@ export interface ProvokeRun {
 }
 
 /**
- * The DM's side of a fight the server holds (#1201 stage 2c): moves the store's batches over the wire, one
- * request at a time and in order, and feeds the server's answers and the doorbell's rings back to the store.
+ * The DM's side of a fight the server holds (#1201 stage 2c): feeds the server's answers and the doorbell's rings
+ * back to the store, and sends the commands that go alone. Sending the store's batches is not done here: the
+ * store's own pump (`stores/encounterRunPump`) sends them, so changes still unsent when the runner is left keep
+ * being retried, and the "leave this site?" prompt stays up, with no runner mounted.
  * The store shows every command at once and keeps what the server last confirmed beside what is pending
- * (`lib/encounters/fightSync`); this composable only owns the network.
+ * (`lib/encounters/fightSync`); this composable owns what is specific to a runner on screen.
  *
- * - A batch is sent with the id made once when it was sealed, and sent again with that SAME id after a
- *   failure, with backoff, so a reply lost after the server applied it cannot apply it twice. While requests
- *   fail the DM keeps working and the queue flushes when the connection returns. The backoff is not a poll:
- *   it stops the moment the queue is empty.
- * - A refusal that will not change (the fight ended, a 403, a 404, a malformed request) stops the queue, drops
- *   what was pending, re-reads the fight and tells the DM.
+ * - A refusal that will not change (the fight ended, a 403, a 404, a malformed request) drops what was pending,
+ *   re-reads the fight and tells the DM (the pump says it; this re-reads the fight and leaves the runner).
  * - A ring on the fight's row arrives as a followed read (`liveRevision`) and goes to the store, which takes
  *   it only when its version is newer. A ring on the party's rows asks the server to ingest them
  *   (`sync_party`), because the server reads the characters' own rows and writes them; the browser never does.
+ *   The sync goes between batches, never beside one.
  * - Lifecycle commands (go live, go private, end, abandon) wait for the queue to empty, then go alone.
  */
 export function useFightCommands(encounterId: Ref<string>, options: { onLost: () => void }) {
@@ -65,46 +52,23 @@ export function useFightCommands(encounterId: Ref<string>, options: { onLost: ()
   const campaign = useCampaignStore();
   const toast = useToast();
 
-  let disposed = false;
   /** The fight this runner was opened for. A batch belongs to the fight it was queued in, never to whatever the route says later. */
   const fightId = encounterId.value;
-  /** The batch the DM was last told is stuck, so one batch is announced once however long it keeps failing. */
-  let toldAboutBatch: string | null = null;
-  let running = false;
   let wantSync = false;
-  const idleWaiters: Array<() => void> = [];
-
-  /** Reported from a timer: a throw inside a listener does not reliably reach Sentry. */
-  function report(error: unknown) {
-    setTimeout(() => { throw error; });
-  }
-
-  /** What the DM is told when the server will not take their commands any more, and the way back to a fight that is gone. */
-  function lost(error: unknown) {
-    store.dropPendingCommands();
-    refreshLiveState(fightId);
-    if (error instanceof FightRequestError && error.status === 409) {
-      toast.error("This fight has ended, so your last changes were not saved.");
-      options.onLost();
-      return;
-    }
-    if (error instanceof FightRequestError && error.status === 404) {
-      toast.error("This fight is gone, so your last changes were not saved.");
-      options.onLost();
-      return;
-    }
-    toast.error(toast.fromError(error, "The server would not take your last changes. They were not saved."));
-  }
-
-  function warnOfFailedWrites(answer: FightAnswer) {
-    if (answer.effectFailures.length > 0) toast.error("A character's sheet or the chat did not take the latest change. Check it before you carry on.");
-  }
 
   /** True once the store holds a different fight: its answers and batches are not this runner's. */
   function isForeign(): boolean {
     const linked = store.linkedEncounterId();
     return linked !== null && linked !== fightId;
   }
+
+  // What the pump tells every listener when the server will not take a fight's commands: this runner re-reads its
+  // own fight and leaves it, and does nothing for a fight the store no longer holds.
+  const offLost = store.onFightLost((event) => {
+    if (event.fightId !== fightId || !event.current) return;
+    refreshLiveState(fightId);
+    if (event.reason === "ended" || event.reason === "gone") options.onLost();
+  });
 
   /** Set once this runner has ended or abandoned the fight: nothing more is asked of the server about it. */
   let closed = false;
@@ -113,72 +77,27 @@ export function useFightCommands(encounterId: Ref<string>, options: { onLost: ()
     if (closed || isForeign()) return;
     try {
       const { answer } = await sendAlone(fightId, { type: "sync_party" }, 2);
+      // The request took time: another fight may hold the store now, and its state is not what this answer describes.
+      if (isForeign()) return;
       store.answered(null, confirmedFromAnswer(answer), answer.effects);
     } catch (error) {
       // No answer at all (offline, a function error): the next ring or reconnect asks again, so this is not worth a toast.
       if (isRetryable(error)) return;
-      lost(error);
+      store.fightRefused(error, fightId);
     }
   }
 
-  async function pump() {
-    if (running) return;
-    running = true;
-    let failures = 0;
-    try {
-      for (;;) {
-        // Another fight is on the store now: its batches are not this runner's to send (they went out when it was put away).
-        const batch = isForeign() ? null : store.nextBatch();
-        if (batch) {
-          try {
-            const answer = await postFightBatch(fightId, batch.id, batch.commands);
-            failures = 0;
-            store.sendSucceeded();
-            store.answered(batch.id, confirmedFromAnswer(answer), answer.effects);
-            warnOfFailedWrites(answer);
-          } catch (error) {
-            if (!isRetryable(error)) {
-              lost(error);
-              return;
-            }
-            // Left for the runner coming back: the store keeps the sealed batch, and the next pump sends it again.
-            if (disposed) return;
-            failures += 1;
-            store.sendFailed();
-            if (failures >= STUCK_AFTER_FAILURES && toldAboutBatch !== batch.id) {
-              toldAboutBatch = batch.id;
-              toast.error("Your latest changes could not be saved. Still trying.");
-            }
-            await wait(retryDelayMs(failures));
-          }
-          continue;
-        }
-        if (wantSync) {
-          wantSync = false;
-          await syncOnce();
-          continue;
-        }
-        return;
-      }
-    } finally {
-      running = false;
-      for (const resolve of idleWaiters.splice(0)) resolve();
-    }
-  }
-
-  function kick() {
-    queueMicrotask(() => { pump().catch(report); });
-  }
-
-  store.setWaker(kick);
+  store.setIdleWork({
+    pending: () => wantSync && !closed,
+    run: async () => {
+      wantSync = false;
+      await syncOnce();
+    },
+  });
 
   /** Resolves true once nothing is waiting to be sent, false when that did not happen in time (offline). */
-  async function drain(): Promise<boolean> {
-    if (!running && !store.hasQueued() && !wantSync) return true;
-    const idle = new Promise<true>((resolve) => idleWaiters.push(() => resolve(true)));
-    kick();
-    const finished = await Promise.race([idle, wait(DRAIN_TIMEOUT_MS).then(() => false)]);
-    return finished && !store.hasQueued();
+  function drain(): Promise<boolean> {
+    return store.drainSends();
   }
 
   /**
@@ -192,9 +111,13 @@ export function useFightCommands(encounterId: Ref<string>, options: { onLost: ()
     // sync of a fight that is over: that came back refused, told the DM their changes were lost, and sent them to
     // the encounter page instead of back to the site.
     if (command.type === "end_combat" || command.type === "abandon") closed = true;
-    store.answered(null, confirmedFromAnswer(answer), answer.effects);
-    warnOfFailedWrites(answer);
-    refreshLiveState(fightId);
+    // The wait may have outlasted this fight in the store: show its answer only while the store still holds it.
+    if (!isForeign()) {
+      store.answered(null, confirmedFromAnswer(answer), answer.effects);
+      const notice = failedWritesNotice(answer);
+      if (notice !== null) toast.error(notice);
+      refreshLiveState(fightId);
+    }
     return answer;
   }
 
@@ -233,7 +156,7 @@ export function useFightCommands(encounterId: Ref<string>, options: { onLost: ()
   function requestPartySync() {
     if (closed) return;
     wantSync = true;
-    kick();
+    store.kickSends();
   }
 
   /** The followed read of the row: the store takes it when it is newer than what the server last confirmed. */
@@ -261,33 +184,21 @@ export function useFightCommands(encounterId: Ref<string>, options: { onLost: ()
     stopRings = () => { offRing(); offReconcile(); };
   }
 
-  // The browser's own "leave this site?" prompt while changes have not reached the server: a reload would lose them.
-  function warnBeforeLeaving(event: BeforeUnloadEvent) {
-    if (!store.hasQueued()) return;
-    event.preventDefault();
-    // Older browsers show the prompt only when a value is set.
-    event.returnValue = "";
-  }
-  const guarding = watch(
-    () => store.unsentBatches > 0,
-    (unsent) => {
-      if (unsent) window.addEventListener("beforeunload", warnBeforeLeaving);
-      else window.removeEventListener("beforeunload", warnBeforeLeaving);
-    },
-    { immediate: true },
-  );
-  onBeforeUnmount(() => {
-    guarding.stop();
-    window.removeEventListener("beforeunload", warnBeforeLeaving);
-  });
-
   onUnmounted(() => {
-    disposed = true;
     stopRings?.();
-    store.setWaker(null);
-    // The last clicks are sent rather than dropped: one pass of the queue, which gives up on a failure instead of retrying.
-    kick();
+    offLost();
+    // Whatever is still unsent stays with the store's pump, which keeps sending it and keeps the page-leave prompt up.
+    store.setIdleWork(null);
   });
 
-  return { lifecycle, takeTurn, provoke, requestPartySync };
+  /**
+   * Lets go of this runner's fight in the store once it is over (ended, abandoned, lost). Only while the store still
+   * holds it: a lifecycle command can wait for the queue for a while, and the page may have opened another fight
+   * meanwhile, whose state this must not wipe.
+   */
+  function releaseFight() {
+    if (store.linkedEncounterId() === fightId) store.reset();
+  }
+
+  return { lifecycle, takeTurn, provoke, requestPartySync, releaseFight };
 }

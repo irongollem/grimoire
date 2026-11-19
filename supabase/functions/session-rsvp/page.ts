@@ -9,6 +9,7 @@
 // every plain-text reader — so the same message also carries two links here.
 
 import { escapeHtml } from "../_shared/emailHtml.ts";
+import { UUID_RE as TOKEN_RE } from "../_shared/uuid.ts";
 
 /** Result states the endpoint can land in. One page renderer per state. */
 export type RsvpState =
@@ -27,7 +28,6 @@ export type RsvpState =
 
 export type RsvpAnswer = "yes" | "no";
 
-const TOKEN_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** What the RPCs hand back about the session being answered for. */
 export interface RsvpInvite {

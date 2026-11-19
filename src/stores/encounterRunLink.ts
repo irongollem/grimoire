@@ -34,7 +34,7 @@ export interface FightLinkHost {
  */
 export function createFightLink(host: FightLinkHost) {
   let sync: FightSync | null = null;
-  /** Rung when a batch is waiting to be sent; the transport composable registers it. */
+  /** Rung when a batch is waiting to be sent; the store's pump registers it. */
   let wake: (() => void) | null = null;
   /** True while a command waits for the server's answer because the browser could not know its result (dice, ids). */
   const busy = ref(false);
@@ -67,10 +67,6 @@ export function createFightLink(host: FightLinkHost) {
     },
     sendSucceeded() {
       sendFailures.value = 0;
-    },
-    /** Every batch still waiting, oldest first, for a last try at sending them before the fight is put away. */
-    pendingBatches(): PendingBatch[] {
-      return sync ? sync.pending.map((b) => ({ ...b, commands: [...b.commands] })) : [];
     },
     setWaker(waker: (() => void) | null) {
       wake = waker;

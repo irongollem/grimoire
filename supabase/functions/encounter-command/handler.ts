@@ -25,7 +25,8 @@ import { isShownDefense } from "../../../src/rules/fight/tactics/shownDefenses.t
 import { isShownDeedDelta } from "../../../src/rules/fight/tactics/shownThreat.ts";
 import { applyFightCommand, FIGHT_OWN_COMMAND_TYPES, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightDeps } from "../../../src/rules/fight/fightEvents.ts";
-import { ingestPartyRow, type PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
+import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
+import { ingestPartyRows, partyMemberIdsOf } from "../_shared/fightPartyIngest.ts";
 import { endOfFightPatches } from "../../../src/rules/fight/fightEnd.ts";
 import { startedFromRound, type FightEffect, type FightState } from "../../../src/rules/fight/fightState.ts";
 import type { PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
@@ -53,8 +54,16 @@ export { ALL_RESOLVING_COMMANDS_LISTED, type ResolvingCommand, type PostedRoll, 
 export const MAX_COMMANDS = 50;
 export const MAX_BATCH_ID_LENGTH = 80;
 export const MAX_BODY_CHARACTERS = 200_000;
-/** A retry comes within moments, so only the newest ids are worth keeping. */
-export const APPLIED_IDS_KEPT = 64;
+/**
+ * How many applied batch ids the fight row remembers, so a retry of a batch the server already applied is answered, not applied
+ * twice. The client sends one batch at a time and retries the oldest unanswered one (half a second doubling to ten seconds, with
+ * no cap on the tries: `retryDelayMs`, `useFightCommands`), so one device never puts newer ids ahead of its own retry. Only
+ * ANOTHER device's batches do, while a lost reply keeps the first device retrying through an outage. A DM sends at most about
+ * one batch a second even when busy, so 256 ids cover an outage of four minutes with a second device at that peak, and
+ * about half an hour at a normal ten a minute; the old 64 covered one minute. An id is at most 80 characters, so the list
+ * is under 25 KB at the very worst and about 10 KB with uuids, against a roster that is already tens of KB.
+ */
+export const APPLIED_IDS_KEPT = 256;
 export const MAX_ATTEMPTS = 4;
 
 /** Every command type the turn reducer takes. The check below fails the build when the union grows and this list does not. */
@@ -425,23 +434,11 @@ async function attempt(
   const effects: FightEffect[] = [];
 
   // What the players changed on their own sheets comes first, so a command lands on the HP the table really has.
-  const memberIds = [...new Set(state.combatants.flatMap((c) => (c.party_member_id ? [c.party_member_id] : [])))];
+  const memberIds = partyMemberIdsOf(state);
   if (memberIds.length > 0) {
-    const rows = await deps.loadPartyRows(memberIds);
-    for (const partyRow of rows) {
-      const held = state.combatants.find((c) => c.party_member_id === partyRow.id);
-      const result = ingestPartyRow(
-        state,
-        partyRow,
-        // The spell the fight last knew the member concentrating on, so a spell dropped on the sheet ends what it held.
-        // "Live" is whether the players' screens are in this fight (the lobby included), not whether combat has
-        // started: a player rolls initiative in the lobby, and a row read before the lobby opens still carries last session's roll.
-        { live: row.is_running, lastConcentration: held ? (held.concentration?.spellName ?? null) : undefined },
-        fightDeps,
-      );
-      state = result.state;
-      effects.push(...result.effects);
-    }
+    const ingested = ingestPartyRows(state, await deps.loadPartyRows(memberIds), row.is_running, fightDeps);
+    state = ingested.state;
+    effects.push(...ingested.effects);
   }
 
   const rolls: PostedRoll[] = [];

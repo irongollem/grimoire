@@ -280,6 +280,7 @@ describe("opportunityAttacks", () => {
     box: box(x, y),
     reachFeet: 5,
     reactionUsed: false,
+    cannotReact: false,
     incapacitated: false,
     ...o,
   });
@@ -295,6 +296,13 @@ describe("opportunityAttacks", () => {
       occluders: extra.occ ?? NO_OCCLUDERS,
       disengaged: extra.disengaged,
     });
+
+  // PHB 2014 ch. 9 "Surprise": a surprised creature cannot take a reaction until its first turn ends.
+  // Enemy at (2,1), mover (1,1) steps to (0,1): a reaction would be provoked, so it is only the missing reaction that stops it.
+  it("fails if a creature that cannot react (surprised) still takes an opportunity attack", () => {
+    expect(run([[1, 1], [0, 1]], [enemy("e", 2, 1, { cannotReact: true })])).toEqual([]);
+    expect(run([[1, 1], [0, 1]], [enemy("e", 2, 1)])).toHaveLength(1);
+  });
 
   it("provokes when the mover steps out of a 5 ft reach, at the square it leaves", () => {
     // Enemy at (2,1). Mover (1,1) is adjacent; (0,1) has one empty square between (10 ft): out of reach.

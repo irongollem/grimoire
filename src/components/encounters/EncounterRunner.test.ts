@@ -16,6 +16,7 @@ const h = await vi.hoisted(async () => {
     push: vi.fn(),
     confirm: vi.fn(),
     lifecycle: vi.fn(),
+    releaseFight: vi.fn(),
     ensureSession: vi.fn(),
     isLive: vueRef(false),
     loaded: vueRef(true),
@@ -53,7 +54,7 @@ vi.mock("@/composables/encounters/useEncounterLive", () => ({
 }));
 // The transport is tested on its own (useFightCommands.test.ts); here only what the runner sends through it.
 vi.mock("@/composables/encounters/useFightCommands", () => ({
-  useFightCommands: () => ({ lifecycle: h.lifecycle, takeTurn: vi.fn(), requestPartySync: vi.fn() }),
+  useFightCommands: () => ({ lifecycle: h.lifecycle, takeTurn: vi.fn(), requestPartySync: vi.fn(), releaseFight: h.releaseFight }),
 }));
 vi.mock("@/composables/encounters/useDiscoveredMonsters", () => ({ useAutoDiscoverMonsters: () => ({ mutateAsync: vi.fn() }) }));
 vi.mock("@/composables/dice/usePromptedRoll", () => ({ usePromptedRoll: () => ({ promptRoll: vi.fn() }) }));
@@ -111,6 +112,8 @@ describe("EncounterRunner", () => {
     for (const fn of [h.replace, h.push, h.confirm, h.lifecycle, h.ensureSession]) fn.mockReset();
     h.confirm.mockResolvedValue(true);
     h.lifecycle.mockResolvedValue({ effectFailures: [] });
+    // The real one lets go of the runner's own fight in the store, which is what these tests look for.
+    h.releaseFight.mockImplementation(() => useEncounterRunStore().reset());
     h.ensureSession.mockResolvedValue({ id: "session-1", started: false });
     useCampaignStore().activeCampaignId = "camp-1";
   });
@@ -120,6 +123,36 @@ describe("EncounterRunner", () => {
     isMobile.value = false;
     const w = mountRunner();
     expect(w.findAll("button").some((b) => b.text().includes("Start Combat"))).toBe(true);
+  });
+
+  // Bug caught: the "not everyone has rolled" question answered after the fight was ended or another one opened
+  // started combat in whatever fight the store held by then.
+  it("starts only the fight the question was asked about", async () => {
+    isMobile.value = false;
+    const store = useEncounterRunStore();
+    store.encounterId = "enc1";
+    store.combatants = [{ ...combatant("p"), type: "player", party_member_id: "pm-1", initiative: null }, combatant("b")];
+    const start = vi.spyOn(store, "startCombat");
+    let answer: (go: boolean) => void = () => {};
+    h.confirm.mockReturnValue(new Promise<boolean>((resolve) => { answer = resolve; }));
+    const press = async () => {
+      const w = mountRunner();
+      await w.findAll("button").find((b) => b.text().includes("Start Combat"))?.trigger("click");
+      return w;
+    };
+
+    await press();
+    store.encounterId = "another-fight";
+    answer(true);
+    await flushPromises();
+    expect(start).not.toHaveBeenCalled();
+
+    // positive control: with the same fight still there, the answer starts it
+    store.encounterId = "enc1";
+    h.confirm.mockResolvedValue(true);
+    await press();
+    await flushPromises();
+    expect(start).toHaveBeenCalled();
   });
 
   it("fails if the notice about unsaved changes is missing on the desktop or the phone runner, or shows with no failed send", () => {

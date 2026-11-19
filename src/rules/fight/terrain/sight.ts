@@ -283,6 +283,8 @@ export interface OpportunityEnemy {
   /** Feet; the reach of the enemy's melee attack. */
   reachFeet: number;
   reactionUsed: boolean;
+  /** Surprised under the 2014 rules (`cannotReactWhileSurprised`): it has its reaction on paper but cannot take it yet. */
+  cannotReact: boolean;
   incapacitated: boolean;
 }
 
@@ -314,7 +316,7 @@ export function opportunityAttacks(input: OpportunityInput): ProvokedAttack[] {
   const at = (i: number): Box => ({ anchor: input.path[i], footprint: input.moverFootprint });
   const out: ProvokedAttack[] = [];
   for (const enemy of input.enemies) {
-    if (enemy.reactionUsed || enemy.incapacitated) continue;
+    if (enemy.reactionUsed || enemy.cannotReact || enemy.incapacitated) continue;
     for (let i = 0; i + 1 < input.path.length; i++) {
       const here = at(i);
       if (distanceFeet(here, enemy.box) > enemy.reachFeet) continue;

@@ -1,4 +1,4 @@
-import { computed, ref, shallowRef, toRef, toValue, watch, type MaybeRefOrGetter } from "vue";
+import { computed, onScopeDispose, ref, shallowRef, toRef, toValue, watch, type MaybeRefOrGetter } from "vue";
 import { pointerToCell } from "@/components/player/playerMapMove";
 import type { PlayTool } from "@/components/encounters/play/playTypes";
 import { footprintOf } from "@/components/encounters/play/playRoster";
@@ -201,6 +201,13 @@ export function useSoloFightMap(options: {
   // Where the character can get to this turn, by the same search the creatures move by: round walls, closed doors
   // and other creatures, at the price of each square. It runs as far as a Dash would reach, so the map can show
   // both what the turn can walk now and what it could with the Action spent on moving.
+  // The attack beside the map reads the walls from the store (a foe behind a wall is not beside an archer).
+  store.setOccluders(() => {
+    const live = surface.value?.live;
+    return live ? occludersOf(live, doorStates.value) : null;
+  });
+  onScopeDispose(() => store.setOccluders(null));
+
   const leftFeet = computed(() => Math.max(0, toValue(options.speedFeet) - toValue(options.movedFeet)));
   const reach = computed(() => {
     const me = played.value;

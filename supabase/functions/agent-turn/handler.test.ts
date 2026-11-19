@@ -6,6 +6,7 @@
  * out from the price and calibration below: input is free and output costs 10 USD per million tokens, a credit is
  * worth 0.01 USD at margin 1, so 600 output tokens are 0.006 USD, which is 0.6 credits.
  */
+import type { AgentProvider } from "../_shared/agent/providerIo";
 import type { Companion } from "../_shared/agent/companions";
 import type { HazardRules, KeptHazard } from "../_shared/agent/hazard";
 import { STRIKES_BEFORE_CLOSED } from "../_shared/agent/conduct.ts";
@@ -21,7 +22,6 @@ import {
   type AgentTurnDeps,
   type CampaignRow,
   type Refusal,
-  type ResolvedProvider,
   type SessionRow,
 } from "./handler";
 import type { SceneView } from "../_shared/agent/scene";
@@ -112,7 +112,7 @@ interface Harness {
   state: {
     campaign: CampaignRow | null;
     isDm: boolean;
-    provider: ResolvedProvider | null;
+    provider: AgentProvider | null;
     price: { inputPerMillion: number; outputPerMillion: number; cachedInputPerMillion: number | null } | null;
     calibration: { usdPerCredit: number | null; margin: number } | null;
     flagged: boolean;

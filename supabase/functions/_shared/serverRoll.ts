@@ -15,12 +15,12 @@ import type { DiceRules, RollModeKey } from "../../../src/lib/dice/diceRules.ts"
 import { plainDiceRules } from "../../../src/lib/dice/plainDiceRules.ts";
 import { dnd5eDiceRules } from "../../../src/systems/dnd5e/dice/rules.ts";
 import { gameSystemEdition } from "./gameSystem.ts";
+import { UUID_RE as UUID } from "./uuid.ts";
 
 export const MAX_DICE = 100;
 export const MAX_MODIFIER = 1000;
 export const MAX_LABEL_LENGTH = 80;
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface RollRequest {
   campaignId: string;

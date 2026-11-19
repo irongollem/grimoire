@@ -42,6 +42,18 @@ export interface CarriedWeapon {
   name: string;
 }
 
+/**
+ * A weapon's range from the text its item carries ("80/320 ft.", "150/600", "30 ft."): the normal range and, when
+ * written, the long one. Null when the text names no distance, so no long range is ever claimed from it.
+ */
+export function parseWeaponRange(text: string | null | undefined): { normal: number; long?: number } | null {
+  if (!text) return null;
+  const pair = /(\d+)\s*\/\s*(\d+)/.exec(text);
+  if (pair) return { normal: Number(pair[1]), long: Number(pair[2]) };
+  const single = /(\d+)\s*(?:ft|feet)/i.exec(text);
+  return single ? { normal: Number(single[1]) } : null;
+}
+
 const signed = (n: number) => `${n >= 0 ? "+" : ""}${n}`;
 
 /**
@@ -197,6 +209,7 @@ export function usePcAttackRows(
         damageFixed: null,
         description: `Ranged attack${rangeStr}. Hit: ${damageDice ?? "see item"} ${item.damage_rolls?.[0]?.type ?? "damage"}.`,
         ammoTag,
+        range: parseWeaponRange(item.weapon_range),
         weaponInvId: inv.id,
       }];
     });
@@ -233,6 +246,7 @@ export function usePcAttackRows(
         damageFixed: null,
         description: "Thrown attack. The weapon lands on the ground, recoverable from chat.",
         ammoTag: null,
+        range: parseWeaponRange(item?.weapon_range),
         weaponInvId: inv.id,
       }];
     });

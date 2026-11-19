@@ -8,9 +8,11 @@ import type { FactionSides } from "../../../src/rules/fight/sides.ts";
 import { DEFAULT_FACTIONS } from "../../../src/types/encounter.types.ts";
 import { withCors } from "../_shared/cors.ts";
 import { adminClient, callerUserId, loadEncounterAsDm } from "../_shared/fightAccess.ts";
-import { customMonsterScope, loadMonsters, loadNpcs, loadStatBlocks } from "../_shared/fightStatBlocks.ts";
+import { customContentScope, loadMonsters, loadNpcs, loadStatBlocks } from "../_shared/fightStatBlocks.ts";
 import { loadSpellsListed, loadSpellsNamed } from "../_shared/fightSpells.ts";
+import { loadCustomItems } from "../_shared/fightItems.ts";
 import { loadFightMapInput } from "../_shared/fightMap.ts";
+import { loadPartyIngestRows } from "../_shared/fightPartyIngest.ts";
 import { gameSystemEdition } from "../_shared/gameSystem.ts";
 import { fightMapOf } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
@@ -24,7 +26,6 @@ import { libraryMonsterRow } from "../../../src/lib/library/libraryMonsterRow.ts
 import { DEFAULT_RULESET } from "../../../src/types/ruleset.types.ts";
 import type { EncounterEvent } from "../../../src/types/encounter.types.ts";
 import type { ExploreParty } from "../../../src/types/exploreParty.types.ts";
-import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
 import type { PartyInventoryItem } from "../../../src/types/inventory.types.ts";
 import type { Item } from "../../../src/types/item.types.ts";
 import { normalizeLibraryItem } from "../../../src/lib/items/normalizeLibraryItem.ts";
@@ -139,15 +140,7 @@ serve(withCors(async (req: Request) => {
         }
         return { id: data[0].id as string, version: data[0].version as number };
       },
-      async loadPartyRows(ids) {
-        const { data, error } = await admin
-          .from("party_members")
-          .select("id, current_hp, temp_hp, current_initiative, conditions, concentration, wildshape_state, death_save_successes, death_save_failures")
-          .eq("campaign_id", campaignId)
-          .in("id", ids);
-        if (error) throw new Error(`party_members: ${error.message}`);
-        return data as PartyIngestRow[];
-      },
+      loadPartyRows: (ids) => loadPartyIngestRows(admin, campaignId, ids),
       async isCampaignSession(sessionId) {
         // A value that is no uuid names no session; asking the database would fail on the cast rather than answer no.
         if (!isUuid(sessionId)) return false;
@@ -220,7 +213,7 @@ serve(withCors(async (req: Request) => {
       async loadPlayerSheets(memberIds) {
         // Every read is scoped to this campaign. The inventory ids come from this campaign's own rows (a database
         // trigger keeps an inventory row's item in the same campaign or a global row its owner may use), and an
-        // item is read only when it is this campaign's or a global one, so a forged id names nothing of another account's.
+        // item is read only when it is this campaign's or its Dungeon Masters' own, so a forged id names nothing of another account's.
         const { data: members, error: memberError } = await admin
           .from("party_members")
           .select("id, ruleset, class, subclass, ac_formula, class_choices, str, dex, con, int, wis, cha, proficiency_bonus, saving_throw_proficiencies, wildshape_state")
@@ -236,10 +229,7 @@ serve(withCors(async (req: Request) => {
         const customIds = refs.filter(isUuid);
         const libraryIds = refs.filter((id) => !isUuid(id));
         if (customIds.length > 0) {
-          const { data, error } = await admin
-            .from("items").select("*").in("id", customIds).or(`campaign_id.eq.${campaignId},campaign_id.is.null`);
-          if (error) throw new Error(`items: ${error.message}`);
-          items.push(...(data as Item[]));
+          items.push(...(await loadCustomItems(admin, campaignId, customIds)));
         }
         if (libraryIds.length > 0) {
           const { data, error } = await admin.from("library_items").select("*").in("id", libraryIds);
@@ -258,7 +248,7 @@ serve(withCors(async (req: Request) => {
         }
         if (customForms.length > 0) {
           const { data, error } = await admin
-            .from("monsters").select("id, stat_block").in("id", customForms).or(await customMonsterScope(admin, campaignId));
+            .from("monsters").select("id, stat_block").in("id", customForms).or(await customContentScope(admin, campaignId));
           if (error) throw new Error(`monsters: ${error.message}`);
           beasts.push(...(data as BeastScores[]));
         }

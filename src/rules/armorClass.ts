@@ -140,15 +140,17 @@ interface BonusItem {
   attuned: boolean;
   /** Only while wearing no armour and using no shield (Bracers of Defense). */
   unprotectedOnly?: boolean;
+  /** The same bonus also applies to saving throws (DMG 2014 ch. 7: Ring and Cloak of Protection, Staff of Power). */
+  saves?: true;
 }
 
 /** Flat AC bonuses, keyed by library `conceptual_key`. Read from the item text, not parsed at runtime. */
 export const BONUS_ITEMS: Record<string, BonusItem> = {
-  ring_of_protection: { bonus: 1, slots: ["ring"], attuned: true },
-  cloak_of_protection: { bonus: 1, slots: ["shoulders"], attuned: true },
+  ring_of_protection: { bonus: 1, slots: ["ring"], attuned: true, saves: true },
+  cloak_of_protection: { bonus: 1, slots: ["shoulders"], attuned: true, saves: true },
   bracers_of_defense: { bonus: 2, slots: ["hands"], attuned: true, unprotectedOnly: true },
   ioun_stone_protection: { bonus: 1, attuned: true },
-  staff_of_power: { bonus: 2, slots: ["main_hand", "off_hand"], attuned: true },
+  staff_of_power: { bonus: 2, slots: ["main_hand", "off_hand"], attuned: true, saves: true },
 };
 
 /** Robe of the Archmagi: an unarmoured calculation carried on an item (15 + Dex, no armour). */
@@ -393,6 +395,24 @@ export function calculateAc(member: AcMember, gear: WornGear[]): AcBreakdown {
   }
 
   return { total: total(parts), parts, notes };
+}
+
+/**
+ * What a character's gear adds to every saving throw: the bonus of each worn, attuned item whose rule says it reaches
+ * saves (DMG 2014 ch. 7: "+1 bonus to AC and saving throws" on a Ring or Cloak of Protection, +2 on a Staff of Power),
+ * read from the same `BONUS_ITEMS` table and by the same attunement and slot rules as the AC bonus. Bracers of Defense and
+ * an Ioun stone of protection give AC only, so they are not here.
+ */
+export function savingThrowItemBonus(gear: readonly WornGear[]): number {
+  let sum = 0;
+  for (const g of gear) {
+    const rule = BONUS_ITEMS[itemKey(g.item)];
+    if (!rule?.saves) continue;
+    if (rule.attuned && !g.attuned) continue;
+    if (rule.slots && !(g.slot && rule.slots.includes(g.slot))) continue;
+    sum += rule.bonus;
+  }
+  return sum;
 }
 
 /** The breakdown as one line for a tooltip: "Chain Mail 16, Dexterity +0, Shield +2". */

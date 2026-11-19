@@ -14,6 +14,7 @@
 import { NO_OCCLUDERS } from "../../../src/lib/battlemap/occlusion.ts";
 import { combatantFootprint } from "../../../src/lib/battlemap/tokenFootprint.ts";
 import { actionAvailability } from "../../../src/rules/encounterTurn.ts";
+import { cannotReactWhileSurprised } from "../../../src/rules/initiative.ts";
 import { applyFightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
 import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
@@ -68,6 +69,7 @@ export function provokedBy(state: FightState, mover: RunCombatant, path: readonl
       box: { anchor: c.position as { x: number; y: number }, footprint: combatantFootprint(c) },
       reachFeet: meleeReachFeet(statBlockOf(c, env.sources)),
       reactionUsed: c.reactionUsed === true,
+      cannotReact: cannotReactWhileSurprised(c, state.ruleset),
       incapacitated: isIncapacitated(c.conditions),
     }));
   return opportunityAttacks({

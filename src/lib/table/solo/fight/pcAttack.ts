@@ -53,7 +53,13 @@ export function attackEntryOf(row: PcAttackRow): StatBlockEntry | null {
     structured: {
       kind: "attack",
       source: "manual",
-      attack: { delivery: row.kind === "melee" ? "melee" : "ranged", bonus: row.attackBonus, hit },
+      attack: {
+        delivery: row.kind === "melee" ? "melee" : "ranged",
+        bonus: row.attackBonus,
+        hit,
+        // Long range can only be judged from a range the weapon names.
+        ...(row.range ? { range: row.range } : {}),
+      },
     },
   };
 }

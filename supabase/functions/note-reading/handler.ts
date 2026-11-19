@@ -15,6 +15,7 @@ import type { CreditCalibration } from "../_shared/agent/metering.ts";
 import { isNarratorVoice, NARRATOR_VOICES, type NarratorVoice } from "../_shared/narratorVoice.ts";
 import { isTelling, joinAudio, noteSpeechText, READING_MAX_CHARS, READING_PARALLEL, readingHash, readingKey, speechPieces, storytellerPieces, type Telling } from "../_shared/noteReading.ts";
 import type { SpeechService } from "../_shared/speech.ts";
+import { UUID_RE } from "../_shared/uuid.ts";
 
 export interface ReadingNote {
   id: string;
@@ -86,7 +87,6 @@ export interface ReadingBody {
   telling: Telling;
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function parseReadingBody(raw: unknown): ReadingBody | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;

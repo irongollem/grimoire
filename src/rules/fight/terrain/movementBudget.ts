@@ -11,18 +11,25 @@
 // - 2024 Exhaustion: "Your Speed is reduced by a number of feet equal to 5 times your Exhaustion level"
 //   (`getExhaustionSpeedPenaltyFt`, the repo's existing rule).
 //
-// Not handled: standing up from Prone (costs half the speed), 2014 Exhaustion (level 2 halves, level 5 is 0), and
+// - 2014 Exhaustion level 5 or 6: speed 0 (`speedIsZero`).
+//
+// Not handled: standing up from Prone (costs half the speed), and
 // "can't benefit from any bonus to its speed" (a bonus is not modelled here at all). Dash is the caller's choice.
 
 import type { AppliedCondition } from "../../../types/condition.types.ts";
 import type { RulesetKey } from "../../../types/ruleset.types.ts";
-import { getExhaustionSpeedPenaltyFt, hasCondition } from "../../conditions.ts";
+import { getExhaustionLevel, getExhaustionSpeedPenaltyFt, hasCondition } from "../../conditions.ts";
 
 const SPEED_ZERO_2014 = ["Grappled", "Paralyzed", "Petrified", "Restrained", "Stunned", "Unconscious"] as const;
 const SPEED_ZERO_2024 = ["Grappled", "Paralyzed", "Petrified", "Restrained", "Unconscious"] as const;
 
-/** Whether a condition on the creature sets its Speed to 0. */
+/**
+ * Whether a condition on the creature sets its Speed to 0. 2014 Exhaustion counts too: PHB 2014 appendix A
+ * "Exhaustion" level 5 is "Speed reduced to 0" and level 6 is death, which moves no one. Under 2024 Exhaustion only
+ * takes 5 feet per level off (`getExhaustionSpeedPenaltyFt`), so it never sets the Speed to 0 by itself here.
+ */
 export function speedIsZero(conditions: readonly AppliedCondition[], ruleset: RulesetKey): boolean {
+  if (ruleset === "2014" && getExhaustionLevel(conditions) >= 5) return true;
   const names = ruleset === "2024" ? SPEED_ZERO_2024 : SPEED_ZERO_2014;
   return names.some((name) => hasCondition(conditions, name));
 }
@@ -40,7 +47,10 @@ export function movementBudgetFeet(input: {
 }): number | null {
   if (input.speed === null) return null;
   if (speedIsZero(input.conditions, input.ruleset)) return 0;
-  const speed = input.speed - getExhaustionSpeedPenaltyFt(input.conditions, input.ruleset);
+  // PHB 2014 appendix A "Exhaustion", level 2: "Speed halved" (levels 3 and 4 keep it halved; 5 is the zero above).
+  // 5e rounds down. The 2024 rule takes feet off instead, below.
+  const walking = input.ruleset === "2014" && getExhaustionLevel(input.conditions) >= 2 ? Math.floor(input.speed / 2) : input.speed;
+  const speed = walking - getExhaustionSpeedPenaltyFt(input.conditions, input.ruleset);
   const used = input.movementUsed === undefined ? 0 : input.movementUsed;
   return Math.max(0, speed - used);
 }

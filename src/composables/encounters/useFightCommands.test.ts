@@ -30,7 +30,8 @@ vi.mock("@/lib/campaignLiveSync/rings", () => ({
 
 import { liveState, liveRevision } from "@/composables/encounters/useEncounterLive";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { STUCK_AFTER_FAILURES, useFightCommands } from "./useFightCommands";
+import { STUCK_AFTER_FAILURES } from "@/stores/encounterRunPump";
+import { useFightCommands } from "./useFightCommands";
 
 function creature(id: string, over: Partial<RunCombatant> = {}): RunCombatant {
   return {
@@ -89,8 +90,9 @@ beforeEach(() => {
   liveState.value = null;
 });
 afterEach(() => {
-  // A runner left mounted keeps its page-leave guard on the window for the next test.
   for (const wrapper of mounted.splice(0)) wrapper.unmount();
+  // The store's pump keeps its page-leave prompt and its retry timer until the store is gone.
+  useEncounterRunStore().$dispose();
   vi.useRealTimers();
 });
 
@@ -329,8 +331,8 @@ describe("useFightCommands", () => {
       expect(sent().length).toBeGreaterThan(STUCK_AFTER_FAILURES);
     });
 
-    it("fails if leaving the page is not interrupted while changes are unsent, or still is once they are saved or the runner is gone", async () => {
-      const { store, wrapper } = await offlineWith(1);
+    it("fails if leaving the page is not interrupted while changes are unsent, or still is once they are saved", async () => {
+      const { store } = await offlineWith(1);
       const leave = () => {
         const event = new Event("beforeunload", { cancelable: true });
         window.dispatchEvent(event);
@@ -345,8 +347,53 @@ describe("useFightCommands", () => {
       store.adjustHp("ogre", -1);
       await flushPromises();
       expect(leave()).toBe(true);
+    });
+
+    it("fails if leaving the runner with changes unsent drops the page-leave prompt, or stops sending them", async () => {
+      // The last attempt on unmount used to be the only one: if it failed nothing retried and nothing warned on a reload.
+      const { store, wrapper } = await offlineWith(1);
       wrapper.unmount();
+      const leave = () => {
+        const event = new Event("beforeunload", { cancelable: true });
+        window.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
+      expect(leave()).toBe(true);
+      net.invoke.mockResolvedValue({ data: answer(16, 6), error: null });
+      await vi.advanceTimersByTimeAsync(retryDelayMs(1));
+      await flushPromises();
+      expect(store.hasQueued()).toBe(false);
       expect(leave()).toBe(false);
+    });
+
+    it("fails if sending stops, or is doubled, once the runner is gone", async () => {
+      // One pump: after the runner unmounts the batch is still tried once per backoff, not by a second sender too.
+      const { wrapper } = await offlineWith(1);
+      const before = net.invoke.mock.calls.length;
+      wrapper.unmount();
+      await flushPromises();
+      await vi.advanceTimersByTimeAsync(retryDelayMs(1) + retryDelayMs(2));
+      await flushPromises();
+      // Two backoffs, two more tries, whether or not a runner is mounted.
+      expect(net.invoke.mock.calls.length - before).toBe(2);
+    });
+
+    it("fails if a batch that keeps failing after the runner is gone is never told to the DM", async () => {
+      const { wrapper } = await offlineWith(1);
+      wrapper.unmount();
+      await vi.advanceTimersByTimeAsync(40_000);
+      expect(toasts.error).toHaveBeenCalledTimes(1);
+      expect(toasts.error).toHaveBeenCalledWith(expect.stringContaining("could not be saved"));
+    });
+
+    it("fails if a refusal of changes made in the runner's fight, after the runner is gone, is not told to the DM", async () => {
+      const { wrapper, onLost } = await offlineWith(1);
+      wrapper.unmount();
+      net.invoke.mockResolvedValue(refusal(404, "No such fight."));
+      await vi.advanceTimersByTimeAsync(retryDelayMs(1));
+      await flushPromises();
+      expect(toasts.error).toHaveBeenCalledWith(expect.stringContaining("gone"));
+      expect(onLost).not.toHaveBeenCalled();
     });
 
     it("fails if a batch is posted to the fight the route names when it is sent instead of the fight it was made in", async () => {
@@ -366,7 +413,7 @@ describe("useFightCommands", () => {
       expect(targets).toEqual(["enc-1", "enc-1"]);
     });
 
-    it("fails if a runner sends the batches of another fight that has taken over the store", async () => {
+    it("fails if the batches of another fight that has taken over the store go to the runner's fight instead of their own", async () => {
       attach();
       net.invoke.mockResolvedValue({ data: answer(20, 5), error: null });
       mountComposable();
@@ -374,7 +421,87 @@ describe("useFightCommands", () => {
       net.invoke.mockClear();
       store2();
       await flushPromises();
-      expect(net.invoke).not.toHaveBeenCalled();
+      const targets = net.invoke.mock.calls.map(([, init]) => (init.body as { encounterId: string }).encounterId);
+      expect(targets).toEqual(["enc-2"]);
+    });
+  });
+
+  describe("a runner whose fight is no longer the store's", () => {
+    /** The first call named `type` waits for the test to answer it; every batch waits forever. */
+    function deferredAlone(type: string) {
+      let answerIt!: (reply: unknown) => void;
+      const held = new Promise((resolve) => { answerIt = resolve; });
+      net.invoke.mockImplementation(async (_name: string, init: { body: { commands: Array<{ type: string }> } }) => {
+        if (init.body.commands[0].type === type) return held;
+        if (init.body.commands[0].type === "sync_party") return { data: answer(20, 5), error: null };
+        return new Promise(() => {});
+      });
+      return answerIt;
+    }
+
+    it("fails if a refusal of the runner's party sync, arriving after another fight took over, drops that fight's changes or sends the runner away", async () => {
+      attach();
+      net.invoke.mockResolvedValue({ data: answer(20, 5), error: null });
+      const { onLost } = mountComposable();
+      await flushPromises();
+      const answerIt = deferredAlone("sync_party");
+      net.invoke.mockClear();
+      rings.reconcile[0]("campaign-1"); // a sync of enc-1 goes out and waits
+      await flushPromises();
+      store2(); // enc-2 takes over the store with a change waiting
+      await flushPromises();
+      answerIt(refusal(404, "No such fight."));
+      await flushPromises();
+      expect(useEncounterRunStore().hasQueued()).toBe(true);
+      expect(hp(useEncounterRunStore())).toBe(18);
+      expect(onLost).not.toHaveBeenCalled();
+    });
+
+    it("fails if the answer to the runner's party sync is shown over another fight that took over the store", async () => {
+      attach();
+      net.invoke.mockResolvedValue({ data: answer(20, 5), error: null });
+      mountComposable();
+      await flushPromises();
+      net.invoke.mockClear();
+      const answerIt = deferredAlone("sync_party");
+      rings.reconcile[0]("campaign-1");
+      await flushPromises();
+      store2();
+      await flushPromises();
+      answerIt({ data: answer(7, 9), error: null });
+      await flushPromises();
+      expect(hp(useEncounterRunStore())).toBe(18);
+    });
+
+    it("fails if the answer to a lifecycle command is shown over another fight that took over the store", async () => {
+      attach();
+      net.invoke.mockResolvedValue({ data: answer(20, 5), error: null });
+      const { api } = mountComposable();
+      await flushPromises();
+      net.invoke.mockClear();
+      const answerIt = deferredAlone("go_private");
+      const done = api.lifecycle({ type: "go_private" });
+      await flushPromises();
+      store2();
+      await flushPromises();
+      answerIt({ data: answer(7, 9), error: null });
+      await done;
+      expect(hp(useEncounterRunStore())).toBe(18);
+    });
+
+    it("fails if letting go of an ended fight wipes the fight that opened since", () => {
+      attach();
+      const { api } = mountComposable();
+      store2();
+      api.releaseFight();
+      expect(useEncounterRunStore().linkedEncounterId()).toBe("enc-2");
+    });
+
+    it("fails if letting go of the runner's own fight leaves it in the store", () => {
+      attach();
+      const { api } = mountComposable();
+      api.releaseFight();
+      expect(useEncounterRunStore().linkedEncounterId()).toBeNull();
     });
   });
 });

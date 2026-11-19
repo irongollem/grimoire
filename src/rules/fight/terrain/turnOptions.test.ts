@@ -255,6 +255,12 @@ describe("rule 3: disengage", () => {
     expect(find(run({ combatants: [ogre(), chicory(1, 0, { conditions: [{ name: "Paralyzed" }] as RunCombatant["conditions"] })] }), "disengage")).toBeUndefined();
   });
 
+  // PHB 2014 ch. 9 "Surprise": the surprised enemy cannot react yet, so nothing threatens the Ogre; under 2024 it can.
+  it("fails if a surprised 2014 enemy still counts as a threat to disengage from, or a 2024 one does not", () => {
+    expect(find(run({ combatants: [ogre(), chicory(1, 0, { surprised: true })] }), "disengage")).toBeUndefined();
+    expect(find(run({ ruleset: "2024", combatants: [ogre(), chicory(1, 0, { surprised: true })] }), "disengage")).toBeDefined();
+  });
+
   it("is not offered when no reachable square is farther from the enemy than where it stands", () => {
     // Speed 0 (a grappled creature): the only square is the one it stands on.
     expect(find(run({ combatants: [ogre(), chicory(1, 0)], budgetFeet: 0 }), "disengage")).toBeUndefined();
