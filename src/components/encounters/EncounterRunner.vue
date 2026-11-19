@@ -73,6 +73,12 @@
           :loading="store.busy"
           @click="store.nextTurn()"
         />
+        <AppCheckbox
+          v-model="autopilot"
+          label="Autopilot"
+          title="Play every creature's turn for me and pass it on. Stops at a player's turn."
+          data-testid="runner-autopilot"
+        />
       </div>
 
       <div class="top-right">
@@ -256,6 +262,10 @@ import { buildNpcSyncUpdate } from "@/lib/encounters/npcEncounterSync";
 import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { useFightCommands } from "@/composables/encounters/useFightCommands";
 import { RUNNER_TAKE_TURN, createRunnerTakeTurn } from "@/components/encounters/runnerResolve";
+import { useCreatureTurns } from "@/composables/encounters/useCreatureTurns";
+import { useStorage } from "@vueuse/core";
+import { safeLocalStorage } from "@/lib/safeLocalStorage";
+import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { ensureCampaignSession } from "@/composables/campaign/useCampaignSession";
 import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
@@ -313,7 +323,29 @@ const fight = useFightCommands(encounterId, {
 });
 
 // Every panel that lists a creature's actions offers "Run this turn for me" through this (Runner, Play, phone).
-provide(RUNNER_TAKE_TURN, createRunnerTakeTurn(fight.takeTurn, (error) => toast.fromError(error, "Couldn't run that turn.")));
+const runnerTakeTurn = createRunnerTakeTurn(fight.takeTurn, (error) => toast.fromError(error, "Couldn't run that turn."));
+provide(RUNNER_TAKE_TURN, runnerTakeTurn);
+
+// Autopilot (#1203, carried into #1021 row 5a): a standing switch that has the server play every creature's turn
+// and pass it on, the way the solo table does, so the Dungeon Master only steps in for the players. It stops at a
+// player's turn, at anyone the rules cannot play, when a turn could not be run (the reason is on that creature's
+// panel), and when a creature walked out of a player's reach: that opportunity attack is the table's to settle
+// before the turn moves on. Kept on this device.
+const autopilot = useStorage<boolean>("grimoire:runner-autopilot", false, safeLocalStorage());
+useCreatureTurns({
+  enabled: () => autopilot.value,
+  stopsAt: (now) => now.type === "player" || now.bystander === true,
+  started: () => store.started,
+  active: () => store.activeCombatant,
+  turnKey: () => `${store.round}:${store.activeCombatant?.instance_id}`,
+  run: async (instanceId) => {
+    await runnerTakeTurn.run(instanceId);
+    if (runnerTakeTurn.errors[instanceId] !== undefined) return false;
+    const result = runnerTakeTurn.results[instanceId];
+    return result === undefined || result.provokedPlayer.length === 0;
+  },
+  next: () => store.nextTurn(),
+});
 
 // The runner resolves combatants' stored monster_id (detail panel, auto-discover
 // on go-live) rather than letting the DM pick, so scoping must stay off here.

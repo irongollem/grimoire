@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { effectScope, nextTick, reactive } from "vue";
-import { useSoloCreatureTurns, type TurnHolder } from "./useSoloCreatureTurns";
+import { useCreatureTurns, type TurnHolder } from "./useCreatureTurns";
 
 const ME = "member-1";
 const rosie: TurnHolder = { instance_id: "p-rosie", party_member_id: ME, hp: 20 };
@@ -13,7 +13,7 @@ function fight(order: TurnHolder[], over: { memberId?: string | null; started?: 
   const waits: number[] = [];
   const scope = effectScope();
   scope.run(() =>
-    useSoloCreatureTurns({
+    useCreatureTurns({
       memberId: () => state.memberId,
       started: () => state.started,
       active: () => order[state.index] ?? null,
@@ -40,7 +40,7 @@ function fight(order: TurnHolder[], over: { memberId?: string | null; started?: 
   return { state, ran, waits, settle, stop: () => scope.stop() };
 }
 
-describe("useSoloCreatureTurns", () => {
+describe("useCreatureTurns", () => {
   // Bug caught: a solo player left pressing "Run this turn for me" and "Next turn" for every creature.
   it("plays each creature's turn and stops at the player's", async () => {
     const f = fight([hound(1), hound(2), rosie, hound(3)]);
@@ -103,5 +103,40 @@ describe("useSoloCreatureTurns", () => {
     await f.settle();
     expect(f.waits).toEqual([2500]);
     f.stop();
+  });
+
+  // #1203, carried into #1021 row 5a: the Dungeon Master's runner on autopilot. Bug caught: the autopilot playing
+  // a player character's turn for them, or running on with the switch off.
+  it("on autopilot runs every creature and stops at any player's turn, and does nothing while switched off", async () => {
+    const order: TurnHolder[] = [hound(1), { instance_id: "p-wren", party_member_id: "m-wren", hp: 20, type: "player" }, hound(2)];
+    const state = reactive({ index: 0, on: false });
+    const ran: string[] = [];
+    const scope = effectScope();
+    scope.run(() =>
+      useCreatureTurns({
+        enabled: () => state.on,
+        stopsAt: (now) => now.type === "player",
+        started: () => true,
+        active: () => order[state.index] ?? null,
+        turnKey: () => state.index,
+        run: async (id) => {
+          ran.push(id);
+          return true;
+        },
+        next: () => {
+          state.index += 1;
+        },
+        wait: async () => {},
+      }),
+    );
+    await nextTick();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(ran).toEqual([]);
+    state.on = true;
+    await nextTick();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(ran).toEqual(["hound-1"]);
+    expect(order[state.index].instance_id).toBe("p-wren");
+    scope.stop();
   });
 });

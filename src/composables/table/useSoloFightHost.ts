@@ -3,7 +3,7 @@ import { afterFoeSpoke, foeMoment, FOE_NEVER_SEEN, NO_FOE_TALK, type FoeMoment, 
 import { computed, ref, watch, type Ref } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useFightCommands } from "@/composables/encounters/useFightCommands";
-import { useSoloCreatureTurns } from "@/composables/table/useSoloCreatureTurns";
+import { useCreatureTurns } from "@/composables/encounters/useCreatureTurns";
 import { useToast } from "@/composables/useToast";
 import { linesOfAttacks, linesOfCreatureTurn, type BoardLine } from "@/lib/table/fight/boardLines";
 import { canReact } from "@/lib/table/fight/turnBudget";
@@ -117,7 +117,7 @@ export function useSoloFightHost(options: {
   const said = ref(0);
 
   // ── The creatures' turns, written into the story ───────────────────────────────────────────────────────────────
-  useSoloCreatureTurns({
+  useCreatureTurns({
     memberId: () => (mine.value ? options.memberId() : null),
     started: () => store.started,
     active: () => store.activeCombatant,
