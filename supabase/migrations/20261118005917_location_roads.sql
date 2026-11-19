@@ -7,7 +7,8 @@
 --
 -- * It needs no map. A distance measured on a scaled map is only the fallback (story 2).
 -- * It reads from both ends: a road from A to B is the road from B to A. The two ids are stored in one order
---   (`location_roads_normalize` puts the smaller id first), so a pair cannot be entered twice by swapping the ends.
+--   (`location_roads_normalize` puts the smaller id first), and one pair holds one road of each name
+--   (`location_roads_one_per_name`), so a road cannot be entered twice by swapping the ends.
 -- * One pair of places may have more than one road (the coast road and the pass), told apart by name.
 -- * The World Web holds no copy: it draws a road as the line between its two places, read from here.
 --
@@ -29,14 +30,18 @@ create table public.location_roads (
   going text not null default 'road' check (going in ('road', 'track', 'river', 'sea')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint location_roads_two_places check (from_location_id <> to_location_id)
+  constraint location_roads_two_places check (from_location_id <> to_location_id),
+  -- Checked after `location_roads_normalize` has put the ends in order and trimmed the name, so "B to A" is refused
+  -- where "A to B" of that name already stands. Two roads between one pair are told apart by name, an unnamed one
+  -- included. The places' campaign is the road's (`zz_same_campaign_refs`), so the pair already implies it.
+  constraint location_roads_one_per_name unique (from_location_id, to_location_id, name)
 );
 
 comment on table public.location_roads is
   'A road between two places of a campaign, with its distance: the source of travel distances. Reads from both ends; the ids are stored smaller first.';
 
 create index location_roads_campaign_id_idx on public.location_roads (campaign_id);
-create index location_roads_from_location_id_idx on public.location_roads (from_location_id);
+-- `from_location_id` is led by the unique constraint's index.
 create index location_roads_to_location_id_idx on public.location_roads (to_location_id);
 create index location_roads_user_id_idx on public.location_roads (user_id);
 

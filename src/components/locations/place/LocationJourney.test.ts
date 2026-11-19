@@ -12,7 +12,7 @@ const given = vi.hoisted(() => ({
   places: [] as { id: string; name: string; parent_id: string | null }[],
   /** The place whose map both ends are pinned on, as the one-place read answers it. */
   map: null as Record<string, unknown> | null,
-  party: [] as { id: string; current_location_id: string }[],
+  party: [] as { id: string; current_location_id: string | null }[],
   countsFood: false,
 }));
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "dm" }) }));
@@ -94,10 +94,11 @@ describe("LocationJourney", () => {
   });
 
   // PHB 2014 "Travel Pace": 24 miles a day, so 55 miles occupies three days; PHB "Food and Water": a ration a day each.
-  // Bug caught: food counted for a table that never switched the rule on; or counted for the wrong number of days.
+  // Bug caught: food counted for a table that never switched the rule on; or counted for the wrong number of days;
+  // or a member following the party (no place of their own) not counted as setting out.
   it("says the food a journey takes only where the campaign counts food", async () => {
     fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", roll_table_id: null }]);
-    given.party = [{ id: "p1", current_location_id: "brightwater" }, { id: "p2", current_location_id: "brightwater" }, { id: "p3", current_location_id: "saltmarsh" }];
+    given.party = [{ id: "p1", current_location_id: "brightwater" }, { id: "p2", current_location_id: null }, { id: "p3", current_location_id: "saltmarsh" }];
     const off = await mountAt("saltmarsh");
     expect(off.find("[data-testid=location-journey-food]").exists()).toBe(false);
     given.countsFood = true;

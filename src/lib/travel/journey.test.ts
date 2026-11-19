@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { journeyByRoad, passingText, roadTableIds } from "./journey";
+import { journeyByRoad, passingText, roadTableIds, travellersOf } from "./journey";
 import { roadPlaceOf } from "./way";
 import type { Road } from "./roads";
 
@@ -70,5 +70,37 @@ describe("roadTableIds", () => {
     ];
     expect(roadTableIds({ roadIds: ["r1", "r2", "r3", "r4"] }, roads)).toEqual(["coast", "hills"]);
     expect(roadTableIds({ roadIds: [] }, roads)).toEqual([]);
+  });
+});
+
+describe("travellersOf", () => {
+  const withVillage: Record<string, string | null> = { ...parents, village: "harbour" };
+  const parentIn = (id: string): string | null => withVillage[id] ?? null;
+  const village = [...coast, road("lane", "village", "farholt", 5)];
+
+  // Bug caught: a member with no place of their own (following the party) left out, so a party of followers set
+  // out with nobody and the calendar event and the food line counted no travellers.
+  it("counts a member who follows the party as standing where the party is", () => {
+    const members = [{ id: "a", current_location_id: null }, { id: "b", current_location_id: "farholt" }];
+    expect(travellersOf({ origin: "harbour", members, partyAt: "harbour", parentOf, roads: coast })).toEqual(["a"]);
+  });
+
+  // Bug caught: a party standing in a room of the town the road leaves told nobody sets out, because the room is
+  // not the road's end.
+  it("counts someone inside the place the journey starts from", () => {
+    const members = [{ id: "a", current_location_id: null }, { id: "b", current_location_id: "inn" }];
+    expect(travellersOf({ origin: "harbour", members, partyAt: "common-room", parentOf, roads: coast })).toEqual(["a", "b"]);
+  });
+
+  // Bug caught: a member in a village with roads of its own counted as setting out from the town around it.
+  it("does not count someone at a place inside the start that has roads of its own", () => {
+    const members = [{ id: "a", current_location_id: "village" }, { id: "b", current_location_id: "inn" }];
+    expect(travellersOf({ origin: "harbour", members, partyAt: "harbour", parentOf: parentIn, roads: village })).toEqual(["b"]);
+    // Across a map no roads stop the walk up: the village lies under the town's pin.
+    expect(travellersOf({ origin: "harbour", members, partyAt: "harbour", parentOf: parentIn, roads: [] })).toEqual(["a", "b"]);
+  });
+
+  it("counts nobody when nobody knows where the party is", () => {
+    expect(travellersOf({ origin: "harbour", members: [{ id: "a", current_location_id: null }], partyAt: null, parentOf, roads: coast })).toEqual([]);
   });
 });
