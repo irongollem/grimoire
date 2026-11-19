@@ -113,7 +113,7 @@ select is((select count(*)::integer from public.story_fact_links), 0, 'nor what 
 
 reset role;
 
--- ── The campaign changes hands (20261118080542) ────────────────────────────
+-- ── The campaign changes hands (20261119121114) ────────────────────────────
 -- Bug caught: the record left with the outgoing owner, whose account deletion would erase it; and, once the move
 -- named this table, the whole transfer failing on the trigger that keeps a fact from being rewritten.
 select lives_ok(
