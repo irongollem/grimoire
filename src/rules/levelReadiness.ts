@@ -1,4 +1,5 @@
-import { levelForXp } from "@/types/party.types";
+// Relative, with its extension: the AI table's server reads this rule too (`_shared/agent/characterIo.ts`).
+import { levelForXp } from "../types/party.types.ts";
 
 /**
  * How a campaign's characters gain levels (#1021 row 27). With the Experience Points rule on, by XP (PHB 2014
@@ -10,7 +11,7 @@ export type LevellingMode = "experience" | "milestone";
 export interface LevelReadinessInput {
   mode: LevellingMode;
   level: number;
-  experiencePoints: number | null;
+  experiencePoints: number | null | undefined;
   /** The campaign's party level; null until the DM sets one or a milestone is reached. */
   partyLevel: number | null;
 }

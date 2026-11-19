@@ -8,6 +8,15 @@
       <div class="min-w-0">
         <h2 class="truncate text-heading-sm font-bold text-foreground">{{ displayName }}</h2>
         <p class="text-caption text-muted-foreground">Level {{ member.level }}</p>
+        <!-- When the party level (or the character's XP) has passed it, Level Up is taken from here; the sitting stays
+             open meanwhile and goes on at the new level (#1021 row 27). -->
+        <AppButton
+          v-if="!readonly && levelUp !== null"
+          :to="{ name: 'play-character-levelup', query: { memberId: member.id } }"
+          variant="link"
+          size="inline-caption"
+          label="Ready to level up"
+        />
       </div>
     </header>
 
@@ -67,6 +76,7 @@ import FocalImage from "@/components/common/media/FocalImage.vue";
 import PlayerHpControls from "@/components/player/PlayerHpControls.vue";
 import PlayerSpellSlotStrip from "@/components/spells/PlayerSpellSlotStrip.vue";
 import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
+import { useLevelUp } from "@/composables/party/useLevelUp";
 import { useMemberVitals } from "@/composables/party/useMemberVitals";
 import { useSpellSlotWrite } from "@/composables/spells/useSpellSlotWrite";
 import { useLowArt } from "@/composables/useLowArt";
@@ -88,6 +98,7 @@ const emit = defineEmits<{ "hit-points": [now: { current: number; max: number }]
 const { lowArt } = useLowArt();
 const { wildshape, beastMonster, armorClass, initiative, speed, hp } = useMemberVitals(() => member);
 const { jack } = useJackOfAllTrades(() => member);
+const { action: levelUp } = useLevelUp(() => member);
 const { setSlotUsed: writeSlot } = useSpellSlotWrite();
 
 watch(() => [hp.value.current, hp.value.max], () => emit("hit-points", { current: hp.value.current, max: hp.value.max }), { immediate: true });

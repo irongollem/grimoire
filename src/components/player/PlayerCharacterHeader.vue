@@ -249,7 +249,6 @@
 import { characterSenses, formatSenses } from "@/rules/characterSenses";
 import { ref, computed, nextTick, type ComponentPublicInstance } from "vue";
 import { IconAdd, IconStar } from '@/lib/icons';
-import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarStore } from "@/stores/calendar";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
@@ -273,7 +272,7 @@ import {
 import type { PartyMember } from "@/types/party.types";
 import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
 import { xpForNextLevel, xpForLevel } from "@/types/party.types";
-import { levelUpAction, readyToLevelUp as isReadyToLevelUp } from "@/rules/levelReadiness";
+import { useLevelUp } from "@/composables/party/useLevelUp";
 import type { WildshapeState } from "@/types/encounter.types";
 import { useFormPortraits } from "@/composables/party/useFormPortraits";
 import { walkingSpeed } from "@/lib/movement";
@@ -318,7 +317,6 @@ const sensesText = computed(() => {
   return formatSenses(characterSenses({ species, subrace: props.member.subrace, senses: props.member.senses }));
 });
 
-const auth = useAuthStore();
 const campaignStore = useCampaignStore();
 const calendarStore = useCalendarStore();
 
@@ -477,30 +475,8 @@ const xpPct = computed(() => {
   if (next <= floor) return 0;
   return Math.max(0, Math.min(100, ((xp - floor) / (next - floor)) * 100));
 });
+const { ready: readyToLevelUp, action: levelUp } = useLevelUp(() => props.member, () => props.hidePlayerActions);
 const showXpBar = computed(() => xpLevellingEnabled.value && ((props.member.experience_points ?? 0) > 0 || readyToLevelUp.value));
-/** The party level a milestone raised, read only on the character's own campaign. */
-const partyLevel = computed(() => {
-  const campaign = campaignStore.activeCampaign;
-  return campaign && props.member.campaign_id === campaign.id ? campaign.party_level : null;
-});
-const readyToLevelUp = computed(() =>
-  isReadyToLevelUp({
-    mode: xpLevellingEnabled.value ? "experience" : "milestone",
-    level: props.member.level,
-    experiencePoints: props.member.experience_points ?? null,
-    partyLevel: partyLevel.value,
-  }),
-);
-const levelUp = computed(() =>
-  levelUpAction({
-    ready: readyToLevelUp.value,
-    viewerIsDm: auth.isDM,
-    viewerId: auth.user?.id ?? null,
-    member: props.member,
-    hidePlayerActions: props.hidePlayerActions,
-  }),
-);
-// Beside the XP bar a short word fits; alone, it says what it is.
 const levelUpLabel = computed(() => (xpLevellingEnabled.value ? "Ready ↑" : "Ready to level up"));
 const hpColor = computed(() => hpTextClass(displayHp.value, displayMaxHp.value));
 const hpBarColor = computed(() => {

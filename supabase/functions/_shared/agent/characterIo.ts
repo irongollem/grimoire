@@ -6,6 +6,7 @@
 import { toPlainText } from "../ai-prompt.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PlayerCharacter } from "./playerCharacter.ts";
+import { readyToLevelUp } from "../../../../src/rules/levelReadiness.ts";
 import { UUID_RE } from "./parse.ts";
 
 /** `party_members.species_id` is a custom species uuid or a shared library slug; each id goes to the table it lives in. */
@@ -45,7 +46,7 @@ function aboutOf(row: Record<string, unknown>): string | null {
 export async function loadPartyMember(admin: SupabaseClient, campaignId: string, id: string): Promise<PlayerCharacter | null> {
   const { data, error } = await admin
     .from("party_members")
-    .select("id, name, pronouns, class, subclass, level, subrace, species_id, max_hp, current_hp, physical_description, personality_traits, ideals, bonds, flaws, player_description, notes")
+    .select("id, name, pronouns, class, subclass, level, experience_points, subrace, species_id, max_hp, current_hp, physical_description, personality_traits, ideals, bonds, flaws, player_description, notes")
     .eq("id", id)
     .eq("campaign_id", campaignId)
     .maybeSingle();
@@ -62,6 +63,15 @@ export async function loadPartyMember(admin: SupabaseClient, campaignId: string,
     }
   }
   const { level, max_hp: max, current_hp: current } = data;
+  let mayLevelUp: PlayerCharacter["mayLevelUp"] = null;
+  if (typeof level === "number" && level > 0) {
+    try {
+      mayLevelUp = await levelUpReason(admin, campaignId, level, typeof data.experience_points === "number" ? data.experience_points : 0);
+    } catch (err) {
+      // A turn goes on without it: the sheet still offers Level Up, the Narrator only misses marking the moment.
+      console.error("agent-turn: reading whether the character may level up failed:", err);
+    }
+  }
   return {
     id: data.id as string,
     name,
@@ -72,5 +82,20 @@ export async function loadPartyMember(admin: SupabaseClient, campaignId: string,
     level: typeof level === "number" && level > 0 ? level : null,
     hitPoints: typeof max === "number" && typeof current === "number" && max > 0 ? { current, max } : null,
     about: aboutOf(data),
+    mayLevelUp,
   };
+}
+
+/** Whether a character may level up, by the campaign's own way of levelling: the same rule the sheet reads. */
+async function levelUpReason(admin: SupabaseClient, campaignId: string, level: number, experiencePoints: number): Promise<"milestone" | "experience" | null> {
+  const [campaign, rule] = await Promise.all([
+    admin.from("campaigns").select("party_level").eq("id", campaignId).maybeSingle(),
+    admin.from("campaign_rules").select("enabled").eq("campaign_id", campaignId).eq("rule_key", "xp_levelling").maybeSingle(),
+  ]);
+  if (campaign.error) throw campaign.error;
+  if (rule.error) throw rule.error;
+  // No rule row means the rule's default, which is off: the campaign levels by milestone.
+  const mode = rule.data?.enabled === true ? "experience" : "milestone";
+  const partyLevel = typeof campaign.data?.party_level === "number" ? campaign.data.party_level : null;
+  return readyToLevelUp({ mode, level, experiencePoints, partyLevel }) ? mode : null;
 }

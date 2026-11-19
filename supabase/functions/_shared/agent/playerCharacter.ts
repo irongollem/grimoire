@@ -18,6 +18,11 @@ export interface PlayerCharacter {
    * text. The player's own account, so nothing in it is a secret from them. Left out when the sheet says nothing.
    */
   about?: string | null;
+  /**
+   * Why the character may level up now, when it may (#1021 row 27): the party level a milestone raised, or the XP the
+   * character has earned. Read from the record by `readyToLevelUp`, never decided by the Narrator.
+   */
+  mayLevelUp?: "milestone" | "experience" | null;
 }
 
 /** The player's account is paid for on every turn; a long backstory is cut here. */
@@ -47,6 +52,17 @@ export function playerCharacterSection(c: PlayerCharacter): string {
       "",
       "What the player wrote about them (their own account: true, and theirs to know):",
       about.length > ABOUT_MAX ? `${about.slice(0, ABOUT_MAX - 1).trimEnd()}…` : about,
+    );
+  }
+  if (c.mayLevelUp && c.level !== null) {
+    const why = c.mayLevelUp === "milestone"
+      ? "The party has reached a milestone in its story"
+      : "They have earned enough experience";
+    lines.push(
+      "",
+      `${why}, and ${clip(c.name)} may now rise to level ${c.level + 1}. Mark that moment once in the story, at a ` +
+        "natural pause, as a sense of having grown; the player levels up from their own sheet. Say nothing of the rules " +
+        "behind it, and never give a level or an amount of experience other than this.",
     );
   }
   lines.push(
