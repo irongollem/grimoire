@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(15);
 
 -- A party member played by the AI (#1021 row 26). What would go wrong silently: one player reading what another
 -- player's character lived through, a player writing a memory into their own (or anyone's) character, or a player
@@ -103,6 +103,40 @@ select throws_ok(
   '42501', null, 'a player cannot decide whether their character is played at the DM''s cost'
 );
 reset role;
+
+-- A new character cannot arrive already played at the DM's cost (the guard used to hold updates only).
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '10260000-0000-4000-8000-000000000003', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select throws_ok(
+  $$ insert into public.party_members (id, user_id, campaign_id, name, ruleset, ai_stands_in)
+     values ('10260000-0000-4000-8000-000000000033', '10260000-0000-4000-8000-000000000003', '10260000-0000-4000-8000-000000000010', 'Sly', '2014', true) $$,
+  '42501', null, 'a player cannot create a character that is already played at the DM''s cost'
+);
+reset role;
+
+-- What was said for a character before it had a player is not that player's word: taking the seat clears both.
+-- (Ash was given both by the DM above, while nobody had claimed them.)
+select is(
+  (select ai_speaks and ai_stands_in from public.party_members where id = '10260000-0000-4000-8000-000000000032'),
+  true, 'control: the unclaimed character has both set'
+);
+update public.campaign_members set party_member_id = '10260000-0000-4000-8000-000000000032'
+ where campaign_id = '10260000-0000-4000-8000-000000000010' and user_id = '10260000-0000-4000-8000-000000000003';
+select is(
+  (select ai_speaks or ai_stands_in from public.party_members where id = '10260000-0000-4000-8000-000000000032'),
+  false, 'a player taking the seat starts with neither: the consent is theirs to give'
+);
+
+-- The DM's switch is for this campaign: a character that leaves it is not played in the next one.
+-- Done the way the attach and detach functions do it: they announce the transition, then change the campaign.
+select set_config('grimoire.pm_campaign_transition', 'on', true);
+update public.party_members set campaign_id = null where id = '10260000-0000-4000-8000-000000000030';
+select set_config('grimoire.pm_campaign_transition', '', true);
+select is(
+  (select ai_stands_in from public.party_members where id = '10260000-0000-4000-8000-000000000030'),
+  false, 'a character that leaves the campaign is no longer played'
+);
 
 -- That a memory is of a character of its own campaign is held for every such reference at once by
 -- same_campaign_refs.test.sql.

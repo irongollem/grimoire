@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(15);
 
 -- A conversation with the model is its owner's, and only the server writes it (#1205).
 --
@@ -88,6 +88,27 @@ select is(
   (select count(*)::integer from public.agent_turns where session_id = '12050000-0000-4000-8000-000000000020'),
   0, 'the owner''s delete takes the conversation and its messages with it'
 );
+
+-- Someone who has left the campaign no longer reads what the narrator was told there (hidden facts, DM notes).
+insert into public.agent_sessions (id, user_id, campaign_id, kind, provider, model)
+values ('12050000-0000-4000-8000-000000000021', '12050000-0000-4000-8000-000000000001', '12050000-0000-4000-8000-000000000010', 'solo_table', 'openai', 'gpt-test');
+insert into public.agent_turns (session_id, user_id, seq, role, blocks)
+values ('12050000-0000-4000-8000-000000000021', '12050000-0000-4000-8000-000000000001', 1, 'user', '[{"type": "text", "text": "I listen at the door."}]'::jsonb);
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '12050000-0000-4000-8000-000000000001', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select is((select count(*)::integer from public.agent_turns where session_id = '12050000-0000-4000-8000-000000000021'), 1, 'control: a member reads their own conversation');
+reset role;
+delete from public.campaign_members where campaign_id = '12050000-0000-4000-8000-000000000010' and user_id = '12050000-0000-4000-8000-000000000001';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '12050000-0000-4000-8000-000000000001', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select is(
+  (select count(*)::integer from public.agent_sessions where id = '12050000-0000-4000-8000-000000000021')
+    + (select count(*)::integer from public.agent_turns where session_id = '12050000-0000-4000-8000-000000000021'),
+  0, 'and no longer does once they have left the campaign'
+);
+reset role;
 
 select * from finish();
 rollback;

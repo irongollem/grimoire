@@ -56,8 +56,13 @@ create trigger agent_sessions_updated_at
 
 alter table public.agent_sessions enable row level security;
 
+-- A conversation is its account's, and only while that account is still in the campaign: what the narrator was
+-- given (hidden facts, the Dungeon Master's notes) must not stay readable by someone who has left or been removed.
 create policy "agent_sessions_select" on public.agent_sessions
-  for select using ((select auth.uid()) = user_id);
+  for select using (
+    (select auth.uid()) = user_id
+    and (private.is_campaign_member(campaign_id) or private.is_campaign_dm(campaign_id))
+  );
 create policy "agent_sessions_delete" on public.agent_sessions
   for delete using ((select auth.uid()) = user_id);
 
@@ -89,8 +94,12 @@ create index agent_turns_user_id_idx on public.agent_turns (user_id);
 
 alter table public.agent_turns enable row level security;
 
+-- Read through the conversation it belongs to, so the same rule holds: gone from the campaign, gone from view.
 create policy "agent_turns_select" on public.agent_turns
-  for select using ((select auth.uid()) = user_id);
+  for select using (
+    (select auth.uid()) = user_id
+    and exists (select 1 from public.agent_sessions s where s.id = agent_turns.session_id)
+  );
 
 grant select on public.agent_turns to authenticated;
 grant select, insert, update, delete on public.agent_turns to service_role;

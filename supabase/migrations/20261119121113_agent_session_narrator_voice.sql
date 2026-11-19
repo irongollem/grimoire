@@ -13,6 +13,8 @@ alter table public.agent_sessions
 -- so the grant names this one column: the policy lets the owner update their row, and the grant keeps every other
 -- column (the credits spent, the fight in progress) out of reach.
 create policy "agent_sessions_update" on public.agent_sessions
-  for update using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+  for update
+  using ((select auth.uid()) = user_id and (private.is_campaign_member(campaign_id) or private.is_campaign_dm(campaign_id)))
+  with check ((select auth.uid()) = user_id and (private.is_campaign_member(campaign_id) or private.is_campaign_dm(campaign_id)));
 
 grant update (narrator_voice) on public.agent_sessions to authenticated;
