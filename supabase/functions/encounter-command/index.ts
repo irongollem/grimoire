@@ -99,11 +99,13 @@ serve(withCors(async (req: Request) => {
     const { monsterIds, npcIds } = spawnIds(events);
     const monsters = await loadMonsters(admin, campaignId, monsterIds);
     const npcs = await loadNpcs(admin, campaignId, npcIds);
-    // The runner reads the same rule: no row means the rule's own default, which is off.
-    const { data: rule, error: ruleError } = await admin
-      .from("campaign_rules").select("enabled")
-      .eq("campaign_id", campaignId).eq("rule_key", "random_initiative").maybeSingle();
+    // The runner reads the same rules.
+    const { data: rules, error: ruleError } = await admin
+      .from("campaign_rules").select("rule_key, enabled")
+      .eq("campaign_id", campaignId).in("rule_key", ["random_initiative", "xp_levelling"]);
     if (ruleError) throw new Error(`campaign_rules: ${ruleError.message}`);
+    // No row means the rule's own default, which is off for both.
+    const ruleOn = (key: string) => (rules as { rule_key: string; enabled: boolean }[]).some((r) => r.rule_key === key && r.enabled);
 
     const deps: BatchDeps = {
       async loadFight(encounterId) {
@@ -122,7 +124,8 @@ serve(withCors(async (req: Request) => {
           // An encounter saved with no factions of its own runs on the defaults, as the runner opens it.
           factions: encounter.factions && encounter.factions.length > 0 ? encounter.factions : DEFAULT_FACTIONS,
           ruleset: gameSystemEdition(campaign.game_system) ?? DEFAULT_RULESET,
-          randomizeInitiativeEachRound: rule ? rule.enabled : false,
+          randomizeInitiativeEachRound: ruleOn("random_initiative"),
+          xpLevelling: ruleOn("xp_levelling"),
           monsters,
           npcs,
         };
@@ -190,6 +193,15 @@ serve(withCors(async (req: Request) => {
           site = place ? siteId : null;
         }
         return { exploreParty: data.explore_party as ExploreParty | null, siteId: site };
+      },
+      async awardFightXp(award) {
+        const { error } = await admin.rpc("award_fight_xp", {
+          p_encounter_id: request.encounterId,
+          p_member_ids: award.memberIds,
+          p_each: award.each,
+          p_total: award.total,
+        });
+        if (error) throw new Error(`award_fight_xp: ${error.message}`);
       },
       async setExploreParty(party) {
         const { error } = await admin.from("campaigns").update({ explore_party: party }).eq("id", campaignId);

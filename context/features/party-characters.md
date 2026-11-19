@@ -21,7 +21,7 @@ The Party Tracker is the DM's primary combat dashboard. It lists every party mem
 
 ### Experience Points (XP levelling)
 
-When the optional house-rule `xp_levelling` is enabled for the campaign (Campaign Settings → Rules; registered in `src/rules/optionalRules.ts`, stored in `campaign_rules`), the Party Tracker shows a **`PartyXpAward.vue`** control at the top of the card list. The DM enters an XP amount and a target — **Everyone** or a single member via `EntityCombobox` — and **Award** adds it (clamped at 0) to each target's `party_members.experience_points`, toasting when an award pushes a character past a level threshold. XP is milestone-by-default: with the rule off, no XP UI appears anywhere.
+When the optional house-rule `xp_levelling` is enabled for the campaign (Campaign Settings → Rules; registered in `src/rules/optionalRules.ts`, stored in `campaign_rules`), the Party Tracker shows a **`PartyXpAward.vue`** control at the top of the card list. The DM enters an XP amount and a target — **Everyone** or a single member via `EntityCombobox` — and **Award** adds it (clamped at 0) to each target's `party_members.experience_points`, toasting when an award pushes a character past a level threshold. XP is milestone-by-default: with the rule off, no XP UI appears anywhere. With it on, a won fight gives its XP by itself when the DM ends it (combat-encounters.md, `end_combat`).
 
 On the player side, `PlayerCharacterHeader` reads `useIsRuleEnabled("xp_levelling")` and, when on, renders an XP progress bar (current / next-level threshold from `LEVEL_XP_THRESHOLDS` in `party.types.ts`) plus a **Ready ↑** level-up trigger once `levelForXp(xp) > level`. Helpers: `levelForXp`, `xpForNextLevel`, `xpForLevel`.
 

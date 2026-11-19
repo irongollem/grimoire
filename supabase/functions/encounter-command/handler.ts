@@ -28,6 +28,7 @@ import type { FightDeps } from "../../../src/rules/fight/fightEvents.ts";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
 import { ingestPartyRows, partyMemberIdsOf } from "../_shared/fightPartyIngest.ts";
 import { endOfFightPatches } from "../../../src/rules/fight/fightEnd.ts";
+import { fightXp, type FightXpAward } from "../../../src/rules/fight/fightXp.ts";
 import { startedFromRound, type FightEffect, type FightState } from "../../../src/rules/fight/fightState.ts";
 import type { PlayerSheets } from "../../../src/rules/fight/playerSheet.ts";
 import type { FightMap } from "../../../src/rules/fight/terrain/battleMap.ts";
@@ -251,6 +252,8 @@ export interface LoadedFight {
   factions: FactionSides;
   ruleset: RulesetKey;
   randomizeInitiativeEachRound: boolean;
+  /** The campaign uses the Experience Points rule: ending a fight gives its XP (#1021 row 27). */
+  xpLevelling: boolean;
   monsters: Monster[];
   npcs: NpcListRow[];
 }
@@ -272,6 +275,8 @@ export interface FightLifecycleWrite {
   started_at: string | null;
   session_id: string | null;
   magical_darkness: never[];
+  /** Cleared when the encounter is fought again, so the new fight's XP is given too (`award_fight_xp`). */
+  xp_awarded_at: null;
 }
 
 /** An end of fight's write to a companion: the same two fields the runner writes. */
@@ -296,6 +301,8 @@ export interface BatchDeps {
   /** Where the party stands before the fight ends, and the anchoring site when it is a place of this campaign (null when it is not). */
   loadEndContext(siteId: string | null): Promise<{ exploreParty: ExploreParty | null; siteId: string | null }>;
   setExploreParty(party: ExploreParty): Promise<void>;
+  /** Gives a fight's XP, once per ended fight however often it is asked (`award_fight_xp`). */
+  awardFightXp(award: FightXpAward): Promise<void>;
   nowIso(): string;
   postBroadcast(message: string): Promise<void>;
   /** The stat blocks a fight's creatures came from; asked for only by a batch that resolves an action. */
@@ -641,7 +648,7 @@ async function openFight(request: CommandRequest, command: Extract<LifecycleComm
   // (a retry of one of those would otherwise be taken for already applied and answered with the new fight).
   const next = {
     ...writeOf(state, [], request.batchId),
-    is_running: false, ended_at: null, started_at: null, session_id: null, magical_darkness: [],
+    is_running: false, ended_at: null, started_at: null, session_id: null, magical_darkness: [], xp_awarded_at: null,
   } satisfies FightWrite & Partial<FightLifecycleWrite>;
   const saved = await deps.saveFight(loaded.row.id, loaded.row.version, next);
   if (!saved) return null;
@@ -718,7 +725,7 @@ async function runLifecycle(
   const { state } = await attempt({ ...request, commands: [] }, loaded, row, deps, noteJudgmentsOf(deps));
   const context = await deps.loadEndContext(command.siteId === undefined ? null : command.siteId);
   // The saved roster is the authority for where the tokens stand: the browser's store does not hear a player moving their own token.
-  const writeBack = endWriteBack(state.combatants, context, deps);
+  const writeBack = [...endWriteBack(state.combatants, context, deps), ...(await xpWrite(state.combatants, loaded, deps))];
   const next = { ...writeOf(state, row.applied_command_ids, request.batchId), is_running: false, ended_at: deps.nowIso() } satisfies FightWrite & Partial<FightLifecycleWrite>;
   const saved = await deps.saveFight(row.id, row.version, next);
   if (!saved) return null;
@@ -745,12 +752,32 @@ function endWriteBack(
  * it and may not have (a failed write is only reported, and the function can die between the two). Every one sets a value,
  * so running them again is safe, and it is the only way they ever happen: a new End combat is refused for a fight that has ended.
  */
-async function replayClosing(command: LifecycleCommand, row: FightRow, deps: BatchDeps): Promise<string[]> {
+async function replayClosing(command: LifecycleCommand, loaded: LoadedFight, row: FightRow, deps: BatchDeps): Promise<string[]> {
   if (row.ended_at === null) return [];
   if (command.type === "abandon") return performAll(clearInitiativeWrites(playerMemberIds(row.combatants_live), deps));
   if (command.type !== "end_combat") return [];
   const context = await deps.loadEndContext(command.siteId === undefined ? null : command.siteId);
-  return performAll(endWriteBack(row.combatants_live, context, deps));
+  // The award is asked for again too: if the first attempt died before giving it, this is the only time it happens,
+  // and if it was given, the database gives nothing the second time.
+  return performAll([...endWriteBack(row.combatants_live, context, deps), ...(await xpWrite(row.combatants_live, loaded, deps))]);
+}
+
+/**
+ * The XP a won fight gives, in a campaign that levels by experience: the foes' challenge ratings read from the stat
+ * blocks they came from (a creature added mid-fight included), summed and shared by `fightXp`.
+ */
+async function xpWrite(combatants: RunCombatant[], loaded: LoadedFight, deps: BatchDeps): Promise<Array<{ name: string; run: () => Promise<void> }>> {
+  if (!loaded.xpLevelling) return [];
+  const foes = combatants.filter((c) => c.type !== "player");
+  const monsterIds = [...new Set(foes.flatMap((c) => (c.monster_id === undefined ? [] : [c.monster_id])))];
+  const npcIds = [...new Set(foes.flatMap((c) => (c.npc_id === undefined ? [] : [c.npc_id])))];
+  const sources = monsterIds.length + npcIds.length > 0 ? await deps.loadStatBlocks({ monsterIds, npcIds, companionIds: [] }) : null;
+  const monsterCr = new Map((sources?.monsters ?? []).map((m) => [m.id, m.stat_block.challenge_rating]));
+  const npcCr = new Map((sources?.npcs ?? []).map((n) => [n.id, n.stat_block?.challenge_rating ?? null]));
+  const award = fightXp(combatants, loaded.factions, (c) =>
+    c.monster_id !== undefined ? (monsterCr.get(c.monster_id) ?? null) : c.npc_id !== undefined ? (npcCr.get(c.npc_id) ?? null) : null,
+  );
+  return award === null || award.each <= 0 ? [] : [{ name: "fight_xp", run: () => deps.awardFightXp(award) }];
 }
 
 export async function runBatch(request: CommandRequest, deps: BatchDeps): Promise<BatchResult> {
@@ -764,7 +791,7 @@ export async function runBatch(request: CommandRequest, deps: BatchDeps): Promis
     // The reply of an earlier send may have been lost after it was applied: answer with the state as it is.
     // Before the ended check, so a retried End combat is answered rather than refused for a fight it just ended.
     if (row && row.applied_command_ids.includes(request.batchId)) {
-      const failures = lifecycle ? await replayClosing(lifecycle, row, deps) : [];
+      const failures = lifecycle ? await replayClosing(lifecycle, loaded, row, deps) : [];
       return resultOf(false, row.version, row, row, [], failures);
     }
 
