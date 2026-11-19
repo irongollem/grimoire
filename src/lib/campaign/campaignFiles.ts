@@ -181,3 +181,17 @@ export async function deleteCampaignVoiceClips(campaignId: string, userId: strin
   const { error: invokeError } = await supabase.functions.invoke("agent-forget", { body: { campaignId, allClips: true } });
   if (invokeError) throw new Error(await edgeErrorMessage(invokeError));
 }
+
+/**
+ * Asks the server to remove a campaign's note recordings that nothing refers to any more (#1021 row 19): after a
+ * note is deleted, or the whole campaign. The recordings are in a store only the server reaches, so the page can
+ * only ask. Never throws: a recording left behind costs storage, never the delete that came before it.
+ */
+export async function sweepNoteReadings(campaignId: string): Promise<void> {
+  try {
+    const { error } = await supabase.functions.invoke("note-reading", { body: { action: "sweep", campaignId } });
+    if (error) console.error("sweeping note recordings failed:", await edgeErrorMessage(error));
+  } catch (error) {
+    console.error("sweeping note recordings failed:", error);
+  }
+}

@@ -53,6 +53,13 @@ export interface NoteReadingDeps {
   synthesize(voice: { service: SpeechService; id: string }, text: string): Promise<Uint8Array>;
   loadAudio(key: string): Promise<Uint8Array | null>;
   keepAudio(key: string, audio: Uint8Array): Promise<void>;
+  /**
+   * Removes the campaign's recordings that no note refers to any more: of a deleted note, or of a telling since
+   * replaced. Answers how many went.
+   */
+  sweep(campaignId: string): Promise<number>;
+  /** Whether the campaign still exists. */
+  campaignExists(campaignId: string): Promise<boolean>;
   /** Says on the note that it has a reading. Only the server can. */
   setReading(noteId: string, reading: { hash: string; voice: NarratorVoice; chars: number }): Promise<void>;
 }
@@ -97,7 +104,8 @@ export type ReadingOutcome =
   | { ok: false; status: number; error: string }
   | { ok: true; kind: "estimate"; chars: number; credits: number; has: boolean }
   | { ok: true; kind: "made"; chars: number; credits: number }
-  | { ok: true; kind: "audio"; audio: Uint8Array };
+  | { ok: true; kind: "audio"; audio: Uint8Array }
+  | { ok: true; kind: "swept"; removed: number };
 
 const refuse = (status: number, error: string): ReadingOutcome => ({ ok: false, status, error });
 
@@ -115,8 +123,29 @@ function speakerOf(deps: NoteReadingDeps, voice: NarratorVoice, telling: Telling
   return deps.hasService("inworld") ? { ...inworld, cued: false } : { ...eleven, cued: false };
 }
 
+/**
+ * Tidying up (the maintainer, 19 Nov 2026: "same as other content. If no one is referencing it anymore delete it").
+ * The page asks for it after a note or a campaign is deleted. Only recordings that nothing refers to are removed,
+ * so a sweep can never take anything away from anyone: the campaign's DM may ask, and for a campaign that no longer
+ * exists anyone signed in may, since every recording under it is then unreferenced.
+ */
+async function sweepCampaign(input: { userId: string; campaignId: string; deps: NoteReadingDeps }): Promise<ReadingOutcome> {
+  const { userId, campaignId, deps } = input;
+  if (await deps.campaignExists(campaignId)) {
+    const campaign = await deps.loadCampaign(campaignId);
+    if (!campaign || !(await deps.isDm(campaign, userId))) return refuse(404, READING_MESSAGES.notFound);
+  }
+  return { ok: true, kind: "swept", removed: await deps.sweep(campaignId) };
+}
+
 export async function readNote(input: { userId: string; body: unknown; deps: NoteReadingDeps }): Promise<ReadingOutcome> {
   const { userId, deps } = input;
+  const raw = input.body;
+  if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && (raw as Record<string, unknown>).action === "sweep") {
+    const campaignId = (raw as Record<string, unknown>).campaignId;
+    if (typeof campaignId !== "string" || !UUID_RE.test(campaignId)) return refuse(400, READING_MESSAGES.badBody);
+    return sweepCampaign({ userId, campaignId, deps });
+  }
   const body = parseReadingBody(input.body);
   if (!body) return refuse(400, READING_MESSAGES.badBody);
 
@@ -184,6 +213,9 @@ export async function readNote(input: { userId: string; body: unknown; deps: Not
     await deps.setReading(note.id, { hash, voice: body.voice, chars: text.length });
     // Charged last: a reading that could not be kept or put on the note is not paid for.
     await deps.charge(userId, credits, { service: voice.service });
+    // The note now refers to this recording alone: an earlier telling of it is nobody's any more. Best effort: a
+    // recording left behind costs storage, never the reading.
+    await deps.sweep(note.campaign_id).catch((error) => console.error("note-reading: sweeping the old recordings failed:", error));
     return { ok: true, kind: "made", chars: text.length, credits };
   } finally {
     await deps.release(reservation.ids);

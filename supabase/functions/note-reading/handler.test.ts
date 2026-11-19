@@ -26,6 +26,8 @@ function harness(over: Partial<{ text: string | null; note: ReadingNote | null }
     charged: [] as number[],
     released: [] as string[][],
     caller: DM,
+    campaignThere: true,
+    sweeps: 0,
     deps: undefined as unknown as NoteReadingDeps,
   };
   h.deps = {
@@ -54,6 +56,19 @@ function harness(over: Partial<{ text: string | null; note: ReadingNote | null }
     loadAudio: async (key) => h.store.get(key) ?? null,
     keepAudio: async (key, audio) => {
       h.store.set(key, audio);
+    },
+    campaignExists: async () => h.campaignThere,
+    // As the real one: everything in the store that the note does not refer to now goes.
+    sweep: async () => {
+      h.sweeps += 1;
+      let removed = 0;
+      for (const key of h.store.keys()) {
+        if (h.note === null || h.note.reading_hash === null || !key.endsWith(`/${h.note.reading_hash}.mp3`)) {
+          h.store.delete(key);
+          removed += 1;
+        }
+      }
+      return removed;
     },
     setReading: async (_noteId, reading) => {
       if (h.note) h.note = { ...h.note, reading_hash: reading.hash, reading_voice: reading.voice };
@@ -182,13 +197,17 @@ describe("how it is told", () => {
     expect(x.credits).toBeGreaterThan(y.credits);
   });
 
-  // Bug caught: the two tellings of one note sharing one recording, so asking for the other plays the first.
-  it("keeps the two tellings of one note as two recordings", async () => {
+  // The maintainer: "If no one is referencing it anymore delete it." Bug caught: the two tellings of one note
+  // sharing one recording (asking for the other plays the first); or the replaced telling left in the store for
+  // good, with nothing pointing at it.
+  it("makes another telling its own recording, and removes the one the note no longer refers to", async () => {
     const h = harness();
     await ask(h, "make");
+    const first = [...h.store.keys()][0];
     await ask(h, "make", DM, { telling: "plain" });
-    expect(h.store.size).toBe(2);
     expect(h.charged).toHaveLength(2);
+    expect(h.store.size).toBe(1);
+    expect([...h.store.keys()][0]).not.toBe(first);
   });
 
   // Bug caught: a stack with only one speech service unable to read anything, or sending cues to the service that
@@ -247,5 +266,34 @@ describe("listening", () => {
 
   it("says a note that was never read aloud has no reading", async () => {
     expect(await ask(harness(), "listen", PLAYER)).toEqual({ ok: false, status: 404, error: READING_MESSAGES.noReading });
+  });
+});
+
+describe("tidying up", () => {
+  const sweepAs = (h: ReturnType<typeof harness>, who: string) => {
+    h.caller = who;
+    return readNote({ userId: who, body: { action: "sweep", campaignId: CAMPAIGN }, deps: h.deps });
+  };
+
+  // Bug caught: a deleted note's recording left in the store for good; or a sweep taking away the recording a
+  // note still refers to.
+  it("removes the recording of a note that is gone and keeps the one a note refers to", async () => {
+    const h = harness();
+    await ask(h, "make");
+    expect(await sweepAs(h, DM)).toEqual({ ok: true, kind: "swept", removed: 0 });
+    expect(h.store.size).toBe(1);
+    h.note = null;
+    expect(await sweepAs(h, DM)).toEqual({ ok: true, kind: "swept", removed: 1 });
+    expect(h.store.size).toBe(0);
+  });
+
+  // Bug caught: a player (or a stranger) made able to probe a campaign through the sweep; and a deleted campaign's
+  // recordings unreachable for good because nobody is its DM any more.
+  it("is the DM's for a campaign that exists, and anyone's once the campaign is gone", async () => {
+    const h = harness();
+    expect(await sweepAs(h, PLAYER)).toEqual({ ok: false, status: 404, error: READING_MESSAGES.notFound });
+    expect(h.sweeps).toBe(0);
+    h.campaignThere = false;
+    expect(await sweepAs(h, STRANGER)).toMatchObject({ ok: true, kind: "swept" });
   });
 });

@@ -29,6 +29,9 @@ vi.mock("@/lib/campaign/campaignFiles", () => ({
     order.push("voices");
     if (voicesError) throw voicesError;
   },
+  sweepNoteReadings: async (campaignId: string) => {
+    order.push(`sweep:${campaignId}`);
+  },
   deleteImportSourcePaths: async (paths: string[]) => {
     order.push(`import:${paths.join(",")}`);
     if (cleanupError) throw cleanupError;
@@ -59,9 +62,11 @@ beforeEach(() => {
 describe("disposeHomebrewAndDeleteCampaign file cleanup (#963)", () => {
   it("removes the import pages only after the delete succeeded", async () => {
     await disposeHomebrewAndDeleteCampaign("c1", "promote");
-    expect(order).toEqual(["minis", "voices", "rpc", "urls", "import:me/page1.png"]);
+    expect(order).toEqual(["minis", "voices", "rpc", "sweep:c1", "urls", "import:me/page1.png"]);
   });
 
+  // The recordings of notes read aloud are swept only once the campaign is gone: the sweep takes what nothing refers
+  // to, and before the delete every note still refers to its own. The "removes nothing" test below holds the rest.
   it("removes nothing when the delete fails", async () => {
     rpcError = new Error("nope");
     await expect(disposeHomebrewAndDeleteCampaign("c1", "promote")).rejects.toThrow("nope");
@@ -92,7 +97,7 @@ describe("disposeHomebrewAndDeleteCampaign file cleanup (#963)", () => {
     urlsError = new Error("cdn down");
     await expect(disposeHomebrewAndDeleteCampaign("c1", "promote")).resolves.toBeUndefined();
     expect(reported).toHaveBeenCalledWith(urlsError, "campaign:deleteFiles", { campaignId: "c1", files: 1 });
-    expect(order).toEqual(["minis", "voices", "rpc", "urls", "import:me/page1.png"]);
+    expect(order).toEqual(["minis", "voices", "rpc", "sweep:c1", "urls", "import:me/page1.png"]);
   });
 
   it("reports a cleanup failure instead of failing the delete", async () => {

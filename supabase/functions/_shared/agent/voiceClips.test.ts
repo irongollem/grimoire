@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clipKey, clipPrefix, listAccountClips, listNoteReadings, noteReadingPrefix } from "./voiceClips.ts";
+import { clipKey, clipPrefix, listAccountClips, listNoteReadings, noteReadingPrefix, unreferencedReadings } from "./voiceClips.ts";
 import type { R2Config } from "../r2/config.ts";
 
 const store = { bucket: "grimoire-table-voices" } as R2Config;
@@ -45,5 +45,21 @@ describe("listNoteReadings", () => {
     });
     expect(listed.keys).toEqual(["note-readings/c1/n1/abc.mp3"]);
     expect(listed.errors).toEqual(["note readings: store down"]);
+  });
+});
+
+describe("unreferencedReadings", () => {
+  // Bug caught: the recording a note still refers to removed with the rest; another campaign's recordings swept
+  // because their keys share a beginning; or a replaced telling and a deleted note's recording left behind.
+  it("names only what no note of this campaign refers to", () => {
+    const keys = [
+      "note-readings/c1/n1/aaa.mp3",
+      "note-readings/c1/n1/old.mp3",
+      "note-readings/c1/gone/bbb.mp3",
+      "note-readings/c10/n1/aaa.mp3",
+      "note-readings/c1/n1/odd/extra.mp3",
+    ];
+    expect(unreferencedReadings(keys, "c1", new Map([["n1", "aaa"]]))).toEqual(["note-readings/c1/n1/old.mp3", "note-readings/c1/gone/bbb.mp3", "note-readings/c1/n1/odd/extra.mp3"]);
+    expect(unreferencedReadings(keys, "c1", new Map())).toHaveLength(4);
   });
 });

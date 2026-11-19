@@ -15,7 +15,7 @@ import type {
 } from "@/lib/campaign/campaignHomebrewDisposition";
 import { LOCATION_STATE_QUERY_KEY } from "@/composables/locations/useLocationState";
 import { HOMEBREW_TABLES, EMPTY_HOMEBREW_COUNTS } from "@/lib/campaign/campaignHomebrewDisposition";
-import { campaignFileUrls, campaignImportSourcePaths, deleteCampaignMinis, deleteCampaignVoiceClips, deleteImportSourcePaths } from "@/lib/campaign/campaignFiles";
+import { campaignFileUrls, campaignImportSourcePaths, deleteCampaignMinis, deleteCampaignVoiceClips, sweepNoteReadings, deleteImportSourcePaths } from "@/lib/campaign/campaignFiles";
 import { deleteUnreferencedByPublicUrl } from "@/lib/storage";
 import { reportHandledError } from "@/lib/observability/sentry";
 
@@ -198,6 +198,8 @@ export async function disposeHomebrewAndDeleteCampaign(
     p_disposition: disposition,
   });
   if (error) throw error;
+  // Its notes went with it: their recordings are nobody's now (the sweep only takes what nothing refers to).
+  void sweepNoteReadings(campaignId);
   // The campaign is gone either way; a storage failure leaves files behind,
   // which is today's outcome, not a reason to report the delete as failed.
   try {

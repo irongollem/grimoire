@@ -79,3 +79,29 @@ export async function listNoteReadings(
   }
   return { keys, errors };
 }
+
+/** Under which every note's recordings of one campaign are kept. */
+export const campaignReadingsPrefix = (campaignId: string): string => `note-readings/${campaignId}/`;
+
+/**
+ * The recordings nothing refers to any more: of a note that is gone, or of a telling the note has since replaced.
+ * `keep` is each note's current recording (`notes.reading_hash`) by note id; a key that is not one of those, or
+ * cannot be read as `note-readings/<campaign>/<note>/<hash>.mp3`, is not referenced by anything.
+ */
+export function unreferencedReadings(keys: readonly string[], campaignId: string, keep: ReadonlyMap<string, string>): string[] {
+  const prefix = campaignReadingsPrefix(campaignId);
+  return keys.filter((key) => {
+    if (!key.startsWith(prefix)) return false;
+    const [noteId, file, ...rest] = key.slice(prefix.length).split("/");
+    if (rest.length > 0 || file === undefined || !file.endsWith(".mp3")) return true;
+    return keep.get(noteId) !== file.slice(0, -4);
+  });
+}
+
+/** Removes a campaign's note recordings that nothing refers to any more. Answers how many went. */
+export async function sweepNoteReadings(store: R2Config | null, campaignId: string, keep: ReadonlyMap<string, string>): Promise<number> {
+  if (store === null) return 0;
+  const gone = unreferencedReadings(await listObjects(store, campaignReadingsPrefix(campaignId)), campaignId, keep);
+  for (let i = 0; i < gone.length; i += REMOVE_BATCH) await deleteObjects(store, gone.slice(i, i + REMOVE_BATCH));
+  return gone.length;
+}

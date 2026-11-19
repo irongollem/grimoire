@@ -10,7 +10,7 @@ import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { isNarratorVoice } from "../_shared/narratorVoice.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
-import { voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
+import { sweepNoteReadings, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
 import { hasSpeechService, loadSpeechRate, speechEnvFrom, speechModelOf, synthesizeSpeech, VoicesSpent } from "../_shared/speech.ts";
 import { readNote, type NoteReadingDeps } from "./handler.ts";
 
@@ -125,6 +125,20 @@ serve(withCors(async (req: Request) => {
       await putObject(voiceStore, { key, body: audio, contentType: "audio/mpeg" });
     },
 
+    async campaignExists(campaignId) {
+      const { data, error } = await admin.from("campaigns").select("id").eq("id", campaignId).maybeSingle();
+      if (error) throw error;
+      return data !== null;
+    },
+
+    // What each note of the campaign refers to now; everything else under the campaign's prefix goes.
+    async sweep(campaignId) {
+      const { data, error } = await admin.from("notes").select("id, reading_hash").eq("campaign_id", campaignId).not("reading_hash", "is", null);
+      if (error) throw error;
+      const keep = new Map((data ?? []).map((n) => [n.id as string, n.reading_hash as string]));
+      return sweepNoteReadings(voiceStore, campaignId, keep);
+    },
+
     // Through the database's own function, so the reading's time is the row's own (see the migration).
     async setReading(noteId, reading) {
       const { error } = await admin.rpc("set_note_reading", { p_note_id: noteId, p_hash: reading.hash, p_voice: reading.voice, p_chars: reading.chars });
@@ -136,6 +150,7 @@ serve(withCors(async (req: Request) => {
     const outcome = await readNote({ userId: user.id, body, deps });
     if (!outcome.ok) return json(outcome.status, { error: outcome.error });
     if (outcome.kind === "audio") return new Response(outcome.audio, { status: 200, headers: { "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=3600" } });
+    if (outcome.kind === "swept") return json(200, { removed: outcome.removed });
     return json(200, outcome.kind === "estimate" ? { chars: outcome.chars, credits: outcome.credits, has: outcome.has } : { made: true, chars: outcome.chars, credits: outcome.credits });
   } catch (error) {
     if (error instanceof VoicesSpent) return json(503, { error: "voices_spent" });
