@@ -6,13 +6,19 @@ import { ref } from "vue";
 const updateMember = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 const bgRow = vi.hoisted(() => ({ value: null as Record<string, unknown> | null }));
 
+// The AI table is released to chosen accounts only; these tests are not about it, so it is closed here.
+const tableOpen = vi.hoisted(() => ({ value: false }));
+vi.mock("@/composables/campaign/useTableAccess", async () => {
+  const { ref } = await import("vue");
+  return { useTableAccess: () => ({ open: ref(tableOpen.value), granted: ref(tableOpen.value) }) };
+});
 vi.mock("@/composables/party/useParty", () => ({ useUpdatePartyMember: () => ({ mutateAsync: updateMember }) }));
 vi.mock("@/composables/rules/useBackgrounds", () => ({
   backgroundSourceKey: () => "k",
   useBackground: () => ({ data: ref(bgRow.value) }),
 }));
 // The AI-play section reads its own data and has its own tests; here it is only a child that is present.
-vi.mock("@/components/party/CharacterAiPlay.vue", () => ({ default: { name: "CharacterAiPlay", template: "<div />" } }));
+vi.mock("@/components/party/CharacterAiPlay.vue", () => ({ default: { name: "CharacterAiPlay", props: ["canSet"], template: "<div />" } }));
 vi.mock("@/composables/deities/useDeities", () => ({ useAllDeities: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/library/useSourceTitles", () => ({ useSourceTitles: () => ({ labelFor: () => null }) }));
 // The editing behaviour itself is TapToEditRichText's; here it is a field that emits when typed into.
@@ -88,5 +94,22 @@ describe("PlayerLoreTab low art (#1179)", () => {
     const w = mount(PlayerLoreTab, { props: { member: member(), isOwner: false } });
     expect(w.find("img").exists()).toBe(false);
     expect(w.text()).toContain("Sage");
+  });
+});
+
+// #1021: the AI table is released to chosen accounts only. Bug caught: a player offered the switch that lets the AI
+// speak for their character in a campaign where nothing would ever use it.
+describe("PlayerLoreTab and the AI's word", () => {
+  const canSet = (open: boolean, isOwner: boolean) => {
+    tableOpen.value = open;
+    const w = mount(PlayerLoreTab, { props: { member: member(), isOwner } });
+    tableOpen.value = false;
+    return w.findComponent({ name: "CharacterAiPlay" }).props("canSet");
+  };
+
+  it("offers the switch to the character's own player only where the table is open", () => {
+    expect(canSet(true, true)).toBe(true);
+    expect(canSet(false, true)).toBe(false);
+    expect(canSet(true, false)).toBe(false);
   });
 });

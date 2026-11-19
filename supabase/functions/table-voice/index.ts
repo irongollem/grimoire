@@ -3,6 +3,7 @@
 // ELEVENLABS_API_KEY and TABLE_VOICE_TRIAL=on are both set.
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
+import { tableAiEnabled } from "../_shared/featureAccess.ts";
 import { withCors } from "../_shared/cors.ts";
 import { toPlainText } from "../_shared/ai-prompt.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
@@ -69,7 +70,7 @@ serve(withCors(async (req: Request) => {
     async loadCampaign(campaignId) {
       const { data, error } = await admin.from("campaigns").select("id, user_id, ai_enabled").eq("id", campaignId).maybeSingle();
       if (error) throw error;
-      return data ? { id: data.id as string, user_id: data.user_id as string, ai_enabled: data.ai_enabled as boolean | null } : null;
+      return data ? { id: data.id as string, user_id: data.user_id as string, ai_enabled: await tableAiEnabled(admin, data) } : null;
     },
 
     isDm: (campaign, userId) => isCampaignDm(admin, campaign, userId),

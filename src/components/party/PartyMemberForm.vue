@@ -75,7 +75,7 @@
           @update:form="applyPersonaPatch"
         />
         <!-- The DM may say it for a character, too: one nobody has claimed is theirs to decide for. -->
-        <CharacterAiPlay v-if="activeTab === 'persona'" :member="props.member" :can-set="!hasPlayer" can-play class="mt-3" />
+        <CharacterAiPlay v-if="activeTab === 'persona'" :member="props.member" :can-set="!hasPlayer && tableOpen" :can-play="tableOpen" class="mt-3" />
       </div>
 
       <DraftConflictNotice :fields="conflictLabels" :on-discard="reset" class="mx-5 mb-3 shrink-0" />
@@ -107,6 +107,7 @@
 </template>
 
 <script setup lang="ts">
+import { useTableAccess } from "@/composables/campaign/useTableAccess";
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed } from "vue";
@@ -142,6 +143,9 @@ import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import type { PartyMember, PartyMemberUpdate, SpellSlotEntry } from "@/types/party.types";
 import { deriveEffectiveSpellSlots } from "@/rules/spellSlots";
 import type { IdentityFormSlice, AbilitiesFormSlice, ProficienciesFormSlice, PersonaFormSlice } from "./partyMemberForm.types";
+
+// The AI table and what hangs off it is released to chosen accounts only (`useTableAccess`).
+const { open: tableOpen } = useTableAccess();
 
 const TABS = [
   { id: "identity" as const, label: "Identity" },

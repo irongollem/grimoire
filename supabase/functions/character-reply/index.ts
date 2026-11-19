@@ -3,6 +3,7 @@
 // the provider, price and calibration lookups a turn of the AI table uses (`_shared/agent/providerIo.ts`).
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
+import { tableAiEnabled } from "../_shared/featureAccess.ts";
 import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { recordFreeGeneration, recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
@@ -99,7 +100,7 @@ serve(withCors(async (req: Request) => {
       if (!data) return null;
       rawCampaign = data;
       ownerId = data.user_id as string;
-      return { id: data.id as string, user_id: data.user_id as string, ai_enabled: data.ai_enabled as boolean | null };
+      return { id: data.id as string, user_id: data.user_id as string, ai_enabled: await tableAiEnabled(admin, data) };
     },
 
     // Only the characters both words are given for are read in full: the rest could not answer anyway.

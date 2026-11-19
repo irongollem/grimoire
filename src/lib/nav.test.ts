@@ -77,8 +77,9 @@ describe("game-system gating", () => {
 describe("the AI table's entry", () => {
   const table = NAV_ITEMS.find((item) => item.to === "/table")!;
 
-  // Bug caught: a Table entry that shows in a campaign with AI off opens a screen that can only say it is closed.
-  it("shows only while the campaign has AI on", () => {
+  // Bug caught: a Table entry that shows where the table is closed (AI off, or an owner without the grant, #1021)
+  // opens a screen that can only say so.
+  it("shows only while the table is open in the campaign", () => {
     expect(navItemHiddenByFlag(table, false, offersAll, false)).toBe(true);
     expect(navItemHiddenByFlag(table, false, offersAll, true)).toBe(false);
   });

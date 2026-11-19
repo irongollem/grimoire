@@ -6,6 +6,7 @@ import { useAppUiStore } from "@/stores/ui/app";
 import { useCampaignStore } from "@/stores/campaign";
 import { systemOffers } from "@/systems/registry";
 import { featureForPath } from "./systemFeatures";
+import { fetchTableAccess, tableAccessKey, TABLE_ACCESS_STALE_MS } from "@/composables/campaign/useTableAccess";
 import { preloadLayout } from "@/layouts/layoutLoader";
 import {
   isPlayerArea,
@@ -152,6 +153,19 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
     const closed = systemFence(to.path, campaignStore);
     if (closed) return closed;
 
+    // The AI table is released to chosen accounts only (#1021, `feature_access`): its routes are closed in a
+    // campaign whose owner has not been granted it, so a typed address cannot reach what the nav hides. Closed
+    // when the answer cannot be had: a limited release fails closed.
+    if (isTablePath(to.path)) {
+      const ownerId = campaignStore.activeCampaign?.user_id ?? null;
+      const granted = ownerId === null
+        ? false
+        : await queryClient
+            .fetchQuery({ queryKey: tableAccessKey(ownerId), queryFn: () => fetchTableAccess(ownerId), staleTime: TABLE_ACCESS_STALE_MS })
+            .catch(() => false);
+      if (granted !== true) return { name: isPlayerArea(to.path) ? "play" : "dashboard" };
+    }
+
     // The child-account fence (#919). Independent of the lens fence above: a
     // child may be a DM or a player, and either lens can reach billing or the
     // family pages by path even though nothing in that lens links to them.
@@ -202,6 +216,11 @@ export function setupRouterGuard(router: Router, queryClient: QueryClient) {
 }
 
 /** Where the game-system fence sends a path the active campaign's system does not offer, or null when it may stay. */
+/** The AI table's own screens, on the DM's side and the player's. A prefix on a segment boundary: `/tables` is not one. */
+export function isTablePath(path: string): boolean {
+  return ["/table", "/play/table"].some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+}
+
 function systemFence(
   path: string,
   campaign: Pick<ReturnType<typeof useCampaignStore>, "activeCampaignId" | "activeGameSystem">,

@@ -3,6 +3,7 @@
 // a turn of the table uses (`_shared/agent/providerIo.ts`).
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
+import { tableAiEnabled } from "../_shared/featureAccess.ts";
 import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
@@ -67,7 +68,7 @@ serve(withCors(async (req: Request) => {
       if (error) throw error;
       if (!data) return null;
       rawCampaign = data;
-      return { id: data.id as string, user_id: data.user_id as string, ai_enabled: data.ai_enabled as boolean | null };
+      return { id: data.id as string, user_id: data.user_id as string, ai_enabled: await tableAiEnabled(admin, data) };
     },
 
     isDm: (campaign, userId) => isCampaignDm(admin, campaign, userId),

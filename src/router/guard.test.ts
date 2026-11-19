@@ -94,6 +94,7 @@ const TEST_ROUTES: RouteRecordRaw[] = [
   { path: "/welcome", name: "welcome", component: Stub, meta: { layout: "auth", requiresAuth: true } },
   { path: "/reset-password", name: "reset-password", component: Stub, meta: { layout: "auth" } },
   { path: "/w/:slug", name: "open-book", component: Stub, meta: { layout: "public", public: true } },
+  { path: "/table", name: "ai-table", component: Stub, meta: { requiresAuth: true } },
 ];
 
 function makeRouter(memberships: { campaign_id: string; role: "dm" | "player" }[] | Error) {
@@ -688,5 +689,29 @@ describe("the game-system fence (#934)", () => {
     await flushPromises();
 
     expect(router.currentRoute.value.name).toBe("monsters");
+  });
+});
+
+// #1021: the AI table is released to chosen accounts only (`feature_access`). The nav hides it; this is the typed address.
+describe("the AI table's routes", () => {
+  async function openTable(granted: boolean | Error) {
+    const { router, fetchQuery } = makeRouter([{ campaign_id: "c1", role: "dm" }]);
+    fetchQuery.mockImplementation(((options: { queryKey: readonly unknown[] }) =>
+      options.queryKey[0] === "feature-access"
+        ? granted instanceof Error ? Promise.reject(granted) : Promise.resolve(granted)
+        : Promise.resolve([{ campaign_id: "c1", role: "dm" }])) as never);
+    await signedInDm("c1");
+    useCampaignStore().activeCampaign = { id: "c1", user_id: "u1", game_system: "dnd5e-2014" } as never;
+    await router.push("/table");
+    return router.currentRoute.value.name;
+  }
+
+  it("are open in a campaign whose owner has been granted the table", async () => {
+    expect(await openTable(true)).toBe("ai-table");
+  });
+
+  it("are closed without the grant, and when the grant cannot be read", async () => {
+    expect(await openTable(false)).toBe("dashboard");
+    expect(await openTable(new Error("offline"))).toBe("dashboard");
   });
 });

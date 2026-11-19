@@ -12,6 +12,7 @@ import { MAX_PEOPLES } from "../_shared/agent/peoples.ts";
 import { lineKey } from "../_shared/agent/lineKey.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
+import { tableAiEnabled } from "../_shared/featureAccess.ts";
 import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
@@ -185,7 +186,7 @@ serve(withCors(async (req: Request) => {
         user_id: data.user_id,
         name: data.name,
         game_system: data.game_system,
-        ai_enabled: data.ai_enabled,
+        ai_enabled: await tableAiEnabled(admin, data),
       };
     },
 

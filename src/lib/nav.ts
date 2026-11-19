@@ -66,10 +66,10 @@ export interface NavItem {
    */
   feature?: GameFeature;
   /**
-   * If true, item shows only while the active campaign has AI on (`campaign.isAiEnabled`: opted in, and not a child
-   * account). The AI-run table is the one place that is a whole screen rather than a button beside one.
+   * If true, item shows only while the AI table is open in the active campaign (`useTableAccess().open`: the
+   * campaign's owner has been granted the table, the campaign has AI on, and the account is not a child's).
    */
-  requiresAi?: boolean;
+  requiresTable?: boolean;
   /**
    * Hide below `md`. For tools that target letter/A4 output (Scriptorium, Card
    * Forge, The Mint, …) where the editing surface is impractical on a phone.
@@ -167,7 +167,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Table",
         to: "/table",
         feature: "party",
-        requiresAi: true,
+        requiresTable: true,
         icon: IconNavTable,
         description: "Play with an AI Narrator",
         requiresCampaign: true,
@@ -446,10 +446,10 @@ const NAV_BY_ROUTE = new Map(NAV_ITEMS.map((item) => [item.to, item]));
  * without being removed here, and a silently shorter bar is a better failure
  * than a tab with no icon and no name.
  */
-export function sessionTabs(mode: DmMode, offers: FeatureOffers, aiEnabled: boolean): NavItem[] {
+export function sessionTabs(mode: DmMode, offers: FeatureOffers, tableOpen: boolean): NavItem[] {
   return SESSION_TAB_ROUTES[mode]
     .map((to) => NAV_BY_ROUTE.get(to))
-    .filter((item): item is NavItem => item !== undefined && !navItemHiddenByFlag(item, false, offers, aiEnabled));
+    .filter((item): item is NavItem => item !== undefined && !navItemHiddenByFlag(item, false, offers, tableOpen));
 }
 
 /** Whether the active campaign's game system offers a feature (`useGameSystem().offers`). */
@@ -465,10 +465,10 @@ export function navItemHiddenByFlag(
   item: NavItem,
   simulacrumHidden: boolean,
   offers: FeatureOffers,
-  aiEnabled: boolean,
+  tableOpen: boolean,
 ): boolean {
   if (item.featureFlag === "simulacrum" && simulacrumHidden) return true;
-  if (item.requiresAi === true && !aiEnabled) return true;
+  if (item.requiresTable === true && !tableOpen) return true;
   return item.feature !== undefined && !offers(item.feature);
 }
 

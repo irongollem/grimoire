@@ -210,11 +210,11 @@ import { IconBilling, IconBug, IconCheck, IconChevronsUpDown, IconClose, IconDow
 import { usePwaInstall } from "@/composables/usePwaInstall";
 import { onClickOutside } from "@vueuse/core";
 import { useAuthStore } from "@/stores/auth";
-import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaignMember } from "@/composables/campaign/useCampaignMembers";
 import LegalFooterLinks from "@/components/layout/LegalFooterLinks.vue";
 import BrandIcon from "@/components/brand/BrandIcon.vue";
 import { useDiscordInvite } from "@/composables/account/useDiscordInvite";
+import { useTableAccess } from "@/composables/campaign/useTableAccess";
 import { NAV_GROUPS, navItemHiddenByFlag } from "@/lib/nav";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { useSubscription } from "@/composables/billing/useSubscription";
@@ -234,7 +234,7 @@ import SessionRail from "./SessionRail.vue";
 import ModeToggle from "./ModeToggle.vue";
 
 const auth = useAuthStore();
-const campaignStore = useCampaignStore();
+const { open: tableOpen } = useTableAccess();
 const router = useRouter();
 const { canInstall, hasNativePrompt, install } = usePwaInstall();
 const { url: discordUrl, visible: showDiscord } = useDiscordInvite();
@@ -267,7 +267,7 @@ const visibleNavGroups = computed(() =>
     ...group,
     items: group.items.filter((item) =>
       (!item.ruleKey || isRuleEffectivelyEnabled(campaignRules.value, item.ruleKey)) &&
-      !navItemHiddenByFlag(item, simulacrumMode.value === "hidden", offers, campaignStore.isAiEnabled),
+      !navItemHiddenByFlag(item, simulacrumMode.value === "hidden", offers, tableOpen.value),
     ),
   })).filter((group) => group.items.length > 0),
 );
