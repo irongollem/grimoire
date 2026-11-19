@@ -79,6 +79,12 @@ export type EncounterTurnCommand =
   | { type: "settle_ongoing_damage"; instanceId: string; name: string }
   /** Concentration broke: ends what this combatant's concentration was holding on others. */
   | { type: "end_concentration"; instanceId: string; spell?: string }
+  /**
+   * A stat-block creature began concentrating on a spell it cast (#1021). Written by the cast itself, whether or not the
+   * spell put a condition on anyone: a damage-only one (Moonbeam) or one every target saved against is still held.
+   * A party member's concentration lives on `party_members`, so this leaves one alone.
+   */
+  | { type: "start_concentration"; instanceId: string; spell: string; castLevel: number }
   | { type: "enter_wildshape"; instanceId: string; form: WildshapeState; wildshapesUsed: number; tempHp?: number }
   | { type: "revert_wildshape"; instanceId: string }
   /** The DM's Enlarge/Reduce (or any resize) for this fight; null puts the creature back to its own size. */
@@ -519,10 +525,14 @@ function afterHpEdit(
   const was = before.combatants.find((c) => c.instance_id === instanceId);
   const now = after.combatants.find((c) => c.instance_id === instanceId);
   if (!was || !now || was.hp <= 0 || now.hp > 0) return after;
-  const combatants = report(
+  const ended = report(
     endSourcedConditions(after.combatants, instanceId, "source_down", { concentrationOnly: true }),
     events,
   );
+  // A stat-block creature's own record of the spell goes with it; a party member's is on `party_members`.
+  const combatants = !now.party_member_id && now.concentration
+    ? replaceCombatant(ended, { ...(ended.find((c) => c.instance_id === instanceId) ?? now), concentration: null })
+    : ended;
   return { ...after, combatants };
 }
 
@@ -542,7 +552,8 @@ function concentrationCheckAfterDamage(
   if (delta >= 0) return after;
   const now = after.combatants.find((c) => c.instance_id === instanceId);
   if (!now || now.party_member_id || now.hp <= 0) return after;
-  if (holdsConcentration(after.combatants, instanceId)) {
+  // Holding a spell that sits on nobody (a damage-only one, or one every target saved against) is concentrating too.
+  if (now.concentration || holdsConcentration(after.combatants, instanceId)) {
     events.push({ type: "concentration_check_due", instanceId, damage: -delta });
   }
   return after;
@@ -677,6 +688,11 @@ export function reduceEncounterTurn(
       }
       return done({ ...state, combatants });
     }
+    case "start_concentration":
+      return done(editCombatant(state, command.instanceId, (c) => {
+        if (c.party_member_id) return;
+        c.concentration = { spellId: null, spellName: command.spell, castAtLevel: command.castLevel, startedRound: state.round, appliedEffectIds: [] };
+      }));
     case "enter_wildshape":
       return done(editCombatant(state, command.instanceId, (c) => {
         // Player's real hp/max_hp/ac are NEVER modified — beast form is a self-contained overlay.

@@ -59,7 +59,7 @@ export const MAX_ATTEMPTS = 4;
 const REDUCER_COMMAND_TYPES = [
   "start_combat", "next_turn", "prev_turn", "reshuffle_initiative", "set_initiative", "adjust_hp", "set_hp", "set_max_hp",
   "set_temp_hp", "apply_condition", "remove_condition", "set_conditions", "resolve_condition_save", "settle_ongoing_damage",
-  "end_concentration", "enter_wildshape", "revert_wildshape", "set_size_override", "toggle_surprised", "toggle_reaction", "set_reaction_used",
+  "end_concentration", "start_concentration", "enter_wildshape", "revert_wildshape", "set_size_override", "toggle_surprised", "toggle_reaction", "set_reaction_used",
   "record_move", "undo_move", "set_action_used", "set_bonus_used", "prime_legendary_actions", "spend_legendary_actions",
   "mark_lair_fired", "set_boss_mechanics", "remove_combatant", "use_action", "restore_action",
 ] as const satisfies readonly EncounterTurnCommand["type"][];
@@ -161,6 +161,13 @@ function validateOwnCommand(command: Record<string, unknown>): void {
     case "set_reveal_state":
       if (typeof command.instanceId !== "string" || !REVEAL_STATES.has(command.revealState)) {
         throw new FightCommandError(400, "set_reveal_state needs an instanceId and a revealState.");
+      }
+      break;
+    case "start_concentration":
+      // A reducer command, checked here because it writes a name the runner shows and a level the save reads.
+      if (typeof command.instanceId !== "string" || typeof command.spell !== "string" || command.spell.trim().length === 0 || command.spell.length > 120
+        || !Number.isInteger(command.castLevel) || (command.castLevel as number) < 0 || (command.castLevel as number) > 9) {
+        throw new FightCommandError(400, "start_concentration needs an instanceId, a spell name and a castLevel from 0 to 9.");
       }
       break;
     case "show_defense":

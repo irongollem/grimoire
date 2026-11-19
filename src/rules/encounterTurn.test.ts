@@ -653,6 +653,33 @@ describe("condition durations in the turn flow", () => {
     expect(ended(all.events)).toHaveLength(2);
   });
 
+  // #1021: a spell held on nobody (Moonbeam, or a Hold Person everyone saved against) is concentration all the same.
+  // PHB 2014 ch. 10 "Concentration": taking damage calls for a save, and being incapacitated or killed ends it.
+  describe("a stat-block creature holding a spell that sits on nobody", () => {
+    const held = () => run(stateOf([combatant("caster", { hp: 20 }), combatant("t")]), { type: "start_concentration", instanceId: "caster", spell: "Moonbeam", castLevel: 2 }).state;
+
+    it("is marked as holding it, and owes a save when it is hurt", () => {
+      const start = held();
+      expect(find(start, "caster").concentration).toMatchObject({ spellName: "Moonbeam", castAtLevel: 2 });
+      const hurt = run(start, { type: "adjust_hp", instanceId: "caster", delta: -7 });
+      expect(hurt.events).toContainEqual({ type: "concentration_check_due", instanceId: "caster", damage: 7 });
+      // positive control: a creature holding nothing owes none
+      const idle = run(stateOf([combatant("caster", { hp: 20 })]), { type: "adjust_hp", instanceId: "caster", delta: -7 });
+      expect(idle.events.some((e) => e.type === "concentration_check_due")).toBe(false);
+    });
+
+    it("lets go of it when it drops to 0 hit points", () => {
+      const down = run(held(), { type: "adjust_hp", instanceId: "caster", delta: -20 });
+      expect(find(down.state, "caster").concentration).toBeNull();
+    });
+
+    it("leaves a party member alone: theirs is kept on the sheet", () => {
+      const start = stateOf([pc("p-1", { initiative: 10 })]);
+      const after = run(start, { type: "start_concentration", instanceId: "p-1", spell: "Moonbeam", castLevel: 2 });
+      expect(find(after.state, "p-1").concentration).toBeUndefined();
+    });
+  });
+
   it("removing a source ends what rode on it, and persists players", () => {
     const anchored: AppliedCondition = { name: "Marked", source: { id: "caster" }, ends: { kind: "turn", at: "end", of: "source" } };
     const plain: AppliedCondition = { name: "Cursed", source: { id: "caster" } };

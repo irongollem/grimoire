@@ -564,11 +564,13 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     };
     // A concentration spell ends the caster's earlier one first (PHB 2014 ch. 10 "Concentration").
     // BUILT: the conditions a concentration spell imposes carry the caster as a concentrating source (`concentration` on
-    // the save below), so `end_concentration` and a failed concentration check end them. NOT BUILT: a concentration spell
-    // that imposes nothing (a damage-only one, or one whose targets all saved) does not start concentrating at all.
+    // the save below), so `end_concentration` and a failed concentration check end them. The caster itself is marked
+    // as holding the spell, so one that imposes nothing (a damage-only one, or one whose targets all saved) is held too,
+    // owes a save when its caster is hurt, and ends when the caster casts another or drops.
     if (record.concentration && (caster.concentration || holdsConcentration(holder.state.combatants, caster.instance_id))) {
       step({ type: "end_concentration", instanceId: caster.instance_id });
     }
+    if (record.concentration) step({ type: "start_concentration", instanceId: caster.instance_id, spell: record.name, castLevel });
     if (useKey !== null && limit !== null) step({ type: "use_action", instanceId: caster.instance_id, action: useKey, limit });
     step({ type: "set_action_used", instanceId: caster.instance_id, used: true });
     // A spell cast is a spell seen (#1021), whether or not its outcome is rolled here.

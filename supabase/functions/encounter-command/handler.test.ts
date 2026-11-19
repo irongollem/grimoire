@@ -1059,6 +1059,15 @@ describe("resolving commands", () => {
     expect(ok({ type: "resolve_concentration", instanceId: "a", damage: 0 })).toThrow(FightCommandError);
     expect(ALL_RESOLVING_COMMANDS_LISTED).toBe(true);
   });
+
+  // The runner shows the spell's name and the save reads its level, so a sender cannot leave them out or stretch them.
+  it("refuses a concentration mark with no spell name or an impossible level", () => {
+    const ok = (command: unknown) => () => validateRequest(batch("b", command as CommandRequest["commands"][number]));
+    expect(ok({ type: "start_concentration", instanceId: "a", spell: "Moonbeam", castLevel: 2 })).not.toThrow();
+    expect(ok({ type: "start_concentration", instanceId: "a", spell: " ", castLevel: 2 })).toThrow(FightCommandError);
+    expect(ok({ type: "start_concentration", instanceId: "a", spell: "Moonbeam", castLevel: 10 })).toThrow(FightCommandError);
+    expect(ok({ type: "start_concentration", instanceId: "a", spell: "Moonbeam" })).toThrow(FightCommandError);
+  });
 });
 
 // ── cover (#1202 story 3c) ───────────────────────────────────────────────────────
@@ -1851,6 +1860,17 @@ describe("cast_spell", () => {
     const h = harness(fight, { sources: MAGE_SOURCES, spells: [holdy], dieFaces: [20, 20, 20, 1, 1, 1, 1, 1, 1, 1, 1] });
     await runBatch(batch("b", cast()), h.deps);
     expect(by(stored(h), "t1").conditions).toEqual([]);
+  });
+
+  // PHB 2014 ch. 10 "Concentration": the spell is held whether or not it left a condition on anyone, so a damage-only
+  // one marks its caster, and a spell that needs no concentration (the plain Fireball) marks nobody.
+  it("fails if a damage-only concentration spell leaves its caster holding nothing, or a plain spell marks it", async () => {
+    const held = harness(field(), { sources: MAGE_SOURCES, spells: [fireball({ concentration: true })], dieFaces: [20, 20, 20, 1, 1, 1, 1, 1, 1, 1, 1] });
+    await runBatch(batch("b", cast()), held.deps);
+    expect(by(stored(held), "mage").concentration).toMatchObject({ spellName: "Fireball", castAtLevel: 3 });
+    const plain = harness(field(), { sources: MAGE_SOURCES, spells: [fireball()], dieFaces: [20, 20, 20, 1, 1, 1, 1, 1, 1, 1, 1] });
+    await runBatch(batch("b", cast()), plain.deps);
+    expect(by(stored(plain), "mage").concentration == null).toBe(true);
   });
 
   describe("a charm that ends when the caster's side harms it (Charm Monster)", () => {
