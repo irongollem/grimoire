@@ -1127,7 +1127,7 @@ hears about it in chat as well as seeing it appear on the party screen.
 
 `usePartyMilestones()` / `useCreatePartyMilestone` / `useDeletePartyMilestone`
 (`src/composables/party/usePartyMilestones.ts`) are the data layer;
-`PartyMilestonesPanel.vue` is the surface — a card on the party page
+`PartyDeedsPanel.vue` is the surface (on screen **Deeds** since #1021 row 27, so that a milestone means a level; see party-characters.md, "Level milestones") — a card on the party page
 (`PartyView.vue`, between the tracker and the group portrait), newest first,
 each row naming the quest it came from, with an inline add for one the DM
 grants by hand.

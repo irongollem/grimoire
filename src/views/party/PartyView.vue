@@ -29,9 +29,12 @@
 
     <PartyTracker ref="tracker" />
 
-    <!-- What the party has earned (#853, party_milestones) — written by the
-         award_milestone quest consequence, or added here by hand. -->
-    <PartyMilestonesPanel class="mt-6" />
+    <!-- What the next level waits on, in a campaign that levels by milestone (#1021 row 27). The DM's alone. -->
+    <LevelMilestonesPanel v-if="auth.isDM && !xpLevellingEnabled" class="mt-6" />
+
+    <!-- What the party has earned (#853, party_milestones; on screen "Deeds" since #1021 row 27, so that a milestone
+         means a level) — written by the award_milestone quest consequence, or added here by hand. -->
+    <PartyDeedsPanel class="mt-6" />
 
     <!-- Group Portrait -->
     <div class="mt-6 rounded-lg border border-border bg-card overflow-hidden">
@@ -112,7 +115,9 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import CharacterApprovalQueue from "@/components/campaign/CharacterApprovalQueue.vue";
 import PartyTracker from "@/components/party/PartyTracker.vue";
-import PartyMilestonesPanel from "@/components/party/PartyMilestonesPanel.vue";
+import PartyDeedsPanel from "@/components/party/PartyDeedsPanel.vue";
+import LevelMilestonesPanel from "@/components/party/LevelMilestonesPanel.vue";
+import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
@@ -121,6 +126,7 @@ import { useGroupPortrait } from "@/composables/party/useGroupPortrait";
 // Hidden, not disabled, while the campaign owner has AI off (the server would 403).
 const campaignStore = useCampaignStore();
 const auth = useAuthStore();
+const xpLevellingEnabled = useIsRuleEnabled("xp_levelling");
 const { lowArt } = useLowArt();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 

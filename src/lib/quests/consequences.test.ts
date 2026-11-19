@@ -82,7 +82,7 @@ describe("describeQuestConsequenceAction", () => {
     expect(describeQuestConsequenceAction(
       row({ action: "award_milestone", target_objective_id: null, action_payload: { text: "Renown among the dockworkers" } }),
       objectiveLabel,
-    )).toBe('Milestone: "Renown among the dockworkers"');
+    )).toBe('Deed: "Renown among the dockworkers"');
   });
 
   it("names a given handout by its title, and falls back to the bare verb", () => {
@@ -104,7 +104,7 @@ describe("describeQuestConsequenceAction", () => {
   it.each([
     ["grant_knowledge", 'Knowledge: "???"'],
     ["owe_favor", 'Favour owed: "???"'],
-    ["award_milestone", 'Milestone: "???"'],
+    ["award_milestone", 'Deed: "???"'],
   ] as const)("treats a blank %s text as missing, not as an empty quote", (action, expected) => {
     expect(describeQuestConsequenceAction(row({ action, target_objective_id: null, action_payload: { text: "" } }), objectiveLabel)).toBe(expected);
   });

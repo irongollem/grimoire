@@ -186,7 +186,7 @@ const EFFECT_VERBS: Record<QuestConsequenceAction, string> = {
   unlock_quest: "unlocks a quest",
   grant_knowledge: "grants knowledge",
   owe_favor: "owes a favor",
-  award_milestone: "awards a milestone",
+  award_milestone: "awards a deed",
   give_handout: "gives a handout",
   tick_clock: "ticks",
   move_npc: "moves",

@@ -266,3 +266,63 @@ insert into private.demo_campaign_tables (table_name, tier, parent_column, paren
 values
   ('level_milestones', 1, null, null, true, '{}', null),
   ('level_milestone_steps', 1, null, null, true, '{}', null);
+
+-- ── Saving one ──────────────────────────────────────────────────────────────
+-- The DM's editor saves a milestone and its items in one call, so a half-saved edit never counts. The order is what
+-- keeps an edit from reaching a milestone on the way: items dropped first (a drop never reaches anything), then the
+-- level and count, then items added. Every state in between counts no more done items than the final one against the
+-- same count, so a milestone is reached during the save only when the saved milestone is met. Invoker: the DM-only
+-- policies above decide who may write.
+create or replace function public.save_level_milestone(
+  p_campaign_id uuid,
+  p_milestone_id uuid,
+  p_level smallint,
+  p_needs smallint,
+  p_note text,
+  p_quest_ids uuid[],
+  p_objective_ids uuid[]
+)
+returns uuid
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_id uuid := p_milestone_id;
+  v_quests uuid[] := coalesce(p_quest_ids, '{}');
+  v_objectives uuid[] := coalesce(p_objective_ids, '{}');
+begin
+  if p_needs > cardinality(v_quests) + cardinality(v_objectives) then
+    raise exception 'A milestone cannot need more items than it lists' using errcode = '22023';
+  end if;
+
+  if v_id is not null then
+    delete from public.level_milestone_steps s
+     where s.milestone_id = v_id
+       and not (coalesce(s.quest_id = any (v_quests), false) or coalesce(s.objective_id = any (v_objectives), false));
+    update public.level_milestones
+       set level = p_level, needs = p_needs, note = nullif(btrim(p_note), '')
+     where id = v_id and campaign_id = p_campaign_id
+    returning id into v_id;
+    if v_id is null then
+      raise exception 'No such milestone in this campaign' using errcode = 'P0002';
+    end if;
+  else
+    insert into public.level_milestones (campaign_id, user_id, level, needs, note)
+    values (p_campaign_id, (select auth.uid()), p_level, p_needs, nullif(btrim(p_note), ''))
+    returning id into v_id;
+  end if;
+
+  insert into public.level_milestone_steps (milestone_id, campaign_id, user_id, quest_id)
+  select v_id, p_campaign_id, (select auth.uid()), q from unnest(v_quests) q
+  on conflict (milestone_id, quest_id) do nothing;
+  insert into public.level_milestone_steps (milestone_id, campaign_id, user_id, objective_id)
+  select v_id, p_campaign_id, (select auth.uid()), o from unnest(v_objectives) o
+  on conflict (milestone_id, objective_id) do nothing;
+
+  return v_id;
+end;
+$$;
+
+revoke execute on function public.save_level_milestone(uuid, uuid, smallint, smallint, text, uuid[], uuid[]) from public, anon;
+grant execute on function public.save_level_milestone(uuid, uuid, smallint, smallint, text, uuid[], uuid[]) to authenticated, service_role;

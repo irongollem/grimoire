@@ -73,7 +73,7 @@ const HELD_PAYOFF_ACTION_LABELS: Record<QuestConsequenceAction, string> = {
   unlock_quest: "Unlocks a quest",
   grant_knowledge: "Grants knowledge",
   owe_favor: "Owes a favor",
-  award_milestone: "Awards a milestone",
+  award_milestone: "Awards a deed",
   give_handout: "Gives a handout",
   tick_clock: "Ticks a clock",
   move_npc: "Moves an NPC",

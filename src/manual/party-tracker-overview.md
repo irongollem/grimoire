@@ -44,6 +44,14 @@ Click a hero to open its full editor, across four tabs: **Identity**, **Stats**,
 - Save with **Save Changes** (editing) or **Add to Party** (creating).
 - **Detach from party** appears instead of **Remove from party** when the character is a durable one a player owns: detaching hands it back to them rather than deleting it.
 
+## Levels and deeds
+
+Unless the campaign uses the **Experience Points** rule, the party levels by milestone, and the **Levels** card below the roster is where you say when. A milestone reads "The party reaches level 4 when any 3 of these are done": pick the quests, or single objectives inside a quest, that should count, and how many of them it takes. They count in whatever order the party does them, so a level that comes after "three of the five big quests" needs no planning of which three.
+
+When the count is reached the milestone shows **reached**, the **party level** rises to it, and the table hears it in chat. Every character below the party level gets **Ready to level up** on their sheet, and the player levels up their own character through the usual Level Up. You do it yourself only for a character nobody plays. The party level never drops by itself; set it by hand at the top of the card, for example to start the campaign at level 3. Your players never see the milestones or the quests they wait on, only the level they bring.
+
+**Deeds** are separate: what the party has earned along the way, such as renown, a title or a promise. A quest's **Deed** payoff adds one, or you add one by hand.
+
 ## Group Portrait
 
 Below the roster, **Upload** a photo, or **Generate**/**Regenerate** an AI-illustrated shot of the whole party, billed in credits like any other AI generation, on every plan, once the campaign's AI Assistant is on. Reference it with `@Party` inside Chronicler scenes (Scriptorium) instead of dropping in every individual portrait: it saves both tokens and effort when illustrating group scenes.

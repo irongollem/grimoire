@@ -177,7 +177,8 @@ const SYNC_TABLE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
   npcs: ["npcs", PLAYER_NPCS_KEY, PLAYER_KIN_KEY, CONNECTIONS_KEY],
   // get_connections (#1084) reads these as ties: a quest's giver and place, an NPC's pack. A rename also
   // reaches every sheet that names the other end.
-  quests: ["quests", CONNECTIONS_KEY],
+  // A level milestone shows each quest it waits on as done or not (#1021 row 27).
+  quests: ["quests", CONNECTIONS_KEY, LEVEL_MILESTONES_KEY],
   npc_inventory: ["npc-inventory", CONNECTIONS_KEY],
   // The DM's editor and the players' view read the same two tables; a player
   // taking a pin also rings it, which is how the DM watches a notice come down.
@@ -352,9 +353,10 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   // Sharing a place can share its linked NPCs, so the People projection
   // (PLAYER_NPCS_KEY) re-reads too; that is deliberate, not a stray key.
   ["locations_player", ["locations", PLAYER_NPCS_KEY, PLAYER_KIN_KEY]],
-  ["quests_player", ["quests"]],
+  ["quests_player", ["quests", LEVEL_MILESTONES_KEY]],
   ["quest_beats_player", [BEATS_KEY]],
-  ["quest_objectives_player", [OBJECTIVES_KEY]],
+  // A level milestone shows each objective it waits on as done or not (#1021 row 27).
+  ["quest_objectives_player", [OBJECTIVES_KEY, LEVEL_MILESTONES_KEY]],
   // Not in SYNC_TABLES: the root is not the table's name. `items` as well: an
   // item leaving the party's inventory leaves the player-visible projection
   // with it, and a newly claimed or crafted item only becomes RLS-visible to a

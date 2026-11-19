@@ -115,9 +115,9 @@ registerOptionalRule({
   summary:
     "Track earned XP per character. Level-up unlocks automatically when a character crosses the XP threshold for their level, instead of milestone levelling.",
   description:
-    "By default Grimoire uses milestone levelling; the DM decides when characters level up. With this rule enabled, each character tracks **earned experience points** instead.\n\n" +
+    "By default Grimoire uses milestone levelling: the DM names the quests each level waits on (Party screen, Levels), and when the story reaches one the party level rises and every player levels up their own character. With this rule enabled, each character tracks **earned experience points** instead.\n\n" +
     "Your character sheet shows an XP bar with how far you are from the next level. When you reach the XP threshold for your current level, the **Level Up** button unlocks automatically (PHB p.15 advancement table).\n\n" +
-    "Your DM awards XP after encounters and milestones from the Party screen.",
+    "Your DM awards XP after encounters and quests from the Party screen.",
   dmOnly: false,
   defaultEnabled: false,
 });

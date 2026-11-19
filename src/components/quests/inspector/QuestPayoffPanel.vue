@@ -283,7 +283,7 @@ const QUICK_ADD_OPTIONS: Array<{ kind: QuickAddKind; label: string; icon: Compon
   { kind: "knowledge", label: "Knowledge", icon: IconScrollText },
   { kind: "quest", label: "Quest", icon: IconQuest },
   { kind: "favor", label: "Favour", icon: IconHand },
-  { kind: "milestone", label: "Milestone", icon: IconAward },
+  { kind: "milestone", label: "Deed", icon: IconAward },
   { kind: "event", label: "Event", icon: IconCalendar },
   { kind: "handout", label: "Handout", icon: IconDocument },
   { kind: "clock", label: "Tick clock", icon: IconClock },

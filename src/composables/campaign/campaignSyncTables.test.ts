@@ -16,6 +16,7 @@ import {
   PLAYER_NOTES_KEY,
   PLAYER_NPCS_KEY,
   PLAYER_KIN_KEY,
+  LEVEL_MILESTONES_KEY,
   CONNECTIONS_KEY,
   THREADS_KEY,
 } from "@/lib/campaignLiveSync/registry";
@@ -178,8 +179,9 @@ describe("live sync registries", () => {
     // as the DM's reads, so the one root serves both. Places also refresh the
     // People projection: sharing a place can share its linked NPCs.
     expect(SIGNAL_KEYS.get("locations_player")).toEqual(["locations", PLAYER_NPCS_KEY, PLAYER_KIN_KEY]);
-    expect(SIGNAL_KEYS.get("quests_player")).toEqual(["quests"]);
+    // A level milestone shows each quest and objective it waits on as done or not (#1021 row 27).
+    expect(SIGNAL_KEYS.get("quests_player")).toEqual(["quests", LEVEL_MILESTONES_KEY]);
     expect(SIGNAL_KEYS.get("quest_beats_player")).toEqual([BEATS_KEY]);
-    expect(SIGNAL_KEYS.get("quest_objectives_player")).toEqual(["quest_objectives"]);
+    expect(SIGNAL_KEYS.get("quest_objectives_player")).toEqual(["quest_objectives", LEVEL_MILESTONES_KEY]);
   });
 });

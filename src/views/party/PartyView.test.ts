@@ -20,6 +20,7 @@ vi.mock("@/composables/party/useGroupPortrait", () => ({
 }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ isAiEnabled: true }) }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ isDM: false }) }));
+vi.mock("@/composables/rules/useOptionalRules", () => ({ useIsRuleEnabled: () => computed(() => false) }));
 
 const mountView = () =>
   mount(PartyView, {
@@ -27,7 +28,8 @@ const mountView = () =>
       stubs: {
         PageHeader: { template: "<div><slot name='actions' /><slot /></div>" },
         PartyTracker: true,
-        PartyMilestonesPanel: true,
+        PartyDeedsPanel: true,
+        LevelMilestonesPanel: true,
         CharacterApprovalQueue: true,
         ManualHelpLink: true,
         GenerationCostBadge: true,

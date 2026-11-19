@@ -87,7 +87,7 @@ The **Payoffs** section of the wide quest drawer lets you write rules that fire 
 
 - **A condition**: one of **When the quest settles** (nothing left open), **When a clock fills…** (pick the clock), **When an objective becomes…** (pick the objective and the status: Open, Completed, or Failed), or **When a place…** (pick a location and whether it's Explored, Cleared, or Looted).
 - **A delay**: an optional number of in-world days between the condition firing and the action happening.
-- **An action**: grouped **Objective** (Raise, Complete, Fail: moves another objective; Raise is also how an objective reaches the players) **Clock** (Tick clock), or **World** (Create calendar event, Send broadcast, Shift an NPC's disposition, Unlock a quest, Grant knowledge, Owe a favor, Award a milestone, Give a handout, Move NPC, Add companion, Shift faction standing).
+- **An action**: grouped **Objective** (Raise, Complete, Fail: moves another objective; Raise is also how an objective reaches the players) **Clock** (Tick clock), or **World** (Create calendar event, Send broadcast, Shift an NPC's disposition, Unlock a quest, Grant knowledge, Owe a favor, Award a deed, Give a handout, Move NPC, Add companion, Shift faction standing).
 
 The newer world actions work like this:
 
