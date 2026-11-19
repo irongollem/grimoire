@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(6);
+select plan(9);
 
 -- XP for a completed quest (#1021 row 27, `20261119192723`). What would go wrong silently: a quest completed twice
 -- (reopened, then completed again) paying twice, a milestone campaign paying XP at all, or the share going to another
@@ -22,10 +22,15 @@ insert into public.party_members (id, user_id, campaign_id, name, ruleset, exper
   ('10300000-0000-4000-8000-000000000030', '10300000-0000-4000-8000-000000000001', '10300000-0000-4000-8000-000000000010', 'Wren', '2014', 0),
   ('10300000-0000-4000-8000-000000000031', '10300000-0000-4000-8000-000000000001', '10300000-0000-4000-8000-000000000010', 'Ash', '2014', 300),
   ('10300000-0000-4000-8000-000000000032', '10300000-0000-4000-8000-000000000001', '10300000-0000-4000-8000-000000000010', 'Pell', '2014', 0),
+  ('10300000-0000-4000-8000-000000000033', '10300000-0000-4000-8000-000000000001', '10300000-0000-4000-8000-000000000010', 'Fallen', '2014', 0),
   ('10300000-0000-4000-8000-000000000039', '10300000-0000-4000-8000-000000000001', '10300000-0000-4000-8000-000000000011', 'Elsewhere', '2014', 0);
+-- Fallen is on the Hall of the Fallen wall: not at the table.
+insert into public.character_memorials (party_member_id, campaign_id, kind, character_name, campaign_name) values
+  ('10300000-0000-4000-8000-000000000033', '10300000-0000-4000-8000-000000000010', 'fallen', 'Fallen', 'By XP');
 insert into public.quests (id, user_id, campaign_id, title, status, xp_reward) values
   ('10300000-0000-4000-8000-000000000020', '10300000-0000-4000-8000-000000000001', '10300000-0000-4000-8000-000000000010', 'The Salt Road', 'active', 1000),
-  ('10300000-0000-4000-8000-000000000021', '10300000-0000-4000-8000-000000000001', '10300000-0000-4000-8000-000000000011', 'The Old Map', 'active', 1000);
+  ('10300000-0000-4000-8000-000000000021', '10300000-0000-4000-8000-000000000001', '10300000-0000-4000-8000-000000000011', 'The Old Map', 'active', 1000),
+  ('10300000-0000-4000-8000-000000000022', '10300000-0000-4000-8000-000000000001', '10300000-0000-4000-8000-000000000010', 'A small errand', 'active', 2);
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"10300000-0000-4000-8000-000000000001","role":"authenticated"}', true);
@@ -33,13 +38,17 @@ select set_config('request.jwt.claims', '{"sub":"10300000-0000-4000-8000-0000000
 -- 1,000 XP between three characters is 333 each, the third of a point dropped.
 update public.quests set status = 'completed' where id = '10300000-0000-4000-8000-000000000020';
 select is(
-  (select array_agg(experience_points order by name) from public.party_members where campaign_id = '10300000-0000-4000-8000-000000000010'),
+  (select array_agg(experience_points order by name) from public.party_members where campaign_id = '10300000-0000-4000-8000-000000000010' and name <> 'Fallen'),
   array[633, 333, 333],
   'completing the quest shares its XP among the campaign''s characters, rounded down'
 );
 select is(
   (select experience_points from public.party_members where id = '10300000-0000-4000-8000-000000000039'), 0,
   'a character of another campaign gets nothing'
+);
+select is(
+  (select experience_points from public.party_members where id = '10300000-0000-4000-8000-000000000033'), 0,
+  'a fallen character earns nothing, and does not thin the share (1,000 between the three at the table is 333)'
 );
 
 -- Reopened and completed again: nothing more.
@@ -66,6 +75,16 @@ select is(
 select is(
   (select xp_awarded_at from public.quests where id = '10300000-0000-4000-8000-000000000021'), null,
   'and does not mark it given'
+);
+-- Worth less than a point each: nothing given, and not used up.
+update public.quests set status = 'completed' where id = '10300000-0000-4000-8000-000000000022';
+select is(
+  (select xp_awarded_at from public.quests where id = '10300000-0000-4000-8000-000000000022'), null,
+  'a quest worth less than a point each is not marked given, so a raised worth still pays'
+);
+select is(
+  (select experience_points from public.party_members where id = '10300000-0000-4000-8000-000000000031'), 633,
+  'and nobody is paid a zero share'
 );
 reset role;
 

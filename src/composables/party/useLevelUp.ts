@@ -15,13 +15,18 @@ export function useLevelUp(member: MaybeRefOrGetter<PartyMember>, hidePlayerActi
   const auth = useAuthStore();
   const xpLevelling = useIsRuleEnabled("xp_levelling");
 
-  /** The party level, read only on the character's own campaign. */
-  const partyLevel = computed(() => {
+  /**
+   * Whether the character is of the active campaign: its rule (XP or milestone) and its party level are the only ones
+   * read here, so a character of another campaign (the pool, a detached sheet) is never judged by them.
+   */
+  const ownCampaign = computed(() => {
     const campaign = campaignStore.activeCampaign;
-    return campaign && toValue(member).campaign_id === campaign.id ? campaign.party_level : null;
+    return campaign !== null && toValue(member).campaign_id === campaign.id;
   });
+  const partyLevel = computed(() => (ownCampaign.value ? (campaignStore.activeCampaign?.party_level ?? null) : null));
   const ready = computed(() => {
     const m = toValue(member);
+    if (!ownCampaign.value) return false;
     return readyToLevelUp({
       mode: xpLevelling.value ? "experience" : "milestone",
       level: m.level,

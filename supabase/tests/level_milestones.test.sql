@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(17);
 
 -- Level milestones (#1021 row 27, `20261119184525`). The maintainer: a level often comes "when 3 large quests are
 -- completed", in whatever order the players choose. What would go wrong silently: a milestone that fires on the
@@ -81,6 +81,10 @@ insert into public.level_milestone_steps (milestone_id, campaign_id, user_id, qu
 select id, campaign_id, user_id, '10280000-0000-4000-8000-000000000021' from public.level_milestones where level = 4 and campaign_id = '10280000-0000-4000-8000-000000000010';
 update public.quests set status = 'completed' where id = '10280000-0000-4000-8000-000000000021';
 select is((select party_level from public.campaigns where id = '10280000-0000-4000-8000-000000000010'), 5::smallint, 'reaching a lower milestone leaves a higher party level as it was');
+select is(
+  (select count(*)::integer from public.campaign_messages where campaign_id = '10280000-0000-4000-8000-000000000010' and message like '%reaches level%'),
+  1, 'and the table hears nothing: only the level-3 line so far, since the party level did not rise'
+);
 
 -- A milestone whose items are already done is reached the moment it is made.
 insert into public.level_milestones (campaign_id, user_id, level, needs)
@@ -113,6 +117,13 @@ select throws_ok(
        array['10280000-0000-4000-8000-000000000025']::uuid[], null) $$,
   '22023', null, 'a milestone cannot need more items than it lists'
 );
+-- The reached level-3 milestone, edited to "level 7 when both of these" (both done): an edit is counted again, so
+-- it is reached at once at its new level. Kept as reached, it would never be looked at again.
+select public.save_level_milestone(
+  '10280000-0000-4000-8000-000000000010', '10280000-0000-4000-8000-000000000040', 7::smallint, 2::smallint, null,
+  array['10280000-0000-4000-8000-000000000020', '10280000-0000-4000-8000-000000000021']::uuid[], null);
+select is((select party_level from public.campaigns where id = '10280000-0000-4000-8000-000000000010'), 7::smallint, 'an edited milestone already met is reached at its new level');
+select isnt((select reached_at from public.level_milestones where id = '10280000-0000-4000-8000-000000000040'), null, 'and is marked reached again');
 reset role;
 
 -- ── Who sees what ───────────────────────────────────────────────────────────
@@ -120,7 +131,7 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"10280000-0000-4000-8000-000000000002","role":"authenticated"}', true);
 select is((select count(*)::integer from public.level_milestones) + (select count(*)::integer from public.level_milestone_steps), 0,
   'a player reads no milestone and none of the quests it waits on');
-select is((select party_level from public.campaigns where id = '10280000-0000-4000-8000-000000000010'), 6::smallint, 'but reads the party level, so their sheet knows they may level up');
+select is((select party_level from public.campaigns where id = '10280000-0000-4000-8000-000000000010'), 7::smallint, 'but reads the party level, so their sheet knows they may level up');
 select throws_ok(
   $$ insert into public.level_milestones (campaign_id, user_id, level, needs)
      values ('10280000-0000-4000-8000-000000000010', '10280000-0000-4000-8000-000000000002', 7, 1) $$,

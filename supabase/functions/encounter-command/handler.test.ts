@@ -661,6 +661,17 @@ describe("fight lifecycle", () => {
       expect(h.xpAwards).toHaveLength(2);
     });
 
+    it("fails if a stat-block read that fails keeps the fight from ending, rather than being reported", async () => {
+      const h = harness(won(), { xpLevelling: true, sources: goblins });
+      h.deps.loadStatBlocks = async () => {
+        throw new Error("down");
+      };
+      const result = await runBatch(batch("e1", { type: "end_combat" }), h.deps);
+      expect(stored(h)).toMatchObject({ ended_at: "2026-11-15T20:00:00.000Z" });
+      expect(result.effectFailures).toEqual(["fight_xp: down"]);
+      expect(h.xpAwards).toEqual([]);
+    });
+
     it("fails if fighting an encounter again keeps the last fight's award mark, so the new fight would give nothing", async () => {
       const h = harness(row({ ended_at: "2026-11-14T10:00:00.000Z" }), { xpLevelling: true });
       await runBatch(batch("o1", { type: "open", combatants: [pc("nessa")] }), h.deps);

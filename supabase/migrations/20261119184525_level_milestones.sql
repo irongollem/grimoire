@@ -113,6 +113,8 @@ declare
   v_milestone record;
   v_done integer;
   v_owner uuid;
+  v_before smallint;
+  v_after smallint;
 begin
   if p_campaign_id is null then
     return;
@@ -136,11 +138,16 @@ begin
 
     if v_done >= v_milestone.needs then
       update public.level_milestones set reached_at = now() where id = v_milestone.id;
+      select party_level into v_before from public.campaigns where id = p_campaign_id;
       update public.campaigns
          set party_level = greatest(coalesce(party_level, 1), v_milestone.level)
-       where id = p_campaign_id;
-      insert into public.campaign_messages (campaign_id, user_id, sender_name, message, type)
-      values (p_campaign_id, v_owner, 'Grimoire', '⭐ The party reaches level ' || v_milestone.level || '.', 'system');
+       where id = p_campaign_id
+      returning party_level into v_after;
+      -- Told only when the level really rose: a milestone at or below a level the DM already set changes nothing.
+      if v_after is distinct from v_before and v_after > coalesce(v_before, 1) then
+        insert into public.campaign_messages (campaign_id, user_id, sender_name, message, type)
+        values (p_campaign_id, v_owner, 'Grimoire', '⭐ The party reaches level ' || v_after || '.', 'system');
+      end if;
     end if;
   end loop;
 end;
@@ -202,7 +209,7 @@ create trigger quest_objectives_reach_level_milestones
   after update of status on public.quest_objectives
   for each row execute procedure private.reach_level_milestones_on_objective();
 create trigger level_milestones_reach
-  after insert or update of needs on public.level_milestones
+  after insert or update of needs, level on public.level_milestones
   for each row execute procedure private.reach_level_milestones_on_edit();
 create trigger level_milestone_steps_reach
   after insert on public.level_milestone_steps
@@ -300,8 +307,10 @@ begin
     delete from public.level_milestone_steps s
      where s.milestone_id = v_id
        and not (coalesce(s.quest_id = any (v_quests), false) or coalesce(s.objective_id = any (v_objectives), false));
+    -- An edited milestone is a new promise: it is counted again from what is done now (and reached at once when that
+    -- is enough). Its party level never drops for it; the chat only hears a level that really rises.
     update public.level_milestones
-       set level = p_level, needs = p_needs, note = nullif(btrim(p_note), '')
+       set level = p_level, needs = p_needs, note = nullif(btrim(p_note), ''), reached_at = null
      where id = v_id and campaign_id = p_campaign_id
     returning id into v_id;
     if v_id is null then

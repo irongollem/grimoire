@@ -27,7 +27,7 @@
 
       <div v-else class="grid gap-4 md:grid-cols-[0.7fr_1.4fr_1.2fr_1fr]">
         <div v-if="stations.reached" class="hidden flex-col gap-1.5 rounded-md border border-border/60 p-3 text-muted-foreground md:flex">
-          <span class="font-cinzel text-heading-sm font-semibold">Level {{ stations.reached.level }}</span>
+          <span class="text-heading-sm font-semibold">Level {{ stations.reached.level }}</span>
           <span class="text-caption">Reached</span>
           <span v-if="stations.reached.note" class="text-caption italic">{{ stations.reached.note }}</span>
         </div>
@@ -49,7 +49,7 @@
           class="flex-col gap-1.5 rounded-md border border-dashed border-input p-3 text-muted-foreground"
           :class="showLater || !nextMilestone ? 'flex' : 'hidden md:flex'"
         >
-          <span class="font-cinzel text-heading-sm font-semibold">Level {{ stations.open }}</span>
+          <span class="text-heading-sm font-semibold">Level {{ stations.open }}</span>
           <span class="text-body">No milestone yet.</span>
           <AppButton to="/party" variant="link" size="inline-caption" label="Set one" class="self-start" />
         </div>

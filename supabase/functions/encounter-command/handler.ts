@@ -725,7 +725,7 @@ async function runLifecycle(
   const { state } = await attempt({ ...request, commands: [] }, loaded, row, deps, noteJudgmentsOf(deps));
   const context = await deps.loadEndContext(command.siteId === undefined ? null : command.siteId);
   // The saved roster is the authority for where the tokens stand: the browser's store does not hear a player moving their own token.
-  const writeBack = [...endWriteBack(state.combatants, context, deps), ...(await xpWrite(state.combatants, loaded, deps))];
+  const writeBack = [...endWriteBack(state.combatants, context, deps), ...xpWrite(state.combatants, loaded, deps)];
   const next = { ...writeOf(state, row.applied_command_ids, request.batchId), is_running: false, ended_at: deps.nowIso() } satisfies FightWrite & Partial<FightLifecycleWrite>;
   const saved = await deps.saveFight(row.id, row.version, next);
   if (!saved) return null;
@@ -759,25 +759,32 @@ async function replayClosing(command: LifecycleCommand, loaded: LoadedFight, row
   const context = await deps.loadEndContext(command.siteId === undefined ? null : command.siteId);
   // The award is asked for again too: if the first attempt died before giving it, this is the only time it happens,
   // and if it was given, the database gives nothing the second time.
-  return performAll([...endWriteBack(row.combatants_live, context, deps), ...(await xpWrite(row.combatants_live, loaded, deps))]);
+  return performAll([...endWriteBack(row.combatants_live, context, deps), ...xpWrite(row.combatants_live, loaded, deps)]);
 }
 
 /**
  * The XP a won fight gives, in a campaign that levels by experience: the foes' challenge ratings read from the stat
- * blocks they came from (a creature added mid-fight included), summed and shared by `fightXp`.
+ * blocks they came from (a creature added mid-fight included), summed and shared by `fightXp`. The read happens inside
+ * the write, after the fight is saved as ended: a failed read is reported like any write after the save, and never
+ * keeps the fight from ending.
  */
-async function xpWrite(combatants: RunCombatant[], loaded: LoadedFight, deps: BatchDeps): Promise<Array<{ name: string; run: () => Promise<void> }>> {
+function xpWrite(combatants: RunCombatant[], loaded: LoadedFight, deps: BatchDeps): Array<{ name: string; run: () => Promise<void> }> {
   if (!loaded.xpLevelling) return [];
-  const foes = combatants.filter((c) => c.type !== "player");
-  const monsterIds = [...new Set(foes.flatMap((c) => (c.monster_id === undefined ? [] : [c.monster_id])))];
-  const npcIds = [...new Set(foes.flatMap((c) => (c.npc_id === undefined ? [] : [c.npc_id])))];
-  const sources = monsterIds.length + npcIds.length > 0 ? await deps.loadStatBlocks({ monsterIds, npcIds, companionIds: [] }) : null;
-  const monsterCr = new Map((sources?.monsters ?? []).map((m) => [m.id, m.stat_block.challenge_rating]));
-  const npcCr = new Map((sources?.npcs ?? []).map((n) => [n.id, n.stat_block?.challenge_rating ?? null]));
-  const award = fightXp(combatants, loaded.factions, (c) =>
-    c.monster_id !== undefined ? (monsterCr.get(c.monster_id) ?? null) : c.npc_id !== undefined ? (npcCr.get(c.npc_id) ?? null) : null,
-  );
-  return award === null || award.each <= 0 ? [] : [{ name: "fight_xp", run: () => deps.awardFightXp(award) }];
+  return [{
+    name: "fight_xp",
+    run: async () => {
+      const foes = combatants.filter((c) => c.type !== "player");
+      const monsterIds = [...new Set(foes.flatMap((c) => (c.monster_id === undefined ? [] : [c.monster_id])))];
+      const npcIds = [...new Set(foes.flatMap((c) => (c.npc_id === undefined ? [] : [c.npc_id])))];
+      const sources = monsterIds.length + npcIds.length > 0 ? await deps.loadStatBlocks({ monsterIds, npcIds, companionIds: [] }) : null;
+      const monsterCr = new Map((sources?.monsters ?? []).map((m) => [m.id, m.stat_block.challenge_rating]));
+      const npcCr = new Map((sources?.npcs ?? []).map((n) => [n.id, n.stat_block?.challenge_rating ?? null]));
+      const award = fightXp(combatants, loaded.factions, (c) =>
+        c.monster_id !== undefined ? (monsterCr.get(c.monster_id) ?? null) : c.npc_id !== undefined ? (npcCr.get(c.npc_id) ?? null) : null,
+      );
+      if (award !== null && award.each > 0) await deps.awardFightXp(award);
+    },
+  }];
 }
 
 export async function runBatch(request: CommandRequest, deps: BatchDeps): Promise<BatchResult> {

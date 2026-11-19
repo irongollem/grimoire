@@ -38,6 +38,11 @@ describe("useLevelUp", () => {
     expect(useLevelUp(member({ campaign_id: "c2" })).ready.value).toBe(false);
   });
 
+  it("does not judge a character of another campaign by the active campaign's XP rule", () => {
+    state.xp = true;
+    expect(useLevelUp(member({ campaign_id: "c2", experience_points: 6500 })).ready.value).toBe(false);
+  });
+
   it("reads XP, not the party level, in an Experience campaign", () => {
     state.xp = true;
     expect(useLevelUp(member({ experience_points: 0 })).ready.value).toBe(false);

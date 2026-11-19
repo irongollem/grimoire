@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   updateCampaign: vi.fn(),
   confirmResult: true,
   partyLevel: 3 as number | null,
+  toastError: vi.fn(),
 }));
 
 vi.mock("@/composables/party/useLevelMilestones", async () => {
@@ -21,6 +22,9 @@ vi.mock("@/composables/party/useLevelMilestones", async () => {
 });
 vi.mock("@/composables/campaign/useCampaigns", () => ({
   useUpdateCampaign: () => ({ mutate: mocks.updateCampaign }),
+}));
+vi.mock("@/composables/useToast", () => ({
+  useToast: () => ({ error: mocks.toastError, fromError: (_e: unknown, fallback: string) => fallback }),
 }));
 vi.mock("@/composables/useConfirm", () => ({
   useConfirm: () => ({ confirm: () => Promise.resolve(mocks.confirmResult) }),
@@ -52,6 +56,7 @@ describe("LevelMilestonesPanel", () => {
     mocks.milestones.value = [level4];
     mocks.remove.mockReset().mockResolvedValue(undefined);
     mocks.updateCampaign.mockReset();
+    mocks.toastError.mockReset();
     mocks.confirmResult = true;
     mocks.partyLevel = 3;
   });
@@ -73,6 +78,14 @@ describe("LevelMilestonesPanel", () => {
     await wrapper.find('[aria-label="Delete level 4"]').trigger("click");
     await flushPromises();
     expect(mocks.remove).toHaveBeenCalledWith({ id: "m4", campaignId: "c1" });
+  });
+
+  it("a delete that fails is said, not swallowed", async () => {
+    mocks.remove.mockRejectedValue(new Error("refused"));
+    const wrapper = mountPanel();
+    await wrapper.find('[aria-label="Delete level 4"]').trigger("click");
+    await flushPromises();
+    expect(mocks.toastError).toHaveBeenCalledWith("Couldn't delete the milestone.");
   });
 
   it("setting the party level to Not set clears it rather than writing level 0", async () => {

@@ -4,7 +4,7 @@
     :class="next ? 'border-2 border-primary bg-card' : 'border border-border'"
   >
     <div class="flex items-baseline gap-2.5">
-      <span class="font-cinzel text-heading-sm font-bold">Level {{ milestone.level }}</span>
+      <span class="text-heading-sm font-bold">Level {{ milestone.level }}</span>
       <span v-if="next" class="text-eyebrow text-primary">Next</span>
       <span class="flex-1" />
       <span class="text-caption text-muted-foreground">{{ done }} of {{ milestone.needs }} done</span>

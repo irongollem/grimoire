@@ -1,7 +1,8 @@
 -- Experience for a quest (#1021 row 27, levels proposal step 2).
 --
 -- In a campaign that uses the Experience Points rule, a quest can say what it is worth ("1,800 XP"). When it is
--- completed, the party shares that XP equally (rounded down), every character of the campaign alike, and the table
+-- completed, the party shares that XP equally (rounded down), every character at the table alike (not one on the Hall
+-- of the Fallen wall: the dead and the retired earn nothing, and do not thin the others' share), and the table
 -- hears it in chat. Given once: a quest reopened and completed again gives nothing the second time. In a campaign
 -- that levels by milestone the number is kept but gives nothing; a milestone (`level_milestones`) says when the party
 -- levels instead.
@@ -56,15 +57,22 @@ begin
     return new;
   end if;
 
-  select count(*) into v_members from public.party_members where campaign_id = new.campaign_id;
+  select count(*) into v_members from public.party_members pm
+   where pm.campaign_id = new.campaign_id
+     and not exists (select 1 from public.character_memorials cm where cm.party_member_id = pm.id and cm.restored_at is null);
   if v_members = 0 then
     return new;
   end if;
   v_each := new.xp_reward / v_members;
+  -- Worth less than one point each gives nothing, and is not used up: raise the worth and the quest still pays.
+  if v_each <= 0 then
+    return new;
+  end if;
 
-  update public.party_members
-     set experience_points = experience_points + v_each
-   where campaign_id = new.campaign_id;
+  update public.party_members pm
+     set experience_points = pm.experience_points + v_each
+   where pm.campaign_id = new.campaign_id
+     and not exists (select 1 from public.character_memorials cm where cm.party_member_id = pm.id and cm.restored_at is null);
   new.xp_awarded_at := now();
 
   insert into public.campaign_messages (campaign_id, user_id, sender_name, message, type)

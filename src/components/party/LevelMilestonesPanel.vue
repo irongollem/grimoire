@@ -91,6 +91,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import LevelMilestoneEditor from "./LevelMilestoneEditor.vue";
 import { useConfirm } from "@/composables/useConfirm";
+import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import {
@@ -101,6 +102,7 @@ import {
 
 const campaign = useCampaignStore();
 const { confirm } = useConfirm();
+const toast = useToast();
 const { data: milestones } = useLevelMilestones();
 const deleteMut = useDeleteLevelMilestone();
 const updateCampaign = useUpdateCampaign();
@@ -132,6 +134,10 @@ async function remove(m: LevelMilestone) {
     confirmLabel: "Delete",
   });
   if (!ok) return;
-  await deleteMut.mutateAsync({ id: m.id, campaignId });
+  try {
+    await deleteMut.mutateAsync({ id: m.id, campaignId });
+  } catch (error) {
+    toast.error(toast.fromError(error, "Couldn't delete the milestone."));
+  }
 }
 </script>

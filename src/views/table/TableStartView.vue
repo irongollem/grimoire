@@ -118,6 +118,7 @@ import { useTableSessions } from "@/composables/table/useTableSessions";
 import { useForgetSitting } from "@/composables/table/useForgetSitting";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
+import { useIntervalFn } from "@vueuse/core";
 import { IconDelete } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
@@ -162,16 +163,26 @@ async function deleteSitting(sessionId: string): Promise<void> {
   }
 }
 
+// The time, by the minute: a page left open across the six-hour pause must stop offering the sitting it ended.
+const nowMs = ref(Date.now());
+useIntervalFn(() => (nowMs.value = Date.now()), 60_000);
 // How the story is picked up: null until the party and the sittings are both read (deciding on half would send a
 // player with an open sitting to the chooser for a moment).
 const resume = computed(() => {
   if (!party.data.value || !sessions.data.value) return party.isError.value || sessions.isError.value ? ({ kind: "first" } as const) : null;
-  return resumeOf(sessions.sittings.value, new Set(characters.value.map((m) => m.id)), Date.now());
+  return resumeOf(sessions.sittings.value, new Set(characters.value.map((m) => m.id)), nowMs.value);
 });
 // A sitting that was never left is simply reopened. `replace`, so Back does not bounce through this page.
+// Watched by what it decides, not by the object: the clock rebuilds it every minute, and acting on each rebuild took
+// the played character's lens off again right after sitting down.
+const resumeDecision = computed(() => {
+  const r = resume.value;
+  return r === null ? null : r.kind === "open" ? `open:${r.sessionId}` : r.kind;
+});
 watch(
-  resume,
-  (now) => {
+  resumeDecision,
+  () => {
+    const now = resume.value;
     if (now?.kind === "open" && campaign.isAiEnabled) {
       appUi.enterTablePlay(now.characterId, now.sessionId);
       void router.replace(`/play/table/${now.sessionId}`);
