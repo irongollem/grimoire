@@ -11,6 +11,8 @@ vi.mock("@/composables/rules/useBackgrounds", () => ({
   backgroundSourceKey: () => "k",
   useBackground: () => ({ data: ref(bgRow.value) }),
 }));
+// The AI-play section reads its own data and has its own tests; here it is only a child that is present.
+vi.mock("@/components/party/CharacterAiPlay.vue", () => ({ default: { name: "CharacterAiPlay", template: "<div />" } }));
 vi.mock("@/composables/deities/useDeities", () => ({ useAllDeities: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/library/useSourceTitles", () => ({ useSourceTitles: () => ({ labelFor: () => null }) }));
 // The editing behaviour itself is TapToEditRichText's; here it is a field that emits when typed into.

@@ -20,6 +20,7 @@ import { lootIsWon, type LootHeld } from "../_shared/agent/encounterLoot.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
 import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
 import type { HazardRules, KeptHazard } from "../_shared/agent/hazard.ts";
+import { companionsSection, type Companion } from "../_shared/agent/companions.ts";
 import { skySection } from "../_shared/agent/sky.ts";
 import { endedByPause } from "../_shared/agent/sittingEnd.ts";
 import { NARRATOR_SPEAKER, type KeyedLine } from "../_shared/agent/lineKey.ts";
@@ -350,6 +351,8 @@ export interface AgentTurnDeps {
   /** Whether the table itself made this character's record and the DM has not edited it since: only then may the table rewrite it. */
   isTableMadeCharacter(campaignId: string, characterId: string): Promise<boolean>;
   /** A hazard of that name the campaign keeps, else one the library keeps; null when neither does. */
+  /** The rest of the party: every party member of the campaign but the played one (`companions.ts`). */
+  loadCompanions(campaignId: string, playedId: string | null): Promise<Companion[]>;
   findHazard(campaignId: string, name: string): Promise<KeptHazard | null>;
   /** Writes a hazard the narrator made as a record of the campaign, marked as made by the AI table. */
   makeHazard(ctx: { campaignId: string; userId: string; provider: string; model: string }, hazard: HazardRules): Promise<void>;
@@ -637,7 +640,14 @@ export async function beginTurn(input: {
         const handedOut: HandoutOffer[] = [];
         let lastExchange: { ended: "to_player" | "open"; cutShort: boolean } | null = null;
         let narratorKeeps = false;
-        const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts), sky: body.sky === undefined ? "" : skySection(body.sky) });
+        // The rest of the party, played by the AI (row 26). Unreadable costs their part in the turn, never the turn.
+        let companions: Companion[] = [];
+        try {
+          companions = await deps.loadCompanions(campaign.id, character ? character.id : null);
+        } catch (error) {
+          console.error("agent-turn: reading the rest of the party failed:", error);
+        }
+        const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts), companions: companionsSection(companions), sky: body.sky === undefined ? "" : skySection(body.sky) });
         // What changes hands this turn; moved only once the turn is kept.
         const handed: HandsChange[] = [];
         // What the narrator's ruling does to the fight on the board; carried out by the page once the turn is kept.
@@ -664,6 +674,7 @@ export async function beginTurn(input: {
           filed,
           quests: questState === null ? null : { state: questState, queued },
           playerName: character ? character.name : undefined,
+          playedId: character ? character.id : undefined,
           peoples,
           onIntroduce: (intro) => { introduced.push(intro); },
           // Not in a fight on the board: that is fought with what is on it.

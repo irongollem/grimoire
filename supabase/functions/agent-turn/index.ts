@@ -27,6 +27,7 @@ import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { callTool, listTools } from "../_shared/mcp/tools.ts";
 import type { ToolContext } from "../_shared/mcp/tools.ts";
+import { companionProfile, companionSpeaks, COMPANIONS_MAX, type Companion } from "../_shared/agent/companions.ts";
 import { hazardFromRow, type KeptHazard } from "../_shared/agent/hazard.ts";
 import { agentToolsFrom, bindTools, SOLO_TABLE_TOOLS } from "../_shared/agent/mcpTools.ts";
 import { buildNpcProfile, NPC_PROFILE_COLUMNS, shownNpcName, type NpcProfileRow } from "../_shared/npcProfile.ts";
@@ -55,6 +56,9 @@ import {
   type ResolvedProvider,
   type SessionRow,
 } from "./handler.ts";
+
+/** How many of a party member's memories their own call is given: the newest. */
+const COMPANION_MEMORIES = 12;
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -135,6 +139,27 @@ serve(withCors(async (req: Request) => {
   let rawCampaign: Record<string, unknown> | null = null;
   // The campaign the conversation is in, set when the handler loads it; the tools are pinned to it.
   let pinnedCampaignId: string | null = null;
+
+  // A party member as a speaker: only one whose player said the AI may speak for them and whose sheet says who
+  // they are (`companionSpeaks`). Anyone else is "no such speaker", and the narrator tells what they do instead.
+  async function loadCompanionSpeaker(campaignId: string, memberId: string) {
+    const flag = await admin.from("party_members").select("id, ai_speaks").eq("id", memberId).eq("campaign_id", campaignId).maybeSingle();
+    if (flag.error) throw flag.error;
+    if (!flag.data) return null;
+    const member = await loadPartyMember(admin, campaignId, memberId);
+    if (member === null) return null;
+    const companion: Companion = { ...member, aiSpeaks: flag.data.ai_speaks === true };
+    if (!companionSpeaks(companion)) return null;
+    const lived = await admin.from("party_member_memories").select("kind, body").eq("party_member_id", memberId).eq("campaign_id", campaignId).order("created_at", { ascending: false }).limit(COMPANION_MEMORIES);
+    if (lived.error) throw lived.error;
+    const memories = (lived.data ?? []).reverse().map((m) => `- ${m.body as string}`);
+    return {
+      id: member.id,
+      shownName: member.name,
+      profile: companionProfile(companion),
+      memories: memories.length === 0 ? "" : `What you remember of this story so far:\n${memories.join("\n")}`,
+    };
+  }
 
   const deps: AgentTurnDeps = {
     async accountRefusal(userId): Promise<Refusal | null> {
@@ -388,7 +413,8 @@ serve(withCors(async (req: Request) => {
         .eq("campaign_id", campaignId)
         .maybeSingle();
       if (error) throw error;
-      if (!data) return null;
+      // Not a character of the campaign's: one of the party, perhaps, played while their own player is away.
+      if (!data) return loadCompanionSpeaker(campaignId, characterId);
       const npc = data as unknown as NpcProfileRow;
       const [memories, carried] = await Promise.all([
         loadPromptMemories(admin, npc.id, campaignId),
@@ -406,6 +432,17 @@ serve(withCors(async (req: Request) => {
     },
 
     loadCharacter: (campaignId, characterId) => loadPartyMember(admin, campaignId, characterId),
+
+    async loadCompanions(campaignId, playedId) {
+      const { data, error } = await admin.from("party_members").select("id, ai_speaks").eq("campaign_id", campaignId).order("sort_order", { ascending: true }).limit(COMPANIONS_MAX + 1);
+      if (error) throw error;
+      const others = (data ?? []).filter((row) => row.id !== playedId).slice(0, COMPANIONS_MAX);
+      const loaded = await Promise.all(others.map(async (row) => {
+        const member = await loadPartyMember(admin, campaignId, row.id as string);
+        return member === null ? null : { ...member, aiSpeaks: row.ai_speaks === true };
+      }));
+      return loaded.filter((c): c is Companion => c !== null);
+    },
 
     // A place of this campaign and who is in it. One more than the trim keeps of each list, so the trim can tell the
     // narrator there are more. The campaign filter is in every query: an id from another campaign is not found.
@@ -490,9 +527,16 @@ serve(withCors(async (req: Request) => {
     // campaign is here because the ids came out of a model's tool call.
     async saveMemories({ campaignId, userId, provider, model, memories, campaignSessionId }) {
       const ids = [...new Set(memories.map((m) => m.characterId))];
-      const { data: known, error: readError } = await admin.from("npcs").select("id").in("id", ids).eq("campaign_id", campaignId);
-      if (readError) throw readError;
-      const inCampaign = new Set((known ?? []).map((n) => n.id as string));
+      // The ids came out of a model's tool call: each is kept only where it is a character, or a party member, of
+      // this campaign, and goes to that one's own ledger.
+      const [known, party] = await Promise.all([
+        admin.from("npcs").select("id").in("id", ids).eq("campaign_id", campaignId),
+        admin.from("party_members").select("id").in("id", ids).eq("campaign_id", campaignId),
+      ]);
+      if (known.error) throw known.error;
+      if (party.error) throw party.error;
+      const npcIds = new Set((known.data ?? []).map((n) => n.id as string));
+      const memberIds = new Set((party.data ?? []).map((n) => n.id as string));
       const provenance: AiProvenance = {
         generatorType: "agent_turn_memory",
         provider,
@@ -500,20 +544,18 @@ serve(withCors(async (req: Request) => {
         generatedAt: new Date().toISOString(),
         edited: false,
       };
-      const rows = memories
-        .filter((m) => inCampaign.has(m.characterId))
-        .map((m) => ({
-          npc_id: m.characterId,
-          campaign_id: campaignId,
-          user_id: userId,
-          kind: m.kind,
-          body: m.body,
-          session_id: campaignSessionId,
-          ai_provenance: provenance,
-        }));
-      if (rows.length === 0) return;
-      const { error } = await admin.from("npc_memories").insert(rows);
-      if (error) throw error;
+      const common = (m: { kind: string; body: string }) => ({ campaign_id: campaignId, user_id: userId, kind: m.kind, body: m.body, session_id: campaignSessionId, ai_provenance: provenance });
+      const npcRows = memories.filter((m) => npcIds.has(m.characterId)).map((m) => ({ npc_id: m.characterId, ...common(m) }));
+      // What one of the party lived through while their player was away: theirs to read when they are back.
+      const memberRows = memories.filter((m) => memberIds.has(m.characterId)).map((m) => ({ party_member_id: m.characterId, ...common(m) }));
+      if (npcRows.length > 0) {
+        const { error } = await admin.from("npc_memories").insert(npcRows);
+        if (error) throw error;
+      }
+      if (memberRows.length > 0) {
+        const { error } = await admin.from("party_member_memories").insert(memberRows);
+        if (error) throw error;
+      }
     },
 
     // The record. Read and written through the caller's own client, never the service role: the database refuses a

@@ -91,13 +91,16 @@ export function stateFor(input: {
   handouts?: string;
   /** The weather where the party stands, already worded; empty when the page sent none. */
   sky?: string;
+  /** The rest of the party, already worded; empty with nobody else. */
+  companions?: string;
 }): string {
   // The fights sit with the scene: they are about the place the party stands in. Nothing to say, no section.
   const fights = fightsSection(input.fights ?? NO_FIGHTS, input.fightTurn ? budgetLine(input.fightTurn) : null);
   const carried = input.possessions === undefined || input.possessions === "" ? [] : [input.possessions];
   const handouts = input.handouts === undefined || input.handouts === "" ? [] : [input.handouts];
   const sky = input.sky === undefined || input.sky === "" ? [] : [input.sky];
-  return [sceneSection(input.scene), ...sky, ...(fights === "" ? [] : [fights]), ...carried, ...handouts, questsSection(input.quests ?? NO_QUESTS), recordSection(input.record)].join("\n\n");
+  const companions = input.companions === undefined || input.companions === "" ? [] : [input.companions];
+  return [sceneSection(input.scene), ...companions, ...sky, ...(fights === "" ? [] : [fights]), ...carried, ...handouts, questsSection(input.quests ?? NO_QUESTS), recordSection(input.record)].join("\n\n");
 }
 
 /** The fights for this turn. Null when they could not be read: the turn still runs, with no fight tool. */

@@ -59,6 +59,8 @@ export interface TurnToolsInput {
   quests: { state: QuestsInPlay; queued: QuestMove[] } | null;
   /** The name of the character the player plays, when the conversation has one: characters hear the player under it. */
   playerName?: string;
+  /** The party member the player plays; nobody speaks for them. */
+  playedId?: string;
   /** The names of the world's peoples, for the characters' own calls. */
   peoples: readonly string[];
   /** The fight on the board and what the player's turn still holds; null when no fight is being fought, and then the tool is not offered. */
@@ -170,7 +172,8 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   const spoke = new Set<string>();
   const speech = makeSpeechTools({
     stored: input.stored,
-    loadSpeaker: (id) => deps.loadSpeaker(campaignId, id),
+    // Never the played character: their words are the player's alone, whatever id a reply names.
+    loadSpeaker: (id) => (input.playedId !== undefined && id === input.playedId ? Promise.resolve(null) : deps.loadSpeaker(campaignId, id)),
     callModel: input.callModel,
     signal: input.signal,
     onRemember: (memory) => remembered.push(memory),

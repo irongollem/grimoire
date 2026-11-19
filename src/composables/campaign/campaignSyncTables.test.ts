@@ -75,7 +75,7 @@ describe("live sync registries", () => {
       "entity_notes", "factions", "factions_player", "handout_reveals", "item_entries", "items", "kin_links",
       "location_reveals", "locations", "locations_player", "loot_placements", "loot_tables", "memorial_mourners",
       "minis", "monsters", "notes", "notes_player", "npc_favors", "npc_inventory", "npc_memories",
-      "npc_reveals", "npc_sets", "npcs", "npcs_player", "pantheons", "party_inventory", "party_member_tracker_state",
+      "npc_reveals", "npc_sets", "npcs", "npcs_player", "pantheons", "party_inventory", "party_member_memories", "party_member_tracker_state",
       "party_members", "party_milestones", "pinned_forms", "player_favourites", "player_journal_entries",
       "player_npc_ratings", "puzzle_rooms", "quest_beat_attachments", "quest_beat_edge_gates", "quest_beat_edges",
       "quest_beat_transitions", "quest_beats_player", "quest_clocks", "quest_consequence_events", "quest_runtime_state",

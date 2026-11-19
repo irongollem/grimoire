@@ -6,6 +6,7 @@
  * out from the price and calibration below: input is free and output costs 10 USD per million tokens, a credit is
  * worth 0.01 USD at margin 1, so 600 output tokens are 0.006 USD, which is 0.6 credits.
  */
+import type { Companion } from "../_shared/agent/companions";
 import type { HazardRules, KeptHazard } from "../_shared/agent/hazard";
 import { STRIKES_BEFORE_CLOSED } from "../_shared/agent/conduct.ts";
 import type { HandsChange } from "../_shared/agent/hands.ts";
@@ -148,6 +149,8 @@ interface Harness {
     hitPointsSet: Array<{ memberId: string; hitPoints: number }>;
     /** Hazards the campaign or the library keeps, and those the narrator made this run. */
     hazards: KeptHazard[];
+    /** The rest of the party. */
+    companions: Companion[];
     hazardsMade: HazardRules[];
     /** Changes of hands that were carried out; and switches that make reading or making them fail. */
     handed: HandsChange[];
@@ -276,6 +279,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       tableMade: false,
       hitPointsSet: [],
       hazards: [],
+      companions: [],
       hazardsMade: [],
       handed: [],
       handsThrow: false,
@@ -335,6 +339,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     loadCampaign: async () => h.state.campaign,
     isDm: async () => h.state.isDm,
     now: () => NOW,
+    loadCompanions: async (_campaignId, playedId) => h.state.companions.filter((c) => c.id !== playedId),
     findHazard: async (_campaignId, name) => h.state.hazards.find((k) => k.name.toLowerCase() === name.toLowerCase()) ?? null,
     makeHazard: async (_ctx, hazard) => {
       h.state.hazardsMade.push(hazard);
@@ -1649,6 +1654,51 @@ describe("where the party is", () => {
     h.state.saveThrows = true;
     await play(h, { body: GO });
     expect(h.sessions.get(SESSION)!.scene_location_id).toBe(CELLAR);
+  });
+});
+
+describe("the rest of the party at the table", () => {
+  const sheet = "Traits: Dry, patient, counts everything twice. Bonds: Owes the mill her life. Flaws: Cannot leave a locked door alone.";
+  const folio: Companion = { id: "00000000-0000-4000-8000-0000000000d1", name: "Folio", pronouns: null, species: "Dwarf", className: "Cleric", subclass: null, level: 3, hitPoints: { current: 20, max: 24 }, about: sheet, aiSpeaks: true };
+  const glint: Companion = { ...folio, id: "00000000-0000-4000-8000-0000000000d2", name: "Glint", aiSpeaks: false };
+
+  // #1021 row 26, the maintainer: a character "speak[s] if there's enough character data and the player enabled
+  // on their sheet". Bug caught: the rest of the party missing from the story, or a companion whose player never
+  // said so handed to the narrator as someone to speak for.
+  it("tells the narrator who else of the party is here, who speaks and who only acts", async () => {
+    const h = harness();
+    h.state.companions = [folio, glint];
+    await play(h, { body: { campaignId: CAMPAIGN, message: "I look around.", mode: "do" } });
+    const told = opening(h.requests[0]);
+    expect(told).toContain("Folio (id 00000000-0000-4000-8000-0000000000d1)");
+    expect(told).toContain("never give Glint a line of speech");
+    expect(told).not.toContain("00000000-0000-4000-8000-0000000000d2");
+  });
+
+  // The player's words are the player's alone. Bug caught: a reply naming the played character's own id as the
+  // speaker, and the table putting words in the player's mouth.
+  it("never has anyone speak for the played character, whatever id a reply names", async () => {
+    // Honeycomb is someone the harness would let speak; here she is the character the player plays.
+    const h = harness([step(100, { blocks: [{ type: "tool_call", id: "s1", name: "speak", input: { speaker_id: HONEYCOMB, happening: "A stranger asks who you are." } }], stop: "tool_calls" }), step(50)]);
+    h.state.characters.set(HONEYCOMB, { id: HONEYCOMB, name: "Honeycomb", pronouns: null, species: null, className: "Rogue", subclass: null, level: 3, hitPoints: null });
+    existingSession(h, { party_member_id: HONEYCOMB });
+    speakerLoads.length = 0;
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "I look around.", mode: "do" } });
+    expect(speakerLoads.map((l) => l.characterId)).not.toContain(HONEYCOMB);
+    expect(h.modelCalls()).toBe(2);
+  });
+
+  // Bug caught: the played character listed among the companions (the narrator then plays the player's own
+  // character for them).
+  it("never lists the played character among the rest of the party", async () => {
+    const h = harness();
+    h.state.characters.set(WREN, { id: WREN, name: "Wren Ashfield", pronouns: null, species: null, className: "Ranger", subclass: null, level: 3, hitPoints: null });
+    h.state.companions = [folio, { ...folio, id: WREN, name: "Wren" }];
+    existingSession(h, { party_member_id: WREN });
+    await play(h, { body: { campaignId: CAMPAIGN, sessionId: SESSION, message: "I look around.", mode: "do" } });
+    const told = opening(h.requests[0]);
+    expect(told).toContain("Folio (id");
+    expect(told).not.toContain(`Wren (id ${WREN})`);
   });
 });
 

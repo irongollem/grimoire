@@ -203,6 +203,9 @@
       <RichTextViewer v-else :content="member.notes" class="text-body text-foreground" />
     </div>
 
+    <!-- Played by the AI while I am away (#1021 row 26): my word that it may speak for my character, and what they lived through. -->
+    <CharacterAiPlay :member="member" :can-set="isOwner" own />
+
     <!-- Background -->
     <div v-if="background" class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-2.5 border-b border-border">
@@ -285,6 +288,7 @@
 </template>
 
 <script setup lang="ts">
+import CharacterAiPlay from "@/components/party/CharacterAiPlay.vue";
 import { ref, computed } from "vue";
 import { useLowArt } from "@/composables/useLowArt";
 import { RouterLink } from "vue-router";

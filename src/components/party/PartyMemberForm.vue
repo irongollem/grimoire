@@ -74,6 +74,8 @@
           :form="personaSlice"
           @update:form="applyPersonaPatch"
         />
+        <!-- The DM may say it for a character, too: one nobody has claimed is theirs to decide for. -->
+        <CharacterAiPlay v-if="activeTab === 'persona'" :member="props.member" can-set class="mt-3" />
       </div>
 
       <DraftConflictNotice :fields="conflictLabels" :on-discard="reset" class="mx-5 mb-3 shrink-0" />
@@ -118,6 +120,7 @@ import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
 import PartyMemberAbilitiesTab from "./PartyMemberAbilitiesTab.vue";
 import PartyMemberProficienciesTab from "./PartyMemberProficienciesTab.vue";
 import PartyMemberPersonaTab from "./PartyMemberPersonaTab.vue";
+import CharacterAiPlay from "./CharacterAiPlay.vue";
 import { darkvisionFeet } from "@/rules/speciesStats";
 import { provideCharacterRuleset, useRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignSpecies } from "@/composables/rules/useSpecies";

@@ -191,6 +191,8 @@ export interface PartyMember {
   ideals?: string | null;
   bonds?: string | null;
   flaws?: string | null;
+  /** The player's own word that the AI may speak for this character when someone else plays them (#1021 row 26). */
+  ai_speaks?: boolean;
   deity?: string | null;
   deity_id?: string | null;
   // Identity extras (optional — wizard collects these on the Identity step)
