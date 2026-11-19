@@ -32,7 +32,9 @@ export function useTableAccess() {
       if (id === null) throw new Error("useTableAccess fetched without a campaign");
       return fetchTableAccess(id);
     },
-    enabled: () => ownerId.value !== null,
+    // Asked only where the answer can matter: with AI off the table is closed whatever the grant says, so a campaign
+    // without AI (most of them, and every child's) pays no request for a feature it cannot have.
+    enabled: () => ownerId.value !== null && campaign.isAiEnabled,
     staleTime: TABLE_ACCESS_STALE_MS,
   });
   /** The owner has been granted the table, whatever the campaign's AI switch says. */
