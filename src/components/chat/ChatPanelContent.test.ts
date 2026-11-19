@@ -171,4 +171,15 @@ describe("ChatPanelContent mentions", () => {
     const marked = wrapper.findAll("[data-message-id]").filter((e) => e.find("[data-addressed]").exists()).map((e) => e.attributes("data-message-id"));
     expect(marked).toEqual(["1", "4"]);
   });
+
+  // AI Act Art. 50: a line a model wrote must say so. Bug caught: the mark missing, or put on a person's line.
+  it("marks a line the AI wrote for an absent player's character, and no line a person typed", () => {
+    const line = (id: string, metadata: unknown): CampaignMessage => ({
+      id, campaign_id: "c1", user_id: "them", recipient_user_id: null, sender_name: "Chicory", type: "chat", message: "Aye.",
+      created_at: `2026-10-01T10:00:0${id}Z`, metadata, server_rolled: false,
+    } as CampaignMessage);
+    const wrapper = mountPanel(vi.fn(), [line("1", { ai: true, for_party_member_id: "pm-chic", reply_to: "0" }), line("2", { for_party_member_id: "pm-chic" })], party);
+    const marked = wrapper.findAll("[data-message-id]").filter((e) => e.find('[data-testid="chat-ai-mark"]').exists()).map((e) => e.attributes("data-message-id"));
+    expect(marked).toEqual(["1"]);
+  });
 });

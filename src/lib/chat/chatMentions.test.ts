@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DM_MENTION, PARTY_MENTION, addresses, emphasiseMentions, insertMention, matchingTargets, mentionQueryAt, mentionsIn, type MentionTarget } from "./chatMentions";
+import { DM_MENTION, PARTY_MENTION, addresses, mightBeAnswered, emphasiseMentions, insertMention, matchingTargets, mentionQueryAt, mentionsIn, type MentionTarget } from "./chatMentions";
 
 const rosie: MentionTarget = { kind: "member", partyMemberId: "pm-rosie", name: "Rosie" };
 const rosieV: MentionTarget = { kind: "member", partyMemberId: "pm-rv", name: "Rosie Vermeil" };
@@ -71,5 +71,22 @@ describe("addresses", () => {
     expect(addresses(mentionsIn("@Rosie go", [rosie, chicory]), "pm-rosie")).toBe(true);
     expect(addresses(mentionsIn("@Rosie go", [rosie, chicory]), "pm-chic")).toBe(false);
     expect(addresses(mentionsIn("@Dungeon Master?", [dm]), "pm-chic")).toBe(false);
+  });
+});
+
+describe("mightBeAnswered", () => {
+  const toRosie = mentionsIn("@Rosie go", [rosie]);
+  const played = [{ ai_stands_in: false }, { ai_stands_in: true }];
+
+  it("asks only for a line that addresses a character, the party, or is a whisper", () => {
+    expect(mightBeAnswered(null, toRosie, played)).toBe(true);
+    expect(mightBeAnswered("user-7", [], played)).toBe(true);
+    expect(mightBeAnswered(null, [], played)).toBe(false);
+    expect(mightBeAnswered(null, mentionsIn("@Dungeon Master?", [dm]), played)).toBe(false);
+  });
+
+  it("spares the call when nobody at the table is played, and asks when the reader cannot tell", () => {
+    expect(mightBeAnswered(null, toRosie, [{ ai_stands_in: false }])).toBe(false);
+    expect(mightBeAnswered(null, toRosie, [{}])).toBe(true);
   });
 });

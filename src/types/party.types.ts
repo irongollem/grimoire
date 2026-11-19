@@ -193,6 +193,8 @@ export interface PartyMember {
   flaws?: string | null;
   /** The player's own word that the AI may speak for this character when someone else plays them (#1021 row 26). */
   ai_speaks?: boolean;
+  /** The Dungeon Master's word that the AI plays this character in chat while its player is away, at the DM's cost (#1021 row 26). Only the DM may change it. */
+  ai_stands_in?: boolean;
   deity?: string | null;
   deity_id?: string | null;
   // Identity extras (optional — wizard collects these on the Identity step)

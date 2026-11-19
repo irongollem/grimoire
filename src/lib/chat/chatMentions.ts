@@ -75,6 +75,17 @@ export function insertMention(text: string, start: number, caret: number, name: 
   return { text: text.slice(0, start) + inserted + rest, caret: start + inserted.length };
 }
 
+/**
+ * Whether a line just posted might be answered by a character played for its absent player (#1021 row 26): it
+ * addresses a character or the party, or is a whisper, and the table has someone played. The server decides who
+ * answers; this only spares it a call for the many lines that address nobody. A reader who is not shown who is
+ * played (the flag missing from their party rows) asks the server.
+ */
+export function mightBeAnswered(recipientUserId: string | null, mentions: readonly StoredMention[], party: readonly { ai_stands_in?: boolean }[]): boolean {
+  if (recipientUserId === null && !mentions.some((m) => m.kind === "member" || m.kind === "party")) return false;
+  return party.length > 0 && !party.every((p) => p.ai_stands_in === false);
+}
+
 /** Every place the text names a target after an "@", longest name first so "Rosie Vermeil" is not read as "Rosie". */
 function mentionSpans(text: string, targets: readonly MentionTarget[]): { start: number; end: number; target: MentionTarget }[] {
   const byLength = [...targets].filter((t) => t.name.trim() !== "").sort((a, b) => b.name.length - a.name.length);

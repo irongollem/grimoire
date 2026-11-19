@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(7);
+select plan(11);
 
 -- A party member played by the AI (#1021 row 26). What would go wrong silently: one player reading what another
 -- player's character lived through, a player writing a memory into their own (or anyone's) character, or a player
@@ -69,6 +69,38 @@ select lives_ok(
   $$ insert into public.party_member_memories (campaign_id, party_member_id, user_id, kind, body)
      values ('10260000-0000-4000-8000-000000000010', '10260000-0000-4000-8000-000000000031', '10260000-0000-4000-8000-000000000001', 'promise', 'Folio promised to come back.') $$,
   'and writes one'
+);
+reset role;
+
+-- ── Whose word each switch is (20261119115241) ─────────────────────────────
+-- The player's consent is not the DM's to give; whether an absent character is played is not the player's to decide,
+-- since it is charged to the DM.
+insert into public.party_members (id, user_id, campaign_id, name, ruleset)
+values ('10260000-0000-4000-8000-000000000032', '10260000-0000-4000-8000-000000000001', '10260000-0000-4000-8000-000000000010', 'Ash', '2014');
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '10260000-0000-4000-8000-000000000001', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select throws_ok(
+  $$ update public.party_members set ai_speaks = false where id = '10260000-0000-4000-8000-000000000030' $$,
+  '42501', null, 'the DM cannot change a consent that is a player''s to give'
+);
+select lives_ok(
+  $$ update public.party_members set ai_speaks = true, ai_stands_in = true where id = '10260000-0000-4000-8000-000000000032' $$,
+  'for a character nobody has claimed, the DM says both'
+);
+select lives_ok(
+  $$ update public.party_members set ai_stands_in = true where id = '10260000-0000-4000-8000-000000000030' $$,
+  'the DM has an absent player''s character played'
+);
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '10260000-0000-4000-8000-000000000002', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select throws_ok(
+  $$ update public.party_members set ai_stands_in = false where id = '10260000-0000-4000-8000-000000000030' $$,
+  '42501', null, 'a player cannot decide whether their character is played at the DM''s cost'
 );
 reset role;
 

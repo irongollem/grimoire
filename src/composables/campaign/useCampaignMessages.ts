@@ -471,6 +471,17 @@ export function useCampaignMessages() {
     const { data, error } = await supabase.from("campaign_messages").insert(insert).select().single();
     if (error) throw error;
     if (data) _optimisticPush(data as CampaignMessage);
+    return data ? (data as CampaignMessage).id : null;
+  }
+
+  /**
+   * Asks the characters played for absent players to answer a line the caller just posted (#1021 row 26). The server
+   * decides who answers, if anyone, and the answer arrives like any other chat line. Never throws: the line itself
+   * was posted, and a character staying silent is not a failure of the send.
+   */
+  async function askCharacterReply(messageId: string): Promise<void> {
+    const { error } = await supabase.functions.invoke("character-reply", { body: { messageId } });
+    if (error) console.warn("character-reply:", error.message);
   }
 
   /**
@@ -882,5 +893,5 @@ export function useCampaignMessages() {
     if (idx >= 0 && data) messages.value[idx] = { ...messages.value[idx], metadata: data as PlayerOfferMetadata };
   }
 
-  return { messages: visibleMessages, unreadMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendFlavorMessage, sendNarrativeEvent, sendSystemMessage, sendSystemMessages, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, chooseLootRoll, resolveLootRoll, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
+  return { messages: visibleMessages, unreadMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, askCharacterReply, sendFlavorMessage, sendNarrativeEvent, sendSystemMessage, sendSystemMessages, sendRoll, sendItemDrop, claimItemDrop, grabItemDrop, chooseLootRoll, resolveLootRoll, sendCurrencyDrop, claimCurrencyDrop, sendLootChest, claimLootChestAtom, sendVendorOffer, claimVendorOffer, sendPlayerOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId };
 }

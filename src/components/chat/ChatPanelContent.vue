@@ -166,6 +166,7 @@
             :message="msg.message"
             :rendered-message="renderMessage(msg.message)"
             :addressed="mentionsMe(msg)"
+            :ai="writtenByAi(msg)"
             :time-label="timeLabel(msg.created_at)"
             :entity-link="entityLinkFor(msg)"
           />
@@ -691,6 +692,11 @@ function timeLabel(iso: string) { return formatChatTimestamp(iso, chatLocale.val
 
 function renderMessage(text: string): string {
   return renderChatMessage(emphasiseMentions(text, mentionTargets.value));
+}
+
+/** A line a model wrote, playing a character for its absent player (`character-reply` sets the mark). */
+function writtenByAi(msg: CampaignMessage): boolean {
+  return (msg.metadata as { ai?: unknown } | null)?.ai === true;
 }
 
 /** Whether a line addresses the reader: their own character by name or with the party, or the DM when they are it. */

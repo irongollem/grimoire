@@ -75,7 +75,7 @@
           @update:form="applyPersonaPatch"
         />
         <!-- The DM may say it for a character, too: one nobody has claimed is theirs to decide for. -->
-        <CharacterAiPlay v-if="activeTab === 'persona'" :member="props.member" can-set class="mt-3" />
+        <CharacterAiPlay v-if="activeTab === 'persona'" :member="props.member" :can-set="!hasPlayer" can-play class="mt-3" />
       </div>
 
       <DraftConflictNotice :fields="conflictLabels" :on-discard="reset" class="mx-5 mb-3 shrink-0" />
@@ -447,6 +447,8 @@ const profBonus = computed(() => {
 
 // --- Campaign members ---
 const { data: campaignMembers } = useCampaignMembers();
+/** A character with a player: the word that the AI may speak for it is that player's, not the DM's (the database refuses it too). */
+const hasPlayer = computed(() => !!props.member.owner_user_id || (campaignMembers.value ?? []).some((m) => m.party_member_id === props.member.id));
 const { mutateAsync: updateCampaignMember } = useUpdateCampaignMember();
 
 const players = computed(() =>

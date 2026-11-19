@@ -131,7 +131,7 @@ import { getNpcDisplayName } from "@/lib/npcDisplay";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import { useLootRollClock } from "@/composables/campaign/useLootRollClock";
 import type { RollResult } from "@/lib/dice/dice";
-import type { StoredMention } from "@/lib/chat/chatMentions";
+import { mightBeAnswered, type StoredMention } from "@/lib/chat/chatMentions";
 import type { ItemDropMetadata, LootRollChoice, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, LootChestMetadata } from "@/types/chat.types";
 import { canAfford, hasCoins, type Coins } from "@/lib/currency/currency";
 import { knownCoins } from "@/lib/dungeon-features/lootTableRoll";
@@ -210,7 +210,7 @@ onUnmounted(() => {
 const appUi = useAppUiStore();
 const auth = useAuthStore();
 const campaign = useCampaignStore();
-const { messages, unreadMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, sendRoll, claimItemDrop, grabItemDrop, chooseLootRoll, resolveLootRoll, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
+const { messages, unreadMessages, loading, loadingOlder, hasOlder, loadOlder, ensureMessage, sendMessage, askCharacterReply, sendRoll, claimItemDrop, grabItemDrop, chooseLootRoll, resolveLootRoll, claimCurrencyDrop, claimLootChestAtom, sendVendorOffer, claimVendorOffer, claimPlayerOffer, deleteMessage, deleteAllMessages, myUserId } =
   useCampaignMessages();
 const toast = useToast();
 const { reportChatFailure, reportMessageFailure } = useChatSendFailure();
@@ -504,7 +504,8 @@ async function handleSend({
   mentions: StoredMention[];
 }): Promise<boolean> {
   try {
-    await sendMessage(text, recipientUserId, mentions);
+    const id = await sendMessage(text, recipientUserId, mentions);
+    if (id && mightBeAnswered(recipientUserId, mentions, party.value ?? [])) void askCharacterReply(id);
     return true;
   } catch (e) {
     reportMessageFailure(e, recipientUserId !== null);

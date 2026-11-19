@@ -45,6 +45,8 @@
       <p class="text-label font-semibold text-primary">
         {{ senderName }}
       </p>
+      <!-- AI Act Art. 50: a line a model wrote says so, for every reader. -->
+      <span v-if="ai" class="rounded border border-border px-1 text-caption-sm text-muted-foreground" title="Written by AI, playing this character while its player is away" data-testid="chat-ai-mark">AI</span>
       <span
         v-if="recipientName"
         class="text-caption-sm text-ink-caution italic"
@@ -81,6 +83,7 @@ const {
   timeLabel,
   entityLink = null,
   addressed = false,
+  ai = false,
 } = defineProps<{
   isSystem?: boolean;
   isOwn?: boolean;
@@ -96,6 +99,8 @@ const {
   entityLink?: EntityLinkMetadata | null;
   /** The line names the reader with an "@" (their character, the party, or the DM when they are it). */
   addressed?: boolean;
+  /** The line was written by AI playing a character for its absent player (#1021 row 26). */
+  ai?: boolean;
 }>();
 
 const targetRoute = computed((): string | null => {

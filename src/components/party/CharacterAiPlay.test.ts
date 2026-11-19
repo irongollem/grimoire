@@ -12,9 +12,9 @@ import CharacterAiPlay from "./CharacterAiPlay.vue";
 
 const WREN = { id: "m1", name: "Wren", campaign_id: "c1", ai_speaks: false };
 
-async function mountPlay(props: { canSet?: boolean; own?: boolean } = {}) {
+async function mountPlay(props: { canSet?: boolean; canPlay?: boolean; own?: boolean } = {}, member: Record<string, unknown> = WREN) {
   const w = mount(CharacterAiPlay, {
-    props: { member: WREN, ...props },
+    props: { member: member as typeof WREN, ...props },
     global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]] },
   });
   await flushPromises();
@@ -49,6 +49,20 @@ describe("CharacterAiPlay", () => {
     await owner.get('input[type="checkbox"]').setValue(true);
     await flushPromises();
     expect(fake.rows("party_members").map((r) => [r.id, r.ai_speaks])).toEqual([["m1", true], ["m2", false]]);
+  });
+
+  // The DM's call and the DM's cost, but never without the player's word (the maintainer, 19 Nov 2026).
+  it("lets the Dungeon Master have a character played only once its player allowed the AI to speak for it", async () => {
+    const waiting = await mountPlay({ canPlay: true });
+    const held = waiting.get('[data-testid="character-ai-stands-in"] input, input[data-testid="character-ai-stands-in"]');
+    expect((held.element as HTMLInputElement).disabled).toBe(true);
+    expect(waiting.get('[data-testid="character-ai-waits"]').text()).toContain("player has not allowed");
+
+    const allowed = await mountPlay({ canPlay: true }, { ...WREN, ai_speaks: true });
+    expect(allowed.find('[data-testid="character-ai-waits"]').exists()).toBe(false);
+    await allowed.get('[data-testid="character-ai-stands-in"] input, input[data-testid="character-ai-stands-in"]').setValue(true);
+    await flushPromises();
+    expect(fake.rows("party_members").map((r) => [r.id, r.ai_stands_in === true])).toEqual([["m1", true], ["m2", false]]);
   });
 
   // Bug caught: an empty box drawn on every sheet for a character nobody has ever played for its player.
