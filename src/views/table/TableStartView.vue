@@ -1,6 +1,13 @@
 <template>
   <PageHeader title="The table" description="Play a character while an AI Narrator tells the story. Every character in it speaks in their own box.">
     <div class="px-4 pb-8 pt-4 md:px-6" data-testid="table-start">
+      <!-- Before play: what the story will need and the campaign lacks (#1021 row 22). -->
+      <div v-if="campaign.isAiEnabled && campaign.activeCampaignId" class="mb-4 flex max-w-2xl flex-wrap items-center gap-x-3 gap-y-2 border border-border bg-card px-4 py-3" data-testid="table-prep">
+        <p class="min-w-0 flex-1 basis-64 text-body text-foreground">Get the campaign ready: have the AI propose the hazards, places and items your quests will need and you do not have yet.</p>
+        <AppButton variant="outline" size="md" label="Prep campaign" @click="prepOpen = true" />
+        <CampaignPrepDialog :open="prepOpen" :campaign-id="campaign.activeCampaignId" @close="prepOpen = false" />
+      </div>
+
       <SoloAiOff v-if="!campaign.isAiEnabled" class="mx-0" />
 
       <!-- An open sitting is reopened as it stands; nothing to show while the page goes there. -->
@@ -92,6 +99,7 @@
 </template>
 
 <script setup lang="ts">
+import CampaignPrepDialog from "@/components/table/prep/CampaignPrepDialog.vue";
 import { computed, ref, watch } from "vue";
 import { resumeOf } from "@/lib/table/resume";
 import { sittingWho } from "@/lib/table/sittingLabel";
@@ -115,6 +123,8 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 
 const campaign = useCampaignStore();
+// Prep campaign (#1021 row 22): the dialog is opened from the card at the top of this page.
+const prepOpen = ref(false);
 const appUi = useAppUiStore();
 const router = useRouter();
 
