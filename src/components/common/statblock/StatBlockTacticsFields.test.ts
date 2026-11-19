@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import { reactive } from "vue";
 import StatBlockTacticsFields from "./StatBlockTacticsFields.vue";
 import { emptyDefenses } from "@/types/statBlock.types";
-import type { MonsterStatBlock } from "@/types/monster.types";
+import type { MonsterStatBlock, MonsterTactics } from "@/types/monster.types";
 
 function block(over: Partial<MonsterStatBlock> = {}): MonsterStatBlock {
   return {
@@ -15,7 +15,19 @@ function block(over: Partial<MonsterStatBlock> = {}): MonsterStatBlock {
 
 function mountFields(sb: MonsterStatBlock) {
   const live = reactive(sb);
-  return { live, w: mount(StatBlockTacticsFields, { props: { sb: live, creatureType: "humanoid" } }) };
+  // The parent's half of the model: what the fields send is what the stat block holds.
+  const w = mount(StatBlockTacticsFields, {
+    props: {
+      sb: live,
+      creatureType: "humanoid",
+      tactics: live.tactics,
+      "onUpdate:tactics": (next: MonsterTactics | undefined) => {
+        live.tactics = next;
+        void w.setProps({ tactics: next });
+      },
+    },
+  });
+  return { live, w };
 }
 
 /** The select whose field label is `label`. */

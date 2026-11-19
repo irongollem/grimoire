@@ -41,6 +41,7 @@
         <TraitList title="Reactions" :traits="npc.stat_block.reactions" />
         <TraitList title="Legendary Actions" :traits="npc.stat_block.legendary_actions" />
         <TraitList title="Lair Actions" :traits="npc.stat_block.lair_actions" />
+        <StatBlockTacticsSummary :sb="npc.stat_block" :creature-type="null" />
       </template>
       <p v-else class="text-body text-muted-foreground italic">No stat block defined for this NPC.</p>
     </div>
@@ -60,6 +61,7 @@ import BannerLoader from "@/components/brand/BannerLoader.vue";
 import NpcLoreSections from "@/components/npcs/NpcLoreSections.vue";
 import TabBar from "@/components/common/controls/TabBar.vue";
 import StatBlockPanel from "@/components/common/statblock/StatBlockPanel.vue";
+import StatBlockTacticsSummary from "@/components/common/statblock/StatBlockTacticsSummary.vue";
 import TraitList from "@/components/common/statblock/TraitList.vue";
 import SpellcastingList from "@/components/common/statblock/SpellcastingList.vue";
 import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";

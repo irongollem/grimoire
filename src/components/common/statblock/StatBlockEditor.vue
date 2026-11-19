@@ -130,7 +130,7 @@
       </section>
 
       <!-- How it fights (#1203) -->
-      <StatBlockTacticsFields :sb="sb" :creature-type="creatureType" />
+      <StatBlockTacticsFields :tactics="sb.tactics" :sb="sb" :creature-type="creatureType" @update:tactics="setTactics" />
 
       <!-- Legendary -->
       <section v-if="showLegendary">
@@ -180,7 +180,7 @@ import SpellcastingSection from "@/components/common/statblock/SpellcastingSecti
 import StatBlockDefenseFields from "@/components/common/statblock/StatBlockDefenseFields.vue";
 import StatBlockTacticsFields from "@/components/common/statblock/StatBlockTacticsFields.vue";
 import StatBlockEntrySection from "@/components/common/statblock/StatBlockEntrySection.vue";
-import type { MonsterStatBlock, MonsterType } from "@/types/monster.types";
+import type { MonsterStatBlock, MonsterTactics, MonsterType } from "@/types/monster.types";
 import type { StatBlock } from "@/types/npc.types";
 
 const { sb, creatureType = null } = defineProps<{
@@ -201,6 +201,12 @@ const siblings = computed(() =>
     (list) => (list ?? []).map((e) => e.name),
   ),
 );
+
+/** Nothing authored leaves no `tactics` key at all, so an untouched stat block saves as it was. */
+function setTactics(next: MonsterTactics | undefined) {
+  if (next === undefined) delete sb.tactics;
+  else sb.tactics = next;
+}
 
 const skillsText = computed({
   get: () => skillsToString(sb.skills),

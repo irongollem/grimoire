@@ -103,6 +103,7 @@
         title="Lair Actions"
         :traits="(monster.stat_block as MonsterStatBlock).lair_actions"
       />
+      <StatBlockTacticsSummary :sb="monster.stat_block" :creature-type="monster.monster_type" />
     </div>
 
     <!-- Featured in encounters -->
@@ -153,6 +154,7 @@ import { crTabFor } from "@/lib/monsterDisplay";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import StatBlockPanel from "@/components/common/statblock/StatBlockPanel.vue";
+import StatBlockTacticsSummary from "@/components/common/statblock/StatBlockTacticsSummary.vue";
 import TraitList from "@/components/common/statblock/TraitList.vue";
 import SpellcastingList from "@/components/common/statblock/SpellcastingList.vue";
 import { useEncountersByMonster } from "@/composables/encounters/useEncounters";

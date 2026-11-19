@@ -76,3 +76,46 @@ describe("CompanionForm pets", () => {
     });
   });
 });
+
+// #1203: a companion's turn can be played for the table, by the same fields a monster has.
+describe("CompanionForm tactics", () => {
+  const wolf = (tactics?: object) =>
+    ({
+      id: "c2", name: "Ash", companion_type: "ally", combat_ready: true, source_type: "custom",
+      source_monster_id: null, source_npc_id: null, owner_party_member_id: "pm-1", max_hp: 11, current_hp: 11,
+      ac: 13, speed: 40, conditions: [], sort_order: 0, portrait_url: null,
+      stat_block: {
+        armor_class: 13, hit_points: "2d8+2", speed: "40 ft.", str: 12, dex: 15, con: 12, int: 3, wis: 12, cha: 6,
+        challenge_rating: "1/4", defenses: { resistances: [], immunities: [], vulnerabilities: [], condition_immunities: [] },
+        ...(tactics ? { tactics } : {}),
+      },
+    }) as unknown as Companion;
+
+  const save = async (wrapper: ReturnType<typeof mountForm>) => {
+    await wrapper.findAll("button").find((b) => b.text() === "Save")?.trigger("click");
+    await flushPromises();
+  };
+  const roleSelect = (wrapper: ReturnType<typeof mountForm>) =>
+    wrapper.findAll("select").find((s) => s.find('option[value="lurker"]').exists());
+
+  it("keeps the stored tactics when another part of the stat block is edited", async () => {
+    const wrapper = mountForm(wolf({ role: "lurker", note: "Never leaves its master" }));
+    await wrapper.find('input[placeholder^="Darkvision"]').setValue("Darkvision 60 ft.");
+    await save(wrapper);
+    expect(update.mock.calls[0][0].update.stat_block.tactics).toEqual({ role: "lurker", note: "Never leaves its master" });
+  });
+
+  it("saves a role picked on the form", async () => {
+    const wrapper = mountForm(wolf());
+    await roleSelect(wrapper)?.setValue("lurker");
+    await save(wrapper);
+    expect(update.mock.calls[0][0].update.stat_block.tactics).toEqual({ role: "lurker" });
+  });
+
+  it("offers no tactics for a pet, which never fights", async () => {
+    const wrapper = mountForm(wolf());
+    expect(roleSelect(wrapper)).toBeDefined(); // positive control: an ally has the fields
+    await pickType(wrapper, "pet");
+    expect(roleSelect(wrapper)).toBeUndefined();
+  });
+});
