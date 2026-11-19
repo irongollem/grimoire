@@ -33,6 +33,8 @@ export const TABLE_ENTRIES_MIN = 4;
 export const TABLE_ENTRIES_MAX = 12;
 export const TABLE_ENTRY_LABEL_MAX = 80;
 export const TABLE_ENTRY_NOTES_MAX = 300;
+/** The quests a proposed milestone may wait on; the DM's editor takes more, but a proposal names the few that matter. */
+export const MILESTONE_QUESTS_MAX = 8;
 
 export type Proposal =
   | { kind: "hazard"; name: string; why: string; hazard: HazardRules }
@@ -41,7 +43,12 @@ export type Proposal =
   /** Something built into a place that a beat turns on: a secret door, a hidden cache, a lock. */
   | { kind: "feature"; name: string; why: string; description: string; featureType: (typeof FEATURE_TYPES)[number]; findDc: number | null; contents: string | null }
   /** What may happen on a road or in a region: a table the Dungeon Master, or the Narrator, rolls on. */
-  | { kind: "roll_table"; name: string; why: string; description: string; dice: (typeof TABLE_DICE)[number]; entries: Array<{ label: string; notes: string | null }> };
+  | { kind: "roll_table"; name: string; why: string; description: string; dice: (typeof TABLE_DICE)[number]; entries: Array<{ label: string; notes: string | null }> }
+  /**
+   * Where a level comes, in a campaign that levels by milestone (#1021 row 27): "level N when any K of these quests
+   * are done". Its name is always "Level N", so one level is never proposed twice. The quests are named by title.
+   */
+  | { kind: "milestone"; name: string; why: string; description: string; level: number; needs: number; quests: string[] };
 
 export const PROPOSE_TOOL_NAME = "propose";
 
@@ -61,10 +68,10 @@ export const PROPOSE_TOOL: AgentTool = {
           type: "object",
           additionalProperties: false,
           properties: {
-            kind: { type: "string", enum: ["hazard", "place", "item", "roll_table", "feature"] },
+            kind: { type: "string", enum: ["hazard", "place", "item", "roll_table", "feature", "milestone"] },
             name: { type: "string", maxLength: PREP_NAME_MAX },
             why: { type: "string", maxLength: PREP_WHY_MAX, description: "Which quest, beat or place needs it, and for what, in one sentence." },
-            description: { type: "string", maxLength: PREP_TEXT_MAX, description: "A hazard: what it does and how one gets out. A place or an item: what it is, in one to three sentences." },
+            description: { type: "string", maxLength: PREP_TEXT_MAX, description: "A hazard: what it does and how one gets out. A place or an item: what it is, in one to three sentences. A milestone: the moment in the story it marks, in a sentence." },
             save: { type: "string", enum: ["STR", "DEX", "CON", "INT", "WIS", "CHA"], description: "A hazard's saving throw." },
             dc: { type: "integer", minimum: 5, maximum: 25, description: "A hazard's DC." },
             damage_dice: { type: "string", description: "A hazard that harms: dice like \"2d6\"." },
@@ -77,6 +84,15 @@ export const PROPOSE_TOOL: AgentTool = {
             feature_type: { type: "string", enum: [...FEATURE_TYPES], description: "A dungeon feature's kind." },
             find_dc: { type: "integer", minimum: FEATURE_DC_MIN, maximum: FEATURE_DC_MAX, description: "A hidden feature: the Wisdom (Perception) DC to notice it. Leave out for one in plain sight." },
             contents: { type: "string", maxLength: PREP_TEXT_MAX, description: "A feature that holds or hides something: what, in a sentence." },
+            level: { type: "integer", minimum: 2, maximum: 20, description: "A milestone: the level the party reaches with it." },
+            needs: { type: "integer", minimum: 1, maximum: MILESTONE_QUESTS_MAX, description: "A milestone: how many of its quests must be done, in any order." },
+            quests: {
+              type: "array",
+              minItems: 1,
+              maxItems: MILESTONE_QUESTS_MAX,
+              items: { type: "string", maxLength: PREP_NAME_MAX },
+              description: "A milestone: the quests it waits on, by title exactly as listed.",
+            },
             dice: { type: "string", enum: [...TABLE_DICE], description: "A roll table: the die it is rolled on. Give as many entries as the die has faces, or a number that divides them evenly." },
             entries: {
               type: "array",
@@ -102,6 +118,7 @@ export const PROPOSE_TOOL: AgentTool = {
   },
 };
 
+const key = (name: string): string => name.trim().toLowerCase();
 const oneOf = <T extends string>(list: readonly T[], raw: unknown): raw is T => typeof raw === "string" && (list as readonly string[]).includes(raw);
 const text = (raw: unknown, max: number): string | null => (typeof raw === "string" && raw.trim() !== "" && raw.trim().length <= max ? raw.trim().replace(/\s+/g, " ") : null);
 
@@ -150,6 +167,21 @@ export function parseProposal(raw: unknown): Proposal | null {
     if (entries.length > Number(r.dice.slice(2))) return null;
     return { kind: "roll_table", name, why, description, dice: r.dice, entries };
   }
+  if (r.kind === "milestone") {
+    const level = r.level;
+    if (typeof level !== "number" || !Number.isInteger(level) || level < 2 || level > 20) return null;
+    if (!Array.isArray(r.quests) || r.quests.length < 1 || r.quests.length > MILESTONE_QUESTS_MAX) return null;
+    const quests: string[] = [];
+    for (const q of r.quests) {
+      const title = text(q, PREP_NAME_MAX);
+      if (title === null) return null;
+      if (!quests.some((t) => key(t) === key(title))) quests.push(title);
+    }
+    const needs = r.needs;
+    if (typeof needs !== "number" || !Number.isInteger(needs) || needs < 1 || needs > quests.length) return null;
+    // The name is the level's, whatever the model called it: one level has one milestone.
+    return { kind: "milestone", name: `Level ${level}`, why, description, level, needs, quests };
+  }
   if (r.kind === "item") {
     if (!oneOf(ITEM_TYPES, r.item_type) || !oneOf(ITEM_RARITIES, r.rarity)) return null;
     return { kind: "item", name, why, itemType: r.item_type, rarity: r.rarity, description };
@@ -164,9 +196,12 @@ export interface PrepExisting {
   item: ReadonlySet<string>;
   roll_table: ReadonlySet<string>;
   feature: ReadonlySet<string>;
+  /**
+   * The levels that may not be proposed, as "level n": those with a milestone already, and every level in a campaign
+   * that levels by experience, where a milestone would mean nothing.
+   */
+  milestone: ReadonlySet<string>;
 }
-
-const key = (name: string): string => name.trim().toLowerCase();
 
 /**
  * The proposals worth showing: each one this code can make, none that the campaign (or, for a hazard, the
@@ -188,6 +223,12 @@ export function keptProposals(raw: unknown, existing: PrepExisting): Proposal[] 
   return kept;
 }
 
+/** The levels a milestone may not be proposed for: every one in an experience campaign, else those already set. */
+export function closedLevels(l: PrepDigest["levelling"]): Set<string> {
+  if (l.mode === "experience") return new Set(Array.from({ length: 19 }, (_, i) => `level ${i + 2}`));
+  return new Set(l.milestones.map((m) => `level ${m.level}`));
+}
+
 /** The proposal as the page sends it back and as the tool takes it: one flat shape for both directions. */
 export function proposalInput(p: Proposal): Record<string, unknown> {
   if (p.kind === "hazard") {
@@ -197,6 +238,7 @@ export function proposalInput(p: Proposal): Record<string, unknown> {
   if (p.kind === "place") return { kind: "place", name: p.name, why: p.why, description: p.description, place_type: p.placeType, ...(p.terrain ? { terrain: p.terrain } : {}), ...(p.inside ? { inside: p.inside } : {}) };
   if (p.kind === "feature") return { kind: "feature", name: p.name, why: p.why, description: p.description, feature_type: p.featureType, ...(p.findDc === null ? {} : { find_dc: p.findDc }), ...(p.contents ? { contents: p.contents } : {}) };
   if (p.kind === "roll_table") return { kind: "roll_table", name: p.name, why: p.why, description: p.description, dice: p.dice, entries: p.entries.map((e) => ({ label: e.label, ...(e.notes ? { notes: e.notes } : {}) })) };
+  if (p.kind === "milestone") return { kind: "milestone", name: p.name, why: p.why, description: p.description, level: p.level, needs: p.needs, quests: [...p.quests] };
   return { kind: "item", name: p.name, why: p.why, description: p.description, item_type: p.itemType, rarity: p.rarity };
 }
 
@@ -211,6 +253,8 @@ export interface PrepDigest {
   tables: string[];
   /** The dungeon features it has, by name. */
   features: string[];
+  /** How the party gains levels (#1021 row 27), so milestones are proposed only where they mean something. */
+  levelling: { mode: "milestone" | "experience"; partyLevel: number | null; milestones: Array<{ level: number; needs: number; quests: string[] }> };
 }
 
 const clip = (s: string | null, max: number): string => (s === null ? "" : s.replace(/\s+/g, " ").trim().slice(0, max));
@@ -220,6 +264,7 @@ export const PREP_SYSTEM = [
   "Read the quests as a story that will be played, and work out what it will need at the table that the campaign does not have yet: a natural hazard where the ground or the weather calls for one, a place a beat happens in that has no record, an item a beat hands over, asks for or turns on, a table of what may happen on a road or in a region the quests cross, something built into a place that a beat turns on (a secret door, a hidden cache, a lock).",
   "Propose only what a quest, a beat or a place of this campaign really needs; say which, by name. Propose nothing that is already listed, under any name, and nothing generic that would fit any campaign.",
   "Fewer and exact is better than many: a dozen at most, and none at all if the campaign lacks nothing.",
+  "In a campaign that levels by milestone, also propose where the party's levels come, for each level from the next one that has no milestone yet: the level, the quests it waits on by their exact titles, and how many of them must be done (any of them, in whatever order the players choose). Pace it as the quests read: about a level for each main quest or two early on, and slower later. In a campaign that levels by experience, propose no milestone.",
   "A hazard has rules a table can run: what it does and how one gets out, a saving throw and a DC that fit the party a quest is written for, and its harm in dice when it harms.",
   "Think it through quest by quest first. Then answer with one JSON object and nothing else, of this shape:",
   JSON.stringify(PROPOSE_TOOL.inputSchema),
@@ -257,7 +302,17 @@ export function prepPrompt(d: PrepDigest): string {
     `Items it has: ${d.items.length > 0 ? d.items.join(", ") : "none"}`,
     `Roll tables it has: ${d.tables.length > 0 ? d.tables.join(", ") : "none"}`,
     `Dungeon features it has: ${d.features.length > 0 ? d.features.join(", ") : "none"}`,
+    levellingText(d.levelling),
   ].join("\n\n");
+}
+
+function levellingText(l: PrepDigest["levelling"]): string {
+  if (l.mode === "experience") return "The party levels by experience points: propose no milestone.";
+  const set = l.milestones.map((m) => `- Level ${m.level}: any ${m.needs} of ${m.quests.join("; ")}`);
+  return [
+    `The party levels by milestone. Its level now: ${l.partyLevel ?? "not set, so level 1"}.`,
+    `Milestones it has:\n${set.length > 0 ? set.join("\n") : "none"}`,
+  ].join("\n");
 }
 
 /**

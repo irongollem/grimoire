@@ -2,7 +2,7 @@
 // and made only from what they keep. The rules are `handler.ts`'s; this file wires the database and the model, with
 // the provider, price and calibration lookups a turn of the table uses.
 import { serve } from "std/http/server.ts";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { tableAiEnabled } from "../_shared/featureAccess.ts";
 import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
@@ -10,7 +10,7 @@ import { toPlainText } from "../_shared/ai-prompt.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { recordGeneration, releaseCredits, reserveCredits, reservationRefusal } from "../_shared/credits.ts";
 import { loadAgentCalibration, loadModelPrice, resolveAgentProvider } from "../_shared/agent/providerIo.ts";
-import { rollTableEntries, type PrepDigest } from "../_shared/campaignPrep.ts";
+import { closedLevels, rollTableEntries, type PrepDigest } from "../_shared/campaignPrep.ts";
 import { prepCampaign, type PrepDeps } from "./handler.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -23,6 +23,30 @@ const NAMES_MAX = 400;
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+}
+
+/** How the campaign levels its party, and the milestones it has, with the titles of the quests each waits on. */
+async function loadLevelling(admin: SupabaseClient, campaignId: string): Promise<PrepDigest["levelling"]> {
+  const [campaign, rule, milestones] = await Promise.all([
+    admin.from("campaigns").select("party_level").eq("id", campaignId).maybeSingle(),
+    admin.from("campaign_rules").select("enabled").eq("campaign_id", campaignId).eq("rule_key", "xp_levelling").maybeSingle(),
+    admin.from("level_milestones")
+      .select("level, needs, steps:level_milestone_steps!level_milestone_steps_milestone_id_fkey(quest:quests!level_milestone_steps_quest_id_fkey(title), objective:quest_objectives!level_milestone_steps_objective_id_fkey(description))")
+      .eq("campaign_id", campaignId)
+      .order("level", { ascending: true }),
+  ]);
+  for (const r of [campaign, rule, milestones]) if (r.error) throw r.error;
+  type Row = { level: number; needs: number; steps: Array<{ quest: { title: string } | null; objective: { description: string } | null }> };
+  return {
+    // No rule row is the rule's default, which is off: by milestone.
+    mode: rule.data?.enabled === true ? "experience" : "milestone",
+    partyLevel: typeof campaign.data?.party_level === "number" ? campaign.data.party_level : null,
+    milestones: ((milestones.data ?? []) as unknown as Row[]).map((m) => ({
+      level: m.level,
+      needs: m.needs,
+      quests: m.steps.flatMap((s) => (s.quest ? [s.quest.title] : s.objective ? [s.objective.description] : [])),
+    })),
+  };
 }
 
 const lower = (rows: Array<{ name: unknown }> | null): Set<string> => new Set((rows ?? []).flatMap((r) => (typeof r.name === "string" ? [r.name.trim().toLowerCase()] : [])));
@@ -68,7 +92,7 @@ serve(withCors(async (req: Request) => {
     isDm: (campaign, userId) => isCampaignDm(admin, campaign, userId),
 
     async loadDigest(campaign): Promise<PrepDigest> {
-      const [quests, beats, places, hazards, items, tables, features] = await Promise.all([
+      const [quests, beats, places, hazards, items, tables, features, levelling] = await Promise.all([
         admin.from("quests").select("id, title, summary").eq("campaign_id", campaign.id).order("created_at", { ascending: true }).limit(QUESTS_MAX),
         admin.from("quest_beats").select("quest_id, title, how_it_plays, read_aloud, dm_content").eq("campaign_id", campaign.id).order("created_at", { ascending: true }).limit(BEATS_MAX),
         admin.from("locations").select("id, name, location_type, terrain, parent_id").eq("campaign_id", campaign.id).limit(NAMES_MAX),
@@ -76,6 +100,7 @@ serve(withCors(async (req: Request) => {
         admin.from("items").select("name").eq("campaign_id", campaign.id).limit(NAMES_MAX),
         admin.from("roll_tables").select("name").eq("campaign_id", campaign.id).limit(NAMES_MAX),
         admin.from("dungeon_features").select("name").eq("campaign_id", campaign.id).limit(NAMES_MAX),
+        loadLevelling(admin, campaign.id),
       ]);
       for (const r of [quests, beats, places, hazards, items, tables, features]) if (r.error) throw r.error;
       const placeName = new Map((places.data ?? []).map((p) => [p.id as string, p.name as string]));
@@ -101,21 +126,26 @@ serve(withCors(async (req: Request) => {
         items: (items.data ?? []).map((i) => i.name as string),
         tables: (tables.data ?? []).map((t) => t.name as string),
         features: (features.data ?? []).map((f) => f.name as string),
+        levelling,
       };
     },
 
     // The campaign's own names by kind, and the library's hazards: what exists is not proposed or made again.
     async loadExisting(campaignId) {
-      const [traps, libraryTraps, places, items, tables, features] = await Promise.all([
+      const [traps, libraryTraps, places, items, tables, features, levelling] = await Promise.all([
         admin.from("traps").select("name").eq("campaign_id", campaignId),
         admin.from("library_traps").select("name"),
         admin.from("locations").select("name").eq("campaign_id", campaignId),
         admin.from("items").select("name").eq("campaign_id", campaignId),
         admin.from("roll_tables").select("name").eq("campaign_id", campaignId),
         admin.from("dungeon_features").select("name").eq("campaign_id", campaignId),
+        loadLevelling(admin, campaignId),
       ]);
       for (const r of [traps, libraryTraps, places, items, tables, features]) if (r.error) throw r.error;
-      return { hazard: new Set([...lower(traps.data), ...lower(libraryTraps.data)]), place: lower(places.data), item: lower(items.data), roll_table: lower(tables.data), feature: lower(features.data) };
+      return {
+        hazard: new Set([...lower(traps.data), ...lower(libraryTraps.data)]), place: lower(places.data), item: lower(items.data), roll_table: lower(tables.data), feature: lower(features.data),
+        milestone: closedLevels(levelling),
+      };
     },
 
     async resolveProvider(campaign) {
@@ -177,6 +207,20 @@ serve(withCors(async (req: Request) => {
         fail((await supabase.from("dungeon_features").insert({
           user_id: userId, campaign_id: campaign.id, name: proposal.name, feature_type: proposal.featureType, description: proposal.description,
           perception_dc: proposal.findDc, contents_description: proposal.contents, ai_provenance: mark,
+        })).error);
+        return;
+      }
+      if (proposal.kind === "milestone") {
+        // The quests by their titles, as the model read them; a title the campaign does not have makes nothing.
+        const { data: rows, error } = await supabase.from("quests").select("id, title").eq("campaign_id", campaign.id);
+        fail(error);
+        const byTitle = new Map((rows ?? []).map((q) => [String(q.title).trim().toLowerCase(), q.id as string]));
+        const ids = proposal.quests.map((t) => byTitle.get(t.trim().toLowerCase()));
+        if (ids.some((id) => id === undefined)) throw new Error("It names a quest this campaign does not have.");
+        // The editor's own call: written as the DM, under the same rules.
+        fail((await supabase.rpc("save_level_milestone", {
+          p_campaign_id: campaign.id, p_milestone_id: null, p_level: proposal.level, p_needs: proposal.needs,
+          p_note: proposal.description.slice(0, 280), p_quest_ids: ids, p_objective_ids: [],
         })).error);
         return;
       }

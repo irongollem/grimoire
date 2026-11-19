@@ -16,7 +16,7 @@ function harness() {
   const h = {
     aiEnabled: true as boolean | null,
     answer: [QUICKSAND, FERRY, KEY] as unknown[] | null,
-    existing: { hazard: new Set<string>(), place: new Set<string>(["sugarwell"]), item: new Set<string>(), roll_table: new Set<string>(), feature: new Set<string>() },
+    existing: { hazard: new Set<string>(), place: new Set<string>(["sugarwell"]), item: new Set<string>(), roll_table: new Set<string>(), feature: new Set<string>(), milestone: new Set<string>() },
     canPay: true,
     makeThrowsFor: null as string | null,
     calls: 0,
@@ -33,7 +33,7 @@ function harness() {
   h.deps = {
     loadCampaign: async () => ({ id: CAMPAIGN, user_id: DM, name: "Sugarwell", ai_enabled: h.aiEnabled }),
     isDm: async (_c, userId) => userId === DM,
-    loadDigest: async () => ({ campaign: "Sugarwell", quests: [], places: [], hazards: [], items: [], tables: [], features: [] }),
+    loadDigest: async () => ({ campaign: "Sugarwell", quests: [], places: [], hazards: [], items: [], tables: [], features: [], levelling: { mode: "milestone", partyLevel: null, milestones: [] } }),
     loadExisting: async () => h.existing,
     resolveProvider: async () => ({ provider: "openai", model: "m1", isByok: false, callModel }),
     loadPrice: async () => ({ inputPerMillion: 1, outputPerMillion: 4, cachedInputPerMillion: null }),
