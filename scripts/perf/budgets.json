@@ -35,7 +35,7 @@
     "dm-npc-detail": {
       "dm-npc-detail": {
         "apiRequests": 3,
-        "codeRequests": 25,
+        "codeRequests": 24,
         "serialDepth": 1
       }
     },

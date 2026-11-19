@@ -7,6 +7,7 @@ import type { Campaign, CampaignInsert, CampaignRole, CampaignUpdate, ExplorePar
 import { useToast } from "@/composables/useToast";
 import { useInvalidateQuota } from "@/composables/billing/useQuota";
 import { useCampaignStore } from "@/stores/campaign";
+import { CAMPAIGN_API_KEYS_EMBED, type CampaignApiKeys } from "@/ai/campaignApiKeys";
 import type {
   HomebrewCounts,
   HomebrewDisposition,
@@ -330,11 +331,16 @@ export function usePlayerCampaigns() {
 async function fetchCampaignById(id: string): Promise<Campaign> {
   const { data, error } = await supabase
     .from("campaigns")
-    .select("*")
+    .select(`*, ${CAMPAIGN_API_KEYS_EMBED}`)
     .eq("id", id)
     .single();
   if (error) throw error;
-  return data as Campaign;
+  // The owner's keys ride along so loading the campaign costs one request, not
+  // two (#1228). They go to the store, never onto the row: the row is shared
+  // with every reader of this cache entry.
+  const { campaign_api_keys: keys, ...campaign } = data as Campaign & { campaign_api_keys: CampaignApiKeys | null };
+  useCampaignStore().primeStoredKeys(id, keys);
+  return campaign as Campaign;
 }
 
 export function useCampaignById(id: () => string | null) {

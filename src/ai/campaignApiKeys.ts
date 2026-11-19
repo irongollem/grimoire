@@ -14,6 +14,12 @@ export interface CampaignApiKeys {
 
 export type CampaignApiKeyField = keyof CampaignApiKeys;
 
+/**
+ * The keys row as a PostgREST embed on a campaign read, so the owner's keys arrive with the campaign in one request
+ * rather than a second one on every load. RLS answers null for anyone but the owner.
+ */
+export const CAMPAIGN_API_KEYS_EMBED = "campaign_api_keys(openai_api_key, anthropic_api_key, gemini_api_key)";
+
 /** The owner's stored keys for a campaign, or null when they never stored any. Throws on a failed read. */
 export async function fetchCampaignApiKeys(campaignId: string, ownerId: string): Promise<CampaignApiKeys | null> {
   // Scoped in the query, not left to the policy (see CLAUDE.md, Client Reads).

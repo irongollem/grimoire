@@ -531,6 +531,9 @@ async function save() {
     if (stored || Object.values(encryptedKeys).some((key) => key !== null)) {
       await saveCampaignApiKeys(campaign.activeCampaignId, ownerId, encryptedKeys);
     }
+    // What was just saved is what the reload below should use: no read back,
+    // and never an older copy a campaign read primed before this save.
+    campaign.primeStoredKeys(campaign.activeCampaignId, encryptedKeys);
     const updated = await updateCampaign({
       id: campaign.activeCampaignId,
       update: {

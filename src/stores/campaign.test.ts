@@ -406,6 +406,22 @@ describe("provider keys — a decryption lands only in the load that started it"
     expect(fetchCampaignApiKeys).toHaveBeenCalledWith("a", "owner");
   });
 
+  // The boot read embeds the keys (useCampaignById), so loading the campaign
+  // it fetched must not spend a second request on them: the DM boot journeys
+  // hold the request count to a budget.
+  it("uses keys that arrived with the campaign read once, then reads afresh", async () => {
+    serveKeys();
+    decryptApiKey.mockResolvedValue("sk-primed");
+    const store = useCampaignStore();
+    store.primeStoredKeys("a", { openai_api_key: "enc:v1:primed", anthropic_api_key: null, gemini_api_key: null });
+    store.switchToCampaign(campaignWith("a", "enc:v1:a"));
+    await vi.waitFor(() => expect(store.decryptedOpenAiKey).toBe("sk-primed"));
+    expect(fetchCampaignApiKeys).not.toHaveBeenCalled();
+
+    store.switchToCampaign(campaignWith("a", "enc:v1:a"));
+    await vi.waitFor(() => expect(fetchCampaignApiKeys).toHaveBeenCalledTimes(1));
+  });
+
   // The keys are the owner's alone (#1228): a co-DM must not even ask for them.
   it("loads no keys for anyone but the campaign's owner", async () => {
     serveKeys();

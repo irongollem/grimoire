@@ -49,6 +49,13 @@ export const useCampaignStore = defineStore("campaign", () => {
   // The owner's stored keys as ciphertext (#1228), for the AI tab to tell a
   // stored key from none. Null for anyone but the owner, and until it loads.
   const storedKeys = ref<CampaignApiKeys | null>(null);
+  // Keys that arrived with a campaign read (useCampaignById embeds them), kept
+  // for the next load of that campaign so it needs no request of its own. Used
+  // once: a later load reads afresh.
+  const primedKeys = new Map<string, { keys: CampaignApiKeys | null }>();
+  function primeStoredKeys(campaignId: string, keys: CampaignApiKeys | null) {
+    primedKeys.set(campaignId, { keys });
+  }
 
   // Decryptions in flight for the current load. Until they settle the refs
   // above are empty, so whether the campaign pays with its own key is not known
@@ -221,19 +228,27 @@ export const useCampaignStore = defineStore("campaign", () => {
     }
 
     const ownerId = useAuthStore().user?.id;
+    const primed = primedKeys.get(campaign.id);
+    primedKeys.delete(campaign.id);
     if (ownerId === undefined || campaign.user_id !== ownerId) return;
+
+    const land = (stored: CampaignApiKeys | null) => {
+      storedKeys.value = stored;
+      if (localMode || !stored) return;
+      for (const [provider, field] of Object.entries(DB_KEY_FIELDS)) {
+        const ref_ = providerKeyRefs[provider];
+        const encrypted = stored[field];
+        if (!ref_ || !encrypted) continue;
+        trackKey(decryptApiKey(encrypted), (key) => { ref_.value = key; }, () => { ref_.value = ""; });
+      }
+    };
+    if (primed) {
+      land(primed.keys);
+      return;
+    }
     trackKey(
       fetchCampaignApiKeys(campaign.id, ownerId),
-      (stored) => {
-        storedKeys.value = stored;
-        if (localMode || !stored) return;
-        for (const [provider, field] of Object.entries(DB_KEY_FIELDS)) {
-          const ref_ = providerKeyRefs[provider];
-          const encrypted = stored[field];
-          if (!ref_ || !encrypted) continue;
-          trackKey(decryptApiKey(encrypted), (key) => { ref_.value = key; }, () => { ref_.value = ""; });
-        }
-      },
+      land,
       (error) => reportHandledError(error, "campaign.loadProviderKeys"),
     );
   }
@@ -400,6 +415,7 @@ export const useCampaignStore = defineStore("campaign", () => {
     decryptedAnthropicKey,
     decryptedGeminiKey,
     storedKeys,
+    primeStoredKeys,
     providerKeysLoading,
     switchToCampaign,
     clearActiveCampaign,
