@@ -36,6 +36,7 @@ function harness(over: Partial<LeaveSession> = {}) {
     pressureEnded: [] as Array<{ sessionId: string; campaignId: string }>,
     pressureThrows: false,
     notes: [] as Array<Parameters<AgentLeaveDeps["writeNote"]>[0]>,
+    linked: [] as Array<{ sessionId: string; noteId: string }>,
     turns: [] as StoredTurn[],
     turnsThrow: false,
     unfinished: [] as Unfinished[],
@@ -66,6 +67,9 @@ function harness(over: Partial<LeaveSession> = {}) {
     },
     loadFacts: async () => h.facts,
     characterName: async (_c, id) => (id === BRAM ? "Bram" : null),
+    linkNote: async (sessionId, noteId) => {
+      h.linked.push({ sessionId, noteId });
+    },
     writeNote: async (input) => {
       if (h.noteThrows) throw new Error("rls");
       h.notes.push(input);
@@ -279,5 +283,18 @@ describe("what was left unsaid", () => {
     const h = harness();
     h.turnsThrow = true;
     expect(await leave(h)).toMatchObject({ ok: true, result: { left: true } });
+  });
+
+  // #1021 row 19. Bug caught: the note written but the sitting never told which note it left, so the sitting can
+  // never be told as a story from it; or a sitting with nothing on record linked to a note that does not exist.
+  it("says on the sitting which note it left, and nothing when no note was written", async () => {
+    const h = harness();
+    h.facts = [{ body: "Wren found the brass key.", known_to_player: true }];
+    const outcome = await leave(h);
+    expect(outcome.ok && outcome.result.noteId).toBeTruthy();
+    expect(h.linked).toEqual([{ sessionId: SESSION, noteId: outcome.ok ? outcome.result.noteId : "" }]);
+    const empty = harness();
+    await leave(empty);
+    expect(empty.linked).toEqual([]);
   });
 });

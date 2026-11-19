@@ -254,13 +254,17 @@ describe("speakLine", () => {
   // Bug caught: narration cast like a nameless character (a different voice per sitting), or the table's choice
   // of voice ignored (every table narrated by the man, whatever its host chose).
   it("speaks narration in the voice the table chose", async () => {
+    // The man is David on ElevenLabs (the maintainer's pick by ear), told as a storyteller; the woman his Inworld design.
     const h = harness();
     expect((await speak(h, { body: NARRATED })).ok).toBe(true);
-    expect(h.spoken[0]).toMatchObject({ service: "inworld", voiceId: NARRATOR_VOICES.male.inworld });
+    expect(h.spoken[0]).toMatchObject({ service: "elevenlabs", voiceId: NARRATOR_VOICES.male.elevenlabs });
+    expect(h.spoken[0].text.startsWith("[an old storyteller")).toBe(true);
     const hers = harness();
     if (hers.session) hers.session.narrator_voice = "female";
     await speak(hers, { body: NARRATED });
     expect(hers.spoken[0]).toMatchObject({ service: "inworld", voiceId: NARRATOR_VOICES.female.inworld });
+    // Inworld was not found to act on a cue, so none is sent (it would be read out, and paid for).
+    expect(hers.spoken[0].text).toBe(narration);
   });
 
   // Bug caught: the role not under the signature, so a character's line could be asked for as narration (another
@@ -306,7 +310,7 @@ describe("speakLine", () => {
     h.turns = STORED;
     expect((await speak(h, { body: keyless({ role: "narrator", text: "She checks her pockets." }) })).ok).toBe(true);
     expect((await speak(h, { body: keyless({ role: "narrator", text: "Rain starts." }) })).ok).toBe(true);
-    expect(h.spoken.map((s) => s.voiceId)).toEqual([NARRATOR_VOICES.male.inworld, NARRATOR_VOICES.male.inworld]);
+    expect(h.spoken.map((s) => s.voiceId)).toEqual([NARRATOR_VOICES.male.elevenlabs, NARRATOR_VOICES.male.elevenlabs]);
   });
 
   // Bug caught: the lookup matching on words alone, so a keyless request could put a line in another mouth, read out
@@ -370,19 +374,19 @@ describe("the narrator on the second service", () => {
     key: lineKey(SECRET, SESSION, { role: "narrator", speaker: NARRATOR_SPEAKER, text: narration }),
   };
 
-  // Bug caught: a stack without Inworld's key left with no narrator, or a table that chose the woman's voice
-  // answered by the man's when it falls back.
-  it("falls back to the ready-made voice of the same choice when the stack cannot reach Inworld", async () => {
-    const bare = harness();
-    bare.inworld = false;
-    await speak(bare, { body });
-    expect(bare.spoken[0]).toMatchObject({ service: "elevenlabs", voiceId: NARRATOR_VOICES.male.fallback });
-    const hers = harness();
-    hers.inworld = false;
-    if (hers.session) hers.session.narrator_voice = "female";
-    await speak(hers, { body });
-    expect(hers.spoken[0]).toMatchObject({ service: "elevenlabs", voiceId: NARRATOR_VOICES.female.fallback });
-    expect(NARRATOR_VOICES.female.fallback).not.toBe(NARRATOR_VOICES.male.fallback);
+  // Bug caught: a stack with only one speech service left with no narrator, or a table that chose one voice
+  // answered by the other choice's when it falls back.
+  it("narrates in the same choice on the other service when the stack lacks the choice's own", async () => {
+    const noInworld = harness();
+    noInworld.inworld = false;
+    if (noInworld.session) noInworld.session.narrator_voice = "female";
+    await speak(noInworld, { body });
+    expect(noInworld.spoken[0]).toMatchObject({ service: "elevenlabs", voiceId: NARRATOR_VOICES.female.elevenlabs });
+    const noEleven = harness();
+    noEleven.deps.hasService = (service) => service === "inworld";
+    await speak(noEleven, { body });
+    expect(noEleven.spoken[0]).toMatchObject({ service: "inworld", voiceId: NARRATOR_VOICES.male.inworld });
+    expect(NARRATOR_VOICES.female.elevenlabs).not.toBe(NARRATOR_VOICES.male.elevenlabs);
   });
 });
 

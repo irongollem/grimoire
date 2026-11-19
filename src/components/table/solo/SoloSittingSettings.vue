@@ -29,7 +29,7 @@
           aria-labelledby="table-narrator-voice-label"
           @update:model-value="narrator.choose"
         />
-        <p class="text-caption text-muted-foreground">One voice for the whole table, so a line is only ever made, and paid for, once.</p>
+        <p class="text-caption text-muted-foreground">One voice for the whole table, so a line is only ever made, and paid for, once. The man's voice tells with more feeling and costs more by the minute; the woman's is the cheaper.</p>
       </div>
     </div>
 

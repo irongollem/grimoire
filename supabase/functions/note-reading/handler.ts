@@ -102,14 +102,14 @@ export type ReadingOutcome =
 const refuse = (status: number, error: string): ReadingOutcome => ({ ok: false, status, error });
 
 /**
- * Who speaks a reading. With feeling: ElevenLabs, which acts on cues, in the ready-made voice of the Narrator's
- * choice. Plainly: the Narrator's own voice on Inworld, the cheaper service. Either stands in for the other where
- * this stack has only one of them; a telling with feeling on Inworld is told plainly, since it was not found to
- * act on cues.
+ * Who speaks a reading. With feeling: ElevenLabs, which acts on cues, in the Narrator's voice of that choice there.
+ * Plainly: the same choice on Inworld, the cheaper service. Either stands in for the other where this stack has
+ * only one of them; a telling with feeling that lands on Inworld is told plainly, since it was not found to act on
+ * cues.
  */
 function speakerOf(deps: NoteReadingDeps, voice: NarratorVoice, telling: Telling): { service: SpeechService; id: string; cued: boolean } {
   const v = NARRATOR_VOICES[voice];
-  const eleven = { service: "elevenlabs" as const, id: v.fallback };
+  const eleven = { service: "elevenlabs" as const, id: v.elevenlabs };
   const inworld = { service: "inworld" as const, id: v.inworld };
   if (telling === "storyteller") return deps.hasService("elevenlabs") ? { ...eleven, cued: true } : { ...inworld, cued: false };
   return deps.hasService("inworld") ? { ...inworld, cued: false } : { ...eleven, cued: false };

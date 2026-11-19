@@ -53,6 +53,9 @@
       </span>
     </div>
 
+    <!-- A note a sitting at the AI table left can be told as a story first, then read aloud. -->
+    <NoteTellSitting v-if="note.campaign_id" :note="note" />
+
     <!-- Read aloud: only where there is something to read. -->
     <NoteReading v-if="hasContent(note.content) && note.campaign_id" :note="note" can-make />
 
@@ -66,6 +69,7 @@
 
 <script setup lang="ts">
 import NoteReading from "./NoteReading.vue";
+import NoteTellSitting from "./NoteTellSitting.vue";
 import { IconDelete, IconEdit, IconPin } from '@/lib/icons';
 import { useRoute, useRouter } from "vue-router";
 import { useConfirm } from "@/composables/useConfirm";

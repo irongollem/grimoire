@@ -52,6 +52,8 @@ export interface AgentLeaveDeps {
   loadFacts(sessionId: string): Promise<Array<{ body: string; known_to_player: boolean }>>;
   /** The played character's name, or null when there is none or it is not of this campaign. */
   characterName(campaignId: string, characterId: string): Promise<string | null>;
+  /** Says on the sitting which note it left, so the sitting can be told as a story from that note later. */
+  linkNote(sessionId: string, noteId: string): Promise<void>;
   /** Writes the session note as the caller (the DM's own RLS) and answers its id. */
   writeNote(input: {
     campaignId: string;
@@ -171,6 +173,14 @@ export async function leaveTable(input: {
   } catch (error) {
     console.error("agent-leave: writing the note failed:", error);
     noteId = null;
+  }
+  // The note leads back to the sitting; without the link the note is still the note, only not tellable as a story.
+  if (noteId !== null) {
+    try {
+      await deps.linkNote(session.id, noteId);
+    } catch (error) {
+      console.error("agent-leave: linking the note to the sitting failed:", error);
+    }
   }
 
   return { ok: true, result: { left: true, endedSession, noteId } };

@@ -7,6 +7,7 @@
 // are joined into one recording.
 
 import { noteReadingPrefix } from "./agent/voiceClips.ts";
+import { NARRATOR_CUE } from "./narratorVoice.ts";
 
 /** The longest stretch handed to a speech service at once. Both services take more; a shorter piece fails cheaper. */
 export const READING_PIECE_CHARS = 1400;
@@ -101,7 +102,7 @@ export type Telling = "storyteller" | "plain";
 export const isTelling = (raw: unknown): raw is Telling => raw === "storyteller" || raw === "plain";
 
 /** The manner every piece is told in, so pieces spoken apart sound like one telling. */
-export const STORYTELLER_CUE = "an old storyteller by the fire, warm and unhurried";
+export const STORYTELLER_CUE = NARRATOR_CUE;
 /** The manner of the very last paragraph: a telling that ends, instead of one that stops. */
 export const CLOSING_CUE = "slower, letting the last words land";
 

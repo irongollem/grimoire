@@ -21,7 +21,7 @@
 import { VoicesSpent, type SpeechService } from "../_shared/speech.ts";
 import { creditsForSpeech, creditsPerMinute, speechChars } from "../_shared/agent/voiceCost.ts";
 import type { CreditCalibration } from "../_shared/agent/metering.ts";
-import { NARRATOR_VOICES, pickVoice, type AgeBand, type NarratorVoice, type Sex } from "./voicePick.ts";
+import { NARRATOR_CUE, narratorSpeaker, pickVoice, type AgeBand, type NarratorVoice, type Sex } from "./voicePick.ts";
 import { VOICE_ROLES, type VoiceRole } from "../_shared/agent/lineKey.ts";
 
 export interface VoiceRefusal {
@@ -184,9 +184,8 @@ export function parseVoiceBody(raw: unknown): VoiceBody | null {
 async function voiceFor(deps: TableVoiceDeps, session: VoiceSession, line: VoicedLine): Promise<VoiceRef> {
   const campaignId = session.campaign_id;
   if (line.role === "narrator") {
-    // The table's choice, on Inworld; the ready-made voice of the same choice where this stack has no key for it.
-    const voice = NARRATOR_VOICES[session.narrator_voice];
-    return deps.hasService("inworld") ? { service: "inworld", id: voice.inworld } : { service: "elevenlabs", id: voice.fallback };
+    // The table's choice, on that choice's own service; the same choice on the other where this stack lacks the key.
+    return narratorSpeaker(session.narrator_voice, deps.hasService);
   }
   // Cast from the record when there is one; someone without a record is cast by their shown name alone.
   let traits: SpeakerTraits = { sex: null, age: null, voiceId: null };
@@ -260,13 +259,16 @@ export async function speakLine(input: {
   // Without them nothing is made, because nothing could be charged.
   const rate = await deps.loadRate(voice.service);
   if (rate === null) return refuse(503, VOICE_MESSAGES.unpriced);
-  const chars = speechChars(line.text, line.how);
+  // Narration carries no cue of its own; on ElevenLabs, which acts on one, the Narrator tells as a storyteller
+  // (the maintainer's ear: "significantly better"). The cue is sent, so it is counted like the words.
+  const how = line.role === "narrator" && voice.service === "elevenlabs" ? NARRATOR_CUE : line.how;
+  const chars = speechChars(line.text, how);
   const credits = creditsForSpeech(chars, rate.usdPerMillionChars, rate.calibration);
   const held = await deps.reserve(userId, Math.max(1, Math.ceil(credits)));
   if (!held.ok) return refuse(held.status, held.error);
   try {
     // The words and the cue are the ones under the key: the page could not have changed either.
-    const audio = await deps.synthesize(voice, { text: line.text, how: line.how, narration: line.role === "narrator" });
+    const audio = await deps.synthesize(voice, { text: line.text, how, narration: line.role === "narrator" });
     // Kept before it is answered, but a clip that cannot be kept is still heard.
     await deps.keepClip(at, line, audio).catch((error) => console.error("table-voice: keeping the clip failed:", error));
     // Charged once it exists. A charge that fails is logged and the line is still heard: the player is never

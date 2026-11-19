@@ -140,6 +140,11 @@ serve(withCors(async (req: Request) => {
       return data && typeof data.name === "string" && data.name.trim() !== "" ? data.name.trim() : null;
     },
 
+    async linkNote(sessionId, noteId) {
+      const { error } = await admin.from("agent_sessions").update({ note_id: noteId }).eq("id", sessionId).eq("user_id", user.id);
+      if (error) throw error;
+    },
+
     async writeNote({ campaignId, playSessionId, title, content, provenance, visibleTo }): Promise<string> {
       const { data, error } = await supabase
         .from("notes")
