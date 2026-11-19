@@ -7,6 +7,7 @@
 // is marked hidden, and the narrator is told to keep it that way until it comes out in play.
 
 import type { AgentTool, ToolAnswer } from "./types.ts";
+import { UUID_RE } from "./parse.ts";
 
 export const RECORD_KINDS = ["npc", "location", "quest", "quest_beat", "item", "monster"] as const;
 export type RecordKind = (typeof RECORD_KINDS)[number];
@@ -53,7 +54,6 @@ export const RECORD_TOOL: AgentTool = {
   },
 };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface RecordInput {
   fact: string;
@@ -82,7 +82,7 @@ export function parseRecordInput(input: Record<string, unknown>): { ok: true; va
         return { ok: false, error: `Every about entry needs a type, one of: ${RECORD_KINDS.join(", ")}.` };
       }
       const id = e?.id;
-      if (typeof id !== "string" || !UUID.test(id.trim())) {
+      if (typeof id !== "string" || !UUID_RE.test(id.trim())) {
         return { ok: false, error: "Every about entry needs the uuid of what it is about. Search for it to find its id." };
       }
       const key = `${type}:${id.trim().toLowerCase()}`;
@@ -98,7 +98,7 @@ export function parseRecordInput(input: Record<string, unknown>): { ok: true; va
 
   let closes: string | null = null;
   if (input.closes !== undefined && input.closes !== null) {
-    if (typeof input.closes !== "string" || !UUID.test(input.closes.trim())) {
+    if (typeof input.closes !== "string" || !UUID_RE.test(input.closes.trim())) {
       return { ok: false, error: "closes must be the id of an earlier fact listed under \"On record\"." };
     }
     closes = input.closes.trim().toLowerCase();

@@ -29,7 +29,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { SeenCombatant } from "@/lib/table/fight/foeView";
+import type { SeenCombatant } from "@/lib/table/solo/fight/foeView";
 
 const { name, started, round, seen, activeInstanceId } = defineProps<{
   name: string;

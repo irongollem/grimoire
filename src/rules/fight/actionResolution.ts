@@ -19,6 +19,7 @@
  *
  * Nothing in here touches Vue, the network or a clock, and no input is mutated.
  */
+import { abilityMod } from "../abilityScore.ts";
 import { parsedToCounts, type DieSize, type RollResult } from "../../lib/dice/dice.ts";
 import type { RollMode } from "../../systems/dnd5e/dice/rollMode.ts";
 import type { AppliedCondition } from "../../types/condition.types.ts";
@@ -37,7 +38,7 @@ import type {
   StatBlockEntry,
   BreakFreeSkill,
 } from "../../types/statBlock.types.ts";
-import { filterImmuneConditions } from "../../lib/encounters/actionTargeting.ts";
+import { filterImmuneConditions } from "./targeting.ts";
 import { attackRollMode, autoCritOnHit, resolveAttack as resolveAttackRoll } from "../combat/attackRoll.ts";
 import { concentrationDc, resolveConcentration } from "../combat/concentration.ts";
 import { halveParts, imposedCondition, resolveSaveAction } from "../combat/resolveAction.ts";
@@ -839,7 +840,7 @@ const BREAK_FREE_SKILL_ABILITY: Record<BreakFreeSkill, SaveAbility> = { athletic
  */
 export function breakFreeModifier(block: MonsterStatBlock, ability: SaveAbility, skill?: BreakFreeSkill): number {
   const listed = skill !== undefined && BREAK_FREE_SKILL_ABILITY[skill] === ability ? listedSkillBonus(block, skill) : null;
-  return listed ?? Math.floor((block[ability] - 10) / 2);
+  return listed ?? abilityMod(block[ability]);
 }
 
 /** Of the abilities a condition lets the creature check with, the one with the higher modifier; a tie, or no stat block, keeps the first listed. */

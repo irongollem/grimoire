@@ -22,6 +22,7 @@ import { creditsForSpeech, creditsPerMinute, speechChars } from "../_shared/agen
 import type { CreditCalibration } from "../_shared/agent/metering.ts";
 import { NARRATOR_CUE, narratorSpeaker, pickVoice, type AgeBand, type NarratorVoice, type Sex } from "./voicePick.ts";
 import { VOICE_ROLES, type VoiceRole } from "../_shared/agent/lineKey.ts";
+import { UUID_RE } from "../_shared/agent/parse.ts";
 
 export interface VoiceRefusal {
   status: number;
@@ -145,7 +146,6 @@ export const VOICE_MESSAGES = {
   unspeakable: "That line cannot be read aloud.",
 } as const;
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface VoiceBody {
   campaignId: string;

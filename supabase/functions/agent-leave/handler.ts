@@ -9,6 +9,7 @@ import { unfinishedBusiness, type Unfinished } from "../_shared/agent/unfinished
 import type { StoredTurn } from "../_shared/agent/transcript.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { noteDocument } from "./note.ts";
+import { UUID_RE } from "../_shared/agent/parse.ts";
 
 export interface LeaveRefusal {
   status: number;
@@ -80,7 +81,6 @@ export interface LeaveResult {
   noteId: string | null;
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function parseLeaveBody(raw: unknown): { campaignId: string; sessionId: string } | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;

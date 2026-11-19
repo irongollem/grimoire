@@ -5,8 +5,7 @@
 // ledger row (delta 0, `entity_judgment`, model `jev-latest`), the way `generate-npc-voice` logs its own, because
 // the tokens were spent whatever the verdict.
 
-import { judge, JEV_MODEL, type JudgeResult } from "../_shared/typesafe.ts";
-import { judgingKey } from "../import-match/judgeTier.ts";
+import { judge, JEV_MODEL, judgingKey, type JudgeResult } from "../_shared/typesafe.ts";
 import type { CreditLogFields } from "../_shared/credits.ts";
 import type { NarrationJudge } from "./narration.ts";
 

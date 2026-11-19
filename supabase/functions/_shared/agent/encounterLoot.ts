@@ -1,4 +1,5 @@
 import type { FightState } from "./fight.ts";
+import { isRecord, UUID_RE } from "./parse.ts";
 
 /**
  * The loot notes on an encounter, as things lying where it was fought.
@@ -24,13 +25,8 @@ export interface LootRow {
  */
 export type LootHeld = "fallen" | "yielded";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** More than this on one encounter is a mistake in the data, not treasure. */
 export const MAX_LOOT_ROWS = 40;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 /**
  * The rows an encounter's loot notes come to. An item named twice is two of it (that is how the encounter editor
@@ -46,8 +42,8 @@ export function encounterLootRows(itemIds: unknown, pools: unknown, held: LootHe
   }
   const rows: LootRow[] = [...counts].map(([id, quantity]) => ({
     kind: "item",
-    item_id: UUID.test(id) ? id : null,
-    library_item_id: UUID.test(id) ? null : id,
+    item_id: UUID_RE.test(id) ? id : null,
+    library_item_id: UUID_RE.test(id) ? null : id,
     quantity,
     label: "",
     payload: { held, fight },

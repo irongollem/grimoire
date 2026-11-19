@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSky } from "../../../supabase/functions/_shared/agent/sky";
+import { parseSky } from "../../../../supabase/functions/_shared/agent/sky";
 import { tableSky } from "./tableSky";
 
 describe("tableSky", () => {

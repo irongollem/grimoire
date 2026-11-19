@@ -28,8 +28,8 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import { rollDie } from "@/lib/dice/dice";
-import type { RollAnswer, RollAsk, RollMode } from "@/lib/table/soloTypes";
-import { effectiveMode, facesToRoll, isFace, rollBody } from "@/lib/table/tableRoll";
+import type { RollAnswer, RollAsk, RollMode } from "@/lib/table/solo/soloTypes";
+import { effectiveMode, facesToRoll, isFace, rollBody } from "@/lib/table/solo/tableRoll";
 
 const MODES = [
   { value: "normal", label: "Normal" },

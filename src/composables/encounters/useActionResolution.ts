@@ -3,7 +3,7 @@ import { useEncounterRunStore } from "@/stores/encounterRun";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
-import { combatantDefenses, effectiveArmorClass, parseArmorClass } from "@/lib/encounters/actionTargeting";
+import { combatantDefenses, effectiveArmorClass, parseArmorClass } from "@/rules/fight/targeting";
 import { useParty } from "@/composables/party/useParty";
 import { useArmorClass } from "@/composables/party/useArmorClass";
 import {

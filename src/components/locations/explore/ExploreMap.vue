@@ -150,7 +150,7 @@ import type { MapLiveDoorState } from "@/types/mapLive.types";
 import { readPictureFloor, voidAround } from "@/lib/battlemap/pictureFloor";
 import type { BattleSurface } from "@/lib/battlemap/roomBridge";
 import type { ExploreFrame } from "@/lib/locations/explore";
-import type { ExploreCell } from "@/rules/fight/explorePositions";
+import type { ExploreCell } from "@/rules/explore/explorePositions";
 import { pathTo, reachable } from "@/rules/fight/terrain/reach";
 import type { Cell } from "@/lib/battlemap/movement";
 import { DEFAULT_RULESET } from "@/types/ruleset.types";

@@ -47,7 +47,7 @@ import {
 
 export { FightCommandError };
 export type { TakeTurnCommand };
-export { ALL_RESOLVING_COMMANDS_LISTED, RESOLVING_COMMAND_TYPES, type ResolvingCommand, type PostedRoll, type StatBlockSources } from "./resolve.ts";
+export { ALL_RESOLVING_COMMANDS_LISTED, type ResolvingCommand, type PostedRoll, type StatBlockSources } from "./resolve.ts";
 
 export const MAX_COMMANDS = 50;
 export const MAX_BATCH_ID_LENGTH = 80;

@@ -25,6 +25,7 @@
 
 import type { AgentTool } from "./types.ts";
 import type { FightState } from "./fight.ts";
+import { isRecord, refuse } from "./parse.ts";
 
 /** What the player's turn still holds, as the page tells it. True means still available. */
 export interface TurnBudget {
@@ -116,8 +117,6 @@ export const FIGHT_CHANGE_TOOL: AgentTool = {
 };
 
 type Parsed = { ok: true; value: FightChange; /** What the narrator is told, when it is not the ordinary answer. */ says?: string } | { ok: false; error: string };
-const refuse = (error: string): Parsed => ({ ok: false, error });
-const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
 const isWhole = (x: unknown, min: number, max: number): x is number => typeof x === "number" && Number.isInteger(x) && x >= min && x <= max;
 const same = (a: string, b: string): boolean => a.trim().toLowerCase() === b.trim().toLowerCase();
 

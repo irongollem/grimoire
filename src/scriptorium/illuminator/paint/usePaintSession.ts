@@ -582,4 +582,3 @@ export function usePaintSession(opts: PaintSessionOptions) {
   };
 }
 
-export type PaintSessionHandle = ReturnType<typeof usePaintSession>;

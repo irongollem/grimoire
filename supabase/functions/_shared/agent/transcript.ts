@@ -5,6 +5,7 @@ import { deliveryCue } from "./characterTurn.ts";
 import { asDmRoll } from "./dmRoll.ts";
 import { parseRolled } from "./playerRoll.ts";
 import type { AgentBlock, AgentLine, AgentMessage, AgentUsage, AgentWithheld } from "./types.ts";
+import { isRecord } from "./parse.ts";
 
 export interface StoredTurn {
   seq: number;
@@ -24,10 +25,6 @@ export interface TurnRow {
   output_tokens: number | null;
   cache_read_tokens: number | null;
   cache_write_tokens: number | null;
-}
-
-function isRecord(x: unknown): x is Record<string, unknown> {
-  return typeof x === "object" && x !== null && !Array.isArray(x);
 }
 
 // A stored line is checked field by field; a bad one is dropped so the result the model needs still replays.

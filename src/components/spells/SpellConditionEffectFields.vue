@@ -165,7 +165,7 @@ import AppInput from "@/components/common/controls/AppInput.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/controls/SegmentedControl.vue";
 import SpellConditionEndings from "./SpellConditionEndings.vue";
-import { ABILITIES, CONDITION_NAMES, conditionEffectFindings, type Ability } from "@/lib/library/curatedSpellConditions";
+import { ABILITIES, CONDITION_NAMES, conditionEffectFindings, type Ability } from "@/lib/spells/curatedSpellConditions";
 import { conditionEffectText, plainFinding } from "@/lib/spells/conditionEffectText";
 import { MONSTER_TYPES } from "@/types/monster.types";
 import type { SpellConditionEffect } from "@/types/spell.types";

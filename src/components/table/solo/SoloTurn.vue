@@ -86,10 +86,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { attackSummary } from "@/lib/table/fight/attackLabel";
+import { attackSummary } from "@/lib/table/solo/fight/attackLabel";
 import { usePcAttackRows } from "@/composables/encounters/usePcAttackRows";
 import type { PcAttackRow } from "@/composables/encounters/usePcAttackRows";
-import type { TurnBudget } from "@/lib/table/fight/turnBudget";
+import type { TurnBudget } from "@/lib/table/solo/fight/turnBudget";
 import type { PartyMember } from "@/types/party.types";
 
 type ActKind = "dash" | "dodge" | "disengage" | "hide";

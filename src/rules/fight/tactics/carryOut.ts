@@ -7,8 +7,10 @@
 // for a creature that fled off the map, its leaving.
 //
 // Dodge and Disengage are modelled: the creature takes the Dodging or Disengaged condition (`stance` steps, applied
-// before any move) and the shared rules read it. Not modelled: Hide (the Action is used and nothing more), the
-// opportunity attacks a path provokes. A creature that uses a way out (Etherealness, Invisible Passage) does not
+// before any move) and the shared rules read it. Not modelled: Hide (the Action is used and nothing more).
+// Carrying out a turn does not resolve the opportunity attacks a path provokes either: the server resolves them
+// before it applies a move (`supabase/functions/encounter-command/opportunity.ts`, from `opportunityAttacks` in
+// `terrain/sight.ts`). A creature that uses a way out (Etherealness, Invisible Passage) does not
 // also move on that turn.
 //
 // Pure and edge-importable (relative `.ts` imports only).

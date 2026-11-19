@@ -53,7 +53,7 @@ export const GLYPH_SETS = {
   },
   // The AI table's own glyphs (the three voice switches). Only the table screen draws them.
   table: {
-    file: "src/lib/table/tableGlyphs.generated.ts",
+    file: "src/lib/table/solo/tableGlyphs.generated.ts",
     exportName: "TABLE_GLYPHS",
     description: "custom glyphs of the AI table",
   },

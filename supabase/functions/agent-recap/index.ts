@@ -7,7 +7,7 @@ import { tableAiEnabled } from "../_shared/featureAccess.ts";
 import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
-import { recordFreeGeneration, recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
+import { recordFreeGeneration, recordGeneration, releaseCredits, reserveCredits, reservationRefusal } from "../_shared/credits.ts";
 import { loadAgentCalibration, loadModelPrice, resolveAgentProvider } from "../_shared/agent/providerIo.ts";
 import { loadTurnsInReach } from "../_shared/agent/turnsInReach.ts";
 import { tellSitting, type RecapDeps } from "./handler.ts";
@@ -115,11 +115,7 @@ serve(withCors(async (req: Request) => {
     async reserve(userId, credits) {
       const reservation = await reserveCredits(admin, userId, credits, "agent_recap");
       if (reservation.ok) return { ok: true, ids: reservation.ids };
-      if (reservation.suspended) return { ok: false, status: 403, error: "account_suspended" };
-      if (reservation.child_account) return { ok: false, status: 403, error: "child_account" };
-      if (reservation.velocity) return { ok: false, status: 429, error: "rate_limited" };
-      if (reservation.insufficient) return { ok: false, status: 402, error: "insufficient_credits" };
-      return { ok: false, status: 503, error: "The telling cannot be metered right now." };
+      return { ok: false, ...reservationRefusal(reservation, "The telling cannot be metered right now.") };
     },
 
     release: (ids) => releaseCredits(admin, ids),

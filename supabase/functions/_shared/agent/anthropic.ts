@@ -1,8 +1,7 @@
 // The Anthropic adapter for the agent runtime (#1205): Messages API, always streamed, with tool calling and
 // prompt caching on the stable prefix (tools, then system). Raw fetch like `textGen.ts`.
 
-import type { AdapterDeps } from "./openai.ts";
-import { parseEventJson, parseToolInput, runStream } from "./providerHttp.ts";
+import { type AdapterDeps, parseEventJson, parseToolInput, runStream } from "./providerHttp.ts";
 import {
   AgentProviderError,
   type AgentBlock,

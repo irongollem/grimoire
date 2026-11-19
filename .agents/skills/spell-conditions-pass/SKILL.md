@@ -60,7 +60,7 @@ Your reading goes in `src/data/curatedSpellConditions/<reader>.json`, where `<re
 }
 ```
 
-The fields, as `src/lib/library/curatedSpellConditions.ts` defines them:
+The fields, as `src/lib/spells/curatedSpellConditions.ts` defines them:
 
 - **`verdict`**
   - `condition`: the spell imposes one or more of the named conditions, and the other fields say how, completely.

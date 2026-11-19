@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase", () => ({ supabase: {} }));
 
-import type { RollAnswer } from "@/lib/table/soloTypes";
+import type { RollAnswer } from "@/lib/table/solo/soloTypes";
 import { useTableTurn, type TurnRequest, type TurnTransport } from "./useTableTurn";
 
 const enc = new TextEncoder();

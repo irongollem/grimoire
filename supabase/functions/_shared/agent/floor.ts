@@ -63,9 +63,6 @@ export function floorOf(input: {
   return input.lastExchange.cutShort || input.narratorKeeps ? "characters" : "player";
 }
 
-/** How many times in a row the characters may go on without a word from the player. The page counts; this is the limit it is told. */
-export const MAX_LISTENING_TURNS = 3;
-
 /**
  * What the narrator reads in place of a player's message when the player says nothing and goes on listening.
  */

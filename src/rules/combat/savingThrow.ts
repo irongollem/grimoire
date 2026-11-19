@@ -1,6 +1,7 @@
 import type { RollMode } from "../../systems/dnd5e/dice/rollMode.ts";
-import { hasCondition, hasSaveDisadvantage } from "../conditions.ts";
-import { isDodging, isIncapacitated } from "../fight/stances.ts";
+import { abilityMod } from "../abilityScore.ts";
+import { hasCondition, hasSaveDisadvantage, isIncapacitated } from "../conditions.ts";
+import { isDodging } from "../fight/stances.ts";
 import type { AppliedCondition } from "../../types/condition.types.ts";
 import type { RulesetKey } from "../../types/ruleset.types.ts";
 import type { SaveAbility } from "../../types/statBlock.types.ts";
@@ -94,5 +95,5 @@ export function saveBonusFromStatBlock(
   ability: SaveAbility,
 ): number {
   const listed = listedSaveBonus(block, ability);
-  return listed ?? Math.floor((block[ability] - 10) / 2);
+  return listed ?? abilityMod(block[ability]);
 }

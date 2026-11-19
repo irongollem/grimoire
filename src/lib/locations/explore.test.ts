@@ -23,7 +23,7 @@ import {
   seedPartyAtEntrance,
   seedPartyPositions,
 } from "./explore";
-import { positionsOnSite } from "@/rules/fight/explorePositions";
+import { positionsOnSite } from "@/rules/explore/explorePositions";
 
 // A calibration whose map-cell origin is (10, 20): region cells are offset from the battle map's image cells by it.
 const calibration = { cells_per_image_width: 30, origin_x_pct: 0, origin_y_pct: 0, origin_cell_x: 10, origin_cell_y: 20 } as GridCalibration;

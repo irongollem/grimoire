@@ -20,7 +20,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 import { resolveServiceTarget, serviceHeaders, type ServiceTarget } from "../lib/dev-stack.ts";
-import { agree, findingsFor, type CuratedSpellCondition, type CuratedSpellConditionsFile } from "../../src/lib/library/curatedSpellConditions.ts";
+import { agree, findingsFor, type CuratedSpellCondition, type CuratedSpellConditionsFile } from "../../src/lib/spells/curatedSpellConditions.ts";
 import { spellcastingOf } from "../../src/rules/statBlock/spellcastingProse.ts";
 
 const PAGE = 1000;

@@ -4,6 +4,7 @@
 
 import { AgentProviderError } from "./types.ts";
 import { iterateSse, type SseMessage } from "./sse.ts";
+import { isRecord } from "./parse.ts";
 
 export const DEFAULT_STREAM_TIMEOUT_MS = 120_000;
 
@@ -17,13 +18,15 @@ export interface StreamCall {
   timeoutMs?: number;
 }
 
+/** What both provider adapters accept: a fetch to use and a cap for the whole stream (default 120 s). */
+export interface AdapterDeps {
+  fetch?: typeof fetch;
+  timeoutMs?: number;
+}
+
 /** 408, 409, 429 and every 5xx can pass on their own; the rest are the request's fault and would fail again. */
 export function isRetryableStatus(status: number): boolean {
   return status === 408 || status === 409 || status === 429 || status >= 500;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** Parses one event's data. A broken event means the stream is damaged, which a fresh attempt may fix. */

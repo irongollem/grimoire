@@ -3,9 +3,9 @@ import { ref, readonly } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { PcAttackRow } from "@/composables/encounters/usePcAttackRows";
 import { rollDie, type DieSize } from "@/lib/dice/dice";
-import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "@/lib/encounters/actionTargeting";
-import { attackLines, attackEntryOf, d20FromFaces, damageDicePlan, damageFromFaces, damageLine, facesFit, type DamageMath } from "@/lib/table/fight/pcAttack";
-import type { BoardLine } from "@/lib/table/fight/boardLines";
+import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "@/rules/fight/targeting";
+import { attackLines, attackEntryOf, d20FromFaces, damageDicePlan, damageFromFaces, damageLine, facesFit, type DamageMath } from "@/lib/table/solo/fight/pcAttack";
+import type { BoardLine } from "@/lib/table/solo/fight/boardLines";
 import {
   ActionRefused,
   applyDamage,

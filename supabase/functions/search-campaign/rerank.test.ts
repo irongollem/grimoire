@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildEntry, buildRerankRequest, cut, rerankHits, rerankKey, rowSourceFor, type BatchAnswer, type EntryFields } from "./rerank";
+import { buildEntry, buildRerankRequest, cut, rerankHits, rowSourceFor, type BatchAnswer, type EntryFields } from "./rerank";
 import { hitKey, rankSearchHits, RERANK_BATCH, type CampaignSearchHit } from "../_shared/campaignSearch";
 import type { JudgeRequest } from "../_shared/typesafe";
 
@@ -17,21 +17,6 @@ function judgeBy(byName: Record<string, number | null>, calls: JudgeRequest[] = 
     return { probabilities, inputTokens: 100 };
   };
 }
-
-describe("rerankKey", () => {
-  it("is off when AI is off, even with a key", () => {
-    expect(rerankKey(false, "k")).toBeNull();
-    expect(rerankKey(null, "k")).toBeNull();
-    expect(rerankKey(undefined, "k")).toBeNull();
-  });
-  it("is off with no key", () => {
-    expect(rerankKey(true, undefined)).toBeNull();
-    expect(rerankKey(true, "")).toBeNull();
-  });
-  it("is on with AI on and a key", () => {
-    expect(rerankKey(true, "k")).toBe("k");
-  });
-});
 
 describe("rerankHits", () => {
   it("makes no request for an empty pool", async () => {

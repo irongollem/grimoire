@@ -13,7 +13,7 @@ import { regionCellToBattleCell, seedTokenPositions } from "@/lib/battlemap/room
 import { footprintCells } from "@/lib/battlemap/partySight";
 import { sizeToFootprint, type SizedToken } from "@/lib/battlemap/tokenFootprint";
 import type { MonsterSize } from "@/types/monster.types";
-import { positionsOnSite, type ExploreCell } from "@/rules/fight/explorePositions";
+import { positionsOnSite, type ExploreCell } from "@/rules/explore/explorePositions";
 import type { SpeciesSize } from "@/types/species.types";
 import { effectiveSize, type SpeciesStatsSource } from "@/rules/speciesStats";
 

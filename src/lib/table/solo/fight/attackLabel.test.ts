@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { attackSummary } from "./attackLabel";
-import type { PcAttackRow } from "@/composables/encounters/usePcAttackRows";
+import type { PcAttackRow } from "@/types/pcAttack.types";
 
 const row = (over: Partial<PcAttackRow>): PcAttackRow => ({
   key: "k",

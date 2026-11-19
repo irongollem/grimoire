@@ -1,6 +1,6 @@
 import type { RollMode } from "../../systems/dnd5e/dice/rollMode.ts";
-import { hasAttackDisadvantage, hasCondition } from "../conditions.ts";
-import { isDodging, isHidden, isIncapacitated } from "../fight/stances.ts";
+import { hasAttackDisadvantage, hasCondition, isIncapacitated } from "../conditions.ts";
+import { isDodging, isHidden } from "../fight/stances.ts";
 import type { AppliedCondition } from "../../types/condition.types.ts";
 import type { RulesetKey } from "../../types/ruleset.types.ts";
 

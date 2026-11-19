@@ -61,7 +61,6 @@ export { Share2 as IconShare }
 export { Send as IconSend }
 export { ExternalLink as IconExternalLink }
 export { Link as IconLink }
-export { Link2 as IconLinkAlt }
 export { Settings2 as IconSettings }
 export { SlidersHorizontal as IconMixer }   // fader bank — the soundboard mixer drawer
 export { Settings as IconSettingsAlt }

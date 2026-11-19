@@ -101,8 +101,8 @@
 <script setup lang="ts">
 import CampaignPrepDialog from "@/components/table/prep/CampaignPrepDialog.vue";
 import { computed, ref, watch } from "vue";
-import { resumeOf } from "@/lib/table/resume";
-import { sittingWho } from "@/lib/table/sittingLabel";
+import { resumeOf } from "@/lib/table/solo/resume";
+import { sittingWho } from "@/lib/table/solo/sittingLabel";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import CardRadioGroup from "@/components/common/controls/CardRadioGroup.vue";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canReact, SPOKEN_WORDS_PER_TURN, turnBudgetOf, whatIsLeft, wordCount } from "./turnBudget";
+import { canReact, SPOKEN_WORDS_PER_TURN, turnBudgetOf, wordCount } from "./turnBudget";
 
 const fresh = { words: false, smallThing: false };
 
@@ -37,25 +37,6 @@ describe("turnBudgetOf", () => {
     expect(turnBudgetOf({}, { words: true, smallThing: true })).toEqual({
       action: true, bonus: true, reaction: true, words: false, smallThing: false,
     });
-  });
-});
-
-describe("whatIsLeft", () => {
-  it("names only what is available", () => {
-    // Bug caught: naming a spent Action, or the Bonus Action when it is gone.
-    const b = turnBudgetOf({ action_used: true }, { words: true, smallThing: true });
-    expect(whatIsLeft(b)).toBe("You still have your Bonus Action and your Reaction.");
-  });
-
-  it("says so when nothing is left", () => {
-    // Bug caught: an empty list rendering "You still have ."
-    const b = turnBudgetOf({ action_used: true, bonus_used: true, reactionUsed: true }, { words: true, smallThing: true });
-    expect(whatIsLeft(b)).toBe("You have nothing left this turn.");
-  });
-
-  it("never claims anything about movement", () => {
-    // Bug caught: the sentence promising movement the budget does not track.
-    expect(whatIsLeft(turnBudgetOf({}, fresh)).toLowerCase()).not.toContain("move");
   });
 });
 

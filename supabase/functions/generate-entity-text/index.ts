@@ -37,7 +37,7 @@ import { generationRefusal } from "../_shared/accountGate.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { vetGeneratedSpell } from "../_shared/spellGeneration.ts";
-import { SPELL_CONDITION_EFFECT_PROMPT } from "../../../src/lib/library/spellConditionPrompt.ts";
+import { SPELL_CONDITION_EFFECT_PROMPT } from "../../../src/lib/spells/spellConditionPrompt.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextOutputFormat, type TextResult } from "../_shared/textGen.ts";
 
 const admin = createClient(

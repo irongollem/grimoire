@@ -17,6 +17,8 @@
 // Pure: no I/O.
 
 import type { AgentTool, PlayerRolled } from "./types.ts";
+import type { Parsed } from "./parse.ts";
+import { isRecord } from "./parse.ts";
 
 export type Ability = "str" | "dex" | "con" | "int" | "wis" | "cha";
 export type RollKind = "check" | "save";
@@ -88,7 +90,6 @@ export interface RollAnswer {
 /** A roll as it is shown and stored: the arithmetic, and nothing of how it went. */
 export type Rolled = PlayerRolled;
 
-const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
 const isAbility = (x: unknown): x is Ability => typeof x === "string" && Object.hasOwn(ABILITY_NAMES, x);
 const isWhole = (x: unknown, min: number, max: number): x is number =>
   typeof x === "number" && Number.isInteger(x) && x >= min && x <= max;
@@ -120,7 +121,6 @@ export const ASK_ROLL_TOOL: AgentTool = {
   },
 };
 
-type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
 /**
  * What the narrator asked for, with the name the page shows. The name is built here, never taken from the model, so

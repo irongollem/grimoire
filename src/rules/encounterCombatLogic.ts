@@ -7,6 +7,7 @@
  * the actual computation here.
  */
 import { rollDie } from "../lib/dice/dice.ts";
+import { abilityMod } from "./abilityScore.ts";
 import { initiativeModifier, initiativeRoll, type InitiativeSource } from "./initiative.ts";
 import type { RulesetKey } from "../types/ruleset.types.ts";
 import { hitPointsToMax } from "../lib/dice/dice.ts";
@@ -92,7 +93,7 @@ export function combatStats(sb: MonsterStatBlock | null | undefined, fallbackHp:
     hp: maxHp,
     max_hp: maxHp,
     ac: String(sb?.armor_class ?? 10),
-    dex_mod: Math.floor((Number(sb?.dex ?? 10) - 10) / 2),
+    dex_mod: abilityMod(Number(sb?.dex ?? 10)),
     initiative_bonus: sb?.initiative_bonus ?? null,
     ...(readHp > 0 ? {} : { placeholder_stats: true }),
   };

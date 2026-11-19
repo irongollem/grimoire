@@ -1,14 +1,9 @@
+import { INCAPACITATING_CONDITIONS } from "../conditions.ts";
 import type { AppliedCondition } from "../../types/condition.types.ts";
 import type { RulesetKey } from "../../types/ruleset.types.ts";
 
-/** Incapacitated ends concentration; these all include Incapacitated (SRD), so list them. */
-export const CONCENTRATION_BREAKING_CONDITIONS = new Set<string>([
-  "Incapacitated",
-  "Unconscious",
-  "Paralyzed",
-  "Petrified",
-  "Stunned",
-]);
+/** Incapacitated ends concentration (SRD 5.1 "Concentration"), so the breaking set is the incapacitating one. */
+export const CONCENTRATION_BREAKING_CONDITIONS = INCAPACITATING_CONDITIONS;
 
 export function concentrationBreaksOn(conditions: readonly AppliedCondition[]): boolean {
   return conditions.some((c) => CONCENTRATION_BREAKING_CONDITIONS.has(c.name));

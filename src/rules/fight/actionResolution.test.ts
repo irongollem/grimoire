@@ -26,7 +26,7 @@ import {
   type DiceSource,
   type ResolutionContext,
 } from "./actionResolution";
-import { effectiveArmorClass, parseArmorClass } from "@/lib/encounters/actionTargeting";
+import { effectiveArmorClass, parseArmorClass } from "./targeting";
 import { applyFightCommand } from "./fightCommands";
 import { combatant, deps, fight, pc } from "./fightTestKit";
 import type { Cover } from "./terrain/sight";

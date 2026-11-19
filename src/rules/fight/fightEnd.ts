@@ -9,7 +9,7 @@ import type { ExploreParty } from "../../types/exploreParty.types.ts";
 import type { RunCombatant } from "../../types/encounter.types.ts";
 import type { PartyMemberUpdate } from "../../types/party.types.ts";
 import { withoutDue } from "../conditions.ts";
-import { partyAfterFight } from "./explorePositions.ts";
+import { partyAfterFight } from "../explore/explorePositions.ts";
 
 export interface EndOfFightPatches {
   partyMembers: Array<{ id: string; patch: PartyMemberUpdate }>;

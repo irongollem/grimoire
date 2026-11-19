@@ -133,12 +133,9 @@
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount } from "vue";
 import { useDocumentVisibility, useIntervalFn } from "@vueuse/core";
-import { supabase } from "@/lib/supabase";
-import { reportHandledError } from "@/lib/observability/sentry";
-import { boardRows } from "@/lib/table/boardKeep";
-import { goesOnByItself } from "@/lib/table/watching";
+import { goesOnByItself } from "@/lib/table/solo/watching";
 import { useTableWatching } from "@/composables/table/useTableWatching";
-import type { BoardLine } from "@/lib/table/fight/boardLines";
+import type { BoardLine } from "@/lib/table/solo/fight/boardLines";
 import { useRoute, useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -150,13 +147,13 @@ import SoloBar from "@/components/table/solo/SoloBar.vue";
 import SoloComposer from "@/components/table/solo/SoloComposer.vue";
 import SoloLeft from "@/components/table/solo/SoloLeft.vue";
 import SoloLongSitting from "@/components/table/solo/SoloLongSitting.vue";
-import { endedByPause, offersNewSitting, type NotNow } from "@/lib/table/sittingLength";
+import { endedByPause, offersNewSitting, type NotNow } from "@/lib/table/solo/sittingLength";
 import SoloDisclosure from "@/components/table/solo/SoloDisclosure.vue";
 import SoloFightStage from "@/components/table/solo/SoloFightStage.vue";
 import SoloPlaceMap from "@/components/table/solo/SoloPlaceMap.vue";
 import type { SoloFightEnd } from "@/composables/table/useSoloFightHost";
-import { endLine, type FightTurn } from "@/lib/table/fight/fightChange";
-import type { FoeMoment } from "@/lib/table/fight/foeLine";
+import { endLine, type FightTurn } from "@/lib/table/solo/fight/fightChange";
+import type { FoeMoment } from "@/lib/table/solo/fight/foeLine";
 import SoloRollAsk from "@/components/table/solo/SoloRollAsk.vue";
 import SoloSheet from "@/components/table/solo/SoloSheet.vue";
 import SoloScene from "@/components/table/solo/SoloScene.vue";
@@ -169,27 +166,27 @@ import { useLeaveTable } from "@/composables/table/useLeaveTable";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { useToast } from "@/composables/useToast";
 import { IconMaximize, IconMinimize } from "@/lib/icons";
-import { useTableConversation } from "@/composables/table/useTableConversation";
+import { keepBoardLines, useTableConversation } from "@/composables/table/useTableConversation";
 import { useTableDisclosure } from "@/composables/table/useTableDisclosure";
 import { usePlayerQuestBeats } from "@/composables/quests/useQuestFlow";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
 import { currentBeatsByQuest } from "@/lib/hearth/currentBeats";
 import { useTableScene } from "@/composables/table/useTableScene";
-import { placeSummaryFor } from "@/lib/table/placeKnown";
-import { pressureAfterSend } from "@/lib/table/pressureLabel";
-import type { PlayMode, RollAsk, StoryItem, TableFight, TablePressure } from "@/lib/table/soloTypes";
+import { placeSummaryFor } from "@/lib/table/solo/placeKnown";
+import { pressureAfterSend } from "@/lib/table/solo/pressureLabel";
+import type { PlayMode, RollAsk, StoryItem, TableFight, TablePressure } from "@/lib/table/solo/soloTypes";
 import { useTableSpeakers } from "@/composables/table/useTableSpeakers";
 import { useTableCheck } from "@/composables/table/useTableCheck";
 import { useTableDays } from "@/composables/table/useTableDays";
 import { useTableTurn } from "@/composables/table/useTableTurn";
 import { useTableVoice } from "@/composables/table/useTableVoice";
 import { useTodayWeather, useWeatherHazards } from "@/composables/calendar/useTodayWeather";
-import { tableSky } from "@/lib/table/tableSky";
+import { tableSky } from "@/lib/table/solo/tableSky";
 import { useTableNarratorVoice, type NarratorVoice } from "@/composables/table/useTableNarratorVoice";
-import { freshLines, linesOfItem, replayLines } from "@/lib/table/voiceLines";
+import { freshLines, linesOfItem, replayLines } from "@/lib/table/solo/voiceLines";
 import { useAbove } from "@/composables/useBreakpoint";
 import { getNpcDisplayFocalPoint, getNpcDisplayPortrait } from "@/lib/npcDisplay";
-import { assignSpeakerColours } from "@/lib/table/speakerColours";
+import { assignSpeakerColours } from "@/lib/table/solo/speakerColours";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAppUiStore } from "@/stores/ui/app";
 
@@ -416,7 +413,7 @@ function onSubmit(mode: PlayMode, text: string): void {
 
 // ── Watching the characters talk ─────────────────────────────────────────────────────────────────────────────────
 // When a turn ends with the characters still in the middle of a conversation among themselves, they go on without
-// the player having to say "go on" (`lib/table/watching.ts`): a few times in a row at most, after the voices have
+// the player having to say "go on" (`lib/table/solo/watching.ts`): a few times in a row at most, after the voices have
 // finished, and never once the player has begun to write or has stepped in.
 /** The breath before the characters go on: long enough to read the last line and to step in. */
 const WATCH_PAUSE_MS = 2500;
@@ -520,12 +517,7 @@ function noteBoard(lines: readonly BoardLine[], byServer: boolean): void {
   if (id === null || lines.length === 0) return;
   const stored = conversation.data.value;
   const after = (stored ? stored.turns : 0) + turn.turnsKept.value;
-  void supabase
-    .from("agent_board_lines")
-    .insert(boardRows(id, after, lines, byServer))
-    .then(({ error }) => {
-      if (error) reportHandledError(error, "table:keepBoardLines", { lines: lines.length });
-    });
+  keepBoardLines(id, after, lines, byServer);
 }
 watch(
   () => conversation.data.value,

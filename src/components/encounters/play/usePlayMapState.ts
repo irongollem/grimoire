@@ -15,7 +15,7 @@ import { scatterInRoom as scatterInCells } from "@/lib/battlemap/scatter";
 import { useLocationNames } from "@/composables/locations/useLocations";
 import type { FogCellKey } from "@/lib/battlemap/fogMask";
 import type { CellKey } from "@/types/dungeonMap.types";
-import { imageGrid, type MapGrid } from "@/lib/battlemap/imageGrid";
+import { gridFromRatio, imageGrid, type MapGrid } from "@/lib/battlemap/imageGrid";
 import { useMapMemory } from "@/composables/locations/useMapMemory";
 import { useMapDoors } from "@/composables/locations/useMapDoors";
 import { usePartySight } from "@/composables/encounters/usePartySight";
@@ -144,10 +144,11 @@ export function usePlayMapState(
     if (!s || !canWrite.value) return;
     const cellsAcross = s.calibration.cells_per_image_width;
     if (!cellsAcross || imageH <= 0) return;
-    const cellsDown = Math.ceil(cellsAcross * (imageH / imageW));
+    const covered = gridFromRatio(cellsAcross, imageH / imageW);
+    if (!covered) return;
     const next = new Set<FogCellKey>();
-    for (let y = 0; y < cellsDown; y++) {
-      for (let x = 0; x < cellsAcross; x++) next.add(`${x},${y}`);
+    for (let y = 0; y < covered.rows; y++) {
+      for (let x = 0; x < covered.cols; x++) next.add(`${x},${y}`);
     }
     memory.replaceWith(next).catch(reportMemoryFailure);
   }

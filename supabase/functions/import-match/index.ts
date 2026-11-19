@@ -55,7 +55,7 @@ import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
-import { judge, JEV_MODEL, scoreOf } from "../_shared/typesafe.ts";
+import { judge, JEV_MODEL, judgingKey, scoreOf } from "../_shared/typesafe.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
 import {
   EmbeddingProviderConfigError,
@@ -69,7 +69,7 @@ import {
   JUDGE_ROW_SELECT,
   RELATION_QUESTION,
 } from "./judging.ts";
-import { judgingKey, runJudgingTier, type TierEntity } from "./judgeTier.ts";
+import { runJudgingTier, type TierEntity } from "./judgeTier.ts";
 import {
   buildQueryText,
   isSemanticKind,

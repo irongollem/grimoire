@@ -22,6 +22,7 @@ import {
   recordFreeGeneration,
   recordGeneration,
   releaseCredits,
+  reservationRefusal,
   reserveCredits,
   type CreditLogFields,
 } from "../_shared/credits.ts";
@@ -38,7 +39,8 @@ import { toPlainText } from "../_shared/ai-prompt.ts";
 import { BESIDE_MAX, PLACES_MAX, CHARACTERS_MAX, type SceneView } from "../_shared/agent/scene.ts";
 import { formatNpcMemories, loadPromptMemories } from "../_shared/npcMemories.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
-import { loadPartyMember } from "./characterIo.ts";
+import { loadPartyMember } from "../_shared/agent/characterIo.ts";
+import { secureDie } from "../_shared/serverRoll.ts";
 import { RECORD_SECTION_MAX, type RecordedFact } from "../_shared/agent/record.ts";
 import { revealToCharacter } from "./revealIo.ts";
 import { makeHandsStore } from "./handsIo.ts";
@@ -355,12 +357,7 @@ serve(withCors(async (req: Request) => {
     async reserve(userId, credits) {
       const reservation = await reserveCredits(admin, userId, credits, "agent_turn");
       if (reservation.ok) return { ok: true, ids: reservation.ids };
-      // Same mapping as reservationFailureResponse, as values.
-      if (reservation.suspended) return { ok: false, refusal: { status: 403, error: "account_suspended" } };
-      if (reservation.child_account) return { ok: false, refusal: { status: 403, error: "child_account" } };
-      if (reservation.velocity) return { ok: false, refusal: { status: 429, error: "rate_limited" } };
-      if (reservation.insufficient) return { ok: false, refusal: { status: 402, error: "insufficient_credits" } };
-      return { ok: false, refusal: { status: 503, error: "The AI table cannot be metered right now." } };
+      return { ok: false, refusal: reservationRefusal(reservation, "The AI table cannot be metered right now.") };
     },
 
     release: (ids) => releaseCredits(admin, ids),
@@ -707,13 +704,7 @@ serve(withCors(async (req: Request) => {
     giveHandout: (campaignId, handoutId, memberId) => giveHandout(supabase, campaignId, handoutId, memberId),
     // Through the caller's client: the DM's own RLS decides which places and roads there are to travel by.
     // Behind the screen, so its fairness is the server's: a uniform whole number from 1 to max.
-    rollDie: (max) => {
-      const span = Math.max(1, Math.trunc(max));
-      const limit = Math.floor(0x100000000 / span) * span;
-      const box = new Uint32Array(1);
-      do crypto.getRandomValues(box); while (box[0] >= limit);
-      return (box[0] % span) + 1;
-    },
+    rollDie: (max) => secureDie(Math.max(1, Math.trunc(max))),
     async loadTravelMap(campaignId, gameSystem) {
       const [places, roads, placed, rations] = await Promise.all([
         supabase.from("locations").select("id, name, parent_id").eq("campaign_id", campaignId),

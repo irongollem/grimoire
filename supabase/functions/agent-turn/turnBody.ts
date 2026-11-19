@@ -4,6 +4,7 @@
 import { parseSky, type Sky } from "../_shared/agent/sky.ts";
 import type { TurnBudget } from "../_shared/agent/fightChange.ts";
 import { parseRollAnswer, type RollAnswer } from "../_shared/agent/playerRoll.ts";
+import { UUID_RE } from "../_shared/agent/parse.ts";
 
 /** The longest message a player may send. */
 export const MAX_MESSAGE_CHARS = 4000;
@@ -66,7 +67,6 @@ export interface AgentTurnBody {
   fightTurn?: TurnBudget;
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function parseBody(raw: unknown): { ok: true; body: AgentTurnBody } | { ok: false } {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return { ok: false };
@@ -229,7 +229,7 @@ export function helperTurnText(name: string): string {
   );
 }
 
-/** The moments a foe speaks at, as the page names them (`src/lib/table/fight/foeLine.ts`, held equal by a test). */
+/** The moments a foe speaks at, as the page names them (`src/lib/table/solo/fight/foeLine.ts`, held equal by a test). */
 export const FOE_MOMENTS = ["dropped_you", "hit_hard", "ally_fell", "badly_hurt", "learned"] as const;
 export type FoeMoment = (typeof FOE_MOMENTS)[number];
 

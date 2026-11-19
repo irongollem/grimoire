@@ -64,7 +64,7 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { IconChevronLeft } from "@/lib/icons";
 import { searchRoute } from "@/lib/search/searchRoute";
-import { ABOUT_FALLBACK, factAbout, groupRecord, type SittingInfo, type StoryFact } from "@/lib/table/storyRecord";
+import { ABOUT_FALLBACK, factAbout, groupRecord, type SittingInfo, type StoryFact } from "@/lib/table/solo/storyRecord";
 import { useAuthStore } from "@/stores/auth";
 import { useAppUiStore } from "@/stores/ui/app";
 import { useTableUiStore } from "@/stores/ui/table";

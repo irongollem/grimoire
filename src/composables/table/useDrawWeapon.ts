@@ -1,6 +1,6 @@
 import { usePcAttackRows } from "@/composables/encounters/usePcAttackRows";
 import { useUpdateInventoryItem } from "@/composables/items/usePartyInventory";
-import { drawLine, planDraw } from "@/lib/table/fight/drawWeapon";
+import { drawLine, planDraw } from "@/lib/table/solo/fight/drawWeapon";
 import type { PartyMember } from "@/types/party.types";
 
 /**

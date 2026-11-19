@@ -1,13 +1,13 @@
 import { computed, ref, shallowRef, type Ref } from "vue";
 import { supabase } from "@/lib/supabase";
-import { readTableStream } from "@/lib/table/readTableStream";
-import { applyTableEvent, boardItem, nextItemId, playerItem } from "@/lib/table/storyReducer";
-import type { TableSky } from "@/lib/table/tableSky";
-import type { FoeMoment } from "@/lib/table/fight/foeLine";
-import type { BoardLine } from "@/lib/table/fight/boardLines";
-import type { FightChange, FightTurn } from "@/lib/table/fight/fightChange";
-import type { PlayMode, RollAnswer, RollAsk, StoryItem, TableFight, TablePressure } from "@/lib/table/soloTypes";
-import { NO_ANSWER, refusalFailure, WITHHELD, type TurnFailure } from "@/lib/table/turnRefusal";
+import { readTableStream } from "@/lib/table/solo/readTableStream";
+import { applyTableEvent, boardItem, nextItemId, playerItem } from "@/lib/table/solo/storyReducer";
+import type { TableSky } from "@/lib/table/solo/tableSky";
+import type { FoeMoment } from "@/lib/table/solo/fight/foeLine";
+import type { BoardLine } from "@/lib/table/solo/fight/boardLines";
+import type { FightChange, FightTurn } from "@/lib/table/solo/fight/fightChange";
+import type { PlayMode, RollAnswer, RollAsk, StoryItem, TableFight, TablePressure } from "@/lib/table/solo/soloTypes";
+import { NO_ANSWER, refusalFailure, WITHHELD, type TurnFailure } from "@/lib/table/solo/turnRefusal";
 
 export interface TurnRequest {
   campaignId: string;

@@ -11,7 +11,7 @@ import {
   seedPartyPositions,
   type ExploreFrame,
 } from "@/lib/locations/explore";
-import { positionsOnSite, type ExploreCell } from "@/rules/fight/explorePositions";
+import { positionsOnSite, type ExploreCell } from "@/rules/explore/explorePositions";
 import { useCampaignStore } from "@/stores/campaign";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { MonsterSize } from "@/types/monster.types";

@@ -18,7 +18,7 @@
   ],
   "ignoreExportsUsedInFile": true,
   "ignoreDependencies": ["std", "claude-code", "npm"],
-  "ignoreBinaries": ["supabase", "psql", "magick", "ffmpeg", "ffprobe"],
+  "ignoreBinaries": ["supabase", "psql", "magick", "ffmpeg", "ffprobe", "potrace"],
   "ignoreIssues": {
     "src/components/common/controls/appButtonVariants.ts": ["types"],
     "src/components/common/controls/checkboxVariants.ts": ["types"],

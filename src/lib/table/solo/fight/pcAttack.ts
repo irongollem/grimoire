@@ -1,5 +1,5 @@
 import { parseExpression, parsedToCounts, type DieSize, type DieResult, type RollResult } from "@/lib/dice/dice";
-import type { PcAttackRow, PcCustomAttackRow } from "@/composables/encounters/usePcAttackRows";
+import type { PcAttackRow, PcCustomAttackRow } from "@/types/pcAttack.types";
 import { damageRollsFor } from "@/rules/combat/typedDamage";
 import { DAMAGE_TYPES, type DamageType } from "@/types/damage.types";
 import type { DamagePart, StatBlockEntry } from "@/types/statBlock.types";

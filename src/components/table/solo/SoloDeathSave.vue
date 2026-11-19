@@ -37,7 +37,7 @@ import { computed, ref } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import { rollDie } from "@/lib/dice/dice";
-import { isFace } from "@/lib/table/tableRoll";
+import { isFace } from "@/lib/table/solo/tableRoll";
 
 const { round, successes, failures, busy = false } = defineProps<{
   round: number;

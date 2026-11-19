@@ -9,10 +9,10 @@ import type { AbilityScores } from "../../types/multiclass.types.ts";
 import type { WildshapeState } from "../../types/encounter.types.ts";
 import type { PartyMember } from "../../types/party.types.ts";
 import type { SaveAbility } from "../../types/statBlock.types.ts";
-import { parseArmorClass } from "../../lib/encounters/actionTargeting.ts";
+import { parseArmorClass } from "./targeting.ts";
 import { calculateAc, wornGearByMember } from "../armorClass.ts";
 import { effectiveAbilityScores, savingThrowEntries } from "../characterChecks.ts";
-import { abilityMod } from "../weaponAttack.ts";
+import { abilityMod } from "../abilityScore.ts";
 
 /** The `party_members` columns this module reads, and no others. */
 export type PlayerSheetRow = Pick<

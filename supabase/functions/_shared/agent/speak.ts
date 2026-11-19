@@ -16,6 +16,7 @@ import { isPlayerName } from "./playerCharacter.ts";
 import { ACT_TOOL, parseActInput, parseSpeakInput, SPEAK_TOOL } from "./speakInput.ts";
 import type { StoredTurn } from "./transcript.ts";
 import type { AgentLine, AgentUsage, AgentWithheld, CallModel } from "./types.ts";
+import { UUID_RE } from "./parse.ts";
 
 /** How many listeners are asked whether they react to one line. A crowd does not all answer at once. */
 export const MAX_REACTIONS = 3;
@@ -30,7 +31,6 @@ export const WANT_TO_KEEP = 3;
 /** What a listener who answered without saying how much it wants is taken to want. */
 export const WANT_UNGIVEN = 3;
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const words = (s: string): string[] => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 

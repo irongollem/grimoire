@@ -7,7 +7,7 @@ import { getTextProvider } from "./providers";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
 import type { RulesetKey } from "@/types/ruleset.types";
-import { SPELL_CONDITION_EFFECT_PROMPT } from "@/lib/library/spellConditionPrompt";
+import { SPELL_CONDITION_EFFECT_PROMPT } from "@/lib/spells/spellConditionPrompt";
 
 /**
  * The generators served by the `generate-entity-text` edge function. Each is

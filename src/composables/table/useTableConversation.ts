@@ -2,11 +2,13 @@ import { computed, type MaybeRefOrGetter, toValue } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/auth";
-import { factItems, storyFromTurns, turnsStarted, type StoredTurn } from "@/lib/table/storyFromTurns";
-import { keptLinesOf } from "@/lib/table/boardKeep";
-import { parseTablePressure } from "@/lib/table/readTableStream";
-import { parseRollAsk } from "@/lib/table/tableRoll";
-import type { RollAsk, StoryItem, TableFight, TablePressure } from "@/lib/table/soloTypes";
+import { factItems, storyFromTurns, turnsStarted, type StoredTurn } from "@/lib/table/solo/storyFromTurns";
+import { boardRows, keptLinesOf } from "@/lib/table/solo/boardKeep";
+import { reportHandledError } from "@/lib/observability/sentry";
+import type { BoardLine } from "@/lib/table/solo/fight/boardLines";
+import { parseTablePressure } from "@/lib/table/solo/readTableStream";
+import { parseRollAsk } from "@/lib/table/solo/tableRoll";
+import type { RollAsk, StoryItem, TableFight, TablePressure } from "@/lib/table/solo/soloTypes";
 
 export interface StoredSitting {
   id: string;
@@ -31,6 +33,19 @@ export interface StoredConversation {
   items: StoryItem[];
   /** How many turns the sitting held when it was read. */
   turns: number;
+}
+
+/**
+ * Keeps the lines a fight's board wrote beside the turns, with how many turns had been played (`after`). A line that
+ * could not be kept is still on the page now; it is reported, and missing after a reload.
+ */
+export function keepBoardLines(sessionId: string, after: number, lines: readonly BoardLine[], byServer: boolean): void {
+  void supabase
+    .from("agent_board_lines")
+    .insert(boardRows(sessionId, after, lines, byServer))
+    .then(({ error }) => {
+      if (error) reportHandledError(error, "table:keepBoardLines", { lines: lines.length });
+    });
 }
 
 /**

@@ -23,6 +23,17 @@ export interface CreditCalibration {
   margin: number;
 }
 
+/**
+ * What a lookup found, kept only when it can price a turn: a rate above zero and a margin above zero, both finite.
+ * Anything else is no calibration at all, because play on a broken one would run unmetered.
+ */
+export function usableCalibration(found: { usdPerCredit: number | null; margin: number } | null): CreditCalibration | null {
+  if (!found || found.usdPerCredit === null) return null;
+  if (!Number.isFinite(found.usdPerCredit) || found.usdPerCredit <= 0) return null;
+  if (!Number.isFinite(found.margin) || found.margin <= 0) return null;
+  return { usdPerCredit: found.usdPerCredit, margin: found.margin };
+}
+
 const PER_MILLION = 1_000_000;
 
 export function usdForUsage(usage: AgentUsage, price: ModelPrice): number {

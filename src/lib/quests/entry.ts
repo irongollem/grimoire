@@ -17,7 +17,7 @@ export interface ResolveStartBeatIdInput {
   /** The most recent performed, not-undone `unlock_quest` event's
    *  `entry_beat_id` — null when no bridge fired, or when the bridge named
    *  no beat of its own (falls back to the target's own entry, handled by
-   *  the caller reading `null` from `useQuestUnlockEntry` in that case). */
+   *  the caller passing `null` in that case). */
   unlockEntryBeatId: string | null;
   /** Computed graph roots (`rootBeatIds`) — the fallback when neither a
    *  bridge nor a stored entry resolves to a beat that still exists. */

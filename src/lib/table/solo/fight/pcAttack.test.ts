@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PcAttackRow } from "@/composables/encounters/usePcAttackRows";
+import type { PcAttackRow } from "@/types/pcAttack.types";
 import { attackEntryOf, attackLines, d20FromFaces, damageDicePlan, damageFromFaces, damageLine, damageMathText, facesFit } from "./pcAttack";
 
 function row(extra: Partial<PcAttackRow> & Record<string, unknown> = {}): PcAttackRow {

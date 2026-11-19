@@ -22,7 +22,7 @@
 </template>
 
 <script setup lang="ts">
-import type { VoicePigment } from "@/lib/table/speakerColours";
+import type { VoicePigment } from "@/lib/table/solo/speakerColours";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconVolume } from "@/lib/icons";
 import SoloPortrait from "./SoloPortrait.vue";

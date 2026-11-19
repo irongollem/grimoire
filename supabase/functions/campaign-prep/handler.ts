@@ -6,9 +6,10 @@
 //            written it, nothing that exists by then is made twice, and the rest become ordinary campaign content
 //            marked as made by AI. No model is called, so it costs nothing.
 
-import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
-import type { CallModel } from "../_shared/agent/types.ts";
+import type { AgentProvider } from "../_shared/agent/providerIo.ts";
+import { creditsForUsd, usableCalibration, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { keptProposals, prepPrompt, PREP_SYSTEM, proposalInput, proposalsFromReply, type PrepDigest, type PrepExisting, type Proposal } from "../_shared/campaignPrep.ts";
+import { UUID_RE } from "../_shared/agent/parse.ts";
 
 export interface PrepCampaign {
   id: string;
@@ -27,7 +28,7 @@ export interface PrepDeps {
   loadDigest(campaign: PrepCampaign): Promise<PrepDigest>;
   /** What exists already by name: the campaign's own, and the library's hazards and items. */
   loadExisting(campaignId: string): Promise<PrepExisting>;
-  resolveProvider(campaign: PrepCampaign): Promise<{ provider: string; model: string; isByok: boolean; callModel: CallModel | null } | null>;
+  resolveProvider(campaign: PrepCampaign): Promise<AgentProvider | null>;
   loadPrice(model: string): Promise<ModelPrice | null>;
   loadCalibration(): Promise<{ usdPerCredit: number | null; margin: number } | null>;
   reserve(userId: string, credits: number): Promise<Reservation>;
@@ -56,7 +57,6 @@ export type PrepOutcome =
   | { ok: true; kind: "created"; made: string[]; skipped: Array<{ name: string; reason: string }> };
 
 const refuse = (status: number, error: string): PrepOutcome => ({ ok: false, status, error });
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function prepCampaign(input: { userId: string; body: unknown; deps: PrepDeps }): Promise<PrepOutcome> {
   const { userId, deps } = input;
@@ -95,9 +95,7 @@ export async function prepCampaign(input: { userId: string; body: unknown; deps:
   if (!provider.isByok) {
     price = await deps.loadPrice(provider.model);
     const found = await deps.loadCalibration();
-    if (found && found.usdPerCredit !== null && Number.isFinite(found.usdPerCredit) && found.usdPerCredit > 0 && Number.isFinite(found.margin) && found.margin > 0) {
-      calibration = { usdPerCredit: found.usdPerCredit, margin: found.margin };
-    }
+    calibration = usableCalibration(found);
     if (!price || !calibration) return refuse(503, PREP_MESSAGES.noMetering);
   }
 

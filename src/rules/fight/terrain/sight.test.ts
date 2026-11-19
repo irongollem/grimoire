@@ -6,6 +6,7 @@ import {
   attackFrom,
   coverBetween,
   coverBonus,
+  boxesWithinFiveFeet,
   distanceFeet,
   opportunityAttacks,
   type Box,
@@ -23,6 +24,28 @@ const atk = (delivery: AttackStructure["delivery"], o: Partial<AttackStructure> 
   bonus: 0,
   hit: [],
   ...o,
+});
+
+describe("boxesWithinFiveFeet", () => {
+  // Worked by hand: 5 ft is one square; two spaces are within 5 ft when the empty gap between them (the larger of the
+  // two axis gaps) is under one square.
+  it.each<[string, Box, Box, boolean]>([
+    ["same square (overlap)", box(2, 2), box(2, 2), true],
+    ["side by side, touching", box(0, 0), box(1, 0), true],
+    ["diagonal corner, touching", box(0, 0), box(1, 1), true],
+    ["one empty square between", box(0, 0), box(2, 0), false],
+    ["one empty square between on the diagonal", box(0, 0), box(2, 2), false],
+    ["Large (2) and Medium one square past its edge", box(0, 0, 2), box(2, 0), true],
+    ["Large (2) and Medium with a square gap", box(0, 0, 2), box(3, 0), false],
+    ["Huge (3) diagonal past its corner", box(0, 0, 3), box(3, 3), true],
+    ["Huge (3) overlapping a Medium inside it", box(0, 0, 3), box(1, 1), true],
+    ["Tiny (0.5) with half a square to a Medium", box(0, 0, 0.5), box(1, 0), true],
+    ["Tiny (0.5) with a full square to a Medium", box(0, 0, 0.5), box(2, 0), false],
+  ])("%s", (_name, a, b, expected) => {
+    expect(boxesWithinFiveFeet(a, b)).toBe(expected);
+    expect(boxesWithinFiveFeet(b, a)).toBe(expected);
+    expect(distanceFeet(a, b) <= 5).toBe(expected);
+  });
 });
 
 describe("distanceFeet", () => {

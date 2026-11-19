@@ -43,6 +43,16 @@ export interface ChoiceQuestion {
 
 export type Question = ScoreQuestion | NoulQuestion | ChoiceQuestion;
 
+/**
+ * A model judgment (an import match, a search rerank, a narration check) runs only with AI switched
+ * on for the campaign AND a platform key, because the text goes to a third party. Anything but a literal `true`
+ * (null, undefined, a missing column) is off.
+ */
+export function judgingKey(aiEnabled: unknown, platformKey: string | undefined): string | null {
+  if (aiEnabled !== true) return null;
+  return platformKey && platformKey.length > 0 ? platformKey : null;
+}
+
 export interface JudgeRequest {
   model?: string;
   state: unknown;

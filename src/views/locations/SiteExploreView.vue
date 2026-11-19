@@ -185,7 +185,7 @@ import {
   type ExploreFrame,
   type RoomExploreState,
 } from "@/lib/locations/explore";
-import type { ExploreCell } from "@/rules/fight/explorePositions";
+import type { ExploreCell } from "@/rules/explore/explorePositions";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { placeRoute } from "@/lib/locations/placeRoute";
 import { buildDmFogPlan } from "@/lib/locations/siteFog";

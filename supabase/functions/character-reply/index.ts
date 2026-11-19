@@ -11,7 +11,7 @@ import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { loadAgentCalibration, loadModelPrice, resolveAgentProvider } from "../_shared/agent/providerIo.ts";
 import { STAND_IN_RECENT_LINES, type StandIn } from "../_shared/agent/standIn.ts";
-import { loadPartyMember } from "../agent-turn/characterIo.ts";
+import { loadPartyMember } from "../_shared/agent/characterIo.ts";
 import type { StoredMention } from "../../../src/lib/chat/chatMentions.ts";
 import { answerChatLine, type ReplyDeps } from "./handler.ts";
 

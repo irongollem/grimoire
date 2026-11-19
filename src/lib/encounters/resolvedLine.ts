@@ -3,8 +3,7 @@ import type { ResolvedAction, ResolvedSave } from "@/rules/fight/fightState";
 
 /**
  * One short plain sentence for what a resolved action came to, for the line a DM reads under "Run this turn for me"
- * (#1203). The server posts its own chat lines from the same summaries; this is the client's reading of them and
- * quotes only the numbers the summary holds.
+ * (#1203). It quotes only the numbers the summary holds.
  */
 export function describeResolvedAction(resolved: ResolvedAction, nameOf: (instanceId: string) => string): string {
   switch (resolved.kind) {

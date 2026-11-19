@@ -16,6 +16,8 @@
 //      the narrator at the start of the turn when this turn's tick will fill it.
 
 import type { AgentTool, ToolAnswer } from "./types.ts";
+import type { Parsed } from "./parse.ts";
+import { refuse, UUID_RE } from "./parse.ts";
 
 export const MAX_THREADS = 8;
 export const MAX_ROUTES = 8;
@@ -290,13 +292,11 @@ export const QUEST_TOOLS: AgentTool[] = [
 
 // --- parsing --------------------------------------------------------------------------------------------------
 
-export type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function idOf(input: Record<string, unknown>, key: string): Parsed<string> {
   const v = input[key];
-  if (typeof v !== "string" || !UUID.test(v.trim())) {
+  if (typeof v !== "string" || !UUID_RE.test(v.trim())) {
     return { ok: false, error: `${key} must be an id exactly as listed under "Quests in play".` };
   }
   return { ok: true, value: v.trim().toLowerCase() };
@@ -409,7 +409,6 @@ export type ParsedCall =
 
 export type Planned = { ok: true; move: QuestMove; says: string } | { ok: false; error: string };
 
-const refuse = (error: string): Planned => ({ ok: false, error });
 const NOT_LISTED = (what: string) => `That ${what} is not listed under "Quests in play" this turn, so nothing was changed. Use an id exactly as listed.`;
 
 function findThread(shown: Shown, questId: string, threadId: string): ShownThread | "no-quest" | "no-thread" {

@@ -1,4 +1,5 @@
 import { computed, type MaybeRefOrGetter, toValue } from "vue";
+import { healthWord } from "@/lib/encounters/healthWord";
 
 /**
  * Derive a reactive HP ratio, text/bar colour classes and immersive health label
@@ -25,14 +26,8 @@ export function useHpDisplay(
     return p < 0.33 ? "bg-destructive" : p < 0.66 ? "bg-tone-caution" : "bg-elven-green";
   });
 
-  const immersiveHpLabel = computed(() => {
-    const p = hpPct.value * 100;
-    if (p <= 0) return "Dead";
-    if (p <= 25) return "Bloodied";
-    if (p <= 50) return "Wounded";
-    if (p <= 75) return "Hurt";
-    return "Healthy";
-  });
+  // hpPct is already a ratio (zero for a zero maximum), so it is read against a maximum of one.
+  const immersiveHpLabel = computed(() => healthWord(hpPct.value, 1));
 
   return { hpPct, hpColor, hpBarColor, immersiveHpLabel };
 }

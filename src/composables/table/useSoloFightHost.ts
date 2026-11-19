@@ -1,17 +1,17 @@
 import type { RunCombatant } from "@/types/encounter.types";
-import { afterFoeSpoke, foeMoment, FOE_NEVER_SEEN, NO_FOE_TALK, type FoeMoment, type FoeSeen, type FoeTalk } from "@/lib/table/fight/foeLine";
+import { afterFoeSpoke, foeMoment, FOE_NEVER_SEEN, NO_FOE_TALK, type FoeMoment, type FoeSeen, type FoeTalk } from "@/lib/table/solo/fight/foeLine";
 import { computed, ref, watch, type Ref } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useFightCommands } from "@/composables/encounters/useFightCommands";
 import { useCreatureTurns } from "@/composables/encounters/useCreatureTurns";
 import { useToast } from "@/composables/useToast";
-import { linesOfAttacks, linesOfCreatureTurn, type BoardLine } from "@/lib/table/fight/boardLines";
-import { canReact } from "@/lib/table/fight/turnBudget";
-import { helperTakesTurn, NEVER_SEEN, type HelperSeen } from "@/lib/table/fight/helperTurn";
-import { fightStanding, hasSomeoneToFight, type FightStanding } from "@/lib/table/fight/fightOver";
-import { asThePlayerSees } from "@/lib/table/fight/foeView";
-import { turnBudgetOf } from "@/lib/table/fight/turnBudget";
-import type { FightChange } from "@/lib/table/fight/fightChange";
+import { linesOfAttacks, linesOfCreatureTurn, type BoardLine } from "@/lib/table/solo/fight/boardLines";
+import { canReact } from "@/lib/table/solo/fight/turnBudget";
+import { helperTakesTurn, NEVER_SEEN, type HelperSeen } from "@/lib/table/solo/fight/helperTurn";
+import { fightStanding, hasSomeoneToFight, type FightStanding } from "@/lib/table/solo/fight/fightOver";
+import { asThePlayerSees } from "@/lib/table/solo/fight/foeView";
+import { turnBudgetOf } from "@/lib/table/solo/fight/turnBudget";
+import type { FightChange } from "@/lib/table/solo/fight/fightChange";
 import { initiativeRoll } from "@/rules/initiative";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 

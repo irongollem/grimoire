@@ -3,7 +3,7 @@ import type { SkillProficiencies } from "../types/party.types.ts";
 import type { AbilityScores } from "../types/multiclass.types.ts";
 import type { RulesetKey } from "../types/ruleset.types.ts";
 import type { MonsterStatBlock } from "../types/monster.types.ts";
-import { abilityMod } from "./weaponAttack.ts";
+import { abilityMod } from "./abilityScore.ts";
 
 /**
  * Minimal shape needed to score a skill check — a `PartyMember` satisfies it,

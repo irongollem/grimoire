@@ -27,14 +27,14 @@
 </template>
 
 <script setup lang="ts">
-import type { FoeMoment } from "@/lib/table/fight/foeLine";
+import type { FoeMoment } from "@/lib/table/solo/fight/foeLine";
 import { computed, ref } from "vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { useOpenRun } from "@/composables/encounters/useOpenRun";
 import type { SoloFightEnd } from "@/composables/table/useSoloFightHost";
-import type { BoardLine } from "@/lib/table/fight/boardLines";
-import type { FightChange, FightTurn } from "@/lib/table/fight/fightChange";
+import type { BoardLine } from "@/lib/table/solo/fight/boardLines";
+import type { FightChange, FightTurn } from "@/lib/table/solo/fight/fightChange";
 import type { PartyMember } from "@/types/party.types";
 import SoloFightBoard from "./SoloFightBoard.vue";
 

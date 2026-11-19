@@ -27,7 +27,7 @@ import { NARRATOR_SPEAKER, type KeyedLine } from "../_shared/agent/lineKey.ts";
 import { handsLine, harvestFacts, possessionsSection, type Coins, type HandsChange, type Possessions } from "../_shared/agent/hands.ts";
 import { coinsText, coinValuesOf, type HandsStore } from "./handsIo.ts";
 import type { Introduction } from "../_shared/agent/introduce.ts";
-import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
+import { creditsForUsd, usableCalibration, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { runTurn, totalTokens, type TurnEnd } from "../_shared/agent/turn.ts";
 import { historyFrom, rowsFor, systemWithSummary, type StoredTurn, type TurnRow } from "../_shared/agent/transcript.ts";
 import type { Remembered } from "../_shared/agent/characterTurn.ts";
@@ -465,10 +465,7 @@ export async function beginTurn(input: {
     try {
       price = await deps.loadPrice(provider.model);
       const found = await deps.loadCalibration();
-      if (found && found.usdPerCredit !== null && Number.isFinite(found.usdPerCredit) && found.usdPerCredit > 0 &&
-        Number.isFinite(found.margin) && found.margin > 0) {
-        calibration = { usdPerCredit: found.usdPerCredit, margin: found.margin };
-      }
+      calibration = usableCalibration(found);
     } catch (error) {
       console.error("agent-turn: metering lookup failed:", error);
       return refuse(503, MESSAGES.noMetering);

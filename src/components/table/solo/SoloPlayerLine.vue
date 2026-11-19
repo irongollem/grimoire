@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconVolume } from "@/lib/icons";
-import type { PlayMode } from "@/lib/table/soloTypes";
+import type { PlayMode } from "@/lib/table/solo/soloTypes";
 
 const { mode, text, who, unsent = false, replayable = false } = defineProps<{
   mode: PlayMode;

@@ -2,7 +2,7 @@
 // Raw fetch like `textGen.ts`, because the edge functions carry no provider SDKs.
 
 import { openaiReasoningParams } from "../textGen.ts";
-import { parseEventJson, parseToolInput, runStream } from "./providerHttp.ts";
+import { type AdapterDeps, parseEventJson, parseToolInput, runStream } from "./providerHttp.ts";
 import {
   AgentProviderError,
   type AgentBlock,
@@ -14,12 +14,6 @@ import {
 
 const PROVIDER = "openai";
 const URL = "https://api.openai.com/v1/chat/completions";
-
-export interface AdapterDeps {
-  fetch?: typeof fetch;
-  /** Cap for the whole stream, in milliseconds. Default 120 s. */
-  timeoutMs?: number;
-}
 
 type WireMessage = Record<string, unknown>;
 

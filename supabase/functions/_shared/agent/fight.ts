@@ -18,6 +18,7 @@
 
 import { followersOf, pursuitLines } from "./pursuit.ts";
 import type { AgentTool } from "./types.ts";
+import { isRecord, refuse, UUID_RE } from "./parse.ts";
 
 /** A fight the DM prepared at the place the party stands in. */
 export interface PreparedFight {
@@ -66,7 +67,6 @@ export const MAX_CREATURE_KINDS = 6;
 export const MAX_COUNT = 12;
 export const NAME_MAX = 80;
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const HEADING = "## Fights";
 
@@ -167,7 +167,6 @@ export type FightPlan =
 
 type Planned = { ok: true; plan: FightPlan; says: string } | { ok: false; error: string };
 
-const refuse = (error: string): Planned => ({ ok: false, error });
 
 /** What the narrator asked for, checked against what it was shown. */
 export function planFight(view: FightsInView, input: Record<string, unknown>): Planned {
@@ -225,7 +224,6 @@ function started(name: string): string {
 
 // --- reading the fight ------------------------------------------------------------------------------------------
 
-const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
 
 /** One live combatant as the fight holds it (jsonb), or null when it is not one. */
 export function asFighter(raw: unknown): Fighter | null {

@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import AppButton from "@/components/common/controls/AppButton.vue";
-import type { TurnFailure } from "@/lib/table/turnRefusal";
+import type { TurnFailure } from "@/lib/table/solo/turnRefusal";
 
 defineProps<TurnFailure>();
 const emit = defineEmits<{ resend: []; credits: [] }>();

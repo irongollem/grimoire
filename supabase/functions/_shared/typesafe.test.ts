@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { choiceOf, judge, noulOf, scoreOf, TypeSafeError, type JudgeRequest } from "./typesafe";
+import { choiceOf, judge, judgingKey, noulOf, scoreOf, TypeSafeError, type JudgeRequest } from "./typesafe";
 
 const KEY = "tsk-secret-key-123";
 const request: JudgeRequest = {
@@ -141,5 +141,21 @@ describe("choiceOf", () => {
     expect(choiceOf(result, "bad")).toBeNull();
     expect(choiceOf(result, "scored")).toBeNull();
     expect(choiceOf(result, "absent")).toBeNull();
+  });
+});
+
+describe("judgingKey", () => {
+  it("is null when AI is off, however the flag is spelled (no Jev call without ai_enabled === true)", () => {
+    expect(judgingKey(false, "key")).toBeNull();
+    expect(judgingKey(null, "key")).toBeNull();
+    expect(judgingKey(undefined, "key")).toBeNull();
+    expect(judgingKey("true", "key")).toBeNull();
+  });
+  it("is null with no platform key (no Jev call without a key)", () => {
+    expect(judgingKey(true, undefined)).toBeNull();
+    expect(judgingKey(true, "")).toBeNull();
+  });
+  it("returns the key when AI is on and a key exists", () => {
+    expect(judgingKey(true, "key")).toBe("key");
   });
 });

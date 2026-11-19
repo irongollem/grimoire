@@ -2,7 +2,7 @@ import { computed } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { STORY_RECORD_KEY } from "@/lib/campaignLiveSync/registry";
-import type { StoryFact, StoryFactLink } from "@/lib/table/storyRecord";
+import type { StoryFact, StoryFactLink } from "@/lib/table/solo/storyRecord";
 import { useCampaignStore } from "@/stores/campaign";
 
 const FACT_COLUMNS = "id, campaign_id, session_id, body, known_to_player, supersedes_id, source, created_at";

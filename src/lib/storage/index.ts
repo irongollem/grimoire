@@ -59,4 +59,4 @@ export {
   loadImageProvenance,
 } from "./imageProvenance";
 
-export { onStorageFull, type StorageFullKind } from "./storageFull";
+export { onStorageFull } from "./storageFull";

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import SoloStory from "./SoloStory.vue";
-import { assignSpeakerColours } from "@/lib/table/speakerColours";
-import type { StoryItem } from "@/lib/table/soloTypes";
+import { assignSpeakerColours } from "@/lib/table/solo/speakerColours";
+import type { StoryItem } from "@/lib/table/solo/soloTypes";
 
 const items: StoryItem[] = [
   { id: "1", kind: "player", mode: "say", text: "Who are you?" },

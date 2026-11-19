@@ -7,6 +7,8 @@
 // it is the campaign's own art for that record, never one the model names or makes.
 
 import type { AgentTool } from "./types.ts";
+import type { Parsed } from "./parse.ts";
+import { isRecord, refuse, UUID_RE } from "./parse.ts";
 
 /** What the page draws, kept on the stored tool result so a reopened sitting shows it again. */
 export type Shown =
@@ -48,14 +50,11 @@ export const SHOW_TOOL: AgentTool = {
   },
 };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** A shared library id is text ("srd_owlbear"): letters, digits, dashes and underscores. */
 const LIBRARY_ID = /^[A-Za-z0-9_-]{2,120}$/;
 
 export type ShowAsk = { what: "handout"; id: string } | { what: PictureOf; id: string };
 
-type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
-const refuse = (error: string): { ok: false; error: string } => ({ ok: false, error });
 
 const KEYS: Array<[key: string, what: ShowAsk["what"]]> = [
   ["handout_id", "handout"],
@@ -73,7 +72,7 @@ export function parseShow(input: Record<string, unknown>): Parsed<ShowAsk> {
   const id = input[key];
   if (typeof id !== "string") return refuse(`${key} must be an id.`);
   const library = (what === "item" || what === "creature") && LIBRARY_ID.test(id);
-  if (!UUID.test(id) && !library) return refuse(`${key} must be the record's id, as it was listed or as search or get returned it.`);
+  if (!UUID_RE.test(id) && !library) return refuse(`${key} must be the record's id, as it was listed or as search or get returned it.`);
   return { ok: true, value: { what, id } };
 }
 
@@ -108,14 +107,10 @@ export function shownText(shown: Shown): string {
     : `The player is now looking at the picture of ${shown.title}. Go on with the story; do not describe the picture itself.`;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /** A stored `shown` read back: jsonb is untrusted, and a picture's address goes into an image. */
 export function asShown(raw: unknown): Shown | null {
   if (!isRecord(raw) || typeof raw.title !== "string" || raw.title.trim() === "") return null;
-  if (raw.kind === "handout") return typeof raw.id === "string" && UUID.test(raw.id) ? { kind: "handout", id: raw.id, title: raw.title } : null;
+  if (raw.kind === "handout") return typeof raw.id === "string" && UUID_RE.test(raw.id) ? { kind: "handout", id: raw.id, title: raw.title } : null;
   if (raw.kind === "picture") {
     const url = pictureUrl(raw.url);
     const of = raw.of === "person" || raw.of === "place" || raw.of === "item" || raw.of === "creature" ? raw.of : null;

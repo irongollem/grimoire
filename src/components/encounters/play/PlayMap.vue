@@ -203,6 +203,7 @@ import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
 import BattleMapRoomFocusLayer from "@/components/encounters/BattleMapRoomFocusLayer.vue";
 import BattleMapLegend from "@/components/encounters/BattleMapLegend.vue";
+import { imageGrid } from "@/lib/battlemap/imageGrid";
 import { cellSizeInDisplay, gridLinePositions, gridOriginInDisplay } from "@/lib/battlemap/battleMapGeometry";
 import { cellBrushCells, roundBrushCells, type FogCellKey } from "@/lib/battlemap/fogMask";
 import { shownCells, tableTokens } from "@/lib/battlemap/partySight";
@@ -665,7 +666,8 @@ function placeAt(instanceId: string, at: { x: number; y: number }) {
   if (!s || imageNaturalW.value <= 0) return;
   const cellsAcross = s.calibration.cells_per_image_width;
   const cell = dropCell(at);
-  if (!cellOnMap(cell, cellsAcross, Math.ceil(cellsAcross * (imageNaturalH.value / imageNaturalW.value)))) return;
+  const covered = imageGrid(cellsAcross, { w: imageNaturalW.value, h: imageNaturalH.value });
+  if (!covered || !cellOnMap(cell, cellsAcross, covered.rows)) return;
   state.moveCombatant(instanceId, cell);
   emit("placed", instanceId);
 }

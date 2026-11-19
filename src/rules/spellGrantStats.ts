@@ -1,3 +1,5 @@
+import { abilityMod } from "./abilityScore.ts";
+
 /** The subset of a character_spells row this module needs (innate casting ability). */
 export interface SpellGrantStats {
   casting_ability?: "int" | "wis" | "cha" | null;
@@ -29,7 +31,7 @@ export function grantAttackBonus(
   fallback: number | null,
 ): number | null {
   if (grant.casting_ability && member) {
-    return member.proficiency_bonus + Math.floor((member[grant.casting_ability] - 10) / 2);
+    return member.proficiency_bonus + abilityMod(member[grant.casting_ability]);
   }
   return classStats?.attack ?? fallback;
 }
@@ -47,7 +49,7 @@ export function grantSaveDc(
   fallback: number | null,
 ): number | null {
   if (grant.casting_ability && member) {
-    return 8 + member.proficiency_bonus + Math.floor((member[grant.casting_ability] - 10) / 2);
+    return 8 + member.proficiency_bonus + abilityMod(member[grant.casting_ability]);
   }
   return classStats?.dc ?? fallback;
 }

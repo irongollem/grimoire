@@ -1,4 +1,4 @@
-import type { VoicePigment } from "@/lib/table/speakerColours";
+import type { VoicePigment } from "@/lib/table/solo/speakerColours";
 
 /**
  * A pigment as the two custom properties the story's boxes read: `--voice` for a box's edge and wash, `--voice-ink`

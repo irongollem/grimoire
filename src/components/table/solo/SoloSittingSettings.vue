@@ -71,8 +71,8 @@ import { useTableHelpers } from "@/composables/table/useTableHelpers";
 import { useTableFoes } from "@/composables/table/useTableFoes";
 import { useTableWatching } from "@/composables/table/useTableWatching";
 import { useTableVoicePrefs, useTableVoiceRates } from "@/composables/table/useTableVoice";
-import { voiceCostLine } from "@/lib/table/voiceCost";
-import type { VoicePart } from "@/lib/table/voiceLines";
+import { voiceCostLine } from "@/lib/table/solo/voiceCost";
+import type { VoicePart } from "@/lib/table/solo/voiceLines";
 
 const voices = useTableVoicePrefs();
 // No table yet: this is the voice the next one begins on.

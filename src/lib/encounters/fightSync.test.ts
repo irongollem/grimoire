@@ -10,7 +10,6 @@ import {
   observeRow,
   queueCommand,
   replay,
-  rowFieldsOf,
   sealHead,
   startSync,
   unseenEffects,
@@ -23,7 +22,15 @@ import {
 const frame: FightFrame = { randomizeInitiativeEachRound: false, ruleset: "2014", lairEnabled: false, lairOwnerInstanceId: null, events: [] };
 
 function confirmedWith(hp: number, version: number): ConfirmedFight {
-  return { ...rowFieldsOf(fight([combatant("ogre", { hp, max_hp: 30, initiative: 10 }), combatant("b", { initiative: 5 })])), version };
+  const state = fight([combatant("ogre", { hp, max_hp: 30, initiative: 10 }), combatant("b", { initiative: 5 })]);
+  return {
+    combatants: state.combatants,
+    round: state.round,
+    activeIndex: state.activeIndex,
+    eventsFired: state.eventsFired,
+    lairFiredRounds: state.lairFiredRounds,
+    version,
+  };
 }
 
 let ids = 0;

@@ -20,7 +20,8 @@ import type { MonsterSize } from "../../../types/monster.types.ts";
 import type { RulesetKey } from "../../../types/ruleset.types.ts";
 import type { AttackStructure, MultiattackStep, SaveAbility, StatBlockEntry } from "../../../types/statBlock.types.ts";
 import type { StatBlockListKey } from "../../statBlock/parseAction.ts";
-import { concentrationBreaksOn } from "../../combat/concentration.ts";
+import { isIncapacitated } from "../../conditions.ts";
+import { isStanding } from "../standing.ts";
 import type { MapExit } from "../../../lib/battlemap/mapExits.ts";
 import type { WayOut } from "../tactics/wayOut.ts";
 import type { CastNow } from "../spells/castNow.ts";
@@ -186,19 +187,11 @@ export interface TurnOptionsInput {
 
 // ── who is on the board ─────────────────────────────────────────────────────────
 
-/**
- * Incapacitated for this purpose: the Incapacitated condition and every condition that includes it (the SRD's own
- * list, which `concentrationBreaksOn` already holds: Unconscious, Paralyzed, Petrified, Stunned).
- */
-function isIncapacitated(c: RunCombatant): boolean {
-  return concentrationBreaksOn(c.conditions);
-}
-
 /** Alive: above 0 hit points. A player at 0 is dying and is neither a target nor an enemy here (app convention). */
 const isLiving = (c: RunCombatant): boolean => c.hp > 0;
 
 /** Takes up a square: placed, and alive, or a player down at 0 (who lies where they fell). A monster at 0 is dead. */
-export const isOnBoard = (c: RunCombatant): boolean => c.position !== null && c.position !== undefined && (c.hp > 0 || c.type === "player");
+export const isOnBoard = (c: RunCombatant): boolean => c.position !== null && c.position !== undefined && isStanding(c);
 
 /** A creature's size for the movement rules. A creature with none baked is Medium, as `sizeToFootprint` does. */
 function sizeOf(c: RunCombatant): MonsterSize {
@@ -371,7 +364,7 @@ function bestAttackSquare(scene: Scene, planned: Planned, target: RunCombatant):
   const targetBox = boxOf(target);
   const limit = farthestFeet(planned.attack);
   const blockers = scene.others.filter((o) => o.instance_id !== target.instance_id).map(boxOf);
-  const hostileBoxes = scene.hostiles.map((h) => ({ box: boxOf(h), incapacitated: isIncapacitated(h) }));
+  const hostileBoxes = scene.hostiles.map((h) => ({ box: boxOf(h), incapacitated: isIncapacitated(h.conditions) }));
   let best: { rc: ReachCell; facts: ReturnType<typeof attackFrom>; provokes: ProvokedAttack[] } | null = null;
   const better = (a: NonNullable<typeof best>, b: NonNullable<typeof best>): boolean => {
     const keys: [number, number][] = [
@@ -568,7 +561,7 @@ function fleeOption(scene: Scene, names: Map<string, string>, dashReach: ReachRe
  * safest available route on each of its turns, unless there is nowhere to move"; Turn Undead: "must spend its turns trying to
  * move as far away from you as it can"): the creature a condition on the mover makes it flee, or null. It is the source of the
  * first condition whose source says `mustFlee`, and only while that creature is still in the fight and standing; once it is
- * gone or down the creature is no longer forced. Not built: dropping what it holds, and no reactions.
+ * gone or down the creature is no longer forced. Not built: dropping what it holds, or withholding its reactions (Turn Undead says it cannot take them); `reactionUsed` is read in this file only to tell whether an enemy still has its reaction.
  */
 export function fleeSourceOf(mover: RunCombatant, combatants: readonly RunCombatant[]): RunCombatant | null {
   for (const c of mover.conditions) {
@@ -788,7 +781,7 @@ function listIsOpen(mover: RunCombatant, list: StatBlockListKey): boolean {
 export function turnOptions(input: TurnOptionsInput): TurnOption[] {
   const mover = input.combatants.find((c) => c.instance_id === input.moverId);
   if (!mover) throw new Error(`No combatant "${input.moverId}" in this fight`);
-  if (!isLiving(mover) || isIncapacitated(mover)) return [];
+  if (!isLiving(mover) || isIncapacitated(mover.conditions)) return [];
 
   const actionFree = mover.action_used !== true;
   const names = new Map(input.combatants.map((c) => [c.instance_id, c.name]));
@@ -815,7 +808,7 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
       mover: { anchor: mover.position ?? null, footprint: combatantFootprint(mover), size: sizeOf(mover) },
       budgetFeet,
       terrain: reachTerrainOf(map, [mover, ...onBoard].map((c) => ({ anchor: boxOf(c).anchor, footprint: combatantFootprint(c) }))),
-      others: onBoard.map((o) => ({ anchor: boxOf(o).anchor, footprint: combatantFootprint(o), size: sizeOf(o), hostile: isHostileTo(mover, o, input.factions ?? []), incapacitated: isIncapacitated(o) })),
+      others: onBoard.map((o) => ({ anchor: boxOf(o).anchor, footprint: combatantFootprint(o), size: sizeOf(o), hostile: isHostileTo(mover, o, input.factions ?? []), incapacitated: isIncapacitated(o.conditions) })),
       ruleset: input.ruleset,
     });
   const scene: Scene = {
@@ -825,7 +818,7 @@ export function turnOptions(input: TurnOptionsInput): TurnOption[] {
     reach: search(budget),
     others: onBoard,
     hostiles,
-    enemies: hostiles.map((h) => ({ id: h.instance_id, box: boxOf(h), reachFeet: input.reachOf(h), reactionUsed: h.reactionUsed === true, incapacitated: isIncapacitated(h) })),
+    enemies: hostiles.map((h) => ({ id: h.instance_id, box: boxOf(h), reachFeet: input.reachOf(h), reactionUsed: h.reactionUsed === true, incapacitated: isIncapacitated(h.conditions) })),
     ruleset: input.ruleset,
     exposureMemo: new Map(),
     exitsByCell: exitsByCellOf(map.exits),

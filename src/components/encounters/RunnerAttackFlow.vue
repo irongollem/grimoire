@@ -142,7 +142,8 @@ import type {
   DamageApplied,
 } from "@/composables/encounters/useActionResolution";
 import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
-import { targetCandidates, withinFiveFeet } from "@/lib/encounters/actionTargeting";
+import { targetCandidates } from "@/lib/encounters/actionTargeting";
+import { withinFiveFeet } from "@/rules/fight/targeting";
 import { describeStructure } from "@/lib/statBlock/describeStructure";
 import { attackRollMode } from "@/rules/combat/attackRoll";
 import { applyDefenses } from "@/rules/combat/typedDamage";

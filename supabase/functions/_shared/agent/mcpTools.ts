@@ -10,8 +10,8 @@ interface McpToolDef {
 }
 
 /**
- * What a Dungeon Master at a solo table needs to READ the world and to ROLL. Writes (`create`, `update`) and the
- * rest come in a later story. `get_image` and `get_audio` return files the table cannot read; `whoami` and
+ * What a Dungeon Master at a solo table needs to READ the world and to ROLL. The table never writes through these
+ * tools (`create`, `update` and the rest are left out on purpose); its writes go through its own tools. `get_image` and `get_audio` return files the table cannot read; `whoami` and
  * `list_campaigns` are about the account, not the table; `voice_coach` spends credits on another AI call.
  */
 export const SOLO_TABLE_TOOLS: ReadonlySet<string> = new Set(["roll", "search", "get", "list", "campaign_overview"]);

@@ -16,8 +16,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { pressureSpoken } from "@/lib/table/pressureLabel";
-import type { TablePressure } from "@/lib/table/soloTypes";
+import { pressureSpoken } from "@/lib/table/solo/pressureLabel";
+import type { TablePressure } from "@/lib/table/solo/soloTypes";
 
 const { pressure } = defineProps<{ pressure: TablePressure }>();
 

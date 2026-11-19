@@ -11,12 +11,12 @@
 // Pure: no I/O.
 
 import type { DmRoll } from "./types.ts";
+import { isRecord } from "./parse.ts";
 
 const LABEL_MAX = 80;
 /** The roll tool takes at most 100 dice; more than that in an answer is not an answer this code knows. */
 const DICE_MAX = 100;
 
-const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
 const isWhole = (x: unknown): x is number => typeof x === "number" && Number.isInteger(x);
 const isDice = (x: unknown): x is number[] => Array.isArray(x) && x.length <= DICE_MAX && x.every((f) => isWhole(f) && f >= 1);
 

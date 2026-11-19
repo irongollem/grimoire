@@ -6,6 +6,7 @@
  * vite.config.ts `codeSplitting`).
  */
 import type { RunCombatant } from "../types/encounter.types.ts";
+import { isStanding } from "./fight/standing.ts";
 
 type TurnCombatant = Pick<RunCombatant, "instance_id" | "hp" | "type">;
 type AliveCombatant = Pick<RunCombatant, "hp" | "type">;
@@ -13,7 +14,7 @@ type AliveCombatant = Pick<RunCombatant, "hp" | "type">;
 /** Whether a combatant gets turns: alive monsters, or any player (down players
  *  still get a turn for death saves). A downed monster's turns are skipped. */
 export function takesTurns(c: AliveCombatant): boolean {
-  return c.hp > 0 || c.type === "player";
+  return isStanding(c);
 }
 
 /** Index (into a sorted list) of the first combatant able to act this round (`takesTurns`). */

@@ -12,7 +12,7 @@
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconVolume } from "@/lib/icons";
-import { emphasisRuns } from "@/lib/table/emphasis";
+import { emphasisRuns } from "@/lib/table/solo/emphasis";
 
 const { text, replayable = false } = defineProps<{
   text: string;

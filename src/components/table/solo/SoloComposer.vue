@@ -63,10 +63,10 @@ import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import KeyCap from "@/components/common/controls/KeyCap.vue";
 import { IconStop } from "@/lib/icons";
-import { remembered, stepHistory, type HistoryWalk } from "@/lib/table/composerHistory";
-import { composerKeyAction } from "@/lib/table/composerKeys";
-import { SPOKEN_WORDS_PER_TURN, wordCount } from "@/lib/table/fight/turnBudget";
-import type { PlayMode } from "@/lib/table/soloTypes";
+import { remembered, stepHistory, type HistoryWalk } from "@/lib/table/solo/composerHistory";
+import { composerKeyAction } from "@/lib/table/solo/composerKeys";
+import { SPOKEN_WORDS_PER_TURN, wordCount } from "@/lib/table/solo/fight/turnBudget";
+import type { PlayMode } from "@/lib/table/solo/soloTypes";
 
 const { character, running, fight = null, canCorrect = false } = defineProps<{
   character: string;

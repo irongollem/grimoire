@@ -8,6 +8,11 @@
 // A message stays plain text ("@Rosie hold the door"). What it mentions is worked out from the text against the names
 // the table has, and stored beside it (`metadata.mentions`) so a reader, or the server, need not parse it again.
 
+import type { StoredMention } from "../../types/chat.types.ts";
+
+// The stored shape lives with the other chat types; re-exported so importers here keep working.
+export type { StoredMention };
+
 /**
  * Whom a chat line can address: one character, the Dungeon Master, or the whole party ("@party", the maintainer the
  * same day: "which also indirectly addresses them"). Only a character has a `partyMemberId`.
@@ -18,12 +23,6 @@ export interface MentionTarget {
   name: string;
 }
 
-/** A mention as it is stored on the message. */
-export interface StoredMention {
-  kind: MentionTarget["kind"];
-  party_member_id: string | null;
-  name: string;
-}
 
 /** The two targets every table has beside its characters. */
 export const DM_MENTION: MentionTarget = { kind: "dm", partyMemberId: null, name: "Dungeon Master" };

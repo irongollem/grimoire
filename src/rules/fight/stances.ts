@@ -5,6 +5,7 @@
 // Pure and edge-importable (relative `.ts` imports only).
 
 import type { AppliedCondition } from "../../types/condition.types.ts";
+import { isIncapacitated } from "../conditions.ts";
 
 /**
  * PHB 2014 ch. 9 "Dodge"; SRD 5.2 "Dodge [Action]": until the start of its next turn, attacks against the creature
@@ -39,17 +40,8 @@ export function isDisengaged(conditions: readonly AppliedCondition[]): boolean {
   return conditions.some((c) => c.name === DISENGAGED);
 }
 
-/**
- * Conditions that include Incapacitated (PHB 2014 / SRD 5.2 "Conditions": Paralyzed, Petrified, Stunned and
- * Unconscious each say "incapacitated"). An incapacitated creature cannot take actions or reactions, and the Dodge
- * stance gives it nothing.
- */
-const INCAPACITATING = new Set<string>(["Incapacitated", "Paralyzed", "Petrified", "Stunned", "Unconscious"]);
-
-/** The creature is Incapacitated, by that name or by a condition that includes it. */
-export function isIncapacitated(conditions: readonly AppliedCondition[]): boolean {
-  return conditions.some((c) => INCAPACITATING.has(c.name));
-}
+// `isIncapacitated` lives in `../conditions.ts`; re-exported for callers that already import it from here.
+export { isIncapacitated };
 
 /**
  * Hidden: unseen and unheard after a successful Hide (PHB 2014 ch. 7 "Hiding" and ch. 9 "Unseen Attackers and

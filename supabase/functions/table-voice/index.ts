@@ -13,7 +13,7 @@ import { getObject, putObject } from "../_shared/r2/client.ts";
 import { clipKey, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
 import { shownInTurns, speakLine, voiceRates, type TableVoiceDeps } from "./handler.ts";
 import { base64FromBytes, bytesFromBase64, hasSpeechService, loadSpeechRate, speechEnvFrom, speechModelOf, synthesizeSpeech, voicesOn } from "../_shared/speech.ts";
-import { recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
+import { recordGeneration, releaseCredits, reserveCredits, reservationRefusal } from "../_shared/credits.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { deliveryCue } from "../_shared/agent/characterTurn.ts";
@@ -141,11 +141,7 @@ serve(withCors(async (req: Request) => {
     async reserve(userId, credits) {
       const reservation = await reserveCredits(admin, userId, credits, "table_voice");
       if (reservation.ok) return { ok: true, ids: reservation.ids };
-      if (reservation.suspended) return { ok: false, status: 403, error: "account_suspended" };
-      if (reservation.child_account) return { ok: false, status: 403, error: "child_account" };
-      if (reservation.velocity) return { ok: false, status: 429, error: "rate_limited" };
-      if (reservation.insufficient) return { ok: false, status: 402, error: "insufficient_credits" };
-      return { ok: false, status: 503, error: "Voices cannot be metered right now." };
+      return { ok: false, ...reservationRefusal(reservation, "Voices cannot be metered right now.") };
     },
 
     release: (ids) => releaseCredits(admin, ids),

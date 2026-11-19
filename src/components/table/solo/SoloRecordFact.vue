@@ -18,7 +18,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import { factOrigin, type StoryFact } from "@/lib/table/storyRecord";
+import { factOrigin, type StoryFact } from "@/lib/table/solo/storyRecord";
 
 const { fact, closed, about = [], canWrite = false } = defineProps<{
   fact: StoryFact;

@@ -13,6 +13,8 @@
 //   { campaignId, allClips: true }   the clips of every sitting of the caller's in that campaign, and no rows: asked
 //                                    just before a campaign is deleted, which takes the rows itself.
 
+import { UUID_RE } from "../_shared/agent/parse.ts";
+
 export interface ForgetSession {
   id: string;
   user_id: string;
@@ -39,7 +41,6 @@ export const FORGET_MESSAGES = {
   clips: "The sitting's voice clips could not be removed, so nothing was deleted. Try again.",
 } as const;
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type ForgetBody = { campaignId: string; sessionId: string } | { campaignId: string; allClips: true };
 

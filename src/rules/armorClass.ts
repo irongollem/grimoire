@@ -2,6 +2,10 @@ import type { PartyInventoryItem, InventorySlot } from "../types/inventory.types
 import type { Item } from "../types/item.types.ts";
 import type { RulesetKey } from "../types/ruleset.types.ts";
 import { inventoryItemRef } from "../lib/itemRef.ts";
+import { abilityMod } from "./abilityScore.ts";
+
+// Other folders still import `abilityMod` from here.
+export { abilityMod };
 
 /**
  * Armour Class is worked out from the character and their gear, never stored.
@@ -78,9 +82,6 @@ export function parseShieldAcBonus(armorClass: string | null | undefined): numbe
   return parseInt(match[0].replace(/\s+/g, ""), 10);
 }
 
-export function abilityMod(score: number): number {
-  return Math.floor((score - 10) / 2);
-}
 
 /** The Dex modifier this armour lets through. A cap limits the bonus, never a penalty. */
 function dexApplied(armor: ParsedArmor, dex: number): number {

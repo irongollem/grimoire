@@ -1,5 +1,6 @@
 // Which model an agent call runs on, what it costs and what a credit is worth (#1205). One place, read by every
-// function that makes such a call: a turn of the table (`agent-turn`) and a sitting told as a story (`agent-recap`).
+// function that makes such a call: a turn of the table (`agent-turn`), a sitting told as a story (`agent-recap`), a
+// character's reply in chat (`character-reply`) and the campaign prep (`campaign-prep`).
 // Moved here unchanged from `agent-turn/index.ts` when the second caller arrived.
 
 import type { SupabaseClient } from "@supabase/supabase-js";

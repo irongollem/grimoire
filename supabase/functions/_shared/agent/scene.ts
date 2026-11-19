@@ -6,6 +6,7 @@
 // `go_to` is how the narrator moves the party.
 
 import type { AgentTool, ToolAnswer } from "./types.ts";
+import { UUID_RE } from "./parse.ts";
 
 /** What the narrator is told about the place. The caller's loader cuts `description` to plain text. */
 export interface SceneView {
@@ -54,7 +55,6 @@ export function trimScene(view: SceneView): TrimmedScene {
   };
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const GO_TO_TOOL: AgentTool = {
   name: "go_to",
@@ -84,9 +84,9 @@ export function parseGoToInput(
   const id = input.location_id;
   if (typeof id !== "string" || id.trim() === "") return { ok: false, error: "location_id is required: the id of the place the party goes to." };
   const trimmed = id.trim();
-  if (!UUID.test(trimmed)) return { ok: false, error: "location_id must be the uuid of a place. Search for the place to find its id." };
+  if (!UUID_RE.test(trimmed)) return { ok: false, error: "location_id must be the uuid of a place. Search for the place to find its id." };
   const along = input.with;
-  if (along !== undefined && (!Array.isArray(along) || along.length > 8 || along.some((id) => typeof id !== "string" || !UUID.test(id.trim())))) {
+  if (along !== undefined && (!Array.isArray(along) || along.length > 8 || along.some((id) => typeof id !== "string" || !UUID_RE.test(id.trim())))) {
     return { ok: false, error: "with must be a list of at most 8 character ids: the people who come along." };
   }
   const companions = along === undefined ? [] : [...new Set((along as string[]).map((id) => id.trim().toLowerCase()))];

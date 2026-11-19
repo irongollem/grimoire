@@ -4,10 +4,11 @@
 // player saw (`_shared/agent/recap.ts`), it is put in the note above the facts, and it is charged like any call
 // that succeeded. A note the Dungeon Master has since rewritten by hand is not overwritten.
 
-import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
+import type { AgentProvider } from "../_shared/agent/providerIo.ts";
+import { creditsForUsd, usableCalibration, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { recapDocument, shownStory, tellRecap } from "../_shared/agent/recap.ts";
 import type { StoredTurn } from "../_shared/agent/transcript.ts";
-import type { CallModel } from "../_shared/agent/types.ts";
+import { UUID_RE } from "../_shared/agent/parse.ts";
 
 export interface RecapNote {
   id: string;
@@ -42,7 +43,7 @@ export interface RecapDeps {
   /** Every fact the sitting filed; the handler keeps only what the party knows. */
   loadFacts(sittingId: string): Promise<Array<{ body: string; known_to_player: boolean }>>;
   characterName(campaignId: string, characterId: string): Promise<string | null>;
-  resolveProvider(campaign: RecapCampaign): Promise<{ provider: string; model: string; isByok: boolean; callModel: CallModel | null } | null>;
+  resolveProvider(campaign: RecapCampaign): Promise<AgentProvider | null>;
   loadPrice(model: string): Promise<ModelPrice | null>;
   loadCalibration(): Promise<{ usdPerCredit: number | null; margin: number } | null>;
   reserve(userId: string, credits: number): Promise<Reservation>;
@@ -75,7 +76,6 @@ export const RECAP_MESSAGES = {
 export type RecapOutcome = { ok: false; status: number; error: string } | { ok: true; credits: number };
 
 const refuse = (status: number, error: string): RecapOutcome => ({ ok: false, status, error });
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function tellSitting(input: { userId: string; body: unknown; deps: RecapDeps }): Promise<RecapOutcome> {
   const { userId, deps } = input;
@@ -102,9 +102,7 @@ export async function tellSitting(input: { userId: string; body: unknown; deps: 
   if (!provider.isByok) {
     price = await deps.loadPrice(provider.model);
     const found = await deps.loadCalibration();
-    if (found && found.usdPerCredit !== null && Number.isFinite(found.usdPerCredit) && found.usdPerCredit > 0 && Number.isFinite(found.margin) && found.margin > 0) {
-      calibration = { usdPerCredit: found.usdPerCredit, margin: found.margin };
-    }
+    calibration = usableCalibration(found);
     if (!price || !calibration) return refuse(503, RECAP_MESSAGES.noMetering);
   }
 

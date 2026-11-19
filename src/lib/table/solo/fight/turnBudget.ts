@@ -31,23 +31,6 @@ export function turnBudgetOf(
   };
 }
 
-function joinList(items: string[]): string {
-  if (items.length === 1) return items[0];
-  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
-}
-
-/** A short sentence for the composer about what is left; it says nothing about movement. */
-export function whatIsLeft(b: TurnBudget): string {
-  const left: string[] = [];
-  if (b.action) left.push("your Action");
-  if (b.bonus) left.push("your Bonus Action");
-  if (b.reaction) left.push("your Reaction");
-  if (b.smallThing) left.push("one small thing");
-  if (b.words) left.push("a few words");
-  if (left.length === 0) return "You have nothing left this turn.";
-  return `You still have ${joinList(left)}.`;
-}
-
 /**
  * Whether the character has a Reaction to give right now: it is unused, and they are on their feet and able to act
  * (PHB 2014 Appendix A "Incapacitated": no actions or reactions).

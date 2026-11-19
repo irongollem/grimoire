@@ -1,4 +1,5 @@
 import type { FightState } from "./fight.ts";
+import { isRecord } from "./parse.ts";
 
 /**
  * The fight that follows the party.
@@ -16,10 +17,6 @@ export function followersOf(fight: FightState | null): string[] {
 
 /** What ends at the start of the bearer's next turn, or with the fight that was left: not carried to the next one. */
 const LEFT_BEHIND = new Set(["Dodging", "Disengaged", "Hidden"]);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 /**
  * The fight's roster as it arrives where the party is caught: the played characters and the foes who followed,

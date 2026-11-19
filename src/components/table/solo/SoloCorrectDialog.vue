@@ -25,7 +25,7 @@ import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppModal from "@/components/common/overlays/AppModal.vue";
 import ModalHeader from "@/components/common/overlays/ModalHeader.vue";
-import { checkCorrection, type StoryFact } from "@/lib/table/storyRecord";
+import { checkCorrection, type StoryFact } from "@/lib/table/solo/storyRecord";
 
 const { fact, saving = false } = defineProps<{ fact: StoryFact | null; saving?: boolean }>();
 const emit = defineEmits<{ close: []; save: [fact: StoryFact, typed: string] }>();

@@ -48,6 +48,17 @@ export function isExhaustion(c: AppliedCondition): boolean {
   return c.name === EXHAUSTION;
 }
 
+/**
+ * Conditions that include Incapacitated (SRD 5.1 "Conditions": Paralyzed, Petrified, Stunned and Unconscious each say
+ * "incapacitated"). An incapacitated creature cannot take actions or reactions and cannot concentrate.
+ */
+export const INCAPACITATING_CONDITIONS: ReadonlySet<string> = new Set(["Incapacitated", "Paralyzed", "Petrified", "Stunned", "Unconscious"]);
+
+/** The creature is Incapacitated, by that name or by a condition that includes it. */
+export function isIncapacitated(conditions: readonly AppliedCondition[]): boolean {
+  return conditions.some((c) => INCAPACITATING_CONDITIONS.has(c.name));
+}
+
 export function hasCondition(list: readonly AppliedCondition[], name: string): boolean {
   return list.some((c) => c.name === name);
 }

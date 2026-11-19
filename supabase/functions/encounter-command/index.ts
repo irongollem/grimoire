@@ -16,8 +16,7 @@ import { fightMapOf } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { underNoteCap } from "../_shared/tacticsJudge.ts";
-import { judge, JEV_MODEL } from "../_shared/typesafe.ts";
-import { rerankKey } from "../search-campaign/rerank.ts";
+import { judge, JEV_MODEL, judgingKey } from "../_shared/typesafe.ts";
 import { rollMessageRow, secureDie } from "../_shared/serverRoll.ts";
 import { inventoryItemRef } from "../../../src/lib/itemRef.ts";
 import { isUuid } from "../../../src/lib/library/contentIdentity.ts";
@@ -276,7 +275,7 @@ serve(withCors(async (req: Request) => {
           const { data: ai, error: aiError } = await admin.from("campaigns").select("ai_enabled").eq("id", campaignId).maybeSingle();
           if (aiError) throw new Error(`campaigns: ${aiError.message}`);
           if (!ai) return null;
-          const key = rerankKey(ai.ai_enabled, (await fetchPlatformKeys(admin, ["typesafe"])).typesafe);
+          const key = judgingKey(ai.ai_enabled, (await fetchPlatformKeys(admin, ["typesafe"])).typesafe);
           if (key === null) return null;
           // The cap counts this fight's cost rows: the DM's rows of this operation since the fight began (the ledger
           // carries no encounter id, and a DM runs one live fight per campaign, so this over-counts at worst).

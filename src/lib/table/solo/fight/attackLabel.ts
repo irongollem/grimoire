@@ -1,4 +1,4 @@
-import type { PcAttackRow } from "@/composables/encounters/usePcAttackRows";
+import type { PcAttackRow } from "@/types/pcAttack.types";
 
 /** "+7" and "-1", with the sign always written out. */
 const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`);

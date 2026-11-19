@@ -3,8 +3,8 @@
 // what they may read and share; nothing is read with the service role.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { MAX_HANDOUTS_SHOWN, pictureUrl, type HandoutOffer, type PictureOf } from "../_shared/agent/show.ts";
+import { UUID_RE } from "../_shared/agent/parse.ts";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : []);
 
@@ -60,7 +60,7 @@ export async function loadPicture(client: SupabaseClient, campaignId: string, wh
     if (error) throw error;
     return data ? picture(data.name, data.image_url) : null;
   }
-  const own = UUID.test(id);
+  const own = UUID_RE.test(id);
   if (what === "item") {
     const { data, error } = own
       ? await client.from("items").select("name, image_url").eq("id", id).eq("campaign_id", campaignId).maybeSingle()

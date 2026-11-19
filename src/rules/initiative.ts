@@ -1,4 +1,4 @@
-import { abilityMod } from "./weaponAttack.ts";
+import { abilityMod } from "./abilityScore.ts";
 import { jackOfAllTradesBonus, type JackOfAllTrades } from "./skillCheck.ts";
 import { getExhaustionD20Penalty, hasCheckDisadvantage } from "./conditions.ts";
 import type { RulesetKey } from "../types/ruleset.types.ts";

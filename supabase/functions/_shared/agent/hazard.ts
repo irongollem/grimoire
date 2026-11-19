@@ -21,7 +21,6 @@ export const HAZARD_EFFECT_MAX = 600;
 export const HAZARD_DC_MIN = 5;
 export const HAZARD_DC_MAX = 25;
 export const SAVE_ABILITIES = ["STR", "DEX", "CON", "INT", "WIS", "CHA"] as const;
-export type SaveAbility = (typeof SAVE_ABILITIES)[number];
 
 export const HAZARD_TOOL: AgentTool = {
   name: HAZARD_TOOL_NAME,

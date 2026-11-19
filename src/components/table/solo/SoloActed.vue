@@ -15,7 +15,7 @@
 <script setup lang="ts">
 import AppButton from "@/components/common/controls/AppButton.vue";
 import { IconVolume } from "@/lib/icons";
-import type { VoicePigment } from "@/lib/table/speakerColours";
+import type { VoicePigment } from "@/lib/table/solo/speakerColours";
 import { PIGMENT_CLASS } from "./pigments";
 
 const { replayable = false } = defineProps<{

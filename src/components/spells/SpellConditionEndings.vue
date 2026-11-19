@@ -108,7 +108,7 @@
 import { computed } from "vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
-import { ABILITIES, type Ability } from "@/lib/library/curatedSpellConditions";
+import { ABILITIES, type Ability } from "@/lib/spells/curatedSpellConditions";
 import { ABILITY_NAMES } from "@/lib/spells/conditionEffectText";
 import type { SpellConditionEffect } from "@/types/spell.types";
 

@@ -62,16 +62,6 @@ export function startSync(confirmed: ConfirmedFight): FightSync {
   return { confirmed, pending: [] };
 }
 
-export function rowFieldsOf(state: FightState): FightRowFields {
-  return {
-    combatants: state.combatants,
-    round: state.round,
-    activeIndex: state.activeIndex,
-    eventsFired: state.eventsFired,
-    lairFiredRounds: state.lairFiredRounds,
-  };
-}
-
 function stateOf(fields: FightRowFields, frame: FightFrame): FightState {
   return { ...frame, ...fields, started: startedFromRound(fields.round) };
 }

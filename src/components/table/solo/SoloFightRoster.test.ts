@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import SoloFightRoster from "./SoloFightRoster.vue";
-import type { SeenCombatant } from "@/lib/table/fight/foeView";
+import type { SeenCombatant } from "@/lib/table/solo/fight/foeView";
 
 const you: SeenCombatant = { instanceId: "pc", name: "Mira", isYou: true, side: "you", health: { kind: "numbers", hp: 46, maxHp: 58 } };
 const goblin: SeenCombatant = { instanceId: "g1", name: "Goblin", isYou: false, side: "foe", health: { kind: "word", word: "Bloodied" } };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SITTING_ENDS_AFTER_IDLE_MS as SERVER_IDLE_MS } from "../../../supabase/functions/_shared/agent/sittingEnd";
+import { SITTING_ENDS_AFTER_IDLE_MS as SERVER_IDLE_MS } from "../../../../supabase/functions/_shared/agent/sittingEnd";
 import { endedByPause, offersNewSitting, SITTING_ENDS_AFTER_IDLE_MS } from "./sittingLength";
 
 const HOUR = 60 * 60 * 1000;

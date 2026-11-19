@@ -1,7 +1,9 @@
 /**
  * Jev as a picker of a monster's turn (#1203 story 3): pure request builders and answer readers, with the model call
- * left to the caller. Nothing here is wired into an edge function yet: `scripts/tactics-eval/run.ts` measures whether
- * this picks a turn better than the rules-only `pickTurn` before anything is.
+ * left to the caller. The note judge (`noteRequest`, `optionsAllowedByNote`) is used by `take_turn`
+ * (`encounter-command/takeTurn.ts`). The turn pickers (`choiceRequest`, `scoreRequest`, `pickFromChoice`,
+ * `pickFromScores`) are used only by the evaluation script `scripts/tactics-eval/run.ts`, which measures whether they
+ * pick a turn better than the rules-only `pickTurn`.
  *
  * Same house style as `search-campaign/rerank.ts` and `import-match/judging.ts`: the builders are pure, the call is
  * injected by whoever runs them, nothing throws, and an answer that is missing or names nothing on the list reads as

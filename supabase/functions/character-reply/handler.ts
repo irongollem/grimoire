@@ -5,10 +5,12 @@
 // that id: the line, whom it addresses, who is played and who pays are all read on the server. The Dungeon Master
 // pays ("players always play for free"), so every reply is reserved, charged and logged on the campaign owner.
 
-import { creditsForUsd, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
+import type { AgentProvider } from "../_shared/agent/providerIo.ts";
+import { creditsForUsd, usableCalibration, usdForSteps, type CreditCalibration, type ModelPrice } from "../_shared/agent/metering.ts";
 import { STAND_IN_MAX_OUTPUT_TOKENS, standInPrompt, standInReply, standInsAnswering, type StandIn } from "../_shared/agent/standIn.ts";
-import type { AgentBlock, CallModel } from "../_shared/agent/types.ts";
+import type { AgentBlock } from "../_shared/agent/types.ts";
 import type { StoredMention } from "../../../src/lib/chat/chatMentions.ts";
+import { UUID_RE } from "../_shared/agent/parse.ts";
 
 export interface ChatLine {
   id: string;
@@ -42,7 +44,7 @@ export interface ReplyDeps {
   ownerRefused(ownerId: string): Promise<boolean>;
   /** Whether the screen refuses the line. Logged against the one who typed it. */
   isFlagged(text: string, senderId: string): Promise<boolean>;
-  resolveProvider(campaign: ReplyCampaign): Promise<{ provider: string; model: string; isByok: boolean; callModel: CallModel | null } | null>;
+  resolveProvider(campaign: ReplyCampaign): Promise<AgentProvider | null>;
   loadPrice(model: string): Promise<ModelPrice | null>;
   loadCalibration(): Promise<{ usdPerCredit: number | null; margin: number } | null>;
   loadMemories(campaignId: string, partyMemberId: string): Promise<string[]>;
@@ -67,7 +69,6 @@ export const REPLY_MESSAGES = {
 export type ReplyOutcome = { ok: false; status: number; error: string } | { ok: true; replies: number };
 
 const refuse = (status: number, error: string): ReplyOutcome => ({ ok: false, status, error });
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NOBODY: ReplyOutcome = { ok: true, replies: 0 };
 
 export async function answerChatLine(input: { userId: string; body: unknown; deps: ReplyDeps }): Promise<ReplyOutcome> {
@@ -102,9 +103,7 @@ export async function answerChatLine(input: { userId: string; body: unknown; dep
   if (!provider.isByok) {
     price = await deps.loadPrice(provider.model);
     const found = await deps.loadCalibration();
-    if (found && found.usdPerCredit !== null && Number.isFinite(found.usdPerCredit) && found.usdPerCredit > 0 && Number.isFinite(found.margin) && found.margin > 0) {
-      calibration = { usdPerCredit: found.usdPerCredit, margin: found.margin };
-    }
+    calibration = usableCalibration(found);
     if (!price || !calibration) return NOBODY;
   }
 

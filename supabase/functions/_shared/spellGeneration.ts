@@ -4,7 +4,7 @@
  * otherwise it becomes null ("not said yet"), never a wrong entry. The client's `spellInsertFromAi` applies the same
  * rule through the same function. The old free-text `condition_inflicted` is dropped: nothing reads it any more.
  */
-import { vetConditionEffect } from "../../../src/lib/library/curatedSpellConditions.ts";
+import { vetConditionEffect } from "../../../src/lib/spells/curatedSpellConditions.ts";
 
 export function vetGeneratedSpell(data: Record<string, unknown>): Record<string, unknown> {
   const { condition_inflicted: _unused, ...rest } = data;

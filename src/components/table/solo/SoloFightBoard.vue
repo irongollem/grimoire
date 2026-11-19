@@ -120,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import type { FoeMoment } from "@/lib/table/fight/foeLine";
+import type { FoeMoment } from "@/lib/table/solo/fight/foeLine";
 import { computed, ref, watch } from "vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -130,19 +130,19 @@ import { useDrawWeapon } from "@/composables/table/useDrawWeapon";
 import { usePcAttackRows, type PcAttackRow } from "@/composables/encounters/usePcAttackRows";
 import { useHotkeys } from "@/composables/useHotkeys";
 import KeyCap from "@/components/common/controls/KeyCap.vue";
-import { actOutcome, type ActKind } from "@/lib/table/fight/acts";
+import { actOutcome, type ActKind } from "@/lib/table/solo/fight/acts";
 import { useTableCheck } from "@/composables/table/useTableCheck";
 import { hideOutcome } from "@/rules/hide";
 import { hiddenCondition } from "@/rules/fight/stances";
 import { useSoloAttack } from "@/composables/table/useSoloAttack";
 import { useSoloFightHost, type SoloFightEnd } from "@/composables/table/useSoloFightHost";
 import { useToast } from "@/composables/useToast";
-import type { BoardLine } from "@/lib/table/fight/boardLines";
+import type { BoardLine } from "@/lib/table/solo/fight/boardLines";
 import { useTableHelpers } from "@/composables/table/useTableHelpers";
 import { useTableFoes } from "@/composables/table/useTableFoes";
-import type { FightChange, FightTurn } from "@/lib/table/fight/fightChange";
-import { attackEntryOf, damageDicePlan } from "@/lib/table/fight/pcAttack";
-import type { RollAnswer, RollAsk } from "@/lib/table/soloTypes";
+import type { FightChange, FightTurn } from "@/lib/table/solo/fight/fightChange";
+import { attackEntryOf, damageDicePlan } from "@/lib/table/solo/fight/pcAttack";
+import type { RollAnswer, RollAsk } from "@/lib/table/solo/soloTypes";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import type { PartyMember } from "@/types/party.types";
 import { useUpdatePartyMember } from "@/composables/party/useParty";

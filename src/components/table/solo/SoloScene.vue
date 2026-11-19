@@ -70,7 +70,7 @@ import FocalImage from "@/components/common/media/FocalImage.vue";
 import { getNpcDisplayFocalPoint, getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
 import type { SceneNpc } from "@/composables/table/useTableScene";
 import type { HearthQuestNow } from "@/lib/hearth/currentBeats";
-import type { TablePressure } from "@/lib/table/soloTypes";
+import type { TablePressure } from "@/lib/table/solo/soloTypes";
 import SoloPressure from "./SoloPressure.vue";
 
 const { here, pressure = null, after = [], placeSummary = null, recorded = [] } = defineProps<{

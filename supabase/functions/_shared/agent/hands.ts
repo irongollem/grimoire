@@ -16,6 +16,8 @@
 // Pure: no I/O. `handsIo.ts` reads what is carried and stocked, and carries the changes out.
 
 import type { AgentTool } from "./types.ts";
+import type { Parsed } from "./parse.ts";
+import { isRecord, refuse, UUID_RE } from "./parse.ts";
 
 export const HAND_OVER_TOOL_NAME = "hand_over";
 export const TAKE_TOOL_NAME = "take";
@@ -30,7 +32,6 @@ export const WHY_MAX = 80;
 
 /** The most things one opening of a chest hands over. */
 export const CHEST_PICKS_MAX = 12;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PLAYER = "player";
 
 export const HAND_OVER_TOOL: AgentTool = {
@@ -145,8 +146,6 @@ export type HandsChange =
   | { kind: "gain"; coins: Coins; why: string }
   | { kind: "buy"; thing: string; quantity: number; ref: ItemRef; price: Coins };
 
-type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
-const refuse = (error: string): { ok: false; error: string } => ({ ok: false, error });
 
 function quantityOf(raw: unknown): number | null {
   if (raw === undefined) return 1;
@@ -166,11 +165,11 @@ export function parseHandOver(input: Record<string, unknown>): Parsed<{ directio
   if (quantity === null) return refuse(`quantity is a whole number from 1 to ${QUANTITY_MAX}.`);
   if (giver === PLAYER && receiver === PLAYER) return refuse("The player's character cannot hand a thing to themselves.");
   if (giver === PLAYER) {
-    if (typeof receiver !== "string" || !UUID.test(receiver)) return refuse("receiver must be the id of the character who receives it.");
+    if (typeof receiver !== "string" || !UUID_RE.test(receiver)) return refuse("receiver must be the id of the character who receives it.");
     return { ok: true, value: { direction: "from_player", characterId: receiver, thing, quantity } };
   }
   if (receiver === PLAYER) {
-    if (typeof giver !== "string" || !UUID.test(giver)) return refuse("giver must be the id of the character who gives it.");
+    if (typeof giver !== "string" || !UUID_RE.test(giver)) return refuse("giver must be the id of the character who gives it.");
     return { ok: true, value: { direction: "to_player", characterId: giver, thing, quantity } };
   }
   return refuse("One side must be \"player\": this tool moves things to or from the player's character. What two other characters give each other is a fact for record.");
@@ -204,11 +203,11 @@ export function parseTake(
     return refuse("Give exactly one: placement_id for something the campaign placed here, item_id for one of the campaign's items, or name alone for a plain object.");
   }
   if (hasPlacement) {
-    if (typeof input.placement_id !== "string" || !UUID.test(input.placement_id)) return refuse("placement_id must be an id listed under \"Placed within reach\".");
+    if (typeof input.placement_id !== "string" || !UUID_RE.test(input.placement_id)) return refuse("placement_id must be an id listed under \"Placed within reach\".");
     return { ok: true, value: { itemId: null, name: null, placementId: input.placement_id, quantity, chestThings, fromBody: null } };
   }
   if (hasId) {
-    if (typeof input.item_id !== "string" || !UUID.test(input.item_id)) return refuse("item_id must be the item's id, as search or get returned it.");
+    if (typeof input.item_id !== "string" || !UUID_RE.test(input.item_id)) return refuse("item_id must be the item's id, as search or get returned it.");
     return { ok: true, value: { itemId: input.item_id, name: null, placementId: null, quantity, chestThings: null, fromBody } };
   }
   const name = thingOf(input.name);
@@ -231,10 +230,6 @@ export interface Chest {
   things: ChestThing[];
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /**
  * A prepared chest read from its placement's payload (`rolled_atoms`, `claims_total`): rolled when the Dungeon
  * Master prepared it, so the table never rolls it again. Null when nothing can be taken from it. An atom with no
@@ -251,7 +246,7 @@ export function chestOf(payload: unknown): Chest | null {
       return [{ atomId: atom.atom_id, name: typeof atom.currency_label === "string" ? atom.currency_label.trim() : "", ref: { itemId: null, libraryItemId: null }, coins }];
     }
     if (typeof atom.item_id !== "string" || typeof atom.item_name !== "string" || atom.item_name.trim() === "") return [];
-    const own = UUID.test(atom.item_id);
+    const own = UUID_RE.test(atom.item_id);
     return [{ atomId: atom.atom_id, name: atom.item_name.trim(), ref: { itemId: own ? atom.item_id : null, libraryItemId: own ? null : atom.item_id }, coins: null }];
   });
   const total = payload.claims_total;

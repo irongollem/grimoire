@@ -19,7 +19,7 @@ import type { StatBlockEntry } from "../../../src/types/statBlock.types.ts";
 import { statBlockOf, type StatBlockSources } from "../_shared/fightStatBlocks.ts";
 import type { StatBlockListKey } from "../../../src/rules/statBlock/parseAction.ts";
 import { holdsConcentration } from "../../../src/rules/conditionDurations.ts";
-import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "../../../src/lib/encounters/actionTargeting.ts";
+import { combatantDefenses, effectiveArmorClass, parseArmorClass, withinFiveFeet } from "../../../src/rules/fight/targeting.ts";
 import { applyFightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightDeps, FightResult } from "../../../src/rules/fight/fightEvents.ts";
 import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";

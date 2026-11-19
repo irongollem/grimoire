@@ -1,6 +1,5 @@
-import type { StoredMention } from "@/lib/chat/chatMentions";
-import type { Coins } from "@/lib/currency/currency";
-import type { ItemQuality } from "@/types/inventory.types";
+import type { Coins } from "../lib/currency/currency.ts";
+import type { ItemQuality } from "./inventory.types.ts";
 
 export type MessageType = "chat" | "roll" | "system" | "item_drop" | "currency_drop" | "vendor_offer" | "player_offer" | "loot_chest" | "dm_roll";
 
@@ -236,3 +235,10 @@ export type CampaignMessageInsert = Pick<
   CampaignMessage,
   "campaign_id" | "user_id" | "recipient_user_id" | "sender_name" | "message" | "type" | "metadata"
 >;
+
+/** A mention as it is stored on the message. */
+export interface StoredMention {
+  kind: "member" | "dm" | "party";
+  party_member_id: string | null;
+  name: string;
+}

@@ -15,6 +15,7 @@ import { rationsNeeded } from "../../../../src/rules/rations.ts";
 import { DEFAULT_TRAVEL_PACE, formatTravelTime, fromMiles, getTravelPace, TRAVEL_PACES, travelTime, type TravelPaceId } from "../../../../src/rules/travelPace.ts";
 import { tablesAlong, tablesLine, type PlacedTable, type TableOnTheWay } from "./roadTables.ts";
 import type { AgentTool } from "./types.ts";
+import { UUID_RE } from "./parse.ts";
 
 export const TRAVEL_TOOL_NAME = "travel";
 
@@ -45,7 +46,6 @@ export const TRAVEL_TOOL: AgentTool = {
   },
 };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function tablesOfTheWay(way: Way, map: TravelMap, parentOf: (id: string) => string | null, nameOf: (id: string) => string): TableOnTheWay[] {
   const onRoads = way.legs.flatMap((leg): TableOnTheWay[] => {
@@ -75,7 +75,7 @@ export type ParsedTravel = { ok: true; value: { toPlaceId: string; paceId: Trave
 
 export function parseTravel(input: Record<string, unknown>): ParsedTravel {
   const to = input.to_place_id;
-  if (typeof to !== "string" || !UUID.test(to)) return { ok: false, error: "to_place_id must be the id of a place of this campaign." };
+  if (typeof to !== "string" || !UUID_RE.test(to)) return { ok: false, error: "to_place_id must be the id of a place of this campaign." };
   const pace = input.pace;
   if (pace !== undefined && !TRAVEL_PACES.some((p) => p.id === pace)) return { ok: false, error: `pace must be one of ${TRAVEL_PACES.map((p) => p.id).join(", ")}.` };
   return { ok: true, value: { toPlaceId: to, paceId: pace === undefined ? DEFAULT_TRAVEL_PACE : (pace as TravelPaceId) } };

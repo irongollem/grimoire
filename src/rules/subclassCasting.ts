@@ -1,5 +1,6 @@
 import type { PreparedAbility, SubclassSpellcasting } from "@/levelup/customTypes";
 import type { CasterType } from "@/types/spell.types";
+import { abilityMod } from "./abilityScore";
 
 /**
  * Where a class row's spellcasting comes from. The rule is the server's
@@ -135,6 +136,6 @@ export function subclassPreparedLimit(
 ): number | null {
   if (!casting || casting.source !== "subclass" || !casting.ability) return null;
   if (casting.casterType !== "prepared" && casting.casterType !== "spellbook") return null;
-  const mod = Math.floor((scores[casting.ability] - 10) / 2);
+  const mod = abilityMod(scores[casting.ability]);
   return Math.max(1, mod + Math.floor(classLevels / SUBCLASS_PREPARED_DIVISOR));
 }

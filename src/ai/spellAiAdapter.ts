@@ -9,7 +9,7 @@ import {
   type SpellSchool,
   type SpellComponent,
 } from "@/types/spell.types";
-import { vetConditionEffect } from "@/lib/library/curatedSpellConditions";
+import { vetConditionEffect } from "@/lib/spells/curatedSpellConditions";
 import type { SpellAiGenerated } from "./types";
 
 const SCHOOL_SET = new Set<string>(SPELL_SCHOOLS);

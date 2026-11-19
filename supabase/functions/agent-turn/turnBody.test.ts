@@ -1,4 +1,4 @@
-import { FOE_MOMENTS as PAGE_FOE_MOMENTS } from "../../../src/lib/table/fight/foeLine";
+import { FOE_MOMENTS as PAGE_FOE_MOMENTS } from "../../../src/lib/table/solo/fight/foeLine";
 import { describe, expect, it } from "vitest";
 import { FOE_MOMENTS, parseBody, playerText } from "./turnBody";
 

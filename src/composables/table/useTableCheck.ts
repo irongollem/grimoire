@@ -3,8 +3,8 @@ import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { useJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
 import { useWildshapeForm } from "@/composables/party/useWildshapeForm";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
-import { checkBonus, type CheckBonus } from "@/lib/table/checkBonus";
-import type { RollAsk } from "@/lib/table/soloTypes";
+import { checkBonus, type CheckBonus } from "@/lib/table/solo/checkBonus";
+import type { RollAsk } from "@/lib/table/solo/soloTypes";
 import { effectiveAbilityScores } from "@/rules/characterChecks";
 import type { PartyMember } from "@/types/party.types";
 

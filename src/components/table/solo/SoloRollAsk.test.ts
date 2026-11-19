@@ -5,7 +5,7 @@ const dice = vi.hoisted(() => ({ faces: [] as number[] }));
 vi.mock("@/lib/dice/dice", async (orig) => ({ ...(await orig<typeof import("@/lib/dice/dice")>()), rollDie: () => dice.faces.shift() ?? 1 }));
 
 import SoloRollAsk from "./SoloRollAsk.vue";
-import type { RollAsk } from "@/lib/table/soloTypes";
+import type { RollAsk } from "@/lib/table/solo/soloTypes";
 
 const ask: RollAsk = { label: "Wisdom (Perception)", kind: "check", ability: "wis", skill: "perception" };
 const card = (over: Record<string, unknown> = {}) => mount(SoloRollAsk, { props: { ask, bonus: 4, ...over } });

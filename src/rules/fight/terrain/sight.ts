@@ -48,20 +48,29 @@ export function coverBonus(cover: CoverRank): CoverBonus {
   return { ac: 0, dexSave: 0 };
 }
 
-/** Empty squares between two boxes on one axis; 0 when they touch or overlap (same rule as `withinFiveFeet`). */
+/** Empty squares between two boxes on one axis; 0 when they touch or overlap (the rule `boxesWithinFiveFeet` uses). */
 function gap(p: number, pSide: number, q: number, qSide: number): number {
   return Math.max(p - (q + qSide), q - (p + pSide), 0);
 }
 
 /**
  * Distance between two creatures in feet: 5 ft per square of the larger axis gap, touching (diagonally too) is 5 ft.
- * A fractional gap (a Tiny token) counts whole squares only, so it agrees with `withinFiveFeet` (under one square
+ * A fractional gap (a Tiny token) counts whole squares only, so `boxesWithinFiveFeet` agrees (under one square
  * away is 5 ft).
  */
 export function distanceFeet(a: Box, b: Box): number {
   const gx = gap(a.anchor.x, a.footprint, b.anchor.x, b.footprint);
   const gy = gap(a.anchor.y, a.footprint, b.anchor.y, b.footprint);
   return SQUARE_FEET * (Math.floor(Math.max(gx, gy) + EPS) + 1);
+}
+
+/**
+ * Within 5 feet (PHB 2014 ch. 9 "Playing on a Grid"): the gap between the two spaces is under one square, so they
+ * touch, overlap, or stand in neighbouring squares, diagonals included. Same measure as `distanceFeet`, so the two
+ * cannot disagree.
+ */
+export function boxesWithinFiveFeet(a: Box, b: Box): boolean {
+  return distanceFeet(a, b) <= SQUARE_FEET;
 }
 
 type P = [number, number];

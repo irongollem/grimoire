@@ -14,12 +14,12 @@
 // Pure: no I/O.
 
 import type { AgentTool } from "./types.ts";
+import { UUID_RE } from "./parse.ts";
 
 export const HIT_POINTS_TOOL_NAME = "hit_points";
 export const WHY_MAX = 80;
 export const THING_MAX = 80;
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const HIT_POINTS_TOOL: AgentTool = {
   name: HIT_POINTS_TOOL_NAME,
@@ -75,7 +75,7 @@ export function parseHitPointChange(
   if (ctx.lastRoll < 1) return { ok: false, error: "The roll came to nothing, so nothing changes. Tell that." };
   let used: HitPointChange["used"] = null;
   if (usedBy !== undefined || usedThing !== undefined) {
-    if (typeof usedBy !== "string" || (usedBy !== "player" && !UUID.test(usedBy))) return { ok: false, error: "used_by must be the id of the character whose thing was used up, or \"player\" for the player's own pack." };
+    if (typeof usedBy !== "string" || (usedBy !== "player" && !UUID_RE.test(usedBy))) return { ok: false, error: "used_by must be the id of the character whose thing was used up, or \"player\" for the player's own pack." };
     if (typeof usedThing !== "string" || usedThing.trim() === "" || usedThing.trim().length > THING_MAX) return { ok: false, error: "used_thing must be the name of the thing that was used up." };
     used = { characterId: usedBy === "player" ? null : usedBy, thing: usedThing.trim() };
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CuratedSpellCondition } from "../../src/lib/library/curatedSpellConditions.ts";
+import type { CuratedSpellCondition } from "../../src/lib/spells/curatedSpellConditions.ts";
 import { checkReadings, describePlan, planConditionWrites, worklistOf, type SpellText } from "./spell-conditions.ts";
 
 const spell = (id: string, name: string, description: string): SpellText => ({ id, name, ruleset: "2014", level: 2, concentration: true, duration: "Concentration, up to 1 minute", description, higher_levels: "When you cast this spell using a spell slot of 3rd level or higher, you can target one additional humanoid for each slot level above 2nd." });

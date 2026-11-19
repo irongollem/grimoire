@@ -2,6 +2,8 @@
 // hands them. Split from speak.ts, which holds what a character hears and the character's own call. Pure.
 
 import type { AgentTool } from "./types.ts";
+import type { Parsed } from "./parse.ts";
+import { UUID_RE } from "./parse.ts";
 
 const MANNER_MAX = 200;
 const HAPPENING_MAX = 600;
@@ -14,7 +16,6 @@ const VIA_MAX = 80;
 /** How loud something is said decides who hears it, as at a table. */
 export const VOLUMES = ["whisper", "normal", "shout"] as const;
 export type Volume = (typeof VOLUMES)[number];
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const SPEAKER_PROPERTIES = {
   speaker_id: {
@@ -130,7 +131,6 @@ export const SPEECH_TOOL_NAMES: ReadonlySet<string> = new Set([SPEAK_TOOL.name, 
 
 // ── Input ─────────────────────────────────────────────────────────────────────
 
-type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
 interface SpeakerRef {
   id: string | null;
@@ -177,7 +177,7 @@ function speakerOf(input: Record<string, unknown>): Parsed<SpeakerRef> {
   const hasName = name.value !== null && name.value !== "";
   if (hasId && hasName) return fail("Give speaker_id or speaker_name, not both.");
   if (!hasId && !hasName) return fail("Say who: give speaker_id for a character with a record, or speaker_name.");
-  if (hasId && !UUID.test(id.value as string)) {
+  if (hasId && !UUID_RE.test(id.value as string)) {
     return fail("speaker_id must be the uuid of a character record. For someone with no record use speaker_name.");
   }
   return { ok: true, value: { id: hasId ? (id.value as string) : null, name: hasName ? (name.value as string) : null } };

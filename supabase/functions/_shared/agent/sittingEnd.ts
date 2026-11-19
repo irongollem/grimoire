@@ -6,7 +6,7 @@
 // refused with `sitting_ended`, and the page leaves the table the way the Leave button does and offers to sit down
 // again where the story stopped. Pure: no I/O.
 
-/** A night's sleep ends a sitting; a meal does not. app convention. `src/lib/table/sittingLength.ts` mirrors it. */
+/** A night's sleep ends a sitting; a meal does not. app convention. `src/lib/table/solo/sittingLength.ts` mirrors it. */
 export const SITTING_ENDS_AFTER_IDLE_MS = 6 * 60 * 60 * 1000;
 
 /**

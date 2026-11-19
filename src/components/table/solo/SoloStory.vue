@@ -43,14 +43,14 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from "vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
-import { dmRollLine } from "@/lib/table/dmRoll";
+import { dmRollLine } from "@/lib/table/solo/dmRoll";
 import SoloShown from "./SoloShown.vue";
-import { rollLine } from "@/lib/table/tableRoll";
-import { isAtBottom } from "@/lib/table/storyScroll";
-import { speakerKey, type VoicePigment } from "@/lib/table/speakerColours";
-import type { StoryItem, TableLine } from "@/lib/table/soloTypes";
-import { NO_VOICES, type VoiceParts } from "@/lib/table/voiceLines";
-import type { TurnFailure } from "@/lib/table/turnRefusal";
+import { rollLine } from "@/lib/table/solo/tableRoll";
+import { isAtBottom } from "@/lib/table/solo/storyScroll";
+import { speakerKey, type VoicePigment } from "@/lib/table/solo/speakerColours";
+import type { StoryItem, TableLine } from "@/lib/table/solo/soloTypes";
+import { NO_VOICES, type VoiceParts } from "@/lib/table/solo/voiceLines";
+import type { TurnFailure } from "@/lib/table/solo/turnRefusal";
 import SoloActed from "./SoloActed.vue";
 import SoloFailure from "./SoloFailure.vue";
 import SoloMargin from "./SoloMargin.vue";

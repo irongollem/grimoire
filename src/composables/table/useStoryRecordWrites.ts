@@ -2,7 +2,7 @@ import { reportHandledError } from "@/lib/observability/sentry";
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { STORY_RECORD_KEY } from "@/lib/campaignLiveSync/registry";
-import { checkCorrection, checkNewFact, type StoryFact } from "@/lib/table/storyRecord";
+import { checkCorrection, checkNewFact, type StoryFact } from "@/lib/table/solo/storyRecord";
 import { useCampaignStore } from "@/stores/campaign";
 
 function activeCampaign(): string {

@@ -3,7 +3,7 @@ import { useStorage } from "@vueuse/core";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { safeLocalStorage } from "@/lib/safeLocalStorage";
-import { NO_VOICES, type SpokenLine, type VoicePart, type VoiceParts } from "@/lib/table/voiceLines";
+import { NO_VOICES, type SpokenLine, type VoicePart, type VoiceParts } from "@/lib/table/solo/voiceLines";
 import { useAuthStore } from "@/stores/auth";
 
 /** A line of the sitting to be voiced, as the page knows it (`voiceLines.ts`). */

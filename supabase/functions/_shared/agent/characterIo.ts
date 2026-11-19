@@ -3,11 +3,10 @@
 // the query, so an id from another campaign is simply not found. No test harness here, like `questIo.ts`: the rules
 // (what is said of them, when a name ends an exchange) are in `_shared/agent/playerCharacter.ts`.
 
-import { toPlainText } from "../_shared/ai-prompt.ts";
+import { toPlainText } from "../ai-prompt.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import type { PlayerCharacter } from "./playerCharacter.ts";
+import { UUID_RE } from "./parse.ts";
 
 /** `party_members.species_id` is a custom species uuid or a shared library slug; each id goes to the table it lives in. */
 async function speciesName(admin: SupabaseClient, speciesId: string): Promise<string | null> {

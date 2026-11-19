@@ -24,16 +24,6 @@ export function questBeatKindLabel(kind: string): string {
   return QUEST_BEAT_KIND_LABELS[kind as (typeof QUEST_BEAT_KINDS)[number]] ?? kind;
 }
 
-/** The beat page's Visibility row and identity chip, and now
- *  `QuestBeatIdentityFields` (#872) — one copy of both maps rather than a
- *  second one wherever the editor mounts. */
-export const QUEST_BEAT_VISIBILITY_LABELS: Record<QuestBeatVisibility, string> = { hidden: "hidden", rumored: "rumored", revealed: "revealed" };
-export const QUEST_BEAT_VISIBILITY_CAPTIONS: Record<QuestBeatVisibility, string> = {
-  hidden: "Players do not see this beat at all",
-  rumored: "Players see the rumour text, not the beat",
-  revealed: "Players see the beat itself",
-};
-
 /** Top-level block count of a Tiptap doc stored as a JSON string (the format
  *  `RichTextEditor` actually saves — `JSON.stringify(editor.getJSON())`), or
  *  `null` for legacy plain text / anything unparseable. Shared by

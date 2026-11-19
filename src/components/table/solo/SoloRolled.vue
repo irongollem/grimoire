@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import type { RollLine } from "@/lib/table/tableRoll";
+import type { RollLine } from "@/lib/table/solo/tableRoll";
 
 const { byServer = false } = defineProps<{
   line: RollLine;
