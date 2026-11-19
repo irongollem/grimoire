@@ -165,6 +165,7 @@
             :skill-label="(msg.metadata as FlavorMetadata)?.skill_label ?? null"
             :message="msg.message"
             :rendered-message="renderMessage(msg.message)"
+            :addressed="mentionsMe(msg)"
             :time-label="timeLabel(msg.created_at)"
             :entity-link="entityLinkFor(msg)"
           />
@@ -278,8 +279,9 @@
 
     <!-- Input bar -->
     <div
-      class="shrink-0 border-t border-border bg-card px-2 py-2 flex items-end gap-1.5"
+      class="relative shrink-0 border-t border-border bg-card px-2 py-2 flex items-end gap-1.5"
     >
+      <ChatMentionPicker :suggestions="mention.suggestions.value" :active="mention.active.value" @pick="mention.pick" />
       <AppButton
         variant="ghost"
         size="icon-sm"
@@ -311,8 +313,12 @@
         class="flex-1 resize-none bg-muted/40 border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring leading-snug overflow-hidden"
         :class="whisperTarget ? 'border-tone-caution/40 bg-tone-caution/5' : ''"
         style="max-height: 5rem; min-height: 2rem"
-        @keydown.enter.exact.prevent="send"
-        @input="autoResize"
+        @keydown="onComposerKey"
+        @input="onComposerInput"
+        @click="mention.refresh"
+        @keyup.left="mention.refresh"
+        @keyup.right="mention.refresh"
+        @blur="mention.close"
       />
       <AppButton
         variant="primary"
@@ -330,6 +336,9 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick, shallowRef, onMounted } from "vue";
 import { renderChatMessage } from "@/lib/chat/chatMarkdown";
+import { DM_MENTION, PARTY_MENTION, addresses, emphasiseMentions, mentionsIn, type MentionTarget, type StoredMention } from "@/lib/chat/chatMentions";
+import { useChatMentionInput } from "@/composables/campaign/useChatMentionInput";
+import ChatMentionPicker from "@/components/chat/ChatMentionPicker.vue";
 import { IconClose, IconDelete, IconDiceRoll, IconMessage, IconSend, IconShop } from '@/lib/icons';
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
@@ -359,6 +368,7 @@ import type {
   LootChestMetadata,
   EntityLinkMetadata,
   LootRollChoice,
+  MentionsMetadata,
 } from "@/types/chat.types";
 import type { CampaignMember } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
@@ -391,7 +401,7 @@ const props = defineProps<{
   focusMessageId?: string | null;
   focusRequest?: number;
   /** Posts the message; resolves false when it failed, so the draft can be restored. */
-  sendText: (payload: { text: string; recipientUserId: string | null }) => Promise<boolean>;
+  sendText: (payload: { text: string; recipientUserId: string | null; mentions: StoredMention[] }) => Promise<boolean>;
 }>();
 
 const emit = defineEmits<{
@@ -611,6 +621,27 @@ function recipientName(userId: string): string {
 // ── Input ──────────────────────────────────────────────────────────────────────
 const inputText = ref("");
 
+// Whom an "@" can address: the party's characters, the Dungeon Master, and the party as a whole.
+const mentionTargets = computed<MentionTarget[]>(() => [
+  ...(props.party ?? []).map((p): MentionTarget => ({ kind: "member", partyMemberId: p.id, name: p.name })),
+  DM_MENTION,
+  PARTY_MENTION,
+]);
+const mention = useChatMentionInput({ text: inputText, el: inputEl, targets: () => mentionTargets.value });
+
+function onComposerInput(e: Event) {
+  autoResize(e);
+  mention.refresh();
+}
+
+function onComposerKey(e: KeyboardEvent) {
+  if (mention.onKeydown(e)) return;
+  if (e.key === "Enter" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    void send();
+  }
+}
+
 function autoResize(e: Event) {
   const el = e.target as HTMLTextAreaElement;
   el.style.height = "auto";
@@ -622,7 +653,8 @@ async function send() {
   if (!text.trim()) return;
   inputText.value = "";
   if (inputEl.value) inputEl.value.style.height = "auto";
-  const posted = await props.sendText({ text, recipientUserId: whisperTarget.value || null });
+  mention.close();
+  const posted = await props.sendText({ text, recipientUserId: whisperTarget.value || null, mentions: mentionsIn(text, mentionTargets.value) });
   // A failed send hands the words back, unless the reader has already started
   // typing something else.
   if (!posted && !inputText.value) inputText.value = text;
@@ -658,7 +690,15 @@ const { chatLocale } = useLocalePrefs();
 function timeLabel(iso: string) { return formatChatTimestamp(iso, chatLocale.value); }
 
 function renderMessage(text: string): string {
-  return renderChatMessage(text);
+  return renderChatMessage(emphasiseMentions(text, mentionTargets.value));
+}
+
+/** Whether a line addresses the reader: their own character by name or with the party, or the DM when they are it. */
+function mentionsMe(msg: CampaignMessage): boolean {
+  const mentions = (msg.metadata as Partial<MentionsMetadata> | null)?.mentions;
+  if (!Array.isArray(mentions) || msg.user_id === props.myUserId) return false;
+  if (auth.isDM) return mentions.some((m) => m.kind === "dm");
+  return auth.linkedPartyMemberId ? addresses(mentions, auth.linkedPartyMemberId) : false;
 }
 </script>
 

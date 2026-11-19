@@ -131,6 +131,7 @@ import { getNpcDisplayName } from "@/lib/npcDisplay";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import { useLootRollClock } from "@/composables/campaign/useLootRollClock";
 import type { RollResult } from "@/lib/dice/dice";
+import type { StoredMention } from "@/lib/chat/chatMentions";
 import type { ItemDropMetadata, LootRollChoice, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, LootChestMetadata } from "@/types/chat.types";
 import { canAfford, hasCoins, type Coins } from "@/lib/currency/currency";
 import { knownCoins } from "@/lib/dungeon-features/lootTableRoll";
@@ -496,12 +497,14 @@ async function handleBuyPlayerOffer({ messageId }: { messageId: string }) {
 async function handleSend({
   text,
   recipientUserId,
+  mentions,
 }: {
   text: string;
   recipientUserId: string | null;
+  mentions: StoredMention[];
 }): Promise<boolean> {
   try {
-    await sendMessage(text, recipientUserId);
+    await sendMessage(text, recipientUserId, mentions);
     return true;
   } catch (e) {
     reportMessageFailure(e, recipientUserId !== null);

@@ -30,11 +30,13 @@
   <div
     v-else
     class="max-w-[80%] rounded-lg px-3 py-2"
-    :class="
+    :class="[
       isOwn
         ? 'bg-primary/15 border border-primary/20'
-        : 'bg-muted/60 border border-border'
-    "
+        : 'bg-muted/60 border border-border',
+      addressed ? 'ring-2 ring-primary/50' : '',
+    ]"
+    :data-addressed="addressed ? '' : undefined"
   >
     <div
       v-if="senderName || recipientName"
@@ -78,6 +80,7 @@ const {
   renderedMessage = '',
   timeLabel,
   entityLink = null,
+  addressed = false,
 } = defineProps<{
   isSystem?: boolean;
   isOwn?: boolean;
@@ -91,6 +94,8 @@ const {
   timeLabel: string;
   /** Optional entity link — when present, shows a "View →" button routing to the entity. */
   entityLink?: EntityLinkMetadata | null;
+  /** The line names the reader with an "@" (their character, the party, or the DM when they are it). */
+  addressed?: boolean;
 }>();
 
 const targetRoute = computed((): string | null => {

@@ -1,3 +1,4 @@
+import type { StoredMention } from "@/lib/chat/chatMentions";
 import type { Coins } from "@/lib/currency/currency";
 import type { ItemQuality } from "@/types/inventory.types";
 
@@ -24,6 +25,11 @@ export interface RollMetadata {
  */
 export interface SpeakerMetadata {
   for_party_member_id: string;
+}
+
+/** Whom a chat line addresses with an "@" (#1021 row 26; `lib/chat/chatMentions.ts`). Rides beside any other metadata of the line. */
+export interface MentionsMetadata {
+  mentions: StoredMention[];
 }
 
 export interface ItemDropClaim {
@@ -217,7 +223,7 @@ export interface CampaignMessage {
   sender_name: string | null;
   message: string;
   type: MessageType;
-  metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | VendorOfferMetadata | PlayerOfferMetadata | FlavorMetadata | SpeakerMetadata | LootChestMetadata | EntityLinkMetadata | null;
+  metadata: RollMetadata | ItemDropMetadata | CurrencyDropMetadata | VendorOfferMetadata | PlayerOfferMetadata | FlavorMetadata | SpeakerMetadata | MentionsMetadata | LootChestMetadata | EntityLinkMetadata | null;
   created_at: string;
   /**
    * True for a roll the server made (#1204): only a service-role insert can set it,

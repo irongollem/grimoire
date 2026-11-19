@@ -608,6 +608,8 @@ How it is enforced:
   rather than "Only you see this", which a second DM made untrue.
   A whisper "to the DM" goes to the owner, and every DM reads it.
 
+**@-mentions in chat (#1021 row 26, 19 Nov 2026).** The maintainer: "we already have @ mentions elsewhere so may as well build them into chat as well which is the public addressal form of a whisper", and "add the @party too which also indirectly addresses them". Typing `@` in the composer opens a picker (`ChatMentionPicker`, a torn slip over the input; `useChatMentionInput`) of the party's characters, the Dungeon Master and `@party`; arrows move, Enter or Tab picks (and does not send), Escape closes. The message stays plain text. Whom it addresses is worked out from the text against the names the table has (`lib/chat/chatMentions.ts`: the longest name wins, an `@` inside a word such as an email address opens nothing) and stored beside it as `metadata.mentions` (`{ kind: member | dm | party, party_member_id, name }`), next to `for_party_member_id` when the sender speaks for a character. A mention is drawn in bold through the chat's own markdown, so no markup of ours enters a message, and a line that addresses the reader (their character by name or with the party, or the DM when they are it) gets a ring; their own lines never do. `addresses()` is the one rule for "does this line address this character", which the characters played for absent players answer to.
+
 **Helper functions:**
 
 - `private.is_campaign_member(cid uuid)` — returns true if `auth.uid()` has any row in `campaign_members` for that campaign.
