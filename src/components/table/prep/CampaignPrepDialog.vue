@@ -77,7 +77,7 @@ import { supabase } from "@/lib/supabase";
 
 /** A proposal as the server sends it and takes it back: one flat shape (`proposalInput` in `_shared/campaignPrep.ts`). */
 export interface PrepProposal {
-  kind: "hazard" | "place" | "item" | "roll_table";
+  kind: "hazard" | "place" | "item" | "roll_table" | "feature";
   name: string;
   why: string;
   description: string;
@@ -91,6 +91,9 @@ export interface PrepProposal {
   item_type?: string;
   rarity?: string;
   dice?: string;
+  feature_type?: string;
+  find_dc?: number;
+  contents?: string;
   entries?: Array<{ label: string; notes?: string }>;
 }
 
@@ -110,7 +113,7 @@ const sendToCampaignPrep: PrepTransport = async (body) => {
 const { open, campaignId, transport = undefined } = defineProps<{ open: boolean; campaignId: string; transport?: PrepTransport }>();
 const emit = defineEmits<{ close: [] }>();
 
-const KIND_LABELS: Record<PrepProposal["kind"], string> = { hazard: "Hazard", place: "Place", item: "Item", roll_table: "Roll table" };
+const KIND_LABELS: Record<PrepProposal["kind"], string> = { hazard: "Hazard", place: "Place", item: "Item", roll_table: "Roll table", feature: "Dungeon feature" };
 const words = (s: string): string => s.replace(/_/g, " ");
 
 const client = useQueryClient();
@@ -141,6 +144,7 @@ const charged = computed(() => (credits.value > 0 ? `Reading the campaign cost $
 function detailOf(p: PrepProposal): string {
   if (p.kind === "hazard") return [p.save && p.dc ? `${p.save} saving throw, DC ${p.dc}` : "", p.damage_dice ? `${p.damage_dice} ${p.damage_type ?? ""}`.trim() : ""].filter((s) => s !== "").join(" · ");
   if (p.kind === "place") return [p.place_type ? words(p.place_type) : "", p.terrain ?? "", p.inside ? `in ${p.inside}` : ""].filter((s) => s !== "").join(" · ");
+  if (p.kind === "feature") return [p.feature_type ?? "", p.find_dc ? `Perception DC ${p.find_dc} to notice` : "", p.contents ? `Holds: ${p.contents}` : ""].filter((s) => s !== "").join(" · ");
   if (p.kind === "roll_table") return [p.dice ?? "", ...(p.entries ?? []).map((e) => e.label)].filter((s) => s !== "").join(" · ");
   return [p.item_type ? words(p.item_type) : "", p.rarity ? words(p.rarity) : ""].filter((s) => s !== "").join(" · ");
 }

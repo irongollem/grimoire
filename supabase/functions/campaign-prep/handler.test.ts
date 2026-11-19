@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AgentUsage, CallModel } from "../_shared/agent/types";
-import { rollTableEntries, type Proposal } from "../_shared/campaignPrep";
+import { FEATURE_TYPES, rollTableEntries, type Proposal } from "../_shared/campaignPrep";
+import { DUNGEON_FEATURE_TYPES } from "../../../src/types/dungeonFeature.types";
 import { PREP_MESSAGES, prepCampaign, type PrepDeps } from "./handler";
 
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
@@ -15,7 +16,7 @@ function harness() {
   const h = {
     aiEnabled: true as boolean | null,
     answer: [QUICKSAND, FERRY, KEY] as unknown[] | null,
-    existing: { hazard: new Set<string>(), place: new Set<string>(["sugarwell"]), item: new Set<string>(), roll_table: new Set<string>() },
+    existing: { hazard: new Set<string>(), place: new Set<string>(["sugarwell"]), item: new Set<string>(), roll_table: new Set<string>(), feature: new Set<string>() },
     canPay: true,
     makeThrowsFor: null as string | null,
     calls: 0,
@@ -31,7 +32,7 @@ function harness() {
   h.deps = {
     loadCampaign: async () => ({ id: CAMPAIGN, user_id: DM, name: "Sugarwell", ai_enabled: h.aiEnabled }),
     isDm: async (_c, userId) => userId === DM,
-    loadDigest: async () => ({ campaign: "Sugarwell", quests: [], places: [], hazards: [], items: [], tables: [] }),
+    loadDigest: async () => ({ campaign: "Sugarwell", quests: [], places: [], hazards: [], items: [], tables: [], features: [] }),
     loadExisting: async () => h.existing,
     resolveProvider: async () => ({ provider: "openai", model: "m1", isByok: false, callModel }),
     loadPrice: async () => ({ inputPerMillion: 1, outputPerMillion: 4, cachedInputPerMillion: null }),
@@ -126,6 +127,21 @@ describe("a roll table for a road or a region", () => {
     const rows = rollTableEntries("1d6", [{ label: "a", notes: null }, { label: "b", notes: null }, { label: "c", notes: null }, { label: "d", notes: null }], () => `id${++n}`);
     expect(rows.map((r) => [r.min, r.max])).toEqual([[1, 2], [3, 4], [5, 5], [6, 6]]);
     expect(new Set(rows.map((r) => r.id)).size).toBe(4);
+  });
+});
+
+describe("a dungeon feature", () => {
+  const DOOR = { kind: "feature", name: "The Workshop's Back Panel", why: "The Locked Workshop is entered by it.", description: "A panel that swings in when the lamp bracket is turned.", feature_type: "Secret Door", find_dc: 14 };
+
+  // Bug caught: a feature of a kind Dungeon Craft does not keep, or with a DC nobody could roll, shown to the DM
+  // and then refused when made; and the page's kinds drifting from the app's own list.
+  it("is proposed only as a kind Dungeon Craft keeps, with a DC a table can roll", async () => {
+    expect([...FEATURE_TYPES].sort()).toEqual([...DUNGEON_FEATURE_TYPES].sort());
+    const h = harness();
+    h.answer = [DOOR, { ...DOOR, name: "Odd", feature_type: "Trapdoor to the Moon" }, { ...DOOR, name: "Unfindable", find_dc: 60 }];
+    const out = await ask(h, { action: "propose" });
+    if (!out.ok || out.kind !== "proposed") throw new Error("not proposed");
+    expect(out.proposals).toEqual([DOOR]);
   });
 });
 

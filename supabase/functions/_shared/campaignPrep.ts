@@ -23,6 +23,10 @@ export const PLACE_TYPES = ["region", "city", "town", "village", "district", "bu
 export const PLACE_TERRAINS = ["mountains", "hills", "forest", "plains", "coast", "wetland", "desert"] as const;
 export const ITEM_TYPES = ["weapon", "armor", "shield", "potion", "scroll", "wand", "staff", "rod", "ring", "wondrous_item", "tool", "gear", "provision", "trade_good", "art_object", "crafting_material", "other"] as const;
 export const ITEM_RARITIES = ["mundane", "common", "uncommon", "rare", "very_rare", "legendary"] as const;
+/** The kinds of dungeon feature Dungeon Craft keeps (`DUNGEON_FEATURE_TYPES` in the app, held equal by a test). */
+export const FEATURE_TYPES = ["Secret Door", "Hidden Passage", "Hidden Cache", "Moving Wall", "Concealed Alcove", "Door", "Lock", "Treasure Chest", "Object", "Other"] as const;
+export const FEATURE_DC_MIN = 5;
+export const FEATURE_DC_MAX = 30;
 /** The dice a roll table may be rolled on (`roll_tables_dice_check`). */
 export const TABLE_DICE = ["1d4", "1d6", "1d8", "1d10", "1d12", "1d20"] as const;
 export const TABLE_ENTRIES_MIN = 4;
@@ -34,6 +38,8 @@ export type Proposal =
   | { kind: "hazard"; name: string; why: string; hazard: HazardRules }
   | { kind: "place"; name: string; why: string; placeType: (typeof PLACE_TYPES)[number]; description: string; terrain: (typeof PLACE_TERRAINS)[number] | null; inside: string | null }
   | { kind: "item"; name: string; why: string; itemType: (typeof ITEM_TYPES)[number]; rarity: (typeof ITEM_RARITIES)[number]; description: string }
+  /** Something built into a place that a beat turns on: a secret door, a hidden cache, a lock. */
+  | { kind: "feature"; name: string; why: string; description: string; featureType: (typeof FEATURE_TYPES)[number]; findDc: number | null; contents: string | null }
   /** What may happen on a road or in a region: a table the Dungeon Master, or the Narrator, rolls on. */
   | { kind: "roll_table"; name: string; why: string; description: string; dice: (typeof TABLE_DICE)[number]; entries: Array<{ label: string; notes: string | null }> };
 
@@ -55,7 +61,7 @@ export const PROPOSE_TOOL: AgentTool = {
           type: "object",
           additionalProperties: false,
           properties: {
-            kind: { type: "string", enum: ["hazard", "place", "item", "roll_table"] },
+            kind: { type: "string", enum: ["hazard", "place", "item", "roll_table", "feature"] },
             name: { type: "string", maxLength: PREP_NAME_MAX },
             why: { type: "string", maxLength: PREP_WHY_MAX, description: "Which quest, beat or place needs it, and for what, in one sentence." },
             description: { type: "string", maxLength: PREP_TEXT_MAX, description: "A hazard: what it does and how one gets out. A place or an item: what it is, in one to three sentences." },
@@ -68,6 +74,9 @@ export const PROPOSE_TOOL: AgentTool = {
             inside: { type: "string", maxLength: PREP_NAME_MAX, description: "A place: the name of the existing place it lies in, exactly as listed. Leave out when it lies in none." },
             item_type: { type: "string", enum: [...ITEM_TYPES], description: "An item's kind." },
             rarity: { type: "string", enum: [...ITEM_RARITIES], description: "An item's rarity; mundane for an ordinary thing." },
+            feature_type: { type: "string", enum: [...FEATURE_TYPES], description: "A dungeon feature's kind." },
+            find_dc: { type: "integer", minimum: FEATURE_DC_MIN, maximum: FEATURE_DC_MAX, description: "A hidden feature: the Wisdom (Perception) DC to notice it. Leave out for one in plain sight." },
+            contents: { type: "string", maxLength: PREP_TEXT_MAX, description: "A feature that holds or hides something: what, in a sentence." },
             dice: { type: "string", enum: [...TABLE_DICE], description: "A roll table: the die it is rolled on. Give as many entries as the die has faces, or a number that divides them evenly." },
             entries: {
               type: "array",
@@ -115,6 +124,16 @@ export function parseProposal(raw: unknown): Proposal | null {
     const inside = r.inside === undefined || r.inside === null ? null : text(r.inside, PREP_NAME_MAX);
     return { kind: "place", name, why, placeType: r.place_type, description, terrain, inside };
   }
+  if (r.kind === "feature") {
+    if (!oneOf(FEATURE_TYPES, r.feature_type)) return null;
+    let findDc: number | null = null;
+    if (r.find_dc !== undefined && r.find_dc !== null) {
+      if (typeof r.find_dc !== "number" || !Number.isInteger(r.find_dc) || r.find_dc < FEATURE_DC_MIN || r.find_dc > FEATURE_DC_MAX) return null;
+      findDc = r.find_dc;
+    }
+    const contents = r.contents === undefined || r.contents === null ? null : text(r.contents, PREP_TEXT_MAX);
+    return { kind: "feature", name, why, description, featureType: r.feature_type, findDc, contents };
+  }
   if (r.kind === "roll_table") {
     if (!oneOf(TABLE_DICE, r.dice) || !Array.isArray(r.entries)) return null;
     if (r.entries.length < TABLE_ENTRIES_MIN || r.entries.length > TABLE_ENTRIES_MAX) return null;
@@ -144,6 +163,7 @@ export interface PrepExisting {
   place: ReadonlySet<string>;
   item: ReadonlySet<string>;
   roll_table: ReadonlySet<string>;
+  feature: ReadonlySet<string>;
 }
 
 const key = (name: string): string => name.trim().toLowerCase();
@@ -175,6 +195,7 @@ export function proposalInput(p: Proposal): Record<string, unknown> {
     return { kind: "hazard", name: p.name, why: p.why, description: p.hazard.effect, save: p.hazard.save, dc: p.hazard.dc, ...(d ? { damage_dice: d.dice, damage_type: d.type } : {}) };
   }
   if (p.kind === "place") return { kind: "place", name: p.name, why: p.why, description: p.description, place_type: p.placeType, ...(p.terrain ? { terrain: p.terrain } : {}), ...(p.inside ? { inside: p.inside } : {}) };
+  if (p.kind === "feature") return { kind: "feature", name: p.name, why: p.why, description: p.description, feature_type: p.featureType, ...(p.findDc === null ? {} : { find_dc: p.findDc }), ...(p.contents ? { contents: p.contents } : {}) };
   if (p.kind === "roll_table") return { kind: "roll_table", name: p.name, why: p.why, description: p.description, dice: p.dice, entries: p.entries.map((e) => ({ label: e.label, ...(e.notes ? { notes: e.notes } : {}) })) };
   return { kind: "item", name: p.name, why: p.why, description: p.description, item_type: p.itemType, rarity: p.rarity };
 }
@@ -188,13 +209,15 @@ export interface PrepDigest {
   items: string[];
   /** The roll tables it has, by name. */
   tables: string[];
+  /** The dungeon features it has, by name. */
+  features: string[];
 }
 
 const clip = (s: string | null, max: number): string => (s === null ? "" : s.replace(/\s+/g, " ").trim().slice(0, max));
 
 export const PREP_SYSTEM = [
-  "You help a Dungeon Master get a tabletop campaign ready before play. You are given the campaign's quests and their beats, its places, and the hazards, items and roll tables it already has.",
-  "Read the quests as a story that will be played, and work out what it will need at the table that the campaign does not have yet: a natural hazard where the ground or the weather calls for one, a place a beat happens in that has no record, an item a beat hands over, asks for or turns on, a table of what may happen on a road or in a region the quests cross.",
+  "You help a Dungeon Master get a tabletop campaign ready before play. You are given the campaign's quests and their beats, its places, and the hazards, items, roll tables and dungeon features it already has.",
+  "Read the quests as a story that will be played, and work out what it will need at the table that the campaign does not have yet: a natural hazard where the ground or the weather calls for one, a place a beat happens in that has no record, an item a beat hands over, asks for or turns on, a table of what may happen on a road or in a region the quests cross, something built into a place that a beat turns on (a secret door, a hidden cache, a lock).",
   "Propose only what a quest, a beat or a place of this campaign really needs; say which, by name. Propose nothing that is already listed, under any name, and nothing generic that would fit any campaign.",
   "Fewer and exact is better than many: a dozen at most, and none at all if the campaign lacks nothing.",
   "A hazard has rules a table can run: what it does and how one gets out, a saving throw and a DC that fit the party a quest is written for, and its harm in dice when it harms.",
@@ -211,6 +234,7 @@ export function prepPrompt(d: PrepDigest): string {
     `Hazards it has: ${d.hazards.length > 0 ? d.hazards.join(", ") : "none"}`,
     `Items it has: ${d.items.length > 0 ? d.items.join(", ") : "none"}`,
     `Roll tables it has: ${d.tables.length > 0 ? d.tables.join(", ") : "none"}`,
+    `Dungeon features it has: ${d.features.length > 0 ? d.features.join(", ") : "none"}`,
   ].join("\n\n");
 }
 

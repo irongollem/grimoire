@@ -3,7 +3,7 @@
     <div class="px-4 pb-8 pt-4 md:px-6" data-testid="table-start">
       <!-- Before play: what the story will need and the campaign lacks (#1021 row 22). -->
       <div v-if="campaign.isAiEnabled && campaign.activeCampaignId" class="mb-4 flex max-w-2xl flex-wrap items-center gap-x-3 gap-y-2 border border-border bg-card px-4 py-3" data-testid="table-prep">
-        <p class="min-w-0 flex-1 basis-64 text-body text-foreground">Get the campaign ready: have the AI propose the hazards, places, items and roll tables your quests will need and you do not have yet.</p>
+        <p class="min-w-0 flex-1 basis-64 text-body text-foreground">Get the campaign ready: have the AI propose the hazards, places, items, roll tables and dungeon features your quests will need and you do not have yet.</p>
         <AppButton variant="outline" size="md" label="Prep campaign" @click="prepOpen = true" />
         <CampaignPrepDialog :open="prepOpen" :campaign-id="campaign.activeCampaignId" @close="prepOpen = false" />
       </div>
