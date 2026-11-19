@@ -10,7 +10,8 @@ import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { clipName, lineKeyFits } from "../_shared/agent/lineKey.ts";
 import { getObject, putObject } from "../_shared/r2/client.ts";
 import { clipKey, voiceStoreFrom } from "../_shared/agent/voiceClips.ts";
-import { shownInTurns, speakLine, voiceRates, VoicesSpent, type TableVoiceDeps } from "./handler.ts";
+import { shownInTurns, speakLine, voiceRates, type TableVoiceDeps } from "./handler.ts";
+import { base64FromBytes, bytesFromBase64, hasSpeechService, loadSpeechRate, speechEnvFrom, speechModelOf, synthesizeSpeech } from "../_shared/speech.ts";
 import { recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
@@ -20,38 +21,18 @@ import { ageOf, inworldText, isNarratorVoice, NARRATION_MAX_CHARS, sexFromGender
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-// Eleven v4 Turbo: half the cost of v4 and two to three times sooner back. The maintainer compared the two by ear on
-// three voices (17 Nov 2026): "every turbo is almost identical to the non turbo, unless its for a very specific
-// project i think turbo is fine". `TABLE_VOICE_MODEL` names another for such a project (`eleven_v4` for the fuller
-// acting); a clip already kept was made by whichever model spoke it first.
-const SPEECH_MODEL = Deno.env.get("TABLE_VOICE_MODEL")?.trim() || "eleven_v4_turbo";
-const SPEECH_TIMEOUT_MS = 30_000;
-const INWORLD_MODEL = "inworld-tts-2";
+const speech = speechEnvFrom((key) => Deno.env.get(key));
 
 // The clips have a store of their own (the maintainer's choice, 17 Nov 2026): a private R2 bucket that nothing
 // serves but this function, to the conversation's own owner. Without R2 credentials nothing is kept and every line
 // is made anew, as before.
 const voiceStore = voiceStoreFrom((key) => Deno.env.get(key));
 
-function fromBase64(text: string): Uint8Array {
-  const binary = atob(text);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
 /** "she/her" as words the pronoun count can read. */
 const pronounWords = (pronouns: string): string => pronouns.replace(/[/,;|]+/g, " ");
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-}
-
-function base64(bytes: Uint8Array): string {
-  let binary = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  return btoa(binary);
 }
 
 serve(withCors(async (req: Request) => {
@@ -73,12 +54,8 @@ serve(withCors(async (req: Request) => {
     return json(400, { error: "Invalid JSON body." });
   }
 
-  const speechKey = Deno.env.get("ELEVENLABS_API_KEY");
-  // A second service for the voices ElevenLabs will not make. Without its key those characters are cast like anyone else.
-  const inworldKey = Deno.env.get("INWORLD_API_KEY");
-
   const deps: TableVoiceDeps = {
-    voiceOn: () => !!speechKey && Deno.env.get("TABLE_VOICE_TRIAL") === "on",
+    voiceOn: () => !!speech.elevenKey && Deno.env.get("TABLE_VOICE_TRIAL") === "on",
 
     async loadSession(sessionId) {
       const { data, error } = await admin.from("agent_sessions").select("id, user_id, campaign_id, narrator_voice").eq("id", sessionId).maybeSingle();
@@ -112,12 +89,12 @@ serve(withCors(async (req: Request) => {
     async loadClip(at, line) {
       if (voiceStore === null) return null;
       const bytes = await getObject(voiceStore, clipKey(at, clipName(line)));
-      return bytes === null ? null : base64(bytes);
+      return bytes === null ? null : base64FromBytes(bytes);
     },
 
     async keepClip(at, line, audio) {
       if (voiceStore === null) return;
-      await putObject(voiceStore, { key: clipKey(at, clipName(line)), body: fromBase64(audio), contentType: "audio/mpeg" });
+      await putObject(voiceStore, { key: clipKey(at, clipName(line)), body: bytesFromBase64(audio), contentType: "audio/mpeg" });
     },
 
     // The conversation's own turns, read as the caller (their own rows). The cue is cleaned again: it was stored
@@ -158,24 +135,7 @@ serve(withCors(async (req: Request) => {
       }
     },
 
-    // The admin's numbers: what the service's model costs by the character, and what a credit is worth.
-    async loadRate(service) {
-      const model = service === "inworld" ? INWORLD_MODEL : SPEECH_MODEL;
-      const [price, calibration] = await Promise.all([
-        admin.from("ai_model_pricing").select("cost_per_million_characters_usd").eq("model", model).maybeSingle(),
-        admin.rpc("agent_credit_calibration"),
-      ]);
-      if (price.error) throw price.error;
-      if (calibration.error) throw calibration.error;
-      const row = Array.isArray(calibration.data) ? calibration.data[0] : calibration.data;
-      const rate = price.data?.cost_per_million_characters_usd;
-      if (rate === null || rate === undefined || !row || row.usd_per_credit === null) return null;
-      const usdPerMillionChars = Number(rate);
-      const usdPerCredit = Number(row.usd_per_credit);
-      const margin = Number(row.margin);
-      if (!(usdPerMillionChars > 0) || !(usdPerCredit > 0) || !(margin > 0)) return null;
-      return { usdPerMillionChars, calibration: { usdPerCredit, margin } };
-    },
+    loadRate: (service) => loadSpeechRate(admin, speech, service),
 
     async reserve(userId, credits) {
       const reservation = await reserveCredits(admin, userId, credits, "table_voice");
@@ -194,38 +154,16 @@ serve(withCors(async (req: Request) => {
       const { data, error } = await admin.rpc("accrue_agent_voice", { p_session_id: at.sessionId, p_credits: credits });
       if (error) throw error;
       const due = typeof data === "number" && Number.isInteger(data) && data > 0 ? data : 0;
-      if (due > 0) await recordGeneration(admin, at.userId, "table_voice", false, due, { provider: log.service, model: log.service === "inworld" ? INWORLD_MODEL : SPEECH_MODEL });
+      if (due > 0) await recordGeneration(admin, at.userId, "table_voice", false, due, { provider: log.service, model: speechModelOf(speech, log.service) });
     },
 
-    hasService: (service) => (service === "inworld" ? !!inworldKey : !!speechKey),
+    hasService: (service) => hasSpeechService(speech, service),
 
+    // Each service takes a cue its own way (`voicePick.ts`); the call itself is everyone's (`_shared/speech.ts`).
     async synthesize(voice, line) {
       const max = line.narration ? NARRATION_MAX_CHARS : undefined;
-      if (voice.service === "inworld") {
-        const response = await fetch("https://api.inworld.ai/tts/v1/voice", {
-          method: "POST",
-          headers: { Authorization: `Basic ${inworldKey ?? ""}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ modelId: INWORLD_MODEL, text: inworldText(line.text, line.how, max), voiceId: voice.id, audioConfig: { audioEncoding: "MP3" } }),
-          signal: AbortSignal.timeout(SPEECH_TIMEOUT_MS),
-        });
-        if (!response.ok) throw new Error(`inworld answered ${response.status}`);
-        const body = (await response.json().catch(() => null)) as { audioContent?: unknown } | null;
-        if (!body || typeof body.audioContent !== "string" || body.audioContent === "") throw new Error("inworld answered without audio");
-        return body.audioContent;
-      }
-      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice.id)}?output_format=mp3_44100_128`, {
-        method: "POST",
-        headers: { "xi-api-key": speechKey ?? "", "Content-Type": "application/json" },
-        body: JSON.stringify({ text: speechText(line.text, line.how, max), model_id: SPEECH_MODEL }),
-        signal: AbortSignal.timeout(SPEECH_TIMEOUT_MS),
-      });
-      if (!response.ok) {
-        // Only the service's own status word is read, never its message.
-        const detail = (await response.json().catch(() => null)) as { detail?: { status?: unknown } } | null;
-        if (detail?.detail?.status === "quota_exceeded") throw new VoicesSpent("the speech allowance is used up");
-        throw new Error(`speech service answered ${response.status}`);
-      }
-      return base64(new Uint8Array(await response.arrayBuffer()));
+      const text = voice.service === "inworld" ? inworldText(line.text, line.how, max) : speechText(line.text, line.how, max);
+      return base64FromBytes(await synthesizeSpeech(speech, voice, text));
     },
   };
 

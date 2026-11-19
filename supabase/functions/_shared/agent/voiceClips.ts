@@ -19,6 +19,9 @@ export const clipPrefix = (at: { campaignId: string; sessionId: string }): strin
 
 export const clipKey = (at: { campaignId: string; sessionId: string }, name: string): string => `${clipPrefix(at)}${name}.mp3`;
 
+/** Under which the readings of one note are kept (`_shared/noteReading.ts` names each by what was spoken). */
+export const noteReadingPrefix = (at: { campaignId: string; noteId: string }): string => `note-readings/${at.campaignId}/${at.noteId}/`;
+
 const REMOVE_BATCH = 50;
 
 /** Removes every clip kept for the sitting. Throws when the store could not be listed or a clip could not be removed. */
@@ -46,6 +49,32 @@ export async function listAccountClips(
       keys.push(...(await list(store, clipPrefix(sitting))));
     } catch (error) {
       errors.push(`table voices: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  return { keys, errors };
+}
+
+/** Removes every recording kept for a note read aloud (#1021 row 19). Throws when the store could not be listed or emptied. */
+export async function removeNoteReadings(store: R2Config | null, at: { campaignId: string; noteId: string }): Promise<void> {
+  if (store === null) return;
+  const keys = await listObjects(store, noteReadingPrefix(at));
+  for (let i = 0; i < keys.length; i += REMOVE_BATCH) await deleteObjects(store, keys.slice(i, i + REMOVE_BATCH));
+}
+
+/** The recordings kept for an account's notes read aloud, as keys in the store, for the personal data export. */
+export async function listNoteReadings(
+  store: R2Config | null,
+  notes: ReadonlyArray<{ campaignId: string; noteId: string }>,
+  list: (store: R2Config, prefix: string) => Promise<string[]> = listObjects,
+): Promise<{ keys: string[]; errors: string[] }> {
+  const keys: string[] = [];
+  const errors: string[] = [];
+  if (store === null) return { keys, errors };
+  for (const note of notes) {
+    try {
+      keys.push(...(await list(store, noteReadingPrefix(note))));
+    } catch (error) {
+      errors.push(`note readings: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   return { keys, errors };

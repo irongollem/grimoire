@@ -31,6 +31,14 @@ export interface Note {
   linked_calendar_event_id: string | null;
   sort_order: number | null; // manual drag order; null until the user reorders
   ai_provenance?: AiProvenance | null;
+  /**
+   * The note read aloud (#1021 row 19): set by the server alone once the Dungeon Master has had it spoken. A hash
+   * names which text was spoken; a note changed after `reading_at` has a reading of an earlier version.
+   */
+  reading_hash?: string | null;
+  reading_voice?: "male" | "female" | null;
+  reading_chars?: number | null;
+  reading_at?: string | null;
   created_at: string;
   updated_at: string;
 }

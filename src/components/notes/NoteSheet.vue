@@ -53,6 +53,9 @@
       </span>
     </div>
 
+    <!-- Read aloud: only where there is something to read. -->
+    <NoteReading v-if="hasContent(note.content) && note.campaign_id" :note="note" can-make />
+
     <!-- Content -->
     <div v-if="hasContent(note.content)" class="longform rounded-lg border border-border bg-card p-4">
       <RichTextViewer :content="note.content!" />
@@ -62,6 +65,7 @@
 </template>
 
 <script setup lang="ts">
+import NoteReading from "./NoteReading.vue";
 import { IconDelete, IconEdit, IconPin } from '@/lib/icons';
 import { useRoute, useRouter } from "vue-router";
 import { useConfirm } from "@/composables/useConfirm";

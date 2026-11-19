@@ -18,6 +18,7 @@
 // maintainer's own stack. Before either is set in production, voice has to be priced and charged like every other
 // generation (`_shared/credits.ts`).
 
+import { VoicesSpent, type SpeechService } from "../_shared/speech.ts";
 import { creditsForSpeech, creditsPerMinute, speechChars } from "../_shared/agent/voiceCost.ts";
 import type { CreditCalibration } from "../_shared/agent/metering.ts";
 import { NARRATOR_VOICES, pickVoice, type AgeBand, type NarratorVoice, type Sex } from "./voicePick.ts";
@@ -108,7 +109,7 @@ export interface SpeakerTraits {
 export const VOICE_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 
 /** The services a voice may live on. ElevenLabs speaks for everyone by default; Inworld holds the voices ElevenLabs will not make (a child's). */
-export type VoiceService = "elevenlabs" | "inworld";
+export type VoiceService = SpeechService;
 export interface VoiceRef {
   service: VoiceService;
   id: string;
@@ -128,7 +129,8 @@ export function ownVoice(traits: Pick<SpeakerTraits, "voiceId">): VoiceRef | nul
 }
 
 /** Thrown by `synthesize` when the speech service says its allowance is used up: asking again cannot help. */
-export class VoicesSpent extends Error {}
+// Defined with the speech call itself, which throws it; named here for this function's own callers.
+export { VoicesSpent };
 
 export const VOICE_MESSAGES = {
   badBody: "The request is not valid.",

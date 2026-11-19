@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clipKey, clipPrefix, listAccountClips } from "./voiceClips.ts";
+import { clipKey, clipPrefix, listAccountClips, listNoteReadings, noteReadingPrefix } from "./voiceClips.ts";
 import type { R2Config } from "../r2/config.ts";
 
 const store = { bucket: "grimoire-table-voices" } as R2Config;
@@ -29,5 +29,21 @@ describe("listAccountClips", () => {
 
   it("lists nothing on a stack that keeps no clips", async () => {
     expect(await listAccountClips(null, [A], async () => ["x"])).toEqual({ keys: [], errors: [] });
+  });
+});
+
+describe("listNoteReadings", () => {
+  const store = { bucket: "b" } as unknown as Parameters<typeof listNoteReadings>[0];
+
+  // Bug caught: one note's prefix matching another note's recordings (no trailing slash), so an export lists, and
+  // a deletion removes, a recording that is not this note's.
+  it("lists each note's own recordings, and names a note whose listing failed", async () => {
+    expect(noteReadingPrefix({ campaignId: "c1", noteId: "n1" })).toBe("note-readings/c1/n1/");
+    const listed = await listNoteReadings(store, [{ campaignId: "c1", noteId: "n1" }, { campaignId: "c1", noteId: "n2" }], async (_s, prefix) => {
+      if (prefix.includes("/n2/")) throw new Error("store down");
+      return [`${prefix}abc.mp3`];
+    });
+    expect(listed.keys).toEqual(["note-readings/c1/n1/abc.mp3"]);
+    expect(listed.errors).toEqual(["note readings: store down"]);
   });
 });
