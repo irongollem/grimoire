@@ -12,9 +12,8 @@ import type { HazardRules, KeptHazard } from "../_shared/agent/hazard";
 import { STRIKES_BEFORE_CLOSED } from "../_shared/agent/conduct.ts";
 import type { HandsChange } from "../_shared/agent/hands.ts";
 import { describe, expect, it, vi } from "vitest";
+import { beginTurn, handleAgentTurn } from "./handler";
 import {
-  beginTurn,
-  handleAgentTurn,
   MAX_OUTPUT_TOKENS,
   MAX_STEPS,
   MESSAGES,
@@ -23,7 +22,7 @@ import {
   type CampaignRow,
   type Refusal,
   type SessionRow,
-} from "./handler";
+} from "./turnTypes";
 import type { SceneView } from "../_shared/agent/scene";
 import type { PlayerCharacter } from "../_shared/agent/playerCharacter";
 import type { RecordedFact } from "../_shared/agent/record";

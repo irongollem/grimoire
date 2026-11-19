@@ -12,7 +12,7 @@ import { narrationKept } from "../_shared/agent/narrationCheck.ts";
 import type { AgentLine, AgentMessage } from "../_shared/agent/types.ts";
 import type { TurnEvent } from "../_shared/agent/turn.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
-import type { AgentEvent } from "./handler.ts";
+import type { AgentEvent } from "./turnTypes.ts";
 
 /** How long the player may wait on the judgment; the held text is shown when it is slower. */
 export const NARRATION_JUDGE_LIMIT_MS = 1_500;
