@@ -107,7 +107,7 @@
         <TraitList title="Reactions" :traits="monster.stat_block.reactions" />
         <TraitList title="Legendary Actions" :traits="monster.stat_block.legendary_actions" />
         <TraitList title="Lair Actions" :traits="monster.stat_block.lair_actions" />
-        <StatBlockTacticsSummary :sb="monster.stat_block" :creature-type="monster.monster_type" />
+        <TraitList title="How it fights"><StatBlockTacticsSummary :sb="monster.stat_block" :creature-type="monster.monster_type" /></TraitList>
       </div>
     </AccordionSection>
 

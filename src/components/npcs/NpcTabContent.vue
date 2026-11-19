@@ -41,7 +41,7 @@
         <TraitList title="Reactions" :traits="npc.stat_block.reactions" />
         <TraitList title="Legendary Actions" :traits="npc.stat_block.legendary_actions" />
         <TraitList title="Lair Actions" :traits="npc.stat_block.lair_actions" />
-        <StatBlockTacticsSummary :sb="npc.stat_block" :creature-type="null" />
+        <TraitList title="How it fights"><StatBlockTacticsSummary :sb="npc.stat_block" :creature-type="null" /></TraitList>
       </template>
       <p v-else class="text-body text-muted-foreground italic">No stat block defined for this NPC.</p>
     </div>
