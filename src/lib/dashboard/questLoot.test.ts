@@ -17,7 +17,7 @@ const quest = (id: string, title: string): Quest => ({
   tags: [],
   started_at: null,
   resolved_at: null,
-  entry_beat_id: null,
+  entry_beat_id: null, xp_reward: null, xp_awarded_at: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 });

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   npcs: [] as Array<{ id: string; name: string }>,
   locations: [] as Array<{ id: string; name: string }>,
   allQuests: [] as Array<{ id: string; title: string }>,
+  xpLevelling: false,
 }));
 
 vi.mock("@/composables/npcs/useNpcs", () => ({
@@ -18,6 +19,11 @@ vi.mock("@/composables/locations/useLocations", () => ({
   useAllLocations: (enabled?: () => boolean) => ({ data: { value: enabled?.() ? mocks.locations : undefined } }),
   useLocation: (id: () => string | null) => ({ data: { value: mocks.locations.find((l) => l.id === id()) } }),
 }));
+vi.mock("@/composables/rules/useOptionalRules", async () => {
+  const { computed } = await import("vue");
+  // A real ref: the template tests it, and a plain object is always truthy there.
+  return { useIsRuleEnabled: () => computed(() => mocks.xpLevelling) };
+});
 vi.mock("@/composables/quests/useQuests", () => ({
   useQuests: () => ({ data: { value: mocks.allQuests } }),
   useUpdateQuest: () => ({ mutateAsync: mocks.updateQuest }),
@@ -38,7 +44,7 @@ function quest(overrides: Partial<Quest> = {}): Quest {
     tags: ["mill"],
     started_at: null,
     resolved_at: null,
-    entry_beat_id: null,
+    entry_beat_id: null, xp_reward: null, xp_awarded_at: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -60,6 +66,7 @@ describe("QuestDetailsSection", () => {
     mocks.npcs = [];
     mocks.locations = [];
     mocks.allQuests = [];
+    mocks.xpLevelling = false;
   });
   afterEach(() => vi.useRealTimers());
 
@@ -128,5 +135,24 @@ describe("QuestDetailsSection", () => {
     await wrapper.find('input[aria-label="Title"]').setValue("   ");
     await settle();
     expect(mocks.updateQuest).not.toHaveBeenCalled();
+  });
+
+  describe("what the quest is worth (#1021 row 27)", () => {
+    const xpField = (w: ReturnType<typeof mountDetails>) => w.find('input[aria-label="XP for completing it"]');
+
+    it("a campaign that levels by milestone is not asked what a quest is worth", () => {
+      expect(xpField(mountDetails()).exists()).toBe(false);
+    });
+
+    it("saves a typed amount as a number, and an emptied field as no XP rather than zero", async () => {
+      mocks.xpLevelling = true;
+      const w = mountDetails({ xp_reward: 900 });
+      await xpField(w).setValue("1800");
+      await settle();
+      expect(mocks.updateQuest).toHaveBeenLastCalledWith({ id: "quest-1", update: { xp_reward: 1800 } });
+      await xpField(w).setValue("");
+      await settle();
+      expect(mocks.updateQuest).toHaveBeenLastCalledWith({ id: "quest-1", update: { xp_reward: null } });
+    });
   });
 });

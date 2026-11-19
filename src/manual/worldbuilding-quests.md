@@ -58,7 +58,7 @@ With nothing selected, the **quest drawer** holds the quest as a whole, top to b
 - **Notes**: yours alone. The premise, goals, themes and prep that belong to the whole quest and no single scene. Each beat shows them folded, so you can read them without leaving it.
 - **Objectives**, at the foot, covered below.
 
-Open it wide for the rest: the **Board lane** (the same status the kanban board uses: Undiscovered, Active, Completed, Failed), the **Giver** and **Location** (an NPC and a place), **Part of** (makes this a sub-quest of another, with no depth limit), **Tags**, **Clocks**, **Payoffs** (the quest's own rules, covered below) and **Threads**, once the quest holds one.
+Open it wide for the rest: the **Board lane** (the same status the kanban board uses: Undiscovered, Active, Completed, Failed), the **Giver** and **Location** (an NPC and a place), **Part of** (makes this a sub-quest of another, with no depth limit), **Worth** (with the Experience Points rule on: the XP the quest is worth, shared equally by the party's characters the first time it is completed), **Tags**, **Clocks**, **Payoffs** (the quest's own rules, covered below) and **Threads**, once the quest holds one.
 
 The beat the story begins at is set on the beat itself: select a beat and tick **Entry**. A quest has one entry, so ticking it on another beat moves it. Grimoire sets it to the first beat you write.
 

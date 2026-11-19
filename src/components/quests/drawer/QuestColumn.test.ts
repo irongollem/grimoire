@@ -21,7 +21,7 @@ function quest(overrides: Partial<Quest> = {}): Quest {
   return {
     id: "quest-1", user_id: "u1", campaign_id: "campaign-1", parent_quest_id: null, title: "The Unseen",
     summary: "A rumor at the mill.", dm_content: null, status: "active", giver_npc_id: null, location_id: null,
-    tags: [], started_at: null, resolved_at: null, entry_beat_id: null,
+    tags: [], started_at: null, resolved_at: null, entry_beat_id: null, xp_reward: null, xp_awarded_at: null,
     created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z", ...overrides,
   };
 }

@@ -1291,7 +1291,7 @@ as **Payoffs**, the way a beat's do.
   resolved.", **Mark completed**, **Mark failed**, **Keep running**; #1011).
 
 The wide part (`QuestWide`) holds the rest, one autosaved editor per field and no
-explanatory prose: the Details (board lane, giver, location, **Part of**, tags),
+explanatory prose: the Details (board lane, giver, location, **Part of**, **Worth** in an Experience campaign, tags),
 clocks, the quest's own **Payoffs** (`QuestRulesPanel`) and threads once the
 quest holds one. The toolbar's end (`QuestMoreMenu`, now two icon buttons): **Send to
 Scriptorium** and **Delete quest**, which navigates to `/quests`.
