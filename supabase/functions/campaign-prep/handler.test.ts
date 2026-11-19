@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgentUsage, CallModel } from "../_shared/agent/types";
-import type { Proposal } from "../_shared/campaignPrep";
+import { rollTableEntries, type Proposal } from "../_shared/campaignPrep";
 import { PREP_MESSAGES, prepCampaign, type PrepDeps } from "./handler";
 
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
@@ -15,7 +15,7 @@ function harness() {
   const h = {
     aiEnabled: true as boolean | null,
     answer: [QUICKSAND, FERRY, KEY] as unknown[] | null,
-    existing: { hazard: new Set<string>(), place: new Set<string>(["sugarwell"]), item: new Set<string>() },
+    existing: { hazard: new Set<string>(), place: new Set<string>(["sugarwell"]), item: new Set<string>(), roll_table: new Set<string>() },
     canPay: true,
     makeThrowsFor: null as string | null,
     calls: 0,
@@ -31,7 +31,7 @@ function harness() {
   h.deps = {
     loadCampaign: async () => ({ id: CAMPAIGN, user_id: DM, name: "Sugarwell", ai_enabled: h.aiEnabled }),
     isDm: async (_c, userId) => userId === DM,
-    loadDigest: async () => ({ campaign: "Sugarwell", quests: [], places: [], hazards: [], items: [] }),
+    loadDigest: async () => ({ campaign: "Sugarwell", quests: [], places: [], hazards: [], items: [], tables: [] }),
     loadExisting: async () => h.existing,
     resolveProvider: async () => ({ provider: "openai", model: "m1", isByok: false, callModel }),
     loadPrice: async () => ({ inputPerMillion: 1, outputPerMillion: 4, cachedInputPerMillion: null }),
@@ -100,6 +100,32 @@ describe("proposing", () => {
     off.aiEnabled = false;
     expect(await ask(off, { action: "propose" })).toEqual({ ok: false, status: 403, error: PREP_MESSAGES.aiOff });
     expect(stranger.calls + off.calls).toBe(0);
+  });
+});
+
+describe("a roll table for a road or a region", () => {
+  const ROAD = {
+    kind: "roll_table", name: "On the Mill Road", why: "The Sunken Road is travelled by it.", description: "What a day on the Mill Road brings.", dice: "1d6",
+    entries: [{ label: "A quiet stretch" }, { label: "A carter with a broken wheel", notes: "He will pay for help." }, { label: "Rain" }, { label: "Sugar thieves" }],
+  };
+
+  // Bug caught: a table proposed with more entries than its die has faces (some could never be rolled), or with a
+  // die the app has no roller for, shown to the DM and then refused when made.
+  it("is proposed only when every entry can be rolled on a die the app has", async () => {
+    const h = harness();
+    h.answer = [ROAD, { ...ROAD, name: "Too many", dice: "1d4", entries: Array.from({ length: 6 }, (_, i) => ({ label: `Entry ${i}` })) }, { ...ROAD, name: "Odd die", dice: "1d7" }];
+    const out = await ask(h, { action: "propose" });
+    if (!out.ok || out.kind !== "proposed") throw new Error("not proposed");
+    expect(out.proposals.map((p) => p.name)).toEqual(["On the Mill Road"]);
+  });
+
+  // 6 faces over 4 entries: two entries take two faces each, first, and two take one. Bug caught: faces left with
+  // no entry (a roll of 6 finds nothing), or two entries claiming the same face.
+  it("shares the die's faces out so every roll finds exactly one entry", () => {
+    let n = 0;
+    const rows = rollTableEntries("1d6", [{ label: "a", notes: null }, { label: "b", notes: null }, { label: "c", notes: null }, { label: "d", notes: null }], () => `id${++n}`);
+    expect(rows.map((r) => [r.min, r.max])).toEqual([[1, 2], [3, 4], [5, 5], [6, 6]]);
+    expect(new Set(rows.map((r) => r.id)).size).toBe(4);
   });
 });
 

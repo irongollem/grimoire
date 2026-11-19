@@ -9,7 +9,7 @@
       <template v-if="step === 'intro'">
         <p class="text-body text-foreground">
           The AI reads your quests and their beats, your places, and the hazards and items you already have, and proposes what the story will need:
-          a hazard where the ground calls for one, a place a beat happens in, an item a beat turns on.
+          a hazard where the ground calls for one, a place a beat happens in, an item a beat turns on, a table of what may happen on a road.
         </p>
         <p class="text-body text-foreground">
           You see the whole list first and untick what you do not want. Reading the campaign costs about what a turn at the table costs. Making what you keep costs nothing.
@@ -77,7 +77,7 @@ import { supabase } from "@/lib/supabase";
 
 /** A proposal as the server sends it and takes it back: one flat shape (`proposalInput` in `_shared/campaignPrep.ts`). */
 export interface PrepProposal {
-  kind: "hazard" | "place" | "item";
+  kind: "hazard" | "place" | "item" | "roll_table";
   name: string;
   why: string;
   description: string;
@@ -90,6 +90,8 @@ export interface PrepProposal {
   inside?: string;
   item_type?: string;
   rarity?: string;
+  dice?: string;
+  entries?: Array<{ label: string; notes?: string }>;
 }
 
 /** Calls `campaign-prep` and hands back the raw response. The seam a test replaces. */
@@ -108,7 +110,7 @@ const sendToCampaignPrep: PrepTransport = async (body) => {
 const { open, campaignId, transport = undefined } = defineProps<{ open: boolean; campaignId: string; transport?: PrepTransport }>();
 const emit = defineEmits<{ close: [] }>();
 
-const KIND_LABELS: Record<PrepProposal["kind"], string> = { hazard: "Hazard", place: "Place", item: "Item" };
+const KIND_LABELS: Record<PrepProposal["kind"], string> = { hazard: "Hazard", place: "Place", item: "Item", roll_table: "Roll table" };
 const words = (s: string): string => s.replace(/_/g, " ");
 
 const client = useQueryClient();
@@ -139,6 +141,7 @@ const charged = computed(() => (credits.value > 0 ? `Reading the campaign cost $
 function detailOf(p: PrepProposal): string {
   if (p.kind === "hazard") return [p.save && p.dc ? `${p.save} saving throw, DC ${p.dc}` : "", p.damage_dice ? `${p.damage_dice} ${p.damage_type ?? ""}`.trim() : ""].filter((s) => s !== "").join(" · ");
   if (p.kind === "place") return [p.place_type ? words(p.place_type) : "", p.terrain ?? "", p.inside ? `in ${p.inside}` : ""].filter((s) => s !== "").join(" · ");
+  if (p.kind === "roll_table") return [p.dice ?? "", ...(p.entries ?? []).map((e) => e.label)].filter((s) => s !== "").join(" · ");
   return [p.item_type ? words(p.item_type) : "", p.rarity ? words(p.rarity) : ""].filter((s) => s !== "").join(" · ");
 }
 

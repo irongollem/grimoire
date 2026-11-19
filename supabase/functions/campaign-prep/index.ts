@@ -9,7 +9,7 @@ import { toPlainText } from "../_shared/ai-prompt.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { recordGeneration, releaseCredits, reserveCredits } from "../_shared/credits.ts";
 import { loadAgentCalibration, loadModelPrice, resolveAgentProvider } from "../_shared/agent/providerIo.ts";
-import type { PrepDigest } from "../_shared/campaignPrep.ts";
+import { rollTableEntries, type PrepDigest } from "../_shared/campaignPrep.ts";
 import { prepCampaign, type PrepDeps } from "./handler.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -66,14 +66,15 @@ serve(withCors(async (req: Request) => {
     isDm: (campaign, userId) => isCampaignDm(admin, campaign, userId),
 
     async loadDigest(campaign): Promise<PrepDigest> {
-      const [quests, beats, places, hazards, items] = await Promise.all([
+      const [quests, beats, places, hazards, items, tables] = await Promise.all([
         admin.from("quests").select("id, title, summary").eq("campaign_id", campaign.id).order("created_at", { ascending: true }).limit(QUESTS_MAX),
         admin.from("quest_beats").select("quest_id, title, how_it_plays, read_aloud, dm_content").eq("campaign_id", campaign.id).order("created_at", { ascending: true }).limit(BEATS_MAX),
         admin.from("locations").select("id, name, location_type, terrain, parent_id").eq("campaign_id", campaign.id).limit(NAMES_MAX),
         admin.from("traps").select("name").eq("campaign_id", campaign.id).limit(NAMES_MAX),
         admin.from("items").select("name").eq("campaign_id", campaign.id).limit(NAMES_MAX),
+        admin.from("roll_tables").select("name").eq("campaign_id", campaign.id).limit(NAMES_MAX),
       ]);
-      for (const r of [quests, beats, places, hazards, items]) if (r.error) throw r.error;
+      for (const r of [quests, beats, places, hazards, items, tables]) if (r.error) throw r.error;
       const placeName = new Map((places.data ?? []).map((p) => [p.id as string, p.name as string]));
       return {
         campaign: campaign.name,
@@ -95,19 +96,21 @@ serve(withCors(async (req: Request) => {
         })),
         hazards: (hazards.data ?? []).map((h) => h.name as string),
         items: (items.data ?? []).map((i) => i.name as string),
+        tables: (tables.data ?? []).map((t) => t.name as string),
       };
     },
 
     // The campaign's own names by kind, and the library's hazards: what exists is not proposed or made again.
     async loadExisting(campaignId) {
-      const [traps, libraryTraps, places, items] = await Promise.all([
+      const [traps, libraryTraps, places, items, tables] = await Promise.all([
         admin.from("traps").select("name").eq("campaign_id", campaignId),
         admin.from("library_traps").select("name"),
         admin.from("locations").select("name").eq("campaign_id", campaignId),
         admin.from("items").select("name").eq("campaign_id", campaignId),
+        admin.from("roll_tables").select("name").eq("campaign_id", campaignId),
       ]);
-      for (const r of [traps, libraryTraps, places, items]) if (r.error) throw r.error;
-      return { hazard: new Set([...lower(traps.data), ...lower(libraryTraps.data)]), place: lower(places.data), item: lower(items.data) };
+      for (const r of [traps, libraryTraps, places, items, tables]) if (r.error) throw r.error;
+      return { hazard: new Set([...lower(traps.data), ...lower(libraryTraps.data)]), place: lower(places.data), item: lower(items.data), roll_table: lower(tables.data) };
     },
 
     async resolveProvider(campaign) {
@@ -166,6 +169,13 @@ serve(withCors(async (req: Request) => {
         fail((await supabase.from("locations").insert({
           user_id: userId, campaign_id: campaign.id, parent_id: parentId, name: proposal.name, location_type: proposal.placeType,
           description: proposal.description, terrain: proposal.terrain, ai_provenance: mark,
+        })).error);
+        return;
+      }
+      if (proposal.kind === "roll_table") {
+        fail((await supabase.from("roll_tables").insert({
+          user_id: userId, campaign_id: campaign.id, name: proposal.name, description: proposal.description, dice: proposal.dice,
+          entries: rollTableEntries(proposal.dice, proposal.entries, () => crypto.randomUUID()), ai_provenance: mark,
         })).error);
         return;
       }
