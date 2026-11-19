@@ -56,12 +56,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, defineAsyncComponent, ref } from "vue";
 import BannerLoader from "@/components/brand/BannerLoader.vue";
 import NpcLoreSections from "@/components/npcs/NpcLoreSections.vue";
 import TabBar from "@/components/common/controls/TabBar.vue";
 import StatBlockPanel from "@/components/common/statblock/StatBlockPanel.vue";
-import StatBlockTacticsSummary from "@/components/common/statblock/StatBlockTacticsSummary.vue";
 import TraitList from "@/components/common/statblock/TraitList.vue";
 import SpellcastingList from "@/components/common/statblock/SpellcastingList.vue";
 import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
@@ -72,6 +71,9 @@ import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
 import EntityBacklinks from "@/components/common/entity/EntityBacklinks.vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import type { Npc, NpcListRow } from "@/types/npc.types";
+
+// Fetched when the Combat tab is first shown: it brings the tactics rules with it, which the rest of the NPC page never reads.
+const StatBlockTacticsSummary = defineAsyncComponent(() => import("@/components/common/statblock/StatBlockTacticsSummary.vue"));
 
 const { npc } = defineProps<{
   /** What the list already knew: everything but the prose. */
