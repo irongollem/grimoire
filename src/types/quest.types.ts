@@ -462,7 +462,7 @@ export interface QuestBeat {
    */
   how_it_plays: string | null;
   /**
-   * What the table actually did at this beat, in the DM's words (#1021, migration `20261117003110`). The other
+   * What the table actually did at this beat, in the DM's words (#1021, migration `20261119121059`). The other
    * prose fields are the plan; this is the outcome. Optional on the type because nothing requires it at create
    * time and most beats never get one. DM-side only: the player projection does not carry it.
    */

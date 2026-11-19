@@ -17,7 +17,7 @@ comment on column public.agent_sessions.pursuit_encounter_id is
 create index agent_sessions_pursuit_encounter_id_idx on public.agent_sessions (pursuit_encounter_id)
   where pursuit_encounter_id is not null;
 
--- The same two guards every reference on this row has (see 20261117003106 for why there are two).
+-- The same two guards every reference on this row has (see 20261119121055 for why there are two).
 drop trigger zz_same_campaign_refs on public.agent_sessions;
 create trigger zz_same_campaign_refs
   before insert or update of scene_location_id, campaign_session_id, pressure_clock_id, party_member_id, fight_encounter_id, pursuit_encounter_id, campaign_id

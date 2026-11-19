@@ -4,7 +4,7 @@ create extension if not exists pgtap with schema extensions;
 select plan(5);
 
 -- Where a campaign's story begins (#1021): `campaigns.opening_quest_id` is a plain uuid, not a foreign key
--- (migration 20261117072518 says why), so the two things a key would have held are held by a trigger and are
+-- (migration 20261119121105 says why), so the two things a key would have held are held by a trigger and are
 -- tested here: it can only name a quest of this campaign, and a quest that is gone does not block anything.
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)

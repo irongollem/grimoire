@@ -653,7 +653,7 @@ async function roll(ctx: ToolContext, args: Record<string, unknown>) {
       // Why this one write is not made under the caller's RLS: `server_rolled`
       // is what tells a roll the server made from one a member typed, so no
       // client may be able to write it, and the trigger in migration
-      // 20261117003001 clears it on every authenticated or anon insert. Only a
+      // 20261119121044 clears it on every authenticated or anon insert. Only a
       // service-role insert can set it. Everything above this line (who the
       // caller is, that they belong to the campaign, that only a DM rolls
       // hidden) was decided from the caller's own JWT and RLS reads.

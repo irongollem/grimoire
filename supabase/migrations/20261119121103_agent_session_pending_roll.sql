@@ -7,7 +7,7 @@
 -- The value is { label, kind, ability, skill, dc }, written by the agent-turn function (service role) when a turn is
 -- kept and cleared by the next kept turn, whether it answered the roll or dropped it. A request lasts one turn.
 --
--- Who can touch it: `authenticated` holds only SELECT and DELETE on this table (20261117003101), so a client cannot
+-- Who can touch it: `authenticated` holds only SELECT and DELETE on this table (20261119121050), so a client cannot
 -- write a request or lower a DC. The owner CAN read their own row, DC included; the page never selects it for
 -- display and the stream never carries it, but it is not a secret from someone who opens the network panel. Moving
 -- it out of reach would take column grants on the whole table for one number in a single-player game, so it stays
