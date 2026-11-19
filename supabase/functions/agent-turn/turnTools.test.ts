@@ -53,6 +53,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
     deps: {
       tools: [{ name: "search", description: "", inputSchema: {} }],
       findCharacters: async () => [],
+    findHazard: async () => null,
       isTableMadeCharacter: async () => false,
       callTool: async (name) => {
         calls.push(`campaign:${name}`);

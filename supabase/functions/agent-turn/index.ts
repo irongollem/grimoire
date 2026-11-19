@@ -31,6 +31,7 @@ import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { callTool, listTools } from "../_shared/mcp/tools.ts";
 import type { ToolContext } from "../_shared/mcp/tools.ts";
+import { hazardFromRow, type KeptHazard } from "../_shared/agent/hazard.ts";
 import { agentToolsFrom, bindTools, SOLO_TABLE_TOOLS } from "../_shared/agent/mcpTools.ts";
 import { buildNpcProfile, NPC_PROFILE_COLUMNS, shownNpcName, type NpcProfileRow } from "../_shared/npcProfile.ts";
 import { campaignToday } from "../_shared/npcAge.ts";
@@ -171,6 +172,35 @@ serve(withCors(async (req: Request) => {
 
     isDm: (campaign, userId) => isCampaignDm(admin, campaign, userId),
     now: () => Date.now(),
+
+    // The campaign's own hazard of that name first, then the library's: what exists is used before anything is made.
+    async findHazard(campaignId, name): Promise<KeptHazard | null> {
+      const exact = name.replace(/[\\%_]/g, (c) => `\\${c}`);
+      const columns = "name, effect_description, save_type, save_dc, damage_entries";
+      const own = await admin.from("traps").select(columns).eq("campaign_id", campaignId).ilike("name", exact).limit(1).maybeSingle();
+      if (own.error) throw own.error;
+      if (own.data) return hazardFromRow(own.data, "campaign");
+      const shared = await admin.from("library_traps").select(columns).ilike("name", exact).limit(1).maybeSingle();
+      if (shared.error) throw shared.error;
+      return shared.data ? hazardFromRow(shared.data, "library") : null;
+    },
+
+    // A record of the campaign like any hazard the DM writes in Dungeon Craft, marked as made at the AI table.
+    async makeHazard({ campaignId, userId, provider, model }, hazard): Promise<void> {
+      const { error } = await admin.from("traps").insert({
+        user_id: userId,
+        campaign_id: campaignId,
+        name: hazard.name,
+        trap_type: "Environmental",
+        effect_description: hazard.effect,
+        save_type: hazard.save,
+        save_dc: hazard.dc,
+        damage_entries: hazard.damage,
+        damage_immunities: [],
+        ai_provenance: { generatorType: "agent_table_hazard", provider, model, generatedAt: new Date().toISOString(), edited: false },
+      });
+      if (error) throw error;
+    },
 
     async loadSession(sessionId): Promise<SessionRow | null> {
       const { data, error } = await admin.from("agent_sessions").select(SESSION_COLUMNS).eq("id", sessionId).maybeSingle();

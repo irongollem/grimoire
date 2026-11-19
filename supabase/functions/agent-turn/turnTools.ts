@@ -4,6 +4,7 @@
 // about what the narrator may do inside it: the campaign's own tools, a character speaking, moving the party and
 // putting a fact on the record. Everything with I/O comes in through `deps`; nothing here touches a database.
 
+import { HAZARD_TOOL, HAZARD_TOOL_NAME, HAZARDS_PER_TURN, keptHazardText, madeHazardText, noSuchHazardText, parseHazard, type HazardRules } from "../_shared/agent/hazard.ts";
 import { KEEP_TALKING_TOOL, KEEP_TALKING_TOOL_NAME } from "../_shared/agent/floor.ts";
 import { offeredHandout, parseShow, SHOW_TOOL, SHOW_TOOL_NAME, SHOWN_PER_TURN, shownText, type HandoutOffer, type PictureOf, type Shown } from "../_shared/agent/show.ts";
 import {
@@ -39,7 +40,7 @@ export interface FiledFact {
 }
 
 export interface TurnToolsInput {
-  deps: Pick<AgentTurnDeps, "tools" | "callTool" | "loadSpeaker" | "findCharacters" | "isTableMadeCharacter" | "setScene" | "fileFact">;
+  deps: Pick<AgentTurnDeps, "tools" | "callTool" | "loadSpeaker" | "findCharacters" | "findHazard" | "isTableMadeCharacter" | "setScene" | "fileFact">;
   campaignId: string;
   session: SessionRow;
   stored: StoredTurn[];
@@ -81,6 +82,8 @@ export interface TurnToolsInput {
   } | null;
   /** The played character's hit points and where a change to them goes; null in a fight (the board keeps them) or with nobody played, and then the tool is not offered. */
   hitPoints: { now: { current: number; max: number } | null; onChange(change: HitPointChange): void } | null;
+  /** Where a hazard the narrator makes goes; left out, the tool is not offered (a fight on the board is fought with what is on it). */
+  onHazard?: (hazard: HazardRules) => void;
   /** The turn is a correction ("That's not what happened"): `set_right` is offered beside the hit points tool. */
   correcting?: boolean;
   /**
@@ -388,6 +391,23 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
     return { content: introducedText(intro), isError: false };
   };
 
+  // A natural hazard (`hazard.ts`): what the campaign or the library keeps is handed back; one is made only when
+  // nothing of that name exists, and written when the turn is kept.
+  let hazardsMade = 0;
+  const hazard = async (toolInput: Record<string, unknown>) => {
+    if (input.onHazard === undefined) return { content: "No hazard can be brought in this turn.", isError: true };
+    const parsed = parseHazard(toolInput);
+    if (!parsed.ok) return { content: parsed.error, isError: true };
+    const name = parsed.value.kind === "look" ? parsed.value.name : parsed.value.hazard.name;
+    const kept = await deps.findHazard(campaignId, name);
+    if (kept !== null) return { content: keptHazardText(kept), isError: false };
+    if (parsed.value.kind === "look") return { content: noSuchHazardText(name), isError: false };
+    if (hazardsMade >= HAZARDS_PER_TURN) return { content: "One hazard is made in a turn. Use the one you made.", isError: true };
+    hazardsMade += 1;
+    input.onHazard(parsed.value.hazard);
+    return { content: madeHazardText(parsed.value.hazard), isError: false };
+  };
+
   // Set once the narrator says the characters go on among themselves: nobody speaks again in this reply.
   let floorKept = false;
   // A handout or a picture put in front of the player (`show.ts`). A handout is handed over once.
@@ -465,7 +485,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.onHazard === undefined ? [] : [HAZARD_TOOL]), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
@@ -475,6 +495,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       if (input.askRoll && name === ASK_ROLL_TOOL.name) return Promise.resolve(askRoll(toolInput));
       if (input.fight && name === START_FIGHT_TOOL.name) return startFight(toolInput);
       if (name === INTRODUCE_TOOL_NAME) return introduce(toolInput);
+      if (name === HAZARD_TOOL_NAME) return hazard(toolInput);
       if (input.show && name === SHOW_TOOL_NAME) return show(toolInput);
       if (input.travel && name === TRAVEL_TOOL_NAME) return travel(toolInput);
       if (input.travel && name === ROLL_TABLE_TOOL_NAME) return rollTable(toolInput);

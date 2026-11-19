@@ -6,6 +6,7 @@
  * out from the price and calibration below: input is free and output costs 10 USD per million tokens, a credit is
  * worth 0.01 USD at margin 1, so 600 output tokens are 0.006 USD, which is 0.6 credits.
  */
+import type { HazardRules, KeptHazard } from "../_shared/agent/hazard";
 import { STRIKES_BEFORE_CLOSED } from "../_shared/agent/conduct.ts";
 import type { HandsChange } from "../_shared/agent/hands.ts";
 import { describe, expect, it, vi } from "vitest";
@@ -145,6 +146,9 @@ interface Harness {
     tableMade: boolean;
     /** Hit points written to a sheet, and things taken out of someone's belongings. */
     hitPointsSet: Array<{ memberId: string; hitPoints: number }>;
+    /** Hazards the campaign or the library keeps, and those the narrator made this run. */
+    hazards: KeptHazard[];
+    hazardsMade: HazardRules[];
     /** Changes of hands that were carried out; and switches that make reading or making them fail. */
     handed: HandsChange[];
     handsThrow: boolean;
@@ -271,6 +275,8 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       statless: [],
       tableMade: false,
       hitPointsSet: [],
+      hazards: [],
+      hazardsMade: [],
       handed: [],
       handsThrow: false,
       handsApplyThrows: false,
@@ -329,6 +335,10 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     loadCampaign: async () => h.state.campaign,
     isDm: async () => h.state.isDm,
     now: () => NOW,
+    findHazard: async (_campaignId, name) => h.state.hazards.find((k) => k.name.toLowerCase() === name.toLowerCase()) ?? null,
+    makeHazard: async (_ctx, hazard) => {
+      h.state.hazardsMade.push(hazard);
+    },
     // A copy, as a database read is: the handler must not see later writes through its own session object.
     loadSession: async (id) => {
       const row = h.sessions.get(id);
@@ -1639,6 +1649,46 @@ describe("where the party is", () => {
     h.state.saveThrows = true;
     await play(h, { body: GO });
     expect(h.sessions.get(SESSION)!.scene_location_id).toBe(CELLAR);
+  });
+});
+
+describe("a natural hazard in the story", () => {
+  const BODY_H = { campaignId: CAMPAIGN, message: "I cross the marsh.", mode: "do" };
+  const asks = (input: Record<string, unknown>): ModelStep => step(10, { blocks: [{ type: "tool_call", id: "h1", name: "hazard", input }], stop: "tool_calls" });
+  const answer = (h: Harness): string => JSON.stringify(h.requests[1].messages);
+  const QUICKSAND = { name: "Quicksand", effect: "A patch of wet sand hides a sucking bog.", save: "STR", dc: 12 };
+
+  // #1021 row 20, the maintainer: it "reaches for what exists before it makes anything new". Bug caught: a second
+  // "Quicksand" made beside the one the library keeps, with rules of the narrator's own.
+  it("hands back the rules of a hazard the campaign or the library keeps, and makes nothing", async () => {
+    const h = harness([asks(QUICKSAND), step(50)]);
+    h.state.hazards = [{ where: "library", name: "Quicksand", effect: "A creature that steps on it sinks.", save: "STR", dc: 12, damage: [] }];
+    await play(h, { body: BODY_H });
+    expect(answer(h)).toContain("The library already keeps this hazard");
+    expect(answer(h)).toContain("A creature that steps on it sinks.");
+    expect(h.state.hazardsMade).toEqual([]);
+  });
+
+  // The maintainer: "use straight away. During play continuity is most important." Bug caught: a made hazard told
+  // in words and never kept (the DM finds nothing afterwards), or kept although the turn was not.
+  it("makes a hazard nobody keeps a record of the campaign once the turn is kept, and gives its rules at once", async () => {
+    const flies = { name: "Biting Flies", effect: "A cloud of flies blinds and maddens whoever stands in it; leaving the cloud ends it.", save: "CON", dc: 11, damage_dice: "1d4", damage_type: "piercing" };
+    const h = harness([asks(flies), step(50)]);
+    await play(h, { body: BODY_H });
+    expect(answer(h)).toContain("Use it now as written");
+    expect(h.state.hazardsMade).toEqual([{ name: "Biting Flies", effect: flies.effect, save: "CON", dc: 11, damage: [{ dice: "1d4", type: "piercing" }] }]);
+    const lost = harness([asks(flies), step(50)]);
+    lost.state.saveThrows = true;
+    await play(lost, { body: BODY_H });
+    expect(lost.state.hazardsMade).toEqual([]);
+  });
+
+  // Bug caught: the name alone making an empty record ("Monsoon" with no rules at all).
+  it("makes nothing from a name alone: it says none exists and asks for the whole of it", async () => {
+    const h = harness([asks({ name: "Monsoon" }), step(50)]);
+    await play(h, { body: BODY_H });
+    expect(answer(h)).toContain("Neither the campaign nor the library keeps a hazard called");
+    expect(h.state.hazardsMade).toEqual([]);
   });
 });
 

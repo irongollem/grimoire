@@ -19,6 +19,7 @@ import { followersOf } from "../_shared/agent/pursuit.ts";
 import { lootIsWon, type LootHeld } from "../_shared/agent/encounterLoot.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
 import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
+import type { HazardRules, KeptHazard } from "../_shared/agent/hazard.ts";
 import { skySection } from "../_shared/agent/sky.ts";
 import { endedByPause } from "../_shared/agent/sittingEnd.ts";
 import { NARRATOR_SPEAKER, type KeyedLine } from "../_shared/agent/lineKey.ts";
@@ -348,6 +349,10 @@ export interface AgentTurnDeps {
   voiceKey: ((sessionId: string, line: KeyedLine) => string) | null;
   /** Whether the table itself made this character's record and the DM has not edited it since: only then may the table rewrite it. */
   isTableMadeCharacter(campaignId: string, characterId: string): Promise<boolean>;
+  /** A hazard of that name the campaign keeps, else one the library keeps; null when neither does. */
+  findHazard(campaignId: string, name: string): Promise<KeptHazard | null>;
+  /** Writes a hazard the narrator made as a record of the campaign, marked as made by the AI table. */
+  makeHazard(ctx: { campaignId: string; userId: string; provider: string; model: string }, hazard: HazardRules): Promise<void>;
   /** Things changing hands: what is carried and stocked, and the changes carried out (`handsIo.ts`). */
   hands: HandsStore;
   /** Sets the played character's hit points on their sheet (`hitPoints.ts`). */
@@ -641,6 +646,8 @@ export async function beginTurn(input: {
         let hitPointChange: HitPointChange | null = null;
         // People the narrator gave a record this turn; made only once the turn is kept.
         const introduced: Introduction[] = [];
+        // Hazards the narrator made this turn; written only once the turn is kept.
+        const madeHazards: HazardRules[] = [];
         let daysPassed = 0;
         // The fight the narrator starts this turn; started only once the turn is kept.
         let fightPlan: FightPlan | null = null;
@@ -659,6 +666,8 @@ export async function beginTurn(input: {
           playerName: character ? character.name : undefined,
           peoples,
           onIntroduce: (intro) => { introduced.push(intro); },
+          // Not in a fight on the board: that is fought with what is on it.
+          ...(fights !== null && fights.fight !== null && fights.fight.phase === "running" ? {} : { onHazard: (hazard: HazardRules) => { madeHazards.push(hazard); } }),
           onExchange: (ended, cutShort) => { lastExchange = { ended, cutShort }; },
           onKeepTalking: () => { narratorKeeps = true; },
           // Each line reaches the page as it is said, so the player can cut in between two of them.
@@ -1005,6 +1014,15 @@ export async function beginTurn(input: {
             if (intro.known && intro.replaces === null) emit({ type: "introduced", person: made });
           } catch (error) {
             console.error("agent-turn: giving an invented person a record failed:", error);
+          }
+        }
+        // A hazard the narrator made becomes the campaign's. One that cannot be written costs the record, never the
+        // turn: the story already told it.
+        for (const hazard of madeHazards) {
+          try {
+            await deps.makeHazard({ campaignId: campaign.id, userId, provider: provider.provider, model: provider.model }, hazard);
+          } catch (error) {
+            console.error("agent-turn: keeping a hazard the narrator made failed:", error);
           }
         }
         // A request to roll lasts one turn: this turn answered or dropped the last one, and may have made a new one.
