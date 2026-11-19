@@ -263,8 +263,7 @@ import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { useFightCommands } from "@/composables/encounters/useFightCommands";
 import { RUNNER_TAKE_TURN, createRunnerTakeTurn } from "@/components/encounters/runnerResolve";
 import { useCreatureTurns } from "@/composables/encounters/useCreatureTurns";
-import { useStorage } from "@vueuse/core";
-import { safeLocalStorage } from "@/lib/safeLocalStorage";
+import { useRunnerAutopilot } from "@/composables/encounters/useRunnerAutopilot";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import { ensureCampaignSession } from "@/composables/campaign/useCampaignSession";
 import { useToast } from "@/composables/useToast";
@@ -331,7 +330,7 @@ provide(RUNNER_TAKE_TURN, runnerTakeTurn);
 // player's turn, at anyone the rules cannot play, when a turn could not be run (the reason is on that creature's
 // panel), and when a creature walked out of a player's reach: that opportunity attack is the table's to settle
 // before the turn moves on. Kept on this device.
-const autopilot = useStorage<boolean>("grimoire:runner-autopilot", false, safeLocalStorage());
+const autopilot = useRunnerAutopilot();
 useCreatureTurns({
   enabled: () => autopilot.value,
   stopsAt: (now) => now.type === "player" || now.bystander === true,
