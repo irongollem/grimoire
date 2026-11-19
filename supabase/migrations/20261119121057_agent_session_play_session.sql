@@ -7,7 +7,7 @@
 --
 -- The conversation keeps the session it was started in. Written only by the server, like the rest of the row; a
 -- session that is deleted leaves the conversation without one. The session must be of the conversation's own
--- campaign. As with the scene (20261117003107), `zz_same_campaign_refs` is here because every such foreign key
+-- campaign. As with the scene (20261119121056), `zz_same_campaign_refs` is here because every such foreign key
 -- carries it, but it lets server code through and the server is this row's only writer, so the row's own trigger
 -- checks both references whoever writes.
 

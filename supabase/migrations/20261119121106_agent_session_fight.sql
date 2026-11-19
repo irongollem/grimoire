@@ -18,7 +18,7 @@ create index agent_sessions_fight_encounter_id_idx on public.agent_sessions (fig
   where fight_encounter_id is not null;
 
 -- The same two guards every reference on this row has: the shared one (which lets a server write through) and the
--- row's own (which does not). See 20261117003106 for why there are two.
+-- row's own (which does not). See 20261119121055 for why there are two.
 drop trigger zz_same_campaign_refs on public.agent_sessions;
 create trigger zz_same_campaign_refs
   before insert or update of scene_location_id, campaign_session_id, pressure_clock_id, party_member_id, fight_encounter_id, campaign_id

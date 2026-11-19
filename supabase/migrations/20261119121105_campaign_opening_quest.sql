@@ -18,7 +18,7 @@
 alter table public.campaigns add column opening_quest_id uuid;
 
 comment on column public.campaigns.opening_quest_id is
-  'The quest the campaign''s story opens with (the prologue). The AI table''s first sitting begins at its entry beat. Not a foreign key: see migration 20261117072518. A value that matches no quest of this campaign means none.';
+  'The quest the campaign''s story opens with (the prologue). The AI table''s first sitting begins at its entry beat. Not a foreign key: see migration 20261119121105. A value that matches no quest of this campaign means none.';
 
 create function private.guard_campaign_opening_quest()
 returns trigger
