@@ -24,6 +24,12 @@ The next two pages in this section go deeper: [Quest Story Flow](#quest-story-fl
 | Drawer | The column on the right of the flow. It shows the quest, a beat or a route, and opens wide from its tab. |
 | Quest drawer | What the quest page shows when nothing on the flow is selected: the quest as a whole. |
 
+## The level plan
+
+Above the board, **Levels** shows where the party stands. In a campaign that levels by milestone you see the level last reached, the next milestone with what it waits on and how many are done, the one after, and the first level that has no milestone yet (**Set one** takes you to the Levels card on the Party page, where milestones are made and edited). In a campaign with the Experience Points rule you see each character's way to the next level, and what each open quest is worth to them when shared.
+
+Under the next milestone, a warning names any prepared fight of its quests that will be Trivial, or Deadly or worse, for the party at the level that milestone brings, so you can adjust it before the table gets there. Fold the strip to one line with the arrow; it stays folded for this campaign. Your players never see it.
+
 ## Finding a quest
 
 The quest list has two views, toggled from the filter bar: **Kanban** (drag cards between three columns: **Active**, **Undiscovered: waiting to be unlocked**, and **Settled**, the last covering both Completed and Failed) and **List** (a compact grid, better with many quests). Your choice persists for the session.
@@ -58,7 +64,7 @@ With nothing selected, the **quest drawer** holds the quest as a whole, top to b
 - **Notes**: yours alone. The premise, goals, themes and prep that belong to the whole quest and no single scene. Each beat shows them folded, so you can read them without leaving it.
 - **Objectives**, at the foot, covered below.
 
-Open it wide for the rest: the **Board lane** (the same status the kanban board uses: Undiscovered, Active, Completed, Failed), the **Giver** and **Location** (an NPC and a place), **Part of** (makes this a sub-quest of another, with no depth limit), **Tags**, **Clocks**, **Payoffs** (the quest's own rules, covered below) and **Threads**, once the quest holds one.
+Open it wide for the rest: the **Board lane** (the same status the kanban board uses: Undiscovered, Active, Completed, Failed), the **Giver** and **Location** (an NPC and a place), **Part of** (makes this a sub-quest of another, with no depth limit), **Worth** (with the Experience Points rule on: the XP the quest is worth, shared equally by the party's characters the first time it is completed), **Tags**, **Clocks**, **Payoffs** (the quest's own rules, covered below) and **Threads**, once the quest holds one.
 
 The beat the story begins at is set on the beat itself: select a beat and tick **Entry**. A quest has one entry, so ticking it on another beat moves it. Grimoire sets it to the first beat you write.
 
@@ -87,7 +93,7 @@ The **Payoffs** section of the wide quest drawer lets you write rules that fire 
 
 - **A condition**: one of **When the quest settles** (nothing left open), **When a clock fills…** (pick the clock), **When an objective becomes…** (pick the objective and the status: Open, Completed, or Failed), or **When a place…** (pick a location and whether it's Explored, Cleared, or Looted).
 - **A delay**: an optional number of in-world days between the condition firing and the action happening.
-- **An action**: grouped **Objective** (Raise, Complete, Fail: moves another objective; Raise is also how an objective reaches the players) **Clock** (Tick clock), or **World** (Create calendar event, Send broadcast, Shift an NPC's disposition, Unlock a quest, Grant knowledge, Owe a favor, Award a milestone, Give a handout, Move NPC, Add companion, Shift faction standing).
+- **An action**: grouped **Objective** (Raise, Complete, Fail: moves another objective; Raise is also how an objective reaches the players) **Clock** (Tick clock), or **World** (Create calendar event, Send broadcast, Shift an NPC's disposition, Unlock a quest, Grant knowledge, Owe a favor, Award a deed, Give a handout, Move NPC, Add companion, Shift faction standing).
 
 The newer world actions work like this:
 

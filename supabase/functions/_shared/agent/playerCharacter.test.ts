@@ -66,3 +66,22 @@ describe("what the player wrote about the character", () => {
   });
 });
 
+
+describe("playerCharacterSection: a level the character may take (#1021 row 27)", () => {
+  const ready = { ...wren, level: 3 };
+
+  it("tells the Narrator the next level and nothing else when the record says the character may take it", () => {
+    const text = playerCharacterSection({ ...ready, mayLevelUp: "milestone" });
+    expect(text).toContain("may now rise to level 4");
+    // The record's number only: no other level is offered for the Narrator to repeat.
+    expect(text.match(/level \d+/g)).toEqual(["level 3", "level 4"]);
+  });
+
+  it("says why in the campaign's own terms: experience in an Experience campaign", () => {
+    expect(playerCharacterSection({ ...ready, mayLevelUp: "experience" })).toContain("earned enough experience");
+  });
+
+  it("says nothing of levelling up when the character may not", () => {
+    expect(playerCharacterSection({ ...ready, mayLevelUp: null })).not.toContain("rise to level");
+  });
+});

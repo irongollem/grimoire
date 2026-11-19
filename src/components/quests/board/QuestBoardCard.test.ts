@@ -20,6 +20,8 @@ function quest(overrides: Partial<Quest> = {}): Quest {
     started_at: null,
     resolved_at: null,
     entry_beat_id: null,
+    xp_reward: null,
+    xp_awarded_at: null,
     created_at: "2026-08-01T00:00:00Z",
     updated_at: "2026-08-10T00:00:00Z",
     ...overrides,

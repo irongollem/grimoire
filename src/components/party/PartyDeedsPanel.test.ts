@@ -1,6 +1,6 @@
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import PartyMilestonesPanel from "./PartyMilestonesPanel.vue";
+import PartyDeedsPanel from "./PartyDeedsPanel.vue";
 import type { PartyMilestone } from "@/types/quest.types";
 
 const routerStubs = { RouterLink: RouterLinkStub };
@@ -48,7 +48,7 @@ vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({ activeCampaignId: "c1" }),
 }));
 
-describe("PartyMilestonesPanel", () => {
+describe("PartyDeedsPanel", () => {
   beforeEach(() => {
     mocks.milestones.value = [];
     mocks.quests.value = [];
@@ -59,8 +59,8 @@ describe("PartyMilestonesPanel", () => {
   });
 
   it("shows the empty state when there are no milestones", () => {
-    const wrapper = mount(PartyMilestonesPanel, { global: { stubs: routerStubs } });
-    expect(wrapper.text()).toContain("No milestones yet.");
+    const wrapper = mount(PartyDeedsPanel, { global: { stubs: routerStubs } });
+    expect(wrapper.text()).toContain("No deeds yet.");
   });
 
   it("orders milestones newest first", () => {
@@ -68,14 +68,14 @@ describe("PartyMilestonesPanel", () => {
       milestone({ id: "m1", text: "Oldest one", created_at: "2026-01-01T00:00:00Z" }),
       milestone({ id: "m2", text: "Newest one", created_at: "2026-01-05T00:00:00Z" }),
     ];
-    const wrapper = mount(PartyMilestonesPanel, { global: { stubs: routerStubs } });
+    const wrapper = mount(PartyDeedsPanel, { global: { stubs: routerStubs } });
     const text = wrapper.text();
     expect(text.indexOf("Newest one")).toBeLessThan(text.indexOf("Oldest one"));
   });
 
   it("disables Add milestone while the input is blank", async () => {
-    const wrapper = mount(PartyMilestonesPanel, { global: { stubs: routerStubs } });
-    const addButton = wrapper.findAll("button").find((b) => b.text() === "Add milestone");
+    const wrapper = mount(PartyDeedsPanel, { global: { stubs: routerStubs } });
+    const addButton = wrapper.findAll("button").find((b) => b.text() === "Add deed");
     expect(addButton?.attributes("disabled")).toBeDefined();
 
     await wrapper.find("input").setValue("Struck a deal with the duchy");
@@ -93,7 +93,7 @@ describe("PartyMilestonesPanel", () => {
   it("resolves a quest link when the milestone's quest_id matches a known quest", () => {
     mocks.quests.value = [{ id: "q1", title: "The Sealed Crypt" }];
     mocks.milestones.value = [milestone({ id: "m1", quest_id: "q1" })];
-    const wrapper = mount(PartyMilestonesPanel, { global: { stubs: routerStubs } });
+    const wrapper = mount(PartyDeedsPanel, { global: { stubs: routerStubs } });
     const link = wrapper.findComponent(RouterLinkStub);
     expect(link.props("to")).toBe("/quests/q1");
     expect(link.text()).toBe("The Sealed Crypt");
@@ -101,9 +101,9 @@ describe("PartyMilestonesPanel", () => {
 
   it("confirms before deleting a milestone", async () => {
     mocks.milestones.value = [milestone({ id: "m1" })];
-    const wrapper = mount(PartyMilestonesPanel, { global: { stubs: routerStubs } });
+    const wrapper = mount(PartyDeedsPanel, { global: { stubs: routerStubs } });
     // The delete action is the icon-only button — the other button on the
-    // page (Add milestone) carries visible text.
+    // page (Add deed) carries visible text.
     const deleteButton = wrapper.findAll("button").find((b) => b.text() === "");
     await deleteButton!.trigger("click");
     await flushPromises();
@@ -113,7 +113,7 @@ describe("PartyMilestonesPanel", () => {
   it("cancelling the delete confirm keeps the milestone", async () => {
     mocks.confirmResult = false;
     mocks.milestones.value = [milestone({ id: "m1" })];
-    const wrapper = mount(PartyMilestonesPanel, { global: { stubs: routerStubs } });
+    const wrapper = mount(PartyDeedsPanel, { global: { stubs: routerStubs } });
     const deleteButton = wrapper.findAll("button").find((b) => b.text() === "");
     await deleteButton!.trigger("click");
     await flushPromises();
@@ -121,9 +121,9 @@ describe("PartyMilestonesPanel", () => {
   });
 
   it("saves the milestone text without the spaces around it", async () => {
-    const wrapper = mount(PartyMilestonesPanel, { global: { stubs: routerStubs } });
+    const wrapper = mount(PartyDeedsPanel, { global: { stubs: routerStubs } });
     await wrapper.find("input").setValue("   Freed the miners  ");
-    const addButton = wrapper.findAll("button").find((b) => b.text() === "Add milestone");
+    const addButton = wrapper.findAll("button").find((b) => b.text() === "Add deed");
     await addButton!.trigger("click");
     await flushPromises();
     expect(mocks.createMilestone).toHaveBeenCalledWith(
@@ -132,10 +132,10 @@ describe("PartyMilestonesPanel", () => {
   });
 
   it("empties the input once the milestone is added", async () => {
-    const wrapper = mount(PartyMilestonesPanel, { global: { stubs: routerStubs } });
+    const wrapper = mount(PartyDeedsPanel, { global: { stubs: routerStubs } });
     const input = wrapper.find("input");
     await input.setValue("Freed the miners");
-    const addButton = wrapper.findAll("button").find((b) => b.text() === "Add milestone");
+    const addButton = wrapper.findAll("button").find((b) => b.text() === "Add deed");
     await addButton!.trigger("click");
     await flushPromises();
     expect(input.element.value).toBe("");
@@ -143,9 +143,9 @@ describe("PartyMilestonesPanel", () => {
 
   it("disables Add milestone while a milestone is being saved, so it cannot be submitted twice", async () => {
     mocks.createPending = true;
-    const wrapper = mount(PartyMilestonesPanel, { global: { stubs: routerStubs } });
+    const wrapper = mount(PartyDeedsPanel, { global: { stubs: routerStubs } });
     await wrapper.find("input").setValue("Freed the miners");
-    const addButton = wrapper.findAll("button").find((b) => b.text() === "Add milestone");
+    const addButton = wrapper.findAll("button").find((b) => b.text() === "Add deed");
     expect(addButton?.attributes("disabled")).toBeDefined();
   });
 });

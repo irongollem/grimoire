@@ -24,7 +24,7 @@ export const QUEST_CONSEQUENCE_ACTION_LABELS: Record<QuestConsequenceAction, str
   unlock_quest: "Unlock a quest",
   grant_knowledge: "Grant knowledge",
   owe_favor: "Owe a favor",
-  award_milestone: "Award a milestone",
+  award_milestone: "Award a deed",
   give_handout: "Give a handout",
   tick_clock: "Tick clock",
   move_npc: "Move NPC",
@@ -270,7 +270,7 @@ export function describeWorldConsequenceAction(
     }
     case "award_milestone": {
       const payload = actionPayload as Partial<MilestoneConsequencePayload>;
-      return `Milestone: "${payload.text || UNKNOWN_PAYLOAD_FIELD}"`;
+      return `Deed: "${payload.text || UNKNOWN_PAYLOAD_FIELD}"`;
     }
     case "unlock_quest":
     case "give_handout":

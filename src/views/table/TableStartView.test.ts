@@ -209,7 +209,8 @@ describe("TableStartView: picking the story up", () => {
 
   // Bug caught: making the player find and reopen a sitting they never left.
   it("goes straight back into a sitting that was never left", async () => {
-    fake.seed("agent_sessions", [sitting("going")]);
+    // Moved in the last minute: a sitting idle past the pause is over and is not reopened (resume.test.ts).
+    fake.seed("agent_sessions", [sitting("going", { updated_at: new Date(Date.now() - 60_000).toISOString() })]);
     const { router } = await mountView();
     expect(router.currentRoute.value.path).toBe("/play/table/going");
     expect(useAppUiStore().tablePlay).toEqual({ memberId: "m1", sessionId: "going" });

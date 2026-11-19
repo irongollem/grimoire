@@ -55,6 +55,17 @@ export const useQuestsUiStore = defineStore("ui:quests", () => {
     return choice;
   }
 
+  // Whether the level plan (#1021 row 27) is folded to one line, kept per campaign: a layout preference, not a filter.
+  const levelPlanFolds = new Map<string, Ref<boolean>>();
+  function levelPlanFoldedFor(campaignId: string) {
+    let folded = levelPlanFolds.get(campaignId);
+    if (!folded) {
+      folded = useStorage(`grimoire:quests:level-plan-folded:${campaignId}`, false, safeLocalStorage());
+      levelPlanFolds.set(campaignId, folded);
+    }
+    return folded;
+  }
+
   function resetQuestsFilters() {
     questsSearch.value = "";
     questsPartyFilter.value = false;
@@ -64,6 +75,7 @@ export const useQuestsUiStore = defineStore("ui:quests", () => {
   }
 
   return {
+    levelPlanFoldedFor,
     questGeneratorOpen,
     questsSearch,
     questsIsKanban,

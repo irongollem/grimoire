@@ -14,6 +14,8 @@ import { SESSION_LEARNED_KEY } from "@/lib/sessions/learned";
 
 /** Root of every NPC memory query (#1019); the table rings the `npc_memories` signal. */
 export const NPC_MEMORIES_KEY = "npc-memories";
+/** Root of every level milestone query (#1021 row 27): the milestones and their items ring the same key. */
+export const LEVEL_MILESTONES_KEY = "level-milestones";
 /** Root of every party-member memory query (#1021 row 26); the table rings the `party_member_memories` signal. */
 export const PARTY_MEMBER_MEMORIES_KEY = "party-member-memories";
 /** Root of every hand-over query (#1059); the table rings the `character_caretakers` signal. */
@@ -175,7 +177,8 @@ const SYNC_TABLE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
   npcs: ["npcs", PLAYER_NPCS_KEY, PLAYER_KIN_KEY, CONNECTIONS_KEY],
   // get_connections (#1084) reads these as ties: a quest's giver and place, an NPC's pack. A rename also
   // reaches every sheet that names the other end.
-  quests: ["quests", CONNECTIONS_KEY],
+  // A level milestone shows each quest it waits on as done or not (#1021 row 27).
+  quests: ["quests", CONNECTIONS_KEY, LEVEL_MILESTONES_KEY],
   npc_inventory: ["npc-inventory", CONNECTIONS_KEY],
   // The DM's editor and the players' view read the same two tables; a player
   // taking a pin also rings it, which is how the DM watches a notice come down.
@@ -228,6 +231,8 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["npc_memories", [NPC_MEMORIES_KEY]],
   // What a party member lived through while someone else played them (#1021 row 26): their player reads it.
   ["party_member_memories", [PARTY_MEMBER_MEMORIES_KEY]],
+  ["level_milestones", [LEVEL_MILESTONES_KEY]],
+  ["level_milestone_steps", [LEVEL_MILESTONES_KEY]],
   // Who is minding whose character (#1059). Ending one also moves the
   // caretaker's seat, which rings `campaign_members` on its own.
   ["character_caretakers", [CHARACTER_CARETAKERS_KEY, WHILE_AWAY_KEY]],
@@ -348,9 +353,10 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   // Sharing a place can share its linked NPCs, so the People projection
   // (PLAYER_NPCS_KEY) re-reads too; that is deliberate, not a stray key.
   ["locations_player", ["locations", PLAYER_NPCS_KEY, PLAYER_KIN_KEY]],
-  ["quests_player", ["quests"]],
+  ["quests_player", ["quests", LEVEL_MILESTONES_KEY]],
   ["quest_beats_player", [BEATS_KEY]],
-  ["quest_objectives_player", [OBJECTIVES_KEY]],
+  // A level milestone shows each objective it waits on as done or not (#1021 row 27).
+  ["quest_objectives_player", [OBJECTIVES_KEY, LEVEL_MILESTONES_KEY]],
   // Not in SYNC_TABLES: the root is not the table's name. `items` as well: an
   // item leaving the party's inventory leaves the player-visible projection
   // with it, and a newly claimed or crafted item only becomes RLS-visible to a

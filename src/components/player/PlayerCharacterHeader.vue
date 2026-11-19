@@ -66,34 +66,37 @@
           </p>
           <SubclassVariantControl v-if="!wildshape" :member-id="member.id" />
           <p v-if="inGameDate" class="text-caption text-muted-foreground">{{ inGameDate }}</p>
-          <!-- XP progress -->
-          <div v-if="xpLevellingEnabled && !wildshape && ((member.experience_points ?? 0) > 0 || readyToLevelUp)" class="mt-1 flex items-center gap-1.5">
-            <span class="text-eyebrow text-muted-foreground">XP</span>
-            <div class="flex-1 max-w-32 h-1 rounded-full bg-muted overflow-hidden">
-              <div class="h-full transition-all"
-                :class="readyToLevelUp ? 'bg-primary' : 'bg-primary/50'"
-                :style="{ width: `${xpPct}%` }" />
-            </div>
-            <span class="text-label text-muted-foreground">
-              {{ member.experience_points ?? 0 }}<template v-if="xpToNext !== null"> / {{ xpToNext }}</template>
-            </span>
+          <!-- XP progress, and Level Up once the character may take it: by XP, or by the party level a milestone
+               raised (#1021 row 27). The player presses it; the DM only for a character nobody plays. -->
+          <div v-if="!wildshape && (showXpBar || readyToLevelUp)" class="mt-1 flex items-center gap-1.5">
+            <template v-if="showXpBar">
+              <span class="text-eyebrow text-muted-foreground">XP</span>
+              <div class="flex-1 max-w-32 h-1 rounded-full bg-muted overflow-hidden">
+                <div class="h-full transition-all"
+                  :class="readyToLevelUp ? 'bg-primary' : 'bg-primary/50'"
+                  :style="{ width: `${xpPct}%` }" />
+              </div>
+              <span class="text-label text-muted-foreground">
+                {{ member.experience_points ?? 0 }}<template v-if="xpToNext !== null"> / {{ xpToNext }}</template>
+              </span>
+            </template>
             <!-- DM: emit event (player /play/* routes aren't accessible to DMs) -->
             <AppButton
-              v-if="readyToLevelUp && auth.isDM"
+              v-if="levelUp === 'dm'"
               variant="link"
               size="inline-xs"
               class="ml-0.5"
-              label="Ready ↑"
+              :label="levelUpLabel"
               @click="emit('level-up')"
             />
             <!-- Player: link to the level-up flow -->
             <AppButton
-              v-else-if="readyToLevelUp && !hidePlayerActions"
+              v-else-if="levelUp === 'player'"
               variant="link"
               size="inline-xs"
               class="ml-0.5"
               :to="`/play/character/levelup?memberId=${member.id}`"
-              label="Ready ↑"
+              :label="levelUpLabel"
             />
           </div>
         </div>
@@ -246,7 +249,6 @@
 import { characterSenses, formatSenses } from "@/rules/characterSenses";
 import { ref, computed, nextTick, type ComponentPublicInstance } from "vue";
 import { IconAdd, IconStar } from '@/lib/icons';
-import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarStore } from "@/stores/calendar";
 import { useUpdatePartyMember } from "@/composables/party/useParty";
@@ -269,7 +271,8 @@ import {
 } from "@/rules/conditions";
 import type { PartyMember } from "@/types/party.types";
 import type { RollMode } from "@/systems/dnd5e/dice/rollMode";
-import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
+import { xpForNextLevel, xpForLevel } from "@/types/party.types";
+import { useLevelUp } from "@/composables/party/useLevelUp";
 import type { WildshapeState } from "@/types/encounter.types";
 import { useFormPortraits } from "@/composables/party/useFormPortraits";
 import { walkingSpeed } from "@/lib/movement";
@@ -314,7 +317,6 @@ const sensesText = computed(() => {
   return formatSenses(characterSenses({ species, subrace: props.member.subrace, senses: props.member.senses }));
 });
 
-const auth = useAuthStore();
 const campaignStore = useCampaignStore();
 const calendarStore = useCalendarStore();
 
@@ -473,10 +475,9 @@ const xpPct = computed(() => {
   if (next <= floor) return 0;
   return Math.max(0, Math.min(100, ((xp - floor) / (next - floor)) * 100));
 });
-const readyToLevelUp = computed(() => {
-  const xp = props.member.experience_points ?? 0;
-  return levelForXp(xp) > props.member.level;
-});
+const { ready: readyToLevelUp, action: levelUp } = useLevelUp(() => props.member, () => props.hidePlayerActions);
+const showXpBar = computed(() => xpLevellingEnabled.value && ((props.member.experience_points ?? 0) > 0 || readyToLevelUp.value));
+const levelUpLabel = computed(() => (xpLevellingEnabled.value ? "Ready ↑" : "Ready to level up"));
 const hpColor = computed(() => hpTextClass(displayHp.value, displayMaxHp.value));
 const hpBarColor = computed(() => {
   const p = hpPct.value;

@@ -71,6 +71,11 @@ export interface Campaign {
    * foreign key, so it can name a quest that was since deleted; readers treat one they cannot find as none.
    */
   opening_quest_id: string | null;
+  /**
+   * The level the party has reached by milestone (#1021 row 27); null until the DM sets a starting level or a
+   * milestone is reached. In a campaign that levels by milestone, a character below it may level up.
+   */
+  party_level: number | null;
   /** What the Table screen shows while no fight runs: the map, or the picture of a place's nook (#1142). */
   table_shows: TableShows;
   /** Where each character stands on a site's grid while the party explores it (#1125 decision 9). Null until a site is explored. */
@@ -125,6 +130,7 @@ export type CampaignInsert = Omit<
   | "current_day"
   | "current_location_id"
   | "opening_quest_id"
+  | "party_level"
   | "table_shows"
   | "explore_party"
   | "climate"
@@ -169,6 +175,7 @@ export type CampaignInsert = Omit<
 };
 export type CampaignUpdate = Partial<CampaignInsert> & {
   opening_quest_id?: string | null;
+  party_level?: number | null;
   ical_token?: string;
   spotify_client_id?: string | null;
   is_archived?: boolean;

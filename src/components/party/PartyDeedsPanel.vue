@@ -1,7 +1,7 @@
 <template>
   <div class="rounded-lg border border-border bg-card overflow-hidden">
     <div class="px-4 py-3 border-b border-border bg-muted/20">
-      <span class="text-label-lg font-semibold text-muted-foreground">Milestones</span>
+      <span class="text-label-lg font-semibold text-muted-foreground">Deeds</span>
       <p class="text-caption text-muted-foreground italic mt-0.5">
         What the party has earned, newest first, awarded from a quest's payoff or added here.
       </p>
@@ -9,7 +9,7 @@
 
     <div class="p-4">
       <p v-if="milestones.length === 0" class="text-body text-muted-foreground italic">
-        No milestones yet.
+        No deeds yet.
       </p>
 
       <div v-else class="space-y-2">
@@ -34,7 +34,7 @@
             size="inline-xs"
             class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-all"
             :icon="IconClose"
-            @click="removeMilestone(milestone.id)"
+            @click="removeDeed(milestone.id)"
           />
         </div>
       </div>
@@ -52,9 +52,9 @@
           variant="subtle"
           size="sm"
           class="shrink-0"
-          label="Add milestone"
+          label="Add deed"
           :disabled="!newText.trim() || isAdding"
-          @click="addMilestone"
+          @click="addDeed"
         />
       </div>
     </div>
@@ -95,11 +95,11 @@ function questTitle(questId: string | null): string | null {
   return questId ? (questById.value[questId] ?? null) : null;
 }
 
-async function removeMilestone(id: string) {
+async function removeDeed(id: string) {
   const campaignId = campaign.activeCampaignId;
   if (!campaignId) return;
-  const ok = await confirm("Delete this milestone? This can't be undone.", {
-    title: "Delete milestone",
+  const ok = await confirm("Delete this deed? This can't be undone.", {
+    title: "Delete deed",
     confirmLabel: "Delete",
   });
   if (!ok) return;
@@ -109,7 +109,7 @@ async function removeMilestone(id: string) {
 const newText = ref("");
 const isAdding = computed(() => createMut.isPending.value);
 
-async function addMilestone() {
+async function addDeed() {
   const text = newText.value.trim();
   if (!text) return;
   const campaignId = campaign.activeCampaignId;

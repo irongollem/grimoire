@@ -61,13 +61,21 @@ export interface Quest {
    * (migration `20260909194207`); null only while the quest has no beats.
    */
   entry_beat_id: string | null;
+  /**
+   * What completing the quest is worth in XP, shared by the party, in a campaign with the Experience Points rule
+   * (#1021 row 27, `20261119192723`); null for none. Given once, by the database, when the quest is completed.
+   */
+  xp_reward: number | null;
+  /** When the quest's XP was given; set by the database only. */
+  xp_awarded_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type QuestInsert = Omit<Quest, "id" | "user_id" | "created_at" | "updated_at" | "entry_beat_id" | "dm_content"> & {
+export type QuestInsert = Omit<Quest, "id" | "user_id" | "created_at" | "updated_at" | "entry_beat_id" | "dm_content" | "xp_reward" | "xp_awarded_at"> & {
   /** Omit to take the column default of null. */
   dm_content?: string | null;
+  xp_reward?: number | null;
 };
 export type QuestUpdate = Partial<QuestInsert> & { entry_beat_id?: string | null };
 

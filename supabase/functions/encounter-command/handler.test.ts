@@ -13,7 +13,8 @@ import type { FightMap } from "../../../src/rules/fight/terrain/battleMap";
 import { occluders } from "../../../src/lib/battlemap/occlusion";
 import type { Item } from "../../../src/types/item.types";
 import type { PartyInventoryItem } from "../../../src/types/inventory.types";
-import { broadcastEvent, combatant, pc } from "../../../src/rules/fight/fightTestKit";
+import { broadcastEvent, combatant, GOBLIN, pc } from "../../../src/rules/fight/fightTestKit";
+import type { FightXpAward } from "../../../src/rules/fight/fightXp";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe";
 import {
   ALL_FIGHT_COMMANDS_LISTED,
@@ -89,6 +90,8 @@ interface Harness {
   noteAsks: Array<{ request: JudgeRequest; already: number }>;
   /** The input tokens of each note cost row written, with how many saves had happened when it was written. */
   noteCosts: Array<{ inputTokens: number; savesBefore: number }>;
+  /** Every fight XP award the server asked the database for. */
+  xpAwards: FightXpAward[];
 }
 
 function harness(
@@ -115,6 +118,8 @@ function harness(
     spells?: SpellRecord[];
     /** The campaign's own session ids; absent means just "sess-1". */
     sessions?: string[];
+    /** The campaign uses the Experience Points rule. */
+    xpLevelling?: boolean;
   } = {},
 ): Harness {
   const h: Harness = {
@@ -138,6 +143,7 @@ function harness(
     rival: { run: null, always: false },
     noteAsks: [],
     noteCosts: [],
+    xpAwards: [],
     deps: undefined as unknown as BatchDeps,
   };
   h.deps = {
@@ -151,6 +157,7 @@ function harness(
         factions: options.factions ?? [],
         ruleset: options.ruleset ?? "2014",
         randomizeInitiativeEachRound: false,
+        xpLevelling: options.xpLevelling ?? false,
         monsters: [],
         npcs: [],
       };
@@ -197,6 +204,10 @@ function harness(
     },
     async loadEndContext(siteId) {
       return { exploreParty: h.explore.before, siteId: siteId !== null && h.sites.includes(siteId) ? siteId : null };
+    },
+    async awardFightXp(award) {
+      h.log.push("fight_xp");
+      h.xpAwards.push(structuredClone(award));
     },
     async setExploreParty(party) {
       h.log.push("explore_party");
@@ -607,6 +618,65 @@ describe("fight lifecycle", () => {
     expect(result).toMatchObject({ is_running: false, ended_at: "2026-11-15T20:00:00.000Z" });
     expect(stored(h)).toMatchObject({ is_running: false, ended_at: "2026-11-15T20:00:00.000Z" });
     expect(h.log[0]).toBe("save");
+  });
+
+  describe("XP for a won fight (#1021 row 27)", () => {
+    // Two goblins (CR 1/4, 50 XP each, DMG "Experience Points") brought down by two characters: 50 each.
+    const won = () => row({
+      is_running: true,
+      combatants_live: [
+        pc("nessa", { faction_id: "players" }),
+        pc("bram", { faction_id: "players", hp: 0 }),
+        combatant("g1", { faction_id: "enemy", monster_id: "m-goblin", hp: 0 }),
+        combatant("g2", { faction_id: "enemy", monster_id: "m-goblin", hp: 0 }),
+      ],
+    });
+    const goblins = { monsters: [GOBLIN], npcs: [], companions: [] } as StatBlockSources;
+
+    it("fails if ending a won fight in an Experience campaign gives no XP, or reads a foe's challenge rating wrong", async () => {
+      const h = harness(won(), { xpLevelling: true, sources: goblins });
+      await runBatch(batch("e1", { type: "end_combat" }), h.deps);
+      expect(h.xpAwards).toEqual([{ total: 100, each: 50, memberIds: ["pm-nessa", "pm-bram"] }]);
+      // Given after the fight is saved as ended: the database gives it only for an ended fight.
+      expect(h.log.indexOf("save")).toBeLessThan(h.log.indexOf("fight_xp"));
+    });
+
+    it("fails if a campaign that levels by milestone is given XP", async () => {
+      const h = harness(won(), { xpLevelling: false, sources: goblins });
+      await runBatch(batch("e1", { type: "end_combat" }), h.deps);
+      expect(h.xpAwards).toEqual([]);
+    });
+
+    it("fails if abandoning a fight gives its XP", async () => {
+      const h = harness(won(), { xpLevelling: true, sources: goblins });
+      await runBatch(batch("a1", { type: "abandon" }), h.deps);
+      expect(h.xpAwards).toEqual([]);
+    });
+
+    it("fails if a retried End combat does not ask for the award again (the first may have died before giving it)", async () => {
+      const h = harness(won(), { xpLevelling: true, sources: goblins });
+      await runBatch(batch("e1", { type: "end_combat" }), h.deps);
+      await runBatch(batch("e1", { type: "end_combat" }), h.deps);
+      // Asked twice; `award_fight_xp` gives it once (supabase/tests/fight_xp.test.sql).
+      expect(h.xpAwards).toHaveLength(2);
+    });
+
+    it("fails if a stat-block read that fails keeps the fight from ending, rather than being reported", async () => {
+      const h = harness(won(), { xpLevelling: true, sources: goblins });
+      h.deps.loadStatBlocks = async () => {
+        throw new Error("down");
+      };
+      const result = await runBatch(batch("e1", { type: "end_combat" }), h.deps);
+      expect(stored(h)).toMatchObject({ ended_at: "2026-11-15T20:00:00.000Z" });
+      expect(result.effectFailures).toEqual(["fight_xp: down"]);
+      expect(h.xpAwards).toEqual([]);
+    });
+
+    it("fails if fighting an encounter again keeps the last fight's award mark, so the new fight would give nothing", async () => {
+      const h = harness(row({ ended_at: "2026-11-14T10:00:00.000Z" }), { xpLevelling: true });
+      await runBatch(batch("o1", { type: "open", combatants: [pc("nessa")] }), h.deps);
+      expect(h.saved.at(-1)).toMatchObject({ xp_awarded_at: null, ended_at: null });
+    });
   });
 
   it("fails if end_combat writes a site position for a place that is not this campaign's", async () => {

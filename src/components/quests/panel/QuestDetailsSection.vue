@@ -31,6 +31,15 @@
         <EntityCombobox v-model="draft.parentQuestId" :options="parentQuestOptions" placeholder="Search quests…" />
       </label>
 
+      <!-- What the quest is worth, in a campaign that levels by XP: the party shares it when the quest is completed (#1021 row 27). -->
+      <label v-if="xpLevelling" class="contents">
+        <span class="text-caption font-semibold text-muted-foreground">Worth</span>
+        <span class="flex items-center gap-2">
+          <AppInput v-model="draft.xpReward" type="number" inputmode="numeric" min="1" tone="card" size="body-xs" aria-label="XP for completing it" placeholder="No XP" class="w-28" />
+          <span class="text-caption text-muted-foreground">{{ quest.xp_awarded_at ? "XP, given" : "XP, shared when completed" }}</span>
+        </span>
+      </label>
+
       <span class="self-start pt-1.5 text-caption font-semibold text-muted-foreground">Tags</span>
       <TagInput v-model="draft.tags" />
     </div>
@@ -50,6 +59,8 @@ import { useQuests, useUpdateQuest } from "@/composables/quests/useQuests";
 import { useAutosave } from "@/composables/useAutosave";
 import { draftValueEqual, useRecordDraft } from "@/composables/useRecordDraft";
 import AppInput from "@/components/common/controls/AppInput.vue";
+import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
+import { xpRewardOf } from "@/lib/quests/xpReward";
 import { QUEST_STATUSES, QUEST_STATUS_LABELS, type Quest, type QuestStatus } from "@/types/quest.types";
 
 // The opening beat is set on a beat, sharing is the Players section's own write,
@@ -61,6 +72,8 @@ interface DetailsDraft {
   locationId: string;
   parentQuestId: string;
   tags: string[];
+  /** As typed; empty for none. */
+  xpReward: string;
 }
 
 const props = defineProps<{ quest: Quest }>();
@@ -73,6 +86,7 @@ const { data: npcs } = useNpcs(() => npcListWanted.value);
 const { data: locations } = useAllLocations(() => locationListWanted.value);
 const { data: allQuests } = useQuests();
 const { mutateAsync: updateQuest } = useUpdateQuest();
+const xpLevelling = useIsRuleEnabled("xp_levelling");
 
 function questToDraft(quest: Quest): DetailsDraft {
   return {
@@ -82,6 +96,7 @@ function questToDraft(quest: Quest): DetailsDraft {
     locationId: quest.location_id ?? "",
     parentQuestId: quest.parent_quest_id ?? "",
     tags: [...quest.tags],
+    xpReward: quest.xp_reward === null ? "" : String(quest.xp_reward),
   };
 }
 
@@ -107,6 +122,7 @@ const CONFLICT_LABELS: Record<keyof DetailsDraft, string> = {
   locationId: "Primary location",
   parentQuestId: "Part of quest",
   tags: "Tags",
+  xpReward: "XP",
 };
 const conflictLabels = computed(() => conflicts.value.map((key) => CONFLICT_LABELS[key]));
 
@@ -120,6 +136,7 @@ function detailsRow(d: DetailsDraft) {
     location_id: d.locationId || null,
     parent_quest_id: d.parentQuestId || null,
     tags: d.tags,
+    xp_reward: xpRewardOf(d.xpReward),
   };
 }
 

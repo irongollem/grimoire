@@ -1127,7 +1127,7 @@ hears about it in chat as well as seeing it appear on the party screen.
 
 `usePartyMilestones()` / `useCreatePartyMilestone` / `useDeletePartyMilestone`
 (`src/composables/party/usePartyMilestones.ts`) are the data layer;
-`PartyMilestonesPanel.vue` is the surface — a card on the party page
+`PartyDeedsPanel.vue` is the surface (on screen **Deeds** since #1021 row 27, so that a milestone means a level; see party-characters.md, "Level milestones") — a card on the party page
 (`PartyView.vue`, between the tracker and the group portrait), newest first,
 each row naming the quest it came from, with an inline add for one the DM
 grants by hand.
@@ -1150,6 +1150,8 @@ Vue Flow view-model wrappers only.
 | `/quests/new`               | `QuestDetailView.vue` → `QuestFlowStarter.vue`  |
 | `/quests/:id`               | `QuestDetailView.vue`                           |
 | `/quests/:id/beats/:beatId` | redirects to `/quests/:id?beat=…&open=1`        |
+
+**The Level Plan** (#1021 row 27; canvas *Level Plan*, `https://claude.ai/artifact/VV84bn6q3VdXQPqJezBiwz`, frames 01 to 03, approved 19 Nov 2026) sits above the board for the DM (`QuestLevelPlan` in `components/quests/levels/`). By milestone it shows the last level reached, the next milestone (gilt, with its items, "1 of 2 done" and a meter) and the one after, and the first level nobody has set ("Set one" goes to the Party page's Levels card, the only place milestones are edited); `levelStations` in `lib/quests/levelPlan.ts` picks them. By experience it shows each character toward the next level and what each open quest is worth shared (`questWorths`, rounded down as the database gives it, "brings all to level N" only when it lifts every character). Under the next milestone, `QuestLevelFlags` warns of the prepared fights of its quests (and its objectives' quests) that will be **Trivial**, **Deadly** or beyond at the level the milestone brings (`fightFlags`: the encounter's own rating, `lib/encounters/difficulty`, every character taken at that level; an encounter with no party of its own is judged against the whole party; a finished one is past). Medium and Hard stay quiet. The flags component is mounted only where there is something to check, so its encounter reads happen only then. The strip folds to one line, kept per campaign (`levelPlanFoldedFor` in the quests UI store); on a phone only the next milestone shows, with the later ones behind a link. The maintainer on the warnings: "estimates on quests! I never asked for that but it sure is welcome".
 
 `/quests/:id` and `/quests/new` are top-level siblings of `/quests`: a quest is a
 full page at every width (see below for why it stopped being a modal on 8 Sep
@@ -1291,7 +1293,7 @@ as **Payoffs**, the way a beat's do.
   resolved.", **Mark completed**, **Mark failed**, **Keep running**; #1011).
 
 The wide part (`QuestWide`) holds the rest, one autosaved editor per field and no
-explanatory prose: the Details (board lane, giver, location, **Part of**, tags),
+explanatory prose: the Details (board lane, giver, location, **Part of**, **Worth** in an Experience campaign, tags),
 clocks, the quest's own **Payoffs** (`QuestRulesPanel`) and threads once the
 quest holds one. The toolbar's end (`QuestMoreMenu`, now two icon buttons): **Send to
 Scriptorium** and **Delete quest**, which navigates to `/quests`.

@@ -127,7 +127,7 @@ describe("QuestPayoffPanel", () => {
     });
     const rows = wrapper.findAll("ul li");
     expect(rows).toHaveLength(2);
-    expect(rows[0]!.text()).toContain("Milestone: \"Renown\"");
+    expect(rows[0]!.text()).toContain("Deed: \"Renown\"");
     expect(rows[0]!.text()).toContain("On arrival");
     expect(rows[1]!.text()).toContain("Tally-stick of the widow");
     expect(rows[1]!.text()).toContain("Loot: you hand it over");
@@ -245,7 +245,7 @@ describe("QuestPayoffPanel", () => {
 
   it("conditions a quick-add on a named route rather than arrival", async () => {
     const wrapper = mountPanel();
-    await press(wrapper, "Milestone");
+    await press(wrapper, "Deed");
     await wrapper.findAll("select")[0]!.setValue("edge-confess");
     await wrapper.find('input[placeholder="What did the party earn…"]').setValue("Renown among the dockworkers.");
     await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
@@ -410,7 +410,7 @@ describe("QuestPayoffPanel", () => {
       await open(wrapper, "Knowledge");
       expect((text(wrapper, "What do the players learn").element as HTMLInputElement).value).toBe("");
       await text(wrapper, "What do the players learn").setValue("typed");
-      await open(wrapper, "Milestone");
+      await open(wrapper, "Deed");
       expect(wrapper.find('input[placeholder^="What do the players learn"]').exists()).toBe(false);
       expect((text(wrapper, "What did the party earn").element as HTMLInputElement).value).toBe("");
     });
@@ -424,7 +424,7 @@ describe("QuestPayoffPanel", () => {
 
     it.each([
       ["Knowledge", "What do the players learn", "   "],
-      ["Milestone", "What did the party earn", "   "],
+      ["Deed", "What did the party earn", "   "],
     ])("%s needs text that is not just spaces", async (label, placeholder, blank) => {
       const wrapper = mountPanel();
       await open(wrapper, label);
@@ -461,7 +461,7 @@ describe("QuestPayoffPanel", () => {
 
     it("carries the 'days later' delay onto the consequence", async () => {
       const wrapper = mountPanel();
-      await open(wrapper, "Milestone");
+      await open(wrapper, "Deed");
       await text(wrapper, "What did the party earn").setValue("Renown");
       await wrapper.findAll("input[type=number]")[0]!.setValue(3);
       await submit(wrapper);
@@ -520,7 +520,7 @@ describe("QuestPayoffPanel", () => {
       const own = mountPanel({ beat: { ...beat, quest_id: "quest-sequel" } as QuestBeat });
       await open(own, "Quest");
       expect(combo(own).props("options").map((o: { id: string }) => o.id)).toEqual(["quest-empty"]);
-      await open(wrapper, "Milestone");
+      await open(wrapper, "Deed");
       await text(wrapper, "What did the party earn").setValue("Renown");
       await submit(wrapper);
       expect(mocks.createConsequence).toHaveBeenLastCalledWith(expect.objectContaining({ action: "award_milestone", entry_beat_id: null }));
@@ -529,7 +529,7 @@ describe("QuestPayoffPanel", () => {
     it("a failed add keeps the form, shows why, and a removal in flight is released afterwards", async () => {
       mocks.createConsequence.mockRejectedValueOnce("refused");
       const wrapper = mountPanel();
-      await open(wrapper, "Milestone");
+      await open(wrapper, "Deed");
       await text(wrapper, "What did the party earn").setValue("Renown");
       await submit(wrapper);
       expect(wrapper.get('[role="alert"]').text()).toBe("Could not add this payoff");
