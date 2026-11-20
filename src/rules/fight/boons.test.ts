@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AppliedCondition } from "../../types/condition.types.ts";
-import { boonArmorClass, boonDice, boonDie, boonMean } from "./boons.ts";
+import { boonArmorClass, boonDice, boonDie, boonMean, deathSaveBoonBonus, rolledBoonTotal } from "./boons.ts";
 
 const bless: AppliedCondition = { name: "Bless", grants: { attack: "1d4", save: "1d4" } };
 const shield: AppliedCondition = { name: "Shield of Faith", grants: { ac: 2 } };
@@ -36,5 +36,30 @@ describe("a creature's boons", () => {
   it("fails if two different boons are not added together in the estimate", () => {
     expect(boonMean([bless, bane], "attack")).toBe(0);
     expect(boonMean([bless], "save")).toBe(2.5);
+  });
+});
+
+describe("rolledBoonTotal", () => {
+  // Bless's d4 at a face of 3 adds 3; Bane's takes 3 off; a creature with no boon asks for no die. Bug caught: the sign lost, or a
+  // die rolled for a boon of the other kind of roll.
+  it("fails if the app's roll of a boon loses its sign or rolls for a creature with none", () => {
+    const asked: number[] = [];
+    const die = (sides: number) => { asked.push(sides); return 3; };
+    expect(rolledBoonTotal([bless], "save", die)).toBe(3);
+    expect(rolledBoonTotal([bane], "save", die)).toBe(-3);
+    expect(rolledBoonTotal([shield], "save", die)).toBe(0);
+    expect(asked).toEqual([4, 4]);
+  });
+});
+
+describe("deathSaveBoonBonus", () => {
+  // SRD "Death Saving Throws": a natural 1 or 20 decides alone, so no die is rolled then. Bug caught: a d4 rolled on a natural 20.
+  it("fails if a boon is rolled on a natural 1 or 20, or not rolled otherwise", () => {
+    const asked: number[] = [];
+    const die = (sides: number) => { asked.push(sides); return 2; };
+    expect(deathSaveBoonBonus(20, [bless], die)).toBe(0);
+    expect(deathSaveBoonBonus(1, [bless], die)).toBe(0);
+    expect(deathSaveBoonBonus(8, [bless], die)).toBe(2);
+    expect(asked).toEqual([4]);
   });
 });

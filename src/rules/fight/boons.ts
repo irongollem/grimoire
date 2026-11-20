@@ -57,3 +57,23 @@ export function boonMean(conditions: readonly AppliedCondition[], roll: "attack"
 export function boonArmorClass(conditions: readonly AppliedCondition[]): number {
   return conditions.reduce((sum, c) => sum + (c.grants !== undefined && typeof c.grants.ac === "number" ? c.grants.ac : 0), 0);
 }
+
+/**
+ * Rolls a creature's boons for one roll with the app's own die and returns what they add altogether: where nobody is asked for the
+ * boon's die (a solo death save, whose player gave the d20 only). A caller that can ask a person rolls `boonDice` itself.
+ */
+export function rolledBoonTotal(conditions: readonly AppliedCondition[], roll: "attack" | "save", rollDie: (sides: number) => number): number {
+  return boonDice(conditions, roll).reduce((sum, die) => {
+    let faces = 0;
+    for (const [sides, count] of Object.entries(die.counts)) for (let i = 0; i < (count === undefined ? 0 : count); i++) faces += rollDie(Number(sides));
+    return sum + die.sign * faces + die.flat;
+  }, 0);
+}
+
+/**
+ * What a creature's boons add to a death saving throw it rolled `d20` on, rolled with the app's die: nothing on a natural 1 or 20, which
+ * the d20 decides alone (SRD "Death Saving Throws"), else its save boons (PHB "Bless": a death saving throw is a saving throw).
+ */
+export function deathSaveBoonBonus(d20: number, conditions: readonly AppliedCondition[], rollDie: (sides: number) => number): number {
+  return d20 === 1 || d20 === 20 ? 0 : rolledBoonTotal(conditions, "save", rollDie);
+}

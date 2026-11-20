@@ -18,6 +18,7 @@
 
 import { losesFirstTurnToSurprise } from "../../../src/rules/initiative.ts";
 import { deathSaveRollOutcome, dyingStatus } from "../../../src/rules/dying.ts";
+import { boonDice } from "../../../src/rules/fight/boons.ts";
 import { NORMAL_ROLL, rollWithRules } from "../../../src/lib/dice/diceRules.ts";
 import { dnd5eDiceRules } from "../../../src/systems/dnd5e/dice/rules.ts";
 import { allyProfile } from "../../../src/rules/fight/allies/profile.ts";
@@ -124,7 +125,17 @@ function takeDeathSave(state: FightState, mover: RunCombatant, command: TakeTurn
   roll.label = dnd5eDiceRules.tagLabel("Death save", NORMAL_ROLL, { 20: 1 });
   env.posted.push({ result: roll, speaker: mover.name, serverRolled: true });
   const d20 = roll.total;
-  const outcome = deathSaveRollOutcome(mover.death_saves, mover.conditions, d20);
+  // PHB "Bless": a death saving throw is a saving throw, so a boon's die is rolled after the d20 and added. A natural 1 or 20 decides
+  // on the d20 alone, so then nothing more is rolled.
+  const boons = d20 === 1 || d20 === 20 ? [] : boonDice(mover.conditions, "save").map((die) => {
+    const rolled = rollWithRules(dnd5eDiceRules, die.counts, 0, NORMAL_ROLL, env.rollDie);
+    rolled.label = dnd5eDiceRules.tagLabel(`${die.name} (save)`, NORMAL_ROLL, die.counts);
+    env.posted.push({ result: rolled, speaker: mover.name, serverRolled: true });
+    return { name: die.name, total: die.sign * rolled.total + die.flat };
+  });
+  const bonus = boons.reduce((sum, b) => sum + b.total, 0);
+  const outcome = deathSaveRollOutcome(mover.death_saves, mover.conditions, d20, bonus);
+  const shown = boons.length === 0 ? `${d20}` : `${d20} ${boons.map((b) => `${b.total < 0 ? "-" : "+"} ${Math.abs(b.total)} (${b.name})`).join(" ")}`;
   const hp = outcome.current_hp === null ? mover.hp : outcome.current_hp;
   const status = outcome.current_hp === null ? (dyingStatus(hp, outcome.saves) as "dying" | "stable" | "dead") : "up";
   const next: FightState = {
@@ -137,7 +148,7 @@ function takeDeathSave(state: FightState, mover: RunCombatant, command: TakeTurn
       type: "turn_taken",
       turn: {
         instanceId: mover.instance_id, optionId: "death_save", kind: "death_save", picked: command.optionId === undefined ? "rules" : "caller",
-        summary: `${mover.name} rolls a death save: ${d20}. ${outcome.label}.`,
+        summary: `${mover.name} rolls a death save: ${shown}. ${outcome.label}.`,
         reason: `${mover.name} is at 0 hit points, so their turn is a death saving throw.`,
         deathSave: { d20, label: outcome.label, status },
       },

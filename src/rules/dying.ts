@@ -172,11 +172,16 @@ export function reviveOutcome(conditions: readonly AppliedCondition[]): {
   return { current_hp: 1, saves: { successes: 0, failures: 0 }, conditions: withoutCondition(conditions, UNCONSCIOUS) };
 }
 
-/** A death save roll. Nat 20 is back up at 1 HP; nat 1 is two failures; 10+ a success. */
+/**
+ * A death save roll. Nat 20 is back up at 1 HP; nat 1 is two failures; 10+ a success. `bonus` is what the creature's boons add
+ * (PHB "Bless": a death saving throw is a saving throw, so the d4 counts), rolled by the caller; the natural 1 and 20 are read on
+ * the d20 alone. Every caller says it, 0 included, so a boon is never left out by forgetting it.
+ */
 export function deathSaveRollOutcome(
   saves: DeathSaves,
   conditions: readonly AppliedCondition[],
   d20: number,
+  bonus: number,
 ): { saves: DeathSaves; conditions: AppliedCondition[]; current_hp: number | null; label: string } {
   if (d20 === 20) {
     return {
@@ -189,7 +194,7 @@ export function deathSaveRollOutcome(
   if (d20 === 1) {
     return { saves: { ...saves, failures: Math.min(3, saves.failures + 2) }, conditions: [...conditions], current_hp: null, label: "Nat 1 · 2 Failures" };
   }
-  if (d20 >= 10) {
+  if (d20 + bonus >= 10) {
     return { saves: { ...saves, successes: Math.min(3, saves.successes + 1) }, conditions: [...conditions], current_hp: null, label: "Success" };
   }
   return { saves: { ...saves, failures: Math.min(3, saves.failures + 1) }, conditions: [...conditions], current_hp: null, label: "Failure" };

@@ -2999,6 +2999,16 @@ describe("take_turn plays an ally", () => {
     expect(hpOf(stored(h), "victim")).toBe(40);
   });
 
+  // PHB "Bless": a death saving throw is a saving throw. A Blessed Tam rolls 8 and then the d4's 2: 10, a success, and the d4 is
+  // posted beside the d20. Bug caught: the boon left off a death save, so the 8 fails.
+  it("fails if a Blessed ally's death save does not add the d4", async () => {
+    const blessed = [{ name: "Unconscious" }, { name: "Bless", grants: { attack: "1d4", save: "1d4" } }];
+    const h = harness(allyFight({ hp: 0, death_saves: { successes: 0, failures: 0 }, conditions: blessed }), { sources: SOURCES, players: tamSheets(), map: mapOf(), dieFaces: [8, 2] });
+    const result = await runBatch(batch("b", tamTurn()), h.deps);
+    expect(combatantOf(stored(h), "tam").death_saves).toEqual({ successes: 1, failures: 0 });
+    expect(result.effects[0]).toMatchObject({ turn: { summary: "tam rolls a death save: 8 + 2 (Bless). Success." } });
+  });
+
   it("puts an ally back up at 1 hit point, no longer Unconscious, on a natural 20", async () => {
     const h = harness(allyFight({ hp: 0, death_saves: { successes: 1, failures: 2 }, conditions: [{ name: "Unconscious" }] }), { sources: SOURCES, players: tamSheets(), map: mapOf(), dieFaces: [20] });
     const result = await runBatch(batch("b", tamTurn()), h.deps);
