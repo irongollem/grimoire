@@ -45,7 +45,7 @@ import { creatureKindOf, kindAllowed, kindLimitOf, kindPhrase } from "../../../s
 import { spellEntryFor } from "../../../src/rules/fight/spells/spellEntry.ts";
 import { CONDITIONS } from "../../../src/rules/conditions.ts";
 import { boonEntryFor, isBoonSpell, reactionBoonFor, type BoonPlan } from "../../../src/rules/fight/spells/boonEntry.ts";
-import { reactionCastPlan, reactionTurnsHit, reactsByRules } from "../../../src/rules/fight/spells/reactionCast.ts";
+import { reactionCastPlan, reactionTurnsHit, reactsByRules, type WhoPlays } from "../../../src/rules/fight/spells/reactionCast.ts";
 import { counterEntryFor } from "../../../src/rules/fight/spells/counterEntry.ts";
 import { isHostileTo } from "../../../src/rules/fight/sides.ts";
 import { saveRollMode } from "../../../src/rules/combat/savingThrow.ts";
@@ -446,10 +446,15 @@ export interface ResolveEnv {
   judgeNote?: (key: string, request: JudgeRequest) => Promise<JudgeResult | null>;
   /**
    * `take_turn`, when the caller says which party member the person plays (#1021): every other party member the server has a sheet for is
-   * an ally the rules play, so its Reaction (Shield) is the rules' to take. Left out (a DM's own fight), every player is a person.
+   * an ally the rules play, so its Reaction (Shield) is the rules' to take. Left out (a DM's own fight), only the stand-ins are played.
    */
   playedMemberId?: string;
+  /** The campaign's stand-ins, read by the server once per request (#1021 row 26); never taken from the request. */
+  standIns: ReadonlySet<string>;
 }
+
+/** Who the rules play in this env: one rule (`playerPlayedByRules`) for the turn, the opportunity attack and the Reaction. */
+export const whoPlaysIn = (env: Pick<ResolveEnv, "playedMemberId" | "standIns">): WhoPlays => ({ playedMemberId: env.playedMemberId, standIns: env.standIns });
 
 function boxOf(c: RunCombatant): Box | null {
   return c.position ? { anchor: c.position, footprint: combatantFootprint(c) } : null;
@@ -562,7 +567,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
    */
   const shieldReaction = async (target: RunCombatant, roll: { natural: number; total: number; armorClass: number }): Promise<{ spell: string; armorClass: number } | null> => {
     const me = ctx.live(target);
-    if (!reactsByRules(me, env.playedMemberId)) return null;
+    if (!reactsByRules(me, whoPlaysIn(env))) return null;
     if (me.hp <= 0 || isIncapacitated(me.conditions) || me.reactionUsed === true || cannotReactWhileSurprised(me, state.ruleset)) return null;
     // A Shield already up counts in the armour class the roll was made against; a second would add nothing.
     if (me.conditions.some((c) => c.name.toLowerCase() === "shield")) return null;
@@ -631,7 +636,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     const from = boxOf(caster);
     const candidates = live.filter((c) => {
       if (c.instance_id === caster.instance_id || !isHostileTo(c, caster, env.factions)) return false;
-      if (!reactsByRules(c, env.playedMemberId)) return false;
+      if (!reactsByRules(c, whoPlaysIn(env))) return false;
       if (c.hp <= 0 || isIncapacitated(c.conditions) || c.reactionUsed === true || cannotReactWhileSurprised(c, state.ruleset)) return false;
       const block = statBlockOf(c, env.sources);
       return block !== null && castableBy(block, "Counterspell") !== null;

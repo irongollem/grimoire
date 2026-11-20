@@ -329,6 +329,11 @@ export interface BatchDeps {
    */
   loadPlayerSheets(partyMemberIds: string[]): Promise<PlayerSheets>;
   /**
+   * The party members of this campaign the AI may play in a DM's own fight (#1021 row 26): `ai_speaks` and `ai_stands_in`, and an account
+   * the AI gate does not refuse. Decided by the server, never named by the request. Asked for only by a batch that resolves an action.
+   */
+  loadStandIns(): Promise<ReadonlySet<string>>;
+  /**
    * The battle map of an encounter as the rules read it (walls, closed doors), or null when it has none they can use.
    * Asked for only by a batch that resolves an action: cover counts on its attacks and Dexterity saves.
    */
@@ -478,6 +483,7 @@ async function attempt(
   let sources: StatBlockSources | null = null;
   let players: PlayerSheets | null = null;
   let map: FightMap | null | undefined;
+  let standIns: ReadonlySet<string> | null = null;
   // A spell is read the first time a cast names it, and once per attempt.
   const spellRecords = new Map<string, Promise<SpellRecord[]>>();
   const spells = (name: string): Promise<SpellRecord[]> => {
@@ -528,7 +534,8 @@ async function attempt(
     }
     // `undefined` is "not asked yet" (a null map is an answer: this fight has none).
     if (map === undefined) map = await deps.loadFightMap(request.encounterId);
-    return { fightDeps, sources, players, map, factions: loaded.factions, rollDie: deps.rollDie, spells, spellsListed, posted: rolls, spent, slotsSpent, resourcesSpent, innateSpent, judgeNote: notes.ask };
+    if (standIns === null) standIns = await deps.loadStandIns();
+    return { fightDeps, sources, players, map, standIns, factions: loaded.factions, rollDie: deps.rollDie, spells, spellsListed, posted: rolls, spent, slotsSpent, resourcesSpent, innateSpent, judgeNote: notes.ask };
   };
   /** The Rages in the fight after a command (`rageUpkeep.ts`): the state they leave it in, their effects added to `effects`. */
   const settled = (from: FightState, to: FightState, into: FightEffect[]): FightState => {

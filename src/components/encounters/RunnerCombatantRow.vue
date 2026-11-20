@@ -46,6 +46,7 @@
       <!-- Name + type badge -->
       <div class="name-cell">
         <span class="combatant-name">{{ combatant.name }}</span>
+        <RunnerStandInTag :combatant="combatant" />
         <span class="type-badge" :class="combatant.type">{{ combatant.type === 'player' ? 'PC' : combatant.npc_id ? 'NPC' : 'Monster' }}</span>
         <RunnerRollStatus :combatant="combatant" />
         <span v-if="wildshape" class="wildshape-row-badge" title="Wildshaping">🐺 {{ wildshape.beast_name }}</span>
@@ -153,6 +154,7 @@ import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import FocalImage from "@/components/common/media/FocalImage.vue";
 import RunnerConditionBadges from "@/components/encounters/RunnerConditionBadges.vue";
+import RunnerStandInTag from "@/components/encounters/RunnerStandInTag.vue";
 import RunnerInitiativeField from "@/components/encounters/RunnerInitiativeField.vue";
 import RunnerRollStatus from "@/components/encounters/RunnerRollStatus.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";

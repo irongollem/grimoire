@@ -1,19 +1,32 @@
 import { describe, expect, it } from "vitest";
 import { combatant } from "../fightTestKit";
 import { MAGE_SPELLCASTING, mageBlock } from "./spellTestKit";
-import { reactionCastPlan, reactionTurnsHit, reactsByRules } from "./reactionCast";
+import { reactionCastPlan, playerPlayedByRules, reactionTurnsHit, reactsByRules } from "./reactionCast";
 
-describe("reactsByRules", () => {
+describe("reactsByRules and playerPlayedByRules", () => {
   const member = (id: string) => ({ type: "player" as const, party_member_id: id });
-  // APP CONVENTION: a party member's Reaction is the rules' only for an AI-played ally. Bugs caught: a player in a DM's fight (no one named) reacting
-  // for themselves, the played character reacting, an ally who is not reacting, and a monster that cannot.
+  const who = (playedMemberId: string | undefined, ...standIns: string[]) => ({ playedMemberId, standIns: new Set(standIns) });
+  // APP CONVENTION (#1021 rows 15 and 26): at the AI table every member but the played one is the rules'; in a DM's fight only the stand-ins.
+  // Bugs caught: a player in a DM's fight who is no stand-in reacting for themselves, the played character reacting, an ally at the AI
+  // table not reacting, and a monster that cannot.
   it("fails if a person's Reaction is taken for them, or an ally's or a monster's is not", () => {
-    expect(reactsByRules(member("pm-tam"), undefined)).toBe(false);
-    expect(reactsByRules(member("pm-tam"), "pm-tam")).toBe(false);
-    expect(reactsByRules(member("pm-tam"), "pm-pip")).toBe(true);
-    expect(reactsByRules({ type: "player" }, "pm-pip")).toBe(false);
-    expect(reactsByRules({ type: "monster" }, undefined)).toBe(true);
-    expect(reactsByRules({ type: "monster", bystander: true }, undefined)).toBe(false);
+    expect(reactsByRules(member("pm-tam"), who(undefined))).toBe(false);
+    expect(reactsByRules(member("pm-tam"), who("pm-tam"))).toBe(false);
+    expect(reactsByRules(member("pm-tam"), who("pm-pip"))).toBe(true);
+    expect(reactsByRules({ type: "player" }, who("pm-pip"))).toBe(false);
+    expect(reactsByRules({ type: "monster" }, who(undefined))).toBe(true);
+    expect(reactsByRules({ type: "monster", bystander: true }, who(undefined))).toBe(false);
+  });
+
+  // Bug caught: the stand-in set ignored in a DM's fight (everyone or no one played), or consulted at the AI table (where the person
+  // named is the only human, whoever the stand-ins are), or a stand-in with no member id (nothing to look up) played.
+  it("plays exactly the stand-ins in a DM's fight, and everyone but the played one at the AI table", () => {
+    expect(playerPlayedByRules("pm-tam", who(undefined, "pm-tam"))).toBe(true);
+    expect(playerPlayedByRules("pm-pip", who(undefined, "pm-tam"))).toBe(false);
+    expect(playerPlayedByRules("pm-pip", who("pm-tam", "pm-tam"))).toBe(true);
+    expect(playerPlayedByRules("pm-tam", who("pm-tam", "pm-tam"))).toBe(false);
+    expect(playerPlayedByRules(undefined, who(undefined, "pm-tam"))).toBe(false);
+    expect(playerPlayedByRules(undefined, who("pm-pip"))).toBe(false);
   });
 });
 

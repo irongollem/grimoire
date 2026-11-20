@@ -60,6 +60,27 @@ export function createRunnerTakeTurn(takeTurn: (instanceId: string) => Promise<T
   };
 }
 
+/**
+ * APP CONVENTION (#1021 row 26): the party members the DM's runner lets the AI play, read from the party rows it already holds. For the
+ * autopilot's stop and the label only: the server re-reads consent itself and refuses a `take_turn` on anyone else.
+ */
+export function standInIdsOf(members: readonly { id: string; ai_speaks?: boolean; ai_stands_in?: boolean }[]): ReadonlySet<string> {
+  return new Set(members.filter((m) => m.ai_speaks === true && m.ai_stands_in === true).map((m) => m.id));
+}
+
+/** The stand-ins of the open fight, provided by the runner for the label beside a name. */
+export const RUNNER_STAND_INS: InjectionKey<ComputedRef<ReadonlySet<string>>> = Symbol("runnerStandIns");
+
+type TurnOf = { type?: "player" | "monster"; party_member_id?: string | null; bystander?: true };
+
+/** Autopilot stops at a bystander and at a player a person plays; a stand-in's turn is the AI's, so it runs on. */
+export const autopilotStopsAt = (standIns: ReadonlySet<string>) => (now: TurnOf): boolean =>
+  now.bystander === true || (now.type === "player" && !(typeof now.party_member_id === "string" && standIns.has(now.party_member_id)));
+
+/** A downed stand-in still takes its turn on autopilot: the server rolls its death save, as the solo host's ally does. */
+export const autopilotDownTakesTurn = (standIns: ReadonlySet<string>) => (now: TurnOf): boolean =>
+  now.type === "player" && typeof now.party_member_id === "string" && standIns.has(now.party_member_id);
+
 /** A damage amount the DM can correct; null while the field is cleared. */
 export interface EditableAmount {
   amount: number | null;

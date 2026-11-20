@@ -262,7 +262,7 @@ import { useUpdateNpc } from "@/composables/npcs/useNpcs";
 import { buildNpcSyncUpdate } from "@/lib/encounters/npcEncounterSync";
 import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { useFightCommands } from "@/composables/encounters/useFightCommands";
-import { RUNNER_TAKE_TURN, createRunnerTakeTurn } from "@/components/encounters/runnerResolve";
+import { RUNNER_STAND_INS, RUNNER_TAKE_TURN, autopilotDownTakesTurn, autopilotStopsAt, createRunnerTakeTurn, standInIdsOf } from "@/components/encounters/runnerResolve";
 import { useCreatureTurns } from "@/composables/encounters/useCreatureTurns";
 import { useRunnerAutopilot } from "@/composables/encounters/useRunnerAutopilot";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
@@ -332,13 +332,18 @@ provide(RUNNER_TAKE_TURN, runnerTakeTurn);
 
 // Autopilot (#1203, carried into #1021 row 5a): a standing switch that has the server play every creature's turn
 // and pass it on, the way the solo table does, so the Dungeon Master only steps in for the players. It stops at a
-// player's turn, at anyone the rules cannot play, when a turn could not be run (the reason is on that creature's
+// player's turn (not a stand-in's, which the AI plays), at anyone the rules cannot play, when a turn could not be run (the reason is on that creature's
 // panel), and when a creature walked out of a player's reach: that opportunity attack is the table's to settle
 // before the turn moves on. Kept on this device.
 const autopilot = useRunnerAutopilot();
+// The characters whose player let the AI play them and whose DM switched it on (#1021 row 26): autopilot plays their turns, down or up.
+const { data: partyMembers } = useActiveParty();
+const standIns = computed(() => standInIdsOf(partyMembers.value ?? []));
+provide(RUNNER_STAND_INS, standIns);
 useCreatureTurns({
   enabled: () => autopilot.value,
-  stopsAt: (now) => now.type === "player" || now.bystander === true,
+  stopsAt: (now) => autopilotStopsAt(standIns.value)(now),
+  downTakesTurn: (now) => autopilotDownTakesTurn(standIns.value)(now),
   started: () => store.started,
   active: () => store.activeCombatant,
   turnKey: () => `${store.round}:${store.activeCombatant?.instance_id}`,
@@ -353,7 +358,6 @@ useCreatureTurns({
 
 // The runner resolves combatants' stored monster_id (detail panel, auto-discover
 // on go-live) rather than letting the DM pick, so scoping must stay off here.
-const { data: partyMembers } = useActiveParty();
 const { data: companions } = useCompanions();
 const { data: encounter } = useEncounter(encounterId);
 // Shared with the Play map (via useEncounterRoom internally): the two must never disagree

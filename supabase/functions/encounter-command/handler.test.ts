@@ -127,6 +127,8 @@ function harness(
     sources?: StatBlockSources;
     /** What the server reads of the fight's player characters. */
     players?: PlayerSheets;
+    /** The party members the AI may play in the DM's own fight (consented and switched on). */
+    standIns?: string[];
     /** A drop of a thrown weapon that fails (the chat could not be written to). */
     dropFails?: boolean;
     /** A write of an ally's spell slots that fails. */
@@ -271,6 +273,10 @@ function harness(
     async loadPlayerSheets(ids) {
       h.playerLoads.push(ids);
       return structuredClone(options.players ?? { members: [], inventory: [], items: [], beasts: [], casting: NO_CASTING });
+    },
+    async loadStandIns() {
+      // Unless a test names the stand-ins, every character whose sheet it supplies is one the AI may play: most tests are about what the AI does.
+      return new Set(options.standIns ?? (options.players?.members ?? []).map((m) => m.id));
     },
     async loadFightMap() {
       h.mapLoads += 1;
@@ -1604,7 +1610,8 @@ describe("take_turn", () => {
 
   it("fails if a player character, a downed creature, an Incapacitated one or a stranger is given a turn", async () => {
     const refuse = async (fight: FightRow, command: CommandRequest["commands"][number], pattern: RegExp) => {
-      const h = harness(fight, { sources: SOURCES, map: mapOf(), dieFaces: [9, 5] });
+      // Every player here is a stand-in, so the refusal tested is the one about the sheet, not about consent.
+      const h = harness(fight, { sources: SOURCES, map: mapOf(), dieFaces: [9, 5], standIns: ["pm-nessa"] });
       await expect(runBatch(batch("b", command), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(pattern) });
       expect(h.saves).toBe(0);
     };
@@ -2011,7 +2018,7 @@ describe("take_turn and opportunity attacks", () => {
   // A player rolls their own dice: the server reports that she may strike, throws no die, and does not spend her Reaction.
   it("fails if a player's opportunity attack is rolled by the server, her Reaction spent, or the move stopped", async () => {
     const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 30, y: 30 } }, extra: [nessa({ position: { x: 1, y: 1 } })] });
-    const h = harness(fight, { sources: SOURCES, players: NESSA_IN_PLATE, map: mapOf(), dieFaces: [] });
+    const h = harness(fight, { sources: SOURCES, players: NESSA_IN_PLATE, map: mapOf(), dieFaces: [], standIns: [] });
     const result = await runBatch(batch("b1", takeTurn()), h.deps);
     expect(result.effects.find((e) => e.type === "provoked_player")).toMatchObject({ moverId: "wolf", playerId: "nessa", step: 0 });
     expect(h.dieCalls).toBe(0);
@@ -2029,6 +2036,22 @@ describe("take_turn and opportunity attacks", () => {
     expect(result.effects.some((e) => e.type === "provoked_player")).toBe(false);
     expect(result.effects.find((e) => e.type === "opportunity")).toMatchObject({ attackerId: "nessa", targetId: "wolf" });
     expect(combatantOf(stored(h), "nessa").reactionUsed).toBe(true);
+  });
+
+  // #1021 row 26: in a DM's fight a stand-in strikes a foe leaving her reach by the rules (same numbers as the AI table's ally: d20 11 + 2
+  // meets the wolf's AC 13), and a human player in the same fight is only reported. Bug caught: the stand-in watching the foe walk away,
+  // or a person's Reaction taken for them.
+  it("fails if a stand-in does not strike a leaving foe in a DM's fight, or a human player is struck for", async () => {
+    const fight = () => duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 30, y: 30 } }, extra: [nessa({ position: { x: 1, y: 1 } })] });
+    const stand = harness(fight(), { sources: SOURCES, players: NESSA_IN_PLATE, map: mapOf(), dieFaces: [11], standIns: ["pm-nessa"] });
+    const struck = await runBatch(batch("b1", takeTurn()), stand.deps);
+    expect(struck.effects.some((e) => e.type === "provoked_player")).toBe(false);
+    expect(struck.effects.find((e) => e.type === "opportunity")).toMatchObject({ attackerId: "nessa", targetId: "wolf" });
+    expect(combatantOf(stored(stand), "nessa").reactionUsed).toBe(true);
+    const person = harness(fight(), { sources: SOURCES, players: NESSA_IN_PLATE, map: mapOf(), dieFaces: [], standIns: [] });
+    const reported = await runBatch(batch("b2", takeTurn()), person.deps);
+    expect(reported.effects.find((e) => e.type === "provoked_player")).toMatchObject({ playerId: "nessa" });
+    expect(person.dieCalls).toBe(0);
   });
 
   // The played character keeps the choice: named as played, Nessa is reported and the server throws no die for her.
@@ -3071,6 +3094,41 @@ describe("take_turn plays an ally", () => {
     expect(tam.hp).toBe(0);
     expect(tam.conditions).toEqual([{ name: "Unconscious" }]);
     expect(hpOf(stored(h), "victim")).toBe(40);
+  });
+
+  // #1021 row 26: in a DM's own fight the AI plays only a character whose player consented and whose DM switched it on. Tam's turn
+  // (Longsword +5 vs AC 13, d20 8 = 13 hits, d8 4 + 3 = 7: 40 -> 33) is played for a stand-in. Bug caught: a stand-in left unplayed.
+  it("plays a stand-in's turn in a DM's fight by its sheet", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: tamSheets(), map: mapOf(), dieFaces: [8, 4], standIns: ["pm-tam"] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(33);
+  });
+
+  // Bug caught: a DM's take_turn playing a person whose player never let the AI (or whose DM did not switch it on), and writing the fight.
+  it("refuses a player who is not a stand-in, naming them, and writes nothing", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: tamSheets(), map: mapOf(), dieFaces: [8, 4], standIns: [] });
+    await expect(runBatch(batch("b", tamTurn()), h.deps)).rejects.toMatchObject({ status: 400, message: "tam's player has not let the AI play them." });
+    expect(h.saves).toBe(0);
+    expect(h.dieCalls).toBe(0);
+  });
+
+  // Bug caught: the consent check skipped for a downed player, so a DM's take_turn rolls a death save for a person.
+  it("refuses a downed player who is not a stand-in, and rolls their death save when they are one", async () => {
+    const downed = () => allyFight({ hp: 0, death_saves: { successes: 0, failures: 0 }, conditions: [{ name: "Unconscious" }] });
+    const person = harness(downed(), { sources: SOURCES, players: tamSheets(), map: mapOf(), dieFaces: [10], standIns: [] });
+    await expect(runBatch(batch("b", tamTurn()), person.deps)).rejects.toMatchObject({ status: 400 });
+    expect(person.dieCalls).toBe(0);
+    const stand = harness(downed(), { sources: SOURCES, players: tamSheets(), map: mapOf(), dieFaces: [10], standIns: ["pm-tam"] });
+    await runBatch(batch("b", tamTurn()), stand.deps);
+    expect(combatantOf(stored(stand), "tam").death_saves).toEqual({ successes: 1, failures: 0 });
+  });
+
+  // Bug caught: the AI table's rule changed by the new one: with a playedMemberId named, the played character is still refused nothing
+  // here and the stand-in set is not consulted (Tam is no stand-in, yet she plays as an ally of the person who plays someone else).
+  it("leaves the AI table alone: a named played member makes every other member the rules' whatever the stand-ins say", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: tamSheets(), map: mapOf(), dieFaces: [8, 4], standIns: [] });
+    await runBatch(batch("b", tamTurn({ playedMemberId: "pm-someone-else" })), h.deps);
+    expect(hpOf(stored(h), "victim")).toBe(33);
   });
 
   // PHB "Bless": a death saving throw is a saving throw. A Blessed Tam rolls 8 and then the d4's 2: 10, a success, and the d4 is
@@ -5356,7 +5414,7 @@ describe("a Reaction: Counterspell", () => {
   // The same fight where the person plays Tam herself (and one with no one named: a DM's own fight): her Reaction is the person's, not the rules'. Her save (a 1) fails,
   // 8d6 of ones deal 8 (20 -> 12), no Reaction, no slot written. Bug caught: a player's Reaction taken for them.
   it.each([["pm-tam"], [undefined]])("fails if a player the person plays (%s) is made to counter", async (played) => {
-    const h = harness(mageVersusTam(), { sources: mageSources(), players: tamCounters(), map: mapOf(), spells: [counterspell(), fireball()], dieFaces: [1, 1, 1, 1, 1, 1, 1, 1, 1] });
+    const h = harness(mageVersusTam(), { sources: mageSources(), players: tamCounters(), map: mapOf(), spells: [counterspell(), fireball()], dieFaces: [1, 1, 1, 1, 1, 1, 1, 1, 1], standIns: [] });
     await runBatch(batch("t-c2", takeTurn({ instanceId: "mage", ...(played === undefined ? {} : { playedMemberId: played }), optionId: "spell:Fireball:3:tam" })), h.deps);
     expect(hpOf(stored(h), "tam")).toBe(12);
     expect(combatantOf(stored(h), "tam").reactionUsed).not.toBe(true);

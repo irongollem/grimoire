@@ -56,7 +56,8 @@ import { noteRequest, optionsAllowedByNote } from "../_shared/tacticsJudge.ts";
 import { assembleTurnOptions } from "../_shared/turnOptionsFor.ts";
 import { FightCommandError } from "./commandError.ts";
 import { strikeOnLeaving } from "./opportunity.ts";
-import { applyResolvingCommand, knownArmorClass, type ResolveEnv } from "./resolve.ts";
+import { playerPlayedByRules } from "../../../src/rules/fight/spells/reactionCast.ts";
+import { applyResolvingCommand, knownArmorClass, whoPlaysIn, type ResolveEnv } from "./resolve.ts";
 
 /** `optionId` left out: the server picks by the rules. Named: it must be one of the options on offer right now. */
 export type TakeTurnCommand = {
@@ -175,6 +176,11 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
   const mover = state.combatants.find((c) => c.instance_id === command.instanceId) as RunCombatant;
   if (mover.bystander === true) return refuse(`${mover.name} is no fighter the rules can play: their turn is their own.`);
   const ally = mover.type === "player" && mover.party_member_id !== undefined;
+  // APP CONVENTION (#1021 row 26): in a DM's own fight the AI plays only a character whose player let it and whose DM switched it
+  // on. The server decides from `env.standIns`, never from the request, so a DM's `take_turn` cannot play a person who did not consent.
+  if (ally && command.playedMemberId === undefined && !playerPlayedByRules(mover.party_member_id, whoPlaysIn(callEnv))) {
+    return refuse(`${mover.name}'s player has not let the AI play them.`);
+  }
   if (mover.hp <= 0) return ally ? takeDeathSave(state, mover, command, callEnv) : refuse(`${mover.name} is at 0 hit points and cannot take a turn.`);
   // A party member is played through the block their sheet makes; the block rides on the env so every step below (reach,
   // the swing, an opportunity attack) reads the same one. Anyone else's block is read as it always was.
@@ -183,10 +189,11 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
   const allies: Record<string, MonsterStatBlock> = { ...callEnv.sources.allies };
   const allyIds = new Set<string>();
   if (ally) allyIds.add(mover.party_member_id as string);
-  if (command.playedMemberId !== undefined) {
-    for (const c of state.combatants) {
-      if (c.type === "player" && c.party_member_id !== undefined && c.party_member_id !== command.playedMemberId) allyIds.add(c.party_member_id);
-    }
+  // The same rule as the opportunity attack and the Reaction (`playerPlayedByRules`): at the AI table everyone but the played one,
+  // in a DM's fight the stand-ins.
+  const who = whoPlaysIn({ playedMemberId: command.playedMemberId, standIns: callEnv.standIns });
+  for (const c of state.combatants) {
+    if (c.type === "player" && playerPlayedByRules(c.party_member_id, who)) allyIds.add(c.party_member_id as string);
   }
   for (const id of allyIds) {
     // The slot counts of its spells are worked out against the casts this fight already tallies for the member.
