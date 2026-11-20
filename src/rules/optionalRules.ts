@@ -217,8 +217,8 @@ registerOptionalRule({
   name: "Off the Road",
   summary: "With no road between two places, the straight line on a map is not the way anyone walks.",
   description:
-    "Where no road joins two places, the app measures the straight line between them on the map. Nobody walks a straight line across hills, rivers and woods, so with this rule on the **distance is multiplied** by the number below and **all of it counts as difficult going**, which halves the distance a day covers.\n\n" +
-    "Off: the straight line as measured, at the pace's ordinary distance a day.",
+    "Where no road joins two places, the app measures the straight line between them on the map. Nobody walks a straight line across hills, rivers and woods, so with this rule on the **distance is multiplied** by the number below.\n\n" +
+    "The ground that line crosses is the campaign's **Land with no road**, set in Campaign Settings, Travel (difficult going unless you change it). Off: the straight line as measured.",
   dmOnly: true,
   defaultEnabled: true,
   config: [{ key: "factor", label: "Distance travelled for each mile on the map", type: "number", default: 1.5, min: 1, max: 3 }],

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { foodEdition, travelMapFrom } from "./travelRows.ts";
 
-const base = { places: [], roads: [], placed: [], rations: null, gameSystem: "dnd5e-2024" as string | null };
+const base = { places: [], roads: [], placed: [], rations: null, terrains: [], ways: [], companions: [], gameSystem: "dnd5e-2024" as string | null };
 const table = { id: "t", name: "Wolves", dice: "1d6", entries: [] };
 
 describe("foodEdition", () => {
@@ -22,10 +22,24 @@ describe("travelMapFrom", () => {
     expect(roads.map((r) => [r.id, r.distance])).toEqual([["a", 12], ["c", 3]]);
   });
 
-  // Bug caught: a difficult road read as easy going because the flag did not survive the row's shaping.
-  it("a road is difficult going only when its row says so", () => {
-    const { roads } = travelMapFrom({ ...base, roads: [{ id: "a", distance: 1, difficult: true }, { id: "b", distance: 1, difficult: false }, { id: "c", distance: 1 }] });
-    expect(roads.map((r) => r.difficult)).toEqual([true, false, false]);
+  // Bug caught: a snowbound road read as plain road because the terrain did not survive the row's shaping.
+  it("a road keeps the terrain its row names", () => {
+    const { roads } = travelMapFrom({ ...base, roads: [{ id: "a", distance: 1, terrain: "snow" }, { id: "b", distance: 1, terrain: "road" }] });
+    expect(roads.map((r) => r.terrain)).toEqual(["snow", "road"]);
+  });
+
+  // Bug caught: the campaign's own terrain or way ignored, so a table that wrote "snow is x1/2" is told the preset's 1/3;
+  // or a companion's speed lost, so a way it pulls cannot move.
+  it("lays the campaign's terrains and ways over the presets and reads a companion's speed", () => {
+    const out = travelMapFrom({
+      ...base,
+      terrains: [{ key: "snow", name: "Packed snow", factor: 0.5, sink: 1 }],
+      ways: [{ key: "beak_sled", name: "Dogsled (axe beak)", kind: "vehicle", speed_feet: null, mph: null, companion_id: "c1", at_home: ["snow"], sink: {}, through_the_night: false }],
+      companions: [{ id: "c1", speed: 50 }],
+    });
+    expect(out.terrains.find((t) => t.key === "snow")?.factor).toBe(0.5);
+    expect(out.ways.map((w) => w.key)).toContain("beak_sled");
+    expect([out.companionSpeed("c1"), out.companionSpeed("gone")]).toEqual([50, null]);
   });
 
   it("keeps a road's own table apart from the road row, whether the join gave an object or a one-element array", () => {

@@ -4,7 +4,7 @@
     <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 flex flex-col gap-4">
       <p class="text-body text-foreground" data-testid="set-out-summary">
         <span class="font-semibold">{{ formatDistance(journey.summary.distance, journey.summary.unit) }}</span>
-        at a {{ paceLabel }} pace: <span class="font-semibold">{{ formatTravelTime(journey.summary.time) }}</span>.
+        at a {{ paceLabel }} pace<template v-if="wayName"> by {{ wayName }}</template>: <span class="font-semibold">{{ formatTravelTime(journey.summary.time) }}</span>.
         They arrive on {{ arrivesOn }}.
       </p>
 
@@ -70,11 +70,13 @@ import SetOutProvisions from "./SetOutProvisions.vue";
  * "Set out for <place>" (#1222 decisions 4, 6, 7): who goes, when they arrive and, where the campaign counts food,
  * what the journey eats and what foraging finds, all shown before the DM confirms.
  */
-const { open, destination, journey, paceLabel, travellerIds, movesParty, description } = defineProps<{
+const { open, destination, journey, paceLabel, wayName, travellerIds, movesParty, description } = defineProps<{
   open: boolean;
   destination: { id: string; name: string };
   journey: Journey;
   paceLabel: string;
+  /** How they travel ("Dogsled (axe beak)"), or null on foot. */
+  wayName: string | null;
   travellerIds: readonly string[];
   movesParty: boolean;
   description: string;

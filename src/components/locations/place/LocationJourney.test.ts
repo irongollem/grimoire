@@ -4,6 +4,8 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia, setActivePinia } from "pinia";
 
+import { TERRAIN_PRESETS, WAY_PRESETS, type WayOfTravel } from "@/rules/travelSpeed";
+
 const { fake } = await vi.hoisted(async () => {
   const { createSupabaseFake } = await import("@/test/supabaseFake");
   return { fake: createSupabaseFake() };
@@ -15,6 +17,8 @@ const given = vi.hoisted(() => ({
   party: [] as { id: string; current_location_id: string | null }[],
   countsFood: false,
   offRoad: false,
+  /** Ways beyond the books' presets: a crewed ship that sails through the night. */
+  extraWays: [] as WayOfTravel[],
 }));
 vi.mock("@/lib/supabase", () => ({ supabase: fake.client, getCurrentUser: () => ({ id: "dm" }) }));
 // The places, the party and the picture's size are their own composables' to read; here they are simply given.
@@ -23,6 +27,11 @@ vi.mock("@/composables/locations/useLocations", () => ({
   useLocation: (id: () => string | null) => ({ data: computed(() => (id() === null ? undefined : given.map)) }),
 }));
 vi.mock("@/composables/locations/useMapPictureSize", () => ({ useMapPictureSize: () => ref({ width: 1000, height: 500 }) }));
+// The campaign's terrains and ways are their own composable's to read; here the books' presets are given, with open
+// land as plain going so a line on a map is timed like a road unless a test says otherwise.
+vi.mock("@/composables/locations/useTravel", () => ({
+  useTravel: () => ({ terrains: computed(() => TERRAIN_PRESETS.map((t) => (t.key === "snow" ? { ...t, name: "Deep drift" } : t))), ways: computed(() => [...WAY_PRESETS, ...given.extraWays]), companionSpeed: () => null, openLand: ref("open") }),
+}));
 vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: computed(() => given.party) }) }));
 vi.mock("@/composables/rules/useOptionalRules", () => ({
   useIsRuleEnabled: (key: string) => computed(() => (key === "off_road" ? given.offRoad : given.countsFood)),
@@ -58,6 +67,7 @@ beforeEach(() => {
   given.party = [];
   given.countsFood = false;
   given.offRoad = false;
+  given.extraWays = [];
   given.places = [
     { id: "region", name: "The Coast", parent_id: null },
     { id: "brightwater", name: "Brightwater", parent_id: "region" },
@@ -78,7 +88,7 @@ describe("LocationJourney", () => {
 
   // Bug caught: the ruler on the picture overruling the distance someone wrote down for the road.
   it("goes by the road when there is one, whatever the map would measure", async () => {
-    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", difficult: false }]);
+    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", terrain: "road" }]);
     const wrapper = await mountAt("saltmarsh");
     const said = wrapper.get("[data-testid=location-journey]").text();
     expect(said).toContain("55 mi");
@@ -92,7 +102,7 @@ describe("LocationJourney", () => {
   it("offers a roll on the table of the road the journey takes, and shows what came up", async () => {
     useCampaignStore().activeCampaign = { id: "c1", user_id: "dm", current_location_id: "brightwater" } as Campaign;
     fake.seed("roll_tables", [{ id: "t1", user_id: "dm", campaign_id: "c1", name: "The coast road", dice: "1d4", tags: [], entries: [{ id: "e1", min: 1, max: 4, label: "Smugglers on the shingle" }] }]);
-    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", difficult: false, roll_table_id: "t1" }]);
+    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", terrain: "road", roll_table_id: "t1" }]);
     const wrapper = await mountAt("saltmarsh");
     const roll = wrapper.findAll("button").find((b) => b.text().includes("Roll on The coast road"));
     expect(roll).toBeDefined();
@@ -113,7 +123,7 @@ describe("LocationJourney", () => {
       { id: "p2", user_id: "dm", location_id: "saltmarsh", roll_table_id: "marsh", sort_order: 0 },
       { id: "p3", user_id: "dm", location_id: "faraway", roll_table_id: "elsewhere", sort_order: 0 },
     ]);
-    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", difficult: false, roll_table_id: null }]);
+    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", terrain: "road", roll_table_id: null }]);
     const wrapper = await mountAt("saltmarsh");
     const offered = wrapper.findAll("[data-testid=location-journey-tables] button").map((b) => b.text());
     expect(offered).toEqual(["Roll on Coast encounters", "Roll on Marsh encounters"]);
@@ -123,7 +133,7 @@ describe("LocationJourney", () => {
   // Bug caught: food counted for a table that never switched the rule on; or counted for the wrong number of days;
   // or a member following the party (no place of their own) not counted as setting out.
   it("says the food a journey takes only where the campaign counts food", async () => {
-    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", difficult: false, roll_table_id: null }]);
+    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", terrain: "road", roll_table_id: null }]);
     given.party = [{ id: "p1", current_location_id: "brightwater" }, { id: "p2", current_location_id: null }, { id: "p3", current_location_id: "saltmarsh" }];
     const off = await mountAt("saltmarsh");
     expect(off.find("[data-testid=location-journey-food]").exists()).toBe(false);
@@ -147,29 +157,97 @@ describe("LocationJourney", () => {
     expect(said).not.toContain("straight line");
   });
 
-  // Bug caught: a vessel picker on a journey with no water, or a way of difficult going not said to be.
-  it("offers a vessel only for water and names the difficult miles", async () => {
-    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 12, unit: "mi", name: "", going: "track", difficult: true, roll_table_id: null }]);
-    const land = await mountAt("saltmarsh");
-    expect(land.find("[data-testid=location-journey-vessel]").exists()).toBe(false);
-    expect(land.get("[data-testid=location-journey]").text()).toContain("12 mi of it difficult going");
+  // Book numbers: 12 miles of difficult going at a normal pace on foot is half speed, 24 miles a day halved.
+  // Bug caught: the ground left out of the sentence, or named by the preset's word when the campaign has its own.
+  it("names the ground the road crosses, in the campaign's words", async () => {
+    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 12, unit: "mi", name: "", going: "track", terrain: "difficult", roll_table_id: null }]);
+    expect((await mountAt("saltmarsh")).get("[data-testid=location-journey]").text()).toContain("12 mi of difficult going");
     fake.reset();
-    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 96, unit: "mi", name: "", going: "sea", difficult: false, roll_table_id: null }]);
-    const sea = await mountAt("saltmarsh");
-    const picker = sea.get("[data-testid=location-journey-vessel]");
-    expect(sea.get("[data-testid=location-journey]").text()).toContain("4 days");
+    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 30, unit: "mi", name: "", going: "track", terrain: "snow", roll_table_id: null }]);
+    expect((await mountAt("saltmarsh")).get("[data-testid=location-journey]").text()).toContain("30 mi of deep drift");
+  });
+
+  // Rime of the Frostmaiden: snow by dogsled is 1 mph, so 24 miles is three 8-hour days; on foot it is slower still.
+  // Bug caught: the way of travelling picked but not reaching the time, or not said in the sentence.
+  it("takes the way of travelling into the time and says it", async () => {
+    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 24, unit: "mi", name: "", going: "track", terrain: "snow", roll_table_id: null }]);
+    const wrapper = await mountAt("saltmarsh");
+    expect(wrapper.get("[data-testid=location-journey]").text()).not.toContain("pace by");
+    await wrapper.get("[data-testid=location-journey-way]").setValue("dogsled");
+    await flushPromises();
+    const said = wrapper.get("[data-testid=location-journey]").text();
+    expect(said).toContain("3 days");
+    // A book's way reads as a common noun; the DM's own keeps its capitals ("by Crewed galley", below).
+    expect(said).toContain("at a normal pace by dogsled");
+    await wrapper.get("[data-testid=location-journey-set-out]").trigger("click");
+    expect(wrapper.getComponent(SetOutDialog).props("wayName")).toBe("dogsled");
+    expect(wrapper.getComponent(SetOutDialog).props("description")).toContain("By dogsled.");
+  });
+
+  // PHB Waterborne Vehicles: a galley makes 4 mph, so 96 sea miles are 24 hours: three 8-hour days, or one day when
+  // it sails through the night. On foot the same sea road is 4 days.
+  // Bug caught: a ship crossing the sea at a walking pace.
+  it("sails the sea road by the ship the DM picks", async () => {
+    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 96, unit: "mi", name: "", going: "sea", terrain: "road", roll_table_id: null }]);
+    given.extraWays = [{ ...WAY_PRESETS.find((w) => w.key === "galley")!, key: "crewed", name: "Crewed galley", throughTheNight: true, source: null }];
+    const wrapper = await mountAt("saltmarsh");
+    const picker = wrapper.get("[data-testid=location-journey-way]");
+    expect(wrapper.get("[data-testid=location-journey]").text()).toContain("4 days");
     await picker.setValue("galley");
     await flushPromises();
-    expect(sea.get("[data-testid=location-journey]").text()).toContain("3 days");
-    const night = sea.findAll("input[type=checkbox]")[0];
-    await night.setValue(true);
+    expect(wrapper.get("[data-testid=location-journey]").text()).toContain("3 days");
+    await picker.setValue("crewed");
     await flushPromises();
-    expect(sea.get("[data-testid=location-journey]").text()).toContain("1 day");
+    expect(wrapper.get("[data-testid=location-journey]").text()).toContain("1 day");
+    expect(wrapper.get("[data-testid=location-journey]").text()).toContain("by Crewed galley");
   });
+
+  // Decision 10. Bug caught (seen in the app, 21 Nov 2026): an airship following the roads for want of a map said
+  // "20 mi of snow", as if the ground slowed it.
+  it("does not name the ground under a flyer", async () => {
+    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 24, unit: "mi", name: "", going: "track", terrain: "snow", roll_table_id: null }]);
+    given.map = { ...given.map, map_scale: null };
+    const wrapper = await mountAt("saltmarsh");
+    expect(wrapper.get("[data-testid=location-journey]").text()).toContain("of deep drift");
+    await wrapper.get("[data-testid=location-journey-way]").setValue("airship");
+    await flushPromises();
+    const said = wrapper.get("[data-testid=location-journey]").text();
+    expect(said).toContain("3 hours");
+    expect(said).not.toContain("of deep drift");
+  });
+
+  // Decision 10: a flyer ignores the ground. Roads join the two towns (55 mi) and the map says 40 as the crow flies.
+  // Bug caught: the airship following the roads, or a flyer with no shared map left without any journey.
+  it("takes a flyer straight over the shared map even where a road joins the two, and says so", async () => {
+    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", terrain: "road", roll_table_id: null }]);
+    given.offRoad = true;
+    const wrapper = await mountAt("saltmarsh");
+    expect(wrapper.get("[data-testid=location-journey]").text()).toContain("55 mi");
+    await wrapper.get("[data-testid=location-journey-way]").setValue("airship");
+    await flushPromises();
+    const said = wrapper.get("[data-testid=location-journey]").text();
+    // 40 miles, with no winding although "Off the Road" is on: the airship's 8 mph is 5 hours.
+    expect(said).toContain("40 mi");
+    expect(said).toContain("flying straight there over the map of The Coast");
+    expect(said).not.toContain("off the road");
+    await wrapper.get("[data-testid=location-journey-set-out]").trigger("click");
+    expect(wrapper.getComponent(SetOutDialog).props("description")).toContain("Flying straight there over the map of The Coast.");
+  });
+
+  // Bug caught: a flyer whose two places share no scaled map left with no journey instead of the roads.
+  it("takes a flyer by the roads where the map cannot measure", async () => {
+    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", terrain: "road", roll_table_id: null }]);
+    given.map = { ...given.map, map_scale: null };
+    const wrapper = await mountAt("saltmarsh");
+    await wrapper.get("[data-testid=location-journey-way]").setValue("airship");
+    await flushPromises();
+    expect(wrapper.get("[data-testid=location-journey]").text()).toContain("55 mi");
+  });
+
   // Decision 4: "Travel to" is an act. Bug caught: the dialog handed the party's place as staying put though the
   // party stands in the town the road leaves, so the party is left behind; or handed the wrong destination.
   it("opens Set out for this place, moving the party when it stands where the journey starts", async () => {
-    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", difficult: false, roll_table_id: null }]);
+    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", terrain: "road", roll_table_id: null }]);
     given.places = [...given.places, { id: "inn", name: "The Drowned Rat", parent_id: "brightwater" }];
     useCampaignStore().activeCampaign = { id: "c1", current_location_id: "inn" } as Campaign;
     const wrapper = await mountAt("saltmarsh");
@@ -183,7 +261,7 @@ describe("LocationJourney", () => {
   // Bug caught (seen in the app, 20 Nov 2026): setting out moves the party, which ends the journey and unmounts the
   // dialog before it can close; Undo brought the journey back and the dialog with it, by itself.
   it("does not open Set out again by itself when the journey ends and comes back", async () => {
-    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", difficult: false, roll_table_id: null }]);
+    fake.seed("location_roads", [{ id: "r1", campaign_id: "c1", user_id: "dm", from_location_id: "brightwater", to_location_id: "saltmarsh", distance: 55, unit: "mi", name: "", going: "road", terrain: "road", roll_table_id: null }]);
     const campaign = useCampaignStore();
     const wrapper = await mountAt("saltmarsh");
     await wrapper.get("[data-testid=location-journey-set-out]").trigger("click");

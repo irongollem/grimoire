@@ -60,6 +60,8 @@ export interface Campaign {
   spotify_client_id: string | null;
   ical_token: string; // UUID; used as the shared secret for the iCal subscription URL
   current_location_id: string | null;
+  /** The terrain between places with no road, which a journey across a map goes over (#1222; `rules/travelSpeed.ts`). */
+  open_land_terrain: string;
   /**
    * The quest the campaign's story opens with (#1021): the AI table's first sitting begins at its entry beat. Not a
    * foreign key, so it can name a quest that was since deleted; readers treat one they cannot find as none.
@@ -117,6 +119,7 @@ export type CampaignInsert = Omit<
   | "current_month"
   | "current_day"
   | "current_location_id"
+  | "open_land_terrain"
   | "opening_quest_id"
   | "party_level"
   | "table_shows"
@@ -150,6 +153,7 @@ export type CampaignInsert = Omit<
   current_month?: number;
   current_day?: number;
   current_location_id?: string | null;
+  open_land_terrain?: string;
   table_shows?: TableShows;
   explore_party?: ExploreParty | null;
   climate?: Climate;

@@ -29,7 +29,7 @@ const journey = (days: number, paceId = "normal") =>
 
 function dialog(days = 3, paceId = "normal") {
   return mount(SetOutDialog, {
-    props: { open: true, destination: { id: "far", name: "Daggerford" }, journey: journey(days, paceId), paceLabel: "normal", travellerIds: ["wren", "dorn"], movesParty: true, description: "words" },
+    props: { open: true, destination: { id: "far", name: "Daggerford" }, journey: journey(days, paceId), paceLabel: "normal", wayName: null, travellerIds: ["wren", "dorn"], movesParty: true, description: "words" },
   });
 }
 
@@ -66,7 +66,7 @@ describe("SetOutDialog", () => {
   // "Set out" is greyed out and the DM must tick everyone by hand.
   it("ticks the travellers who arrive after the dialog opened", async () => {
     const w = mount(SetOutDialog, {
-      props: { open: true, destination: { id: "far", name: "Daggerford" }, journey: journey(3), paceLabel: "normal", travellerIds: [], movesParty: true, description: "words" },
+      props: { open: true, destination: { id: "far", name: "Daggerford" }, journey: journey(3), paceLabel: "normal", wayName: null, travellerIds: [], movesParty: true, description: "words" },
     });
     await w.setProps({ travellerIds: ["wren", "dorn"] });
     await w.get("[data-testid=set-out-confirm]").trigger("click");

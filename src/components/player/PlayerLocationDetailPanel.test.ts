@@ -164,7 +164,7 @@ describe("PlayerLocationDetailPanel what the DM has shared", () => {
 
 describe("PlayerLocationDetailPanel roads", () => {
   const road = (id: string, to: string) => ({
-    id, from_location_id: "l1", to_location_id: to, distance: 40, unit: "mi", name: "", going: "road", difficult: false, roll_table_id: null,
+    id, from_location_id: "l1", to_location_id: to, distance: 40, unit: "mi", name: "", going: "road", terrain: "road", roll_table_id: null,
   });
 
   // Bug caught: a road to a place the player cannot name listed anyway (leaking that it exists).

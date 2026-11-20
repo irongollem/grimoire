@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import { journeyByRoad, passingText, roadTableIds, travellersOf } from "./journey";
 import { roadPlaceOf } from "./way";
 import type { Road } from "./roads";
+import { TERRAIN_PRESETS, WAY_PRESETS, type TravelContext } from "@/rules/travelSpeed";
+import type { TravelPaceId } from "@/rules/travelPace";
 
-const road = (id: string, a: string, b: string, distance: number, over: Partial<Road> = {}): Road => ({ id, from_location_id: a, to_location_id: b, distance, unit: "mi", name: "", going: "road", difficult: false, roll_table_id: null, ...over });
+const ctx = (paceId: TravelPaceId = "normal", wayKey = "on_foot", over: Partial<TravelContext> = {}): TravelContext => ({ paceId, way: WAY_PRESETS.find((w) => w.key === wayKey)!, terrains: TERRAIN_PRESETS, companionSpeed: () => null, ...over });
+
+const road = (id: string, a: string, b: string, distance: number, over: Partial<Road> = {}): Road => ({ id, from_location_id: a, to_location_id: b, distance, unit: "mi", name: "", going: "road", terrain: "road", roll_table_id: null, ...over });
 // The inn's common room is inside the inn, which is inside Harbour.
 const parents: Record<string, string | null> = { "common-room": "inn", inn: "harbour", harbour: null, brightwater: null, farholt: null, island: null };
 const parentOf = (id: string): string | null => parents[id] ?? null;
@@ -28,7 +32,7 @@ describe("journeyByRoad", () => {
   // 40 + 15 = 55 miles. PHB "Travel Pace": 24 miles a day at a normal pace, so 2 days (48) and 7 miles more,
   // which at 3 miles an hour is 2 hours 20: 3 hours once the part hour is rounded up, as the app writes time.
   it("is the shortest way by road, with the places it passes and the time at the pace", () => {
-    const journey = journeyByRoad({ fromId: "common-room", toId: "farholt", roads: coast, parentOf, nameOf, paceId: "normal" })!;
+    const journey = journeyByRoad({ fromId: "common-room", toId: "farholt", roads: coast, parentOf, nameOf, travel: ctx() })!;
     expect(journey.summary).toMatchObject({ distance: 55, unit: "mi", from: { id: "harbour", name: "Harbour" }, to: { id: "farholt", name: "Farholt" } });
     expect(journey.summary.time).toMatchObject({ days: 2, hours: 3, calendarDays: 3 });
     expect(journey.passing).toEqual(["Brightwater"]);
@@ -36,17 +40,17 @@ describe("journeyByRoad", () => {
 
   // Bug caught: "no road" shown as a journey of no distance, or a journey offered to the place the party is in.
   it("is nothing when no chain of roads joins the two, or they are the same place for the road", () => {
-    expect(journeyByRoad({ fromId: "harbour", toId: "island", roads: coast, parentOf, nameOf, paceId: "normal" })).toBeNull();
-    expect(journeyByRoad({ fromId: "common-room", toId: "harbour", roads: coast, parentOf, nameOf, paceId: "normal" })).toBeNull();
+    expect(journeyByRoad({ fromId: "harbour", toId: "island", roads: coast, parentOf, nameOf, travel: ctx() })).toBeNull();
+    expect(journeyByRoad({ fromId: "common-room", toId: "harbour", roads: coast, parentOf, nameOf, travel: ctx() })).toBeNull();
   });
 
   // Bug caught: a campaign that measures in kilometres shown its journey in miles.
   it("is written in kilometres when every road of the way is", () => {
     const metric = [road("a", "harbour", "brightwater", 30, { unit: "km" }), road("b", "brightwater", "farholt", 20, { unit: "km" })];
-    expect(journeyByRoad({ fromId: "harbour", toId: "farholt", roads: metric, parentOf, nameOf, paceId: "fast" })?.summary).toMatchObject({ unit: "km" });
-    expect(journeyByRoad({ fromId: "harbour", toId: "farholt", roads: metric, parentOf, nameOf, paceId: "fast" })?.summary.distance).toBeCloseTo(50, 6);
+    expect(journeyByRoad({ fromId: "harbour", toId: "farholt", roads: metric, parentOf, nameOf, travel: ctx("fast") })?.summary).toMatchObject({ unit: "km" });
+    expect(journeyByRoad({ fromId: "harbour", toId: "farholt", roads: metric, parentOf, nameOf, travel: ctx("fast") })?.summary.distance).toBeCloseTo(50, 6);
     const mixed = [metric[0], road("b", "brightwater", "farholt", 20)];
-    expect(journeyByRoad({ fromId: "harbour", toId: "farholt", roads: mixed, parentOf, nameOf, paceId: "fast" })?.summary.unit).toBe("mi");
+    expect(journeyByRoad({ fromId: "harbour", toId: "farholt", roads: mixed, parentOf, nameOf, travel: ctx("fast") })?.summary.unit).toBe("mi");
   });
 });
 
@@ -105,27 +109,38 @@ describe("travellersOf", () => {
   });
 });
 
-describe("journeyByRoad with difficult going and vessels", () => {
-  const way = [road("marsh", "harbour", "brightwater", 24, { difficult: true }), road("ford", "brightwater", "farholt", 24)];
+describe("journeyByRoad by terrain and way of travelling", () => {
+  const way = [road("marsh", "harbour", "brightwater", 24, { terrain: "difficult" }), road("ford", "brightwater", "farholt", 24)];
+  const input = { fromId: "harbour", toId: "farholt", roads: way, parentOf, nameOf };
 
-  // 24 difficult miles (two days) and 24 plain (one): 3 days, with the nights where the time says.
+  // PHB: 24 difficult miles at a normal pace on foot is half speed, so two days; plus 24 plain (one): 3 days.
   // Bug caught: the journey's time taken from the raw miles, so difficult going changed nothing.
-  it("takes longer over difficult going, says how much of it is, and camps by the clock", () => {
-    const journey = journeyByRoad({ fromId: "harbour", toId: "farholt", roads: way, parentOf, nameOf, paceId: "normal" })!;
+  it("takes longer over difficult going, says how much of it there is, and camps by the clock", () => {
+    const journey = journeyByRoad({ ...input, travel: ctx() })!;
     expect(journey.summary.time).toMatchObject({ days: 3, hours: 0 });
-    expect(journey.difficultDistance).toBe(24);
+    expect(journey.grounds).toEqual([{ terrain: "difficult", distance: 24 }]);
     expect(journey.stops).toEqual([{ kind: "night", night: 1 }, { kind: "place", name: "Brightwater" }, { kind: "night", night: 2 }]);
     expect(journey.waterLegs).toBe(false);
   });
 
-  // 96 miles by galley (4 mph) through the night is one day; on foot 4 days.
-  // Bug caught: the conveyance ignored, so a ship crossed the sea at a walking pace.
-  it("sails the water legs by the vessel and offers a vessel only where there is water", () => {
+  // Rime of the Frostmaiden: by dogsled snow is 1 mph, so 24 snowy miles are 24 hours: three travel days; on snowshoes
+  // snow is a third of the speed and half sinking. Bug caught: the way ignored, so a sled crossed snow like a road.
+  it("times the way over the ground", () => {
+    const snow = [road("pass", "harbour", "farholt", 24, { terrain: "snow" })];
+    const by = (wayKey: string) => journeyByRoad({ ...input, roads: snow, travel: ctx("normal", wayKey) })!;
+    expect(by("dogsled").summary.time).toMatchObject({ days: 3, hours: 0 });
+    expect(by("dogsled").grounds).toEqual([{ terrain: "snow", distance: 24 }]);
+    expect(by("snowshoes").summary.time.calendarDays).toBeLessThan(by("on_foot").summary.time.calendarDays);
+  });
+
+  // PHB Waterborne Vehicles: the galley's 4 mph over 96 sea miles is 24 hours: three days; on foot four.
+  // Bug caught: the way ignored, so a ship crossed the sea at a walking pace.
+  it("sails the water legs by the ship, and says there is water", () => {
     const sea = [road("strait", "harbour", "brightwater", 96, { going: "sea" })];
-    const input = { fromId: "harbour", toId: "brightwater", roads: sea, parentOf, nameOf, paceId: "normal" as const };
-    const aboard = journeyByRoad({ ...input, conveyance: { vessel: "galley", throughTheNight: true } })!;
-    expect(aboard.summary.time.calendarDays).toBe(1);
+    const base = { fromId: "harbour", toId: "brightwater", roads: sea, parentOf, nameOf };
+    const aboard = journeyByRoad({ ...base, travel: ctx("normal", "galley") })!;
+    expect(aboard.summary.time.calendarDays).toBe(3);
     expect(aboard.waterLegs).toBe(true);
-    expect(journeyByRoad(input)!.summary.time.calendarDays).toBe(4);
+    expect(journeyByRoad({ ...base, travel: ctx() })!.summary.time.calendarDays).toBe(4);
   });
 });

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { EXTRACTED_ROAD_GOINGS, IMPORT_CANON_PARTS, IMPORT_ENTITY_KINDS, IMPORT_PREMISE_KINDS } from "@/types/documentImport.types";
+import { EXTRACTED_ROAD_GOINGS, EXTRACTED_ROAD_TERRAINS, IMPORT_CANON_PARTS, IMPORT_ENTITY_KINDS, IMPORT_PREMISE_KINDS } from "@/types/documentImport.types";
 import { KNOWLEDGE_MARKS, LORE_KINDS } from "@/types/canon.types";
 
 /**
@@ -46,6 +46,7 @@ describe("the edge functions' copies of the import kinds", () => {
   it("the road going enum in the schema is the one the client cleans against", () => {
     const source = read("supabase/functions/import-extract/extractionSchema.ts");
     expect(listOf(source, /going: \{ type: "string", enum: \[([^\]]*)\]/)).toEqual([...EXTRACTED_ROAD_GOINGS]);
+    expect(listOf(source, /terrain: \{ type: "string", enum: \[([^\]]*)\]/)).toEqual([...EXTRACTED_ROAD_TERRAINS]);
     expect(listOf(source, /unit: \{ type: "string", enum: \[([^\]]*)\]/)).toEqual(["mi", "km"]);
   });
 });

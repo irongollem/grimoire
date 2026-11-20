@@ -14,7 +14,7 @@ interface PlayerRoadRow {
   unit: DistanceUnit;
   name: string;
   going: Going;
-  difficult: boolean | null;
+  terrain: string | null;
 }
 
 /**
@@ -41,7 +41,7 @@ export function usePlayerLocationRoads() {
         unit: row.unit,
         name: row.name,
         going: row.going,
-        difficult: row.difficult === true,
+        terrain: typeof row.terrain === "string" ? row.terrain : "road",
         roll_table_id: null,
       }));
     },

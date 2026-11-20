@@ -13,16 +13,16 @@ const road = (over: Partial<ExtractedRoad> = {}): ExtractedRoad => ({
   distance: 40,
   unit: "mi",
   going: "road",
-  difficult: false,
+  terrain: "road",
   ...over,
 });
 
 describe("planRoads", () => {
   it("writes a road to the place it names, scoped to the campaign, with the name the page gave it", () => {
-    const { writes, unresolved } = planRoads([{ id: "loc-a", links: { roads: [road({ name: "the coast road", difficult: true })] } }], PLACES, CAMPAIGN);
+    const { writes, unresolved } = planRoads([{ id: "loc-a", links: { roads: [road({ name: "the coast road", terrain: "snow" })] } }], PLACES, CAMPAIGN);
     expect(unresolved).toEqual([]);
     expect(writes).toEqual([
-      { campaign_id: CAMPAIGN, from_location_id: "loc-a", to_location_id: "loc-b", distance: 40, unit: "mi", name: "the coast road", going: "road", difficult: true },
+      { campaign_id: CAMPAIGN, from_location_id: "loc-a", to_location_id: "loc-b", distance: 40, unit: "mi", name: "the coast road", going: "road", terrain: "snow" },
     ]);
   });
 
@@ -71,7 +71,7 @@ describe("planRoads", () => {
 });
 
 describe("cleanRoads", () => {
-  const good = { to_name: "Brightwater", distance: 40, unit: "mi", name: null, going: "road", difficult: false };
+  const good = { to_name: "Brightwater", distance: 40, unit: "mi", name: null, going: "road", terrain: "road" };
 
   it("drops a distance the column would refuse: zero, negative, over the ceiling, not a number", () => {
     const kept = cleanRoads([
@@ -105,9 +105,10 @@ describe("cleanRoads", () => {
     expect(sea!.going).toBe("sea");
   });
 
-  it("keeps difficult going only when the page says so", () => {
-    const [plain, hard, odd] = cleanRoads([good, { ...good, difficult: true }, { ...good, difficult: "yes" }]);
-    expect([plain!.difficult, hard!.difficult, odd!.difficult]).toEqual([false, true, false]);
+  // Bug caught: a snowbound track written as a plain road, or a terrain the model invented written to a column the app cannot read.
+  it("keeps a terrain of the presets and turns any other into a road", () => {
+    const [snow, odd, missing] = cleanRoads([{ ...good, terrain: "snow" }, { ...good, terrain: "lava" }, { ...good, terrain: undefined }]);
+    expect([snow!.terrain, odd!.terrain, missing!.terrain]).toEqual(["snow", "road", "road"]);
   });
 
   it("reads anything that is not an array as no roads", () => {

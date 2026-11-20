@@ -1,6 +1,7 @@
 import type { RouteSummary } from "@/lib/locations/mapRoute";
 import { effectiveLocationId } from "@/lib/partyPosition";
-import { fromMiles, journeyTime, legHours, ON_FOOT, type Conveyance, type TravelPaceId } from "@/rules/travelPace";
+import { fromMiles, timeOfTravelHours } from "@/rules/travelPace";
+import { legTravelHours, WAY_PRESETS, type TimedLeg, type TravelContext } from "@/rules/travelSpeed";
 import type { Road } from "./roads";
 import { placesPassed, roadPlaceOf, shortestWay, stopsOfTimed } from "./way";
 
@@ -53,9 +54,9 @@ export interface Journey {
   roadIds: string[];
   /** Where the journey can pause, in order: each night's camp and each place passed. None across a map. */
   stops: JourneyStop[];
-  /** How much of the distance is difficult going, in the summary's unit; 0 when none is. */
-  difficultDistance: number;
-  /** Whether any leg is a river or the sea, so a vessel is worth asking about. */
+  /** The ground it crosses other than road and open country, by terrain key, with how far of it (summary's unit). */
+  grounds: { terrain: string; distance: number }[];
+  /** Whether any leg is a river or the sea, so a boat is worth asking about. */
   waterLegs: boolean;
   /** A journey across a map with the "Off the Road" rule on: the distance already counts the winding. */
   offRoad: boolean;
@@ -86,6 +87,24 @@ export function roadTableIds(journey: Pick<Journey, "roadIds">, roads: readonly 
 }
 
 /**
+ * A leg's travel hours by the way of travelling. A way that cannot move (a sled whose puller was dismissed) is not
+ * offered by the journey line; should one reach here, the leg is walked rather than taking forever.
+ */
+export function travelHoursOf(leg: TimedLeg, travel: TravelContext): number {
+  return legTravelHours(leg, travel) ?? legTravelHours(leg, { ...travel, way: WAY_PRESETS[0] }) ?? 0;
+}
+
+/** The ground of a journey other than road and open country, in the order first met, each with its distance. */
+export function groundsOf(legs: readonly { miles: number; terrain: string }[], unit: "mi" | "km"): { terrain: string; distance: number }[] {
+  const miles = new Map<string, number>();
+  for (const leg of legs) {
+    if (leg.terrain === "road" || leg.terrain === "open") continue;
+    miles.set(leg.terrain, (miles.get(leg.terrain) ?? 0) + leg.miles);
+  }
+  return [...miles].map(([terrain, m]) => ({ terrain, distance: fromMiles(m, unit) }));
+}
+
+/**
  * The journey by road between two places at a pace, or null when no chain of roads joins them (or they are the
  * same place for the road). Written in kilometres only when every road of the way is; otherwise in miles.
  */
@@ -95,11 +114,9 @@ export function journeyByRoad(input: {
   roads: readonly Road[];
   parentOf: (id: string) => string | null;
   nameOf: (id: string) => string;
-  paceId: TravelPaceId;
-  /** How the party travels the water legs; on foot (or rowing at the pace) when left out. */
-  conveyance?: Conveyance;
+  /** The pace, the way of travelling, the campaign's terrains and its companions' speeds (`rules/travelSpeed.ts`). */
+  travel: TravelContext;
 }): Journey | null {
-  const conveyance = input.conveyance ?? ON_FOOT;
   const from = roadPlaceOf(input.fromId, input.parentOf, input.roads);
   const to = roadPlaceOf(input.toId, input.parentOf, input.roads);
   if (from === null || to === null || from === to) return null;
@@ -112,16 +129,16 @@ export function journeyByRoad(input: {
     summary: {
       distance,
       unit,
-      paceId: input.paceId,
-      time: journeyTime(way.legs, input.paceId, conveyance),
+      paceId: input.travel.paceId,
+      time: timeOfTravelHours(way.legs.reduce((hours, leg) => hours + travelHoursOf(leg, input.travel), 0)),
       from: { id: from, name: input.nameOf(from) },
       to: { id: to, name: input.nameOf(to) },
     },
     passing: placesPassed(way).map(input.nameOf),
     placeIds: [from, ...placesPassed(way), to],
     roadIds: way.legs.map((leg) => leg.roadId),
-    stops: stopsOfTimed(way, (leg) => legHours(leg, input.paceId, conveyance)).map((stop): JourneyStop => (stop.kind === "night" ? stop : { kind: "place", name: input.nameOf(stop.placeId) })),
-    difficultDistance: fromMiles(way.legs.filter((leg) => leg.difficult).reduce((sum, leg) => sum + leg.miles, 0), unit),
+    stops: stopsOfTimed(way, (leg) => travelHoursOf(leg, input.travel)).map((stop): JourneyStop => (stop.kind === "night" ? stop : { kind: "place", name: input.nameOf(stop.placeId) })),
+    grounds: groundsOf(way.legs, unit),
     waterLegs: way.legs.some((leg) => leg.going === "river" || leg.going === "sea"),
     offRoad: false,
   };

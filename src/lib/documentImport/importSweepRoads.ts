@@ -1,6 +1,6 @@
 import { normalizeEntityName } from "./entityName";
 import type { NameLookupRow } from "./importPlan";
-import { EXTRACTED_ROAD_GOINGS, type ExtractedRoad, type ExtractedRoadGoing } from "@/types/documentImport.types";
+import { EXTRACTED_ROAD_GOINGS, EXTRACTED_ROAD_TERRAINS, type ExtractedRoad, type ExtractedRoadGoing, type ExtractedRoadTerrain } from "@/types/documentImport.types";
 
 /** The most a road's distance may be, and the longest its name: `location_roads`' own checks. */
 const MAX_DISTANCE = 100000;
@@ -16,7 +16,7 @@ export interface RoadWrite {
   /** "" for a road with no name, as the column holds it. */
   name: string;
   going: ExtractedRoadGoing;
-  difficult: boolean;
+  terrain: ExtractedRoadTerrain;
 }
 
 /** A road whose far end matched no place of the sweep. */
@@ -33,7 +33,7 @@ export interface PlannedRoads {
 /**
  * Model output is untrusted: keep the roads the database would accept and drop the rest, rather than let one bad
  * road refuse its whole batch. A distance is finite, above zero and within the column's ceiling (rounded to the
- * hundredths it stores); a name is trimmed and capped; a going the model invented becomes a plain road.
+ * hundredths it stores); a name is trimmed and capped; a going or terrain the model invented becomes a plain road.
  */
 export function cleanRoads(raw: unknown): ExtractedRoad[] {
   if (!Array.isArray(raw)) return [];
@@ -48,13 +48,14 @@ export function cleanRoads(raw: unknown): ExtractedRoad[] {
     if (r.unit !== "mi" && r.unit !== "km") continue;
     const name = typeof r.name === "string" ? r.name.trim().slice(0, MAX_NAME) : "";
     const going = (EXTRACTED_ROAD_GOINGS as readonly unknown[]).includes(r.going) ? (r.going as ExtractedRoadGoing) : "road";
+    const terrain = (EXTRACTED_ROAD_TERRAINS as readonly unknown[]).includes(r.terrain) ? (r.terrain as ExtractedRoadTerrain) : "road";
     roads.push({
       to_name: r.to_name.trim(),
       distance,
       unit: r.unit,
       ...(name === "" ? {} : { name }),
       going,
-      difficult: r.difficult === true,
+      terrain,
     });
   }
   return roads;
@@ -102,7 +103,7 @@ export function planRoads(
         unit: road.unit,
         name,
         going: road.going,
-        difficult: road.difficult,
+        terrain: road.terrain,
       });
     }
   }

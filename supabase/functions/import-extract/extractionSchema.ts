@@ -237,14 +237,14 @@ const LOCATION_DATA = obj({
   roads: {
     type: ["array", "null"],
     description:
-      "Roads from this place to other named places, ONLY where the text states a distance (\"Brightwater lies 40 miles east along the coast road\"). Never estimate a distance. A travel time with no distance (\"two days by the High Road\") is skipped. `name` is the road's own name when the text gives one (\"the coast road\"), else null. `going` is road, track, river or sea; `difficult` is true only when the text says the going is hard (mud, mountain pass, bad weather). Null if none.",
+      "Roads from this place to other named places, ONLY where the text states a distance (\"Brightwater lies 40 miles east along the coast road\"). Never estimate a distance. A travel time with no distance (\"two days by the High Road\") is skipped. `name` is the road's own name when the text gives one (\"the coast road\"), else null. `going` is road, track, river or sea; `terrain` is the ground: snow for snowbound tracks, difficult for mountain passes and marsh, sand for desert, else road (a made road) or open (open country with no road). Null if none.",
     items: obj({
       to_name: { type: "string" },
       distance: { type: "number" },
       unit: { type: "string", enum: ["mi", "km"] },
       name: NULLABLE_STRING,
       going: { type: "string", enum: ["road", "track", "river", "sea"] },
-      difficult: { type: "boolean" },
+      terrain: { type: "string", enum: ["road", "open", "difficult", "sand", "snow"] },
     }),
   },
 });

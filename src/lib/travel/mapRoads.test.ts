@@ -21,7 +21,7 @@ const road = (id: string, from: string, to: string, over: Partial<Road> = {}): R
   name: "the coast road",
   going: "road",
   roll_table_id: null,
-  difficult: false,
+  terrain: "road",
   ...over,
 });
 const parents: Record<string, string> = { hamlet: "town", cellar: "hamlet" };

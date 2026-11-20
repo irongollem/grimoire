@@ -4,9 +4,9 @@
   <div v-if="journey" class="flex flex-col gap-2 border border-border bg-card px-3 py-2.5" data-testid="location-journey">
     <p class="text-body text-foreground">
       <span class="font-semibold">{{ formatDistance(journey.summary.distance, journey.summary.unit) }}</span>
-      from {{ journey.summary.from?.name }}, where the party is<template v-if="passing">, {{ passing }}</template><template v-if="straightOn">, {{ offRoadOn ? `about ${formatDistance(journey.summary.distance, journey.summary.unit)} off the road, on the map of ${straightOn}` : `in a straight line on the map of ${straightOn}` }}</template><template v-if="difficultText">, {{ difficultText }}</template>:
+      from {{ journey.summary.from?.name }}, where the party is<template v-if="passing">, {{ passing }}</template><template v-if="straightOn">, {{ straightWords }}</template><template v-if="groundText">, {{ groundText }}</template>:
       <span class="font-semibold">{{ formatTravelTime(journey.summary.time) }}</span>
-      at a {{ paceLabel }} pace.
+      at a {{ paceLabel }} pace<template v-if="wayName"> by {{ wayName }}</template>.
     </p>
     <!-- Where the journey can pause: each night's camp and each place the road passes, in order. -->
     <p v-if="stops" class="text-caption text-muted-foreground" data-testid="location-journey-stops">On the way: {{ stops }}.</p>
@@ -14,14 +14,11 @@
     <p v-if="food" class="text-caption text-muted-foreground" data-testid="location-journey-food">{{ food }}</p>
     <div class="flex flex-wrap items-center gap-2">
       <SegmentedControl v-model="paceId" :options="PACE_OPTIONS" size="sm" aria-label="Travel pace" />
-      <!-- How the water legs are travelled, only when the way has some (a river or the sea). -->
-      <template v-if="journey.waterLegs">
-        <AppSelect v-model="vesselChoice" size="sm" aria-label="How the water is crossed" data-testid="location-journey-vessel">
-          <option value="">On foot or rowing</option>
-          <option v-for="v in VESSELS" :key="v.id" :value="v.id">{{ v.label }}</option>
-        </AppSelect>
-        <AppCheckbox v-if="vesselChoice !== ''" v-model="throughTheNight" label="Sails through the night" />
-      </template>
+      <!-- How the party travels: on foot, a mount, a sled, a ship, the air. A ship only matters on water legs, but
+           the DM may pick one for a sea road, so every way is listed. -->
+      <AppSelect v-model="wayKey" size="sm" aria-label="How you travel" data-testid="location-journey-way">
+        <option v-for="w in ways" :key="w.key" :value="w.key">{{ w.name }}</option>
+      </AppSelect>
       <div class="ml-auto flex flex-wrap gap-2">
         <AppButton variant="outline" size="sm" :icon="IconAddEvent" label="Add to calendar" data-testid="location-journey-plan" @click="eventOpen = true" />
         <!-- Making the journey (decision 4): the party goes, the day moves on, and the food is eaten. -->
@@ -45,6 +42,7 @@
       :destination="{ id: locationId, name: nameOf(locationId) }"
       :journey="journey"
       :pace-label="paceLabel"
+      :way-name="wayName"
       :traveller-ids="travelerIds"
       :moves-party="movesParty"
       :description="eventWords"
@@ -56,7 +54,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
-import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
 import AppSelect from "@/components/common/controls/AppSelect.vue";
 import SegmentedControl from "@/components/common/controls/SegmentedControl.vue";
 import EventModal from "@/components/calendar/EventModal.vue";
@@ -68,6 +65,7 @@ import type { RollTable } from "@/types/rollTable.types";
 import { useAllLocations, useLocation } from "@/composables/locations/useLocations";
 import { useMapPictureSize } from "@/composables/locations/useMapPictureSize";
 import { useLocationRoads } from "@/composables/locations/useLocationRoads";
+import { useTravel } from "@/composables/locations/useTravel";
 import { useParty } from "@/composables/party/useParty";
 import { resolveRuleConfig, useIsRuleEnabled, useOptionalRules } from "@/composables/rules/useOptionalRules";
 import { rationsNeeded } from "@/rules/rations";
@@ -79,7 +77,8 @@ import { journeyByRoad, passingText, roadTableIds, stopsText, travellersOf } fro
 import { journeyByMap, sharedMapOf } from "@/lib/travel/mapLine";
 import { tablesForPlaces } from "@/lib/travel/wayTables";
 import { useEntityPlacementsFor } from "@/composables/locations/useLocationPlacements";
-import { DEFAULT_TRAVEL_PACE, formatTravelTime, getTravelPace, TRAVEL_PACES, VESSELS, type Conveyance, type TravelPaceId, type VesselId } from "@/rules/travelPace";
+import { DEFAULT_TRAVEL_PACE, formatTravelTime, getTravelPace, TRAVEL_PACES, type TravelPaceId } from "@/rules/travelPace";
+import { ON_FOOT_KEY, WAY_PRESETS, type TravelContext, type WayOfTravel } from "@/rules/travelSpeed";
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
 
@@ -100,12 +99,17 @@ const PACE_OPTIONS = TRAVEL_PACES.map((p) => ({ value: p.id, label: p.label }));
 const paceId = ref<TravelPaceId>(DEFAULT_TRAVEL_PACE);
 const paceLabel = computed(() => getTravelPace(paceId.value).label.toLowerCase());
 
-// How the water legs are travelled (a vessel picked, and whether it sails round the clock).
-const vesselChoice = ref<"" | VesselId>("");
-const throughTheNight = ref(false);
-const conveyance = computed<Conveyance>(() => ({ vessel: vesselChoice.value === "" ? null : vesselChoice.value, throughTheNight: throughTheNight.value }));
+// How the party travels (decision 9: one formula, the campaign's terrains and ways). A way that has gone from the
+// campaign (its puller dismissed) falls back to walking rather than leaving the picker on nothing.
+const { terrains, ways, companionSpeed, openLand } = useTravel();
+const wayKey = ref(ON_FOOT_KEY);
+const way = computed<WayOfTravel>(() => ways.value.find((w) => w.key === wayKey.value) ?? ways.value.find((w) => w.key === ON_FOOT_KEY) ?? WAY_PRESETS[0]);
+// "by dogsled", but "by The Sea Hag": a book's way is a common noun, the DM's may be a name.
+const wayName = computed(() => (way.value.key === ON_FOOT_KEY ? null : way.value.source !== null ? way.value.name.toLowerCase() : way.value.name));
+const travel = computed<TravelContext>(() => ({ paceId: paceId.value, way: way.value, terrains: terrains.value, companionSpeed }));
+const terrainName = (key: string): string => (terrains.value.find((t) => t.key === key)?.name ?? key).toLowerCase();
 
-// The optional rule "Off the Road": a straight line on a map is lengthened and counts as difficult going.
+// The optional rule "Off the Road": a straight line on a map is lengthened by its winding factor.
 const offRoadOn = useIsRuleEnabled("off_road");
 const { data: ruleRows } = useOptionalRules();
 const offRoadFactor = computed(() => resolveRuleConfig(ruleRows.value, "off_road").factor);
@@ -124,15 +128,16 @@ const byRoad = computed(() => {
     roads: all,
     parentOf,
     nameOf: (id) => byId.value.get(id)?.name ?? "a place that is gone",
-    paceId: paceId.value,
-    conveyance: conveyance.value,
+    travel: travel.value,
   });
 });
 
 // With no road between them: the straight line on the map both are pinned on. Its place is read (with its pins,
 // scale and picture) only once the roads are known to have no way, so a campaign with roads pays nothing for it.
+// A flyer ignores the ground (decision 10), so it asks for the map's line even where roads join the two places.
+const flies = computed(() => way.value.kind === "air");
 const shared = computed(() => {
-  if (!partyAt.value || roads.data.value === undefined || byRoad.value !== null || byId.value.size === 0) return null;
+  if (!partyAt.value || roads.data.value === undefined || (byRoad.value !== null && !flies.value) || byId.value.size === 0) return null;
   return sharedMapOf(partyAt.value, locationId, parentOf);
 });
 const { data: mapPlace } = useLocation(() => (shared.value ? shared.value.mapId : null));
@@ -140,19 +145,31 @@ const pictureSize = useMapPictureSize(() => (mapPlace.value ? (mapPlace.value.ma
 const byMap = computed(() => {
   const place = mapPlace.value;
   if (!shared.value || !place || place.id !== shared.value.mapId) return null;
-  return journeyByMap({ shared: shared.value, pins: place.map_pins, scale: place.map_scale, size: pictureSize.value, paceId: paceId.value, offRoad: offRoadOn.value ? { factor: offRoadFactor.value, difficult: true } : undefined });
+  return journeyByMap({ shared: shared.value, pins: place.map_pins, scale: place.map_scale, size: pictureSize.value, travel: travel.value, openLand: { terrain: openLand.value, winding: offRoadOn.value ? offRoadFactor.value : 1 } });
 });
 
-const journey = computed(() => byRoad.value ?? byMap.value);
+// A flyer takes the map's straight line when the two places share a scaled map, and the roads otherwise.
+const journey = computed(() => (flies.value ? (byMap.value ?? byRoad.value) : (byRoad.value ?? byMap.value)));
+const byTheMap = computed(() => journey.value !== null && journey.value === byMap.value);
 /** The place whose map the distance was measured on, when it was not found by road. */
-const straightOn = computed(() => (byRoad.value === null && byMap.value !== null && mapPlace.value ? mapPlace.value.name : null));
+const straightOn = computed(() => (byTheMap.value && mapPlace.value ? mapPlace.value.name : null));
 const passing = computed(() => (journey.value ? passingText(journey.value.passing) : ""));
 
-/** "12 mi of it difficult going" when part of a road journey is; a journey off the road says so already. */
-const difficultText = computed(() => {
+/** How the map line is put in the sentence: a flyer's is flying straight there, a walker's winds when "Off the Road" is on. */
+const straightWords = computed(() => {
   const j = journey.value;
-  if (!j || j.offRoad || j.difficultDistance <= 0) return "";
-  return `${formatDistance(j.difficultDistance, j.summary.unit)} of it difficult going`;
+  if (!j || straightOn.value === null) return "";
+  if (flies.value) return `flying straight there over the map of ${straightOn.value}`;
+  return offRoadOn.value ? `about ${formatDistance(j.summary.distance, j.summary.unit)} off the road, on the map of ${straightOn.value}` : `in a straight line on the map of ${straightOn.value}`;
+});
+
+/** "12 mi of snow and 3 mi of difficult going": the ground the journey crosses, in the campaign's words. */
+const groundText = computed(() => {
+  const j = journey.value;
+  // A flyer is not slowed by the ground it passes over, so the ground is not worth naming.
+  if (!j || j.offRoad || j.grounds.length === 0 || way.value.kind === "air") return "";
+  const parts = j.grounds.map((g) => `${formatDistance(g.distance, j.summary.unit)} of ${terrainName(g.terrain)}`);
+  return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
 });
 
 const stops = computed(() => (journey.value ? stopsText(journey.value.stops) : ""));
@@ -211,8 +228,9 @@ const travelerIds = computed(() => {
 const eventWords = computed(() => {
   const j = journey.value;
   if (!j) return "";
-  const how = straightOn.value !== null ? (offRoadOn.value ? ` Off the road, measured on the map of ${straightOn.value}.` : ` Measured in a straight line on the map of ${straightOn.value}.`) : passing.value === "" ? "" : ` By road, ${passing.value}.`;
-  return `${routeDescription(j.summary)}${how}`;
+  const how = straightOn.value !== null ? (flies.value ? ` Flying straight there over the map of ${straightOn.value}.` : offRoadOn.value ? ` Off the road, measured on the map of ${straightOn.value}.` : ` Measured in a straight line on the map of ${straightOn.value}.`) : passing.value === "" ? "" : ` By road, ${passing.value}.`;
+  const by = wayName.value === null ? "" : ` By ${wayName.value}.`;
+  return `${routeDescription(j.summary)}${how}${by}`;
 });
 const eventPrefill = computed(() => {
   const j = journey.value;

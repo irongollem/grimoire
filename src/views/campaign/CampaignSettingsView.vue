@@ -60,6 +60,9 @@
         <div v-else-if="activeTab === 'rules'" class="max-w-lg">
           <RulesTab />
         </div>
+        <div v-else-if="activeTab === 'travel'" class="max-w-2xl">
+          <TravelTab />
+        </div>
         <div v-else-if="activeTab === 'classes'" class="max-w-lg">
           <ClassesTab />
         </div>
@@ -120,6 +123,7 @@ const MembersTab = lazyPanel(() => import("@/components/campaign/MembersTab.vue"
 const InvitesTab = lazyPanel(() => import("@/components/campaign/InvitesTab.vue"));
 const SchedulingTab = lazyPanel(() => import("@/components/campaign/SchedulingTab.vue"));
 const RulesTab = lazyPanel(() => import("@/components/campaign/RulesTab.vue"));
+const TravelTab = lazyPanel(() => import("@/components/campaign/TravelTab.vue"));
 const ClassesTab = lazyPanel(() => import("@/components/campaign/ClassesTab.vue"));
 const SpeciesTab = lazyPanel(() => import("@/components/campaign/SpeciesTab.vue"));
 const AiTab = lazyPanel(() => import("@/components/campaign/AiTab.vue"));
@@ -134,6 +138,7 @@ type SettingsTab =
   | "members"
   | "scheduling"
   | "rules"
+  | "travel"
   | "classes"
   | "species"
   | "ai"
@@ -145,7 +150,7 @@ type SettingsTab =
   | "danger";
 
 const VALID_TABS = new Set<SettingsTab>([
-  "details", "members", "scheduling", "rules", "classes", "species",
+  "details", "members", "scheduling", "rules", "travel", "classes", "species",
   "ai", "connections", "spotify", "backup", "bundle", "openbook", "danger",
 ]);
 
@@ -154,6 +159,7 @@ const ALL_TABS: { id: SettingsTab; label: string }[] = [
   { id: "members", label: "Members & Invites" },
   { id: "scheduling", label: "Scheduling" },
   { id: "rules", label: "Rules" },
+  { id: "travel", label: "Travel" },
   { id: "classes", label: "Classes" },
   { id: "species", label: "Species" },
   { id: "ai", label: "AI Assistant" },

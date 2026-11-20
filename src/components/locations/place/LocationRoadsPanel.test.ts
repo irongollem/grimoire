@@ -23,18 +23,24 @@ vi.mock("@/composables/locations/useLocations", async () => {
     useLocation: (id: () => string | null) => ({ data: computed(() => { askedMap.ids.push(id()); return id() === null ? undefined : mapPlaceRef.value; }) }),
   };
 });
+// The campaign's terrains are their own composable's to read; here the presets are given, snow renamed.
+vi.mock("@/composables/locations/useTravel", async () => {
+  const { computed } = await import("vue");
+  return { useTravel: () => ({ terrains: computed(() => TERRAIN_PRESETS.map((t) => (t.key === "snow" ? { ...t, name: "Deep drift" } : t))), ways: computed(() => WAY_PRESETS), companionSpeed: () => null, openLand: computed(() => "open") }) };
+});
 // A 1000 x 1000 picture: a pin's fraction times 1000 is its pixel.
 vi.mock("@/composables/locations/useMapPictureSize", async () => {
   const { computed } = await import("vue");
   return { useMapPictureSize: () => computed(() => ({ width: 1000, height: 1000 })) };
 });
 
+import { TERRAIN_PRESETS, WAY_PRESETS } from "@/rules/travelSpeed";
 import { useCampaignStore } from "@/stores/campaign";
 import EntityCombobox from "@/components/common/controls/EntityCombobox.vue";
 import LocationRoadsPanel from "./LocationRoadsPanel.vue";
 
 const place = (id: string, name: string, type = "city") => ({ id, campaign_id: "c1", user_id: "dm", name, location_type: type, parent_id: null });
-const road = (id: string, a: string, b: string, distance: number, over: Record<string, unknown> = {}) => ({ id, campaign_id: "c1", user_id: "dm", from_location_id: a, to_location_id: b, distance, unit: "mi", name: "", going: "road", difficult: false, roll_table_id: null, ...over });
+const road = (id: string, a: string, b: string, distance: number, over: Record<string, unknown> = {}) => ({ id, campaign_id: "c1", user_id: "dm", from_location_id: a, to_location_id: b, distance, unit: "mi", name: "", going: "road", terrain: "road", roll_table_id: null, ...over });
 
 async function mountPanel(locationId = "harbour") {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: "/locations", component: { template: "<div />" } }] });
@@ -129,14 +135,25 @@ describe("LocationRoadsPanel", () => {
     expect(fake.rows("location_roads").filter((r) => r.roll_table_id === "t1")).toHaveLength(2);
   });
 
-  // Bug caught: the "Difficult going" box ticked and the road still saved as plain going.
-  it("saves a road as difficult going when the box is ticked", async () => {
+  // Bug caught: the ground picked and the road still saved as plain road, or left unsaved with no pick.
+  it("saves the ground the DM picked, and a road by default", async () => {
     const wrapper = await mountPanel();
     await enterRoad(wrapper, { to: "brightwater", distance: "12" });
-    await form(wrapper).get("input[type=checkbox]").setValue(true);
+    await form(wrapper).get("select[aria-label='The ground']").setValue("snow");
     await addButton(wrapper).trigger("click");
     await flushPromises();
-    expect(fake.rows("location_roads")).toEqual([expect.objectContaining({ distance: 12, difficult: true })]);
+    expect(fake.rows("location_roads")).toEqual([expect.objectContaining({ distance: 12, terrain: "snow" })]);
+    await enterRoad(wrapper, { to: "brightwater", distance: "5" });
+    await addButton(wrapper).trigger("click");
+    await flushPromises();
+    expect(fake.rows("location_roads").find((r) => r.distance === 5)).toMatchObject({ terrain: "road" });
+  });
+
+  // Bug caught: the road list naming the ground by the preset's word instead of the campaign's.
+  it("lists a road's ground by the campaign's name for it", async () => {
+    fake.seed("location_roads", [road("r1", "harbour", "brightwater", 30, { terrain: "snow" })]);
+    const wrapper = await mountPanel();
+    expect(wrapper.get('[data-testid="location-road"]').text()).toContain("30 mi by road, deep drift");
   });
 
   // Bug caught: a cancelled confirm that still removed the road.

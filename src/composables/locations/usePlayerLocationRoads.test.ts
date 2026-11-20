@@ -41,14 +41,14 @@ describe("usePlayerLocationRoads", () => {
   });
 
   // Bug caught: the DM's encounter table leaking to players, or numeric distance left a string.
-  it("maps a row to a road with a numeric distance, no encounter table and the difficult flag", async () => {
+  it("maps a row to a road with a numeric distance, no encounter table and its terrain", async () => {
     fake.onRpc("get_player_roads", () => [
-      { id: "r1", from_location_id: "a", to_location_id: "b", distance: "40", unit: "mi", name: "", going: "road", difficult: true },
+      { id: "r1", from_location_id: "a", to_location_id: "b", distance: "40", unit: "mi", name: "", going: "road", terrain: "snow" },
     ]);
     const { result, queryClient } = run(() => usePlayerLocationRoads());
     await flushPromises();
     expect(result.data.value).toEqual([
-      { id: "r1", from_location_id: "a", to_location_id: "b", distance: 40, unit: "mi", name: "", going: "road", difficult: true, roll_table_id: null },
+      { id: "r1", from_location_id: "a", to_location_id: "b", distance: 40, unit: "mi", name: "", going: "road", terrain: "snow", roll_table_id: null },
     ]);
     expect(queryClient.getQueryCache().getAll()[0]?.queryKey.slice(0, 3)).toEqual(["location-roads", "player", "c1"]);
   });

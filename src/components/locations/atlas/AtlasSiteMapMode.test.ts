@@ -80,7 +80,7 @@ beforeEach(() => {
 // #1222: a town's map draws the roads it knows between its pins; a site has rooms, not towns.
 describe("roads on the map", () => {
   const pin = (id: string, x: number) => ({ child_location_id: id, child_name: id, child_type: "city", child_image_url: null, x, y: 0.5, visible_to_players: true });
-  const road = { id: "r", from_location_id: "a", to_location_id: "b", distance: 40, unit: "mi", name: "", going: "road", roll_table_id: null, difficult: false };
+  const road = { id: "r", from_location_id: "a", to_location_id: "b", distance: 40, unit: "mi", name: "", going: "road", roll_table_id: null, terrain: "road" };
 
   it("hands a town's map the road between two pinned places", () => {
     mocks.pins = [pin("a", 0.1), pin("b", 0.9)];

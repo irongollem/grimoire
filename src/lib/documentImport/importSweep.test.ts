@@ -262,10 +262,10 @@ describe("runImportSweep", () => {
         entitiesByKind: {
           locations: [
             usable("l1", { name: "Phandalin", roads: [
-              { to_name: "Brightwater", distance: 40, unit: "mi", name: "coast road", going: "road", difficult: false },
-              { to_name: "Neverwinter", distance: 90, unit: "mi", going: "road", difficult: false },
+              { to_name: "Brightwater", distance: 40, unit: "mi", name: "coast road", going: "road", terrain: "road" },
+              { to_name: "Neverwinter", distance: 90, unit: "mi", going: "road", terrain: "road" },
             ] }),
-            usable("l2", { name: "Brightwater", roads: [{ to_name: "Phandalin", distance: 40, unit: "mi", name: "coast road", going: "road", difficult: false }] }),
+            usable("l2", { name: "Brightwater", roads: [{ to_name: "Phandalin", distance: 40, unit: "mi", name: "coast road", going: "road", terrain: "road" }] }),
           ],
         },
         decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([["locations", new Map([["l1", CREATE], ["l2", CREATE]])]]),

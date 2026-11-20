@@ -3,9 +3,6 @@ import {
   formatTravelTime,
   fromMiles,
   getTravelPace,
-  journeyTime,
-  legHours,
-  ON_FOOT,
   toMiles,
   travelTime,
 } from "@/rules/travelPace";
@@ -82,47 +79,5 @@ describe("formatTravelTime", () => {
     expect(formatTravelTime({ days: 0, hours: 5 })).toBe("5 hours");
     expect(formatTravelTime({ days: 3, hours: 0 })).toBe("3 days");
     expect(formatTravelTime({ days: 0, hours: 0 })).toBe("0 hours");
-  });
-});
-
-describe("difficult going and vessels", () => {
-  const road = { going: "road" as const, difficult: false };
-
-  // PHB "Travel Pace": 24 miles a day at a normal pace; difficult terrain halves the distance a day covers.
-  // Bug caught: difficult going ignored, or applied twice, or applied as +50% instead of halving.
-  it("takes a day for 24 miles and two for 24 difficult miles at a normal pace", () => {
-    expect(journeyTime([{ miles: 24, ...road }], "normal").calendarDays).toBe(1);
-    expect(journeyTime([{ miles: 24, ...road, difficult: true }], "normal")).toMatchObject({ days: 2, hours: 0, calendarDays: 2 });
-  });
-
-  // Bug caught: the difficult stretch's doubling spread over the whole journey, or lost in the sum.
-  it("doubles only the difficult leg of a journey", () => {
-    // 12 plain miles = 4 hours, 12 difficult miles = 8 hours: 12 travel hours, 1 day 4 hours.
-    const time = journeyTime([{ miles: 12, ...road }, { miles: 12, ...road, difficult: true }], "normal");
-    expect(time).toMatchObject({ totalHours: 12, days: 1, hours: 4 });
-  });
-
-  // PHB "Mounts and Vehicles": a galley goes 4 mph. 96 miles is 24 hours under way: a day when it sails through the
-  // night; 32 miles is 8 hours, a travel day, when it does not.
-  // Bug caught: a vessel's night sailing not tripling its day, or its speed read as miles a day.
-  it("works a vessel by the hour, a travel day of sailing or a round-the-clock one", () => {
-    const galley = { vessel: "galley" as const, throughTheNight: true };
-    expect(journeyTime([{ miles: 96, going: "sea", difficult: false }], "normal", galley)).toMatchObject({ totalHours: 8, days: 1, hours: 0, calendarDays: 1 });
-    expect(journeyTime([{ miles: 32, going: "sea", difficult: false }], "normal", { ...galley, throughTheNight: false })).toMatchObject({ totalHours: 8, days: 1, calendarDays: 1 });
-    expect(journeyTime([{ miles: 96, going: "sea", difficult: false }], "normal", { ...galley, throughTheNight: false }).calendarDays).toBe(3);
-  });
-
-  // Bug caught: a vessel carrying the party over land legs, or a water leg with no vessel chosen being sailed.
-  it("sails only the water legs, and walks them at the pace when no vessel is chosen", () => {
-    const galley = { vessel: "galley" as const, throughTheNight: false };
-    expect(legHours({ miles: 24, going: "road", difficult: false }, "normal", galley)).toBe(8);
-    expect(legHours({ miles: 24, going: "river", difficult: false }, "normal", ON_FOOT)).toBe(8);
-    expect(legHours({ miles: 24, going: "river", difficult: false }, "normal", galley)).toBe(6);
-  });
-
-  // Bug caught: difficult going slowing a ship, which the book never says.
-  it("does not slow a vessel for difficult going", () => {
-    const boat = { vessel: "rowboat" as const, throughTheNight: false };
-    expect(legHours({ miles: 12, going: "river", difficult: true }, "normal", boat)).toBe(legHours({ miles: 12, going: "river", difficult: false }, "normal", boat));
   });
 });

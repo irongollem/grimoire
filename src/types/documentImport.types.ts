@@ -272,6 +272,10 @@ export interface ExtractedLocation {
 export const EXTRACTED_ROAD_GOINGS = ["road", "track", "river", "sea"] as const;
 export type ExtractedRoadGoing = (typeof EXTRACTED_ROAD_GOINGS)[number];
 
+/** The ground a stated road goes over: the keys of the terrain presets (`rules/travelSpeed.ts`), as `location_roads.terrain` holds them. */
+export const EXTRACTED_ROAD_TERRAINS = ["road", "open", "difficult", "sand", "snow"] as const;
+export type ExtractedRoadTerrain = (typeof EXTRACTED_ROAD_TERRAINS)[number];
+
 /** A road the page states, from the place whose entry it sits in to `to_name`. */
 export interface ExtractedRoad {
   to_name: string;
@@ -280,7 +284,7 @@ export interface ExtractedRoad {
   /** The road's own name when the page gives one ("the coast road"). */
   name?: string;
   going: ExtractedRoadGoing;
-  difficult: boolean;
+  terrain: ExtractedRoadTerrain;
 }
 
 export interface ExtractedItem {
