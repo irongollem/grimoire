@@ -5,6 +5,7 @@ import type { RunCombatant } from "../../../../types/encounter.types.ts";
 import { isAllyOf } from "../../allies.ts";
 import { isHostileTo } from "../../sides.ts";
 import type { FightMap } from "../battleMap.ts";
+import { boonTargetings, type BoonTargeting } from "../boonTargeting.ts";
 import { healTargetings, type HealTargeting } from "../healTargeting.ts";
 import { spellTargetings, type SpellTargeting } from "../spellTargeting.ts";
 import { andList } from "./phrases.ts";
@@ -119,4 +120,43 @@ export function healOptionsOf(input: TurnOptionsInput, mover: RunCombatant, name
     .sort((a, b) => urgency(a.t) - urgency(b.t) || b.t.targetIds.length - a.t.targetIds.length || a.order - b.order)
     .slice(0, MAX_HEAL_OPTIONS)
     .map(({ t }) => healOption(mover, names, t));
+}
+
+/** Rule 14: a boon as an option. It carries no movement: it is cast from where the creature stands. */
+function boonOption(mover: RunCombatant, names: ReadonlyMap<string, string>, t: BoonTargeting): TurnOption {
+  const { boon } = t;
+  const nameOf = (id: string) => (id === mover.instance_id ? "itself" : (names.get(id) ?? id));
+  const level = boon.castLevel > 0 ? ` (level ${boon.castLevel})` : "";
+  const bonus = boon.plan.slot === "bonus_action" ? " as a Bonus Action" : "";
+  return {
+    id: `boon:${boon.spell}:${boon.castLevel}`,
+    kind: "boon",
+    targetId: t.targetIds[0],
+    ...emptyMovement(),
+    attack: null,
+    boon: {
+      name: boon.spell, castLevel: boon.castLevel, slot: boon.plan.slot, targetIds: t.targetIds, spends: boon.useKey !== null,
+      distanceFeet: t.distanceFeet, targetCount: boon.plan.targetCount, concentration: boon.plan.concentration,
+    },
+    summary: `Cast ${boon.spell}${level}${bonus} on ${andList(t.targetIds.map(nameOf))}`,
+  };
+}
+
+/**
+ * Rule 14: the boon options, one per spell and level, at the creatures of the caster's own side it reaches (itself included): see
+ * `boonTargeting.ts` for who and in what order. An Action boon needs the Action free and a Bonus Action boon the Bonus Action free;
+ * the Action one is a turn of its own, the Bonus Action one rides another turn (`tactics/boonChoice.ts`). Whether to cast one now is tactics, not this file.
+ */
+export function boonOptionsOf(input: TurnOptionsInput, mover: RunCombatant, names: ReadonlyMap<string, string>, scene: SpellTargetingScene | null): TurnOption[] {
+  if (input.boons === undefined || input.boons.length === 0) return [];
+  const boons = input.boons.filter((b) => (b.plan.slot === "action" ? mover.action_used !== true : mover.bonus_used !== true));
+  if (boons.length === 0) return [];
+  const living = input.combatants.filter((c) => c.instance_id !== mover.instance_id && isLiving(c) && (scene === null || isOnBoard(c)));
+  return boonTargetings({
+    mover,
+    allies: living.filter((c) => isAllyOf(mover, c, input.factions ?? [])),
+    hostiles: living.filter((c) => isHostileTo(mover, c, input.factions ?? [])),
+    scene: scene === null ? null : { occluders: scene.map.occluders, onBoard: input.combatants.filter(isOnBoard) },
+    boons,
+  }).map((t) => boonOption(mover, names, t));
 }

@@ -17,6 +17,7 @@ import { abilityMod } from "../../abilityScore.ts";
 import { castableBy, slotLimitAt, type Castable } from "./castLimit.ts";
 import { pickSpellRecord, type SpellRecord } from "./spellChoice.ts";
 import { kindLimitOf } from "./creatureKind.ts";
+import { boonEntryFor, isBoonSpell, type BoonPlan } from "./boonEntry.ts";
 import { healEntryFor, isHealingSpell, type HealPlan } from "./healEntry.ts";
 import { spellEntryFor } from "./spellEntry.ts";
 
@@ -162,6 +163,34 @@ export function healableNow(statBlock: MonsterStatBlock, combatant: RunCombatant
     if (slot === null) continue;
     const plan = healEntryFor(chosen.record, slot.castLevel, { modifier: spellcastingModifierOf(statBlock, listed.ability) });
     if (!plan.healable) continue;
+    out.push({ spell: chosen.record.name, record: chosen.record, castLevel: slot.castLevel, useKey: slot.useKey, limit: slot.limit, plan, range: chosen.record.range });
+  }
+  return out;
+}
+
+/** A boon spell the creature could cast on its turn right now (#1021): what each target gains and what it spends. */
+export interface BoonNow {
+  spell: string;
+  record: SpellRecord;
+  castLevel: number;
+  useKey: string | null;
+  limit: ActionLimit | null;
+  plan: BoonPlan;
+  range: string;
+}
+
+/** Every listed boon spell (Bless, Shield of Faith) the creature can cast now with a record the rules can read and a use left, as `healableNow` does for heals. */
+export function boonableNow(statBlock: MonsterStatBlock, combatant: RunCombatant, records: readonly SpellRecord[], ruleset: RulesetKey): BoonNow[] {
+  const out: BoonNow[] = [];
+  for (const name of listedSpellNames(statBlock)) {
+    const listed = castableBy(statBlock, name);
+    if (listed === null) continue;
+    const chosen = pickSpellRecord(name, records, ruleset);
+    if (chosen === null || !chosen.automatable || !isBoonSpell(chosen.record)) continue;
+    const slot = castingSlot(statBlock, combatant, listed, chosen.record);
+    if (slot === null) continue;
+    const plan = boonEntryFor(chosen.record, slot.castLevel);
+    if (!plan.boonable) continue;
     out.push({ spell: chosen.record.name, record: chosen.record, castLevel: slot.castLevel, useKey: slot.useKey, limit: slot.limit, plan, range: chosen.record.range });
   }
   return out;

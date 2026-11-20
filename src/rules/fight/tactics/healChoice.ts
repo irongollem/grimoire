@@ -28,6 +28,8 @@ function castsALeveledSpell(o: TurnOption): boolean {
   // A cast Action Surge carries on is a leveled cast when either of its two actions is (`surgeCast.ts`).
   if (o.kind === "spell") return o.spell !== undefined && o.spell !== null && (o.spell.castLevel > 0 || (o.spell.surge !== undefined && castsALeveledSpell(o.spell.surge.second)));
   if (o.kind === "heal") return o.heal !== undefined && o.heal !== null && o.heal.castLevel > 0;
+  // A boon is a spell like a heal: Bless is a leveled cast, so it is no company for a Bonus Action spell (`boonChoice.ts`).
+  if (o.kind === "boon") return o.boon !== undefined && o.boon !== null && o.boon.castLevel > 0;
   return false;
 }
 

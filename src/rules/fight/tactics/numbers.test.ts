@@ -255,6 +255,15 @@ describe("spell options (#1021)", () => {
     return withNumbers([opt], ctx)[0].spell;
   };
 
+  // Fireball DC 14 against +0 fails 0.65 (13 of 20 faces fail). Bless adds 2.5 to the save: 2.5 faces of 20 = 0.125 fewer fail, so 0.525.
+  // Bug caught: a save boon is not read, or the unknown-bonus 0.5 is shifted by it.
+  it("a Blessed target fails its save less often (0.65 to 0.525), and an unknown save bonus stays 0.5 with Bless", () => {
+    const blessed: AppliedCondition = { name: "Bless", grants: { attack: "1d4", save: "1d4" } };
+    const opt = spellOption("Fireball", 3, "save", ["fresco"]);
+    expect(run(opt, { targets: { fresco: { conditions: [blessed] } } })?.hitChance).toBeCloseTo(0.525, 10);
+    expect(run(opt, { targets: { fresco: { conditions: [blessed] } }, bonus: null })?.hitChance).toBe(UNKNOWN_SAVE_FAIL_CHANCE);
+  });
+
   // SRD 5.1 "Fireball": 8d6 averages 28; DC 14 against a +0 save fails on 13 of 20 faces: 0.65*28 + 0.35*14 = 23.1 per target.
   // Bug caught: the failure chance is the attack-roll one (a 20 always saving or a 1 always failing), or half damage is dropped.
   it("weighs a save spell by the chance each target fails: 3 targets of 0.65*28 + 0.35*14 = 23.1 make 69.3", () => {
@@ -456,5 +465,42 @@ describe("Sneak Attack weighed by the tactics (#1021)", () => {
   it("credits a Multiattack with one Sneak Attack, not one per swing", () => {
     const two = weigh("Extra Attack (Dagger)", { buddy: {}, steps: [{ action: "Dagger", count: 2 }], dice: sneakDiceOf });
     expect(two).toBeCloseTo(2 * DAGGER_PLAIN + SNEAK_DICE + 0.45 * SNEAK_DICE, 10);
+  });
+});
+
+describe("boons in the estimates (#1021)", () => {
+  const shield: AppliedCondition = { name: "Shield of Faith", grants: { ac: 2 } };
+  const bless: AppliedCondition = { name: "Bless", grants: { attack: "1d4", save: "1d4" } };
+  const bane: AppliedCondition = { name: "Bane", grants: { attack: "-1d4" } };
+  const CLUB6: UsableAttack = attackEntry("Greatclub", { bonus: 3 });
+
+  it("fails if the target's Shield of Faith is not read: +3 vs AC 15 needs a 12, 9/20 = 0.45; vs AC 17 needs 14, 7/20 = 0.35", () => {
+    expect(numbersOf(option(), { attacks: [CLUB6] }).hit).toBeCloseTo(0.45, 10);
+    expect(numbersOf(option(), { attacks: [CLUB6], target: { conditions: [shield] } }).hit).toBeCloseTo(0.35, 10);
+  });
+
+  it("fails if the attacker's boon is read off the target instead: a Blessed target does not hit harder against itself, and a Blessed attacker does", () => {
+    // Bless mean 2.5: +3 becomes +5.5. +5 vs AC 15 needs 10: 11/20 = 0.55; +6 needs 9: 12/20 = 0.60; halfway = 0.575.
+    expect(numbersOf(option(), { attacks: [CLUB6], target: { conditions: [bless] } }).hit).toBeCloseTo(0.45, 10);
+    expect(numbersOf(option(), { attacks: [CLUB6], mover: { conditions: [bless] } }).hit).toBeCloseTo(0.575, 10);
+  });
+
+  it("fails if a taking-away boon is ignored: Bane (-2.5) turns +3 into +0.5; +0 needs 15: 6/20 = 0.30, +1 needs 14: 7/20 = 0.35, halfway 0.325", () => {
+    expect(numbersOf(option(), { attacks: [CLUB6], mover: { conditions: [bane] } }).hit).toBeCloseTo(0.325, 10);
+  });
+
+  it("fails if a fractional bonus is rounded or the natural limits are lost: whole bonuses are unchanged, +25.5 vs AC 5 is still 19/20, -9.5 vs AC 30 still 1/20", () => {
+    expect(chanceToHit(6, 15, "normal")).toBeCloseTo(0.6, 10);
+    expect(chanceToHit(25.5, 5, "normal")).toBeCloseTo(0.95, 10);
+    expect(chanceToHit(-9.5, 30, "normal")).toBeCloseTo(0.05, 10);
+    // Monotonic: +5.5 sits strictly between +5 (0.55) and +6 (0.60).
+    expect(chanceToHit(5.5, 15, "normal")).toBeCloseTo(0.575, 10);
+    // Advantage applies after: 1 - (1 - 0.575)^2 = 0.819375.
+    expect(chanceToHit(5.5, 15, "advantage")).toBeCloseTo(0.819375, 10);
+  });
+
+  it("fails if a fractional save bonus is not interpolated: DC 14 at +2 saves on 12 or more (9/20), at +3 on 11 or more (10/20); +2.5 is 9.5/20 saving, so it fails 0.525", () => {
+    expect(chanceToFail(2, 14, "normal")).toBeCloseTo(0.55, 10);
+    expect(chanceToFail(2.5, 14, "normal")).toBeCloseTo(0.525, 10);
   });
 });

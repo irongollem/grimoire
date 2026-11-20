@@ -170,6 +170,8 @@ export type ResolvedAction =
     /** What the spell ends that the app has no condition for ("diseases"): the table's to rule. */
     leftToTable?: string[];
   }
+  /** A boon spell the rules gave (#1021): each target now holds a condition named for the spell, carrying its grants. */
+  | { kind: "boon"; casterId: string; spell: string; castLevel: number; targetIds: string[] }
   | { kind: "concentration"; instanceId: string; dc: number; natural: number; total: number; maintained: boolean }
   | { kind: "condition_save"; instanceId: string; name: string; dc: number; total: number | null; success: boolean }
   /** A creature spent its Action on an ability check to get free of a condition a spell holds it in (Black Tentacles). */

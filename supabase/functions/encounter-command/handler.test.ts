@@ -38,7 +38,7 @@ import {
   type PostedRoll,
   type StatBlockSources,
 } from "./handler";
-import { blackTentacles, charmMonster, clericBlock, cureWounds, fear, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithFear, mageWithHold, mageWithTentacles, healingWord, massHealingWord, heal, massHeal, powerWordHeal } from "../../../src/rules/fight/spells/spellTestKit";
+import { blackTentacles, charmMonster, clericBlock, cureWounds, fear, fireBolt, fireball, holdPerson, holdPersonEffect, mageBlock, mageWithCharm, mageWithFear, mageWithHold, mageWithTentacles, healingWord, massHealingWord, heal, massHeal, powerWordHeal, bless, shieldOfFaith } from "../../../src/rules/fight/spells/spellTestKit";
 import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice";
 import { ownRecord } from "../_shared/fightSpells";
 import type { AppliedCondition } from "../../../src/types/condition.types";
@@ -3489,6 +3489,133 @@ describe("healing spells in a fight", () => {
     expect(hpOf(stored(h), "pip")).toBe(5);
     expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "cast", spell: "Cure Wounds" } });
     expect(by(stored(h), "cleric").action_uses).toEqual({ "slots/1": { used: 1, per_day: 4 } });
+  });
+
+  describe("boon spells (Bless, Shield of Faith)", () => {
+    const BOONS = WITH_HEALS("* 1st level (4 slots): bless, shield of faith\n* 2nd level (2 slots): aid");
+    const friends = () => [pipHurt(20), pc("brug", { faction_id: "m", hp: 20, max_hp: 20, initiative: 3, position: { x: 2, y: 2 } }), pc("tam", { faction_id: "m", hp: 20, max_hp: 20, initiative: 3, position: { x: 3, y: 1 } }), pc("gar", { faction_id: "m", hp: 20, max_hp: 20, initiative: 3, position: { x: 3, y: 2 } })];
+    const castBoon = (over: Record<string, unknown> = {}) => castHeal({ spell: "bless", targetIds: ["pip", "brug", "tam"], ...over });
+    const boonHarness = (fight = fightOf(friends())) => harness(fight, { sources: BOONS, map: mapOf(), spells: [bless(), shieldOfFaith()], dieFaces: [] });
+    const heldBless = (id: string) => by(stored(boonHarnessResult), id).conditions.find((c) => c.name === "Bless");
+    let boonHarnessResult: ReturnType<typeof boonHarness>;
+
+    // PHB 2014 "Bless": up to three creatures, a d4 on attack rolls and saves, Concentration up to a minute (10 rounds). A cast is a 1st-level slot and the Action;
+    // the boon rolls nothing. Bug caught: Bless "left to the table" (no condition on anyone), or sourced without concentration so it outlives the caster's focus.
+    it("fails if Bless does not put a concentration-sourced 1d4 boon for 10 rounds on three friends and spend a slot and the Action", async () => {
+      boonHarnessResult = boonHarness();
+      const result = await runBatch(batch("b", castBoon()), boonHarnessResult.deps);
+      for (const id of ["pip", "brug", "tam"]) {
+        expect(heldBless(id)).toMatchObject({ name: "Bless", grants: { attack: "1d4", save: "1d4" }, source: { id: "cleric", spell: "Bless", concentration: true }, ends: { kind: "rounds", remaining: 10 } });
+      }
+      expect(by(stored(boonHarnessResult), "gar").conditions).toEqual([]);
+      expect(by(stored(boonHarnessResult), "cleric")).toMatchObject({ action_used: true, action_uses: { "slots/1": { used: 1, per_day: 4 } } });
+      expect(by(stored(boonHarnessResult), "cleric").bonus_used).not.toBe(true);
+      expect(boonHarnessResult.dieCalls).toBe(0);
+      expect(result.effects.find((e) => e.type === "resolved")).toMatchObject({ resolved: { kind: "boon", casterId: "cleric", spell: "Bless", castLevel: 1, targetIds: ["pip", "brug", "tam"] } });
+    });
+
+    // PHB "Bless": three creatures at 1st level, "one additional creature for each slot level above 1st". Bug caught: no cap (a free fourth blessing), or a cap
+    // that ignores the upcast; a refused cast must spend nothing.
+    it("fails if a fourth creature is blessed with a 1st-level slot, refused casts spend, or a 2nd-level slot does not reach four", async () => {
+      const four = ["pip", "brug", "tam", "gar"];
+      const low = boonHarness();
+      await expect(runBatch(batch("b", castBoon({ targetIds: four })), low.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/up to 3/) });
+      expect(by(stored(low), "cleric").action_uses).toBeUndefined();
+      expect(by(stored(low), "cleric").action_used).not.toBe(true);
+      const high = boonHarness();
+      await runBatch(batch("b", castBoon({ targetIds: four, castLevel: 2 })), high.deps);
+      expect(four.every((id) => by(stored(high), id).conditions.some((c) => c.name === "Bless"))).toBe(true);
+      expect(by(stored(high), "cleric").action_uses).toEqual({ "slots/2": { used: 1, per_day: 2 } });
+    });
+
+    // A boon with no one to receive it is a wasted slot. Bug caught: a cast with no targets spends the slot.
+    it("fails if Bless is cast at nobody", async () => {
+      const h = boonHarness();
+      await expect(runBatch(batch("b", castBoon({ targetIds: [] })), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/at least one target/) });
+      expect(by(stored(h), "cleric").action_uses).toBeUndefined();
+    });
+
+    // PHB 2014 ch. 9 "Death Saving Throws": the dead are past help. Bug caught: a boon laid on a corpse.
+    it("fails if Bless is cast on a dead creature", async () => {
+      const h = boonHarness(fightOf([pipDown({ death_saves: DEAD })]));
+      await expect(runBatch(batch("b", castBoon({ targetIds: ["pip"] })), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/dead/) });
+      expect(by(stored(h), "cleric").action_uses).toBeUndefined();
+    });
+
+    // PHB 2014 "Shield of Faith": a Bonus Action, +2 AC for one creature, Concentration up to 10 minutes (100 rounds). Bug caught: it takes the Action, or is cast with the Bonus Action spent.
+    it("fails if Shield of Faith uses the Action instead of the Bonus Action, or can be cast with the Bonus Action spent", async () => {
+      boonHarnessResult = boonHarness();
+      await runBatch(batch("b", castHeal({ spell: "shield of faith", targetIds: ["pip"] })), boonHarnessResult.deps);
+      expect(by(stored(boonHarnessResult), "cleric")).toMatchObject({ bonus_used: true });
+      expect(by(stored(boonHarnessResult), "cleric").action_used).not.toBe(true);
+      expect(by(stored(boonHarnessResult), "pip").conditions.find((c) => c.name === "Shield of Faith")).toMatchObject({ grants: { ac: 2 }, source: { concentration: true }, ends: { kind: "rounds", remaining: 100 } });
+      const spent = boonHarness(fightOf(friends(), { bonus_used: true }));
+      await expect(runBatch(batch("b", castHeal({ spell: "shield of faith", targetIds: ["pip"] })), spent.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/Bonus Action/) });
+      expect(by(stored(spent), "cleric").action_uses).toBeUndefined();
+    });
+
+    // PHB 2014 ch. 10 "Concentration": casting another concentration spell ends the first, and a boon it gave ends with it, on every target.
+    // Bug caught: a boon not sourced on the caster's concentration, which stays on its targets after the caster has moved on.
+    it("fails if Bless stays on its targets after the caster concentrates on another spell", async () => {
+      boonHarnessResult = boonHarness();
+      await runBatch(batch("b", castBoon()), boonHarnessResult.deps);
+      await runBatch(batch("c", castHeal({ spell: "shield of faith", targetIds: ["gar"] })), boonHarnessResult.deps);
+      for (const id of ["pip", "brug", "tam"]) expect(heldBless(id)).toBeUndefined();
+      expect(by(stored(boonHarnessResult), "gar").conditions.some((c) => c.name === "Shield of Faith")).toBe(true);
+    });
+
+    // The tactics cast a boon (#1021, `boonChoice.ts`). A cleric with a mace (the stat block's Bite stands in), Shield of Faith and a friend beside the foe, round 1.
+    const MACE = (lines: string): StatBlockSources => ({
+      monsters: [{ id: "m-cleric", name: "Cleric", stat_block: clericBlock({ actions: [bite], special_abilities: [spellsLine(lines)] }) } as unknown as Monster, monster("m-ox")],
+      npcs: [], companions: [],
+    });
+    /** Cleric at (1,1); the ox at (3,1) with Pip at (4,1) beside it, and Brug far off at (1,5). */
+    const meleeFight = () => fightOf(
+      [pc("pip", { faction_id: "m", hp: 20, max_hp: 20, initiative: 3, position: { x: 4, y: 1 } }), pc("brug", { faction_id: "m", hp: 20, max_hp: 20, initiative: 3, position: { x: 1, y: 5 } })],
+      {}, { position: { x: 3, y: 1 } },
+    );
+
+    // APP CONVENTION "cast early" + PHB 2014 ch. 10 "Bonus Action" spells: the cleric swings its mace (the Action) and casts Shield of Faith as its Bonus Action,
+    // first, on the friend beside the foe (the most foes within 5 feet), not on Brug. A cantrip-free attack turn carries a Bonus Action spell.
+    // Bug caught: a cleric that attacks and never shields anyone, or shields the friend nobody is hitting.
+    it("fails if a cleric with a mace in round 1 does not attack and cast Shield of Faith on the friend beside the foe", async () => {
+      const h = harness(meleeFight(), { sources: MACE("* 1st level (4 slots): shield of faith"), map: mapOf(), spells: [shieldOfFaith()], dieFaces: [15, 3] });
+      const result = await runBatch(batch("b", clericTurn()), h.deps);
+      expect(result.effects[0]).toMatchObject({ turn: { kind: "attack", picked: "rules" } });
+      expect(by(stored(h), "pip").conditions.find((c) => c.name === "Shield of Faith")).toMatchObject({ grants: { ac: 2 }, source: { id: "cleric", concentration: true } });
+      expect(by(stored(h), "brug").conditions).toEqual([]);
+      expect(by(stored(h), "cleric")).toMatchObject({ bonus_used: true, action_used: true, action_uses: { "slots/1": { used: 1, per_day: 4 } } });
+      expect(by(stored(h), "ox").hp).toBeLessThan(40);
+    });
+
+    // PHB 2014 ch. 10 "Bonus Action" spells: Bless is a leveled spell cast as the turn, so the Bonus Action spell Shield of Faith is not cast beside it.
+    // Bug caught: two leveled spells in one turn.
+    it("fails if a cleric whose turn is Bless also casts Shield of Faith that turn", async () => {
+      const h = harness(meleeFight(), { sources: MACE("* 1st level (4 slots): bless, shield of faith"), map: mapOf(), spells: [bless(), shieldOfFaith()], dieFaces: [] });
+      const result = await runBatch(batch("b", clericTurn()), h.deps);
+      expect(result.effects[0]).toMatchObject({ turn: { kind: "boon", optionId: "boon:Bless:1" } });
+      const cleric = by(stored(h), "cleric");
+      expect(cleric.action_uses).toEqual({ "slots/1": { used: 1, per_day: 4 } });
+      expect(cleric.bonus_used).not.toBe(true);
+      expect(by(stored(h), "pip").conditions.map((c) => c.name)).toEqual(["Bless"]);
+      expect(by(stored(h), "cleric").conditions.map((c) => c.name)).toContain("Bless");
+    });
+
+    // APP CONVENTION "cast early": in round 3 the fight is no longer young, so the cleric only attacks. Bug caught: a Bonus Action boon cast at any round.
+    it("fails if Shield of Faith is cast in round 3", async () => {
+      const h = harness({ ...meleeFight(), current_round: 3 }, { sources: MACE("* 1st level (4 slots): shield of faith"), map: mapOf(), spells: [shieldOfFaith()], dieFaces: [15, 3] });
+      await runBatch(batch("b", clericTurn()), h.deps);
+      expect(by(stored(h), "pip").conditions).toEqual([]);
+      expect(by(stored(h), "cleric").bonus_used).not.toBe(true);
+    });
+
+    // A turn the caller names is exactly that turn: Shield of Faith does not ride it. Bug caught: a boon added to a turn someone chose by hand.
+    it("fails if Shield of Faith rides a turn the caller named", async () => {
+      const h = harness(meleeFight(), { sources: MACE("* 1st level (4 slots): shield of faith"), map: mapOf(), spells: [shieldOfFaith()], dieFaces: [15, 3] });
+      await runBatch(batch("b", clericTurn({ optionId: "attack:actions:Bite:ox" })), h.deps);
+      expect(by(stored(h), "pip").conditions).toEqual([]);
+      expect(by(stored(h), "cleric").bonus_used).not.toBe(true);
+    });
   });
 });
 

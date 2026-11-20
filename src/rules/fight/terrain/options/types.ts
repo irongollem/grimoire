@@ -9,7 +9,7 @@ import type { RulesetKey } from "../../../../types/ruleset.types.ts";
 import type { MultiattackStep, SaveAbility, StatBlockEntry } from "../../../../types/statBlock.types.ts";
 import type { StatBlockListKey } from "../../../statBlock/parseAction.ts";
 import type { FactionSides } from "../../sides.ts";
-import type { CastNow, HealNow } from "../../spells/castNow.ts";
+import type { BoonNow, CastNow, HealNow } from "../../spells/castNow.ts";
 import type { WayOut } from "../../tactics/wayOut.ts";
 import type { FightMap } from "../battleMap.ts";
 import type { Cover, ProvokedAttack } from "../sight.ts";
@@ -30,7 +30,7 @@ export const MAX_SPELL_OPTIONS = 12;
  * #1203) puts surrender in place of the whole list when a creature that yields has broken, and puts escape (a way out
  * such as Etherealness) first when a broken creature has one.
  */
-export type TurnOptionKind = "attack" | "spell" | "heal" | "break_free" | "dash" | "move" | "disengage" | "dodge" | "hide" | "flee" | "surrender" | "escape";
+export type TurnOptionKind = "attack" | "spell" | "heal" | "boon" | "break_free" | "dash" | "move" | "disengage" | "dodge" | "hide" | "flee" | "surrender" | "escape";
 
 /** What an attack option does, with the facts of the square it is made from. Null facts mean there is no map to measure on. */
 export interface TurnOptionAttack {
@@ -111,6 +111,25 @@ export interface TurnOptionHeal {
   distanceFeet: number | null;
 }
 
+/** What a boon option casts, at whom, and what it costs (#1021): Bless, Shield of Faith. */
+export interface TurnOptionBoon {
+  /** As the stat block prints it: what `cast_spell` names the spell by, and the name of the condition each target then holds. */
+  name: string;
+  castLevel: number;
+  /** The Action, or the Bonus Action (Shield of Faith): a Bonus Action boon is no turn of its own, it rides the turn the picker chose (`boonChoice.ts`). */
+  slot: "action" | "bonus_action";
+  /** The creatures it reaches, in the order they are chosen (`boonTargeting.ts`), at most `targetCount`. */
+  targetIds: string[];
+  /** A cast that spends a slot or a use (a cantrip and an at-will spell do not). */
+  spends: boolean;
+  /** Feet from the caster to the nearest target; null when nothing was measured or the only target is the caster. */
+  distanceFeet: number | null;
+  /** How many creatures one cast at this level can reach (Bless at 1st level: 3): a cast that reaches fewer is a poorer use of the spell. */
+  targetCount: number;
+  /** The boon is held by concentrating: casting it ends any concentration the caster holds. */
+  concentration: boolean;
+}
+
 export interface TurnOptionExposure {
   enemyId: string;
   /** The cover THE MOVER has against this enemy at the destination; "total" means the enemy has no line at all. */
@@ -133,6 +152,8 @@ export interface TurnOption {
   spell?: TurnOptionSpell | null;
   /** Only a `heal` option sets this (#1021); absent on every other kind. */
   heal?: TurnOptionHeal | null;
+  /** Only a `boon` option sets this (#1021); absent on every other kind. */
+  boon?: TurnOptionBoon | null;
   /** Dash and move: feet left to the target from the destination. */
   distanceFeet: number | null;
   /** The opportunity attacks the path provokes (empty for Disengage, and when there is no movement). */
@@ -178,6 +199,8 @@ export interface TurnOptionsInput {
   spells?: readonly CastNow[];
   /** The healing spells the mover can cast now (`healableNow`); left out for a creature that heals nobody. */
   heals?: readonly HealNow[];
+  /** The boon spells the mover can cast now (`boonableNow`); left out for a creature that blesses nobody. */
+  boons?: readonly BoonNow[];
   /** The creature kind of a combatant (`creatureKindOf`); a spell limited to a kind is offered only when it is given. */
   kindOf?: (c: RunCombatant) => string | null;
   /** The ability the mover would check with to break free of a condition (`strongestBreakFreeAbility`); left out, the first the condition allows. */

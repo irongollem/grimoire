@@ -36,6 +36,14 @@ describe("describeResolvedAction: break free", () => {
     expect(describeResolvedAction(tried(false), nameOf)).toContain("and stays held.");
   });
 
+  // Bug caught: a boon's line naming only the first target, or joining three names with bare commas.
+  it("fails if a boon's line leaves out a target or joins the names badly", () => {
+    const boon = (targetIds: string[]): ResolvedAction => ({ kind: "boon", casterId: "ogre", spell: "Bless", castLevel: 1, targetIds });
+    expect(describeResolvedAction(boon(["fresco"]), nameOf)).toBe("Ogre casts Bless on Fresco.");
+    expect(describeResolvedAction(boon(["fresco", "ogre"]), nameOf)).toBe("Ogre casts Bless on Fresco and Ogre.");
+    expect(describeResolvedAction(boon(["fresco", "ogre", "fresco"]), nameOf)).toBe("Ogre casts Bless on Fresco, Ogre and Fresco.");
+  });
+
   // Heal ends conditions and leaves "diseases" to the table; Mass Heal shares a pool. Bug caught: a line that says only hit points, so the table never learns a
   // condition came off or that the diseases are theirs to rule.
   it("fails if a heal's line leaves out the conditions it ended, the diseases left to the table, or that the amount is a pool", () => {

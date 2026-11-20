@@ -44,6 +44,7 @@ import { pickSpellRecord, type SpellRecord } from "../../../src/rules/fight/spel
 import { creatureKindOf, kindAllowed, kindLimitOf, kindPhrase } from "../../../src/rules/fight/spells/creatureKind.ts";
 import { spellEntryFor } from "../../../src/rules/fight/spells/spellEntry.ts";
 import { CONDITIONS } from "../../../src/rules/conditions.ts";
+import { boonEntryFor, isBoonSpell, type BoonPlan } from "../../../src/rules/fight/spells/boonEntry.ts";
 import { castSlotOf, healEntryFor, isHealingSpell, type HealPlan } from "../../../src/rules/fight/spells/healEntry.ts";
 import { spellcastingModifierOf } from "../../../src/rules/fight/spells/castNow.ts";
 import { takesTurnsInFight } from "../../../src/rules/fight/standing.ts";
@@ -732,16 +733,29 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     // A healing spell restores hit points instead of dealing damage (`healEntryFor`): one roll, shared by every target.
     const healing = isHealingSpell(record);
     const plan = healing ? healEntryFor(record, castLevel, { modifier: spellcastingModifierOf(block as MonsterStatBlock, listed.ability) }) : null;
-    // PHB 2014 and 2024 "Healing Word": a Bonus Action, so the Bonus Action is what a cast of it uses.
-    const bonusCast = healing && castSlotOf(record) === "bonus_action";
+    // A boon spell (Bless, Shield of Faith) puts a condition carrying its grants on its targets (`boonEntryFor`).
+    const boon = !healing && isBoonSpell(record);
+    const boonPlan = boon ? boonEntryFor(record, castLevel) : null;
+    const boonable = boon && automatable && boonPlan !== null && boonPlan.boonable;
+    // PHB 2014 and 2024 "Healing Word" and "Shield of Faith": a Bonus Action, so the Bonus Action is what a cast of it uses.
+    const bonusCast = (healing && castSlotOf(record) === "bonus_action") || (boonable && (boonPlan as BoonPlan).slot === "bonus_action");
     if (bonusCast && caster.bonus_used === true) refuse(`${caster.name} has already used its Bonus Action this turn, so it cannot cast ${record.name}.`);
     // PHB 2014 ch. 9 "Death Saving Throws": healing never brings back the dead.
     if (healing) {
       const dead = targets.find((t) => t.hp <= 0 && !takesTurnsInFight(t));
       if (dead !== undefined) refuse(`${dead.name} is dead, and ${record.name} does not bring back the dead.`);
     }
-    const entry = healing
-      ? { automatable: false as const, why: plan !== null && !plan.healable ? plan.why : "" }
+    if (boonable) {
+      const reach = (boonPlan as BoonPlan).targetCount;
+      if (targets.length === 0) refuse(`Name at least one target for ${record.name}.`);
+      // PHB 2014 and 2024 "Bless": up to three creatures, one more for each slot level above 1st; the plan holds the count at this level.
+      if (targets.length > reach) refuse(`${record.name} reaches up to ${reach} ${reach === 1 ? "creature" : "creatures"} at level ${castLevel}, and ${targets.length} were named.`);
+      // PHB 2014 ch. 9 "Death Saving Throws": the dead are past a blessing too.
+      const dead = targets.find((t) => t.hp <= 0 && !takesTurnsInFight(t));
+      if (dead !== undefined) refuse(`${dead.name} is dead, and ${record.name} does not reach the dead.`);
+    }
+    const entry = healing || boon
+      ? { automatable: false as const, why: healing ? (plan !== null && !plan.healable ? plan.why : "") : boonPlan !== null && !boonPlan.boonable ? boonPlan.why : "" }
       : spellEntryFor(record, castLevel, { saveDc: listed.saveDc, attackBonus: listed.attackBonus, casterLevel: listed.casterLevel }, { kindsChecked: kindLimit !== null && kindWhy === null });
     const healed = healing && automatable && plan !== null && plan.healable && kindWhy === null;
     const rolled = healed || (automatable && entry.automatable && kindWhy === null);
@@ -767,6 +781,24 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     // A spell cast is a spell seen (#1021), whether or not its outcome is rolled here.
     step({ type: "show_deed", instanceId: caster.instance_id, deed: { cast: 1 } });
 
+    if (boonable && kindWhy === null) {
+      const given = boonPlan as BoonPlan;
+      for (const target of targets) {
+        // One record per name: a second Bless on the same creature replaces the first. A concentration boon is sourced on the caster, so ending the concentration takes it off.
+        ctx.apply({
+          type: "apply_condition",
+          instanceId: target.instance_id,
+          condition: {
+            name: record.name,
+            grants: given.grants,
+            source: { id: caster.instance_id, spell: record.name, ...(given.concentration ? { concentration: true as const } : {}) },
+            ends: { kind: "rounds", remaining: given.rounds },
+          },
+        });
+      }
+      collected.push({ type: "resolved", resolved: { kind: "boon", casterId: caster.instance_id, spell: record.name, castLevel, targetIds: targets.map((t) => t.instance_id) } });
+      return;
+    }
     if (healed) {
       await resolveHeal(caster, targets, record, castLevel, plan as HealPlan);
       return;

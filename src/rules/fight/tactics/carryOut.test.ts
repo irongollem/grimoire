@@ -148,4 +148,11 @@ describe("stepsFor: break free (#1021)", () => {
     const steps = stepsFor(option("break_free", { id: "break_free:Restrained", breakFree: { name: "Restrained", ability: "dex" } }), []);
     expect(steps).toEqual([{ type: "break_free", name: "Restrained", ability: "dex" }]);
   });
+
+  // A boon is one cast command, like a heal, but carries no `heal` flag: a target at 0 hit points is no one a blessing reaches.
+  // Bug caught: the cast step flagged as a heal (a Bless on a creature lying at 0), or a `use` step on top of `cast_spell`, which marks the Action itself.
+  it("fails if a boon is not a plain cast step with no heal flag and no use step", () => {
+    const steps = stepsFor(option("boon", { targetId: "pip", boon: { name: "Bless", castLevel: 1, slot: "action", targetIds: ["pip", "brug"], spends: true, distanceFeet: 5, targetCount: 3, concentration: true } }), []);
+    expect(steps).toEqual([{ type: "cast", spell: "Bless", castLevel: 1, targetIds: ["pip", "brug"] }]);
+  });
 });

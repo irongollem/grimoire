@@ -36,6 +36,7 @@ import { saveBonusFromBlock } from "../../../src/rules/fight/resolution/saves.ts
 import { playerSaveBonus } from "../../../src/rules/fight/playerSheet.ts";
 import { listedSpellNames } from "../../../src/rules/fight/spells/castNow.ts";
 import { takesTurnsInFight } from "../../../src/rules/fight/standing.ts";
+import { boonRidesTurn, chooseBonusBoon } from "../../../src/rules/fight/tactics/boonChoice.ts";
 import { chooseBonusHeal, isLeveledCast, withoutLeveledCasts } from "../../../src/rules/fight/tactics/healChoice.ts";
 import { surgeCasts as surgeCastsOf } from "../../../src/rules/fight/tactics/surgeCast.ts";
 import { stepsFor, type TurnStep } from "../../../src/rules/fight/tactics/carryOut.ts";
@@ -237,6 +238,8 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
 
   // The Bonus Action heal this turn may carry (only when the rules pick the turn: one the caller named is exactly that turn, below).
   const bonusHeal = chooseBonusHeal(gated, state.combatants, mover);
+  // Failing that, a Bonus Action boon (Shield of Faith) may ride it: a heal first (`boonChoice.ts`).
+  const bonusBoon = bonusHeal === null ? chooseBonusBoon(gated, state.combatants, mover, state.round) : null;
   let chosen: { optionId: string; reason: string };
   let picked: "rules" | "rules_with_note" | "caller";
   let ruledOutByNote: { optionId: string; summary: string }[] | undefined;
@@ -257,7 +260,7 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
     }
     // A Bonus Action heal rides the turn (`healChoice.ts`): with someone down, the turn is chosen without a leveled cast, since only a cantrip may go with a Bonus Action spell.
     const choosable = bonusHeal !== null && bonusHeal.someoneDown ? withoutLeveledCasts(pool) : pool;
-    const pick = pickTurn(choosable, profile, { combatants: state.combatants, moverId: mover.instance_id, armorClassOf });
+    const pick = pickTurn(choosable, profile, { combatants: state.combatants, moverId: mover.instance_id, armorClassOf, round: state.round });
     if (pick === null) return refuse(`${mover.name} has no turn to take.`);
     chosen = ruledOutByNote === undefined ? pick : { ...pick, reason: noteReason(gated.filter((o) => !pool.includes(o)), pick.reason) };
     picked = ruledOutByNote === undefined ? "rules" : "rules_with_note";
@@ -278,6 +281,10 @@ export async function applyTakeTurn(fightState: FightState, command: TakeTurnCom
   if (bonusHeal !== null && healFirst) {
     bonusReason = bonusHeal.reason;
     steps = [...stepsFor(bonusHeal.option, attacks), ...steps];
+  } else if (bonusBoon !== null && picked !== "caller" && boonRidesTurn(bonusBoon.option, option)) {
+    // RULE boon-bonus-action: the boon goes first, from where the creature stands, and not beside a leveled cast.
+    bonusReason = bonusBoon.reason;
+    steps = [...stepsFor(bonusBoon.option, attacks), ...steps];
   } else if (ally && picked !== "caller") {
     const bonus = allyBonusAction(mover, option, env);
     if (bonus !== null) {

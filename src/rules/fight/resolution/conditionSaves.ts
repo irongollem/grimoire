@@ -7,6 +7,7 @@ import { resolveConcentration } from "../../combat/concentration.ts";
 import { autoFailsSave, resolveSave, saveRollMode } from "../../combat/savingThrow.ts";
 import { getExhaustionD20Penalty } from "../../conditions.ts";
 import type { ResolvedAction } from "../fightState.ts";
+import { rollBoons } from "./boonRolls.ts";
 import { ActionRefused, keptD20, rollD20, tracked, type ResolutionCommand, type ResolutionContext, type RollOptions } from "./context.ts";
 
 export interface ConcentrationCheck {
@@ -42,7 +43,9 @@ export async function rollConcentrationCheck(
   const roll = await rollD20(ctx, `${input.target.name} concentration`, bonus + penalty, mode, input.target, input);
   if (!roll) return null;
   const natural = keptD20(roll);
-  const check = resolveConcentration({ damage: input.damage, d20: natural, conSaveBonus: bonus, ruleset: ctx.ruleset, penalty });
+  // RULE bless (PHB "Bless"): a concentration check is a saving throw, so the d4 is added to it.
+  const boons = await rollBoons(ctx, input.target, "save", input);
+  const check = resolveConcentration({ damage: input.damage, d20: natural, conSaveBonus: bonus + boons.total, ruleset: ctx.ruleset, penalty });
   return { ...check, natural, roll };
 }
 
@@ -63,7 +66,8 @@ export async function rollConditionSaveFor(
   const penalty = getExhaustionD20Penalty(target.conditions, ctx.ruleset);
   const roll = await rollD20(ctx, input.label, bonus + penalty, mode, target, input);
   if (!roll) return null;
-  return resolveSave({ d20: keptD20(roll), bonus, dc: input.dc, penalty });
+  const boons = await rollBoons(ctx, target, "save", input);
+  return resolveSave({ d20: keptD20(roll), bonus: bonus + boons.total, dc: input.dc, penalty });
 }
 
 export interface ConcentrationResolved {

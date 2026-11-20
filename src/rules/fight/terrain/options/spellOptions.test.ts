@@ -1,8 +1,8 @@
 /** Rules 11 and 12: spell options and breaking free. */
 import { describe, expect, it } from "vitest";
 import type { RunCombatant } from "../../../../types/encounter.types.ts";
-import { castableNow, healableNow } from "../../spells/castNow.ts";
-import { clericBlock, cureWounds, fireball, healingWord, mageBlock } from "../../spells/spellTestKit.ts";
+import { boonableNow, castableNow, healableNow } from "../../spells/castNow.ts";
+import { bless, clericBlock, cureWounds, fireball, healingWord, mageBlock, shieldOfFaith } from "../../spells/spellTestKit.ts";
 import { creature, ogre, fresco, run, find } from "./turnOptionsTestKit.ts";
 
 // SRD 5.1 Black Tentacles: "A creature restrained by the tentacles can use its action to make a Strength or Dexterity check
@@ -126,5 +126,32 @@ describe("rule 13: heal (#1021)", () => {
   // The caster itself, hurt, with nobody else: a creature may heal itself.
   it("fails if a hurt caster alone is offered no heal for itself", () => {
     expect(healOptions([], { hp: 3 }).map((o) => o.heal?.targetIds)).toEqual([["ogre"], ["ogre"]]);
+  });
+});
+
+// Rule 14, boons (#1021): Bless and Shield of Faith as options.
+describe("rule 14: boon options", () => {
+  const factions = [{ id: "m", hostile_to: ["p"] }, { id: "p", hostile_to: ["m"] }, { id: "n", hostile_to: [] }];
+  const block = clericBlock({
+    special_abilities: [{ name: "Spellcasting", structured: { kind: "other", source: "parsed" }, description: "The cleric is a 5th-level spellcaster. Its spellcasting ability is Wisdom (spell save DC 13, +5 to hit with spell attacks). The cleric has the following cleric spells prepared:\n\n* 1st level (4 slots): bless, shield of faith" }],
+  });
+  const boonsFor = (over: Partial<RunCombatant> = {}) => boonableNow(block, ogre(0, 0, over), [bless(), shieldOfFaith()], "2014");
+  const friend = (id: string, x: number) => creature(id, id, "m", x, 0);
+  const boonOptions = (others: RunCombatant[], over: Partial<RunCombatant> = {}) =>
+    run({ combatants: [ogre(0, 0, over), ...others], attacks: [], boons: boonsFor(over), factions }).filter((o) => o.kind === "boon");
+
+  // Bug caught: a boon aimed at the foe or a Neutral bystander, or one option per friend instead of one per spell and level.
+  it("fails if a boon reaches a foe or a Neutral, or is offered once per friend", () => {
+    const options = boonOptions([friend("a", 1), friend("b", 2), creature("foe", "Foe", "p", 1, 1), creature("bystander", "Bystander", "n", 2, 1)]);
+    expect(options.map((o) => o.id)).toEqual(["boon:Bless:1", "boon:Shield of Faith:1"]);
+    for (const o of options) expect(o.boon?.targetIds).not.toEqual(expect.arrayContaining(["foe"]));
+    expect(options[0].boon).toMatchObject({ slot: "action", targetCount: 3, concentration: true });
+    expect(options[1].boon).toMatchObject({ slot: "bonus_action", targetCount: 1 });
+  });
+
+  // Bug caught: an Action boon offered with the Action spent, or a Bonus Action boon with the Bonus Action spent.
+  it("fails if a boon is offered when the slot it uses is spent", () => {
+    expect(boonOptions([friend("a", 1)], { action_used: true }).map((o) => o.boon?.name)).toEqual(["Shield of Faith"]);
+    expect(boonOptions([friend("a", 1)], { bonus_used: true }).map((o) => o.boon?.name)).toEqual(["Bless"]);
   });
 });

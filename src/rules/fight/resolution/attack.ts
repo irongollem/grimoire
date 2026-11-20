@@ -7,6 +7,8 @@ import { attackRollMode, autoCritOnHit, resolveAttack as resolveAttackRoll } fro
 import { getExhaustionD20Penalty } from "../../conditions.ts";
 import type { ResolvedAction } from "../fightState.ts";
 import { coverBonus, type Cover } from "../terrain/sight.ts";
+import { boonArmorClass } from "../boons.ts";
+import { rollBoons } from "./boonRolls.ts";
 import { ActionRefused, keptD20, rollD20, tracked, type ResolutionCommand, type ResolutionContext, type RollOptions } from "./context.ts";
 import { appliedDamage, applyDamage, rollDamageParts, type DamageAmount, type DamageApplied } from "./damage.ts";
 import { resolveSaveOn, type SaveResolved } from "./saves.ts";
@@ -85,7 +87,8 @@ export async function rollToHit(ctx: ResolutionContext, input: AttackInput): Pro
   const cover = ctx.coverFor ? ctx.coverFor(attacker, target) : null;
   if (cover === "total") throw new ActionRefused(`${target.name} has total cover from ${attacker.name}, so it cannot be targeted by "${entry.name}".`);
   const coverAc = cover === null ? 0 : coverBonus(cover).ac;
-  const targetAc = printedAc === null ? null : printedAc + coverAc;
+  // RULE shield-of-faith (PHB "Shield of Faith"): +2 AC, on top of the armour and of cover. Read live: a boon that just ended is gone.
+  const targetAc = printedAc === null ? null : printedAc + coverAc + boonArmorClass(ctx.live(target).conditions);
   const roll = await rollD20(ctx, `${entry.name} attack vs ${target.name}`, attack.bonus + penalty, mode, attacker, input);
   if (!roll) return null;
   // An attack made is an attack seen, hit or miss, and of the delivery it was made with (#1021).
@@ -94,10 +97,13 @@ export async function rollToHit(ctx: ResolutionContext, input: AttackInput): Pro
   const natural = keptD20(roll);
   const autoCrit = autoCritOnHit(target.conditions, input.withinFiveFeet);
   const fumble = natural === 1;
-  const total = natural + attack.bonus + penalty;
+  // RULE bless (PHB "Bless"): the d4 is added to the attack roll after the d20, so the natural 1 and 20 are still read on the d20 alone.
+  const boons = await rollBoons(ctx, attacker, "attack", input);
+  const bonus = attack.bonus + boons.total;
+  const total = natural + bonus + penalty;
   // The rules decide whenever there is an AC to compare against. An unreadable
   // AC leaves everything but a natural 1 or 20 to the DM.
-  const ruled = targetAc === null ? null : resolveAttackRoll({ d20: natural, bonus: attack.bonus, targetAc, penalty, autoCrit });
+  const ruled = targetAc === null ? null : resolveAttackRoll({ d20: natural, bonus, targetAc, penalty, autoCrit });
   const hit = ruled ? ruled.hit : fumble ? false : natural === 20 ? true : null;
   const critical = ruled ? ruled.critical : hit === true;
   return {

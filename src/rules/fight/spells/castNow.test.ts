@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RunCombatant } from "../../../types/encounter.types.ts";
-import { areaFeetOf, castableNow, healableNow, listedSpellNames } from "./castNow.ts";
-import { clericBlock, cureWounds, fireball, fireBolt, healingWord, mageBlock } from "./spellTestKit.ts";
+import { areaFeetOf, castableNow, boonableNow, healableNow, listedSpellNames } from "./castNow.ts";
+import { bless, clericBlock, cureWounds, fireball, fireBolt, healingWord, mageBlock, shieldOfFaith } from "./spellTestKit.ts";
 
 const mage = (over: Partial<RunCombatant> = {}): RunCombatant => ({
   instance_id: "mage", type: "monster", name: "Mage", faction_id: "m", initiative: null, hp: 40, max_hp: 40, ac: "12", conditions: [], curses: [],
@@ -107,5 +107,25 @@ describe("healableNow", () => {
   it("fails if a heal that adds the casting modifier is offered to a creature whose entry names no ability", () => {
     const block = clericBlock({ special_abilities: [{ name: "Spellcasting", description: "The cleric casts spells.\n\n* 1st level (4 slots): cure wounds", structured: { kind: "other", source: "parsed" } }] });
     expect(healableNow(block, cleric(), [cureWounds()], "2014")).toEqual([]);
+  });
+});
+
+describe("boonableNow", () => {
+  const cleric = (over: Partial<RunCombatant> = {}) => mage({ name: "Cleric", ...over });
+  const blessing = (lines: string) => clericBlock({ special_abilities: [{ name: "Spellcasting", description: `The cleric is a 5th-level spellcaster. Its spellcasting ability is Wisdom (spell save DC 13, +5 to hit with spell attacks). The cleric has the following cleric spells prepared:\n\n${lines}`, structured: { kind: "other", source: "parsed" } }] });
+
+  // PHB "Bless" is level 1, "Shield of Faith" a Bonus Action: both are offered at the slot they are listed under, with the reach of that slot.
+  // Bug caught: a boon never offered to the tactics, or offered with the wrong reach or action slot.
+  it("offers each listed boon with its reach and action slot, and nothing that is a heal", () => {
+    const now = boonableNow(blessing("* 1st level (4 slots): bless, shield of faith, cure wounds"), cleric(), [bless(), shieldOfFaith(), cureWounds()], "2014");
+    expect(names(now)).toEqual(["Bless@1", "Shield of Faith@1"]);
+    expect(now[0].plan).toMatchObject({ targetCount: 3, slot: "action", rounds: 10, concentration: true });
+    expect(now[1].plan).toMatchObject({ targetCount: 1, slot: "bonus_action", grants: { ac: 2 } });
+  });
+
+  // Bug caught: Bless offered on credit when its slots are spent.
+  it("fails if a boon is offered with every slot spent", () => {
+    expect(boonableNow(blessing("* 1st level (4 slots): bless"), cleric(used("slots/1", 4, 4)), [bless()], "2014")).toEqual([]);
+    expect(names(boonableNow(blessing("* 1st level (4 slots): bless"), cleric(used("slots/1", 3, 4)), [bless()], "2014"))).toEqual(["Bless@1"]);
   });
 });

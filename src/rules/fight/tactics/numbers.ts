@@ -43,6 +43,7 @@ import { enemyBesideTarget } from "../allies/sneak.ts";
 import type { FactionSides } from "../sides.ts";
 import { autoFailsSave, saveRollMode } from "../../combat/savingThrow.ts";
 import { getExhaustionD20Penalty } from "../../conditions.ts";
+import { boonArmorClass, boonMean } from "../boons.ts";
 import { coverBonus, DEFAULT_REACH_FEET } from "../terrain/sight.ts";
 import { ASSUMED_ROUNDS, conditionWorth, expectedRounds, type StopsCasting } from "./conditionWorth.ts";
 import { shownDefenseMultiplier } from "./shownDefenses.ts";
@@ -79,8 +80,7 @@ export const UNKNOWN_SAVE_FAIL_CHANCE = 0.5;
  * faces 14 to 20 are 7 of 20 saving, so it fails 65% of the time.
  */
 export function chanceToFail(bonus: number, dc: number, mode: RollMode): number {
-  const saving = Math.min(20, Math.max(0, 21 - (dc - bonus))) / 20;
-  return 1 - withMode(saving, mode);
+  return 1 - withMode(interpolated(bonus, (b) => Math.min(20, Math.max(0, 21 - (dc - b))) / 20), mode);
 }
 
 /**
@@ -88,9 +88,25 @@ export function chanceToFail(bonus: number, dc: number, mode: RollMode): number 
  * (PHB 2014 ch. 9 "Rolling 1 or 20"). Need 9 on the die: faces 9 to 19 are 11, plus the 20 is 12 of 20.
  */
 export function chanceToHit(bonus: number, ac: number, mode: RollMode): number {
-  const need = ac - bonus;
-  const faces = Math.max(0, 20 - Math.max(need, 2)) + 1;
-  return withMode(faces / 20, mode);
+  return withMode(
+    interpolated(bonus, (b) => (Math.max(0, 20 - Math.max(ac - b, 2)) + 1) / 20),
+    mode,
+  );
+}
+
+/**
+ * APP CONVENTION: a boon's mean (Bless adds 2.5) makes the bonus fractional. The face count is only defined for whole
+ * bonuses, so a fractional one reads linearly between the whole bonuses either side. Chosen over the exact mean over the
+ * boon's faces because it needs no knowledge of the dice and is exact whenever the count of faces is linear in the bonus
+ * (everywhere but at the natural 1 and 20 limits, where it stays monotonic and never leaves them). It equals the whole-bonus
+ * result for a whole bonus, and the natural 20 and natural 1 limits live inside `faceChance`, so they still hold. The
+ * interpolation is on the single-die chance, before advantage or disadvantage is applied.
+ */
+function interpolated(bonus: number, faceChance: (whole: number) => number): number {
+  const low = Math.floor(bonus);
+  if (low === bonus) return faceChance(bonus);
+  const share = bonus - low;
+  return faceChance(low) * (1 - share) + faceChance(low + 1) * share;
 }
 
 /** The chance a natural 20 shows on the kept die. */
@@ -151,8 +167,9 @@ function oneAttack(attack: AttackStructure, facts: TurnOptionAttack, mover: RunC
   if (facts.cover === "total") return { hit: 0, damage: 0 };
   const mode = modeOf(attack, facts, mover, target, ruleset);
   // Cover adds to the target's AC (PHB 2014 ch. 9 "Cover"); the 2024 exhaustion penalty lowers the roll.
-  const bonus = attack.bonus + getExhaustionD20Penalty(mover.conditions, ruleset);
-  const hit = chanceToHit(bonus, ac + coverBonus(facts.cover === null ? "none" : facts.cover).ac, mode);
+  // A boon (Bless) adds its mean to the roll; the target's boon (Shield of Faith) adds to its AC. Both weapon and spell attacks come through here.
+  const bonus = attack.bonus + getExhaustionD20Penalty(mover.conditions, ruleset) + boonMean(mover.conditions, "attack");
+  const hit = chanceToHit(bonus, ac + boonArmorClass(target.conditions) + coverBonus(facts.cover === null ? "none" : facts.cover).ac, mode);
   const avg = averageOf(attack.hit, target, properties);
   // A critical hit rolls the dice twice: the extra roll is the dice alone, on a natural 20 (ch. 9 "Critical Hits").
   const damage = avg === null ? null : hit * avg.all + chanceOfNatural20(mode) * avg.diceOnly;
@@ -209,7 +226,8 @@ function failChanceOf(target: RunCombatant, ability: SaveAbility, dc: number, ct
   if (autoFailsSave(target.conditions, ability)) return 1;
   const bonus = ctx.saveBonusOf === undefined ? null : ctx.saveBonusOf(target, ability);
   if (bonus === null) return UNKNOWN_SAVE_FAIL_CHANCE;
-  return chanceToFail(bonus, dc, saveRollMode({ conditions: target.conditions, ability, ruleset: ctx.ruleset }).mode);
+  // Only a known bonus can take a boon's mean (Bless): an unknown one stays a coin flip above.
+  return chanceToFail(bonus + boonMean(target.conditions, "save"), dc, saveRollMode({ conditions: target.conditions, ability, ruleset: ctx.ruleset }).mode);
 }
 
 /** A spell option's numbers, or null when a target's armor class or the damage cannot be read (the option stays unnumbered). */

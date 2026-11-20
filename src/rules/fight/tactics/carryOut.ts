@@ -65,6 +65,7 @@ function slotOf(option: TurnOption): "action" | "bonus" | null {
     // `cast_spell` marks the Action itself (and spends the slot), so a cast needs no `use` step here.
     case "spell":
     case "heal":
+    case "boon":
     case "break_free":
     case "move":
     case "surrender":
@@ -116,6 +117,10 @@ export function stepsFor(option: TurnOption, attacks: readonly UsableAttack[]): 
   }
   if (option.kind === "heal" && option.heal !== undefined && option.heal !== null) {
     steps.push({ type: "cast", spell: option.heal.name, castLevel: option.heal.castLevel, targetIds: option.heal.targetIds, heal: true });
+  }
+  // A boon is a cast like any other: no `heal` flag, so a target at 0 hit points is dropped before the cast.
+  if (option.kind === "boon" && option.boon !== undefined && option.boon !== null) {
+    steps.push({ type: "cast", spell: option.boon.name, castLevel: option.boon.castLevel, targetIds: option.boon.targetIds });
   }
   if (option.kind === "break_free" && option.breakFree !== undefined) steps.push({ type: "break_free", name: option.breakFree.name, ability: option.breakFree.ability });
   const slot = slotOf(option);

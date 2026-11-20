@@ -10,6 +10,7 @@ import { getExhaustionD20Penalty, getExhaustionLevel, hasCondition, setExhaustio
 import type { ResolvedAction, ResolvedSave } from "../fightState.ts";
 import { filterImmuneConditions } from "../targeting.ts";
 import { coverBonus } from "../terrain/sight.ts";
+import { rollBoons } from "./boonRolls.ts";
 import { ActionRefused, keptD20, rollD20, tracked, type ResolutionCommand, type ResolutionContext, type RollOptions } from "./context.ts";
 import { appliedDamage, applyDamage, rollDamageParts, type DamageAmount, type DamageApplied } from "./damage.ts";
 
@@ -93,7 +94,9 @@ export async function rollSaves(
       continue;
     }
     const natural = keptD20(roll);
-    const resolved = resolveSaveAction({ save, d20: natural, saveBonus: bonus + coverSave, targetConditions: target.conditions, penalty });
+    // RULE bless (PHB "Bless"): the d4 is added to the saving throw, after the d20.
+    const boons = await rollBoons(ctx, target, "save", input);
+    const resolved = resolveSaveAction({ save, d20: natural, saveBonus: bonus + coverSave + boons.total, targetConditions: target.conditions, penalty });
     results.push({ ...base, autoFail: false, natural, total: resolved.roll.total, success: resolved.roll.success, roll });
   }
   return results;

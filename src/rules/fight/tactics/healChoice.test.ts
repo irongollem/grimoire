@@ -125,6 +125,16 @@ describe("withoutLeveledCasts", () => {
     expect(isLeveledCast(spell(0))).toBe(false);
   });
 
+  // A leveled boon (Bless) is a leveled cast, so a Bonus Action heal leaves it out when someone is down. Bug caught: Bless left in the choice, then cast beside Healing Word.
+  it("fails if a leveled boon is not counted as a leveled cast", () => {
+    const bless: TurnOption = {
+      id: "boon:Bless:1", kind: "boon", targetId: "pip", destination: null, path: null, feet: null, attack: null, distanceFeet: null, provokes: [], exposure: [], summary: "bless",
+      boon: { name: "Bless", castLevel: 1, slot: "action", targetIds: ["pip", "brug"], spends: true, distanceFeet: 5, targetCount: 3, concentration: true },
+    };
+    expect(isLeveledCast(bless)).toBe(true);
+    expect(withoutLeveledCasts([attack("foe"), bless]).map((o) => o.id)).toEqual(["attack:actions:Mace:foe"]);
+  });
+
   // With nothing else to do, the creature is not left with no turn.
   it("fails if leaving out the leveled casts leaves no turn at all", () => {
     expect(withoutLeveledCasts([spell(3)])).toHaveLength(1);
