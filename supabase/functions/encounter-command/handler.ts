@@ -23,7 +23,7 @@ import type { NpcListRow } from "../../../src/types/npc.types.ts";
 import type { EncounterTurnCommand } from "../../../src/rules/encounterTurn.ts";
 import { isShownDefense } from "../../../src/rules/fight/tactics/shownDefenses.ts";
 import { isShownDeedDelta } from "../../../src/rules/fight/tactics/shownThreat.ts";
-import { endOfTurnRage, settleRages } from "./rageUpkeep.ts";
+import { applyWithRageUpkeep, settleRages } from "../../../src/rules/fight/allies/rageUpkeep.ts";
 import { applyFightCommand, FIGHT_OWN_COMMAND_TYPES, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightDeps } from "../../../src/rules/fight/fightEvents.ts";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest.ts";
@@ -531,12 +531,6 @@ async function attempt(
     if (command.type === "sync_party" || LIFECYCLE_TYPES.has(command.type)) continue;
     // What this command does to a raging ally (PHB 2014 and 2024 "Rage"): judged on the fight as the command found it and as it left it.
     const found = state;
-    if (command.type === "next_turn") {
-      // The turn that is ending: a 2014 Rage not kept going since the Barbarian's last turn goes out with it.
-      const ending = endOfTurnRage(state, fightDeps);
-      state = ending.state;
-      effects.push(...ending.effects);
-    }
     if (isTakeTurnCommand(command)) {
       const result = await applyTakeTurn(state, command, await resolveEnv());
       state = result.state;
@@ -564,10 +558,10 @@ async function attempt(
       const taken = command.combatants.find((c) => present.has(c.instance_id));
       if (taken) throw new FightCommandError(400, `${taken.instance_id} is already in this fight.`);
     }
-    const result = applyFightCommand(state, command as FightCommand, fightDeps);
+    // A plain command, the Rages kept around it (`next_turn` judges the ending turn's Rage first): the apply the browser shares.
+    const result = applyWithRageUpkeep(state, command as FightCommand, fightDeps);
     state = result.state;
     effects.push(...result.effects);
-    state = settled(found, state, effects);
   }
   return { state, effects, rolls, spent, slotsSpent, resourcesSpent, innateSpent };
 }

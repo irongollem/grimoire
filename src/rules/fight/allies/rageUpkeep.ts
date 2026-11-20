@@ -1,14 +1,18 @@
-// Keeping an ally's Rage by the book (#1021, `src/rules/fight/allies/rage.ts` holds the rule): the server looks at what each command changed
-// on a raging party member and applies the verdict, because a blow that knocks the Barbarian out, an attack it makes, damage it takes and the
-// end of its turn all arrive through different commands (a `take_turn`, a DM's `adjust_hp`, an opportunity attack, `next_turn`).
-// What it applies are ordinary fight commands (`remove_condition`, `use_action`), so a Rage that ends is written to the sheet's conditions like any other change.
+// Keeping an ally's Rage by the book (#1021, `./rage.ts` holds the rule): what each command changed on a raging party member is judged and
+// the verdict applied, because a blow that knocks the Barbarian out, an attack it makes, damage it takes and the end of its turn all arrive
+// through different commands (a `take_turn`, a DM's `adjust_hp`, an opportunity attack, `next_turn`). The server runs it on every command
+// (`encounter-command/handler.ts`), and the browser runs the same on its own apply of a command (`applyWithRageUpkeep`, from `fightSync.ts`
+// and the run store), so the DM's screen does not keep a Rage the server has ended. What it applies are ordinary fight commands
+// (`remove_condition`, `use_action`), so a Rage that ends is written to the sheet's conditions like any other change.
+//
+// Pure and edge-importable (relative `.ts` imports only).
 
-import { applyFightCommand, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
-import type { FightDeps } from "../../../src/rules/fight/fightEvents.ts";
-import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
-import { RAGING, ragingCondition } from "../../../src/rules/fight/allies/features.ts";
-import { RAGE_KEPT, RAGE_STARTED, ragingOf, rageAfterCommand, rageGoesOutAtTurnEnd, tallied } from "../../../src/rules/fight/allies/rage.ts";
-import { sortCombatantsByInitiative } from "../../../src/rules/combatantSort.ts";
+import { applyFightCommand, type FightCommand } from "../fightCommands.ts";
+import type { FightDeps } from "../fightEvents.ts";
+import type { FightEffect, FightState } from "../fightState.ts";
+import { RAGING, ragingCondition } from "./features.ts";
+import { RAGE_KEPT, RAGE_STARTED, ragingOf, rageAfterCommand, rageGoesOutAtTurnEnd, tallied } from "./rage.ts";
+import { sortCombatantsByInitiative } from "../../combatantSort.ts";
 
 /** The state after a run of fight commands, and the effects they raised. */
 export interface Upkept {
@@ -80,4 +84,23 @@ export function endOfTurnRage(state: FightState, deps: FightDeps): Upkept {
   if (active === undefined || ragingOf(active) === null) return { state, effects: [] };
   if (rageGoesOutAtTurnEnd(active)) return endRage(state, active.instance_id, deps);
   return applyAll(state, [{ type: "restore_action", instanceId: active.instance_id, action: RAGE_KEPT }], deps);
+}
+
+/**
+ * One plain fight command with the Rages kept by the book around it: at `next_turn` the ending turn's Rage is judged first (`endOfTurnRage`),
+ * then the command is applied, then what it did to every raging ally (`settleRages`). The one apply of a command the server's plain path, the
+ * browser's optimistic queue and its replay share.
+ */
+export function applyWithRageUpkeep(state: FightState, command: FightCommand, deps: FightDeps): Upkept {
+  const effects: FightEffect[] = [];
+  let found = state;
+  if (command.type === "next_turn") {
+    const ending = endOfTurnRage(state, deps);
+    found = ending.state;
+    effects.push(...ending.effects);
+  }
+  const applied = applyFightCommand(found, command, deps);
+  effects.push(...applied.effects);
+  const settled = settleRages(found, applied.state, deps);
+  return { state: settled.state, effects: [...effects, ...settled.effects] };
 }

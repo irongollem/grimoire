@@ -1,6 +1,6 @@
 // When an ally's Rage ends before its time (#1021). The book gives a Rage four ways to end besides running out, and they differ by
 // edition, so the rule is one pure function over what a command changed on the Barbarian: the verdict says whether the Rage is kept
-// going, ended, or (2024) extended. The server applies it after every command (`encounter-command/rageUpkeep.ts`), because a
+// going, ended, or (2024) extended. The server applies it after every command, and the browser on its own apply of one (`./rageUpkeep.ts`), because a
 // blow that knocks the Barbarian out, an attack it makes and the damage it takes all arrive through different commands.
 //
 // Only a Rage the server started for an ally is judged (`ragingOf`: the condition `ragingCondition` makes, sourced on its own bearer
