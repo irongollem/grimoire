@@ -40,6 +40,18 @@ describe("loadAiCampaign", () => {
     expect(await refusal(await loadAiCampaign(admin(), "c-1", "player"))).toEqual({ status: 403, error: "forbidden" });
   });
 
+  it("'member' access admits a player and refuses someone not seated at the campaign", async () => {
+    fake.seed("campaigns", [campaign()]);
+    expect((await loadAiCampaign(admin(), "c-1", "player", { access: "member" })).ok).toBe(true);
+    expect((await loadAiCampaign(admin(), "c-1", "stranger", { access: "member" })).ok).toBe(false);
+  });
+
+  it("'member' access checks the seat in this campaign, not any campaign", async () => {
+    fake.seed("campaigns", [campaign()]);
+    fake.seed("campaign_members", [{ campaign_id: "c-2", user_id: "elsewhere", role: "player" }]);
+    expect((await loadAiCampaign(admin(), "c-1", "elsewhere", { access: "member" })).ok).toBe(false);
+  });
+
   it("'owner' access refuses a co-DM", async () => {
     fake.seed("campaigns", [campaign()]);
     expect((await loadAiCampaign(admin(), "c-1", "co-dm", { access: "owner" })).ok).toBe(false);

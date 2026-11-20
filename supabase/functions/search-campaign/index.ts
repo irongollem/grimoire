@@ -1,9 +1,7 @@
 import { gameSystemEdition } from "../_shared/gameSystem.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, isChildAccount, suspendedResponse } from "../_shared/accountGate.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
@@ -28,6 +26,9 @@ import {
   type CampaignSearchUnavailable,
 } from "../_shared/campaignSearch.ts";
 import { UUID_RE } from "../_shared/uuid.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
 import { CANON_PARTS } from "../../../src/types/canon.types.ts";
 
 /**
@@ -85,8 +86,8 @@ const admin = createClient(
 const MATCH_COUNT = 8;
 const RERANK_TIMEOUT_MS = 6_000;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+interface SearchCampaign extends BaseCampaign {
+  game_system: string | null;
 }
 
 function unavailable(reason: CampaignSearchUnavailable): Response {
@@ -187,66 +188,38 @@ async function loadEntries(pool: CampaignSearchHit[]): Promise<Map<string, Entry
   return entries;
 }
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return json({ error: "Unauthorized" }, 401);
-
-  let body: { query?: unknown; campaign_id?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return json({ error: "Invalid JSON body" }, 400);
-  }
+serve(serveUser(async ({ user, req }) => {
+  const body = await readJsonBody(req);
+  if (!body) return jsonError(400, "invalid_body", "Invalid JSON body.");
   const query = typeof body.query === "string" ? body.query.trim() : "";
   if (query.length < 2 || query.length > 200) {
-    return json({ error: "query must be 2 to 200 characters" }, 400);
+    return jsonError(400, "invalid_body", "A search needs 2 to 200 characters.");
   }
   const campaignId = body.campaign_id;
   if (typeof campaignId !== "string" || !UUID_RE.test(campaignId)) {
-    return json({ error: "campaign_id must be a uuid" }, 400);
+    return jsonError(400, "invalid_body", "campaign_id must be a uuid.");
   }
 
-  // Identity comes only from the verified bearer token.
-  const caller = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await caller.auth.getUser();
-  if (authError || !user) return json({ error: "Unauthorized" }, 401);
-
+  // Not `generationRefusal`: a child account is answered 200 `unavailable` so the client falls back to keyword search
+  // instead of showing an error, and a failed child lookup is refused, not waved through, because embedding is free
+  // and no credit or Pro check would stop a child's text reaching the provider.
   if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
-
-  // A failed lookup is refused, not waved through: embedding is free, so no
-  // credit or Pro check would stop a child's text reaching the provider.
   let child = false;
   try {
     child = await isChildAccount(admin, user.id);
   } catch (e) {
     console.error("search-campaign: child-account check failed:", e);
-    return json({ error: "account_check_failed" }, 503);
+    return jsonError(503, "account_check_failed");
   }
   if (child) return unavailable("child_account");
 
-  const { data: campaign, error: campaignError } = await admin
-    .from("campaigns")
-    .select("id, user_id, game_system, ai_enabled")
-    .eq("id", campaignId)
-    .maybeSingle();
-  if (campaignError) {
-    console.error("search-campaign: campaign lookup failed:", campaignError.message);
-    return json({ error: "Failed to load campaign" }, 500);
-  }
-  if (!campaign) return json({ error: "Campaign not found" }, 404);
-
-  try {
-    if (!(await isCampaignDm(admin, campaign, user.id))) return json({ error: "Forbidden" }, 403);
-  } catch (e) {
-    console.error("search-campaign: DM check failed:", e);
-    return json({ error: "Failed to check campaign access" }, 500);
-  }
+  // The AI switch is not checked here: embedding the query is search, and only the rerank below needs AI on.
+  const load = await loadAiCampaign<SearchCampaign>(admin, campaignId, user.id, {
+    columns: ["game_system"],
+    aiSwitch: false,
+  });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
   // Before the provider and the rate limit, so a free account costs nothing.
   if (!(await isUserPro(admin, user.id))) return unavailable("pro_only");
@@ -282,7 +255,7 @@ serve(withCors(async (req: Request) => {
     });
   } catch (e) {
     console.error("search-campaign: query embed failed:", e);
-    return json({ error: e instanceof Error ? e.message : "Embedding failed" }, 502);
+    return jsonError(502, "embedding_failed", e instanceof Error ? e.message : "Embedding failed");
   }
 
   // Same source derivation as generate-loot / generate-encounter. A Generic
@@ -350,7 +323,7 @@ serve(withCors(async (req: Request) => {
 
   const results = await Promise.all(jobs);
   if (results.every((r) => r.failed)) {
-    return json({ error: "Search failed" }, 500);
+    return jsonError(500, "search_failed", "Search failed. Please try again.");
   }
 
   const allHits = results.flatMap((r) => r.hits);

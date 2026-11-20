@@ -14,12 +14,14 @@
  */
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { judge, JEV_MODEL } from "../_shared/typesafe.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign } from "../_shared/pipeline/aiCampaign.ts";
 import {
   buildJudgeRequest,
   choiceProbabilities,
@@ -34,24 +36,9 @@ const admin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-
 const NOT_JUDGED = { suggestions: [], judged: false };
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
+serve(serveUser(async ({ user, req }) => {
   const userId = user.id;
 
   const accountRefusal = await generationRefusal(admin, userId, { failClosed: true });
@@ -59,38 +46,19 @@ serve(withCors(async (req: Request) => {
 
   let payload: ReturnType<typeof validatePayload>;
   try {
-    payload = validatePayload(await req.json().catch(() => null));
+    payload = validatePayload(await readJsonBody(req));
   } catch (e) {
-    return json({ error: e instanceof PayloadValidationError ? e.message : "Invalid request body." }, 400);
+    return jsonError(400, "invalid_body", e instanceof PayloadValidationError ? e.message : "Invalid request body.");
   }
 
-  const { data: campaign, error: campaignError } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled")
-    .eq("id", payload.campaignId)
-    .maybeSingle();
-  if (campaignError) {
-    console.error("search-manual could not read the campaign:", campaignError.message);
-    return json({ error: "Could not read the campaign." }, 500);
-  }
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
+  // Any seat at the campaign: the manual is for players too.
+  const load = await loadAiCampaign(admin, payload.campaignId, userId, {
+    access: "member",
+    forbiddenMessage: "Only people at this campaign's table can search its manual.",
+  });
+  if (!load.ok) return load.response;
 
-  if (campaign.user_id !== userId) {
-    const { data: membership, error: memberError } = await admin
-      .from("campaign_members").select("role")
-      .eq("campaign_id", campaign.id).eq("user_id", userId).maybeSingle();
-    if (memberError) {
-      console.error("search-manual could not read membership:", memberError.message);
-      return json({ error: "Could not read the campaign." }, 500);
-    }
-    if (!membership) return new Response("Forbidden", { status: 403 });
-  }
-
-  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
-
-  if (!(await checkRateLimit(admin, userId, "ai_generation"))) {
-    return json({ error: "rate_limited" }, 429);
-  }
+  if (!(await checkRateLimit(admin, userId, "ai_generation"))) return rateLimited();
 
   let apiKey: string | undefined;
   try {
@@ -105,6 +73,7 @@ serve(withCors(async (req: Request) => {
     // The Choice question type is not in the shared JudgeRequest union yet; the wire shape is the documented one.
     const request = buildJudgeRequest(payload.query, payload.pages);
     const res = await judge(request, { apiKey });
+    // Free to the user and outside any credit hold, so it is recorded directly.
     await recordFreeGeneration(admin, userId, "entity_judgment", {
       model: JEV_MODEL,
       provider: "typesafe",

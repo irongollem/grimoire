@@ -20,9 +20,13 @@ export interface BaseCampaign {
   ai_enabled: boolean | null;
 }
 
-/** Whether `userId` may run this request against `campaign`. "dm" is the campaign's owner or a member with the DM role. */
+/**
+ * Whether `userId` may run this request against `campaign`. "dm" is the campaign's owner or a member with the DM role;
+ * "member" is the owner or anyone seated at the campaign, players included (the manual search is for players too).
+ */
 export type CampaignAccess =
   | "dm"
+  | "member"
   | "owner"
   | ((admin: SupabaseClient, campaign: BaseCampaign, userId: string) => Promise<boolean>);
 
@@ -47,9 +51,20 @@ const BASE_COLUMNS = ["id", "user_id", "ai_enabled"] as const;
 
 const notFound = () => jsonError(404, "campaign_not_found", "Campaign not found.");
 
+async function isCampaignMember(admin: SupabaseClient, campaign: BaseCampaign, userId: string): Promise<boolean> {
+  if (campaign.user_id === userId) return true;
+  const { data, error } = await admin
+    .from("campaign_members").select("user_id")
+    .eq("campaign_id", campaign.id).eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data !== null;
+}
+
 async function mayUse(admin: SupabaseClient, access: CampaignAccess, campaign: BaseCampaign, userId: string): Promise<boolean> {
   if (access === "owner") return campaign.user_id === userId;
   if (access === "dm") return isCampaignDm(admin, campaign, userId);
+  if (access === "member") return isCampaignMember(admin, campaign, userId);
   return access(admin, campaign, userId);
 }
 
