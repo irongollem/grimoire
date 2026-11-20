@@ -51,6 +51,14 @@ describe("applyTableEvent", () => {
     expect(shown.map((i) => i.kind)).toEqual(["dmRoll", "narration"]);
   });
 
+  // Bug caught: a place handed over mid-reply lost between the stream and the story.
+  it("draws a handed-over place where it happened", () => {
+    const place = { kind: "place" as const, id: "p1", title: "The Salt Hall", url: null, hasMap: false, hasNook: true };
+    const items = play([{ type: "text", delta: "She slides it over." }, { type: "shown", shown: place }]);
+    expect(items.map((i) => i.kind)).toEqual(["narration", "shown"]);
+    expect(items[1]).toMatchObject({ shown: place });
+  });
+
   // Bug caught: four searches in a row filling the page with four identical lines.
   it("folds a run of the same quiet line into one with a count", () => {
     const items = play([

@@ -6,7 +6,7 @@
 
 import { HAZARD_TOOL, HAZARD_TOOL_NAME, HAZARDS_PER_TURN, keptHazardText, madeHazardText, noSuchHazardText, parseHazard, type HazardRules } from "../_shared/agent/hazard.ts";
 import { KEEP_TALKING_TOOL, KEEP_TALKING_TOOL_NAME } from "../_shared/agent/floor.ts";
-import { offeredHandout, parseShow, SHOW_TOOL, SHOW_TOOL_NAME, SHOWN_PER_TURN, shownText, type HandoutOffer, type PictureOf, type Shown } from "../_shared/agent/show.ts";
+import { offeredHandout, parseShow, SHOW_TOOL, SHOW_TOOL_NAME, SHOWN_PER_TURN, shownText, type HandoutOffer, type PictureOf, type PlaceCard, type PlaceShare, type Shown } from "../_shared/agent/show.ts";
 import {
   BUY_TOOL, COINS_TOOL, COINS_TOOL_NAME, HAND_OVER_TOOL, HAND_OVER_TOOL_NAME, HANDS_PER_TURN, HANDS_TOOL_NAMES, handsText, parseBuy, parseCoins,
   chestPick, parseHandOver, parseTake, purseAfterGaining, TAKE_TOOL, TAKE_TOOL_NAME, worth, type Coins, type HandsChange, type Possessions,
@@ -137,6 +137,10 @@ export interface TurnToolsInput {
   show: {
     handouts: readonly HandoutOffer[];
     picture(what: PictureOf, id: string): Promise<{ title: string; url: string } | null>;
+    /** A place of the campaign, as it may be handed over; null when it is not this campaign's. */
+    place(id: string): Promise<PlaceCard | null>;
+    /** A place was handed over: shared for real once the turn is kept. */
+    onPlace(place: PlaceShare): void;
     /** A handout was handed over: given for real once the turn is kept. */
     onHandout(handout: HandoutOffer): void;
   } | null;
@@ -490,6 +494,7 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   // A handout or a picture put in front of the player (`show.ts`). A handout is handed over once.
   let shownCount = 0;
   const handedOut = new Set<string>();
+  const placesShown = new Set<string>();
   const show = async (toolInput: Record<string, unknown>): Promise<{ content: string; isError: boolean; shown?: Shown }> => {
     const refused = (content: string) => ({ content, isError: true });
     if (input.show === null) return refused("Nothing can be shown this turn.");
@@ -504,6 +509,16 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
       handedOut.add(handout.id);
       input.show.onHandout(handout);
       shown = { kind: "handout", id: handout.id, title: handout.title };
+    } else if (parsed.value.what === "place") {
+      const { id } = parsed.value;
+      const card = await input.show.place(id);
+      if (card === null) return refused("This campaign has no such place. Use a place id as search or get returned it.");
+      if (placesShown.has(id)) return refused("That place was already handed over this turn.");
+      placesShown.add(id);
+      // The map goes with the place only when the story hands it over, and only when there is one to hand over.
+      const withMap = parsed.value.withMap === true && card.hasMapPicture;
+      input.show.onPlace({ id, withMap });
+      shown = { kind: "place", id, title: card.title, url: card.url, hasMap: card.hasMapPicture && (card.mapShared || withMap), hasNook: card.hasNook };
     } else {
       const picture = await input.show.picture(parsed.value.what, parsed.value.id);
       if (picture === null) return refused("The campaign has no picture of that. Describe it in words instead.");

@@ -9,7 +9,7 @@ import type { SceneMemory } from "../_shared/agent/memories.ts";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import type { AgentProvider } from "../_shared/agent/providerIo.ts";
 import type { Floor } from "../_shared/agent/floor.ts";
-import type { HandoutOffer, PictureOf, Shown } from "../_shared/agent/show.ts";
+import type { HandoutOffer, PictureOf, PlaceCard, Shown } from "../_shared/agent/show.ts";
 import type { TravelMap } from "../_shared/agent/travel.ts";
 import type { LootHeld } from "../_shared/agent/encounterLoot.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
@@ -261,6 +261,10 @@ export interface AgentTurnDeps {
   loadHandouts(campaignId: string, memberId: string): Promise<HandoutOffer[]>;
   /** The campaign's own picture of a record, with the name it is shown under; null when there is none. */
   loadPicture(campaignId: string, what: PictureOf, id: string): Promise<{ title: string; url: string } | null>;
+  /** A place of the campaign as the Narrator may hand it over; null when it is not this campaign's. */
+  loadPlace(campaignId: string, id: string): Promise<PlaceCard | null>;
+  /** Hands a place to the played character for real, with its map only when asked. Throws when it could not. */
+  sharePlace(input: { campaignId: string; memberId: string; placeId: string; withMap: boolean }): Promise<void>;
   /** Hands a handout to the played character for real, beside whoever already holds it. Throws when it could not. */
   giveHandout(campaignId: string, handoutId: string, memberId: string): Promise<void>;
   /** The campaign's places and the roads between them, as the caller may read them: what a journey is measured on. */

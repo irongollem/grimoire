@@ -4,7 +4,7 @@
 // run before the stream opens so a refusal is a real status code; the turn itself runs inside the stream.
 import type { AgentProvider } from "../_shared/agent/providerIo.ts";
 import { loadTurnsInReach } from "../_shared/agent/turnsInReach.ts";
-import { giveHandout, loadHandouts, loadPicture } from "./showIo.ts";
+import { giveHandout, loadHandouts, loadPicture, loadPlace } from "./showIo.ts";
 import { CHILD_TURN_THRESHOLDS, readsAsChild, STRIKE_WINDOW_DAYS } from "../_shared/agent/conduct.ts";
 import { belongingsText, MAX_BELONGINGS, type Belonging } from "../_shared/agent/belongings.ts";
 import { MAX_PEOPLES } from "../_shared/agent/peoples.ts";
@@ -39,7 +39,7 @@ import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { loadPartyMember } from "../_shared/agent/characterIo.ts";
 import { secureDie } from "../_shared/serverRoll.ts";
 import type { RecordedFact } from "../_shared/agent/record.ts";
-import { revealToCharacter } from "./revealIo.ts";
+import { revealToCharacter, sharePlace } from "./revealIo.ts";
 import { revealRoom, seatParty, setPartyPlace } from "./partyMoveIo.ts";
 import { makeHandsStore } from "./handsIo.ts";
 import { finishFight, layFightLoot, loadFights, setFight, setPursuit, startFight, statlessFighters } from "./fightIo.ts";
@@ -634,6 +634,8 @@ serve(serveUser(async ({ user, req, report, userClient: supabase }) => {
     // As the caller: what they may read and share is the database's to decide.
     loadHandouts: (campaignId, memberId) => loadHandouts(supabase, campaignId, memberId),
     loadPicture: (campaignId, what, id) => loadPicture(supabase, campaignId, what, id),
+    loadPlace: (campaignId, id) => loadPlace(supabase, campaignId, id),
+    sharePlace: (input) => sharePlace(supabase, input),
     giveHandout: (campaignId, handoutId, memberId) => giveHandout(supabase, campaignId, handoutId, memberId),
     // Through the caller's client: the DM's own RLS decides which places and roads there are to travel by.
     // Behind the screen, so its fairness is the server's: a uniform whole number from 1 to max.

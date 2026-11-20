@@ -43,6 +43,7 @@ import { NO_CHECK_MATERIAL, type CanonCheckMaterial } from "../_shared/agent/can
 
 const PICTURED = "00000000-0000-4000-8000-0000000000f1";
 const HANDOUT = "00000000-0000-4000-8000-0000000000f2";
+const SHOWN_PLACE = "00000000-0000-4000-8000-0000000000f3";
 const DM = "00000000-0000-4000-8000-0000000000d1";
 const OTHER = "00000000-0000-4000-8000-0000000000e2";
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
@@ -127,6 +128,7 @@ interface Harness {
     /** The campaign's handouts the played character does not hold yet. */
     handouts: { id: string; title: string }[];
     handoutFails: boolean;
+    placeFails: boolean;
     /** How many of the account's messages the screen refused lately. */
     strikes: number;
     /** What the output screen refuses: a turn whose own words hold this text is withheld. */
@@ -232,6 +234,7 @@ interface Harness {
   laidLoot: { encounterId: string; placeId: string | null; held: string }[];
   /** Handouts given for real, once their turn was kept. */
   handoutsGiven: { handoutId: string; memberId: string }[];
+  placesShared: { placeId: string; memberId: string; withMap: boolean }[];
   /** Every text the output screen was given. */
   screenedOutput: string[];
   /** For each screened text, whether it was held to a child's bar. */
@@ -292,6 +295,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       strikes: 0,
       handouts: [],
       handoutFails: false,
+      placeFails: false,
       forbidden: null,
       children: [],
       rateOk: true,
@@ -372,6 +376,7 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     screenedOutput: [],
     screenedAsChild: [],
     handoutsGiven: [],
+    placesShared: [],
     facts: [],
     recordLoads: [],
     discards: [],
@@ -514,6 +519,11 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
     loadTravelMap: async () => ({ places: [], roads: [], tables: [], roadTables: [], food: null }),
     rollDie: () => 1,
     loadPicture: async (_campaignId, what, id) => (id === PICTURED ? { title: `The ${what}`, url: "https://assets.example/p.webp" } : null),
+    loadPlace: async (_campaignId, id) => (id === SHOWN_PLACE ? { title: "The Salt Hall", url: null, hasMapPicture: true, mapShared: false, hasNook: true } : null),
+    sharePlace: async ({ placeId, memberId, withMap }) => {
+      if (h.state.placeFails) throw new Error("share failed");
+      h.placesShared.push({ placeId, memberId, withMap });
+    },
     giveHandout: async (_campaignId, handoutId, memberId) => {
       if (h.state.handoutFails) throw new Error("share failed");
       h.handoutsGiven.push({ handoutId, memberId });
@@ -4052,6 +4062,40 @@ describe("putting something in front of the player", () => {
     h.state.handoutFails = true;
     await play(h, { body: SAY });
     expect(last(h).type).toBe("done");
+  });
+
+  // Bug caught: a place "handed over" on the page but never shared (the player's places stay without it); shared
+  // before the turn is kept, so a dropped turn still hands it over; the map shared without the story giving it.
+  it("shares a place for real once the turn is kept, and its map only when the story gave the map", async () => {
+    const plain = played([showStep({ place_id: SHOWN_PLACE }), step(10)]);
+    await play(plain, { body: SAY });
+    expect(plain.placesShared).toEqual([{ placeId: SHOWN_PLACE, memberId: WREN, withMap: false }]);
+    expect(shownEvents(plain)).toEqual([{ type: "shown", shown: { kind: "place", id: SHOWN_PLACE, title: "The Salt Hall", url: null, hasMap: false, hasNook: true } }]);
+
+    const mapped = played([showStep({ place_id: SHOWN_PLACE, with_map: true }), step(10)]);
+    await play(mapped, { body: SAY });
+    expect(mapped.placesShared).toEqual([{ placeId: SHOWN_PLACE, memberId: WREN, withMap: true }]);
+
+    const dropped = played([showStep({ place_id: SHOWN_PLACE, with_map: true }), step(10)]);
+    dropped.state.conflict = true;
+    await play(dropped, { body: SAY });
+    expect(dropped.placesShared).toEqual([]);
+  });
+
+  // Bug caught: a failed place share costing the whole turn.
+  it("keeps the turn when the place could not be shared", async () => {
+    const h = played([showStep({ place_id: SHOWN_PLACE }), step(10)]);
+    h.state.placeFails = true;
+    await play(h, { body: SAY });
+    expect(last(h).type).toBe("done");
+  });
+
+  // Bug caught: a place shared with nobody to share it with (no played character has no hands to take a map).
+  it("shares no place when nobody is played", async () => {
+    const h = harness([showStep({ place_id: SHOWN_PLACE }), step(10)]);
+    existingSession(h);
+    await play(h, { body: SAY });
+    expect(h.placesShared).toEqual([]);
   });
 
   // Bug caught: a shown picture lost on reload because it was never kept with the turn.

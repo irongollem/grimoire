@@ -230,6 +230,13 @@ async function carryOutKeptTurn(
       }
     }
   }
+  // Places handed over in the story are shared the same way (the played character is shown them; the map only when
+  // the story gave the map). One that cannot be written costs that place, never the turn.
+  if (character) {
+    for (const place of fx.sharedPlaces) {
+      await safely(() => deps.sharePlace({ campaignId: campaign.id, memberId: character.id, placeId: place.id, withMap: place.withMap }));
+    }
+  }
   await mendCharacter(scope, fx.hitPointChange, character);
   // A clue that came out in play is found and a passage told, now that the turn is kept: a turn that was not kept
   // leaves the canon as it was. One that cannot be written costs that mark, never the turn.

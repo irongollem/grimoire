@@ -109,7 +109,7 @@ export async function beginTurn(input: {
           onSaid: (lines) => { gate?.said(lines); },
           // Something to put in front of the player: only someone played has hands to take a handout.
           show: character
-            ? { handouts, picture: (what, id) => deps.loadPicture(campaign.id, what, id), onHandout: (handout) => { fx.handedOut.push(handout); } }
+            ? { handouts, picture: (what, id) => deps.loadPicture(campaign.id, what, id), place: (id) => deps.loadPlace(campaign.id, id), onPlace: (place) => { fx.sharedPlaces.push(place); }, onHandout: (handout) => { fx.handedOut.push(handout); } }
             : null,
           // Days that pass in the story move the campaign's date, on the server, once the turn is kept. Not in a fight.
           onDaysPassed: fightRunning ? null : (days) => { fx.daysPassed = days; },

@@ -175,6 +175,12 @@ describe("what the Narrator put in front of the player", () => {
     ]);
   });
 
+  // Bug caught: a shared place coming back from a reopened sitting without its id, map or nook, so the card links nowhere.
+  it("draws a handed-over place again with what it brought", () => {
+    const place = { kind: "place", id: HANDOUT, title: "The Salt Hall", url: null, hasMap: true, hasNook: false };
+    expect(storyFromTurns(withShown(place))).toEqual([{ id: "turn-1-0-shown", kind: "shown", shown: place }]);
+  });
+
   // Bug caught: a stored address drawn into an image without being read (jsonb is untrusted).
   it("is not drawn when it is not a whole handout or picture", () => {
     expect(storyFromTurns(withShown({ kind: "picture", of: "person", title: "Honeycomb", url: "javascript:alert(1)" }))).toEqual([]);
