@@ -4,7 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
+import { fetchCreditCost, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
@@ -17,14 +17,16 @@ import {
   wrapUserInput,
 } from "../_shared/ai-prompt.ts";
 import { buildEntityImagePrompt, buildImagePromptAuthorSystem, imageBoostFor } from "../_shared/image-prompt.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
-import { callText, resolveTextProvider, NO_TEXT_PROVIDER_MESSAGE, type TextResult } from "../_shared/textGen.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
+import { callText, resolveTextProvider, NO_TEXT_PROVIDER_MESSAGE } from "../_shared/textGen.ts";
 import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
 import { worldBlockText, worldImageSetting } from "../_shared/worldBlock.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 
 // Entity portraits always render portrait-orientation.
 const ENTITY_IMAGE_SIZE = "1024x1536";
@@ -34,59 +36,42 @@ const admin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+interface EntityImageCampaign extends BaseCampaign {
+  text_provider: string | null;
+  image_provider: string | null;
+}
+
+const optionalString = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate — including BYOK, which skips
   // the credit gate for both (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
-  let campaign_id: string, kind: string, context: string;
-
-  try {
-    const body = await req.json();
-    campaign_id = body.campaign_id;
-    kind        = body.kind;
-    context     = body.context;
-    if (!campaign_id || !kind || !context) throw new Error("invalid");
-  } catch {
-    return new Response("Invalid body — need { campaign_id, kind, context }", { status: 400 });
-  }
+  const body = await readJsonBody(req);
+  const campaign_id = optionalString(body?.campaign_id);
+  const kind = optionalString(body?.kind);
+  const context = optionalString(body?.context);
+  if (!campaign_id || !kind || !context) return jsonError(400, "invalid_body", "Need { campaign_id, kind, context }.");
 
   const promptCheck = validatePromptInput(context, AI_PROMPT_LIMIT_LONG);
   if (!promptCheck.ok) return promptCheck.errorResponse;
 
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, image_provider")
-    .eq("id", campaign_id)
-    .maybeSingle();
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
-
   // DMs only: no player surface calls this, and it spends the campaign's
   // credits or the owner's own provider key (see _shared/campaignAccess.ts).
-  if (!(await isCampaignDm(admin, campaign, user.id))) {
-    return new Response("Forbidden", { status: 403 });
-  }
+  const load = await loadAiCampaign<EntityImageCampaign>(admin, campaign_id, user.id, {
+    columns: ["text_provider", "image_provider"],
+  });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
-  const { data: imageBaseRow } = await admin
+  const { data: imageBaseRow, error: imageBaseError } = await admin
     .from("ai_system_prompts").select("content")
     .eq("generator_type", "image_base").maybeSingle();
+  if (imageBaseError) throw imageBaseError;
   const imageBasePrompt = imageBaseRow?.content ?? "";
 
   const [[campaignOpenai, campaignAnthropic, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
@@ -101,12 +86,7 @@ serve(withCors(async (req: Request) => {
     platformKeys,
     providerConfigs,
   });
-  if (!text) {
-    return new Response(
-      JSON.stringify({ error: NO_TEXT_PROVIDER_MESSAGE }),
-      { status: 422, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  if (!text) return jsonError(422, "no_text_provider", NO_TEXT_PROVIDER_MESSAGE);
 
   // Resolve the campaign's chosen image provider (openai / gemini).
   const img = resolveImageProvider({
@@ -115,131 +95,108 @@ serve(withCors(async (req: Request) => {
     platformKeys: { openai: platformKeys.openai, gemini: platformKeys.gemini },
     providerConfigs,
   });
-  if (!img) return new Response("No image API key configured", { status: 422 });
+  if (!img) return jsonError(422, "no_image_provider", "No image API key is configured.");
   const isByok = img.isByok;
 
-  const world = await loadWorldBlock(admin, campaign.id);
+  // Throttle abusive burst volume before any paid provider work (issue #466).
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
-  // ── Pre-flight credit check ────────────────────────────────────────────────
+  // ── Everything that can be computed before paying ─────────────────────────
+  const world = await loadWorldBlock(admin, campaign.id);
   // Entity portraits render at ENTITY_IMAGE_SIZE; cost scales with output area
   // (portrait = 1.5× a square render) and the chosen provider's multiplier.
   const baseCost = isByok ? 0 : await fetchCreditCost(admin, "entity_image");
   const cost = wholeCredits(
     applyMultiplier(baseCost, img.imageMultiplier) * sizeMultiplier(ENTITY_IMAGE_SIZE),
   );
-  // Atomic affordability gate: hold the balance across the paid text+image calls.
-  // Throttle abusive burst volume before any paid provider work (issue #466).
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
-    return new Response(
-      JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
-  const reservation = await reserveCredits(admin, user.id, cost, "entity_image");
-  if (!reservation.ok) {
-    return reservationFailureResponse(reservation);
-  }
-
-  // ── 1. Author a visual prompt from the entity's facts ──────────────────────
+  const quality = await resolveImageQuality(admin, "entity_image", img);
   const systemContent =
     buildImagePromptAuthorSystem(kind) +
     worldBlockText(world) +
     INJECTION_GUARD_SUFFIX;
   const userContent = wrapUserInput(context);
 
-  let textResult: TextResult;
-  try {
-    textResult = await callText({
-      text,
-      model: text.config?.text_model,
-      system: systemContent,
-      user: userContent,
-      maxTokens: text.provider === "anthropic" ? 1024 : undefined,
-      outputFormat: "text",
-    });
-  } catch (e) {
-    await releaseCredits(admin, reservation.ids);
-    console.error("Entity image prompt authoring failed:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Prompt authoring failed" }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
-  // Cap the model-authored subject so a coaxed long prompt can't inflate the
-  // (token-priced) image call beyond what the credit cost assumes.
-  const subject = textResult.content.trim().slice(0, MAX_IMAGE_SUBJECT_CHARS);
-  if (!subject) {
-    await releaseCredits(admin, reservation.ids);
-    return new Response(
-      JSON.stringify({ error: "The AI did not return an image description." }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
-  // ── 2. Render the image ────────────────────────────────────────────────────
-  const imagePrompt = buildEntityImagePrompt(kind, {
-    base: imageBasePrompt,
-    setting: worldImageSetting(world),
-    subject,
-  });
-
-  const quality = await resolveImageQuality(admin, "entity_image", img);
-
-  let imgResult;
-  try {
-    imgResult = await generateImage({
-      provider: img.provider, model: img.model, apiKey: img.apiKey,
-      screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "entity_image" },
-      prompt: imagePrompt, size: ENTITY_IMAGE_SIZE, quality,
-      boostStyle: imageBoostFor(kind),
-    });
-  } catch (e) {
-    await releaseCredits(admin, reservation.ids);
-    // A prompt the screen refused is the DM's to reword, not a provider
-    // outage — 400 rather than 502, and no error log for an ordinary refusal.
-    if (isPromptRejected(e)) {
-      return new Response(
-        JSON.stringify({ error: e.message }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      );
+  // Hold the balance across the paid text+image calls.
+  return withCreditHold(admin, { payerId: user.id, reason: "entity_image", cost, report }, async (hold) => {
+    // ── 1. Author a visual prompt from the entity's facts ────────────────────
+    let textResult;
+    try {
+      textResult = await callText({
+        text,
+        model: text.config?.text_model,
+        system: systemContent,
+        user: userContent,
+        maxTokens: text.provider === "anthropic" ? 1024 : undefined,
+        outputFormat: "text",
+      });
+    } catch (e) {
+      console.error("Entity image prompt authoring failed:", e);
+      return jsonError(502, "generation_failed", e instanceof Error ? e.message : "Prompt authoring failed");
     }
-    console.error("Entity image generation failed:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Image generation failed" }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
 
-  // Release the hold and charge once for the image (delta = -cost, or 0 on BYOK).
-  await releaseCredits(admin, reservation.ids);
-  await recordGeneration(admin, user.id, "entity_image", isByok, cost, {
-    model: img.model, quality, size: ENTITY_IMAGE_SIZE,
-    provider: imgResult.usage.provider, image_count: 1,
-    input_tokens:       imgResult.usage.input_tokens       || undefined,
-    input_image_tokens: imgResult.usage.input_image_tokens || undefined,
-    output_tokens:      imgResult.usage.output_tokens      || undefined,
+    // Analytics-only row for the prompt-author text tokens (no extra deduction). Zero-cost on the platform, so the
+    // hold writes it as a free line rather than dropping it.
+    hold.charge("entity_image_prompt", {
+      cost: 0, isByok,
+      log: {
+        model: textResult.usage.model, provider: textResult.usage.provider,
+        input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
+      },
+    });
+
+    // Cap the model-authored subject so a coaxed long prompt can't inflate the
+    // (token-priced) image call beyond what the credit cost assumes.
+    const subject = textResult.content.trim().slice(0, MAX_IMAGE_SUBJECT_CHARS);
+    if (!subject) {
+      return jsonError(502, "generation_failed", "The AI did not return an image description. Nothing was charged; please try again.");
+    }
+
+    // ── 2. Render the image ──────────────────────────────────────────────────
+    const imagePrompt = buildEntityImagePrompt(kind, {
+      base: imageBasePrompt,
+      setting: worldImageSetting(world),
+      subject,
+    });
+
+    let imgResult;
+    try {
+      imgResult = await generateImage({
+        provider: img.provider, model: img.model, apiKey: img.apiKey,
+        screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "entity_image" },
+        prompt: imagePrompt, size: ENTITY_IMAGE_SIZE, quality,
+        boostStyle: imageBoostFor(kind),
+      });
+    } catch (e) {
+      // A prompt the screen refused is the DM's to reword, not a provider
+      // outage — 400 rather than 502, and no error log for an ordinary refusal.
+      if (isPromptRejected(e)) return jsonError(400, "prompt_rejected", e.message);
+      console.error("Entity image generation failed:", e);
+      return jsonError(502, "generation_failed", e instanceof Error ? e.message : "Image generation failed");
+    }
+
+    // Charge once for the image (delta = -cost, or 0 on BYOK) as soon as it exists, before the provenance mark. If
+    // marking throws, the hold writes this charge as a free line.
+    hold.charge("entity_image", {
+      cost, isByok,
+      log: {
+        model: img.model, quality, size: ENTITY_IMAGE_SIZE,
+        provider: imgResult.usage.provider, image_count: 1,
+        input_tokens:       imgResult.usage.input_tokens       || undefined,
+        input_image_tokens: imgResult.usage.input_image_tokens || undefined,
+        output_tokens:      imgResult.usage.output_tokens      || undefined,
+      },
+    });
+
+    // EU AI Act Art 50(2) — mark before the bytes leave this pipeline. This
+    // endpoint has no server-side upload (the client uploads image_b64), so
+    // the response is the last point the resolved provider/model are known.
+    const prov: AiProvenance = {
+      generatorType: kind,
+      provider: imgResult.usage.provider,
+      model: img.model,
+      generatedAt: new Date().toISOString(),
+      edited: false,
+    };
+    return json({ image_b64: markGeneratedImageB64(imgResult.b64, imgResult.contentType, prov) });
   });
-  // Analytics-only row for the prompt-author text tokens (no extra deduction).
-  await recordGeneration(admin, user.id, "entity_image_prompt", isByok, 0, {
-    model: textResult.usage.model, provider: textResult.usage.provider,
-    input_tokens: textResult.usage.input_tokens, output_tokens: textResult.usage.output_tokens,
-  }).catch(console.error);
-
-  // EU AI Act Art 50(2) — mark before the bytes leave this pipeline. This
-  // endpoint has no server-side upload (the client uploads image_b64), so
-  // the response is the last point the resolved provider/model are known.
-  const prov: AiProvenance = {
-    generatorType: kind,
-    provider: imgResult.usage.provider,
-    model: img.model,
-    generatedAt: new Date().toISOString(),
-    edited: false,
-  };
-
-  return new Response(
-    JSON.stringify({ image_b64: markGeneratedImageB64(imgResult.b64, imgResult.contentType, prov) }),
-    { headers: { "Content-Type": "application/json" } },
-  );
 }));

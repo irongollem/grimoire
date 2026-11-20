@@ -4,7 +4,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { loadCampaignKeys } from "../_shared/campaignKeys.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
+import { fetchCreditCost, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
@@ -13,11 +13,13 @@ import { isValidStyleImageSize, readPngDimensions, styleChargeSize } from "../_s
 import { OPENAI_IMAGE_SUNBURST, isFlexibleOpenAiModel } from "../_shared/platformModels.ts";
 import { isPromptRejected } from "../_shared/moderation.ts";
 import { buildMapStylePrompt } from "../_shared/mapStylePrompt.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign, type BaseCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 
 // ~9 MB binary once base64-decoded — caps the client-supplied source map image.
 const MAX_SOURCE_IMAGE_B64_CHARS = 12_000_000;
@@ -27,60 +29,40 @@ const admin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+interface StyleMapCampaign extends BaseCampaign {
+  image_provider: string | null;
+}
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
+const optionalString = (v: unknown) => (typeof v === "string" && v ? v : null);
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report }) => {
   // Frozen or child accounts cannot generate — including BYOK, which skips
   // the credit gate for both (#919).
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
-  let campaign_id: string, preset_id: string, image_b64: string,
-      map_name: string, map_description: string | null, prompt_suffix: string | null;
-
-  try {
-    const body = await req.json();
-    campaign_id     = body.campaign_id;
-    preset_id       = body.preset_id       ?? "playable";
-    image_b64       = body.image_b64;
-    map_name        = body.map_name        ?? "dungeon";
-    map_description = body.map_description ?? null;
-    prompt_suffix   = body.prompt_suffix   ?? null;
-    if (!campaign_id || !image_b64) throw new Error("invalid");
-  } catch {
-    return new Response("Invalid body — need { campaign_id, image_b64 }", { status: 400 });
+  const body = await readJsonBody(req);
+  const campaign_id = optionalString(body?.campaign_id);
+  const image_b64 = optionalString(body?.image_b64);
+  if (!body || !campaign_id || !image_b64) {
+    return jsonError(400, "invalid_body", "Need { campaign_id, image_b64 }.");
   }
+  const preset_id = optionalString(body.preset_id) ?? "playable";
+  const map_name = optionalString(body.map_name) ?? "dungeon";
+  const map_description = optionalString(body.map_description);
+  const prompt_suffix = optionalString(body.prompt_suffix);
 
   // Bound the client-supplied source image before we base64-decode it server-side
   // (~9 MB binary). Prevents a multi-MB payload from pinning memory.
   if (image_b64.length > MAX_SOURCE_IMAGE_B64_CHARS) {
-    return new Response("Source image too large", { status: 413 });
+    return jsonError(413, "image_too_large", "The source image is too large.");
   }
-
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled, image_provider")
-    .eq("id", campaign_id)
-    .maybeSingle();
-  if (!campaign) return new Response("Campaign not found", { status: 404 });
-  if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
 
   // DMs only: no player surface calls this, and it spends the campaign's
   // credits or the owner's own provider key (see _shared/campaignAccess.ts).
-  if (!(await isCampaignDm(admin, campaign, user.id))) {
-    return new Response("Forbidden", { status: 403 });
-  }
+  const load = await loadAiCampaign<StyleMapCampaign>(admin, campaign_id, user.id, { columns: ["image_provider"] });
+  if (!load.ok) return load.response;
+  const campaign = load.campaign;
 
   const [[campaignOpenai, campaignGemini], platformKeys, providerConfigs] = await Promise.all([
     loadCampaignKeys(admin, campaign, decryptValue).then((k) => [k.openai, k.gemini] as const),
@@ -98,19 +80,18 @@ serve(withCors(async (req: Request) => {
     surface: "map_style",
   });
   if (!img) {
-    return new Response("No image API key configured", { status: 422 });
+    return jsonError(422, "no_image_provider", "No image API key is configured.");
   }
   const isByok = img.isByok;
 
   // Everything that can reject the upload runs here, before the rate limit
-  // and the credit reservation below: a 400 after `reserveCredits` would
-  // return without releasing the hold.
+  // and the credit hold below, so a bad upload never reserves anything.
   // Decode base64 PNG to bytes — the client-supplied map is restyled (edit/compose).
   let byteStr: string;
   try {
     byteStr = atob(image_b64);
   } catch {
-    return new Response("image_b64 is not valid base64", { status: 400 });
+    return jsonError(400, "invalid_image", "image_b64 is not valid base64.");
   }
   const bytes = new Uint8Array(byteStr.length);
   for (let i = 0; i < byteStr.length; i++) bytes[i] = byteStr.charCodeAt(i);
@@ -131,23 +112,23 @@ serve(withCors(async (req: Request) => {
   // `provider_config`, and the client always sends a flexible-fitted image
   // for "openai" since it can't see which model that actually is.
   const dims = readPngDimensions(bytes);
-  if (!dims) return new Response("image_b64 is not a valid PNG", { status: 400 });
+  if (!dims) return jsonError(400, "invalid_image", "image_b64 is not a valid PNG.");
   if (img.base === "gemini") {
     if (!isValidGeminiAspectRatio(dims.width, dims.height)) {
-      return new Response(
-        `Image aspect ${dims.width}x${dims.height} does not match any of Gemini's supported ratios (1:1, 3:2, 2:3, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9)`,
-        { status: 400 },
+      return jsonError(
+        400, "invalid_image_size",
+        `Image aspect ${dims.width}x${dims.height} does not match any of Gemini's supported ratios (1:1, 3:2, 2:3, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9).`,
       );
     }
   } else if (!isFlexibleOpenAiModel(img.model)) {
-    return new Response(
-      `This campaign's image model (${img.model}) does not accept the AI map styler's flexible-sized input; ask an admin to use one that accepts any size, such as ${OPENAI_IMAGE_SUNBURST}`,
-      { status: 400 },
+    return jsonError(
+      400, "image_model_unsupported",
+      `This campaign's image model (${img.model}) does not accept the AI map styler's flexible-sized input; ask an admin to use one that accepts any size, such as ${OPENAI_IMAGE_SUNBURST}.`,
     );
   } else if (!isValidStyleImageSize(dims.width, dims.height)) {
-    return new Response(
-      `Image size ${dims.width}x${dims.height} is outside the accepted range (multiples of 16, 1:3..3:1, <=3840px per edge, 655,360..8,294,400 total px)`,
-      { status: 400 },
+    return jsonError(
+      400, "invalid_image_size",
+      `Image size ${dims.width}x${dims.height} is outside the accepted range (multiples of 16, 1:3..3:1, <=3840px per edge, 655,360..8,294,400 total px).`,
     );
   }
   const size = `${dims.width}x${dims.height}`;
@@ -158,63 +139,52 @@ serve(withCors(async (req: Request) => {
     applyMultiplier(baseCost, img.imageMultiplier) * sizeMultiplier(styleChargeSize(dims.width, dims.height)),
   );
 
-  // Atomic affordability gate: hold the balance across the paid image call.
   // Throttle abusive burst volume before any paid provider work (issue #466).
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) {
-    return new Response(
-      JSON.stringify({ error: "rate_limited" }),
-      { status: 429, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
-  const reservation = await reserveCredits(admin, user.id, cost, "map_style_generation");
-  if (!reservation.ok) {
-    return reservationFailureResponse(reservation);
-  }
-
+  // Everything that can be computed before paying is computed before the hold, so nothing after the reserve can
+  // throw outside it.
   const prompt = buildMapStylePrompt(preset_id, map_name, map_description, prompt_suffix);
   const quality = await resolveImageQuality(admin, "map_style_generation", img);
 
-  let imgResult: Awaited<ReturnType<typeof generateImage>>;
-  try {
-    imgResult = await generateImage({
-      provider: img.provider, model: img.model, apiKey: img.apiKey,
-      screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "map_style" },
-      prompt, size, quality, sourceImages: [mapBlob],
+  // Hold the balance across the paid image call.
+  return withCreditHold(admin, { payerId: user.id, reason: "map_style_generation", cost, report }, async (hold) => {
+    let imgResult: Awaited<ReturnType<typeof generateImage>>;
+    try {
+      imgResult = await generateImage({
+        provider: img.provider, model: img.model, apiKey: img.apiKey,
+        screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "map_style" },
+        prompt, size, quality, sourceImages: [mapBlob],
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Image generation failed";
+      // A refused prompt is the DM's to reword, not a provider outage.
+      return isPromptRejected(e) ? jsonError(400, "prompt_rejected", msg) : jsonError(502, "generation_failed", msg);
+    }
+
+    hold.charge("map_style_generation", {
+      cost, isByok,
+      log: {
+        model: img.model, quality, size,
+        provider: imgResult.usage.provider,
+        image_count: 1,
+        input_tokens:       imgResult.usage.input_tokens       || undefined,
+        input_image_tokens: imgResult.usage.input_image_tokens || undefined,
+        output_tokens:      imgResult.usage.output_tokens      || undefined,
+      },
     });
-  } catch (e) {
-    await releaseCredits(admin, reservation.ids);
-    const msg = e instanceof Error ? e.message : "Image generation failed";
-    // A refused prompt is the DM's to reword, not a provider outage.
-    return new Response(
-      JSON.stringify({ error: msg }),
-      { status: isPromptRejected(e) ? 400 : 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
 
-  await releaseCredits(admin, reservation.ids);
-  await recordGeneration(admin, user.id, "map_style_generation", isByok, cost, {
-    model: img.model, quality, size,
-    provider: imgResult.usage.provider,
-    image_count: 1,
-    input_tokens:       imgResult.usage.input_tokens       || undefined,
-    input_image_tokens: imgResult.usage.input_image_tokens || undefined,
-    output_tokens:      imgResult.usage.output_tokens      || undefined,
+    // EU AI Act Art 50(2) — mark before the bytes leave this pipeline. This
+    // endpoint has no server-side upload (the client uploads image_b64), so
+    // the response is the last point the resolved provider/model are known.
+    // A failure throws, and the hold then writes the charge as a free line.
+    const prov: AiProvenance = {
+      generatorType: "map_style",
+      provider: imgResult.usage.provider,
+      model: img.model,
+      generatedAt: new Date().toISOString(),
+      edited: false,
+    };
+    return json({ image_b64: markGeneratedImageB64(imgResult.b64, imgResult.contentType, prov) });
   });
-
-  // EU AI Act Art 50(2) — mark before the bytes leave this pipeline. This
-  // endpoint has no server-side upload (the client uploads image_b64), so
-  // the response is the last point the resolved provider/model are known.
-  const prov: AiProvenance = {
-    generatorType: "map_style",
-    provider: imgResult.usage.provider,
-    model: img.model,
-    generatedAt: new Date().toISOString(),
-    edited: false,
-  };
-
-  return new Response(
-    JSON.stringify({ image_b64: markGeneratedImageB64(imgResult.b64, imgResult.contentType, prov) }),
-    { headers: { "Content-Type": "application/json" } },
-  );
 }));

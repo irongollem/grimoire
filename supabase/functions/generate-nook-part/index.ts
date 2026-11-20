@@ -19,35 +19,25 @@ import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-config.ts";
-import {
-  fetchCreditCost,
-  recordGeneration,
-  releaseCredits,
-  reserveCredits,
-  reservationFailureResponse,
-  sizeMultiplier,
-  wholeCredits,
-} from "../_shared/credits.ts";
+import { fetchCreditCost, sizeMultiplier, wholeCredits } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
 import { resolveImageQuality } from "../_shared/imageQuality.ts";
 import { isPromptRejected } from "../_shared/moderation.ts";
-import { withCors } from "../_shared/cors.ts";
 import { generationRefusal } from "../_shared/accountGate.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
-import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { pngBlob } from "../_shared/pngRequest.ts";
+import { serveUser } from "../_shared/pipeline/serveUser.ts";
+import { json, jsonError, rateLimited, readJsonBody } from "../_shared/pipeline/respond.ts";
+import { loadAiCampaign } from "../_shared/pipeline/aiCampaign.ts";
+import { withCreditHold } from "../_shared/pipeline/creditHold.ts";
 import {
   NOOK_PART_SIZE,
   nookPartPrompt,
   validateNookPartRequest,
 } from "./validateNookPartRequest.ts";
-
-function jsonError(error: string, status: number): Response {
-  return new Response(JSON.stringify({ error }), { status, headers: { "Content-Type": "application/json" } });
-}
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -64,44 +54,21 @@ function roomSrc(scene: unknown): string | null {
   return first?.kind === "layer" && typeof first.src === "string" && first.src ? first.src : null;
 }
 
-serve(withCors(async (req: Request) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return new Response("Unauthorized", { status: 401 });
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return new Response("Unauthorized", { status: 401 });
-
+serve(serveUser(async ({ user, req, report }) => {
   const accountRefusal = await generationRefusal(admin, user.id);
   if (accountRefusal) return accountRefusal;
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonError("invalid_body", 400);
-  }
+  const body = await readJsonBody(req);
+  if (!body) return jsonError(400, "invalid_body", "The request was not valid.");
   const validation = validateNookPartRequest(body);
-  if (!validation.ok) return jsonError(validation.error, 400);
+  if (!validation.ok) return jsonError(400, validation.error, "That nook part request was not valid.");
   const { campaign_id: campaignId, nook_id: nookId, mode, subject, image_b64, mask_b64 } = validation.request;
 
-  const { data: campaign } = await admin
-    .from("campaigns")
-    .select("id, user_id, ai_enabled")
-    .eq("id", campaignId)
-    .maybeSingle();
-  if (!campaign) return jsonError("not_found", 404);
-  if (!(await isCampaignDm(admin, campaign, user.id))) return jsonError("forbidden", 403);
-  if (campaign.ai_enabled !== true) return jsonError("ai_disabled", 403);
+  const load = await loadAiCampaign(admin, campaignId, user.id);
+  if (!load.ok) return load.response;
 
   // Throttle before any work the caller can make the server do, the room's fetch included.
-  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return jsonError("rate_limited", 429);
+  if (!(await checkRateLimit(admin, user.id, "ai_generation"))) return rateLimited();
 
   // The nook must belong to the campaign the caller is DM of: never trust a bare nook id.
   const { data: nook, error: nookError } = await admin
@@ -110,11 +77,8 @@ serve(withCors(async (req: Request) => {
     .eq("id", nookId)
     .eq("campaign_id", campaignId)
     .maybeSingle();
-  if (nookError) {
-    console.error("generate-nook-part: nook read failed", nookError.message);
-    return jsonError("nook_read_failed", 500);
-  }
-  if (!nook) return jsonError("not_found", 404);
+  if (nookError) throw nookError;
+  if (!nook) return jsonError(404, "nook_not_found", "Nook not found.");
 
   let sources: Blob[];
   let mask: Blob | undefined;
@@ -122,12 +86,12 @@ serve(withCors(async (req: Request) => {
     const src = roomSrc(nook.scene);
     if (!src || !isSafeStorageUrl(src)) {
       console.warn("generate-nook-part: no safe room picture — refusing rather than painting without one");
-      return jsonError("no_room_picture", 400);
+      return jsonError(400, "no_room_picture", "This nook has no room picture to paint against.");
     }
     const roomRes = await fetch(src);
     if (!roomRes.ok) {
       console.error("generate-nook-part: failed to fetch room picture", roomRes.status);
-      return jsonError("picture_fetch_failed", 502);
+      return jsonError(502, "picture_fetch_failed", "The room picture could not be fetched. Please try again.");
     }
     sources = [await roomRes.blob()];
   } else {
@@ -146,9 +110,9 @@ serve(withCors(async (req: Request) => {
     platformKeys: { openai: platformKeys.openai },
     providerConfigs,
   });
-  if (!img) return jsonError("no_image_provider", 422);
+  if (!img) return jsonError(422, "no_image_provider", "No image provider is configured.");
   // Pinned to openai, so this is a guard: a mask cannot be sent to any other provider.
-  if (mode === "fill" && img.provider !== "openai") return jsonError("fill_unavailable", 503);
+  if (mode === "fill" && img.provider !== "openai") return jsonError(503, "fill_unavailable", "Filling a gap is not available right now.");
 
   // One `entity_cutout` picture per call, at the shared size multiplier, so the price follows the admin's
   // re-pricing of cut-outs. Lift is two calls from the client (lift, then fill).
@@ -157,47 +121,45 @@ serve(withCors(async (req: Request) => {
     applyMultiplier(baseCost, img.imageMultiplier) * sizeMultiplier(NOOK_PART_SIZE),
   );
 
-  const reservation = await reserveCredits(admin, user.id, cost, "entity_cutout");
-  if (!reservation.ok) return reservationFailureResponse(reservation);
-
   const quality = await resolveImageQuality(admin, "entity_cutout", img);
 
-  let imgResult;
-  try {
-    imgResult = await generateImage({
-      provider: img.provider, model: img.model, apiKey: img.apiKey,
-      screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "entity_cutout" },
-      prompt: nookPartPrompt(mode, subject), size: NOOK_PART_SIZE, quality, boostStyle: false,
-      sourceImages: sources, mask,
-      background: mode === "fill" ? "opaque" : "transparent",
+  return withCreditHold(admin, { payerId: user.id, reason: "entity_cutout", cost, report }, async (hold) => {
+    let imgResult;
+    try {
+      imgResult = await generateImage({
+        provider: img.provider, model: img.model, apiKey: img.apiKey,
+        screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "entity_cutout" },
+        prompt: nookPartPrompt(mode, subject), size: NOOK_PART_SIZE, quality, boostStyle: false,
+        sourceImages: sources, mask,
+        background: mode === "fill" ? "opaque" : "transparent",
+      });
+    } catch (e) {
+      if (isPromptRejected(e)) return jsonError(400, "prompt_rejected", e.message);
+      console.error("Nook part generation failed:", e);
+      return jsonError(502, "generation_failed", e instanceof Error ? e.message : "Nook part generation failed");
+    }
+
+    // The picture exists, so it is charged before the provenance mark below. If marking throws, the hold writes
+    // this charge as a free line.
+    hold.charge("entity_cutout", {
+      cost, isByok: false,
+      log: {
+        model: img.model, quality, size: NOOK_PART_SIZE,
+        provider: imgResult.usage.provider, image_count: 1,
+        input_tokens:       imgResult.usage.input_tokens       || undefined,
+        input_image_tokens: imgResult.usage.input_image_tokens || undefined,
+        output_tokens:      imgResult.usage.output_tokens      || undefined,
+      },
     });
-  } catch (e) {
-    await releaseCredits(admin, reservation.ids);
-    if (isPromptRejected(e)) return jsonError(e.message, 400);
-    console.error("Nook part generation failed:", e);
-    return jsonError(e instanceof Error ? e.message : "Nook part generation failed", 502);
-  }
 
-  await releaseCredits(admin, reservation.ids);
-  await recordGeneration(admin, user.id, "entity_cutout", false, cost, {
-    model: img.model, quality, size: NOOK_PART_SIZE,
-    provider: imgResult.usage.provider, image_count: 1,
-    input_tokens:       imgResult.usage.input_tokens       || undefined,
-    input_image_tokens: imgResult.usage.input_image_tokens || undefined,
-    output_tokens:      imgResult.usage.output_tokens      || undefined,
+    // EU AI Act Art 50(2): mark before the bytes leave this pipeline (the client uploads image_b64).
+    const prov: AiProvenance = {
+      generatorType: "nook_part",
+      provider: imgResult.usage.provider,
+      model: img.model,
+      generatedAt: new Date().toISOString(),
+      edited: false,
+    };
+    return json({ image_b64: markGeneratedImageB64(imgResult.b64, imgResult.contentType, prov) });
   });
-
-  // EU AI Act Art 50(2): mark before the bytes leave this pipeline (the client uploads image_b64).
-  const prov: AiProvenance = {
-    generatorType: "nook_part",
-    provider: imgResult.usage.provider,
-    model: img.model,
-    generatedAt: new Date().toISOString(),
-    edited: false,
-  };
-
-  return new Response(
-    JSON.stringify({ image_b64: markGeneratedImageB64(imgResult.b64, imgResult.contentType, prov) }),
-    { headers: { "Content-Type": "application/json" } },
-  );
 }));
