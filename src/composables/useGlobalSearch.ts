@@ -14,7 +14,8 @@ import { useLibrarySourceSlugs } from "@/composables/library/useEnabledSources";
 import { useRuleset, useTableRuleset } from "@/composables/rules/useRuleset";
 import type { RulesetKey } from "@/types/ruleset.types";
 import { isUuid } from "@/lib/library/contentIdentity";
-import { fetchLibraryMonsterArtEntries, withLibraryArtAll } from "@/composables/library/useLibraryMonsterArt";
+import { fetchLibraryMonsterArtEntries } from "@/composables/library/useLibraryMonsterArt";
+import { withLibraryArtAll } from "@/lib/library/monsterArtLayers";
 import { reportHandledError } from "@/lib/observability/sentry";
 import type { SearchGroup, SearchHit } from "@/lib/search/mergeSearchHits";
 import {

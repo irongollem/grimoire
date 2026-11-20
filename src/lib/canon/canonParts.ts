@@ -26,10 +26,6 @@ export const TABLE_SECTION_HINT = "Filled by the Narrator as it invents. Keep, e
 
 export type CanonSectionId = (typeof CANON_SECTIONS)[number]["id"];
 
-export function isCanonSectionId(value: string): value is CanonSectionId {
-  return CANON_SECTIONS.some((s) => s.id === value);
-}
-
 /** How many entries each part holds, for the contents column. */
 export function sectionCounts(entries: readonly CanonEntry[]): Record<CanonSectionId, number> {
   const counts = {} as Record<CanonSectionId, number>;

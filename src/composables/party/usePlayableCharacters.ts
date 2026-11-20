@@ -16,7 +16,7 @@ import { useParty, useSetActiveCharacter } from "@/composables/party/useParty";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useCharacterCaretakers } from "@/composables/party/useCharacterCaretakers";
 import { useCampaignMemorials } from "@/composables/memorials/useMemorials";
-import { activeMembers } from "@/composables/party/useActiveParty";
+import { activeMembers } from "@/lib/party/activeMembers";
 import { useToast } from "@/composables/useToast";
 import { mindedBy } from "@/lib/player/caretaking";
 import { pickHome, type PlayableCharacter } from "@/lib/player/playableCharacters";

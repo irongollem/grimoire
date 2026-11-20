@@ -89,6 +89,13 @@ export interface ResolutionContext {
    * where the context cannot tell sides: then only the source creature itself counts as its side.
    */
   factionOf?(instanceId: string): string | null;
+  /**
+   * A hit has been rolled against `target` (PHB 2014 ch. 9 "Making an Attack"); may it answer with a Reaction that raises its armour class
+   * (Shield, #1021)? The context decides who may react and performs the cast (the Reaction, the slot, the condition, the deed), and returns
+   * the spell's name and the new armour class; null for no reaction. Absent in the DM's browser (the DM decides at the table) and in the
+   * solo table: nothing is cast there.
+   */
+  reactToHit?(target: RunCombatant, roll: { natural: number; total: number; armorClass: number }): Promise<{ spell: string; armorClass: number } | null>;
 }
 
 /** The action cannot be resolved as asked: nothing to roll, a creature the server has no data for. The server answers it with a 400. */

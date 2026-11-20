@@ -146,6 +146,8 @@ export type ResolvedAction =
       dying: DyingOutcome;
       /** The save the hit forced on the creature that was hit, when the action has one. */
       save: ResolvedSave | null;
+      /** A Reaction the target took after the roll (Shield): `by` is its instance id, and `targetAc` already counts what it added. */
+      reaction?: { by: string; spell: string };
     }
   | { kind: "save"; attackerId: string; action: string; ability: SaveAbility; dc: number; targets: ResolvedSave[] }
   /**

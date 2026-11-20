@@ -11,7 +11,8 @@ import type { ConfirmedFight, ObservedRow } from "./fightSync";
 
 /** The commands sent alone, each of which decides which other rows are touched (see the function's handler). */
 export type FightLifecycleCommand =
-  | { type: "open"; combatants: RunCombatant[]; legendaryCaps?: Record<string, number> }
+  /** The server builds the roster (#1021 row 16); `playedMemberId` names the AI table's played character. */
+  | { type: "open"; playedMemberId?: string }
   | { type: "go_live"; sessionId: string | null }
   | { type: "go_private" }
   | { type: "end_combat"; siteId?: string | null }

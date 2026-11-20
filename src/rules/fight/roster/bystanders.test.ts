@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bystandersOf, lateBystanders } from "./bystandersOf";
+import { bystandersOf, lateBystanders } from "./bystanders";
 import type { Npc } from "@/types/npc.types";
 
 type Source = Parameters<typeof bystandersOf>[0][number];

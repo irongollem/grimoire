@@ -13,6 +13,7 @@ import { loadSpellsListed, loadSpellsNamed } from "../_shared/fightSpells.ts";
 import { loadFightMapInput } from "../_shared/fightMap.ts";
 import { loadPartyIngestRows } from "../_shared/fightPartyIngest.ts";
 import { loadPlayerSheets } from "../_shared/fightPlayerSheets.ts";
+import { loadRoster, ROSTER_ENCOUNTER_COLUMNS, type RosterEncounter } from "../_shared/fightRoster.ts";
 import { gameSystemEdition } from "../_shared/gameSystem.ts";
 import { fightMapOf } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
@@ -82,9 +83,9 @@ serve(withCors(async (req: Request) => {
     }
     const request = validateRequest(body);
 
-    const access = await loadEncounterAsDm<{
+    const access = await loadEncounterAsDm<RosterEncounter & {
       id: string; campaign_id: string | null; events: EncounterEvent[] | null; lair_enabled: boolean; lair_owner_def_id: string | null; factions: FactionSides | null;
-    }>(admin, userId, request.encounterId, "id, campaign_id, events, lair_enabled, lair_owner_def_id, factions");
+    }>(admin, userId, request.encounterId, `id, campaign_id, events, lair_enabled, lair_owner_def_id, factions, ${ROSTER_ENCOUNTER_COLUMNS}`);
     if (!access.ok) return access.response;
     const { encounter, campaign } = access;
     const campaignId = campaign.id;
@@ -126,6 +127,7 @@ serve(withCors(async (req: Request) => {
         };
         return loaded;
       },
+      buildRoster: (playedMemberId) => loadRoster(admin, { campaignId, userId, encounter }, playedMemberId),
       async createFight(encounterId, first) {
         const { data, error } = await admin
           .from("encounter_state")

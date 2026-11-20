@@ -253,6 +253,11 @@ export interface SpellGrants {
   rounds: number;
   /** One more creature for each slot level above the spell's (Bless); 0 or absent for none. */
   morePerSlot?: number;
+  /**
+   * The spell is a Reaction taken when the bearer is hit by an attack (Shield): a fight casts it from the roll to hit, not as a turn's
+   * cast, and it lasts until the start of the bearer's next turn (the condition's own end), not `rounds`.
+   */
+  reaction?: "when_hit";
 }
 
 export interface SpellEffectInstances {

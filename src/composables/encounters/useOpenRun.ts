@@ -1,26 +1,19 @@
 import type { ComputedRef, Ref } from "vue";
-import { computed, ref, watch } from "vue";
+import { ref, watch } from "vue";
 import { useEncounter } from "@/composables/encounters/useEncounters";
 import { useMonstersByIds } from "@/composables/monsters/useMonstersByIds";
-import { useActiveParty } from "@/composables/party/useActiveParty";
-import { useArmorClass } from "@/composables/party/useArmorClass";
-import { useCampaignJackOfAllTrades } from "@/composables/party/useJackOfAllTrades";
-import { useCompanions } from "@/composables/encounters/useCompanions";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { useSpeciesByIds } from "@/composables/rules/useSpecies";
 import { useTrapResolver } from "@/composables/dungeon-features/useTraps";
 import { encounterTrapRefs } from "@/lib/dungeon-features/library";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { useToast } from "@/composables/useToast";
-import { buildRunCombatants, legendaryActionCaps } from "@/lib/encounters/buildRunCombatants";
-import { bystandersOf, lateBystanders } from "@/lib/encounters/bystandersOf";
+import { bystandersOf, lateBystanders } from "@/rules/fight/roster/bystanders";
 import { confirmedFromAnswer, sendAlone } from "@/lib/encounters/fightWire";
 import { DRAIN_TIMEOUT_MS } from "@/stores/encounterRunPump";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
-import type { PartyMember } from "@/types/party.types";
 import type { NpcListRow } from "@/types/npc.types";
 import type { TrapEntry } from "@/types/trap.types";
 
@@ -43,41 +36,13 @@ export async function sendLeftBehind(
 }
 
 /**
- * The encounter as it is fought. A fight from the AI table is fought by the played character and the party members
- * the AI plays beside them (#1021, allies: those whose player let the AI act for them, `aiPlays`). Every other
- * party member the encounter lists stays out: a solo player is never handed another player's sheet to play. With no
- * solo member the encounter is returned untouched, so the DM's own fight keeps its party. The played member is
- * fielded first, even when the encounter did not list them.
- */
-export function foughtEncounter<E extends { party_member_ids: string[] }>(
-  encounter: E,
-  onlyMemberId: string | null,
-  aiPlays: (memberId: string) => boolean = () => false,
-): E {
-  if (onlyMemberId === null) return encounter;
-  const allies = encounter.party_member_ids.filter((id) => id !== onlyMemberId && aiPlays(id));
-  return { ...encounter, party_member_ids: [onlyMemberId, ...allies] };
-}
-
-/**
- * Opens a saved encounter as the live fight: reads everything the roster needs, waits for it to settle, asks the
- * server to open the fight and builds the run store from the answer. Shared by every screen that runs a fight.
+ * Opens a saved encounter as the live fight: reads what the runner shows (monsters, NPCs, traps), asks the server
+ * to open the fight (the server builds the roster) and builds the run store from the answer. Shared by every screen that runs a fight.
  */
 export function useOpenRun(encounterId: Readonly<Ref<string>> | ComputedRef<string>, options: { onlyMemberId?: () => string | null } = {}) {
   const id = encounterId;
   const { data: encounter } = useEncounter(id);
-  const { data: party, isFetching: partyFetching } = useActiveParty();
-  const { data: companions, isFetching: companionsFetching } = useCompanions();
-  // A player's AC is snapshotted into the run (and so into combatants_live) when
-  // the store is built, so that waits for the gear: before it loads, everyone is
-  // 10 + Dex.
-  const { acFor, isReady: acReady } = useArmorClass();
-  // Jack of All Trades is part of a character's initiative, snapshotted into the combatant, so a
-  // fight is never built before the class rows load (it would score a Bard short all fight).
-  const { jackFor, ready: jackReady } = useCampaignJackOfAllTrades();
-  const { data: npcs, isFetching: npcsFetching } = useNpcs();
-  // A character's token takes its species' (or subrace's) size, so the species the party has are read by id.
-  const { data: speciesById, isLoading: speciesLoading } = useSpeciesByIds(() => (party.value ?? []).map((m) => m.species_id));
+  const { data: npcs } = useNpcs();
   // byId resolves the ids the encounter stored, library and own alike.
   const { byId: trapsById, isLoading: trapsLoading } = useTrapResolver(
     () => ({ includeAllScopes: true }),
@@ -142,14 +107,11 @@ export function useOpenRun(encounterId: Readonly<Ref<string>> | ComputedRef<stri
     store.adoptStatBlocks();
   });
 
-  // Every run is a saved row (#1201). Opening the run view builds the roster as it always did and asks the
-  // server to open the fight on it: the answer is the fight, a new one or the one already under way (a reload,
-  // a second device, a run started on a phone), and the store is built from the answer, never from the roster
-  // just built. The store outlives this component, so a remount (the battle map and back, a quest tool
-  // reopening) keeps the run too; only End combat and Abandon clear it. It waits for the party, companion and
-  // NPC reads to settle, because a cached row shown while its refetch is in flight would seed a new fight with
-  // stale hit points and conditions, which End combat then writes back.
-  const readsSettled = computed(() => !partyFetching.value && !companionsFetching.value && !npcsFetching.value);
+  // Every run is a saved row (#1201). Opening the run view asks the server to open the fight: the server builds
+  // the roster from the rows it reads itself, and the answer is the fight, a new one or the one already under way
+  // (a reload, a second device, a run started on a phone). The store is built from the answer. The store outlives
+  // this component, so a remount (the battle map and back, a quest tool reopening) keeps the run too; only End
+  // combat and Abandon clear it.
 
   /** Set when the fight is on screen. Not derived from the store: End combat resets the store while the runner is still leaving. */
   const opened = ref(false);
@@ -166,21 +128,21 @@ export function useOpenRun(encounterId: Readonly<Ref<string>> | ComputedRef<stri
   function tryOpen() {
     const enc = encounter.value;
     const traps = trapsById.value;
-    if (!enc || monstersLoading.value || !party.value || !companions.value || !npcs.value || trapsLoading.value || speciesLoading.value || !acReady.value) return;
+    if (!enc || monstersLoading.value || !npcs.value || trapsLoading.value) return;
     if (store.encounterId === enc.id) {
       opened.value = true;
       return;
     }
-    if (openingFor === enc.id || !readsSettled.value || !jackReady.value) return;
+    if (openingFor === enc.id) return;
     openingFor = enc.id;
-    void openRun(enc, [...monsterMap.value.values()], party.value, npcs.value, filterEncounterTraps(enc, traps)).catch((error: unknown) => {
+    void openRun(enc, [...monsterMap.value.values()], npcs.value, filterEncounterTraps(enc, traps)).catch((error: unknown) => {
       openingFor = null;
       openError.value = toast.fromError(error, "Check your connection.");
     });
   }
 
   watch(
-    [encounter, monsterMap, monstersLoading, party, companions, npcs, trapsById, trapsLoading, acReady, readsSettled, speciesLoading, jackReady],
+    [encounter, monsterMap, monstersLoading, npcs, trapsById, trapsLoading],
     tryOpen,
     { immediate: true },
   );
@@ -197,15 +159,9 @@ export function useOpenRun(encounterId: Readonly<Ref<string>> | ComputedRef<stri
       .filter((trap): trap is TrapEntry => trap !== undefined);
   }
 
-  async function openRun(enc: Encounter, mons: Monster[], par: PartyMember[], npcList: NpcListRow[], traps: TrapEntry[]) {
+  async function openRun(enc: Encounter, mons: Monster[], npcList: NpcListRow[], traps: TrapEntry[]) {
     const onlyMember = options.onlyMemberId?.() ?? null;
-    const fought = foughtEncounter(enc, onlyMember, (id) => par.some((m) => m.id === id && m.ai_speaks === true));
-    const built = buildRunCombatants({ encounter: fought, party: par, companions: companions.value ?? [], monsters: mons, npcs: npcList, species: [...speciesById.value.values()], acFor, jackFor });
-    // Only the AI table seats the characters who are in the room: a DM's own run adds whom they choose.
-    const inTheRoom = onlyMember !== null ? bystandersOf(npcList, enc.location_id, built) : [];
-    const combatants = [...built, ...inTheRoom];
-    const legendaryCaps = legendaryActionCaps(combatants, mons);
-    const { answer } = await sendAlone(enc.id, { type: "open", combatants, ...(Object.keys(legendaryCaps).length ? { legendaryCaps } : {}) });
+    const { answer } = await sendAlone(enc.id, { type: "open", ...(onlyMember !== null ? { playedMemberId: onlyMember } : {}) });
     if (id.value !== enc.id) return;
     const held = answer.state.combatants_live;
     await sendLeftBehind(store, id.value, () => toast.error("Some changes to the last fight could not be saved."));
@@ -231,8 +187,10 @@ export function useOpenRun(encounterId: Readonly<Ref<string>> | ComputedRef<stri
     );
     // A stat block written while no runner was open.
     store.adoptStatBlocks();
-    // The fight that caught up with the party was on record already, without whoever travels with them.
-    store.join(lateBystanders(inTheRoom, held, answer.state.current_round));
+    // Only the AI table seats the characters who are in the room: a DM's own run adds whom they choose. A fresh
+    // fight has them seated by the server, so this joins nobody; the fight that caught up with the party was on
+    // record already, without whoever travels with them.
+    if (onlyMember !== null) store.join(lateBystanders(bystandersOf(npcList, enc.location_id, held), held, answer.state.current_round));
     opened.value = true;
   }
 

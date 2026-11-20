@@ -224,6 +224,17 @@ export function bless(over: Partial<SpellRecord> = {}): SpellRecord {
   });
 }
 
+/** "Shield" (PHB 2014 and 2024): a 1st-level Reaction taken when hit by an attack; +5 AC until the start of the caster's next turn. */
+export function shield(over: Partial<SpellRecord> = {}): SpellRecord {
+  const ruleset = over.ruleset ?? "2014";
+  return healer({
+    id: `shield_${ruleset}`, name: "Shield", level: 1, range: "Self", ruleset, concentration: false,
+    casting_time: "Reaction",
+    effects: [boonEffect({ ac: 5, rounds: 1, reaction: "when_hit" }, 1, "+5 bonus to AC until the start of your next turn.")],
+    ...over,
+  });
+}
+
 /** "Shield of Faith" (PHB 2014 and 2024): one creature within 60 feet gains +2 AC; a Bonus Action, Concentration up to 10 minutes. */
 export function shieldOfFaith(over: Partial<SpellRecord> = {}): SpellRecord {
   const ruleset = over.ruleset ?? "2014";
