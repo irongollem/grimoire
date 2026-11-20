@@ -2,6 +2,7 @@ import { defineComponent, h } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
+import { createPinia } from "pinia";
 import { ref } from "vue";
 import type { EntityRef } from "@/scriptorium/lib/entityEmbeds";
 
@@ -73,7 +74,7 @@ function open(refs: EntityRef[], seed?: (queryClient: QueryClient) => void) {
         return () => h("div");
       },
     }),
-    { global: { plugins: [[VueQueryPlugin, { queryClient }]] } },
+    { global: { plugins: [createPinia(), [VueQueryPlugin, { queryClient }]] } },
   );
   return { api: () => api, refsRef };
 }

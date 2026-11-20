@@ -39,6 +39,13 @@ export function selectPrimaryQuest(extracted: ExtractionResult): PrimaryQuestSel
   return { entity: entities[0] ?? null, extraCount: Math.max(0, entities.length - 1), dropped };
 }
 
+/**
+ * Kinds the compact quest paste never offers as "also found". A page pasted into a quest is one adventure, and the
+ * canon and the pantheon are the campaign's own sections, brought in by a book through the Canon import (#1226
+ * story 7): offering them here would be a second door to the same rooms, with none of the review a book gets.
+ */
+export const QUEST_PASTE_EXCLUDED_KINDS: readonly ImportEntityKind[] = ["deities", "canon"];
+
 export interface OtherKindGroup {
   kind: Exclude<ImportEntityKind, "quests">;
   label: string;
@@ -55,7 +62,7 @@ export interface OtherKindGroup {
 export function summarizeOtherKinds(extracted: ExtractionResult): OtherKindGroup[] {
   const groups: OtherKindGroup[] = [];
   for (const kind of IMPORT_ENTITY_KINDS) {
-    if (kind === "quests") continue;
+    if (kind === "quests" || QUEST_PASTE_EXCLUDED_KINDS.includes(kind)) continue;
     const entry = getEntityKindEntry(kind);
     const { entities } = sanitizeEntities(extracted[kind], entry.displayField);
     if (entities.length > 0) groups.push({ kind, label: entry.labelPlural, entities });

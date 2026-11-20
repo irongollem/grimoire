@@ -301,6 +301,12 @@ const AOE_SHAPE = [
   "emanation",
 ] as const;
 
+// src/types/canon.types.ts
+// A backstory is opened by `open_backstory` (it needs a character), so a create never offers it.
+const CANON_CREATE_PART = ["premise", "truth", "force", "secret", "question", "lore"] as const;
+const PREMISE_KIND = ["pitch", "theme", "table", "voice", "look", "line", "veil"] as const;
+const KNOWLEDGE_MARK = ["all", "some", "secret"] as const;
+
 // src/types/trap.types.ts
 const TRAP_TYPE = ["Mechanical", "Magical", "Hybrid", "Environmental"] as const;
 const TRAP_TRIGGER = [
@@ -767,6 +773,87 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
       },
     },
   },
+  canon: {
+    type: "canon",
+    label: "Canon entry",
+    table: "canon_entries",
+    nameField: "title",
+    searchFields: ["title"],
+    extraListColumns: ["part", "knowledge", "premise_kind", "sort_order"],
+    campaignScope: "owned",
+    imageFields: { picture: "image_url" },
+    create: {
+      fields: {
+        campaign_id: { type: "uuid", required: true },
+        part: {
+          type: "enum",
+          values: CANON_CREATE_PART,
+          required: true,
+          description:
+            "Where the entry belongs. Premise entries also need premise_kind; truths also need knowledge.",
+        },
+        title: {
+          type: "text",
+          required: true,
+          description: "A one-line entry is its title (a truth, a theme, a line).",
+        },
+        body: { type: "text", description: "The pitch or a longer entry; plain text is accepted." },
+        premise_kind: {
+          type: "enum",
+          values: PREMISE_KIND,
+          description:
+            "Only when part is premise. Lines are never suggested anywhere; veils happen off the page.",
+        },
+        knowledge: {
+          type: "enum",
+          values: KNOWLEDGE_MARK,
+          description:
+            "Only when part is truth: who knows it. Only truths marked all reach the AI generators.",
+        },
+        sort_order: { type: "number" },
+        player_visible_to: { type: "uuid[]", description: "Party members who may see it." },
+        wants: { type: "text", description: "Only when part is force: what it wants, in one line." },
+        clock_size: { type: "number", description: "Only when part is force: how many ticks fill its clock, 2 to 12." },
+      },
+    },
+  },
+  canon_force_step: {
+    type: "canon_force_step",
+    label: "Canon force step",
+    table: "canon_force_steps",
+    nameField: "title",
+    searchFields: ["title"],
+    extraListColumns: ["force_id", "sort_order", "reached_at"],
+    campaignScope: "owned",
+    create: {
+      fields: {
+        campaign_id: { type: "uuid", required: true },
+        force_id: { type: "uuid", required: true, description: "The canon entry (part force) this step belongs to." },
+        title: { type: "text", required: true, description: "What the force does next, in a line." },
+        sort_order: { type: "number", description: "Its place in the force's steps, from 0." },
+      },
+    },
+  },
+  canon_clue: {
+    type: "canon_clue",
+    label: "Canon clue",
+    table: "canon_clues",
+    nameField: "title",
+    searchFields: ["title"],
+    extraListColumns: ["secret_id", "sort_order", "found_at"],
+    campaignScope: "owned",
+    create: {
+      fields: {
+        campaign_id: { type: "uuid", required: true },
+        secret_id: { type: "uuid", required: true, description: "The canon entry (part secret) this clue points at." },
+        title: { type: "text", required: true, description: "The clue, in a line the party can find." },
+        location_id: { type: "uuid", description: "Where it lies: a place. At most one of location_id, npc_id and quest_beat_id." },
+        npc_id: { type: "uuid", description: "Where it lies: a person." },
+        quest_beat_id: { type: "uuid", description: "Where it lies: a quest beat." },
+        sort_order: { type: "number" },
+      },
+    },
+  },
   pantheon: {
     type: "pantheon",
     label: "Pantheon",
@@ -884,11 +971,10 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     label: "Note",
     table: "notes",
     nameField: "title",
-    summaryField: "category",
-    searchFields: ["title", "content", "category"],
+    searchFields: ["title", "content"],
     // The session's number and title read through the notes.session_id link;
     // rows carry them as `session: { number, title }` (null when unlinked).
-    extraListColumns: ["category", "session:campaign_sessions(number,title)"],
+    extraListColumns: ["session:campaign_sessions(number,title)"],
     campaignScope: "owned",
     embedOnWrite: { fn: "embed-content", entity: "note" },
     create: {
@@ -896,7 +982,6 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
         title: { type: "text", required: true },
         campaign_id: { type: "uuid" },
         content: { type: "text" },
-        category: { type: "text", description: "Defaults to general." },
         session_id: {
           type: "uuid",
           description: "Id of an existing session in the campaign this note belongs to. The session's number is read from the session itself.",

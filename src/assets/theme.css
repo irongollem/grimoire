@@ -118,7 +118,7 @@
 
   /* ── Entity ramps, part two (#744) ───────────────────────────────────────
      The same conversion as the relationship and CR ramps above, applied to the
-     rest of them: rarity, note category, calendar event, scriptorium doc type,
+     rest of them: rarity, calendar event, scriptorium doc type,
      NPC relation type, trap, puzzle, dungeon feature, spell school, monster
      type and location tier.
 
@@ -151,6 +151,7 @@
   --color-link-place: var(--link-place);
   --color-link-holding: var(--link-holding);
   --color-link-stance: var(--link-stance);
+  --color-link-lore: var(--link-lore);
   --color-link-record: var(--link-record);
   --color-trap-mechanical: var(--trap-mechanical);
   --color-trap-magical: var(--trap-magical);
@@ -184,12 +185,6 @@
   --color-school-illusion: var(--school-illusion);
   --color-school-necromancy: var(--school-necromancy);
   --color-school-transmutation: var(--school-transmutation);
-  --color-note-general: var(--note-general);
-  --color-note-session: var(--note-session);
-  --color-note-lore: var(--note-lore);
-  --color-note-location: var(--note-location);
-  --color-note-quest: var(--note-quest);
-  --color-note-faction: var(--note-faction);
   --color-doctype-custom: var(--doctype-custom);
   --color-doctype-spell: var(--doctype-spell);
   --color-doctype-monster: var(--doctype-monster);
@@ -370,14 +365,15 @@
   /* World web: kin line colour */
   --relation-family: #7c3aed;
 
-  /* World web: one colour per family of tie (#1084). Lightness differs across the
-     seven, not hue alone: enmity is the darkest, holding the lightest. */
+  /* World web: one colour per family of tie (#1084; lore, a canon entry's ties, #1226). Lightness differs across the
+     eight, not hue alone: enmity is the darkest, holding the lightest. */
   --link-bond: #3a7bbf;
   --link-enmity: #c0432c;
   --link-faith: #9468c4;
   --link-place: #2e8b57;
   --link-holding: #d49a1a;
   --link-stance: #5b6670;
+  --link-lore: #8b5a3a;
   --link-record: #9a9183;
 
   /* TRAP_TYPE_BG */
@@ -422,14 +418,6 @@
   --school-necromancy: #4d7c0f;
   --school-transmutation: #d97706;
 
-
-  /* CATEGORY_COLORS */
-  --note-general: #6b7280;
-  --note-session: #2563eb;
-  --note-lore: #7c3aed;
-  --note-location: #059669;
-  --note-quest: #d97706;
-  --note-faction: #dc2626;
 
   /* DOC_TYPE_BG */
   --doctype-custom: #6b7280;

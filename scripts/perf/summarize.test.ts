@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyRequest, describeRequest, type RawRequest, summarizeRequests, totalBlockingTime } from "./summarize";
+import { classifyRequest, describeRequest, isBackgroundRequest, type RawRequest, summarizeRequests, totalBlockingTime } from "./summarize";
 
 const API = "http://127.0.0.1:54321";
 
@@ -41,6 +41,44 @@ describe("classifyRequest", () => {
 describe("describeRequest", () => {
   it("keeps method, path and query only", () => {
     expect(describeRequest({ url: `${API}/rest/v1/quests?select=id&limit=5`, method: "GET" })).toBe("GET /rest/v1/quests?select=id&limit=5");
+  });
+});
+
+describe("background requests", () => {
+  // A chain of two foreground reads, then whatever starts after the second is answered.
+  const chainThen = (url: string, method = "GET") =>
+    summarizeRequests(
+      [
+        req({ url: `${API}/rest/v1/profiles`, startMs: 0, endMs: 100 }),
+        req({ url: `${API}/rest/v1/campaigns`, startMs: 100, endMs: 200 }),
+        req({ url, method, startMs: 200, endMs: 300 }),
+      ],
+      API,
+      0,
+      1000,
+    );
+
+  it("does not let a request the app defers until idle deepen the serial depth", () => {
+    const summary = chainThen(`${API}/rest/v1/app_settings?select=value&key=eq.placeholder_focal_points`);
+    expect(summary.serialDepth).toBe(2);
+    // It is still a request: counted, and shown at its link in the chain.
+    expect(summary.apiRequests).toBe(3);
+    expect(summary.apiWaves).toEqual([1, 2, 3]);
+  });
+
+  it("leaves out the background indexing audit", () => {
+    expect(chainThen(`${API}/functions/v1/embed-content`, "POST").serialDepth).toBe(2);
+    expect(chainThen(`${API}/functions/v1/embed-monsters`, "POST").serialDepth).toBe(2);
+  });
+
+  it("still counts a read of the same table that nothing defers", () => {
+    expect(chainThen(`${API}/rest/v1/app_settings?select=value&key=eq.maintenance`).serialDepth).toBe(3);
+    expect(chainThen(`${API}/rest/v1/notes?select=id`).serialDepth).toBe(3);
+  });
+
+  it("matches the method and the whole query parameter, not a prefix of either", () => {
+    expect(isBackgroundRequest({ url: `${API}/functions/v1/embed-content`, method: "GET" })).toBe(false);
+    expect(isBackgroundRequest({ url: `${API}/rest/v1/app_settings?key=eq.placeholder_focal_points_v2`, method: "GET" })).toBe(false);
   });
 });
 

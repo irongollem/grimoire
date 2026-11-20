@@ -1,5 +1,7 @@
 <template>
   <div>
+    <NoteSortingSection />
+
     <!-- Filters -->
     <ListFilterBar
       class="mb-5"
@@ -7,11 +9,6 @@
       @clear="notesUi.resetNotesFilters()"
     >
       <ListSearchInput v-model="notesUi.notesSearchQuery" placeholder="Search notes…" />
-      <ListFilterGroup
-        v-model="notesUi.notesFilterCategory"
-        :options="CATEGORY_OPTIONS"
-        aria-label="Note category filter"
-      />
       <!-- The sort ends the row, as on every list. -->
       <SortControl v-model:sort-by="sortBy" v-model:sort-dir="sortDir" :options="SORT_OPTIONS" class="ml-auto" />
     </ListFilterBar>
@@ -85,7 +82,7 @@
     </template>
 
     <p v-if="filtered.length" class="mt-4 text-caption text-muted-foreground italic text-right">
-      {{ filtered.length }} of {{ notes?.length ?? 0 }} notes
+      {{ filtered.length }} of {{ notes.length }} notes
     </p>
   </div>
 
@@ -106,15 +103,16 @@ import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import EmptyState from "@/components/common/feedback/EmptyState.vue";
 import SortControl from "@/components/common/controls/SortControl.vue";
 import ListFilterBar from "@/components/common/list/ListFilterBar.vue";
-import ListFilterGroup from "@/components/common/list/ListFilterGroup.vue";
 import ListSearchInput from "@/components/common/list/ListSearchInput.vue";
+import NoteSortingSection from "@/components/notes/sorting/NoteSortingSection.vue";
 import NoteCard from "@/components/notes/NoteCard.vue";
 import NoteRow from "@/components/notes/NoteRow.vue";
 import EntityCollection from "@/components/common/list/EntityCollection.vue";
 import { useListLayout } from "@/composables/useListLayout";
 import { useBreakpointColumns } from "@/composables/useGridColumns";
+import { listedNotes } from "@/lib/notes/noteSessions";
 import { sortEntities, type SortField } from "@/lib/noteSort";
-import type { Note, NoteCategory } from "@/types/notes.types";
+import type { Note } from "@/types/notes.types";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
 
@@ -126,16 +124,6 @@ function handleNew() {
   if (!canCreate.value) { showPaywall.value = true; return; }
   router.push("/notes/new");
 }
-
-const CATEGORY_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "general", label: "General" },
-  { value: "session", label: "Session" },
-  { value: "lore", label: "Lore" },
-  { value: "location", label: "Location" },
-  { value: "quest", label: "Quest" },
-  { value: "faction", label: "Faction" },
-] as const satisfies readonly { value: NoteCategory | "all"; label: string }[];
 
 const SORT_OPTIONS = [
   { value: "created", label: "Created", order: "date" },
@@ -167,10 +155,12 @@ const NOTE_ROW_PX = 170;
 // A note row: EntityListRow with a subtitle, a tag line and a one-line preview.
 const NOTE_LIST_ROW_PX = 118;
 
-const { data: notes, isLoading } = useNotes();
+const { data: allNotes, isLoading } = useNotes();
+// Session-linked notes are the chronicle, read on the Canon page; this list is the DM's own notes.
+const notes = computed(() => listedNotes(allNotes.value ?? []));
 const { mutate: reorder } = useReorderNotes();
 
-// Search + category live in the store so they survive navigating into a note
+// Search lives in the store so they survive navigating into a note
 // and back (Filter State Pattern) — the same place the sort already lived.
 const notesUi = useNotesUiStore();
 const { notesSortBy: sortBy, notesSortDir: sortDir } = storeToRefs(notesUi);
@@ -179,15 +169,14 @@ const lockedNoteIds = computed((): Set<string> => {
   const q = noteQuota.value;
   if (!q || q.unlimited || q.current <= q.limit) return new Set();
   const overCount = q.current - q.limit;
-  const sorted = [...(notes.value ?? [])].sort(
+  const sorted = [...(allNotes.value ?? [])].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
   return new Set(sorted.slice(-overCount).map((n) => n.id));
 });
 
 const filtered = computed((): Note[] => {
-  let list = notes.value ?? [];
-  if (notesUi.notesFilterCategory !== "all") list = list.filter((n) => n.category === notesUi.notesFilterCategory);
+  let list = notes.value;
   if (notesUi.notesSearchQuery.trim()) {
     const q = notesUi.notesSearchQuery.trim().toLowerCase();
     list = list.filter((n) =>

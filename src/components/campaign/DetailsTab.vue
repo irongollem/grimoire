@@ -14,111 +14,6 @@
       />
     </div>
 
-    <!-- World -->
-    <div>
-      <label class="block text-label-lg font-semibold text-muted-foreground mb-1">WORLD</label>
-      <AppInput
-        v-model="form.setting"
-        list="campaign-settings-list"
-        tone="filled"
-        size="body"
-        placeholder="Forgotten Realms, Eberron, Homebrew…"
-      />
-      <datalist id="campaign-settings-list">
-        <option value="Forgotten Realms" />
-        <option value="Eberron" />
-        <option value="Ravenloft" />
-        <option value="Dragonlance" />
-        <option value="Greyhawk" />
-        <option value="Planescape" />
-        <option value="Spelljammer" />
-        <option value="Dark Sun" />
-        <option value="Mystara" />
-        <option value="Homebrew" />
-      </datalist>
-    </div>
-
-    <!-- Calendar + Year -->
-    <div class="grid grid-cols-2 gap-3">
-      <div>
-        <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CALENDAR</label>
-        <AppSelect
-          v-model="form.calendar_id"
-          tone="filled"
-          weight="normal"
-          size="body"
-          block
-          @change="onCalendarChange"
-        >
-          <option v-if="form.calendar_id === null" :value="null" disabled>Choose a calendar…</option>
-          <option v-for="cal in availableCalendars" :key="cal.id" :value="cal.id">{{ cal.name }}</option>
-          <option value="custom">Blank calendar (make your own)…</option>
-        </AppSelect>
-      </div>
-      <div>
-        <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CURRENT YEAR</label>
-        <AppInput
-          v-model.number="form.current_year"
-          type="number"
-          min="1"
-          tone="filled"
-          size="body"
-        />
-      </div>
-    </div>
-
-    <!-- Climate: the default for the weather; a place can override it. -->
-    <div class="grid grid-cols-2 gap-3">
-      <div>
-        <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CLIMATE</label>
-        <AppSelect v-model="form.climate" tone="filled" weight="normal" size="body" block>
-          <option v-for="c in CLIMATES" :key="c" :value="c">{{ CLIMATE_LABELS[c] }}</option>
-        </AppSelect>
-      </div>
-      <p class="self-end pb-2 text-caption italic text-muted-foreground">
-        Sets the weather the calendar shows; any place in the Atlas can name its own.
-      </p>
-    </div>
-
-    <!-- Custom calendar editor -->
-    <div v-if="form.calendar_id === 'custom' && form.custom_calendar" class="max-w-3xl -mx-2 sm:mx-0">
-      <CalendarEditor v-model="form.custom_calendar" />
-    </div>
-
-    <!-- Populate from Setting -->
-    <div
-      v-if="populateSetting"
-      class="rounded-md border border-border bg-muted/40 px-3 py-3 space-y-2"
-    >
-      <div class="flex items-center justify-between gap-2">
-        <div class="min-w-0">
-          <p class="text-label-lg font-semibold text-foreground">
-            POPULATE FROM {{ populateSetting.label.toUpperCase() }}
-          </p>
-          <p class="text-caption text-muted-foreground mt-0.5">
-            Seeds locations, notable NPCs, and factions. Skips existing entries.
-          </p>
-        </div>
-        <AppButton
-          type="button"
-          variant="primary"
-          size="sm"
-          class="shrink-0"
-          :disabled="isPopulating"
-          :label="isPopulating ? 'Populating…' : 'Populate'"
-          :icon="IconGenerate"
-          icon-size="xs"
-          @click="doPopulate"
-        />
-      </div>
-      <p v-if="populateError" class="text-caption text-destructive">{{ populateError }}</p>
-      <p v-else-if="populateResult" class="text-caption text-muted-foreground">
-        Added {{ populateResult.locations }} location<span v-if="populateResult.locations !== 1">s</span>,
-        {{ populateResult.npcs }} NPC<span v-if="populateResult.npcs !== 1">s</span>,
-        {{ populateResult.factions }} faction<span v-if="populateResult.factions !== 1">s</span>.
-      </p>
-    </div>
-
     <!-- Theme -->
     <div>
       <label class="block text-label-lg font-semibold text-muted-foreground mb-2">THEME</label>
@@ -175,7 +70,7 @@
         type="submit"
         variant="primary"
         size="md"
-        :disabled="isSaving || calendarProblem !== null"
+        :disabled="isSaving"
         :label="isSaving ? 'Saving…' : 'Save Changes'"
       />
     </div>
@@ -184,8 +79,7 @@
 
 <script setup lang="ts">
 import { DEFAULT_THEME_ID } from "@/lib/themes";
-import { ref, computed } from "vue";
-import { IconGenerate } from '@/lib/icons';
+import { computed } from "vue";
 import ThemeSwatchButton from '@/components/common/settings/ThemeSwatchButton.vue';
 import { useTheme } from "@/composables/useTheme";
 import { useCampaignStore } from "@/stores/campaign";
@@ -193,22 +87,11 @@ import { useCampaignById, useUpdateCampaign } from "@/composables/campaign/useCa
 import { useRecordDraft } from "@/composables/useRecordDraft";
 import DraftConflictNotice from "@/components/common/feedback/DraftConflictNotice.vue";
 import type { Campaign } from "@/types/campaign.types";
-import { listCalendarAdapters, createDefaultCustomCalendarDef } from "@/settings/index";
-import { getSetting, listSettings } from "@/settings/index";
-import type { SettingCalendarDef } from "@/settings/types";
 import SettingChoiceList from "@/components/campaign/SettingChoiceList.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
-import AppSelect from "@/components/common/controls/AppSelect.vue";
 import ToggleSwitch from "@/components/common/controls/ToggleSwitch.vue";
-import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
-import { CLIMATE_LABELS } from "@/lib/calendar/weather";
-import { CLIMATES } from "@/types/calendar.types";
-import { customCalendarProblem } from "@/lib/calendar/customCalendar";
 import DemoCampaignPanel from "@/components/campaign/DemoCampaignPanel.vue";
-import { usePopulateLocations } from "@/composables/locations/useLocations";
-import { usePopulateFactions } from "@/composables/factions/useFactions";
-import { usePopulateSettingNpcs } from "@/composables/npcs/useNpcs";
 
 const { themes, setTheme } = useTheme();
 const campaignStore = useCampaignStore();
@@ -219,7 +102,6 @@ const { mutateAsync: updateCampaign, isPending: isSaving } = useUpdateCampaign()
 // its boot-time value (#946). The store copy only covers the first paint.
 const { data: liveCampaign } = useCampaignById(() => campaignStore.activeCampaignId);
 const campaign = computed(() => liveCampaign.value ?? campaignStore.activeCampaign);
-const availableCalendars = listCalendarAdapters();
 
 const HEALTH_VIS_OPTIONS = [
   { value: "strategic" as const, label: "Strategic", desc: "HP bars + labels for all. Exact numbers for PCs only." },
@@ -240,17 +122,12 @@ const PLAYER_SIGHT_OPTIONS = [
 function buildForm(c: Campaign | null) {
   return {
     name: c?.name ?? "",
-    setting: c?.setting ?? "",
-    calendar_id: c?.calendar_id ?? null,
-    current_year: c?.current_year ?? 1,
-    climate: c?.climate ?? "temperate",
     theme: c?.theme ?? DEFAULT_THEME_ID,
     health_visibility: (c?.health_visibility as "strategic" | "immersive" | "unknown") ?? "strategic",
     map_memory: c?.map_memory ?? "remembered",
     player_sight: c?.player_sight ?? "shared",
     immersive_rolls: c?.immersive_rolls ?? false,
     battle_map_show_tokens: c?.battle_map_show_tokens ?? true,
-    custom_calendar: (c?.custom_calendar ?? null) as SettingCalendarDef | null,
   };
 }
 
@@ -264,17 +141,12 @@ const { draft: form, changes, commit, reset, conflicts } = useRecordDraft({
 
 const CONFLICT_LABELS: Record<keyof CampaignForm, string> = {
   name: "Name",
-  setting: "World",
-  calendar_id: "Calendar",
-  current_year: "Current year",
-  climate: "Climate",
   theme: "Theme",
   health_visibility: "Health visibility",
   map_memory: "Map memory",
   player_sight: "Sight",
   immersive_rolls: "Immersive Rolls",
   battle_map_show_tokens: "VTT tokens",
-  custom_calendar: "Custom calendar",
 };
 const conflictLabels = computed(() => conflicts.value.map((key) => CONFLICT_LABELS[key]));
 
@@ -282,81 +154,22 @@ const conflictLabels = computed(() => conflicts.value.map((key) => CONFLICT_LABE
 function campaignRow(f: CampaignForm) {
   return {
     name: f.name,
-    setting: f.setting.trim() || null,
-    calendar_id: f.calendar_id,
-    current_year: f.current_year,
-    climate: f.climate,
     theme: f.theme,
     health_visibility: f.health_visibility,
     map_memory: f.map_memory,
     player_sight: f.player_sight,
     immersive_rolls: f.immersive_rolls,
     battle_map_show_tokens: f.battle_map_show_tokens,
-    custom_calendar: f.calendar_id === "custom" ? f.custom_calendar : null,
   };
 }
 
-// The saved calendar, not the draft: the seeders read the campaign row, so the panel
-// must not offer a setting the DM has picked but not yet saved.
-const populateSetting = computed(() => {
-  const savedCalendar = campaign.value?.calendar_id ?? null;
-  return savedCalendar === null ? undefined : getSetting(savedCalendar);
-});
-
-function onCalendarChange() {
-  if (form.calendar_id === "custom") {
-    if (!form.custom_calendar) form.custom_calendar = createDefaultCustomCalendarDef();
-    return;
-  }
-  form.custom_calendar = null;
-  if (form.calendar_id === null) return;
-  const newLabel = getSetting(form.calendar_id)?.label ?? "";
-  const knownLabels = new Set(listSettings().map((s) => s.label));
-  if (newLabel && (!form.setting || knownLabels.has(form.setting))) {
-    form.setting = newLabel;
-  }
-}
-
-// The editor shows the problem; this keeps a calendar it flags from being saved.
-const calendarProblem = computed(() =>
-  form.calendar_id === "custom" && form.custom_calendar ? customCalendarProblem(form.custom_calendar) : null,
-);
-
 async function submitForm() {
-  if (!campaign.value || calendarProblem.value !== null) return;
+  if (!campaign.value) return;
   const update = changes(campaignRow);
   if (Object.keys(update).length === 0) return;
   const updated = await updateCampaign({ id: campaign.value.id, update });
   commit();
   campaignStore.switchToCampaign(updated);
   setTheme(form.theme);
-}
-
-// ── Populate from setting ─────────────────────────────────────────────────────
-
-const { mutateAsync: populateLocations, isPending: isPopulatingLocations } = usePopulateLocations();
-const { mutateAsync: populateFactions, isPending: isPopulatingFactions } = usePopulateFactions();
-const { mutateAsync: populateNpcs, isPending: isPopulatingNpcs } = usePopulateSettingNpcs();
-
-const isPopulating = computed(
-  () => isPopulatingLocations.value || isPopulatingFactions.value || isPopulatingNpcs.value,
-);
-
-const populateResult = ref<{ locations: number; factions: number; npcs: number } | null>(null);
-const populateError = ref<string | null>(null);
-
-async function doPopulate() {
-  populateResult.value = null;
-  populateError.value = null;
-  try {
-    const [locations, factions, npcs] = await Promise.all([
-      populateLocations(),
-      populateFactions(),
-      populateNpcs(),
-    ]);
-    populateResult.value = { locations, factions, npcs };
-  } catch (e) {
-    populateError.value = e instanceof Error ? e.message : "Unknown error";
-  }
 }
 </script>

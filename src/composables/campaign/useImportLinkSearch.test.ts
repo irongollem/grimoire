@@ -20,4 +20,9 @@ describe("hitToCandidate", () => {
     expect(hitToCandidate("npc", { id: UUID, name: "A", descriptor: "d" }).detail).toBe("d");
     expect(hitToCandidate("npc", { id: UUID, name: "A" }).detail).toBeNull();
   });
+
+  it("a deity picked for a deity entry is the campaign's own row, not the 'this NPC is my god' source", () => {
+    expect(hitToCandidate("deity", { id: UUID, name: "Moradin" }, "deities").source).toBe("campaign");
+    expect(hitToCandidate("deity", { id: UUID, name: "Moradin" }, "npcs").source).toBe("deity");
+  });
 });

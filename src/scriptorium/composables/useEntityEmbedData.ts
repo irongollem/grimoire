@@ -58,6 +58,7 @@ import type { CustomSubclass } from "@/levelup/customTypes";
 import type { ScriptoriumTheme } from "@/scriptorium/types";
 import { fetchResolvedMonster, RESOLVED_MONSTER_QUERY_KEY } from "@/composables/monsters/useMonsters";
 import { fetchResolvedSpecies } from "@/composables/rules/useSpecies";
+import { useCanonEmbedData } from "@/scriptorium/composables/useCanonEmbedData";
 
 // ── Minimal unscoped row fetchers ────────────────────────────────────────────
 
@@ -245,6 +246,7 @@ export function useEntityEmbedData(
   const factions = useRowsById(idsOfType("faction"), "factions", fetchFactionRow);
   const species = useRowsById(idsOfType("species"), "species", fetchResolvedSpecies);
   const subclasses = useRowsById(idsOfType("subclass"), "custom_subclasses", fetchSubclassRow);
+  const canon = useCanonEmbedData(refs);
 
   // A subclass's feature rows, one query per subclass under useFeaturesByIds's own key.
   const subclassList = () => [...subclasses.byId.value.values()];
@@ -359,6 +361,8 @@ export function useEntityEmbedData(
         );
         return formatEntityEmbedBodyHtml({ type: "subclass", subclass, features, spellNames });
       }
+      case "canon":
+        return canon.lookup.value.get(ref.id);
     }
   }
 
@@ -385,7 +389,8 @@ export function useEntityEmbedData(
       species.isLoading.value ||
       subclasses.isLoading.value ||
       subclassFeatures.value.some((r) => r.isLoading) ||
-      grantedSpellNames.isLoading.value,
+      grantedSpellNames.isLoading.value ||
+      canon.isLoading.value,
   );
 
   return { lookup, isLoading };

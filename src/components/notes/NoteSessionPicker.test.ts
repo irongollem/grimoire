@@ -12,7 +12,7 @@ function logged(id: string, playedOn: string, over: Partial<CampaignSession> = {
 }
 
 const log = ref<CampaignSession[]>([]);
-const notes = ref<Pick<Note, "id" | "category" | "session_id">[]>([]);
+const notes = ref<Pick<Note, "id" | "session_id">[]>([]);
 const createSession = vi.fn();
 
 vi.mock("@/composables/sessions/useCampaignSessions", () => ({
@@ -49,7 +49,7 @@ beforeEach(() => {
     logged("a", "2026-09-20", { number: 12, title: "Mere" }),
     logged("b", "2026-09-27", { number: 13, title: "Bells of Daggerford" }),
   ];
-  notes.value = [{ id: "n1", category: "session", session_id: "b" }];
+  notes.value = [{ id: "n1", session_id: "b" }];
 });
 
 describe("NoteSessionPicker", () => {

@@ -1,13 +1,16 @@
 # Document Import
 
 A DM supplies source material — a PDF, a batch of page photos, or **text pasted
-straight in** — an AI pass extracts game entities from it, and an eight-step
-wizard reviews every entity before anything reaches a content table. (A
+straight in**, or **a book from the Scriptorium** — an AI pass extracts game entities from it, and a wizard with
+one step per kind reviews every entity before anything reaches a content table. (A
 **wiki export** from LegendKeeper, World Anvil or Obsidian is the one source
 that skips the AI pass entirely; see "A wiki export is a fourth source kind".) **DM-only**
 — there is no player-facing surface at all.
 
-Lives at **Campaign Settings → Import Document** (`/campaign/settings?tab=import`).
+Lives on the **Canon page as "Bring in a book"** (`/canon/import`, `CanonImportView`, a header action on the Canon page;
+frame 10 of the Canon canvas; the maintainer's decision of 20 Nov 2026). It used to be Campaign Settings → Import Document;
+that tab is gone and `?tab=import` falls back to Details. The page only hosts `DocumentImportTab`: the importer itself
+is unchanged, and the compact quest paste's "Open Bring in a book" points at the same route.
 
 **A second door, since #839:** `/quests/new`'s "Paste a page" mode
 (`QuestPasteImportPanel.vue`) runs the exact same extraction and the exact
@@ -31,10 +34,38 @@ Issues #353, #769, #829, #840 and #839.
 | Review | One step per entity kind — select an `ImportDecision` (link/create/generate/ignore) per entity | `DocumentImportWizard.vue` |
 | Sweep | `runImportSweep` imports every kind, then **one** linking phase resolves every cross-entity reference by name across the whole extraction (#893) | `importSweep.ts` |
 
-Eight kinds import in **this order** (`IMPORT_ENTITY_KINDS`) — an ordering
+Ten kinds import in **this order** (`IMPORT_ENTITY_KINDS`) — an ordering
 requirement on *inserts* only since #893, never a constraint on which link can
 resolve (see "One sweep, one linking phase" below):
-`factions → monsters → npcs → locations → items → spells → quests → encounters`.
+`factions → deities → monsters → npcs → locations → items → spells → quests → canon → encounters`.
+
+### A book taken apart: deities, canon and the Scriptorium as a source (#1226 story 7)
+
+Any campaign book comes apart into the campaign's sections through this one import. Two kinds were added: **`deities`**
+(a row in `deities`, one per god; `quotaResource: "deities"`) and **`canon`** (a row in `canon_entries`, headed by its
+`title`, no quota). The prompt teaches both (migration `20261120033038`; the canon shape is its "The canon" section) and
+`extractionSchema.ts`, `import-extract`'s `ENTITY_KINDS` and `import-match`'s `SUPPORTED_KINDS` mirror them
+(`extractionSchemaKinds.test.ts` holds the copies equal to the client's list).
+
+- A canon entry is mapped by `mapExtractedCanon` (`normalize.ts`): fields are kept only on their own `part`, a premise
+  is never a `line` or a `veil`, and the clock, the reveal and `chronicle` are never set. Its children ride in
+  `links.canon` and are written in the sweep's linking phase by `planCanonChildren` (`importSweepCanon.ts`): `known_to`
+  becomes `world_links` from the entry to an NPC, player character or faction, a force's steps and quests become
+  `canon_force_steps` / `canon_force_quests`, a secret's clues `canon_clues`, a lore entry's passages
+  `canon_lore_passages`. A name that matches nothing, or two things, never becomes a link: it is listed in
+  `unresolvedLinks`, and a clue or passage whose place did not resolve is still written, unplaced.
+- A deity or canon entry defaults to **link** only on an exact match (a canon title is a sentence; a contained match is a
+  different statement). A canon entry the DM linked gets no children.
+- The compact quest paste (`QuestPasteImportPanel`) never offers canon or deities as "also found"
+  (`QUEST_PASTE_EXCLUDED_KINDS`): they are a book's sections, not a page's.
+- **Source "A book"** (`DocumentImportBookStep.vue`, beside Upload / Paste text / Wiki export): pick a book of this
+  campaign or an account-wide one, tick its chapters, and they are converted by `bookToMarkdown` (`bookSource.ts`) and
+  staged through the `text` source, so the staging row is unchanged. A linked entry (`entityEmbed`) becomes its name as a
+  heading line (names read by `useBookEmbedNames`), so the extraction names what the campaign already has and the review
+  links to it by default; a secret block keeps its text; a cover and a contents block are dropped. The page cap
+  (`TEXT_CHARS_PER_PAGE`) applies to the selection and is said in `DocumentImportSizeNote`, shared with the paste step.
+  The import is named "Book: <title>" and defaults to "my own writing".
+- The step is mounted by `DocumentImportTab`, which the Canon page's `/canon/import` hosts.
 
 ---
 
@@ -44,7 +75,7 @@ resolve (see "One sweep, one linking phase" below):
 
 | File | Owns |
 | --- | --- |
-| `documentImport.types.ts` | The extraction contract — eight narrow payloads, review envelope, `ExtractionResult`, `DocumentImport` row type |
+| `documentImport.types.ts` | The extraction contract — ten narrow payloads, review envelope, `ExtractionResult`, `DocumentImport` row type |
 | `entityKinds.ts` | Per-kind registry: target table, labels, `displayField`, `quotaResource` |
 | `limits.ts` | Page caps (10 free / 50 Pro), MIME allowlist, per-object and per-import byte caps, and the characters→pages conversion for a pasted import |
 | `../tiptap/sourceHtml.ts` | Normalises pasted HTML so structure survives into Tiptap — `aside`/hinted classes → blockquote, noise stripped |
@@ -250,11 +281,10 @@ page `ref` matches), or the DM abandons the row. The row is inserted directly
 with `status = 'review'`: `import-extract` refuses `archive` rows (422) and
 nothing server-side reads one.
 
-**The tab stays with AI off.** Campaign settings used to hide Import Document
-while the campaign's AI was off, because every source was extraction. A wiki
-export is not, so the tab now always shows, and with AI off it offers only the
-wiki export and says in one line why the other sources are missing
-(`CampaignSettingsView`, `DocumentImportTab`).
+**The page stays with AI off.** The importer used to hide while the campaign's AI was off,
+because every source was extraction. A wiki export is not, so the page (`/canon/import`)
+always shows, and with AI off it offers only the wiki export and says in one line why the
+other sources are missing (`CanonImportView`, `DocumentImportTab`).
 
 **Why no `ai_provenance`.** Nothing in an archive import was generated, so the
 rows it creates must not be marked as if it were (AI Act marking, #611). The

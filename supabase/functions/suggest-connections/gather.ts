@@ -18,7 +18,7 @@ type Row = Record<string, unknown>;
 
 const FIELD_CHAR_LIMIT = 1500;
 /** The most candidates of each kind the model is shown. PCs are name and birth year only. */
-const CAP: Record<LinkKind, number> = { npc: 40, party_member: 30, faction: 30, location: 30, deity: 20, item: 30 };
+const CAP: Record<LinkKind, number> = { npc: 40, party_member: 30, faction: 30, location: 30, deity: 20, item: 30, canon: 30 };
 
 const TABLE: Record<LinkKind, string> = {
   npc: "npcs",
@@ -27,7 +27,24 @@ const TABLE: Record<LinkKind, string> = {
   location: "locations",
   deity: "deities",
   item: "items",
+  canon: "canon_entries",
 };
+
+/** The column that holds a record's name: a canon entry's is its title. */
+const NAME_COLUMN: Record<LinkKind, string> = {
+  npc: "name",
+  party_member: "name",
+  faction: "name",
+  location: "name",
+  deity: "name",
+  item: "name",
+  canon: "title",
+};
+
+/** `id, name` read from whichever column names the kind, so every row below can be read as `name`. */
+function nameSelect(kind: LinkKind): string {
+  return NAME_COLUMN[kind] === "name" ? "id, name" : `id, name:${NAME_COLUMN[kind]}`;
+}
 
 /** The columns that name a candidate and describe it in one phrase. */
 const LIST_COLUMNS: Record<LinkKind, string> = {
@@ -37,6 +54,7 @@ const LIST_COLUMNS: Record<LinkKind, string> = {
   location: "id, name, location_type",
   deity: "id, name, portfolio, domains",
   item: "id, name, item_type, rarity",
+  canon: "id, name:title, part",
 };
 
 /** What the model needs to ground a tie to a candidate, beyond its name. */
@@ -47,6 +65,7 @@ const DETAIL_COLUMNS: Record<LinkKind, string> = {
   location: "id, name, location_type",
   deity: "id, name, portfolio, domains",
   item: "id, name, item_type, rarity",
+  canon: "id, name:title, part",
 };
 
 const SUBJECT_COLUMNS: Record<LinkKind, string> = {
@@ -56,6 +75,7 @@ const SUBJECT_COLUMNS: Record<LinkKind, string> = {
   location: "id, name, location_type, description, npc_owner_id",
   deity: "id, name, titles, alignment, domains, portfolio, description",
   item: "id, name, item_type, subtype, rarity, description, campaign_id, user_id",
+  canon: "id, name:title, part, knowledge, description:body",
 };
 
 const END_COLUMN: Record<LinkKind, string> = {
@@ -65,6 +85,7 @@ const END_COLUMN: Record<LinkKind, string> = {
   location: "location_id",
   deity: "deity_id",
   item: "item_id",
+  canon: "canon_entry_id",
 };
 
 /** The faction-to-place types that say a faction holds the place: what grounds a place's candidate line. */
@@ -174,6 +195,7 @@ function describe(kind: LinkKind, r: Row): string | null {
       return str(r, "portfolio") || domains.join(", ") || null;
     }
     case "party_member": return null;
+    case "canon": return str(r, "part") || null;
   }
 }
 
@@ -219,13 +241,13 @@ export async function gatherConnections(admin: SupabaseClient, args: GatherArgs)
 
   // ── Names by id: filled as rows are read, topped up on demand ─────────────
   const names: Record<LinkKind, Map<string, string>> = {
-    npc: new Map(), party_member: new Map(), faction: new Map(), location: new Map(), deity: new Map(), item: new Map(),
+    npc: new Map(), party_member: new Map(), faction: new Map(), location: new Map(), deity: new Map(), item: new Map(), canon: new Map(),
   };
   names[subject.kind].set(subject.id, subject.name);
   async function nameThese(kind: LinkKind, ids: Iterable<string | null | undefined>): Promise<void> {
     const missing = [...new Set([...ids].filter((i): i is string => !!i && !names[kind].has(i)))];
     if (missing.length === 0) return;
-    for (const r of await read(admin.from(TABLE[kind]).select("id, name").in("id", missing))) names[kind].set(str(r, "id"), str(r, "name"));
+    for (const r of await read(admin.from(TABLE[kind]).select(nameSelect(kind)).in("id", missing))) names[kind].set(str(r, "id"), str(r, "name"));
   }
   const nameOf = (kind: LinkKind, id: string | null | undefined): string | null => (id ? (names[kind].get(id) ?? null) : null);
 
@@ -322,7 +344,7 @@ export async function gatherConnections(admin: SupabaseClient, args: GatherArgs)
 
   // ── Candidates: retrieval first, then a direct read as the floor ─────────
   const skip: Record<LinkKind, Set<string>> = {
-    npc: new Set(), party_member: new Set(), faction: new Set(), location: new Set(), deity: new Set(), item: new Set(),
+    npc: new Set(), party_member: new Set(), faction: new Set(), location: new Set(), deity: new Set(), item: new Set(), canon: new Set(),
   };
   skip[subject.kind].add(lower(subject.name));
   // A faction a person already belongs to is not offered for a membership again. People stay candidates for a
@@ -349,12 +371,12 @@ export async function gatherConnections(admin: SupabaseClient, args: GatherArgs)
 
   // Details for exactly the candidates shown.
   const details: Record<LinkKind, Map<string, Row>> = {
-    npc: new Map(), party_member: new Map(), faction: new Map(), location: new Map(), deity: new Map(), item: new Map(),
+    npc: new Map(), party_member: new Map(), faction: new Map(), location: new Map(), deity: new Map(), item: new Map(), canon: new Map(),
   };
   await Promise.all(kinds.map(async (kind) => {
     const list = picked.get(kind) ?? [];
     if (list.length === 0) return;
-    const rows = await read(admin.from(TABLE[kind]).select(DETAIL_COLUMNS[kind]).eq("campaign_id", campaignId).in("name", list.map((c) => c.name)));
+    const rows = await read(admin.from(TABLE[kind]).select(DETAIL_COLUMNS[kind]).eq("campaign_id", campaignId).in(NAME_COLUMN[kind], list.map((c) => c.name)));
     for (const r of rows) {
       details[kind].set(lower(str(r, "name")), r);
       names[kind].set(str(r, "id"), str(r, "name"));
@@ -476,6 +498,7 @@ export async function gatherConnections(admin: SupabaseClient, args: GatherArgs)
     str(sRow, "location_type") ? `Type: ${str(sRow, "location_type")}` : "",
     str(sRow, "item_type") ? `Type: ${[str(sRow, "item_type"), str(sRow, "subtype"), str(sRow, "rarity")].filter(Boolean).join(", ")}` : "",
     str(sRow, "alignment") ? `Alignment: ${str(sRow, "alignment")}` : "",
+    str(sRow, "part") ? `Part: ${str(sRow, "part")}` : "",
     str(sRow, "portfolio") ? `Portfolio: ${str(sRow, "portfolio")}` : "",
     subject.kind === "npc" && place(str(sRow, "location_id")) ? `Lives in: ${place(str(sRow, "location_id"))}` : "",
     subject.kind === "faction" && place(str(sRow, "seat_location_id")) ? `Seat: ${place(str(sRow, "seat_location_id"))}` : "",

@@ -132,6 +132,15 @@ Clicking a member's name navigates to `/party/:id` (`PartyMemberView.vue`), whic
 
 ---
 
+## The Backstory field is a backstory's opening (#1226 story 10)
+
+The Backstory field (`party_members.player_description`, rich text, labelled About on the sheet) is the first part,
+**Before play**, of the character's backstory in the campaign's canon, not a copy of it: it stays on the character so it
+travels between campaigns and into the Hall of Heroes, and the player and the DM both edit it there, on the Canon page
+(Backstories) and in the player's journal (My story). What grows from it during a campaign (the player's later passages,
+the DM's own, the people the past brings in) lives on the campaign's backstory entry. See "Backstories, written together" in
+[canon.md](canon.md).
+
 ## Character Sheet (DM View via PartyMemberForm)
 
 **Route:** Slide-in panel triggered from `/party/:id`

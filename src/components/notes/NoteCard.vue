@@ -26,9 +26,6 @@
       </RouterLink>
     </div>
 
-    <!-- Category colour bar -->
-    <div class="h-1.5 w-full shrink-0" :class="CATEGORY_BG[note.category]" />
-
     <div class="p-3 flex flex-col gap-2 flex-1">
       <!-- Title row -->
       <div class="flex items-start gap-1.5">
@@ -38,20 +35,8 @@
         </h3>
       </div>
 
-      <!--
-        Category, session, audience — the three things this note *is*, on one
-        row. Reveal used to float over the category bar at the card's top-left,
-        which put an opaque chip on top of the first word of every title; and
-        the scrim it wore there is for artwork, which a note card has none of.
-      -->
+      <!-- Session and audience, on one row. -->
       <div class="flex items-center gap-2">
-        <span
-          class="relative px-1.5 py-0.5 rounded text-label font-bold capitalize"
-          :class="CATEGORY_TEXT[note.category]"
-        >
-          <span class="absolute inset-0 rounded opacity-15" :class="CATEGORY_BG[note.category]" />
-          <span class="relative">{{ note.category }}</span>
-        </span>
         <span v-if="session" class="text-caption text-muted-foreground italic">
           {{ sessionShortLabel(session) }}
         </span>
@@ -90,7 +75,7 @@ import AudienceRevealControl from "@/components/common/reveal/AudienceRevealCont
 import { useUpdateNote } from "@/composables/notes/useNotes";
 import { IconDrag, IconLock, IconPin } from "@/lib/icons";
 import { timeAgo, extractTiptapText } from "@/lib/utils";
-import type { Note, NoteCategory } from "@/types/notes.types";
+import type { Note } from "@/types/notes.types";
 import { useNoteSession } from "@/composables/notes/useNoteSession";
 import { sessionShortLabel } from "@/lib/sessions/sessionLabel";
 
@@ -107,26 +92,6 @@ const { mutate: updateNote } = useUpdateNote();
 function reveal(playerVisibleTo: string[]) {
   updateNote({ id: note.id, update: { player_visible_to: playerVisibleTo } });
 }
-
-const CATEGORY_BG: Record<NoteCategory, string> = {
-  general:     "bg-note-general",
-  session:     "bg-note-session",
-  lore:        "bg-note-lore",
-  location:    "bg-note-location",
-  quest:       "bg-note-quest",
-  faction:     "bg-note-faction",
-};
-
-/** Text-colour classes for the same ramp. */
-const CATEGORY_TEXT: Record<NoteCategory, string> = {
-  general:     "text-note-general",
-  session:     "text-note-session",
-  lore:        "text-note-lore",
-  location:    "text-note-location",
-  quest:       "text-note-quest",
-  faction:     "text-note-faction",
-};
-
 
 const preview = computed(() => extractTiptapText(note.content));
 </script>

@@ -20,10 +20,14 @@ export function candidateFactIds(linked: readonly FactRow[], newest: readonly Fa
   return [...new Set([...linked.map((l) => l.fact_id as string), ...newest.map((f) => f.id as string)])];
 }
 
-/** A fact another fact closes (`supersedes_id`) is no longer true and is not shown. */
+/**
+ * The facts that stand: not struck, and not closed (`supersedes_id`) by a later fact that itself stands. A struck
+ * fact never happened (the DM's Strike, #1226): the narrator never reads it, and a fact it would have closed is open
+ * again. Both queries select `struck_at`.
+ */
 export function openFacts(facts: readonly FactRow[], closers: readonly FactRow[]): FactRow[] {
-  const closed = new Set(closers.map((c) => c.supersedes_id as string));
-  return facts.filter((f) => !closed.has(f.id as string));
+  const closed = new Set(closers.filter((c) => c.struck_at === null).map((c) => c.supersedes_id as string));
+  return facts.filter((f) => f.struck_at === null && !closed.has(f.id as string));
 }
 
 /** The play sessions the open facts were filed in, to ask their numbers of. */

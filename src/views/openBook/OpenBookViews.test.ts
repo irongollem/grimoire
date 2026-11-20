@@ -28,13 +28,13 @@ const book: PublicOpenBook = {
   slug: "salt",
   allow_pdf: false,
   indexable: false,
-  release: { number: 1, note: null, created_at: "2026-10-23T10:00:00Z", pdf_url: null, stats: { places: 1, folk: 0, factions: 0, pantheons: 0, deities: 0, lore: 0, sessions: 0, events: 0 } },
+  release: { number: 1, note: null, created_at: "2026-10-23T10:00:00Z", pdf_url: null, stats: { places: 1, folk: 0, factions: 0, pantheons: 0, deities: 0, lore: 0, truths: 0, sessions: 0, events: 0 } },
   snapshot: {
-    v: 1,
+    v: 2,
     book: { title: "The Saltreach", subtitle: "A drowned coast", cover_art: "tooled", cover_image_url: null, leather: "night", chapters: ["atlas"], campaign_name: "C" },
     calendar: { calendar_id: null, custom_calendar: null, current: { year: null, month: null, day: null } },
     places: [{ id: "town", parent_id: null, name: "Hollowmere", location_type: null, player_summary: null, description: null, image_url: null, tags: null, is_level: null, is_battle_map: null, npcs_shared: null, map: null, pins: [] }],
-    folk: [], factions: [], pantheons: [], deities: [], lore: [], sessions: [], events: [], names: {},
+    folk: [], factions: [], pantheons: [], deities: [], lore: [], truths: [], sessions: [], events: [], names: {},
   },
 };
 

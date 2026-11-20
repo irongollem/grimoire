@@ -447,7 +447,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Research: a thread worth pulling",
         body: "During the interlude you turned up a fragment of lore connecting a name your party already knows to something older. Fill in the specifics for your world, but the thread is real, and it leads somewhere.",
-        category: "lore",
         tags: ["research", "lore"],
       },
     },
@@ -466,7 +465,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Research: a discrepancy in the maps",
         body: "Cross-referencing old maps surfaced a deliberate omission, a place edited out of the record. Note where you think it points; the party now has a lead only careful research could have found.",
-        category: "lore",
         tags: ["research", "location", "clue"],
       },
     },
@@ -493,7 +491,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Research: a transcribed working",
         body: "You copied out a spell, ritual, or formula found in the archives. Decide with the DM what it is and whether it's yet usable, but the transcription itself is done and in your hands.",
-        category: "lore",
         tags: ["research", "spell", "transcription"],
       },
     },
@@ -521,7 +518,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Research: a book that isn't catalogued",
         body: "You got hold of something the archive does not admit to holding. Note what it is and who now knows you have read it: a fact that was hidden this carefully was hidden *from* someone.",
-        category: "lore",
         tags: ["research", "lore", "hook"],
       },
     },
@@ -540,7 +536,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Research: two accounts that cannot both be true",
         body: "Careful reading turned up a contradiction in the record. Note which two sources disagree and on what; the interesting question is not which is wrong, but who benefited from the lie.",
-        category: "lore",
         tags: ["research", "lore", "clue"],
       },
     },
@@ -567,7 +562,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Research: the trail stops here",
         body: "A dead end, but a *documented* one. Note what was ruled out and where the record ends. Someone went to the trouble of making this trail stop, or it never began; both are worth knowing.",
-        category: "lore",
         tags: ["research", "dead-end", "hook"],
       },
     },
@@ -588,7 +582,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Training log",
         body: "A season of focused practice toward a proficiency, tool, language, or feat-gate the DM has set. Record the goal and the progress here; whether it's *complete* is the DM's call, but the work is on the books.",
-        category: "general",
         tags: ["training", "downtime"],
       },
     },
@@ -615,7 +608,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Training: language primer",
         body: "You spent the interlude studying a language under a tutor. Note which one and how far you got: enough to read a sign and haggle badly, if not yet to pass as a native.",
-        category: "general",
         tags: ["training", "language"],
       },
     },
@@ -642,7 +634,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Training: a partner who beats you",
         body: "You trained against someone genuinely better. Note who they are (a rival, a mentor, or both) and what specifically they fixed. Progress bought with bruises tends to stick.",
-        category: "general",
         tags: ["training", "rival"],
       },
     },
@@ -669,7 +660,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Training: under an old master",
         body: "You studied under someone with real skill and no patience. Note what they taught, what they refused to teach, and what they want in return; that last one is rarely just money.",
-        category: "general",
         tags: ["training", "mentor", "hook"],
       },
     },
@@ -688,7 +678,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Training: self-taught from a manual",
         body: "You taught yourself. It works, mostly, but note the bad habit it came with, and let it show at the table when the pressure is on.",
-        category: "general",
         tags: ["training", "self-taught"],
       },
     },
@@ -720,7 +709,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Training: overreached",
         body: "You pushed too hard and hurt yourself. Note what you were chasing and whether it was worth it; the DM may rule the progress incomplete until you have properly healed.",
-        category: "general",
         tags: ["training", "injury", "complication"],
       },
     },
@@ -749,7 +737,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Business: a quarter in the black",
         body: "Your shop, shrine, or cell turned a steady profit this interlude. Log the takings and any regulars worth remembering; the enterprise is becoming part of the world.",
-        category: "faction",
         tags: ["business", "income"],
       },
     },
@@ -776,7 +763,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Business: robbed while away",
         body: "Someone hit your enterprise while the party was out. Note what was taken and who might have known your schedule: a complication that owes you an answer.",
-        category: "faction",
         tags: ["business", "complication", "hook"],
       },
     },
@@ -804,7 +790,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Business: a lean quarter",
         body: "The enterprise stayed open and stayed solvent, and did nothing else. Note why trade was slow (a rival, a bad season, a road closed), because a reason is a hook.",
-        category: "faction",
         tags: ["business", "income"],
       },
     },
@@ -831,7 +816,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Business: expanded",
         body: "You reinvested: new premises, new staff, or a proper sign. Note what changed and who you now depend on. The DM may rule future quarters richer, and future complications louder.",
-        category: "faction",
         tags: ["business", "investment"],
       },
     },
@@ -858,7 +842,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Business: undercut by a rival",
         body: "A competitor is taking your trade. Note who they are and how they can afford it; nobody sells below cost for a whole season without a reason worth finding out.",
-        category: "faction",
         tags: ["business", "rival", "hook"],
       },
     },
@@ -885,7 +868,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Business: an unreasonably good order",
         body: "Someone bought a great deal, at your price, without blinking. Note who: a buyer who does not haggle is a buyer who needs something, and that is worth more than the coin.",
-        category: "faction",
         tags: ["business", "income", "hook"],
       },
     },
@@ -1154,7 +1136,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Lie low: the heat dies down",
         body: "You spent the interlude out of sight and let a bounty, a rumour, or a rival's attention cool off. Note what you were hiding from and whether it's truly gone, or just quieter.",
-        category: "general",
         tags: ["lie-low", "downtime"],
       },
     },
@@ -1173,7 +1154,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Lie low: something overheard",
         body: "While keeping your head down you overheard a rumour worth acting on. Write down what and who; the party now holds a lead earned by patience rather than force.",
-        category: "general",
         tags: ["lie-low", "rumor", "hook"],
       },
     },
@@ -1200,7 +1180,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Lie low: someone sheltered you",
         body: "A stranger hid you and asked for nothing, which means you owe them, and they know it. Note who they are and what they will eventually want. An unpaid favour is a debt with better manners.",
-        category: "general",
         tags: ["lie-low", "favour", "hook"],
       },
     },
@@ -1226,7 +1205,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Lie low: a season of nothing",
         body: "Uneventful, and that was the point. You are properly mended and properly forgotten. Note how long it has been; the world moved on while you sat still, and you will need to catch up.",
-        category: "general",
         tags: ["lie-low", "recovery"],
       },
     },
@@ -1259,7 +1237,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Lie low: a close call",
         body: "They very nearly found you. Note who was doing the looking and how near they got; you are still hidden, but the heat has not gone anywhere.",
-        category: "general",
         tags: ["lie-low", "complication", "hook"],
       },
     },
@@ -1285,7 +1262,6 @@ export const DOWNTIME_SEEDS: DowntimeSeed[] = [
       note: {
         title: "Lie low: your cover was sold",
         body: "Someone gave you up. Note who knew where you were; the list is short, and one of them talked. The heat did not die down; it now knows your address.",
-        category: "general",
         tags: ["lie-low", "betrayal", "hook"],
       },
     },

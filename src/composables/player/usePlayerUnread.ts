@@ -6,6 +6,9 @@ import { usePlayerHandouts } from "@/scriptorium/composables/usePlayerHandouts";
 import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
 import { usePlayerVisiblePuzzles } from "@/composables/dungeon-features/usePuzzles";
 import { usePlayerVisibleNotes } from "@/composables/notes/useNotes";
+import { usePlayerCanon } from "@/composables/canon/usePlayerCanon";
+import { useMyMemberId } from "@/composables/canon/useMyStory";
+import { listedNotes } from "@/lib/notes/noteSessions";
 import { useTableQuestionAnswers, useTableQuestions } from "@/composables/tableQuestions/useTableQuestions";
 import { isWaitingOn } from "@/lib/tableQuestions/answers";
 import { useAuthStore } from "@/stores/auth";
@@ -27,7 +30,7 @@ export function anyUnread(
 }
 
 export interface UnreadItem {
-  kind: "quest" | "puzzle" | "handout" | "note";
+  kind: "quest" | "puzzle" | "handout" | "note" | "lore" | "chronicle" | "story";
   id: string;
   title: string;
   updatedAt: string;
@@ -39,6 +42,11 @@ interface UnreadSources {
   puzzles: readonly (Dated & { name: string })[] | undefined;
   handouts: readonly (Dated & { title: string })[] | undefined;
   notes: readonly (Dated & { title: string })[] | undefined;
+  lore: readonly (Dated & { title: string })[] | undefined;
+  /** Shared notes linked to a session: they are read in The World's Chronicle, not among DM Notes. */
+  chronicle?: readonly (Dated & { title: string })[] | undefined;
+  /** What the DM told this player of their own backstory (My story). */
+  story?: readonly (Dated & { title: string })[] | undefined;
   isNew: Record<UnreadItem["kind"], (id: string, updatedAt: string) => boolean>;
 }
 
@@ -62,6 +70,15 @@ export function collectUnreadItems(src: UnreadSources): UnreadItem[] {
     ...(src.notes ?? [])
       .filter((n) => src.isNew.note(n.id, n.updated_at))
       .map((n): UnreadItem => ({ kind: "note", id: n.id, title: n.title, updatedAt: n.updated_at, to: { name: "play-journal", query: { tab: "dm-notes" } } })),
+    ...(src.chronicle ?? [])
+      .filter((n) => src.isNew.note(n.id, n.updated_at))
+      .map((n): UnreadItem => ({ kind: "chronicle", id: n.id, title: n.title, updatedAt: n.updated_at, to: { name: "play-journal", query: { tab: "world" } } })),
+    ...(src.lore ?? [])
+      .filter((l) => src.isNew.lore(l.id, l.updated_at))
+      .map((l): UnreadItem => ({ kind: "lore", id: l.id, title: l.title, updatedAt: l.updated_at, to: { name: "play-journal", query: { tab: "world" } } })),
+    ...(src.story ?? [])
+      .filter((b) => src.isNew.story(b.id, b.updated_at))
+      .map((b): UnreadItem => ({ kind: "story", id: b.id, title: b.title, updatedAt: b.updated_at, to: { name: "play-journal", query: { tab: "story" } } })),
   ];
   return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
@@ -76,14 +93,29 @@ export function usePlayerUnread() {
   const { data: quests } = usePlayerVisibleQuests();
   const { data: puzzles } = usePlayerVisiblePuzzles();
   const { data: handouts } = usePlayerHandouts();
-  const { data: notes } = usePlayerVisibleNotes();
+  const { data: allNotes } = usePlayerVisibleNotes();
+  // A note linked to a session is a Chronicle entry in The World; the rest are DM Notes.
+  const notes = computed(() => listedNotes(allNotes.value ?? []));
+  const chronicle = computed(() => (allNotes.value ?? []).filter((n) => n.session_id !== null));
   const { data: noticeBoards } = usePlayerNoticeBoards();
-  // One request for all five types (#999); they used to be four.
-  const { isNew: isNewOfType } = useReadMarkers(["quest", "puzzle", "handout", "note", "notice_board"]);
+  // Lore the player can read, dated by when it last grew for them (a new passage relights it, like a DM edit).
+  const { world } = usePlayerCanon();
+  const lore = computed(() => (world.value?.lore ?? []).map((l) => ({ id: l.entry.id, title: l.entry.title, updated_at: l.latestAt })));
+  // My story: the player's own backstory grows for them when the DM tells them a passage (their own writing is never news).
+  const myMemberId = useMyMemberId();
+  const story = computed(() =>
+    (world.value?.backstories ?? []).flatMap((b) =>
+      b.memberId === myMemberId.value && b.latestDmAt !== null ? [{ id: b.entry.id, title: "Your story", updated_at: b.latestDmAt }] : [],
+    ),
+  );
+  // One request for all six types (#999); they used to be four.
+  const { isNew: isNewOfType } = useReadMarkers(["quest", "puzzle", "handout", "note", "notice_board", "canon_lore", "canon_backstory"]);
   const isQuestNew = (id: string, updatedAt?: string) => isNewOfType("quest", id, updatedAt);
   const isPuzzleNew = (id: string, updatedAt?: string) => isNewOfType("puzzle", id, updatedAt);
   const isHandoutNew = (id: string, updatedAt?: string) => isNewOfType("handout", id, updatedAt);
   const isNoteNew = (id: string, updatedAt?: string) => isNewOfType("note", id, updatedAt);
+  const isLoreNew = (id: string, updatedAt?: string) => isNewOfType("canon_lore", id, updatedAt);
+  const isStoryNew = (id: string, updatedAt?: string) => isNewOfType("canon_backstory", id, updatedAt);
   const isNoticeBoardNew = (id: string, updatedAt?: string) => isNewOfType("notice_board", id, updatedAt);
 
   // The Hearth's "Your DM asks…": an open question this player has not answered (#1212).
@@ -112,6 +144,8 @@ export function usePlayerUnread() {
     dmNotes: anyUnread(notes.value, isNoteNew),
     // The RPC lists revealed boards only, so any new one is news for the player.
     noticeBoards: anyUnread(noticeBoards.value, isNoticeBoardNew),
+    world: anyUnread(lore.value, isLoreNew) || anyUnread(chronicle.value, isNoteNew),
+    story: anyUnread(story.value, isStoryNew),
   }));
 
   /** The Journal tile in the nav: anything new in any of its sections. */
@@ -130,7 +164,10 @@ export function usePlayerUnread() {
       puzzles: puzzles.value,
       handouts: handouts.value,
       notes: notes.value,
-      isNew: { quest: isQuestNew, puzzle: isPuzzleNew, handout: isHandoutNew, note: isNoteNew },
+      lore: lore.value,
+      chronicle: chronicle.value,
+      story: story.value,
+      isNew: { quest: isQuestNew, puzzle: isPuzzleNew, handout: isHandoutNew, note: isNoteNew, lore: isLoreNew, chronicle: isNoteNew, story: isStoryNew },
     }),
   );
 

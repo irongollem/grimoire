@@ -77,12 +77,12 @@ const deity = (id: string, name: string, pantheon_id: string | null): OpenBookDe
 const lore = (id: string, title: string, content: string | null = null): OpenBookLore => ({
   id,
   title,
-  category: null,
-  content,
-  tags: null,
-  is_pinned: null,
+  lore_kind: null,
+  world_date: null,
+  image_url: null,
+  body: content,
+  passages: [],
   created_at: "2026-01-01",
-  updated_at: "2026-01-01",
 });
 
 const session = (id: string, number: number | null, real_date: string | null, content: string | null = null): OpenBookSession => ({
@@ -104,7 +104,7 @@ const mentionDoc = (id: string, entityType = "npc") =>
 
 function snapshot(over: Partial<OpenBookSnapshot> = {}): OpenBookSnapshot {
   return {
-    v: 1,
+    v: 2,
     book: {
       title: "T",
       subtitle: null,
@@ -121,6 +121,7 @@ function snapshot(over: Partial<OpenBookSnapshot> = {}): OpenBookSnapshot {
     pantheons: [],
     deities: [],
     lore: [],
+    truths: [],
     sessions: [],
     events: [],
     names: {},
@@ -153,6 +154,30 @@ describe("buildBookModel chapters", () => {
   it("gives each entry a path relative to the book root", () => {
     const model = buildBookModel(snapshot({ places: [place("p1", "A")] }));
     expect(model.entries[0]).toMatchObject({ kind: "place", chapter: "atlas", path: "atlas/p1" });
+  });
+});
+
+describe("lore and legend chapter", () => {
+  const truths = [{ id: "t1", title: "Magic leaves a taste on the tongue." }];
+
+  it("opens on the truths known to all, then the lore entries in the order the snapshot gives them", () => {
+    const model = buildBookModel(snapshot({ truths, lore: [lore("l1", "The Fall of the Guild"), lore("l2", "Why the Roads are Spun")] }));
+    expect(model.chapters.find((c) => c.chapter === "lore")?.entries.map((e) => [e.kind, e.id, e.title])).toEqual([
+      ["truths", "truths", "Truths of the world"],
+      ["lore", "l1", "The Fall of the Guild"],
+      ["lore", "l2", "Why the Roads are Spun"],
+    ]);
+  });
+
+  it("has no truths page when no truth is known to all", () => {
+    const model = buildBookModel(snapshot({ lore: [lore("l1", "A tale")] }));
+    expect(model.entries.map((e) => e.kind)).toEqual(["lore"]);
+  });
+
+  it("counts a page cited from a passage as cited by the lore entry", () => {
+    const withPassage = { ...lore("l1", "A tale"), passages: [{ id: "ps", title: "II", body: mentionDoc("p1") }] };
+    const model = buildBookModel(snapshot({ places: [place("p1", "Reach")], lore: [withPassage] }));
+    expect(model.backlinks("p1").map((e) => e.id)).toEqual(["l1"]);
   });
 });
 
@@ -209,7 +234,7 @@ describe("entry subtitles", () => {
         factions: [{ ...faction("f1", "Guild"), faction_type: "trade" }, faction("f2", "Band")],
         pantheons: [pantheon("pa", "Old Gods")],
         deities: [{ ...deity("d1", "Sun", "pa"), titles: "The Bright" }],
-        lore: [{ ...lore("l1", "Tale"), category: "myth" }, lore("l2", "Rumour")],
+        lore: [{ ...lore("l1", "Tale"), lore_kind: "myth" }, lore("l2", "Rumour")],
         sessions: [session("s1", 4, null), session("s2", null, null)],
       }),
     );

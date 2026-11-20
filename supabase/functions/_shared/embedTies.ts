@@ -61,6 +61,7 @@ const NAME_TABLES: Record<LinkKind, string> = {
   location: "locations",
   deity: "deities",
   item: "items",
+  canon: "canon_entries",
 };
 
 /** Ids per `.in()` request: keeps the URL under the gateway's length cap. */
@@ -158,7 +159,7 @@ async function fetchNames(client: SupabaseClient, wanted: ReadonlyMap<LinkKind, 
   const names = new Map<string, string>();
   for (const [kind, ids] of wanted) {
     for (const chunk of chunks([...ids], ID_CHUNK)) {
-      const { data, error } = await client.from(NAME_TABLES[kind]).select("id, name").in("id", chunk);
+      const { data, error } = await client.from(NAME_TABLES[kind]).select(kind === "canon" ? "id, name:title" : "id, name").in("id", chunk);
       if (error) throw new Error(`Failed to read ${NAME_TABLES[kind]}: ${error.message}`);
       for (const row of (data ?? []) as unknown as { id: string; name: string | null }[]) {
         if (row.name) names.set(tieNameKey(kind, row.id), row.name);

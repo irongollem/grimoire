@@ -62,6 +62,7 @@ const TYPE_ORDER: readonly EntityEmbedType[] = [
   "deity",
   "species",
   "subclass",
+  "canon",
 ];
 
 /** How many rows a typed search shows at once. */

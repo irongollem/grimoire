@@ -28,6 +28,8 @@ export const CAMPAIGN_SECRETS_KEY = "campaign-secrets";
 export const KIN_LINKS_KEY = "kin_links";
 /** Every connections read (#1084): a sheet's Connections block, the world web and the players' projection. */
 export const CONNECTIONS_KEY = "connections";
+/** The campaign's canon (#1226): the premise, the truths and the rest of `canon_entries`. */
+export const CANON_KEY = "canon";
 /** The record of what is true in the story (#1021): facts and what each is about. */
 export const STORY_RECORD_KEY = "storyRecord";
 /** The roads between a campaign's places (`useLocationRoads`). */
@@ -46,6 +48,8 @@ export const CLOCKS_KEY = "quest_clocks";
 export const OBJECTIVES_KEY = "quest_objectives";
 export const PLAYER_NPCS_KEY = "player-npcs";
 export const PLAYER_NOTES_KEY = "player-notes";
+/** The notes still to sort into canon (#1226): the Notes page's one-time list. */
+export const NOTE_SORTING_KEY = "note-sorting";
 export const PLAYER_FACTIONS_KEY = "player-factions";
 export const PLAYER_HANDOUTS_KEY = "player-handouts";
 /** The DM's notice boards and their pins (#1064). */
@@ -312,6 +316,14 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   ["kin_links", [KIN_LINKS_KEY, PLAYER_KIN_KEY, CONNECTIONS_KEY]],
   // World Web (#1084). Players cannot read the table; their projection hangs off the same root.
   ["world_links", [CONNECTIONS_KEY]],
+  ["canon_entries", [CANON_KEY, CONNECTIONS_KEY]],
+  // A clue and its found tick, read under the same root as the entries.
+  ["canon_clues", [CANON_KEY]],
+  // What is moving (#1226 story 4) and lore told in passages (story 5): DM-only rows read under the canon root.
+  ["canon_force_steps", [CANON_KEY]],
+  ["canon_force_ticks", [CANON_KEY]],
+  ["canon_force_quests", [CANON_KEY]],
+  ["canon_lore_passages", [CANON_KEY]],
   // The record (#1021). A member re-reads through RLS, which shows only what the party knows.
   ["story_facts", [STORY_RECORD_KEY]],
   ["story_fact_links", [STORY_RECORD_KEY]],
@@ -343,6 +355,8 @@ export const SIGNAL_SOURCE_ENTRIES: ReadonlyArray<readonly [string, readonly str
   // both the DM root and the players' projection root for its table, so any
   // device or a player's write reaches every tab.
   ["notes_player", ["notes", PLAYER_NOTES_KEY]],
+  // The one-time list of notes still to sort into canon (#1226 story 6): DM-only rows, read under one root.
+  ["note_sorting", [NOTE_SORTING_KEY]],
   ["factions_player", ["factions", PLAYER_FACTIONS_KEY, PLAYER_KIN_KEY]],
   // Places, quests, beats and objectives are read by players through
   // projections and owner-only policies, so the ring tells them to re-read. The

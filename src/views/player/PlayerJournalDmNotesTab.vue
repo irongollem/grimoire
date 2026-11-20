@@ -15,9 +15,9 @@
     <template #default="{ item: note }">
     <JournalCard
       :id="`dm-note-${note.id}`"
-      :color="NOTE_CATEGORIES[note.category]?.color ?? '#6b7280'"
-      :icon="NOTE_CATEGORIES[note.category]?.icon ?? IconPopulate"
-      :category-label="NOTE_CATEGORIES[note.category]?.label ?? ''"
+      :color="note.session_id !== null ? SESSION_COLOR : NOTE_COLOR"
+      :icon="note.session_id !== null ? IconCalendarDays : IconDocument"
+      :category-label="note.session_id !== null ? 'Session' : 'Note'"
       :title="note.title"
       :date="formatDate(note.created_at)"
       :expanded="selectedNote === note.id"
@@ -26,7 +26,7 @@
       <template #meta>
         <EntityNewDot :is-new="isNoteNew(note.id, note.updated_at)" title="New" />
         <IconPin v-if="note.is_pinned" class="h-2.5 w-2.5 text-primary shrink-0" />
-        <span v-if="note.category === 'session' && sessionNameOf(note.session_id)" class="text-caption text-muted-foreground/70 italic">{{ sessionNameOf(note.session_id) }}</span>
+        <span v-if="sessionNameOf(note.session_id)" class="text-caption text-muted-foreground/70 italic">{{ sessionNameOf(note.session_id) }}</span>
         <span class="text-caption text-muted-foreground/70 italic">by DM</span>
         <AiGeneratedBadge variant="line" :provenance="note.ai_provenance" />
       </template>
@@ -44,15 +44,13 @@
 import TagChips from "@/components/common/TagChips.vue";
 import ListSkeleton from "@/components/common/feedback/ListSkeleton.vue";
 import VirtualGrid from "@/components/common/list/VirtualGrid.vue";
-import { IconPin, IconPopulate } from '@/lib/icons';
+import { IconCalendarDays, IconDocument, IconPin, IconPopulate } from '@/lib/icons';
 import JournalCard from '@/components/player/JournalCard.vue';
 import EntityNewDot from '@/components/common/entity/EntityNewDot.vue';
 import RichTextViewer from '@/components/common/richtext/RichTextViewer.vue';
 import NoteReading from '@/components/notes/NoteReading.vue';
 import AiGeneratedBadge from '@/components/common/ai/AiGeneratedBadge.vue';
-import type { NoteCategory } from '@/types/notes.types';
 import type { Note } from '@/types/notes.types';
-import type { Component } from 'vue';
 import { usePlayerSessions } from '@/composables/sessions/usePlayerSessions';
 import { sessionOf } from '@/lib/notes/noteSessions';
 import { sessionLabel } from '@/lib/sessions/sessionLabel';
@@ -63,7 +61,6 @@ defineProps<{
   selectedNote: string | null;
   isNoteNew: (id: string, updatedAt: string) => boolean;
   formatDate: (iso: string) => string;
-  NOTE_CATEGORIES: Record<NoteCategory, { label: string; color: string; icon: Component }>;
 }>();
 
 defineEmits<{
@@ -75,6 +72,9 @@ defineEmits<{
 // (px): 2 border + 2 category rule (h-0.5) + 24 padding (py-3) + 20 title
 // (text-heading-xs) + 6 (mt-1.5) + 16 meta line (text-caption "by DM") = 70.
 const NOTE_ROW_PX = 70;
+// A note linked to a session is that session's chronicle entry; any other is a plain note.
+const SESSION_COLOR = '#3b82f6';
+const NOTE_COLOR = '#6b7280';
 const noteKey = (note: Note) => note.id;
 
 const { data: sessions } = usePlayerSessions();

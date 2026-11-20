@@ -111,8 +111,8 @@ async function main() {
     db,
     // ai_enabled is decided (off): null means "undecided", which opens the
     // "Bring AI to this campaign?" dialog over every page and blocks the clicks.
-    `insert into public.campaigns (user_id, name, description, ai_enabled)
-     values (${dm}, ${quote(CAMPAIGN_NAME)}, 'Synthetic campaign for the performance harness.', false)
+    `insert into public.campaigns (user_id, name, ai_enabled)
+     values (${dm}, ${quote(CAMPAIGN_NAME)}, false)
      returning id;`,
   ).split("\n")[0];
   const campaign = quote(campaignId);
@@ -166,10 +166,10 @@ async function main() {
 
   sql(
     db,
-    `insert into public.notes (user_id, campaign_id, title, content, category, tags, is_pinned)
+    `insert into public.notes (user_id, campaign_id, title, content, tags, is_pinned)
      values
-       (${dm}, ${campaign}, 'Perf pinned note', ${prose("A pinned note the dashboard shows.")}, 'general', '{perf}', true),
-       (${dm}, ${campaign}, 'Perf plain note', ${prose("A second note, not pinned.")}, 'lore', '{perf}', false);`,
+       (${dm}, ${campaign}, 'Perf pinned note', ${prose("A pinned note the dashboard shows.")}, '{perf}', true),
+       (${dm}, ${campaign}, 'Perf plain note', ${prose("A second note, not pinned.")}, '{perf}', false);`,
   );
 
   sql(

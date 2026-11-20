@@ -1,0 +1,117 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { flushPromises, mount } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
+import { ref } from "vue";
+import type { StoryFact } from "@/lib/table/solo/storyRecord";
+
+const facts = ref<StoryFact[]>([]);
+const mocks = vi.hoisted(() => ({
+  keep: vi.fn(), strike: vi.fn(), undoStrike: vi.fn(), makeTruth: vi.fn(), correct: vi.fn(),
+  error: vi.fn(), success: vi.fn(),
+}));
+const pending = { isPending: { value: false } };
+vi.mock("@/composables/canon/useTableFacts", () => ({
+  useTableFacts: () => ({ facts: { data: facts, isLoading: ref(false), isError: ref(false) }, links: { data: ref([]) } }),
+  useTableFactWrites: () => ({
+    keep: { mutateAsync: mocks.keep }, strike: { mutateAsync: mocks.strike }, undoStrike: { mutateAsync: mocks.undoStrike },
+    makeTruth: { mutateAsync: mocks.makeTruth }, correct: { mutateAsync: mocks.correct, ...pending },
+  }),
+}));
+vi.mock("@/composables/table/useFactAbout", () => ({ useFactAbout: () => () => [] }));
+vi.mock("@/composables/sessions/useCampaignSessions", () => ({ useCampaignSessions: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: mocks.error, success: mocks.success, fromError: (_e: unknown, m: string) => m }) }));
+vi.mock("vue-router", () => ({ RouterLink: { template: "<a><slot /></a>" } }));
+
+import { useCanonUiStore } from "@/stores/ui/canon";
+import TableAddedSection from "./TableAddedSection.vue";
+
+const fact = (id: string, over: Partial<StoryFact> = {}): StoryFact => ({
+  id, campaign_id: "c1", session_id: null, body: `Fact ${id}`, known_to_player: true, supersedes_id: null, source: "table",
+  kept_at: null, struck_at: null, created_at: `2026-11-10T10:00:0${id.length}Z`, ...over,
+});
+
+const mountIt = () =>
+  mount(TableAddedSection, {
+    props: { truthCount: 2 },
+    global: { stubs: { SoloCorrectDialog: true, CanonRubric: true, OverflowMenu: { emits: ["select"], template: "<button data-testid='more' @click=\"$emit('select', 'truth')\" />" } } },
+  });
+const button = (w: ReturnType<typeof mountIt>, label: string) => w.findAll("button, a").find((b) => b.text() === label);
+
+describe("TableAddedSection", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    Object.values(mocks).forEach((m) => m.mockReset());
+    mocks.keep.mockResolvedValue(undefined);
+    mocks.strike.mockResolvedValue(undefined);
+    mocks.undoStrike.mockResolvedValue(undefined);
+    mocks.makeTruth.mockResolvedValue("t1");
+    facts.value = [fact("a"), fact("bb", { kept_at: "2026-11-11T10:00:00Z" })];
+  });
+
+  // Bug caught: the default list showing lines the DM already reviewed, so there was never a clear "to do" list.
+  it("opens on what is new", () => {
+    const w = mountIt();
+    expect(w.findAll("[data-testid=table-fact]").map((r) => r.text())).toHaveLength(1);
+    expect(w.text()).toContain("Fact a");
+    expect(w.text()).not.toContain("Fact bb");
+  });
+
+  // Bug caught: a strike with no way back, because the struck line fell out of the New list with its Undo.
+  it("keeps a struck line on screen with Undo, and Undo hands back the earlier keep", async () => {
+    facts.value = [fact("a", { kept_at: "2026-11-11T10:00:00Z" })];
+    useCanonUiStore().tableFactFilter = "kept";
+    const w = mountIt();
+    // The record refreshes while the write is still settling, as the mutation's own refresh does.
+    let finish!: () => void;
+    mocks.strike.mockImplementation(async () => {
+      facts.value = [fact("a", { struck_at: "2026-11-12T10:00:00Z" })];
+      await new Promise<void>((resolve) => (finish = resolve));
+    });
+    await button(w, "Strike")!.trigger("click");
+    await flushPromises();
+    expect(w.find("[data-testid=table-fact-struck]").exists()).toBe(true);
+    finish();
+    await flushPromises();
+    expect(mocks.strike).toHaveBeenCalledTimes(1);
+    expect(w.find("[data-testid=table-fact-struck]").exists()).toBe(true);
+    await button(w, "Undo")!.trigger("click");
+    await flushPromises();
+    expect(mocks.undoStrike).toHaveBeenCalledWith({ fact: expect.objectContaining({ id: "a" }), previousKeptAt: "2026-11-11T10:00:00Z" });
+  });
+
+  // Bug caught: Keep offered on a line already kept, or Edit and Strike withheld from it.
+  it("offers Keep only on a new line, and Edit and Strike on a kept one", () => {
+    useCanonUiStore().tableFactFilter = "kept";
+    const w = mountIt();
+    expect(button(w, "Keep")).toBeUndefined();
+    expect(button(w, "Edit")).toBeDefined();
+    expect(button(w, "Strike")).toBeDefined();
+  });
+
+  // Bug caught: a failed Keep announced as a success, or left listed as if it had happened.
+  it("says so and writes nothing more when a keep fails", async () => {
+    mocks.keep.mockRejectedValue(new Error("no"));
+    const w = mountIt();
+    await button(w, "Keep")!.trigger("click");
+    await flushPromises();
+    expect(mocks.error).toHaveBeenCalledWith("That could not be kept.");
+  });
+
+  // Bug caught: Make it a truth filed at the wrong position, ignoring the truths already there.
+  it("makes a truth through the menu, after the existing truths", async () => {
+    const w = mountIt();
+    await w.find("[data-testid=more]").trigger("click");
+    await flushPromises();
+    expect(mocks.makeTruth).toHaveBeenCalledWith({ fact: expect.objectContaining({ id: "a" }), sortOrder: 2 });
+  });
+
+  // Bug caught: Clear missing once a filter other than New is chosen.
+  it("shows Clear only away from New, and Clear returns to it", async () => {
+    const w = mountIt();
+    expect(button(w, "Clear")).toBeUndefined();
+    useCanonUiStore().tableFactFilter = "all";
+    await flushPromises();
+    await button(w, "Clear")!.trigger("click");
+    expect(useCanonUiStore().tableFactFilter).toBe("new");
+  });
+});

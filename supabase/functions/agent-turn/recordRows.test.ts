@@ -18,9 +18,18 @@ describe("candidateFactIds", () => {
 });
 
 describe("openFacts", () => {
+  const f = (id: string, struck_at: string | null = null) => ({ id, struck_at });
+
   it("a fact another fact closes is not shown; the closer is", () => {
-    const facts = [{ id: "old" }, { id: "new" }];
-    expect(openFacts(facts, [{ supersedes_id: "old" }]).map((f) => f.id)).toEqual(["new"]);
+    expect(openFacts([f("old"), f("new")], [{ supersedes_id: "old", struck_at: null }]).map((x) => x.id)).toEqual(["new"]);
+  });
+
+  it("leaves a struck fact out, or the Narrator keeps telling something the DM said never happened (#1226)", () => {
+    expect(openFacts([f("a"), f("b", "2026-11-20T10:00:00Z")], []).map((x) => x.id)).toEqual(["a"]);
+  });
+
+  it("keeps a fact open when the fact that would have closed it was struck, since that never happened", () => {
+    expect(openFacts([f("a")], [{ supersedes_id: "a", struck_at: "2026-11-20T10:00:00Z" }]).map((x) => x.id)).toEqual(["a"]);
   });
 });
 

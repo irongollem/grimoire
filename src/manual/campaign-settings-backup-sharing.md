@@ -7,7 +7,7 @@ summary: The occasional tabs in Campaign Settings: Spotify, backups, World Bundl
 keywords: spotify, backup, export, world bundle, grimoire file, import document, transfer ownership, delete campaign, danger zone
 ---
 
-This page covers the administrative tabs of **Campaign Settings** (`/campaign/settings`), the ones you'll open occasionally rather than every session: **Spotify**, **Backup**, **World Bundle**, **Import Document**, and **Danger Zone**. For the everyday tabs (Details, Members, Scheduling, Rules, Classes, Species, AI Assistant), see [Campaign Settings](#campaign-settings).
+This page covers the administrative tabs of **Campaign Settings** (`/campaign/settings`), the ones you'll open occasionally rather than every session: **Spotify**, **Backup**, **World Bundle**, and **Danger Zone**. For the everyday tabs (Details, Members, Scheduling, Rules, Classes, Species, AI Assistant), see [Campaign Settings](#campaign-settings).
 
 ## Connecting Spotify
 
@@ -45,7 +45,7 @@ Player-visibility flags and party-member links are always cleared when a bundle 
 
 ## Importing a document into this campaign
 
-The **Import Document** tab is where a PDF, photo, or pasted page of an adventure gets read into structured campaign content: uploading, extraction progress, and the review wizard all happen here. It's covered in full, including the review steps, on [Importing an Adventure](#importing-an-adventure).
+Importing a PDF, photo, pasted page or Scriptorium book is no longer a settings tab: open the **Canon** page and press **Bring in a book**. Uploading, extraction progress and the review wizard all happen there, and are covered in full on [Importing an Adventure](#importing-an-adventure).
 
 ## Deleting or transferring your campaign
 

@@ -1,7 +1,7 @@
 import type { OpenBookSnapshot } from "@/types/openBook.types";
 
 /** The sections of a snapshot that hold entries a visitor can open, in reading order. */
-export const DIFF_SECTIONS = ["places", "folk", "factions", "pantheons", "deities", "lore", "sessions"] as const;
+export const DIFF_SECTIONS = ["places", "folk", "factions", "pantheons", "deities", "truths", "lore", "sessions"] as const;
 export type DiffSection = (typeof DIFF_SECTIONS)[number];
 
 export const DIFF_SECTION_LABELS: Record<DiffSection, string> = {
@@ -10,6 +10,7 @@ export const DIFF_SECTION_LABELS: Record<DiffSection, string> = {
   factions: "Factions",
   pantheons: "Pantheons",
   deities: "Deities",
+  truths: "Truths",
   lore: "Lore",
   sessions: "Sessions",
 };

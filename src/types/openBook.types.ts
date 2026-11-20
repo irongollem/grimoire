@@ -1,7 +1,7 @@
 /**
  * The Open Book (#1085): a campaign released as a public, read-only book.
  *
- * The snapshot types mirror `private.open_book_snapshot` (migration 20261023230210) field for field. That
+ * The snapshot types mirror `private.open_book_snapshot` (migrations 20261023230210 and 20261120033038) field for field. That
  * function decides what a visitor may read; nothing on the client widens it. Rich-text fields arrive as the
  * stored string (Tiptap JSON, or plain text on old rows) with secret blocks already removed server-side.
  */
@@ -16,7 +16,7 @@ export const OPEN_BOOK_LEATHERS = ["oxblood", "sea", "night", "walnut", "ash"] a
 export type OpenBookLeather = (typeof OPEN_BOOK_LEATHERS)[number];
 
 /** The kinds of entry a DM can put in or take out by hand (`open_book_entries.entity_type`). */
-export const OPEN_BOOK_ENTITY_TYPES = ["location", "npc", "faction", "pantheon", "deity", "note"] as const;
+export const OPEN_BOOK_ENTITY_TYPES = ["location", "npc", "faction", "pantheon", "deity", "note", "canon"] as const;
 export type OpenBookEntityType = (typeof OPEN_BOOK_ENTITY_TYPES)[number];
 
 /** A row of `open_books`: the owner's settings for the campaign's book. */
@@ -55,6 +55,7 @@ export interface OpenBookStats {
   pantheons: number;
   deities: number;
   lore: number;
+  truths: number;
   sessions: number;
   events: number;
 }
@@ -163,15 +164,32 @@ export interface OpenBookDeity {
   tags: string[] | null;
 }
 
+/** One passage of a lore entry, told as far as the whole party has been told it. */
+export interface OpenBookLorePassage {
+  id: string;
+  title: string;
+  /** Tiptap JSON text, secret blocks withheld. */
+  body: string | null;
+}
+
+/** A piece of the campaign's canon lore the whole party can read (#1226). */
 export interface OpenBookLore {
   id: string;
   title: string;
-  category: string | null;
-  content: string | null;
-  tags: string[] | null;
-  is_pinned: boolean | null;
+  lore_kind: string | null;
+  /** When it happened in the world; null for lore with no date. */
+  world_date: { year: number; month: number | null; day: number | null } | null;
+  image_url: string | null;
+  body: string | null;
+  /** In order, the first with the entry and each later one once every member has heard it. */
+  passages: OpenBookLorePassage[];
   created_at: string;
-  updated_at: string;
+}
+
+/** A truth known to all (#1226): a line, never a body. */
+export interface OpenBookTruth {
+  id: string;
+  title: string;
 }
 
 export interface OpenBookCalendarDate {
@@ -211,7 +229,7 @@ export interface OpenBookEvent {
 }
 
 export interface OpenBookSnapshot {
-  v: 1;
+  v: 2;
   book: {
     title: string;
     subtitle: string | null;
@@ -232,6 +250,7 @@ export interface OpenBookSnapshot {
   pantheons: OpenBookPantheon[];
   deities: OpenBookDeity[];
   lore: OpenBookLore[];
+  truths: OpenBookTruth[];
   sessions: OpenBookSession[];
   events: OpenBookEvent[];
   /**

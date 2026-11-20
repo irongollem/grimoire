@@ -4,7 +4,7 @@
     :title="note.title || 'Untitled Note'"
     :subtitle="subtitle"
     :fallback-icon="note.is_pinned ? IconPin : IconNavNotes"
-    :tags="[note.category, ...note.tags]"
+    :tags="note.tags"
     :max-tags="4"
     :locked="locked"
   >

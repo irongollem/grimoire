@@ -118,7 +118,7 @@ client.)
 | --- | --- |
 | api reqs | requests to the Supabase origin, **excluding** `OPTIONS` |
 | options | CORS preflights, counted apart (see traps) |
-| serial depth | longest chain of API requests where each starts at or after the previous one finished. Parallel requests do not add to it. `depth x delay` is the floor of the load that parallelism cannot remove. Pure function in `serialDepth.ts`. |
+| serial depth | longest chain of API requests where each starts at or after the previous one finished. Parallel requests do not add to it. `depth x delay` is the floor of the load that parallelism cannot remove. Leaves out `BACKGROUND_REQUESTS` (`summarize.ts`): reads the app itself defers until after paint and idle, which nobody waits on. Pure function in `serialDepth.ts`. |
 | api / js / css bytes | encoded bytes over the wire (CDP `encodedDataLength`); 0 for cache and service-worker hits. `vite preview` serves what the build emits, so JS bytes are not the production CDN's compressed figure: compare runs, not against the boot budget. |
 | code reqs | code chunks and stylesheets (`.js`, `.mjs`, `.css`, or a Script/Stylesheet resource): what rises when the chunk graph fragments (#999 2.14). Gated. |
 | total reqs | every real request in the window, preflights excluded: code, the document, fonts, images. Reported, not gated (see Budgets). |
@@ -182,7 +182,11 @@ requests over a few hundred milliseconds, so a late member can start after an
 early one has been answered and is counted a wave deeper. `dm-cold` read 4, 5,
 6 and 7 on the same commit, with the boot burst (`campaign_sessions` to
 `notes`) split across waves 3 to 5. Timing only ever adds links that way, never
-removes a real one: a request that waits on another always starts after it. So
+removes a real one: a request that waits on another always starts after it. The deepest of those requests were ones the app defers on purpose (the
+placeholder focal points and the background indexing audit, started from an
+idle callback), so whether the callback fired just before or just after a wave
+was answered moved the whole journey by one; since #1226 they are left out of
+the depth (`BACKGROUND_REQUESTS`) while every count still includes them. So
 the minimum over runs is the closest to the real chain, and a real new wave
 deepens every run, the minimum included. Even the minimum of three runs read 4
 to 6 on `dm-cold` across main, so a depth ceiling is the deepest main has

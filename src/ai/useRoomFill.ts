@@ -34,11 +34,11 @@ export function useRoomFill() {
     _state.error.value = null;
     startAiQuotes();
     try {
-      const { campaignId, settingPrompt } = captureImageGenerationContext();
+      const { campaignId, world } = await captureImageGenerationContext();
       const raw = await generateEntityText<{ ai_provenance?: AiProvenance }>({
         generator: "room",
         campaignId,
-        settingPrompt,
+        world,
         ruleset: ruleset.value,
         prompt: options.steer.trim() || "Fill this room.",
         constraints: options.constraints,

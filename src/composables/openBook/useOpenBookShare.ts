@@ -2,7 +2,7 @@ import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { chunkArray } from "@/lib/utils";
-import { OPEN_BOOK_KEY } from "@/lib/campaignLiveSync/registry";
+import { CANON_KEY, OPEN_BOOK_KEY } from "@/lib/campaignLiveSync/registry";
 import { fieldsForFirstReveal } from "@/lib/npcDisplay";
 import type { OpenBookEntityType } from "@/types/openBook.types";
 
@@ -87,7 +87,7 @@ export function useShareWithParty() {
     },
     onSettled: () =>
       Promise.all(
-        ["locations", "npcs", "factions", "pantheons", "deities", "notes"].map((root) =>
+        ["locations", "npcs", "factions", "pantheons", "deities", "notes", CANON_KEY].map((root) =>
           queryClient.invalidateQueries({ queryKey: [root] }),
         ),
       ).then(() => queryClient.invalidateQueries({ queryKey: [OPEN_BOOK_KEY, "preview"] })),
@@ -101,5 +101,6 @@ const WRITERS: Record<Exclude<OpenBookEntityType, "npc">, Write> = {
   faction: (ids, v) => supabase.from("factions").update({ player_visible_to: v }).in("id", ids),
   pantheon: (ids, v) => supabase.from("pantheons").update({ player_visible_to: v }).in("id", ids),
   deity: (ids, v) => supabase.from("deities").update({ player_visible_to: v }).in("id", ids),
+  canon: (ids, v) => supabase.from("canon_entries").update({ player_visible_to: v }).in("id", ids),
   note: (ids, v) => supabase.from("notes").update({ player_visible_to: v }).in("id", ids),
 };

@@ -16,6 +16,12 @@ describe("restoreSessions", () => {
     expect(notes.map((n) => n.session_id)).toEqual(["s-new", null]);
   });
 
+  it("drops the category an older backup carries, since a note has no such column now", () => {
+    // Fails if the restore inserts `category`, which the database rejects once the column is gone.
+    const { notes } = restoreSessions({ notes: [{ id: "n", category: "lore", title: "x" }] }, new Map(), "camp", "me");
+    expect(notes[0]).not.toHaveProperty("category");
+  });
+
   it("closes a session that was running when the backup was taken", () => {
     const { sessions } = restoreSessions(
       { campaign_sessions: [{ id: "s-old", started_at: "2026-10-01T18:00:00Z", ended_at: null }], notes: [] },

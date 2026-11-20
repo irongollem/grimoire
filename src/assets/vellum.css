@@ -219,7 +219,7 @@
 }
 
 /* ── Lamplight: entity colours used as text ───────────────────────────────
-   The ramps (CR, NPC attitude and relation, spell school, note category) are
+   The ramps (CR, NPC attitude and relation, spell school) are
    fills first: dark pigments under parchment text. Several maps also use the
    same colour as TEXT, where a dark pigment on Lamplight's walnut ground is
    1.6–3:1. Same remedy as the app's ink-* tones: mix toward the foreground.
@@ -232,12 +232,6 @@
 :root[data-theme="vellum-dark"] .text-cr-moderate { color: color-mix(in oklab, var(--cr-moderate) 45%, var(--foreground)); }
 :root[data-theme="vellum-dark"] .text-cr-trivial { color: color-mix(in oklab, var(--cr-trivial) 45%, var(--foreground)); }
 :root[data-theme="vellum-dark"] .text-cr-unknown { color: color-mix(in oklab, var(--cr-unknown) 45%, var(--foreground)); }
-:root[data-theme="vellum-dark"] .text-note-faction { color: color-mix(in oklab, var(--note-faction) 45%, var(--foreground)); }
-:root[data-theme="vellum-dark"] .text-note-general { color: color-mix(in oklab, var(--note-general) 45%, var(--foreground)); }
-:root[data-theme="vellum-dark"] .text-note-location { color: color-mix(in oklab, var(--note-location) 45%, var(--foreground)); }
-:root[data-theme="vellum-dark"] .text-note-lore { color: color-mix(in oklab, var(--note-lore) 45%, var(--foreground)); }
-:root[data-theme="vellum-dark"] .text-note-quest { color: color-mix(in oklab, var(--note-quest) 45%, var(--foreground)); }
-:root[data-theme="vellum-dark"] .text-note-session { color: color-mix(in oklab, var(--note-session) 45%, var(--foreground)); }
 :root[data-theme="vellum-dark"] .text-relationship-friendly { color: color-mix(in oklab, var(--relationship-friendly) 45%, var(--foreground)); }
 :root[data-theme="vellum-dark"] .text-relationship-helpful { color: color-mix(in oklab, var(--relationship-helpful) 45%, var(--foreground)); }
 :root[data-theme="vellum-dark"] .text-relationship-hostile { color: color-mix(in oklab, var(--relationship-hostile) 45%, var(--foreground)); }
@@ -575,7 +569,7 @@
   content: none;
 }
 
-/* The 6px colour strip on top of category cards (NoteCard and friends)
+/* The 6px colour strip on top of category cards
    becomes a bookmark ribbon hanging from the top edge. */
 :root[data-theme^="vellum"] .bg-card.border > .w-full.shrink-0:is(.h-1, .h-1\.5, .h-2) {
   position: absolute;

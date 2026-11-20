@@ -207,13 +207,10 @@ describe("runArchiveSweep: columns", () => {
     expect(inserts[1].row).toMatchObject({ item_type: "weapon", rarity: "very_rare" });
   });
 
-  it("files a note under its frontmatter category when valid, else lore", async () => {
+  it("files a note as a plain note: a frontmatter category is no column any more", async () => {
     const { deps, inserts } = fakeDeps();
-    await run(
-      [entry(page("a.md", { fm: { category: "session" } }), "note"), entry(page("b.md", { fm: { category: "dinner" } }), "note")],
-      deps,
-    );
-    expect(inserts.map((c) => c.row.category)).toEqual(["session", "lore"]);
+    await run([entry(page("a.md", { fm: { category: "session" } }), "note")], deps);
+    expect(inserts[0].row).not.toHaveProperty("category");
   });
 
   it("creates a quest with a one-line summary and keeps the prose in the quest's own notes, with no beat", async () => {

@@ -7,7 +7,7 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
-import { captureImageGenerationContext } from "./useImageGeneration";
+import { captureFailureMessage, captureImageGenerationContext } from "./useImageGeneration";
 import { backgroundInsertFromAi, type BackgroundAiResult } from "@/lib/codex/backgroundAi";
 import type { BackgroundInsert } from "@/types/background.types";
 
@@ -43,11 +43,11 @@ export function useBackgroundGeneration() {
     _state.error.value = null;
     startAiQuotes();
 
-    let context: ReturnType<typeof captureImageGenerationContext>;
+    let context: Awaited<ReturnType<typeof captureImageGenerationContext>>;
     try {
-      context = captureImageGenerationContext();
-    } catch {
-      _state.error.value = "No active campaign selected.";
+      context = await captureImageGenerationContext();
+    } catch (e) {
+      _state.error.value = captureFailureMessage(e);
       _state.isGenerating.value = false;
       stopAiQuotes();
       return null;
@@ -60,7 +60,7 @@ export function useBackgroundGeneration() {
       const result = await generateEntityText<BackgroundAiResult>({
         generator: "background",
         campaignId: context.campaignId,
-        settingPrompt: context.settingPrompt,
+        world: context.world,
         ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,

@@ -36,6 +36,37 @@ export function classifyRequest(request: Pick<RawRequest, "url" | "method" | "re
   return "other";
 }
 
+/**
+ * Requests the app deliberately starts after the page has painted and the main thread is idle (`afterFirstPaint`,
+ * `useBackgroundIndexing`). Nobody waits on them, so they are left out of `serialDepth`; they stay in every count,
+ * in the settled time and in `apiWaves`. Without this, the idle callback firing a moment before or after one wave of
+ * the boot burst was answered moved `dm-cold` a whole wave on the same commit (#1226): CI read 4 to 7 on main.
+ *
+ * Each entry names the code that defers it. A request belongs here only when the app itself holds it back until
+ * idle, never because it is slow or deep: a dependent read that merely lands late is exactly what the depth is for.
+ */
+export const BACKGROUND_REQUESTS: readonly { method: string; path: string; query?: string; deferredBy: string }[] = [
+  {
+    method: "GET",
+    path: "/rest/v1/app_settings",
+    query: "key=eq.placeholder_focal_points",
+    deferredBy: "initPlaceholderFocalPoints, through afterFirstPaint in DefaultLayout.vue",
+  },
+  { method: "POST", path: "/functions/v1/embed-content", deferredBy: "useBackgroundIndexing's audit, after first paint" },
+  { method: "POST", path: "/functions/v1/embed-monsters", deferredBy: "useBackgroundIndexing's audit, after first paint" },
+];
+
+/** True when the request is one the app holds back until idle (`BACKGROUND_REQUESTS`). */
+export function isBackgroundRequest(request: Pick<RawRequest, "url" | "method">): boolean {
+  const url = new URL(request.url);
+  return BACKGROUND_REQUESTS.some(
+    (entry) =>
+      entry.method === request.method &&
+      entry.path === url.pathname &&
+      (entry.query === undefined || url.search.slice(1).split("&").includes(entry.query)),
+  );
+}
+
 /** `GET /rest/v1/quests?select=*&campaign_id=eq.1`: method, path and query only, never headers or origin. */
 export function describeRequest(request: Pick<RawRequest, "url" | "method">): string {
   const url = new URL(request.url);
@@ -56,10 +87,14 @@ export interface RequestSummary {
    * flag's image), so it moved by one between runs of the same commit (#1146).
    */
   totalRequests: number;
+  /** The longest chain of API requests the page waits on; `BACKGROUND_REQUESTS` are left out. */
   serialDepth: number;
   settledMs: number;
   apiPaths: string[];
-  /** Each API request's link in the longest chain ending at it, parallel to `apiPaths` (see `chainPositions`). */
+  /**
+   * Each API request's link in the longest chain ending at it, parallel to `apiPaths` (see `chainPositions`). Every
+   * request, background ones included, so its largest value can exceed `serialDepth`.
+   */
   apiWaves: number[];
   /**
    * Every other request counted in `totalRequests` (code chunks, stylesheets, fonts, images, the document), as a
@@ -88,6 +123,7 @@ export function summarizeRequests(
   let codeRequests = 0;
   let totalRequests = 0;
   const apiIntervals: Interval[] = [];
+  const foregroundIntervals: Interval[] = [];
   const allIntervals: Interval[] = [];
   const apiPaths: string[] = [];
   const assetPaths: string[] = [];
@@ -105,6 +141,7 @@ export function summarizeRequests(
     if (kind === "api") {
       apiBytes += request.encodedBytes;
       apiIntervals.push(interval);
+      if (!isBackgroundRequest(request)) foregroundIntervals.push(interval);
       apiPaths.push(describeRequest(request));
       continue;
     }
@@ -127,7 +164,7 @@ export function summarizeRequests(
     cssBytes,
     codeRequests,
     totalRequests,
-    serialDepth: Math.max(0, ...apiWaves),
+    serialDepth: Math.max(0, ...chainPositions(foregroundIntervals)),
     settledMs: settledTime(allIntervals, windowStartMs, quietMs),
     apiPaths,
     apiWaves,

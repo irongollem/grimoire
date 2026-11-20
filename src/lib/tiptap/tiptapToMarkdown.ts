@@ -56,7 +56,26 @@ type JsonRecord = Record<string, unknown>;
  */
 export interface TiptapToMarkdownOptions {
   mention?: (attrs: { id: string; entityType: string }) => string;
+  /**
+   * How to render a Scriptorium `entityEmbed` block (a live reference to an NPC, place, monster… that the book
+   * carries by id, #915). Return the linked thing's name and it becomes a heading line, so a book taken apart by the
+   * document import names what it already holds; return null to drop it. Without a resolver an embed is skipped:
+   * it carries an id and nothing a reader could use.
+   */
+  embed?: (attrs: { entityType: string; entityId: string }) => string | null;
 }
+
+/**
+ * Scriptorium blocks that only wrap other blocks (a layout, a boxed note, a column set): their children are the
+ * text, so they read as their children. Left out of the switch they would drop a whole passage with the wrapper.
+ */
+const TRANSPARENT_CONTAINERS: ReadonlySet<string> = new Set(["columns", "noteBlock", "wideBlock", "classedBlock"]);
+
+/**
+ * Scriptorium blocks that read as a quoted box: the boxed read-aloud text the extraction prompt looks for
+ * (`descriptiveBlock`) and a pull quote with its attribution.
+ */
+const QUOTED_CONTAINERS: ReadonlySet<string> = new Set(["descriptiveBlock", "quoteBlock"]);
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null;
@@ -195,6 +214,27 @@ function blockToMarkdown(node: JsonRecord, options?: TiptapToMarkdownOptions): s
       const text = inlineToMarkdown(node.content, options);
       return text || null;
     }
+    case "entityEmbed": {
+      if (!options?.embed || !isRecord(node.attrs)) return null;
+      const { entityType, entityId } = node.attrs;
+      if (typeof entityType !== "string" || typeof entityId !== "string") return null;
+      try {
+        const name = options.embed({ entityType, entityId })?.trim();
+        return name ? `## ${name}` : null;
+      } catch {
+        return null;
+      }
+    }
+    case "attribution":
+    case "classedLine": {
+      const text = inlineToMarkdown(node.content, options);
+      return text || null;
+    }
+    case "coverPage":
+    case "tocBlock":
+      // A cover is a title, a blurb and a tagline set for the printed book, and a contents block is generated from
+      // the headings: neither says anything about the world, so neither reaches the extraction.
+      return null;
     case "blockquote": {
       const inner = asNodeArray(node.content)
         .map((n) => blockToMarkdown(n, options))
@@ -234,10 +274,18 @@ function blockToMarkdown(node: JsonRecord, options?: TiptapToMarkdownOptions): s
       return "---";
     case "image":
       return imageToMarkdown(node);
-    default:
-      // Unknown or unsupported node type (calendar ref, task list,
-      // columns…) — skip rather than throw.
+    default: {
+      const type = typeof node.type === "string" ? node.type : "";
+      if (TRANSPARENT_CONTAINERS.has(type)) {
+        const inner = asNodeArray(node.content)
+          .map((n) => blockToMarkdown(n, options))
+          .filter((b): b is string => b !== null && b.length > 0);
+        return inner.length ? inner.join("\n\n") : null;
+      }
+      if (QUOTED_CONTAINERS.has(type)) return blockToMarkdown({ type: "blockquote", content: node.content }, options);
+      // Unknown or unsupported node type (calendar ref, task list…) — skip rather than throw.
       return null;
+    }
   }
 }
 

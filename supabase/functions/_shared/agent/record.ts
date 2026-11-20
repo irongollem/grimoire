@@ -150,6 +150,12 @@ export function recordResult(id: string): string {
 export interface RecordToolDeps {
   /** Writes the fact and its ties; `{ error }` is a sentence the narrator can act on. */
   fileFact(input: RecordInput): Promise<{ id: string } | { error: string }>;
+  /**
+   * Holds an invention against the canon before it is filed (#1226): `{ error }` is the reason it is refused, in words
+   * the narrator can act on, and nothing is filed. Only the narrator's own `record` calls come through here; a fact the
+   * server writes itself (a fight's result, a harvest) never does. A check that throws files the fact unchecked.
+   */
+  check?(input: RecordInput): Promise<{ error: string } | null>;
   /** Told once per fact that was filed. */
   onFiled?(fact: { id: string; body: string; hidden: boolean }): void;
 }
@@ -161,6 +167,15 @@ export function makeRecordTool(deps: RecordToolDeps): { tool: AgentTool; call: (
     call: async (input) => {
       const parsed = parseRecordInput(input);
       if (!parsed.ok) return { content: parsed.error, isError: true };
+      if (deps.check !== undefined) {
+        let refused: { error: string } | null = null;
+        try {
+          refused = await deps.check(parsed.value);
+        } catch (error) {
+          console.error("agent-turn: the canon check failed, so the fact was filed unchecked:", error);
+        }
+        if (refused !== null) return { content: refused.error, isError: true };
+      }
       const filed = await deps.fileFact(parsed.value);
       if ("error" in filed) return { content: filed.error, isError: true };
       deps.onFiled?.({ id: filed.id, body: parsed.value.fact, hidden: parsed.value.hidden });

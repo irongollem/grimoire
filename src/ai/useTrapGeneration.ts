@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
+import { requireWorld } from "./worldBlock";
 import {
   buildCampaignContext,
 } from "./utils";
@@ -18,6 +19,7 @@ import { logUsage } from "@/composables/ai/useAiCredits";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
 import {
+  captureFailureMessage,
   captureImageGenerationContext,
   generateImage,
   type ImageGenerationContext,
@@ -63,9 +65,9 @@ export function useTrapGeneration() {
 
     let imageContext: ImageGenerationContext;
     try {
-      imageContext = captureImageGenerationContext();
-    } catch {
-      _state.error.value = "No active campaign selected.";
+      imageContext = await captureImageGenerationContext();
+    } catch (e) {
+      _state.error.value = captureFailureMessage(e);
       _state.isGenerating.value = false;
       stopAiQuotes();
       return null;
@@ -119,7 +121,7 @@ export function useTrapGeneration() {
     options: TrapGenerationOptions | undefined,
     imageContext: ImageGenerationContext,
   ): Promise<TrapAiGenerated | null> {
-    const settingPrompt = imageContext.settingPrompt;
+    const world = requireWorld(imageContext.world);
     const textProvider = getTextProvider();
 
     const [basePrompt, rulesetContext] = await Promise.all([
@@ -128,9 +130,7 @@ export function useTrapGeneration() {
     ]);
     if (!basePrompt) throw new Error("Trap system prompt not configured.");
 
-    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
-      setting: settingPrompt,
-    })}`;
+    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext(world)}`;
 
     const constraints: string[] = [];
     if (options?.trap_type) constraints.push(`Trap Type: ${options.trap_type}`);

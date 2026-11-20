@@ -77,6 +77,7 @@ export function useTableConversation(sessionId: MaybeRefOrGetter<string | null>,
           .eq("agent_session_id", id)
           .eq("campaign_id", campaign)
           .eq("known_to_player", true)
+          .is("struck_at", null)
           .order("created_at", { ascending: true }),
         // What the board of a fight wrote: the page's own lines, kept beside the turns.
         supabase.from("agent_board_lines").select("after_turns, line, by_server").eq("session_id", id).eq("user_id", user).order("seq", { ascending: true }),

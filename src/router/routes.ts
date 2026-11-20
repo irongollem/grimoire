@@ -417,6 +417,20 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "Session" },
   },
 
+  // Canon (#1226)
+  {
+    path: "/canon",
+    name: "canon",
+    component: () => import("@/views/canon/CanonView.vue"),
+    meta: { requiresAuth: true, title: "Canon" },
+  },
+  {
+    path: "/canon/import",
+    name: "canon-import",
+    component: () => import("@/views/canon/CanonImportView.vue"),
+    meta: { requiresAuth: true, title: "Bring in a book" },
+  },
+
   // Notes
   {
     path: "/notes",

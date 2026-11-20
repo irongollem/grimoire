@@ -1,8 +1,10 @@
 // The shapes and fixed words of one AI-table turn (#1205): its limits, the refusals, what the browser hears, the rows
 // and the dependencies. They live apart from `handler.ts` so each step of a turn (`admitTurn.ts`, `turnSitting.ts`,
-// `turnContext.ts`, `keepTurn.ts`) can name them without importing the module that calls it. `handler.ts` re-exports
-// all of them, so callers still import from there.
+// `turnContext.ts`, `keepTurn.ts`) can name them without importing the module that calls it. Callers import them
+// from here; `handler.ts` exports only the two entry points.
 
+import type { CanonStore } from "./canonIo.ts";
+import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import type { AgentProvider } from "../_shared/agent/providerIo.ts";
 import type { Floor } from "../_shared/agent/floor.ts";
 import type { HandoutOffer, PictureOf, Shown } from "../_shared/agent/show.ts";
@@ -338,7 +340,16 @@ export interface AgentTurnDeps {
   loadPeoples(campaignId: string): Promise<string[]>;
   /** The names of a planned fight's creatures that have no stat block; a fight with one of them is not started. */
   statlessFighters(campaignId: string, plan: FightPlan): Promise<string[]>;
+  /** The campaign's canon as the table reads it and adds to it (#1226): the world block, the last sitting, what lies here, the lookup, what an invention is held against. */
+  canon: CanonStore;
+  /**
+   * The judge the canon check asks (`canonCheck.ts`), or null without a judging key: an invention is then filed
+   * unchecked and the skip is logged. Like `judgeNarration`, an enhancement and never a gate.
+   */
+  judgeCanon: CanonJudge | null;
 }
+
+export type CanonJudge = (request: JudgeRequest) => Promise<JudgeResult>;
 
 export const MESSAGES = {
   badBody: "The request is not valid.",

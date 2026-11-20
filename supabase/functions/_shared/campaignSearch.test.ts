@@ -4,6 +4,9 @@ import {
   applyProbabilities,
   rerankPool,
   hitKey,
+  noteHitLabel,
+  CHRONICLER_NOTE_SCOPE,
+  DM_SEARCH_NOTE_SCOPE,
   FAMILY_CAP,
   RERANK_POOL,
   type CampaignSearchHit,
@@ -133,5 +136,22 @@ describe("applyProbabilities / rerankPool", () => {
     const a = hit("npc", "A", 0.5);
     const b = hit("npc", "B", 0.6);
     expect(applyProbabilities([a, b], probs([[a, 0.9]]))).toBeNull();
+  });
+});
+
+describe("note scopes", () => {
+  it("lets the Chronicler read session notes only and the DM's search read every note", () => {
+    // Fails if the recap writer is widened to planning notes (a spoiler leak), or the DM's search is narrowed.
+    expect(CHRONICLER_NOTE_SCOPE.p_session_notes_only).toBe(true);
+    expect(DM_SEARCH_NOTE_SCOPE.p_session_notes_only).toBe(false);
+  });
+});
+
+describe("noteHitLabel", () => {
+  it("names a session note by its session, and any other note just a note", () => {
+    // Fails if the label falls back to the old category word, or hides which session a chronicle entry belongs to.
+    expect(noteHitLabel(7)).toBe("Session 7");
+    expect(noteHitLabel(null)).toBe("Note");
+    expect(noteHitLabel(undefined)).toBe("Note");
   });
 });

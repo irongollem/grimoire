@@ -391,7 +391,7 @@ Back route goes to `/play` (character sheet) if the player triggered it from the
 
 Route: `/play/journal` (`PlayerJournalView.vue`)
 
-A personal journal owned by each player character, and also the home of the Quest Log and Puzzles tabs (`/play/quests` and `/play/puzzles` redirect here; see those sections below). Seven tabs: **My Journal** (private entries), **Party Journal** (entries marked as shared), **Quest Log**, **Puzzles**, **DM Notes** (read-only view of notes the DM has shared, read through `get_player_visible_notes` so DM-only secret blocks never arrive; a DM previewing a member sees exactly that member's notes) **Handouts** (Scriptorium documents the DM has shared with this player) and **Notice Boards** (see "Notice boards").
+A personal journal owned by each player character, and also the home of the Quest Log and Puzzles tabs (`/play/quests` and `/play/puzzles` redirect here; see those sections below). Eight tabs: **My Journal** (private entries), **Party Journal** (entries marked as shared), **The World** (`?tab=world`, see below), **Quest Log**, **Puzzles**, **DM Notes** (read-only view of notes the DM has shared that are not linked to a session, read through `get_player_visible_notes` so DM-only secret blocks never arrive; a DM previewing a member sees exactly that member's notes) **Handouts** (Scriptorium documents the DM has shared with this player) and **Notice Boards** (see "Notice boards").
 
 Each entry has:
 
@@ -404,6 +404,28 @@ Each entry has:
 Players can filter their journal by category. Entries can be expanded inline to read or edit. The privacy toggle on any entry can be flipped post-creation.
 
 **Tome tabs** — one additional tab per document item currently in the party's inventory (any item with non-null `content` that the player can see). Derived live from the intersection of party inventory and player-visible items — not stored state — so a tome appears the moment the party picks the item up and disappears the moment it leaves the inventory (sold, dropped, given away); both source queries already live-sync. Rendered as a second row of pill `AppButton`s below the main tab bar (the fixed tab bar has no slot for a per-tome unread dot, so this is a separate strip using the same pill-button recipe used elsewhere in the journal) with a feather icon and an `EntityNewDot`. Tab identity is the item's id, with the static tabs falling back to `"mine"`, so `?tab=<item-id>` deep-links straight into a tome. Selecting one renders `PlayerJournalTomeTab`, which mounts `ItemDocumentSection` — see "Document Items (Written Contents)" above for composing/authorship/unread rules.
+
+### The World (#1226)
+
+Tab: `/play/journal?tab=world` (`PlayerJournalWorldTab.vue`). The canon as a player reads it, from two definer reads that already apply the audience (`get_player_canon`, `get_player_lore_passages`; a DM previewing a member passes that member, as DM Notes does), through `usePlayerCanon` under the `canon` query root so the doorbell refreshes it. Three blocks: **Only you know** (truths marked for some, which reach a player only when known to their own character or a faction they belong to), **What we know** (truths known to all) and **Found out** (each shared lore entry as a card: kind, "N parts so far", its picture unless low art is on, then its body and the passages told so far, in order). The read never says how many passages exist, so no "more to come" line or count is shown. Unread rides `player_read_items` (type `canon_lore`, keyed by the entry, dated by its newest told passage): an entry is new when it last grew after the player last opened it, and inside it the passages told since that visit are marked New (the visit time is held while the entry is open, because opening marks it read). `usePlayerUnread` carries it as the `world` section and a `lore` item in the Hearth's "new for you". A fourth block, **The Chronicle**, lists the shared notes linked to a session (`notes.session_id`), newest session first (the session's own day, else the note's creation), each as "Session N: title" with its date in the world through the campaign calendar when the note has one; it opens like a DM Note (same `NoteReading`, same viewer) and marks the note read (`note`). The notes come from `usePlayerVisibleNotes` (`get_player_visible_notes`, so secret blocks never arrive and a DM previewing a member passes that member). Session notes no longer appear in DM Notes (`listedNotes`); their unread lights The World, not DM Notes, in the tab, the nav and the Hearth (`usePlayerUnread`, item kind `chronicle`). A player's own notes on a session stay in My Journal.
+
+### My story (#1226 story 10, frame 14)
+
+Tab: `/play/journal?tab=story`, after My Journal (`PlayerJournalStoryTab.vue`). The player's own character's backstory
+as it is written together with the DM (see "Backstories, written together" in [canon.md](canon.md)). First the character's
+Backstory field as **Before play** (`BackstoryBeforePlay`, editable, the same field the character page's About edits),
+then the passages told to this player in the order the story grew (`written_at`), from `usePlayerCanon` (`get_player_canon`
+for the entry, `get_player_lore_passages` for the passages, which now say `by_dm` and `written_at`). Their own passages are
+editable and removable (`StoryPassage`: heading and text autosave through `updateMyPassage`, which reads the row back to
+tell a refusal from a save, and never queues an embedding, which is the DM's); the DM's are marked **Told by the DM** and
+offer nothing to change. A passage the DM has not told is never here and nothing says it exists (the client also drops a
+backstory passage with no told time). **Add to my story** opens the backstory (`open_backstory`) and then inserts a passage
+with `author_id` the player and `player_visible_to` their own character plus, when **Share with the party** is on (the
+default: a backstory is party-visible on the sheet), every party member (`sharedWith`). A DM previewing a player reads, and
+cannot write. Unread rides `player_read_items` (type `canon_backstory`, keyed by the entry, dated by the DM's newest told
+passage): the newest passage the DM told since the player last opened the tab is marked New, and `usePlayerUnread` carries
+it as the `story` section (the tab dot, the nav dot) and a `story` item in the Hearth's "new for you". The party member
+lightbox shows another character's Before play as before plus their passages told to the viewer (`PartyMemberStory`).
 
 ### Handouts (#970)
 

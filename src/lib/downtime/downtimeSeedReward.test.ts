@@ -41,7 +41,6 @@ const item: DowntimeSeedItem = {
 const note: DowntimeSeedNote = {
   title: "A thread worth pulling",
   body: "Some **lore** you turned up.",
-  category: "lore",
   tags: ["research"],
 };
 
@@ -107,10 +106,10 @@ describe("itemInsertFromSeed", () => {
 });
 
 describe("noteInsertFromSeed", () => {
-  it("carries title, category, and tags", () => {
+  it("carries title and tags, and no category (notes have none)", () => {
     const out = noteInsertFromSeed(note);
     expect(out.title).toBe("A thread worth pulling");
-    expect(out.category).toBe("lore");
+    expect(out).not.toHaveProperty("category");
     expect(out.tags).toEqual(["research"]);
   });
 

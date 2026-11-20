@@ -226,13 +226,13 @@ describe("QuestRunContainedTool", () => {
   });
 
   it("renders an attached note body and gates unrelated queries", () => {
-    mocks.note.value = { title: "Bell lore", category: "lore", tags: ["bell"], content: "note-body" };
+    mocks.note.value = { title: "Bell lore", tags: ["bell"], content: "note-body" };
     const wrapper = shallowMount(QuestRunContainedTool, {
       props: { attachment: attachment("note", { ref_id: "note-1" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
       global,
     });
     expect(wrapper.findComponent({ name: "RichTextViewer" }).props("content")).toBe("note-body");
-    expect(wrapper.text()).toContain("lore · bell");
+    expect(wrapper.text()).toContain("bell");
     expect(mocks.noteId.value).toBe("note-1");
     expect(mocks.handoutId.value).toBe("");
     expect(mocks.monsterId.value).toBe("");

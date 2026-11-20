@@ -27,8 +27,11 @@
  * mentor, and the apprentice's sheet reads it as "apprentice of".
  */
 
-/** The kinds a link can join. A PC is a `party_member`. */
-export const LINK_KINDS = ["npc", "party_member", "faction", "location", "deity", "item"] as const;
+/**
+ * The kinds a link can join. A PC is a `party_member`; `canon` is an entry of the
+ * campaign's canon (#1226): a truth, a piece of lore, a secret, a force.
+ */
+export const LINK_KINDS = ["npc", "party_member", "faction", "location", "deity", "item", "canon"] as const;
 export type LinkKind = (typeof LINK_KINDS)[number];
 
 /** Kinds that can appear at the far end of a connection; quests only through their own records. */
@@ -41,7 +44,7 @@ export const PERSON_KINDS: readonly LinkKind[] = ["npc", "party_member"];
  * What a tie is about, which decides its colour on a sheet and on the web. A
  * family says nothing about which kinds it joins.
  */
-export const LINK_FAMILIES = ["bond", "enmity", "faith", "place", "holding", "stance", "record"] as const;
+export const LINK_FAMILIES = ["bond", "enmity", "faith", "place", "holding", "stance", "lore", "record"] as const;
 export type LinkFamily = (typeof LINK_FAMILIES)[number];
 
 export interface LinkTypeDef {
@@ -322,6 +325,57 @@ export const WORLD_LINK_PAIRS: readonly LinkPair[] = [
       dir("relic_of", "relic of", "has the relic", "faith", true),
       dir("blessed_by", "blessed by", "has blessed", "faith"),
       dir("cursed_by", "cursed by", "has cursed", "enmity"),
+    ],
+  },
+  // The canon (#1226). An entry is always the `from` end: it is about people, places and powers, it took place
+  // somewhere, and a truth "known to some" names who knows it. These are what the Narrator follows instead of
+  // searching, and what lets lore point at history and history at the people in it.
+  {
+    pair: "canon_person",
+    from: ["canon"],
+    to: PERSON_KINDS,
+    types: [
+      dir("about", "about", "told of in", "lore", true),
+      dir("known_to", "known to", "knows", "lore", true),
+    ],
+  },
+  {
+    pair: "canon_faction",
+    from: ["canon"],
+    to: ["faction"],
+    types: [
+      dir("about", "about", "told of in", "lore", true),
+      dir("known_to", "known to", "knows", "lore", true),
+    ],
+  },
+  {
+    pair: "canon_location",
+    from: ["canon"],
+    to: ["location"],
+    types: [
+      dir("about", "about", "told of in", "lore", true),
+      dir("took_place_at", "took place at", "scene of", "lore", true),
+    ],
+  },
+  {
+    pair: "canon_deity",
+    from: ["canon"],
+    to: ["deity"],
+    types: [dir("about", "about", "told of in", "lore", true)],
+  },
+  {
+    pair: "canon_item",
+    from: ["canon"],
+    to: ["item"],
+    types: [dir("about", "about", "told of in", "lore", true)],
+  },
+  {
+    pair: "canon_canon",
+    from: ["canon"],
+    to: ["canon"],
+    types: [
+      dir("led_to", "led to", "came of", "lore", true),
+      sym("related_to", "related to", "lore", true),
     ],
   },
 ];

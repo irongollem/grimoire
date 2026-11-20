@@ -9,7 +9,7 @@ keywords: campaign settings, members, invites, scheduling, rules, classes, speci
 
 Campaign Settings is where every setting that applies to the whole campaign (rather than to one NPC, quest, or location) lives, organized into tabs. Open it from **Campaign → Settings** at the bottom of the sidebar's Campaign group (it's always last in the list), or go straight to `/campaign/settings`. It's DM-only: players are blocked from this route entirely.
 
-This page covers the tabs you'll use most: **Details**, **Members & Invites**, **Scheduling**, **Rules**, **Currency**, **Classes**, **Species**, and **AI Assistant**. The more occasional, administrative tabs (**Spotify**, **Backup**, **World Bundle**, **Import Document**, and **Danger Zone**) are covered on [Campaign Settings: Backup, Sharing & Danger Zone](#campaign-settings-backup-sharing-danger-zone). Connecting an external AI assistant (Claude, etc.) to *read* your campaign by conversation is a different tab, **AI Connections**, covered on its own page: [Connecting an AI Assistant](#connecting-an-ai-assistant).
+This page covers the tabs you'll use most: **Details**, **Members & Invites**, **Scheduling**, **Rules**, **Currency**, **Classes**, **Species**, and **AI Assistant**. The more occasional, administrative tabs (**Spotify**, **Backup**, **World Bundle**, and **Danger Zone**) are covered on [Campaign Settings: Backup, Sharing & Danger Zone](#campaign-settings-backup-sharing-danger-zone). Connecting an external AI assistant (Claude, etc.) to *read* your campaign by conversation is a different tab, **AI Connections**, covered on its own page: [Connecting an AI Assistant](#connecting-an-ai-assistant).
 
 ## Key ideas
 

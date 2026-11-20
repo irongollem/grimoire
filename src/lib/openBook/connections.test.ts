@@ -8,7 +8,7 @@ const person = (id: string, name: string) => ({ id, name, race: null, occupation
 
 function snapshot(ties?: unknown): OpenBookSnapshot {
   const base: OpenBookSnapshot = {
-    v: 1,
+    v: 2,
     book: { title: "T", subtitle: null, cover_art: "tooled", cover_image_url: null, leather: "oxblood", chapters: ["atlas", "folk", "factions", "pantheon"], campaign_name: "C" },
     calendar: { calendar_id: null, custom_calendar: null, current: { year: null, month: null, day: null } },
     places: [place("crossing", "Thane's Crossing")],
@@ -17,6 +17,7 @@ function snapshot(ties?: unknown): OpenBookSnapshot {
     pantheons: [],
     deities: [{ id: "lady", pantheon_id: null, name: "The Drowned Lady", titles: null, alternate_names: null, alignment: null, symbol: null, symbol_image_url: null, portrait_url: null, portrait_focal_point: null, domains: null, portfolio: null, description: null, tags: null }],
     lore: [],
+    truths: [],
     sessions: [],
     events: [],
     names: {},

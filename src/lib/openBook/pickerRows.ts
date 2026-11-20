@@ -36,7 +36,17 @@ export interface PickerDeity extends PickerNamed {
 export interface PickerNote {
   id: string;
   title: string;
-  category: string;
+  /** A note linked to a session is that session's chronicle entry (#1226 story 6); the book prints only those. */
+  session_id: string | null;
+  player_visible_to: readonly string[] | null;
+}
+
+/** A canon entry (#1226): lore, or a truth. Only lore and the truths known to all can be in the book. */
+export interface PickerCanon {
+  id: string;
+  title: string;
+  part: string;
+  knowledge: string | null;
   player_visible_to: readonly string[] | null;
 }
 
@@ -47,6 +57,7 @@ export interface PickerSources {
   pantheons: readonly PickerNamed[];
   deities: readonly PickerDeity[];
   notes: readonly PickerNote[];
+  canon: readonly PickerCanon[];
 }
 
 /** Who can see the entry at the DM's table: all of the party, some of it, or nobody but the DM. */
@@ -59,7 +70,7 @@ export interface PickerRow {
   id: string;
   chapter: OpenBookChapter;
   name: string;
-  /** A second line under the name: a deity's pantheon, a note's category. */
+  /** A second line under the name: a deity's pantheon, a canon entry's kind. */
   detail: string | null;
   /** Indent level in the Atlas tree; 0 everywhere else. */
   depth: number;
@@ -83,10 +94,6 @@ export function rowKey(type: OpenBookEntityType, id: string): string {
 export function audienceOf(visibleTo: readonly string[], partyIds: readonly string[]): PickerAudience {
   if (wholeParty(visibleTo, partyIds)) return "party";
   return visibleTo.length > 0 ? "some" : "me";
-}
-
-export function chapterOfNote(category: string): OpenBookChapter {
-  return category === "session" ? "chronicle" : "lore";
 }
 
 export interface PickerBook {
@@ -141,11 +148,11 @@ export function buildPickerRows(
     chapter: OpenBookChapter,
     name: string,
     visible: readonly string[] | null,
-    extra: { detail?: string | null; depth?: number; placeId?: string | null; npc?: PickerNpc } = {},
+    extra: { detail?: string | null; depth?: number; placeId?: string | null; npc?: PickerNpc; alwaysEligible?: boolean } = {},
   ): PickerRow => {
     const visibleTo = visible ?? [];
     const block = extra.npc ? npcBookBlock(extra.npc, partyIds, sharingPlaces) : null;
-    const eligible = extra.npc ? block === null : wholeParty(visibleTo, partyIds);
+    const eligible = extra.alwaysEligible === true || (extra.npc ? block === null : wholeParty(visibleTo, partyIds));
     const key = rowKey(type, id);
     const choice = choices.get(key);
     return {
@@ -159,7 +166,7 @@ export function buildPickerRows(
       placeId: extra.placeId ?? null,
       visibleTo,
       // An NPC seen through the place they live in reads as the whole party's, as at the table.
-      audience: extra.npc && eligible ? "party" : audienceOf(visibleTo, partyIds),
+      audience: (extra.npc || extra.alwaysEligible) && eligible ? "party" : audienceOf(visibleTo, partyIds),
       eligible,
       nameHidden: block === "name",
       choice,
@@ -182,13 +189,21 @@ export function buildPickerRows(
     ...byName(sources.deities).map((d) =>
       make("deity", d.id, "pantheon", d.name, d.player_visible_to, { detail: d.pantheon?.name ?? null }),
     ),
-    ...[...sources.notes]
-      .sort((a, b) => a.title.localeCompare(b.title))
-      .map((n) =>
-        make("note", n.id, chapterOfNote(n.category), n.title, n.player_visible_to, {
-          detail: n.category === "session" ? null : n.category,
+    // Lore and Legend is the canon: the truths known to all (always eligible, as the snapshot takes them) first, then
+    // lore the whole party can read. Notes are in the book only as session reports, under the Chronicle.
+    ...[...sources.canon]
+      .filter((c) => c.part === "lore" || (c.part === "truth" && c.knowledge === "all"))
+      .sort((a, b) => (a.part === b.part ? a.title.localeCompare(b.title) : a.part === "truth" ? -1 : 1))
+      .map((c) =>
+        make("canon", c.id, "lore", c.title, c.player_visible_to, {
+          detail: c.part === "truth" ? "Truth" : "Lore",
+          alwaysEligible: c.part === "truth",
         }),
       ),
+    ...[...sources.notes]
+      .filter((n) => n.session_id !== null)
+      .sort((a, b) => a.title.localeCompare(b.title))
+      .map((n) => make("note", n.id, "chronicle", n.title, n.player_visible_to)),
   ];
 }
 

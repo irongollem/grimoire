@@ -18,10 +18,12 @@ import { buildMonsterEmbedText } from "../_shared/monsterEmbedText.ts";
 
 // ── Contract types ───────────────────────────────────────────────────────────
 
-/** The eight kinds import-extract can produce. Anything else in the request body is ignored. */
+/** The ten kinds import-extract can produce. Anything else in the request body is ignored. */
 export const SUPPORTED_KINDS = [
   "npcs",
   "factions",
+  "deities",
+  "canon",
   "locations",
   "encounters",
   "quests",

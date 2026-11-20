@@ -7,7 +7,7 @@ summary: Turn a PDF, page photos, pasted text, or a LegendKeeper, World Anvil or
 keywords: import, document, pdf, photo, ocr, extraction, adventure, wizard, review, wiki, legendkeeper, world anvil, obsidian, markdown, zip
 ---
 
-Instead of typing up a chapter of an adventure by hand, hand Grimoire the source material and review what it found. An AI pass reads a PDF, a batch of page photos, or text you paste in, pulls out factions, monsters, NPCs, locations, items, spells, quests, and encounters, and lets you decide, entity by entity, what happens to each one before anything is saved. It's DM-only; there's no player-facing side to this at all. Open it from **Campaign Settings → Import Document**.
+Instead of typing up a chapter of an adventure by hand, hand Grimoire the source material and review what it found. An AI pass reads a PDF, a batch of page photos, or text you paste in, pulls out factions, monsters, NPCs, locations, items, spells, quests, and encounters, and lets you decide, entity by entity, what happens to each one before anything is saved. It's DM-only; there's no player-facing side to this at all. Open it from the **Canon** page with **Bring in a book**.
 
 ## Key ideas
 

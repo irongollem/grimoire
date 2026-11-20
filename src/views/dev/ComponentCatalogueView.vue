@@ -338,6 +338,7 @@
              deselect made "All subraces" / "General — all campaigns" unreachable. -->
         <SegmentedControl v-model="emptyable" :options="EMPTY_VALUE_OPTIONS" />
         <SegmentedControl v-model="segment" :options="MANY_OPTIONS" wrap size="xs" />
+        <SegmentedControl v-model="segment" :options="SEGMENT_OPTIONS" orientation="vertical" class="max-w-48" />
       </div>
     </CatalogueSection>
 

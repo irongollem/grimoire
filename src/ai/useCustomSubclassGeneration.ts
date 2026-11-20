@@ -46,7 +46,7 @@ export function useCustomSubclassGeneration() {
     startAiQuotes();
 
     try {
-      const context = captureImageGenerationContext();
+      const context = await captureImageGenerationContext();
       const levels = subclassFeatureLevels({ ...options, ruleset: ruleset.value });
       const constraints = [
         `Parent class: ${options.parentClassName.slice(0, 80)}`,
@@ -56,7 +56,7 @@ export function useCustomSubclassGeneration() {
       const raw = await generateEntityText<SubclassAiResult>({
         generator: "custom_subclass",
         campaignId: context.campaignId,
-        settingPrompt: context.settingPrompt,
+        world: context.world,
         ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,

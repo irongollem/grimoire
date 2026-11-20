@@ -12,7 +12,7 @@ import { createNote } from "./useNotes";
 import { noteInsertFromSeed } from "@/lib/downtime/downtimeSeedReward";
 
 const seed = {
-  ...noteInsertFromSeed({ title: "Rumour", body: "A whisper.", category: "lore", tags: [] }),
+  ...noteInsertFromSeed({ title: "Rumour", body: "A whisper.", tags: [] }),
   id: "n1",
   campaign_id: "c1",
 };

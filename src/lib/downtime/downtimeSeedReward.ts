@@ -98,7 +98,6 @@ export function noteInsertFromSeed(note: DowntimeSeedNote): Omit<NoteInsert, "ca
   return {
     title: note.title,
     content: markdownToTiptapJson(note.body),
-    category: note.category,
     tags: [...note.tags],
     session_id: null,
     is_pinned: false,

@@ -139,3 +139,17 @@ describe("groupFor", () => {
     expect(groupFor("quest")).toBe("quests");
   });
 });
+
+describe("canon ends", () => {
+  it("writes a canon entry into from_canon_entry_id, the column the table has, not from_canon_id", () => {
+    const row = linkInsert({ kind: "canon", id: "c1" }, { kind: "npc", id: "n1" }, { key: "about", subjectIsFrom: true });
+    expect(row).toMatchObject({ from_kind: "canon", to_kind: "npc", from_canon_entry_id: "c1", to_npc_id: "n1" });
+    expect(Object.keys(row)).not.toContain("from_canon_id");
+  });
+
+  it("groups a canon far end under Canon, last", () => {
+    expect(groupFor("canon")).toBe("canon");
+    const grouped = groupByKind([{ k: "canon" as const }, { k: "npc" as const }], (i) => i.k);
+    expect(grouped.map((g) => g.group)).toEqual(["people", "canon"]);
+  });
+});

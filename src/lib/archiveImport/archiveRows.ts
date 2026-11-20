@@ -14,7 +14,6 @@ import { resolveEnum, LOCATION_TYPES } from "@/lib/documentImport/normalize";
 import { LOCATION_TYPE_TIER, isSiteType } from "@/lib/locations/tiers";
 import { ITEM_RARITIES, ITEM_TYPES } from "@/types/item.types";
 import type { LocationType } from "@/types/location.types";
-import type { NoteCategory } from "@/types/notes.types";
 import type { NpcStatus } from "@/types/npc.types";
 import { fieldsForKind, type ArchiveFields } from "./fields";
 import { frontmatterString } from "./frontmatter";
@@ -34,7 +33,6 @@ export const TABLE_FOR_KIND: Record<ArchiveRecordKind, ArchiveTable> = {
 };
 
 const NPC_STATUSES: readonly NpcStatus[] = ["alive", "dead", "missing", "unknown"];
-const NOTE_CATEGORIES: readonly NoteCategory[] = ["general", "session", "lore", "location", "quest", "faction"];
 
 /** A body column: which table row it lives on, and its column. */
 export interface DocColumn {
@@ -167,7 +165,6 @@ export function buildRecordRow(page: ArchivePage, kind: ArchiveRecordKind, ctx: 
     case "note": {
       row.title = fields.title;
       setIf(row, "content", docText(fields.content));
-      row.category = fields.category && (NOTE_CATEGORIES as readonly string[]).includes(fields.category) ? fields.category : "lore";
       row.tags = fields.tags;
       break;
     }

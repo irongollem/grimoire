@@ -39,6 +39,8 @@ const SAMPLE_ENTITY_DATA: { [K in ImportEntityKind]: ExtractedPayloadMap[K] } = 
   spells: { name: "Test Spell" },
   quests: { title: "Test Quest" },
   factions: { name: "Test Faction" },
+  deities: { name: "Test Deity" },
+  canon: { title: "Test Truth", part: "truth" },
   encounters: { name: "Test Encounter" },
 };
 

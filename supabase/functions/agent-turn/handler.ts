@@ -70,7 +70,7 @@ export async function beginTurn(input: {
       try {
         const { session, prologue } = await openSitting(scope);
         const ctx = await readTurnContext(scope, session);
-        const { character, stored, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state } = ctx;
+        const { character, stored, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere } = ctx;
         const fightRunning = fights !== null && fights.fight !== null && fights.fight.phase === "running";
         const turnTools = makeTurnTools({
           deps,
@@ -88,6 +88,13 @@ export async function beginTurn(input: {
           playedId: character ? character.id : undefined,
           partyIds: companions.map((c) => c.id),
           peoples,
+          canon: {
+            here: canonHere,
+            lookup: (query) => deps.canon.lookup(campaign.id, query),
+            material: () => deps.canon.material(campaign.id),
+            judge: deps.judgeCanon,
+            onBroughtOut: (brought) => { fx.broughtOut.push(brought); },
+          },
           onIntroduce: (intro) => { fx.introduced.push(intro); },
           // Not in a fight on the board: that is fought with what is on it.
           ...(fightRunning ? {} : { onHazard: (hazard: HazardRules) => { fx.madeHazards.push(hazard); } }),

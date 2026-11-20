@@ -21,13 +21,13 @@ select set_config('request.jwt.claim.sub', '68000000-0000-4000-8000-000000000002
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
 select lives_ok($$
-  insert into public.notes (id, user_id, title, category)
-  values ('68000000-0000-4000-8000-000000000020', '68000000-0000-4000-8000-000000000002', 'Private note', 'session')
+  insert into public.notes (id, user_id, title)
+  values ('68000000-0000-4000-8000-000000000020', '68000000-0000-4000-8000-000000000002', 'Private note')
 $$, 'players may still create their own global notes');
 
 select throws_ok($$
-  insert into public.notes (user_id, campaign_id, title, category)
-  values ('68000000-0000-4000-8000-000000000002', '68000000-0000-4000-8000-000000000010', 'Injected note', 'session')
+  insert into public.notes (user_id, campaign_id, title)
+  values ('68000000-0000-4000-8000-000000000002', '68000000-0000-4000-8000-000000000010', 'Injected note')
 $$, '42501', null, 'players cannot insert notes into a campaign retrieval corpus');
 
 select throws_ok($$
@@ -39,8 +39,8 @@ $$, '42501', null, 'players cannot move a global note into a campaign retrieval 
 select set_config('request.jwt.claim.sub', '68000000-0000-4000-8000-000000000001', true);
 
 select lives_ok($$
-  insert into public.notes (user_id, campaign_id, title, category)
-  values ('68000000-0000-4000-8000-000000000001', '68000000-0000-4000-8000-000000000010', 'DM session note', 'session')
+  insert into public.notes (user_id, campaign_id, title)
+  values ('68000000-0000-4000-8000-000000000001', '68000000-0000-4000-8000-000000000010', 'DM session note')
 $$, 'campaign DMs can create campaign notes');
 
 reset role;

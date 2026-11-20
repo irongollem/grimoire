@@ -3,6 +3,7 @@ import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { buildCampaignContext, wrapUserInput } from "./utils";
+import { fetchWorldBlock } from "./worldBlock";
 import { getTextProvider } from "./providers";
 import { fetchSystemPrompt } from "./systemPrompts";
 import { logUsage } from "@/composables/ai/useAiCredits";
@@ -116,9 +117,8 @@ export function useNpcVoiceCoach() {
     // No fetchRulesetContext here — this is pure dialogue with no rules
     // content, so that context would be dead prompt weight on a call where
     // every extra round-trip is felt at the table. Mirrors the edge function.
-    const systemContent = `${basePrompt}${buildCampaignContext({
-      setting: campaign.activeCampaign?.ai_setting_prompt,
-    })}`;
+    const world = await fetchWorldBlock(campaignId);
+    const systemContent = `${basePrompt}${buildCampaignContext(world)}`;
 
     // The same newest-memories block the edge function appends, read and
     // formatted by the same shared code, so the two paths cannot disagree.

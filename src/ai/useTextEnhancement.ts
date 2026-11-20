@@ -1,4 +1,6 @@
 import { computed, ref } from "vue";
+import { fetchWorldBlock } from "./worldBlock";
+import { textRunsOnLocalKey } from "./localKeyMode";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useTableRuleset } from "@/composables/rules/useRuleset";
@@ -76,7 +78,8 @@ export function useTextEnhancement() {
       return await generateProseText({
         generator: "text_enhancement",
         campaignId: active.id,
-        settingPrompt: active.ai_setting_prompt,
+        // Only a local-key run builds the prompt here; the server loads the block itself.
+        world: (await textRunsOnLocalKey()) ? await fetchWorldBlock(active.id) : null,
         ruleset: ruleset.value,
         prompt: request.selectedText,
         constraints,

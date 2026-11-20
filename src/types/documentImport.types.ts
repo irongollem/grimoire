@@ -79,12 +79,14 @@ import type { ArchiveManifest } from "@/lib/archiveImport/archiveManifest";
  */
 export const IMPORT_ENTITY_KINDS = [
   "factions",
+  "deities",
   "monsters",
   "npcs",
   "locations",
   "items",
   "spells",
   "quests",
+  "canon",
   "encounters",
 ] as const;
 
@@ -420,6 +422,80 @@ export interface ExtractedFaction {
 }
 
 /**
+ * A god, saint or patron the source names (#1226 story 7). One row in `deities`;
+ * a deity names no other entity, so it carries no link of its own.
+ */
+export interface ExtractedDeity {
+  name: string;
+  titles?: string;
+  alternate_names?: string[];
+  alignment?: string;
+  symbol?: string;
+  domains?: string[];
+  /** What the power rules over, in a line. */
+  portfolio?: string;
+  /** Paraphrased, capped, like every descriptive field. */
+  description?: string;
+}
+
+/**
+ * The parts of the canon a book can say (#1226). `chronicle` is what happened at the table and `line`/`veil` are
+ * agreed with the players, so none of those can be read from a book.
+ */
+export const IMPORT_CANON_PARTS = ["premise", "truth", "force", "secret", "question", "lore"] as const;
+export type ImportCanonPart = (typeof IMPORT_CANON_PARTS)[number];
+
+/** Premise kinds a book can say: the pitch, its themes, what it is like to play, its voice and its look. */
+export const IMPORT_PREMISE_KINDS = ["pitch", "theme", "table", "voice", "look"] as const;
+
+/** A clue to a secret; `where` names one place, person or quest beat, when the source says. */
+export interface ExtractedCanonClue {
+  title: string;
+  where?: string;
+}
+
+/** One passage of a lore entry; `where` names one place, person or quest beat where a later passage comes out. */
+export interface ExtractedCanonPassage {
+  title: string;
+  text?: string;
+  where?: string;
+}
+
+/**
+ * One entry of the campaign's canon (#1226): a row in `canon_entries` plus the children and ties the `part` takes.
+ * `title` is the entry's line (a truth, a theme) and `text` its longer body (the pitch, a secret's answer, lore).
+ * Names in `known_to`, `quests`, `where` are resolved in the sweep's linking phase; one that matches nothing is
+ * reported, never linked.
+ */
+export interface ExtractedCanon {
+  title: string;
+  part: ImportCanonPart;
+  /** Only for a premise. */
+  premise_kind?: string;
+  /** Only for a truth: all, some or secret. */
+  knowledge?: string;
+  /** Only for a truth known to some: the people or factions who know it, by name. */
+  known_to?: string[];
+  text?: string;
+  /** Only for a force: what it wants, in a line. */
+  wants?: string;
+  /** Only for a force: its next steps, in order. */
+  steps?: string[];
+  /** Only for a force: the quests where the party meets it, by name. */
+  quests?: string[];
+  /** Only for a secret. */
+  clues?: ExtractedCanonClue[];
+  /** Only for lore: history, legend, culture, magic, place, faith or other. */
+  lore_kind?: string;
+  /** Only for lore, when the source gives a date in the world. */
+  world_year?: number;
+  world_month?: number;
+  world_day?: number;
+  /** Only for lore. */
+  passages?: ExtractedCanonPassage[];
+}
+
+/**
  * A room's occupants, when they add up to a fight (#840). Deliberately the
  * last kind: it names creatures from `monsters`/`npcs` and a room from
  * `locations`, all resolved by name against rows those earlier steps already
@@ -467,6 +543,8 @@ export interface ExtractedPayloadMap {
   spells: ExtractedSpell;
   quests: ExtractedQuest;
   factions: ExtractedFaction;
+  deities: ExtractedDeity;
+  canon: ExtractedCanon;
   encounters: ExtractedEncounter;
 }
 

@@ -24,6 +24,8 @@ import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextResult } from "../_shared/textGen.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
+import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
+import { worldBlockText, worldImageSetting } from "../_shared/worldBlock.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -32,12 +34,6 @@ const admin = createClient(
 
 const PARTY_SUFFIX =
   "The adventuring party from the reference portrait are present in this scene — they are the ones triggering or suffering the trap.";
-
-function buildCampaignContext(setting: string | null | undefined): string {
-  const s = setting?.trim();
-  if (!s) return "";
-  return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n## Setting\n${s}`;
-}
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
@@ -82,7 +78,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, image_provider, ai_setting_prompt, game_system")
+    .select("id, user_id, ai_enabled, text_provider, image_provider, game_system")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -122,7 +118,8 @@ serve(withCors(async (req: Request) => {
     providerConfigs,
   });
 
-  const systemContent = promptRow.content + (rulesetContext ? `\n\n${rulesetContext}` : "") + buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
+  const world = await loadWorldBlock(admin, campaign.id);
+  const systemContent = promptRow.content + (rulesetContext ? `\n\n${rulesetContext}` : "") + worldBlockText(world) + INJECTION_GUARD_SUFFIX;
 
   const constraints: string[] = [];
   if (trap_type) constraints.push(`Trap Type: ${trap_type}`);
@@ -209,7 +206,7 @@ serve(withCors(async (req: Request) => {
       trapImageQuality = await resolveImageQuality(admin, "entity_image", img);
       const imagePrompt = buildSimpleImagePrompt({
         base: imageBasePrompt,
-        setting: campaign.ai_setting_prompt ?? "",
+        setting: worldImageSetting(world),
         subject: String(trapData.image_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS),
       });
 

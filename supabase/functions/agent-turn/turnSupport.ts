@@ -9,6 +9,7 @@ import { planSummary, summarise } from "../_shared/agent/summary.ts";
 import type { StoredTurn } from "../_shared/agent/transcript.ts";
 import { sceneSection, trimScene, type TrimmedScene } from "../_shared/agent/scene.ts";
 import { recordSection, type RecordedFact } from "../_shared/agent/record.ts";
+import { CANON_GUIDE, canonHereSection, NO_CANON_HERE, previouslySection, type CanonHere } from "../_shared/agent/canon.ts";
 import { playerCharacterSection, type PlayerCharacter } from "../_shared/agent/playerCharacter.ts";
 import { rulesetLabelFor, soloTableSystem } from "../_shared/agent/soloTablePrompt.ts";
 import { NO_QUESTS, pressureIsSpent, pressureTick, questsSection, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
@@ -63,12 +64,25 @@ export async function characterOf(deps: AgentTurnDeps, campaignId: string, chara
  * a single sentence, so everything that moves during play is in `stateFor` instead. The summary is added by the
  * caller; it changes only when older turns are folded into it, and the history is cut at that moment anyway.
  */
-export function systemFor(input: { campaign: CampaignRow; character: PlayerCharacter | null; peoples: readonly string[] }): string {
+export function systemFor(input: {
+  campaign: CampaignRow;
+  character: PlayerCharacter | null;
+  peoples: readonly string[];
+  /** The world block (premise, tone, lines and veils, the truths known to all), already worded; empty when the campaign has none or it could not be read. */
+  world?: string;
+  /** An excerpt of the last sitting's chronicle entry; empty with no earlier sitting. */
+  previously?: string;
+}): string {
   const { campaign } = input;
   const parts = [soloTableSystem({ id: campaign.id, name: campaign.name, rulesetLabel: rulesetLabelFor(campaign.game_system) })];
+  // The canon (#1226): what is always carried, short. The rest is looked up (`canon_lookup`) or shown where the party stands.
+  if (input.world !== undefined && input.world !== "") parts.push(input.world);
+  parts.push(CANON_GUIDE);
   // The world's own kinds of folk: a campaign's list changes about as often as its name, so it sits with it.
   const peoples = peoplesSection(input.peoples);
   if (peoples !== "") parts.push(peoples);
+  const previously = previouslySection(input.previously ?? "");
+  if (previously !== "") parts.push(previously);
   if (input.character) parts.push(playerCharacterSection(input.character));
   return parts.join("\n\n");
 }
@@ -93,6 +107,8 @@ export function stateFor(input: {
   sky?: string;
   /** The rest of the party, already worded; empty with nobody else. */
   companions?: string;
+  /** What the canon holds where the party stands (#1226): clues, lore, who may say what, what is kept open. */
+  canon?: CanonHere;
 }): string {
   // The fights sit with the scene: they are about the place the party stands in. Nothing to say, no section.
   const fights = fightsSection(input.fights ?? NO_FIGHTS, input.fightTurn ? budgetLine(input.fightTurn) : null);
@@ -100,7 +116,8 @@ export function stateFor(input: {
   const handouts = input.handouts === undefined || input.handouts === "" ? [] : [input.handouts];
   const sky = input.sky === undefined || input.sky === "" ? [] : [input.sky];
   const companions = input.companions === undefined || input.companions === "" ? [] : [input.companions];
-  return [sceneSection(input.scene), ...companions, ...sky, ...(fights === "" ? [] : [fights]), ...carried, ...handouts, questsSection(input.quests ?? NO_QUESTS), recordSection(input.record)].join("\n\n");
+  const canon = canonHereSection(input.canon ?? NO_CANON_HERE);
+  return [sceneSection(input.scene), ...companions, ...sky, ...(fights === "" ? [] : [fights]), ...carried, ...handouts, questsSection(input.quests ?? NO_QUESTS), ...(canon === "" ? [] : [canon]), recordSection(input.record)].join("\n\n");
 }
 
 /** The fights for this turn. Null when they could not be read: the turn still runs, with no fight tool. */

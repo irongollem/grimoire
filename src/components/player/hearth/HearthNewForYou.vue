@@ -32,7 +32,7 @@ import { RouterLink } from "vue-router";
 import EntityNewDot from "@/components/common/entity/EntityNewDot.vue";
 import HearthSection from "@/components/player/hearth/HearthSection.vue";
 import { usePlayerUnread, type UnreadItem } from "@/composables/player/usePlayerUnread";
-import { IconNote, IconPuzzle, IconQuest, IconScrollText } from "@/lib/icons";
+import { IconBookUser, IconCalendarDays, IconLibrary, IconNote, IconPuzzle, IconQuest, IconScrollText } from "@/lib/icons";
 import { timeAgo } from "@/lib/utils";
 
 /**
@@ -46,6 +46,9 @@ const KIND = {
   puzzle: { label: "Puzzle", icon: IconPuzzle },
   handout: { label: "Handout", icon: IconScrollText },
   note: { label: "From your DM", icon: IconNote },
+  lore: { label: "Lore", icon: IconLibrary },
+  chronicle: { label: "Chronicle", icon: IconCalendarDays },
+  story: { label: "Your story", icon: IconBookUser },
 } satisfies Record<UnreadItem["kind"], { label: string; icon: unknown }>;
 
 const { items } = usePlayerUnread();

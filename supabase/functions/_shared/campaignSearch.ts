@@ -12,6 +12,7 @@ export type CampaignSearchKind =
   | "faction"
   | "note"
   | "quest"
+  | "canon"
   | "item"
   | "library_item"
   | "monster"
@@ -41,14 +42,6 @@ export interface CampaignSearchResponse {
   unavailable?: CampaignSearchUnavailable;
 }
 
-/**
- * Every note category. match_campaign_notes is fail-closed on `p_categories`
- * (NULL matches nothing: it is the Chronicler's spoiler gate), so a search over
- * the DM's own notes names them all. Held equal to the client's `NoteCategory`
- * by src/types/noteCategories.mirror.test.ts.
- */
-export const NOTE_CATEGORIES = ["general", "session", "lore", "location", "quest", "faction"] as const;
-
 // Measured against real text-embedding-3-small vectors (Oct 2026): a short
 // query's right answers sit at cosine distance 0.53-0.67, unrelated noise at
 // 0.60-0.77. The ranges overlap, so no absolute threshold alone works. A cut at
@@ -61,7 +54,7 @@ export const ABSOLUTE_CEILING = 0.72;
 /** Hits kept per family (an item and a library item share one, as do monsters). */
 export const FAMILY_CAP = 5;
 
-type Family = "npc" | "location" | "faction" | "note" | "quest" | "item" | "monster";
+type Family = "npc" | "location" | "faction" | "note" | "quest" | "canon" | "item" | "monster";
 
 function familyOf(kind: CampaignSearchKind): Family {
   if (kind === "library_item") return "item";
@@ -177,4 +170,20 @@ export function applyProbabilities(
   const kept = pool.filter((hit) => probabilityOf(hit) >= RERANK_KEEP);
   const sorted = dedupeFamilies(kept).sort((a, b) => probabilityOf(b) - probabilityOf(a) || a.distance - b.distance);
   return capPerFamily(sorted);
+}
+
+/**
+ * Which notes `match_campaign_notes` may return. The Chronicler (player-facing prose) sees only notes linked to a
+ * session: they narrate what already happened, while any other note is the DM's planning material and an unrevealed
+ * twist from one would surface in the recap as a "callback". The DM's own search sees every note.
+ */
+export const CHRONICLER_NOTE_SCOPE = { p_session_notes_only: true } as const;
+export const DM_SEARCH_NOTE_SCOPE = { p_session_notes_only: false } as const;
+
+/**
+ * What a note hit says under its name: "Session 7" for a note linked to session 7 (its chronicle entry), else "Note".
+ * `match_campaign_notes` returns the linked session's number, null when the note has no session or the session no number.
+ */
+export function noteHitLabel(sessionNum: unknown): string {
+  return typeof sessionNum === "number" ? `Session ${sessionNum}` : "Note";
 }

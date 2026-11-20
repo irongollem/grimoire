@@ -28,6 +28,8 @@ import type { CustomSubclass } from "@/levelup/customTypes";
 import type { ClassFeature } from "@/types/feature.types";
 import type { Spell } from "@/types/spell.types";
 import type { ScriptoriumTheme } from "@/scriptorium/types";
+import { canonEmbedHtml } from "@/scriptorium/lib/canonEmbedHtml";
+import type { PlayerWorld } from "@/composables/canon/usePlayerCanon";
 
 /** Name heading, the portrait if revealed, and a species · occupation line if
  *  revealed. A name the player has not been given means the NPC is absent. */
@@ -126,4 +128,29 @@ export function playerSubclassHtml(
   spellNames: Record<string, string>,
 ): string {
   return formatEntityEmbedBodyHtml({ type: "subclass", subclass, features, spellNames });
+}
+
+/**
+ * A truth or a piece of lore the player has been told, as the canon tab shows it: lore with only the passages this
+ * player was told. Null for anything else, including an id the player's read lacks (a truth only others know, a
+ * secret, a force): the caller renders nothing at all.
+ */
+export function playerCanonHtml(
+  world: PlayerWorld,
+  id: string,
+  dateLabel: (year: number, month: number | null, day: number | null) => string,
+): string | null {
+  const truth = [...world.known, ...world.onlyMine].find((e) => e.id === id);
+  if (truth) return canonEmbedHtml({ kind: "truth", title: truth.title });
+  const lore = world.lore.find((l) => l.entry.id === id);
+  if (!lore) return null;
+  const { entry } = lore;
+  return canonEmbedHtml({
+    kind: "lore",
+    title: entry.title,
+    loreKind: entry.lore_kind,
+    date: entry.world_year === null ? null : dateLabel(entry.world_year, entry.world_month, entry.world_day),
+    body: entry.body,
+    passages: lore.passages.map((p) => ({ title: p.title, body: p.body })),
+  });
 }

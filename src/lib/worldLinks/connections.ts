@@ -19,8 +19,8 @@ import type { Connection, ConnectionSource, WorldLink, WorldRef } from "@/types/
 export { typeChoices, type TypeChoice };
 
 /** The order a sheet groups its connections in, everywhere (#1084 decision 5). */
-export const CONNECTION_GROUP_ORDER: readonly ConnectionGroup[] = ["people", "factions", "places", "deities", "items", "quests"];
-export type ConnectionGroup = "people" | "factions" | "places" | "deities" | "items" | "quests";
+export const CONNECTION_GROUP_ORDER: readonly ConnectionGroup[] = ["people", "factions", "places", "deities", "items", "quests", "canon"];
+export type ConnectionGroup = "people" | "factions" | "places" | "deities" | "items" | "quests" | "canon";
 
 /** What a group is called wherever it is printed: a sheet, a book, a player's list. */
 export const CONNECTION_GROUP_TITLES: Record<ConnectionGroup, string> = {
@@ -30,6 +30,7 @@ export const CONNECTION_GROUP_TITLES: Record<ConnectionGroup, string> = {
   deities: "Deities",
   items: "Items",
   quests: "Quests",
+  canon: "Canon",
 };
 
 export function groupFor(kind: ConnectionKind): ConnectionGroup {
@@ -47,6 +48,8 @@ export function groupFor(kind: ConnectionKind): ConnectionGroup {
       return "items";
     case "quest":
       return "quests";
+    case "canon":
+      return "canon";
   }
 }
 
@@ -90,7 +93,13 @@ const END_COLUMN: Record<LinkKind, string> = {
   location: "location_id",
   deity: "deity_id",
   item: "item_id",
+  canon: "canon_entry_id",
 };
+
+/** The `world_links` column that holds a kind's id on one side: `from_npc_id`, `to_canon_entry_id`. */
+export function linkEndColumn(side: "from" | "to", kind: LinkKind): string {
+  return `${side}_${END_COLUMN[kind]}`;
+}
 
 /** The insert payload for a link between two things, in the direction the choice stores it. */
 export function linkInsert(subject: WorldRef, other: WorldRef, choice: Pick<TypeChoice, "key" | "subjectIsFrom">):
@@ -101,8 +110,8 @@ export function linkInsert(subject: WorldRef, other: WorldRef, choice: Pick<Type
     from_kind: from.kind,
     to_kind: to.kind,
     type: choice.key,
-    [`from_${END_COLUMN[from.kind]}`]: from.id,
-    [`to_${END_COLUMN[to.kind]}`]: to.id,
+    [linkEndColumn("from", from.kind)]: from.id,
+    [linkEndColumn("to", to.kind)]: to.id,
   };
 }
 

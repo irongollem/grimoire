@@ -211,6 +211,11 @@ async function carryOutKeptTurn(
   }
   await mendCharacter(scope, fx.hitPointChange, character);
   // The days the story told have passed: the page moves the campaign's date (its calendar lives with the app).
+  // A clue that came out in play is found and a passage told, now that the turn is kept: a turn that was not kept
+  // leaves the canon as it was. One that cannot be written costs that mark, never the turn.
+  for (const brought of fx.broughtOut) {
+    await safely(() => deps.canon.bringOut({ campaignId: campaign.id, campaignSessionId: session.campaign_session_id }, brought));
+  }
   if (fx.daysPassed > 0) emit({ type: "days", days: fx.daysPassed });
   // The people the narrator made up get their records. One that cannot be written (a plan's limit on
   // characters, a name taken meanwhile) costs that record, never the turn: the facts about them are kept.

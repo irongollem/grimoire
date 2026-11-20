@@ -80,8 +80,8 @@ describe("fieldsForKind", () => {
     expect(blank).toEqual({ kind: "faction" });
   });
 
-  it("keeps a note whole with its category and tags", () => {
+  it("keeps a note whole with its tags", () => {
     const f = fieldsForKind(pageOf("Body.", { frontmatter: { category: "lore" } }), "note");
-    expect(f).toMatchObject({ kind: "note", title: "P", category: "lore", tags: ["t"] });
+    expect(f).toMatchObject({ kind: "note", title: "P", tags: ["t"] });
   });
 });

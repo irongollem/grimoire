@@ -4,7 +4,7 @@ import { diffIsEmpty, diffSnapshots, groupBySection } from "./releaseDiff";
 
 function snapshot(parts: { places?: { id: string; name: string; description?: string }[]; lore?: { id: string; title: string }[] }): OpenBookSnapshot {
   return {
-    v: 1,
+    v: 2,
     book: {
       title: "T",
       subtitle: null,
@@ -21,6 +21,7 @@ function snapshot(parts: { places?: { id: string; name: string; description?: st
     pantheons: [],
     deities: [],
     lore: (parts.lore ?? []) as unknown as OpenBookSnapshot["lore"],
+    truths: [],
     sessions: [],
     events: [],
     names: {},

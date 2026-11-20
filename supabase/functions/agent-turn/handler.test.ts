@@ -34,6 +34,8 @@ import { AgentProviderError, type AgentBlock, type CallModel, type ModelRequest,
 import { blocksOf, type StoredTurn, type TurnRow } from "../_shared/agent/transcript";
 import type { CreditLogFields } from "../_shared/credits";
 import type { JudgeRequest, JudgeResult } from "../_shared/typesafe";
+import { NO_CANON_HERE, type BroughtOut, type CanonHere, type CanonLookupEntry } from "../_shared/agent/canon";
+import { NO_CHECK_MATERIAL, type CanonCheckMaterial } from "../_shared/agent/canonCheck";
 
 const PICTURED = "00000000-0000-4000-8000-0000000000f1";
 const HANDOUT = "00000000-0000-4000-8000-0000000000f2";
@@ -186,7 +188,17 @@ interface Harness {
     questsThrow: boolean;
     /** Moves that fail to apply, by their position in the order applied. */
     failMoveAt: Set<number>;
+    /** The canon (#1226): the world block, the last sitting, what lies here, the lookup, what an invention is held against. */
+    canonWorld: string;
+    canonPrevious: string;
+    canonHere: CanonHere;
+    canonHereThrows: boolean;
+    canonLookup: CanonLookupEntry[] | null;
+    canonMaterial: CanonCheckMaterial;
+    canonMaterialThrows: boolean;
   };
+  /** What the canon store was asked, and every clue or passage it was told to mark. */
+  canonAsked: { previously: Array<string | null>; here: Array<{ locationId: string | null; present: string[] }>; lookups: string[]; brought: BroughtOut[] };
   /** Every quest move the handler applied, in order, and the campaign and conversation it applied it for. */
   applied: Array<{ ctx: { campaignId: string; agentSessionId: string }; move: QuestMove }>;
   questLoads: Array<{ campaignId: string; pressureClockId: string | null }>;
@@ -306,7 +318,15 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       quests: NO_QUESTS,
       questsThrow: false,
       failMoveAt: new Set<number>(),
+      canonWorld: "",
+      canonPrevious: "",
+      canonHere: NO_CANON_HERE,
+      canonHereThrows: false,
+      canonLookup: [],
+      canonMaterial: NO_CHECK_MATERIAL,
+      canonMaterialThrows: false,
     },
+    canonAsked: { previously: [], here: [], lookups: [], brought: [] },
     applied: [],
     questLoads: [],
     pendingRolls: [],
@@ -537,6 +557,30 @@ function harness(script: Script = [step(600)], isByok = false): Harness {
       if (h.state.failMoveAt.has(at)) throw new Error("rpc failed");
     },
     judgeNarration: null,
+    judgeCanon: null,
+    canon: {
+      worldText: async () => h.state.canonWorld,
+      previously: async (_c, runningSessionId) => {
+        h.canonAsked.previously.push(runningSessionId);
+        return h.state.canonPrevious;
+      },
+      here: async (_c, locationId, present) => {
+        h.canonAsked.here.push({ locationId, present: present.map((p) => p.id) });
+        if (h.state.canonHereThrows) throw new Error("db down");
+        return h.state.canonHere;
+      },
+      lookup: async (_c, query) => {
+        h.canonAsked.lookups.push(query);
+        return h.state.canonLookup;
+      },
+      material: async () => {
+        if (h.state.canonMaterialThrows) throw new Error("db down");
+        return h.state.canonMaterial;
+      },
+      bringOut: async (_ctx, brought) => {
+        h.canonAsked.brought.push(brought);
+      },
+    },
     voiceKey: null,
     statlessFighters: async () => h.state.statless,
     isTableMadeCharacter: async () => h.state.tableMade,
@@ -3769,5 +3813,153 @@ describe("whose floor it is when a turn ends", () => {
     existingSession(h);
     await play(h, { body: BODY_SAY });
     expect(last(h)).not.toHaveProperty("floor");
+  });
+});
+
+describe("the canon at the table (#1226)", () => {
+  const BODY = { campaignId: CAMPAIGN, sessionId: SESSION, message: "I read the page.", mode: "do" };
+  const CLUE = "00000000-0000-4000-8000-0000000000c9";
+  const SECRET = "00000000-0000-4000-8000-0000000000ca";
+  const STATEMENT = "BARON-STATEMENT the Baron poisoned the well.";
+  const SECRET_TRUTH = "SECRET-TRUTH the ferrywoman is the first queen.";
+  const here: CanonHere = {
+    clues: [{ id: CLUE, secretId: SECRET, line: "CLUE-LINE a stained ledger page lies under the lamp." }],
+    passages: [],
+    knows: [{ who: ["Honeycomb"], truth: "KNOWN-TO-SOME the river gives things back" }],
+    questions: ["OPEN-QUESTION who made the Stain?"],
+    forces: [],
+  };
+  const material: CanonCheckMaterial = {
+    truths: [{ text: "Magic leaves a taste on the tongue.", secret: false }, { text: SECRET_TRUTH, secret: true }],
+    questions: ["Who made the Stain?"],
+    secrets: [{ id: SECRET, statement: STATEMENT }],
+  };
+  const file = (id: string, input: Record<string, unknown>): ModelStep =>
+    step(10, { blocks: [{ type: "tool_call", id, name: "record", input }], stop: "tool_calls" });
+  const played = (script: Script = [step(10)], over: Partial<SessionRow> = {}): Harness => {
+    const h = harness(script);
+    existingSession(h, { scene_location_id: CELLAR, ...over });
+    return h;
+  };
+  /** Everything the model is ever sent: instructions, state, history and every tool answer. */
+  const everything = (h: Harness) => JSON.stringify(h.requests.map((r) => ({ system: r.system, messages: r.messages })));
+
+  it("carries the world block and what the last sitting told in the instructions, so they stay standing for the cache", async () => {
+    const h = played();
+    h.state.canonWorld = "WORLD-BLOCK the Gloaming, where lines are never crossed.";
+    h.state.canonPrevious = "PREVIOUSLY-MARK they crossed the river.";
+    await play(h, { body: BODY });
+    expect(h.requests[0].system).toContain("WORLD-BLOCK");
+    expect(h.requests[0].system).toContain("PREVIOUSLY-MARK");
+    expect(opening(h.requests[0])).not.toContain("WORLD-BLOCK");
+    expect(opening(h.requests[0])).not.toContain("PREVIOUSLY-MARK");
+  });
+
+  it("asks for the last sitting before the one now running, never the running one's own entry", async () => {
+    const h = played([step(10)], { campaign_session_id: PLAY_SESSION });
+    await play(h, { body: BODY });
+    expect(h.canonAsked.previously).toEqual([PLAY_SESSION]);
+  });
+
+  it("tells the narrator what the canon holds here in the state, never in the instructions", async () => {
+    const h = played();
+    h.state.canonHere = here;
+    await play(h, { body: BODY });
+    const sent = opening(h.requests[0]);
+    expect(sent).toContain("CLUE-LINE");
+    expect(sent).toContain(CLUE);
+    expect(sent).toContain("Honeycomb may say: KNOWN-TO-SOME");
+    expect(sent).toContain("OPEN-QUESTION");
+    expect(h.requests[0].system).not.toContain("CLUE-LINE");
+  });
+
+  it("asks what lies at the party's place and for the people in it", async () => {
+    const h = played();
+    await play(h, { body: BODY });
+    expect(h.canonAsked.here).toEqual([{ locationId: CELLAR, present: [HONEYCOMB] }]);
+  });
+
+  // Bug this guards: a secret's statement reaching the model. It is given to the judge and to nobody else.
+  it("never sends the model a secret's statement or a secret truth, though the judge is given both", async () => {
+    const seen: JudgeRequest[] = [];
+    const h = played([file("r1", { fact: "The well tastes of iron." }), step(10)]);
+    h.state.canonHere = here;
+    h.state.canonMaterial = material;
+    h.deps.judgeCanon = async (request) => {
+      seen.push(request);
+      return { model: "jev-1", inputTokens: 1, answers: {} };
+    };
+    await play(h, { body: BODY });
+    expect(JSON.stringify(seen[0].state)).toContain("BARON-STATEMENT");
+    expect(everything(h)).not.toContain("BARON-STATEMENT");
+    expect(everything(h)).not.toContain("SECRET-TRUTH");
+    expect(JSON.stringify(h.events)).not.toContain("BARON-STATEMENT");
+  });
+
+  it("refuses an invention that states a secret, tells the narrator no more than that, and files nothing", async () => {
+    const h = played([file("r1", { fact: "The Baron poisoned the well." }), step(10)]);
+    h.state.canonMaterial = material;
+    h.deps.judgeCanon = async () => ({ model: "jev-1", inputTokens: 1, answers: { states_0: { type: "noul", noul: 0.97 } } });
+    await play(h, { body: BODY });
+    expect(h.facts).toEqual([]);
+    const refusal = h.requests[1].messages.flatMap((m) => m.blocks).find((b) => b.type === "tool_result");
+    expect(refusal).toMatchObject({ isError: true });
+    expect(JSON.stringify(refusal)).toContain("It states a secret. Only the DM reveals a secret.");
+    expect(JSON.stringify(refusal)).not.toContain("BARON-STATEMENT");
+  });
+
+  it("files an invention and says in the log that the check was skipped when there is no judge", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const h = played([file("r1", { fact: "The well tastes of iron." }), step(10)]);
+    h.state.canonMaterial = material;
+    await play(h, { body: BODY });
+    expect(h.facts).toHaveLength(1);
+    expect(log.mock.calls.flat().join(" ")).toContain("canon check was skipped (no judge)");
+    log.mockRestore();
+  });
+
+  // Bug this guards: the table's own writing (a fight's result) being judged as if it were an invention.
+  it("never holds the server's own fact, a fight's result, against the canon", async () => {
+    const judge = vi.fn(async () => ({ model: "jev-1", inputTokens: 1, answers: { states_0: { type: "noul" as const, noul: 0.99 } } }));
+    const h = played([step(10)], { fight_encounter_id: FIGHT });
+    h.state.fights = { prepared: [], fight: { encounterId: FIGHT, name: "The cellar rats", phase: "over", round: 3, fighters: [] } };
+    h.state.canonMaterial = material;
+    h.deps.judgeCanon = judge;
+    await play(h, { body: BODY });
+    expect(h.facts.length).toBeGreaterThan(0);
+    expect(judge).not.toHaveBeenCalled();
+  });
+
+  it("marks a clue found only once the turn is kept, in the running sitting", async () => {
+    const bring = (): ModelStep => step(10, { blocks: [{ type: "tool_call", id: "b1", name: "bring_out", input: { clue_id: CLUE } }], stop: "tool_calls" });
+    const kept = played([bring(), step(10)], { campaign_session_id: PLAY_SESSION });
+    kept.state.canonHere = here;
+    await play(kept, { body: BODY });
+    expect(kept.canonAsked.brought).toEqual([{ kind: "clue", id: CLUE }]);
+    const lost = played([bring(), step(10)]);
+    lost.state.canonHere = here;
+    lost.state.conflict = true;
+    await play(lost, { body: BODY });
+    expect(lost.canonAsked.brought).toEqual([]);
+  });
+
+  it("refuses to mark a clue the table was not shown", async () => {
+    const h = played([step(10, { blocks: [{ type: "tool_call", id: "b1", name: "bring_out", input: { clue_id: CLUE } }], stop: "tool_calls" }), step(10)]);
+    await play(h, { body: BODY });
+    expect(h.canonAsked.brought).toEqual([]);
+  });
+
+  it("plays the turn without the canon when it cannot be read", async () => {
+    const h = played();
+    h.state.canonHereThrows = true;
+    await play(h, { body: BODY });
+    expect(last(h)).toMatchObject({ type: "done" });
+    expect(opening(h.requests[0])).not.toContain("## Canon here");
+  });
+
+  it("offers the lookup and the bring-out tool, and the generic readers cannot reach the canon", async () => {
+    const h = played();
+    await play(h, { body: BODY });
+    expect(h.requests[0].tools.map((t) => t.name)).toEqual(expect.arrayContaining(["canon_lookup", "bring_out"]));
   });
 });

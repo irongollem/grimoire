@@ -29,9 +29,10 @@ import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { isPromptRejected, screenImagePrompt } from "../_shared/moderation.ts";
 import { callTool, listTools } from "../_shared/mcp/tools.ts";
 import type { ToolContext } from "../_shared/mcp/tools.ts";
+import { ENTITY_TYPES } from "../_shared/mcp/registry.ts";
 import { companionProfile, companionSpeaks, COMPANIONS_MAX, type Companion } from "../_shared/agent/companions.ts";
 import { hazardFromRow, type KeptHazard } from "../_shared/agent/hazard.ts";
-import { agentToolsFrom, bindTools, SOLO_TABLE_TOOLS } from "../_shared/agent/mcpTools.ts";
+import { agentToolsFrom, bindTools, SOLO_TABLE_TOOLS, TABLE_REFUSED_TYPES } from "../_shared/agent/mcpTools.ts";
 import { buildNpcProfile, NPC_PROFILE_COLUMNS, shownNpcName, type NpcProfileRow } from "../_shared/npcProfile.ts";
 import { campaignToday } from "../_shared/npcAge.ts";
 import { BESIDE_MAX, PLACES_MAX, CHARACTERS_MAX, type SceneView } from "../_shared/agent/scene.ts";
@@ -46,7 +47,9 @@ import { finishFight, layFightLoot, loadFights, setFight, setPursuit, startFight
 import type { Prologue } from "../_shared/agent/prologue.ts";
 import { loadAgentCalibration, loadModelPrice, resolveAgentProvider } from "../_shared/agent/providerIo.ts";
 import { applyQuestMove, loadQuests } from "./questIo.ts";
-import { narrationJudgeFor } from "./narrationJudge.ts";
+import { CANON_JUDGE_TIMEOUT_MS, narrationJudgeFor } from "./narrationJudge.ts";
+import { canonStore } from "./canonIo.ts";
+import { EmbeddingProviderConfigError, resolveEmbeddingProvider } from "../_shared/embeddings.ts";
 import type { TurnRow } from "../_shared/agent/transcript.ts";
 import { beginTurn } from "./handler.ts";
 import { candidateFactIds, factFailure, NEWEST_FACTS, openFacts, recordFrom, recordTies, sessionIdsOf, sessionNumbers } from "./recordRows.ts";
@@ -504,7 +507,7 @@ serve(withCors(async (req: Request) => {
         ties === null
           ? Promise.resolve({ data: [] as Array<{ fact_id: string }>, error: null })
           : supabase.from("story_fact_links").select("fact_id").eq("campaign_id", campaignId).or(ties),
-        supabase.from("story_facts").select("id").eq("campaign_id", campaignId)
+        supabase.from("story_facts").select("id").eq("campaign_id", campaignId).is("struck_at", null)
           .order("created_at", { ascending: false }).limit(NEWEST_FACTS),
       ]);
       if (linked.error) throw linked.error;
@@ -513,9 +516,9 @@ serve(withCors(async (req: Request) => {
       if (ids.length === 0) return [];
 
       const [facts, closers] = await Promise.all([
-        supabase.from("story_facts").select("id, body, known_to_player, session_id, created_at")
+        supabase.from("story_facts").select("id, body, known_to_player, session_id, created_at, struck_at")
           .eq("campaign_id", campaignId).in("id", ids),
-        supabase.from("story_facts").select("supersedes_id").eq("campaign_id", campaignId).in("supersedes_id", ids),
+        supabase.from("story_facts").select("supersedes_id, struck_at").eq("campaign_id", campaignId).in("supersedes_id", ids),
       ]);
       if (facts.error) throw facts.error;
       if (closers.error) throw closers.error;
@@ -760,6 +763,37 @@ serve(withCors(async (req: Request) => {
     loadQuests: (campaignId, pressureClockId) => loadQuests(supabase, campaignId, pressureClockId),
     applyQuestMove: (ctx, move) => applyQuestMove(supabase, admin, ctx, move),
 
+    // The canon (#1226 story 9): read as the caller (DM-only tables); the nearest-entries function and the world
+    // block as the server, for the one campaign the handler has already checked.
+    canon: canonStore({
+      supabase,
+      admin,
+      embedQuery: async (query) => {
+        const keys = await fetchPlatformKeys(admin, ["openai", "gemini"]);
+        let provider;
+        try {
+          provider = await resolveEmbeddingProvider(admin, { openai: keys.openai ?? null, gemini: keys.gemini ?? null });
+        } catch (error) {
+          if (error instanceof EmbeddingProviderConfigError) {
+            console.error("agent-turn: the canon lookup has no embedding provider:", error.message);
+            return null;
+          }
+          throw error;
+        }
+        const { vectors, usage } = await provider.embed([query]);
+        // The embedding is paid for by the platform and counted like the table's other reads.
+        await recordFreeGeneration(admin, user.id, "agent_turn", { model: provider.model, provider: usage.provider, input_tokens: usage.input_tokens });
+        return { vector: vectors[0], model: provider.model };
+      },
+    }),
+    // The same judge as the narration check, with a tighter wait: a refusal is read inside a tool call.
+    judgeCanon: await narrationJudgeFor({
+      getKey: async () => (await fetchPlatformKeys(admin, ["typesafe"])).typesafe,
+      record: (log) => recordFreeGeneration(admin, user.id, "entity_judgment", log),
+      signal: req.signal,
+      timeoutMs: CANON_JUDGE_TIMEOUT_MS,
+    }),
+
     // Holds back narration that only repeats the characters' lines; null (everything shown) without a judging key.
     judgeNarration: await narrationJudgeFor({
       getKey: async () => (await fetchPlatformKeys(admin, ["typesafe"])).typesafe,
@@ -773,13 +807,13 @@ serve(withCors(async (req: Request) => {
         ? (sessionId, line) => lineKey(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, sessionId, line)
         : null,
 
-    tools: agentToolsFrom(listTools(), SOLO_TABLE_TOOLS),
+    tools: agentToolsFrom(listTools(), SOLO_TABLE_TOOLS, TABLE_REFUSED_TYPES),
     // Bound per call, because the campaign is only known once the handler has loaded and checked it. Every tool call
     // is pinned to that campaign: the caller's own access covers all the campaigns they run, and a conversation in
     // one of them must not be talked into reading another.
     callTool: (name, input) => {
       if (pinnedCampaignId === null) return Promise.resolve({ content: "The table has no campaign.", isError: true });
-      return bindTools((n, args) => callTool(ctx, n, args), SOLO_TABLE_TOOLS, undefined, { campaign_id: pinnedCampaignId })(name, input);
+      return bindTools((n, args) => callTool(ctx, n, args), SOLO_TABLE_TOOLS, undefined, { campaign_id: pinnedCampaignId }, { refused: TABLE_REFUSED_TYPES, allTypes: ENTITY_TYPES })(name, input);
     },
   };
 

@@ -20,6 +20,8 @@ const fact = (id: string, over: Partial<StoryFact> = {}): StoryFact => ({
   known_to_player: true,
   supersedes_id: null,
   source: "table",
+  kept_at: null,
+  struck_at: null,
   created_at: `2026-11-10T10:00:${String(clock++).padStart(2, "0")}Z`,
   ...over,
 });

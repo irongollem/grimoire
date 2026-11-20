@@ -51,11 +51,11 @@ export function useCalendarEventGeneration() {
     startAiQuotes();
 
     try {
-      const context = captureImageGenerationContext();
+      const context = await captureImageGenerationContext();
       const raw = await generateEntityText<CalendarEventAiResult>({
         generator: "calendar_event",
         campaignId: context.campaignId,
-        settingPrompt: context.settingPrompt,
+        world: context.world,
         ruleset: ruleset.value,
         // The edge function rejects an empty prompt, so an unsteered draft asks plainly.
         prompt: steer.trim() || "Create an event that fits this date and this world.",

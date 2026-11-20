@@ -7,7 +7,7 @@ import { placeRoute } from "@/lib/locations/placeRoute";
 
 /** The kinds of thing a search row can stand for. `kind` on a row is one of these. */
 export const SEARCH_KINDS = [
-  "npc", "party_member", "monster", "note", "spell", "item", "location", "faction", "deity", "quest",
+  "npc", "party_member", "monster", "note", "spell", "item", "location", "faction", "deity", "quest", "canon",
 ] as const;
 export type SearchKind = (typeof SEARCH_KINDS)[number];
 
@@ -24,5 +24,6 @@ export function searchRoute(kind: SearchKind, id: string): string {
     case "faction": return `/factions/${id}`;
     case "deity": return `/deities/${id}`;
     case "quest": return `/quests/${id}`;
+    case "canon": return `/canon?entry=${id}`;
   }
 }

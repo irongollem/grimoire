@@ -50,6 +50,7 @@ import AppSelect from "@/components/common/controls/AppSelect.vue";
 import RichTextViewer from "@/components/common/richtext/RichTextViewer.vue";
 import { useNotes, useUpdateNote } from "@/composables/notes/useNotes";
 import { useToast } from "@/composables/useToast";
+import { listedNotes } from "@/lib/notes/noteSessions";
 import { sessionShortLabel } from "@/lib/sessions/sessionLabel";
 import { sessionNoteRoute } from "@/lib/sessions/sessionRoutes";
 import type { CampaignSession } from "@/types/session.types";
@@ -63,11 +64,8 @@ const chosen = ref("");
 
 const heading = computed(() => sessionShortLabel(session).replace("No number", "This session"));
 const note = computed(() => (notes.value ?? []).find((n) => n.session_id === session.id) ?? null);
-// Session notes nobody has tied to a session yet: the ones a DM wrote before
-// the log existed.
-const candidates = computed(() =>
-  (notes.value ?? []).filter((n) => n.category === "session" && n.session_id === null),
-);
+// Notes nobody has tied to a session yet: a DM may name one as this session's chronicle entry.
+const candidates = computed(() => listedNotes(notes.value ?? []));
 
 async function link() {
   if (chosen.value === "") return;

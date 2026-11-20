@@ -46,9 +46,10 @@ export function restoreSessions(
     ended_at: s.ended_at ?? s.started_at ?? null,
   }));
 
-  const notes = backup.notes.map(({ session_num: legacyNumber, ...note }) => {
+  // `category` is dropped: notes no longer have one (a backup from before #1226 still carries it).
+  const notes = backup.notes.map(({ session_num: legacyNumber, category: legacyCategory, ...note }) => {
     if (note.session_id) return { ...note, session_id: r(note.session_id, idMap) };
-    if (note.category === "session" && typeof legacyNumber === "number") {
+    if (legacyCategory === "session" && typeof legacyNumber === "number") {
       const title = typeof note.title === "string" ? note.title.trim() : "";
       const id = crypto.randomUUID();
       sessions.push({

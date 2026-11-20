@@ -52,6 +52,8 @@ function fakeDeps(overrides: Partial<ImportSweepDeps> = {}): ImportSweepDeps {
     updateQuestParent: vi.fn(async () => {}),
     insertKinLinks: vi.fn(async () => {}),
     insertWorldLinks: vi.fn(async () => {}),
+    fetchPartyLookup: vi.fn(async (): Promise<readonly NameLookupRow[]> => []),
+    insertCanonRows: vi.fn(async () => {}),
     persistImportedCounts: vi.fn(async () => {}),
     markComplete: vi.fn(async () => {}),
     ...overrides,
@@ -1215,5 +1217,90 @@ describe("resolveLocationLoot", () => {
     expect(recorded).toEqual([["loc-1", "item-2"]]);
     expect(unresolved).toHaveLength(1);
     expect(unresolved[0]).toContain('item "Silver bell"');
+  });
+});
+
+describe("runImportSweep: deities and canon (#1226)", () => {
+  const decide = (kind: ImportEntityKind, ref: string, decision: ImportDecision = CREATE) => new Map([[kind, new Map([[ref, decision]])]]);
+
+  it("imports a deity into the deities table", async () => {
+    const deps = fakeDeps();
+    const report = await runImportSweep(
+      IMPORT_ROW,
+      input({ entitiesByKind: { deities: [usable("d1", { name: "Bell-Note", portfolio: "bells" })] }, decisions: decide("deities", "d1") }),
+      deps,
+    );
+    expect(report.perKind.deities).toMatchObject({ planned: 1, imported: 1 });
+    expect(deps.insertRow).toHaveBeenCalledWith("deities", expect.objectContaining({ name: "Bell-Note", campaign_id: CAMPAIGN_ID, player_visible_to: [] }));
+  });
+
+  it("writes a truth's known_to as a tie to the person it names, and reports a name that matches nothing instead of linking it", async () => {
+    const deps = fakeDeps({
+      fetchNameLookup: vi.fn(async (kind: ImportEntityKind) => (kind === "npcs" ? [{ id: "npc-tam", name: "Tam" }] : [])),
+    });
+    const report = await runImportSweep(
+      IMPORT_ROW,
+      input({
+        entitiesByKind: { canon: [usable("c1", { title: "The bridge was never built by the Ferrymen", part: "truth", knowledge: "some", known_to: ["Tam", "Ghost Name"] })] },
+        decisions: decide("canon", "c1"),
+      }),
+      deps,
+    );
+    const links = rowsOf(vi.mocked(deps.insertWorldLinks));
+    expect(links).toHaveLength(1);
+    expect(links[0]).toMatchObject({ from_kind: "canon", from_canon_entry_id: "canon-1", to_kind: "npc", to_npc_id: "npc-tam", type: "known_to" });
+    expect(report.unresolvedLinks).toEqual(['Canon entry "The bridge was never built by the Ferrymen" → who knows it "Ghost Name"']);
+  });
+
+  it("never writes a canon entry's line or veil, and writes the children under the entry it created", async () => {
+    const deps = fakeDeps();
+    await runImportSweep(
+      IMPORT_ROW,
+      input({
+        entitiesByKind: {
+          canon: [
+            usable("c1", { title: "Never harm a child", part: "premise", premise_kind: "line" }),
+            usable("c2", { title: "The Ferrymen", part: "force", wants: "the bridge", steps: ["buy it"] }),
+          ],
+        },
+        decisions: new Map([["canon", new Map([["c1", CREATE], ["c2", CREATE]])]]),
+      }),
+      deps,
+    );
+    const inserted = vi.mocked(deps.insertRow).mock.calls.filter(([kind]) => kind === "canon").map(([, row]) => row);
+    expect(inserted[0]).toMatchObject({ part: "premise" });
+    expect(inserted[0]!.premise_kind).not.toBe("line");
+    const stepCalls = vi.mocked(deps.insertCanonRows).mock.calls.filter(([table]) => table === "canon_force_steps");
+    expect(stepCalls).toHaveLength(1);
+    expect(stepCalls[0]![1]).toEqual([expect.objectContaining({ force_id: "canon-2", title: "buy it", campaign_id: CAMPAIGN_ID })]);
+  });
+
+  it("writes no children for a canon entry the DM linked to an existing one", async () => {
+    const deps = fakeDeps();
+    await runImportSweep(
+      IMPORT_ROW,
+      input({
+        entitiesByKind: { canon: [usable("c1", { title: "The Ferrymen", part: "force", steps: ["buy it"] })] },
+        decisions: decide("canon", "c1", { action: "link", candidate: { targetId: "canon-existing", source: "campaign", name: "The Ferrymen", matchKind: "exact", detail: null, distance: null, verdict: null } }),
+      }),
+      deps,
+    );
+    expect(deps.insertRow).not.toHaveBeenCalled();
+    expect(deps.insertCanonRows).not.toHaveBeenCalled();
+  });
+
+  it("names a canon child a refused write could not save, and keeps going", async () => {
+    const deps = fakeDeps({
+      insertCanonRows: vi.fn(async (table: string) => {
+        if (table === "canon_force_steps") throw new Error("refused");
+      }),
+    });
+    const report = await runImportSweep(
+      IMPORT_ROW,
+      input({ entitiesByKind: { canon: [usable("c1", { title: "The Ferrymen", part: "force", steps: ["buy it"] })] }, decisions: decide("canon", "c1") }),
+      deps,
+    );
+    expect(report.unresolvedLinks).toContain('Canon: "buy it" was not saved');
+    expect(deps.markComplete).toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { buildCampaignContext, wrapUserInput } from "./utils";
+import { requireWorld, type WorldBlock } from "./worldBlock";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { getTextProvider } from "./providers";
 import { logUsage } from "@/composables/ai/useAiCredits";
@@ -26,8 +27,8 @@ export type EntityTextGenerator =
 export interface EntityTextRequest {
   generator: EntityTextGenerator;
   campaignId: string;
-  /** The campaign's setting; null when the DM never wrote one. */
-  settingPrompt: string | null;
+  /** The campaign's world block, read before the call (#1226). */
+  world: WorldBlock | null;
   ruleset: RulesetKey;
   prompt: string;
   /** The panel's structured fields, one line each ("Level: 3"). */
@@ -98,9 +99,7 @@ async function completeLocally(
 
   // Mirrors `extraInstructions` in generate-entity-text: the stored spell prompt predates `condition_effect` (#1021).
   const extra = request.generator === "spell" ? SPELL_CONDITION_EFFECT_PROMPT : "";
-  const systemContent = `${basePrompt}${extra}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
-    setting: request.settingPrompt,
-  })}`;
+  const systemContent = `${basePrompt}${extra}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext(requireWorld(request.world))}`;
   const wrappedPrompt = wrapUserInput(request.prompt);
   const userContent = request.constraints.length
     ? `${wrappedPrompt}\n\nConstraints:\n${request.constraints.join("\n")}`

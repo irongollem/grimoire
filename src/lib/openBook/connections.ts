@@ -21,15 +21,16 @@ export interface BookTie {
   told: string | null;
 }
 
-/** The catalogue kind each kind of entry stands for; pantheons, lore and sessions hold no ties. */
+/** The catalogue kind each kind of entry stands for; a piece of canon lore is a `canon` entry; pantheons, truths and sessions hold no ties. */
 const KIND_OF_ENTRY: Partial<Record<BookEntryKind, LinkKind>> = {
   place: "location",
   person: "npc",
   faction: "faction",
   deity: "deity",
+  lore: "canon",
 };
 
-const BOOK_LINK_KINDS: readonly LinkKind[] = ["location", "npc", "faction", "deity"];
+const BOOK_LINK_KINDS: readonly LinkKind[] = ["location", "npc", "faction", "deity", "canon"];
 
 function isBookKind(value: unknown): value is LinkKind {
   return typeof value === "string" && (BOOK_LINK_KINDS as readonly string[]).includes(value);

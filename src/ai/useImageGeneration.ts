@@ -1,6 +1,9 @@
 import { useCampaignStore } from "@/stores/campaign";
 import { supabase } from "@/lib/supabase";
+import { worldImageSetting } from "@edge-shared/worldBlock.ts";
+import { fetchWorldBlock, requireWorld, type WorldBlock } from "./worldBlock";
 import { localKeyModeChosen } from "@/lib/localKeyVault";
+import { imagesRunOnLocalKey, textRunsOnLocalKey } from "./localKeyMode";
 import {
   uploadToBucket,
   uploadWithVariants,
@@ -52,7 +55,8 @@ const PURPOSES: Record<ImagePurpose, PurposeConfig> = {
 export interface ImageGenerationRequest {
   /** Captured at the start of the parent generation; never re-read after awaits. */
   campaignId: string;
-  settingPrompt: string;
+  /** The campaign's world block; the local-key path writes its picture setting from it (#1226). */
+  world: WorldBlock | null;
   imageProvider: string | null;
   /** Browser-local BYOK key captured with the campaign; never sent server-side. */
   imageApiKey: string | null;
@@ -73,19 +77,33 @@ export interface ImageGenerationRequest {
 
 export type ImageGenerationContext = Pick<
   ImageGenerationRequest,
-  "campaignId" | "settingPrompt" | "imageProvider" | "imageApiKey"
+  "campaignId" | "world" | "imageProvider" | "imageApiKey"
 >;
 
+export class NoActiveCampaignError extends Error {
+  constructor() {
+    super("No active campaign selected.");
+    this.name = "NoActiveCampaignError";
+  }
+}
+
+/** What a generator shows when capturing its context failed: the no-campaign sentence only for that case, else the error's own message. */
+export function captureFailureMessage(e: unknown): string {
+  if (e instanceof NoActiveCampaignError) return e.message;
+  return e instanceof Error ? e.message : "Generation failed";
+}
+
 /** Snapshot campaign-owned image configuration before a parent generation awaits. */
-export function captureImageGenerationContext(): ImageGenerationContext {
+export async function captureImageGenerationContext(): Promise<ImageGenerationContext> {
   const store = useCampaignStore();
   const campaign = store.activeCampaign;
-  if (!campaign) throw new Error("No active campaign selected.");
+  if (!campaign) throw new NoActiveCampaignError();
   // Only the local-key path reads these two; the edge function resolves for itself.
   const local = localImageChoice();
   return {
     campaignId: campaign.id,
-    settingPrompt: campaign.ai_setting_prompt ?? "",
+    // The server path loads the block itself; only a local-key run reads it here.
+    world: (await textRunsOnLocalKey()) || (await imagesRunOnLocalKey()) ? await fetchWorldBlock(campaign.id) : null,
     imageProvider: local?.provider ?? null,
     imageApiKey: local?.apiKey ?? null,
   };
@@ -180,7 +198,7 @@ async function runLocal(request: ImageGenerationRequest): Promise<string> {
     })),
   ]);
   if (request.sourceImage) references.push(request.sourceImage);
-  const setting = request.settingPrompt;
+  const setting = worldImageSetting(requireWorld(request.world));
   const prompt = config.scene
     ? buildScenePrompt(request.subject, request.textDescriptions ?? [], setting, base)
     : request.purpose === "location_map"

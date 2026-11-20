@@ -9,6 +9,7 @@ import { generationRefusal } from "../_shared/accountGate.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
 import { recordFreeGeneration, recordGeneration, releaseCredits, reserveCredits, reservationRefusal } from "../_shared/credits.ts";
 import { loadAgentCalibration, loadModelPrice, resolveAgentProvider } from "../_shared/agent/providerIo.ts";
+import { loadSittingFacts } from "../_shared/agent/sittingFacts.ts";
 import { loadTurnsInReach } from "../_shared/agent/turnsInReach.ts";
 import { tellSitting, type RecapDeps } from "./handler.ts";
 
@@ -91,11 +92,7 @@ serve(withCors(async (req: Request) => {
 
     loadTurns: (sittingId, through) => loadTurnsInReach(admin, sittingId, through),
 
-    async loadFacts(sittingId) {
-      const { data, error } = await admin.from("story_facts").select("body, known_to_player").eq("agent_session_id", sittingId).order("created_at", { ascending: true }).order("id", { ascending: true });
-      if (error) throw error;
-      return (data ?? []).map((row) => ({ body: row.body as string, known_to_player: row.known_to_player === true }));
-    },
+    loadFacts: (sittingId) => loadSittingFacts(admin, sittingId),
 
     async characterName(campaignId, characterId) {
       const { data, error } = await admin.from("party_members").select("name").eq("id", characterId).eq("campaign_id", campaignId).maybeSingle();

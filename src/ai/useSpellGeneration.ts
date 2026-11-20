@@ -9,7 +9,7 @@ import {
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useSpellsUiStore } from "@/stores/ui/spells";
 import type { SpellSchool } from "@/types/spell.types";
-import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
+import { captureFailureMessage, captureImageGenerationContext, generateImage } from "./useImageGeneration";
 
 export interface SpellGenerationOptions {
   /** Lock the spell level (0 = cantrip). AI fills the rest around it. */
@@ -46,11 +46,11 @@ export function useSpellGeneration() {
     _state.error.value = null;
     startAiQuotes();
 
-    let imageContext: ReturnType<typeof captureImageGenerationContext>;
+    let imageContext: Awaited<ReturnType<typeof captureImageGenerationContext>>;
     try {
-      imageContext = captureImageGenerationContext();
-    } catch {
-      _state.error.value = "No active campaign selected.";
+      imageContext = await captureImageGenerationContext();
+    } catch (e) {
+      _state.error.value = captureFailureMessage(e);
       _state.isGenerating.value = false;
       stopAiQuotes();
       return null;
@@ -70,7 +70,7 @@ export function useSpellGeneration() {
       const result = await generateEntityText<SpellAiResult>({
         generator: "spell",
         campaignId: imageContext.campaignId,
-        settingPrompt: imageContext.settingPrompt,
+        world: imageContext.world,
         ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,

@@ -11,6 +11,7 @@ import { coinsText, coinValuesOf } from "./handsIo.ts";
 import { characterOf, fightsOf, questsOf, recordOf, safely, sceneOf, stateFor, systemFor } from "./turnSupport.ts";
 import type { TurnScope } from "./turnScope.ts";
 import type { SessionRow } from "./turnTypes.ts";
+import { NO_CANON_HERE, type CanonHere } from "../_shared/agent/canon.ts";
 
 export type TurnContext = Awaited<ReturnType<typeof readTurnContext>>;
 
@@ -59,7 +60,28 @@ export async function readTurnContext(scope: TurnScope, session: SessionRow) {
   } catch (error) {
     console.error("agent-turn: reading the world's peoples failed:", error);
   }
-  const system = systemWithSummary(systemFor({ campaign, character, peoples }), session.summary);
+  // The canon (#1226). The world block and the last sitting are standing text, so they sit in the instructions and
+  // stay the same for the whole sitting; what lies where the party stands is state. An unreadable part costs that
+  // part for a turn, never the turn.
+  let world = "";
+  try {
+    world = await deps.canon.worldText(campaign.id);
+  } catch (error) {
+    console.error("agent-turn: reading the world block failed:", error);
+  }
+  let previously = "";
+  try {
+    previously = await deps.canon.previously(campaign.id, session.campaign_session_id);
+  } catch (error) {
+    console.error("agent-turn: reading the last sitting's chronicle failed:", error);
+  }
+  let canonHere: CanonHere = NO_CANON_HERE;
+  try {
+    canonHere = await deps.canon.here(campaign.id, session.scene_location_id, scene === null ? [] : scene.characters.map((c) => ({ id: c.id, name: c.name })));
+  } catch (error) {
+    console.error("agent-turn: reading what the canon holds here failed:", error);
+  }
+  const system = systemWithSummary(systemFor({ campaign, character, peoples, world, previously }), session.summary);
   const fightTurn = body.fightTurn === undefined ? null : body.fightTurn;
   // A fight fought out with no foe standing leaves its loot where it was fought, before what is within reach
   // is read: the narrator telling what comes of the fight can then say what lies there.
@@ -95,6 +117,6 @@ export async function readTurnContext(scope: TurnScope, session: SessionRow) {
   } catch (error) {
     console.error("agent-turn: reading the rest of the party failed:", error);
   }
-  const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts), companions: companionsSection(companions), sky: body.sky === undefined ? "" : skySection(body.sky) });
-  return { character, stored, lastSeqLoaded, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state };
+  const state = stateFor({ scene, quests: questState, record, fights, fightTurn, possessions: hands === null ? "" : possessionsSection(hands.possessions, hands.coinsText), handouts: handoutsSection(handouts), companions: companionsSection(companions), sky: body.sky === undefined ? "" : skySection(body.sky), canon: canonHere });
+  return { character, stored, lastSeqLoaded, history, questState, fights, pursuitId, peoples, system, fightTurn, hands, handouts, companions, state, canonHere };
 }

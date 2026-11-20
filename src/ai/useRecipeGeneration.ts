@@ -3,7 +3,7 @@ import { useTableRuleset } from "@/composables/rules/useRuleset";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
-import { captureImageGenerationContext } from "./useImageGeneration";
+import { captureFailureMessage, captureImageGenerationContext } from "./useImageGeneration";
 import type { CraftingDiscipline } from "@/types/crafting.types";
 import { normalizeRecipeAi, type RecipeAiResult } from "@/lib/crafting/recipeAi";
 
@@ -40,11 +40,11 @@ export function useRecipeGeneration() {
     _state.error.value = null;
     startAiQuotes();
 
-    let imageContext: ReturnType<typeof captureImageGenerationContext>;
+    let imageContext: Awaited<ReturnType<typeof captureImageGenerationContext>>;
     try {
-      imageContext = captureImageGenerationContext();
-    } catch {
-      _state.error.value = "No active campaign selected.";
+      imageContext = await captureImageGenerationContext();
+    } catch (e) {
+      _state.error.value = captureFailureMessage(e);
       _state.isGenerating.value = false;
       stopAiQuotes();
       return null;
@@ -60,7 +60,7 @@ export function useRecipeGeneration() {
       const raw = await generateEntityText<RecipeAiResult>({
         generator: "recipe",
         campaignId: imageContext.campaignId,
-        settingPrompt: imageContext.settingPrompt,
+        world: imageContext.world,
         ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,

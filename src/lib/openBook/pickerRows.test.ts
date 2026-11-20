@@ -16,7 +16,7 @@ import {
 } from "./pickerRows";
 
 const PARTY = ["a", "b"];
-const empty: PickerSources = { locations: [], npcs: [], factions: [], pantheons: [], deities: [], notes: [] };
+const empty: PickerSources = { locations: [], npcs: [], factions: [], pantheons: [], deities: [], notes: [], canon: [] };
 
 const sources: PickerSources = {
   locations: [
@@ -33,8 +33,15 @@ const sources: PickerSources = {
   pantheons: [{ id: "p1", name: "Drowned Choir", player_visible_to: ["a", "b"] }],
   deities: [{ id: "d1", name: "Orla of the Light", pantheon: { name: "Drowned Choir" }, player_visible_to: ["a"] }],
   notes: [
-    { id: "no1", title: "Session 1", category: "session", player_visible_to: ["a", "b"] },
-    { id: "no2", title: "The Flood", category: "lore", player_visible_to: ["a", "b"] },
+    { id: "no1", title: "Session 1", session_id: "s1", player_visible_to: ["a", "b"] },
+    { id: "no2", title: "The Flood", session_id: null, player_visible_to: ["a", "b"] },
+  ],
+  canon: [
+    { id: "c-fall", title: "The Fall of the Guild", part: "lore", knowledge: null, player_visible_to: ["a", "b"] },
+    { id: "c-roads", title: "Why the Roads are Spun", part: "lore", knowledge: null, player_visible_to: ["a"] },
+    { id: "c-all", title: "Magic leaves a taste", part: "truth", knowledge: "all", player_visible_to: [] },
+    { id: "c-some", title: "The river gives back", part: "truth", knowledge: "some", player_visible_to: [] },
+    { id: "c-secret", title: "The Stain", part: "secret", knowledge: null, player_visible_to: ["a", "b"] },
   ],
 };
 
@@ -86,12 +93,33 @@ describe("buildPickerRows", () => {
     expect(list.map((r) => [r.id, r.depth])).toEqual([["a", 0], ["b", 0]]);
   });
 
-  it("files notes by category and deities with the pantheons", () => {
+  it("files notes linked to a session under the Chronicle and puts no other note in the book", () => {
     const list = rows(true);
-    // A session note needs no second line (it is the Chronicle); any other category is named.
-    expect([byId(list, "no1").detail, byId(list, "no2").detail]).toEqual([null, "lore"]);
     expect(byId(list, "no1").chapter).toBe("chronicle");
-    expect(byId(list, "no2").chapter).toBe("lore");
+    expect(byId(list, "no1").detail).toBeNull();
+    // A note with no session is the DM's own: Lore and Legend is the canon.
+    expect(list.some((r) => r.id === "no2")).toBe(false);
+  });
+
+  it("lists the canon's truths known to all, then lore, under Lore and Legend, and nothing else of it", () => {
+    const canon = rows(true).filter((r) => r.type === "canon");
+    expect(canon.map((r) => [r.id, r.chapter, r.detail])).toEqual([
+      ["c-all", "lore", "Truth"],
+      ["c-fall", "lore", "Lore"],
+      ["c-roads", "lore", "Lore"],
+    ]);
+  });
+
+  it("holds a truth known to all eligible whatever the party, and lore only once the whole party can read it", () => {
+    const list = rows(true);
+    expect(byId(list, "c-all").eligible).toBe(true);
+    expect(byId(list, "c-fall").eligible).toBe(true);
+    expect(byId(list, "c-roads").eligible).toBe(false);
+    expect(byId(list, "c-roads").audience).toBe("some");
+  });
+
+  it("files deities with the pantheons", () => {
+    const list = rows(true);
     expect(byId(list, "d1").chapter).toBe("pantheon");
     expect(byId(list, "d1").detail).toBe("Drowned Choir");
     expect(byId(list, "n-orla").placeId).toBe("l-bell");
@@ -161,7 +189,8 @@ describe("buildPickerRows", () => {
 
   it("makes nothing eligible for a campaign with no party", () => {
     const list = buildPickerRows(sources, [], { includeShared: true }, []);
-    expect(list.every((r) => !r.eligible)).toBe(true);
+    // A truth known to all needs no party to be read by; everything else does.
+    expect(list.filter((r) => r.eligible).map((r) => r.id)).toEqual(["c-all"]);
   });
 });
 
@@ -222,7 +251,8 @@ describe("counts", () => {
     expect(counts.folk).toEqual({ inBook: 1, total: 2 });
     expect(counts.pantheon).toEqual({ inBook: 1, total: 2 });
     expect(counts.chronicle).toEqual({ inBook: 1, total: 1 });
-    expect(allChaptersCount(counts)).toEqual({ inBook: 7, total: 11 });
+    expect(counts.lore).toEqual({ inBook: 2, total: 3 });
+    expect(allChaptersCount(counts)).toEqual({ inBook: 8, total: 13 });
   });
 });
 

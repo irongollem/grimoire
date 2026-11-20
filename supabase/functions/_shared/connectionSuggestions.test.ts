@@ -50,7 +50,7 @@ describe("the catalogue, read for a subject", () => {
   });
 
   it("lists every kind a person can be tied to, and the guide names a membership for factions", () => {
-    expect(connectableKinds("npc")).toEqual(["npc", "party_member", "faction", "location", "deity", "item"]);
+    expect(connectableKinds("npc")).toEqual(["npc", "party_member", "faction", "location", "deity", "item", "canon"]);
     expect(typeGuide("npc")).toContain('faction: only a membership');
     expect(typeGuide("item")).toContain("kept_at (subject kept at target; subject_is_from true)");
   });

@@ -213,7 +213,7 @@ const subjectOptions = computed<Option[]>(() => {
     location: (locations.value ?? []).map((l) => ({ id: l.id, name: l.name })),
     faction: (factions.value ?? []).map((f) => ({ id: f.id, name: f.name })),
     session: (notes.value ?? [])
-      .filter((n) => n.category === "session")
+      .filter((n) => n.session_id !== null)
       .map((n) => {
         const linked = sessionOf(sessions.value, n.session_id);
         return { id: n.id, name: linked ? `${sessionLabel(linked)}: ${n.title}` : n.title };

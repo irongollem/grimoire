@@ -39,6 +39,8 @@ import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { vetGeneratedSpell } from "../_shared/spellGeneration.ts";
 import { SPELL_CONDITION_EFFECT_PROMPT } from "../../../src/lib/spells/spellConditionPrompt.ts";
 import { callText, NO_TEXT_PROVIDER_MESSAGE, resolveTextProvider, type TextOutputFormat, type TextResult } from "../_shared/textGen.ts";
+import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
+import { worldBlockText } from "../_shared/worldBlock.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -110,12 +112,6 @@ function jsonError(message: string, status: number): Response {
   });
 }
 
-function buildCampaignContext(setting: string | null | undefined): string {
-  const s = setting?.trim();
-  if (!s) return "";
-  return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n## Setting\n${s}`;
-}
-
 serve(withCors(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
@@ -166,7 +162,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, game_system")
+    .select("id, user_id, ai_enabled, text_provider, game_system")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return jsonError("Campaign not found", 404);
@@ -196,10 +192,11 @@ serve(withCors(async (req: Request) => {
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
 
+  const world = await loadWorldBlock(admin, campaign.id);
   const systemContent = promptRow.content
     + (spec.extraInstructions ?? "")
     + (rulesetContext ? `\n\n${rulesetContext}` : "")
-    + buildCampaignContext(campaign.ai_setting_prompt)
+    + worldBlockText(world)
     + INJECTION_GUARD_SUFFIX;
   const wrappedPrompt = wrapUserInput(prompt);
   const userContent = constraints.length

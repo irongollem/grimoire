@@ -11,6 +11,7 @@ import { factionListQuery } from "@/composables/factions/useFactions";
 import { npcQuery } from "@/composables/npcs/useNpcs";
 import { entityBacklinksQuery } from "@/composables/notes/useEntityBacklinks";
 import { dmNoteColumnQuery } from "@/composables/notes/useDmNote";
+import { canonHereQuery } from "@/composables/canon/useCanonHere";
 
 /**
  * The first reads a DM destination performs, started before the click so the
@@ -73,8 +74,8 @@ interface DetailData {
 /**
  * Detail destinations. Every read here is keyed by the id in the path (and the
  * campaign), so all of them start together at intent time instead of the
- * record's dependants waiting on its answer: the record, the DM's note on it
- * and its "Mentioned in" list (#999). The sheet paints from the list row in the
+ * record's dependants waiting on its answer: the record, the DM's note on it,
+ * its "Mentioned in" list (#999) and what the canon placed on it (#1226). The sheet paints from the list row in the
  * meantime, so only the prose waits on the record.
  */
 const DM_DETAIL_DATA: readonly DetailData[] = [
@@ -88,6 +89,7 @@ const DM_DETAIL_DATA: readonly DetailData[] = [
         return note === null ? Promise.resolve() : qc.prefetchQuery(note);
       },
       (qc, campaignId, id) => qc.prefetchQuery(entityBacklinksQuery(campaignId, id)),
+      (qc, _campaignId, id) => qc.prefetchQuery(canonHereQuery("npc", id)),
     ],
   },
 ];

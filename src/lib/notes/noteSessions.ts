@@ -1,6 +1,6 @@
 import { sortSessionLog } from "@/lib/sessions/sessionPrefill";
 import type { Note } from "@/types/notes.types";
-import type { CampaignSession } from "@/types/session.types";
+import type { CampaignSession, PlayerSessionLabel } from "@/types/session.types";
 
 /** The session a note points at, looked up in a loaded log; null while it loads or when unlinked. */
 export function sessionOf<T extends { id: string }>(
@@ -19,7 +19,7 @@ export function sessionOf<T extends { id: string }>(
 export function previousSessionNote(notes: readonly Note[], log: readonly CampaignSession[]): Note | null {
   const bySession = new Map<string, Note>();
   for (const n of notes) {
-    if (n.category !== "session" || n.session_id === null) continue;
+    if (n.session_id === null) continue;
     if (n.session_start_year === null && n.session_end_year === null) continue;
     bySession.set(n.session_id, n);
   }
@@ -71,12 +71,12 @@ export function formatPickerDay(
  */
 export function sessionPickerOptions(
   log: readonly CampaignSession[],
-  notes: readonly Pick<Note, "id" | "category" | "session_id">[],
+  notes: readonly Pick<Note, "id" | "session_id">[],
   ownNoteId: string | null,
 ): SessionPickerOption[] {
   const taken = new Set<string>();
   for (const n of notes) {
-    if (n.category === "session" && n.session_id !== null && n.id !== ownNoteId) taken.add(n.session_id);
+    if (n.session_id !== null && n.id !== ownNoteId) taken.add(n.session_id);
   }
   const options = sortSessionLog(log).map((s): SessionPickerOption => ({
     id: s.id,
@@ -85,4 +85,28 @@ export function sessionPickerOptions(
     state: s.started_at && !s.ended_at ? "running" : taken.has(s.id) ? "has-note" : "no-note",
   }));
   return [...options.filter((o) => o.state !== "has-note"), ...options.filter((o) => o.state === "has-note")];
+}
+
+/**
+ * The notes the DM's Notes list shows. A note linked to a session is that session's chronicle entry and is read in
+ * the Canon page's Chronicle (and on the Sessions page), not among the DM's own notes.
+ */
+export function listedNotes<T extends Pick<Note, "session_id">>(notes: readonly T[]): T[] {
+  return notes.filter((n) => n.session_id === null);
+}
+
+/**
+ * The notes a player's Chronicle lists: the shared notes linked to a session, newest session first (the session's own
+ * day, else the note's creation). The rest are the player's DM Notes (`listedNotes`).
+ */
+export function chronicleNotes<T extends Pick<Note, "session_id" | "created_at">>(
+  notes: readonly T[],
+  sessions: readonly Pick<PlayerSessionLabel, "id" | "started_at" | "played_on">[] | undefined,
+): T[] {
+  const when = (n: T): number => {
+    const s = sessionOf(sessions, n.session_id);
+    const day = s?.started_at ?? (s?.played_on ? `${s.played_on}T12:00:00` : n.created_at);
+    return Date.parse(day);
+  };
+  return notes.filter((n) => n.session_id !== null).sort((a, b) => when(b) - when(a));
 }

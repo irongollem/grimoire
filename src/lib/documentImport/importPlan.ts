@@ -47,6 +47,8 @@
 import type { AiProvenance } from "@/ai/provenance";
 import type {
   ExtractedEncounter,
+  ExtractedCanon,
+  ExtractedDeity,
   ExtractedEntity,
   ExtractedFaction,
   ExtractedItem,
@@ -131,6 +133,10 @@ export function mapEntity<K extends ImportEntityKind>(
       return ENTITY_MAPPERS.quests(data as ExtractedQuest, campaignId, provenance) as MappedEntity<K>;
     case "factions":
       return ENTITY_MAPPERS.factions(data as ExtractedFaction, campaignId, provenance) as MappedEntity<K>;
+    case "deities":
+      return ENTITY_MAPPERS.deities(data as ExtractedDeity, campaignId, provenance) as MappedEntity<K>;
+    case "canon":
+      return ENTITY_MAPPERS.canon(data as ExtractedCanon, campaignId, provenance) as MappedEntity<K>;
     case "encounters":
       return ENTITY_MAPPERS.encounters(data as ExtractedEncounter, campaignId, provenance) as MappedEntity<K>;
   }

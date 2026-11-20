@@ -64,7 +64,7 @@ export function indexTies(ties: readonly WorldTie[]): Map<string, WorldTie[]> {
 }
 
 /** Sort that keeps a ring readable: people together, then by kind, then by name. */
-const KIND_ORDER: readonly WebKind[] = ["party_member", "npc", "faction", "deity", "location", "item", "quest"];
+const KIND_ORDER: readonly WebKind[] = ["party_member", "npc", "faction", "deity", "location", "item", "quest", "canon"];
 
 export function buildFocus(
   index: ReadonlyMap<string, readonly WorldTie[]>,

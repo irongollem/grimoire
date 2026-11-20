@@ -2,6 +2,7 @@
 // object that collects what the narrator decided during the turn. Nothing in `TurnEffects` is carried out until the
 // turn is kept (`keepTurn.ts`); that is the point of collecting it rather than doing it on the spot.
 
+import type { BroughtOut } from "../_shared/agent/canon.ts";
 import type { FightChange } from "../_shared/agent/fightChange.ts";
 import type { HitPointChange } from "../_shared/agent/hitPoints.ts";
 import type { HazardRules } from "../_shared/agent/hazard.ts";
@@ -50,6 +51,8 @@ export interface TurnEffects {
   daysPassed: number;
   // The fight the narrator starts this turn; started only once the turn is kept.
   fightPlan: FightPlan | null;
+  // Clues found and passages told in play this turn (#1226); marked only once the turn is kept.
+  broughtOut: BroughtOut[];
 }
 
 export function newEffects(): TurnEffects {
@@ -68,6 +71,7 @@ export function newEffects(): TurnEffects {
     madeHazards: [],
     daysPassed: 0,
     fightPlan: null,
+    broughtOut: [],
   };
 }
 

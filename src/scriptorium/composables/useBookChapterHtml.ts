@@ -14,10 +14,12 @@ import type { JSONContent } from "@tiptap/core";
 import { useBookChaptersFull } from "@/scriptorium/composables/useScriptoriumChapters";
 import { useEntityEmbedData } from "@/scriptorium/composables/useEntityEmbedData";
 import { chapterLayoutHtml } from "@/scriptorium/lib/layoutContent";
+import { useOpenBookPreview } from "@/composables/openBook/useOpenBookReleases";
+import { plainWorldDate, snapshotEmbedLookup, type WorldDateLabel } from "@/scriptorium/lib/snapshotEmbeds";
 import { collectEntityRefs, ENTITY_EMBED_MARKER, entityRefKey, resolveEntityEmbeds } from "@/scriptorium/lib/entityEmbeds";
 import type { EntityRef } from "@/scriptorium/lib/entityEmbeds";
 import type { BookChapterInput } from "@/scriptorium/lib/bookLayout/types";
-import type { ScriptoriumKind, ScriptoriumTheme } from "@/scriptorium/types";
+import type { ScriptoriumBookAudience, ScriptoriumKind, ScriptoriumTheme } from "@/scriptorium/types";
 
 export interface LiveChapter {
   id: string;
@@ -42,8 +44,19 @@ export function useBookChapterHtml(options: {
   liveVersion: Ref<number>;
   /** False while nothing displays the book (Write mode): the full list is then not even fetched. */
   enabled: Ref<boolean>;
+  /**
+   * Who the book is for. A players' book resolves its links from what the whole party may read (the Open Book's
+   * snapshot) and prints nothing the snapshot lacks, so a preview or PDF the DM makes never holds a DM-only field.
+   * Absent is the DM's book.
+   */
+  audience?: Ref<ScriptoriumBookAudience>;
+  /** The book's campaign: the players' snapshot is read for it. */
+  campaignId?: Ref<string | null>;
+  /** How a date in the world is worded (the campaign's calendar); plain years by default. */
+  worldDate?: WorldDateLabel;
 }) {
   const { documentId, kind, theme, live, liveVersion, enabled } = options;
+  const forPlayers = computed(() => options.audience?.value === "players");
   const fullQuery = useBookChaptersFull(documentId, { enabled });
   const full = fullQuery.data;
   const ready = computed(() => !!full.value && full.value.length > 0);
@@ -89,11 +102,22 @@ export function useBookChapterHtml(options: {
     }
     return [...seen.values()];
   });
-  const { lookup } = useEntityEmbedData(entityRefs, { theme });
+  // A players' book asks the DM's tables for nothing: its links come from the whole-party snapshot alone.
+  const dmRefs = computed<EntityRef[]>(() => (forPlayers.value ? [] : entityRefs.value));
+  const { lookup: dmLookup } = useEntityEmbedData(dmRefs, { theme });
+  const snapshot = useOpenBookPreview(
+    () => options.campaignId?.value ?? null,
+    () => forPlayers.value && enabled.value,
+  );
+  const lookup = computed(() =>
+    forPlayers.value
+      ? snapshotEmbedLookup(snapshot.data.value ?? null, entityRefs.value, options.worldDate ?? plainWorldDate)
+      : dmLookup.value,
+  );
 
   /** Changes whenever `chapters()` would return something different. */
   const version = ref(0);
-  watch([liveVersion, full, lookup, kind, enabled], () => {
+  watch([liveVersion, full, lookup, kind, enabled, forPlayers], () => {
     version.value++;
   });
 
@@ -102,7 +126,7 @@ export function useBookChapterHtml(options: {
     for (const chapter of full.value ?? []) {
       const memo = entryOf(chapter);
       if (memo.html.includes(ENTITY_EMBED_MARKER) && memo.resolvedFor !== lookup.value) {
-        memo.resolved = resolveEntityEmbeds(memo.html, lookup.value);
+        memo.resolved = resolveEntityEmbeds(memo.html, lookup.value, forPlayers.value ? "nothing" : "marker");
         memo.resolvedFor = lookup.value;
       }
       out.push({ id: chapter.id, html: memo.resolved });

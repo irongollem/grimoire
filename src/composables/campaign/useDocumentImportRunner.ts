@@ -28,6 +28,7 @@ import { useGenerateMonster } from "@/composables/monsters/useGenerateMonster";
 import { useQuestSpineWriter } from "@/composables/quests/useQuestSpineWriter";
 import { insertQuestRefs } from "@/composables/quests/useQuests";
 import { queueQuestEmbedding } from "@/composables/quests/queueQuestEmbedding";
+import { queueCanonEmbedding } from "@/lib/canon/queueCanonEmbedding";
 import {
   runImportSweep as runImportSweepCore,
   type BeatAttachmentWrite,
@@ -103,6 +104,9 @@ function buildDeps(
       const id = (data as { id: string }).id;
       // A quest with no spine never reaches `writeSpine`, which queues the rest.
       if (table === "quests") queueQuestEmbedding(id);
+      // A canon entry is embedded for the by-meaning lookup (#1226). One queued call per entry, because the bulk
+      // helper's `many` entities do not include the canon.
+      if (table === "canon_entries") queueCanonEmbedding(id);
       return { status: "inserted", id };
     },
 
@@ -253,6 +257,24 @@ function buildDeps(
     updateQuestParent: async (questId, parentQuestId) => {
       const { error } = await supabase.from("quests").update({ parent_quest_id: parentQuestId }).eq("id", questId);
       if (error) throw error;
+    },
+
+    // Player characters by name, for "known to". Throws on a read error: a silent empty list would read as "nobody
+    // by that name" and drop a tie the book stated.
+    fetchPartyLookup: async () => {
+      const { data, error } = await supabase.from("party_members").select("id, name").eq("campaign_id", campaignId);
+      if (error) throw error;
+      return (data ?? []).flatMap((row) => (typeof row.id === "string" && typeof row.name === "string" ? [{ id: row.id, name: row.name }] : []));
+    },
+
+    // A canon entry's children, one table per write. Rows carry campaign_id; user_id is the column default.
+    insertCanonRows: async (table, rows) => {
+      const { error } = await supabase.from(table).insert(rows);
+      if (error) throw error;
+      // A lore entry's vector folds its passages in, so passages written after the entry change what it says.
+      if (table === "canon_lore_passages") {
+        for (const entryId of new Set(rows.map((row) => row.entry_id))) if (typeof entryId === "string") queueCanonEmbedding(entryId);
+      }
     },
 
     persistImportedCounts: async (counts) => {

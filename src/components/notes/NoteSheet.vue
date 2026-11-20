@@ -31,9 +31,6 @@
 
     <!-- Metadata row -->
     <div class="flex flex-wrap items-center gap-2">
-      <span class="text-label-lg font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground capitalize">
-        {{ note.category }}
-      </span>
       <span v-if="session" class="text-label-lg font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground">
         {{ sessionLabel(session) }}
       </span>

@@ -1,0 +1,87 @@
+import { KNOWLEDGE_MARKS, type CanonEntry, type KnowledgeMark } from "@/types/canon.types";
+
+/**
+ * The parts of the Canon page, in the order the contents column lists them. Story 2 draws Premise and tone and
+ * Truths; each later story adds its own part here, which is the only place the contents column learns of it.
+ */
+export const CANON_SECTIONS = [
+  { id: "premise", numeral: "I", label: "Premise and tone", short: "Premise", parts: ["premise"], counted: true },
+  { id: "truths", numeral: "II", label: "Truths", short: "Truths", parts: ["truth"], counted: true },
+  { id: "moving", numeral: "III", label: "What is moving", short: "Moving", parts: ["force"], counted: true },
+  // Questions are counted with the secrets: the contents column shows one number for the whole part.
+  { id: "secrets", numeral: "IV", label: "Secrets and questions", short: "Secrets", parts: ["secret", "question"], counted: true },
+  // The world's own clock, calendar and coins are campaign columns, not entries: no part, so no count.
+  { id: "world", numeral: "V", label: "How the world works", short: "World", parts: [], counted: false },
+  { id: "lore", numeral: "VI", label: "Lore", short: "Lore", parts: ["lore"], counted: true },
+  // A backstory is one per character (frame 14): the page counts the characters, not the entries opened so far.
+  { id: "backstories", numeral: "VII", label: "Backstories", short: "Backstories", parts: ["backstory"], counted: true },
+  // The Chronicle is the sessions' notes, not canon entries: no part, and its count (the sessions with a chronicle
+  // entry written) is added by the page. What the table added is the Narrator's, set apart below a rule (frame 03).
+  { id: "chronicle", numeral: "VIII", label: "Chronicle", short: "Chronicle", parts: [], counted: true },
+  { id: "table", numeral: "✦", label: "What the table added", short: "Table", parts: [], counted: true },
+] as const;
+
+/** The part set apart in the contents column, below a rule and with its own hint. */
+export const TABLE_SECTION_HINT = "Filled by the Narrator as it invents. Keep, edit or strike each line.";
+
+export type CanonSectionId = (typeof CANON_SECTIONS)[number]["id"];
+
+export function isCanonSectionId(value: string): value is CanonSectionId {
+  return CANON_SECTIONS.some((s) => s.id === value);
+}
+
+/** How many entries each part holds, for the contents column. */
+export function sectionCounts(entries: readonly CanonEntry[]): Record<CanonSectionId, number> {
+  const counts = {} as Record<CanonSectionId, number>;
+  for (const section of CANON_SECTIONS) counts[section.id] = entries.filter((e) => (section.parts as readonly string[]).includes(e.part)).length;
+  return counts;
+}
+
+export const KNOWLEDGE_LABEL: Record<KnowledgeMark, string> = {
+  all: "Known to all",
+  some: "Known to some",
+  secret: "Secret",
+};
+
+/** The three marks as a segmented control's options, in the table's order. */
+export const MARK_OPTIONS: ReadonlyArray<{ value: KnowledgeMark; label: string }> = KNOWLEDGE_MARKS.map((value) => ({
+  value,
+  label: KNOWLEDGE_LABEL[value],
+}));
+
+export const KNOWLEDGE_HELP =
+  "Known to all: anyone in the world may say it, and players read it. Known to some: only the people below know it. Secret: nobody in the world says it.";
+
+/**
+ * Plain text as a Tiptap document (a paragraph per blank-line block, a line break per newline), for a pitch started
+ * from a named world's default text. Never empty: an editor opened on `{"type":"doc","content":[]}` is not a document.
+ */
+export function plainTextToTiptap(text: string): string {
+  const blocks = text
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter((block) => block !== "");
+  const paragraphs = blocks.map((block) => {
+    const content: object[] = [];
+    block.split("\n").forEach((line, index) => {
+      if (index > 0) content.push({ type: "hardBreak" });
+      if (line.trim() !== "") content.push({ type: "text", text: line });
+    });
+    return { type: "paragraph", content };
+  });
+  return JSON.stringify({ type: "doc", content: paragraphs.length > 0 ? paragraphs : [{ type: "paragraph" }] });
+}
+
+/** The named worlds the World field offers, as the Details tab's did before the field moved here. */
+export const WORLD_NAMES = [
+  "Forgotten Realms",
+  "Eberron",
+  "Ravenloft",
+  "Dragonlance",
+  "Greyhawk",
+  "Planescape",
+  "Spelljammer",
+  "Dark Sun",
+  "Mystara",
+  "Homebrew",
+] as const;

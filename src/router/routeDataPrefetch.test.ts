@@ -11,6 +11,7 @@ vi.mock("@/lib/supabase", () => ({ supabase: {}, getCurrentUser: () => null }));
 
 import { prefetchRouteData } from "./routeDataPrefetch";
 import { npcListQuery, npcQuery } from "@/composables/npcs/useNpcs";
+import { canonHereQuery } from "@/composables/canon/useCanonHere";
 import { entityBacklinksQuery } from "@/composables/notes/useEntityBacklinks";
 import { partyListQuery } from "@/composables/party/useParty";
 
@@ -35,7 +36,7 @@ describe("prefetchRouteData", () => {
     expect(keys).toContainEqual(partyListQuery("c1").queryKey);
   });
 
-  it("starts an NPC's record, note and backlinks together from its id", () => {
+  it("starts an NPC's record, note, backlinks and canon together from its id", () => {
     signIn("dm", "c1");
     const { client, prefetchQuery } = fakeClient();
     prefetchRouteData(client, "/npcs/n1?tab=lore");
@@ -43,7 +44,9 @@ describe("prefetchRouteData", () => {
     expect(keys).toContainEqual(npcQuery("n1").queryKey);
     expect(keys).toContainEqual(["dm-note", "npcs", "n1"]);
     expect(keys).toContainEqual(entityBacklinksQuery("c1", "n1").queryKey);
-    expect(keys).toHaveLength(3);
+    // The sheet's CanonHere block reads this key; under any other the prefetch warms nothing and it waits a wave.
+    expect(keys).toContainEqual(canonHereQuery("npc", "n1").queryKey);
+    expect(keys).toHaveLength(4);
   });
 
   it("does not treat the NPC sub-pages as records", () => {

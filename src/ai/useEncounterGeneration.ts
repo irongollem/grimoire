@@ -3,6 +3,7 @@ import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { buildCampaignContext, wrapUserInput } from "./utils";
+import { fetchWorldBlock } from "./worldBlock";
 import type { EncounterAiResult } from "./types";
 import { parseEncounterAiResult } from "@/lib/encounters/parseEncounterAiResult";
 import {
@@ -106,9 +107,10 @@ export function useEncounterGeneration() {
     ]);
     if (!basePrompt) throw new Error("Encounter system prompt not configured.");
 
-    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
-      setting: campaign.activeCampaign?.ai_setting_prompt,
-    })}`;
+    const worldCampaignId = campaign.activeCampaign?.id;
+    if (!worldCampaignId) throw new Error("No active campaign selected.");
+    const world = await fetchWorldBlock(worldCampaignId);
+    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext(world)}`;
 
     // The local (BYOK) path can't build the server's party summary or custom-
     // monster index — those come from DB reads the edge function does with

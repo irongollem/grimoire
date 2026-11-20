@@ -244,7 +244,6 @@ async function submit() {
       theme: DEFAULT_THEME_ID,
       health_visibility: "strategic",
       immersive_rolls: false,
-      description: null,
       spotify_client_id: null,
       is_archived: false,
       // ai_enabled deliberately omitted — new campaigns start unchosen

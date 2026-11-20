@@ -23,6 +23,8 @@ import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { callText, resolveTextProvider, NO_TEXT_PROVIDER_MESSAGE, type TextResult } from "../_shared/textGen.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
+import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
+import { worldBlockText, worldImageSetting } from "../_shared/worldBlock.ts";
 
 // Entity portraits always render portrait-orientation.
 const ENTITY_IMAGE_SIZE = "1024x1536";
@@ -31,12 +33,6 @@ const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
-
-function buildCampaignContext(setting: string | null | undefined): string {
-  const s = setting?.trim();
-  if (!s) return "";
-  return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n## Setting\n${s}`;
-}
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
@@ -76,7 +72,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, image_provider, ai_setting_prompt")
+    .select("id, user_id, ai_enabled, text_provider, image_provider")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -122,6 +118,8 @@ serve(withCors(async (req: Request) => {
   if (!img) return new Response("No image API key configured", { status: 422 });
   const isByok = img.isByok;
 
+  const world = await loadWorldBlock(admin, campaign.id);
+
   // ── Pre-flight credit check ────────────────────────────────────────────────
   // Entity portraits render at ENTITY_IMAGE_SIZE; cost scales with output area
   // (portrait = 1.5× a square render) and the chosen provider's multiplier.
@@ -146,7 +144,7 @@ serve(withCors(async (req: Request) => {
   // ── 1. Author a visual prompt from the entity's facts ──────────────────────
   const systemContent =
     buildImagePromptAuthorSystem(kind) +
-    buildCampaignContext(campaign.ai_setting_prompt) +
+    worldBlockText(world) +
     INJECTION_GUARD_SUFFIX;
   const userContent = wrapUserInput(context);
 
@@ -183,7 +181,7 @@ serve(withCors(async (req: Request) => {
   // ── 2. Render the image ────────────────────────────────────────────────────
   const imagePrompt = buildEntityImagePrompt(kind, {
     base: imageBasePrompt,
-    setting: campaign.ai_setting_prompt ?? "",
+    setting: worldImageSetting(world),
     subject,
   });
 

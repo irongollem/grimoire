@@ -25,7 +25,7 @@ const ROWS: { id: OpenBookChapter; label: string; count: (s: OpenBookStats | nul
   { id: "folk", label: "Folk", count: (s) => (s ? plural(s.folk, "person", "people") : "") },
   { id: "factions", label: "Factions and Houses", count: (s) => (s ? plural(s.factions, "faction", "factions") : "") },
   { id: "pantheon", label: "The Pantheon", count: (s) => (s ? plural(s.deities, "deity", "deities") : "") },
-  { id: "lore", label: "Lore and Legend", count: (s) => (s ? plural(s.lore, "note", "notes") : "") },
+  { id: "lore", label: "Lore and Legend", count: (s) => (s ? `${plural(s.lore, "lore entry", "lore entries")} and ${plural(s.truths, "truth", "truths")}` : "") },
   {
     id: "chronicle",
     label: "The Chronicle",

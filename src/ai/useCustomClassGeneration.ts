@@ -51,7 +51,7 @@ export function useCustomClassGeneration() {
     startAiQuotes();
 
     try {
-      const context = captureImageGenerationContext();
+      const context = await captureImageGenerationContext();
       const constraints: string[] = [];
       if (options?.hitDie) constraints.push(`Hit die: d${options.hitDie}`);
       if (options?.casterProgression) constraints.push(`Spellcasting progression (caster_progression): ${options.casterProgression}`);
@@ -59,7 +59,7 @@ export function useCustomClassGeneration() {
       const raw = await generateEntityText<ClassAiResult>({
         generator: "custom_class",
         campaignId: context.campaignId,
-        settingPrompt: context.settingPrompt,
+        world: context.world,
         ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,

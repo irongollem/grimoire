@@ -111,6 +111,8 @@
                   <RichTextViewer :content="member.player_description" />
                 </div>
 
+                <PartyMemberStory :member-id="member.id" />
+
                 <PlayerNotesWidget entity-type="party_member" :entity-id="member.id" placeholder="Your thoughts on this party member…" />
               </div>
 
@@ -200,6 +202,7 @@
 </template>
 
 <script setup lang="ts">
+import PartyMemberStory from "@/components/player/PartyMemberStory.vue";
 import TagChip from "@/components/common/TagChip.vue";
 import TagChips from "@/components/common/TagChips.vue";
 import SourceBadge from "@/components/common/entity/SourceBadge.vue";

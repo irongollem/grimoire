@@ -7,7 +7,7 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useGeneratorUiStore } from "@/stores/ui/generators";
-import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
+import { captureFailureMessage, captureImageGenerationContext, generateImage } from "./useImageGeneration";
 import { speciesInsertFromAi, type SpeciesAiResult } from "@/lib/codex/speciesAi";
 import type { SpeciesInsert, SpeciesSize } from "@/types/species.types";
 
@@ -43,11 +43,11 @@ export function useSpeciesGeneration() {
     _state.error.value = null;
     startAiQuotes();
 
-    let imageContext: ReturnType<typeof captureImageGenerationContext>;
+    let imageContext: Awaited<ReturnType<typeof captureImageGenerationContext>>;
     try {
-      imageContext = captureImageGenerationContext();
-    } catch {
-      _state.error.value = "No active campaign selected.";
+      imageContext = await captureImageGenerationContext();
+    } catch (e) {
+      _state.error.value = captureFailureMessage(e);
       _state.isGenerating.value = false;
       stopAiQuotes();
       return null;
@@ -60,7 +60,7 @@ export function useSpeciesGeneration() {
       const result = await generateEntityText<SpeciesAiResult>({
         generator: "species",
         campaignId: imageContext.campaignId,
-        settingPrompt: imageContext.settingPrompt,
+        world: imageContext.world,
         ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,

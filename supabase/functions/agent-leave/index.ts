@@ -1,6 +1,7 @@
 // agent-leave (#1021): the player leaves the AI table. The rules are `handler.ts`'s; this file wires the database.
 // The session is ended and the note written through the caller's own client, so the database checks they are the
 // campaign's DM; the service role only reads and marks the conversation, which no client may write.
+import { loadSittingFacts } from "../_shared/agent/sittingFacts.ts";
 import { loadTurnsInReach } from "../_shared/agent/turnsInReach.ts";
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
@@ -118,16 +119,7 @@ serve(withCors(async (req: Request) => {
       if (error) throw error;
     },
 
-    async loadFacts(sessionId) {
-      const { data, error } = await supabase
-        .from("story_facts")
-        .select("body, known_to_player")
-        .eq("agent_session_id", sessionId)
-        .order("created_at", { ascending: true })
-        .order("id", { ascending: true });
-      if (error) throw error;
-      return (data ?? []).map((row) => ({ body: row.body as string, known_to_player: row.known_to_player === true }));
-    },
+    loadFacts: (sessionId) => loadSittingFacts(supabase, sessionId),
 
     async characterName(campaignId, characterId): Promise<string | null> {
       const { data, error } = await supabase

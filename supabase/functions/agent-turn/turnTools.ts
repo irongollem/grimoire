@@ -25,6 +25,12 @@ import { makeSpeechTools } from "../_shared/agent/speak.ts";
 import { SPEECH_TOOL_NAMES } from "../_shared/agent/speakInput.ts";
 import { shownDmRoll } from "../_shared/agent/dmRoll.ts";
 import { makeRecordTool, RECORD_TOOL_NAME } from "../_shared/agent/record.ts";
+import {
+  BRING_OUT_TOOL, BRING_OUT_TOOL_NAME, CANON_LOOKUP_TOOL, CANON_LOOKUP_TOOL_NAME, LOOKUPS_PER_TURN, lookupAnswer, makeBringOutTool, NO_CANON_HERE, parseLookupQuery,
+  type BroughtOut, type CanonHere, type CanonLookupEntry,
+} from "../_shared/agent/canon.ts";
+import { checkInvention, type CanonCheckMaterial } from "../_shared/agent/canonCheck.ts";
+import type { JudgeRequest, JudgeResult } from "../_shared/typesafe.ts";
 import { makeQuestTools, type QuestMove, type QuestsInPlay } from "../_shared/agent/quests.ts";
 import { fightsSection, planFight, START_FIGHT_TOOL, statlessText, type FightPlan, type FightsInView } from "../_shared/agent/fight.ts";
 import { ASK_ROLL_TOOL, askedText, parseAskRollInput, type PendingRoll } from "../_shared/agent/playerRoll.ts";
@@ -65,6 +71,18 @@ export interface TurnToolsInput {
   partyIds?: readonly string[];
   /** The names of the world's peoples, for the characters' own calls. */
   peoples: readonly string[];
+  /**
+   * The canon at the table (#1226): what lies where the party stands (the ids `bring_out` accepts), the lookup by
+   * meaning, what an invention is held against and the judge that does the holding. Marks wait for the kept turn.
+   */
+  canon: {
+    here: CanonHere;
+    /** Null when the canon cannot be searched by meaning right now. */
+    lookup(query: string): Promise<CanonLookupEntry[] | null>;
+    material(): Promise<CanonCheckMaterial>;
+    judge: ((request: JudgeRequest) => Promise<JudgeResult>) | null;
+    onBroughtOut(brought: BroughtOut): void;
+  };
   /** The fight on the board and what the player's turn still holds; null when no fight is being fought, and then the tool is not offered. */
   fightChange: {
     fight: FightState;
@@ -189,7 +207,31 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
 
   const partyIds = new Set([...(input.partyIds ?? []), ...(input.playedId === undefined ? [] : [input.playedId])]);
   // The campaign and the sittings are the conversation's own; the model only chooses the words and what they are about.
+  // The canon's clues lie where the party began the turn: once it has moved on they no longer lie where it stands.
+  const startedAt = session.scene_location_id;
+  const hereNow = (): CanonHere => (place === startedAt ? input.canon.here : NO_CANON_HERE);
+  // What an invention is held against is read once a turn, when the first one is recorded.
+  let material: Promise<CanonCheckMaterial> | null = null;
   const record = makeRecordTool({
+    // The three checks (frame 09): never a contradiction of a truth, an answer to an open question, or a secret
+    // stated. Only the narrator's own record calls come here; the server's own facts (a fight's result) do not.
+    check: async (fact) => {
+      let held: CanonCheckMaterial;
+      try {
+        material ??= input.canon.material();
+        held = await material;
+      } catch (error) {
+        material = null;
+        console.error("agent-turn: the canon check was skipped (the canon could not be read): the fact was filed unchecked.", error);
+        return null;
+      }
+      return checkInvention({
+        invention: fact.fact,
+        material: held,
+        clueSecretIds: new Set(hereNow().clues.map((c) => c.secretId)),
+        judge: input.canon.judge,
+      });
+    },
     fileFact: (fact) =>
       deps.fileFact({
         campaignId,
@@ -207,6 +249,24 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   });
 
   const quests = input.quests === null ? null : makeQuestTools(input.quests);
+
+  const bringOut = makeBringOutTool({ offered: hereNow, onBroughtOut: input.canon.onBroughtOut });
+  // The canon by meaning: a few lookups a turn, each an embedding. Never a secret (`canon.ts`, `canonIo.ts`).
+  let lookups = 0;
+  const canonLookup = async (toolInput: Record<string, unknown>) => {
+    const parsed = parseLookupQuery(toolInput);
+    if (!parsed.ok) return { content: parsed.error, isError: true };
+    if (lookups >= LOOKUPS_PER_TURN) return { content: `At most ${LOOKUPS_PER_TURN} lookups in one reply. Work from what you have.`, isError: true };
+    lookups += 1;
+    try {
+      const entries = await input.canon.lookup(parsed.query);
+      if (entries === null) return { content: "The canon cannot be searched right now. Work from what is written above and on record.", isError: true };
+      return { content: lookupAnswer(entries), isError: false };
+    } catch (error) {
+      console.error("agent-turn: looking up the canon failed:", error);
+      return { content: "The canon could not be searched. Work from what is written above and on record.", isError: true };
+    }
+  };
 
   // The fights in view once the party has moved this turn. Seen live: the party walked from the parlour to the
   // library and the narrator started the parlour's fight, the only one it had been shown.
@@ -495,13 +555,15 @@ export function makeTurnTools(input: TurnToolsInput): TurnTools {
   };
 
   return {
-    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.onHazard === undefined ? [] : [HAZARD_TOOL]), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
+    tools: [...deps.tools, ...speech.tools, go.tool, record.tool, BRING_OUT_TOOL, CANON_LOOKUP_TOOL, ...(quests ? quests.tools : []), ...(input.askRoll ? [ASK_ROLL_TOOL] : []), ...(input.fight ? [START_FIGHT_TOOL] : []), ...(input.fightChange ? [FIGHT_CHANGE_TOOL] : []), ...(input.onHazard === undefined ? [] : [HAZARD_TOOL]), ...(input.hitPoints ? [HIT_POINTS_TOOL] : []), ...(input.hitPoints && input.correcting === true ? [SET_RIGHT_TOOL] : []), ...(input.hands ? [HAND_OVER_TOOL, TAKE_TOOL, COINS_TOOL, BUY_TOOL] : []), ...(input.show ? [SHOW_TOOL] : []), ...(input.travel ? [TRAVEL_TOOL, ROLL_TABLE_TOOL] : []), ...(input.onDaysPassed ? [PASS_DAYS_TOOL] : []), KEEP_TALKING_TOOL, INTRODUCE_TOOL],
     remembered,
     spoke,
     place: () => place,
     callTool: (name, toolInput) => {
       if (name === GO_TO_TOOL.name) return moved(go.call(toolInput), place);
       if (name === RECORD_TOOL_NAME) return record.call(toolInput);
+      if (name === BRING_OUT_TOOL_NAME) return bringOut.call(toolInput);
+      if (name === CANON_LOOKUP_TOOL_NAME) return canonLookup(toolInput);
       if (input.askRoll && name === ASK_ROLL_TOOL.name) return Promise.resolve(askRoll(toolInput));
       if (input.fight && name === START_FIGHT_TOOL.name) return startFight(toolInput);
       if (name === INTRODUCE_TOOL_NAME) return introduce(toolInput);

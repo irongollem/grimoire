@@ -2,26 +2,12 @@
   <div class="space-y-4">
     <DocumentPasteEditor ref="pasteEditorRef" v-model="content" />
 
-    <template v-if="charCount === 0">
-      <p class="text-caption text-muted-foreground italic">Paste some text to see its page count and cost.</p>
-    </template>
-    <ProFeatureGate v-else-if="pageCapUpsell" :message="pageCapUpsell.message" />
-    <p v-else-if="validationFailure" class="text-caption text-destructive">{{ validationFailure.message }}</p>
-    <div v-else class="rounded-md border border-border bg-muted/30 px-4 py-3 space-y-2">
-      <p class="text-body text-foreground">{{ pageLabel(pageCount) }}</p>
-      <template v-if="costLoading">
-        <p class="text-caption text-muted-foreground italic">Calculating cost…</p>
-      </template>
-      <template v-else-if="costErrored || !costEstimate">
-        <p class="text-caption text-muted-foreground italic">Price unavailable</p>
-      </template>
-      <template v-else>
-        <GenerationCostBadge :credits="costEstimate.totalCredits" />
-        <p class="text-caption text-muted-foreground">
-          {{ costEstimate.baseCredits }} base + {{ costEstimate.perPageCredits }} × {{ costEstimate.pageCount }} pages
-        </p>
-      </template>
-    </div>
+    <DocumentImportSizeNote
+      :char-count="charCount"
+      :page-count="pageCount"
+      :validation="validation"
+      empty-hint="Paste some text to see its page count and cost."
+    />
 
     <div>
       <label class="block text-eyebrow font-semibold text-muted-foreground mb-1">Name *</label>
@@ -78,18 +64,13 @@ import DocumentPasteEditor from "@/components/campaign/DocumentPasteEditor.vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
 import AppCheckbox from "@/components/common/controls/AppCheckbox.vue";
-import GenerationCostBadge from "@/components/common/ai/GenerationCostBadge.vue";
-import ProFeatureGate from "@/components/billing/ProFeatureGate.vue";
+import DocumentImportSizeNote from "@/components/campaign/DocumentImportSizeNote.vue";
 import { IconGenerate } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import { useSubscription } from "@/composables/billing/useSubscription";
-import { useCreateDocumentImport, useImportCost } from "@/composables/campaign/useDocumentImport";
+import { useCreateDocumentImport } from "@/composables/campaign/useDocumentImport";
 import { pagesForText, validateTextImport, type UploadValidationResult } from "@/lib/documentImport/limits";
 import { tiptapToMarkdown } from "@/lib/tiptap/tiptapToMarkdown";
-
-function pageLabel(count: number): string {
-  return `${count} ${count === 1 ? "page" : "pages"}`;
-}
 
 const toast = useToast();
 const { isPro } = useSubscription();
@@ -114,12 +95,6 @@ const pageCount = computed(() => pagesForText(charCount.value));
 const validation = computed<UploadValidationResult | null>(() =>
   charCount.value > 0 ? validateTextImport(charCount.value, isPro.value) : null,
 );
-const validationFailure = computed(() => (validation.value && !validation.value.ok ? validation.value : null));
-const pageCapUpsell = computed(() =>
-  validationFailure.value?.reason === "too_many_pages" && !isPro.value ? validationFailure.value : null,
-);
-
-const { estimate: costEstimate, isLoading: costLoading, isError: costErrored } = useImportCost(pageCount);
 
 // ── Name / rights / submit ───────────────────────────────────────────────
 

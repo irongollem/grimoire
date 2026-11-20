@@ -84,7 +84,7 @@
           <div v-else-if="attachment.attachment_type === 'note'" class="rounded-lg border border-border bg-card p-3">
             <LoadingSpinner v-if="noteQuery.isLoading.value" />
             <template v-else-if="noteRecord">
-              <p class="text-caption text-muted-foreground">{{ noteRecord.category }}<template v-if="noteRecord.tags.length"> · {{ noteRecord.tags.join(', ') }}</template></p>
+              <p v-if="noteRecord.tags.length" class="text-caption text-muted-foreground">{{ noteRecord.tags.join(', ') }}</p>
               <RichTextViewer v-if="noteRecord.content" class="mt-2" :content="noteRecord.content" />
               <p v-else class="mt-2 text-caption italic text-muted-foreground">This note has no body yet.</p>
             </template>

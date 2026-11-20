@@ -8,7 +8,7 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { usePuzzlesUiStore } from "@/stores/ui/puzzles";
-import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
+import { captureFailureMessage, captureImageGenerationContext, generateImage } from "./useImageGeneration";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -42,11 +42,11 @@ export function usePuzzleGeneration() {
     _state.error.value = null;
     startAiQuotes();
 
-    let imageContext: ReturnType<typeof captureImageGenerationContext>;
+    let imageContext: Awaited<ReturnType<typeof captureImageGenerationContext>>;
     try {
-      imageContext = captureImageGenerationContext();
-    } catch {
-      _state.error.value = "No active campaign selected.";
+      imageContext = await captureImageGenerationContext();
+    } catch (e) {
+      _state.error.value = captureFailureMessage(e);
       _state.isGenerating.value = false;
       stopAiQuotes();
       return null;
@@ -63,7 +63,7 @@ export function usePuzzleGeneration() {
       const puzzleData = await generateEntityText<PuzzleAiResult>({
         generator: "puzzle",
         campaignId: imageContext.campaignId,
-        settingPrompt: imageContext.settingPrompt,
+        world: imageContext.world,
         ruleset: ruleset.value,
         prompt: userPrompt,
         constraints,

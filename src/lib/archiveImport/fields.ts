@@ -3,7 +3,6 @@
  * Pure: the review screen shows the result, the sweep writes it.
  */
 import { QUEST_SUMMARY_MAX, splitQuestSummary } from "@/lib/quests/summary";
-import { frontmatterString } from "./frontmatter";
 import type { ArchivePage, ArchivePageKind, TiptapDoc, TiptapNode } from "./types";
 
 /** Headings (case-insensitive) that start a section belonging to an NPC column. Extend, don't branch. */
@@ -45,7 +44,6 @@ export interface NoteFields {
   kind: "note";
   title: string;
   content?: TiptapDoc;
-  category: string | null;
   tags: string[];
 }
 export type ArchiveFields = NpcFields | DescriptionFields | QuestFields | NoteFields;
@@ -177,8 +175,7 @@ function questFields(page: ArchivePage): QuestFields {
 
 function noteFields(page: ArchivePage): NoteFields {
   const doc = docOf(page.body.content);
-  const category = frontmatterString(page.frontmatter.category);
-  const base: NoteFields = { kind: "note", title: page.title, category, tags: page.tags };
+  const base: NoteFields = { kind: "note", title: page.title, tags: page.tags };
   return doc ? { ...base, content: doc } : base;
 }
 

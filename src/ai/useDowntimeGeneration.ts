@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { textRunsOnLocalKey } from "@/ai/localKeyMode";
 import { edgeErrorMessage } from "@edge-shared/edgeError.ts";
 import { buildCampaignContext, wrapUserInput } from "./utils";
+import { fetchWorldBlock } from "./worldBlock";
 import { createAiGenerationState, startAiQuotes, stopAiQuotes } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { getTextProvider } from "./providers";
@@ -126,9 +127,10 @@ export function useDowntimeGeneration() {
     ]);
     if (!basePrompt) throw new Error("Downtime system prompt not configured.");
 
-    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
-      setting: campaign.activeCampaign?.ai_setting_prompt ?? "",
-    })}`;
+    const worldCampaignId = campaign.activeCampaign?.id;
+    if (!worldCampaignId) throw new Error("No active campaign selected.");
+    const world = await fetchWorldBlock(worldCampaignId);
+    const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext(world)}`;
 
     const constraints = [
       `Archetype: ${args.activity.title} (${args.activity.key})`,

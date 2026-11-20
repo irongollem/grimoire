@@ -12,16 +12,8 @@
         />
       </label>
 
-      <!-- Category -->
-      <AppSelect v-model="draft.category" size="md">
-        <option v-for="c in CATEGORIES" :key="c.value" :value="c.value">
-          {{ c.label }}
-        </option>
-      </AppSelect>
-
-      <!-- Which session this records — only relevant for session notes -->
+      <!-- Which session this records: a note linked to one is that session's chronicle entry -->
       <NoteSessionPicker
-        v-if="draft.category === 'session'"
         v-model="draft.sessionId"
         :own-note-id="props.note?.id ?? null"
       />
@@ -70,7 +62,7 @@
 
     <!-- ── Session date fields ──────────────────────────────────────────────── -->
     <NoteSessionDatesPanel
-      v-if="draft.category === 'session'"
+      v-if="draft.sessionId !== null"
       v-model="draft.sessionDates"
       :is-new-note="!props.note"
       :linked-calendar-event-id="props.note?.linked_calendar_event_id ?? null"
@@ -92,7 +84,7 @@
       allow-upload
       allow-calendar-events
       :entity-mention-items="entityMentionItems"
-      :ai-context="`${draft.category} note${draft.title ? ` — ${draft.title}` : ''}`"
+      :ai-context="`${draft.sessionId !== null ? 'session ' : ''}note${draft.title ? ` — ${draft.title}` : ''}`"
       @insert-calendar-event="showEventModal = true"
       @illustration-click="onIllustrationClick"
     >
@@ -181,7 +173,6 @@ import NoteSessionPicker from "./NoteSessionPicker.vue";
 import { IconDelete, IconGenerate, IconImages, IconNote, IconPin, IconSave } from '@/lib/icons';
 import AppButton from "@/components/common/controls/AppButton.vue";
 import AppInput from "@/components/common/controls/AppInput.vue";
-import AppSelect from "@/components/common/controls/AppSelect.vue";
 import TagInput from "@/components/common/controls/TagInput.vue";
 import AudienceRevealControl from "@/components/common/reveal/AudienceRevealControl.vue";
 import {
@@ -198,7 +189,7 @@ import {
   removeRichTextImages,
   cleanupRemovedRichTextImages,
 } from "@/composables/useImageUpload";
-import type { Note, NoteCategory, NoteSessionDates } from "@/types/notes.types";
+import type { Note, NoteSessionDates } from "@/types/notes.types";
 import type { ChronicleInsert } from "@/types/chronicler.types";
 import type { CalendarEvent } from "@/types/calendar.types";
 import type { IllustrationTarget } from "@/lib/tiptap/nodeViewTypes";
@@ -211,27 +202,14 @@ import { storeToRefs } from "pinia";
 import PaywallModal from "@/components/common/overlays/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 
-const CATEGORIES: { value: NoteCategory; label: string }[] = [
-  { value: "general", label: "General" },
-  { value: "session", label: "Session" },
-  { value: "lore", label: "Lore" },
-  { value: "location", label: "Location" },
-  { value: "quest", label: "Quest" },
-  { value: "faction", label: "Faction" },
-];
-
 const props = defineProps<{ note: Note | null }>();
 const router = useRouter();
 const route = useRoute();
 
-/** `/notes/new?category=session&session=<id>`: the Sessions page's "Write notes" link. */
+/** `/notes/new?session=<id>`: the Sessions page's "Write notes" link. */
 function queryString(key: string): string | null {
   const value = route.query[key];
   return typeof value === "string" && value !== "" ? value : null;
-}
-function startingCategory(): NoteCategory {
-  const wanted = CATEGORIES.find((c) => c.value === queryString("category"));
-  return wanted?.value ?? "general";
 }
 
 // The editor's local copy of the note (#946). Untouched fields follow the server
@@ -239,8 +217,7 @@ function startingCategory(): NoteCategory {
 interface NoteDraft {
   title: string;
   body: string | null;
-  category: NoteCategory;
-  /** The session this note records (`campaign_sessions.id`), for a session note. */
+  /** The session this note records (`campaign_sessions.id`); a note with one is that session's chronicle entry. */
   sessionId: string | null;
   isPinned: boolean;
   playerVisibleTo: string[];
@@ -261,8 +238,7 @@ function toDraft(note: Note | null): NoteDraft {
   return {
     title: note?.title ?? "",
     body: note?.content ?? null,
-    category: note ? note.category : startingCategory(),
-    sessionId: note ? note.session_id : startingCategory() === "session" ? queryString("session") : null,
+    sessionId: note ? note.session_id : queryString("session"),
     isPinned: note?.is_pinned ?? false,
     playerVisibleTo: [...(note?.player_visible_to ?? [])],
     tags: [...(note?.tags ?? [])],
@@ -289,7 +265,6 @@ const { draft, dirty, conflicts, changes, commit, reset } = useRecordDraft({
 const CONFLICT_LABELS: Record<keyof NoteDraft, string> = {
   title: "Title",
   body: "Note text",
-  category: "Category",
   sessionId: "Session",
   isPinned: "Pinned",
   playerVisibleTo: "Shared with",
@@ -360,15 +335,10 @@ function onChroniclerWrite(chronicle: ChronicleInsert) {
     aiTitleSnapshot.value = chronicle.title;
   }
   if (chronicle.sessionNum !== null && draft.sessionId === null) {
-    // The model named a session by number. The picker is only rendered for a
-    // session note, and buildPayload() nulls the link for every other category,
-    // so a session set without switching category would be dropped on save.
-    // Numbers may repeat across the log; the most recent holder is the likely one.
+    // The model named a session by number: linking the note to it makes it that
+    // session's chronicle entry. Numbers may repeat across the log; the most recent holder is the likely one.
     const named = sessions.value?.find((s) => s.number === chronicle.sessionNum);
-    if (named) {
-      draft.category = "session";
-      draft.sessionId = named.id;
-    }
+    if (named) draft.sessionId = named.id;
   }
   if (chronicle.tags.length > 0) {
     // Merge, not replace — the DM's own tag bar may already hold tags this
@@ -425,11 +395,10 @@ const { activeCampaignId } = storeToRefs(useCampaignStore());
 // A pure function of its draft: useRecordDraft runs it over the server copy too,
 // to find which columns the DM actually changed.
 function buildPayload(d: NoteDraft) {
-  const isSession = d.category === "session";
+  const isSession = d.sessionId !== null;
   return {
     title: d.title.trim() || "Untitled Note",
-    category: d.category,
-    session_id: isSession ? d.sessionId : null,
+    session_id: d.sessionId,
     is_pinned: d.isPinned,
     player_visible_to: d.playerVisibleTo,
     tags: d.tags,
@@ -483,7 +452,7 @@ function calendarSyncInput(noteId: string) {
     title: draft.title,
     session: linkedSession.value,
     dates: draft.sessionDates,
-    isSession: draft.category === "session",
+    isSession: draft.sessionId !== null,
     existingEventId: props.note?.linked_calendar_event_id ?? null,
     campaignId: activeCampaignId.value,
   };
@@ -499,7 +468,7 @@ async function save() {
   try {
     if (props.note) {
       // Material edit detection (#606): only AI-authored values count —
-      // category, pin state, tags and visibility never are. The body always
+      // pin state, tags and visibility never are. The body always
       // can be, and the title can be too, since a Chronicle insert may have
       // written it. Both are diffed against the last known AI-authored
       // snapshot rather than the loaded row, so accepting a draft as-is isn't

@@ -6,6 +6,8 @@ import type { FightPlan } from "../_shared/agent/fight";
 import type { PendingRoll } from "../_shared/agent/playerRoll";
 import type { SessionRow } from "./turnTypes";
 import type { CallModel } from "../_shared/agent/types";
+import { NO_CANON_HERE, type BroughtOut } from "../_shared/agent/canon";
+import { NO_CHECK_MATERIAL } from "../_shared/agent/canonCheck";
 
 const CAMPAIGN = "00000000-0000-4000-8000-0000000000c1";
 const PLACE = "00000000-0000-4000-8000-0000000000a5";
@@ -36,7 +38,8 @@ const PICTURED = "00000000-0000-4000-8000-0000000000f1";
 
 type HandsFixture = Omit<NonNullable<TurnToolsInput["hands"]>, "memberId" | "onChange">;
 
-function build(quests: TurnToolsInput["quests"] = null, played = false, hands: HandsFixture | null = null) {
+function build(quests: TurnToolsInput["quests"] = null, played = false, hands: HandsFixture | null = null, canon: Partial<TurnToolsInput["canon"]> = {}, sessionOver: Partial<SessionRow> = {}) {
+  const brought: BroughtOut[] = [];
   const handed: HandsChange[] = [];
   const handedOut: string[] = [];
   const asked: PendingRoll[] = [];
@@ -64,13 +67,21 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
       fileFact: async () => ({ id: "00000000-0000-4000-8000-00000000f001" }),
     },
     campaignId: CAMPAIGN,
-    session,
+    session: { ...session, ...sessionOver },
     stored: [],
     provider: "openai",
     model: "m1",
     callModel,
     onMove: (p) => moves.push(p),
     peoples: [],
+    canon: {
+      here: NO_CANON_HERE,
+      lookup: async () => [],
+      material: async () => NO_CHECK_MATERIAL,
+      judge: null,
+      onBroughtOut: (b) => { brought.push(b); },
+      ...canon,
+    },
     onIntroduce: () => {},
     fightChange: null,
     hitPoints: null,
@@ -101,7 +112,7 @@ function build(quests: TurnToolsInput["quests"] = null, played = false, hands: H
       : null,
     fight: played ? { view: { prepared: [{ id: FIGHT, name: "The cellar rats", creatures: "" }], fight: null }, viewAt: async () => ({ prepared: [{ id: ATTIC_FIGHT, name: "The attic bats", creatures: "" }], fight: null }), onStart: (plan) => { fights.push(plan); }, statless: async () => [] } : null,
   });
-  return { turn, calls, filed, moves, asked, fights, handed, handedOut, mapReads, passed };
+  return { turn, calls, filed, moves, asked, fights, handed, handedOut, mapReads, passed, brought };
 }
 
 describe("makeTurnTools", () => {
@@ -368,5 +379,96 @@ describe("makeTurnTools", () => {
       const { turn } = build(null, true, null);
       expect(turn.tools.map((t) => t.name)).not.toContain("hand_over");
     });
+  });
+});
+
+
+describe("makeTurnTools and the canon (#1226)", () => {
+  const CLUE = "00000000-0000-4000-8000-0000000000c9";
+  const SECRET = "00000000-0000-4000-8000-0000000000ca";
+  const STATEMENT = "The Baron poisoned the well.";
+  const here = { clues: [{ id: CLUE, secretId: SECRET, line: "A stained ledger page." }], passages: [], knows: [], questions: [], forces: [] };
+  const material = { truths: [{ text: "Magic leaves a taste on the tongue.", secret: false }], questions: [], secrets: [{ id: SECRET, statement: STATEMENT }] };
+  const record = (turn: ReturnType<typeof build>["turn"], fact: string) => turn.callTool("record", { fact });
+  const judgeSaying = (high: string[]) => async () => ({
+    model: "jev-1",
+    inputTokens: 1,
+    answers: Object.fromEntries(["contradicts_0", "states_0", "hints_0"].map((k) => [k, { type: "noul" as const, noul: high.includes(k) ? 0.95 : 0.02 }])),
+  });
+
+  it("offers bring_out and canon_lookup, and keeps both out of the campaign's generic tool list", () => {
+    const names = build().turn.tools.map((t) => t.name);
+    expect(names).toEqual(expect.arrayContaining(["bring_out", "canon_lookup"]));
+  });
+
+  it("refuses an invention that contradicts a truth, with the reason, and files nothing", async () => {
+    const { turn, filed } = build(null, false, null, { here, material: async () => material, judge: judgeSaying(["contradicts_0"]) });
+    const answer = await record(turn, "Magic leaves no trace at all.");
+    expect(answer.isError).toBe(true);
+    expect(answer.content).toContain("It contradicts a truth: Magic leaves a taste on the tongue.");
+    expect(filed).toEqual([]);
+  });
+
+  it("never lets the Narrator read a secret's statement in any answer it can get", async () => {
+    const { turn } = build(null, false, null, { here, material: async () => material, judge: judgeSaying(["states_0"]) });
+    const answer = await record(turn, "The Baron poisoned the well.");
+    expect(answer.content).toContain("It states a secret. Only the DM reveals a secret.");
+    expect(JSON.stringify(answer)).not.toContain("Baron");
+  });
+
+  it("files an invention the judge lets stand", async () => {
+    const { turn, filed } = build(null, false, null, { here, material: async () => material, judge: judgeSaying([]) });
+    expect((await record(turn, "The well tastes of iron.")).isError).toBe(false);
+    expect(filed).toHaveLength(1);
+  });
+
+  it("files and carries on when no judge is available, so a missing key never stops the story", async () => {
+    const { turn, filed } = build(null, false, null, { here, material: async () => material, judge: null });
+    expect((await record(turn, "The well tastes of iron.")).isError).toBe(false);
+    expect(filed).toHaveLength(1);
+  });
+
+  it("files and carries on when what an invention is held against cannot be read", async () => {
+    const { turn, filed } = build(null, false, null, { material: async () => { throw new Error("db down"); }, judge: judgeSaying(["contradicts_0"]) });
+    expect((await record(turn, "The well tastes of iron.")).isError).toBe(false);
+    expect(filed).toHaveLength(1);
+  });
+
+  it("allows a hint where a clue lies and refuses it once the party has moved to a place with none", async () => {
+    const lying = build(null, false, null, { here, material: async () => material, judge: judgeSaying(["hints_0"]) }, { scene_location_id: PLACE });
+    expect((await record(lying.turn, "The ledger page is water-stained.")).isError).toBe(false);
+    const moved = build(null, false, null, { here, material: async () => material, judge: judgeSaying(["hints_0"]) }, { scene_location_id: PLACE });
+    await moved.turn.callTool("go_to", { location_id: FAR });
+    expect((await record(moved.turn, "The ledger page is water-stained.")).isError).toBe(true);
+  });
+
+  it("marks only a clue that is on offer here, and queues it for the kept turn", async () => {
+    const { turn, brought } = build(null, false, null, { here });
+    expect((await turn.callTool("bring_out", { clue_id: CLUE })).isError).toBe(false);
+    expect((await turn.callTool("bring_out", { clue_id: "00000000-0000-4000-8000-0000000000cb" })).isError).toBe(true);
+    expect(brought).toEqual([{ kind: "clue", id: CLUE }]);
+  });
+
+  it("offers nothing to bring out once the party has moved on", async () => {
+    const { turn, brought } = build(null, false, null, { here }, { scene_location_id: PLACE });
+    await turn.callTool("go_to", { location_id: FAR });
+    expect((await turn.callTool("bring_out", { clue_id: CLUE })).isError).toBe(true);
+    expect(brought).toEqual([]);
+  });
+
+  it("answers a lookup from the canon, and says so when the canon cannot be searched", async () => {
+    const found = build(null, false, null, { lookup: async () => [{ part: "lore", title: "The Drowned Bell", text: "It rang once.", knownTo: [], step: null }] });
+    expect((await found.turn.callTool("canon_lookup", { query: "the bell" })).content).toContain("The Drowned Bell");
+    const down = build(null, false, null, { lookup: async () => null });
+    expect((await down.turn.callTool("canon_lookup", { query: "the bell" })).isError).toBe(true);
+    const throws = build(null, false, null, { lookup: async () => { throw new Error("rpc"); } });
+    expect((await throws.turn.callTool("canon_lookup", { query: "the bell" })).isError).toBe(true);
+  });
+
+  it("limits the lookups of one reply, or each costs an embedding without end", async () => {
+    let asked = 0;
+    const { turn } = build(null, false, null, { lookup: async () => { asked++; return []; } });
+    for (let i = 0; i < 8; i++) await turn.callTool("canon_lookup", { query: "the bell" });
+    expect(asked).toBe(4);
   });
 });

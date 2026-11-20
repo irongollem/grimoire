@@ -105,6 +105,7 @@ const TYPE_LABELS: Record<EntityEmbedType, string> = {
   species: "Species",
   faction: "Faction",
   subclass: "Subclass",
+  canon: "Canon",
 };
 const typeLabel = computed(() => TYPE_LABELS[entityType.value]);
 
@@ -207,7 +208,7 @@ const PEEK_MODALS: Record<Exclude<PeekedType, "npc">, Component> = {
   monster: defineAsyncComponent(() => import("@/components/monsters/MonsterDetailModal.vue")),
   spell: defineAsyncComponent(() => import("@/components/spells/SpellDetailModal.vue")),
 };
-const ENTITY_ROUTES: Record<Exclude<EntityEmbedType, "location" | PeekedType>, string> = {
+const ENTITY_ROUTES: Record<Exclude<EntityEmbedType, "location" | "canon" | PeekedType>, string> = {
   item: "/vault",
   quest: "/quests",
   deity: "/deities",
@@ -227,6 +228,7 @@ function openEntity() {
   if (type === "npc") openNpc(entityId.value);
   else if (type === "monster" || type === "spell") peeking.value = true;
   else if (type === "location") void router.push(placeRoute(entityId.value));
+  else if (type === "canon") void router.push("/canon"); // one page holds the whole canon
   else void router.push(`${ENTITY_ROUTES[type]}/${entityId.value}`);
 }
 

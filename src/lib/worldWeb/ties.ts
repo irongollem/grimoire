@@ -40,7 +40,7 @@ export interface WorldTie {
 /** Kin has its own colour (`--relation-family`), so the web filters on it as a family of its own. */
 export type TieFamily = LinkFamily | "kin";
 
-export const TIE_FAMILIES: readonly TieFamily[] = ["bond", "kin", "enmity", "faith", "place", "holding", "stance", "record"];
+export const TIE_FAMILIES: readonly TieFamily[] = ["bond", "kin", "enmity", "faith", "place", "holding", "stance", "record", "lore"];
 
 export const TIE_FAMILY_LABELS: Record<TieFamily, string> = {
   bond: "Bonds",
@@ -51,6 +51,7 @@ export const TIE_FAMILY_LABELS: Record<TieFamily, string> = {
   holding: "Holding",
   stance: "Stance",
   record: "Records",
+  lore: "Lore",
 };
 
 export function fromKey(tie: WorldTie): string {

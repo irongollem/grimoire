@@ -35,6 +35,8 @@ import { repaired } from "../_shared/nameRepair.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import { currencyPromptBlock, loadCampaignCurrency } from "../_shared/currency.ts";
 import { isCampaignDm } from "../_shared/campaignAccess.ts";
+import { loadWorldBlock } from "../_shared/worldBlockLoad.ts";
+import { worldBlockText } from "../_shared/worldBlock.ts";
 
 /**
  * Retrieval-grounded AI loot-table generator (#602).
@@ -58,12 +60,6 @@ const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
-
-function buildCampaignContext(setting: string | null | undefined): string {
-  const s = setting?.trim();
-  if (!s) return "";
-  return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n## Setting\n${s}`;
-}
 
 // Local copy of src/types/lootTable.types.ts's LOOT_CR_TIERS / RARITIES_BY_TIER
 // — edge functions don't import from src/, so the tiers and their rarity bands
@@ -191,7 +187,7 @@ serve(withCors(async (req: Request) => {
 
   const { data: campaign } = await admin
     .from("campaigns")
-    .select("id, user_id, ai_enabled, text_provider, ai_setting_prompt, game_system")
+    .select("id, user_id, ai_enabled, text_provider, game_system")
     .eq("id", campaign_id)
     .maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
@@ -225,9 +221,10 @@ serve(withCors(async (req: Request) => {
     fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
 
+  const world = await loadWorldBlock(admin, campaign.id);
   const systemContent = promptRow.content +
     (rulesetContext ? `\n\n${rulesetContext}` : "") +
-    buildCampaignContext(campaign.ai_setting_prompt) + INJECTION_GUARD_SUFFIX;
+    worldBlockText(world) + INJECTION_GUARD_SUFFIX;
 
   // The platform picks the model: a campaign on credits runs on the provider the
   // admin enabled, and campaigns.text_provider only counts with the campaign's own key.

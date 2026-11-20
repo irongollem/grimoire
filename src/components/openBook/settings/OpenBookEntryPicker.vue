@@ -67,6 +67,7 @@ import PickerRowList from "./picker/PickerRowList.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useAllDeities, useAllPantheons } from "@/composables/deities/useDeities";
+import { useCanonEntries } from "@/composables/canon/useCanonEntries";
 import { useNotes } from "@/composables/notes/useNotes";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useOpenBook } from "@/composables/openBook/useOpenBook";
@@ -106,16 +107,17 @@ const { data: factions, isPending: factionsPending, error: factionsError } = use
 const { data: pantheons, isPending: pantheonsPending, error: pantheonsError } = useAllPantheons();
 const { data: deities, isPending: deitiesPending, error: deitiesError } = useAllDeities();
 const { data: notes, isPending: notesPending, error: notesError } = useNotes();
+const { data: canon, isPending: canonPending, error: canonError } = useCanonEntries();
 
 const isPending = computed(
   () =>
     bookPending.value || entriesPending.value || partyPending.value || locationsPending.value || visibilityPending.value ||
-    npcsPending.value || factionsPending.value || pantheonsPending.value || deitiesPending.value || notesPending.value,
+    npcsPending.value || factionsPending.value || pantheonsPending.value || deitiesPending.value || notesPending.value || canonPending.value,
 );
 const loadError = computed(() => {
   const error = [
     bookError, entriesError, partyError, locationsError, visibilityError, npcsError, factionsError, pantheonsError,
-    deitiesError, notesError,
+    deitiesError, notesError, canonError,
   ].find((e) => e.value)?.value;
   return error ? "Close this and try again." : null;
 });
@@ -142,6 +144,7 @@ const rows = computed<PickerRow[]>(() =>
       pantheons: pantheons.value ?? [],
       deities: deities.value ?? [],
       notes: notes.value ?? [],
+      canon: canon.value ?? [],
     },
     entries.value ?? [],
     { includeShared: book.value?.include_shared ?? true },

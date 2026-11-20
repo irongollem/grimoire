@@ -62,6 +62,7 @@ const ribbonLinks = computed(() =>
       <span v-if="stats.folk"><b>{{ stats.folk }}</b>{{ pluralize(stats.folk, "person", "people") }}</span>
       <span v-if="stats.factions"><b>{{ stats.factions }}</b>{{ pluralize(stats.factions, "faction") }}</span>
       <span v-if="stats.lore"><b>{{ stats.lore }}</b>{{ pluralize(stats.lore, "tale") }}</span>
+      <span v-if="stats.truths"><b>{{ stats.truths }}</b>{{ pluralize(stats.truths, "truth") }}</span>
       <span v-if="stats.sessions"><b>{{ stats.sessions }}</b>{{ pluralize(stats.sessions, "session") }}</span>
     </div>
   </div>

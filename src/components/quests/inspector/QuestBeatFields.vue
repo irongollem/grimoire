@@ -19,6 +19,8 @@
       <span v-if="titleError" id="quest-beat-title-error" role="alert" class="block text-caption font-normal text-destructive">{{ titleError }}</span>
     </label>
 
+    <CanonHere kind="quest_beat" :id="beat.id" />
+
     <AppCheckbox
       v-if="beat.is_improvised"
       v-model="draft.improv_reviewed"
@@ -68,6 +70,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
+import CanonHere from "@/components/canon/CanonHere.vue";
 import { useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
 import { useAutosave } from "@/composables/useAutosave";
 import { applyBeatFill, questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "@/lib/quests/beatDraft";

@@ -33,7 +33,6 @@ export function useAppendSessionLine() {
     await create.mutateAsync({
       title: sessionLabel(session),
       content,
-      category: "session",
       tags: [],
       session_id: session.id,
       is_pinned: false,

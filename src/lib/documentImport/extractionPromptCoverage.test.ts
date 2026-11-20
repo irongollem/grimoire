@@ -47,8 +47,10 @@ function latestPromptBody(): string {
 
   const sql = readFileSync(resolve(MIGRATIONS, newest), "utf8");
   // The prompt is dollar-quoted so it can contain anything; the tag is stable
-  // across the migrations that write it.
-  const body = /\$prompt\$([\s\S]*?)\$prompt\$/.exec(sql);
+  // across the migrations that write it. A migration may write other prompt rows
+  // too (#1226 writes the canon's), so the body read is the one whose update names
+  // this row, not the file's first.
+  const body = /\$prompt\$((?:(?!\$prompt\$)[\s\S])*)\$prompt\$,?\s*(?:updated_at = now\(\)\s*)?where generator_type = 'document_import'/.exec(sql);
   if (!body) throw new Error(`${newest} names the prompt row but has no $prompt$ body`);
   return body[1]!;
 }

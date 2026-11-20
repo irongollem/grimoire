@@ -17,8 +17,9 @@ import {
   type EntryFields,
 } from "./rerank.ts";
 import {
-  NOTE_CATEGORIES,
+  DM_SEARCH_NOTE_SCOPE,
   hitKey,
+  noteHitLabel,
   rankSearchHits,
   rerankPool,
   type CampaignSearchHit,
@@ -27,6 +28,7 @@ import {
   type CampaignSearchUnavailable,
 } from "../_shared/campaignSearch.ts";
 import { UUID_RE } from "../_shared/uuid.ts";
+import { CANON_PARTS } from "../../../src/types/canon.types.ts";
 
 /**
  * Campaign-wide semantic search (#599): "find my thing" across the DM's own
@@ -311,11 +313,16 @@ serve(withCors(async (req: Request) => {
     runMatch("faction", admin.rpc("match_campaign_factions", { query_embedding: vector, ...scope, match_count: MATCH_COUNT }),
       simple("faction", "name", (r) => (r.faction_type as string | null) ?? null)),
     runMatch("note", admin.rpc("match_campaign_notes", {
-      query_embedding: vector, ...scope, p_exclude_id: null, p_categories: [...NOTE_CATEGORIES], match_count: MATCH_COUNT,
+      query_embedding: vector, ...scope, p_exclude_id: null, ...DM_SEARCH_NOTE_SCOPE, match_count: MATCH_COUNT,
     }), simple("note", "title", (r) =>
-      typeof r.session_num === "number" ? `Session ${r.session_num}` : ((r.category as string | null) ?? null))),
+      noteHitLabel(r.session_num))),
     runMatch("quest", admin.rpc("match_campaign_quests", { query_embedding: vector, ...scope, match_count: MATCH_COUNT }),
       simple("quest", "title", (r) => (r.status as string | null) ?? null)),
+    // The DM reads every part of their own canon, secrets included, so every part is asked for here; the Narrator's
+    // lookup asks for the others only (agent-turn/canonLookup.ts).
+    runMatch("canon", admin.rpc("match_campaign_canon", {
+      query_embedding: vector, p_campaign_id: campaignId, p_embedding_model: model, p_parts: [...CANON_PARTS], match_count: MATCH_COUNT,
+    }), simple("canon", "title", (r) => (r.part as string | null) ?? null)),
     runMatch("item", admin.rpc("match_custom_items", {
       query_embedding: vector, ...scope, p_rarities: [], p_exclude_attunement: false, match_count: MATCH_COUNT,
     }), simple("item", "name", itemDescriptor)),

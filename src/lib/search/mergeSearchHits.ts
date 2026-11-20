@@ -27,7 +27,7 @@ export interface SearchGroup {
 export const GROUP_CAP = 6;
 
 /** The fixed group order the keyword tier has always used. */
-export const GROUP_ORDER = ["npc", "monster", "note", "spell", "item", "location", "faction", "quest"] as const;
+export const GROUP_ORDER = ["npc", "monster", "note", "spell", "item", "location", "faction", "quest", "canon"] as const;
 export type SearchGroupType = (typeof GROUP_ORDER)[number];
 
 export const GROUP_LABEL: Record<SearchGroupType, string> = {
@@ -39,6 +39,7 @@ export const GROUP_LABEL: Record<SearchGroupType, string> = {
   location: "Locations",
   faction: "Factions",
   quest: "Quests",
+  canon: "Canon",
 };
 
 const KIND_GROUP: Record<CampaignSearchKind, SearchGroupType> = {
@@ -47,6 +48,7 @@ const KIND_GROUP: Record<CampaignSearchKind, SearchGroupType> = {
   faction: "faction",
   note: "note",
   quest: "quest",
+  canon: "canon",
   item: "item",
   library_item: "item",
   monster: "monster",

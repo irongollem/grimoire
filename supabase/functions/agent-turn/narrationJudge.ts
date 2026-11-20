@@ -9,10 +9,15 @@ import { judge, JEV_MODEL, judgingKey, type JudgeResult } from "../_shared/types
 import type { CreditLogFields } from "../_shared/credits.ts";
 import type { NarrationJudge } from "./narration.ts";
 
+/** The canon check asks while the narrator waits on a tool answer: past this the fact is filed unchecked. */
+export const CANON_JUDGE_TIMEOUT_MS = 5_000;
+
 export async function narrationJudgeFor(input: {
   getKey: () => Promise<string | undefined>;
   record: (log: CreditLogFields) => Promise<void>;
   signal?: AbortSignal;
+  /** How long one call may take; the judge's own default (10 s) when left out. */
+  timeoutMs?: number;
   /** Injected by tests. */
   run?: typeof judge;
 }): Promise<NarrationJudge | null> {
@@ -27,7 +32,7 @@ export async function narrationJudgeFor(input: {
   const key = apiKey;
   const run = input.run ?? judge;
   return async (request): Promise<JudgeResult> => {
-    const result = await run(request, { apiKey: key, signal: input.signal });
+    const result = await run(request, { apiKey: key, signal: input.signal, ...(input.timeoutMs === undefined ? {} : { timeoutMs: input.timeoutMs }) });
     // A failure to log costs a ledger row, never the judgment.
     try {
       await input.record({ model: JEV_MODEL, provider: "typesafe", input_tokens: result.inputTokens });

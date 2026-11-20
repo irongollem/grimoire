@@ -10,6 +10,7 @@
 //    links, by the same rules as migration 20261026213604. A downloaded backup is the user's own data, not a
 //    surpassed code path: this is its one way in, and the importers read nothing else of the old shape.
 
+import { linkEndColumn } from "@/lib/worldLinks/connections";
 import { LINK_KINDS, linkTypeFor, type LinkKind } from "@edge-shared/worldLinkCatalogue.ts";
 
 type Row = Record<string, unknown>;
@@ -29,23 +30,23 @@ function nonEmpty(value: unknown): value is string {
 export function linkEnd(row: Row, side: "from" | "to"): { kind: LinkKind; id: string } | null {
   const kind = row[`${side}_kind`];
   if (!isLinkKind(kind)) return null;
-  const id = row[`${side}_${kind}_id`];
+  const id = row[linkEndColumn(side, kind)];
   return nonEmpty(id) ? { kind, id } : null;
 }
 
-/** The twelve end columns of a link, all null but the two that are set. */
+/** The fourteen end columns of a link, all null but the two that are set. */
 function endColumns(from: { kind: LinkKind; id: string }, to: { kind: LinkKind; id: string }): Row {
   const out: Row = { from_kind: from.kind, to_kind: to.kind };
   for (const kind of LINK_KINDS) {
-    out[`from_${kind}_id`] = kind === from.kind ? from.id : null;
-    out[`to_${kind}_id`] = kind === to.kind ? to.id : null;
+    out[linkEndColumn("from", kind)] = kind === from.kind ? from.id : null;
+    out[linkEndColumn("to", kind)] = kind === to.kind ? to.id : null;
   }
   return out;
 }
 
 /**
  * A link's end columns rewritten through `resolve`, or null when either end cannot be resolved. Only the
- * kinds and the twelve id columns come back: the generated `from_id` / `to_id` are Postgres's to fill, and
+ * kinds and the fourteen id columns come back: the generated `from_id` / `to_id` are Postgres's to fill, and
  * the caller brings the rest of the row (campaign, owner, words, audience) itself.
  */
 export function remapLinkEnds(link: Row, resolve: ResolveLinkEnd): Row | null {

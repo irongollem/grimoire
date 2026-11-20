@@ -396,9 +396,6 @@ export function buildLocationEmbedText(location: EmbeddableLocation): string {
 
 export interface EmbeddableNote {
   title: string;
-  // NOT NULL in the schema (default 'general') -- unlike the other optional
-  // string fields on this interface, this is never absent.
-  category: string;
   session_number: number | null;
   tags: string[];
   content: string | null;
@@ -406,17 +403,17 @@ export interface EmbeddableNote {
 
 /**
  * Deterministic natural-language summary of a note, used as the embedding
- * input. Leads with the title, then a category/session clause (the session
+ * input. Leads with the title, then a session clause (the session
  * number rendered as "Session N" only when set), then tags, then the
  * Tiptap-flattened, word-boundary-truncated content — each part omitted
  * entirely when the source field is absent.
  *
  * Example (all fields present):
- *   "The Sunken Vault. session, Session 7. dungeon, vault. The party
+ *   "The Sunken Vault. Session 7. dungeon, vault. The party
  *   descended into the flooded ruins and found the vault door ajar..."
  *
- * Example (title and category only, no session number, no content):
- *   "Loose thread: the merchant's ledger. general."
+ * Example (title only, no session number, no content):
+ *   "Loose thread: the merchant's ledger."
  */
 export function buildNoteEmbedText(note: EmbeddableNote): string {
   const clauses: string[] = [];
@@ -424,8 +421,7 @@ export function buildNoteEmbedText(note: EmbeddableNote): string {
   clauses.push(`${collapseWhitespace(note.title)}.`);
 
   const sessionClause = note.session_number != null ? `Session ${note.session_number}` : null;
-  const categorySession = buildTwoPartClause(note.category, sessionClause);
-  if (categorySession) clauses.push(categorySession);
+  if (sessionClause) clauses.push(`${sessionClause}.`);
 
   const tagsClause = buildTagsClause(note.tags);
   if (tagsClause) clauses.push(tagsClause);
@@ -624,6 +620,54 @@ export function buildQuestEmbedText(quest: EmbeddableQuest): string {
   }
 
   return truncateAtWordBoundary(clauses.join(" "), QUEST_TEXT_CHAR_LIMIT);
+}
+
+// ── Canon (#1226) ─────────────────────────────────────────────────────────
+
+const CANON_TEXT_CHAR_LIMIT = 2000;
+
+export interface EmbeddableCanonPassage {
+  /** Tie-break key for a deterministic order; not part of the text. */
+  id: string;
+  sort_order: number;
+  title: string;
+  body: string | null;
+}
+
+export interface EmbeddableCanon {
+  part: string;
+  title: string;
+  wants: string | null;
+  body: string | null;
+  /** A lore or backstory entry's passages, told or not: the Narrator looks the whole entry up. Empty for every other part. */
+  passages: EmbeddableCanonPassage[];
+  /** A backstory has no title of its own: it embeds its character's name. Absent for every other part. */
+  character?: string | null;
+}
+
+/**
+ * Deterministic natural-language summary of one canon entry, used as the embedding input: the part, the title, what a
+ * force wants, the body flattened to plain text, and for a lore entry each passage's heading and text. One vector per
+ * entry, so a query about "the river that gives things back" finds the lore entry whose second passage says it.
+ *
+ * Changing ANY of this changes every canon entry's source_hash and so needs a full canon re-embed (see the module doc).
+ */
+export function buildCanonEmbedText(entry: EmbeddableCanon): string {
+  const clauses: string[] = [`${collapseWhitespace(entry.part)}.`, `${collapseWhitespace(entry.title)}.`];
+  const character = entry.character ? normalizeField(entry.character) : null;
+  if (character) clauses.push(character.endsWith(".") ? character : `${character}.`);
+  const wants = normalizeField(entry.wants);
+  if (wants) clauses.push(wants.endsWith(".") ? wants : `${wants}.`);
+  const body = buildRichTextClause(entry.body);
+  if (body) clauses.push(body);
+  const passages = [...entry.passages].sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id));
+  for (const passage of passages) {
+    const heading = normalizeField(passage.title);
+    if (heading) clauses.push(heading.endsWith(".") ? heading : `${heading}.`);
+    const text = buildRichTextClause(passage.body);
+    if (text) clauses.push(text);
+  }
+  return truncateAtWordBoundary(clauses.join(" "), CANON_TEXT_CHAR_LIMIT);
 }
 
 // ── Hash ──────────────────────────────────────────────────────────────────

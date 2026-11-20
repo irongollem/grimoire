@@ -85,6 +85,7 @@ const ENTITY_LABELS: Record<EntityEmbedType, string> = {
   species: "Species",
   faction: "Faction",
   subclass: "Subclass",
+  canon: "Canon",
 };
 export function entityTypeLabel(type: EntityEmbedType): string {
   return ENTITY_LABELS[type];

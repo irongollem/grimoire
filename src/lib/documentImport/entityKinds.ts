@@ -6,7 +6,7 @@
  * One frozen object rather than a switch scattered across the wizard steps,
  * so a new field (an icon, a route, a colour — deliberately not added here
  * yet) has exactly one place to go. The `satisfies Record<ImportEntityKind, …>`
- * below is load-bearing: adding an eighth kind to `IMPORT_ENTITY_KINDS`
+ * below is load-bearing: adding a new kind to `IMPORT_ENTITY_KINDS`
  * (src/types/documentImport.types.ts) without adding an entry here is a
  * compile error, not a step the wizard silently skips.
  */
@@ -17,16 +17,16 @@ import { IMPORT_ENTITY_KINDS, type ImportEntityKind } from "@/types/documentImpo
  * ones an entity kind can actually pass it. The full server-side allowlist
  * (supabase/migrations/20260809222131_route_admin_gates_through_is_app_admin.sql:199-202)
  * also covers campaigns, scriptorium_documents, notes, sounds, soundboard_pages,
- * soundboard_playlists, deities, pantheons and puzzle_rooms — none of which a
+ * soundboard_playlists, pantheons and puzzle_rooms — none of which a
  * document import creates. `encounters` moved off that "not created" list in
  * #840: a proposed encounter is a real `encounters` row like any other, and
  * `encounters_enforce_quota` (initial_schema_squashed.sql) already gates it.
  */
-export type ImportQuotaResource = "monsters" | "npcs" | "locations" | "quests" | "factions" | "encounters";
+export type ImportQuotaResource = "monsters" | "npcs" | "locations" | "quests" | "factions" | "deities" | "encounters";
 
 export interface EntityKindEntry {
   readonly kind: ImportEntityKind;
-  /** Target content table. Equal to `kind` for all eight today, but recorded
+  /** Target content table. Equal to `kind` for all ten today, but recorded
    *  explicitly rather than derived — a table rename must not silently follow
    *  the kind name. */
   readonly table: string;
@@ -109,6 +109,23 @@ const registry = {
     displayField: "name",
     quotaResource: "factions",
   },
+  deities: {
+    kind: "deities",
+    table: "deities",
+    labelSingular: "Deity",
+    labelPlural: "Deities",
+    displayField: "name",
+    quotaResource: "deities",
+  },
+  canon: {
+    kind: "canon",
+    table: "canon_entries",
+    labelSingular: "Canon entry",
+    labelPlural: "Canon",
+    displayField: "title",
+    // The canon has no cap of its own.
+    quotaResource: null,
+  },
   encounters: {
     kind: "encounters",
     table: "encounters",
@@ -135,8 +152,8 @@ export function getEntityKindEntry(kind: ImportEntityKind): EntityKindEntry {
 }
 
 /**
- * All seven entries, in wizard order (the order `IMPORT_ENTITY_KINDS` already
- * defines — monsters and NPCs first, factions last). Returns entries rather
+ * Every entry, in wizard order (the order `IMPORT_ENTITY_KINDS` already
+ * defines — factions first, encounters last). Returns entries rather
  * than bare kinds so a step component can render off one call.
  */
 export function listEntityKindsInWizardOrder(): readonly EntityKindEntry[] {

@@ -1,7 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick, reactive, ref } from "vue";
-import CurrencyTab from "./CurrencyTab.vue";
+import WorldCoins from "./WorldCoins.vue";
 import type { CurrencyConfig } from "@/lib/currency/currency";
 
 /** A non-5e currency, so nothing here can pass on hard-coded gold and silver. */
@@ -31,7 +31,7 @@ vi.mock("@/composables/useToast", () => ({
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => mocks.store }));
 
 function mountTab() {
-  return mount(CurrencyTab, { global: { stubs: { CoinAmount: { props: ["coins"], template: "<i>{{ JSON.stringify(coins) }}</i>" } } } });
+  return mount(WorldCoins, { global: { stubs: { CoinAmount: { props: ["coins"], template: "<i>{{ JSON.stringify(coins) }}</i>" } } } });
 }
 
 async function saveButton(w: ReturnType<typeof mountTab>) {
@@ -47,7 +47,7 @@ beforeEach(() => {
   mocks.update.mockImplementation(async ({ update }) => ({ ...campaign, ...update }));
 });
 
-describe("CurrencyTab", () => {
+describe("WorldCoins", () => {
   it("saves nothing when the confirmation for a removed coin is cancelled", async () => {
     mocks.confirm.mockResolvedValue(false);
     const w = mountTab();
