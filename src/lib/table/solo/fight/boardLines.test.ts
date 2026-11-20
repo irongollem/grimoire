@@ -128,4 +128,32 @@ describe("advantage and disadvantage in the story", () => {
     const plain = run({ outcomes: [attack()] });
     expect(plain.find((l) => l.kind === "roll")).toMatchObject({ detail: "d20 (14) + 5" });
   });
+
+  describe("a downed ally's death save", () => {
+    const save = (status: "dying" | "stable" | "dead" | "up", d20 = 12) =>
+      run({ turn: turn({ kind: "death_save", deathSave: { d20, label: "a failure", status } }), nameOf: (id) => (id === "orc" ? "Tam" : id) });
+    // Bug caught: the save rolled by the server never reaching the story.
+    it("reads as a roll, and a dying save adds nothing more", () => {
+      expect(save("dying")).toEqual([{ kind: "roll", die: 12, label: "Tam's death save: a failure", detail: "d20 (12)", critical: false }]);
+    });
+    // Bug caught: a death passing in silence.
+    it("says when they die", () => {
+      expect(save("dead")[1]).toEqual({ kind: "margin", text: "Tam dies", tone: "end" });
+    });
+    it("says when they are stable", () => {
+      expect(save("stable")[1]).toEqual({ kind: "margin", text: "Tam is stable, and out of the fight", tone: "end" });
+    });
+    // Bug caught: a natural 20 not saying they are back up (and not marked critical).
+    it("says when they are back up", () => {
+      const out = save("up", 20);
+      expect(out[0]).toMatchObject({ critical: true });
+      expect(out[1]).toEqual({ kind: "margin", text: "Tam is back on their feet at 1 hit point" });
+    });
+    // Bug caught: a save followed by a "moves" or "holds its ground" line, as if it were an ordinary turn.
+    it("is only the save, whatever else the turn carries", () => {
+      expect(save("dying").some((l) => l.kind === "margin")).toBe(false);
+      const moved = run({ feetMoved: 30, turn: turn({ kind: "death_save", deathSave: { d20: 5, label: "a failure", status: "dying" } }) });
+      expect(moved).toHaveLength(1);
+    });
+  });
 });

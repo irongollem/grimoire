@@ -18,7 +18,7 @@ const SHIELD = item({ id: "shield", name: "Shield", item_type: "shield", armor_c
 function row(over: Partial<PlayerSheetRow> = {}): PlayerSheetRow {
   return {
     id: "pm-nessa", ruleset: "2014", class: "Fighter", subclass: null, ac_formula: null, class_choices: {},
-    str: 10, dex: 14, con: 14, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: [], wildshape_state: null,
+    str: 10, dex: 14, con: 14, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: [], wildshape_state: null, speed: 30, level: 1, custom_attacks: [],
     ...over,
   };
 }

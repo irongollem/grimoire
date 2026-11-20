@@ -23,6 +23,10 @@ const SRC = join(ROOT, "src") + sep;
 const FUNCTIONS = join(ROOT, "supabase/functions");
 /** Modules written for the edge before any function loads them (#1202), held to the rule from the start. */
 const PENDING_ENTRIES = [
+  join(SRC, "rules/fight/pcAttacks/rows.ts"),
+  join(SRC, "rules/fight/pcAttacks/entry.ts"),
+  join(SRC, "rules/fight/allies/statBlock.ts"),
+  join(SRC, "rules/fight/allies/profile.ts"),
   join(SRC, "rules/fight/terrain/reach.ts"),
   join(SRC, "rules/fight/terrain/sight.ts"),
   join(SRC, "rules/fight/terrain/battleMap.ts"),

@@ -54,7 +54,8 @@ export type FightEffect =
 export interface TurnTaken {
   instanceId: string;
   optionId: string;
-  kind: TurnOptionKind;
+  /** What the turn was: one of the options, or a downed party member's death save (`deathSave`). */
+  kind: TurnOptionKind | "death_save";
   summary: string;
   /** Why this option: the picker's sentence, or a plain note that the caller chose. */
   reason: string;
@@ -74,6 +75,12 @@ export interface TurnTaken {
   leftTheMap?: true;
   /** Only for an escape (#1203): the name of the way out the broken creature used (Etherealness, Invisible Passage). */
   escapedWith?: string;
+  /**
+   * Only for a party member the rules play who is down (#1021, allies in a fight): their turn was a death save, rolled
+   * by the server (SRD 5.1 "Death Saving Throws", `deathSaveRollOutcome`). `status` is where it left them: still
+   * dying, stable, dead, or back up at 1 hit point after a natural 20. The turn's `kind` is "death_save" then.
+   */
+  deathSave?: { d20: number; label: string; status: "dying" | "stable" | "dead" | "up" };
   /** With `escapedWith`: "leaves" means the creature was removed from the fight, "unseen" that it is now Invisible and still on the map. */
   escapeEffect?: "leaves" | "unseen";
   /**

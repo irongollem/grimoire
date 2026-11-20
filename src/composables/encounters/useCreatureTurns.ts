@@ -32,6 +32,11 @@ export function useCreatureTurns(options: {
    */
   enabled?: () => boolean;
   stopsAt?: (now: TurnHolder) => boolean;
+  /**
+   * Whether a combatant at 0 hit points still takes its turn. By default a downed one is passed; the AI table says
+   * yes for a party member it plays (an ally), whose turn then is a death save the server rolls (#1021).
+   */
+  downTakesTurn?: (now: TurnHolder) => boolean;
   started: () => boolean;
   active: () => TurnHolder | null;
   /** Something that changes whenever a new turn begins, the same creature's next one included. */
@@ -66,7 +71,7 @@ export function useCreatureTurns(options: {
         if (!on || !options.started() || now === null) return;
         if (options.stopsAt ? options.stopsAt(now) : now.party_member_id === memberId) return;
         // A creature that is down has no turn to take: it is passed without a pause.
-        if (now.hp > 0) {
+        if (now.hp > 0 || (options.downTakesTurn !== undefined && options.downTakesTurn(now))) {
           const ran = await options.run(now.instance_id);
           // Switched off (or left) while the turn was being played: it is not passed on.
           if (!ran || !stillOn()) return;

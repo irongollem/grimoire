@@ -884,7 +884,7 @@ function monster(id: string, over: Record<string, unknown> = {}): Monster {
 }
 
 const CHAIN_MAIL = { id: "chain", user_id: "u1", name: "Chain Mail", item_type: "armor", rarity: "mundane", armor_class: "16", tags: [], description: "", conceptual_key: "chain_mail" } as unknown as Item;
-const SHIELD = { id: "shield", user_id: "u1", name: "Shield", item_type: "shield", rarity: "mundane", armor_class: "2", tags: [], description: "", conceptual_key: "shield" } as unknown as Item;
+const SHIELD = { id: "shield", user_id: "u1", name: "Shield", item_type: "shield", rarity: "mundane", armor_class: "2", tags: [], properties: [], description: "", conceptual_key: "shield" } as unknown as Item;
 const wornRow = (itemId: string, slot: string) =>
   ({ id: `inv-${itemId}`, item_id: itemId, library_item_id: null, carried_by: "pm-nessa", location: "equipped", slot, is_attuned: false, quality: "standard" }) as unknown as PartyInventoryItem;
 
@@ -892,7 +892,7 @@ const wornRow = (itemId: string, slot: string) =>
 const NESSA_IN_PLATE: PlayerSheets = {
   members: [{
     id: "pm-nessa", ruleset: "2014", class: "Fighter", subclass: null, ac_formula: null, class_choices: {},
-    str: 10, dex: 14, con: 14, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: ["con"], wildshape_state: null,
+    str: 10, dex: 14, con: 14, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: ["con"], wildshape_state: null, speed: 30, level: 1, custom_attacks: [],
   }],
   inventory: [wornRow("chain", "body"), wornRow("shield", "off_hand")],
   items: [CHAIN_MAIL, SHIELD],
@@ -1893,6 +1893,35 @@ describe("take_turn and opportunity attacks", () => {
     expect(combatantOf(stored(h), "wolf").movement_used).toBeGreaterThan(0);
   });
 
+  // #1021: only the played character's Reaction is the player's own. With `playedMemberId` naming someone else, Nessa (a party member
+  // with a sheet) strikes like a monster: Unarmed Strike, Dex 14 and proficiency 2 is +2 (Str 10, so +0 + 2); d20 11 + 2 = 13 meets
+  // the wolf's AC 13. Her Reaction is spent and nobody is reported. Bug caught: an ally watching a foe walk away, never striking.
+  it("fails if an ally with a sheet does not strike a foe that leaves her reach when someone else is the played character", async () => {
+    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 30, y: 30 } }, extra: [nessa({ position: { x: 1, y: 1 } })] });
+    const h = harness(fight, { sources: SOURCES, players: NESSA_IN_PLATE, map: mapOf(), dieFaces: [11] });
+    const result = await runBatch(batch("b1", takeTurn({ playedMemberId: "pm-someone-else" })), h.deps);
+    expect(result.effects.some((e) => e.type === "provoked_player")).toBe(false);
+    expect(result.effects.find((e) => e.type === "opportunity")).toMatchObject({ attackerId: "nessa", targetId: "wolf" });
+    expect(combatantOf(stored(h), "nessa").reactionUsed).toBe(true);
+  });
+
+  // The played character keeps the choice: named as played, Nessa is reported and the server throws no die for her.
+  it("fails if the played character's own opportunity attack is rolled by the server", async () => {
+    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 } }, victim: { position: { x: 30, y: 30 } }, extra: [nessa({ position: { x: 1, y: 1 } })] });
+    const h = harness(fight, { sources: SOURCES, players: NESSA_IN_PLATE, map: mapOf(), dieFaces: [] });
+    const result = await runBatch(batch("b1", takeTurn({ playedMemberId: "pm-nessa" })), h.deps);
+    expect(result.effects.find((e) => e.type === "provoked_player")).toMatchObject({ playerId: "nessa" });
+    expect(result.effects.some((e) => e.type === "opportunity")).toBe(false);
+    expect(h.dieCalls).toBe(0);
+  });
+
+  it("refuses a playedMemberId that is not a non-empty string", () => {
+    for (const playedMemberId of ["", 7, "x".repeat(101)]) {
+      expect(() => validateRequest(batch("b", takeTurn({ playedMemberId })))).toThrow(FightCommandError);
+    }
+    expect(() => validateRequest(batch("b", takeTurn({ playedMemberId: "pm-1" })))).not.toThrow();
+  });
+
   // PHB 2014 "Disengage": the stance step comes first in the turn, so the walk after it provokes nobody.
   it("fails if a creature that took Disengage this turn still provokes", async () => {
     const fight = duel({ wolf: { position: { x: 1, y: 0 } }, victim: { position: { x: 2, y: 0 } } });
@@ -2751,5 +2780,142 @@ describe("the fight's own memory across writers and retries", () => {
     await runBatch(batch("a", { type: "adjust_hp", instanceId: "nessa", delta: -3 }), h.deps);
     expect(h.persisted).toHaveLength(1);
     expect(hpOf(stored(h), "nessa")).toBe(17);
+  });
+});
+
+// ── the server plays a party member the AI plays: an ally (#1021) ───────────────────
+
+const LONGSWORD = {
+  id: "sword", name: "Longsword", item_type: "weapon", properties: [], tags: [], subtype: null, charges: null, weapon_range: null,
+  damage_rolls: [{ dice: "1d8", type: "slashing" }],
+} as unknown as Item;
+const heldSword = { id: "inv-sword", item_id: "sword", library_item_id: null, name: "Longsword", quantity: 1, carried_by: "pm-tam", slot: "main_hand" } as unknown as PartyInventoryItem;
+
+/** Tam: Strength 16 (+3), Dexterity 10, proficiency +2, nothing worn, 30 ft. of speed; with a longsword in hand unless `bare`. */
+function tamSheets(over: { bare?: boolean; wildshape?: boolean } = {}): PlayerSheets {
+  return {
+    members: [{
+      id: "pm-tam", ruleset: "2014", class: "Fighter", subclass: null, ac_formula: null, class_choices: {},
+      str: 16, dex: 10, con: 12, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: [], speed: 30, level: 1, custom_attacks: [],
+      wildshape_state: over.wildshape ? ({ monster_id: "m-ox" } as unknown as PlayerSheets["members"][number]["wildshape_state"]) : null,
+    }],
+    inventory: over.bare ? [] : [heldSword],
+    items: over.bare ? [] : [LONGSWORD],
+    beasts: [],
+  };
+}
+
+/** Tam (party side) at (1,1) with `over`, and the 40-HP, AC 13 ox (the enemy) beside them at (2,1). */
+function allyFight(over: Partial<RunCombatant> = {}) {
+  return row({
+    combatants_live: [
+      pc("tam", { faction_id: "p", hp: 20, max_hp: 20, initiative: 12, position: { x: 1, y: 1 }, ...over }),
+      combatant("victim", { monster_id: "m-ox", faction_id: "m", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 2, y: 1 } }),
+    ],
+  });
+}
+const tamTurn = (over: Record<string, unknown> = {}) => takeTurn({ instanceId: "tam", ...over });
+
+describe("take_turn plays an ally", () => {
+  // SRD 5.1 "Making an Attack": attack bonus = ability modifier + proficiency bonus (Strength 16 is +3, proficiency +2, so +5);
+  // damage is the weapon's die plus the same modifier (1d8+3). d20 8 + 5 = 13 meets the ox's AC 13; a 4 on the d8 deals 7 (40 -> 33).
+  // Bug caught: an ally refused for having no stat block, or built with no weapon so it only punched.
+  it("fails if an ally holding a longsword does not attack by its sheet's bonus and weapon", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: tamSheets(), map: mapOf(), dieFaces: [8, 4] });
+    const result = await runBatch(batch("b", tamTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { instanceId: "tam", optionId: "attack:actions:Longsword:victim", kind: "attack" } });
+    expect(h.posted.map((p) => p.result.total)).toEqual([13, 7]);
+    expect(hpOf(stored(h), "victim")).toBe(33);
+    expect(combatantOf(stored(h), "tam").action_used).toBe(true);
+  });
+
+  // Bug caught: an ally with nothing in hand being offered no attack at all. Unarmed Strike: Strength 3 + proficiency 2 = +5, and
+  // 1 + Strength modifier = 4 damage (SRD 5.1 "Unarmed Strike"). d20 8 + 5 = 13 hits AC 13: 40 -> 36.
+  it("fails if an ally with no weapon does not make an Unarmed Strike", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: tamSheets({ bare: true }), map: mapOf(), dieFaces: [8] });
+    const result = await runBatch(batch("b", tamTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ turn: { optionId: "attack:actions:Unarmed Strike:victim" } });
+    expect(hpOf(stored(h), "victim")).toBe(36);
+  });
+
+  // Bug caught: the improvised-weapon row (no proficiency, any object) offered as a swing the character never holds.
+  it("fails if an ally is offered an Improvised Weapon attack", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: tamSheets(), map: mapOf(), dieFaces: [] });
+    await expect(runBatch(batch("b", tamTurn({ optionId: "attack:actions:Improvised Weapon:victim" })), h.deps)).rejects.toMatchObject({ message: "That option is not on offer." });
+  });
+
+  // App convention: allies never flee. Bug caught: the foes' flee option (a Dash away, off the map) offered to a party member.
+  it("fails if an ally can be made to flee", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: tamSheets(), map: mapOf(), dieFaces: [] });
+    await expect(runBatch(batch("b", tamTurn({ optionId: "flee" })), h.deps)).rejects.toMatchObject({ status: 400, message: "That option is not on offer." });
+  });
+
+  // App convention: a foe at a quarter of its hit points breaks and retreats; an ally never does. Tam is at 1 of 20 and still swings.
+  // d20 8 + 5 = 13 hits; a 4 deals 7. Bug caught: the temper rules (morale) applied to a party member, who then dodged instead of fighting.
+  it("fails if a badly hurt ally retreats instead of fighting on", async () => {
+    const h = harness(allyFight({ hp: 1 }), { sources: SOURCES, players: tamSheets(), map: mapOf(), dieFaces: [8, 4] });
+    const result = await runBatch(batch("b", tamTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ turn: { kind: "attack" } });
+    expect(hpOf(stored(h), "victim")).toBe(33);
+  });
+
+  // A Wild Shaped character's form is not read from a sheet yet, so the server cannot play it. Bug caught: the form's player
+  // played as if in their own body, swinging a sword the beast cannot hold.
+  it("fails if a Wild Shaped ally is played from its own sheet", async () => {
+    const h = harness(allyFight(), { sources: SOURCES, players: tamSheets({ wildshape: true }), map: mapOf(), dieFaces: [] });
+    await expect(runBatch(batch("b", tamTurn()), h.deps)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/no stat block/) });
+  });
+
+  // SRD 5.1 "Death Saving Throws": 10 or more is a success, below 10 a failure, a natural 1 counts as two failures, a natural 20 puts
+  // the character back up at 1 hit point. Three of either ends it (stable, dead). Bug caught: a downed ally refused, or the roll
+  // not written to the combatant.
+  it.each([
+    { d20: 10, saves: { successes: 0, failures: 0 }, after: { successes: 1, failures: 0 }, status: "dying" },
+    { d20: 9, saves: { successes: 0, failures: 0 }, after: { successes: 0, failures: 1 }, status: "dying" },
+    { d20: 1, saves: { successes: 0, failures: 0 }, after: { successes: 0, failures: 2 }, status: "dying" },
+    { d20: 12, saves: { successes: 2, failures: 1 }, after: { successes: 3, failures: 1 }, status: "stable" },
+    { d20: 5, saves: { successes: 0, failures: 2 }, after: { successes: 0, failures: 3 }, status: "dead" },
+  ])("rolls a death save of $d20 for a downed ally: $status", async ({ d20, saves, after, status }) => {
+    const h = harness(allyFight({ hp: 0, death_saves: saves, conditions: [{ name: "Unconscious" }] }), { sources: SOURCES, players: tamSheets(), map: mapOf(), dieFaces: [d20] });
+    const result = await runBatch(batch("b", tamTurn()), h.deps);
+    expect(result.effects).toEqual([expect.objectContaining({ type: "turn_taken", turn: expect.objectContaining({ kind: "death_save", deathSave: expect.objectContaining({ d20, status }) }) })]);
+    const tam = combatantOf(stored(h), "tam");
+    expect(tam.death_saves).toEqual(after);
+    expect(tam.hp).toBe(0);
+    expect(tam.conditions).toEqual([{ name: "Unconscious" }]);
+    expect(hpOf(stored(h), "victim")).toBe(40);
+  });
+
+  it("puts an ally back up at 1 hit point, no longer Unconscious, on a natural 20", async () => {
+    const h = harness(allyFight({ hp: 0, death_saves: { successes: 1, failures: 2 }, conditions: [{ name: "Unconscious" }] }), { sources: SOURCES, players: tamSheets(), map: mapOf(), dieFaces: [20] });
+    const result = await runBatch(batch("b", tamTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ turn: { kind: "death_save", deathSave: { d20: 20, status: "up" } } });
+    const tam = combatantOf(stored(h), "tam");
+    expect(tam).toMatchObject({ hp: 1, death_saves: { successes: 0, failures: 0 }, conditions: [] });
+  });
+
+  // Bug caught: a stable or dead character rolling again (a stable one has no turn; neither does a dead one).
+  it.each([{ successes: 3, failures: 0 }, { successes: 0, failures: 3 }])("refuses the turn of an ally who is already %j", async (saves) => {
+    const h = harness(allyFight({ hp: 0, death_saves: saves }), { sources: SOURCES, players: tamSheets(), map: mapOf(), dieFaces: [15] });
+    await expect(runBatch(batch("b", tamTurn()), h.deps)).rejects.toMatchObject({ status: 400, message: "tam is at 0 hit points and cannot take a turn." });
+    expect(h.dieCalls).toBe(0);
+    expect(h.saves).toBe(0);
+  });
+
+  // A death save is a roll like any other the server throws: it reaches the campaign log, stamped as the server's. Bug caught:
+  // the roll thrown and applied but never posted, so the table's log shows nothing for it.
+  it("posts a downed ally's death save to the log, stamped server-rolled", async () => {
+    const h = harness(allyFight({ hp: 0 }), { sources: SOURCES, players: tamSheets(), map: mapOf(), dieFaces: [14] });
+    await runBatch(batch("b", tamTurn()), h.deps);
+    expect(h.posted).toHaveLength(1);
+    expect(h.posted[0]).toMatchObject({ speaker: "tam", serverRolled: true, result: { total: 14, label: expect.stringMatching(/Death save/) } });
+    expect(h.dieCalls).toBe(1);
+  });
+
+  // Bug caught: death saves handed to a monster at 0 hit points (only a party member dies by the death-save rules).
+  it("still refuses the turn of a monster at 0 hit points", async () => {
+    const h = harness(duel({ wolf: { hp: 0 } }), { sources: SOURCES, map: mapOf(), dieFaces: [15] });
+    await expect(runBatch(batch("b", takeTurn()), h.deps)).rejects.toMatchObject({ status: 400, message: "wolf is at 0 hit points and cannot take a turn." });
+    expect(h.dieCalls).toBe(0);
   });
 });

@@ -255,15 +255,20 @@ async function discover(client: SupabaseClient, campaignId: string, memberId: st
   }
 }
 
+/** The played member first, then the AI-played companions who join them, each once. */
+function partyOf(memberId: string, allies: string[]): string[] {
+  return [...new Set([memberId, ...allies])];
+}
+
 /**
  * Starts the fight the narrator asked for and answers which encounter it is. A prepared fight is the DM's own
- * encounter, with the played character put in its party; an improvised one is a new encounter at the party's
+ * encounter, with the played character and the AI-played companions put in its party; an improvised one is a new encounter at the party's
  * place, whose creatures must all be this campaign's.
  */
 export async function startFight(
   client: SupabaseClient,
   admin: SupabaseClient,
-  ctx: { campaignId: string; sessionId: string; userId: string; memberId: string; locationId: string | null; playSessionId: string | null },
+  ctx: { campaignId: string; sessionId: string; userId: string; memberId: string; allies: string[]; locationId: string | null; playSessionId: string | null },
   plan: FightPlan,
 ): Promise<{ encounterId: string; name: string }> {
   const { campaignId, memberId } = ctx;
@@ -275,8 +280,9 @@ export async function startFight(
     if (found.error) throw found.error;
     if (!found.data) throw new Error("the prepared fight is no longer there");
     const party = strings(found.data.party_member_ids);
-    if (!party.includes(memberId)) {
-      const { error } = await client.from("encounters").update({ party_member_ids: [...party, memberId] }).eq("id", plan.encounterId).eq("campaign_id", campaignId);
+    const joining = partyOf(memberId, ctx.allies).filter((id) => !party.includes(id));
+    if (joining.length > 0) {
+      const { error } = await client.from("encounters").update({ party_member_ids: [...party, ...joining] }).eq("id", plan.encounterId).eq("campaign_id", campaignId);
       if (error) throw error;
     }
     if (plan.carried !== undefined) await carryFight(admin, campaignId, plan.encounterId, ctx.locationId, plan.carried);
@@ -298,7 +304,7 @@ export async function startFight(
         campaign_id: campaignId,
         name: plan.name,
         description: null,
-        party_member_ids: [memberId],
+        party_member_ids: partyOf(memberId, ctx.allies),
         combatants: plan.creatures.map((c) => ({
           id: crypto.randomUUID(),
           monster_id: c.monsterId,

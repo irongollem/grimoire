@@ -303,7 +303,7 @@ async function settleFight(scope: TurnScope, fx: TurnEffects, session: SessionRo
   if (planned !== null && session.party_member_id !== null) {
     try {
       const started = await deps.startFight(
-        { campaignId: campaign.id, sessionId: session.id, userId, memberId: session.party_member_id, locationId: here, playSessionId: session.campaign_session_id },
+        { campaignId: campaign.id, sessionId: session.id, userId, memberId: session.party_member_id, allies: ctx.companions.filter((c) => c.aiSpeaks).map((c) => c.id), locationId: here, playSessionId: session.campaign_session_id },
         planned,
       );
       emit({ type: "fight", fight: started });

@@ -8,11 +8,11 @@ import type { FactionSides } from "../../../src/rules/fight/sides.ts";
 import { DEFAULT_FACTIONS } from "../../../src/types/encounter.types.ts";
 import { withCors } from "../_shared/cors.ts";
 import { adminClient, callerUserId, loadEncounterAsDm } from "../_shared/fightAccess.ts";
-import { customContentScope, loadMonsters, loadNpcs, loadStatBlocks } from "../_shared/fightStatBlocks.ts";
+import { loadMonsters, loadNpcs, loadStatBlocks } from "../_shared/fightStatBlocks.ts";
 import { loadSpellsListed, loadSpellsNamed } from "../_shared/fightSpells.ts";
-import { loadCustomItems } from "../_shared/fightItems.ts";
 import { loadFightMapInput } from "../_shared/fightMap.ts";
 import { loadPartyIngestRows } from "../_shared/fightPartyIngest.ts";
+import { loadPlayerSheets } from "../_shared/fightPlayerSheets.ts";
 import { gameSystemEdition } from "../_shared/gameSystem.ts";
 import { fightMapOf } from "../../../src/rules/fight/terrain/battleMap.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
@@ -20,16 +20,10 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { underNoteCap } from "../_shared/tacticsJudge.ts";
 import { judge, JEV_MODEL, judgingKey } from "../_shared/typesafe.ts";
 import { rollMessageRow, secureDie } from "../_shared/serverRoll.ts";
-import { inventoryItemRef } from "../../../src/lib/itemRef.ts";
 import { isUuid } from "../../../src/lib/library/contentIdentity.ts";
-import { libraryMonsterRow } from "../../../src/lib/library/libraryMonsterRow.ts";
 import { DEFAULT_RULESET } from "../../../src/types/ruleset.types.ts";
 import type { EncounterEvent } from "../../../src/types/encounter.types.ts";
 import type { ExploreParty } from "../../../src/types/exploreParty.types.ts";
-import type { PartyInventoryItem } from "../../../src/types/inventory.types.ts";
-import type { Item } from "../../../src/types/item.types.ts";
-import { normalizeLibraryItem } from "../../../src/lib/items/normalizeLibraryItem.ts";
-import type { BeastScores, PlayerSheetRow } from "../../../src/rules/fight/playerSheet.ts";
 import { idClock } from "../../../src/rules/fight/fightSpawn.ts";
 import {
   FightCommandError,
@@ -222,50 +216,7 @@ serve(withCors(async (req: Request) => {
       loadStatBlocks: (ids) => loadStatBlocks(admin, campaignId, ids),
       loadSpells: (name) => loadSpellsNamed(admin, campaignId, campaign.user_id, name),
       loadSpellsListed: (names) => loadSpellsListed(admin, campaignId, campaign.user_id, names),
-      async loadPlayerSheets(memberIds) {
-        // Every read is scoped to this campaign. The inventory ids come from this campaign's own rows (a database
-        // trigger keeps an inventory row's item in the same campaign or a global row its owner may use), and an
-        // item is read only when it is this campaign's or its Dungeon Masters' own, so a forged id names nothing of another account's.
-        const { data: members, error: memberError } = await admin
-          .from("party_members")
-          .select("id, ruleset, class, subclass, ac_formula, class_choices, str, dex, con, int, wis, cha, proficiency_bonus, saving_throw_proficiencies, wildshape_state")
-          .eq("campaign_id", campaignId)
-          .in("id", memberIds);
-        if (memberError) throw new Error(`party_members: ${memberError.message}`);
-        const { data: inventory, error: inventoryError } = await admin
-          .from("party_inventory").select("*").eq("campaign_id", campaignId).in("carried_by", memberIds);
-        if (inventoryError) throw new Error(`party_inventory: ${inventoryError.message}`);
-        const rows = inventory as PartyInventoryItem[];
-        const refs = [...new Set(rows.flatMap((r) => inventoryItemRef(r) ?? []))];
-        const items: Item[] = [];
-        const customIds = refs.filter(isUuid);
-        const libraryIds = refs.filter((id) => !isUuid(id));
-        if (customIds.length > 0) {
-          items.push(...(await loadCustomItems(admin, campaignId, customIds)));
-        }
-        if (libraryIds.length > 0) {
-          const { data, error } = await admin.from("library_items").select("*").in("id", libraryIds);
-          if (error) throw new Error(`library_items: ${error.message}`);
-          items.push(...data.map(normalizeLibraryItem));
-        }
-        // A Wild Shape form's STR, DEX and CON replace the character's own on a save.
-        const formIds = [...new Set((members as PlayerSheetRow[]).flatMap((m) => m.wildshape_state?.monster_id ?? []))];
-        const beasts: BeastScores[] = [];
-        const libraryForms = formIds.filter((id) => !isUuid(id));
-        const customForms = formIds.filter(isUuid);
-        if (libraryForms.length > 0) {
-          const { data, error } = await admin.from("library_monsters").select("*").in("id", libraryForms);
-          if (error) throw new Error(`library_monsters: ${error.message}`);
-          beasts.push(...data.map(libraryMonsterRow).map((m) => ({ id: m.id, stat_block: m.stat_block })));
-        }
-        if (customForms.length > 0) {
-          const { data, error } = await admin
-            .from("monsters").select("id, stat_block").in("id", customForms).or(await customContentScope(admin, campaignId));
-          if (error) throw new Error(`monsters: ${error.message}`);
-          beasts.push(...(data as BeastScores[]));
-        }
-        return { members: members as PlayerSheetRow[], inventory: rows, items, beasts };
-      },
+      loadPlayerSheets: (memberIds) => loadPlayerSheets(admin, campaignId, memberIds),
       async loadFightMap(encounterId) {
         // Read in this campaign's own scope (`loadFightMapInput` filters on it); null is "no map the rules can use".
         const input = await loadFightMapInput(admin, campaignId, encounterId);

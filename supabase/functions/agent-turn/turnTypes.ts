@@ -236,7 +236,7 @@ export interface AgentTurnDeps {
   setPursuit(sessionId: string, campaignId: string, encounterId: string | null): Promise<void>;
   /** Starts the fight the narrator asked for and points the conversation at it. Throws when it could not. */
   startFight(
-    ctx: { campaignId: string; sessionId: string; userId: string; memberId: string; locationId: string | null; playSessionId: string | null },
+    ctx: { campaignId: string; sessionId: string; userId: string; memberId: string; allies: string[]; locationId: string | null; playSessionId: string | null },
     plan: FightPlan,
   ): Promise<{ encounterId: string; name: string }>;
   /** Lets the conversation go of its fight (null), once its aftermath has been told. */

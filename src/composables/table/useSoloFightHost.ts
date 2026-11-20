@@ -119,6 +119,8 @@ export function useSoloFightHost(options: {
   // ── The creatures' turns, written into the story ───────────────────────────────────────────────────────────────
   useCreatureTurns({
     memberId: () => (mine.value ? options.memberId() : null),
+    // An ally who is down still has a turn: the server rolls their death save through the same takeTurn.
+    downTakesTurn: (now) => now.type === "player" && now.party_member_id !== undefined && now.party_member_id !== null && now.party_member_id !== options.memberId(),
     started: () => store.started,
     active: () => store.activeCombatant,
     turnKey: () => `${store.round}:${store.activeCombatant?.instance_id}`,
@@ -139,10 +141,10 @@ export function useSoloFightHost(options: {
       // A creature with nobody left standing to fight has nothing to do: its turn passes without a word. Seen in
       // play: with the played character down, every round wrote "has no turn to take" once per creature.
       const mover = store.combatants.find((c) => c.instance_id === instanceId);
-      if (mover && !hasSomeoneToFight(mover, store.combatants, store.factions)) return true;
+      if (mover && mover.hp > 0 && !hasSomeoneToFight(mover, store.combatants, store.factions)) return true;
       try {
         const before = { playedHp: played.value === null ? null : played.value.hp, defences: defencesShown() };
-        const { turn, outcomes, provokedPlayer } = await fight.takeTurn(instanceId);
+        const { turn, outcomes, provokedPlayer } = await fight.takeTurn(instanceId, mine.value ? options.memberId() : undefined);
         if (turn === null) return true;
         const mover = store.combatants.find((c) => c.instance_id === instanceId);
         const me = played.value;
@@ -167,7 +169,8 @@ export function useSoloFightHost(options: {
         // A foe with a mind and a tongue says a line when its turn earned one. What it saw is noted every turn,
         // spoken or not, so "since its last turn" means that.
         const after = store.combatants.find((c) => c.instance_id === instanceId);
-        if (after !== undefined && after.hp > 0 && turn.leftTheMap !== true) {
+        // Foes only: an ally the server plays never gets a foe line.
+        if (after !== undefined && after.type !== "player" && after.hp > 0 && turn.leftTheMap !== true) {
           const last = foesSeen.get(instanceId);
           const allies = standingWith(after);
           foesSeen.set(instanceId, { hp: after.hp, alliesStanding: allies });

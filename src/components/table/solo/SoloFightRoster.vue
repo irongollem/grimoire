@@ -17,7 +17,10 @@
           :class="c.instanceId === activeInstanceId ? 'bg-primary/10' : ''"
           :aria-current="c.instanceId === activeInstanceId ? 'true' : undefined"
         >
-          <span class="min-w-0 truncate text-body" :class="c.isYou ? 'font-bold text-foreground' : 'text-foreground'">{{ c.name }}</span>
+          <span class="flex min-w-0 flex-col">
+            <span class="truncate text-body" :class="c.isYou ? 'font-bold text-foreground' : 'text-foreground'">{{ c.name }}</span>
+            <span v-if="c.ally" class="text-caption text-muted-foreground">acts on their own</span>
+          </span>
           <span v-if="c.health.kind === 'numbers'" class="shrink-0 text-caption font-bold tabular-nums text-foreground">{{ c.health.hp }} of {{ c.health.maxHp }}</span>
           <span v-else class="shrink-0 text-caption text-muted-foreground">{{ c.health.word }}</span>
         </li>

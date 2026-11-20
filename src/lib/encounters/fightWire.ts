@@ -17,7 +17,7 @@ export type FightLifecycleCommand =
   | { type: "end_combat"; siteId?: string | null }
   | { type: "abandon" }
   /** Asks the server to play a creature's turn (#1203). Never ends the turn; the creature need not be the active one. */
-  | { type: "take_turn"; instanceId: string; optionId?: string }
+  | { type: "take_turn"; instanceId: string; optionId?: string; playedMemberId?: string }
   | { type: "provoke"; moverId: string; path: Array<{ x: number; y: number }> };
 
 /** Everything the function accepts in `commands`: a batch of fight commands, or one of these sent alone. */

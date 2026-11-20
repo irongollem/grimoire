@@ -72,6 +72,15 @@ export function linesOfCreatureTurn(input: CreatureTurnInput): BoardLine[] {
   const { turn, outcomes, nameOf, feetMoved, playedInstanceId, playedHp } = input;
   const name = nameOf(turn.instanceId);
   const lines: BoardLine[] = [];
+  // A downed ally's turn is a death save, worded like the played character's own (SoloFightBoard `onDeathSave`).
+  if (turn.deathSave !== undefined) {
+    const { d20, label, status } = turn.deathSave;
+    lines.push({ kind: "roll", die: d20, label: `${name}'s death save: ${label}`, detail: `d20 (${d20})`, critical: d20 === 20 });
+    if (status === "dead") lines.push({ kind: "margin", text: `${name} dies`, tone: "end" });
+    else if (status === "stable") lines.push({ kind: "margin", text: `${name} is stable, and out of the fight`, tone: "end" });
+    else if (status === "up") lines.push({ kind: "margin", text: `${name} is back on their feet at 1 hit point` });
+    return lines;
+  }
   if (feetMoved > 0) lines.push({ kind: "margin", text: `${name} moves ${feetMoved} feet` });
   // A blow struck by someone else during this turn is an opportunity attack on the creature as it walks away.
   lines.push(...linesOfAttacks(outcomes, { nameOf, playedInstanceId, playedHp, turnOf: turn.instanceId }));

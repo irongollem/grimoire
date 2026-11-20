@@ -7,7 +7,7 @@ const rosie: TurnHolder = { instance_id: "p-rosie", party_member_id: ME, hp: 20 
 const hound = (n: number, hp = 10): TurnHolder => ({ instance_id: `hound-${n}`, hp });
 
 /** A fight as the composable sees it: an order, whose turn it is, and what was run. */
-function fight(order: TurnHolder[], over: { memberId?: string | null; started?: boolean; runs?: (id: string) => boolean } = {}) {
+function fight(order: TurnHolder[], over: { memberId?: string | null; started?: boolean; runs?: (id: string) => boolean; downTakesTurn?: (now: TurnHolder) => boolean } = {}) {
   const state = reactive({ index: 0, round: 1, started: over.started ?? true, memberId: over.memberId === undefined ? ME : over.memberId });
   const ran: string[] = [];
   const waits: number[] = [];
@@ -15,6 +15,7 @@ function fight(order: TurnHolder[], over: { memberId?: string | null; started?: 
   scope.run(() =>
     useCreatureTurns({
       memberId: () => state.memberId,
+      downTakesTurn: over.downTakesTurn,
       started: () => state.started,
       active: () => order[state.index] ?? null,
       turnKey: () => `${state.round}:${state.index}`,
@@ -215,5 +216,48 @@ describe("useCreatureTurns", () => {
     await f.settle();
     expect(f.nexts).toEqual([]);
     f.scope.stop();
+  });
+
+  // Bug caught: a downed ally passed without its death save, so it never dies or stabilises.
+  it("runs a downed creature when downTakesTurn says so, and still passes a downed foe", async () => {
+    const ally: TurnHolder = { instance_id: "p-ally", party_member_id: "member-2", hp: 0, type: "player" };
+    const f = fight([ally, hound(1, 0), rosie], { downTakesTurn: (now) => now.type === "player" });
+    await f.settle();
+    expect(f.ran).toEqual(["p-ally"]);
+    expect(f.state.index).toBe(2);
+    f.stop();
+  });
+
+  // Bug caught: the autopilot (no downTakesTurn) running a downed player's turn.
+  it("without downTakesTurn a downed player is passed", async () => {
+    const down: TurnHolder = { instance_id: "p-down", party_member_id: "member-2", hp: 0, type: "player" };
+    const f = fight([down, rosie]);
+    await f.settle();
+    expect(f.ran).toEqual([]);
+    f.stop();
+  });
+
+  // Bug caught: the autopilot running through a player's turn when downTakesTurn is given alongside stopsAt.
+  it("an autopilot with stopsAt still stops at a player's turn", async () => {
+    const order = [hound(1), rosie];
+    const state = reactive({ index: 0 });
+    const ran: string[] = [];
+    const scope = effectScope();
+    scope.run(() =>
+      useCreatureTurns({
+        enabled: () => true,
+        stopsAt: (now) => now.type === "player" || now.party_member_id === ME,
+        started: () => true,
+        active: () => order[state.index] ?? null,
+        turnKey: () => String(state.index),
+        run: async (id) => { ran.push(id); return true; },
+        next: () => { state.index += 1; },
+        wait: async () => {},
+      }),
+    );
+    for (let i = 0; i < 20; i++) await nextTick();
+    expect(ran).toEqual(["hound-1"]);
+    expect(state.index).toBe(1);
+    scope.stop();
   });
 });

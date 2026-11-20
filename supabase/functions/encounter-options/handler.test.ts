@@ -9,6 +9,7 @@ import type { GridCalibration } from "../../../src/types/location.types";
 import type { Monster } from "../../../src/types/monster.types";
 import type { PartyIngestRow } from "../../../src/rules/fight/partyIngest";
 import type { RunCombatant } from "../../../src/types/encounter.types";
+import type { PlayerSheets } from "../../../src/rules/fight/playerSheet";
 import { emptyDefenses, type StatBlockEntry } from "../../../src/types/statBlock.types";
 import { meleeReachFeet } from "../_shared/turnOptionsFor";
 import { computeOptions, OptionsError, validateOptionsRequest, type OptionsDeps, type OptionsFight } from "./handler";
@@ -47,6 +48,8 @@ interface Setup {
   /** The players' own rows; none by default. */
   party?: PartyIngestRow[];
   map?: FightMapInput | null;
+  /** What the server reads of the players' sheets; none by default (a player then has no stat block). */
+  sheets?: PlayerSheets;
   version?: number;
   spells?: SpellRecord[];
   /** Every list of names the spell loader was asked for. */
@@ -59,6 +62,7 @@ function deps(s: Setup): OptionsDeps {
     loadPartyRows: async () => structuredClone(s.party ?? []),
     loadStatBlocks: async () => ({ monsters: s.monsters ?? [monster("m-wolf", [attack("Bite")])], npcs: [], companions: [] }),
     loadMemberSpeeds: async () => s.speeds ?? [],
+    loadPlayerSheets: async () => structuredClone(s.sheets ?? { members: [], inventory: [], items: [], beasts: [] }),
     loadMapInput: async () => (s.map === undefined ? OPEN_GROUND : s.map),
     loadSpellsListed: async (names) => {
       s.spellReads?.push(names);
@@ -188,6 +192,38 @@ describe("meleeReachFeet", () => {
     expect(meleeReachFeet(block(withReach("Claw", "melee")))).toBe(5);
     expect(meleeReachFeet(block(withReach("Spit", "ranged", 30)))).toBe(5);
     expect(meleeReachFeet(null)).toBe(5);
+  });
+});
+
+// An ally is listed the way `take_turn` plays them (#1021). Dex 16 is +3 and proficiency +2: Unarmed Strike is +5 for 1 + Str modifier
+// (Str 10, so 1) damage. The sheet holds no weapon.
+const SAM: PlayerSheets = {
+  members: [{
+    id: "pm-pc", ruleset: "2014", class: "Fighter", subclass: null, ac_formula: null, class_choices: {},
+    str: 10, dex: 16, con: 12, int: 10, wis: 10, cha: 10, proficiency_bonus: 2, saving_throw_proficiencies: [], speed: 25, level: 1, custom_attacks: [],
+    wildshape_state: null,
+  }],
+  inventory: [], items: [], beasts: [],
+};
+
+describe("computeOptions for an ally", () => {
+  // Bug caught: a party member the server plays listed with no attack (no stat block), so the DM's list disagreed with take_turn.
+  it("fails if an ally with a sheet is not offered the attacks that sheet makes", async () => {
+    const r = await ask({ combatants: [hero(0, 3, { faction_id: "m" }), wolf({ faction_id: "p", position: { x: 1, y: 3 } })], sheets: SAM, speeds: [{ id: "pm-pc", speed: 25 }] }, "pc");
+    expect(ids(r)).toContain("attack:actions:Unarmed Strike:wolf");
+  });
+
+  // App convention: an ally never flees. Bug caught: Flee listed for an ally, which take_turn would refuse as not on offer.
+  it("fails if an ally is offered Flee", async () => {
+    const r = await ask({ combatants: [hero(0, 3, { faction_id: "m" }), wolf({ faction_id: "p", position: { x: 3, y: 3 } })], sheets: SAM, speeds: [{ id: "pm-pc", speed: 25 }] }, "pc");
+    expect(r.options.some((o) => o.kind === "flee")).toBe(false);
+    expect(r.options.some((o) => o.kind === "dodge")).toBe(true);
+  });
+
+  // Bug caught: a monster's options changed by the ally rule (Flee dropped for everyone).
+  it("keeps Flee for a monster", async () => {
+    const r = await ask({ combatants: [wolf({ hp: 2 }), hero(3, 0)] });
+    expect(r.options.some((o) => o.kind === "flee")).toBe(true);
   });
 });
 

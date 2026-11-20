@@ -10,11 +10,18 @@
 // Not in this command: Hide (the Action is
 // used and nothing more is recorded; Dodge and Disengage do put their condition on the creature), picking by a model, ending the turn, legendary and lair actions.
 // A creature that lists spells is offered its damage spells (#1021): a cone or a line is not offered, a cast is carried out by
-// `cast_spell` (which spends the slot or use and the Action), and nothing but damage is cast. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
+// `cast_spell` (which spends the slot or use and the Action), and nothing but damage is cast. A party member the AI plays (an ally, #1021) is seen
+// through a stat block made from their own sheet (`allyStatBlock`: their weapons and bare hands, spells and class features
+// come later), so everything below plays them as it plays a monster; one at 0 hit points rolls a death save instead. A creature that flees off the map (a way off: an Entrance zone, or the edge of open country) is removed from
 // the fight after its move and the reply says so (`leftTheMap`); that is not a defeat. A broken creature with a way out (Etherealness, Invisible
 // Passage) uses it first (`escapedWith`). A Multiattack that drops its target does not redirect the swings it has left.
 
 import { losesFirstTurnToSurprise } from "../../../src/rules/initiative.ts";
+import { deathSaveRollOutcome, dyingStatus } from "../../../src/rules/dying.ts";
+import { NORMAL_ROLL, rollWithRules } from "../../../src/lib/dice/diceRules.ts";
+import { dnd5eDiceRules } from "../../../src/systems/dnd5e/dice/rules.ts";
+import { allyProfile } from "../../../src/rules/fight/allies/profile.ts";
+import { allyStatBlock } from "../../../src/rules/fight/allies/statBlock.ts";
 import { applyFightCommand, type FightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
 import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
@@ -29,6 +36,7 @@ import { tacticalProfile } from "../../../src/rules/fight/tactics/profile.ts";
 import { speaksInAFight } from "../../../src/rules/fight/tactics/temper.ts";
 import type { TurnOption } from "../../../src/rules/fight/terrain/options/types.ts";
 import type { RunCombatant } from "../../../src/types/encounter.types.ts";
+import type { MonsterStatBlock } from "../../../src/types/monster.types.ts";
 import type { SaveAbility } from "../../../src/types/statBlock.types.ts";
 import { statBlockOf } from "../_shared/fightStatBlocks.ts";
 import { noteRequest, optionsAllowedByNote } from "../_shared/tacticsJudge.ts";
@@ -38,9 +46,20 @@ import { strikeOnLeaving } from "./opportunity.ts";
 import { applyResolvingCommand, knownArmorClass, type ResolveEnv } from "./resolve.ts";
 
 /** `optionId` left out: the server picks by the rules. Named: it must be one of the options on offer right now. */
-export type TakeTurnCommand = { type: "take_turn"; instanceId: string; optionId?: string };
+export type TakeTurnCommand = {
+  type: "take_turn";
+  instanceId: string;
+  optionId?: string;
+  /**
+   * The party member the person at the table plays (#1021). Only their Reaction is theirs to choose: every other party
+   * member with a sheet strikes by the rules when a foe leaves their reach. Left out, the server cannot tell who is
+   * played, so every player who may strike is reported as `provoked_player`.
+   */
+  playedMemberId?: string;
+};
 
 export const MAX_OPTION_ID_LENGTH = 300;
+export const MAX_MEMBER_ID_LENGTH = 100;
 
 export function isTakeTurnCommand(command: { type: string }): command is TakeTurnCommand {
   return command.type === "take_turn";
@@ -52,6 +71,10 @@ export function validateTakeTurnCommand(command: Record<string, unknown>): void 
   const { optionId } = command;
   if (optionId !== undefined && (typeof optionId !== "string" || optionId.length === 0 || optionId.length > MAX_OPTION_ID_LENGTH)) {
     throw new FightCommandError(400, "take_turn: optionId is the id of one of the creature's options.");
+  }
+  const { playedMemberId } = command;
+  if (playedMemberId !== undefined && (typeof playedMemberId !== "string" || playedMemberId.length === 0 || playedMemberId.length > MAX_MEMBER_ID_LENGTH)) {
+    throw new FightCommandError(400, "take_turn: playedMemberId is the id of the party member the person plays.");
   }
 }
 
@@ -76,20 +99,73 @@ export const NOTE_THRESHOLD = 0.5;
 export const noteReason = (ruledOut: readonly TurnOption[], pickerReason: string): string =>
   `Its note ruled out ${ruledOut.length === 1 ? "one other turn" : `${ruledOut.length} other turns`}, so: ${pickerReason}`;
 
-export async function applyTakeTurn(state: FightState, command: TakeTurnCommand, env: ResolveEnv): Promise<FightResult> {
+/**
+ * A downed party member's turn: a death save (SRD 5.1 "Death Saving Throws", `deathSaveRollOutcome`: 10 or more is a
+ * success, below 10 a failure, a natural 1 two failures, a natural 20 back up at 1 hit point), thrown with the server's
+ * die. Written onto the combatant; the end of the fight writes the tally and the conditions to the character's sheet.
+ */
+function takeDeathSave(state: FightState, mover: RunCombatant, command: TakeTurnCommand, env: ResolveEnv): FightResult {
+  // A stable or dead character has no turn: only one still dying rolls.
+  if (dyingStatus(mover.hp, mover.death_saves) !== "dying") return refuse(`${mover.name} is at 0 hit points and cannot take a turn.`);
+  if (command.optionId !== undefined && command.optionId !== "death_save") return refuse("That option is not on offer.");
+  // A roll like any other the server throws: posted to the campaign log, stamped as the server's.
+  const roll = rollWithRules(dnd5eDiceRules, { 20: 1 }, 0, NORMAL_ROLL, env.rollDie);
+  roll.label = dnd5eDiceRules.tagLabel("Death save", NORMAL_ROLL, { 20: 1 });
+  env.posted.push({ result: roll, speaker: mover.name, serverRolled: true });
+  const d20 = roll.total;
+  const outcome = deathSaveRollOutcome(mover.death_saves, mover.conditions, d20);
+  const hp = outcome.current_hp === null ? mover.hp : outcome.current_hp;
+  const status = outcome.current_hp === null ? (dyingStatus(hp, outcome.saves) as "dying" | "stable" | "dead") : "up";
+  const next: FightState = {
+    ...state,
+    combatants: state.combatants.map((c) => (c.instance_id === mover.instance_id ? { ...c, hp, death_saves: outcome.saves, conditions: outcome.conditions } : c)),
+  };
+  return {
+    state: next,
+    effects: [{
+      type: "turn_taken",
+      turn: {
+        instanceId: mover.instance_id, optionId: "death_save", kind: "death_save", picked: command.optionId === undefined ? "rules" : "caller",
+        summary: `${mover.name} rolls a death save: ${d20}. ${outcome.label}.`,
+        reason: `${mover.name} is at 0 hit points, so their turn is a death saving throw.`,
+        deathSave: { d20, label: outcome.label, status },
+      },
+    }],
+  };
+}
+
+export async function applyTakeTurn(state: FightState, command: TakeTurnCommand, callEnv: ResolveEnv): Promise<FightResult> {
   const mover = state.combatants.find((c) => c.instance_id === command.instanceId);
   if (!mover) return refuse(`No creature "${command.instanceId}" is in this fight.`);
-  if (mover.hp <= 0) return refuse(`${mover.name} is at 0 hit points and cannot take a turn.`);
   if (mover.bystander === true) return refuse(`${mover.name} is no fighter the rules can play: their turn is their own.`);
+  const ally = mover.type === "player" && mover.party_member_id !== undefined;
+  if (mover.hp <= 0) return ally ? takeDeathSave(state, mover, command, callEnv) : refuse(`${mover.name} is at 0 hit points and cannot take a turn.`);
+  // A party member is played through the block their sheet makes; the block rides on the env so every step below (reach,
+  // the swing, an opportunity attack) reads the same one. Anyone else's block is read as it always was.
+  // With a played member named, every other party member with a sheet is an ally too: they strike by the rules when a
+  // foe leaves their reach (`strikeOnLeaving`).
+  const allies: Record<string, MonsterStatBlock> = { ...callEnv.sources.allies };
+  const allyIds = new Set<string>();
+  if (ally) allyIds.add(mover.party_member_id as string);
+  if (command.playedMemberId !== undefined) {
+    for (const c of state.combatants) {
+      if (c.type === "player" && c.party_member_id !== undefined && c.party_member_id !== command.playedMemberId) allyIds.add(c.party_member_id);
+    }
+  }
+  for (const id of allyIds) {
+    const made = allyStatBlock(callEnv.players, id);
+    if (made !== null) allies[id] = made;
+  }
+  const env: ResolveEnv = allyIds.size === 0 ? callEnv : { ...callEnv, sources: { ...callEnv.sources, allies } };
   const block = statBlockOf(mover, env.sources);
-  // A player character has no stat block here: a player takes their own turn.
+  // A player character the server cannot read (no sheet, or Wild Shaped) has no stat block here: a player takes their own turn.
   if (block === null) return refuse(`${mover.name} has no stat block the server can read, so it cannot play ${mover.name}'s turn.`);
 
   // A creature with no Spellcasting entry names no spell, so nothing is read for it.
   const listed = listedSpellNames(block);
   const spellRecords = listed.length === 0 ? [] : await env.spellsListed(listed);
   const { options, attacks, spells } = assembleTurnOptions({
-    combatants: state.combatants, mover, ruleset: state.ruleset, sources: env.sources, members: [], map: env.map, spellRecords, factions: env.factions, round: state.round,
+    combatants: state.combatants, mover, ruleset: state.ruleset, sources: env.sources, members: ally ? env.players.members : [], map: env.map, spellRecords, factions: env.factions, round: state.round,
   });
   if (options.length === 0) {
     // PHB 2014 ch. 9 "Surprise": a surprised creature cannot move or act on its first turn. Said for what it is.
@@ -98,7 +174,8 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
       : `${mover.name} has no turn to take (it is Incapacitated).`);
   }
 
-  const profile = tacticalProfile(block, creatureTypeOf(mover, env));
+  const derived = tacticalProfile(block, creatureTypeOf(mover, env));
+  const profile = ally ? allyProfile(derived) : derived;
   const armorClassOf = (target: RunCombatant) => knownArmorClass(target, env.players);
   // A creature's save bonus: a character's from their sheet, anyone else's from its stat block; null when it cannot be read.
   const saveBonusOf = (target: RunCombatant, ability: SaveAbility): number | null =>
@@ -164,7 +241,7 @@ export async function applyTakeTurn(state: FightState, command: TakeTurnCommand,
         // path and the fight as it stands, not from the plan: an earlier Disengage step may have just changed it.
         // A creature dropped here does not finish its walk or the rest of its turn.
         if (option.path !== null) {
-          const struck = await strikeOnLeaving(next, mover.instance_id, option.path, env, { reportPlayers: true });
+          const struck = await strikeOnLeaving(next, mover.instance_id, option.path, env, { reportPlayers: true, playedMemberId: command.playedMemberId });
           next = struck.state;
           effects.push(...struck.effects);
           if (struck.moverDown) return { state: next, effects };

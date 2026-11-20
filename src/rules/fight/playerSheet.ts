@@ -20,6 +20,9 @@ export type PlayerSheetRow = Pick<
   | "id" | "ruleset" | "class" | "subclass" | "ac_formula" | "class_choices"
   | "str" | "dex" | "con" | "int" | "wis" | "cha"
   | "proficiency_bonus" | "saving_throw_proficiencies"
+  // What an ally the server plays is built from (#1021): its walking speed, the level the proficiency bonus falls back on,
+  // and the attacks the player wrote on their sheet.
+  | "speed" | "level" | "custom_attacks"
 > & { wildshape_state: WildshapeState | null };
 
 /** The scores of a Wild Shape form's stat block, by the monster id the form names. */

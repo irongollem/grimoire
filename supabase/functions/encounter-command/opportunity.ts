@@ -133,6 +133,12 @@ function chooseStrike(state: FightState, attacker: RunCombatant, mover: RunComba
 export interface StrikeOptions {
   /** `take_turn`: a player who may strike is reported as `provoked_player`. `provoke`: a player rolls their own dice and is left out. */
   reportPlayers: boolean;
+  /**
+   * `take_turn`, when the caller says who the person plays (#1021): only that character's Reaction is the player's own.
+   * Any other party member the server has a stat block for strikes like a monster would (`take_turn` gives the played one no
+   * block, so their Reaction stays theirs). Left out, every player is reported.
+   */
+  playedMemberId?: string;
 }
 
 /**
@@ -154,7 +160,8 @@ export async function strikeOnLeaving(
     if (moverNow().hp <= 0) break;
     const attacker = next.combatants.find((c) => c.instance_id === provoked.enemyId);
     if (attacker === undefined || attacker.hp <= 0) continue;
-    if (attacker.type === "player") {
+    const isAlly = attacker.type === "player" && options.playedMemberId !== undefined && statBlockOf(attacker, env.sources) !== null;
+    if (attacker.type === "player" && !isAlly) {
       if (options.reportPlayers) effects.push({ type: "provoked_player", moverId, playerId: attacker.instance_id, step: provoked.step });
       continue;
     }

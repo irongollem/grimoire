@@ -192,7 +192,7 @@ interface Harness {
   questLoads: Array<{ campaignId: string; pressureClockId: string | null }>;
   fightLoads: Array<{ campaignId: string; locationId: string | null; fightEncounterId: string | null }>;
   introduced: Array<{ ctx: { campaignId: string; memberId: string | null; locationId: string | null }; intro: { replaces: string | null; name: string; about: string; known: boolean; here: boolean } }>;
-  startedFights: Array<{ ctx: { campaignId: string; sessionId: string; userId: string; memberId: string; locationId: string | null; playSessionId: string | null }; plan: FightPlan }>;
+  startedFights: Array<{ ctx: { campaignId: string; sessionId: string; userId: string; memberId: string; allies: string[]; locationId: string | null; playSessionId: string | null }; plan: FightPlan }>;
   fightSets: Array<{ sessionId: string; campaignId: string; encounterId: string | null }>;
   /** Prepared fights marked as fought. */
   finished: string[];
@@ -3606,9 +3606,20 @@ describe("the story turns into a fight", () => {
     h.state.fights = prepared;
     await play(h, { body: BODY });
     expect(h.startedFights).toEqual([
-      { ctx: { campaignId: CAMPAIGN, sessionId: SESSION, userId: DM, memberId: WREN, locationId: CELLAR, playSessionId: null }, plan: { kind: "prepared", encounterId: FIGHT, name: "The cellar rats" } },
+      { ctx: { campaignId: CAMPAIGN, sessionId: SESSION, userId: DM, memberId: WREN, allies: [], locationId: CELLAR, playSessionId: null }, plan: { kind: "prepared", encounterId: FIGHT, name: "The cellar rats" } },
     ]);
     expect(fightEvents(h)).toEqual([{ type: "fight", fight: { encounterId: FIGHT, name: "The cellar rats" } }]);
+  });
+
+  // Bug caught: a companion whose player never let the AI speak for them dragged into a fight, or one who did left
+  // standing outside it.
+  it("brings the companions the AI speaks for into the fight, and leaves the others out", async () => {
+    const h = played([startStep(), step(10)]);
+    h.state.fights = prepared;
+    const speaks: Companion = { id: "00000000-0000-4000-8000-0000000000d1", name: "Folio", pronouns: null, species: "Dwarf", className: "Cleric", subclass: null, level: 3, hitPoints: null, about: "", aiSpeaks: true };
+    h.state.companions = [speaks, { ...speaks, id: "00000000-0000-4000-8000-0000000000d2", name: "Glint", aiSpeaks: false }];
+    await play(h, { body: BODY });
+    expect(h.startedFights.map((s) => s.ctx.allies)).toEqual([[speaks.id]]);
   });
 
   it("starts no fight on a turn that is not kept", async () => {
