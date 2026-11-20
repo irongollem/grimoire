@@ -51,7 +51,7 @@ import { isHostileTo } from "../../../src/rules/fight/sides.ts";
 import { saveRollMode } from "../../../src/rules/combat/savingThrow.ts";
 import { getExhaustionD20Penalty } from "../../../src/rules/conditions.ts";
 import { cannotReactWhileSurprised } from "../../../src/rules/initiative.ts";
-import { isIncapacitated } from "../../../src/rules/fight/stances.ts";
+import { HIDDEN, isHidden, isIncapacitated } from "../../../src/rules/fight/stances.ts";
 import { castSlotOf, healEntryFor, isHealingSpell, type HealPlan } from "../../../src/rules/fight/spells/healEntry.ts";
 import { spellcastingModifierOf } from "../../../src/rules/fight/spells/castNow.ts";
 import { takesTurnsInFight } from "../../../src/rules/fight/standing.ts";
@@ -538,6 +538,15 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
     const result = applyFightCommand(holder.state, command, env.fightDeps);
     holder.state = result.state;
     collected.push(...result.effects);
+  };
+  /**
+   * RULE hidden-attack (PHB 2014 ch. 9 "Unseen Attackers and Targets": "when you make an attack while hiding, you give away your
+   * location when the attack hits or misses"; SRD 5.2 "Hide": the Invisible effects end when you make an attack roll): an attacker
+   * that holds Hidden loses it once the roll is made, hit or miss. The table's browser does the same for a player's own attack.
+   */
+  const giveAwayLocation = (id: string): void => {
+    const now = holder.state.combatants.find((x) => x.instance_id === id);
+    if (now !== undefined && isHidden(now.conditions)) step({ type: "remove_condition", instanceId: id, name: HIDDEN });
   };
   const ctx: ResolutionContext = {
     ruleset: state.ruleset,
@@ -1028,6 +1037,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
         const done = await resolveAttackOn(perTarget, { attacker: live(), entry: entry.entry, target, withinFiveFeet: near as boolean, magical: true, ...rangedFacts(live(), target, entry.entry, near as boolean) });
         collected.push({ type: "resolved", resolved: done.summary });
       }
+      if (targets.length > 0) giveAwayLocation(caster.instance_id);
       return;
     }
     const done = await resolveSaveOn(ctx, { attacker: live(), entry: entry.entry, targets, magical: true, concentration: record.concentration });
@@ -1052,6 +1062,7 @@ export async function applyResolvingCommand(state: FightState, command: Resolvin
           ...facts,
         });
         collected.push({ type: "resolved", resolved: done.summary });
+        giveAwayLocation(attacker.instance_id);
         // The turn's one Sneak Attack is spent by a hit that carried it; a miss leaves it for the next swing.
         if (sneak !== null && done.summary.hit) {
           const spent = applyFightCommand(holder.state, { type: "use_action", instanceId: attacker.instance_id, action: sneak.useKey, limit: { per_day: 1 } }, env.fightDeps);

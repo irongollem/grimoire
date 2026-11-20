@@ -20,7 +20,7 @@ import { cannotReactWhileSurprised } from "../../../src/rules/initiative.ts";
 import { applyFightCommand } from "../../../src/rules/fight/fightCommands.ts";
 import type { FightResult } from "../../../src/rules/fight/fightEvents.ts";
 import type { FightEffect, FightState } from "../../../src/rules/fight/fightState.ts";
-import { isDisengaged, isIncapacitated } from "../../../src/rules/fight/stances.ts";
+import { isDisengaged, isHidden, isIncapacitated } from "../../../src/rules/fight/stances.ts";
 import { withNumbers } from "../../../src/rules/fight/tactics/numbers.ts";
 import { isHostileTo } from "../../../src/rules/fight/sides.ts";
 import {
@@ -66,6 +66,8 @@ export function validateProvokeCommand(command: Record<string, unknown>): void {
 
 /** The opportunity attacks a path provokes, worked out from the fight as it stands now (never from a plan made earlier). */
 export function provokedBy(state: FightState, mover: RunCombatant, path: readonly { x: number; y: number }[], env: ResolveEnv): ProvokedAttack[] {
+  // RULE hidden-unaimable (PHB 2014 ch. 9 "Opportunity Attacks": "a hostile creature that you can see"): nobody sees a Hidden mover leave.
+  if (isHidden(mover.conditions)) return [];
   const enemies = state.combatants
     .filter((c) => c.instance_id !== mover.instance_id && isOnBoard(c) && c.hp > 0 && isHostileTo(mover, c, env.factions))
     .map((c) => ({

@@ -354,6 +354,7 @@ import { skillCheckBonus } from "@/rules/skillCheck";
 import { WEAPON_MASTERY_DEFINITIONS } from "@/data/weaponMastery";
 import PlayerRollModeControl from "@/components/player/PlayerRollModeControl.vue";
 import { hideOutcome, HIDE_DC_2024 } from "@/rules/hide";
+import { hiddenCondition } from "@/rules/fight/stances";
 import { useToast } from "@/composables/useToast";
 import type { DisadvantageTarget } from "@/rules/rollModeNotes";
 import PlayerLoadout from "@/components/player/PlayerLoadout.vue";
@@ -431,13 +432,12 @@ const isHidden = computed(() => hasCondition(props.member.conditions, "Hidden"))
 const hiding = ref(false);
 const characterRuleset = computed(() => props.member.ruleset);
 
-// The Stealth total of the last Hide this sheet made, shown beside "Hidden" so a
-// 2014 DM can set it against Perception. The condition itself stays plain
-// "Hidden" because other screens match it by name; the roll is also in the chat.
-const lastStealth = ref<number | null>(null);
+// The Stealth total rides on the Hidden condition itself (#1021 row 13), so the DM's map, the AI table and a later search
+// read it too; it is shown beside "Hidden" so a 2014 DM can set it against Perception.
+const hiddenStealth = computed(() => props.member.conditions.find((c) => c.name === "Hidden")?.stealth ?? null);
 const hiddenCaption = computed(() => {
   const unless = "Attacking or making noise reveals you.";
-  return lastStealth.value === null ? `You are unseen. ${unless}` : `Stealth ${lastStealth.value}. ${unless}`;
+  return hiddenStealth.value === null ? `You are unseen. ${unless}` : `Stealth ${hiddenStealth.value}. ${unless}`;
 });
 const hideInstruction = computed(() =>
   characterRuleset.value === "2024"
@@ -452,10 +452,10 @@ const checkBadgeLabel = computed(() => {
   return null;
 });
 
-async function markHidden() {
+async function markHidden(stealth: number) {
   const conditions = props.member.conditions;
-  if (hasCondition(conditions, "Hidden")) return;
-  await updateMember({ id: props.member.id, update: { conditions: withCondition(conditions, { name: "Hidden" }) } });
+  // withCondition replaces by name, so a second successful Hide swaps in the new total.
+  await updateMember({ id: props.member.id, update: { conditions: withCondition(conditions, hiddenCondition(stealth)) } });
 }
 
 async function clearHidden() {
@@ -485,8 +485,7 @@ async function takeHideAction(override: RollMode | null = null) {
     const outcome = hideOutcome(result.total, characterRuleset.value);
     toast.info(outcome.message);
     if (!outcome.hidden) return;
-    lastStealth.value = result.total;
-    await markHidden();
+    await markHidden(result.total);
   } finally {
     hiding.value = false;
   }

@@ -8,6 +8,7 @@
 // them); the table is a shared screen that never draws them, so it keeps only "down or not".
 
 import { sortCombatantsByInitiative } from "@/rules/combatantSort";
+import { hiddenFromPlayers } from "@/rules/fight/stances";
 import type { RunCombatant } from "@/types/encounter.types";
 import type { NpcListRow } from "@/types/npc.types";
 
@@ -24,6 +25,8 @@ function asTheTableSees(c: RunCombatant, npcs: ReadonlyMap<string, DisguisableNp
   if (c.type === "player") return { ...c, ac: "", curses: [] };
   const state = c.reveal_state ?? "hidden";
   if (state === "hidden") return null;
+  // A creature holding Hidden (it took the Hide action) is as absent as one the DM keeps hidden (#1021 row 13).
+  if (hiddenFromPlayers(c)) return null;
   // Hit points are never drawn on the table; only "down or not" survives, because a dead token is drawn dead.
   const base: RunCombatant = { ...c, hp: c.hp > 0 ? 1 : 0, max_hp: 1, temp_hp: 0, ac: "", curses: [], conditions: [] };
   if (state === "unseen") {

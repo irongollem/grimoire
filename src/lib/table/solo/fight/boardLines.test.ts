@@ -90,6 +90,11 @@ describe("linesOfCreatureTurn", () => {
     ]);
   });
 
+  it("carries the server's Hide or Search outcome as a line, and no hold-your-ground line beside it", () => {
+    // Bug caught: a foe that hid or found the player passing as "holds its ground", the story never saying it vanished.
+    expect(run({ turn: turn({ kind: "hide", outcome: "The kobold hides." }) })).toEqual([{ kind: "margin", text: "The kobold hides." }]);
+  });
+
   it("gives one fixed line for a turn with no move and no outcome", () => {
     // Bug caught: an empty turn producing no lines.
     expect(run()).toEqual([{ kind: "margin", text: "Orc holds its ground" }]);

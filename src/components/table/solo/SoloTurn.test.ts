@@ -40,6 +40,14 @@ describe("SoloTurn", () => {
     rows.carried = [];
   });
 
+  // Bug caught: Search missing from the act menu, so a player cannot hunt for a hiding foe, or the button spending a spent Action.
+  it("offers Search among the acts, emits it, and disables it once the Action is spent", async () => {
+    const w = turn();
+    await named(w, "Search").trigger("click");
+    expect(w.emitted("act")![0]).toEqual(["search"]);
+    expect(named(turn({ budget: { ...FULL, action: false } }), "Search").attributes("disabled")).toBeDefined();
+  });
+
   // Bug caught: a carried bow with no way to draw it (the Carried list is missing for an unheld weapon).
   it("lists a carried weapon with a Draw button that emits its row id", async () => {
     rows.list = [];

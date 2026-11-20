@@ -119,6 +119,8 @@
 </template>
 
 <script setup lang="ts">
+import { watch } from "vue";
+import type { FogCellKey } from "@/lib/battlemap/fogMask";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import BattleMapStack from "@/components/encounters/BattleMapStack.vue";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
@@ -154,6 +156,8 @@ const emit = defineEmits<{
   moved: [feet: number];
   /** A foe was clicked while armed. */
   target: [instanceId: string];
+  /** The squares the character sees now: the board weighs a Hide against the foes standing in them. */
+  sight: [cells: ReadonlySet<FogCellKey>];
 }>();
 
 const TOOLS: readonly PlayTool[] = ["move", "measure"];
@@ -175,6 +179,7 @@ const {
   onMoved: (feet) => emit("moved", feet),
   onTarget: (id) => emit("target", id),
 });
+watch(sight, (cells) => emit("sight", cells), { immediate: true });
 const dollFigures = useCombatantDollFigures(() => tokens.value);
 </script>
 

@@ -113,3 +113,18 @@ describe("partyCentre", () => {
     expect(partyCentre([{}])).toBeNull();
   });
 });
+
+describe("tableVisible and the Hide action", () => {
+  // Bug caught: the Table screen's initiative ribbon and tokens showing a creature that took the Hide action.
+  it("leaves out a monster holding Hidden and keeps a hiding hero and a monster that is not hiding", () => {
+    const shown = tableVisible(
+      [
+        creature({ instance_id: "m1", name: "Lurker", conditions: [{ name: "Hidden", stealth: 17 }] }),
+        hero({ conditions: [{ name: "Hidden", stealth: 12 }] }),
+        creature({ instance_id: "m2", name: "Ogre" }),
+      ],
+      [],
+    );
+    expect(shown.map((c) => c.name)).toEqual(["Tamsin", "Ogre"]);
+  });
+});

@@ -86,18 +86,19 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppButton from "@/components/common/controls/AppButton.vue";
+import type { ActKind } from "@/lib/table/solo/fight/acts";
 import { attackSummary } from "@/lib/table/solo/fight/attackLabel";
 import { usePcAttackRows } from "@/composables/encounters/usePcAttackRows";
 import type { PcAttackRow } from "@/types/pcAttack.types";
 import type { TurnBudget } from "@/lib/table/solo/fight/turnBudget";
 import type { PartyMember } from "@/types/party.types";
 
-type ActKind = "dash" | "dodge" | "disengage" | "hide";
 const ACTIONS: { kind: ActKind; label: string }[] = [
   { kind: "dash", label: "Dash" },
   { kind: "dodge", label: "Dodge" },
   { kind: "disengage", label: "Disengage" },
   { kind: "hide", label: "Hide" },
+  { kind: "search", label: "Search" },
 ];
 
 /**

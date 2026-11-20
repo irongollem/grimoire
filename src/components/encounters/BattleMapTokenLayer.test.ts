@@ -488,3 +488,32 @@ describe("BattleMapTokenLayer: selecting and previewing a move (#1125)", () => {
     expect(tokens[1].classes()).toContain("token-selected");
   });
 });
+
+describe("BattleMapTokenLayer and the Hide action", () => {
+  const hiding = (id: string, over: Partial<RunCombatant> = {}): RunCombatant => ({ ...combatant(id, "goblin"), conditions: [{ name: "Hidden", stealth: 17 }], ...over });
+
+  // Bug caught: a creature that took the Hide action still drawn on the players' map.
+  it("on a player's map leaves out a monster holding Hidden, keeps a hiding party member and a plain monster", async () => {
+    const wrapper = mount(BattleMapTokenLayer, {
+      props: { ...baseProps(), hideHidden: true, combatants: [hiding("lurker"), hiding("pc", { type: "player" }), combatant("orc", "ogre")] },
+    });
+    await nextTick();
+    expect(wrapper.findAll(".token").map((t) => t.attributes("aria-label"))).toEqual(["pc", "orc"]);
+  });
+
+  // Bug caught: the DM losing the creature entirely, or having no sign that it is hiding.
+  it("on the DM's map keeps the hiding token and marks it with its Stealth total", async () => {
+    const wrapper = mount(BattleMapTokenLayer, { props: { ...baseProps(), combatants: [hiding("lurker"), combatant("orc", "ogre")] } });
+    await nextTick();
+    expect(wrapper.findAll(".token")).toHaveLength(2);
+    const marks = wrapper.findAll(".token-hidden-mark");
+    expect(marks).toHaveLength(1);
+    expect(marks[0].attributes("title")).toBe("Hidden (Stealth 17)");
+  });
+
+  it("marks a Hidden put on by hand with no total just as Hidden", async () => {
+    const wrapper = mount(BattleMapTokenLayer, { props: { ...baseProps(), combatants: [hiding("lurker", { conditions: [{ name: "Hidden" }] })] } });
+    await nextTick();
+    expect(wrapper.get(".token-hidden-mark").attributes("title")).toBe("Hidden");
+  });
+});

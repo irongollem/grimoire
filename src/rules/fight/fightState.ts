@@ -83,6 +83,8 @@ export interface TurnTaken {
   deathSave?: { d20: number; label: string; status: "dying" | "stable" | "dead" | "up" };
   /** With `escapedWith`: "leaves" means the creature was removed from the fight, "unseen" that it is now Invisible and still on the map. */
   escapeEffect?: "leaves" | "unseen";
+  /** Only for a Hide or a Search (#1021 row 13): what the roll did, in a sentence ("Gloom hides.", "Gloom tries to hide but Fresco notices it.", "Gloom searches and finds Fresco."). */
+  outcome?: string;
   /**
    * Only when true: the creature moved and the map has nothing drawn on it that the rules can read (no wall, no door,
    * no solid rock, no difficult ground), so it crossed it as open ground. A picture of a room full of tables is, to

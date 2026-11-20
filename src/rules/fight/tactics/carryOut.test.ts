@@ -59,7 +59,21 @@ describe("stepsFor", () => {
   it("fails if a creature that stays where it is (a path of one cell, or none) is told to move", () => {
     const stay = stepsFor(option("dodge", { destination: { x: 1, y: 1 }, path: [{ x: 1, y: 1 }], feet: 0 }), []);
     expect(stay).toEqual([{ type: "stance", name: "Dodging" }, { type: "use", slot: "action" }]);
-    expect(stepsFor(option("hide"), [])).toEqual([{ type: "use", slot: "action" }]);
+    expect(stepsFor(option("dash"), [])).toEqual([{ type: "use", slot: "action" }]);
+  });
+
+  // PHB 2014 ch. 7 "Hiding": the check is made where the creature ends up, so the walk comes first and the hide step after it, then the Action.
+  // Bug: the Stealth roll is made before the creature has walked behind its cover (or no roll is made at all, as before #1021 row 13).
+  it("fails if Hide does not walk first, then roll Stealth, then use the Action", () => {
+    const steps = stepsFor(option("hide", { destination: { x: 2, y: 0 }, feet: 10, path: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }] }), []);
+    expect(steps).toEqual([{ type: "move", to: { x: 2, y: 0 }, feet: 10 }, { type: "hide" }, { type: "use", slot: "action" }]);
+    expect(stepsFor(option("hide"), [])).toEqual([{ type: "hide" }, { type: "use", slot: "action" }]);
+  });
+
+  // SRD 5.2 "Search [Action]": the Action is spent searching. Bug: a Search that spends the Action and rolls nothing, or a turn that is not a search that rolls.
+  it("fails if Search does not roll, or another turn does", () => {
+    expect(stepsFor(option("search"), [])).toEqual([{ type: "search" }, { type: "use", slot: "action" }]);
+    expect(stepsFor(option("dodge"), []).some((s) => s.type === "search" || s.type === "hide")).toBe(false);
   });
 
   // PHB 2014 "Dodge" / "Disengage": each is an Action that puts its stance on the creature. The bug is an Action spent with no stance.

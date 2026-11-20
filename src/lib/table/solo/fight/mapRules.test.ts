@@ -107,3 +107,14 @@ describe("combatantAt", () => {
     expect(combatantAt({ x: 0.5, y: 0.5 }, [unplaced], size)).toBeNull();
   });
 });
+
+describe("isFoeOf and the Hide action", () => {
+  // Bug caught: a player aiming at a foe that is hiding (it has no known place), or a hiding foe silently shielding its friends.
+  it("cannot pick a foe holding Hidden, can pick one that is not", () => {
+    const hiding = { ...goblin, type: "monster" as const, conditions: [{ name: "Hidden", stealth: 15 }] };
+    const open = { ...goblin, type: "monster" as const, conditions: [{ name: "Poisoned" }] };
+    expect(isFoeOf(me, hiding, factions)).toBe(false);
+    expect(isFoeOf(me, open, factions)).toBe(true);
+    expect(targetOf({ arming: true, clicked: hiding, played: me, factions })).toBeNull();
+  });
+});

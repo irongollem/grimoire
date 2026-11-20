@@ -43,6 +43,7 @@ import type { SpellRecord } from "../../../src/rules/fight/spells/spellChoice";
 import { ownRecord } from "../_shared/fightSpells";
 import type { AppliedCondition } from "../../../src/types/condition.types";
 import type { ExploreParty } from "../../../src/types/exploreParty.types";
+import { hiddenCondition } from "../../../src/rules/fight/stances";
 
 function row(over: Partial<FightRow> = {}): FightRow {
   return {
@@ -5419,5 +5420,123 @@ describe("a Reaction: Counterspell", () => {
     expect(hpOf(stored(h), "tam")).toBe(12);
     expect(combatantOf(stored(h), "tam").reactionUsed).not.toBe(true);
     expect(h.slotWrites).toEqual([]);
+  });
+});
+
+// ── hiding and finding (#1021 row 13) ────────────────────────────────────────────
+
+describe("take_turn: hide, search, and what a hidden creature cannot be aimed at", () => {
+  /** A wolf of Intelligence 12 (a tactical creature is offered Hide) with Stealth +4 and Perception +5 listed. */
+  const wise = (over: Record<string, unknown> = {}): StatBlockSources => ({ monsters: [monster("m-wolf", { int: 12, skills: { stealth: "+4", perception: "+5" }, ...over }), monster("m-ox")], npcs: [], companions: [] });
+  // A wall through x = 2 long enough that nothing walks round it: the wolf at (0,0) has total cover from the ox at (4,0) where it stands.
+  const WALLED = () => mapOf([[2, -50], [2, 50]]);
+  const conditionsOf = (h: Harness, id: string) => combatantOf(stored(h), id).conditions;
+  const hiddenOf = (h: Harness, id: string) => conditionsOf(h, id).find((c) => c.name === "Hidden");
+  const outcomeOf = (result: { effects: Array<{ type: string }> }) => (result.effects[0] as unknown as { turn: { outcome?: string } }).turn.outcome;
+
+  // SRD 5.2 "Hide": DC 15. Stealth +4 and a d20 of 11 is 15: hidden, with 15 kept as the DC a search must meet. A 10 is 14: not hidden.
+  // Bug caught: the Hide option spends the Action and records nothing (as before), or the total is compared strictly (15 failing).
+  it("fails if a kobold's Hide records no Hidden, loses its total, or is off by one at the DC", async () => {
+    const win = harness(duel(), { sources: wise(), map: WALLED(), ruleset: "2024", dieFaces: [11] });
+    const won = await runBatch(batch("b1", takeTurn({ optionId: "hide" })), win.deps);
+    expect(hiddenOf(win, "wolf")).toMatchObject({ name: "Hidden", stealth: 15 });
+    expect(combatantOf(stored(win), "wolf").action_used).toBe(true);
+    expect(win.posted.map((p) => p.result.total)).toEqual([15]);
+    expect(outcomeOf(won)).toBe("wolf hides.");
+
+    const lose = harness(duel(), { sources: wise(), map: WALLED(), ruleset: "2024", dieFaces: [10] });
+    const lost = await runBatch(batch("b2", takeTurn({ optionId: "hide" })), lose.deps);
+    expect(hiddenOf(lose, "wolf")).toBeUndefined();
+    expect(combatantOf(stored(lose), "wolf").action_used).toBe(true);
+    expect(outcomeOf(lost)).toBe("wolf tries to hide but fails (Stealth 14, DC 15).");
+  });
+
+  // Dex 10 is +0, so without the listed +4 a d20 of 11 is 11 and fails: a creature that rolls Stealth with its Dexterity alone never hides.
+  it("fails if the Stealth roll ignores the stat block's listed Stealth bonus", async () => {
+    const h = harness(duel(), { sources: wise({ skills: {} }), map: WALLED(), ruleset: "2024", dieFaces: [11] });
+    await runBatch(batch("b1", takeTurn({ optionId: "hide" })), h.deps);
+    expect(hiddenOf(h, "wolf")).toBeUndefined();
+  });
+
+  // SRD 5.2 "Search [Action]": a Wisdom (Perception) check against the Stealth total. The ox hides at 15 (Hidden's own total) and the wolf
+  // has Perception +5: a d20 of 10 is 15, which meets it; a 9 is 14, which does not.
+  // Bug caught: a search that never removes Hidden, or finds on a total below it, or rolls without the listed Perception bonus.
+  it("fails if a search does not find a hidden foe its Perception meets, or finds one it does not meet", async () => {
+    const fight = () => duel({ victim: { conditions: [hiddenCondition(15)] } });
+    const finds = harness(fight(), { sources: wise(), map: mapOf(), ruleset: "2024", dieFaces: [10] });
+    const found = await runBatch(batch("b1", takeTurn({ optionId: "search" })), finds.deps);
+    expect(hiddenOf(finds, "victim")).toBeUndefined();
+    expect(combatantOf(stored(finds), "wolf").action_used).toBe(true);
+    expect(outcomeOf(found)).toBe("wolf searches (Perception 15) and finds victim.");
+
+    const misses = harness(fight(), { sources: wise(), map: mapOf(), ruleset: "2024", dieFaces: [9] });
+    const missed = await runBatch(batch("b2", takeTurn({ optionId: "search" })), misses.deps);
+    expect(hiddenOf(misses, "victim")).toMatchObject({ stealth: 15 });
+    expect(outcomeOf(missed)).toBe("wolf searches (Perception 14) and finds no one.");
+  });
+
+  // 2014 is a contest (PHB ch. 7): a tie leaves the hider hidden. Total 15 against Stealth 15 finds no one, 16 finds. Bug caught: the 2024 rule used in 2014.
+  it("fails if a 2014 search that only ties the hider's Stealth finds it", async () => {
+    const tie = harness(duel({ victim: { conditions: [hiddenCondition(15)] } }), { sources: wise(), map: mapOf(), ruleset: "2014", dieFaces: [10] });
+    await runBatch(batch("b1", takeTurn({ optionId: "search" })), tie.deps);
+    expect(hiddenOf(tie, "victim")).toBeDefined();
+    const beat = harness(duel({ victim: { conditions: [hiddenCondition(15)] } }), { sources: wise(), map: mapOf(), ruleset: "2014", dieFaces: [11] });
+    await runBatch(batch("b2", takeTurn({ optionId: "search" })), beat.deps);
+    expect(hiddenOf(beat, "victim")).toBeUndefined();
+  });
+
+  // One roll, a 60 ft reach: the near ox (gap 3 squares = 15 ft) is found, the far one (x = 20: gap 19 squares, 95 ft) is not, though the one total beats both.
+  // Bug caught: a search that finds a creature across the map, or rolls once per creature.
+  it("fails if one search finds a hidden foe beyond 60 feet, or rolls more than once", async () => {
+    const fight = duel({ victim: { conditions: [hiddenCondition(10)] }, extra: [combatant("far", { monster_id: "m-ox", faction_id: "p", hp: 40, max_hp: 40, ac: "13", initiative: 3, position: { x: 20, y: 0 }, conditions: [hiddenCondition(10)] })] });
+    const h = harness(fight, { sources: wise(), map: mapOf(), ruleset: "2024", dieFaces: [19] });
+    await runBatch(batch("b1", takeTurn({ optionId: "search" })), h.deps);
+    expect(hiddenOf(h, "victim")).toBeUndefined();
+    expect(hiddenOf(h, "far")).toBeDefined();
+    expect(h.dieCalls).toBe(1);
+  });
+
+  // The rules-only picker: the only foe is hidden, so no attack is offered and the wolf searches rather than walking at a foe it cannot find.
+  it("fails if the picker does not search when the only foe is hidden", async () => {
+    const h = harness(duel({ victim: { conditions: [hiddenCondition(15)] } }), { sources: wise({ int: 10 }), map: mapOf(), ruleset: "2024", dieFaces: [10] });
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(result.effects[0]).toMatchObject({ type: "turn_taken", turn: { kind: "search", picked: "rules" } });
+    expect(hpOf(stored(h), "victim")).toBe(40);
+  });
+
+  // An attack on a foe in view ends the attacker's own Hidden, hit or miss (PHB 2014 ch. 9 "Unseen Attackers and Targets"). An unseen attacker rolls with
+  // advantage, so two d20s, both 1: a miss.
+  // Bug caught: a creature keeps Hidden through its own attack, so it strikes from hiding every round.
+  it("fails if a hiding creature keeps Hidden after it attacks", async () => {
+    const h = harness(duel({ wolf: { conditions: [hiddenCondition(15)] } }), { sources: SOURCES, map: mapOf(), dieFaces: [1, 1] });
+    await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(hiddenOf(h, "wolf")).toBeUndefined();
+    expect(combatantOf(stored(h), "wolf").action_used).toBe(true);
+  });
+
+  // The same for a spell with an attack roll (Fire Bolt): d20 15, then its damage dice.
+  it("fails if a hiding caster keeps Hidden after a spell attack", async () => {
+    const sources: StatBlockSources = { monsters: [{ id: "m-mage", name: "Mage", stat_block: mageBlock({ actions: [] }) } as unknown as Monster, monster("m-ox")], npcs: [], companions: [] };
+    const fight = row({
+      combatants_live: [
+        combatant("mage", { monster_id: "m-mage", faction_id: "m", hp: 40, max_hp: 40, initiative: 12, position: { x: 1, y: 1 }, conditions: [hiddenCondition(12)] }),
+        combatant("t1", { monster_id: "m-ox", faction_id: "p", hp: 40, max_hp: 40, ac: "13", initiative: 5, position: { x: 4, y: 1 } }),
+      ],
+    });
+    const h = harness(fight, { sources, map: mapOf(), spells: [fireBolt()], dieFaces: [15, 3, 4, 1, 1, 1, 1] });
+    await runBatch(batch("b1", { type: "cast_spell", casterId: "mage", spell: "fire bolt", targetIds: ["t1"] } as CommandRequest["commands"][number]), h.deps);
+    expect(hpOf(stored(h), "t1")).toBeLessThan(40);
+    expect(hiddenOf(h, "mage")).toBeUndefined();
+  });
+
+  // A hidden creature leaving a foe's reach is not seen to leave: the ox does not strike (PHB 2014 ch. 9 "Opportunity Attacks": a creature you can see).
+  // Same fight as the opportunity test above, where the ox's d20 9 + 4 downs the wolf; here no die is thrown and the wolf is not downed.
+  it("fails if an enemy strikes a hidden creature as it leaves its reach", async () => {
+    const fight = duel({ wolf: { hp: 2, position: { x: 1, y: 0 }, conditions: [hiddenCondition(15)] }, victim: { position: { x: 2, y: 0 } } });
+    const h = harness(fight, { sources: SOURCES, map: mapOf(), dieFaces: [] });
+    const result = await runBatch(batch("b1", takeTurn()), h.deps);
+    expect(result.effects.some((e) => e.type === "opportunity")).toBe(false);
+    expect(hpOf(stored(h), "wolf")).toBe(2);
+    expect(h.dieCalls).toBe(0);
   });
 });

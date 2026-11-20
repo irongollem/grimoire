@@ -8,6 +8,8 @@ import { AMBIENT, illuminationGrid, NO_ZONES, type DarknessZone } from "@/lib/ba
 import { NO_OCCLUDERS, occludersOf } from "@/lib/battlemap/occlusion";
 import { combatantFootprint, type SizedToken } from "@/lib/battlemap/tokenFootprint";
 import { SEEN_THRESHOLD, visionGrid, type LitScene, type Viewer } from "@/lib/battlemap/vision";
+import { hiddenFromPlayers } from "@/rules/fight/stances";
+import type { AppliedCondition } from "@/types/condition.types";
 import type { MapLive, MapLiveDoorState } from "@/types/mapLive.types";
 
 /** The light and walls sight reads: the snapshot's lights, walls and doors at their play state, magical darkness; with no snapshot (a plain picture), daylight with nothing in the way. */
@@ -83,8 +85,18 @@ export function footprintCells(token: SizedToken & { position: { x: number; y: n
   return cells;
 }
 
+/**
+ * Whether a token took the Hide action and is still unfound, so no player screen draws it (#1021 row 13). Tolerant of a
+ * token shape that carries no type or conditions (the party's own explore tokens): such a token is not hiding.
+ */
+export function hiddenFromTheParty(c: { type?: string; conditions?: readonly AppliedCondition[] }): boolean {
+  return c.type !== undefined && c.conditions !== undefined && hiddenFromPlayers({ type: c.type, conditions: c.conditions });
+}
+
 /** Tokens a player screen draws: its own (ownId) always, a token with no position never, any other only where the party sees a square of its footprint. */
-export function partyVisibleCombatants<T extends SizedToken & { instance_id: string; position?: { x: number; y: number } | null }>(
+export function partyVisibleCombatants<
+  T extends SizedToken & { instance_id: string; type?: string; conditions?: readonly AppliedCondition[]; position?: { x: number; y: number } | null },
+>(
   list: readonly T[],
   sight: ReadonlySet<FogCellKey>,
   ownId: string | null,
@@ -92,6 +104,7 @@ export function partyVisibleCombatants<T extends SizedToken & { instance_id: str
   return list.filter((c) => {
     if (c.instance_id === ownId) return true;
     if (!c.position) return false;
+    if (hiddenFromTheParty(c)) return false;
     return footprintCells({ ...c, position: c.position }).some((k) => sight.has(k));
   });
 }
@@ -101,13 +114,14 @@ export function partyVisibleCombatants<T extends SizedToken & { instance_id: str
  * character always, since the TV is each player's own screen and each sees their own coin there; any other token
  * (monsters, NPCs, allies) only where the party sees a square of its footprint.
  */
-export function tableTokens<T extends SizedToken & { type: string; position?: { x: number; y: number } | null }>(
+export function tableTokens<T extends SizedToken & { type: string; conditions?: readonly AppliedCondition[]; position?: { x: number; y: number } | null }>(
   list: readonly T[],
   sight: ReadonlySet<FogCellKey>,
 ): T[] {
   return list.filter((c) => {
     if (!c.position) return false;
     if (c.type === "player") return true;
+    if (hiddenFromTheParty(c)) return false;
     return footprintCells({ ...c, position: c.position }).some((k) => sight.has(k));
   });
 }

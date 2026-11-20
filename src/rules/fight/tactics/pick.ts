@@ -16,6 +16,7 @@ import { type TurnOption, type TurnOptionSpell } from "../terrain/options/types.
 import type { MoraleRule, TacticalProfile } from "./profile.ts";
 import { chooseActionBoon, isBoonOption } from "./boonChoice.ts";
 import { chooseActionHeal, isHealOption } from "./healChoice.ts";
+import { chooseSearch } from "./searchChoice.ts";
 import { seenAs, seenDamagePerTurn } from "./shownThreat.ts";
 import { usableWayOut, type WayOut } from "./wayOut.ts";
 
@@ -484,6 +485,9 @@ export function pickTurn(offered: readonly TurnOption[], profile: TacticalProfil
     }
   }
   if (attackChoice !== null && best !== null) return { optionId: best.option.id, reason: describeAttack(best.option, best.target, attackChoice.why) };
+  // RULE search-when-nothing-to-strike (`searchChoice.ts`): with nothing to attack or cast at, a hidden foe is looked for before the creature closes in or dodges.
+  const searched = chooseSearch(options);
+  if (searched !== null) return searched;
   // A cast that was ruled out is no turn to fall back on: what is left is judged without it, unless nothing else is on offer.
   const left = options.filter((o) => o.kind !== "spell" && o.kind !== "heal" && o.kind !== "boon");
   const turns = left.length > 0 ? left : options;

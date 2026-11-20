@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { RunCombatant } from "../../../../types/encounter.types.ts";
 import { boonableNow, castableNow, healableNow } from "../../spells/castNow.ts";
 import { bless, clericBlock, cureWounds, fireball, healingWord, mageBlock, shieldOfFaith } from "../../spells/spellTestKit.ts";
+import { hiddenCondition } from "../../stances.ts";
 import { creature, ogre, fresco, run, find } from "./turnOptionsTestKit.ts";
 
 // SRD 5.1 Black Tentacles: "A creature restrained by the tentacles can use its action to make a Strength or Dexterity check
@@ -153,5 +154,17 @@ describe("rule 14: boon options", () => {
   it("fails if a boon is offered when the slot it uses is spent", () => {
     expect(boonOptions([friend("a", 1)], { action_used: true }).map((o) => o.boon?.name)).toEqual(["Shield of Faith"]);
     expect(boonOptions([friend("a", 1)], { bonus_used: true }).map((o) => o.boon?.name)).toEqual(["Bless"]);
+  });
+});
+
+// PHB 2014 ch. 9 "Unseen Attackers and Targets": a caster cannot aim at a creature whose place it does not know.
+describe("spells against a hidden hostile (#1021 row 13)", () => {
+  const caster = (): RunCombatant => ogre(0, 0, { monster_id: undefined });
+  const options = (foe: RunCombatant) => run({ combatants: [caster(), foe], attacks: [], spells: castableNow(mageBlock(), caster(), [fireball()], "2014") });
+
+  // Bug: the cast is offered at the hidden creature (it is the only foe, so a spell option at all means it was targeted).
+  it("offers no cast at a hidden hostile, and does at the same one in view", () => {
+    expect(options(fresco(4, 0)).some((o) => o.kind === "spell")).toBe(true);
+    expect(options(fresco(4, 0, { conditions: [hiddenCondition(12)] })).some((o) => o.kind === "spell")).toBe(false);
   });
 });

@@ -111,7 +111,13 @@ describe("PlayerCombatTab hiding", () => {
     const w = mountBeast([], rules2024);
     await hideButton(w).trigger("click");
     await flushPromises();
-    expect(updateMember).toHaveBeenCalledWith({ id: "m1", update: { conditions: [{ name: "Hidden" }] } });
+    // Bug caught: the total kept only in a local ref, so the DM's map, the AI table and a search never read it.
+    expect(updateMember).toHaveBeenCalledWith({ id: "m1", update: { conditions: [{ name: "Hidden", stealth: 15 }] } });
+  });
+
+  it("shows the total the Hidden condition carries, from the condition and not from a local note", () => {
+    const withTotal = { ...member, ruleset: "2024", conditions: [{ name: "Hidden", stealth: 19 }] } as unknown as PartyMember;
+    expect(mountBeast([], withTotal).text()).toContain("Stealth 19");
   });
 
   it("does not mark Hidden on a 14", async () => {

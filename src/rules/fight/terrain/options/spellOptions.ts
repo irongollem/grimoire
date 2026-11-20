@@ -4,6 +4,7 @@
 import type { RunCombatant } from "../../../../types/encounter.types.ts";
 import { isAllyOf } from "../../allies.ts";
 import { isHostileTo } from "../../sides.ts";
+import { aimableHostiles } from "../../hiding.ts";
 import type { FightMap } from "../battleMap.ts";
 import { boonTargetings, type BoonTargeting } from "../boonTargeting.ts";
 import { healTargetings, type HealTargeting } from "../healTargeting.ts";
@@ -46,7 +47,8 @@ export function spellOptionsOf(input: TurnOptionsInput, mover: RunCombatant, nam
   const living = input.combatants.filter((c) => c.instance_id !== mover.instance_id && isLiving(c) && (scene === null || isOnBoard(c)));
   const base = {
     mover,
-    hostiles: living.filter((c) => isHostileTo(mover, c, input.factions ?? [])),
+    // A hostile that holds Hidden is not aimed at (`aimableHostiles`): a single target, a multi-target cast and the centre of an area all pick from these.
+    hostiles: aimableHostiles(living.filter((c) => isHostileTo(mover, c, input.factions ?? []))),
     // An ally fights on the mover's side; a Neutral is neither foe nor ally, so no heal or buff is aimed at it (`isAllyOf`).
     allies: living.filter((c) => isAllyOf(mover, c, input.factions ?? [])),
     scene: scene === null ? null : { occluders: scene.map.occluders, onBoard: input.combatants.filter(isOnBoard) },

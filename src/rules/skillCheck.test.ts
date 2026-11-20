@@ -5,6 +5,7 @@ import {
   passiveScore,
   skillCheckBonus,
   statBlockPassive,
+  statBlockSkillBonus,
   type SkillCheckSource,
 } from "@/rules/skillCheck";
 
@@ -162,5 +163,18 @@ describe("statBlockPassive", () => {
   it("falls back to the ability modifier for a skill the block does not list", () => {
     expect(statBlockPassive({ ...block, skills: { perception: "+3" } }, "investigation")).toBe(6);
     expect(statBlockPassive(block, "insight")).toBe(11);
+  });
+});
+
+describe("statBlockSkillBonus", () => {
+  const block = { str: 3, dex: 15, con: 10, int: 3, wis: 12, cha: 7 };
+
+  // Bug: a Stealth roll for a monster ignores its listed +6 and rolls with Dex alone, so a master of stealth hides like anyone else.
+  // Dex 15 is +2, the listed skill is +6: the check adds 6, not 2.
+  it("adds the listed bonus, and the ability modifier when the skill is not listed", () => {
+    expect(statBlockSkillBonus({ ...block, skills: { stealth: "+6" } }, "stealth")).toBe(6);
+    expect(statBlockSkillBonus(block, "stealth")).toBe(2);
+    // Wis 12 is +1.
+    expect(statBlockSkillBonus(block, "perception")).toBe(1);
   });
 });
